@@ -57,7 +57,9 @@ This implementation plan converts the racing wheel software design into mileston
 
 
 
-- [-] 0.1 ADR & CI scaffolding
+- [x] 0.1 ADR & CI scaffolding
+
+
 
 
   - Create ADR template and decision records for FFB modes, IPC transport, OWP-1 protocol
