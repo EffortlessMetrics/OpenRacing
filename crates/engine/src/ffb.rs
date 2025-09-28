@@ -6,6 +6,37 @@
 use racing_wheel_schemas::{DeviceCapabilities, TorqueNm};
 use std::fmt;
 
+/// Real-time frame data structure for 1kHz processing
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct Frame {
+    /// FFB input from game (-1.0 to 1.0)
+    pub ffb_in: f32,
+    /// Torque output after filters (-1.0 to 1.0)
+    pub torque_out: f32,
+    /// Wheel speed in rad/s for speed-adaptive filters
+    pub wheel_speed: f32,
+    /// Hands-off detection flag
+    pub hands_off: bool,
+    /// Monotonic timestamp in nanoseconds
+    pub ts_mono_ns: u64,
+    /// Sequence number for device communication
+    pub seq: u16,
+}
+
+impl Default for Frame {
+    fn default() -> Self {
+        Self {
+            ffb_in: 0.0,
+            torque_out: 0.0,
+            wheel_speed: 0.0,
+            hands_off: false,
+            ts_mono_ns: 0,
+            seq: 0,
+        }
+    }
+}
+
 /// Force Feedback operating modes
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FFBMode {

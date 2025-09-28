@@ -17,6 +17,7 @@ mimalloc = { workspace = true, optional = true }
 async-trait = "0.1"
 rand = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
+serde = { workspace = true }
 
 [dev-dependencies]
 tracing-test = "0.2"

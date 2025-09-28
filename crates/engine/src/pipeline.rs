@@ -1,6 +1,7 @@
 //! Filter pipeline for real-time force feedback processing
 
-use crate::{Frame, RTResult};
+use crate::ffb::Frame;
+use crate::rt::RTResult;
 
 /// Function pointer type for filter nodes
 pub type FilterNodeFn = fn(&mut Frame, *mut u8);

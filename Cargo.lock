@@ -3570,6 +3570,7 @@ dependencies = [
  "quickcheck_macros",
  "racing-wheel-schemas",
  "rand 0.8.5",
+ "serde",
  "thiserror 1.0.69",
  "tokio",
  "tokio-test",
@@ -3619,6 +3620,7 @@ name = "racing-wheel-ui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "racing-wheel-engine",
  "racing-wheel-schemas",
  "serde",
  "serde_json",

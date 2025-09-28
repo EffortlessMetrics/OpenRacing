@@ -161,14 +161,27 @@ This implementation plan converts the racing wheel software design into mileston
 
 ### M2 — Safety Interlocks + Watchdogs
 
-- [ ] 2.1 Safety Interlock (Physical + UI)
+- [x] 2.1 Safety Interlock (Physical + UI)
+
+
+
+
+
   - Implement wheel button combo challenge/acknowledgment protocol
   - Create tokened unlock system that persists until device power-cycle
   - Build UI consent flow with explicit high-torque warnings and disclaimers
   - Write tests for interlock state machine and token validation
   - _Requirements: SAFE-02_
 
-- [ ] 2.2 FMEA + Watchdogs + Fault Matrix
+- [x] 2.2 FMEA + Watchdogs + Fault Matrix
+
+
+
+
+
+
+
+
   - Define fault detection→action→post-mortem for USB stalls, encoder NaNs, thermal limits
   - Implement watchdog thresholds and quarantine policy for plugin overruns
   - Create soft-stop mechanism with torque ramping ≤50ms and audible alerts

@@ -25,6 +25,12 @@ pub mod report_ids {
     
     /// IN Report: Configuration Acknowledgment
     pub const CONFIG_ACK: u8 = 0x22;
+    
+    /// Feature Report: Safety Interlock Challenge
+    pub const SAFETY_CHALLENGE: u8 = 0x03;
+    
+    /// IN Report: Safety Interlock Acknowledgment
+    pub const SAFETY_ACK: u8 = 0x23;
 }
 
 /// Fault flags for device telemetry
@@ -416,6 +422,182 @@ impl DeviceCapabilitiesReport {
     }
 }
 
+/// Feature Report 0x03 - Safety Interlock Challenge
+#[repr(C, packed)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SafetyInterlockChallenge {
+    /// Report ID (0x03)
+    pub report_id: u8,
+    
+    /// Challenge token
+    pub challenge_token: u32,
+    
+    /// Required button combo (0 = both clutch paddles, 1+ = custom)
+    pub combo_type: u8,
+    
+    /// Required hold duration in milliseconds
+    pub hold_duration_ms: u16,
+    
+    /// Challenge expires at (Unix timestamp, seconds since epoch)
+    pub expires_unix_secs: u32,
+}
+
+impl SafetyInterlockChallenge {
+    /// Both clutch paddles combo type
+    pub const COMBO_BOTH_CLUTCH: u8 = 0;
+    
+    /// Custom combo type (device-specific)
+    pub const COMBO_CUSTOM: u8 = 1;
+    
+    /// Create a new safety interlock challenge
+    pub fn new(
+        challenge_token: u32,
+        combo_type: u8,
+        hold_duration_ms: u16,
+        expires_unix_secs: u32,
+    ) -> Self {
+        Self {
+            report_id: report_ids::SAFETY_CHALLENGE,
+            challenge_token,
+            combo_type,
+            hold_duration_ms,
+            expires_unix_secs,
+        }
+    }
+    
+    /// Convert to byte array for HID transmission
+    pub fn to_bytes(&self) -> [u8; 12] {
+        unsafe { mem::transmute(*self) }
+    }
+    
+    /// Create from byte array received from HID
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
+        if bytes.len() < 12 {
+            return Err("Safety challenge too short".to_string());
+        }
+        
+        let challenge: Self = unsafe { mem::transmute([
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5],
+            bytes[6], bytes[7], bytes[8], bytes[9], bytes[10], bytes[11]
+        ]) };
+        
+        if challenge.report_id != report_ids::SAFETY_CHALLENGE {
+            return Err(format!("Invalid report ID: expected 0x{:02x}, got 0x{:02x}", 
+                report_ids::SAFETY_CHALLENGE, challenge.report_id));
+        }
+        
+        Ok(challenge)
+    }
+}
+
+/// IN Report 0x23 - Safety Interlock Acknowledgment (Device -> Host)
+#[repr(C, packed)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SafetyInterlockAck {
+    /// Report ID (0x23)
+    pub report_id: u8,
+    
+    /// Challenge token being acknowledged
+    pub challenge_token: u32,
+    
+    /// Device-generated token (persists until power cycle)
+    pub device_token: u32,
+    
+    /// Combo type that was completed
+    pub combo_completed: u8,
+    
+    /// Actual hold duration in milliseconds
+    pub actual_hold_duration_ms: u16,
+    
+    /// Timestamp when combo was completed (device ticks)
+    pub completion_timestamp: u32,
+    
+    /// CRC8 checksum of the payload
+    pub crc8: u8,
+}
+
+impl SafetyInterlockAck {
+    /// Create a new safety interlock acknowledgment
+    pub fn new(
+        challenge_token: u32,
+        device_token: u32,
+        combo_completed: u8,
+        actual_hold_duration_ms: u16,
+        completion_timestamp: u32,
+    ) -> Self {
+        let mut ack = Self {
+            report_id: report_ids::SAFETY_ACK,
+            challenge_token,
+            device_token,
+            combo_completed,
+            actual_hold_duration_ms,
+            completion_timestamp,
+            crc8: 0,
+        };
+        
+        // Calculate CRC8 over the payload
+        ack.crc8 = Self::calculate_crc8(&ack);
+        ack
+    }
+    
+    /// Validate the CRC8 checksum
+    pub fn validate_crc(&self) -> bool {
+        let expected_crc = Self::calculate_crc8(self);
+        self.crc8 == expected_crc
+    }
+    
+    /// Calculate CRC8 checksum over the payload
+    fn calculate_crc8(ack: &Self) -> u8 {
+        let payload = [
+            (ack.challenge_token & 0xFF) as u8,
+            ((ack.challenge_token >> 8) & 0xFF) as u8,
+            ((ack.challenge_token >> 16) & 0xFF) as u8,
+            ((ack.challenge_token >> 24) & 0xFF) as u8,
+            (ack.device_token & 0xFF) as u8,
+            ((ack.device_token >> 8) & 0xFF) as u8,
+            ((ack.device_token >> 16) & 0xFF) as u8,
+            ((ack.device_token >> 24) & 0xFF) as u8,
+            ack.combo_completed,
+            (ack.actual_hold_duration_ms & 0xFF) as u8,
+            (ack.actual_hold_duration_ms >> 8) as u8,
+            (ack.completion_timestamp & 0xFF) as u8,
+            ((ack.completion_timestamp >> 8) & 0xFF) as u8,
+            ((ack.completion_timestamp >> 16) & 0xFF) as u8,
+            ((ack.completion_timestamp >> 24) & 0xFF) as u8,
+        ];
+        
+        crc8(&payload)
+    }
+    
+    /// Convert to byte array for HID transmission
+    pub fn to_bytes(&self) -> [u8; 17] {
+        unsafe { mem::transmute(*self) }
+    }
+    
+    /// Create from byte array received from HID
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
+        if bytes.len() < 17 {
+            return Err("Safety acknowledgment too short".to_string());
+        }
+        
+        let ack: Self = unsafe { mem::transmute([
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15], bytes[16]
+        ]) };
+        
+        if ack.report_id != report_ids::SAFETY_ACK {
+            return Err(format!("Invalid report ID: expected 0x{:02x}, got 0x{:02x}", 
+                report_ids::SAFETY_ACK, ack.report_id));
+        }
+        
+        if !ack.validate_crc() {
+            return Err("CRC validation failed".to_string());
+        }
+        
+        Ok(ack)
+    }
+}
+
 /// Simple CRC8 implementation for OWP-1 protocol
 /// Uses polynomial 0x07 (x^8 + x^2 + x + 1)
 fn crc8(data: &[u8]) -> u8 {
@@ -660,5 +842,76 @@ mod tests {
         assert_eq!(mem::size_of::<TorqueCommand>(), 7);
         assert_eq!(mem::size_of::<DeviceTelemetryReport>(), 13);
         assert_eq!(mem::size_of::<DeviceCapabilitiesReport>(), 9);
+        assert_eq!(mem::size_of::<SafetyInterlockChallenge>(), 12);
+        assert_eq!(mem::size_of::<SafetyInterlockAck>(), 17);
+    }
+
+    #[test]
+    fn test_safety_interlock_challenge() {
+        let challenge = SafetyInterlockChallenge::new(
+            0x12345678,
+            SafetyInterlockChallenge::COMBO_BOTH_CLUTCH,
+            2000,
+            1640995200, // 2022-01-01 00:00:00 UTC
+        );
+        
+        let bytes = challenge.to_bytes();
+        assert_eq!(bytes[0], report_ids::SAFETY_CHALLENGE);
+        
+        let parsed = SafetyInterlockChallenge::from_bytes(&bytes).unwrap();
+        // Copy fields to avoid packed struct alignment issues
+        let challenge_token = parsed.challenge_token;
+        let combo_type = parsed.combo_type;
+        let hold_duration_ms = parsed.hold_duration_ms;
+        let expires_unix_secs = parsed.expires_unix_secs;
+        
+        assert_eq!(challenge_token, 0x12345678);
+        assert_eq!(combo_type, SafetyInterlockChallenge::COMBO_BOTH_CLUTCH);
+        assert_eq!(hold_duration_ms, 2000);
+        assert_eq!(expires_unix_secs, 1640995200);
+    }
+
+    #[test]
+    fn test_safety_interlock_ack() {
+        let ack = SafetyInterlockAck::new(
+            0x12345678,
+            0x87654321,
+            SafetyInterlockChallenge::COMBO_BOTH_CLUTCH,
+            2100,
+            1000000,
+        );
+        
+        assert!(ack.validate_crc());
+        
+        let bytes = ack.to_bytes();
+        assert_eq!(bytes[0], report_ids::SAFETY_ACK);
+        
+        let parsed = SafetyInterlockAck::from_bytes(&bytes).unwrap();
+        // Copy fields to avoid packed struct alignment issues
+        let challenge_token = parsed.challenge_token;
+        let device_token = parsed.device_token;
+        let combo_completed = parsed.combo_completed;
+        let actual_hold_duration_ms = parsed.actual_hold_duration_ms;
+        let completion_timestamp = parsed.completion_timestamp;
+        
+        assert_eq!(challenge_token, 0x12345678);
+        assert_eq!(device_token, 0x87654321);
+        assert_eq!(combo_completed, SafetyInterlockChallenge::COMBO_BOTH_CLUTCH);
+        assert_eq!(actual_hold_duration_ms, 2100);
+        assert_eq!(completion_timestamp, 1000000);
+        assert!(parsed.validate_crc());
+    }
+
+    #[test]
+    fn test_safety_ack_crc_validation() {
+        let ack = SafetyInterlockAck::new(0x12345678, 0x87654321, 0, 2000, 1000000);
+        assert!(ack.validate_crc());
+        
+        // Test with corrupted data
+        let mut bytes = ack.to_bytes();
+        bytes[5] = 0xFF; // Corrupt device token
+        let corrupted = SafetyInterlockAck::from_bytes(&bytes);
+        assert!(corrupted.is_err());
+        assert!(corrupted.unwrap_err().contains("CRC validation failed"));
     }
 }
