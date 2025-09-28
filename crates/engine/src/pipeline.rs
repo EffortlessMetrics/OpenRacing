@@ -722,10 +722,379 @@ pub fn torque_limit_filter(frame: &mut Frame, state: *mut u8) {
     }
 }
 
-// Debug allocation tracking for CI assertions
-#[cfg(debug_assertions)]
-fn get_allocation_count() -> usize {
-    // In a real implementation, this would track actual allocations
-    // For now, we return 0 as a placeholder
-    0
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use racing_wheel_schemas::{
+        Gain, FrequencyHz, CurvePoint, NotchFilter, FilterConfig
+    };
+
+
+    fn create_test_filter_config() -> FilterConfig {
+        FilterConfig::new(
+            4, // reconstruction
+            Gain::new(0.1).unwrap(), // friction
+            Gain::new(0.15).unwrap(), // damper
+            Gain::new(0.05).unwrap(), // inertia
+            vec![
+                NotchFilter::new(
+                    FrequencyHz::new(60.0).unwrap(),
+                    2.0,
+                    -12.0
+                ).unwrap()
+            ],
+            Gain::new(0.8).unwrap(), // slew_rate
+            vec![
+                CurvePoint::new(0.0, 0.0).unwrap(),
+                CurvePoint::new(0.5, 0.6).unwrap(),
+                CurvePoint::new(1.0, 1.0).unwrap(),
+            ]
+        ).unwrap()
+    }
+
+    fn create_linear_filter_config() -> FilterConfig {
+        FilterConfig::new(
+            0, // no reconstruction
+            Gain::new(0.0).unwrap(), // no friction
+            Gain::new(0.0).unwrap(), // no damper
+            Gain::new(0.0).unwrap(), // no inertia
+            vec![], // no notch filters
+            Gain::new(1.0).unwrap(), // no slew rate limiting
+            vec![
+                CurvePoint::new(0.0, 0.0).unwrap(),
+                CurvePoint::new(1.0, 1.0).unwrap(),
+            ]
+        ).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_compilation_basic() {
+        let compiler = PipelineCompiler::new();
+        let config = create_test_filter_config();
+
+        let result = compiler.compile_pipeline(config).await;
+        assert!(result.is_ok());
+
+        let compiled = result.unwrap();
+        assert!(compiled.pipeline.node_count() > 0);
+        assert!(compiled.config_hash != 0);
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_compilation_deterministic() {
+        let compiler = PipelineCompiler::new();
+        let config = create_test_filter_config();
+
+        // Compile the same config twice
+        let result1 = compiler.compile_pipeline(config.clone()).await.unwrap();
+        let result2 = compiler.compile_pipeline(config).await.unwrap();
+
+        // Should produce identical hashes
+        assert_eq!(result1.config_hash, result2.config_hash);
+        assert_eq!(result1.pipeline.node_count(), result2.pipeline.node_count());
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_compilation_different_configs() {
+        let compiler = PipelineCompiler::new();
+        let config1 = create_test_filter_config();
+        let config2 = create_linear_filter_config();
+
+        let result1 = compiler.compile_pipeline(config1).await.unwrap();
+        let result2 = compiler.compile_pipeline(config2).await.unwrap();
+
+        // Should produce different hashes
+        assert_ne!(result1.config_hash, result2.config_hash);
+    }
+
+    #[test]
+    fn test_pipeline_processing_zero_alloc() {
+        let mut pipeline = Pipeline::new();
+        let mut frame = crate::ffb::Frame {
+            ffb_in: 0.5,
+            torque_out: 0.0,
+            wheel_speed: 0.0,
+            hands_off: false,
+            ts_mono_ns: 0,
+            seq: 1,
+        };
+
+        // Track allocations during processing
+        #[cfg(debug_assertions)]
+        {
+            let alloc_guard = crate::allocation_tracker::track();
+            let result = pipeline.process(&mut frame);
+            assert!(result.is_ok());
+            
+            // Assert no allocations occurred
+            crate::assert_zero_alloc!(alloc_guard, "Pipeline processing allocated memory");
+        }
+
+        #[cfg(not(debug_assertions))]
+        {
+            let result = pipeline.process(&mut frame);
+            assert!(result.is_ok());
+        }
+    }
+
+    #[test]
+    fn test_pipeline_swap_atomicity() {
+        let mut pipeline1 = Pipeline::new();
+        let pipeline2 = Pipeline::with_hash(0x12345678);
+
+        // Verify initial state
+        assert_eq!(pipeline1.config_hash(), 0);
+        assert_eq!(pipeline1.node_count(), 0);
+
+        // Perform atomic swap
+        pipeline1.swap_at_tick_boundary(pipeline2);
+
+        // Verify swap completed atomically
+        assert_eq!(pipeline1.config_hash(), 0x12345678);
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_validation_invalid_config() {
+        let compiler = PipelineCompiler::new();
+        
+        // Create invalid config with reconstruction level too high
+        let invalid_config = FilterConfig {
+            reconstruction: 10, // Invalid: > 8
+            friction: Gain::new(0.1).unwrap(),
+            damper: Gain::new(0.15).unwrap(),
+            inertia: Gain::new(0.05).unwrap(),
+            notch_filters: vec![],
+            slew_rate: Gain::new(0.8).unwrap(),
+            curve_points: vec![
+                CurvePoint::new(0.0, 0.0).unwrap(),
+                CurvePoint::new(1.0, 1.0).unwrap(),
+            ],
+        };
+
+        let result = compiler.compile_pipeline(invalid_config).await;
+        assert!(result.is_err());
+        
+        match result.unwrap_err() {
+            PipelineError::InvalidConfig(_) => {}, // Expected
+            _ => panic!("Expected InvalidConfig error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_validation_non_monotonic_curve() {
+        let compiler = PipelineCompiler::new();
+        
+        // Create config with non-monotonic curve
+        let invalid_config = FilterConfig {
+            reconstruction: 4,
+            friction: Gain::new(0.1).unwrap(),
+            damper: Gain::new(0.15).unwrap(),
+            inertia: Gain::new(0.05).unwrap(),
+            notch_filters: vec![],
+            slew_rate: Gain::new(0.8).unwrap(),
+            curve_points: vec![
+                CurvePoint::new(0.0, 0.0).unwrap(),
+                CurvePoint::new(0.7, 0.6).unwrap(),
+                CurvePoint::new(0.5, 0.8).unwrap(), // Non-monotonic!
+                CurvePoint::new(1.0, 1.0).unwrap(),
+            ],
+        };
+
+        let result = compiler.compile_pipeline(invalid_config).await;
+        assert!(result.is_err());
+        
+        match result.unwrap_err() {
+            PipelineError::NonMonotonicCurve => {}, // Expected
+            _ => panic!("Expected NonMonotonicCurve error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_validation_invalid_parameters() {
+        let compiler = PipelineCompiler::new();
+        
+        // Create config with invalid gain values
+        let invalid_config = FilterConfig {
+            reconstruction: 4,
+            friction: Gain::new(1.5).unwrap_or(Gain::FULL), // This would be invalid if not clamped
+            damper: Gain::new(0.15).unwrap(),
+            inertia: Gain::new(0.05).unwrap(),
+            notch_filters: vec![
+                NotchFilter::new(
+                    FrequencyHz::new(600.0).unwrap(), // Too high frequency
+                    2.0,
+                    -12.0
+                ).unwrap()
+            ],
+            slew_rate: Gain::new(0.8).unwrap(),
+            curve_points: vec![
+                CurvePoint::new(0.0, 0.0).unwrap(),
+                CurvePoint::new(1.0, 1.0).unwrap(),
+            ],
+        };
+
+        let result = compiler.compile_pipeline(invalid_config).await;
+        assert!(result.is_err());
+        
+        match result.unwrap_err() {
+            PipelineError::InvalidParameters(_) => {}, // Expected
+            _ => panic!("Expected InvalidParameters error"),
+        }
+    }
+
+    #[test]
+    fn test_filter_nodes_bounds_checking() {
+        let mut frame = crate::ffb::Frame {
+            ffb_in: 0.5,
+            torque_out: 0.5,
+            wheel_speed: 10.0, // rad/s
+            hands_off: false,
+            ts_mono_ns: 0,
+            seq: 1,
+        };
+
+        // Test friction filter
+        let friction_coeff = 0.2f32;
+        let state_ptr = &friction_coeff as *const f32 as *mut u8;
+        friction_filter(&mut frame, state_ptr);
+        
+        // Output should be bounded
+        assert!(frame.torque_out.is_finite());
+        assert!(frame.torque_out.abs() <= 2.0); // Reasonable bound
+
+        // Test with extreme wheel speed
+        frame.wheel_speed = 1000.0;
+        friction_filter(&mut frame, state_ptr);
+        assert!(frame.torque_out.is_finite());
+    }
+
+    #[test]
+    fn test_curve_filter_lookup_table() {
+        let mut frame = crate::ffb::Frame {
+            ffb_in: 0.5,
+            torque_out: 0.5,
+            wheel_speed: 0.0,
+            hands_off: false,
+            ts_mono_ns: 0,
+            seq: 1,
+        };
+
+        // Create a curve state with a simple mapping
+        let mut curve_state = CurveState {
+            lut: [0.0; 1024],
+            lut_size: 1024,
+        };
+        
+        // Fill LUT with a simple quadratic curve
+        for i in 0..1024 {
+            let input = i as f32 / 1023.0;
+            curve_state.lut[i] = input * input; // Quadratic curve
+        }
+
+        let state_ptr = &mut curve_state as *mut CurveState as *mut u8;
+        curve_filter(&mut frame, state_ptr);
+
+        // Should apply quadratic mapping: 0.5^2 = 0.25
+        assert!((frame.torque_out.abs() - 0.25).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_slew_rate_limiter() {
+        let mut slew_state = SlewRateState {
+            max_change_per_tick: 0.1, // 10% change per tick
+            prev_output: 0.0,
+        };
+
+        let mut frame = crate::ffb::Frame {
+            ffb_in: 0.5,
+            torque_out: 1.0, // Large jump
+            wheel_speed: 0.0,
+            hands_off: false,
+            ts_mono_ns: 0,
+            seq: 1,
+        };
+
+        let state_ptr = &mut slew_state as *mut SlewRateState as *mut u8;
+        slew_rate_filter(&mut frame, state_ptr);
+
+        // Should be limited to max_change_per_tick
+        assert!((frame.torque_out - 0.1).abs() < 0.01);
+        
+        // Apply again - should continue ramping
+        slew_rate_filter(&mut frame, state_ptr);
+        assert!((frame.torque_out - 0.2).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_notch_filter_stability() {
+        let mut notch_state = NotchState::new(60.0, 2.0, -12.0, 1000.0);
+        
+        let mut frame = crate::ffb::Frame {
+            ffb_in: 0.5,
+            torque_out: 0.5,
+            wheel_speed: 0.0,
+            hands_off: false,
+            ts_mono_ns: 0,
+            seq: 1,
+        };
+
+        let state_ptr = &mut notch_state as *mut NotchState as *mut u8;
+        
+        // Apply filter multiple times to check stability
+        for _ in 0..100 {
+            notch_filter(&mut frame, state_ptr);
+            assert!(frame.torque_out.is_finite());
+            assert!(frame.torque_out.abs() < 10.0); // Reasonable bound
+        }
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_async_compilation() {
+        let compiler = PipelineCompiler::new();
+        let config = create_test_filter_config();
+
+        // Test async compilation
+        let rx = compiler.compile_pipeline_async(config).await.unwrap();
+        let result = rx.await.unwrap();
+        
+        assert!(result.is_ok());
+        let compiled = result.unwrap();
+        assert!(compiled.pipeline.node_count() > 0);
+    }
+
+    #[test]
+    fn test_pipeline_empty_state() {
+        let pipeline = Pipeline::new();
+        assert!(pipeline.is_empty());
+        assert_eq!(pipeline.node_count(), 0);
+        assert_eq!(pipeline.config_hash(), 0);
+    }
+
+    #[test]
+    fn test_pipeline_with_hash() {
+        let hash = 0xDEADBEEF;
+        let pipeline = Pipeline::with_hash(hash);
+        assert_eq!(pipeline.config_hash(), hash);
+        assert!(pipeline.is_empty());
+    }
+
+    // Performance test to ensure compilation is reasonably fast
+    #[tokio::test]
+    async fn test_pipeline_compilation_performance() {
+        let compiler = PipelineCompiler::new();
+        let config = create_test_filter_config();
+
+        let start = std::time::Instant::now();
+        
+        // Compile multiple pipelines
+        for _ in 0..10 {
+            let result = compiler.compile_pipeline(config.clone()).await;
+            assert!(result.is_ok());
+        }
+        
+        let duration = start.elapsed();
+        
+        // Should complete within reasonable time (adjust as needed)
+        assert!(duration.as_millis() < 100, "Compilation took too long: {:?}", duration);
+    }
 }

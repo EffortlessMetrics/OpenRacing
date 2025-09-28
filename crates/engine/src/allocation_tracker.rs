@@ -105,24 +105,96 @@ pub fn track() -> AllocationGuard {
 #[macro_export]
 macro_rules! assert_zero_alloc {
     ($guard:expr) => {
-        assert_eq!(
-            $guard.allocations_since_start(),
-            0,
-            "Expected zero allocations but found {} allocations ({} bytes)",
-            $guard.allocations_since_start(),
-            $guard.bytes_allocated_since_start()
-        );
+        let allocs = $guard.allocations_since_start();
+        let bytes = $guard.bytes_allocated_since_start();
+        if allocs > 0 {
+            panic!(
+                "RT path allocation violation: {} allocations ({} bytes) detected. \
+                 This violates the zero-allocation requirement for the hot path.",
+                allocs, bytes
+            );
+        }
     };
     ($guard:expr, $msg:expr) => {
-        assert_eq!(
-            $guard.allocations_since_start(),
-            0,
-            "{}: Expected zero allocations but found {} allocations ({} bytes)",
-            $msg,
-            $guard.allocations_since_start(),
-            $guard.bytes_allocated_since_start()
-        );
+        let allocs = $guard.allocations_since_start();
+        let bytes = $guard.bytes_allocated_since_start();
+        if allocs > 0 {
+            panic!(
+                "{}: RT path allocation violation: {} allocations ({} bytes) detected. \
+                 This violates the zero-allocation requirement for the hot path.",
+                $msg, allocs, bytes
+            );
+        }
     };
+}
+
+/// CI-specific assertion that can be used in automated testing
+/// This macro will cause CI to fail if allocations are detected on the hot path
+#[macro_export]
+macro_rules! ci_assert_zero_alloc {
+    ($guard:expr, $context:expr) => {
+        let allocs = $guard.allocations_since_start();
+        let bytes = $guard.bytes_allocated_since_start();
+        if allocs > 0 {
+            eprintln!("CI FAILURE: RT path allocation detected in {}", $context);
+            eprintln!("Allocations: {}, Bytes: {}", allocs, bytes);
+            eprintln!("This violates the zero-allocation requirement for real-time code paths.");
+            std::process::exit(1);
+        }
+    };
+}
+
+/// Benchmark allocation tracking for performance testing
+pub struct AllocationBenchmark {
+    guard: AllocationGuard,
+    context: String,
+}
+
+impl AllocationBenchmark {
+    pub fn new(context: String) -> Self {
+        Self {
+            guard: AllocationGuard::new(),
+            context,
+        }
+    }
+    
+    pub fn finish(self) -> AllocationReport {
+        AllocationReport {
+            context: self.context,
+            allocations: self.guard.allocations_since_start(),
+            bytes: self.guard.bytes_allocated_since_start(),
+        }
+    }
+}
+
+/// Report of allocation activity during a benchmark
+#[derive(Debug, Clone)]
+pub struct AllocationReport {
+    pub context: String,
+    pub allocations: usize,
+    pub bytes: usize,
+}
+
+impl AllocationReport {
+    pub fn assert_zero_alloc(&self) {
+        if self.allocations > 0 {
+            panic!(
+                "Allocation violation in {}: {} allocations ({} bytes)",
+                self.context, self.allocations, self.bytes
+            );
+        }
+    }
+    
+    pub fn print_summary(&self) {
+        if self.allocations > 0 {
+            println!(
+                "⚠️  {} allocated {} times ({} bytes)",
+                self.context, self.allocations, self.bytes
+            );
+        } else {
+            println!("✅ {} - zero allocations", self.context);
+        }
+    }
 }
 
 #[cfg(test)]

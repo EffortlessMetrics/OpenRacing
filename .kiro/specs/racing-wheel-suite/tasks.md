@@ -191,10 +191,7 @@ This implementation plan converts the racing wheel software design into mileston
 
 ### M3 — Profiles & Deterministic Apply
 
-- [-] 3.1 Zero-Alloc Pipeline Compile & Two-Phase Apply
-
-
-
+- [x] 3.1 Zero-Alloc Pipeline Compile & Two-Phase Apply
 
 
 

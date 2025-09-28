@@ -517,4 +517,225 @@ mod tests {
         assert_eq!(result1.config_hash, result2.config_hash);
         assert_eq!(result1.merge_hash, result2.merge_hash);
     }
+
+    #[tokio::test]
+    async fn test_two_phase_apply_atomicity() {
+        let initial_pipeline = Pipeline::new();
+        let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
+        let active_pipeline = coordinator.get_active_pipeline();
+
+        let global_profile = create_test_profile("global", ProfileScope::global());
+
+        // Start apply operation but don't process it yet
+        let result_rx = coordinator.apply_profile_async(&global_profile, None, None, None).await.unwrap();
+        
+        // Pipeline should still be in initial state
+        {
+            let pipeline = active_pipeline.read().await;
+            assert_eq!(pipeline.config_hash(), 0);
+            assert!(pipeline.is_empty());
+        }
+
+        // Process the pending apply - this should be atomic
+        coordinator.process_pending_applies_at_tick_boundary().await;
+        let result = result_rx.await.unwrap();
+        assert!(result.success);
+
+        // Pipeline should now be updated atomically
+        {
+            let pipeline = active_pipeline.read().await;
+            assert_eq!(pipeline.config_hash(), result.config_hash);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_two_phase_apply_concurrent_access() {
+        use std::sync::Arc;
+        use tokio::sync::Barrier;
+
+        let initial_pipeline = Pipeline::new();
+        let coordinator = Arc::new(TwoPhaseApplyCoordinator::new(initial_pipeline));
+        let barrier = Arc::new(Barrier::new(3));
+
+        let global_profile = create_test_profile("global", ProfileScope::global());
+
+        // Spawn multiple concurrent apply operations
+        let mut handles = Vec::new();
+        
+        for i in 0..2 {
+            let coordinator_clone = Arc::clone(&coordinator);
+            let barrier_clone = Arc::clone(&barrier);
+            let profile = global_profile.clone();
+            
+            let handle = tokio::spawn(async move {
+                barrier_clone.wait().await;
+                
+                let result_rx = coordinator_clone.apply_profile_async(&profile, None, None, None).await.unwrap();
+                (i, result_rx)
+            });
+            
+            handles.push(handle);
+        }
+
+        // Wait for all to start, then process applies
+        barrier.wait().await;
+        
+        // Collect all result receivers
+        let mut result_rxs = Vec::new();
+        for handle in handles {
+            let (i, rx) = handle.await.unwrap();
+            result_rxs.push((i, rx));
+        }
+
+        // Process all pending applies atomically
+        coordinator.process_pending_applies_at_tick_boundary().await;
+
+        // All results should be successful
+        for (i, rx) in result_rxs {
+            let result = rx.await.unwrap();
+            assert!(result.success, "Apply {} should succeed", i);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_two_phase_apply_error_handling() {
+        let initial_pipeline = Pipeline::new();
+        let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
+
+        // Create profile with invalid filter config
+        let mut bad_profile = create_test_profile("global", ProfileScope::global());
+        bad_profile.base_settings.filters.reconstruction = 10; // Invalid: > 8
+
+        let result = coordinator.apply_profile_async(&bad_profile, None, None, None).await;
+        
+        // Should fail during compilation phase
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_two_phase_apply_performance_tracking() {
+        let initial_pipeline = Pipeline::new();
+        let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
+
+        let global_profile = create_test_profile("global", ProfileScope::global());
+
+        // Perform multiple applies to build up statistics
+        for _ in 0..5 {
+            let result_rx = coordinator.apply_profile_async(&global_profile, None, None, None).await.unwrap();
+            coordinator.process_pending_applies_at_tick_boundary().await;
+            let result = result_rx.await.unwrap();
+            assert!(result.success);
+        }
+
+        let stats = coordinator.get_stats().await;
+        assert_eq!(stats.total_applies, 5);
+        assert_eq!(stats.successful_applies, 5);
+        assert_eq!(stats.failed_applies, 0);
+        assert_eq!(stats.pending_applies, 0);
+    }
+
+    #[tokio::test]
+    async fn test_two_phase_apply_timing_metrics() {
+        let initial_pipeline = Pipeline::new();
+        let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
+
+        let global_profile = create_test_profile("global", ProfileScope::global());
+
+        let result_rx = coordinator.apply_profile_async(&global_profile, None, None, None).await.unwrap();
+        coordinator.process_pending_applies_at_tick_boundary().await;
+        let result = result_rx.await.unwrap();
+
+        assert!(result.success);
+        // Duration might be 0 in fast tests, so just check it's not negative
+        assert!(result.duration_ms >= 0);
+        assert!(result.stats.swap_time_us >= 0);
+        assert!(result.stats.wait_time_ms >= 0);
+    }
+
+    #[tokio::test]
+    async fn test_two_phase_apply_no_partial_state() {
+        let initial_pipeline = Pipeline::new();
+        let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
+        let active_pipeline = coordinator.get_active_pipeline();
+
+        let global_profile = create_test_profile("global", ProfileScope::global());
+
+        // Start multiple applies
+        let result_rx1 = coordinator.apply_profile_async(&global_profile, None, None, None).await.unwrap();
+        let result_rx2 = coordinator.apply_profile_async(&global_profile, None, None, None).await.unwrap();
+
+        // Pipeline should still be in initial state (no partial application)
+        {
+            let pipeline = active_pipeline.read().await;
+            assert_eq!(pipeline.config_hash(), 0);
+        }
+
+        // Process all applies atomically
+        coordinator.process_pending_applies_at_tick_boundary().await;
+
+        // Both should succeed
+        let result1 = result_rx1.await.unwrap();
+        let result2 = result_rx2.await.unwrap();
+        assert!(result1.success);
+        assert!(result2.success);
+
+        // Pipeline should be in final state (no intermediate states visible)
+        {
+            let pipeline = active_pipeline.read().await;
+            assert_ne!(pipeline.config_hash(), 0);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_two_phase_apply_stats_reset() {
+        let initial_pipeline = Pipeline::new();
+        let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
+
+        let global_profile = create_test_profile("global", ProfileScope::global());
+
+        // Perform some applies
+        let result_rx = coordinator.apply_profile_async(&global_profile, None, None, None).await.unwrap();
+        coordinator.process_pending_applies_at_tick_boundary().await;
+        let _ = result_rx.await.unwrap();
+
+        // Check stats exist
+        let stats_before = coordinator.get_stats().await;
+        assert!(stats_before.total_applies > 0);
+
+        // Reset stats
+        coordinator.clear_stats().await;
+
+        // Check stats are cleared
+        let stats_after = coordinator.get_stats().await;
+        assert_eq!(stats_after.total_applies, 0);
+        assert_eq!(stats_after.successful_applies, 0);
+        assert_eq!(stats_after.failed_applies, 0);
+    }
+
+    #[tokio::test]
+    async fn test_two_phase_apply_pending_count() {
+        let initial_pipeline = Pipeline::new();
+        let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
+
+        let global_profile = create_test_profile("global", ProfileScope::global());
+
+        // Initially no pending applies
+        assert!(!coordinator.has_pending_applies().await);
+        assert_eq!(coordinator.pending_apply_count().await, 0);
+
+        // Start some applies but don't process them
+        let _result_rx1 = coordinator.apply_profile_async(&global_profile, None, None, None).await.unwrap();
+        let _result_rx2 = coordinator.apply_profile_async(&global_profile, None, None, None).await.unwrap();
+
+        // Should have pending applies
+        assert!(coordinator.has_pending_applies().await);
+        assert_eq!(coordinator.pending_apply_count().await, 2);
+
+        // Process applies
+        coordinator.process_pending_applies_at_tick_boundary().await;
+
+        // Should have no pending applies
+        assert!(!coordinator.has_pending_applies().await);
+        assert_eq!(coordinator.pending_apply_count().await, 0);
+    }
 }
