@@ -1,0 +1,178 @@
+name: Schema Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'crates/schemas/**'
+      - '.github/workflows/schema-validation.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'crates/schemas/**'
+      - '.github/workflows/schema-validation.yml'
+
+jobs:
+  validate-schemas:
+    name: Validate Schemas
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Needed for buf breaking change detection
+    
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+        components: rustfmt, clippy
+    
+    - name: Install buf
+      uses: bufbuild/buf-setup-action@v1
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Install protoc
+      uses: arduino/setup-protoc@v2
+      with:
+        version: '23.x'
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Cache cargo index
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Run buf compatibility checks
+      run: |
+        cd crates/schemas
+        chmod +x scripts/check-compatibility.sh
+        ./scripts/check-compatibility.sh
+    
+    - name: Build schemas crate
+      run: cargo build -p racing-wheel-schemas
+    
+    - name: Run schema validation tests
+      run: cargo test -p racing-wheel-schemas --lib validation_tests
+    
+    - name: Run all schema tests
+      run: cargo test -p racing-wheel-schemas
+    
+    - name: Check formatting
+      run: cargo fmt -p racing-wheel-schemas -- --check
+    
+    - name: Run clippy
+      run: cargo clippy -p racing-wheel-schemas -- -D warnings
+    
+    - name: Verify generated files are up to date
+      run: |
+        # Regenerate and check if anything changed
+        cd crates/schemas
+        buf generate
+        if ! git diff --exit-code src/generated/; then
+          echo "Generated protobuf files are out of date. Please run 'buf generate' and commit the changes."
+          exit 1
+        fi
+
+  test-json-schema:
+    name: Test JSON Schema
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install ajv-cli for JSON Schema validation
+      run: npm install -g ajv-cli
+    
+    - name: Validate JSON Schema syntax
+      run: |
+        ajv compile -s crates/schemas/schemas/profile.schema.json
+    
+    - name: Test JSON Schema with valid examples
+      run: |
+        # Create test data directory
+        mkdir -p test-data
+        
+        # Valid profile example
+        cat > test-data/valid-profile.json << 'EOF'
+        {
+          "schema": "wheel.profile/1",
+          "scope": {
+            "game": "iracing"
+          },
+          "base": {
+            "ffbGain": 0.75,
+            "dorDeg": 900,
+            "torqueCapNm": 15.0,
+            "filters": {
+              "reconstruction": 4,
+              "friction": 0.12,
+              "damper": 0.18,
+              "inertia": 0.08,
+              "notchFilters": [],
+              "slewRate": 0.85,
+              "curvePoints": [
+                {"input": 0.0, "output": 0.0},
+                {"input": 1.0, "output": 1.0}
+              ]
+            }
+          }
+        }
+        EOF
+        
+        # Test valid profile
+        ajv validate -s crates/schemas/schemas/profile.schema.json -d test-data/valid-profile.json
+        
+        # Invalid profile example (missing required field)
+        cat > test-data/invalid-profile.json << 'EOF'
+        {
+          "scope": {},
+          "base": {
+            "ffbGain": 0.75,
+            "dorDeg": 900,
+            "torqueCapNm": 15.0,
+            "filters": {
+              "reconstruction": 4,
+              "friction": 0.12,
+              "damper": 0.18,
+              "inertia": 0.08,
+              "notchFilters": [],
+              "slewRate": 0.85,
+              "curvePoints": [
+                {"input": 0.0, "output": 0.0},
+                {"input": 1.0, "output": 1.0}
+              ]
+            }
+          }
+        }
+        EOF
+        
+        # Test invalid profile (should fail)
+        if ajv validate -s crates/schemas/schemas/profile.schema.json -d test-data/invalid-profile.json; then
+          echo "ERROR: Invalid profile should have failed validation"
+          exit 1
+        else
+          echo "SUCCESS: Invalid profile correctly failed validation"
+        fi

@@ -1,67 +1,4 @@
-use std::path::PathBuf;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Tell cargo about our custom cfg
-    println!("cargo::rustc-check-cfg=cfg(has_protoc)");
-    
-    let proto_dir = PathBuf::from("proto");
-    let proto_files = &[proto_dir.join("wheel.proto")];
-    
-    // Ensure the generated directory exists
-    std::fs::create_dir_all("src/generated")?;
-    
-    // Try to compile protobuf files, but don't fail if protoc is not available
-    match compile_protos(&proto_dir, proto_files) {
-        Ok(()) => {
-            println!("cargo:rustc-cfg=has_protoc");
-            println!("Successfully compiled protobuf files");
-        }
-        Err(e) => {
-            eprintln!("Warning: Failed to compile protobuf files: {}", e);
-            eprintln!("Protobuf functionality will be disabled.");
-            eprintln!("To enable protobuf support, install protoc:");
-            eprintln!("  - On Ubuntu/Debian: sudo apt install protobuf-compiler");
-            eprintln!("  - On macOS: brew install protobuf");
-            eprintln!("  - On Windows: Download from https://github.com/protocolbuffers/protobuf/releases");
-            
-            // Create a stub file to prevent compilation errors
-            create_protobuf_stubs()?;
-        }
-    }
-    
-    // Tell cargo to rerun if proto files change
-    println!("cargo:rerun-if-changed=proto/wheel.proto");
-    println!("cargo:rerun-if-changed=schemas/profile.schema.json");
-    
-    Ok(())
-}
-
-fn compile_protos(proto_dir: &PathBuf, proto_files: &[PathBuf]) -> Result<(), Box<dyn std::error::Error>> {
-    // Configure protobuf compilation
-    let mut config = prost_build::Config::new();
-    
-    // Enable serde serialization for all generated types
-    config.type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]");
-    config.type_attribute(".", "#[serde(rename_all = \"camelCase\")]");
-    
-    // Add validation attributes for key types
-    config.field_attribute("DeviceCapabilities.max_torque_cnm", "#[serde(rename = \"maxTorqueNm\")]");
-    config.field_attribute("BaseSettings.ffb_gain", "#[serde(rename = \"ffbGain\")]");
-    config.field_attribute("BaseSettings.dor_deg", "#[serde(rename = \"dorDeg\")]");
-    config.field_attribute("BaseSettings.torque_cap_nm", "#[serde(rename = \"torqueCapNm\")]");
-    
-    // Configure tonic for gRPC service generation
-    tonic_build::configure()
-        .build_server(true)
-        .build_client(true)
-        .out_dir("src/generated")
-        .compile_with_config(config, proto_files, &[proto_dir.clone()])?;
-    
-    Ok(())
-}
-
-fn create_protobuf_stubs() -> Result<(), Box<dyn std::error::Error>> {
-    let stub_content = r#"
 // Protobuf stub file - generated when protoc is not available
 // This file provides minimal type definitions to allow compilation
 
@@ -164,18 +101,4 @@ pub mod wheel {
             // Service methods would be defined here in the real implementation
         }
     }
-}
-"#;
-    
-    std::fs::write("src/generated/wheel.v1.rs", stub_content)?;
-    
-    // Create mod.rs to export the generated module
-    let mod_content = r#"
-// Generated protobuf modules
-pub mod wheel;
-"#;
-    
-    std::fs::write("src/generated/mod.rs", mod_content)?;
-    
-    Ok(())
 }

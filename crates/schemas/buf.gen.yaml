@@ -1,0 +1,10 @@
+version: v1
+plugins:
+  - plugin: buf.build/protocolbuffers/rust:v25.1
+    out: src/generated
+    opt:
+      - serde_derive=true
+  - plugin: buf.build/grpc/rust:v1.4.3
+    out: src/generated
+    opt:
+      - serde_derive=true

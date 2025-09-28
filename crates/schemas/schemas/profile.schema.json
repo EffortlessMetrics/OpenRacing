@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://racing-wheel-suite.com/schemas/wheel.profile/1",
+  "title": "Racing Wheel Profile",
+  "description": "Configuration profile for racing wheel force feedback, LEDs, and haptics",
+  "type": "object",
+  "required": ["schema", "scope", "base"],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "wheel.profile/1",
+      "description": "Schema version identifier"
+    },
+    "scope": {
+      "$ref": "#/$defs/ProfileScope"
+    },
+    "base": {
+      "$ref": "#/$defs/BaseSettings"
+    },
+    "leds": {
+      "$ref": "#/$defs/LedConfig"
+    },
+    "haptics": {
+      "$ref": "#/$defs/HapticsConfig"
+    },
+    "signature": {
+      "type": "string",
+      "description": "Optional Ed25519 signature for profile authenticity",
+      "pattern": "^[A-Za-z0-9+/]+=*$"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "ProfileScope": {
+      "type": "object",
+      "description": "Defines when this profile applies",
+      "properties": {
+        "game": {
+          "type": "string",
+          "description": "Game/simulator name (null = applies to all games)",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "car": {
+          "type": "string",
+          "description": "Car identifier (null = applies to all cars in game)",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "track": {
+          "type": "string",
+          "description": "Track identifier (null = applies to all tracks)",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      "additionalProperties": false
+    },
+    "BaseSettings": {
+      "type": "object",
+      "required": ["ffbGain", "dorDeg", "torqueCapNm", "filters"],
+      "properties": {
+        "ffbGain": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Overall force feedback gain (0.0-1.0)"
+        },
+        "dorDeg": {
+          "type": "integer",
+          "minimum": 180,
+          "maximum": 2160,
+          "description": "Degrees of rotation (steering lock)"
+        },
+        "torqueCapNm": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 50.0,
+          "description": "Maximum torque limit in Newton-meters"
+        },
+        "filters": {
+          "$ref": "#/$defs/FilterConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "FilterConfig": {
+      "type": "object",
+      "required": ["reconstruction", "friction", "damper", "inertia", "notchFilters", "slewRate", "curvePoints"],
+      "properties": {
+        "reconstruction": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8,
+          "description": "Reconstruction filter level (0-8, higher = more smoothing)"
+        },
+        "friction": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Friction coefficient (0.0-1.0)"
+        },
+        "damper": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Damper coefficient (0.0-1.0)"
+        },
+        "inertia": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Inertia coefficient (0.0-1.0)"
+        },
+        "notchFilters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NotchFilter"
+          },
+          "maxItems": 8,
+          "description": "Notch filters for eliminating specific frequencies"
+        },
+        "slewRate": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Slew rate limiter (0.0-1.0, higher = faster changes allowed)"
+        },
+        "curvePoints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CurvePoint"
+          },
+          "minItems": 2,
+          "maxItems": 32,
+          "description": "Force curve mapping points (must be monotonic)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "NotchFilter": {
+      "type": "object",
+      "required": ["hz", "q", "gainDb"],
+      "properties": {
+        "hz": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 1000.0,
+          "description": "Center frequency to attenuate in Hz"
+        },
+        "q": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 20.0,
+          "description": "Quality factor (higher = narrower notch)"
+        },
+        "gainDb": {
+          "type": "number",
+          "minimum": -60.0,
+          "maximum": 0.0,
+          "description": "Gain reduction in dB (typically negative)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "CurvePoint": {
+      "type": "object",
+      "required": ["input", "output"],
+      "properties": {
+        "input": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Input value (0.0-1.0)"
+        },
+        "output": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Output value (0.0-1.0)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "LedConfig": {
+      "type": "object",
+      "required": ["rpmBands", "pattern", "brightness"],
+      "properties": {
+        "rpmBands": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "minItems": 1,
+          "maxItems": 16,
+          "description": "RPM threshold bands for shift lights (0.0-1.0 as fraction of redline)"
+        },
+        "pattern": {
+          "type": "string",
+          "enum": ["progressive", "wipe", "flash", "pulse", "rainbow"],
+          "description": "LED pattern name"
+        },
+        "brightness": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Overall brightness (0.0-1.0)"
+        },
+        "colors": {
+          "type": "object",
+          "patternProperties": {
+            "^[a-zA-Z][a-zA-Z0-9_]*$": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              "minItems": 3,
+              "maxItems": 3,
+              "description": "RGB color values [R, G, B]"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Color mapping for different states"
+        }
+      },
+      "additionalProperties": false
+    },
+    "HapticsConfig": {
+      "type": "object",
+      "required": ["enabled", "intensity", "frequencyHz"],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable haptic feedback"
+        },
+        "intensity": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Overall haptic intensity (0.0-1.0)"
+        },
+        "frequencyHz": {
+          "type": "number",
+          "minimum": 10.0,
+          "maximum": 500.0,
+          "description": "Base frequency for haptic effects in Hz"
+        },
+        "effects": {
+          "type": "object",
+          "patternProperties": {
+            "^[a-zA-Z][a-zA-Z0-9_]*$": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Enable specific haptic effects"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

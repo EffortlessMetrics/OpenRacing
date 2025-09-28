@@ -105,7 +105,10 @@ This implementation plan converts the racing wheel software design into mileston
 
  [-] 2. Implement schema-first contracts and code generation
 
-- [-] 2. Implement schema-first contracts and code generation
+- [x] 2. Implement schema-first contracts and code generation
+
+
+
 
 
   - Define Protobuf schemas for IPC service contracts (WheelService, DeviceInfo, Profile messages)
