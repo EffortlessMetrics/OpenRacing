@@ -21,6 +21,9 @@ pub mod test_harness;
 pub mod ports;
 pub mod policies;
 pub mod profile_service;
+pub mod profile_merge;
+pub mod two_phase_apply;
+pub mod allocation_tracker;
 
 pub use rt::*;
 pub use pipeline::*;
@@ -29,6 +32,9 @@ pub use safety::*;
 pub use ffb::*;
 pub use test_harness::*;
 pub use profile_service::*;
+pub use profile_merge::*;
+pub use two_phase_apply::*;
+pub use allocation_tracker::*;
 
 // Re-export specific items to avoid conflicts
 pub use device::{VirtualDevice, VirtualHidPort, DeviceEvent, TelemetryData, DeviceInfo};

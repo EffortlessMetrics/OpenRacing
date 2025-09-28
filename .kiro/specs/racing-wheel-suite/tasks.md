@@ -191,7 +191,15 @@ This implementation plan converts the racing wheel software design into mileston
 
 ### M3 — Profiles & Deterministic Apply
 
-- [ ] 3.1 Zero-Alloc Pipeline Compile & Two-Phase Apply
+- [-] 3.1 Zero-Alloc Pipeline Compile & Two-Phase Apply
+
+
+
+
+
+
+
+
   - Implement pipeline compilation from FilterConfig to function pointer vector
   - Create two-phase apply: compile off-thread → swap at tick boundary → ack to UI
   - Add CI assertion for no heap allocations on hot path after pipeline compile
