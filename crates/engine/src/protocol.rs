@@ -441,9 +441,8 @@ mod tests {
     use super::*;
 
     /// Golden test data for OWP-1 protocol validation
+    #[allow(dead_code)]
     mod golden_data {
-        use super::*;
-        
         /// Golden torque command: 10.5 Nm, hands-on hint, sequence 1234
         pub const TORQUE_CMD_GOLDEN: [u8; 7] = [
             0x20,       // Report ID

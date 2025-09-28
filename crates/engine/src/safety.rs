@@ -137,7 +137,7 @@ impl SafetyService {
     /// Clear fault if conditions are met
     pub fn clear_fault(&mut self) -> Result<(), String> {
         match &self.state {
-            SafetyState::Faulted { fault, since } => {
+            SafetyState::Faulted { fault: _, since } => {
                 // Require minimum fault duration before clearing
                 if since.elapsed() < std::time::Duration::from_millis(100) {
                     return Err("Fault duration too short".to_string());

@@ -1,9 +1,9 @@
 //! Device abstraction and virtual device implementation
 
-use crate::{RTResult, RTError, Frame};
+use crate::{RTResult, RTError};
 use racing_wheel_schemas::{
-    DeviceId, TorqueNm, Degrees,
-    Device, DeviceCapabilities, DeviceState, DeviceType
+    DeviceId, TorqueNm,
+    DeviceCapabilities, DeviceState, DeviceType
 };
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -337,7 +337,7 @@ impl VirtualHidPort {
     }
 
     /// Get mutable reference to device for testing
-    pub fn get_device_mut(&mut self, id: &DeviceId) -> Option<&mut VirtualDevice> {
+    pub fn get_device_mut(&mut self, _id: &DeviceId) -> Option<&mut VirtualDevice> {
         // This is a bit tricky with Arc<Mutex<Vec<_>>>
         // For testing purposes, we'll provide a different approach
         // The caller should use the device reference returned from open_device
@@ -381,7 +381,7 @@ impl HidPort for VirtualHidPort {
     }
 
     async fn monitor_devices(&self) -> Result<mpsc::Receiver<DeviceEvent>, Box<dyn std::error::Error>> {
-        let (tx, rx) = mpsc::channel(100);
+        let (_tx, rx) = mpsc::channel(100);
         // Store the sender for future events
         // Note: This is a simplified implementation for testing
         Ok(rx)

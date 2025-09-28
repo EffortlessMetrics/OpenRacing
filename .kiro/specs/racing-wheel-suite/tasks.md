@@ -68,7 +68,12 @@ This implementation plan converts the racing wheel software design into mileston
   - Create license audit and third-party dependency tracking
   - _Requirements: NFR-01, NFR-02, Governance_
 
-- [-] 0.2 Virtual Device (Loopback Base)
+- [x] 0.2 Virtual Device (Loopback Base)
+
+
+
+
+
 
 
 
@@ -79,7 +84,12 @@ This implementation plan converts the racing wheel software design into mileston
   - _Requirements: DM-01, DM-02, Testability_
 
 
-- [ ] 1. Set up project structure and core domain types
+- [x] 1. Set up project structure and core domain types
+
+
+
+
+
 
 
 
@@ -95,7 +105,9 @@ This implementation plan converts the racing wheel software design into mileston
 
  [-] 2. Implement schema-first contracts and code generation
 
-- [ ] 2. Implement schema-first contracts and code generation
+- [-] 2. Implement schema-first contracts and code generation
+
+
   - Define Protobuf schemas for IPC service contracts (WheelService, DeviceInfo, Profile messages)
   - Create JSON Schema for profile validation (wheel.profile/1) with migration support
   - Set up build.rs to generate Rust types from schemas during compilation
