@@ -3,10 +3,27 @@
 //! This crate contains all the schema definitions for IPC communication,
 //! configuration files, and data interchange formats.
 
-pub mod wheel {
-    //! Generated protobuf types for wheel service
-    tonic::include_proto!("wheel.v1");
-}
+pub mod domain;
+pub mod entities;
+
+// TODO: Re-enable protobuf generation once protoc is available
+// pub mod wheel {
+//     //! Generated protobuf types for wheel service
+//     tonic::include_proto!("wheel.v1");
+// }
+
+// Re-export commonly used types
+pub use domain::{
+    DeviceId, ProfileId, TorqueNm, Degrees, Gain, FrequencyHz, CurvePoint,
+    DomainError, validate_curve_monotonic,
+};
+
+pub use entities::{
+    Device, DeviceCapabilities, DeviceState, DeviceType,
+    Profile, ProfileScope, ProfileMetadata,
+    BaseSettings, FilterConfig, NotchFilter,
+    LedConfig, HapticsConfig,
+};
 
 pub mod config {
     //! Configuration schema types

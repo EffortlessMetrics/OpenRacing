@@ -1,17 +1,6 @@
-use std::env;
-use std::path::PathBuf;
-
+// TODO: Re-enable protobuf generation once protoc is available
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-
-    // Generate protobuf types
-    tonic_build::configure()
-        .build_server(true)
-        .build_client(true)
-        .out_dir(&out_dir)
-        .compile(&["proto/wheel.proto"], &["proto"])?;
-
+    // Skip protobuf generation for now
     println!("cargo:rerun-if-changed=proto/wheel.proto");
-    
     Ok(())
 }

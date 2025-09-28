@@ -14,8 +14,16 @@ pub mod rt;
 pub mod pipeline;
 pub mod scheduler;
 pub mod safety;
+pub mod device;
+pub mod ffb;
+pub mod protocol;
+// TODO: Re-implement test harness once core functionality is stable
 
 pub use rt::*;
 pub use pipeline::*;
 pub use scheduler::*;
 pub use safety::*;
+pub use device::*;
+pub use ffb::*;
+pub use protocol::*;
+// TODO: Re-export test harness types once implemented

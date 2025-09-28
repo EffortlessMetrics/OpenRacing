@@ -14,6 +14,8 @@ crossbeam = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 mimalloc = { workspace = true, optional = true }
+async-trait = "0.1"
+rand = "0.8"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.52", features = [
@@ -21,6 +23,8 @@ windows = { version = "0.52", features = [
     "Win32_System_SystemServices",
     "Win32_Foundation",
     "Win32_System_Performance",
+    "Win32_Security",
+    "Win32_System_Power",
 ] }
 
 [target.'cfg(unix)'.dependencies]

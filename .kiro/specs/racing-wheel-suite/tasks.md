@@ -68,19 +68,32 @@ This implementation plan converts the racing wheel software design into mileston
   - Create license audit and third-party dependency tracking
   - _Requirements: NFR-01, NFR-02, Governance_
 
-- [ ] 0.2 Virtual Device (Loopback Base)
+- [-] 0.2 Virtual Device (Loopback Base)
+
+
+
   - Implement software HID target or in-process mock for 1kHz OUT/IN flows
   - Create virtual device that exercises torque commands and telemetry reports
   - Build test harness for RT loop validation without physical hardware
   - Write integration tests for device enumeration and I/O with virtual base
   - _Requirements: DM-01, DM-02, Testability_
 
+
 - [ ] 1. Set up project structure and core domain types
+
+
+
+
+
   - Create Rust workspace with clean architecture crate structure (/schemas, /engine, /service, /cli, /ui)
   - Implement core domain value objects (TorqueNm, Degrees, DeviceId, ProfileId) with unit safety
   - Define domain entities (Device, Profile, BaseSettings, FilterConfig) as pure Rust structs
   - Write unit tests for value object constructors and validation rules
   - _Requirements: DM-01, PRF-02_
+
+
+
+ [-] 2. Implement schema-first contracts and code generation
 
 - [ ] 2. Implement schema-first contracts and code generation
   - Define Protobuf schemas for IPC service contracts (WheelService, DeviceInfo, Profile messages)
@@ -92,21 +105,27 @@ This implementation plan converts the racing wheel software design into mileston
 
 ### M1 — FFB Mode Matrix + Protocol + RT Scheduler
 
-- [ ] 1.1 FFB Mode Matrix & Capability Negotiation
+- [x] 1.1 FFB Mode Matrix & Capability Negotiation
+
+
   - Implement three FFB modes: PID pass-through, raw-torque @1kHz, telemetry-synth fallback
   - Create device capability negotiation on connect (Feature Report 0x01)
   - Build mode selection policy based on device capabilities and game compatibility
   - Write unit tests for mode selection logic and capability parsing
   - _Requirements: FFB-01, FFB-02, GI-03_
 
-- [ ] 1.2 OWP-1 v0 Spec + HID Descriptors + Golden Tests
+- [x] 1.2 OWP-1 v0 Spec + HID Descriptors + Golden Tests
+
+
   - Define HID report descriptors for torque commands (0x20) and telemetry (0x21)
   - Implement Feature Reports for capabilities (0x01) and configuration (0x02)
   - Create endian-safe structs with sequence numbers and CRC validation
   - Write golden tests that parse/build reports with known good data
   - _Requirements: XPLAT-01, DM-01, DM-02, SAFE-03_
 
-- [ ] 1.3 AbsoluteScheduler & PLL with RT Setup
+- [x] 1.3 AbsoluteScheduler & PLL with RT Setup
+
+
   - Create platform-specific absolute timer (clock_nanosleep/WaitableTimer)
   - Implement PLL for drift correction and busy-spin tail for final precision
   - Add OS-specific RT setup (MMCSS "Games"/SCHED_FIFO, mlockall, power throttling off)

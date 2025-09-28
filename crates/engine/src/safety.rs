@@ -25,7 +25,7 @@ pub enum SafetyState {
 }
 
 /// Types of faults that can occur
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FaultType {
     UsbStall,
     EncoderNaN,

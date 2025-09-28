@@ -69,13 +69,25 @@ impl std::fmt::Display for RTError {
 pub type RTResult<T = ()> = Result<T, RTError>;
 
 /// Performance metrics for monitoring
-#[derive(Debug, Default)]
+#[derive(Debug, Clone)]
 pub struct PerformanceMetrics {
     pub total_ticks: u64,
     pub missed_ticks: u64,
     pub max_jitter_ns: u64,
     pub p99_jitter_ns: u64,
     pub last_update: Instant,
+}
+
+impl Default for PerformanceMetrics {
+    fn default() -> Self {
+        Self {
+            total_ticks: 0,
+            missed_ticks: 0,
+            max_jitter_ns: 0,
+            p99_jitter_ns: 0,
+            last_update: Instant::now(),
+        }
+    }
 }
 
 impl PerformanceMetrics {
