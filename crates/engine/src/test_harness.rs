@@ -5,16 +5,17 @@
 //! performance measurement, and integration testing capabilities.
 
 use crate::{
-    RTResult, RTError, Frame, PerformanceMetrics,
-    VirtualDevice, VirtualHidPort, HidDevice, HidPort, DeviceEvent,
-    TelemetryData, DeviceInfo,
+    PerformanceMetrics,
+    VirtualDevice, VirtualHidPort,
+    TelemetryData,
 };
-use racing_wheel_schemas::{DeviceId, TorqueNm, DeviceType, DeviceCapabilities};
+use crate::device::{HidDevice, HidPort};
+use racing_wheel_schemas::DeviceId;
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, AtomicU64, Ordering}};
 use std::time::{Duration, Instant};
 use std::collections::VecDeque;
-use tokio::sync::mpsc;
-use tracing::{info, warn, error, debug};
+
+use tracing::{info, warn, debug};
 
 /// Test harness configuration
 #[derive(Debug, Clone)]

@@ -148,7 +148,11 @@ This implementation plan converts the racing wheel software design into mileston
   - Write timing validation tests with oscilloscope-level precision requirements
   - _Requirements: FFB-01, NFR-01_
 
-- [ ] 3. Create port traits and domain policies
+- [x] 3. Create port traits and domain policies
+
+
+
+
   - Define HidPort, HidDevice, TelemetryPort, and ProfileRepo trait interfaces
   - Implement safety policies (can_enable_high_torque, validate_torque_limits) in domain layer
   - Create profile hierarchy resolution logic with deterministic merge behavior

@@ -18,12 +18,24 @@ pub mod device;
 pub mod ffb;
 pub mod protocol;
 pub mod test_harness;
+pub mod ports;
+pub mod policies;
+pub mod profile_service;
 
 pub use rt::*;
 pub use pipeline::*;
 pub use scheduler::*;
 pub use safety::*;
-pub use device::*;
 pub use ffb::*;
-pub use protocol::*;
 pub use test_harness::*;
+pub use profile_service::*;
+
+// Re-export specific items to avoid conflicts
+pub use device::{VirtualDevice, VirtualHidPort, DeviceEvent, TelemetryData, DeviceInfo};
+pub use ports::{
+    HidDevice, HidPort, TelemetryPort, ProfileRepo, ProfileRepoError, 
+    NormalizedTelemetry, TelemetryFlags, ProfileContext, DeviceHealthStatus,
+    TelemetryStatistics, ConfigurationStatus, ConfigChange, RepositoryStatus
+};
+pub use policies::{SafetyPolicy, ProfileHierarchyPolicy, SafetyViolation, ProfileHierarchyError};
+pub use protocol::{TorqueCommand, DeviceTelemetryReport, DeviceCapabilitiesReport};

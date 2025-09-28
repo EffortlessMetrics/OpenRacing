@@ -103,6 +103,26 @@ impl std::ops::Mul<f32> for TorqueNm {
     }
 }
 
+impl Ord for TorqueNm {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.partial_cmp(&other.0).unwrap_or(std::cmp::Ordering::Equal)
+    }
+}
+
+impl Eq for TorqueNm {}
+
+impl TorqueNm {
+    /// Return the minimum of two torque values
+    pub fn min(self, other: Self) -> Self {
+        if self <= other { self } else { other }
+    }
+    
+    /// Return the maximum of two torque values
+    pub fn max(self, other: Self) -> Self {
+        if self >= other { self } else { other }
+    }
+}
+
 /// Angle value in degrees with validation
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Degrees(f32);
