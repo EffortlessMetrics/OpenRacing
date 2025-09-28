@@ -1,0 +1,100 @@
+# Rustfmt configuration for consistent code formatting
+
+# Edition to use for formatting
+edition = "2021"
+
+# Maximum width of each line
+max_width = 100
+
+# Number of spaces per tab
+tab_spaces = 4
+
+# Use spaces instead of tabs
+hard_tabs = false
+
+# Brace style for functions
+fn_brace_style = "SameLineWhere"
+
+# Brace style for items (structs, enums, etc.)
+item_brace_style = "SameLineWhere"
+
+# Brace style for control flow
+control_brace_style = "AlwaysSameLine"
+
+# How to handle trailing commas
+trailing_comma = "Vertical"
+
+# How to handle trailing semicolons
+trailing_semicolon = true
+
+# Match block trailing commas
+match_block_trailing_comma = false
+
+# Blank lines upper bound
+blank_lines_upper_bound = 1
+
+# Blank lines lower bound  
+blank_lines_lower_bound = 0
+
+# Use small heuristics to improve formatting
+use_small_heuristics = "Default"
+
+# Reorder imports
+reorder_imports = true
+
+# Reorder modules
+reorder_modules = true
+
+# Remove nested parens
+remove_nested_parens = true
+
+# Merge derives
+merge_derives = true
+
+# Use field init shorthand
+use_field_init_shorthand = false
+
+# Force explicit types
+force_explicit_abi = true
+
+# Condense wildcard suffixes
+condense_wildcard_suffixes = false
+
+# Color output
+color = "Auto"
+
+# Required version (prevents formatting with incompatible versions)
+required_version = "1.7.0"
+
+# Unstable features (none for stable rustfmt)
+unstable_features = false
+
+# Format strings
+format_strings = false
+
+# Format macro matchers
+format_macro_matchers = false
+
+# Skip children when formatting
+skip_children = false
+
+# Hide parse errors
+hide_parse_errors = false
+
+# Error on line overflow
+error_on_line_overflow = false
+
+# Error on unformatted code
+error_on_unformatted = false
+
+# Report todo items
+report_todo = "Never"
+
+# Report fixme items  
+report_fixme = "Never"
+
+# Ignore list for files/directories
+ignore = [
+    "target/",
+    "crates/*/target/",
+]

@@ -1,0 +1,203 @@
+syntax = "proto3";
+
+package wheel.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// Main wheel service for IPC communication
+service WheelService {
+  // Device management
+  rpc ListDevices(google.protobuf.Empty) returns (stream DeviceInfo);
+  rpc GetDeviceStatus(DeviceId) returns (DeviceStatus);
+  
+  // Profile management
+  rpc GetActiveProfile(DeviceId) returns (Profile);
+  rpc ApplyProfile(ApplyProfileRequest) returns (OpResult);
+  rpc ListProfiles(google.protobuf.Empty) returns (ProfileList);
+  
+  // Safety and control
+  rpc StartHighTorque(DeviceId) returns (OpResult);
+  rpc EmergencyStop(DeviceId) returns (OpResult);
+  
+  // Monitoring and diagnostics
+  rpc SubscribeHealth(google.protobuf.Empty) returns (stream HealthEvent);
+  rpc GetDiagnostics(DeviceId) returns (DiagnosticInfo);
+  
+  // Game integration
+  rpc ConfigureTelemetry(ConfigureTelemetryRequest) returns (OpResult);
+  rpc GetGameStatus(google.protobuf.Empty) returns (GameStatus);
+}
+
+// Device information and capabilities
+message DeviceInfo {
+  string id = 1;
+  string name = 2;
+  DeviceType type = 3;
+  DeviceCapabilities capabilities = 4;
+  DeviceState state = 5;
+}
+
+message DeviceId {
+  string id = 1;
+}
+
+enum DeviceType {
+  DEVICE_TYPE_UNKNOWN = 0;
+  DEVICE_TYPE_WHEEL_BASE = 1;
+  DEVICE_TYPE_PEDALS = 2;
+  DEVICE_TYPE_SHIFTER = 3;
+  DEVICE_TYPE_HANDBRAKE = 4;
+}
+
+message DeviceCapabilities {
+  bool supports_pid = 1;
+  bool supports_raw_torque_1khz = 2;
+  bool supports_health_stream = 3;
+  bool supports_led_bus = 4;
+  uint32 max_torque_cnm = 5;
+  uint32 encoder_cpr = 6;
+  uint32 min_report_period_us = 7;
+}
+
+enum DeviceState {
+  DEVICE_STATE_UNKNOWN = 0;
+  DEVICE_STATE_CONNECTED = 1;
+  DEVICE_STATE_DISCONNECTED = 2;
+  DEVICE_STATE_FAULTED = 3;
+  DEVICE_STATE_CALIBRATING = 4;
+}
+
+message DeviceStatus {
+  DeviceInfo device = 1;
+  google.protobuf.Timestamp last_seen = 2;
+  repeated string active_faults = 3;
+  TelemetryData telemetry = 4;
+}
+
+message TelemetryData {
+  int32 wheel_angle_mdeg = 1;
+  int32 wheel_speed_mrad_s = 2;
+  uint32 temp_c = 3;
+  uint32 faults = 4;
+  bool hands_on = 5;
+  uint32 sequence = 6;
+}
+
+// Profile management
+message Profile {
+  string schema_version = 1;
+  ProfileScope scope = 2;
+  BaseSettings base = 3;
+  LedConfig leds = 4;
+  HapticsConfig haptics = 5;
+  string signature = 6;
+}
+
+message ProfileScope {
+  string game = 1;
+  string car = 2;
+  string track = 3;
+}
+
+message BaseSettings {
+  float ffb_gain = 1;
+  uint32 dor_deg = 2;
+  float torque_cap_nm = 3;
+  FilterConfig filters = 4;
+}
+
+message FilterConfig {
+  uint32 reconstruction = 1;
+  float friction = 2;
+  float damper = 3;
+  float inertia = 4;
+  repeated NotchFilter notch_filters = 5;
+  float slew_rate = 6;
+  repeated CurvePoint curve_points = 7;
+}
+
+message NotchFilter {
+  float hz = 1;
+  float q = 2;
+  float gain_db = 3;
+}
+
+message CurvePoint {
+  float input = 1;
+  float output = 2;
+}
+
+message LedConfig {
+  repeated float rpm_bands = 1;
+  string pattern = 2;
+  float brightness = 3;
+}
+
+message HapticsConfig {
+  bool enabled = 1;
+  float intensity = 2;
+  float frequency_hz = 3;
+}
+
+message ApplyProfileRequest {
+  DeviceId device = 1;
+  Profile profile = 2;
+}
+
+message ProfileList {
+  repeated Profile profiles = 1;
+}
+
+// Health monitoring
+message HealthEvent {
+  google.protobuf.Timestamp timestamp = 1;
+  string device_id = 2;
+  HealthEventType type = 3;
+  string message = 4;
+  map<string, string> metadata = 5;
+}
+
+enum HealthEventType {
+  HEALTH_EVENT_TYPE_UNKNOWN = 0;
+  HEALTH_EVENT_TYPE_DEVICE_CONNECTED = 1;
+  HEALTH_EVENT_TYPE_DEVICE_DISCONNECTED = 2;
+  HEALTH_EVENT_TYPE_FAULT_DETECTED = 3;
+  HEALTH_EVENT_TYPE_FAULT_CLEARED = 4;
+  HEALTH_EVENT_TYPE_PERFORMANCE_WARNING = 5;
+}
+
+message DiagnosticInfo {
+  string device_id = 1;
+  map<string, string> system_info = 2;
+  repeated string recent_faults = 3;
+  PerformanceMetrics performance = 4;
+}
+
+message PerformanceMetrics {
+  float p99_jitter_us = 1;
+  float missed_tick_rate = 2;
+  uint64 total_ticks = 3;
+  uint64 missed_ticks = 4;
+}
+
+// Game integration
+message ConfigureTelemetryRequest {
+  string game_id = 1;
+  string install_path = 2;
+  bool enable_auto_config = 3;
+}
+
+message GameStatus {
+  string active_game = 1;
+  bool telemetry_active = 2;
+  string car_id = 3;
+  string track_id = 4;
+}
+
+// Common operation result
+message OpResult {
+  bool success = 1;
+  string error_message = 2;
+  map<string, string> metadata = 3;
+}

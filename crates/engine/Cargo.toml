@@ -1,0 +1,31 @@
+[package]
+name = "racing-wheel-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+racing-wheel-schemas = { path = "../schemas" }
+tokio = { workspace = true }
+parking_lot = { workspace = true }
+crossbeam = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+mimalloc = { workspace = true, optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.52", features = [
+    "Win32_System_Threading",
+    "Win32_System_SystemServices",
+    "Win32_Foundation",
+    "Win32_System_Performance",
+] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[features]
+default = ["mimalloc"]
+rt-allocator = ["mimalloc"]

@@ -1,0 +1,58 @@
+[workspace]
+members = [
+    "crates/schemas",
+    "crates/engine", 
+    "crates/service",
+    "crates/cli",
+    "crates/ui"
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["Racing Wheel Suite Contributors"]
+repository = "https://github.com/racing-wheel-suite/racing-wheel-suite"
+
+[workspace.dependencies]
+# Core dependencies
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Real-time and performance
+parking_lot = "0.12"
+crossbeam = "0.8"
+mimalloc = "0.1"
+
+# HID and hardware
+hidapi = "2.4"
+libudev = "0.3"
+
+# Protobuf and schema
+prost = "0.12"
+prost-types = "0.12"
+tonic = "0.10"
+
+# Testing
+criterion = "0.5"
+proptest = "1.0"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+panic = "abort"
+
+# Performance-critical profile for RT components
+[profile.rt]
+inherits = "release"
+debug = false
+overflow-checks = false

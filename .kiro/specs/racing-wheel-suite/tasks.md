@@ -50,9 +50,16 @@ This implementation plan converts the racing wheel software design into mileston
 
 ### M0 — Foundation
 
-- [ ] 0 ADR & CI scaffolding
+- [-] 0 ADR & CI scaffolding
 
-- [ ] 0.1 ADR & CI scaffolding
+
+
+
+
+
+- [-] 0.1 ADR & CI scaffolding
+
+
   - Create ADR template and decision records for FFB modes, IPC transport, OWP-1 protocol
   - Set up rustfmt/clippy/cargo-deny with per-OS CI runners
   - Add performance gate job that fails on p99 jitter >0.25ms or missed ticks >0.001%

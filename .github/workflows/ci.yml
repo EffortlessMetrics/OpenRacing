@@ -1,0 +1,251 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable, beta]
+        exclude:
+          # Reduce matrix size, only test beta on Ubuntu
+          - os: windows-latest
+            rust: beta
+          - os: macos-latest
+            rust: beta
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        components: rustfmt, clippy
+    
+    - name: Install system dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev pkg-config
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Cache cargo index
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+
+    - name: Run clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+    - name: Run tests
+      run: cargo test --all-features --workspace
+
+    - name: Run doc tests
+      run: cargo test --doc --workspace
+
+  performance-gate:
+    name: Performance Gate
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev pkg-config python3
+    
+    - name: Set CPU governor to performance
+      run: |
+        echo 'GOVERNOR="performance"' | sudo tee /etc/default/cpufrequtils
+        sudo systemctl disable ondemand
+        sudo systemctl enable cpufrequtils
+        sudo cpufreq-set -g performance || true
+    
+    - name: Set RT scheduling limits
+      run: |
+        echo "$(whoami) soft rtprio 99" | sudo tee -a /etc/security/limits.conf
+        echo "$(whoami) hard rtprio 99" | sudo tee -a /etc/security/limits.conf
+        echo "$(whoami) soft memlock unlimited" | sudo tee -a /etc/security/limits.conf
+        echo "$(whoami) hard memlock unlimited" | sudo tee -a /etc/security/limits.conf
+    
+    - name: Build release with RT profile
+      run: cargo build --profile rt --bin wheeld
+    
+    - name: Run RT timing benchmarks
+      run: |
+        # Run benchmarks with JSON output for validation
+        cargo bench --bench rt_timing -- --output-format json | tee bench_results.json
+    
+    - name: Validate performance gates
+      run: |
+        python3 scripts/validate_performance.py bench_results.json --strict
+    
+    - name: Check for RT heap allocations
+      run: |
+        # Additional check for zero allocations in RT path
+        RUST_LOG=debug cargo test --release test_zero_alloc_rt_path
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: benchmark-results-${{ github.sha }}
+        path: bench_results.json
+
+  security-audit:
+    name: Security & License Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+    
+    - name: Install cargo-deny
+      run: cargo install cargo-deny
+    
+    - name: Run security audit
+      run: cargo audit --deny warnings
+    
+    - name: Check licenses and dependencies
+      run: cargo deny check
+    
+    - name: Generate third-party license report
+      run: |
+        cargo tree --format "{p} {l}" | grep -v "racing-wheel" | sort | uniq > third_party_licenses.txt
+    
+    - name: Validate ADR format and references
+      run: |
+        python3 scripts/validate_adr.py --verbose
+    
+    - name: Generate documentation index
+      run: |
+        python3 scripts/generate_docs_index.py
+    
+    - name: Upload license report
+      uses: actions/upload-artifact@v3
+      with:
+        name: third-party-licenses-${{ github.sha }}
+        path: third_party_licenses.txt
+    
+    - name: Upload documentation artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: documentation-${{ github.sha }}
+        path: |
+          docs/adr/INDEX.md
+          third_party_licenses.txt
+
+  cross-platform-performance:
+    name: Cross-Platform Performance
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install system dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev pkg-config python3
+    
+    - name: Install system dependencies (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        # Windows-specific RT setup would go here
+        echo "Windows RT setup"
+    
+    - name: Build RT profile
+      run: cargo build --profile rt --bin wheeld
+    
+    - name: Run platform-specific RT benchmarks
+      run: |
+        cargo bench --bench rt_timing -- --output-format json | tee bench_results_${{ matrix.os }}.json
+    
+    - name: Validate performance (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        python3 scripts/validate_performance.py bench_results_${{ matrix.os }}.json
+    
+    - name: Validate performance (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        python scripts/validate_performance.py bench_results_${{ matrix.os }}.json
+    
+    - name: Upload platform benchmark results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: benchmark-results-${{ matrix.os }}-${{ github.sha }}
+        path: bench_results_${{ matrix.os }}.json
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: llvm-tools-preview
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev pkg-config
+    
+    - name: Install cargo-llvm-cov
+      run: cargo install cargo-llvm-cov
+    
+    - name: Generate coverage report
+      run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: lcov.info
+        fail_ci_if_error: true

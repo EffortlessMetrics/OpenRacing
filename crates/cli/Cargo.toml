@@ -1,0 +1,21 @@
+[package]
+name = "wheelctl"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "wheelctl"
+path = "src/main.rs"
+
+[dependencies]
+racing-wheel-schemas = { path = "../schemas" }
+tokio = { workspace = true }
+tonic = { workspace = true }
+clap = { version = "4.4", features = ["derive"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }

@@ -1,0 +1,31 @@
+# Clippy configuration for consistent linting
+
+# Avoid false positives for large error types in Result
+type-complexity-threshold = 250
+
+# Allow longer function names for descriptive RT functions
+too-many-arguments-threshold = 8
+
+# Allow more complex functions for RT critical paths
+cognitive-complexity-threshold = 30
+
+# Increase enum variant name threshold for detailed error types
+enum-variant-name-threshold = 4
+
+# Allow longer variable names for clarity in RT code
+single-char-binding-names-threshold = 5
+
+# Increase literal representation threshold
+literal-representation-threshold = 10
+
+# Allow more fields in structs for configuration objects
+too-many-lines-threshold = 150
+
+# Increase trivial copy pass by value threshold for small types
+trivial-copy-size-limit = 128
+
+# Allow more arguments for builder patterns
+too-many-arguments-threshold = 10
+
+# Increase complexity threshold for state machines
+cyclomatic-complexity-threshold = 15

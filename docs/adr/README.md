@@ -1,0 +1,45 @@
+# Architecture Decision Records (ADRs)
+
+This directory contains Architecture Decision Records for the Racing Wheel Software Suite. ADRs document important architectural decisions, their context, rationale, and consequences.
+
+## Current ADRs
+
+- [ADR-0001: Force Feedback Mode Matrix](0001-ffb-mode-matrix.md) - FFB delivery mechanisms and capability negotiation
+- [ADR-0002: IPC Transport Layer](0002-ipc-transport.md) - Cross-platform communication between service and clients
+- [ADR-0003: OWP-1 Protocol Specification](0003-owp1-protocol.md) - Open Wheel Protocol for device communication
+- [ADR-0004: Real-Time Scheduling Architecture](0004-rt-scheduling-architecture.md) - 1kHz timing and RT guarantees
+- [ADR-0005: Plugin Architecture](0005-plugin-architecture.md) - Safe and fast plugin system design
+- [ADR-0006: Safety Interlocks and Fault Management](0006-safety-interlocks.md) - Comprehensive safety system design
+
+## Creating New ADRs
+
+1. Copy `template.md` to `XXXX-title.md` where XXXX is the next sequential number
+2. Fill in all sections, especially:
+   - Context: What problem are we solving?
+   - Decision: What are we doing?
+   - Rationale: Why this approach?
+   - Consequences: What are the trade-offs?
+   - References: Link to specific requirements
+3. Submit as PR for review
+4. Update status to "Accepted" after approval
+
+## ADR Lifecycle
+
+- **Proposed**: Initial draft, under discussion
+- **Accepted**: Approved and being implemented
+- **Deprecated**: No longer recommended, but not forbidden
+- **Superseded**: Replaced by a newer ADR
+
+## Guidelines
+
+- ADRs are immutable once accepted - create new ADRs to change decisions
+- Reference specific requirement IDs from `requirements.md`
+- Include implementation notes for complex decisions
+- Add compliance and verification criteria
+- Link related ADRs to show decision dependencies
+
+## Tools
+
+- Use `template.md` as starting point for new ADRs
+- Validate ADR format with `scripts/validate_adr.py` (if available)
+- Generate ADR index with `scripts/generate_adr_index.py` (if available)

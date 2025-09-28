@@ -1,0 +1,16 @@
+[package]
+name = "racing-wheel-ui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+racing-wheel-schemas = { path = "../schemas" }
+tauri = { version = "1.5", features = ["api-all"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tonic = { workspace = true }
+anyhow = { workspace = true }

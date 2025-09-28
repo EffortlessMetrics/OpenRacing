@@ -1,0 +1,23 @@
+[package]
+name = "racing-wheel-service"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+racing-wheel-schemas = { path = "../schemas" }
+racing-wheel-engine = { path = "../engine" }
+tokio = { workspace = true }
+tonic = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+hidapi = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libudev = { workspace = true }
