@@ -2,10 +2,10 @@
 
 use anyhow::Result;
 use racing_wheel_engine::{
-    VirtualHidPort, TracingManager, SafetyPolicy, MockProfileRepo
+    VirtualHidPort, TracingManager, SafetyPolicy
 };
 use crate::{
-    ApplicationProfileService, ApplicationDeviceService, ApplicationSafetyService
+    ApplicationDeviceService, ApplicationSafetyService
 };
 use std::sync::Arc;
 use tracing::{info, error};

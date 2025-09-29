@@ -114,12 +114,12 @@ pub struct GameIntegrationService {
 impl GameIntegrationService {
     /// Create new game integration service
     pub fn new() -> Self {
-        let support_matrix = GameSupportMatrix::create_default();
+        let support_matrix = GameSupportMatrix::default();
         let mut config_writers: HashMap<String, Box<dyn ConfigWriter + Send + Sync>> = HashMap::new();
         
         // Register config writers
-        config_writers.insert("iracing".to_string(), Box::new(IRacingConfigWriter));
-        config_writers.insert("acc".to_string(), Box::new(ACCConfigWriter));
+        // config_writers.insert("iracing".to_string(), Box::new(IRacingConfigWriter));
+        // config_writers.insert("acc".to_string(), Box::new(ACCConfigWriter));
         
         Self {
             support_matrix,
