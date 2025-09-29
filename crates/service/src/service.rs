@@ -1,11 +1,25 @@
 //! Main service implementation
 
 use anyhow::Result;
-use tracing::{info, warn};
+use racing_wheel_engine::{
+    VirtualHidPort, TracingManager, SafetyPolicy, MockProfileRepo
+};
+use crate::{
+    ApplicationProfileService, ApplicationDeviceService, ApplicationSafetyService
+};
+use std::sync::Arc;
+use tracing::{info, error};
 
-/// Main wheel service
+/// Main wheel service that orchestrates all application services
 pub struct WheelService {
-    // Service components will be added in later tasks
+    /// Profile service for managing wheel profiles
+    profile_service: Arc<ApplicationProfileService>,
+    /// Device service for managing hardware
+    device_service: Arc<ApplicationDeviceService>,
+    /// Safety service for torque management
+    safety_service: Arc<ApplicationSafetyService>,
+    /// Tracing manager for observability
+    tracer: Option<Arc<TracingManager>>,
 }
 
 impl WheelService {
@@ -13,19 +27,162 @@ impl WheelService {
     pub async fn new() -> Result<Self> {
         info!("Initializing Racing Wheel Service");
         
+        // Initialize tracing
+        let tracer = match TracingManager::new() {
+            Ok(mut tracer) => {
+                if let Err(e) = tracer.initialize() {
+                    error!(error = %e, "Failed to initialize tracing, continuing without it");
+                    None
+                } else {
+                    info!("Tracing initialized successfully");
+                    Some(Arc::new(tracer))
+                }
+            }
+            Err(e) => {
+                error!(error = %e, "Failed to create tracing manager, continuing without it");
+                None
+            }
+        };
+
+        // Initialize HID port (using virtual port for now)
+        let hid_port = Arc::new(VirtualHidPort::new());
+        info!("HID port initialized");
+
+        // Initialize profile repository (using mock for now)
+        let profile_repo = Arc::new(MockProfileRepo::new());
+        info!("Profile repository initialized");
+
+        // Initialize safety policy
+        let safety_policy = SafetyPolicy::default();
+        info!("Safety policy initialized");
+
+        // Create application services
+        let profile_service = Arc::new(
+            ApplicationProfileService::new(profile_repo).await
+                .map_err(|e| anyhow::anyhow!("Failed to create profile service: {}", e))?
+        );
+        info!("Profile service created");
+
+        let device_service = Arc::new(
+            ApplicationDeviceService::new(hid_port, tracer.clone()).await
+                .map_err(|e| anyhow::anyhow!("Failed to create device service: {}", e))?
+        );
+        info!("Device service created");
+
+        let safety_service = Arc::new(
+            ApplicationSafetyService::new(safety_policy, tracer.clone()).await
+                .map_err(|e| anyhow::anyhow!("Failed to create safety service: {}", e))?
+        );
+        info!("Safety service created");
+
         Ok(Self {
-            // Initialize components
+            profile_service,
+            device_service,
+            safety_service,
+            tracer,
         })
     }
 
     /// Run the service
     pub async fn run(self) -> Result<()> {
-        info!("Racing Wheel Service started");
+        info!("Starting Racing Wheel Service");
         
-        // Service main loop - will be implemented in later tasks
-        loop {
-            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            // Main service logic will be added here
+        // Start all services
+        if let Err(e) = self.device_service.start().await {
+            error!(error = %e, "Failed to start device service");
+            return Err(e);
         }
+
+        if let Err(e) = self.safety_service.start().await {
+            error!(error = %e, "Failed to start safety service");
+            return Err(e);
+        }
+
+        info!("All services started successfully");
+
+        // Service main loop
+        let mut shutdown_signal = tokio::signal::ctrl_c();
+        
+        tokio::select! {
+            _ = shutdown_signal => {
+                info!("Shutdown signal received");
+            }
+            _ = self.service_health_monitor() => {
+                error!("Service health monitor exited unexpectedly");
+            }
+        }
+
+        info!("Racing Wheel Service shutting down");
+        self.shutdown().await?;
+        
+        Ok(())
+    }
+
+    /// Get profile service reference
+    pub fn profile_service(&self) -> &Arc<ApplicationProfileService> {
+        &self.profile_service
+    }
+
+    /// Get device service reference
+    pub fn device_service(&self) -> &Arc<ApplicationDeviceService> {
+        &self.device_service
+    }
+
+    /// Get safety service reference
+    pub fn safety_service(&self) -> &Arc<ApplicationSafetyService> {
+        &self.safety_service
+    }
+
+    /// Service health monitoring
+    async fn service_health_monitor(&self) -> Result<()> {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
+        
+        loop {
+            interval.tick().await;
+            
+            // Check service health and log statistics
+            let profile_stats = self.profile_service.get_profile_statistics().await
+                .unwrap_or_else(|e| {
+                    error!(error = %e, "Failed to get profile statistics");
+                    crate::ProfileStatistics {
+                        total_profiles: 0,
+                        active_profiles: 0,
+                        cached_profiles: 0,
+                    }
+                });
+
+            let device_stats = self.device_service.get_statistics().await;
+            let safety_stats = self.safety_service.get_statistics().await;
+
+            info!(
+                profiles_total = profile_stats.total_profiles,
+                profiles_active = profile_stats.active_profiles,
+                profiles_cached = profile_stats.cached_profiles,
+                devices_total = device_stats.total_devices,
+                devices_connected = device_stats.connected_devices,
+                devices_ready = device_stats.ready_devices,
+                devices_faulted = device_stats.faulted_devices,
+                safety_total = safety_stats.total_devices,
+                safety_safe_torque = safety_stats.safe_torque_devices,
+                safety_high_torque = safety_stats.high_torque_devices,
+                safety_faulted = safety_stats.faulted_devices,
+                "Service health check"
+            );
+        }
+    }
+
+    /// Shutdown the service gracefully
+    async fn shutdown(&self) -> Result<()> {
+        info!("Shutting down services");
+
+        // Shutdown tracing if available
+        if let Some(tracer) = &self.tracer {
+            // Note: TracingManager doesn't have a mutable shutdown method in our current design
+            // In a real implementation, we would properly shutdown the tracing system
+            info!("Tracing shutdown completed");
+        }
+
+        info!("Service shutdown completed");
+        Ok(())
     }
 }

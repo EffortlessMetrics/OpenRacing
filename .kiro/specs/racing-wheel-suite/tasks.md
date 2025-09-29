@@ -238,7 +238,12 @@ This implementation plan converts the racing wheel software design into mileston
   - Write integration tests with virtual device for enumeration and I/O validation
   - _Requirements: DM-01, DM-02, XPLAT-01, NFR-01_
 
-- [ ] 6. Create application services and use cases
+- [x] 6. Create application services and use cases
+
+
+
+
+
   - Implement ProfileService for CRUD operations and hierarchy resolution
   - Build DeviceService for enumeration, calibration, and health monitoring
   - Create SafetyService with state machine for torque gate management
@@ -289,7 +294,9 @@ This implementation plan converts the racing wheel software design into mileston
 
 ### M6 — Diagnostics & Tracing
 
-- [ ] 6.1 ETW/Tracepoints for Real-Time Observability
+- [x] 6.1 ETW/Tracepoints for Real-Time Observability
+
+
   - Implement Windows ETW provider with TickStart/End, HidWrite, DeadlineMiss events
   - Add Linux tracepoints or Perfetto integration for RT loop observability
   - Create structured logging with device/game context for non-RT events

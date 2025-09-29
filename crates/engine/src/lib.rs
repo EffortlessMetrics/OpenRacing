@@ -26,6 +26,8 @@ pub mod two_phase_apply;
 pub mod allocation_tracker;
 pub mod filters;
 pub mod hid;
+pub mod tracing;
+pub mod tracing_test;
 
 pub use rt::*;
 pub use pipeline::*;
@@ -48,3 +50,6 @@ pub use ports::{
 };
 pub use policies::{SafetyPolicy, ProfileHierarchyPolicy, SafetyViolation, ProfileHierarchyError};
 pub use protocol::{TorqueCommand, DeviceTelemetryReport, DeviceCapabilitiesReport};
+pub use tracing::{
+    TracingManager, TracingProvider, RTTraceEvent, AppTraceEvent, TracingMetrics, TracingError
+};
