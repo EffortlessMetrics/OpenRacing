@@ -2,70 +2,45 @@
 
 use crate::{RTResult, RTError};
 use racing_wheel_schemas::{
-    DeviceId, TorqueNm,
-    DeviceCapabilities, DeviceState, DeviceType
+    DeviceId, TorqueNm, DeviceCapabilities
 };
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
-/// Telemetry data from device (temporary until protobuf is re-enabled)
+/// Telemetry data from device
 #[derive(Debug, Clone)]
 pub struct TelemetryData {
-    pub wheel_angle_mdeg: i32,
-    pub wheel_speed_mrad_s: i32,
-    pub temp_c: u32,
-    pub faults: u32,
+    pub wheel_angle_deg: f32,
+    pub wheel_speed_rad_s: f32,
+    pub temperature_c: u8,
+    pub fault_flags: u8,
     pub hands_on: bool,
-    pub sequence: u32,
+    pub timestamp: Instant,
 }
 
-/// Device info (temporary until protobuf is re-enabled)
+/// Device info for enumeration and management
 #[derive(Debug, Clone)]
 pub struct DeviceInfo {
-    pub id: String,
+    pub id: DeviceId,
     pub name: String,
-    pub device_type: i32,
-    pub capabilities: Option<DeviceCapabilities>,
-    pub state: i32,
+    pub vendor_id: u16,
+    pub product_id: u16,
+    pub serial_number: Option<String>,
+    pub manufacturer: Option<String>,
+    pub path: String,
+    pub capabilities: DeviceCapabilities,
+    pub is_connected: bool,
 }
 
-/// HID device abstraction for real-time operations
-pub trait HidDevice: Send + Sync {
-    /// Write force feedback report (RT-safe, non-blocking)
-    fn write_ffb_report(&mut self, torque_nm: f32, seq: u16) -> RTResult;
-    
-    /// Read device telemetry (non-RT, async)
-    fn read_telemetry(&mut self) -> Option<TelemetryData>;
-    
-    /// Get device capabilities
-    fn capabilities(&self) -> &DeviceCapabilities;
-    
-    /// Get device info
-    fn device_info(&self) -> &DeviceInfo;
-    
-    /// Check if device is connected
-    fn is_connected(&self) -> bool;
-}
-
-/// HID port abstraction for device enumeration and management
-#[async_trait::async_trait]
-pub trait HidPort: Send + Sync {
-    /// List all available devices
-    async fn list_devices(&self) -> Result<Vec<DeviceInfo>, Box<dyn std::error::Error>>;
-    
-    /// Open a device by ID
-    async fn open_device(&self, id: &DeviceId) -> Result<Box<dyn HidDevice>, Box<dyn std::error::Error>>;
-    
-    /// Monitor for device connect/disconnect events
-    async fn monitor_devices(&self) -> Result<mpsc::Receiver<DeviceEvent>, Box<dyn std::error::Error>>;
-}
+// HidDevice and HidPort traits are now defined in ports.rs
+use crate::ports::{HidDevice, HidPort, DeviceHealthStatus};
 
 /// Device events for monitoring
 #[derive(Debug, Clone)]
 pub enum DeviceEvent {
     Connected(DeviceInfo),
-    Disconnected(DeviceId),
+    Disconnected(DeviceInfo),
 }
 
 /// OWP-1 Protocol structures
@@ -134,11 +109,15 @@ impl VirtualDevice {
         );
 
         let info = DeviceInfo {
-            id: id.as_str().to_string(),
+            id: id.clone(),
             name,
-            device_type: DeviceType::WheelBase as i32,
-            capabilities: Some(capabilities.clone()),
-            state: DeviceState::Connected as i32,
+            vendor_id: 0x1234, // Mock vendor ID
+            product_id: 0x5678, // Mock product ID
+            serial_number: Some("VIRTUAL001".to_string()),
+            manufacturer: Some("Virtual Racing".to_string()),
+            path: format!("virtual://{}", id.as_str()),
+            capabilities: capabilities.clone(),
+            is_connected: true,
         };
 
         let state = VirtualDeviceState {
@@ -267,12 +246,12 @@ impl HidDevice for VirtualDevice {
         let state = self.state.lock().ok()?;
         
         Some(TelemetryData {
-            wheel_angle_mdeg: (state.wheel_angle_deg * 1000.0) as i32,
-            wheel_speed_mrad_s: (state.wheel_speed_rad_s * 1000.0) as i32,
-            temp_c: state.temperature_c as u32,
-            faults: state.faults as u32,
+            wheel_angle_deg: state.wheel_angle_deg,
+            wheel_speed_rad_s: state.wheel_speed_rad_s,
+            temperature_c: state.temperature_c,
+            fault_flags: state.faults,
             hands_on: state.hands_on,
-            sequence: state.last_seq as u32,
+            timestamp: Instant::now(),
         })
     }
 
@@ -286,6 +265,17 @@ impl HidDevice for VirtualDevice {
 
     fn is_connected(&self) -> bool {
         self.connected
+    }
+    
+    fn health_status(&self) -> DeviceHealthStatus {
+        let state = self.state.lock().unwrap();
+        DeviceHealthStatus {
+            temperature_c: state.temperature_c,
+            fault_flags: state.faults,
+            hands_on: state.hands_on,
+            last_communication: state.last_update,
+            communication_errors: 0,
+        }
     }
 }
 
@@ -325,12 +315,19 @@ impl VirtualHidPort {
     pub fn remove_device(&mut self, id: &DeviceId) -> Result<(), Box<dyn std::error::Error>> {
         {
             let mut devices = self.devices.lock().unwrap();
-            devices.retain(|d| d.info.id != id.as_str());
+            devices.retain(|d| d.info.id != *id);
         }
+
+        let device_info = {
+            let devices = self.devices.lock().unwrap();
+            devices.iter().find(|d| d.info.id == *id).map(|d| d.info.clone())
+        };
 
         // Send disconnect event if monitoring
         if let Some(tx) = &self.event_tx {
-            let _ = tx.try_send(DeviceEvent::Disconnected(id.clone()));
+            if let Some(info) = device_info {
+                let _ = tx.try_send(DeviceEvent::Disconnected(info));
+            }
         }
 
         Ok(())
@@ -364,7 +361,7 @@ impl HidPort for VirtualHidPort {
         let devices = self.devices.lock().unwrap();
         
         for device in devices.iter() {
-            if device.info.id == id.as_str() {
+            if device.info.id == *id {
                 // Create a new instance that shares the same state
                 let virtual_device = VirtualDevice {
                     info: device.info.clone(),
@@ -386,6 +383,11 @@ impl HidPort for VirtualHidPort {
         // Note: This is a simplified implementation for testing
         Ok(rx)
     }
+    
+    async fn refresh_devices(&self) -> Result<(), Box<dyn std::error::Error>> {
+        // For virtual devices, this is a no-op
+        Ok(())
+    }
 }
 
 impl Default for VirtualHidPort {
@@ -404,7 +406,7 @@ mod tests {
         let device_id = DeviceId::new("test-device".to_string()).unwrap();
         let device = VirtualDevice::new(device_id, "Test Wheel".to_string());
         
-        assert_eq!(device.device_info().id, "test-device");
+        assert_eq!(device.device_info().id.as_str(), "test-device");
         assert_eq!(device.device_info().name, "Test Wheel");
         assert!(device.is_connected());
         assert_eq!(device.capabilities().max_torque.value(), 25.0);
@@ -458,7 +460,7 @@ mod tests {
         // List devices
         let devices = port.list_devices().await.unwrap();
         assert_eq!(devices.len(), 1);
-        assert_eq!(devices[0].id, "test-device");
+        assert_eq!(devices[0].id.as_str(), "test-device");
         
         // Open device
         let mut opened_device = port.open_device(&device_id).await.unwrap();

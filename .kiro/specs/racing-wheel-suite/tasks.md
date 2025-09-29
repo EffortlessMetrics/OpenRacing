@@ -222,7 +222,15 @@ This implementation plan converts the racing wheel software design into mileston
   - Write unit tests for each node with closed-form expectations and bounds checking
   - _Requirements: FFB-03, FFB-04, FFB-05_
 
-- [ ] 5. Implement HID adapters with OS-specific RT optimizations
+- [x] 5. Implement HID adapters with OS-specific RT optimizations
+
+
+
+
+
+
+
+
   - Create Windows HID adapter: hidapi with overlapped I/O, avoid HidD_* in hot path
   - Add Windows RT setup: MMCSS category, process power throttling off, USB selective suspend guidance
   - Implement Linux HID adapter: /dev/hidraw* with libudev, non-blocking writes

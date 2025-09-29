@@ -25,6 +25,7 @@ pub mod profile_merge;
 pub mod two_phase_apply;
 pub mod allocation_tracker;
 pub mod filters;
+pub mod hid;
 
 pub use rt::*;
 pub use pipeline::*;

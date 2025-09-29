@@ -9,7 +9,7 @@ use crate::{
     VirtualDevice, VirtualHidPort,
     TelemetryData,
 };
-use crate::device::{HidDevice, HidPort};
+use crate::ports::{HidDevice, HidPort};
 use racing_wheel_schemas::DeviceId;
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, AtomicU64, Ordering}};
 use std::time::{Duration, Instant};
@@ -278,7 +278,7 @@ impl RTLoopTestHarness {
             return Err("No virtual devices available for testing".into());
         }
         
-        let device_id = DeviceId::new(devices[0].id.clone())?;
+        let device_id = devices[0].id.clone();
         let mut device = self.virtual_port.open_device(&device_id).await?;
         
         // Start RT loop
@@ -528,7 +528,7 @@ impl RTLoopTestHarness {
                 
                 // Validate wheel angle
                 if let Some((min_angle, max_angle)) = expected.wheel_angle_range {
-                    let actual_angle = (actual.wheel_angle_mdeg as f32) / 1000.0;
+                    let actual_angle = actual.wheel_angle_deg;
                     if actual_angle < min_angle || actual_angle > max_angle {
                         validation_errors.push(format!(
                             "Wheel angle {:.2}° outside expected range [{:.2}°, {:.2}°]",
@@ -540,7 +540,7 @@ impl RTLoopTestHarness {
                 
                 // Validate wheel speed
                 if let Some((min_speed, max_speed)) = expected.wheel_speed_range {
-                    let actual_speed = (actual.wheel_speed_mrad_s as f32) / 1000.0;
+                    let actual_speed = actual.wheel_speed_rad_s;
                     if actual_speed < min_speed || actual_speed > max_speed {
                         validation_errors.push(format!(
                             "Wheel speed {:.2} rad/s outside expected range [{:.2}, {:.2}] rad/s",
@@ -552,7 +552,7 @@ impl RTLoopTestHarness {
                 
                 // Validate temperature
                 if let Some((min_temp, max_temp)) = expected.temperature_range {
-                    let actual_temp = actual.temp_c as u8;
+                    let actual_temp = actual.temperature_c;
                     if actual_temp < min_temp || actual_temp > max_temp {
                         validation_errors.push(format!(
                             "Temperature {}°C outside expected range [{}°C, {}°C]",
@@ -564,7 +564,7 @@ impl RTLoopTestHarness {
                 
                 // Validate faults
                 if let Some(expected_faults) = expected.expected_faults {
-                    let actual_faults = actual.faults as u8;
+                    let actual_faults = actual.fault_flags;
                     if actual_faults != expected_faults {
                         validation_errors.push(format!(
                             "Fault flags 0x{:02x} don't match expected 0x{:02x}",
@@ -584,12 +584,12 @@ impl RTLoopTestHarness {
                 results.push(ResponseValidationResult {
                     expected: expected.clone(),
                     actual: TelemetryData {
-                        wheel_angle_mdeg: 0,
-                        wheel_speed_mrad_s: 0,
-                        temp_c: 0,
-                        faults: 0,
+                        wheel_angle_deg: 0.0,
+                        wheel_speed_rad_s: 0.0,
+                        temperature_c: 0,
+                        fault_flags: 0,
                         hands_on: false,
-                        sequence: 0,
+                        timestamp: Instant::now(),
                     },
                     passed: false,
                     errors: vec!["No telemetry data available".to_string()],

@@ -36,9 +36,11 @@ windows = { version = "0.52", features = [
     "Win32_Security",
     "Win32_System_Power",
 ] }
+hidapi = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+libudev = { workspace = true }
 
 [features]
 default = ["mimalloc"]
