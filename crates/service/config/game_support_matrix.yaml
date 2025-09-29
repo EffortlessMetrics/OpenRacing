@@ -1,0 +1,90 @@
+# Game Support Matrix
+# Defines per-sim/version capabilities and configuration paths
+# Requirements: GI-01, GI-03
+
+games:
+  iracing:
+    name: "iRacing"
+    versions:
+      - version: "2024.x"
+        config_paths:
+          - "Documents/iRacing/app.ini"
+        executable_patterns:
+          - "iRacingSim64DX11.exe"
+          - "iRacingService.exe"
+        telemetry_method: "shared_memory"
+        supported_fields:
+          - "ffb_scalar"
+          - "rpm"
+          - "speed_ms"
+          - "slip_ratio"
+          - "gear"
+          - "car_id"
+          - "track_id"
+    telemetry:
+      method: "shared_memory"
+      update_rate_hz: 60
+      fields:
+        ffb_scalar: "SteeringWheelTorque"
+        rpm: "RPM"
+        speed_ms: "Speed"
+        slip_ratio: "LFslipRatio"
+        gear: "Gear"
+        flags: "SessionFlags"
+        car_id: "CarIdx"
+        track_id: "TrackId"
+    config_writer: "iracing"
+    auto_detect:
+      process_names:
+        - "iRacingSim64DX11.exe"
+        - "iRacingService.exe"
+      install_registry_keys:
+        - "HKEY_CURRENT_USER\\Software\\iRacing.com\\iRacing"
+      install_paths:
+        - "Program Files (x86)/iRacing"
+
+  acc:
+    name: "Assetto Corsa Competizione"
+    versions:
+      - version: "1.9.x"
+        config_paths:
+          - "Documents/Assetto Corsa Competizione/Config/broadcasting.json"
+        executable_patterns:
+          - "AC2-Win64-Shipping.exe"
+        telemetry_method: "udp_broadcast"
+        supported_fields:
+          - "ffb_scalar"
+          - "rpm"
+          - "speed_ms"
+          - "slip_ratio"
+          - "gear"
+          - "car_id"
+          - "track_id"
+    telemetry:
+      method: "udp_broadcast"
+      update_rate_hz: 100
+      fields:
+        ffb_scalar: "steerAngle"
+        rpm: "rpms"
+        speed_ms: "speedKmh"
+        slip_ratio: "wheelSlip"
+        gear: "gear"
+        flags: "flag"
+        car_id: "carModel"
+        track_id: "track"
+    config_writer: "acc"
+    auto_detect:
+      process_names:
+        - "AC2-Win64-Shipping.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 805550"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Assetto Corsa Competizione"
+
+  # Future games can be added here following the same structure
+  # ams2:
+  #   name: "Automobilista 2"
+  #   versions: [...]
+  #   telemetry: [...]
+  #   config_writer: "ams2"
+  #   auto_detect: [...]

@@ -1,0 +1,176 @@
+//! Game Integration Module - Minimal Implementation
+//! 
+//! Implements task 4: Game Support Matrix & Golden Writers
+//! Requirements: GI-01, GI-03
+
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::Path;
+use tracing::info;
+
+/// Game support matrix defining per-sim capabilities and config paths
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct GameSupportMatrix {
+    pub games: HashMap<String, GameSupport>,
+}
+
+/// Support information for a specific game
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct GameSupport {
+    pub name: String,
+    pub versions: Vec<GameVersion>,
+    pub telemetry: TelemetrySupport,
+    pub config_writer: String,
+    pub auto_detect: AutoDetectConfig,
+}
+
+/// Version-specific game support
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct GameVersion {
+    pub version: String,
+    pub config_paths: Vec<String>,
+    pub executable_patterns: Vec<String>,
+    pub telemetry_method: String,
+    pub supported_fields: Vec<String>,
+}
+
+/// Telemetry support configuration
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TelemetrySupport {
+    pub method: String, // "shared_memory", "udp_broadcast", "file_based"
+    pub update_rate_hz: u32,
+    pub fields: TelemetryFieldMapping,
+}
+
+/// Mapping of normalized telemetry fields to game-specific fields
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TelemetryFieldMapping {
+    pub ffb_scalar: Option<String>,
+    pub rpm: Option<String>,
+    pub speed_ms: Option<String>,
+    pub slip_ratio: Option<String>,
+    pub gear: Option<String>,
+    pub flags: Option<String>,
+    pub car_id: Option<String>,
+    pub track_id: Option<String>,
+}
+
+/// Auto-detection configuration for games
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AutoDetectConfig {
+    pub process_names: Vec<String>,
+    pub install_registry_keys: Vec<String>,
+    pub install_paths: Vec<String>,
+}
+
+/// Configuration to be applied to a game
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TelemetryConfig {
+    pub enabled: bool,
+    pub update_rate_hz: u32,
+    pub output_method: String,
+    pub output_target: String,
+    pub fields: Vec<String>,
+}
+
+/// Represents a configuration change made to a game file
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ConfigDiff {
+    pub file_path: String,
+    pub section: Option<String>,
+    pub key: String,
+    pub old_value: Option<String>,
+    pub new_value: String,
+    pub operation: DiffOperation,
+}
+
+/// Type of configuration operation
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum DiffOperation {
+    Add,
+    Modify,
+    Remove,
+}
+
+/// Configuration writer trait for game-specific config generation
+pub trait ConfigWriter {
+    /// Write telemetry configuration for the game
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>>;
+    
+    /// Validate that configuration was applied correctly
+    fn validate_config(&self, game_path: &Path) -> Result<bool>;
+    
+    /// Get the expected configuration diffs for testing
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>>;
+}
+
+/// Game integration service
+pub struct GameIntegrationService {
+    support_matrix: GameSupportMatrix,
+    config_writers: HashMap<String, Box<dyn ConfigWriter + Send + Sync>>,
+}
+
+impl GameIntegrationService {
+    /// Create new game integration service
+    pub fn new() -> Self {
+        let support_matrix = GameSupportMatrix::create_default();
+        let mut config_writers: HashMap<String, Box<dyn ConfigWriter + Send + Sync>> = HashMap::new();
+        
+        // Register config writers
+        config_writers.insert("iracing".to_string(), Box::new(IRacingConfigWriter));
+        config_writers.insert("acc".to_string(), Box::new(ACCConfigWriter));
+        
+        Self {
+            support_matrix,
+            config_writers,
+        }
+    }
+    
+    /// Configure telemetry for a specific game (GI-01)
+    pub fn configure_telemetry(&self, game_id: &str, game_path: &Path) -> Result<Vec<ConfigDiff>> {
+        info!(game_id = %game_id, game_path = ?game_path, "Configuring telemetry");
+        
+        let game_support = self.support_matrix.games.get(game_id)
+            .ok_or_else(|| anyhow::anyhow!("Unsupported game: {}", game_id))?;
+        
+        let config_writer = self.config_writers.get(game_id)
+            .ok_or_else(|| anyhow::anyhow!("No config writer for game: {}", game_id))?;
+        
+        // Create telemetry configuration
+        let telemetry_config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: game_support.telemetry.update_rate_hz,
+            output_method: game_support.telemetry.method.clone(),
+            output_target: "127.0.0.1:12345".to_string(),
+            fields: game_support.versions[0].supported_fields.clone(),
+        };
+        
+        // Write configuration and get diffs
+        let diffs = config_writer.write_config(game_path, &telemetry_config)?;
+        
+        info!(game_id = %game_id, diffs_count = diffs.len(), "Telemetry configuration completed");
+        Ok(diffs)
+    }
+    
+    /// Get normalized telemetry field mapping for a game (GI-03)
+    pub fn get_telemetry_mapping(&self, game_id: &str) -> Result<TelemetryFieldMapping> {
+        let game_support = self.support_matrix.games.get(game_id)
+            .ok_or_else(|| anyhow::anyhow!("Unsupported game: {}", game_id))?;
+        
+        Ok(game_support.telemetry.fields.clone())
+    }
+    
+    /// Get list of supported games
+    pub fn get_supported_games(&self) -> Vec<String> {
+        self.support_matrix.games.keys().cloned().collect()
+    }
+    
+    /// Get game support information
+    pub fn get_game_support(&self, game_id: &str) -> Result<GameSupport> {
+        self.support_matrix.games.get(game_id)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("Unsupported game: {}", game_id))
+    }
+}impl Ga
+meSupportMa

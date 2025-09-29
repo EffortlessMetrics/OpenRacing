@@ -271,6 +271,7 @@ This implementation plan converts the racing wheel software design into mileston
 - [-] 4 Game Support Matrix & Golden Writers
 
 
+
   - Create YAML-based support matrix defining per-sim/version capabilities and config paths
   - Implement table-driven configuration writers that apply expected diffs
   - Build golden file tests that compare generated configs against known fixtures
