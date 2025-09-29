@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" 
+           Name="Racing Wheel Suite" 
+           Language="1033" 
+           Version="!(bind.FileVersion.wheeld.exe)" 
+           Manufacturer="Racing Wheel Suite Contributors" 
+           UpgradeCode="12345678-1234-1234-1234-123456789012">
+    
+    <Package InstallerVersion="200" 
+             Compressed="yes" 
+             InstallScope="perUser" 
+             Description="Professional racing wheel software suite" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Racing Wheel Suite is already installed." />
+    
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Feature definitions -->
+    <Feature Id="ProductFeature" Title="Racing Wheel Suite" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentGroupRef Id="ServiceComponents" />
+    </Feature>
+
+    <!-- Directory structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="LocalAppDataFolder">
+        <Directory Id="INSTALLFOLDER" Name="RacingWheelSuite">
+          <Directory Id="BinFolder" Name="bin" />
+          <Directory Id="ConfigFolder" Name="config" />
+          <Directory Id="ProfilesFolder" Name="profiles" />
+          <Directory Id="PluginsFolder" Name="plugins" />
+          <Directory Id="LogsFolder" Name="logs" />
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Racing Wheel Suite" />
+      </Directory>
+    </Directory>
+
+    <!-- Main application components -->
+    <ComponentGroup Id="ProductComponents" Directory="BinFolder">
+      <Component Id="WheeldExe" Guid="*">
+        <File Id="wheeld.exe" Source="$(var.BinPath)\wheeld.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="WheelctlExe" Guid="*">
+        <File Id="wheelctl.exe" Source="$(var.BinPath)\wheelctl.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="WheelUIExe" Guid="*">
+        <File Id="wheel-ui.exe" Source="$(var.BinPath)\wheel-ui.exe" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Service registration components -->
+    <ComponentGroup Id="ServiceComponents" Directory="INSTALLFOLDER">
+      <Component Id="ServiceRegistration" Guid="*">
+        <!-- Register as user service using Task Scheduler -->
+        <RegistryKey Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run">
+          <RegistryValue Name="RacingWheelSuite" 
+                        Type="string" 
+                        Value="[BinFolder]wheeld.exe --service" 
+                        KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+      
+      <!-- Power management registry settings -->
+      <Component Id="PowerSettings" Guid="*">
+        <RegistryKey Root="HKCU" Key="Software\RacingWheelSuite\PowerManagement">
+          <RegistryValue Name="DisableUSBSelectiveSuspend" Type="integer" Value="1" />
+          <RegistryValue Name="HighPerformanceMode" Type="integer" Value="1" />
+        </RegistryKey>
+      </Component>
+    </ComponentGroup>
+
+    <!-- Start menu shortcuts -->
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="*">
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                  Name="Racing Wheel Suite"
+                  Description="Professional racing wheel software"
+                  Target="[BinFolder]wheel-ui.exe"
+                  WorkingDirectory="BinFolder" />
+        <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" 
+                      Key="Software\RacingWheelSuite" 
+                      Name="installed" 
+                      Type="integer" 
+                      Value="1" 
+                      KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Custom actions for service management -->
+    <CustomAction Id="StartService" 
+                  Directory="BinFolder" 
+                  ExeCommand="wheeld.exe --install-service" 
+                  Execute="deferred" 
+                  Impersonate="yes" />
+    
+    <CustomAction Id="StopService" 
+                  Directory="BinFolder" 
+                  ExeCommand="wheeld.exe --uninstall-service" 
+                  Execute="deferred" 
+                  Impersonate="yes" />
+
+    <InstallExecuteSequence>
+      <Custom Action="StartService" After="InstallFiles">NOT Installed</Custom>
+      <Custom Action="StopService" Before="RemoveFiles">Installed AND NOT REINSTALL</Custom>
+    </InstallExecuteSequence>
+
+  </Product>
+</Wix>

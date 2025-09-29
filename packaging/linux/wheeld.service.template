@@ -1,0 +1,53 @@
+[Unit]
+Description=Racing Wheel Suite Service
+Documentation=https://github.com/racing-wheel-suite/racing-wheel-suite
+After=graphical-session.target
+Wants=graphical-session.target
+
+[Service]
+Type=notify
+ExecStart=%INSTALL_PATH%/bin/wheeld --service
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=10
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+PrivateDevices=false
+ProtectHostname=true
+ProtectClock=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictRealtime=false
+RestrictSUIDSGID=true
+RemoveIPC=true
+
+# Allow access to HID devices and real-time scheduling
+SupplementaryGroups=input plugdev
+AmbientCapabilities=CAP_SYS_NICE
+
+# Working directory and state
+WorkingDirectory=%INSTALL_PATH%
+StateDirectory=racing-wheel-suite
+ConfigurationDirectory=racing-wheel-suite
+LogsDirectory=racing-wheel-suite
+RuntimeDirectory=racing-wheel-suite
+
+# Environment
+Environment=RUST_LOG=info
+Environment=WHEEL_CONFIG_DIR=%INSTALL_PATH%/config
+Environment=WHEEL_PROFILES_DIR=%INSTALL_PATH%/profiles
+
+[Install]
+WantedBy=default.target

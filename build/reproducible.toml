@@ -1,0 +1,133 @@
+# Reproducible Build Configuration for Racing Wheel Suite
+# This file defines settings to ensure deterministic, reproducible builds
+
+[build]
+# Rust toolchain version (pinned for reproducibility)
+rust_version = "1.75.0"
+rust_edition = "2021"
+
+# Target platforms for reproducible builds
+targets = [
+    "x86_64-pc-windows-msvc",
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu"
+]
+
+# Build environment settings
+[environment]
+# Environment variables that affect build reproducibility
+SOURCE_DATE_EPOCH = "1640995200"  # 2022-01-01 00:00:00 UTC
+RUSTFLAGS = "-C target-cpu=x86-64 -C debuginfo=0 -C strip=symbols"
+CARGO_INCREMENTAL = "0"
+RUST_BACKTRACE = "0"
+
+# Disable network access during build (except for pre-downloaded dependencies)
+CARGO_NET_OFFLINE = "true"
+
+[dependencies]
+# Lock file validation
+verify_lockfile = true
+audit_dependencies = true
+
+# Dependency sources (for supply chain security)
+allowed_registries = [
+    "https://github.com/rust-lang/crates.io-index"
+]
+
+# Known good dependency hashes (updated by CI)
+[dependencies.hashes]
+# This section would contain SHA256 hashes of all dependencies
+# Generated automatically by the build system
+
+[signing]
+# Code signing configuration
+sign_binaries = true
+sign_packages = true
+
+# Signing key configuration (keys stored securely in CI)
+windows_cert_thumbprint = "${WINDOWS_CERT_THUMBPRINT}"
+linux_gpg_key_id = "${LINUX_GPG_KEY_ID}"
+
+[artifacts]
+# Output artifact configuration
+strip_debug_info = true
+compress_binaries = true
+
+# Artifact naming convention
+naming_pattern = "{name}-{version}-{target}-{git_hash}"
+
+# Checksums to generate
+checksums = ["sha256", "sha512"]
+
+[validation]
+# Build validation steps
+run_tests = true
+run_benchmarks = false  # Skip benchmarks in reproducible builds
+validate_signatures = true
+
+# Performance regression detection
+performance_baseline = "benchmarks/baseline.json"
+max_performance_regression = "5%"
+
+[third_party]
+# Third-party license audit configuration
+audit_licenses = true
+allowed_licenses = [
+    "MIT",
+    "Apache-2.0", 
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016"
+]
+
+# Forbidden licenses
+forbidden_licenses = [
+    "GPL-3.0",
+    "AGPL-3.0",
+    "SSPL-1.0"
+]
+
+# License compatibility matrix
+[third_party.compatibility]
+"MIT" = ["Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC"]
+"Apache-2.0" = ["MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC"]
+
+[security]
+# Security scanning configuration
+scan_dependencies = true
+scan_binaries = true
+
+# Vulnerability databases to check
+vuln_databases = [
+    "https://github.com/RustSec/advisory-db",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/"
+]
+
+# Maximum allowed vulnerability severity
+max_vulnerability_severity = "medium"
+
+[documentation]
+# Documentation generation for reproducible builds
+generate_sbom = true  # Software Bill of Materials
+sbom_format = "spdx-json"
+
+# Build provenance information
+include_build_info = true
+build_info_format = "json"
+
+[ci]
+# CI-specific configuration for reproducible builds
+cache_dependencies = true
+cache_key_prefix = "repro-build-v1"
+
+# Build matrix for validation
+build_matrix = [
+    { os = "ubuntu-22.04", rust = "1.75.0" },
+    { os = "windows-2022", rust = "1.75.0" },
+    { os = "macos-12", rust = "1.75.0" }
+]
+
+# Parallel build validation
+parallel_builds = 3
+compare_artifacts = true

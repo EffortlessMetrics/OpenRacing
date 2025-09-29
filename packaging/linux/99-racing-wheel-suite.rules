@@ -1,0 +1,52 @@
+# udev rules for Racing Wheel Suite
+# Place in /etc/udev/rules.d/ or /usr/lib/udev/rules.d/
+
+# Racing wheel devices - grant access to input and plugdev groups
+# Common racing wheel vendor IDs
+
+# Logitech wheels
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c24f", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c29b", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c298", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c299", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c29a", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# Thrustmaster wheels  
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b65d", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b66d", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b66e", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b677", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b687", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# Fanatec wheels
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0eb7", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# Simucube / Granite Devices
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5a", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5b", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5c", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# VRS DirectForce Pro
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3344", ATTRS{idProduct}=="40b7", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# Moza Racing wheels
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="346e", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# Generic HID devices that might be racing wheels - be more restrictive
+# Only match devices with specific usage pages for game controllers
+SUBSYSTEM=="hidraw", ATTRS{bInterfaceClass}=="03", ATTRS{bInterfaceSubClass}=="00", ATTRS{bInterfaceProtocol}=="00", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# Set scheduler policy for racing wheel suite processes
+# This allows the service to request real-time scheduling via rtkit
+ACTION=="add", SUBSYSTEM=="hidraw", TAG=="uaccess", RUN+="/bin/systemctl --user try-restart racing-wheel-suite.service"
+
+# Power management - disable USB autosuspend for racing wheels
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c24f", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c29b", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="044f", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0eb7", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5a", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5b", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5c", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="3344", ATTRS{idProduct}=="40b7", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="346e", ATTR{power/autosuspend}="-1"
