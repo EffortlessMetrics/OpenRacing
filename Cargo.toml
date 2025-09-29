@@ -4,7 +4,8 @@ members = [
     "crates/engine", 
     "crates/service",
     "crates/cli",
-    "crates/ui"
+    "crates/ui",
+    "crates/plugins"
 ]
 resolver = "2"
 
@@ -44,6 +45,11 @@ jsonschema = "0.17"
 # Testing
 criterion = "0.5"
 proptest = "1.0"
+
+# Additional dependencies
+base64 = "0.21"
+clap = { version = "4.0", features = ["derive"] }
+semver = "1.0"
 
 [profile.release]
 lto = true

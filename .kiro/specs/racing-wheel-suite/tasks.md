@@ -404,7 +404,11 @@ This implementation plan converts the racing wheel software design into mileston
 
 ### M8 — Plugins
 
-- [ ] 14. Implement plugin system with two classes
+- [x] 14. Implement plugin system with two classes
+
+
+
+
   - Create WASM plugin host (safe class) with capability-based sandboxing for 60-200Hz operations
   - Build native plugin helper process (fast class) with SPSC shared memory and watchdog for RT nodes
   - Implement plugin manifest validation, loading system, and crash isolation
