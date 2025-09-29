@@ -319,7 +319,14 @@ This implementation plan converts the racing wheel software design into mileston
 
 ### M5 — LEDs/Dash/Haptics
 
-- [ ] 10. Build LED and haptics output system with rate independence
+- [x] 10. Build LED and haptics output system with rate independence
+
+
+
+
+
+
+
   - Implement LED mapping engine with rule-based pattern generation and RPM hysteresis
   - Create haptics routing for rim vibration and pedal feedback at 60-200Hz
   - Build dash widget system for gear, RPM, and flag displays with live preview

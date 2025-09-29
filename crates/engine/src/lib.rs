@@ -30,6 +30,7 @@ pub mod tracing;
 pub mod tracing_test;
 pub mod engine;
 pub mod hil_tests;
+pub mod led_haptics;
 
 pub use rt::*;
 pub use pipeline::*;
@@ -44,6 +45,7 @@ pub use allocation_tracker::*;
 pub use filters::*;
 pub use engine::*;
 pub use hil_tests::*;
+pub use led_haptics::*;
 
 // Re-export specific items to avoid conflicts
 pub use device::{VirtualDevice, VirtualHidPort, DeviceEvent, TelemetryData, DeviceInfo};
