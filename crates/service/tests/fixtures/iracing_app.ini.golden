@@ -1,0 +1,6 @@
+[Graphics]
+fullScreen=1
+borderless=0
+
+[Telemetry]
+telemetryDiskFile=1

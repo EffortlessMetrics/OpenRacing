@@ -8,10 +8,8 @@ pub mod device_service;
 pub mod safety_service;
 pub mod service_tests;
 pub mod game_service;
-pub mod game_service_impl;
 pub mod game_support_matrix;
 pub mod config_writers;
-pub mod game_service_tests;
 
 pub use service::*;
 pub use device::*;

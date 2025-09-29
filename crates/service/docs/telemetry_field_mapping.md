@@ -1,14 +1,10 @@
 # Telemetry Field Coverage and Normalization Mapping
 
-This document describes the telemetry field coverage and normalization mapping for supported racing games, fulfilling requirement GI-03.
+This document describes the telemetry field coverage and normalization mapping for supported racing games, as required by GI-03.
 
-## Overview
+## Normalized Telemetry Fields
 
-The racing wheel software normalizes telemetry data from different racing games into a common format. This allows consistent processing regardless of the source game while maintaining game-specific optimizations.
-
-## Normalized Telemetry Structure
-
-All games are normalized to the following common structure:
+The racing wheel software uses a normalized telemetry structure to provide consistent data across different games:
 
 ```rust
 pub struct NormalizedTelemetry {
@@ -18,7 +14,7 @@ pub struct NormalizedTelemetry {
     pub slip_ratio: f32,        // Tire slip ratio (0.0 to 1.0+)
     pub gear: i8,               // Current gear (-1 for reverse, 0 for neutral, 1+ for forward)
     pub flags: TelemetryFlags,  // Session flags (yellow, checkered, etc.)
-    pub car_id: Option<String>, // Car identifier
+    pub car_id: Option<String>, // Car/vehicle identifier
     pub track_id: Option<String>, // Track identifier
 }
 ```
@@ -29,110 +25,146 @@ pub struct NormalizedTelemetry {
 
 **Telemetry Method:** Shared Memory  
 **Update Rate:** 60 Hz  
-**Coverage:** ✓ Complete
+**SDK:** iRacing SDK
 
 | Normalized Field | iRacing Field | Type | Notes |
 |------------------|---------------|------|-------|
-| `ffb_scalar` | `SteeringWheelTorque` | f32 | Direct mapping, already normalized |
-| `rpm` | `RPM` | f32 | Engine RPM |
-| `speed_ms` | `Speed` | f32 | Already in m/s |
-| `slip_ratio` | `LFslipRatio` | f32 | Left front tire slip ratio |
-| `gear` | `Gear` | i32 | Cast to i8 |
-| `flags` | `SessionFlags` | u32 | Bitfield conversion to TelemetryFlags |
-| `car_id` | `CarIdx` | i32 | Convert to string |
-| `track_id` | `TrackId` | i32 | Convert to string |
+| `ffb_scalar` | `SteeringWheelTorque` | float | Direct mapping, already normalized |
+| `rpm` | `RPM` | float | Engine RPM |
+| `speed_ms` | `Speed` | float | Already in m/s |
+| `slip_ratio` | `LFslipRatio` | float | Left front tire slip ratio |
+| `gear` | `Gear` | int | Direct mapping |
+| `flags` | `SessionFlags` | bitfield | Requires flag parsing |
+| `car_id` | `CarIdx` | int | Car index in session |
+| `track_id` | `TrackId` | int | Track identifier |
 
-**Additional Available Fields:**
-- `RFslipRatio`, `LRslipRatio`, `RRslipRatio` (other tire slip ratios)
-- `SteeringWheelAngle` (steering wheel position)
-- `Throttle`, `Brake`, `Clutch` (pedal positions)
-- `FuelLevel`, `FuelLevelPct` (fuel information)
-- `LapCurrentLapTime`, `LapBestLapTime` (timing data)
+**Coverage:** ✅ Full coverage of all normalized fields
+
+**Special Notes:**
+- iRacing provides multiple tire slip ratios (LF, RF, LR, RR). We use left front as primary.
+- SessionFlags is a bitfield that needs parsing for yellow flags, checkered flag, etc.
+- Speed is already in m/s, no conversion needed.
 
 ### Assetto Corsa Competizione (ACC)
 
 **Telemetry Method:** UDP Broadcast  
 **Update Rate:** 100 Hz  
-**Coverage:** ✓ Complete
+**Protocol:** ACC Broadcasting API
 
 | Normalized Field | ACC Field | Type | Notes |
 |------------------|-----------|------|-------|
-| `ffb_scalar` | `steerAngle` | f32 | Steering angle used as FFB proxy |
-| `rpm` | `rpms` | f32 | Engine RPM |
-| `speed_ms` | `speedKmh` | f32 | Convert from km/h to m/s (÷ 3.6) |
-| `slip_ratio` | `wheelSlip[0]` | f32 | Front left wheel slip |
-| `gear` | `gear` | i32 | Cast to i8 |
-| `flags` | `flag` | i32 | Convert to TelemetryFlags |
-| `car_id` | `carModel` | string | Direct mapping |
-| `track_id` | `track` | string | Direct mapping |
+| `ffb_scalar` | `steerAngle` | float | Steering angle, needs conversion to FFB |
+| `rpm` | `rpms` | float | Engine RPM |
+| `speed_ms` | `speedKmh` | float | Speed in km/h, convert to m/s |
+| `slip_ratio` | `wheelSlip` | float array | Array of 4 wheel slip values |
+| `gear` | `gear` | int | Direct mapping |
+| `flags` | `flag` | enum | Session flag enumeration |
+| `car_id` | `carModel` | string | Car model name |
+| `track_id` | `track` | string | Track name |
 
-**Additional Available Fields:**
-- `wheelSlip[1-3]` (other wheel slip values)
-- `tyreTemp[0-3]` (tire temperatures)
-- `brakePadCompound[0-3]` (brake pad compounds)
-- `suspensionTravel[0-3]` (suspension travel)
-- `carDamage[0-4]` (damage values)
+**Coverage:** ✅ Full coverage with conversions
 
-### Future Games
-
-The system is designed to be extensible. New games can be added by:
-
-1. Adding game configuration to `game_support_matrix.yaml`
-2. Implementing a `ConfigWriter` for the game
-3. Adding telemetry field mappings
-4. Creating golden file tests
+**Special Notes:**
+- Speed conversion: `speed_ms = speedKmh / 3.6`
+- wheelSlip is an array [FL, FR, RL, RR], we use front-left index 0
+- steerAngle needs conversion to FFB scalar (implementation-dependent)
+- Flag enumeration maps to normalized flag bitfield
 
 ## Field Coverage Matrix
 
 | Game | FFB Scalar | RPM | Speed | Slip Ratio | Gear | Flags | Car ID | Track ID |
 |------|------------|-----|-------|------------|------|-------|--------|----------|
-| iRacing | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| ACC | ✓* | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| iRacing | ✅ Direct | ✅ Direct | ✅ Direct | ✅ LF Tire | ✅ Direct | ✅ Bitfield | ✅ Index | ✅ ID |
+| ACC | ⚠️ Convert | ✅ Direct | ⚠️ Convert | ✅ FL Wheel | ✅ Direct | ✅ Enum | ✅ Model | ✅ Name |
 
-*Note: ACC uses steering angle as FFB scalar proxy since direct FFB values are not available via telemetry.
+**Legend:**
+- ✅ Direct: Field maps directly without conversion
+- ⚠️ Convert: Field requires unit conversion or calculation
+- ❌ Missing: Field not available in game telemetry
 
-## Telemetry Quality Indicators
+## Conversion Functions
 
-### Data Freshness
-- **iRacing:** Timestamp available, 60 Hz guaranteed
-- **ACC:** Sequence number available, 100 Hz typical
+### Speed Conversion (ACC)
+```rust
+fn convert_speed_kmh_to_ms(speed_kmh: f32) -> f32 {
+    speed_kmh / 3.6
+}
+```
 
-### Data Reliability
-- **iRacing:** Very High - Direct from simulation engine
-- **ACC:** High - UDP broadcast with packet validation
+### Steering to FFB Conversion (ACC)
+```rust
+fn convert_steering_to_ffb(steer_angle: f32, max_angle: f32) -> f32 {
+    (steer_angle / max_angle).clamp(-1.0, 1.0)
+}
+```
 
-### Latency Characteristics
-- **iRacing:** ~16ms (60 Hz shared memory)
-- **ACC:** ~10ms (100 Hz UDP, network dependent)
+### Flag Conversion
+```rust
+// iRacing SessionFlags bitfield
+const IRACING_FLAG_CHECKERED: u32 = 0x00000001;
+const IRACING_FLAG_WHITE: u32 = 0x00000002;
+const IRACING_FLAG_GREEN: u32 = 0x00000004;
+const IRACING_FLAG_YELLOW: u32 = 0x00000008;
 
-## Implementation Notes
+// ACC Flag enumeration
+enum ACCFlag {
+    None = 0,
+    Blue = 1,
+    Yellow = 2,
+    Black = 3,
+    White = 4,
+    Checkered = 5,
+    Penalty = 6,
+}
+```
 
-### Error Handling
-- Missing fields are handled gracefully with default values
-- Invalid data triggers telemetry loss detection (GI-04)
-- Packet loss is tracked and reported
+## Update Rates and Latency
 
-### Performance Considerations
-- Telemetry parsing is rate-limited to protect RT thread
-- Field mappings are pre-computed at startup
-- Memory allocations are minimized in hot path
+| Game | Native Rate | Normalized Rate | Latency Target |
+|------|-------------|-----------------|----------------|
+| iRacing | 60 Hz | 60 Hz | < 16.7 ms |
+| ACC | 100 Hz | 100 Hz | < 10 ms |
 
-### Extensibility
-- New fields can be added to NormalizedTelemetry without breaking existing games
-- Game-specific extensions are supported via additional metadata
-- Version compatibility is maintained through feature negotiation
+## Configuration Requirements
 
-## Testing
+### iRacing Configuration
+File: `Documents/iRacing/app.ini`
+```ini
+[Telemetry]
+telemetryDiskFile=1
+```
 
-Each game integration includes:
-- Golden file tests for configuration generation
-- Telemetry parsing validation with recorded data
-- Field mapping accuracy verification
-- Performance benchmarks for parsing overhead
+### ACC Configuration
+File: `Documents/Assetto Corsa Competizione/Config/broadcasting.json`
+```json
+{
+  "updListenerPort": 9996,
+  "connectionId": "",
+  "broadcastingPort": 9000,
+  "commandPassword": "",
+  "updateRateHz": 100
+}
+```
 
-## References
+## Future Game Support
 
-- **GI-01:** One-click telemetry configuration
-- **GI-03:** Normalized telemetry publishing
-- **GI-04:** Telemetry loss handling
-- **Design Document:** Section 4 - Game Integration System
+When adding support for new games, ensure:
+
+1. **Field Mapping:** Document how each normalized field maps to game-specific fields
+2. **Conversions:** Implement any necessary unit conversions or calculations
+3. **Coverage:** Identify any missing fields and document limitations
+4. **Update Rate:** Document native and achievable update rates
+5. **Configuration:** Define required configuration file changes
+6. **Testing:** Add golden file tests for configuration generation
+
+## Testing Coverage
+
+All field mappings are covered by automated tests in:
+- `tests/golden_tests.rs` - Configuration generation tests
+- `tests/telemetry_mapping_tests.rs` - Field mapping validation tests
+
+Each game integration must pass:
+- ✅ Configuration file generation matches golden files
+- ✅ Field mapping produces expected normalized output
+- ✅ Update rate meets latency requirements
+- ✅ Error handling for missing/invalid data
