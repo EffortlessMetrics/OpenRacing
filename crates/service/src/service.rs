@@ -11,6 +11,7 @@ use std::sync::Arc;
 use tracing::{info, error};
 
 /// Main wheel service that orchestrates all application services
+#[derive(Clone)]
 pub struct WheelService {
     /// Profile service for managing wheel profiles
     profile_service: Arc<ApplicationProfileService>,
@@ -101,7 +102,7 @@ impl WheelService {
         info!("All services started successfully");
 
         // Service main loop
-        let mut shutdown_signal = tokio::signal::ctrl_c();
+        let shutdown_signal = tokio::signal::ctrl_c();
         
         tokio::select! {
             _ = shutdown_signal => {
@@ -144,10 +145,13 @@ impl WheelService {
             let profile_stats = self.profile_service.get_profile_statistics().await
                 .unwrap_or_else(|e| {
                     error!(error = %e, "Failed to get profile statistics");
-                    crate::ProfileStatistics {
+                    crate::profile_service::ProfileStatistics {
                         total_profiles: 0,
                         active_profiles: 0,
                         cached_profiles: 0,
+                        signed_profiles: 0,
+                        trusted_profiles: 0,
+                        session_overrides: 0,
                     }
                 });
 
@@ -176,7 +180,7 @@ impl WheelService {
         info!("Shutting down services");
 
         // Shutdown tracing if available
-        if let Some(tracer) = &self.tracer {
+        if let Some(_tracer) = &self.tracer {
             // Note: TracingManager doesn't have a mutable shutdown method in our current design
             // In a real implementation, we would properly shutdown the tracing system
             info!("Tracing shutdown completed");

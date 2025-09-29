@@ -423,7 +423,12 @@ This implementation plan converts the racing wheel software design into mileston
 
 
 
-- [ ] 9.1 Packaging & Hardening with Security
+- [x] 9.1 Packaging & Hardening with Security
+
+
+
+
+
 
   - Create MSI installer (Windows) and systemd user unit templates (Linux)
   - Add udev rules for device permissions and rtkit/MMCSS setup documentation
@@ -433,7 +438,12 @@ This implementation plan converts the racing wheel software design into mileston
   - Create reproducible builds with third-party license audit
   - _Requirements: XPLAT-03, XPLAT-04, Security_
 
-- [ ] 16. Build service daemon and process management
+- [x] 16. Build service daemon and process management
+
+
+
+
+
   - Implement wheeld service with proper signal handling and graceful shutdown
   - Create platform-specific service installation with no admin rights required at runtime
   - Build service health monitoring and automatic restart capabilities

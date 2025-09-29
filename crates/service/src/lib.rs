@@ -2,6 +2,8 @@
 
 pub mod service;
 pub mod device;
+pub mod daemon;
+mod daemon_platform;
 pub mod ipc_simple;
 // pub mod ipc;
 // pub mod ipc_client;
@@ -25,11 +27,14 @@ pub mod game_integration_service;
 pub mod game_integration_e2e_tests;
 #[cfg(test)]
 pub mod profile_repository_test;
+#[cfg(test)]
+pub mod daemon_tests;
 // #[cfg(test)]
 // pub mod ipc_tests;
 
 pub use service::*;
 pub use device::*;
+pub use daemon::{ServiceDaemon, ServiceConfig};
 pub use ipc_simple::{IpcServer, IpcConfig, TransportType, HealthEventInternal, IpcClient, IpcClientConfig};
 // pub use ipc::{IpcServer, IpcConfig, TransportType, HealthEventInternal};
 // pub use ipc_client::{IpcClient, IpcClientConfig};

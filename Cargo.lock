@@ -4820,6 +4820,7 @@ dependencies = [
  "chrono",
  "ed25519-dalek",
  "hidapi",
+ "libc",
  "libudev",
  "prost-types",
  "racing-wheel-engine",

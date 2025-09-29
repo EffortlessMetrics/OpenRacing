@@ -1,0 +1,204 @@
+# Reproducible Builds Configuration for Racing Wheel Suite
+# This configuration ensures that builds are deterministic and reproducible
+# across different environments and times.
+
+[build]
+# Build environment requirements
+rust_version = "1.75.0"  # Pin exact Rust version
+cargo_version = "1.75.0"
+target_triple = ["x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"]
+
+# Reproducible build flags
+[build.flags]
+# Ensure deterministic output
+codegen_units = 1
+debug_assertions = false
+overflow_checks = true
+lto = "fat"
+panic = "abort"
+opt_level = 3
+
+# Reproducible linking
+strip = "symbols"
+split_debuginfo = "packed"
+
+[build.env]
+# Set deterministic environment variables
+SOURCE_DATE_EPOCH = "1704067200"  # 2024-01-01 00:00:00 UTC
+RUSTC_BOOTSTRAP = "0"
+CARGO_INCREMENTAL = "0"
+RUSTFLAGS = "-C target-cpu=x86-64 -C link-dead-code=off -C embed-bitcode=no"
+
+# Ensure consistent locale
+LC_ALL = "C"
+LANG = "C"
+TZ = "UTC"
+
+[dependencies]
+# Pin all dependencies to exact versions for reproducibility
+# This section is automatically updated by the build script
+
+[dependencies.verification]
+# Verify dependency integrity
+check_checksums = true
+allow_git_dependencies = false
+allow_path_dependencies = false
+
+[signing]
+# Code signing configuration
+enabled = true
+algorithm = "Ed25519"
+key_file = "signing/release.key"  # Private key (not in repo)
+public_key_file = "signing/release.pub"
+
+# What to sign
+sign_binaries = true
+sign_packages = true
+sign_installers = true
+
+[attestation]
+# Build attestation and provenance
+enabled = true
+include_build_info = true
+include_dependency_tree = true
+include_compiler_info = true
+
+# SLSA (Supply-chain Levels for Software Artifacts) compliance
+slsa_level = 3
+generate_provenance = true
+provenance_format = "in-toto"
+
+[security]
+# Security scanning during build
+scan_dependencies = true
+scan_binaries = true
+fail_on_vulnerabilities = true
+
+# Allowed vulnerability levels (will fail build if exceeded)
+max_vulnerability_level = "medium"
+
+# Security tools to run
+tools = [
+    "cargo-audit",
+    "cargo-deny", 
+    "cargo-geiger"
+]
+
+[artifacts]
+# Artifact generation and verification
+generate_checksums = true
+checksum_algorithms = ["SHA256", "SHA512", "BLAKE3"]
+
+# Metadata to include
+include_build_metadata = true
+include_git_info = true
+include_compiler_version = true
+include_dependency_versions = true
+
+[verification]
+# Build verification steps
+verify_checksums = true
+verify_signatures = true
+verify_reproducibility = true
+
+# Reproducibility tolerance
+max_size_difference = 0  # Bytes
+allow_timestamp_differences = false
+allow_debug_info_differences = false
+
+[docker]
+# Docker build environment for reproducibility
+enabled = true
+base_image = "rust:1.75.0-slim"
+dockerfile = "build/Dockerfile.reproducible"
+
+# Ensure consistent build environment
+pin_base_image_digest = true
+use_buildkit = true
+disable_cache = false  # Cache is OK if deterministic
+
+[cross_compilation]
+# Cross-compilation settings
+enabled = true
+
+[cross_compilation.windows]
+target = "x86_64-pc-windows-msvc"
+linker = "lld-link"
+additional_flags = ["-C", "target-feature=+crt-static"]
+
+[cross_compilation.linux]
+target = "x86_64-unknown-linux-gnu"
+linker = "x86_64-linux-gnu-gcc"
+additional_flags = ["-C", "target-feature=+crt-static"]
+
+[licensing]
+# License compliance and auditing
+audit_enabled = true
+allowed_licenses = [
+    "MIT",
+    "Apache-2.0", 
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016"
+]
+
+# Licenses that require review
+review_required = [
+    "GPL-2.0",
+    "GPL-3.0", 
+    "LGPL-2.1",
+    "LGPL-3.0",
+    "AGPL-3.0"
+]
+
+# Generate license report
+generate_report = true
+report_format = "json"
+report_file = "build/licenses.json"
+
+[sbom]
+# Software Bill of Materials generation
+enabled = true
+format = "spdx-json"
+include_dev_dependencies = false
+include_build_tools = true
+output_file = "build/sbom.spdx.json"
+
+[ci]
+# Continuous Integration specific settings
+cache_dependencies = true
+cache_target = true
+parallel_jobs = 4
+
+# Verification in CI
+verify_reproducible_across_runners = true
+compare_with_previous_build = true
+
+[release]
+# Release-specific configuration
+tag_format = "v{version}"
+create_github_release = true
+upload_artifacts = true
+
+# Release artifacts to generate
+artifacts = [
+    "binaries",
+    "installers", 
+    "checksums",
+    "signatures",
+    "sbom",
+    "license_report"
+]
+
+[tools]
+# Required tools and their versions
+cargo_deny = "0.14.0"
+cargo_audit = "0.18.0"
+cargo_geiger = "0.11.0"
+cross = "0.2.5"
+
+# Optional tools for enhanced security
+cosign = "2.0.0"  # For container signing
+syft = "0.100.0"  # For SBOM generation
+grype = "0.74.0"  # For vulnerability scanning

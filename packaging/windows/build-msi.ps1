@@ -1,4 +1,5 @@
 # Racing Wheel Suite MSI Build Script
+# Enhanced with security features and reproducible builds
 # Requires WiX Toolset v3.11+ to be installed
 
 param(
@@ -9,7 +10,19 @@ param(
     [string]$OutputPath = "dist",
     
     [Parameter(Mandatory=$false)]
-    [string]$SigningCert = $null
+    [string]$SigningCert = $null,
+    
+    [Parameter(Mandatory=$false)]
+    [string]$Configuration = "Release",
+    
+    [Parameter(Mandatory=$false)]
+    [string]$Platform = "x64",
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$Verify = $false,
+    
+    [Parameter(Mandatory=$false)]
+    [string]$TimestampUrl = "http://timestamp.digicert.com"
 )
 
 $ErrorActionPreference = "Stop"
@@ -21,14 +34,31 @@ if (-not $wixPath) {
     exit 1
 }
 
+# Get version from Cargo.toml
+$ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$CargoToml = Join-Path $ProjectRoot "Cargo.toml"
+$Version = "0.1.0"  # Default version
+if (Test-Path $CargoToml) {
+    $VersionMatch = Select-String -Path $CargoToml -Pattern '^version\s*=\s*"([^"]+)"'
+    if ($VersionMatch) {
+        $Version = $VersionMatch.Matches[0].Groups[1].Value
+    }
+}
+
+Write-Host "Building MSI installer for Racing Wheel Suite v$Version" -ForegroundColor Green
+Write-Host "Configuration: $Configuration" -ForegroundColor Cyan
+Write-Host "Platform: $Platform" -ForegroundColor Cyan
+
 # Verify binaries exist
 $requiredBinaries = @("wheeld.exe", "wheelctl.exe", "wheel-ui.exe")
 foreach ($binary in $requiredBinaries) {
     $binaryPath = Join-Path $BinPath $binary
     if (-not (Test-Path $binaryPath)) {
         Write-Error "Required binary not found: $binaryPath"
+        Write-Host "Please build the project first with: cargo build --release" -ForegroundColor Yellow
         exit 1
     }
+    Write-Host "Found binary: $binary" -ForegroundColor Green
 }
 
 # Create output directory
@@ -45,30 +75,70 @@ if ($LASTEXITCODE -ne 0) {
 
 # Link MSI
 Write-Host "Linking MSI..."
-$msiPath = Join-Path $OutputPath "RacingWheelSuite.msi"
+$msiPath = Join-Path $OutputPath "RacingWheelSuite-$Version-$Platform.msi"
 & light.exe -out "$msiPath" "$wixObj"
 if ($LASTEXITCODE -ne 0) {
     Write-Error "MSI linking failed"
     exit 1
 }
 
+Write-Host "MSI created: $msiPath" -ForegroundColor Green
+
 # Sign MSI if certificate provided
 if ($SigningCert) {
-    Write-Host "Signing MSI..."
-    & signtool.exe sign /f "$SigningCert" /t http://timestamp.digicert.com "$msiPath"
+    Write-Host "Signing MSI..." -ForegroundColor Yellow
+    & signtool.exe sign /f "$SigningCert" /t $TimestampUrl /v "$msiPath"
     if ($LASTEXITCODE -ne 0) {
         Write-Error "MSI signing failed"
         exit 1
     }
+    Write-Host "MSI signed successfully" -ForegroundColor Green
 }
 
-Write-Host "MSI created successfully: $msiPath"
+# Verify signature if requested
+if ($Verify) {
+    Write-Host "Verifying MSI signature..." -ForegroundColor Yellow
+    & signtool.exe verify /pa /v "$msiPath"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "MSI signature verification failed or MSI is not signed"
+    } else {
+        Write-Host "MSI signature verified" -ForegroundColor Green
+    }
+}
 
-# Verify MSI integrity
-Write-Host "Verifying MSI integrity..."
+# Generate checksums
+Write-Host "Generating checksums..." -ForegroundColor Yellow
+$Sha256Hash = (Get-FileHash -Path $msiPath -Algorithm SHA256).Hash
+$Sha512Hash = (Get-FileHash -Path $msiPath -Algorithm SHA512).Hash
+
+$ChecksumFile = "$msiPath.checksums"
+@"
+SHA256: $Sha256Hash
+SHA512: $Sha512Hash
+"@ | Set-Content -Path $ChecksumFile
+
+Write-Host "Checksums saved to: $ChecksumFile" -ForegroundColor Green
+
+# Generate build metadata
 $msiInfo = Get-ItemProperty $msiPath
-Write-Host "MSI Size: $($msiInfo.Length) bytes"
-Write-Host "MSI Created: $($msiInfo.CreationTime)"
+$BuildMetadata = @{
+    version = $Version
+    platform = $Platform
+    configuration = $Configuration
+    build_time = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    msi_path = $msiPath
+    msi_size = $msiInfo.Length
+    sha256 = $Sha256Hash
+    sha512 = $Sha512Hash
+    signed = $SigningCert -ne $null
+    verified = $Verify
+} | ConvertTo-Json -Depth 2
+
+$MetadataFile = "$msiPath.metadata.json"
+$BuildMetadata | Set-Content -Path $MetadataFile
+
+Write-Host "Build metadata saved to: $MetadataFile" -ForegroundColor Green
+Write-Host "MSI created successfully!" -ForegroundColor Green
 
 # Generate installation instructions
 $instructions = @"
