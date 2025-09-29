@@ -44,6 +44,7 @@ pub enum FaultType {
     TimingViolation,
     SafetyInterlockViolation,
     HandsOffTimeout,
+    PipelineFault,
 }
 
 /// Physical button combination for safety interlock
@@ -96,6 +97,7 @@ impl std::fmt::Display for FaultType {
             FaultType::TimingViolation => write!(f, "Real-time timing violation"),
             FaultType::SafetyInterlockViolation => write!(f, "Safety interlock violation"),
             FaultType::HandsOffTimeout => write!(f, "Hands-off timeout exceeded"),
+            FaultType::PipelineFault => write!(f, "Filter pipeline processing fault"),
         }
     }
 }

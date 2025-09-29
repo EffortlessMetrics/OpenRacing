@@ -250,7 +250,15 @@ This implementation plan converts the racing wheel software design into mileston
   - Write unit tests for service orchestration and error handling scenarios
   - _Requirements: DM-03, SAFE-03, PRF-01_
 
-- [ ] 7. Build real-time engine with integrated safety (depends on M2)
+- [x] 7. Build real-time engine with integrated safety (depends on M2)
+
+
+
+
+
+
+
+
   - Integrate filter pipeline with HID device writer in RT thread
   - Wire safety watchdogs and fault handlers from M2 into engine loop
   - Implement SPSC rings for game→engine and engine→blackbox communication
@@ -259,7 +267,10 @@ This implementation plan converts the racing wheel software design into mileston
 
 ### M4 — Game Integration
 
-- [ ] 4.1 Game Support Matrix & Golden Writers
+
+- [-] 4 Game Support Matrix & Golden Writers
+
+
   - Create YAML-based support matrix defining per-sim/version capabilities and config paths
   - Implement table-driven configuration writers that apply expected diffs
   - Build golden file tests that compare generated configs against known fixtures

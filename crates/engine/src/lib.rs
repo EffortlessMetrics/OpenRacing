@@ -28,6 +28,8 @@ pub mod filters;
 pub mod hid;
 pub mod tracing;
 pub mod tracing_test;
+pub mod engine;
+pub mod hil_tests;
 
 pub use rt::*;
 pub use pipeline::*;
@@ -40,6 +42,8 @@ pub use profile_merge::*;
 pub use two_phase_apply::*;
 pub use allocation_tracker::*;
 pub use filters::*;
+pub use engine::*;
+pub use hil_tests::*;
 
 // Re-export specific items to avoid conflicts
 pub use device::{VirtualDevice, VirtualHidPort, DeviceEvent, TelemetryData, DeviceInfo};
