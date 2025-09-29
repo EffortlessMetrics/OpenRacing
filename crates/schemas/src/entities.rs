@@ -263,6 +263,69 @@ pub struct FilterConfig {
     
     /// Force curve mapping points (must be monotonic)
     pub curve_points: Vec<CurvePoint>,
+    
+    /// Torque cap as fraction of maximum (0.0-1.0)
+    pub torque_cap: Gain,
+    
+    /// Bumpstop model configuration
+    pub bumpstop: BumpstopConfig,
+    
+    /// Hands-off detection configuration
+    pub hands_off: HandsOffConfig,
+}
+
+/// Configuration for bumpstop model
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BumpstopConfig {
+    /// Enable bumpstop model
+    pub enabled: bool,
+    
+    /// Angle from center where bumpstop starts (degrees)
+    pub start_angle: f32,
+    
+    /// Maximum angle before hard stop (degrees)
+    pub max_angle: f32,
+    
+    /// Spring stiffness coefficient (0.0-1.0)
+    pub stiffness: f32,
+    
+    /// Damping coefficient (0.0-1.0)
+    pub damping: f32,
+}
+
+/// Configuration for hands-off detection
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HandsOffConfig {
+    /// Enable hands-off detection
+    pub enabled: bool,
+    
+    /// Torque threshold for hands-on detection (0.0-1.0)
+    pub threshold: f32,
+    
+    /// Time before considering hands-off (seconds)
+    pub timeout_seconds: f32,
+}
+
+impl Default for BumpstopConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            start_angle: 450.0,  // Start at 450 degrees from center
+            max_angle: 540.0,    // Hard stop at 540 degrees
+            stiffness: 0.8,
+            damping: 0.3,
+        }
+    }
+}
+
+impl Default for HandsOffConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            threshold: 0.05,     // 5% torque threshold
+            timeout_seconds: 5.0, // 5 second timeout
+        }
+    }
 }
 
 impl FilterConfig {
@@ -294,6 +357,46 @@ impl FilterConfig {
             notch_filters,
             slew_rate,
             curve_points,
+            torque_cap: Gain::from_raw(1.0), // No cap by default
+            bumpstop: BumpstopConfig::default(),
+            hands_off: HandsOffConfig::default(),
+        })
+    }
+
+    /// Create a new filter configuration with all parameters
+    pub fn new_complete(
+        reconstruction: u8,
+        friction: Gain,
+        damper: Gain,
+        inertia: Gain,
+        notch_filters: Vec<NotchFilter>,
+        slew_rate: Gain,
+        curve_points: Vec<CurvePoint>,
+        torque_cap: Gain,
+        bumpstop: BumpstopConfig,
+        hands_off: HandsOffConfig,
+    ) -> Result<Self, DomainError> {
+        // Validate reconstruction level
+        if reconstruction > 8 {
+            return Err(DomainError::InvalidCurvePoints(
+                format!("Reconstruction level must be 0-8, got {}", reconstruction)
+            ));
+        }
+        
+        // Validate curve points are monotonic
+        validate_curve_monotonic(&curve_points)?;
+        
+        Ok(Self {
+            reconstruction,
+            friction,
+            damper,
+            inertia,
+            notch_filters,
+            slew_rate,
+            curve_points,
+            torque_cap,
+            bumpstop,
+            hands_off,
         })
     }
     
@@ -310,6 +413,9 @@ impl FilterConfig {
                 CurvePoint::new(0.0, 0.0).unwrap(),
                 CurvePoint::new(1.0, 1.0).unwrap(),
             ],
+            torque_cap: Gain::from_raw(1.0), // No cap by default
+            bumpstop: BumpstopConfig::default(),
+            hands_off: HandsOffConfig::default(),
         }
     }
     

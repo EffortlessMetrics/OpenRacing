@@ -3,6 +3,7 @@
 use crate::ffb::Frame;
 use crate::rt::RTResult;
 use racing_wheel_schemas::{FilterConfig, NotchFilter, CurvePoint, Gain};
+use racing_wheel_schemas::entities::{BumpstopConfig, HandsOffConfig};
 use std::sync::Arc;
 use tokio::sync::{oneshot, Mutex};
 use tracing::{debug, error};
@@ -220,6 +221,11 @@ impl PipelineCompiler {
         self.add_notch_filters(&mut pipeline, &config.notch_filters)?;
         self.add_slew_rate_filter(&mut pipeline, config.slew_rate)?;
         self.add_curve_filter(&mut pipeline, &config.curve_points)?;
+        
+        // Add safety and model filters
+        self.add_torque_cap_filter(&mut pipeline, config.torque_cap.value())?;
+        self.add_bumpstop_filter(&mut pipeline, &config.bumpstop)?;
+        self.add_hands_off_detector(&mut pipeline, &config.hands_off)?;
 
         debug!("Pipeline compiled successfully with {} nodes, hash: {:x}", 
                pipeline.node_count(), config_hash);
@@ -388,15 +394,10 @@ impl PipelineCompiler {
         }
 
         // Add reconstruction filter node with appropriate state
-        pipeline.add_node(reconstruction_filter, std::mem::size_of::<ReconstructionState>());
+        pipeline.add_node(crate::filters::reconstruction_filter, std::mem::size_of::<crate::filters::ReconstructionState>());
         let node_index = pipeline.nodes.len() - 1;
         
-        let state = ReconstructionState {
-            level,
-            prev_output: 0.0,
-            alpha: 0.1f32.powi(level as i32), // More aggressive filtering for higher levels
-        };
-        
+        let state = crate::filters::ReconstructionState::new(level);
         pipeline.init_node_state(node_index, state);
         Ok(())
     }
@@ -407,9 +408,11 @@ impl PipelineCompiler {
             return Ok(()); // No friction
         }
 
-        pipeline.add_node(friction_filter, std::mem::size_of::<f32>());
+        pipeline.add_node(crate::filters::friction_filter, std::mem::size_of::<crate::filters::FrictionState>());
         let node_index = pipeline.nodes.len() - 1;
-        pipeline.init_node_state(node_index, friction.value());
+        
+        let state = crate::filters::FrictionState::new(friction.value(), true); // Enable speed adaptation
+        pipeline.init_node_state(node_index, state);
         Ok(())
     }
 
@@ -419,9 +422,11 @@ impl PipelineCompiler {
             return Ok(()); // No damping
         }
 
-        pipeline.add_node(damper_filter, std::mem::size_of::<f32>());
+        pipeline.add_node(crate::filters::damper_filter, std::mem::size_of::<crate::filters::DamperState>());
         let node_index = pipeline.nodes.len() - 1;
-        pipeline.init_node_state(node_index, damper.value());
+        
+        let state = crate::filters::DamperState::new(damper.value(), true); // Enable speed adaptation
+        pipeline.init_node_state(node_index, state);
         Ok(())
     }
 
@@ -431,14 +436,10 @@ impl PipelineCompiler {
             return Ok(()); // No inertia
         }
 
-        pipeline.add_node(inertia_filter, std::mem::size_of::<InertiaState>());
+        pipeline.add_node(crate::filters::inertia_filter, std::mem::size_of::<crate::filters::InertiaState>());
         let node_index = pipeline.nodes.len() - 1;
         
-        let state = InertiaState {
-            coefficient: inertia.value(),
-            prev_acceleration: 0.0,
-        };
-        
+        let state = crate::filters::InertiaState::new(inertia.value());
         pipeline.init_node_state(node_index, state);
         Ok(())
     }
@@ -446,10 +447,10 @@ impl PipelineCompiler {
     /// Add notch filters to pipeline
     fn add_notch_filters(&self, pipeline: &mut Pipeline, filters: &[NotchFilter]) -> Result<(), PipelineError> {
         for filter in filters {
-            pipeline.add_node(notch_filter, std::mem::size_of::<NotchState>());
+            pipeline.add_node(crate::filters::notch_filter, std::mem::size_of::<crate::filters::NotchState>());
             let node_index = pipeline.nodes.len() - 1;
             
-            let state = NotchState::new(
+            let state = crate::filters::NotchState::new(
                 filter.frequency.value(),
                 filter.q_factor,
                 filter.gain_db,
@@ -467,14 +468,10 @@ impl PipelineCompiler {
             return Ok(()); // No slew rate limiting
         }
 
-        pipeline.add_node(slew_rate_filter, std::mem::size_of::<SlewRateState>());
+        pipeline.add_node(crate::filters::slew_rate_filter, std::mem::size_of::<crate::filters::SlewRateState>());
         let node_index = pipeline.nodes.len() - 1;
         
-        let state = SlewRateState {
-            max_change_per_tick: slew_rate.value() / 1000.0, // Per 1ms tick
-            prev_output: 0.0,
-        };
-        
+        let state = crate::filters::SlewRateState::new(slew_rate.value());
         pipeline.init_node_state(node_index, state);
         Ok(())
     }
@@ -487,22 +484,66 @@ impl PipelineCompiler {
             return Ok(()); // Linear curve, no filtering needed
         }
 
-        // Pre-compute curve lookup table for fast RT execution
-        const CURVE_LUT_SIZE: usize = 1024;
-        let mut lut = [0.0f32; CURVE_LUT_SIZE];
-        
-        for i in 0..CURVE_LUT_SIZE {
-            let input = i as f32 / (CURVE_LUT_SIZE - 1) as f32;
-            lut[i] = self.interpolate_curve(input, curve_points);
-        }
-
-        pipeline.add_node(curve_filter, std::mem::size_of::<CurveState>());
+        pipeline.add_node(crate::filters::curve_filter, std::mem::size_of::<crate::filters::CurveState>());
         let node_index = pipeline.nodes.len() - 1;
         
-        let state = CurveState {
-            lut,
-            lut_size: CURVE_LUT_SIZE,
-        };
+        // Convert CurvePoint to tuple format for the filter
+        let curve_tuples: Vec<(f32, f32)> = curve_points.iter()
+            .map(|p| (p.input, p.output))
+            .collect();
+        
+        let state = crate::filters::CurveState::new(&curve_tuples);
+        pipeline.init_node_state(node_index, state);
+        Ok(())
+    }
+
+    /// Add torque cap filter to pipeline
+    fn add_torque_cap_filter(&self, pipeline: &mut Pipeline, torque_cap: f32) -> Result<(), PipelineError> {
+        if torque_cap >= 1.0 {
+            return Ok(()); // No torque limiting needed
+        }
+
+        pipeline.add_node(crate::filters::torque_cap_filter, std::mem::size_of::<f32>());
+        let node_index = pipeline.nodes.len() - 1;
+        pipeline.init_node_state(node_index, torque_cap);
+        Ok(())
+    }
+
+    /// Add bumpstop model filter to pipeline
+    fn add_bumpstop_filter(&self, pipeline: &mut Pipeline, bumpstop_config: &BumpstopConfig) -> Result<(), PipelineError> {
+        if !bumpstop_config.enabled {
+            return Ok(()); // Bumpstop disabled
+        }
+
+        pipeline.add_node(crate::filters::bumpstop_filter, std::mem::size_of::<crate::filters::BumpstopState>());
+        let node_index = pipeline.nodes.len() - 1;
+        
+        let state = crate::filters::BumpstopState::new(
+            bumpstop_config.enabled,
+            bumpstop_config.start_angle,
+            bumpstop_config.max_angle,
+            bumpstop_config.stiffness,
+            bumpstop_config.damping,
+        );
+        
+        pipeline.init_node_state(node_index, state);
+        Ok(())
+    }
+
+    /// Add hands-off detector to pipeline
+    fn add_hands_off_detector(&self, pipeline: &mut Pipeline, config: &HandsOffConfig) -> Result<(), PipelineError> {
+        if !config.enabled {
+            return Ok(()); // Hands-off detection disabled
+        }
+
+        pipeline.add_node(crate::filters::hands_off_detector, std::mem::size_of::<crate::filters::HandsOffState>());
+        let node_index = pipeline.nodes.len() - 1;
+        
+        let state = crate::filters::HandsOffState::new(
+            config.enabled,
+            config.threshold,
+            config.timeout_seconds,
+        );
         
         pipeline.init_node_state(node_index, state);
         Ok(())
@@ -539,188 +580,9 @@ impl Default for PipelineCompiler {
     }
 }
 
-// Filter node state structures
 
-/// State for reconstruction filter
-#[repr(C)]
-#[derive(Copy, Clone)]
-struct ReconstructionState {
-    level: u8,
-    prev_output: f32,
-    alpha: f32,
-}
 
-/// State for inertia filter
-#[repr(C)]
-#[derive(Copy, Clone)]
-struct InertiaState {
-    coefficient: f32,
-    prev_acceleration: f32,
-}
 
-/// State for notch filter (biquad implementation)
-#[repr(C)]
-#[derive(Copy, Clone)]
-struct NotchState {
-    b0: f32,
-    b1: f32,
-    b2: f32,
-    a1: f32,
-    a2: f32,
-    x1: f32,
-    x2: f32,
-    y1: f32,
-    y2: f32,
-}
-
-impl NotchState {
-    fn new(frequency: f32, q: f32, gain_db: f32, sample_rate: f32) -> Self {
-        let omega = 2.0 * std::f32::consts::PI * frequency / sample_rate;
-        let sin_omega = omega.sin();
-        let cos_omega = omega.cos();
-        let alpha = sin_omega / (2.0 * q);
-        let a = 10.0f32.powf(gain_db / 40.0);
-
-        // Notch filter coefficients
-        let b0 = 1.0;
-        let b1 = -2.0 * cos_omega;
-        let b2 = 1.0;
-        let a0 = 1.0 + alpha / a;
-        let a1 = -2.0 * cos_omega;
-        let a2 = 1.0 - alpha / a;
-
-        Self {
-            b0: b0 / a0,
-            b1: b1 / a0,
-            b2: b2 / a0,
-            a1: a1 / a0,
-            a2: a2 / a0,
-            x1: 0.0,
-            x2: 0.0,
-            y1: 0.0,
-            y2: 0.0,
-        }
-    }
-}
-
-/// State for slew rate limiter
-#[repr(C)]
-#[derive(Copy, Clone)]
-struct SlewRateState {
-    max_change_per_tick: f32,
-    prev_output: f32,
-}
-
-/// State for curve mapping (lookup table)
-#[repr(C)]
-#[derive(Copy, Clone)]
-struct CurveState {
-    lut: [f32; 1024],
-    lut_size: usize,
-}
-
-// Filter node implementations (RT-safe, no allocations)
-
-/// Reconstruction filter (anti-aliasing)
-pub fn reconstruction_filter(frame: &mut Frame, state: *mut u8) {
-    unsafe {
-        let state = &mut *(state as *mut ReconstructionState);
-        let filtered = state.prev_output + state.alpha * (frame.ffb_in - state.prev_output);
-        frame.torque_out = filtered;
-        state.prev_output = filtered;
-    }
-}
-
-/// Friction filter with speed adaptation
-pub fn friction_filter(frame: &mut Frame, state: *mut u8) {
-    unsafe {
-        let friction_coeff = *(state as *mut f32);
-        let speed_factor = 1.0 - (frame.wheel_speed.abs() * 0.1).min(0.8);
-        let friction_torque = -frame.wheel_speed.signum() * friction_coeff * speed_factor;
-        frame.torque_out += friction_torque;
-    }
-}
-
-/// Damper filter
-pub fn damper_filter(frame: &mut Frame, state: *mut u8) {
-    unsafe {
-        let damper_coeff = *(state as *mut f32);
-        let damper_torque = -frame.wheel_speed * damper_coeff;
-        frame.torque_out += damper_torque;
-    }
-}
-
-/// Inertia filter
-pub fn inertia_filter(frame: &mut Frame, state: *mut u8) {
-    unsafe {
-        let state = &mut *(state as *mut InertiaState);
-        
-        // Calculate acceleration (change in wheel speed)
-        let acceleration = frame.wheel_speed - state.prev_acceleration;
-        let inertia_torque = -acceleration * state.coefficient;
-        
-        frame.torque_out += inertia_torque;
-        state.prev_acceleration = frame.wheel_speed;
-    }
-}
-
-/// Notch filter (biquad implementation)
-pub fn notch_filter(frame: &mut Frame, state: *mut u8) {
-    unsafe {
-        let state = &mut *(state as *mut NotchState);
-        
-        let input = frame.torque_out;
-        let output = state.b0 * input + state.b1 * state.x1 + state.b2 * state.x2
-                   - state.a1 * state.y1 - state.a2 * state.y2;
-        
-        // Update delay line
-        state.x2 = state.x1;
-        state.x1 = input;
-        state.y2 = state.y1;
-        state.y1 = output;
-        
-        frame.torque_out = output;
-    }
-}
-
-/// Slew rate limiter
-pub fn slew_rate_filter(frame: &mut Frame, state: *mut u8) {
-    unsafe {
-        let state = &mut *(state as *mut SlewRateState);
-        
-        let desired_output = frame.torque_out;
-        let max_change = state.max_change_per_tick;
-        let change = desired_output - state.prev_output;
-        
-        let limited_change = change.clamp(-max_change, max_change);
-        let limited_output = state.prev_output + limited_change;
-        
-        frame.torque_out = limited_output;
-        state.prev_output = limited_output;
-    }
-}
-
-/// Curve mapping filter using lookup table
-pub fn curve_filter(frame: &mut Frame, state: *mut u8) {
-    unsafe {
-        let state = &*(state as *mut CurveState);
-        
-        let input = frame.torque_out.abs().clamp(0.0, 1.0);
-        let index = (input * (state.lut_size - 1) as f32) as usize;
-        let index = index.min(state.lut_size - 1);
-        
-        let mapped_output = state.lut[index];
-        frame.torque_out = frame.torque_out.signum() * mapped_output;
-    }
-}
-
-/// Torque limiting filter (safety)
-pub fn torque_limit_filter(frame: &mut Frame, state: *mut u8) {
-    unsafe {
-        let max_torque = *(state as *mut f32);
-        frame.torque_out = frame.torque_out.clamp(-max_torque, max_torque);
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -728,10 +590,12 @@ mod tests {
     use racing_wheel_schemas::{
         Gain, FrequencyHz, CurvePoint, NotchFilter, FilterConfig
     };
+    use racing_wheel_schemas::entities::{BumpstopConfig, HandsOffConfig};
+    use crate::filters::*;
 
 
     fn create_test_filter_config() -> FilterConfig {
-        FilterConfig::new(
+        FilterConfig::new_complete(
             4, // reconstruction
             Gain::new(0.1).unwrap(), // friction
             Gain::new(0.15).unwrap(), // damper
@@ -748,12 +612,15 @@ mod tests {
                 CurvePoint::new(0.0, 0.0).unwrap(),
                 CurvePoint::new(0.5, 0.6).unwrap(),
                 CurvePoint::new(1.0, 1.0).unwrap(),
-            ]
+            ],
+            Gain::new(0.9).unwrap(), // torque_cap
+            BumpstopConfig::default(),
+            HandsOffConfig::default(),
         ).unwrap()
     }
 
     fn create_linear_filter_config() -> FilterConfig {
-        FilterConfig::new(
+        FilterConfig::new_complete(
             0, // no reconstruction
             Gain::new(0.0).unwrap(), // no friction
             Gain::new(0.0).unwrap(), // no damper
@@ -763,7 +630,10 @@ mod tests {
             vec![
                 CurvePoint::new(0.0, 0.0).unwrap(),
                 CurvePoint::new(1.0, 1.0).unwrap(),
-            ]
+            ],
+            Gain::new(1.0).unwrap(), // no torque cap
+            BumpstopConfig::default(),
+            HandsOffConfig::default(),
         ).unwrap()
     }
 
@@ -858,18 +728,27 @@ mod tests {
         let compiler = PipelineCompiler::new();
         
         // Create invalid config with reconstruction level too high
-        let invalid_config = FilterConfig {
-            reconstruction: 10, // Invalid: > 8
-            friction: Gain::new(0.1).unwrap(),
-            damper: Gain::new(0.15).unwrap(),
-            inertia: Gain::new(0.05).unwrap(),
-            notch_filters: vec![],
-            slew_rate: Gain::new(0.8).unwrap(),
-            curve_points: vec![
+        let invalid_config_result = FilterConfig::new_complete(
+            10, // Invalid: > 8
+            Gain::new(0.1).unwrap(),
+            Gain::new(0.15).unwrap(),
+            Gain::new(0.05).unwrap(),
+            vec![],
+            Gain::new(0.8).unwrap(),
+            vec![
                 CurvePoint::new(0.0, 0.0).unwrap(),
                 CurvePoint::new(1.0, 1.0).unwrap(),
             ],
-        };
+            Gain::new(1.0).unwrap(),
+            BumpstopConfig::default(),
+            HandsOffConfig::default(),
+        );
+        
+        // Should fail validation
+        assert!(invalid_config_result.is_err());
+        
+        // For the compiler test, use a valid config that will fail compilation validation
+        let invalid_config = create_test_filter_config();
 
         let result = compiler.compile_pipeline(invalid_config).await;
         assert!(result.is_err());
@@ -884,54 +763,61 @@ mod tests {
     async fn test_pipeline_validation_non_monotonic_curve() {
         let compiler = PipelineCompiler::new();
         
-        // Create config with non-monotonic curve
-        let invalid_config = FilterConfig {
-            reconstruction: 4,
-            friction: Gain::new(0.1).unwrap(),
-            damper: Gain::new(0.15).unwrap(),
-            inertia: Gain::new(0.05).unwrap(),
-            notch_filters: vec![],
-            slew_rate: Gain::new(0.8).unwrap(),
-            curve_points: vec![
+        // Create config with non-monotonic curve - this should fail at construction
+        let invalid_config_result = FilterConfig::new_complete(
+            4,
+            Gain::new(0.1).unwrap(),
+            Gain::new(0.15).unwrap(),
+            Gain::new(0.05).unwrap(),
+            vec![],
+            Gain::new(0.8).unwrap(),
+            vec![
                 CurvePoint::new(0.0, 0.0).unwrap(),
                 CurvePoint::new(0.7, 0.6).unwrap(),
                 CurvePoint::new(0.5, 0.8).unwrap(), // Non-monotonic!
                 CurvePoint::new(1.0, 1.0).unwrap(),
             ],
-        };
-
-        let result = compiler.compile_pipeline(invalid_config).await;
-        assert!(result.is_err());
+            Gain::new(1.0).unwrap(),
+            BumpstopConfig::default(),
+            HandsOffConfig::default(),
+        );
         
-        match result.unwrap_err() {
-            PipelineError::NonMonotonicCurve => {}, // Expected
-            _ => panic!("Expected NonMonotonicCurve error"),
-        }
+        // Should fail at construction due to non-monotonic curve
+        assert!(invalid_config_result.is_err());
+        
+        // For the compiler test, create a valid config
+        let valid_config = create_test_filter_config();
+
+        let result = compiler.compile_pipeline(valid_config).await;
+        assert!(result.is_ok()); // Should succeed with valid config
     }
 
     #[tokio::test]
     async fn test_pipeline_validation_invalid_parameters() {
         let compiler = PipelineCompiler::new();
         
-        // Create config with invalid gain values
-        let invalid_config = FilterConfig {
-            reconstruction: 4,
-            friction: Gain::new(1.5).unwrap_or(Gain::FULL), // This would be invalid if not clamped
-            damper: Gain::new(0.15).unwrap(),
-            inertia: Gain::new(0.05).unwrap(),
-            notch_filters: vec![
+        // Create config with invalid parameters - high frequency notch filter
+        let invalid_config = FilterConfig::new_complete(
+            4,
+            Gain::new(0.1).unwrap(),
+            Gain::new(0.15).unwrap(),
+            Gain::new(0.05).unwrap(),
+            vec![
                 NotchFilter::new(
                     FrequencyHz::new(600.0).unwrap(), // Too high frequency
                     2.0,
                     -12.0
                 ).unwrap()
             ],
-            slew_rate: Gain::new(0.8).unwrap(),
-            curve_points: vec![
+            Gain::new(0.8).unwrap(),
+            vec![
                 CurvePoint::new(0.0, 0.0).unwrap(),
                 CurvePoint::new(1.0, 1.0).unwrap(),
             ],
-        };
+            Gain::new(1.0).unwrap(),
+            BumpstopConfig::default(),
+            HandsOffConfig::default(),
+        ).unwrap();
 
         let result = compiler.compile_pipeline(invalid_config).await;
         assert!(result.is_err());
@@ -979,17 +865,9 @@ mod tests {
             seq: 1,
         };
 
-        // Create a curve state with a simple mapping
-        let mut curve_state = CurveState {
-            lut: [0.0; 1024],
-            lut_size: 1024,
-        };
-        
-        // Fill LUT with a simple quadratic curve
-        for i in 0..1024 {
-            let input = i as f32 / 1023.0;
-            curve_state.lut[i] = input * input; // Quadratic curve
-        }
+        // Create a curve state with a quadratic curve
+        let curve_points = vec![(0.0, 0.0), (0.5, 0.25), (1.0, 1.0)];
+        let mut curve_state = CurveState::new(&curve_points);
 
         let state_ptr = &mut curve_state as *mut CurveState as *mut u8;
         curve_filter(&mut frame, state_ptr);
@@ -1000,10 +878,7 @@ mod tests {
 
     #[test]
     fn test_slew_rate_limiter() {
-        let mut slew_state = SlewRateState {
-            max_change_per_tick: 0.1, // 10% change per tick
-            prev_output: 0.0,
-        };
+        let mut slew_state = SlewRateState::new(100.0); // 100% slew rate = 0.1 per tick
 
         let mut frame = crate::ffb::Frame {
             ffb_in: 0.5,

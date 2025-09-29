@@ -204,7 +204,18 @@ This implementation plan converts the racing wheel software design into mileston
   - Write tests for pipeline swap atomicity and deterministic profile resolution
   - _Requirements: FFB-02, PRF-01, PRF-02_
 
-- [ ] 3.2 Filter Node Library with Speed-Adaptive Variants
+- [x] 3.2 Filter Node Library with Speed-Adaptive Variants
+
+
+
+
+
+
+
+
+
+
+
   - Implement filter nodes: reconstruction, friction, damper, inertia, notch/PEQ, slew-rate
   - Add curve mapping, torque cap, bumpstop model, and hands-off detector
   - Create speed-adaptive variants where applicable (friction/damper based on wheel_speed)
