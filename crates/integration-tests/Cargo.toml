@@ -1,0 +1,80 @@
+[package]
+name = "racing-wheel-integration-tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+racing-wheel-engine = { path = "../engine" }
+racing-wheel-service = { path = "../service" }
+racing-wheel-schemas = { path = "../schemas" }
+wheelctl = { path = "../cli" }
+
+tokio = { workspace = true, features = ["full"] }
+tokio-test = "0.4"
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-test = "0.2"
+
+# Testing frameworks
+criterion = { workspace = true, features = ["html_reports"] }
+proptest = { workspace = true }
+quickcheck = "1.0"
+quickcheck_macros = "1.0"
+
+# Performance and timing
+parking_lot = { workspace = true }
+crossbeam = { workspace = true }
+hdrhistogram = "7.5"
+statistical = "1.0"
+
+# Test utilities
+tempfile = "3.8"
+uuid = { version = "1.0", features = ["v4"] }
+rand = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Mock and test doubles
+mockall = "0.12"
+wiremock = "0.6"
+
+# System monitoring
+sysinfo = "0.30"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.52", features = [
+    "Win32_System_Threading",
+    "Win32_System_SystemServices", 
+    "Win32_Foundation",
+    "Win32_System_Performance",
+    "Win32_Security",
+    "Win32_System_Power",
+    "Win32_System_Diagnostics_Etw",
+] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[[bin]]
+name = "soak-test"
+path = "src/bin/soak_test.rs"
+
+[[bin]]
+name = "performance-gate"
+path = "src/bin/performance_gate.rs"
+
+[[bin]]
+name = "hotplug-stress"
+path = "src/bin/hotplug_stress.rs"
+
+[features]
+default = []
+ci-gates = []
+soak-tests = []
+stress-tests = []

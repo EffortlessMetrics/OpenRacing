@@ -1,0 +1,280 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Quick smoke tests and unit tests
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Run smoke test
+      run: cargo test test_smoke_test --package racing-wheel-integration-tests
+    
+    - name: Run unit tests
+      run: cargo test --workspace --exclude racing-wheel-integration-tests
+
+  # Performance gates (critical for CI)
+  performance-gates:
+    name: Performance Gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Build integration tests
+      run: cargo build --package racing-wheel-integration-tests --release
+    
+    - name: Run performance gates
+      run: cargo run --package racing-wheel-integration-tests --bin performance-gate --release
+    
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: performance-results
+        path: target/performance-*.json
+
+  # User journey tests
+  user-journeys:
+    name: User Journey Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Run user journey tests
+      run: |
+        cargo test test_user_journey_uj01_first_run --package racing-wheel-integration-tests
+        cargo test test_user_journey_uj02_profile_switching --package racing-wheel-integration-tests
+        cargo test test_user_journey_uj03_fault_recovery --package racing-wheel-integration-tests
+        cargo test test_user_journey_uj04_debug_workflow --package racing-wheel-integration-tests
+
+  # Stress tests
+  stress-tests:
+    name: Stress Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Run hot-plug stress tests
+      run: cargo run --package racing-wheel-integration-tests --bin hotplug-stress --release -- --duration 180
+    
+    - name: Run fault injection tests
+      run: cargo test test_fault_injection_stress --package racing-wheel-integration-tests
+    
+    - name: Upload stress test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: stress-test-results
+        path: target/stress-*.json
+
+  # CI soak test (1 hour)
+  ci-soak-test:
+    name: CI Soak Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Run CI soak test
+      run: cargo run --package racing-wheel-integration-tests --bin soak-test --release -- --mode ci
+    
+    - name: Upload soak test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: soak-test-results
+        path: target/soak-*.json
+
+  # Acceptance tests
+  acceptance-tests:
+    name: Acceptance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Run acceptance tests
+      run: cargo test test_acceptance_tests_subset --package racing-wheel-integration-tests
+    
+    - name: Upload acceptance test report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: acceptance-test-report
+        path: target/acceptance_test_report.json
+
+  # Cross-platform tests
+  cross-platform:
+    name: Cross-Platform Tests
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Run platform-specific tests
+      run: cargo test test_performance_gates_ffb_jitter --package racing-wheel-integration-tests
+
+# Nightly full soak test (48 hours) - separate workflow
+---
+name: Nightly Soak Test
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Run at 2 AM UTC daily
+  workflow_dispatch:     # Allow manual trigger
+
+jobs:
+  full-soak-test:
+    name: 48-Hour Soak Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 2920  # 48 hours + 40 minutes buffer
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Run full 48-hour soak test
+      run: cargo run --package racing-wheel-integration-tests --bin soak-test --release -- --mode full
+    
+    - name: Upload soak test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: full-soak-test-results
+        path: target/soak-*.json
+        retention-days: 30
+    
+    - name: Notify on failure
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '48-Hour Soak Test Failed',
+            body: 'The nightly 48-hour soak test has failed. Please investigate.',
+            labels: ['bug', 'soak-test', 'high-priority']
+          });

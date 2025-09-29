@@ -32,6 +32,9 @@ pub mod engine;
 pub mod hil_tests;
 pub mod led_haptics;
 pub mod diagnostic;
+pub mod metrics;
+#[cfg(test)]
+pub mod metrics_tests;
 
 pub use rt::*;
 pub use pipeline::*;
@@ -60,4 +63,8 @@ pub use policies::{SafetyPolicy, ProfileHierarchyPolicy, SafetyViolation, Profil
 pub use protocol::{TorqueCommand, DeviceTelemetryReport, DeviceCapabilitiesReport};
 pub use tracing::{
     TracingManager, TracingProvider, RTTraceEvent, AppTraceEvent, TracingMetrics, TracingError
+};
+pub use metrics::{
+    MetricsCollector, PrometheusMetrics, AtomicCounters, HealthEventStreamer, HealthEvent,
+    HealthEventType, HealthSeverity, RTMetrics, AppMetrics, AlertingThresholds, MetricsValidator
 };

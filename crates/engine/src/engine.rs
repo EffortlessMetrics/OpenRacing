@@ -11,6 +11,8 @@ use crate::{
     ffb::FFBMode,
     ports::{HidDevice, NormalizedTelemetry},
     safety::integration::{IntegratedFaultManager, FaultManagerContext},
+    metrics::AtomicCounters,
+    tracing::{TracingManager, RTTraceEvent},
 };
 use racing_wheel_schemas::DeviceId;
 use crossbeam::channel::{Receiver, Sender, TrySendError};
@@ -132,6 +134,9 @@ pub struct Engine {
     
     /// Frame counter (atomic for thread-safe access)
     frame_counter: Arc<AtomicU64>,
+    
+    /// Atomic counters for metrics collection
+    atomic_counters: Arc<AtomicCounters>,
 }
 
 /// RT thread context (all data needed by RT thread)
@@ -174,6 +179,12 @@ struct RTContext {
     
     /// Performance metrics
     metrics: PerformanceMetrics,
+    
+    /// Atomic counters for RT-safe metrics collection
+    atomic_counters: Arc<AtomicCounters>,
+    
+    /// Tracing manager for observability
+    tracing_manager: Option<TracingManager>,
 }
 
 impl Engine {
@@ -192,6 +203,7 @@ impl Engine {
             blackbox_rx: None,
             running: Arc::new(AtomicBool::new(false)),
             frame_counter: Arc::new(AtomicU64::new(0)),
+            atomic_counters: Arc::new(AtomicCounters::new()),
         })
     }
     
@@ -214,6 +226,22 @@ impl Engine {
             (None, None)
         };
         
+        // Initialize tracing manager
+        let tracing_manager = match TracingManager::new() {
+            Ok(mut manager) => {
+                if let Err(e) = manager.initialize() {
+                    warn!("Failed to initialize tracing: {}", e);
+                    None
+                } else {
+                    Some(manager)
+                }
+            }
+            Err(e) => {
+                warn!("Failed to create tracing manager: {}", e);
+                None
+            }
+        };
+
         // Create RT context
         let mut rt_context = RTContext {
             device,
@@ -236,6 +264,8 @@ impl Engine {
             frame_counter: Arc::clone(&self.frame_counter),
             seq: 0,
             metrics: PerformanceMetrics::default(),
+            atomic_counters: Arc::clone(&self.atomic_counters),
+            tracing_manager,
         };
         
         // Apply RT setup
@@ -388,6 +418,11 @@ impl Engine {
         self.frame_counter.load(Ordering::Acquire)
     }
     
+    /// Get atomic counters for metrics collection
+    pub fn atomic_counters(&self) -> Arc<AtomicCounters> {
+        Arc::clone(&self.atomic_counters)
+    }
+    
     /// Real-time thread main loop
     fn rt_thread_main(mut ctx: RTContext) -> RTResult {
         info!("RT thread started for device {:?}", ctx.config.device_id);
@@ -401,12 +436,37 @@ impl Engine {
         // Main RT loop
         while ctx.running.load(Ordering::Acquire) {
             let tick_start = Instant::now();
+            let tick_start_ns = tick_start.elapsed().as_nanos() as u64;
+            
+            // Emit RT trace event for tick start
+            if let Some(ref tracer) = ctx.tracing_manager {
+                tracer.emit_rt_event(RTTraceEvent::TickStart {
+                    tick_count: ctx.frame_counter.load(Ordering::Relaxed),
+                    timestamp_ns: tick_start_ns,
+                });
+            }
             
             // Wait for next 1kHz tick
             let tick_count = match ctx.scheduler.wait_for_tick() {
-                Ok(count) => count,
+                Ok(count) => {
+                    // Increment tick counter (RT-safe)
+                    ctx.atomic_counters.inc_tick();
+                    count
+                }
                 Err(RTError::TimingViolation) => {
                     ctx.metrics.missed_ticks += 1;
+                    // Increment missed tick counter (RT-safe)
+                    ctx.atomic_counters.inc_missed_tick();
+                    
+                    // Emit RT trace event for deadline miss
+                    if let Some(ref tracer) = ctx.tracing_manager {
+                        tracer.emit_rt_event(RTTraceEvent::DeadlineMiss {
+                            tick_count: ctx.frame_counter.load(Ordering::Relaxed),
+                            timestamp_ns: tick_start_ns,
+                            jitter_ns: tick_start.elapsed().as_nanos() as u64,
+                        });
+                    }
+                    
                     ctx.safety.report_fault(FaultType::TimingViolation);
                     continue;
                 }
@@ -464,7 +524,13 @@ impl Engine {
             
             // Apply safety limits
             let max_torque = ctx.safety.max_torque_nm() / ctx.config.max_high_torque_nm;
-            frame.torque_out = frame.torque_out.clamp(-max_torque, max_torque);
+            let clamped_torque = frame.torque_out.clamp(-max_torque, max_torque);
+            
+            // Record torque saturation (RT-safe)
+            let is_saturated = (frame.torque_out.abs() - clamped_torque.abs()).abs() > 0.001;
+            ctx.atomic_counters.record_torque_saturation(is_saturated);
+            
+            frame.torque_out = clamped_torque;
             
             // Check for safety violations
             if frame.torque_out.abs() > max_torque {
@@ -473,8 +539,19 @@ impl Engine {
             
             // Write to device
             let device_write_start = Instant::now();
-            ctx.device.write_ffb_report(frame.torque_out * ctx.config.max_high_torque_nm, ctx.seq);
-            let _device_write_time = device_write_start.elapsed();
+            let final_torque_nm = frame.torque_out * ctx.config.max_high_torque_nm;
+            ctx.device.write_ffb_report(final_torque_nm, ctx.seq);
+            let device_write_time = device_write_start.elapsed();
+            
+            // Emit RT trace event for HID write
+            if let Some(ref tracer) = ctx.tracing_manager {
+                tracer.emit_rt_event(RTTraceEvent::HidWrite {
+                    tick_count,
+                    timestamp_ns: device_write_start.elapsed().as_nanos() as u64,
+                    torque_nm: final_torque_nm,
+                    seq: ctx.seq,
+                });
+            }
             
             // Update metrics
             ctx.frame_counter.store(tick_count, Ordering::Release);
@@ -483,10 +560,21 @@ impl Engine {
             
             // Check timing budget
             let total_processing_time = tick_start.elapsed();
-            if total_processing_time.as_micros() > MAX_PROCESSING_TIME_US as u128 {
+            let processing_time_us = total_processing_time.as_micros() as u64;
+            
+            if processing_time_us > MAX_PROCESSING_TIME_US {
                 warn!("Processing time exceeded budget: {}µs > {}µs", 
-                      total_processing_time.as_micros(), MAX_PROCESSING_TIME_US);
+                      processing_time_us, MAX_PROCESSING_TIME_US);
                 ctx.safety.report_fault(FaultType::TimingViolation);
+            }
+            
+            // Emit RT trace event for tick end
+            if let Some(ref tracer) = ctx.tracing_manager {
+                tracer.emit_rt_event(RTTraceEvent::TickEnd {
+                    tick_count,
+                    timestamp_ns: tick_start.elapsed().as_nanos() as u64,
+                    processing_time_ns: total_processing_time.as_nanos() as u64,
+                });
             }
             
             // Record blackbox data if enabled
