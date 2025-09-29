@@ -451,7 +451,12 @@ This implementation plan converts the racing wheel software design into mileston
   - Write service lifecycle tests for startup, shutdown, and crash recovery
   - _Requirements: XPLAT-03_
 
-- [ ] 17. Implement firmware update system (if firmware control available)
+- [x] 17. Implement firmware update system (if firmware control available)
+
+
+
+
+
   - Create A/B partition firmware update mechanism with atomic swaps
   - Build firmware validation and rollback logic for failed updates with health checks
   - Implement progress reporting and error handling for update operations

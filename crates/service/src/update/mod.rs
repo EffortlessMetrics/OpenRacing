@@ -10,6 +10,11 @@ use thiserror::Error;
 pub mod delta;
 pub mod rollback;
 pub mod health;
+pub mod firmware;
+pub mod staged_rollout;
+
+#[cfg(test)]
+pub mod firmware_tests;
 
 #[derive(Error, Debug)]
 pub enum UpdateError {
