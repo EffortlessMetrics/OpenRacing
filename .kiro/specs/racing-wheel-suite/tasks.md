@@ -373,7 +373,9 @@ This implementation plan converts the racing wheel software design into mileston
   - Write IPC integration tests with mock clients for all service methods
   - _Requirements: UX-02, XPLAT-02_
 
-- [ ] 12. Create profile persistence and validation system
+- [-] 12. Create profile persistence and validation system
+
+
   - Implement file-based profile repository with JSON Schema validation and line/column error reporting
   - Build profile migration system for schema version upgrades with lossless conversion
   - Create profile signing and verification using Ed25519 signatures with trust state UI

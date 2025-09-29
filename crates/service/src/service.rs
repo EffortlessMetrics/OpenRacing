@@ -5,7 +5,7 @@ use racing_wheel_engine::{
     VirtualHidPort, TracingManager, SafetyPolicy
 };
 use crate::{
-    ApplicationDeviceService, ApplicationSafetyService
+    ApplicationProfileService, ApplicationDeviceService, ApplicationSafetyService
 };
 use std::sync::Arc;
 use tracing::{info, error};
@@ -48,8 +48,8 @@ impl WheelService {
         let hid_port = Arc::new(VirtualHidPort::new());
         info!("HID port initialized");
 
-        // Initialize profile repository (using mock for now)
-        let profile_repo = Arc::new(MockProfileRepo::new());
+        // Initialize profile repository (using simple in-memory storage for now)
+        // In a real implementation, this would be a file-based or database repository
         info!("Profile repository initialized");
 
         // Initialize safety policy
@@ -58,7 +58,7 @@ impl WheelService {
 
         // Create application services
         let profile_service = Arc::new(
-            ApplicationProfileService::new(profile_repo).await
+            ApplicationProfileService::new().await
                 .map_err(|e| anyhow::anyhow!("Failed to create profile service: {}", e))?
         );
         info!("Profile service created");

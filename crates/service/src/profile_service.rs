@@ -34,7 +34,7 @@ impl ProfileService {
         // Generate new profile ID
         let profile_id = {
             let mut next_id = self.next_id.write().await;
-            let id = ProfileId::new(format!("profile_{}", *next_id));
+            let id = ProfileId::new(format!("profile_{}", *next_id))?;
             *next_id += 1;
             id
         };
@@ -120,7 +120,7 @@ impl ProfileService {
     
     /// Load profile by ID (alias for get_profile for compatibility)
     pub async fn load_profile(&self, profile_id: &str) -> Result<Profile> {
-        let profile_id = ProfileId::new(profile_id.to_string());
+        let profile_id = ProfileId::new(profile_id.to_string())?;
         self.get_profile(&profile_id).await?
             .ok_or_else(|| anyhow::anyhow!("Profile not found: {}", profile_id))
     }

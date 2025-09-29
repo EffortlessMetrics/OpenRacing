@@ -32,6 +32,7 @@ pub use entities::{
     Profile, ProfileScope, ProfileMetadata,
     BaseSettings, FilterConfig, NotchFilter,
     LedConfig, HapticsConfig,
+    CalibrationData, PedalCalibrationData, CalibrationType,
 };
 
 pub mod config {

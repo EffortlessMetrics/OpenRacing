@@ -90,6 +90,91 @@ pub enum DeviceState {
     SafeMode = 4,
 }
 
+/// Device calibration data
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CalibrationData {
+    /// Center position in degrees (None if not calibrated)
+    pub center_position: Option<f32>,
+    
+    /// Minimum position in degrees (None if not calibrated)
+    pub min_position: Option<f32>,
+    
+    /// Maximum position in degrees (None if not calibrated)
+    pub max_position: Option<f32>,
+    
+    /// Pedal calibration data (throttle, brake, clutch min/max values)
+    pub pedal_ranges: Option<PedalCalibrationData>,
+    
+    /// Calibration timestamp
+    pub calibrated_at: Option<String>,
+    
+    /// Calibration type that was performed
+    pub calibration_type: CalibrationType,
+}
+
+/// Pedal calibration data
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PedalCalibrationData {
+    /// Throttle pedal range (min, max)
+    pub throttle: Option<(f32, f32)>,
+    
+    /// Brake pedal range (min, max)
+    pub brake: Option<(f32, f32)>,
+    
+    /// Clutch pedal range (min, max)
+    pub clutch: Option<(f32, f32)>,
+}
+
+/// Type of calibration performed
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CalibrationType {
+    /// Center position only
+    Center,
+    
+    /// Full range (min/max positions)
+    Range,
+    
+    /// Pedal calibration
+    Pedals,
+    
+    /// Complete calibration (center + range + pedals)
+    Full,
+}
+
+impl CalibrationData {
+    /// Create new calibration data
+    pub fn new(calibration_type: CalibrationType) -> Self {
+        Self {
+            center_position: None,
+            min_position: None,
+            max_position: None,
+            pedal_ranges: None,
+            calibrated_at: Some(chrono::Utc::now().to_rfc3339()),
+            calibration_type,
+        }
+    }
+    
+    /// Check if center position is calibrated
+    pub fn has_center_calibration(&self) -> bool {
+        self.center_position.is_some()
+    }
+    
+    /// Check if range is calibrated
+    pub fn has_range_calibration(&self) -> bool {
+        self.min_position.is_some() && self.max_position.is_some()
+    }
+    
+    /// Check if pedals are calibrated
+    pub fn has_pedal_calibration(&self) -> bool {
+        self.pedal_ranges.is_some()
+    }
+    
+    /// Check if fully calibrated
+    pub fn is_fully_calibrated(&self) -> bool {
+        self.has_center_calibration() && self.has_range_calibration()
+    }
+}
+
 /// Device type classification
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(i32)]

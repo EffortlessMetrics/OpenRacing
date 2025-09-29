@@ -33,6 +33,11 @@ pub use ipc_simple::{IpcServer, IpcConfig, TransportType, HealthEventInternal, I
 pub use profile_service::*;
 pub use device_service::*;
 pub use safety_service::*;
+
+// Type aliases for application services to match expected naming
+pub type ApplicationProfileService = profile_service::ProfileService;
+pub type ApplicationDeviceService = device_service::ApplicationDeviceService;
+pub type ApplicationSafetyService = safety_service::ApplicationSafetyService;
 pub use game_service::GameService;
 pub use telemetry::*;
 pub use process_detection::*;

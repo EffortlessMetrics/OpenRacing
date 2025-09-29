@@ -125,7 +125,10 @@ impl ApplicationDeviceService {
                             calibration: None,
                             last_telemetry: None,
                             last_seen: now,
-                            health_status: DeviceHealthStatus::Unknown,
+                            health_status: DeviceHealthStatus {
+                                temperature_c: 0,
+                                fault_flags: 0,
+                            },
                         };
                         devices.insert(device_id, managed_device);
                         self.emit_device_connected_event(&device_info).await;
@@ -165,12 +168,11 @@ impl ApplicationDeviceService {
     pub async fn initialize_device(&self, device_id: &DeviceId) -> Result<()> {
         info!(device_id = %device_id, "Initializing device");
 
-        let device = self.hid_port.open(device_id).await
+        let device = self.hid_port.open_device(device_id).await
             .map_err(|e| anyhow::anyhow!("Failed to open device: {}", e))?;
 
         // Read device capabilities
-        let capabilities = device.get_capabilities().await
-            .map_err(|e| anyhow::anyhow!("Failed to read device capabilities: {}", e))?;
+        let capabilities = device.capabilities().clone();
 
         // Update managed device
         {
@@ -178,7 +180,10 @@ impl ApplicationDeviceService {
             if let Some(managed_device) = devices.get_mut(device_id) {
                 managed_device.capabilities = Some(capabilities);
                 managed_device.state = DeviceState::Ready;
-                managed_device.health_status = DeviceHealthStatus::Healthy;
+                managed_device.health_status = DeviceHealthStatus {
+                    temperature_c: 25,
+                    fault_flags: 0,
+                };
             }
         }
 
@@ -194,7 +199,7 @@ impl ApplicationDeviceService {
     ) -> Result<CalibrationData> {
         info!(device_id = %device_id, calibration_type = ?calibration_type, "Starting device calibration");
 
-        let device = self.hid_port.open(device_id).await
+        let device = self.hid_port.open_device(device_id).await
             .map_err(|e| anyhow::anyhow!("Failed to open device for calibration: {}", e))?;
 
         let calibration_data = match calibration_type {
@@ -220,7 +225,7 @@ impl ApplicationDeviceService {
     pub async fn get_device_health(&self, device_id: &DeviceId) -> Result<DeviceHealthStatus> {
         debug!(device_id = %device_id, "Getting device health status");
 
-        let device = self.hid_port.open(device_id).await
+        let device = self.hid_port.open_device(device_id).await
             .map_err(|e| anyhow::anyhow!("Failed to open device for health check: {}", e))?;
 
         let health_status = device.get_health_status().await
@@ -282,7 +287,7 @@ impl ApplicationDeviceService {
                 };
 
                 for device_id in device_ids {
-                    if let Ok(device) = hid_port.open(&device_id).await {
+                    if let Ok(device) = hid_port.open_device(&device_id).await {
                         match device.get_health_status().await {
                             Ok(health_status) => {
                                 let mut devices_guard = devices.write().await;
@@ -357,8 +362,8 @@ impl ApplicationDeviceService {
         info!("Calibrating center position");
         
         // Read current position as center
-        let telemetry = device.read_telemetry().await
-            .map_err(|e| anyhow::anyhow!("Failed to read telemetry for center calibration: {}", e))?;
+        let telemetry = device.read_telemetry()
+            .ok_or_else(|| anyhow::anyhow!("Failed to read telemetry for center calibration"))?;
 
         Ok(CalibrationData {
             center_position: Some(telemetry.wheel_angle_deg),
@@ -379,7 +384,7 @@ impl ApplicationDeviceService {
         // Sample for 10 seconds to capture range
         let start_time = Instant::now();
         while start_time.elapsed() < Duration::from_secs(10) {
-            if let Ok(telemetry) = device.read_telemetry().await {
+            if let Some(telemetry) = device.read_telemetry() {
                 min_angle = min_angle.min(telemetry.wheel_angle_deg);
                 max_angle = max_angle.max(telemetry.wheel_angle_deg);
             }
@@ -470,15 +475,7 @@ pub enum CalibrationType {
     Full,
 }
 
-/// Calibration data
-#[derive(Debug, Clone)]
-pub struct CalibrationData {
-    pub center_position: Option<f32>,
-    pub min_position: Option<f32>,
-    pub max_position: Option<f32>,
-    pub pedal_ranges: Option<Vec<(f32, f32)>>, // (min, max) for each pedal
-    pub timestamp: Instant,
-}
+
 
 /// Device service statistics
 #[derive(Debug, Clone)]
