@@ -112,7 +112,7 @@ pub struct NormalizedTelemetry {
 }
 
 /// Racing flags and status information
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct TelemetryFlags {
     pub yellow_flag: bool,
     pub red_flag: bool,

@@ -4,7 +4,7 @@ use std::time::Instant;
 
 /// Real-time frame data processed at 1kHz
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Frame {
     /// Force feedback input from game (-1.0 to 1.0)
     pub ffb_in: f32,

@@ -345,7 +345,12 @@ This implementation plan converts the racing wheel software design into mileston
   - Build metrics collection for jitter, latency, and missed tick counters
   - _Requirements: DIAG-04, NFR-01_
 
-- [ ] 13. Build diagnostic and blackbox recording system
+- [x] 13. Build diagnostic and blackbox recording system
+
+
+
+
+
   - Implement 1kHz blackbox recorder with .wbb v1 format (magic WBB1, CRC32C, index every 100ms)
   - Create three streams: A (1kHz frames + per-node outputs), B (60Hz telemetry), C (health/fault events)
   - Build replay system with deterministic seed to reproduce outputs within floating-point tolerance
