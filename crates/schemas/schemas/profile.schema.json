@@ -18,15 +18,26 @@
       "$ref": "#/$defs/BaseSettings"
     },
     "leds": {
-      "$ref": "#/$defs/LedConfig"
+      "anyOf": [
+        {"$ref": "#/$defs/LedConfig"},
+        {"type": "null"}
+      ]
     },
     "haptics": {
-      "$ref": "#/$defs/HapticsConfig"
+      "anyOf": [
+        {"$ref": "#/$defs/HapticsConfig"},
+        {"type": "null"}
+      ]
     },
     "signature": {
-      "type": "string",
-      "description": "Optional Ed25519 signature for profile authenticity",
-      "pattern": "^[A-Za-z0-9+/]+=*$"
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "Optional Ed25519 signature for profile authenticity",
+          "pattern": "^[A-Za-z0-9+/]+=*$"
+        },
+        {"type": "null"}
+      ]
     }
   },
   "additionalProperties": false,
@@ -36,22 +47,37 @@
       "description": "Defines when this profile applies",
       "properties": {
         "game": {
-          "type": "string",
-          "description": "Game/simulator name (null = applies to all games)",
-          "minLength": 1,
-          "maxLength": 64
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "Game/simulator name (null = applies to all games)",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            {"type": "null"}
+          ]
         },
         "car": {
-          "type": "string",
-          "description": "Car identifier (null = applies to all cars in game)",
-          "minLength": 1,
-          "maxLength": 64
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "Car identifier (null = applies to all cars in game)",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            {"type": "null"}
+          ]
         },
         "track": {
-          "type": "string",
-          "description": "Track identifier (null = applies to all tracks)",
-          "minLength": 1,
-          "maxLength": 64
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "Track identifier (null = applies to all tracks)",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            {"type": "null"}
+          ]
         }
       },
       "additionalProperties": false

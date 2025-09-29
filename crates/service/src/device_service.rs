@@ -370,7 +370,8 @@ impl ApplicationDeviceService {
             min_position: None,
             max_position: None,
             pedal_ranges: None,
-            timestamp: Instant::now(),
+            calibrated_at: Some(chrono::Utc::now().to_rfc3339()),
+            calibration_type: CalibrationType::Center,
         })
     }
 
@@ -396,7 +397,8 @@ impl ApplicationDeviceService {
             min_position: Some(min_angle),
             max_position: Some(max_angle),
             pedal_ranges: None,
-            timestamp: Instant::now(),
+            calibrated_at: Some(chrono::Utc::now().to_rfc3339()),
+            calibration_type: CalibrationType::Range,
         })
     }
 
@@ -410,12 +412,13 @@ impl ApplicationDeviceService {
             center_position: None,
             min_position: None,
             max_position: None,
-            pedal_ranges: Some(vec![
-                (0.0, 1.0), // Throttle
-                (0.0, 1.0), // Brake
-                (0.0, 1.0), // Clutch
-            ]),
-            timestamp: Instant::now(),
+            pedal_ranges: Some(racing_wheel_schemas::PedalCalibrationData {
+                throttle: Some((0.0, 1.0)),
+                brake: Some((0.0, 1.0)),
+                clutch: Some((0.0, 1.0)),
+            }),
+            calibrated_at: Some(chrono::Utc::now().to_rfc3339()),
+            calibration_type: CalibrationType::Pedals,
         })
     }
 

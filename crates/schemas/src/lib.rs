@@ -9,17 +9,18 @@ pub mod entities;
 #[cfg(test)]
 mod validation_tests;
 
-#[cfg(has_protoc)]
-pub mod wheel {
-    //! Generated protobuf types for wheel service
-    tonic::include_proto!("wheel.v1");
-}
+// Temporarily disable protobuf types to focus on profile repository
+// #[cfg(has_protoc)]
+// pub mod wheel {
+//     //! Generated protobuf types for wheel service
+//     tonic::include_proto!("wheel.v1");
+// }
 
-#[cfg(not(has_protoc))]
-pub mod wheel {
-    //! Stub protobuf types when protoc is not available
-    include!("generated/wheel.v1.rs");
-}
+// #[cfg(not(has_protoc))]
+// pub mod wheel {
+//     //! Stub protobuf types when protoc is not available
+//     include!("generated/wheel.v1.rs");
+// }
 
 // Re-export commonly used types
 pub use domain::{

@@ -373,7 +373,12 @@ This implementation plan converts the racing wheel software design into mileston
   - Write IPC integration tests with mock clients for all service methods
   - _Requirements: UX-02, XPLAT-02_
 
-- [-] 12. Create profile persistence and validation system
+- [x] 12. Create profile persistence and validation system
+
+
+
+
+
 
 
   - Implement file-based profile repository with JSON Schema validation and line/column error reporting
@@ -383,7 +388,13 @@ This implementation plan converts the racing wheel software design into mileston
   - Write tests for profile serialization, validation, migration, and merge scenarios
   - _Requirements: PRF-01, PRF-02, PRF-03, PRF-04_
 
-- [ ] 15. Create CLI application (wheelctl) with full parity
+
+- [x] 15. Create CLI application (wheelctl) with full parity
+
+
+
+
+
   - Implement command-line interface with device, profile, and diagnostic commands
   - Build JSON output formatting (--json flag) for machine-readable responses
   - Ensure all write operations available in CLI match UI capabilities

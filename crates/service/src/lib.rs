@@ -6,6 +6,7 @@ pub mod ipc_simple;
 // pub mod ipc;
 // pub mod ipc_client;
 pub mod profile_service;
+pub mod profile_repository;
 pub mod device_service;
 pub mod safety_service;
 pub mod service_tests;
@@ -22,6 +23,8 @@ pub mod game_integration;
 pub mod game_integration_service;
 #[cfg(test)]
 pub mod game_integration_e2e_tests;
+#[cfg(test)]
+pub mod profile_repository_test;
 // #[cfg(test)]
 // pub mod ipc_tests;
 
