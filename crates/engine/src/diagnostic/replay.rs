@@ -14,7 +14,7 @@ use crate::{
 };
 use std::{
     fs::File,
-    io::{BufReader, Read, Seek, SeekFrom},
+    io::{Read, Seek, SeekFrom},
     path::Path,
     time::{Duration, Instant},
     collections::HashMap,
@@ -372,8 +372,8 @@ impl BlackboxReplay {
         // Parse streams
         let mut reader = StreamReader::new(data);
         let mut stream_a_data = Vec::new();
-        let mut stream_b_data = Vec::new();
-        let mut stream_c_data = Vec::new();
+        let stream_b_data = Vec::new();
+        let stream_c_data = Vec::new();
         
         // Read all records (simplified - in real implementation, would need to
         // distinguish between stream types based on record format or markers)
@@ -420,7 +420,7 @@ impl BlackboxReplay {
     /// Seek to specific timestamp for random access replay
     pub fn seek_to_timestamp(&mut self, timestamp_ms: u32) -> Result<(), String> {
         // Find appropriate index entry
-        let index_entry = self.index.iter()
+        let _index_entry = self.index.iter()
             .find(|entry| entry.timestamp_ms <= timestamp_ms)
             .ok_or("Timestamp not found in index")?;
         

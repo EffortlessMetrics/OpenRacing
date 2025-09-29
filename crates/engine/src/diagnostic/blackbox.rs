@@ -12,7 +12,7 @@ use crate::ports::NormalizedTelemetry;
 use racing_wheel_schemas::DeviceId;
 use std::{
     fs::File,
-    io::{BufWriter, Write, Seek, SeekFrom},
+    io::{BufWriter, Write, Seek},
     path::{Path, PathBuf},
     time::{SystemTime, Instant, UNIX_EPOCH},
 };
@@ -480,7 +480,7 @@ mod tests {
 
     #[test]
     fn test_recording_finalization() {
-        let (config, temp_dir) = create_test_config();
+        let (config, _temp_dir) = create_test_config();
         let mut recorder = BlackboxRecorder::new(config).unwrap();
         
         // Record some data

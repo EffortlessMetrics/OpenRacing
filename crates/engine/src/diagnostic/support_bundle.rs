@@ -6,7 +6,7 @@
 use super::HealthEvent;
 use std::{
     fs::{File, read_dir, read_to_string},
-    io::{Write, Seek},
+    io::Write,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
     collections::HashMap,

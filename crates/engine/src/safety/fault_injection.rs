@@ -1,11 +1,11 @@
 //! Fault injection system for testing failure modes and recovery procedures
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+// Removed unused Arc and Mutex imports
 use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 
-use super::{FaultType, SafetyService};
+use super::FaultType;
 use crate::ffb::Frame;
 
 /// Fault injection scenario configuration

@@ -5,9 +5,8 @@
 
 use crate::{
     Engine, EngineConfig, GameInput,
-    rt::{Frame, RTError},
     ffb::FFBMode,
-    safety::{SafetyService, SafetyState, FaultType},
+    safety::{SafetyState, FaultType},
     scheduler::RTSetup,
     device::VirtualDevice,
     ports::NormalizedTelemetry,

@@ -3,13 +3,9 @@
 //! This module provides platform-specific HID device adapters that implement
 //! the HidPort and HidDevice traits with real-time optimizations for each OS.
 
-use crate::ports::{HidPort, HidDevice, DeviceHealthStatus};
-use crate::{RTResult, DeviceEvent, TelemetryData, DeviceInfo};
+use crate::ports::HidPort;
+use crate::{TelemetryData, DeviceInfo};
 use racing_wheel_schemas::{DeviceId, DeviceCapabilities, TorqueNm};
-use tokio::sync::mpsc;
-use async_trait::async_trait;
-use std::sync::Arc;
-use parking_lot::RwLock;
 
 pub mod virtual_device;
 
@@ -232,11 +228,16 @@ mod tests {
         let cmd = TorqueCommand::new(5.0, 123, true, false);
         
         assert_eq!(cmd.report_id, TorqueCommand::REPORT_ID);
-        assert_eq!(cmd.seq, 123);
-        assert_eq!(cmd.flags, 0x01); // hands_on_hint set
+        // Copy packed fields to avoid alignment issues
+        let seq = cmd.seq;
+        let flags = cmd.flags;
+        let torque = cmd.torque_mn_m;
+        
+        assert_eq!(seq, 123);
+        assert_eq!(flags, 0x01); // hands_on_hint set
         
         // Test torque conversion: 5.0 Nm -> 5000 mNm -> 1280000 (Q8.8)
-        assert_eq!(cmd.torque_mn_m, 1280000i16);
+        assert_eq!(torque, 1280000i16);
     }
 
     #[test]
@@ -259,7 +260,10 @@ mod tests {
         
         let report = DeviceTelemetryReport::from_bytes(&data).unwrap();
         assert_eq!(report.report_id, DeviceTelemetryReport::REPORT_ID);
-        assert_eq!(report.wheel_angle_mdeg, 90000);
+        
+        // Copy packed field to avoid alignment issues
+        let wheel_angle = report.wheel_angle_mdeg;
+        assert_eq!(wheel_angle, 90000);
         
         let telemetry = report.to_telemetry_data();
         assert!((telemetry.wheel_angle_deg - 90.0).abs() < 0.001);

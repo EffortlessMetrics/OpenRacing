@@ -35,7 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn compile_protos(proto_dir: &PathBuf, proto_files: &[PathBuf]) -> Result<(), Box<dyn std::error::Error>> {
     // Configure protobuf compilation
-    let mut config = prost_build::Config::new();
+    let config = prost_build::Config::new();
     
     // Configure tonic for gRPC service generation
     tonic_build::configure()

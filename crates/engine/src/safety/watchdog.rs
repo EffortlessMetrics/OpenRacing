@@ -630,11 +630,11 @@ mod tests {
     #[test]
     fn test_fault_callback() {
         let mut watchdog = WatchdogSystem::default();
-        let mut callback_called = false;
+        let mut _callback_called = false;
         
         // This test would need Arc<Mutex<bool>> in real code for the callback
         // For now, just test that the callback mechanism exists
-        watchdog.add_fault_callback(|fault_type, component| {
+        watchdog.add_fault_callback(|fault_type, _component| {
             assert_eq!(fault_type, FaultType::PluginOverrun);
         });
         

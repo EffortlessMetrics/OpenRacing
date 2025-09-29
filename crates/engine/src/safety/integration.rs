@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     FaultType, SafetyService, SafetyState,
-    fmea::{FmeaSystem, FaultMarker, SoftStopController, AudioAlert},
+    fmea::{FmeaSystem, FaultMarker},
     watchdog::{WatchdogSystem, WatchdogConfig, SystemComponent, HealthStatus},
     fault_injection::{FaultInjectionSystem, InjectionContext},
 };

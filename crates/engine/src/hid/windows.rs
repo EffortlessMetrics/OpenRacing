@@ -7,23 +7,21 @@
 //! - Guidance for USB selective suspend
 
 use crate::ports::{HidPort, HidDevice, DeviceHealthStatus};
-use crate::{RTResult, DeviceEvent, TelemetryData, DeviceInfo};
+use crate::{TelemetryData, DeviceInfo, DeviceEvent, RTResult};
 use racing_wheel_schemas::{DeviceId, DeviceCapabilities, TorqueNm};
-use super::{HidDeviceInfo, TorqueCommand, DeviceTelemetryReport, DeviceCapabilitiesReport};
+use super::{HidDeviceInfo, TorqueCommand, DeviceTelemetryReport};
 use tokio::sync::mpsc;
 use async_trait::async_trait;
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use parking_lot::{RwLock, Mutex};
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
-use tracing::{debug, warn, error, info};
+use tracing::{debug, warn, info};
 
 use windows::{
     core::*,
     Win32::Foundation::*,
     Win32::System::Threading::*,
-    Win32::System::Power::*,
-    Win32::System::SystemServices::*,
 };
 
 /// Windows-specific HID port implementation
@@ -487,7 +485,7 @@ mod tests {
             supports_raw_torque_1khz: true,
             supports_health_stream: true,
             supports_led_bus: false,
-            max_torque_nm: 25.0,
+            max_torque: TorqueNm::new(25.0).unwrap(),
             encoder_cpr: 4096,
             min_report_period_us: 1000,
         };
@@ -516,7 +514,7 @@ mod tests {
             supports_raw_torque_1khz: true,
             supports_health_stream: true,
             supports_led_bus: false,
-            max_torque_nm: 25.0,
+            max_torque: TorqueNm::new(25.0).unwrap(),
             encoder_cpr: 4096,
             min_report_period_us: 1000,
         };

@@ -15,7 +15,7 @@ pub use replay::{BlackboxReplay, ReplayConfig, ReplayResult};
 pub use support_bundle::{SupportBundle, SupportBundleConfig};
 pub use streams::{StreamA, StreamB, StreamC, StreamType};
 
-use crate::rt::{Frame, PerformanceMetrics};
+use crate::rt::Frame;
 use crate::safety::{SafetyState, FaultType};
 use crate::ports::NormalizedTelemetry;
 use racing_wheel_schemas::DeviceId;
@@ -154,7 +154,7 @@ impl DiagnosticService {
 
     /// Stop recording session
     pub fn stop_recording(&mut self) -> Result<Option<std::path::PathBuf>, String> {
-        if let Some(mut recorder) = self.recorder.take() {
+        if let Some(recorder) = self.recorder.take() {
             let output_path = recorder.finalize()?;
             Ok(Some(output_path))
         } else {

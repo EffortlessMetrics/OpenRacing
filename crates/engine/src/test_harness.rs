@@ -810,7 +810,7 @@ mod tests {
         // List devices
         let devices = port.list_devices().await.unwrap();
         assert_eq!(devices.len(), 1);
-        assert_eq!(devices[0].id, "integration-test");
+        assert_eq!(devices[0].id.as_str(), "integration-test");
         
         // Open device
         let mut opened_device = port.open_device(&device_id).await.unwrap();
@@ -824,7 +824,7 @@ mod tests {
         assert!(telemetry.is_some());
         
         let tel = telemetry.unwrap();
-        assert_eq!(tel.sequence, 1);
+        // Note: sequence field removed from TelemetryData
     }
 
     #[test]
@@ -839,22 +839,22 @@ mod tests {
         
         // Test data within range
         let good_telemetry = TelemetryData {
-            wheel_angle_mdeg: 5000, // 5.0 degrees
-            wheel_speed_mrad_s: 2000, // 2.0 rad/s
-            temp_c: 45,
-            faults: 0,
+            wheel_angle_deg: 5.0, // 5.0 degrees
+            wheel_speed_rad_s: 2.0, // 2.0 rad/s
+            temperature_c: 45,
+            fault_flags: 0,
             hands_on: true,
-            sequence: 1,
+            timestamp: Instant::now(),
         };
         
         // Validate ranges manually (this would be done by the harness)
-        let actual_angle = (good_telemetry.wheel_angle_mdeg as f32) / 1000.0;
+        let actual_angle = good_telemetry.wheel_angle_deg;
         assert!(actual_angle >= -10.0 && actual_angle <= 10.0);
         
-        let actual_speed = (good_telemetry.wheel_speed_mrad_s as f32) / 1000.0;
+        let actual_speed = good_telemetry.wheel_speed_rad_s;
         assert!(actual_speed >= -5.0 && actual_speed <= 5.0);
         
-        assert!(good_telemetry.temp_c >= 20 && good_telemetry.temp_c <= 80);
-        assert_eq!(good_telemetry.faults, 0);
+        assert!(good_telemetry.temperature_c >= 20 && good_telemetry.temperature_c <= 80);
+        assert_eq!(good_telemetry.fault_flags, 0);
     }
 }

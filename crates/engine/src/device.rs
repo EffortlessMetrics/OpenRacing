@@ -444,8 +444,8 @@ mod tests {
         
         // Read telemetry
         let telemetry = device.read_telemetry().unwrap();
-        assert_eq!(telemetry.sequence, 1);
-        assert!(telemetry.temp_c >= 35);
+        // Note: sequence field removed from TelemetryData
+        assert!(telemetry.temperature_c >= 35);
     }
 
     #[tokio::test]
@@ -490,11 +490,11 @@ mod tests {
         let telemetry = device.read_telemetry().unwrap();
         
         // Wheel should have moved and gained speed
-        assert!(telemetry.wheel_angle_mdeg.abs() > 0);
-        assert!(telemetry.wheel_speed_mrad_s.abs() > 0);
+        assert!(telemetry.wheel_angle_deg.abs() > 0.0);
+        assert!(telemetry.wheel_speed_rad_s.abs() > 0.0);
         
         // Temperature should have increased slightly (or at least stayed at baseline)
-        assert!(telemetry.temp_c >= 35);
+        assert!(telemetry.temperature_c >= 35);
     }
 
     #[test]
@@ -504,18 +504,18 @@ mod tests {
         
         // Initially no faults
         let telemetry = device.read_telemetry().unwrap();
-        assert_eq!(telemetry.faults, 0);
+        assert_eq!(telemetry.fault_flags, 0);
         
         // Inject thermal fault
         device.inject_fault(0x04); // Thermal fault bit
         
         let telemetry = device.read_telemetry().unwrap();
-        assert_eq!(telemetry.faults, 0x04);
+        assert_eq!(telemetry.fault_flags, 0x04);
         
         // Clear faults
         device.clear_faults();
         
         let telemetry = device.read_telemetry().unwrap();
-        assert_eq!(telemetry.faults, 0);
+        assert_eq!(telemetry.fault_flags, 0);
     }
 }

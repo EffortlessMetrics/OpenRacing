@@ -261,7 +261,7 @@ mod metrics_validation_tests {
     #[test]
     fn test_missed_tick_rate_validation() {
         let thresholds = AlertingThresholds::default();
-        let validator = MetricsValidator::new(thresholds);
+        let _validator = MetricsValidator::new(thresholds);
         
         // Simulate 1 second of operation at 1kHz (1000 ticks)
         let total_ticks = 1000u64;

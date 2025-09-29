@@ -6,14 +6,14 @@
 //! - Health event streaming for real-time monitoring
 //! - Prometheus export support
 
-use std::sync::atomic::{AtomicU64, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
-use prometheus::{Counter, Gauge, Histogram, IntCounter, IntGauge, Registry};
+use std::time::Instant;
+use prometheus::{Gauge, Histogram, IntCounter, IntGauge, Registry};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
-use tokio_stream::Stream;
+// Removed unused tokio_stream::Stream import
 
 /// Real-time performance metrics
 #[derive(Debug, Clone)]

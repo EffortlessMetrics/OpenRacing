@@ -101,7 +101,7 @@ impl ComprehensiveFaultTests {
         let initial_torque = 15.0;
         
         // Create context with USB stall conditions
-        let mut context = FaultManagerContext {
+        let context = FaultManagerContext {
             current_torque: initial_torque,
             usb_info: Some(UsbInfo {
                 consecutive_failures: 5, // Exceeds threshold
@@ -157,7 +157,7 @@ impl ComprehensiveFaultTests {
         
         // Inject multiple NaN values to trigger fault
         let mut fault_detected = false;
-        for i in 0..10 {
+        for _i in 0..10 {
             let context = FaultManagerContext {
                 current_torque: 10.0,
                 encoder_value: Some(f32::NAN),
@@ -234,7 +234,7 @@ impl ComprehensiveFaultTests {
         let mut fault_detected = false;
 
         // Trigger multiple plugin overruns
-        for i in 0..15 {
+        for _i in 0..15 {
             let context = FaultManagerContext {
                 current_torque: 10.0,
                 plugin_execution: Some(PluginExecution {
@@ -289,7 +289,7 @@ impl ComprehensiveFaultTests {
         let mut fault_detected = false;
 
         // Trigger multiple timing violations
-        for i in 0..150 {
+        for _i in 0..150 {
             let context = FaultManagerContext {
                 current_torque: 10.0,
                 timing_jitter_us: Some(300), // Over 250us threshold

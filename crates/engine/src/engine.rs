@@ -22,7 +22,7 @@ use std::{
         Arc,
     },
     thread::{self, JoinHandle},
-    time::{Duration, Instant},
+    time::Instant,
 };
 use tokio::sync::oneshot;
 use tracing::{debug, error, info, warn};
@@ -190,7 +190,7 @@ struct RTContext {
 impl Engine {
     /// Create new engine with device and configuration
     pub fn new(
-        device: Box<dyn HidDevice>,
+        _device: Box<dyn HidDevice>,
         config: EngineConfig,
     ) -> Result<Self, String> {
         info!("Creating new RT engine for device {:?}", config.device_id);
@@ -541,7 +541,7 @@ impl Engine {
             let device_write_start = Instant::now();
             let final_torque_nm = frame.torque_out * ctx.config.max_high_torque_nm;
             ctx.device.write_ffb_report(final_torque_nm, ctx.seq);
-            let device_write_time = device_write_start.elapsed();
+            let _device_write_time = device_write_start.elapsed();
             
             // Emit RT trace event for HID write
             if let Some(ref tracer) = ctx.tracing_manager {
@@ -867,7 +867,7 @@ mod tests {
         // Run for a bit to potentially trigger timing violations in CI
         sleep(TokioDuration::from_millis(100)).await;
         
-        let stats = engine.get_stats().await.unwrap();
+        let _stats = engine.get_stats().await.unwrap();
         
         // In CI environments, we might have timing violations
         // Just verify the engine continues running

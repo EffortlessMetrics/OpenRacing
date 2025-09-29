@@ -484,7 +484,7 @@ mod tests {
         let event = HealthEvent {
             timestamp: SystemTime::now(),
             device_id,
-            event_type: crate::HealthEventType::DeviceConnected,
+            event_type: super::HealthEventType::DeviceConnected,
             context: serde_json::json!({"test": true}),
         };
         

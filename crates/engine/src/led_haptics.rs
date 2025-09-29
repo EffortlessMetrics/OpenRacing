@@ -206,7 +206,7 @@ impl LedMappingEngine {
     }
 
     /// Determine the appropriate LED pattern based on telemetry priority
-    fn determine_pattern(&mut self, telemetry: &NormalizedTelemetry, now: Instant) -> LedPattern {
+    fn determine_pattern(&mut self, telemetry: &NormalizedTelemetry, _now: Instant) -> LedPattern {
         // Priority order: Flags > Pit Limiter > RPM bands
         
         // Check for active flags (highest priority)
