@@ -65,6 +65,10 @@ metrics-exporter-prometheus = "0.13"
 sysinfo = "0.30"
 tokio-stream = "0.1"
 
+# System integration dependencies
+os_info = "3.7"
+chrono = { version = "0.4", features = ["serde"] }
+
 [profile.release]
 lto = true
 codegen-units = 1
@@ -78,3 +82,15 @@ panic = "abort"
 inherits = "release"
 debug = false
 overflow-checks = false
+
+# Build configuration
+[workspace.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+# Feature flags for development and testing
+[workspace.metadata.features]
+default = []
+validation = ["dev-features"]
+dev-features = []
+integration-tests = ["dev-features"]

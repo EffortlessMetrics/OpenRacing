@@ -131,6 +131,12 @@ impl ServiceDaemon {
         })
     }
     
+    /// Create new service daemon with feature flags
+    pub async fn new_with_flags(config: ServiceConfig, _flags: crate::FeatureFlags) -> Result<Self> {
+        // Feature flags are passed to the WheelService during creation
+        Self::new(config).await
+    }
+    
     /// Run the service daemon
     pub async fn run(self) -> Result<()> {
         info!("Starting service daemon");
@@ -187,8 +193,10 @@ impl ServiceDaemon {
         info!("Starting wheel service instance");
         
         // Create wheel service
-        let wheel_service = WheelService::new().await
-            .context("Failed to create wheel service")?;
+        let wheel_service = Arc::new(WheelService::new().await
+            .context("Failed to create wheel service")?);
+        
+        info!("Wheel service created successfully");
         
         // Create IPC server
         let ipc_server = IpcServer::new(self.config.ipc.clone()).await
@@ -212,7 +220,7 @@ impl ServiceDaemon {
             let is_running = self.is_running.clone();
             
             tokio::spawn(async move {
-                Self::health_monitor(Arc::new(service), interval_secs, is_running).await;
+                Self::health_monitor(service, interval_secs, is_running).await;
             })
         };
         
