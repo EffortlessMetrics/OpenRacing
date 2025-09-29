@@ -3746,6 +3746,8 @@ name = "racing-wheel-service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
+ "chrono",
  "hidapi",
  "libudev",
  "racing-wheel-engine",
@@ -3759,6 +3761,7 @@ dependencies = [
  "tonic",
  "tracing",
  "tracing-subscriber",
+ "winapi",
 ]
 
 [[package]]

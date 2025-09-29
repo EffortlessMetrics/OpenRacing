@@ -283,7 +283,18 @@ This implementation plan converts the racing wheel software design into mileston
   - Document telemetry field coverage and normalization mapping per sim
   - _Requirements: GI-01, GI-03_
 
-- [ ] 8. Implement game telemetry adapters with rate limiting
+- [x] 8. Implement game telemetry adapters with rate limiting
+
+
+
+
+
+
+
+
+
+
+
   - Create iRacing telemetry adapter with shared memory interface and SDK integration
   - Build ACC telemetry adapter using UDP broadcast protocol with packet validation
   - Add rate limiter to protect RT thread from telemetry parsing overhead

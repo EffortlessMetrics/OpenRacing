@@ -10,6 +10,7 @@ pub mod service_tests;
 pub mod game_service;
 pub mod game_support_matrix;
 pub mod config_writers;
+pub mod telemetry;
 
 pub use service::*;
 pub use device::*;
@@ -18,3 +19,4 @@ pub use profile_service::*;
 pub use device_service::*;
 pub use safety_service::*;
 pub use game_service::*;
+pub use telemetry::*;
