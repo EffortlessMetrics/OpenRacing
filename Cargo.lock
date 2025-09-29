@@ -3887,10 +3887,12 @@ name = "racing-wheel-service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-stream",
  "async-trait",
  "chrono",
  "hidapi",
  "libudev",
+ "prost-types",
  "racing-wheel-engine",
  "racing-wheel-schemas",
  "serde",
@@ -3899,10 +3901,12 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-stream",
  "tonic",
  "tracing",
  "tracing-subscriber",
  "tracing-test",
+ "uuid",
  "winapi",
 ]
 
@@ -5305,6 +5309,7 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]

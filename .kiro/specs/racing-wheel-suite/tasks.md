@@ -360,7 +360,12 @@ This implementation plan converts the racing wheel software design into mileston
 
 ### M7 — IPC/UI/CLI Parity
 
-- [ ] 11. Implement IPC server and client communication
+- [x] 11. Implement IPC server and client communication
+
+
+
+
+
   - Create gRPC server implementation using generated Protobuf contracts
   - Build platform-specific IPC transport (Named Pipes on Windows, UDS on Linux) with ACL restrictions
   - Add feature negotiation RPC for backward compatibility within wheel.v1 namespace

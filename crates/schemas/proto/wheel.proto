@@ -7,6 +7,9 @@ import "google/protobuf/timestamp.proto";
 
 // Main wheel service for IPC communication
 service WheelService {
+  // Feature negotiation for backward compatibility
+  rpc NegotiateFeatures(FeatureNegotiationRequest) returns (FeatureNegotiationResponse);
+  
   // Device management
   rpc ListDevices(google.protobuf.Empty) returns (stream DeviceInfo);
   rpc GetDeviceStatus(DeviceId) returns (DeviceStatus);
@@ -193,6 +196,21 @@ message GameStatus {
   bool telemetry_active = 2;
   string car_id = 3;
   string track_id = 4;
+}
+
+// Feature negotiation for backward compatibility
+message FeatureNegotiationRequest {
+  string client_version = 1;
+  repeated string supported_features = 2;
+  string namespace = 3; // e.g., "wheel.v1"
+}
+
+message FeatureNegotiationResponse {
+  string server_version = 1;
+  repeated string supported_features = 2;
+  repeated string enabled_features = 3;
+  bool compatible = 4;
+  string min_client_version = 5;
 }
 
 // Common operation result
