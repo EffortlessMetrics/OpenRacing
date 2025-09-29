@@ -172,5 +172,4 @@ impl GameIntegrationService {
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("Unsupported game: {}", game_id))
     }
-}impl Ga
-meSupportMa
+}

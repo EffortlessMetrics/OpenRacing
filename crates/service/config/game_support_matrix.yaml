@@ -1,6 +1,5 @@
-# Game Support Matrix
-# Defines per-sim/version capabilities and configuration paths
-# Requirements: GI-01, GI-03
+# Game Support Matrix Configuration
+# Defines per-sim capabilities and configuration paths
 
 games:
   iracing:
@@ -81,10 +80,33 @@ games:
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/Assetto Corsa Competizione"
 
-  # Future games can be added here following the same structure
-  # ams2:
-  #   name: "Automobilista 2"
-  #   versions: [...]
-  #   telemetry: [...]
-  #   config_writer: "ams2"
-  #   auto_detect: [...]
+  ams2:
+    name: "Automobilista 2"
+    versions:
+      - version: "1.5.x"
+        config_paths:
+          - "Documents/Automobilista 2/UserData/player/player.json"
+        executable_patterns:
+          - "AMS2AVX.exe"
+        telemetry_method: "shared_memory"
+        supported_fields:
+          - "ffb_scalar"
+          - "rpm"
+          - "speed_ms"
+          - "gear"
+    telemetry:
+      method: "shared_memory"
+      update_rate_hz: 60
+      fields:
+        ffb_scalar: "mSteering"
+        rpm: "mRpm"
+        speed_ms: "mSpeed"
+        gear: "mGear"
+    config_writer: "ams2"
+    auto_detect:
+      process_names:
+        - "AMS2AVX.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1066890"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Automobilista 2"

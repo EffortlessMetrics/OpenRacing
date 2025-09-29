@@ -1,0 +1,382 @@
+//! Process Detection Module
+//! 
+//! Implements process monitoring for auto profile switching (GI-02)
+//! Provides ≤500ms response time for game detection and profile switching
+
+use anyhow::Result;
+// Serde traits removed to avoid serialization issues with Instant
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
+use tokio::sync::mpsc;
+use tokio::time::interval;
+use tracing::{debug, info, warn};
+
+#[cfg(target_os = "windows")]
+use winapi::um::tlhelp32::{
+    CreateToolhelp32Snapshot, Process32First, Process32Next, PROCESSENTRY32, TH32CS_SNAPPROCESS,
+};
+#[cfg(target_os = "windows")]
+use winapi::um::handleapi::CloseHandle;
+
+#[cfg(target_os = "linux")]
+use std::fs;
+
+/// Process detection service for auto profile switching
+pub struct ProcessDetectionService {
+    /// Channel for sending process events
+    event_sender: mpsc::UnboundedSender<ProcessEvent>,
+    /// Currently running processes
+    running_processes: HashMap<String, ProcessInfo>,
+    /// Game process patterns to monitor
+    game_patterns: HashMap<String, Vec<String>>,
+    /// Detection interval (default 100ms for ≤500ms response)
+    detection_interval: Duration,
+}
+
+/// Information about a detected process
+#[derive(Debug, Clone)]
+pub struct ProcessInfo {
+    pub pid: u32,
+    pub name: String,
+    pub game_id: Option<String>,
+    pub detected_at: Instant,
+}
+
+/// Process detection events
+#[derive(Debug, Clone)]
+pub enum ProcessEvent {
+    GameStarted { game_id: String, process_info: ProcessInfo },
+    GameStopped { game_id: String, process_info: ProcessInfo },
+    ProcessListUpdated { processes: Vec<ProcessInfo> },
+}
+
+impl ProcessDetectionService {
+    /// Create new process detection service
+    pub fn new() -> (Self, mpsc::UnboundedReceiver<ProcessEvent>) {
+        let (event_sender, event_receiver) = mpsc::unbounded_channel();
+        
+        let service = Self {
+            event_sender,
+            running_processes: HashMap::new(),
+            game_patterns: HashMap::new(),
+            detection_interval: Duration::from_millis(100), // 100ms for ≤500ms response
+        };
+        
+        (service, event_receiver)
+    }
+    
+    /// Add game process patterns to monitor
+    pub fn add_game_patterns(&mut self, game_id: String, patterns: Vec<String>) {
+        info!(game_id = %game_id, patterns = ?patterns, "Added game process patterns");
+        self.game_patterns.insert(game_id, patterns);
+    }
+    
+    /// Start process monitoring
+    pub async fn start_monitoring(&mut self) -> Result<()> {
+        info!("Starting process detection monitoring");
+        
+        let mut interval = interval(self.detection_interval);
+        
+        loop {
+            interval.tick().await;
+            
+            match self.scan_processes().await {
+                Ok(current_processes) => {
+                    self.update_process_state(current_processes).await;
+                }
+                Err(e) => {
+                    warn!(error = %e, "Failed to scan processes");
+                }
+            }
+        }
+    }
+    
+    /// Scan for currently running processes
+    async fn scan_processes(&self) -> Result<Vec<ProcessInfo>> {
+        #[cfg(target_os = "windows")]
+        {
+            self.scan_processes_windows().await
+        }
+        
+        #[cfg(target_os = "linux")]
+        {
+            self.scan_processes_linux().await
+        }
+        
+        #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+        {
+            // Fallback for unsupported platforms
+            Ok(Vec::new())
+        }
+    }
+    
+    #[cfg(target_os = "windows")]
+    async fn scan_processes_windows(&self) -> Result<Vec<ProcessInfo>> {
+        use std::ffi::CStr;
+        use std::mem;
+        
+        let mut processes = Vec::new();
+        
+        unsafe {
+            let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+            if snapshot == winapi::um::handleapi::INVALID_HANDLE_VALUE {
+                return Err(anyhow::anyhow!("Failed to create process snapshot"));
+            }
+            
+            let mut entry: PROCESSENTRY32 = mem::zeroed();
+            entry.dwSize = mem::size_of::<PROCESSENTRY32>() as u32;
+            
+            if Process32First(snapshot, &mut entry) != 0 {
+                loop {
+                    let process_name = CStr::from_ptr(entry.szExeFile.as_ptr())
+                        .to_string_lossy()
+                        .to_string();
+                    
+                    let game_id = self.match_process_to_game(&process_name);
+                    
+                    processes.push(ProcessInfo {
+                        pid: entry.th32ProcessID,
+                        name: process_name,
+                        game_id,
+                        detected_at: Instant::now(),
+                    });
+                    
+                    if Process32Next(snapshot, &mut entry) == 0 {
+                        break;
+                    }
+                }
+            }
+            
+            CloseHandle(snapshot);
+        }
+        
+        Ok(processes)
+    }
+    
+    #[cfg(target_os = "linux")]
+    async fn scan_processes_linux(&self) -> Result<Vec<ProcessInfo>> {
+        let mut processes = Vec::new();
+        
+        let proc_dir = fs::read_dir("/proc")?;
+        
+        for entry in proc_dir {
+            let entry = entry?;
+            let path = entry.path();
+            
+            if let Some(pid_str) = path.file_name().and_then(|n| n.to_str()) {
+                if let Ok(pid) = pid_str.parse::<u32>() {
+                    let comm_path = path.join("comm");
+                    if let Ok(process_name) = fs::read_to_string(comm_path) {
+                        let process_name = process_name.trim().to_string();
+                        let game_id = self.match_process_to_game(&process_name);
+                        
+                        processes.push(ProcessInfo {
+                            pid,
+                            name: process_name,
+                            game_id,
+                            detected_at: Instant::now(),
+                        });
+                    }
+                }
+            }
+        }
+        
+        Ok(processes)
+    }
+    
+    /// Match process name to game ID using patterns
+    fn match_process_to_game(&self, process_name: &str) -> Option<String> {
+        for (game_id, patterns) in &self.game_patterns {
+            for pattern in patterns {
+                if process_name.to_lowercase().contains(&pattern.to_lowercase()) {
+                    return Some(game_id.to_string());
+                }
+            }
+        }
+        None
+    }
+    
+    /// Update process state and send events
+    async fn update_process_state(&mut self, current_processes: Vec<ProcessInfo>) {
+        let mut new_running = HashMap::new();
+        let mut game_processes = HashMap::new();
+        
+        // Build new state and detect game processes
+        for process in current_processes {
+            let key = format!("{}:{}", process.name, process.pid);
+            
+            if let Some(game_id) = &process.game_id {
+                game_processes.insert(game_id.clone(), process.clone());
+            }
+            
+            new_running.insert(key, process);
+        }
+        
+        // Detect newly started games
+        for (game_id, process_info) in &game_processes {
+            if !self.is_game_currently_running(game_id) {
+                info!(game_id = %game_id, process = %process_info.name, pid = process_info.pid, "Game started");
+                
+                let _ = self.event_sender.send(ProcessEvent::GameStarted {
+                    game_id: game_id.clone(),
+                    process_info: process_info.clone(),
+                });
+            }
+        }
+        
+        // Detect stopped games
+        let currently_running_games: Vec<String> = self.running_processes
+            .values()
+            .filter_map(|p| p.game_id.as_ref().map(|s| s.to_string()))
+            .collect();
+        
+        for game_id in currently_running_games {
+            if !game_processes.contains_key(&game_id) {
+                if let Some(process_info) = self.get_game_process_info(&game_id) {
+                    info!(game_id = %game_id, process = %process_info.name, "Game stopped");
+                    
+                    let _ = self.event_sender.send(ProcessEvent::GameStopped {
+                        game_id,
+                        process_info,
+                    });
+                }
+            }
+        }
+        
+        // Update running processes
+        self.running_processes = new_running;
+        
+        // Send process list update
+        let all_processes: Vec<ProcessInfo> = self.running_processes.values().cloned().collect();
+        let _ = self.event_sender.send(ProcessEvent::ProcessListUpdated {
+            processes: all_processes,
+        });
+        
+        debug!(process_count = self.running_processes.len(), "Updated process state");
+    }
+    
+    /// Check if a game is currently running
+    fn is_game_currently_running(&self, game_id: &str) -> bool {
+        self.running_processes
+            .values()
+            .any(|p| p.game_id.as_ref().map(|s| s.as_str()) == Some(game_id))
+    }
+    
+    /// Get process info for a running game
+    fn get_game_process_info(&self, game_id: &str) -> Option<ProcessInfo> {
+        self.running_processes
+            .values()
+            .find(|p| p.game_id.as_ref().map(|s| s.as_str()) == Some(game_id))
+            .cloned()
+    }
+    
+    /// Get currently running games
+    pub fn get_running_games(&self) -> Vec<String> {
+        self.running_processes
+            .values()
+            .filter_map(|p| p.game_id.as_ref().map(|s| s.to_string()))
+            .collect()
+    }
+    
+    /// Set detection interval
+    pub fn set_detection_interval(&mut self, interval: Duration) {
+        self.detection_interval = interval;
+        info!(interval_ms = interval.as_millis(), "Updated detection interval");
+    }
+}
+
+impl Default for ProcessDetectionService {
+    fn default() -> Self {
+        Self::new().0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::time::timeout;
+    
+    #[tokio::test]
+    async fn test_process_detection_service_creation() {
+        let (service, _receiver) = ProcessDetectionService::new();
+        assert_eq!(service.detection_interval, Duration::from_millis(100));
+        assert!(service.game_patterns.is_empty());
+        assert!(service.running_processes.is_empty());
+    }
+    
+    #[tokio::test]
+    async fn test_add_game_patterns() {
+        let (mut service, _receiver) = ProcessDetectionService::new();
+        
+        service.add_game_patterns(
+            "iracing".to_string(),
+            vec!["iRacingSim64DX11.exe".to_string()],
+        );
+        
+        assert_eq!(service.game_patterns.len(), 1);
+        assert!(service.game_patterns.contains_key("iracing"));
+    }
+    
+    #[test]
+    fn test_match_process_to_game() {
+        let (mut service, _receiver) = ProcessDetectionService::new();
+        
+        service.add_game_patterns(
+            "iracing".to_string(),
+            vec!["iRacingSim64DX11.exe".to_string()],
+        );
+        
+        service.add_game_patterns(
+            "acc".to_string(),
+            vec!["AC2-Win64-Shipping.exe".to_string()],
+        );
+        
+        assert_eq!(
+            service.match_process_to_game("iRacingSim64DX11.exe"),
+            Some("iracing".to_string())
+        );
+        
+        assert_eq!(
+            service.match_process_to_game("AC2-Win64-Shipping.exe"),
+            Some("acc".to_string())
+        );
+        
+        assert_eq!(
+            service.match_process_to_game("notepad.exe"),
+            None
+        );
+    }
+    
+    #[tokio::test]
+    async fn test_process_event_handling() {
+        let (mut service, mut receiver) = ProcessDetectionService::new();
+        
+        service.add_game_patterns(
+            "test_game".to_string(),
+            vec!["test.exe".to_string()],
+        );
+        
+        // Simulate process detection
+        let test_process = ProcessInfo {
+            pid: 1234,
+            name: "test.exe".to_string(),
+            game_id: Some("test_game".to_string()),
+            detected_at: Instant::now(),
+        };
+        
+        service.update_process_state(vec![test_process.clone()]).await;
+        
+        // Should receive a game started event
+        let event = timeout(Duration::from_millis(100), receiver.recv())
+            .await
+            .expect("Should receive event")
+            .expect("Should have event");
+        
+        match event {
+            ProcessEvent::GameStarted { game_id, .. } => {
+                assert_eq!(game_id, "test_game");
+            }
+            _ => panic!("Expected GameStarted event"),
+        }
+    }
+}

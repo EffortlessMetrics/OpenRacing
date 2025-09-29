@@ -1,0 +1,357 @@
+//! Auto Profile Switching Module
+//! 
+//! Implements automatic profile switching based on game detection (GI-02)
+//! Provides ≤500ms response time for profile switching
+
+use crate::process_detection::{ProcessDetectionService, ProcessEvent};
+use crate::profile_service::ProfileService;
+use anyhow::Result;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::{mpsc, RwLock};
+use tokio::time::timeout;
+use tracing::{debug, error, info, warn};
+
+/// Auto profile switching service
+pub struct AutoProfileSwitchingService {
+    /// Profile service for applying profiles
+    profile_service: Arc<ProfileService>,
+    /// Process detection service
+    process_detection: ProcessDetectionService,
+    /// Process event receiver
+    process_events: mpsc::UnboundedReceiver<ProcessEvent>,
+    /// Game to profile mappings
+    game_profiles: Arc<RwLock<HashMap<String, String>>>,
+    /// Currently active profile
+    active_profile: Arc<RwLock<Option<String>>>,
+    /// Switch timeout (500ms requirement)
+    switch_timeout: Duration,
+    /// Last switch time for performance tracking
+    last_switch_time: Arc<RwLock<Option<Instant>>>,
+}
+
+/// Profile switching event
+#[derive(Debug, Clone)]
+pub struct ProfileSwitchEvent {
+    pub game_id: String,
+    pub profile_id: String,
+    pub switch_time_ms: u64,
+    pub success: bool,
+    pub error: Option<String>,
+}
+
+impl AutoProfileSwitchingService {
+    /// Create new auto profile switching service
+    pub fn new(profile_service: Arc<ProfileService>) -> Result<Self> {
+        let (process_detection, process_events) = ProcessDetectionService::new();
+        
+        Ok(Self {
+            profile_service,
+            process_detection,
+            process_events,
+            game_profiles: Arc::new(RwLock::new(HashMap::new())),
+            active_profile: Arc::new(RwLock::new(None)),
+            switch_timeout: Duration::from_millis(500), // GI-02 requirement
+            last_switch_time: Arc::new(RwLock::new(None)),
+        })
+    }
+    
+    /// Start the auto profile switching service
+    pub async fn start(&mut self) -> Result<()> {
+        info!("Starting auto profile switching service");
+        
+        // Add game process patterns from support matrix
+        self.setup_game_patterns().await?;
+        
+        // Start process monitoring in background
+        let mut process_detection = std::mem::take(&mut self.process_detection);
+        tokio::spawn(async move {
+            if let Err(e) = process_detection.start_monitoring().await {
+                error!(error = %e, "Process detection monitoring failed");
+            }
+        });
+        
+        // Handle process events
+        self.handle_process_events().await
+    }
+    
+    /// Setup game process patterns from support matrix
+    async fn setup_game_patterns(&mut self) -> Result<()> {
+        // Add iRacing patterns
+        self.process_detection.add_game_patterns(
+            "iracing".to_string(),
+            vec![
+                "iRacingSim64DX11.exe".to_string(),
+                "iRacingService.exe".to_string(),
+            ],
+        );
+        
+        // Add ACC patterns
+        self.process_detection.add_game_patterns(
+            "acc".to_string(),
+            vec!["AC2-Win64-Shipping.exe".to_string()],
+        );
+        
+        info!("Setup game process patterns for auto-detection");
+        Ok(())
+    }
+    
+    /// Handle process detection events
+    async fn handle_process_events(&mut self) -> Result<()> {
+        info!("Starting process event handling");
+        
+        while let Some(event) = self.process_events.recv().await {
+            match event {
+                ProcessEvent::GameStarted { game_id, process_info } => {
+                    info!(
+                        game_id = %game_id,
+                        process = %process_info.name,
+                        pid = process_info.pid,
+                        "Game started, attempting profile switch"
+                    );
+                    
+                    if let Err(e) = self.switch_to_game_profile(&game_id).await {
+                        error!(
+                            game_id = %game_id,
+                            error = %e,
+                            "Failed to switch to game profile"
+                        );
+                    }
+                }
+                ProcessEvent::GameStopped { game_id, .. } => {
+                    info!(game_id = %game_id, "Game stopped");
+                    
+                    // Switch back to global profile when game stops
+                    if let Err(e) = self.switch_to_global_profile().await {
+                        error!(error = %e, "Failed to switch to global profile");
+                    }
+                }
+                ProcessEvent::ProcessListUpdated { .. } => {
+                    // Log process list updates at debug level
+                    debug!("Process list updated");
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Switch to game-specific profile (GI-02)
+    async fn switch_to_game_profile(&self, game_id: &str) -> Result<ProfileSwitchEvent> {
+        let start_time = Instant::now();
+        
+        // Get profile ID for the game
+        let game_profiles = self.game_profiles.read().await;
+        let profile_id = game_profiles
+            .get(game_id)
+            .cloned()
+            .unwrap_or_else(|| format!("{}_default", game_id));
+        drop(game_profiles);
+        
+        info!(
+            game_id = %game_id,
+            profile_id = %profile_id,
+            "Switching to game profile"
+        );
+        
+        // Perform the profile switch with timeout
+        let switch_result = timeout(
+            self.switch_timeout,
+            self.apply_profile(&profile_id),
+        ).await;
+        
+        let switch_time = start_time.elapsed();
+        let switch_time_ms = switch_time.as_millis() as u64;
+        
+        // Update last switch time
+        {
+            let mut last_switch = self.last_switch_time.write().await;
+            *last_switch = Some(start_time);
+        }
+        
+        match switch_result {
+            Ok(Ok(())) => {
+                // Update active profile
+                {
+                    let mut active = self.active_profile.write().await;
+                    *active = Some(profile_id.clone());
+                }
+                
+                info!(
+                    game_id = %game_id,
+                    profile_id = %profile_id,
+                    switch_time_ms = switch_time_ms,
+                    "Successfully switched to game profile"
+                );
+                
+                Ok(ProfileSwitchEvent {
+                    game_id: game_id.to_string(),
+                    profile_id,
+                    switch_time_ms,
+                    success: true,
+                    error: None,
+                })
+            }
+            Ok(Err(e)) => {
+                let error_msg = e.to_string();
+                warn!(
+                    game_id = %game_id,
+                    profile_id = %profile_id,
+                    switch_time_ms = switch_time_ms,
+                    error = %error_msg,
+                    "Failed to switch to game profile"
+                );
+                
+                Ok(ProfileSwitchEvent {
+                    game_id: game_id.to_string(),
+                    profile_id,
+                    switch_time_ms,
+                    success: false,
+                    error: Some(error_msg),
+                })
+            }
+            Err(_) => {
+                let error_msg = format!("Profile switch timeout (>{}ms)", self.switch_timeout.as_millis());
+                error!(
+                    game_id = %game_id,
+                    profile_id = %profile_id,
+                    timeout_ms = self.switch_timeout.as_millis(),
+                    "Profile switch timed out"
+                );
+                
+                Ok(ProfileSwitchEvent {
+                    game_id: game_id.to_string(),
+                    profile_id,
+                    switch_time_ms,
+                    success: false,
+                    error: Some(error_msg),
+                })
+            }
+        }
+    }
+    
+    /// Switch to global profile
+    async fn switch_to_global_profile(&self) -> Result<()> {
+        let profile_id = "global".to_string();
+        
+        info!("Switching to global profile");
+        
+        self.apply_profile(&profile_id).await?;
+        
+        // Update active profile
+        {
+            let mut active = self.active_profile.write().await;
+            *active = Some(profile_id.clone());
+        }
+        
+        info!(profile_id = %profile_id, "Successfully switched to global profile");
+        Ok(())
+    }
+    
+    /// Apply a profile using the profile service
+    async fn apply_profile(&self, profile_id: &str) -> Result<()> {
+        // Load the profile
+        let profile = self.profile_service.load_profile(profile_id).await?;
+        
+        // Apply the profile
+        self.profile_service.apply_profile(profile).await?;
+        
+        Ok(())
+    }
+    
+    /// Set game-specific profile mapping
+    pub async fn set_game_profile(&self, game_id: String, profile_id: String) -> Result<()> {
+        let mut game_profiles = self.game_profiles.write().await;
+        game_profiles.insert(game_id.clone(), profile_id.clone());
+        
+        info!(
+            game_id = %game_id,
+            profile_id = %profile_id,
+            "Set game profile mapping"
+        );
+        
+        Ok(())
+    }
+    
+    /// Get game-specific profile mapping
+    pub async fn get_game_profile(&self, game_id: &str) -> Option<String> {
+        let game_profiles = self.game_profiles.read().await;
+        game_profiles.get(game_id).cloned()
+    }
+    
+    /// Get currently active profile
+    pub async fn get_active_profile(&self) -> Option<String> {
+        let active = self.active_profile.read().await;
+        active.clone()
+    }
+    
+    /// Get currently running games
+    pub fn get_running_games(&self) -> Vec<String> {
+        self.process_detection.get_running_games()
+    }
+    
+    /// Get last switch performance metrics
+    pub async fn get_switch_metrics(&self) -> Option<Duration> {
+        let last_switch = self.last_switch_time.read().await;
+        last_switch.map(|time| time.elapsed())
+    }
+    
+    /// Force profile switch for testing
+    pub async fn force_switch_to_profile(&self, profile_id: &str) -> Result<()> {
+        info!(profile_id = %profile_id, "Force switching to profile");
+        self.apply_profile(profile_id).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::profile_service::ProfileService;
+    use std::sync::Arc;
+    use tokio::time::sleep;
+    
+    async fn create_test_service() -> AutoProfileSwitchingService {
+        let profile_service = Arc::new(ProfileService::new().await.unwrap());
+        AutoProfileSwitchingService::new(profile_service).unwrap()
+    }
+    
+    #[tokio::test]
+    async fn test_service_creation() {
+        let service = create_test_service().await;
+        assert_eq!(service.switch_timeout, Duration::from_millis(500));
+        
+        let active_profile = service.get_active_profile().await;
+        assert!(active_profile.is_none());
+    }
+    
+    #[tokio::test]
+    async fn test_game_profile_mapping() {
+        let service = create_test_service().await;
+        
+        service.set_game_profile(
+            "iracing".to_string(),
+            "iracing_gt3".to_string(),
+        ).await.unwrap();
+        
+        let profile = service.get_game_profile("iracing").await;
+        assert_eq!(profile, Some("iracing_gt3".to_string()));
+    }
+    
+    #[tokio::test]
+    async fn test_switch_timeout_requirement() {
+        let service = create_test_service().await;
+        
+        // Verify the timeout meets the ≤500ms requirement
+        assert!(service.switch_timeout <= Duration::from_millis(500));
+    }
+    
+    #[tokio::test]
+    async fn test_running_games_tracking() {
+        let service = create_test_service().await;
+        
+        // Initially no games should be running
+        let running_games = service.get_running_games();
+        assert!(running_games.is_empty());
+    }
+}
