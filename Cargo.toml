@@ -6,7 +6,8 @@ members = [
     "crates/cli",
     "crates/ui",
     "crates/plugins",
-    "crates/integration-tests"
+    "crates/integration-tests",
+    "crates/compat"
 ]
 resolver = "2"
 

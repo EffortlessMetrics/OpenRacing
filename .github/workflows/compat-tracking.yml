@@ -1,0 +1,98 @@
+name: Compatibility Layer Usage Tracking
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  track-compat-usage:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        # Fetch full history for comparison
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Track current compat usage
+      run: |
+        python scripts/track_compat_usage.py
+        echo "CURRENT_USAGE=$(python scripts/track_compat_usage.py | grep 'usage count:' | cut -d' ' -f4)" >> $GITHUB_ENV
+    
+    - name: Get baseline usage count (main branch)
+      if: github.event_name == 'pull_request'
+      run: |
+        git checkout origin/main
+        python scripts/track_compat_usage.py > baseline_report.txt
+        BASELINE_USAGE=$(grep 'usage count:' baseline_report.txt | cut -d' ' -f4)
+        echo "BASELINE_USAGE=$BASELINE_USAGE" >> $GITHUB_ENV
+        git checkout ${{ github.sha }}
+    
+    - name: Check usage trend
+      if: github.event_name == 'pull_request'
+      run: |
+        echo "Current usage: $CURRENT_USAGE"
+        echo "Baseline usage: $BASELINE_USAGE"
+        
+        if [ "$CURRENT_USAGE" -gt "$BASELINE_USAGE" ]; then
+          echo "❌ Compatibility layer usage increased from $BASELINE_USAGE to $CURRENT_USAGE"
+          echo "This violates the policy that compat usage should trend downward."
+          echo "Please migrate the new usage to use new field names instead of the compat layer."
+          exit 1
+        elif [ "$CURRENT_USAGE" -lt "$BASELINE_USAGE" ]; then
+          echo "✅ Compatibility layer usage decreased from $BASELINE_USAGE to $CURRENT_USAGE"
+          echo "Great job migrating away from the compat layer!"
+        else
+          echo "ℹ️ Compatibility layer usage unchanged at $CURRENT_USAGE"
+        fi
+    
+    - name: Upload compat usage report
+      uses: actions/upload-artifact@v3
+      with:
+        name: compat-usage-report
+        path: compat_usage_report.json
+        retention-days: 30
+    
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('compat_usage_report.json', 'utf8'));
+          
+          let comment = `## Compatibility Layer Usage Report\n\n`;
+          comment += `**Current usage count:** ${report.usage_count}\n`;
+          comment += `**Baseline usage count:** ${process.env.BASELINE_USAGE}\n\n`;
+          
+          if (report.usage_count > parseInt(process.env.BASELINE_USAGE)) {
+            comment += `❌ **Usage increased** - Please migrate new usage to use new field names.\n\n`;
+          } else if (report.usage_count < parseInt(process.env.BASELINE_USAGE)) {
+            comment += `✅ **Usage decreased** - Great job migrating away from the compat layer!\n\n`;
+          } else {
+            comment += `ℹ️ **Usage unchanged**\n\n`;
+          }
+          
+          if (report.usage_details.length > 0) {
+            comment += `### Usage Details\n\n`;
+            for (const detail of report.usage_details.slice(0, 10)) {
+              comment += `- \`${detail.file}:${detail.line}\` - \`${detail.method}\`\n`;
+            }
+            if (report.usage_details.length > 10) {
+              comment += `\n... and ${report.usage_details.length - 10} more occurrences\n`;
+            }
+          }
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });

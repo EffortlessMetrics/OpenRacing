@@ -1,0 +1,47 @@
+{
+  "usage_count": 7,
+  "usage_details": [
+    {
+      "file": "crates\\engine\\src\\compat_impl.rs",
+      "line": 63,
+      "method": ".temp_c()",
+      "context": "assert_eq!(telemetry.temp_c(), 65);"
+    },
+    {
+      "file": "crates\\engine\\src\\compat_impl.rs",
+      "line": 64,
+      "method": ".faults()",
+      "context": "assert_eq!(telemetry.faults(), 0x04);"
+    },
+    {
+      "file": "crates\\engine\\src\\compat_impl.rs",
+      "line": 65,
+      "method": ".wheel_angle_mdeg()",
+      "context": "assert_eq!(telemetry.wheel_angle_mdeg(), 45500); // 45.5 * 1000"
+    },
+    {
+      "file": "crates\\engine\\src\\compat_impl.rs",
+      "line": 66,
+      "method": ".wheel_speed_mrad_s()",
+      "context": "assert_eq!(telemetry.wheel_speed_mrad_s(), 2500); // 2.5 * 1000"
+    },
+    {
+      "file": "crates\\engine\\src\\compat_impl.rs",
+      "line": 67,
+      "method": ".sequence()",
+      "context": "assert_eq!(telemetry.sequence(), 0); // Removed field"
+    },
+    {
+      "file": "crates\\engine\\src\\compat_impl.rs",
+      "line": 82,
+      "method": ".wheel_angle_mdeg()",
+      "context": "assert_eq!(telemetry.wheel_angle_mdeg(), -180000);"
+    },
+    {
+      "file": "crates\\engine\\src\\compat_impl.rs",
+      "line": 83,
+      "method": ".wheel_speed_mrad_s()",
+      "context": "assert_eq!(telemetry.wheel_speed_mrad_s(), -10500);"
+    }
+  ]
+}

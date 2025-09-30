@@ -36,6 +36,8 @@ pub mod metrics;
 pub mod prelude;
 #[cfg(test)]
 pub mod metrics_tests;
+#[cfg(test)]
+pub mod compat_impl;
 
 // Explicit exports from rt module (canonical FFBMode and Frame)
 pub use rt::{Frame, FFBMode, RTError, RTResult, PerformanceMetrics};

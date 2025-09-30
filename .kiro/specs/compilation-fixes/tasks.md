@@ -44,7 +44,12 @@ This implementation plan converts the compilation error fixes into a series of d
   - **DoD:** streams.rs compiles with explicit path; no super:: ambiguities
   - _Requirements: 2.1, 2.4_
 
-- [ ] 4. Create test-only schema compatibility layer
+- [x] 4. Create test-only schema compatibility layer
+
+
+
+
+
   - Create crates/compat with TelemetryCompat trait mapping old → new field names
   - Gate compatibility layer with #[cfg(test)] so it never ships in release builds
   - Add CI metric to ensure compat usage count does not increase over time
