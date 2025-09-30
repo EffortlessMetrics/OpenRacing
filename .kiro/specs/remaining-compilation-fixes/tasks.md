@@ -203,7 +203,12 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** Trybuild guards prevent regression; deprecated tokens fail compilation; async patterns enforced
   - _Requirements: API-02, REG-01_
 
-- [ ] 13. Implement comprehensive CI build matrix with optimized ordering
+- [x] 13. Implement comprehensive CI build matrix with optimized ordering
+
+
+
+
+
   - Add build matrix for ubuntu-latest and windows-latest
   - Run jobs in optimized order: isolation builds (CLI/SVC/PLUG) in parallel first, then schemas + trybuild, then workspace default, then all-features/no-default, then minimal-versions (nightly), finally lint gates
   - Enable sccache in CI to keep latency manageable
@@ -212,7 +217,17 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** Mean CI wall time reduced; isolation failures show in <3-4 minutes; CI runs on Linux and Windows; all feature combinations tested
   - _Requirements: WS-01, WS-02, WS-03, DEP-03_
 
-- [ ] 14. Add comprehensive lint gates and automated governance enforcement
+
+
+
+- [x] 14. Add comprehensive lint gates and automated governance enforcement
+
+
+
+
+
+
+
   - Set RUSTFLAGS="-D warnings -D unused_must_use" for non-test crates
   - Deny clippy::unwrap_used, clippy::print_stdout, and static_mut_refs in non-test code
   - Implement automated checks for deprecated tokens, glob re-exports, and cross-crate private imports
@@ -221,7 +236,9 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** Lints deny warnings, unused_must_use, unwrap_used, print_stdout, static_mut_refs; violations fail CI; unused deps detected
   - _Requirements: REG-02, DEP-02, DEP-04_
 
-- [ ] 15. Create PR template and establish schema governance with enforcement
+- [-] 15. Create PR template and establish schema governance with enforcement
+
+
   - Add PR template with required sections: Migration Notes (call-site actions per crate), Schema/API change (prost package/JSON schema bump reason), Compat debt delta, CI checklist (isolation builds & schema break check links)
   - Add CODEOWNERS: schemas → @owner-sch; service IPC → @owner-svc; plugins ABI → @owner-plug
   - Document deprecation window policy and migration patterns (rename → alias → remove)

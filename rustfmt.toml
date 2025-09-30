@@ -64,7 +64,7 @@ condense_wildcard_suffixes = false
 color = "Auto"
 
 # Required version (prevents formatting with incompatible versions)
-required_version = "1.7.0"
+required_version = "1.8.0"
 
 # Unstable features (none for stable rustfmt)
 unstable_features = false

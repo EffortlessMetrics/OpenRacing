@@ -38,8 +38,8 @@ fn compile_protos(proto_dir: &std::path::Path, proto_files: &[PathBuf]) -> Resul
     let mut config = prost_build::Config::new();
     
     // Ensure deterministic output by setting consistent options
-    config.btree_map(&["."]);  // Use BTreeMap for deterministic field ordering
-    config.bytes(&["."]);      // Use bytes for binary data
+    config.btree_map(["."]);  // Use BTreeMap for deterministic field ordering
+    config.bytes(["."]);      // Use bytes for binary data
     
     // Configure tonic for gRPC service generation with deterministic settings
     tonic_build::configure()
