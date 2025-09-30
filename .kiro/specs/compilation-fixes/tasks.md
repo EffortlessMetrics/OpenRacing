@@ -57,7 +57,12 @@ This implementation plan converts the compilation error fixes into a series of d
   - **DoD:** Compat shim exists; usage count tracked and does not increase in CI
   - _Requirements: 3.1, 3.2, 3.3, 3.4 (risk-reduced migration)_
 
-- [ ] 5. Update TelemetryData field references using compatibility layer
+- [x] 5. Update TelemetryData field references using compatibility layer
+
+
+
+
+
   - Replace wheel_angle_mdeg with wheel_angle_deg in critical paths first
   - Replace wheel_speed_mrad_s with wheel_speed_rad_s in critical paths first
   - Replace temp_c with temperature_c in critical paths first
@@ -67,7 +72,12 @@ This implementation plan converts the compilation error fixes into a series of d
   - **DoD:** All references use new names or compat layer; no compilation errors
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.6_
 
-- [ ] 6. Add missing FilterConfig fields with proper defaults
+-
+
+- [x] 6. Add missing FilterConfig fields with proper defaults
+
+
+
   - Add bumpstop field using BumpstopConfig::default() in initializations
   - Add hands_off field using HandsOffConfig::default() in initializations
   - Add torque_cap field with Some(TorqueNm(10.0)) or appropriate default
@@ -76,7 +86,11 @@ This implementation plan converts the compilation error fixes into a series of d
   - **DoD:** All initializers compile; either ..Default::default() used or fields explicitly set
   - _Requirements: 3.5_
 
-- [ ] 7. Fix DeviceId construction and add conversion traits
+- [x] 7. Fix DeviceId construction and add conversion traits
+
+
+
+
   - Remove incorrect DeviceId::new() wrapping where id is already DeviceId type
   - Implement Display and From<String>/From<DeviceId> traits for ergonomic conversions
   - Update string comparisons to use .to_string() method consistently

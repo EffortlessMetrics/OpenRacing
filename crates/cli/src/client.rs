@@ -101,12 +101,11 @@ impl WheelClient {
             last_seen: chrono::Utc::now(),
             active_faults: vec![],
             telemetry: TelemetryData {
-                wheel_angle_mdeg: 0,
-                wheel_speed_mrad_s: 0,
-                temp_c: 45,
-                faults: 0,
+                wheel_angle_deg: 0.0,
+                wheel_speed_rad_s: 0.0,
+                temperature_c: 45,
+                fault_flags: 0,
                 hands_on: true,
-                sequence: 12345,
             },
         })
     }
@@ -267,12 +266,11 @@ pub struct DeviceStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TelemetryData {
-    pub wheel_angle_mdeg: i32,
-    pub wheel_speed_mrad_s: i32,
-    pub temp_c: u32,
-    pub faults: u32,
+    pub wheel_angle_deg: f32,
+    pub wheel_speed_rad_s: f32,
+    pub temperature_c: u8,
+    pub fault_flags: u8,
     pub hands_on: bool,
-    pub sequence: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

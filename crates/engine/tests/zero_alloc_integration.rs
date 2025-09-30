@@ -36,7 +36,8 @@ fn create_comprehensive_filter_config() -> FilterConfig {
             CurvePoint::new(0.6, 0.58).unwrap(),
             CurvePoint::new(0.8, 0.82).unwrap(),
             CurvePoint::new(1.0, 1.0).unwrap(),
-        ]
+        ],
+        ..FilterConfig::default()
     }
 }
 
@@ -354,6 +355,7 @@ async fn test_monotonic_curve_validation_comprehensive() {
             notch_filters: vec![],
             slew_rate: Gain::new(0.8).unwrap(),
             curve_points: invalid_curve,
+            ..FilterConfig::default()
         };
         
         let result = compiler.compile_pipeline(invalid_config).await;

@@ -5,3 +5,6 @@ edition = "2021"
 
 [dependencies]
 # Only used in test builds - no runtime dependencies
+
+[dev-dependencies]
+racing-wheel-engine = { path = "../engine" }

@@ -53,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Test device operations
     println!("\n⚙️  Testing device operations...");
-    let device_id = DeviceId::new(device_list[0].id.clone())?;
+    let device_id = device_list[0].id.clone();  // Already a DeviceId
     let mut device = port.open_device(&device_id).await?;
     
     println!("  Device: {}", device.device_info().name);
@@ -79,10 +79,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Test telemetry
     println!("\n📊 Reading telemetry...");
     if let Some(telemetry) = device.read_telemetry() {
-        println!("  Wheel angle: {:.1}°", telemetry.wheel_angle_mdeg as f32 / 1000.0);
-        println!("  Wheel speed: {:.2} rad/s", telemetry.wheel_speed_mrad_s as f32 / 1000.0);
-        println!("  Temperature: {}°C", telemetry.temp_c);
-        println!("  Faults: 0x{:02x}", telemetry.faults);
+        println!("  Wheel angle: {:.1}°", telemetry.wheel_angle_deg);
+        println!("  Wheel speed: {:.2} rad/s", telemetry.wheel_speed_rad_s);
+        println!("  Temperature: {}°C", telemetry.temperature_c);
+        println!("  Faults: 0x{:02x}", telemetry.fault_flags);
         println!("  Hands on: {}", telemetry.hands_on);
     }
     

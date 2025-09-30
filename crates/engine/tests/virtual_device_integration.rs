@@ -40,7 +40,7 @@ async fn test_device_enumeration_performance() {
     
     // Verify device information
     for (i, device_info) in devices.iter().enumerate() {
-        assert_eq!(device_info.id, format!("test-device-{}", i));
+        assert_eq!(device_info.id.to_string(), format!("test-device-{}", i));
         assert_eq!(device_info.name, format!("Test Device {}", i));
         assert_eq!(device_info.device_type, DeviceType::WheelBase as i32);
     }
@@ -134,8 +134,8 @@ async fn test_physics_simulation() {
     
     // Get initial state
     let initial_telemetry = device.read_telemetry().unwrap();
-    let initial_angle = initial_telemetry.wheel_angle_mdeg;
-    let initial_speed = initial_telemetry.wheel_speed_mrad_s;
+    let initial_angle = (initial_telemetry.wheel_angle_deg * 1000.0) as i32; // Convert to mdeg for comparison
+    let initial_speed = (initial_telemetry.wheel_speed_rad_s * 1000.0) as i32; // Convert to mrad/s for comparison
     
     // Simulate physics for 100ms
     for _ in 0..10 {
@@ -144,8 +144,8 @@ async fn test_physics_simulation() {
     
     // Check that physics simulation is working
     let final_telemetry = device.read_telemetry().unwrap();
-    let final_angle = final_telemetry.wheel_angle_mdeg;
-    let final_speed = final_telemetry.wheel_speed_mrad_s;
+    let final_angle = (final_telemetry.wheel_angle_deg * 1000.0) as i32; // Convert to mdeg for comparison
+    let final_speed = (final_telemetry.wheel_speed_rad_s * 1000.0) as i32; // Convert to mrad/s for comparison
     
     // With constant positive torque, wheel should accelerate and move
     assert!(final_speed > initial_speed, 
@@ -158,9 +158,9 @@ async fn test_physics_simulation() {
         initial_angle, final_angle);
     
     // Temperature should increase slightly with applied torque
-    assert!(final_telemetry.temp_c >= initial_telemetry.temp_c,
+    assert!(final_telemetry.temperature_c >= initial_telemetry.temperature_c,
         "Temperature should not decrease with applied torque: {} -> {}",
-        initial_telemetry.temp_c, final_telemetry.temp_c);
+        initial_telemetry.temperature_c, final_telemetry.temperature_c);
 }
 
 /// Test fault injection and handling
@@ -172,25 +172,25 @@ async fn test_fault_injection() {
     
     // Initially no faults
     let telemetry = device.read_telemetry().unwrap();
-    assert_eq!(telemetry.faults, 0);
+    assert_eq!(telemetry.fault_flags, 0);
     
     // Inject thermal fault
     device.inject_fault(0x04);
     
     let telemetry = device.read_telemetry().unwrap();
-    assert_eq!(telemetry.faults, 0x04);
+    assert_eq!(telemetry.fault_flags, 0x04);
     
     // Inject multiple faults
     device.inject_fault(0x02); // Encoder fault
     
     let telemetry = device.read_telemetry().unwrap();
-    assert_eq!(telemetry.faults, 0x04 | 0x02);
+    assert_eq!(telemetry.fault_flags, 0x04 | 0x02);
     
     // Clear faults
     device.clear_faults();
     
     let telemetry = device.read_telemetry().unwrap();
-    assert_eq!(telemetry.faults, 0);
+    assert_eq!(telemetry.fault_flags, 0);
 }
 
 /// Test hands-on detection simulation
@@ -373,7 +373,7 @@ async fn test_multiple_devices() {
     
     // Open and test each device
     for device_info in &devices {
-        let device_id = DeviceId::new(device_info.id.clone()).unwrap();
+        let device_id = device_info.id.clone();  // Already a DeviceId
         let mut device = port.open_device(&device_id).await.unwrap();
         
         // Test basic operations
@@ -408,7 +408,7 @@ async fn test_device_hotplug() {
     // Verify device appears
     let devices = port.list_devices().await.unwrap();
     assert_eq!(devices.len(), 1);
-    assert_eq!(devices[0].id, "hotplug-test");
+    assert_eq!(devices[0].id.to_string(), "hotplug-test");
     
     // Open the device
     let mut opened_device = port.open_device(&device_id).await.unwrap();
@@ -476,17 +476,16 @@ async fn test_telemetry_consistency() {
         
         let telemetry = device.read_telemetry().unwrap();
         
-        // Verify sequence number matches
-        assert_eq!(telemetry.sequence, i as u32);
+        // Note: sequence field was removed from TelemetryData
         
         // Verify telemetry values are reasonable
-        assert!(telemetry.wheel_angle_mdeg.abs() <= 1080000); // Within ±1080°
-        assert!(telemetry.wheel_speed_mrad_s.abs() <= 100000); // Within ±100 rad/s
-        assert!(telemetry.temp_c >= 20 && telemetry.temp_c <= 100); // Reasonable temperature
+        assert!(telemetry.wheel_angle_deg.abs() <= 1080.0); // Within ±1080°
+        assert!(telemetry.wheel_speed_rad_s.abs() <= 100.0); // Within ±100 rad/s
+        assert!(telemetry.temperature_c >= 20 && telemetry.temperature_c <= 100); // Reasonable temperature
         
         // Verify no faults initially
         if i < 5 { // First half of sequence
-            assert_eq!(telemetry.faults, 0);
+            assert_eq!(telemetry.fault_flags, 0);
         }
     }
 }

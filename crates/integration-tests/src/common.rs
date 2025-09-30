@@ -64,12 +64,12 @@ impl VirtualDevice {
     }
 
     pub fn inject_fault(&mut self, fault_type: u8) {
-        self.telemetry_data.faults |= fault_type;
+        self.telemetry_data.fault_flags |= fault_type;
         info!("Injected fault {} into device {}", fault_type, self.name);
     }
 
     pub fn clear_faults(&mut self) {
-        self.telemetry_data.faults = 0;
+        self.telemetry_data.fault_flags = 0;
         info!("Cleared faults for device {}", self.name);
     }
 }

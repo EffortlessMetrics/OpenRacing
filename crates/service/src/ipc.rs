@@ -101,12 +101,11 @@ impl DeviceService {
             last_seen: chrono::Utc::now(),
             active_faults: vec![],
             telemetry: Some(TestTelemetryData {
-                wheel_angle_mdeg: 0,
-                wheel_speed_mrad_s: 0,
-                temp_c: 45,
-                faults: 0,
+                wheel_angle_deg: 0.0,
+                wheel_speed_rad_s: 0.0,
+                temperature_c: 45,
+                fault_flags: 0,
                 hands_on: true,
-                sequence: 1,
             }),
         })
     }
@@ -261,12 +260,11 @@ pub struct TestDeviceStatus {
 
 #[derive(Debug, Clone)]
 pub struct TestTelemetryData {
-    pub wheel_angle_mdeg: i32,
-    pub wheel_speed_mrad_s: i32,
-    pub temp_c: u32,
-    pub faults: u32,
+    pub wheel_angle_deg: f32,
+    pub wheel_speed_rad_s: f32,
+    pub temperature_c: u8,
+    pub fault_flags: u8,
     pub hands_on: bool,
-    pub sequence: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -650,12 +648,12 @@ impl WheelService for WheelServiceImpl {
                     }),
                     active_faults: status.active_faults,
                     telemetry: status.telemetry.map(|t| TelemetryData {
-                        wheel_angle_mdeg: t.wheel_angle_mdeg,
-                        wheel_speed_mrad_s: t.wheel_speed_mrad_s,
-                        temp_c: t.temp_c,
-                        faults: t.faults,
+                        wheel_angle_mdeg: (t.wheel_angle_deg * 1000.0) as i32,
+                        wheel_speed_mrad_s: (t.wheel_speed_rad_s * 1000.0) as i32,
+                        temp_c: t.temperature_c as u32,
+                        faults: t.fault_flags as u32,
                         hands_on: t.hands_on,
-                        sequence: t.sequence,
+                        sequence: 0, // Field removed, use 0 as default
                     }),
                 };
                 Ok(Response::new(device_status))

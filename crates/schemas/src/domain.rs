@@ -259,6 +259,12 @@ impl From<DeviceId> for String {
     }
 }
 
+impl From<String> for DeviceId {
+    fn from(id: String) -> Self {
+        DeviceId(id)
+    }
+}
+
 /// Profile identifier with validation
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProfileId(String);

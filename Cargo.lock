@@ -1071,6 +1071,9 @@ dependencies = [
 [[package]]
 name = "compat"
 version = "0.1.0"
+dependencies = [
+ "racing-wheel-engine",
+]
 
 [[package]]
 name = "concurrent-queue"

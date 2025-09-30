@@ -15,6 +15,7 @@
 /// 
 /// This trait provides methods with old field names that forward to the new
 /// field names, enabling gradual migration of test code.
+#[cfg(test)]
 pub trait TelemetryCompat {
     /// Get temperature in Celsius (old field name: temp_c)
     fn temp_c(&self) -> u8;
@@ -35,5 +36,31 @@ pub trait TelemetryCompat {
     fn sequence(&self) -> u32;
 }
 
-// Implementation will be provided by consuming crates that import this trait
-// and implement it for their specific TelemetryData types
+// Implementation for engine's TelemetryData (uses new field names)
+#[cfg(test)]
+impl TelemetryCompat for racing_wheel_engine::TelemetryData {
+    #[inline]
+    fn temp_c(&self) -> u8 {
+        self.temperature_c
+    }
+    
+    #[inline]
+    fn faults(&self) -> u8 {
+        self.fault_flags
+    }
+    
+    #[inline]
+    fn wheel_angle_mdeg(&self) -> i32 {
+        (self.wheel_angle_deg * 1000.0) as i32
+    }
+    
+    #[inline]
+    fn wheel_speed_mrad_s(&self) -> i32 {
+        (self.wheel_speed_rad_s * 1000.0) as i32
+    }
+    
+    #[inline]
+    fn sequence(&self) -> u32 {
+        0 // Field was removed
+    }
+}

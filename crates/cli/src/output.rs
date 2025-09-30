@@ -127,11 +127,10 @@ pub fn print_device_status(status: &DeviceStatus, json: bool) {
         
         println!("  {}:", "Telemetry".bold());
         let tel = &status.telemetry;
-        println!("    Wheel Angle: {:.1}°", tel.wheel_angle_mdeg as f32 / 1000.0);
-        println!("    Wheel Speed: {:.1} rad/s", tel.wheel_speed_mrad_s as f32 / 1000.0);
-        println!("    Temperature: {}°C", tel.temp_c);
+        println!("    Wheel Angle: {:.1}°", tel.wheel_angle_deg);
+        println!("    Wheel Speed: {:.1} rad/s", tel.wheel_speed_rad_s);
+        println!("    Temperature: {}°C", tel.temperature_c);
         println!("    Hands On: {}", if tel.hands_on { "Yes".green() } else { "No".red() });
-        println!("    Sequence: {}", tel.sequence);
     }
 }
 

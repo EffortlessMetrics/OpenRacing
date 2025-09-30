@@ -413,6 +413,26 @@ impl Default for HandsOffConfig {
     }
 }
 
+impl Default for FilterConfig {
+    fn default() -> Self {
+        Self {
+            reconstruction: 4,
+            friction: Gain::new(0.1).unwrap(),
+            damper: Gain::new(0.15).unwrap(),
+            inertia: Gain::new(0.05).unwrap(),
+            notch_filters: vec![],
+            slew_rate: Gain::new(0.8).unwrap(),
+            curve_points: vec![
+                CurvePoint::new(0.0, 0.0).unwrap(),
+                CurvePoint::new(1.0, 1.0).unwrap(),
+            ],
+            torque_cap: Gain::new(1.0).unwrap(),
+            bumpstop: BumpstopConfig::default(),
+            hands_off: HandsOffConfig::default(),
+        }
+    }
+}
+
 impl FilterConfig {
     /// Create a new filter configuration with validation
     pub fn new(
