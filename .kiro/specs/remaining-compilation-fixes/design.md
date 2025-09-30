@@ -46,7 +46,7 @@ Consumer Crates
 
 ### Async Pattern Standardization
 
-**Trait Object Pattern:**
+**ONLY Pattern for Public Cross-Crate Traits:**
 ```rust
 #[async_trait]
 pub trait ServiceTrait {
@@ -62,10 +62,20 @@ impl ServiceTrait for ConcreteService {
 }
 ```
 
-**Forbidden Patterns:**
+**Forbidden Patterns (enforced by trybuild):**
 - Manual `Box<dyn Future<...>>` in public APIs
+- `-> impl Future<Output=T>` in public trait definitions
 - GATs in cross-crate trait definitions
 - Ad-hoc async closures in trait bounds
+
+**Trybuild Guard:**
+```rust
+// tests/compile-fail/public_future_trait.rs
+trait BadPublicApi<T> {
+    // should fail: public trait cannot expose impl Future
+    fn do_it(&self) -> impl core::future::Future<Output=T>;
+}
+```
 
 ## Components and Interfaces
 
@@ -80,31 +90,64 @@ pub mod prelude {
     pub use crate::telemetry::*;
 }
 
-// Explicit re-exports only
-pub use prelude::*;
+// NO root re-export - force explicit prelude usage
+// Removed: pub use prelude::*;
+```
+
+**Domain vs Wire Type Separation:**
+```rust
+// Domain types (internal business logic)
+pub mod domain {
+    pub struct DeviceId(String);
+    pub struct TelemetryData { /* business fields */ }
+}
+
+// Wire types (generated from protobuf in racing-wheel-ipc)
+// Keep prost types separate, use conversion layer
+impl From<ipc::DeviceInfo> for domain::Device {
+    fn from(wire: ipc::DeviceInfo) -> Self {
+        // Lossless conversion with validation
+    }
+}
 ```
 
 **Type Consolidation:**
-- Single `DeviceId` type with conversion traits
+- Single `DeviceId` type with safe construction and validation
 - Unified `BaseSettings` with all required fields
 - Updated `TelemetryData` with new field names only
-- `FilterConfig` with proper Default implementation
+- `FilterConfig` with stable 1kHz-safe defaults
 
 ### Service Layer Refactoring
 
-**IPC Contract Alignment:**
+**IPC Contract with Conversion Layer:**
 ```rust
-// Generated from protobuf
+// Generated from protobuf (racing-wheel-ipc crate)
 pub trait WheelService {
-    async fn get_devices(&self) -> Result<DeviceList, ServiceError>;
-    async fn apply_profile(&self, req: ProfileRequest) -> Result<(), ServiceError>;
+    async fn get_devices(&self) -> Result<ipc::DeviceList, ServiceError>;
+    async fn apply_profile(&self, req: ipc::ProfileRequest) -> Result<(), ServiceError>;
 }
 
-// Implementation must match exactly
+// Service implementation with domain/wire separation
 #[async_trait]
 impl WheelService for WheelServiceImpl {
-    async fn get_devices(&self) -> Result<DeviceList, ServiceError> {
-        // Implementation using schema types
+    async fn get_devices(&self) -> Result<ipc::DeviceList, ServiceError> {
+        let domain_devices = self.device_repo.list_devices().await?;
+        Ok(domain_devices.into()) // Convert domain -> wire
+    }
+}
+
+// Conversion layer (lossless, validated)
+impl From<domain::Device> for ipc::DeviceInfo {
+    fn from(device: domain::Device) -> Self {
+        // Lossless conversion with unit documentation
+    }
+}
+
+impl TryFrom<ipc::TelemetryData> for domain::TelemetryData {
+    type Error = ValidationError;
+    
+    fn try_from(wire: ipc::TelemetryData) -> Result<Self, Self::Error> {
+        // Validate units and ranges
     }
 }
 ```
@@ -123,14 +166,15 @@ where
 
 ### CLI Tool Restructuring
 
-**Schema Import Pattern:**
+**Schema Import Pattern (Public API Only):**
 ```rust
 // wheelctl/src/main.rs
-use racing_wheel_schemas::prelude::*;
+use racing_wheel_schemas::prelude::*;  // Explicit prelude usage
 use racing_wheel_ipc::WheelServiceClient;
 
-// No direct crate::internal imports
-// All types from public prelude
+// FORBIDDEN: use racing_wheel_schemas::internal::*;
+// FORBIDDEN: use crate::foo::bar across crate boundaries
+// CI enforces: grep -r "use crate::" integration-tests/ && exit 1
 ```
 
 **Configuration Handling:**
@@ -147,26 +191,44 @@ fn create_filter_config() -> FilterConfig {
 
 ### Plugin System ABI Design
 
-**Stable ABI Definition:**
+**Stable ABI Definition with Handshake:**
 ```rust
 // racing-wheel-plugins/src/abi.rs
-pub const PLUG_ABI_VERSION: &str = "1.0";
+pub const PLUG_ABI_VERSION: u32 = 0x0001_0000; // major<<16 | minor
+pub const PLUG_ABI_MAGIC: u32 = 0x57574C31;    // 'WWL1' in LE
 
-#[repr(C)]
-pub struct PluginManifest {
-    pub abi_version: [u8; 8],
-    pub name: [u8; 64],
-    pub capabilities: u32,
+bitflags::bitflags! {
+    #[repr(transparent)]
+    pub struct Cap: u32 {
+        const TELEMETRY    = 0b0001;
+        const LEDS         = 0b0010;
+        const HAPTICS      = 0b0100;
+        const RESERVED     = 0xFFFF_FFF8;
+    }
 }
 
 #[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PluginHeader {
+    pub magic: u32,        // LE
+    pub abi_version: u32,  // LE
+    pub caps: u32,         // Cap bits
+    pub reserved: u32,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
 pub struct TelemetryFrame {
-    pub timestamp_us: u64,
-    pub wheel_angle_deg: f32,
-    pub wheel_speed_rad_s: f32,
-    pub temperature_c: f32,
-    pub fault_flags: u32,
+    pub timestamp_us: u64,       // LE, microseconds
+    pub wheel_angle_deg: f32,    // degrees (not millidegrees)
+    pub wheel_speed_rad_s: f32,  // rad/s (not mrad/s)
+    pub temperature_c: f32,      // °C (not temp_c)
+    pub fault_flags: u32,        // bitfield, LE (not faults)
+    pub _pad: u32,               // align to 8 bytes
 }
+
+// Compile-time size assertion
+static_assertions::const_assert!(std::mem::size_of::<TelemetryFrame>() == 32);
 ```
 
 **WASM Host Interface:**
@@ -182,33 +244,44 @@ pub trait PluginHost {
 
 ### Schema Type Definitions
 
-**Core Domain Types:**
+**Core Domain Types (Safe and Ergonomic):**
 ```rust
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct DeviceId(String);
+pub struct DeviceId(String); // Keep inner field private
 
-impl DeviceId {
-    pub fn new(id: impl Into<String>) -> Self {
-        Self(id.into())
-    }
-}
-
-impl Display for DeviceId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl FromStr for DeviceId {
+impl std::str::FromStr for DeviceId {
     type Err = DeviceIdError;
     
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.is_empty() {
             return Err(DeviceIdError::Empty);
         }
+        // Add validation and normalization here
         Ok(DeviceId(s.to_string()))
     }
 }
+
+impl std::fmt::Display for DeviceId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl TryFrom<String> for DeviceId {
+    type Error = DeviceIdError;
+    
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
+impl AsRef<str> for DeviceId {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+// Remove the infallible new() constructor - force validation
 ```
 
 **Configuration Types:**
@@ -224,8 +297,8 @@ pub struct BaseSettings {
 impl Default for BaseSettings {
     fn default() -> Self {
         Self {
-            device_id: DeviceId::new("default"),
-            profile_id: ProfileId::new("default"),
+            device_id: "default".parse().expect("valid default device id"),
+            profile_id: "default".parse().expect("valid default profile id"),
             safety_enabled: true,
             max_torque: TorqueNm(10.0),
         }
@@ -246,7 +319,7 @@ pub struct TelemetryData {
 }
 ```
 
-### Workspace Dependency Configuration
+### Workspace Dependency Configuration with Governance
 
 **Cargo.toml Structure:**
 ```toml
@@ -262,6 +335,7 @@ members = [
 ]
 
 [workspace.dependencies]
+# Pin critical async/serialization crates to prevent skew
 tokio = { version = "1.39", features = ["full"] }
 tonic = "0.12"
 prost = "0.13"
@@ -270,6 +344,38 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
 tracing = "0.1"
+
+# Add cargo-hakari for feature unification
+[workspace.metadata.hakari]
+resolver = "2"
+```
+
+**Toolchain Pinning:**
+```toml
+# rust-toolchain.toml
+[toolchain]
+channel = "1.76"
+components = ["rustfmt", "clippy"]
+```
+
+**FilterConfig Stable Defaults:**
+```rust
+impl Default for FilterConfig {
+    fn default() -> Self {
+        Self {
+            // Stable at 1kHz - no oscillation or clipping
+            reconstruction: 0.0,
+            friction: 0.0,
+            damper: 0.0,
+            inertia: 0.0,
+            slew_rate: 1.0,
+            notch_filters: Vec::new(),
+            bumpstop: BumpstopConfig::default(),
+            hands_off: HandsOffConfig::default(),
+            torque_cap: Some(TorqueNm(10.0)), // Explicit for tests
+        }
+    }
+}
 ```
 
 ## Error Handling
@@ -349,27 +455,45 @@ fn test_removed_telemetry_fields() {
 
 ### Regression Prevention
 
-**CI Pipeline Structure:**
+**CI Pipeline Structure (Cross-Platform):**
 ```yaml
+strategy:
+  matrix:
+    os: [ubuntu-latest, windows-latest]
+runs-on: ${{ matrix.os }}
+
 jobs:
   workspace-compile:
-    - cargo build --workspace
+    - cargo build --workspace --locked
     - cargo build --workspace --all-features
     - cargo build --workspace --no-default-features
   
   isolation-compile:
+    # Run isolation builds first for faster feedback
     - cargo build -p wheelctl
     - cargo build -p racing-wheel-service
     - cargo build -p racing-wheel-plugins
   
+  dependency-governance:
+    - cargo tree --duplicates && exit 1  # Fail on version conflicts
+    - cargo hakari generate && git diff --exit-code  # Feature unification
+    - cargo +nightly -Z minimal-versions update
+    - cargo +nightly build --workspace -Z minimal-versions
+  
   schema-validation:
     - buf breaking --against main
-    - cargo test -p racing-wheel-schemas
+    - cargo test -p racing-wheel-schemas schema_roundtrip
+    - cargo test -p racing-wheel-schemas trybuild
   
   lint-gates:
-    - cargo clippy --workspace -- -D warnings
+    - RUSTFLAGS="-D warnings -D unused_must_use" cargo clippy --workspace
     - cargo fmt --check
     - cargo udeps --all-targets
+    - rg -n 'pub use .*::\*;' crates/ && exit 1  # Ban glob re-exports
+  
+  compile-time-guards:
+    - cargo test -p racing-wheel-schemas --test trybuild
+    - cargo test defaults_are_stable_at_1khz
 ```
 
 **Automated Verification:**
@@ -390,4 +514,36 @@ jobs:
 - Async trait overhead acceptable for non-RT code
 - Plugin ABI designed for zero-copy where possible
 
-This design ensures systematic resolution of compilation issues while establishing governance to prevent future regressions. The approach prioritizes maintainability and clear ownership boundaries between crates.
+## PR Template and Governance
+
+**Required PR Template Sections:**
+```markdown
+## Migration Notes
+- [ ] What changed in types/traits?
+- [ ] Breaking changes to public APIs?
+- [ ] Field name updates or removals?
+
+## Schema/API Versioning  
+- [ ] Protobuf package version (wheel.v1) - bump only on break
+- [ ] JSON schema version updated if needed
+- [ ] Backward compatibility maintained?
+
+## Compat Impact
+- [ ] Delta of compat usage count: +/- X usages
+- [ ] Compat debt trending down?
+- [ ] Removal ticket created for next minor?
+
+## Verification
+- [ ] All isolation builds pass (-p wheelctl, -p service, -p plugins)
+- [ ] Cross-platform CI green (Linux + Windows)
+- [ ] Trybuild guards updated for removed tokens
+- [ ] Doc tests compile and pass
+```
+
+**Automated Governance Enforcement:**
+- Deprecated token detection: `rg -n 'wheel_angle_mdeg|temp_c|sequence' && exit 1`
+- Glob re-export ban: `rg -n 'pub use .*::\*;' crates/ && exit 1`
+- Cross-crate private imports: `grep -r "use crate::" integration-tests/ && exit 1`
+- Compat usage trending: emit count, fail if increasing commit-over-commit
+
+This design ensures systematic resolution of compilation issues while establishing mechanical governance to prevent future regressions. The approach prioritizes maintainability, clear ownership boundaries, and automated verification of API consistency across the workspace.
