@@ -51,6 +51,7 @@ pub use ffb::{
 
 // Explicit exports from other modules - only export what actually exists
 pub use scheduler::{PLL, RTSetup, JitterMetrics};
+#[cfg(test)]
 pub use test_harness::{
     TestHarnessConfig, TestScenario, TorquePattern, ExpectedResponse, 
     FaultInjection, TestResult, TimingValidation, ResponseValidationResult, RTLoopTestHarness

@@ -548,9 +548,9 @@ impl ApplicationSafetyService {
     /// Start safety monitoring
     async fn start_safety_monitoring(&self) -> Result<()> {
         let contexts = Arc::clone(&self.device_contexts);
-        let event_sender = self.event_sender.clone();
+        let _event_sender = self.event_sender.clone();
         let hands_off_timeout = self.hands_off_timeout;
-        let challenge_timeout = self.challenge_timeout;
+        let _challenge_timeout = self.challenge_timeout;
 
         tokio::spawn(async move {
             let mut interval = interval(Duration::from_millis(100)); // 10Hz monitoring

@@ -510,7 +510,7 @@ impl GameIntegrationService {
     
     /// Subscribe to integration events
     pub fn subscribe_to_events(&self) -> mpsc::UnboundedReceiver<GameIntegrationEvent> {
-        let (sender, receiver) = mpsc::unbounded_channel();
+        let (_sender, receiver) = mpsc::unbounded_channel();
         // In a real implementation, we would store the sender and forward events
         // For now, return an empty receiver
         receiver

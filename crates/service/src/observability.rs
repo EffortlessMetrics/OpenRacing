@@ -18,7 +18,6 @@ use axum::{
     routing::get,
     Router,
 };
-use metrics_exporter_prometheus::PrometheusBuilder;
 use prometheus::{Encoder, TextEncoder};
 use racing_wheel_engine::{
     MetricsCollector, HealthEvent, HealthEventStreamer, AlertingThresholds, MetricsValidator

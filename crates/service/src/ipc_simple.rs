@@ -133,12 +133,6 @@ impl IpcServer {
         _service: Arc<WheelService>,
         shutdown_rx: &mut broadcast::Receiver<()>,
     ) -> Result<()> {
-        use std::ffi::OsStr;
-        use std::os::windows::ffi::OsStrExt;
-        use winapi::um::winnt::{GENERIC_READ, GENERIC_WRITE, FILE_SHARE_READ, FILE_SHARE_WRITE};
-        use winapi::um::fileapi::{CreateFileW, OPEN_EXISTING};
-        use winapi::um::namedpipeapi::CreateNamedPipeW;
-        use winapi::um::winbase::{PIPE_ACCESS_DUPLEX, PIPE_TYPE_MESSAGE, PIPE_READMODE_MESSAGE, PIPE_WAIT};
         
         info!("Starting Named Pipe server: {}", pipe_name);
         

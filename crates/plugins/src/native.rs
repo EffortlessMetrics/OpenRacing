@@ -13,7 +13,7 @@ use tokio::process::{Child, Command};
 use tokio::sync::RwLock;
 
 use crate::capability::CapabilityChecker;
-use crate::manifest::{PluginManifest, PluginOperation};
+use crate::manifest::PluginManifest;
 use crate::{Plugin, PluginContext, PluginError, PluginOutput, PluginResult};
 use racing_wheel_schemas::telemetry::NormalizedTelemetry;
 

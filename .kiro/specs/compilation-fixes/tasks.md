@@ -141,7 +141,12 @@ This implementation plan converts the compilation error fixes into a series of d
   - **DoD:** No static_mut_refs warnings; cache access through accessor; lint guard active
   - _Requirements: 6.1, 6.2, 6.4_
 
-- [ ] 11. Remove unused imports and variables with proper scoping
+- [x] 11. Remove unused imports and variables with proper scoping
+
+
+
+
+
   - Remove unused imports in test modules (PI, HashMap, sleep, TelemetryData, etc.)
   - Prefix intentionally unused variables with underscore or remove them
   - Add #[cfg(test)] guards to test-only re-exports to prevent production pollution

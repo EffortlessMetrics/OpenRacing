@@ -17,6 +17,7 @@ pub use crate::ports::{HidDevice, NormalizedTelemetry, TelemetryFlags};
 pub use crate::ffb::{GameCompatibility, ModeSelectionPolicy, CapabilityNegotiator, NegotiationResult};
 
 // Test harness for development
+#[cfg(test)]
 pub use crate::test_harness::{TestHarnessConfig, RTLoopTestHarness, TestResult};
 
 // Scheduler and RT setup

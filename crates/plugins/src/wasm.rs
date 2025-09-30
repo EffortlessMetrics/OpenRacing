@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::RwLock;
 use wasmtime::*;
-use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
+use wasmtime_wasi::WasiCtx;
 
 use crate::capability::{CapabilityChecker, WasmCapabilityEnforcer};
 use crate::manifest::{PluginManifest, PluginOperation};
@@ -177,7 +177,7 @@ impl WasmPlugin {
     async fn execute_with_limits<T>(
         &mut self,
         func_name: &str,
-        args: &[Val],
+        _args: &[Val],
         timeout: Duration,
     ) -> PluginResult<Vec<Val>> {
         let start_time = Instant::now();

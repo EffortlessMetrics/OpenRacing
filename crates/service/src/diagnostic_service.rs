@@ -7,7 +7,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use tracing::{info, warn, error, debug};
+use tracing::{info, error};
 
 /// Diagnostic service for system validation
 pub struct DiagnosticService {
@@ -672,7 +672,7 @@ impl DiagnosticTest for NetworkTest {
     
     async fn run(&self, _system_info: &SystemInfo) -> Result<DiagnosticResult> {
         let mut metadata = HashMap::new();
-        let mut suggested_actions = Vec::new();
+        let suggested_actions = Vec::new();
         let status = DiagnosticStatus::Pass;
         
         // Test UDP socket binding for telemetry
@@ -715,8 +715,8 @@ impl DiagnosticTest for GameIntegrationTest {
     
     async fn run(&self, _system_info: &SystemInfo) -> Result<DiagnosticResult> {
         let mut metadata = HashMap::new();
-        let mut suggested_actions = Vec::new();
-        let mut status = DiagnosticStatus::Pass;
+        let suggested_actions = Vec::new();
+        let status = DiagnosticStatus::Pass;
         let mut messages = Vec::new();
         
         // Check for common game installation directories

@@ -10,13 +10,12 @@
 use anyhow::{Context, Result};
 use racing_wheel_schemas::{
     Profile, ProfileId, ProfileScope, ProfileMetadata, BaseSettings, FilterConfig,
-    LedConfig, HapticsConfig, DeviceCapabilities, DomainError,
+    LedConfig, HapticsConfig, DomainError,
     config::{ProfileSchema, ProfileValidator, ProfileMigrator, SchemaError}
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::fs;
+use std::path::PathBuf;
 use tokio::fs as async_fs;
 use tokio::sync::RwLock;
 use tracing::{info, warn, debug, error};

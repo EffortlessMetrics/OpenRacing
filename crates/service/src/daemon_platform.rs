@@ -1,8 +1,7 @@
 //! Platform-specific service daemon implementations
 
 use anyhow::{Result, Context};
-use std::path::PathBuf;
-use tracing::{info, warn};
+use tracing::info;
 
 use crate::daemon::ServiceDaemon;
 
