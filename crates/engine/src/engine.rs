@@ -112,6 +112,17 @@ pub enum EngineCommand {
     },
 }
 
+/// Diagnostic signals sent from RT thread to diagnostic thread
+#[derive(Debug, Clone)]
+pub enum DiagnosticSignal {
+    /// HID write error occurred
+    HidWriteError {
+        timestamp: Instant,
+        torque_nm: f32,
+        seq: u16,
+    },
+}
+
 /// Real-time Force Feedback Engine
 pub struct Engine {
     /// Engine configuration
@@ -119,6 +130,9 @@ pub struct Engine {
     
     /// RT thread handle
     rt_thread: Option<JoinHandle<RTResult>>,
+    
+    /// Diagnostic thread handle
+    diagnostic_thread: Option<JoinHandle<()>>,
     
     /// Command channel to RT thread
     command_tx: Option<Sender<EngineCommand>>,
@@ -165,6 +179,9 @@ struct RTContext {
     /// Blackbox output sender (SPSC)
     blackbox_tx: Option<Sender<BlackboxFrame>>,
     
+    /// Diagnostic signal sender (non-blocking)
+    diagnostic_tx: Option<Sender<DiagnosticSignal>>,
+    
     /// Engine configuration
     config: EngineConfig,
     
@@ -198,6 +215,7 @@ impl Engine {
         Ok(Self {
             config,
             rt_thread: None,
+            diagnostic_thread: None,
             command_tx: None,
             game_input_tx: None,
             blackbox_rx: None,
@@ -225,6 +243,9 @@ impl Engine {
         } else {
             (None, None)
         };
+        
+        // Create diagnostic channel for RT-safe error reporting
+        let (diagnostic_tx, diagnostic_rx) = crossbeam::channel::bounded(1024);
         
         // Initialize tracing manager
         let tracing_manager = match TracingManager::new() {
@@ -259,6 +280,7 @@ impl Engine {
             game_input_rx,
             command_rx,
             blackbox_tx,
+            diagnostic_tx: Some(diagnostic_tx),
             config: self.config.clone(),
             running: Arc::clone(&self.running),
             frame_counter: Arc::clone(&self.frame_counter),
@@ -275,6 +297,16 @@ impl Engine {
         // Mark as running
         self.running.store(true, Ordering::Release);
         
+        // Start diagnostic thread for off-thread error reporting
+        let diagnostic_running = Arc::clone(&self.running);
+        let diagnostic_counters = Arc::clone(&self.atomic_counters);
+        let diagnostic_thread = thread::Builder::new()
+            .name(format!("diagnostic-{:?}", self.config.device_id))
+            .spawn(move || {
+                Self::diagnostic_thread_main(diagnostic_rx, diagnostic_running, diagnostic_counters)
+            })
+            .map_err(|e| format!("Failed to spawn diagnostic thread: {}", e))?;
+        
         // Start RT thread
         let rt_thread = thread::Builder::new()
             .name(format!("rt-engine-{:?}", self.config.device_id))
@@ -285,6 +317,7 @@ impl Engine {
         
         // Store handles
         self.rt_thread = Some(rt_thread);
+        self.diagnostic_thread = Some(diagnostic_thread);
         self.command_tx = Some(command_tx);
         self.game_input_tx = Some(game_input_tx);
         self.blackbox_rx = blackbox_rx;
@@ -319,6 +352,14 @@ impl Engine {
                     }
                 }
                 Err(_) => error!("RT thread panicked"),
+            }
+        }
+        
+        // Wait for diagnostic thread to finish
+        if let Some(diagnostic_thread) = self.diagnostic_thread.take() {
+            match diagnostic_thread.join() {
+                Ok(()) => info!("Diagnostic thread stopped cleanly"),
+                Err(_) => error!("Diagnostic thread panicked"),
             }
         }
         
@@ -540,7 +581,24 @@ impl Engine {
             // Write to device
             let device_write_start = Instant::now();
             let final_torque_nm = frame.torque_out * ctx.config.max_high_torque_nm;
-            ctx.device.write_ffb_report(final_torque_nm, ctx.seq);
+            
+            // Handle write_ffb_report Result with RT-safe error counting
+            if let Err(_) = ctx.device.write_ffb_report(final_torque_nm, ctx.seq) {
+                // Non-allocating error accounting - just increment atomic counter
+                ctx.atomic_counters.inc_hid_write_error();
+                
+                // Send lossy diagnostic signal to side thread (non-blocking)
+                if let Some(ref diagnostic_tx) = ctx.diagnostic_tx {
+                    let signal = DiagnosticSignal::HidWriteError {
+                        timestamp: device_write_start,
+                        torque_nm: final_torque_nm,
+                        seq: ctx.seq,
+                    };
+                    // Use try_send to avoid blocking RT thread
+                    let _ = diagnostic_tx.try_send(signal);
+                }
+            }
+            
             let _device_write_time = device_write_start.elapsed();
             
             // Emit RT trace event for HID write
@@ -656,6 +714,52 @@ impl Engine {
         }
         
         Ok(())
+    }
+    
+    /// Diagnostic thread main loop - publishes aggregated error counts at 1-2 Hz
+    fn diagnostic_thread_main(
+        diagnostic_rx: Receiver<DiagnosticSignal>,
+        running: Arc<AtomicBool>,
+        _counters: Arc<AtomicCounters>,
+    ) {
+        info!("Diagnostic thread started");
+        
+        let mut last_publish = Instant::now();
+        const PUBLISH_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500); // 2 Hz
+        
+        while running.load(Ordering::Acquire) {
+            // Process diagnostic signals with timeout
+            match diagnostic_rx.recv_timeout(PUBLISH_INTERVAL) {
+                Ok(signal) => {
+                    match signal {
+                        DiagnosticSignal::HidWriteError { timestamp, torque_nm, seq } => {
+                            // Log HID write error (safe to do off RT thread)
+                            debug!(
+                                "HID write error at seq={}, torque={:.2}Nm, timestamp={:?}",
+                                seq, torque_nm, timestamp
+                            );
+                        }
+                    }
+                }
+                Err(crossbeam::channel::RecvTimeoutError::Timeout) => {
+                    // Timeout is expected - continue to publish interval check
+                }
+                Err(crossbeam::channel::RecvTimeoutError::Disconnected) => {
+                    // RT thread disconnected, exit
+                    break;
+                }
+            }
+            
+            // Publish aggregated diagnostics at regular intervals
+            let now = Instant::now();
+            if now.duration_since(last_publish) >= PUBLISH_INTERVAL {
+                // Here we could publish aggregated error counts to external systems
+                // For now, we just update the timestamp
+                last_publish = now;
+            }
+        }
+        
+        info!("Diagnostic thread stopping");
     }
 }
 

@@ -139,6 +139,9 @@ pub struct PrometheusMetrics {
     pub safety_events_total: IntCounter,
     pub profile_switches_total: IntCounter,
     
+    // Device metrics
+    pub hid_write_errors_total: IntCounter,
+    
     // Health metrics
     pub health_events_total: IntCounter,
 }
@@ -240,6 +243,11 @@ impl PrometheusMetrics {
             "Total number of profile switches"
         )?;
         
+        let hid_write_errors_total = IntCounter::new(
+            "wheel_hid_write_errors_total",
+            "Total number of HID write errors"
+        )?;
+        
         let health_events_total = IntCounter::new(
             "wheel_health_events_total",
             "Total number of health events emitted"
@@ -258,6 +266,7 @@ impl PrometheusMetrics {
         registry.register(Box::new(telemetry_packet_loss_gauge.clone()))?;
         registry.register(Box::new(safety_events_total.clone()))?;
         registry.register(Box::new(profile_switches_total.clone()))?;
+        registry.register(Box::new(hid_write_errors_total.clone()))?;
         registry.register(Box::new(health_events_total.clone()))?;
         
         Ok(Self {
@@ -274,6 +283,7 @@ impl PrometheusMetrics {
             telemetry_packet_loss_gauge,
             safety_events_total,
             profile_switches_total,
+            hid_write_errors_total,
             health_events_total,
         })
     }
@@ -301,6 +311,11 @@ impl PrometheusMetrics {
         self.profile_switches_total.inc_by(metrics.profile_switches);
     }
     
+    /// Update device metrics
+    pub fn update_device_metrics(&self, hid_write_errors: u64) {
+        self.hid_write_errors_total.inc_by(hid_write_errors);
+    }
+    
     /// Record a health event
     pub fn record_health_event(&self) {
         self.health_events_total.inc();
@@ -317,6 +332,7 @@ pub struct AtomicCounters {
     pub telemetry_packets_lost: AtomicU64,
     pub torque_saturation_samples: AtomicU64,
     pub torque_saturation_count: AtomicU64,
+    pub hid_write_errors: AtomicU64,
 }
 
 impl AtomicCounters {
@@ -330,6 +346,7 @@ impl AtomicCounters {
             telemetry_packets_lost: AtomicU64::new(0),
             torque_saturation_samples: AtomicU64::new(0),
             torque_saturation_count: AtomicU64::new(0),
+            hid_write_errors: AtomicU64::new(0),
         }
     }
     
@@ -374,8 +391,14 @@ impl AtomicCounters {
         self.telemetry_packets_lost.fetch_add(1, Ordering::Relaxed);
     }
     
+    /// Increment HID write error counter (RT-safe)
+    #[inline]
+    pub fn inc_hid_write_error(&self) {
+        self.hid_write_errors.fetch_add(1, Ordering::Relaxed);
+    }
+    
     /// Get current values and reset counters
-    pub fn get_and_reset(&self) -> (u64, u64, u64, u64, u64, u64, u64, u64) {
+    pub fn get_and_reset(&self) -> (u64, u64, u64, u64, u64, u64, u64, u64, u64) {
         (
             self.total_ticks.swap(0, Ordering::Relaxed),
             self.missed_ticks.swap(0, Ordering::Relaxed),
@@ -385,6 +408,7 @@ impl AtomicCounters {
             self.telemetry_packets_lost.swap(0, Ordering::Relaxed),
             self.torque_saturation_samples.swap(0, Ordering::Relaxed),
             self.torque_saturation_count.swap(0, Ordering::Relaxed),
+            self.hid_write_errors.swap(0, Ordering::Relaxed),
         )
     }
 }
@@ -490,6 +514,7 @@ impl MetricsCollector {
             telemetry_lost,
             torque_samples,
             torque_saturated,
+            hid_write_errors,
         ) = self.atomic_counters.get_and_reset();
         
         // Calculate derived metrics
@@ -546,6 +571,7 @@ impl MetricsCollector {
         // Update Prometheus metrics
         self.prometheus_metrics.update_rt_metrics(&rt_metrics);
         self.prometheus_metrics.update_app_metrics(&app_metrics);
+        self.prometheus_metrics.update_device_metrics(hid_write_errors);
         
         // Emit health events for critical conditions
         if missed_ticks > 0 {
@@ -583,6 +609,25 @@ impl MetricsCollector {
             
             if let Err(e) = self.health_streamer.emit(event) {
                 tracing::warn!("Failed to emit health event: {}", e);
+            } else {
+                self.prometheus_metrics.record_health_event();
+            }
+        }
+        
+        if hid_write_errors > 0 {
+            let event = HealthEventStreamer::create_event(
+                HealthEventType::Error,
+                HealthSeverity::Warning,
+                format!("HID write errors: {} in {}ms", hid_write_errors, collection_interval.as_millis()),
+                None,
+                serde_json::json!({
+                    "hid_write_errors": hid_write_errors,
+                    "collection_interval_ms": collection_interval.as_millis()
+                }),
+            );
+            
+            if let Err(e) = self.health_streamer.emit(event) {
+                tracing::warn!("Failed to emit HID write error health event: {}", e);
             } else {
                 self.prometheus_metrics.record_health_event();
             }
@@ -771,17 +816,24 @@ mod tests {
         counters.record_torque_saturation(false);
         counters.record_torque_saturation(true);
         
-        let (total_ticks, missed_ticks, _, _, _, _, torque_samples, torque_saturated) = 
+        // Test HID write error counting
+        counters.inc_hid_write_error();
+        counters.inc_hid_write_error();
+        counters.inc_hid_write_error();
+        
+        let (total_ticks, missed_ticks, _, _, _, _, torque_samples, torque_saturated, hid_errors) = 
             counters.get_and_reset();
         
         assert_eq!(total_ticks, 2);
         assert_eq!(missed_ticks, 1);
         assert_eq!(torque_samples, 3);
         assert_eq!(torque_saturated, 2);
+        assert_eq!(hid_errors, 3);
         
         // Verify reset
-        let (total_ticks, _, _, _, _, _, _, _) = counters.get_and_reset();
+        let (total_ticks, _, _, _, _, _, _, _, hid_errors) = counters.get_and_reset();
         assert_eq!(total_ticks, 0);
+        assert_eq!(hid_errors, 0);
     }
 
     #[tokio::test]
