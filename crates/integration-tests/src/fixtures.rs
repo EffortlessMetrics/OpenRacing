@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 use serde::{Serialize, Deserialize};
-use racing_wheel_schemas::device::{DeviceCapabilities, DeviceId};
+use racing_wheel_schemas::prelude::*;
 
 /// Test fixture for virtual device configurations
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,8 +67,8 @@ impl DeviceFixture {
                 supports_raw_torque_1khz: true,
                 supports_health_stream: true,
                 supports_led_bus: true,
-                max_torque_cnm: 2500, // 25 Nm
-                encoder_cpr: 65536,
+                max_torque: TorqueNm::from_raw(25.0), // 25 Nm
+                encoder_cpr: 65535,
                 min_report_period_us: 1000,
             },
             telemetry_data: TelemetryFixture::racing_scenario(),
@@ -84,7 +84,7 @@ impl DeviceFixture {
                 supports_raw_torque_1khz: false,
                 supports_health_stream: false,
                 supports_led_bus: false,
-                max_torque_cnm: 800, // 8 Nm
+                max_torque: TorqueNm::from_raw(8.0), // 8 Nm
                 encoder_cpr: 4096,
                 min_report_period_us: 2000,
             },
@@ -101,8 +101,8 @@ impl DeviceFixture {
                 supports_raw_torque_1khz: true,
                 supports_health_stream: true,
                 supports_led_bus: true,
-                max_torque_cnm: 5000, // 50 Nm
-                encoder_cpr: 131072,
+                max_torque: TorqueNm::from_raw(50.0), // 50 Nm
+                encoder_cpr: 65535,
                 min_report_period_us: 500,
             },
             telemetry_data: TelemetryFixture::high_performance_scenario(),

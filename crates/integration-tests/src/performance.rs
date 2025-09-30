@@ -36,16 +36,18 @@ impl PerformanceBenchmark {
         
         harness.shutdown().await?;
         
+        let violations = self.check_performance_violations(&result);
+        
         Ok(TestResult {
             passed: self.validate_results(&result),
             duration: start_time.elapsed(),
-            metrics: result,
-            errors: self.check_performance_violations(&result),
+            metrics: result.clone(),
+            errors: violations,
             requirement_coverage: vec!["NFR-01".to_string(), "FFB-01".to_string()],
         })
     }
     
-    async fn execute_benchmark(&self, harness: &mut TestHarness) -> Result<PerformanceMetrics> {
+    async fn execute_benchmark(&self, _harness: &mut TestHarness) -> Result<PerformanceMetrics> {
         let mut jitter_histogram = Histogram::<u64>::new_with_bounds(1, 10_000_000, 3)?;
         let mut latency_histogram = Histogram::<u64>::new_with_bounds(1, 10_000_000, 3)?;
         

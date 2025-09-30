@@ -4,12 +4,12 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use anyhow::Result;
 use tokio::sync::RwLock;
-use tracing::{info, debug, error};
+use tracing::info;
 use uuid::Uuid;
 
 use racing_wheel_engine::{Engine, EngineConfig};
 use racing_wheel_service::{WheelService, ServiceConfig};
-use racing_wheel_schemas::device::{DeviceId, DeviceInfo, DeviceCapabilities};
+use racing_wheel_schemas::prelude::*;
 
 use crate::{TestConfig, PerformanceMetrics};
 
@@ -29,22 +29,22 @@ pub struct VirtualTelemetry {
     pub wheel_angle_deg: f32,
     pub wheel_speed_rad_s: f32,
     pub temperature_c: u8,
-    pub faults: u8,
+    pub fault_flags: u8,
     pub hands_on: bool,
 }
 
 impl VirtualDevice {
     pub fn new(name: &str) -> Self {
         Self {
-            id: DeviceId::new(Uuid::new_v4().to_string()),
+            id: Uuid::new_v4().to_string().parse().expect("valid device id"),
             name: name.to_string(),
             capabilities: DeviceCapabilities {
                 supports_pid: true,
                 supports_raw_torque_1khz: true,
                 supports_health_stream: true,
                 supports_led_bus: true,
-                max_torque_cnm: 2500, // 25 Nm
-                encoder_cpr: 65536,
+                max_torque: TorqueNm::from_raw(25.0), // 25 Nm
+                encoder_cpr: 65535,
                 min_report_period_us: 1000,
             },
             connected: true,
@@ -85,6 +85,7 @@ pub struct TestHarness {
 
 impl TestHarness {
     pub async fn new(config: TestConfig) -> Result<Self> {
+        let virtual_device = config.virtual_device;
         let mut harness = Self {
             config,
             service: None,
@@ -93,7 +94,7 @@ impl TestHarness {
             start_time: Instant::now(),
         };
 
-        if config.virtual_device {
+        if virtual_device {
             harness.add_virtual_device("Test Wheel DD1").await?;
         }
 

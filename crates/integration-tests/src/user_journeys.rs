@@ -6,10 +6,10 @@
 use std::time::Duration;
 use anyhow::Result;
 use tokio::time::timeout;
-use tracing::{info, debug, error};
+use tracing::info;
 
-use crate::common::{TestHarness, VirtualDevice};
-use crate::{TestConfig, TestResult, PerformanceMetrics};
+use crate::common::TestHarness;
+use crate::{TestConfig, TestResult};
 
 /// UJ-01: First-run user journey
 /// Detect devices → Safe Torque → choose game → "Configure" → launch sim → LEDs/dash active → profile saved

@@ -174,7 +174,9 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** Plugins crate compiles; WASM host works; native helper types match; sample plugin compiles
   - _Requirements: PLUG-01, PLUG-04_
 
-- [-] 11. Resolve integration test compilation with public API enforcement
+- [x] 11. Resolve integration test compilation with public API enforcement
+
+
 
 
 

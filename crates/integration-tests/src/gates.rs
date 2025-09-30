@@ -5,13 +5,12 @@
 //! - HID write latency p99 ≤300μs
 //! - No missed ticks over test duration
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use anyhow::Result;
 use hdrhistogram::Histogram;
-use tracing::{info, warn, error};
+use tracing::{info, warn};
 
-use crate::common::{TestHarness, TimingUtils, RTTimer};
+use crate::common::{TestHarness, RTTimer};
 use crate::{TestConfig, TestResult, PerformanceMetrics, MAX_JITTER_P99_MS, MAX_HID_LATENCY_P99_US, FFB_FREQUENCY_HZ};
 
 /// Run all CI performance gates

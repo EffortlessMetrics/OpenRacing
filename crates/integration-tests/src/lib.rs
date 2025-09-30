@@ -7,6 +7,12 @@
 //! - Acceptance tests mapped to requirement IDs
 //! - Hot-plug stress testing
 
+#![deny(rust_2018_idioms)]
+#![deny(warnings)]
+#![deny(unused_must_use)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::print_stdout)]
+
 pub mod common;
 pub mod fixtures;
 pub mod performance;
@@ -18,7 +24,7 @@ pub mod gates;
 
 use std::time::Duration;
 use anyhow::Result;
-use tracing::{info, warn, error};
+use tracing::info;
 
 /// Performance thresholds as defined in requirements
 pub const MAX_JITTER_P99_MS: f64 = 0.25;
@@ -59,7 +65,7 @@ impl Default for TestConfig {
 }
 
 /// Test result with performance metrics
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TestResult {
     pub passed: bool,
     pub duration: Duration,
@@ -69,7 +75,7 @@ pub struct TestResult {
 }
 
 /// Performance metrics collected during tests
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct PerformanceMetrics {
     pub jitter_p50_ms: f64,
     pub jitter_p99_ms: f64,

@@ -2,10 +2,10 @@
 
 use std::time::{Duration, Instant};
 use anyhow::Result;
-use tracing::{info, debug, error};
+use tracing::{info, error};
 use std::collections::HashMap;
 
-use crate::common::{TestHarness, VirtualDevice};
+use crate::common::TestHarness;
 use crate::{TestConfig, TestResult, PerformanceMetrics};
 
 /// Acceptance test definition
@@ -386,7 +386,7 @@ async fn test_ffb02_hot_path_purity() -> Result<TestResult> {
     };
     
     let mut harness = TestHarness::new(config).await?;
-    let mut errors = Vec::new();
+    let errors = Vec::new();
     let start_time = Instant::now();
     
     harness.start_service().await?;

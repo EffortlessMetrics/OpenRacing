@@ -6,6 +6,16 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+# Lint gates for integration tests
+[lints.rust]
+warnings = "deny"
+unused_must_use = "deny"
+rust_2018_idioms = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+print_stdout = "deny"
+
 [dependencies]
 racing-wheel-engine = { path = "../engine" }
 racing-wheel-service = { path = "../service" }
@@ -31,21 +41,26 @@ quickcheck_macros = "1.0"
 # Performance and timing
 parking_lot = { workspace = true }
 crossbeam = { workspace = true }
-hdrhistogram = "7.5"
-statistical = "1.0"
+hdrhistogram = { workspace = true }
+statistical = { workspace = true }
 
 # Test utilities
 tempfile = "3.8"
-uuid = { version = "1.0", features = ["v4"] }
+uuid = { workspace = true }
 rand = "0.8"
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { workspace = true }
 
 # Mock and test doubles
-mockall = "0.12"
-wiremock = "0.6"
+mockall = { workspace = true }
+wiremock = { workspace = true }
 
 # System monitoring
-sysinfo = "0.30"
+sysinfo = { workspace = true }
+num_cpus = { workspace = true }
+
+# CLI for binaries
+clap = { workspace = true }
+
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [target.'cfg(windows)'.dependencies]

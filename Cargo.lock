@@ -3699,14 +3699,13 @@ dependencies = [
 
 [[package]]
 name = "mockall"
-version = "0.12.1"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43766c2b5203b10de348ffe19f7e54564b64f3d6018ff7648d1e2d6d3a0f0a48"
+checksum = "39a6bfcc6c8c7eed5ee98b9c3e33adc726054389233e201c95dab2d41a3839d2"
 dependencies = [
  "cfg-if",
  "downcast",
  "fragile",
- "lazy_static",
  "mockall_derive",
  "predicates",
  "predicates-tree",
@@ -3714,9 +3713,9 @@ dependencies = [
 
 [[package]]
 name = "mockall_derive"
-version = "0.12.1"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af7cbce79ec385a1d4f54baa90a76401eb15d9cab93685f62e7e9f942aa00ae2"
+checksum = "25ca3004c2efe9011bd4e461bd8256445052b9615405b4f7ea43fc8ca5c20898"
 dependencies = [
  "cfg-if",
  "proc-macro2",
@@ -4154,6 +4153,16 @@ dependencies = [
  "block2",
  "libc",
  "objc2",
+ "objc2-core-foundation",
+]
+
+[[package]]
+name = "objc2-io-kit"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71c1c64d6120e51cd86033f67176b1cb66780c2efe34dec55176f77befd93c0a"
+dependencies = [
+ "libc",
  "objc2-core-foundation",
 ]
 
@@ -5063,7 +5072,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
- "sysinfo",
+ "sysinfo 0.30.13",
  "tempfile",
  "thiserror 2.0.17",
  "tokio",
@@ -5083,11 +5092,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "clap",
  "criterion",
  "crossbeam",
  "hdrhistogram",
  "libc",
  "mockall",
+ "num_cpus",
  "parking_lot",
  "proptest",
  "quickcheck",
@@ -5099,7 +5110,7 @@ dependencies = [
  "serde",
  "serde_json",
  "statistical",
- "sysinfo",
+ "sysinfo 0.37.1",
  "tempfile",
  "thiserror 2.0.17",
  "tokio",
@@ -5206,7 +5217,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2",
- "sysinfo",
+ "sysinfo 0.30.13",
  "tempfile",
  "thiserror 2.0.17",
  "tokio",
@@ -6407,6 +6418,20 @@ dependencies = [
  "once_cell",
  "rayon",
  "windows 0.52.0",
+]
+
+[[package]]
+name = "sysinfo"
+version = "0.37.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3bddd368fda2f82ead69c03d46d351987cfa0c2a57abfa37a017f3aa3e9bf69a"
+dependencies = [
+ "libc",
+ "memchr",
+ "ntapi",
+ "objc2-core-foundation",
+ "objc2-io-kit",
+ "windows 0.61.3",
 ]
 
 [[package]]

@@ -6,7 +6,7 @@ use tracing::{info, warn, error};
 use tokio::fs;
 use serde::{Serialize, Deserialize};
 
-use crate::common::{TestHarness, TimingUtils, RTTimer};
+use crate::common::{TestHarness, RTTimer};
 use crate::{TestConfig, TestResult, PerformanceMetrics, SOAK_TEST_DURATION};
 
 /// Soak test configuration
@@ -126,7 +126,7 @@ pub async fn run_soak_test() -> Result<TestResult> {
         // Create checkpoint periodically
         if now.duration_since(last_checkpoint) >= soak_config.checkpoint_interval {
             let checkpoint = create_checkpoint(
-                &harness,
+                &mut harness,
                 start_time,
                 total_ticks,
                 total_missed_ticks,
@@ -302,7 +302,7 @@ pub async fn run_ci_soak_test() -> Result<TestResult> {
 // Helper functions for soak testing
 
 async fn create_checkpoint(
-    harness: &TestHarness,
+    harness: &mut TestHarness,
     start_time: Instant,
     total_ticks: u64,
     missed_ticks: u64,
@@ -401,7 +401,7 @@ fn create_soak_summary(
 fn validate_soak_success_criteria(
     checkpoints: &[SoakCheckpoint],
     duration: Duration,
-    total_ticks: u64,
+    _total_ticks: u64,
     missed_ticks: u64,
 ) -> bool {
     // Success criteria for 48-hour soak test:

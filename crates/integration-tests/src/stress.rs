@@ -1,15 +1,13 @@
 //! Stress testing module for hot-plug and system resilience testing
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 use anyhow::Result;
 use tokio::time::timeout;
-use tracing::{info, warn, error};
+use tracing::{info, warn};
 use rand::Rng;
 
-use crate::common::{TestHarness, VirtualDevice};
-use crate::{TestConfig, TestResult, PerformanceMetrics, StressLevel};
+use crate::common::TestHarness;
+use crate::{TestConfig, TestResult, StressLevel};
 
 /// Hot-plug stress test with rapid connect/disconnect cycles
 pub async fn test_hotplug_stress() -> Result<TestResult> {
