@@ -20,7 +20,9 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** Baseline written with quantified error counts; repeated run is deterministic; error categories identified
   - _Requirements: All (baseline for tracking)_
 
-- [-] 1. Establish workspace dependency governance and toolchain pinning
+- [x] 1. Establish workspace dependency governance and toolchain pinning
+
+
 
 
 

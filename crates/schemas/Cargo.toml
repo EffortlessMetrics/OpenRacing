@@ -16,6 +16,7 @@ thiserror = { workspace = true }
 async-trait = { workspace = true }
 jsonschema = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [build-dependencies]
 prost-build = "0.13"

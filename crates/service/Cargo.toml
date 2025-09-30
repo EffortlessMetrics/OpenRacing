@@ -41,6 +41,7 @@ axum = "0.7"
 clap = { workspace = true }
 os_info = "3.7"
 num_cpus = { workspace = true }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 tempfile = "3.8"
