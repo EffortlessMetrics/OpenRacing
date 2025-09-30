@@ -5,7 +5,9 @@
 //! - Stream B: 60Hz telemetry
 //! - Stream C: Health/fault events
 
-use super::{HealthEvent, HealthEventType};
+use super::HealthEvent;
+#[cfg(test)]
+use super::HealthEventType;
 use crate::rt::Frame;
 use crate::safety::SafetyState;
 use crate::ports::NormalizedTelemetry;

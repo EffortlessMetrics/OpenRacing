@@ -32,7 +32,12 @@ This implementation plan converts the compilation error fixes into a series of d
   - **DoD:** No E0433 in tests; boolean flags use AtomicBool unless locking is needed
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 3. Fix HealthEventType import path resolution
+- [x] 3. Fix HealthEventType import path resolution
+
+
+
+
+
   - Add explicit import for HealthEventType in diagnostic/streams.rs
   - Use crate::diagnostic::HealthEventType or add proper use statement
   - Verify enum variant access compiles correctly without super:: ambiguities
