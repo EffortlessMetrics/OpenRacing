@@ -2,9 +2,9 @@
 
 use anyhow::Result;
 use racing_wheel_engine::{
-    SafetyState, SafetyPolicy, SafetyViolation, FaultType, TracingManager, AppTraceEvent
+    safety::{SafetyState, FaultType}, SafetyPolicy, SafetyViolation, TracingManager, AppTraceEvent
 };
-use racing_wheel_schemas::{DeviceId, TorqueNm};
+use racing_wheel_schemas::prelude::{DeviceId, TorqueNm};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};

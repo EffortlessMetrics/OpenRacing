@@ -1,7 +1,7 @@
 //! Profile service for CRUD operations and hierarchy resolution
 
 use anyhow::Result;
-use racing_wheel_schemas::{Profile, DeviceId, ProfileId, DeviceCapabilities};
+use racing_wheel_schemas::prelude::{Profile, DeviceId, ProfileId, DeviceCapabilities};
 use crate::profile_repository::{ProfileRepository, ProfileRepositoryConfig, TrustState, ProfileSignature};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -169,7 +169,7 @@ impl ProfileService {
     
     /// Load profile by ID string (alias for get_profile for compatibility)
     pub async fn load_profile(&self, profile_id: &str) -> Result<Profile> {
-        let profile_id = ProfileId::new(profile_id.to_string())?;
+        let profile_id = profile_id.parse::<ProfileId>()?;
         self.get_profile(&profile_id).await?
             .ok_or_else(|| anyhow::anyhow!("Profile not found: {}", profile_id))
     }

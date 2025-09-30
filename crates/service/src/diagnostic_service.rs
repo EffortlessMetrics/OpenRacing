@@ -56,6 +56,7 @@ struct SystemInfo {
 }
 
 /// Diagnostic test trait
+#[async_trait::async_trait]
 trait DiagnosticTest: Send + Sync {
     fn name(&self) -> &str;
     fn description(&self) -> &str;
@@ -183,6 +184,7 @@ impl DiagnosticService {
 /// System requirements validation test
 struct SystemRequirementsTest;
 
+#[async_trait::async_trait]
 impl DiagnosticTest for SystemRequirementsTest {
     fn name(&self) -> &str { "system_requirements" }
     fn description(&self) -> &str { "Validate system meets minimum requirements" }
@@ -250,6 +252,7 @@ impl DiagnosticTest for SystemRequirementsTest {
 /// HID device detection test
 struct HidDeviceTest;
 
+#[async_trait::async_trait]
 impl DiagnosticTest for HidDeviceTest {
     fn name(&self) -> &str { "hid_devices" }
     fn description(&self) -> &str { "Detect and validate HID racing wheel devices" }
@@ -358,6 +361,7 @@ impl HidDeviceTest {
 /// Real-time capability test
 struct RealtimeCapabilityTest;
 
+#[async_trait::async_trait]
 impl DiagnosticTest for RealtimeCapabilityTest {
     fn name(&self) -> &str { "realtime_capability" }
     fn description(&self) -> &str { "Test real-time scheduling capabilities" }
@@ -419,6 +423,7 @@ impl DiagnosticTest for RealtimeCapabilityTest {
 /// Memory test
 struct MemoryTest;
 
+#[async_trait::async_trait]
 impl DiagnosticTest for MemoryTest {
     fn name(&self) -> &str { "memory" }
     fn description(&self) -> &str { "Test memory allocation and performance" }
@@ -459,6 +464,7 @@ impl DiagnosticTest for MemoryTest {
 /// Timing precision test
 struct TimingTest;
 
+#[async_trait::async_trait]
 impl DiagnosticTest for TimingTest {
     fn name(&self) -> &str { "timing" }
     fn description(&self) -> &str { "Test system timing precision and jitter" }
@@ -526,6 +532,7 @@ impl DiagnosticTest for TimingTest {
 /// Configuration validation test
 struct ConfigurationTest;
 
+#[async_trait::async_trait]
 impl DiagnosticTest for ConfigurationTest {
     fn name(&self) -> &str { "configuration" }
     fn description(&self) -> &str { "Validate system configuration" }
@@ -588,6 +595,7 @@ impl DiagnosticTest for ConfigurationTest {
 /// Permissions test
 struct PermissionsTest;
 
+#[async_trait::async_trait]
 impl DiagnosticTest for PermissionsTest {
     fn name(&self) -> &str { "permissions" }
     fn description(&self) -> &str { "Check file and device permissions" }
@@ -666,6 +674,7 @@ impl DiagnosticTest for PermissionsTest {
 /// Network connectivity test
 struct NetworkTest;
 
+#[async_trait::async_trait]
 impl DiagnosticTest for NetworkTest {
     fn name(&self) -> &str { "network" }
     fn description(&self) -> &str { "Test network connectivity for telemetry" }
@@ -709,6 +718,7 @@ impl DiagnosticTest for NetworkTest {
 /// Game integration test
 struct GameIntegrationTest;
 
+#[async_trait::async_trait]
 impl DiagnosticTest for GameIntegrationTest {
     fn name(&self) -> &str { "game_integration" }
     fn description(&self) -> &str { "Test game integration capabilities" }
@@ -776,6 +786,7 @@ impl DiagnosticTest for GameIntegrationTest {
 /// Safety system test
 struct SafetySystemTest;
 
+#[async_trait::async_trait]
 impl DiagnosticTest for SafetySystemTest {
     fn name(&self) -> &str { "safety_system" }
     fn description(&self) -> &str { "Test safety system functionality" }

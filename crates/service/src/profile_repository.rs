@@ -8,11 +8,11 @@
 //! - File-based storage with atomic operations
 
 use anyhow::{Context, Result};
-use racing_wheel_schemas::{
+use racing_wheel_schemas::prelude::{
     Profile, ProfileId, ProfileScope, ProfileMetadata, BaseSettings, FilterConfig,
     LedConfig, HapticsConfig, DomainError,
-    config::{ProfileSchema, ProfileValidator, ProfileMigrator, SchemaError}
 };
+use racing_wheel_schemas::config::{ProfileSchema, ProfileValidator, ProfileMigrator, SchemaError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -350,7 +350,7 @@ impl ProfileRepository {
             
             if path.extension().and_then(|s| s.to_str()) == Some("json") {
                 if let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    match ProfileId::new(file_stem.to_string()) {
+                    match file_stem.parse::<ProfileId>() {
                         Ok(profile_id) => {
                             match self.load_profile(&profile_id).await {
                                 Ok(Some(_)) => {
@@ -477,7 +477,7 @@ impl ProfileRepository {
                 car: profile.scope.car.clone(),
                 track: profile.scope.track.clone(),
             },
-            base: racing_wheel_schemas::config::BaseSettings {
+            base: racing_wheel_schemas::config::BaseConfig {
                 ffb_gain: profile.base_settings.ffb_gain.value(),
                 dor_deg: profile.base_settings.degrees_of_rotation.value() as u16,
                 torque_cap_nm: profile.base_settings.torque_cap.value(),
@@ -524,7 +524,7 @@ impl ProfileRepository {
 
     /// Convert schema ProfileSchema to domain Profile
     fn schema_to_profile(&self, schema: &ProfileSchema, profile_id: &ProfileId) -> Result<Profile> {
-        use racing_wheel_schemas::{
+        use racing_wheel_schemas::prelude::{
             Gain, Degrees, TorqueNm, FrequencyHz, CurvePoint, NotchFilter
         };
 
@@ -554,7 +554,7 @@ impl ProfileRepository {
                     .map_err(|e| anyhow::anyhow!("Invalid slew rate value: {:?}", e))?,
                 schema.base.filters.curve_points.iter().map(|cp| {
                     CurvePoint::new(cp.input, cp.output)
-                }).collect::<Result<Vec<_>, racing_wheel_schemas::DomainError>>()
+                }).collect::<Result<Vec<_>, racing_wheel_schemas::prelude::DomainError>>()
                     .map_err(|e| anyhow::anyhow!("Invalid curve points: {:?}", e))?,
             ).map_err(|e| anyhow::anyhow!("Invalid filter configuration: {:?}", e))?,
         );

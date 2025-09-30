@@ -5,7 +5,7 @@ use racing_wheel_engine::{
     HidPort, HidDevice, DeviceInfo, DeviceHealthStatus, TelemetryData,
     DeviceEvent, TracingManager, AppTraceEvent
 };
-use racing_wheel_schemas::{DeviceId, DeviceCapabilities, CalibrationData};
+use racing_wheel_schemas::prelude::{DeviceId, DeviceCapabilities, CalibrationData, TorqueNm};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -128,6 +128,9 @@ impl ApplicationDeviceService {
                             health_status: DeviceHealthStatus {
                                 temperature_c: 0,
                                 fault_flags: 0,
+                                hands_on: false,
+                                last_communication: std::time::Instant::now(),
+                                communication_errors: 0,
                             },
                         };
                         devices.insert(device_id, managed_device);
@@ -183,6 +186,9 @@ impl ApplicationDeviceService {
                 managed_device.health_status = DeviceHealthStatus {
                     temperature_c: 25,
                     fault_flags: 0,
+                    hands_on: false,
+                    last_communication: std::time::Instant::now(),
+                    communication_errors: 0,
                 };
             }
         }
@@ -228,7 +234,7 @@ impl ApplicationDeviceService {
         let device = self.hid_port.open_device(device_id).await
             .map_err(|e| anyhow::anyhow!("Failed to open device for health check: {}", e))?;
 
-        let health_status = device.get_health_status().await
+        let health_status = device.health_status()
             .map_err(|e| anyhow::anyhow!("Failed to get device health: {}", e))?;
 
         // Update managed device
@@ -288,7 +294,7 @@ impl ApplicationDeviceService {
 
                 for device_id in device_ids {
                     if let Ok(device) = hid_port.open_device(&device_id).await {
-                        match device.get_health_status().await {
+                        match device.health_status() {
                             Ok(health_status) => {
                                 let mut devices_guard = devices.write().await;
                                 if let Some(managed_device) = devices_guard.get_mut(&device_id) {
@@ -332,14 +338,11 @@ impl ApplicationDeviceService {
             tracer.emit_app_event(AppTraceEvent::DeviceConnected {
                 device_id: device_info.id.to_string(),
                 device_name: device_info.name.clone(),
-                capabilities: format!("{:?}", device_info.device_type),
+                capabilities: format!("{:?}", device_info.capabilities),
             });
         }
 
-        let _ = self.event_sender.send(DeviceEvent::Connected {
-            device_id: device_info.id.clone(),
-            device_info: device_info.clone(),
-        });
+        let _ = self.event_sender.send(DeviceEvent::Connected(device_info.clone()));
     }
 
     /// Emit device disconnected event
@@ -351,10 +354,19 @@ impl ApplicationDeviceService {
             });
         }
 
-        let _ = self.event_sender.send(DeviceEvent::Disconnected {
-            device_id: device_id.clone(),
-            reason: reason.to_string(),
-        });
+        // Create a DeviceInfo for the disconnected event
+        let device_info = DeviceInfo {
+            id: device_id.clone(),
+            name: "Unknown".to_string(),
+            vendor_id: 0,
+            product_id: 0,
+            serial_number: None,
+            manufacturer: None,
+            path: "".to_string(),
+            capabilities: DeviceCapabilities::new(false, false, false, false, TorqueNm::new(0.0).unwrap(), 0, 1000),
+            is_connected: false,
+        };
+        let _ = self.event_sender.send(DeviceEvent::Disconnected(device_info));
     }
 
     /// Calibrate center position
@@ -412,7 +424,7 @@ impl ApplicationDeviceService {
             center_position: None,
             min_position: None,
             max_position: None,
-            pedal_ranges: Some(racing_wheel_schemas::PedalCalibrationData {
+            pedal_ranges: Some(racing_wheel_schemas::prelude::PedalCalibrationData {
                 throttle: Some((0.0, 1.0)),
                 brake: Some((0.0, 1.0)),
                 clutch: Some((0.0, 1.0)),

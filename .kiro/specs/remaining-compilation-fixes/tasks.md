@@ -128,7 +128,10 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** cargo build -p wheelctl compiles; wheelctl --help runs; uses public prelude only; no internal imports
   - _Requirements: CLI-01, CLI-02, CLI-04_
 
-- [x] 8. Resolve racing-wheel-service compilation issues (isolation first)
+- [-] 8. Resolve racing-wheel-service compilation issues (isolation first)
+
+
+
 
 
 
@@ -252,6 +255,7 @@ The plan follows a specific execution order: establish workspace governance firs
   - _Requirements: REG-03, REG-04_
 
 - [x] 16. Validate complete workspace compilation and integration
+
 
 
 

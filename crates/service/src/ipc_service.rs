@@ -17,7 +17,6 @@ use tracing::{debug, error, info, warn};
 use racing_wheel_schemas::generated::wheel::v1::{
     wheel_service_server::WheelService,
     DeviceId as WireDeviceId, Profile as WireProfile, OpResult, HealthEvent,
-    TelemetryRequest, TelemetryResponse, GameConfigRequest, GameStatusResponse,
     DeviceStatus, ProfileList, DiagnosticInfo, GameStatus,
     FeatureNegotiationRequest, FeatureNegotiationResponse, ApplyProfileRequest,
     ConfigureTelemetryRequest,
@@ -83,7 +82,7 @@ impl WheelServiceImpl {
 
 #[async_trait]
 impl WheelService for WheelServiceImpl {
-    type ListDevicesStream = Pin<Box<dyn Stream<Item = Result<DeviceInfo, Status>> + Send>>;
+    type ListDevicesStream = Pin<Box<dyn Stream<Item = Result<racing_wheel_schemas::generated::wheel::v1::DeviceInfo, Status>> + Send>>;
     type SubscribeHealthStream = Pin<Box<dyn Stream<Item = Result<HealthEvent, Status>> + Send>>;
 
     /// Feature negotiation for backward compatibility
@@ -132,7 +131,7 @@ impl WheelService for WheelServiceImpl {
                 Ok(devices) => {
                     for device in devices {
                         // Convert domain Device to wire DeviceInfo
-                        let device_info: DeviceInfo = device.into();
+                        let device_info: racing_wheel_schemas::generated::wheel::v1::DeviceInfo = device.into();
                         yield Ok(device_info);
                     }
                 }
@@ -162,7 +161,7 @@ impl WheelService for WheelServiceImpl {
         match self.device_service.get_device_status(&device_id).await {
             Ok((device, telemetry)) => {
                 // Convert domain types to wire types
-                let device_info: DeviceInfo = device.into();
+                let device_info: racing_wheel_schemas::generated::wheel::v1::DeviceInfo = device.into();
                 let telemetry_data: Option<TelemetryData> = telemetry.map(Into::into);
                 
                 let device_status = DeviceStatus {
@@ -377,7 +376,7 @@ impl WheelService for WheelServiceImpl {
             device_id: device_id.to_string(),
             system_info: BTreeMap::new(),
             recent_faults: vec![],
-            performance: Some(PerformanceMetrics {
+            performance: Some(racing_wheel_schemas::generated::wheel::v1::PerformanceMetrics {
                 p99_jitter_us: 0.0,
                 missed_tick_rate: 0.0,
                 total_ticks: 0,

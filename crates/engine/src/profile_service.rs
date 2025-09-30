@@ -134,7 +134,7 @@ impl ProfileService {
         };
         
         // Load car-specific profile if applicable
-        let car_profile = if let (Some(ref game), Some(ref car)) = (&context.game, &context.car) {
+        let car_profile = if let (Some(game), Some(car)) = (&context.game, &context.car) {
             match self.load_profile_for_scope(&ProfileScope::for_car(game.clone(), car.clone())).await {
                 Ok(Some(profile)) => Some(profile),
                 Ok(None) => {
