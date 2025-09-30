@@ -1,0 +1,53 @@
+{
+  "timestamp": "2025-09-30T02:45:21.363432",
+  "baseline_errors": 23,
+  "current_errors": 23,
+  "error_delta": 0,
+  "baseline_warnings": 9,
+  "current_warnings": 9,
+  "warning_delta": 0,
+  "progress": {
+    "racing-wheel-schemas": {
+      "baseline": 0,
+      "current": 0,
+      "delta": 0
+    },
+    "racing-wheel-engine": {
+      "baseline": 5,
+      "current": 5,
+      "delta": 0
+    },
+    "racing-wheel-service": {
+      "baseline": 1,
+      "current": 1,
+      "delta": 0
+    },
+    "wheelctl": {
+      "baseline": 5,
+      "current": 5,
+      "delta": 0
+    },
+    "racing-wheel-ui": {
+      "baseline": 5,
+      "current": 5,
+      "delta": 0
+    },
+    "racing-wheel-plugins": {
+      "baseline": 5,
+      "current": 5,
+      "delta": 0
+    },
+    "racing-wheel-integration-tests": {
+      "baseline": 1,
+      "current": 1,
+      "delta": 0
+    },
+    "racing-wheel-compat": {
+      "baseline": 1,
+      "current": 1,
+      "delta": 0
+    }
+  },
+  "regressions": {},
+  "improvements": {}
+}

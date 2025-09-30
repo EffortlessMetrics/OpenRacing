@@ -1,0 +1,112 @@
+{
+  "timestamp": "2025-09-30T02:43:30.170120",
+  "workspace_errors": {
+    "returncode": 101,
+    "errors": [
+      "error: failed to run custom build command for `aws-lc-sys v0.31.0`"
+    ],
+    "warnings": [
+      "warning: racing-wheel-integration-tests v0.1.0 (D:\\Code\\Rust\\OpenRacing\\OpenRacing\\crates\\integration-tests) ignoring invalid dependency `wheelctl` which is missing a lib target",
+      "warning: aws-lc-sys@0.31.0: NASM command not found or failed to execute.",
+      "warning: aws-lc-sys@0.31.0: NASM command not found or failed to execute.",
+      "warning: build failed, waiting for other jobs to finish..."
+    ]
+  },
+  "crate_errors": {
+    "racing-wheel-schemas": {
+      "returncode": 0,
+      "errors": [],
+      "warnings": []
+    },
+    "racing-wheel-engine": {
+      "returncode": 101,
+      "errors": [
+        "binding modifiers may only be written when the default binding mode is `move`",
+        "call to unsafe function `std::alloc::GlobalAlloc::alloc` is unsafe and requires unsafe block",
+        "call to unsafe function `std::alloc::GlobalAlloc::dealloc` is unsafe and requires unsafe block",
+        "call to unsafe function `std::alloc::GlobalAlloc::realloc` is unsafe and requires unsafe block",
+        "error: could not compile `racing-wheel-engine` (lib) due to 4 previous errors"
+      ],
+      "warnings": []
+    },
+    "racing-wheel-service": {
+      "returncode": 101,
+      "errors": [
+        "error: failed to run custom build command for `aws-lc-sys v0.31.0`"
+      ],
+      "warnings": [
+        "warning: aws-lc-sys@0.31.0: NASM command not found or failed to execute.",
+        "warning: aws-lc-sys@0.31.0: NASM command not found or failed to execute.",
+        "warning: build failed, waiting for other jobs to finish..."
+      ]
+    },
+    "wheelctl": {
+      "returncode": 101,
+      "errors": [
+        "field `endpoint` is never read",
+        "method `get_active_profile` is never used",
+        "function `print_table` is never used",
+        "function `print_completion_instructions` is never used",
+        "error: could not compile `wheelctl` (bin \"wheelctl\") due to 4 previous errors"
+      ],
+      "warnings": []
+    },
+    "racing-wheel-ui": {
+      "returncode": 101,
+      "errors": [
+        "binding modifiers may only be written when the default binding mode is `move`",
+        "call to unsafe function `std::alloc::GlobalAlloc::alloc` is unsafe and requires unsafe block",
+        "call to unsafe function `std::alloc::GlobalAlloc::dealloc` is unsafe and requires unsafe block",
+        "call to unsafe function `std::alloc::GlobalAlloc::realloc` is unsafe and requires unsafe block",
+        "error: could not compile `racing-wheel-engine` (lib) due to 4 previous errors"
+      ],
+      "warnings": []
+    },
+    "racing-wheel-plugins": {
+      "returncode": 101,
+      "errors": [
+        "binding modifiers may only be written when the default binding mode is `move`",
+        "call to unsafe function `std::alloc::GlobalAlloc::alloc` is unsafe and requires unsafe block",
+        "call to unsafe function `std::alloc::GlobalAlloc::dealloc` is unsafe and requires unsafe block",
+        "call to unsafe function `std::alloc::GlobalAlloc::realloc` is unsafe and requires unsafe block",
+        "error: could not compile `racing-wheel-engine` (lib) due to 4 previous errors"
+      ],
+      "warnings": [
+        "warning: build failed, waiting for other jobs to finish..."
+      ]
+    },
+    "racing-wheel-integration-tests": {
+      "returncode": 101,
+      "errors": [
+        "error: failed to run custom build command for `aws-lc-sys v0.31.0`"
+      ],
+      "warnings": [
+        "warning: racing-wheel-integration-tests v0.1.0 (D:\\Code\\Rust\\OpenRacing\\OpenRacing\\crates\\integration-tests) ignoring invalid dependency `wheelctl` which is missing a lib target",
+        "warning: aws-lc-sys@0.31.0: NASM command not found or failed to execute.",
+        "warning: aws-lc-sys@0.31.0: NASM command not found or failed to execute.",
+        "warning: build failed, waiting for other jobs to finish..."
+      ]
+    },
+    "racing-wheel-compat": {
+      "returncode": 101,
+      "errors": [
+        "error: package ID specification `racing-wheel-compat` did not match any packages"
+      ],
+      "warnings": [
+        "warning: racing-wheel-integration-tests v0.1.0 (D:\\Code\\Rust\\OpenRacing\\OpenRacing\\crates\\integration-tests) ignoring invalid dependency `wheelctl` which is missing a lib target"
+      ]
+    }
+  },
+  "error_categories": {
+    "build_dependencies": 2,
+    "dependency_skew": 0,
+    "type_mismatch": 0,
+    "missing_imports": 0,
+    "async_trait_issues": 0,
+    "missing_fields": 2,
+    "other": 19
+  },
+  "total_errors": 23,
+  "total_warnings": 9,
+  "reproducible": true
+}

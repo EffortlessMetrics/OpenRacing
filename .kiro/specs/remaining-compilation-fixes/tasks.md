@@ -6,7 +6,12 @@ The plan follows a specific execution order: establish workspace governance firs
 
 ## Task List
 
-- [ ] 0. Error triage and baseline establishment
+- [x] 0. Error triage and baseline establishment
+
+
+
+
+
   - Capture rustc JSON diagnostics: `cargo build --workspace --message-format=json > target/compile.json`
   - Summarize top error kinds per crate (API mismatch, missing fields, dependency skew)
   - Record baseline counts (errors by crate/kind) for burndown tracking

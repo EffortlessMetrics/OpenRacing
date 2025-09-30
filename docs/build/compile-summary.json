@@ -1,0 +1,15 @@
+{
+  "total_errors": 23,
+  "total_warnings": 9,
+  "error_categories": {
+    "build_dependencies": 2,
+    "dependency_skew": 0,
+    "type_mismatch": 0,
+    "missing_imports": 0,
+    "async_trait_issues": 0,
+    "missing_fields": 2,
+    "other": 19
+  },
+  "crates_with_errors": 7,
+  "total_crates": 8
+}

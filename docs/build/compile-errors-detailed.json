@@ -1,0 +1,18 @@
+{
+  "errors": {},
+  "warnings": {},
+  "baseline": {
+    "timestamp": "2024-09-30T00:00:00Z",
+    "total_errors": 0,
+    "total_warnings": 0,
+    "errors_by_crate": {},
+    "warnings_by_crate": {},
+    "error_categories": {
+      "dependency_issues": 0,
+      "type_mismatches": 0,
+      "missing_imports": 0,
+      "async_trait_issues": 0,
+      "other": 0
+    }
+  }
+}
