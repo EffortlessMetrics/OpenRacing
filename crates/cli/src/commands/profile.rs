@@ -445,22 +445,11 @@ fn create_default_profile(game: Option<&str>, car: Option<&str>) -> ProfileSchem
             car: car.map(|s| s.to_string()),
             track: None,
         },
-        base: racing_wheel_schemas::config::BaseSettings {
+        base: racing_wheel_schemas::config::BaseConfig {
             ffb_gain: 0.75,
             dor_deg: 900,
             torque_cap_nm: 8.0,
-            filters: racing_wheel_schemas::config::FilterConfig {
-                reconstruction: 4,
-                friction: 0.12,
-                damper: 0.18,
-                inertia: 0.08,
-                notch_filters: vec![],
-                slew_rate: 0.85,
-                curve_points: vec![
-                    racing_wheel_schemas::config::CurvePoint { input: 0.0, output: 0.0 },
-                    racing_wheel_schemas::config::CurvePoint { input: 1.0, output: 1.0 },
-                ],
-            },
+            filters: racing_wheel_schemas::config::FilterConfig::default(),
         },
         leds: None,
         haptics: None,

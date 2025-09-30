@@ -47,7 +47,7 @@ async fn show_health_snapshot(client: &WheelClient, json: bool) -> Result<()> {
         match client.get_device_status(&device.id).await {
             Ok(status) => {
                 let healthy = status.active_faults.is_empty() && 
-                            status.telemetry.temp_c < 80;
+                            status.telemetry.temperature_c < 80;
                 
                 if !healthy {
                     overall_healthy = false;
@@ -58,7 +58,7 @@ async fn show_health_snapshot(client: &WheelClient, json: bool) -> Result<()> {
                     "name": device.name,
                     "healthy": healthy,
                     "faults": status.active_faults,
-                    "temperature": status.telemetry.temp_c,
+                    "temperature": status.telemetry.temperature_c,
                     "last_seen": status.last_seen
                 }));
             }

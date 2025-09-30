@@ -42,7 +42,7 @@ async fn enable_high_torque(
     
     // Check current safety conditions
     let can_enable = status.active_faults.is_empty() && 
-                    status.telemetry.temp_c < 80 &&
+                    status.telemetry.temperature_c < 80 &&
                     status.telemetry.hands_on;
     
     if !can_enable && !force {
@@ -274,7 +274,7 @@ struct SafetyStatus {
 }
 
 fn analyze_device_safety(status: &DeviceStatus) -> SafetyStatus {
-    let temp_ok = status.telemetry.temp_c < 80;
+    let temp_ok = status.telemetry.temperature_c < 80;
     let no_faults = status.active_faults.is_empty();
     let hands_on = status.telemetry.hands_on;
     
@@ -299,8 +299,8 @@ fn get_safety_block_reasons(status: &DeviceStatus) -> Vec<String> {
         reasons.push(format!("Active faults: {}", status.active_faults.join(", ")));
     }
     
-    if status.telemetry.temp_c >= 80 {
-        reasons.push(format!("Temperature too high: {}°C", status.telemetry.temp_c));
+    if status.telemetry.temperature_c >= 80 {
+        reasons.push(format!("Temperature too high: {}°C", status.telemetry.temperature_c));
     }
     
     if !status.telemetry.hands_on {
@@ -330,7 +330,7 @@ fn print_device_safety_status(status: &DeviceStatus, safety: &SafetyStatus) {
     println!("    Hands On: {}", hands_status);
     
     let temp_status = if safety.temperature_ok { "✓".green() } else { "✗".red() };
-    println!("    Temperature: {} ({}°C)", temp_status, status.telemetry.temp_c);
+    println!("    Temperature: {} ({}°C)", temp_status, status.telemetry.temperature_c);
     
     let fault_status = if safety.no_faults { "✓".green() } else { "✗".red() };
     println!("    No Faults: {}", fault_status);
