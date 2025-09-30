@@ -5,6 +5,7 @@
 //! - HID write latency p99 ≤300μs
 //! - No missed ticks over test duration
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use anyhow::Result;
 use hdrhistogram::Histogram;

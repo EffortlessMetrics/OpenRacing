@@ -18,7 +18,9 @@ This implementation plan converts the compilation error fixes into a series of d
   - **DoD:** cargo check shows no duplicate symbols; only one public FFBMode; no glob exports; prelude compiles
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [-] 2. Add missing standard library imports with atomic preferences
+- [x] 2. Add missing standard library imports with atomic preferences
+
+
 
 
 
