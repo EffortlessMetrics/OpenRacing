@@ -8,6 +8,8 @@
 //! policies for repeatedly failing plugins.
 
 #![deny(static_mut_refs)]
+#![deny(unused_must_use)]
+#![deny(clippy::unwrap_used)]
 
 pub mod capability;
 pub mod helper;

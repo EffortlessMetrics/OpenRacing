@@ -1,0 +1,47 @@
+error[E0609]: no field `wheel_angle_mdeg` on type `TelemetryData`
+  --> tests/compile_fail/deprecated_fields.rs:10:32
+   |
+10 |     let _old_angle = telemetry.wheel_angle_mdeg; //~ ERROR
+   |                                ^^^^^^^^^^^^^^^^ unknown field
+   |
+help: a field with a similar name exists
+   |
+10 -     let _old_angle = telemetry.wheel_angle_mdeg; //~ ERROR
+10 +     let _old_angle = telemetry.wheel_angle_deg; //~ ERROR
+   |
+
+error[E0609]: no field `wheel_speed_mrad_s` on type `TelemetryData`
+  --> tests/compile_fail/deprecated_fields.rs:11:32
+   |
+11 |     let _old_speed = telemetry.wheel_speed_mrad_s; //~ ERROR
+   |                                ^^^^^^^^^^^^^^^^^^ unknown field
+   |
+help: a field with a similar name exists
+   |
+11 -     let _old_speed = telemetry.wheel_speed_mrad_s; //~ ERROR
+11 +     let _old_speed = telemetry.wheel_speed_rad_s; //~ ERROR
+   |
+
+error[E0609]: no field `temp_c` on type `TelemetryData`
+  --> tests/compile_fail/deprecated_fields.rs:12:31
+   |
+12 |     let _old_temp = telemetry.temp_c; //~ ERROR
+   |                               ^^^^^^ unknown field
+   |
+   = note: available fields are: `wheel_angle_deg`, `wheel_speed_rad_s`, `temperature_c`, `fault_flags`, `hands_on`, `timestamp`
+
+error[E0609]: no field `faults` on type `TelemetryData`
+  --> tests/compile_fail/deprecated_fields.rs:13:33
+   |
+13 |     let _old_faults = telemetry.faults; //~ ERROR
+   |                                 ^^^^^^ unknown field
+   |
+   = note: available fields are: `wheel_angle_deg`, `wheel_speed_rad_s`, `temperature_c`, `fault_flags`, `hands_on`, `timestamp`
+
+error[E0609]: no field `sequence` on type `TelemetryData`
+  --> tests/compile_fail/deprecated_fields.rs:14:35
+   |
+14 |     let _old_sequence = telemetry.sequence; //~ ERROR
+   |                                   ^^^^^^^^ unknown field
+   |
+   = note: available fields are: `wheel_angle_deg`, `wheel_speed_rad_s`, `temperature_c`, `fault_flags`, `hands_on`, `timestamp`

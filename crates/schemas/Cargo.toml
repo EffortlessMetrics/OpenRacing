@@ -20,3 +20,6 @@ async-trait = "0.1"
 [build-dependencies]
 prost-build = "0.12"
 tonic-build = "0.10"
+
+[dev-dependencies]
+trybuild = "1.0"

@@ -4,6 +4,8 @@
 //! with strict timing requirements and zero-allocation hot paths.
 
 #![deny(static_mut_refs)]
+#![deny(unused_must_use)]
+#![deny(clippy::unwrap_used)]
 
 #[cfg(feature = "rt-allocator")]
 use mimalloc::MiMalloc;

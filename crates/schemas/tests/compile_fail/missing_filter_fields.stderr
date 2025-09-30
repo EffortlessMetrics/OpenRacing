@@ -1,0 +1,5 @@
+error[E0063]: missing fields `bumpstop`, `curve_points`, `hands_off` and 3 other fields in initializer of `racing_wheel_schemas::config::FilterConfig`
+ --> tests/compile_fail/missing_filter_fields.rs:8:19
+  |
+8 |     let _config = FilterConfig {
+  |                   ^^^^^^^^^^^^ missing `bumpstop`, `curve_points`, `hands_off` and 3 other fields

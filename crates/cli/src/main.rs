@@ -3,6 +3,10 @@
 //! A comprehensive command-line interface for managing racing wheel hardware,
 //! profiles, diagnostics, and game integration.
 
+#![deny(static_mut_refs)]
+#![deny(unused_must_use)]
+#![deny(clippy::unwrap_used)]
+
 mod commands;
 mod client;
 mod output;

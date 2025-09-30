@@ -34,6 +34,9 @@ jobs:
         toolchain: ${{ matrix.rust }}
         components: rustfmt, clippy
     
+    - name: Install Rust nightly (for cargo-udeps)
+      uses: dtolnay/rust-toolchain@nightly
+    
     - name: Install system dependencies (Linux)
       if: runner.os == 'Linux'
       run: |
@@ -61,14 +64,32 @@ jobs:
     - name: Check formatting
       run: cargo fmt --all -- --check
 
-    - name: Run clippy
-      run: cargo clippy --all-targets --all-features -- -D warnings
+    - name: Run clippy with strict lints
+      env:
+        RUSTFLAGS: "-D warnings -D unused_must_use"
+      run: |
+        # Run clippy with strict warnings for non-test crates
+        cargo clippy --workspace --all-features --lib --bins -- \
+          -D warnings \
+          -D clippy::unwrap_used \
+          -D unused_must_use
+        
+        # Run clippy for tests with relaxed unwrap rules
+        cargo clippy --workspace --all-features --tests -- \
+          -D warnings \
+          -A clippy::unwrap_used
 
     - name: Run tests
       run: cargo test --all-features --workspace
 
     - name: Run doc tests
       run: cargo test --doc --workspace
+
+    - name: Install cargo-udeps
+      run: cargo install cargo-udeps --locked
+
+    - name: Check for unused dependencies
+      run: cargo +nightly udeps --all-targets
 
     - name: Run property tests with deterministic seeds
       env:

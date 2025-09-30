@@ -1,0 +1,467 @@
+name: Regression Prevention
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  deprecated-field-detection:
+    name: Deprecated Field Detection
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check for deprecated TelemetryData field names
+      run: |
+        echo "Checking for deprecated field names in source code..."
+        
+        # Define deprecated field patterns
+        DEPRECATED_FIELDS=(
+          "wheel_angle_mdeg"
+          "wheel_speed_mrad_s"
+          "temp_c"
+          "\.faults"
+          "\.sequence"
+        )
+        
+        # Search for deprecated field usage (excluding compat layer and tests)
+        FOUND_DEPRECATED=false
+        
+        for field in "${DEPRECATED_FIELDS[@]}"; do
+          echo "Checking for: $field"
+          
+          # Search in source files, excluding compat layer and test files
+          if grep -r "$field" crates/ \
+            --include="*.rs" \
+            --exclude-dir="compat" \
+            --exclude="*test*" \
+            --exclude="*compat*" \
+            --exclude="compile_fail" \
+            | grep -v "//.*$field" \
+            | grep -v "#\[allow.*deprecated" \
+            | head -10; then
+            
+            echo "❌ Found deprecated field usage: $field"
+            FOUND_DEPRECATED=true
+          fi
+        done
+        
+        if [ "$FOUND_DEPRECATED" = true ]; then
+          echo ""
+          echo "❌ Deprecated field names found in source code!"
+          echo "Please migrate to new field names or use the compatibility layer for tests only."
+          echo ""
+          echo "New field names:"
+          echo "  wheel_angle_mdeg → wheel_angle_deg"
+          echo "  wheel_speed_mrad_s → wheel_speed_rad_s"
+          echo "  temp_c → temperature_c"
+          echo "  faults → fault_flags"
+          echo "  sequence → (removed)"
+          exit 1
+        else
+          echo "✅ No deprecated field names found in source code"
+        fi
+
+  trybuild-compile-fail-tests:
+    name: Trybuild Compile-Fail Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev pkg-config
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Cache cargo index
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Run trybuild compile-fail tests
+      run: |
+        echo "Running trybuild compile-fail tests..."
+        cargo test -p racing-wheel-schemas trybuild_tests --verbose
+    
+    - name: Verify compile-fail tests are comprehensive
+      run: |
+        echo "Verifying compile-fail test coverage..."
+        
+        # Check that we have tests for all major deprecated patterns
+        REQUIRED_TESTS=(
+          "deprecated_fields.rs"
+          "missing_filter_fields.rs"
+          "device_id_construction.rs"
+        )
+        
+        for test in "${REQUIRED_TESTS[@]}"; do
+          if [ ! -f "crates/schemas/tests/compile_fail/$test" ]; then
+            echo "❌ Missing required compile-fail test: $test"
+            exit 1
+          else
+            echo "✅ Found compile-fail test: $test"
+          fi
+        done
+
+  json-schema-validation:
+    name: JSON Schema Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev pkg-config
+    
+    - name: Setup Node.js for JSON Schema validation
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install ajv-cli for JSON Schema validation
+      run: npm install -g ajv-cli
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Validate JSON Schema syntax
+      run: |
+        echo "Validating JSON Schema syntax..."
+        if [ -f "crates/schemas/schemas/profile.schema.json" ]; then
+          ajv compile -s crates/schemas/schemas/profile.schema.json
+          echo "✅ JSON Schema syntax is valid"
+        else
+          echo "⚠️ Profile schema not found, skipping validation"
+        fi
+    
+    - name: Run JSON Schema round-trip tests
+      run: |
+        echo "Running JSON Schema validation tests..."
+        cargo test -p racing-wheel-schemas json_schema_validation --verbose
+    
+    - name: Test schema required field validation
+      run: |
+        echo "Testing required field validation..."
+        
+        # Create test data directory
+        mkdir -p test-data
+        
+        # Test valid profile
+        cat > test-data/valid-profile.json << 'EOF'
+        {
+          "schema": "wheel.profile/1",
+          "scope": {
+            "game": "iracing"
+          },
+          "base": {
+            "ffbGain": 0.75,
+            "dorDeg": 900,
+            "torqueCapNm": 15.0,
+            "filters": {
+              "reconstruction": 4,
+              "friction": 0.12,
+              "damper": 0.18,
+              "inertia": 0.08,
+              "bumpstop": {},
+              "handsOff": {},
+              "torqueCap": 10.0,
+              "notchFilters": [],
+              "slewRate": 0.85,
+              "curvePoints": [
+                {"input": 0.0, "output": 0.0},
+                {"input": 1.0, "output": 1.0}
+              ]
+            }
+          }
+        }
+        EOF
+        
+        # Test invalid profile (missing required schema field)
+        cat > test-data/invalid-profile.json << 'EOF'
+        {
+          "scope": {
+            "game": "iracing"
+          },
+          "base": {
+            "ffbGain": 0.75,
+            "dorDeg": 900,
+            "torqueCapNm": 15.0,
+            "filters": {
+              "reconstruction": 4,
+              "friction": 0.12,
+              "damper": 0.18,
+              "inertia": 0.08,
+              "bumpstop": {},
+              "handsOff": {},
+              "torqueCap": 10.0,
+              "notchFilters": [],
+              "slewRate": 0.85,
+              "curvePoints": [
+                {"input": 0.0, "output": 0.0},
+                {"input": 1.0, "output": 1.0}
+              ]
+            }
+          }
+        }
+        EOF
+        
+        # Validate against schema if it exists
+        if [ -f "crates/schemas/schemas/profile.schema.json" ]; then
+          echo "Testing valid profile..."
+          ajv validate -s crates/schemas/schemas/profile.schema.json -d test-data/valid-profile.json
+          
+          echo "Testing invalid profile (should fail)..."
+          if ajv validate -s crates/schemas/schemas/profile.schema.json -d test-data/invalid-profile.json; then
+            echo "❌ Invalid profile should have failed validation"
+            exit 1
+          else
+            echo "✅ Invalid profile correctly failed validation"
+          fi
+        else
+          echo "⚠️ Profile schema not found, skipping ajv validation"
+        fi
+
+  lint-enforcement:
+    name: Lint Enforcement
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+    
+    - name: Install Rust nightly (for cargo-udeps)
+      uses: dtolnay/rust-toolchain@nightly
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev pkg-config
+    
+    - name: Install cargo-udeps
+      run: cargo install cargo-udeps --locked
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Cache cargo index
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Check formatting
+      run: |
+        echo "Checking code formatting..."
+        cargo fmt --all -- --check
+    
+    - name: Run clippy with strict lints for non-test code
+      env:
+        RUSTFLAGS: "-D warnings -D unused_must_use"
+      run: |
+        echo "Running clippy with strict lints for non-test code..."
+        cargo clippy --workspace --all-features --lib --bins -- \
+          -D warnings \
+          -D clippy::unwrap_used \
+          -D unused_must_use \
+          -D clippy::panic \
+          -D clippy::expect_used
+    
+    - name: Run clippy for tests (relaxed unwrap rules)
+      env:
+        RUSTFLAGS: "-D warnings -D unused_must_use"
+      run: |
+        echo "Running clippy for tests with relaxed unwrap rules..."
+        cargo clippy --workspace --all-features --tests -- \
+          -D warnings \
+          -A clippy::unwrap_used \
+          -A clippy::panic \
+          -A clippy::expect_used
+    
+    - name: Check for unused dependencies
+      run: |
+        echo "Checking for unused dependencies..."
+        cargo +nightly udeps --all-targets
+    
+    - name: Verify lint attributes in source files
+      run: |
+        echo "Verifying lint enforcement attributes in source files..."
+        
+        # Check that non-test crates have required lint attributes
+        REQUIRED_LINTS=(
+          "static_mut_refs"
+          "unused_must_use"
+          "clippy::unwrap_used"
+        )
+        
+        NON_TEST_CRATES=(
+          "crates/schemas/src/lib.rs"
+          "crates/engine/src/lib.rs"
+          "crates/service/src/lib.rs"
+          "crates/ui/src/lib.rs"
+          "crates/plugins/src/lib.rs"
+          "crates/cli/src/main.rs"
+        )
+        
+        for crate_file in "${NON_TEST_CRATES[@]}"; do
+          if [ -f "$crate_file" ]; then
+            echo "Checking lint attributes in: $crate_file"
+            
+            for lint in "${REQUIRED_LINTS[@]}"; do
+              if ! grep -q "#!\[deny($lint)\]" "$crate_file"; then
+                echo "❌ Missing required lint attribute in $crate_file: #![deny($lint)]"
+                exit 1
+              fi
+            done
+            
+            echo "✅ All required lint attributes found in: $crate_file"
+          else
+            echo "⚠️ Crate file not found: $crate_file"
+          fi
+        done
+
+  protobuf-breaking-changes:
+    name: Protobuf Breaking Changes
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Needed for buf breaking change detection
+    
+    - name: Install buf
+      uses: bufbuild/buf-setup-action@v1
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Install protoc
+      uses: arduino/setup-protoc@v2
+      with:
+        version: '23.x'
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Run buf breaking change detection
+      run: |
+        echo "Checking for protobuf breaking changes..."
+        cd crates/schemas
+        
+        if [ -f "buf.yaml" ]; then
+          # Check for breaking changes against main branch
+          if git show-ref --verify --quiet refs/remotes/origin/main; then
+            echo "Running buf breaking change detection against main..."
+            buf breaking --against '.git#branch=main'
+            echo "✅ No protobuf breaking changes detected"
+          else
+            echo "⚠️ Main branch not available, skipping breaking change detection"
+          fi
+        else
+          echo "⚠️ buf.yaml not found, skipping protobuf validation"
+        fi
+
+  comprehensive-validation:
+    name: Comprehensive Validation
+    runs-on: ubuntu-latest
+    needs: [deprecated-field-detection, trybuild-compile-fail-tests, json-schema-validation, lint-enforcement, protobuf-breaking-changes]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev pkg-config
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Verify complete compilation with strict flags
+      env:
+        RUSTFLAGS: "-D warnings -D unused_must_use"
+      run: |
+        echo "Verifying complete compilation with strict flags..."
+        cargo check --workspace --all-features --all-targets
+        echo "✅ All crates compile successfully with strict warnings"
+    
+    - name: Run all schema-related tests
+      run: |
+        echo "Running all schema-related tests..."
+        cargo test -p racing-wheel-schemas --verbose
+        echo "✅ All schema tests pass"
+    
+    - name: Generate regression prevention report
+      run: |
+        echo "# Regression Prevention Report" > regression_report.md
+        echo "" >> regression_report.md
+        echo "## Summary" >> regression_report.md
+        echo "- ✅ Deprecated field detection: PASS" >> regression_report.md
+        echo "- ✅ Trybuild compile-fail tests: PASS" >> regression_report.md
+        echo "- ✅ JSON Schema validation: PASS" >> regression_report.md
+        echo "- ✅ Lint enforcement: PASS" >> regression_report.md
+        echo "- ✅ Protobuf breaking changes: PASS" >> regression_report.md
+        echo "" >> regression_report.md
+        echo "## CI Gates Active" >> regression_report.md
+        echo "- Schema break detection enabled" >> regression_report.md
+        echo "- Lint enforcement active" >> regression_report.md
+        echo "- Trybuild guards in place" >> regression_report.md
+        echo "- Deprecated field monitoring active" >> regression_report.md
+        echo "" >> regression_report.md
+        echo "Generated at: $(date -u)" >> regression_report.md
+        
+        cat regression_report.md
+    
+    - name: Upload regression prevention report
+      uses: actions/upload-artifact@v3
+      with:
+        name: regression-prevention-report-${{ github.sha }}
+        path: regression_report.md
+        retention-days: 30

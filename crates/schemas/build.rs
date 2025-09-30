@@ -8,7 +8,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proto_files = &[proto_dir.join("wheel.proto")];
     
     // Try to compile protobuf files, but don't fail if protoc is not available
-    match compile_protos(&proto_dir, proto_files) {
+    match compile_protos(proto_dir.as_path(), proto_files) {
         Ok(()) => {
             println!("cargo:rustc-cfg=has_protoc");
             println!("Successfully compiled protobuf files");
@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn compile_protos(proto_dir: &PathBuf, proto_files: &[PathBuf]) -> Result<(), Box<dyn std::error::Error>> {
+fn compile_protos(proto_dir: &std::path::Path, proto_files: &[PathBuf]) -> Result<(), Box<dyn std::error::Error>> {
     // Configure protobuf compilation
     let config = prost_build::Config::new();
     
@@ -41,7 +41,7 @@ fn compile_protos(proto_dir: &PathBuf, proto_files: &[PathBuf]) -> Result<(), Bo
     tonic_build::configure()
         .build_server(true)
         .build_client(true)
-        .compile_with_config(config, proto_files, &[proto_dir.clone()])?;
+        .compile_with_config(config, proto_files, &[proto_dir])?;
     
     Ok(())
 }

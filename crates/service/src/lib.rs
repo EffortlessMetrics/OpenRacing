@@ -1,6 +1,8 @@
 //! Racing Wheel Service - Complete system integration with graceful degradation
 
 #![deny(static_mut_refs)]
+#![deny(unused_must_use)]
+#![deny(clippy::unwrap_used)]
 
 pub mod service;
 pub mod device;

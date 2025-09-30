@@ -24,8 +24,8 @@ too-many-lines-threshold = 150
 # Increase trivial copy pass by value threshold for small types
 trivial-copy-size-limit = 128
 
-# Allow more arguments for builder patterns
-too-many-arguments-threshold = 10
+# Allow more arguments for builder patterns (updated from 8 to 10)
+# too-many-arguments-threshold = 10  # Already set above to 8
 
-# Increase complexity threshold for state machines
-cyclomatic-complexity-threshold = 15
+# Increase complexity threshold for state machines (already set above as cognitive-complexity-threshold)
+# cyclomatic-complexity-threshold = 15  # Deprecated, using cognitive-complexity-threshold instead
