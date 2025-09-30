@@ -8,7 +8,7 @@ use crate::{
     pipeline::{Pipeline, CompiledPipeline},
     scheduler::{AbsoluteScheduler, RTSetup, JitterMetrics},
     safety::{SafetyService, SafetyState, FaultType},
-    ffb::FFBMode,
+    rt::FFBMode,
     ports::{HidDevice, NormalizedTelemetry},
     safety::integration::{IntegratedFaultManager, FaultManagerContext},
     metrics::AtomicCounters,
@@ -501,7 +501,7 @@ impl Engine {
             let pipeline_start = Instant::now();
             
             // Convert rt::Frame to ffb::Frame for pipeline processing
-            let mut ffb_frame = crate::ffb::Frame {
+            let mut ffb_frame = crate::rt::Frame {
                 ffb_in: frame.ffb_in,
                 torque_out: frame.torque_out,
                 wheel_speed: frame.wheel_speed,
@@ -599,7 +599,7 @@ impl Engine {
                 usb_info: None,
                 plugin_execution: None,
                 component_heartbeats: std::collections::HashMap::new(),
-                frame: Some(crate::ffb::Frame {
+                frame: Some(crate::rt::Frame {
                     ffb_in: frame.ffb_in,
                     torque_out: frame.torque_out,
                     wheel_speed: frame.wheel_speed,

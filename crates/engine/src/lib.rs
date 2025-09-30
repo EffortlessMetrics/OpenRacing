@@ -33,24 +33,28 @@ pub mod hil_tests;
 pub mod led_haptics;
 pub mod diagnostic;
 pub mod metrics;
+pub mod prelude;
 #[cfg(test)]
 pub mod metrics_tests;
 
-pub use rt::*;
-pub use pipeline::*;
-pub use scheduler::*;
-pub use safety::*;
-pub use ffb::*;
-pub use test_harness::*;
-pub use profile_service::*;
-pub use profile_merge::*;
-pub use two_phase_apply::*;
-pub use allocation_tracker::*;
-pub use filters::*;
-pub use engine::*;
-pub use hil_tests::*;
-pub use led_haptics::*;
-pub use diagnostic::*;
+// Explicit exports from rt module (canonical FFBMode and Frame)
+pub use rt::{Frame, FFBMode, RTError, RTResult, PerformanceMetrics};
+
+// Explicit exports from ffb module (no FFBMode to avoid conflict)
+pub use ffb::{
+    GameCompatibility, ModeSelectionPolicy, CapabilityNegotiator, NegotiationResult
+};
+
+// Explicit exports from other modules - only export what actually exists
+pub use scheduler::{PLL, RTSetup, JitterMetrics};
+pub use test_harness::{
+    TestHarnessConfig, TestScenario, TorquePattern, ExpectedResponse, 
+    FaultInjection, TestResult, TimingValidation, ResponseValidationResult, RTLoopTestHarness
+};
+pub use two_phase_apply::{TwoPhaseApplyCoordinator, ApplyResult, ApplyOperationStats, ApplyStats};
+pub use engine::{
+    Engine, EngineConfig, EngineStats, EngineCommand, GameInput, BlackboxFrame
+};
 
 // Re-export specific items to avoid conflicts
 pub use device::{VirtualDevice, VirtualHidPort, DeviceEvent, TelemetryData, DeviceInfo};

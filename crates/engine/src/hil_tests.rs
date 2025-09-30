@@ -4,8 +4,9 @@
 //! with integrated safety systems using synthetic FFB data and timing validation.
 
 use crate::{
-    Engine, EngineConfig, GameInput,
-    ffb::FFBMode,
+    Engine, EngineConfig,
+    engine::GameInput,
+    rt::FFBMode,
     safety::{SafetyState, FaultType},
     scheduler::RTSetup,
     device::VirtualDevice,
@@ -215,7 +216,7 @@ impl HILTestSuite {
         
         let config = EngineConfig {
             device_id,
-            mode: FFBMode::RawTorque1kHz,
+            mode: FFBMode::RawTorque,
             max_safe_torque_nm: 5.0,
             max_high_torque_nm: 25.0,
             enable_blackbox: true,
@@ -362,7 +363,7 @@ impl HILTestSuite {
         
         let config = EngineConfig {
             device_id,
-            mode: FFBMode::RawTorque1kHz,
+            mode: FFBMode::RawTorque,
             max_safe_torque_nm: 5.0,
             max_high_torque_nm: 25.0,
             enable_blackbox: true,
@@ -520,7 +521,7 @@ impl HILTestSuite {
         
         let config = EngineConfig {
             device_id,
-            mode: FFBMode::RawTorque1kHz,
+            mode: FFBMode::RawTorque,
             max_safe_torque_nm: 5.0,
             max_high_torque_nm: 25.0,
             enable_blackbox: true,
@@ -723,7 +724,7 @@ impl HILTestSuite {
         
         let config = EngineConfig {
             device_id,
-            mode: FFBMode::RawTorque1kHz,
+            mode: FFBMode::RawTorque,
             max_safe_torque_nm: 5.0,
             max_high_torque_nm: 25.0,
             enable_blackbox: true, // Adds processing load
@@ -883,7 +884,7 @@ impl HILTestSuite {
         
         let config = EngineConfig {
             device_id,
-            mode: FFBMode::RawTorque1kHz,
+            mode: FFBMode::RawTorque,
             max_safe_torque_nm: 5.0,
             max_high_torque_nm: 25.0,
             enable_blackbox: true,

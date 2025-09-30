@@ -65,6 +65,16 @@ impl std::fmt::Display for RTError {
     }
 }
 
+impl std::fmt::Display for FFBMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FFBMode::PidPassthrough => write!(f, "PID Pass-through"),
+            FFBMode::RawTorque => write!(f, "Raw Torque"),
+            FFBMode::TelemetrySynth => write!(f, "Telemetry Synthesis"),
+        }
+    }
+}
+
 /// RT-safe result type
 pub type RTResult<T = ()> = Result<T, RTError>;
 

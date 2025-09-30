@@ -4,7 +4,12 @@ This implementation plan converts the compilation error fixes into a series of d
 
 ## Task List
 
-- [ ] 1. Resolve root export conflicts at source with canonical types
+- [x] 1. Resolve root export conflicts at source with canonical types
+
+
+
+
+
   - Keep single public FFBMode (in rt module) as canonical export
   - Rename internal enum in ffb module to PipelineMode and make it pub(crate)
   - Replace glob re-exports with explicit item lists to avoid future collisions

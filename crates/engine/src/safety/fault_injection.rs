@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 
 use super::FaultType;
-use crate::ffb::Frame;
+use crate::rt::Frame;
 
 /// Fault injection scenario configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

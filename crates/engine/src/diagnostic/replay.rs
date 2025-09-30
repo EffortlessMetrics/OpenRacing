@@ -238,7 +238,7 @@ impl BlackboxReplay {
     /// Replay a single frame through the pipeline
     fn replay_frame(&mut self, frame: &Frame) -> Result<f32, String> {
         // Convert to mutable frame for pipeline processing
-        let mut replay_frame = crate::ffb::Frame {
+        let mut replay_frame = crate::rt::Frame {
             ffb_in: frame.ffb_in,
             torque_out: frame.torque_out,
             wheel_speed: frame.wheel_speed,

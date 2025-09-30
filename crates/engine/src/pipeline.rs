@@ -1,6 +1,6 @@
 //! Filter pipeline for real-time force feedback processing
 
-use crate::ffb::Frame;
+use crate::rt::Frame;
 use crate::rt::RTResult;
 use racing_wheel_schemas::{FilterConfig, NotchFilter, CurvePoint, Gain};
 use racing_wheel_schemas::entities::{BumpstopConfig, HandsOffConfig};

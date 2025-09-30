@@ -630,7 +630,7 @@ pub struct FaultManagerContext {
     pub usb_info: Option<UsbInfo>,
     pub plugin_execution: Option<PluginExecution>,
     pub component_heartbeats: HashMap<SystemComponent, bool>,
-    pub frame: Option<crate::ffb::Frame>,
+    pub frame: Option<crate::rt::Frame>,
 }
 
 /// USB communication information

@@ -3,7 +3,7 @@
 //! This module implements all the filter nodes required for the FFB pipeline,
 //! including speed-adaptive variants and safety filters.
 
-use crate::ffb::Frame;
+use crate::rt::Frame;
 use std::f32::consts::PI;
 
 /// State for reconstruction filter (anti-aliasing)

@@ -6,40 +6,11 @@
 use racing_wheel_schemas::{DeviceCapabilities, TorqueNm};
 use std::fmt;
 
-/// Real-time frame data structure for 1kHz processing
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct Frame {
-    /// FFB input from game (-1.0 to 1.0)
-    pub ffb_in: f32,
-    /// Torque output after filters (-1.0 to 1.0)
-    pub torque_out: f32,
-    /// Wheel speed in rad/s for speed-adaptive filters
-    pub wheel_speed: f32,
-    /// Hands-off detection flag
-    pub hands_off: bool,
-    /// Monotonic timestamp in nanoseconds
-    pub ts_mono_ns: u64,
-    /// Sequence number for device communication
-    pub seq: u16,
-}
+// Frame struct is now exported from rt module to avoid duplication
 
-impl Default for Frame {
-    fn default() -> Self {
-        Self {
-            ffb_in: 0.0,
-            torque_out: 0.0,
-            wheel_speed: 0.0,
-            hands_off: false,
-            ts_mono_ns: 0,
-            seq: 0,
-        }
-    }
-}
-
-/// Force Feedback operating modes
+/// Internal pipeline operating modes (use rt::FFBMode for public API)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FFBMode {
+pub(crate) enum PipelineMode {
     /// PID pass-through mode - Game emits DirectInput/PID effects
     PidPassthrough,
     
@@ -50,12 +21,12 @@ pub enum FFBMode {
     TelemetrySynth,
 }
 
-impl fmt::Display for FFBMode {
+impl fmt::Display for PipelineMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FFBMode::PidPassthrough => write!(f, "PID Pass-through"),
-            FFBMode::RawTorque1kHz => write!(f, "Raw Torque @1kHz"),
-            FFBMode::TelemetrySynth => write!(f, "Telemetry Synthesis"),
+            PipelineMode::PidPassthrough => write!(f, "PID Pass-through"),
+            PipelineMode::RawTorque1kHz => write!(f, "Raw Torque @1kHz"),
+            PipelineMode::TelemetrySynth => write!(f, "Telemetry Synthesis"),
         }
     }
 }
@@ -66,7 +37,7 @@ pub struct GameCompatibility {
     pub game_id: String,
     pub supports_robust_ffb: bool,
     pub supports_telemetry: bool,
-    pub preferred_mode: FFBMode,
+    pub preferred_mode: crate::rt::FFBMode,
 }
 
 /// Mode selection policy based on device capabilities and game compatibility
@@ -77,7 +48,7 @@ impl ModeSelectionPolicy {
     pub fn select_mode(
         device_caps: &DeviceCapabilities,
         game_compat: Option<&GameCompatibility>,
-    ) -> FFBMode {
+    ) -> crate::rt::FFBMode {
         // Priority order: Raw Torque > PID Pass-through > Telemetry Synthesis
         
         // Check if device supports raw torque at 1kHz (preferred)
@@ -85,41 +56,41 @@ impl ModeSelectionPolicy {
             // If we have game compatibility info, respect its preference
             if let Some(game) = game_compat {
                 if game.supports_robust_ffb {
-                    return FFBMode::RawTorque1kHz;
+                    return crate::rt::FFBMode::RawTorque;
                 }
                 // Fall back to telemetry synthesis for arcade/console ports
                 if game.supports_telemetry {
-                    return FFBMode::TelemetrySynth;
+                    return crate::rt::FFBMode::TelemetrySynth;
                 }
             }
             // Default to raw torque if no game info or game supports robust FFB
-            return FFBMode::RawTorque1kHz;
+            return crate::rt::FFBMode::RawTorque;
         }
         
         // Fall back to PID pass-through for commodity wheels
         if device_caps.supports_pid {
-            return FFBMode::PidPassthrough;
+            return crate::rt::FFBMode::PidPassthrough;
         }
         
         // Last resort: telemetry synthesis
-        FFBMode::TelemetrySynth
+        crate::rt::FFBMode::TelemetrySynth
     }
     
     /// Check if the selected mode is compatible with the device
-    pub fn is_mode_compatible(mode: FFBMode, device_caps: &DeviceCapabilities) -> bool {
+    pub fn is_mode_compatible(mode: crate::rt::FFBMode, device_caps: &DeviceCapabilities) -> bool {
         match mode {
-            FFBMode::PidPassthrough => device_caps.supports_pid,
-            FFBMode::RawTorque1kHz => device_caps.supports_raw_torque_1khz,
-            FFBMode::TelemetrySynth => true, // Always supported as fallback
+            crate::rt::FFBMode::PidPassthrough => device_caps.supports_pid,
+            crate::rt::FFBMode::RawTorque => device_caps.supports_raw_torque_1khz,
+            crate::rt::FFBMode::TelemetrySynth => true, // Always supported as fallback
         }
     }
     
     /// Get the update rate for a given mode
-    pub fn get_update_rate_hz(mode: FFBMode) -> f32 {
+    pub fn get_update_rate_hz(mode: crate::rt::FFBMode) -> f32 {
         match mode {
-            FFBMode::PidPassthrough => 60.0, // Typical PID update rate
-            FFBMode::RawTorque1kHz => 1000.0, // 1kHz raw torque
-            FFBMode::TelemetrySynth => 60.0, // Limited by telemetry rate
+            crate::rt::FFBMode::PidPassthrough => 60.0, // Typical PID update rate
+            crate::rt::FFBMode::RawTorque => 1000.0, // 1kHz raw torque
+            crate::rt::FFBMode::TelemetrySynth => 60.0, // Limited by telemetry rate
         }
     }
 }
@@ -199,7 +170,7 @@ impl CapabilityNegotiator {
         // Validate that the device can actually support the selected mode
         if !ModeSelectionPolicy::is_mode_compatible(selected_mode, device_caps) {
             return NegotiationResult {
-                mode: FFBMode::TelemetrySynth, // Fallback
+                mode: crate::rt::FFBMode::TelemetrySynth, // Fallback
                 update_rate_hz: 60.0,
                 warnings: vec!["Device does not support preferred mode, falling back to telemetry synthesis".to_string()],
             };
@@ -217,7 +188,7 @@ impl CapabilityNegotiator {
         }
         
         // Warn about potential issues
-        if selected_mode == FFBMode::TelemetrySynth {
+        if selected_mode == crate::rt::FFBMode::TelemetrySynth {
             warnings.push("Using telemetry synthesis mode - FFB quality may be reduced".to_string());
         }
         
@@ -232,7 +203,7 @@ impl CapabilityNegotiator {
 /// Result of capability negotiation
 #[derive(Debug, Clone)]
 pub struct NegotiationResult {
-    pub mode: FFBMode,
+    pub mode: crate::rt::FFBMode,
     pub update_rate_hz: f32,
     pub warnings: Vec<String>,
 }
@@ -240,7 +211,7 @@ pub struct NegotiationResult {
 impl NegotiationResult {
     /// Check if negotiation was successful without warnings
     pub fn is_optimal(&self) -> bool {
-        self.warnings.is_empty() && self.mode == FFBMode::RawTorque1kHz
+        self.warnings.is_empty() && self.mode == crate::rt::FFBMode::RawTorque
     }
     
     /// Get a human-readable summary of the negotiation
@@ -282,21 +253,21 @@ mod tests {
     fn test_mode_selection_raw_torque_preferred() {
         let caps = create_test_capabilities(true, true, 25.0);
         let mode = ModeSelectionPolicy::select_mode(&caps, None);
-        assert_eq!(mode, FFBMode::RawTorque1kHz);
+        assert_eq!(mode, crate::rt::FFBMode::RawTorque);
     }
 
     #[test]
     fn test_mode_selection_pid_fallback() {
         let caps = create_test_capabilities(true, false, 15.0);
         let mode = ModeSelectionPolicy::select_mode(&caps, None);
-        assert_eq!(mode, FFBMode::PidPassthrough);
+        assert_eq!(mode, crate::rt::FFBMode::PidPassthrough);
     }
 
     #[test]
     fn test_mode_selection_telemetry_fallback() {
         let caps = create_test_capabilities(false, false, 10.0);
         let mode = ModeSelectionPolicy::select_mode(&caps, None);
-        assert_eq!(mode, FFBMode::TelemetrySynth);
+        assert_eq!(mode, crate::rt::FFBMode::TelemetrySynth);
     }
 
     #[test]
@@ -306,31 +277,31 @@ mod tests {
             game_id: "arcade-racer".to_string(),
             supports_robust_ffb: false,
             supports_telemetry: true,
-            preferred_mode: FFBMode::TelemetrySynth,
+            preferred_mode: crate::rt::FFBMode::TelemetrySynth,
         };
         
         let mode = ModeSelectionPolicy::select_mode(&caps, Some(&game_compat));
-        assert_eq!(mode, FFBMode::TelemetrySynth);
+        assert_eq!(mode, crate::rt::FFBMode::TelemetrySynth);
     }
 
     #[test]
     fn test_mode_compatibility_check() {
         let caps = create_test_capabilities(true, true, 25.0);
         
-        assert!(ModeSelectionPolicy::is_mode_compatible(FFBMode::PidPassthrough, &caps));
-        assert!(ModeSelectionPolicy::is_mode_compatible(FFBMode::RawTorque1kHz, &caps));
-        assert!(ModeSelectionPolicy::is_mode_compatible(FFBMode::TelemetrySynth, &caps));
+        assert!(ModeSelectionPolicy::is_mode_compatible(crate::rt::FFBMode::PidPassthrough, &caps));
+        assert!(ModeSelectionPolicy::is_mode_compatible(crate::rt::FFBMode::RawTorque, &caps));
+        assert!(ModeSelectionPolicy::is_mode_compatible(crate::rt::FFBMode::TelemetrySynth, &caps));
         
         let limited_caps = create_test_capabilities(false, true, 25.0);
-        assert!(!ModeSelectionPolicy::is_mode_compatible(FFBMode::PidPassthrough, &limited_caps));
-        assert!(ModeSelectionPolicy::is_mode_compatible(FFBMode::RawTorque1kHz, &limited_caps));
+        assert!(!ModeSelectionPolicy::is_mode_compatible(crate::rt::FFBMode::PidPassthrough, &limited_caps));
+        assert!(ModeSelectionPolicy::is_mode_compatible(crate::rt::FFBMode::RawTorque, &limited_caps));
     }
 
     #[test]
     fn test_update_rates() {
-        assert_eq!(ModeSelectionPolicy::get_update_rate_hz(FFBMode::PidPassthrough), 60.0);
-        assert_eq!(ModeSelectionPolicy::get_update_rate_hz(FFBMode::RawTorque1kHz), 1000.0);
-        assert_eq!(ModeSelectionPolicy::get_update_rate_hz(FFBMode::TelemetrySynth), 60.0);
+        assert_eq!(ModeSelectionPolicy::get_update_rate_hz(crate::rt::FFBMode::PidPassthrough), 60.0);
+        assert_eq!(ModeSelectionPolicy::get_update_rate_hz(crate::rt::FFBMode::RawTorque), 1000.0);
+        assert_eq!(ModeSelectionPolicy::get_update_rate_hz(crate::rt::FFBMode::TelemetrySynth), 60.0);
     }
 
     #[test]
@@ -371,7 +342,7 @@ mod tests {
         let caps = create_test_capabilities(true, true, 25.0);
         let result = CapabilityNegotiator::negotiate_capabilities(&caps, None);
         
-        assert_eq!(result.mode, FFBMode::RawTorque1kHz);
+        assert_eq!(result.mode, crate::rt::FFBMode::RawTorque);
         assert_eq!(result.update_rate_hz, 1000.0);
         assert!(result.is_optimal());
     }
@@ -381,7 +352,7 @@ mod tests {
         let caps = create_test_capabilities(false, false, 10.0);
         let result = CapabilityNegotiator::negotiate_capabilities(&caps, None);
         
-        assert_eq!(result.mode, FFBMode::TelemetrySynth);
+        assert_eq!(result.mode, crate::rt::FFBMode::TelemetrySynth);
         assert!(!result.is_optimal());
         assert!(!result.warnings.is_empty());
     }
@@ -389,13 +360,13 @@ mod tests {
     #[test]
     fn test_negotiation_result_summary() {
         let result = NegotiationResult {
-            mode: FFBMode::RawTorque1kHz,
+            mode: crate::rt::FFBMode::RawTorque,
             update_rate_hz: 1000.0,
             warnings: vec!["Test warning".to_string()],
         };
         
         let summary = result.summary();
-        assert!(summary.contains("Raw Torque @1kHz"));
+        assert!(summary.contains("RawTorque"));
         assert!(summary.contains("1000Hz"));
         assert!(summary.contains("Test warning"));
     }
