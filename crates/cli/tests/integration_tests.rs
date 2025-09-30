@@ -63,7 +63,7 @@ fn test_cli_help() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Racing Wheel Control CLI"));
+        .stdout(predicate::str::contains("Racing Wheel Software Suite"));
 }
 
 #[test]

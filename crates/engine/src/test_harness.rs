@@ -10,7 +10,7 @@ use crate::{
     TelemetryData,
 };
 use crate::ports::{HidDevice, HidPort};
-use racing_wheel_schemas::DeviceId;
+use racing_wheel_schemas::prelude::*;
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, AtomicU64, Ordering}};
 use std::time::{Duration, Instant};
 use std::collections::VecDeque;

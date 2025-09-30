@@ -1,7 +1,7 @@
 //! IPC client for communicating with wheeld service
 
 use anyhow::Result;
-use racing_wheel_schemas::config::ProfileSchema;
+use racing_wheel_schemas::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -195,6 +195,12 @@ impl WheelClient {
 }
 
 // Data structures for IPC communication
+// Use aliases to avoid conflicts with schema types
+pub type ClientDeviceInfo = DeviceInfo;
+pub type ClientDeviceType = DeviceType;
+pub type ClientDeviceState = DeviceState;
+pub type ClientDeviceCapabilities = DeviceCapabilities;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceInfo {
     pub id: String,

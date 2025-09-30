@@ -35,7 +35,6 @@ flate2 = "1.0"
 futures = "0.3"
 prometheus = { workspace = true }
 metrics = { workspace = true }
-metrics-exporter-prometheus = { workspace = true }
 sysinfo = "0.30"
 axum = "0.7"
 clap = { workspace = true }

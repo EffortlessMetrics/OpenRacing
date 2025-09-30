@@ -3,7 +3,7 @@
 //! This module implements the three FFB modes and device capability negotiation
 //! as specified in the design document.
 
-use racing_wheel_schemas::{DeviceCapabilities, TorqueNm};
+use racing_wheel_schemas::prelude::*;
 use std::fmt;
 
 // Frame struct is now exported from rt module to avoid duplication

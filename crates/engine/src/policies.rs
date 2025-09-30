@@ -4,10 +4,7 @@
 //! the behavior of the racing wheel system. These policies are pure domain logic
 //! with no dependencies on infrastructure concerns.
 
-use racing_wheel_schemas::{
-    DeviceCapabilities, BaseSettings, TorqueNm, Profile, ProfileScope,
-    DomainError, Device, DeviceState
-};
+use racing_wheel_schemas::prelude::*;
 use std::time::{Duration, Instant};
 
 /// Safety policy for torque management and fault handling

@@ -98,7 +98,10 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** All public traits use #[async_trait]; trybuild forbids BoxFuture/impl Future; grep guard blocks glob re-exports
   - _Requirements: SVC-03, API-02_
 
-- [-] 6. Implement IPC conversion layer between domain and wire types
+- [x] 6. Implement IPC conversion layer between domain and wire types
+
+
+
 
 
   - Create From/TryFrom implementations between domain types and prost-generated types
@@ -110,7 +113,12 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** No prost types in service internals; From/TryFrom conversions tested (unit conversion + range); service uses conversions
   - _Requirements: SVC-02, SVC-04_
 
-- [ ] 7. Fix wheelctl CLI compilation with proper schema imports (isolation first)
+
+- [x] 7. Fix wheelctl CLI compilation with proper schema imports (isolation first)
+
+
+
+
   - Update wheelctl to use `racing_wheel_schemas::prelude::*` explicitly
   - Remove any direct internal module imports across crate boundaries
   - Fix BaseSettings import paths and usage
@@ -120,7 +128,10 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** cargo build -p wheelctl compiles; wheelctl --help runs; uses public prelude only; no internal imports
   - _Requirements: CLI-01, CLI-02, CLI-04_
 
-- [ ] 8. Resolve racing-wheel-service compilation issues (isolation first)
+- [-] 8. Resolve racing-wheel-service compilation issues (isolation first)
+
+
+
   - Fix IPC service trait implementations to match generated tonic signatures
   - Update async trait usage to use async_trait pattern consistently
   - Resolve dependency version conflicts by using workspace dependencies

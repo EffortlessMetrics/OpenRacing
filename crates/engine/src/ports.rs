@@ -5,7 +5,7 @@
 //! dependencies without coupling to specific implementations.
 
 use crate::{RTResult, DeviceEvent, TelemetryData, DeviceInfo};
-use racing_wheel_schemas::{DeviceId, ProfileId, Profile, DomainError};
+use racing_wheel_schemas::prelude::*;
 use tokio::sync::mpsc;
 use async_trait::async_trait;
 

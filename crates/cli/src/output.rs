@@ -5,7 +5,13 @@ use colored::*;
 use serde_json::json;
 use std::collections::HashMap;
 
-use crate::client::*;
+use crate::client::{
+    DeviceInfo as ClientDeviceInfo, 
+    DeviceState as ClientDeviceState, 
+    DeviceCapabilities as ClientDeviceCapabilities,
+    DeviceStatus, TelemetryData, DiagnosticInfo, PerformanceMetrics,
+    GameStatus, HealthEvent, HealthEventType
+};
 use racing_wheel_schemas::config::ProfileSchema;
 
 /// Print error in JSON format
@@ -33,7 +39,7 @@ pub fn print_error_human(error: &Error) {
 }
 
 /// Print device list in specified format
-pub fn print_device_list(devices: &[DeviceInfo], json: bool, detailed: bool) {
+pub fn print_device_list(devices: &[ClientDeviceInfo], json: bool, detailed: bool) {
     if json {
         let output = json!({
             "success": true,
@@ -54,12 +60,12 @@ pub fn print_device_list(devices: &[DeviceInfo], json: bool, detailed: bool) {
 }
 
 /// Print single device in human format
-fn print_device_human(device: &DeviceInfo, detailed: bool) {
+fn print_device_human(device: &ClientDeviceInfo, detailed: bool) {
     let state_color = match device.state {
-        DeviceState::Connected => "green",
-        DeviceState::Disconnected => "red", 
-        DeviceState::Faulted => "red",
-        DeviceState::Calibrating => "yellow",
+        ClientDeviceState::Connected => "green",
+        ClientDeviceState::Disconnected => "red", 
+        ClientDeviceState::Faulted => "red",
+        ClientDeviceState::Calibrating => "yellow",
     };
     
     println!("  {} {} ({})", 
@@ -79,7 +85,7 @@ fn print_device_human(device: &DeviceInfo, detailed: bool) {
 }
 
 /// Format device capabilities as a string
-fn format_capabilities(caps: &DeviceCapabilities) -> String {
+fn format_capabilities(caps: &ClientDeviceCapabilities) -> String {
     let mut features = Vec::new();
     
     if caps.supports_pid {

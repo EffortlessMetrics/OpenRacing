@@ -8,7 +8,8 @@ use tokio::sync::broadcast;
 use tokio::time::timeout;
 use tonic::{Request, Response, Status};
 
-use racing_wheel_schemas::wheel::v1::*;
+use racing_wheel_schemas::generated::wheel::v1::*;
+use racing_wheel_schemas::prelude::*;
 
 use crate::device_service::DeviceService;
 use crate::game_service::GameService;

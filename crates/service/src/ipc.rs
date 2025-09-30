@@ -15,10 +15,11 @@ use tokio_stream::{wrappers::BroadcastStream, Stream, StreamExt};
 use tonic::{transport::Server, Request, Response, Status, Streaming};
 use tracing::{debug, error, info, warn};
 
-use racing_wheel_schemas::wheel::{
+use racing_wheel_schemas::generated::wheel::v1::{
     wheel_service_server::{WheelService, WheelServiceServer},
     *,
 };
+use racing_wheel_schemas::prelude::*;
 
 /// Check if client version is compatible with minimum required version
 fn is_version_compatible(client_version: &str, min_version: &str) -> bool {

@@ -45,7 +45,6 @@ fn compile_protos(proto_dir: &std::path::Path, proto_files: &[PathBuf]) -> Resul
     tonic_build::configure()
         .build_server(true)
         .build_client(true)
-        .out_dir("src/generated")  // Consistent output directory
         .compile_protos_with_config(config, proto_files, &[proto_dir])?;
     
     Ok(())

@@ -5,9 +5,7 @@
 //! coordinates between the domain logic and infrastructure adapters.
 
 use crate::{ProfileRepo, ProfileRepoError, ProfileHierarchyPolicy, SafetyPolicy, ProfileContext};
-use racing_wheel_schemas::{
-    Profile, ProfileId, ProfileScope, BaseSettings, DeviceCapabilities, DomainError
-};
+use racing_wheel_schemas::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;

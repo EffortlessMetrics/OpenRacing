@@ -8,10 +8,11 @@ use tonic::transport::{Channel, Endpoint, Uri};
 use tonic::{Request, Response, Status};
 use tracing::{debug, error, info};
 
-use racing_wheel_schemas::wheel::{
+use racing_wheel_schemas::generated::wheel::v1::{
     wheel_service_client::WheelServiceClient,
     *,
 };
+use racing_wheel_schemas::prelude::*;
 
 /// IPC client configuration
 #[derive(Debug, Clone)]

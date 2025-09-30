@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use dialoguer::Editor;
-use racing_wheel_schemas::config::{ProfileSchema, ProfileValidator};
+use racing_wheel_schemas::config::{ProfileSchema, ProfileValidator, ProfileScope};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -384,7 +384,7 @@ fn resolve_profile_path(profile_path: &str) -> Result<PathBuf> {
 #[derive(serde::Serialize)]
 struct ProfileInfo {
     path: PathBuf,
-    scope: Option<racing_wheel_schemas::config::ProfileScope>,
+    scope: Option<ProfileScope>,
 }
 
 fn scan_profiles(
@@ -440,7 +440,7 @@ fn scan_profiles(
 fn create_default_profile(game: Option<&str>, car: Option<&str>) -> ProfileSchema {
     ProfileSchema {
         schema: "wheel.profile/1".to_string(),
-        scope: racing_wheel_schemas::config::ProfileScope {
+        scope: ProfileScope {
             game: game.map(|s| s.to_string()),
             car: car.map(|s| s.to_string()),
             track: None,

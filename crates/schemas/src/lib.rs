@@ -9,22 +9,25 @@
 
 pub mod domain;
 pub mod entities;
+pub mod ipc_conversion;
 
 #[cfg(test)]
 mod validation_tests;
+#[cfg(test)]
+mod ipc_conversion_tests;
+#[cfg(test)]
+mod integration_test;
+#[cfg(test)]
+mod service_example;
 
-// Temporarily disable protobuf types to focus on profile repository
-// #[cfg(has_protoc)]
-// pub mod wheel {
-//     //! Generated protobuf types for wheel service
-//     tonic::include_proto!("wheel.v1");
-// }
-
-// #[cfg(not(has_protoc))]
-// pub mod wheel {
-//     //! Stub protobuf types when protoc is not available
-//     include!("generated/wheel.v1.rs");
-// }
+/// Generated protobuf types for IPC communication
+pub mod generated {
+    pub mod wheel {
+        pub mod v1 {
+            tonic::include_proto!("wheel.v1");
+        }
+    }
+}
 
 /// Public prelude module for explicit imports
 /// 
@@ -54,6 +57,9 @@ pub mod prelude {
         ProfileSchema, ProfileValidator, ProfileMigrator,
         BumpstopConfig, HandsOffConfig,
     };
+
+    // IPC conversion types
+    pub use crate::ipc_conversion::{ConversionError};
 }
 
 pub mod profile {
