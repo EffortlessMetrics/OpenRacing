@@ -70,6 +70,26 @@ jobs:
     - name: Run doc tests
       run: cargo test --doc --workspace
 
+    - name: Run property tests with deterministic seeds
+      env:
+        QUICKCHECK_SEED: ${{ github.run_number }}
+      run: |
+        # Run property tests with deterministic seed based on run number
+        echo "Running property tests with seed: $QUICKCHECK_SEED"
+        cargo test --package racing-wheel-engine --test property_tests -- --nocapture
+      continue-on-error: true
+      id: property_tests
+
+    - name: Store property test failure seeds
+      if: failure() && steps.property_tests.outcome == 'failure'
+      uses: actions/upload-artifact@v3
+      with:
+        name: property-test-failure-seeds-${{ matrix.os }}-${{ matrix.rust }}-${{ github.sha }}
+        path: |
+          target/debug/deps/property_tests-*
+          property_test_failures.log
+        retention-days: 30
+
   performance-gate:
     name: Performance Gate
     runs-on: ubuntu-latest

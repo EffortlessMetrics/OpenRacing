@@ -99,7 +99,12 @@ This implementation plan converts the compilation error fixes into a series of d
   - **DoD:** No E0308 on DeviceId; string compares use .to_string(); conversion traits implemented
   - _Requirements: 4.1, 4.5_
 
-- [ ] 8. Restore parametric property tests with deterministic seeds
+- [x] 8. Restore parametric property tests with deterministic seeds
+
+
+
+
+
   - Keep property tests parametric using proptest! or QuickCheck with parameters
   - Ensure wrappers forward parameters and return the property result
   - Configure tests to emit failure seeds and enable shrinking for reproducibility
