@@ -30,7 +30,7 @@ pub trait HidDevice: Send + Sync {
     fn read_telemetry(&mut self) -> Option<TelemetryData>;
     
     /// Get device capabilities (cached, RT-safe)
-    fn capabilities(&self) -> &racing_wheel_schemas::DeviceCapabilities;
+    fn capabilities(&self) -> &DeviceCapabilities;
     
     /// Get device info (cached, RT-safe)
     fn device_info(&self) -> &DeviceInfo;
@@ -207,7 +207,7 @@ pub trait ProfileRepo: Send + Sync {
     async fn list_profiles(&self) -> Result<Vec<ProfileId>, ProfileRepoError>;
     
     /// Find profiles matching a scope
-    async fn find_profiles_for_scope(&self, scope: &racing_wheel_schemas::ProfileScope) -> Result<Vec<Profile>, ProfileRepoError>;
+    async fn find_profiles_for_scope(&self, scope: &ProfileScope) -> Result<Vec<Profile>, ProfileRepoError>;
     
     /// Load the global default profile
     async fn load_global_profile(&self) -> Result<Profile, ProfileRepoError>;
@@ -219,7 +219,7 @@ pub trait ProfileRepo: Send + Sync {
     async fn profile_exists(&self, id: &ProfileId) -> Result<bool, ProfileRepoError>;
     
     /// Get profile metadata without loading full profile
-    async fn get_profile_metadata(&self, id: &ProfileId) -> Result<racing_wheel_schemas::ProfileMetadata, ProfileRepoError>;
+    async fn get_profile_metadata(&self, id: &ProfileId) -> Result<ProfileMetadata, ProfileRepoError>;
     
     /// Backup profiles to a specified location
     async fn backup_profiles(&self, backup_path: &std::path::Path) -> Result<(), ProfileRepoError>;
@@ -321,7 +321,7 @@ impl ProfileContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use racing_wheel_schemas::DeviceId;
+
 
     #[test]
     fn test_profile_context_creation() {

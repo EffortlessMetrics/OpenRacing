@@ -252,7 +252,7 @@ impl RTLoopTestHarness {
     
     /// Create a standard test device
     pub fn create_test_device(&self, id: &str, name: &str) -> VirtualDevice {
-        let device_id = DeviceId::new(id.to_string()).unwrap();
+        let device_id = id.parse::<DeviceId>().unwrap();
         VirtualDevice::new(device_id, name.to_string())
     }
     

@@ -47,6 +47,7 @@ pub mod prelude {
         BaseSettings, FilterConfig, NotchFilter,
         LedConfig, HapticsConfig,
         CalibrationData, PedalCalibrationData, CalibrationType,
+        BumpstopConfig, HandsOffConfig,
     };
 
     // Telemetry types
@@ -55,7 +56,6 @@ pub mod prelude {
     // Configuration types
     pub use crate::config::{
         ProfileSchema, ProfileValidator, ProfileMigrator,
-        BumpstopConfig, HandsOffConfig,
     };
 
     // IPC conversion types

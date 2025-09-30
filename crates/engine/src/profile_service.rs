@@ -425,10 +425,7 @@ pub struct ProfileStatistics {
 mod tests {
     use super::*;
     use crate::{ProfileRepoError, RepositoryStatus};
-    use racing_wheel_schemas::{
-        DeviceId, ProfileId, ProfileScope, BaseSettings, FilterConfig,
-        Gain, Degrees, TorqueNm, DeviceCapabilities, ProfileMetadata
-    };
+
     use std::path::Path;
     use async_trait::async_trait;
     

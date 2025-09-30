@@ -14,7 +14,7 @@ use crate::{
     metrics::AtomicCounters,
     tracing::{TracingManager, RTTraceEvent},
 };
-use racing_wheel_schemas::DeviceId;
+use racing_wheel_schemas::prelude::*;
 use crossbeam::channel::{Receiver, Sender, TrySendError};
 use std::{
     sync::{
@@ -779,7 +779,6 @@ impl Drop for Engine {
 mod tests {
     use super::*;
     use crate::device::VirtualDevice;
-    use racing_wheel_schemas::DeviceId;
     use tokio::time::{sleep, Duration as TokioDuration};
     
     fn create_test_device() -> Box<dyn HidDevice> {

@@ -3,7 +3,7 @@
 //! This module implements the deterministic profile hierarchy resolution
 //! according to the domain policy: Global → Game → Car → Session overrides.
 
-use racing_wheel_schemas::{Profile, BaseSettings, FilterConfig, CurvePoint, Gain};
+use racing_wheel_schemas::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use tracing::{debug, trace};
@@ -253,12 +253,12 @@ impl ProfileMergeEngine {
     }
 
     #[allow(dead_code)]
-    fn is_default_dor(&self, dor: racing_wheel_schemas::Degrees) -> bool {
+    fn is_default_dor(&self, dor: Degrees) -> bool {
         (dor.value() - 900.0).abs() < f32::EPSILON
     }
 
     #[allow(dead_code)]
-    fn is_default_torque_cap(&self, torque: racing_wheel_schemas::TorqueNm) -> bool {
+    fn is_default_torque_cap(&self, torque: TorqueNm) -> bool {
         (torque.value() - 15.0).abs() < f32::EPSILON
     }
 
@@ -301,10 +301,7 @@ impl Default for ProfileMergeEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use racing_wheel_schemas::{
-        ProfileId, ProfileScope, TorqueNm, Degrees, Gain, FilterConfig,
-        LedConfig, HapticsConfig
-    };
+
 
     fn create_test_profile(id: &str, scope: ProfileScope) -> Profile {
         Profile::new(

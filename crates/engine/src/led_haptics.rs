@@ -5,7 +5,7 @@
 //! force feedback performance.
 
 use crate::ports::{NormalizedTelemetry, TelemetryFlags};
-use racing_wheel_schemas::{DeviceId, LedConfig, HapticsConfig};
+use racing_wheel_schemas::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};

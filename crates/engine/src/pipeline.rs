@@ -588,10 +588,7 @@ impl Default for PipelineCompiler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use racing_wheel_schemas::{
-        Gain, FrequencyHz, CurvePoint, NotchFilter, FilterConfig
-    };
-    use racing_wheel_schemas::entities::{BumpstopConfig, HandsOffConfig};
+
     use crate::filters::*;
 
 

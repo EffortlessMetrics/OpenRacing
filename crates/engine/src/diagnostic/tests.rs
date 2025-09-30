@@ -9,7 +9,7 @@ use crate::{
     safety::SafetyState,
     ports::NormalizedTelemetry,
 };
-use racing_wheel_schemas::DeviceId;
+
 use std::path::PathBuf;
 use std::{
     fs::{create_dir_all, write},

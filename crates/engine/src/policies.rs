@@ -391,7 +391,7 @@ pub enum ProfileHierarchyError {
     
     #[error("Invalid profile {profile_id}: {error}")]
     InvalidProfile {
-        profile_id: racing_wheel_schemas::ProfileId,
+        profile_id: ProfileId,
         error: DomainError,
     },
     
@@ -405,10 +405,7 @@ pub enum ProfileHierarchyError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use racing_wheel_schemas::{
-        DeviceId, ProfileId, DeviceCapabilities, DeviceType, Device,
-        Profile, ProfileScope, BaseSettings, Gain
-    };
+
     use std::time::Duration;
 
     fn create_test_device() -> Device {

@@ -9,7 +9,7 @@ use super::{HealthEvent, streams::{StreamA, StreamB, StreamC}};
 use crate::rt::Frame;
 use crate::safety::SafetyState;
 use crate::ports::NormalizedTelemetry;
-use racing_wheel_schemas::DeviceId;
+use racing_wheel_schemas::prelude::*;
 use std::{
     fs::File,
     io::{BufWriter, Write, Seek},

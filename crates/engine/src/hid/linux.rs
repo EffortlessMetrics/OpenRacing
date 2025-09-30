@@ -9,7 +9,7 @@
 
 use crate::ports::{HidPort, HidDevice, DeviceHealthStatus};
 use crate::{RTResult, DeviceEvent, TelemetryData, DeviceInfo};
-use racing_wheel_schemas::{DeviceId, DeviceCapabilities, TorqueNm};
+use racing_wheel_schemas::prelude::*;
 use super::{HidDeviceInfo, TorqueCommand, DeviceTelemetryReport, DeviceCapabilitiesReport};
 use tokio::sync::mpsc;
 use async_trait::async_trait;

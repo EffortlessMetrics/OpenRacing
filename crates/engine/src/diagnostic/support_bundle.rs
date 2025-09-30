@@ -575,7 +575,7 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
     use std::fs::write;
-    use racing_wheel_schemas::DeviceId;
+    
 
     #[test]
     fn test_support_bundle_creation() {

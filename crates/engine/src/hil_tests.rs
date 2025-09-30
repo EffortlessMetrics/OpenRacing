@@ -12,7 +12,7 @@ use crate::{
     device::VirtualDevice,
     ports::NormalizedTelemetry,
 };
-use racing_wheel_schemas::DeviceId;
+use racing_wheel_schemas::prelude::*;
 use crate::ports::TelemetryFlags;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
@@ -211,7 +211,7 @@ impl HILTestSuite {
         };
 
         // Create test engine
-        let device_id = DeviceId::new("hil-test-device-1".to_string()).unwrap();
+        let device_id = "hil-test-device-1".parse::<DeviceId>().unwrap();
         let device = Box::new(VirtualDevice::new(device_id.clone(), "HIL Test Device 1".to_string()));
         
         let config = EngineConfig {
@@ -237,7 +237,7 @@ impl HILTestSuite {
 
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
-            DeviceId::new("hil-test-device-1".to_string()).unwrap(),
+            "hil-test-device-1".parse::<DeviceId>().unwrap(),
             "HIL Test Device 1".to_string()
         ));
 
@@ -358,7 +358,7 @@ impl HILTestSuite {
         };
 
         // Create test engine
-        let device_id = DeviceId::new("hil-test-device-2".to_string()).unwrap();
+        let device_id = "hil-test-device-2".parse::<DeviceId>().unwrap();
         let device = Box::new(VirtualDevice::new(device_id.clone(), "HIL Test Device 2".to_string()));
         
         let config = EngineConfig {
@@ -384,7 +384,7 @@ impl HILTestSuite {
 
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
-            DeviceId::new("hil-test-device-2".to_string()).unwrap(),
+            "hil-test-device-2".parse::<DeviceId>().unwrap(),
             "HIL Test Device 2".to_string()
         ));
 
@@ -516,7 +516,7 @@ impl HILTestSuite {
         };
 
         // Create test engine
-        let device_id = DeviceId::new("hil-test-device-3".to_string()).unwrap();
+        let device_id = "hil-test-device-3".parse::<DeviceId>().unwrap();
         let device = Box::new(VirtualDevice::new(device_id.clone(), "HIL Test Device 3".to_string()));
         
         let config = EngineConfig {
@@ -542,7 +542,7 @@ impl HILTestSuite {
 
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
-            DeviceId::new("hil-test-device-3".to_string()).unwrap(),
+            "hil-test-device-3".parse::<DeviceId>().unwrap(),
             "HIL Test Device 3".to_string()
         ));
 
@@ -719,7 +719,7 @@ impl HILTestSuite {
         };
 
         // Create test engine with higher load
-        let device_id = DeviceId::new("hil-test-device-4".to_string()).unwrap();
+        let device_id = "hil-test-device-4".parse::<DeviceId>().unwrap();
         let device = Box::new(VirtualDevice::new(device_id.clone(), "HIL Test Device 4".to_string()));
         
         let config = EngineConfig {
@@ -745,7 +745,7 @@ impl HILTestSuite {
 
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
-            DeviceId::new("hil-test-device-4".to_string()).unwrap(),
+            "hil-test-device-4".parse::<DeviceId>().unwrap(),
             "HIL Test Device 4".to_string()
         ));
 
@@ -879,7 +879,7 @@ impl HILTestSuite {
         };
 
         // Create test engine
-        let device_id = DeviceId::new("hil-test-device-5".to_string()).unwrap();
+        let device_id = "hil-test-device-5".parse::<DeviceId>().unwrap();
         let device = Box::new(VirtualDevice::new(device_id.clone(), "HIL Test Device 5".to_string()));
         
         let config = EngineConfig {
@@ -905,7 +905,7 @@ impl HILTestSuite {
 
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
-            DeviceId::new("hil-test-device-5".to_string()).unwrap(),
+            "hil-test-device-5".parse::<DeviceId>().unwrap(),
             "HIL Test Device 5".to_string()
         ));
 

@@ -5,7 +5,7 @@
 
 use crate::pipeline::{Pipeline, PipelineCompiler, CompiledPipeline, PipelineError};
 use crate::profile_merge::{ProfileMergeEngine, MergeResult};
-use racing_wheel_schemas::{Profile, BaseSettings};
+use racing_wheel_schemas::prelude::*;
 use std::sync::Arc;
 use tokio::sync::{oneshot, RwLock, Mutex};
 use tracing::{debug, info, error};
@@ -337,9 +337,7 @@ impl Default for ApplyStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use racing_wheel_schemas::{
-        ProfileId, ProfileScope, TorqueNm, Degrees, Gain, FilterConfig
-    };
+
 
     fn create_test_profile(id: &str, scope: ProfileScope) -> Profile {
         Profile::new(

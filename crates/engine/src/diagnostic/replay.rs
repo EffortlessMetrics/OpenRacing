@@ -492,7 +492,7 @@ mod tests {
     use tempfile::TempDir;
     use crate::diagnostic::blackbox::{BlackboxRecorder, BlackboxConfig};
     use crate::safety::SafetyState;
-    use racing_wheel_schemas::DeviceId;
+    
     use std::path::PathBuf;
 
     fn create_test_recording() -> (PathBuf, TempDir) {

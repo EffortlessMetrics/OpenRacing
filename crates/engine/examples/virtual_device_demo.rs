@@ -9,7 +9,7 @@ use racing_wheel_engine::{
     RTLoopTestHarness, TestHarnessConfig, TestScenario, TorquePattern,
     ExpectedResponse,
 };
-use racing_wheel_schemas::DeviceId;
+use racing_wheel_schemas::prelude::*;
 use std::time::Duration;
 use tokio;
 

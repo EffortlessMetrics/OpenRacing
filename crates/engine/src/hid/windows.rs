@@ -8,7 +8,7 @@
 
 use crate::ports::{HidPort, HidDevice, DeviceHealthStatus};
 use crate::{TelemetryData, DeviceInfo, DeviceEvent, RTResult};
-use racing_wheel_schemas::{DeviceId, DeviceCapabilities, TorqueNm};
+use racing_wheel_schemas::prelude::*;
 use super::{HidDeviceInfo, TorqueCommand, DeviceTelemetryReport};
 use tokio::sync::mpsc;
 use async_trait::async_trait;
@@ -81,7 +81,8 @@ impl WindowsHidPort {
         // Note: In a real implementation, you would use the hidapi crate
         // For now, we'll simulate device discovery
         for (vid, pid) in racing_wheel_ids.iter() {
-            let device_id = DeviceId::new(format!("HID_VID_{:04X}_PID_{:04X}", vid, pid))
+            let device_id = format!("HID_VID_{:04X}_PID_{:04X}", vid, pid)
+                .parse::<DeviceId>()
                 .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
             let path = format!("HID_VID_{:04X}_PID_{:04X}_device-path", vid, pid);
             

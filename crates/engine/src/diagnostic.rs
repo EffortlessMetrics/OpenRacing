@@ -18,7 +18,7 @@ pub use streams::{StreamA, StreamB, StreamC, StreamType};
 use crate::rt::Frame;
 use crate::safety::{SafetyState, FaultType};
 use crate::ports::NormalizedTelemetry;
-use racing_wheel_schemas::DeviceId;
+use racing_wheel_schemas::prelude::*;
 use std::time::{Instant, SystemTime};
 use serde::{Deserialize, Serialize};
 

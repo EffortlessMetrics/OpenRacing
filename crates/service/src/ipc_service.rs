@@ -3,7 +3,7 @@
 //! This module provides the gRPC service implementation that uses the conversion
 //! layer to separate domain logic from wire protocol concerns.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -16,9 +16,15 @@ use tracing::{debug, error, info, warn};
 
 use racing_wheel_schemas::generated::wheel::v1::{
     wheel_service_server::WheelService,
-    *,
+    DeviceId as WireDeviceId, Profile as WireProfile, OpResult, HealthEvent,
+    TelemetryRequest, TelemetryResponse, GameConfigRequest, GameStatusResponse,
+    DeviceStatus, ProfileList, DiagnosticInfo, GameStatus,
+    FeatureNegotiationRequest, FeatureNegotiationResponse, ApplyProfileRequest,
+    ConfigureTelemetryRequest,
 };
-use racing_wheel_schemas::prelude::*;
+use racing_wheel_schemas::prelude::{
+    DeviceId, Profile, TelemetryData, Device, DeviceCapabilities,
+};
 use racing_wheel_schemas::ipc_conversion::ConversionError;
 
 // Import domain services (these will be the real implementations)
@@ -142,7 +148,7 @@ impl WheelService for WheelServiceImpl {
     /// Get device status
     async fn get_device_status(
         &self,
-        request: Request<DeviceId>,
+        request: Request<WireDeviceId>,
     ) -> Result<Response<DeviceStatus>, Status> {
         let device_id_wire = request.into_inner();
         debug!("GetDeviceStatus called for device: {}", device_id_wire.id);
@@ -181,8 +187,8 @@ impl WheelService for WheelServiceImpl {
     /// Get active profile for a device
     async fn get_active_profile(
         &self,
-        request: Request<DeviceId>,
-    ) -> Result<Response<Profile>, Status> {
+        request: Request<WireDeviceId>,
+    ) -> Result<Response<WireProfile>, Status> {
         let device_id_wire = request.into_inner();
         debug!("GetActiveProfile called for device: {}", device_id_wire.id);
 
@@ -195,7 +201,7 @@ impl WheelService for WheelServiceImpl {
         match self.profile_service.get_active_profile(&device_id).await {
             Ok(profile) => {
                 // Convert domain Profile to wire Profile
-                let wire_profile: Profile = profile.into();
+                let wire_profile: WireProfile = profile.into();
                 Ok(Response::new(wire_profile))
             }
             Err(e) => Err(Status::not_found(format!("Profile not found: {}", e))),
@@ -231,12 +237,12 @@ impl WheelService for WheelServiceImpl {
             Ok(()) => Ok(Response::new(OpResult {
                 success: true,
                 error_message: String::new(),
-                metadata: HashMap::new(),
+                metadata: BTreeMap::new(),
             })),
             Err(e) => Ok(Response::new(OpResult {
                 success: false,
                 error_message: format!("Failed to apply profile: {}", e),
-                metadata: HashMap::new(),
+                metadata: BTreeMap::new(),
             })),
         }
     }
@@ -251,7 +257,7 @@ impl WheelService for WheelServiceImpl {
         match self.profile_service.list_profiles().await {
             Ok(profiles) => {
                 // Convert domain Profiles to wire Profiles
-                let wire_profiles: Vec<Profile> = profiles
+                let wire_profiles: Vec<WireProfile> = profiles
                     .into_iter()
                     .map(Into::into)
                     .collect();
@@ -267,7 +273,7 @@ impl WheelService for WheelServiceImpl {
     /// Start high torque mode
     async fn start_high_torque(
         &self,
-        request: Request<DeviceId>,
+        request: Request<WireDeviceId>,
     ) -> Result<Response<OpResult>, Status> {
         let device_id_wire = request.into_inner();
         debug!("StartHighTorque called for device: {}", device_id_wire.id);
@@ -282,12 +288,12 @@ impl WheelService for WheelServiceImpl {
             Ok(()) => Ok(Response::new(OpResult {
                 success: true,
                 error_message: String::new(),
-                metadata: HashMap::new(),
+                metadata: BTreeMap::new(),
             })),
             Err(e) => Ok(Response::new(OpResult {
                 success: false,
                 error_message: format!("Failed to start high torque: {}", e),
-                metadata: HashMap::new(),
+                metadata: BTreeMap::new(),
             })),
         }
     }
@@ -295,7 +301,7 @@ impl WheelService for WheelServiceImpl {
     /// Emergency stop
     async fn emergency_stop(
         &self,
-        request: Request<DeviceId>,
+        request: Request<WireDeviceId>,
     ) -> Result<Response<OpResult>, Status> {
         let device_id_wire = request.into_inner();
         debug!("EmergencyStop called for device: {}", device_id_wire.id);
@@ -306,16 +312,16 @@ impl WheelService for WheelServiceImpl {
                 Status::invalid_argument(format!("Invalid device ID: {}", e))
             })?;
 
-        match self.safety_service.emergency_stop(&device_id).await {
+        match self.safety_service.emergency_stop(&device_id, "IPC request".to_string()).await {
             Ok(()) => Ok(Response::new(OpResult {
                 success: true,
                 error_message: String::new(),
-                metadata: HashMap::new(),
+                metadata: BTreeMap::new(),
             })),
             Err(e) => Ok(Response::new(OpResult {
                 success: false,
                 error_message: format!("Failed to emergency stop: {}", e),
-                metadata: HashMap::new(),
+                metadata: BTreeMap::new(),
             })),
         }
     }
@@ -342,7 +348,7 @@ impl WheelService for WheelServiceImpl {
                     device_id: event.device_id,
                     r#type: event.event_type,
                     message: event.message,
-                    metadata: event.metadata,
+                    metadata: event.metadata.into_iter().collect(),
                 };
                 yield Ok(health_event);
             }
@@ -354,7 +360,7 @@ impl WheelService for WheelServiceImpl {
     /// Get diagnostics
     async fn get_diagnostics(
         &self,
-        request: Request<DeviceId>,
+        request: Request<WireDeviceId>,
     ) -> Result<Response<DiagnosticInfo>, Status> {
         let device_id_wire = request.into_inner();
         debug!("GetDiagnostics called for device: {}", device_id_wire.id);
@@ -369,7 +375,7 @@ impl WheelService for WheelServiceImpl {
         // This will be enhanced when the diagnostic service is implemented
         let diagnostic_info = DiagnosticInfo {
             device_id: device_id.to_string(),
-            system_info: HashMap::new(),
+            system_info: BTreeMap::new(),
             recent_faults: vec![],
             performance: Some(PerformanceMetrics {
                 p99_jitter_us: 0.0,
@@ -390,16 +396,17 @@ impl WheelService for WheelServiceImpl {
         let req = request.into_inner();
         debug!("ConfigureTelemetry called for game: {}", req.game_id);
 
-        match self.game_service.configure_telemetry(&req.game_id, &req.install_path, req.enable_auto_config).await {
-            Ok(()) => Ok(Response::new(OpResult {
+        use std::path::Path;
+        match self.game_service.configure_telemetry(&req.game_id, Path::new(&req.install_path)).await {
+            Ok(_config_diffs) => Ok(Response::new(OpResult {
                 success: true,
                 error_message: String::new(),
-                metadata: HashMap::new(),
+                metadata: BTreeMap::new(),
             })),
             Err(e) => Ok(Response::new(OpResult {
                 success: false,
                 error_message: format!("Failed to configure telemetry: {}", e),
-                metadata: HashMap::new(),
+                metadata: BTreeMap::new(),
             })),
         }
     }
