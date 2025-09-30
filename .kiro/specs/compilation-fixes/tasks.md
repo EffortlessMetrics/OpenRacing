@@ -183,7 +183,12 @@ This implementation plan converts the compilation error fixes into a series of d
   - **DoD:** CI gates active; schema break detection; lint enforcement; trybuild guards
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 14. Establish schema/API governance and migration policy
+- [x] 14. Establish schema/API governance and migration policy
+
+
+
+
+
   - Document deprecation window policy (old names marked #[deprecated] for one minor)
   - Create migration pattern documentation (rename → alias → remove)
   - Add schema stability requirements to PR template

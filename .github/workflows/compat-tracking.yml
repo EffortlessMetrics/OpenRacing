@@ -60,6 +60,24 @@ jobs:
         path: compat_usage_report.json
         retention-days: 30
     
+    - name: Store usage metrics for trending
+      run: |
+        # Store metrics with timestamp for trending analysis
+        echo "{\"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"usage_count\": $CURRENT_USAGE, \"commit\": \"${{ github.sha }}\", \"branch\": \"${{ github.ref_name }}\"}" >> usage_metrics.jsonl
+    
+    - name: Upload usage metrics
+      uses: actions/upload-artifact@v3
+      with:
+        name: usage-metrics-${{ github.run_id }}
+        path: usage_metrics.jsonl
+        retention-days: 90
+    
+    - name: Analyze usage trend
+      if: github.event_name == 'pull_request'
+      run: |
+        # Download recent metrics for trend analysis
+        python scripts/analyze_compat_trend.py --current $CURRENT_USAGE --baseline $BASELINE_USAGE
+    
     - name: Comment on PR
       if: github.event_name == 'pull_request'
       uses: actions/github-script@v6
@@ -70,14 +88,29 @@ jobs:
           
           let comment = `## Compatibility Layer Usage Report\n\n`;
           comment += `**Current usage count:** ${report.usage_count}\n`;
-          comment += `**Baseline usage count:** ${process.env.BASELINE_USAGE}\n\n`;
+          comment += `**Baseline usage count:** ${process.env.BASELINE_USAGE}\n`;
           
-          if (report.usage_count > parseInt(process.env.BASELINE_USAGE)) {
-            comment += `❌ **Usage increased** - Please migrate new usage to use new field names.\n\n`;
-          } else if (report.usage_count < parseInt(process.env.BASELINE_USAGE)) {
-            comment += `✅ **Usage decreased** - Great job migrating away from the compat layer!\n\n`;
+          const change = report.usage_count - parseInt(process.env.BASELINE_USAGE);
+          if (change > 0) {
+            comment += `❌ **Usage increased by ${change}** - Please migrate new usage to use new field names.\n\n`;
+            comment += `### 🚨 Policy Violation\n`;
+            comment += `This PR increases compatibility layer usage, which violates our [Schema Governance Policy](../docs/SCHEMA_GOVERNANCE.md).\n`;
+            comment += `Please update the new code to use the new field names instead of the compatibility layer.\n\n`;
+          } else if (change < 0) {
+            comment += `✅ **Usage decreased by ${Math.abs(change)}** - Great job migrating away from the compat layer!\n\n`;
+            comment += `### 🎉 Migration Progress\n`;
+            comment += `This PR helps us move toward removing the compatibility layer. Thank you for the migration effort!\n\n`;
           } else {
             comment += `ℹ️ **Usage unchanged**\n\n`;
+          }
+          
+          // Add trend analysis if available
+          if (fs.existsSync('trend_analysis.json')) {
+            const trend = JSON.parse(fs.readFileSync('trend_analysis.json', 'utf8'));
+            comment += `### 📈 Usage Trend (Last 30 Days)\n\n`;
+            comment += `- **Peak usage:** ${trend.peak_usage}\n`;
+            comment += `- **Current trend:** ${trend.trend_direction} (${trend.trend_percentage}%)\n`;
+            comment += `- **Projected removal:** ${trend.projected_removal_date}\n\n`;
           }
           
           if (report.usage_details.length > 0) {
@@ -88,6 +121,14 @@ jobs:
             if (report.usage_details.length > 10) {
               comment += `\n... and ${report.usage_details.length - 10} more occurrences\n`;
             }
+            
+            comment += `\n### Migration Guide\n\n`;
+            comment += `To migrate these usages, replace:\n`;
+            comment += `- \`.temp_c()\` → \`.temperature_c\`\n`;
+            comment += `- \`.faults()\` → \`.fault_flags\`\n`;
+            comment += `- \`.wheel_angle_mdeg()\` → \`.wheel_angle_deg\`\n`;
+            comment += `- \`.wheel_speed_mrad_s()\` → \`.wheel_speed_rad_s\`\n\n`;
+            comment += `See [Migration Patterns](../docs/MIGRATION_PATTERNS.md) for detailed examples.\n`;
           }
           
           github.rest.issues.createComment({

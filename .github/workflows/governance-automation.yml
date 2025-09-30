@@ -1,0 +1,218 @@
+name: Schema Governance Automation
+
+on:
+  schedule:
+    # Run weekly on Mondays at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      force_create_issue:
+        description: 'Force create removal issue'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  check-removal-timeline:
+    name: Check Compatibility Removal Timeline
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install requests
+    
+    - name: Check current compatibility usage
+      id: usage
+      run: |
+        python scripts/track_compat_usage.py
+        USAGE_COUNT=$(python scripts/track_compat_usage.py | grep 'usage count:' | cut -d' ' -f4)
+        echo "usage_count=$USAGE_COUNT" >> $GITHUB_OUTPUT
+        echo "Current compatibility usage: $USAGE_COUNT"
+    
+    - name: Get current version
+      id: version
+      run: |
+        # Extract version from Cargo.toml
+        CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+        echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        
+        # Calculate next minor version
+        MAJOR=$(echo $CURRENT_VERSION | cut -d. -f1)
+        MINOR=$(echo $CURRENT_VERSION | cut -d. -f2)
+        NEXT_MINOR=$((MINOR + 1))
+        NEXT_VERSION="$MAJOR.$NEXT_MINOR.0"
+        echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+        
+        echo "Current version: $CURRENT_VERSION"
+        echo "Next minor version: $NEXT_VERSION"
+    
+    - name: Check if removal issue exists
+      id: check_issue
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Check if removal issue already exists for next version
+        ISSUE_EXISTS=$(gh issue list --label "compatibility,governance" --state "open" --search "Remove compatibility shims" --json title | jq -r '.[].title' | grep -c "v${{ steps.version.outputs.next_version }}" || echo "0")
+        echo "issue_exists=$ISSUE_EXISTS" >> $GITHUB_OUTPUT
+        echo "Existing removal issues for v${{ steps.version.outputs.next_version }}: $ISSUE_EXISTS"
+    
+    - name: Check deprecation timeline
+      id: timeline
+      run: |
+        # Check if we're approaching a minor version boundary
+        # This is a simplified check - in practice, you'd check git tags and release dates
+        
+        SHOULD_CREATE="false"
+        
+        # Force create if requested
+        if [ "${{ github.event.inputs.force_create_issue }}" = "true" ]; then
+          SHOULD_CREATE="true"
+          echo "Force create requested"
+        fi
+        
+        # Create if usage exists and no issue exists
+        if [ "${{ steps.usage.outputs.usage_count }}" -gt "0" ] && [ "${{ steps.check_issue.outputs.issue_exists }}" = "0" ]; then
+          SHOULD_CREATE="true"
+          echo "Usage exists and no removal issue found"
+        fi
+        
+        echo "should_create=$SHOULD_CREATE" >> $GITHUB_OUTPUT
+        echo "Should create removal issue: $SHOULD_CREATE"
+    
+    - name: Create removal issue
+      if: steps.timeline.outputs.should_create == 'true'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        python scripts/create_removal_issue.py \
+          --version "${{ steps.version.outputs.next_version }}" \
+          --deprecated-in "${{ steps.version.outputs.current_version }}"
+    
+    - name: Create weekly governance report
+      run: |
+        cat > governance_report.md << 'EOF'
+        # Weekly Schema Governance Report
+        
+        **Report Date:** $(date -u +%Y-%m-%d)
+        **Current Version:** ${{ steps.version.outputs.current_version }}
+        **Next Minor Version:** ${{ steps.version.outputs.next_version }}
+        
+        ## Compatibility Layer Status
+        
+        **Current Usage Count:** ${{ steps.usage.outputs.usage_count }}
+        **Removal Issue Exists:** ${{ steps.check_issue.outputs.issue_exists > 0 && 'Yes' || 'No' }}
+        **Action Required:** ${{ steps.timeline.outputs.should_create == 'true' && 'Yes - Create removal issue' || 'No' }}
+        
+        ## Recommendations
+        
+        EOF
+        
+        if [ "${{ steps.usage.outputs.usage_count }}" -gt "20" ]; then
+          echo "- 🔴 **High Priority:** ${{ steps.usage.outputs.usage_count }} compatibility usages need migration" >> governance_report.md
+          echo "- Focus migration effort on reducing usage before next minor release" >> governance_report.md
+        elif [ "${{ steps.usage.outputs.usage_count }}" -gt "5" ]; then
+          echo "- 🟡 **Medium Priority:** ${{ steps.usage.outputs.usage_count }} compatibility usages remaining" >> governance_report.md
+          echo "- Plan migration tasks for upcoming sprints" >> governance_report.md
+        elif [ "${{ steps.usage.outputs.usage_count }}" -gt "0" ]; then
+          echo "- 🟢 **Low Priority:** Only ${{ steps.usage.outputs.usage_count }} compatibility usages remaining" >> governance_report.md
+          echo "- Compatibility layer can likely be removed in next minor release" >> governance_report.md
+        else
+          echo "- ✅ **Ready:** No compatibility usage detected - layer can be removed" >> governance_report.md
+        fi
+        
+        echo "" >> governance_report.md
+        echo "## Next Steps" >> governance_report.md
+        echo "" >> governance_report.md
+        echo "1. Review compatibility usage details: \`python scripts/track_compat_usage.py\`" >> governance_report.md
+        echo "2. Check migration progress: See [Migration Patterns](docs/MIGRATION_PATTERNS.md)" >> governance_report.md
+        echo "3. Plan removal timeline: Target v${{ steps.version.outputs.next_version }} if usage is low" >> governance_report.md
+        
+    - name: Upload governance report
+      uses: actions/upload-artifact@v3
+      with:
+        name: governance-report-${{ github.run_id }}
+        path: governance_report.md
+        retention-days: 30
+    
+    - name: Comment on tracking issue (if exists)
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Find the main governance tracking issue
+        TRACKING_ISSUE=$(gh issue list --label "governance" --state "open" --search "Schema Governance" --json number --jq '.[0].number' || echo "")
+        
+        if [ -n "$TRACKING_ISSUE" ]; then
+          cat governance_report.md | gh issue comment $TRACKING_ISSUE --body-file -
+          echo "Updated tracking issue #$TRACKING_ISSUE with governance report"
+        else
+          echo "No governance tracking issue found"
+        fi
+
+  validate-governance-compliance:
+    name: Validate Governance Compliance
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Check for deprecated items without removal timeline
+      run: |
+        # Find deprecated items in code
+        DEPRECATED_ITEMS=$(grep -r "#\[deprecated" crates/ --include="*.rs" | wc -l)
+        echo "Found $DEPRECATED_ITEMS deprecated items"
+        
+        if [ "$DEPRECATED_ITEMS" -gt "0" ]; then
+          echo "Deprecated items found - checking for removal issues..."
+          
+          # This would check if removal issues exist for each deprecated item
+          # For now, just report the count
+          echo "::notice::Found $DEPRECATED_ITEMS deprecated items. Ensure removal issues exist."
+        fi
+    
+    - name: Check schema governance policy compliance
+      run: |
+        # Verify governance documents exist
+        if [ ! -f "docs/SCHEMA_GOVERNANCE.md" ]; then
+          echo "::error::Schema governance policy missing"
+          exit 1
+        fi
+        
+        if [ ! -f "docs/MIGRATION_PATTERNS.md" ]; then
+          echo "::error::Migration patterns documentation missing"
+          exit 1
+        fi
+        
+        if [ ! -f ".github/pull_request_template.md" ]; then
+          echo "::error::PR template with schema requirements missing"
+          exit 1
+        fi
+        
+        echo "✅ All governance documents present"
+    
+    - name: Validate CI governance checks
+      run: |
+        # Check that required CI workflows exist
+        REQUIRED_WORKFLOWS=(
+          "compat-tracking.yml"
+          "schema-validation.yml"
+          "governance-automation.yml"
+        )
+        
+        for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
+          if [ ! -f ".github/workflows/$workflow" ]; then
+            echo "::error::Required governance workflow missing: $workflow"
+            exit 1
+          fi
+        done
+        
+        echo "✅ All required governance workflows present"
