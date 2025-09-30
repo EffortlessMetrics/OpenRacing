@@ -1,14 +1,23 @@
-error[E0308]: mismatched types
-  --> tests/compile_fail/device_id_construction.rs:10:34
+error[E0599]: no function or associated item named `new` found for struct `DeviceId` in the current scope
+ --> tests/compile_fail/device_id_construction.rs:8:32
+  |
+8 |     let _device_id = DeviceId::new("test-device".to_string()); //~ ERROR
+  |                                ^^^ function or associated item not found in `DeviceId`
+  |
+help: there is a method `ne` with a similar name
+  |
+8 -     let _device_id = DeviceId::new("test-device".to_string()); //~ ERROR
+8 +     let _device_id = DeviceId::ne("test-device".to_string()); //~ ERROR
+  |
+
+error[E0599]: no function or associated item named `from_raw` found for struct `DeviceId` in the current scope
+  --> tests/compile_fail/device_id_construction.rs:11:33
    |
-10 |     let _wrapped = DeviceId::new(device_id); //~ ERROR
-   |                    ------------- ^^^^^^^^^- help: try using a conversion method: `.to_string()`
-   |                    |             |
-   |                    |             expected `String`, found `DeviceId`
-   |                    arguments to this function are incorrect
+11 |     let _device_id2 = DeviceId::from_raw("test-device".to_string()); //~ ERROR
+   |                                 ^^^^^^^^ function or associated item not found in `DeviceId`
    |
-note: associated function defined here
-  --> src/domain.rs
+help: there is an associated function `from` with a similar name
    |
-   |     pub fn new(id: String) -> Result<Self, DomainError> {
-   |            ^^^
+11 -     let _device_id2 = DeviceId::from_raw("test-device".to_string()); //~ ERROR
+11 +     let _device_id2 = DeviceId::from("test-device".to_string()); //~ ERROR
+   |

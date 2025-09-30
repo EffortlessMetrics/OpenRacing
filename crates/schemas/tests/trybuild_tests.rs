@@ -15,6 +15,9 @@ fn compile_fail_tests() {
     
     // Test that incorrect DeviceId construction fails to compile
     t.compile_fail("tests/compile_fail/device_id_construction.rs");
+    
+    // Test that DeviceId literal hacks fail to compile
+    t.compile_fail("tests/compile_fail/device_id_literal_hacks.rs");
 }
 
 #[test]

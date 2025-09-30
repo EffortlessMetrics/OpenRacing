@@ -217,33 +217,18 @@ impl std::ops::Sub for Degrees {
     }
 }
 
-/// Device identifier with validation
+/// Device identifier with validation and normalization
+/// 
+/// DeviceId enforces safe construction through validation only.
+/// All construction must go through FromStr or TryFrom to ensure
+/// proper normalization (trim, lowercase) and validation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DeviceId(String);
 
 impl DeviceId {
-    /// Create a new device ID with validation
-    pub fn new(id: String) -> Result<Self, DomainError> {
-        if id.is_empty() {
-            return Err(DomainError::InvalidDeviceId(id));
-        }
-        
-        // Validate that ID contains only alphanumeric characters, hyphens, and underscores
-        if !id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
-            return Err(DomainError::InvalidDeviceId(id));
-        }
-        
-        Ok(DeviceId(id))
-    }
-    
     /// Get the raw string value
     pub fn as_str(&self) -> &str {
         &self.0
-    }
-    
-    /// Create device ID without validation (for testing)
-    pub fn from_raw(id: String) -> Self {
-        DeviceId(id)
     }
 }
 
@@ -253,51 +238,114 @@ impl fmt::Display for DeviceId {
     }
 }
 
+impl AsRef<str> for DeviceId {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::str::FromStr for DeviceId {
+    type Err = DomainError;
+    
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Normalize: trim whitespace and convert to lowercase
+        let normalized = s.trim().to_lowercase();
+        
+        if normalized.is_empty() {
+            return Err(DomainError::InvalidDeviceId(s.to_string()));
+        }
+        
+        // Validate that ID contains only alphanumeric characters, hyphens, and underscores
+        if !normalized.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+            return Err(DomainError::InvalidDeviceId(s.to_string()));
+        }
+        
+        Ok(DeviceId(normalized))
+    }
+}
+
+impl TryFrom<String> for DeviceId {
+    type Error = DomainError;
+    
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
+impl TryFrom<&str> for DeviceId {
+    type Error = DomainError;
+    
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
 impl From<DeviceId> for String {
     fn from(id: DeviceId) -> String {
         id.0
     }
 }
 
-impl From<String> for DeviceId {
-    fn from(id: String) -> Self {
-        DeviceId(id)
-    }
-}
-
-/// Profile identifier with validation
+/// Profile identifier with validation and normalization
+/// 
+/// ProfileId enforces safe construction through validation only.
+/// All construction must go through FromStr or TryFrom to ensure
+/// proper normalization (trim, lowercase) and validation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProfileId(String);
 
 impl ProfileId {
-    /// Create a new profile ID with validation
-    pub fn new(id: String) -> Result<Self, DomainError> {
-        if id.is_empty() {
-            return Err(DomainError::InvalidProfileId(id));
-        }
-        
-        // Validate that ID is a reasonable identifier
-        if !id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '.') {
-            return Err(DomainError::InvalidProfileId(id));
-        }
-        
-        Ok(ProfileId(id))
-    }
-    
     /// Get the raw string value
     pub fn as_str(&self) -> &str {
         &self.0
-    }
-    
-    /// Create profile ID without validation (for testing)
-    pub fn from_raw(id: String) -> Self {
-        ProfileId(id)
     }
 }
 
 impl fmt::Display for ProfileId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<str> for ProfileId {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::str::FromStr for ProfileId {
+    type Err = DomainError;
+    
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Normalize: trim whitespace and convert to lowercase
+        let normalized = s.trim().to_lowercase();
+        
+        if normalized.is_empty() {
+            return Err(DomainError::InvalidProfileId(s.to_string()));
+        }
+        
+        // Validate that ID is a reasonable identifier
+        if !normalized.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '.') {
+            return Err(DomainError::InvalidProfileId(s.to_string()));
+        }
+        
+        Ok(ProfileId(normalized))
+    }
+}
+
+impl TryFrom<String> for ProfileId {
+    type Error = DomainError;
+    
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
+impl TryFrom<&str> for ProfileId {
+    type Error = DomainError;
+    
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        s.parse()
     }
 }
 
@@ -545,27 +593,77 @@ mod tests {
     #[test]
     fn test_device_id_validation() {
         // Valid device IDs
-        assert!(DeviceId::new("device-123".to_string()).is_ok());
-        assert!(DeviceId::new("wheel_base_1".to_string()).is_ok());
-        assert!(DeviceId::new("ABC123".to_string()).is_ok());
+        assert!("device-123".parse::<DeviceId>().is_ok());
+        assert!("wheel_base_1".parse::<DeviceId>().is_ok());
+        assert!("ABC123".parse::<DeviceId>().is_ok());
+        
+        // Test normalization (trim and lowercase)
+        let id = "  Device-123  ".parse::<DeviceId>().unwrap();
+        assert_eq!(id.as_str(), "device-123");
+        
+        let id2 = "WHEEL_BASE_1".parse::<DeviceId>().unwrap();
+        assert_eq!(id2.as_str(), "wheel_base_1");
         
         // Invalid device IDs
-        assert!(DeviceId::new("".to_string()).is_err());
-        assert!(DeviceId::new("device with spaces".to_string()).is_err());
-        assert!(DeviceId::new("device@special".to_string()).is_err());
+        assert!("".parse::<DeviceId>().is_err());
+        assert!("device with spaces".parse::<DeviceId>().is_err());
+        assert!("device@special".parse::<DeviceId>().is_err());
+        assert!("   ".parse::<DeviceId>().is_err()); // Only whitespace
+    }
+
+    #[test]
+    fn test_device_id_try_from() {
+        // Test TryFrom<String>
+        let id = DeviceId::try_from("test-device".to_string()).unwrap();
+        assert_eq!(id.as_str(), "test-device");
+        
+        // Test TryFrom<&str>
+        let id2 = DeviceId::try_from("another-device").unwrap();
+        assert_eq!(id2.as_str(), "another-device");
+        
+        // Test AsRef<str>
+        assert_eq!(id.as_ref(), "test-device");
+        
+        // Test Display
+        assert_eq!(format!("{}", id), "test-device");
     }
 
     #[test]
     fn test_profile_id_validation() {
         // Valid profile IDs
-        assert!(ProfileId::new("global".to_string()).is_ok());
-        assert!(ProfileId::new("iracing.gt3".to_string()).is_ok());
-        assert!(ProfileId::new("profile-123_v2".to_string()).is_ok());
+        assert!("global".parse::<ProfileId>().is_ok());
+        assert!("iracing.gt3".parse::<ProfileId>().is_ok());
+        assert!("profile-123_v2".parse::<ProfileId>().is_ok());
+        
+        // Test normalization (trim and lowercase)
+        let id = "  Global-Profile  ".parse::<ProfileId>().unwrap();
+        assert_eq!(id.as_str(), "global-profile");
+        
+        let id2 = "IRACING.GT3".parse::<ProfileId>().unwrap();
+        assert_eq!(id2.as_str(), "iracing.gt3");
         
         // Invalid profile IDs
-        assert!(ProfileId::new("".to_string()).is_err());
-        assert!(ProfileId::new("profile with spaces".to_string()).is_err());
-        assert!(ProfileId::new("profile@special".to_string()).is_err());
+        assert!("".parse::<ProfileId>().is_err());
+        assert!("profile with spaces".parse::<ProfileId>().is_err());
+        assert!("profile@special".parse::<ProfileId>().is_err());
+        assert!("   ".parse::<ProfileId>().is_err()); // Only whitespace
+    }
+
+    #[test]
+    fn test_profile_id_try_from() {
+        // Test TryFrom<String>
+        let id = ProfileId::try_from("test-profile".to_string()).unwrap();
+        assert_eq!(id.as_str(), "test-profile");
+        
+        // Test TryFrom<&str>
+        let id2 = ProfileId::try_from("another.profile").unwrap();
+        assert_eq!(id2.as_str(), "another.profile");
+        
+        // Test AsRef<str>
+        assert_eq!(id.as_ref(), "test-profile");
+        
+        // Test Display
+        assert_eq!(format!("{}", id), "test-profile");
     }
 
     #[test]

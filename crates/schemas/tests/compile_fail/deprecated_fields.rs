@@ -1,7 +1,7 @@
 // This test ensures that deprecated field names fail to compile
 // preventing accidental usage of old schema field names
 
-use racing_wheel_schemas::telemetry::TelemetryData;
+use racing_wheel_schemas::prelude::*;
 
 fn main() {
     let telemetry = TelemetryData::default();

@@ -1,11 +1,12 @@
 // This test ensures that DeviceId construction is used correctly
-// preventing double-wrapping and type mismatches
+// preventing infallible construction that bypasses validation
 
-use racing_wheel_schemas::device::DeviceId;
+use racing_wheel_schemas::prelude::DeviceId;
 
 fn main() {
-    let device_id = DeviceId::new("test-device".to_string()).unwrap();
+    // This should fail to compile - no infallible constructor
+    let _device_id = DeviceId::new("test-device".to_string()); //~ ERROR
     
-    // This should fail to compile - double wrapping DeviceId
-    let _wrapped = DeviceId::new(device_id); //~ ERROR
+    // This should also fail - no from_raw method
+    let _device_id2 = DeviceId::from_raw("test-device".to_string()); //~ ERROR
 }

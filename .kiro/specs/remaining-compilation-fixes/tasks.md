@@ -38,7 +38,12 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** cargo tree --duplicates → 0 dupes; cargo hakari generate no diff; cargo +nightly -Z minimal-versions build passes; codegen deterministic
   - _Requirements: DEP-01, DEP-02, REG-02_
 
-- [ ] 2. Restructure schemas crate with proper API boundaries
+- [x] 2. Restructure schemas crate with proper API boundaries
+
+
+
+
+
   - Remove root `pub use prelude::*` re-export from racing-wheel-schemas/lib.rs
   - Force explicit prelude usage: consumers must use `racing_wheel_schemas::prelude::*`
   - Separate domain types from wire types (keep prost types in racing-wheel-ipc only)
@@ -49,7 +54,10 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** No pub use prelude::* at root; DeviceId construction is fallible only; trybuild rejects literal hacks; normalization implemented
   - _Requirements: API-01, API-04, CLI-02_
 
-- [ ] 3. Update FilterConfig with stable 1kHz-safe defaults
+
+- [-] 3. Update FilterConfig with stable 1kHz-safe defaults
+
+
   - Implement FilterConfig::default() with stable values (reconstruction=0, friction=0, damper=0, inertia=0, slew_rate=1.0)
   - Set explicit torque_cap default to Some(TorqueNm(10.0)) for test predictability
   - Add empty Vec::new() for notch_filters default

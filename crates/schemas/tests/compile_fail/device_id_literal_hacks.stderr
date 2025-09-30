@@ -1,0 +1,23 @@
+error[E0423]: cannot initialize a tuple struct which contains private fields
+ --> tests/compile_fail/device_id_literal_hacks.rs:8:23
+  |
+8 |     let _device_id1 = DeviceId("literal-string".to_string()); //~ ERROR
+  |                       ^^^^^^^^
+  |
+note: constructor is not visible here due to private fields
+ --> src/domain.rs
+  |
+  | pub struct DeviceId(String);
+  |                     ^^^^^^ private field
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+ --> tests/compile_fail/device_id_literal_hacks.rs:9:23
+  |
+9 |     let _device_id2 = DeviceId("another-literal"); //~ ERROR
+  |                       ^^^^^^^^
+  |
+note: constructor is not visible here due to private fields
+ --> src/domain.rs
+  |
+  | pub struct DeviceId(String);
+  |                     ^^^^^^ private field

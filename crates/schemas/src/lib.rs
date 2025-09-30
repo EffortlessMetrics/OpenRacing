@@ -26,19 +26,35 @@ mod validation_tests;
 //     include!("generated/wheel.v1.rs");
 // }
 
-// Re-export commonly used types
-pub use domain::{
-    DeviceId, ProfileId, TorqueNm, Degrees, Gain, FrequencyHz, CurvePoint,
-    DomainError, validate_curve_monotonic,
-};
+/// Public prelude module for explicit imports
+/// 
+/// Consumers must use `racing_wheel_schemas::prelude::*` explicitly
+/// to import commonly used types.
+pub mod prelude {
+    // Domain types
+    pub use crate::domain::{
+        DeviceId, ProfileId, TorqueNm, Degrees, Gain, FrequencyHz, CurvePoint,
+        DomainError, validate_curve_monotonic,
+    };
 
-pub use entities::{
-    Device, DeviceCapabilities, DeviceState, DeviceType,
-    Profile, ProfileScope, ProfileMetadata,
-    BaseSettings, FilterConfig, NotchFilter,
-    LedConfig, HapticsConfig,
-    CalibrationData, PedalCalibrationData, CalibrationType,
-};
+    // Entity types
+    pub use crate::entities::{
+        Device, DeviceCapabilities, DeviceState, DeviceType,
+        Profile, ProfileScope, ProfileMetadata,
+        BaseSettings, FilterConfig, NotchFilter,
+        LedConfig, HapticsConfig,
+        CalibrationData, PedalCalibrationData, CalibrationType,
+    };
+
+    // Telemetry types
+    pub use crate::telemetry::TelemetryData;
+
+    // Configuration types
+    pub use crate::config::{
+        ProfileSchema, ProfileValidator, ProfileMigrator,
+        BumpstopConfig, HandsOffConfig,
+    };
+}
 
 pub mod profile {
     //! Profile types for JSON serialization
@@ -83,7 +99,7 @@ pub mod config {
     //! Configuration schema types and validation
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
-    use jsonschema::JSONSchema;
+    use jsonschema::Validator;
     use thiserror::Error;
 
 
@@ -199,17 +215,22 @@ pub mod config {
     }
     
     impl Default for FilterConfig {
+        /// Create FilterConfig with stable 1kHz-safe defaults
+        /// 
+        /// These defaults are designed to be stable at 1kHz update rates
+        /// with no oscillation or instability.
         fn default() -> Self {
             Self {
-                reconstruction: 4,
-                friction: 0.12,
-                damper: 0.18,
-                inertia: 0.08,
+                // Stable values - no reconstruction filtering
+                reconstruction: 0,
+                friction: 0.0,
+                damper: 0.0,
+                inertia: 0.0,
                 bumpstop: BumpstopConfig::default(),
                 hands_off: HandsOffConfig::default(),
-                torque_cap: Some(10.0),
-                notch_filters: vec![],
-                slew_rate: 0.85,
+                torque_cap: Some(10.0), // Explicit for test predictability
+                notch_filters: Vec::new(),
+                slew_rate: 1.0, // No slew rate limiting
                 curve_points: vec![
                     CurvePoint { input: 0.0, output: 0.0 },
                     CurvePoint { input: 1.0, output: 1.0 },
@@ -252,7 +273,7 @@ pub mod config {
 
     /// Profile validator with JSON Schema support
     pub struct ProfileValidator {
-        schema: JSONSchema,
+        schema: Validator,
     }
 
     impl ProfileValidator {
@@ -261,7 +282,7 @@ pub mod config {
             let schema_json = include_str!("../schemas/profile.schema.json");
             let schema_value: Value = serde_json::from_str(schema_json)?;
             
-            let schema = JSONSchema::compile(&schema_value)
+            let schema = Validator::new(&schema_value)
                 .map_err(|e| SchemaError::SchemaCompilationError(e.to_string()))?;
             
             Ok(Self { schema })
@@ -273,19 +294,11 @@ pub mod config {
             let value: Value = serde_json::from_str(json)?;
             
             // Validate against schema
-            if let Err(errors) = self.schema.validate(&value) {
-                let schema_errors: Vec<SchemaError> = errors
-                    .map(|error| SchemaError::ValidationError {
-                        path: error.instance_path.to_string(),
-                        message: error.to_string(),
-                    })
-                    .collect();
-                
-                if schema_errors.len() == 1 {
-                    return Err(schema_errors.into_iter().next().unwrap());
-                } else {
-                    return Err(SchemaError::MultipleValidationErrors(schema_errors));
-                }
+            if let Err(error) = self.schema.validate(&value) {
+                return Err(SchemaError::ValidationError {
+                    path: "root".to_string(),
+                    message: error.to_string(),
+                });
             }
             
             // Deserialize to typed structure

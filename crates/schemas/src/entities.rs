@@ -414,19 +414,24 @@ impl Default for HandsOffConfig {
 }
 
 impl Default for FilterConfig {
+    /// Create FilterConfig with stable 1kHz-safe defaults
+    /// 
+    /// These defaults are designed to be stable at 1kHz update rates
+    /// with no oscillation or instability.
     fn default() -> Self {
         Self {
-            reconstruction: 4,
-            friction: Gain::new(0.1).unwrap(),
-            damper: Gain::new(0.15).unwrap(),
-            inertia: Gain::new(0.05).unwrap(),
-            notch_filters: vec![],
-            slew_rate: Gain::new(0.8).unwrap(),
+            // Stable values - no reconstruction filtering
+            reconstruction: 0,
+            friction: Gain::from_raw(0.0),
+            damper: Gain::from_raw(0.0),
+            inertia: Gain::from_raw(0.0),
+            notch_filters: Vec::new(),
+            slew_rate: Gain::from_raw(1.0), // No slew rate limiting
             curve_points: vec![
                 CurvePoint::new(0.0, 0.0).unwrap(),
                 CurvePoint::new(1.0, 1.0).unwrap(),
             ],
-            torque_cap: Gain::new(1.0).unwrap(),
+            torque_cap: Gain::from_raw(1.0), // No torque cap by default
             bumpstop: BumpstopConfig::default(),
             hands_off: HandsOffConfig::default(),
         }
@@ -505,20 +510,21 @@ impl FilterConfig {
         })
     }
     
-    /// Create default filter configuration
+    /// Create default filter configuration with stable 1kHz-safe values
     pub fn default() -> Self {
         Self {
-            reconstruction: 4,
-            friction: Gain::from_raw(0.1),
-            damper: Gain::from_raw(0.15),
-            inertia: Gain::from_raw(0.05),
+            // Stable values - no reconstruction filtering
+            reconstruction: 0,
+            friction: Gain::from_raw(0.0),
+            damper: Gain::from_raw(0.0),
+            inertia: Gain::from_raw(0.0),
             notch_filters: Vec::new(),
-            slew_rate: Gain::from_raw(0.8),
+            slew_rate: Gain::from_raw(1.0), // No slew rate limiting
             curve_points: vec![
                 CurvePoint::new(0.0, 0.0).unwrap(),
                 CurvePoint::new(1.0, 1.0).unwrap(),
             ],
-            torque_cap: Gain::from_raw(1.0), // No cap by default
+            torque_cap: Gain::from_raw(1.0), // No torque cap by default
             bumpstop: BumpstopConfig::default(),
             hands_off: HandsOffConfig::default(),
         }
@@ -876,7 +882,7 @@ impl Profile {
     
     /// Create a global default profile
     pub fn default_global() -> Result<Self, DomainError> {
-        let id = ProfileId::new("global".to_string())?;
+        let id: ProfileId = "global".parse()?;
         Ok(Self::new(
             id,
             ProfileScope::global(),
@@ -971,7 +977,7 @@ mod tests {
 
     #[test]
     fn test_device_creation() {
-        let id = DeviceId::new("test-device".to_string()).unwrap();
+        let id: DeviceId = "test-device".parse().unwrap();
         let caps = DeviceCapabilities::new(
             false,
             true,
@@ -998,7 +1004,7 @@ mod tests {
 
     #[test]
     fn test_device_fault_handling() {
-        let id = DeviceId::new("test-device".to_string()).unwrap();
+        let id: DeviceId = "test-device".parse().unwrap();
         let caps = DeviceCapabilities::new(
             false,
             true,
@@ -1107,7 +1113,7 @@ mod tests {
 
     #[test]
     fn test_profile_creation() {
-        let id = ProfileId::new("test-profile".to_string()).unwrap();
+        let id: ProfileId = "test-profile".parse().unwrap();
         let scope = ProfileScope::for_game("iracing".to_string());
         let base_settings = BaseSettings::default();
         
@@ -1126,7 +1132,7 @@ mod tests {
 
     #[test]
     fn test_profile_hash_deterministic() {
-        let id = ProfileId::new("test-profile".to_string()).unwrap();
+        let id: ProfileId = "test-profile".parse().unwrap();
         let scope = ProfileScope::for_game("iracing".to_string());
         let base_settings = BaseSettings::default();
         

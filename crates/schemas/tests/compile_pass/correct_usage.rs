@@ -1,10 +1,6 @@
 // This test ensures that correct schema usage compiles successfully
 
-use racing_wheel_schemas::{
-    telemetry::TelemetryData,
-    config::FilterConfig,
-    device::DeviceId,
-};
+use racing_wheel_schemas::prelude::*;
 
 fn main() {
     // Correct TelemetryData usage with new field names
@@ -20,10 +16,13 @@ fn main() {
     // Correct FilterConfig usage with all required fields
     let config = FilterConfig::default();
     
-    // Correct DeviceId usage
-    let device_id = DeviceId::new("test-device".to_string()).unwrap();
+    // Correct DeviceId usage - must use fallible construction
+    let device_id: DeviceId = "test-device".parse().unwrap();
+    let device_id2 = DeviceId::try_from("another-device".to_string()).unwrap();
     
     println!("All schema usage is correct!");
     println!("Telemetry angle: {}", telemetry.wheel_angle_deg);
     println!("Config reconstruction: {}", config.reconstruction);
+    println!("Device ID: {}", device_id);
+    println!("Device ID 2: {}", device_id2.as_ref());
 }

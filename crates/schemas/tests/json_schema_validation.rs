@@ -4,7 +4,7 @@
 //! works correctly with proper validation of required fields.
 
 use serde_json::{json, Value};
-use jsonschema::{JSONSchema, ValidationError};
+use jsonschema::{Validator, ValidationError};
 use racing_wheel_schemas::config::{Profile, ProfileScope, BaseConfig, FilterConfig};
 
 #[test]
@@ -16,7 +16,7 @@ fn test_profile_schema_validation() {
     let schema: Value = serde_json::from_str(&schema_content)
         .expect("Failed to parse schema JSON");
     
-    let compiled_schema = JSONSchema::compile(&schema)
+    let compiled_schema = Validator::new(&schema)
         .expect("Failed to compile JSON schema");
     
     // Test valid profile
@@ -60,7 +60,7 @@ fn test_profile_schema_required_fields() {
     let schema: Value = serde_json::from_str(&schema_content)
         .expect("Failed to parse schema JSON");
     
-    let compiled_schema = JSONSchema::compile(&schema)
+    let compiled_schema = Validator::new(&schema)
         .expect("Failed to compile JSON schema");
     
     // Test profile missing required schema field
@@ -149,7 +149,7 @@ fn test_profile_round_trip_serialization() {
     let schema: Value = serde_json::from_str(&schema_content)
         .expect("Failed to parse schema JSON");
     
-    let compiled_schema = JSONSchema::compile(&schema)
+    let compiled_schema = Validator::new(&schema)
         .expect("Failed to compile JSON schema");
     
     let validation_result = compiled_schema.validate(&json_value);
