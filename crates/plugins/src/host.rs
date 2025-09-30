@@ -224,6 +224,9 @@ impl PluginHost {
         let start_time = Instant::now();
         let mut success = false;
         
+        // Store budget before moving context
+        let budget_us = context.budget_us;
+        
         // Execute plugin
         let result = {
             let registry = self.registry.read().await;
@@ -260,7 +263,7 @@ impl PluginHost {
                 success = true;
                 
                 // Check for budget violation
-                if execution_time.as_micros() > context.budget_us as u128 {
+                if execution_time.as_micros() > budget_us as u128 {
                     let mut quarantine = self.quarantine_manager.write().await;
                     quarantine
                         .record_violation(
@@ -269,7 +272,7 @@ impl PluginHost {
                             format!(
                                 "Execution took {}μs, budget was {}μs",
                                 execution_time.as_micros(),
-                                context.budget_us
+                                budget_us
                             ),
                         )
                         .unwrap_or_else(|e| {
@@ -317,7 +320,7 @@ impl PluginHost {
                     entry.stats.crashes += 1;
                 }
                 
-                if execution_time.as_micros() > context.budget_us as u128 {
+                if execution_time.as_micros() > budget_us as u128 {
                     entry.stats.budget_violations += 1;
                 }
             }

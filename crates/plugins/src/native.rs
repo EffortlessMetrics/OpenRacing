@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crossbeam::channel::{bounded, Receiver, Sender};
@@ -288,11 +288,15 @@ impl Plugin for NativePlugin {
 pub struct NativePluginHelper {
     plugin_id: uuid::Uuid,
     process: Child,
-    shared_memory: Shmem,
+    shared_memory: Arc<Mutex<Shmem>>, // Wrap in Arc<Mutex<>> for Send/Sync
     frame_sender: Sender<PluginFrame>,
     result_receiver: Receiver<PluginFrame>,
     budget_us: u32,
 }
+
+// Manually implement Send and Sync since we're using Arc<Mutex<>>
+unsafe impl Send for NativePluginHelper {}
+unsafe impl Sync for NativePluginHelper {}
 
 impl NativePluginHelper {
     /// Create a new helper process
@@ -317,12 +321,15 @@ impl NativePluginHelper {
             (*header).shutdown_flag.store(false, Ordering::Relaxed);
         }
         
+        let shmem_os_id = shared_memory.get_os_id().to_string();
+        let shared_memory = Arc::new(Mutex::new(shared_memory));
+        
         // Start helper process
         let process = Command::new("wheel-plugin-helper")
             .arg("--plugin-id")
             .arg(plugin_id.to_string())
             .arg("--shmem-id")
-            .arg(shared_memory.get_os_id())
+            .arg(shmem_os_id)
             .arg("--budget-us")
             .arg(budget_us.to_string())
             .spawn()
@@ -361,7 +368,8 @@ impl NativePluginHelper {
     pub async fn shutdown(&mut self) -> PluginResult<()> {
         // Set shutdown flag
         unsafe {
-            let header = self.shared_memory.as_ptr() as *mut SharedMemoryHeader;
+            let shared_memory = self.shared_memory.lock().unwrap();
+            let header = shared_memory.as_ptr() as *mut SharedMemoryHeader;
             (*header).shutdown_flag.store(true, Ordering::Relaxed);
         }
         
@@ -373,7 +381,8 @@ impl NativePluginHelper {
     
     fn write_frame_to_shared_memory(&self, frame: PluginFrame) -> PluginResult<()> {
         unsafe {
-            let header = self.shared_memory.as_ptr() as *mut SharedMemoryHeader;
+            let shared_memory = self.shared_memory.lock().unwrap();
+            let header = shared_memory.as_ptr() as *mut SharedMemoryHeader;
             let frames_ptr = (header as *mut u8).add(std::mem::size_of::<SharedMemoryHeader>()) as *mut PluginFrame;
             
             let producer_seq = (*header).producer_seq.load(Ordering::Acquire);
@@ -397,7 +406,8 @@ impl NativePluginHelper {
     
     fn read_frame_from_shared_memory(&self) -> PluginResult<PluginFrame> {
         unsafe {
-            let header = self.shared_memory.as_ptr() as *mut SharedMemoryHeader;
+            let shared_memory = self.shared_memory.lock().unwrap();
+            let header = shared_memory.as_ptr() as *mut SharedMemoryHeader;
             let frames_ptr = (header as *mut u8).add(std::mem::size_of::<SharedMemoryHeader>()) as *mut PluginFrame;
             
             let producer_seq = (*header).producer_seq.load(Ordering::Acquire);

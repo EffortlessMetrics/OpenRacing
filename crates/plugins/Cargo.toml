@@ -64,3 +64,4 @@ path = "src/bin/helper.rs"
 [features]
 default = []
 wasm-component-model = ["wasmtime/component-model"]
+sample-plugins = []

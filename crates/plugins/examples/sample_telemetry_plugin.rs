@@ -48,3 +48,8 @@ impl WasmPlugin for SampleTelemetryPlugin {
 
 // Export the plugin for WASM
 racing_wheel_plugins::export_wasm_plugin!(SampleTelemetryPlugin);
+
+fn main() {
+    println!("Sample telemetry plugin compiled successfully!");
+    println!("This is a demonstration that the plugin system can compile sample plugins.");
+}

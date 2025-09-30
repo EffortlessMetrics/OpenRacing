@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::time::{Duration, Instant};
 
 use clap::Parser;
-use shared_memory::Shmem;
+use shared_memory::{Shmem, ShmemConf};
 use uuid::Uuid;
 
 use racing_wheel_plugins::native::{PluginFrame, SharedMemoryHeader};
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     
     // Open shared memory
-    let shared_memory = Shmem::open(&args.shmem_id)?;
+    let shared_memory = ShmemConf::new().os_id(&args.shmem_id).open()?;
     
     // Main processing loop
     let mut frame_count = 0u64;
@@ -162,7 +162,7 @@ fn process_frame(frame: &mut PluginFrame, budget_us: u32) -> Result<(), Box<dyn 
     frame.torque_out = frame.ffb_in * 0.95; // Slight attenuation
     
     // Simulate some processing time
-    let target_time = Duration::from_micros(budget_us / 4); // Use 1/4 of budget
+    let target_time = Duration::from_micros((budget_us / 4) as u64); // Use 1/4 of budget
     while start_time.elapsed() < target_time {
         // Busy wait to simulate processing
         std::hint::spin_loop();

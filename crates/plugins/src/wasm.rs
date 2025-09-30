@@ -53,7 +53,7 @@ impl WasmPlugin {
         let capability_enforcer = WasmCapabilityEnforcer::new(manifest.capabilities.clone());
         
         // Create WASI context with restricted capabilities
-        let wasi = capability_enforcer.create_wasi_context().build();
+        let wasi = capability_enforcer.create_wasi_context()?.build();
         
         let state = WasmPluginState {
             wasi,
@@ -174,7 +174,7 @@ impl WasmPlugin {
     }
     
     /// Execute plugin function with timeout and fuel limits
-    async fn execute_with_limits<T>(
+    async fn execute_with_limits(
         &mut self,
         func_name: &str,
         _args: &[Val],
@@ -239,9 +239,9 @@ impl Plugin for WasmPlugin {
         self.store.data_mut().plugin_data.insert("config".to_string(), config_bytes);
         
         // Call initialization function if present
-        if let Some(init_func) = &self.manifest.entry_points.init_function {
+        if let Some(init_func) = self.manifest.entry_points.init_function.clone() {
             let _result: Vec<wasmtime::Val> = self.execute_with_limits(
-                init_func,
+                &init_func,
                 &[],
                 Duration::from_millis(5000), // 5 second timeout for init
             )
@@ -267,7 +267,8 @@ impl Plugin for WasmPlugin {
         
         // Execute main function
         let timeout = Duration::from_micros(context.budget_us as u64);
-        self.execute_with_limits(&self.manifest.entry_points.main_function, &[], timeout)
+        let main_function = self.manifest.entry_points.main_function.clone();
+        let _result: Vec<wasmtime::Val> = self.execute_with_limits(&main_function, &[], timeout)
             .await?;
         
         // Get output from plugin data (simplified - real implementation would use proper WASM memory interface)
@@ -304,7 +305,8 @@ impl Plugin for WasmPlugin {
         
         // Execute LED mapping function
         let timeout = Duration::from_micros(context.budget_us as u64);
-        self.execute_with_limits(&self.manifest.entry_points.main_function, &[], timeout)
+        let main_function = self.manifest.entry_points.main_function.clone();
+        let _result: Vec<wasmtime::Val> = self.execute_with_limits(&main_function, &[], timeout)
             .await?;
         
         // Return default LED output (simplified)
@@ -329,9 +331,9 @@ impl Plugin for WasmPlugin {
     
     async fn shutdown(&mut self) -> PluginResult<()> {
         // Call cleanup function if present
-        if let Some(cleanup_func) = &self.manifest.entry_points.cleanup_function {
+        if let Some(cleanup_func) = self.manifest.entry_points.cleanup_function.clone() {
             let _result: Vec<wasmtime::Val> = self.execute_with_limits(
-                cleanup_func,
+                &cleanup_func,
                 &[],
                 Duration::from_millis(1000), // 1 second timeout for cleanup
             )

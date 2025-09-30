@@ -76,3 +76,73 @@ pub struct SdkDspInput {
     /// Time delta since last sample (seconds)
     pub dt: f32,
 }
+
+/// Plugin execution context
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SdkContext {
+    /// Plugin execution budget in microseconds
+    pub budget_us: u32,
+    /// Update rate in Hz
+    pub update_rate_hz: u32,
+    /// Frame number
+    pub frame_number: u64,
+}
+
+/// Plugin output types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SdkOutput {
+    /// Telemetry processing output
+    Telemetry {
+        telemetry: SdkTelemetry,
+        custom_data: serde_json::Value,
+    },
+    /// LED mapping output
+    Led {
+        led_pattern: Vec<SdkLedColor>,
+        brightness: f32,
+        duration_ms: u32,
+    },
+    /// DSP filter output
+    Dsp {
+        ffb_output: f32,
+        filter_state: serde_json::Value,
+    },
+}
+
+/// SDK error types
+#[derive(Debug, thiserror::Error)]
+pub enum SdkError {
+    #[error("Capability required: {0}")]
+    CapabilityRequired(String),
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
+    #[error("Processing error: {0}")]
+    ProcessingError(String),
+}
+
+/// SDK result type
+pub type SdkResult<T> = Result<T, SdkError>;
+
+/// WASM plugin trait
+pub trait WasmPlugin {
+    /// Initialize the plugin with configuration
+    fn initialize(&mut self, config: serde_json::Value) -> SdkResult<()>;
+    
+    /// Process telemetry data
+    fn process_telemetry(&mut self, input: SdkTelemetry, context: SdkContext) -> SdkResult<SdkOutput>;
+    
+    /// Process LED mapping
+    fn process_led_mapping(&mut self, input: SdkLedInput, context: SdkContext) -> SdkResult<SdkOutput>;
+    
+    /// Shutdown the plugin
+    fn shutdown(&mut self) -> SdkResult<()>;
+}
+
+/// Macro to export a WASM plugin (placeholder implementation)
+#[macro_export]
+macro_rules! export_wasm_plugin {
+    ($plugin_type:ty) => {
+        // This would contain the actual WASM export logic
+        // For now, it's just a placeholder to make the sample compile
+    };
+}

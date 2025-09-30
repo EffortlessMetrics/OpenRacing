@@ -81,7 +81,7 @@ pub trait HidPort: Send + Sync {
 }
 
 /// Telemetry data from racing games
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NormalizedTelemetry {
     /// Force feedback scalar from game (-1.0 to 1.0)
     pub ffb_scalar: f32,
@@ -108,6 +108,7 @@ pub struct NormalizedTelemetry {
     pub track_id: Option<String>,
     
     /// Timestamp when telemetry was captured
+    #[serde(skip, default = "std::time::Instant::now")]
     pub timestamp: std::time::Instant,
 }
 

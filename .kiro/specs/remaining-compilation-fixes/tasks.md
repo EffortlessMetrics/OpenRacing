@@ -148,6 +148,7 @@ The plan follows a specific execution order: establish workspace governance firs
 
 
 
+
   - Define PLUG_ABI_VERSION constant and PLUG_ABI_MAGIC for handshake
   - Create capability bitflags (TELEMETRY, LEDS, HAPTICS) with reserved bits
   - Implement #[repr(C)] PluginHeader with magic, version, caps, and padding
@@ -159,7 +160,12 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** Size/align asserts pass; byte-exact header test passes; endianness documented; ABI versioned
   - _Requirements: PLUG-ABI-01, PLUG-02, PLUG-03_
 
-- [ ] 10. Fix racing-wheel-plugins compilation with stable ABI
+- [x] 10. Fix racing-wheel-plugins compilation with stable ABI
+
+
+
+
+
   - Update WASM host to use declared capability manifest types from schemas
   - Fix native helper IPC/shared memory types to match host crate representations
   - Ensure plugin system compiles with feature flags for WASM and native helpers
@@ -168,7 +174,10 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** Plugins crate compiles; WASM host works; native helper types match; sample plugin compiles
   - _Requirements: PLUG-01, PLUG-04_
 
-- [ ] 11. Resolve integration test compilation with public API enforcement
+- [-] 11. Resolve integration test compilation with public API enforcement
+
+
+
   - Fix racing-wheel-integration-tests dependency resolution and missing imports
   - Update test fixtures to use new schema field names (no deprecated tokens)
   - Ensure integration tests only import from public APIs (no private module access)
