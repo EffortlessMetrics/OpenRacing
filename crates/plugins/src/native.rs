@@ -10,7 +10,7 @@ use crossbeam::channel::{bounded, Receiver, Sender};
 use libloading::{Library, Symbol};
 use shared_memory::{Shmem, ShmemConf};
 use tokio::process::{Child, Command};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
 use crate::capability::CapabilityChecker;
 use crate::manifest::{PluginManifest, PluginOperation};

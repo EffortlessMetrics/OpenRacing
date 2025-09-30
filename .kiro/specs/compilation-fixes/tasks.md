@@ -18,7 +18,10 @@ This implementation plan converts the compilation error fixes into a series of d
   - **DoD:** cargo check shows no duplicate symbols; only one public FFBMode; no glob exports; prelude compiles
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 2. Add missing standard library imports with atomic preferences
+- [-] 2. Add missing standard library imports with atomic preferences
+
+
+
   - Add std::sync::atomic::{AtomicBool, Ordering} for boolean flags in test modules
   - Use std::sync::{Arc, Mutex} only when multi-field mutation is needed
   - Add std::time::Duration import to metrics.rs and other test modules as needed

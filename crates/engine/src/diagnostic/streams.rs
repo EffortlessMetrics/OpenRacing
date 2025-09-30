@@ -5,7 +5,7 @@
 //! - Stream B: 60Hz telemetry
 //! - Stream C: Health/fault events
 
-use super::HealthEvent;
+use super::{HealthEvent, HealthEventType};
 use crate::rt::Frame;
 use crate::safety::SafetyState;
 use crate::ports::NormalizedTelemetry;
@@ -484,7 +484,7 @@ mod tests {
         let event = HealthEvent {
             timestamp: SystemTime::now(),
             device_id,
-            event_type: super::HealthEventType::DeviceConnected,
+            event_type: HealthEventType::DeviceConnected,
             context: serde_json::json!({"test": true}),
         };
         

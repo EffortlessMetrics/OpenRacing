@@ -3,6 +3,8 @@
 #[cfg(test)]
 mod tests {
     use crate::tracing::*;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::time::Duration;
 
     #[test]
     fn test_tracing_manager_creation() {

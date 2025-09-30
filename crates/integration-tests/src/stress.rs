@@ -1,5 +1,7 @@
 //! Stress testing module for hot-plug and system resilience testing
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use anyhow::Result;
 use tokio::time::timeout;

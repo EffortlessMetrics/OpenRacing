@@ -4,15 +4,14 @@
 //! - DIAG-04: Self-test and metrics validation
 //! - NFR-02: CPU/RAM performance requirements
 
-use std::time::{Duration, Instant};
-use tokio_stream::StreamExt;
-
 use crate::metrics::*;
 
 /// Test suite for metrics validation and alerting thresholds
 #[cfg(test)]
 mod metrics_validation_tests {
     use super::*;
+    use std::time::{Duration, Instant};
+    use tokio_stream::StreamExt;
 
     /// Test RT performance metrics validation against NFR-01 requirements
     #[test]
