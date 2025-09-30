@@ -4,13 +4,13 @@
 //! works correctly with proper validation of required fields.
 
 use serde_json::{json, Value};
-use jsonschema::{Validator, ValidationError};
+use jsonschema::Validator;
 use racing_wheel_schemas::config::{Profile, ProfileScope, BaseConfig, FilterConfig};
 
 #[test]
 fn test_profile_schema_validation() {
     // Load the JSON schema
-    let schema_path = "schemas/profile.schema.json";
+    let schema_path = "crates/schemas/schemas/profile.schema.json";
     let schema_content = std::fs::read_to_string(schema_path)
         .expect("Failed to read profile schema");
     let schema: Value = serde_json::from_str(&schema_content)
@@ -54,7 +54,7 @@ fn test_profile_schema_validation() {
 #[test]
 fn test_profile_schema_required_fields() {
     // Load the JSON schema
-    let schema_path = "schemas/profile.schema.json";
+    let schema_path = "crates/schemas/schemas/profile.schema.json";
     let schema_content = std::fs::read_to_string(schema_path)
         .expect("Failed to read profile schema");
     let schema: Value = serde_json::from_str(&schema_content)
@@ -93,17 +93,12 @@ fn test_profile_schema_required_fields() {
     let validation_result = compiled_schema.validate(&invalid_profile);
     assert!(validation_result.is_err(), "Profile missing required 'schema' field should fail validation");
     
-    let errors: Vec<ValidationError> = validation_result.unwrap_err().collect();
-    assert!(!errors.is_empty(), "Should have validation errors");
-    
-    // Check that the error mentions the missing required field
-    let error_messages: Vec<String> = errors.iter()
-        .map(|e| e.to_string())
-        .collect();
+    let error = validation_result.unwrap_err();
+    let error_message = error.to_string();
     assert!(
-        error_messages.iter().any(|msg| msg.contains("schema") || msg.contains("required")),
-        "Error should mention missing required 'schema' field. Errors: {:?}",
-        error_messages
+        error_message.contains("schema") || error_message.contains("required"),
+        "Error should mention missing required 'schema' field. Error: {}",
+        error_message
     );
 }
 
@@ -143,7 +138,7 @@ fn test_profile_round_trip_serialization() {
     assert_eq!(profile.base.filters.reconstruction, deserialized_profile.base.filters.reconstruction);
     
     // Validate against schema
-    let schema_path = "schemas/profile.schema.json";
+    let schema_path = "crates/schemas/schemas/profile.schema.json";
     let schema_content = std::fs::read_to_string(schema_path)
         .expect("Failed to read profile schema");
     let schema: Value = serde_json::from_str(&schema_content)
@@ -153,9 +148,8 @@ fn test_profile_round_trip_serialization() {
         .expect("Failed to compile JSON schema");
     
     let validation_result = compiled_schema.validate(&json_value);
-    if let Err(errors) = validation_result {
-        let error_messages: Vec<String> = errors.map(|e| e.to_string()).collect();
-        panic!("Round-trip serialized profile should pass schema validation. Errors: {:?}\nJSON: {}", error_messages, serde_json::to_string_pretty(&json_value).unwrap());
+    if let Err(error) = validation_result {
+        panic!("Round-trip serialized profile should pass schema validation. Error: {}\nJSON: {}", error, serde_json::to_string_pretty(&json_value).unwrap());
     }
 }
 
