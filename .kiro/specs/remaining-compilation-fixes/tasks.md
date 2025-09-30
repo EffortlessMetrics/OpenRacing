@@ -20,7 +20,10 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** Baseline written with quantified error counts; repeated run is deterministic; error categories identified
   - _Requirements: All (baseline for tracking)_
 
-- [ ] 1. Establish workspace dependency governance and toolchain pinning
+- [-] 1. Establish workspace dependency governance and toolchain pinning
+
+
+
   - Pin rust-toolchain.toml to MSRV 1.76 with required components (rustfmt, clippy)
   - Move all shared dependencies to [workspace.dependencies] in root Cargo.toml
   - Pin critical async/serialization crates: tokio 1.39, tonic 0.12, prost 0.13, async-trait 0.1

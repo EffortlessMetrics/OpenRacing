@@ -1,7 +1,7 @@
 # Rustfmt configuration for consistent code formatting
 
 # Edition to use for formatting
-edition = "2021"
+edition = "2024"
 
 # Maximum width of each line
 max_width = 100

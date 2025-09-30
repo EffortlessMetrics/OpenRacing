@@ -1,0 +1,13 @@
+resolver = "2"
+
+[hakari]
+hakari-package = "workspace-hack"
+
+# Platforms to generate the workspace-hack for
+platforms = [
+    "x86_64-pc-windows-msvc",
+    "x86_64-unknown-linux-gnu",
+]
+
+# Exclude test-only dependencies from the workspace-hack
+exclude-dev-deps = true

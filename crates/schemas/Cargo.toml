@@ -13,13 +13,13 @@ tonic = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+async-trait = { workspace = true }
+jsonschema = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
-jsonschema = "0.17"
-async-trait = "0.1"
 
 [build-dependencies]
-prost-build = "0.12"
-tonic-build = "0.10"
+prost-build = "0.13"
+tonic-build = "0.12"
 
 [dev-dependencies]
 trybuild = "1.0"

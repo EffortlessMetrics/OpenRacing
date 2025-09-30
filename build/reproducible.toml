@@ -4,7 +4,7 @@
 [build]
 # Rust toolchain version (pinned for reproducibility)
 rust_version = "1.75.0"
-rust_edition = "2021"
+rust_edition = "2024"
 
 # Target platforms for reproducible builds
 targets = [

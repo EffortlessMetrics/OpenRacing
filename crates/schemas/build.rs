@@ -34,14 +34,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn compile_protos(proto_dir: &std::path::Path, proto_files: &[PathBuf]) -> Result<(), Box<dyn std::error::Error>> {
-    // Configure protobuf compilation
-    let config = prost_build::Config::new();
+    // Configure protobuf compilation for deterministic output
+    let mut config = prost_build::Config::new();
     
-    // Configure tonic for gRPC service generation
+    // Ensure deterministic output by setting consistent options
+    config.btree_map(&["."]);  // Use BTreeMap for deterministic field ordering
+    config.bytes(&["."]);      // Use bytes for binary data
+    
+    // Configure tonic for gRPC service generation with deterministic settings
     tonic_build::configure()
         .build_server(true)
         .build_client(true)
-        .compile_with_config(config, proto_files, &[proto_dir])?;
+        .out_dir("src/generated")  // Consistent output directory
+        .compile_protos_with_config(config, proto_files, &[proto_dir])?;
     
     Ok(())
 }
