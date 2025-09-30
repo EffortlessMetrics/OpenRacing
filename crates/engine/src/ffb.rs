@@ -9,6 +9,8 @@ use std::fmt;
 // Frame struct is now exported from rt module to avoid duplication
 
 /// Internal pipeline operating modes (use rt::FFBMode for public API)
+/// TODO: Used for future pipeline mode switching implementation
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PipelineMode {
     /// PID pass-through mode - Game emits DirectInput/PID effects

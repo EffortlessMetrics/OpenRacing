@@ -145,6 +145,8 @@ pub struct BlackboxRecorder {
     
     // State
     start_time: Instant,
+    /// TODO: Used for future index optimization implementation
+    #[allow(dead_code)]
     last_index_time: Instant,
     index_entries: Vec<IndexEntry>,
     stats: RecordingStats,

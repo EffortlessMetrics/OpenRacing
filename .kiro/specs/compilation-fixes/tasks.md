@@ -155,7 +155,12 @@ This implementation plan converts the compilation error fixes into a series of d
   - **DoD:** Clean compilation; test-only imports properly scoped; no unused warnings
   - _Requirements: 7.1, 7.2, 7.5_
 
-- [ ] 12. Address dead code with appropriate allow attributes
+- [x] 12. Address dead code with appropriate allow attributes
+
+
+
+
+
   - Add #[allow(dead_code)] to intentionally kept helper functions with TODO links
   - Remove truly unused code or document why it's preserved for future use
   - Address unused struct fields that are part of public API appropriately

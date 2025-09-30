@@ -34,6 +34,8 @@ fn get_cached_device_info(device_info: &HidDeviceInfo) -> &'static DeviceInfo {
 pub struct WindowsHidPort {
     devices: Arc<RwLock<HashMap<DeviceId, HidDeviceInfo>>>,
     monitoring: Arc<AtomicBool>,
+    /// TODO: Used for future device event notification implementation
+    #[allow(dead_code)]
     event_sender: Option<mpsc::UnboundedSender<DeviceEvent>>,
 }
 

@@ -29,6 +29,8 @@ pub struct ProfileService {
     global_profile: Arc<RwLock<Option<Profile>>>,
     
     /// Profile hierarchy policy
+    /// TODO: Used for future profile hierarchy implementation
+    #[allow(dead_code)]
     hierarchy_policy: ProfileHierarchyPolicy,
     
     /// Safety policy for validation

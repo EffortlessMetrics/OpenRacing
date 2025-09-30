@@ -178,6 +178,8 @@ impl JitterMetrics {
 /// Absolute scheduler for precise 1kHz timing with PLL and jitter metrics
 pub struct AbsoluteScheduler {
     /// Target period in nanoseconds
+    /// TODO: Used for future adaptive scheduling implementation
+    #[allow(dead_code)]
     period_ns: u64,
     
     /// Next scheduled tick time

@@ -245,35 +245,44 @@ impl ProfileMergeEngine {
     }
 
     // Default value detection methods for deterministic merging
+    // TODO: Used for future profile optimization implementation
 
+    #[allow(dead_code)]
     fn is_default_gain(&self, gain: Gain) -> bool {
         (gain.value() - 0.7).abs() < f32::EPSILON
     }
 
+    #[allow(dead_code)]
     fn is_default_dor(&self, dor: racing_wheel_schemas::Degrees) -> bool {
         (dor.value() - 900.0).abs() < f32::EPSILON
     }
 
+    #[allow(dead_code)]
     fn is_default_torque_cap(&self, torque: racing_wheel_schemas::TorqueNm) -> bool {
         (torque.value() - 15.0).abs() < f32::EPSILON
     }
 
+    #[allow(dead_code)]
     fn is_default_friction(&self, friction: Gain) -> bool {
         (friction.value() - 0.1).abs() < f32::EPSILON
     }
 
+    #[allow(dead_code)]
     fn is_default_damper(&self, damper: Gain) -> bool {
         (damper.value() - 0.15).abs() < f32::EPSILON
     }
 
+    #[allow(dead_code)]
     fn is_default_inertia(&self, inertia: Gain) -> bool {
         (inertia.value() - 0.05).abs() < f32::EPSILON
     }
 
+    #[allow(dead_code)]
     fn is_default_slew_rate(&self, slew_rate: Gain) -> bool {
         (slew_rate.value() - 0.8).abs() < f32::EPSILON
     }
 
+    #[allow(dead_code)]
     fn is_linear_curve(&self, curve_points: &[CurvePoint]) -> bool {
         curve_points.len() == 2
             && (curve_points[0].input - 0.0).abs() < f32::EPSILON

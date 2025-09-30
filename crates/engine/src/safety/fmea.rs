@@ -109,7 +109,11 @@ struct FaultDetectionState {
     last_occurrence: Option<Instant>,
     window_start: Option<Instant>,
     window_count: u32,
+    /// TODO: Used for future fault quarantine implementation
+    #[allow(dead_code)]
     quarantined: bool,
+    /// TODO: Used for future fault quarantine implementation
+    #[allow(dead_code)]
     quarantine_until: Option<Instant>,
 }
 
