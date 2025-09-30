@@ -1,5 +1,7 @@
 //! Racing Wheel UI - Tauri application
 
+#![deny(static_mut_refs)]
+
 pub mod safety;
 
 pub use safety::*;

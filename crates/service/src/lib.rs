@@ -1,5 +1,7 @@
 //! Racing Wheel Service - Complete system integration with graceful degradation
 
+#![deny(static_mut_refs)]
+
 pub mod service;
 pub mod device;
 pub mod daemon;

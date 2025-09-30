@@ -7,6 +7,8 @@
 //! The system includes crash isolation, budget violation detection, and quarantine
 //! policies for repeatedly failing plugins.
 
+#![deny(static_mut_refs)]
+
 pub mod capability;
 pub mod helper;
 pub mod host;

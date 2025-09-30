@@ -127,7 +127,12 @@ This implementation plan converts the compilation error fixes into a series of d
   - **DoD:** Hot path increments atomic counters; no logging/allocations; perf test unchanged
   - _Requirements: 4.4, 6.3_
 
-- [ ] 10. Replace unsafe static mut with OnceLock and add lint guard
+- [x] 10. Replace unsafe static mut with OnceLock and add lint guard
+
+
+
+
+
   - Replace static mut CACHED_INFO with OnceLock<DeviceInfoCache>
   - Implement get_cached_info() function using OnceLock::get_or_init
   - Add #![deny(static_mut_refs)] at crate root (non-test) to prevent regression

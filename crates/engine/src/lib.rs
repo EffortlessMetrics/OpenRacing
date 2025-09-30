@@ -3,6 +3,8 @@
 //! This crate contains the real-time force feedback engine that operates at 1kHz
 //! with strict timing requirements and zero-allocation hot paths.
 
+#![deny(static_mut_refs)]
+
 #[cfg(feature = "rt-allocator")]
 use mimalloc::MiMalloc;
 

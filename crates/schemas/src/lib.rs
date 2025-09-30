@@ -3,6 +3,8 @@
 //! This crate contains all the schema definitions for IPC communication,
 //! configuration files, and data interchange formats.
 
+#![deny(static_mut_refs)]
+
 pub mod domain;
 pub mod entities;
 

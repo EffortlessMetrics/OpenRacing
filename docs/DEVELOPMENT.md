@@ -49,6 +49,11 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-features --workspace
 ```
 
+#### Memory Safety Rules
+- **No static mut**: Use `std::sync::OnceLock` instead of `static mut` for thread-safe initialization
+- **Lint Guard**: All non-test crates must include `#![deny(static_mut_refs)]` to prevent regression
+- **Safe Alternatives**: Prefer `AtomicBool`, `OnceLock`, or `LazyLock` over unsafe static patterns
+
 ### 2. Performance Validation
 ```bash
 # Build RT profile

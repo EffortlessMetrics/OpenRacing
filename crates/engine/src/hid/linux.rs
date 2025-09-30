@@ -13,7 +13,7 @@ use racing_wheel_schemas::{DeviceId, DeviceCapabilities, TorqueNm};
 use super::{HidDeviceInfo, TorqueCommand, DeviceTelemetryReport, DeviceCapabilitiesReport};
 use tokio::sync::mpsc;
 use async_trait::async_trait;
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}, OnceLock};
 use parking_lot::{RwLock, Mutex};
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
@@ -22,6 +22,12 @@ use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use tracing::{debug, warn, error, info};
+
+/// Thread-safe cached device info accessor using OnceLock
+fn get_cached_device_info(device_info: &HidDeviceInfo) -> &'static DeviceInfo {
+    static CACHED_INFO: OnceLock<DeviceInfo> = OnceLock::new();
+    CACHED_INFO.get_or_init(|| device_info.to_device_info())
+}
 
 /// Linux-specific HID port implementation
 pub struct LinuxHidPort {
@@ -436,15 +442,7 @@ impl HidDevice for LinuxHidDevice {
     }
 
     fn device_info(&self) -> &DeviceInfo {
-        // This is a bit of a hack - in a real implementation, we'd store DeviceInfo directly
-        // For now, we'll create it on demand
-        static mut CACHED_INFO: Option<DeviceInfo> = None;
-        unsafe {
-            if CACHED_INFO.is_none() {
-                CACHED_INFO = Some(self.device_info.to_device_info());
-            }
-            CACHED_INFO.as_ref().unwrap()
-        }
+        get_cached_device_info(&self.device_info)
     }
 
     fn is_connected(&self) -> bool {
