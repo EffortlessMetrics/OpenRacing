@@ -27,7 +27,7 @@ pub struct PluginManifest {
 }
 
 /// Plugin capability requirements
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Capability {
     ReadTelemetry,
     ModifyTelemetry,

@@ -133,6 +133,7 @@ The plan follows a specific execution order: establish workspace governance firs
 
 
 
+
   - Fix IPC service trait implementations to match generated tonic signatures
   - Update async trait usage to use async_trait pattern consistently
   - Resolve dependency version conflicts by using workspace dependencies
@@ -142,7 +143,11 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** cargo build -p racing-wheel-service compiles; service --help runs; IPC signatures match; async traits consistent
   - _Requirements: SVC-01, SVC-02, SVC-03, SVC-05_
 
-- [ ] 9. Implement plugin system ABI with versioning and endianness
+- [x] 9. Implement plugin system ABI with versioning and endianness
+
+
+
+
   - Define PLUG_ABI_VERSION constant and PLUG_ABI_MAGIC for handshake
   - Create capability bitflags (TELEMETRY, LEDS, HAPTICS) with reserved bits
   - Implement #[repr(C)] PluginHeader with magic, version, caps, and padding

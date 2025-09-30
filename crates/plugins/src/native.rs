@@ -15,7 +15,7 @@ use tokio::sync::RwLock;
 use crate::capability::CapabilityChecker;
 use crate::manifest::PluginManifest;
 use crate::{Plugin, PluginContext, PluginError, PluginOutput, PluginResult};
-use racing_wheel_schemas::telemetry::NormalizedTelemetry;
+use racing_wheel_engine::NormalizedTelemetry;
 
 /// Native plugin ABI version
 const PLUGIN_ABI_VERSION: u32 = 1;
@@ -149,9 +149,9 @@ impl NativePlugin {
         }
         
         if result != 0 {
-            return Err(PluginError::NativePlugin(libloading::Error::GetSymbol {
-                symbol: "process".into(),
-            }));
+            return Err(PluginError::LoadingFailed(
+                format!("Native plugin process function failed with code: {}", result)
+            ));
         }
         
         Ok(())
@@ -227,7 +227,7 @@ impl Plugin for NativePlugin {
     
     async fn process_led_mapping(
         &mut self,
-        _input: &racing_wheel_engine::led_haptics::LedMappingInput,
+        _input: &NormalizedTelemetry,
         _context: &PluginContext,
     ) -> PluginResult<PluginOutput> {
         // Check capability

@@ -12,7 +12,7 @@ use wasmtime_wasi::WasiCtx;
 use crate::capability::{CapabilityChecker, WasmCapabilityEnforcer};
 use crate::manifest::{PluginManifest, PluginOperation};
 use crate::{Plugin, PluginContext, PluginError, PluginOutput, PluginResult};
-use racing_wheel_schemas::telemetry::NormalizedTelemetry;
+use racing_wheel_engine::NormalizedTelemetry;
 
 /// WASM plugin instance
 pub struct WasmPlugin {
@@ -240,7 +240,7 @@ impl Plugin for WasmPlugin {
         
         // Call initialization function if present
         if let Some(init_func) = &self.manifest.entry_points.init_function {
-            self.execute_with_limits(
+            let _result: Vec<wasmtime::Val> = self.execute_with_limits(
                 init_func,
                 &[],
                 Duration::from_millis(5000), // 5 second timeout for init
@@ -296,7 +296,7 @@ impl Plugin for WasmPlugin {
     
     async fn process_led_mapping(
         &mut self,
-        input: &racing_wheel_engine::led_haptics::LedMappingInput,
+        input: &NormalizedTelemetry,
         context: &PluginContext,
     ) -> PluginResult<PluginOutput> {
         // Check capability
@@ -330,7 +330,7 @@ impl Plugin for WasmPlugin {
     async fn shutdown(&mut self) -> PluginResult<()> {
         // Call cleanup function if present
         if let Some(cleanup_func) = &self.manifest.entry_points.cleanup_function {
-            self.execute_with_limits(
+            let _result: Vec<wasmtime::Val> = self.execute_with_limits(
                 cleanup_func,
                 &[],
                 Duration::from_millis(1000), // 1 second timeout for cleanup
@@ -406,7 +406,7 @@ impl WasmPluginHost {
                 plugin.process_telemetry(&telemetry, &context).await
             }
             PluginOperation::LedMapper => {
-                let led_input: racing_wheel_engine::led_haptics::LedMappingInput = 
+                let led_input: NormalizedTelemetry = 
                     serde_json::from_value(input_data)
                         .map_err(|e| PluginError::LoadingFailed(format!("Invalid LED data: {}", e)))?;
                 plugin.process_led_mapping(&led_input, &context).await

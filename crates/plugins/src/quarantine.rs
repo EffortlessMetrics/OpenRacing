@@ -62,8 +62,9 @@ pub enum ViolationType {
     BudgetViolation,
     CapabilityViolation,
     TimeoutViolation,
-}/// Plu
-gin quarantine manager
+}
+
+/// Plugin quarantine manager
 pub struct QuarantineManager {
     policy: QuarantinePolicy,
     quarantine_states: HashMap<Uuid, QuarantineState>,

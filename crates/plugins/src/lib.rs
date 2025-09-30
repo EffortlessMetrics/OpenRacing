@@ -11,6 +11,7 @@
 #![deny(unused_must_use)]
 #![deny(clippy::unwrap_used)]
 
+pub mod abi;
 pub mod capability;
 pub mod helper;
 pub mod host;
@@ -20,7 +21,7 @@ pub mod quarantine;
 pub mod sdk;
 pub mod wasm;
 
-use racing_wheel_schemas::telemetry::NormalizedTelemetry;
+use racing_wheel_engine::NormalizedTelemetry;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use thiserror::Error;
@@ -67,7 +68,7 @@ pub enum PluginError {
 }
 
 /// Plugin execution class
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PluginClass {
     /// Safe WASM plugins (60-200Hz, sandboxed)
     Safe,
@@ -160,7 +161,7 @@ pub trait Plugin: Send + Sync {
     /// Process LED mapping
     async fn process_led_mapping(
         &mut self,
-        input: &racing_wheel_engine::led_haptics::LedMappingInput,
+        input: &NormalizedTelemetry,
         context: &PluginContext,
     ) -> PluginResult<PluginOutput>;
     
@@ -177,6 +178,7 @@ pub trait Plugin: Send + Sync {
 }
 
 /// Re-export main types
+pub use abi::*;
 pub use capability::*;
 pub use host::*;
 pub use manifest::*;

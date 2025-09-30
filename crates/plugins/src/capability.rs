@@ -149,7 +149,7 @@ impl WasmCapabilityEnforcer {
                     // Create a dummy directory if path doesn't exist
                     cap_std::fs::Dir::open_ambient_dir(".", cap_std::ambient_authority()).unwrap()
                 });
-            builder = builder.preopened_dir(dir, path.to_string_lossy());
+            builder = builder.preopened_dir(dir, path)?;
         }
         
         // Restrict network access
