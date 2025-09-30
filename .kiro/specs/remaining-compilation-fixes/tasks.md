@@ -55,7 +55,9 @@ The plan follows a specific execution order: establish workspace governance firs
   - _Requirements: API-01, API-04, CLI-02_
 
 
-- [-] 3. Update FilterConfig with stable 1kHz-safe defaults
+- [x] 3. Update FilterConfig with stable 1kHz-safe defaults
+
+
 
 
   - Implement FilterConfig::default() with stable values (reconstruction=0, friction=0, damper=0, inertia=0, slew_rate=1.0)
@@ -66,7 +68,11 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** FilterConfig::default() compiles; stable at 1kHz; test validates stability
   - _Requirements: CLI-02, CLI-03_
 
-- [ ] 4. Fix TelemetryData field references with explicit units
+
+- [x] 4. Fix TelemetryData field references with explicit units
+
+
+
   - Confirm wheel_angle_deg is degrees (not milli-degrees); rename to _mdeg if needed
   - Confirm wheel_speed_rad_s is rad/s (not mrad/s); rename to _mrad_s if needed
   - Update all references from temp_c to temperature_c with °C unit documentation

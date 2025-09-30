@@ -66,25 +66,29 @@ pub mod telemetry {
     //! Telemetry data types
     use serde::{Deserialize, Serialize};
     
-    /// Telemetry data with new field names
+    /// Telemetry data with explicit units and field documentation
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
     pub struct TelemetryData {
-        /// Wheel angle in degrees (new field name)
+        /// Wheel angle in degrees (°)
+        /// Range: -1800.0 to +1800.0 degrees for 5-turn wheels
         pub wheel_angle_deg: f32,
         
-        /// Wheel speed in radians per second (new field name)
+        /// Wheel speed in radians per second (rad/s)
+        /// Positive values indicate clockwise rotation
         pub wheel_speed_rad_s: f32,
         
-        /// Temperature in Celsius (new field name)
+        /// Temperature in degrees Celsius (°C)
+        /// Typical range: 20-80°C for normal operation
         pub temperature_c: u8,
         
-        /// Fault flags (new field name)
+        /// Fault flags bitfield
+        /// Each bit represents a specific fault condition
         pub fault_flags: u8,
         
         /// Hands on wheel detection
         pub hands_on: bool,
         
-        /// Timestamp in milliseconds
+        /// Timestamp in milliseconds since system start
         pub timestamp: u64,
     }
 }

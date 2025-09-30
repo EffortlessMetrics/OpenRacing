@@ -5,7 +5,7 @@
 
 use crate::ports::HidPort;
 use crate::{TelemetryData, DeviceInfo};
-use racing_wheel_schemas::{DeviceId, DeviceCapabilities, TorqueNm};
+use racing_wheel_schemas::prelude::*;
 
 pub mod virtual_device;
 

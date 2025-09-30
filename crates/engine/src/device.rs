@@ -1,9 +1,7 @@
 //! Device abstraction and virtual device implementation
 
 use crate::{RTResult, RTError};
-use racing_wheel_schemas::{
-    DeviceId, TorqueNm, DeviceCapabilities
-};
+use racing_wheel_schemas::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -87,7 +85,7 @@ struct VirtualDeviceState {
     wheel_angle_deg: f32,
     wheel_speed_rad_s: f32,
     temperature_c: u8,
-    faults: u8,
+    fault_flags: u8,
     hands_on: bool,
     last_torque_nm: f32,
     last_seq: u16,
@@ -124,7 +122,7 @@ impl VirtualDevice {
             wheel_angle_deg: 0.0,
             wheel_speed_rad_s: 0.0,
             temperature_c: 35,
-            faults: 0,
+            fault_flags: 0,
             hands_on: true,
             last_torque_nm: 0.0,
             last_seq: 0,
@@ -192,13 +190,13 @@ impl VirtualDevice {
     /// Inject a fault for testing
     pub fn inject_fault(&mut self, fault_type: u8) {
         let mut state = self.state.lock().unwrap();
-        state.faults |= fault_type;
+        state.fault_flags |= fault_type;
     }
 
     /// Clear faults
     pub fn clear_faults(&mut self) {
         let mut state = self.state.lock().unwrap();
-        state.faults = 0;
+        state.fault_flags = 0;
     }
 
     /// Disconnect the device (for testing)
@@ -249,7 +247,7 @@ impl HidDevice for VirtualDevice {
             wheel_angle_deg: state.wheel_angle_deg,
             wheel_speed_rad_s: state.wheel_speed_rad_s,
             temperature_c: state.temperature_c,
-            fault_flags: state.faults,
+            fault_flags: state.fault_flags,
             hands_on: state.hands_on,
             timestamp: Instant::now(),
         })
@@ -271,7 +269,7 @@ impl HidDevice for VirtualDevice {
         let state = self.state.lock().unwrap();
         DeviceHealthStatus {
             temperature_c: state.temperature_c,
-            fault_flags: state.faults,
+            fault_flags: state.fault_flags,
             hands_on: state.hands_on,
             last_communication: state.last_update,
             communication_errors: 0,
