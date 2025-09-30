@@ -4,7 +4,7 @@
 
 **Status:** Draft for review  
 **Owners:** CLI (@owner-cli), Service (@owner-svc), Plugins (@owner-plug), Schemas (@owner-sch)  
-**MSRV:** 1.76 (pin in rust-toolchain.toml)  
+**MSRV:** 1.89 (pin in rust-toolchain.toml)  
 **Toolchain:** tokio 1.39, tonic 0.12, prost 0.13, async-trait 0.1.x  
 **Platforms:** Windows 10+ (x86-64), Linux (x86-64)  
 **Build policy:** non-test crates build with -D warnings -D unused_must_use  
