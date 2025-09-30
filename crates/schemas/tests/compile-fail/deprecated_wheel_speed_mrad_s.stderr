@@ -1,0 +1,11 @@
+error[E0560]: struct `racing_wheel_schemas::prelude::TelemetryData` has no field named `wheel_speed_mrad_s`
+ --> tests/compile-fail/deprecated_wheel_speed_mrad_s.rs:9:9
+  |
+9 |         wheel_speed_mrad_s: 0,  // Should be wheel_speed_rad_s
+  |         ^^^^^^^^^^^^^^^^^^ unknown field
+  |
+help: a field with a similar name exists
+  |
+9 -         wheel_speed_mrad_s: 0,  // Should be wheel_speed_rad_s
+9 +         wheel_speed_rad_s: 0,  // Should be wheel_speed_rad_s
+  |

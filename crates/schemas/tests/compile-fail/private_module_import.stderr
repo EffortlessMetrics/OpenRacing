@@ -1,0 +1,13 @@
+error[E0432]: unresolved import `racing_wheel_schemas::validation_tests`
+ --> tests/compile-fail/private_module_import.rs:4:5
+  |
+4 | use racing_wheel_schemas::validation_tests;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `validation_tests` in the root
+  |
+note: found an item that was configured out
+ --> src/lib.rs
+  |
+  | #[cfg(test)]
+  |       ---- the item is gated here
+  | mod validation_tests;
+  |     ^^^^^^^^^^^^^^^^

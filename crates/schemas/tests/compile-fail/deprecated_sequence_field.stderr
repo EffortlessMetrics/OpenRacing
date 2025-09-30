@@ -1,0 +1,7 @@
+error[E0560]: struct `racing_wheel_schemas::prelude::TelemetryData` has no field named `sequence`
+  --> tests/compile-fail/deprecated_sequence_field.rs:14:9
+   |
+14 |         sequence: 123,  // This field was removed
+   |         ^^^^^^^^ `racing_wheel_schemas::prelude::TelemetryData` does not have this field
+   |
+   = note: all struct fields are already assigned

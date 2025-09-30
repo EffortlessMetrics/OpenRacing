@@ -1,7 +1,17 @@
-error[E0560]: struct `TelemetryData` has no field named `temp_c`
-  --> tests/compile-fail/public_boxfuture_trait.rs:10:9
-   |
-10 |         temp_c: 45,  // Should be temperature_c
-   |         ^^^^^^ `TelemetryData` does not have this field
-   |
-   = note: available fields are: `temperature_c`
+error[E0107]: enum takes 2 generic arguments but 1 generic argument was supplied
+ --> tests/compile-fail/public_boxfuture_trait.rs:5:25
+  |
+5 |     fn method(&self) -> Result<String, >; // Missing error type
+  |                         ^^^^^^ ------ supplied 1 generic argument
+  |                         |
+  |                         expected 2 generic arguments
+  |
+note: enum defined here, with 2 generic parameters: `T`, `E`
+ --> $RUST/core/src/result.rs
+  |
+  | pub enum Result<T, E> {
+  |          ^^^^^^ -  -
+help: add missing generic argument
+  |
+5 |     fn method(&self) -> Result<String, E, >; // Missing error type
+  |                                      +++

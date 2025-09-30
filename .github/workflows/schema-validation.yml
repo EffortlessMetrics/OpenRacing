@@ -74,6 +74,9 @@ jobs:
     - name: Run all schema tests
       run: cargo test -p racing-wheel-schemas
     
+    - name: Run trybuild compile-fail guards
+      run: cargo test -p racing-wheel-schemas --test trybuild_guards
+    
     - name: Check formatting
       run: cargo fmt -p racing-wheel-schemas -- --check
     

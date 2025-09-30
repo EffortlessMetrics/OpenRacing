@@ -1,0 +1,7 @@
+error[E0560]: struct `racing_wheel_schemas::prelude::TelemetryData` has no field named `faults`
+  --> tests/compile-fail/deprecated_faults_field.rs:11:9
+   |
+11 |         faults: 0,  // Should be fault_flags
+   |         ^^^^^^ `racing_wheel_schemas::prelude::TelemetryData` does not have this field
+   |
+   = note: available fields are: `fault_flags`

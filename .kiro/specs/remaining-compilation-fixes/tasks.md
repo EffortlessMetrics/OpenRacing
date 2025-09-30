@@ -189,7 +189,12 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** Integration tests import only prelude/public modules; grep guard active; fixtures updated; deps resolved
   - _Requirements: IT-01, IT-02, IT-03_
 
-- [ ] 12. Add trybuild compile-fail guards for removed tokens and patterns
+- [x] 12. Add trybuild compile-fail guards for removed tokens and patterns
+
+
+
+
+
   - Create trybuild tests that fail compilation for deprecated field names (wheel_angle_mdeg, temp_c, sequence)
   - Add compile-fail test for forbidden async patterns (-> impl Future in public traits)
   - Add compile-fail test for glob re-exports (pub use *::*)

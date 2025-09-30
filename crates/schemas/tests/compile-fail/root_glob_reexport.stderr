@@ -1,0 +1,5 @@
+error[E0432]: unresolved import `racing_wheel_schemas::nonexistent`
+ --> tests/compile-fail/root_glob_reexport.rs:4:31
+  |
+4 | pub use racing_wheel_schemas::nonexistent::*;
+  |                               ^^^^^^^^^^^ could not find `nonexistent` in `racing_wheel_schemas`
