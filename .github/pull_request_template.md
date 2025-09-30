@@ -1,159 +1,121 @@
-# Pull Request
+# Pull Request Template
 
-## Description
+## Summary
+Brief description of changes and motivation.
 
-Brief description of the changes in this PR.
+## Migration Notes
+**Required for all PRs that modify public APIs, schemas, or cross-crate interfaces**
 
-## Type of Change
+### Call-site Actions Per Crate
+- [ ] **wheelctl**: What changes are needed in CLI code?
+- [ ] **racing-wheel-service**: What changes are needed in service layer?
+- [ ] **racing-wheel-plugins**: What changes are needed in plugin system?
+- [ ] **racing-wheel-integration-tests**: What changes are needed in tests?
+- [ ] **Other crates**: List any additional affected crates and required changes
 
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
-- [ ] Refactoring (no functional changes)
-- [ ] Performance improvement
-- [ ] Test coverage improvement
+### Breaking Changes
+- [ ] No breaking changes to public APIs
+- [ ] Breaking changes documented with migration guide
+- [ ] Field name updates or removals documented
+- [ ] Type signature changes documented
 
-## Schema/API Changes
+## Schema/API Versioning
+**Required for changes to schemas, protobuf definitions, or public APIs**
 
-**⚠️ Required for all PRs that modify public APIs, struct fields, or schemas**
+- [ ] **Protobuf package version**: No changes needed / Bumped `wheel.v1` to `wheel.v2` (reason: ___)
+- [ ] **JSON schema version**: No changes needed / Updated version (reason: ___)
+- [ ] **API compatibility**: Backward compatibility maintained / Breaking change with migration path
+- [ ] **Deprecation window**: N/A / Deprecated items will be removed in version ___
 
-### Breaking Changes Assessment
+### Schema Change Justification
+If bumping protobuf package or JSON schema version, explain:
+- What necessitated the breaking change?
+- What alternatives were considered?
+- How will existing clients migrate?
 
-- [ ] **No breaking changes** - This PR does not modify public APIs, struct fields, or schemas
-- [ ] **Breaking changes present** - This PR includes breaking changes (complete section below)
+## Compat Debt Delta
+**Required for all PRs - helps track technical debt trends**
 
-### If Breaking Changes Are Present
+- [ ] **Compat usage count delta**: +/- ___ usages (run `scripts/track_compat_usage.py` to measure)
+- [ ] **Compat debt trending**: ⬇️ Down / ➡️ Stable / ⬆️ Up (explain if increasing)
+- [ ] **Removal planning**: N/A / Created issue #___ for removing compat shims in next minor version
 
-- [ ] **Deprecation window followed** - Old items marked `#[deprecated]` for one minor version before removal
-- [ ] **Migration documentation provided** - Clear migration path documented with examples
-- [ ] **Compatibility layer created** - Test-only compatibility layer added if needed (using `#[cfg(test)]`)
-- [ ] **CI tracking updated** - Compatibility usage tracking configured to trend downward
-- [ ] **Version bump planned** - Minor version bump scheduled for these changes
+### Compat Layer Impact
+- [ ] No compat layer usage changes
+- [ ] Reduced compat layer usage (good!)
+- [ ] Increased compat layer usage (justify why necessary)
 
-### Schema Stability Checklist
+## CI Verification Checklist
+**All items must pass before merge**
 
-#### Struct Field Changes
-- [ ] **Field renames** follow the rename → alias → remove pattern
-- [ ] **Field additions** include appropriate defaults
-- [ ] **Field removals** went through deprecation window
-- [ ] **Type changes** are backward compatible or properly deprecated
+### Compilation Verification
+- [ ] **Workspace build**: `cargo build --workspace` passes
+- [ ] **All features**: `cargo build --workspace --all-features` passes  
+- [ ] **No default features**: `cargo build --workspace --no-default-features` passes
 
-#### Function Signature Changes  
-- [ ] **Parameter changes** follow add new → deprecate old → remove pattern
-- [ ] **Return type changes** maintain backward compatibility
-- [ ] **New functions** are properly documented
-- [ ] **Deprecated functions** include migration notes
+### Isolation Builds (Critical Path)
+- [ ] **CLI isolation**: `cargo build -p wheelctl` passes ([CI link](___))
+- [ ] **Service isolation**: `cargo build -p racing-wheel-service` passes ([CI link](___))
+- [ ] **Plugins isolation**: `cargo build -p racing-wheel-plugins` passes ([CI link](___))
 
-#### Protobuf Schema Changes
-- [ ] **Field numbers** are never reused
-- [ ] **Message structure** changes are backward compatible
-- [ ] **Breaking changes** detected by `buf breaking` check
-- [ ] **Field renames** preserve wire compatibility
+### Cross-Platform Verification
+- [ ] **Linux build**: All targets compile on ubuntu-latest ([CI link](___))
+- [ ] **Windows build**: All targets compile on windows-latest ([CI link](___))
 
-#### JSON Schema Changes
-- [ ] **Required fields** not removed without deprecation
-- [ ] **Schema version** updated for breaking changes  
-- [ ] **Validation tests** updated for new schema
-- [ ] **Migration path** documented for consumers
+### Schema Validation
+- [ ] **Protobuf breaking check**: `buf breaking --against main` passes ([CI link](___))
+- [ ] **JSON schema round-trip**: Schema serialization tests pass ([CI link](___))
+- [ ] **Trybuild guards**: Compile-fail tests prevent regression ([CI link](___))
+
+### Dependency Governance
+- [ ] **No version conflicts**: `cargo tree --duplicates` shows no duplicates
+- [ ] **Feature unification**: `cargo hakari generate` produces no diff
+- [ ] **Minimal versions**: `cargo +nightly -Z minimal-versions build` passes
+- [ ] **Unused dependencies**: `cargo udeps` shows no unused deps
+
+### Lint Gates
+- [ ] **Warnings**: `RUSTFLAGS="-D warnings" cargo clippy --workspace` passes
+- [ ] **Format**: `cargo fmt --check` passes
+- [ ] **API guards**: No glob re-exports (`rg 'pub use .*::\*;' crates/` empty)
+- [ ] **Deprecated tokens**: No removed field names in codebase
 
 ## Testing
-
-### Test Coverage
-- [ ] **Unit tests** added/updated for new functionality
-- [ ] **Integration tests** cover the change
-- [ ] **Property tests** maintain parametric nature (no conversion to zero-arg functions)
-- [ ] **Regression tests** added for bug fixes
-
-### Schema/API Testing
-- [ ] **Compatibility tests** verify old and new APIs work during transition
-- [ ] **Migration tests** validate upgrade path
-- [ ] **Round-trip tests** for schema changes
-- [ ] **Compile-time tests** for struct instantiation
-
-### Performance Testing
-- [ ] **RT performance** validated (p99 jitter ≤ 0.25ms for RT changes)
-- [ ] **Memory usage** impact assessed
-- [ ] **Build time** impact measured
-
-## Compatibility Impact
-
-### Compatibility Layer Usage
-- [ ] **Usage count tracked** - CI will verify compat usage doesn't increase
-- [ ] **Migration timeline** - Plan to remove compat layer in next minor version
-- [ ] **Test-only scope** - Compatibility layer is `#[cfg(test)]` only
-
-### Deprecation Timeline
-- [ ] **Current version** - Items marked deprecated in this version
-- [ ] **Removal version** - Items will be removed in version X.Y.0
-- [ ] **Communication plan** - Breaking changes communicated to users
-
-## Code Quality
-
-### Linting and Formatting
-- [ ] **Clippy** passes with no new warnings
-- [ ] **Rustfmt** applied to all changed code
-- [ ] **Unused imports** removed
-- [ ] **Dead code** addressed with `#[allow(dead_code)]` or removal
-
-### Safety and Best Practices
-- [ ] **No unsafe code** added (or justified if necessary)
-- [ ] **Error handling** follows project patterns
-- [ ] **Documentation** updated for public APIs
-- [ ] **Examples** updated if affected
-
-## CI Checks
-
-The following automated checks must pass:
-
-- [ ] **Compilation** - All crates compile without errors
-- [ ] **Tests** - Full test suite passes
-- [ ] **Linting** - Clippy and rustfmt checks pass
-- [ ] **Schema validation** - Protobuf and JSON schema checks pass
-- [ ] **Compatibility tracking** - Compat usage doesn't increase
-- [ ] **Breaking change detection** - `buf breaking` passes or changes are intentional
-- [ ] **Performance** - RT performance benchmarks pass
+- [ ] **Unit tests**: New/modified code has appropriate test coverage
+- [ ] **Integration tests**: Cross-crate functionality tested
+- [ ] **Trybuild tests**: Added compile-fail guards for API changes
+- [ ] **Manual testing**: Verified functionality works as expected
 
 ## Documentation
+- [ ] **API docs**: Public APIs documented with examples
+- [ ] **Migration guide**: Breaking changes have migration instructions
+- [ ] **ADR**: Architectural decisions recorded if applicable
+- [ ] **Changelog**: User-facing changes documented
 
-- [ ] **Code comments** added for complex logic
-- [ ] **API documentation** updated for public changes
-- [ ] **Migration guide** created for breaking changes
-- [ ] **Changelog** entry added
-- [ ] **README** updated if needed
-
-## Reviewer Checklist
-
-### For Reviewers
-
-- [ ] **Schema changes** follow governance policy
-- [ ] **Breaking changes** are justified and properly handled
-- [ ] **Migration path** is clear and well-documented
-- [ ] **Test coverage** is adequate
-- [ ] **Performance impact** is acceptable
-- [ ] **Code quality** meets project standards
-
-### Schema/API Review (Required for breaking changes)
-
-- [ ] **Deprecation policy** followed correctly
-- [ ] **Compatibility layer** properly scoped to tests
-- [ ] **Migration documentation** is comprehensive
-- [ ] **Timeline** for removal is reasonable
-- [ ] **Impact assessment** is accurate
-
-## Additional Notes
-
-<!-- Add any additional context, concerns, or notes for reviewers -->
+## Security & Performance
+- [ ] **Security review**: No new security vulnerabilities introduced
+- [ ] **Performance impact**: No significant performance regressions
+- [ ] **Resource usage**: Memory/CPU usage remains acceptable
 
 ---
 
-### Schema Governance Policy
+## Reviewer Guidelines
 
-This PR template enforces our [Schema Governance Policy](../docs/SCHEMA_GOVERNANCE.md). For detailed migration patterns, see [Migration Patterns](../docs/MIGRATION_PATTERNS.md).
+### For Schema/API Changes
+1. Verify migration notes are complete and actionable
+2. Check that breaking changes follow deprecation policy
+3. Ensure protobuf/JSON schema versions are bumped appropriately
+4. Validate that compat debt is trending downward
 
-**Key Requirements:**
-- Breaking changes require minor version bump
-- Deprecation window of one minor version
-- Compatibility layer must be test-only (`#[cfg(test)]`)
-- CI must track compatibility usage trending downward
-- Migration documentation required for all breaking changes
+### For Cross-Crate Changes  
+1. Verify all isolation builds pass independently
+2. Check that public API usage follows prelude patterns
+3. Ensure no private module imports across crate boundaries
+4. Validate async trait patterns are consistent
+
+### For CI/Build Changes
+1. Verify all build matrix combinations are tested
+2. Check that lint gates catch the intended violations
+3. Ensure dependency governance rules are enforced
+4. Validate that trybuild guards prevent regression
+
+**Merge Criteria**: All checkboxes must be checked and CI must be green before merge.

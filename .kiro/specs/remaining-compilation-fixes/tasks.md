@@ -236,7 +236,10 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** Lints deny warnings, unused_must_use, unwrap_used, print_stdout, static_mut_refs; violations fail CI; unused deps detected
   - _Requirements: REG-02, DEP-02, DEP-04_
 
-- [-] 15. Create PR template and establish schema governance with enforcement
+- [x] 15. Create PR template and establish schema governance with enforcement
+
+
+
 
 
   - Add PR template with required sections: Migration Notes (call-site actions per crate), Schema/API change (prost package/JSON schema bump reason), Compat debt delta, CI checklist (isolation builds & schema break check links)

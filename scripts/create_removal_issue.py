@@ -1,293 +1,384 @@
 #!/usr/bin/env python3
 """
-Create GitHub issue for removing compatibility shims in next minor version.
+Automated Removal Issue Creator
 
-This script automatically creates a GitHub issue to track the removal of
-compatibility shims that have completed their deprecation window.
+This script creates GitHub issues for tracking the removal of deprecated APIs
+after their deprecation window expires.
+
+Usage:
+    python scripts/create_removal_issue.py --api="TelemetryData::temp_c" --deprecated-in="1.2.0" --remove-in="1.4.0"
+    python scripts/create_removal_issue.py --config=removal_config.json
 """
 
 import argparse
 import json
 import os
+import re
+import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Dict, List, Optional
 
-def get_current_usage():
-    """Get current compatibility usage count."""
-    try:
-        # Run the usage tracking script
-        import subprocess
-        result = subprocess.run(
-            [sys.executable, 'scripts/track_compat_usage.py'],
-            capture_output=True,
-            text=True,
-            cwd=Path.cwd()
-        )
-        
-        if result.returncode == 0:
-            # Parse usage count from output
-            for line in result.stdout.split('\n'):
-                if 'usage count:' in line:
-                    return int(line.split(':')[1].strip())
-        return 0
-    except Exception as e:
-        print(f"Warning: Could not get current usage count: {e}")
-        return 0
 
-def create_issue_body(version, deprecated_in, current_usage):
-    """Create the issue body with current data."""
+class RemovalIssueCreator:
+    """Creates GitHub issues for deprecated API removal tracking."""
     
-    # Calculate target date (assuming quarterly releases)
-    target_date = datetime.now() + timedelta(days=90)
-    
-    template = f"""## Compatibility Shim Removal
-
-This issue tracks the removal of compatibility shims that have completed their deprecation window.
-
-### Compatibility Layer Details
-
-**Deprecated in version:** v{deprecated_in}  
-**Scheduled removal:** v{version}  
-**Current usage count:** {current_usage} occurrences  
-
-### Items to Remove
-
-#### Struct Fields
-- [ ] `TelemetryData.temp_c` → use `temperature_c`
-- [ ] `TelemetryData.wheel_angle_mdeg` → use `wheel_angle_deg`  
-- [ ] `TelemetryData.wheel_speed_mrad_s` → use `wheel_speed_rad_s`
-- [ ] `TelemetryData.faults` → use `fault_flags`
-
-#### Compatibility Traits
-- [ ] `TelemetryCompat` trait in `crates/compat/src/telemetry_compat.rs`
-- [ ] Associated implementation blocks
-- [ ] Test-only re-exports
-
-#### Functions/Methods
-- [ ] `create_device(String)` → use `create_device_with_config(DeviceId, DeviceConfig)`
-- [ ] `legacy_field_accessor()` methods
-
-### Pre-Removal Checklist
-
-#### Usage Verification
-- [ ] **Current usage count:** Run `python scripts/track_compat_usage.py` 
-- [ ] **Usage trend:** Verify usage has been decreasing over deprecation window
-- [ ] **Remaining usage:** Identify and migrate any remaining usage
-
-#### Migration Status
-- [ ] **Critical paths migrated:** All production code uses new APIs
-- [ ] **Test code migrated:** Test code uses new field names or is updated
-- [ ] **Examples migrated:** All examples and documentation use new APIs
-- [ ] **External dependencies:** Check if any external crates depend on deprecated items
-
-#### Documentation Updates
-- [ ] **Migration guide:** Ensure migration documentation is complete
-- [ ] **Changelog:** Prepare breaking change entry for changelog
-- [ ] **API docs:** Remove deprecated items from documentation
-- [ ] **Examples:** Update all code examples
-
-### Removal Tasks
-
-#### Code Changes
-- [ ] **Remove deprecated struct fields**
-  ```rust
-  // Remove these fields from structs
-  #[deprecated] pub temp_c: u8,
-  #[deprecated] pub wheel_angle_mdeg: i32,
-  // etc.
-  ```
-
-- [ ] **Remove compatibility traits**
-  ```bash
-  # Delete compatibility layer files
-  rm crates/compat/src/telemetry_compat.rs
-  # Update Cargo.toml to remove compat dependency from test builds
-  ```
-
-- [ ] **Remove deprecated functions**
-  ```rust
-  // Remove deprecated function implementations
-  #[deprecated] pub fn create_device(id: String) -> Result<Device>
-  ```
-
-- [ ] **Update constructors**
-  ```rust
-  // Remove deprecated field initialization
-  impl TelemetryData {{
-      pub fn new(...) -> Self {{
-          Self {{
-              // Remove: temp_c: temperature_c,
-              temperature_c,
-              // etc.
-          }}
-      }}
-  }}
-  ```
-
-#### CI/Build Updates
-- [ ] **Remove compat tracking:** Update CI to stop tracking removed compatibility usage
-- [ ] **Update lint rules:** Remove deprecated-specific lint exceptions
-- [ ] **Build verification:** Ensure all crates build after removal
-
-#### Testing Updates  
-- [ ] **Remove compat tests:** Delete tests that specifically test deprecated APIs
-- [ ] **Update integration tests:** Ensure integration tests use new APIs
-- [ ] **Verify test coverage:** Maintain test coverage for new APIs
-
-### Validation Checklist
-
-#### Compilation
-- [ ] **Clean build:** `cargo build --workspace` succeeds
-- [ ] **No warnings:** No deprecation warnings remain
-- [ ] **All tests pass:** `cargo test --workspace` succeeds
-- [ ] **Examples build:** All examples compile and run
-
-#### Runtime Verification
-- [ ] **Integration tests:** Full integration test suite passes
-- [ ] **Performance tests:** RT performance benchmarks unchanged
-- [ ] **Virtual device:** Virtual device demo still works
-- [ ] **Real hardware:** Test with actual hardware if available
-
-#### Documentation
-- [ ] **API docs:** Generated docs don't reference removed items
-- [ ] **Migration guide:** Guide updated to reflect completion
-- [ ] **Changelog:** Breaking changes documented
-
-### Communication Plan
-
-#### Internal Communication
-- [ ] **Team notification:** Notify team of upcoming removal 1 week before
-- [ ] **PR review:** Ensure removal PR gets thorough review
-- [ ] **Release notes:** Include in release notes with migration guidance
-
-#### External Communication  
-- [ ] **Breaking change notice:** Document in changelog and release notes
-- [ ] **Migration timeline:** Communicate any extended timelines if needed
-- [ ] **Support:** Provide support for users migrating from deprecated APIs
-
-### Rollback Plan
-
-If issues are discovered after removal:
-
-1. **Immediate rollback:** Revert the removal PR if critical issues found
-2. **Hotfix release:** Issue hotfix with reverted changes
-3. **Extended timeline:** Extend deprecation window if needed
-4. **Improved migration:** Enhance migration tooling/documentation
-
-### Success Criteria
-
-- [ ] **Zero compatibility usage:** `python scripts/track_compat_usage.py` reports 0 usage
-- [ ] **Clean compilation:** No deprecation warnings in build output
-- [ ] **All tests pass:** Full test suite passes without compatibility layer
-- [ ] **Documentation updated:** All docs reference only new APIs
-- [ ] **Performance maintained:** RT performance benchmarks unchanged
-
-### Timeline
-
-**Target removal date:** {target_date.strftime('%Y-%m-%d')}  
-**Release version:** v{version}  
-**Deprecation period:** 3 months
-
----
-
-### Governance Policy
-
-This removal follows our [Schema Governance Policy](../../docs/SCHEMA_GOVERNANCE.md):
-- ✅ Deprecation window of one minor version completed
-- ✅ Migration documentation provided
-- ✅ Usage tracking shows downward trend
-- ✅ Breaking change properly communicated
-
-### Current Status
-
-**Usage trend:** {'🔴 Needs migration' if current_usage > 0 else '✅ Ready for removal'}  
-**Estimated effort:** {'High' if current_usage > 20 else 'Medium' if current_usage > 5 else 'Low'}  
-**Risk level:** {'High' if current_usage > 50 else 'Medium' if current_usage > 10 else 'Low'}
-"""
-    
-    return template
-
-def create_issue_via_gh_cli(title, body, labels):
-    """Create GitHub issue using gh CLI."""
-    try:
-        import subprocess
+    def __init__(self, workspace_root: Path):
+        self.workspace_root = workspace_root
+        self.template_path = workspace_root / ".github" / "ISSUE_TEMPLATE" / "remove_deprecated_api.md"
         
-        # Create issue using gh CLI
-        cmd = [
-            'gh', 'issue', 'create',
-            '--title', title,
-            '--body', body,
-            '--label', ','.join(labels)
-        ]
-        
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if result.returncode == 0:
-            issue_url = result.stdout.strip()
-            print(f"✅ Created issue: {issue_url}")
-            return True
+    def load_template(self) -> str:
+        """Load the issue template."""
+        if not self.template_path.exists():
+            raise FileNotFoundError(f"Template not found: {self.template_path}")
+            
+        with open(self.template_path, 'r') as f:
+            return f.read()
+            
+    def generate_search_pattern(self, api_name: str) -> str:
+        """Generate regex pattern for searching API usage."""
+        # Convert API name to search pattern
+        if "::" in api_name:
+            # Method or associated function
+            parts = api_name.split("::")
+            if len(parts) == 2:
+                type_name, method_name = parts
+                return f"\\b{re.escape(method_name)}\\b|\\b{re.escape(type_name)}::{re.escape(method_name)}\\b"
+        elif "." in api_name and not api_name.startswith("."):
+            # Field access
+            field_name = api_name.split(".")[-1]
+            return f"\\.{re.escape(field_name)}\\b"
         else:
-            print(f"❌ Failed to create issue: {result.stderr}")
+            # Simple identifier
+            return f"\\b{re.escape(api_name)}\\b"
+            
+    def estimate_migration_complexity(self, api_name: str, replacement: str) -> str:
+        """Estimate migration complexity based on API type and replacement."""
+        if "no replacement" in replacement.lower() or "removed" in replacement.lower():
+            return "Manual"
+        elif "::" in api_name and "::" in replacement:
+            # Method to method replacement
+            return "Semi-automatic"
+        elif api_name.count(".") == replacement.count("."):
+            # Field to field replacement
+            return "Automatic"
+        else:
+            return "Semi-automatic"
+            
+    def assess_risk_level(self, api_name: str, replacement: str) -> str:
+        """Assess risk level of the removal."""
+        if "no replacement" in replacement.lower():
+            return "High"
+        elif "rename" in replacement.lower() or api_name.replace("_", "") in replacement.replace("_", ""):
+            return "Low"
+        else:
+            return "Medium"
+            
+    def determine_scope(self, api_name: str) -> List[str]:
+        """Determine the scope of breaking change."""
+        scopes = []
+        
+        # Check if it's a public API
+        if any(keyword in api_name.lower() for keyword in ["config", "settings", "telemetry"]):
+            scopes.append("Public API")
+            
+        # Check if it affects plugin ABI
+        if any(keyword in api_name.lower() for keyword in ["plugin", "abi", "frame"]):
+            scopes.append("Plugin ABI")
+            
+        # Check if it affects configuration
+        if any(keyword in api_name.lower() for keyword in ["config", "settings", "filter"]):
+            scopes.append("Configuration")
+            
+        # Default to internal if no specific scope identified
+        if not scopes:
+            scopes.append("Internal only")
+            
+        return scopes
+        
+    def create_issue_content(self, 
+                           api_name: str,
+                           deprecated_version: str, 
+                           remove_version: str,
+                           replacement: str,
+                           migration_guide: str = "",
+                           category: str = "") -> str:
+        """Create issue content from template."""
+        
+        template = self.load_template()
+        
+        # Calculate deprecation window
+        try:
+            dep_parts = deprecated_version.split(".")
+            rem_parts = remove_version.split(".")
+            if len(dep_parts) >= 2 and len(rem_parts) >= 2:
+                dep_minor = int(dep_parts[1])
+                rem_minor = int(rem_parts[1])
+                window = rem_minor - dep_minor
+            else:
+                window = "unknown"
+        except (ValueError, IndexError):
+            window = "unknown"
+            
+        # Generate search pattern
+        search_pattern = self.generate_search_pattern(api_name)
+        
+        # Assess migration details
+        migration_complexity = self.estimate_migration_complexity(api_name, replacement)
+        risk_level = self.assess_risk_level(api_name, replacement)
+        scopes = self.determine_scope(api_name)
+        
+        # Generate example code
+        before_example, after_example = self.generate_code_examples(api_name, replacement)
+        
+        # Fill in template placeholders
+        content = template.replace("[API_NAME]", api_name)
+        content = content.replace("[DEPRECATED_VERSION]", deprecated_version)
+        content = content.replace("[REMOVE_VERSION]", remove_version)
+        content = content.replace("[X]", str(window))
+        content = content.replace("[SEARCH_PATTERN]", search_pattern)
+        
+        # Add migration guide link if provided
+        if migration_guide:
+            content = content.replace("[Link to migration documentation]", migration_guide)
+        else:
+            content = content.replace("[Link to migration documentation]", "docs/MIGRATION_PATTERNS.md")
+            
+        # Update code examples
+        if before_example and after_example:
+            # Find and replace the example code blocks
+            before_block = re.search(r'### Before \(Deprecated\)\n```rust\n(.*?)\n```', content, re.DOTALL)
+            after_block = re.search(r'### After \(New API\)\n```rust\n(.*?)\n```', content, re.DOTALL)
+            
+            if before_block:
+                content = content.replace(before_block.group(1), before_example)
+            if after_block:
+                content = content.replace(after_block.group(1), after_example)
+                
+        # Mark appropriate checkboxes based on assessment
+        if migration_complexity == "Automatic":
+            content = content.replace("- [ ] **Automatic**: Can be migrated with find/replace", 
+                                    "- [x] **Automatic**: Can be migrated with find/replace")
+        elif migration_complexity == "Semi-automatic":
+            content = content.replace("- [ ] **Semi-automatic**: Requires simple code changes",
+                                    "- [x] **Semi-automatic**: Requires simple code changes")
+        else:
+            content = content.replace("- [ ] **Manual**: Requires significant refactoring",
+                                    "- [x] **Manual**: Requires significant refactoring")
+                                    
+        if risk_level == "Low":
+            content = content.replace("- [ ] **Low**: Simple rename or signature change",
+                                    "- [x] **Low**: Simple rename or signature change")
+        elif risk_level == "Medium":
+            content = content.replace("- [ ] **Medium**: Logic changes but clear migration path",
+                                    "- [x] **Medium**: Logic changes but clear migration path")
+        else:
+            content = content.replace("- [ ] **High**: Complex changes affecting multiple systems",
+                                    "- [x] **High**: Complex changes affecting multiple systems")
+                                    
+        # Mark scope checkboxes
+        for scope in scopes:
+            if scope == "Internal only":
+                content = content.replace("- [ ] **Internal only**: Only affects internal workspace code",
+                                        "- [x] **Internal only**: Only affects internal workspace code")
+            elif scope == "Public API":
+                content = content.replace("- [ ] **Public API**: Affects external consumers (requires major version bump)",
+                                        "- [x] **Public API**: Affects external consumers (requires major version bump)")
+            elif scope == "Plugin ABI":
+                content = content.replace("- [ ] **Plugin ABI**: Affects plugin compatibility",
+                                        "- [x] **Plugin ABI**: Affects plugin compatibility")
+            elif scope == "Configuration":
+                content = content.replace("- [ ] **Configuration**: Affects config file formats",
+                                        "- [x] **Configuration**: Affects config file formats")
+        
+        return content
+        
+    def generate_code_examples(self, api_name: str, replacement: str) -> tuple[str, str]:
+        """Generate before/after code examples."""
+        
+        # Simple field access examples
+        if "temp_c" in api_name:
+            before = "let temp = telemetry.temp_c;"
+            after = "let temp = telemetry.temperature_c;"
+        elif "wheel_angle_mdeg" in api_name:
+            before = "let angle = telemetry.wheel_angle_mdeg;"
+            after = "let angle = telemetry.wheel_angle_deg;"
+        elif "faults" in api_name and "fault_flags" in replacement:
+            before = "let faults = telemetry.faults;"
+            after = "let fault_flags = telemetry.fault_flags;"
+        elif "sequence" in api_name:
+            before = "let seq = telemetry.sequence;"
+            after = "// sequence field removed - use timestamp_us for ordering"
+            
+        # Constructor examples
+        elif "create_device_id" in api_name:
+            before = 'let device = create_device_id("wheel-1".to_string());'
+            after = 'let device = DeviceId::from_str("wheel-1")?;'
+        elif "DeviceId::new" in api_name:
+            before = 'let device = DeviceId::new("wheel-1".to_string());'
+            after = 'let device = DeviceId::from_str("wheel-1")?;'
+            
+        # Async pattern examples
+        elif "BoxFuture" in api_name:
+            before = "fn method(&self) -> BoxFuture<'_, Result<T, E>>;"
+            after = "#[async_trait]\nfn method(&self) -> Result<T, E>;"
+        elif "impl Future" in api_name:
+            before = "fn method(&self) -> impl Future<Output = Result<T, E>>;"
+            after = "#[async_trait]\nfn method(&self) -> Result<T, E>;"
+            
+        # API pattern examples
+        elif "glob_reexport" in api_name:
+            before = "pub use racing_wheel_schemas::*;"
+            after = "use racing_wheel_schemas::prelude::*;"
+        elif "private_import" in api_name:
+            before = "use racing_wheel_service::internal::Helper;"
+            after = "use racing_wheel_service::Helper;"
+            
+        else:
+            # Generic example
+            before = f"// Example usage of {api_name}"
+            after = f"// Use {replacement} instead"
+            
+        return before, after
+        
+    def create_github_issue(self, title: str, body: str, labels: List[str]) -> bool:
+        """Create GitHub issue using gh CLI."""
+        try:
+            cmd = ["gh", "issue", "create", "--title", title, "--body", body]
+            
+            if labels:
+                cmd.extend(["--label", ",".join(labels)])
+                
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            print(f"✅ Created issue: {result.stdout.strip()}")
+            return True
+            
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to create GitHub issue: {e}")
+            print(f"Error output: {e.stderr}")
+            return False
+        except FileNotFoundError:
+            print("❌ GitHub CLI (gh) not found. Please install it or create the issue manually.")
+            print("\nIssue content:")
+            print("=" * 50)
+            print(f"Title: {title}")
+            print(f"Labels: {', '.join(labels)}")
+            print("\nBody:")
+            print(body)
             return False
             
-    except FileNotFoundError:
-        print("❌ GitHub CLI (gh) not found. Please install it or create the issue manually.")
-        return False
-    except Exception as e:
-        print(f"❌ Error creating issue: {e}")
-        return False
+    def create_removal_issue(self,
+                           api_name: str,
+                           deprecated_version: str,
+                           remove_version: str, 
+                           replacement: str = "",
+                           migration_guide: str = "",
+                           category: str = "",
+                           create_github: bool = True) -> str:
+        """Create a removal issue for a deprecated API."""
+        
+        # Generate issue content
+        content = self.create_issue_content(
+            api_name=api_name,
+            deprecated_version=deprecated_version,
+            remove_version=remove_version,
+            replacement=replacement,
+            migration_guide=migration_guide,
+            category=category
+        )
+        
+        # Generate title
+        title = f"Remove deprecated API: {api_name} in v{remove_version}"
+        
+        # Labels
+        labels = ["breaking-change", "deprecation", "technical-debt"]
+        if category:
+            labels.append(f"category:{category}")
+            
+        # Create GitHub issue if requested
+        if create_github:
+            success = self.create_github_issue(title, content, labels)
+            if not success:
+                # Save to file as fallback
+                filename = f"removal_issue_{api_name.replace('::', '_').replace('.', '_')}.md"
+                filepath = self.workspace_root / filename
+                with open(filepath, 'w') as f:
+                    f.write(f"# {title}\n\n{content}")
+                print(f"💾 Issue content saved to {filepath}")
+        else:
+            print(f"Title: {title}")
+            print(f"Labels: {', '.join(labels)}")
+            print("\nContent:")
+            print(content)
+            
+        return content
 
-def save_issue_template(title, body, output_file):
-    """Save issue content to file for manual creation."""
-    issue_content = f"# {title}\n\n{body}"
-    
-    with open(output_file, 'w') as f:
-        f.write(issue_content)
-    
-    print(f"📝 Issue template saved to: {output_file}")
-    print("You can copy this content to create the issue manually on GitHub.")
+
+def load_config(config_path: Path) -> List[Dict]:
+    """Load removal configuration from JSON file."""
+    with open(config_path, 'r') as f:
+        return json.load(f)
+
 
 def main():
-    """Main entry point."""
-    parser = argparse.ArgumentParser(description='Create compatibility shim removal issue')
-    parser.add_argument('--version', required=True, help='Target version for removal (e.g., 1.3.0)')
-    parser.add_argument('--deprecated-in', required=True, help='Version when items were deprecated (e.g., 1.2.0)')
-    parser.add_argument('--output', help='Output file for issue template (if not using gh CLI)')
-    parser.add_argument('--dry-run', action='store_true', help='Generate template without creating issue')
+    parser = argparse.ArgumentParser(description="Create GitHub issues for deprecated API removal")
+    parser.add_argument("--api", help="API name (e.g., 'TelemetryData::temp_c')")
+    parser.add_argument("--deprecated-in", help="Version when API was deprecated (e.g., '1.2.0')")
+    parser.add_argument("--remove-in", help="Version when API should be removed (e.g., '1.4.0')")
+    parser.add_argument("--replacement", default="", help="Replacement API or migration instruction")
+    parser.add_argument("--migration-guide", default="", help="Link to migration documentation")
+    parser.add_argument("--category", default="", help="API category (e.g., 'telemetry_fields')")
+    parser.add_argument("--config", type=Path, help="JSON config file with multiple APIs to process")
+    parser.add_argument("--dry-run", action="store_true", help="Print issue content without creating")
+    parser.add_argument("--workspace", type=Path, default=Path.cwd(), help="Workspace root directory")
     
     args = parser.parse_args()
     
-    # Get current usage count
-    current_usage = get_current_usage()
+    # Validate workspace
+    workspace_root = args.workspace.resolve()
+    if not (workspace_root / "Cargo.toml").exists():
+        print(f"Error: {workspace_root} does not appear to be a Rust workspace")
+        sys.exit(1)
+        
+    creator = RemovalIssueCreator(workspace_root)
     
-    # Create issue content
-    title = f"Remove compatibility shims for TelemetryData in v{args.version}"
-    body = create_issue_body(args.version, args.deprecated_in, current_usage)
-    labels = ['breaking-change', 'compatibility', 'governance']
-    
-    if args.dry_run or args.output:
-        # Save to file
-        output_file = args.output or f"removal_issue_v{args.version}.md"
-        save_issue_template(title, body, output_file)
+    if args.config:
+        # Process multiple APIs from config file
+        try:
+            apis = load_config(args.config)
+            for api_config in apis:
+                print(f"\nProcessing {api_config['api']}...")
+                creator.create_removal_issue(
+                    api_name=api_config["api"],
+                    deprecated_version=api_config["deprecated_in"],
+                    remove_version=api_config["remove_in"],
+                    replacement=api_config.get("replacement", ""),
+                    migration_guide=api_config.get("migration_guide", ""),
+                    category=api_config.get("category", ""),
+                    create_github=not args.dry_run
+                )
+        except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
+            print(f"Error loading config: {e}")
+            sys.exit(1)
+            
+    elif args.api and args.deprecated_in and args.remove_in:
+        # Process single API from command line
+        creator.create_removal_issue(
+            api_name=args.api,
+            deprecated_version=args.deprecated_in,
+            remove_version=args.remove_in,
+            replacement=args.replacement,
+            migration_guide=args.migration_guide,
+            category=args.category,
+            create_github=not args.dry_run
+        )
     else:
-        # Try to create via GitHub CLI
-        if not create_issue_via_gh_cli(title, body, labels):
-            # Fallback to file output
-            output_file = f"removal_issue_v{args.version}.md"
-            save_issue_template(title, body, output_file)
-    
-    # Print summary
-    print(f"\n📊 Summary:")
-    print(f"   Target version: v{args.version}")
-    print(f"   Deprecated in: v{args.deprecated_in}")
-    print(f"   Current usage: {current_usage} occurrences")
-    print(f"   Priority: {'High' if current_usage > 20 else 'Medium' if current_usage > 5 else 'Low'}")
-    
-    if current_usage > 0:
-        print(f"\n⚠️  Migration needed: {current_usage} compatibility usages must be migrated before removal")
-        print(f"   Run: python scripts/track_compat_usage.py")
-        print(f"   See: docs/MIGRATION_PATTERNS.md")
+        parser.print_help()
+        print("\nExample usage:")
+        print('  python scripts/create_removal_issue.py --api="TelemetryData::temp_c" --deprecated-in="1.2.0" --remove-in="1.4.0" --replacement="temperature_c"')
+        sys.exit(1)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

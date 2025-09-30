@@ -1,0 +1,136 @@
+# CODEOWNERS - Define code ownership for automated review assignment
+# 
+# This file defines who owns different parts of the codebase and will be
+# automatically requested for review when those areas are modified.
+#
+# Format: path-pattern @username @team-name
+# More specific patterns override less specific ones
+
+# Global fallback - require at least one review for any change
+* @owner-lead
+
+# Schema and API Ownership
+# All schema changes require schema owner approval
+/crates/racing-wheel-schemas/ @owner-sch
+/crates/racing-wheel-ipc/ @owner-sch
+
+# Schema governance and API documentation
+/docs/SCHEMA_GOVERNANCE.md @owner-sch
+/.github/pull_request_template.md @owner-sch
+/.github/CODEOWNERS @owner-sch
+
+# Protobuf definitions and generated code
+*.proto @owner-sch
+/build.rs @owner-sch
+
+# Service Layer Ownership
+# Service implementation and IPC contracts
+/crates/racing-wheel-service/ @owner-svc
+/crates/racing-wheel-engine/ @owner-svc
+
+# Service-related documentation
+/docs/SYSTEM_INTEGRATION.md @owner-svc
+/docs/POWER_MANAGEMENT*.md @owner-svc
+
+# CLI Tools Ownership
+# Command-line interfaces and client code
+/crates/wheelctl/ @owner-cli
+/crates/cli/ @owner-cli
+
+# Plugin System Ownership  
+# Plugin ABI, WASM host, and native helpers
+/crates/racing-wheel-plugins/ @owner-plug
+/crates/plugins/ @owner-plug
+
+# Plugin ABI documentation and stability
+/docs/PLUGIN_ABI.md @owner-plug
+
+# Integration and Testing
+# Cross-crate integration tests
+/crates/racing-wheel-integration-tests/ @owner-svc @owner-sch
+
+# Build and CI Infrastructure
+# Workspace configuration and dependency management
+/Cargo.toml @owner-sch
+/Cargo.lock @owner-sch
+/rust-toolchain.toml @owner-sch
+/clippy.toml @owner-sch
+/rustfmt.toml @owner-sch
+/deny.toml @owner-sch
+
+# CI/CD pipeline and automation
+/.github/workflows/ @owner-ci
+/scripts/ @owner-ci
+
+# Build and packaging
+/build/ @owner-ci
+/packaging/ @owner-ci
+
+# Documentation and Governance
+# Architecture Decision Records
+/docs/adr/ @owner-lead @owner-sch
+
+# Development and migration guides
+/docs/DEVELOPMENT.md @owner-lead
+/docs/MIGRATION_PATTERNS.md @owner-sch
+/docs/ANTICHEAT_COMPATIBILITY.md @owner-plug
+
+# License and legal
+/LICENSE* @owner-lead
+/deny.toml @owner-lead
+
+# Compatibility Layer (if exists)
+# Requires both schema and service owner approval for changes
+/crates/compat/ @owner-sch @owner-svc
+
+# Critical Scripts
+# Scripts that affect build, CI, or governance
+/scripts/track_compat_usage.py @owner-sch @owner-ci
+/scripts/validate_*.py @owner-ci
+/scripts/check_*.py @owner-ci
+/scripts/lint_gates.* @owner-ci
+
+# Performance and Analysis
+/benches/ @owner-svc
+/scripts/analyze_*.py @owner-svc @owner-ci
+
+# Security and Audit
+/scripts/audit-licenses.py @owner-lead
+/scripts/check_api_violations.py @owner-sch
+
+# Platform-Specific Code
+# Windows packaging and builds
+/packaging/windows/ @owner-ci @owner-windows
+/scripts/*.ps1 @owner-ci @owner-windows
+
+# Linux packaging and builds  
+/packaging/linux/ @owner-ci @owner-linux
+/scripts/*.sh @owner-ci @owner-linux
+
+# Configuration Files
+# Hakari workspace optimization
+/.config/hakari.toml @owner-sch
+
+# Git configuration
+/.gitignore @owner-lead
+/.gitattributes @owner-lead
+
+# Workspace hack for dependency optimization
+/workspace-hack/ @owner-sch
+
+# Target and build artifacts (should not be in repo, but just in case)
+/target/ @owner-ci
+*.pdb @owner-ci
+
+# Review Assignment Rules:
+# 1. Schema changes (@owner-sch) - All API and type definitions
+# 2. Service IPC (@owner-svc) - Server implementations and contracts  
+# 3. Plugin ABI (@owner-plug) - Stable binary interface and WASM host
+# 4. CLI tools (@owner-cli) - Command-line interfaces and client code
+# 5. CI/Build (@owner-ci) - Automation, scripts, and build infrastructure
+# 6. Platform (@owner-windows/@owner-linux) - Platform-specific code
+# 7. Lead (@owner-lead) - Architecture, governance, and security
+
+# Emergency Override:
+# In case of urgent fixes, @owner-lead can approve any change
+# but must create follow-up issue for proper review
