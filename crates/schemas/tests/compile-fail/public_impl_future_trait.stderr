@@ -1,0 +1,11 @@
+error[E0560]: struct `TelemetryData` has no field named `wheel_angle_mdeg`
+ --> tests/compile-fail/public_impl_future_trait.rs:8:9
+  |
+8 |         wheel_angle_mdeg: 1000,  // Should be wheel_angle_deg
+  |         ^^^^^^^^^^^^^^^^ unknown field
+  |
+help: a field with a similar name exists
+  |
+8 -         wheel_angle_mdeg: 1000,  // Should be wheel_angle_deg
+8 +         wheel_angle_deg: 1000,  // Should be wheel_angle_deg
+  |

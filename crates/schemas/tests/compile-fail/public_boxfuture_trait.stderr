@@ -1,0 +1,7 @@
+error[E0560]: struct `TelemetryData` has no field named `temp_c`
+  --> tests/compile-fail/public_boxfuture_trait.rs:10:9
+   |
+10 |         temp_c: 45,  // Should be temperature_c
+   |         ^^^^^^ `TelemetryData` does not have this field
+   |
+   = note: available fields are: `temperature_c`

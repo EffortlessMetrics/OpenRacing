@@ -83,7 +83,12 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** No deprecated tokens in workspace (rg check); unit docstrings show degrees/rad/s/°C; CLI compiles with new fields
   - _Requirements: CLI-03, IT-02_
 
-- [ ] 5. Standardize async trait patterns with compile-time guards
+- [x] 5. Standardize async trait patterns with compile-time guards
+
+
+
+
+
   - Add #[async_trait] to all public cross-crate trait definitions
   - Remove any manual Box<dyn Future<...>> patterns from public APIs
   - Forbid `-> impl Future<Output=T>` in public trait definitions
@@ -93,7 +98,9 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** All public traits use #[async_trait]; trybuild forbids BoxFuture/impl Future; grep guard blocks glob re-exports
   - _Requirements: SVC-03, API-02_
 
-- [ ] 6. Implement IPC conversion layer between domain and wire types
+- [-] 6. Implement IPC conversion layer between domain and wire types
+
+
   - Create From/TryFrom implementations between domain types and prost-generated types
   - Remove direct prost type usage from service layer internals
   - Add validation in TryFrom implementations for unit conversions and range checks
