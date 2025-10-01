@@ -452,6 +452,21 @@ impl ApplicationDeviceService {
         })
     }
 
+    /// List all devices (for IPC service compatibility)
+    pub async fn list_devices(&self) -> Result<Vec<DeviceInfo>> {
+        self.enumerate_devices().await
+    }
+
+    /// Get device status (for IPC service compatibility)
+    pub async fn get_device_status(&self, device_id: &DeviceId) -> Result<(DeviceInfo, Option<TelemetryData>)> {
+        let managed_device = self.get_device(device_id).await?
+            .ok_or_else(|| anyhow::anyhow!("Device not found: {}", device_id))?;
+
+        let telemetry = self.get_device_telemetry(device_id).await?;
+
+        Ok((managed_device.info, telemetry))
+    }
+
     /// Get device service statistics
     pub async fn get_statistics(&self) -> DeviceServiceStatistics {
         let devices = self.devices.read().await;

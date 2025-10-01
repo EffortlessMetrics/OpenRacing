@@ -280,9 +280,11 @@ impl IpcServer {
 impl Default for IpcConfig {
     fn default() -> Self {
         Self {
-            bind_address: "127.0.0.1".to_string(),
-            port: 50051,
-            transport_type: TransportType::Tcp,
+            bind_address: Some("127.0.0.1".to_string()),
+            transport: TransportType::default(),
+            max_connections: 10,
+            connection_timeout: Duration::from_secs(30),
+            enable_acl: false,
         }
     }
 }

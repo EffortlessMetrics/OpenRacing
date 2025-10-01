@@ -624,6 +624,15 @@ impl ApplicationSafetyService {
         }
     }
 
+    /// Start high torque mode (for IPC service compatibility)
+    /// Delegates to request_high_torque with system as requester
+    pub async fn start_high_torque(&self, device_id: &DeviceId) -> Result<()> {
+        match self.request_high_torque(device_id, "system".to_string()).await {
+            Ok(_interlock_state) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+
     /// Get safety service statistics
     pub async fn get_statistics(&self) -> SafetyServiceStatistics {
         let contexts = self.device_contexts.read().await;

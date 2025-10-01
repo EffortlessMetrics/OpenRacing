@@ -65,28 +65,48 @@
     - Replace incorrect `TorqueNm::from(0.0)` with proper constructor
     - _Requirements: 3.1, 3.2_
 
-- [ ] 4. Update configuration structures
-  - [ ] 4.1 Fix IpcConfig struct usage
+- [x] 4. Update configuration structures
+
+
+
+
+
+  - [x] 4.1 Fix IpcConfig struct usage
+
+
     - Update struct initialization to match current schema fields
     - Replace `port` and `transport_type` with proper `transport` field
     - _Requirements: 3.3_
   
-  - [ ] 4.2 Fix TransportType enum variants
+  - [x] 4.2 Fix TransportType enum variants
+
+
     - Update enum variant references to match current definitions
     - Replace missing `Tcp` and `Native` variants with available ones
     - _Requirements: 3.2, 3.3_
 
-- [ ] 5. Implement missing service methods
-  - [ ] 5.1 Add missing device service methods
+- [x] 5. Implement missing service methods
+
+
+
+
+
+  - [x] 5.1 Add missing device service methods
+
+
     - Implement `list_devices()` method or delegate to existing functionality
     - Add `get_device_status()` method using existing device service capabilities
     - _Requirements: 2.1, 2.2_
   
-  - [ ] 5.2 Add missing safety service methods
+  - [x] 5.2 Add missing safety service methods
+
+
     - Implement `start_high_torque()` method or delegate to `request_high_torque()`
     - _Requirements: 2.1, 2.2_
   
-  - [ ] 5.3 Add missing game service methods
+  - [x] 5.3 Add missing game service methods
+
+
     - Implement `get_game_status()` method for game service
     - _Requirements: 2.1, 2.2_
 

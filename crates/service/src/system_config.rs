@@ -516,8 +516,12 @@ impl ServiceConfig {
             service_description: system_config.service.service_description.clone(),
             ipc: crate::IpcConfig {
                 transport: match system_config.ipc.transport {
-                    TransportType::Native => crate::TransportType::Native,
-                    TransportType::Tcp => crate::TransportType::Tcp,
+                    TransportType::Native => crate::TransportType::default(),
+                    TransportType::Tcp => {
+                        // For TCP, we'll use the default platform transport since TCP isn't available
+                        // in the simplified IPC implementation
+                        crate::TransportType::default()
+                    },
                 },
                 bind_address: system_config.ipc.bind_address.clone(),
                 max_connections: system_config.ipc.max_connections,

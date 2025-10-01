@@ -115,6 +115,15 @@ pub enum DiffOperation {
     Remove,
 }
 
+/// Game status information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GameStatusInfo {
+    pub active_game: Option<String>,
+    pub telemetry_active: bool,
+    pub car_id: Option<String>,
+    pub track_id: Option<String>,
+}
+
 impl GameService {
     /// Create new game service with YAML-loaded support matrix
     pub async fn new() -> Result<Self> {
@@ -223,5 +232,19 @@ impl GameService {
             .ok_or_else(|| anyhow::anyhow!("No config writer for game: {}", game_id))?;
         
         config_writer.get_expected_diffs(config)
+    }
+
+    /// Get game status (for IPC service compatibility)
+    pub async fn get_game_status(&self) -> Result<GameStatusInfo> {
+        let active_game = self.get_active_game().await;
+        
+        // For now, return basic status information
+        // This could be enhanced to detect actual game state, telemetry activity, etc.
+        Ok(GameStatusInfo {
+            active_game,
+            telemetry_active: false, // Would be determined by actual telemetry monitoring
+            car_id: None,            // Would be populated from telemetry data
+            track_id: None,          // Would be populated from telemetry data
+        })
     }
 }
