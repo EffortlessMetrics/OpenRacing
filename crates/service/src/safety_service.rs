@@ -321,7 +321,7 @@ impl ApplicationSafetyService {
 
         let old_state = format!("{:?}", context.interlock_state);
         context.interlock_state = InterlockState::Faulted {
-            fault_type: FaultType::EmergencyStop,
+            fault_type: FaultType::SafetyInterlockViolation,
             occurred_at: Instant::now(),
         };
         context.current_torque_limit = TorqueNm::ZERO;
@@ -494,30 +494,42 @@ impl ApplicationSafetyService {
     ) -> Result<(), SafetyViolation> {
         // Check hands-on detection
         if !context.hands_on_detected {
-            return Err(SafetyViolation::HandsOff);
+            return Err(SafetyViolation::HandsOffTooLong {
+                duration: Duration::from_secs(0),
+                limit: self.hands_off_timeout,
+            });
         }
 
         // Check recent hands-on activity
         if let Some(last_hands_on) = context.last_hands_on_time {
             if last_hands_on.elapsed() > self.hands_off_timeout {
-                return Err(SafetyViolation::HandsOff);
+                return Err(SafetyViolation::HandsOffTooLong {
+                    duration: last_hands_on.elapsed(),
+                    limit: self.hands_off_timeout,
+                });
             }
         } else {
-            return Err(SafetyViolation::HandsOff);
+            return Err(SafetyViolation::HandsOffTooLong {
+                duration: Duration::from_secs(u64::MAX),
+                limit: self.hands_off_timeout,
+            });
         }
 
         // Check temperature
         if let Some(temp) = context.temperature_c {
             if temp > 80.0 {
-                return Err(SafetyViolation::OverTemperature);
+                return Err(SafetyViolation::TemperatureTooHigh {
+                    current: temp as u8,
+                    limit: 80,
+                });
             }
         }
 
         // Check fault history
         if context.fault_count > 5 {
             if let Some(last_fault) = context.last_fault_time {
-                if last_fault.elapsed() < Duration::from_minutes(5) {
-                    return Err(SafetyViolation::RecentFaults);
+                if last_fault.elapsed() < Duration::from_secs(300) {
+                    return Err(SafetyViolation::ActiveFaults(context.fault_count as u8));
                 }
             }
         }

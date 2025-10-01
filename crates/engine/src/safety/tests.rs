@@ -18,7 +18,7 @@ fn test_initial_state() {
     let service = create_test_service();
     
     assert_eq!(service.state(), &SafetyState::SafeTorque);
-    assert_eq!(service.max_torque_nm(), 5.0);
+    assert_eq!(service.get_max_torque(false).value(), 5.0);
     assert!(!service.has_valid_token("test_device"));
     assert!(service.get_active_challenge().is_none());
 }
@@ -149,7 +149,7 @@ fn test_physical_combo_flow() {
     
     // Device should have valid token
     assert!(service.has_valid_token("test_device"));
-    assert_eq!(service.max_torque_nm(), 25.0);
+    assert_eq!(service.get_max_torque(true).value(), 25.0);
 }
 
 #[test]
@@ -308,7 +308,7 @@ fn test_disable_high_torque() {
     
     assert_eq!(service.state(), &SafetyState::SafeTorque);
     assert!(!service.has_valid_token("test_device"));
-    assert_eq!(service.max_torque_nm(), 5.0);
+    assert_eq!(service.get_max_torque(false).value(), 5.0);
 }
 
 #[test]
@@ -325,7 +325,7 @@ fn test_fault_handling() {
         _ => panic!("Expected Faulted state"),
     }
     
-    assert_eq!(service.max_torque_nm(), 0.0);
+    assert_eq!(service.get_max_torque(false).value(), 0.0);
     
     // Cannot request high torque while faulted
     let result = service.request_high_torque("test_device");

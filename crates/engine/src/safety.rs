@@ -2,6 +2,7 @@
 
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
+use racing_wheel_schemas::prelude::TorqueNm;
 
 /// Safety state machine for torque management
 #[derive(Debug, Clone, PartialEq)]
@@ -162,6 +163,22 @@ impl SafetyService {
             SafetyState::HighTorqueActive { .. } => self.max_high_torque_nm,
             SafetyState::Faulted { .. } => 0.0,
         }
+    }
+
+    /// Get the current maximum allowed torque as TorqueNm
+    pub fn get_max_torque(&self, is_high_torque_enabled: bool) -> TorqueNm {
+        let torque_nm = if is_high_torque_enabled {
+            match &self.state {
+                SafetyState::HighTorqueActive { .. } => self.max_high_torque_nm,
+                _ => self.max_safe_torque_nm,
+            }
+        } else {
+            match &self.state {
+                SafetyState::Faulted { .. } => 0.0,
+                _ => self.max_safe_torque_nm,
+            }
+        };
+        TorqueNm::from_raw(torque_nm)
     }
 
     /// Get consent requirements for high torque mode

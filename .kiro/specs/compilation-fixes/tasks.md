@@ -110,25 +110,45 @@
     - Implement `get_game_status()` method for game service
     - _Requirements: 2.1, 2.2_
 
-- [ ] 6. Fix enum variant and method name issues
-  - [ ] 6.1 Fix SafetyViolation enum variants
+- [x] 6. Fix enum variant and method name issues
+
+
+
+
+
+  - [x] 6.1 Fix SafetyViolation enum variants
+
+
     - Replace missing `HandsOff`, `OverTemperature`, `RecentFaults` variants with available ones
     - _Requirements: 3.2_
   
-  - [ ] 6.2 Fix FaultType enum variants
+  - [x] 6.2 Fix FaultType enum variants
+
+
     - Replace missing `EmergencyStop` variant with available alternative
     - _Requirements: 3.2_
   
-  - [ ] 6.3 Fix SafetyPolicy method calls
+
+  - [x] 6.3 Fix SafetyPolicy method calls
+
     - Replace `default_safe_torque_nm()` and `max_torque_nm()` with `get_max_torque()`
     - _Requirements: 2.1, 2.2_
 
-- [ ] 7. Fix duration and time-related issues
-  - [ ] 7.1 Replace Duration::from_minutes with Duration::from_secs
+- [x] 7. Fix duration and time-related issues
+
+
+
+
+
+  - [x] 7.1 Replace Duration::from_minutes with Duration::from_secs
+
+
     - Update duration construction to use available API methods
     - _Requirements: 3.1_
   
-  - [ ] 7.2 Fix device health status method calls
+  - [x] 7.2 Fix device health status method calls
+
+
     - Remove incorrect `map_err` call on `DeviceHealthStatus`
     - Fix pattern matching on health status results
     - _Requirements: 3.1, 3.2_

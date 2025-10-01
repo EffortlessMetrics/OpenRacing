@@ -234,8 +234,7 @@ impl ApplicationDeviceService {
         let device = self.hid_port.open_device(device_id).await
             .map_err(|e| anyhow::anyhow!("Failed to open device for health check: {}", e))?;
 
-        let health_status = device.health_status()
-            .map_err(|e| anyhow::anyhow!("Failed to get device health: {}", e))?;
+        let health_status = device.health_status();
 
         // Update managed device
         {
@@ -294,17 +293,11 @@ impl ApplicationDeviceService {
 
                 for device_id in device_ids {
                     if let Ok(device) = hid_port.open_device(&device_id).await {
-                        match device.health_status() {
-                            Ok(health_status) => {
-                                let mut devices_guard = devices.write().await;
-                                if let Some(managed_device) = devices_guard.get_mut(&device_id) {
-                                    managed_device.health_status = health_status;
-                                    managed_device.last_seen = Instant::now();
-                                }
-                            }
-                            Err(e) => {
-                                warn!(device_id = %device_id, error = %e, "Health check failed");
-                            }
+                        let health_status = device.health_status();
+                        let mut devices_guard = devices.write().await;
+                        if let Some(managed_device) = devices_guard.get_mut(&device_id) {
+                            managed_device.health_status = health_status;
+                            managed_device.last_seen = Instant::now();
                         }
                     }
                 }

@@ -564,7 +564,7 @@ impl Engine {
             let _pipeline_time = pipeline_start.elapsed();
             
             // Apply safety limits
-            let max_torque = ctx.safety.max_torque_nm() / ctx.config.max_high_torque_nm;
+            let max_torque = ctx.safety.get_max_torque(true).value() / ctx.config.max_high_torque_nm;
             let clamped_torque = frame.torque_out.clamp(-max_torque, max_torque);
             
             // Record torque saturation (RT-safe)
