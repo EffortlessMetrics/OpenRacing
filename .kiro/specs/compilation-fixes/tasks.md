@@ -1,213 +1,134 @@
 # Implementation Plan
 
-This implementation plan converts the compilation error fixes into a series of discrete, manageable coding steps that build incrementally to restore the codebase to a clean compilation state while establishing governance to prevent future regressions.
-
-## Task List
-
-- [x] 1. Resolve root export conflicts at source with canonical types
-
-
-
-
-
-  - Keep single public FFBMode (in rt module) as canonical export
-  - Rename internal enum in ffb module to PipelineMode and make it pub(crate)
-  - Replace glob re-exports with explicit item lists to avoid future collisions
-  - Create small public prelude module with intended surface if needed
-  - Verify no duplicate symbol errors remain and prelude compiles
-  - **DoD:** cargo check shows no duplicate symbols; only one public FFBMode; no glob exports; prelude compiles
-  - _Requirements: 1.1, 1.2, 1.3, 1.4_
-
-- [x] 2. Add missing standard library imports with atomic preferences
-
-
-
-
-
-  - Add std::sync::atomic::{AtomicBool, Ordering} for boolean flags in test modules
-  - Use std::sync::{Arc, Mutex} only when multi-field mutation is needed
-  - Add std::time::Duration import to metrics.rs and other test modules as needed
-  - Scope imports within #[cfg(test)] mod tests blocks to avoid production pollution
-  - Verify all missing symbol errors are resolved
-  - **DoD:** No E0433 in tests; boolean flags use AtomicBool unless locking is needed
-  - _Requirements: 2.1, 2.2, 2.3, 2.4_
-
-- [x] 3. Fix HealthEventType import path resolution
-
-
-
-
-
-  - Add explicit import for HealthEventType in diagnostic/streams.rs
-  - Use crate::diagnostic::HealthEventType or add proper use statement
-  - Verify enum variant access compiles correctly without super:: ambiguities
-  - **DoD:** streams.rs compiles with explicit path; no super:: ambiguities
-  - _Requirements: 2.1, 2.4_
-
-- [x] 4. Create test-only schema compatibility layer
-
-
-
-
-
-  - Create crates/compat with TelemetryCompat trait mapping old → new field names
-  - Gate compatibility layer with #[cfg(test)] so it never ships in release builds
-  - Add CI metric to ensure compat usage count does not increase over time
-  - Implement inline forwarding methods for all renamed fields
-  - **DoD:** Compat shim exists; usage count tracked and does not increase in CI
-  - _Requirements: 3.1, 3.2, 3.3, 3.4 (risk-reduced migration)_
-
-- [x] 5. Update TelemetryData field references using compatibility layer
-
-
-
-
-
-  - Replace wheel_angle_mdeg with wheel_angle_deg in critical paths first
-  - Replace wheel_speed_mrad_s with wheel_speed_rad_s in critical paths first
-  - Replace temp_c with temperature_c in critical paths first
-  - Replace faults with fault_flags in critical paths first
-  - Use compatibility layer for non-critical test code during transition
-  - Remove or update assertions on removed sequence field
-  - **DoD:** All references use new names or compat layer; no compilation errors
-  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.6_
-
--
-
-- [x] 6. Add missing FilterConfig fields with proper defaults
-
-
-
-  - Add bumpstop field using BumpstopConfig::default() in initializations
-  - Add hands_off field using HandsOffConfig::default() in initializations
-  - Add torque_cap field with Some(TorqueNm(10.0)) or appropriate default
-  - Use FilterConfig::default() with struct update syntax (..Default::default())
-  - Verify all FilterConfig initializations compile successfully
-  - **DoD:** All initializers compile; either ..Default::default() used or fields explicitly set
-  - _Requirements: 3.5_
-
-- [x] 7. Fix DeviceId construction and add conversion traits
-
-
-
-
-  - Remove incorrect DeviceId::new() wrapping where id is already DeviceId type
-  - Implement Display and From<String>/From<DeviceId> traits for ergonomic conversions
-  - Update string comparisons to use .to_string() method consistently
-  - Add serde support if needed for test serialization
-  - Verify DeviceId usage is consistent throughout codebase
-  - **DoD:** No E0308 on DeviceId; string compares use .to_string(); conversion traits implemented
-  - _Requirements: 4.1, 4.5_
-
-- [x] 8. Restore parametric property tests with deterministic seeds
-
-
-
-
-
-  - Keep property tests parametric using proptest! or QuickCheck with parameters
-  - Ensure wrappers forward parameters and return the property result
-  - Configure tests to emit failure seeds and enable shrinking for reproducibility
-  - Fix function name typos (create_test_telemetry → create_varying_telemetry)
-  - Store failing seeds as CI artifacts for debugging
-  - **DoD:** Properties parametric; wrappers return results; seeds logged on failure
-  - _Requirements: 4.2, 4.3, 5.1, 5.4_
-
-- [x] 9. Handle write_ffb_report Result with RT-safe error counting
-
-
-
-
-
-  - Use AtomicU64 counters with Ordering::Relaxed for error accounting
-  - Implement non-allocating error counting in RT loop (no logging/allocation)
-  - Publish aggregated counts off-thread at 1-2 Hz for diagnostics
-  - Send lossy diagnostic signals to side threads using non-blocking channels
-  - Verify RT performance (p99 jitter) is unchanged with error handling
-  - **DoD:** Hot path increments atomic counters; no logging/allocations; perf test unchanged
-  - _Requirements: 4.4, 6.3_
-
-- [x] 10. Replace unsafe static mut with OnceLock and add lint guard
-
-
-
-
-
-  - Replace static mut CACHED_INFO with OnceLock<DeviceInfoCache>
-  - Implement get_cached_info() function using OnceLock::get_or_init
-  - Add #![deny(static_mut_refs)] at crate root (non-test) to prevent regression
-  - Update all references to use safe accessor function
-  - Document the rule in code style guidelines
-  - **DoD:** No static_mut_refs warnings; cache access through accessor; lint guard active
-  - _Requirements: 6.1, 6.2, 6.4_
-
-- [x] 11. Remove unused imports and variables with proper scoping
-
-
-
-
-
-  - Remove unused imports in test modules (PI, HashMap, sleep, TelemetryData, etc.)
-  - Prefix intentionally unused variables with underscore or remove them
-  - Add #[cfg(test)] guards to test-only re-exports to prevent production pollution
-  - Clean up comparison warnings for type limits appropriately
-  - Verify no unused import warnings remain
-  - **DoD:** Clean compilation; test-only imports properly scoped; no unused warnings
-  - _Requirements: 7.1, 7.2, 7.5_
-
-- [x] 12. Address dead code with appropriate allow attributes
-
-
-
-
-
-  - Add #[allow(dead_code)] to intentionally kept helper functions with TODO links
-  - Remove truly unused code or document why it's preserved for future use
-  - Address unused struct fields that are part of public API appropriately
-  - Verify dead code warnings are handled without hiding real issues
-  - **DoD:** Dead code either removed or #[allow(dead_code)] with justification
-  - _Requirements: 7.3_
-
-- [x] 13. Add comprehensive regression prevention and CI gates
-
-
-
-
-
-  - Add RUSTFLAGS="-D warnings -D unused_must_use" for non-test crates
-  - Implement Protobuf breaking-change checks (buf breaking --against main)
-  - Add JSON Schema round-trip tests and required field validation
-  - Create trybuild compile-fail tests for removed schema tokens
-  - Add cargo-udeps, clippy, and rustfmt checks to CI pipeline
-  - Deny clippy::unwrap_used in non-test code
-  - **DoD:** CI gates active; schema break detection; lint enforcement; trybuild guards
-  - _Requirements: 8.1, 8.2, 8.3, 8.4_
-
-- [x] 14. Establish schema/API governance and migration policy
-
-
-
-
-
-  - Document deprecation window policy (old names marked #[deprecated] for one minor)
-  - Create migration pattern documentation (rename → alias → remove)
-  - Add schema stability requirements to PR template
-  - Implement CI metrics to track compat layer usage trending down
-  - Create issue to remove compatibility shims in next minor version
-  - **DoD:** Governance policy documented; PR template updated; migration tracking active
-  - _Requirements: 8.4_
-
-- [x] 15. Validate complete system integration and performance
-
-
-
-
-
-  - Verify entire codebase compiles without errors or warnings
-  - Run existing test suite to ensure no runtime regressions
-  - Validate that virtual device integration still works correctly
-  - Confirm RT engine can be instantiated and maintains performance guarantees
-  - Check that all examples compile and execute properly
-  - Verify p99 jitter remains ≤0.25ms with new error handling
-  - **DoD:** cargo test --workspace green; examples build; virtual device demo runs; RT performance maintained
-  - _Requirements: All requirements integration_
+- [x] 1. Fix trait compatibility and async issues
+
+
+
+
+
+  - Fix `DiagnosticTest` trait to be dyn-compatible by using proper async trait patterns
+  - Resolve async trait object compilation errors in diagnostic service
+  - _Requirements: 2.1, 2.3_
+
+- [x] 2. Resolve import and dependency issues
+
+
+
+
+
+  - [x] 2.1 Fix missing `ApplicationProfileService` import in ipc_service.rs
+
+
+    - Correct the import path to reference the proper service type
+    - _Requirements: 4.1, 4.2_
+  
+  - [x] 2.2 Add missing tracing_subscriber Layer import for observability
+
+
+    - Import `tracing_subscriber::Layer` trait to enable `boxed()` method
+    - _Requirements: 4.1, 4.3_
+  
+  - [x] 2.3 Remove unused imports and fix import warnings
+
+
+    - Clean up unused imports across service modules
+    - _Requirements: 4.1_
+
+- [-] 3. Fix type system errors and missing fields
+
+
+  - [ ] 3.1 Fix ambiguous numeric type in diagnostic service
+    - Specify explicit type for jitter calculation (f64)
+    - Add type annotations for vector collections
+    - _Requirements: 3.1, 3.2_
+  
+  - [ ] 3.2 Add missing fields to FilterConfig struct
+    - Add `bumpstop`, `hands_off`, and `torque_cap` fields with appropriate default values
+    - _Requirements: 3.3_
+  
+  - [ ] 3.3 Fix CalibrationData struct field names
+    - Update `timestamp` field to `calibrated_at` to match schema
+    - _Requirements: 3.3_
+  
+  - [ ] 3.4 Fix TorqueNm construction calls
+    - Replace incorrect `TorqueNm::from(0.0)` with proper constructor
+    - _Requirements: 3.1, 3.2_
+
+- [ ] 4. Update configuration structures
+  - [ ] 4.1 Fix IpcConfig struct usage
+    - Update struct initialization to match current schema fields
+    - Replace `port` and `transport_type` with proper `transport` field
+    - _Requirements: 3.3_
+  
+  - [ ] 4.2 Fix TransportType enum variants
+    - Update enum variant references to match current definitions
+    - Replace missing `Tcp` and `Native` variants with available ones
+    - _Requirements: 3.2, 3.3_
+
+- [ ] 5. Implement missing service methods
+  - [ ] 5.1 Add missing device service methods
+    - Implement `list_devices()` method or delegate to existing functionality
+    - Add `get_device_status()` method using existing device service capabilities
+    - _Requirements: 2.1, 2.2_
+  
+  - [ ] 5.2 Add missing safety service methods
+    - Implement `start_high_torque()` method or delegate to `request_high_torque()`
+    - _Requirements: 2.1, 2.2_
+  
+  - [ ] 5.3 Add missing game service methods
+    - Implement `get_game_status()` method for game service
+    - _Requirements: 2.1, 2.2_
+
+- [ ] 6. Fix enum variant and method name issues
+  - [ ] 6.1 Fix SafetyViolation enum variants
+    - Replace missing `HandsOff`, `OverTemperature`, `RecentFaults` variants with available ones
+    - _Requirements: 3.2_
+  
+  - [ ] 6.2 Fix FaultType enum variants
+    - Replace missing `EmergencyStop` variant with available alternative
+    - _Requirements: 3.2_
+  
+  - [ ] 6.3 Fix SafetyPolicy method calls
+    - Replace `default_safe_torque_nm()` and `max_torque_nm()` with `get_max_torque()`
+    - _Requirements: 2.1, 2.2_
+
+- [ ] 7. Fix duration and time-related issues
+  - [ ] 7.1 Replace Duration::from_minutes with Duration::from_secs
+    - Update duration construction to use available API methods
+    - _Requirements: 3.1_
+  
+  - [ ] 7.2 Fix device health status method calls
+    - Remove incorrect `map_err` call on `DeviceHealthStatus`
+    - Fix pattern matching on health status results
+    - _Requirements: 3.1, 3.2_
+
+- [ ] 8. Fix async lifetime and ownership issues
+  - [ ] 8.1 Fix async task spawning lifetime issues
+    - Resolve borrowed data escaping method body in device enumeration
+    - _Requirements: 2.3_
+  
+  - [ ] 8.2 Fix Arc cloning for service run methods
+    - Add proper cloning for wheel service run method
+    - _Requirements: 2.3_
+
+- [ ] 9. Add missing Default implementations
+  - [ ] 9.1 Add Default implementation for GameSupportMatrix
+    - Implement Default trait or use alternative construction method
+    - _Requirements: 2.1_
+  
+  - [ ] 9.2 Fix ProfileId constructor calls
+    - Replace `ProfileId::new()` calls with proper constructor or factory method
+    - _Requirements: 3.1, 3.2_
+
+- [ ] 10. Final compilation verification and cleanup
+  - [ ] 10.1 Run cargo build to verify all errors are resolved
+    - Execute `cargo build -p racing-wheel-service` to confirm compilation success
+    - _Requirements: 1.1, 1.2_
+  
+  - [ ] 10.2 Address remaining warnings
+    - Fix non-critical warnings where possible without breaking functionality
+    - _Requirements: 1.3_
+  
+  - [ ]* 10.3 Run cargo clippy for additional code quality checks
+    - Execute clippy to identify potential improvements
+    - _Requirements: 1.3_

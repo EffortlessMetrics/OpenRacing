@@ -18,7 +18,7 @@ use axum::{
     routing::get,
     Router,
 };
-use prometheus::{Encoder, TextEncoder};
+use prometheus::TextEncoder;
 use racing_wheel_engine::{
     MetricsCollector, HealthEvent, HealthEventStreamer, AlertingThresholds, MetricsValidator
 };
@@ -356,7 +356,7 @@ impl Default for LoggingConfig {
 /// Initialize structured logging with device and game context
 pub fn init_logging(config: LoggingConfig) -> Result<()> {
     use tracing_subscriber::{
-        fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter,
+        fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
     };
     
     let env_filter = EnvFilter::try_from_default_env()

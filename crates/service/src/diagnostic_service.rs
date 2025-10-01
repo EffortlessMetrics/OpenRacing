@@ -159,9 +159,10 @@ impl DiagnosticService {
         #[cfg(windows)]
         {
             let version = os_info::get();
-            return Some(version.version().to_string());
+            Some(version.version().to_string())
         }
         
+        #[cfg(not(windows))]
         None
     }
     
@@ -259,7 +260,7 @@ impl DiagnosticTest for HidDeviceTest {
     
     async fn run(&self, _system_info: &SystemInfo) -> Result<DiagnosticResult> {
         let mut metadata = HashMap::new();
-        let mut suggested_actions = Vec::new();
+        let mut suggested_actions: Vec<String> = Vec::new();
         
         // Check for HID devices
         #[cfg(target_os = "linux")]
@@ -498,7 +499,7 @@ impl DiagnosticTest for TimingTest {
         jitters.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let mean_jitter = jitters.iter().sum::<f64>() / jitters.len() as f64;
         let p99_jitter = jitters[(jitters.len() as f64 * 0.99) as usize];
-        let max_jitter = jitters.iter().fold(0.0, |a, &b| a.max(b));
+        let max_jitter = jitters.iter().fold(0.0f64, |a, &b| a.max(b));
         
         metadata.insert("mean_jitter_us".to_string(), format!("{:.2}", mean_jitter));
         metadata.insert("p99_jitter_us".to_string(), format!("{:.2}", p99_jitter));
@@ -799,8 +800,8 @@ impl DiagnosticTest for SafetySystemTest {
         // Test safety policy creation
         let safety_policy = racing_wheel_engine::SafetyPolicy::default();
         metadata.insert("safety_policy_created".to_string(), "true".to_string());
-        metadata.insert("default_safe_torque_nm".to_string(), safety_policy.default_safe_torque_nm().to_string());
-        metadata.insert("max_torque_nm".to_string(), safety_policy.max_torque_nm().to_string());
+        metadata.insert("default_safe_torque_nm".to_string(), safety_policy.get_max_torque(false).to_string());
+        metadata.insert("max_torque_nm".to_string(), safety_policy.get_max_torque(true).to_string());
         
         // Test fault detection mechanisms
         let fault_types = ["usb_timeout", "encoder_nan", "thermal_limit", "overcurrent"];

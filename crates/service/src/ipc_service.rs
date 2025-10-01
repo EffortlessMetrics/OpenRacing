@@ -6,13 +6,13 @@
 use std::collections::{HashMap, BTreeMap};
 use std::pin::Pin;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 use async_trait::async_trait;
 use tokio::sync::{broadcast, RwLock};
-use tokio_stream::{wrappers::BroadcastStream, Stream, StreamExt};
-use tonic::{Request, Response, Status, Streaming};
-use tracing::{debug, error, info, warn};
+use tokio_stream::{Stream, StreamExt};
+use tonic::{Request, Response, Status};
+use tracing::debug;
 
 use racing_wheel_schemas::generated::wheel::v1::{
     wheel_service_server::WheelService,
@@ -21,14 +21,12 @@ use racing_wheel_schemas::generated::wheel::v1::{
     FeatureNegotiationRequest, FeatureNegotiationResponse, ApplyProfileRequest,
     ConfigureTelemetryRequest,
 };
-use racing_wheel_schemas::prelude::{
-    DeviceId, Profile, TelemetryData, Device, DeviceCapabilities,
-};
+use racing_wheel_schemas::prelude::TelemetryData;
 use racing_wheel_schemas::ipc_conversion::ConversionError;
 
 // Import domain services (these will be the real implementations)
 use crate::device_service::ApplicationDeviceService;
-use crate::profile_service::ApplicationProfileService;
+use crate::ApplicationProfileService;
 use crate::safety_service::ApplicationSafetyService;
 use crate::game_service::GameService;
 
@@ -470,8 +468,6 @@ fn is_version_compatible(client_version: &str, min_version: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use racing_wheel_schemas::domain::*;
-    use racing_wheel_schemas::entities::*;
 
     #[test]
     fn test_version_compatibility() {
