@@ -447,7 +447,8 @@ impl ApplicationDeviceService {
             min_position: range_cal.min_position,
             max_position: range_cal.max_position,
             pedal_ranges: pedal_cal.pedal_ranges,
-            timestamp: Instant::now(),
+            calibrated_at: Some(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs().to_string()),
+            calibration_type: racing_wheel_schemas::entities::CalibrationType::Full,
         })
     }
 

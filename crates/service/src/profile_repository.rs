@@ -500,6 +500,9 @@ impl ProfileRepository {
                             output: cp.output,
                         }
                     }).collect(),
+                    torque_cap: Some(1.0),
+                    bumpstop: racing_wheel_schemas::config::BumpstopConfig::default(),
+                    hands_off: racing_wheel_schemas::config::HandsOffConfig::default(),
                 },
             },
             leds: profile.led_config.as_ref().map(|led| {

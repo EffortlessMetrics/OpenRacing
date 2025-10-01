@@ -260,7 +260,7 @@ impl DiagnosticTest for HidDeviceTest {
     
     async fn run(&self, _system_info: &SystemInfo) -> Result<DiagnosticResult> {
         let mut metadata = HashMap::new();
-        let mut suggested_actions: Vec<String> = Vec::new();
+        let suggested_actions: Vec<String> = Vec::new();
         
         // Check for HID devices
         #[cfg(target_os = "linux")]

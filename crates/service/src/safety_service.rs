@@ -324,7 +324,7 @@ impl ApplicationSafetyService {
             fault_type: FaultType::EmergencyStop,
             occurred_at: Instant::now(),
         };
-        context.current_torque_limit = TorqueNm::from(0.0);
+        context.current_torque_limit = TorqueNm::ZERO;
         context.fault_count += 1;
         context.last_fault_time = Some(Instant::now());
 
@@ -384,7 +384,7 @@ impl ApplicationSafetyService {
                     fault_type,
                     occurred_at: Instant::now(),
                 };
-                context.current_torque_limit = TorqueNm::from(0.0);
+                context.current_torque_limit = TorqueNm::ZERO;
 
                 self.emit_safety_state_changed(device_id, &old_state, "faulted", &format!("fatal_fault_{:?}", fault_type)).await;
 
