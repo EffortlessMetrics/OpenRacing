@@ -48,10 +48,12 @@ pub struct WheelServiceImpl {
     safety_service: Arc<ApplicationSafetyService>,
     game_service: Arc<GameService>,
     health_broadcaster: broadcast::Sender<HealthEventInternal>,
+    #[allow(dead_code)]
     connected_clients: Arc<RwLock<HashMap<String, ClientInfo>>>,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ClientInfo {
     id: String,
     connected_at: std::time::Instant,

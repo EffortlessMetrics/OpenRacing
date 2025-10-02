@@ -3,11 +3,11 @@
 //! Complete system integration with graceful degradation, feature flags,
 //! and comprehensive configuration management.
 
-use racing_wheel_service::{WheelService, ServiceDaemon, ServiceConfig, SystemConfig, FeatureFlags};
+use racing_wheel_service::{ServiceDaemon, ServiceConfig, SystemConfig, FeatureFlags};
 use tracing::{info, error, warn, debug};
 use tracing_subscriber::{self, EnvFilter};
 use clap::{Parser, Subcommand};
-use std::process;
+
 use anyhow::{Result, Context};
 
 #[derive(Parser)]

@@ -64,6 +64,7 @@ impl Default for ObservabilityConfig {
 pub struct ObservabilityState {
     metrics_collector: Arc<RwLock<MetricsCollector>>,
     health_streamer: Arc<HealthEventStreamer>,
+    #[allow(dead_code)]
     validator: Arc<MetricsValidator>,
     config: ObservabilityConfig,
 }

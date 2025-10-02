@@ -75,6 +75,7 @@ impl TelemetryFrame {
 /// Telemetry service that manages multiple adapters
 pub struct TelemetryService {
     adapters: std::collections::HashMap<String, Box<dyn TelemetryAdapter>>,
+    #[allow(dead_code)]
     rate_limiter: RateLimiter,
     recorder: Option<TelemetryRecorder>,
 }

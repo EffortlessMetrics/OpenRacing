@@ -47,6 +47,7 @@ pub enum DiagnosticStatus {
 
 /// System information
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct SystemInfo {
     os: String,
     arch: String,

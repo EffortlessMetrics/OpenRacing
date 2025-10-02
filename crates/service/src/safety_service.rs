@@ -96,6 +96,7 @@ pub struct ApplicationSafetyService {
     /// Per-device safety contexts
     device_contexts: Arc<RwLock<HashMap<DeviceId, DeviceSafetyContext>>>,
     /// Safety policy engine
+    #[allow(dead_code)]
     safety_policy: SafetyPolicy,
     /// Event sender for safety events
     event_sender: mpsc::UnboundedSender<SafetyEvent>,
@@ -104,6 +105,7 @@ pub struct ApplicationSafetyService {
     /// Tracing manager for observability
     tracer: Option<Arc<TracingManager>>,
     /// Safety monitoring interval
+    #[allow(dead_code)]
     monitoring_interval: Duration,
     /// Challenge timeout duration
     challenge_timeout: Duration,

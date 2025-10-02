@@ -7,7 +7,7 @@ use crate::domain::{DeviceId, ProfileId, TorqueNm, Degrees, Gain, FrequencyHz, C
 use crate::entities::{
     Device, DeviceCapabilities, DeviceState, DeviceType,
     Profile, ProfileScope, ProfileMetadata, BaseSettings, FilterConfig,
-    NotchFilter, LedConfig, HapticsConfig, BumpstopConfig, HandsOffConfig,
+    NotchFilter, LedConfig, HapticsConfig,
 };
 use crate::telemetry::TelemetryData;
 use std::collections::HashMap;
@@ -67,7 +67,7 @@ impl TryFrom<proto::DeviceInfo> for Device {
             .ok_or_else(|| ConversionError::MissingField("capabilities".to_string()))?
             .try_into()?;
         
-        let state = match wire.state {
+        let _state = match wire.state {
             0 => DeviceState::Disconnected,
             1 => DeviceState::Connected,
             2 => DeviceState::Active,

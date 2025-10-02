@@ -57,11 +57,13 @@ pub struct HealthEventInternal {
 pub struct IpcServer {
     config: IpcConfig,
     health_sender: broadcast::Sender<HealthEventInternal>,
+    #[allow(dead_code)]
     connected_clients: Arc<RwLock<HashMap<String, ClientInfo>>>,
     shutdown_tx: Arc<Mutex<Option<broadcast::Sender<()>>>>,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ClientInfo {
     id: String,
     connected_at: std::time::SystemTime,
@@ -70,6 +72,7 @@ struct ClientInfo {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct PeerInfo {
     #[cfg(windows)]
     process_id: u32,

@@ -253,6 +253,7 @@
 
 
 
+
   - [x] 12.1 Replace manual range checks with contains()
 
 
@@ -266,16 +267,28 @@
     - Simplify nested if statements using `&&` patterns in entities.rs and safety_service.rs
     - _Requirements: 6.4_
 
-- [ ] 13. Clean up unused imports and variables
-  - [ ] 13.1 Remove unused imports in schemas crate
+- [x] 13. Clean up unused imports and variables
+
+
+
+
+
+
+
+  - [x] 13.1 Remove unused imports in schemas crate
+
     - Remove unused `BumpstopConfig` and `HandsOffConfig` imports
     - _Requirements: 6.5_
+
   
-  - [ ] 13.2 Fix unused variables
+  - [x] 13.2 Fix unused variables
+
     - Prefix unused variables with underscore (e.g., `_state` in ipc_conversion.rs)
     - _Requirements: 6.5_
   
-  - [ ] 13.3 Remove dead code fields
+
+  - [x] 13.3 Remove dead code fields
+
     - Address unused fields in service structs or mark them as intentionally unused
     - _Requirements: 6.5_
 
