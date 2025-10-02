@@ -210,7 +210,7 @@ impl TelemetryPlayer {
     
     /// Set playback speed (1.0 = normal, 2.0 = 2x speed, 0.5 = half speed)
     pub fn set_playback_speed(&mut self, speed: f32) {
-        self.playback_speed = speed.max(0.1).min(10.0);
+        self.playback_speed = speed.clamp(0.1, 10.0);
     }
     
     /// Get playback progress (0.0 to 1.0)

@@ -64,7 +64,7 @@ impl Ed25519Verifier {
         if signature_bytes.len() != 64 {
             return Err(CryptoError::KeyFormatError(
                 format!("Invalid signature length: expected 64 bytes, got {}", signature_bytes.len())
-            ).into());
+            ));
         }
         
         let mut bytes = [0u8; 64];
@@ -83,7 +83,7 @@ impl Ed25519Verifier {
         if key_bytes.len() != 32 {
             return Err(CryptoError::KeyFormatError(
                 format!("Invalid public key length: expected 32 bytes, got {}", key_bytes.len())
-            ).into());
+            ));
         }
         
         let mut bytes = [0u8; 32];

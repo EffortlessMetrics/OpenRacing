@@ -281,6 +281,6 @@ mod tests {
         assert_eq!(stats.max_rate_hz, 100);
         assert_eq!(stats.processed_count, 1);
         assert_eq!(stats.dropped_count, 2);
-        assert!((stats.drop_rate_percent - 66.67).abs() < 0.1);
+        assert!(stats.drop_rate_percent.abs_diff(66.67) < 0.1);
     }
 }

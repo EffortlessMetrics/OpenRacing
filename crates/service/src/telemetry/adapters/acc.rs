@@ -264,10 +264,10 @@ impl ACCAdapter {
 fn extract_string(bytes: &[u8]) -> String {
     match bytes.iter().position(|&b| b == 0) {
         Some(pos) => {
-            String::from_utf8_lossy(&bytes[..pos]).to_string()
+            String::from_utf8_lossy(&bytes[..pos]).into_owned()
         }
         None => {
-            String::from_utf8_lossy(bytes).to_string()
+            String::from_utf8_lossy(bytes).into_owned()
         }
     }
 }

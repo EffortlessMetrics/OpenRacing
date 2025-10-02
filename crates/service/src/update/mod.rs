@@ -278,7 +278,7 @@ impl UpdateManager {
                                 Err(UpdateError::RollbackFailed(format!(
                                     "Health check failed and rollback failed: {} -> {}",
                                     health_error, rollback_error
-                                )).into())
+                                )))
                             }
                         }
                     }
@@ -304,7 +304,7 @@ impl UpdateManager {
                         Err(UpdateError::RollbackFailed(format!(
                             "Update failed and rollback failed: {} -> {}",
                             apply_error, rollback_error
-                        )).into())
+                        )))
                     }
                 }
             }
@@ -324,7 +324,7 @@ impl UpdateManager {
         if !verification_result.signature_valid {
             return Err(UpdateError::VerificationFailed(
                 "Invalid update package signature".to_string()
-            ).into());
+            ));
         }
         
         // Parse package metadata
@@ -347,7 +347,7 @@ impl UpdateManager {
                     return Err(UpdateError::InvalidPackage(format!(
                         "Delta update requires version {}, but current version is {}",
                         from_version, self.current_version
-                    )).into());
+                    )));
                 }
                 Ok(())
             }
@@ -374,7 +374,7 @@ impl UpdateManager {
                         return Err(UpdateError::HealthCheckFailed(format!(
                             "Critical health check '{}' failed: {}",
                             check.id, e
-                        )).into());
+                        )));
                     } else {
                         tracing::warn!("Non-critical health check failed, continuing: {}", e);
                     }
@@ -475,7 +475,7 @@ impl UpdateManager {
                     return Err(UpdateError::ApplicationFailed(format!(
                         "File hash mismatch for {}: expected {}, got {}",
                         file.path.display(), file.expected_hash, actual_hash
-                    )).into());
+                    )));
                 }
                 
                 tracing::debug!("Replaced file: {}", target_path.display());
@@ -494,7 +494,7 @@ impl UpdateManager {
                     return Err(UpdateError::ApplicationFailed(format!(
                         "File hash mismatch after delta for {}: expected {}, got {}",
                         file.path.display(), file.expected_hash, actual_hash
-                    )).into());
+                    )));
                 }
                 
                 tracing::debug!("Applied delta patch: {}", target_path.display());

@@ -232,7 +232,7 @@ impl MockProfileService {
             .get(device_id)
             .cloned()
             .or_else(|| self.profiles.first().cloned())
-            .ok_or_else(|| "No profile found".into())
+            .ok_or("No profile found")
     }
 
     pub async fn apply_profile(&self, _device_id: &str, _profile: TestProfile) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

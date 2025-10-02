@@ -76,7 +76,7 @@ async fn check_service_start() -> Result<()> {
         return Err(anyhow::anyhow!("Service is not active after start"));
     }
     
-    let status = String::from_utf8_lossy(&status_output.stdout).trim().to_string();
+    let status = String::from_utf8_lossy(&status_output.stdout).trim().to_owned();
     if status != "active" {
         return Err(anyhow::anyhow!("Service status is '{}', expected 'active'", status));
     }

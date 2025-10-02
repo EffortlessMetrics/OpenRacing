@@ -153,7 +153,7 @@ impl DiagnosticService {
                 .output()
                 .await
             {
-                return Some(String::from_utf8_lossy(&output.stdout).trim().to_string());
+                return Some(String::from_utf8_lossy(&output.stdout).trim().to_owned());
             }
         }
         

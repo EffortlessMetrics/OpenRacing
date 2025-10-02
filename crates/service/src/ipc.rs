@@ -547,7 +547,7 @@ impl IpcServer {
         _service: WheelServiceImpl,
         _socket_path: &PathBuf,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        Err("Unix Domain Sockets not supported on Windows".into())
+        Err("Unix Domain Sockets not supported on Windows")
     }
 
     #[cfg(unix)]
@@ -556,7 +556,7 @@ impl IpcServer {
         _service: WheelServiceImpl,
         _pipe_name: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        Err("Named Pipes not supported on Unix systems".into())
+        Err("Named Pipes not supported on Unix systems")
     }
 }
 

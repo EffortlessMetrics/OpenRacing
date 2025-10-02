@@ -42,7 +42,7 @@ impl VerificationService {
         if self.config.require_binary_signatures && !result.signature_valid {
             return Err(CryptoError::VerificationFailed(
                 "Binary signature required but verification failed".to_string()
-            ).into());
+            ));
         }
         
         // Log verification result
@@ -69,7 +69,7 @@ impl VerificationService {
         if self.config.require_firmware_signatures && !result.signature_valid {
             return Err(CryptoError::VerificationFailed(
                 "Firmware signature required but verification failed".to_string()
-            ).into());
+            ));
         }
         
         // Log verification result
@@ -92,7 +92,7 @@ impl VerificationService {
                 if self.config.require_plugin_signatures && !result.signature_valid {
                     return Err(CryptoError::VerificationFailed(
                         "Plugin signature required but verification failed".to_string()
-                    ).into());
+                    ));
                 }
                 
                 // Log result
@@ -158,7 +158,7 @@ impl VerificationService {
         if !result.signature_valid {
             return Err(CryptoError::VerificationFailed(
                 "Update package signature verification failed".to_string()
-            ).into());
+            ));
         }
         
         info!("Update package signature verification: PASS");

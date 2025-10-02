@@ -195,7 +195,7 @@ impl AntiCheatReport {
         if let Some(kernel) = &self.platform.kernel_version {
             md.push_str(&format!("- **Kernel:** {}\n", kernel));
         }
-        md.push_str("\n");
+        md.push('\n');
         
         // Process Information
         md.push_str("## Process Architecture\n\n");
@@ -210,7 +210,7 @@ impl AntiCheatReport {
                 md.push_str(&format!("  - {}\n", child));
             }
         }
-        md.push_str("\n");
+        md.push('\n');
         
         // Telemetry Methods
         md.push_str("## Telemetry Methods\n\n");
@@ -249,7 +249,7 @@ impl AntiCheatReport {
                 if access.user_consent { "✅ Required" } else { "❌ Not Required" }
             ));
         }
-        md.push_str("\n");
+        md.push('\n');
         
         // Network Access
         if !self.network_access.is_empty() {
@@ -266,7 +266,7 @@ impl AntiCheatReport {
                     if access.user_consent { "✅ Required" } else { "❌ Not Required" }
                 ));
             }
-            md.push_str("\n");
+            md.push('\n');
         }
         
         // System APIs
@@ -283,7 +283,7 @@ impl AntiCheatReport {
                 api.anticheat_impact
             ));
         }
-        md.push_str("\n");
+        md.push('\n');
         
         // Security Measures
         md.push_str("## Security Measures\n\n");
@@ -526,7 +526,7 @@ impl AntiCheatReport {
             .output()
             .await?;
         
-        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
     }
     
     #[cfg(not(target_os = "linux"))]

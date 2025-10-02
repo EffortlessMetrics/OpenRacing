@@ -80,7 +80,7 @@ impl IpcClient {
             return Err(format!(
                 "Client version {} is not compatible with server. Minimum required: {}",
                 config.client_version, negotiation_response.min_client_version
-            ).into());
+            ));
         }
 
         info!(

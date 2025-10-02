@@ -327,8 +327,8 @@ mod tests {
     fn test_speed_conversions() {
         let telemetry = NormalizedTelemetry::default().with_speed_ms(27.78); // 100 km/h
         
-        assert!((telemetry.speed_kmh().unwrap() - 100.0).abs() < 0.1);
-        assert!((telemetry.speed_mph().unwrap() - 62.14).abs() < 0.1);
+        assert!(telemetry.speed_kmh().unwrap().abs_diff(100.0) < 0.1);
+        assert!(telemetry.speed_mph().unwrap().abs_diff(62.14) < 0.1);
     }
 
     #[test]
@@ -336,7 +336,7 @@ mod tests {
         let telemetry = NormalizedTelemetry::default().with_rpm(6000.0);
         
         let fraction = telemetry.rpm_fraction(8000.0).unwrap();
-        assert!((fraction - 0.75).abs() < 0.01);
+        assert!(fraction.abs_diff(0.75) < 0.01);
     }
 
     #[test]

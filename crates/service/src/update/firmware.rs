@@ -359,7 +359,7 @@ impl FirmwareUpdateManager {
         if !verification_result.signature_valid {
             return Err(FirmwareUpdateError::VerificationFailed(
                 "Firmware signature is invalid".to_string()
-            ).into());
+            ));
         }
         
         // Read firmware file
@@ -511,7 +511,7 @@ impl FirmwareUpdateManager {
         if computed_hash != firmware.hash {
             return Err(FirmwareUpdateError::InvalidFirmware(
                 "Firmware hash mismatch".to_string()
-            ).into());
+            ));
         }
         
         // Phase 3: Prepare target partition
@@ -659,13 +659,13 @@ impl FirmwareUpdateManager {
                             return Err(FirmwareUpdateError::RollbackFailed(format!(
                                 "Health check failed and rollback failed: {} -> {}",
                                 e, rollback_error
-                            )).into());
+                            )));
                         }
                         
                         return Err(FirmwareUpdateError::HealthCheckFailed(format!(
                             "Health check failed after {} attempts, rolled back to previous firmware",
                             MAX_HEALTH_CHECK_ATTEMPTS
-                        )).into());
+                        )));
                     }
                     
                     warn!("Health check attempt {} failed: {}, retrying...", health_check_attempts, e);
@@ -732,7 +732,7 @@ impl FirmwareUpdateManager {
                 return Err(FirmwareUpdateError::InvalidFirmware(format!(
                     "Hardware version {} is below minimum required version {}",
                     hardware_version, min_version
-                )).into());
+                )));
             }
         }
         
@@ -742,7 +742,7 @@ impl FirmwareUpdateManager {
                 return Err(FirmwareUpdateError::InvalidFirmware(format!(
                     "Hardware version {} is above maximum supported version {}",
                     hardware_version, max_version
-                )).into());
+                )));
             }
         }
         
