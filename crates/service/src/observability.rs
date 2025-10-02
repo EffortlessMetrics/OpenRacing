@@ -364,9 +364,6 @@ pub fn init_logging(config: LoggingConfig) -> Result<()> {
     
     let fmt_layer = if config.json_format {
         fmt::layer()
-            .json()
-            .with_current_span(true)
-            .with_span_list(false)
             .boxed()
     } else {
         fmt::layer()

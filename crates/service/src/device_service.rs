@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{RwLock, mpsc};
 use tokio::time::interval;
-use tracing::{info, warn, error, debug};
+use tracing::{info, error, debug};
 
 /// Device connection state
 #[derive(Debug, Clone, PartialEq)]
@@ -205,14 +205,14 @@ impl ApplicationDeviceService {
     ) -> Result<CalibrationData> {
         info!(device_id = %device_id, calibration_type = ?calibration_type, "Starting device calibration");
 
-        let device = self.hid_port.open_device(device_id).await
+        let mut device = self.hid_port.open_device(device_id).await
             .map_err(|e| anyhow::anyhow!("Failed to open device for calibration: {}", e))?;
 
         let calibration_data = match calibration_type {
-            CalibrationType::Center => self.calibrate_center(&*device).await?,
-            CalibrationType::Range => self.calibrate_range(&*device).await?,
-            CalibrationType::Pedals => self.calibrate_pedals(&*device).await?,
-            CalibrationType::Full => self.calibrate_full(&*device).await?,
+            CalibrationType::Center => self.calibrate_center(device.as_mut()).await?,
+            CalibrationType::Range => self.calibrate_range(device.as_mut()).await?,
+            CalibrationType::Pedals => self.calibrate_pedals(device.as_ref()).await?,
+            CalibrationType::Full => self.calibrate_full(device.as_mut()).await?,
         };
 
         // Store calibration data
@@ -266,7 +266,7 @@ impl ApplicationDeviceService {
                 interval.tick().await;
                 
                 // Perform device enumeration
-                match hid_port.list_devices().await {
+                match hid_port.list_devices().await.map_err(|e| e.to_string()) {
                     Ok(device_infos) => {
                         debug!("Enumerated {} devices", device_infos.len());
                         
@@ -323,7 +323,8 @@ impl ApplicationDeviceService {
                 };
 
                 for device_id in device_ids {
-                    if let Ok(device) = hid_port.open_device(&device_id).await {
+                    let device_result = hid_port.open_device(&device_id).await.map_err(|e| e.to_string());
+                    if let Ok(device) = device_result {
                         let health_status = device.health_status();
                         let mut devices_guard = devices.write().await;
                         if let Some(managed_device) = devices_guard.get_mut(&device_id) {
@@ -394,7 +395,7 @@ impl ApplicationDeviceService {
     }
 
     /// Calibrate center position
-    async fn calibrate_center(&self, device: &dyn HidDevice) -> Result<CalibrationData> {
+    async fn calibrate_center(&self, device: &mut dyn HidDevice) -> Result<CalibrationData> {
         info!("Calibrating center position");
         
         // Read current position as center
@@ -407,12 +408,12 @@ impl ApplicationDeviceService {
             max_position: None,
             pedal_ranges: None,
             calibrated_at: Some(chrono::Utc::now().to_rfc3339()),
-            calibration_type: CalibrationType::Center,
+            calibration_type: racing_wheel_schemas::entities::CalibrationType::Center,
         })
     }
 
     /// Calibrate full range
-    async fn calibrate_range(&self, device: &dyn HidDevice) -> Result<CalibrationData> {
+    async fn calibrate_range(&self, device: &mut dyn HidDevice) -> Result<CalibrationData> {
         info!("Calibrating range - user should turn wheel to full lock positions");
         
         let mut min_angle = f32::MAX;
@@ -434,7 +435,7 @@ impl ApplicationDeviceService {
             max_position: Some(max_angle),
             pedal_ranges: None,
             calibrated_at: Some(chrono::Utc::now().to_rfc3339()),
-            calibration_type: CalibrationType::Range,
+            calibration_type: racing_wheel_schemas::entities::CalibrationType::Range,
         })
     }
 
@@ -454,12 +455,12 @@ impl ApplicationDeviceService {
                 clutch: Some((0.0, 1.0)),
             }),
             calibrated_at: Some(chrono::Utc::now().to_rfc3339()),
-            calibration_type: CalibrationType::Pedals,
+            calibration_type: racing_wheel_schemas::entities::CalibrationType::Range,
         })
     }
 
     /// Full calibration (center + range + pedals)
-    async fn calibrate_full(&self, device: &dyn HidDevice) -> Result<CalibrationData> {
+    async fn calibrate_full(&self, device: &mut dyn HidDevice) -> Result<CalibrationData> {
         info!("Performing full calibration");
         
         let center_cal = self.calibrate_center(device).await?;
@@ -501,8 +502,11 @@ impl ApplicationDeviceService {
 
         for device in devices.values() {
             match device.state {
-                DeviceState::Connected | DeviceState::Ready => connected_count += 1,
-                DeviceState::Ready => ready_count += 1,
+                DeviceState::Connected => connected_count += 1,
+                DeviceState::Ready => {
+                    connected_count += 1;
+                    ready_count += 1;
+                }
                 DeviceState::Faulted { .. } => faulted_count += 1,
                 DeviceState::Disconnected => {}
             }

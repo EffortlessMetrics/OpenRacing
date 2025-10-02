@@ -316,7 +316,7 @@ impl AntiCheatReport {
             kernel_version: if cfg!(target_os = "linux") {
                 Some(Self::get_kernel_version().await.unwrap_or_else(|_| "Unknown".to_string()))
             } else {
-                None
+                Some("Windows".to_string())
             },
         })
     }
@@ -527,6 +527,11 @@ impl AntiCheatReport {
             .await?;
         
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    }
+    
+    #[cfg(not(target_os = "linux"))]
+    async fn get_kernel_version() -> Result<String> {
+        Ok("Windows".to_string())
     }
     
     async fn get_parent_process() -> Option<String> {

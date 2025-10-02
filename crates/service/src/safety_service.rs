@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use racing_wheel_engine::{
-    safety::{SafetyState, FaultType}, SafetyPolicy, SafetyViolation, TracingManager, AppTraceEvent
+    safety::FaultType, SafetyPolicy, SafetyViolation, TracingManager, AppTraceEvent
 };
 use racing_wheel_schemas::prelude::{DeviceId, TorqueNm};
 use std::collections::HashMap;

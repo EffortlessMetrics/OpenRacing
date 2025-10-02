@@ -10,7 +10,7 @@ use std::time::SystemTime;
 
 use async_trait::async_trait;
 use tokio::sync::{broadcast, RwLock};
-use tokio_stream::{Stream, StreamExt};
+use tokio_stream::Stream;
 use tonic::{Request, Response, Status};
 use tracing::debug;
 
@@ -21,7 +21,7 @@ use racing_wheel_schemas::generated::wheel::v1::{
     FeatureNegotiationRequest, FeatureNegotiationResponse, ApplyProfileRequest,
     ConfigureTelemetryRequest,
 };
-use racing_wheel_schemas::prelude::TelemetryData;
+
 use racing_wheel_schemas::ipc_conversion::ConversionError;
 
 // Import domain services (these will be the real implementations)
@@ -128,8 +128,14 @@ impl WheelService for WheelServiceImpl {
             match device_service.list_devices().await {
                 Ok(devices) => {
                     for device in devices {
-                        // Convert domain Device to wire DeviceInfo
-                        let device_info: racing_wheel_schemas::generated::wheel::v1::DeviceInfo = device.into();
+                        // Convert engine DeviceInfo to wire DeviceInfo
+                        let device_info = racing_wheel_schemas::generated::wheel::v1::DeviceInfo {
+                            id: device.id.to_string(),
+                            name: device.name,
+                            r#type: 1, // Default to WheelBase type
+                            state: if device.is_connected { 1 } else { 0 },
+                            capabilities: None, // TODO: Convert capabilities if needed
+                        };
                         yield Ok(device_info);
                     }
                 }
@@ -159,8 +165,23 @@ impl WheelService for WheelServiceImpl {
         match self.device_service.get_device_status(&device_id).await {
             Ok((device, telemetry)) => {
                 // Convert domain types to wire types
-                let device_info: racing_wheel_schemas::generated::wheel::v1::DeviceInfo = device.into();
-                let telemetry_data: Option<TelemetryData> = telemetry.map(Into::into);
+                let device_info = racing_wheel_schemas::generated::wheel::v1::DeviceInfo {
+                    id: device.id.to_string(),
+                    name: device.name,
+                    r#type: 1, // Default to WheelBase type
+                    state: if device.is_connected { 1 } else { 0 },
+                    capabilities: None, // TODO: Convert capabilities if needed
+                };
+                let telemetry_data: Option<racing_wheel_schemas::generated::wheel::v1::TelemetryData> = telemetry.map(|t| {
+                    racing_wheel_schemas::generated::wheel::v1::TelemetryData {
+                        wheel_angle_mdeg: (t.wheel_angle_deg * 1000.0) as i32,
+                        wheel_speed_mrad_s: (t.wheel_speed_rad_s * 1000.0) as i32,
+                        temp_c: t.temperature_c as u32,
+                        faults: t.fault_flags as u32,
+                        hands_on: t.hands_on,
+                        sequence: 0, // Default sequence number
+                    }
+                });
                 
                 let device_status = DeviceStatus {
                     device: Some(device_info),
@@ -196,12 +217,18 @@ impl WheelService for WheelServiceImpl {
             })?;
 
         match self.profile_service.get_active_profile(&device_id).await {
-            Ok(profile) => {
-                // Convert domain Profile to wire Profile
-                let wire_profile: WireProfile = profile.into();
-                Ok(Response::new(wire_profile))
+            Ok(Some(profile_id)) => {
+                // Load the full profile and convert to wire format
+                match self.profile_service.load_profile(&profile_id.to_string()).await {
+                    Ok(profile) => {
+                        let wire_profile: WireProfile = profile.into();
+                        Ok(Response::new(wire_profile))
+                    }
+                    Err(e) => Err(Status::not_found(format!("Profile not found: {}", e))),
+                }
             }
-            Err(e) => Err(Status::not_found(format!("Profile not found: {}", e))),
+            Ok(None) => Err(Status::not_found("No active profile for device")),
+            Err(e) => Err(Status::internal(format!("Failed to get active profile: {}", e))),
         }
     }
 
@@ -225,13 +252,20 @@ impl WheelService for WheelServiceImpl {
                 Status::invalid_argument(format!("Invalid device ID: {}", e))
             })?;
 
-        let profile: racing_wheel_schemas::entities::Profile = profile_wire.try_into()
+        let _profile: racing_wheel_schemas::entities::Profile = profile_wire.try_into()
             .map_err(|e: ConversionError| {
                 Status::invalid_argument(format!("Invalid profile: {}", e))
             })?;
 
-        match self.profile_service.apply_profile(&device_id, &profile).await {
-            Ok(()) => Ok(Response::new(OpResult {
+        // Get device capabilities (simplified for now)
+        let device_capabilities = racing_wheel_schemas::entities::DeviceCapabilities::new(
+            true, true, true, true, 
+            racing_wheel_schemas::domain::TorqueNm::new(10.0).unwrap(),
+            1024, 1000
+        );
+        
+        match self.profile_service.apply_profile_to_device(&device_id, None, None, None, &device_capabilities).await {
+            Ok(_profile) => Ok(Response::new(OpResult {
                 success: true,
                 error_message: String::new(),
                 metadata: BTreeMap::new(),

@@ -10,7 +10,7 @@
 use anyhow::{Context, Result};
 use racing_wheel_schemas::prelude::{
     Profile, ProfileId, ProfileScope, ProfileMetadata, BaseSettings, FilterConfig,
-    LedConfig, HapticsConfig, DomainError,
+    LedConfig, HapticsConfig,
 };
 use racing_wheel_schemas::config::{ProfileSchema, ProfileValidator, ProfileMigrator, SchemaError};
 use serde::{Deserialize, Serialize};

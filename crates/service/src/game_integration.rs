@@ -123,7 +123,7 @@ impl GameIntegrationService {
     /// Create new game integration service
     pub fn new() -> Self {
         let support_matrix = GameSupportMatrix::default();
-        let mut config_writers: HashMap<String, Box<dyn ConfigWriter + Send + Sync>> = HashMap::new();
+        let config_writers: HashMap<String, Box<dyn ConfigWriter + Send + Sync>> = HashMap::new();
         
         // Register config writers
         // config_writers.insert("iracing".to_string(), Box::new(IRacingConfigWriter));
