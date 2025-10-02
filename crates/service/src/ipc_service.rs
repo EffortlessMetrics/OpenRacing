@@ -258,9 +258,11 @@ impl WheelService for WheelServiceImpl {
             })?;
 
         // Get device capabilities (simplified for now)
+        let max_torque = racing_wheel_schemas::domain::TorqueNm::new(10.0)
+            .expect("Valid torque value for device capabilities");
         let device_capabilities = racing_wheel_schemas::entities::DeviceCapabilities::new(
             true, true, true, true, 
-            racing_wheel_schemas::domain::TorqueNm::new(10.0).unwrap(),
+            max_torque,
             1024, 1000
         );
         

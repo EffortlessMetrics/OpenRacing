@@ -48,7 +48,8 @@ pub struct ObservabilityConfig {
 impl Default for ObservabilityConfig {
     fn default() -> Self {
         Self {
-            metrics_addr: "127.0.0.1:9090".parse().unwrap(),
+            metrics_addr: "127.0.0.1:9090".parse()
+                .expect("Default metrics address should be valid"),
             health_stream_rate_hz: 15.0, // 15Hz for real-time monitoring
             collection_interval_ms: 1000, // Collect every second
             enable_prometheus: true,

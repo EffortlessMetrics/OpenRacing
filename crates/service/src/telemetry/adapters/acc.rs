@@ -23,7 +23,8 @@ impl ACCAdapter {
     /// Create a new ACC adapter
     pub fn new() -> Self {
         Self {
-            listen_address: "127.0.0.1:9996".parse().unwrap(), // Default ACC UDP port
+            listen_address: "127.0.0.1:9996".parse()
+                .expect("Default ACC UDP address should be valid"), // Default ACC UDP port
             update_rate: Duration::from_millis(16), // ~60 FPS
         }
     }
@@ -374,7 +375,8 @@ mod tests {
 
     #[test]
     fn test_acc_adapter_with_address() {
-        let addr = "192.168.1.100:9999".parse().unwrap();
+        let addr = "192.168.1.100:9999".parse()
+            .expect("Test address should be valid");
         let adapter = ACCAdapter::with_address(addr);
         assert_eq!(adapter.listen_address, addr);
     }

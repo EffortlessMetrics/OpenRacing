@@ -254,7 +254,7 @@ impl TestFixtureGenerator {
         
         let start_timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("System time should be after UNIX epoch")
             .as_nanos() as u64;
         
         for i in 0..frame_count {

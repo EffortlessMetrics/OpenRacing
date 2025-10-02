@@ -388,7 +388,8 @@ impl ApplicationDeviceService {
             serial_number: None,
             manufacturer: None,
             path: "".to_string(),
-            capabilities: DeviceCapabilities::new(false, false, false, false, TorqueNm::new(0.0).unwrap(), 0, 1000),
+            capabilities: DeviceCapabilities::new(false, false, false, false, 
+                TorqueNm::new(0.0).expect("Zero torque should be valid"), 0, 1000),
             is_connected: false,
         };
         let _ = self.event_sender.send(DeviceEvent::Disconnected(device_info));
@@ -472,7 +473,10 @@ impl ApplicationDeviceService {
             min_position: range_cal.min_position,
             max_position: range_cal.max_position,
             pedal_ranges: pedal_cal.pedal_ranges,
-            calibrated_at: Some(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs().to_string()),
+            calibrated_at: Some(std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("System time should be after UNIX epoch")
+                .as_secs().to_string()),
             calibration_type: racing_wheel_schemas::entities::CalibrationType::Full,
         })
     }

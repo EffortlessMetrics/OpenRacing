@@ -437,8 +437,10 @@ impl ProfileRepository {
 
         // Create JSON without signature for verification
         let mut json_for_verification = value.clone();
-        json_for_verification.as_object_mut().unwrap().remove("signature");
-        json_for_verification.as_object_mut().unwrap().remove("publicKey");
+        let json_obj = json_for_verification.as_object_mut()
+            .ok_or_else(|| anyhow::anyhow!("Profile JSON is not an object"))?;
+        json_obj.remove("signature");
+        json_obj.remove("publicKey");
         
         let json_without_sig = serde_json::to_string(&json_for_verification)
             .context("Failed to serialize JSON for verification")?;

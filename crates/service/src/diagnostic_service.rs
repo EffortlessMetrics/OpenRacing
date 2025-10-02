@@ -496,7 +496,8 @@ impl DiagnosticTest for TimingTest {
         }
         
         // Calculate statistics
-        jitters.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        jitters.sort_by(|a, b| a.partial_cmp(b)
+            .expect("Jitter values should be valid floats"));
         let mean_jitter = jitters.iter().sum::<f64>() / jitters.len() as f64;
         let p99_jitter = jitters[(jitters.len() as f64 * 0.99) as usize];
         let max_jitter = jitters.iter().fold(0.0f64, |a, &b| a.max(b));
