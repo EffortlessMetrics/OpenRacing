@@ -180,11 +180,11 @@ impl ACCAdapter {
         }
         
         // Basic sanity checks
-        if rpm < 0.0 || rpm > 20000.0 {
+        if !(0.0..=20000.0).contains(&rpm) {
             return Err(anyhow::anyhow!("Invalid RPM value: {}", rpm));
         }
         
-        if speed < 0.0 || speed > 200.0 {
+        if !(0.0..=200.0).contains(&speed) {
             return Err(anyhow::anyhow!("Invalid speed value: {}", speed));
         }
         

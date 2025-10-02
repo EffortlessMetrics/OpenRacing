@@ -607,7 +607,7 @@ impl LedConfig {
     ) -> Result<Self, DomainError> {
         // Validate RPM bands are in valid range and sorted
         for &band in &rpm_bands {
-            if band < 0.0 || band > 1.0 {
+            if !(0.0..=1.0).contains(&band) {
                 return Err(DomainError::InvalidCurvePoints(
                     format!("RPM band must be 0.0-1.0, got {}", band)
                 ));

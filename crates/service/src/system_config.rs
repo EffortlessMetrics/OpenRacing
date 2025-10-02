@@ -469,7 +469,7 @@ impl SystemConfig {
         }
         
         // Validate observability configuration
-        if self.observability.tracing_sample_rate < 0.0 || self.observability.tracing_sample_rate > 1.0 {
+        if !(0.0..=1.0).contains(&self.observability.tracing_sample_rate) {
             anyhow::bail!("Invalid tracing sample rate: {}", self.observability.tracing_sample_rate);
         }
         

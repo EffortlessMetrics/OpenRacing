@@ -372,7 +372,7 @@ pub struct Gain(f32);
 impl Gain {
     /// Create a new gain value with validation
     pub fn new(value: f32) -> Result<Self, DomainError> {
-        if value < 0.0 || value > 1.0 || !value.is_finite() {
+        if !(0.0..=1.0).contains(&value) || !value.is_finite() {
             return Err(DomainError::InvalidGain(value));
         }
         Ok(Gain(value))
@@ -463,13 +463,13 @@ impl CurvePoint {
             ));
         }
         
-        if input < 0.0 || input > 1.0 {
+        if !(0.0..=1.0).contains(&input) {
             return Err(DomainError::InvalidCurvePoints(
                 format!("Input must be in [0,1] range: {}", input)
             ));
         }
         
-        if output < 0.0 || output > 1.0 {
+        if !(0.0..=1.0).contains(&output) {
             return Err(DomainError::InvalidCurvePoints(
                 format!("Output must be in [0,1] range: {}", output)
             ));

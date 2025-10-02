@@ -115,7 +115,7 @@ impl TryFrom<proto::DeviceCapabilities> for DeviceCapabilities {
             .map_err(ConversionError::DomainError)?;
         
         // Validate encoder CPR range (reasonable values: 1000-100000)
-        if wire.encoder_cpr < 1000 || wire.encoder_cpr > 100000 {
+        if !(1000..=100000).contains(&wire.encoder_cpr) {
             return Err(ConversionError::RangeValidation {
                 field: "encoder_cpr".to_string(),
                 value: wire.encoder_cpr as f64,
@@ -125,7 +125,7 @@ impl TryFrom<proto::DeviceCapabilities> for DeviceCapabilities {
         }
         
         // Validate report period (1000us = 1kHz max, 100000us = 10Hz min)
-        if wire.min_report_period_us < 1000 || wire.min_report_period_us > 100000 {
+        if !(1000..=100000).contains(&wire.min_report_period_us) {
             return Err(ConversionError::RangeValidation {
                 field: "min_report_period_us".to_string(),
                 value: wire.min_report_period_us as f64,
@@ -403,7 +403,7 @@ impl TryFrom<proto::NotchFilter> for NotchFilter {
             .map_err(ConversionError::DomainError)?;
         
         // Validate Q factor (0.1 to 100.0 is reasonable)
-        if wire.q < 0.1 || wire.q > 100.0 || !wire.q.is_finite() {
+        if !(0.1..=100.0).contains(&wire.q) || !wire.q.is_finite() {
             return Err(ConversionError::RangeValidation {
                 field: "q_factor".to_string(),
                 value: wire.q as f64,
@@ -413,7 +413,7 @@ impl TryFrom<proto::NotchFilter> for NotchFilter {
         }
         
         // Validate gain_db (-60dB to +20dB is reasonable)
-        if wire.gain_db < -60.0 || wire.gain_db > 20.0 || !wire.gain_db.is_finite() {
+        if !(-60.0..=20.0).contains(&wire.gain_db) || !wire.gain_db.is_finite() {
             return Err(ConversionError::RangeValidation {
                 field: "gain_db".to_string(),
                 value: wire.gain_db as f64,
@@ -461,7 +461,7 @@ impl TryFrom<proto::LedConfig> for LedConfig {
     fn try_from(wire: proto::LedConfig) -> Result<Self, Self::Error> {
         // Validate RPM bands are in [0.0, 1.0] range and sorted
         for &band in &wire.rpm_bands {
-            if band < 0.0 || band > 1.0 || !band.is_finite() {
+            if !(0.0..=1.0).contains(&band) || !band.is_finite() {
                 return Err(ConversionError::RangeValidation {
                     field: "rpm_bands".to_string(),
                     value: band as f64,

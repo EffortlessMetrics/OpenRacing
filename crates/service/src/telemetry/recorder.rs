@@ -416,7 +416,7 @@ impl TestFixtureGenerator {
             let speed = if in_pits { 15.0 } else { 45.0 };
             let rpm = if in_pits { 2000.0 } else { 6000.0 };
             
-            frame.data = NormalizedTelemetry::new()
+            frame.data = NormalizedTelemetry::default()
                 .with_ffb_scalar(0.2)
                 .with_rpm(rpm)
                 .with_speed_ms(speed)
@@ -465,7 +465,7 @@ mod tests {
         assert!(recorder.is_recording());
         
         // Record some frames
-        let telemetry = NormalizedTelemetry::new().with_rpm(5000.0);
+        let telemetry = NormalizedTelemetry::default().with_rpm(5000.0);
         let frame = TelemetryFrame::new(telemetry, 1000000, 0, 64);
         recorder.record_frame(frame);
         
@@ -490,7 +490,7 @@ mod tests {
         let mut recorder = TelemetryRecorder::new(output_path.clone()).unwrap();
         recorder.start_recording("test_game".to_string());
         
-        let telemetry = NormalizedTelemetry::new().with_rpm(5000.0);
+        let telemetry = NormalizedTelemetry::default().with_rpm(5000.0);
         let frame = TelemetryFrame::new(telemetry, 1000000, 0, 64);
         recorder.record_frame(frame);
         

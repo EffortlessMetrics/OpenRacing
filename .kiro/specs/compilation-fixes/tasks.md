@@ -234,6 +234,7 @@
 
 
 
+
   - [x] 11.1 Replace custom default() methods in entities.rs
 
 
@@ -247,13 +248,21 @@
     - Add Default trait for IRacingConfigWriter, ACCConfigWriter, and other structs with new() methods
     - _Requirements: 6.2_
 
-- [ ] 12. Fix range checks and conditional patterns
-  - [ ] 12.1 Replace manual range checks with contains()
+- [x] 12. Fix range checks and conditional patterns
+
+
+
+
+  - [x] 12.1 Replace manual range checks with contains()
+
+
     - Replace `band < 0.0 || band > 1.0` with `!(0.0..=1.0).contains(&band)`
     - Apply to all manual range checks in entities.rs, ipc_conversion.rs, and telemetry adapters
     - _Requirements: 6.3_
   
-  - [ ] 12.2 Collapse nested if statements
+
+  - [x] 12.2 Collapse nested if statements
+
     - Simplify nested if statements using `&&` patterns in entities.rs and safety_service.rs
     - _Requirements: 6.4_
 

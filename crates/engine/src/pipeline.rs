@@ -281,25 +281,25 @@ impl PipelineCompiler {
         }
 
         // Validate gain values are in valid range
-        if config.friction.value() < 0.0 || config.friction.value() > 1.0 {
+        if !(0.0..=1.0).contains(&config.friction.value()) {
             return Err(PipelineError::InvalidParameters(
                 format!("Friction must be 0.0-1.0, got {}", config.friction.value())
             ));
         }
 
-        if config.damper.value() < 0.0 || config.damper.value() > 1.0 {
+        if !(0.0..=1.0).contains(&config.damper.value()) {
             return Err(PipelineError::InvalidParameters(
                 format!("Damper must be 0.0-1.0, got {}", config.damper.value())
             ));
         }
 
-        if config.inertia.value() < 0.0 || config.inertia.value() > 1.0 {
+        if !(0.0..=1.0).contains(&config.inertia.value()) {
             return Err(PipelineError::InvalidParameters(
                 format!("Inertia must be 0.0-1.0, got {}", config.inertia.value())
             ));
         }
 
-        if config.slew_rate.value() < 0.0 || config.slew_rate.value() > 1.0 {
+        if !(0.0..=1.0).contains(&config.slew_rate.value()) {
             return Err(PipelineError::InvalidParameters(
                 format!("Slew rate must be 0.0-1.0, got {}", config.slew_rate.value())
             ));
@@ -310,13 +310,13 @@ impl PipelineCompiler {
 
         // Validate notch filters
         for (i, filter) in config.notch_filters.iter().enumerate() {
-            if filter.frequency.value() <= 0.0 || filter.frequency.value() > 500.0 {
+            if !((0.0..=500.0).contains(&filter.frequency.value()) && filter.frequency.value() > 0.0) {
                 return Err(PipelineError::InvalidParameters(
                     format!("Notch filter {} frequency must be 0-500 Hz, got {}", i, filter.frequency.value())
                 ));
             }
             
-            if filter.q_factor <= 0.0 || filter.q_factor > 20.0 {
+            if !((0.0..=20.0).contains(&filter.q_factor) && filter.q_factor > 0.0) {
                 return Err(PipelineError::InvalidParameters(
                     format!("Notch filter {} Q factor must be 0-20, got {}", i, filter.q_factor)
                 ));
