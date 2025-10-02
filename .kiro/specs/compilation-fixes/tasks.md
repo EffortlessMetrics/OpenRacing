@@ -192,34 +192,85 @@
     - Replace `ProfileId::new()` calls with proper constructor or factory method
     - _Requirements: 3.1, 3.2_
 
-- [x] 10. Final compilation verification and cleanup
-
-
-
-
-
-
-
-
-
-  - [x] 10.1 Run cargo build to verify all errors are resolved
-
-
-    - Execute `cargo build -p racing-wheel-service` to confirm compilation success
-    - _Requirements: 1.1, 1.2_
+- [ ] 10. Fix remaining unwrap() usage errors
+  - [ ] 10.1 Replace unwrap() calls in ipc_service.rs
+    - Replace `TorqueNm::new(10.0).unwrap()` with proper error handling or expect()
+    - _Requirements: 6.1_
   
-
-  - [x] 10.2 Address remaining warnings
-
-    - Fix non-critical warnings where possible without breaking functionality
-    - _Requirements: 1.3_
+  - [ ] 10.2 Replace unwrap() calls in profile_repository.rs
+    - Replace `json_for_verification.as_object_mut().unwrap()` calls with proper error handling
+    - _Requirements: 6.1_
   
-  - [x] 10.3 Run cargo clippy for additional code quality checks
+  - [ ] 10.3 Replace unwrap() calls in device_service.rs
+    - Replace `TorqueNm::new(0.0).unwrap()` and duration unwrap calls with proper error handling
+    - _Requirements: 6.1_
+  
+  - [ ] 10.4 Replace unwrap() calls in telemetry adapters
+    - Replace `"127.0.0.1:9996".parse().unwrap()` with proper error handling
+    - _Requirements: 6.1_
+  
+  - [ ] 10.5 Replace unwrap() calls in remaining modules
+    - Fix unwrap calls in recorder.rs, observability.rs, and diagnostic_service.rs
+    - _Requirements: 6.1_
 
+- [ ] 11. Implement proper Default traits
+  - [ ] 11.1 Replace custom default() methods in entities.rs
+    - Convert custom `default()` methods to proper `Default` trait implementations
+    - Fix `should_implement_trait` clippy warnings
+    - _Requirements: 6.2_
+  
+  - [ ] 11.2 Add Default implementations for service structs
+    - Add Default trait for IRacingConfigWriter, ACCConfigWriter, and other structs with new() methods
+    - _Requirements: 6.2_
 
+- [ ] 12. Fix range checks and conditional patterns
+  - [ ] 12.1 Replace manual range checks with contains()
+    - Replace `band < 0.0 || band > 1.0` with `!(0.0..=1.0).contains(&band)`
+    - Apply to all manual range checks in entities.rs, ipc_conversion.rs, and telemetry adapters
+    - _Requirements: 6.3_
+  
+  - [ ] 12.2 Collapse nested if statements
+    - Simplify nested if statements using `&&` patterns in entities.rs and safety_service.rs
+    - _Requirements: 6.4_
 
+- [ ] 13. Clean up unused imports and variables
+  - [ ] 13.1 Remove unused imports in schemas crate
+    - Remove unused `BumpstopConfig` and `HandsOffConfig` imports
+    - _Requirements: 6.5_
+  
+  - [ ] 13.2 Fix unused variables
+    - Prefix unused variables with underscore (e.g., `_state` in ipc_conversion.rs)
+    - _Requirements: 6.5_
+  
+  - [ ] 13.3 Remove dead code fields
+    - Address unused fields in service structs or mark them as intentionally unused
+    - _Requirements: 6.5_
 
+- [ ] 14. Fix additional clippy warnings
+  - [ ] 14.1 Fix needless borrows and conversions
+    - Replace unnecessary `.into()` calls and borrowed expressions
+    - Fix `needless_borrows_for_generic_args` warnings
+    - _Requirements: 6.1_
+  
+  - [ ] 14.2 Improve string and character usage
+    - Replace `push_str("\n")` with `push('\n')`
+    - Fix unnecessary `to_string()` calls
+    - _Requirements: 6.1_
+  
+  - [ ] 14.3 Use better comparison patterns
+    - Replace manual absolute difference with `abs_diff()`
+    - Use `clamp()` instead of `max().min()` patterns
+    - _Requirements: 6.1_
 
-
-    - Execute clippy to identify potential improvements
-    - _Requirements: 1.3_
+- [ ] 15. Final verification and quality gates
+  - [ ] 15.1 Verify isolation build success
+    - Execute `cargo build -p racing-wheel-service --locked` to confirm compilation
+    - _Requirements: 1.1, 1.2, 1.3_
+  
+  - [ ] 15.2 Verify strict clippy compliance
+    - Execute `cargo clippy -p racing-wheel-service -- -D warnings -D clippy::unwrap_used -D clippy::expect_used`
+    - _Requirements: 6.1_
+  
+  - [ ] 15.3 Verify workspace build compatibility
+    - Execute workspace builds: `--workspace`, `--workspace --all-features`, `--workspace --no-default-features`
+    - _Requirements: 7.1, 7.2, 7.3_
