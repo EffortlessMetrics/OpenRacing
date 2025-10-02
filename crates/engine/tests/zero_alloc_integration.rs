@@ -57,7 +57,7 @@ fn create_test_profile(id: &str, scope: ProfileScope, filter_config: FilterConfi
 async fn test_complete_zero_alloc_pipeline_flow() {
     // Test the complete flow from profile merge → pipeline compilation → RT execution
     
-    let merge_engine = ProfileMergeEngine::new();
+    let merge_engine = ProfileMergeEngine::default();
     let compiler = PipelineCompiler::new();
     
     // Create test profiles
@@ -224,7 +224,7 @@ async fn test_two_phase_apply_complete_integration() {
 async fn test_deterministic_profile_resolution_comprehensive() {
     // Test that profile resolution is completely deterministic
     
-    let merge_engine = ProfileMergeEngine::new();
+    let merge_engine = ProfileMergeEngine::default();
     
     // Create complex profiles with all possible settings
     let mut global_profile = create_test_profile(
@@ -487,7 +487,7 @@ fn test_ci_allocation_assertion() {
 async fn test_end_to_end_performance_requirements() {
     // Test that the complete system meets performance requirements
     
-    let merge_engine = ProfileMergeEngine::new();
+    let merge_engine = ProfileMergeEngine::default();
     let compiler = PipelineCompiler::new();
     
     // Create realistic profiles

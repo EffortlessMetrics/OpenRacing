@@ -244,7 +244,7 @@ impl ACCAdapter {
         extended.insert("ers_recovery".to_string(), TelemetryValue::Float(data.ers_recovery_level));
         extended.insert("ers_power".to_string(), TelemetryValue::Float(data.ers_power_level));
         
-        NormalizedTelemetry::new()
+        NormalizedTelemetry::default()
             .with_ffb_scalar(data.steer_angle / 450.0) // Normalize steering angle to FFB scalar
             .with_rpm(data.rpm)
             .with_speed_ms(data.speed / 3.6) // Convert km/h to m/s

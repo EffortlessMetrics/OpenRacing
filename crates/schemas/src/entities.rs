@@ -510,25 +510,7 @@ impl FilterConfig {
         })
     }
     
-    /// Create default filter configuration with stable 1kHz-safe values
-    pub fn default() -> Self {
-        Self {
-            // Stable values - no reconstruction filtering
-            reconstruction: 0,
-            friction: Gain::from_raw(0.0),
-            damper: Gain::from_raw(0.0),
-            inertia: Gain::from_raw(0.0),
-            notch_filters: Vec::new(),
-            slew_rate: Gain::from_raw(1.0), // No slew rate limiting
-            curve_points: vec![
-                CurvePoint::new(0.0, 0.0).unwrap(),
-                CurvePoint::new(1.0, 1.0).unwrap(),
-            ],
-            torque_cap: Gain::from_raw(1.0), // No torque cap by default
-            bumpstop: BumpstopConfig::default(),
-            hands_off: HandsOffConfig::default(),
-        }
-    }
+
     
     /// Check if this is a linear configuration (no curve modification)
     pub fn is_linear(&self) -> bool {
@@ -572,15 +554,7 @@ impl BaseSettings {
         }
     }
     
-    /// Create default base settings
-    pub fn default() -> Self {
-        Self {
-            ffb_gain: Gain::from_raw(0.7),
-            degrees_of_rotation: Degrees::from_raw(900.0),
-            torque_cap: TorqueNm::from_raw(15.0),
-            filters: FilterConfig::default(),
-        }
-    }
+
     
     /// Validate settings against device capabilities
     pub fn validate_for_device(&self, capabilities: &DeviceCapabilities) -> Result<(), DomainError> {
@@ -593,6 +567,17 @@ impl BaseSettings {
         }
         
         Ok(())
+    }
+}
+
+impl Default for BaseSettings {
+    fn default() -> Self {
+        Self {
+            ffb_gain: Gain::from_raw(0.7),
+            degrees_of_rotation: Degrees::from_raw(900.0),
+            torque_cap: TorqueNm::from_raw(15.0),
+            filters: FilterConfig::default(),
+        }
     }
 }
 
@@ -645,9 +630,10 @@ impl LedConfig {
             colors,
         })
     }
-    
-    /// Create default LED configuration
-    pub fn default() -> Self {
+}
+
+impl Default for LedConfig {
+    fn default() -> Self {
         let mut colors = HashMap::new();
         colors.insert("green".to_string(), [0, 255, 0]);
         colors.insert("yellow".to_string(), [255, 255, 0]);
@@ -694,9 +680,10 @@ impl HapticsConfig {
             effects,
         }
     }
-    
-    /// Create default haptics configuration
-    pub fn default() -> Self {
+}
+
+impl Default for HapticsConfig {
+    fn default() -> Self {
         let mut effects = HashMap::new();
         effects.insert("kerb".to_string(), true);
         effects.insert("slip".to_string(), true);

@@ -86,7 +86,7 @@ impl TelemetryAdapter for MockAdapter {
     
     fn normalize(&self, _raw: &[u8]) -> Result<NormalizedTelemetry> {
         // Mock normalization
-        Ok(NormalizedTelemetry::new().with_rpm(5000.0))
+        Ok(NormalizedTelemetry::default().with_rpm(5000.0))
     }
     
     fn expected_update_rate(&self) -> Duration {
@@ -115,7 +115,7 @@ fn generate_mock_telemetry(progress: f32) -> NormalizedTelemetry {
         _ => 6,
     };
     
-    NormalizedTelemetry::new()
+    NormalizedTelemetry::default()
         .with_ffb_scalar(ffb_scalar)
         .with_rpm(rpm.max(0.0))
         .with_speed_ms(speed)

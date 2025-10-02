@@ -279,10 +279,11 @@ impl MockGameService {
 /// Mock safety service for testing
 pub struct MockSafetyService;
 
-impl MockSafetyService {
-    pub fn new() -> Self {
+impl Default for MockSafetyService {
+    fn default() -> Self {
         Self
     }
+}
 
     pub async fn start_high_torque(&self, _device_id: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Ok(())
@@ -311,7 +312,7 @@ impl IpcTestFixture {
             mock_device_service: MockDeviceService::new(),
             mock_profile_service: MockProfileService::new(),
             mock_game_service: MockGameService::new(),
-            mock_safety_service: MockSafetyService::new(),
+            mock_safety_service: MockSafetyService::default(),
         }
     }
 }

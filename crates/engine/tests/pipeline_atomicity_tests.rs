@@ -117,7 +117,7 @@ async fn test_pipeline_swap_atomicity() {
 /// Test deterministic profile resolution
 #[tokio::test]
 async fn test_deterministic_profile_resolution() {
-    let merge_engine = ProfileMergeEngine::new();
+    let merge_engine = ProfileMergeEngine::default();
 
     // Create test profiles
     let global_profile = create_test_profile("global", ProfileScope::global());
@@ -169,7 +169,7 @@ async fn test_deterministic_profile_resolution() {
 /// Test that different inputs produce different hashes
 #[tokio::test]
 async fn test_different_inputs_different_hashes() {
-    let merge_engine = ProfileMergeEngine::new();
+    let merge_engine = ProfileMergeEngine::default();
 
     let global_profile = create_test_profile("global", ProfileScope::global());
     let mut game_profile1 = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
@@ -302,7 +302,7 @@ async fn test_concurrent_pipeline_compilation() {
 /// Test profile hierarchy precedence
 #[tokio::test]
 async fn test_profile_hierarchy_precedence() {
-    let merge_engine = ProfileMergeEngine::new();
+    let merge_engine = ProfileMergeEngine::default();
 
     // Create profiles with different values at each level
     let mut global_profile = create_test_profile("global", ProfileScope::global());

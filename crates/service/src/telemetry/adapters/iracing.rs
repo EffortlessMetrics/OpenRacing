@@ -272,7 +272,7 @@ impl IRacingAdapter {
         extended.insert("brake".to_string(), TelemetryValue::Float(data.brake));
         extended.insert("steering_wheel_angle".to_string(), TelemetryValue::Float(data.steering_wheel_angle));
         
-        NormalizedTelemetry::new()
+        NormalizedTelemetry::default()
             .with_ffb_scalar(data.steering_wheel_torque / 100.0) // Normalize to -1..1 range
             .with_rpm(data.rpm)
             .with_speed_ms(data.speed)

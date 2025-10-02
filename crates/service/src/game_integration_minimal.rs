@@ -114,8 +114,8 @@ pub trait ConfigWriter {
 /// iRacing configuration writer
 pub struct IRacingConfigWriter;
 
-impl IRacingConfigWriter {
-    pub fn new() -> Self {
+impl Default for IRacingConfigWriter {
+    fn default() -> Self {
         Self
     }
 }
@@ -174,8 +174,8 @@ impl ConfigWriter for IRacingConfigWriter {
 /// ACC configuration writer
 pub struct ACCConfigWriter;
 
-impl ACCConfigWriter {
-    pub fn new() -> Self {
+impl Default for ACCConfigWriter {
+    fn default() -> Self {
         Self
     }
 }
@@ -260,8 +260,8 @@ impl GameIntegrationService {
         let mut config_writers: HashMap<String, Box<dyn ConfigWriter + Send + Sync>> = HashMap::new();
         
         // Register config writers
-        config_writers.insert("iracing".to_string(), Box::new(IRacingConfigWriter::new()));
-        config_writers.insert("acc".to_string(), Box::new(ACCConfigWriter::new()));
+        config_writers.insert("iracing".to_string(), Box::new(IRacingConfigWriter::default()));
+        config_writers.insert("acc".to_string(), Box::new(ACCConfigWriter::default()));
         
         Ok(Self {
             support_matrix,
@@ -351,7 +351,7 @@ mod tests {
 
     #[test]
     fn test_iracing_config_writer_golden() {
-        let writer = IRacingConfigWriter::new();
+        let writer = IRacingConfigWriter::default();
         let config = TelemetryConfig {
             enabled: true,
             update_rate_hz: 60,
@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_acc_config_writer_golden() {
-        let writer = ACCConfigWriter::new();
+        let writer = ACCConfigWriter::default();
         let config = TelemetryConfig {
             enabled: true,
             update_rate_hz: 100,

@@ -116,7 +116,7 @@ impl TwoPhaseApplyCoordinator {
     pub fn new(initial_pipeline: Pipeline) -> Self {
         Self {
             compiler: PipelineCompiler::new(),
-            merge_engine: ProfileMergeEngine::new(),
+            merge_engine: ProfileMergeEngine::default(),
             active_pipeline: Arc::new(RwLock::new(initial_pipeline)),
             pending_applies: Arc::new(Mutex::new(Vec::new())),
             stats: Arc::new(Mutex::new(ApplyStats::default())),

@@ -312,7 +312,7 @@ impl TestFixtureGenerator {
             _ => 6,
         };
         
-        NormalizedTelemetry::new()
+        NormalizedTelemetry::default()
             .with_ffb_scalar(ffb_scalar)
             .with_rpm(rpm)
             .with_speed_ms(speed)
@@ -349,7 +349,7 @@ impl TestFixtureGenerator {
         
         // Override with constant values
         for frame in &mut recording.frames {
-            frame.data = NormalizedTelemetry::new()
+            frame.data = NormalizedTelemetry::default()
                 .with_ffb_scalar(0.5)
                 .with_rpm(6000.0)
                 .with_speed_ms(50.0)
@@ -371,7 +371,7 @@ impl TestFixtureGenerator {
             let speed = progress * 80.0; // 0 to 80 m/s
             let rpm = 2000.0 + progress * 6000.0; // 2000 to 8000 RPM
             
-            frame.data = NormalizedTelemetry::new()
+            frame.data = NormalizedTelemetry::default()
                 .with_ffb_scalar(0.3)
                 .with_rpm(rpm)
                 .with_speed_ms(speed)

@@ -9,8 +9,8 @@ use tracing::{info, debug};
 /// iRacing configuration writer
 pub struct IRacingConfigWriter;
 
-impl IRacingConfigWriter {
-    pub fn new() -> Self {
+impl Default for IRacingConfigWriter {
+    fn default() -> Self {
         Self
     }
 }
@@ -99,8 +99,8 @@ impl ConfigWriter for IRacingConfigWriter {
 /// ACC (Assetto Corsa Competizione) configuration writer
 pub struct ACCConfigWriter;
 
-impl ACCConfigWriter {
-    pub fn new() -> Self {
+impl Default for ACCConfigWriter {
+    fn default() -> Self {
         Self
     }
 }

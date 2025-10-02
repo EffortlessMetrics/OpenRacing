@@ -229,15 +229,21 @@
     - Fix unwrap calls in recorder.rs, observability.rs, and diagnostic_service.rs
     - _Requirements: 6.1_
 
-- [-] 11. Implement proper Default traits
+- [x] 11. Implement proper Default traits
 
 
-  - [ ] 11.1 Replace custom default() methods in entities.rs
+
+
+  - [x] 11.1 Replace custom default() methods in entities.rs
+
+
     - Convert custom `default()` methods to proper `Default` trait implementations
     - Fix `should_implement_trait` clippy warnings
     - _Requirements: 6.2_
   
-  - [ ] 11.2 Add Default implementations for service structs
+
+  - [x] 11.2 Add Default implementations for service structs
+
     - Add Default trait for IRacingConfigWriter, ACCConfigWriter, and other structs with new() methods
     - _Requirements: 6.2_
 

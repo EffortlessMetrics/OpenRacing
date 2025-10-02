@@ -85,10 +85,7 @@ impl Default for TrustStore {
 }
 
 impl TrustStore {
-    /// Create a new empty trust store
-    pub fn new() -> Self {
-        Self::default()
-    }
+
 
     /// Load trust store from file, or create new if it doesn't exist
     pub async fn load_or_create(path: &str) -> Result<Self, TrustStoreError> {

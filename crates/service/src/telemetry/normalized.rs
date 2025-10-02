@@ -132,10 +132,7 @@ impl Default for NormalizedTelemetry {
 }
 
 impl NormalizedTelemetry {
-    /// Create a new normalized telemetry instance
-    pub fn new() -> Self {
-        Self::default()
-    }
+
     
     /// Set FFB scalar value with validation
     pub fn with_ffb_scalar(mut self, value: f32) -> Self {
@@ -280,7 +277,7 @@ mod tests {
 
     #[test]
     fn test_normalized_telemetry_creation() {
-        let telemetry = NormalizedTelemetry::new()
+        let telemetry = NormalizedTelemetry::default()
             .with_ffb_scalar(0.75)
             .with_rpm(6500.0)
             .with_speed_ms(45.0)
@@ -300,25 +297,25 @@ mod tests {
 
     #[test]
     fn test_ffb_scalar_clamping() {
-        let telemetry1 = NormalizedTelemetry::new().with_ffb_scalar(1.5);
+        let telemetry1 = NormalizedTelemetry::default().with_ffb_scalar(1.5);
         assert_eq!(telemetry1.ffb_scalar, Some(1.0));
         
-        let telemetry2 = NormalizedTelemetry::new().with_ffb_scalar(-1.5);
+        let telemetry2 = NormalizedTelemetry::default().with_ffb_scalar(-1.5);
         assert_eq!(telemetry2.ffb_scalar, Some(-1.0));
     }
 
     #[test]
     fn test_slip_ratio_clamping() {
-        let telemetry1 = NormalizedTelemetry::new().with_slip_ratio(1.5);
+        let telemetry1 = NormalizedTelemetry::default().with_slip_ratio(1.5);
         assert_eq!(telemetry1.slip_ratio, Some(1.0));
         
-        let telemetry2 = NormalizedTelemetry::new().with_slip_ratio(-0.5);
+        let telemetry2 = NormalizedTelemetry::default().with_slip_ratio(-0.5);
         assert_eq!(telemetry2.slip_ratio, Some(0.0));
     }
 
     #[test]
     fn test_invalid_values_rejected() {
-        let telemetry = NormalizedTelemetry::new()
+        let telemetry = NormalizedTelemetry::default()
             .with_rpm(-100.0) // Negative RPM should be rejected
             .with_speed_ms(f32::NAN); // NaN should be rejected
         
@@ -328,7 +325,7 @@ mod tests {
 
     #[test]
     fn test_speed_conversions() {
-        let telemetry = NormalizedTelemetry::new().with_speed_ms(27.78); // 100 km/h
+        let telemetry = NormalizedTelemetry::default().with_speed_ms(27.78); // 100 km/h
         
         assert!((telemetry.speed_kmh().unwrap() - 100.0).abs() < 0.1);
         assert!((telemetry.speed_mph().unwrap() - 62.14).abs() < 0.1);
@@ -336,7 +333,7 @@ mod tests {
 
     #[test]
     fn test_rpm_fraction() {
-        let telemetry = NormalizedTelemetry::new().with_rpm(6000.0);
+        let telemetry = NormalizedTelemetry::default().with_rpm(6000.0);
         
         let fraction = telemetry.rpm_fraction(8000.0).unwrap();
         assert!((fraction - 0.75).abs() < 0.01);
@@ -348,7 +345,7 @@ mod tests {
         flags.yellow_flag = true;
         flags.pit_limiter = true;
         
-        let telemetry = NormalizedTelemetry::new().with_flags(flags);
+        let telemetry = NormalizedTelemetry::default().with_flags(flags);
         
         assert!(telemetry.has_active_flags());
         assert!(telemetry.flags.yellow_flag);
@@ -357,7 +354,7 @@ mod tests {
 
     #[test]
     fn test_extended_data() {
-        let telemetry = NormalizedTelemetry::new()
+        let telemetry = NormalizedTelemetry::default()
             .with_extended("fuel_level".to_string(), TelemetryValue::Float(45.5))
             .with_extended("lap_count".to_string(), TelemetryValue::Integer(12))
             .with_extended("session_type".to_string(), TelemetryValue::String("Race".to_string()));

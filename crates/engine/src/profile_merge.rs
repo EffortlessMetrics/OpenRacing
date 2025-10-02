@@ -38,12 +38,13 @@ pub struct MergeStats {
     pub haptics_overrides: usize,
 }
 
-impl ProfileMergeEngine {
-    /// Create a new profile merge engine
-    pub fn new() -> Self {
+impl Default for ProfileMergeEngine {
+    fn default() -> Self {
         Self
     }
+}
 
+impl ProfileMergeEngine {
     /// Merge profiles according to hierarchy: Global → Game → Car → Session
     /// 
     /// This method implements deterministic merging where:
@@ -292,11 +293,7 @@ impl ProfileMergeEngine {
     }
 }
 
-impl Default for ProfileMergeEngine {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+
 
 #[cfg(test)]
 mod tests {
@@ -323,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_global_only() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
 
         let result = engine.merge_profiles(&global_profile, None, None, None);
@@ -335,7 +332,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_with_game_profile() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
         let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
         
@@ -351,7 +348,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_full_hierarchy() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
         let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
         let mut car_profile = create_test_profile("gt3", ProfileScope::for_car("iracing".to_string(), "gt3".to_string()));
@@ -374,7 +371,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_with_session_overrides() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
         let session_overrides = create_custom_base_settings();
 
@@ -393,7 +390,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_deterministic_hash() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
         let game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
 
@@ -410,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_different_inputs_different_hash() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
         let game_profile1 = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
         let mut game_profile2 = create_test_profile("acc", ProfileScope::for_game("acc".to_string()));
@@ -427,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_default_value_detection() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         
         // Test default value detection
         assert!(engine.is_default_gain(Gain::new(0.7).unwrap()));
@@ -442,7 +439,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_linear_curve_detection() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         
         let linear_curve = vec![
             CurvePoint::new(0.0, 0.0).unwrap(),
@@ -461,7 +458,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_monotonic_curve_validation() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
         
         // Create profile with non-monotonic curve
@@ -481,7 +478,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_deterministic_ordering() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         
         // Create profiles with different values
         let global_profile = create_test_profile("global", ProfileScope::global());
@@ -503,7 +500,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_session_overrides_precedence() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         
         let global_profile = create_test_profile("global", ProfileScope::global());
         let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
@@ -537,7 +534,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_hash_stability() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
         let game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
 
@@ -557,7 +554,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_empty_profiles() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
 
         // Merge with all None profiles
@@ -570,7 +567,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_filter_override_counting() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
         let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
         
@@ -590,7 +587,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_led_haptics_override() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
         let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
         
@@ -608,7 +605,7 @@ mod tests {
 
     #[test]
     fn test_merge_engine_complex_hierarchy() {
-        let engine = ProfileMergeEngine::new();
+        let engine = ProfileMergeEngine::default();
         
         // Create a complex hierarchy with all levels
         let mut global_profile = create_test_profile("global", ProfileScope::global());
