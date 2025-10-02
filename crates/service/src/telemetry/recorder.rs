@@ -388,7 +388,7 @@ impl TestFixtureGenerator {
         
         // Override with cornering pattern (high FFB, slip)
         for frame in &mut recording.frames {
-            frame.data = NormalizedTelemetry::new()
+            frame.data = NormalizedTelemetry::default()
                 .with_ffb_scalar(0.9) // High steering force
                 .with_rpm(5500.0)
                 .with_speed_ms(35.0) // Slower corner speed
