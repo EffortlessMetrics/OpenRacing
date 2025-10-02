@@ -153,21 +153,42 @@
     - Fix pattern matching on health status results
     - _Requirements: 3.1, 3.2_
 
-- [ ] 8. Fix async lifetime and ownership issues
-  - [ ] 8.1 Fix async task spawning lifetime issues
+- [x] 8. Fix async lifetime and ownership issues
+
+
+
+
+  - [x] 8.1 Fix async task spawning lifetime issues
+
+
+
+
+
     - Resolve borrowed data escaping method body in device enumeration
     - _Requirements: 2.3_
+
   
-  - [ ] 8.2 Fix Arc cloning for service run methods
+  - [x] 8.2 Fix Arc cloning for service run methods
+
     - Add proper cloning for wheel service run method
     - _Requirements: 2.3_
 
-- [ ] 9. Add missing Default implementations
-  - [ ] 9.1 Add Default implementation for GameSupportMatrix
+- [x] 9. Add missing Default implementations
+
+
+
+
+
+
+
+  - [x] 9.1 Add Default implementation for GameSupportMatrix
+
     - Implement Default trait or use alternative construction method
     - _Requirements: 2.1_
   
-  - [ ] 9.2 Fix ProfileId constructor calls
+  - [x] 9.2 Fix ProfileId constructor calls
+
+
     - Replace `ProfileId::new()` calls with proper constructor or factory method
     - _Requirements: 3.1, 3.2_
 

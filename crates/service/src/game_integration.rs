@@ -15,6 +15,14 @@ pub struct GameSupportMatrix {
     pub games: HashMap<String, GameSupport>,
 }
 
+impl Default for GameSupportMatrix {
+    fn default() -> Self {
+        Self {
+            games: HashMap::new(),
+        }
+    }
+}
+
 /// Support information for a specific game
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GameSupport {

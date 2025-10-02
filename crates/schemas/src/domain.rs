@@ -226,6 +226,11 @@ impl std::ops::Sub for Degrees {
 pub struct DeviceId(String);
 
 impl DeviceId {
+    /// Create a new DeviceId with validation
+    pub fn new(value: String) -> Result<Self, DomainError> {
+        value.parse()
+    }
+    
     /// Get the raw string value
     pub fn as_str(&self) -> &str {
         &self.0
@@ -295,6 +300,11 @@ impl From<DeviceId> for String {
 pub struct ProfileId(String);
 
 impl ProfileId {
+    /// Create a new ProfileId with validation
+    pub fn new(value: String) -> Result<Self, DomainError> {
+        value.parse()
+    }
+    
     /// Get the raw string value
     pub fn as_str(&self) -> &str {
         &self.0

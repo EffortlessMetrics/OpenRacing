@@ -256,8 +256,8 @@ impl ApplicationDeviceService {
 
     /// Start continuous device enumeration
     async fn start_device_enumeration(&self) -> Result<()> {
-        let service = Arc::new(self);
-        let service_clone = Arc::clone(&service);
+        let hid_port = Arc::clone(&self.hid_port);
+        let devices = Arc::clone(&self.devices);
 
         tokio::spawn(async move {
             let mut interval = interval(Duration::from_secs(2));
@@ -265,8 +265,39 @@ impl ApplicationDeviceService {
             loop {
                 interval.tick().await;
                 
-                if let Err(e) = service_clone.enumerate_devices().await {
-                    error!(error = %e, "Device enumeration failed");
+                // Perform device enumeration
+                match hid_port.list_devices().await {
+                    Ok(device_infos) => {
+                        debug!("Enumerated {} devices", device_infos.len());
+                        
+                        let now = Instant::now();
+                        // Update the devices map with discovered devices
+                        let mut devices_guard = devices.write().await;
+                        for device_info in device_infos {
+                            if !devices_guard.contains_key(&device_info.id) {
+                                let managed_device = ManagedDevice {
+                                    info: device_info.clone(),
+                                    state: DeviceState::Disconnected,
+                                    capabilities: None,
+                                    calibration: None,
+                                    last_telemetry: None,
+                                    health_status: DeviceHealthStatus {
+                                        temperature_c: 25,
+                                        fault_flags: 0,
+                                        hands_on: false,
+                                        last_communication: now,
+                                        communication_errors: 0,
+                                    },
+                                    last_seen: now,
+                                };
+                                devices_guard.insert(device_info.id.clone(), managed_device);
+                                info!(device_id = %device_info.id, "Discovered new device");
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        error!("Device enumeration failed");
+                    }
                 }
             }
         });

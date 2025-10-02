@@ -227,11 +227,14 @@ impl ServiceDaemon {
         // Wait for shutdown signal
         let mut shutdown_rx = self.shutdown_tx.subscribe();
         
+        // Clone the service for the run method since it takes ownership
+        let service_for_run = (*wheel_service).clone();
+        
         tokio::select! {
             _ = shutdown_rx.recv() => {
                 info!("Received shutdown signal");
             }
-            result = wheel_service.run() => {
+            result = service_for_run.run() => {
                 if let Err(e) = result {
                     error!("Wheel service error: {}", e);
                     return Err(e.into());
