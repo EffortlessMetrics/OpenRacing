@@ -33,7 +33,7 @@ pub enum DomainError {
 }
 
 /// Torque value in Newton-meters with validation
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct TorqueNm(f32);
 
 impl TorqueNm {
@@ -42,7 +42,7 @@ impl TorqueNm {
     
     /// Create a new torque value with validation
     pub fn new(value: f32) -> Result<Self, DomainError> {
-        if value < 0.0 || value > Self::MAX_TORQUE || !value.is_finite() {
+        if !(0.0..=Self::MAX_TORQUE).contains(&value) || !value.is_finite() {
             return Err(DomainError::InvalidTorque(value, Self::MAX_TORQUE));
         }
         Ok(TorqueNm(value))
@@ -103,6 +103,12 @@ impl std::ops::Mul<f32> for TorqueNm {
     }
 }
 
+impl PartialOrd for TorqueNm {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl Ord for TorqueNm {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.0.partial_cmp(&other.0).unwrap_or(std::cmp::Ordering::Equal)
@@ -136,7 +142,7 @@ impl Degrees {
     
     /// Create a new degrees value with validation for DOR (Degrees of Rotation)
     pub fn new_dor(value: f32) -> Result<Self, DomainError> {
-        if value < Self::MIN_DOR || value > Self::MAX_DOR || !value.is_finite() {
+        if !(Self::MIN_DOR..=Self::MAX_DOR).contains(&value) || !value.is_finite() {
             return Err(DomainError::InvalidDegrees(value, Self::MIN_DOR, Self::MAX_DOR));
         }
         Ok(Degrees(value))

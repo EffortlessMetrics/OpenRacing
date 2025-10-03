@@ -487,18 +487,13 @@ impl DiagnosticTest for TimingTest {
             tokio::time::sleep(target_interval).await;
             let current_time = Instant::now();
             let actual_interval = current_time.duration_since(last_time);
-            let jitter = if actual_interval > target_interval {
-                actual_interval - target_interval
-            } else {
-                target_interval - actual_interval
-            };
+            let jitter = actual_interval.abs_diff(target_interval);
             jitters.push(jitter.as_micros() as f64);
             last_time = current_time;
         }
         
         // Calculate statistics
-        jitters.sort_by(|a, b| a.partial_cmp(b)
-            .expect("Jitter values should be valid floats"));
+        jitters.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let mean_jitter = jitters.iter().sum::<f64>() / jitters.len() as f64;
         let p99_jitter = jitters[(jitters.len() as f64 * 0.99) as usize];
         let max_jitter = jitters.iter().fold(0.0f64, |a, &b| a.max(b));
@@ -610,8 +605,8 @@ impl DiagnosticTest for PermissionsTest {
         let mut messages = Vec::new();
         
         // Check config directory permissions
-        if let Ok(config_path) = crate::SystemConfig::default_config_path() {
-            if let Some(config_dir) = config_path.parent() {
+        if let Ok(config_path) = crate::SystemConfig::default_config_path()
+            && let Some(config_dir) = config_path.parent() {
                 match std::fs::metadata(config_dir) {
                     Ok(meta) => {
                         metadata.insert("config_dir_exists".to_string(), "true".to_string());
@@ -619,7 +614,7 @@ impl DiagnosticTest for PermissionsTest {
                     }
                     Err(_) => {
                         // Try to create the directory
-                        if let Err(_) = std::fs::create_dir_all(config_dir) {
+                        if std::fs::create_dir_all(config_dir).is_err() {
                             status = DiagnosticStatus::Fail;
                             messages.push("Cannot create configuration directory".to_string());
                             suggested_actions.push("Check user permissions for configuration directory".to_string());
@@ -627,7 +622,6 @@ impl DiagnosticTest for PermissionsTest {
                     }
                 }
             }
-        }
         
         #[cfg(target_os = "linux")]
         {

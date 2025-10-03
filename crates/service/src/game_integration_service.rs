@@ -200,8 +200,8 @@ impl GameIntegrationService {
         
         // Step 3: Set up auto profile switching if requested
         let mut auto_switching_enabled = false;
-        if request.enable_auto_switching && success {
-            if let Some(profile_id) = &request.profile_id {
+        if request.enable_auto_switching && success
+            && let Some(profile_id) = &request.profile_id {
                 match self.setup_auto_switching(&request.game_id, profile_id).await {
                     Ok(()) => {
                         auto_switching_enabled = true;
@@ -222,7 +222,6 @@ impl GameIntegrationService {
                     }
                 }
             }
-        }
         
         // Step 4: Store configuration state
         if success {

@@ -1,6 +1,6 @@
 //! Safety UI components for high torque consent flow
 
-use racing_wheel_engine::{ConsentRequirements, InterlockChallenge, ButtonCombo};
+use racing_wheel_engine::safety::{ConsentRequirements, InterlockChallenge, ButtonCombo};
 use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 

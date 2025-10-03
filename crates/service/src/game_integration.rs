@@ -11,16 +11,9 @@ use tracing::info;
 
 /// Game support matrix defining per-sim capabilities and config paths
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Default)]
 pub struct GameSupportMatrix {
     pub games: HashMap<String, GameSupport>,
-}
-
-impl Default for GameSupportMatrix {
-    fn default() -> Self {
-        Self {
-            games: HashMap::new(),
-        }
-    }
 }
 
 /// Support information for a specific game
@@ -122,6 +115,12 @@ pub struct GameIntegrationService {
 impl GameIntegrationService {
     /// Create new game integration service
     pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Default for GameIntegrationService {
+    fn default() -> Self {
         let support_matrix = GameSupportMatrix::default();
         let config_writers: HashMap<String, Box<dyn ConfigWriter + Send + Sync>> = HashMap::new();
         
@@ -134,7 +133,9 @@ impl GameIntegrationService {
             config_writers,
         }
     }
-    
+}
+
+impl GameIntegrationService {
     /// Configure telemetry for a specific game (GI-01)
     pub fn configure_telemetry(&self, game_id: &str, game_path: &Path) -> Result<Vec<ConfigDiff>> {
         info!(game_id = %game_id, game_path = ?game_path, "Configuring telemetry");

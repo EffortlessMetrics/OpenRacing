@@ -7,8 +7,8 @@ use tokio::sync::RwLock;
 use tracing::info;
 use uuid::Uuid;
 
-use racing_wheel_engine::{Engine, EngineConfig};
-use racing_wheel_service::{WheelService, ServiceConfig};
+// use racing_wheel_engine::{Engine, EngineConfig};
+use racing_wheel_service::WheelService;
 use racing_wheel_schemas::prelude::*;
 
 use crate::{TestConfig, PerformanceMetrics};
@@ -102,15 +102,7 @@ impl TestHarness {
     }
 
     pub async fn start_service(&mut self) -> Result<()> {
-        let service_config = ServiceConfig {
-            enable_rt_thread: true,
-            ffb_frequency_hz: self.config.sample_rate_hz,
-            enable_safety_interlocks: true,
-            enable_diagnostics: self.config.enable_metrics,
-            ..Default::default()
-        };
-
-        let service = WheelService::new(service_config).await?;
+        let service = WheelService::new().await?;
         self.service = Some(Arc::new(service));
         
         info!("Test service started");
@@ -150,7 +142,7 @@ impl TestHarness {
     }
 
     pub async fn shutdown(&mut self) -> Result<()> {
-        if let Some(service) = &self.service {
+        if let Some(_service) = &self.service {
             // Graceful shutdown
             info!("Shutting down test service");
         }

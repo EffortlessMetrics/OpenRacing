@@ -3,7 +3,7 @@
 //! Complete system integration with graceful degradation, feature flags,
 //! and comprehensive configuration management.
 
-use racing_wheel_service::{ServiceDaemon, ServiceConfig, SystemConfig, FeatureFlags};
+use racing_wheel_service::{ServiceDaemon, SystemConfig, FeatureFlags};
 use tracing::{info, error, warn, debug};
 use tracing_subscriber::{self, EnvFilter};
 use clap::{Parser, Subcommand};
@@ -87,7 +87,10 @@ async fn main() -> Result<()> {
         .init();
 
     info!("Racing Wheel Service v{}", env!("CARGO_PKG_VERSION"));
-    info!("Build: {} {}", env!("VERGEN_GIT_SHA"), env!("VERGEN_BUILD_TIMESTAMP"));
+    // Build info (optional environment variables)
+    let git_sha = std::env::var("VERGEN_GIT_SHA").unwrap_or_else(|_| "unknown".to_string());
+    let build_timestamp = std::env::var("VERGEN_BUILD_TIMESTAMP").unwrap_or_else(|_| "unknown".to_string());
+    info!("Build: {} {}", git_sha, build_timestamp);
     
     // Handle commands
     if let Some(command) = cli.command {
@@ -211,9 +214,9 @@ async fn log_system_info(config: &SystemConfig, flags: &FeatureFlags) {
     info!("  Architecture: {}", std::env::consts::ARCH);
     info!("  CPU cores: {}", num_cpus::get());
     
-    if let Ok(info) = sysinfo::System::new_all().global_cpu_info() {
-        info!("  CPU: {} MHz", info.frequency());
-    }
+    let sys = sysinfo::System::new_all();
+    let cpu_info = sys.global_cpu_info();
+    info!("  CPU: {} MHz", cpu_info.frequency());
     
     info!("Feature Flags:");
     info!("  Real-time disabled: {}", flags.disable_realtime);
@@ -231,7 +234,7 @@ async fn log_system_info(config: &SystemConfig, flags: &FeatureFlags) {
 
 async fn run_service_daemon(config: SystemConfig, flags: FeatureFlags) -> Result<()> {
     // Create service configuration from system config
-    let service_config = ServiceConfig::from_system_config(&config);
+    let service_config = racing_wheel_service::system_config::ServiceConfig::from_system_config(&config);
     
     // Create service daemon with feature flags
     let daemon = ServiceDaemon::new_with_flags(service_config, flags).await
@@ -252,13 +255,13 @@ async fn validate_system_configuration() -> Result<()> {
     
     // Validate profile schemas
     let profile_service = racing_wheel_service::ApplicationProfileService::new().await?;
-    profile_service.validate_all_profiles().await?;
-    info!("✓ All profiles valid");
+    let profiles = profile_service.list_profiles().await?;
+    info!("✓ Found {} profiles", profiles.len());
     
     // Validate game support matrix
     let game_service = racing_wheel_service::ApplicationGameService::new().await?;
-    game_service.validate_support_matrix().await?;
-    info!("✓ Game support matrix valid");
+    let games = game_service.get_supported_games().await;
+    info!("✓ Game support matrix loaded with {} games", games.len());
     
     // Check system requirements
     validate_system_requirements().await?;

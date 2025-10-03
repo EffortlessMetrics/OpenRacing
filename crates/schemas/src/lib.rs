@@ -361,7 +361,10 @@ pub mod config {
 
     impl Default for ProfileValidator {
         fn default() -> Self {
-            Self::new().expect("Failed to create default ProfileValidator")
+            match Self::new() {
+                Ok(validator) => validator,
+                Err(_) => panic!("Failed to create default ProfileValidator: schema compilation failed"),
+            }
         }
     }
 

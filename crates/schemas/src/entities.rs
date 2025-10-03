@@ -428,8 +428,8 @@ impl Default for FilterConfig {
             notch_filters: Vec::new(),
             slew_rate: Gain::from_raw(1.0), // No slew rate limiting
             curve_points: vec![
-                CurvePoint::new(0.0, 0.0).unwrap(),
-                CurvePoint::new(1.0, 1.0).unwrap(),
+                CurvePoint { input: 0.0, output: 0.0 },
+                CurvePoint { input: 1.0, output: 1.0 },
             ],
             torque_cap: Gain::from_raw(1.0), // No torque cap by default
             bumpstop: BumpstopConfig::default(),
@@ -474,6 +474,7 @@ impl FilterConfig {
     }
 
     /// Create a new filter configuration with all parameters
+    #[allow(clippy::too_many_arguments)]
     pub fn new_complete(
         reconstruction: u8,
         friction: Gain,
@@ -768,25 +769,22 @@ impl ProfileScope {
     /// Check if this scope matches a given context
     pub fn matches(&self, game: Option<&str>, car: Option<&str>, track: Option<&str>) -> bool {
         // Check game match
-        if let Some(ref scope_game) = self.game {
-            if game != Some(scope_game.as_str()) {
+        if let Some(ref scope_game) = self.game
+            && game != Some(scope_game.as_str()) {
                 return false;
             }
-        }
         
         // Check car match
-        if let Some(ref scope_car) = self.car {
-            if car != Some(scope_car.as_str()) {
+        if let Some(ref scope_car) = self.car
+            && car != Some(scope_car.as_str()) {
                 return false;
             }
-        }
         
         // Check track match
-        if let Some(ref scope_track) = self.track {
-            if track != Some(scope_track.as_str()) {
+        if let Some(ref scope_track) = self.track
+            && track != Some(scope_track.as_str()) {
                 return false;
             }
-        }
         
         true
     }
