@@ -80,6 +80,12 @@ pub struct TelemetryService {
     recorder: Option<TelemetryRecorder>,
 }
 
+impl Default for TelemetryService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TelemetryService {
     /// Create a new telemetry service
     pub fn new() -> Self {

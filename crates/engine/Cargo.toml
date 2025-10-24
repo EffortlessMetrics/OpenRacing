@@ -58,3 +58,4 @@ libudev = { workspace = true }
 [features]
 default = ["mimalloc"]
 rt-allocator = ["mimalloc"]
+harness = []         # opt-in visibility for the test harness in non-test builds

@@ -182,7 +182,7 @@ pub struct ObservabilityConfig {
 }
 
 /// Development configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DevelopmentConfig {
     /// Enable development features
     pub enable_dev_features: bool,
@@ -349,19 +349,6 @@ impl Default for ObservabilityConfig {
             enable_blackbox: true,
             blackbox_retention_hours: 24,
             health_stream_hz: 10,
-        }
-    }
-}
-
-impl Default for DevelopmentConfig {
-    fn default() -> Self {
-        Self {
-            enable_dev_features: false,
-            enable_debug_logging: false,
-            enable_virtual_devices: false,
-            disable_safety_interlocks: false,
-            enable_plugin_dev_mode: false,
-            mock_telemetry: false,
         }
     }
 }

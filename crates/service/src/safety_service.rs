@@ -518,23 +518,20 @@ impl ApplicationSafetyService {
         }
 
         // Check temperature
-        if let Some(temp) = context.temperature_c {
-            if temp > 80.0 {
+        if let Some(temp) = context.temperature_c
+            && temp > 80.0 {
                 return Err(SafetyViolation::TemperatureTooHigh {
                     current: temp as u8,
                     limit: 80,
                 });
             }
-        }
 
         // Check fault history
-        if context.fault_count > 5 {
-            if let Some(last_fault) = context.last_fault_time {
-                if last_fault.elapsed() < Duration::from_secs(300) {
+        if context.fault_count > 5
+            && let Some(last_fault) = context.last_fault_time
+                && last_fault.elapsed() < Duration::from_secs(300) {
                     return Err(SafetyViolation::ActiveFaults(context.fault_count as u8));
                 }
-            }
-        }
 
         Ok(())
     }
@@ -577,24 +574,21 @@ impl ApplicationSafetyService {
 
                 for (device_id, context) in contexts_guard.iter_mut() {
                     // Check for expired challenges
-                    if let InterlockState::Challenge { expires_at, .. } = &context.interlock_state {
-                        if now > *expires_at {
+                    if let InterlockState::Challenge { expires_at, .. } = &context.interlock_state
+                        && now > *expires_at {
                             warn!(device_id = %device_id, "Challenge expired, returning to safe torque");
                             context.interlock_state = InterlockState::SafeTorque;
                             context.current_torque_limit = context.max_safe_torque * 0.3;
                         }
-                    }
 
                     // Check for hands-off timeout in high torque mode
-                    if let InterlockState::HighTorqueActive { .. } = &context.interlock_state {
-                        if let Some(last_hands_on) = context.last_hands_on_time {
-                            if !context.hands_on_detected || last_hands_on.elapsed() > hands_off_timeout {
-                                warn!(device_id = %device_id, "Hands-off timeout in high torque mode");
-                                context.interlock_state = InterlockState::SafeTorque;
-                                context.current_torque_limit = context.max_safe_torque * 0.3;
-                            }
+                    if let InterlockState::HighTorqueActive { .. } = &context.interlock_state
+                        && let Some(last_hands_on) = context.last_hands_on_time
+                        && (!context.hands_on_detected || last_hands_on.elapsed() > hands_off_timeout) {
+                            warn!(device_id = %device_id, "Hands-off timeout in high torque mode");
+                            context.interlock_state = InterlockState::SafeTorque;
+                            context.current_torque_limit = context.max_safe_torque * 0.3;
                         }
-                    }
                 }
             }
         });

@@ -5,13 +5,11 @@
 //! Usage: cargo run --example game_integration_demo
 
 use racing_wheel_service::{
-    GameIntegrationE2ETestSuite, GameIntegrationService, OneClickConfigRequest, ProfileService,
-    print_test_summary,
+    GameIntegrationService, OneClickConfigRequest, ProfileService,
 };
 use std::sync::Arc;
 use tempfile::TempDir;
 use tracing::{info, Level};
-use tracing_subscriber;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

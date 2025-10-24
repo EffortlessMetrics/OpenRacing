@@ -237,7 +237,7 @@ impl ServiceDaemon {
             result = service_for_run.run() => {
                 if let Err(e) = result {
                     error!("Wheel service error: {}", e);
-                    return Err(e.into());
+                    return Err(e);
                 }
             }
         }

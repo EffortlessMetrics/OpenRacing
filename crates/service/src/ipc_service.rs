@@ -221,7 +221,7 @@ impl WheelService for WheelServiceImpl {
         match self.profile_service.get_active_profile(&device_id).await {
             Ok(Some(profile_id)) => {
                 // Load the full profile and convert to wire format
-                match self.profile_service.load_profile(&profile_id.to_string()).await {
+                match self.profile_service.load_profile(profile_id.as_ref()).await {
                     Ok(profile) => {
                         let wire_profile: WireProfile = profile.into();
                         Ok(Response::new(wire_profile))
@@ -261,7 +261,7 @@ impl WheelService for WheelServiceImpl {
 
         // Get device capabilities (simplified for now)
         let max_torque = racing_wheel_schemas::domain::TorqueNm::new(10.0)
-            .expect("Valid torque value for device capabilities");
+            .map_err(|e| Status::internal(format!("invalid max torque: {}", e)))?;
         let device_capabilities = racing_wheel_schemas::entities::DeviceCapabilities::new(
             true, true, true, true, 
             max_torque,

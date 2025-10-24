@@ -231,8 +231,8 @@ impl ProcessDetectionService {
             .collect();
         
         for game_id in currently_running_games {
-            if !game_processes.contains_key(&game_id) {
-                if let Some(process_info) = self.get_game_process_info(&game_id) {
+            if !game_processes.contains_key(&game_id)
+                && let Some(process_info) = self.get_game_process_info(&game_id) {
                     info!(game_id = %game_id, process = %process_info.name, "Game stopped");
                     
                     let _ = self.event_sender.send(ProcessEvent::GameStopped {
@@ -240,7 +240,6 @@ impl ProcessDetectionService {
                         process_info,
                     });
                 }
-            }
         }
         
         // Update running processes
@@ -259,14 +258,14 @@ impl ProcessDetectionService {
     fn is_game_currently_running(&self, game_id: &str) -> bool {
         self.running_processes
             .values()
-            .any(|p| p.game_id.as_ref().map(|s| s.as_str()) == Some(game_id))
+            .any(|p| p.game_id.as_deref() == Some(game_id))
     }
     
     /// Get process info for a running game
     fn get_game_process_info(&self, game_id: &str) -> Option<ProcessInfo> {
         self.running_processes
             .values()
-            .find(|p| p.game_id.as_ref().map(|s| s.as_str()) == Some(game_id))
+            .find(|p| p.game_id.as_deref() == Some(game_id))
             .cloned()
     }
     

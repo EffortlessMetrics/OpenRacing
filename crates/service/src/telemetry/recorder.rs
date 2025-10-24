@@ -254,7 +254,7 @@ impl TestFixtureGenerator {
         
         let start_timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .expect("System time should be after UNIX epoch")
+            .unwrap_or_default()
             .as_nanos() as u64;
         
         for i in 0..frame_count {
@@ -409,9 +409,11 @@ impl TestFixtureGenerator {
             let progress = i as f32 / frame_count as f32;
             let in_pits = progress > 0.3 && progress < 0.7;
             
-            let mut flags = crate::telemetry::TelemetryFlags::default();
-            flags.in_pits = in_pits;
-            flags.pit_limiter = in_pits;
+            let flags = crate::telemetry::TelemetryFlags {
+                in_pits,
+                pit_limiter: in_pits,
+                ..Default::default()
+            };
             
             let speed = if in_pits { 15.0 } else { 45.0 };
             let rpm = if in_pits { 2000.0 } else { 6000.0 };

@@ -348,8 +348,8 @@ impl ProfileRepository {
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
             
-            if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                if let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
+            if path.extension().and_then(|s| s.to_str()) == Some("json")
+                && let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
                     match file_stem.parse::<ProfileId>() {
                         Ok(profile_id) => {
                             match self.load_profile(&profile_id).await {
@@ -372,7 +372,6 @@ impl ProfileRepository {
                         }
                     }
                 }
-            }
         }
 
         info!(loaded = loaded_count, errors = error_count, "Profile loading completed");

@@ -113,7 +113,7 @@ impl ApplicationDeviceService {
                         managed_device.last_seen = now;
                         if managed_device.state == DeviceState::Disconnected {
                             managed_device.state = DeviceState::Connected;
-                            self.emit_device_connected_event(&device_info).await;
+                            self.emit_device_connected_event(device_info).await;
                         }
                     }
                     None => {
@@ -134,7 +134,7 @@ impl ApplicationDeviceService {
                             },
                         };
                         devices.insert(device_id, managed_device);
-                        self.emit_device_connected_event(&device_info).await;
+                        self.emit_device_connected_event(device_info).await;
                     }
                 }
             }
@@ -389,7 +389,7 @@ impl ApplicationDeviceService {
             manufacturer: None,
             path: "".to_string(),
             capabilities: DeviceCapabilities::new(false, false, false, false, 
-                TorqueNm::new(0.0).expect("Zero torque should be valid"), 0, 1000),
+                TorqueNm::new(0.0).unwrap_or(TorqueNm::ZERO), 0, 1000),
             is_connected: false,
         };
         let _ = self.event_sender.send(DeviceEvent::Disconnected(device_info));
@@ -475,7 +475,7 @@ impl ApplicationDeviceService {
             pedal_ranges: pedal_cal.pedal_ranges,
             calibrated_at: Some(std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .expect("System time should be after UNIX epoch")
+                .unwrap_or_default()
                 .as_secs().to_string()),
             calibration_type: racing_wheel_schemas::entities::CalibrationType::Full,
         })

@@ -19,12 +19,18 @@ pub struct ACCAdapter {
     update_rate: Duration,
 }
 
+impl Default for ACCAdapter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ACCAdapter {
     /// Create a new ACC adapter
     pub fn new() -> Self {
         Self {
             listen_address: "127.0.0.1:9996".parse()
-                .expect("Default ACC UDP address should be valid"), // Default ACC UDP port
+                .unwrap_or_else(|_| SocketAddr::from(([127, 0, 0, 1], 9996))), // Default ACC UDP port
             update_rate: Duration::from_millis(16), // ~60 FPS
         }
     }
@@ -194,18 +200,20 @@ impl ACCAdapter {
     /// Normalize ACC data to common telemetry format
     fn normalize_acc_data(data: &ACCTelemetryData) -> NormalizedTelemetry {
         // Extract flags from ACC session type and status
-        let mut flags = TelemetryFlags::default();
-        flags.yellow_flag = (data.flag & 0x01) != 0;
-        flags.red_flag = (data.flag & 0x02) != 0;
-        flags.blue_flag = (data.flag & 0x04) != 0;
-        flags.checkered_flag = (data.flag & 0x08) != 0;
-        flags.green_flag = (data.flag & 0x10) != 0;
-        flags.in_pits = data.is_in_pits != 0;
-        flags.pit_limiter = data.pit_limiter_on != 0;
-        flags.drs_available = data.drs_available != 0;
-        flags.drs_active = data.drs_enabled != 0;
-        flags.traction_control = data.tc != 0;
-        flags.abs_active = data.abs != 0;
+        let flags = TelemetryFlags {
+            yellow_flag: (data.flag & 0x01) != 0,
+            red_flag: (data.flag & 0x02) != 0,
+            blue_flag: (data.flag & 0x04) != 0,
+            checkered_flag: (data.flag & 0x08) != 0,
+            green_flag: (data.flag & 0x10) != 0,
+            in_pits: data.is_in_pits != 0,
+            pit_limiter: data.pit_limiter_on != 0,
+            drs_available: data.drs_available != 0,
+            drs_active: data.drs_enabled != 0,
+            traction_control: data.tc != 0,
+            abs_active: data.abs != 0,
+            ..Default::default()
+        };
         
         // Calculate slip ratio from tire data
         let slip_ratio = if data.speed > 1.0 {

@@ -16,7 +16,7 @@ impl ServiceDaemon {
         
         // Create service using sc.exe (no admin rights required for user services)
         let output = Command::new("sc")
-            .args(&[
+            .args([
                 "create",
                 "wheeld",
                 &format!("binPath= \"{}\"", exe_path.display()),
@@ -41,12 +41,12 @@ impl ServiceDaemon {
         
         // Stop service first
         let _ = Command::new("sc")
-            .args(&["stop", "wheeld"])
+            .args(["stop", "wheeld"])
             .output();
         
         // Delete service
         let output = Command::new("sc")
-            .args(&["delete", "wheeld"])
+            .args(["delete", "wheeld"])
             .output()
             .context("Failed to execute sc command")?;
         
@@ -63,7 +63,7 @@ impl ServiceDaemon {
         use std::process::Command;
         
         let output = Command::new("sc")
-            .args(&["query", "wheeld"])
+            .args(["query", "wheeld"])
             .output()
             .context("Failed to execute sc command")?;
         

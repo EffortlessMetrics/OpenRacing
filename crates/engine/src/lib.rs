@@ -21,6 +21,7 @@ pub mod safety;
 pub mod device;
 pub mod ffb;
 pub mod protocol;
+#[cfg(any(test, feature = "harness"))]
 pub mod test_harness;
 pub mod ports;
 pub mod policies;
@@ -53,7 +54,7 @@ pub use ffb::{
 
 // Explicit exports from other modules - only export what actually exists
 pub use scheduler::{PLL, RTSetup, JitterMetrics};
-#[cfg(test)]
+#[cfg(any(test, feature = "harness"))]
 pub use test_harness::{
     TestHarnessConfig, TestScenario, TorquePattern, ExpectedResponse, 
     FaultInjection, TestResult, TimingValidation, ResponseValidationResult, RTLoopTestHarness

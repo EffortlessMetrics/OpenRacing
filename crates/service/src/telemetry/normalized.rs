@@ -11,7 +11,7 @@ use std::collections::HashMap;
 /// This represents the common format that all game-specific adapters
 /// normalize their telemetry data to. Fields are optional to handle
 /// games that don't provide all data.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct NormalizedTelemetry {
     /// Force feedback scalar value (-1.0 to 1.0)
     /// Represents the force feedback strength requested by the game
@@ -111,22 +111,6 @@ impl Default for TelemetryFlags {
             launch_control: false,
             traction_control: false,
             abs_active: false,
-        }
-    }
-}
-
-impl Default for NormalizedTelemetry {
-    fn default() -> Self {
-        Self {
-            ffb_scalar: None,
-            rpm: None,
-            speed_ms: None,
-            slip_ratio: None,
-            gear: None,
-            flags: TelemetryFlags::default(),
-            car_id: None,
-            track_id: None,
-            extended: HashMap::new(),
         }
     }
 }

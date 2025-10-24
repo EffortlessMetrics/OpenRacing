@@ -38,6 +38,12 @@ unsafe impl Send for SharedMemoryHandle {}
 #[cfg(windows)]
 unsafe impl Sync for SharedMemoryHandle {}
 
+impl Default for IRacingAdapter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IRacingAdapter {
     /// Create a new iRacing adapter
     pub fn new() -> Self {
@@ -175,7 +181,7 @@ impl TelemetryAdapter for IRacingAdapter {
                     Ok(data) => {
                         // Check if data has been updated
                         let current_update_time = data.session_time;
-                        if last_update_time.map_or(true, |last| current_update_time != last) {
+                        if last_update_time != Some(current_update_time) {
                             last_update_time = Some(current_update_time);
                             
                             // Normalize the data
@@ -241,13 +247,15 @@ impl IRacingAdapter {
     /// Normalize iRacing data to common telemetry format
     fn normalize_iracing_data(&self, data: &IRacingData) -> NormalizedTelemetry {
         // Extract flags
-        let mut flags = TelemetryFlags::default();
-        flags.yellow_flag = (data.session_flags & 0x00000001) != 0; // Yellow flag
-        flags.red_flag = (data.session_flags & 0x00000002) != 0;    // Red flag
-        flags.blue_flag = (data.session_flags & 0x00000004) != 0;   // Blue flag
-        flags.checkered_flag = (data.session_flags & 0x00000008) != 0; // Checkered flag
-        flags.green_flag = (data.session_flags & 0x00000010) != 0;  // Green flag
-        flags.in_pits = data.on_pit_road != 0;
+        let flags = TelemetryFlags {
+            yellow_flag: (data.session_flags & 0x00000001) != 0,
+            red_flag: (data.session_flags & 0x00000002) != 0,
+            blue_flag: (data.session_flags & 0x00000004) != 0,
+            checkered_flag: (data.session_flags & 0x00000008) != 0,
+            green_flag: (data.session_flags & 0x00000010) != 0,
+            in_pits: data.on_pit_road != 0,
+            ..Default::default()
+        };
         
         // Calculate slip ratio (average of all tires)
         let slip_ratio = if data.speed > 1.0 {

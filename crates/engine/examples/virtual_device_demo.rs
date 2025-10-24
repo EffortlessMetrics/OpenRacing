@@ -4,10 +4,13 @@
 //! It shows how to create virtual devices, run RT loop simulations, and validate
 //! performance against the requirements.
 
+#[cfg(feature = "harness")]
 use racing_wheel_engine::{
-    VirtualDevice, VirtualHidPort, HidDevice, HidPort,
     RTLoopTestHarness, TestHarnessConfig, TestScenario, TorquePattern,
     ExpectedResponse,
+};
+use racing_wheel_engine::{
+    VirtualDevice, VirtualHidPort, HidPort,
 };
 use racing_wheel_schemas::prelude::*;
 use std::time::Duration;
