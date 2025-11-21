@@ -5,7 +5,7 @@ use crate::rt::RTResult;
 use racing_wheel_schemas::prelude::*;
 use std::sync::Arc;
 use tokio::sync::{oneshot, Mutex};
-use tracing::{debug, error};
+use tracing::debug;
 
 /// Function pointer type for filter nodes
 pub type FilterNodeFn = fn(&mut Frame, *mut u8);
@@ -588,6 +588,7 @@ impl Default for PipelineCompiler {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Frame;
 
     use crate::filters::*;
 
@@ -678,7 +679,7 @@ mod tests {
     #[test]
     fn test_pipeline_processing_zero_alloc() {
         let mut pipeline = Pipeline::new();
-        let mut frame = crate::ffb::Frame {
+        let mut frame = Frame {
             ffb_in: 0.5,
             torque_out: 0.0,
             wheel_speed: 0.0,
@@ -828,7 +829,7 @@ mod tests {
 
     #[test]
     fn test_filter_nodes_bounds_checking() {
-        let mut frame = crate::ffb::Frame {
+        let mut frame = Frame {
             ffb_in: 0.5,
             torque_out: 0.5,
             wheel_speed: 10.0, // rad/s
@@ -854,7 +855,7 @@ mod tests {
 
     #[test]
     fn test_curve_filter_lookup_table() {
-        let mut frame = crate::ffb::Frame {
+        let mut frame = Frame {
             ffb_in: 0.5,
             torque_out: 0.5,
             wheel_speed: 0.0,
@@ -878,7 +879,7 @@ mod tests {
     fn test_slew_rate_limiter() {
         let mut slew_state = SlewRateState::new(100.0); // 100% slew rate = 0.1 per tick
 
-        let mut frame = crate::ffb::Frame {
+        let mut frame = Frame {
             ffb_in: 0.5,
             torque_out: 1.0, // Large jump
             wheel_speed: 0.0,
@@ -902,7 +903,7 @@ mod tests {
     fn test_notch_filter_stability() {
         let mut notch_state = NotchState::new(60.0, 2.0, -12.0, 1000.0);
         
-        let mut frame = crate::ffb::Frame {
+        let mut frame = Frame {
             ffb_in: 0.5,
             torque_out: 0.5,
             wheel_speed: 0.0,

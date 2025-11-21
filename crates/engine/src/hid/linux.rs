@@ -10,18 +10,18 @@
 use crate::ports::{HidPort, HidDevice, DeviceHealthStatus};
 use crate::{RTResult, DeviceEvent, TelemetryData, DeviceInfo};
 use racing_wheel_schemas::prelude::*;
-use super::{HidDeviceInfo, TorqueCommand, DeviceTelemetryReport, DeviceCapabilitiesReport};
+use super::{HidDeviceInfo, TorqueCommand, DeviceTelemetryReport};
 use tokio::sync::mpsc;
 use async_trait::async_trait;
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}, OnceLock};
 use parking_lot::{RwLock, Mutex};
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::{AsRawFd, RawFd};
-use std::path::{Path, PathBuf};
-use tracing::{debug, warn, error, info};
+use std::path::Path;
+use tracing::{debug, warn, info};
 
 /// Thread-safe cached device info accessor using OnceLock
 fn get_cached_device_info(device_info: &HidDeviceInfo) -> &'static DeviceInfo {
@@ -197,7 +197,7 @@ impl HidPort for LinuxHidPort {
     }
 
     async fn monitor_devices(&self) -> Result<mpsc::Receiver<DeviceEvent>, Box<dyn std::error::Error>> {
-        let (sender, receiver) = mpsc::unbounded_channel();
+        let (sender, receiver) = mpsc::channel(100);
         
         // Start device monitoring using inotify on /dev
         let devices = self.devices.clone();
@@ -207,7 +207,7 @@ impl HidPort for LinuxHidPort {
         monitoring.store(true, Ordering::Relaxed);
         
         tokio::spawn(async move {
-            let mut last_devices = HashMap::new();
+            let mut last_devices: HashMap<DeviceId, HidDeviceInfo> = HashMap::new();
             
             while monitoring.load(Ordering::Relaxed) {
                 // Check for device changes every 500ms
@@ -221,7 +221,7 @@ impl HidPort for LinuxHidPort {
                 for (id, info) in &current_devices {
                     if !last_devices.contains_key(id) {
                         let event = DeviceEvent::Connected(info.to_device_info());
-                        if sender_clone.send(event).is_err() {
+                        if sender_clone.send(event).await.is_err() {
                             break;
                         }
                     }
@@ -231,7 +231,7 @@ impl HidPort for LinuxHidPort {
                 for (id, info) in &last_devices {
                     if !current_devices.contains_key(id) {
                         let event = DeviceEvent::Disconnected(info.to_device_info());
-                        if sender_clone.send(event).is_err() {
+                        if sender_clone.send(event).await.is_err() {
                             break;
                         }
                     }
@@ -648,4 +648,3 @@ mod tests {
         let _ = port.probe_hidraw_device(path);
     }
 }
-</content>

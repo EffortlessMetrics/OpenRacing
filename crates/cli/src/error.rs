@@ -1,7 +1,6 @@
 //! Error types for wheelctl CLI
 
 use thiserror::Error;
-use racing_wheel_schemas::prelude::*;
 
 #[derive(Error, Debug)]
 pub enum CliError {

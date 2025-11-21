@@ -530,19 +530,24 @@ impl LinuxTracepointsProvider {
         // We need to be very careful about performance here
         match event {
             RTTraceEvent::TickStart { tick_count, timestamp_ns } => {
+                let _ = (tick_count, timestamp_ns);
                 // Format: "wheel_tick_start: tick=123 ts=456789"
                 // This would be written to trace_marker
             }
             RTTraceEvent::TickEnd { tick_count, timestamp_ns, processing_time_ns } => {
+                let _ = (tick_count, timestamp_ns, processing_time_ns);
                 // Format: "wheel_tick_end: tick=123 ts=456789 proc_time=1000"
             }
             RTTraceEvent::HidWrite { tick_count, timestamp_ns, torque_nm, seq } => {
+                let _ = (tick_count, timestamp_ns, torque_nm, seq);
                 // Format: "wheel_hid_write: tick=123 ts=456789 torque=5.5 seq=42"
             }
             RTTraceEvent::DeadlineMiss { tick_count, timestamp_ns, jitter_ns } => {
+                let _ = (tick_count, timestamp_ns, jitter_ns);
                 // Format: "wheel_deadline_miss: tick=123 ts=456789 jitter=250000"
             }
             RTTraceEvent::PipelineFault { tick_count, timestamp_ns, error_code } => {
+                let _ = (tick_count, timestamp_ns, error_code);
                 // Format: "wheel_pipeline_fault: tick=123 ts=456789 error=3"
             }
         }

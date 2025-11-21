@@ -8,7 +8,7 @@ use racing_wheel_engine::{
     ports::{HidPort, HidDevice},
     DeviceEvent, TelemetryData,
 };
-use racing_wheel_schemas::{DeviceId, DeviceCapabilities, TorqueNm};
+use racing_wheel_schemas::prelude::{DeviceId, DeviceCapabilities, TorqueNm};
 use tokio::time::{timeout, Duration};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;

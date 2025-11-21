@@ -3,8 +3,9 @@
 //! These tests use property-based testing to verify that the domain policies
 //! behave correctly across a wide range of inputs and edge cases.
 
-use racing_wheel_engine::{SafetyPolicy, ProfileHierarchyPolicy, SafetyViolation};
-use racing_wheel_schemas::{
+use racing_wheel_engine::policies::{SafetyPolicy, ProfileHierarchyPolicy};
+use racing_wheel_engine::safety::SafetyViolation;
+use racing_wheel_schemas::prelude::{
     DeviceId, ProfileId, DeviceCapabilities, DeviceType, Device,
     Profile, ProfileScope, BaseSettings, FilterConfig, Gain, Degrees, TorqueNm,
 };

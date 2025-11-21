@@ -15,7 +15,6 @@
 /// 
 /// This trait provides methods with old field names that forward to the new
 /// field names, enabling gradual migration of test code.
-#[cfg(test)]
 pub trait TelemetryCompat {
     /// Get temperature in Celsius (old field name: temp_c)
     fn temp_c(&self) -> u8;

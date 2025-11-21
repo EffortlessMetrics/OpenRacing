@@ -27,6 +27,7 @@ zip = "0.6"
 sysinfo = "0.30"
 prometheus = { workspace = true }
 metrics = { workspace = true }
+hdrhistogram = { workspace = true }
 tokio-stream = { version = "0.1", features = ["sync"] }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 

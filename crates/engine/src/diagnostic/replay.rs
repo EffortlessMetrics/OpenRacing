@@ -490,6 +490,7 @@ impl BlackboxReplay {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+    use racing_wheel_schemas::prelude::DeviceId;
     use crate::diagnostic::blackbox::{BlackboxRecorder, BlackboxConfig};
     use crate::safety::SafetyState;
     

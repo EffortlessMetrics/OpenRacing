@@ -423,6 +423,7 @@ impl StreamReader {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use racing_wheel_schemas::prelude::DeviceId;
     use crate::safety::SafetyState;
     
 

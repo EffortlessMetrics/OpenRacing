@@ -6,10 +6,10 @@
 //! 3. No heap allocations occur on the hot path after pipeline compile
 //! 4. Two-phase apply works correctly under concurrent load
 
-use racing_wheel_engine::{
-    Pipeline, PipelineCompiler, TwoPhaseApplyCoordinator, ProfileMergeEngine
-};
-use racing_wheel_schemas::{
+use racing_wheel_engine::pipeline::{Pipeline, PipelineCompiler};
+use racing_wheel_engine::two_phase_apply::TwoPhaseApplyCoordinator;
+use racing_wheel_engine::profile_merge::ProfileMergeEngine;
+use racing_wheel_schemas::prelude::{
     Profile, ProfileId, ProfileScope, BaseSettings, FilterConfig, 
     Gain, Degrees, TorqueNm, CurvePoint
 };

@@ -12,9 +12,8 @@ use std::time::Instant;
 use prometheus::{Gauge, Histogram, IntCounter, IntGauge, Registry};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
+use tokio::sync::Mutex;
 use tokio_stream::wrappers::BroadcastStream;
-// Removed unused tokio_stream::Stream import
-
 /// Real-time performance metrics
 #[derive(Debug, Clone)]
 pub struct RTMetrics {
@@ -465,6 +464,10 @@ pub struct MetricsCollector {
     health_streamer: Arc<HealthEventStreamer>,
     system_monitor: SystemMonitor,
     last_collection: Instant,
+    // Histograms for internal stats
+    jitter_histogram: Arc<Mutex<hdrhistogram::Histogram<u64>>>,
+    processing_histogram: Arc<Mutex<hdrhistogram::Histogram<u64>>>,
+    latency_histogram: Arc<Mutex<hdrhistogram::Histogram<u64>>>,
 }
 
 impl MetricsCollector {
@@ -475,12 +478,20 @@ impl MetricsCollector {
         let health_streamer = Arc::new(HealthEventStreamer::new(1000)); // Buffer 1000 events
         let system_monitor = SystemMonitor::new();
         
+        // Initialize histograms (1ns to 1min, 3 sig figs)
+        let jitter_histogram = Arc::new(Mutex::new(hdrhistogram::Histogram::<u64>::new(3).unwrap()));
+        let processing_histogram = Arc::new(Mutex::new(hdrhistogram::Histogram::<u64>::new(3).unwrap()));
+        let latency_histogram = Arc::new(Mutex::new(hdrhistogram::Histogram::<u64>::new(3).unwrap()));
+
         Ok(Self {
             prometheus_metrics,
             atomic_counters,
             health_streamer,
             system_monitor,
             last_collection: Instant::now(),
+            jitter_histogram,
+            processing_histogram,
+            latency_histogram,
         })
     }
     
@@ -533,25 +544,41 @@ impl MetricsCollector {
         // Get system metrics
         let (cpu_usage, memory_usage) = self.system_monitor.get_system_metrics().await;
         
+        // Get stats from histograms
+        let jitter_stats = {
+            let h = self.jitter_histogram.lock().await;
+            JitterStats {
+                p50_ns: h.value_at_quantile(0.5),
+                p99_ns: h.value_at_quantile(0.99),
+                max_ns: h.max(),
+            }
+        };
+
+        let processing_stats = {
+            let h = self.processing_histogram.lock().await;
+            LatencyStats {
+                p50_us: h.value_at_quantile(0.5),
+                p99_us: h.value_at_quantile(0.99),
+                max_us: h.max(),
+            }
+        };
+
+        let latency_stats = {
+            let h = self.latency_histogram.lock().await;
+            LatencyStats {
+                p50_us: h.value_at_quantile(0.5),
+                p99_us: h.value_at_quantile(0.99),
+                max_us: h.max(),
+            }
+        };
+
         // Create RT metrics
         let rt_metrics = RTMetrics {
             total_ticks,
             missed_ticks,
-            jitter_ns: JitterStats {
-                p50_ns: 0, // TODO: Implement histogram tracking
-                p99_ns: 0,
-                max_ns: 0,
-            },
-            hid_latency_us: LatencyStats {
-                p50_us: 0, // TODO: Implement histogram tracking
-                p99_us: 0,
-                max_us: 0,
-            },
-            processing_time_us: LatencyStats {
-                p50_us: 0, // TODO: Implement histogram tracking
-                p99_us: 0,
-                max_us: 0,
-            },
+            jitter_ns: jitter_stats,
+            hid_latency_us: latency_stats,
+            processing_time_us: processing_stats,
             cpu_usage_percent: cpu_usage,
             memory_usage_bytes: memory_usage,
             last_update: now,
@@ -795,6 +822,7 @@ impl MetricsValidator {
 mod tests {
     use super::*;
     use tokio_stream::StreamExt;
+    use std::time::Duration;
 
     #[test]
     fn test_prometheus_metrics_creation() {

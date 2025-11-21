@@ -574,6 +574,7 @@ impl SupportBundle {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+    use racing_wheel_schemas::prelude::DeviceId;
     use std::fs::write;
     
 

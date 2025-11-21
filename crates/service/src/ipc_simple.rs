@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{Result, Context};
 use tokio::sync::{broadcast, RwLock, Mutex};
-use tracing::{info, warn, debug};
+use tracing::{info, warn, debug, error};
 
 use crate::WheelService;
 
@@ -252,14 +252,7 @@ impl IpcServer {
     }
 
     #[cfg(unix)]
-    async fn verify_unix_peer_credentials(&self, stream: &tokio::net::UnixStream) -> Result<()> {
-        use std::os::unix::net::UnixStream as StdUnixStream;
-        use std::os::unix::io::{AsRawFd, FromRawFd};
-        
-        // Get peer credentials
-        let raw_fd = stream.as_raw_fd();
-        let std_stream = unsafe { StdUnixStream::from_raw_fd(raw_fd) };
-        
+    async fn verify_unix_peer_credentials(&self, _stream: &tokio::net::UnixStream) -> Result<()> {
         // Use SO_PEERCRED to get peer process info
         // This is a simplified version - full implementation would use libc calls
         let current_uid = unsafe { libc::getuid() };

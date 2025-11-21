@@ -6,5 +6,4 @@
 
 pub mod telemetry_compat;
 
-#[cfg(test)]
 pub use telemetry_compat::TelemetryCompat;

@@ -7,16 +7,14 @@
 //! - Deterministic merge engine with monotonic curve validation
 //! - Tests for pipeline swap atomicity and deterministic profile resolution
 
-use racing_wheel_engine::{
-    Pipeline, PipelineCompiler, ProfileMergeEngine, TwoPhaseApplyCoordinator,
-    AllocationBenchmark,
-};
-use racing_wheel_engine::ffb::Frame;
-use racing_wheel_schemas::{
-    Profile, ProfileId, ProfileScope, BaseSettings, FilterConfig, 
-    Gain, Degrees, TorqueNm, CurvePoint, NotchFilter, FrequencyHz,
-    LedConfig, HapticsConfig,
-};
+use racing_wheel_engine::pipeline::{Pipeline, PipelineCompiler};
+use racing_wheel_engine::profile_merge::ProfileMergeEngine;
+use racing_wheel_engine::two_phase_apply::TwoPhaseApplyCoordinator;
+use racing_wheel_engine::allocation_tracker::AllocationBenchmark;
+use racing_wheel_engine::Frame;
+use racing_wheel_engine::pipeline::{PipelineError, CompiledPipeline};
+use racing_wheel_schemas::prelude::*;
+use racing_wheel_schemas::config::Profile;
 use std::sync::Arc;
 
 fn create_comprehensive_filter_config() -> FilterConfig {
@@ -85,7 +83,7 @@ async fn test_complete_zero_alloc_pipeline_flow() {
     assert!(merge_result.merge_hash != 0);
     
     // Phase 2: Pipeline compilation (off-thread)
-    let result = compiler.compile_pipeline(
+    let result: Result<CompiledPipeline, PipelineError> = compiler.compile_pipeline(
         merge_result.profile.base_settings.filters
     ).await;
     
@@ -358,11 +356,11 @@ async fn test_monotonic_curve_validation_comprehensive() {
             ..FilterConfig::default()
         };
         
-        let result = compiler.compile_pipeline(invalid_config).await;
+        let result: Result<CompiledPipeline, PipelineError> = compiler.compile_pipeline(invalid_config).await;
         assert!(result.is_err(), "Invalid curve {} should fail validation", i);
         
         match result.unwrap_err() {
-            racing_wheel_engine::PipelineError::NonMonotonicCurve => {}, // Expected
+            PipelineError::NonMonotonicCurve => {}, // Expected
             other => panic!("Expected NonMonotonicCurve error for curve {}, got {:?}", i, other),
         }
     }
@@ -513,7 +511,7 @@ async fn test_end_to_end_performance_requirements() {
     
     // Pipeline compilation
     let compile_start = std::time::Instant::now();
-    let compiled_pipeline = compiler.compile_pipeline(merge_result.profile.base_settings.filters).await.unwrap();
+    let compiled_pipeline: CompiledPipeline = compiler.compile_pipeline(merge_result.profile.base_settings.filters).await.unwrap();
     let compile_duration = compile_start.elapsed();
     
     // RT execution benchmark
