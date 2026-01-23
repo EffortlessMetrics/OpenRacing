@@ -696,8 +696,8 @@ mod tests {
         let safety_policy = SafetyPolicy::default();
         let service = ApplicationSafetyService::new(safety_policy, None).await.unwrap();
 
-        let device_id = DeviceId::from("test-device");
-        let max_torque = TorqueNm::from(10.0);
+        let device_id: DeviceId = "test-device".parse().expect("valid device id");
+        let max_torque = TorqueNm::new(10.0).expect("valid torque");
 
         // Test registration
         let result = service.register_device(device_id.clone(), max_torque).await;
@@ -722,8 +722,8 @@ mod tests {
         let safety_policy = SafetyPolicy::default();
         let service = ApplicationSafetyService::new(safety_policy, None).await.unwrap();
 
-        let device_id = DeviceId::from("test-device");
-        let max_torque = TorqueNm::from(10.0);
+        let device_id: DeviceId = "test-device".parse().expect("valid device id");
+        let max_torque = TorqueNm::new(10.0).expect("valid torque");
 
         // Register device
         service.register_device(device_id.clone(), max_torque).await.unwrap();
@@ -752,14 +752,14 @@ mod tests {
         let safety_policy = SafetyPolicy::default();
         let service = ApplicationSafetyService::new(safety_policy, None).await.unwrap();
 
-        let device_id = DeviceId::from("test-device");
-        let max_torque = TorqueNm::from(10.0);
+        let device_id: DeviceId = "test-device".parse().expect("valid device id");
+        let max_torque = TorqueNm::new(10.0).expect("valid torque");
 
         // Register device
         service.register_device(device_id.clone(), max_torque).await.unwrap();
 
         // Report a fatal fault
-        service.report_fault(&device_id, FaultType::OverTemperature, FaultSeverity::Fatal).await.unwrap();
+        service.report_fault(&device_id, FaultType::ThermalLimit, FaultSeverity::Fatal).await.unwrap();
 
         // Check that device is now faulted
         let state = service.get_safety_state(&device_id).await.unwrap();
@@ -767,10 +767,10 @@ mod tests {
 
         // Check that torque is disabled
         let torque_limit = service.get_torque_limit(&device_id).await.unwrap();
-        assert_eq!(torque_limit, TorqueNm::from(0.0));
+        assert_eq!(torque_limit, TorqueNm::new(0.0).expect("valid torque"));
 
         // Clear the fault
-        service.clear_fault(&device_id, FaultType::OverTemperature).await.unwrap();
+        service.clear_fault(&device_id, FaultType::ThermalLimit).await.unwrap();
 
         // Check that device is back to safe torque
         let state = service.get_safety_state(&device_id).await.unwrap();
@@ -782,8 +782,8 @@ mod tests {
         let safety_policy = SafetyPolicy::default();
         let service = ApplicationSafetyService::new(safety_policy, None).await.unwrap();
 
-        let device_id = DeviceId::from("test-device");
-        let max_torque = TorqueNm::from(10.0);
+        let device_id: DeviceId = "test-device".parse().expect("valid device id");
+        let max_torque = TorqueNm::new(10.0).expect("valid torque");
 
         // Register device
         service.register_device(device_id.clone(), max_torque).await.unwrap();
@@ -797,7 +797,7 @@ mod tests {
 
         // Check that torque is disabled
         let torque_limit = service.get_torque_limit(&device_id).await.unwrap();
-        assert_eq!(torque_limit, TorqueNm::from(0.0));
+        assert_eq!(torque_limit, TorqueNm::new(0.0).expect("valid torque"));
     }
 
     #[tokio::test]
@@ -810,8 +810,8 @@ mod tests {
         assert_eq!(stats.total_devices, 0);
 
         // Register a device
-        let device_id = DeviceId::from("test-device");
-        service.register_device(device_id, TorqueNm::from(10.0)).await.unwrap();
+        let device_id: DeviceId = "test-device".parse().expect("valid device id");
+        service.register_device(device_id, TorqueNm::new(10.0).expect("valid torque")).await.unwrap();
 
         let stats = service.get_statistics().await;
         assert_eq!(stats.total_devices, 1);

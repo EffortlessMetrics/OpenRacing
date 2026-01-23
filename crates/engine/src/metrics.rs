@@ -795,6 +795,7 @@ impl MetricsValidator {
 mod tests {
     use super::*;
     use tokio_stream::StreamExt;
+    use std::time::Duration;
 
     #[test]
     fn test_prometheus_metrics_creation() {

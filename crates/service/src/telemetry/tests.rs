@@ -223,11 +223,11 @@ fn test_telemetry_field_coverage() {
     
     // Test RPM fraction calculation
     let rpm_fraction = telemetry.rpm_fraction(8000.0).unwrap();
-    assert!(rpm_fraction.abs_diff(0.8125) < 0.01); // 6500/8000 = 0.8125
+    assert!((rpm_fraction - 0.8125).abs() < 0.01); // 6500/8000 = 0.8125
     
     // Test speed conversions
-    assert!(telemetry.speed_kmh().unwrap().abs_diff(162.0) < 0.1); // 45 m/s = 162 km/h
-    assert!(telemetry.speed_mph().unwrap().abs_diff(100.65) < 0.1); // 45 m/s ≈ 100.65 mph
+    assert!((telemetry.speed_kmh().unwrap() - 162.0).abs() < 0.1); // 45 m/s = 162 km/h
+    assert!((telemetry.speed_mph().unwrap() - 100.65).abs() < 0.1); // 45 m/s ≈ 100.65 mph
 }
 
 #[test]

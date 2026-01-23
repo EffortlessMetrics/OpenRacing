@@ -461,6 +461,7 @@ mod tests {
         let streaming_service = HealthStreamingService::new(streamer.clone(), 10.0);
         
         let mut stream = streaming_service.start_streaming().await;
+        tokio::pin!(stream);
         
         // Emit a test event
         let test_event = HealthEventStreamer::create_event(
@@ -476,7 +477,7 @@ mod tests {
         // Should receive the event
         let received = tokio::time::timeout(
             Duration::from_millis(100),
-            stream.next()
+            stream.as_mut().next()
         ).await;
         
         assert!(received.is_ok());
@@ -502,7 +503,7 @@ mod tests {
         };
         
         let span = LoggingSpans::device_span(&context);
-        assert_eq!(span.name(), "device");
+        assert_eq!(span.metadata().name(), "device");
     }
 
     #[test]
@@ -515,7 +516,7 @@ mod tests {
         };
         
         let span = LoggingSpans::game_span(&context);
-        assert_eq!(span.name(), "game");
+        assert_eq!(span.metadata().name(), "game");
     }
 
     #[tokio::test]

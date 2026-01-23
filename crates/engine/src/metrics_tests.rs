@@ -482,6 +482,7 @@ mod metrics_performance_tests {
     use super::*;
     use std::sync::Arc;
     use std::thread;
+    use std::time::Instant;
 
     /// Benchmark atomic counter performance (should be RT-safe)
     #[test]

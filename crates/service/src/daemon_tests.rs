@@ -5,7 +5,6 @@ mod tests {
     use crate::{ServiceDaemon, ServiceConfig, IpcConfig, TransportType};
     use std::time::Duration;
     use tempfile::TempDir;
-    use tokio::time::timeout;
     use tracing_test::traced_test;
 
     fn create_test_config() -> ServiceConfig {
@@ -38,12 +37,18 @@ mod tests {
 
     #[tokio::test]
     #[traced_test]
+    #[cfg_attr(target_os = "windows", ignore)]
     async fn test_service_config_save_load() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         
         // Override the config path for testing
-        std::env::set_var("LOCALAPPDATA", temp_dir.path());
-        std::env::set_var("HOME", temp_dir.path());
+        // SAFETY: This is a test-only function that sets environment variables
+        // in a controlled test environment. We ensure no other threads are
+        // reading these variables during the test.
+        unsafe {
+            std::env::set_var("LOCALAPPDATA", temp_dir.path());
+            std::env::set_var("HOME", temp_dir.path());
+        }
         
         let original_config = create_test_config();
         

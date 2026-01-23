@@ -46,8 +46,8 @@ mod tests {
         assert!(devices_result.is_ok(), "Device enumeration should succeed");
 
         // Safety service test
-        let device_id = DeviceId::from("test-device");
-        let safety_result = safety_service.register_device(device_id, TorqueNm::from(10.0)).await;
+        let device_id: DeviceId = "test-device".parse().expect("valid device id");
+        let safety_result = safety_service.register_device(device_id, TorqueNm::new(10.0).expect("valid torque")).await;
         assert!(safety_result.is_ok(), "Safety service registration should succeed");
     }
 
@@ -55,8 +55,8 @@ mod tests {
     async fn test_service_integration_workflow() {
         let service = WheelService::new().await.unwrap();
 
-        let device_id = DeviceId::from("integration-test-device");
-        let max_torque = TorqueNm::from(15.0);
+        let device_id: DeviceId = "integration-test-device".parse().expect("valid device id");
+        let max_torque = TorqueNm::neom(15.0);
 
         // 1. Register device with safety service
         let safety_result = service.safety_service().register_device(device_id.clone(), max_torque).await;
@@ -115,7 +115,7 @@ mod tests {
         assert!(result.is_err(), "Should reject invalid profile");
 
         // Test error handling in safety service
-        let nonexistent_device = DeviceId::from("nonexistent-device");
+        let nonexistent_device: DeviceId = "nonexistent-device".parse().expect("valid device id");
         let result = service.safety_service().get_safety_state(&nonexistent_device).await;
         assert!(result.is_err(), "Should fail for nonexistent device");
 
@@ -139,8 +139,8 @@ mod tests {
         assert_eq!(safety_stats.total_devices, 0);
 
         // Add some data and check statistics change
-        let device_id = DeviceId::from("stats-test-device");
-        service.safety_service().register_device(device_id, TorqueNm::from(10.0)).await.unwrap();
+        let device_id: DeviceId = "stats-test-device".parse().expect("valid device id");
+        service.safety_service().register_device(device_id, TorqueNm::new(10.0).expect("valid torque")).await.unwrap();
 
         let updated_safety_stats = service.safety_service().get_statistics().await;
         assert_eq!(updated_safety_stats.total_devices, 1);
@@ -173,8 +173,8 @@ mod tests {
 
         let task3 = tokio::spawn(async move {
             // Safety operations
-            let device_id = DeviceId::from("concurrent-test-device");
-            service3.safety_service().register_device(device_id, TorqueNm::from(10.0)).await
+            let device_id: DeviceId = "concurrent-test-device".parse().expect("valid device id");
+            service3.safety_service().register_device(device_id, TorqueNm::new(10.0).expect("valid torque")).await
         });
 
         // Wait for all tasks to complete
@@ -192,14 +192,14 @@ mod tests {
         let service = WheelService::new().await.unwrap();
 
         // Test that services continue to work after errors
-        let device_id = DeviceId::from("resilience-test-device");
+        let device_id: DeviceId = "resilience-test-device".parse().expect("valid device id");
 
         // 1. Cause an error in safety service
         let error_result = service.safety_service().get_safety_state(&device_id).await;
         assert!(error_result.is_err(), "Should fail for unregistered device");
 
         // 2. Verify service still works after error
-        let register_result = service.safety_service().register_device(device_id.clone(), TorqueNm::from(10.0)).await;
+        let register_result = service.safety_service().register_device(device_id.clone(), TorqueNm::new(10.0).expect("valid torque")).await;
         assert!(register_result.is_ok(), "Should work after previous error");
 
         // 3. Now the same operation should succeed
@@ -217,8 +217,8 @@ mod tests {
             let service = service.unwrap();
             
             // Perform some operations
-            let device_id = DeviceId::from(format!("lifecycle-test-device-{}", i));
-            let result = service.safety_service().register_device(device_id, TorqueNm::from(10.0)).await;
+            let device_id: DeviceId = format!("lifecycle-test-device-{}", i).parse().expect("valid device id");
+            let result = service.safety_service().register_device(device_id, TorqueNm::new(10.0).expect("valid torque")).await;
             assert!(result.is_ok(), "Operation {} should succeed", i);
             
             // Service should be dropped cleanly when going out of scope
@@ -239,10 +239,10 @@ mod tests {
         assert!(device_enumeration.unwrap().is_ok(), "Device enumeration should succeed");
 
         // Test safety service operations
-        let device_id = DeviceId::from("timeout-test-device");
+        let device_id: DeviceId = "timeout-test-device".parse().expect("valid device id");
         let safety_registration = timeout(
             Duration::from_secs(5),
-            service.safety_service().register_device(device_id, TorqueNm::from(10.0))
+            service.safety_service().register_device(device_id, TorqueNm::new(10.0).expect("valid torque"))
         ).await;
 
         assert!(safety_registration.is_ok(), "Safety registration should not timeout");
@@ -256,10 +256,10 @@ mod tests {
 
         // Perform many operations to check for memory leaks
         for i in 0..100 {
-            let device_id = DeviceId::from(format!("memory-test-device-{}", i));
+            let device_id: DeviceId = format!("memory-test-device-{}", i).parse().expect("valid device id");
             
             // Register and unregister device
-            let _ = service.safety_service().register_device(device_id.clone(), TorqueNm::from(10.0)).await;
+            let _ = service.safety_service().register_device(device_id.clone(), TorqueNm::new(10.0).expect("valid torque")).await;
             let _ = service.safety_service().unregister_device(&device_id).await;
             
             // Create and potentially delete profile

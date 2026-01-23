@@ -257,7 +257,9 @@ The plan follows a specific execution order: establish workspace governance firs
   - **DoD:** Template merged; CODEOWNERS enforced; governance policy documented; compat debt trend printed in CI
   - _Requirements: REG-03, REG-04_
 
-- [x] 16. Validate complete workspace compilation and integration
+- [-] 16. Validate complete workspace compilation and integration
+
+
 
 
 
