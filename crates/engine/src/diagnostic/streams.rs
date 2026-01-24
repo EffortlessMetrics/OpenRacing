@@ -150,7 +150,7 @@ impl StreamA {
         
         // Serialize all records
         for record in &self.records {
-            if let Ok(serialized) = bincode::serialize(record) {
+            if let Ok(serialized) = bincode::serde::encode_to_vec(record, bincode::config::legacy()) {
                 // Write record length prefix
                 let len = serialized.len() as u32;
                 self.buffer.extend_from_slice(&len.to_le_bytes());
@@ -220,7 +220,7 @@ impl StreamB {
         
         // Serialize all records
         for record in &self.records {
-            if let Ok(serialized) = bincode::serialize(record) {
+            if let Ok(serialized) = bincode::serde::encode_to_vec(record, bincode::config::legacy()) {
                 // Write record length prefix
                 let len = serialized.len() as u32;
                 self.buffer.extend_from_slice(&len.to_le_bytes());
@@ -280,7 +280,7 @@ impl StreamC {
         
         // Serialize all records
         for record in &self.records {
-            if let Ok(serialized) = bincode::serialize(record) {
+            if let Ok(serialized) = bincode::serde::encode_to_vec(record, bincode::config::legacy()) {
                 // Write record length prefix
                 let len = serialized.len() as u32;
                 self.buffer.extend_from_slice(&len.to_le_bytes());
@@ -338,8 +338,9 @@ impl StreamReader {
         self.position += len;
 
         // Deserialize record
-        let record: StreamARecord = bincode::deserialize(record_data)
-            .map_err(|e| format!("Failed to deserialize Stream A record: {}", e))?;
+        let (record, _): (StreamARecord, usize) =
+            bincode::serde::decode_from_slice(record_data, bincode::config::legacy())
+                .map_err(|e| format!("Failed to deserialize Stream A record: {}", e))?;
 
         Ok(Some(record))
     }
@@ -368,8 +369,9 @@ impl StreamReader {
         self.position += len;
 
         // Deserialize record
-        let record: StreamBRecord = bincode::deserialize(record_data)
-            .map_err(|e| format!("Failed to deserialize Stream B record: {}", e))?;
+        let (record, _): (StreamBRecord, usize) =
+            bincode::serde::decode_from_slice(record_data, bincode::config::legacy())
+                .map_err(|e| format!("Failed to deserialize Stream B record: {}", e))?;
 
         Ok(Some(record))
     }
@@ -398,8 +400,9 @@ impl StreamReader {
         self.position += len;
 
         // Deserialize record
-        let record: StreamCRecord = bincode::deserialize(record_data)
-            .map_err(|e| format!("Failed to deserialize Stream C record: {}", e))?;
+        let (record, _): (StreamCRecord, usize) =
+            bincode::serde::decode_from_slice(record_data, bincode::config::legacy())
+                .map_err(|e| format!("Failed to deserialize Stream C record: {}", e))?;
 
         Ok(Some(record))
     }

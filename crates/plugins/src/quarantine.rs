@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::{PluginError, PluginResult, PluginStats};
+use crate::{PluginError, PluginResult};
 
 /// Quarantine policy configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

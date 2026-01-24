@@ -4,15 +4,13 @@ use anyhow::Result;
 use racing_wheel_schemas::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-
-
 use crate::error::CliError;
 
 /// Client for communicating with the wheel service
 pub struct WheelClient {
     // For now, we'll use a mock client since the actual service isn't implemented
     // In the real implementation, this would be a gRPC client
-    endpoint: String,
+    _endpoint: String,
 }
 
 impl WheelClient {
@@ -34,7 +32,7 @@ impl WheelClient {
             ).into());
         }
         
-        Ok(Self { endpoint })
+        Ok(Self { _endpoint: endpoint })
     }
     
     /// List all connected devices
@@ -118,6 +116,7 @@ impl WheelClient {
     }
     
     /// Get active profile for device
+    #[allow(dead_code)]
     pub async fn get_active_profile(&self, _device_id: &str) -> Result<ProfileSchema> {
         // Mock implementation
         Ok(ProfileSchema {
@@ -193,13 +192,6 @@ impl WheelClient {
         Ok(HealthEventStream::new())
     }
 }
-
-// Data structures for IPC communication
-// Use aliases to avoid conflicts with schema types
-pub type ClientDeviceInfo = DeviceInfo;
-pub type ClientDeviceType = DeviceType;
-pub type ClientDeviceState = DeviceState;
-pub type ClientDeviceCapabilities = DeviceCapabilities;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceInfo {

@@ -291,8 +291,9 @@ impl BlackboxReplay {
         file.read_exact(&mut header_bytes)
             .map_err(|e| format!("Failed to read header: {}", e))?;
         
-        let header: WbbHeader = bincode::deserialize(&header_bytes)
-            .map_err(|e| format!("Failed to deserialize header: {}", e))?;
+        let (header, _): (WbbHeader, usize) =
+            bincode::serde::decode_from_slice(&header_bytes, bincode::config::legacy())
+                .map_err(|e| format!("Failed to deserialize header: {}", e))?;
         
         Ok(header)
     }
@@ -316,8 +317,9 @@ impl BlackboxReplay {
         file.read_exact(&mut footer_bytes)
             .map_err(|e| format!("Failed to read footer: {}", e))?;
         
-        let footer: WbbFooter = bincode::deserialize(&footer_bytes)
-            .map_err(|e| format!("Failed to deserialize footer: {}", e))?;
+        let (footer, _): (WbbFooter, usize) =
+            bincode::serde::decode_from_slice(&footer_bytes, bincode::config::legacy())
+                .map_err(|e| format!("Failed to deserialize footer: {}", e))?;
         
         Ok(footer)
     }
@@ -341,8 +343,9 @@ impl BlackboxReplay {
         file.read_exact(&mut index_bytes)
             .map_err(|e| format!("Failed to read index: {}", e))?;
         
-        let index: Vec<IndexEntry> = bincode::deserialize(&index_bytes)
-            .map_err(|e| format!("Failed to deserialize index: {}", e))?;
+        let (index, _): (Vec<IndexEntry>, usize) =
+            bincode::serde::decode_from_slice(&index_bytes, bincode::config::legacy())
+                .map_err(|e| format!("Failed to deserialize index: {}", e))?;
         
         Ok(index)
     }

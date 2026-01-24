@@ -18,9 +18,9 @@ use racing_wheel_engine::NormalizedTelemetry;
 pub struct WasmPlugin {
     manifest: PluginManifest,
     engine: Engine,
-    module: Module,
+    _module: Module,
     runtime: Mutex<WasmRuntime>,
-    capability_enforcer: WasmCapabilityEnforcer,
+    _capability_enforcer: WasmCapabilityEnforcer,
 }
 
 struct WasmRuntime {
@@ -88,9 +88,9 @@ impl WasmPlugin {
         Ok(Self {
             manifest,
             engine,
-            module,
+            _module: module,
             runtime,
-            capability_enforcer,
+            _capability_enforcer: capability_enforcer,
         })
     }
     
@@ -329,7 +329,7 @@ impl Plugin for WasmPlugin {
     
     async fn process_led_mapping(
         &mut self,
-        input: &NormalizedTelemetry,
+        _input: &NormalizedTelemetry,
         context: &PluginContext,
     ) -> PluginResult<PluginOutput> {
         // Check capability
@@ -382,7 +382,7 @@ impl Plugin for WasmPlugin {
 /// WASM plugin host manager
 pub struct WasmPluginHost {
     plugins: Arc<RwLock<HashMap<uuid::Uuid, WasmPlugin>>>,
-    engine: Engine,
+    _engine: Engine,
 }
 
 impl WasmPluginHost {
@@ -395,7 +395,7 @@ impl WasmPluginHost {
         
         Ok(Self {
             plugins: Arc::new(RwLock::new(HashMap::new())),
-            engine,
+            _engine: engine,
         })
     }
     

@@ -135,6 +135,56 @@ impl ManifestValidator {
                 "Plugin author cannot be empty".to_string(),
             ));
         }
+
+        let allowed_capabilities = self.allowed_capabilities.get(&manifest.class).ok_or_else(|| {
+            PluginError::ManifestValidation(format!(
+                "No capability policy defined for plugin class {:?}",
+                manifest.class
+            ))
+        })?;
+
+        for capability in &manifest.capabilities {
+            if !allowed_capabilities.contains(capability) {
+                return Err(PluginError::ManifestValidation(format!(
+                    "Capability {:?} is not allowed for {:?} plugins",
+                    capability, manifest.class
+                )));
+            }
+        }
+
+        let max_constraints = self.max_constraints.get(&manifest.class).ok_or_else(|| {
+            PluginError::ManifestValidation(format!(
+                "No constraint policy defined for plugin class {:?}",
+                manifest.class
+            ))
+        })?;
+
+        if manifest.constraints.max_execution_time_us > max_constraints.max_execution_time_us {
+            return Err(PluginError::ManifestValidation(format!(
+                "Execution time budget {}us exceeds max {}us for {:?} plugins",
+                manifest.constraints.max_execution_time_us,
+                max_constraints.max_execution_time_us,
+                manifest.class
+            )));
+        }
+
+        if manifest.constraints.max_memory_bytes > max_constraints.max_memory_bytes {
+            return Err(PluginError::ManifestValidation(format!(
+                "Memory budget {} bytes exceeds max {} bytes for {:?} plugins",
+                manifest.constraints.max_memory_bytes,
+                max_constraints.max_memory_bytes,
+                manifest.class
+            )));
+        }
+
+        if manifest.constraints.update_rate_hz > max_constraints.update_rate_hz {
+            return Err(PluginError::ManifestValidation(format!(
+                "Update rate {}Hz exceeds max {}Hz for {:?} plugins",
+                manifest.constraints.update_rate_hz,
+                max_constraints.update_rate_hz,
+                manifest.class
+            )));
+        }
         
         Ok(())
     }

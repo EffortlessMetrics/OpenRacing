@@ -190,7 +190,7 @@ impl BlackboxRecorder {
             config.compression_level,
         );
         
-        let header_bytes = bincode::serialize(&header)
+        let header_bytes = bincode::serde::encode_to_vec(&header, bincode::config::legacy())
             .map_err(|e| format!("Failed to serialize header: {}", e))?;
         
         writer.write_all(&header_bytes)
@@ -289,7 +289,7 @@ impl BlackboxRecorder {
         let index_offset = self.writer.stream_position()
             .map_err(|e| format!("Failed to get file position: {}", e))?;
         
-        let index_bytes = bincode::serialize(&self.index_entries)
+        let index_bytes = bincode::serde::encode_to_vec(&self.index_entries, bincode::config::legacy())
             .map_err(|e| format!("Failed to serialize index: {}", e))?;
         
         self.writer.write_all(&index_bytes)
@@ -312,7 +312,7 @@ impl BlackboxRecorder {
             footer_magic: *b"1BBW",
         };
         
-        let footer_bytes = bincode::serialize(&footer)
+        let footer_bytes = bincode::serde::encode_to_vec(&footer, bincode::config::legacy())
             .map_err(|e| format!("Failed to serialize footer: {}", e))?;
         
         self.writer.write_all(&footer_bytes)
@@ -521,10 +521,11 @@ mod tests {
         let device_id = DeviceId::new("test-device".to_string()).unwrap();
         let header = WbbHeader::new(device_id, 1, 7, 6);
         
-        let serialized = bincode::serialize(&header);
+        let serialized = bincode::serde::encode_to_vec(&header, bincode::config::legacy());
         assert!(serialized.is_ok());
-        
-        let deserialized: WbbHeader = bincode::deserialize(&serialized.unwrap()).unwrap();
+
+        let (deserialized, _): (WbbHeader, usize) =
+            bincode::serde::decode_from_slice(&serialized.unwrap(), bincode::config::legacy()).unwrap();
         assert_eq!(deserialized.magic, *WBB_MAGIC);
         assert_eq!(deserialized.version, 1);
         assert_eq!(deserialized.stream_flags, 7);

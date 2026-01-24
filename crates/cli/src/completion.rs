@@ -15,6 +15,7 @@ pub fn generate_completion(shell: Shell) {
 }
 
 /// Print installation instructions for completions
+#[allow(dead_code)]
 pub fn print_completion_instructions(shell: Shell) {
     match shell {
         Shell::Bash => {

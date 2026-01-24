@@ -9,7 +9,7 @@ use crate::client::{
     DeviceInfo as ClientDeviceInfo, 
     DeviceState as ClientDeviceState, 
     DeviceCapabilities as ClientDeviceCapabilities,
-    DeviceStatus, TelemetryData, DiagnosticInfo, PerformanceMetrics,
+    DeviceStatus, DiagnosticInfo,
     GameStatus, HealthEvent, HealthEventType
 };
 use racing_wheel_schemas::config::ProfileSchema;
@@ -316,6 +316,7 @@ fn error_type_name(error: &Error) -> String {
 }
 
 /// Print table of data
+#[allow(dead_code)]
 pub fn print_table<T>(headers: &[&str], rows: &[Vec<T>], json: bool) 
 where 
     T: std::fmt::Display + serde::Serialize,

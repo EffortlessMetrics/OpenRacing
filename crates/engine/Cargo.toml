@@ -20,7 +20,7 @@ chrono = { version = "0.4.43", features = ["serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 jsonschema = "0.40.0"
-bincode = "3.0.0"
+bincode = { version = "2.0.1", features = ["serde"] }
 crc32c = "0.6.8"
 flate2 = "1.1.8"
 zip = "7.2.0"

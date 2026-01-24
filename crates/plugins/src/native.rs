@@ -59,7 +59,7 @@ pub struct PluginVTable {
 /// Native plugin instance
 pub struct NativePlugin {
     manifest: PluginManifest,
-    library: Library,
+    _library: Library,
     vtable: PluginVTable,
     plugin_state: *mut std::ffi::c_void,
     capability_checker: CapabilityChecker,
@@ -112,7 +112,7 @@ impl NativePlugin {
         
         Ok(Self {
             manifest,
-            library,
+            _library: library,
             vtable,
             plugin_state,
             capability_checker,
@@ -208,7 +208,10 @@ impl Plugin for NativePlugin {
             ffb_in: input.ffb_scalar,
             torque_out: input.ffb_scalar,
             wheel_speed: input.speed_ms,
-            timestamp_ns: chrono::Utc::now().timestamp_nanos() as u64,
+            timestamp_ns: chrono::Utc::now()
+                .timestamp_nanos_opt()
+                .map(|ts| ts as u64)
+                .unwrap_or(0),
             budget_us: context.budget_us,
             sequence: 0,
         };
@@ -256,7 +259,10 @@ impl Plugin for NativePlugin {
                 ffb_in: ffb_input,
                 torque_out: ffb_input,
                 wheel_speed,
-                timestamp_ns: chrono::Utc::now().timestamp_nanos() as u64,
+                timestamp_ns: chrono::Utc::now()
+                    .timestamp_nanos_opt()
+                    .map(|ts| ts as u64)
+                    .unwrap_or(0),
                 budget_us: context.budget_us,
                 sequence: 0,
             };
@@ -286,11 +292,11 @@ impl Plugin for NativePlugin {
 
 /// Native plugin helper process for RT operations
 pub struct NativePluginHelper {
-    plugin_id: uuid::Uuid,
+    _plugin_id: uuid::Uuid,
     process: Child,
     shared_memory: Arc<Mutex<Shmem>>, // Wrap in Arc<Mutex<>> for Send/Sync
-    frame_sender: Sender<PluginFrame>,
-    result_receiver: Receiver<PluginFrame>,
+    _frame_sender: Sender<PluginFrame>,
+    _result_receiver: Receiver<PluginFrame>,
     budget_us: u32,
 }
 
@@ -305,6 +311,13 @@ impl NativePluginHelper {
         let shmem_size = std::mem::size_of::<SharedMemoryHeader>() 
             + (std::mem::size_of::<PluginFrame>() * 1024); // Ring buffer for 1024 frames
         
+        if shmem_size > MAX_SHARED_MEMORY_SIZE {
+            return Err(PluginError::Ipc(format!(
+                "Shared memory size {} exceeds maximum {}",
+                shmem_size, MAX_SHARED_MEMORY_SIZE
+            )));
+        }
+
         let shared_memory = ShmemConf::new()
             .size(shmem_size)
             .create()
@@ -340,11 +353,11 @@ impl NativePluginHelper {
         let (_, result_receiver) = bounded(1024);
         
         Ok(Self {
-            plugin_id,
+            _plugin_id: plugin_id,
             process,
             shared_memory,
-            frame_sender,
-            result_receiver,
+            _frame_sender: frame_sender,
+            _result_receiver: result_receiver,
             budget_us,
         })
     }

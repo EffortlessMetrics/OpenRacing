@@ -1,6 +1,6 @@
 //! Native plugin helper process for RT operations
 
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use clap::Parser;
