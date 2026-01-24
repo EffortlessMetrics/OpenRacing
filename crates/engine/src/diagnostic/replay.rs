@@ -494,6 +494,7 @@ mod tests {
     use super::*;
     use crate::diagnostic::blackbox::{BlackboxConfig, BlackboxRecorder};
     use crate::safety::SafetyState;
+    use racing_wheel_schemas::prelude::DeviceId;
     use tempfile::TempDir;
 
     use std::path::PathBuf;

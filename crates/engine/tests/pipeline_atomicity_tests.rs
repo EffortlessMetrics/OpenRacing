@@ -38,7 +38,7 @@ async fn test_pipeline_swap_atomicity() {
 
     // Simulate RT thread processing frames
     let rt_handle = tokio::spawn(async move {
-        let mut frame = racing_wheel_engine::ffb::Frame {
+        let mut frame = racing_wheel_engine::rt::Frame {
             ffb_in: 0.5,
             torque_out: 0.0,
             wheel_speed: 0.0,
@@ -270,7 +270,7 @@ async fn test_no_allocations_on_hot_path() {
     let mut pipeline = compiled.pipeline;
 
     // Create test frame
-    let mut frame = racing_wheel_engine::ffb::Frame {
+    let mut frame = racing_wheel_engine::rt::Frame {
         ffb_in: 0.5,
         torque_out: 0.0,
         wheel_speed: 1.0,

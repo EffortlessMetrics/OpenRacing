@@ -3,8 +3,6 @@
 //! This module implements the TelemetryCompat trait for the engine crate's
 //! TelemetryData struct, providing backward compatibility for old field names.
 
-#![cfg(test)]
-
 use crate::device::TelemetryData;
 use compat::TelemetryCompat;
 

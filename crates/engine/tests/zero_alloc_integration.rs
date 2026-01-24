@@ -7,7 +7,7 @@
 //! - Deterministic merge engine with monotonic curve validation
 //! - Tests for pipeline swap atomicity and deterministic profile resolution
 
-use racing_wheel_engine::ffb::Frame;
+use racing_wheel_engine::rt::Frame;
 use racing_wheel_engine::{
     AllocationBenchmark, Pipeline, PipelineCompiler, ProfileMergeEngine, TwoPhaseApplyCoordinator,
 };

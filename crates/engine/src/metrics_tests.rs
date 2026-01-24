@@ -425,16 +425,19 @@ mod metrics_validation_tests {
         for mf in &metric_families {
             match mf.get_name() {
                 "wheel_rt_ticks_total" => {
-                    let counter = mf.get_metric()[0].get_counter();
-                    assert_eq!(counter.get_value() as u64, rt_metrics.total_ticks);
+                    if let Some(counter) = mf.get_metric()[0].get_counter().as_ref() {
+                        assert_eq!(counter.value() as u64, rt_metrics.total_ticks);
+                    }
                 }
                 "wheel_cpu_usage_percent" => {
-                    let gauge = mf.get_metric()[0].get_gauge();
-                    assert!((gauge.get_value() - rt_metrics.cpu_usage_percent as f64).abs() < 0.01);
+                    if let Some(gauge) = mf.get_metric()[0].get_gauge().as_ref() {
+                        assert!((gauge.value() - rt_metrics.cpu_usage_percent as f64).abs() < 0.01);
+                    }
                 }
                 "wheel_connected_devices" => {
-                    let gauge = mf.get_metric()[0].get_gauge();
-                    assert_eq!(gauge.get_value() as u32, app_metrics.connected_devices);
+                    if let Some(gauge) = mf.get_metric()[0].get_gauge().as_ref() {
+                        assert_eq!(gauge.value() as u32, app_metrics.connected_devices);
+                    }
                 }
                 _ => {} // Other metrics
             }
@@ -562,7 +565,7 @@ mod metrics_performance_tests {
         );
 
         // Verify correctness
-        let (total_ticks, missed_ticks, _, _, _, _, torque_samples, torque_saturated) =
+        let (total_ticks, missed_ticks, _, _, _, _, torque_samples, torque_saturated, _) =
             counters.get_and_reset();
 
         assert_eq!(total_ticks, iterations);
@@ -600,7 +603,7 @@ mod metrics_performance_tests {
         }
 
         // Verify total counts
-        let (total_ticks, missed_ticks, _, _, _, _, torque_samples, torque_saturated) =
+        let (total_ticks, missed_ticks, _, _, _, _, torque_samples, torque_saturated, _) =
             counters.get_and_reset();
 
         assert_eq!(total_ticks, num_threads * iterations_per_thread);

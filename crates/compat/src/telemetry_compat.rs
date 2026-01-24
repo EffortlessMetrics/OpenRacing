@@ -6,7 +6,7 @@
 //!
 //! Field mappings:
 //! - wheel_angle_mdeg → wheel_angle_deg (with unit conversion)
-//! - wheel_speed_mrad_s → wheel_speed_rad_s (with unit conversion)  
+//! - wheel_speed_mrad_s → wheel_speed_rad_s (with unit conversion)
 //! - temp_c → temperature_c (direct mapping)
 //! - faults → fault_flags (direct mapping)
 //! - sequence → (removed field, returns 0)
@@ -15,7 +15,6 @@
 ///
 /// This trait provides methods with old field names that forward to the new
 /// field names, enabling gradual migration of test code.
-#[cfg(test)]
 pub trait TelemetryCompat {
     /// Get temperature in Celsius (old field name: temp_c)
     fn temp_c(&self) -> u8;
@@ -34,33 +33,4 @@ pub trait TelemetryCompat {
     /// Get sequence number (removed field, always returns 0)
     /// This field was removed from the schema
     fn sequence(&self) -> u32;
-}
-
-// Implementation for engine's TelemetryData (uses new field names)
-#[cfg(test)]
-impl TelemetryCompat for racing_wheel_engine::TelemetryData {
-    #[inline]
-    fn temp_c(&self) -> u8 {
-        self.temperature_c
-    }
-
-    #[inline]
-    fn faults(&self) -> u8 {
-        self.fault_flags
-    }
-
-    #[inline]
-    fn wheel_angle_mdeg(&self) -> i32 {
-        (self.wheel_angle_deg * 1000.0) as i32
-    }
-
-    #[inline]
-    fn wheel_speed_mrad_s(&self) -> i32 {
-        (self.wheel_speed_rad_s * 1000.0) as i32
-    }
-
-    #[inline]
-    fn sequence(&self) -> u32 {
-        0 // Field was removed
-    }
 }

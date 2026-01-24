@@ -3,8 +3,8 @@
 //! These tests verify that each filter node behaves correctly with closed-form
 //! expectations and bounds checking as required by task 3.2.
 
-use racing_wheel_engine::ffb::Frame;
 use racing_wheel_engine::filters::*;
+use racing_wheel_engine::rt::Frame;
 use std::f32::consts::PI;
 
 /// Helper function to create a test frame

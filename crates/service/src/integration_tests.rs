@@ -134,7 +134,7 @@ mod tests {
         let safety_state = service.safety_service().get_safety_state().await;
         assert!(matches!(
             safety_state.state,
-            racing_wheel_engine::SafetyState::SafeTorque
+            racing_wheel_engine::safety::SafetyState::SafeTorque
         ));
 
         // Test torque limit enforcement
@@ -158,7 +158,10 @@ mod tests {
             // Test fault injection and recovery
             let fault_result = service
                 .safety_service()
-                .inject_test_fault(&device.id, racing_wheel_engine::FaultType::ThermalLimit)
+                .inject_test_fault(
+                    &device.id,
+                    racing_wheel_engine::safety::FaultType::ThermalLimit,
+                )
                 .await;
             assert!(fault_result.is_ok(), "Failed to inject test fault");
 
@@ -166,7 +169,7 @@ mod tests {
             let safety_state = service.safety_service().get_safety_state().await;
             assert!(matches!(
                 safety_state.state,
-                racing_wheel_engine::SafetyState::Faulted { .. }
+                racing_wheel_engine::safety::SafetyState::Faulted { .. }
             ));
 
             // Test fault recovery

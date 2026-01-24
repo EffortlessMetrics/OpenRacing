@@ -626,6 +626,7 @@ impl SupportBundle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use racing_wheel_schemas::prelude::DeviceId;
     use std::fs::write;
     use tempfile::TempDir;
 

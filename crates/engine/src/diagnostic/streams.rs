@@ -425,6 +425,7 @@ impl StreamReader {
 mod tests {
     use super::*;
     use crate::safety::SafetyState;
+    use racing_wheel_schemas::prelude::DeviceId;
 
     #[test]
     fn test_stream_a_recording() {

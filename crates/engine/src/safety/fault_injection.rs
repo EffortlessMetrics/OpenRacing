@@ -594,6 +594,7 @@ impl Default for FaultInjectionSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Arc, Mutex};
 
     #[test]
     fn test_fault_injection_system_creation() {
