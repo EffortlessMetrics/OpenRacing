@@ -23,20 +23,20 @@ racing-wheel-schemas = { path = "../schemas" }
 wheelctl = { path = "../cli" }
 
 tokio = { workspace = true, features = ["full"] }
-tokio-test = "0.4"
+tokio-test = "0.4.5"
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-tracing-test = "0.2"
+tracing-test = "0.2.5"
 
 # Testing frameworks
 criterion = { workspace = true, features = ["html_reports"] }
 proptest = { workspace = true }
-quickcheck = "1.0"
-quickcheck_macros = "1.0"
+quickcheck = "1.0.3"
+quickcheck_macros = "1.1.0"
 
 # Performance and timing
 parking_lot = { workspace = true }
@@ -45,9 +45,9 @@ hdrhistogram = { workspace = true }
 statistical = { workspace = true }
 
 # Test utilities
-tempfile = "3.8"
+tempfile = "3.24.0"
 uuid = { workspace = true }
-rand = "0.8"
+rand = "0.9.2"
 chrono = { workspace = true }
 
 # Mock and test doubles
@@ -64,7 +64,7 @@ clap = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.52", features = [
+windows = { version = "0.62.2", features = [
     "Win32_System_Threading",
     "Win32_System_SystemServices", 
     "Win32_Foundation",
@@ -75,7 +75,7 @@ windows = { version = "0.52", features = [
 ] }
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2"
+libc = "0.2.180"
 
 [[bin]]
 name = "soak-test"
