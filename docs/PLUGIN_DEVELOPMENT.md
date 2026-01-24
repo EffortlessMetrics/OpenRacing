@@ -1708,4 +1708,4 @@ PluginVTable get_plugin_vtable(void) {
 
 ---
 
-*Last updated: 2024-01-24*
+*Last updated: 2026-01-23*
