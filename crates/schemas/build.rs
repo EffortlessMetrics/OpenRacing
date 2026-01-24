@@ -42,10 +42,12 @@ fn compile_protos(proto_dir: &std::path::Path, proto_files: &[PathBuf]) -> Resul
     config.bytes(["."]);      // Use bytes for binary data
     
     // Configure tonic for gRPC service generation with deterministic settings
-    tonic_build::configure()
+    let proto_dirs = [proto_dir.to_path_buf()];
+
+    tonic_prost_build::configure()
         .build_server(true)
         .build_client(true)
-        .compile_protos_with_config(config, proto_files, &[proto_dir])?;
+        .compile_with_config(config, proto_files, &proto_dirs)?;
     
     Ok(())
 }

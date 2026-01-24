@@ -202,7 +202,7 @@ fn create_platform_provider() -> Result<Box<dyn TracingProvider>, TracingError> 
 /// Windows ETW provider implementation
 #[cfg(target_os = "windows")]
 pub struct WindowsETWProvider {
-    provider_handle: Option<u64>,
+    provider_handle: Option<windows::Win32::System::Diagnostics::Etw::REGHANDLE>,
     metrics: TracingMetrics,
 }
 
@@ -219,13 +219,13 @@ impl WindowsETWProvider {
 #[cfg(target_os = "windows")]
 impl TracingProvider for WindowsETWProvider {
     fn initialize(&mut self) -> Result<(), TracingError> {
-        use windows::Win32::System::Diagnostics::Etw::EventRegister;
+        use windows::Win32::System::Diagnostics::Etw::{EventRegister, REGHANDLE};
         use windows::core::GUID;
         
         // Define our ETW provider GUID: {12345678-1234-5678-9ABC-123456789ABC}
         let provider_guid = GUID::from_u128(0x12345678_1234_5678_9ABC_123456789ABC);
         
-        let mut handle: u64 = 0;
+        let mut handle = REGHANDLE(0);
         
         unsafe {
             let result = EventRegister(
@@ -243,7 +243,7 @@ impl TracingProvider for WindowsETWProvider {
         }
         
         self.provider_handle = Some(handle);
-        tracing::info!("ETW provider initialized with handle: {}", handle);
+        tracing::info!("ETW provider initialized with handle: {}", handle.0);
         Ok(())
     }
     
@@ -321,7 +321,7 @@ impl TracingProvider for WindowsETWProvider {
 
 #[cfg(target_os = "windows")]
 impl WindowsETWProvider {
-    fn emit_etw_event(&self, handle: u64, event: RTTraceEvent) {
+    fn emit_etw_event(&self, handle: windows::Win32::System::Diagnostics::Etw::REGHANDLE, event: RTTraceEvent) {
         use windows::Win32::System::Diagnostics::Etw::{
             EventWrite, EVENT_DESCRIPTOR,
         };
@@ -382,7 +382,7 @@ impl WindowsETWProvider {
         }
     }
     
-    fn emit_etw_app_event(&self, handle: u64, _event: AppTraceEvent) {
+    fn emit_etw_app_event(&self, handle: windows::Win32::System::Diagnostics::Etw::REGHANDLE, _event: AppTraceEvent) {
         use windows::Win32::System::Diagnostics::Etw::{
             EventWrite, EVENT_DESCRIPTOR,
         };

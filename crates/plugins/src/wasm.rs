@@ -5,9 +5,9 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use wasmtime::*;
-use wasmtime_wasi::WasiCtx;
+use wasmtime_wasi::p1::WasiP1Ctx;
 
 use crate::capability::{CapabilityChecker, WasmCapabilityEnforcer};
 use crate::manifest::{PluginManifest, PluginOperation};
@@ -19,14 +19,18 @@ pub struct WasmPlugin {
     manifest: PluginManifest,
     engine: Engine,
     module: Module,
+    runtime: Mutex<WasmRuntime>,
+    capability_enforcer: WasmCapabilityEnforcer,
+}
+
+struct WasmRuntime {
     store: Store<WasmPluginState>,
     instance: Instance,
-    capability_enforcer: WasmCapabilityEnforcer,
 }
 
 /// WASM plugin state
 struct WasmPluginState {
-    wasi: WasiCtx,
+    wasi: WasiP1Ctx,
     capability_checker: CapabilityChecker,
     plugin_data: HashMap<String, Vec<u8>>,
 }
@@ -53,7 +57,7 @@ impl WasmPlugin {
         let capability_enforcer = WasmCapabilityEnforcer::new(manifest.capabilities.clone());
         
         // Create WASI context with restricted capabilities
-        let wasi = capability_enforcer.create_wasi_context()?.build();
+        let wasi = capability_enforcer.create_wasi_context()?.build_p1();
         
         let state = WasmPluginState {
             wasi,
@@ -72,20 +76,20 @@ impl WasmPlugin {
         
         // Add WASI to linker
         let mut linker = Linker::new(&engine);
-        wasmtime_wasi::add_to_linker(&mut linker, |s: &mut WasmPluginState| &mut s.wasi)?;
+        wasmtime_wasi::p1::add_to_linker_sync(&mut linker, |s: &mut WasmPluginState| &mut s.wasi)?;
         
         // Add custom host functions
         Self::add_host_functions(&mut linker)?;
         
         // Instantiate the module
         let instance = linker.instantiate(&mut store, &module)?;
+        let runtime = Mutex::new(WasmRuntime { store, instance });
         
         Ok(Self {
             manifest,
             engine,
             module,
-            store,
-            instance,
+            runtime,
             capability_enforcer,
         })
     }
@@ -181,27 +185,33 @@ impl WasmPlugin {
         timeout: Duration,
     ) -> PluginResult<Vec<Val>> {
         let start_time = Instant::now();
-        
-        // Reset fuel
-        let fuel_limit = (self.manifest.constraints.max_execution_time_us as u64) * 1000;
-        self.store.set_fuel(fuel_limit)?;
-        
-        // Get function
-        let func = self
-            .instance
-            .get_typed_func::<(), ()>(&mut self.store, func_name)
-            .map_err(|e| PluginError::WasmRuntime(e))?;
+        let engine = self.engine.clone();
         
         // Execute with timeout
-        let result = tokio::time::timeout(timeout, async {
-            // Increment epoch to trigger interruption if needed
-            self.engine.increment_epoch();
+        let result = {
+            let mut runtime = self.runtime.lock().await;
+
+            // Reset fuel
+            let fuel_limit = (self.manifest.constraints.max_execution_time_us as u64) * 1000;
+            runtime.store.set_fuel(fuel_limit)?;
             
-            // Call function
-            func.call(&mut self.store, ())
-                .map_err(|e| PluginError::WasmRuntime(e))
-        })
-        .await;
+            // Get function
+            let instance = runtime.instance;
+            let store = &mut runtime.store;
+            let func = instance
+                .get_typed_func::<(), ()>(store, func_name)
+                .map_err(|e| PluginError::WasmRuntime(e))?;
+
+            tokio::time::timeout(timeout, async move {
+                // Increment epoch to trigger interruption if needed
+                engine.increment_epoch();
+                
+                // Call function
+                func.call(&mut runtime.store, ())
+                    .map_err(|e| PluginError::WasmRuntime(e))
+            })
+            .await
+        };
         
         let execution_time = start_time.elapsed();
         
@@ -236,7 +246,14 @@ impl Plugin for WasmPlugin {
             .map_err(|e| PluginError::LoadingFailed(format!("Config serialization: {}", e)))?;
         
         // Store config in plugin data
-        self.store.data_mut().plugin_data.insert("config".to_string(), config_bytes);
+        {
+            let mut runtime = self.runtime.lock().await;
+            runtime
+                .store
+                .data_mut()
+                .plugin_data
+                .insert("config".to_string(), config_bytes);
+        }
         
         // Call initialization function if present
         if let Some(init_func) = self.manifest.entry_points.init_function.clone() {
@@ -257,13 +274,23 @@ impl Plugin for WasmPlugin {
         context: &PluginContext,
     ) -> PluginResult<PluginOutput> {
         // Check capability
-        self.store.data().capability_checker.check_telemetry_read()?;
+        {
+            let runtime = self.runtime.lock().await;
+            runtime.store.data().capability_checker.check_telemetry_read()?;
+        }
         
         // Serialize input telemetry
         let input_bytes = serde_json::to_vec(input)
             .map_err(|e| PluginError::LoadingFailed(format!("Telemetry serialization: {}", e)))?;
         
-        self.store.data_mut().plugin_data.insert("input_telemetry".to_string(), input_bytes);
+        {
+            let mut runtime = self.runtime.lock().await;
+            runtime
+                .store
+                .data_mut()
+                .plugin_data
+                .insert("input_telemetry".to_string(), input_bytes);
+        }
         
         // Execute main function
         let timeout = Duration::from_micros(context.budget_us as u64);
@@ -272,11 +299,16 @@ impl Plugin for WasmPlugin {
             .await?;
         
         // Get output from plugin data (simplified - real implementation would use proper WASM memory interface)
-        let output_bytes = self.store.data()
-            .plugin_data
-            .get("output_telemetry")
-            .cloned()
-            .unwrap_or_default();
+        let output_bytes = {
+            let runtime = self.runtime.lock().await;
+            runtime
+                .store
+                .data()
+                .plugin_data
+                .get("output_telemetry")
+                .cloned()
+                .unwrap_or_default()
+        };
         
         if output_bytes.is_empty() {
             // No modification
@@ -301,7 +333,10 @@ impl Plugin for WasmPlugin {
         context: &PluginContext,
     ) -> PluginResult<PluginOutput> {
         // Check capability
-        self.store.data().capability_checker.check_led_control()?;
+        {
+            let runtime = self.runtime.lock().await;
+            runtime.store.data().capability_checker.check_led_control()?;
+        }
         
         // Execute LED mapping function
         let timeout = Duration::from_micros(context.budget_us as u64);

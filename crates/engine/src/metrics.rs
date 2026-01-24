@@ -660,8 +660,9 @@ impl SystemMonitor {
     /// Get current system metrics (CPU usage %, memory usage bytes)
     pub async fn get_system_metrics(&mut self) -> (f32, u64) {
         // Refresh system information
-        self.system.refresh_cpu();
-        self.system.refresh_process(self.process_pid);
+        self.system.refresh_cpu_all();
+        self.system
+            .refresh_processes(sysinfo::ProcessesToUpdate::Some(&[self.process_pid]), true);
         
         // Get process-specific metrics
         let cpu_usage = if let Some(process) = self.system.process(self.process_pid) {

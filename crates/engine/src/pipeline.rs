@@ -5,7 +5,7 @@ use crate::rt::RTResult;
 use racing_wheel_schemas::prelude::*;
 use std::sync::Arc;
 use tokio::sync::{oneshot, Mutex};
-use tracing::{debug, error};
+use tracing::debug;
 
 /// Function pointer type for filter nodes
 pub type FilterNodeFn = fn(&mut Frame, *mut u8);

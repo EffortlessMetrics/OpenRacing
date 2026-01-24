@@ -140,13 +140,14 @@ impl WasmCapabilityEnforcer {
     
     /// Create WASI context with restricted capabilities
     pub fn create_wasi_context(&self) -> PluginResult<wasmtime_wasi::WasiCtxBuilder> {
+        use wasmtime_wasi::{DirPerms, FilePerms};
+
         let mut builder = wasmtime_wasi::WasiCtxBuilder::new();
         
         // Only allow file system access to granted paths
         for path in &self.checker.allowed_file_paths {
-            let dir = cap_std::fs::Dir::open_ambient_dir(path, cap_std::ambient_authority())
-                .map_err(|e| PluginError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, e)))?;
-            builder.preopened_dir(dir, path)
+            builder
+                .preopened_dir(path, path.to_string_lossy(), DirPerms::all(), FilePerms::all())
                 .map_err(|e| PluginError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)))?;
         }
         

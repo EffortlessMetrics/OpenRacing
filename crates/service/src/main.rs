@@ -215,8 +215,11 @@ async fn log_system_info(config: &SystemConfig, flags: &FeatureFlags) {
     info!("  CPU cores: {}", num_cpus::get());
     
     let sys = sysinfo::System::new_all();
-    let cpu_info = sys.global_cpu_info();
-    info!("  CPU: {} MHz", cpu_info.frequency());
+    let cpu_freq = sys.cpus().first().map(|cpu| cpu.frequency());
+    match cpu_freq {
+        Some(freq) => info!("  CPU: {} MHz", freq),
+        None => info!("  CPU: Unknown"),
+    }
     
     info!("Feature Flags:");
     info!("  Real-time disabled: {}", flags.disable_realtime);

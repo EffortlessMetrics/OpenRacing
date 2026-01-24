@@ -12,7 +12,7 @@ use std::{
     collections::HashMap,
 };
 use serde::{Serialize, Deserialize};
-use zip::{ZipWriter, write::FileOptions, CompressionMethod};
+use zip::{ZipWriter, write::SimpleFileOptions, CompressionMethod};
 use sysinfo::System;
 
 /// Support bundle configuration
@@ -261,7 +261,7 @@ impl SupportBundle {
             .map_err(|e| format!("Failed to create bundle file: {}", e))?;
         
         let mut zip = ZipWriter::new(file);
-        let options = FileOptions::default()
+        let options = SimpleFileOptions::default()
             .compression_method(CompressionMethod::Deflated)
             .compression_level(Some(6));
 
@@ -317,7 +317,7 @@ impl SupportBundle {
             brand: cpu.map(|c| c.brand().to_string()).unwrap_or_else(|| "Unknown".to_string()),
             frequency_mhz: cpu.map(|c| c.frequency()).unwrap_or(0),
             core_count: system.cpus().len(),
-            usage_percent: system.global_cpu_info().cpu_usage(),
+            usage_percent: system.global_cpu_usage(),
         };
 
         let total_memory = system.total_memory();
@@ -473,7 +473,7 @@ impl SupportBundle {
     }
 
     /// Add manifest to ZIP
-    fn add_manifest(&self, zip: &mut ZipWriter<File>, options: &FileOptions) -> Result<(), String> {
+    fn add_manifest(&self, zip: &mut ZipWriter<File>, options: &SimpleFileOptions) -> Result<(), String> {
         let manifest = serde_json::json!({
             "bundle_version": "1.0",
             "created_at": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
@@ -502,7 +502,7 @@ impl SupportBundle {
     }
 
     /// Add system info to ZIP
-    fn add_system_info_to_zip(&self, zip: &mut ZipWriter<File>, options: &FileOptions, system_info: &SystemInfo) -> Result<(), String> {
+    fn add_system_info_to_zip(&self, zip: &mut ZipWriter<File>, options: &SimpleFileOptions, system_info: &SystemInfo) -> Result<(), String> {
         let json = serde_json::to_string_pretty(system_info)
             .map_err(|e| format!("Failed to serialize system info: {}", e))?;
 
@@ -516,7 +516,7 @@ impl SupportBundle {
     }
 
     /// Add health events to ZIP
-    fn add_health_events_to_zip(&self, zip: &mut ZipWriter<File>, options: &FileOptions) -> Result<(), String> {
+    fn add_health_events_to_zip(&self, zip: &mut ZipWriter<File>, options: &SimpleFileOptions) -> Result<(), String> {
         let json = serde_json::to_string_pretty(&self.health_events)
             .map_err(|e| format!("Failed to serialize health events: {}", e))?;
 
@@ -530,7 +530,7 @@ impl SupportBundle {
     }
 
     /// Add file to ZIP with specified prefix
-    fn add_file_to_zip(&self, zip: &mut ZipWriter<File>, options: &FileOptions, file_path: &Path, prefix: &str) -> Result<(), String> {
+    fn add_file_to_zip(&self, zip: &mut ZipWriter<File>, options: &SimpleFileOptions, file_path: &Path, prefix: &str) -> Result<(), String> {
         let file_name = file_path.file_name()
             .ok_or("Invalid file name")?
             .to_string_lossy();

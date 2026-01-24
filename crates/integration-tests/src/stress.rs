@@ -4,7 +4,6 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use tokio::time::timeout;
 use tracing::{info, warn};
-use rand::Rng;
 
 use crate::common::TestHarness;
 use crate::{TestConfig, TestResult, StressLevel};
@@ -45,9 +44,7 @@ pub async fn test_hotplug_stress() -> Result<TestResult> {
             cycle_count += 1;
             
             // Random disconnect/reconnect timing to stress the system
-            let disconnect_duration = Duration::from_millis(
-                rand::thread_rng().gen_range(50..500)
-            );
+            let disconnect_duration = Duration::from_millis(rand::random_range(50..500));
             
             let cycle_start = Instant::now();
             
