@@ -6,13 +6,13 @@
 //! - Stream C: Health/fault events
 
 use super::HealthEvent;
-use super::bincode_compat as codec;
 #[cfg(test)]
 use super::HealthEventType;
+use super::bincode_compat as codec;
+use crate::ports::NormalizedTelemetry;
 use crate::rt::Frame;
 use crate::safety::SafetyState;
-use crate::ports::NormalizedTelemetry;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Stream type identifier
@@ -148,7 +148,7 @@ impl StreamA {
 
     pub fn get_data(&mut self) -> Vec<u8> {
         self.buffer.clear();
-        
+
         // Serialize all records
         for record in &self.records {
             if let Ok(serialized) = codec::encode_to_vec(record) {
@@ -159,10 +159,10 @@ impl StreamA {
                 self.buffer.extend_from_slice(&serialized);
             }
         }
-        
+
         // Clear records after serialization to free memory
         self.records.clear();
-        
+
         self.buffer.clone()
     }
 
@@ -193,7 +193,7 @@ impl StreamB {
 
     pub fn record_telemetry(&mut self, telemetry: &NormalizedTelemetry) -> Result<(), String> {
         let now = SystemTime::now();
-        
+
         // Rate limiting to ~60Hz
         if let Ok(duration) = now.duration_since(self.last_record_time) {
             if duration.as_nanos() < self.min_interval_ns as u128 {
@@ -218,7 +218,7 @@ impl StreamB {
 
     pub fn get_data(&mut self) -> Vec<u8> {
         self.buffer.clear();
-        
+
         // Serialize all records
         for record in &self.records {
             if let Ok(serialized) = codec::encode_to_vec(record) {
@@ -229,10 +229,10 @@ impl StreamB {
                 self.buffer.extend_from_slice(&serialized);
             }
         }
-        
+
         // Clear records after serialization
         self.records.clear();
-        
+
         self.buffer.clone()
     }
 
@@ -278,7 +278,7 @@ impl StreamC {
 
     pub fn get_data(&mut self) -> Vec<u8> {
         self.buffer.clear();
-        
+
         // Serialize all records
         for record in &self.records {
             if let Ok(serialized) = codec::encode_to_vec(record) {
@@ -289,10 +289,10 @@ impl StreamC {
                 self.buffer.extend_from_slice(&serialized);
             }
         }
-        
+
         // Clear records after serialization
         self.records.clear();
-        
+
         self.buffer.clone()
     }
 
@@ -309,10 +309,7 @@ pub struct StreamReader {
 
 impl StreamReader {
     pub fn new(data: Vec<u8>) -> Self {
-        Self {
-            data,
-            position: 0,
-        }
+        Self { data, position: 0 }
     }
 
     /// Read next Stream A record
@@ -327,7 +324,8 @@ impl StreamReader {
         }
 
         let len_bytes = &self.data[self.position..self.position + 4];
-        let len = u32::from_le_bytes([len_bytes[0], len_bytes[1], len_bytes[2], len_bytes[3]]) as usize;
+        let len =
+            u32::from_le_bytes([len_bytes[0], len_bytes[1], len_bytes[2], len_bytes[3]]) as usize;
         self.position += 4;
 
         // Read record data
@@ -339,9 +337,8 @@ impl StreamReader {
         self.position += len;
 
         // Deserialize record
-        let record: StreamARecord =
-            codec::decode_from_slice(record_data)
-                .map_err(|e| format!("Failed to deserialize Stream A record: {}", e))?;
+        let record: StreamARecord = codec::decode_from_slice(record_data)
+            .map_err(|e| format!("Failed to deserialize Stream A record: {}", e))?;
 
         Ok(Some(record))
     }
@@ -358,7 +355,8 @@ impl StreamReader {
         }
 
         let len_bytes = &self.data[self.position..self.position + 4];
-        let len = u32::from_le_bytes([len_bytes[0], len_bytes[1], len_bytes[2], len_bytes[3]]) as usize;
+        let len =
+            u32::from_le_bytes([len_bytes[0], len_bytes[1], len_bytes[2], len_bytes[3]]) as usize;
         self.position += 4;
 
         // Read record data
@@ -370,9 +368,8 @@ impl StreamReader {
         self.position += len;
 
         // Deserialize record
-        let record: StreamBRecord =
-            codec::decode_from_slice(record_data)
-                .map_err(|e| format!("Failed to deserialize Stream B record: {}", e))?;
+        let record: StreamBRecord = codec::decode_from_slice(record_data)
+            .map_err(|e| format!("Failed to deserialize Stream B record: {}", e))?;
 
         Ok(Some(record))
     }
@@ -389,7 +386,8 @@ impl StreamReader {
         }
 
         let len_bytes = &self.data[self.position..self.position + 4];
-        let len = u32::from_le_bytes([len_bytes[0], len_bytes[1], len_bytes[2], len_bytes[3]]) as usize;
+        let len =
+            u32::from_le_bytes([len_bytes[0], len_bytes[1], len_bytes[2], len_bytes[3]]) as usize;
         self.position += 4;
 
         // Read record data
@@ -401,9 +399,8 @@ impl StreamReader {
         self.position += len;
 
         // Deserialize record
-        let record: StreamCRecord =
-            codec::decode_from_slice(record_data)
-                .map_err(|e| format!("Failed to deserialize Stream C record: {}", e))?;
+        let record: StreamCRecord = codec::decode_from_slice(record_data)
+            .map_err(|e| format!("Failed to deserialize Stream C record: {}", e))?;
 
         Ok(Some(record))
     }
@@ -428,12 +425,12 @@ impl StreamReader {
 mod tests {
     use super::*;
     use crate::safety::SafetyState;
-    
+    use racing_wheel_schemas::prelude::DeviceId;
 
     #[test]
     fn test_stream_a_recording() {
         let mut stream = StreamA::new();
-        
+
         let frame = Frame {
             ffb_in: 0.5,
             torque_out: 0.3,
@@ -442,15 +439,15 @@ mod tests {
             ts_mono_ns: 1000000000,
             seq: 1,
         };
-        
+
         let node_outputs = vec![0.1, 0.2, 0.3];
         let safety_state = SafetyState::SafeTorque;
         let processing_time_us = 150;
-        
+
         let result = stream.record_frame(&frame, &node_outputs, &safety_state, processing_time_us);
         assert!(result.is_ok());
         assert_eq!(stream.record_count(), 1);
-        
+
         let data = stream.get_data();
         assert!(!data.is_empty());
         assert_eq!(stream.record_count(), 0); // Should be cleared after get_data
@@ -460,7 +457,7 @@ mod tests {
     fn test_stream_b_rate_limiting() {
         let mut stream = StreamB::new();
         stream.set_rate_limit_hz(10.0); // 10Hz for faster testing
-        
+
         let telemetry = NormalizedTelemetry {
             ffb_scalar: 0.5,
             rpm: 3000.0,
@@ -472,12 +469,12 @@ mod tests {
             track_id: Some("test_track".to_string()),
             timestamp: std::time::Instant::now(),
         };
-        
+
         // Record multiple times rapidly
         for _ in 0..10 {
             let _ = stream.record_telemetry(&telemetry);
         }
-        
+
         // Should have rate-limited to fewer records
         assert!(stream.record_count() <= 2); // Allow some tolerance
     }
@@ -485,7 +482,7 @@ mod tests {
     #[test]
     fn test_stream_c_health_events() {
         let mut stream = StreamC::new();
-        
+
         let device_id = DeviceId::new("test-device".to_string()).unwrap();
         let event = HealthEvent {
             timestamp: SystemTime::now(),
@@ -493,11 +490,11 @@ mod tests {
             event_type: HealthEventType::DeviceConnected,
             context: serde_json::json!({"test": true}),
         };
-        
+
         let result = stream.record_health_event(&event);
         assert!(result.is_ok());
         assert_eq!(stream.record_count(), 1);
-        
+
         let data = stream.get_data();
         assert!(!data.is_empty());
     }
@@ -505,7 +502,7 @@ mod tests {
     #[test]
     fn test_stream_reader_roundtrip() {
         let mut stream_a = StreamA::new();
-        
+
         // Record some data
         for i in 0..5 {
             let frame = Frame {
@@ -516,25 +513,32 @@ mod tests {
                 ts_mono_ns: (i * 1000000) as u64,
                 seq: i as u16,
             };
-            
+
             let node_outputs = vec![i as f32 * 0.01; 3];
-            stream_a.record_frame(&frame, &node_outputs, &SafetyState::SafeTorque, 100 + i as u64).unwrap();
+            stream_a
+                .record_frame(
+                    &frame,
+                    &node_outputs,
+                    &SafetyState::SafeTorque,
+                    100 + i as u64,
+                )
+                .unwrap();
         }
-        
+
         // Get serialized data
         let data = stream_a.get_data();
         assert!(!data.is_empty());
-        
+
         // Read back with StreamReader
         let mut reader = StreamReader::new(data);
         let mut records_read = 0;
-        
+
         while let Ok(Some(record)) = reader.read_stream_a_record() {
             assert_eq!(record.node_outputs.len(), 3);
             assert!(matches!(record.safety_state, SafetyStateSimple::SafeTorque));
             records_read += 1;
         }
-        
+
         assert_eq!(records_read, 5);
         assert!(reader.is_at_end());
     }
@@ -542,7 +546,7 @@ mod tests {
     #[test]
     fn test_stream_serialization_format() {
         let mut stream = StreamA::new();
-        
+
         let frame = Frame {
             ffb_in: 0.5,
             torque_out: 0.3,
@@ -551,11 +555,13 @@ mod tests {
             ts_mono_ns: 1000000000,
             seq: 1,
         };
-        
-        stream.record_frame(&frame, &[0.1, 0.2], &SafetyState::SafeTorque, 150).unwrap();
-        
+
+        stream
+            .record_frame(&frame, &[0.1, 0.2], &SafetyState::SafeTorque, 150)
+            .unwrap();
+
         let data = stream.get_data();
-        
+
         // Check that data starts with length prefix
         assert!(data.len() >= 4);
         let len = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as usize;
@@ -567,12 +573,12 @@ mod tests {
         let mut stream_a = StreamA::new();
         let mut stream_b = StreamB::new();
         let mut stream_c = StreamC::new();
-        
+
         // Get data from empty streams
         let data_a = stream_a.get_data();
         let data_b = stream_b.get_data();
         let data_c = stream_c.get_data();
-        
+
         assert!(data_a.is_empty());
         assert!(data_b.is_empty());
         assert!(data_c.is_empty());

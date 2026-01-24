@@ -6,14 +6,15 @@
 //! - Health event streaming for real-time monitoring
 //! - Prometheus export support
 
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
-use std::time::Instant;
+use crossbeam::queue::ArrayQueue;
+use parking_lot::Mutex;
 use prometheus::{Gauge, Histogram, IntCounter, IntGauge, Registry};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
 use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
-// Removed unused tokio_stream::Stream import
 
 /// Real-time performance metrics
 #[derive(Debug, Clone)]
@@ -120,28 +121,28 @@ pub enum HealthSeverity {
 pub struct PrometheusMetrics {
     /// Registry for all metrics
     pub registry: Registry,
-    
+
     // RT performance metrics
     pub rt_ticks_total: IntCounter,
     pub rt_missed_ticks_total: IntCounter,
     pub rt_jitter_histogram: Histogram,
     pub rt_processing_time_histogram: Histogram,
     pub hid_write_latency_histogram: Histogram,
-    
+
     // System metrics
     pub cpu_usage_gauge: Gauge,
     pub memory_usage_gauge: IntGauge,
-    
+
     // Application metrics
     pub connected_devices_gauge: IntGauge,
     pub torque_saturation_gauge: Gauge,
     pub telemetry_packet_loss_gauge: Gauge,
     pub safety_events_total: IntCounter,
     pub profile_switches_total: IntCounter,
-    
+
     // Device metrics
     pub hid_write_errors_total: IntCounter,
-    
+
     // Health metrics
     pub health_events_total: IntCounter,
 }
@@ -150,109 +151,100 @@ impl PrometheusMetrics {
     /// Create new Prometheus metrics registry
     pub fn new() -> Result<Self, prometheus::Error> {
         let registry = Registry::new();
-        
+
         // RT performance metrics
-        let rt_ticks_total = IntCounter::new(
-            "wheel_rt_ticks_total",
-            "Total number of RT ticks processed"
-        )?;
-        
+        let rt_ticks_total =
+            IntCounter::new("wheel_rt_ticks_total", "Total number of RT ticks processed")?;
+
         let rt_missed_ticks_total = IntCounter::new(
-            "wheel_rt_missed_ticks_total", 
-            "Total number of missed RT ticks (deadline violations)"
+            "wheel_rt_missed_ticks_total",
+            "Total number of missed RT ticks (deadline violations)",
         )?;
-        
+
         let rt_jitter_histogram = Histogram::with_opts(
-            prometheus::HistogramOpts::new(
-                "wheel_rt_jitter_seconds",
-                "RT tick jitter in seconds"
-            ).buckets(vec![
-                0.000_000_050, // 50ns
-                0.000_000_100, // 100ns
-                0.000_000_250, // 250ns (target p99)
-                0.000_000_500, // 500ns
-                0.000_001_000, // 1μs
-                0.000_002_000, // 2μs
-                0.000_005_000, // 5μs
-                0.000_010_000, // 10μs
-            ])
+            prometheus::HistogramOpts::new("wheel_rt_jitter_seconds", "RT tick jitter in seconds")
+                .buckets(vec![
+                    0.000_000_050, // 50ns
+                    0.000_000_100, // 100ns
+                    0.000_000_250, // 250ns (target p99)
+                    0.000_000_500, // 500ns
+                    0.000_001_000, // 1μs
+                    0.000_002_000, // 2μs
+                    0.000_005_000, // 5μs
+                    0.000_010_000, // 10μs
+                ]),
         )?;
-        
+
         let rt_processing_time_histogram = Histogram::with_opts(
             prometheus::HistogramOpts::new(
                 "wheel_rt_processing_time_seconds",
-                "RT processing time per tick in seconds"
-            ).buckets(vec![
+                "RT processing time per tick in seconds",
+            )
+            .buckets(vec![
                 0.000_000_010, // 10μs
                 0.000_000_050, // 50μs (target median)
                 0.000_000_100, // 100μs
                 0.000_000_200, // 200μs (target p99)
                 0.000_000_500, // 500μs
                 0.000_001_000, // 1ms
-            ])
+            ]),
         )?;
-        
+
         let hid_write_latency_histogram = Histogram::with_opts(
             prometheus::HistogramOpts::new(
                 "wheel_hid_write_latency_seconds",
-                "HID write latency in seconds"
-            ).buckets(vec![
+                "HID write latency in seconds",
+            )
+            .buckets(vec![
                 0.000_000_100, // 100μs
                 0.000_000_300, // 300μs (target p99)
                 0.000_000_500, // 500μs
                 0.000_001_000, // 1ms
                 0.000_002_000, // 2ms
                 0.000_005_000, // 5ms
-            ])
+            ]),
         )?;
-        
+
         // System metrics
-        let cpu_usage_gauge = Gauge::new(
-            "wheel_cpu_usage_percent",
-            "CPU usage percentage"
-        )?;
-        
-        let memory_usage_gauge = IntGauge::new(
-            "wheel_memory_usage_bytes",
-            "Memory usage in bytes"
-        )?;
-        
+        let cpu_usage_gauge = Gauge::new("wheel_cpu_usage_percent", "CPU usage percentage")?;
+
+        let memory_usage_gauge =
+            IntGauge::new("wheel_memory_usage_bytes", "Memory usage in bytes")?;
+
         // Application metrics
-        let connected_devices_gauge = IntGauge::new(
-            "wheel_connected_devices",
-            "Number of connected devices"
-        )?;
-        
+        let connected_devices_gauge =
+            IntGauge::new("wheel_connected_devices", "Number of connected devices")?;
+
         let torque_saturation_gauge = Gauge::new(
             "wheel_torque_saturation_percent",
-            "Torque saturation percentage"
+            "Torque saturation percentage",
         )?;
-        
+
         let telemetry_packet_loss_gauge = Gauge::new(
             "wheel_telemetry_packet_loss_percent",
-            "Telemetry packet loss percentage"
+            "Telemetry packet loss percentage",
         )?;
-        
+
         let safety_events_total = IntCounter::new(
             "wheel_safety_events_total",
-            "Total number of safety events triggered"
+            "Total number of safety events triggered",
         )?;
-        
+
         let profile_switches_total = IntCounter::new(
             "wheel_profile_switches_total",
-            "Total number of profile switches"
+            "Total number of profile switches",
         )?;
-        
+
         let hid_write_errors_total = IntCounter::new(
             "wheel_hid_write_errors_total",
-            "Total number of HID write errors"
+            "Total number of HID write errors",
         )?;
-        
+
         let health_events_total = IntCounter::new(
             "wheel_health_events_total",
-            "Total number of health events emitted"
+            "Total number of health events emitted",
         )?;
-        
+
         // Register all metrics
         registry.register(Box::new(rt_ticks_total.clone()))?;
         registry.register(Box::new(rt_missed_ticks_total.clone()))?;
@@ -268,7 +260,7 @@ impl PrometheusMetrics {
         registry.register(Box::new(profile_switches_total.clone()))?;
         registry.register(Box::new(hid_write_errors_total.clone()))?;
         registry.register(Box::new(health_events_total.clone()))?;
-        
+
         Ok(Self {
             registry,
             rt_ticks_total,
@@ -287,35 +279,42 @@ impl PrometheusMetrics {
             health_events_total,
         })
     }
-    
+
     /// Update RT performance metrics
     pub fn update_rt_metrics(&self, metrics: &RTMetrics) {
         self.rt_ticks_total.inc_by(metrics.total_ticks);
         self.rt_missed_ticks_total.inc_by(metrics.missed_ticks);
-        
+
         // Convert nanoseconds to seconds for Prometheus
-        self.rt_jitter_histogram.observe(metrics.jitter_ns.p99_ns as f64 / 1_000_000_000.0);
-        self.rt_processing_time_histogram.observe(metrics.processing_time_us.p99_us as f64 / 1_000_000.0);
-        self.hid_write_latency_histogram.observe(metrics.hid_latency_us.p99_us as f64 / 1_000_000.0);
-        
+        self.rt_jitter_histogram
+            .observe(metrics.jitter_ns.p99_ns as f64 / 1_000_000_000.0);
+        self.rt_processing_time_histogram
+            .observe(metrics.processing_time_us.p99_us as f64 / 1_000_000.0);
+        self.hid_write_latency_histogram
+            .observe(metrics.hid_latency_us.p99_us as f64 / 1_000_000.0);
+
         self.cpu_usage_gauge.set(metrics.cpu_usage_percent as f64);
-        self.memory_usage_gauge.set(metrics.memory_usage_bytes as i64);
+        self.memory_usage_gauge
+            .set(metrics.memory_usage_bytes as i64);
     }
-    
+
     /// Update application metrics
     pub fn update_app_metrics(&self, metrics: &AppMetrics) {
-        self.connected_devices_gauge.set(metrics.connected_devices as i64);
-        self.torque_saturation_gauge.set(metrics.torque_saturation_percent as f64);
-        self.telemetry_packet_loss_gauge.set(metrics.telemetry_packet_loss_percent as f64);
+        self.connected_devices_gauge
+            .set(metrics.connected_devices as i64);
+        self.torque_saturation_gauge
+            .set(metrics.torque_saturation_percent as f64);
+        self.telemetry_packet_loss_gauge
+            .set(metrics.telemetry_packet_loss_percent as f64);
         self.safety_events_total.inc_by(metrics.safety_events);
         self.profile_switches_total.inc_by(metrics.profile_switches);
     }
-    
+
     /// Update device metrics
     pub fn update_device_metrics(&self, hid_write_errors: u64) {
         self.hid_write_errors_total.inc_by(hid_write_errors);
     }
-    
+
     /// Record a health event
     pub fn record_health_event(&self) {
         self.health_events_total.inc();
@@ -349,54 +348,56 @@ impl AtomicCounters {
             hid_write_errors: AtomicU64::new(0),
         }
     }
-    
+
     /// Increment tick counter (RT-safe)
     #[inline]
     pub fn inc_tick(&self) {
         self.total_ticks.fetch_add(1, Ordering::Relaxed);
     }
-    
+
     /// Increment missed tick counter (RT-safe)
     #[inline]
     pub fn inc_missed_tick(&self) {
         self.missed_ticks.fetch_add(1, Ordering::Relaxed);
     }
-    
+
     /// Record torque saturation sample (RT-safe)
     #[inline]
     pub fn record_torque_saturation(&self, is_saturated: bool) {
-        self.torque_saturation_samples.fetch_add(1, Ordering::Relaxed);
+        self.torque_saturation_samples
+            .fetch_add(1, Ordering::Relaxed);
         if is_saturated {
             self.torque_saturation_count.fetch_add(1, Ordering::Relaxed);
         }
     }
-    
+
     /// Increment safety event counter
     pub fn inc_safety_event(&self) {
         self.safety_events.fetch_add(1, Ordering::Relaxed);
     }
-    
+
     /// Increment profile switch counter
     pub fn inc_profile_switch(&self) {
         self.profile_switches.fetch_add(1, Ordering::Relaxed);
     }
-    
+
     /// Record telemetry packet received
     pub fn inc_telemetry_received(&self) {
-        self.telemetry_packets_received.fetch_add(1, Ordering::Relaxed);
+        self.telemetry_packets_received
+            .fetch_add(1, Ordering::Relaxed);
     }
-    
+
     /// Record telemetry packet lost
     pub fn inc_telemetry_lost(&self) {
         self.telemetry_packets_lost.fetch_add(1, Ordering::Relaxed);
     }
-    
+
     /// Increment HID write error counter (RT-safe)
     #[inline]
     pub fn inc_hid_write_error(&self) {
         self.hid_write_errors.fetch_add(1, Ordering::Relaxed);
     }
-    
+
     /// Get current values and reset counters
     pub fn get_and_reset(&self) -> (u64, u64, u64, u64, u64, u64, u64, u64, u64) {
         (
@@ -410,6 +411,61 @@ impl AtomicCounters {
             self.torque_saturation_count.swap(0, Ordering::Relaxed),
             self.hid_write_errors.swap(0, Ordering::Relaxed),
         )
+    }
+}
+
+/// RT-safe sample queues for histogram recording
+///
+/// Uses lock-free bounded queues to allow the RT path to push samples
+/// without blocking. Samples are drained by the collector and recorded
+/// into hdrhistogram for percentile calculation.
+///
+/// Note: The push methods are infrastructure for RT loop integration.
+/// They will be wired up in a follow-up PR.
+#[allow(dead_code)]
+pub(crate) struct RTSampleQueues {
+    /// Jitter samples in nanoseconds (capacity: 10000 samples between collections)
+    pub jitter_ns: ArrayQueue<u64>,
+    /// Processing time samples in nanoseconds (capacity: 10000)
+    pub processing_time_ns: ArrayQueue<u64>,
+    /// HID latency samples in nanoseconds (capacity: 10000)
+    pub hid_latency_ns: ArrayQueue<u64>,
+}
+
+#[allow(dead_code)] // Methods will be wired up when RT loop integration is completed
+impl RTSampleQueues {
+    /// Create new sample queues with default capacity
+    pub fn new() -> Self {
+        Self {
+            jitter_ns: ArrayQueue::new(10000),
+            processing_time_ns: ArrayQueue::new(10000),
+            hid_latency_ns: ArrayQueue::new(10000),
+        }
+    }
+
+    /// Push a jitter sample (RT-safe, drops on overflow)
+    #[inline]
+    pub fn push_jitter(&self, ns: u64) {
+        // Drop sample on overflow - this is acceptable for metrics
+        let _ = self.jitter_ns.push(ns);
+    }
+
+    /// Push a processing time sample (RT-safe, drops on overflow)
+    #[inline]
+    pub fn push_processing_time(&self, ns: u64) {
+        let _ = self.processing_time_ns.push(ns);
+    }
+
+    /// Push a HID latency sample (RT-safe, drops on overflow)
+    #[inline]
+    pub fn push_hid_latency(&self, ns: u64) {
+        let _ = self.hid_latency_ns.push(ns);
+    }
+}
+
+impl Default for RTSampleQueues {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -428,17 +484,17 @@ impl HealthEventStreamer {
             _receiver: receiver,
         }
     }
-    
+
     /// Emit a health event
     pub fn emit(&self, event: HealthEvent) -> Result<(), broadcast::error::SendError<HealthEvent>> {
         self.sender.send(event).map(|_| ())
     }
-    
+
     /// Subscribe to health events
     pub fn subscribe(&self) -> BroadcastStream<HealthEvent> {
         BroadcastStream::new(self.sender.subscribe())
     }
-    
+
     /// Create a health event
     pub fn create_event(
         event_type: HealthEventType,
@@ -465,6 +521,12 @@ pub struct MetricsCollector {
     health_streamer: Arc<HealthEventStreamer>,
     system_monitor: SystemMonitor,
     last_collection: Instant,
+    /// RT-safe sample queues for histogram data
+    sample_queues: Arc<RTSampleQueues>,
+    /// HDR histograms for percentile calculations (non-RT access only)
+    jitter_histogram: Mutex<hdrhistogram::Histogram<u64>>,
+    processing_histogram: Mutex<hdrhistogram::Histogram<u64>>,
+    latency_histogram: Mutex<hdrhistogram::Histogram<u64>>,
 }
 
 impl MetricsCollector {
@@ -474,36 +536,125 @@ impl MetricsCollector {
         let atomic_counters = Arc::new(AtomicCounters::new());
         let health_streamer = Arc::new(HealthEventStreamer::new(1000)); // Buffer 1000 events
         let system_monitor = SystemMonitor::new();
-        
+        let sample_queues = Arc::new(RTSampleQueues::new());
+
+        // Initialize HDR histograms (1ns to 1s range, 3 significant figures)
+        // These provide accurate percentile calculations
+        let jitter_histogram = Mutex::new(
+            hdrhistogram::Histogram::<u64>::new_with_bounds(1, 1_000_000_000, 3).map_err(|e| {
+                prometheus::Error::Msg(format!("jitter histogram init failed: {e}"))
+            })?,
+        );
+        let processing_histogram = Mutex::new(
+            hdrhistogram::Histogram::<u64>::new_with_bounds(1, 1_000_000_000, 3).map_err(|e| {
+                prometheus::Error::Msg(format!("processing histogram init failed: {e}"))
+            })?,
+        );
+        let latency_histogram = Mutex::new(
+            hdrhistogram::Histogram::<u64>::new_with_bounds(1, 1_000_000_000, 3).map_err(|e| {
+                prometheus::Error::Msg(format!("latency histogram init failed: {e}"))
+            })?,
+        );
+
         Ok(Self {
             prometheus_metrics,
             atomic_counters,
             health_streamer,
             system_monitor,
             last_collection: Instant::now(),
+            sample_queues,
+            jitter_histogram,
+            processing_histogram,
+            latency_histogram,
         })
     }
-    
+
     /// Get Prometheus registry for export
     pub fn prometheus_registry(&self) -> &Registry {
         &self.prometheus_metrics.registry
     }
-    
+
     /// Get atomic counters for RT use
     pub fn atomic_counters(&self) -> Arc<AtomicCounters> {
         self.atomic_counters.clone()
     }
-    
+
+    /// Get sample queues for RT use.
+    /// Note: Infrastructure for RT loop integration, will be wired up in follow-up PR.
+    #[allow(dead_code)]
+    pub(crate) fn sample_queues(&self) -> Arc<RTSampleQueues> {
+        self.sample_queues.clone()
+    }
+
     /// Get health event streamer
     pub fn health_streamer(&self) -> Arc<HealthEventStreamer> {
         self.health_streamer.clone()
     }
-    
+
+    /// Drain samples from RT queues into histograms
+    fn drain_samples(&self) {
+        // Drain jitter samples
+        {
+            let mut hist = self.jitter_histogram.lock();
+            while let Some(sample) = self.sample_queues.jitter_ns.pop() {
+                let _ = hist.record(sample);
+            }
+        }
+
+        // Drain processing time samples
+        {
+            let mut hist = self.processing_histogram.lock();
+            while let Some(sample) = self.sample_queues.processing_time_ns.pop() {
+                let _ = hist.record(sample);
+            }
+        }
+
+        // Drain HID latency samples
+        {
+            let mut hist = self.latency_histogram.lock();
+            while let Some(sample) = self.sample_queues.hid_latency_ns.pop() {
+                let _ = hist.record(sample);
+            }
+        }
+    }
+
+    /// Get jitter statistics from histogram
+    fn get_jitter_stats(&self) -> JitterStats {
+        let hist = self.jitter_histogram.lock();
+        JitterStats {
+            p50_ns: hist.value_at_quantile(0.5),
+            p99_ns: hist.value_at_quantile(0.99),
+            max_ns: hist.max(),
+        }
+    }
+
+    /// Get processing time statistics from histogram (in microseconds)
+    fn get_processing_stats(&self) -> LatencyStats {
+        let hist = self.processing_histogram.lock();
+        LatencyStats {
+            p50_us: hist.value_at_quantile(0.5) / 1000,
+            p99_us: hist.value_at_quantile(0.99) / 1000,
+            max_us: hist.max() / 1000,
+        }
+    }
+
+    /// Get HID latency statistics from histogram (in microseconds)
+    fn get_latency_stats(&self) -> LatencyStats {
+        let hist = self.latency_histogram.lock();
+        LatencyStats {
+            p50_us: hist.value_at_quantile(0.5) / 1000,
+            p99_us: hist.value_at_quantile(0.99) / 1000,
+            max_us: hist.max() / 1000,
+        }
+    }
+
     /// Collect and update all metrics
-    pub async fn collect_metrics(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn collect_metrics(
+        &mut self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let now = Instant::now();
         let collection_interval = now.duration_since(self.last_collection);
-        
+
         // Get atomic counter values
         let (
             total_ticks,
@@ -516,47 +667,41 @@ impl MetricsCollector {
             torque_saturated,
             hid_write_errors,
         ) = self.atomic_counters.get_and_reset();
-        
+
         // Calculate derived metrics
         let telemetry_loss_percent = if telemetry_received > 0 {
             (telemetry_lost as f32 / (telemetry_received + telemetry_lost) as f32) * 100.0
         } else {
             0.0
         };
-        
+
         let torque_saturation_percent = if torque_samples > 0 {
             (torque_saturated as f32 / torque_samples as f32) * 100.0
         } else {
             0.0
         };
-        
+
         // Get system metrics
         let (cpu_usage, memory_usage) = self.system_monitor.get_system_metrics().await;
-        
+
+        // Drain RT samples into histograms and compute statistics
+        self.drain_samples();
+        let jitter_stats = self.get_jitter_stats();
+        let processing_stats = self.get_processing_stats();
+        let latency_stats = self.get_latency_stats();
+
         // Create RT metrics
         let rt_metrics = RTMetrics {
             total_ticks,
             missed_ticks,
-            jitter_ns: JitterStats {
-                p50_ns: 0, // TODO: Implement histogram tracking
-                p99_ns: 0,
-                max_ns: 0,
-            },
-            hid_latency_us: LatencyStats {
-                p50_us: 0, // TODO: Implement histogram tracking
-                p99_us: 0,
-                max_us: 0,
-            },
-            processing_time_us: LatencyStats {
-                p50_us: 0, // TODO: Implement histogram tracking
-                p99_us: 0,
-                max_us: 0,
-            },
+            jitter_ns: jitter_stats,
+            hid_latency_us: latency_stats,
+            processing_time_us: processing_stats,
             cpu_usage_percent: cpu_usage,
             memory_usage_bytes: memory_usage,
             last_update: now,
         };
-        
+
         // Create app metrics
         let app_metrics = AppMetrics {
             connected_devices: 0, // TODO: Get from device manager
@@ -567,18 +712,23 @@ impl MetricsCollector {
             active_game: None, // TODO: Get from game service
             last_update: now,
         };
-        
+
         // Update Prometheus metrics
         self.prometheus_metrics.update_rt_metrics(&rt_metrics);
         self.prometheus_metrics.update_app_metrics(&app_metrics);
-        self.prometheus_metrics.update_device_metrics(hid_write_errors);
-        
+        self.prometheus_metrics
+            .update_device_metrics(hid_write_errors);
+
         // Emit health events for critical conditions
         if missed_ticks > 0 {
             let event = HealthEventStreamer::create_event(
                 HealthEventType::PerformanceDegradation,
                 HealthSeverity::Warning,
-                format!("Missed {} RT ticks in {}ms", missed_ticks, collection_interval.as_millis()),
+                format!(
+                    "Missed {} RT ticks in {}ms",
+                    missed_ticks,
+                    collection_interval.as_millis()
+                ),
                 None,
                 serde_json::json!({
                     "missed_ticks": missed_ticks,
@@ -586,14 +736,14 @@ impl MetricsCollector {
                     "collection_interval_ms": collection_interval.as_millis()
                 }),
             );
-            
+
             if let Err(e) = self.health_streamer.emit(event) {
                 tracing::warn!("Failed to emit health event: {}", e);
             } else {
                 self.prometheus_metrics.record_health_event();
             }
         }
-        
+
         if torque_saturation_percent > 90.0 {
             let event = HealthEventStreamer::create_event(
                 HealthEventType::PerformanceDegradation,
@@ -606,33 +756,37 @@ impl MetricsCollector {
                     "saturated": torque_saturated
                 }),
             );
-            
+
             if let Err(e) = self.health_streamer.emit(event) {
                 tracing::warn!("Failed to emit health event: {}", e);
             } else {
                 self.prometheus_metrics.record_health_event();
             }
         }
-        
+
         if hid_write_errors > 0 {
             let event = HealthEventStreamer::create_event(
                 HealthEventType::Error,
                 HealthSeverity::Warning,
-                format!("HID write errors: {} in {}ms", hid_write_errors, collection_interval.as_millis()),
+                format!(
+                    "HID write errors: {} in {}ms",
+                    hid_write_errors,
+                    collection_interval.as_millis()
+                ),
                 None,
                 serde_json::json!({
                     "hid_write_errors": hid_write_errors,
                     "collection_interval_ms": collection_interval.as_millis()
                 }),
             );
-            
+
             if let Err(e) = self.health_streamer.emit(event) {
                 tracing::warn!("Failed to emit HID write error health event: {}", e);
             } else {
                 self.prometheus_metrics.record_health_event();
             }
         }
-        
+
         self.last_collection = now;
         Ok(())
     }
@@ -648,35 +802,35 @@ impl SystemMonitor {
     pub fn new() -> Self {
         let mut system = sysinfo::System::new();
         system.refresh_all();
-        
+
         let process_pid = sysinfo::get_current_pid().unwrap_or(sysinfo::Pid::from(0));
-        
+
         Self {
             system,
             process_pid,
         }
     }
-    
+
     /// Get current system metrics (CPU usage %, memory usage bytes)
     pub async fn get_system_metrics(&mut self) -> (f32, u64) {
         // Refresh system information
         self.system.refresh_cpu_all();
         self.system
             .refresh_processes(sysinfo::ProcessesToUpdate::Some(&[self.process_pid]), true);
-        
+
         // Get process-specific metrics
         let cpu_usage = if let Some(process) = self.system.process(self.process_pid) {
             process.cpu_usage()
         } else {
             0.0
         };
-        
+
         let memory_usage = if let Some(process) = self.system.process(self.process_pid) {
             process.memory()
         } else {
             0
         };
-        
+
         (cpu_usage, memory_usage)
     }
 }
@@ -705,14 +859,14 @@ pub struct AlertingThresholds {
 impl Default for AlertingThresholds {
     fn default() -> Self {
         Self {
-            max_jitter_ns: 250_000,        // 250μs (requirement: ≤0.25ms)
-            max_processing_time_us: 200,    // 200μs (requirement: ≤200μs p99)
-            max_hid_latency_us: 300,        // 300μs (requirement: ≤300μs p99)
-            max_cpu_usage_percent: 3.0,     // 3% (requirement: <3% of one core)
+            max_jitter_ns: 250_000,                    // 250μs (requirement: ≤0.25ms)
+            max_processing_time_us: 200,               // 200μs (requirement: ≤200μs p99)
+            max_hid_latency_us: 300,                   // 300μs (requirement: ≤300μs p99)
+            max_cpu_usage_percent: 3.0,                // 3% (requirement: <3% of one core)
             max_memory_usage_bytes: 150 * 1024 * 1024, // 150MB (requirement: <150MB RSS)
-            max_missed_tick_rate: 0.001,    // 0.1% (requirement: <0.001% missed ticks)
-            max_torque_saturation_percent: 95.0, // 95%
-            max_telemetry_loss_percent: 5.0,     // 5%
+            max_missed_tick_rate: 0.001,               // 0.1% (requirement: <0.001% missed ticks)
+            max_torque_saturation_percent: 95.0,       // 95%
+            max_telemetry_loss_percent: 5.0,           // 5%
         }
     }
 }
@@ -726,39 +880,39 @@ impl MetricsValidator {
     pub fn new(thresholds: AlertingThresholds) -> Self {
         Self { thresholds }
     }
-    
+
     /// Validate RT metrics against thresholds
     pub fn validate_rt_metrics(&self, metrics: &RTMetrics) -> Vec<String> {
         let mut violations = Vec::new();
-        
+
         if metrics.jitter_ns.p99_ns > self.thresholds.max_jitter_ns {
             violations.push(format!(
                 "Jitter p99 {}ns exceeds threshold {}ns",
                 metrics.jitter_ns.p99_ns, self.thresholds.max_jitter_ns
             ));
         }
-        
+
         if metrics.processing_time_us.p99_us > self.thresholds.max_processing_time_us {
             violations.push(format!(
                 "Processing time p99 {}μs exceeds threshold {}μs",
                 metrics.processing_time_us.p99_us, self.thresholds.max_processing_time_us
             ));
         }
-        
+
         if metrics.hid_latency_us.p99_us > self.thresholds.max_hid_latency_us {
             violations.push(format!(
                 "HID latency p99 {}μs exceeds threshold {}μs",
                 metrics.hid_latency_us.p99_us, self.thresholds.max_hid_latency_us
             ));
         }
-        
+
         if metrics.cpu_usage_percent > self.thresholds.max_cpu_usage_percent {
             violations.push(format!(
                 "CPU usage {:.1}% exceeds threshold {:.1}%",
                 metrics.cpu_usage_percent, self.thresholds.max_cpu_usage_percent
             ));
         }
-        
+
         if metrics.memory_usage_bytes > self.thresholds.max_memory_usage_bytes {
             violations.push(format!(
                 "Memory usage {}MB exceeds threshold {}MB",
@@ -766,28 +920,28 @@ impl MetricsValidator {
                 self.thresholds.max_memory_usage_bytes / (1024 * 1024)
             ));
         }
-        
+
         violations
     }
-    
+
     /// Validate app metrics against thresholds
     pub fn validate_app_metrics(&self, metrics: &AppMetrics) -> Vec<String> {
         let mut violations = Vec::new();
-        
+
         if metrics.torque_saturation_percent > self.thresholds.max_torque_saturation_percent {
             violations.push(format!(
                 "Torque saturation {:.1}% exceeds threshold {:.1}%",
                 metrics.torque_saturation_percent, self.thresholds.max_torque_saturation_percent
             ));
         }
-        
+
         if metrics.telemetry_packet_loss_percent > self.thresholds.max_telemetry_loss_percent {
             violations.push(format!(
                 "Telemetry packet loss {:.1}% exceeds threshold {:.1}%",
                 metrics.telemetry_packet_loss_percent, self.thresholds.max_telemetry_loss_percent
             ));
         }
-        
+
         violations
     }
 }
@@ -795,8 +949,8 @@ impl MetricsValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio_stream::StreamExt;
     use std::time::Duration;
+    use tokio_stream::StreamExt;
 
     #[test]
     fn test_prometheus_metrics_creation() {
@@ -807,31 +961,31 @@ mod tests {
     #[test]
     fn test_atomic_counters() {
         let counters = AtomicCounters::new();
-        
+
         // Test tick counting
         counters.inc_tick();
         counters.inc_tick();
         counters.inc_missed_tick();
-        
+
         // Test torque saturation
         counters.record_torque_saturation(true);
         counters.record_torque_saturation(false);
         counters.record_torque_saturation(true);
-        
+
         // Test HID write error counting
         counters.inc_hid_write_error();
         counters.inc_hid_write_error();
         counters.inc_hid_write_error();
-        
-        let (total_ticks, missed_ticks, _, _, _, _, torque_samples, torque_saturated, hid_errors) = 
+
+        let (total_ticks, missed_ticks, _, _, _, _, torque_samples, torque_saturated, hid_errors) =
             counters.get_and_reset();
-        
+
         assert_eq!(total_ticks, 2);
         assert_eq!(missed_ticks, 1);
         assert_eq!(torque_samples, 3);
         assert_eq!(torque_saturated, 2);
         assert_eq!(hid_errors, 3);
-        
+
         // Verify reset
         let (total_ticks, _, _, _, _, _, _, _, hid_errors) = counters.get_and_reset();
         assert_eq!(total_ticks, 0);
@@ -842,7 +996,7 @@ mod tests {
     async fn test_health_event_streaming() {
         let streamer = HealthEventStreamer::new(10);
         let mut stream = streamer.subscribe();
-        
+
         // Emit a test event
         let event = HealthEventStreamer::create_event(
             HealthEventType::DeviceStatus,
@@ -851,9 +1005,9 @@ mod tests {
             Some("test-device".to_string()),
             serde_json::json!({"test": true}),
         );
-        
+
         streamer.emit(event.clone()).unwrap();
-        
+
         // Receive the event
         let received = stream.next().await.unwrap().unwrap();
         assert_eq!(received.message, "Test event");
@@ -863,30 +1017,27 @@ mod tests {
     #[tokio::test]
     async fn test_metrics_collector() {
         let mut collector = MetricsCollector::new().unwrap();
-        
+
         // Simulate some activity
         let counters = collector.atomic_counters();
         counters.inc_tick();
         counters.inc_tick();
         counters.inc_missed_tick();
         counters.record_torque_saturation(true);
-        
+
         // Collect metrics
         collector.collect_metrics().await.unwrap();
-        
+
         // Verify health event was emitted for missed tick
         let mut stream = collector.health_streamer().subscribe();
-        
+
         // Trigger another collection with missed ticks
         counters.inc_missed_tick();
         collector.collect_metrics().await.unwrap();
-        
+
         // Should receive a health event
-        let event = tokio::time::timeout(
-            Duration::from_millis(100),
-            stream.next()
-        ).await;
-        
+        let event = tokio::time::timeout(Duration::from_millis(100), stream.next()).await;
+
         assert!(event.is_ok());
     }
 
@@ -894,7 +1045,7 @@ mod tests {
     fn test_alerting_thresholds() {
         let thresholds = AlertingThresholds::default();
         let validator = MetricsValidator::new(thresholds);
-        
+
         // Test RT metrics validation
         let rt_metrics = RTMetrics {
             total_ticks: 1000,
@@ -914,15 +1065,15 @@ mod tests {
                 p99_us: 150, // Within 200μs threshold
                 max_us: 300,
             },
-            cpu_usage_percent: 2.5, // Within 3% threshold
+            cpu_usage_percent: 2.5,                // Within 3% threshold
             memory_usage_bytes: 100 * 1024 * 1024, // Within 150MB threshold
             last_update: Instant::now(),
         };
-        
+
         let violations = validator.validate_rt_metrics(&rt_metrics);
         assert_eq!(violations.len(), 1);
         assert!(violations[0].contains("Jitter p99"));
-        
+
         // Test app metrics validation
         let app_metrics = AppMetrics {
             connected_devices: 2,
@@ -933,7 +1084,7 @@ mod tests {
             active_game: Some("iracing".to_string()),
             last_update: Instant::now(),
         };
-        
+
         let violations = validator.validate_app_metrics(&app_metrics);
         assert_eq!(violations.len(), 1);
         assert!(violations[0].contains("Torque saturation"));
@@ -943,7 +1094,7 @@ mod tests {
     async fn test_system_monitor() {
         let mut monitor = SystemMonitor::new();
         let (cpu_usage, memory_usage) = monitor.get_system_metrics().await;
-        
+
         // Basic sanity checks
         assert!(cpu_usage >= 0.0);
         assert!(memory_usage > 0);

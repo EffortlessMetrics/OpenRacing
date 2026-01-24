@@ -1,14 +1,14 @@
 //! Integration module for FMEA system components
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use serde::{Deserialize, Serialize};
 
 use super::{
     FaultType, SafetyService, SafetyState,
-    fmea::{FmeaSystem, FaultMarker},
-    watchdog::{WatchdogSystem, WatchdogConfig, SystemComponent, HealthStatus},
     fault_injection::{FaultInjectionSystem, InjectionContext},
+    fmea::{FaultMarker, FmeaSystem},
+    watchdog::{HealthStatus, SystemComponent, WatchdogConfig, WatchdogSystem},
 };
 
 /// Integrated fault management system combining FMEA, watchdog, and fault injection
@@ -128,101 +128,111 @@ impl IntegratedFaultManager {
     /// Initialize default recovery procedures
     fn initialize_recovery_procedures(&mut self) {
         // USB Stall recovery
-        self.recovery_procedures.insert(FaultType::UsbStall, RecoveryProcedure {
-            fault_type: FaultType::UsbStall,
-            steps: vec![
-                RecoveryStep {
-                    description: "Wait for USB timeout".to_string(),
-                    action: RecoveryAction::Wait(Duration::from_millis(100)),
-                    timeout: Duration::from_millis(200),
-                    required: true,
+        self.recovery_procedures.insert(
+            FaultType::UsbStall,
+            RecoveryProcedure {
+                fault_type: FaultType::UsbStall,
+                steps: vec![
+                    RecoveryStep {
+                        description: "Wait for USB timeout".to_string(),
+                        action: RecoveryAction::Wait(Duration::from_millis(100)),
+                        timeout: Duration::from_millis(200),
+                        required: true,
+                    },
+                    RecoveryStep {
+                        description: "Restart USB communication".to_string(),
+                        action: RecoveryAction::RestartCommunication,
+                        timeout: Duration::from_secs(2),
+                        required: true,
+                    },
+                    RecoveryStep {
+                        description: "Clear fault condition".to_string(),
+                        action: RecoveryAction::ClearFault,
+                        timeout: Duration::from_millis(100),
+                        required: true,
+                    },
+                ],
+                max_attempts: 3,
+                backoff_strategy: BackoffStrategy::Exponential {
+                    base: Duration::from_millis(500),
+                    max: Duration::from_secs(5),
                 },
-                RecoveryStep {
-                    description: "Restart USB communication".to_string(),
-                    action: RecoveryAction::RestartCommunication,
-                    timeout: Duration::from_secs(2),
-                    required: true,
-                },
-                RecoveryStep {
-                    description: "Clear fault condition".to_string(),
-                    action: RecoveryAction::ClearFault,
-                    timeout: Duration::from_millis(100),
-                    required: true,
-                },
-            ],
-            max_attempts: 3,
-            backoff_strategy: BackoffStrategy::Exponential {
-                base: Duration::from_millis(500),
-                max: Duration::from_secs(5),
+                success_criteria: vec!["USB communication restored".to_string()],
             },
-            success_criteria: vec!["USB communication restored".to_string()],
-        });
+        );
 
         // Encoder NaN recovery
-        self.recovery_procedures.insert(FaultType::EncoderNaN, RecoveryProcedure {
-            fault_type: FaultType::EncoderNaN,
-            steps: vec![
-                RecoveryStep {
-                    description: "Recalibrate encoder".to_string(),
-                    action: RecoveryAction::RecalibrateDevice,
-                    timeout: Duration::from_secs(5),
-                    required: true,
-                },
-                RecoveryStep {
-                    description: "Clear fault condition".to_string(),
-                    action: RecoveryAction::ClearFault,
-                    timeout: Duration::from_millis(100),
-                    required: true,
-                },
-            ],
-            max_attempts: 2,
-            backoff_strategy: BackoffStrategy::Fixed(Duration::from_secs(1)),
-            success_criteria: vec!["Encoder values within normal range".to_string()],
-        });
+        self.recovery_procedures.insert(
+            FaultType::EncoderNaN,
+            RecoveryProcedure {
+                fault_type: FaultType::EncoderNaN,
+                steps: vec![
+                    RecoveryStep {
+                        description: "Recalibrate encoder".to_string(),
+                        action: RecoveryAction::RecalibrateDevice,
+                        timeout: Duration::from_secs(5),
+                        required: true,
+                    },
+                    RecoveryStep {
+                        description: "Clear fault condition".to_string(),
+                        action: RecoveryAction::ClearFault,
+                        timeout: Duration::from_millis(100),
+                        required: true,
+                    },
+                ],
+                max_attempts: 2,
+                backoff_strategy: BackoffStrategy::Fixed(Duration::from_secs(1)),
+                success_criteria: vec!["Encoder values within normal range".to_string()],
+            },
+        );
 
         // Thermal limit recovery
-        self.recovery_procedures.insert(FaultType::ThermalLimit, RecoveryProcedure {
-            fault_type: FaultType::ThermalLimit,
-            steps: vec![
-                RecoveryStep {
-                    description: "Reduce torque to safe level".to_string(),
-                    action: RecoveryAction::ReduceTorque(5.0),
-                    timeout: Duration::from_millis(50),
-                    required: true,
-                },
-                RecoveryStep {
-                    description: "Wait for cooldown".to_string(),
-                    action: RecoveryAction::Wait(Duration::from_secs(30)),
-                    timeout: Duration::from_secs(35),
-                    required: true,
-                },
-                RecoveryStep {
-                    description: "Clear fault condition".to_string(),
-                    action: RecoveryAction::ClearFault,
-                    timeout: Duration::from_millis(100),
-                    required: true,
-                },
-            ],
-            max_attempts: 1,
-            backoff_strategy: BackoffStrategy::Fixed(Duration::from_secs(60)),
-            success_criteria: vec!["Temperature below threshold".to_string()],
-        });
+        self.recovery_procedures.insert(
+            FaultType::ThermalLimit,
+            RecoveryProcedure {
+                fault_type: FaultType::ThermalLimit,
+                steps: vec![
+                    RecoveryStep {
+                        description: "Reduce torque to safe level".to_string(),
+                        action: RecoveryAction::ReduceTorque(5.0),
+                        timeout: Duration::from_millis(50),
+                        required: true,
+                    },
+                    RecoveryStep {
+                        description: "Wait for cooldown".to_string(),
+                        action: RecoveryAction::Wait(Duration::from_secs(30)),
+                        timeout: Duration::from_secs(35),
+                        required: true,
+                    },
+                    RecoveryStep {
+                        description: "Clear fault condition".to_string(),
+                        action: RecoveryAction::ClearFault,
+                        timeout: Duration::from_millis(100),
+                        required: true,
+                    },
+                ],
+                max_attempts: 1,
+                backoff_strategy: BackoffStrategy::Fixed(Duration::from_secs(60)),
+                success_criteria: vec!["Temperature below threshold".to_string()],
+            },
+        );
 
         // Plugin overrun recovery
-        self.recovery_procedures.insert(FaultType::PluginOverrun, RecoveryProcedure {
-            fault_type: FaultType::PluginOverrun,
-            steps: vec![
-                RecoveryStep {
+        self.recovery_procedures.insert(
+            FaultType::PluginOverrun,
+            RecoveryProcedure {
+                fault_type: FaultType::PluginOverrun,
+                steps: vec![RecoveryStep {
                     description: "Quarantine plugin".to_string(),
                     action: RecoveryAction::QuarantinePlugin("".to_string()), // Plugin ID filled at runtime
                     timeout: Duration::from_millis(10),
                     required: true,
-                },
-            ],
-            max_attempts: 1,
-            backoff_strategy: BackoffStrategy::Fixed(Duration::from_secs(300)),
-            success_criteria: vec!["Plugin quarantined successfully".to_string()],
-        });
+                }],
+                max_attempts: 1,
+                backoff_strategy: BackoffStrategy::Fixed(Duration::from_secs(300)),
+                success_criteria: vec!["Plugin quarantined successfully".to_string()],
+            },
+        );
     }
 
     /// Setup callbacks between systems
@@ -261,10 +271,10 @@ impl IntegratedFaultManager {
 
         // Detect faults using FMEA system
         if let Some(usb_info) = &context.usb_info {
-            if let Some(fault) = self.fmea_system.detect_usb_fault(
-                usb_info.consecutive_failures,
-                usb_info.last_success,
-            ) {
+            if let Some(fault) = self
+                .fmea_system
+                .detect_usb_fault(usb_info.consecutive_failures, usb_info.last_success)
+            {
                 result.new_faults.push(fault);
             }
         }
@@ -278,9 +288,15 @@ impl IntegratedFaultManager {
         if let Some(temperature) = context.temperature {
             let current_thermal_fault = matches!(
                 self.safety_service.state(),
-                SafetyState::Faulted { fault: FaultType::ThermalLimit, .. }
+                SafetyState::Faulted {
+                    fault: FaultType::ThermalLimit,
+                    ..
+                }
             );
-            if let Some(fault) = self.fmea_system.detect_thermal_fault(temperature, current_thermal_fault) {
+            if let Some(fault) = self
+                .fmea_system
+                .detect_thermal_fault(temperature, current_thermal_fault)
+            {
                 result.new_faults.push(fault);
             }
         }
@@ -296,7 +312,8 @@ impl IntegratedFaultManager {
             start_time: self.system_start_time,
             current_torque: context.current_torque,
             temperature: context.temperature.unwrap_or(25.0),
-            plugin_execution_time: context.plugin_execution
+            plugin_execution_time: context
+                .plugin_execution
                 .as_ref()
                 .map(|pe| Duration::from_micros(pe.execution_time_us))
                 .unwrap_or_default(),
@@ -323,8 +340,9 @@ impl IntegratedFaultManager {
             self.fault_history.push(FaultEvent {
                 fault_type: *fault_type,
                 timestamp: Instant::now(),
-                context: format!("Torque: {:.1}Nm, Temp: {:.1}°C", 
-                    context.current_torque, 
+                context: format!(
+                    "Torque: {:.1}Nm, Temp: {:.1}°C",
+                    context.current_torque,
                     context.temperature.unwrap_or(0.0)
                 ),
                 recovery_attempted: false,
@@ -340,7 +358,10 @@ impl IntegratedFaultManager {
     /// Handle a detected fault
     fn handle_fault(&mut self, fault_type: FaultType, current_torque: f32) {
         // Handle fault through FMEA system
-        if let Err(e) = self.fmea_system.handle_fault(fault_type, current_torque, &mut self.safety_service) {
+        if let Err(e) =
+            self.fmea_system
+                .handle_fault(fault_type, current_torque, &mut self.safety_service)
+        {
             eprintln!("Error handling fault {:?}: {}", fault_type, e);
         }
 
@@ -353,9 +374,15 @@ impl IntegratedFaultManager {
             device_state: HashMap::new(), // Would be populated with actual device state
             telemetry_snapshot: None, // Would be populated with telemetry data
             plugin_states: HashMap::new(), // Would be populated with plugin states
-            recovery_actions: self.recovery_procedures
+            recovery_actions: self
+                .recovery_procedures
                 .get(&fault_type)
-                .map(|proc| proc.steps.iter().map(|step| step.description.clone()).collect())
+                .map(|proc| {
+                    proc.steps
+                        .iter()
+                        .map(|step| step.description.clone())
+                        .collect()
+                })
                 .unwrap_or_default(),
         };
 
@@ -368,7 +395,9 @@ impl IntegratedFaultManager {
         if matches!(self.safety_service.state(), SafetyState::Faulted { .. }) {
             // Attempt to clear fault if conditions are met
             if let Ok(()) = self.safety_service.clear_fault() {
-                result.recovery_actions.push("Safety fault cleared".to_string());
+                result
+                    .recovery_actions
+                    .push("Safety fault cleared".to_string());
             }
         }
 
@@ -377,7 +406,9 @@ impl IntegratedFaultManager {
         for (plugin_id, remaining_time) in quarantined_plugins {
             if remaining_time.is_zero() {
                 if let Ok(()) = self.watchdog_system.release_plugin_quarantine(&plugin_id) {
-                    result.recovery_actions.push(format!("Released plugin quarantine: {}", plugin_id));
+                    result
+                        .recovery_actions
+                        .push(format!("Released plugin quarantine: {}", plugin_id));
                 }
             }
         }
@@ -385,7 +416,9 @@ impl IntegratedFaultManager {
 
     /// Execute recovery procedure for a fault type
     pub fn execute_recovery_procedure(&mut self, fault_type: FaultType) -> Result<(), String> {
-        let procedure = self.recovery_procedures.get(&fault_type)
+        let procedure = self
+            .recovery_procedures
+            .get(&fault_type)
             .ok_or_else(|| format!("No recovery procedure for fault type: {:?}", fault_type))?
             .clone();
 
@@ -418,13 +451,19 @@ impl IntegratedFaultManager {
 
             // Apply backoff strategy if not the last attempt
             if attempt < procedure.max_attempts - 1 {
-                let backoff_duration = self.calculate_backoff_duration(&procedure.backoff_strategy, attempt);
+                let backoff_duration =
+                    self.calculate_backoff_duration(&procedure.backoff_strategy, attempt);
                 std::thread::sleep(backoff_duration);
             }
         }
 
         // Update fault history
-        if let Some(last_fault) = self.fault_history.iter_mut().rev().find(|f| f.fault_type == fault_type) {
+        if let Some(last_fault) = self
+            .fault_history
+            .iter_mut()
+            .rev()
+            .find(|f| f.fault_type == fault_type)
+        {
             last_fault.recovery_attempted = true;
             last_fault.recovery_successful = recovery_successful;
             last_fault.recovery_duration = Some(start_time.elapsed());
@@ -433,12 +472,19 @@ impl IntegratedFaultManager {
         if recovery_successful {
             Ok(())
         } else {
-            Err(format!("Recovery procedure failed for fault type: {:?}", fault_type))
+            Err(format!(
+                "Recovery procedure failed for fault type: {:?}",
+                fault_type
+            ))
         }
     }
 
     /// Execute a single recovery step
-    fn execute_recovery_step(&mut self, step: &RecoveryStep, _fault_type: FaultType) -> Result<(), String> {
+    fn execute_recovery_step(
+        &mut self,
+        step: &RecoveryStep,
+        _fault_type: FaultType,
+    ) -> Result<(), String> {
         match &step.action {
             RecoveryAction::Wait(duration) => {
                 std::thread::sleep(*duration);
@@ -446,7 +492,8 @@ impl IntegratedFaultManager {
             }
             RecoveryAction::ResetComponent(component) => {
                 // Reset component health status
-                self.watchdog_system.report_component_failure(*component, Some("Manual reset".to_string()));
+                self.watchdog_system
+                    .report_component_failure(*component, Some("Manual reset".to_string()));
                 self.watchdog_system.heartbeat(*component);
                 Ok(())
             }
@@ -463,9 +510,7 @@ impl IntegratedFaultManager {
                 self.fmea_system.force_stop_soft_stop();
                 Ok(())
             }
-            RecoveryAction::ClearFault => {
-                self.safety_service.clear_fault()
-            }
+            RecoveryAction::ClearFault => self.safety_service.clear_fault(),
             RecoveryAction::QuarantinePlugin(_plugin_id) => {
                 // Plugin quarantine is handled by watchdog system automatically
                 Ok(())
@@ -487,7 +532,10 @@ impl IntegratedFaultManager {
             BackoffStrategy::Fixed(duration) => *duration,
             BackoffStrategy::Exponential { base, max } => {
                 let exponential_duration = *base * 2_u32.pow(attempt);
-                std::cmp::min(Duration::from_millis(exponential_duration.as_millis() as u64), *max)
+                std::cmp::min(
+                    Duration::from_millis(exponential_duration.as_millis() as u64),
+                    *max,
+                )
             }
             BackoffStrategy::Linear { increment, max } => {
                 let linear_duration = *increment * (attempt + 1);
@@ -499,9 +547,15 @@ impl IntegratedFaultManager {
     /// Get system health summary
     pub fn get_health_summary(&self) -> SystemHealthSummary {
         let component_health = self.watchdog_system.get_health_summary();
-        let overall_status = if component_health.values().any(|&status| status == HealthStatus::Faulted) {
+        let overall_status = if component_health
+            .values()
+            .any(|&status| status == HealthStatus::Faulted)
+        {
             HealthStatus::Faulted
-        } else if component_health.values().any(|&status| status == HealthStatus::Degraded) {
+        } else if component_health
+            .values()
+            .any(|&status| status == HealthStatus::Degraded)
+        {
             HealthStatus::Degraded
         } else {
             HealthStatus::Healthy
@@ -512,13 +566,15 @@ impl IntegratedFaultManager {
             _ => Vec::new(),
         };
 
-        let quarantined_plugins = self.watchdog_system
+        let quarantined_plugins = self
+            .watchdog_system
             .get_quarantined_plugins()
             .into_iter()
             .map(|(plugin_id, _)| plugin_id)
             .collect();
 
-        let fault_count_24h = self.fault_history
+        let fault_count_24h = self
+            .fault_history
             .iter()
             .filter(|event| event.timestamp.elapsed() < Duration::from_secs(24 * 60 * 60))
             .count() as u32;
@@ -539,13 +595,15 @@ impl IntegratedFaultManager {
         let mut stats = HashMap::new();
 
         for event in &self.fault_history {
-            let stat = stats.entry(event.fault_type).or_insert_with(|| FaultStatistics {
-                fault_type: event.fault_type,
-                total_count: 0,
-                recovery_success_rate: 0.0,
-                average_recovery_time: Duration::ZERO,
-                last_occurrence: None,
-            });
+            let stat = stats
+                .entry(event.fault_type)
+                .or_insert_with(|| FaultStatistics {
+                    fault_type: event.fault_type,
+                    total_count: 0,
+                    recovery_success_rate: 0.0,
+                    average_recovery_time: Duration::ZERO,
+                    last_occurrence: None,
+                });
 
             stat.total_count += 1;
             stat.last_occurrence = Some(event.timestamp);
@@ -553,13 +611,17 @@ impl IntegratedFaultManager {
 
         // Calculate recovery statistics
         for (fault_type, stat) in stats.iter_mut() {
-            let fault_events: Vec<_> = self.fault_history
+            let fault_events: Vec<_> = self
+                .fault_history
                 .iter()
                 .filter(|e| e.fault_type == *fault_type)
                 .collect();
 
             let recovery_attempts = fault_events.iter().filter(|e| e.recovery_attempted).count();
-            let recovery_successes = fault_events.iter().filter(|e| e.recovery_successful).count();
+            let recovery_successes = fault_events
+                .iter()
+                .filter(|e| e.recovery_successful)
+                .count();
 
             if recovery_attempts > 0 {
                 stat.recovery_success_rate = recovery_successes as f64 / recovery_attempts as f64;
@@ -616,7 +678,8 @@ impl IntegratedFaultManager {
     /// Clear old blackbox markers
     pub fn clear_old_blackbox_markers(&mut self, older_than: Duration) {
         let cutoff = Instant::now() - older_than;
-        self.blackbox_markers.retain(|marker| marker.timestamp > cutoff);
+        self.blackbox_markers
+            .retain(|marker| marker.timestamp > cutoff);
     }
 }
 
@@ -772,7 +835,7 @@ mod tests {
     #[test]
     fn test_integrated_fault_manager_creation() {
         let manager = IntegratedFaultManager::new(5.0, 25.0, WatchdogConfig::default());
-        
+
         let health = manager.get_health_summary();
         assert_eq!(health.overall_status, HealthStatus::Unknown); // Initial state
         assert!(health.active_faults.is_empty());
@@ -782,19 +845,19 @@ mod tests {
     #[test]
     fn test_fault_detection_and_handling() {
         let mut manager = IntegratedFaultManager::new(5.0, 25.0, WatchdogConfig::default());
-        
+
         let mut context = FaultManagerContext::default();
         context.current_torque = 10.0;
         context.encoder_value = Some(f32::NAN); // Trigger encoder fault
-        
+
         let result = manager.update(&context);
-        
+
         // Should detect encoder fault
         assert!(result.new_faults.contains(&FaultType::EncoderNaN));
-        
+
         // Should have created blackbox marker
         assert!(!manager.get_blackbox_markers().is_empty());
-        
+
         // Should have fault in history
         let stats = manager.get_fault_statistics();
         assert!(stats.contains_key(&FaultType::EncoderNaN));
@@ -803,14 +866,14 @@ mod tests {
     #[test]
     fn test_recovery_procedure_execution() {
         let mut manager = IntegratedFaultManager::new(5.0, 25.0, WatchdogConfig::default());
-        
+
         // Trigger a fault first
         manager.safety_service.report_fault(FaultType::UsbStall);
-        
+
         // Execute recovery procedure
         let result = manager.execute_recovery_procedure(FaultType::UsbStall);
         assert!(result.is_ok());
-        
+
         // Check that recovery was recorded in history
         let stats = manager.get_fault_statistics();
         if let Some(usb_stats) = stats.get(&FaultType::UsbStall) {
@@ -821,13 +884,13 @@ mod tests {
     #[test]
     fn test_plugin_quarantine_integration() {
         let mut manager = IntegratedFaultManager::new(5.0, 25.0, WatchdogConfig::default());
-        
+
         let mut context = FaultManagerContext::default();
         context.plugin_execution = Some(PluginExecution {
             plugin_id: "test_plugin".to_string(),
             execution_time_us: 200, // Over default 100us threshold
         });
-        
+
         // Trigger multiple plugin overruns
         for _ in 0..10 {
             let result = manager.update(&context);
@@ -835,22 +898,26 @@ mod tests {
                 break;
             }
         }
-        
+
         let health = manager.get_health_summary();
-        assert!(health.quarantined_plugins.contains(&"test_plugin".to_string()));
+        assert!(
+            health
+                .quarantined_plugins
+                .contains(&"test_plugin".to_string())
+        );
     }
 
     #[test]
     fn test_soft_stop_integration() {
         let mut manager = IntegratedFaultManager::new(5.0, 25.0, WatchdogConfig::default());
-        
+
         // Trigger thermal fault
         let mut context = FaultManagerContext::default();
         context.current_torque = 15.0;
         context.temperature = Some(85.0); // Over thermal threshold
-        
+
         let result = manager.update(&context);
-        
+
         // Should trigger soft stop
         assert!(result.soft_stop_active);
         assert!(result.current_torque_multiplier < 1.0);
@@ -859,26 +926,36 @@ mod tests {
     #[test]
     fn test_health_summary() {
         let mut manager = IntegratedFaultManager::new(5.0, 25.0, WatchdogConfig::default());
-        
+
         // Send some heartbeats
         let mut context = FaultManagerContext::default();
-        context.component_heartbeats.insert(SystemComponent::RtThread, true);
-        context.component_heartbeats.insert(SystemComponent::HidCommunication, true);
-        
+        context
+            .component_heartbeats
+            .insert(SystemComponent::RtThread, true);
+        context
+            .component_heartbeats
+            .insert(SystemComponent::HidCommunication, true);
+
         manager.update(&context);
-        
+
         let health = manager.get_health_summary();
-        assert_eq!(health.component_health[&SystemComponent::RtThread], HealthStatus::Healthy);
-        assert_eq!(health.component_health[&SystemComponent::HidCommunication], HealthStatus::Healthy);
+        assert_eq!(
+            health.component_health[&SystemComponent::RtThread],
+            HealthStatus::Healthy
+        );
+        assert_eq!(
+            health.component_health[&SystemComponent::HidCommunication],
+            HealthStatus::Healthy
+        );
     }
 
     #[test]
     fn test_fault_injection_integration() {
         let mut manager = IntegratedFaultManager::new(5.0, 25.0, WatchdogConfig::default());
-        
+
         // Enable fault injection
         manager.enable_fault_injection(true);
-        
+
         // Add a manual test scenario
         let scenario = crate::safety::fault_injection::FaultInjectionScenario {
             name: "test_scenario".to_string(),
@@ -888,13 +965,19 @@ mod tests {
             recovery_condition: None,
             enabled: true,
         };
-        
-        manager.fault_injection_mut().add_scenario(scenario).unwrap();
-        manager.fault_injection_mut().trigger_scenario("test_scenario").unwrap();
-        
+
+        manager
+            .fault_injection_mut()
+            .add_scenario(scenario)
+            .unwrap();
+        manager
+            .fault_injection_mut()
+            .trigger_scenario("test_scenario")
+            .unwrap();
+
         let context = FaultManagerContext::default();
         let result = manager.update(&context);
-        
+
         // Should detect injected fault
         assert!(result.new_faults.contains(&FaultType::UsbStall));
     }
@@ -902,17 +985,17 @@ mod tests {
     #[test]
     fn test_blackbox_marker_cleanup() {
         let mut manager = IntegratedFaultManager::new(5.0, 25.0, WatchdogConfig::default());
-        
+
         // Create some fault markers
         manager.handle_fault(FaultType::UsbStall, 10.0);
         manager.handle_fault(FaultType::ThermalLimit, 5.0);
-        
+
         assert_eq!(manager.get_blackbox_markers().len(), 2);
-        
+
         // Clear old markers (none should be cleared since they're recent)
         manager.clear_old_blackbox_markers(Duration::from_secs(1));
         assert_eq!(manager.get_blackbox_markers().len(), 2);
-        
+
         // Clear all markers
         manager.clear_old_blackbox_markers(Duration::from_millis(1));
         assert_eq!(manager.get_blackbox_markers().len(), 0);

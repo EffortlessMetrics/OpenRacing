@@ -1,8 +1,8 @@
 //! Watchdog systems for monitoring plugin execution and system health
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use serde::{Deserialize, Serialize};
 
 use super::FaultType;
 
@@ -150,7 +150,7 @@ impl HealthCheck {
     pub fn report_failure(&mut self, error: Option<String>) {
         self.consecutive_failures += 1;
         self.last_error = error;
-        
+
         // Determine status based on failure count
         self.status = if self.consecutive_failures >= 5 {
             HealthStatus::Faulted
@@ -192,7 +192,7 @@ impl WatchdogSystem {
     /// Create new watchdog system
     pub fn new(config: WatchdogConfig) -> Self {
         let mut health_checks = HashMap::new();
-        
+
         // Initialize health checks for all system components
         for component in [
             SystemComponent::RtThread,
@@ -216,10 +216,14 @@ impl WatchdogSystem {
     }
 
     /// Record plugin execution
-    pub fn record_plugin_execution(&mut self, plugin_id: &str, execution_time_us: u64) -> Option<FaultType> {
+    pub fn record_plugin_execution(
+        &mut self,
+        plugin_id: &str,
+        execution_time_us: u64,
+    ) -> Option<FaultType> {
         let should_quarantine = {
             let stats = self.plugin_stats.entry(plugin_id.to_string()).or_default();
-            
+
             stats.total_executions += 1;
             stats.total_execution_time_us += execution_time_us;
             stats.last_execution_time_us = execution_time_us;
@@ -231,7 +235,8 @@ impl WatchdogSystem {
                 stats.consecutive_timeouts += 1;
 
                 // Check if plugin should be quarantined
-                self.quarantine_policy_enabled && stats.consecutive_timeouts >= self.config.plugin_max_timeouts
+                self.quarantine_policy_enabled
+                    && stats.consecutive_timeouts >= self.config.plugin_max_timeouts
             } else {
                 // Reset consecutive timeouts on successful execution
                 stats.consecutive_timeouts = 0;
@@ -256,7 +261,7 @@ impl WatchdogSystem {
         if let Some(stats) = self.plugin_stats.get_mut(plugin_id) {
             stats.quarantined_until = Some(Instant::now() + self.config.plugin_quarantine_duration);
             stats.quarantine_count += 1;
-            
+
             // Notify fault callbacks
             for callback in &self.fault_callbacks {
                 callback(FaultType::PluginOverrun, plugin_id);
@@ -302,7 +307,9 @@ impl WatchdogSystem {
         self.plugin_stats
             .iter()
             .filter_map(|(plugin_id, stats)| {
-                stats.quarantine_remaining().map(|remaining| (plugin_id.clone(), remaining))
+                stats
+                    .quarantine_remaining()
+                    .map(|remaining| (plugin_id.clone(), remaining))
             })
             .collect()
     }
@@ -318,7 +325,7 @@ impl WatchdogSystem {
     pub fn report_component_failure(&mut self, component: SystemComponent, error: Option<String>) {
         if let Some(health_check) = self.health_checks.get_mut(&component) {
             health_check.report_failure(error);
-            
+
             // Trigger fault callback if component is faulted
             if health_check.status == HealthStatus::Faulted {
                 let fault_type = match component {
@@ -372,14 +379,20 @@ impl WatchdogSystem {
         }
 
         // Check HID communication timeout
-        if let Some(health_check) = self.health_checks.get_mut(&SystemComponent::HidCommunication) {
+        if let Some(health_check) = self
+            .health_checks
+            .get_mut(&SystemComponent::HidCommunication)
+        {
             if health_check.check_timeout(Duration::from_millis(self.config.hid_timeout_ms)) {
                 faults.push(FaultType::UsbStall);
             }
         }
 
         // Check telemetry timeout
-        if let Some(health_check) = self.health_checks.get_mut(&SystemComponent::TelemetryAdapter) {
+        if let Some(health_check) = self
+            .health_checks
+            .get_mut(&SystemComponent::TelemetryAdapter)
+        {
             if health_check.check_timeout(Duration::from_millis(self.config.telemetry_timeout_ms)) {
                 // Telemetry timeout is not critical, just log it
             }
@@ -446,14 +459,29 @@ impl WatchdogSystem {
             .iter()
             .map(|(plugin_id, stats)| {
                 let mut metrics = HashMap::new();
-                metrics.insert("total_executions".to_string(), stats.total_executions as f64);
-                metrics.insert("average_execution_time_us".to_string(), stats.average_execution_time_us());
+                metrics.insert(
+                    "total_executions".to_string(),
+                    stats.total_executions as f64,
+                );
+                metrics.insert(
+                    "average_execution_time_us".to_string(),
+                    stats.average_execution_time_us(),
+                );
                 metrics.insert("timeout_rate_percent".to_string(), stats.timeout_rate());
-                metrics.insert("quarantine_count".to_string(), stats.quarantine_count as f64);
-                metrics.insert("consecutive_timeouts".to_string(), stats.consecutive_timeouts as f64);
-                
+                metrics.insert(
+                    "quarantine_count".to_string(),
+                    stats.quarantine_count as f64,
+                );
+                metrics.insert(
+                    "consecutive_timeouts".to_string(),
+                    stats.consecutive_timeouts as f64,
+                );
+
                 if let Some(remaining) = stats.quarantine_remaining() {
-                    metrics.insert("quarantine_remaining_ms".to_string(), remaining.as_millis() as f64);
+                    metrics.insert(
+                        "quarantine_remaining_ms".to_string(),
+                        remaining.as_millis() as f64,
+                    );
                 }
 
                 (plugin_id.clone(), metrics)
@@ -498,10 +526,14 @@ mod tests {
     #[test]
     fn test_plugin_execution_tracking() {
         let mut watchdog = WatchdogSystem::default();
-        
+
         // Normal execution
-        assert!(watchdog.record_plugin_execution("test_plugin", 50).is_none());
-        
+        assert!(
+            watchdog
+                .record_plugin_execution("test_plugin", 50)
+                .is_none()
+        );
+
         let stats = watchdog.get_plugin_stats("test_plugin").unwrap();
         assert_eq!(stats.total_executions, 1);
         assert_eq!(stats.last_execution_time_us, 50);
@@ -511,10 +543,14 @@ mod tests {
     #[test]
     fn test_plugin_timeout_detection() {
         let mut watchdog = WatchdogSystem::default();
-        
+
         // Timeout execution
-        assert!(watchdog.record_plugin_execution("test_plugin", 150).is_none()); // First timeout
-        
+        assert!(
+            watchdog
+                .record_plugin_execution("test_plugin", 150)
+                .is_none()
+        ); // First timeout
+
         let stats = watchdog.get_plugin_stats("test_plugin").unwrap();
         assert_eq!(stats.timeout_count, 1);
         assert_eq!(stats.consecutive_timeouts, 1);
@@ -523,7 +559,7 @@ mod tests {
     #[test]
     fn test_plugin_quarantine() {
         let mut watchdog = WatchdogSystem::default();
-        
+
         // Trigger multiple timeouts
         for i in 0..5 {
             let result = watchdog.record_plugin_execution("test_plugin", 150);
@@ -531,9 +567,9 @@ mod tests {
                 assert_eq!(result, Some(FaultType::PluginOverrun));
             }
         }
-        
+
         assert!(watchdog.is_plugin_quarantined("test_plugin"));
-        
+
         let quarantined = watchdog.get_quarantined_plugins();
         assert_eq!(quarantined.len(), 1);
         assert_eq!(quarantined[0].0, "test_plugin");
@@ -542,14 +578,14 @@ mod tests {
     #[test]
     fn test_plugin_quarantine_release() {
         let mut watchdog = WatchdogSystem::default();
-        
+
         // Quarantine plugin
         for _ in 0..5 {
             watchdog.record_plugin_execution("test_plugin", 150);
         }
-        
+
         assert!(watchdog.is_plugin_quarantined("test_plugin"));
-        
+
         // Release quarantine
         watchdog.release_plugin_quarantine("test_plugin").unwrap();
         assert!(!watchdog.is_plugin_quarantined("test_plugin"));
@@ -558,19 +594,26 @@ mod tests {
     #[test]
     fn test_system_component_health() {
         let mut watchdog = WatchdogSystem::default();
-        
+
         // Initial state should be unknown
-        let health = watchdog.get_component_health(SystemComponent::RtThread).unwrap();
+        let health = watchdog
+            .get_component_health(SystemComponent::RtThread)
+            .unwrap();
         assert_eq!(health.status, HealthStatus::Unknown);
-        
+
         // Heartbeat should make it healthy
         watchdog.heartbeat(SystemComponent::RtThread);
-        let health = watchdog.get_component_health(SystemComponent::RtThread).unwrap();
+        let health = watchdog
+            .get_component_health(SystemComponent::RtThread)
+            .unwrap();
         assert_eq!(health.status, HealthStatus::Healthy);
-        
+
         // Report failure
-        watchdog.report_component_failure(SystemComponent::RtThread, Some("Test error".to_string()));
-        let health = watchdog.get_component_health(SystemComponent::RtThread).unwrap();
+        watchdog
+            .report_component_failure(SystemComponent::RtThread, Some("Test error".to_string()));
+        let health = watchdog
+            .get_component_health(SystemComponent::RtThread)
+            .unwrap();
         assert_eq!(health.consecutive_failures, 1);
         assert_eq!(health.last_error, Some("Test error".to_string()));
     }
@@ -582,30 +625,32 @@ mod tests {
             ..Default::default()
         };
         let mut watchdog = WatchdogSystem::new(config);
-        
+
         // Send heartbeat
         watchdog.heartbeat(SystemComponent::RtThread);
-        
+
         // Wait for timeout
         std::thread::sleep(Duration::from_millis(15));
-        
+
         // Perform health check
         let faults = watchdog.perform_health_checks();
         assert!(faults.contains(&FaultType::TimingViolation));
-        
-        let health = watchdog.get_component_health(SystemComponent::RtThread).unwrap();
+
+        let health = watchdog
+            .get_component_health(SystemComponent::RtThread)
+            .unwrap();
         assert_eq!(health.status, HealthStatus::Degraded);
     }
 
     #[test]
     fn test_plugin_statistics() {
         let mut watchdog = WatchdogSystem::default();
-        
+
         // Record various executions
         watchdog.record_plugin_execution("test_plugin", 50);
         watchdog.record_plugin_execution("test_plugin", 75);
         watchdog.record_plugin_execution("test_plugin", 150); // Timeout
-        
+
         let stats = watchdog.get_plugin_stats("test_plugin").unwrap();
         assert_eq!(stats.total_executions, 3);
         assert_eq!(stats.timeout_count, 1);
@@ -616,14 +661,17 @@ mod tests {
     #[test]
     fn test_health_summary() {
         let mut watchdog = WatchdogSystem::default();
-        
+
         watchdog.heartbeat(SystemComponent::RtThread);
         watchdog.report_component_failure(SystemComponent::HidCommunication, None);
-        
+
         let summary = watchdog.get_health_summary();
         assert_eq!(summary[&SystemComponent::RtThread], HealthStatus::Healthy);
-        assert_eq!(summary[&SystemComponent::HidCommunication], HealthStatus::Healthy); // Only 1 failure
-        
+        assert_eq!(
+            summary[&SystemComponent::HidCommunication],
+            HealthStatus::Healthy
+        ); // Only 1 failure
+
         assert!(!watchdog.has_faulted_components());
     }
 
@@ -631,13 +679,13 @@ mod tests {
     fn test_fault_callback() {
         let mut watchdog = WatchdogSystem::default();
         let mut _callback_called = false;
-        
+
         // This test would need Arc<Mutex<bool>> in real code for the callback
         // For now, just test that the callback mechanism exists
         watchdog.add_fault_callback(|fault_type, _component| {
             assert_eq!(fault_type, FaultType::PluginOverrun);
         });
-        
+
         // Trigger plugin quarantine
         for _ in 0..5 {
             watchdog.record_plugin_execution("test_plugin", 150);
@@ -647,17 +695,17 @@ mod tests {
     #[test]
     fn test_performance_metrics() {
         let mut watchdog = WatchdogSystem::default();
-        
+
         watchdog.record_plugin_execution("plugin1", 50);
         watchdog.record_plugin_execution("plugin1", 150); // Timeout
         watchdog.record_plugin_execution("plugin2", 75);
-        
+
         let metrics = watchdog.get_plugin_performance_metrics();
-        
+
         assert_eq!(metrics.len(), 2);
         assert!(metrics.contains_key("plugin1"));
         assert!(metrics.contains_key("plugin2"));
-        
+
         let plugin1_metrics = &metrics["plugin1"];
         assert_eq!(plugin1_metrics["total_executions"], 2.0);
         assert_eq!(plugin1_metrics["timeout_rate_percent"], 50.0);
@@ -666,20 +714,24 @@ mod tests {
     #[test]
     fn test_quarantine_policy_toggle() {
         let mut watchdog = WatchdogSystem::default();
-        
+
         // Disable quarantine policy
         watchdog.set_quarantine_policy_enabled(false);
-        
+
         // Trigger timeouts - should not quarantine
         for _ in 0..10 {
-            assert!(watchdog.record_plugin_execution("test_plugin", 150).is_none());
+            assert!(
+                watchdog
+                    .record_plugin_execution("test_plugin", 150)
+                    .is_none()
+            );
         }
-        
+
         assert!(!watchdog.is_plugin_quarantined("test_plugin"));
-        
+
         // Re-enable quarantine policy
         watchdog.set_quarantine_policy_enabled(true);
-        
+
         // Should quarantine on next timeout burst
         for i in 0..5 {
             let result = watchdog.record_plugin_execution("test_plugin2", 150);
@@ -687,7 +739,7 @@ mod tests {
                 assert_eq!(result, Some(FaultType::PluginOverrun));
             }
         }
-        
+
         assert!(watchdog.is_plugin_quarantined("test_plugin2"));
     }
 }

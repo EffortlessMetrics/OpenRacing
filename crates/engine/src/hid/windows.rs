@@ -6,23 +6,22 @@
 //! - Process power throttling disabled
 //! - Guidance for USB selective suspend
 
-use crate::ports::{HidPort, HidDevice, DeviceHealthStatus};
-use crate::{TelemetryData, DeviceInfo, DeviceEvent, RTResult};
-use racing_wheel_schemas::prelude::*;
-use super::{HidDeviceInfo, TorqueCommand, DeviceTelemetryReport};
-use tokio::sync::mpsc;
+use super::{DeviceTelemetryReport, HidDeviceInfo, TorqueCommand};
+use crate::ports::{DeviceHealthStatus, HidDevice, HidPort};
+use crate::{DeviceEvent, DeviceInfo, RTResult, TelemetryData};
 use async_trait::async_trait;
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}, OnceLock};
-use parking_lot::{RwLock, Mutex};
+use parking_lot::{Mutex, RwLock};
+use racing_wheel_schemas::prelude::*;
 use std::collections::HashMap;
-use std::time::{Instant, Duration};
-use tracing::{debug, warn, info};
-
-use windows::{
-    core::*,
-    Win32::Foundation::*,
-    Win32::System::Threading::*,
+use std::sync::{
+    Arc, OnceLock,
+    atomic::{AtomicBool, Ordering},
 };
+use std::time::{Duration, Instant};
+use tokio::sync::mpsc;
+use tracing::{debug, info, warn};
+
+use windows::{Win32::Foundation::*, Win32::System::Threading::*, core::*};
 
 /// Thread-safe cached device info accessor using OnceLock
 fn get_cached_device_info(device_info: &HidDeviceInfo) -> &'static DeviceInfo {
@@ -49,9 +48,11 @@ impl WindowsHidPort {
     }
 
     /// Enumerate HID devices using Windows HID API
-    fn enumerate_devices(&self) -> std::result::Result<Vec<HidDeviceInfo>, Box<dyn std::error::Error>> {
+    fn enumerate_devices(
+        &self,
+    ) -> std::result::Result<Vec<HidDeviceInfo>, Box<dyn std::error::Error>> {
         let mut devices = Vec::new();
-        
+
         // Known racing wheel vendor/product IDs
         let racing_wheel_ids = [
             (0x046D, 0xC294), // Logitech G27
@@ -85,7 +86,7 @@ impl WindowsHidPort {
                 .parse::<DeviceId>()
                 .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
             let path = format!("HID_VID_{:04X}_PID_{:04X}_device-path", vid, pid);
-            
+
             // Create mock capabilities for demonstration
             let capabilities = DeviceCapabilities {
                 supports_pid: true,
@@ -123,53 +124,61 @@ impl WindowsHidPort {
 
 #[async_trait]
 impl HidPort for WindowsHidPort {
-    async fn list_devices(&self) -> std::result::Result<Vec<DeviceInfo>, Box<dyn std::error::Error>> {
+    async fn list_devices(
+        &self,
+    ) -> std::result::Result<Vec<DeviceInfo>, Box<dyn std::error::Error>> {
         let device_infos = self.enumerate_devices()?;
         let mut devices = self.devices.write();
         devices.clear();
-        
+
         let mut result = Vec::new();
         for device_info in device_infos {
             devices.insert(device_info.device_id.clone(), device_info.clone());
             result.push(device_info.to_device_info());
         }
-        
+
         Ok(result)
     }
 
-    async fn open_device(&self, id: &DeviceId) -> std::result::Result<Box<dyn HidDevice>, Box<dyn std::error::Error>> {
+    async fn open_device(
+        &self,
+        id: &DeviceId,
+    ) -> std::result::Result<Box<dyn HidDevice>, Box<dyn std::error::Error>> {
         let devices = self.devices.read();
-        let device_info = devices.get(id)
-            .ok_or_else(|| Box::new(std::io::Error::new(
-                std::io::ErrorKind::NotFound, 
-                format!("Device not found: {}", id)
-            )) as Box<dyn std::error::Error>)?;
+        let device_info = devices.get(id).ok_or_else(|| {
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("Device not found: {}", id),
+            )) as Box<dyn std::error::Error>
+        })?;
 
         let device = WindowsHidDevice::new(device_info.clone())?;
         Ok(Box::new(device))
     }
 
-    async fn monitor_devices(&self) -> std::result::Result<mpsc::Receiver<DeviceEvent>, Box<dyn std::error::Error>> {
+    async fn monitor_devices(
+        &self,
+    ) -> std::result::Result<mpsc::Receiver<DeviceEvent>, Box<dyn std::error::Error>> {
         let (sender, receiver) = mpsc::channel(100);
-        
+
         // Start device monitoring thread
         let devices = self.devices.clone();
         let monitoring = self.monitoring.clone();
         let sender_clone = sender.clone();
-        
+
         monitoring.store(true, Ordering::Relaxed);
-        
+
         tokio::spawn(async move {
             let mut last_devices: HashMap<DeviceId, HidDeviceInfo> = HashMap::new();
-            
+
             while monitoring.load(Ordering::Relaxed) {
                 // Check for device changes every 500ms
                 tokio::time::sleep(Duration::from_millis(500)).await;
-                
+
                 // In a real implementation, this would use Windows device notification APIs
                 // For now, we'll simulate by checking the device list
                 let current_devices = devices.read().clone();
-                
+
                 // Check for new devices
                 for (id, info) in &current_devices {
                     if !last_devices.contains_key(id) {
@@ -179,7 +188,7 @@ impl HidPort for WindowsHidPort {
                         }
                     }
                 }
-                
+
                 // Check for removed devices
                 for (id, info) in &last_devices {
                     if !current_devices.contains_key(id) {
@@ -189,11 +198,11 @@ impl HidPort for WindowsHidPort {
                         }
                     }
                 }
-                
+
                 last_devices = current_devices;
             }
         });
-        
+
         Ok(receiver)
     }
 
@@ -215,7 +224,9 @@ pub struct WindowsHidDevice {
 }
 
 impl WindowsHidDevice {
-    pub fn new(device_info: HidDeviceInfo) -> std::result::Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(
+        device_info: HidDeviceInfo,
+    ) -> std::result::Result<Self, Box<dyn std::error::Error>> {
         let health_status = DeviceHealthStatus {
             temperature_c: 25,
             fault_flags: 0,
@@ -238,7 +249,7 @@ impl WindowsHidDevice {
     fn write_overlapped(&mut self, data: &[u8]) -> RTResult {
         // In a real implementation, this would use WriteFile with OVERLAPPED
         // and avoid blocking the RT thread
-        
+
         let handle = self.write_handle.lock();
         if handle.is_none() {
             return Err(crate::RTError::DeviceDisconnected);
@@ -252,7 +263,7 @@ impl WindowsHidDevice {
         // 4. Use GetOverlappedResult in a separate thread to check completion
 
         debug!("Writing {} bytes to HID device (overlapped)", data.len());
-        
+
         // Update health status
         {
             let mut health = self.health_status.write();
@@ -338,11 +349,11 @@ pub fn apply_windows_rt_setup() -> std::result::Result<(), Box<dyn std::error::E
     unsafe {
         let task_name = w!("Games");
         let mut task_index = 0u32;
-        
+
         let handle = AvSetMmThreadCharacteristicsW(task_name, &mut task_index);
         if let Ok(handle) = handle {
             if handle.is_invalid() {
-            warn!("Failed to join MMCSS Games category");
+                warn!("Failed to join MMCSS Games category");
             } else {
                 info!("Joined MMCSS Games category with task index {}", task_index);
             }
@@ -455,10 +466,10 @@ mod tests {
     async fn test_device_enumeration() {
         let port = WindowsHidPort::new().unwrap();
         let devices = port.list_devices().await.unwrap();
-        
+
         // Should find some mock devices
         assert!(!devices.is_empty());
-        
+
         for device in &devices {
             assert!(!device.name.is_empty());
             assert!(device.vendor_id != 0);
@@ -470,7 +481,7 @@ mod tests {
     async fn test_device_opening() {
         let port = WindowsHidPort::new().unwrap();
         let devices = port.list_devices().await.unwrap();
-        
+
         if let Some(device_info) = devices.first() {
             let device = port.open_device(&device_info.id).await.unwrap();
             assert!(device.is_connected());

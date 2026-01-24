@@ -5,22 +5,22 @@
 
 pub mod blackbox;
 pub mod replay;
-pub mod support_bundle;
 pub mod streams;
+pub mod support_bundle;
 
 mod bincode_compat;
 
-pub use blackbox::{BlackboxRecorder, BlackboxConfig, RecordingStats};
+pub use blackbox::{BlackboxConfig, BlackboxRecorder, RecordingStats};
 pub use replay::{BlackboxReplay, ReplayConfig, ReplayResult};
-pub use support_bundle::{SupportBundle, SupportBundleConfig};
 pub use streams::{StreamA, StreamB, StreamC, StreamType};
+pub use support_bundle::{SupportBundle, SupportBundleConfig};
 
-use crate::rt::Frame;
-use crate::safety::{SafetyState, FaultType};
 use crate::ports::NormalizedTelemetry;
+use crate::rt::Frame;
+use crate::safety::{FaultType, SafetyState};
 use racing_wheel_schemas::prelude::*;
-use std::time::{Instant, SystemTime};
 use serde::{Deserialize, Serialize};
+use std::time::{Instant, SystemTime};
 
 /// Health event for stream C
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -163,7 +163,13 @@ impl DiagnosticService {
     }
 
     /// Record a frame (Stream A - 1kHz)
-    pub fn record_frame(&mut self, frame: &Frame, node_outputs: &[f32], safety_state: &SafetyState, processing_time_us: u64) -> Result<(), String> {
+    pub fn record_frame(
+        &mut self,
+        frame: &Frame,
+        node_outputs: &[f32],
+        safety_state: &SafetyState,
+        processing_time_us: u64,
+    ) -> Result<(), String> {
         if let Some(ref mut recorder) = self.recorder {
             recorder.record_frame(frame, node_outputs, safety_state, processing_time_us)?;
         }
@@ -261,7 +267,7 @@ mod tests {
             max_recording_duration_s: 10,
             recording_dir: temp_dir.path().to_path_buf(),
             max_file_size_bytes: 1024 * 1024, // 1MB
-            compression_level: 1, // Fast compression for tests
+            compression_level: 1,             // Fast compression for tests
             enable_stream_a: true,
             enable_stream_b: true,
             enable_stream_c: true,

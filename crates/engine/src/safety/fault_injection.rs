@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 // Removed unused Arc and Mutex imports
-use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
+use std::time::{Duration, Instant};
 
 use super::FaultType;
 use crate::rt::Frame;
@@ -87,28 +87,18 @@ impl InjectionState {
         }
 
         let should_trigger = match &self.scenario.trigger_condition {
-            TriggerCondition::TimeDelay(delay) => {
-                context.start_time.elapsed() >= *delay
-            }
-            TriggerCondition::TickCount(count) => {
-                self.tick_count >= *count
-            }
+            TriggerCondition::TimeDelay(delay) => context.start_time.elapsed() >= *delay,
+            TriggerCondition::TickCount(count) => self.tick_count >= *count,
             TriggerCondition::TorqueThreshold(threshold) => {
                 context.current_torque.abs() > *threshold
             }
-            TriggerCondition::TemperatureThreshold(threshold) => {
-                context.temperature > *threshold
-            }
+            TriggerCondition::TemperatureThreshold(threshold) => context.temperature > *threshold,
             TriggerCondition::PluginTimeoutThreshold(threshold) => {
                 context.plugin_execution_time > *threshold
             }
             TriggerCondition::Manual => false, // Only triggered via API
-            TriggerCondition::RandomProbability(prob) => {
-                rand::random::<f64>() < *prob
-            }
-            TriggerCondition::UsbOperationCount(count) => {
-                self.usb_operation_count >= *count
-            }
+            TriggerCondition::RandomProbability(prob) => rand::random::<f64>() < *prob,
+            TriggerCondition::UsbOperationCount(count) => self.usb_operation_count >= *count,
         };
 
         if should_trigger {
@@ -130,9 +120,7 @@ impl InjectionState {
                 RecoveryCondition::TimeDelay(delay) => {
                     self.trigger_time.map_or(false, |t| t.elapsed() >= *delay)
                 }
-                RecoveryCondition::TickCount(count) => {
-                    self.tick_count >= *count
-                }
+                RecoveryCondition::TickCount(count) => self.tick_count >= *count,
                 RecoveryCondition::TorqueBelowThreshold(threshold) => {
                     context.current_torque.abs() < *threshold
                 }
@@ -265,7 +253,10 @@ impl FaultInjectionSystem {
 
     /// Get all scenarios
     pub fn get_all_scenarios(&self) -> Vec<&FaultInjectionScenario> {
-        self.scenarios.values().map(|state| &state.scenario).collect()
+        self.scenarios
+            .values()
+            .map(|state| &state.scenario)
+            .collect()
     }
 
     /// Manually trigger a scenario
@@ -274,7 +265,9 @@ impl FaultInjectionSystem {
             return Err("Fault injection is disabled".to_string());
         }
 
-        let state = self.scenarios.get_mut(name)
+        let state = self
+            .scenarios
+            .get_mut(name)
             .ok_or_else(|| format!("Scenario '{}' not found", name))?;
 
         if state.triggered {
@@ -288,7 +281,8 @@ impl FaultInjectionSystem {
 
         state.triggered = true;
         state.trigger_time = Some(Instant::now());
-        self.active_faults.insert(state.scenario.fault_type, name.to_string());
+        self.active_faults
+            .insert(state.scenario.fault_type, name.to_string());
 
         // Notify callbacks
         for callback in &self.fault_callbacks {
@@ -300,7 +294,9 @@ impl FaultInjectionSystem {
 
     /// Manually recover a scenario
     pub fn recover_scenario(&mut self, name: &str) -> Result<(), String> {
-        let state = self.scenarios.get_mut(name)
+        let state = self
+            .scenarios
+            .get_mut(name)
             .ok_or_else(|| format!("Scenario '{}' not found", name))?;
 
         if !state.triggered {
@@ -314,7 +310,10 @@ impl FaultInjectionSystem {
         // Check if manual recovery is allowed
         if let Some(recovery_condition) = &state.scenario.recovery_condition {
             if !matches!(recovery_condition, RecoveryCondition::Manual) {
-                return Err(format!("Scenario '{}' does not support manual recovery", name));
+                return Err(format!(
+                    "Scenario '{}' does not support manual recovery",
+                    name
+                ));
             }
         }
 
@@ -346,7 +345,8 @@ impl FaultInjectionSystem {
 
             // Check for new triggers
             if state.check_trigger(context) {
-                self.active_faults.insert(state.scenario.fault_type, name.clone());
+                self.active_faults
+                    .insert(state.scenario.fault_type, name.clone());
                 new_faults.push(state.scenario.fault_type);
 
                 // Notify callbacks
@@ -451,7 +451,9 @@ impl FaultInjectionSystem {
 
     /// Reset specific scenario
     pub fn reset_scenario(&mut self, name: &str) -> Result<(), String> {
-        let state = self.scenarios.get_mut(name)
+        let state = self
+            .scenarios
+            .get_mut(name)
             .ok_or_else(|| format!("Scenario '{}' not found", name))?;
 
         if state.triggered && !state.recovered {
@@ -592,6 +594,7 @@ impl Default for FaultInjectionSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Arc, Mutex};
 
     #[test]
     fn test_fault_injection_system_creation() {
@@ -604,7 +607,7 @@ mod tests {
     #[test]
     fn test_add_remove_scenario() {
         let mut system = FaultInjectionSystem::new();
-        
+
         let scenario = FaultInjectionScenario {
             name: "test_scenario".to_string(),
             fault_type: FaultType::UsbStall,
@@ -755,7 +758,8 @@ mod tests {
         // Update multiple times
         for i in 0..10 {
             let faults = system.update(&context);
-            if i == 4 { // 5th tick (0-indexed)
+            if i == 4 {
+                // 5th tick (0-indexed)
                 assert_eq!(faults.len(), 1);
                 assert_eq!(faults[0], FaultType::PluginOverrun);
             } else if i < 4 {
@@ -810,8 +814,9 @@ mod tests {
         for i in 0..5 {
             system.update_usb_operation();
             let faults = system.update(&context);
-            
-            if i == 2 { // 3rd operation (0-indexed)
+
+            if i == 2 {
+                // 3rd operation (0-indexed)
                 assert_eq!(faults.len(), 1);
                 assert_eq!(faults[0], FaultType::UsbStall);
             } else if i < 2 {
@@ -864,7 +869,7 @@ mod tests {
     #[test]
     fn test_enable_disable() {
         let mut system = FaultInjectionSystem::new();
-        
+
         let scenario = FaultInjectionScenario {
             name: "enable_test".to_string(),
             fault_type: FaultType::UsbStall,
@@ -931,7 +936,11 @@ mod tests {
         assert!(system.get_scenario("usb_stall_after_5s").is_some());
         assert!(system.get_scenario("encoder_nan_random").is_some());
         assert!(system.get_scenario("thermal_limit_high_torque").is_some());
-        assert!(system.get_scenario("plugin_overrun_after_1000_ticks").is_some());
+        assert!(
+            system
+                .get_scenario("plugin_overrun_after_1000_ticks")
+                .is_some()
+        );
         assert!(system.get_scenario("manual_test_fault").is_some());
     }
 

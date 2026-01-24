@@ -4,16 +4,16 @@
 //! with logs, profiles, system info, and recent recordings as specified in DIAG-03.
 
 use super::HealthEvent;
+use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashMap,
     fs::{File, read_dir, read_to_string},
     io::Write,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
-    collections::HashMap,
 };
-use serde::{Serialize, Deserialize};
-use zip::{ZipWriter, write::SimpleFileOptions, CompressionMethod};
 use sysinfo::System;
+use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 /// Support bundle configuration
 #[derive(Debug, Clone)]
@@ -145,11 +145,11 @@ impl SupportBundle {
     /// Add health events to bundle
     pub fn add_health_events(&mut self, events: &[HealthEvent]) -> Result<(), String> {
         self.health_events.extend_from_slice(events);
-        
+
         // Estimate size (rough approximation)
         let estimated_size = events.len() * 1024; // ~1KB per event
         self.current_size_bytes += estimated_size as u64;
-        
+
         self.check_size_limit()?;
         Ok(())
     }
@@ -161,11 +161,11 @@ impl SupportBundle {
         }
 
         let system_info = Self::collect_system_info()?;
-        
+
         // Estimate size
         let estimated_size = 50 * 1024; // ~50KB for system info
         self.current_size_bytes += estimated_size;
-        
+
         self.system_info = Some(system_info);
         self.check_size_limit()?;
         Ok(())
@@ -178,17 +178,17 @@ impl SupportBundle {
         }
 
         let log_files = Self::find_log_files(log_dir)?;
-        
+
         for log_file in log_files {
             let file_size = std::fs::metadata(&log_file)
                 .map_err(|e| format!("Failed to get log file size: {}", e))?
                 .len();
-            
+
             // Skip very large log files to stay within size limit
             if self.current_size_bytes + file_size > self.max_size_bytes() {
                 continue;
             }
-            
+
             self.log_files.push(log_file);
             self.current_size_bytes += file_size;
         }
@@ -204,16 +204,16 @@ impl SupportBundle {
         }
 
         let profile_files = Self::find_profile_files(profile_dir)?;
-        
+
         for profile_file in profile_files {
             let file_size = std::fs::metadata(&profile_file)
                 .map_err(|e| format!("Failed to get profile file size: {}", e))?
                 .len();
-            
+
             if self.current_size_bytes + file_size > self.max_size_bytes() {
                 continue;
             }
-            
+
             self.profile_files.push(profile_file);
             self.current_size_bytes += file_size;
         }
@@ -229,7 +229,7 @@ impl SupportBundle {
         }
 
         let mut recordings = Self::find_recent_recordings(recording_dir, 5)?; // Last 5 recordings
-        
+
         // Sort by modification time (newest first)
         recordings.sort_by_key(|path| {
             std::fs::metadata(path)
@@ -242,12 +242,12 @@ impl SupportBundle {
             let file_size = std::fs::metadata(&recording_file)
                 .map_err(|e| format!("Failed to get recording file size: {}", e))?
                 .len();
-            
+
             // Recordings can be large, so be more selective
             if self.current_size_bytes + file_size > self.max_size_bytes() {
                 break; // Stop adding recordings if we'd exceed limit
             }
-            
+
             self.recording_files.push(recording_file);
             self.current_size_bytes += file_size;
         }
@@ -259,7 +259,7 @@ impl SupportBundle {
     pub fn generate(&self, output_path: &Path) -> Result<(), String> {
         let file = File::create(output_path)
             .map_err(|e| format!("Failed to create bundle file: {}", e))?;
-        
+
         let mut zip = ZipWriter::new(file);
         let options = SimpleFileOptions::default()
             .compression_method(CompressionMethod::Deflated)
@@ -314,7 +314,9 @@ impl SupportBundle {
 
         let cpu = system.cpus().first();
         let cpu_info = CpuInfo {
-            brand: cpu.map(|c| c.brand().to_string()).unwrap_or_else(|| "Unknown".to_string()),
+            brand: cpu
+                .map(|c| c.brand().to_string())
+                .unwrap_or_else(|| "Unknown".to_string()),
             frequency_mhz: cpu.map(|c| c.frequency()).unwrap_or(0),
             core_count: system.cpus().len(),
             usage_percent: system.global_cpu_usage(),
@@ -323,7 +325,7 @@ impl SupportBundle {
         let total_memory = system.total_memory();
         let available_memory = system.available_memory();
         let used_memory = total_memory - available_memory;
-        
+
         let memory_info = MemoryInfo {
             total_mb: total_memory / 1024 / 1024,
             available_mb: available_memory / 1024 / 1024,
@@ -345,12 +347,12 @@ impl SupportBundle {
         // Get current process info
         let current_pid = std::process::id();
         let process = system.process(sysinfo::Pid::from(current_pid as usize));
-        
+
         let process_info = ProcessInfo {
             pid: current_pid,
             memory_usage_mb: process.map(|p| p.memory() / 1024 / 1024).unwrap_or(0),
             cpu_usage_percent: process.map(|p| p.cpu_usage()).unwrap_or(0.0),
-            thread_count: 1, // Simplified
+            thread_count: 1,               // Simplified
             start_time: SystemTime::now(), // Simplified
         };
 
@@ -374,21 +376,41 @@ impl SupportBundle {
 
     /// Check if environment variable is safe to include
     fn is_safe_env_var(key: &str) -> bool {
-        let safe_prefixes = ["CARGO_", "RUST_", "PATH", "HOME", "USER", "USERNAME", "COMPUTERNAME"];
+        let safe_prefixes = [
+            "CARGO_",
+            "RUST_",
+            "PATH",
+            "HOME",
+            "USER",
+            "USERNAME",
+            "COMPUTERNAME",
+        ];
         let unsafe_keys = ["PASSWORD", "SECRET", "TOKEN", "KEY", "CREDENTIAL"];
-        
+
         // Include if it starts with a safe prefix
         if safe_prefixes.iter().any(|prefix| key.starts_with(prefix)) {
             return true;
         }
-        
+
         // Exclude if it contains unsafe keywords
-        if unsafe_keys.iter().any(|unsafe_key| key.to_uppercase().contains(unsafe_key)) {
+        if unsafe_keys
+            .iter()
+            .any(|unsafe_key| key.to_uppercase().contains(unsafe_key))
+        {
             return false;
         }
-        
+
         // Include common system variables
-        matches!(key, "PATH" | "HOME" | "USER" | "USERNAME" | "COMPUTERNAME" | "OS" | "PROCESSOR_ARCHITECTURE")
+        matches!(
+            key,
+            "PATH"
+                | "HOME"
+                | "USER"
+                | "USERNAME"
+                | "COMPUTERNAME"
+                | "OS"
+                | "PROCESSOR_ARCHITECTURE"
+        )
     }
 
     /// Find log files in directory
@@ -398,11 +420,13 @@ impl SupportBundle {
         }
 
         let mut log_files = Vec::new();
-        
-        for entry in read_dir(log_dir).map_err(|e| format!("Failed to read log directory: {}", e))? {
+
+        for entry in
+            read_dir(log_dir).map_err(|e| format!("Failed to read log directory: {}", e))?
+        {
             let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
             let path = entry.path();
-            
+
             if path.is_file() {
                 if let Some(extension) = path.extension() {
                     if extension == "log" || extension == "txt" {
@@ -422,11 +446,13 @@ impl SupportBundle {
         }
 
         let mut profile_files = Vec::new();
-        
-        for entry in read_dir(profile_dir).map_err(|e| format!("Failed to read profile directory: {}", e))? {
+
+        for entry in
+            read_dir(profile_dir).map_err(|e| format!("Failed to read profile directory: {}", e))?
+        {
             let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
             let path = entry.path();
-            
+
             if path.is_file() {
                 if let Some(extension) = path.extension() {
                     if extension == "json" || extension == "profile" {
@@ -440,17 +466,22 @@ impl SupportBundle {
     }
 
     /// Find recent recording files
-    fn find_recent_recordings(recording_dir: &Path, max_count: usize) -> Result<Vec<PathBuf>, String> {
+    fn find_recent_recordings(
+        recording_dir: &Path,
+        max_count: usize,
+    ) -> Result<Vec<PathBuf>, String> {
         if !recording_dir.exists() {
             return Ok(Vec::new());
         }
 
         let mut recordings = Vec::new();
-        
-        for entry in read_dir(recording_dir).map_err(|e| format!("Failed to read recording directory: {}", e))? {
+
+        for entry in read_dir(recording_dir)
+            .map_err(|e| format!("Failed to read recording directory: {}", e))?
+        {
             let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
             let path = entry.path();
-            
+
             if path.is_file() {
                 if let Some(extension) = path.extension() {
                     if extension == "wbb" {
@@ -473,7 +504,11 @@ impl SupportBundle {
     }
 
     /// Add manifest to ZIP
-    fn add_manifest(&self, zip: &mut ZipWriter<File>, options: &SimpleFileOptions) -> Result<(), String> {
+    fn add_manifest(
+        &self,
+        zip: &mut ZipWriter<File>,
+        options: &SimpleFileOptions,
+    ) -> Result<(), String> {
         let manifest = serde_json::json!({
             "bundle_version": "1.0",
             "created_at": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
@@ -494,7 +529,7 @@ impl SupportBundle {
 
         zip.start_file("manifest.json", *options)
             .map_err(|e| format!("Failed to start manifest file: {}", e))?;
-        
+
         zip.write_all(manifest.to_string().as_bytes())
             .map_err(|e| format!("Failed to write manifest: {}", e))?;
 
@@ -502,13 +537,18 @@ impl SupportBundle {
     }
 
     /// Add system info to ZIP
-    fn add_system_info_to_zip(&self, zip: &mut ZipWriter<File>, options: &SimpleFileOptions, system_info: &SystemInfo) -> Result<(), String> {
+    fn add_system_info_to_zip(
+        &self,
+        zip: &mut ZipWriter<File>,
+        options: &SimpleFileOptions,
+        system_info: &SystemInfo,
+    ) -> Result<(), String> {
         let json = serde_json::to_string_pretty(system_info)
             .map_err(|e| format!("Failed to serialize system info: {}", e))?;
 
         zip.start_file("system_info.json", *options)
             .map_err(|e| format!("Failed to start system info file: {}", e))?;
-        
+
         zip.write_all(json.as_bytes())
             .map_err(|e| format!("Failed to write system info: {}", e))?;
 
@@ -516,13 +556,17 @@ impl SupportBundle {
     }
 
     /// Add health events to ZIP
-    fn add_health_events_to_zip(&self, zip: &mut ZipWriter<File>, options: &SimpleFileOptions) -> Result<(), String> {
+    fn add_health_events_to_zip(
+        &self,
+        zip: &mut ZipWriter<File>,
+        options: &SimpleFileOptions,
+    ) -> Result<(), String> {
         let json = serde_json::to_string_pretty(&self.health_events)
             .map_err(|e| format!("Failed to serialize health events: {}", e))?;
 
         zip.start_file("health_events.json", *options)
             .map_err(|e| format!("Failed to start health events file: {}", e))?;
-        
+
         zip.write_all(json.as_bytes())
             .map_err(|e| format!("Failed to write health events: {}", e))?;
 
@@ -530,19 +574,26 @@ impl SupportBundle {
     }
 
     /// Add file to ZIP with specified prefix
-    fn add_file_to_zip(&self, zip: &mut ZipWriter<File>, options: &SimpleFileOptions, file_path: &Path, prefix: &str) -> Result<(), String> {
-        let file_name = file_path.file_name()
+    fn add_file_to_zip(
+        &self,
+        zip: &mut ZipWriter<File>,
+        options: &SimpleFileOptions,
+        file_path: &Path,
+        prefix: &str,
+    ) -> Result<(), String> {
+        let file_name = file_path
+            .file_name()
             .ok_or("Invalid file name")?
             .to_string_lossy();
-        
+
         let zip_path = format!("{}{}", prefix, file_name);
-        
+
         zip.start_file(&zip_path, *options)
             .map_err(|e| format!("Failed to start file in ZIP: {}", e))?;
 
         let content = read_to_string(file_path)
             .map_err(|e| format!("Failed to read file {}: {}", file_path.display(), e))?;
-        
+
         zip.write_all(content.as_bytes())
             .map_err(|e| format!("Failed to write file to ZIP: {}", e))?;
 
@@ -552,9 +603,11 @@ impl SupportBundle {
     /// Check if current size exceeds limit
     fn check_size_limit(&self) -> Result<(), String> {
         if self.current_size_bytes > self.max_size_bytes() {
-            return Err(format!("Bundle size limit exceeded: {} MB > {} MB", 
-                              self.current_size_bytes / 1024 / 1024,
-                              self.config.max_bundle_size_mb));
+            return Err(format!(
+                "Bundle size limit exceeded: {} MB > {} MB",
+                self.current_size_bytes / 1024 / 1024,
+                self.config.max_bundle_size_mb
+            ));
         }
         Ok(())
     }
@@ -573,15 +626,15 @@ impl SupportBundle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
+    use racing_wheel_schemas::prelude::DeviceId;
     use std::fs::write;
-    
+    use tempfile::TempDir;
 
     #[test]
     fn test_support_bundle_creation() {
         let config = SupportBundleConfig::default();
         let bundle = SupportBundle::new(config);
-        
+
         assert_eq!(bundle.health_events.len(), 0);
         assert_eq!(bundle.log_files.len(), 0);
         assert!(bundle.system_info.is_none());
@@ -591,7 +644,7 @@ mod tests {
     fn test_system_info_collection() {
         let system_info = SupportBundle::collect_system_info();
         assert!(system_info.is_ok());
-        
+
         let system_info = system_info.unwrap();
         assert!(!system_info.os_info.name.is_empty());
         assert!(system_info.hardware_info.cpu_info.core_count > 0);
@@ -602,7 +655,7 @@ mod tests {
     fn test_health_events_addition() {
         let config = SupportBundleConfig::default();
         let mut bundle = SupportBundle::new(config);
-        
+
         let device_id = DeviceId::new("test-device".to_string()).unwrap();
         let events = vec![
             HealthEvent {
@@ -618,7 +671,7 @@ mod tests {
                 context: serde_json::json!({}),
             },
         ];
-        
+
         let result = bundle.add_health_events(&events);
         assert!(result.is_ok());
         assert_eq!(bundle.health_events.len(), 2);
@@ -627,19 +680,27 @@ mod tests {
     #[test]
     fn test_log_file_discovery() {
         let temp_dir = TempDir::new().unwrap();
-        
+
         // Create some test log files
         write(temp_dir.path().join("app.log"), "Test log content").unwrap();
         write(temp_dir.path().join("error.log"), "Error log content").unwrap();
         write(temp_dir.path().join("not_a_log.txt"), "Not a log").unwrap();
         write(temp_dir.path().join("config.json"), "Config file").unwrap();
-        
+
         let log_files = SupportBundle::find_log_files(temp_dir.path()).unwrap();
-        
+
         // Should find .log files but not others
         assert_eq!(log_files.len(), 2);
-        assert!(log_files.iter().any(|p| p.file_name().unwrap() == "app.log"));
-        assert!(log_files.iter().any(|p| p.file_name().unwrap() == "error.log"));
+        assert!(
+            log_files
+                .iter()
+                .any(|p| p.file_name().unwrap() == "app.log")
+        );
+        assert!(
+            log_files
+                .iter()
+                .any(|p| p.file_name().unwrap() == "error.log")
+        );
     }
 
     #[test]
@@ -649,12 +710,12 @@ mod tests {
             max_bundle_size_mb: 1, // Small limit for test
             ..Default::default()
         };
-        
+
         let mut bundle = SupportBundle::new(config);
-        
+
         // Add some test data
         bundle.add_system_info().unwrap();
-        
+
         let device_id = DeviceId::new("test-device".to_string()).unwrap();
         let events = vec![HealthEvent {
             timestamp: SystemTime::now(),
@@ -663,12 +724,12 @@ mod tests {
             context: serde_json::json!({"test": true}),
         }];
         bundle.add_health_events(&events).unwrap();
-        
+
         // Generate bundle
         let bundle_path = temp_dir.path().join("support_bundle.zip");
         let result = bundle.generate(&bundle_path);
         assert!(result.is_ok());
-        
+
         // Verify file was created
         assert!(bundle_path.exists());
         let metadata = std::fs::metadata(&bundle_path).unwrap();
@@ -681,22 +742,22 @@ mod tests {
             max_bundle_size_mb: 1, // Very small limit
             ..Default::default()
         };
-        
+
         let mut bundle = SupportBundle::new(config);
-        
+
         // Try to add too much data
         let device_id = DeviceId::new("test-device".to_string()).unwrap();
         let large_context = serde_json::json!({
             "large_data": "x".repeat(2 * 1024 * 1024) // 2MB of data
         });
-        
+
         let events = vec![HealthEvent {
             timestamp: SystemTime::now(),
             device_id,
             event_type: super::super::HealthEventType::DeviceConnected,
             context: large_context,
         }];
-        
+
         // This should exceed the size limit
         let result = bundle.add_health_events(&events);
         assert!(result.is_err());
@@ -708,7 +769,7 @@ mod tests {
         assert!(SupportBundle::is_safe_env_var("RUST_LOG"));
         assert!(SupportBundle::is_safe_env_var("PATH"));
         assert!(SupportBundle::is_safe_env_var("HOME"));
-        
+
         assert!(!SupportBundle::is_safe_env_var("PASSWORD"));
         assert!(!SupportBundle::is_safe_env_var("SECRET_KEY"));
         assert!(!SupportBundle::is_safe_env_var("API_TOKEN"));
@@ -718,15 +779,15 @@ mod tests {
     #[test]
     fn test_profile_file_discovery() {
         let temp_dir = TempDir::new().unwrap();
-        
+
         // Create test profile files
         write(temp_dir.path().join("global.profile.json"), "{}").unwrap();
         write(temp_dir.path().join("game.json"), "{}").unwrap();
         write(temp_dir.path().join("settings.profile"), "{}").unwrap();
         write(temp_dir.path().join("readme.txt"), "Not a profile").unwrap();
-        
+
         let profile_files = SupportBundle::find_profile_files(temp_dir.path()).unwrap();
-        
+
         // Should find .json and .profile files
         assert_eq!(profile_files.len(), 3);
     }

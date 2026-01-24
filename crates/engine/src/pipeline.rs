@@ -4,7 +4,7 @@ use crate::rt::Frame;
 use crate::rt::RTResult;
 use racing_wheel_schemas::prelude::*;
 use std::sync::Arc;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{Mutex, oneshot};
 use tracing::debug;
 
 /// Function pointer type for filter nodes
@@ -49,16 +49,16 @@ struct CompilationTask {
 pub enum PipelineError {
     #[error("Invalid filter configuration: {0}")]
     InvalidConfig(String),
-    
+
     #[error("Compilation failed: {0}")]
     CompilationFailed(String),
-    
+
     #[error("Pipeline swap failed: {0}")]
     SwapFailed(String),
-    
+
     #[error("Non-monotonic curve points")]
     NonMonotonicCurve,
-    
+
     #[error("Invalid filter parameters: {0}")]
     InvalidParameters(String),
 }
@@ -97,7 +97,7 @@ impl Pipeline {
             crate::assert_zero_alloc!(_alloc_guard, "Pipeline hot path allocated memory");
             return Ok(());
         }
-        
+
         #[cfg(not(debug_assertions))]
         {
             self.process_internal(frame)
@@ -107,21 +107,18 @@ impl Pipeline {
     /// Internal processing method (separated for allocation tracking)
     #[inline]
     fn process_internal(&mut self, frame: &mut Frame) -> RTResult {
-
         for (i, &node_fn) in self.nodes.iter().enumerate() {
-            let state_ptr = unsafe {
-                self.state.as_mut_ptr().add(self.state_offsets[i])
-            };
-            
+            let state_ptr = unsafe { self.state.as_mut_ptr().add(self.state_offsets[i]) };
+
             // Call filter node function
             node_fn(frame, state_ptr);
-            
+
             // Validate output is within bounds
             if !frame.torque_out.is_finite() || frame.torque_out.abs() > 1.0 {
                 return Err(crate::RTError::PipelineFault);
             }
         }
-        
+
         Ok(())
     }
 
@@ -152,32 +149,34 @@ impl Pipeline {
         let align = std::mem::align_of::<f64>(); // Use f64 alignment for safety
         let current_len = self.state.len();
         let aligned_offset = (current_len + align - 1) & !(align - 1);
-        
+
         // Pad to alignment boundary
         self.state.resize(aligned_offset, 0);
         self.state_offsets.push(aligned_offset);
-        
+
         // Add the actual state data
         self.state.resize(aligned_offset + state_size, 0);
         self.nodes.push(node_fn);
     }
 
     /// Initialize state for a specific node (used during compilation)
-    fn init_node_state<T>(&mut self, node_index: usize, initial_state: T) 
-    where 
-        T: Copy 
+    fn init_node_state<T>(&mut self, node_index: usize, initial_state: T)
+    where
+        T: Copy,
     {
         if node_index < self.state_offsets.len() {
             let offset = self.state_offsets[node_index];
-            
+
             // Verify alignment
-            assert_eq!(offset % std::mem::align_of::<T>(), 0, 
-                      "State offset {} is not aligned for type {}", 
-                      offset, std::any::type_name::<T>());
-            
-            let state_ptr = unsafe {
-                self.state.as_mut_ptr().add(offset) as *mut T
-            };
+            assert_eq!(
+                offset % std::mem::align_of::<T>(),
+                0,
+                "State offset {} is not aligned for type {}",
+                offset,
+                std::any::type_name::<T>()
+            );
+
+            let state_ptr = unsafe { self.state.as_mut_ptr().add(offset) as *mut T };
             unsafe {
                 *state_ptr = initial_state;
             }
@@ -200,7 +199,10 @@ impl PipelineCompiler {
     }
 
     /// Compile a FilterConfig into an executable pipeline (off-thread)
-    pub async fn compile_pipeline(&self, config: FilterConfig) -> Result<CompiledPipeline, PipelineError> {
+    pub async fn compile_pipeline(
+        &self,
+        config: FilterConfig,
+    ) -> Result<CompiledPipeline, PipelineError> {
         debug!("Compiling pipeline from FilterConfig");
 
         // Validate configuration first
@@ -220,14 +222,17 @@ impl PipelineCompiler {
         self.add_notch_filters(&mut pipeline, &config.notch_filters)?;
         self.add_slew_rate_filter(&mut pipeline, config.slew_rate)?;
         self.add_curve_filter(&mut pipeline, &config.curve_points)?;
-        
+
         // Add safety and model filters
         self.add_torque_cap_filter(&mut pipeline, config.torque_cap.value())?;
         self.add_bumpstop_filter(&mut pipeline, &config.bumpstop)?;
         self.add_hands_off_detector(&mut pipeline, &config.hands_off)?;
 
-        debug!("Pipeline compiled successfully with {} nodes, hash: {:x}", 
-               pipeline.node_count(), config_hash);
+        debug!(
+            "Pipeline compiled successfully with {} nodes, hash: {:x}",
+            pipeline.node_count(),
+            config_hash
+        );
 
         Ok(CompiledPipeline {
             pipeline,
@@ -236,9 +241,12 @@ impl PipelineCompiler {
     }
 
     /// Compile pipeline asynchronously and return immediately
-    pub async fn compile_pipeline_async(&self, config: FilterConfig) -> Result<oneshot::Receiver<Result<CompiledPipeline, PipelineError>>, PipelineError> {
+    pub async fn compile_pipeline_async(
+        &self,
+        config: FilterConfig,
+    ) -> Result<oneshot::Receiver<Result<CompiledPipeline, PipelineError>>, PipelineError> {
         let (tx, rx) = oneshot::channel();
-        
+
         let task = CompilationTask {
             config,
             response_tx: tx,
@@ -275,34 +283,39 @@ impl PipelineCompiler {
     fn validate_config(&self, config: &FilterConfig) -> Result<(), PipelineError> {
         // Validate reconstruction level
         if config.reconstruction > 8 {
-            return Err(PipelineError::InvalidConfig(
-                format!("Reconstruction level must be 0-8, got {}", config.reconstruction)
-            ));
+            return Err(PipelineError::InvalidConfig(format!(
+                "Reconstruction level must be 0-8, got {}",
+                config.reconstruction
+            )));
         }
 
         // Validate gain values are in valid range
         if !(0.0..=1.0).contains(&config.friction.value()) {
-            return Err(PipelineError::InvalidParameters(
-                format!("Friction must be 0.0-1.0, got {}", config.friction.value())
-            ));
+            return Err(PipelineError::InvalidParameters(format!(
+                "Friction must be 0.0-1.0, got {}",
+                config.friction.value()
+            )));
         }
 
         if !(0.0..=1.0).contains(&config.damper.value()) {
-            return Err(PipelineError::InvalidParameters(
-                format!("Damper must be 0.0-1.0, got {}", config.damper.value())
-            ));
+            return Err(PipelineError::InvalidParameters(format!(
+                "Damper must be 0.0-1.0, got {}",
+                config.damper.value()
+            )));
         }
 
         if !(0.0..=1.0).contains(&config.inertia.value()) {
-            return Err(PipelineError::InvalidParameters(
-                format!("Inertia must be 0.0-1.0, got {}", config.inertia.value())
-            ));
+            return Err(PipelineError::InvalidParameters(format!(
+                "Inertia must be 0.0-1.0, got {}",
+                config.inertia.value()
+            )));
         }
 
         if !(0.0..=1.0).contains(&config.slew_rate.value()) {
-            return Err(PipelineError::InvalidParameters(
-                format!("Slew rate must be 0.0-1.0, got {}", config.slew_rate.value())
-            ));
+            return Err(PipelineError::InvalidParameters(format!(
+                "Slew rate must be 0.0-1.0, got {}",
+                config.slew_rate.value()
+            )));
         }
 
         // Validate curve points are monotonic
@@ -310,16 +323,21 @@ impl PipelineCompiler {
 
         // Validate notch filters
         for (i, filter) in config.notch_filters.iter().enumerate() {
-            if !((0.0..=500.0).contains(&filter.frequency.value()) && filter.frequency.value() > 0.0) {
-                return Err(PipelineError::InvalidParameters(
-                    format!("Notch filter {} frequency must be 0-500 Hz, got {}", i, filter.frequency.value())
-                ));
+            if !((0.0..=500.0).contains(&filter.frequency.value())
+                && filter.frequency.value() > 0.0)
+            {
+                return Err(PipelineError::InvalidParameters(format!(
+                    "Notch filter {} frequency must be 0-500 Hz, got {}",
+                    i,
+                    filter.frequency.value()
+                )));
             }
-            
+
             if !((0.0..=20.0).contains(&filter.q_factor) && filter.q_factor > 0.0) {
-                return Err(PipelineError::InvalidParameters(
-                    format!("Notch filter {} Q factor must be 0-20, got {}", i, filter.q_factor)
-                ));
+                return Err(PipelineError::InvalidParameters(format!(
+                    "Notch filter {} Q factor must be 0-20, got {}",
+                    i, filter.q_factor
+                )));
             }
         }
 
@@ -330,7 +348,7 @@ impl PipelineCompiler {
     fn validate_curve_monotonic(&self, curve_points: &[CurvePoint]) -> Result<(), PipelineError> {
         if curve_points.len() < 2 {
             return Err(PipelineError::InvalidConfig(
-                "Curve must have at least 2 points".to_string()
+                "Curve must have at least 2 points".to_string(),
             ));
         }
 
@@ -343,13 +361,13 @@ impl PipelineCompiler {
         // Ensure curve starts at 0 and ends at 1
         if curve_points[0].input != 0.0 {
             return Err(PipelineError::InvalidConfig(
-                "Curve must start at input 0.0".to_string()
+                "Curve must start at input 0.0".to_string(),
             ));
         }
 
         if curve_points.last().unwrap().input != 1.0 {
             return Err(PipelineError::InvalidConfig(
-                "Curve must end at input 1.0".to_string()
+                "Curve must end at input 1.0".to_string(),
             ));
         }
 
@@ -387,136 +405,201 @@ impl PipelineCompiler {
     }
 
     /// Add reconstruction filter to pipeline
-    fn add_reconstruction_filter(&self, pipeline: &mut Pipeline, level: u8) -> Result<(), PipelineError> {
+    fn add_reconstruction_filter(
+        &self,
+        pipeline: &mut Pipeline,
+        level: u8,
+    ) -> Result<(), PipelineError> {
         if level == 0 {
             return Ok(()); // No reconstruction filter
         }
 
         // Add reconstruction filter node with appropriate state
-        pipeline.add_node(crate::filters::reconstruction_filter, std::mem::size_of::<crate::filters::ReconstructionState>());
+        pipeline.add_node(
+            crate::filters::reconstruction_filter,
+            std::mem::size_of::<crate::filters::ReconstructionState>(),
+        );
         let node_index = pipeline.nodes.len() - 1;
-        
+
         let state = crate::filters::ReconstructionState::new(level);
         pipeline.init_node_state(node_index, state);
         Ok(())
     }
 
     /// Add friction filter to pipeline
-    fn add_friction_filter(&self, pipeline: &mut Pipeline, friction: Gain) -> Result<(), PipelineError> {
+    fn add_friction_filter(
+        &self,
+        pipeline: &mut Pipeline,
+        friction: Gain,
+    ) -> Result<(), PipelineError> {
         if friction.value() == 0.0 {
             return Ok(()); // No friction
         }
 
-        pipeline.add_node(crate::filters::friction_filter, std::mem::size_of::<crate::filters::FrictionState>());
+        pipeline.add_node(
+            crate::filters::friction_filter,
+            std::mem::size_of::<crate::filters::FrictionState>(),
+        );
         let node_index = pipeline.nodes.len() - 1;
-        
+
         let state = crate::filters::FrictionState::new(friction.value(), true); // Enable speed adaptation
         pipeline.init_node_state(node_index, state);
         Ok(())
     }
 
     /// Add damper filter to pipeline
-    fn add_damper_filter(&self, pipeline: &mut Pipeline, damper: Gain) -> Result<(), PipelineError> {
+    fn add_damper_filter(
+        &self,
+        pipeline: &mut Pipeline,
+        damper: Gain,
+    ) -> Result<(), PipelineError> {
         if damper.value() == 0.0 {
             return Ok(()); // No damping
         }
 
-        pipeline.add_node(crate::filters::damper_filter, std::mem::size_of::<crate::filters::DamperState>());
+        pipeline.add_node(
+            crate::filters::damper_filter,
+            std::mem::size_of::<crate::filters::DamperState>(),
+        );
         let node_index = pipeline.nodes.len() - 1;
-        
+
         let state = crate::filters::DamperState::new(damper.value(), true); // Enable speed adaptation
         pipeline.init_node_state(node_index, state);
         Ok(())
     }
 
     /// Add inertia filter to pipeline
-    fn add_inertia_filter(&self, pipeline: &mut Pipeline, inertia: Gain) -> Result<(), PipelineError> {
+    fn add_inertia_filter(
+        &self,
+        pipeline: &mut Pipeline,
+        inertia: Gain,
+    ) -> Result<(), PipelineError> {
         if inertia.value() == 0.0 {
             return Ok(()); // No inertia
         }
 
-        pipeline.add_node(crate::filters::inertia_filter, std::mem::size_of::<crate::filters::InertiaState>());
+        pipeline.add_node(
+            crate::filters::inertia_filter,
+            std::mem::size_of::<crate::filters::InertiaState>(),
+        );
         let node_index = pipeline.nodes.len() - 1;
-        
+
         let state = crate::filters::InertiaState::new(inertia.value());
         pipeline.init_node_state(node_index, state);
         Ok(())
     }
 
     /// Add notch filters to pipeline
-    fn add_notch_filters(&self, pipeline: &mut Pipeline, filters: &[NotchFilter]) -> Result<(), PipelineError> {
+    fn add_notch_filters(
+        &self,
+        pipeline: &mut Pipeline,
+        filters: &[NotchFilter],
+    ) -> Result<(), PipelineError> {
         for filter in filters {
-            pipeline.add_node(crate::filters::notch_filter, std::mem::size_of::<crate::filters::NotchState>());
+            pipeline.add_node(
+                crate::filters::notch_filter,
+                std::mem::size_of::<crate::filters::NotchState>(),
+            );
             let node_index = pipeline.nodes.len() - 1;
-            
+
             let state = crate::filters::NotchState::new(
                 filter.frequency.value(),
                 filter.q_factor,
                 filter.gain_db,
                 1000.0, // 1kHz sample rate
             );
-            
+
             pipeline.init_node_state(node_index, state);
         }
         Ok(())
     }
 
     /// Add slew rate limiter to pipeline
-    fn add_slew_rate_filter(&self, pipeline: &mut Pipeline, slew_rate: Gain) -> Result<(), PipelineError> {
+    fn add_slew_rate_filter(
+        &self,
+        pipeline: &mut Pipeline,
+        slew_rate: Gain,
+    ) -> Result<(), PipelineError> {
         if slew_rate.value() >= 1.0 {
             return Ok(()); // No slew rate limiting
         }
 
-        pipeline.add_node(crate::filters::slew_rate_filter, std::mem::size_of::<crate::filters::SlewRateState>());
+        pipeline.add_node(
+            crate::filters::slew_rate_filter,
+            std::mem::size_of::<crate::filters::SlewRateState>(),
+        );
         let node_index = pipeline.nodes.len() - 1;
-        
+
         let state = crate::filters::SlewRateState::new(slew_rate.value());
         pipeline.init_node_state(node_index, state);
         Ok(())
     }
 
     /// Add curve mapping filter to pipeline
-    fn add_curve_filter(&self, pipeline: &mut Pipeline, curve_points: &[CurvePoint]) -> Result<(), PipelineError> {
-        if curve_points.len() == 2 
-            && curve_points[0].input == 0.0 && curve_points[0].output == 0.0
-            && curve_points[1].input == 1.0 && curve_points[1].output == 1.0 {
+    fn add_curve_filter(
+        &self,
+        pipeline: &mut Pipeline,
+        curve_points: &[CurvePoint],
+    ) -> Result<(), PipelineError> {
+        if curve_points.len() == 2
+            && curve_points[0].input == 0.0
+            && curve_points[0].output == 0.0
+            && curve_points[1].input == 1.0
+            && curve_points[1].output == 1.0
+        {
             return Ok(()); // Linear curve, no filtering needed
         }
 
-        pipeline.add_node(crate::filters::curve_filter, std::mem::size_of::<crate::filters::CurveState>());
+        pipeline.add_node(
+            crate::filters::curve_filter,
+            std::mem::size_of::<crate::filters::CurveState>(),
+        );
         let node_index = pipeline.nodes.len() - 1;
-        
+
         // Convert CurvePoint to tuple format for the filter
-        let curve_tuples: Vec<(f32, f32)> = curve_points.iter()
-            .map(|p| (p.input, p.output))
-            .collect();
-        
+        let curve_tuples: Vec<(f32, f32)> =
+            curve_points.iter().map(|p| (p.input, p.output)).collect();
+
         let state = crate::filters::CurveState::new(&curve_tuples);
         pipeline.init_node_state(node_index, state);
         Ok(())
     }
 
     /// Add torque cap filter to pipeline
-    fn add_torque_cap_filter(&self, pipeline: &mut Pipeline, torque_cap: f32) -> Result<(), PipelineError> {
+    fn add_torque_cap_filter(
+        &self,
+        pipeline: &mut Pipeline,
+        torque_cap: f32,
+    ) -> Result<(), PipelineError> {
         if torque_cap >= 1.0 {
             return Ok(()); // No torque limiting needed
         }
 
-        pipeline.add_node(crate::filters::torque_cap_filter, std::mem::size_of::<f32>());
+        pipeline.add_node(
+            crate::filters::torque_cap_filter,
+            std::mem::size_of::<f32>(),
+        );
         let node_index = pipeline.nodes.len() - 1;
         pipeline.init_node_state(node_index, torque_cap);
         Ok(())
     }
 
     /// Add bumpstop model filter to pipeline
-    fn add_bumpstop_filter(&self, pipeline: &mut Pipeline, bumpstop_config: &BumpstopConfig) -> Result<(), PipelineError> {
+    fn add_bumpstop_filter(
+        &self,
+        pipeline: &mut Pipeline,
+        bumpstop_config: &BumpstopConfig,
+    ) -> Result<(), PipelineError> {
         if !bumpstop_config.enabled {
             return Ok(()); // Bumpstop disabled
         }
 
-        pipeline.add_node(crate::filters::bumpstop_filter, std::mem::size_of::<crate::filters::BumpstopState>());
+        pipeline.add_node(
+            crate::filters::bumpstop_filter,
+            std::mem::size_of::<crate::filters::BumpstopState>(),
+        );
         let node_index = pipeline.nodes.len() - 1;
-        
+
         let state = crate::filters::BumpstopState::new(
             bumpstop_config.enabled,
             bumpstop_config.start_angle,
@@ -524,26 +607,33 @@ impl PipelineCompiler {
             bumpstop_config.stiffness,
             bumpstop_config.damping,
         );
-        
+
         pipeline.init_node_state(node_index, state);
         Ok(())
     }
 
     /// Add hands-off detector to pipeline
-    fn add_hands_off_detector(&self, pipeline: &mut Pipeline, config: &HandsOffConfig) -> Result<(), PipelineError> {
+    fn add_hands_off_detector(
+        &self,
+        pipeline: &mut Pipeline,
+        config: &HandsOffConfig,
+    ) -> Result<(), PipelineError> {
         if !config.enabled {
             return Ok(()); // Hands-off detection disabled
         }
 
-        pipeline.add_node(crate::filters::hands_off_detector, std::mem::size_of::<crate::filters::HandsOffState>());
+        pipeline.add_node(
+            crate::filters::hands_off_detector,
+            std::mem::size_of::<crate::filters::HandsOffState>(),
+        );
         let node_index = pipeline.nodes.len() - 1;
-        
+
         let state = crate::filters::HandsOffState::new(
             config.enabled,
             config.threshold,
             config.timeout_seconds,
         );
-        
+
         pipeline.init_node_state(node_index, state);
         Ok(())
     }
@@ -553,7 +643,7 @@ impl PipelineCompiler {
     #[allow(dead_code)]
     fn interpolate_curve(&self, input: f32, curve_points: &[CurvePoint]) -> f32 {
         let clamped_input = input.clamp(0.0, 1.0);
-        
+
         // Find the two points to interpolate between
         for window in curve_points.windows(2) {
             if clamped_input >= window[0].input && clamped_input <= window[1].input {
@@ -561,7 +651,7 @@ impl PipelineCompiler {
                 return window[0].output + t * (window[1].output - window[0].output);
             }
         }
-        
+
         // Fallback (shouldn't happen with valid curve)
         clamped_input
     }
@@ -581,30 +671,19 @@ impl Default for PipelineCompiler {
     }
 }
 
-
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     use crate::filters::*;
 
-
     fn create_test_filter_config() -> FilterConfig {
         FilterConfig::new_complete(
-            4, // reconstruction
-            Gain::new(0.1).unwrap(), // friction
+            4,                        // reconstruction
+            Gain::new(0.1).unwrap(),  // friction
             Gain::new(0.15).unwrap(), // damper
             Gain::new(0.05).unwrap(), // inertia
-            vec![
-                NotchFilter::new(
-                    FrequencyHz::new(60.0).unwrap(),
-                    2.0,
-                    -12.0
-                ).unwrap()
-            ],
+            vec![NotchFilter::new(FrequencyHz::new(60.0).unwrap(), 2.0, -12.0).unwrap()],
             Gain::new(0.8).unwrap(), // slew_rate
             vec![
                 CurvePoint::new(0.0, 0.0).unwrap(),
@@ -614,16 +693,17 @@ mod tests {
             Gain::new(0.9).unwrap(), // torque_cap
             BumpstopConfig::default(),
             HandsOffConfig::default(),
-        ).unwrap()
+        )
+        .unwrap()
     }
 
     fn create_linear_filter_config() -> FilterConfig {
         FilterConfig::new_complete(
-            0, // no reconstruction
+            0,                       // no reconstruction
             Gain::new(0.0).unwrap(), // no friction
             Gain::new(0.0).unwrap(), // no damper
             Gain::new(0.0).unwrap(), // no inertia
-            vec![], // no notch filters
+            vec![],                  // no notch filters
             Gain::new(1.0).unwrap(), // no slew rate limiting
             vec![
                 CurvePoint::new(0.0, 0.0).unwrap(),
@@ -632,7 +712,8 @@ mod tests {
             Gain::new(1.0).unwrap(), // no torque cap
             BumpstopConfig::default(),
             HandsOffConfig::default(),
-        ).unwrap()
+        )
+        .unwrap()
     }
 
     #[tokio::test]
@@ -678,7 +759,7 @@ mod tests {
     #[test]
     fn test_pipeline_processing_zero_alloc() {
         let mut pipeline = Pipeline::new();
-        let mut frame = crate::ffb::Frame {
+        let mut frame = crate::rt::Frame {
             ffb_in: 0.5,
             torque_out: 0.0,
             wheel_speed: 0.0,
@@ -693,7 +774,7 @@ mod tests {
             let alloc_guard = crate::allocation_tracker::track();
             let result = pipeline.process(&mut frame);
             assert!(result.is_ok());
-            
+
             // Assert no allocations occurred
             crate::assert_zero_alloc!(alloc_guard, "Pipeline processing allocated memory");
         }
@@ -724,7 +805,7 @@ mod tests {
     #[tokio::test]
     async fn test_pipeline_validation_invalid_config() {
         let compiler = PipelineCompiler::new();
-        
+
         // Create invalid config with reconstruction level too high
         let invalid_config_result = FilterConfig::new_complete(
             10, // Invalid: > 8
@@ -741,18 +822,18 @@ mod tests {
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         );
-        
+
         // Should fail validation
         assert!(invalid_config_result.is_err());
-        
+
         // For the compiler test, use a valid config that will fail compilation validation
         let invalid_config = create_test_filter_config();
 
         let result = compiler.compile_pipeline(invalid_config).await;
         assert!(result.is_err());
-        
+
         match result.unwrap_err() {
-            PipelineError::InvalidConfig(_) => {}, // Expected
+            PipelineError::InvalidConfig(_) => {} // Expected
             _ => panic!("Expected InvalidConfig error"),
         }
     }
@@ -760,7 +841,7 @@ mod tests {
     #[tokio::test]
     async fn test_pipeline_validation_non_monotonic_curve() {
         let compiler = PipelineCompiler::new();
-        
+
         // Create config with non-monotonic curve - this should fail at construction
         let invalid_config_result = FilterConfig::new_complete(
             4,
@@ -779,10 +860,10 @@ mod tests {
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         );
-        
+
         // Should fail at construction due to non-monotonic curve
         assert!(invalid_config_result.is_err());
-        
+
         // For the compiler test, create a valid config
         let valid_config = create_test_filter_config();
 
@@ -793,7 +874,7 @@ mod tests {
     #[tokio::test]
     async fn test_pipeline_validation_invalid_parameters() {
         let compiler = PipelineCompiler::new();
-        
+
         // Create config with invalid parameters - high frequency notch filter
         let invalid_config = FilterConfig::new_complete(
             4,
@@ -804,8 +885,9 @@ mod tests {
                 NotchFilter::new(
                     FrequencyHz::new(600.0).unwrap(), // Too high frequency
                     2.0,
-                    -12.0
-                ).unwrap()
+                    -12.0,
+                )
+                .unwrap(),
             ],
             Gain::new(0.8).unwrap(),
             vec![
@@ -815,20 +897,21 @@ mod tests {
             Gain::new(1.0).unwrap(),
             BumpstopConfig::default(),
             HandsOffConfig::default(),
-        ).unwrap();
+        )
+        .unwrap();
 
         let result = compiler.compile_pipeline(invalid_config).await;
         assert!(result.is_err());
-        
+
         match result.unwrap_err() {
-            PipelineError::InvalidParameters(_) => {}, // Expected
+            PipelineError::InvalidParameters(_) => {} // Expected
             _ => panic!("Expected InvalidParameters error"),
         }
     }
 
     #[test]
     fn test_filter_nodes_bounds_checking() {
-        let mut frame = crate::ffb::Frame {
+        let mut frame = crate::rt::Frame {
             ffb_in: 0.5,
             torque_out: 0.5,
             wheel_speed: 10.0, // rad/s
@@ -841,7 +924,7 @@ mod tests {
         let friction_coeff = 0.2f32;
         let state_ptr = &friction_coeff as *const f32 as *mut u8;
         friction_filter(&mut frame, state_ptr);
-        
+
         // Output should be bounded
         assert!(frame.torque_out.is_finite());
         assert!(frame.torque_out.abs() <= 2.0); // Reasonable bound
@@ -854,7 +937,7 @@ mod tests {
 
     #[test]
     fn test_curve_filter_lookup_table() {
-        let mut frame = crate::ffb::Frame {
+        let mut frame = crate::rt::Frame {
             ffb_in: 0.5,
             torque_out: 0.5,
             wheel_speed: 0.0,
@@ -878,7 +961,7 @@ mod tests {
     fn test_slew_rate_limiter() {
         let mut slew_state = SlewRateState::new(100.0); // 100% slew rate = 0.1 per tick
 
-        let mut frame = crate::ffb::Frame {
+        let mut frame = crate::rt::Frame {
             ffb_in: 0.5,
             torque_out: 1.0, // Large jump
             wheel_speed: 0.0,
@@ -892,7 +975,7 @@ mod tests {
 
         // Should be limited to max_change_per_tick
         assert!((frame.torque_out - 0.1).abs() < 0.01);
-        
+
         // Apply again - should continue ramping
         slew_rate_filter(&mut frame, state_ptr);
         assert!((frame.torque_out - 0.2).abs() < 0.01);
@@ -901,8 +984,8 @@ mod tests {
     #[test]
     fn test_notch_filter_stability() {
         let mut notch_state = NotchState::new(60.0, 2.0, -12.0, 1000.0);
-        
-        let mut frame = crate::ffb::Frame {
+
+        let mut frame = crate::rt::Frame {
             ffb_in: 0.5,
             torque_out: 0.5,
             wheel_speed: 0.0,
@@ -912,7 +995,7 @@ mod tests {
         };
 
         let state_ptr = &mut notch_state as *mut NotchState as *mut u8;
-        
+
         // Apply filter multiple times to check stability
         for _ in 0..100 {
             notch_filter(&mut frame, state_ptr);
@@ -929,7 +1012,7 @@ mod tests {
         // Test async compilation
         let rx = compiler.compile_pipeline_async(config).await.unwrap();
         let result = rx.await.unwrap();
-        
+
         assert!(result.is_ok());
         let compiled = result.unwrap();
         assert!(compiled.pipeline.node_count() > 0);
@@ -958,16 +1041,20 @@ mod tests {
         let config = create_test_filter_config();
 
         let start = std::time::Instant::now();
-        
+
         // Compile multiple pipelines
         for _ in 0..10 {
             let result = compiler.compile_pipeline(config.clone()).await;
             assert!(result.is_ok());
         }
-        
+
         let duration = start.elapsed();
-        
+
         // Should complete within reasonable time (adjust as needed)
-        assert!(duration.as_millis() < 100, "Compilation took too long: {:?}", duration);
+        assert!(
+            duration.as_millis() < 100,
+            "Compilation took too long: {:?}",
+            duration
+        );
     }
 }

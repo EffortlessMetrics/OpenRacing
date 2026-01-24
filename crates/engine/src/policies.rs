@@ -8,25 +8,25 @@ use racing_wheel_schemas::prelude::*;
 use std::time::{Duration, Instant};
 
 /// Safety policy for torque management and fault handling
-/// 
+///
 /// This policy encapsulates all the business rules around when high torque
 /// can be enabled, what the limits are, and how faults should be handled.
 pub struct SafetyPolicy {
     /// Maximum torque allowed in safe mode (Nm)
     max_safe_torque: TorqueNm,
-    
+
     /// Maximum torque allowed in high torque mode (Nm)
     max_high_torque: TorqueNm,
-    
+
     /// Maximum temperature before thermal protection (°C)
     max_temperature_c: u8,
-    
+
     /// Maximum hands-off duration before torque reduction (seconds)
     max_hands_off_duration: Duration,
-    
+
     /// Minimum time between high torque requests (seconds)
     min_high_torque_interval: Duration,
-    
+
     /// Last high torque request time
     last_high_torque_request: Option<Instant>,
 }
@@ -35,15 +35,15 @@ impl SafetyPolicy {
     /// Create a new safety policy with default limits
     pub fn new() -> Self {
         Self {
-            max_safe_torque: TorqueNm::from_raw(5.0),      // 5 Nm safe limit
-            max_high_torque: TorqueNm::from_raw(25.0),     // 25 Nm high torque limit
-            max_temperature_c: 80,                          // 80°C thermal limit
+            max_safe_torque: TorqueNm::from_raw(5.0),  // 5 Nm safe limit
+            max_high_torque: TorqueNm::from_raw(25.0), // 25 Nm high torque limit
+            max_temperature_c: 80,                     // 80°C thermal limit
             max_hands_off_duration: Duration::from_secs(5), // 5 second hands-off limit
             min_high_torque_interval: Duration::from_secs(2), // 2 second cooldown
             last_high_torque_request: None,
         }
     }
-    
+
     /// Create a safety policy with custom limits
     pub fn with_limits(
         max_safe_torque: TorqueNm,
@@ -60,9 +60,9 @@ impl SafetyPolicy {
             last_high_torque_request: None,
         }
     }
-    
+
     /// Check if high torque can be enabled for a device
-    /// 
+    ///
     /// This method evaluates all safety conditions and returns whether
     /// high torque mode can be safely enabled.
     pub fn can_enable_high_torque(
@@ -75,12 +75,12 @@ impl SafetyPolicy {
         if !device.is_operational() {
             return Err(SafetyViolation::DeviceNotOperational(device.state));
         }
-        
+
         // Check for active faults
         if device.has_faults() {
             return Err(SafetyViolation::ActiveFaults(device.fault_flags));
         }
-        
+
         // Check temperature
         if temperature_c >= self.max_temperature_c {
             return Err(SafetyViolation::TemperatureTooHigh {
@@ -88,7 +88,7 @@ impl SafetyPolicy {
                 limit: self.max_temperature_c,
             });
         }
-        
+
         // Check hands-on requirement
         if hands_off_duration > self.max_hands_off_duration {
             return Err(SafetyViolation::HandsOffTooLong {
@@ -96,7 +96,7 @@ impl SafetyPolicy {
                 limit: self.max_hands_off_duration,
             });
         }
-        
+
         // Check rate limiting
         if let Some(last_request) = self.last_high_torque_request {
             let elapsed = last_request.elapsed();
@@ -107,7 +107,7 @@ impl SafetyPolicy {
                 });
             }
         }
-        
+
         // Check device capabilities
         if device.capabilities.max_torque < self.max_high_torque {
             return Err(SafetyViolation::DeviceCapabilityInsufficient {
@@ -115,15 +115,15 @@ impl SafetyPolicy {
                 available: device.capabilities.max_torque,
             });
         }
-        
+
         // Update rate limiting
         self.last_high_torque_request = Some(Instant::now());
-        
+
         Ok(())
     }
-    
+
     /// Validate torque limits for a given safety state
-    /// 
+    ///
     /// This method checks if a requested torque value is within the allowed
     /// limits for the current safety state.
     pub fn validate_torque_limits(
@@ -138,7 +138,7 @@ impl SafetyPolicy {
         } else {
             self.max_safe_torque.min(device_capabilities.max_torque)
         };
-        
+
         // Check if requested torque exceeds the limit
         if requested_torque > current_limit {
             return Err(SafetyViolation::TorqueExceedsLimit {
@@ -147,11 +147,11 @@ impl SafetyPolicy {
                 is_high_torque_enabled,
             });
         }
-        
+
         // Return the validated (and potentially clamped) torque
         Ok(requested_torque.min(current_limit))
     }
-    
+
     /// Get the current maximum allowed torque
     pub fn get_max_torque(&self, is_high_torque_enabled: bool) -> TorqueNm {
         if is_high_torque_enabled {
@@ -160,20 +160,20 @@ impl SafetyPolicy {
             self.max_safe_torque
         }
     }
-    
+
     /// Check if a fault condition requires immediate torque shutdown
     pub fn requires_immediate_shutdown(&self, fault_flags: u8) -> bool {
         // Define critical fault flags that require immediate shutdown
         const CRITICAL_FAULTS: u8 = 0x01 | 0x02 | 0x04 | 0x08; // USB, encoder, thermal, overcurrent
-        
+
         (fault_flags & CRITICAL_FAULTS) != 0
     }
-    
+
     /// Get the maximum safe temperature
     pub fn max_temperature(&self) -> u8 {
         self.max_temperature_c
     }
-    
+
     /// Get the maximum hands-off duration
     pub fn max_hands_off_duration(&self) -> Duration {
         self.max_hands_off_duration
@@ -191,23 +191,31 @@ impl Default for SafetyPolicy {
 pub enum SafetyViolation {
     #[error("Device is not operational: {0:?}")]
     DeviceNotOperational(DeviceState),
-    
+
     #[error("Device has active faults: 0x{0:02X}")]
     ActiveFaults(u8),
-    
+
     #[error("Temperature too high: {current}°C (limit: {limit}°C)")]
     TemperatureTooHigh { current: u8, limit: u8 },
-    
+
     #[error("Hands off too long: {duration:?} (limit: {limit:?})")]
     HandsOffTooLong { duration: Duration, limit: Duration },
-    
+
     #[error("Rate limited: {elapsed:?} elapsed (required: {required:?})")]
-    RateLimited { elapsed: Duration, required: Duration },
-    
+    RateLimited {
+        elapsed: Duration,
+        required: Duration,
+    },
+
     #[error("Device capability insufficient: requested {requested}, available {available}")]
-    DeviceCapabilityInsufficient { requested: TorqueNm, available: TorqueNm },
-    
-    #[error("Torque exceeds limit: requested {requested}, limit {limit} (high torque: {is_high_torque_enabled})")]
+    DeviceCapabilityInsufficient {
+        requested: TorqueNm,
+        available: TorqueNm,
+    },
+
+    #[error(
+        "Torque exceeds limit: requested {requested}, limit {limit} (high torque: {is_high_torque_enabled})"
+    )]
     TorqueExceedsLimit {
         requested: TorqueNm,
         limit: TorqueNm,
@@ -216,14 +224,14 @@ pub enum SafetyViolation {
 }
 
 /// Profile hierarchy resolution policy
-/// 
+///
 /// This policy implements the deterministic profile merging logic that
 /// resolves the final configuration from multiple profile layers.
 pub struct ProfileHierarchyPolicy;
 
 impl ProfileHierarchyPolicy {
     /// Resolve profiles in hierarchical order: Global → Game → Car → Session
-    /// 
+    ///
     /// This method implements deterministic profile merging where more specific
     /// profiles override less specific ones. The merge is deterministic and
     /// produces the same result for the same inputs.
@@ -234,56 +242,56 @@ impl ProfileHierarchyPolicy {
         session_overrides: Option<&BaseSettings>,
     ) -> Profile {
         let mut resolved = global_profile.clone();
-        
+
         // Apply game-specific profile
         if let Some(game_prof) = game_profile {
             resolved = Self::merge_profiles(&resolved, game_prof);
         }
-        
+
         // Apply car-specific profile
         if let Some(car_prof) = car_profile {
             resolved = Self::merge_profiles(&resolved, car_prof);
         }
-        
+
         // Apply session overrides to base settings only
         if let Some(session_settings) = session_overrides {
             resolved.base_settings = session_settings.clone();
             // Update metadata to reflect the merge
             resolved.metadata.modified_at = chrono::Utc::now().to_rfc3339();
         }
-        
+
         resolved
     }
-    
+
     /// Merge two profiles deterministically
-    /// 
+    ///
     /// The `override_profile` takes precedence over `base_profile` for all
     /// non-None values. This ensures deterministic behavior.
     fn merge_profiles(base_profile: &Profile, override_profile: &Profile) -> Profile {
         let mut merged = base_profile.clone();
-        
+
         // Base settings: override profile takes complete precedence
         merged.base_settings = override_profile.base_settings.clone();
-        
+
         // LED config: use override if present, otherwise keep base
         if override_profile.led_config.is_some() {
             merged.led_config = override_profile.led_config.clone();
         }
-        
+
         // Haptics config: use override if present, otherwise keep base
         if override_profile.haptics_config.is_some() {
             merged.haptics_config = override_profile.haptics_config.clone();
         }
-        
+
         // Update metadata to reflect the merge
         merged.metadata.modified_at = chrono::Utc::now().to_rfc3339();
         merged.metadata.version = Self::increment_version(&merged.metadata.version);
-        
+
         merged
     }
-    
+
     /// Find the most specific matching profile for a given context
-    /// 
+    ///
     /// This method evaluates profile scopes and returns the most specific
     /// profile that matches the given context.
     pub fn find_most_specific_profile<'a>(
@@ -294,7 +302,7 @@ impl ProfileHierarchyPolicy {
     ) -> Option<&'a Profile> {
         let mut best_match: Option<&Profile> = None;
         let mut best_specificity = 0u8;
-        
+
         for profile in profiles {
             if profile.scope.matches(game, car, track) {
                 let specificity = profile.scope.specificity_level();
@@ -306,9 +314,9 @@ impl ProfileHierarchyPolicy {
         }
         best_match
     }
-    
+
     /// Validate that a profile hierarchy is consistent
-    /// 
+    ///
     /// This method checks that the profile hierarchy makes sense and
     /// doesn't contain conflicting or invalid configurations.
     pub fn validate_profile_hierarchy(
@@ -322,7 +330,7 @@ impl ProfileHierarchyPolicy {
                 return Err(ProfileHierarchyError::DuplicateScope(profile.scope.clone()));
             }
         }
-        
+
         // Validate each profile against device capabilities
         for profile in profiles {
             if let Err(e) = profile.validate_for_device(device_capabilities) {
@@ -332,15 +340,15 @@ impl ProfileHierarchyPolicy {
                 });
             }
         }
-        
+
         // Check for circular dependencies (shouldn't happen with current design, but good to check)
         // This is a placeholder for future extension if profile inheritance becomes more complex
-        
+
         Ok(())
     }
-    
+
     /// Calculate a deterministic hash for the resolved profile
-    /// 
+    ///
     /// This hash can be used to detect when the effective configuration
     /// has changed and needs to be reapplied.
     pub fn calculate_hierarchy_hash(
@@ -351,9 +359,9 @@ impl ProfileHierarchyPolicy {
     ) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
-        
+
         // Hash the resolved profile
         let resolved = Self::resolve_profile_hierarchy(
             global_profile,
@@ -361,12 +369,12 @@ impl ProfileHierarchyPolicy {
             car_profile,
             session_overrides,
         );
-        
+
         resolved.calculate_hash().hash(&mut hasher);
-        
+
         hasher.finish()
     }
-    
+
     /// Increment a semantic version string
     fn increment_version(version: &str) -> String {
         // Simple version increment for merged profiles
@@ -377,7 +385,7 @@ impl ProfileHierarchyPolicy {
                 return format!("{}.{}.{}", parts[0], parts[1], patch + 1);
             }
         }
-        
+
         // Fallback: append merge indicator
         format!("{}-merged", version)
     }
@@ -388,16 +396,16 @@ impl ProfileHierarchyPolicy {
 pub enum ProfileHierarchyError {
     #[error("Duplicate profile scope: {0:?}")]
     DuplicateScope(ProfileScope),
-    
+
     #[error("Invalid profile {profile_id}: {error}")]
     InvalidProfile {
         profile_id: ProfileId,
         error: DomainError,
     },
-    
+
     #[error("Circular dependency detected in profile hierarchy")]
     CircularDependency,
-    
+
     #[error("Profile hierarchy validation failed: {0}")]
     ValidationFailed(String),
 }
@@ -419,8 +427,13 @@ mod tests {
             10000,
             1000,
         );
-        
-        let mut device = Device::new(id, "Test Wheel".to_string(), DeviceType::WheelBase, capabilities);
+
+        let mut device = Device::new(
+            id,
+            "Test Wheel".to_string(),
+            DeviceType::WheelBase,
+            capabilities,
+        );
         device.set_state(DeviceState::Active); // Make sure device is operational
         device
     }
@@ -429,13 +442,13 @@ mod tests {
     fn test_safety_policy_can_enable_high_torque_success() {
         let mut policy = SafetyPolicy::new();
         let device = create_test_device();
-        
+
         let result = policy.can_enable_high_torque(
             &device,
             Duration::from_secs(1), // Hands on
-            50, // Normal temperature
+            50,                     // Normal temperature
         );
-        
+
         assert!(result.is_ok());
     }
 
@@ -443,28 +456,34 @@ mod tests {
     fn test_safety_policy_temperature_too_high() {
         let mut policy = SafetyPolicy::new();
         let device = create_test_device();
-        
+
         let result = policy.can_enable_high_torque(
             &device,
             Duration::from_secs(1),
             85, // Too hot
         );
-        
-        assert!(matches!(result, Err(SafetyViolation::TemperatureTooHigh { .. })));
+
+        assert!(matches!(
+            result,
+            Err(SafetyViolation::TemperatureTooHigh { .. })
+        ));
     }
 
     #[test]
     fn test_safety_policy_hands_off_too_long() {
         let mut policy = SafetyPolicy::new();
         let device = create_test_device();
-        
+
         let result = policy.can_enable_high_torque(
             &device,
             Duration::from_secs(10), // Hands off too long
             50,
         );
-        
-        assert!(matches!(result, Err(SafetyViolation::HandsOffTooLong { .. })));
+
+        assert!(matches!(
+            result,
+            Err(SafetyViolation::HandsOffTooLong { .. })
+        ));
     }
 
     #[test]
@@ -472,34 +491,25 @@ mod tests {
         let mut policy = SafetyPolicy::new();
         let mut device = create_test_device();
         device.set_fault_flags(0x04); // Thermal fault
-        
-        let result = policy.can_enable_high_torque(
-            &device,
-            Duration::from_secs(1),
-            50,
-        );
-        assert!(matches!(result, Err(SafetyViolation::DeviceNotOperational(_))));
+
+        let result = policy.can_enable_high_torque(&device, Duration::from_secs(1), 50);
+        assert!(matches!(
+            result,
+            Err(SafetyViolation::DeviceNotOperational(_))
+        ));
     }
 
     #[test]
     fn test_safety_policy_rate_limiting() {
         let mut policy = SafetyPolicy::new();
         let device = create_test_device();
-        
+
         // First request should succeed
-        let result1 = policy.can_enable_high_torque(
-            &device,
-            Duration::from_secs(1),
-            50,
-        );
+        let result1 = policy.can_enable_high_torque(&device, Duration::from_secs(1), 50);
         assert!(result1.is_ok());
-        
+
         // Immediate second request should be rate limited
-        let result2 = policy.can_enable_high_torque(
-            &device,
-            Duration::from_secs(1),
-            50,
-        );
+        let result2 = policy.can_enable_high_torque(&device, Duration::from_secs(1), 50);
         assert!(matches!(result2, Err(SafetyViolation::RateLimited { .. })));
     }
 
@@ -507,11 +517,15 @@ mod tests {
     fn test_safety_policy_validate_torque_limits() {
         let policy = SafetyPolicy::new();
         let capabilities = DeviceCapabilities::new(
-            false, true, true, true,
+            false,
+            true,
+            true,
+            true,
             TorqueNm::new(25.0).unwrap(),
-            10000, 1000,
+            10000,
+            1000,
         );
-        
+
         // Test safe mode limits
         let result = policy.validate_torque_limits(
             TorqueNm::new(3.0).unwrap(),
@@ -520,15 +534,18 @@ mod tests {
         );
         assert!(result.is_ok());
         assert_eq!(result.unwrap().value(), 3.0);
-        
+
         // Test safe mode exceeds limit
         let result = policy.validate_torque_limits(
             TorqueNm::new(10.0).unwrap(),
             false, // Safe mode
             &capabilities,
         );
-        assert!(matches!(result, Err(SafetyViolation::TorqueExceedsLimit { .. })));
-        
+        assert!(matches!(
+            result,
+            Err(SafetyViolation::TorqueExceedsLimit { .. })
+        ));
+
         // Test high torque mode
         let result = policy.validate_torque_limits(
             TorqueNm::new(20.0).unwrap(),
@@ -542,16 +559,16 @@ mod tests {
     #[test]
     fn test_safety_policy_requires_immediate_shutdown() {
         let policy = SafetyPolicy::new();
-        
+
         // No faults
         assert!(!policy.requires_immediate_shutdown(0x00));
-        
+
         // Critical faults
         assert!(policy.requires_immediate_shutdown(0x01)); // USB fault
         assert!(policy.requires_immediate_shutdown(0x02)); // Encoder fault
         assert!(policy.requires_immediate_shutdown(0x04)); // Thermal fault
         assert!(policy.requires_immediate_shutdown(0x08)); // Overcurrent fault
-        
+
         // Non-critical fault
         assert!(!policy.requires_immediate_shutdown(0x10)); // Plugin fault
     }
@@ -569,19 +586,26 @@ mod tests {
     #[test]
     fn test_profile_hierarchy_resolution() {
         let global_profile = create_test_profile("global", ProfileScope::global());
-        let game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
-        let car_profile = create_test_profile("gt3", ProfileScope::for_car("iracing".to_string(), "gt3".to_string()));
-        
+        let game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+        let car_profile = create_test_profile(
+            "gt3",
+            ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
+        );
+
         let resolved = ProfileHierarchyPolicy::resolve_profile_hierarchy(
             &global_profile,
             Some(&game_profile),
             Some(&car_profile),
             None,
         );
-        
+
         // The resolved profile should have the car profile's settings
         // (since it's the most specific)
-        assert_eq!(resolved.base_settings.ffb_gain, car_profile.base_settings.ffb_gain);
+        assert_eq!(
+            resolved.base_settings.ffb_gain,
+            car_profile.base_settings.ffb_gain
+        );
     }
 
     #[test]
@@ -589,11 +613,12 @@ mod tests {
         let profiles = vec![
             create_test_profile("global", ProfileScope::global()),
             create_test_profile("iracing", ProfileScope::for_game("iracing".to_string())),
-            create_test_profile("gt3", ProfileScope::for_car("iracing".to_string(), "gt3".to_string())),
+            create_test_profile(
+                "gt3",
+                ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
+            ),
         ];
-        
 
-        
         // Should find the most specific matching profile
         let result = ProfileHierarchyPolicy::find_most_specific_profile(
             &profiles,
@@ -601,10 +626,13 @@ mod tests {
             Some("gt3"),
             None,
         );
-        
-        assert!(result.is_some(), "Should find a matching profile for iracing/gt3");
+
+        assert!(
+            result.is_some(),
+            "Should find a matching profile for iracing/gt3"
+        );
         assert_eq!(result.unwrap().id.as_str(), "gt3");
-        
+
         // Should find game profile when car doesn't match
         let result = ProfileHierarchyPolicy::find_most_specific_profile(
             &profiles,
@@ -612,19 +640,18 @@ mod tests {
             Some("f1"),
             None,
         );
-        
-        assert!(result.is_some(), "Should find a matching profile for iracing/f1");
-        assert_eq!(result.unwrap().id.as_str(), "iracing");
-        
-        // Should find global profile when nothing else matches
-        
-        let result = ProfileHierarchyPolicy::find_most_specific_profile(
-            &profiles,
-            Some("acc"),
-            None,
-            None,
+
+        assert!(
+            result.is_some(),
+            "Should find a matching profile for iracing/f1"
         );
-        
+        assert_eq!(result.unwrap().id.as_str(), "iracing");
+
+        // Should find global profile when nothing else matches
+
+        let result =
+            ProfileHierarchyPolicy::find_most_specific_profile(&profiles, Some("acc"), None, None);
+
         assert!(result.is_some(), "Should find global profile for acc");
         assert_eq!(result.unwrap().id.as_str(), "global");
     }
@@ -632,53 +659,63 @@ mod tests {
     #[test]
     fn test_profile_hierarchy_validation() {
         let capabilities = DeviceCapabilities::new(
-            false, true, true, true,
+            false,
+            true,
+            true,
+            true,
             TorqueNm::new(25.0).unwrap(),
-            10000, 1000,
+            10000,
+            1000,
         );
-        
+
         let profiles = vec![
             create_test_profile("global", ProfileScope::global()),
             create_test_profile("iracing", ProfileScope::for_game("iracing".to_string())),
         ];
-        
+
         let result = ProfileHierarchyPolicy::validate_profile_hierarchy(&profiles, &capabilities);
         assert!(result.is_ok());
-        
+
         // Test duplicate scopes
         let duplicate_profiles = vec![
             create_test_profile("global1", ProfileScope::global()),
             create_test_profile("global2", ProfileScope::global()), // Duplicate scope
         ];
-        
-        let result = ProfileHierarchyPolicy::validate_profile_hierarchy(&duplicate_profiles, &capabilities);
-        assert!(matches!(result, Err(ProfileHierarchyError::DuplicateScope(_))));
+
+        let result =
+            ProfileHierarchyPolicy::validate_profile_hierarchy(&duplicate_profiles, &capabilities);
+        assert!(matches!(
+            result,
+            Err(ProfileHierarchyError::DuplicateScope(_))
+        ));
     }
 
     #[test]
     fn test_profile_hierarchy_hash_deterministic() {
         let global_profile = create_test_profile("global", ProfileScope::global());
-        let game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
-        
+        let game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+
         let hash1 = ProfileHierarchyPolicy::calculate_hierarchy_hash(
             &global_profile,
             Some(&game_profile),
             None,
             None,
         );
-        
+
         let hash2 = ProfileHierarchyPolicy::calculate_hierarchy_hash(
             &global_profile,
             Some(&game_profile),
             None,
             None,
         );
-        
+
         // Same inputs should produce same hash
         assert_eq!(hash1, hash2);
-        
+
         // Different inputs should produce different hash
-        let mut different_game_profile = create_test_profile("acc", ProfileScope::for_game("acc".to_string()));
+        let mut different_game_profile =
+            create_test_profile("acc", ProfileScope::for_game("acc".to_string()));
         different_game_profile.base_settings.ffb_gain = Gain::new(0.5).unwrap(); // Different gain
         let hash3 = ProfileHierarchyPolicy::calculate_hierarchy_hash(
             &global_profile,
@@ -686,7 +723,7 @@ mod tests {
             None,
             None,
         );
-        
+
         assert_ne!(hash1, hash3);
     }
 }
