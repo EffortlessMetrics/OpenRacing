@@ -10,18 +10,18 @@
 use crate::ports::{HidPort, HidDevice, DeviceHealthStatus};
 use crate::{RTResult, DeviceEvent, TelemetryData, DeviceInfo};
 use racing_wheel_schemas::prelude::*;
-use super::{HidDeviceInfo, TorqueCommand, DeviceTelemetryReport, DeviceCapabilitiesReport};
+use super::{HidDeviceInfo, TorqueCommand, DeviceTelemetryReport};
 use tokio::sync::mpsc;
 use async_trait::async_trait;
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}, OnceLock};
 use parking_lot::{RwLock, Mutex};
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::{AsRawFd, RawFd};
-use std::path::{Path, PathBuf};
-use tracing::{debug, warn, error, info};
+use std::path::Path;
+use tracing::{debug, warn, info};
 
 /// Thread-safe cached device info accessor using OnceLock
 fn get_cached_device_info(device_info: &HidDeviceInfo) -> &'static DeviceInfo {
@@ -197,50 +197,64 @@ impl HidPort for LinuxHidPort {
     }
 
     async fn monitor_devices(&self) -> Result<mpsc::Receiver<DeviceEvent>, Box<dyn std::error::Error>> {
-        let (sender, receiver) = mpsc::unbounded_channel();
-        
+        // Use bounded channel to prevent unbounded memory growth.
+        // Buffer 100 events - if receiver falls behind, events are dropped with warning.
+        let (sender, receiver) = mpsc::channel(100);
+
         // Start device monitoring using inotify on /dev
         let devices = self.devices.clone();
         let monitoring = self.monitoring.clone();
         let sender_clone = sender.clone();
-        
+
         monitoring.store(true, Ordering::Relaxed);
-        
+
         tokio::spawn(async move {
-            let mut last_devices = HashMap::new();
-            
+            let mut last_devices: HashMap<DeviceId, HidDeviceInfo> = HashMap::new();
+
             while monitoring.load(Ordering::Relaxed) {
                 // Check for device changes every 500ms
                 tokio::time::sleep(Duration::from_millis(500)).await;
-                
+
                 // In a real implementation, this would use inotify to watch /dev
                 // for hidraw device creation/removal
                 let current_devices = devices.read().clone();
-                
+
                 // Check for new devices
                 for (id, info) in &current_devices {
                     if !last_devices.contains_key(id) {
                         let event = DeviceEvent::Connected(info.to_device_info());
-                        if sender_clone.send(event).is_err() {
-                            break;
+                        // Use try_send to avoid blocking monitor loop if receiver is slow
+                        if let Err(e) = sender_clone.try_send(event) {
+                            match e {
+                                mpsc::error::TrySendError::Full(_) => {
+                                    warn!("Device monitor channel full, dropping connect event for {}", id);
+                                }
+                                mpsc::error::TrySendError::Closed(_) => break,
+                            }
                         }
                     }
                 }
-                
+
                 // Check for removed devices
                 for (id, info) in &last_devices {
                     if !current_devices.contains_key(id) {
                         let event = DeviceEvent::Disconnected(info.to_device_info());
-                        if sender_clone.send(event).is_err() {
-                            break;
+                        // Use try_send to avoid blocking monitor loop if receiver is slow
+                        if let Err(e) = sender_clone.try_send(event) {
+                            match e {
+                                mpsc::error::TrySendError::Full(_) => {
+                                    warn!("Device monitor channel full, dropping disconnect event for {}", id);
+                                }
+                                mpsc::error::TrySendError::Closed(_) => break,
+                            }
                         }
                     }
                 }
-                
+
                 last_devices = current_devices;
             }
         });
-        
+
         Ok(receiver)
     }
 

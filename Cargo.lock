@@ -4890,6 +4890,7 @@ dependencies = [
  "crossbeam",
  "cu-bincode",
  "flate2",
+ "hdrhistogram",
  "hidapi",
  "jsonschema",
  "libc",

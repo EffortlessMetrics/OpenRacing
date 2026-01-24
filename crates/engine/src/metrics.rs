@@ -9,11 +9,12 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
+use crossbeam::queue::ArrayQueue;
+use parking_lot::Mutex;
 use prometheus::{Gauge, Histogram, IntCounter, IntGauge, Registry};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
-// Removed unused tokio_stream::Stream import
 
 /// Real-time performance metrics
 #[derive(Debug, Clone)]
@@ -413,6 +414,56 @@ impl AtomicCounters {
     }
 }
 
+/// RT-safe sample queues for histogram recording
+///
+/// Uses lock-free bounded queues to allow the RT path to push samples
+/// without blocking. Samples are drained by the collector and recorded
+/// into hdrhistogram for percentile calculation.
+pub struct RTSampleQueues {
+    /// Jitter samples in nanoseconds (capacity: 10000 samples between collections)
+    pub jitter_ns: ArrayQueue<u64>,
+    /// Processing time samples in nanoseconds (capacity: 10000)
+    pub processing_time_ns: ArrayQueue<u64>,
+    /// HID latency samples in nanoseconds (capacity: 10000)
+    pub hid_latency_ns: ArrayQueue<u64>,
+}
+
+impl RTSampleQueues {
+    /// Create new sample queues with default capacity
+    pub fn new() -> Self {
+        Self {
+            jitter_ns: ArrayQueue::new(10000),
+            processing_time_ns: ArrayQueue::new(10000),
+            hid_latency_ns: ArrayQueue::new(10000),
+        }
+    }
+
+    /// Push a jitter sample (RT-safe, drops on overflow)
+    #[inline]
+    pub fn push_jitter(&self, ns: u64) {
+        // Drop sample on overflow - this is acceptable for metrics
+        let _ = self.jitter_ns.push(ns);
+    }
+
+    /// Push a processing time sample (RT-safe, drops on overflow)
+    #[inline]
+    pub fn push_processing_time(&self, ns: u64) {
+        let _ = self.processing_time_ns.push(ns);
+    }
+
+    /// Push a HID latency sample (RT-safe, drops on overflow)
+    #[inline]
+    pub fn push_hid_latency(&self, ns: u64) {
+        let _ = self.hid_latency_ns.push(ns);
+    }
+}
+
+impl Default for RTSampleQueues {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Health event streaming service
 pub struct HealthEventStreamer {
     sender: broadcast::Sender<HealthEvent>,
@@ -465,6 +516,12 @@ pub struct MetricsCollector {
     health_streamer: Arc<HealthEventStreamer>,
     system_monitor: SystemMonitor,
     last_collection: Instant,
+    /// RT-safe sample queues for histogram data
+    sample_queues: Arc<RTSampleQueues>,
+    /// HDR histograms for percentile calculations (non-RT access only)
+    jitter_histogram: Mutex<hdrhistogram::Histogram<u64>>,
+    processing_histogram: Mutex<hdrhistogram::Histogram<u64>>,
+    latency_histogram: Mutex<hdrhistogram::Histogram<u64>>,
 }
 
 impl MetricsCollector {
@@ -474,29 +531,111 @@ impl MetricsCollector {
         let atomic_counters = Arc::new(AtomicCounters::new());
         let health_streamer = Arc::new(HealthEventStreamer::new(1000)); // Buffer 1000 events
         let system_monitor = SystemMonitor::new();
-        
+        let sample_queues = Arc::new(RTSampleQueues::new());
+
+        // Initialize HDR histograms (1ns to 1s range, 3 significant figures)
+        // These provide accurate percentile calculations
+        let jitter_histogram = Mutex::new(
+            hdrhistogram::Histogram::<u64>::new_with_bounds(1, 1_000_000_000, 3)
+                .expect("Failed to create jitter histogram")
+        );
+        let processing_histogram = Mutex::new(
+            hdrhistogram::Histogram::<u64>::new_with_bounds(1, 1_000_000_000, 3)
+                .expect("Failed to create processing histogram")
+        );
+        let latency_histogram = Mutex::new(
+            hdrhistogram::Histogram::<u64>::new_with_bounds(1, 1_000_000_000, 3)
+                .expect("Failed to create latency histogram")
+        );
+
         Ok(Self {
             prometheus_metrics,
             atomic_counters,
             health_streamer,
             system_monitor,
             last_collection: Instant::now(),
+            sample_queues,
+            jitter_histogram,
+            processing_histogram,
+            latency_histogram,
         })
     }
-    
+
     /// Get Prometheus registry for export
     pub fn prometheus_registry(&self) -> &Registry {
         &self.prometheus_metrics.registry
     }
-    
+
     /// Get atomic counters for RT use
     pub fn atomic_counters(&self) -> Arc<AtomicCounters> {
         self.atomic_counters.clone()
     }
-    
+
+    /// Get sample queues for RT use
+    pub fn sample_queues(&self) -> Arc<RTSampleQueues> {
+        self.sample_queues.clone()
+    }
+
     /// Get health event streamer
     pub fn health_streamer(&self) -> Arc<HealthEventStreamer> {
         self.health_streamer.clone()
+    }
+
+    /// Drain samples from RT queues into histograms
+    fn drain_samples(&self) {
+        // Drain jitter samples
+        {
+            let mut hist = self.jitter_histogram.lock();
+            while let Some(sample) = self.sample_queues.jitter_ns.pop() {
+                let _ = hist.record(sample);
+            }
+        }
+
+        // Drain processing time samples
+        {
+            let mut hist = self.processing_histogram.lock();
+            while let Some(sample) = self.sample_queues.processing_time_ns.pop() {
+                let _ = hist.record(sample);
+            }
+        }
+
+        // Drain HID latency samples
+        {
+            let mut hist = self.latency_histogram.lock();
+            while let Some(sample) = self.sample_queues.hid_latency_ns.pop() {
+                let _ = hist.record(sample);
+            }
+        }
+    }
+
+    /// Get jitter statistics from histogram
+    fn get_jitter_stats(&self) -> JitterStats {
+        let hist = self.jitter_histogram.lock();
+        JitterStats {
+            p50_ns: hist.value_at_quantile(0.5),
+            p99_ns: hist.value_at_quantile(0.99),
+            max_ns: hist.max(),
+        }
+    }
+
+    /// Get processing time statistics from histogram (in microseconds)
+    fn get_processing_stats(&self) -> LatencyStats {
+        let hist = self.processing_histogram.lock();
+        LatencyStats {
+            p50_us: hist.value_at_quantile(0.5) / 1000,
+            p99_us: hist.value_at_quantile(0.99) / 1000,
+            max_us: hist.max() / 1000,
+        }
+    }
+
+    /// Get HID latency statistics from histogram (in microseconds)
+    fn get_latency_stats(&self) -> LatencyStats {
+        let hist = self.latency_histogram.lock();
+        LatencyStats {
+            p50_us: hist.value_at_quantile(0.5) / 1000,
+            p99_us: hist.value_at_quantile(0.99) / 1000,
+            max_us: hist.max() / 1000,
+        }
     }
     
     /// Collect and update all metrics
@@ -532,26 +671,20 @@ impl MetricsCollector {
         
         // Get system metrics
         let (cpu_usage, memory_usage) = self.system_monitor.get_system_metrics().await;
-        
+
+        // Drain RT samples into histograms and compute statistics
+        self.drain_samples();
+        let jitter_stats = self.get_jitter_stats();
+        let processing_stats = self.get_processing_stats();
+        let latency_stats = self.get_latency_stats();
+
         // Create RT metrics
         let rt_metrics = RTMetrics {
             total_ticks,
             missed_ticks,
-            jitter_ns: JitterStats {
-                p50_ns: 0, // TODO: Implement histogram tracking
-                p99_ns: 0,
-                max_ns: 0,
-            },
-            hid_latency_us: LatencyStats {
-                p50_us: 0, // TODO: Implement histogram tracking
-                p99_us: 0,
-                max_us: 0,
-            },
-            processing_time_us: LatencyStats {
-                p50_us: 0, // TODO: Implement histogram tracking
-                p99_us: 0,
-                max_us: 0,
-            },
+            jitter_ns: jitter_stats,
+            hid_latency_us: latency_stats,
+            processing_time_us: processing_stats,
             cpu_usage_percent: cpu_usage,
             memory_usage_bytes: memory_usage,
             last_update: now,
