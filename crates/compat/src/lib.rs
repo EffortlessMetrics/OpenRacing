@@ -1,8 +1,7 @@
 //! Compatibility layer for schema migrations
-//! 
+//!
 //! This crate provides compatibility traits to ease migration from old field names
-//! to new field names in telemetry and configuration structs. It is gated with
-//! #[cfg(test)] to ensure it never ships in release builds.
+//! to new field names in telemetry and configuration structs.
 
 pub mod telemetry_compat;
 

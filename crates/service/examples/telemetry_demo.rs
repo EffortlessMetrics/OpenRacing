@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // 1. Demonstrate normalized telemetry creation and validation
     println!("\n1. 📊 Normalized Telemetry Creation");
-    let telemetry = NormalizedTelemetry::new()
+    let telemetry = NormalizedTelemetry::default()
         .with_ffb_scalar(0.75)
         .with_rpm(6500.0)
         .with_speed_ms(45.0)
@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     
     // Test value clamping
-    let clamped = NormalizedTelemetry::new().with_ffb_scalar(1.5);
+    let clamped = NormalizedTelemetry::default().with_ffb_scalar(1.5);
     println!("   ✓ FFB scalar clamping: 1.5 → {:.1}", clamped.ffb_scalar.unwrap());
     
     // 2. Demonstrate rate limiter functionality
@@ -111,7 +111,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Record some frames
     for i in 0..10 {
-        let telemetry = NormalizedTelemetry::new()
+        let telemetry = NormalizedTelemetry::default()
             .with_rpm(5000.0 + i as f32 * 100.0)
             .with_speed_ms(30.0 + i as f32 * 2.0)
             .with_gear(3);
@@ -179,7 +179,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     flags.pit_limiter = true;
     flags.drs_available = true;
     
-    let extended_telemetry = NormalizedTelemetry::new()
+    let extended_telemetry = NormalizedTelemetry::default()
         .with_flags(flags)
         .with_extended("fuel_level".to_string(), TelemetryValue::Float(45.5))
         .with_extended("lap_count".to_string(), TelemetryValue::Integer(12))
