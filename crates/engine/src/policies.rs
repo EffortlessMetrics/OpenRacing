@@ -417,13 +417,13 @@ mod tests {
     use std::time::Duration;
 
     fn create_test_device() -> Device {
-        let id = DeviceId::new("test-device".to_string()).unwrap();
+        let id = DeviceId::from_raw("test-device".to_string());
         let capabilities = DeviceCapabilities::new(
             false,
             true,
             true,
             true,
-            TorqueNm::new(25.0).unwrap(),
+            TorqueNm::from_raw(25.0),
             10000,
             1000,
         );
@@ -521,14 +521,14 @@ mod tests {
             true,
             true,
             true,
-            TorqueNm::new(25.0).unwrap(),
+            TorqueNm::from_raw(25.0),
             10000,
             1000,
         );
 
         // Test safe mode limits
         let result = policy.validate_torque_limits(
-            TorqueNm::new(3.0).unwrap(),
+            TorqueNm::from_raw(3.0),
             false, // Safe mode
             &capabilities,
         );
@@ -537,7 +537,7 @@ mod tests {
 
         // Test safe mode exceeds limit
         let result = policy.validate_torque_limits(
-            TorqueNm::new(10.0).unwrap(),
+            TorqueNm::from_raw(10.0),
             false, // Safe mode
             &capabilities,
         );
@@ -548,7 +548,7 @@ mod tests {
 
         // Test high torque mode
         let result = policy.validate_torque_limits(
-            TorqueNm::new(20.0).unwrap(),
+            TorqueNm::from_raw(20.0),
             true, // High torque mode
             &capabilities,
         );
@@ -574,7 +574,7 @@ mod tests {
     }
 
     fn create_test_profile(id: &str, scope: ProfileScope) -> Profile {
-        let profile_id = ProfileId::new(id.to_string()).unwrap();
+        let profile_id = ProfileId::from_raw(id.to_string());
         Profile::new(
             profile_id,
             scope,
@@ -663,7 +663,7 @@ mod tests {
             true,
             true,
             true,
-            TorqueNm::new(25.0).unwrap(),
+            TorqueNm::from_raw(25.0),
             10000,
             1000,
         );
@@ -716,7 +716,7 @@ mod tests {
         // Different inputs should produce different hash
         let mut different_game_profile =
             create_test_profile("acc", ProfileScope::for_game("acc".to_string()));
-        different_game_profile.base_settings.ffb_gain = Gain::new(0.5).unwrap(); // Different gain
+        different_game_profile.base_settings.ffb_gain = Gain::from_raw(0.5); // Different gain
         let hash3 = ProfileHierarchyPolicy::calculate_hierarchy_hash(
             &global_profile,
             Some(&different_game_profile),

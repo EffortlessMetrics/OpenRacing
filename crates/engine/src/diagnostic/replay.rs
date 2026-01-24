@@ -502,7 +502,7 @@ mod tests {
     fn create_test_recording() -> (PathBuf, TempDir) {
         let temp_dir = TempDir::new().unwrap();
         let config = BlackboxConfig {
-            device_id: DeviceId::new("test-device".to_string()).unwrap(),
+            device_id: DeviceId::from_raw("test-device".to_string()),
             output_dir: temp_dir.path().to_path_buf(),
             max_duration_s: 10,
             max_file_size_bytes: 1024 * 1024,
@@ -622,7 +622,7 @@ mod tests {
 
         let replay = BlackboxReplay {
             config: config.clone(),
-            header: WbbHeader::new(DeviceId::new("test".to_string()).unwrap(), 1, 1, 0),
+            header: WbbHeader::new(DeviceId::from_raw("test".to_string()), 1, 1, 0),
             footer: WbbFooter {
                 duration_ms: 1000,
                 total_frames: 100,

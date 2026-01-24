@@ -247,6 +247,12 @@ impl DeviceId {
         value.parse()
     }
 
+    /// Create a DeviceId from a raw string without validation.
+    /// Use only for known-valid constants in tests.
+    pub fn from_raw(value: String) -> Self {
+        DeviceId(value)
+    }
+
     /// Get the raw string value
     pub fn as_str(&self) -> &str {
         &self.0
@@ -322,6 +328,12 @@ impl ProfileId {
     /// Create a new ProfileId with validation
     pub fn new(value: String) -> Result<Self, DomainError> {
         value.parse()
+    }
+
+    /// Create a ProfileId from a raw string without validation.
+    /// Use only for known-valid constants in tests.
+    pub fn from_raw(value: String) -> Self {
+        ProfileId(value)
     }
 
     /// Get the raw string value
@@ -501,6 +513,12 @@ impl CurvePoint {
         }
 
         Ok(CurvePoint { input, output })
+    }
+
+    /// Create a curve point from raw values without validation.
+    /// Use only for known-valid constants in tests.
+    pub const fn from_raw(input: f32, output: f32) -> Self {
+        CurvePoint { input, output }
     }
 }
 

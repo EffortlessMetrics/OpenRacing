@@ -1,4 +1,9 @@
 //! Output formatting for CLI responses
+//!
+//! JSON serialization of our output structures cannot fail, so we allow unwrap
+//! in this module for brevity.
+
+#![allow(clippy::unwrap_used)]
 
 use anyhow::Error;
 use colored::*;

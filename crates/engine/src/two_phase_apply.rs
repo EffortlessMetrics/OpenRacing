@@ -355,7 +355,7 @@ mod tests {
 
     fn create_test_profile(id: &str, scope: ProfileScope) -> Profile {
         Profile::new(
-            ProfileId::new(id.to_string()).unwrap(),
+            ProfileId::from_raw(id.to_string()),
             scope,
             BaseSettings::default(),
             format!("Test Profile {}", id),
@@ -397,7 +397,7 @@ mod tests {
             create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
 
         // Modify game profile
-        game_profile.base_settings.ffb_gain = Gain::new(0.8).unwrap();
+        game_profile.base_settings.ffb_gain = Gain::from_raw(0.8);
 
         // Start apply operation
         let result_rx = coordinator
@@ -424,9 +424,9 @@ mod tests {
 
         let global_profile = create_test_profile("global", ProfileScope::global());
         let session_overrides = BaseSettings::new(
-            Gain::new(0.9).unwrap(),
-            Degrees::new_dor(540.0).unwrap(),
-            TorqueNm::new(20.0).unwrap(),
+            Gain::from_raw(0.9),
+            Degrees::from_raw(540.0),
+            TorqueNm::from_raw(20.0),
             FilterConfig::default(),
         );
 

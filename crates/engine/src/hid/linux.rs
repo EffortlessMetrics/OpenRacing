@@ -113,7 +113,7 @@ impl LinuxHidPort {
                     supports_raw_torque_1khz: true,
                     supports_health_stream: true,
                     supports_led_bus: false,
-                    max_torque: TorqueNm::new(25.0).unwrap(),
+                    max_torque: TorqueNm::from_raw(25.0),
                     encoder_cpr: 4096,
                     min_report_period_us: 1000, // 1kHz
                 };
@@ -161,7 +161,7 @@ impl LinuxHidPort {
             supports_raw_torque_1khz: true,
             supports_health_stream: true,
             supports_led_bus: false,
-            max_torque: TorqueNm::new(25.0).unwrap(),
+            max_torque: TorqueNm::from_raw(25.0),
             encoder_cpr: 4096,
             min_report_period_us: 1000,
         };
@@ -630,13 +630,13 @@ mod tests {
 
     #[test]
     fn test_linux_hid_device_creation() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
         let capabilities = DeviceCapabilities {
             supports_pid: true,
             supports_raw_torque_1khz: true,
             supports_health_stream: true,
             supports_led_bus: false,
-            max_torque: TorqueNm::new(25.0).unwrap(),
+            max_torque: TorqueNm::from_raw(25.0),
             encoder_cpr: 4096,
             min_report_period_us: 1000,
         };
@@ -659,13 +659,13 @@ mod tests {
 
     #[test]
     fn test_ffb_report_writing() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
         let capabilities = DeviceCapabilities {
             supports_pid: true,
             supports_raw_torque_1khz: true,
             supports_health_stream: true,
             supports_led_bus: false,
-            max_torque: TorqueNm::new(25.0).unwrap(),
+            max_torque: TorqueNm::from_raw(25.0),
             encoder_cpr: 4096,
             min_report_period_us: 1000,
         };

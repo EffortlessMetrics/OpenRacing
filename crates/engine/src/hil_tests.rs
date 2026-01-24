@@ -3,6 +3,8 @@
 //! This module provides comprehensive HIL tests that validate the real-time engine
 //! with integrated safety systems using synthetic FFB data and timing validation.
 
+#![allow(clippy::unwrap_used)] // Test module - unwraps are acceptable
+
 use crate::ports::TelemetryFlags;
 use crate::{
     Engine, EngineConfig,

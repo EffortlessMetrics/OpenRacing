@@ -291,7 +291,7 @@ mod tests {
         let (config, _temp_dir) = create_test_config();
         let mut service = DiagnosticService::new(config).unwrap();
 
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
 
         // Start recording
         let result = service.start_recording(device_id.clone());
@@ -313,7 +313,7 @@ mod tests {
         let (config, _temp_dir) = create_test_config();
         let mut service = DiagnosticService::new(config).unwrap();
 
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
         let event = HealthEvent {
             timestamp: SystemTime::now(),
             device_id,
@@ -332,7 +332,7 @@ mod tests {
         let (config, _temp_dir) = create_test_config();
         let mut service = DiagnosticService::new(config).unwrap();
 
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
         service.start_recording(device_id).unwrap();
 
         let frame = Frame {
@@ -361,7 +361,7 @@ mod tests {
         let mut service = DiagnosticService::new(config).unwrap();
 
         // Add some health events
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
         for i in 0..5 {
             let event = HealthEvent {
                 timestamp: SystemTime::now(),
@@ -387,7 +387,7 @@ mod tests {
         config.enable_recording = false;
 
         let mut service = DiagnosticService::new(config).unwrap();
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
 
         let result = service.start_recording(device_id);
         assert!(result.is_err());

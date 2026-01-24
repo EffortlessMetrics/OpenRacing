@@ -379,8 +379,10 @@ fn should_terminate_early(checkpoints: &[SoakCheckpoint]) -> bool {
         .windows(2)
         .all(|pair| pair[1].memory_usage_mb > pair[0].memory_usage_mb);
 
-    if memory_trend && recent_checkpoints.last().unwrap().memory_usage_mb > 200.0 {
-        return true;
+    if let Some(last) = recent_checkpoints.last() {
+        if memory_trend && last.memory_usage_mb > 200.0 {
+            return true;
+        }
     }
 
     false

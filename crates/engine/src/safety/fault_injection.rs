@@ -594,6 +594,7 @@ impl Default for FaultInjectionSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::prelude::MutexExt;
     use std::sync::{Arc, Mutex};
 
     #[test]
@@ -956,11 +957,11 @@ mod tests {
         let recovery_flag = recovery_triggered.clone();
 
         system.add_fault_callback(move |_fault_type, _scenario| {
-            *fault_flag.lock().unwrap() = true;
+            *fault_flag.lock_or_panic() = true;
         });
 
         system.add_recovery_callback(move |_fault_type, _scenario| {
-            *recovery_flag.lock().unwrap() = true;
+            *recovery_flag.lock_or_panic() = true;
         });
 
         let scenario = FaultInjectionScenario {
@@ -976,10 +977,10 @@ mod tests {
 
         // Trigger should call fault callback
         system.trigger_scenario("callback_test").unwrap();
-        assert!(*fault_triggered.lock().unwrap());
+        assert!(*fault_triggered.lock_or_panic());
 
         // Recovery should call recovery callback
         system.recover_scenario("callback_test").unwrap();
-        assert!(*recovery_triggered.lock().unwrap());
+        assert!(*recovery_triggered.lock_or_panic());
     }
 }

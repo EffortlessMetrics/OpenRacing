@@ -483,7 +483,7 @@ mod tests {
     fn test_stream_c_health_events() {
         let mut stream = StreamC::new();
 
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
         let event = HealthEvent {
             timestamp: SystemTime::now(),
             device_id,

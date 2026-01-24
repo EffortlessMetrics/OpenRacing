@@ -359,13 +359,17 @@ impl PipelineCompiler {
         }
 
         // Ensure curve starts at 0 and ends at 1
-        if curve_points[0].input != 0.0 {
+        // We already checked curve_points is non-empty above
+        let first = &curve_points[0];
+        let last = &curve_points[curve_points.len() - 1];
+
+        if first.input != 0.0 {
             return Err(PipelineError::InvalidConfig(
                 "Curve must start at input 0.0".to_string(),
             ));
         }
 
-        if curve_points.last().unwrap().input != 1.0 {
+        if last.input != 1.0 {
             return Err(PipelineError::InvalidConfig(
                 "Curve must end at input 1.0".to_string(),
             ));
@@ -680,17 +684,17 @@ mod tests {
     fn create_test_filter_config() -> FilterConfig {
         FilterConfig::new_complete(
             4,                        // reconstruction
-            Gain::new(0.1).unwrap(),  // friction
-            Gain::new(0.15).unwrap(), // damper
-            Gain::new(0.05).unwrap(), // inertia
-            vec![NotchFilter::new(FrequencyHz::new(60.0).unwrap(), 2.0, -12.0).unwrap()],
-            Gain::new(0.8).unwrap(), // slew_rate
+            Gain::from_raw(0.1),  // friction
+            Gain::from_raw(0.15), // damper
+            Gain::from_raw(0.05), // inertia
+            vec![NotchFilter::from_raw(FrequencyHz::from_raw(60.0), 2.0, -12.0)],
+            Gain::from_raw(0.8), // slew_rate
             vec![
-                CurvePoint::new(0.0, 0.0).unwrap(),
-                CurvePoint::new(0.5, 0.6).unwrap(),
-                CurvePoint::new(1.0, 1.0).unwrap(),
+                CurvePoint::from_raw(0.0, 0.0),
+                CurvePoint::from_raw(0.5, 0.6),
+                CurvePoint::from_raw(1.0, 1.0),
             ],
-            Gain::new(0.9).unwrap(), // torque_cap
+            Gain::from_raw(0.9), // torque_cap
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         )
@@ -700,16 +704,16 @@ mod tests {
     fn create_linear_filter_config() -> FilterConfig {
         FilterConfig::new_complete(
             0,                       // no reconstruction
-            Gain::new(0.0).unwrap(), // no friction
-            Gain::new(0.0).unwrap(), // no damper
-            Gain::new(0.0).unwrap(), // no inertia
+            Gain::from_raw(0.0), // no friction
+            Gain::from_raw(0.0), // no damper
+            Gain::from_raw(0.0), // no inertia
             vec![],                  // no notch filters
-            Gain::new(1.0).unwrap(), // no slew rate limiting
+            Gain::from_raw(1.0), // no slew rate limiting
             vec![
-                CurvePoint::new(0.0, 0.0).unwrap(),
-                CurvePoint::new(1.0, 1.0).unwrap(),
+                CurvePoint::from_raw(0.0, 0.0),
+                CurvePoint::from_raw(1.0, 1.0),
             ],
-            Gain::new(1.0).unwrap(), // no torque cap
+            Gain::from_raw(1.0), // no torque cap
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         )
@@ -809,16 +813,16 @@ mod tests {
         // Create invalid config with reconstruction level too high
         let invalid_config_result = FilterConfig::new_complete(
             10, // Invalid: > 8
-            Gain::new(0.1).unwrap(),
-            Gain::new(0.15).unwrap(),
-            Gain::new(0.05).unwrap(),
+            Gain::from_raw(0.1),
+            Gain::from_raw(0.15),
+            Gain::from_raw(0.05),
             vec![],
-            Gain::new(0.8).unwrap(),
+            Gain::from_raw(0.8),
             vec![
-                CurvePoint::new(0.0, 0.0).unwrap(),
-                CurvePoint::new(1.0, 1.0).unwrap(),
+                CurvePoint::from_raw(0.0, 0.0),
+                CurvePoint::from_raw(1.0, 1.0),
             ],
-            Gain::new(1.0).unwrap(),
+            Gain::from_raw(1.0),
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         );
@@ -845,18 +849,18 @@ mod tests {
         // Create config with non-monotonic curve - this should fail at construction
         let invalid_config_result = FilterConfig::new_complete(
             4,
-            Gain::new(0.1).unwrap(),
-            Gain::new(0.15).unwrap(),
-            Gain::new(0.05).unwrap(),
+            Gain::from_raw(0.1),
+            Gain::from_raw(0.15),
+            Gain::from_raw(0.05),
             vec![],
-            Gain::new(0.8).unwrap(),
+            Gain::from_raw(0.8),
             vec![
-                CurvePoint::new(0.0, 0.0).unwrap(),
-                CurvePoint::new(0.7, 0.6).unwrap(),
-                CurvePoint::new(0.5, 0.8).unwrap(), // Non-monotonic!
-                CurvePoint::new(1.0, 1.0).unwrap(),
+                CurvePoint::from_raw(0.0, 0.0),
+                CurvePoint::from_raw(0.7, 0.6),
+                CurvePoint::from_raw(0.5, 0.8), // Non-monotonic!
+                CurvePoint::from_raw(1.0, 1.0),
             ],
-            Gain::new(1.0).unwrap(),
+            Gain::from_raw(1.0),
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         );
@@ -878,23 +882,23 @@ mod tests {
         // Create config with invalid parameters - high frequency notch filter
         let invalid_config = FilterConfig::new_complete(
             4,
-            Gain::new(0.1).unwrap(),
-            Gain::new(0.15).unwrap(),
-            Gain::new(0.05).unwrap(),
+            Gain::from_raw(0.1),
+            Gain::from_raw(0.15),
+            Gain::from_raw(0.05),
             vec![
                 NotchFilter::new(
-                    FrequencyHz::new(600.0).unwrap(), // Too high frequency
+                    FrequencyHz::from_raw(600.0), // Too high frequency
                     2.0,
                     -12.0,
                 )
                 .unwrap(),
             ],
-            Gain::new(0.8).unwrap(),
+            Gain::from_raw(0.8),
             vec![
-                CurvePoint::new(0.0, 0.0).unwrap(),
-                CurvePoint::new(1.0, 1.0).unwrap(),
+                CurvePoint::from_raw(0.0, 0.0),
+                CurvePoint::from_raw(1.0, 1.0),
             ],
-            Gain::new(1.0).unwrap(),
+            Gain::from_raw(1.0),
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         )

@@ -171,12 +171,16 @@ impl DeviceCapabilitiesReport {
     }
 
     pub fn to_device_capabilities(&self) -> DeviceCapabilities {
+        // Convert cNm to Nm, clamping to valid range
+        let nm = (self.max_torque_cnm as f32) / 100.0;
+        let clamped_nm = nm.clamp(0.0, TorqueNm::MAX_TORQUE);
+
         DeviceCapabilities {
             supports_pid: (self.supports_pid & 0x01) != 0,
             supports_raw_torque_1khz: (self.supports_raw_torque_1khz & 0x01) != 0,
             supports_health_stream: (self.supports_health_stream & 0x01) != 0,
             supports_led_bus: (self.supports_led_bus & 0x01) != 0,
-            max_torque: TorqueNm::from_cnm(self.max_torque_cnm).unwrap(),
+            max_torque: TorqueNm::from_raw(clamped_nm),
             encoder_cpr: self.encoder_cpr,
             min_report_period_us: self.min_report_period_us as u16,
         }

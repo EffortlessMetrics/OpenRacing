@@ -260,7 +260,7 @@ mod tests {
             supports_raw_torque,
             true, // supports_health_stream
             true, // supports_led_bus
-            TorqueNm::new(max_torque_nm).unwrap(),
+            TorqueNm::from_raw(max_torque_nm),
             10000, // encoder_cpr
             1000,  // min_report_period_us (1kHz)
         )

@@ -82,10 +82,19 @@ impl PluginHost {
                         Ok(manifest) => {
                             let plugin_path = match manifest.class {
                                 PluginClass::Safe => {
-                                    path.join(manifest.entry_points.wasm_module.as_ref().unwrap())
+                                    if let Some(wasm_path) = manifest.entry_points.wasm_module.as_ref() {
+                                        path.join(wasm_path)
+                                    } else {
+                                        continue; // Skip plugin with missing wasm module
+                                    }
                                 }
-                                PluginClass::Fast => path
-                                    .join(manifest.entry_points.native_library.as_ref().unwrap()),
+                                PluginClass::Fast => {
+                                    if let Some(native_path) = manifest.entry_points.native_library.as_ref() {
+                                        path.join(native_path)
+                                    } else {
+                                        continue; // Skip plugin with missing native library
+                                    }
+                                }
                             };
 
                             if plugin_path.exists() {

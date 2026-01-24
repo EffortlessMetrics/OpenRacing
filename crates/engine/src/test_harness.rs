@@ -5,6 +5,7 @@
 //! performance measurement, and integration testing capabilities.
 
 use crate::ports::{HidDevice, HidPort};
+use crate::prelude::MutexExt;
 use crate::{PerformanceMetrics, TelemetryData, VirtualDevice, VirtualHidPort};
 use racing_wheel_schemas::prelude::*;
 use std::collections::VecDeque;
@@ -293,11 +294,11 @@ impl RTLoopTestHarness {
         self.stop_flag.store(false, Ordering::Relaxed);
         self.tick_counter.store(0, Ordering::Relaxed);
         {
-            let mut metrics = self.performance_metrics.lock().unwrap();
+            let mut metrics = self.performance_metrics.lock_or_panic();
             *metrics = PerformanceMetrics::default();
         }
         {
-            let mut timing = self.timing_data.lock().unwrap();
+            let mut timing = self.timing_data.lock_or_panic();
             timing.clear();
         }
 
@@ -331,7 +332,7 @@ impl RTLoopTestHarness {
 
         // Collect and analyze results
         let performance = {
-            let metrics = self.performance_metrics.lock().unwrap();
+            let metrics = self.performance_metrics.lock_or_panic();
             metrics.clone()
         };
 
@@ -433,7 +434,7 @@ impl RTLoopTestHarness {
 
                 // Update timing data
                 {
-                    let mut timing = timing_data.lock().unwrap();
+                    let mut timing = timing_data.lock_or_panic();
                     timing.push_back(jitter);
                     if timing.len() > 10000 {
                         timing.pop_front();
@@ -465,7 +466,7 @@ impl RTLoopTestHarness {
 
                 // Update performance metrics
                 {
-                    let mut metrics = performance_metrics.lock().unwrap();
+                    let mut metrics = performance_metrics.lock_or_panic();
                     metrics.total_ticks = tick_count;
 
                     let jitter_ns = jitter.as_nanos() as u64;
@@ -488,7 +489,7 @@ impl RTLoopTestHarness {
                     tokio::time::sleep(next_tick - now).await;
                 } else {
                     // Missed deadline
-                    let mut metrics = performance_metrics.lock().unwrap();
+                    let mut metrics = performance_metrics.lock_or_panic();
                     metrics.missed_ticks += 1;
                     next_tick = now;
                 }
@@ -506,8 +507,8 @@ impl RTLoopTestHarness {
 
     /// Analyze timing data and generate validation results
     fn analyze_timing_data(&self) -> TimingValidation {
-        let timing_data = self.timing_data.lock().unwrap();
-        let performance = self.performance_metrics.lock().unwrap();
+        let timing_data = self.timing_data.lock_or_panic();
+        let performance = self.performance_metrics.lock_or_panic();
 
         if timing_data.is_empty() {
             return TimingValidation {
@@ -858,7 +859,7 @@ mod tests {
         let mut port = VirtualHidPort::new();
 
         // Create and add a virtual device
-        let device_id = DeviceId::new("integration-test".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("integration-test".to_string());
         let device = VirtualDevice::new(device_id.clone(), "Integration Test Device".to_string());
         port.add_device(device).unwrap();
 

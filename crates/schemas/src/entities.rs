@@ -322,6 +322,16 @@ impl NotchFilter {
             gain_db,
         })
     }
+
+    /// Create a notch filter from raw values without validation.
+    /// Use only for known-valid constants in tests.
+    pub const fn from_raw(frequency: FrequencyHz, q_factor: f32, gain_db: f32) -> Self {
+        Self {
+            frequency,
+            q_factor,
+            gain_db,
+        }
+    }
 }
 
 /// Filter configuration for force feedback processing

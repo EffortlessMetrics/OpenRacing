@@ -520,7 +520,7 @@ mod tests {
         async fn load_global_profile(&self) -> Result<Profile, ProfileRepoError> {
             let global = self.global_profile.read().await;
             global.as_ref().cloned().ok_or_else(|| {
-                ProfileRepoError::ProfileNotFound(ProfileId::new("global".to_string()).unwrap())
+                ProfileRepoError::ProfileNotFound(ProfileId::from_raw("global".to_string()))
             })
         }
 
@@ -573,7 +573,7 @@ mod tests {
             true,
             true,
             true,
-            TorqueNm::new(25.0).unwrap(),
+            TorqueNm::from_raw(25.0),
             10000,
             1000,
         )
@@ -602,12 +602,12 @@ mod tests {
 
         // Add game-specific profile
         let game_profile = Profile::new(
-            ProfileId::new("iracing".to_string()).unwrap(),
+            ProfileId::from_raw("iracing".to_string()),
             ProfileScope::for_game("iracing".to_string()),
             BaseSettings::new(
-                Gain::new(0.8).unwrap(),
-                Degrees::new_dor(540.0).unwrap(),
-                TorqueNm::new(20.0).unwrap(),
+                Gain::from_raw(0.8),
+                Degrees::from_raw(540.0),
+                TorqueNm::from_raw(20.0),
                 FilterConfig::default(),
             ),
             "iRacing Profile".to_string(),
@@ -616,7 +616,7 @@ mod tests {
         repo.add_profile(game_profile).await;
 
         // Create context
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
         let context = ProfileContext::new(device_id).with_game("iracing".to_string());
 
         // Resolve profile
@@ -634,7 +634,7 @@ mod tests {
 
         service.initialize().await.unwrap();
 
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
         let context = ProfileContext::new(device_id);
 
         // First resolution should hit the repository
@@ -662,13 +662,13 @@ mod tests {
 
         // Create profile with excessive torque
         let mut profile = Profile::new(
-            ProfileId::new("test".to_string()).unwrap(),
+            ProfileId::from_raw("test".to_string()),
             ProfileScope::global(),
             BaseSettings::default(),
             "Test Profile".to_string(),
         );
 
-        profile.base_settings.torque_cap = TorqueNm::new(30.0).unwrap(); // Exceeds device limit
+        profile.base_settings.torque_cap = TorqueNm::from_raw(30.0); // Exceeds device limit
 
         let validation_result = service
             .validate_profile(&profile, &capabilities)
@@ -688,7 +688,7 @@ mod tests {
         let capabilities = create_test_capabilities();
 
         let profile = Profile::new(
-            ProfileId::new("test-profile".to_string()).unwrap(),
+            ProfileId::from_raw("test-profile".to_string()),
             ProfileScope::for_game("iracing".to_string()),
             BaseSettings::default(),
             "Test Profile".to_string(),

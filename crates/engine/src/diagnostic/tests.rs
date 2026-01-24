@@ -34,7 +34,7 @@ fn create_test_diagnostic_config(temp_dir: &TempDir) -> DiagnosticConfig {
 /// Create test blackbox configuration
 fn create_test_blackbox_config(temp_dir: &TempDir) -> BlackboxConfig {
     BlackboxConfig {
-        device_id: DeviceId::new("test-device".to_string()).unwrap(),
+        device_id: DeviceId::from_raw("test-device".to_string()),
         output_dir: temp_dir.path().join("recordings"),
         max_duration_s: 30,
         max_file_size_bytes: 5 * 1024 * 1024,
@@ -115,7 +115,7 @@ fn generate_test_telemetry(count: usize) -> Vec<NormalizedTelemetry> {
 
 /// Generate test health events
 fn generate_test_health_events(count: usize) -> Vec<HealthEvent> {
-    let device_id = DeviceId::new("test-device".to_string()).unwrap();
+    let device_id = DeviceId::from_raw("test-device".to_string());
     let mut events = Vec::new();
     
     for i in 0..count {
@@ -158,7 +158,7 @@ async fn test_complete_recording_workflow() {
     let mut service = DiagnosticService::new(config).unwrap();
     
     // Start recording
-    let device_id = DeviceId::new("test-device".to_string()).unwrap();
+    let device_id = DeviceId::from_raw("test-device".to_string());
     service.start_recording(device_id).unwrap();
     
     // Generate and record test data
@@ -326,7 +326,7 @@ async fn test_support_bundle_generation_complete() {
     
     // Create test recording file
     let blackbox_config = BlackboxConfig {
-        device_id: DeviceId::new("test-device".to_string()).unwrap(),
+        device_id: DeviceId::from_raw("test-device".to_string()),
         output_dir: recording_dir.clone(),
         max_duration_s: 10,
         max_file_size_bytes: 1024 * 1024,
@@ -444,7 +444,7 @@ async fn test_error_handling_and_recovery() {
     size_limited_config.max_file_size_bytes = 1024; // Very small limit
     
     let mut service = DiagnosticService::new(size_limited_config).unwrap();
-    let device_id = DeviceId::new("test-device".to_string()).unwrap();
+    let device_id = DeviceId::from_raw("test-device".to_string());
     service.start_recording(device_id).unwrap();
     
     // Try to record more data than the limit allows
@@ -506,7 +506,7 @@ async fn test_performance_under_load() {
     let config = create_test_diagnostic_config(&temp_dir);
     
     let mut service = DiagnosticService::new(config).unwrap();
-    let device_id = DeviceId::new("test-device".to_string()).unwrap();
+    let device_id = DeviceId::from_raw("test-device".to_string());
     service.start_recording(device_id).unwrap();
     
     // Simulate high-frequency recording (1kHz for 1 second)
@@ -540,7 +540,7 @@ async fn test_end_to_end_diagnostic_workflow() {
     
     // Phase 1: Recording
     let mut service = DiagnosticService::new(config).unwrap();
-    let device_id = DeviceId::new("test-device".to_string()).unwrap();
+    let device_id = DeviceId::from_raw("test-device".to_string());
     
     service.start_recording(device_id).unwrap();
     

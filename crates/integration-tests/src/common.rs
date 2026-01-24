@@ -194,7 +194,7 @@ impl MetricsCollector {
 
         if !self.jitter_samples.is_empty() {
             let mut sorted_jitter = self.jitter_samples.clone();
-            sorted_jitter.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_jitter.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             metrics.jitter_p50_ms = percentile(&sorted_jitter, 0.5);
             metrics.jitter_p99_ms = percentile(&sorted_jitter, 0.99);
@@ -202,7 +202,7 @@ impl MetricsCollector {
 
         if !self.hid_latency_samples.is_empty() {
             let mut sorted_latency = self.hid_latency_samples.clone();
-            sorted_latency.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_latency.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             metrics.hid_latency_p50_us = percentile(&sorted_latency, 0.5);
             metrics.hid_latency_p99_us = percentile(&sorted_latency, 0.99);

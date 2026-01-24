@@ -791,14 +791,14 @@ mod tests {
     use tokio::time::{Duration as TokioDuration, sleep};
 
     fn create_test_device() -> Box<dyn HidDevice> {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
         let virtual_device = VirtualDevice::new(device_id, "Test Device".to_string());
         Box::new(virtual_device)
     }
 
     fn create_test_config() -> EngineConfig {
         EngineConfig {
-            device_id: DeviceId::new("test-device".to_string()).unwrap(),
+            device_id: DeviceId::from_raw("test-device".to_string()),
             mode: FFBMode::RawTorque,
             max_safe_torque_nm: 5.0,
             max_high_torque_nm: 25.0,

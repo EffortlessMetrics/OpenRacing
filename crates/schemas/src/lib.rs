@@ -5,7 +5,9 @@
 
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]
-#![deny(clippy::unwrap_used)]
+// Deny unwrap in production code, but allow in tests for ergonomics
+#![cfg_attr(not(test), deny(clippy::unwrap_used))]
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 
 pub mod domain;
 pub mod entities;

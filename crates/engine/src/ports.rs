@@ -345,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_profile_context_creation() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
         let context = ProfileContext::new(device_id.clone());
 
         assert_eq!(context.device_id, device_id);
@@ -356,7 +356,7 @@ mod tests {
 
     #[test]
     fn test_profile_context_builder() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
         let context = ProfileContext::new(device_id.clone())
             .with_game("iracing".to_string())
             .with_car("gt3".to_string())

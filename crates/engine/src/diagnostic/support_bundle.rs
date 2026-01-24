@@ -10,7 +10,7 @@ use std::{
     fs::{File, read_dir, read_to_string},
     io::Write,
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use sysinfo::System;
 use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
@@ -511,7 +511,7 @@ impl SupportBundle {
     ) -> Result<(), String> {
         let manifest = serde_json::json!({
             "bundle_version": "1.0",
-            "created_at": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            "created_at": SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or(Duration::ZERO).as_secs(),
             "config": {
                 "include_logs": self.config.include_logs,
                 "include_profiles": self.config.include_profiles,
@@ -656,7 +656,7 @@ mod tests {
         let config = SupportBundleConfig::default();
         let mut bundle = SupportBundle::new(config);
 
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
         let events = vec![
             HealthEvent {
                 timestamp: SystemTime::now(),
@@ -716,7 +716,7 @@ mod tests {
         // Add some test data
         bundle.add_system_info().unwrap();
 
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
         let events = vec![HealthEvent {
             timestamp: SystemTime::now(),
             device_id,
@@ -746,7 +746,7 @@ mod tests {
         let mut bundle = SupportBundle::new(config);
 
         // Try to add too much data
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = DeviceId::from_raw("test-device".to_string());
         let large_context = serde_json::json!({
             "large_data": "x".repeat(2 * 1024 * 1024) // 2MB of data
         });

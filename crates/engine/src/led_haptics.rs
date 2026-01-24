@@ -5,6 +5,7 @@
 //! force feedback performance.
 
 use crate::ports::{NormalizedTelemetry, TelemetryFlags};
+use crate::prelude::MutexExt;
 use racing_wheel_schemas::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -647,7 +648,7 @@ impl LedHapticsSystem {
         self.telemetry_rx = Some(telemetry_rx);
 
         {
-            let mut running = self.is_running.lock().unwrap();
+            let mut running = self.is_running.lock_or_panic();
             *running = true;
         }
 
@@ -659,7 +660,7 @@ impl LedHapticsSystem {
         let is_running = Arc::clone(&self.is_running);
         let update_rate_hz = self.update_rate_hz;
 
-        let mut telemetry_rx = self.telemetry_rx.take().unwrap();
+        let mut telemetry_rx = self.telemetry_rx.take().ok_or("telemetry receiver already taken")?;
 
         tokio::spawn(async move {
             let mut interval = interval(Duration::from_secs_f32(1.0 / update_rate_hz));
@@ -668,7 +669,7 @@ impl LedHapticsSystem {
             loop {
                 // Check if we should continue running
                 {
-                    let running = is_running.lock().unwrap();
+                    let running = is_running.lock_or_panic();
                     if !*running {
                         break;
                     }
@@ -682,17 +683,17 @@ impl LedHapticsSystem {
                 // Process output if we have telemetry
                 if let Some(ref telemetry) = last_telemetry {
                     let led_colors = {
-                        let mut engine = led_engine.lock().unwrap();
+                        let mut engine = led_engine.lock_or_panic();
                         engine.update_pattern(telemetry)
                     };
 
                     let haptics_patterns = {
-                        let mut router = haptics_router.lock().unwrap();
+                        let mut router = haptics_router.lock_or_panic();
                         router.update_patterns(telemetry)
                     };
 
                     let widgets = {
-                        let mut dash = dash_widgets.lock().unwrap();
+                        let mut dash = dash_widgets.lock_or_panic();
                         dash.update_widgets(telemetry)
                     };
 
@@ -720,24 +721,24 @@ impl LedHapticsSystem {
 
     /// Stop the LED and haptics processing
     pub fn stop(&self) {
-        let mut running = self.is_running.lock().unwrap();
+        let mut running = self.is_running.lock_or_panic();
         *running = false;
     }
 
     /// Update LED configuration
     pub fn update_led_config(&self, config: LedConfig) {
-        let mut engine = self.led_engine.lock().unwrap();
+        let mut engine = self.led_engine.lock_or_panic();
         engine.update_config(config);
     }
 
     /// Update haptics configuration
     pub fn update_haptics_config(&self, config: HapticsConfig) {
-        let mut router = self.haptics_router.lock().unwrap();
+        let mut router = self.haptics_router.lock_or_panic();
         router.update_config(config);
     }
 
     /// Check if system is running
     pub fn is_running(&self) -> bool {
-        *self.is_running.lock().unwrap()
+        *self.is_running.lock_or_panic()
     }
 }

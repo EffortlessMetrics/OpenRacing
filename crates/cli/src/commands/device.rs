@@ -1,5 +1,8 @@
 //! Device management commands
 
+// Progress bar template strings are compile-time constants that cannot fail to parse
+#![allow(clippy::unwrap_used)]
+
 use anyhow::Result;
 use dialoguer::Confirm;
 use indicatif::{ProgressBar, ProgressStyle};

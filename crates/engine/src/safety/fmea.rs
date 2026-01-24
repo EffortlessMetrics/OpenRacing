@@ -426,10 +426,13 @@ impl FmeaSystem {
             let now = Instant::now();
 
             // Initialize or reset window
-            if state.window_start.is_none()
-                || now.duration_since(state.window_start.unwrap())
-                    > Duration::from_millis(self.thresholds.encoder_nan_window_ms)
-            {
+            let should_reset = match state.window_start {
+                None => true,
+                Some(start) => now.duration_since(start)
+                    > Duration::from_millis(self.thresholds.encoder_nan_window_ms),
+            };
+
+            if should_reset {
                 state.window_start = Some(now);
                 state.window_count = 1;
             } else {

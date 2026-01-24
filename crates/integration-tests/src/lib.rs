@@ -10,7 +10,9 @@
 #![deny(rust_2018_idioms)]
 #![deny(warnings)]
 #![deny(unused_must_use)]
-#![deny(clippy::unwrap_used)]
+// Deny unwrap in production code, but allow in tests for ergonomics
+#![cfg_attr(not(test), deny(clippy::unwrap_used))]
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 #![deny(clippy::print_stdout)]
 
 pub mod acceptance;
