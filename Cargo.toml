@@ -21,62 +21,62 @@ repository = "https://github.com/EffortlessMetrics/OpenRacing"
 
 [workspace.dependencies]
 # Critical async/serialization crates - pinned for compatibility
-tokio = { version = "1.39", features = ["full"] }
-tonic = "0.12"
-prost = "0.13"
-prost-types = "0.13"
-async-trait = "0.1"
+tokio = { version = "1.49.0", features = ["full"] }
+tonic = "0.14.2"
+prost = "0.14.3"
+prost-types = "0.14.3"
+async-trait = "0.1.89"
 
 # Core dependencies
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
-anyhow = "1.0"
-thiserror = "2.0"
-tracing = "0.1"
-tracing-subscriber = "0.3"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+serde_yaml = { package = "serde_yaml_ng", version = "0.10.0" }
+anyhow = "1.0.100"
+thiserror = "2.0.18"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.22"
 
 # Real-time and performance
-parking_lot = "0.12"
-crossbeam = "0.8"
-mimalloc = "0.1"
+parking_lot = "0.12.5"
+crossbeam = "0.8.4"
+mimalloc = "0.1.48"
 
 # HID and hardware
-hidapi = "2.4"
-libudev = "0.3"
+hidapi = "2.6.4"
+libudev = "0.3.0"
 
 # Schema and validation
-jsonschema = "0.33"
+jsonschema = "0.40.0"
 
 # Testing
-criterion = "0.7"
-proptest = "1.0"
-hdrhistogram = "7.5"
-mockall = "0.13"
-wiremock = "0.6"
-statistical = "1.0"
-uuid = { version = "1.0", features = ["v4"] }
-num_cpus = "1.0"
+criterion = "0.8.1"
+proptest = "1.9.0"
+hdrhistogram = "7.5.4"
+mockall = "0.14.0"
+wiremock = "0.6.5"
+statistical = "1.0.0"
+uuid = { version = "1.19.0", features = ["v4"] }
+num_cpus = "1.17.0"
 
 # Additional dependencies
-base64 = "0.22"
-clap = { version = "4.0", features = ["derive"] }
-semver = "1.0"
+base64 = "0.22.1"
+clap = { version = "4.5.54", features = ["derive"] }
+semver = "1.0.27"
 
 # Build dependencies
-prost-build = "0.13"
-tonic-build = "0.12"
+prost-build = "0.14.3"
+tonic-build = "0.14.2"
 
 # Observability and metrics
-prometheus = "0.14"
-metrics = "0.24"
-metrics-exporter-prometheus = "0.17"
-sysinfo = "0.37"
-tokio-stream = "0.1"
+prometheus = "0.14.0"
+metrics = "0.24.3"
+metrics-exporter-prometheus = "0.18.1"
+sysinfo = "0.37.2"
+tokio-stream = "0.1.18"
 
 # System integration dependencies
-os_info = "3.7"
-chrono = { version = "0.4", features = ["serde"] }
+os_info = "3.14.0"
+chrono = { version = "0.4.43", features = ["serde"] }
 
 [profile.release]
 lto = true

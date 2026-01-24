@@ -9,7 +9,7 @@ repository.workspace = true
 [dependencies]
 racing-wheel-schemas = { path = "../schemas" }
 racing-wheel-engine = { path = "../engine" }
-tauri = { version = "1.5", features = ["api-all"] }
+tauri = { version = "2.9.5", features = ["api-all"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }

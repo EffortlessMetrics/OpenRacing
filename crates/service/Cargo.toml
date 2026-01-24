@@ -13,42 +13,42 @@ tokio = { workspace = true }
 tonic = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = "0.9"
+serde_yaml = { package = "serde_yaml_ng", version = "0.10.0" }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 hidapi = { workspace = true }
 async-trait = { workspace = true }
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4.43", features = ["serde"] }
 uuid = { workspace = true }
-async-stream = "0.3"
-tokio-stream = "0.1"
+async-stream = "0.3.6"
+tokio-stream = "0.1.18"
 prost-types = { workspace = true }
-ed25519-dalek = { version = "2.0", features = ["rand_core"] }
-base64 = "0.21"
-sha2 = "0.10"
-walkdir = "2.4"
-hex = "0.4"
-semver = { version = "1.0", features = ["serde"] }
-flate2 = "1.0"
-futures = "0.3"
+ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
+base64 = "0.22.1"
+sha2 = "0.10.9"
+walkdir = "2.5.0"
+hex = "0.4.3"
+semver = { version = "1.0.27", features = ["serde"] }
+flate2 = "1.1.8"
+futures = "0.3.31"
 prometheus = { workspace = true }
 metrics = { workspace = true }
-sysinfo = "0.30"
-axum = "0.7"
+sysinfo = "0.37.2"
+axum = "0.8.8"
 clap = { workspace = true }
-os_info = "3.7"
+os_info = "3.14.0"
 num_cpus = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
-tempfile = "3.8"
-tracing-test = "0.2"
+tempfile = "3.24.0"
+tracing-test = "0.2.5"
 
 [target.'cfg(unix)'.dependencies]
 libudev = { workspace = true }
-libc = "0.2"
+libc = "0.2.180"
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["handleapi", "memoryapi", "winnt", "tlhelp32"] }
+winapi = { version = "0.3.9", features = ["handleapi", "memoryapi", "winnt", "tlhelp32"] }
