@@ -7,6 +7,7 @@ use super::{
     blackbox::{WbbHeader, WbbFooter, IndexEntry},
     streams::{StreamReader, StreamARecord, StreamBRecord, StreamCRecord},
 };
+use super::bincode_compat as codec;
 use crate::{
     rt::Frame,
     pipeline::Pipeline,
@@ -287,15 +288,8 @@ impl BlackboxReplay {
     
     /// Read and validate file header
     fn read_header(file: &mut File) -> Result<WbbHeader, String> {
-        let mut header_bytes = vec![0u8; std::mem::size_of::<WbbHeader>()];
-        file.read_exact(&mut header_bytes)
-            .map_err(|e| format!("Failed to read header: {}", e))?;
-        
-        let (header, _): (WbbHeader, usize) =
-            bincode::serde::decode_from_slice(&header_bytes, bincode::config::legacy())
-                .map_err(|e| format!("Failed to deserialize header: {}", e))?;
-        
-        Ok(header)
+        codec::decode_from_std_read(file)
+            .map_err(|e| format!("Failed to decode header: {}", e))
     }
     
     /// Validate header contents
@@ -317,9 +311,9 @@ impl BlackboxReplay {
         file.read_exact(&mut footer_bytes)
             .map_err(|e| format!("Failed to read footer: {}", e))?;
         
-        let (footer, _): (WbbFooter, usize) =
-            bincode::serde::decode_from_slice(&footer_bytes, bincode::config::legacy())
-                .map_err(|e| format!("Failed to deserialize footer: {}", e))?;
+        let footer: WbbFooter =
+            codec::decode_from_slice(&footer_bytes)
+                .map_err(|e| format!("Failed to decode footer: {}", e))?;
         
         Ok(footer)
     }
@@ -337,16 +331,15 @@ impl BlackboxReplay {
     
     /// Read index entries
     fn read_index(file: &mut File, count: u32) -> Result<Vec<IndexEntry>, String> {
-        let index_size = count as usize * std::mem::size_of::<IndexEntry>();
-        let mut index_bytes = vec![0u8; index_size];
-        
-        file.read_exact(&mut index_bytes)
-            .map_err(|e| format!("Failed to read index: {}", e))?;
-        
-        let (index, _): (Vec<IndexEntry>, usize) =
-            bincode::serde::decode_from_slice(&index_bytes, bincode::config::legacy())
-                .map_err(|e| format!("Failed to deserialize index: {}", e))?;
-        
+        let index: Vec<IndexEntry> = codec::decode_from_std_read(file)
+            .map_err(|e| format!("Failed to decode index: {}", e))?;
+        if index.len() != count as usize {
+            return Err(format!(
+                "Index count mismatch: expected {}, got {}",
+                count,
+                index.len()
+            ));
+        }
         Ok(index)
     }
     

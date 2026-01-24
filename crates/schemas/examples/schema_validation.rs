@@ -3,7 +3,7 @@
 //! This example shows how to use the ProfileValidator to validate
 //! racing wheel profile configurations against the JSON Schema.
 
-use racing_wheel_schemas::config::{ProfileValidator, ProfileMigrator, SchemaError};
+use racing_wheel_schemas::config::{ProfileMigrator, ProfileValidator, SchemaError};
 use serde_json::json;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -309,14 +309,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(profile) => {
             println!("✓ Complex profile passed validation");
             println!("  - Schema: {}", profile.schema);
-            println!("  - Scope: Game={:?}, Car={:?}, Track={:?}", 
-                     profile.scope.game, profile.scope.car, profile.scope.track);
-            println!("  - Notch filters: {}", profile.base.filters.notch_filters.len());
-            println!("  - Curve points: {}", profile.base.filters.curve_points.len());
-            println!("  - LED RPM bands: {}", profile.leds.as_ref().map_or(0, |l| l.rpm_bands.len()));
-            println!("  - Haptic effects: {}", profile.haptics.as_ref()
-                     .and_then(|h| h.effects.as_ref())
-                     .map_or(0, |e| e.len()));
+            println!(
+                "  - Scope: Game={:?}, Car={:?}, Track={:?}",
+                profile.scope.game, profile.scope.car, profile.scope.track
+            );
+            println!(
+                "  - Notch filters: {}",
+                profile.base.filters.notch_filters.len()
+            );
+            println!(
+                "  - Curve points: {}",
+                profile.base.filters.curve_points.len()
+            );
+            println!(
+                "  - LED RPM bands: {}",
+                profile.leds.as_ref().map_or(0, |l| l.rpm_bands.len())
+            );
+            println!(
+                "  - Haptic effects: {}",
+                profile
+                    .haptics
+                    .as_ref()
+                    .and_then(|h| h.effects.as_ref())
+                    .map_or(0, |e| e.len())
+            );
             println!("  - Has signature: {}", profile.signature.is_some());
         }
         Err(e) => {

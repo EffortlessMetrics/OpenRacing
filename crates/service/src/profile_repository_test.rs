@@ -3,13 +3,13 @@
 #[cfg(test)]
 mod tests {
     use super::super::profile_repository::*;
-    use tempfile::TempDir;
-    use racing_wheel_schemas::{
-        ProfileId, ProfileScope, BaseSettings, FilterConfig, 
-        Gain, Degrees, TorqueNm, FrequencyHz, CurvePoint, Profile, ProfileMetadata
-    };
     use ed25519_dalek::SigningKey;
+    use racing_wheel_schemas::{
+        BaseSettings, CurvePoint, Degrees, FilterConfig, FrequencyHz, Gain, Profile, ProfileId,
+        ProfileMetadata, ProfileScope, TorqueNm,
+    };
     use rand::rngs::OsRng;
+    use tempfile::TempDir;
 
     async fn create_test_repository() -> (ProfileRepository, TempDir) {
         let temp_dir = TempDir::new().unwrap();
@@ -54,31 +54,39 @@ mod tests {
 
         assert_eq!(loaded.id, profile.id);
         assert_eq!(loaded.scope, profile.scope);
-        assert_eq!(loaded.base_settings.ffb_gain, profile.base_settings.ffb_gain);
+        assert_eq!(
+            loaded.base_settings.ffb_gain,
+            profile.base_settings.ffb_gain
+        );
     }
 
     #[tokio::test]
     async fn test_profile_signing_and_verification() {
         let (repo, _temp_dir) = create_test_repository().await;
         let profile = create_test_profile("signed_test");
-        
+
         // Generate signing key
         let mut csprng = OsRng;
         let signing_key = SigningKey::generate(&mut csprng);
 
         // Save signed profile
-        repo.save_profile(&profile, Some(&signing_key)).await.unwrap();
+        repo.save_profile(&profile, Some(&signing_key))
+            .await
+            .unwrap();
 
         // Load and verify signature
         let loaded = repo.load_profile(&profile.id).await.unwrap().unwrap();
         let signature_info = repo.get_profile_signature(&profile.id).await.unwrap();
-        
+
         assert!(signature_info.is_some());
         let sig_info = signature_info.unwrap();
         assert!(!sig_info.signature.is_empty());
         assert!(!sig_info.public_key.is_empty());
         // Note: Will be ValidUnknown since we didn't add the key to trusted_keys
-        assert!(matches!(sig_info.trust_state, TrustState::ValidUnknown | TrustState::Trusted));
+        assert!(matches!(
+            sig_info.trust_state,
+            TrustState::ValidUnknown | TrustState::Trusted
+        ));
     }
 
     #[tokio::test]
@@ -128,12 +136,10 @@ mod tests {
         repo.save_profile(&car_profile, None).await.unwrap();
 
         // Test hierarchy resolution
-        let resolved = repo.resolve_profile_hierarchy(
-            Some("iracing"),
-            Some("gt3"),
-            None,
-            None,
-        ).await.unwrap();
+        let resolved = repo
+            .resolve_profile_hierarchy(Some("iracing"), Some("gt3"), None, None)
+            .await
+            .unwrap();
 
         // Should use car-specific settings (most specific)
         assert_eq!(resolved.base_settings.ffb_gain.value(), 0.8);
@@ -169,7 +175,9 @@ mod tests {
             "Override Profile".to_string(),
         );
 
-        let merged = repo.merge_profiles_deterministic(&base_profile, &override_profile).unwrap();
+        let merged = repo
+            .merge_profiles_deterministic(&base_profile, &override_profile)
+            .unwrap();
 
         // Override profile should take precedence
         assert_eq!(merged.base_settings.ffb_gain.value(), 0.8);
@@ -235,6 +243,9 @@ mod tests {
         let loaded2 = repo.load_profile(&profile.id).await.unwrap().unwrap();
 
         assert_eq!(loaded1.id, loaded2.id);
-        assert_eq!(loaded1.base_settings.ffb_gain, loaded2.base_settings.ffb_gain);
+        assert_eq!(
+            loaded1.base_settings.ffb_gain,
+            loaded2.base_settings.ffb_gain
+        );
     }
 }

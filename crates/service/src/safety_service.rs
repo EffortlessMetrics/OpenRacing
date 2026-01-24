@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use racing_wheel_engine::{
-    safety::FaultType, SafetyPolicy, SafetyViolation, TracingManager, AppTraceEvent
+    AppTraceEvent, SafetyPolicy, SafetyViolation, TracingManager, safety::FaultType,
 };
 use racing_wheel_schemas::prelude::{DeviceId, TorqueNm};
 use std::collections::HashMap;
@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{RwLock, mpsc};
 use tokio::time::interval;
-use tracing::{info, warn, error, debug};
+use tracing::{debug, error, info, warn};
 
 /// Safety interlock state for high-torque operations
 #[derive(Debug, Clone, PartialEq)]
@@ -74,10 +74,7 @@ pub enum SafetyEvent {
         fault_type: FaultType,
     },
     /// Emergency stop triggered
-    EmergencyStop {
-        device_id: DeviceId,
-        reason: String,
-    },
+    EmergencyStop { device_id: DeviceId, reason: String },
 }
 
 /// Fault severity levels
@@ -172,7 +169,13 @@ impl ApplicationSafetyService {
             contexts.insert(device_id.clone(), context);
         }
 
-        self.emit_safety_state_changed(&device_id, "unregistered", "safe_torque", "device_registered").await;
+        self.emit_safety_state_changed(
+            &device_id,
+            "unregistered",
+            "safe_torque",
+            "device_registered",
+        )
+        .await;
 
         info!(device_id = %device_id, "Device registered with safety service");
         Ok(())
@@ -200,7 +203,8 @@ impl ApplicationSafetyService {
         info!(device_id = %device_id, requested_by = %requested_by, "High torque mode requested");
 
         let mut contexts = self.device_contexts.write().await;
-        let context = contexts.get_mut(device_id)
+        let context = contexts
+            .get_mut(device_id)
             .ok_or_else(|| anyhow::anyhow!("Device not registered: {}", device_id))?;
 
         match context.interlock_state {
@@ -212,7 +216,10 @@ impl ApplicationSafetyService {
                         violation = ?violation,
                         "High torque request denied due to safety violation"
                     );
-                    return Err(anyhow::anyhow!("High torque request denied: {:?}", violation));
+                    return Err(anyhow::anyhow!(
+                        "High torque request denied: {:?}",
+                        violation
+                    ));
                 }
 
                 // Issue challenge
@@ -224,7 +231,13 @@ impl ApplicationSafetyService {
                     expires_at,
                 };
 
-                self.emit_safety_state_changed(device_id, "safe_torque", "challenge", "high_torque_requested").await;
+                self.emit_safety_state_changed(
+                    device_id,
+                    "safe_torque",
+                    "challenge",
+                    "high_torque_requested",
+                )
+                .await;
 
                 // Send event
                 let _ = self.event_sender.send(SafetyEvent::HighTorqueRequested {
@@ -264,11 +277,15 @@ impl ApplicationSafetyService {
         info!(device_id = %device_id, response_token = response_token, "Challenge response received");
 
         let mut contexts = self.device_contexts.write().await;
-        let context = contexts.get_mut(device_id)
+        let context = contexts
+            .get_mut(device_id)
             .ok_or_else(|| anyhow::anyhow!("Device not registered: {}", device_id))?;
 
         match &context.interlock_state {
-            InterlockState::Challenge { challenge_token, expires_at } => {
+            InterlockState::Challenge {
+                challenge_token,
+                expires_at,
+            } => {
                 let success = *challenge_token == response_token && Instant::now() < *expires_at;
 
                 // Send event
@@ -287,7 +304,13 @@ impl ApplicationSafetyService {
                     };
                     context.current_torque_limit = context.max_safe_torque;
 
-                    self.emit_safety_state_changed(device_id, "challenge", "high_torque_active", "challenge_success").await;
+                    self.emit_safety_state_changed(
+                        device_id,
+                        "challenge",
+                        "high_torque_active",
+                        "challenge_success",
+                    )
+                    .await;
 
                     info!(
                         device_id = %device_id,
@@ -299,7 +322,13 @@ impl ApplicationSafetyService {
                     context.interlock_state = InterlockState::SafeTorque;
                     context.current_torque_limit = context.max_safe_torque * 0.3;
 
-                    self.emit_safety_state_changed(device_id, "challenge", "safe_torque", "challenge_failed").await;
+                    self.emit_safety_state_changed(
+                        device_id,
+                        "challenge",
+                        "safe_torque",
+                        "challenge_failed",
+                    )
+                    .await;
 
                     warn!(device_id = %device_id, "Challenge response failed");
                 }
@@ -318,7 +347,8 @@ impl ApplicationSafetyService {
         error!(device_id = %device_id, reason = %reason, "Emergency stop triggered");
 
         let mut contexts = self.device_contexts.write().await;
-        let context = contexts.get_mut(device_id)
+        let context = contexts
+            .get_mut(device_id)
             .ok_or_else(|| anyhow::anyhow!("Device not registered: {}", device_id))?;
 
         let old_state = format!("{:?}", context.interlock_state);
@@ -330,7 +360,8 @@ impl ApplicationSafetyService {
         context.fault_count += 1;
         context.last_fault_time = Some(Instant::now());
 
-        self.emit_safety_state_changed(device_id, &old_state, "faulted", &reason).await;
+        self.emit_safety_state_changed(device_id, &old_state, "faulted", &reason)
+            .await;
 
         // Send event
         let _ = self.event_sender.send(SafetyEvent::EmergencyStop {
@@ -357,7 +388,8 @@ impl ApplicationSafetyService {
         );
 
         let mut contexts = self.device_contexts.write().await;
-        let context = contexts.get_mut(device_id)
+        let context = contexts
+            .get_mut(device_id)
             .ok_or_else(|| anyhow::anyhow!("Device not registered: {}", device_id))?;
 
         context.fault_count += 1;
@@ -388,7 +420,13 @@ impl ApplicationSafetyService {
                 };
                 context.current_torque_limit = TorqueNm::ZERO;
 
-                self.emit_safety_state_changed(device_id, &old_state, "faulted", &format!("fatal_fault_{:?}", fault_type)).await;
+                self.emit_safety_state_changed(
+                    device_id,
+                    &old_state,
+                    "faulted",
+                    &format!("fatal_fault_{:?}", fault_type),
+                )
+                .await;
 
                 error!(
                     device_id = %device_id,
@@ -413,16 +451,27 @@ impl ApplicationSafetyService {
         info!(device_id = %device_id, fault_type = ?fault_type, "Clearing fault");
 
         let mut contexts = self.device_contexts.write().await;
-        let context = contexts.get_mut(device_id)
+        let context = contexts
+            .get_mut(device_id)
             .ok_or_else(|| anyhow::anyhow!("Device not registered: {}", device_id))?;
 
         // Only clear if currently faulted with the same fault type
-        if let InterlockState::Faulted { fault_type: current_fault, .. } = &context.interlock_state {
+        if let InterlockState::Faulted {
+            fault_type: current_fault,
+            ..
+        } = &context.interlock_state
+        {
             if *current_fault == fault_type {
                 context.interlock_state = InterlockState::SafeTorque;
                 context.current_torque_limit = context.max_safe_torque * 0.3;
 
-                self.emit_safety_state_changed(device_id, "faulted", "safe_torque", "fault_cleared").await;
+                self.emit_safety_state_changed(
+                    device_id,
+                    "faulted",
+                    "safe_torque",
+                    "fault_cleared",
+                )
+                .await;
 
                 // Send event
                 let _ = self.event_sender.send(SafetyEvent::FaultCleared {
@@ -449,9 +498,14 @@ impl ApplicationSafetyService {
     }
 
     /// Update hands-on detection for a device
-    pub async fn update_hands_on_detection(&self, device_id: &DeviceId, hands_on: bool) -> Result<()> {
+    pub async fn update_hands_on_detection(
+        &self,
+        device_id: &DeviceId,
+        hands_on: bool,
+    ) -> Result<()> {
         let mut contexts = self.device_contexts.write().await;
-        let context = contexts.get_mut(device_id)
+        let context = contexts
+            .get_mut(device_id)
             .ok_or_else(|| anyhow::anyhow!("Device not registered: {}", device_id))?;
 
         let was_hands_on = context.hands_on_detected;
@@ -476,7 +530,8 @@ impl ApplicationSafetyService {
     /// Get current safety state for a device
     pub async fn get_safety_state(&self, device_id: &DeviceId) -> Result<DeviceSafetyContext> {
         let contexts = self.device_contexts.read().await;
-        contexts.get(device_id)
+        contexts
+            .get(device_id)
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("Device not registered: {}", device_id))
     }
@@ -484,7 +539,8 @@ impl ApplicationSafetyService {
     /// Get current torque limit for a device
     pub async fn get_torque_limit(&self, device_id: &DeviceId) -> Result<TorqueNm> {
         let contexts = self.device_contexts.read().await;
-        contexts.get(device_id)
+        contexts
+            .get(device_id)
             .map(|ctx| ctx.current_torque_limit)
             .ok_or_else(|| anyhow::anyhow!("Device not registered: {}", device_id))
     }
@@ -519,19 +575,21 @@ impl ApplicationSafetyService {
 
         // Check temperature
         if let Some(temp) = context.temperature_c
-            && temp > 80.0 {
-                return Err(SafetyViolation::TemperatureTooHigh {
-                    current: temp as u8,
-                    limit: 80,
-                });
-            }
+            && temp > 80.0
+        {
+            return Err(SafetyViolation::TemperatureTooHigh {
+                current: temp as u8,
+                limit: 80,
+            });
+        }
 
         // Check fault history
         if context.fault_count > 5
             && let Some(last_fault) = context.last_fault_time
-                && last_fault.elapsed() < Duration::from_secs(300) {
-                    return Err(SafetyViolation::ActiveFaults(context.fault_count as u8));
-                }
+            && last_fault.elapsed() < Duration::from_secs(300)
+        {
+            return Err(SafetyViolation::ActiveFaults(context.fault_count as u8));
+        }
 
         Ok(())
     }
@@ -565,30 +623,33 @@ impl ApplicationSafetyService {
 
         tokio::spawn(async move {
             let mut interval = interval(Duration::from_millis(100)); // 10Hz monitoring
-            
+
             loop {
                 interval.tick().await;
-                
+
                 let mut contexts_guard = contexts.write().await;
                 let now = Instant::now();
 
                 for (device_id, context) in contexts_guard.iter_mut() {
                     // Check for expired challenges
                     if let InterlockState::Challenge { expires_at, .. } = &context.interlock_state
-                        && now > *expires_at {
-                            warn!(device_id = %device_id, "Challenge expired, returning to safe torque");
-                            context.interlock_state = InterlockState::SafeTorque;
-                            context.current_torque_limit = context.max_safe_torque * 0.3;
-                        }
+                        && now > *expires_at
+                    {
+                        warn!(device_id = %device_id, "Challenge expired, returning to safe torque");
+                        context.interlock_state = InterlockState::SafeTorque;
+                        context.current_torque_limit = context.max_safe_torque * 0.3;
+                    }
 
                     // Check for hands-off timeout in high torque mode
                     if let InterlockState::HighTorqueActive { .. } = &context.interlock_state
                         && let Some(last_hands_on) = context.last_hands_on_time
-                        && (!context.hands_on_detected || last_hands_on.elapsed() > hands_off_timeout) {
-                            warn!(device_id = %device_id, "Hands-off timeout in high torque mode");
-                            context.interlock_state = InterlockState::SafeTorque;
-                            context.current_torque_limit = context.max_safe_torque * 0.3;
-                        }
+                        && (!context.hands_on_detected
+                            || last_hands_on.elapsed() > hands_off_timeout)
+                    {
+                        warn!(device_id = %device_id, "Hands-off timeout in high torque mode");
+                        context.interlock_state = InterlockState::SafeTorque;
+                        context.current_torque_limit = context.max_safe_torque * 0.3;
+                    }
                 }
             }
         });
@@ -600,7 +661,8 @@ impl ApplicationSafetyService {
     async fn start_event_processing(&self) -> Result<()> {
         let mut receiver = {
             let mut receiver_guard = self.event_receiver.write().await;
-            receiver_guard.take()
+            receiver_guard
+                .take()
                 .ok_or_else(|| anyhow::anyhow!("Event receiver already taken"))?
         };
 
@@ -635,7 +697,10 @@ impl ApplicationSafetyService {
     /// Start high torque mode (for IPC service compatibility)
     /// Delegates to request_high_torque with system as requester
     pub async fn start_high_torque(&self, device_id: &DeviceId) -> Result<()> {
-        match self.request_high_torque(device_id, "system".to_string()).await {
+        match self
+            .request_high_torque(device_id, "system".to_string())
+            .await
+        {
             Ok(_interlock_state) => Ok(()),
             Err(e) => Err(e),
         }
@@ -644,7 +709,7 @@ impl ApplicationSafetyService {
     /// Get safety service statistics
     pub async fn get_statistics(&self) -> SafetyServiceStatistics {
         let contexts = self.device_contexts.read().await;
-        
+
         let mut safe_torque_count = 0;
         let mut high_torque_count = 0;
         let mut faulted_count = 0;
@@ -694,7 +759,9 @@ mod tests {
     #[tokio::test]
     async fn test_device_registration() {
         let safety_policy = SafetyPolicy::default();
-        let service = ApplicationSafetyService::new(safety_policy, None).await.unwrap();
+        let service = ApplicationSafetyService::new(safety_policy, None)
+            .await
+            .unwrap();
 
         let device_id: DeviceId = "test-device".parse().expect("valid device id");
         let max_torque = TorqueNm::new(10.0).expect("valid torque");
@@ -720,23 +787,40 @@ mod tests {
     #[tokio::test]
     async fn test_high_torque_workflow() {
         let safety_policy = SafetyPolicy::default();
-        let service = ApplicationSafetyService::new(safety_policy, None).await.unwrap();
+        let service = ApplicationSafetyService::new(safety_policy, None)
+            .await
+            .unwrap();
 
         let device_id: DeviceId = "test-device".parse().expect("valid device id");
         let max_torque = TorqueNm::new(10.0).expect("valid torque");
 
         // Register device
-        service.register_device(device_id.clone(), max_torque).await.unwrap();
+        service
+            .register_device(device_id.clone(), max_torque)
+            .await
+            .unwrap();
 
         // Enable hands-on detection
-        service.update_hands_on_detection(&device_id, true).await.unwrap();
+        service
+            .update_hands_on_detection(&device_id, true)
+            .await
+            .unwrap();
 
         // Request high torque
-        let state = service.request_high_torque(&device_id, "test_user".to_string()).await.unwrap();
-        
-        if let InterlockState::Challenge { challenge_token, .. } = state {
+        let state = service
+            .request_high_torque(&device_id, "test_user".to_string())
+            .await
+            .unwrap();
+
+        if let InterlockState::Challenge {
+            challenge_token, ..
+        } = state
+        {
             // Respond to challenge
-            let result = service.respond_to_challenge(&device_id, challenge_token).await.unwrap();
+            let result = service
+                .respond_to_challenge(&device_id, challenge_token)
+                .await
+                .unwrap();
             assert!(matches!(result, InterlockState::HighTorqueActive { .. }));
 
             // Check torque limit
@@ -750,27 +834,41 @@ mod tests {
     #[tokio::test]
     async fn test_fault_handling() {
         let safety_policy = SafetyPolicy::default();
-        let service = ApplicationSafetyService::new(safety_policy, None).await.unwrap();
+        let service = ApplicationSafetyService::new(safety_policy, None)
+            .await
+            .unwrap();
 
         let device_id: DeviceId = "test-device".parse().expect("valid device id");
         let max_torque = TorqueNm::new(10.0).expect("valid torque");
 
         // Register device
-        service.register_device(device_id.clone(), max_torque).await.unwrap();
+        service
+            .register_device(device_id.clone(), max_torque)
+            .await
+            .unwrap();
 
         // Report a fatal fault
-        service.report_fault(&device_id, FaultType::ThermalLimit, FaultSeverity::Fatal).await.unwrap();
+        service
+            .report_fault(&device_id, FaultType::ThermalLimit, FaultSeverity::Fatal)
+            .await
+            .unwrap();
 
         // Check that device is now faulted
         let state = service.get_safety_state(&device_id).await.unwrap();
-        assert!(matches!(state.interlock_state, InterlockState::Faulted { .. }));
+        assert!(matches!(
+            state.interlock_state,
+            InterlockState::Faulted { .. }
+        ));
 
         // Check that torque is disabled
         let torque_limit = service.get_torque_limit(&device_id).await.unwrap();
         assert_eq!(torque_limit, TorqueNm::new(0.0).expect("valid torque"));
 
         // Clear the fault
-        service.clear_fault(&device_id, FaultType::ThermalLimit).await.unwrap();
+        service
+            .clear_fault(&device_id, FaultType::ThermalLimit)
+            .await
+            .unwrap();
 
         // Check that device is back to safe torque
         let state = service.get_safety_state(&device_id).await.unwrap();
@@ -780,20 +878,31 @@ mod tests {
     #[tokio::test]
     async fn test_emergency_stop() {
         let safety_policy = SafetyPolicy::default();
-        let service = ApplicationSafetyService::new(safety_policy, None).await.unwrap();
+        let service = ApplicationSafetyService::new(safety_policy, None)
+            .await
+            .unwrap();
 
         let device_id: DeviceId = "test-device".parse().expect("valid device id");
         let max_torque = TorqueNm::new(10.0).expect("valid torque");
 
         // Register device
-        service.register_device(device_id.clone(), max_torque).await.unwrap();
+        service
+            .register_device(device_id.clone(), max_torque)
+            .await
+            .unwrap();
 
         // Trigger emergency stop
-        service.emergency_stop(&device_id, "User requested".to_string()).await.unwrap();
+        service
+            .emergency_stop(&device_id, "User requested".to_string())
+            .await
+            .unwrap();
 
         // Check that device is faulted
         let state = service.get_safety_state(&device_id).await.unwrap();
-        assert!(matches!(state.interlock_state, InterlockState::Faulted { .. }));
+        assert!(matches!(
+            state.interlock_state,
+            InterlockState::Faulted { .. }
+        ));
 
         // Check that torque is disabled
         let torque_limit = service.get_torque_limit(&device_id).await.unwrap();
@@ -803,7 +912,9 @@ mod tests {
     #[tokio::test]
     async fn test_safety_statistics() {
         let safety_policy = SafetyPolicy::default();
-        let service = ApplicationSafetyService::new(safety_policy, None).await.unwrap();
+        let service = ApplicationSafetyService::new(safety_policy, None)
+            .await
+            .unwrap();
 
         // Initially no devices
         let stats = service.get_statistics().await;
@@ -811,7 +922,10 @@ mod tests {
 
         // Register a device
         let device_id: DeviceId = "test-device".parse().expect("valid device id");
-        service.register_device(device_id, TorqueNm::new(10.0).expect("valid torque")).await.unwrap();
+        service
+            .register_device(device_id, TorqueNm::new(10.0).expect("valid torque"))
+            .await
+            .unwrap();
 
         let stats = service.get_statistics().await;
         assert_eq!(stats.total_devices, 1);

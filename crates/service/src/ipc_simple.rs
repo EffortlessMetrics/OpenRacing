@@ -5,8 +5,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
-use tokio::sync::{broadcast, RwLock, Mutex};
-use tracing::{info, warn, debug};
+use tokio::sync::{Mutex, RwLock, broadcast};
+use tracing::{debug, info, warn};
 
 use crate::WheelService;
 
@@ -85,7 +85,7 @@ struct PeerInfo {
 impl IpcServer {
     pub async fn new(config: IpcConfig) -> Result<Self> {
         let (health_sender, _) = broadcast::channel(1000);
-        
+
         Ok(Self {
             config,
             health_sender,
@@ -95,20 +95,25 @@ impl IpcServer {
     }
 
     pub async fn serve(&self, service: Arc<WheelService>) -> Result<()> {
-        info!("Starting IPC server with transport: {:?}", self.config.transport);
-        
+        info!(
+            "Starting IPC server with transport: {:?}",
+            self.config.transport
+        );
+
         // Set up shutdown channel
         let (shutdown_tx, mut shutdown_rx) = broadcast::channel(1);
         *self.shutdown_tx.lock().await = Some(shutdown_tx);
-        
+
         match &self.config.transport {
             #[cfg(windows)]
             TransportType::NamedPipe(pipe_name) => {
-                self.serve_named_pipe(pipe_name, service, &mut shutdown_rx).await
+                self.serve_named_pipe(pipe_name, service, &mut shutdown_rx)
+                    .await
             }
             #[cfg(unix)]
             TransportType::UnixDomainSocket(socket_path) => {
-                self.serve_unix_socket(socket_path, service, &mut shutdown_rx).await
+                self.serve_unix_socket(socket_path, service, &mut shutdown_rx)
+                    .await
             }
         }
     }
@@ -136,14 +141,13 @@ impl IpcServer {
         _service: Arc<WheelService>,
         shutdown_rx: &mut broadcast::Receiver<()>,
     ) -> Result<()> {
-        
         info!("Starting Named Pipe server: {}", pipe_name);
-        
+
         // Set up ACL restrictions if enabled
         if self.config.enable_acl {
             self.setup_windows_acl(pipe_name).await?;
         }
-        
+
         // For now, just simulate the server running
         tokio::select! {
             _ = shutdown_rx.recv() => {
@@ -153,7 +157,7 @@ impl IpcServer {
                 debug!("Named Pipe server tick");
             }
         }
-        
+
         Ok(())
     }
 
@@ -164,28 +168,28 @@ impl IpcServer {
         _service: Arc<WheelService>,
         shutdown_rx: &mut broadcast::Receiver<()>,
     ) -> Result<()> {
-        use tokio::net::UnixListener;
         use std::os::unix::fs::PermissionsExt;
-        
+        use tokio::net::UnixListener;
+
         info!("Starting Unix Domain Socket server: {}", socket_path);
-        
+
         // Remove existing socket file if it exists
         if std::path::Path::new(socket_path).exists() {
-            tokio::fs::remove_file(socket_path).await
+            tokio::fs::remove_file(socket_path)
+                .await
                 .context("Failed to remove existing socket file")?;
         }
-        
+
         // Create the socket
-        let listener = UnixListener::bind(socket_path)
-            .context("Failed to bind Unix socket")?;
-        
+        let listener = UnixListener::bind(socket_path).context("Failed to bind Unix socket")?;
+
         // Set up ACL restrictions if enabled
         if self.config.enable_acl {
             self.setup_unix_acl(socket_path).await?;
         }
-        
+
         info!("Unix socket server listening on {}", socket_path);
-        
+
         loop {
             tokio::select! {
                 _ = shutdown_rx.recv() => {
@@ -196,7 +200,7 @@ impl IpcServer {
                     match result {
                         Ok((stream, addr)) => {
                             debug!("New connection from {:?}", addr);
-                            
+
                             // Verify peer credentials if ACL is enabled
                             if self.config.enable_acl {
                                 if let Err(e) = self.verify_unix_peer_credentials(&stream).await {
@@ -204,7 +208,7 @@ impl IpcServer {
                                     continue;
                                 }
                             }
-                            
+
                             // Handle the connection
                             let clients = self.connected_clients.clone();
                             tokio::spawn(async move {
@@ -218,10 +222,10 @@ impl IpcServer {
                 }
             }
         }
-        
+
         // Clean up socket file
         let _ = tokio::fs::remove_file(socket_path).await;
-        
+
         Ok(())
     }
 
@@ -236,36 +240,41 @@ impl IpcServer {
     #[cfg(unix)]
     async fn setup_unix_acl(&self, socket_path: &str) -> Result<()> {
         use std::os::unix::fs::PermissionsExt;
-        
+
         // Set socket permissions to user-only (0600)
-        let metadata = tokio::fs::metadata(socket_path).await
+        let metadata = tokio::fs::metadata(socket_path)
+            .await
             .context("Failed to get socket metadata")?;
-        
+
         let mut permissions = metadata.permissions();
         permissions.set_mode(0o600); // User read/write only
-        
-        tokio::fs::set_permissions(socket_path, permissions).await
+
+        tokio::fs::set_permissions(socket_path, permissions)
+            .await
             .context("Failed to set socket permissions")?;
-        
+
         info!("Set Unix socket permissions to user-only access");
         Ok(())
     }
 
     #[cfg(unix)]
     async fn verify_unix_peer_credentials(&self, stream: &tokio::net::UnixStream) -> Result<()> {
-        use std::os::unix::net::UnixStream as StdUnixStream;
         use std::os::unix::io::{AsRawFd, FromRawFd};
-        
+        use std::os::unix::net::UnixStream as StdUnixStream;
+
         // Get peer credentials
         let raw_fd = stream.as_raw_fd();
         let std_stream = unsafe { StdUnixStream::from_raw_fd(raw_fd) };
-        
+
         // Use SO_PEERCRED to get peer process info
         // This is a simplified version - full implementation would use libc calls
         let current_uid = unsafe { libc::getuid() };
-        
-        debug!("Verifying peer credentials against current UID: {}", current_uid);
-        
+
+        debug!(
+            "Verifying peer credentials against current UID: {}",
+            current_uid
+        );
+
         // For now, allow all connections from the same user
         Ok(())
     }

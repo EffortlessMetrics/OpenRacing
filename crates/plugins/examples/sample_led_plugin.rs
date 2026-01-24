@@ -16,20 +16,28 @@ impl WasmPlugin for SampleLedPlugin {
             .get("max_rpm")
             .and_then(|v| v.as_f64())
             .unwrap_or(8000.0) as f32;
-        
+
         self.shift_point = config
             .get("shift_point")
             .and_then(|v| v.as_f64())
             .unwrap_or(0.9) as f32;
-        
+
         Ok(())
     }
-    
-    fn process_telemetry(&mut self, _input: SdkTelemetry, _context: SdkContext) -> SdkResult<SdkOutput> {
+
+    fn process_telemetry(
+        &mut self,
+        _input: SdkTelemetry,
+        _context: SdkContext,
+    ) -> SdkResult<SdkOutput> {
         Err(SdkError::CapabilityRequired("ReadTelemetry".to_string()))
     }
-    
-    fn process_led_mapping(&mut self, input: SdkLedInput, _context: SdkContext) -> SdkResult<SdkOutput> {
+
+    fn process_led_mapping(
+        &mut self,
+        input: SdkLedInput,
+        _context: SdkContext,
+    ) -> SdkResult<SdkOutput> {
         let leds = if input.telemetry.flags.red_flag || input.telemetry.flags.yellow_flag {
             // Show flag colors - simplified implementation
             vec![SdkLedColor { r: 255, g: 0, b: 0 }; input.led_count as usize]
@@ -37,7 +45,7 @@ impl WasmPlugin for SampleLedPlugin {
             // Show RPM pattern - simplified implementation
             let normalized_rpm = (input.telemetry.rpm / self.max_rpm).clamp(0.0, 1.0);
             let active_leds = (normalized_rpm * input.led_count as f32) as u32;
-            
+
             (0..input.led_count)
                 .map(|i| {
                     if i < active_leds {
@@ -52,14 +60,14 @@ impl WasmPlugin for SampleLedPlugin {
                 })
                 .collect()
         };
-        
+
         Ok(SdkOutput::Led {
             leds,
             brightness: 1.0,
             duration_ms: 50,
         })
     }
-    
+
     fn shutdown(&mut self) -> SdkResult<()> {
         Ok(())
     }

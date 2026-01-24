@@ -2,16 +2,16 @@
 
 use anyhow::Result;
 use racing_wheel_engine::{
-    HidPort, HidDevice, DeviceInfo, DeviceHealthStatus, TelemetryData,
-    DeviceEvent, TracingManager, AppTraceEvent
+    AppTraceEvent, DeviceEvent, DeviceHealthStatus, DeviceInfo, HidDevice, HidPort, TelemetryData,
+    TracingManager,
 };
-use racing_wheel_schemas::prelude::{DeviceId, DeviceCapabilities, CalibrationData, TorqueNm};
+use racing_wheel_schemas::prelude::{CalibrationData, DeviceCapabilities, DeviceId, TorqueNm};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{RwLock, mpsc};
 use tokio::time::interval;
-use tracing::{info, error, debug};
+use tracing::{debug, error, info};
 
 /// Device connection state
 #[derive(Debug, Clone, PartialEq)]
@@ -93,7 +93,10 @@ impl ApplicationDeviceService {
     pub async fn enumerate_devices(&self) -> Result<Vec<DeviceInfo>> {
         debug!("Enumerating devices");
 
-        let device_infos = self.hid_port.list_devices().await
+        let device_infos = self
+            .hid_port
+            .list_devices()
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to enumerate devices: {}", e))?;
 
         info!(device_count = device_infos.len(), "Found devices");
@@ -105,7 +108,7 @@ impl ApplicationDeviceService {
 
             for device_info in &device_infos {
                 let device_id = device_info.id.clone();
-                
+
                 match devices.get_mut(&device_id) {
                     Some(managed_device) => {
                         // Update existing device
@@ -140,14 +143,19 @@ impl ApplicationDeviceService {
             }
 
             // Mark missing devices as disconnected
-            let current_device_ids: std::collections::HashSet<_> = 
+            let current_device_ids: std::collections::HashSet<_> =
                 device_infos.iter().map(|d| d.id.clone()).collect();
-            
+
             for (device_id, managed_device) in devices.iter_mut() {
-                if !current_device_ids.contains(device_id) && 
-                   managed_device.state != DeviceState::Disconnected {
+                if !current_device_ids.contains(device_id)
+                    && managed_device.state != DeviceState::Disconnected
+                {
                     managed_device.state = DeviceState::Disconnected;
-                    self.emit_device_disconnected_event(device_id, "Device not found during enumeration").await;
+                    self.emit_device_disconnected_event(
+                        device_id,
+                        "Device not found during enumeration",
+                    )
+                    .await;
                 }
             }
         }
@@ -171,7 +179,10 @@ impl ApplicationDeviceService {
     pub async fn initialize_device(&self, device_id: &DeviceId) -> Result<()> {
         info!(device_id = %device_id, "Initializing device");
 
-        let device = self.hid_port.open_device(device_id).await
+        let device = self
+            .hid_port
+            .open_device(device_id)
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to open device: {}", e))?;
 
         // Read device capabilities
@@ -205,7 +216,10 @@ impl ApplicationDeviceService {
     ) -> Result<CalibrationData> {
         info!(device_id = %device_id, calibration_type = ?calibration_type, "Starting device calibration");
 
-        let mut device = self.hid_port.open_device(device_id).await
+        let mut device = self
+            .hid_port
+            .open_device(device_id)
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to open device for calibration: {}", e))?;
 
         let calibration_data = match calibration_type {
@@ -231,7 +245,10 @@ impl ApplicationDeviceService {
     pub async fn get_device_health(&self, device_id: &DeviceId) -> Result<DeviceHealthStatus> {
         debug!(device_id = %device_id, "Getting device health status");
 
-        let device = self.hid_port.open_device(device_id).await
+        let device = self
+            .hid_port
+            .open_device(device_id)
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to open device for health check: {}", e))?;
 
         let health_status = device.health_status();
@@ -249,9 +266,14 @@ impl ApplicationDeviceService {
     }
 
     /// Get device telemetry
-    pub async fn get_device_telemetry(&self, device_id: &DeviceId) -> Result<Option<TelemetryData>> {
+    pub async fn get_device_telemetry(
+        &self,
+        device_id: &DeviceId,
+    ) -> Result<Option<TelemetryData>> {
         let devices = self.devices.read().await;
-        Ok(devices.get(device_id).and_then(|d| d.last_telemetry.clone()))
+        Ok(devices
+            .get(device_id)
+            .and_then(|d| d.last_telemetry.clone()))
     }
 
     /// Start continuous device enumeration
@@ -261,15 +283,15 @@ impl ApplicationDeviceService {
 
         tokio::spawn(async move {
             let mut interval = interval(Duration::from_secs(2));
-            
+
             loop {
                 interval.tick().await;
-                
+
                 // Perform device enumeration
                 match hid_port.list_devices().await.map_err(|e| e.to_string()) {
                     Ok(device_infos) => {
                         debug!("Enumerated {} devices", device_infos.len());
-                        
+
                         let now = Instant::now();
                         // Update the devices map with discovered devices
                         let mut devices_guard = devices.write().await;
@@ -313,17 +335,20 @@ impl ApplicationDeviceService {
 
         tokio::spawn(async move {
             let mut interval = interval(health_interval);
-            
+
             loop {
                 interval.tick().await;
-                
+
                 let device_ids: Vec<DeviceId> = {
                     let devices_guard = devices.read().await;
                     devices_guard.keys().cloned().collect()
                 };
 
                 for device_id in device_ids {
-                    let device_result = hid_port.open_device(&device_id).await.map_err(|e| e.to_string());
+                    let device_result = hid_port
+                        .open_device(&device_id)
+                        .await
+                        .map_err(|e| e.to_string());
                     if let Ok(device) = device_result {
                         let health_status = device.health_status();
                         let mut devices_guard = devices.write().await;
@@ -343,7 +368,8 @@ impl ApplicationDeviceService {
     async fn start_event_processing(&self) -> Result<()> {
         let mut receiver = {
             let mut receiver_guard = self.event_receiver.write().await;
-            receiver_guard.take()
+            receiver_guard
+                .take()
                 .ok_or_else(|| anyhow::anyhow!("Event receiver already taken"))?
         };
 
@@ -367,7 +393,9 @@ impl ApplicationDeviceService {
             });
         }
 
-        let _ = self.event_sender.send(DeviceEvent::Connected(device_info.clone()));
+        let _ = self
+            .event_sender
+            .send(DeviceEvent::Connected(device_info.clone()));
     }
 
     /// Emit device disconnected event
@@ -388,19 +416,29 @@ impl ApplicationDeviceService {
             serial_number: None,
             manufacturer: None,
             path: "".to_string(),
-            capabilities: DeviceCapabilities::new(false, false, false, false, 
-                TorqueNm::new(0.0).unwrap_or(TorqueNm::ZERO), 0, 1000),
+            capabilities: DeviceCapabilities::new(
+                false,
+                false,
+                false,
+                false,
+                TorqueNm::new(0.0).unwrap_or(TorqueNm::ZERO),
+                0,
+                1000,
+            ),
             is_connected: false,
         };
-        let _ = self.event_sender.send(DeviceEvent::Disconnected(device_info));
+        let _ = self
+            .event_sender
+            .send(DeviceEvent::Disconnected(device_info));
     }
 
     /// Calibrate center position
     async fn calibrate_center(&self, device: &mut dyn HidDevice) -> Result<CalibrationData> {
         info!("Calibrating center position");
-        
+
         // Read current position as center
-        let telemetry = device.read_telemetry()
+        let telemetry = device
+            .read_telemetry()
             .ok_or_else(|| anyhow::anyhow!("Failed to read telemetry for center calibration"))?;
 
         Ok(CalibrationData {
@@ -416,10 +454,10 @@ impl ApplicationDeviceService {
     /// Calibrate full range
     async fn calibrate_range(&self, device: &mut dyn HidDevice) -> Result<CalibrationData> {
         info!("Calibrating range - user should turn wheel to full lock positions");
-        
+
         let mut min_angle = f32::MAX;
         let mut max_angle = f32::MIN;
-        
+
         // Sample for 10 seconds to capture range
         let start_time = Instant::now();
         while start_time.elapsed() < Duration::from_secs(10) {
@@ -443,7 +481,7 @@ impl ApplicationDeviceService {
     /// Calibrate pedals
     async fn calibrate_pedals(&self, _device: &dyn HidDevice) -> Result<CalibrationData> {
         info!("Calibrating pedals");
-        
+
         // Pedal calibration would be implemented here
         // For now, return default calibration
         Ok(CalibrationData {
@@ -463,7 +501,7 @@ impl ApplicationDeviceService {
     /// Full calibration (center + range + pedals)
     async fn calibrate_full(&self, device: &mut dyn HidDevice) -> Result<CalibrationData> {
         info!("Performing full calibration");
-        
+
         let center_cal = self.calibrate_center(device).await?;
         let range_cal = self.calibrate_range(device).await?;
         let pedal_cal = self.calibrate_pedals(device).await?;
@@ -473,10 +511,13 @@ impl ApplicationDeviceService {
             min_position: range_cal.min_position,
             max_position: range_cal.max_position,
             pedal_ranges: pedal_cal.pedal_ranges,
-            calibrated_at: Some(std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs().to_string()),
+            calibrated_at: Some(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs()
+                    .to_string(),
+            ),
             calibration_type: racing_wheel_schemas::entities::CalibrationType::Full,
         })
     }
@@ -487,8 +528,13 @@ impl ApplicationDeviceService {
     }
 
     /// Get device status (for IPC service compatibility)
-    pub async fn get_device_status(&self, device_id: &DeviceId) -> Result<(DeviceInfo, Option<TelemetryData>)> {
-        let managed_device = self.get_device(device_id).await?
+    pub async fn get_device_status(
+        &self,
+        device_id: &DeviceId,
+    ) -> Result<(DeviceInfo, Option<TelemetryData>)> {
+        let managed_device = self
+            .get_device(device_id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Device not found: {}", device_id))?;
 
         let telemetry = self.get_device_telemetry(device_id).await?;
@@ -499,7 +545,7 @@ impl ApplicationDeviceService {
     /// Get device service statistics
     pub async fn get_statistics(&self) -> DeviceServiceStatistics {
         let devices = self.devices.read().await;
-        
+
         let mut connected_count = 0;
         let mut ready_count = 0;
         let mut faulted_count = 0;
@@ -538,8 +584,6 @@ pub enum CalibrationType {
     Full,
 }
 
-
-
 /// Device service statistics
 #[derive(Debug, Clone)]
 pub struct DeviceServiceStatistics {
@@ -552,7 +596,7 @@ pub struct DeviceServiceStatistics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use racing_wheel_engine::{VirtualHidPort, DeviceType};
+    use racing_wheel_engine::{DeviceType, VirtualHidPort};
 
     #[tokio::test]
     async fn test_device_service_creation() {
@@ -601,9 +645,11 @@ mod tests {
         let devices = service.enumerate_devices().await.unwrap();
         if !devices.is_empty() {
             let device_id = &devices[0].id;
-            
+
             // Test center calibration
-            let result = service.calibrate_device(device_id, CalibrationType::Center).await;
+            let result = service
+                .calibrate_device(device_id, CalibrationType::Center)
+                .await;
             // This might fail with virtual devices, but we're testing the interface
             assert!(result.is_ok() || result.is_err());
         }

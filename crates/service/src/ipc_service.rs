@@ -3,32 +3,30 @@
 //! This module provides the gRPC service implementation that uses the conversion
 //! layer to separate domain logic from wire protocol concerns.
 
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::SystemTime;
 
 use async_trait::async_trait;
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 use tokio_stream::Stream;
 use tonic::{Request, Response, Status};
 use tracing::debug;
 
 use racing_wheel_schemas::generated::wheel::v1::{
-    wheel_service_server::WheelService,
-    DeviceId as WireDeviceId, Profile as WireProfile, OpResult, HealthEvent,
-    DeviceStatus, ProfileList, DiagnosticInfo, GameStatus,
-    FeatureNegotiationRequest, FeatureNegotiationResponse, ApplyProfileRequest,
-    ConfigureTelemetryRequest,
+    ApplyProfileRequest, ConfigureTelemetryRequest, DeviceId as WireDeviceId, DeviceStatus,
+    DiagnosticInfo, FeatureNegotiationRequest, FeatureNegotiationResponse, GameStatus, HealthEvent,
+    OpResult, Profile as WireProfile, ProfileList, wheel_service_server::WheelService,
 };
 
 use racing_wheel_schemas::ipc_conversion::ConversionError;
 
 // Import domain services (these will be the real implementations)
-use crate::device_service::ApplicationDeviceService;
 use crate::ApplicationProfileService;
-use crate::safety_service::ApplicationSafetyService;
+use crate::device_service::ApplicationDeviceService;
 use crate::game_service::GameService;
+use crate::safety_service::ApplicationSafetyService;
 
 /// Health event for internal broadcasting
 #[derive(Debug, Clone)]
@@ -82,7 +80,13 @@ impl WheelServiceImpl {
 
 #[async_trait]
 impl WheelService for WheelServiceImpl {
-    type ListDevicesStream = Pin<Box<dyn Stream<Item = Result<racing_wheel_schemas::generated::wheel::v1::DeviceInfo, Status>> + Send>>;
+    type ListDevicesStream = Pin<
+        Box<
+            dyn Stream<
+                    Item = Result<racing_wheel_schemas::generated::wheel::v1::DeviceInfo, Status>,
+                > + Send,
+        >,
+    >;
     type SubscribeHealthStream = Pin<Box<dyn Stream<Item = Result<HealthEvent, Status>> + Send>>;
 
     /// Feature negotiation for backward compatibility
@@ -91,11 +95,14 @@ impl WheelService for WheelServiceImpl {
         request: Request<FeatureNegotiationRequest>,
     ) -> Result<Response<FeatureNegotiationResponse>, Status> {
         let req = request.into_inner();
-        debug!("Feature negotiation from client version: {}", req.client_version);
+        debug!(
+            "Feature negotiation from client version: {}",
+            req.client_version
+        );
 
         // For now, accept all clients with basic compatibility check
         let compatible = is_version_compatible(&req.client_version, "1.0.0");
-        
+
         let response = FeatureNegotiationResponse {
             server_version: "1.0.0".to_string(),
             supported_features: vec![
@@ -125,7 +132,7 @@ impl WheelService for WheelServiceImpl {
         debug!("ListDevices called");
 
         let device_service = self.device_service.clone();
-        
+
         let stream = async_stream::stream! {
             match device_service.list_devices().await {
                 Ok(devices) => {
@@ -159,10 +166,13 @@ impl WheelService for WheelServiceImpl {
         debug!("GetDeviceStatus called for device: {}", device_id_wire.id);
 
         // Convert wire DeviceId to domain DeviceId
-        let device_id: racing_wheel_schemas::domain::DeviceId = device_id_wire.id.parse()
-            .map_err(|e: racing_wheel_schemas::domain::DomainError| {
-                Status::invalid_argument(format!("Invalid device ID: {}", e))
-            })?;
+        let device_id: racing_wheel_schemas::domain::DeviceId =
+            device_id_wire
+                .id
+                .parse()
+                .map_err(|e: racing_wheel_schemas::domain::DomainError| {
+                    Status::invalid_argument(format!("Invalid device ID: {}", e))
+                })?;
 
         match self.device_service.get_device_status(&device_id).await {
             Ok((device, telemetry)) => {
@@ -174,7 +184,9 @@ impl WheelService for WheelServiceImpl {
                     state: if device.is_connected { 1 } else { 0 },
                     capabilities: None, // TODO: Convert capabilities if needed
                 };
-                let telemetry_data: Option<racing_wheel_schemas::generated::wheel::v1::TelemetryData> = telemetry.map(|t| {
+                let telemetry_data: Option<
+                    racing_wheel_schemas::generated::wheel::v1::TelemetryData,
+                > = telemetry.map(|t| {
                     racing_wheel_schemas::generated::wheel::v1::TelemetryData {
                         wheel_angle_mdeg: (t.wheel_angle_deg * 1000.0) as i32,
                         wheel_speed_mrad_s: (t.wheel_speed_rad_s * 1000.0) as i32,
@@ -184,7 +196,7 @@ impl WheelService for WheelServiceImpl {
                         sequence: 0, // Default sequence number
                     }
                 });
-                
+
                 let device_status = DeviceStatus {
                     device: Some(device_info),
                     last_seen: Some(prost_types::Timestamp {
@@ -197,7 +209,7 @@ impl WheelService for WheelServiceImpl {
                     active_faults: vec![], // Will be populated by device service
                     telemetry: telemetry_data,
                 };
-                
+
                 Ok(Response::new(device_status))
             }
             Err(e) => Err(Status::not_found(format!("Device not found: {}", e))),
@@ -213,10 +225,13 @@ impl WheelService for WheelServiceImpl {
         debug!("GetActiveProfile called for device: {}", device_id_wire.id);
 
         // Convert wire DeviceId to domain DeviceId
-        let device_id: racing_wheel_schemas::domain::DeviceId = device_id_wire.id.parse()
-            .map_err(|e: racing_wheel_schemas::domain::DomainError| {
-                Status::invalid_argument(format!("Invalid device ID: {}", e))
-            })?;
+        let device_id: racing_wheel_schemas::domain::DeviceId =
+            device_id_wire
+                .id
+                .parse()
+                .map_err(|e: racing_wheel_schemas::domain::DomainError| {
+                    Status::invalid_argument(format!("Invalid device ID: {}", e))
+                })?;
 
         match self.profile_service.get_active_profile(&device_id).await {
             Ok(Some(profile_id)) => {
@@ -230,7 +245,10 @@ impl WheelService for WheelServiceImpl {
                 }
             }
             Ok(None) => Err(Status::not_found("No active profile for device")),
-            Err(e) => Err(Status::internal(format!("Failed to get active profile: {}", e))),
+            Err(e) => Err(Status::internal(format!(
+                "Failed to get active profile: {}",
+                e
+            ))),
         }
     }
 
@@ -242,20 +260,25 @@ impl WheelService for WheelServiceImpl {
         let req = request.into_inner();
         debug!("ApplyProfile called");
 
-        let device_id_wire = req.device
+        let device_id_wire = req
+            .device
             .ok_or_else(|| Status::invalid_argument("Device ID is required"))?;
-        
-        let profile_wire = req.profile
+
+        let profile_wire = req
+            .profile
             .ok_or_else(|| Status::invalid_argument("Profile is required"))?;
 
         // Convert wire types to domain types
-        let device_id: racing_wheel_schemas::domain::DeviceId = device_id_wire.id.parse()
-            .map_err(|e: racing_wheel_schemas::domain::DomainError| {
-                Status::invalid_argument(format!("Invalid device ID: {}", e))
-            })?;
+        let device_id: racing_wheel_schemas::domain::DeviceId =
+            device_id_wire
+                .id
+                .parse()
+                .map_err(|e: racing_wheel_schemas::domain::DomainError| {
+                    Status::invalid_argument(format!("Invalid device ID: {}", e))
+                })?;
 
-        let _profile: racing_wheel_schemas::entities::Profile = profile_wire.try_into()
-            .map_err(|e: ConversionError| {
+        let _profile: racing_wheel_schemas::entities::Profile =
+            profile_wire.try_into().map_err(|e: ConversionError| {
                 Status::invalid_argument(format!("Invalid profile: {}", e))
             })?;
 
@@ -263,12 +286,14 @@ impl WheelService for WheelServiceImpl {
         let max_torque = racing_wheel_schemas::domain::TorqueNm::new(10.0)
             .map_err(|e| Status::internal(format!("invalid max torque: {}", e)))?;
         let device_capabilities = racing_wheel_schemas::entities::DeviceCapabilities::new(
-            true, true, true, true, 
-            max_torque,
-            1024, 1000
+            true, true, true, true, max_torque, 1024, 1000,
         );
-        
-        match self.profile_service.apply_profile_to_device(&device_id, None, None, None, &device_capabilities).await {
+
+        match self
+            .profile_service
+            .apply_profile_to_device(&device_id, None, None, None, &device_capabilities)
+            .await
+        {
             Ok(_profile) => Ok(Response::new(OpResult {
                 success: true,
                 error_message: String::new(),
@@ -283,20 +308,15 @@ impl WheelService for WheelServiceImpl {
     }
 
     /// List all available profiles
-    async fn list_profiles(
-        &self,
-        _request: Request<()>,
-    ) -> Result<Response<ProfileList>, Status> {
+    async fn list_profiles(&self, _request: Request<()>) -> Result<Response<ProfileList>, Status> {
         debug!("ListProfiles called");
 
         match self.profile_service.list_profiles().await {
             Ok(profiles) => {
                 // Convert domain Profiles to wire Profiles
-                let wire_profiles: Vec<WireProfile> = profiles
-                    .into_iter()
-                    .map(Into::into)
-                    .collect();
-                
+                let wire_profiles: Vec<WireProfile> =
+                    profiles.into_iter().map(Into::into).collect();
+
                 Ok(Response::new(ProfileList {
                     profiles: wire_profiles,
                 }))
@@ -314,10 +334,13 @@ impl WheelService for WheelServiceImpl {
         debug!("StartHighTorque called for device: {}", device_id_wire.id);
 
         // Convert wire DeviceId to domain DeviceId
-        let device_id: racing_wheel_schemas::domain::DeviceId = device_id_wire.id.parse()
-            .map_err(|e: racing_wheel_schemas::domain::DomainError| {
-                Status::invalid_argument(format!("Invalid device ID: {}", e))
-            })?;
+        let device_id: racing_wheel_schemas::domain::DeviceId =
+            device_id_wire
+                .id
+                .parse()
+                .map_err(|e: racing_wheel_schemas::domain::DomainError| {
+                    Status::invalid_argument(format!("Invalid device ID: {}", e))
+                })?;
 
         match self.safety_service.start_high_torque(&device_id).await {
             Ok(()) => Ok(Response::new(OpResult {
@@ -342,12 +365,19 @@ impl WheelService for WheelServiceImpl {
         debug!("EmergencyStop called for device: {}", device_id_wire.id);
 
         // Convert wire DeviceId to domain DeviceId
-        let device_id: racing_wheel_schemas::domain::DeviceId = device_id_wire.id.parse()
-            .map_err(|e: racing_wheel_schemas::domain::DomainError| {
-                Status::invalid_argument(format!("Invalid device ID: {}", e))
-            })?;
+        let device_id: racing_wheel_schemas::domain::DeviceId =
+            device_id_wire
+                .id
+                .parse()
+                .map_err(|e: racing_wheel_schemas::domain::DomainError| {
+                    Status::invalid_argument(format!("Invalid device ID: {}", e))
+                })?;
 
-        match self.safety_service.emergency_stop(&device_id, "IPC request".to_string()).await {
+        match self
+            .safety_service
+            .emergency_stop(&device_id, "IPC request".to_string())
+            .await
+        {
             Ok(()) => Ok(Response::new(OpResult {
                 success: true,
                 error_message: String::new(),
@@ -369,7 +399,7 @@ impl WheelService for WheelServiceImpl {
         debug!("SubscribeHealth called");
 
         let mut health_receiver = self.health_broadcaster.subscribe();
-        
+
         let stream = async_stream::stream! {
             while let Ok(event) = health_receiver.recv().await {
                 let health_event = HealthEvent {
@@ -401,10 +431,13 @@ impl WheelService for WheelServiceImpl {
         debug!("GetDiagnostics called for device: {}", device_id_wire.id);
 
         // Convert wire DeviceId to domain DeviceId
-        let device_id: racing_wheel_schemas::domain::DeviceId = device_id_wire.id.parse()
-            .map_err(|e: racing_wheel_schemas::domain::DomainError| {
-                Status::invalid_argument(format!("Invalid device ID: {}", e))
-            })?;
+        let device_id: racing_wheel_schemas::domain::DeviceId =
+            device_id_wire
+                .id
+                .parse()
+                .map_err(|e: racing_wheel_schemas::domain::DomainError| {
+                    Status::invalid_argument(format!("Invalid device ID: {}", e))
+                })?;
 
         // For now, return basic diagnostic info
         // This will be enhanced when the diagnostic service is implemented
@@ -412,12 +445,14 @@ impl WheelService for WheelServiceImpl {
             device_id: device_id.to_string(),
             system_info: BTreeMap::new(),
             recent_faults: vec![],
-            performance: Some(racing_wheel_schemas::generated::wheel::v1::PerformanceMetrics {
-                p99_jitter_us: 0.0,
-                missed_tick_rate: 0.0,
-                total_ticks: 0,
-                missed_ticks: 0,
-            }),
+            performance: Some(
+                racing_wheel_schemas::generated::wheel::v1::PerformanceMetrics {
+                    p99_jitter_us: 0.0,
+                    missed_tick_rate: 0.0,
+                    total_ticks: 0,
+                    missed_ticks: 0,
+                },
+            ),
         };
 
         Ok(Response::new(diagnostic_info))
@@ -432,7 +467,11 @@ impl WheelService for WheelServiceImpl {
         debug!("ConfigureTelemetry called for game: {}", req.game_id);
 
         use std::path::Path;
-        match self.game_service.configure_telemetry(&req.game_id, Path::new(&req.install_path)).await {
+        match self
+            .game_service
+            .configure_telemetry(&req.game_id, Path::new(&req.install_path))
+            .await
+        {
             Ok(_config_diffs) => Ok(Response::new(OpResult {
                 success: true,
                 error_message: String::new(),
@@ -447,10 +486,7 @@ impl WheelService for WheelServiceImpl {
     }
 
     /// Get game status
-    async fn get_game_status(
-        &self,
-        _request: Request<()>,
-    ) -> Result<Response<GameStatus>, Status> {
+    async fn get_game_status(&self, _request: Request<()>) -> Result<Response<GameStatus>, Status> {
         debug!("GetGameStatus called");
 
         match self.game_service.get_game_status().await {
@@ -463,7 +499,10 @@ impl WheelService for WheelServiceImpl {
                 };
                 Ok(Response::new(game_status))
             }
-            Err(e) => Err(Status::internal(format!("Failed to get game status: {}", e))),
+            Err(e) => Err(Status::internal(format!(
+                "Failed to get game status: {}",
+                e
+            ))),
         }
     }
 }
@@ -477,29 +516,29 @@ fn is_version_compatible(client_version: &str, min_version: &str) -> bool {
             .map(|s| s.parse().unwrap_or(0))
             .collect()
     };
-    
+
     let client_parts = parse_version(client_version);
     let min_parts = parse_version(min_version);
-    
+
     if client_parts.len() < 3 || min_parts.len() < 3 {
         return false;
     }
-    
+
     // Major version must match
     if client_parts[0] != min_parts[0] {
         return false;
     }
-    
+
     // Minor version must be >= minimum
     if client_parts[1] < min_parts[1] {
         return false;
     }
-    
+
     // If minor versions match, patch must be >= minimum
     if client_parts[1] == min_parts[1] && client_parts[2] < min_parts[2] {
         return false;
     }
-    
+
     true
 }
 
@@ -522,8 +561,9 @@ mod tests {
         let invalid_device_id = DeviceId {
             id: "".to_string(), // Empty string should be invalid
         };
-        
-        let result: Result<racing_wheel_schemas::domain::DeviceId, _> = invalid_device_id.id.parse();
+
+        let result: Result<racing_wheel_schemas::domain::DeviceId, _> =
+            invalid_device_id.id.parse();
         assert!(result.is_err());
     }
 }

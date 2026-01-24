@@ -1,13 +1,13 @@
 //! System-level configuration management and validation
-//! 
+//!
 //! Provides comprehensive configuration for the entire racing wheel system
 //! with validation, migration, and feature flag support.
 
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
-use tracing::{info, warn, debug};
+use std::path::{Path, PathBuf};
+use tracing::{debug, info, warn};
 
 /// Complete system configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -252,7 +252,8 @@ impl Default for ServiceConfig {
         Self {
             service_name: "wheeld".to_string(),
             service_display_name: "Racing Wheel Service".to_string(),
-            service_description: "Racing wheel hardware management and force feedback service".to_string(),
+            service_description: "Racing wheel hardware management and force feedback service"
+                .to_string(),
             health_check_interval: 30,
             max_restart_attempts: 3,
             restart_delay: 5,
@@ -278,27 +279,34 @@ impl Default for IpcConfig {
 impl Default for GameConfig {
     fn default() -> Self {
         let mut supported_games = HashMap::new();
-        
+
         // iRacing configuration
-        supported_games.insert("iracing".to_string(), GameSupportConfig {
-            executables: vec!["iRacingSim64DX11.exe".to_string(), "iRacingSim64.exe".to_string()],
-            telemetry_method: "shared_memory".to_string(),
-            config_paths: vec![
-                "Documents/iRacing/app.ini".to_string(),
-            ],
-            auto_configure: true,
-        });
-        
+        supported_games.insert(
+            "iracing".to_string(),
+            GameSupportConfig {
+                executables: vec![
+                    "iRacingSim64DX11.exe".to_string(),
+                    "iRacingSim64.exe".to_string(),
+                ],
+                telemetry_method: "shared_memory".to_string(),
+                config_paths: vec!["Documents/iRacing/app.ini".to_string()],
+                auto_configure: true,
+            },
+        );
+
         // Assetto Corsa Competizione configuration
-        supported_games.insert("acc".to_string(), GameSupportConfig {
-            executables: vec!["AC2-Win64-Shipping.exe".to_string()],
-            telemetry_method: "udp_broadcast".to_string(),
-            config_paths: vec![
-                "Documents/Assetto Corsa Competizione/Config/broadcasting.json".to_string(),
-            ],
-            auto_configure: true,
-        });
-        
+        supported_games.insert(
+            "acc".to_string(),
+            GameSupportConfig {
+                executables: vec!["AC2-Win64-Shipping.exe".to_string()],
+                telemetry_method: "udp_broadcast".to_string(),
+                config_paths: vec![
+                    "Documents/Assetto Corsa Competizione/Config/broadcasting.json".to_string(),
+                ],
+                auto_configure: true,
+            },
+        );
+
         Self {
             auto_configure: true,
             auto_profile_switch: true,
@@ -327,10 +335,7 @@ impl Default for PluginConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            plugin_paths: vec![
-                "plugins/safe".to_string(),
-                "plugins/native".to_string(),
-            ],
+            plugin_paths: vec!["plugins/safe".to_string(), "plugins/native".to_string()],
             auto_load: true,
             timeout_ms: 100,
             max_memory_mb: 64,
@@ -359,125 +364,142 @@ impl SystemConfig {
         let config_path = Self::default_config_path()?;
         Self::load_from_path(&config_path).await
     }
-    
+
     /// Load configuration from specific path
     pub async fn load_from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = path.as_ref();
-        
+
         if !path.exists() {
             info!("Config file not found at {:?}, creating default", path);
             let config = Self::default();
             config.save_to_path(path).await?;
             return Ok(config);
         }
-        
-        let content = tokio::fs::read_to_string(path).await
+
+        let content = tokio::fs::read_to_string(path)
+            .await
             .with_context(|| format!("Failed to read config file: {:?}", path))?;
-        
+
         let config: SystemConfig = serde_json::from_str(&content)
             .with_context(|| format!("Failed to parse config file: {:?}", path))?;
-        
+
         debug!("Loaded config from {:?}", path);
         Ok(config)
     }
-    
+
     /// Save configuration to default location
     pub async fn save(&self) -> Result<()> {
         let config_path = Self::default_config_path()?;
         self.save_to_path(&config_path).await
     }
-    
+
     /// Save configuration to specific path
     pub async fn save_to_path<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let path = path.as_ref();
-        
+
         if let Some(parent) = path.parent() {
-            tokio::fs::create_dir_all(parent).await
+            tokio::fs::create_dir_all(parent)
+                .await
                 .context("Failed to create config directory")?;
         }
-        
-        let content = serde_json::to_string_pretty(self)
-            .context("Failed to serialize config")?;
-        
-        tokio::fs::write(path, content).await
+
+        let content = serde_json::to_string_pretty(self).context("Failed to serialize config")?;
+
+        tokio::fs::write(path, content)
+            .await
             .with_context(|| format!("Failed to write config file: {:?}", path))?;
-        
+
         debug!("Saved config to {:?}", path);
         Ok(())
     }
-    
+
     /// Get default configuration file path
     pub fn default_config_path() -> Result<PathBuf> {
         let config_dir = if cfg!(windows) {
-            std::env::var("LOCALAPPDATA")
-                .context("LOCALAPPDATA environment variable not set")?
+            std::env::var("LOCALAPPDATA").context("LOCALAPPDATA environment variable not set")?
         } else {
-            format!("{}/.config", std::env::var("HOME")
-                .context("HOME environment variable not set")?)
+            format!(
+                "{}/.config",
+                std::env::var("HOME").context("HOME environment variable not set")?
+            )
         };
-        
-        Ok(PathBuf::from(config_dir)
-            .join("wheel")
-            .join("system.json"))
+
+        Ok(PathBuf::from(config_dir).join("wheel").join("system.json"))
     }
-    
+
     /// Validate configuration
     pub fn validate(&self) -> Result<()> {
         // Validate schema version
         if !self.schema_version.starts_with("wheel.config/") {
             anyhow::bail!("Invalid schema version: {}", self.schema_version);
         }
-        
+
         // Validate engine configuration
         if self.engine.tick_rate_hz == 0 || self.engine.tick_rate_hz > 10000 {
             anyhow::bail!("Invalid tick rate: {} Hz", self.engine.tick_rate_hz);
         }
-        
+
         if self.engine.max_jitter_us > 1000 {
             anyhow::bail!("Invalid max jitter: {} μs", self.engine.max_jitter_us);
         }
-        
+
         // Validate safety configuration
-        if self.safety.default_safe_torque_nm <= 0.0 || self.safety.default_safe_torque_nm > self.safety.max_torque_nm {
-            anyhow::bail!("Invalid safe torque: {} Nm", self.safety.default_safe_torque_nm);
+        if self.safety.default_safe_torque_nm <= 0.0
+            || self.safety.default_safe_torque_nm > self.safety.max_torque_nm
+        {
+            anyhow::bail!(
+                "Invalid safe torque: {} Nm",
+                self.safety.default_safe_torque_nm
+            );
         }
-        
+
         if self.safety.max_torque_nm <= 0.0 || self.safety.max_torque_nm > 50.0 {
             anyhow::bail!("Invalid max torque: {} Nm", self.safety.max_torque_nm);
         }
-        
-        if self.safety.fault_response_timeout_ms == 0 || self.safety.fault_response_timeout_ms > 1000 {
-            anyhow::bail!("Invalid fault response timeout: {} ms", self.safety.fault_response_timeout_ms);
+
+        if self.safety.fault_response_timeout_ms == 0
+            || self.safety.fault_response_timeout_ms > 1000
+        {
+            anyhow::bail!(
+                "Invalid fault response timeout: {} ms",
+                self.safety.fault_response_timeout_ms
+            );
         }
-        
+
         // Validate IPC configuration
         if self.ipc.max_connections == 0 || self.ipc.max_connections > 1000 {
             anyhow::bail!("Invalid max connections: {}", self.ipc.max_connections);
         }
-        
+
         // Validate observability configuration
         if !(0.0..=1.0).contains(&self.observability.tracing_sample_rate) {
-            anyhow::bail!("Invalid tracing sample rate: {}", self.observability.tracing_sample_rate);
+            anyhow::bail!(
+                "Invalid tracing sample rate: {}",
+                self.observability.tracing_sample_rate
+            );
         }
-        
+
         // Warn about dangerous development settings
         if self.development.disable_safety_interlocks {
             warn!("DANGER: Safety interlocks are disabled!");
         }
-        
+
         Ok(())
     }
-    
+
     /// Migrate configuration to current schema version
     pub fn migrate(&mut self) -> Result<bool> {
         let current_version = "wheel.config/1";
-        
+
         if self.schema_version == current_version {
             return Ok(false); // No migration needed
         }
-        
-        info!("Migrating config from {} to {}", self.schema_version, current_version);
-        
+
+        info!(
+            "Migrating config from {} to {}",
+            self.schema_version, current_version
+        );
+
         // Add migration logic here as schema evolves
         match self.schema_version.as_str() {
             "wheel.config/0" => {
@@ -489,7 +511,7 @@ impl SystemConfig {
                 anyhow::bail!("Unsupported config schema version: {}", self.schema_version);
             }
         }
-        
+
         Ok(true) // Migration performed
     }
 }
@@ -508,11 +530,13 @@ impl ServiceConfig {
                         // For TCP, we'll use the default platform transport since TCP isn't available
                         // in the simplified IPC implementation
                         crate::TransportType::default()
-                    },
+                    }
                 },
                 bind_address: system_config.ipc.bind_address.clone(),
                 max_connections: system_config.ipc.max_connections,
-                connection_timeout: std::time::Duration::from_secs(system_config.ipc.connection_timeout),
+                connection_timeout: std::time::Duration::from_secs(
+                    system_config.ipc.connection_timeout,
+                ),
                 enable_acl: system_config.ipc.enable_acl,
             },
             health_check_interval: system_config.service.health_check_interval,

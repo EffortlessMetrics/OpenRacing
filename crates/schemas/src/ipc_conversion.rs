@@ -3,11 +3,12 @@
 //! This module provides conversion implementations between domain types
 //! and protobuf-generated wire types for IPC communication.
 
-use crate::domain::{DeviceId, ProfileId, TorqueNm, Degrees, Gain, FrequencyHz, CurvePoint, DomainError};
+use crate::domain::{
+    CurvePoint, Degrees, DeviceId, DomainError, FrequencyHz, Gain, ProfileId, TorqueNm,
+};
 use crate::entities::{
-    Device, DeviceCapabilities, DeviceState, DeviceType,
-    Profile, ProfileScope, ProfileMetadata, BaseSettings, FilterConfig,
-    NotchFilter, LedConfig, HapticsConfig,
+    BaseSettings, Device, DeviceCapabilities, DeviceState, DeviceType, FilterConfig, HapticsConfig,
+    LedConfig, NotchFilter, Profile, ProfileMetadata, ProfileScope,
 };
 use crate::telemetry::TelemetryData;
 use std::collections::HashMap;
@@ -21,19 +22,19 @@ use crate::generated::wheel::v1 as proto;
 pub enum ConversionError {
     #[error("Domain validation error: {0}")]
     DomainError(#[from] DomainError),
-    
+
     #[error("Invalid device type: {0}")]
     InvalidDeviceType(i32),
-    
+
     #[error("Invalid device state: {0}")]
     InvalidDeviceState(i32),
-    
+
     #[error("Missing required field: {0}")]
     MissingField(String),
-    
+
     #[error("Unit conversion error: {0}")]
     UnitConversion(String),
-    
+
     #[error("Range validation error: {field} value {value} is out of range [{min}, {max}]")]
     RangeValidation {
         field: String,
@@ -47,11 +48,10 @@ pub enum ConversionError {
 
 impl TryFrom<proto::DeviceInfo> for Device {
     type Error = ConversionError;
-    
+
     fn try_from(wire: proto::DeviceInfo) -> Result<Self, Self::Error> {
-        let device_id: DeviceId = wire.id.parse()
-            .map_err(ConversionError::DomainError)?;
-        
+        let device_id: DeviceId = wire.id.parse().map_err(ConversionError::DomainError)?;
+
         let device_type = match wire.r#type {
             0 => DeviceType::Other,
             1 => DeviceType::WheelBase,
@@ -62,11 +62,12 @@ impl TryFrom<proto::DeviceInfo> for Device {
             6 => DeviceType::ButtonBox,
             _ => return Err(ConversionError::InvalidDeviceType(wire.r#type)),
         };
-        
-        let capabilities = wire.capabilities
+
+        let capabilities = wire
+            .capabilities
             .ok_or_else(|| ConversionError::MissingField("capabilities".to_string()))?
             .try_into()?;
-        
+
         let _state = match wire.state {
             0 => DeviceState::Disconnected,
             1 => DeviceState::Connected,
@@ -75,7 +76,7 @@ impl TryFrom<proto::DeviceInfo> for Device {
             4 => DeviceState::SafeMode,
             _ => return Err(ConversionError::InvalidDeviceState(wire.state)),
         };
-        
+
         Ok(Device::new(device_id, wire.name, device_type, capabilities))
     }
 }
@@ -108,12 +109,12 @@ impl From<Device> for proto::DeviceInfo {
 
 impl TryFrom<proto::DeviceCapabilities> for DeviceCapabilities {
     type Error = ConversionError;
-    
+
     fn try_from(wire: proto::DeviceCapabilities) -> Result<Self, Self::Error> {
         // Convert centi-Newton-meters to Newton-meters with validation
-        let max_torque = TorqueNm::from_cnm(wire.max_torque_cnm as u16)
-            .map_err(ConversionError::DomainError)?;
-        
+        let max_torque =
+            TorqueNm::from_cnm(wire.max_torque_cnm as u16).map_err(ConversionError::DomainError)?;
+
         // Validate encoder CPR range (reasonable values: 1000-100000)
         if !(1000..=100000).contains(&wire.encoder_cpr) {
             return Err(ConversionError::RangeValidation {
@@ -123,7 +124,7 @@ impl TryFrom<proto::DeviceCapabilities> for DeviceCapabilities {
                 max: 100000.0,
             });
         }
-        
+
         // Validate report period (1000us = 1kHz max, 100000us = 10Hz min)
         if !(1000..=100000).contains(&wire.min_report_period_us) {
             return Err(ConversionError::RangeValidation {
@@ -133,7 +134,7 @@ impl TryFrom<proto::DeviceCapabilities> for DeviceCapabilities {
                 max: 100000.0,
             });
         }
-        
+
         Ok(DeviceCapabilities::new(
             wire.supports_pid,
             wire.supports_raw_torque_1khz,
@@ -164,24 +165,26 @@ impl From<DeviceCapabilities> for proto::DeviceCapabilities {
 
 impl TryFrom<proto::TelemetryData> for TelemetryData {
     type Error = ConversionError;
-    
+
     fn try_from(wire: proto::TelemetryData) -> Result<Self, Self::Error> {
         // Convert millidegrees to degrees with validation
         let wheel_angle_deg = (wire.wheel_angle_mdeg as f32) / 1000.0;
         if !wheel_angle_deg.is_finite() {
-            return Err(ConversionError::UnitConversion(
-                format!("Invalid wheel angle: {} mdeg", wire.wheel_angle_mdeg)
-            ));
+            return Err(ConversionError::UnitConversion(format!(
+                "Invalid wheel angle: {} mdeg",
+                wire.wheel_angle_mdeg
+            )));
         }
-        
+
         // Convert milli-radians/s to radians/s with validation
         let wheel_speed_rad_s = (wire.wheel_speed_mrad_s as f32) / 1000.0;
         if !wheel_speed_rad_s.is_finite() {
-            return Err(ConversionError::UnitConversion(
-                format!("Invalid wheel speed: {} mrad/s", wire.wheel_speed_mrad_s)
-            ));
+            return Err(ConversionError::UnitConversion(format!(
+                "Invalid wheel speed: {} mrad/s",
+                wire.wheel_speed_mrad_s
+            )));
         }
-        
+
         // Validate temperature range (0-150°C for reasonable operation)
         if wire.temp_c > 150 {
             return Err(ConversionError::RangeValidation {
@@ -191,7 +194,7 @@ impl TryFrom<proto::TelemetryData> for TelemetryData {
                 max: 150.0,
             });
         }
-        
+
         // Validate fault flags (8-bit value)
         if wire.faults > 255 {
             return Err(ConversionError::RangeValidation {
@@ -201,7 +204,7 @@ impl TryFrom<proto::TelemetryData> for TelemetryData {
                 max: 255.0,
             });
         }
-        
+
         Ok(TelemetryData {
             wheel_angle_deg,
             wheel_speed_rad_s,
@@ -230,22 +233,23 @@ impl From<TelemetryData> for proto::TelemetryData {
 
 impl TryFrom<proto::Profile> for Profile {
     type Error = ConversionError;
-    
+
     fn try_from(wire: proto::Profile) -> Result<Self, Self::Error> {
-        let profile_id: ProfileId = "converted".parse()
-            .map_err(ConversionError::DomainError)?;
-        
-        let scope = wire.scope
+        let profile_id: ProfileId = "converted".parse().map_err(ConversionError::DomainError)?;
+
+        let scope = wire
+            .scope
             .ok_or_else(|| ConversionError::MissingField("scope".to_string()))?
             .try_into()?;
-        
-        let base_settings = wire.base
+
+        let base_settings = wire
+            .base
             .ok_or_else(|| ConversionError::MissingField("base".to_string()))?
             .try_into()?;
-        
+
         let led_config = wire.leds.map(|led| led.try_into()).transpose()?;
         let haptics_config = wire.haptics.map(|haptics| haptics.try_into()).transpose()?;
-        
+
         let metadata = ProfileMetadata {
             name: "Converted Profile".to_string(),
             description: None,
@@ -255,7 +259,7 @@ impl TryFrom<proto::Profile> for Profile {
             modified_at: chrono::Utc::now().to_rfc3339(),
             tags: Vec::new(),
         };
-        
+
         Ok(Profile {
             id: profile_id,
             scope,
@@ -282,12 +286,24 @@ impl From<Profile> for proto::Profile {
 
 impl TryFrom<proto::ProfileScope> for ProfileScope {
     type Error = ConversionError;
-    
+
     fn try_from(wire: proto::ProfileScope) -> Result<Self, Self::Error> {
         Ok(ProfileScope {
-            game: if wire.game.is_empty() { None } else { Some(wire.game) },
-            car: if wire.car.is_empty() { None } else { Some(wire.car) },
-            track: if wire.track.is_empty() { None } else { Some(wire.track) },
+            game: if wire.game.is_empty() {
+                None
+            } else {
+                Some(wire.game)
+            },
+            car: if wire.car.is_empty() {
+                None
+            } else {
+                Some(wire.car)
+            },
+            track: if wire.track.is_empty() {
+                None
+            } else {
+                Some(wire.track)
+            },
         })
     }
 }
@@ -304,22 +320,26 @@ impl From<ProfileScope> for proto::ProfileScope {
 
 impl TryFrom<proto::BaseSettings> for BaseSettings {
     type Error = ConversionError;
-    
+
     fn try_from(wire: proto::BaseSettings) -> Result<Self, Self::Error> {
-        let ffb_gain = Gain::new(wire.ffb_gain)
-            .map_err(ConversionError::DomainError)?;
-        
-        let degrees_of_rotation = Degrees::new_dor(wire.dor_deg as f32)
-            .map_err(ConversionError::DomainError)?;
-        
-        let torque_cap = TorqueNm::new(wire.torque_cap_nm)
-            .map_err(ConversionError::DomainError)?;
-        
-        let filters = wire.filters
+        let ffb_gain = Gain::new(wire.ffb_gain).map_err(ConversionError::DomainError)?;
+
+        let degrees_of_rotation =
+            Degrees::new_dor(wire.dor_deg as f32).map_err(ConversionError::DomainError)?;
+
+        let torque_cap = TorqueNm::new(wire.torque_cap_nm).map_err(ConversionError::DomainError)?;
+
+        let filters = wire
+            .filters
             .ok_or_else(|| ConversionError::MissingField("filters".to_string()))?
             .try_into()?;
-        
-        Ok(BaseSettings::new(ffb_gain, degrees_of_rotation, torque_cap, filters))
+
+        Ok(BaseSettings::new(
+            ffb_gain,
+            degrees_of_rotation,
+            torque_cap,
+            filters,
+        ))
     }
 }
 
@@ -336,7 +356,7 @@ impl From<BaseSettings> for proto::BaseSettings {
 
 impl TryFrom<proto::FilterConfig> for FilterConfig {
     type Error = ConversionError;
-    
+
     fn try_from(wire: proto::FilterConfig) -> Result<Self, Self::Error> {
         // Validate reconstruction level (0-8)
         if wire.reconstruction > 8 {
@@ -347,28 +367,26 @@ impl TryFrom<proto::FilterConfig> for FilterConfig {
                 max: 8.0,
             });
         }
-        
-        let friction = Gain::new(wire.friction)
-            .map_err(ConversionError::DomainError)?;
-        let damper = Gain::new(wire.damper)
-            .map_err(ConversionError::DomainError)?;
-        let inertia = Gain::new(wire.inertia)
-            .map_err(ConversionError::DomainError)?;
-        let slew_rate = Gain::new(wire.slew_rate)
-            .map_err(ConversionError::DomainError)?;
-        
-        let notch_filters: Result<Vec<_>, _> = wire.notch_filters
+
+        let friction = Gain::new(wire.friction).map_err(ConversionError::DomainError)?;
+        let damper = Gain::new(wire.damper).map_err(ConversionError::DomainError)?;
+        let inertia = Gain::new(wire.inertia).map_err(ConversionError::DomainError)?;
+        let slew_rate = Gain::new(wire.slew_rate).map_err(ConversionError::DomainError)?;
+
+        let notch_filters: Result<Vec<_>, _> = wire
+            .notch_filters
             .into_iter()
             .map(|nf| nf.try_into())
             .collect();
         let notch_filters = notch_filters?;
-        
-        let curve_points: Result<Vec<_>, _> = wire.curve_points
+
+        let curve_points: Result<Vec<_>, _> = wire
+            .curve_points
             .into_iter()
             .map(|cp| cp.try_into())
             .collect();
         let curve_points = curve_points?;
-        
+
         FilterConfig::new(
             wire.reconstruction as u8,
             friction,
@@ -377,7 +395,8 @@ impl TryFrom<proto::FilterConfig> for FilterConfig {
             notch_filters,
             slew_rate,
             curve_points,
-        ).map_err(ConversionError::DomainError)
+        )
+        .map_err(ConversionError::DomainError)
     }
 }
 
@@ -397,11 +416,10 @@ impl From<FilterConfig> for proto::FilterConfig {
 
 impl TryFrom<proto::NotchFilter> for NotchFilter {
     type Error = ConversionError;
-    
+
     fn try_from(wire: proto::NotchFilter) -> Result<Self, Self::Error> {
-        let frequency = FrequencyHz::new(wire.hz)
-            .map_err(ConversionError::DomainError)?;
-        
+        let frequency = FrequencyHz::new(wire.hz).map_err(ConversionError::DomainError)?;
+
         // Validate Q factor (0.1 to 100.0 is reasonable)
         if !(0.1..=100.0).contains(&wire.q) || !wire.q.is_finite() {
             return Err(ConversionError::RangeValidation {
@@ -411,7 +429,7 @@ impl TryFrom<proto::NotchFilter> for NotchFilter {
                 max: 100.0,
             });
         }
-        
+
         // Validate gain_db (-60dB to +20dB is reasonable)
         if !(-60.0..=20.0).contains(&wire.gain_db) || !wire.gain_db.is_finite() {
             return Err(ConversionError::RangeValidation {
@@ -421,9 +439,8 @@ impl TryFrom<proto::NotchFilter> for NotchFilter {
                 max: 20.0,
             });
         }
-        
-        NotchFilter::new(frequency, wire.q, wire.gain_db)
-            .map_err(ConversionError::DomainError)
+
+        NotchFilter::new(frequency, wire.q, wire.gain_db).map_err(ConversionError::DomainError)
     }
 }
 
@@ -439,10 +456,9 @@ impl From<NotchFilter> for proto::NotchFilter {
 
 impl TryFrom<proto::CurvePoint> for CurvePoint {
     type Error = ConversionError;
-    
+
     fn try_from(wire: proto::CurvePoint) -> Result<Self, Self::Error> {
-        CurvePoint::new(wire.input, wire.output)
-            .map_err(ConversionError::DomainError)
+        CurvePoint::new(wire.input, wire.output).map_err(ConversionError::DomainError)
     }
 }
 
@@ -457,7 +473,7 @@ impl From<CurvePoint> for proto::CurvePoint {
 
 impl TryFrom<proto::LedConfig> for LedConfig {
     type Error = ConversionError;
-    
+
     fn try_from(wire: proto::LedConfig) -> Result<Self, Self::Error> {
         // Validate RPM bands are in [0.0, 1.0] range and sorted
         for &band in &wire.rpm_bands {
@@ -470,17 +486,16 @@ impl TryFrom<proto::LedConfig> for LedConfig {
                 });
             }
         }
-        
-        let brightness = Gain::new(wire.brightness)
-            .map_err(ConversionError::DomainError)?;
-        
+
+        let brightness = Gain::new(wire.brightness).map_err(ConversionError::DomainError)?;
+
         // Create default colors since protobuf doesn't include them
         let mut colors = HashMap::new();
         colors.insert("green".to_string(), [0, 255, 0]);
         colors.insert("yellow".to_string(), [255, 255, 0]);
         colors.insert("red".to_string(), [255, 0, 0]);
         colors.insert("blue".to_string(), [0, 0, 255]);
-        
+
         LedConfig::new(wire.rpm_bands, wire.pattern, brightness, colors)
             .map_err(ConversionError::DomainError)
     }
@@ -498,22 +513,26 @@ impl From<LedConfig> for proto::LedConfig {
 
 impl TryFrom<proto::HapticsConfig> for HapticsConfig {
     type Error = ConversionError;
-    
+
     fn try_from(wire: proto::HapticsConfig) -> Result<Self, Self::Error> {
-        let intensity = Gain::new(wire.intensity)
-            .map_err(ConversionError::DomainError)?;
-        
-        let frequency = FrequencyHz::new(wire.frequency_hz)
-            .map_err(ConversionError::DomainError)?;
-        
+        let intensity = Gain::new(wire.intensity).map_err(ConversionError::DomainError)?;
+
+        let frequency =
+            FrequencyHz::new(wire.frequency_hz).map_err(ConversionError::DomainError)?;
+
         // Create default effects since protobuf doesn't include them
         let mut effects = HashMap::new();
         effects.insert("kerb".to_string(), true);
         effects.insert("slip".to_string(), true);
         effects.insert("gear_shift".to_string(), false);
         effects.insert("collision".to_string(), true);
-        
-        Ok(HapticsConfig::new(wire.enabled, intensity, frequency, effects))
+
+        Ok(HapticsConfig::new(
+            wire.enabled,
+            intensity,
+            frequency,
+            effects,
+        ))
     }
 }
 
@@ -534,17 +553,23 @@ mod tests {
     #[test]
     fn test_device_capabilities_conversion() {
         let domain_caps = DeviceCapabilities::new(
-            true, true, true, false,
+            true,
+            true,
+            true,
+            false,
             TorqueNm::new(25.0).unwrap(),
             10000,
             1000,
         );
-        
+
         let wire_caps: proto::DeviceCapabilities = domain_caps.clone().into();
         let back_to_domain: DeviceCapabilities = wire_caps.try_into().unwrap();
-        
+
         assert_eq!(domain_caps.supports_pid, back_to_domain.supports_pid);
-        assert_eq!(domain_caps.max_torque.value(), back_to_domain.max_torque.value());
+        assert_eq!(
+            domain_caps.max_torque.value(),
+            back_to_domain.max_torque.value()
+        );
         assert_eq!(domain_caps.encoder_cpr, back_to_domain.encoder_cpr);
     }
 
@@ -558,17 +583,17 @@ mod tests {
             hands_on: true,
             timestamp: 1000,
         };
-        
+
         let wire_telemetry: proto::TelemetryData = domain_telemetry.clone().into();
-        
+
         // Check unit conversions
         assert_eq!(wire_telemetry.wheel_angle_mdeg, 123456); // degrees to millidegrees
         assert_eq!(wire_telemetry.wheel_speed_mrad_s, 2500); // rad/s to mrad/s
         assert_eq!(wire_telemetry.temp_c, 45);
         assert_eq!(wire_telemetry.faults, 0b10101010);
-        
+
         let back_to_domain: TelemetryData = wire_telemetry.try_into().unwrap();
-        
+
         // Check conversion accuracy (within 0.001 for floating point)
         assert!((back_to_domain.wheel_angle_deg - 123.456).abs() < 0.001);
         assert!((back_to_domain.wheel_speed_rad_s - 2.5).abs() < 0.001);
@@ -587,10 +612,10 @@ mod tests {
             hands_on: false,
             sequence: 0,
         };
-        
+
         let result: Result<TelemetryData, _> = invalid_temp.try_into();
         assert!(result.is_err());
-        
+
         // Test invalid fault flags
         let invalid_faults = proto::TelemetryData {
             wheel_angle_mdeg: 0,
@@ -600,7 +625,7 @@ mod tests {
             hands_on: false,
             sequence: 0,
         };
-        
+
         let result: Result<TelemetryData, _> = invalid_faults.try_into();
         assert!(result.is_err());
     }
@@ -621,7 +646,7 @@ mod tests {
                 curve_points: vec![],
             }),
         };
-        
+
         let result: Result<BaseSettings, _> = invalid_gain.try_into();
         assert!(result.is_err());
     }
@@ -634,27 +659,27 @@ mod tests {
             q: 2.0,
             gain_db: -20.0,
         };
-        
+
         let domain_filter: NotchFilter = valid_filter.try_into().unwrap();
         assert_eq!(domain_filter.frequency.value(), 60.0);
-        
+
         // Invalid Q factor
         let invalid_q = proto::NotchFilter {
             hz: 60.0,
             q: 0.05, // Invalid: < 0.1
             gain_db: -20.0,
         };
-        
+
         let result: Result<NotchFilter, _> = invalid_q.try_into();
         assert!(result.is_err());
-        
+
         // Invalid gain
         let invalid_gain = proto::NotchFilter {
             hz: 60.0,
             q: 2.0,
             gain_db: -100.0, // Invalid: < -60dB
         };
-        
+
         let result: Result<NotchFilter, _> = invalid_gain.try_into();
         assert!(result.is_err());
     }

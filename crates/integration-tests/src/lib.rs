@@ -1,5 +1,5 @@
 //! Comprehensive integration test suite for Racing Wheel Software
-//! 
+//!
 //! This crate provides end-to-end testing capabilities including:
 //! - User journey validation (UJ-01 through UJ-04)
 //! - Performance gates for CI (jitter ≤0.25ms, HID latency ≤300μs)
@@ -13,17 +13,17 @@
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::print_stdout)]
 
+pub mod acceptance;
 pub mod common;
 pub mod fixtures;
-pub mod performance;
-pub mod user_journeys;
-pub mod acceptance;
-pub mod stress;
-pub mod soak;
 pub mod gates;
+pub mod performance;
+pub mod soak;
+pub mod stress;
+pub mod user_journeys;
 
-use std::time::Duration;
 use anyhow::Result;
+use std::time::Duration;
 use tracing::info;
 
 /// Performance thresholds as defined in requirements
@@ -46,7 +46,7 @@ pub struct TestConfig {
 #[derive(Debug, Clone, Copy)]
 pub enum StressLevel {
     Light,
-    Medium, 
+    Medium,
     Heavy,
     Extreme,
 }
@@ -91,9 +91,9 @@ pub struct PerformanceMetrics {
 impl PerformanceMetrics {
     /// Check if metrics meet performance gates
     pub fn meets_performance_gates(&self) -> bool {
-        self.jitter_p99_ms <= MAX_JITTER_P99_MS &&
-        self.hid_latency_p99_us <= MAX_HID_LATENCY_P99_US &&
-        self.missed_ticks == 0
+        self.jitter_p99_ms <= MAX_JITTER_P99_MS
+            && self.hid_latency_p99_us <= MAX_HID_LATENCY_P99_US
+            && self.missed_ticks == 0
     }
 
     /// Generate performance report
@@ -106,9 +106,14 @@ impl PerformanceMetrics {
              - CPU Usage: {:.1}%\n\
              - Memory Usage: {:.1}MB\n\
              - Max Torque Saturation: {:.1}%",
-            self.jitter_p50_ms, self.jitter_p99_ms, MAX_JITTER_P99_MS,
-            self.hid_latency_p50_us, self.hid_latency_p99_us, MAX_HID_LATENCY_P99_US,
-            self.missed_ticks, self.total_ticks, 
+            self.jitter_p50_ms,
+            self.jitter_p99_ms,
+            MAX_JITTER_P99_MS,
+            self.hid_latency_p50_us,
+            self.hid_latency_p99_us,
+            MAX_HID_LATENCY_P99_US,
+            self.missed_ticks,
+            self.total_ticks,
             (self.missed_ticks as f64 / self.total_ticks as f64) * 100.0,
             self.cpu_usage_percent,
             self.memory_usage_mb,

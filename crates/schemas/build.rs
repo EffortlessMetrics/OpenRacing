@@ -3,10 +3,10 @@ use std::path::PathBuf;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Tell cargo about our custom cfg
     println!("cargo::rustc-check-cfg=cfg(has_protoc)");
-    
+
     let proto_dir = PathBuf::from("proto");
     let proto_files = &[proto_dir.join("wheel.proto")];
-    
+
     // Try to compile protobuf files, but don't fail if protoc is not available
     match compile_protos(proto_dir.as_path(), proto_files) {
         Ok(()) => {
@@ -19,28 +19,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("To enable protobuf support, install protoc:");
             eprintln!("  - On Ubuntu/Debian: sudo apt install protobuf-compiler");
             eprintln!("  - On macOS: brew install protobuf");
-            eprintln!("  - On Windows: Download from https://github.com/protocolbuffers/protobuf/releases");
-            
+            eprintln!(
+                "  - On Windows: Download from https://github.com/protocolbuffers/protobuf/releases"
+            );
+
             // Create a stub file to prevent compilation errors
             create_protobuf_stubs()?;
         }
     }
-    
+
     // Tell cargo to rerun if proto files change
     println!("cargo:rerun-if-changed=proto/wheel.proto");
     println!("cargo:rerun-if-changed=schemas/profile.schema.json");
-    
+
     Ok(())
 }
 
-fn compile_protos(proto_dir: &std::path::Path, proto_files: &[PathBuf]) -> Result<(), Box<dyn std::error::Error>> {
+fn compile_protos(
+    proto_dir: &std::path::Path,
+    proto_files: &[PathBuf],
+) -> Result<(), Box<dyn std::error::Error>> {
     // Configure protobuf compilation for deterministic output
     let mut config = prost_build::Config::new();
-    
+
     // Ensure deterministic output by setting consistent options
-    config.btree_map(["."]);  // Use BTreeMap for deterministic field ordering
-    config.bytes(["."]);      // Use bytes for binary data
-    
+    config.btree_map(["."]); // Use BTreeMap for deterministic field ordering
+    config.bytes(["."]); // Use bytes for binary data
+
     // Configure tonic for gRPC service generation with deterministic settings
     let proto_dirs = [proto_dir.to_path_buf()];
 
@@ -48,7 +53,7 @@ fn compile_protos(proto_dir: &std::path::Path, proto_files: &[PathBuf]) -> Resul
         .build_server(true)
         .build_client(true)
         .compile_with_config(config, proto_files, &proto_dirs)?;
-    
+
     Ok(())
 }
 

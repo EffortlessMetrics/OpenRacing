@@ -1,8 +1,8 @@
 //! Safety UI components for high torque consent flow
 
-use racing_wheel_engine::safety::{ConsentRequirements, InterlockChallenge, ButtonCombo};
-use std::time::{Duration, Instant};
+use racing_wheel_engine::safety::{ButtonCombo, ConsentRequirements, InterlockChallenge};
 use serde::{Deserialize, Serialize};
+use std::time::{Duration, Instant};
 
 /// UI state for the safety consent flow
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,7 +67,7 @@ impl ConsentDialog {
         }
 
         self.warnings_acknowledged = true;
-        
+
         if self.warnings_acknowledged && self.disclaimers_acknowledged {
             self.state.step = ConsentStep::RequireConsent;
         }
@@ -82,7 +82,7 @@ impl ConsentDialog {
         }
 
         self.disclaimers_acknowledged = true;
-        
+
         if self.warnings_acknowledged && self.disclaimers_acknowledged {
             self.state.step = ConsentStep::RequireConsent;
         }
@@ -113,9 +113,7 @@ impl ConsentDialog {
         let expires = challenge.expires;
         self.state.challenge = Some(challenge);
         self.state.step = ConsentStep::AwaitingPhysicalAck;
-        self.state.time_remaining = Some(
-            expires.duration_since(Instant::now())
-        );
+        self.state.time_remaining = Some(expires.duration_since(Instant::now()));
 
         Ok(())
     }
@@ -123,7 +121,7 @@ impl ConsentDialog {
     /// Update time remaining for challenge
     pub fn update_time_remaining(&mut self, remaining: Duration) {
         self.state.time_remaining = Some(remaining);
-        
+
         if remaining == Duration::ZERO {
             self.state.step = ConsentStep::Failed {
                 reason: "Challenge expired".to_string(),
@@ -142,7 +140,9 @@ impl ConsentDialog {
 
     /// Mark as failed
     pub fn mark_failed(&mut self, reason: String) {
-        self.state.step = ConsentStep::Failed { reason: reason.clone() };
+        self.state.step = ConsentStep::Failed {
+            reason: reason.clone(),
+        };
         self.state.error_message = Some(reason);
         self.state.challenge = None;
         self.state.time_remaining = None;
@@ -160,7 +160,10 @@ impl ConsentDialog {
 
     /// Check if flow is complete (success or failure)
     pub fn is_complete(&self) -> bool {
-        matches!(self.state.step, ConsentStep::Activated | ConsentStep::Failed { .. })
+        matches!(
+            self.state.step,
+            ConsentStep::Activated | ConsentStep::Failed { .. }
+        )
     }
 
     /// Check if consent has been fully provided
@@ -185,7 +188,10 @@ impl ComboInstructions {
             ButtonCombo::BothClutchPaddles => (
                 vec![
                     "Hold BOTH clutch paddles simultaneously".to_string(),
-                    format!("Keep holding for {:.1} seconds", hold_duration.as_secs_f32()),
+                    format!(
+                        "Keep holding for {:.1} seconds",
+                        hold_duration.as_secs_f32()
+                    ),
                     "Release when prompted by the system".to_string(),
                 ],
                 Some("clutch_paddles_diagram.svg".to_string()),
@@ -263,7 +269,7 @@ impl SafetyBanner {
     /// Get warning level based on current torque
     pub fn get_warning_level(&self) -> WarningLevel {
         let torque_ratio = self.current_torque_nm / self.max_torque_nm;
-        
+
         if torque_ratio > 0.9 {
             WarningLevel::Critical
         } else if torque_ratio > 0.7 {
@@ -323,9 +329,7 @@ mod tests {
                 "High torque warning".to_string(),
                 "Safety warning".to_string(),
             ],
-            disclaimers: vec![
-                "Liability disclaimer".to_string(),
-            ],
+            disclaimers: vec!["Liability disclaimer".to_string()],
             requires_explicit_consent: true,
         }
     }

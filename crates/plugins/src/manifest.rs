@@ -94,7 +94,7 @@ impl Default for ManifestValidator {
                 Capability::InterPluginComm,
             ],
         );
-        
+
         let mut max_constraints = HashMap::new();
         max_constraints.insert(
             PluginClass::Safe,
@@ -114,7 +114,7 @@ impl Default for ManifestValidator {
                 cpu_affinity: Some(0xFE),
             },
         );
-        
+
         Self {
             allowed_capabilities,
             max_constraints,
@@ -129,19 +129,22 @@ impl ManifestValidator {
                 "Plugin name cannot be empty".to_string(),
             ));
         }
-        
+
         if manifest.author.is_empty() {
             return Err(PluginError::ManifestValidation(
                 "Plugin author cannot be empty".to_string(),
             ));
         }
 
-        let allowed_capabilities = self.allowed_capabilities.get(&manifest.class).ok_or_else(|| {
-            PluginError::ManifestValidation(format!(
-                "No capability policy defined for plugin class {:?}",
-                manifest.class
-            ))
-        })?;
+        let allowed_capabilities =
+            self.allowed_capabilities
+                .get(&manifest.class)
+                .ok_or_else(|| {
+                    PluginError::ManifestValidation(format!(
+                        "No capability policy defined for plugin class {:?}",
+                        manifest.class
+                    ))
+                })?;
 
         for capability in &manifest.capabilities {
             if !allowed_capabilities.contains(capability) {
@@ -180,12 +183,10 @@ impl ManifestValidator {
         if manifest.constraints.update_rate_hz > max_constraints.update_rate_hz {
             return Err(PluginError::ManifestValidation(format!(
                 "Update rate {}Hz exceeds max {}Hz for {:?} plugins",
-                manifest.constraints.update_rate_hz,
-                max_constraints.update_rate_hz,
-                manifest.class
+                manifest.constraints.update_rate_hz, max_constraints.update_rate_hz, manifest.class
             )));
         }
-        
+
         Ok(())
     }
 }
@@ -195,9 +196,9 @@ pub async fn load_manifest(path: &Path) -> PluginResult<PluginManifest> {
     let content = tokio::fs::read_to_string(path).await?;
     let manifest: PluginManifest = serde_yaml::from_str(&content)
         .map_err(|e| PluginError::ManifestValidation(format!("YAML parse error: {}", e)))?;
-    
+
     let validator = ManifestValidator::default();
     validator.validate(&manifest)?;
-    
+
     Ok(manifest)
 }

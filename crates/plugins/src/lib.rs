@@ -35,34 +35,34 @@ pub type PluginResult<T> = Result<T, PluginError>;
 pub enum PluginError {
     #[error("Plugin manifest validation failed: {0}")]
     ManifestValidation(String),
-    
+
     #[error("Plugin loading failed: {0}")]
     LoadingFailed(String),
-    
+
     #[error("Plugin execution timeout: {duration:?}")]
     ExecutionTimeout { duration: Duration },
-    
+
     #[error("Plugin budget violation: used {used_us}μs, budget {budget_us}μs")]
     BudgetViolation { used_us: u32, budget_us: u32 },
-    
+
     #[error("Plugin crashed: {reason}")]
     Crashed { reason: String },
-    
+
     #[error("Plugin quarantined: {plugin_id}")]
     Quarantined { plugin_id: Uuid },
-    
+
     #[error("Capability violation: {capability}")]
     CapabilityViolation { capability: String },
-    
+
     #[error("WASM runtime error: {0}")]
     WasmRuntime(#[from] wasmtime::Error),
-    
+
     #[error("Native plugin error: {0}")]
     NativePlugin(#[from] libloading::Error),
-    
+
     #[error("IPC error: {0}")]
     Ipc(String),
-    
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 }
@@ -104,7 +104,7 @@ pub struct PluginLedOutput {
 /// Plugin output for DSP filtering
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginDspOutput {
-    pub modified_ffb: f32,    // -1.0 to 1.0
+    pub modified_ffb: f32, // -1.0 to 1.0
     pub filter_state: serde_json::Value,
 }
 
@@ -147,24 +147,24 @@ impl Default for PluginStats {
 pub trait Plugin: Send + Sync {
     /// Get plugin metadata
     fn manifest(&self) -> &manifest::PluginManifest;
-    
+
     /// Initialize plugin with configuration
     async fn initialize(&mut self, config: serde_json::Value) -> PluginResult<()>;
-    
+
     /// Process telemetry data
     async fn process_telemetry(
         &mut self,
         input: &NormalizedTelemetry,
         context: &PluginContext,
     ) -> PluginResult<PluginOutput>;
-    
+
     /// Process LED mapping
     async fn process_led_mapping(
         &mut self,
         input: &NormalizedTelemetry,
         context: &PluginContext,
     ) -> PluginResult<PluginOutput>;
-    
+
     /// Process DSP filtering (fast plugins only)
     async fn process_dsp(
         &mut self,
@@ -172,7 +172,7 @@ pub trait Plugin: Send + Sync {
         wheel_speed: f32,
         context: &PluginContext,
     ) -> PluginResult<PluginOutput>;
-    
+
     /// Shutdown plugin gracefully
     async fn shutdown(&mut self) -> PluginResult<()>;
 }

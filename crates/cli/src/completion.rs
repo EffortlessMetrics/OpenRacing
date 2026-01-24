@@ -1,7 +1,7 @@
 //! Shell completion generation for wheelctl
 
 use clap::CommandFactory;
-use clap_complete::{generate, Shell};
+use clap_complete::{Shell, generate};
 use std::io;
 
 use crate::Cli;
@@ -10,7 +10,7 @@ use crate::Cli;
 pub fn generate_completion(shell: Shell) {
     let mut cmd = Cli::command();
     let bin_name = "wheelctl";
-    
+
     generate(shell, &mut cmd, bin_name, &mut io::stdout());
 }
 

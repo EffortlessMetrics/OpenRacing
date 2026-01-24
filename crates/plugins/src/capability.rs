@@ -19,7 +19,7 @@ impl CapabilityChecker {
         let mut allowed_file_paths = Vec::new();
         let mut allowed_network_hosts = Vec::new();
         let mut granted_capabilities = HashSet::new();
-        
+
         for cap in capabilities {
             match &cap {
                 Capability::FileSystem { paths } => {
@@ -32,19 +32,19 @@ impl CapabilityChecker {
             }
             granted_capabilities.insert(cap);
         }
-        
+
         Self {
             granted_capabilities,
             allowed_file_paths,
             allowed_network_hosts,
         }
     }
-    
+
     /// Check if a capability is granted
     pub fn has_capability(&self, capability: &Capability) -> bool {
         self.granted_capabilities.contains(capability)
     }
-    
+
     /// Check if telemetry read access is allowed
     pub fn check_telemetry_read(&self) -> PluginResult<()> {
         if self.has_capability(&Capability::ReadTelemetry) {
@@ -55,7 +55,7 @@ impl CapabilityChecker {
             })
         }
     }
-    
+
     /// Check if telemetry modification is allowed
     pub fn check_telemetry_modify(&self) -> PluginResult<()> {
         if self.has_capability(&Capability::ModifyTelemetry) {
@@ -66,7 +66,7 @@ impl CapabilityChecker {
             })
         }
     }
-    
+
     /// Check if LED control is allowed
     pub fn check_led_control(&self) -> PluginResult<()> {
         if self.has_capability(&Capability::ControlLeds) {
@@ -77,7 +77,7 @@ impl CapabilityChecker {
             })
         }
     }
-    
+
     /// Check if DSP processing is allowed
     pub fn check_dsp_processing(&self) -> PluginResult<()> {
         if self.has_capability(&Capability::ProcessDsp) {
@@ -88,7 +88,7 @@ impl CapabilityChecker {
             })
         }
     }
-    
+
     /// Check if file system access to a path is allowed
     pub fn check_file_access(&self, path: &std::path::Path) -> PluginResult<()> {
         // Check if any granted file system capability allows this path
@@ -97,12 +97,12 @@ impl CapabilityChecker {
                 return Ok(());
             }
         }
-        
+
         Err(PluginError::CapabilityViolation {
             capability: format!("FileSystem access to {}", path.display()),
         })
     }
-    
+
     /// Check if network access to a host is allowed
     pub fn check_network_access(&self, host: &str) -> PluginResult<()> {
         if self.allowed_network_hosts.contains(&host.to_string()) {
@@ -113,7 +113,7 @@ impl CapabilityChecker {
             })
         }
     }
-    
+
     /// Check if inter-plugin communication is allowed
     pub fn check_inter_plugin_comm(&self) -> PluginResult<()> {
         if self.has_capability(&Capability::InterPluginComm) {
@@ -137,28 +137,38 @@ impl WasmCapabilityEnforcer {
             checker: CapabilityChecker::new(capabilities),
         }
     }
-    
+
     /// Create WASI context with restricted capabilities
     pub fn create_wasi_context(&self) -> PluginResult<wasmtime_wasi::WasiCtxBuilder> {
         use wasmtime_wasi::{DirPerms, FilePerms};
 
         let mut builder = wasmtime_wasi::WasiCtxBuilder::new();
-        
+
         // Only allow file system access to granted paths
         for path in &self.checker.allowed_file_paths {
             builder
-                .preopened_dir(path, path.to_string_lossy(), DirPerms::all(), FilePerms::all())
-                .map_err(|e| PluginError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)))?;
+                .preopened_dir(
+                    path,
+                    path.to_string_lossy(),
+                    DirPerms::all(),
+                    FilePerms::all(),
+                )
+                .map_err(|e| {
+                    PluginError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+                })?;
         }
-        
+
         // Restrict network access
-        if !self.checker.has_capability(&Capability::Network { hosts: vec![] }) {
+        if !self
+            .checker
+            .has_capability(&Capability::Network { hosts: vec![] })
+        {
             // No network access by default
         }
-        
+
         Ok(builder)
     }
-    
+
     /// Get the capability checker
     pub fn checker(&self) -> &CapabilityChecker {
         &self.checker
@@ -169,7 +179,7 @@ impl WasmCapabilityEnforcer {
 mod tests {
     use super::*;
     use std::path::Path;
-    
+
     #[test]
     fn test_capability_checker() {
         let capabilities = vec![
@@ -178,23 +188,27 @@ mod tests {
                 paths: vec!["/tmp".to_string()],
             },
         ];
-        
+
         let checker = CapabilityChecker::new(capabilities);
-        
+
         assert!(checker.check_telemetry_read().is_ok());
         assert!(checker.check_telemetry_modify().is_err());
-        assert!(checker.check_file_access(Path::new("/tmp/test.txt")).is_ok());
+        assert!(
+            checker
+                .check_file_access(Path::new("/tmp/test.txt"))
+                .is_ok()
+        );
         assert!(checker.check_file_access(Path::new("/etc/passwd")).is_err());
     }
-    
+
     #[test]
     fn test_network_capability() {
         let capabilities = vec![Capability::Network {
             hosts: vec!["api.example.com".to_string()],
         }];
-        
+
         let checker = CapabilityChecker::new(capabilities);
-        
+
         assert!(checker.check_network_access("api.example.com").is_ok());
         assert!(checker.check_network_access("malicious.com").is_err());
     }

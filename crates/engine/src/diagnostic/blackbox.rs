@@ -6,6 +6,7 @@
 //! - Stream C: Health/fault events
 
 use super::{HealthEvent, streams::{StreamA, StreamB, StreamC}};
+use super::bincode_compat as codec;
 use crate::rt::Frame;
 use crate::safety::SafetyState;
 use crate::ports::NormalizedTelemetry;
@@ -67,7 +68,7 @@ impl WbbHeader {
             stream_flags,
             compression_level,
             reserved: [0; 15],
-            header_size: std::mem::size_of::<WbbHeader>() as u32,
+            header_size: 0, // Filled after serialization
         }
     }
 }
@@ -183,14 +184,17 @@ impl BlackboxRecorder {
             (if config.enable_stream_b { 2 } else { 0 }) |
             (if config.enable_stream_c { 4 } else { 0 });
         
-        let header = WbbHeader::new(
+        let mut header = WbbHeader::new(
             config.device_id.clone(),
             1, // FFB mode (will be updated)
             stream_flags,
             config.compression_level,
         );
         
-        let header_bytes = bincode::serde::encode_to_vec(&header, bincode::config::legacy())
+        let mut header_bytes = codec::encode_to_vec(&header)
+            .map_err(|e| format!("Failed to serialize header: {}", e))?;
+        header.header_size = header_bytes.len() as u32;
+        header_bytes = codec::encode_to_vec(&header)
             .map_err(|e| format!("Failed to serialize header: {}", e))?;
         
         writer.write_all(&header_bytes)
@@ -289,7 +293,7 @@ impl BlackboxRecorder {
         let index_offset = self.writer.stream_position()
             .map_err(|e| format!("Failed to get file position: {}", e))?;
         
-        let index_bytes = bincode::serde::encode_to_vec(&self.index_entries, bincode::config::legacy())
+        let index_bytes = codec::encode_to_vec(&self.index_entries)
             .map_err(|e| format!("Failed to serialize index: {}", e))?;
         
         self.writer.write_all(&index_bytes)
@@ -312,7 +316,7 @@ impl BlackboxRecorder {
             footer_magic: *b"1BBW",
         };
         
-        let footer_bytes = bincode::serde::encode_to_vec(&footer, bincode::config::legacy())
+        let footer_bytes = codec::encode_to_vec(&footer)
             .map_err(|e| format!("Failed to serialize footer: {}", e))?;
         
         self.writer.write_all(&footer_bytes)
@@ -521,11 +525,11 @@ mod tests {
         let device_id = DeviceId::new("test-device".to_string()).unwrap();
         let header = WbbHeader::new(device_id, 1, 7, 6);
         
-        let serialized = bincode::serde::encode_to_vec(&header, bincode::config::legacy());
+        let serialized = codec::encode_to_vec(&header);
         assert!(serialized.is_ok());
 
-        let (deserialized, _): (WbbHeader, usize) =
-            bincode::serde::decode_from_slice(&serialized.unwrap(), bincode::config::legacy()).unwrap();
+        let deserialized: WbbHeader =
+            codec::decode_from_slice(&serialized.unwrap()).unwrap();
         assert_eq!(deserialized.magic, *WBB_MAGIC);
         assert_eq!(deserialized.version, 1);
         assert_eq!(deserialized.stream_flags, 7);

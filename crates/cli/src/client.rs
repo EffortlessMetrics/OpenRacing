@@ -1,10 +1,10 @@
 //! IPC client for communicating with wheeld service
 
+use crate::error::CliError;
 use anyhow::Result;
 use racing_wheel_schemas::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use crate::error::CliError;
 
 /// Client for communicating with the wheel service
 pub struct WheelClient {
@@ -17,24 +17,22 @@ impl WheelClient {
     /// Create a new client connection
     pub async fn connect(endpoint: Option<&str>) -> Result<Self> {
         let endpoint = endpoint.unwrap_or("http://127.0.0.1:50051").to_string();
-        
+
         // For now, just validate the endpoint format
         if !endpoint.starts_with("http://") && !endpoint.starts_with("https://") {
-            return Err(CliError::ServiceUnavailable(
-                "Invalid endpoint format".to_string()
-            ).into());
+            return Err(CliError::ServiceUnavailable("Invalid endpoint format".to_string()).into());
         }
-        
+
         // Check for invalid endpoint to simulate service unavailable
         if endpoint.contains("invalid:99999") {
-            return Err(CliError::ServiceUnavailable(
-                "Connection refused".to_string()
-            ).into());
+            return Err(CliError::ServiceUnavailable("Connection refused".to_string()).into());
         }
-        
-        Ok(Self { _endpoint: endpoint })
+
+        Ok(Self {
+            _endpoint: endpoint,
+        })
     }
-    
+
     /// List all connected devices
     pub async fn list_devices(&self) -> Result<Vec<DeviceInfo>> {
         // Mock implementation - in real version this would be a gRPC call
@@ -71,7 +69,7 @@ impl WheelClient {
             },
         ])
     }
-    
+
     /// Get device status
     pub async fn get_device_status(&self, device_id: &str) -> Result<DeviceStatus> {
         // Mock implementation - check if device exists
@@ -79,7 +77,7 @@ impl WheelClient {
         if !devices.iter().any(|d| d.id == device_id) {
             return Err(CliError::DeviceNotFound(device_id.to_string()).into());
         }
-        
+
         Ok(DeviceStatus {
             device: DeviceInfo {
                 id: device_id.to_string(),
@@ -107,14 +105,14 @@ impl WheelClient {
             },
         })
     }
-    
+
     /// Apply profile to device
     pub async fn apply_profile(&self, device_id: &str, _profile: &ProfileSchema) -> Result<()> {
         // Mock implementation - would validate and send to service
         tracing::info!("Applying profile to device {}", device_id);
         Ok(())
     }
-    
+
     /// Get active profile for device
     #[allow(dead_code)]
     pub async fn get_active_profile(&self, _device_id: &str) -> Result<ProfileSchema> {
@@ -137,13 +135,13 @@ impl WheelClient {
             signature: None,
         })
     }
-    
+
     /// Start high torque mode
     pub async fn start_high_torque(&self, device_id: &str) -> Result<()> {
         tracing::info!("Starting high torque mode for device {}", device_id);
         Ok(())
     }
-    
+
     /// Emergency stop
     pub async fn emergency_stop(&self, device_id: Option<&str>) -> Result<()> {
         match device_id {
@@ -152,7 +150,7 @@ impl WheelClient {
         }
         Ok(())
     }
-    
+
     /// Get diagnostics
     pub async fn get_diagnostics(&self, device_id: &str) -> Result<DiagnosticInfo> {
         Ok(DiagnosticInfo {
@@ -170,13 +168,21 @@ impl WheelClient {
             },
         })
     }
-    
+
     /// Configure game telemetry
-    pub async fn configure_telemetry(&self, game_id: &str, install_path: Option<&str>) -> Result<()> {
-        tracing::info!("Configuring telemetry for game {} at path {:?}", game_id, install_path);
+    pub async fn configure_telemetry(
+        &self,
+        game_id: &str,
+        install_path: Option<&str>,
+    ) -> Result<()> {
+        tracing::info!(
+            "Configuring telemetry for game {} at path {:?}",
+            game_id,
+            install_path
+        );
         Ok(())
     }
-    
+
     /// Get game status
     pub async fn get_game_status(&self) -> Result<GameStatus> {
         Ok(GameStatus {
@@ -186,7 +192,7 @@ impl WheelClient {
             track_id: Some("spa".to_string()),
         })
     }
-    
+
     /// Subscribe to health events
     pub async fn subscribe_health(&self) -> Result<HealthEventStream> {
         Ok(HealthEventStream::new())
@@ -311,7 +317,7 @@ impl HealthEventStream {
     fn new() -> Self {
         Self {}
     }
-    
+
     pub async fn next(&mut self) -> Option<HealthEvent> {
         // Mock implementation - generate periodic health events
         tokio::time::sleep(Duration::from_secs(5)).await;

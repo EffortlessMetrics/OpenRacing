@@ -1,10 +1,10 @@
 //! Soak test binary for 48-hour continuous operation testing
 
-use std::process;
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
-use tracing::{info, error};
 use racing_wheel_integration_tests::{init_test_environment, soak};
+use std::process;
+use tracing::{error, info};
 
 #[derive(Parser)]
 #[command(name = "soak-test")]
@@ -13,7 +13,7 @@ struct Args {
     /// Test mode to run
     #[arg(short, long, default_value = "ci")]
     mode: SoakMode,
-    
+
     /// Enable verbose logging
     #[arg(short, long)]
     verbose: bool,
@@ -30,9 +30,9 @@ enum SoakMode {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-    
+
     init_test_environment()?;
-    
+
     let result = match args.mode {
         SoakMode::Full => {
             info!("Starting full 48-hour soak test");
@@ -43,21 +43,24 @@ async fn main() -> Result<()> {
             soak::run_ci_soak_test().await?
         }
     };
-    
+
     info!("Soak Test Results:");
     info!("  Duration: {:?}", result.duration);
-    info!("  Status: {}", if result.passed { "PASSED" } else { "FAILED" });
+    info!(
+        "  Status: {}",
+        if result.passed { "PASSED" } else { "FAILED" }
+    );
     info!("  {}", result.metrics.report());
-    
+
     if !result.errors.is_empty() {
         error!("Errors encountered:");
         for error in &result.errors {
             error!("  - {}", error);
         }
     }
-    
+
     info!("Requirements covered: {:?}", result.requirement_coverage);
-    
+
     if result.passed {
         info!("🎉 Soak test PASSED");
         process::exit(0);

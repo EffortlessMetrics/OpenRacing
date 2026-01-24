@@ -5,13 +5,13 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{ProfileValidator, ProfileMigrator, SchemaError};
+    use crate::config::{ProfileMigrator, ProfileValidator, SchemaError};
     use serde_json::json;
 
     #[test]
     fn test_valid_profile_schema() {
         let validator = ProfileValidator::new().expect("Failed to create validator");
-        
+
         let valid_profile = json!({
             "schema": "wheel.profile/1",
             "scope": {
@@ -62,12 +62,16 @@ mod tests {
                 }
             }
         });
-        
+
         let json_str = serde_json::to_string(&valid_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        
-        assert!(result.is_ok(), "Valid profile should pass validation: {:?}", result.err());
-        
+
+        assert!(
+            result.is_ok(),
+            "Valid profile should pass validation: {:?}",
+            result.err()
+        );
+
         let profile = result.unwrap();
         assert_eq!(profile.schema, "wheel.profile/1");
         assert_eq!(profile.scope.game, Some("iracing".to_string()));
@@ -79,7 +83,7 @@ mod tests {
     #[test]
     fn test_minimal_valid_profile() {
         let validator = ProfileValidator::new().expect("Failed to create validator");
-        
+
         let minimal_profile = json!({
             "schema": "wheel.profile/1",
             "scope": {},
@@ -101,17 +105,21 @@ mod tests {
                 }
             }
         });
-        
+
         let json_str = serde_json::to_string(&minimal_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        
-        assert!(result.is_ok(), "Minimal valid profile should pass validation: {:?}", result.err());
+
+        assert!(
+            result.is_ok(),
+            "Minimal valid profile should pass validation: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn test_missing_required_fields() {
         let validator = ProfileValidator::new().expect("Failed to create validator");
-        
+
         // Missing schema field
         let invalid_profile = json!({
             "scope": {},
@@ -133,12 +141,15 @@ mod tests {
                 }
             }
         });
-        
+
         let json_str = serde_json::to_string(&invalid_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        
-        assert!(result.is_err(), "Profile missing required fields should fail validation");
-        
+
+        assert!(
+            result.is_err(),
+            "Profile missing required fields should fail validation"
+        );
+
         if let Err(SchemaError::ValidationError { path: _, message }) = result {
             assert!(message.contains("required"));
         } else {
@@ -149,7 +160,7 @@ mod tests {
     #[test]
     fn test_invalid_value_ranges() {
         let validator = ProfileValidator::new().expect("Failed to create validator");
-        
+
         // FFB gain out of range
         let invalid_profile = json!({
             "schema": "wheel.profile/1",
@@ -172,17 +183,20 @@ mod tests {
                 }
             }
         });
-        
+
         let json_str = serde_json::to_string(&invalid_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        
-        assert!(result.is_err(), "Profile with out-of-range values should fail validation");
+
+        assert!(
+            result.is_err(),
+            "Profile with out-of-range values should fail validation"
+        );
     }
 
     #[test]
     fn test_invalid_dor_range() {
         let validator = ProfileValidator::new().expect("Failed to create validator");
-        
+
         // DOR below minimum
         let invalid_profile = json!({
             "schema": "wheel.profile/1",
@@ -205,17 +219,20 @@ mod tests {
                 }
             }
         });
-        
+
         let json_str = serde_json::to_string(&invalid_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        
-        assert!(result.is_err(), "Profile with invalid DOR should fail validation");
+
+        assert!(
+            result.is_err(),
+            "Profile with invalid DOR should fail validation"
+        );
     }
 
     #[test]
     fn test_invalid_reconstruction_level() {
         let validator = ProfileValidator::new().expect("Failed to create validator");
-        
+
         // Reconstruction level too high
         let invalid_profile = json!({
             "schema": "wheel.profile/1",
@@ -238,17 +255,20 @@ mod tests {
                 }
             }
         });
-        
+
         let json_str = serde_json::to_string(&invalid_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        
-        assert!(result.is_err(), "Profile with invalid reconstruction level should fail validation");
+
+        assert!(
+            result.is_err(),
+            "Profile with invalid reconstruction level should fail validation"
+        );
     }
 
     #[test]
     fn test_non_monotonic_curve_points() {
         let validator = ProfileValidator::new().expect("Failed to create validator");
-        
+
         // Non-monotonic curve points
         let invalid_profile = json!({
             "schema": "wheel.profile/1",
@@ -272,12 +292,15 @@ mod tests {
                 }
             }
         });
-        
+
         let json_str = serde_json::to_string(&invalid_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        
-        assert!(result.is_err(), "Profile with non-monotonic curve should fail validation");
-        
+
+        assert!(
+            result.is_err(),
+            "Profile with non-monotonic curve should fail validation"
+        );
+
         if let Err(SchemaError::NonMonotonicCurve) = result {
             // Expected error type
         } else {
@@ -288,7 +311,7 @@ mod tests {
     #[test]
     fn test_invalid_notch_filter() {
         let validator = ProfileValidator::new().expect("Failed to create validator");
-        
+
         // Invalid notch filter frequency
         let invalid_profile = json!({
             "schema": "wheel.profile/1",
@@ -317,17 +340,20 @@ mod tests {
                 }
             }
         });
-        
+
         let json_str = serde_json::to_string(&invalid_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        
-        assert!(result.is_err(), "Profile with invalid notch filter should fail validation");
+
+        assert!(
+            result.is_err(),
+            "Profile with invalid notch filter should fail validation"
+        );
     }
 
     #[test]
     fn test_invalid_led_config() {
         let validator = ProfileValidator::new().expect("Failed to create validator");
-        
+
         // Non-sorted RPM bands
         let invalid_profile = json!({
             "schema": "wheel.profile/1",
@@ -355,17 +381,20 @@ mod tests {
                 "brightness": 0.8
             }
         });
-        
+
         let json_str = serde_json::to_string(&invalid_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        
-        assert!(result.is_err(), "Profile with non-sorted RPM bands should fail validation");
+
+        assert!(
+            result.is_err(),
+            "Profile with non-sorted RPM bands should fail validation"
+        );
     }
 
     #[test]
     fn test_invalid_led_pattern() {
         let validator = ProfileValidator::new().expect("Failed to create validator");
-        
+
         // Invalid LED pattern
         let invalid_profile = json!({
             "schema": "wheel.profile/1",
@@ -393,17 +422,20 @@ mod tests {
                 "brightness": 0.8
             }
         });
-        
+
         let json_str = serde_json::to_string(&invalid_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        
-        assert!(result.is_err(), "Profile with invalid LED pattern should fail validation");
+
+        assert!(
+            result.is_err(),
+            "Profile with invalid LED pattern should fail validation"
+        );
     }
 
     #[test]
     fn test_invalid_haptics_frequency() {
         let validator = ProfileValidator::new().expect("Failed to create validator");
-        
+
         // Haptics frequency out of range
         let invalid_profile = json!({
             "schema": "wheel.profile/1",
@@ -431,17 +463,20 @@ mod tests {
                 "frequencyHz": 5.0 // Invalid: < 10.0
             }
         });
-        
+
         let json_str = serde_json::to_string(&invalid_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        
-        assert!(result.is_err(), "Profile with invalid haptics frequency should fail validation");
+
+        assert!(
+            result.is_err(),
+            "Profile with invalid haptics frequency should fail validation"
+        );
     }
 
     #[test]
     fn test_unsupported_schema_version() {
         let validator = ProfileValidator::new().expect("Failed to create validator");
-        
+
         // Unsupported schema version - this will fail JSON Schema validation first
         let invalid_profile = json!({
             "schema": "wheel.profile/2", // Unsupported version
@@ -464,12 +499,15 @@ mod tests {
                 }
             }
         });
-        
+
         let json_str = serde_json::to_string(&invalid_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        
-        assert!(result.is_err(), "Profile with unsupported schema version should fail validation");
-        
+
+        assert!(
+            result.is_err(),
+            "Profile with unsupported schema version should fail validation"
+        );
+
         // The JSON Schema validation will catch this first with a ValidationError
         match result {
             Err(SchemaError::ValidationError { path, message }) => {
@@ -478,7 +516,10 @@ mod tests {
             Err(SchemaError::UnsupportedSchemaVersion(version)) => {
                 assert_eq!(version, "wheel.profile/2");
             }
-            _ => panic!("Expected ValidationError or UnsupportedSchemaVersion error, got: {:?}", result.err()),
+            _ => panic!(
+                "Expected ValidationError or UnsupportedSchemaVersion error, got: {:?}",
+                result.err()
+            ),
         }
     }
 
@@ -506,12 +547,15 @@ mod tests {
                 }
             }
         });
-        
+
         let json_str = serde_json::to_string(&current_profile).unwrap();
         let result = ProfileMigrator::migrate_profile(&json_str);
-        
-        assert!(result.is_ok(), "Current version profile should migrate successfully");
-        
+
+        assert!(
+            result.is_ok(),
+            "Current version profile should migrate successfully"
+        );
+
         // Test unsupported version
         let old_profile = json!({
             "schema": "wheel.profile/0",
@@ -534,17 +578,17 @@ mod tests {
                 }
             }
         });
-        
+
         let json_str = serde_json::to_string(&old_profile).unwrap();
         let result = ProfileMigrator::migrate_profile(&json_str);
-        
+
         assert!(result.is_err(), "Unsupported version should fail migration");
     }
 
     #[test]
     fn test_additional_properties_rejected() {
         let validator = ProfileValidator::new().expect("Failed to create validator");
-        
+
         // Profile with additional properties
         let invalid_profile = json!({
             "schema": "wheel.profile/1",
@@ -568,17 +612,20 @@ mod tests {
             },
             "extraField": "should not be allowed" // Additional property
         });
-        
+
         let json_str = serde_json::to_string(&invalid_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        
-        assert!(result.is_err(), "Profile with additional properties should fail validation");
+
+        assert!(
+            result.is_err(),
+            "Profile with additional properties should fail validation"
+        );
     }
 
     #[test]
     fn test_curve_points_boundary_conditions() {
         let validator = ProfileValidator::new().expect("Failed to create validator");
-        
+
         // Test minimum curve points (2)
         let valid_profile = json!({
             "schema": "wheel.profile/1",
@@ -601,11 +648,14 @@ mod tests {
                 }
             }
         });
-        
+
         let json_str = serde_json::to_string(&valid_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        assert!(result.is_ok(), "Profile with minimum curve points should be valid");
-        
+        assert!(
+            result.is_ok(),
+            "Profile with minimum curve points should be valid"
+        );
+
         // Test too few curve points (1)
         let invalid_profile = json!({
             "schema": "wheel.profile/1",
@@ -627,9 +677,12 @@ mod tests {
                 }
             }
         });
-        
+
         let json_str = serde_json::to_string(&invalid_profile).unwrap();
         let result = validator.validate_json(&json_str);
-        assert!(result.is_err(), "Profile with too few curve points should fail validation");
+        assert!(
+            result.is_err(),
+            "Profile with too few curve points should fail validation"
+        );
     }
 }

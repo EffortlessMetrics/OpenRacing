@@ -1,17 +1,17 @@
 //! Common utilities for integration tests
 
+use anyhow::Result;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use anyhow::Result;
 use tokio::sync::RwLock;
 use tracing::info;
 use uuid::Uuid;
 
 // use racing_wheel_engine::{Engine, EngineConfig};
-use racing_wheel_service::WheelService;
 use racing_wheel_schemas::prelude::*;
+use racing_wheel_service::WheelService;
 
-use crate::{TestConfig, PerformanceMetrics};
+use crate::{PerformanceMetrics, TestConfig};
 
 /// Mock virtual device for testing
 #[derive(Debug, Clone)]
@@ -104,7 +104,7 @@ impl TestHarness {
     pub async fn start_service(&mut self) -> Result<()> {
         let service = WheelService::new().await?;
         self.service = Some(Arc::new(service));
-        
+
         info!("Test service started");
         Ok(())
     }
@@ -112,10 +112,10 @@ impl TestHarness {
     pub async fn add_virtual_device(&mut self, name: &str) -> Result<DeviceId> {
         let device = Arc::new(RwLock::new(VirtualDevice::new(name)));
         let device_id = device.read().await.id.clone();
-        
+
         self.virtual_devices.push(device);
         info!("Added virtual device: {} ({})", name, device_id);
-        
+
         Ok(device_id)
     }
 
@@ -188,14 +188,14 @@ impl MetricsCollector {
 
     pub async fn collect(&self) -> PerformanceMetrics {
         let mut metrics = PerformanceMetrics::default();
-        
+
         metrics.total_ticks = self.total_ticks;
         metrics.missed_ticks = self.missed_ticks;
 
         if !self.jitter_samples.is_empty() {
             let mut sorted_jitter = self.jitter_samples.clone();
             sorted_jitter.sort_by(|a, b| a.partial_cmp(b).unwrap());
-            
+
             metrics.jitter_p50_ms = percentile(&sorted_jitter, 0.5);
             metrics.jitter_p99_ms = percentile(&sorted_jitter, 0.99);
         }
@@ -203,7 +203,7 @@ impl MetricsCollector {
         if !self.hid_latency_samples.is_empty() {
             let mut sorted_latency = self.hid_latency_samples.clone();
             sorted_latency.sort_by(|a, b| a.partial_cmp(b).unwrap());
-            
+
             metrics.hid_latency_p50_us = percentile(&sorted_latency, 0.5);
             metrics.hid_latency_p99_us = percentile(&sorted_latency, 0.99);
         }
@@ -232,7 +232,7 @@ fn percentile(sorted_samples: &[f64], p: f64) -> f64 {
     if sorted_samples.is_empty() {
         return 0.0;
     }
-    
+
     let index = (p * (sorted_samples.len() - 1) as f64).round() as usize;
     sorted_samples[index.min(sorted_samples.len() - 1)]
 }

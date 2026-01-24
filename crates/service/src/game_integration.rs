@@ -1,5 +1,5 @@
 //! Game Integration Module - Minimal Implementation
-//! 
+//!
 //! Implements task 4: Game Support Matrix & Golden Writers
 //! Requirements: GI-01, GI-03
 
@@ -10,8 +10,7 @@ use std::path::Path;
 use tracing::info;
 
 /// Game support matrix defining per-sim capabilities and config paths
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct GameSupportMatrix {
     pub games: HashMap<String, GameSupport>,
 }
@@ -98,10 +97,10 @@ pub enum DiffOperation {
 pub trait ConfigWriter {
     /// Write telemetry configuration for the game
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>>;
-    
+
     /// Validate that configuration was applied correctly
     fn validate_config(&self, game_path: &Path) -> Result<bool>;
-    
+
     /// Get the expected configuration diffs for testing
     fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>>;
 }
@@ -123,11 +122,11 @@ impl Default for GameIntegrationService {
     fn default() -> Self {
         let support_matrix = GameSupportMatrix::default();
         let config_writers: HashMap<String, Box<dyn ConfigWriter + Send + Sync>> = HashMap::new();
-        
+
         // Register config writers
         // config_writers.insert("iracing".to_string(), Box::new(IRacingConfigWriter));
         // config_writers.insert("acc".to_string(), Box::new(ACCConfigWriter));
-        
+
         Self {
             support_matrix,
             config_writers,
@@ -139,13 +138,18 @@ impl GameIntegrationService {
     /// Configure telemetry for a specific game (GI-01)
     pub fn configure_telemetry(&self, game_id: &str, game_path: &Path) -> Result<Vec<ConfigDiff>> {
         info!(game_id = %game_id, game_path = ?game_path, "Configuring telemetry");
-        
-        let game_support = self.support_matrix.games.get(game_id)
+
+        let game_support = self
+            .support_matrix
+            .games
+            .get(game_id)
             .ok_or_else(|| anyhow::anyhow!("Unsupported game: {}", game_id))?;
-        
-        let config_writer = self.config_writers.get(game_id)
+
+        let config_writer = self
+            .config_writers
+            .get(game_id)
             .ok_or_else(|| anyhow::anyhow!("No config writer for game: {}", game_id))?;
-        
+
         // Create telemetry configuration
         let telemetry_config = TelemetryConfig {
             enabled: true,
@@ -154,30 +158,35 @@ impl GameIntegrationService {
             output_target: "127.0.0.1:12345".to_string(),
             fields: game_support.versions[0].supported_fields.clone(),
         };
-        
+
         // Write configuration and get diffs
         let diffs = config_writer.write_config(game_path, &telemetry_config)?;
-        
+
         info!(game_id = %game_id, diffs_count = diffs.len(), "Telemetry configuration completed");
         Ok(diffs)
     }
-    
+
     /// Get normalized telemetry field mapping for a game (GI-03)
     pub fn get_telemetry_mapping(&self, game_id: &str) -> Result<TelemetryFieldMapping> {
-        let game_support = self.support_matrix.games.get(game_id)
+        let game_support = self
+            .support_matrix
+            .games
+            .get(game_id)
             .ok_or_else(|| anyhow::anyhow!("Unsupported game: {}", game_id))?;
-        
+
         Ok(game_support.telemetry.fields.clone())
     }
-    
+
     /// Get list of supported games
     pub fn get_supported_games(&self) -> Vec<String> {
         self.support_matrix.games.keys().cloned().collect()
     }
-    
+
     /// Get game support information
     pub fn get_game_support(&self, game_id: &str) -> Result<GameSupport> {
-        self.support_matrix.games.get(game_id)
+        self.support_matrix
+            .games
+            .get(game_id)
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("Unsupported game: {}", game_id))
     }

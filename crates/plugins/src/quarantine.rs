@@ -27,7 +27,7 @@ impl Default for QuarantinePolicy {
         Self {
             max_crashes: 3,
             max_budget_violations: 10,
-            violation_window_minutes: 60, // 1 hour
+            violation_window_minutes: 60,    // 1 hour
             quarantine_duration_minutes: 60, // Start with 1 hour
             max_escalation_levels: 5,
         }
@@ -78,7 +78,7 @@ impl QuarantineManager {
             quarantine_states: HashMap::new(),
         }
     }
-    
+
     /// Record a plugin violation
     pub fn record_violation(
         &mut self,
@@ -88,28 +88,29 @@ impl QuarantineManager {
     ) -> PluginResult<()> {
         // First, ensure the state exists and record the violation
         {
-            let state = self.quarantine_states.entry(plugin_id).or_insert_with(|| {
-                QuarantineState {
-                    plugin_id,
-                    is_quarantined: false,
-                    quarantine_start: None,
-                    quarantine_end: None,
-                    escalation_level: 0,
-                    total_crashes: 0,
-                    total_budget_violations: 0,
-                    recent_violations: Vec::new(),
-                }
-            });
-            
+            let state =
+                self.quarantine_states
+                    .entry(plugin_id)
+                    .or_insert_with(|| QuarantineState {
+                        plugin_id,
+                        is_quarantined: false,
+                        quarantine_start: None,
+                        quarantine_end: None,
+                        escalation_level: 0,
+                        total_crashes: 0,
+                        total_budget_violations: 0,
+                        recent_violations: Vec::new(),
+                    });
+
             // Record the violation
             let violation = ViolationRecord {
                 timestamp: Utc::now(),
                 violation_type: violation_type.clone(),
                 details,
             };
-            
+
             state.recent_violations.push(violation);
-            
+
             // Update counters
             match violation_type {
                 ViolationType::Crash => state.total_crashes += 1,
@@ -117,17 +118,17 @@ impl QuarantineManager {
                 _ => {}
             }
         }
-        
+
         // Now handle cleanup and quarantine check separately
         self.cleanup_old_violations_for_plugin(plugin_id);
-        
+
         if self.should_quarantine_plugin(plugin_id) {
             self.quarantine_plugin_by_id(plugin_id)?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Check if a plugin is currently quarantined
     pub fn is_quarantined(&mut self, plugin_id: Uuid) -> bool {
         if let Some(state) = self.quarantine_states.get_mut(&plugin_id) {
@@ -145,21 +146,27 @@ impl QuarantineManager {
             false
         }
     }
-    
+
     /// Get quarantine state for a plugin
     pub fn get_quarantine_state(&self, plugin_id: Uuid) -> Option<&QuarantineState> {
         self.quarantine_states.get(&plugin_id)
     }
-    
+
     /// Get quarantine statistics for all plugins
     pub fn get_quarantine_stats(&self) -> HashMap<Uuid, QuarantineState> {
         self.quarantine_states.clone()
     }
-    
+
     /// Manually quarantine a plugin for a specified duration
-    pub fn manual_quarantine(&mut self, plugin_id: Uuid, duration_minutes: i64) -> PluginResult<()> {
-        let state = self.quarantine_states.entry(plugin_id).or_insert_with(|| {
-            QuarantineState {
+    pub fn manual_quarantine(
+        &mut self,
+        plugin_id: Uuid,
+        duration_minutes: i64,
+    ) -> PluginResult<()> {
+        let state = self
+            .quarantine_states
+            .entry(plugin_id)
+            .or_insert_with(|| QuarantineState {
                 plugin_id,
                 is_quarantined: false,
                 quarantine_start: None,
@@ -168,17 +175,16 @@ impl QuarantineManager {
                 total_crashes: 0,
                 total_budget_violations: 0,
                 recent_violations: Vec::new(),
-            }
-        });
-        
+            });
+
         let now = Utc::now();
         state.is_quarantined = true;
         state.quarantine_start = Some(now);
         state.quarantine_end = Some(now + Duration::minutes(duration_minutes));
-        
+
         Ok(())
     }
-    
+
     /// Release a plugin from quarantine
     pub fn release_from_quarantine(&mut self, plugin_id: Uuid) -> PluginResult<()> {
         if let Some(state) = self.quarantine_states.get_mut(&plugin_id) {
@@ -188,11 +194,12 @@ impl QuarantineManager {
             Ok(())
         } else {
             Err(PluginError::ManifestValidation(format!(
-                "Plugin {} not found in quarantine system", plugin_id
+                "Plugin {} not found in quarantine system",
+                plugin_id
             )))
         }
     }
-    
+
     /// Clean up old violations outside the time window for a specific plugin
     fn cleanup_old_violations_for_plugin(&mut self, plugin_id: Uuid) {
         if let Some(state) = self.quarantine_states.get_mut(&plugin_id) {
@@ -200,29 +207,33 @@ impl QuarantineManager {
             state.recent_violations.retain(|v| v.timestamp > cutoff);
         }
     }
-    
+
     /// Check if a plugin should be quarantined based on recent violations
     fn should_quarantine_plugin(&self, plugin_id: Uuid) -> bool {
         if let Some(state) = self.quarantine_states.get(&plugin_id) {
             if state.is_quarantined {
                 return false; // Already quarantined
             }
-            
-            let recent_crashes = state.recent_violations.iter()
+
+            let recent_crashes = state
+                .recent_violations
+                .iter()
                 .filter(|v| v.violation_type == ViolationType::Crash)
                 .count() as u32;
-                
-            let recent_budget_violations = state.recent_violations.iter()
+
+            let recent_budget_violations = state
+                .recent_violations
+                .iter()
                 .filter(|v| v.violation_type == ViolationType::BudgetViolation)
                 .count() as u32;
-            
-            recent_crashes >= self.policy.max_crashes || 
-            recent_budget_violations >= self.policy.max_budget_violations
+
+            recent_crashes >= self.policy.max_crashes
+                || recent_budget_violations >= self.policy.max_budget_violations
         } else {
             false
         }
     }
-    
+
     /// Quarantine a plugin by ID with escalating duration
     fn quarantine_plugin_by_id(&mut self, plugin_id: Uuid) -> PluginResult<()> {
         if let Some(state) = self.quarantine_states.get_mut(&plugin_id) {
@@ -230,13 +241,17 @@ impl QuarantineManager {
             state.is_quarantined = true;
             state.quarantine_start = Some(now);
             state.escalation_level += 1;
-            
+
             // Escalating quarantine duration: base * 2^level
-            let duration_minutes = self.policy.quarantine_duration_minutes * 
-                (2_i64.pow(state.escalation_level.min(self.policy.max_escalation_levels)));
-                
+            let duration_minutes = self.policy.quarantine_duration_minutes
+                * (2_i64.pow(
+                    state
+                        .escalation_level
+                        .min(self.policy.max_escalation_levels),
+                ));
+
             state.quarantine_end = Some(now + Duration::minutes(duration_minutes));
-            
+
             tracing::warn!(
                 plugin_id = %state.plugin_id,
                 escalation_level = state.escalation_level,
@@ -244,7 +259,7 @@ impl QuarantineManager {
                 "Plugin quarantined due to repeated violations"
             );
         }
-        
+
         Ok(())
     }
 }

@@ -15,17 +15,17 @@ use crate::output;
 /// Execute diagnostic command
 pub async fn execute(cmd: &DiagCommands, json: bool, endpoint: Option<&str>) -> Result<()> {
     let client = WheelClient::connect(endpoint).await?;
-    
+
     match cmd {
         DiagCommands::Test { device, test_type } => {
             run_diagnostics(&client, device.as_deref(), test_type.as_ref(), json).await
         }
-        DiagCommands::Record { device, duration, output } => {
-            record_blackbox(&client, device, *duration, output.as_deref(), json).await
-        }
-        DiagCommands::Replay { file, verbose } => {
-            replay_blackbox(file, json, *verbose).await
-        }
+        DiagCommands::Record {
+            device,
+            duration,
+            output,
+        } => record_blackbox(&client, device, *duration, output.as_deref(), json).await,
+        DiagCommands::Replay { file, verbose } => replay_blackbox(file, json, *verbose).await,
         DiagCommands::Support { blackbox, output } => {
             generate_support_bundle(&client, *blackbox, output.as_deref(), json).await
         }
@@ -40,11 +40,13 @@ async fn run_diagnostics(
     client: &WheelClient,
     device: Option<&str>,
     test_type: Option<&TestType>,
-    json: bool
+    json: bool,
 ) -> Result<()> {
     let device_id = if let Some(device) = device {
         // Verify device exists
-        let _status = client.get_device_status(device).await
+        let _status = client
+            .get_device_status(device)
+            .await
             .map_err(|_| CliError::DeviceNotFound(device.to_string()))?;
         device.to_string()
     } else {
@@ -55,19 +57,24 @@ async fn run_diagnostics(
         }
         devices[0].id.clone()
     };
-    
+
     let tests_to_run = match test_type {
         Some(test) => vec![test.clone()],
-        None => vec![TestType::Motor, TestType::Encoder, TestType::Usb, TestType::Thermal],
+        None => vec![
+            TestType::Motor,
+            TestType::Encoder,
+            TestType::Usb,
+            TestType::Thermal,
+        ],
     };
-    
+
     let mut results = Vec::new();
-    
+
     for test in tests_to_run {
         let result = run_single_test(&client, &device_id, &test, json).await?;
         results.push((test, result));
     }
-    
+
     if json {
         let output = serde_json::json!({
             "success": true,
@@ -85,7 +92,11 @@ async fn run_diagnostics(
     } else {
         println!("Diagnostic Results for {}:", device_id);
         for (test, result) in results {
-            let status = if result.passed { "✓".green() } else { "✗".red() };
+            let status = if result.passed {
+                "✓".green()
+            } else {
+                "✗".red()
+            };
             println!("  {} {:?}: {}", status, test, result.message);
             if !result.details.is_empty() {
                 for detail in result.details {
@@ -94,7 +105,7 @@ async fn run_diagnostics(
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -104,25 +115,31 @@ async fn record_blackbox(
     device: &str,
     duration: u64,
     output: Option<&str>,
-    json: bool
+    json: bool,
 ) -> Result<()> {
     // Verify device exists
-    let _status = client.get_device_status(device).await
+    let _status = client
+        .get_device_status(device)
+        .await
         .map_err(|_| CliError::DeviceNotFound(device.to_string()))?;
-    
+
     let output_path = output.map(PathBuf::from).unwrap_or_else(|| {
         let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
         PathBuf::from(format!("blackbox_{}_{}.wbb", device, timestamp))
     });
-    
+
     if !json {
         println!("Recording blackbox data for {} seconds...", duration);
         let pb = ProgressBar::new(duration);
-        pb.set_style(ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len}s {msg}")
-            .unwrap()
-            .progress_chars("#>-"));
-        
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template(
+                    "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len}s {msg}",
+                )
+                .unwrap()
+                .progress_chars("#>-"),
+        );
+
         let mut interval = interval(Duration::from_secs(1));
         for i in 0..duration {
             interval.tick().await;
@@ -133,31 +150,31 @@ async fn record_blackbox(
     } else {
         tokio::time::sleep(Duration::from_secs(duration)).await;
     }
-    
+
     // Mock blackbox file creation
     let mock_data = format!(
         "WBB1\x00\x00\x00\x00Mock blackbox data for device {} recorded for {} seconds\n",
         device, duration
     );
     fs::write(&output_path, mock_data)?;
-    
+
     output::print_success(
         &format!("Blackbox recorded to {}", output_path.display()),
-        json
+        json,
     );
-    
+
     Ok(())
 }
 
 /// Replay blackbox recording
 async fn replay_blackbox(file: &str, json: bool, verbose: bool) -> Result<()> {
-    let content = fs::read_to_string(file)
-        .map_err(|_| CliError::ProfileNotFound(file.to_string()))?;
-    
+    let content =
+        fs::read_to_string(file).map_err(|_| CliError::ProfileNotFound(file.to_string()))?;
+
     if !content.starts_with("WBB1") {
         return Err(CliError::ValidationError("Invalid blackbox file format".to_string()).into());
     }
-    
+
     if json {
         let output = serde_json::json!({
             "success": true,
@@ -173,19 +190,23 @@ async fn replay_blackbox(file: &str, json: bool, verbose: bool) -> Result<()> {
         println!("Format: WBB1");
         println!("Duration: 1.0s");
         println!("Frames: 1000");
-        
+
         if verbose {
             println!("\nFrame-by-frame output:");
             for i in 0..10 {
-                println!("  Frame {}: torque=0.{:02}, angle={}°, speed=0.0 rad/s", 
-                    i, i * 5, i * 10);
+                println!(
+                    "  Frame {}: torque=0.{:02}, angle={}°, speed=0.0 rad/s",
+                    i,
+                    i * 5,
+                    i * 10
+                );
             }
             println!("  ... (990 more frames)");
         }
-        
+
         println!("✓ Replay completed successfully");
     }
-    
+
     Ok(())
 }
 
@@ -194,37 +215,39 @@ async fn generate_support_bundle(
     client: &WheelClient,
     include_blackbox: bool,
     output: Option<&str>,
-    json: bool
+    json: bool,
 ) -> Result<()> {
     let output_path = output.map(PathBuf::from).unwrap_or_else(|| {
         let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
         PathBuf::from(format!("support_bundle_{}.zip", timestamp))
     });
-    
+
     if !json {
         let pb = ProgressBar::new_spinner();
-        pb.set_style(ProgressStyle::default_spinner()
-            .template("{spinner:.green} {msg}")
-            .unwrap());
-        
+        pb.set_style(
+            ProgressStyle::default_spinner()
+                .template("{spinner:.green} {msg}")
+                .unwrap(),
+        );
+
         pb.set_message("Collecting system information...");
         pb.enable_steady_tick(Duration::from_millis(100));
         tokio::time::sleep(Duration::from_secs(1)).await;
-        
+
         pb.set_message("Gathering device diagnostics...");
         tokio::time::sleep(Duration::from_secs(1)).await;
-        
+
         if include_blackbox {
             pb.set_message("Including blackbox recordings...");
             tokio::time::sleep(Duration::from_secs(2)).await;
         }
-        
+
         pb.set_message("Creating support bundle...");
         tokio::time::sleep(Duration::from_secs(1)).await;
-        
+
         pb.finish_with_message("Support bundle created");
     }
-    
+
     // Mock support bundle creation
     let bundle_info = serde_json::json!({
         "timestamp": chrono::Utc::now(),
@@ -236,14 +259,14 @@ async fn generate_support_bundle(
         "devices": client.list_devices().await?,
         "blackbox_included": include_blackbox
     });
-    
+
     fs::write(&output_path, serde_json::to_string_pretty(&bundle_info)?)?;
-    
+
     output::print_success(
         &format!("Support bundle created: {} (2.1 MB)", output_path.display()),
-        json
+        json,
     );
-    
+
     Ok(())
 }
 
@@ -252,7 +275,7 @@ async fn show_metrics(
     client: &WheelClient,
     device: Option<&str>,
     json: bool,
-    watch: bool
+    watch: bool,
 ) -> Result<()> {
     if watch {
         watch_metrics(client, device, json).await
@@ -262,11 +285,7 @@ async fn show_metrics(
 }
 
 /// Show metrics once
-async fn show_single_metrics(
-    client: &WheelClient,
-    device: Option<&str>,
-    json: bool
-) -> Result<()> {
+async fn show_single_metrics(client: &WheelClient, device: Option<&str>, json: bool) -> Result<()> {
     let device_id = if let Some(device) = device {
         device.to_string()
     } else {
@@ -276,19 +295,15 @@ async fn show_single_metrics(
         }
         devices[0].id.clone()
     };
-    
+
     let diag = client.get_diagnostics(&device_id).await?;
     output::print_diagnostics(&diag, json);
-    
+
     Ok(())
 }
 
 /// Watch metrics in real-time
-async fn watch_metrics(
-    client: &WheelClient,
-    device: Option<&str>,
-    json: bool
-) -> Result<()> {
+async fn watch_metrics(client: &WheelClient, device: Option<&str>, json: bool) -> Result<()> {
     let device_id = if let Some(device) = device {
         device.to_string()
     } else {
@@ -298,17 +313,17 @@ async fn watch_metrics(
         }
         devices[0].id.clone()
     };
-    
+
     if !json {
         println!("Watching metrics for {} (Press Ctrl+C to stop)", device_id);
         println!();
     }
-    
+
     let mut interval = interval(Duration::from_secs(1));
-    
+
     loop {
         interval.tick().await;
-        
+
         match client.get_diagnostics(&device_id).await {
             Ok(diag) => {
                 if json {
@@ -329,7 +344,7 @@ async fn watch_metrics(
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -348,20 +363,22 @@ async fn run_single_test(
     _client: &WheelClient,
     _device_id: &str,
     test_type: &TestType,
-    json: bool
+    json: bool,
 ) -> Result<TestResult> {
     if !json {
         let pb = ProgressBar::new_spinner();
-        pb.set_style(ProgressStyle::default_spinner()
-            .template("{spinner:.green} Running {:?} test...")
-            .unwrap());
+        pb.set_style(
+            ProgressStyle::default_spinner()
+                .template("{spinner:.green} Running {:?} test...")
+                .unwrap(),
+        );
         pb.enable_steady_tick(Duration::from_millis(100));
-        
+
         // Simulate test duration
         tokio::time::sleep(Duration::from_millis(500)).await;
         pb.finish_and_clear();
     }
-    
+
     // Mock test results
     let result = match test_type {
         TestType::Motor => TestResult {
@@ -369,7 +386,7 @@ async fn run_single_test(
             message: "Motor phases OK".to_string(),
             details: vec![
                 "Phase A: 2.1Ω".to_string(),
-                "Phase B: 2.0Ω".to_string(), 
+                "Phase B: 2.0Ω".to_string(),
                 "Phase C: 2.1Ω".to_string(),
             ],
         },
@@ -406,6 +423,6 @@ async fn run_single_test(
             details: vec![],
         },
     };
-    
+
     Ok(result)
 }

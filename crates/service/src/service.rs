@@ -1,14 +1,10 @@
 //! Main service implementation
 
+use crate::{ApplicationDeviceService, ApplicationProfileService, ApplicationSafetyService};
 use anyhow::Result;
-use racing_wheel_engine::{
-    VirtualHidPort, TracingManager, SafetyPolicy
-};
-use crate::{
-    ApplicationProfileService, ApplicationDeviceService, ApplicationSafetyService
-};
+use racing_wheel_engine::{SafetyPolicy, TracingManager, VirtualHidPort};
 use std::sync::Arc;
-use tracing::{info, error};
+use tracing::{error, info};
 
 /// Main wheel service that orchestrates all application services
 #[derive(Clone)]
@@ -27,7 +23,7 @@ impl WheelService {
     /// Create new service instance
     pub async fn new() -> Result<Self> {
         info!("Initializing Racing Wheel Service");
-        
+
         // Initialize tracing
         let tracer = match TracingManager::new() {
             Ok(mut tracer) => {
@@ -59,20 +55,23 @@ impl WheelService {
 
         // Create application services
         let profile_service = Arc::new(
-            ApplicationProfileService::new().await
-                .map_err(|e| anyhow::anyhow!("Failed to create profile service: {}", e))?
+            ApplicationProfileService::new()
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to create profile service: {}", e))?,
         );
         info!("Profile service created");
 
         let device_service = Arc::new(
-            ApplicationDeviceService::new(hid_port, tracer.clone()).await
-                .map_err(|e| anyhow::anyhow!("Failed to create device service: {}", e))?
+            ApplicationDeviceService::new(hid_port, tracer.clone())
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to create device service: {}", e))?,
         );
         info!("Device service created");
 
         let safety_service = Arc::new(
-            ApplicationSafetyService::new(safety_policy, tracer.clone()).await
-                .map_err(|e| anyhow::anyhow!("Failed to create safety service: {}", e))?
+            ApplicationSafetyService::new(safety_policy, tracer.clone())
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to create safety service: {}", e))?,
         );
         info!("Safety service created");
 
@@ -87,7 +86,7 @@ impl WheelService {
     /// Run the service
     pub async fn run(self) -> Result<()> {
         info!("Starting Racing Wheel Service");
-        
+
         // Start all services
         if let Err(e) = self.device_service.start().await {
             error!(error = %e, "Failed to start device service");
@@ -103,7 +102,7 @@ impl WheelService {
 
         // Service main loop
         let shutdown_signal = tokio::signal::ctrl_c();
-        
+
         tokio::select! {
             _ = shutdown_signal => {
                 info!("Shutdown signal received");
@@ -115,7 +114,7 @@ impl WheelService {
 
         info!("Racing Wheel Service shutting down");
         self.shutdown().await?;
-        
+
         Ok(())
     }
 
@@ -137,12 +136,15 @@ impl WheelService {
     /// Service health monitoring
     async fn service_health_monitor(&self) -> Result<()> {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
-        
+
         loop {
             interval.tick().await;
-            
+
             // Check service health and log statistics
-            let profile_stats = self.profile_service.get_profile_statistics().await
+            let profile_stats = self
+                .profile_service
+                .get_profile_statistics()
+                .await
                 .unwrap_or_else(|e| {
                     error!(error = %e, "Failed to get profile statistics");
                     crate::profile_service::ProfileStatistics {

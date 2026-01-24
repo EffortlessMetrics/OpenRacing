@@ -1,11 +1,11 @@
 //! Command implementations for wheelctl CLI
 
 pub mod device;
-pub mod profile;
 pub mod diag;
 pub mod game;
-pub mod safety;
 pub mod health;
+pub mod profile;
+pub mod safety;
 
 use clap::Subcommand;
 
@@ -17,7 +17,7 @@ pub enum DeviceCommands {
         #[arg(short, long)]
         detailed: bool,
     },
-    
+
     /// Show device status and telemetry
     Status {
         /// Device ID or name
@@ -26,7 +26,7 @@ pub enum DeviceCommands {
         #[arg(short, long)]
         watch: bool,
     },
-    
+
     /// Calibrate device (center, DOR, pedals)
     Calibrate {
         /// Device ID or name
@@ -38,7 +38,7 @@ pub enum DeviceCommands {
         #[arg(short, long)]
         yes: bool,
     },
-    
+
     /// Reset device to safe state
     Reset {
         /// Device ID or name
@@ -60,13 +60,13 @@ pub enum ProfileCommands {
         #[arg(short, long)]
         car: Option<String>,
     },
-    
+
     /// Show profile details
     Show {
         /// Profile path or ID
         profile: String,
     },
-    
+
     /// Apply profile to device
     Apply {
         /// Device ID or name
@@ -77,7 +77,7 @@ pub enum ProfileCommands {
         #[arg(long)]
         skip_validation: bool,
     },
-    
+
     /// Create new profile
     Create {
         /// Profile file path
@@ -92,7 +92,7 @@ pub enum ProfileCommands {
         #[arg(long)]
         car: Option<String>,
     },
-    
+
     /// Edit profile interactively
     Edit {
         /// Profile path or ID
@@ -104,7 +104,7 @@ pub enum ProfileCommands {
         #[arg(long)]
         value: Option<String>,
     },
-    
+
     /// Validate profile
     Validate {
         /// Profile path
@@ -113,7 +113,7 @@ pub enum ProfileCommands {
         #[arg(short, long)]
         detailed: bool,
     },
-    
+
     /// Export profile
     Export {
         /// Profile path or ID
@@ -125,7 +125,7 @@ pub enum ProfileCommands {
         #[arg(long)]
         signed: bool,
     },
-    
+
     /// Import profile
     Import {
         /// Profile file path
@@ -150,7 +150,7 @@ pub enum DiagCommands {
         #[arg(value_enum)]
         test_type: Option<TestType>,
     },
-    
+
     /// Record blackbox data
     Record {
         /// Device ID or name
@@ -162,7 +162,7 @@ pub enum DiagCommands {
         #[arg(short, long)]
         output: Option<String>,
     },
-    
+
     /// Replay blackbox recording
     Replay {
         /// Blackbox file path
@@ -171,7 +171,7 @@ pub enum DiagCommands {
         #[arg(short, long)]
         verbose: bool,
     },
-    
+
     /// Generate support bundle
     Support {
         /// Include blackbox recording
@@ -181,7 +181,7 @@ pub enum DiagCommands {
         #[arg(short, long)]
         output: Option<String>,
     },
-    
+
     /// Show performance metrics
     Metrics {
         /// Device ID or name
@@ -200,7 +200,7 @@ pub enum GameCommands {
         #[arg(short, long)]
         detailed: bool,
     },
-    
+
     /// Configure game for telemetry
     Configure {
         /// Game ID
@@ -212,14 +212,14 @@ pub enum GameCommands {
         #[arg(long)]
         auto: bool,
     },
-    
+
     /// Show game status
     Status {
         /// Show telemetry data
         #[arg(short, long)]
         telemetry: bool,
     },
-    
+
     /// Test telemetry connection
     Test {
         /// Game ID
@@ -240,19 +240,19 @@ pub enum SafetyCommands {
         #[arg(long)]
         force: bool,
     },
-    
+
     /// Emergency stop all devices
     Stop {
         /// Specific device ID or name
         device: Option<String>,
     },
-    
+
     /// Show safety status
     Status {
         /// Device ID or name
         device: Option<String>,
     },
-    
+
     /// Set torque limits
     Limit {
         /// Device ID or name

@@ -6,11 +6,9 @@ use serde_json::json;
 use std::collections::HashMap;
 
 use crate::client::{
-    DeviceInfo as ClientDeviceInfo, 
-    DeviceState as ClientDeviceState, 
-    DeviceCapabilities as ClientDeviceCapabilities,
-    DeviceStatus, DiagnosticInfo,
-    GameStatus, HealthEvent, HealthEventType
+    DeviceCapabilities as ClientDeviceCapabilities, DeviceInfo as ClientDeviceInfo,
+    DeviceState as ClientDeviceState, DeviceStatus, DiagnosticInfo, GameStatus, HealthEvent,
+    HealthEventType,
 };
 use racing_wheel_schemas::config::ProfileSchema;
 
@@ -29,7 +27,7 @@ pub fn print_error_json(error: &Error) {
 /// Print error in human-readable format
 pub fn print_error_human(error: &Error) {
     eprintln!("{} {}", "Error:".red().bold(), error);
-    
+
     // Print error chain if available
     let mut source = error.source();
     while let Some(err) = source {
@@ -51,7 +49,7 @@ pub fn print_device_list(devices: &[ClientDeviceInfo], json: bool, detailed: boo
             println!("{}", "No devices found".yellow());
             return;
         }
-        
+
         println!("{}", "Connected Devices:".bold());
         for device in devices {
             print_device_human(device, detailed);
@@ -63,31 +61,38 @@ pub fn print_device_list(devices: &[ClientDeviceInfo], json: bool, detailed: boo
 fn print_device_human(device: &ClientDeviceInfo, detailed: bool) {
     let state_color = match device.state {
         ClientDeviceState::Connected => "green",
-        ClientDeviceState::Disconnected => "red", 
+        ClientDeviceState::Disconnected => "red",
         ClientDeviceState::Faulted => "red",
         ClientDeviceState::Calibrating => "yellow",
     };
-    
-    println!("  {} {} ({})", 
+
+    println!(
+        "  {} {} ({})",
         "●".color(state_color),
         device.name.bold(),
         device.id.dimmed()
     );
-    
+
     if detailed {
         println!("    Type: {:?}", device.device_type);
         println!("    State: {:?}", device.state);
         if device.capabilities.max_torque_nm > 0.0 {
-            println!("    Max Torque: {:.1} Nm", device.capabilities.max_torque_nm);
+            println!(
+                "    Max Torque: {:.1} Nm",
+                device.capabilities.max_torque_nm
+            );
         }
-        println!("    Capabilities: {}", format_capabilities(&device.capabilities));
+        println!(
+            "    Capabilities: {}",
+            format_capabilities(&device.capabilities)
+        );
     }
 }
 
 /// Format device capabilities as a string
 fn format_capabilities(caps: &ClientDeviceCapabilities) -> String {
     let mut features = Vec::new();
-    
+
     if caps.supports_pid {
         features.push("PID");
     }
@@ -100,7 +105,7 @@ fn format_capabilities(caps: &ClientDeviceCapabilities) -> String {
     if caps.supports_led_bus {
         features.push("LEDs");
     }
-    
+
     if features.is_empty() {
         "None".to_string()
     } else {
@@ -120,23 +125,37 @@ pub fn print_device_status(status: &DeviceStatus, json: bool) {
         println!("{} {}", "Device:".bold(), status.device.name);
         println!("  ID: {}", status.device.id);
         println!("  State: {:?}", status.device.state);
-        println!("  Last Seen: {}", status.last_seen.format("%Y-%m-%d %H:%M:%S UTC"));
-        
+        println!(
+            "  Last Seen: {}",
+            status.last_seen.format("%Y-%m-%d %H:%M:%S UTC")
+        );
+
         if !status.active_faults.is_empty() {
-            println!("  {} {}", "Active Faults:".red().bold(), status.active_faults.len());
+            println!(
+                "  {} {}",
+                "Active Faults:".red().bold(),
+                status.active_faults.len()
+            );
             for fault in &status.active_faults {
                 println!("    • {}", fault.red());
             }
         } else {
             println!("  {}", "No Active Faults".green());
         }
-        
+
         println!("  {}:", "Telemetry".bold());
         let tel = &status.telemetry;
         println!("    Wheel Angle: {:.1}°", tel.wheel_angle_deg);
         println!("    Wheel Speed: {:.1} rad/s", tel.wheel_speed_rad_s);
         println!("    Temperature: {}°C", tel.temperature_c);
-        println!("    Hands On: {}", if tel.hands_on { "Yes".green() } else { "No".red() });
+        println!(
+            "    Hands On: {}",
+            if tel.hands_on {
+                "Yes".green()
+            } else {
+                "No".red()
+            }
+        );
     }
 }
 
@@ -150,7 +169,7 @@ pub fn print_profile(profile: &ProfileSchema, json: bool) {
         println!("{}", serde_json::to_string_pretty(&output).unwrap());
     } else {
         println!("{} {}", "Profile Schema:".bold(), profile.schema);
-        
+
         if let Some(ref game) = profile.scope.game {
             print!("  Scope: {}", game.cyan());
             if let Some(ref car) = profile.scope.car {
@@ -161,12 +180,12 @@ pub fn print_profile(profile: &ProfileSchema, json: bool) {
             }
             println!();
         }
-        
+
         println!("  {}:", "Base Settings".bold());
         println!("    FFB Gain: {:.1}%", profile.base.ffb_gain * 100.0);
         println!("    DOR: {}°", profile.base.dor_deg);
         println!("    Torque Cap: {:.1} Nm", profile.base.torque_cap_nm);
-        
+
         println!("    {}:", "Filters".bold());
         let f = &profile.base.filters;
         println!("      Reconstruction: {}", f.reconstruction);
@@ -174,19 +193,24 @@ pub fn print_profile(profile: &ProfileSchema, json: bool) {
         println!("      Damper: {:.2}", f.damper);
         println!("      Inertia: {:.2}", f.inertia);
         println!("      Slew Rate: {:.2}", f.slew_rate);
-        
+
         if !f.notch_filters.is_empty() {
             println!("      Notch Filters:");
             for (i, notch) in f.notch_filters.iter().enumerate() {
-                println!("        {}: {:.1} Hz, Q={:.1}, Gain={:.1} dB", 
-                    i + 1, notch.hz, notch.q, notch.gain_db);
+                println!(
+                    "        {}: {:.1} Hz, Q={:.1}, Gain={:.1} dB",
+                    i + 1,
+                    notch.hz,
+                    notch.q,
+                    notch.gain_db
+                );
             }
         }
-        
+
         if !f.curve_points.is_empty() {
             println!("      Curve Points: {} points", f.curve_points.len());
         }
-        
+
         if profile.signature.is_some() {
             println!("  {}", "✓ Signed".green());
         } else {
@@ -205,19 +229,22 @@ pub fn print_diagnostics(diag: &DiagnosticInfo, json: bool) {
         println!("{}", serde_json::to_string_pretty(&output).unwrap());
     } else {
         println!("{} {}", "Diagnostics for:".bold(), diag.device_id);
-        
+
         println!("  {}:", "System Info".bold());
         for (key, value) in &diag.system_info {
             println!("    {}: {}", key, value);
         }
-        
+
         println!("  {}:", "Performance Metrics".bold());
         let perf = &diag.performance;
         println!("    P99 Jitter: {:.2} μs", perf.p99_jitter_us);
-        println!("    Missed Tick Rate: {:.4}%", perf.missed_tick_rate * 100.0);
+        println!(
+            "    Missed Tick Rate: {:.4}%",
+            perf.missed_tick_rate * 100.0
+        );
         println!("    Total Ticks: {}", perf.total_ticks);
         println!("    Missed Ticks: {}", perf.missed_ticks);
-        
+
         if !diag.recent_faults.is_empty() {
             println!("  {}:", "Recent Faults".red().bold());
             for fault in &diag.recent_faults {
@@ -239,14 +266,19 @@ pub fn print_game_status(status: &GameStatus, json: bool) {
         println!("{}", serde_json::to_string_pretty(&output).unwrap());
     } else {
         println!("{}", "Game Status:".bold());
-        
+
         match &status.active_game {
             Some(game) => {
                 println!("  Active Game: {}", game.cyan());
-                println!("  Telemetry: {}", 
-                    if status.telemetry_active { "Active".green() } else { "Inactive".red() }
+                println!(
+                    "  Telemetry: {}",
+                    if status.telemetry_active {
+                        "Active".green()
+                    } else {
+                        "Inactive".red()
+                    }
                 );
-                
+
                 if let Some(ref car) = status.car_id {
                     println!("  Car: {}", car);
                 }
@@ -273,8 +305,9 @@ pub fn print_health_event(event: &HealthEvent, json: bool) {
             HealthEventType::FaultCleared => "green",
             HealthEventType::PerformanceWarning => "yellow",
         };
-        
-        println!("{} [{}] {}: {}", 
+
+        println!(
+            "{} [{}] {}: {}",
             event.timestamp.format("%H:%M:%S").to_string().dimmed(),
             event.device_id.cyan(),
             format!("{:?}", event.event_type).color(event_color),
@@ -312,13 +345,17 @@ pub fn print_warning(message: &str, json: bool) {
 /// Get error type name for JSON output
 fn error_type_name(error: &Error) -> String {
     // Try to get the concrete error type name
-    format!("{:?}", error).split('(').next().unwrap_or("Unknown").to_string()
+    format!("{:?}", error)
+        .split('(')
+        .next()
+        .unwrap_or("Unknown")
+        .to_string()
 }
 
 /// Print table of data
 #[allow(dead_code)]
-pub fn print_table<T>(headers: &[&str], rows: &[Vec<T>], json: bool) 
-where 
+pub fn print_table<T>(headers: &[&str], rows: &[Vec<T>], json: bool)
+where
     T: std::fmt::Display + serde::Serialize,
 {
     if json {
@@ -332,7 +369,7 @@ where
             }
             table_data.push(row_map);
         }
-        
+
         let output = json!({
             "success": true,
             "data": table_data
@@ -344,25 +381,31 @@ where
             println!("{}", "No data".yellow());
             return;
         }
-        
+
         // Print headers
         for (i, header) in headers.iter().enumerate() {
-            if i > 0 { print!("  "); }
+            if i > 0 {
+                print!("  ");
+            }
             print!("{}", header.bold());
         }
         println!();
-        
+
         // Print separator
         for (i, header) in headers.iter().enumerate() {
-            if i > 0 { print!("  "); }
+            if i > 0 {
+                print!("  ");
+            }
             print!("{}", "-".repeat(header.len()));
         }
         println!();
-        
+
         // Print rows
         for row in rows {
             for (i, value) in row.iter().enumerate() {
-                if i > 0 { print!("  "); }
+                if i > 0 {
+                    print!("  ");
+                }
                 print!("{}", value);
             }
             println!();

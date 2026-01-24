@@ -7,14 +7,14 @@
 #![deny(unused_must_use)]
 #![deny(clippy::unwrap_used)]
 
-mod commands;
 mod client;
-mod output;
+mod commands;
 mod completion;
 mod error;
+mod output;
 
-use clap::{Parser, Subcommand};
 use anyhow::Result;
+use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::commands::*;
@@ -22,7 +22,9 @@ use crate::error::CliError;
 
 #[derive(Parser)]
 #[command(name = "wheelctl")]
-#[command(about = "Racing Wheel Control CLI - Manage racing wheel hardware, profiles, and diagnostics")]
+#[command(
+    about = "Racing Wheel Control CLI - Manage racing wheel hardware, profiles, and diagnostics"
+)]
 #[command(version)]
 #[command(long_about = "
 wheelctl is a command-line interface for the Racing Wheel Software Suite.
@@ -34,7 +36,11 @@ Use --json flag for machine-readable output suitable for scripting.
 ")]
 struct Cli {
     /// Output format (human-readable or JSON)
-    #[arg(long, global = true, help = "Output in JSON format for machine parsing")]
+    #[arg(
+        long,
+        global = true,
+        help = "Output in JSON format for machine parsing"
+    )]
     json: bool,
 
     /// Verbose logging
@@ -93,7 +99,7 @@ async fn main() -> Result<()> {
     // Initialize logging based on verbosity
     let log_level = match cli.verbose {
         0 => "warn",
-        1 => "info", 
+        1 => "info",
         2 => "debug",
         _ => "trace",
     };
@@ -118,7 +124,7 @@ async fn main() -> Result<()> {
             } else {
                 output::print_error_human(&e);
             }
-            
+
             // Set appropriate exit code
             let exit_code = match e.downcast_ref::<CliError>() {
                 Some(CliError::DeviceNotFound(_)) => 2,
@@ -128,7 +134,7 @@ async fn main() -> Result<()> {
                 Some(CliError::PermissionDenied(_)) => 6,
                 _ => 1,
             };
-            
+
             std::process::exit(exit_code);
         }
     }

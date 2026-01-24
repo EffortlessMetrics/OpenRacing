@@ -41,7 +41,7 @@ async fn test_manifest_validation() {
         config_schema: None,
         signature: None,
     };
-    
+
     let validator = manifest::ManifestValidator::default();
     assert!(validator.validate(&manifest).is_ok());
 }
@@ -76,7 +76,7 @@ async fn test_invalid_capability() {
         config_schema: None,
         signature: None,
     };
-    
+
     let validator = manifest::ManifestValidator::default();
     assert!(validator.validate(&manifest).is_err());
 }
@@ -90,13 +90,21 @@ fn test_capability_checker() {
             paths: vec!["/tmp".to_string()],
         },
     ];
-    
+
     let checker = capability::CapabilityChecker::new(capabilities);
-    
+
     assert!(checker.check_telemetry_read().is_ok());
     assert!(checker.check_telemetry_modify().is_err());
-    assert!(checker.check_file_access(std::path::Path::new("/tmp/test.txt")).is_ok());
-    assert!(checker.check_file_access(std::path::Path::new("/etc/passwd")).is_err());
+    assert!(
+        checker
+            .check_file_access(std::path::Path::new("/tmp/test.txt"))
+            .is_ok()
+    );
+    assert!(
+        checker
+            .check_file_access(std::path::Path::new("/etc/passwd"))
+            .is_err()
+    );
 }
 
 /// Test quarantine system
@@ -106,9 +114,9 @@ async fn test_quarantine_system() {
         max_crashes: 2,
         ..Default::default()
     });
-    
+
     let plugin_id = Uuid::new_v4();
-    
+
     // First crash - should not quarantine
     manager
         .record_violation(
@@ -118,7 +126,7 @@ async fn test_quarantine_system() {
         )
         .unwrap();
     assert!(!manager.is_quarantined(plugin_id));
-    
+
     // Second crash - should quarantine
     manager
         .record_violation(
@@ -134,7 +142,7 @@ async fn test_quarantine_system() {
 #[tokio::test]
 async fn test_wasm_plugin_host() {
     let host = wasm::WasmPluginHost::new().expect("Failed to create WASM host");
-    
+
     // Test with a mock manifest (no actual WASM file)
     let manifest = manifest::PluginManifest {
         id: Uuid::new_v4(),
@@ -163,9 +171,11 @@ async fn test_wasm_plugin_host() {
         config_schema: None,
         signature: None,
     };
-    
+
     // This will fail because we don't have an actual WASM file, but tests the interface
-    let result = host.load_plugin(manifest, std::path::Path::new("nonexistent.wasm")).await;
+    let result = host
+        .load_plugin(manifest, std::path::Path::new("nonexistent.wasm"))
+        .await;
     assert!(result.is_err());
 }
 
@@ -174,11 +184,11 @@ async fn test_wasm_plugin_host() {
 async fn test_plugin_host_system() {
     let temp_dir = tempdir().expect("Failed to create temp directory");
     let plugin_dir = temp_dir.path().to_path_buf();
-    
+
     // Create a mock plugin directory structure
     let plugin_subdir = plugin_dir.join("test-plugin");
     fs::create_dir_all(&plugin_subdir).await.unwrap();
-    
+
     // Create a mock manifest
     let manifest = manifest::PluginManifest {
         id: Uuid::new_v4(),
@@ -207,21 +217,27 @@ async fn test_plugin_host_system() {
         config_schema: None,
         signature: None,
     };
-    
+
     // Write manifest file
     let manifest_content = serde_yaml::to_string(&manifest).unwrap();
-    fs::write(plugin_subdir.join("plugin.yaml"), manifest_content).await.unwrap();
-    
+    fs::write(plugin_subdir.join("plugin.yaml"), manifest_content)
+        .await
+        .unwrap();
+
     // Create empty WASM file
-    fs::write(plugin_subdir.join("plugin.wasm"), b"mock wasm content").await.unwrap();
-    
+    fs::write(plugin_subdir.join("plugin.wasm"), b"mock wasm content")
+        .await
+        .unwrap();
+
     // Create plugin host
-    let mut host = host::PluginHost::new(plugin_dir).await.expect("Failed to create plugin host");
-    
+    let mut host = host::PluginHost::new(plugin_dir)
+        .await
+        .expect("Failed to create plugin host");
+
     // Check that plugin was discovered
     let registry = host.get_registry().await;
     assert_eq!(registry.len(), 1);
-    
+
     let (plugin_id, entry) = registry.iter().next().unwrap();
     assert_eq!(entry.manifest.name, "Test Plugin");
     assert!(!entry.is_loaded);
@@ -235,9 +251,9 @@ async fn test_budget_violation_detection() {
         max_budget_violations: 3,
         ..Default::default()
     });
-    
+
     let plugin_id = Uuid::new_v4();
-    
+
     // Record budget violations
     for i in 0..2 {
         manager
@@ -249,7 +265,7 @@ async fn test_budget_violation_detection() {
             .unwrap();
         assert!(!manager.is_quarantined(plugin_id));
     }
-    
+
     // Third violation should trigger quarantine
     manager
         .record_violation(
@@ -266,12 +282,12 @@ async fn test_budget_violation_detection() {
 fn test_plugin_statistics() {
     let mut tracker = quarantine::FailureTracker::new();
     let plugin_id = Uuid::new_v4();
-    
+
     // Record successful executions
     tracker.record_execution(plugin_id, 100, true);
     tracker.record_execution(plugin_id, 200, true);
     tracker.record_execution(plugin_id, 150, false); // One failure
-    
+
     let stats = tracker.get_stats(plugin_id).unwrap();
     assert_eq!(stats.executions, 3);
     assert_eq!(stats.crashes, 1);
@@ -287,9 +303,9 @@ async fn test_quarantine_escalation() {
         quarantine_duration_minutes: 10,
         ..Default::default()
     });
-    
+
     let plugin_id = Uuid::new_v4();
-    
+
     // First quarantine
     manager
         .record_violation(
@@ -298,10 +314,10 @@ async fn test_quarantine_escalation() {
             "First crash".to_string(),
         )
         .unwrap();
-    
+
     let state = manager.get_quarantine_state(plugin_id).unwrap();
     assert_eq!(state.escalation_level, 1);
-    
+
     // Release and trigger again
     manager.release_from_quarantine(plugin_id).unwrap();
     manager
@@ -311,7 +327,7 @@ async fn test_quarantine_escalation() {
             "Second crash".to_string(),
         )
         .unwrap();
-    
+
     let state = manager.get_quarantine_state(plugin_id).unwrap();
     assert_eq!(state.escalation_level, 2);
 }
@@ -326,7 +342,7 @@ fn test_plugin_context() {
         budget_us: 5000,
         capabilities: vec!["ReadTelemetry".to_string()],
     };
-    
+
     assert_eq!(context.class, PluginClass::Safe);
     assert_eq!(context.update_rate_hz, 60);
     assert_eq!(context.budget_us, 5000);
@@ -337,21 +353,27 @@ fn test_plugin_context() {
 async fn test_plugin_workflow_integration() {
     let temp_dir = tempdir().expect("Failed to create temp directory");
     let plugin_dir = temp_dir.path().to_path_buf();
-    
+
     // Create plugin host
-    let mut host = host::PluginHost::new(plugin_dir).await.expect("Failed to create plugin host");
-    
+    let mut host = host::PluginHost::new(plugin_dir)
+        .await
+        .expect("Failed to create plugin host");
+
     // Test that empty directory works
     let registry = host.get_registry().await;
     assert_eq!(registry.len(), 0);
-    
+
     // Test quarantine stats
     let quarantine_stats = host.get_quarantine_stats().await;
     assert_eq!(quarantine_stats.len(), 0);
-    
+
     // Test loading all plugins (should be no-op)
-    host.load_all_plugins().await.expect("Failed to load all plugins");
-    
+    host.load_all_plugins()
+        .await
+        .expect("Failed to load all plugins");
+
     // Test unloading all plugins (should be no-op)
-    host.unload_all_plugins().await.expect("Failed to unload all plugins");
+    host.unload_all_plugins()
+        .await
+        .expect("Failed to unload all plugins");
 }

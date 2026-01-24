@@ -17,14 +17,14 @@ impl PluginHelper {
                 path.display()
             )));
         }
-        
+
         if !path.is_file() {
             return Err(PluginError::LoadingFailed(format!(
                 "Plugin path is not a file: {}",
                 path.display()
             )));
         }
-        
+
         // Check if file is readable
         match tokio::fs::metadata(path).await {
             Ok(_) => Ok(()),
@@ -35,12 +35,12 @@ impl PluginHelper {
             ))),
         }
     }
-    
+
     /// Generate a unique plugin ID
     pub fn generate_plugin_id() -> Uuid {
         Uuid::new_v4()
     }
-    
+
     /// Validate plugin name
     pub fn validate_plugin_name(name: &str) -> PluginResult<()> {
         if name.is_empty() {
@@ -48,20 +48,23 @@ impl PluginHelper {
                 "Plugin name cannot be empty".to_string(),
             ));
         }
-        
+
         if name.len() > 100 {
             return Err(PluginError::ManifestValidation(
                 "Plugin name too long (max 100 characters)".to_string(),
             ));
         }
-        
+
         // Check for invalid characters
-        if name.chars().any(|c| c.is_control() || c == '/' || c == '\\') {
+        if name
+            .chars()
+            .any(|c| c.is_control() || c == '/' || c == '\\')
+        {
             return Err(PluginError::ManifestValidation(
                 "Plugin name contains invalid characters".to_string(),
             ));
         }
-        
+
         Ok(())
     }
 }

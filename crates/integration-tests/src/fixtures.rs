@@ -1,8 +1,8 @@
 //! Test fixtures and data for integration tests
 
-use std::time::Duration;
-use serde::{Serialize, Deserialize};
 use racing_wheel_schemas::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 /// Test fixture for virtual device configurations
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,7 +74,7 @@ impl DeviceFixture {
             telemetry_data: TelemetryFixture::racing_scenario(),
         }
     }
-    
+
     /// Create a basic wheel fixture (PID only)
     pub fn basic_wheel() -> Self {
         Self {
@@ -91,7 +91,7 @@ impl DeviceFixture {
             telemetry_data: TelemetryFixture::basic_scenario(),
         }
     }
-    
+
     /// Create a high-end wheel fixture
     pub fn high_end_wheel() -> Self {
         Self {
@@ -114,16 +114,16 @@ impl TelemetryFixture {
     /// Create racing scenario telemetry
     pub fn racing_scenario() -> Self {
         let mut samples = Vec::new();
-        
+
         // Generate 10 seconds of racing telemetry at 60Hz
         for i in 0..600 {
             let time_s = i as f32 / 60.0;
-            
+
             // Simulate a racing scenario with varying RPM, speed, etc.
             let rpm = 3000.0 + 2000.0 * (time_s * 0.5).sin();
             let speed = 50.0 + 30.0 * (time_s * 0.3).sin();
             let ffb = 0.3 * (time_s * 2.0).sin() + 0.1 * (time_s * 8.0).sin();
-            
+
             samples.push(TelemetrySample {
                 timestamp_ms: (time_s * 1000.0) as u64,
                 ffb_scalar: ffb,
@@ -134,17 +134,17 @@ impl TelemetryFixture {
                 flags: if i % 120 == 0 { 0x01 } else { 0x00 }, // Occasional flag
             });
         }
-        
+
         Self {
             samples,
             sample_rate_hz: 60,
         }
     }
-    
+
     /// Create basic telemetry scenario
     pub fn basic_scenario() -> Self {
         let mut samples = Vec::new();
-        
+
         // Simple constant telemetry
         for i in 0..300 {
             samples.push(TelemetrySample {
@@ -157,27 +157,27 @@ impl TelemetryFixture {
                 flags: 0x00,
             });
         }
-        
+
         Self {
             samples,
             sample_rate_hz: 30,
         }
     }
-    
+
     /// Create high-performance scenario
     pub fn high_performance_scenario() -> Self {
         let mut samples = Vec::new();
-        
+
         // High-frequency, high-detail telemetry
         for i in 0..2000 {
             let time_s = i as f32 / 200.0; // 200Hz for 10 seconds
-            
+
             // Complex FFB with multiple frequency components
             let base_ffb = 0.4 * (time_s * 1.5).sin();
             let road_texture = 0.1 * (time_s * 20.0).sin();
             let kerb_effect = if (time_s % 2.0) < 0.1 { 0.3 } else { 0.0 };
             let ffb = base_ffb + road_texture + kerb_effect;
-            
+
             samples.push(TelemetrySample {
                 timestamp_ms: (time_s * 1000.0) as u64,
                 ffb_scalar: ffb.clamp(-1.0, 1.0),
@@ -188,7 +188,7 @@ impl TelemetryFixture {
                 flags: if (time_s % 3.0) < 0.1 { 0x02 } else { 0x00 },
             });
         }
-        
+
         Self {
             samples,
             sample_rate_hz: 200,
@@ -229,12 +229,13 @@ impl ProfileFixture {
                     "rpm_bands": [0.75, 0.82, 0.88, 0.92, 0.96],
                     "pattern": "wipe"
                 }
-            }"#.to_string(),
+            }"#
+            .to_string(),
             expected_valid: true,
             expected_errors: vec![],
         }
     }
-    
+
     /// Invalid profile fixture (missing required fields)
     pub fn invalid_profile_missing_fields() -> Self {
         Self {
@@ -244,7 +245,8 @@ impl ProfileFixture {
                 "base": {
                     "ffb_gain": 0.68
                 }
-            }"#.to_string(),
+            }"#
+            .to_string(),
             expected_valid: false,
             expected_errors: vec![
                 "Missing required field: scope".to_string(),
@@ -252,7 +254,7 @@ impl ProfileFixture {
             ],
         }
     }
-    
+
     /// Invalid profile fixture (invalid values)
     pub fn invalid_profile_bad_values() -> Self {
         Self {
@@ -271,7 +273,8 @@ impl ProfileFixture {
                         "friction": -0.5
                     }
                 }
-            }"#.to_string(),
+            }"#
+            .to_string(),
             expected_valid: false,
             expected_errors: vec![
                 "ffb_gain must be between 0.0 and 1.0".to_string(),
@@ -282,7 +285,7 @@ impl ProfileFixture {
             ],
         }
     }
-    
+
     /// Profile with non-monotonic curve
     pub fn invalid_profile_non_monotonic() -> Self {
         Self {
@@ -305,11 +308,10 @@ impl ProfileFixture {
                         ]
                     }
                 }
-            }"#.to_string(),
+            }"#
+            .to_string(),
             expected_valid: false,
-            expected_errors: vec![
-                "Curve points must be monotonic in input values".to_string(),
-            ],
+            expected_errors: vec!["Curve points must be monotonic in input values".to_string()],
         }
     }
 }
@@ -325,7 +327,7 @@ impl PerformanceFixture {
             load_level: LoadLevel::Idle,
         }
     }
-    
+
     /// Normal load performance expectations
     pub fn normal_load_performance() -> Self {
         Self {
@@ -336,7 +338,7 @@ impl PerformanceFixture {
             load_level: LoadLevel::Normal,
         }
     }
-    
+
     /// Heavy load performance expectations
     pub fn heavy_load_performance() -> Self {
         Self {

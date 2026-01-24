@@ -8,7 +8,7 @@ pub mod replay;
 pub mod support_bundle;
 pub mod streams;
 
-
+mod bincode_compat;
 
 pub use blackbox::{BlackboxRecorder, BlackboxConfig, RecordingStats};
 pub use replay::{BlackboxReplay, ReplayConfig, ReplayResult};

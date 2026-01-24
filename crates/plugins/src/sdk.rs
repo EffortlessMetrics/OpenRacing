@@ -127,13 +127,21 @@ pub type SdkResult<T> = Result<T, SdkError>;
 pub trait WasmPlugin {
     /// Initialize the plugin with configuration
     fn initialize(&mut self, config: serde_json::Value) -> SdkResult<()>;
-    
+
     /// Process telemetry data
-    fn process_telemetry(&mut self, input: SdkTelemetry, context: SdkContext) -> SdkResult<SdkOutput>;
-    
+    fn process_telemetry(
+        &mut self,
+        input: SdkTelemetry,
+        context: SdkContext,
+    ) -> SdkResult<SdkOutput>;
+
     /// Process LED mapping
-    fn process_led_mapping(&mut self, input: SdkLedInput, context: SdkContext) -> SdkResult<SdkOutput>;
-    
+    fn process_led_mapping(
+        &mut self,
+        input: SdkLedInput,
+        context: SdkContext,
+    ) -> SdkResult<SdkOutput>;
+
     /// Shutdown the plugin
     fn shutdown(&mut self) -> SdkResult<()>;
 }

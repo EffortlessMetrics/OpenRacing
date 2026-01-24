@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crossbeam::channel::{bounded, Receiver, Sender};
+use crossbeam::channel::{Receiver, Sender, bounded};
 use libloading::{Library, Symbol};
 use shared_memory::{Shmem, ShmemConf};
 use tokio::process::{Child, Command};
@@ -77,16 +77,16 @@ impl NativePlugin {
             Library::new(library_path)
                 .map_err(|e| PluginError::LoadingFailed(format!("Library load failed: {}", e)))?
         };
-        
+
         // Get the plugin vtable
         let get_vtable: Symbol<extern "C" fn() -> PluginVTable> = unsafe {
-            library
-                .get(b"get_plugin_vtable")
-                .map_err(|e| PluginError::LoadingFailed(format!("Missing vtable function: {}", e)))?
+            library.get(b"get_plugin_vtable").map_err(|e| {
+                PluginError::LoadingFailed(format!("Missing vtable function: {}", e))
+            })?
         };
-        
+
         let vtable = get_vtable();
-        
+
         // Check ABI version
         if vtable.abi_version != PLUGIN_ABI_VERSION {
             return Err(PluginError::LoadingFailed(format!(
@@ -94,22 +94,22 @@ impl NativePlugin {
                 PLUGIN_ABI_VERSION, vtable.abi_version
             )));
         }
-        
+
         // Create capability checker
         let capability_checker = CapabilityChecker::new(manifest.capabilities.clone());
-        
+
         // Initialize plugin state
         let config_json = serde_json::to_string(&serde_json::Value::Null)
             .map_err(|e| PluginError::LoadingFailed(format!("Config serialization: {}", e)))?;
-        
+
         let plugin_state = (vtable.create)(config_json.as_ptr(), config_json.len());
-        
+
         if plugin_state.is_null() {
             return Err(PluginError::LoadingFailed(
                 "Plugin initialization failed".to_string(),
             ));
         }
-        
+
         Ok(Self {
             manifest,
             _library: library,
@@ -119,27 +119,28 @@ impl NativePlugin {
             helper_process: None,
         })
     }
-    
+
     /// Start helper process for RT operations
     pub async fn start_helper_process(&mut self) -> PluginResult<()> {
         let helper = NativePluginHelper::new(
             self.manifest.id,
             self.manifest.constraints.max_execution_time_us,
-        ).await?;
-        
+        )
+        .await?;
+
         self.helper_process = Some(helper);
         Ok(())
     }
-    
+
     /// Process frame in RT context (called from helper process)
     pub fn process_frame_rt(&mut self, frame: &mut PluginFrame) -> PluginResult<()> {
         let start_time = Instant::now();
-        
+
         // Call native plugin function
         let result = (self.vtable.process)(self.plugin_state, frame as *mut PluginFrame);
-        
+
         let execution_time = start_time.elapsed();
-        
+
         // Check budget violation
         if execution_time.as_micros() > frame.budget_us as u128 {
             return Err(PluginError::BudgetViolation {
@@ -147,13 +148,14 @@ impl NativePlugin {
                 budget_us: frame.budget_us,
             });
         }
-        
+
         if result != 0 {
-            return Err(PluginError::LoadingFailed(
-                format!("Native plugin process function failed with code: {}", result)
-            ));
+            return Err(PluginError::LoadingFailed(format!(
+                "Native plugin process function failed with code: {}",
+                result
+            )));
         }
-        
+
         Ok(())
     }
 }
@@ -171,30 +173,30 @@ impl Plugin for NativePlugin {
     fn manifest(&self) -> &PluginManifest {
         &self.manifest
     }
-    
+
     async fn initialize(&mut self, config: serde_json::Value) -> PluginResult<()> {
         // Reinitialize with actual config
         if !self.plugin_state.is_null() {
             (self.vtable.destroy)(self.plugin_state);
         }
-        
+
         let config_json = serde_json::to_string(&config)
             .map_err(|e| PluginError::LoadingFailed(format!("Config serialization: {}", e)))?;
-        
+
         self.plugin_state = (self.vtable.create)(config_json.as_ptr(), config_json.len());
-        
+
         if self.plugin_state.is_null() {
             return Err(PluginError::LoadingFailed(
                 "Plugin initialization failed".to_string(),
             ));
         }
-        
+
         // Start helper process for RT operations
         self.start_helper_process().await?;
-        
+
         Ok(())
     }
-    
+
     async fn process_telemetry(
         &mut self,
         input: &NormalizedTelemetry,
@@ -202,7 +204,7 @@ impl Plugin for NativePlugin {
     ) -> PluginResult<PluginOutput> {
         // Check capability
         self.capability_checker.check_telemetry_read()?;
-        
+
         // For non-RT telemetry processing, we can call directly
         let mut frame = PluginFrame {
             ffb_in: input.ffb_scalar,
@@ -215,19 +217,19 @@ impl Plugin for NativePlugin {
             budget_us: context.budget_us,
             sequence: 0,
         };
-        
+
         self.process_frame_rt(&mut frame)?;
-        
+
         // Create modified telemetry
         let mut modified_telemetry = input.clone();
         modified_telemetry.ffb_scalar = frame.torque_out;
-        
+
         Ok(PluginOutput::Telemetry(crate::PluginTelemetryOutput {
             modified_telemetry: Some(modified_telemetry),
             custom_data: serde_json::Value::Null,
         }))
     }
-    
+
     async fn process_led_mapping(
         &mut self,
         _input: &NormalizedTelemetry,
@@ -235,7 +237,7 @@ impl Plugin for NativePlugin {
     ) -> PluginResult<PluginOutput> {
         // Check capability
         self.capability_checker.check_led_control()?;
-        
+
         // Return default LED output (simplified)
         Ok(PluginOutput::Led(crate::PluginLedOutput {
             led_pattern: vec![0, 255, 0], // Green
@@ -243,7 +245,7 @@ impl Plugin for NativePlugin {
             duration_ms: 100,
         }))
     }
-    
+
     async fn process_dsp(
         &mut self,
         ffb_input: f32,
@@ -252,7 +254,7 @@ impl Plugin for NativePlugin {
     ) -> PluginResult<PluginOutput> {
         // Check capability
         self.capability_checker.check_dsp_processing()?;
-        
+
         // Use helper process for RT DSP processing
         if let Some(helper) = &mut self.helper_process {
             let frame = PluginFrame {
@@ -266,9 +268,9 @@ impl Plugin for NativePlugin {
                 budget_us: context.budget_us,
                 sequence: 0,
             };
-            
+
             let result_frame = helper.process_frame(frame).await?;
-            
+
             Ok(PluginOutput::Dsp(crate::PluginDspOutput {
                 modified_ffb: result_frame.torque_out,
                 filter_state: serde_json::Value::Null,
@@ -279,13 +281,13 @@ impl Plugin for NativePlugin {
             ))
         }
     }
-    
+
     async fn shutdown(&mut self) -> PluginResult<()> {
         // Shutdown helper process
         if let Some(helper) = &mut self.helper_process {
             helper.shutdown().await?;
         }
-        
+
         Ok(())
     }
 }
@@ -308,9 +310,9 @@ impl NativePluginHelper {
     /// Create a new helper process
     pub async fn new(plugin_id: uuid::Uuid, budget_us: u32) -> PluginResult<Self> {
         // Create shared memory
-        let shmem_size = std::mem::size_of::<SharedMemoryHeader>() 
-            + (std::mem::size_of::<PluginFrame>() * 1024); // Ring buffer for 1024 frames
-        
+        let shmem_size =
+            std::mem::size_of::<SharedMemoryHeader>() + (std::mem::size_of::<PluginFrame>() * 1024); // Ring buffer for 1024 frames
+
         if shmem_size > MAX_SHARED_MEMORY_SIZE {
             return Err(PluginError::Ipc(format!(
                 "Shared memory size {} exceeds maximum {}",
@@ -322,7 +324,7 @@ impl NativePluginHelper {
             .size(shmem_size)
             .create()
             .map_err(|e| PluginError::Ipc(format!("Shared memory creation failed: {}", e)))?;
-        
+
         // Initialize shared memory header
         unsafe {
             let header = shared_memory.as_ptr() as *mut SharedMemoryHeader;
@@ -333,10 +335,10 @@ impl NativePluginHelper {
             (*header).max_frames = 1024;
             (*header).shutdown_flag.store(false, Ordering::Relaxed);
         }
-        
+
         let shmem_os_id = shared_memory.get_os_id().to_string();
         let shared_memory = Arc::new(Mutex::new(shared_memory));
-        
+
         // Start helper process
         let process = Command::new("wheel-plugin-helper")
             .arg("--plugin-id")
@@ -347,11 +349,11 @@ impl NativePluginHelper {
             .arg(budget_us.to_string())
             .spawn()
             .map_err(|e| PluginError::Ipc(format!("Helper process spawn failed: {}", e)))?;
-        
+
         // Create communication channels
         let (frame_sender, _) = bounded(1024);
         let (_, result_receiver) = bounded(1024);
-        
+
         Ok(Self {
             _plugin_id: plugin_id,
             process,
@@ -361,22 +363,20 @@ impl NativePluginHelper {
             budget_us,
         })
     }
-    
+
     /// Process a frame through the helper
     pub async fn process_frame(&mut self, frame: PluginFrame) -> PluginResult<PluginFrame> {
         // Send frame to helper process via shared memory
         self.write_frame_to_shared_memory(frame)?;
-        
+
         // Wait for result with timeout
         let timeout = Duration::from_micros(self.budget_us as u64 * 2); // 2x budget for safety
-        
-        tokio::time::timeout(timeout, async {
-            self.read_frame_from_shared_memory()
-        })
-        .await
-        .map_err(|_| PluginError::ExecutionTimeout { duration: timeout })?
+
+        tokio::time::timeout(timeout, async { self.read_frame_from_shared_memory() })
+            .await
+            .map_err(|_| PluginError::ExecutionTimeout { duration: timeout })?
     }
-    
+
     /// Shutdown the helper process
     pub async fn shutdown(&mut self) -> PluginResult<()> {
         // Set shutdown flag
@@ -385,59 +385,65 @@ impl NativePluginHelper {
             let header = shared_memory.as_ptr() as *mut SharedMemoryHeader;
             (*header).shutdown_flag.store(true, Ordering::Relaxed);
         }
-        
+
         // Wait for process to exit
         let _ = self.process.wait().await;
-        
+
         Ok(())
     }
-    
+
     fn write_frame_to_shared_memory(&self, frame: PluginFrame) -> PluginResult<()> {
         unsafe {
             let shared_memory = self.shared_memory.lock().unwrap();
             let header = shared_memory.as_ptr() as *mut SharedMemoryHeader;
-            let frames_ptr = (header as *mut u8).add(std::mem::size_of::<SharedMemoryHeader>()) as *mut PluginFrame;
-            
+            let frames_ptr = (header as *mut u8).add(std::mem::size_of::<SharedMemoryHeader>())
+                as *mut PluginFrame;
+
             let producer_seq = (*header).producer_seq.load(Ordering::Acquire);
             let consumer_seq = (*header).consumer_seq.load(Ordering::Acquire);
-            
+
             // Check if ring buffer is full
             if producer_seq.wrapping_sub(consumer_seq) >= (*header).max_frames {
                 return Err(PluginError::Ipc("Ring buffer full".to_string()));
             }
-            
+
             // Write frame
             let index = producer_seq % (*header).max_frames;
             *frames_ptr.add(index as usize) = frame;
-            
+
             // Update producer sequence
-            (*header).producer_seq.store(producer_seq.wrapping_add(1), Ordering::Release);
+            (*header)
+                .producer_seq
+                .store(producer_seq.wrapping_add(1), Ordering::Release);
         }
-        
+
         Ok(())
     }
-    
+
     fn read_frame_from_shared_memory(&self) -> PluginResult<PluginFrame> {
         unsafe {
             let shared_memory = self.shared_memory.lock().unwrap();
             let header = shared_memory.as_ptr() as *mut SharedMemoryHeader;
-            let frames_ptr = (header as *mut u8).add(std::mem::size_of::<SharedMemoryHeader>()) as *mut PluginFrame;
-            
+            let frames_ptr = (header as *mut u8).add(std::mem::size_of::<SharedMemoryHeader>())
+                as *mut PluginFrame;
+
             let producer_seq = (*header).producer_seq.load(Ordering::Acquire);
             let consumer_seq = (*header).consumer_seq.load(Ordering::Acquire);
-            
+
             // Check if data is available
             if consumer_seq >= producer_seq {
                 return Err(PluginError::Ipc("No data available".to_string()));
             }
-            
+
             // Read frame
             let index = consumer_seq % (*header).max_frames;
             let frame = *frames_ptr.add(index as usize);
-            
+
             // Update consumer sequence
-            (*header).consumer_seq.store(consumer_seq.wrapping_add(1), Ordering::Release);
-            
+            (*header)
+                .consumer_seq
+                .store(consumer_seq.wrapping_add(1), Ordering::Release);
+
             Ok(frame)
         }
     }
@@ -454,7 +460,7 @@ impl NativePluginHost {
             plugins: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-    
+
     /// Load a native plugin
     pub async fn load_plugin(
         &self,
@@ -463,13 +469,13 @@ impl NativePluginHost {
     ) -> PluginResult<uuid::Uuid> {
         let plugin = NativePlugin::load(manifest.clone(), library_path).await?;
         let plugin_id = manifest.id;
-        
+
         let mut plugins = self.plugins.write().await;
         plugins.insert(plugin_id, plugin);
-        
+
         Ok(plugin_id)
     }
-    
+
     /// Unload a plugin
     pub async fn unload_plugin(&self, plugin_id: uuid::Uuid) -> PluginResult<()> {
         let mut plugins = self.plugins.write().await;

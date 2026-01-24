@@ -51,7 +51,7 @@ fn create_test_profile(dir: &TempDir, name: &str) -> std::path::PathBuf {
             }
         }
     });
-    
+
     let path = dir.path().join(format!("{}.json", name));
     fs::write(&path, serde_json::to_string_pretty(&profile).unwrap()).unwrap();
     path
@@ -102,13 +102,13 @@ fn test_device_list_json_output() {
         .assert()
         .success()
         .stdout(is_json());
-    
+
     // Verify JSON structure
     let output = wheelctl()
         .args(&["--json", "device", "list"])
         .output()
         .unwrap();
-    
+
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(json["success"], true);
     assert!(json["devices"].is_array());
@@ -172,10 +172,7 @@ fn test_device_reset() {
 
 #[test]
 fn test_profile_list() {
-    wheelctl()
-        .args(&["profile", "list"])
-        .assert()
-        .success();
+    wheelctl().args(&["profile", "list"]).assert().success();
 }
 
 #[test]
@@ -191,19 +188,22 @@ fn test_profile_list_json() {
 fn test_profile_create_and_validate() {
     let temp_dir = TempDir::new().unwrap();
     let profile_path = temp_dir.path().join("test_profile.json");
-    
+
     // Create profile
     wheelctl()
         .args(&[
-            "profile", "create", 
+            "profile",
+            "create",
             profile_path.to_str().unwrap(),
-            "--game", "iracing",
-            "--car", "gt3"
+            "--game",
+            "iracing",
+            "--car",
+            "gt3",
         ])
         .assert()
         .success()
         .stdout(predicate::str::contains("Profile created"));
-    
+
     // Validate profile
     wheelctl()
         .args(&["profile", "validate", profile_path.to_str().unwrap()])
@@ -216,7 +216,7 @@ fn test_profile_create_and_validate() {
 fn test_profile_show() {
     let temp_dir = TempDir::new().unwrap();
     let profile_path = create_test_profile(&temp_dir, "test");
-    
+
     wheelctl()
         .args(&["profile", "show", profile_path.to_str().unwrap()])
         .assert()
@@ -228,7 +228,7 @@ fn test_profile_show() {
 fn test_profile_show_json() {
     let temp_dir = TempDir::new().unwrap();
     let profile_path = create_test_profile(&temp_dir, "test");
-    
+
     wheelctl()
         .args(&["--json", "profile", "show", profile_path.to_str().unwrap()])
         .assert()
@@ -240,12 +240,13 @@ fn test_profile_show_json() {
 fn test_profile_apply() {
     let temp_dir = TempDir::new().unwrap();
     let profile_path = create_test_profile(&temp_dir, "test");
-    
+
     wheelctl()
         .args(&[
-            "profile", "apply", 
-            "wheel-001", 
-            profile_path.to_str().unwrap()
+            "profile",
+            "apply",
+            "wheel-001",
+            profile_path.to_str().unwrap(),
         ])
         .assert()
         .success()
@@ -266,7 +267,7 @@ fn test_profile_validation_error() {
     let temp_dir = TempDir::new().unwrap();
     let invalid_profile = temp_dir.path().join("invalid.json");
     fs::write(&invalid_profile, "{ invalid json }").unwrap();
-    
+
     wheelctl()
         .args(&["profile", "validate", invalid_profile.to_str().unwrap()])
         .assert()
@@ -278,13 +279,16 @@ fn test_profile_validation_error() {
 fn test_profile_edit_field() {
     let temp_dir = TempDir::new().unwrap();
     let profile_path = create_test_profile(&temp_dir, "test");
-    
+
     wheelctl()
         .args(&[
-            "profile", "edit",
+            "profile",
+            "edit",
             profile_path.to_str().unwrap(),
-            "--field", "base.ffbGain",
-            "--value", "0.8"
+            "--field",
+            "base.ffbGain",
+            "--value",
+            "0.8",
         ])
         .assert()
         .success()
@@ -297,24 +301,28 @@ fn test_profile_export_import() {
     let profile_path = create_test_profile(&temp_dir, "test");
     let export_path = temp_dir.path().join("exported.json");
     let import_path = temp_dir.path().join("imported.json");
-    
+
     // Export profile
     wheelctl()
         .args(&[
-            "profile", "export",
+            "profile",
+            "export",
             profile_path.to_str().unwrap(),
-            "--output", export_path.to_str().unwrap()
+            "--output",
+            export_path.to_str().unwrap(),
         ])
         .assert()
         .success()
         .stdout(predicate::str::contains("exported"));
-    
+
     // Import profile
     wheelctl()
         .args(&[
-            "profile", "import",
+            "profile",
+            "import",
             export_path.to_str().unwrap(),
-            "--target", import_path.to_str().unwrap()
+            "--target",
+            import_path.to_str().unwrap(),
         ])
         .assert()
         .success()
@@ -345,13 +353,16 @@ fn test_diag_test_json() {
 fn test_diag_record() {
     let temp_dir = TempDir::new().unwrap();
     let output_path = temp_dir.path().join("test.wbb");
-    
+
     wheelctl()
         .args(&[
-            "diag", "record",
+            "diag",
+            "record",
             "wheel-001",
-            "--duration", "1",
-            "--output", output_path.to_str().unwrap()
+            "--duration",
+            "1",
+            "--output",
+            output_path.to_str().unwrap(),
         ])
         .assert()
         .success()
@@ -363,7 +374,7 @@ fn test_diag_replay() {
     let temp_dir = TempDir::new().unwrap();
     let blackbox_path = temp_dir.path().join("test.wbb");
     fs::write(&blackbox_path, "WBB1\x00\x00\x00\x00Mock blackbox data").unwrap();
-    
+
     wheelctl()
         .args(&["diag", "replay", blackbox_path.to_str().unwrap()])
         .assert()
@@ -375,12 +386,9 @@ fn test_diag_replay() {
 fn test_diag_support_bundle() {
     let temp_dir = TempDir::new().unwrap();
     let bundle_path = temp_dir.path().join("support.zip");
-    
+
     wheelctl()
-        .args(&[
-            "diag", "support",
-            "--output", bundle_path.to_str().unwrap()
-        ])
+        .args(&["diag", "support", "--output", bundle_path.to_str().unwrap()])
         .assert()
         .success()
         .stdout(predicate::str::contains("Support bundle created"));
@@ -419,10 +427,12 @@ fn test_game_list_detailed() {
 fn test_game_configure() {
     wheelctl()
         .args(&[
-            "game", "configure",
+            "game",
+            "configure",
             "iracing",
-            "--path", "/test/path",
-            "--auto"
+            "--path",
+            "/test/path",
+            "--auto",
         ])
         .assert()
         .success()
@@ -547,11 +557,11 @@ fn test_all_commands_support_json() {
         vec!["health"],
         vec!["diag", "metrics"],
     ];
-    
+
     for cmd in commands {
         let mut full_cmd = vec!["--json"];
         full_cmd.extend(cmd.iter());
-        
+
         wheelctl()
             .args(&full_cmd)
             .assert()
@@ -568,12 +578,12 @@ fn test_verbose_logging() {
         .args(&["-v", "device", "list"])
         .assert()
         .success();
-    
+
     wheelctl()
         .args(&["-vv", "device", "list"])
         .assert()
         .success();
-    
+
     wheelctl()
         .args(&["-vvv", "device", "list"])
         .assert()
@@ -586,40 +596,46 @@ fn test_verbose_logging() {
 fn test_complete_profile_workflow() {
     let temp_dir = TempDir::new().unwrap();
     let profile_path = temp_dir.path().join("workflow_test.json");
-    
+
     // Create profile
     wheelctl()
         .args(&[
-            "profile", "create",
+            "profile",
+            "create",
             profile_path.to_str().unwrap(),
-            "--game", "iracing"
+            "--game",
+            "iracing",
         ])
         .assert()
         .success();
-    
+
     // Validate profile
     wheelctl()
         .args(&["profile", "validate", profile_path.to_str().unwrap()])
         .assert()
         .success();
-    
+
     // Edit profile
     wheelctl()
         .args(&[
-            "profile", "edit",
+            "profile",
+            "edit",
             profile_path.to_str().unwrap(),
-            "--field", "base.ffbGain",
-            "--value", "0.9"
+            "--field",
+            "base.ffbGain",
+            "--value",
+            "0.9",
         ])
         .assert()
         .success();
-    
+
     // Apply profile
     wheelctl()
         .args(&[
-            "profile", "apply",
+            "profile",
+            "apply",
             "wheel-001",
-            profile_path.to_str().unwrap()
+            profile_path.to_str().unwrap(),
         ])
         .assert()
         .success();
@@ -630,29 +646,34 @@ fn test_complete_diagnostic_workflow() {
     let temp_dir = TempDir::new().unwrap();
     let blackbox_path = temp_dir.path().join("diag_test.wbb");
     let support_path = temp_dir.path().join("support_test.zip");
-    
+
     // Run diagnostics
     wheelctl()
         .args(&["diag", "test", "--device", "wheel-001"])
         .assert()
         .success();
-    
+
     // Record blackbox
     wheelctl()
         .args(&[
-            "diag", "record",
+            "diag",
+            "record",
             "wheel-001",
-            "--duration", "1",
-            "--output", blackbox_path.to_str().unwrap()
+            "--duration",
+            "1",
+            "--output",
+            blackbox_path.to_str().unwrap(),
         ])
         .assert()
         .success();
-    
+
     // Generate support bundle
     wheelctl()
         .args(&[
-            "diag", "support",
-            "--output", support_path.to_str().unwrap()
+            "diag",
+            "support",
+            "--output",
+            support_path.to_str().unwrap(),
         ])
         .assert()
         .success();

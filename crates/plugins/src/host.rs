@@ -8,13 +8,11 @@ use std::time::Instant;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::manifest::{load_manifest, PluginManifest, PluginOperation};
+use crate::manifest::{PluginManifest, PluginOperation, load_manifest};
 use crate::native::NativePluginHost;
 use crate::quarantine::{QuarantineManager, QuarantinePolicy, ViolationType};
 use crate::wasm::WasmPluginHost;
-use crate::{
-    PluginClass, PluginContext, PluginError, PluginOutput, PluginResult, PluginStats,
-};
+use crate::{PluginClass, PluginContext, PluginError, PluginOutput, PluginResult, PluginStats};
 
 /// Plugin registry entry
 #[derive(Debug, Clone)]
@@ -30,16 +28,16 @@ pub struct PluginRegistryEntry {
 pub struct PluginHost {
     /// Plugin registry
     registry: Arc<RwLock<HashMap<Uuid, PluginRegistryEntry>>>,
-    
+
     /// WASM plugin host
     wasm_host: WasmPluginHost,
-    
+
     /// Native plugin host
     native_host: NativePluginHost,
-    
+
     /// Quarantine manager
     quarantine_manager: Arc<RwLock<QuarantineManager>>,
-    
+
     /// Plugin directory
     plugin_directory: PathBuf,
 }
@@ -52,7 +50,7 @@ impl PluginHost {
         let quarantine_manager = Arc::new(RwLock::new(QuarantineManager::new(
             QuarantinePolicy::default(),
         )));
-        
+
         let mut host = Self {
             registry: Arc::new(RwLock::new(HashMap::new())),
             wasm_host,
@@ -60,23 +58,23 @@ impl PluginHost {
             quarantine_manager,
             plugin_directory,
         };
-        
+
         // Scan for plugins on startup
         host.scan_plugins().await?;
-        
+
         Ok(host)
     }
-    
+
     /// Scan plugin directory for available plugins
     pub async fn scan_plugins(&mut self) -> PluginResult<()> {
         let mut registry = self.registry.write().await;
-        
+
         // Scan for plugin manifests
         let mut entries = tokio::fs::read_dir(&self.plugin_directory).await?;
-        
+
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
-            
+
             if path.is_dir() {
                 let manifest_path = path.join("plugin.yaml");
                 if manifest_path.exists() {
@@ -86,11 +84,10 @@ impl PluginHost {
                                 PluginClass::Safe => {
                                     path.join(manifest.entry_points.wasm_module.as_ref().unwrap())
                                 }
-                                PluginClass::Fast => {
-                                    path.join(manifest.entry_points.native_library.as_ref().unwrap())
-                                }
+                                PluginClass::Fast => path
+                                    .join(manifest.entry_points.native_library.as_ref().unwrap()),
                             };
-                            
+
                             if plugin_path.exists() {
                                 let entry = PluginRegistryEntry {
                                     manifest: manifest.clone(),
@@ -99,9 +96,9 @@ impl PluginHost {
                                     is_enabled: true,
                                     stats: PluginStats::default(),
                                 };
-                                
+
                                 registry.insert(manifest.id, entry);
-                                
+
                                 tracing::info!(
                                     plugin_id = %manifest.id,
                                     plugin_name = %manifest.name,
@@ -121,10 +118,10 @@ impl PluginHost {
                 }
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Load a plugin
     pub async fn load_plugin(&self, plugin_id: Uuid) -> PluginResult<()> {
         // Check if plugin is quarantined
@@ -134,20 +131,20 @@ impl PluginHost {
                 return Err(PluginError::Quarantined { plugin_id });
             }
         }
-        
+
         let mut registry = self.registry.write().await;
-        let entry = registry
-            .get_mut(&plugin_id)
-            .ok_or_else(|| PluginError::LoadingFailed("Plugin not found in registry".to_string()))?;
-        
+        let entry = registry.get_mut(&plugin_id).ok_or_else(|| {
+            PluginError::LoadingFailed("Plugin not found in registry".to_string())
+        })?;
+
         if entry.is_loaded {
             return Ok(()); // Already loaded
         }
-        
+
         if !entry.is_enabled {
             return Err(PluginError::LoadingFailed("Plugin is disabled".to_string()));
         }
-        
+
         // Load plugin based on class
         match entry.manifest.class {
             PluginClass::Safe => {
@@ -161,29 +158,29 @@ impl PluginHost {
                     .await?;
             }
         }
-        
+
         entry.is_loaded = true;
-        
+
         tracing::info!(
             plugin_id = %plugin_id,
             plugin_name = %entry.manifest.name,
             "Plugin loaded successfully"
         );
-        
+
         Ok(())
     }
-    
+
     /// Unload a plugin
     pub async fn unload_plugin(&self, plugin_id: Uuid) -> PluginResult<()> {
         let mut registry = self.registry.write().await;
-        let entry = registry
-            .get_mut(&plugin_id)
-            .ok_or_else(|| PluginError::LoadingFailed("Plugin not found in registry".to_string()))?;
-        
+        let entry = registry.get_mut(&plugin_id).ok_or_else(|| {
+            PluginError::LoadingFailed("Plugin not found in registry".to_string())
+        })?;
+
         if !entry.is_loaded {
             return Ok(()); // Already unloaded
         }
-        
+
         // Unload plugin based on class
         match entry.manifest.class {
             PluginClass::Safe => {
@@ -193,18 +190,18 @@ impl PluginHost {
                 self.native_host.unload_plugin(plugin_id).await?;
             }
         }
-        
+
         entry.is_loaded = false;
-        
+
         tracing::info!(
             plugin_id = %plugin_id,
             plugin_name = %entry.manifest.name,
             "Plugin unloaded"
         );
-        
+
         Ok(())
     }
-    
+
     /// Execute a plugin operation with monitoring
     pub async fn execute_plugin(
         &self,
@@ -220,24 +217,24 @@ impl PluginHost {
                 return Err(PluginError::Quarantined { plugin_id });
             }
         }
-        
+
         let start_time = Instant::now();
         let mut success = false;
-        
+
         // Store budget before moving context
         let budget_us = context.budget_us;
-        
+
         // Execute plugin
         let result = {
             let registry = self.registry.read().await;
             let entry = registry
                 .get(&plugin_id)
                 .ok_or_else(|| PluginError::LoadingFailed("Plugin not found".to_string()))?;
-            
+
             if !entry.is_loaded {
                 return Err(PluginError::LoadingFailed("Plugin not loaded".to_string()));
             }
-            
+
             // Execute based on plugin class
             match entry.manifest.class {
                 PluginClass::Safe => {
@@ -249,19 +246,20 @@ impl PluginHost {
                     // For native plugins, we need different handling
                     // This is simplified - real implementation would route to native host
                     Err(PluginError::LoadingFailed(
-                        "Native plugin execution not implemented in this simplified version".to_string(),
+                        "Native plugin execution not implemented in this simplified version"
+                            .to_string(),
                     ))
                 }
             }
         };
-        
+
         let execution_time = start_time.elapsed();
-        
+
         // Handle result and update statistics
         match &result {
             Ok(_) => {
                 success = true;
-                
+
                 // Check for budget violation
                 if execution_time.as_micros() > budget_us as u128 {
                     let mut quarantine = self.quarantine_manager.write().await;
@@ -293,7 +291,7 @@ impl PluginHost {
                     PluginError::CapabilityViolation { .. } => ViolationType::CapabilityViolation,
                     _ => ViolationType::Crash,
                 };
-                
+
                 quarantine
                     .record_violation(plugin_id, violation_type, e.to_string())
                     .unwrap_or_else(|e| {
@@ -305,73 +303,81 @@ impl PluginHost {
                     });
             }
         }
-        
+
         // Update plugin statistics
         {
             let mut registry = self.registry.write().await;
             if let Some(entry) = registry.get_mut(&plugin_id) {
                 entry.stats.executions += 1;
                 entry.stats.total_time_us += execution_time.as_micros() as u64;
-                entry.stats.avg_time_us = entry.stats.total_time_us as f64 / entry.stats.executions as f64;
-                entry.stats.max_time_us = entry.stats.max_time_us.max(execution_time.as_micros() as u32);
+                entry.stats.avg_time_us =
+                    entry.stats.total_time_us as f64 / entry.stats.executions as f64;
+                entry.stats.max_time_us = entry
+                    .stats
+                    .max_time_us
+                    .max(execution_time.as_micros() as u32);
                 entry.stats.last_execution = Some(chrono::Utc::now());
-                
+
                 if !success {
                     entry.stats.crashes += 1;
                 }
-                
+
                 if execution_time.as_micros() > budget_us as u128 {
                     entry.stats.budget_violations += 1;
                 }
             }
         }
-        
+
         result
     }
-    
+
     /// Get plugin registry
     pub async fn get_registry(&self) -> HashMap<Uuid, PluginRegistryEntry> {
         self.registry.read().await.clone()
     }
-    
+
     /// Enable/disable a plugin
     pub async fn set_plugin_enabled(&self, plugin_id: Uuid, enabled: bool) -> PluginResult<()> {
         let mut registry = self.registry.write().await;
         if let Some(entry) = registry.get_mut(&plugin_id) {
             entry.is_enabled = enabled;
-            
+
             // Unload if being disabled
             if !enabled && entry.is_loaded {
                 drop(registry); // Release lock before calling unload
                 self.unload_plugin(plugin_id).await?;
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Get quarantine statistics
     pub async fn get_quarantine_stats(&self) -> HashMap<Uuid, crate::quarantine::QuarantineState> {
         self.quarantine_manager.read().await.get_quarantine_stats()
     }
-    
+
     /// Manually quarantine a plugin
-    pub async fn quarantine_plugin(&self, plugin_id: Uuid, duration_minutes: i64) -> PluginResult<()> {
+    pub async fn quarantine_plugin(
+        &self,
+        plugin_id: Uuid,
+        duration_minutes: i64,
+    ) -> PluginResult<()> {
         let mut quarantine = self.quarantine_manager.write().await;
         quarantine.manual_quarantine(plugin_id, duration_minutes)?;
-        
+
         // Unload the plugin
         self.unload_plugin(plugin_id).await?;
-        
+
         Ok(())
     }
-    
+
     /// Release a plugin from quarantine
     pub async fn release_from_quarantine(&self, plugin_id: Uuid) -> PluginResult<()> {
         let mut quarantine = self.quarantine_manager.write().await;
         quarantine.release_from_quarantine(plugin_id)
     }
-    
+
     /// Load all enabled plugins
     pub async fn load_all_plugins(&self) -> PluginResult<()> {
         let registry = self.registry.read().await;
@@ -381,7 +387,7 @@ impl PluginHost {
             .map(|(id, _)| *id)
             .collect();
         drop(registry);
-        
+
         for plugin_id in plugin_ids {
             if let Err(e) = self.load_plugin(plugin_id).await {
                 tracing::error!(
@@ -391,10 +397,10 @@ impl PluginHost {
                 );
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Unload all plugins
     pub async fn unload_all_plugins(&self) -> PluginResult<()> {
         let registry = self.registry.read().await;
@@ -404,7 +410,7 @@ impl PluginHost {
             .map(|(id, _)| *id)
             .collect();
         drop(registry);
-        
+
         for plugin_id in plugin_ids {
             if let Err(e) = self.unload_plugin(plugin_id).await {
                 tracing::error!(
@@ -414,7 +420,7 @@ impl PluginHost {
                 );
             }
         }
-        
+
         Ok(())
     }
 }

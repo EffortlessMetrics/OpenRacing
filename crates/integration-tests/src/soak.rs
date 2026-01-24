@@ -1,13 +1,13 @@
 //! Soak testing for 48-hour continuous operation validation
 
-use std::time::{Duration, Instant};
 use anyhow::Result;
-use tracing::{info, warn, error};
+use serde::{Deserialize, Serialize};
+use std::time::{Duration, Instant};
 use tokio::fs;
-use serde::{Serialize, Deserialize};
+use tracing::{error, info, warn};
 
-use crate::common::{TestHarness, RTTimer};
-use crate::{TestConfig, TestResult, PerformanceMetrics, SOAK_TEST_DURATION};
+use crate::common::{RTTimer, TestHarness};
+use crate::{PerformanceMetrics, SOAK_TEST_DURATION, TestConfig, TestResult};
 
 /// Soak test configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,7 +27,7 @@ impl Default for SoakTestConfig {
             duration: SOAK_TEST_DURATION,
             checkpoint_interval: Duration::from_secs(3600), // 1 hour checkpoints
             metrics_collection_interval: Duration::from_secs(60), // 1 minute metrics
-            enable_full_logging: false, // Reduce I/O overhead
+            enable_full_logging: false,                     // Reduce I/O overhead
             enable_blackbox_recording: true,
             max_memory_mb: 150.0,
             max_cpu_percent: 3.0,
@@ -51,7 +51,7 @@ pub struct SoakCheckpoint {
 /// Run 48-hour soak test with continuous monitoring
 pub async fn run_soak_test() -> Result<TestResult> {
     info!("Starting 48-hour soak test");
-    
+
     let soak_config = SoakTestConfig::default();
     let test_config = TestConfig {
         duration: soak_config.duration,
@@ -60,69 +60,78 @@ pub async fn run_soak_test() -> Result<TestResult> {
         enable_metrics: true,
         ..Default::default()
     };
-    
+
     let mut harness = TestHarness::new(test_config.clone()).await?;
     let mut errors = Vec::new();
     let start_time = Instant::now();
-    
+
     // Create soak test directory for checkpoints
     let soak_dir = "target/soak-test";
     fs::create_dir_all(soak_dir).await?;
-    
+
     harness.start_service().await?;
-    
+
     let mut checkpoints = Vec::new();
     let mut total_ticks = 0u64;
     let mut total_missed_ticks = 0u64;
     let mut last_checkpoint = start_time;
     let mut last_metrics_collection = start_time;
-    
+
     let mut timer = RTTimer::new(crate::FFB_FREQUENCY_HZ);
     let end_time = start_time + soak_config.duration;
-    
-    info!("Soak test will run for {:?} ({:.1} hours)", 
-          soak_config.duration, 
-          soak_config.duration.as_secs_f64() / 3600.0);
-    
+
+    info!(
+        "Soak test will run for {:?} ({:.1} hours)",
+        soak_config.duration,
+        soak_config.duration.as_secs_f64() / 3600.0
+    );
+
     while Instant::now() < end_time {
         // RT loop simulation
         let jitter = timer.wait_for_next_tick().await;
         total_ticks += 1;
-        
+
         if jitter > Duration::from_micros(500) {
             total_missed_ticks += 1;
         }
-        
+
         // Simulate FFB processing
         simulate_soak_ffb_processing().await;
-        
+
         let now = Instant::now();
-        
+
         // Collect metrics periodically
         if now.duration_since(last_metrics_collection) >= soak_config.metrics_collection_interval {
             let current_metrics = harness.collect_metrics().await;
-            
+
             // Check for performance degradation
             if current_metrics.jitter_p99_ms > crate::MAX_JITTER_P99_MS {
-                warn!("Jitter degradation detected: {:.3}ms at {:?}", 
-                      current_metrics.jitter_p99_ms, now.duration_since(start_time));
+                warn!(
+                    "Jitter degradation detected: {:.3}ms at {:?}",
+                    current_metrics.jitter_p99_ms,
+                    now.duration_since(start_time)
+                );
             }
-            
+
             if current_metrics.memory_usage_mb > soak_config.max_memory_mb {
-                errors.push(format!("Memory usage {:.1}MB exceeded limit at {:?}", 
-                                   current_metrics.memory_usage_mb, 
-                                   now.duration_since(start_time)));
+                errors.push(format!(
+                    "Memory usage {:.1}MB exceeded limit at {:?}",
+                    current_metrics.memory_usage_mb,
+                    now.duration_since(start_time)
+                ));
             }
-            
+
             if current_metrics.cpu_usage_percent > soak_config.max_cpu_percent {
-                warn!("CPU usage {:.1}% exceeded limit at {:?}", 
-                      current_metrics.cpu_usage_percent, 
-                      now.duration_since(start_time));
+                warn!(
+                    "CPU usage {:.1}% exceeded limit at {:?}",
+                    current_metrics.cpu_usage_percent,
+                    now.duration_since(start_time)
+                );
             }
-            
+
             last_metrics_collection = now;
         }
-        
+
         // Create checkpoint periodically
         if now.duration_since(last_checkpoint) >= soak_config.checkpoint_interval {
             let checkpoint = create_checkpoint(
@@ -130,25 +139,27 @@ pub async fn run_soak_test() -> Result<TestResult> {
                 start_time,
                 total_ticks,
                 total_missed_ticks,
-                &errors
-            ).await?;
-            
+                &errors,
+            )
+            .await?;
+
             // Save checkpoint to disk
-            let checkpoint_file = format!("{}/checkpoint_{:04}.json", 
-                                        soak_dir, checkpoints.len());
+            let checkpoint_file = format!("{}/checkpoint_{:04}.json", soak_dir, checkpoints.len());
             let checkpoint_json = serde_json::to_string_pretty(&checkpoint)?;
             fs::write(&checkpoint_file, checkpoint_json).await?;
-            
-            info!("Checkpoint {}: {:?} elapsed, {} ticks, {} missed, {:.1}MB memory", 
-                  checkpoints.len(),
-                  checkpoint.elapsed,
-                  checkpoint.total_ticks,
-                  checkpoint.missed_ticks,
-                  checkpoint.memory_usage_mb);
-            
+
+            info!(
+                "Checkpoint {}: {:?} elapsed, {} ticks, {} missed, {:.1}MB memory",
+                checkpoints.len(),
+                checkpoint.elapsed,
+                checkpoint.total_ticks,
+                checkpoint.missed_ticks,
+                checkpoint.memory_usage_mb
+            );
+
             checkpoints.push(checkpoint);
             last_checkpoint = now;
-            
+
             // Check for early termination conditions
             if should_terminate_early(&checkpoints) {
                 error!("Early termination due to performance degradation");
@@ -156,44 +167,60 @@ pub async fn run_soak_test() -> Result<TestResult> {
                 break;
             }
         }
-        
+
         // Simulate background activities periodically
-        if total_ticks % 60000 == 0 { // Every minute at 1kHz
+        if total_ticks % 60000 == 0 {
+            // Every minute at 1kHz
             simulate_background_activities().await;
         }
     }
-    
+
     let actual_duration = start_time.elapsed();
     let final_metrics = harness.collect_metrics().await;
-    
+
     // Create final summary
-    let summary = create_soak_summary(&checkpoints, actual_duration, total_ticks, total_missed_ticks);
+    let summary = create_soak_summary(
+        &checkpoints,
+        actual_duration,
+        total_ticks,
+        total_missed_ticks,
+    );
     let summary_file = format!("{}/soak_summary.json", soak_dir);
     let summary_json = serde_json::to_string_pretty(&summary)?;
     fs::write(&summary_file, summary_json).await?;
-    
+
     info!("Soak test completed:");
-    info!("  Duration: {:?} ({:.1} hours)", actual_duration, actual_duration.as_secs_f64() / 3600.0);
+    info!(
+        "  Duration: {:?} ({:.1} hours)",
+        actual_duration,
+        actual_duration.as_secs_f64() / 3600.0
+    );
     info!("  Total ticks: {}", total_ticks);
-    info!("  Missed ticks: {} ({:.6}%)", total_missed_ticks, 
-          (total_missed_ticks as f64 / total_ticks as f64) * 100.0);
+    info!(
+        "  Missed ticks: {} ({:.6}%)",
+        total_missed_ticks,
+        (total_missed_ticks as f64 / total_ticks as f64) * 100.0
+    );
     info!("  Checkpoints created: {}", checkpoints.len());
-    info!("  Final memory usage: {:.1}MB", final_metrics.memory_usage_mb);
-    
+    info!(
+        "  Final memory usage: {:.1}MB",
+        final_metrics.memory_usage_mb
+    );
+
     // Validate soak test success criteria
     let success_criteria_met = validate_soak_success_criteria(
-        &checkpoints, 
-        actual_duration, 
-        total_ticks, 
-        total_missed_ticks
+        &checkpoints,
+        actual_duration,
+        total_ticks,
+        total_missed_ticks,
     );
-    
+
     if !success_criteria_met {
         errors.push("Soak test success criteria not met".to_string());
     }
-    
+
     harness.shutdown().await?;
-    
+
     Ok(TestResult {
         passed: errors.is_empty() && success_criteria_met,
         duration: actual_duration,
@@ -211,16 +238,16 @@ pub async fn run_soak_test() -> Result<TestResult> {
 /// Run abbreviated soak test for CI (1 hour instead of 48 hours)
 pub async fn run_ci_soak_test() -> Result<TestResult> {
     info!("Starting CI soak test (1 hour)");
-    
+
     let soak_config = SoakTestConfig {
-        duration: Duration::from_secs(3600), // 1 hour for CI
+        duration: Duration::from_secs(3600),           // 1 hour for CI
         checkpoint_interval: Duration::from_secs(300), // 5 minute checkpoints
         metrics_collection_interval: Duration::from_secs(30), // 30 second metrics
         enable_full_logging: false,
         enable_blackbox_recording: false, // Reduce I/O for CI
         ..Default::default()
     };
-    
+
     let test_config = TestConfig {
         duration: soak_config.duration,
         virtual_device: true,
@@ -228,64 +255,71 @@ pub async fn run_ci_soak_test() -> Result<TestResult> {
         enable_metrics: true,
         ..Default::default()
     };
-    
+
     let mut harness = TestHarness::new(test_config.clone()).await?;
     let mut errors = Vec::new();
     let start_time = Instant::now();
-    
+
     harness.start_service().await?;
-    
+
     let mut total_ticks = 0u64;
     let mut total_missed_ticks = 0u64;
     let mut timer = RTTimer::new(crate::FFB_FREQUENCY_HZ);
     let end_time = start_time + soak_config.duration;
-    
+
     info!("CI soak test will run for {:?}", soak_config.duration);
-    
+
     while Instant::now() < end_time {
         let jitter = timer.wait_for_next_tick().await;
         total_ticks += 1;
-        
+
         if jitter > Duration::from_micros(500) {
             total_missed_ticks += 1;
         }
-        
+
         simulate_soak_ffb_processing().await;
-        
+
         // Check for performance issues every 10 seconds
         if total_ticks % 10000 == 0 {
             let current_metrics = harness.collect_metrics().await;
-            
+
             if current_metrics.jitter_p99_ms > crate::MAX_JITTER_P99_MS {
-                errors.push(format!("Jitter {:.3}ms exceeded limit during CI soak", 
-                                  current_metrics.jitter_p99_ms));
+                errors.push(format!(
+                    "Jitter {:.3}ms exceeded limit during CI soak",
+                    current_metrics.jitter_p99_ms
+                ));
             }
-            
+
             if current_metrics.memory_usage_mb > soak_config.max_memory_mb {
-                errors.push(format!("Memory usage {:.1}MB exceeded limit during CI soak", 
-                                  current_metrics.memory_usage_mb));
+                errors.push(format!(
+                    "Memory usage {:.1}MB exceeded limit during CI soak",
+                    current_metrics.memory_usage_mb
+                ));
             }
         }
     }
-    
+
     let actual_duration = start_time.elapsed();
     let final_metrics = harness.collect_metrics().await;
-    
+
     info!("CI soak test completed:");
     info!("  Duration: {:?}", actual_duration);
     info!("  Total ticks: {}", total_ticks);
-    info!("  Missed ticks: {} ({:.6}%)", total_missed_ticks, 
-          (total_missed_ticks as f64 / total_ticks as f64) * 100.0);
-    
+    info!(
+        "  Missed ticks: {} ({:.6}%)",
+        total_missed_ticks,
+        (total_missed_ticks as f64 / total_ticks as f64) * 100.0
+    );
+
     // CI soak test passes if no missed ticks and no performance degradation
     let ci_success = total_missed_ticks == 0 && errors.is_empty();
-    
+
     if !ci_success {
         errors.push("CI soak test failed performance criteria".to_string());
     }
-    
+
     harness.shutdown().await?;
-    
+
     Ok(TestResult {
         passed: ci_success,
         duration: actual_duration,
@@ -309,7 +343,7 @@ async fn create_checkpoint(
     errors: &[String],
 ) -> Result<SoakCheckpoint> {
     let metrics = harness.collect_metrics().await;
-    
+
     Ok(SoakCheckpoint {
         timestamp: std::time::SystemTime::now(),
         elapsed: start_time.elapsed(),
@@ -326,27 +360,29 @@ fn should_terminate_early(checkpoints: &[SoakCheckpoint]) -> bool {
     if checkpoints.len() < 3 {
         return false;
     }
-    
+
     // Check for consistent performance degradation
-    let recent_checkpoints = &checkpoints[checkpoints.len()-3..];
-    
+    let recent_checkpoints = &checkpoints[checkpoints.len() - 3..];
+
     // Terminate if jitter consistently exceeds limits
-    let jitter_violations = recent_checkpoints.iter()
+    let jitter_violations = recent_checkpoints
+        .iter()
         .filter(|cp| cp.metrics.jitter_p99_ms > crate::MAX_JITTER_P99_MS)
         .count();
-    
+
     if jitter_violations >= 2 {
         return true;
     }
-    
+
     // Terminate if memory usage is growing consistently
-    let memory_trend = recent_checkpoints.windows(2)
+    let memory_trend = recent_checkpoints
+        .windows(2)
         .all(|pair| pair[1].memory_usage_mb > pair[0].memory_usage_mb);
-    
+
     if memory_trend && recent_checkpoints.last().unwrap().memory_usage_mb > 200.0 {
         return true;
     }
-    
+
     false
 }
 
@@ -370,21 +406,24 @@ fn create_soak_summary(
     missed_ticks: u64,
 ) -> SoakSummary {
     let miss_rate_percent = (missed_ticks as f64 / total_ticks as f64) * 100.0;
-    
-    let max_jitter_ms = checkpoints.iter()
+
+    let max_jitter_ms = checkpoints
+        .iter()
         .map(|cp| cp.metrics.jitter_p99_ms)
         .fold(0.0f64, f64::max);
-    
-    let max_memory_mb = checkpoints.iter()
+
+    let max_memory_mb = checkpoints
+        .iter()
         .map(|cp| cp.memory_usage_mb)
         .fold(0.0f64, f64::max);
-    
-    let max_cpu_percent = checkpoints.iter()
+
+    let max_cpu_percent = checkpoints
+        .iter()
         .map(|cp| cp.cpu_usage_percent)
         .fold(0.0f64, f64::max);
-    
+
     let success = validate_soak_success_criteria(checkpoints, duration, total_ticks, missed_ticks);
-    
+
     SoakSummary {
         duration,
         total_ticks,
@@ -409,41 +448,47 @@ fn validate_soak_success_criteria(
     // 2. No memory leaks (stable memory usage)
     // 3. Consistent performance (jitter within limits)
     // 4. Minimum duration achieved
-    
+
     if missed_ticks > 0 {
         return false;
     }
-    
-    if duration < Duration::from_secs(47 * 3600) { // At least 47 hours
+
+    if duration < Duration::from_secs(47 * 3600) {
+        // At least 47 hours
         return false;
     }
-    
+
     // Check for memory leaks (memory should not grow consistently)
     if checkpoints.len() >= 10 {
-        let first_half_avg = checkpoints[..checkpoints.len()/2].iter()
+        let first_half_avg = checkpoints[..checkpoints.len() / 2]
+            .iter()
             .map(|cp| cp.memory_usage_mb)
-            .sum::<f64>() / (checkpoints.len() / 2) as f64;
-        
-        let second_half_avg = checkpoints[checkpoints.len()/2..].iter()
+            .sum::<f64>()
+            / (checkpoints.len() / 2) as f64;
+
+        let second_half_avg = checkpoints[checkpoints.len() / 2..]
+            .iter()
             .map(|cp| cp.memory_usage_mb)
-            .sum::<f64>() / (checkpoints.len() / 2) as f64;
-        
+            .sum::<f64>()
+            / (checkpoints.len() / 2) as f64;
+
         // Memory growth >20% indicates potential leak
         if second_half_avg > first_half_avg * 1.2 {
             return false;
         }
     }
-    
+
     // Check for performance consistency
-    let jitter_violations = checkpoints.iter()
+    let jitter_violations = checkpoints
+        .iter()
         .filter(|cp| cp.metrics.jitter_p99_ms > crate::MAX_JITTER_P99_MS)
         .count();
-    
+
     // Allow up to 5% of checkpoints to have jitter violations
     if jitter_violations > checkpoints.len() / 20 {
         return false;
     }
-    
+
     true
 }
 

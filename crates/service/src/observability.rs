@@ -12,21 +12,21 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use axum::{
+    Router,
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Response},
     routing::get,
-    Router,
 };
 use prometheus::TextEncoder;
 use racing_wheel_engine::{
-    MetricsCollector, HealthEvent, HealthEventStreamer, AlertingThresholds, MetricsValidator
+    AlertingThresholds, HealthEvent, HealthEventStreamer, MetricsCollector, MetricsValidator,
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tokio::time::interval;
 use tokio_stream::{Stream, StreamExt};
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Observability service configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,9 +48,10 @@ pub struct ObservabilityConfig {
 impl Default for ObservabilityConfig {
     fn default() -> Self {
         Self {
-            metrics_addr: "127.0.0.1:9090".parse()
+            metrics_addr: "127.0.0.1:9090"
+                .parse()
                 .unwrap_or_else(|_| std::net::SocketAddr::from(([127, 0, 0, 1], 9090))),
-            health_stream_rate_hz: 15.0, // 15Hz for real-time monitoring
+            health_stream_rate_hz: 15.0,  // 15Hz for real-time monitoring
             collection_interval_ms: 1000, // Collect every second
             enable_prometheus: true,
             enable_health_streaming: true,
@@ -80,105 +81,112 @@ impl ObservabilityService {
     /// Create new observability service
     pub async fn new(config: ObservabilityConfig) -> Result<Self> {
         let metrics_collector = Arc::new(RwLock::new(
-            MetricsCollector::new()
-                .context("Failed to create metrics collector")?
+            MetricsCollector::new().context("Failed to create metrics collector")?,
         ));
-        
+
         let health_streamer = {
             let collector = metrics_collector.read().await;
             collector.health_streamer()
         };
-        
+
         let validator = Arc::new(MetricsValidator::new(config.alerting_thresholds.clone()));
-        
+
         let state = ObservabilityState {
             metrics_collector,
             health_streamer,
             validator,
             config: config.clone(),
         };
-        
+
         Ok(Self {
             state,
             metrics_server_handle: None,
             collection_task_handle: None,
         })
     }
-    
+
     /// Start the observability service
     pub async fn start(&mut self) -> Result<()> {
         info!("Starting observability service");
-        
+
         // Start metrics collection task
         if self.state.config.enable_prometheus || self.state.config.enable_health_streaming {
             let collection_handle = self.start_metrics_collection().await?;
             self.collection_task_handle = Some(collection_handle);
         }
-        
+
         // Start Prometheus metrics server
         if self.state.config.enable_prometheus {
             let server_handle = self.start_metrics_server().await?;
             self.metrics_server_handle = Some(server_handle);
         }
-        
+
         info!(
             "Observability service started - metrics: {}, health streaming: {}",
-            self.state.config.enable_prometheus,
-            self.state.config.enable_health_streaming
+            self.state.config.enable_prometheus, self.state.config.enable_health_streaming
         );
-        
+
         Ok(())
     }
-    
+
     /// Stop the observability service
     pub async fn stop(&mut self) -> Result<()> {
         info!("Stopping observability service");
-        
+
         // Stop metrics server
         if let Some(handle) = self.metrics_server_handle.take() {
             handle.abort();
             let _ = handle.await;
         }
-        
+
         // Stop collection task
         if let Some(handle) = self.collection_task_handle.take() {
             handle.abort();
             let _ = handle.await;
         }
-        
+
         info!("Observability service stopped");
         Ok(())
     }
-    
+
     /// Get health event stream
-    pub fn health_events(&self) -> impl Stream<Item = Result<HealthEvent, tokio_stream::wrappers::errors::BroadcastStreamRecvError>> {
+    pub fn health_events(
+        &self,
+    ) -> impl Stream<Item = Result<HealthEvent, tokio_stream::wrappers::errors::BroadcastStreamRecvError>>
+    {
         self.state.health_streamer.subscribe()
     }
-    
+
     /// Get metrics collector for engine integration
     pub fn metrics_collector(&self) -> Arc<RwLock<MetricsCollector>> {
         self.state.metrics_collector.clone()
     }
-    
+
     /// Start metrics collection task
     async fn start_metrics_collection(&self) -> Result<tokio::task::JoinHandle<()>> {
         let state = self.state.clone();
         let collection_interval = Duration::from_millis(state.config.collection_interval_ms);
-        
+
         let handle = tokio::spawn(async move {
             let mut interval = interval(collection_interval);
-            
+
             loop {
                 interval.tick().await;
-                
+
                 // Collect metrics
-                match state.metrics_collector.write().await.collect_metrics().await {
+                match state
+                    .metrics_collector
+                    .write()
+                    .await
+                    .collect_metrics()
+                    .await
+                {
                     Ok(()) => {
                         // Metrics collected successfully
                     }
                     Err(e) => {
                         error!("Failed to collect metrics: {}", e);
-                        
+
                         // Emit health event for collection failure
                         let event = HealthEventStreamer::create_event(
                             racing_wheel_engine::HealthEventType::Error,
@@ -190,40 +198,43 @@ impl ObservabilityService {
                                 "timestamp": chrono::Utc::now()
                             }),
                         );
-                        
+
                         if let Err(e) = state.health_streamer.emit(event) {
-                            warn!("Failed to emit health event for metrics collection failure: {}", e);
+                            warn!(
+                                "Failed to emit health event for metrics collection failure: {}",
+                                e
+                            );
                         }
                     }
                 }
             }
         });
-        
+
         Ok(handle)
     }
-    
+
     /// Start Prometheus metrics HTTP server
     async fn start_metrics_server(&self) -> Result<tokio::task::JoinHandle<()>> {
         let state = self.state.clone();
         let addr = state.config.metrics_addr;
-        
+
         let app = Router::new()
             .route("/metrics", get(metrics_handler))
             .route("/health", get(health_handler))
             .with_state(state);
-        
+
         let listener = tokio::net::TcpListener::bind(addr)
             .await
             .context("Failed to bind metrics server")?;
-        
+
         info!("Prometheus metrics server listening on {}", addr);
-        
+
         let handle = tokio::spawn(async move {
             if let Err(e) = axum::serve(listener, app).await {
                 error!("Metrics server error: {}", e);
             }
         });
-        
+
         Ok(handle)
     }
 }
@@ -232,24 +243,24 @@ impl ObservabilityService {
 async fn metrics_handler(State(state): State<ObservabilityState>) -> Response {
     let collector = state.metrics_collector.read().await;
     let registry = collector.prometheus_registry();
-    
+
     let encoder = TextEncoder::new();
     let metric_families = registry.gather();
-    
+
     match encoder.encode_to_string(&metric_families) {
-        Ok(output) => {
-            (
-                StatusCode::OK,
-                [("content-type", "text/plain; version=0.0.4")],
-                output,
-            ).into_response()
-        }
+        Ok(output) => (
+            StatusCode::OK,
+            [("content-type", "text/plain; version=0.0.4")],
+            output,
+        )
+            .into_response(),
         Err(e) => {
             error!("Failed to encode Prometheus metrics: {}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to encode metrics: {}", e),
-            ).into_response()
+            )
+                .into_response()
         }
     }
 }
@@ -261,12 +272,13 @@ async fn health_handler() -> Response {
         "timestamp": chrono::Utc::now(),
         "service": "racing-wheel-observability"
     });
-    
+
     (
         StatusCode::OK,
         [("content-type", "application/json")],
         health_status.to_string(),
-    ).into_response()
+    )
+        .into_response()
 }
 
 /// Health event streaming service for real-time monitoring
@@ -280,13 +292,13 @@ impl HealthStreamingService {
     pub fn new(streamer: Arc<HealthEventStreamer>, rate_hz: f32) -> Self {
         Self { streamer, rate_hz }
     }
-    
+
     /// Start streaming health events at specified rate
     pub async fn start_streaming(&self) -> impl Stream<Item = HealthEvent> {
         let mut stream = self.streamer.subscribe();
         let interval_duration = Duration::from_secs_f32(1.0 / self.rate_hz);
         let mut interval = interval(interval_duration);
-        
+
         async_stream::stream! {
             loop {
                 tokio::select! {
@@ -304,7 +316,7 @@ impl HealthStreamingService {
                         );
                         yield event;
                     }
-                    
+
                     event = stream.next() => {
                         match event {
                             Some(Ok(event)) => yield event,
@@ -358,15 +370,14 @@ impl Default for LoggingConfig {
 /// Initialize structured logging with device and game context
 pub fn init_logging(config: LoggingConfig) -> Result<()> {
     use tracing_subscriber::{
-        fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
+        EnvFilter, Layer, fmt, layer::SubscriberExt, util::SubscriberInitExt,
     };
-    
+
     let env_filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new(config.level.to_string()));
-    
+
     let fmt_layer = if config.json_format {
-        fmt::layer()
-            .boxed()
+        fmt::layer().boxed()
     } else {
         fmt::layer()
             .with_target(true)
@@ -374,12 +385,12 @@ pub fn init_logging(config: LoggingConfig) -> Result<()> {
             .with_thread_names(true)
             .boxed()
     };
-    
+
     tracing_subscriber::registry()
         .with(env_filter)
         .with(fmt_layer)
         .init();
-    
+
     info!(
         "Structured logging initialized - level: {}, json: {}, device_context: {}, game_context: {}",
         config.level,
@@ -387,7 +398,7 @@ pub fn init_logging(config: LoggingConfig) -> Result<()> {
         config.include_device_context,
         config.include_game_context
     );
-    
+
     Ok(())
 }
 
@@ -421,7 +432,7 @@ impl LoggingSpans {
             device_type = %context.device_type
         )
     }
-    
+
     /// Create game context span
     pub fn game_span(context: &GameContext) -> tracing::Span {
         tracing::info_span!(
@@ -432,7 +443,7 @@ impl LoggingSpans {
             track_id = ?context.track_id
         )
     }
-    
+
     /// Create RT operation span
     pub fn rt_span(operation: &str, tick_count: u64) -> tracing::Span {
         tracing::debug_span!(
@@ -459,10 +470,10 @@ mod tests {
     async fn test_health_streaming_service() {
         let streamer = Arc::new(HealthEventStreamer::new(100));
         let streaming_service = HealthStreamingService::new(streamer.clone(), 10.0);
-        
+
         let mut stream = streaming_service.start_streaming().await;
         tokio::pin!(stream);
-        
+
         // Emit a test event
         let test_event = HealthEventStreamer::create_event(
             racing_wheel_engine::HealthEventType::DeviceStatus,
@@ -471,15 +482,13 @@ mod tests {
             Some("test-device".to_string()),
             serde_json::json!({"test": true}),
         );
-        
+
         streamer.emit(test_event.clone()).unwrap();
-        
+
         // Should receive the event
-        let received = tokio::time::timeout(
-            Duration::from_millis(100),
-            stream.as_mut().next()
-        ).await;
-        
+        let received =
+            tokio::time::timeout(Duration::from_millis(100), stream.as_mut().next()).await;
+
         assert!(received.is_ok());
         let event = received.unwrap().unwrap();
         assert_eq!(event.message, "Test event");
@@ -501,7 +510,7 @@ mod tests {
             device_name: "Test Device".to_string(),
             device_type: "wheel".to_string(),
         };
-        
+
         let span = LoggingSpans::device_span(&context);
         assert_eq!(span.metadata().name(), "device");
     }
@@ -514,7 +523,7 @@ mod tests {
             car_id: Some("gt3".to_string()),
             track_id: Some("spa".to_string()),
         };
-        
+
         let span = LoggingSpans::game_span(&context);
         assert_eq!(span.metadata().name(), "game");
     }
@@ -524,8 +533,14 @@ mod tests {
         let config = ObservabilityConfig::default();
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: ObservabilityConfig = serde_json::from_str(&json).unwrap();
-        
-        assert_eq!(config.health_stream_rate_hz, deserialized.health_stream_rate_hz);
-        assert_eq!(config.collection_interval_ms, deserialized.collection_interval_ms);
+
+        assert_eq!(
+            config.health_stream_rate_hz,
+            deserialized.health_stream_rate_hz
+        );
+        assert_eq!(
+            config.collection_interval_ms,
+            deserialized.collection_interval_ms
+        );
     }
 }

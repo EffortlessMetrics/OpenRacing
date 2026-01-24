@@ -1,13 +1,15 @@
 //! Profile service for CRUD operations and hierarchy resolution
 
+use crate::profile_repository::{
+    ProfileRepository, ProfileRepositoryConfig, ProfileSignature, TrustState,
+};
 use anyhow::Result;
-use racing_wheel_schemas::prelude::{Profile, DeviceId, ProfileId, DeviceCapabilities};
-use crate::profile_repository::{ProfileRepository, ProfileRepositoryConfig, TrustState, ProfileSignature};
+use ed25519_dalek::SigningKey;
+use racing_wheel_schemas::prelude::{DeviceCapabilities, DeviceId, Profile, ProfileId};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn, debug};
-use ed25519_dalek::SigningKey;
+use tracing::{debug, info, warn};
 
 /// Profile service for managing profiles with persistence and validation
 pub struct ProfileService {
@@ -29,7 +31,7 @@ impl ProfileService {
     /// Create new profile service with custom configuration
     pub async fn new_with_config(config: ProfileRepositoryConfig) -> Result<Self> {
         let repository = ProfileRepository::new(config).await?;
-        
+
         Ok(Self {
             repository,
             active_profiles: Arc::new(RwLock::new(HashMap::new())),
@@ -49,11 +51,17 @@ impl ProfileService {
     }
 
     /// Create a new signed profile
-    pub async fn create_signed_profile(&self, profile: Profile, signing_key: &SigningKey) -> Result<ProfileId> {
+    pub async fn create_signed_profile(
+        &self,
+        profile: Profile,
+        signing_key: &SigningKey,
+    ) -> Result<ProfileId> {
         info!(profile_id = %profile.id, "Creating new signed profile");
 
         // Save to repository with signature
-        self.repository.save_profile(&profile, Some(signing_key)).await?;
+        self.repository
+            .save_profile(&profile, Some(signing_key))
+            .await?;
 
         info!(profile_id = %profile.id, "Signed profile created successfully");
         Ok(profile.id.clone())
@@ -82,7 +90,11 @@ impl ProfileService {
     }
 
     /// Update an existing profile with signature
-    pub async fn update_signed_profile(&self, profile: Profile, signing_key: &SigningKey) -> Result<()> {
+    pub async fn update_signed_profile(
+        &self,
+        profile: Profile,
+        signing_key: &SigningKey,
+    ) -> Result<()> {
         info!(profile_id = %profile.id, "Updating signed profile");
 
         // Check if profile exists
@@ -91,7 +103,9 @@ impl ProfileService {
         }
 
         // Save updated profile with signature
-        self.repository.save_profile(&profile, Some(signing_key)).await?;
+        self.repository
+            .save_profile(&profile, Some(signing_key))
+            .await?;
 
         info!(profile_id = %profile.id, "Signed profile updated successfully");
         Ok(())
@@ -111,7 +125,10 @@ impl ProfileService {
                         device_id = %device_id,
                         "Cannot delete profile that is currently active"
                     );
-                    return Err(anyhow::anyhow!("Profile is currently active on device {}", device_id));
+                    return Err(anyhow::anyhow!(
+                        "Profile is currently active on device {}",
+                        device_id
+                    ));
                 }
             }
         }
@@ -139,7 +156,7 @@ impl ProfileService {
         device_capabilities: &DeviceCapabilities,
     ) -> Result<Profile> {
         info!(device_id = %device_id, game = ?game, car = ?car, track = ?track, "Applying profile to device");
-        
+
         // Get session overrides for this device
         let session_overrides = {
             let overrides = self.session_overrides.read().await;
@@ -147,12 +164,10 @@ impl ProfileService {
         };
 
         // Resolve profile hierarchy
-        let resolved_profile = self.repository.resolve_profile_hierarchy(
-            game,
-            car,
-            track,
-            session_overrides.as_ref(),
-        ).await?;
+        let resolved_profile = self
+            .repository
+            .resolve_profile_hierarchy(game, car, track, session_overrides.as_ref())
+            .await?;
 
         // Validate profile against device capabilities
         resolved_profile.validate_for_device(device_capabilities)?;
@@ -166,36 +181,40 @@ impl ProfileService {
         info!(device_id = %device_id, profile_id = %resolved_profile.id, "Profile applied successfully");
         Ok(resolved_profile)
     }
-    
+
     /// Load profile by ID string (alias for get_profile for compatibility)
     pub async fn load_profile(&self, profile_id: &str) -> Result<Profile> {
         let profile_id = profile_id.parse::<ProfileId>()?;
-        self.get_profile(&profile_id).await?
+        self.get_profile(&profile_id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Profile not found: {}", profile_id))
     }
 
     /// Get profile signature information
-    pub async fn get_profile_signature(&self, profile_id: &ProfileId) -> Result<Option<ProfileSignature>> {
+    pub async fn get_profile_signature(
+        &self,
+        profile_id: &ProfileId,
+    ) -> Result<Option<ProfileSignature>> {
         self.repository.get_profile_signature(profile_id).await
     }
 
     /// Set session override for a device (temporary profile changes)
     pub async fn set_session_override(&self, device_id: &DeviceId, profile: Profile) -> Result<()> {
         info!(device_id = %device_id, profile_id = %profile.id, "Setting session override");
-        
+
         let mut overrides = self.session_overrides.write().await;
         overrides.insert(device_id.clone(), profile);
-        
+
         Ok(())
     }
 
     /// Clear session override for a device
     pub async fn clear_session_override(&self, device_id: &DeviceId) -> Result<()> {
         info!(device_id = %device_id, "Clearing session override");
-        
+
         let mut overrides = self.session_overrides.write().await;
         overrides.remove(device_id);
-        
+
         Ok(())
     }
 
@@ -212,7 +231,11 @@ impl ProfileService {
     }
 
     /// Set active profile for device
-    pub async fn set_active_profile(&self, device_id: &DeviceId, profile_id: &ProfileId) -> Result<()> {
+    pub async fn set_active_profile(
+        &self,
+        device_id: &DeviceId,
+        profile_id: &ProfileId,
+    ) -> Result<()> {
         let mut active_profiles = self.active_profiles.write().await;
         active_profiles.insert(device_id.clone(), profile_id.clone());
         Ok(())
@@ -274,13 +297,13 @@ pub struct ProfileStatistics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use racing_wheel_schemas::{
-        ProfileScope, BaseSettings, FilterConfig, Gain, Degrees, TorqueNm,
-        DeviceCapabilities, DeviceType, TorqueNm as DeviceTorqueNm
-    };
-    use tempfile::TempDir;
     use ed25519_dalek::SigningKey;
+    use racing_wheel_schemas::{
+        BaseSettings, Degrees, DeviceCapabilities, DeviceType, FilterConfig, Gain, ProfileScope,
+        TorqueNm, TorqueNm as DeviceTorqueNm,
+    };
     use rand::rngs::OsRng;
+    use tempfile::TempDir;
 
     async fn create_test_service() -> (ProfileService, TempDir) {
         let temp_dir = TempDir::new().unwrap();
@@ -355,13 +378,16 @@ mod tests {
     async fn test_signed_profile_operations() {
         let (service, _temp_dir) = create_test_service().await;
         let profile = create_test_profile("signed_test");
-        
+
         // Generate signing key
         let mut csprng = OsRng;
         let signing_key = SigningKey::generate(&mut csprng);
 
         // Create signed profile
-        let profile_id = service.create_signed_profile(profile.clone(), &signing_key).await.unwrap();
+        let profile_id = service
+            .create_signed_profile(profile.clone(), &signing_key)
+            .await
+            .unwrap();
         assert_eq!(profile_id, profile.id);
 
         // Check signature
@@ -408,13 +434,10 @@ mod tests {
         service.create_profile(game_profile).await.unwrap();
 
         // Apply profile hierarchy
-        let resolved = service.apply_profile_to_device(
-            &device_id,
-            Some("iracing"),
-            None,
-            None,
-            &capabilities,
-        ).await.unwrap();
+        let resolved = service
+            .apply_profile_to_device(&device_id, Some("iracing"), None, None, &capabilities)
+            .await
+            .unwrap();
 
         // Should use game-specific settings
         assert_eq!(resolved.base_settings.ffb_gain.value(), 0.7);
@@ -430,11 +453,14 @@ mod tests {
     async fn test_session_overrides() {
         let (service, _temp_dir) = create_test_service().await;
         let device_id = DeviceId::new("test_device".to_string()).unwrap();
-        
+
         let override_profile = create_test_profile("session_override");
 
         // Set session override
-        service.set_session_override(&device_id, override_profile.clone()).await.unwrap();
+        service
+            .set_session_override(&device_id, override_profile.clone())
+            .await
+            .unwrap();
 
         // Get session override
         let retrieved = service.get_session_override(&device_id).await.unwrap();
@@ -461,7 +487,7 @@ mod tests {
         // Create profiles
         let profile1 = create_test_profile("stats_test1");
         let profile2 = create_test_profile("stats_test2");
-        
+
         service.create_profile(profile1).await.unwrap();
         service.create_profile(profile2).await.unwrap();
 
@@ -475,7 +501,7 @@ mod tests {
     async fn test_profile_validation_against_device() {
         let (service, _temp_dir) = create_test_service().await;
         let device_id = DeviceId::new("test_device".to_string()).unwrap();
-        
+
         // Create device with limited torque capability
         let limited_capabilities = DeviceCapabilities::new(
             false,
@@ -503,13 +529,9 @@ mod tests {
         service.create_profile(excessive_profile).await.unwrap();
 
         // Applying should fail due to validation
-        let result = service.apply_profile_to_device(
-            &device_id,
-            None,
-            None,
-            None,
-            &limited_capabilities,
-        ).await;
+        let result = service
+            .apply_profile_to_device(&device_id, None, None, None, &limited_capabilities)
+            .await;
 
         assert!(result.is_err());
     }

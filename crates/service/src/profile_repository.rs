@@ -8,20 +8,20 @@
 //! - File-based storage with atomic operations
 
 use anyhow::{Context, Result};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use ed25519_dalek::{Signature, Signer, Verifier, VerifyingKey};
+use racing_wheel_schemas::config::{ProfileMigrator, ProfileSchema, ProfileValidator, SchemaError};
 use racing_wheel_schemas::prelude::{
-    Profile, ProfileId, ProfileScope, ProfileMetadata, BaseSettings, FilterConfig,
-    LedConfig, HapticsConfig,
+    BaseSettings, FilterConfig, HapticsConfig, LedConfig, Profile, ProfileId, ProfileMetadata,
+    ProfileScope,
 };
-use racing_wheel_schemas::config::{ProfileSchema, ProfileValidator, ProfileMigrator, SchemaError};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::fs as async_fs;
 use tokio::sync::RwLock;
-use tracing::{info, warn, debug, error};
-use ed25519_dalek::{Signature, Verifier, VerifyingKey, Signer};
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use sha2::{Sha256, Digest};
+use tracing::{debug, error, info, warn};
 
 /// Trust state for profile signatures
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -83,11 +83,16 @@ impl ProfileRepository {
     /// Create a new profile repository
     pub async fn new(config: ProfileRepositoryConfig) -> Result<Self> {
         // Ensure profiles directory exists
-        async_fs::create_dir_all(&config.profiles_dir).await
-            .with_context(|| format!("Failed to create profiles directory: {:?}", config.profiles_dir))?;
+        async_fs::create_dir_all(&config.profiles_dir)
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to create profiles directory: {:?}",
+                    config.profiles_dir
+                )
+            })?;
 
-        let validator = ProfileValidator::new()
-            .context("Failed to create profile validator")?;
+        let validator = ProfileValidator::new().context("Failed to create profile validator")?;
 
         let repository = Self {
             config,
@@ -103,7 +108,11 @@ impl ProfileRepository {
     }
 
     /// Save a profile to disk with optional signing
-    pub async fn save_profile(&self, profile: &Profile, sign_with_key: Option<&ed25519_dalek::SigningKey>) -> Result<()> {
+    pub async fn save_profile(
+        &self,
+        profile: &Profile,
+        sign_with_key: Option<&ed25519_dalek::SigningKey>,
+    ) -> Result<()> {
         info!(profile_id = %profile.id, "Saving profile");
 
         // Convert to schema format
@@ -116,32 +125,37 @@ impl ProfileRepository {
         // Add signature if requested
         let signature_info = if let Some(signing_key) = sign_with_key {
             let signature = self.sign_profile_json(&json, signing_key)?;
-            
+
             // Add signature to JSON
             let mut profile_with_sig = profile_schema;
             profile_with_sig.signature = Some(signature.signature.clone());
-            
+
             json = serde_json::to_string_pretty(&profile_with_sig)
                 .context("Failed to serialize signed profile to JSON")?;
-            
+
             Some(signature)
         } else {
             None
         };
 
         // Validate the final JSON
-        self.validator.validate_json(&json)
+        self.validator
+            .validate_json(&json)
             .context("Profile validation failed before saving")?;
 
         // Write to file atomically
         let file_path = self.get_profile_file_path(&profile.id);
         let temp_path = file_path.with_extension("tmp");
-        
-        async_fs::write(&temp_path, &json).await
+
+        async_fs::write(&temp_path, &json)
+            .await
             .with_context(|| format!("Failed to write profile to temp file: {:?}", temp_path))?;
-        
-        async_fs::rename(&temp_path, &file_path).await
-            .with_context(|| format!("Failed to move profile to final location: {:?}", file_path))?;
+
+        async_fs::rename(&temp_path, &file_path)
+            .await
+            .with_context(|| {
+                format!("Failed to move profile to final location: {:?}", file_path)
+            })?;
 
         // Update caches
         {
@@ -177,7 +191,8 @@ impl ProfileRepository {
             return Ok(None);
         }
 
-        let json = async_fs::read_to_string(&file_path).await
+        let json = async_fs::read_to_string(&file_path)
+            .await
             .with_context(|| format!("Failed to read profile file: {:?}", file_path))?;
 
         let profile = self.load_profile_from_json(&json, profile_id).await?;
@@ -199,14 +214,18 @@ impl ProfileRepository {
             match ProfileMigrator::migrate_profile(json) {
                 Ok(schema) => schema,
                 Err(SchemaError::UnsupportedSchemaVersion(version)) => {
-                    return Err(anyhow::anyhow!("Unsupported profile schema version: {}", version));
+                    return Err(anyhow::anyhow!(
+                        "Unsupported profile schema version: {}",
+                        version
+                    ));
                 }
                 Err(e) => {
                     return Err(anyhow::anyhow!("Profile migration failed: {}", e));
                 }
             }
         } else {
-            self.validator.validate_json(json)
+            self.validator
+                .validate_json(json)
                 .context("Profile validation failed")?
         };
 
@@ -234,9 +253,10 @@ impl ProfileRepository {
         info!(profile_id = %profile_id, "Deleting profile");
 
         let file_path = self.get_profile_file_path(profile_id);
-        
+
         if file_path.exists() {
-            async_fs::remove_file(&file_path).await
+            async_fs::remove_file(&file_path)
+                .await
                 .with_context(|| format!("Failed to delete profile file: {:?}", file_path))?;
         }
 
@@ -263,7 +283,10 @@ impl ProfileRepository {
     }
 
     /// Get profile signature information
-    pub async fn get_profile_signature(&self, profile_id: &ProfileId) -> Result<Option<ProfileSignature>> {
+    pub async fn get_profile_signature(
+        &self,
+        profile_id: &ProfileId,
+    ) -> Result<Option<ProfileSignature>> {
         let sig_cache = self.signature_cache.read().await;
         Ok(sig_cache.get(profile_id).cloned().flatten())
     }
@@ -279,7 +302,7 @@ impl ProfileRepository {
         debug!(game = ?game, car = ?car, track = ?track, "Resolving profile hierarchy");
 
         let profiles = self.list_profiles().await?;
-        
+
         // Find matching profiles and sort by specificity
         let mut matching_profiles: Vec<&Profile> = profiles
             .iter()
@@ -293,8 +316,7 @@ impl ProfileRepository {
         let mut resolved = if let Some(global) = matching_profiles.first() {
             (*global).clone()
         } else {
-            Profile::default_global()
-                .context("Failed to create default global profile")?
+            Profile::default_global().context("Failed to create default global profile")?
         };
 
         // Apply profiles in order of specificity (deterministic merge)
@@ -339,52 +361,67 @@ impl ProfileRepository {
     async fn load_all_profiles(&self) -> Result<()> {
         info!("Loading all profiles from disk");
 
-        let mut entries = async_fs::read_dir(&self.config.profiles_dir).await
-            .with_context(|| format!("Failed to read profiles directory: {:?}", self.config.profiles_dir))?;
+        let mut entries = async_fs::read_dir(&self.config.profiles_dir)
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to read profiles directory: {:?}",
+                    self.config.profiles_dir
+                )
+            })?;
 
         let mut loaded_count = 0;
         let mut error_count = 0;
 
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
-            
+
             if path.extension().and_then(|s| s.to_str()) == Some("json")
-                && let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    match file_stem.parse::<ProfileId>() {
-                        Ok(profile_id) => {
-                            match self.load_profile(&profile_id).await {
-                                Ok(Some(_)) => {
-                                    loaded_count += 1;
-                                }
-                                Ok(None) => {
-                                    warn!(path = ?path, "Profile file exists but profile not found");
-                                    error_count += 1;
-                                }
-                                Err(e) => {
-                                    error!(path = ?path, error = %e, "Failed to load profile");
-                                    error_count += 1;
-                                }
-                            }
+                && let Some(file_stem) = path.file_stem().and_then(|s| s.to_str())
+            {
+                match file_stem.parse::<ProfileId>() {
+                    Ok(profile_id) => match self.load_profile(&profile_id).await {
+                        Ok(Some(_)) => {
+                            loaded_count += 1;
                         }
-                        Err(e) => {
-                            warn!(path = ?path, error = %e, "Invalid profile ID in filename");
+                        Ok(None) => {
+                            warn!(path = ?path, "Profile file exists but profile not found");
                             error_count += 1;
                         }
+                        Err(e) => {
+                            error!(path = ?path, error = %e, "Failed to load profile");
+                            error_count += 1;
+                        }
+                    },
+                    Err(e) => {
+                        warn!(path = ?path, error = %e, "Invalid profile ID in filename");
+                        error_count += 1;
                     }
                 }
+            }
         }
 
-        info!(loaded = loaded_count, errors = error_count, "Profile loading completed");
+        info!(
+            loaded = loaded_count,
+            errors = error_count,
+            "Profile loading completed"
+        );
         Ok(())
     }
 
     /// Get file path for a profile
     fn get_profile_file_path(&self, profile_id: &ProfileId) -> PathBuf {
-        self.config.profiles_dir.join(format!("{}.json", profile_id))
+        self.config
+            .profiles_dir
+            .join(format!("{}.json", profile_id))
     }
 
     /// Sign profile JSON with Ed25519 key
-    fn sign_profile_json(&self, json: &str, signing_key: &ed25519_dalek::SigningKey) -> Result<ProfileSignature> {
+    fn sign_profile_json(
+        &self,
+        json: &str,
+        signing_key: &ed25519_dalek::SigningKey,
+    ) -> Result<ProfileSignature> {
         // Create hash of the JSON content (excluding any existing signature)
         let mut hasher = Sha256::new();
         hasher.update(json.as_bytes());
@@ -402,20 +439,29 @@ impl ProfileRepository {
     }
 
     /// Verify profile signature
-    fn verify_profile_signature(&self, json: &str, signature_b64: &str) -> Result<ProfileSignature> {
+    fn verify_profile_signature(
+        &self,
+        json: &str,
+        signature_b64: &str,
+    ) -> Result<ProfileSignature> {
         // Parse the JSON to extract signature info
         let value: serde_json::Value = serde_json::from_str(json)
             .context("Failed to parse JSON for signature verification")?;
 
-        let signature_bytes = BASE64.decode(signature_b64)
+        let signature_bytes = BASE64
+            .decode(signature_b64)
             .context("Failed to decode signature from base64")?;
 
-        let signature = Signature::from_bytes(&signature_bytes.try_into()
-            .map_err(|_| anyhow::anyhow!("Invalid signature length"))?);
+        let signature = Signature::from_bytes(
+            &signature_bytes
+                .try_into()
+                .map_err(|_| anyhow::anyhow!("Invalid signature length"))?,
+        );
 
         // For verification, we need the public key (this would typically be stored separately)
         // For now, we'll extract it from the JSON if present, or mark as invalid
-        let public_key_b64 = value.get("publicKey")
+        let public_key_b64 = value
+            .get("publicKey")
             .and_then(|v| v.as_str())
             .unwrap_or("");
 
@@ -427,20 +473,25 @@ impl ProfileRepository {
             });
         }
 
-        let public_key_bytes = BASE64.decode(public_key_b64)
+        let public_key_bytes = BASE64
+            .decode(public_key_b64)
             .context("Failed to decode public key from base64")?;
 
-        let public_key = VerifyingKey::from_bytes(&public_key_bytes.try_into()
-            .map_err(|_| anyhow::anyhow!("Invalid public key length"))?)
-            .context("Failed to create verifying key")?;
+        let public_key = VerifyingKey::from_bytes(
+            &public_key_bytes
+                .try_into()
+                .map_err(|_| anyhow::anyhow!("Invalid public key length"))?,
+        )
+        .context("Failed to create verifying key")?;
 
         // Create JSON without signature for verification
         let mut json_for_verification = value.clone();
-        let json_obj = json_for_verification.as_object_mut()
+        let json_obj = json_for_verification
+            .as_object_mut()
             .ok_or_else(|| anyhow::anyhow!("Profile JSON is not an object"))?;
         json_obj.remove("signature");
         json_obj.remove("publicKey");
-        
+
         let json_without_sig = serde_json::to_string(&json_for_verification)
             .context("Failed to serialize JSON for verification")?;
 
@@ -453,7 +504,11 @@ impl ProfileRepository {
         let trust_state = match public_key.verify(&hash, &signature) {
             Ok(()) => {
                 // Check if this is a trusted key
-                if self.config.trusted_keys.contains(&public_key_b64.to_string()) {
+                if self
+                    .config
+                    .trusted_keys
+                    .contains(&public_key_b64.to_string())
+                {
                     TrustState::Trusted
                 } else {
                     TrustState::ValidUnknown
@@ -487,33 +542,42 @@ impl ProfileRepository {
                     friction: profile.base_settings.filters.friction.value(),
                     damper: profile.base_settings.filters.damper.value(),
                     inertia: profile.base_settings.filters.inertia.value(),
-                    notch_filters: profile.base_settings.filters.notch_filters.iter().map(|nf| {
-                        racing_wheel_schemas::config::NotchFilter {
+                    notch_filters: profile
+                        .base_settings
+                        .filters
+                        .notch_filters
+                        .iter()
+                        .map(|nf| racing_wheel_schemas::config::NotchFilter {
                             hz: nf.frequency.value(),
                             q: nf.q_factor,
                             gain_db: nf.gain_db,
-                        }
-                    }).collect(),
+                        })
+                        .collect(),
                     slew_rate: profile.base_settings.filters.slew_rate.value(),
-                    curve_points: profile.base_settings.filters.curve_points.iter().map(|cp| {
-                        racing_wheel_schemas::config::CurvePoint {
+                    curve_points: profile
+                        .base_settings
+                        .filters
+                        .curve_points
+                        .iter()
+                        .map(|cp| racing_wheel_schemas::config::CurvePoint {
                             input: cp.input,
                             output: cp.output,
-                        }
-                    }).collect(),
+                        })
+                        .collect(),
                     torque_cap: Some(1.0),
                     bumpstop: racing_wheel_schemas::config::BumpstopConfig::default(),
                     hands_off: racing_wheel_schemas::config::HandsOffConfig::default(),
                 },
             },
-            leds: profile.led_config.as_ref().map(|led| {
-                racing_wheel_schemas::config::LedConfig {
+            leds: profile
+                .led_config
+                .as_ref()
+                .map(|led| racing_wheel_schemas::config::LedConfig {
                     rpm_bands: led.rpm_bands.clone(),
                     pattern: led.pattern.clone(),
                     brightness: led.brightness.value(),
                     colors: Some(led.colors.clone()),
-                }
-            }),
+                }),
             haptics: profile.haptics_config.as_ref().map(|haptics| {
                 racing_wheel_schemas::config::HapticsConfig {
                     enabled: haptics.enabled,
@@ -529,7 +593,7 @@ impl ProfileRepository {
     /// Convert schema ProfileSchema to domain Profile
     fn schema_to_profile(&self, schema: &ProfileSchema, profile_id: &ProfileId) -> Result<Profile> {
         use racing_wheel_schemas::prelude::{
-            Gain, Degrees, TorqueNm, FrequencyHz, CurvePoint, NotchFilter
+            CurvePoint, Degrees, FrequencyHz, Gain, NotchFilter, TorqueNm,
         };
 
         let base_settings = BaseSettings::new(
@@ -547,29 +611,47 @@ impl ProfileRepository {
                     .map_err(|e| anyhow::anyhow!("Invalid damper value: {:?}", e))?,
                 Gain::new(schema.base.filters.inertia)
                     .map_err(|e| anyhow::anyhow!("Invalid inertia value: {:?}", e))?,
-                schema.base.filters.notch_filters.iter().map(|nf| {
-                    NotchFilter::new(
-                        FrequencyHz::new(nf.hz).map_err(|e| anyhow::anyhow!("Invalid notch filter frequency: {:?}", e))?,
-                        nf.q,
-                        nf.gain_db,
-                    ).map_err(|e| anyhow::anyhow!("Invalid notch filter: {:?}", e))
-                }).collect::<Result<Vec<_>, anyhow::Error>>()?,
+                schema
+                    .base
+                    .filters
+                    .notch_filters
+                    .iter()
+                    .map(|nf| {
+                        NotchFilter::new(
+                            FrequencyHz::new(nf.hz).map_err(|e| {
+                                anyhow::anyhow!("Invalid notch filter frequency: {:?}", e)
+                            })?,
+                            nf.q,
+                            nf.gain_db,
+                        )
+                        .map_err(|e| anyhow::anyhow!("Invalid notch filter: {:?}", e))
+                    })
+                    .collect::<Result<Vec<_>, anyhow::Error>>()?,
                 Gain::new(schema.base.filters.slew_rate)
                     .map_err(|e| anyhow::anyhow!("Invalid slew rate value: {:?}", e))?,
-                schema.base.filters.curve_points.iter().map(|cp| {
-                    CurvePoint::new(cp.input, cp.output)
-                }).collect::<Result<Vec<_>, racing_wheel_schemas::prelude::DomainError>>()
+                schema
+                    .base
+                    .filters
+                    .curve_points
+                    .iter()
+                    .map(|cp| CurvePoint::new(cp.input, cp.output))
+                    .collect::<Result<Vec<_>, racing_wheel_schemas::prelude::DomainError>>()
                     .map_err(|e| anyhow::anyhow!("Invalid curve points: {:?}", e))?,
-            ).map_err(|e| anyhow::anyhow!("Invalid filter configuration: {:?}", e))?,
+            )
+            .map_err(|e| anyhow::anyhow!("Invalid filter configuration: {:?}", e))?,
         );
 
         let led_config = if let Some(led) = &schema.leds {
-            Some(LedConfig::new(
-                led.rpm_bands.clone(),
-                led.pattern.clone(),
-                Gain::new(led.brightness).map_err(|e| anyhow::anyhow!("Invalid LED brightness: {:?}", e))?,
-                led.colors.clone().unwrap_or_default(),
-            ).map_err(|e| anyhow::anyhow!("Invalid LED configuration: {:?}", e))?)
+            Some(
+                LedConfig::new(
+                    led.rpm_bands.clone(),
+                    led.pattern.clone(),
+                    Gain::new(led.brightness)
+                        .map_err(|e| anyhow::anyhow!("Invalid LED brightness: {:?}", e))?,
+                    led.colors.clone().unwrap_or_default(),
+                )
+                .map_err(|e| anyhow::anyhow!("Invalid LED configuration: {:?}", e))?,
+            )
         } else {
             None
         };
@@ -577,8 +659,10 @@ impl ProfileRepository {
         let haptics_config = if let Some(haptics) = &schema.haptics {
             Some(HapticsConfig::new(
                 haptics.enabled,
-                Gain::new(haptics.intensity).map_err(|e| anyhow::anyhow!("Invalid haptics intensity: {:?}", e))?,
-                FrequencyHz::new(haptics.frequency_hz).map_err(|e| anyhow::anyhow!("Invalid haptics frequency: {:?}", e))?,
+                Gain::new(haptics.intensity)
+                    .map_err(|e| anyhow::anyhow!("Invalid haptics intensity: {:?}", e))?,
+                FrequencyHz::new(haptics.frequency_hz)
+                    .map_err(|e| anyhow::anyhow!("Invalid haptics frequency: {:?}", e))?,
                 haptics.effects.clone().unwrap_or_default(),
             ))
         } else {
@@ -609,16 +693,13 @@ impl ProfileRepository {
         })
     }
 }
-#[cfg(test)
-]
+#[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
-    use racing_wheel_schemas::{
-        DeviceId, Gain, Degrees, TorqueNm, FrequencyHz, CurvePoint
-    };
     use ed25519_dalek::SigningKey;
+    use racing_wheel_schemas::{CurvePoint, Degrees, DeviceId, FrequencyHz, Gain, TorqueNm};
     use rand::rngs::OsRng;
+    use tempfile::TempDir;
 
     async fn create_test_repository() -> (ProfileRepository, TempDir) {
         let temp_dir = TempDir::new().unwrap();
@@ -663,31 +744,39 @@ mod tests {
 
         assert_eq!(loaded.id, profile.id);
         assert_eq!(loaded.scope, profile.scope);
-        assert_eq!(loaded.base_settings.ffb_gain, profile.base_settings.ffb_gain);
+        assert_eq!(
+            loaded.base_settings.ffb_gain,
+            profile.base_settings.ffb_gain
+        );
     }
 
     #[tokio::test]
     async fn test_profile_signing_and_verification() {
         let (repo, _temp_dir) = create_test_repository().await;
         let profile = create_test_profile("signed_test");
-        
+
         // Generate signing key
         let mut csprng = OsRng;
         let signing_key = SigningKey::generate(&mut csprng);
 
         // Save signed profile
-        repo.save_profile(&profile, Some(&signing_key)).await.unwrap();
+        repo.save_profile(&profile, Some(&signing_key))
+            .await
+            .unwrap();
 
         // Load and verify signature
         let loaded = repo.load_profile(&profile.id).await.unwrap().unwrap();
         let signature_info = repo.get_profile_signature(&profile.id).await.unwrap();
-        
+
         assert!(signature_info.is_some());
         let sig_info = signature_info.unwrap();
         assert!(!sig_info.signature.is_empty());
         assert!(!sig_info.public_key.is_empty());
         // Note: Will be ValidUnknown since we didn't add the key to trusted_keys
-        assert!(matches!(sig_info.trust_state, TrustState::ValidUnknown | TrustState::Trusted));
+        assert!(matches!(
+            sig_info.trust_state,
+            TrustState::ValidUnknown | TrustState::Trusted
+        ));
     }
 
     #[tokio::test]
@@ -737,12 +826,10 @@ mod tests {
         repo.save_profile(&car_profile, None).await.unwrap();
 
         // Test hierarchy resolution
-        let resolved = repo.resolve_profile_hierarchy(
-            Some("iracing"),
-            Some("gt3"),
-            None,
-            None,
-        ).await.unwrap();
+        let resolved = repo
+            .resolve_profile_hierarchy(Some("iracing"), Some("gt3"), None, None)
+            .await
+            .unwrap();
 
         // Should use car-specific settings (most specific)
         assert_eq!(resolved.base_settings.ffb_gain.value(), 0.8);
@@ -778,7 +865,9 @@ mod tests {
             "Override Profile".to_string(),
         );
 
-        let merged = repo.merge_profiles_deterministic(&base_profile, &override_profile).unwrap();
+        let merged = repo
+            .merge_profiles_deterministic(&base_profile, &override_profile)
+            .unwrap();
 
         // Override profile should take precedence
         assert_eq!(merged.base_settings.ffb_gain.value(), 0.8);
@@ -792,7 +881,9 @@ mod tests {
 
         // Test invalid JSON
         let invalid_json = r#"{"invalid": "json", "missing": "required_fields"}"#;
-        let result = repo.load_profile_from_json(invalid_json, &ProfileId::new("test".to_string()).unwrap()).await;
+        let result = repo
+            .load_profile_from_json(invalid_json, &ProfileId::new("test".to_string()).unwrap())
+            .await;
         assert!(result.is_err());
     }
 
@@ -854,7 +945,10 @@ mod tests {
         let loaded2 = repo.load_profile(&profile.id).await.unwrap().unwrap();
 
         assert_eq!(loaded1.id, loaded2.id);
-        assert_eq!(loaded1.base_settings.ffb_gain, loaded2.base_settings.ffb_gain);
+        assert_eq!(
+            loaded1.base_settings.ffb_gain,
+            loaded2.base_settings.ffb_gain
+        );
     }
 
     #[tokio::test]
@@ -882,7 +976,8 @@ mod tests {
         let global = ProfileScope::global();
         let game = ProfileScope::for_game("iracing".to_string());
         let car = ProfileScope::for_car("iracing".to_string(), "gt3".to_string());
-        let track = ProfileScope::for_track("iracing".to_string(), "gt3".to_string(), "spa".to_string());
+        let track =
+            ProfileScope::for_track("iracing".to_string(), "gt3".to_string(), "spa".to_string());
 
         assert_eq!(global.specificity_level(), 0);
         assert_eq!(game.specificity_level(), 1);
@@ -967,7 +1062,7 @@ mod tests {
 
         let result = validator.validate_json(non_monotonic_json);
         assert!(result.is_err());
-        
+
         if let Err(SchemaError::NonMonotonicCurve) = result {
             // Expected error
         } else {

@@ -7,13 +7,16 @@
 //! 4. Two-phase apply works correctly under concurrent load
 
 use racing_wheel_engine::{
-    Pipeline, PipelineCompiler, TwoPhaseApplyCoordinator, ProfileMergeEngine
+    Pipeline, PipelineCompiler, ProfileMergeEngine, TwoPhaseApplyCoordinator,
 };
 use racing_wheel_schemas::{
-    Profile, ProfileId, ProfileScope, BaseSettings, FilterConfig, 
-    Gain, Degrees, TorqueNm, CurvePoint
+    BaseSettings, CurvePoint, Degrees, FilterConfig, Gain, Profile, ProfileId, ProfileScope,
+    TorqueNm,
 };
-use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
 use std::time::Duration;
 
 /// Test that pipeline swaps are atomic from RT thread perspective
@@ -25,7 +28,8 @@ async fn test_pipeline_swap_atomicity() {
 
     // Create test profiles with different configurations
     let global_profile = create_test_profile("global", ProfileScope::global());
-    let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+    let mut game_profile =
+        create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
     game_profile.base_settings.ffb_gain = Gain::new(0.8).unwrap();
 
     // Counter to track RT thread executions
@@ -47,16 +51,20 @@ async fn test_pipeline_swap_atomicity() {
             {
                 let mut pipeline = active_pipeline.write().await;
                 let result = pipeline.process(&mut frame);
-                
+
                 // Pipeline should never fail due to concurrent modification
                 assert!(result.is_ok(), "Pipeline processing failed: {:?}", result);
-                
+
                 // Torque output should always be finite
-                assert!(frame.torque_out.is_finite(), "Non-finite torque output: {}", frame.torque_out);
+                assert!(
+                    frame.torque_out.is_finite(),
+                    "Non-finite torque output: {}",
+                    frame.torque_out
+                );
             }
-            
+
             rt_executions_clone.fetch_add(1, Ordering::Relaxed);
-            
+
             // Simulate 1kHz tick rate
             tokio::time::sleep(Duration::from_micros(1000)).await;
         }
@@ -68,30 +76,29 @@ async fn test_pipeline_swap_atomicity() {
         let coordinator_clone = coordinator.clone();
         let global_clone = global_profile.clone();
         let game_clone = game_profile.clone();
-        
+
         let handle = tokio::spawn(async move {
-            let result_rx = coordinator_clone.apply_profile_async(
-                &global_clone,
-                Some(&game_clone),
-                None,
-                None,
-            ).await;
-            
+            let result_rx = coordinator_clone
+                .apply_profile_async(&global_clone, Some(&game_clone), None, None)
+                .await;
+
             assert!(result_rx.is_ok(), "Apply {} failed to start", i);
-            
+
             // Process applies periodically
             for _ in 0..10 {
-                coordinator_clone.process_pending_applies_at_tick_boundary().await;
+                coordinator_clone
+                    .process_pending_applies_at_tick_boundary()
+                    .await;
                 tokio::time::sleep(Duration::from_millis(10)).await;
             }
-            
+
             let result = result_rx.unwrap().await;
             assert!(result.is_ok(), "Apply {} failed: {:?}", i, result);
-            
+
             let apply_result = result.unwrap();
             assert!(apply_result.success, "Apply {} was not successful", i);
         });
-        
+
         apply_handles.push(handle);
     }
 
@@ -121,8 +128,12 @@ async fn test_deterministic_profile_resolution() {
 
     // Create test profiles
     let global_profile = create_test_profile("global", ProfileScope::global());
-    let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
-    let mut car_profile = create_test_profile("gt3", ProfileScope::for_car("iracing".to_string(), "gt3".to_string()));
+    let mut game_profile =
+        create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+    let mut car_profile = create_test_profile(
+        "gt3",
+        ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
+    );
 
     // Set specific values
     game_profile.base_settings.ffb_gain = Gain::new(0.8).unwrap();
@@ -152,16 +163,25 @@ async fn test_deterministic_profile_resolution() {
     let first_profile_hash = results[0].profile.calculate_hash();
 
     for (i, result) in results.iter().enumerate() {
-        assert_eq!(result.merge_hash, first_hash, 
-                  "Merge hash differs at iteration {}: expected {:x}, got {:x}", 
-                  i, first_hash, result.merge_hash);
-        
-        assert_eq!(result.profile.calculate_hash(), first_profile_hash,
-                  "Profile hash differs at iteration {}", i);
-        
+        assert_eq!(
+            result.merge_hash, first_hash,
+            "Merge hash differs at iteration {}: expected {:x}, got {:x}",
+            i, first_hash, result.merge_hash
+        );
+
+        assert_eq!(
+            result.profile.calculate_hash(),
+            first_profile_hash,
+            "Profile hash differs at iteration {}",
+            i
+        );
+
         // Verify session overrides took precedence
         assert_eq!(result.profile.base_settings.ffb_gain.value(), 0.9);
-        assert_eq!(result.profile.base_settings.degrees_of_rotation.value(), 720.0);
+        assert_eq!(
+            result.profile.base_settings.degrees_of_rotation.value(),
+            720.0
+        );
         assert_eq!(result.profile.base_settings.torque_cap.value(), 18.0);
     }
 }
@@ -172,7 +192,8 @@ async fn test_different_inputs_different_hashes() {
     let merge_engine = ProfileMergeEngine::default();
 
     let global_profile = create_test_profile("global", ProfileScope::global());
-    let mut game_profile1 = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+    let mut game_profile1 =
+        create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
     let mut game_profile2 = create_test_profile("acc", ProfileScope::for_game("acc".to_string()));
 
     // Make profiles different
@@ -183,11 +204,17 @@ async fn test_different_inputs_different_hashes() {
     let result2 = merge_engine.merge_profiles(&global_profile, Some(&game_profile2), None, None);
 
     // Hashes should be different
-    assert_ne!(result1.merge_hash, result2.merge_hash,
-              "Different inputs produced same hash: {:x}", result1.merge_hash);
-    
-    assert_ne!(result1.profile.calculate_hash(), result2.profile.calculate_hash(),
-              "Different profiles produced same hash");
+    assert_ne!(
+        result1.merge_hash, result2.merge_hash,
+        "Different inputs produced same hash: {:x}",
+        result1.merge_hash
+    );
+
+    assert_ne!(
+        result1.profile.calculate_hash(),
+        result2.profile.calculate_hash(),
+        "Different profiles produced same hash"
+    );
 }
 
 /// Test pipeline compilation determinism
@@ -210,16 +237,22 @@ async fn test_pipeline_compilation_determinism() {
     let mut compiled_pipelines = Vec::new();
     for _ in 0..5 {
         let compiled = compiler.compile_pipeline(filter_config.clone()).await;
-        assert!(compiled.is_ok(), "Pipeline compilation failed: {:?}", compiled);
+        assert!(
+            compiled.is_ok(),
+            "Pipeline compilation failed: {:?}",
+            compiled
+        );
         compiled_pipelines.push(compiled.unwrap());
     }
 
     // All compilations should produce identical hashes
     let first_hash = compiled_pipelines[0].config_hash;
     for (i, compiled) in compiled_pipelines.iter().enumerate() {
-        assert_eq!(compiled.config_hash, first_hash,
-                  "Compilation {} produced different hash: expected {:x}, got {:x}",
-                  i, first_hash, compiled.config_hash);
+        assert_eq!(
+            compiled.config_hash, first_hash,
+            "Compilation {} produced different hash: expected {:x}, got {:x}",
+            i, first_hash, compiled.config_hash
+        );
     }
 }
 
@@ -228,10 +261,10 @@ async fn test_pipeline_compilation_determinism() {
 #[tokio::test]
 async fn test_no_allocations_on_hot_path() {
     let compiler = PipelineCompiler::new();
-    
+
     // Create a simple filter config
     let filter_config = FilterConfig::default();
-    
+
     // Compile pipeline
     let compiled = compiler.compile_pipeline(filter_config).await.unwrap();
     let mut pipeline = compiled.pipeline;
@@ -291,11 +324,14 @@ async fn test_concurrent_pipeline_compilation() {
 
     // Verify all compilations succeeded and produced different hashes
     assert_eq!(compiled_pipelines.len(), 5);
-    
+
     let mut hashes = std::collections::HashSet::new();
     for compiled in &compiled_pipelines {
-        assert!(hashes.insert(compiled.config_hash), 
-               "Duplicate hash found: {:x}", compiled.config_hash);
+        assert!(
+            hashes.insert(compiled.config_hash),
+            "Duplicate hash found: {:x}",
+            compiled.config_hash
+        );
     }
 }
 
@@ -310,52 +346,88 @@ async fn test_profile_hierarchy_precedence() {
     global_profile.base_settings.degrees_of_rotation = Degrees::new_dor(900.0).unwrap();
     global_profile.base_settings.torque_cap = TorqueNm::new(10.0).unwrap();
 
-    let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+    let mut game_profile =
+        create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
     game_profile.base_settings.ffb_gain = Gain::new(0.75).unwrap(); // Non-default value
     game_profile.base_settings.degrees_of_rotation = Degrees::new_dor(720.0).unwrap();
     // torque_cap left as default (should not override)
 
-    let mut car_profile = create_test_profile("gt3", ProfileScope::for_car("iracing".to_string(), "gt3".to_string()));
+    let mut car_profile = create_test_profile(
+        "gt3",
+        ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
+    );
     car_profile.base_settings.ffb_gain = Gain::new(0.8).unwrap();
     // Other settings left as default
 
     let session_overrides = BaseSettings::new(
-        Gain::new(0.9).unwrap(), // Should override everything
+        Gain::new(0.9).unwrap(),          // Should override everything
         Degrees::new_dor(540.0).unwrap(), // Should override everything
-        TorqueNm::new(25.0).unwrap(), // Should override everything
+        TorqueNm::new(25.0).unwrap(),     // Should override everything
         FilterConfig::default(),
     );
 
     // Test different hierarchy levels
-    
+
     // Global only
     let result_global = merge_engine.merge_profiles(&global_profile, None, None, None);
     assert_eq!(result_global.profile.base_settings.ffb_gain.value(), 0.5);
-    assert_eq!(result_global.profile.base_settings.degrees_of_rotation.value(), 900.0);
+    assert_eq!(
+        result_global
+            .profile
+            .base_settings
+            .degrees_of_rotation
+            .value(),
+        900.0
+    );
     assert_eq!(result_global.profile.base_settings.torque_cap.value(), 10.0);
 
     // Global + Game
     let result_game = merge_engine.merge_profiles(&global_profile, Some(&game_profile), None, None);
     assert_eq!(result_game.profile.base_settings.ffb_gain.value(), 0.75); // Game overrides
-    assert_eq!(result_game.profile.base_settings.degrees_of_rotation.value(), 720.0); // Game overrides
+    assert_eq!(
+        result_game
+            .profile
+            .base_settings
+            .degrees_of_rotation
+            .value(),
+        720.0
+    ); // Game overrides
     assert_eq!(result_game.profile.base_settings.torque_cap.value(), 10.0); // Global remains
 
     // Global + Game + Car
-    let result_car = merge_engine.merge_profiles(&global_profile, Some(&game_profile), Some(&car_profile), None);
+    let result_car = merge_engine.merge_profiles(
+        &global_profile,
+        Some(&game_profile),
+        Some(&car_profile),
+        None,
+    );
     assert_eq!(result_car.profile.base_settings.ffb_gain.value(), 0.8); // Car overrides
-    assert_eq!(result_car.profile.base_settings.degrees_of_rotation.value(), 720.0); // Game remains
+    assert_eq!(
+        result_car.profile.base_settings.degrees_of_rotation.value(),
+        720.0
+    ); // Game remains
     assert_eq!(result_car.profile.base_settings.torque_cap.value(), 10.0); // Global remains
 
     // Full hierarchy with session overrides
     let result_session = merge_engine.merge_profiles(
-        &global_profile, 
-        Some(&game_profile), 
-        Some(&car_profile), 
-        Some(&session_overrides)
+        &global_profile,
+        Some(&game_profile),
+        Some(&car_profile),
+        Some(&session_overrides),
     );
     assert_eq!(result_session.profile.base_settings.ffb_gain.value(), 0.9); // Session overrides all
-    assert_eq!(result_session.profile.base_settings.degrees_of_rotation.value(), 540.0); // Session overrides all
-    assert_eq!(result_session.profile.base_settings.torque_cap.value(), 25.0); // Session overrides all
+    assert_eq!(
+        result_session
+            .profile
+            .base_settings
+            .degrees_of_rotation
+            .value(),
+        540.0
+    ); // Session overrides all
+    assert_eq!(
+        result_session.profile.base_settings.torque_cap.value(),
+        25.0
+    ); // Session overrides all
 }
 
 /// Test curve monotonicity validation
@@ -376,7 +448,8 @@ async fn test_curve_monotonicity_validation() {
             CurvePoint::new(0.5, 0.6).unwrap(),
             CurvePoint::new(1.0, 1.0).unwrap(),
         ],
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = compiler.compile_pipeline(valid_config).await;
     assert!(result.is_ok(), "Valid monotonic curve should compile");
@@ -398,7 +471,10 @@ async fn test_curve_monotonicity_validation() {
     );
 
     // This should fail during FilterConfig creation
-    assert!(invalid_config.is_err(), "Non-monotonic curve should be rejected");
+    assert!(
+        invalid_config.is_err(),
+        "Non-monotonic curve should be rejected"
+    );
 }
 
 // Helper functions
@@ -431,7 +507,7 @@ async fn test_two_phase_apply_stress() {
     let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
 
     let global_profile = create_test_profile("global", ProfileScope::global());
-    
+
     // Create many different profiles
     let mut profiles = Vec::new();
     for i in 0..50 {
@@ -446,19 +522,16 @@ async fn test_two_phase_apply_stress() {
         let coordinator_clone = coordinator.clone();
         let global_clone = global_profile.clone();
         let profile_clone = profile.clone();
-        
+
         let handle = tokio::spawn(async move {
-            let result_rx = coordinator_clone.apply_profile_async(
-                &global_clone,
-                Some(&profile_clone),
-                None,
-                None,
-            ).await;
-            
+            let result_rx = coordinator_clone
+                .apply_profile_async(&global_clone, Some(&profile_clone), None, None)
+                .await;
+
             assert!(result_rx.is_ok(), "Apply {} failed to start", i);
             result_rx.unwrap()
         });
-        
+
         handles.push(handle);
     }
 
@@ -480,7 +553,7 @@ async fn test_two_phase_apply_stress() {
     for (i, rx) in result_receivers.into_iter().enumerate() {
         let result = rx.await;
         assert!(result.is_ok(), "Apply {} result channel failed", i);
-        
+
         let apply_result = result.unwrap();
         if apply_result.success {
             successful_applies += 1;
@@ -492,7 +565,11 @@ async fn test_two_phase_apply_stress() {
     assert_eq!(stats.total_applies, 50);
     assert_eq!(stats.successful_applies, successful_applies as u64);
     assert_eq!(stats.pending_applies, 0);
-    
+
     // Most applies should succeed (allow for some failures under stress)
-    assert!(successful_applies >= 45, "Too many failed applies: {}/50", successful_applies);
+    assert!(
+        successful_applies >= 45,
+        "Too many failed applies: {}/50",
+        successful_applies
+    );
 }
