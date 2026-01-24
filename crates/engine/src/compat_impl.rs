@@ -1,5 +1,5 @@
 //! Compatibility trait implementation for engine TelemetryData
-//! 
+//!
 //! This module implements the TelemetryCompat trait for the engine crate's
 //! TelemetryData struct, providing backward compatibility for old field names.
 
@@ -14,27 +14,27 @@ impl TelemetryCompat for TelemetryData {
     fn temp_c(&self) -> u8 {
         self.temperature_c
     }
-    
+
     /// Get fault flags (old field name: faults)
     #[inline]
     fn faults(&self) -> u8 {
         self.fault_flags
     }
-    
+
     /// Get wheel angle in millidegrees (old field name: wheel_angle_mdeg)
     /// Converts from degrees to millidegrees
     #[inline]
     fn wheel_angle_mdeg(&self) -> i32 {
         (self.wheel_angle_deg * 1000.0) as i32
     }
-    
+
     /// Get wheel speed in milliradians per second (old field name: wheel_speed_mrad_s)
     /// Converts from radians/s to milliradians/s
     #[inline]
     fn wheel_speed_mrad_s(&self) -> i32 {
         (self.wheel_speed_rad_s * 1000.0) as i32
     }
-    
+
     /// Get sequence number (removed field, always returns 0)
     /// This field was removed from the schema
     #[inline]

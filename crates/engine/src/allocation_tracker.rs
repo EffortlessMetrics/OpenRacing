@@ -3,8 +3,8 @@
 //! This module provides allocation tracking capabilities to ensure
 //! the RT path remains zero-allocation after pipeline compilation.
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::alloc::{GlobalAlloc, Layout, System};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Global allocation counter for tracking heap allocations
 static ALLOCATION_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -52,7 +52,7 @@ impl AllocationGuard {
     pub fn new() -> Self {
         let start_count = ALLOCATION_COUNT.load(Ordering::Relaxed);
         let start_bytes = ALLOCATION_BYTES.load(Ordering::Relaxed);
-        
+
         Self {
             start_count,
             start_bytes,
@@ -61,12 +61,16 @@ impl AllocationGuard {
 
     /// Get the number of allocations since guard creation
     pub fn allocations_since_start(&self) -> usize {
-        ALLOCATION_COUNT.load(Ordering::Relaxed).saturating_sub(self.start_count)
+        ALLOCATION_COUNT
+            .load(Ordering::Relaxed)
+            .saturating_sub(self.start_count)
     }
 
     /// Get the number of bytes allocated since guard creation
     pub fn bytes_allocated_since_start(&self) -> usize {
-        ALLOCATION_BYTES.load(Ordering::Relaxed).saturating_sub(self.start_bytes)
+        ALLOCATION_BYTES
+            .load(Ordering::Relaxed)
+            .saturating_sub(self.start_bytes)
     }
 
     /// Get the current total allocation count
@@ -157,7 +161,7 @@ impl AllocationBenchmark {
             context,
         }
     }
-    
+
     pub fn finish(self) -> AllocationReport {
         AllocationReport {
             context: self.context,
@@ -184,7 +188,7 @@ impl AllocationReport {
             );
         }
     }
-    
+
     pub fn print_summary(&self) {
         if self.allocations > 0 {
             println!(
@@ -205,10 +209,10 @@ mod tests {
     #[test]
     fn test_allocation_tracking_basic() {
         let guard = track();
-        
+
         // This should cause allocations
         let _vec: Vec<i32> = vec![1, 2, 3, 4, 5];
-        
+
         // Should have recorded allocations
         assert!(guard.allocations_since_start() > 0);
         assert!(guard.bytes_allocated_since_start() > 0);
@@ -217,11 +221,11 @@ mod tests {
     #[test]
     fn test_allocation_guard_reset() {
         let guard = track();
-        
+
         // Cause some allocations
         let _vec: Vec<i32> = vec![1, 2, 3];
         assert!(guard.allocations_since_start() > 0);
-        
+
         // Reset and check
         guard.reset_counters();
         let new_guard = track();
@@ -231,11 +235,11 @@ mod tests {
     #[test]
     fn test_zero_alloc_macro() {
         let guard = track();
-        
+
         // No allocations - should pass
         let x = 42;
         let _y = x + 1;
-        
+
         assert_zero_alloc!(guard);
     }
 
@@ -243,10 +247,10 @@ mod tests {
     #[should_panic(expected = "Expected zero allocations")]
     fn test_zero_alloc_macro_fails() {
         let guard = track();
-        
+
         // Cause allocation - should fail
         let _vec: Vec<i32> = vec![1, 2, 3];
-        
+
         assert_zero_alloc!(guard);
     }
 }

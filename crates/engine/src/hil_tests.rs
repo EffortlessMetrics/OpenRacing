@@ -3,17 +3,17 @@
 //! This module provides comprehensive HIL tests that validate the real-time engine
 //! with integrated safety systems using synthetic FFB data and timing validation.
 
+use crate::ports::TelemetryFlags;
 use crate::{
     Engine, EngineConfig,
-    engine::GameInput,
-    rt::FFBMode,
-    safety::{SafetyState, FaultType},
-    scheduler::RTSetup,
     device::VirtualDevice,
+    engine::GameInput,
     ports::NormalizedTelemetry,
+    rt::FFBMode,
+    safety::{FaultType, SafetyState},
+    scheduler::RTSetup,
 };
 use racing_wheel_schemas::prelude::*;
-use crate::ports::TelemetryFlags;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 use tracing::{info, warn};
@@ -40,7 +40,7 @@ impl Default for HILTestConfig {
         Self {
             duration: Duration::from_secs(5),
             update_rate_hz: 1000.0,
-            max_jitter_us: 250.0, // 0.25ms requirement
+            max_jitter_us: 250.0,          // 0.25ms requirement
             max_missed_tick_rate: 0.00001, // 0.001% requirement
             enable_fault_injection: true,
             enable_logging: false,
@@ -64,13 +64,30 @@ pub enum FFBPattern {
     /// Constant FFB value
     Constant(f32),
     /// Sine wave: amplitude, frequency_hz, phase
-    SineWave { amplitude: f32, frequency_hz: f32, phase: f32 },
+    SineWave {
+        amplitude: f32,
+        frequency_hz: f32,
+        phase: f32,
+    },
     /// Square wave: amplitude, frequency_hz, duty_cycle
-    SquareWave { amplitude: f32, frequency_hz: f32, duty_cycle: f32 },
+    SquareWave {
+        amplitude: f32,
+        frequency_hz: f32,
+        duty_cycle: f32,
+    },
     /// Ramp: start, end, duration
-    Ramp { start: f32, end: f32, duration: Duration },
+    Ramp {
+        start: f32,
+        end: f32,
+        duration: Duration,
+    },
     /// Step function with fault injection
-    StepWithFault { normal: f32, fault: f32, fault_at: Duration, fault_duration: Duration },
+    StepWithFault {
+        normal: f32,
+        fault: f32,
+        fault_at: Duration,
+        fault_duration: Duration,
+    },
 }
 
 impl SyntheticFFBGenerator {
@@ -90,29 +107,49 @@ impl SyntheticFFBGenerator {
 
         match &self.pattern {
             FFBPattern::Constant(value) => *value,
-            
-            FFBPattern::SineWave { amplitude, frequency_hz, phase } => {
-                amplitude * (2.0 * std::f32::consts::PI * frequency_hz * t + phase).sin()
-            },
-            
-            FFBPattern::SquareWave { amplitude, frequency_hz, duty_cycle } => {
+
+            FFBPattern::SineWave {
+                amplitude,
+                frequency_hz,
+                phase,
+            } => amplitude * (2.0 * std::f32::consts::PI * frequency_hz * t + phase).sin(),
+
+            FFBPattern::SquareWave {
+                amplitude,
+                frequency_hz,
+                duty_cycle,
+            } => {
                 let period = 1.0 / frequency_hz;
                 let phase = (t % period) / period;
-                if phase < *duty_cycle { *amplitude } else { -*amplitude }
-            },
-            
-            FFBPattern::Ramp { start, end, duration } => {
+                if phase < *duty_cycle {
+                    *amplitude
+                } else {
+                    -*amplitude
+                }
+            }
+
+            FFBPattern::Ramp {
+                start,
+                end,
+                duration,
+            } => {
                 let progress = (t / duration.as_secs_f32()).clamp(0.0, 1.0);
                 start + (end - start) * progress
-            },
-            
-            FFBPattern::StepWithFault { normal, fault, fault_at, fault_duration } => {
-                if self.time_offset >= *fault_at && self.time_offset <= *fault_at + *fault_duration {
+            }
+
+            FFBPattern::StepWithFault {
+                normal,
+                fault,
+                fault_at,
+                fault_duration,
+            } => {
+                if self.time_offset >= *fault_at && self.time_offset <= *fault_at + *fault_duration
+                {
                     *fault
                 } else {
                     *normal
                 }
-            },
+            }
         }
     }
 
@@ -212,8 +249,11 @@ impl HILTestSuite {
 
         // Create test engine
         let device_id = "hil-test-device-1".parse::<DeviceId>().unwrap();
-        let device = Box::new(VirtualDevice::new(device_id.clone(), "HIL Test Device 1".to_string()));
-        
+        let device = Box::new(VirtualDevice::new(
+            device_id.clone(),
+            "HIL Test Device 1".to_string(),
+        ));
+
         let config = EngineConfig {
             device_id,
             mode: FFBMode::RawTorque,
@@ -230,7 +270,9 @@ impl HILTestSuite {
         let mut engine = match Engine::new(device, config) {
             Ok(engine) => engine,
             Err(e) => {
-                result.errors.push(format!("Failed to create engine: {}", e));
+                result
+                    .errors
+                    .push(format!("Failed to create engine: {}", e));
                 return result;
             }
         };
@@ -238,7 +280,7 @@ impl HILTestSuite {
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
             "hil-test-device-1".parse::<DeviceId>().unwrap(),
-            "HIL Test Device 1".to_string()
+            "HIL Test Device 1".to_string(),
         ));
 
         if let Err(e) = engine.start(test_device).await {
@@ -250,7 +292,8 @@ impl HILTestSuite {
 
         // Generate constant FFB input
         let mut ffb_generator = SyntheticFFBGenerator::new(FFBPattern::Constant(0.5));
-        let frame_interval = Duration::from_nanos((1_000_000_000.0 / self.config.update_rate_hz) as u64);
+        let frame_interval =
+            Duration::from_nanos((1_000_000_000.0 / self.config.update_rate_hz) as u64);
 
         // Send FFB data for test duration
         let mut frame_count = 0u64;
@@ -259,9 +302,9 @@ impl HILTestSuite {
         while start_time.elapsed() < self.config.duration {
             let now = Instant::now();
             let dt = now.duration_since(last_frame_time);
-            
+
             let ffb_value = ffb_generator.next_value(dt);
-            
+
             let game_input = GameInput {
                 ffb_scalar: ffb_value,
                 telemetry: Some(NormalizedTelemetry {
@@ -323,7 +366,9 @@ impl HILTestSuite {
                 result.passed = timing_ok && missed_ok;
             }
             Err(e) => {
-                result.errors.push(format!("Failed to get engine stats: {}", e));
+                result
+                    .errors
+                    .push(format!("Failed to get engine stats: {}", e));
             }
         }
 
@@ -359,8 +404,11 @@ impl HILTestSuite {
 
         // Create test engine
         let device_id = "hil-test-device-2".parse::<DeviceId>().unwrap();
-        let device = Box::new(VirtualDevice::new(device_id.clone(), "HIL Test Device 2".to_string()));
-        
+        let device = Box::new(VirtualDevice::new(
+            device_id.clone(),
+            "HIL Test Device 2".to_string(),
+        ));
+
         let config = EngineConfig {
             device_id,
             mode: FFBMode::RawTorque,
@@ -377,7 +425,9 @@ impl HILTestSuite {
         let mut engine = match Engine::new(device, config) {
             Ok(engine) => engine,
             Err(e) => {
-                result.errors.push(format!("Failed to create engine: {}", e));
+                result
+                    .errors
+                    .push(format!("Failed to create engine: {}", e));
                 return result;
             }
         };
@@ -385,7 +435,7 @@ impl HILTestSuite {
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
             "hil-test-device-2".parse::<DeviceId>().unwrap(),
-            "HIL Test Device 2".to_string()
+            "HIL Test Device 2".to_string(),
         ));
 
         if let Err(e) = engine.start(test_device).await {
@@ -397,19 +447,32 @@ impl HILTestSuite {
 
         // Test multiple FFB patterns
         let patterns = vec![
-            FFBPattern::SineWave { amplitude: 0.8, frequency_hz: 2.0, phase: 0.0 },
-            FFBPattern::SquareWave { amplitude: 0.6, frequency_hz: 1.0, duty_cycle: 0.5 },
-            FFBPattern::Ramp { start: -0.5, end: 0.5, duration: Duration::from_secs(1) },
+            FFBPattern::SineWave {
+                amplitude: 0.8,
+                frequency_hz: 2.0,
+                phase: 0.0,
+            },
+            FFBPattern::SquareWave {
+                amplitude: 0.6,
+                frequency_hz: 1.0,
+                duty_cycle: 0.5,
+            },
+            FFBPattern::Ramp {
+                start: -0.5,
+                end: 0.5,
+                duration: Duration::from_secs(1),
+            },
         ];
 
         let pattern_duration = self.config.duration / patterns.len() as u32;
-        let frame_interval = Duration::from_nanos((1_000_000_000.0 / self.config.update_rate_hz) as u64);
+        let frame_interval =
+            Duration::from_nanos((1_000_000_000.0 / self.config.update_rate_hz) as u64);
 
         let mut frame_count = 0u64;
 
         for (i, pattern) in patterns.iter().enumerate() {
             info!("Testing pattern {}: {:?}", i + 1, pattern);
-            
+
             let mut ffb_generator = SyntheticFFBGenerator::new(pattern.clone());
             let pattern_start = Instant::now();
             let mut last_frame_time = pattern_start;
@@ -417,9 +480,9 @@ impl HILTestSuite {
             while pattern_start.elapsed() < pattern_duration {
                 let now = Instant::now();
                 let dt = now.duration_since(last_frame_time);
-                
+
                 let ffb_value = ffb_generator.next_value(dt);
-                
+
                 let game_input = GameInput {
                     ffb_scalar: ffb_value,
                     telemetry: Some(NormalizedTelemetry {
@@ -481,7 +544,9 @@ impl HILTestSuite {
                 }
             }
             Err(e) => {
-                result.errors.push(format!("Failed to get engine stats: {}", e));
+                result
+                    .errors
+                    .push(format!("Failed to get engine stats: {}", e));
             }
         }
 
@@ -517,8 +582,11 @@ impl HILTestSuite {
 
         // Create test engine
         let device_id = "hil-test-device-3".parse::<DeviceId>().unwrap();
-        let device = Box::new(VirtualDevice::new(device_id.clone(), "HIL Test Device 3".to_string()));
-        
+        let device = Box::new(VirtualDevice::new(
+            device_id.clone(),
+            "HIL Test Device 3".to_string(),
+        ));
+
         let config = EngineConfig {
             device_id,
             mode: FFBMode::RawTorque,
@@ -535,7 +603,9 @@ impl HILTestSuite {
         let mut engine = match Engine::new(device, config) {
             Ok(engine) => engine,
             Err(e) => {
-                result.errors.push(format!("Failed to create engine: {}", e));
+                result
+                    .errors
+                    .push(format!("Failed to create engine: {}", e));
                 return result;
             }
         };
@@ -543,7 +613,7 @@ impl HILTestSuite {
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
             "hil-test-device-3".parse::<DeviceId>().unwrap(),
-            "HIL Test Device 3".to_string()
+            "HIL Test Device 3".to_string(),
         ));
 
         if let Err(e) = engine.start(test_device).await {
@@ -556,7 +626,7 @@ impl HILTestSuite {
         // Test fault injection pattern - normal operation then fault
         let fault_inject_time = self.config.duration / 2;
         let fault_duration = Duration::from_millis(100);
-        
+
         let ffb_pattern = FFBPattern::StepWithFault {
             normal: 0.3,
             fault: 1.5, // Exceeds safe torque to trigger safety response
@@ -565,7 +635,8 @@ impl HILTestSuite {
         };
 
         let mut ffb_generator = SyntheticFFBGenerator::new(ffb_pattern);
-        let frame_interval = Duration::from_nanos((1_000_000_000.0 / self.config.update_rate_hz) as u64);
+        let frame_interval =
+            Duration::from_nanos((1_000_000_000.0 / self.config.update_rate_hz) as u64);
 
         let mut frame_count = 0u64;
         let mut last_frame_time = Instant::now();
@@ -576,17 +647,18 @@ impl HILTestSuite {
             let now = Instant::now();
             let dt = now.duration_since(last_frame_time);
             let elapsed = start_time.elapsed();
-            
+
             let ffb_value = ffb_generator.next_value(dt);
-            
+
             // Check if we're in fault injection period
             if elapsed >= fault_inject_time && elapsed <= fault_inject_time + fault_duration {
                 if !fault_injected {
                     info!("Injecting safety fault at {:?}", elapsed);
                     fault_injected = true;
-                    
+
                     // Simulate thermal fault
-                    if let Err(e) = engine.update_safety(true, 85) { // High temperature
+                    if let Err(e) = engine.update_safety(true, 85) {
+                        // High temperature
                         warn!("Failed to update safety: {}", e);
                     }
                 }
@@ -619,7 +691,10 @@ impl HILTestSuite {
                 if let Ok(stats) = engine.get_stats().await {
                     if matches!(stats.safety_state, SafetyState::Faulted { .. }) {
                         fault_response_time = Some(elapsed - fault_inject_time);
-                        info!("Safety response detected at {:?}", fault_response_time.unwrap());
+                        info!(
+                            "Safety response detected at {:?}",
+                            fault_response_time.unwrap()
+                        );
                     }
                 }
             }
@@ -651,7 +726,9 @@ impl HILTestSuite {
                 ));
             }
         } else {
-            result.errors.push("No safety response detected to fault injection".to_string());
+            result
+                .errors
+                .push("No safety response detected to fault injection".to_string());
         }
 
         // Get final statistics
@@ -684,7 +761,9 @@ impl HILTestSuite {
                 }
             }
             Err(e) => {
-                result.errors.push(format!("Failed to get engine stats: {}", e));
+                result
+                    .errors
+                    .push(format!("Failed to get engine stats: {}", e));
             }
         }
 
@@ -720,8 +799,11 @@ impl HILTestSuite {
 
         // Create test engine with higher load
         let device_id = "hil-test-device-4".parse::<DeviceId>().unwrap();
-        let device = Box::new(VirtualDevice::new(device_id.clone(), "HIL Test Device 4".to_string()));
-        
+        let device = Box::new(VirtualDevice::new(
+            device_id.clone(),
+            "HIL Test Device 4".to_string(),
+        ));
+
         let config = EngineConfig {
             device_id,
             mode: FFBMode::RawTorque,
@@ -738,7 +820,9 @@ impl HILTestSuite {
         let mut engine = match Engine::new(device, config) {
             Ok(engine) => engine,
             Err(e) => {
-                result.errors.push(format!("Failed to create engine: {}", e));
+                result
+                    .errors
+                    .push(format!("Failed to create engine: {}", e));
                 return result;
             }
         };
@@ -746,7 +830,7 @@ impl HILTestSuite {
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
             "hil-test-device-4".parse::<DeviceId>().unwrap(),
-            "HIL Test Device 4".to_string()
+            "HIL Test Device 4".to_string(),
         ));
 
         if let Err(e) = engine.start(test_device).await {
@@ -763,7 +847,8 @@ impl HILTestSuite {
             phase: 0.0,
         });
 
-        let frame_interval = Duration::from_nanos((1_000_000_000.0 / self.config.update_rate_hz) as u64);
+        let frame_interval =
+            Duration::from_nanos((1_000_000_000.0 / self.config.update_rate_hz) as u64);
         let mut frame_count = 0u64;
         let mut last_frame_time = Instant::now();
 
@@ -771,9 +856,9 @@ impl HILTestSuite {
         while start_time.elapsed() < self.config.duration {
             let now = Instant::now();
             let dt = now.duration_since(last_frame_time);
-            
+
             let ffb_value = ffb_generator.next_value(dt);
-            
+
             // Complex telemetry data to add processing load
             let game_input = GameInput {
                 ffb_scalar: ffb_value,
@@ -844,7 +929,9 @@ impl HILTestSuite {
                 }
             }
             Err(e) => {
-                result.errors.push(format!("Failed to get engine stats: {}", e));
+                result
+                    .errors
+                    .push(format!("Failed to get engine stats: {}", e));
             }
         }
 
@@ -880,8 +967,11 @@ impl HILTestSuite {
 
         // Create test engine
         let device_id = "hil-test-device-5".parse::<DeviceId>().unwrap();
-        let device = Box::new(VirtualDevice::new(device_id.clone(), "HIL Test Device 5".to_string()));
-        
+        let device = Box::new(VirtualDevice::new(
+            device_id.clone(),
+            "HIL Test Device 5".to_string(),
+        ));
+
         let config = EngineConfig {
             device_id,
             mode: FFBMode::RawTorque,
@@ -898,7 +988,9 @@ impl HILTestSuite {
         let mut engine = match Engine::new(device, config) {
             Ok(engine) => engine,
             Err(e) => {
-                result.errors.push(format!("Failed to create engine: {}", e));
+                result
+                    .errors
+                    .push(format!("Failed to create engine: {}", e));
                 return result;
             }
         };
@@ -906,7 +998,7 @@ impl HILTestSuite {
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
             "hil-test-device-5".parse::<DeviceId>().unwrap(),
-            "HIL Test Device 5".to_string()
+            "HIL Test Device 5".to_string(),
         ));
 
         if let Err(e) = engine.start(test_device).await {
@@ -933,9 +1025,9 @@ impl HILTestSuite {
         while start_time.elapsed() < self.config.duration {
             let now = Instant::now();
             let dt = now.duration_since(last_frame_time);
-            
+
             let ffb_value = ffb_generator.next_value(dt);
-            
+
             let game_input = GameInput {
                 ffb_scalar: ffb_value,
                 telemetry: Some(NormalizedTelemetry {
@@ -953,7 +1045,7 @@ impl HILTestSuite {
             };
 
             match engine.send_game_input(game_input) {
-                Ok(()) => {},
+                Ok(()) => {}
                 Err(e) => {
                     send_failures += 1;
                     if self.config.enable_logging && send_failures % 100 == 0 {
@@ -978,7 +1070,8 @@ impl HILTestSuite {
         if send_failure_rate > acceptable_failure_rate {
             result.errors.push(format!(
                 "Send failure rate {:.2}% exceeds acceptable limit {:.2}%",
-                send_failure_rate * 100.0, acceptable_failure_rate * 100.0
+                send_failure_rate * 100.0,
+                acceptable_failure_rate * 100.0
             ));
         }
 
@@ -1012,7 +1105,9 @@ impl HILTestSuite {
                 }
             }
             Err(e) => {
-                result.errors.push(format!("Failed to get engine stats: {}", e));
+                result
+                    .errors
+                    .push(format!("Failed to get engine stats: {}", e));
             }
         }
 
@@ -1043,15 +1138,23 @@ impl HILTestSuite {
         report.push_str(&format!("- Total tests: {}\n", total_count));
         report.push_str(&format!("- Passed: {}\n", passed_count));
         report.push_str(&format!("- Failed: {}\n", total_count - passed_count));
-        report.push_str(&format!("- Success rate: {:.1}%\n\n", 
-            (passed_count as f64 / total_count as f64) * 100.0));
+        report.push_str(&format!(
+            "- Success rate: {:.1}%\n\n",
+            (passed_count as f64 / total_count as f64) * 100.0
+        ));
 
         report.push_str("## Test Results\n\n");
 
         for result in results {
             report.push_str(&format!("### {}\n", result.name));
-            report.push_str(&format!("- Status: {}\n", if result.passed { "PASSED" } else { "FAILED" }));
-            report.push_str(&format!("- Duration: {:.2}s\n", result.duration.as_secs_f64()));
+            report.push_str(&format!(
+                "- Status: {}\n",
+                if result.passed { "PASSED" } else { "FAILED" }
+            ));
+            report.push_str(&format!(
+                "- Duration: {:.2}s\n",
+                result.duration.as_secs_f64()
+            ));
             report.push_str(&format!("- Total frames: {}\n", result.total_frames));
             report.push_str(&format!("- Missed frames: {}\n", result.missed_frames));
             report.push_str(&format!("- Max jitter: {:.2} µs\n", result.max_jitter_us));
@@ -1060,11 +1163,16 @@ impl HILTestSuite {
             if !result.safety_responses.is_empty() {
                 report.push_str("- Safety responses:\n");
                 for response in &result.safety_responses {
-                    report.push_str(&format!("  - {:?}: {:.2}ms (limit: {:.2}ms) - {}\n",
+                    report.push_str(&format!(
+                        "  - {:?}: {:.2}ms (limit: {:.2}ms) - {}\n",
                         response.fault_type,
                         response.response_time.as_secs_f64() * 1000.0,
                         response.limit.as_secs_f64() * 1000.0,
-                        if response.within_limits { "OK" } else { "EXCEEDED" }
+                        if response.within_limits {
+                            "OK"
+                        } else {
+                            "EXCEEDED"
+                        }
                     ));
                 }
             }
@@ -1090,10 +1198,10 @@ mod tests {
     #[tokio::test]
     async fn test_synthetic_ffb_generator() {
         let mut generator = SyntheticFFBGenerator::new(FFBPattern::Constant(0.5));
-        
+
         let value1 = generator.next_value(Duration::from_millis(1));
         let value2 = generator.next_value(Duration::from_millis(1));
-        
+
         assert_eq!(value1, 0.5);
         assert_eq!(value2, 0.5);
     }
@@ -1105,10 +1213,10 @@ mod tests {
             frequency_hz: 1.0,
             phase: 0.0,
         });
-        
+
         let value_at_0 = generator.next_value(Duration::ZERO);
         let value_at_quarter = generator.next_value(Duration::from_millis(250));
-        
+
         assert!((value_at_0 - 0.0).abs() < 0.1);
         assert!((value_at_quarter - 1.0).abs() < 0.1);
     }
@@ -1117,7 +1225,7 @@ mod tests {
     async fn test_hil_test_suite_creation() {
         let config = HILTestConfig::default();
         let suite = HILTestSuite::new(config);
-        
+
         // Just verify we can create the suite
         assert_eq!(suite.config.update_rate_hz, 1000.0);
     }
@@ -1130,10 +1238,10 @@ mod tests {
             enable_logging: false,
             ..Default::default()
         };
-        
+
         let suite = HILTestSuite::new(config);
         let result = suite.test_constant_ffb().await;
-        
+
         // Test should complete without crashing
         assert_eq!(result.name, "Constant FFB Test");
         assert!(result.total_frames > 0);

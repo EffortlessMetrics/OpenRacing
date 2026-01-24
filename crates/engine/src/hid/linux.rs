@@ -7,21 +7,24 @@
 //! - mlockall for memory locking
 //! - udev rules guidance for device permissions
 
-use crate::ports::{HidPort, HidDevice, DeviceHealthStatus};
-use crate::{RTResult, DeviceEvent, TelemetryData, DeviceInfo};
-use racing_wheel_schemas::prelude::*;
-use super::{HidDeviceInfo, TorqueCommand, DeviceTelemetryReport};
-use tokio::sync::mpsc;
+use super::{DeviceTelemetryReport, HidDeviceInfo, TorqueCommand};
+use crate::ports::{DeviceHealthStatus, HidDevice, HidPort};
+use crate::{DeviceEvent, DeviceInfo, RTResult, TelemetryData};
 use async_trait::async_trait;
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}, OnceLock};
-use parking_lot::{RwLock, Mutex};
+use parking_lot::{Mutex, RwLock};
+use racing_wheel_schemas::prelude::*;
 use std::collections::HashMap;
-use std::time::{Instant, Duration};
 use std::fs::OpenOptions;
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::Path;
-use tracing::{debug, warn, info};
+use std::sync::{
+    Arc, OnceLock,
+    atomic::{AtomicBool, Ordering},
+};
+use std::time::{Duration, Instant};
+use tokio::sync::mpsc;
+use tracing::{debug, info, warn};
 
 /// Thread-safe cached device info accessor using OnceLock
 fn get_cached_device_info(device_info: &HidDeviceInfo) -> &'static DeviceInfo {
@@ -48,7 +51,7 @@ impl LinuxHidPort {
     /// Enumerate HID devices using /dev/hidraw* and libudev
     fn enumerate_devices(&self) -> Result<Vec<HidDeviceInfo>, Box<dyn std::error::Error>> {
         let mut devices = Vec::new();
-        
+
         // Known racing wheel vendor/product IDs
         let racing_wheel_ids = [
             (0x046D, 0xC294), // Logitech G27
@@ -85,7 +88,9 @@ impl LinuxHidPort {
                             if let Ok(device_info) = self.probe_hidraw_device(&path) {
                                 // Check if this is a racing wheel
                                 for (vid, pid) in racing_wheel_ids.iter() {
-                                    if device_info.vendor_id == *vid && device_info.product_id == *pid {
+                                    if device_info.vendor_id == *vid
+                                        && device_info.product_id == *pid
+                                    {
                                         devices.push(device_info);
                                         break;
                                     }
@@ -102,7 +107,7 @@ impl LinuxHidPort {
             for (vid, pid) in racing_wheel_ids.iter().take(3) {
                 let device_id = DeviceId::new(format!("hidraw_{:04X}_{:04X}", vid, pid))?;
                 let path = format!("/dev/hidraw_mock_{:04X}_{:04X}", vid, pid);
-                
+
                 let capabilities = DeviceCapabilities {
                     supports_pid: true,
                     supports_raw_torque_1khz: true,
@@ -138,7 +143,10 @@ impl LinuxHidPort {
     }
 
     /// Probe a hidraw device to get its information
-    fn probe_hidraw_device(&self, path: &Path) -> Result<HidDeviceInfo, Box<dyn std::error::Error>> {
+    fn probe_hidraw_device(
+        &self,
+        path: &Path,
+    ) -> Result<HidDeviceInfo, Box<dyn std::error::Error>> {
         // In a real implementation, this would:
         // 1. Open the hidraw device
         // 2. Use HIDIOCGRAWINFO ioctl to get vendor/product ID
@@ -177,26 +185,32 @@ impl HidPort for LinuxHidPort {
         let device_infos = self.enumerate_devices()?;
         let mut devices = self.devices.write();
         devices.clear();
-        
+
         let mut result = Vec::new();
         for device_info in device_infos {
             devices.insert(device_info.device_id.clone(), device_info.clone());
             result.push(device_info.to_device_info());
         }
-        
+
         Ok(result)
     }
 
-    async fn open_device(&self, id: &DeviceId) -> Result<Box<dyn HidDevice>, Box<dyn std::error::Error>> {
+    async fn open_device(
+        &self,
+        id: &DeviceId,
+    ) -> Result<Box<dyn HidDevice>, Box<dyn std::error::Error>> {
         let devices = self.devices.read();
-        let device_info = devices.get(id)
+        let device_info = devices
+            .get(id)
             .ok_or_else(|| format!("Device not found: {}", id))?;
 
         let device = LinuxHidDevice::new(device_info.clone())?;
         Ok(Box::new(device))
     }
 
-    async fn monitor_devices(&self) -> Result<mpsc::Receiver<DeviceEvent>, Box<dyn std::error::Error>> {
+    async fn monitor_devices(
+        &self,
+    ) -> Result<mpsc::Receiver<DeviceEvent>, Box<dyn std::error::Error>> {
         // Use bounded channel to prevent unbounded memory growth.
         // Buffer 100 events - if receiver falls behind, events are dropped with warning.
         let (sender, receiver) = mpsc::channel(100);
@@ -219,39 +233,66 @@ impl HidPort for LinuxHidPort {
                 // for hidraw device creation/removal
                 let current_devices = devices.read().clone();
 
+                // Track whether any events were dropped or channel closed
+                let mut dropped = false;
+                let mut closed = false;
+
                 // Check for new devices
                 for (id, info) in &current_devices {
                     if !last_devices.contains_key(id) {
                         let event = DeviceEvent::Connected(info.to_device_info());
                         // Use try_send to avoid blocking monitor loop if receiver is slow
-                        if let Err(e) = sender_clone.try_send(event) {
-                            match e {
-                                mpsc::error::TrySendError::Full(_) => {
-                                    warn!("Device monitor channel full, dropping connect event for {}", id);
-                                }
-                                mpsc::error::TrySendError::Closed(_) => break,
+                        match sender_clone.try_send(event) {
+                            Ok(()) => {}
+                            Err(mpsc::error::TrySendError::Full(_)) => {
+                                dropped = true;
+                                warn!(
+                                    "Device monitor channel full, dropping connect event for {}",
+                                    id
+                                );
+                            }
+                            Err(mpsc::error::TrySendError::Closed(_)) => {
+                                closed = true;
+                                break;
                             }
                         }
                     }
                 }
 
-                // Check for removed devices
-                for (id, info) in &last_devices {
-                    if !current_devices.contains_key(id) {
-                        let event = DeviceEvent::Disconnected(info.to_device_info());
-                        // Use try_send to avoid blocking monitor loop if receiver is slow
-                        if let Err(e) = sender_clone.try_send(event) {
-                            match e {
-                                mpsc::error::TrySendError::Full(_) => {
-                                    warn!("Device monitor channel full, dropping disconnect event for {}", id);
+                // Check for removed devices (skip if channel closed)
+                if !closed {
+                    for (id, info) in &last_devices {
+                        if !current_devices.contains_key(id) {
+                            let event = DeviceEvent::Disconnected(info.to_device_info());
+                            // Use try_send to avoid blocking monitor loop if receiver is slow
+                            match sender_clone.try_send(event) {
+                                Ok(()) => {}
+                                Err(mpsc::error::TrySendError::Full(_)) => {
+                                    dropped = true;
+                                    warn!(
+                                        "Device monitor channel full, dropping disconnect event for {}",
+                                        id
+                                    );
                                 }
-                                mpsc::error::TrySendError::Closed(_) => break,
+                                Err(mpsc::error::TrySendError::Closed(_)) => {
+                                    closed = true;
+                                    break;
+                                }
                             }
                         }
                     }
                 }
 
-                last_devices = current_devices;
+                // Exit if channel closed
+                if closed {
+                    break;
+                }
+
+                // Only update last_devices if all events were delivered.
+                // If any were dropped, we'll retry them on the next iteration.
+                if !dropped {
+                    last_devices = current_devices;
+                }
             }
         });
 
@@ -306,10 +347,7 @@ impl LinuxHidDevice {
             None // Mock device
         } else {
             // Open device for reading
-            match OpenOptions::new()
-                .read(true)
-                .open(&device_info.path)
-            {
+            match OpenOptions::new().read(true).open(&device_info.path) {
                 Ok(file) => Some(file.as_raw_fd()),
                 Err(e) => {
                     warn!("Failed to open {} for reading: {}", device_info.path, e);
@@ -341,9 +379,7 @@ impl LinuxHidDevice {
         };
 
         // Perform non-blocking write
-        let result = unsafe {
-            libc::write(fd, data.as_ptr() as *const libc::c_void, data.len())
-        };
+        let result = unsafe { libc::write(fd, data.as_ptr() as *const libc::c_void, data.len()) };
 
         if result < 0 {
             let errno = unsafe { *libc::__errno_location() };
@@ -398,9 +434,8 @@ impl LinuxHidDevice {
 
         // Read telemetry report
         let mut buffer = [0u8; 64]; // Typical HID report size
-        let result = unsafe {
-            libc::read(fd, buffer.as_mut_ptr() as *mut libc::c_void, buffer.len())
-        };
+        let result =
+            unsafe { libc::read(fd, buffer.as_mut_ptr() as *mut libc::c_void, buffer.len()) };
 
         if result < 0 {
             let errno = unsafe { *libc::__errno_location() };
@@ -478,27 +513,32 @@ pub fn apply_linux_rt_setup() -> Result<(), Box<dyn std::error::Error>> {
         if result == 0 {
             info!("Locked memory pages with mlockall");
         } else {
-            warn!("Failed to lock memory pages: errno {}", *libc::__errno_location());
+            warn!(
+                "Failed to lock memory pages: errno {}",
+                *libc::__errno_location()
+            );
         }
     }
 
     // Try to set SCHED_FIFO priority via rtkit
     // In a real implementation, this would use D-Bus to communicate with rtkit
     info!("Attempting to acquire RT scheduling via rtkit");
-    
+
     // For now, try direct sched_setscheduler (requires CAP_SYS_NICE or rtkit)
     unsafe {
         let param = libc::sched_param {
             sched_priority: 50, // Mid-range RT priority
         };
-        
+
         let result = libc::sched_setscheduler(0, libc::SCHED_FIFO, &param);
         if result == 0 {
             info!("Set SCHED_FIFO priority 50");
         } else {
             let errno = *libc::__errno_location();
             if errno == libc::EPERM {
-                info!("No permission for SCHED_FIFO, consider using rtkit or adding user to realtime group");
+                info!(
+                    "No permission for SCHED_FIFO, consider using rtkit or adding user to realtime group"
+                );
             } else {
                 warn!("Failed to set SCHED_FIFO: errno {}", errno);
             }
@@ -511,7 +551,9 @@ pub fn apply_linux_rt_setup() -> Result<(), Box<dyn std::error::Error>> {
 
     // Guidance for udev rules
     info!("For device permissions, create /etc/udev/rules.d/99-racing-wheel.rules:");
-    info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"046d\", ATTRS{{idProduct}}==\"c294\", MODE=\"0666\", GROUP=\"input\"");
+    info!(
+        "SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"046d\", ATTRS{{idProduct}}==\"c294\", MODE=\"0666\", GROUP=\"input\""
+    );
     info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"0eb7\", MODE=\"0666\", GROUP=\"input\"");
     info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"044f\", MODE=\"0666\", GROUP=\"input\"");
     info!("Then run: sudo udevadm control --reload-rules && sudo udevadm trigger");
@@ -538,10 +580,8 @@ pub fn revert_linux_rt_setup() -> Result<(), Box<dyn std::error::Error>> {
 
     // Reset to normal scheduling
     unsafe {
-        let param = libc::sched_param {
-            sched_priority: 0,
-        };
-        
+        let param = libc::sched_param { sched_priority: 0 };
+
         let result = libc::sched_setscheduler(0, libc::SCHED_OTHER, &param);
         if result == 0 {
             info!("Reset to SCHED_OTHER");
@@ -565,10 +605,10 @@ mod tests {
     async fn test_device_enumeration() {
         let port = LinuxHidPort::new().unwrap();
         let devices = port.list_devices().await.unwrap();
-        
+
         // Should find some mock devices
         assert!(!devices.is_empty());
-        
+
         for device in &devices {
             assert!(!device.name.is_empty());
             assert!(device.vendor_id != 0);
@@ -580,7 +620,7 @@ mod tests {
     async fn test_device_opening() {
         let port = LinuxHidPort::new().unwrap();
         let devices = port.list_devices().await.unwrap();
-        
+
         if let Some(device_info) = devices.first() {
             let device = port.open_device(&device_info.id).await.unwrap();
             assert!(device.is_connected());
@@ -657,9 +697,8 @@ mod tests {
     fn test_hidraw_device_probing() {
         let port = LinuxHidPort::new().unwrap();
         let path = Path::new("/dev/hidraw0");
-        
+
         // This should not panic even if the device doesn't exist
         let _ = port.probe_hidraw_device(path);
     }
 }
-</content>

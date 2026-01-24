@@ -14,69 +14,66 @@ use mimalloc::MiMalloc;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-pub mod rt;
-pub mod pipeline;
-pub mod scheduler;
-pub mod safety;
-pub mod device;
-pub mod ffb;
-pub mod protocol;
-#[cfg(any(test, feature = "harness"))]
-pub mod test_harness;
-pub mod ports;
-pub mod policies;
-pub mod profile_service;
-pub mod profile_merge;
-pub mod two_phase_apply;
 pub mod allocation_tracker;
-pub mod filters;
-pub mod hid;
-pub mod tracing;
-pub mod tracing_test;
-pub mod engine;
-pub mod hil_tests;
-pub mod led_haptics;
-pub mod diagnostic;
-pub mod metrics;
-pub mod prelude;
-#[cfg(test)]
-pub mod metrics_tests;
 #[cfg(test)]
 pub mod compat_impl;
+pub mod device;
+pub mod diagnostic;
+pub mod engine;
+pub mod ffb;
+pub mod filters;
+pub mod hid;
+pub mod hil_tests;
+pub mod led_haptics;
+pub mod metrics;
+#[cfg(test)]
+pub mod metrics_tests;
+pub mod pipeline;
+pub mod policies;
+pub mod ports;
+pub mod prelude;
+pub mod profile_merge;
+pub mod profile_service;
+pub mod protocol;
+pub mod rt;
+pub mod safety;
+pub mod scheduler;
+#[cfg(any(test, feature = "harness"))]
+pub mod test_harness;
+pub mod tracing;
+pub mod tracing_test;
+pub mod two_phase_apply;
 
 // Explicit exports from rt module (canonical FFBMode and Frame)
-pub use rt::{Frame, FFBMode, RTError, RTResult, PerformanceMetrics};
+pub use rt::{FFBMode, Frame, PerformanceMetrics, RTError, RTResult};
 
 // Explicit exports from ffb module (no FFBMode to avoid conflict)
-pub use ffb::{
-    GameCompatibility, ModeSelectionPolicy, CapabilityNegotiator, NegotiationResult
-};
+pub use ffb::{CapabilityNegotiator, GameCompatibility, ModeSelectionPolicy, NegotiationResult};
 
 // Explicit exports from other modules - only export what actually exists
-pub use scheduler::{PLL, RTSetup, JitterMetrics};
+pub use engine::{BlackboxFrame, Engine, EngineCommand, EngineConfig, EngineStats, GameInput};
+pub use scheduler::{JitterMetrics, PLL, RTSetup};
 #[cfg(any(test, feature = "harness"))]
 pub use test_harness::{
-    TestHarnessConfig, TestScenario, TorquePattern, ExpectedResponse, 
-    FaultInjection, TestResult, TimingValidation, ResponseValidationResult, RTLoopTestHarness
+    ExpectedResponse, FaultInjection, RTLoopTestHarness, ResponseValidationResult,
+    TestHarnessConfig, TestResult, TestScenario, TimingValidation, TorquePattern,
 };
-pub use two_phase_apply::{TwoPhaseApplyCoordinator, ApplyResult, ApplyOperationStats, ApplyStats};
-pub use engine::{
-    Engine, EngineConfig, EngineStats, EngineCommand, GameInput, BlackboxFrame
-};
+pub use two_phase_apply::{ApplyOperationStats, ApplyResult, ApplyStats, TwoPhaseApplyCoordinator};
 
 // Re-export specific items to avoid conflicts
-pub use device::{VirtualDevice, VirtualHidPort, DeviceEvent, TelemetryData, DeviceInfo};
-pub use ports::{
-    HidDevice, HidPort, TelemetryPort, ProfileRepo, ProfileRepoError, 
-    NormalizedTelemetry, TelemetryFlags, ProfileContext, DeviceHealthStatus,
-    TelemetryStatistics, ConfigurationStatus, ConfigChange, RepositoryStatus
-};
-pub use policies::{SafetyPolicy, ProfileHierarchyPolicy, SafetyViolation, ProfileHierarchyError};
-pub use protocol::{TorqueCommand, DeviceTelemetryReport, DeviceCapabilitiesReport};
-pub use tracing::{
-    TracingManager, TracingProvider, RTTraceEvent, AppTraceEvent, TracingMetrics, TracingError
-};
+pub use device::{DeviceEvent, DeviceInfo, TelemetryData, VirtualDevice, VirtualHidPort};
 pub use metrics::{
-    MetricsCollector, PrometheusMetrics, AtomicCounters, HealthEventStreamer, HealthEvent,
-    HealthEventType, HealthSeverity, RTMetrics, AppMetrics, AlertingThresholds, MetricsValidator
+    AlertingThresholds, AppMetrics, AtomicCounters, HealthEvent, HealthEventStreamer,
+    HealthEventType, HealthSeverity, MetricsCollector, MetricsValidator, PrometheusMetrics,
+    RTMetrics,
+};
+pub use policies::{ProfileHierarchyError, ProfileHierarchyPolicy, SafetyPolicy, SafetyViolation};
+pub use ports::{
+    ConfigChange, ConfigurationStatus, DeviceHealthStatus, HidDevice, HidPort, NormalizedTelemetry,
+    ProfileContext, ProfileRepo, ProfileRepoError, RepositoryStatus, TelemetryFlags, TelemetryPort,
+    TelemetryStatistics,
+};
+pub use protocol::{DeviceCapabilitiesReport, DeviceTelemetryReport, TorqueCommand};
+pub use tracing::{
+    AppTraceEvent, RTTraceEvent, TracingError, TracingManager, TracingMetrics, TracingProvider,
 };

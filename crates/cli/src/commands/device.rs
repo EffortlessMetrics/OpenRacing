@@ -197,7 +197,7 @@ async fn reset_device(client: &WheelClient, device: &str, json: bool, force: boo
     if !force && !json {
         if !Confirm::new()
             .with_prompt("Reset device to safe state? This will stop all force feedback and return to default settings.")
-            .interact()? 
+            .interact()?
         {
             output::print_warning("Reset cancelled", json);
             return Ok(());

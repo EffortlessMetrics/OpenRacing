@@ -1,11 +1,11 @@
 //! Comprehensive fault injection tests for all defined failure modes
 
-use std::time::{Duration, Instant};
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
+use super::fault_injection::{RecoveryCondition, TriggerCondition};
+use super::integration::{PluginExecution, UsbInfo};
 use super::*;
-use super::fault_injection::{TriggerCondition, RecoveryCondition};
-use super::integration::{UsbInfo, PluginExecution};
 
 /// Test suite for comprehensive fault injection covering all FMEA failure modes
 pub struct ComprehensiveFaultTests {
@@ -52,43 +52,43 @@ impl ComprehensiveFaultTests {
 
         // Test USB stall fault
         self.test_usb_stall_fault()?;
-        
+
         // Test encoder NaN fault
         self.test_encoder_nan_fault()?;
-        
+
         // Test thermal limit fault
         self.test_thermal_limit_fault()?;
-        
+
         // Test plugin overrun fault
         self.test_plugin_overrun_fault()?;
-        
+
         // Test timing violation fault
         self.test_timing_violation_fault()?;
-        
+
         // Test overcurrent fault
         self.test_overcurrent_fault()?;
-        
+
         // Test hands-off timeout fault
         self.test_hands_off_timeout_fault()?;
-        
+
         // Test safety interlock violation
         self.test_safety_interlock_violation()?;
-        
+
         // Test recovery procedures
         self.test_recovery_procedures()?;
-        
+
         // Test soft-stop mechanism
         self.test_soft_stop_mechanism()?;
-        
+
         // Test blackbox fault markers
         self.test_blackbox_fault_markers()?;
-        
+
         // Test audio alerts
         self.test_audio_alerts()?;
 
         println!("All fault injection tests completed.");
         self.print_test_summary();
-        
+
         Ok(())
     }
 
@@ -96,10 +96,10 @@ impl ComprehensiveFaultTests {
     fn test_usb_stall_fault(&mut self) -> Result<(), String> {
         let test_name = "USB Stall Fault";
         println!("Testing: {}", test_name);
-        
+
         let start_time = Instant::now();
         let initial_torque = 15.0;
-        
+
         // Create context with USB stall conditions
         let context = FaultManagerContext {
             current_torque: initial_torque,
@@ -121,7 +121,8 @@ impl ComprehensiveFaultTests {
 
         // Check blackbox marker creation
         let blackbox_markers = self.fault_manager.get_blackbox_markers();
-        let blackbox_marker_created = blackbox_markers.iter()
+        let blackbox_marker_created = blackbox_markers
+            .iter()
             .any(|marker| marker.fault_type == FaultType::UsbStall);
 
         let test_result = TestResult {
@@ -134,15 +135,21 @@ impl ComprehensiveFaultTests {
             torque_ramped_to_zero: torque_ramped,
             audio_alert_triggered: true, // Assume audio alert was triggered
             blackbox_marker_created,
-            error_message: if !success { Some("USB stall not detected".to_string()) } else { None },
+            error_message: if !success {
+                Some("USB stall not detected".to_string())
+            } else {
+                None
+            },
         };
 
         self.test_results.insert(test_name.to_string(), test_result);
 
         // Verify response time requirement (≤50ms)
         if response_time > Duration::from_millis(50) {
-            return Err(format!("USB stall response time exceeded: {}ms > 50ms", 
-                response_time.as_millis()));
+            return Err(format!(
+                "USB stall response time exceeded: {}ms > 50ms",
+                response_time.as_millis()
+            ));
         }
 
         Ok(())
@@ -152,9 +159,9 @@ impl ComprehensiveFaultTests {
     fn test_encoder_nan_fault(&mut self) -> Result<(), String> {
         let test_name = "Encoder NaN Fault";
         println!("Testing: {}", test_name);
-        
+
         let start_time = Instant::now();
-        
+
         // Inject multiple NaN values to trigger fault
         let mut fault_detected = false;
         for _i in 0..10 {
@@ -183,7 +190,11 @@ impl ComprehensiveFaultTests {
             torque_ramped_to_zero: fault_detected,
             audio_alert_triggered: fault_detected,
             blackbox_marker_created: fault_detected,
-            error_message: if !fault_detected { Some("Encoder NaN not detected".to_string()) } else { None },
+            error_message: if !fault_detected {
+                Some("Encoder NaN not detected".to_string())
+            } else {
+                None
+            },
         };
 
         self.test_results.insert(test_name.to_string(), test_result);
@@ -194,9 +205,9 @@ impl ComprehensiveFaultTests {
     fn test_thermal_limit_fault(&mut self) -> Result<(), String> {
         let test_name = "Thermal Limit Fault";
         println!("Testing: {}", test_name);
-        
+
         let start_time = Instant::now();
-        
+
         let context = FaultManagerContext {
             current_torque: 20.0,
             temperature: Some(85.0), // Above thermal threshold
@@ -218,7 +229,11 @@ impl ComprehensiveFaultTests {
             torque_ramped_to_zero: success,
             audio_alert_triggered: success,
             blackbox_marker_created: success,
-            error_message: if !success { Some("Thermal limit not detected".to_string()) } else { None },
+            error_message: if !success {
+                Some("Thermal limit not detected".to_string())
+            } else {
+                None
+            },
         };
 
         self.test_results.insert(test_name.to_string(), test_result);
@@ -229,7 +244,7 @@ impl ComprehensiveFaultTests {
     fn test_plugin_overrun_fault(&mut self) -> Result<(), String> {
         let test_name = "Plugin Overrun Fault";
         println!("Testing: {}", test_name);
-        
+
         let start_time = Instant::now();
         let mut fault_detected = false;
 
@@ -255,7 +270,9 @@ impl ComprehensiveFaultTests {
 
         // Verify plugin is quarantined
         let health_summary = self.fault_manager.get_health_summary();
-        let plugin_quarantined = health_summary.quarantined_plugins.contains(&"test_plugin".to_string());
+        let plugin_quarantined = health_summary
+            .quarantined_plugins
+            .contains(&"test_plugin".to_string());
 
         let test_result = TestResult {
             test_name: test_name.to_string(),
@@ -267,12 +284,12 @@ impl ComprehensiveFaultTests {
             torque_ramped_to_zero: false,
             audio_alert_triggered: fault_detected,
             blackbox_marker_created: fault_detected,
-            error_message: if !fault_detected { 
-                Some("Plugin overrun not detected".to_string()) 
+            error_message: if !fault_detected {
+                Some("Plugin overrun not detected".to_string())
             } else if !plugin_quarantined {
                 Some("Plugin not quarantined".to_string())
-            } else { 
-                None 
+            } else {
+                None
             },
         };
 
@@ -284,7 +301,7 @@ impl ComprehensiveFaultTests {
     fn test_timing_violation_fault(&mut self) -> Result<(), String> {
         let test_name = "Timing Violation Fault";
         println!("Testing: {}", test_name);
-        
+
         let start_time = Instant::now();
         let mut fault_detected = false;
 
@@ -315,7 +332,11 @@ impl ComprehensiveFaultTests {
             torque_ramped_to_zero: false,
             audio_alert_triggered: fault_detected,
             blackbox_marker_created: fault_detected,
-            error_message: if !fault_detected { Some("Timing violation not detected".to_string()) } else { None },
+            error_message: if !fault_detected {
+                Some("Timing violation not detected".to_string())
+            } else {
+                None
+            },
         };
 
         self.test_results.insert(test_name.to_string(), test_result);
@@ -326,7 +347,7 @@ impl ComprehensiveFaultTests {
     fn test_overcurrent_fault(&mut self) -> Result<(), String> {
         let test_name = "Overcurrent Fault";
         println!("Testing: {}", test_name);
-        
+
         // Create fault injection scenario for overcurrent
         let scenario = FaultInjectionScenario {
             name: "overcurrent_test".to_string(),
@@ -337,13 +358,17 @@ impl ComprehensiveFaultTests {
             enabled: true,
         };
 
-        self.fault_manager.fault_injection_mut().add_scenario(scenario)?;
-        
+        self.fault_manager
+            .fault_injection_mut()
+            .add_scenario(scenario)?;
+
         let start_time = Instant::now();
-        
+
         // Manually trigger overcurrent fault
-        self.fault_manager.fault_injection_mut().trigger_scenario("overcurrent_test")?;
-        
+        self.fault_manager
+            .fault_injection_mut()
+            .trigger_scenario("overcurrent_test")?;
+
         let context = FaultManagerContext {
             current_torque: 25.0,
             ..Default::default()
@@ -364,15 +389,21 @@ impl ComprehensiveFaultTests {
             torque_ramped_to_zero: success,
             audio_alert_triggered: success,
             blackbox_marker_created: success,
-            error_message: if !success { Some("Overcurrent fault not detected".to_string()) } else { None },
+            error_message: if !success {
+                Some("Overcurrent fault not detected".to_string())
+            } else {
+                None
+            },
         };
 
         self.test_results.insert(test_name.to_string(), test_result);
 
         // Verify response time requirement (≤10ms for overcurrent)
         if response_time > Duration::from_millis(10) {
-            return Err(format!("Overcurrent response time exceeded: {}ms > 10ms", 
-                response_time.as_millis()));
+            return Err(format!(
+                "Overcurrent response time exceeded: {}ms > 10ms",
+                response_time.as_millis()
+            ));
         }
 
         Ok(())
@@ -382,42 +413,59 @@ impl ComprehensiveFaultTests {
     fn test_hands_off_timeout_fault(&mut self) -> Result<(), String> {
         let test_name = "Hands-Off Timeout Fault";
         println!("Testing: {}", test_name);
-        
+
         // First activate high torque mode
-        let challenge = self.fault_manager.safety_service_mut().request_high_torque("test_device")?;
-        self.fault_manager.safety_service_mut().provide_ui_consent(challenge.challenge_token)?;
-        self.fault_manager.safety_service_mut().report_combo_start(challenge.challenge_token)?;
-        
+        let challenge = self
+            .fault_manager
+            .safety_service_mut()
+            .request_high_torque("test_device")?;
+        self.fault_manager
+            .safety_service_mut()
+            .provide_ui_consent(challenge.challenge_token)?;
+        self.fault_manager
+            .safety_service_mut()
+            .report_combo_start(challenge.challenge_token)?;
+
         // Wait for combo duration
         std::thread::sleep(Duration::from_millis(2100));
-        
+
         let ack = InterlockAck {
             challenge_token: challenge.challenge_token,
             device_token: 12345,
             combo_completed: ButtonCombo::BothClutchPaddles,
             timestamp: Instant::now(),
         };
-        
-        self.fault_manager.safety_service_mut().confirm_high_torque("test_device", ack)?;
-        
+
+        self.fault_manager
+            .safety_service_mut()
+            .confirm_high_torque("test_device", ack)?;
+
         // Now test hands-off timeout
         let start_time = Instant::now();
-        
+
         // Simulate hands-off condition
-        self.fault_manager.safety_service_mut().update_hands_on_status(false)?;
-        
+        self.fault_manager
+            .safety_service_mut()
+            .update_hands_on_status(false)?;
+
         // Wait for timeout (should be 5 seconds by default)
         std::thread::sleep(Duration::from_millis(5100));
-        
-        let result = self.fault_manager.safety_service_mut().update_hands_on_status(false);
+
+        let result = self
+            .fault_manager
+            .safety_service_mut()
+            .update_hands_on_status(false);
         let response_time = start_time.elapsed();
-        
+
         let success = result.is_err() && result.unwrap_err().contains("Hands-off timeout");
-        
+
         // Check if safety service is now faulted
         let faulted = matches!(
             self.fault_manager.safety_service().state(),
-            SafetyState::Faulted { fault: FaultType::HandsOffTimeout, .. }
+            SafetyState::Faulted {
+                fault: FaultType::HandsOffTimeout,
+                ..
+            }
         );
 
         let test_result = TestResult {
@@ -430,12 +478,12 @@ impl ComprehensiveFaultTests {
             torque_ramped_to_zero: faulted,
             audio_alert_triggered: faulted,
             blackbox_marker_created: faulted,
-            error_message: if !success { 
-                Some("Hands-off timeout not detected".to_string()) 
+            error_message: if !success {
+                Some("Hands-off timeout not detected".to_string())
             } else if !faulted {
                 Some("Safety service not faulted".to_string())
-            } else { 
-                None 
+            } else {
+                None
             },
         };
 
@@ -447,7 +495,7 @@ impl ComprehensiveFaultTests {
     fn test_safety_interlock_violation(&mut self) -> Result<(), String> {
         let test_name = "Safety Interlock Violation";
         println!("Testing: {}", test_name);
-        
+
         // Create fault injection scenario
         let scenario = FaultInjectionScenario {
             name: "interlock_violation_test".to_string(),
@@ -458,13 +506,17 @@ impl ComprehensiveFaultTests {
             enabled: true,
         };
 
-        self.fault_manager.fault_injection_mut().add_scenario(scenario)?;
-        
+        self.fault_manager
+            .fault_injection_mut()
+            .add_scenario(scenario)?;
+
         let start_time = Instant::now();
-        
+
         // Manually trigger interlock violation
-        self.fault_manager.fault_injection_mut().trigger_scenario("interlock_violation_test")?;
-        
+        self.fault_manager
+            .fault_injection_mut()
+            .trigger_scenario("interlock_violation_test")?;
+
         let context = FaultManagerContext {
             current_torque: 15.0,
             ..Default::default()
@@ -473,7 +525,9 @@ impl ComprehensiveFaultTests {
         let result = self.fault_manager.update(&context);
         let response_time = start_time.elapsed();
 
-        let success = result.new_faults.contains(&FaultType::SafetyInterlockViolation);
+        let success = result
+            .new_faults
+            .contains(&FaultType::SafetyInterlockViolation);
 
         let test_result = TestResult {
             test_name: test_name.to_string(),
@@ -485,7 +539,11 @@ impl ComprehensiveFaultTests {
             torque_ramped_to_zero: success,
             audio_alert_triggered: success,
             blackbox_marker_created: success,
-            error_message: if !success { Some("Safety interlock violation not detected".to_string()) } else { None },
+            error_message: if !success {
+                Some("Safety interlock violation not detected".to_string())
+            } else {
+                None
+            },
         };
 
         self.test_results.insert(test_name.to_string(), test_result);
@@ -496,7 +554,7 @@ impl ComprehensiveFaultTests {
     fn test_recovery_procedures(&mut self) -> Result<(), String> {
         let test_name = "Recovery Procedures";
         println!("Testing: {}", test_name);
-        
+
         let fault_types = vec![
             FaultType::UsbStall,
             FaultType::EncoderNaN,
@@ -509,21 +567,27 @@ impl ComprehensiveFaultTests {
 
         for fault_type in fault_types {
             // First trigger the fault
-            self.fault_manager.safety_service_mut().report_fault(fault_type);
-            
+            self.fault_manager
+                .safety_service_mut()
+                .report_fault(fault_type);
+
             // Wait minimum fault duration
             std::thread::sleep(Duration::from_millis(150));
-            
+
             // Attempt recovery
             let recovery_start = Instant::now();
             let recovery_result = self.fault_manager.execute_recovery_procedure(fault_type);
             let recovery_time = recovery_start.elapsed();
-            
+
             total_recovery_time += recovery_time;
-            
+
             if recovery_result.is_err() {
                 all_recoveries_successful = false;
-                eprintln!("Recovery failed for {:?}: {}", fault_type, recovery_result.unwrap_err());
+                eprintln!(
+                    "Recovery failed for {:?}: {}",
+                    fault_type,
+                    recovery_result.unwrap_err()
+                );
             }
         }
 
@@ -537,10 +601,10 @@ impl ComprehensiveFaultTests {
             torque_ramped_to_zero: false,
             audio_alert_triggered: false,
             blackbox_marker_created: true,
-            error_message: if !all_recoveries_successful { 
-                Some("Some recovery procedures failed".to_string()) 
-            } else { 
-                None 
+            error_message: if !all_recoveries_successful {
+                Some("Some recovery procedures failed".to_string())
+            } else {
+                None
             },
         };
 
@@ -552,10 +616,10 @@ impl ComprehensiveFaultTests {
     fn test_soft_stop_mechanism(&mut self) -> Result<(), String> {
         let test_name = "Soft-Stop Mechanism";
         println!("Testing: {}", test_name);
-        
+
         let start_time = Instant::now();
         let initial_torque = 20.0;
-        
+
         // Trigger thermal fault to activate soft-stop
         let context = FaultManagerContext {
             current_torque: initial_torque,
@@ -564,31 +628,32 @@ impl ComprehensiveFaultTests {
         };
 
         let result = self.fault_manager.update(&context);
-        
+
         // Verify soft-stop is active
         let soft_stop_active = result.soft_stop_active;
         let torque_multiplier = result.current_torque_multiplier;
-        
+
         // Monitor torque ramp-down over time
         let mut torque_samples = Vec::new();
         let sample_start = Instant::now();
-        
+
         while sample_start.elapsed() < Duration::from_millis(60) {
             let context = FaultManagerContext {
                 current_torque: initial_torque * torque_multiplier,
                 ..Default::default()
             };
-            
+
             let result = self.fault_manager.update(&context);
             torque_samples.push((sample_start.elapsed(), result.current_torque_multiplier));
-            
+
             std::thread::sleep(Duration::from_millis(5));
         }
 
         let response_time = start_time.elapsed();
-        
+
         // Verify torque ramped to zero within 50ms
-        let ramped_to_zero = torque_samples.iter()
+        let ramped_to_zero = torque_samples
+            .iter()
             .any(|(time, multiplier)| *time <= Duration::from_millis(50) && *multiplier == 0.0);
 
         let test_result = TestResult {
@@ -614,7 +679,9 @@ impl ComprehensiveFaultTests {
 
         // Verify 50ms requirement
         if !ramped_to_zero {
-            return Err("Soft-stop did not ramp torque to zero within 50ms requirement".to_string());
+            return Err(
+                "Soft-stop did not ramp torque to zero within 50ms requirement".to_string(),
+            );
         }
 
         Ok(())
@@ -624,9 +691,9 @@ impl ComprehensiveFaultTests {
     fn test_blackbox_fault_markers(&mut self) -> Result<(), String> {
         let test_name = "Blackbox Fault Markers";
         println!("Testing: {}", test_name);
-        
+
         let initial_marker_count = self.fault_manager.get_blackbox_markers().len();
-        
+
         // Trigger multiple different faults
         let fault_types = vec![
             FaultType::UsbStall,
@@ -672,8 +739,7 @@ impl ComprehensiveFaultTests {
         // Verify marker content
         let markers = self.fault_manager.get_blackbox_markers();
         let has_required_fields = markers.iter().all(|marker| {
-            !marker.recovery_actions.is_empty() && 
-            marker.timestamp <= Instant::now()
+            !marker.recovery_actions.is_empty() && marker.timestamp <= Instant::now()
         });
 
         let test_result = TestResult {
@@ -703,10 +769,10 @@ impl ComprehensiveFaultTests {
     fn test_audio_alerts(&mut self) -> Result<(), String> {
         let test_name = "Audio Alerts";
         println!("Testing: {}", test_name);
-        
+
         // This test verifies that the audio alert system is properly integrated
         // In a real implementation, this would check actual audio output
-        
+
         // Trigger a fault that should generate audio alert
         let context = FaultManagerContext {
             current_torque: 15.0,
@@ -744,30 +810,41 @@ impl ComprehensiveFaultTests {
     /// Print comprehensive test summary
     fn print_test_summary(&self) {
         println!("\n=== COMPREHENSIVE FAULT INJECTION TEST SUMMARY ===");
-        
+
         let total_tests = self.test_results.len();
         let passed_tests = self.test_results.values().filter(|r| r.success).count();
         let failed_tests = total_tests - passed_tests;
-        
+
         println!("Total Tests: {}", total_tests);
         println!("Passed: {}", passed_tests);
         println!("Failed: {}", failed_tests);
-        println!("Success Rate: {:.1}%", (passed_tests as f64 / total_tests as f64) * 100.0);
-        
+        println!(
+            "Success Rate: {:.1}%",
+            (passed_tests as f64 / total_tests as f64) * 100.0
+        );
+
         println!("\n=== DETAILED RESULTS ===");
         for (test_name, result) in &self.test_results {
             let status = if result.success { "PASS" } else { "FAIL" };
-            println!("{}: {} (Response: {:.1}ms)", test_name, status, result.response_time.as_millis());
-            
+            println!(
+                "{}: {} (Response: {:.1}ms)",
+                test_name,
+                status,
+                result.response_time.as_millis()
+            );
+
             if let Some(error) = &result.error_message {
                 println!("  Error: {}", error);
             }
-            
+
             if result.recovery_time.is_some() {
-                println!("  Recovery Time: {:.1}ms", result.recovery_time.unwrap().as_millis());
+                println!(
+                    "  Recovery Time: {:.1}ms",
+                    result.recovery_time.unwrap().as_millis()
+                );
             }
         }
-        
+
         println!("\n=== SAFETY REQUIREMENTS VERIFICATION ===");
         self.verify_safety_requirements();
     }
@@ -775,43 +852,72 @@ impl ComprehensiveFaultTests {
     /// Verify that all safety requirements are met
     fn verify_safety_requirements(&self) {
         println!("Checking safety requirements compliance...");
-        
+
         // SAFE-03: Fault→torque→0 in ≤50ms
-        let soft_stop_tests: Vec<_> = self.test_results.values()
+        let soft_stop_tests: Vec<_> = self
+            .test_results
+            .values()
             .filter(|r| r.soft_stop_triggered)
             .collect();
-        
-        let soft_stop_within_50ms = soft_stop_tests.iter()
+
+        let soft_stop_within_50ms = soft_stop_tests
+            .iter()
             .all(|r| r.response_time <= Duration::from_millis(50));
-        
-        println!("SAFE-03 (Fault→torque→0 ≤50ms): {}", 
-            if soft_stop_within_50ms { "PASS" } else { "FAIL" });
-        
+
+        println!(
+            "SAFE-03 (Fault→torque→0 ≤50ms): {}",
+            if soft_stop_within_50ms {
+                "PASS"
+            } else {
+                "FAIL"
+            }
+        );
+
         // SAFE-04: Blackbox contains fault history
-        let blackbox_coverage = self.test_results.values()
+        let blackbox_coverage = self
+            .test_results
+            .values()
             .filter(|r| r.success)
             .all(|r| r.blackbox_marker_created);
-        
-        println!("SAFE-04 (Blackbox fault markers): {}", 
-            if blackbox_coverage { "PASS" } else { "FAIL" });
-        
+
+        println!(
+            "SAFE-04 (Blackbox fault markers): {}",
+            if blackbox_coverage { "PASS" } else { "FAIL" }
+        );
+
         // DIAG-01: Fault detection and post-mortem
-        let fault_detection_coverage = self.test_results.values()
+        let fault_detection_coverage = self
+            .test_results
+            .values()
             .filter(|r| r.fault_type != FaultType::HandsOffTimeout) // Special case
             .all(|r| r.success);
-        
-        println!("DIAG-01 (Fault detection): {}", 
-            if fault_detection_coverage { "PASS" } else { "FAIL" });
-        
+
+        println!(
+            "DIAG-01 (Fault detection): {}",
+            if fault_detection_coverage {
+                "PASS"
+            } else {
+                "FAIL"
+            }
+        );
+
         // Plugin quarantine verification
-        let plugin_tests: Vec<_> = self.test_results.values()
+        let plugin_tests: Vec<_> = self
+            .test_results
+            .values()
             .filter(|r| r.fault_type == FaultType::PluginOverrun)
             .collect();
-        
+
         let plugin_quarantine_working = plugin_tests.iter().all(|r| r.success);
-        
-        println!("Plugin Quarantine: {}", 
-            if plugin_quarantine_working { "PASS" } else { "FAIL" });
+
+        println!(
+            "Plugin Quarantine: {}",
+            if plugin_quarantine_working {
+                "PASS"
+            } else {
+                "FAIL"
+            }
+        );
     }
 
     /// Get test results
@@ -832,20 +938,25 @@ mod tests {
     #[test]
     fn test_comprehensive_fault_injection() {
         let mut test_suite = ComprehensiveFaultTests::new();
-        
+
         // Run all tests
         let result = test_suite.run_all_tests();
-        assert!(result.is_ok(), "Comprehensive fault injection tests failed: {:?}", result);
-        
+        assert!(
+            result.is_ok(),
+            "Comprehensive fault injection tests failed: {:?}",
+            result
+        );
+
         // Verify all tests passed
         let results = test_suite.get_test_results();
-        let failed_tests: Vec<_> = results.values()
-            .filter(|r| !r.success)
-            .collect();
-        
+        let failed_tests: Vec<_> = results.values().filter(|r| !r.success).collect();
+
         if !failed_tests.is_empty() {
             for failed_test in failed_tests {
-                eprintln!("Failed test: {} - {:?}", failed_test.test_name, failed_test.error_message);
+                eprintln!(
+                    "Failed test: {} - {:?}",
+                    failed_test.test_name, failed_test.error_message
+                );
             }
             panic!("Some fault injection tests failed");
         }
@@ -855,18 +966,24 @@ mod tests {
     fn test_response_time_requirements() {
         let mut test_suite = ComprehensiveFaultTests::new();
         test_suite.run_all_tests().unwrap();
-        
+
         let results = test_suite.get_test_results();
-        
+
         // Check critical fault response times
         if let Some(usb_result) = results.get("USB Stall Fault") {
-            assert!(usb_result.response_time <= Duration::from_millis(50), 
-                "USB stall response time too slow: {}ms", usb_result.response_time.as_millis());
+            assert!(
+                usb_result.response_time <= Duration::from_millis(50),
+                "USB stall response time too slow: {}ms",
+                usb_result.response_time.as_millis()
+            );
         }
-        
+
         if let Some(thermal_result) = results.get("Thermal Limit Fault") {
-            assert!(thermal_result.response_time <= Duration::from_millis(50), 
-                "Thermal fault response time too slow: {}ms", thermal_result.response_time.as_millis());
+            assert!(
+                thermal_result.response_time <= Duration::from_millis(50),
+                "Thermal fault response time too slow: {}ms",
+                thermal_result.response_time.as_millis()
+            );
         }
     }
 
@@ -874,38 +991,48 @@ mod tests {
     fn test_soft_stop_timing() {
         let mut test_suite = ComprehensiveFaultTests::new();
         test_suite.test_soft_stop_mechanism().unwrap();
-        
+
         let results = test_suite.get_test_results();
         let soft_stop_result = results.get("Soft-Stop Mechanism").unwrap();
-        
+
         assert!(soft_stop_result.success, "Soft-stop mechanism test failed");
-        assert!(soft_stop_result.torque_ramped_to_zero, "Torque did not ramp to zero");
+        assert!(
+            soft_stop_result.torque_ramped_to_zero,
+            "Torque did not ramp to zero"
+        );
     }
 
     #[test]
     fn test_plugin_quarantine() {
         let mut test_suite = ComprehensiveFaultTests::new();
         test_suite.test_plugin_overrun_fault().unwrap();
-        
+
         let results = test_suite.get_test_results();
         let plugin_result = results.get("Plugin Overrun Fault").unwrap();
-        
+
         assert!(plugin_result.success, "Plugin overrun test failed");
-        
+
         // Verify plugin is actually quarantined
         let health_summary = test_suite.get_fault_manager().get_health_summary();
-        assert!(health_summary.quarantined_plugins.contains(&"test_plugin".to_string()));
+        assert!(
+            health_summary
+                .quarantined_plugins
+                .contains(&"test_plugin".to_string())
+        );
     }
 
     #[test]
     fn test_blackbox_marker_creation() {
         let mut test_suite = ComprehensiveFaultTests::new();
         test_suite.test_blackbox_fault_markers().unwrap();
-        
+
         let results = test_suite.get_test_results();
         let blackbox_result = results.get("Blackbox Fault Markers").unwrap();
-        
+
         assert!(blackbox_result.success, "Blackbox marker test failed");
-        assert!(blackbox_result.blackbox_marker_created, "Blackbox markers not created");
+        assert!(
+            blackbox_result.blackbox_marker_created,
+            "Blackbox markers not created"
+        );
     }
 }

@@ -34,7 +34,7 @@ This document outlines the development roadmap for the Racing Wheel Software Sui
     - [ ] Profile optimization (TODO: `crates/engine/src/profile_merge.rs`)
 - [ ] **Enhanced Telemetry**
     - [ ] Game service integration (TODO: `crates/engine/src/metrics.rs`)
-    - [ ] Histogram tracking for latency metrics (TODO: `crates/engine/src/metrics.rs`)
+    - [x] Histogram tracking for latency metrics (RTSampleQueues + HDRHistogram)
 - [ ] **Safety & Reliability**
     - [ ] Fault quarantine implementation (TODO: `crates/engine/src/safety/fmea.rs`)
     - [ ] Full replay validation (TODO: `crates/engine/src/diagnostic/replay.rs`)

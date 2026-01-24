@@ -1,8 +1,8 @@
 //! Safety systems and fault handling
 
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use std::collections::HashMap;
 use racing_wheel_schemas::prelude::TorqueNm;
+use std::collections::HashMap;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// Safety state machine for torque management
 #[derive(Debug, Clone, PartialEq)]
@@ -28,10 +28,7 @@ pub enum SafetyState {
         last_hands_on: Instant,
     },
     /// Faulted state (torque disabled)
-    Faulted {
-        fault: FaultType,
-        since: Instant,
-    },
+    Faulted { fault: FaultType, since: Instant },
 }
 
 /// Types of faults that can occur
@@ -132,7 +129,7 @@ impl SafetyService {
 
     /// Create new safety service with custom timeouts
     pub fn with_timeouts(
-        max_safe_torque_nm: f32, 
+        max_safe_torque_nm: f32,
         max_high_torque_nm: f32,
         hands_off_timeout: Duration,
         combo_hold_duration: Duration,
@@ -231,16 +228,15 @@ impl SafetyService {
                     expires: challenge.expires,
                     ui_consent_given: false,
                 };
-                
+
                 self.active_challenge = Some(challenge.clone());
                 Ok(challenge)
             }
-            SafetyState::HighTorqueActive { .. } => {
-                Err("High torque already active".to_string())
-            }
-            SafetyState::Faulted { fault, .. } => {
-                Err(format!("Cannot enable high torque while faulted: {}", fault))
-            }
+            SafetyState::HighTorqueActive { .. } => Err("High torque already active".to_string()),
+            SafetyState::Faulted { fault, .. } => Err(format!(
+                "Cannot enable high torque while faulted: {}",
+                fault
+            )),
             SafetyState::HighTorqueChallenge { .. } | SafetyState::AwaitingPhysicalAck { .. } => {
                 Err("High torque challenge already in progress".to_string())
             }
@@ -250,15 +246,15 @@ impl SafetyService {
     /// Provide UI consent for high torque mode
     pub fn provide_ui_consent(&mut self, challenge_token: u32) -> Result<(), String> {
         match &mut self.state {
-            SafetyState::HighTorqueChallenge { 
-                challenge_token: token, 
-                expires, 
-                ui_consent_given 
+            SafetyState::HighTorqueChallenge {
+                challenge_token: token,
+                expires,
+                ui_consent_given,
             } => {
                 if *token != challenge_token {
                     return Err("Invalid challenge token".to_string());
                 }
-                
+
                 if Instant::now() > *expires {
                     self.state = SafetyState::SafeTorque;
                     self.active_challenge = None;
@@ -266,7 +262,7 @@ impl SafetyService {
                 }
 
                 *ui_consent_given = true;
-                
+
                 // Update active challenge
                 if let Some(ref mut challenge) = self.active_challenge {
                     challenge.ui_consent_given = true;
@@ -288,15 +284,15 @@ impl SafetyService {
     /// Report button combo start from device
     pub fn report_combo_start(&mut self, challenge_token: u32) -> Result<(), String> {
         match &mut self.state {
-            SafetyState::AwaitingPhysicalAck { 
-                challenge_token: token, 
-                expires, 
-                combo_start 
+            SafetyState::AwaitingPhysicalAck {
+                challenge_token: token,
+                expires,
+                combo_start,
             } => {
                 if *token != challenge_token {
                     return Err("Invalid challenge token".to_string());
                 }
-                
+
                 if Instant::now() > *expires {
                     self.state = SafetyState::SafeTorque;
                     self.active_challenge = None;
@@ -304,7 +300,7 @@ impl SafetyService {
                 }
 
                 *combo_start = Some(Instant::now());
-                
+
                 // Update active challenge
                 if let Some(ref mut challenge) = self.active_challenge {
                     challenge.combo_start = Some(Instant::now());
@@ -327,22 +323,26 @@ impl SafetyService {
         // - Temperature limits
         // - Recent hands-on detection
         // - Device health status
-        
+
         Ok(())
     }
 
     /// Confirm high torque challenge with device acknowledgment
-    pub fn confirm_high_torque(&mut self, device_id: &str, ack: InterlockAck) -> Result<(), String> {
+    pub fn confirm_high_torque(
+        &mut self,
+        device_id: &str,
+        ack: InterlockAck,
+    ) -> Result<(), String> {
         match &self.state {
-            SafetyState::AwaitingPhysicalAck { 
-                challenge_token, 
-                expires, 
-                combo_start 
+            SafetyState::AwaitingPhysicalAck {
+                challenge_token,
+                expires,
+                combo_start,
             } => {
                 if ack.challenge_token != *challenge_token {
                     return Err("Invalid challenge token in acknowledgment".to_string());
                 }
-                
+
                 if Instant::now() > *expires {
                     self.state = SafetyState::SafeTorque;
                     self.active_challenge = None;
@@ -364,7 +364,8 @@ impl SafetyService {
                 }
 
                 // Store device token (persists until power cycle)
-                self.device_tokens.insert(device_id.to_string(), ack.device_token);
+                self.device_tokens
+                    .insert(device_id.to_string(), ack.device_token);
 
                 // Activate high torque mode
                 self.state = SafetyState::HighTorqueActive {
@@ -372,7 +373,7 @@ impl SafetyService {
                     device_token: ack.device_token,
                     last_hands_on: Instant::now(),
                 };
-                
+
                 self.active_challenge = None;
                 Ok(())
             }
@@ -383,7 +384,7 @@ impl SafetyService {
     /// Report a fault
     pub fn report_fault(&mut self, fault: FaultType) {
         *self.fault_count.entry(fault).or_insert(0) += 1;
-        
+
         self.state = SafetyState::Faulted {
             fault,
             since: Instant::now(),
@@ -469,8 +470,8 @@ impl SafetyService {
     pub fn check_challenge_expiry(&mut self) -> bool {
         let now = Instant::now();
         let expired = match &self.state {
-            SafetyState::HighTorqueChallenge { expires, .. } |
-            SafetyState::AwaitingPhysicalAck { expires, .. } => now > *expires,
+            SafetyState::HighTorqueChallenge { expires, .. }
+            | SafetyState::AwaitingPhysicalAck { expires, .. } => now > *expires,
             _ => false,
         };
 
@@ -485,8 +486,8 @@ impl SafetyService {
     /// Get time remaining for active challenge
     pub fn get_challenge_time_remaining(&self) -> Option<Duration> {
         match &self.state {
-            SafetyState::HighTorqueChallenge { expires, .. } |
-            SafetyState::AwaitingPhysicalAck { expires, .. } => {
+            SafetyState::HighTorqueChallenge { expires, .. }
+            | SafetyState::AwaitingPhysicalAck { expires, .. } => {
                 let now = Instant::now();
                 if now < *expires {
                     Some(*expires - now)
@@ -559,20 +560,20 @@ mod option_instant_serde {
     }
 }
 
-pub mod fmea;
-pub mod watchdog;
 pub mod fault_injection;
+pub mod fmea;
 pub mod integration;
+pub mod watchdog;
 
-#[cfg(test)]
-mod tests;
 #[cfg(test)]
 pub mod comprehensive_tests;
+#[cfg(test)]
+mod tests;
 
-pub use fmea::{FmeaSystem, SoftStopController, FaultThresholds, AudioAlert};
-pub use watchdog::{WatchdogSystem, WatchdogConfig, SystemComponent, HealthStatus};
-pub use fault_injection::{FaultInjectionSystem, FaultInjectionScenario, TriggerCondition};
-pub use integration::{IntegratedFaultManager, FaultManagerContext, FaultManagerResult};
+pub use fault_injection::{FaultInjectionScenario, FaultInjectionSystem, TriggerCondition};
+pub use fmea::{AudioAlert, FaultThresholds, FmeaSystem, SoftStopController};
+pub use integration::{FaultManagerContext, FaultManagerResult, IntegratedFaultManager};
+pub use watchdog::{HealthStatus, SystemComponent, WatchdogConfig, WatchdogSystem};
 
 #[cfg(test)]
 pub use tests::*;

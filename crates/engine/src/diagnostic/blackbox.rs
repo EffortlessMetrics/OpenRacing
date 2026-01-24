@@ -5,21 +5,24 @@
 //! - Stream B: 60Hz telemetry
 //! - Stream C: Health/fault events
 
-use super::{HealthEvent, streams::{StreamA, StreamB, StreamC}};
 use super::bincode_compat as codec;
+use super::{
+    HealthEvent,
+    streams::{StreamA, StreamB, StreamC},
+};
+use crate::ports::NormalizedTelemetry;
 use crate::rt::Frame;
 use crate::safety::SafetyState;
-use crate::ports::NormalizedTelemetry;
+use crc32c::crc32c;
+use flate2::{Compression, write::GzEncoder};
 use racing_wheel_schemas::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
-    io::{BufWriter, Write, Seek},
+    io::{BufWriter, Seek, Write},
     path::{Path, PathBuf},
-    time::{SystemTime, Instant, UNIX_EPOCH},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
-use serde::{Serialize, Deserialize};
-use crc32c::crc32c;
-use flate2::{write::GzEncoder, Compression};
 
 /// .wbb v1 file format magic number
 const WBB_MAGIC: &[u8; 4] = b"WBB1";
@@ -138,12 +141,12 @@ pub struct BlackboxRecorder {
     output_file: PathBuf,
     writer: BufWriter<File>,
     encoder: GzEncoder<Vec<u8>>,
-    
+
     // Streams
     stream_a: StreamA,
     stream_b: StreamB,
     stream_c: StreamC,
-    
+
     // State
     start_time: Instant,
     /// TODO: Used for future index optimization implementation
@@ -151,7 +154,7 @@ pub struct BlackboxRecorder {
     last_index_time: Instant,
     index_entries: Vec<IndexEntry>,
     stats: RecordingStats,
-    
+
     // Buffers
     compressed_buffer: Vec<u8>,
     frame_buffer: Vec<u8>,
@@ -165,47 +168,49 @@ impl BlackboxRecorder {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        
-        let filename = format!("blackbox_{}_{}.wbb", 
-                              config.device_id.to_string().replace(['/', '\\', ':'], "_"),
-                              timestamp);
-        
+
+        let filename = format!(
+            "blackbox_{}_{}.wbb",
+            config.device_id.to_string().replace(['/', '\\', ':'], "_"),
+            timestamp
+        );
+
         let output_file = config.output_dir.join(filename);
-        
+
         // Create output file
         let file = File::create(&output_file)
             .map_err(|e| format!("Failed to create blackbox file: {}", e))?;
-        
+
         let mut writer = BufWriter::new(file);
-        
+
         // Write header
-        let stream_flags = 
-            (if config.enable_stream_a { 1 } else { 0 }) |
-            (if config.enable_stream_b { 2 } else { 0 }) |
-            (if config.enable_stream_c { 4 } else { 0 });
-        
+        let stream_flags = (if config.enable_stream_a { 1 } else { 0 })
+            | (if config.enable_stream_b { 2 } else { 0 })
+            | (if config.enable_stream_c { 4 } else { 0 });
+
         let mut header = WbbHeader::new(
             config.device_id.clone(),
             1, // FFB mode (will be updated)
             stream_flags,
             config.compression_level,
         );
-        
+
         let mut header_bytes = codec::encode_to_vec(&header)
             .map_err(|e| format!("Failed to serialize header: {}", e))?;
         header.header_size = header_bytes.len() as u32;
         header_bytes = codec::encode_to_vec(&header)
             .map_err(|e| format!("Failed to serialize header: {}", e))?;
-        
-        writer.write_all(&header_bytes)
+
+        writer
+            .write_all(&header_bytes)
             .map_err(|e| format!("Failed to write header: {}", e))?;
-        
+
         // Initialize compression
         let compression = Compression::new(config.compression_level as u32);
         let encoder = GzEncoder::new(Vec::new(), compression);
-        
+
         let start_time = Instant::now();
-        
+
         Ok(Self {
             config: config.clone(),
             output_file,
@@ -230,7 +235,7 @@ impl BlackboxRecorder {
             frame_buffer: Vec::new(),
         })
     }
-    
+
     /// Record a frame (Stream A - 1kHz)
     pub fn record_frame(
         &mut self,
@@ -242,70 +247,77 @@ impl BlackboxRecorder {
         if !self.config.enable_stream_a {
             return Ok(());
         }
-        
+
         // Check if we need to create an index entry (every 100ms)
         let elapsed = self.start_time.elapsed();
         if elapsed.as_millis() >= (self.index_entries.len() + 1) as u128 * 100 {
             self.create_index_entry()?;
         }
-        
+
         // Record to Stream A
-        self.stream_a.record_frame(frame, node_outputs, safety_state, processing_time_us)?;
-        
+        self.stream_a
+            .record_frame(frame, node_outputs, safety_state, processing_time_us)?;
+
         self.stats.frames_recorded += 1;
-        
+
         // Check limits
         self.check_limits()?;
-        
+
         Ok(())
     }
-    
+
     /// Record telemetry (Stream B - 60Hz)
     pub fn record_telemetry(&mut self, telemetry: &NormalizedTelemetry) -> Result<(), String> {
         if !self.config.enable_stream_b {
             return Ok(());
         }
-        
+
         self.stream_b.record_telemetry(telemetry)?;
         self.stats.telemetry_records += 1;
-        
+
         Ok(())
     }
-    
+
     /// Record health event (Stream C)
     pub fn record_health_event(&mut self, event: &HealthEvent) -> Result<(), String> {
         if !self.config.enable_stream_c {
             return Ok(());
         }
-        
+
         self.stream_c.record_health_event(event)?;
         self.stats.health_events += 1;
-        
+
         Ok(())
     }
-    
+
     /// Finalize recording and return output path
     pub fn finalize(mut self) -> Result<PathBuf, String> {
         // Write final streams to file
         self.write_streams_to_file()?;
-        
+
         // Write index
-        let index_offset = self.writer.stream_position()
+        let index_offset = self
+            .writer
+            .stream_position()
             .map_err(|e| format!("Failed to get file position: {}", e))?;
-        
+
         let index_bytes = codec::encode_to_vec(&self.index_entries)
             .map_err(|e| format!("Failed to serialize index: {}", e))?;
-        
-        self.writer.write_all(&index_bytes)
+
+        self.writer
+            .write_all(&index_bytes)
             .map_err(|e| format!("Failed to write index: {}", e))?;
-        
+
         // Calculate file CRC (excluding footer)
-        self.writer.flush()
+        self.writer
+            .flush()
             .map_err(|e| format!("Failed to flush writer: {}", e))?;
-        
-        let file_size = self.writer.stream_position()
+
+        let file_size = self
+            .writer
+            .stream_position()
             .map_err(|e| format!("Failed to get file size: {}", e))?;
-        
+
         // Write footer
         let footer = WbbFooter {
             duration_ms: self.start_time.elapsed().as_millis() as u32,
@@ -315,35 +327,39 @@ impl BlackboxRecorder {
             file_crc32c: 0, // Will be calculated separately
             footer_magic: *b"1BBW",
         };
-        
+
         let footer_bytes = codec::encode_to_vec(&footer)
             .map_err(|e| format!("Failed to serialize footer: {}", e))?;
-        
-        self.writer.write_all(&footer_bytes)
+
+        self.writer
+            .write_all(&footer_bytes)
             .map_err(|e| format!("Failed to write footer: {}", e))?;
-        
-        self.writer.flush()
+
+        self.writer
+            .flush()
             .map_err(|e| format!("Failed to flush final write: {}", e))?;
-        
+
         // Update stats
         self.stats.file_size_bytes = file_size;
         self.stats.is_active = false;
-        
+
         Ok(self.output_file)
     }
-    
+
     /// Get current recording statistics
     pub fn get_stats(&self) -> RecordingStats {
         self.stats.clone()
     }
-    
+
     /// Create index entry for current position
     fn create_index_entry(&mut self) -> Result<(), String> {
         let elapsed_ms = self.start_time.elapsed().as_millis() as u32;
-        
-        let current_pos = self.writer.stream_position()
+
+        let current_pos = self
+            .writer
+            .stream_position()
             .map_err(|e| format!("Failed to get stream position: {}", e))?;
-        
+
         let entry = IndexEntry {
             timestamp_ms: elapsed_ms,
             stream_a_offset: current_pos,
@@ -351,63 +367,68 @@ impl BlackboxRecorder {
             stream_c_offset: current_pos,
             frame_count: 100, // Approximate for 100ms at 1kHz
         };
-        
+
         self.index_entries.push(entry);
         Ok(())
     }
-    
+
     /// Write accumulated stream data to file
     fn write_streams_to_file(&mut self) -> Result<(), String> {
         // Get data from streams
         let stream_a_data = self.stream_a.get_data();
         let stream_b_data = self.stream_b.get_data();
         let stream_c_data = self.stream_c.get_data();
-        
+
         // Combine all stream data
         self.frame_buffer.clear();
         self.frame_buffer.extend_from_slice(&stream_a_data);
         self.frame_buffer.extend_from_slice(&stream_b_data);
         self.frame_buffer.extend_from_slice(&stream_c_data);
-        
+
         // Compress if enabled
         if self.config.compression_level > 0 {
-            self.encoder.write_all(&self.frame_buffer)
+            self.encoder
+                .write_all(&self.frame_buffer)
                 .map_err(|e| format!("Failed to compress data: {}", e))?;
-            
+
             // Replace encoder to get the compressed data
             let compression = Compression::new(self.config.compression_level as u32);
-            let old_encoder = std::mem::replace(&mut self.encoder, GzEncoder::new(Vec::new(), compression));
-            self.compressed_buffer = old_encoder.finish()
+            let old_encoder =
+                std::mem::replace(&mut self.encoder, GzEncoder::new(Vec::new(), compression));
+            self.compressed_buffer = old_encoder
+                .finish()
                 .map_err(|e| format!("Failed to finish compression: {}", e))?;
-            
+
             // Calculate compression ratio
             if !self.frame_buffer.is_empty() {
-                self.stats.compression_ratio = 
+                self.stats.compression_ratio =
                     self.compressed_buffer.len() as f64 / self.frame_buffer.len() as f64;
             }
-            
-            self.writer.write_all(&self.compressed_buffer)
+
+            self.writer
+                .write_all(&self.compressed_buffer)
                 .map_err(|e| format!("Failed to write compressed data: {}", e))?;
         } else {
-            self.writer.write_all(&self.frame_buffer)
+            self.writer
+                .write_all(&self.frame_buffer)
                 .map_err(|e| format!("Failed to write uncompressed data: {}", e))?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Check recording limits
     fn check_limits(&self) -> Result<(), String> {
         // Check duration limit
         if self.start_time.elapsed().as_secs() > self.config.max_duration_s {
             return Err("Maximum recording duration exceeded".to_string());
         }
-        
+
         // Check file size limit (approximate)
         if self.stats.file_size_bytes > self.config.max_file_size_bytes {
             return Err("Maximum file size exceeded".to_string());
         }
-        
+
         Ok(())
     }
 }
@@ -415,22 +436,22 @@ impl BlackboxRecorder {
 /// Calculate CRC32C for file validation
 pub fn calculate_file_crc32c(file_path: &Path) -> Result<u32, String> {
     use std::io::Read;
-    
-    let mut file = File::open(file_path)
-        .map_err(|e| format!("Failed to open file for CRC: {}", e))?;
-    
+
+    let mut file =
+        File::open(file_path).map_err(|e| format!("Failed to open file for CRC: {}", e))?;
+
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)
         .map_err(|e| format!("Failed to read file for CRC: {}", e))?;
-    
+
     Ok(crc32c(&buffer))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use crate::safety::SafetyState;
+    use tempfile::TempDir;
 
     fn create_test_config() -> (BlackboxConfig, TempDir) {
         let temp_dir = TempDir::new().unwrap();
@@ -452,7 +473,7 @@ mod tests {
         let (config, _temp_dir) = create_test_config();
         let recorder = BlackboxRecorder::new(config);
         assert!(recorder.is_ok());
-        
+
         let recorder = recorder.unwrap();
         let stats = recorder.get_stats();
         assert!(stats.is_active);
@@ -463,7 +484,7 @@ mod tests {
     fn test_frame_recording() {
         let (config, _temp_dir) = create_test_config();
         let mut recorder = BlackboxRecorder::new(config).unwrap();
-        
+
         let frame = Frame {
             ffb_in: 0.5,
             torque_out: 0.3,
@@ -472,14 +493,15 @@ mod tests {
             ts_mono_ns: 1000000000,
             seq: 1,
         };
-        
+
         let node_outputs = vec![0.1, 0.2, 0.3];
         let safety_state = SafetyState::SafeTorque;
         let processing_time_us = 150;
-        
-        let result = recorder.record_frame(&frame, &node_outputs, &safety_state, processing_time_us);
+
+        let result =
+            recorder.record_frame(&frame, &node_outputs, &safety_state, processing_time_us);
         assert!(result.is_ok());
-        
+
         let stats = recorder.get_stats();
         assert_eq!(stats.frames_recorded, 1);
     }
@@ -488,7 +510,7 @@ mod tests {
     fn test_recording_finalization() {
         let (config, _temp_dir) = create_test_config();
         let mut recorder = BlackboxRecorder::new(config).unwrap();
-        
+
         // Record some data
         for i in 0..10 {
             let frame = Frame {
@@ -499,22 +521,24 @@ mod tests {
                 ts_mono_ns: (i * 1000000) as u64,
                 seq: i as u16,
             };
-            
+
             let node_outputs = vec![i as f32 * 0.01; 3];
             let safety_state = SafetyState::SafeTorque;
             let processing_time_us = 100 + i as u64;
-            
-            recorder.record_frame(&frame, &node_outputs, &safety_state, processing_time_us).unwrap();
+
+            recorder
+                .record_frame(&frame, &node_outputs, &safety_state, processing_time_us)
+                .unwrap();
         }
-        
+
         // Finalize
         let output_path = recorder.finalize();
         assert!(output_path.is_ok());
-        
+
         let output_path = output_path.unwrap();
         assert!(output_path.exists());
         assert!(output_path.extension().unwrap() == "wbb");
-        
+
         // Check file is not empty
         let metadata = std::fs::metadata(&output_path).unwrap();
         assert!(metadata.len() > 0);
@@ -524,12 +548,11 @@ mod tests {
     fn test_wbb_header_serialization() {
         let device_id = DeviceId::new("test-device".to_string()).unwrap();
         let header = WbbHeader::new(device_id, 1, 7, 6);
-        
+
         let serialized = codec::encode_to_vec(&header);
         assert!(serialized.is_ok());
 
-        let deserialized: WbbHeader =
-            codec::decode_from_slice(&serialized.unwrap()).unwrap();
+        let deserialized: WbbHeader = codec::decode_from_slice(&serialized.unwrap()).unwrap();
         assert_eq!(deserialized.magic, *WBB_MAGIC);
         assert_eq!(deserialized.version, 1);
         assert_eq!(deserialized.stream_flags, 7);
@@ -540,7 +563,7 @@ mod tests {
     fn test_index_creation() {
         let (config, _temp_dir) = create_test_config();
         let mut recorder = BlackboxRecorder::new(config).unwrap();
-        
+
         // Record enough frames to trigger index creation
         for i in 0..200 {
             let frame = Frame {
@@ -551,13 +574,15 @@ mod tests {
                 ts_mono_ns: (i * 1000000) as u64, // 1ms intervals
                 seq: i as u16,
             };
-            
-            recorder.record_frame(&frame, &[], &SafetyState::SafeTorque, 100).unwrap();
-            
+
+            recorder
+                .record_frame(&frame, &[], &SafetyState::SafeTorque, 100)
+                .unwrap();
+
             // Simulate time passing
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
-        
+
         // Should have created at least one index entry
         assert!(!recorder.index_entries.is_empty());
     }
@@ -566,24 +591,26 @@ mod tests {
     fn test_compression() {
         let (mut config, _temp_dir) = create_test_config();
         config.compression_level = 6; // Higher compression
-        
+
         let mut recorder = BlackboxRecorder::new(config).unwrap();
-        
+
         // Record repetitive data that should compress well
         for i in 0..100 {
             let frame = Frame {
-                ffb_in: 0.5, // Constant value
-                torque_out: 0.5, // Constant value
+                ffb_in: 0.5,       // Constant value
+                torque_out: 0.5,   // Constant value
                 wheel_speed: 10.0, // Constant value
                 hands_off: false,
                 ts_mono_ns: (i * 1000000) as u64,
                 seq: i as u16,
             };
-            
+
             let node_outputs = vec![0.1, 0.2, 0.3]; // Constant values
-            recorder.record_frame(&frame, &node_outputs, &SafetyState::SafeTorque, 100).unwrap();
+            recorder
+                .record_frame(&frame, &node_outputs, &SafetyState::SafeTorque, 100)
+                .unwrap();
         }
-        
+
         let stats = recorder.get_stats();
         // With repetitive data, compression ratio should be good
         // (This is a basic test - actual compression depends on data patterns)

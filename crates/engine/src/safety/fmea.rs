@@ -1,8 +1,8 @@
 //! FMEA (Failure Mode & Effects Analysis) system for fault detection and handling
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use serde::{Deserialize, Serialize};
 
 use super::{FaultType, SafetyService};
 
@@ -182,8 +182,9 @@ impl SoftStopController {
 
         // Linear ramp
         let progress = elapsed.as_secs_f32() / self.ramp_duration.as_secs_f32();
-        self.current_torque = self.start_torque + (self.target_torque - self.start_torque) * progress;
-        
+        self.current_torque =
+            self.start_torque + (self.target_torque - self.start_torque) * progress;
+
         self.current_torque
     }
 
@@ -300,83 +301,108 @@ impl FmeaSystem {
     /// Initialize the FMEA matrix with default entries
     fn initialize_fmea_matrix(&mut self) {
         // USB Stall fault
-        self.fmea_matrix.insert(FaultType::UsbStall, FmeaEntry {
-            fault_type: FaultType::UsbStall,
-            detection_method: "USB write timeout or consecutive failures".to_string(),
-            action: FaultAction::SoftStop,
-            max_response_time_ms: 50,
-            post_mortem: PostMortemConfig::default(),
-            recovery_procedure: "Retry with exponential backoff, reconnect if needed".to_string(),
-            enabled: true,
-        });
+        self.fmea_matrix.insert(
+            FaultType::UsbStall,
+            FmeaEntry {
+                fault_type: FaultType::UsbStall,
+                detection_method: "USB write timeout or consecutive failures".to_string(),
+                action: FaultAction::SoftStop,
+                max_response_time_ms: 50,
+                post_mortem: PostMortemConfig::default(),
+                recovery_procedure: "Retry with exponential backoff, reconnect if needed"
+                    .to_string(),
+                enabled: true,
+            },
+        );
 
         // Encoder NaN fault
-        self.fmea_matrix.insert(FaultType::EncoderNaN, FmeaEntry {
-            fault_type: FaultType::EncoderNaN,
-            detection_method: "NaN or infinite values in encoder data".to_string(),
-            action: FaultAction::SoftStop,
-            max_response_time_ms: 50,
-            post_mortem: PostMortemConfig::default(),
-            recovery_procedure: "Recalibrate encoder, use last known good value".to_string(),
-            enabled: true,
-        });
+        self.fmea_matrix.insert(
+            FaultType::EncoderNaN,
+            FmeaEntry {
+                fault_type: FaultType::EncoderNaN,
+                detection_method: "NaN or infinite values in encoder data".to_string(),
+                action: FaultAction::SoftStop,
+                max_response_time_ms: 50,
+                post_mortem: PostMortemConfig::default(),
+                recovery_procedure: "Recalibrate encoder, use last known good value".to_string(),
+                enabled: true,
+            },
+        );
 
         // Thermal limit fault
-        self.fmea_matrix.insert(FaultType::ThermalLimit, FmeaEntry {
-            fault_type: FaultType::ThermalLimit,
-            detection_method: "Temperature sensor reading above threshold".to_string(),
-            action: FaultAction::SoftStop,
-            max_response_time_ms: 50,
-            post_mortem: PostMortemConfig::default(),
-            recovery_procedure: "Reduce torque, wait for cooldown with hysteresis".to_string(),
-            enabled: true,
-        });
+        self.fmea_matrix.insert(
+            FaultType::ThermalLimit,
+            FmeaEntry {
+                fault_type: FaultType::ThermalLimit,
+                detection_method: "Temperature sensor reading above threshold".to_string(),
+                action: FaultAction::SoftStop,
+                max_response_time_ms: 50,
+                post_mortem: PostMortemConfig::default(),
+                recovery_procedure: "Reduce torque, wait for cooldown with hysteresis".to_string(),
+                enabled: true,
+            },
+        );
 
         // Plugin overrun fault
-        self.fmea_matrix.insert(FaultType::PluginOverrun, FmeaEntry {
-            fault_type: FaultType::PluginOverrun,
-            detection_method: "Plugin execution time exceeds budget".to_string(),
-            action: FaultAction::Quarantine,
-            max_response_time_ms: 1, // Immediate
-            post_mortem: PostMortemConfig::default(),
-            recovery_procedure: "Quarantine plugin, continue engine operation".to_string(),
-            enabled: true,
-        });
+        self.fmea_matrix.insert(
+            FaultType::PluginOverrun,
+            FmeaEntry {
+                fault_type: FaultType::PluginOverrun,
+                detection_method: "Plugin execution time exceeds budget".to_string(),
+                action: FaultAction::Quarantine,
+                max_response_time_ms: 1, // Immediate
+                post_mortem: PostMortemConfig::default(),
+                recovery_procedure: "Quarantine plugin, continue engine operation".to_string(),
+                enabled: true,
+            },
+        );
 
         // Timing violation fault
-        self.fmea_matrix.insert(FaultType::TimingViolation, FmeaEntry {
-            fault_type: FaultType::TimingViolation,
-            detection_method: "RT loop jitter exceeds threshold".to_string(),
-            action: FaultAction::LogAndContinue,
-            max_response_time_ms: 1,
-            post_mortem: PostMortemConfig::default(),
-            recovery_procedure: "Log violation, adjust RT priority if needed".to_string(),
-            enabled: true,
-        });
+        self.fmea_matrix.insert(
+            FaultType::TimingViolation,
+            FmeaEntry {
+                fault_type: FaultType::TimingViolation,
+                detection_method: "RT loop jitter exceeds threshold".to_string(),
+                action: FaultAction::LogAndContinue,
+                max_response_time_ms: 1,
+                post_mortem: PostMortemConfig::default(),
+                recovery_procedure: "Log violation, adjust RT priority if needed".to_string(),
+                enabled: true,
+            },
+        );
 
         // Overcurrent fault
-        self.fmea_matrix.insert(FaultType::Overcurrent, FmeaEntry {
-            fault_type: FaultType::Overcurrent,
-            detection_method: "Current sensor reading above safe threshold".to_string(),
-            action: FaultAction::SoftStop,
-            max_response_time_ms: 10, // Very fast for safety
-            post_mortem: PostMortemConfig::default(),
-            recovery_procedure: "Immediate torque cutoff, check for hardware issues".to_string(),
-            enabled: true,
-        });
+        self.fmea_matrix.insert(
+            FaultType::Overcurrent,
+            FmeaEntry {
+                fault_type: FaultType::Overcurrent,
+                detection_method: "Current sensor reading above safe threshold".to_string(),
+                action: FaultAction::SoftStop,
+                max_response_time_ms: 10, // Very fast for safety
+                post_mortem: PostMortemConfig::default(),
+                recovery_procedure: "Immediate torque cutoff, check for hardware issues"
+                    .to_string(),
+                enabled: true,
+            },
+        );
 
         // Initialize detection states
         for fault_type in self.fmea_matrix.keys() {
-            self.detection_states.insert(*fault_type, FaultDetectionState::default());
+            self.detection_states
+                .insert(*fault_type, FaultDetectionState::default());
         }
     }
 
     /// Detect USB communication faults
-    pub fn detect_usb_fault(&mut self, consecutive_failures: u32, last_success: Option<Instant>) -> Option<FaultType> {
+    pub fn detect_usb_fault(
+        &mut self,
+        consecutive_failures: u32,
+        last_success: Option<Instant>,
+    ) -> Option<FaultType> {
         let state = self.detection_states.get_mut(&FaultType::UsbStall)?;
-        
+
         state.consecutive_count = consecutive_failures;
-        
+
         // Check timeout
         if let Some(last_success_time) = last_success {
             let timeout_threshold = Duration::from_millis(self.thresholds.usb_timeout_ms);
@@ -398,10 +424,12 @@ impl FmeaSystem {
         if !encoder_value.is_finite() {
             let state = self.detection_states.get_mut(&FaultType::EncoderNaN)?;
             let now = Instant::now();
-            
+
             // Initialize or reset window
-            if state.window_start.is_none() || 
-               now.duration_since(state.window_start.unwrap()) > Duration::from_millis(self.thresholds.encoder_nan_window_ms) {
+            if state.window_start.is_none()
+                || now.duration_since(state.window_start.unwrap())
+                    > Duration::from_millis(self.thresholds.encoder_nan_window_ms)
+            {
                 state.window_start = Some(now);
                 state.window_count = 1;
             } else {
@@ -420,7 +448,11 @@ impl FmeaSystem {
     }
 
     /// Detect thermal faults
-    pub fn detect_thermal_fault(&mut self, temperature_celsius: f32, current_fault_active: bool) -> Option<FaultType> {
+    pub fn detect_thermal_fault(
+        &mut self,
+        temperature_celsius: f32,
+        current_fault_active: bool,
+    ) -> Option<FaultType> {
         // Use hysteresis for thermal protection
         let threshold = if current_fault_active {
             self.thresholds.thermal_limit_celsius - self.thresholds.thermal_hysteresis_celsius
@@ -439,7 +471,11 @@ impl FmeaSystem {
     }
 
     /// Detect plugin overrun faults
-    pub fn detect_plugin_overrun(&mut self, plugin_id: &str, execution_time_us: u64) -> Option<FaultType> {
+    pub fn detect_plugin_overrun(
+        &mut self,
+        plugin_id: &str,
+        execution_time_us: u64,
+    ) -> Option<FaultType> {
         if execution_time_us > self.thresholds.plugin_timeout_us {
             let state = self.detection_states.get_mut(&FaultType::PluginOverrun)?;
             state.consecutive_count += 1;
@@ -448,8 +484,8 @@ impl FmeaSystem {
             if state.consecutive_count >= self.thresholds.plugin_max_overruns {
                 // Quarantine the plugin
                 self.quarantined_plugins.insert(
-                    plugin_id.to_string(), 
-                    Instant::now() + Duration::from_secs(300) // 5 minute quarantine
+                    plugin_id.to_string(),
+                    Instant::now() + Duration::from_secs(300), // 5 minute quarantine
                 );
                 return Some(FaultType::PluginOverrun);
             }
@@ -474,8 +510,15 @@ impl FmeaSystem {
     }
 
     /// Handle detected fault according to FMEA matrix
-    pub fn handle_fault(&mut self, fault_type: FaultType, current_torque: f32, safety_service: &mut SafetyService) -> Result<(), String> {
-        let fmea_entry = self.fmea_matrix.get(&fault_type)
+    pub fn handle_fault(
+        &mut self,
+        fault_type: FaultType,
+        current_torque: f32,
+        safety_service: &mut SafetyService,
+    ) -> Result<(), String> {
+        let fmea_entry = self
+            .fmea_matrix
+            .get(&fault_type)
             .ok_or_else(|| format!("No FMEA entry for fault type: {:?}", fault_type))?;
 
         if !fmea_entry.enabled {
@@ -526,8 +569,11 @@ impl FmeaSystem {
         // Check response time
         let response_time = start_time.elapsed();
         if response_time.as_millis() as u64 > fmea_entry.max_response_time_ms {
-            eprintln!("WARNING: Fault response time exceeded: {}ms > {}ms", 
-                     response_time.as_millis(), fmea_entry.max_response_time_ms);
+            eprintln!(
+                "WARNING: Fault response time exceeded: {}ms > {}ms",
+                response_time.as_millis(),
+                fmea_entry.max_response_time_ms
+            );
         }
 
         Ok(())
@@ -613,7 +659,8 @@ impl FmeaSystem {
     /// Clear old fault markers
     pub fn clear_old_fault_markers(&mut self, older_than: Duration) {
         let cutoff = Instant::now() - older_than;
-        self.fault_markers.retain(|marker| marker.timestamp > cutoff);
+        self.fault_markers
+            .retain(|marker| marker.timestamp > cutoff);
     }
 
     /// Get FMEA configuration
@@ -630,7 +677,12 @@ impl FmeaSystem {
     pub fn get_fault_statistics(&self) -> HashMap<FaultType, (u32, Option<Instant>)> {
         self.detection_states
             .iter()
-            .map(|(fault_type, state)| (*fault_type, (state.consecutive_count, state.last_occurrence)))
+            .map(|(fault_type, state)| {
+                (
+                    *fault_type,
+                    (state.consecutive_count, state.last_occurrence),
+                )
+            })
             .collect()
     }
 
@@ -670,13 +722,13 @@ mod tests {
     #[test]
     fn test_fmea_system_initialization() {
         let fmea = FmeaSystem::new();
-        
+
         // Should have entries for all fault types
         assert!(fmea.fmea_matrix.contains_key(&FaultType::UsbStall));
         assert!(fmea.fmea_matrix.contains_key(&FaultType::EncoderNaN));
         assert!(fmea.fmea_matrix.contains_key(&FaultType::ThermalLimit));
         assert!(fmea.fmea_matrix.contains_key(&FaultType::PluginOverrun));
-        
+
         // Should have detection states
         assert!(fmea.detection_states.contains_key(&FaultType::UsbStall));
         assert!(fmea.detection_states.contains_key(&FaultType::EncoderNaN));
@@ -685,19 +737,19 @@ mod tests {
     #[test]
     fn test_soft_stop_controller() {
         let mut controller = SoftStopController::new();
-        
+
         assert!(!controller.is_active());
         assert_eq!(controller.update(), 0.0);
-        
+
         // Start soft stop from 10.0 Nm
         controller.start_soft_stop(10.0);
         assert!(controller.is_active());
-        
+
         // Should ramp down over time
         let initial_torque = controller.update();
         assert!(initial_torque > 0.0);
         assert!(initial_torque <= 10.0);
-        
+
         // Wait for ramp to complete
         std::thread::sleep(Duration::from_millis(60));
         let final_torque = controller.update();
@@ -708,33 +760,39 @@ mod tests {
     #[test]
     fn test_usb_fault_detection() {
         let mut fmea = FmeaSystem::new();
-        
+
         // No fault initially
         assert!(fmea.detect_usb_fault(0, Some(Instant::now())).is_none());
-        
+
         // Consecutive failures
         assert!(fmea.detect_usb_fault(1, Some(Instant::now())).is_none());
         assert!(fmea.detect_usb_fault(2, Some(Instant::now())).is_none());
-        assert_eq!(fmea.detect_usb_fault(3, Some(Instant::now())), Some(FaultType::UsbStall));
-        
+        assert_eq!(
+            fmea.detect_usb_fault(3, Some(Instant::now())),
+            Some(FaultType::UsbStall)
+        );
+
         // Timeout
         let old_time = Instant::now() - Duration::from_millis(20);
-        assert_eq!(fmea.detect_usb_fault(0, Some(old_time)), Some(FaultType::UsbStall));
+        assert_eq!(
+            fmea.detect_usb_fault(0, Some(old_time)),
+            Some(FaultType::UsbStall)
+        );
     }
 
     #[test]
     fn test_encoder_fault_detection() {
         let mut fmea = FmeaSystem::new();
-        
+
         // Normal values should not trigger fault
         assert!(fmea.detect_encoder_fault(1.5).is_none());
         assert!(fmea.detect_encoder_fault(-2.3).is_none());
         assert!(fmea.detect_encoder_fault(0.0).is_none());
-        
+
         // Single NaN should not trigger fault
         assert!(fmea.detect_encoder_fault(f32::NAN).is_none());
         assert!(fmea.detect_encoder_fault(f32::INFINITY).is_none());
-        
+
         // Multiple NaNs in window should trigger fault
         for _ in 0..5 {
             let result = fmea.detect_encoder_fault(f32::NAN);
@@ -748,16 +806,19 @@ mod tests {
     #[test]
     fn test_thermal_fault_detection() {
         let mut fmea = FmeaSystem::new();
-        
+
         // Normal temperature
         assert!(fmea.detect_thermal_fault(70.0, false).is_none());
-        
+
         // Over threshold
-        assert_eq!(fmea.detect_thermal_fault(85.0, false), Some(FaultType::ThermalLimit));
-        
+        assert_eq!(
+            fmea.detect_thermal_fault(85.0, false),
+            Some(FaultType::ThermalLimit)
+        );
+
         // Hysteresis - should not clear immediately
         assert!(fmea.detect_thermal_fault(79.0, true).is_some());
-        
+
         // Below hysteresis threshold - should clear
         assert!(fmea.detect_thermal_fault(74.0, true).is_none());
     }
@@ -765,9 +826,9 @@ mod tests {
     #[test]
     fn test_plugin_quarantine() {
         let mut fmea = FmeaSystem::new();
-        
+
         assert!(!fmea.is_plugin_quarantined("test_plugin"));
-        
+
         // Trigger overruns
         for i in 0..10 {
             let result = fmea.detect_plugin_overrun("test_plugin", 150); // Over 100us threshold
@@ -775,9 +836,9 @@ mod tests {
                 assert_eq!(result, Some(FaultType::PluginOverrun));
             }
         }
-        
+
         assert!(fmea.is_plugin_quarantined("test_plugin"));
-        
+
         // Release quarantine
         fmea.release_plugin_quarantine("test_plugin");
         assert!(!fmea.is_plugin_quarantined("test_plugin"));
@@ -787,45 +848,52 @@ mod tests {
     fn test_fault_handling() {
         let mut fmea = FmeaSystem::new();
         let mut safety_service = SafetyService::default();
-        
+
         // Handle USB stall fault
-        fmea.handle_fault(FaultType::UsbStall, 10.0, &mut safety_service).unwrap();
-        
+        fmea.handle_fault(FaultType::UsbStall, 10.0, &mut safety_service)
+            .unwrap();
+
         // Should trigger soft stop
         assert!(fmea.is_soft_stop_active());
-        
+
         // Should create fault marker
         assert_eq!(fmea.fault_markers.len(), 1);
         assert_eq!(fmea.fault_markers[0].fault_type, FaultType::UsbStall);
-        
+
         // Safety service should be faulted
-        assert!(matches!(safety_service.state(), crate::safety::SafetyState::Faulted { .. }));
+        assert!(matches!(
+            safety_service.state(),
+            crate::safety::SafetyState::Faulted { .. }
+        ));
     }
 
     #[test]
     fn test_timing_violation_detection() {
         let mut fmea = FmeaSystem::new();
-        
+
         // Normal jitter
         assert!(fmea.detect_timing_violation(100).is_none());
-        
+
         // High jitter but not enough violations
         for _ in 0..99 {
             assert!(fmea.detect_timing_violation(300).is_none());
         }
-        
+
         // 100th violation should trigger fault
-        assert_eq!(fmea.detect_timing_violation(300), Some(FaultType::TimingViolation));
+        assert_eq!(
+            fmea.detect_timing_violation(300),
+            Some(FaultType::TimingViolation)
+        );
     }
 
     #[test]
     fn test_fault_statistics() {
         let mut fmea = FmeaSystem::new();
-        
+
         // Trigger some faults
         fmea.detect_usb_fault(2, Some(Instant::now()));
         fmea.detect_encoder_fault(f32::NAN);
-        
+
         let stats = fmea.get_fault_statistics();
         assert_eq!(stats[&FaultType::UsbStall].0, 2); // 2 consecutive failures
         assert!(stats[&FaultType::EncoderNaN].1.is_some()); // Has last occurrence
@@ -835,17 +903,19 @@ mod tests {
     fn test_fault_marker_cleanup() {
         let mut fmea = FmeaSystem::new();
         let mut safety_service = SafetyService::default();
-        
+
         // Create some fault markers
-        fmea.handle_fault(FaultType::UsbStall, 5.0, &mut safety_service).unwrap();
-        fmea.handle_fault(FaultType::ThermalLimit, 3.0, &mut safety_service).unwrap();
-        
+        fmea.handle_fault(FaultType::UsbStall, 5.0, &mut safety_service)
+            .unwrap();
+        fmea.handle_fault(FaultType::ThermalLimit, 3.0, &mut safety_service)
+            .unwrap();
+
         assert_eq!(fmea.fault_markers.len(), 2);
-        
+
         // Clear old markers (none should be cleared since they're recent)
         fmea.clear_old_fault_markers(Duration::from_secs(1));
         assert_eq!(fmea.fault_markers.len(), 2);
-        
+
         // Clear all markers
         fmea.clear_old_fault_markers(Duration::from_millis(1));
         assert_eq!(fmea.fault_markers.len(), 0);

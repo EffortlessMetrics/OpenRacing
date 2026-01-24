@@ -46,7 +46,7 @@ impl Default for ProfileMergeEngine {
 
 impl ProfileMergeEngine {
     /// Merge profiles according to hierarchy: Global → Game → Car → Session
-    /// 
+    ///
     /// This method implements deterministic merging where:
     /// - Later profiles in the hierarchy override earlier ones
     /// - Only non-default values are considered for override
@@ -59,7 +59,7 @@ impl ProfileMergeEngine {
         session_overrides: Option<&BaseSettings>,
     ) -> MergeResult {
         debug!("Starting profile merge operation");
-        
+
         let mut stats = MergeStats {
             profiles_merged: 1, // Always have global
             session_overrides_applied: session_overrides.is_some(),
@@ -93,18 +93,16 @@ impl ProfileMergeEngine {
         }
 
         // Calculate deterministic hash of merge inputs
-        let merge_hash = self.calculate_merge_hash(
-            global_profile,
-            game_profile,
-            car_profile,
-            session_overrides,
-        );
+        let merge_hash =
+            self.calculate_merge_hash(global_profile, game_profile, car_profile, session_overrides);
 
         // Update merged profile metadata
         merged_profile.metadata.modified_at = chrono::Utc::now().to_rfc3339();
 
-        debug!("Profile merge completed: {} profiles merged, hash: {:x}", 
-               stats.profiles_merged, merge_hash);
+        debug!(
+            "Profile merge completed: {} profiles merged, hash: {:x}",
+            stats.profiles_merged, merge_hash
+        );
 
         MergeResult {
             profile: merged_profile,
@@ -132,10 +130,15 @@ impl ProfileMergeEngine {
     }
 
     /// Merge base settings with deterministic override logic
-    fn merge_base_settings(&self, target: &mut BaseSettings, source: &BaseSettings, stats: &mut MergeStats) {
+    fn merge_base_settings(
+        &self,
+        target: &mut BaseSettings,
+        source: &BaseSettings,
+        stats: &mut MergeStats,
+    ) {
         // Create a default BaseSettings to compare against
         let defaults = BaseSettings::default();
-        
+
         // Only override if the source value is different from the default
         if source.ffb_gain.value() != defaults.ffb_gain.value() {
             target.ffb_gain = source.ffb_gain;
@@ -157,7 +160,12 @@ impl ProfileMergeEngine {
     }
 
     /// Merge filter configurations with granular override logic
-    fn merge_filter_config(&self, target: &mut FilterConfig, source: &FilterConfig, stats: &mut MergeStats) {
+    fn merge_filter_config(
+        &self,
+        target: &mut FilterConfig,
+        source: &FilterConfig,
+        stats: &mut MergeStats,
+    ) {
         // Always override with source values for hierarchy precedence
         target.reconstruction = source.reconstruction;
         target.friction = source.friction;
@@ -166,12 +174,17 @@ impl ProfileMergeEngine {
         target.slew_rate = source.slew_rate;
         target.notch_filters = source.notch_filters.clone();
         target.curve_points = source.curve_points.clone();
-        
+
         stats.filter_overrides += 7;
     }
 
     /// Apply session overrides to merged profile
-    fn apply_session_overrides(&self, target: &mut Profile, overrides: &BaseSettings, stats: &mut MergeStats) {
+    fn apply_session_overrides(
+        &self,
+        target: &mut Profile,
+        overrides: &BaseSettings,
+        stats: &mut MergeStats,
+    ) {
         // Session overrides always take precedence
         target.base_settings = overrides.clone();
         stats.filter_overrides += 10; // Indicate session override applied
@@ -217,31 +230,45 @@ impl ProfileMergeEngine {
     /// Calculate hash for base settings
     fn hash_base_settings(&self, settings: &BaseSettings) -> u64 {
         let mut hasher = DefaultHasher::new();
-        
+
         settings.ffb_gain.value().to_bits().hash(&mut hasher);
-        settings.degrees_of_rotation.value().to_bits().hash(&mut hasher);
+        settings
+            .degrees_of_rotation
+            .value()
+            .to_bits()
+            .hash(&mut hasher);
         settings.torque_cap.value().to_bits().hash(&mut hasher);
-        
+
         // Hash filter config
         settings.filters.reconstruction.hash(&mut hasher);
-        settings.filters.friction.value().to_bits().hash(&mut hasher);
+        settings
+            .filters
+            .friction
+            .value()
+            .to_bits()
+            .hash(&mut hasher);
         settings.filters.damper.value().to_bits().hash(&mut hasher);
         settings.filters.inertia.value().to_bits().hash(&mut hasher);
-        settings.filters.slew_rate.value().to_bits().hash(&mut hasher);
-        
+        settings
+            .filters
+            .slew_rate
+            .value()
+            .to_bits()
+            .hash(&mut hasher);
+
         // Hash curve points
         for point in &settings.filters.curve_points {
             point.input.to_bits().hash(&mut hasher);
             point.output.to_bits().hash(&mut hasher);
         }
-        
+
         // Hash notch filters
         for filter in &settings.filters.notch_filters {
             filter.frequency.value().to_bits().hash(&mut hasher);
             filter.q_factor.to_bits().hash(&mut hasher);
             filter.gain_db.to_bits().hash(&mut hasher);
         }
-        
+
         hasher.finish()
     }
 
@@ -293,12 +320,9 @@ impl ProfileMergeEngine {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     fn create_test_profile(id: &str, scope: ProfileScope) -> Profile {
         Profile::new(
@@ -334,8 +358,9 @@ mod tests {
     fn test_merge_engine_with_game_profile() {
         let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
-        let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
-        
+        let mut game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+
         // Modify game profile to have different settings
         game_profile.base_settings.ffb_gain = Gain::new(0.8).unwrap();
 
@@ -350,8 +375,12 @@ mod tests {
     fn test_merge_engine_full_hierarchy() {
         let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
-        let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
-        let mut car_profile = create_test_profile("gt3", ProfileScope::for_car("iracing".to_string(), "gt3".to_string()));
+        let mut game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+        let mut car_profile = create_test_profile(
+            "gt3",
+            ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
+        );
 
         // Set different values at each level
         game_profile.base_settings.ffb_gain = Gain::new(0.8).unwrap();
@@ -366,7 +395,10 @@ mod tests {
 
         assert_eq!(result.stats.profiles_merged, 3);
         assert_eq!(result.profile.base_settings.ffb_gain.value(), 0.8); // From game
-        assert_eq!(result.profile.base_settings.degrees_of_rotation.value(), 540.0); // From car
+        assert_eq!(
+            result.profile.base_settings.degrees_of_rotation.value(),
+            540.0
+        ); // From car
     }
 
     #[test]
@@ -375,16 +407,14 @@ mod tests {
         let global_profile = create_test_profile("global", ProfileScope::global());
         let session_overrides = create_custom_base_settings();
 
-        let result = engine.merge_profiles(
-            &global_profile,
-            None,
-            None,
-            Some(&session_overrides),
-        );
+        let result = engine.merge_profiles(&global_profile, None, None, Some(&session_overrides));
 
         assert!(result.stats.session_overrides_applied);
         assert_eq!(result.profile.base_settings.ffb_gain.value(), 0.8);
-        assert_eq!(result.profile.base_settings.degrees_of_rotation.value(), 540.0);
+        assert_eq!(
+            result.profile.base_settings.degrees_of_rotation.value(),
+            540.0
+        );
         assert_eq!(result.profile.base_settings.torque_cap.value(), 20.0);
     }
 
@@ -392,7 +422,8 @@ mod tests {
     fn test_merge_engine_deterministic_hash() {
         let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
-        let game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+        let game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
 
         // Merge the same profiles multiple times
         let result1 = engine.merge_profiles(&global_profile, Some(&game_profile), None, None);
@@ -400,18 +431,23 @@ mod tests {
 
         // Hash should be identical
         assert_eq!(result1.merge_hash, result2.merge_hash);
-        
+
         // Profile hashes should also be identical
-        assert_eq!(result1.profile.calculate_hash(), result2.profile.calculate_hash());
+        assert_eq!(
+            result1.profile.calculate_hash(),
+            result2.profile.calculate_hash()
+        );
     }
 
     #[test]
     fn test_merge_engine_different_inputs_different_hash() {
         let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
-        let game_profile1 = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
-        let mut game_profile2 = create_test_profile("acc", ProfileScope::for_game("acc".to_string()));
-        
+        let game_profile1 =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+        let mut game_profile2 =
+            create_test_profile("acc", ProfileScope::for_game("acc".to_string()));
+
         // Make game_profile2 different
         game_profile2.base_settings.ffb_gain = Gain::new(0.9).unwrap();
 
@@ -425,14 +461,14 @@ mod tests {
     #[test]
     fn test_merge_engine_default_value_detection() {
         let engine = ProfileMergeEngine::default();
-        
+
         // Test default value detection
         assert!(engine.is_default_gain(Gain::new(0.7).unwrap()));
         assert!(!engine.is_default_gain(Gain::new(0.8).unwrap()));
-        
+
         assert!(engine.is_default_dor(Degrees::new_dor(900.0).unwrap()));
         assert!(!engine.is_default_dor(Degrees::new_dor(540.0).unwrap()));
-        
+
         assert!(engine.is_default_torque_cap(TorqueNm::new(15.0).unwrap()));
         assert!(!engine.is_default_torque_cap(TorqueNm::new(20.0).unwrap()));
     }
@@ -440,18 +476,18 @@ mod tests {
     #[test]
     fn test_merge_engine_linear_curve_detection() {
         let engine = ProfileMergeEngine::default();
-        
+
         let linear_curve = vec![
             CurvePoint::new(0.0, 0.0).unwrap(),
             CurvePoint::new(1.0, 1.0).unwrap(),
         ];
-        
+
         let non_linear_curve = vec![
             CurvePoint::new(0.0, 0.0).unwrap(),
             CurvePoint::new(0.5, 0.7).unwrap(),
             CurvePoint::new(1.0, 1.0).unwrap(),
         ];
-        
+
         assert!(engine.is_linear_curve(&linear_curve));
         assert!(!engine.is_linear_curve(&non_linear_curve));
     }
@@ -460,9 +496,10 @@ mod tests {
     fn test_merge_engine_monotonic_curve_validation() {
         let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
-        
+
         // Create profile with non-monotonic curve
-        let mut bad_game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+        let mut bad_game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
         bad_game_profile.base_settings.filters.curve_points = vec![
             CurvePoint::new(0.0, 0.0).unwrap(),
             CurvePoint::new(0.7, 0.6).unwrap(),
@@ -479,37 +516,58 @@ mod tests {
     #[test]
     fn test_merge_engine_deterministic_ordering() {
         let engine = ProfileMergeEngine::default();
-        
+
         // Create profiles with different values
         let global_profile = create_test_profile("global", ProfileScope::global());
-        let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
-        let mut car_profile = create_test_profile("gt3", ProfileScope::for_car("iracing".to_string(), "gt3".to_string()));
-        
+        let mut game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+        let mut car_profile = create_test_profile(
+            "gt3",
+            ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
+        );
+
         game_profile.base_settings.ffb_gain = Gain::new(0.8).unwrap();
         car_profile.base_settings.ffb_gain = Gain::new(0.9).unwrap();
         car_profile.base_settings.degrees_of_rotation = Degrees::new_dor(540.0).unwrap();
 
         // Test different merge orders should produce same result
-        let result1 = engine.merge_profiles(&global_profile, Some(&game_profile), Some(&car_profile), None);
-        let result2 = engine.merge_profiles(&global_profile, Some(&game_profile), Some(&car_profile), None);
-        
+        let result1 = engine.merge_profiles(
+            &global_profile,
+            Some(&game_profile),
+            Some(&car_profile),
+            None,
+        );
+        let result2 = engine.merge_profiles(
+            &global_profile,
+            Some(&game_profile),
+            Some(&car_profile),
+            None,
+        );
+
         assert_eq!(result1.merge_hash, result2.merge_hash);
         assert_eq!(result1.profile.base_settings.ffb_gain.value(), 0.9); // Car profile wins
-        assert_eq!(result1.profile.base_settings.degrees_of_rotation.value(), 540.0); // Car profile
+        assert_eq!(
+            result1.profile.base_settings.degrees_of_rotation.value(),
+            540.0
+        ); // Car profile
     }
 
     #[test]
     fn test_merge_engine_session_overrides_precedence() {
         let engine = ProfileMergeEngine::default();
-        
+
         let global_profile = create_test_profile("global", ProfileScope::global());
-        let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
-        let mut car_profile = create_test_profile("gt3", ProfileScope::for_car("iracing".to_string(), "gt3".to_string()));
-        
+        let mut game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+        let mut car_profile = create_test_profile(
+            "gt3",
+            ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
+        );
+
         // Set different values at each level
         game_profile.base_settings.ffb_gain = Gain::new(0.8).unwrap();
         car_profile.base_settings.ffb_gain = Gain::new(0.9).unwrap();
-        
+
         // Session overrides should win over everything
         let session_overrides = BaseSettings::new(
             Gain::new(0.5).unwrap(), // Different from all others
@@ -527,7 +585,10 @@ mod tests {
 
         // Session overrides should take precedence
         assert_eq!(result.profile.base_settings.ffb_gain.value(), 0.5);
-        assert_eq!(result.profile.base_settings.degrees_of_rotation.value(), 720.0);
+        assert_eq!(
+            result.profile.base_settings.degrees_of_rotation.value(),
+            720.0
+        );
         assert_eq!(result.profile.base_settings.torque_cap.value(), 12.0);
         assert!(result.stats.session_overrides_applied);
     }
@@ -536,7 +597,8 @@ mod tests {
     fn test_merge_engine_hash_stability() {
         let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
-        let game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+        let game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
 
         // Perform multiple merges with same inputs
         let mut hashes = Vec::new();
@@ -548,7 +610,10 @@ mod tests {
         // All hashes should be identical (deterministic)
         let first_hash = hashes[0];
         for hash in hashes {
-            assert_eq!(hash, first_hash, "Hash should be deterministic across multiple merges");
+            assert_eq!(
+                hash, first_hash,
+                "Hash should be deterministic across multiple merges"
+            );
         }
     }
 
@@ -559,7 +624,7 @@ mod tests {
 
         // Merge with all None profiles
         let result = engine.merge_profiles(&global_profile, None, None, None);
-        
+
         assert_eq!(result.stats.profiles_merged, 1);
         assert!(!result.stats.session_overrides_applied);
         assert_eq!(result.profile.id, global_profile.id);
@@ -569,8 +634,9 @@ mod tests {
     fn test_merge_engine_filter_override_counting() {
         let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
-        let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
-        
+        let mut game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+
         // Modify multiple filter settings
         game_profile.base_settings.ffb_gain = Gain::new(0.8).unwrap();
         game_profile.base_settings.degrees_of_rotation = Degrees::new_dor(540.0).unwrap();
@@ -579,7 +645,7 @@ mod tests {
         game_profile.base_settings.filters.damper = Gain::new(0.25).unwrap();
 
         let result = engine.merge_profiles(&global_profile, Some(&game_profile), None, None);
-        
+
         // Should count all the filter overrides
         assert!(result.stats.filter_overrides > 0);
         assert_eq!(result.stats.profiles_merged, 2);
@@ -589,14 +655,15 @@ mod tests {
     fn test_merge_engine_led_haptics_override() {
         let engine = ProfileMergeEngine::default();
         let global_profile = create_test_profile("global", ProfileScope::global());
-        let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
-        
+        let mut game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+
         // Modify LED and haptics configs
         game_profile.led_config = Some(LedConfig::default());
         game_profile.haptics_config = Some(HapticsConfig::default());
 
         let result = engine.merge_profiles(&global_profile, Some(&game_profile), None, None);
-        
+
         assert!(result.stats.led_overrides > 0);
         assert!(result.stats.haptics_overrides > 0);
         assert!(result.profile.led_config.is_some());
@@ -606,27 +673,31 @@ mod tests {
     #[test]
     fn test_merge_engine_complex_hierarchy() {
         let engine = ProfileMergeEngine::default();
-        
+
         // Create a complex hierarchy with all levels
         let mut global_profile = create_test_profile("global", ProfileScope::global());
-        let mut game_profile = create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
-        let mut car_profile = create_test_profile("gt3", ProfileScope::for_car("iracing".to_string(), "gt3".to_string()));
-        
+        let mut game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+        let mut car_profile = create_test_profile(
+            "gt3",
+            ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
+        );
+
         // Set different values at each level to test precedence
         global_profile.base_settings.ffb_gain = Gain::new(0.6).unwrap();
         global_profile.base_settings.degrees_of_rotation = Degrees::new_dor(900.0).unwrap();
         global_profile.base_settings.torque_cap = TorqueNm::new(15.0).unwrap();
-        
+
         game_profile.base_settings.ffb_gain = Gain::new(0.8).unwrap(); // Should override global
         game_profile.base_settings.filters.friction = Gain::new(0.12).unwrap();
-        
+
         car_profile.base_settings.degrees_of_rotation = Degrees::new_dor(540.0).unwrap(); // Should override global
         car_profile.base_settings.filters.damper = Gain::new(0.18).unwrap();
-        
+
         let session_overrides = BaseSettings::new(
-            Gain::new(0.9).unwrap(), // Should override everything
+            Gain::new(0.9).unwrap(),          // Should override everything
             Degrees::new_dor(720.0).unwrap(), // Should override everything
-            TorqueNm::new(25.0).unwrap(), // Should override everything
+            TorqueNm::new(25.0).unwrap(),     // Should override everything
             FilterConfig::default(),
         );
 
@@ -639,9 +710,12 @@ mod tests {
 
         // Verify final precedence: Session > Car > Game > Global
         assert_eq!(result.profile.base_settings.ffb_gain.value(), 0.9); // Session
-        assert_eq!(result.profile.base_settings.degrees_of_rotation.value(), 720.0); // Session
+        assert_eq!(
+            result.profile.base_settings.degrees_of_rotation.value(),
+            720.0
+        ); // Session
         assert_eq!(result.profile.base_settings.torque_cap.value(), 25.0); // Session
-        
+
         assert_eq!(result.stats.profiles_merged, 3);
         assert!(result.stats.session_overrides_applied);
         assert!(result.merge_hash != 0);

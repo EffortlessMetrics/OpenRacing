@@ -1,6 +1,6 @@
 //! Bincode compatibility helpers for .wbb serialization.
 
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use std::io::Read;
 
 fn config() -> impl bincode::config::Config {
