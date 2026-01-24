@@ -17,7 +17,7 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["Racing Wheel Suite Contributors"]
-repository = "https://github.com/racing-wheel-suite/racing-wheel-suite"
+repository = "https://github.com/EffortlessMetrics/OpenRacing"
 
 [workspace.dependencies]
 # Critical async/serialization crates - pinned for compatibility
