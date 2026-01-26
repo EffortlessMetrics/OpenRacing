@@ -185,6 +185,7 @@ pub fn create_benchmark_suite() -> Vec<PerformanceBenchmark> {
                 missed_ticks: 0,
                 jitter_p50_ms: 0.0,
                 hid_latency_p50_us: 0.0,
+                hid_latency_p99_us: 0.0,
                 total_ticks: 0,
                 cpu_usage_percent: 0.0,
                 memory_usage_mb: 0.0,
