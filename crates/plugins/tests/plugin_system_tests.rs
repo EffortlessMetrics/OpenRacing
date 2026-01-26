@@ -22,7 +22,6 @@ use tokio::fs;
 use uuid::Uuid;
 
 use racing_wheel_plugins::*;
-use racing_wheel_schemas::prelude::NormalizedTelemetry;
 
 /// Test plugin manifest validation
 #[tokio::test]
@@ -235,7 +234,7 @@ async fn test_plugin_host_system() {
     must(fs::write(plugin_subdir.join("plugin.wasm"), b"mock wasm content").await);
 
     // Create plugin host
-    let mut host = host::PluginHost::new(plugin_dir)
+    let host = host::PluginHost::new(plugin_dir)
         .await
         .expect("Failed to create plugin host");
 
@@ -243,7 +242,7 @@ async fn test_plugin_host_system() {
     let registry = host.get_registry().await;
     assert_eq!(registry.len(), 1);
 
-    let (plugin_id, entry) = must_some(registry.iter().next(), "expected plugin in registry");
+    let (_plugin_id, entry) = must_some(registry.iter().next(), "expected plugin in registry");
     assert_eq!(entry.manifest.name, "Test Plugin");
     assert!(!entry.is_loaded);
     assert!(entry.is_enabled);
@@ -261,7 +260,7 @@ async fn test_budget_violation_detection() {
 
     // Record budget violations
     for i in 0..2 {
-        manager.record_violation(
+        let _ = manager.record_violation(
             plugin_id,
             quarantine::ViolationType::BudgetViolation,
             format!("Budget violation {}", i + 1),
@@ -270,7 +269,7 @@ async fn test_budget_violation_detection() {
     }
 
     // Third violation should trigger quarantine
-    manager
+    let _ = manager
         .record_violation(
             plugin_id,
             quarantine::ViolationType::BudgetViolation,
@@ -309,7 +308,7 @@ async fn test_quarantine_escalation() {
     let plugin_id = Uuid::new_v4();
 
     // First quarantine
-    manager
+    let _ = manager
         .record_violation(
             plugin_id,
             quarantine::ViolationType::Crash,
@@ -321,7 +320,7 @@ async fn test_quarantine_escalation() {
 
     // Release and trigger again
     must(manager.release_from_quarantine(plugin_id));
-    manager
+    let _ = manager
         .record_violation(
             plugin_id,
             quarantine::ViolationType::Crash,
@@ -355,7 +354,7 @@ async fn test_plugin_workflow_integration() {
     let plugin_dir = temp_dir.path().to_path_buf();
 
     // Create plugin host
-    let mut host = host::PluginHost::new(plugin_dir)
+    let host = host::PluginHost::new(plugin_dir)
         .await
         .expect("Failed to create plugin host");
 

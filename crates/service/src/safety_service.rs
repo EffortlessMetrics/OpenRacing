@@ -747,7 +747,7 @@ pub struct SafetyServiceStatistics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use racing_wheel_schemas::TorqueNm;
+    use racing_wheel_schemas::prelude::TorqueNm;
 
     #[tokio::test]
     async fn test_safety_service_creation() {

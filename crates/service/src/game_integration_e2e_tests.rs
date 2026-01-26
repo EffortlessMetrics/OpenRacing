@@ -10,7 +10,7 @@
 //! - End-to-end tests for configuration file generation and LED heartbeat validation
 
 use crate::game_integration_service::{
-    GameIntegrationService, OneClickConfigRequest, OneClickConfigResult,
+    GameIntegrationService, OneClickConfigRequest,
 };
 use crate::profile_service::ProfileService;
 use anyhow::Result;
@@ -331,7 +331,7 @@ impl GameIntegrationE2ETestSuite {
         info!(test_name = %test_name, "Testing LED heartbeat validation");
 
         let mut errors = Vec::new();
-        let mut details = String::new();
+        let details;
 
         // Test LED heartbeat validation (this is simulated)
         let validation_result = self
@@ -379,7 +379,7 @@ impl GameIntegrationE2ETestSuite {
         info!(test_name = %test_name, "Testing end-to-end workflow");
 
         let mut errors = Vec::new();
-        let mut details = String::new();
+        let details;
 
         // Step 1: Configure game with auto-switching
         let request = OneClickConfigRequest {
@@ -439,7 +439,7 @@ impl GameIntegrationE2ETestSuite {
         info!(test_name = %test_name, "Testing performance requirements");
 
         let mut errors = Vec::new();
-        let mut details = String::new();
+        let details;
 
         // Test configuration performance (should be < 1 second)
         let config_start = std::time::Instant::now();
@@ -523,7 +523,7 @@ impl GameIntegrationE2ETestSuite {
         info!(test_name = %test_name, "Testing error handling and recovery");
 
         let mut errors = Vec::new();
-        let mut details = String::new();
+        let details;
 
         // Test 1: Invalid game ID
         let invalid_request = OneClickConfigRequest {

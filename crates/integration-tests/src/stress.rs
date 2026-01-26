@@ -26,7 +26,7 @@ pub async fn test_hotplug_stress() -> Result<TestResult> {
     harness.start_service().await?;
 
     // Add multiple virtual devices for stress testing
-    let device_ids = vec![
+    let device_ids = [
         harness.add_virtual_device("Stress Device 1").await?,
         harness.add_virtual_device("Stress Device 2").await?,
         harness.add_virtual_device("Stress Device 3").await?,

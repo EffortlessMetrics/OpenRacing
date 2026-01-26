@@ -1,3 +1,4 @@
+#![allow(clippy::manual_is_multiple_of)]
 //! FFB Jitter Isolation Tests
 //!
 //! This module contains tests to prove that LED and haptics output systems
@@ -144,11 +145,7 @@ fn calculate_jitter_stats(tick_times: &[Instant], target_frequency: f64) -> Jitt
         .iter()
         .map(|&interval| {
             let target = target_interval_ns as u64;
-            if interval > target {
-                interval - target
-            } else {
-                target - interval
-            }
+            interval.abs_diff(target)
         })
         .collect();
 
@@ -214,7 +211,7 @@ fn create_varying_telemetry(index: usize) -> NormalizedTelemetry {
     let slip = (index as f32 * 0.1) % 0.8;
     let gear = ((index / 10) % 6) as i8 + 1;
 
-    let telemetry = NormalizedTelemetry {
+    NormalizedTelemetry {
         ffb_scalar: 0.5 + (index as f32 * 0.1) % 0.5,
         rpm: base_rpm,
         speed_ms: base_speed,
@@ -233,9 +230,7 @@ fn create_varying_telemetry(index: usize) -> NormalizedTelemetry {
         car_id: Some("test_car".to_string()),
         track_id: Some("test_track".to_string()),
         timestamp: std::time::Instant::now(),
-    };
-
-    telemetry
+    }
 }
 
 /// Helper function to create test LED configuration
@@ -688,7 +683,7 @@ mod timing_validation_tests {
         must(telemetry_tx.send(telemetry).await);
 
         // Wait for output
-        if let Ok(Some(output)) =
+        if let Ok(Some(_output)) =
             tokio::time::timeout(Duration::from_millis(50), output_rx.recv()).await
         {
             let response_time = send_time.elapsed();

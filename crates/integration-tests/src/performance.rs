@@ -183,7 +183,12 @@ pub fn create_benchmark_suite() -> Vec<PerformanceBenchmark> {
                 jitter_p99_ms: 0.20,
                 hid_latency_p99_us: 250.0,
                 missed_ticks: 0,
-                ..Default::default()
+                jitter_p50_ms: 0.0,
+                hid_latency_p50_us: 0.0,
+                total_ticks: 0,
+                cpu_usage_percent: 0.0,
+                memory_usage_mb: 0.0,
+                max_torque_saturation_percent: 0.0,
             },
         ),
         // Heavy load benchmark
@@ -202,7 +207,12 @@ pub fn create_benchmark_suite() -> Vec<PerformanceBenchmark> {
                 jitter_p99_ms: 0.25,
                 hid_latency_p99_us: 300.0,
                 missed_ticks: 0,
-                ..Default::default()
+                jitter_p50_ms: 0.0,
+                hid_latency_p50_us: 0.0,
+                total_ticks: 0,
+                cpu_usage_percent: 0.0,
+                memory_usage_mb: 0.0,
+                max_torque_saturation_percent: 0.0,
             },
         ),
     ]
@@ -317,7 +327,15 @@ impl ThroughputMeasurement {
             byte_count: 0,
         }
     }
+}
 
+impl Default for ThroughputMeasurement {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ThroughputMeasurement {
     pub fn record_operation(&mut self, bytes: u64) {
         self.operation_count += 1;
         self.byte_count += bytes;

@@ -36,6 +36,7 @@ impl Arbitrary for ArbitraryTorqueNm {
 
 /// Arbitrary implementation for Degrees for property testing
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ArbitraryDegrees(Degrees);
 
 impl Arbitrary for ArbitraryDegrees {
@@ -94,18 +95,18 @@ fn prop_safety_policy_torque_validation_never_exceeds_device_limit(
     device_max_torque: ArbitraryTorqueNm,
     is_high_torque: bool,
 ) -> TestResult {
-    let policy = SafetyPolicy::new();
+    let policy = SafetyPolicy::new().expect("Failed to create policy");
     let capabilities =
         DeviceCapabilities::new(false, true, true, true, device_max_torque.0, 10000, 1000);
 
-    match policy.unwrap().validate_torque_limits(requested_torque.0, is_high_torque, &capabilities) {
+    match policy.validate_torque_limits(requested_torque.0, is_high_torque, &capabilities) {
         Ok(validated_torque) => {
             // Validated torque should never exceed device capability
             TestResult::from_bool(validated_torque <= device_max_torque.0)
         }
         Err(_) => {
             // If validation fails, the requested torque should exceed some limit
-            let policy_limit = policy.unwrap().get_max_torque(is_high_torque);
+            let policy_limit = policy.get_max_torque(is_high_torque);
             let effective_limit = policy_limit.min(device_max_torque.0);
             TestResult::from_bool(requested_torque.0 > effective_limit)
         }
@@ -163,7 +164,7 @@ fn prop_safety_policy_temperature_limit_enforced(temperature: u8) -> TestResult 
 
 #[quickcheck]
 fn prop_safety_policy_hands_off_limit_enforced(hands_off_seconds: u16) -> TestResult {
-    let mut policy = SafetyPolicy::new();
+    let mut policy = SafetyPolicy::new().expect("Failed to create policy");
     let device = create_arbitrary_device(must(TorqueNm::new(25.0)));
 
     let result = policy.can_enable_high_torque(
@@ -373,7 +374,7 @@ fn prop_safety_and_profile_integration(
         return TestResult::discard();
     }
 
-    let policy = SafetyPolicy::new();
+    let policy = SafetyPolicy::new().expect("Failed to create policy");
     let capabilities =
         DeviceCapabilities::new(false, true, true, true, device_max_torque.0, 10000, 1000);
 
@@ -398,7 +399,7 @@ fn prop_safety_and_profile_integration(
 // Edge case tests
 #[test]
 fn test_safety_policy_edge_cases() {
-    let mut policy = SafetyPolicy::new();
+    let mut policy = SafetyPolicy::new().expect("Failed to create policy");
     let device = create_arbitrary_device(must(TorqueNm::new(25.0)));
 
     // Test exactly at temperature limit
@@ -454,7 +455,7 @@ fn test_profile_hierarchy_edge_cases() {
         None,
     );
     assert!(result.is_some());
-    assert_eq!(must(result).id.as_str(), "global");
+    assert_eq!(result.expect("Should match global").id.as_str(), "global");
 }
 
 // Property tests with deterministic seed configuration

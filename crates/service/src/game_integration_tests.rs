@@ -4,17 +4,15 @@
 //! Requirements: GI-01, GI-02
 
 use crate::auto_profile_switching::AutoProfileSwitchingService;
-use crate::config_validation::{ConfigValidationService, ValidationResult, ValidationType};
-use crate::config_writers::{ACCConfigWriter, IRacingConfigWriter};
-use crate::game_service::{ConfigDiff, ConfigWriter, DiffOperation, GameService, TelemetryConfig};
+use crate::config_validation::{ConfigValidationService, ValidationResult};
+use crate::game_service::GameService;
 use crate::profile_service::ProfileService;
 use anyhow::Result;
-use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio::time::timeout;
-use tracing::{info, warn};
+use tracing::info;
 
 /// End-to-end test suite for game integration
 pub struct GameIntegrationTestSuite {
@@ -212,7 +210,7 @@ impl GameIntegrationTestSuite {
         let mut validation_results = Vec::new();
 
         // Generate configuration first
-        let diffs = self
+        let _diffs = self
             .game_service
             .configure_telemetry(&game_id, self.temp_dir.path())
             .await?;
@@ -295,7 +293,7 @@ impl GameIntegrationTestSuite {
         info!(test_name = %test_name, "Starting auto profile switching test");
 
         let mut errors = Vec::new();
-        let mut validation_results = Vec::new();
+        let validation_results = Vec::new();
 
         // Create auto profile switching service
         let switching_service = AutoProfileSwitchingService::new(self.profile_service.clone())?;

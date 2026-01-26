@@ -311,10 +311,10 @@ impl AutoProfileSwitchingService {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
     use crate::profile_service::ProfileService;
     use std::sync::Arc;
-    use tokio::time::sleep;
 
     async fn create_test_service() -> AutoProfileSwitchingService {
         let profile_service = Arc::new(ProfileService::new().await.unwrap());

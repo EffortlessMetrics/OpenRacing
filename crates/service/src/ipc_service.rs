@@ -19,7 +19,6 @@ use racing_wheel_schemas::generated::wheel::v1::{
     DiagnosticInfo, FeatureNegotiationRequest, FeatureNegotiationResponse, GameStatus, HealthEvent,
     OpResult, Profile as WireProfile, ProfileList, wheel_service_server::WheelService,
 };
-
 use racing_wheel_schemas::ipc_conversion::ConversionError;
 
 // Import domain services (these will be the real implementations)
@@ -558,7 +557,7 @@ mod tests {
     #[tokio::test]
     async fn test_device_id_conversion() {
         // Test that invalid device IDs are properly rejected
-        let invalid_device_id = DeviceId {
+        let invalid_device_id = WireDeviceId {
             id: "".to_string(), // Empty string should be invalid
         };
 

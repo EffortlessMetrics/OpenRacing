@@ -548,11 +548,7 @@ mod rate_independence_tests {
             let tolerance = Duration::from_millis(5); // 5ms tolerance
 
             for interval in &intervals {
-                let diff = if *interval > expected_interval {
-                    *interval - expected_interval
-                } else {
-                    expected_interval - *interval
-                };
+                let diff = (*interval).abs_diff(expected_interval);
 
                 assert!(
                     diff <= tolerance,

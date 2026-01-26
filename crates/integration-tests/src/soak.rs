@@ -1,5 +1,7 @@
 //! Soak testing for 48-hour continuous operation validation
 
+#![allow(clippy::manual_is_multiple_of)]
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
@@ -379,10 +381,11 @@ fn should_terminate_early(checkpoints: &[SoakCheckpoint]) -> bool {
         .windows(2)
         .all(|pair| pair[1].memory_usage_mb > pair[0].memory_usage_mb);
 
-    if let Some(last) = recent_checkpoints.last() {
-        if memory_trend && last.memory_usage_mb > 200.0 {
-            return true;
-        }
+    if recent_checkpoints
+        .last()
+        .is_some_and(|last| memory_trend && last.memory_usage_mb > 200.0)
+    {
+        return true;
     }
 
     false

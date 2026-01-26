@@ -596,7 +596,7 @@ pub struct DeviceServiceStatistics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use racing_wheel_engine::{DeviceType, VirtualHidPort};
+    use racing_wheel_engine::VirtualHidPort;
 
     #[tokio::test]
     async fn test_device_service_creation() {

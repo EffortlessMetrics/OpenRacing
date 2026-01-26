@@ -27,10 +27,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting observability system demonstration");
 
     // Create observability configuration
-    let mut obs_config = ObservabilityConfig::default();
-    obs_config.metrics_addr = "127.0.0.1:9090".parse().unwrap();
-    obs_config.health_stream_rate_hz = 10.0; // 10Hz for demo
-    obs_config.collection_interval_ms = 500; // Collect every 500ms for demo
+    let obs_config = ObservabilityConfig {
+        metrics_addr: "127.0.0.1:9090".parse().unwrap(),
+        health_stream_rate_hz: 10.0, // 10Hz for demo
+        collection_interval_ms: 500, // Collect every 500ms for demo
+        ..Default::default()
+    };
 
     // Start observability service
     let mut obs_service = ObservabilityService::new(obs_config).await?;
@@ -112,6 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // ... (rest of cases)
                     _ => {}
                 }
+            }
             // Simulate RT activity by updating atomic counters
             {
                 let collector = metrics_collector.read().await;

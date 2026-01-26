@@ -444,7 +444,7 @@ async fn test_device_hotplug() {
     assert_eq!(devices[0].id.to_string(), "hotplug-test");
 
     // Open the device
-    let mut opened_device: Box<dyn HidDevice> = port.open_device(&device_id).await.unwrap();
+    let opened_device: Box<dyn HidDevice> = port.open_device(&device_id).await.unwrap();
     assert!(opened_device.is_connected());
 
     // Remove the device (simulate unplug)

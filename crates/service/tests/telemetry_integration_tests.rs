@@ -14,6 +14,22 @@ use racing_wheel_service::telemetry::*;
 use std::time::Duration;
 use tempfile::tempdir;
 
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
+#[track_caller]
+fn must_some<T>(o: Option<T>, msg: &str) -> T {
+    match o {
+        Some(v) => v,
+        None => panic!("unexpected None: {msg}"),
+    }
+}
+
 #[test]
 fn test_normalized_telemetry_creation() {
     let telemetry = NormalizedTelemetry::default()
@@ -80,9 +96,11 @@ fn test_rpm_fraction() {
 
 #[test]
 fn test_flags() {
-    let mut flags = TelemetryFlags::default();
-    flags.yellow_flag = true;
-    flags.pit_limiter = true;
+    let flags = TelemetryFlags {
+        yellow_flag: true,
+        pit_limiter: true,
+        ..Default::default()
+    };
 
     let telemetry = NormalizedTelemetry::default().with_flags(flags);
 
@@ -104,7 +122,7 @@ fn test_extended_data() {
     assert_eq!(telemetry.extended.len(), 3);
 
     if let Some(TelemetryValue::Float(fuel)) = telemetry.extended.get("fuel_level") {
-        assert_eq!(fuel, 45.5);
+        assert_eq!(*fuel, 45.5);
     } else {
         panic!("Expected fuel_level to be a float");
     }
@@ -260,7 +278,7 @@ fn test_load_recording() {
     let frame = TelemetryFrame::new(telemetry, 1000000, 0, 64);
     recorder.record_frame(frame);
 
-    let recording = must(recorder.stop_recording(Some("Test recording".to_string())));
+    let _recording = must(recorder.stop_recording(Some("Test recording".to_string())));
 
     // Load the recording
     let loaded = must(TelemetryRecorder::load_recording(&output_path));
@@ -526,12 +544,14 @@ fn test_telemetry_field_coverage() {
 /// Test telemetry flags functionality
 #[test]
 fn test_telemetry_flags_comprehensive() {
-    let mut flags = TelemetryFlags::default();
-    flags.yellow_flag = true;
-    flags.pit_limiter = true;
-    flags.drs_available = true;
-    flags.ers_available = true;
-    flags.traction_control = true;
+    let flags = TelemetryFlags {
+        yellow_flag: true,
+        pit_limiter: true,
+        drs_available: true,
+        ers_available: true,
+        traction_control: true,
+        ..Default::default()
+    };
 
     let telemetry = NormalizedTelemetry::default().with_flags(flags);
 
@@ -596,5 +616,5 @@ fn test_telemetry_service_recording() {
     service.disable_recording();
 
     // Test that we can enable/disable without errors
-    assert!(true); // If we get here, no panics occurred
+    // If we get here, no panics occurred
 }

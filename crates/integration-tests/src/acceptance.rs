@@ -8,6 +8,8 @@ use tracing::{error, info};
 use crate::common::TestHarness;
 use crate::{PerformanceMetrics, TestConfig, TestResult};
 
+pub type TestFuture = std::pin::Pin<Box<dyn std::future::Future<Output = Result<TestResult>> + Send>>;
+
 /// Acceptance test definition
 #[derive(Debug, Clone)]
 pub struct AcceptanceTest {
@@ -15,8 +17,7 @@ pub struct AcceptanceTest {
     pub requirement_id: String,
     pub description: String,
     pub dod_criteria: Vec<String>,
-    pub test_fn:
-        fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<TestResult>> + Send>>,
+    pub test_fn: fn() -> TestFuture,
 }
 
 /// Run all acceptance tests with requirement mapping

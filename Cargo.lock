@@ -5045,6 +5045,7 @@ dependencies = [
  "prost-types",
  "racing-wheel-engine",
  "racing-wheel-schemas",
+ "rand 0.8.5",
  "semver",
  "serde",
  "serde_json",

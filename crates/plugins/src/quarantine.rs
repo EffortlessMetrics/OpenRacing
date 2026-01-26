@@ -269,6 +269,12 @@ pub struct FailureTracker {
     stats: HashMap<Uuid, crate::PluginStats>,
 }
 
+impl Default for FailureTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FailureTracker {
     pub fn new() -> Self {
         Self {

@@ -93,7 +93,7 @@ impl TestGameConfig {
 
 #[tokio::test]
 async fn test_iracing_config_writer_golden() {
-    let writer = IRacingConfigWriter::default();
+    let writer = IRacingConfigWriter;
     let test_config = TestGameConfig::iracing_test_config();
     let temp_dir = must(TempDir::new());
 
@@ -116,7 +116,7 @@ async fn test_iracing_config_writer_golden() {
 
 #[tokio::test]
 async fn test_acc_config_writer_golden() {
-    let writer = ACCConfigWriter::default();
+    let writer = ACCConfigWriter;
     let test_config = TestGameConfig::acc_test_config();
     let temp_dir = must(TempDir::new());
 

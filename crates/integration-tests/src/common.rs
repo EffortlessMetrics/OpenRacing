@@ -179,7 +179,15 @@ impl MetricsCollector {
             start_time: Instant::now(),
         }
     }
+}
 
+impl Default for MetricsCollector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MetricsCollector {
     pub fn record_jitter(&mut self, jitter_ms: f64) {
         self.jitter_samples.push(jitter_ms);
     }
@@ -196,10 +204,11 @@ impl MetricsCollector {
     }
 
     pub async fn collect(&self) -> PerformanceMetrics {
-        let mut metrics = PerformanceMetrics::default();
-
-        metrics.total_ticks = self.total_ticks;
-        metrics.missed_ticks = self.missed_ticks;
+        let mut metrics = PerformanceMetrics {
+            total_ticks: self.total_ticks,
+            missed_ticks: self.missed_ticks,
+            ..Default::default()
+        };
 
         if !self.jitter_samples.is_empty() {
             let mut sorted_jitter = self.jitter_samples.clone();
