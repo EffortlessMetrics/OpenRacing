@@ -238,8 +238,7 @@ fn test_recording_lifecycle() {
     assert_eq!(recorder.frame_count(), 1);
 
     // Stop recording
-    let recording = recorder
-        must(recorder.stop_recording(Some("Test recording".to_string())));
+    let recording = must(recorder.stop_recording(Some("Test recording".to_string())));
     assert!(!recorder.is_recording());
     assert_eq!(recording.frames.len(), 1);
     assert_eq!(recording.metadata.game_id, "test_game");
@@ -261,8 +260,7 @@ fn test_load_recording() {
     let frame = TelemetryFrame::new(telemetry, 1000000, 0, 64);
     recorder.record_frame(frame);
 
-    recorder
-        must(recorder.stop_recording(Some("Test recording".to_string())));
+    let recording = must(recorder.stop_recording(Some("Test recording".to_string())));
 
     // Load the recording
     let loaded = must(TelemetryRecorder::load_recording(&output_path));
@@ -340,8 +338,10 @@ async fn test_mock_adapter() {
     let mut receiver = must(adapter.start_monitoring().await);
 
     // Should receive telemetry frames
-    let frame = tokio::time::timeout(Duration::from_millis(100), receiver.recv())
-        must_some(must(tokio::time::timeout(Duration::from_millis(100), receiver.recv()).await), "expected frame");
+    let frame = must_some(
+        must(tokio::time::timeout(Duration::from_millis(100), receiver.recv()).await),
+        "expected frame",
+    );
 
     assert!(frame.data.rpm.is_some());
     assert!(frame.data.speed_ms.is_some());
@@ -408,8 +408,7 @@ fn test_complete_telemetry_pipeline() {
         recorder.record_frame(frame.clone());
     }
 
-    recorder
-        must(recorder.stop_recording(Some("Pipeline test".to_string())));
+    let recording = must(recorder.stop_recording(Some("Pipeline test".to_string())));
 
     // Load and replay the recording
     let loaded_recording = must(TelemetryRecorder::load_recording(&recording_path));

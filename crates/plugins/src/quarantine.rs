@@ -133,13 +133,13 @@ impl QuarantineManager {
     pub fn is_quarantined(&mut self, plugin_id: Uuid) -> bool {
         if let Some(state) = self.quarantine_states.get_mut(&plugin_id) {
             // Check if quarantine period has expired
-            if let Some(end_time) = state.quarantine_end {
-                if Utc::now() > end_time {
-                    state.is_quarantined = false;
-                    state.quarantine_start = None;
-                    state.quarantine_end = None;
-                    return false;
-                }
+            if let Some(end_time) = state.quarantine_end
+                && Utc::now() > end_time
+            {
+                state.is_quarantined = false;
+                state.quarantine_start = None;
+                state.quarantine_end = None;
+                return false;
             }
             state.is_quarantined
         } else {
@@ -261,5 +261,38 @@ impl QuarantineManager {
         }
 
         Ok(())
+    }
+}
+
+/// Tracker for plugin execution statistics
+pub struct FailureTracker {
+    stats: HashMap<Uuid, crate::PluginStats>,
+}
+
+impl FailureTracker {
+    pub fn new() -> Self {
+        Self {
+            stats: HashMap::new(),
+        }
+    }
+
+    pub fn record_execution(&mut self, plugin_id: Uuid, duration_us: u32, success: bool) {
+        let stats = self.stats.entry(plugin_id).or_default();
+        
+        stats.executions += 1;
+        stats.total_time_us += duration_us as u64;
+        stats.avg_time_us = stats.total_time_us as f64 / stats.executions as f64;
+        
+        if duration_us > stats.max_time_us {
+            stats.max_time_us = duration_us;
+        }
+
+        if !success {
+            stats.crashes += 1;
+        }
+    }
+
+    pub fn get_stats(&self, plugin_id: Uuid) -> Option<&crate::PluginStats> {
+        self.stats.get(&plugin_id)
     }
 }

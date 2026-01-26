@@ -62,7 +62,7 @@ impl WasmPlugin for SampleLedPlugin {
         };
 
         Ok(SdkOutput::Led {
-            leds,
+            led_pattern: leds,
             brightness: 1.0,
             duration_ms: 50,
         })
@@ -71,4 +71,8 @@ impl WasmPlugin for SampleLedPlugin {
     fn shutdown(&mut self) -> SdkResult<()> {
         Ok(())
     }
+}
+
+fn main() {
+    println!("This is a sample plugin library, not an executable.");
 }

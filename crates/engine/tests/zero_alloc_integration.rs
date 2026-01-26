@@ -9,9 +9,12 @@
 
 use racing_wheel_engine::rt::Frame;
 use racing_wheel_engine::{
-    AllocationBenchmark, Pipeline, PipelineCompiler, ProfileMergeEngine, TwoPhaseApplyCoordinator,
+    allocation_tracker::AllocationBenchmark,
+    pipeline::{Pipeline, PipelineCompiler, PipelineError},
+    profile_merge::ProfileMergeEngine,
+    TwoPhaseApplyCoordinator,
 };
-use racing_wheel_schemas::{
+use racing_wheel_schemas::prelude::{
     BaseSettings, CurvePoint, Degrees, FilterConfig, FrequencyHz, Gain, HapticsConfig, LedConfig,
     NotchFilter, Profile, ProfileId, ProfileScope, TorqueNm,
 };
@@ -27,6 +30,7 @@ fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
 }
 
 #[track_caller]
+#[allow(dead_code)]
 fn must_parse<T: std::str::FromStr>(s: &str) -> T
 where
     <T as std::str::FromStr>::Err: std::fmt::Debug,
@@ -78,7 +82,7 @@ fn create_test_profile(id: &str, scope: ProfileScope, filter_config: FilterConfi
 async fn test_complete_zero_alloc_pipeline_flow() {
     // Test the complete flow from profile merge → pipeline compilation → RT execution
 
-    let merge_engine = ProfileMergeEngine::default();
+    let merge_engine = ProfileMergeEngine;
     let compiler = PipelineCompiler::new();
 
     // Create test profiles
@@ -200,7 +204,7 @@ async fn test_two_phase_apply_complete_integration() {
     assert!(apply_result.success);
     assert!(apply_result.config_hash != 0);
     assert!(apply_result.merge_hash != 0);
-    assert!(apply_result.duration_ms >= 0);
+    // assert!(apply_result.duration_ms >= 0);
 
     // Verify pipeline was updated atomically
     {
@@ -237,7 +241,7 @@ async fn test_two_phase_apply_complete_integration() {
 async fn test_deterministic_profile_resolution_comprehensive() {
     // Test that profile resolution is completely deterministic
 
-    let merge_engine = ProfileMergeEngine::default();
+    let merge_engine = ProfileMergeEngine;
 
     // Create complex profiles with all possible settings
     let mut global_profile =
@@ -344,7 +348,7 @@ async fn test_monotonic_curve_validation_comprehensive() {
         ],
     );
 
-    let result = compiler.compile_pipeline(valid_config).await;
+    let result = compiler.compile_pipeline(valid_config.unwrap()).await;
     assert!(result.is_ok());
 
     // Test various invalid non-monotonic curves
@@ -392,8 +396,8 @@ async fn test_monotonic_curve_validation_comprehensive() {
             i
         );
 
-        match must(result.err()) {
-            racing_wheel_engine::PipelineError::NonMonotonicCurve => {} // Expected
+        match result.err().unwrap() {
+            PipelineError::NonMonotonicCurve => {} // Expected
             other => panic!(
                 "Expected NonMonotonicCurve error for curve {}, got {:?}",
                 i, other
@@ -432,7 +436,7 @@ async fn test_pipeline_swap_atomicity_under_load() {
         let handle = tokio::spawn(async move {
             let result_rx = coordinator_clone
                 .apply_profile_async(&profile, None, None, None)
-                .await);
+                .await;
             (i, result_rx)
         });
 
@@ -458,7 +462,7 @@ async fn test_pipeline_swap_atomicity_under_load() {
     // Verify all applies succeeded
     let mut final_hash = None;
     for (i, rx) in result_rxs {
-        let result = must(rx.await);
+        let result = must(must(rx).await);
         assert!(result.success, "Apply {} should succeed", i);
 
         if final_hash.is_none() {
@@ -525,7 +529,7 @@ fn test_ci_allocation_assertion() {
 async fn test_end_to_end_performance_requirements() {
     // Test that the complete system meets performance requirements
 
-    let merge_engine = ProfileMergeEngine::default();
+    let merge_engine = ProfileMergeEngine;
     let compiler = PipelineCompiler::new();
 
     // Create realistic profiles
@@ -551,7 +555,8 @@ async fn test_end_to_end_performance_requirements() {
     let compile_start = std::time::Instant::now();
     let compiled_pipeline = compiler
         .compile_pipeline(merge_result.profile.base_settings.filters)
-        .await);
+        .await
+        .expect("Compilation failed");
     let compile_duration = compile_start.elapsed();
 
     // RT execution benchmark

@@ -5,9 +5,8 @@
 
 use racing_wheel_engine::led_haptics::*;
 use racing_wheel_engine::ports::{NormalizedTelemetry, TelemetryFlags};
-use racing_wheel_schemas::{DeviceId, FrequencyHz, Gain, HapticsConfig, LedConfig};
+use racing_wheel_schemas::prelude::{DeviceId, FrequencyHz, Gain, HapticsConfig, LedConfig};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -102,12 +101,20 @@ impl MockFfbEngine {
 
 /// Jitter statistics for analysis
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct JitterStats {
+    // dead_code allowed for test structure fields
+    #[allow(dead_code)]
     mean_interval_ns: f64,
+    #[allow(dead_code)]
     std_dev_ns: f64,
+    #[allow(dead_code)]
     max_jitter_ns: u64,
+    #[allow(dead_code)]
     p99_jitter_ns: u64,
+    #[allow(dead_code)]
     missed_ticks: usize,
+    #[allow(dead_code)]
     total_ticks: usize,
 }
 
@@ -182,13 +189,32 @@ fn calculate_jitter_stats(tick_times: &[Instant], target_frequency: f64) -> Jitt
 }
 
 /// Helper function to create test telemetry with varying characteristics
+fn create_test_telemetry(
+    rpm: f32,
+    speed_ms: f32,
+    slip_ratio: f32,
+    gear: i8,
+) -> NormalizedTelemetry {
+    NormalizedTelemetry {
+        ffb_scalar: 1.0,
+        rpm,
+        speed_ms,
+        slip_ratio,
+        gear,
+        flags: TelemetryFlags::default(),
+        car_id: None,
+        track_id: None,
+        timestamp: Instant::now(),
+    }
+}
+
 fn create_varying_telemetry(index: usize) -> NormalizedTelemetry {
     let base_rpm = 3000.0 + (index as f32 * 100.0) % 5000.0;
     let base_speed = 15.0 + (index as f32 * 2.0) % 30.0;
     let slip = (index as f32 * 0.1) % 0.8;
     let gear = ((index / 10) % 6) as i8 + 1;
 
-    let mut telemetry = NormalizedTelemetry {
+    let telemetry = NormalizedTelemetry {
         ffb_scalar: 0.5 + (index as f32 * 0.1) % 0.5,
         rpm: base_rpm,
         speed_ms: base_speed,
@@ -603,10 +629,12 @@ mod jitter_isolation_tests {
 
         // Consume outputs
         let output_handle = tokio::spawn(async move {
-            while let Ok(output) =
+            while let Ok(_output) =
                 tokio::time::timeout(Duration::from_millis(50), output_rx.recv()).await
             {
-                if output.is_none() {
+                // if output.is_none() { break; } // accessing _output triggers unused if I don't use it.
+                // But wait, output is Option.
+                if _output.is_none() {
                     break;
                 }
             }

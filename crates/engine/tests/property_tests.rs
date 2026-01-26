@@ -4,7 +4,7 @@
 //! behave correctly across a wide range of inputs and edge cases.
 
 use racing_wheel_engine::{ProfileHierarchyPolicy, SafetyPolicy, SafetyViolation};
-use racing_wheel_schemas::{
+use racing_wheel_schemas::prelude::{
     BaseSettings, Degrees, Device, DeviceCapabilities, DeviceId, DeviceType, FilterConfig, Gain,
     Profile, ProfileId, ProfileScope, TorqueNm,
 };
@@ -98,14 +98,14 @@ fn prop_safety_policy_torque_validation_never_exceeds_device_limit(
     let capabilities =
         DeviceCapabilities::new(false, true, true, true, device_max_torque.0, 10000, 1000);
 
-    match policy.validate_torque_limits(requested_torque.0, is_high_torque, &capabilities) {
+    match policy.unwrap().validate_torque_limits(requested_torque.0, is_high_torque, &capabilities) {
         Ok(validated_torque) => {
             // Validated torque should never exceed device capability
             TestResult::from_bool(validated_torque <= device_max_torque.0)
         }
         Err(_) => {
             // If validation fails, the requested torque should exceed some limit
-            let policy_limit = policy.get_max_torque(is_high_torque);
+            let policy_limit = policy.unwrap().get_max_torque(is_high_torque);
             let effective_limit = policy_limit.min(device_max_torque.0);
             TestResult::from_bool(requested_torque.0 > effective_limit)
         }
@@ -117,7 +117,7 @@ fn prop_safety_policy_high_torque_requires_operational_device(
     temperature: u8,
     hands_off_seconds: u8,
 ) -> TestResult {
-    let mut policy = SafetyPolicy::new();
+    let mut policy = must(SafetyPolicy::new());
 
     // Test with faulted device
     let mut device = create_arbitrary_device(must(TorqueNm::new(25.0)));
@@ -135,7 +135,7 @@ fn prop_safety_policy_high_torque_requires_operational_device(
 
 #[quickcheck]
 fn prop_safety_policy_temperature_limit_enforced(temperature: u8) -> TestResult {
-    let mut policy = SafetyPolicy::new();
+    let mut policy = must(SafetyPolicy::new());
     let device = create_arbitrary_device(must(TorqueNm::new(25.0)));
 
     let result = policy.can_enable_high_torque(

@@ -14,11 +14,19 @@ fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
 
 use racing_wheel_engine::led_haptics::*;
 use racing_wheel_engine::ports::{NormalizedTelemetry, TelemetryFlags};
-use racing_wheel_schemas::{DeviceId, FrequencyHz, Gain, HapticsConfig, LedConfig};
+use racing_wheel_schemas::prelude::{DeviceId, FrequencyHz, Gain, HapticsConfig, LedConfig};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tokio::time::timeout;
+
+#[track_caller]
+fn must_some<T>(o: Option<T>, msg: &str) -> T {
+    match o {
+        Some(v) => v,
+        None => panic!("expected Some: {}", msg),
+    }
+}
 
 /// Helper function to create test telemetry data
 fn create_test_telemetry(
@@ -73,12 +81,12 @@ fn create_test_haptics_config() -> HapticsConfig {
     effects.insert("gear_shift".to_string(), false);
     effects.insert("collision".to_string(), true);
 
-    must(HapticsConfig::new(
+    HapticsConfig::new(
         true,
         must(Gain::new(0.6)),
         must(FrequencyHz::new(80.0)),
         effects,
-    ))
+    )
 }
 
 #[cfg(test)]
@@ -150,7 +158,7 @@ mod led_mapping_engine_tests {
         let mut telemetry = create_test_telemetry(7000.0, 35.0, 0.0, 4);
         telemetry.flags.yellow_flag = true;
 
-        let colors = engine.update_pattern(&telemetry);
+        let _colors = engine.update_pattern(&telemetry);
 
         // With yellow flag, pattern should be flag-based, not RPM-based
         match engine.current_pattern() {
@@ -170,7 +178,7 @@ mod led_mapping_engine_tests {
         let mut telemetry = create_test_telemetry(4000.0, 15.0, 0.0, 2);
         telemetry.flags.pit_limiter = true;
 
-        let colors = engine.update_pattern(&telemetry);
+        let _colors = engine.update_pattern(&telemetry);
 
         // Should show pit limiter pattern
         match engine.current_pattern() {
@@ -191,10 +199,10 @@ mod led_mapping_engine_tests {
         telemetry.flags.yellow_flag = true;
 
         // Update pattern multiple times with small time intervals
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         let mut blink_states = Vec::new();
 
-        for i in 0..10 {
+        for _ in 0..10 {
             tokio::time::sleep(Duration::from_millis(100)).await;
             let colors = engine.update_pattern(&telemetry);
             let is_lit = colors.iter().any(|&c| c != LedColor::OFF);
@@ -449,7 +457,7 @@ mod rate_independence_tests {
     use super::*;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicU64, Ordering};
-    use tokio::time::{Duration, sleep};
+    use tokio::time::Duration;
 
     #[tokio::test]
     async fn test_led_haptics_system_creation() {
@@ -515,7 +523,7 @@ mod rate_independence_tests {
                 if let Ok(output) = timeout(Duration::from_millis(100), output_rx.recv()).await {
                     if let Some(_output) = output {
                         let elapsed = start_time.elapsed();
-                        output_times_clone.lock().push(elapsed);
+                        output_times_clone.lock().unwrap().push(elapsed);
                         count += 1;
                     }
                 } else {
@@ -612,7 +620,7 @@ mod rate_independence_tests {
         // Check output rate (should be approximately 200 Hz for 0.5 seconds = ~100 outputs)
         let count = output_count.load(Ordering::Relaxed);
         assert!(
-            count >= 80 && count <= 120,
+            (80..=120).contains(&count),
             "Expected ~100 outputs in 0.5s at 200Hz, got {}",
             count
         );
@@ -673,7 +681,10 @@ mod rate_independence_tests {
         must(telemetry_tx.send(telemetry.clone()).await);
 
         // Get initial output
-        let _initial_output = must(must(timeout(Duration::from_millis(100), output_rx.recv()).await));
+        let _initial_output = must_some(
+            must(timeout(Duration::from_millis(100), output_rx.recv()).await),
+            "timeout",
+        );
 
         // Update LED config during operation
         let mut new_led_config = create_test_led_config();
@@ -689,7 +700,10 @@ mod rate_independence_tests {
         must(telemetry_tx.send(telemetry).await);
 
         // Get updated output
-        let _updated_output = must(must(timeout(Duration::from_millis(100), output_rx.recv()).await));
+        let _updated_output = must_some(
+            must(timeout(Duration::from_millis(100), output_rx.recv()).await),
+            "timeout",
+        );
 
         // System should still be running and producing output
         assert!(system.is_running());

@@ -1,3 +1,4 @@
+#![allow(clippy::field_reassign_with_default)]
 //! Tests for pipeline swap atomicity and deterministic profile resolution
 //!
 //! These tests verify that:
@@ -16,9 +17,11 @@ fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
 }
 
 use racing_wheel_engine::{
-    Pipeline, PipelineCompiler, ProfileMergeEngine, TwoPhaseApplyCoordinator,
+    pipeline::{Pipeline, PipelineCompiler},
+    profile_merge::ProfileMergeEngine,
+    TwoPhaseApplyCoordinator,
 };
-use racing_wheel_schemas::{
+use racing_wheel_schemas::prelude::{
     BaseSettings, CurvePoint, Degrees, FilterConfig, Gain, Profile, ProfileId, ProfileScope,
     TorqueNm,
 };
@@ -133,7 +136,7 @@ async fn test_pipeline_swap_atomicity() {
 /// Test deterministic profile resolution
 #[tokio::test]
 async fn test_deterministic_profile_resolution() {
-    let merge_engine = ProfileMergeEngine::default();
+    let merge_engine = ProfileMergeEngine;
 
     // Create test profiles
     let global_profile = create_test_profile("global", ProfileScope::global());
@@ -198,7 +201,7 @@ async fn test_deterministic_profile_resolution() {
 /// Test that different inputs produce different hashes
 #[tokio::test]
 async fn test_different_inputs_different_hashes() {
-    let merge_engine = ProfileMergeEngine::default();
+    let merge_engine = ProfileMergeEngine;
 
     let global_profile = create_test_profile("global", ProfileScope::global());
     let mut game_profile1 =
@@ -347,7 +350,7 @@ async fn test_concurrent_pipeline_compilation() {
 /// Test profile hierarchy precedence
 #[tokio::test]
 async fn test_profile_hierarchy_precedence() {
-    let merge_engine = ProfileMergeEngine::default();
+    let merge_engine = ProfileMergeEngine;
 
     // Create profiles with different values at each level
     let mut global_profile = create_test_profile("global", ProfileScope::global());
@@ -488,12 +491,12 @@ async fn test_curve_monotonicity_validation() {
 // Helper functions
 
 fn create_test_profile(id: &str, scope: ProfileScope) -> Profile {
-    must(Profile::new(
+    Profile::new(
         must(ProfileId::new(id.to_string())),
         scope,
         BaseSettings::default(),
         format!("Test Profile {}", id),
-    ))
+    )
 }
 
 fn create_filter_config_with_friction(friction: f32) -> FilterConfig {
@@ -526,6 +529,7 @@ async fn test_two_phase_apply_stress() {
 
     // Start many concurrent applies
     let mut handles = Vec::new();
+    #[allow(clippy::async_yields_async)]
     for (i, profile) in profiles.iter().enumerate() {
         let coordinator_clone = coordinator.clone();
         let global_clone = global_profile.clone();
@@ -537,6 +541,7 @@ async fn test_two_phase_apply_stress() {
                 .await;
 
             assert!(result_rx.is_ok(), "Apply {} failed to start", i);
+            #[allow(clippy::async_yields_async)]
             must(result_rx)
         });
 

@@ -338,6 +338,7 @@ impl NativePluginHelper {
         }
 
         let shmem_os_id = shared_memory.get_os_id().to_string();
+        #[allow(clippy::arc_with_non_send_sync)]
         let shared_memory = Arc::new(Mutex::new(shared_memory));
 
         // Start helper process
@@ -453,6 +454,12 @@ impl NativePluginHelper {
 /// Native plugin host manager
 pub struct NativePluginHost {
     plugins: Arc<RwLock<HashMap<uuid::Uuid, NativePlugin>>>,
+}
+
+impl Default for NativePluginHost {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NativePluginHost {

@@ -17,16 +17,12 @@ fn must_some<T>(o: Option<T>, msg: &str) -> T {
     }
 }
 
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::time::Duration;
-
 use tempfile::tempdir;
 use tokio::fs;
 use uuid::Uuid;
 
 use racing_wheel_plugins::*;
-use racing_wheel_schemas::telemetry::NormalizedTelemetry;
+use racing_wheel_schemas::prelude::NormalizedTelemetry;
 
 /// Test plugin manifest validation
 #[tokio::test]
@@ -265,12 +261,10 @@ async fn test_budget_violation_detection() {
 
     // Record budget violations
     for i in 0..2 {
-        manager
-            .record_violation(
-                plugin_id,
-                quarantine::ViolationType::BudgetViolation,
-                format!("Budget violation {}", i + 1),
-            )
+        manager.record_violation(
+            plugin_id,
+            quarantine::ViolationType::BudgetViolation,
+            format!("Budget violation {}", i + 1),
         );
         assert!(!manager.is_quarantined(plugin_id));
     }
@@ -281,7 +275,6 @@ async fn test_budget_violation_detection() {
             plugin_id,
             quarantine::ViolationType::BudgetViolation,
             "Budget violation 3".to_string(),
-        )
         );
     assert!(manager.is_quarantined(plugin_id));
 }
@@ -321,7 +314,6 @@ async fn test_quarantine_escalation() {
             plugin_id,
             quarantine::ViolationType::Crash,
             "First crash".to_string(),
-        )
         );
 
     let state = must_some(manager.get_quarantine_state(plugin_id), "expected quarantine state");
@@ -334,7 +326,6 @@ async fn test_quarantine_escalation() {
             plugin_id,
             quarantine::ViolationType::Crash,
             "Second crash".to_string(),
-        )
         );
 
     let state = must_some(manager.get_quarantine_state(plugin_id), "expected quarantine state");
