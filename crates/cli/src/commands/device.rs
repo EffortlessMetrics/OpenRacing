@@ -1,8 +1,5 @@
 //! Device management commands
 
-// Progress bar template strings are compile-time constants that cannot fail to parse
-#![allow(clippy::unwrap_used)]
-
 use anyhow::Result;
 use dialoguer::Confirm;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -134,11 +131,9 @@ async fn calibrate_device(
     // Show progress during calibration
     if !json {
         let pb = ProgressBar::new_spinner();
-        pb.set_style(
-            ProgressStyle::default_spinner()
-                .template("{spinner:.green} {msg}")
-                .unwrap(),
-        );
+        let style = ProgressStyle::default_spinner()
+            .template("{spinner:.green} {msg}")?;
+        pb.set_style(style);
 
         match calibration_type {
             CalibrationType::Center => {
@@ -197,14 +192,13 @@ async fn reset_device(client: &WheelClient, device: &str, json: bool, force: boo
         .await
         .map_err(|_| CliError::DeviceNotFound(device.to_string()))?;
 
-    if !force && !json {
-        if !Confirm::new()
+    if !force && !json
+        && !Confirm::new()
             .with_prompt("Reset device to safe state? This will stop all force feedback and return to default settings.")
             .interact()?
-        {
-            output::print_warning("Reset cancelled", json);
-            return Ok(());
-        }
+    {
+        output::print_warning("Reset cancelled", json);
+        return Ok(());
     }
 
     // Perform emergency stop

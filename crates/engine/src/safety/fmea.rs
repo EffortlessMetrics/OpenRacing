@@ -103,7 +103,7 @@ pub struct FmeaEntry {
 }
 
 /// Fault detection state for a specific fault type
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 struct FaultDetectionState {
     consecutive_count: u32,
     last_occurrence: Option<Instant>,
@@ -117,19 +117,6 @@ struct FaultDetectionState {
     quarantine_until: Option<Instant>,
 }
 
-impl Default for FaultDetectionState {
-    fn default() -> Self {
-        Self {
-            consecutive_count: 0,
-            last_occurrence: None,
-            window_start: None,
-            window_count: 0,
-            quarantined: false,
-            quarantine_until: None,
-        }
-    }
-}
-
 /// Soft-stop mechanism for torque ramping
 #[derive(Debug, Clone)]
 pub struct SoftStopController {
@@ -139,6 +126,12 @@ pub struct SoftStopController {
     target_torque: f32,
     ramp_duration: Duration,
     current_torque: f32,
+}
+
+impl Default for SoftStopController {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SoftStopController {
@@ -199,10 +192,7 @@ impl SoftStopController {
             return None;
         }
 
-        let Some(start_time) = self.start_time else {
-            return None;
-        };
-
+        let start_time = self.start_time?;
         let elapsed = start_time.elapsed();
         if elapsed >= self.ramp_duration {
             None
@@ -719,6 +709,7 @@ impl Default for FmeaSystem {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

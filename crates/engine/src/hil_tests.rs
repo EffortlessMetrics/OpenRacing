@@ -1,9 +1,34 @@
-//! Hardware-in-Loop (HIL) Tests for RT Engine with Safety Integration
-//!
-//! This module provides comprehensive HIL tests that validate the real-time engine
-//! with integrated safety systems using synthetic FFB data and timing validation.
+/// Hardware-in-the-loop integration tests
+///
+/// This module provides comprehensive HIL tests that validate real-time engine
+/// with integrated safety systems using synthetic FFB data and timing validation.
+#[allow(dead_code)]
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
 
-#![allow(clippy::unwrap_used)] // Test module - unwraps are acceptable
+#[track_caller]
+fn must_some<T>(o: Option<T>, msg: &str) -> T {
+    match o {
+        Some(v) => v,
+        None => panic!("expected Some: {}", msg),
+    }
+}
+
+#[track_caller]
+fn must_parse<T: std::str::FromStr>(s: &str) -> T
+where
+    <T as std::str::FromStr>::Err: std::fmt::Debug,
+{
+    match s.parse::<T>() {
+        Ok(v) => v,
+        Err(e) => panic!("parse failed for {s:?}: {e:?}"),
+    }
+}
 
 use crate::ports::TelemetryFlags;
 use crate::{
@@ -250,7 +275,7 @@ impl HILTestSuite {
         };
 
         // Create test engine
-        let device_id = "hil-test-device-1".parse::<DeviceId>().unwrap();
+        let device_id = must_parse::<DeviceId>("hil-test-device-1");
         let device = Box::new(VirtualDevice::new(
             device_id.clone(),
             "HIL Test Device 1".to_string(),
@@ -281,7 +306,7 @@ impl HILTestSuite {
 
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
-            "hil-test-device-1".parse::<DeviceId>().unwrap(),
+            must_parse::<DeviceId>("hil-test-device-1"),
             "HIL Test Device 1".to_string(),
         ));
 
@@ -323,11 +348,10 @@ impl HILTestSuite {
                 timestamp: now,
             };
 
-            if let Err(e) = engine.send_game_input(game_input) {
-                if self.config.enable_logging {
+            if let Err(e) = engine.send_game_input(game_input)
+                && self.config.enable_logging {
                     warn!("Failed to send game input: {}", e);
                 }
-            }
 
             frame_count += 1;
             last_frame_time = now;
@@ -405,7 +429,7 @@ impl HILTestSuite {
         };
 
         // Create test engine
-        let device_id = "hil-test-device-2".parse::<DeviceId>().unwrap();
+        let device_id = must_parse::<DeviceId>("hil-test-device-2");
         let device = Box::new(VirtualDevice::new(
             device_id.clone(),
             "HIL Test Device 2".to_string(),
@@ -436,7 +460,7 @@ impl HILTestSuite {
 
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
-            "hil-test-device-2".parse::<DeviceId>().unwrap(),
+            must_parse::<DeviceId>("hil-test-device-2"),
             "HIL Test Device 2".to_string(),
         ));
 
@@ -448,7 +472,7 @@ impl HILTestSuite {
         let start_time = Instant::now();
 
         // Test multiple FFB patterns
-        let patterns = vec![
+        let patterns = [
             FFBPattern::SineWave {
                 amplitude: 0.8,
                 frequency_hz: 2.0,
@@ -501,11 +525,10 @@ impl HILTestSuite {
                     timestamp: now,
                 };
 
-                if let Err(e) = engine.send_game_input(game_input) {
-                    if self.config.enable_logging {
+                if let Err(e) = engine.send_game_input(game_input)
+                    && self.config.enable_logging {
                         warn!("Failed to send game input: {}", e);
                     }
-                }
 
                 frame_count += 1;
                 last_frame_time = now;
@@ -583,7 +606,7 @@ impl HILTestSuite {
         };
 
         // Create test engine
-        let device_id = "hil-test-device-3".parse::<DeviceId>().unwrap();
+        let device_id = must_parse::<DeviceId>("hil-test-device-3");
         let device = Box::new(VirtualDevice::new(
             device_id.clone(),
             "HIL Test Device 3".to_string(),
@@ -614,7 +637,7 @@ impl HILTestSuite {
 
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
-            "hil-test-device-3".parse::<DeviceId>().unwrap(),
+            must_parse::<DeviceId>("hil-test-device-3"),
             "HIL Test Device 3".to_string(),
         ));
 
@@ -653,16 +676,15 @@ impl HILTestSuite {
             let ffb_value = ffb_generator.next_value(dt);
 
             // Check if we're in fault injection period
-            if elapsed >= fault_inject_time && elapsed <= fault_inject_time + fault_duration {
-                if !fault_injected {
-                    info!("Injecting safety fault at {:?}", elapsed);
-                    fault_injected = true;
+            if elapsed >= fault_inject_time && elapsed <= fault_inject_time + fault_duration
+                && !fault_injected {
+                info!("Injecting safety fault at {:?}", elapsed);
+                fault_injected = true;
 
-                    // Simulate thermal fault
-                    if let Err(e) = engine.update_safety(true, 85) {
-                        // High temperature
-                        warn!("Failed to update safety: {}", e);
-                    }
+                // Simulate thermal fault
+                if let Err(e) = engine.update_safety(true, 85) {
+                    // High temperature
+                    warn!("Failed to update safety: {}", e);
                 }
             }
 
@@ -682,23 +704,20 @@ impl HILTestSuite {
                 timestamp: now,
             };
 
-            if let Err(e) = engine.send_game_input(game_input) {
-                if self.config.enable_logging {
+            if let Err(e) = engine.send_game_input(game_input)
+                && self.config.enable_logging {
                     warn!("Failed to send game input: {}", e);
                 }
-            }
 
             // Check for safety response
-            if fault_injected && fault_response_time.is_none() {
-                if let Ok(stats) = engine.get_stats().await {
-                    if matches!(stats.safety_state, SafetyState::Faulted { .. }) {
-                        fault_response_time = Some(elapsed - fault_inject_time);
-                        info!(
-                            "Safety response detected at {:?}",
-                            fault_response_time.unwrap()
-                        );
-                    }
-                }
+            if fault_injected && fault_response_time.is_none()
+                && let Ok(stats) = engine.get_stats().await
+                && matches!(stats.safety_state, SafetyState::Faulted { .. }) {
+                fault_response_time = Some(elapsed - fault_inject_time);
+                info!(
+                    "Safety response detected at {:?}",
+                    must_some(fault_response_time, "expected fault response time")
+                );
             }
 
             frame_count += 1;
@@ -800,7 +819,7 @@ impl HILTestSuite {
         };
 
         // Create test engine with higher load
-        let device_id = "hil-test-device-4".parse::<DeviceId>().unwrap();
+        let device_id = must_parse::<DeviceId>("hil-test-device-4");
         let device = Box::new(VirtualDevice::new(
             device_id.clone(),
             "HIL Test Device 4".to_string(),
@@ -831,7 +850,7 @@ impl HILTestSuite {
 
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
-            "hil-test-device-4".parse::<DeviceId>().unwrap(),
+            must_parse::<DeviceId>("hil-test-device-4"),
             "HIL Test Device 4".to_string(),
         ));
 
@@ -887,11 +906,10 @@ impl HILTestSuite {
                 timestamp: now,
             };
 
-            if let Err(e) = engine.send_game_input(game_input) {
-                if self.config.enable_logging {
+            if let Err(e) = engine.send_game_input(game_input)
+                && self.config.enable_logging {
                     warn!("Failed to send game input: {}", e);
                 }
-            }
 
             frame_count += 1;
             last_frame_time = now;
@@ -968,7 +986,7 @@ impl HILTestSuite {
         };
 
         // Create test engine
-        let device_id = "hil-test-device-5".parse::<DeviceId>().unwrap();
+        let device_id = must_parse::<DeviceId>("hil-test-device-5");
         let device = Box::new(VirtualDevice::new(
             device_id.clone(),
             "HIL Test Device 5".to_string(),
@@ -999,7 +1017,7 @@ impl HILTestSuite {
 
         // Start engine
         let test_device = Box::new(VirtualDevice::new(
-            "hil-test-device-5".parse::<DeviceId>().unwrap(),
+            must_parse::<DeviceId>("hil-test-device-5"),
             "HIL Test Device 5".to_string(),
         ));
 
@@ -1050,7 +1068,7 @@ impl HILTestSuite {
                 Ok(()) => {}
                 Err(e) => {
                     send_failures += 1;
-                    if self.config.enable_logging && send_failures % 100 == 0 {
+                    if self.config.enable_logging && send_failures.is_multiple_of(100) {
                         warn!("Send failure #{}: {}", send_failures, e);
                     }
                 }
@@ -1136,7 +1154,7 @@ impl HILTestSuite {
         let passed_count = results.iter().filter(|r| r.passed).count();
         let total_count = results.len();
 
-        report.push_str(&format!("## Summary\n"));
+        report.push_str("## Summary\n");
         report.push_str(&format!("- Total tests: {}\n", total_count));
         report.push_str(&format!("- Passed: {}\n", passed_count));
         report.push_str(&format!("- Failed: {}\n", total_count - passed_count));
@@ -1186,7 +1204,7 @@ impl HILTestSuite {
                 }
             }
 
-            report.push_str("\n");
+            report.push('\n');
         }
 
         report
@@ -1194,6 +1212,7 @@ impl HILTestSuite {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

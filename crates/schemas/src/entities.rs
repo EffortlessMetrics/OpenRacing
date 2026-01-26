@@ -322,16 +322,6 @@ impl NotchFilter {
             gain_db,
         })
     }
-
-    /// Create a notch filter from raw values without validation.
-    /// Use only for known-valid constants in tests.
-    pub const fn from_raw(frequency: FrequencyHz, q_factor: f32, gain_db: f32) -> Self {
-        Self {
-            frequency,
-            q_factor,
-            gain_db,
-        }
-    }
 }
 
 /// Filter configuration for force feedback processing
@@ -431,22 +421,37 @@ impl Default for FilterConfig {
         Self {
             // Stable values - no reconstruction filtering
             reconstruction: 0,
-            friction: Gain::from_raw(0.0),
-            damper: Gain::from_raw(0.0),
-            inertia: Gain::from_raw(0.0),
+            friction: match Gain::new(0.0) {
+                Ok(v) => v,
+                Err(e) => panic!("0.0 is a valid gain: {:?}", e),
+            },
+            damper: match Gain::new(0.0) {
+                Ok(v) => v,
+                Err(e) => panic!("0.0 is a valid gain: {:?}", e),
+            },
+            inertia: match Gain::new(0.0) {
+                Ok(v) => v,
+                Err(e) => panic!("0.0 is a valid gain: {:?}", e),
+            },
             notch_filters: Vec::new(),
-            slew_rate: Gain::from_raw(1.0), // No slew rate limiting
+            slew_rate: match Gain::new(1.0) {
+                Ok(v) => v,
+                Err(e) => panic!("1.0 is a valid gain: {:?}", e),
+            }, // No slew rate limiting
             curve_points: vec![
-                CurvePoint {
-                    input: 0.0,
-                    output: 0.0,
+                match CurvePoint::new(0.0, 0.0) {
+                    Ok(v) => v,
+                    Err(e) => panic!("0.0, 0.0 is a valid curve point: {:?}", e),
                 },
-                CurvePoint {
-                    input: 1.0,
-                    output: 1.0,
+                match CurvePoint::new(1.0, 1.0) {
+                    Ok(v) => v,
+                    Err(e) => panic!("1.0, 1.0 is a valid curve point: {:?}", e),
                 },
             ],
-            torque_cap: Gain::from_raw(1.0), // No torque cap by default
+            torque_cap: match Gain::new(1.0) {
+                Ok(v) => v,
+                Err(e) => panic!("1.0 is a valid gain: {:?}", e),
+            }, // No torque cap by default
             bumpstop: BumpstopConfig::default(),
             hands_off: HandsOffConfig::default(),
         }
@@ -483,7 +488,10 @@ impl FilterConfig {
             notch_filters,
             slew_rate,
             curve_points,
-            torque_cap: Gain::from_raw(1.0), // No cap by default
+            torque_cap: match Gain::new(1.0) {
+                Ok(v) => v,
+                Err(e) => panic!("1.0 is a valid gain: {:?}", e),
+            }, // No cap by default
             bumpstop: BumpstopConfig::default(),
             hands_off: HandsOffConfig::default(),
         })
@@ -590,9 +598,18 @@ impl BaseSettings {
 impl Default for BaseSettings {
     fn default() -> Self {
         Self {
-            ffb_gain: Gain::from_raw(0.7),
-            degrees_of_rotation: Degrees::from_raw(900.0),
-            torque_cap: TorqueNm::from_raw(15.0),
+            ffb_gain: match Gain::new(0.7) {
+                Ok(v) => v,
+                Err(e) => panic!("0.7 is a valid gain: {:?}", e),
+            },
+            degrees_of_rotation: match Degrees::new_dor(900.0) {
+                Ok(v) => v,
+                Err(e) => panic!("900.0 is a valid DOR: {:?}", e),
+            },
+            torque_cap: match TorqueNm::new(15.0) {
+                Ok(v) => v,
+                Err(e) => panic!("15.0 is a valid torque: {:?}", e),
+            },
             filters: FilterConfig::default(),
         }
     }
@@ -661,7 +678,10 @@ impl Default for LedConfig {
         Self {
             rpm_bands: vec![0.75, 0.82, 0.88, 0.92, 0.96],
             pattern: "progressive".to_string(),
-            brightness: Gain::from_raw(0.8),
+            brightness: match Gain::new(0.8) {
+                Ok(v) => v,
+                Err(e) => panic!("0.8 is a valid gain: {:?}", e),
+            },
             colors,
         }
     }
@@ -710,8 +730,14 @@ impl Default for HapticsConfig {
 
         Self {
             enabled: true,
-            intensity: Gain::from_raw(0.6),
-            frequency: FrequencyHz::from_raw(80.0),
+            intensity: match Gain::new(0.6) {
+                Ok(v) => v,
+                Err(e) => panic!("0.6 is a valid gain: {:?}", e),
+            },
+            frequency: match FrequencyHz::new(80.0) {
+                Ok(v) => v,
+                Err(e) => panic!("80.0 is a valid frequency: {:?}", e),
+            },
             effects,
         }
     }
@@ -1005,6 +1031,15 @@ impl Profile {
 mod tests {
     use super::*;
 
+    /// Helper function to unwrap Result values in tests
+    /// Panics with a descriptive message if the Result is Err
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("must() failed: {:?}", e),
+        }
+    }
+
     #[test]
     fn test_device_capabilities() {
         let caps = DeviceCapabilities::new(
@@ -1012,7 +1047,7 @@ mod tests {
             true,
             true,
             true,
-            TorqueNm::new(25.0).unwrap(),
+            must(TorqueNm::new(25.0)),
             10000,
             1000,
         );
@@ -1023,13 +1058,13 @@ mod tests {
 
     #[test]
     fn test_device_creation() {
-        let id: DeviceId = "test-device".parse().unwrap();
+        let id = must("test-device".parse::<DeviceId>());
         let caps = DeviceCapabilities::new(
             false,
             true,
             true,
             true,
-            TorqueNm::new(25.0).unwrap(),
+            must(TorqueNm::new(25.0)),
             10000,
             1000,
         );
@@ -1050,13 +1085,13 @@ mod tests {
 
     #[test]
     fn test_device_fault_handling() {
-        let id: DeviceId = "test-device".parse().unwrap();
+        let id = must("test-device".parse::<DeviceId>());
         let caps = DeviceCapabilities::new(
             false,
             true,
             true,
             true,
-            TorqueNm::new(25.0).unwrap(),
+            must(TorqueNm::new(25.0)),
             10000,
             1000,
         );
@@ -1080,14 +1115,14 @@ mod tests {
         // Valid filter config
         let config = FilterConfig::new(
             4,
-            Gain::new(0.1).unwrap(),
-            Gain::new(0.15).unwrap(),
-            Gain::new(0.05).unwrap(),
+            must(Gain::new(0.1)),
+            must(Gain::new(0.15)),
+            must(Gain::new(0.05)),
             vec![],
-            Gain::new(0.8).unwrap(),
+            must(Gain::new(0.8)),
             vec![
-                CurvePoint::new(0.0, 0.0).unwrap(),
-                CurvePoint::new(1.0, 1.0).unwrap(),
+                must(CurvePoint::new(0.0, 0.0)),
+                must(CurvePoint::new(1.0, 1.0)),
             ],
         );
         assert!(config.is_ok());
@@ -1095,14 +1130,14 @@ mod tests {
         // Invalid reconstruction level
         let bad_config = FilterConfig::new(
             10, // Too high
-            Gain::new(0.1).unwrap(),
-            Gain::new(0.15).unwrap(),
-            Gain::new(0.05).unwrap(),
+            must(Gain::new(0.1)),
+            must(Gain::new(0.15)),
+            must(Gain::new(0.05)),
             vec![],
-            Gain::new(0.8).unwrap(),
+            must(Gain::new(0.8)),
             vec![
-                CurvePoint::new(0.0, 0.0).unwrap(),
-                CurvePoint::new(1.0, 1.0).unwrap(),
+                must(CurvePoint::new(0.0, 0.0)),
+                must(CurvePoint::new(1.0, 1.0)),
             ],
         );
         assert!(bad_config.is_err());
@@ -1151,7 +1186,7 @@ mod tests {
 
     #[test]
     fn test_profile_creation() {
-        let id: ProfileId = "test-profile".parse().unwrap();
+        let id = must("test-profile".parse::<ProfileId>());
         let scope = ProfileScope::for_game("iracing".to_string());
         let base_settings = BaseSettings::default();
 
@@ -1165,7 +1200,7 @@ mod tests {
 
     #[test]
     fn test_profile_hash_deterministic() {
-        let id: ProfileId = "test-profile".parse().unwrap();
+        let id = must("test-profile".parse::<ProfileId>());
         let scope = ProfileScope::for_game("iracing".to_string());
         let base_settings = BaseSettings::default();
 
@@ -1193,7 +1228,7 @@ mod tests {
         let config = LedConfig::new(
             vec![0.75, 0.82, 0.88, 0.92, 0.96],
             "progressive".to_string(),
-            Gain::new(0.8).unwrap(),
+            must(Gain::new(0.8)),
             HashMap::new(),
         );
         assert!(config.is_ok());
@@ -1202,7 +1237,7 @@ mod tests {
         let bad_config = LedConfig::new(
             vec![0.75, 0.92, 0.82], // Not sorted
             "progressive".to_string(),
-            Gain::new(0.8).unwrap(),
+            must(Gain::new(0.8)),
             HashMap::new(),
         );
         assert!(bad_config.is_err());
@@ -1211,7 +1246,7 @@ mod tests {
         let bad_config2 = LedConfig::new(
             vec![0.75, 1.2], // > 1.0
             "progressive".to_string(),
-            Gain::new(0.8).unwrap(),
+            must(Gain::new(0.8)),
             HashMap::new(),
         );
         assert!(bad_config2.is_err());
@@ -1219,7 +1254,7 @@ mod tests {
 
     #[test]
     fn test_notch_filter_validation() {
-        let freq = FrequencyHz::new(60.0).unwrap();
+        let freq = must(FrequencyHz::new(60.0));
 
         // Valid notch filter
         let filter = NotchFilter::new(freq, 2.0, -12.0);

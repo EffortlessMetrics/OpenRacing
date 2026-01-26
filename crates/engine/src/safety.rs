@@ -175,7 +175,7 @@ impl SafetyService {
                 _ => self.max_safe_torque_nm,
             }
         };
-        TorqueNm::from_raw(torque_nm)
+        TorqueNm::new(torque_nm).expect("torque_nm should be valid")
     }
 
     /// Get consent requirements for high torque mode
@@ -432,13 +432,10 @@ impl SafetyService {
 
     /// Check if hands-off timeout should trigger (legacy method)
     pub fn check_hands_off_timeout(&mut self, hands_off_duration: Duration) {
-        if hands_off_duration > self.hands_off_timeout {
-            match &self.state {
-                SafetyState::HighTorqueActive { .. } => {
-                    self.report_fault(FaultType::HandsOffTimeout);
-                }
-                _ => {}
-            }
+        if hands_off_duration > self.hands_off_timeout
+            && let SafetyState::HighTorqueActive { .. } = &self.state
+        {
+            self.report_fault(FaultType::HandsOffTimeout);
         }
     }
 
@@ -574,6 +571,3 @@ pub use fault_injection::{FaultInjectionScenario, FaultInjectionSystem, TriggerC
 pub use fmea::{AudioAlert, FaultThresholds, FmeaSystem, SoftStopController};
 pub use integration::{FaultManagerContext, FaultManagerResult, IntegratedFaultManager};
 pub use watchdog::{HealthStatus, SystemComponent, WatchdogConfig, WatchdogSystem};
-
-#[cfg(test)]
-pub use tests::*;

@@ -11,7 +11,6 @@ use racing_wheel_engine::{
 use racing_wheel_engine::{HidPort, VirtualDevice, VirtualHidPort};
 use racing_wheel_schemas::prelude::*;
 use std::time::Duration;
-use tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -111,7 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut harness = RTLoopTestHarness::new(config);
 
     // Add test device
-    let test_device = harness.create_test_device("rt-test-device", "RT Test Device");
+    let test_device = harness.create_test_device("rt-test-device", "RT Test Device")?;
     harness.add_virtual_device(test_device)?;
 
     // Create test scenario

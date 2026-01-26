@@ -13,6 +13,15 @@ use racing_wheel_service::WheelService;
 
 use crate::{PerformanceMetrics, TestConfig};
 
+/// Test helper to unwrap results with panic on error
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
 /// Mock virtual device for testing
 #[derive(Debug, Clone)]
 pub struct VirtualDevice {
@@ -43,7 +52,7 @@ impl VirtualDevice {
                 supports_raw_torque_1khz: true,
                 supports_health_stream: true,
                 supports_led_bus: true,
-                max_torque: TorqueNm::from_raw(25.0), // 25 Nm
+                max_torque: must(TorqueNm::new(25.0)), // 25 Nm
                 encoder_cpr: 65535,
                 min_report_period_us: 1000,
             },

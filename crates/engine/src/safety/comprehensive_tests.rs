@@ -28,6 +28,12 @@ pub struct TestResult {
     pub error_message: Option<String>,
 }
 
+impl Default for ComprehensiveFaultTests {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ComprehensiveFaultTests {
     /// Create new comprehensive test suite
     pub fn new() -> Self {
@@ -457,7 +463,10 @@ impl ComprehensiveFaultTests {
             .update_hands_on_status(false);
         let response_time = start_time.elapsed();
 
-        let success = result.is_err() && result.unwrap_err().contains("Hands-off timeout");
+        let success = result.is_err() && match result {
+            Ok(_) => false,
+            Err(e) => e.contains("Hands-off timeout"),
+        };
 
         // Check if safety service is now faulted
         let faulted = matches!(
@@ -581,12 +590,12 @@ impl ComprehensiveFaultTests {
 
             total_recovery_time += recovery_time;
 
-            if recovery_result.is_err() {
+            if let Err(e) = recovery_result {
                 all_recoveries_successful = false;
                 eprintln!(
                     "Recovery failed for {:?}: {}",
                     fault_type,
-                    recovery_result.unwrap_err()
+                    e
                 );
             }
         }
@@ -837,10 +846,10 @@ impl ComprehensiveFaultTests {
                 println!("  Error: {}", error);
             }
 
-            if result.recovery_time.is_some() {
+            if let Some(recovery_time) = result.recovery_time {
                 println!(
                     "  Recovery Time: {:.1}ms",
-                    result.recovery_time.unwrap().as_millis()
+                    recovery_time.as_millis()
                 );
             }
         }
@@ -931,7 +940,24 @@ impl ComprehensiveFaultTests {
     }
 }
 
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
+#[track_caller]
+fn must_some<T>(o: Option<T>, msg: &str) -> T {
+    match o {
+        Some(v) => v,
+        None => panic!("{msg}"),
+    }
+}
+
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -965,7 +991,7 @@ mod tests {
     #[test]
     fn test_response_time_requirements() {
         let mut test_suite = ComprehensiveFaultTests::new();
-        test_suite.run_all_tests().unwrap();
+        must(test_suite.run_all_tests());
 
         let results = test_suite.get_test_results();
 
@@ -990,25 +1016,28 @@ mod tests {
     #[test]
     fn test_soft_stop_timing() {
         let mut test_suite = ComprehensiveFaultTests::new();
-        test_suite.test_soft_stop_mechanism().unwrap();
+        must(test_suite.test_soft_stop_mechanism());
+let results = test_suite.get_test_results();
 
-        let results = test_suite.get_test_results();
-        let soft_stop_result = results.get("Soft-Stop Mechanism").unwrap();
+let soft_stop_binding = results.get("Soft-Stop Mechanism");
+let soft_stop_result = must_some(soft_stop_binding.as_ref(), "expected Soft-Stop Mechanism result");
 
-        assert!(soft_stop_result.success, "Soft-stop mechanism test failed");
-        assert!(
-            soft_stop_result.torque_ramped_to_zero,
-            "Torque did not ramp to zero"
-        );
+assert!(soft_stop_result.success, "Soft-stop mechanism test failed");
+assert!(
+    soft_stop_result.torque_ramped_to_zero,
+    "Torque did not ramp to zero"
+);
     }
 
     #[test]
     fn test_plugin_quarantine() {
         let mut test_suite = ComprehensiveFaultTests::new();
-        test_suite.test_plugin_overrun_fault().unwrap();
+        must(test_suite.test_plugin_overrun_fault());
 
         let results = test_suite.get_test_results();
-        let plugin_result = results.get("Plugin Overrun Fault").unwrap();
+        let binding = results.get("Plugin Overrun Fault");
+        let binding_ref = binding.as_ref();
+        let plugin_result = must_some(binding_ref, "expected Plugin Overrun Fault result");
 
         assert!(plugin_result.success, "Plugin overrun test failed");
 
@@ -1024,15 +1053,16 @@ mod tests {
     #[test]
     fn test_blackbox_marker_creation() {
         let mut test_suite = ComprehensiveFaultTests::new();
-        test_suite.test_blackbox_fault_markers().unwrap();
+        must(test_suite.test_blackbox_fault_markers());
+let results = test_suite.get_test_results();
 
-        let results = test_suite.get_test_results();
-        let blackbox_result = results.get("Blackbox Fault Markers").unwrap();
+let blackbox_binding = results.get("Blackbox Fault Markers");
+let blackbox_result = must_some(blackbox_binding.as_ref(), "expected Blackbox Fault Markers result");
 
-        assert!(blackbox_result.success, "Blackbox marker test failed");
-        assert!(
-            blackbox_result.blackbox_marker_created,
-            "Blackbox markers not created"
-        );
+assert!(blackbox_result.success, "Blackbox marker test failed");
+assert!(
+    blackbox_result.blackbox_marker_created,
+    "Blackbox markers not created"
+);
     }
 }

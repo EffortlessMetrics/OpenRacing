@@ -13,6 +13,14 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use tokio::time::{Duration, timeout};
 
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
 /// Test HID port creation for current platform
 #[tokio::test]
 async fn test_hid_port_creation() {
@@ -357,7 +365,7 @@ async fn test_error_handling_and_recovery() {
     let port = create_hid_port().expect("Failed to create HID port");
 
     // Try to open non-existent device
-    let fake_id = DeviceId::new("non-existent-device".to_string()).unwrap();
+    let fake_id = must(DeviceId::new("non-existent-device".to_string()));
     let result = port.open_device(&fake_id).await;
     assert!(result.is_err(), "Opening non-existent device should fail");
 

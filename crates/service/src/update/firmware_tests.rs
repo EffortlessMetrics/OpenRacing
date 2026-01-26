@@ -1,5 +1,24 @@
 //! Tests for firmware update system with mock devices and failure injection
 
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
+#[track_caller]
+fn must_parse<T: std::str::FromStr>(s: &str) -> T
+where
+    <T as std::str::FromStr>::Err: std::fmt::Debug,
+{
+    match s.parse::<T>() {
+        Ok(v) => v,
+        Err(e) => panic!("parse failed for {s:?}: {e:?}"),
+    }
+}
+
 use super::firmware::{
     FirmwareUpdateManager, FirmwareImage, FirmwareDevice, UpdateResult, 
     StagedRolloutConfig, Partition, PartitionInfo, PartitionHealth
@@ -319,7 +338,7 @@ pub fn create_test_firmware(version: &str, device_model: &str) -> FirmwareImage 
     
     FirmwareImage {
         device_model: device_model.to_string(),
-        version: semver::Version::parse(version).unwrap(),
+        version: must_parse(version),
         min_hardware_version: Some("1.0".to_string()),
         max_hardware_version: None,
         data,
@@ -333,13 +352,13 @@ pub fn create_test_firmware(version: &str, device_model: &str) -> FirmwareImage 
 
 /// Create a firmware update manager for testing
 pub fn create_test_manager() -> FirmwareUpdateManager {
-    let temp_dir = tempfile::TempDir::new().unwrap();
+    let temp_dir = must(tempfile::TempDir::new());
     let config = crate::crypto::VerificationConfig {
         trust_store_path: temp_dir.path().join("trust_store.json"),
         require_firmware_signatures: false, // Disable for tests
         ..Default::default()
     };
-    let verifier = crate::crypto::verification::VerificationService::new(config).unwrap();
+    let verifier = must(crate::crypto::verification::VerificationService::new(config));
     let rollout_config = StagedRolloutConfig::default();
     
     FirmwareUpdateManager::new(verifier, rollout_config)
@@ -355,7 +374,7 @@ mod tests {
         let firmware = create_test_firmware("2.0.0", "test_wheel_v1");
         let manager = create_test_manager();
         
-        let result = manager.update_device_firmware(device, &firmware).await.unwrap();
+        let result = must(manager.update_device_firmware(device, &firmware).await);
         
         assert!(result.success, "Update should succeed");
         assert_eq!(result.device_id, "test_device_001");
@@ -373,11 +392,11 @@ mod tests {
         let firmware = create_test_firmware("2.0.0", "test_wheel_v1");
         let manager = create_test_manager();
         
-        let result = manager.update_device_firmware(device, &firmware).await.unwrap();
+        let result = must(manager.update_device_firmware(device, &firmware).await);
         
         assert!(!result.success, "Update should fail");
         assert!(result.error.is_some());
-        assert!(result.error.as_ref().unwrap().contains("prepare"));
+        assert!(must(result.error).as_ref().contains("prepare"));
     }
     
     #[tokio::test]
@@ -388,11 +407,11 @@ mod tests {
         let firmware = create_test_firmware("2.0.0", "test_wheel_v1");
         let manager = create_test_manager();
         
-        let result = manager.update_device_firmware(device, &firmware).await.unwrap();
+        let result = must(manager.update_device_firmware(device, &firmware).await);
         
         assert!(!result.success, "Update should fail");
         assert!(result.error.is_some());
-        assert!(result.error.as_ref().unwrap().contains("write"));
+        assert!(must(result.error).as_ref().contains("write"));
     }
     
     #[tokio::test]
@@ -403,12 +422,12 @@ mod tests {
         let firmware = create_test_firmware("2.0.0", "test_wheel_v1");
         let manager = create_test_manager();
         
-        let result = manager.update_device_firmware(device, &firmware).await.unwrap();
+        let result = must(manager.update_device_firmware(device, &firmware).await);
         
         assert!(!result.success, "Update should fail");
         assert!(result.error.is_some());
-        assert!(result.error.as_ref().unwrap().contains("validation") || 
-                result.error.as_ref().unwrap().contains("validate"));
+        assert!(must(result.error).as_ref().contains("validation") ||
+                must(result.error).as_ref().contains("validate"));
     }
     
     #[tokio::test]
@@ -419,11 +438,11 @@ mod tests {
         let firmware = create_test_firmware("2.0.0", "test_wheel_v1");
         let manager = create_test_manager();
         
-        let result = manager.update_device_firmware(device, &firmware).await.unwrap();
+        let result = must(manager.update_device_firmware(device, &firmware).await);
         
         assert!(!result.success, "Update should fail due to health check");
         assert!(result.error.is_some());
-        assert!(result.error.as_ref().unwrap().contains("Health check failed"));
+        assert!(must(result.error).as_ref().contains("Health check failed"));
     }
     
     #[tokio::test]
@@ -434,7 +453,7 @@ mod tests {
         let firmware = create_test_firmware("2.0.0", "test_wheel_v1");
         let manager = create_test_manager();
         
-        let result = manager.update_device_firmware(device, &firmware).await.unwrap();
+        let result = must(manager.update_device_firmware(device, &firmware).await);
         
         assert!(result.success, "Update should succeed after retries");
         assert_eq!(result.new_version, Some(firmware.version));
@@ -448,11 +467,11 @@ mod tests {
         let device = Box::new(device);
         let manager = create_test_manager();
         
-        let result = manager.update_device_firmware(device, &firmware).await.unwrap();
+        let result = must(manager.update_device_firmware(device, &firmware).await);
         
         assert!(!result.success, "Update should fail due to compatibility");
         assert!(result.error.is_some());
-        assert!(result.error.as_ref().unwrap().contains("Hardware version"));
+        assert!(must(result.error).as_ref().contains("Hardware version"));
     }
     
     #[tokio::test]
@@ -484,7 +503,7 @@ mod tests {
                 }
                 result = &mut update_task => {
                     update_completed = true;
-                    let result = result.unwrap().unwrap();
+                    let result = must(must(result));
                     assert!(result.success, "Update should succeed");
                 }
             }
@@ -532,7 +551,7 @@ mod tests {
         
         // Verify all updates succeeded
         for (i, result) in results.into_iter().enumerate() {
-            let result = result.unwrap();
+            let result = must(result);
             assert!(result.success, "Update {} should succeed", i);
             assert_eq!(result.device_id, format!("device_{}", i));
         }
@@ -562,7 +581,7 @@ mod tests {
         assert!(cancel_result.is_ok(), "Should be able to cancel update");
         
         // Wait for update to complete (should be cancelled)
-        let result = update_task.await.unwrap().unwrap();
+        let result = must(must(update_task.await));
         
         // Update might complete before cancellation takes effect, 
         // but cancellation should not cause errors

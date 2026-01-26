@@ -4,6 +4,15 @@ use racing_wheel_schemas::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+/// Test helper to unwrap results with panic on error
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
 /// Test fixture for virtual device configurations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceFixture {
@@ -67,7 +76,7 @@ impl DeviceFixture {
                 supports_raw_torque_1khz: true,
                 supports_health_stream: true,
                 supports_led_bus: true,
-                max_torque: TorqueNm::from_raw(25.0), // 25 Nm
+                max_torque: must(TorqueNm::new(25.0)), // 25 Nm
                 encoder_cpr: 65535,
                 min_report_period_us: 1000,
             },
@@ -84,7 +93,7 @@ impl DeviceFixture {
                 supports_raw_torque_1khz: false,
                 supports_health_stream: false,
                 supports_led_bus: false,
-                max_torque: TorqueNm::from_raw(8.0), // 8 Nm
+                max_torque: must(TorqueNm::new(8.0)), // 8 Nm
                 encoder_cpr: 4096,
                 min_report_period_us: 2000,
             },
@@ -101,7 +110,7 @@ impl DeviceFixture {
                 supports_raw_torque_1khz: true,
                 supports_health_stream: true,
                 supports_led_bus: true,
-                max_torque: TorqueNm::from_raw(50.0), // 50 Nm
+                max_torque: must(TorqueNm::new(50.0)), // 50 Nm
                 encoder_cpr: 65535,
                 min_report_period_us: 500,
             },

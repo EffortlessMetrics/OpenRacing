@@ -66,15 +66,15 @@ fn test_invalid_values_rejected() {
 fn test_speed_conversions() {
     let telemetry = NormalizedTelemetry::default().with_speed_ms(27.78); // 100 km/h
 
-    assert!((telemetry.speed_kmh().unwrap() - 100.0).abs() < 0.1);
-    assert!((telemetry.speed_mph().unwrap() - 62.14).abs() < 0.1);
+    assert!((must_some(telemetry.speed_kmh(), "expected speed_kmh") - 100.0).abs() < 0.1);
+    assert!((must_some(telemetry.speed_mph(), "expected speed_mph") - 62.14).abs() < 0.1);
 }
 
 #[test]
 fn test_rpm_fraction() {
     let telemetry = NormalizedTelemetry::default().with_rpm(6000.0);
 
-    let fraction = telemetry.rpm_fraction(8000.0).unwrap();
+    let fraction = must_some(telemetry.rpm_fraction(8000.0), "expected rpm_fraction");
     assert!((fraction - 0.75).abs() < 0.01);
 }
 
@@ -212,7 +212,7 @@ fn test_rate_limiter_stats() {
 
 #[test]
 fn test_recorder_creation() {
-    let temp_dir = tempdir().unwrap();
+    let temp_dir = must(tempdir());
     let output_path = temp_dir.path().join("test_recording.json");
 
     let recorder = TelemetryRecorder::new(output_path);
@@ -221,10 +221,10 @@ fn test_recorder_creation() {
 
 #[test]
 fn test_recording_lifecycle() {
-    let temp_dir = tempdir().unwrap();
+    let temp_dir = must(tempdir());
     let output_path = temp_dir.path().join("test_recording.json");
 
-    let mut recorder = TelemetryRecorder::new(output_path.clone()).unwrap();
+    let mut recorder = must(TelemetryRecorder::new(output_path.clone()));
 
     // Start recording
     recorder.start_recording("test_game".to_string());
@@ -239,8 +239,7 @@ fn test_recording_lifecycle() {
 
     // Stop recording
     let recording = recorder
-        .stop_recording(Some("Test recording".to_string()))
-        .unwrap();
+        must(recorder.stop_recording(Some("Test recording".to_string())));
     assert!(!recorder.is_recording());
     assert_eq!(recording.frames.len(), 1);
     assert_eq!(recording.metadata.game_id, "test_game");
@@ -251,11 +250,11 @@ fn test_recording_lifecycle() {
 
 #[test]
 fn test_load_recording() {
-    let temp_dir = tempdir().unwrap();
+    let temp_dir = must(tempdir());
     let output_path = temp_dir.path().join("test_recording.json");
 
     // Create and save a recording
-    let mut recorder = TelemetryRecorder::new(output_path.clone()).unwrap();
+    let mut recorder = must(TelemetryRecorder::new(output_path.clone()));
     recorder.start_recording("test_game".to_string());
 
     let telemetry = NormalizedTelemetry::default().with_rpm(5000.0);
@@ -263,11 +262,10 @@ fn test_load_recording() {
     recorder.record_frame(frame);
 
     recorder
-        .stop_recording(Some("Test recording".to_string()))
-        .unwrap();
+        must(recorder.stop_recording(Some("Test recording".to_string())));
 
     // Load the recording
-    let loaded = TelemetryRecorder::load_recording(&output_path).unwrap();
+    let loaded = must(TelemetryRecorder::load_recording(&output_path));
     assert_eq!(loaded.metadata.game_id, "test_game");
     assert_eq!(loaded.frames.len(), 1);
 }
@@ -337,15 +335,13 @@ async fn test_mock_adapter() {
     adapter.set_running(true);
 
     assert_eq!(adapter.game_id(), "test_game");
-    assert!(adapter.is_game_running().await.unwrap());
+    assert!(must(adapter.is_game_running().await));
 
-    let mut receiver = adapter.start_monitoring().await.unwrap();
+    let mut receiver = must(adapter.start_monitoring().await);
 
     // Should receive telemetry frames
     let frame = tokio::time::timeout(Duration::from_millis(100), receiver.recv())
-        .await
-        .unwrap()
-        .unwrap();
+        must_some(must(tokio::time::timeout(Duration::from_millis(100), receiver.recv()).await), "expected frame");
 
     assert!(frame.data.rpm.is_some());
     assert!(frame.data.speed_ms.is_some());
@@ -394,7 +390,7 @@ async fn test_telemetry_service_monitoring() {
 /// Integration test that validates the complete telemetry pipeline
 #[test]
 fn test_complete_telemetry_pipeline() {
-    let temp_dir = tempdir().unwrap();
+    let temp_dir = must(tempdir());
     let recording_path = temp_dir.path().join("pipeline_test.json");
 
     // Create a synthetic recording
@@ -405,7 +401,7 @@ fn test_complete_telemetry_pipeline() {
     );
 
     // Save the recording
-    let mut recorder = TelemetryRecorder::new(recording_path.clone()).unwrap();
+    let mut recorder = must(TelemetryRecorder::new(recording_path.clone()));
     recorder.start_recording("test_game".to_string());
 
     for frame in &recording.frames {
@@ -413,11 +409,10 @@ fn test_complete_telemetry_pipeline() {
     }
 
     recorder
-        .stop_recording(Some("Pipeline test".to_string()))
-        .unwrap();
+        must(recorder.stop_recording(Some("Pipeline test".to_string())));
 
     // Load and replay the recording
-    let loaded_recording = TelemetryRecorder::load_recording(&recording_path).unwrap();
+    let loaded_recording = must(TelemetryRecorder::load_recording(&recording_path));
     let mut player = TelemetryPlayer::new(loaded_recording);
 
     player.start_playback();
@@ -521,12 +516,12 @@ fn test_telemetry_field_coverage() {
     assert!(telemetry.has_rpm_data());
 
     // Test RPM fraction calculation
-    let rpm_fraction = telemetry.rpm_fraction(8000.0).unwrap();
+    let rpm_fraction = must_some(telemetry.rpm_fraction(8000.0), "expected rpm_fraction");
     assert!((rpm_fraction - 0.8125).abs() < 0.01); // 6500/8000 = 0.8125
 
     // Test speed conversions
-    assert!((telemetry.speed_kmh().unwrap() - 162.0).abs() < 0.1); // 45 m/s = 162 km/h
-    assert!((telemetry.speed_mph().unwrap() - 100.65).abs() < 0.1); // 45 m/s ≈ 100.65 mph
+    assert!((must_some(telemetry.speed_kmh(), "expected speed_kmh") - 162.0).abs() < 0.1); // 45 m/s = 162 km/h
+    assert!((must_some(telemetry.speed_mph(), "expected speed_mph") - 100.65).abs() < 0.1); // 45 m/s ≈ 100.65 mph
 }
 
 /// Test telemetry flags functionality
@@ -590,13 +585,13 @@ fn test_extended_telemetry_all_types() {
 /// Test telemetry service recording functionality
 #[test]
 fn test_telemetry_service_recording() {
-    let temp_dir = tempdir().unwrap();
+    let temp_dir = must(tempdir());
     let output_path = temp_dir.path().join("service_recording.json");
 
     let mut service = TelemetryService::new();
 
     // Enable recording
-    service.enable_recording(output_path.clone()).unwrap();
+    must(service.enable_recording(output_path.clone()));
 
     // Disable recording
     service.disable_recording();

@@ -274,7 +274,7 @@ impl LedMappingEngine {
     /// Update RPM hysteresis state to prevent flickering
     fn update_rpm_hysteresis(&mut self, rpm: f32) {
         let hysteresis = self.rpm_hysteresis_state.hysteresis_percent;
-        let bands = vec![0.75, 0.82, 0.88, 0.92, 0.96]; // Should come from config
+        let bands = [0.75, 0.82, 0.88, 0.92, 0.96]; // Should come from config
 
         // Normalize RPM (assuming max RPM is available in telemetry)
         let max_rpm = 8000.0; // Should come from car/engine data
@@ -317,6 +317,7 @@ impl LedMappingEngine {
                 let current_band = self.rpm_hysteresis_state.current_band;
                 let leds_to_light = ((current_band + 1) * LED_COUNT / bands.len()).min(LED_COUNT);
 
+                #[allow(clippy::needless_range_loop)]
                 for i in 0..leds_to_light {
                     let band_index = (i * bands.len() / LED_COUNT).min(band_colors.len() - 1);
                     colors[i] = band_colors[band_index];
@@ -340,7 +341,7 @@ impl LedMappingEngine {
                         colors.fill(color);
                     }
                     FlagPattern::Blink => {
-                        let blink_on = (now.elapsed().as_millis() / 500) % 2 == 0;
+                        let blink_on = (now.elapsed().as_millis() / 500).is_multiple_of(2);
                         if blink_on {
                             colors.fill(color);
                         }
@@ -351,12 +352,13 @@ impl LedMappingEngine {
                             (now.elapsed().as_millis() % cycle_ms) as f32 / cycle_ms as f32;
                         let led_position = (position * LED_COUNT as f32) as usize;
 
-                        for i in 0..=led_position.min(LED_COUNT - 1) {
+                        #[allow(clippy::needless_range_loop)]
+                        for i in 0..led_position.min(LED_COUNT - 1) {
                             colors[i] = color;
                         }
                     }
                     FlagPattern::Flash => {
-                        let flash_on = (now.elapsed().as_millis() / 100) % 2 == 0;
+                        let flash_on = (now.elapsed().as_millis() / 100).is_multiple_of(2);
                         if flash_on {
                             colors.fill(color);
                         }
@@ -369,7 +371,7 @@ impl LedMappingEngine {
                 color,
             } => {
                 let period_ms = (1000.0 / blink_rate_hz) as u128;
-                let blink_on = (now.elapsed().as_millis() / period_ms) % 2 == 0;
+                let blink_on = (now.elapsed().as_millis() / period_ms).is_multiple_of(2);
                 if blink_on {
                     colors.fill(*color);
                 }
@@ -588,6 +590,12 @@ impl DashWidgetSystem {
     /// Get current widgets for testing
     pub fn widgets(&self) -> &HashMap<String, DashWidget> {
         &self.widgets
+    }
+}
+
+impl Default for DashWidgetSystem {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

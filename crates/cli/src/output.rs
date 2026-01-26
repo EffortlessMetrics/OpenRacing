@@ -1,9 +1,4 @@
 //! Output formatting for CLI responses
-//!
-//! JSON serialization of our output structures cannot fail, so we allow unwrap
-//! in this module for brevity.
-
-#![allow(clippy::unwrap_used)]
 
 use anyhow::Error;
 use colored::*;
@@ -26,7 +21,10 @@ pub fn print_error_json(error: &Error) {
             "type": error_type_name(error)
         }
     });
-    println!("{}", serde_json::to_string_pretty(&error_json).unwrap());
+    match serde_json::to_string_pretty(&error_json) {
+        Ok(s) => println!("{}", s),
+        Err(e) => eprintln!("Failed to format error as JSON: {}", e),
+    }
 }
 
 /// Print error in human-readable format
@@ -48,7 +46,10 @@ pub fn print_device_list(devices: &[ClientDeviceInfo], json: bool, detailed: boo
             "success": true,
             "devices": devices
         });
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        match serde_json::to_string_pretty(&output) {
+            Ok(s) => println!("{}", s),
+            Err(e) => eprintln!("Failed to format device list as JSON: {}", e),
+        }
     } else {
         if devices.is_empty() {
             println!("{}", "No devices found".yellow());
@@ -125,7 +126,10 @@ pub fn print_device_status(status: &DeviceStatus, json: bool) {
             "success": true,
             "status": status
         });
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        match serde_json::to_string_pretty(&output) {
+            Ok(s) => println!("{}", s),
+            Err(e) => eprintln!("Failed to format device status as JSON: {}", e),
+        }
     } else {
         println!("{} {}", "Device:".bold(), status.device.name);
         println!("  ID: {}", status.device.id);
@@ -171,7 +175,10 @@ pub fn print_profile(profile: &ProfileSchema, json: bool) {
             "success": true,
             "profile": profile
         });
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        match serde_json::to_string_pretty(&output) {
+            Ok(s) => println!("{}", s),
+            Err(e) => eprintln!("Failed to format profile as JSON: {}", e),
+        }
     } else {
         println!("{} {}", "Profile Schema:".bold(), profile.schema);
 
@@ -231,7 +238,10 @@ pub fn print_diagnostics(diag: &DiagnosticInfo, json: bool) {
             "success": true,
             "diagnostics": diag
         });
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        match serde_json::to_string_pretty(&output) {
+            Ok(s) => println!("{}", s),
+            Err(e) => eprintln!("Failed to format diagnostics as JSON: {}", e),
+        }
     } else {
         println!("{} {}", "Diagnostics for:".bold(), diag.device_id);
 
@@ -268,7 +278,10 @@ pub fn print_game_status(status: &GameStatus, json: bool) {
             "success": true,
             "game_status": status
         });
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        match serde_json::to_string_pretty(&output) {
+            Ok(s) => println!("{}", s),
+            Err(e) => eprintln!("Failed to format game status as JSON: {}", e),
+        }
     } else {
         println!("{}", "Game Status:".bold());
 
@@ -301,7 +314,10 @@ pub fn print_game_status(status: &GameStatus, json: bool) {
 /// Print health event
 pub fn print_health_event(event: &HealthEvent, json: bool) {
     if json {
-        println!("{}", serde_json::to_string(&event).unwrap());
+        match serde_json::to_string(&event) {
+            Ok(s) => println!("{}", s),
+            Err(e) => eprintln!("Failed to format health event as JSON: {}", e),
+        }
     } else {
         let event_color = match event.event_type {
             HealthEventType::DeviceConnected => "green",
@@ -328,7 +344,10 @@ pub fn print_success(message: &str, json: bool) {
             "success": true,
             "message": message
         });
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        match serde_json::to_string_pretty(&output) {
+            Ok(s) => println!("{}", s),
+            Err(e) => eprintln!("Failed to format success message as JSON: {}", e),
+        }
     } else {
         println!("{} {}", "✓".green(), message);
     }
@@ -341,7 +360,10 @@ pub fn print_warning(message: &str, json: bool) {
             "success": true,
             "warning": message
         });
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        match serde_json::to_string_pretty(&output) {
+            Ok(s) => println!("{}", s),
+            Err(e) => eprintln!("Failed to format warning message as JSON: {}", e),
+        }
     } else {
         println!("{} {}", "⚠".yellow(), message);
     }
@@ -379,7 +401,10 @@ where
             "success": true,
             "data": table_data
         });
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        match serde_json::to_string_pretty(&output) {
+            Ok(s) => println!("{}", s),
+            Err(e) => eprintln!("Failed to format table data as JSON: {}", e),
+        }
     } else {
         // Simple table formatting for human output
         if rows.is_empty() {

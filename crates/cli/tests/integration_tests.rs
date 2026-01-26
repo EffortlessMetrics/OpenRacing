@@ -9,6 +9,21 @@ use serde_json::Value;
 use std::fs;
 use tempfile::TempDir;
 
+// Test helpers for Result and Option values
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("must failed: {:?}", e),
+    }
+}
+
+fn must_some<T>(o: Option<T>, msg: &str) -> T {
+    match o {
+        Some(v) => v,
+        None => panic!("must_some failed: {}", msg),
+    }
+}
+
 /// Custom predicate to check if output is valid JSON
 fn is_json() -> impl predicates::Predicate<[u8]> {
     predicates::function::function(|s: &[u8]| {
@@ -22,7 +37,8 @@ fn is_json() -> impl predicates::Predicate<[u8]> {
 
 /// Test helper to create a wheelctl command
 fn wheelctl() -> Command {
-    Command::cargo_bin("wheelctl").unwrap()
+    #[allow(deprecated)]
+    must(Command::cargo_bin("wheelctl"))
 }
 
 /// Test helper to create temporary profile
@@ -53,7 +69,7 @@ fn create_test_profile(dir: &TempDir, name: &str) -> std::path::PathBuf {
     });
 
     let path = dir.path().join(format!("{}.json", name));
-    fs::write(&path, serde_json::to_string_pretty(&profile).unwrap()).unwrap();
+    must(fs::write(&path, must(serde_json::to_string_pretty(&profile))));
     path
 }
 
@@ -78,7 +94,7 @@ fn test_cli_version() {
 #[test]
 fn test_completion_generation() {
     wheelctl()
-        .args(&["completion", "bash"])
+        .args(["completion", "bash"])
         .assert()
         .success()
         .stdout(predicate::str::contains("_wheelctl"));
@@ -89,7 +105,7 @@ fn test_completion_generation() {
 #[test]
 fn test_device_list_human_output() {
     wheelctl()
-        .args(&["device", "list"])
+        .args(["device", "list"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Connected Devices"));
@@ -98,18 +114,17 @@ fn test_device_list_human_output() {
 #[test]
 fn test_device_list_json_output() {
     wheelctl()
-        .args(&["--json", "device", "list"])
+        .args(["--json", "device", "list"])
         .assert()
         .success()
         .stdout(is_json());
 
     // Verify JSON structure
-    let output = wheelctl()
-        .args(&["--json", "device", "list"])
-        .output()
-        .unwrap();
+    let output = must(wheelctl()
+        .args(["--json", "device", "list"])
+        .output());
 
-    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let json: Value = must(serde_json::from_slice(&output.stdout));
     assert_eq!(json["success"], true);
     assert!(json["devices"].is_array());
 }
@@ -117,7 +132,7 @@ fn test_device_list_json_output() {
 #[test]
 fn test_device_list_detailed() {
     wheelctl()
-        .args(&["device", "list", "--detailed"])
+        .args(["device", "list", "--detailed"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Capabilities"));
@@ -126,7 +141,7 @@ fn test_device_list_detailed() {
 #[test]
 fn test_device_status() {
     wheelctl()
-        .args(&["device", "status", "wheel-001"])
+        .args(["device", "status", "wheel-001"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Device:"));
@@ -135,7 +150,7 @@ fn test_device_status() {
 #[test]
 fn test_device_status_json() {
     wheelctl()
-        .args(&["--json", "device", "status", "wheel-001"])
+        .args(["--json", "device", "status", "wheel-001"])
         .assert()
         .success()
         .stdout(is_json());
@@ -144,7 +159,7 @@ fn test_device_status_json() {
 #[test]
 fn test_device_not_found_error() {
     wheelctl()
-        .args(&["device", "status", "nonexistent-device"])
+        .args(["device", "status", "nonexistent-device"])
         .assert()
         .failure()
         .code(2); // Device not found error code
@@ -153,7 +168,7 @@ fn test_device_not_found_error() {
 #[test]
 fn test_device_calibrate() {
     wheelctl()
-        .args(&["device", "calibrate", "wheel-001", "center", "--yes"])
+        .args(["device", "calibrate", "wheel-001", "center", "--yes"])
         .assert()
         .success()
         .stdout(predicate::str::contains("calibration"));
@@ -162,7 +177,7 @@ fn test_device_calibrate() {
 #[test]
 fn test_device_reset() {
     wheelctl()
-        .args(&["device", "reset", "wheel-001", "--force"])
+        .args(["device", "reset", "wheel-001", "--force"])
         .assert()
         .success()
         .stdout(predicate::str::contains("reset"));
@@ -172,13 +187,13 @@ fn test_device_reset() {
 
 #[test]
 fn test_profile_list() {
-    wheelctl().args(&["profile", "list"]).assert().success();
+    wheelctl().args(["profile", "list"]).assert().success();
 }
 
 #[test]
 fn test_profile_list_json() {
     wheelctl()
-        .args(&["--json", "profile", "list"])
+        .args(["--json", "profile", "list"])
         .assert()
         .success()
         .stdout(is_json());
@@ -186,15 +201,15 @@ fn test_profile_list_json() {
 
 #[test]
 fn test_profile_create_and_validate() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let profile_path = temp_dir.path().join("test_profile.json");
 
     // Create profile
     wheelctl()
-        .args(&[
+        .args([
             "profile",
             "create",
-            profile_path.to_str().unwrap(),
+            must_some(profile_path.to_str(), "expected path to_str"),
             "--game",
             "iracing",
             "--car",
@@ -206,7 +221,7 @@ fn test_profile_create_and_validate() {
 
     // Validate profile
     wheelctl()
-        .args(&["profile", "validate", profile_path.to_str().unwrap()])
+        .args(["profile", "validate", must_some(profile_path.to_str(), "expected path to_str")])
         .assert()
         .success()
         .stdout(predicate::str::contains("valid"));
@@ -214,11 +229,11 @@ fn test_profile_create_and_validate() {
 
 #[test]
 fn test_profile_show() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let profile_path = create_test_profile(&temp_dir, "test");
 
     wheelctl()
-        .args(&["profile", "show", profile_path.to_str().unwrap()])
+        .args(["profile", "show", must_some(profile_path.to_str(), "expected path to_str")])
         .assert()
         .success()
         .stdout(predicate::str::contains("Profile Schema"));
@@ -226,11 +241,11 @@ fn test_profile_show() {
 
 #[test]
 fn test_profile_show_json() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let profile_path = create_test_profile(&temp_dir, "test");
 
     wheelctl()
-        .args(&["--json", "profile", "show", profile_path.to_str().unwrap()])
+        .args(["--json", "profile", "show", must_some(profile_path.to_str(), "expected path to_str")])
         .assert()
         .success()
         .stdout(is_json());
@@ -238,15 +253,15 @@ fn test_profile_show_json() {
 
 #[test]
 fn test_profile_apply() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let profile_path = create_test_profile(&temp_dir, "test");
 
     wheelctl()
-        .args(&[
+        .args([
             "profile",
             "apply",
             "wheel-001",
-            profile_path.to_str().unwrap(),
+            must_some(profile_path.to_str(), "expected path to_str"),
         ])
         .assert()
         .success()
@@ -256,7 +271,7 @@ fn test_profile_apply() {
 #[test]
 fn test_profile_not_found_error() {
     wheelctl()
-        .args(&["profile", "show", "nonexistent.json"])
+        .args(["profile", "show", "nonexistent.json"])
         .assert()
         .failure()
         .code(3); // Profile not found error code
@@ -264,12 +279,12 @@ fn test_profile_not_found_error() {
 
 #[test]
 fn test_profile_validation_error() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let invalid_profile = temp_dir.path().join("invalid.json");
-    fs::write(&invalid_profile, "{ invalid json }").unwrap();
+    must(fs::write(&invalid_profile, "{ invalid json }"));
 
     wheelctl()
-        .args(&["profile", "validate", invalid_profile.to_str().unwrap()])
+        .args(["profile", "validate", must_some(invalid_profile.to_str(), "expected path to_str")])
         .assert()
         .failure()
         .code(4); // Validation error code
@@ -277,14 +292,14 @@ fn test_profile_validation_error() {
 
 #[test]
 fn test_profile_edit_field() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let profile_path = create_test_profile(&temp_dir, "test");
 
     wheelctl()
-        .args(&[
+        .args([
             "profile",
             "edit",
-            profile_path.to_str().unwrap(),
+            must_some(profile_path.to_str(), "expected path to_str"),
             "--field",
             "base.ffbGain",
             "--value",
@@ -297,19 +312,19 @@ fn test_profile_edit_field() {
 
 #[test]
 fn test_profile_export_import() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let profile_path = create_test_profile(&temp_dir, "test");
     let export_path = temp_dir.path().join("exported.json");
     let import_path = temp_dir.path().join("imported.json");
 
     // Export profile
     wheelctl()
-        .args(&[
+        .args([
             "profile",
             "export",
-            profile_path.to_str().unwrap(),
+            must_some(profile_path.to_str(), "expected path to_str"),
             "--output",
-            export_path.to_str().unwrap(),
+            must_some(export_path.to_str(), "expected path to_str"),
         ])
         .assert()
         .success()
@@ -317,12 +332,12 @@ fn test_profile_export_import() {
 
     // Import profile
     wheelctl()
-        .args(&[
+        .args([
             "profile",
             "import",
-            export_path.to_str().unwrap(),
+            must_some(export_path.to_str(), "expected path to_str"),
             "--target",
-            import_path.to_str().unwrap(),
+            must_some(import_path.to_str(), "expected path to_str"),
         ])
         .assert()
         .success()
@@ -334,7 +349,7 @@ fn test_profile_export_import() {
 #[test]
 fn test_diag_test() {
     wheelctl()
-        .args(&["diag", "test", "--device", "wheel-001"])
+        .args(["diag", "test", "--device", "wheel-001"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Diagnostic Results"));
@@ -343,7 +358,7 @@ fn test_diag_test() {
 #[test]
 fn test_diag_test_json() {
     wheelctl()
-        .args(&["--json", "diag", "test", "--device", "wheel-001"])
+        .args(["--json", "diag", "test", "--device", "wheel-001"])
         .assert()
         .success()
         .stdout(is_json());
@@ -351,18 +366,18 @@ fn test_diag_test_json() {
 
 #[test]
 fn test_diag_record() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let output_path = temp_dir.path().join("test.wbb");
 
     wheelctl()
-        .args(&[
+        .args([
             "diag",
             "record",
             "wheel-001",
             "--duration",
             "1",
             "--output",
-            output_path.to_str().unwrap(),
+            must_some(output_path.to_str(), "expected path to_str"),
         ])
         .assert()
         .success()
@@ -371,12 +386,12 @@ fn test_diag_record() {
 
 #[test]
 fn test_diag_replay() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let blackbox_path = temp_dir.path().join("test.wbb");
-    fs::write(&blackbox_path, "WBB1\x00\x00\x00\x00Mock blackbox data").unwrap();
+    must(fs::write(&blackbox_path, "WBB1\x00\x00\x00\x00Mock blackbox data"));
 
     wheelctl()
-        .args(&["diag", "replay", blackbox_path.to_str().unwrap()])
+        .args(["diag", "replay", must_some(blackbox_path.to_str(), "expected path to_str")])
         .assert()
         .success()
         .stdout(predicate::str::contains("Replay completed"));
@@ -384,11 +399,11 @@ fn test_diag_replay() {
 
 #[test]
 fn test_diag_support_bundle() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let bundle_path = temp_dir.path().join("support.zip");
 
     wheelctl()
-        .args(&["diag", "support", "--output", bundle_path.to_str().unwrap()])
+        .args(["diag", "support", "--output", must_some(bundle_path.to_str(), "expected path to_str")])
         .assert()
         .success()
         .stdout(predicate::str::contains("Support bundle created"));
@@ -397,7 +412,7 @@ fn test_diag_support_bundle() {
 #[test]
 fn test_diag_metrics() {
     wheelctl()
-        .args(&["diag", "metrics"])
+        .args(["diag", "metrics"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Diagnostics"));
@@ -408,7 +423,7 @@ fn test_diag_metrics() {
 #[test]
 fn test_game_list() {
     wheelctl()
-        .args(&["game", "list"])
+        .args(["game", "list"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Supported Games"));
@@ -417,7 +432,7 @@ fn test_game_list() {
 #[test]
 fn test_game_list_detailed() {
     wheelctl()
-        .args(&["game", "list", "--detailed"])
+        .args(["game", "list", "--detailed"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Features"));
@@ -426,7 +441,7 @@ fn test_game_list_detailed() {
 #[test]
 fn test_game_configure() {
     wheelctl()
-        .args(&[
+        .args([
             "game",
             "configure",
             "iracing",
@@ -442,7 +457,7 @@ fn test_game_configure() {
 #[test]
 fn test_game_status() {
     wheelctl()
-        .args(&["game", "status"])
+        .args(["game", "status"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Game Status"));
@@ -451,7 +466,7 @@ fn test_game_status() {
 #[test]
 fn test_game_test_telemetry() {
     wheelctl()
-        .args(&["game", "test", "iracing", "--duration", "1"])
+        .args(["game", "test", "iracing", "--duration", "1"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Test Results"));
@@ -462,7 +477,7 @@ fn test_game_test_telemetry() {
 #[test]
 fn test_safety_status() {
     wheelctl()
-        .args(&["safety", "status"])
+        .args(["safety", "status"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Safety Status"));
@@ -471,7 +486,7 @@ fn test_safety_status() {
 #[test]
 fn test_safety_enable_high_torque() {
     wheelctl()
-        .args(&["safety", "enable", "wheel-001", "--force"])
+        .args(["safety", "enable", "wheel-001", "--force"])
         .assert()
         .success()
         .stdout(predicate::str::contains("High torque mode enabled"));
@@ -480,7 +495,7 @@ fn test_safety_enable_high_torque() {
 #[test]
 fn test_safety_emergency_stop() {
     wheelctl()
-        .args(&["safety", "stop"])
+        .args(["safety", "stop"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Emergency stop"));
@@ -489,7 +504,7 @@ fn test_safety_emergency_stop() {
 #[test]
 fn test_safety_set_limit() {
     wheelctl()
-        .args(&["safety", "limit", "wheel-001", "5.0"])
+        .args(["safety", "limit", "wheel-001", "5.0"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Torque limit set"));
@@ -498,7 +513,7 @@ fn test_safety_set_limit() {
 #[test]
 fn test_safety_invalid_limit() {
     wheelctl()
-        .args(&["safety", "limit", "wheel-001", "50.0"])
+        .args(["safety", "limit", "wheel-001", "50.0"])
         .assert()
         .failure()
         .code(4); // Validation error
@@ -509,7 +524,7 @@ fn test_safety_invalid_limit() {
 #[test]
 fn test_health_status() {
     wheelctl()
-        .args(&["health"])
+        .args(["health"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Service Health Status"));
@@ -518,7 +533,7 @@ fn test_health_status() {
 #[test]
 fn test_health_status_json() {
     wheelctl()
-        .args(&["--json", "health"])
+        .args(["--json", "health"])
         .assert()
         .success()
         .stdout(is_json());
@@ -530,7 +545,7 @@ fn test_health_status_json() {
 fn test_service_unavailable_error() {
     wheelctl()
         .env("WHEELCTL_ENDPOINT", "http://invalid:99999")
-        .args(&["device", "list"])
+        .args(["device", "list"])
         .assert()
         .failure()
         .code(5); // Service unavailable error code
@@ -539,7 +554,7 @@ fn test_service_unavailable_error() {
 #[test]
 fn test_invalid_command() {
     wheelctl()
-        .args(&["invalid", "command"])
+        .args(["invalid", "command"])
         .assert()
         .failure()
         .code(1); // General error code
@@ -563,7 +578,7 @@ fn test_all_commands_support_json() {
         full_cmd.extend(cmd.iter());
 
         wheelctl()
-            .args(&full_cmd)
+            .args(full_cmd.as_slice())
             .assert()
             .success()
             .stdout(is_json());
@@ -575,17 +590,17 @@ fn test_all_commands_support_json() {
 #[test]
 fn test_verbose_logging() {
     wheelctl()
-        .args(&["-v", "device", "list"])
+        .args(["-v", "device", "list"])
         .assert()
         .success();
 
     wheelctl()
-        .args(&["-vv", "device", "list"])
+        .args(["-vv", "device", "list"])
         .assert()
         .success();
 
     wheelctl()
-        .args(&["-vvv", "device", "list"])
+        .args(["-vvv", "device", "list"])
         .assert()
         .success();
 }
@@ -594,15 +609,15 @@ fn test_verbose_logging() {
 
 #[test]
 fn test_complete_profile_workflow() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let profile_path = temp_dir.path().join("workflow_test.json");
 
     // Create profile
     wheelctl()
-        .args(&[
+        .args([
             "profile",
             "create",
-            profile_path.to_str().unwrap(),
+            must_some(profile_path.to_str(), "expected path to_str"),
             "--game",
             "iracing",
         ])
@@ -611,16 +626,16 @@ fn test_complete_profile_workflow() {
 
     // Validate profile
     wheelctl()
-        .args(&["profile", "validate", profile_path.to_str().unwrap()])
+        .args(["profile", "validate", must_some(profile_path.to_str(), "expected path to_str")])
         .assert()
         .success();
 
     // Edit profile
     wheelctl()
-        .args(&[
+        .args([
             "profile",
             "edit",
-            profile_path.to_str().unwrap(),
+            must_some(profile_path.to_str(), "expected path to_str"),
             "--field",
             "base.ffbGain",
             "--value",
@@ -631,11 +646,11 @@ fn test_complete_profile_workflow() {
 
     // Apply profile
     wheelctl()
-        .args(&[
+        .args([
             "profile",
             "apply",
             "wheel-001",
-            profile_path.to_str().unwrap(),
+            must_some(profile_path.to_str(), "expected path to_str"),
         ])
         .assert()
         .success();
@@ -643,37 +658,37 @@ fn test_complete_profile_workflow() {
 
 #[test]
 fn test_complete_diagnostic_workflow() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let blackbox_path = temp_dir.path().join("diag_test.wbb");
     let support_path = temp_dir.path().join("support_test.zip");
 
     // Run diagnostics
     wheelctl()
-        .args(&["diag", "test", "--device", "wheel-001"])
+        .args(["diag", "test", "--device", "wheel-001"])
         .assert()
         .success();
 
     // Record blackbox
     wheelctl()
-        .args(&[
+        .args([
             "diag",
             "record",
             "wheel-001",
             "--duration",
             "1",
             "--output",
-            blackbox_path.to_str().unwrap(),
+            must_some(blackbox_path.to_str(), "expected path to_str"),
         ])
         .assert()
         .success();
 
     // Generate support bundle
     wheelctl()
-        .args(&[
+        .args([
             "diag",
             "support",
             "--output",
-            support_path.to_str().unwrap(),
+            must_some(support_path.to_str(), "expected path to_str"),
         ])
         .assert()
         .success();

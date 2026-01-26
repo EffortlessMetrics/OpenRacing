@@ -582,6 +582,14 @@ pub struct TestSummary {
     pub errors: Vec<String>,
 }
 
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -590,15 +598,15 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_suite_creation() {
-        let suite = GameIntegrationTestSuite::new().await.unwrap();
+        let suite = must(GameIntegrationTestSuite::new().await);
         assert!(suite.temp_dir.path().exists());
     }
 
     #[tokio::test]
     #[traced_test]
     async fn test_iracing_config_generation() {
-        let mut suite = GameIntegrationTestSuite::new().await.unwrap();
-        let result = suite.test_iracing_config_generation().await.unwrap();
+        let mut suite = must(GameIntegrationTestSuite::new().await);
+        let result = must(suite.test_iracing_config_generation().await);
 
         assert_eq!(result.test_name, "iracing_config_generation");
         assert_eq!(result.game_id, "iracing");
@@ -608,8 +616,8 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_acc_config_generation() {
-        let mut suite = GameIntegrationTestSuite::new().await.unwrap();
-        let result = suite.test_acc_config_generation().await.unwrap();
+        let mut suite = must(GameIntegrationTestSuite::new().await);
+        let result = must(suite.test_acc_config_generation().await);
 
         assert_eq!(result.test_name, "acc_config_generation");
         assert_eq!(result.game_id, "acc");
@@ -619,8 +627,8 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_led_heartbeat_validation() {
-        let mut suite = GameIntegrationTestSuite::new().await.unwrap();
-        let result = suite.test_led_heartbeat_validation().await.unwrap();
+        let mut suite = must(GameIntegrationTestSuite::new().await);
+        let result = must(suite.test_led_heartbeat_validation().await);
 
         assert_eq!(result.test_name, "led_heartbeat_validation");
         assert!(result.duration_ms > 0);
@@ -629,8 +637,8 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_performance_requirements() {
-        let mut suite = GameIntegrationTestSuite::new().await.unwrap();
-        let result = suite.test_performance_requirements().await.unwrap();
+        let mut suite = must(GameIntegrationTestSuite::new().await);
+        let result = must(suite.test_performance_requirements().await);
 
         assert_eq!(result.test_name, "performance_requirements");
         // Should complete within reasonable time

@@ -247,8 +247,17 @@ impl NegotiationResult {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
 
     fn create_test_capabilities(
         supports_pid: bool,
@@ -260,7 +269,7 @@ mod tests {
             supports_raw_torque,
             true, // supports_health_stream
             true, // supports_led_bus
-            TorqueNm::from_raw(max_torque_nm),
+            must(TorqueNm::new(max_torque_nm)),
             10000, // encoder_cpr
             1000,  // min_report_period_us (1kHz)
         )

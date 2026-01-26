@@ -10,6 +10,21 @@ mod example {
     use crate::generated::wheel::v1 as proto;
     use crate::telemetry::TelemetryData;
     use std::collections::HashMap;
+    use std::f64::consts::E;
+
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("must failed: {:?}", e),
+        }
+    }
+
+    fn must_some<T>(o: Option<T>, msg: &str) -> T {
+        match o {
+            Some(v) => v,
+            None => panic!("must_some failed: {}", msg),
+        }
+    }
 
     /// Mock device service that works purely with domain types
     struct MockDeviceService {
@@ -25,13 +40,13 @@ mod example {
             };
 
             // Add some mock devices
-            let device_id: DeviceId = "csl-dd-001".parse().unwrap();
+            let device_id: DeviceId = must("csl-dd-001".parse());
             let capabilities = DeviceCapabilities::new(
                 true,
                 true,
                 true,
                 false,
-                TorqueNm::new(8.0).unwrap(),
+                must(TorqueNm::new(8.0)),
                 32768, // 2^15, within u16 range
                 1000,
             );
@@ -162,9 +177,9 @@ mod example {
             id: "csl-dd-001".to_string(),
         };
 
-        let status = ipc_service.get_device_status_ipc(wire_device_id).unwrap();
-        let device_info = status.device.unwrap();
-        let telemetry = status.telemetry.unwrap();
+        let status = must_some(ipc_service.get_device_status_ipc(wire_device_id), "expected device status");
+        let device_info = must_some(status.device, "expected device info");
+        let telemetry = must_some(status.telemetry, "expected telemetry");
 
         assert_eq!(device_info.id, "csl-dd-001");
         assert_eq!(telemetry.temp_c, 35);
@@ -188,13 +203,13 @@ mod example {
         assert!(result.is_ok());
 
         // Verify the update worked
-        let updated_status = ipc_service.get_device_status_ipc(device_id).unwrap();
-        let updated_telemetry = updated_status.telemetry.unwrap();
+        let updated_status = must_some(ipc_service.get_device_status_ipc(device_id), "expected device status");
+        let updated_telemetry = must_some(updated_status.telemetry, "expected telemetry");
 
         assert_eq!(updated_telemetry.wheel_angle_mdeg, 90000);
         assert_eq!(updated_telemetry.wheel_speed_mrad_s, 1570);
         assert_eq!(updated_telemetry.temp_c, 45);
-        assert_eq!(updated_telemetry.hands_on, true);
+        assert!(updated_telemetry.hands_on);
     }
 
     #[test]
@@ -217,7 +232,7 @@ mod example {
 
         let result = ipc_service.update_telemetry_ipc(device_id, invalid_telemetry);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Invalid telemetry"));
+        assert!(must_some(result.err(), "expected error").contains("Invalid telemetry"));
 
         // Test that invalid device ID is rejected
         let valid_telemetry = proto::TelemetryData {
@@ -235,25 +250,25 @@ mod example {
 
         let result = ipc_service.update_telemetry_ipc(invalid_device_id, valid_telemetry);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Invalid device ID"));
+        assert!(must_some(result.err(), "expected error").contains("Invalid device ID"));
     }
 
     #[test]
     fn test_unit_conversion_accuracy() {
-        let ipc_service = MockIpcService::new();
+        let _ipc_service = MockIpcService::new();
 
         // Test precise unit conversions
         let test_cases = vec![
             (123.456, 123456), // degrees to millidegrees
-            (2.718, 2718),     // rad/s to mrad/s
+            (E, 2718),         // rad/s to mrad/s
             (0.001, 1),        // small values
             (999.999, 999999), // large values
         ];
 
         for (domain_value, expected_wire_value) in test_cases {
             let telemetry = TelemetryData {
-                wheel_angle_deg: domain_value,
-                wheel_speed_rad_s: domain_value,
+                wheel_angle_deg: domain_value as f32,
+                wheel_speed_rad_s: domain_value as f32,
                 temperature_c: 50,
                 fault_flags: 0,
                 hands_on: true,
@@ -268,11 +283,11 @@ mod example {
             assert_eq!(wire_telemetry.wheel_speed_mrad_s, expected_wire_value);
 
             // Convert back to domain format
-            let back_to_domain: TelemetryData = wire_telemetry.try_into().unwrap();
+            let back_to_domain: TelemetryData = must(wire_telemetry.try_into());
 
             // Check precision preservation (within 0.001 tolerance)
-            assert!((back_to_domain.wheel_angle_deg - domain_value).abs() < 0.001);
-            assert!((back_to_domain.wheel_speed_rad_s - domain_value).abs() < 0.001);
+            assert!((back_to_domain.wheel_angle_deg - domain_value as f32).abs() < 0.001);
+            assert!((back_to_domain.wheel_speed_rad_s - domain_value as f32).abs() < 0.001);
         }
     }
 }

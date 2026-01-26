@@ -157,11 +157,12 @@ pub struct CurveState {
 }
 
 impl CurveState {
-    pub fn new(curve_points: &[(f32, f32)]) -> Self {
-        const LUT_SIZE: usize = 1024;
-        let mut lut = [0.0f32; LUT_SIZE];
+pub fn new(curve_points: &[(f32, f32)]) -> Self {
+    const LUT_SIZE: usize = 1024;
+    let mut lut = [0.0f32; LUT_SIZE];
 
-        for i in 0..LUT_SIZE {
+    #[allow(clippy::needless_range_loop)]
+    for i in 0..LUT_SIZE {
             let input = i as f32 / (LUT_SIZE - 1) as f32;
             lut[i] = Self::interpolate_curve(input, curve_points);
         }
@@ -648,8 +649,8 @@ mod tests {
         let initial_torque = frame_normal.torque_out;
 
         // Simulate reaching bumpstop by setting high angle
-        state.current_angle = 500.0; // Beyond start_angle
-        let mut frame_bumpstop = create_test_frame(0.0, 1.0);
+        // Use non-zero wheel speed to integrate to the target angle
+        let mut frame_bumpstop = create_test_frame(0.0, 500.0); // High wheel speed to reach bumpstop
         bumpstop_filter(&mut frame_bumpstop, state_ptr);
 
         // Should add opposing torque at bumpstop

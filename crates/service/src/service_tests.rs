@@ -3,6 +3,14 @@
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
     use crate::{
         ApplicationDeviceService, ApplicationProfileService, ApplicationSafetyService, WheelService,
     };
@@ -19,7 +27,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_orchestration() {
-        let service = WheelService::new().await.unwrap();
+        let service = must(WheelService::new().await);
 
         // Test that all services are accessible
         let profile_service = service.profile_service();
@@ -60,7 +68,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_integration_workflow() {
-        let service = WheelService::new().await.unwrap();
+        let service = must(WheelService::new().await);
 
         let device_id: DeviceId = "integration-test-device".parse().expect("valid device id");
         let max_torque = TorqueNm::neom(15.0);
@@ -117,7 +125,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_error_handling_scenarios() {
-        let service = WheelService::new().await.unwrap();
+        let service = must(WheelService::new().await);
 
         // Test error handling in profile service
         let invalid_profile = Profile {
@@ -150,21 +158,20 @@ mod tests {
             "get_device should return Ok(None) for nonexistent device"
         );
         assert!(
-            result.unwrap().is_none(),
+            must(result).is_none(),
             "Should return None for nonexistent device"
         );
     }
 
     #[tokio::test]
     async fn test_service_statistics() {
-        let service = WheelService::new().await.unwrap();
+        let service = must(WheelService::new().await);
 
         // Get initial statistics
         let profile_stats = service
             .profile_service()
             .get_profile_statistics()
-            .await
-            .unwrap();
+            .await;
         let device_stats = service.device_service().get_statistics().await;
         let safety_stats = service.safety_service().get_statistics().await;
 
@@ -177,8 +184,7 @@ mod tests {
         service
             .safety_service()
             .register_device(device_id, TorqueNm::new(10.0).expect("valid torque"))
-            .await
-            .unwrap();
+            .await;
 
         let updated_safety_stats = service.safety_service().get_statistics().await;
         assert_eq!(updated_safety_stats.total_devices, 1);
@@ -187,7 +193,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_concurrent_service_operations() {
-        let service = Arc::new(WheelService::new().await.unwrap());
+        let service = Arc::new(must(WheelService::new().await));
 
         // Test concurrent operations on different services
         let service1 = Arc::clone(&service);
@@ -226,14 +232,14 @@ mod tests {
         assert!(result2.is_ok(), "Task 2 should complete");
         assert!(result3.is_ok(), "Task 3 should complete");
         assert!(
-            result3.unwrap().is_ok(),
+            must(result3).is_ok(),
             "Safety registration should succeed"
         );
     }
 
     #[tokio::test]
     async fn test_service_resilience() {
-        let service = WheelService::new().await.unwrap();
+        let service = must(WheelService::new().await);
 
         // Test that services continue to work after errors
         let device_id: DeviceId = "resilience-test-device".parse().expect("valid device id");
@@ -264,7 +270,7 @@ mod tests {
             let service = WheelService::new().await;
             assert!(service.is_ok(), "Service creation {} should succeed", i);
 
-            let service = service.unwrap();
+            let service = must(service);
 
             // Perform some operations
             let device_id: DeviceId = format!("lifecycle-test-device-{}", i)
@@ -282,7 +288,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_timeout_handling() {
-        let service = WheelService::new().await.unwrap();
+        let service = must(WheelService::new().await);
 
         // Test that operations complete within reasonable time
         let device_enumeration = timeout(
@@ -296,7 +302,7 @@ mod tests {
             "Device enumeration should not timeout"
         );
         assert!(
-            device_enumeration.unwrap().is_ok(),
+            must(device_enumeration).is_ok(),
             "Device enumeration should succeed"
         );
 
@@ -315,7 +321,7 @@ mod tests {
             "Safety registration should not timeout"
         );
         assert!(
-            safety_registration.unwrap().is_ok(),
+            must(safety_registration).is_ok(),
             "Safety registration should succeed"
         );
     }
@@ -323,7 +329,7 @@ mod tests {
     #[tokio::test]
     async fn test_service_memory_usage() {
         // Test that services don't leak memory with repeated operations
-        let service = WheelService::new().await.unwrap();
+        let service = must(WheelService::new().await);
 
         // Perform many operations to check for memory leaks
         for i in 0..100 {

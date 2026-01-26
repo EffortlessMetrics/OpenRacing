@@ -3,7 +3,7 @@
 //! This module provides a convenient way to import the most commonly used
 //! types from the racing wheel engine.
 
-use std::sync::{Mutex, MutexGuard, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// Extension trait for Mutex that provides panic-on-poison locking.
 ///
@@ -15,9 +15,11 @@ pub trait MutexExt<T> {
 }
 
 impl<T> MutexExt<T> for Mutex<T> {
-    #[allow(clippy::unwrap_used)]
     fn lock_or_panic(&self) -> MutexGuard<'_, T> {
-        self.lock().unwrap_or_else(|e: PoisonError<_>| e.into_inner())
+        match self.lock() {
+            Ok(g) => g,
+            Err(e) => panic!("mutex poisoned: {e}"),
+        }
     }
 }
 
@@ -30,14 +32,18 @@ pub trait RwLockExt<T> {
 }
 
 impl<T> RwLockExt<T> for RwLock<T> {
-    #[allow(clippy::unwrap_used)]
     fn read_or_panic(&self) -> RwLockReadGuard<'_, T> {
-        self.read().unwrap_or_else(|e: PoisonError<_>| e.into_inner())
+        match self.read() {
+            Ok(g) => g,
+            Err(e) => panic!("rwlock poisoned (read): {e}"),
+        }
     }
 
-    #[allow(clippy::unwrap_used)]
     fn write_or_panic(&self) -> RwLockWriteGuard<'_, T> {
-        self.write().unwrap_or_else(|e: PoisonError<_>| e.into_inner())
+        match self.write() {
+            Ok(g) => g,
+            Err(e) => panic!("rwlock poisoned (write): {e}"),
+        }
     }
 }
 

@@ -5,9 +5,7 @@
 
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]
-// Deny unwrap in production code, but allow in tests for ergonomics
-#![cfg_attr(not(test), deny(clippy::unwrap_used))]
-#![cfg_attr(test, allow(clippy::unwrap_used))]
+#![deny(clippy::unwrap_used)]
 
 mod client;
 mod commands;

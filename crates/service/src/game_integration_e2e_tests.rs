@@ -684,6 +684,14 @@ pub fn print_test_summary(results: &[E2ETestResult]) {
     println!("Error handling: Covered by error_handling");
 }
 
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -692,7 +700,7 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_e2e_suite_creation() {
-        let suite = GameIntegrationE2ETestSuite::new().await.unwrap();
+        let suite = must(GameIntegrationE2ETestSuite::new().await);
         let supported_games = suite.get_supported_games().await;
         assert!(!supported_games.is_empty());
         assert!(supported_games.contains(&"iracing".to_string()));
@@ -702,8 +710,8 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_iracing_one_click_config() {
-        let mut suite = GameIntegrationE2ETestSuite::new().await.unwrap();
-        let result = suite.test_iracing_one_click_config().await.unwrap();
+        let mut suite = must(GameIntegrationE2ETestSuite::new().await);
+        let result = must(suite.test_iracing_one_click_config().await);
 
         assert_eq!(result.test_name, "iracing_one_click_config");
         assert!(result.duration_ms > 0);
@@ -713,8 +721,8 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_performance_requirements() {
-        let mut suite = GameIntegrationE2ETestSuite::new().await.unwrap();
-        let result = suite.test_performance_requirements().await.unwrap();
+        let mut suite = must(GameIntegrationE2ETestSuite::new().await);
+        let result = must(suite.test_performance_requirements().await);
 
         assert_eq!(result.test_name, "performance_requirements");
         assert!(result.duration_ms < 5000); // Should complete within 5 seconds
@@ -723,8 +731,8 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_error_handling() {
-        let mut suite = GameIntegrationE2ETestSuite::new().await.unwrap();
-        let result = suite.test_error_handling().await.unwrap();
+        let mut suite = must(GameIntegrationE2ETestSuite::new().await);
+        let result = must(suite.test_error_handling().await);
 
         assert_eq!(result.test_name, "error_handling");
         // Error handling test should pass (it tests that errors are handled correctly)
@@ -734,8 +742,8 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_full_suite() {
-        let mut suite = GameIntegrationE2ETestSuite::new().await.unwrap();
-        let results = suite.run_all_tests().await.unwrap();
+        let mut suite = must(GameIntegrationE2ETestSuite::new().await);
+        let results = must(suite.run_all_tests().await);
 
         assert!(!results.is_empty());
         assert_eq!(results.len(), 8); // Should have 8 tests

@@ -19,6 +19,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+/// Type alias for stream data tuple to reduce type complexity
+type StreamDataTuple = (Vec<StreamARecord>, Vec<StreamBRecord>, Vec<StreamCRecord>);
+
 /// Replay configuration
 #[derive(Debug, Clone)]
 pub struct ReplayConfig {
@@ -350,7 +353,7 @@ impl BlackboxReplay {
         file: &mut File,
         header: &WbbHeader,
         footer: &WbbFooter,
-    ) -> Result<(Vec<StreamARecord>, Vec<StreamBRecord>, Vec<StreamCRecord>), String> {
+    ) -> Result<StreamDataTuple, String> {
         // Seek to start of compressed data (after header)
         file.seek(SeekFrom::Start(header.header_size as u64))
             .map_err(|e| format!("Failed to seek to data: {}", e))?;
@@ -434,7 +437,7 @@ impl BlackboxReplay {
         // In a full implementation, would seek to the appropriate stream position
         // and resume replay from there
 
-        self.current_frame = (timestamp_ms / 1) as u64; // Approximate frame number
+        self.current_frame = timestamp_ms as u64; // Approximate frame number
         Ok(())
     }
 }
@@ -490,6 +493,7 @@ impl BlackboxReplay {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::diagnostic::blackbox::{BlackboxConfig, BlackboxRecorder};
@@ -499,10 +503,18 @@ mod tests {
 
     use std::path::PathBuf;
 
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
     fn create_test_recording() -> (PathBuf, TempDir) {
         let temp_dir = TempDir::new().unwrap();
         let config = BlackboxConfig {
-            device_id: DeviceId::from_raw("test-device".to_string()),
+            device_id: must("test-device".parse::<DeviceId>()),
             output_dir: temp_dir.path().to_path_buf(),
             max_duration_s: 10,
             max_file_size_bytes: 1024 * 1024,
@@ -622,7 +634,7 @@ mod tests {
 
         let replay = BlackboxReplay {
             config: config.clone(),
-            header: WbbHeader::new(DeviceId::from_raw("test".to_string()), 1, 1, 0),
+            header: WbbHeader::new(must("test".parse::<DeviceId>()), 1, 1, 0),
             footer: WbbFooter {
                 duration_ms: 1000,
                 total_frames: 100,

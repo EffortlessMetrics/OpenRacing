@@ -634,6 +634,12 @@ pub struct FallbackProvider {
     metrics: TracingMetrics,
 }
 
+impl Default for FallbackProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FallbackProvider {
     pub fn new() -> Self {
         Self {
@@ -807,6 +813,7 @@ macro_rules! trace_rt_pipeline_fault {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

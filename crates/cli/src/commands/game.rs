@@ -83,7 +83,7 @@ async fn configure_game(
     } else if !json {
         // Interactive path input
         Input::new()
-            .with_prompt(&format!("Enter installation path for {}", game.name))
+            .with_prompt(format!("Enter installation path for {}", game.name))
             .interact_text()?
     } else {
         return Err(CliError::InvalidConfiguration(

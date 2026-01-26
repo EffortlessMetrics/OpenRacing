@@ -1,8 +1,5 @@
 //! Diagnostic and monitoring commands
 
-// Progress bar template strings are compile-time constants that cannot fail to parse
-#![allow(clippy::unwrap_used)]
-
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
@@ -74,7 +71,7 @@ async fn run_diagnostics(
     let mut results = Vec::new();
 
     for test in tests_to_run {
-        let result = run_single_test(&client, &device_id, &test, json).await?;
+        let result = run_single_test(client, &device_id, &test, json).await?;
         results.push((test, result));
     }
 
@@ -134,14 +131,12 @@ async fn record_blackbox(
     if !json {
         println!("Recording blackbox data for {} seconds...", duration);
         let pb = ProgressBar::new(duration);
-        pb.set_style(
-            ProgressStyle::default_bar()
-                .template(
-                    "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len}s {msg}",
-                )
-                .unwrap()
-                .progress_chars("#>-"),
-        );
+        let style = ProgressStyle::default_bar()
+            .template(
+                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len}s {msg}",
+            )?
+            .progress_chars("#>-");
+        pb.set_style(style);
 
         let mut interval = interval(Duration::from_secs(1));
         for i in 0..duration {
@@ -227,11 +222,9 @@ async fn generate_support_bundle(
 
     if !json {
         let pb = ProgressBar::new_spinner();
-        pb.set_style(
-            ProgressStyle::default_spinner()
-                .template("{spinner:.green} {msg}")
-                .unwrap(),
-        );
+        let style = ProgressStyle::default_spinner()
+            .template("{spinner:.green} {msg}")?;
+        pb.set_style(style);
 
         pb.set_message("Collecting system information...");
         pb.enable_steady_tick(Duration::from_millis(100));
@@ -370,11 +363,9 @@ async fn run_single_test(
 ) -> Result<TestResult> {
     if !json {
         let pb = ProgressBar::new_spinner();
-        pb.set_style(
-            ProgressStyle::default_spinner()
-                .template("{spinner:.green} Running {:?} test...")
-                .unwrap(),
-        );
+        let style = ProgressStyle::default_spinner()
+            .template("{spinner:.green} Running {:?} test...")?;
+        pb.set_style(style);
         pb.enable_steady_tick(Duration::from_millis(100));
 
         // Simulate test duration

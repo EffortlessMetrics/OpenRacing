@@ -5,12 +5,21 @@
 
 #[cfg(test)]
 mod tests {
+    // Test helper functions to replace unwrap
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
     use crate::config::{ProfileMigrator, ProfileValidator, SchemaError};
     use serde_json::json;
 
     #[test]
     fn test_valid_profile_schema() {
-        let validator = ProfileValidator::new().expect("Failed to create validator");
+        let validator = must(ProfileValidator::new());
 
         let valid_profile = json!({
             "schema": "wheel.profile/1",
@@ -63,7 +72,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&valid_profile).unwrap();
+        let json_str = must(serde_json::to_string(&valid_profile));
         let result = validator.validate_json(&json_str);
 
         assert!(
@@ -72,7 +81,7 @@ mod tests {
             result.err()
         );
 
-        let profile = result.unwrap();
+        let profile = must(result);
         assert_eq!(profile.schema, "wheel.profile/1");
         assert_eq!(profile.scope.game, Some("iracing".to_string()));
         assert_eq!(profile.base.ffb_gain, 0.75);
@@ -82,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_minimal_valid_profile() {
-        let validator = ProfileValidator::new().expect("Failed to create validator");
+        let validator = must(ProfileValidator::new());
 
         let minimal_profile = json!({
             "schema": "wheel.profile/1",
@@ -106,7 +115,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&minimal_profile).unwrap();
+        let json_str = must(serde_json::to_string(&minimal_profile));
         let result = validator.validate_json(&json_str);
 
         assert!(
@@ -118,7 +127,7 @@ mod tests {
 
     #[test]
     fn test_missing_required_fields() {
-        let validator = ProfileValidator::new().expect("Failed to create validator");
+        let validator = must(ProfileValidator::new());
 
         // Missing schema field
         let invalid_profile = json!({
@@ -142,7 +151,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&invalid_profile).unwrap();
+        let json_str = must(serde_json::to_string(&invalid_profile));
         let result = validator.validate_json(&json_str);
 
         assert!(
@@ -159,7 +168,7 @@ mod tests {
 
     #[test]
     fn test_invalid_value_ranges() {
-        let validator = ProfileValidator::new().expect("Failed to create validator");
+        let validator = must(ProfileValidator::new());
 
         // FFB gain out of range
         let invalid_profile = json!({
@@ -184,7 +193,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&invalid_profile).unwrap();
+        let json_str = must(serde_json::to_string(&invalid_profile));
         let result = validator.validate_json(&json_str);
 
         assert!(
@@ -195,7 +204,7 @@ mod tests {
 
     #[test]
     fn test_invalid_dor_range() {
-        let validator = ProfileValidator::new().expect("Failed to create validator");
+        let validator = must(ProfileValidator::new());
 
         // DOR below minimum
         let invalid_profile = json!({
@@ -220,7 +229,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&invalid_profile).unwrap();
+        let json_str = must(serde_json::to_string(&invalid_profile));
         let result = validator.validate_json(&json_str);
 
         assert!(
@@ -231,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_invalid_reconstruction_level() {
-        let validator = ProfileValidator::new().expect("Failed to create validator");
+        let validator = must(ProfileValidator::new());
 
         // Reconstruction level too high
         let invalid_profile = json!({
@@ -256,7 +265,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&invalid_profile).unwrap();
+        let json_str = must(serde_json::to_string(&invalid_profile));
         let result = validator.validate_json(&json_str);
 
         assert!(
@@ -293,7 +302,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&invalid_profile).unwrap();
+        let json_str = must(serde_json::to_string(&invalid_profile));
         let result = validator.validate_json(&json_str);
 
         assert!(
@@ -310,7 +319,7 @@ mod tests {
 
     #[test]
     fn test_invalid_notch_filter() {
-        let validator = ProfileValidator::new().expect("Failed to create validator");
+        let validator = must(ProfileValidator::new());
 
         // Invalid notch filter frequency
         let invalid_profile = json!({
@@ -341,7 +350,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&invalid_profile).unwrap();
+        let json_str = must(serde_json::to_string(&invalid_profile));
         let result = validator.validate_json(&json_str);
 
         assert!(
@@ -352,7 +361,7 @@ mod tests {
 
     #[test]
     fn test_invalid_led_config() {
-        let validator = ProfileValidator::new().expect("Failed to create validator");
+        let validator = must(ProfileValidator::new());
 
         // Non-sorted RPM bands
         let invalid_profile = json!({
@@ -382,7 +391,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&invalid_profile).unwrap();
+        let json_str = must(serde_json::to_string(&invalid_profile));
         let result = validator.validate_json(&json_str);
 
         assert!(
@@ -393,7 +402,7 @@ mod tests {
 
     #[test]
     fn test_invalid_led_pattern() {
-        let validator = ProfileValidator::new().expect("Failed to create validator");
+        let validator = must(ProfileValidator::new());
 
         // Invalid LED pattern
         let invalid_profile = json!({
@@ -423,7 +432,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&invalid_profile).unwrap();
+        let json_str = must(serde_json::to_string(&invalid_profile));
         let result = validator.validate_json(&json_str);
 
         assert!(
@@ -434,7 +443,7 @@ mod tests {
 
     #[test]
     fn test_invalid_haptics_frequency() {
-        let validator = ProfileValidator::new().expect("Failed to create validator");
+        let validator = must(ProfileValidator::new());
 
         // Haptics frequency out of range
         let invalid_profile = json!({
@@ -464,7 +473,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&invalid_profile).unwrap();
+        let json_str = must(serde_json::to_string(&invalid_profile));
         let result = validator.validate_json(&json_str);
 
         assert!(
@@ -475,7 +484,7 @@ mod tests {
 
     #[test]
     fn test_unsupported_schema_version() {
-        let validator = ProfileValidator::new().expect("Failed to create validator");
+        let validator = must(ProfileValidator::new());
 
         // Unsupported schema version - this will fail JSON Schema validation first
         let invalid_profile = json!({
@@ -500,7 +509,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&invalid_profile).unwrap();
+        let json_str = must(serde_json::to_string(&invalid_profile));
         let result = validator.validate_json(&json_str);
 
         assert!(
@@ -548,7 +557,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&current_profile).unwrap();
+        let json_str = must(serde_json::to_string(&current_profile));
         let result = ProfileMigrator::migrate_profile(&json_str);
 
         assert!(
@@ -579,7 +588,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&old_profile).unwrap();
+        let json_str = must(serde_json::to_string(&old_profile));
         let result = ProfileMigrator::migrate_profile(&json_str);
 
         assert!(result.is_err(), "Unsupported version should fail migration");
@@ -587,7 +596,7 @@ mod tests {
 
     #[test]
     fn test_additional_properties_rejected() {
-        let validator = ProfileValidator::new().expect("Failed to create validator");
+        let validator = must(ProfileValidator::new());
 
         // Profile with additional properties
         let invalid_profile = json!({
@@ -613,7 +622,7 @@ mod tests {
             "extraField": "should not be allowed" // Additional property
         });
 
-        let json_str = serde_json::to_string(&invalid_profile).unwrap();
+        let json_str = must(serde_json::to_string(&invalid_profile));
         let result = validator.validate_json(&json_str);
 
         assert!(
@@ -624,7 +633,7 @@ mod tests {
 
     #[test]
     fn test_curve_points_boundary_conditions() {
-        let validator = ProfileValidator::new().expect("Failed to create validator");
+        let validator = must(ProfileValidator::new());
 
         // Test minimum curve points (2)
         let valid_profile = json!({
@@ -649,7 +658,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&valid_profile).unwrap();
+        let json_str = must(serde_json::to_string(&valid_profile));
         let result = validator.validate_json(&json_str);
         assert!(
             result.is_ok(),
@@ -678,7 +687,7 @@ mod tests {
             }
         });
 
-        let json_str = serde_json::to_string(&invalid_profile).unwrap();
+        let json_str = must(serde_json::to_string(&invalid_profile));
         let result = validator.validate_json(&json_str);
         assert!(
             result.is_err(),

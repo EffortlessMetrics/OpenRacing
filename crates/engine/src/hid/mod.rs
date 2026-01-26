@@ -180,7 +180,7 @@ impl DeviceCapabilitiesReport {
             supports_raw_torque_1khz: (self.supports_raw_torque_1khz & 0x01) != 0,
             supports_health_stream: (self.supports_health_stream & 0x01) != 0,
             supports_led_bus: (self.supports_led_bus & 0x01) != 0,
-            max_torque: TorqueNm::from_raw(clamped_nm),
+            max_torque: TorqueNm::new(clamped_nm).expect("clamped value is valid"),
             encoder_cpr: self.encoder_cpr,
             min_report_period_us: self.min_report_period_us as u16,
         }
@@ -223,6 +223,7 @@ impl RTSetup {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -239,8 +240,8 @@ mod tests {
         assert_eq!(seq, 123);
         assert_eq!(flags, 0x01); // hands_on_hint set
 
-        // Test torque conversion: 5.0 Nm -> 5000 mNm -> 1280000 (Q8.8)
-        assert_eq!(torque, 1280000i16);
+        // Test torque conversion: 5.0 Nm -> 1280 (Q8.8 fixed point)
+        assert_eq!(torque, 1280i16);
     }
 
     #[test]

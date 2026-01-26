@@ -95,7 +95,7 @@ impl Pipeline {
             self.process_internal(frame)?;
             // Assert no allocations occurred
             crate::assert_zero_alloc!(_alloc_guard, "Pipeline hot path allocated memory");
-            return Ok(());
+            Ok(())
         }
 
         #[cfg(not(debug_assertions))]
@@ -676,25 +676,34 @@ impl Default for PipelineCompiler {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
     use crate::filters::*;
 
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
     fn create_test_filter_config() -> FilterConfig {
         FilterConfig::new_complete(
             4,                        // reconstruction
-            Gain::from_raw(0.1),  // friction
-            Gain::from_raw(0.15), // damper
-            Gain::from_raw(0.05), // inertia
-            vec![NotchFilter::from_raw(FrequencyHz::from_raw(60.0), 2.0, -12.0)],
-            Gain::from_raw(0.8), // slew_rate
+            must(Gain::new(0.1)),  // friction
+            must(Gain::new(0.15)), // damper
+            must(Gain::new(0.05)), // inertia
+            vec![must(NotchFilter::new(must(FrequencyHz::new(60.0)), 2.0, -12.0))],
+            must(Gain::new(0.8)), // slew_rate
             vec![
-                CurvePoint::from_raw(0.0, 0.0),
-                CurvePoint::from_raw(0.5, 0.6),
-                CurvePoint::from_raw(1.0, 1.0),
+                must(CurvePoint::new(0.0, 0.0)),
+                must(CurvePoint::new(0.5, 0.6)),
+                must(CurvePoint::new(1.0, 1.0)),
             ],
-            Gain::from_raw(0.9), // torque_cap
+            must(Gain::new(0.9)), // torque_cap
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         )
@@ -704,16 +713,16 @@ mod tests {
     fn create_linear_filter_config() -> FilterConfig {
         FilterConfig::new_complete(
             0,                       // no reconstruction
-            Gain::from_raw(0.0), // no friction
-            Gain::from_raw(0.0), // no damper
-            Gain::from_raw(0.0), // no inertia
+            must(Gain::new(0.0)), // no friction
+            must(Gain::new(0.0)), // no damper
+            must(Gain::new(0.0)), // no inertia
             vec![],                  // no notch filters
-            Gain::from_raw(1.0), // no slew rate limiting
+            must(Gain::new(1.0)), // no slew rate limiting
             vec![
-                CurvePoint::from_raw(0.0, 0.0),
-                CurvePoint::from_raw(1.0, 1.0),
+                must(CurvePoint::new(0.0, 0.0)),
+                must(CurvePoint::new(1.0, 1.0)),
             ],
-            Gain::from_raw(1.0), // no torque cap
+            must(Gain::new(1.0)), // no torque cap
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         )
@@ -813,16 +822,16 @@ mod tests {
         // Create invalid config with reconstruction level too high
         let invalid_config_result = FilterConfig::new_complete(
             10, // Invalid: > 8
-            Gain::from_raw(0.1),
-            Gain::from_raw(0.15),
-            Gain::from_raw(0.05),
+            must(Gain::new(0.1)),
+            must(Gain::new(0.15)),
+            must(Gain::new(0.05)),
             vec![],
-            Gain::from_raw(0.8),
+            must(Gain::new(0.8)),
             vec![
-                CurvePoint::from_raw(0.0, 0.0),
-                CurvePoint::from_raw(1.0, 1.0),
+                must(CurvePoint::new(0.0, 0.0)),
+                must(CurvePoint::new(1.0, 1.0)),
             ],
-            Gain::from_raw(1.0),
+            must(Gain::new(1.0)),
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         );
@@ -849,18 +858,18 @@ mod tests {
         // Create config with non-monotonic curve - this should fail at construction
         let invalid_config_result = FilterConfig::new_complete(
             4,
-            Gain::from_raw(0.1),
-            Gain::from_raw(0.15),
-            Gain::from_raw(0.05),
+            must(Gain::new(0.1)),
+            must(Gain::new(0.15)),
+            must(Gain::new(0.05)),
             vec![],
-            Gain::from_raw(0.8),
+            must(Gain::new(0.8)),
             vec![
-                CurvePoint::from_raw(0.0, 0.0),
-                CurvePoint::from_raw(0.7, 0.6),
-                CurvePoint::from_raw(0.5, 0.8), // Non-monotonic!
-                CurvePoint::from_raw(1.0, 1.0),
+                must(CurvePoint::new(0.0, 0.0)),
+                must(CurvePoint::new(0.7, 0.6)),
+                must(CurvePoint::new(0.5, 0.8)), // Non-monotonic!
+                must(CurvePoint::new(1.0, 1.0)),
             ],
-            Gain::from_raw(1.0),
+            must(Gain::new(1.0)),
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         );
@@ -882,23 +891,22 @@ mod tests {
         // Create config with invalid parameters - high frequency notch filter
         let invalid_config = FilterConfig::new_complete(
             4,
-            Gain::from_raw(0.1),
-            Gain::from_raw(0.15),
-            Gain::from_raw(0.05),
+            must(Gain::new(0.1)),
+            must(Gain::new(0.15)),
+            must(Gain::new(0.05)),
             vec![
-                NotchFilter::new(
-                    FrequencyHz::from_raw(600.0), // Too high frequency
+                must(NotchFilter::new(
+                    must(FrequencyHz::new(600.0)), // Too high frequency
                     2.0,
                     -12.0,
-                )
-                .unwrap(),
+                )),
             ],
-            Gain::from_raw(0.8),
+            must(Gain::new(0.8)),
             vec![
-                CurvePoint::from_raw(0.0, 0.0),
-                CurvePoint::from_raw(1.0, 1.0),
+                must(CurvePoint::new(0.0, 0.0)),
+                must(CurvePoint::new(1.0, 1.0)),
             ],
-            Gain::from_raw(1.0),
+            must(Gain::new(1.0)),
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         )

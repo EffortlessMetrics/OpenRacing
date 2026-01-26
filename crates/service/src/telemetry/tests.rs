@@ -1,6 +1,25 @@
 //! Comprehensive tests for telemetry adapters
-//! 
+//!
 //! Tests all telemetry adapters with recorded game data for validation
+
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
+#[track_caller]
+fn must_parse<T: std::str::FromStr>(s: &str) -> T
+where
+    <T as std::str::FromStr>::Err: std::fmt::Debug,
+{
+    match s.parse::<T>() {
+        Ok(v) => v,
+        Err(e) => panic!("parse failed for {s:?}: {e:?}"),
+    }
+}
 //! Requirements: GI-03, GI-04
 
 use crate::telemetry::*;
@@ -9,7 +28,7 @@ use tempfile::tempdir;
 
 #[tokio::test]
 async fn test_telemetry_service_creation() {
-    let service = TelemetryService::new();
+    let service = must(TelemetryService::new());
     
     let supported_games = service.supported_games();
     assert!(supported_games.contains(&"iracing".to_string()));
@@ -61,13 +80,13 @@ async fn test_mock_adapter_telemetry_stream() {
     let mut adapter = MockAdapter::new("test_game".to_string());
     adapter.set_running(true);
     
-    let mut receiver = adapter.start_monitoring().await.unwrap();
+    let mut receiver = must(adapter.start_monitoring().await);
     
     // Should receive telemetry frames
     let frame = tokio::time::timeout(
         Duration::from_millis(100),
         receiver.recv()
-    ).await.unwrap().unwrap();
+    ).await;
     
     assert!(frame.data.rpm.is_some());
     assert!(frame.data.speed_ms.is_some());
@@ -127,11 +146,11 @@ fn test_adaptive_rate_limiter() {
 
 #[test]
 fn test_telemetry_recording_and_playback() {
-    let temp_dir = tempdir().unwrap();
+    let temp_dir = must(tempdir());
     let output_path = temp_dir.path().join("test_recording.json");
     
     // Create and record telemetry
-    let mut recorder = TelemetryRecorder::new(output_path.clone()).unwrap();
+    let mut recorder = must(TelemetryRecorder::new(output_path.clone()));
     recorder.start_recording("test_game".to_string());
     
     // Record multiple frames
@@ -145,7 +164,7 @@ fn test_telemetry_recording_and_playback() {
         recorder.record_frame(frame);
     }
     
-    let recording = recorder.stop_recording(Some("Test recording".to_string())).unwrap();
+    let recording = must(recorder.stop_recording(Some("Test recording".to_string())));
     assert_eq!(recording.frames.len(), 10);
     
     // Test playback
@@ -222,12 +241,12 @@ fn test_telemetry_field_coverage() {
     assert!(telemetry.has_rpm_data());
     
     // Test RPM fraction calculation
-    let rpm_fraction = telemetry.rpm_fraction(8000.0).unwrap();
+    let rpm_fraction = must(telemetry.rpm_fraction(8000.0));
     assert!((rpm_fraction - 0.8125).abs() < 0.01); // 6500/8000 = 0.8125
     
     // Test speed conversions
-    assert!((telemetry.speed_kmh().unwrap() - 162.0).abs() < 0.1); // 45 m/s = 162 km/h
-    assert!((telemetry.speed_mph().unwrap() - 100.65).abs() < 0.1); // 45 m/s ≈ 100.65 mph
+    assert!((must(telemetry.speed_kmh()) - 162.0).abs() < 0.1); // 45 m/s = 162 km/h
+    assert!((must(telemetry.speed_mph()) - 100.65).abs() < 0.1); // 45 m/s ≈ 100.65 mph
 }
 
 #[test]
@@ -280,13 +299,13 @@ fn test_extended_telemetry_data() {
 
 #[tokio::test]
 async fn test_telemetry_service_recording() {
-    let temp_dir = tempdir().unwrap();
+    let temp_dir = must(tempdir());
     let output_path = temp_dir.path().join("service_recording.json");
     
     let mut service = TelemetryService::new();
     
     // Enable recording
-    service.enable_recording(output_path.clone()).unwrap();
+    must(service.enable_recording(output_path.clone()));
     
     // Disable recording
     service.disable_recording();
@@ -298,7 +317,7 @@ async fn test_telemetry_service_recording() {
 /// Integration test that validates the complete telemetry pipeline
 #[tokio::test]
 async fn test_complete_telemetry_pipeline() {
-    let temp_dir = tempdir().unwrap();
+    let temp_dir = must(tempdir());
     let recording_path = temp_dir.path().join("pipeline_test.json");
     
     // Create a synthetic recording
@@ -309,17 +328,17 @@ async fn test_complete_telemetry_pipeline() {
     );
     
     // Save the recording
-    let mut recorder = TelemetryRecorder::new(recording_path.clone()).unwrap();
+    let mut recorder = must(TelemetryRecorder::new(recording_path.clone()));
     recorder.start_recording("test_game".to_string());
     
     for frame in &recording.frames {
         recorder.record_frame(frame.clone());
     }
     
-    recorder.stop_recording(Some("Pipeline test".to_string())).unwrap();
+    must(recorder.stop_recording(Some("Pipeline test".to_string())));
     
     // Load and replay the recording
-    let loaded_recording = TelemetryRecorder::load_recording(&recording_path).unwrap();
+    let loaded_recording = must(TelemetryRecorder::load_recording(&recording_path));
     let mut player = TelemetryPlayer::new(loaded_recording);
     
     player.start_playback();

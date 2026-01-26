@@ -3,6 +3,15 @@
 //! This module contains comprehensive tests for the LED and haptics output system,
 //! including pattern generation, timing validation, and rate independence verification.
 
+// Test helper functions to replace unwrap
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
 use racing_wheel_engine::led_haptics::*;
 use racing_wheel_engine::ports::{NormalizedTelemetry, TelemetryFlags};
 use racing_wheel_schemas::{DeviceId, FrequencyHz, Gain, HapticsConfig, LedConfig};
@@ -48,13 +57,12 @@ fn create_test_led_config() -> LedConfig {
     colors.insert("red".to_string(), [255, 0, 0]);
     colors.insert("blue".to_string(), [0, 0, 255]);
 
-    LedConfig::new(
+    must(LedConfig::new(
         vec![0.75, 0.82, 0.88, 0.92, 0.96],
         "progressive".to_string(),
-        Gain::new(0.8).unwrap(),
+        must(Gain::new(0.8)),
         colors,
-    )
-    .unwrap()
+    ))
 }
 
 /// Helper function to create test haptics configuration
@@ -65,12 +73,12 @@ fn create_test_haptics_config() -> HapticsConfig {
     effects.insert("gear_shift".to_string(), false);
     effects.insert("collision".to_string(), true);
 
-    HapticsConfig::new(
+    must(HapticsConfig::new(
         true,
-        Gain::new(0.6).unwrap(),
-        FrequencyHz::new(80.0).unwrap(),
+        must(Gain::new(0.6)),
+        must(FrequencyHz::new(80.0)),
         effects,
-    )
+    ))
 }
 
 #[cfg(test)]
@@ -327,7 +335,7 @@ mod haptics_router_tests {
 
         // Create new config with different settings
         let mut new_config = create_test_haptics_config();
-        new_config.intensity = Gain::new(0.3).unwrap();
+        new_config.intensity = must(Gain::new(0.3));
 
         router.update_config(new_config);
 
@@ -445,7 +453,7 @@ mod rate_independence_tests {
 
     #[tokio::test]
     async fn test_led_haptics_system_creation() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must(DeviceId::new("test-device".to_string()));
         let led_config = create_test_led_config();
         let haptics_config = create_test_haptics_config();
 
@@ -463,7 +471,7 @@ mod rate_independence_tests {
 
     #[tokio::test]
     async fn test_rate_independence_60hz() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must(DeviceId::new("test-device".to_string()));
         let led_config = create_test_led_config();
         let haptics_config = create_test_haptics_config();
 
@@ -477,7 +485,7 @@ mod rate_independence_tests {
         let (telemetry_tx, telemetry_rx) = mpsc::channel(100);
 
         // Start the system
-        system.start(telemetry_rx).await.unwrap();
+        must(system.start(telemetry_rx).await);
         assert!(system.is_running());
 
         // Send telemetry at a different rate (30 Hz)
@@ -507,7 +515,7 @@ mod rate_independence_tests {
                 if let Ok(output) = timeout(Duration::from_millis(100), output_rx.recv()).await {
                     if let Some(_output) = output {
                         let elapsed = start_time.elapsed();
-                        output_times_clone.lock().unwrap().push(elapsed);
+                        output_times_clone.lock().push(elapsed);
                         count += 1;
                     }
                 } else {
@@ -523,7 +531,7 @@ mod rate_independence_tests {
         system.stop();
 
         // Analyze timing
-        let times = output_times.lock().unwrap();
+        let times = must(output_times.lock());
         if times.len() >= 2 {
             let intervals: Vec<Duration> = times.windows(2).map(|w| w[1] - w[0]).collect();
 
@@ -550,7 +558,7 @@ mod rate_independence_tests {
 
     #[tokio::test]
     async fn test_rate_independence_200hz() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must(DeviceId::new("test-device".to_string()));
         let led_config = create_test_led_config();
         let haptics_config = create_test_haptics_config();
 
@@ -564,7 +572,7 @@ mod rate_independence_tests {
         let (telemetry_tx, telemetry_rx) = mpsc::channel(100);
 
         // Start the system
-        system.start(telemetry_rx).await.unwrap();
+        must(system.start(telemetry_rx).await);
 
         // Send telemetry at 50 Hz
         let telemetry_handle = tokio::spawn(async move {
@@ -612,7 +620,7 @@ mod rate_independence_tests {
 
     #[tokio::test]
     async fn test_output_structure() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must(DeviceId::new("test-device".to_string()));
         let led_config = create_test_led_config();
         let haptics_config = create_test_haptics_config();
 
@@ -622,11 +630,11 @@ mod rate_independence_tests {
         let (telemetry_tx, telemetry_rx) = mpsc::channel(100);
 
         // Start the system
-        system.start(telemetry_rx).await.unwrap();
+        must(system.start(telemetry_rx).await);
 
         // Send test telemetry
         let telemetry = create_test_telemetry(6000.0, 30.0, 0.3, 4);
-        telemetry_tx.send(telemetry).await.unwrap();
+        must(telemetry_tx.send(telemetry).await);
 
         // Get output
         if let Ok(Some(output)) = timeout(Duration::from_millis(100), output_rx.recv()).await {
@@ -648,7 +656,7 @@ mod rate_independence_tests {
 
     #[tokio::test]
     async fn test_config_updates_during_operation() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must(DeviceId::new("test-device".to_string()));
         let led_config = create_test_led_config();
         let haptics_config = create_test_haptics_config();
 
@@ -658,36 +666,30 @@ mod rate_independence_tests {
         let (telemetry_tx, telemetry_rx) = mpsc::channel(100);
 
         // Start the system
-        system.start(telemetry_rx).await.unwrap();
+        must(system.start(telemetry_rx).await);
 
         // Send initial telemetry
         let telemetry = create_test_telemetry(5000.0, 25.0, 0.0, 3);
-        telemetry_tx.send(telemetry.clone()).await.unwrap();
+        must(telemetry_tx.send(telemetry.clone()).await);
 
         // Get initial output
-        let _initial_output = timeout(Duration::from_millis(100), output_rx.recv())
-            .await
-            .unwrap()
-            .unwrap();
+        let _initial_output = must(must(timeout(Duration::from_millis(100), output_rx.recv()).await));
 
         // Update LED config during operation
         let mut new_led_config = create_test_led_config();
-        new_led_config.brightness = Gain::new(0.5).unwrap(); // Different brightness
+        new_led_config.brightness = must(Gain::new(0.5)); // Different brightness
         system.update_led_config(new_led_config);
 
         // Update haptics config during operation
         let mut new_haptics_config = create_test_haptics_config();
-        new_haptics_config.intensity = Gain::new(0.3).unwrap(); // Different intensity
+        new_haptics_config.intensity = must(Gain::new(0.3)); // Different intensity
         system.update_haptics_config(new_haptics_config);
 
         // Send more telemetry
-        telemetry_tx.send(telemetry).await.unwrap();
+        must(telemetry_tx.send(telemetry).await);
 
         // Get updated output
-        let _updated_output = timeout(Duration::from_millis(100), output_rx.recv())
-            .await
-            .unwrap()
-            .unwrap();
+        let _updated_output = must(must(timeout(Duration::from_millis(100), output_rx.recv()).await));
 
         // System should still be running and producing output
         assert!(system.is_running());
@@ -805,7 +807,7 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_complete_system_integration() {
-        let device_id = DeviceId::new("integration-test-device".to_string()).unwrap();
+        let device_id = must(DeviceId::new("integration-test-device".to_string()));
         let led_config = create_test_led_config();
         let haptics_config = create_test_haptics_config();
 
@@ -819,7 +821,7 @@ mod integration_tests {
         let (telemetry_tx, telemetry_rx) = mpsc::channel(100);
 
         // Start the system
-        system.start(telemetry_rx).await.unwrap();
+        must(system.start(telemetry_rx).await);
 
         // Simulate a racing scenario with changing conditions
         let scenario_handle = tokio::spawn(async move {
@@ -866,8 +868,8 @@ mod integration_tests {
         });
 
         // Wait for scenario completion
-        scenario_handle.await.unwrap();
-        let outputs = collection_handle.await.unwrap();
+        must(scenario_handle.await);
+        let outputs = must(collection_handle.await);
 
         // Stop the system
         system.stop();

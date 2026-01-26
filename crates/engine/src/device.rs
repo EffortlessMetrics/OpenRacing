@@ -102,7 +102,7 @@ impl VirtualDevice {
             true,                         // supports_raw_torque_1khz
             true,                         // supports_health_stream
             true,                         // supports_led_bus
-            TorqueNm::from_raw(25.0), // max_torque
+            TorqueNm::new(25.0).expect("25.0 is a valid torque"),
             10000,                        // encoder_cpr
             1000,                         // min_report_period_us (1ms = 1kHz)
         );
@@ -331,10 +331,10 @@ impl VirtualHidPort {
         };
 
         // Send disconnect event if monitoring
-        if let Some(tx) = &self.event_tx {
-            if let Some(info) = device_info {
-                let _ = tx.try_send(DeviceEvent::Disconnected(info));
-            }
+        if let Some(tx) = &self.event_tx
+            && let Some(info) = device_info
+        {
+            let _ = tx.try_send(DeviceEvent::Disconnected(info));
         }
 
         Ok(())
@@ -409,13 +409,22 @@ impl Default for VirtualHidPort {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use std::time::Duration;
 
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
     #[test]
     fn test_virtual_device_creation() {
-        let device_id = DeviceId::from_raw("test-device".to_string());
+        let device_id = must("test-device".parse::<DeviceId>());
         let device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         assert_eq!(device.device_info().id.as_str(), "test-device");
@@ -426,7 +435,7 @@ mod tests {
 
     #[test]
     fn test_virtual_device_torque_write() {
-        let device_id = DeviceId::from_raw("test-device".to_string());
+        let device_id = must("test-device".parse::<DeviceId>());
         let mut device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         // Test normal torque write
@@ -445,7 +454,7 @@ mod tests {
 
     #[test]
     fn test_virtual_device_telemetry() {
-        let device_id = DeviceId::from_raw("test-device".to_string());
+        let device_id = must("test-device".parse::<DeviceId>());
         let mut device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         // Write some torque
@@ -465,7 +474,7 @@ mod tests {
         let mut port = VirtualHidPort::new();
 
         // Add a device
-        let device_id = DeviceId::from_raw("test-device".to_string());
+        let device_id = must("test-device".parse::<DeviceId>());
         let device = VirtualDevice::new(device_id.clone(), "Test Wheel".to_string());
         port.add_device(device).unwrap();
 
@@ -488,7 +497,7 @@ mod tests {
 
     #[test]
     fn test_virtual_device_physics_simulation() {
-        let device_id = DeviceId::from_raw("test-device".to_string());
+        let device_id = must("test-device".parse::<DeviceId>());
         let mut device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         // Apply constant torque
@@ -511,7 +520,7 @@ mod tests {
 
     #[test]
     fn test_fault_injection() {
-        let device_id = DeviceId::from_raw("test-device".to_string());
+        let device_id = must("test-device".parse::<DeviceId>());
         let mut device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         // Initially no faults

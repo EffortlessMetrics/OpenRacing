@@ -583,7 +583,7 @@ impl Engine {
             let final_torque_nm = frame.torque_out * ctx.config.max_high_torque_nm;
 
             // Handle write_ffb_report Result with RT-safe error counting
-            if let Err(_) = ctx.device.write_ffb_report(final_torque_nm, ctx.seq) {
+            if ctx.device.write_ffb_report(final_torque_nm, ctx.seq).is_err() {
                 // Non-allocating error accounting - just increment atomic counter
                 ctx.atomic_counters.inc_hid_write_error();
 
@@ -785,20 +785,29 @@ impl Drop for Engine {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::device::VirtualDevice;
     use tokio::time::{Duration as TokioDuration, sleep};
 
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
     fn create_test_device() -> Box<dyn HidDevice> {
-        let device_id = DeviceId::from_raw("test-device".to_string());
+        let device_id = must("test-device".parse::<DeviceId>());
         let virtual_device = VirtualDevice::new(device_id, "Test Device".to_string());
         Box::new(virtual_device)
     }
 
     fn create_test_config() -> EngineConfig {
         EngineConfig {
-            device_id: DeviceId::from_raw("test-device".to_string()),
+            device_id: must("test-device".parse::<DeviceId>()),
             mode: FFBMode::RawTorque,
             max_safe_torque_nm: 5.0,
             max_high_torque_nm: 25.0,
@@ -812,10 +821,7 @@ mod tests {
         let device = create_test_device();
         let config = create_test_config();
 
-        let engine = Engine::new(device, config);
-        assert!(engine.is_ok());
-
-        let engine = engine.unwrap();
+        let engine = must(Engine::new(device, config));
         assert!(!engine.is_running());
         assert_eq!(engine.frame_count(), 0);
     }
@@ -825,7 +831,7 @@ mod tests {
         let device = create_test_device();
         let config = create_test_config();
 
-        let mut engine = Engine::new(device, config).unwrap();
+        let mut engine = must(Engine::new(device, config));
 
         // Start engine
         let device = create_test_device();
@@ -847,7 +853,7 @@ mod tests {
         let device = create_test_device();
         let config = create_test_config();
 
-        let mut engine = Engine::new(device, config).unwrap();
+        let mut engine = must(Engine::new(device, config));
         let device = create_test_device();
         engine.start(device).await.unwrap();
 
@@ -875,7 +881,7 @@ mod tests {
         let device = create_test_device();
         let config = create_test_config();
 
-        let mut engine = Engine::new(device, config).unwrap();
+        let mut engine = must(Engine::new(device, config));
         let device = create_test_device();
         engine.start(device).await.unwrap();
 
@@ -897,7 +903,7 @@ mod tests {
         let device = create_test_device();
         let config = create_test_config();
 
-        let mut engine = Engine::new(device, config).unwrap();
+        let mut engine = must(Engine::new(device, config));
         let device = create_test_device();
         engine.start(device).await.unwrap();
 
@@ -917,7 +923,7 @@ mod tests {
         let device = create_test_device();
         let config = create_test_config();
 
-        let mut engine = Engine::new(device, config).unwrap();
+        let mut engine = must(Engine::new(device, config));
         let device = create_test_device();
         engine.start(device).await.unwrap();
 
@@ -939,7 +945,7 @@ mod tests {
         let device = create_test_device();
         let config = create_test_config();
 
-        let mut engine = Engine::new(device, config).unwrap();
+        let mut engine = must(Engine::new(device, config));
         let device = create_test_device();
         engine.start(device).await.unwrap();
 
@@ -972,7 +978,7 @@ mod tests {
         config.rt_setup.high_priority = false;
         config.rt_setup.lock_memory = false;
 
-        let mut engine = Engine::new(device, config).unwrap();
+        let mut engine = must(Engine::new(device, config));
         let device = create_test_device();
         engine.start(device).await.unwrap();
 

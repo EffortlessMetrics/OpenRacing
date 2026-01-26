@@ -5,12 +5,20 @@
 
 #[cfg(test)]
 mod tests {
+    // Test helper functions to replace unwrap
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
     use super::super::ipc_conversion::*;
     use crate::domain::*;
     use crate::entities::*;
     use crate::generated::wheel::v1 as proto;
     use crate::telemetry::TelemetryData;
-    use std::collections::HashMap;
 
     #[test]
     fn test_torque_unit_conversion() {
@@ -25,7 +33,7 @@ mod tests {
             min_report_period_us: 1000,
         };
 
-        let domain_caps: DeviceCapabilities = wire_caps.try_into().unwrap();
+        let domain_caps: DeviceCapabilities = must(wire_caps.try_into());
         assert_eq!(domain_caps.max_torque.value(), 25.0);
 
         // Test round-trip conversion
@@ -45,7 +53,7 @@ mod tests {
             sequence: 0,
         };
 
-        let domain_telemetry: TelemetryData = wire_telemetry.try_into().unwrap();
+        let domain_telemetry: TelemetryData = must(wire_telemetry.try_into());
         assert_eq!(domain_telemetry.wheel_angle_deg, 45.0);
         assert!((domain_telemetry.wheel_speed_rad_s - 1.571).abs() < 0.001);
 
@@ -113,7 +121,7 @@ mod tests {
 
         let result: Result<TelemetryData, _> = valid_faults.try_into();
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().fault_flags, 255);
+        assert_eq!(must(result).fault_flags, 255);
 
         // Invalid fault flags (> 8-bit)
         let invalid_faults = proto::TelemetryData {
@@ -259,7 +267,7 @@ mod tests {
 
         let result: Result<NotchFilter, _> = valid_filter.try_into();
         assert!(result.is_ok());
-        let filter = result.unwrap();
+        let filter = must(result);
         assert_eq!(filter.frequency.value(), 60.0);
         assert_eq!(filter.q_factor, 2.0);
         assert_eq!(filter.gain_db, -20.0);
@@ -503,13 +511,13 @@ mod tests {
     #[test]
     fn test_complete_profile_round_trip() {
         // Create a complete domain profile
-        let device_id: DeviceId = "test-device".parse().unwrap();
-        let profile_id: ProfileId = "test-profile".parse().unwrap();
+        let _device_id: DeviceId = must("test-device".parse());
+        let profile_id: ProfileId = must("test-profile".parse());
 
         let base_settings = BaseSettings::new(
-            Gain::new(0.75).unwrap(),
-            Degrees::new_dor(900.0).unwrap(),
-            TorqueNm::new(15.0).unwrap(),
+            must(Gain::new(0.75)),
+            must(Degrees::new_dor(900.0)),
+            must(TorqueNm::new(15.0)),
             FilterConfig::default(),
         );
 
@@ -524,7 +532,7 @@ mod tests {
         let wire_profile: proto::Profile = profile.clone().into();
 
         // Convert back to domain format
-        let back_to_domain: Profile = wire_profile.try_into().unwrap();
+        let back_to_domain: Profile = must(wire_profile.try_into());
 
         // Verify key fields are preserved
         assert_eq!(back_to_domain.base_settings.ffb_gain.value(), 0.75);
@@ -550,7 +558,7 @@ mod tests {
         for (domain_type, wire_value) in device_types {
             // Test domain to wire conversion
             let device = Device::new(
-                "test-device".parse().unwrap(),
+                must("test-device".parse()),
                 "Test Device".to_string(),
                 domain_type,
                 DeviceCapabilities::new(
@@ -558,7 +566,7 @@ mod tests {
                     true,
                     true,
                     false,
-                    TorqueNm::new(25.0).unwrap(),
+                    must(TorqueNm::new(25.0)),
                     10000,
                     1000,
                 ),
@@ -584,7 +592,7 @@ mod tests {
                 state: 1,
             };
 
-            let domain_device: Device = wire_device_back.try_into().unwrap();
+            let domain_device: Device = must(wire_device_back.try_into());
             assert_eq!(domain_device.device_type, domain_type);
         }
     }
@@ -602,7 +610,7 @@ mod tests {
         for (domain_state, wire_value) in device_states {
             // Test conversion through a complete device
             let mut device = Device::new(
-                "test-device".parse().unwrap(),
+                must("test-device".parse()),
                 "Test Device".to_string(),
                 DeviceType::WheelBase,
                 DeviceCapabilities::new(
@@ -610,7 +618,7 @@ mod tests {
                     true,
                     true,
                     false,
-                    TorqueNm::new(25.0).unwrap(),
+                    must(TorqueNm::new(25.0)),
                     10000,
                     1000,
                 ),
@@ -626,10 +634,10 @@ mod tests {
     fn test_precision_preservation() {
         // Test that floating point precision is reasonably preserved
         let test_values = vec![
-            (123.456, 123456, 123.456), // wheel_angle_deg
-            (2.718, 2718, 2.718),       // wheel_speed_rad_s
-            (0.123, 123, 0.123),        // small values
-            (999.999, 999999, 999.999), // large values
+            (123.456, 123456, 123.456),                     // wheel_angle_deg
+            (std::f32::consts::E, 2718, std::f32::consts::E), // wheel_speed_rad_s
+            (0.123, 123, 0.123),                            // small values
+            (999.999, 999999, 999.999),                      // large values
         ];
 
         for (original, expected_wire, expected_back) in test_values {
@@ -646,7 +654,7 @@ mod tests {
             assert_eq!(wire.wheel_angle_mdeg, expected_wire);
             assert_eq!(wire.wheel_speed_mrad_s, expected_wire);
 
-            let back: TelemetryData = wire.try_into().unwrap();
+            let back: TelemetryData = must(wire.try_into());
             assert!((back.wheel_angle_deg - expected_back).abs() < 0.001);
             assert!((back.wheel_speed_rad_s - expected_back).abs() < 0.001);
         }

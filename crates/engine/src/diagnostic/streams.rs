@@ -113,6 +113,12 @@ impl NormalizedTelemetrySimple {
     }
 }
 
+impl Default for StreamA {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StreamA {
     pub fn new() -> Self {
         Self {
@@ -180,6 +186,12 @@ pub struct StreamB {
     min_interval_ns: u64, // Minimum interval between records (for 60Hz = ~16.67ms)
 }
 
+impl Default for StreamB {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StreamB {
     pub fn new() -> Self {
         Self {
@@ -195,10 +207,10 @@ impl StreamB {
         let now = SystemTime::now();
 
         // Rate limiting to ~60Hz
-        if let Ok(duration) = now.duration_since(self.last_record_time) {
-            if duration.as_nanos() < self.min_interval_ns as u128 {
-                return Ok(()); // Skip this record to maintain rate limit
-            }
+        if let Ok(duration) = now.duration_since(self.last_record_time)
+            && duration.as_nanos() < self.min_interval_ns as u128
+        {
+            return Ok(()); // Skip this record to maintain rate limit
         }
 
         let timestamp_ns = now
@@ -250,6 +262,12 @@ pub struct StreamC {
     records: Vec<StreamCRecord>,
     start_time: SystemTime,
     buffer: Vec<u8>,
+}
+
+impl Default for StreamC {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StreamC {
@@ -422,10 +440,19 @@ impl StreamReader {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::safety::SafetyState;
     use racing_wheel_schemas::prelude::DeviceId;
+
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
 
     #[test]
     fn test_stream_a_recording() {
@@ -483,7 +510,7 @@ mod tests {
     fn test_stream_c_health_events() {
         let mut stream = StreamC::new();
 
-        let device_id = DeviceId::from_raw("test-device".to_string());
+        let device_id = must("test-device".parse::<DeviceId>());
         let event = HealthEvent {
             timestamp: SystemTime::now(),
             device_id,

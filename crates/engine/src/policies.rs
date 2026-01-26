@@ -33,15 +33,15 @@ pub struct SafetyPolicy {
 
 impl SafetyPolicy {
     /// Create a new safety policy with default limits
-    pub fn new() -> Self {
-        Self {
-            max_safe_torque: TorqueNm::from_raw(5.0),  // 5 Nm safe limit
-            max_high_torque: TorqueNm::from_raw(25.0), // 25 Nm high torque limit
+    pub fn new() -> Result<Self, DomainError> {
+        Ok(Self {
+            max_safe_torque: TorqueNm::new(5.0)?,  // 5 Nm safe limit
+            max_high_torque: TorqueNm::new(25.0)?, // 25 Nm high torque limit
             max_temperature_c: 80,                     // 80°C thermal limit
             max_hands_off_duration: Duration::from_secs(5), // 5 second hands-off limit
             min_high_torque_interval: Duration::from_secs(2), // 2 second cooldown
             last_high_torque_request: None,
-        }
+        })
     }
 
     /// Create a safety policy with custom limits
@@ -182,7 +182,7 @@ impl SafetyPolicy {
 
 impl Default for SafetyPolicy {
     fn default() -> Self {
-        Self::new()
+        Self::new().expect("SafetyPolicy::new() should not fail with default values")
     }
 }
 
@@ -380,10 +380,10 @@ impl ProfileHierarchyPolicy {
         // Simple version increment for merged profiles
         // In a real implementation, this might be more sophisticated
         let parts: Vec<&str> = version.split('.').collect();
-        if parts.len() >= 3 {
-            if let Ok(patch) = parts[2].parse::<u32>() {
-                return format!("{}.{}.{}", parts[0], parts[1], patch + 1);
-            }
+        if parts.len() >= 3
+            && let Ok(patch) = parts[2].parse::<u32>()
+        {
+            return format!("{}.{}.{}", parts[0], parts[1], patch + 1);
         }
 
         // Fallback: append merge indicator
@@ -416,14 +416,30 @@ mod tests {
 
     use std::time::Duration;
 
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
+    #[track_caller]
+    fn must_some<T>(o: Option<T>, msg: &str) -> T {
+        match o {
+            Some(v) => v,
+            None => panic!("expected Some: {}", msg),
+        }
+    }
+
     fn create_test_device() -> Device {
-        let id = DeviceId::from_raw("test-device".to_string());
+        let id = must("test-device".parse::<DeviceId>());
         let capabilities = DeviceCapabilities::new(
             false,
             true,
             true,
             true,
-            TorqueNm::from_raw(25.0),
+            must(TorqueNm::new(25.0)),
             10000,
             1000,
         );
@@ -440,7 +456,7 @@ mod tests {
 
     #[test]
     fn test_safety_policy_can_enable_high_torque_success() {
-        let mut policy = SafetyPolicy::new();
+        let mut policy = must(SafetyPolicy::new());
         let device = create_test_device();
 
         let result = policy.can_enable_high_torque(
@@ -454,7 +470,7 @@ mod tests {
 
     #[test]
     fn test_safety_policy_temperature_too_high() {
-        let mut policy = SafetyPolicy::new();
+        let mut policy = must(SafetyPolicy::new());
         let device = create_test_device();
 
         let result = policy.can_enable_high_torque(
@@ -471,7 +487,7 @@ mod tests {
 
     #[test]
     fn test_safety_policy_hands_off_too_long() {
-        let mut policy = SafetyPolicy::new();
+        let mut policy = must(SafetyPolicy::new());
         let device = create_test_device();
 
         let result = policy.can_enable_high_torque(
@@ -488,7 +504,7 @@ mod tests {
 
     #[test]
     fn test_safety_policy_device_faulted() {
-        let mut policy = SafetyPolicy::new();
+        let mut policy = must(SafetyPolicy::new());
         let mut device = create_test_device();
         device.set_fault_flags(0x04); // Thermal fault
 
@@ -501,7 +517,7 @@ mod tests {
 
     #[test]
     fn test_safety_policy_rate_limiting() {
-        let mut policy = SafetyPolicy::new();
+        let mut policy = must(SafetyPolicy::new());
         let device = create_test_device();
 
         // First request should succeed
@@ -515,29 +531,29 @@ mod tests {
 
     #[test]
     fn test_safety_policy_validate_torque_limits() {
-        let policy = SafetyPolicy::new();
+        let policy = must(SafetyPolicy::new());
         let capabilities = DeviceCapabilities::new(
             false,
             true,
             true,
             true,
-            TorqueNm::from_raw(25.0),
+            must(TorqueNm::new(25.0)),
             10000,
             1000,
         );
 
         // Test safe mode limits
         let result = policy.validate_torque_limits(
-            TorqueNm::from_raw(3.0),
+            must(TorqueNm::new(3.0)),
             false, // Safe mode
             &capabilities,
         );
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().value(), 3.0);
+        assert_eq!(must(result).value(), 3.0);
 
         // Test safe mode exceeds limit
         let result = policy.validate_torque_limits(
-            TorqueNm::from_raw(10.0),
+            must(TorqueNm::new(10.0)),
             false, // Safe mode
             &capabilities,
         );
@@ -548,17 +564,17 @@ mod tests {
 
         // Test high torque mode
         let result = policy.validate_torque_limits(
-            TorqueNm::from_raw(20.0),
+            must(TorqueNm::new(20.0)),
             true, // High torque mode
             &capabilities,
         );
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().value(), 20.0);
+        assert_eq!(must(result).value(), 20.0);
     }
 
     #[test]
     fn test_safety_policy_requires_immediate_shutdown() {
-        let policy = SafetyPolicy::new();
+        let policy = must(SafetyPolicy::new());
 
         // No faults
         assert!(!policy.requires_immediate_shutdown(0x00));
@@ -574,7 +590,7 @@ mod tests {
     }
 
     fn create_test_profile(id: &str, scope: ProfileScope) -> Profile {
-        let profile_id = ProfileId::from_raw(id.to_string());
+        let profile_id = must(id.parse::<ProfileId>());
         Profile::new(
             profile_id,
             scope,
@@ -631,7 +647,7 @@ mod tests {
             result.is_some(),
             "Should find a matching profile for iracing/gt3"
         );
-        assert_eq!(result.unwrap().id.as_str(), "gt3");
+        assert_eq!(must_some(result, "expected profile").id.as_str(), "gt3");
 
         // Should find game profile when car doesn't match
         let result = ProfileHierarchyPolicy::find_most_specific_profile(
@@ -645,7 +661,7 @@ mod tests {
             result.is_some(),
             "Should find a matching profile for iracing/f1"
         );
-        assert_eq!(result.unwrap().id.as_str(), "iracing");
+        assert_eq!(must_some(result, "expected profile").id.as_str(), "iracing");
 
         // Should find global profile when nothing else matches
 
@@ -653,7 +669,7 @@ mod tests {
             ProfileHierarchyPolicy::find_most_specific_profile(&profiles, Some("acc"), None, None);
 
         assert!(result.is_some(), "Should find global profile for acc");
-        assert_eq!(result.unwrap().id.as_str(), "global");
+        assert_eq!(must_some(result, "expected profile").id.as_str(), "global");
     }
 
     #[test]
@@ -663,7 +679,7 @@ mod tests {
             true,
             true,
             true,
-            TorqueNm::from_raw(25.0),
+            must(TorqueNm::new(25.0)),
             10000,
             1000,
         );
@@ -716,7 +732,7 @@ mod tests {
         // Different inputs should produce different hash
         let mut different_game_profile =
             create_test_profile("acc", ProfileScope::for_game("acc".to_string()));
-        different_game_profile.base_settings.ffb_gain = Gain::from_raw(0.5); // Different gain
+        different_game_profile.base_settings.ffb_gain = must(Gain::new(0.5)); // Different gain
         let hash3 = ProfileHierarchyPolicy::calculate_hierarchy_hash(
             &global_profile,
             Some(&different_game_profile),

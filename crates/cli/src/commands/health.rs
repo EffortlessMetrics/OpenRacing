@@ -107,12 +107,12 @@ async fn show_health_snapshot(client: &WheelClient, json: bool) -> Result<()> {
                 device_id.dimmed()
             );
 
-            if let Some(faults) = device["faults"].as_array() {
-                if !faults.is_empty() {
-                    for fault in faults {
-                        if let Some(fault_str) = fault.as_str() {
-                            println!("      • {}", fault_str.red());
-                        }
+            if let Some(faults) = device["faults"].as_array()
+                && !faults.is_empty()
+            {
+                for fault in faults {
+                    if let Some(fault_str) = fault.as_str() {
+                        println!("      • {}", fault_str.red());
                     }
                 }
             }

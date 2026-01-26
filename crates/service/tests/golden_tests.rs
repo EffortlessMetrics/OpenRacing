@@ -3,6 +3,15 @@
 //! Tests that compare generated configs against known fixtures
 //! Requirements: GI-01 (one-click telemetry configuration)
 
+// Test helper functions to replace unwrap
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
 use racing_wheel_service::config_writers::{ACCConfigWriter, IRacingConfigWriter};
 use racing_wheel_service::game_service::*;
 use serde_json;
@@ -78,7 +87,13 @@ impl TestGameConfig {
                     "commandPassword": "",
                     "updateRateHz": 100
                 }))
-                .unwrap(),
+                must(serde_json::to_string_pretty(&serde_json::json!({
+                    "updListenerPort": 9996,
+                    "connectionId": "",
+                    "broadcastingPort": 9000,
+                    "commandPassword": "",
+                    "updateRateHz": 100
+                })),
                 operation: DiffOperation::Add,
             }],
         }
@@ -89,16 +104,15 @@ impl TestGameConfig {
 async fn test_iracing_config_writer_golden() {
     let writer = IRacingConfigWriter::default();
     let test_config = TestGameConfig::iracing_test_config();
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
 
     // Test expected diffs match actual diffs
-    let expected_diffs = writer.get_expected_diffs(&test_config.config).unwrap();
+    let expected_diffs = must(writer.get_expected_diffs(&test_config.config));
     assert_eq!(expected_diffs, test_config.expected_diffs);
 
     // Test actual config writing
     let actual_diffs = writer
-        .write_config(temp_dir.path(), &test_config.config)
-        .unwrap();
+        must(writer.write_config(temp_dir.path(), &test_config.config));
 
     // Compare actual diffs with expected (ignoring file paths which will be different in temp dir)
     assert_eq!(actual_diffs.len(), expected_diffs.len());
@@ -114,16 +128,15 @@ async fn test_iracing_config_writer_golden() {
 async fn test_acc_config_writer_golden() {
     let writer = ACCConfigWriter::default();
     let test_config = TestGameConfig::acc_test_config();
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
 
     // Test expected diffs match actual diffs
-    let expected_diffs = writer.get_expected_diffs(&test_config.config).unwrap();
+    let expected_diffs = must(writer.get_expected_diffs(&test_config.config));
     assert_eq!(expected_diffs.len(), 1);
 
     // Test actual config writing
     let actual_diffs = writer
-        .write_config(temp_dir.path(), &test_config.config)
-        .unwrap();
+        must(writer.write_config(temp_dir.path(), &test_config.config));
 
     // Compare actual diffs with expected (ignoring file paths which will be different in temp dir)
     assert_eq!(actual_diffs.len(), expected_diffs.len());
@@ -134,9 +147,9 @@ async fn test_acc_config_writer_golden() {
 
         // For JSON content, parse and compare structure
         if actual.key == "entire_file" {
-            let actual_json: serde_json::Value = serde_json::from_str(&actual.new_value).unwrap();
+            let actual_json: serde_json::Value = must(serde_json::from_str(&actual.new_value));
             let expected_json: serde_json::Value =
-                serde_json::from_str(&expected.new_value).unwrap();
+                must(serde_json::from_str(&expected.new_value));
             assert_eq!(actual_json, expected_json);
         } else {
             assert_eq!(actual.new_value, expected.new_value);
@@ -146,7 +159,7 @@ async fn test_acc_config_writer_golden() {
 
 #[tokio::test]
 async fn test_game_service_yaml_loading() {
-    let service = GameService::new().await.unwrap();
+    let service = must(GameService::new().await);
 
     // Test supported games loaded from YAML
     let supported_games = service.get_supported_games().await;
@@ -157,10 +170,10 @@ async fn test_game_service_yaml_loading() {
 
 #[tokio::test]
 async fn test_game_support_matrix_structure() {
-    let service = GameService::new().await.unwrap();
+    let service = must(GameService::new().await);
 
     // Test iRacing support structure
-    let iracing_support = service.get_game_support("iracing").await.unwrap();
+    let iracing_support = must(service.get_game_support("iracing").await);
     assert_eq!(iracing_support.name, "iRacing");
     assert_eq!(iracing_support.telemetry.method, "shared_memory");
     assert_eq!(iracing_support.telemetry.update_rate_hz, 60);
@@ -195,7 +208,7 @@ async fn test_game_support_matrix_structure() {
     );
 
     // Test ACC support structure
-    let acc_support = service.get_game_support("acc").await.unwrap();
+    let acc_support = must(service.get_game_support("acc").await);
     assert_eq!(acc_support.name, "Assetto Corsa Competizione");
     assert_eq!(acc_support.telemetry.method, "udp_broadcast");
     assert_eq!(acc_support.telemetry.update_rate_hz, 100);
@@ -213,10 +226,10 @@ async fn test_game_support_matrix_structure() {
 
 #[tokio::test]
 async fn test_telemetry_field_mapping_coverage() {
-    let service = GameService::new().await.unwrap();
+    let service = must(GameService::new().await);
 
     // Test iRacing field mapping coverage
-    let iracing_mapping = service.get_telemetry_mapping("iracing").await.unwrap();
+    let iracing_mapping = must(service.get_telemetry_mapping("iracing").await);
     assert_eq!(
         iracing_mapping.ffb_scalar,
         Some("SteeringWheelTorque".to_string())
@@ -230,7 +243,7 @@ async fn test_telemetry_field_mapping_coverage() {
     assert_eq!(iracing_mapping.track_id, Some("TrackId".to_string()));
 
     // Test ACC field mapping coverage
-    let acc_mapping = service.get_telemetry_mapping("acc").await.unwrap();
+    let acc_mapping = must(service.get_telemetry_mapping("acc").await);
     assert_eq!(acc_mapping.ffb_scalar, Some("steerAngle".to_string()));
     assert_eq!(acc_mapping.rpm, Some("rpms".to_string()));
     assert_eq!(acc_mapping.speed_ms, Some("speedKmh".to_string()));
@@ -243,7 +256,7 @@ async fn test_telemetry_field_mapping_coverage() {
 
 #[tokio::test]
 async fn test_configuration_diff_generation() {
-    let service = GameService::new().await.unwrap();
+    let service = must(GameService::new().await);
 
     // Test iRacing expected diffs
     let iracing_config = TelemetryConfig {
@@ -256,8 +269,7 @@ async fn test_configuration_diff_generation() {
 
     let iracing_diffs = service
         .get_expected_diffs("iracing", &iracing_config)
-        .await
-        .unwrap();
+        must(service.get_expected_diffs("iracing", &iracing_config).await);
     assert_eq!(iracing_diffs.len(), 1);
     assert_eq!(iracing_diffs[0].key, "telemetryDiskFile");
     assert_eq!(iracing_diffs[0].new_value, "1");
@@ -274,14 +286,13 @@ async fn test_configuration_diff_generation() {
 
     let acc_diffs = service
         .get_expected_diffs("acc", &acc_config)
-        .await
-        .unwrap();
+        must(service.get_expected_diffs("acc", &acc_config).await);
     assert_eq!(acc_diffs.len(), 1);
     assert_eq!(acc_diffs[0].key, "entire_file");
     assert_eq!(acc_diffs[0].operation, DiffOperation::Add);
 
     // Verify ACC JSON structure
-    let acc_json: serde_json::Value = serde_json::from_str(&acc_diffs[0].new_value).unwrap();
+    let acc_json: serde_json::Value = must(serde_json::from_str(&acc_diffs[0].new_value));
     assert_eq!(acc_json["updListenerPort"], 9996);
     assert_eq!(acc_json["broadcastingPort"], 9000);
     assert_eq!(acc_json["updateRateHz"], 100);
@@ -289,7 +300,7 @@ async fn test_configuration_diff_generation() {
 
 #[tokio::test]
 async fn test_active_game_management() {
-    let service = GameService::new().await.unwrap();
+    let service = must(GameService::new().await);
 
     // Initially no active game
     assert_eq!(service.get_active_game().await, None);
@@ -297,36 +308,34 @@ async fn test_active_game_management() {
     // Set active game
     service
         .set_active_game(Some("iracing".to_string()))
-        .await
-        .unwrap();
+        must(service.set_active_game(Some("iracing".to_string())).await);
     assert_eq!(service.get_active_game().await, Some("iracing".to_string()));
 
     // Switch to different game
     service
         .set_active_game(Some("acc".to_string()))
-        .await
-        .unwrap();
+        must(service.set_active_game(Some("acc".to_string())).await);
     assert_eq!(service.get_active_game().await, Some("acc".to_string()));
 
     // Clear active game
-    service.set_active_game(None).await.unwrap();
+    must(service.set_active_game(None).await);
     assert_eq!(service.get_active_game().await, None);
 }
 
 #[tokio::test]
 async fn test_unsupported_game_handling() {
-    let service = GameService::new().await.unwrap();
+    let service = must(GameService::new().await);
 
     // Test unsupported game returns error
     let result = service.get_game_support("unsupported_game").await;
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Unsupported game"));
+    assert!(must(result.err()).to_string().contains("Unsupported game"));
 
     let mapping_result = service.get_telemetry_mapping("unsupported_game").await;
     assert!(mapping_result.is_err());
     assert!(
         mapping_result
-            .unwrap_err()
+            must(mapping_result.err())
             .to_string()
             .contains("Unsupported game")
     );
@@ -346,7 +355,7 @@ async fn test_unsupported_game_handling() {
     assert!(config_result.is_err());
     assert!(
         config_result
-            .unwrap_err()
+            must(config_result.err())
             .to_string()
             .contains("No config writer for game")
     );
@@ -354,14 +363,13 @@ async fn test_unsupported_game_handling() {
 
 #[tokio::test]
 async fn test_end_to_end_telemetry_configuration() {
-    let service = GameService::new().await.unwrap();
-    let temp_dir = TempDir::new().unwrap();
+    let service = must(GameService::new().await);
+    let temp_dir = must(TempDir::new());
 
     // Test iRacing end-to-end configuration
     let iracing_diffs = service
         .configure_telemetry("iracing", temp_dir.path())
-        .await
-        .unwrap();
+        must(service.configure_telemetry("iracing", temp_dir.path()).await);
     assert_eq!(iracing_diffs.len(), 1);
     assert_eq!(iracing_diffs[0].key, "telemetryDiskFile");
     assert_eq!(iracing_diffs[0].new_value, "1");
@@ -369,13 +377,12 @@ async fn test_end_to_end_telemetry_configuration() {
     // Test ACC end-to-end configuration
     let acc_diffs = service
         .configure_telemetry("acc", temp_dir.path())
-        .await
-        .unwrap();
+        must(service.configure_telemetry("acc", temp_dir.path()).await);
     assert_eq!(acc_diffs.len(), 1);
     assert_eq!(acc_diffs[0].key, "entire_file");
 
     // Verify ACC JSON is valid
-    let acc_json: serde_json::Value = serde_json::from_str(&acc_diffs[0].new_value).unwrap();
+    let acc_json: serde_json::Value = must(serde_json::from_str(&acc_diffs[0].new_value));
     assert!(acc_json.is_object());
     assert!(acc_json.get("updListenerPort").is_some());
     assert!(acc_json.get("broadcastingPort").is_some());
