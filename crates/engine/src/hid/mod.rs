@@ -72,7 +72,7 @@ impl HidDeviceInfo {
 #[derive(Debug, Clone, Copy)]
 pub struct TorqueCommand {
     pub report_id: u8,    // 0x20
-    pub torque_mn_m: i16, // Q8.8 fixed point, millinewton-meters
+    pub torque_mn_m: i16, // Q8.8 fixed point, Newton-meters
     pub flags: u8,        // bit0: hands_on_hint, bit1: sat_warn
     pub seq: u16,         // sequence number, wraps
 }
@@ -81,8 +81,9 @@ impl TorqueCommand {
     pub const REPORT_ID: u8 = 0x20;
 
     pub fn new(torque_nm: f32, seq: u16, hands_on_hint: bool, sat_warn: bool) -> Self {
-        // Convert torque from Nm to mNm with Q8.8 fixed point
-        let torque_mn_m = (torque_nm * 1000.0 * 256.0) as i16;
+        // Convert torque from Nm to Q8.8 fixed point
+        let torque_mn_m =
+            (torque_nm * 256.0).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
 
         let mut flags = 0u8;
         if hands_on_hint {

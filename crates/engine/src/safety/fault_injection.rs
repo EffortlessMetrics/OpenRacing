@@ -188,6 +188,7 @@ pub struct FaultInjectionSystem {
     active_faults: HashMap<FaultType, String>, // fault_type -> scenario_name
     enabled: bool,
     start_time: Instant,
+    pending_faults: Vec<FaultType>,
     fault_callbacks: Vec<FaultCallback>,
     recovery_callbacks: Vec<FaultCallback>,
 }
@@ -200,6 +201,7 @@ impl FaultInjectionSystem {
             active_faults: HashMap::new(),
             enabled: false, // Disabled by default for safety
             start_time: Instant::now(),
+            pending_faults: Vec::new(),
             fault_callbacks: Vec::new(),
             recovery_callbacks: Vec::new(),
         }
@@ -286,6 +288,7 @@ impl FaultInjectionSystem {
         state.trigger_time = Some(Instant::now());
         self.active_faults
             .insert(state.scenario.fault_type, name.to_string());
+        self.pending_faults.push(state.scenario.fault_type);
 
         // Notify callbacks
         for callback in &self.fault_callbacks {
@@ -340,6 +343,10 @@ impl FaultInjectionSystem {
 
         let mut new_faults = Vec::new();
         let mut recovered_faults = Vec::new();
+
+        if !self.pending_faults.is_empty() {
+            new_faults.extend(self.pending_faults.drain(..));
+        }
 
         // Check all scenarios
         for (name, state) in self.scenarios.iter_mut() {

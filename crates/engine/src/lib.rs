@@ -7,10 +7,15 @@
 #![deny(unused_must_use)]
 #![deny(clippy::unwrap_used)]
 
-#[cfg(feature = "rt-allocator")]
+#[cfg(all(not(test), feature = "rt-allocator"))]
 use mimalloc::MiMalloc;
 
-#[cfg(feature = "rt-allocator")]
+#[cfg(test)]
+#[global_allocator]
+static GLOBAL: crate::allocation_tracker::TrackingAllocator =
+    crate::allocation_tracker::TrackingAllocator;
+
+#[cfg(all(not(test), feature = "rt-allocator"))]
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 

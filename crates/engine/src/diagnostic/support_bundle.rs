@@ -144,11 +144,24 @@ impl SupportBundle {
 
     /// Add health events to bundle
     pub fn add_health_events(&mut self, events: &[HealthEvent]) -> Result<(), String> {
-        self.health_events.extend_from_slice(events);
+        // Estimate size based on serialized payload
+        let mut estimated_size = 0u64;
+        for event in events {
+            let bytes = serde_json::to_vec(event)
+                .map_err(|e| format!("Failed to serialize health event: {}", e))?;
+            estimated_size = estimated_size.saturating_add(bytes.len() as u64);
+        }
 
-        // Estimate size (rough approximation)
-        let estimated_size = events.len() * 1024; // ~1KB per event
-        self.current_size_bytes += estimated_size as u64;
+        if self.current_size_bytes.saturating_add(estimated_size) > self.max_size_bytes() {
+            return Err(format!(
+                "Bundle size limit exceeded: {} MB > {} MB",
+                (self.current_size_bytes + estimated_size) / 1024 / 1024,
+                self.config.max_bundle_size_mb
+            ));
+        }
+
+        self.health_events.extend_from_slice(events);
+        self.current_size_bytes += estimated_size;
 
         self.check_size_limit()?;
         Ok(())
@@ -429,7 +442,7 @@ impl SupportBundle {
 
             if path.is_file()
                 && let Some(extension) = path.extension()
-                && (extension == "log" || extension == "txt")
+                && extension == "log"
             {
                 log_files.push(path);
             }

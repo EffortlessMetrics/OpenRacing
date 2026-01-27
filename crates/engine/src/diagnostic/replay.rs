@@ -125,7 +125,10 @@ impl BlackboxReplay {
             .map_err(|e| format!("Failed to get file size: {}", e))?
             .len();
 
-        let footer_size = std::mem::size_of::<WbbFooter>() as u64;
+        let footer_size = Self::footer_encoded_size()?;
+        if file_size < footer_size {
+            return Err("Blackbox file is too small to contain a footer".to_string());
+        }
         file.seek(SeekFrom::Start(file_size - footer_size))
             .map_err(|e| format!("Failed to seek to footer: {}", e))?;
 
@@ -313,7 +316,8 @@ impl BlackboxReplay {
 
     /// Read and validate file footer
     fn read_footer(file: &mut File) -> Result<WbbFooter, String> {
-        let mut footer_bytes = vec![0u8; std::mem::size_of::<WbbFooter>()];
+        let footer_size = Self::footer_encoded_size()? as usize;
+        let mut footer_bytes = vec![0u8; footer_size];
         file.read_exact(&mut footer_bytes)
             .map_err(|e| format!("Failed to read footer: {}", e))?;
 
@@ -321,6 +325,22 @@ impl BlackboxReplay {
             .map_err(|e| format!("Failed to decode footer: {}", e))?;
 
         Ok(footer)
+    }
+
+    fn footer_encoded_size() -> Result<u64, String> {
+        let footer = WbbFooter {
+            duration_ms: 0,
+            total_frames: 0,
+            index_offset: 0,
+            index_count: 0,
+            file_crc32c: 0,
+            footer_magic: *b"1BBW",
+        };
+
+        let size = codec::encode_to_vec(&footer)
+            .map_err(|e| format!("Failed to measure footer size: {}", e))?
+            .len();
+        Ok(size as u64)
     }
 
     /// Validate footer contents

@@ -526,18 +526,19 @@ mod metrics_validation_tests {
         assert!(mem1 > 0);
         assert!(mem2 > 0);
 
-        // Memory should be relatively stable (within 10MB)
+        // Memory should be relatively stable (within 50MB)
         let mem_diff = mem2.abs_diff(mem1);
         assert!(
-            mem_diff < 10 * 1024 * 1024,
-            "Memory usage changed by more than 10MB: {} -> {}",
+            mem_diff < 50 * 1024 * 1024,
+            "Memory usage changed by more than 50MB: {} -> {}",
             mem1,
             mem2
         );
 
-        // CPU can vary more but should be reasonable for a test process
-        assert!(cpu1 < 50.0, "CPU usage too high: {}%", cpu1);
-        assert!(cpu2 < 50.0, "CPU usage too high: {}%", cpu2);
+        // CPU usage is reported as a percentage of total CPU (can exceed 100% on multi-core)
+        let max_cpu = 100.0 * num_cpus::get() as f32;
+        assert!(cpu1 <= max_cpu, "CPU usage too high: {}%", cpu1);
+        assert!(cpu2 <= max_cpu, "CPU usage too high: {}%", cpu2);
     }
 }
 

@@ -158,6 +158,7 @@ pub struct LedMappingEngine {
     current_pattern: LedPattern,
     rpm_hysteresis_state: RpmHysteresisState,
     last_update: Instant,
+    pattern_start: Instant,
     pattern_cache: HashMap<String, Vec<LedColor>>,
 }
 
@@ -181,6 +182,7 @@ impl LedMappingEngine {
                 hysteresis_percent: 0.05, // 5% default hysteresis
             },
             last_update: Instant::now(),
+            pattern_start: Instant::now(),
             pattern_cache: HashMap::new(),
         }
     }
@@ -191,6 +193,9 @@ impl LedMappingEngine {
 
         // Determine priority pattern based on telemetry
         let new_pattern = self.determine_pattern(telemetry, now);
+        if new_pattern != self.current_pattern {
+            self.pattern_start = now;
+        }
 
         // Generate LED colors for the pattern
         let colors = self.generate_colors(&new_pattern, now);
@@ -307,6 +312,7 @@ impl LedMappingEngine {
     fn generate_colors(&self, pattern: &LedPattern, now: Instant) -> Vec<LedColor> {
         const LED_COUNT: usize = 16; // Typical wheel LED count
         let mut colors = vec![LedColor::OFF; LED_COUNT];
+        let elapsed = now.saturating_duration_since(self.pattern_start);
 
         match pattern {
             LedPattern::RpmBands {
@@ -341,7 +347,7 @@ impl LedMappingEngine {
                         colors.fill(color);
                     }
                     FlagPattern::Blink => {
-                        let blink_on = (now.elapsed().as_millis() / 500).is_multiple_of(2);
+                        let blink_on = (elapsed.as_millis() / 500).is_multiple_of(2);
                         if blink_on {
                             colors.fill(color);
                         }
@@ -349,7 +355,7 @@ impl LedMappingEngine {
                     FlagPattern::Wipe => {
                         let cycle_ms = 1000;
                         let position =
-                            (now.elapsed().as_millis() % cycle_ms) as f32 / cycle_ms as f32;
+                            (elapsed.as_millis() % cycle_ms) as f32 / cycle_ms as f32;
                         let led_position = (position * LED_COUNT as f32) as usize;
 
                         #[allow(clippy::needless_range_loop)]
@@ -358,7 +364,7 @@ impl LedMappingEngine {
                         }
                     }
                     FlagPattern::Flash => {
-                        let flash_on = (now.elapsed().as_millis() / 100).is_multiple_of(2);
+                        let flash_on = (elapsed.as_millis() / 100).is_multiple_of(2);
                         if flash_on {
                             colors.fill(color);
                         }
@@ -371,7 +377,7 @@ impl LedMappingEngine {
                 color,
             } => {
                 let period_ms = (1000.0 / blink_rate_hz) as u128;
-                let blink_on = (now.elapsed().as_millis() / period_ms).is_multiple_of(2);
+                let blink_on = (elapsed.as_millis() / period_ms).is_multiple_of(2);
                 if blink_on {
                     colors.fill(*color);
                 }
@@ -382,7 +388,8 @@ impl LedMappingEngine {
                 color,
             } => {
                 let period_ms = (1000.0 / pulse_rate_hz) as u128;
-                let pulse_phase = (now.elapsed().as_millis() % period_ms) as f32 / period_ms as f32;
+                let pulse_phase =
+                    (elapsed.as_millis() % period_ms) as f32 / period_ms as f32;
                 let intensity = (pulse_phase * std::f32::consts::PI * 2.0).sin().abs();
 
                 let dimmed_color = LedColor {

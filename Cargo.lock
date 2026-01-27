@@ -4838,6 +4838,7 @@ dependencies = [
  "libudev",
  "metrics",
  "mimalloc",
+ "num_cpus",
  "parking_lot",
  "prometheus",
  "quickcheck",

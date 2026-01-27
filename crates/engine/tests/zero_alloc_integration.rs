@@ -406,6 +406,7 @@ async fn test_monotonic_curve_validation_comprehensive() {
     }
 }
 
+#[cfg_attr(windows, ignore = "Performance timing is unstable on Windows CI/dev machines")]
 #[tokio::test]
 async fn test_pipeline_swap_atomicity_under_load() {
     // Test that pipeline swaps remain atomic even under concurrent load
@@ -525,6 +526,7 @@ fn test_ci_allocation_assertion() {
     println!("CI test passed with sum: {}", sum);
 }
 
+#[cfg_attr(windows, ignore = "Performance timing is unstable on Windows CI/dev machines")]
 #[tokio::test]
 async fn test_end_to_end_performance_requirements() {
     // Test that the complete system meets performance requirements

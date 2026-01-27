@@ -5,8 +5,8 @@
 
 use racing_wheel_engine::{ProfileHierarchyPolicy, SafetyPolicy, SafetyViolation};
 use racing_wheel_schemas::prelude::{
-    BaseSettings, Degrees, Device, DeviceCapabilities, DeviceId, DeviceType, FilterConfig, Gain,
-    Profile, ProfileId, ProfileScope, TorqueNm,
+    BaseSettings, Degrees, Device, DeviceCapabilities, DeviceId, DeviceState, DeviceType,
+    FilterConfig, Gain, Profile, ProfileId, ProfileScope, TorqueNm,
 };
 use std::time::Duration;
 
@@ -62,12 +62,14 @@ fn create_arbitrary_device(max_torque: TorqueNm) -> Device {
     let id = must(DeviceId::new("test-device".to_string()));
     let capabilities = DeviceCapabilities::new(false, true, true, true, max_torque, 10000, 1000);
 
-    Device::new(
+    let mut device = Device::new(
         id,
         "Test Wheel".to_string(),
         DeviceType::WheelBase,
         capabilities,
-    )
+    );
+    device.set_state(DeviceState::Active);
+    device
 }
 
 /// Create a test profile with arbitrary settings
@@ -130,8 +132,11 @@ fn prop_safety_policy_high_torque_requires_operational_device(
         temperature,
     );
 
-    // Should always fail for faulted device
-    TestResult::from_bool(matches!(result, Err(SafetyViolation::ActiveFaults(_))))
+    // Faulted devices are considered non-operational by policy
+    TestResult::from_bool(matches!(
+        result,
+        Err(SafetyViolation::DeviceNotOperational(_))
+    ))
 }
 
 #[quickcheck]

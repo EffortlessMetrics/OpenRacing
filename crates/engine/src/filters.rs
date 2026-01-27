@@ -648,9 +648,8 @@ mod tests {
         bumpstop_filter(&mut frame_normal, state_ptr);
         let initial_torque = frame_normal.torque_out;
 
-        // Simulate reaching bumpstop by setting high angle
-        // Use non-zero wheel speed to integrate to the target angle
-        let mut frame_bumpstop = create_test_frame(0.0, 500.0); // High wheel speed to reach bumpstop
+        // Simulate reaching bumpstop by using a large wheel speed
+        let mut frame_bumpstop = create_test_frame(0.0, 500_000.0);
         bumpstop_filter(&mut frame_bumpstop, state_ptr);
 
         // Should add opposing torque at bumpstop

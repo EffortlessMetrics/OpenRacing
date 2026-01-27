@@ -840,7 +840,8 @@ mod tests {
         assert!(invalid_config_result.is_err());
 
         // For the compiler test, use a valid config that will fail compilation validation
-        let invalid_config = create_test_filter_config();
+        let mut invalid_config = create_test_filter_config();
+        invalid_config.reconstruction = 10;
 
         let result = compiler.compile_pipeline(invalid_config).await;
         assert!(result.is_err());
@@ -989,6 +990,7 @@ mod tests {
         assert!((frame.torque_out - 0.1).abs() < 0.01);
 
         // Apply again - should continue ramping
+        frame.torque_out = 1.0;
         slew_rate_filter(&mut frame, state_ptr);
         assert!((frame.torque_out - 0.2).abs() < 0.01);
     }
