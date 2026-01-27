@@ -426,7 +426,7 @@ mod tests {
             .get_profile_statistics()
             .await
             .expect("Profile service should work without devices");
-        assert!(profile_stats.total_profiles >= 0);
+        assert!(profile_stats.total_profiles >= profile_stats.active_profiles);
 
         // Test with telemetry unavailable
         // TODO: Re-enable when game_service is implemented

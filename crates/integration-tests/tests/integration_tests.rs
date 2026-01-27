@@ -188,7 +188,7 @@ async fn test_device_fixtures() -> Result<()> {
     for fixture in fixtures {
         // Validate fixture data
         assert!(!fixture.name.is_empty());
-        assert!(fixture.capabilities.max_torque_cnm > 0);
+        assert!(fixture.capabilities.max_torque.value() > 0.0);
         assert!(fixture.capabilities.encoder_cpr > 0);
         assert!(!fixture.telemetry_data.samples.is_empty());
     }

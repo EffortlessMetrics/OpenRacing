@@ -698,7 +698,7 @@ mod tests {
     use super::*;
     use ed25519_dalek::SigningKey;
     use racing_wheel_schemas::prelude::{Degrees, Gain, TorqueNm};
-    use rand::rngs::OsRng;
+    use rand_core::OsRng;
     use tempfile::TempDir;
 
     async fn create_test_repository() -> (ProfileRepository, TempDir) {

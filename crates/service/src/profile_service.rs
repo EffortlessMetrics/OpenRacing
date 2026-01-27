@@ -303,7 +303,7 @@ mod tests {
         TorqueNm,
     };
     use racing_wheel_schemas::prelude::TorqueNm as DeviceTorqueNm;
-    use rand::rngs::OsRng;
+    use rand_core::OsRng;
     use tempfile::TempDir;
 
     async fn create_test_service() -> (ProfileService, TempDir) {

@@ -99,7 +99,7 @@ mod tests {
              let capabilities = DeviceCapabilities::new(
                 true, true, true, true, 
                 TorqueNm::new(20.0).unwrap(), 
-                65536, 1000
+                65_535, 1000
             );
 
             let apply_result = service
@@ -189,10 +189,11 @@ mod tests {
 
         // Add some data and check statistics change
         let device_id: DeviceId = "stats-test-device".parse().expect("valid device id");
-        service
+        let register_result = service
             .safety_service()
             .register_device(device_id, TorqueNm::new(10.0).expect("valid torque"))
             .await;
+        assert!(register_result.is_ok(), "Device registration should succeed");
 
         let updated_safety_stats = service.safety_service().get_statistics().await;
         assert_eq!(updated_safety_stats.total_devices, 1);

@@ -5,7 +5,7 @@ mod tests {
     use super::super::profile_repository::*;
     use ed25519_dalek::SigningKey;
     use racing_wheel_schemas::prelude::{BaseSettings, Degrees, FilterConfig, Gain, Profile, ProfileId, ProfileScope, TorqueNm};
-    use rand::rngs::OsRng;
+    use rand_core::OsRng;
     use tempfile::TempDir;
 
     async fn create_test_repository() -> (ProfileRepository, TempDir) {

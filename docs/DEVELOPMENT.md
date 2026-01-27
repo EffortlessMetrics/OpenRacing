@@ -176,3 +176,34 @@ All safety-critical code must follow these guidelines:
 - `deny.toml`: Dependency and license configuration
 - `clippy.toml`: Linting configuration
 - `rustfmt.toml`: Code formatting configuration
+
+## WSL + Nix CI Runner (Windows)
+
+If you want to run the Linux CI-equivalent checks from Windows without moving the
+repo into WSL, use the WSL wrapper script. It maps the Windows path into WSL and
+executes the Nix dev shell before running the CI script.
+
+Prereqs:
+- A WSL distro with Nix installed
+- Nix flakes enabled (for `flake.nix`)
+
+Run from PowerShell in the repo root:
+```powershell
+scripts/ci_wsl.ps1
+```
+
+Pass options through to the Linux runner:
+```powershell
+scripts/ci_wsl.ps1 -- --skip-performance --allow-dirty
+```
+
+Select a specific WSL distro (optional):
+```powershell
+$env:OPENRACING_WSL_DISTRO = "Ubuntu-22.04"
+scripts/ci_wsl.ps1
+```
+
+On Linux (or inside WSL), you can run the CI script directly:
+```bash
+scripts/ci_nix.sh
+```
