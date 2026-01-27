@@ -3,6 +3,50 @@
 //! This module provides a convenient way to import the most commonly used
 //! types from the racing wheel engine.
 
+use std::sync::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+
+/// Extension trait for Mutex that provides panic-on-poison locking.
+///
+/// This is used to avoid `unwrap()` calls on mutex locks while still panicking
+/// on poisoned mutexes (which indicate a previous thread panic - a fatal error).
+pub trait MutexExt<T> {
+    /// Lock the mutex, panicking if it was poisoned.
+    fn lock_or_panic(&self) -> MutexGuard<'_, T>;
+}
+
+impl<T> MutexExt<T> for Mutex<T> {
+    fn lock_or_panic(&self) -> MutexGuard<'_, T> {
+        match self.lock() {
+            Ok(g) => g,
+            Err(e) => panic!("mutex poisoned: {e}"),
+        }
+    }
+}
+
+/// Extension trait for RwLock that provides panic-on-poison locking.
+pub trait RwLockExt<T> {
+    /// Read-lock the RwLock, panicking if it was poisoned.
+    fn read_or_panic(&self) -> RwLockReadGuard<'_, T>;
+    /// Write-lock the RwLock, panicking if it was poisoned.
+    fn write_or_panic(&self) -> RwLockWriteGuard<'_, T>;
+}
+
+impl<T> RwLockExt<T> for RwLock<T> {
+    fn read_or_panic(&self) -> RwLockReadGuard<'_, T> {
+        match self.read() {
+            Ok(g) => g,
+            Err(e) => panic!("rwlock poisoned (read): {e}"),
+        }
+    }
+
+    fn write_or_panic(&self) -> RwLockWriteGuard<'_, T> {
+        match self.write() {
+            Ok(g) => g,
+            Err(e) => panic!("rwlock poisoned (write): {e}"),
+        }
+    }
+}
+
 // Core RT types (canonical exports)
 pub use crate::rt::{FFBMode, Frame, PerformanceMetrics, RTError, RTResult};
 

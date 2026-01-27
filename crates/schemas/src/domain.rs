@@ -66,11 +66,6 @@ impl TorqueNm {
 
     /// Zero torque constant
     pub const ZERO: TorqueNm = TorqueNm(0.0);
-
-    /// Create torque value without validation (for constants)
-    pub const fn from_raw(value: f32) -> Self {
-        TorqueNm(value)
-    }
 }
 
 impl fmt::Display for TorqueNm {
@@ -204,11 +199,6 @@ impl Degrees {
 
     /// Zero degrees constant
     pub const ZERO: Degrees = Degrees(0.0);
-
-    /// Create degrees value without validation (for constants)
-    pub const fn from_raw(value: f32) -> Self {
-        Degrees(value)
-    }
 }
 
 impl fmt::Display for Degrees {
@@ -410,11 +400,6 @@ impl Gain {
 
     /// Full gain constant
     pub const FULL: Gain = Gain(1.0);
-
-    /// Create gain value without validation (for constants)
-    pub const fn from_raw(value: f32) -> Self {
-        Gain(value)
-    }
 }
 
 impl fmt::Display for Gain {
@@ -455,11 +440,6 @@ impl FrequencyHz {
     /// Get the raw value in Hz
     pub fn value(self) -> f32 {
         self.0
-    }
-
-    /// Create frequency value without validation (for constants)
-    pub const fn from_raw(value: f32) -> Self {
-        FrequencyHz(value)
     }
 }
 
@@ -526,6 +506,15 @@ pub fn validate_curve_monotonic(points: &[CurvePoint]) -> Result<(), DomainError
 mod tests {
     use super::*;
 
+    /// Helper function to unwrap Result values in tests
+    /// Panics with a descriptive message if the Result is Err
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("must() failed: {:?}", e),
+        }
+    }
+
     #[test]
     fn test_torque_nm_validation() {
         // Valid torque values
@@ -542,8 +531,8 @@ mod tests {
 
     #[test]
     fn test_torque_nm_operations() {
-        let t1 = TorqueNm::new(10.0).unwrap();
-        let t2 = TorqueNm::new(15.0).unwrap();
+        let t1 = must(TorqueNm::new(10.0));
+        let t2 = must(TorqueNm::new(15.0));
 
         // Addition with clamping
         let sum = t1 + t2;
@@ -558,18 +547,18 @@ mod tests {
         assert_eq!(scaled.value(), 20.0);
 
         // Test clamping at max
-        let large = TorqueNm::new(40.0).unwrap();
-        let clamped = large + TorqueNm::new(20.0).unwrap();
+        let large = must(TorqueNm::new(40.0));
+        let clamped = large + must(TorqueNm::new(20.0));
         assert_eq!(clamped.value(), TorqueNm::MAX_TORQUE);
     }
 
     #[test]
     fn test_torque_nm_cnm_conversion() {
-        let torque = TorqueNm::new(12.34).unwrap();
+        let torque = must(TorqueNm::new(12.34));
         let cnm = torque.to_cnm();
         assert_eq!(cnm, 1234);
 
-        let back = TorqueNm::from_cnm(cnm).unwrap();
+        let back = must(TorqueNm::from_cnm(cnm));
         assert!((back.value() - 12.34).abs() < 0.01);
     }
 
@@ -595,8 +584,8 @@ mod tests {
 
     #[test]
     fn test_degrees_operations() {
-        let d1 = Degrees::new_angle(45.0).unwrap();
-        let d2 = Degrees::new_angle(90.0).unwrap();
+        let d1 = must(Degrees::new_angle(45.0));
+        let d2 = must(Degrees::new_angle(90.0));
 
         let sum = d1 + d2;
         assert_eq!(sum.value(), 135.0);
@@ -607,18 +596,18 @@ mod tests {
 
     #[test]
     fn test_degrees_normalization() {
-        let d1 = Degrees::new_angle(270.0).unwrap();
+        let d1 = must(Degrees::new_angle(270.0));
         let normalized = d1.normalize();
         assert_eq!(normalized.value(), -90.0);
 
-        let d2 = Degrees::new_angle(-270.0).unwrap();
+        let d2 = must(Degrees::new_angle(-270.0));
         let normalized2 = d2.normalize();
         assert_eq!(normalized2.value(), 90.0);
     }
 
     #[test]
     fn test_degrees_millidegrees_conversion() {
-        let degrees = Degrees::new_angle(123.456).unwrap();
+        let degrees = must(Degrees::new_angle(123.456));
         let mdeg = degrees.to_millidegrees();
         assert_eq!(mdeg, 123456);
 
@@ -634,10 +623,10 @@ mod tests {
         assert!("ABC123".parse::<DeviceId>().is_ok());
 
         // Test normalization (trim and lowercase)
-        let id = "  Device-123  ".parse::<DeviceId>().unwrap();
+        let id = must("  Device-123  ".parse::<DeviceId>());
         assert_eq!(id.as_str(), "device-123");
 
-        let id2 = "WHEEL_BASE_1".parse::<DeviceId>().unwrap();
+        let id2 = must("WHEEL_BASE_1".parse::<DeviceId>());
         assert_eq!(id2.as_str(), "wheel_base_1");
 
         // Invalid device IDs
@@ -650,11 +639,11 @@ mod tests {
     #[test]
     fn test_device_id_try_from() {
         // Test TryFrom<String>
-        let id = DeviceId::try_from("test-device".to_string()).unwrap();
+        let id = must(DeviceId::try_from("test-device".to_string()));
         assert_eq!(id.as_str(), "test-device");
 
         // Test TryFrom<&str>
-        let id2 = DeviceId::try_from("another-device").unwrap();
+        let id2 = must(DeviceId::try_from("another-device"));
         assert_eq!(id2.as_str(), "another-device");
 
         // Test AsRef<str>
@@ -672,10 +661,10 @@ mod tests {
         assert!("profile-123_v2".parse::<ProfileId>().is_ok());
 
         // Test normalization (trim and lowercase)
-        let id = "  Global-Profile  ".parse::<ProfileId>().unwrap();
+        let id = must("  Global-Profile  ".parse::<ProfileId>());
         assert_eq!(id.as_str(), "global-profile");
 
-        let id2 = "IRACING.GT3".parse::<ProfileId>().unwrap();
+        let id2 = must("IRACING.GT3".parse::<ProfileId>());
         assert_eq!(id2.as_str(), "iracing.gt3");
 
         // Invalid profile IDs
@@ -688,11 +677,11 @@ mod tests {
     #[test]
     fn test_profile_id_try_from() {
         // Test TryFrom<String>
-        let id = ProfileId::try_from("test-profile".to_string()).unwrap();
+        let id = must(ProfileId::try_from("test-profile".to_string()));
         assert_eq!(id.as_str(), "test-profile");
 
         // Test TryFrom<&str>
-        let id2 = ProfileId::try_from("another.profile").unwrap();
+        let id2 = must(ProfileId::try_from("another.profile"));
         assert_eq!(id2.as_str(), "another.profile");
 
         // Test AsRef<str>
@@ -717,7 +706,7 @@ mod tests {
 
     #[test]
     fn test_gain_operations() {
-        let gain = Gain::new(0.8).unwrap();
+        let gain = must(Gain::new(0.8));
 
         let result1 = gain * 100.0;
         assert_eq!(result1, 80.0);
@@ -756,17 +745,17 @@ mod tests {
     fn test_curve_monotonic_validation() {
         // Valid monotonic curve
         let points = vec![
-            CurvePoint::new(0.0, 0.0).unwrap(),
-            CurvePoint::new(0.5, 0.6).unwrap(),
-            CurvePoint::new(1.0, 1.0).unwrap(),
+            must(CurvePoint::new(0.0, 0.0)),
+            must(CurvePoint::new(0.5, 0.6)),
+            must(CurvePoint::new(1.0, 1.0)),
         ];
         assert!(validate_curve_monotonic(&points).is_ok());
 
         // Invalid non-monotonic curve
         let bad_points = vec![
-            CurvePoint::new(0.0, 0.0).unwrap(),
-            CurvePoint::new(0.7, 0.6).unwrap(),
-            CurvePoint::new(0.5, 1.0).unwrap(), // Input goes backwards
+            must(CurvePoint::new(0.0, 0.0)),
+            must(CurvePoint::new(0.7, 0.6)),
+            must(CurvePoint::new(0.5, 1.0)), // Input goes backwards
         ];
         assert!(validate_curve_monotonic(&bad_points).is_err());
 

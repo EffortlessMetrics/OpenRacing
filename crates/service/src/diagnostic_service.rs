@@ -380,8 +380,11 @@ impl DiagnosticTest for RealtimeCapabilityTest {
 
     async fn run(&self, _system_info: &SystemInfo) -> Result<DiagnosticResult> {
         let mut metadata = HashMap::new();
+        #[allow(unused_mut)]
         let mut suggested_actions = Vec::new();
+        #[allow(unused_mut)]
         let mut status = DiagnosticStatus::Pass;
+        #[allow(unused_mut)]
         let mut message = "Real-time capabilities available".to_string();
 
         #[cfg(target_os = "linux")]

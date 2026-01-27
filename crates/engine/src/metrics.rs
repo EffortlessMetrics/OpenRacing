@@ -334,6 +334,12 @@ pub struct AtomicCounters {
     pub hid_write_errors: AtomicU64,
 }
 
+impl Default for AtomicCounters {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AtomicCounters {
     pub fn new() -> Self {
         Self {
@@ -486,6 +492,7 @@ impl HealthEventStreamer {
     }
 
     /// Emit a health event
+    #[allow(clippy::result_large_err)]
     pub fn emit(&self, event: HealthEvent) -> Result<(), broadcast::error::SendError<HealthEvent>> {
         self.sender.send(event).map(|_| ())
     }
@@ -798,6 +805,12 @@ pub struct SystemMonitor {
     process_pid: sysinfo::Pid,
 }
 
+impl Default for SystemMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SystemMonitor {
     pub fn new() -> Self {
         let mut system = sysinfo::System::new();
@@ -947,6 +960,7 @@ impl MetricsValidator {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use std::time::Duration;

@@ -182,7 +182,7 @@ impl AdaptiveRateLimiter {
 mod tests {
     use super::*;
     use std::time::Duration;
-    use tokio::time::{Instant, sleep};
+    use tokio::time::Instant;
 
     #[test]
     fn test_rate_limiter_creation() {

@@ -2,6 +2,7 @@
 //!
 //! This module provides allocation tracking capabilities to ensure
 //! the RT path remains zero-allocation after pipeline compilation.
+#![allow(dead_code)]
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -45,6 +46,12 @@ unsafe impl GlobalAlloc for TrackingAllocator {
 pub struct AllocationGuard {
     start_count: usize,
     start_bytes: usize,
+}
+
+impl Default for AllocationGuard {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AllocationGuard {

@@ -256,9 +256,18 @@ impl DiagnosticService {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
 
     fn create_test_config() -> (DiagnosticConfig, TempDir) {
         let temp_dir = TempDir::new().unwrap();
@@ -289,9 +298,9 @@ mod tests {
     #[test]
     fn test_recording_lifecycle() {
         let (config, _temp_dir) = create_test_config();
-        let mut service = DiagnosticService::new(config).unwrap();
+        let mut service = must(DiagnosticService::new(config));
 
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
 
         // Start recording
         let result = service.start_recording(device_id.clone());
@@ -311,9 +320,9 @@ mod tests {
     #[test]
     fn test_health_event_recording() {
         let (config, _temp_dir) = create_test_config();
-        let mut service = DiagnosticService::new(config).unwrap();
+        let mut service = must(DiagnosticService::new(config));
 
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let event = HealthEvent {
             timestamp: SystemTime::now(),
             device_id,
@@ -330,9 +339,9 @@ mod tests {
     #[test]
     fn test_frame_recording() {
         let (config, _temp_dir) = create_test_config();
-        let mut service = DiagnosticService::new(config).unwrap();
+        let mut service = must(DiagnosticService::new(config));
 
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         service.start_recording(device_id).unwrap();
 
         let frame = Frame {
@@ -358,10 +367,10 @@ mod tests {
     #[test]
     fn test_support_bundle_generation() {
         let (config, temp_dir) = create_test_config();
-        let mut service = DiagnosticService::new(config).unwrap();
+        let mut service = must(DiagnosticService::new(config));
 
         // Add some health events
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         for i in 0..5 {
             let event = HealthEvent {
                 timestamp: SystemTime::now(),
@@ -386,8 +395,8 @@ mod tests {
         let (mut config, _temp_dir) = create_test_config();
         config.enable_recording = false;
 
-        let mut service = DiagnosticService::new(config).unwrap();
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let mut service = must(DiagnosticService::new(config));
+        let device_id = must("test-device".parse::<DeviceId>());
 
         let result = service.start_recording(device_id);
         assert!(result.is_err());

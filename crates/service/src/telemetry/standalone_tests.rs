@@ -8,6 +8,14 @@ mod tests {
     use std::time::Duration;
     use tempfile::tempdir;
 
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
     #[test]
     fn test_normalized_telemetry_creation() {
         let telemetry = NormalizedTelemetry::new()
@@ -55,10 +63,10 @@ mod tests {
 
     #[test]
     fn test_telemetry_recording() {
-        let temp_dir = tempdir().unwrap();
+        let temp_dir = must(tempdir());
         let output_path = temp_dir.path().join("test_recording.json");
         
-        let mut recorder = TelemetryRecorder::new(output_path.clone()).unwrap();
+        let mut recorder = must(TelemetryRecorder::new(output_path.clone()));
         
         // Start recording
         recorder.start_recording("test_game".to_string());
@@ -72,7 +80,7 @@ mod tests {
         assert_eq!(recorder.frame_count(), 1);
         
         // Stop recording
-        let recording = recorder.stop_recording(Some("Test recording".to_string())).unwrap();
+        let recording = must(recorder.stop_recording(Some("Test recording".to_string())));
         assert!(!recorder.is_recording());
         assert_eq!(recording.frames.len(), 1);
         assert_eq!(recording.metadata.game_id, "test_game");
@@ -129,15 +137,15 @@ mod tests {
         adapter.set_running(true);
         
         assert_eq!(adapter.game_id(), "test_game");
-        assert!(adapter.is_game_running().await.unwrap());
+        assert!(must(adapter.is_game_running().await));
         
-        let mut receiver = adapter.start_monitoring().await.unwrap();
+        let mut receiver = must(adapter.start_monitoring().await);
         
         // Should receive telemetry frames
         let frame = tokio::time::timeout(
             Duration::from_millis(100),
             receiver.recv()
-        ).await.unwrap().unwrap();
+        ).await;
         
         assert!(frame.data.rpm.is_some());
         assert!(frame.data.speed_ms.is_some());
@@ -232,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_complete_telemetry_pipeline() {
-        let temp_dir = tempdir().unwrap();
+        let temp_dir = must(tempdir());
         let recording_path = temp_dir.path().join("pipeline_test.json");
         
         // Create a synthetic recording
@@ -243,17 +251,17 @@ mod tests {
         );
         
         // Save the recording
-        let mut recorder = TelemetryRecorder::new(recording_path.clone()).unwrap();
+        let mut recorder = must(TelemetryRecorder::new(recording_path.clone()));
         recorder.start_recording("test_game".to_string());
         
         for frame in &recording.frames {
             recorder.record_frame(frame.clone());
         }
         
-        recorder.stop_recording(Some("Pipeline test".to_string())).unwrap();
+        must(recorder.stop_recording(Some("Pipeline test".to_string())));
         
         // Load and replay the recording
-        let loaded_recording = TelemetryRecorder::load_recording(&recording_path).unwrap();
+        let loaded_recording = must(TelemetryRecorder::load_recording(&recording_path));
         let mut player = TelemetryPlayer::new(loaded_recording);
         
         player.start_playback();

@@ -116,7 +116,7 @@ impl TwoPhaseApplyCoordinator {
     pub fn new(initial_pipeline: Pipeline) -> Self {
         Self {
             compiler: PipelineCompiler::new(),
-            merge_engine: ProfileMergeEngine::default(),
+            merge_engine: ProfileMergeEngine::new(),
             active_pipeline: Arc::new(RwLock::new(initial_pipeline)),
             pending_applies: Arc::new(Mutex::new(Vec::new())),
             stats: Arc::new(Mutex::new(ApplyStats::default())),
@@ -350,12 +350,21 @@ impl Default for ApplyStats {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
     fn create_test_profile(id: &str, scope: ProfileScope) -> Profile {
         Profile::new(
-            ProfileId::new(id.to_string()).unwrap(),
+            must(id.parse::<ProfileId>()),
             scope,
             BaseSettings::default(),
             format!("Test Profile {}", id),
@@ -397,7 +406,7 @@ mod tests {
             create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
 
         // Modify game profile
-        game_profile.base_settings.ffb_gain = Gain::new(0.8).unwrap();
+        game_profile.base_settings.ffb_gain = must(Gain::new(0.8));
 
         // Start apply operation
         let result_rx = coordinator
@@ -424,9 +433,9 @@ mod tests {
 
         let global_profile = create_test_profile("global", ProfileScope::global());
         let session_overrides = BaseSettings::new(
-            Gain::new(0.9).unwrap(),
-            Degrees::new_dor(540.0).unwrap(),
-            TorqueNm::new(20.0).unwrap(),
+            must(Gain::new(0.9)),
+            must(Degrees::new_dor(540.0)),
+            must(TorqueNm::new(20.0)),
             FilterConfig::default(),
         );
 
@@ -684,10 +693,8 @@ mod tests {
         let result = result_rx.await.unwrap();
 
         assert!(result.success);
-        // Duration might be 0 in fast tests, so just check it's not negative
-        assert!(result.duration_ms >= 0);
-        assert!(result.stats.swap_time_us >= 0);
-        assert!(result.stats.wait_time_ms >= 0);
+        // Duration and times are unsigned, so they're always >= 0
+        // These assertions are always true, so remove them
     }
 
     #[tokio::test]

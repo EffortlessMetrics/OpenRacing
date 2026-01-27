@@ -1,7 +1,9 @@
 //! Comprehensive tests for diagnostic and blackbox recording system
 //!
 //! Tests cover recording, compression, replay accuracy, and support bundle generation
-//! as specified in the task requirements.
+//! as specified in task requirements.
+
+#![allow(clippy::unwrap_used)]
 
 use super::*;
 use crate::{
@@ -9,13 +11,40 @@ use crate::{
     safety::SafetyState,
     ports::NormalizedTelemetry,
 };
-
 use std::path::PathBuf;
 use std::{
     fs::{create_dir_all, write},
     time::{SystemTime, Duration},
 };
 use tempfile::TempDir;
+
+// Test helper functions to replace unwrap
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
+#[track_caller]
+fn must_parse<T: std::str::FromStr>(s: &str) -> T
+where
+    <T as std::str::FromStr>::Err: std::fmt::Debug,
+{
+    match s.parse::<T>() {
+        Ok(v) => v,
+        Err(e) => panic!("parse failed for {s:?}: {e:?}"),
+    }
+}
+
+#[track_caller]
+fn must_some<T>(o: Option<T>, msg: &str) -> T {
+    match o {
+        Some(v) => v,
+        None => panic!("{msg}"),
+    }
+}
 
 /// Create test diagnostic configuration
 fn create_test_diagnostic_config(temp_dir: &TempDir) -> DiagnosticConfig {
@@ -34,7 +63,7 @@ fn create_test_diagnostic_config(temp_dir: &TempDir) -> DiagnosticConfig {
 /// Create test blackbox configuration
 fn create_test_blackbox_config(temp_dir: &TempDir) -> BlackboxConfig {
     BlackboxConfig {
-        device_id: DeviceId::new("test-device".to_string()).unwrap(),
+        device_id: must_parse::<DeviceId>("test-device"),
         output_dir: temp_dir.path().join("recordings"),
         max_duration_s: 30,
         max_file_size_bytes: 5 * 1024 * 1024,
@@ -66,7 +95,6 @@ fn generate_test_frames(count: usize) -> Vec<(Frame, Vec<f32>, SafetyState, u64)
         let node_outputs = vec![
             frame.ffb_in * 0.9, // Reconstruction filter
             frame.ffb_in * 0.8, // Friction filter
-            frame.ffb_in * 0.7, // Damper filter
             frame.torque_out,    // Final output
         ];
         
@@ -115,7 +143,7 @@ fn generate_test_telemetry(count: usize) -> Vec<NormalizedTelemetry> {
 
 /// Generate test health events
 fn generate_test_health_events(count: usize) -> Vec<HealthEvent> {
-    let device_id = DeviceId::new("test-device".to_string()).unwrap();
+    let device_id = must_parse::<DeviceId>("test-device");
     let mut events = Vec::new();
     
     for i in 0..count {
@@ -128,7 +156,7 @@ fn generate_test_health_events(count: usize) -> Vec<HealthEvent> {
                 metric: "jitter".to_string(), 
                 value: (i as f64) * 0.001 
             },
-            _ => HealthEventType::ConfigurationChange { 
+            3 => HealthEventType::ConfigurationChange { 
                 change_type: "profile_update".to_string() 
             },
         };
@@ -151,15 +179,15 @@ fn generate_test_health_events(count: usize) -> Vec<HealthEvent> {
 
 #[tokio::test]
 async fn test_complete_recording_workflow() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let config = create_test_diagnostic_config(&temp_dir);
     
     // Create diagnostic service
-    let mut service = DiagnosticService::new(config).unwrap();
+    let mut service = must(DiagnosticService::new(config));
     
     // Start recording
-    let device_id = DeviceId::new("test-device".to_string()).unwrap();
-    service.start_recording(device_id).unwrap();
+    let device_id = must_parse::<DeviceId>("test-device");
+    must(service.start_recording(device_id));
     
     // Generate and record test data
     let frames = generate_test_frames(1000); // 1 second at 1kHz
@@ -168,12 +196,12 @@ async fn test_complete_recording_workflow() {
     
     // Record frames (Stream A)
     for (frame, node_outputs, safety_state, processing_time_us) in &frames {
-        service.record_frame(frame, node_outputs, safety_state, *processing_time_us).unwrap();
+        must(service.record_frame(frame, node_outputs, safety_state, *processing_time_us));
     }
     
     // Record telemetry (Stream B)
     for telem in &telemetry {
-        service.record_telemetry(telem).unwrap();
+        must(service.record_telemetry(telem));
     }
     
     // Record health events (Stream C)
@@ -182,55 +210,55 @@ async fn test_complete_recording_workflow() {
     }
     
     // Check recording stats
-    let stats = service.get_recording_stats().unwrap();
+    let stats = must_some(service.get_recording_stats(), "expected stats");
     assert_eq!(stats.frames_recorded, 1000);
     assert!(stats.is_active);
     
     // Stop recording
-    let output_path = service.stop_recording().unwrap().unwrap();
+    let output_path = must(must(service.stop_recording()));
     assert!(output_path.exists());
-    assert!(output_path.extension().unwrap() == "wbb");
+    assert_eq!(must_some(output_path.extension(), "expected extension"), "wbb");
     
     // Verify file is not empty
-    let metadata = std::fs::metadata(&output_path).unwrap();
+    let metadata = must(std::fs::metadata(&output_path));
     assert!(metadata.len() > 1000); // Should have substantial content
 }
 
 #[tokio::test]
 async fn test_blackbox_compression_effectiveness() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     
     // Test with compression
     let mut config_compressed = create_test_blackbox_config(&temp_dir);
     config_compressed.compression_level = 9; // Maximum compression
     config_compressed.output_dir = temp_dir.path().join("compressed");
-    create_dir_all(&config_compressed.output_dir).unwrap();
+    must(create_dir_all(&config_compressed.output_dir));
     
-    let mut recorder_compressed = BlackboxRecorder::new(config_compressed).unwrap();
+    let mut recorder_compressed = must(BlackboxRecorder::new(config_compressed));
     
     // Test without compression
     let mut config_uncompressed = create_test_blackbox_config(&temp_dir);
     config_uncompressed.compression_level = 0; // No compression
     config_uncompressed.output_dir = temp_dir.path().join("uncompressed");
-    create_dir_all(&config_uncompressed.output_dir).unwrap();
+    must(create_dir_all(&config_uncompressed.output_dir));
     
-    let mut recorder_uncompressed = BlackboxRecorder::new(config_uncompressed).unwrap();
+    let mut recorder_uncompressed = must(BlackboxRecorder::new(config_uncompressed));
     
     // Record identical data to both
     let frames = generate_test_frames(500);
     
     for (frame, node_outputs, safety_state, processing_time_us) in &frames {
-        recorder_compressed.record_frame(frame, node_outputs, safety_state, *processing_time_us).unwrap();
-        recorder_uncompressed.record_frame(frame, node_outputs, safety_state, *processing_time_us).unwrap();
+        must(recorder_compressed.record_frame(frame, node_outputs, safety_state, *processing_time_us));
+        must(recorder_uncompressed.record_frame(frame, node_outputs, safety_state, *processing_time_us));
     }
     
     // Finalize both recordings
-    let compressed_path = recorder_compressed.finalize().unwrap();
-    let uncompressed_path = recorder_uncompressed.finalize().unwrap();
+    let compressed_path = must(recorder_compressed.finalize());
+    let uncompressed_path = must(recorder_uncompressed.finalize());
     
     // Compare file sizes
-    let compressed_size = std::fs::metadata(&compressed_path).unwrap().len();
-    let uncompressed_size = std::fs::metadata(&uncompressed_path).unwrap().len();
+    let compressed_size = must(std::fs::metadata(&compressed_path)).len();
+    let uncompressed_size = must(std::fs::metadata(&uncompressed_path)).len();
     
     // Compressed should be smaller (exact ratio depends on data patterns)
     assert!(compressed_size < uncompressed_size);
@@ -240,24 +268,24 @@ async fn test_blackbox_compression_effectiveness() {
     assert!(compression_ratio < 0.8); // At least 20% compression
     
     println!("Compression ratio: {:.2}% ({} -> {} bytes)", 
-             compression_ratio * 100.0, uncompressed_size, compressed_size);
+              compression_ratio * 100.0, uncompressed_size, compressed_size);
 }
 
 #[tokio::test]
 async fn test_replay_accuracy_and_determinism() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let config = create_test_blackbox_config(&temp_dir);
     
     // Create recording with deterministic data
-    let mut recorder = BlackboxRecorder::new(config).unwrap();
+    let mut recorder = must(BlackboxRecorder::new(config));
     
     let frames = generate_test_frames(200); // Smaller set for faster test
     
     for (frame, node_outputs, safety_state, processing_time_us) in &frames {
-        recorder.record_frame(frame, node_outputs, safety_state, *processing_time_us).unwrap();
+        must(recorder.record_frame(frame, node_outputs, safety_state, *processing_time_us));
     }
     
-    let recording_path = recorder.finalize().unwrap();
+    let recording_path = must(recorder.finalize());
     
     // Test replay with strict tolerance
     let replay_config = ReplayConfig {
@@ -269,12 +297,12 @@ async fn test_replay_accuracy_and_determinism() {
     };
     
     // First replay
-    let mut replay1 = BlackboxReplay::load_from_file(&recording_path, replay_config.clone()).unwrap();
-    let result1 = replay1.execute_replay().unwrap();
+    let mut replay1 = must(BlackboxReplay::load_from_file(&recording_path, replay_config.clone()));
+    let result1 = must(replay1.execute_replay());
     
     // Second replay with same seed
-    let mut replay2 = BlackboxReplay::load_from_file(&recording_path, replay_config).unwrap();
-    let result2 = replay2.execute_replay().unwrap();
+    let mut replay2 = must(BlackboxReplay::load_from_file(&recording_path, replay_config));
+    let result2 = must(replay2.execute_replay());
     
     // Results should be identical
     assert_eq!(result1.frames_replayed, result2.frames_replayed);
@@ -297,36 +325,36 @@ async fn test_replay_accuracy_and_determinism() {
     }
     
     println!("Replay accuracy: {}/{} frames matched ({:.2}%)", 
-             result1.frames_matched, result1.frames_replayed,
-             (result1.frames_matched as f64 / result1.frames_replayed as f64) * 100.0);
+              result1.frames_matched, result1.frames_replayed,
+              (result1.frames_matched as f64 / result1.frames_replayed as f64) * 100.0);
     println!("Max deviation: {:.2e}, Avg deviation: {:.2e}", 
-             result1.max_deviation, result1.avg_deviation);
+              result1.max_deviation, result1.avg_deviation);
 }
 
 #[tokio::test]
 async fn test_support_bundle_generation_complete() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     
     // Create test environment with logs, profiles, and recordings
     let log_dir = temp_dir.path().join("logs");
     let profile_dir = temp_dir.path().join("profiles");
     let recording_dir = temp_dir.path().join("recordings");
     
-    create_dir_all(&log_dir).unwrap();
-    create_dir_all(&profile_dir).unwrap();
-    create_dir_all(&recording_dir).unwrap();
+    must(create_dir_all(&log_dir));
+    must(create_dir_all(&profile_dir));
+    must(create_dir_all(&recording_dir));
     
     // Create test log files
-    write(log_dir.join("app.log"), "Application log content\nINFO: System started\nWARN: Minor issue detected").unwrap();
-    write(log_dir.join("error.log"), "ERROR: Test error message\nERROR: Another error").unwrap();
+    must(write(log_dir.join("app.log"), r#"Application log content\nINFO: System started\nWARN: Minor issue detected"#);
+    must(write(log_dir.join("error.log"), r#"ERROR: Test error message\nERROR: Another error"#);
     
     // Create test profile files
-    write(profile_dir.join("global.profile.json"), r#"{"ffb_gain": 0.8, "dor_deg": 900}"#).unwrap();
-    write(profile_dir.join("iracing.json"), r#"{"game": "iracing", "settings": {}}"#).unwrap();
+    must(write(profile_dir.join("global.profile.json"), r#"{"ffb_gain": 0.8, "dor_deg": 900}"#));
+    must(write(profile_dir.join("iracing.json"), r#"{"game": "iracing", "settings": {}}"#));
     
     // Create test recording file
     let blackbox_config = BlackboxConfig {
-        device_id: DeviceId::new("test-device".to_string()).unwrap(),
+        device_id: must_parse::<DeviceId>("test-device"),
         output_dir: recording_dir.clone(),
         max_duration_s: 10,
         max_file_size_bytes: 1024 * 1024,
@@ -336,12 +364,12 @@ async fn test_support_bundle_generation_complete() {
         enable_stream_c: false,
     };
     
-    let mut recorder = BlackboxRecorder::new(blackbox_config).unwrap();
+    let mut recorder = must(BlackboxRecorder::new(blackbox_config));
     let frames = generate_test_frames(50);
     for (frame, node_outputs, safety_state, processing_time_us) in &frames {
-        recorder.record_frame(frame, node_outputs, safety_state, *processing_time_us).unwrap();
+        must(recorder.record_frame(frame, node_outputs, safety_state, *processing_time_us));
     }
-    recorder.finalize().unwrap();
+    must(recorder.finalize());
     
     // Create support bundle
     let bundle_config = SupportBundleConfig {
@@ -356,29 +384,29 @@ async fn test_support_bundle_generation_complete() {
     
     // Add health events
     let health_events = generate_test_health_events(5);
-    bundle.add_health_events(&health_events).unwrap();
+    must(bundle.add_health_events(&health_events));
     
     // Add system info
-    bundle.add_system_info().unwrap();
+    must(bundle.add_system_info());
     
     // Add log files
-    bundle.add_log_files(&log_dir).unwrap();
+    must(bundle.add_log_files(&log_dir));
     
     // Add profile files
-    bundle.add_profile_files(&profile_dir).unwrap();
+    must(bundle.add_profile_files(&profile_dir));
     
     // Add recordings
-    bundle.add_recent_recordings(&recording_dir).unwrap();
+    must(bundle.add_recent_recordings(&recording_dir));
     
     // Generate bundle
     let bundle_path = temp_dir.path().join("support_bundle.zip");
-    bundle.generate(&bundle_path).unwrap();
+    must(bundle.generate(&bundle_path));
     
     // Verify bundle was created
     assert!(bundle_path.exists());
     
     // Check bundle size is reasonable
-    let bundle_size = std::fs::metadata(&bundle_path).unwrap().len();
+    let bundle_size = must(std::fs::metadata(&bundle_path)).len();
     assert!(bundle_size > 1000); // Should have substantial content
     assert!(bundle_size < 10 * 1024 * 1024); // Should be under 10MB limit
     
@@ -388,15 +416,15 @@ async fn test_support_bundle_generation_complete() {
     assert!(estimated_size_mb < 10.0);
     
     println!("Support bundle size: {:.2} MB (estimated: {:.2} MB)", 
-             bundle_size as f64 / 1024.0 / 1024.0, estimated_size_mb);
+              bundle_size as f64 / 1024.0 / 1024.0, estimated_size_mb);
 }
 
 #[tokio::test]
 async fn test_stream_rate_limiting_and_accuracy() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let config = create_test_blackbox_config(&temp_dir);
     
-    let mut recorder = BlackboxRecorder::new(config).unwrap();
+    let mut recorder = must(BlackboxRecorder::new(config));
     
     // Test Stream B rate limiting (should limit to ~60Hz)
     let telemetry_data = generate_test_telemetry(1000); // Way more than 60Hz worth
@@ -404,14 +432,14 @@ async fn test_stream_rate_limiting_and_accuracy() {
     let start_time = std::time::Instant::now();
     
     for telem in &telemetry_data {
-        recorder.record_telemetry(telem).unwrap();
+        must(recorder.record_telemetry(telem));
         // Simulate rapid telemetry updates
         std::thread::sleep(Duration::from_micros(100)); // 10kHz rate
     }
     
     let elapsed = start_time.elapsed();
     
-    // Should have rate-limited the telemetry
+    // Should have rate-limited telemetry
     let stats = recorder.get_stats();
     
     // With 60Hz rate limiting, should have much fewer records than input
@@ -425,12 +453,12 @@ async fn test_stream_rate_limiting_and_accuracy() {
     assert!(stats.telemetry_records <= expected_records + tolerance);
     
     println!("Telemetry rate limiting: {} records in {:.2}s (expected ~{})", 
-             stats.telemetry_records, elapsed.as_secs_f64(), expected_records);
+              stats.telemetry_records, elapsed.as_secs_f64(), expected_records);
 }
 
 #[tokio::test]
 async fn test_error_handling_and_recovery() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     
     // Test with invalid directory
     let mut invalid_config = create_test_diagnostic_config(&temp_dir);
@@ -443,9 +471,9 @@ async fn test_error_handling_and_recovery() {
     let mut size_limited_config = create_test_diagnostic_config(&temp_dir);
     size_limited_config.max_file_size_bytes = 1024; // Very small limit
     
-    let mut service = DiagnosticService::new(size_limited_config).unwrap();
-    let device_id = DeviceId::new("test-device".to_string()).unwrap();
-    service.start_recording(device_id).unwrap();
+    let mut service = must(DiagnosticService::new(size_limited_config));
+    let device_id = must_parse::<DeviceId>("test-device");
+    must(service.start_recording(device_id));
     
     // Try to record more data than the limit allows
     let large_frames = generate_test_frames(10000); // Should exceed 1KB limit
@@ -464,18 +492,18 @@ async fn test_error_handling_and_recovery() {
 
 #[tokio::test]
 async fn test_wbb_format_validation() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let config = create_test_blackbox_config(&temp_dir);
     
-    let mut recorder = BlackboxRecorder::new(config).unwrap();
+    let mut recorder = must(BlackboxRecorder::new(config));
     
     // Record some data
     let frames = generate_test_frames(100);
     for (frame, node_outputs, safety_state, processing_time_us) in &frames {
-        recorder.record_frame(frame, node_outputs, safety_state, *processing_time_us).unwrap();
+        must(recorder.record_frame(frame, node_outputs, safety_state, *processing_time_us));
     }
     
-    let recording_path = recorder.finalize().unwrap();
+    let recording_path = must(recorder.finalize());
     
     // Validate file format by attempting to load it
     let replay_config = ReplayConfig::default();
@@ -483,7 +511,7 @@ async fn test_wbb_format_validation() {
     
     assert!(replay_result.is_ok());
     
-    let replay = replay_result.unwrap();
+    let replay = must(replay_result);
     
     // Verify header information
     assert_eq!(replay.header().magic, *b"WBB1");
@@ -502,12 +530,12 @@ async fn test_wbb_format_validation() {
 
 #[tokio::test]
 async fn test_performance_under_load() {
-    let temp_dir = TempDir::new().unwrap();
-    let config = create_test_diagnostic_config(&temp_dir);
+    let temp_dir = must(TempDir::new());
+    let config = create_test_blackbox_config(&temp_dir);
     
-    let mut service = DiagnosticService::new(config).unwrap();
-    let device_id = DeviceId::new("test-device".to_string()).unwrap();
-    service.start_recording(device_id).unwrap();
+    let mut service = must(DiagnosticService::new(config));
+    let device_id = must_parse::<DeviceId>("test-device");
+    must(service.start_recording(device_id));
     
     // Simulate high-frequency recording (1kHz for 1 second)
     let frames = generate_test_frames(1000);
@@ -515,7 +543,7 @@ async fn test_performance_under_load() {
     let start_time = std::time::Instant::now();
     
     for (frame, node_outputs, safety_state, processing_time_us) in &frames {
-        service.record_frame(frame, node_outputs, safety_state, *processing_time_us).unwrap();
+        must(service.record_frame(frame, node_outputs, safety_state, *processing_time_us));
     }
     
     let recording_time = start_time.elapsed();
@@ -524,25 +552,25 @@ async fn test_performance_under_load() {
     assert!(recording_time < Duration::from_millis(500));
     
     // Verify all frames were recorded
-    let stats = service.get_recording_stats().unwrap();
+    let stats = must_some(service.get_recording_stats(), "expected stats");
     assert_eq!(stats.frames_recorded, 1000);
     
     println!("Performance: Recorded {} frames in {:.2}ms ({:.0} fps)", 
-             stats.frames_recorded, recording_time.as_millis(),
-             1000.0 / recording_time.as_secs_f64());
+              stats.frames_recorded, recording_time.as_millis(),
+              1000.0 / recording_time.as_secs_f64());
 }
 
 /// Integration test that exercises the complete diagnostic workflow
 #[tokio::test]
 async fn test_end_to_end_diagnostic_workflow() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = must(TempDir::new());
     let config = create_test_diagnostic_config(&temp_dir);
     
     // Phase 1: Recording
-    let mut service = DiagnosticService::new(config).unwrap();
-    let device_id = DeviceId::new("test-device".to_string()).unwrap();
+    let mut service = must(DiagnosticService::new(config));
+    let device_id = must_parse::<DeviceId>("test-device");
     
-    service.start_recording(device_id).unwrap();
+    must(service.start_recording(device_id));
     
     // Record comprehensive test data
     let frames = generate_test_frames(500);
@@ -550,18 +578,18 @@ async fn test_end_to_end_diagnostic_workflow() {
     let health_events = generate_test_health_events(8);
     
     for (frame, node_outputs, safety_state, processing_time_us) in &frames {
-        service.record_frame(frame, node_outputs, safety_state, *processing_time_us).unwrap();
+        must(service.record_frame(frame, node_outputs, safety_state, *processing_time_us));
     }
     
     for telem in &telemetry {
-        service.record_telemetry(telem).unwrap();
+        must(service.record_telemetry(telem));
     }
     
     for event in &health_events {
         service.record_health_event(event.clone());
     }
     
-    let recording_path = service.stop_recording().unwrap().unwrap();
+    let recording_path = must(must(service.stop_recording()));
     
     // Phase 2: Replay and Validation
     let replay_config = ReplayConfig {
@@ -572,8 +600,8 @@ async fn test_end_to_end_diagnostic_workflow() {
         max_duration_s: 60,
     };
     
-    let mut replay = BlackboxReplay::load_from_file(&recording_path, replay_config).unwrap();
-    let replay_result = replay.execute_replay().unwrap();
+    let mut replay = must(BlackboxReplay::load_from_file(&recording_path, replay_config));
+    let replay_result = must(replay.execute_replay());
     
     assert!(replay_result.success);
     assert_eq!(replay_result.frames_replayed, 500);
@@ -583,26 +611,31 @@ async fn test_end_to_end_diagnostic_workflow() {
     let bundle_config = SupportBundleConfig::default();
     let mut bundle = SupportBundle::new(bundle_config);
     
-    bundle.add_health_events(&health_events).unwrap();
-    bundle.add_system_info().unwrap();
+    must(bundle.add_health_events(&health_events));
+    must(bundle.add_system_info());
     
     let bundle_path = temp_dir.path().join("complete_support_bundle.zip");
-    bundle.generate(&bundle_path).unwrap();
+    must(bundle.generate(&bundle_path));
     
     // Verify complete workflow
     assert!(recording_path.exists());
     assert!(bundle_path.exists());
     
-    let recording_size = std::fs::metadata(&recording_path).unwrap().len();
-    let bundle_size = std::fs::metadata(&bundle_path).unwrap().len();
+    let recording_size = must(std::fs::metadata(&recording_path)).len();
+    let bundle_size = must(std::fs::metadata(&bundle_path)).len();
     
     assert!(recording_size > 1000);
     assert!(bundle_size > 1000);
+    assert!(bundle_size < 10 * 1024 * 1024); // Should be under 10MB limit
+    
+    let estimated_size_mb = bundle.estimated_size_mb();
+    assert!(estimated_size_mb > 0.0);
+    assert!(estimated_size_mb < 10.0);
     
     println!("End-to-end test completed:");
     println!("  Recording: {} bytes", recording_size);
     println!("  Bundle: {} bytes", bundle_size);
-    println!("  Replay accuracy: {}/{} frames ({:.1}%)", 
-             replay_result.frames_matched, replay_result.frames_replayed,
-             (replay_result.frames_matched as f64 / replay_result.frames_replayed as f64) * 100.0);
+    println!("Replay accuracy: {}/{} frames matched ({:.1}%)", 
+              replay_result.frames_matched, replay_result.frames_replayed,
+              (replay_result.frames_matched as f64 / replay_result.frames_replayed as f64) * 100.0);
 }

@@ -4,7 +4,7 @@
 //! behave correctly across a wide range of inputs and edge cases.
 
 use racing_wheel_engine::{ProfileHierarchyPolicy, SafetyPolicy, SafetyViolation};
-use racing_wheel_schemas::{
+use racing_wheel_schemas::prelude::{
     BaseSettings, Degrees, Device, DeviceCapabilities, DeviceId, DeviceType, FilterConfig, Gain,
     Profile, ProfileId, ProfileScope, TorqueNm,
 };
@@ -13,6 +13,15 @@ use std::time::Duration;
 // Property-based testing using quickcheck
 use quickcheck::{Arbitrary, Gen, TestResult};
 use quickcheck_macros::quickcheck;
+
+/// Test helper to unwrap results with panic on error
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
 
 /// Arbitrary implementation for TorqueNm for property testing
 #[derive(Debug, Clone)]
@@ -27,12 +36,13 @@ impl Arbitrary for ArbitraryTorqueNm {
 
 /// Arbitrary implementation for Degrees for property testing
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ArbitraryDegrees(Degrees);
 
 impl Arbitrary for ArbitraryDegrees {
     fn arbitrary(g: &mut Gen) -> Self {
         let value = (f32::arbitrary(g).abs() % 1980.0) + 180.0; // 180-2160 range
-        ArbitraryDegrees(Degrees::new_dor(value).unwrap_or(Degrees::from_raw(900.0)))
+        ArbitraryDegrees(Degrees::new_dor(value).unwrap_or(must(Degrees::new_dor(900.0))))
     }
 }
 
@@ -49,7 +59,7 @@ impl Arbitrary for ArbitraryGain {
 
 /// Create a test device with arbitrary capabilities
 fn create_arbitrary_device(max_torque: TorqueNm) -> Device {
-    let id = DeviceId::new("test-device".to_string()).unwrap();
+    let id = must(DeviceId::new("test-device".to_string()));
     let capabilities = DeviceCapabilities::new(false, true, true, true, max_torque, 10000, 1000);
 
     Device::new(
@@ -68,7 +78,7 @@ fn create_arbitrary_profile(
     dor: Degrees,
     torque_cap: TorqueNm,
 ) -> Profile {
-    let profile_id = ProfileId::new(id.to_string()).unwrap();
+    let profile_id = must(ProfileId::new(id.to_string()));
     let base_settings = BaseSettings::new(ffb_gain, dor, torque_cap, FilterConfig::default());
 
     Profile::new(
@@ -85,7 +95,7 @@ fn prop_safety_policy_torque_validation_never_exceeds_device_limit(
     device_max_torque: ArbitraryTorqueNm,
     is_high_torque: bool,
 ) -> TestResult {
-    let policy = SafetyPolicy::new();
+    let policy = SafetyPolicy::new().expect("Failed to create policy");
     let capabilities =
         DeviceCapabilities::new(false, true, true, true, device_max_torque.0, 10000, 1000);
 
@@ -108,10 +118,10 @@ fn prop_safety_policy_high_torque_requires_operational_device(
     temperature: u8,
     hands_off_seconds: u8,
 ) -> TestResult {
-    let mut policy = SafetyPolicy::new();
+    let mut policy = must(SafetyPolicy::new());
 
     // Test with faulted device
-    let mut device = create_arbitrary_device(TorqueNm::new(25.0).unwrap());
+    let mut device = create_arbitrary_device(must(TorqueNm::new(25.0)));
     device.set_fault_flags(0x04); // Set thermal fault
 
     let result = policy.can_enable_high_torque(
@@ -126,8 +136,8 @@ fn prop_safety_policy_high_torque_requires_operational_device(
 
 #[quickcheck]
 fn prop_safety_policy_temperature_limit_enforced(temperature: u8) -> TestResult {
-    let mut policy = SafetyPolicy::new();
-    let device = create_arbitrary_device(TorqueNm::new(25.0).unwrap());
+    let mut policy = must(SafetyPolicy::new());
+    let device = create_arbitrary_device(must(TorqueNm::new(25.0)));
 
     let result = policy.can_enable_high_torque(
         &device,
@@ -154,8 +164,8 @@ fn prop_safety_policy_temperature_limit_enforced(temperature: u8) -> TestResult 
 
 #[quickcheck]
 fn prop_safety_policy_hands_off_limit_enforced(hands_off_seconds: u16) -> TestResult {
-    let mut policy = SafetyPolicy::new();
-    let device = create_arbitrary_device(TorqueNm::new(25.0).unwrap());
+    let mut policy = SafetyPolicy::new().expect("Failed to create policy");
+    let device = create_arbitrary_device(must(TorqueNm::new(25.0)));
 
     let result = policy.can_enable_high_torque(
         &device,
@@ -191,24 +201,24 @@ fn prop_profile_hierarchy_resolution_is_deterministic(
         "global",
         ProfileScope::global(),
         global_gain.0,
-        Degrees::from_raw(900.0),
-        TorqueNm::from_raw(15.0),
+        must(Degrees::new_dor(900.0)),
+        must(TorqueNm::new(15.0)),
     );
 
     let game_profile = create_arbitrary_profile(
         "game",
         ProfileScope::for_game("iracing".to_string()),
         game_gain.0,
-        Degrees::from_raw(540.0),
-        TorqueNm::from_raw(20.0),
+        must(Degrees::new_dor(540.0)),
+        must(TorqueNm::new(20.0)),
     );
 
     let car_profile = create_arbitrary_profile(
         "car",
         ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
         car_gain.0,
-        Degrees::from_raw(720.0),
-        TorqueNm::from_raw(25.0),
+        must(Degrees::new_dor(720.0)),
+        must(TorqueNm::new(25.0)),
     );
 
     // Resolve the same hierarchy twice
@@ -242,16 +252,16 @@ fn prop_profile_hierarchy_more_specific_wins(
         "global",
         ProfileScope::global(),
         global_gain.0,
-        Degrees::from_raw(900.0),
-        TorqueNm::from_raw(15.0),
+        must(Degrees::new_dor(900.0)),
+        must(TorqueNm::new(15.0)),
     );
 
     let car_profile = create_arbitrary_profile(
         "car",
         ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
         car_gain.0,
-        Degrees::from_raw(720.0),
-        TorqueNm::from_raw(25.0),
+        must(Degrees::new_dor(720.0)),
+        must(TorqueNm::new(25.0)),
     );
 
     let resolved = ProfileHierarchyPolicy::resolve_profile_hierarchy(
@@ -276,16 +286,16 @@ fn prop_profile_hierarchy_hash_consistency(
         "global",
         ProfileScope::global(),
         global_gain.0,
-        Degrees::from_raw(900.0),
-        TorqueNm::from_raw(15.0),
+        must(Degrees::new_dor(900.0)),
+        must(TorqueNm::new(15.0)),
     );
 
     let game_profile = create_arbitrary_profile(
         "game",
         ProfileScope::for_game("iracing".to_string()),
         game_gain.0,
-        Degrees::from_raw(540.0),
-        TorqueNm::from_raw(20.0),
+        must(Degrees::new_dor(540.0)),
+        must(TorqueNm::new(20.0)),
     );
 
     // Same inputs should produce same hash
@@ -364,7 +374,7 @@ fn prop_safety_and_profile_integration(
         return TestResult::discard();
     }
 
-    let policy = SafetyPolicy::new();
+    let policy = SafetyPolicy::new().expect("Failed to create policy");
     let capabilities =
         DeviceCapabilities::new(false, true, true, true, device_max_torque.0, 10000, 1000);
 
@@ -389,8 +399,8 @@ fn prop_safety_and_profile_integration(
 // Edge case tests
 #[test]
 fn test_safety_policy_edge_cases() {
-    let mut policy = SafetyPolicy::new();
-    let device = create_arbitrary_device(TorqueNm::new(25.0).unwrap());
+    let mut policy = SafetyPolicy::new().expect("Failed to create policy");
+    let device = create_arbitrary_device(must(TorqueNm::new(25.0)));
 
     // Test exactly at temperature limit
     let result =
@@ -432,9 +442,9 @@ fn test_profile_hierarchy_edge_cases() {
     let global_profile = create_arbitrary_profile(
         "global",
         ProfileScope::global(),
-        Gain::from_raw(0.7),
-        Degrees::from_raw(900.0),
-        TorqueNm::from_raw(15.0),
+        must(Gain::new(0.7)),
+        must(Degrees::new_dor(900.0)),
+        must(TorqueNm::new(15.0)),
     );
 
     let profiles = vec![global_profile];
@@ -445,7 +455,7 @@ fn test_profile_hierarchy_edge_cases() {
         None,
     );
     assert!(result.is_some());
-    assert_eq!(result.unwrap().id.as_str(), "global");
+    assert_eq!(result.expect("Should match global").id.as_str(), "global");
 }
 
 // Property tests with deterministic seed configuration

@@ -697,7 +697,7 @@ impl ProfileRepository {
 mod tests {
     use super::*;
     use ed25519_dalek::SigningKey;
-    use racing_wheel_schemas::{CurvePoint, Degrees, DeviceId, FrequencyHz, Gain, TorqueNm};
+    use racing_wheel_schemas::prelude::{Degrees, Gain, TorqueNm};
     use rand::rngs::OsRng;
     use tempfile::TempDir;
 
@@ -765,7 +765,7 @@ mod tests {
             .unwrap();
 
         // Load and verify signature
-        let loaded = repo.load_profile(&profile.id).await.unwrap().unwrap();
+        let _loaded = repo.load_profile(&profile.id).await.unwrap().unwrap();
         let signature_info = repo.get_profile_signature(&profile.id).await.unwrap();
 
         assert!(signature_info.is_some());

@@ -1,10 +1,9 @@
 //! Simple test for tracing functionality
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use crate::tracing::*;
-    use std::sync::atomic::{AtomicBool, Ordering};
-    use std::time::Duration;
 
     #[test]
     fn test_tracing_manager_creation() {

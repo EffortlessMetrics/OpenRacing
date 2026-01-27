@@ -317,6 +317,14 @@ impl IpcTestFixture {
     }
 }
 
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -342,7 +350,7 @@ mod tests {
         let fixture = IpcTestFixture::new().await;
         
         // Test the mock device service directly
-        let devices = fixture.mock_device_service.list_devices().await.unwrap();
+        let devices = must(fixture.mock_device_service.list_devices().await);
         
         assert_eq!(devices.len(), 1);
         assert_eq!(devices[0].name, "Test Wheel Base");
@@ -354,7 +362,7 @@ mod tests {
         let fixture = IpcTestFixture::new().await;
         
         // Test the mock profile service directly
-        let profiles = fixture.mock_profile_service.list_profiles().await.unwrap();
+        let profiles = must(fixture.mock_profile_service.list_profiles().await);
         
         assert_eq!(profiles.len(), 1);
         assert_eq!(profiles[0].schema_version, "wheel.profile/1");
@@ -400,7 +408,7 @@ mod tests {
         assert!(result.is_ok());
         
         // Test game status
-        let status = fixture.mock_game_service.get_game_status().await.unwrap();
+        let status = must(fixture.mock_game_service.get_game_status().await);
         assert_eq!(status.active_game, Some("iRacing".to_string()));
         assert!(status.telemetry_active);
     }

@@ -1,5 +1,6 @@
 //! Device abstraction and virtual device implementation
 
+use crate::prelude::MutexExt;
 use crate::{RTError, RTResult};
 use racing_wheel_schemas::prelude::*;
 use std::sync::{Arc, Mutex};
@@ -101,7 +102,7 @@ impl VirtualDevice {
             true,                         // supports_raw_torque_1khz
             true,                         // supports_health_stream
             true,                         // supports_led_bus
-            TorqueNm::new(25.0).unwrap(), // max_torque
+            TorqueNm::new(25.0).expect("25.0 is a valid torque"),
             10000,                        // encoder_cpr
             1000,                         // min_report_period_us (1ms = 1kHz)
         );
@@ -140,7 +141,7 @@ impl VirtualDevice {
 
     /// Simulate device physics (for testing)
     pub fn simulate_physics(&mut self, dt: Duration) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock_or_panic();
 
         // Simple physics simulation
         let dt_s = dt.as_secs_f32();
@@ -194,13 +195,13 @@ impl VirtualDevice {
 
     /// Inject a fault for testing
     pub fn inject_fault(&mut self, fault_type: u8) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock_or_panic();
         state.fault_flags |= fault_type;
     }
 
     /// Clear faults
     pub fn clear_faults(&mut self) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock_or_panic();
         state.fault_flags = 0;
     }
 
@@ -271,7 +272,7 @@ impl HidDevice for VirtualDevice {
     }
 
     fn health_status(&self) -> DeviceHealthStatus {
-        let state = self.state.lock().unwrap();
+        let state = self.state.lock_or_panic();
         DeviceHealthStatus {
             temperature_c: state.temperature_c,
             fault_flags: state.fault_flags,
@@ -302,7 +303,7 @@ impl VirtualHidPort {
         let device_info = device.device_info().clone();
 
         {
-            let mut devices = self.devices.lock().unwrap();
+            let mut devices = self.devices.lock_or_panic();
             devices.push(device);
         }
 
@@ -317,12 +318,12 @@ impl VirtualHidPort {
     /// Remove a device by ID
     pub fn remove_device(&mut self, id: &DeviceId) -> Result<(), Box<dyn std::error::Error>> {
         {
-            let mut devices = self.devices.lock().unwrap();
+            let mut devices = self.devices.lock_or_panic();
             devices.retain(|d| d.info.id != *id);
         }
 
         let device_info = {
-            let devices = self.devices.lock().unwrap();
+            let devices = self.devices.lock_or_panic();
             devices
                 .iter()
                 .find(|d| d.info.id == *id)
@@ -330,10 +331,10 @@ impl VirtualHidPort {
         };
 
         // Send disconnect event if monitoring
-        if let Some(tx) = &self.event_tx {
-            if let Some(info) = device_info {
-                let _ = tx.try_send(DeviceEvent::Disconnected(info));
-            }
+        if let Some(tx) = &self.event_tx
+            && let Some(info) = device_info
+        {
+            let _ = tx.try_send(DeviceEvent::Disconnected(info));
         }
 
         Ok(())
@@ -349,7 +350,7 @@ impl VirtualHidPort {
 
     /// Simulate physics for all devices
     pub fn simulate_physics(&mut self, dt: Duration) {
-        let mut devices = self.devices.lock().unwrap();
+        let mut devices = self.devices.lock_or_panic();
         for device in devices.iter_mut() {
             device.simulate_physics(dt);
         }
@@ -359,7 +360,7 @@ impl VirtualHidPort {
 #[async_trait::async_trait]
 impl HidPort for VirtualHidPort {
     async fn list_devices(&self) -> Result<Vec<DeviceInfo>, Box<dyn std::error::Error>> {
-        let devices = self.devices.lock().unwrap();
+        let devices = self.devices.lock_or_panic();
         Ok(devices.iter().map(|d| d.device_info().clone()).collect())
     }
 
@@ -367,7 +368,7 @@ impl HidPort for VirtualHidPort {
         &self,
         id: &DeviceId,
     ) -> Result<Box<dyn HidDevice>, Box<dyn std::error::Error>> {
-        let devices = self.devices.lock().unwrap();
+        let devices = self.devices.lock_or_panic();
 
         for device in devices.iter() {
             if device.info.id == *id {
@@ -408,13 +409,22 @@ impl Default for VirtualHidPort {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use std::time::Duration;
 
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
     #[test]
     fn test_virtual_device_creation() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         assert_eq!(device.device_info().id.as_str(), "test-device");
@@ -425,7 +435,7 @@ mod tests {
 
     #[test]
     fn test_virtual_device_torque_write() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let mut device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         // Test normal torque write
@@ -444,7 +454,7 @@ mod tests {
 
     #[test]
     fn test_virtual_device_telemetry() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let mut device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         // Write some torque
@@ -464,7 +474,7 @@ mod tests {
         let mut port = VirtualHidPort::new();
 
         // Add a device
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let device = VirtualDevice::new(device_id.clone(), "Test Wheel".to_string());
         port.add_device(device).unwrap();
 
@@ -487,7 +497,7 @@ mod tests {
 
     #[test]
     fn test_virtual_device_physics_simulation() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let mut device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         // Apply constant torque
@@ -510,7 +520,7 @@ mod tests {
 
     #[test]
     fn test_fault_injection() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let mut device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         // Initially no faults

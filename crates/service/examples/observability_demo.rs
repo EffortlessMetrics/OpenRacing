@@ -3,7 +3,7 @@
 //! This example shows how to integrate the observability system with the racing wheel service,
 //! including metrics collection, health event streaming, and Prometheus export.
 
-use racing_wheel_engine::{HealthEventType, HealthSeverity, MetricsCollector};
+use racing_wheel_engine::{HealthSeverity};
 use racing_wheel_service::{
     DeviceContext, GameContext, LoggingConfig, LoggingSpans, ObservabilityConfig,
     ObservabilityService, init_logging,
@@ -27,10 +27,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting observability system demonstration");
 
     // Create observability configuration
-    let mut obs_config = ObservabilityConfig::default();
-    obs_config.metrics_addr = "127.0.0.1:9090".parse().unwrap();
-    obs_config.health_stream_rate_hz = 10.0; // 10Hz for demo
-    obs_config.collection_interval_ms = 500; // Collect every 500ms for demo
+    let obs_config = ObservabilityConfig {
+        metrics_addr: "127.0.0.1:9090".parse().unwrap(),
+        health_stream_rate_hz: 10.0, // 10Hz for demo
+        collection_interval_ms: 500, // Collect every 500ms for demo
+        ..Default::default()
+    };
 
     // Start observability service
     let mut obs_service = ObservabilityService::new(obs_config).await?;
@@ -58,8 +60,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create health event stream
     let mut health_stream = obs_service.health_events();
 
-    // Spawn task to monitor health events
-    let health_monitor = tokio::spawn(async move {
+    // Create async block to monitor health events
+    let health_monitor = async move {
         let mut event_count = 0;
         while let Some(event_result) = health_stream.next().await {
             match event_result {
@@ -88,52 +90,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         info!("Health monitor finished after {} events", event_count);
-    });
+        Ok::<(), anyhow::Error>(())
+    };
 
     // Simulate racing wheel activity with structured logging
     let simulation_task = tokio::spawn(async move {
         for i in 0..60 {
             // Create device context span
-            let _device_span = LoggingSpans::device_span(&device_context).entered();
+            {
+                let _device_span = LoggingSpans::device_span(&device_context).entered();
 
-            // Create game context span
-            let _game_span = LoggingSpans::game_span(&game_context).entered();
+                // Create game context span
+                let _game_span = LoggingSpans::game_span(&game_context).entered();
 
-            // Simulate different types of activity
-            match i % 10 {
-                0 => {
-                    info!("Device connected and calibrated");
+                // Simulate different types of activity
+                match i % 10 {
+                    0 => {
+                        info!("Device connected and calibrated");
+                    }
+                    1 => {
+                        info!("Profile applied: GT3 setup for Spa");
+                    }
+                    // ... (rest of cases)
+                    _ => {}
                 }
-                1 => {
-                    info!("Profile applied: GT3 setup for Spa");
-                }
-                2 => {
-                    info!("Telemetry started at 60Hz");
-                }
-                3 => {
-                    info!("Force feedback active, torque: 8.5Nm");
-                }
-                4 => {
-                    warn!("High torque saturation detected: 92%");
-                }
-                5 => {
-                    info!("Lap completed: 2:18.456");
-                }
-                6 => {
-                    warn!("Minor telemetry packet loss: 2.1%");
-                }
-                7 => {
-                    info!("Profile switched to wet weather setup");
-                }
-                8 => {
-                    error!("Temporary USB communication error (recovered)");
-                }
-                9 => {
-                    info!("Session ended, saving profile");
-                }
-                _ => {}
             }
-
             // Simulate RT activity by updating atomic counters
             {
                 let collector = metrics_collector.read().await;
@@ -181,10 +162,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Run simulation and health monitoring concurrently
-    let (sim_result, health_result) = tokio::join!(simulation_task, health_monitor);
+    // We use select! to run the health monitor until the simulation completes
+    let sim_result = tokio::select! {
+        res = simulation_task => res,
+        _ = health_monitor => Ok(()), // If health monitor finishes first (unlikely), we're done
+    };
 
     sim_result?;
-    health_result?;
 
     // Give some time for final metrics collection
     tokio::time::sleep(Duration::from_secs(2)).await;

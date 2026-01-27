@@ -93,7 +93,10 @@ impl WindowsHidPort {
                 supports_raw_torque_1khz: true,
                 supports_health_stream: true,
                 supports_led_bus: false,
-                max_torque: TorqueNm::new(25.0).unwrap(),
+                max_torque: match TorqueNm::new(25.0) {
+                    Ok(v) => v,
+                    Err(e) => panic!("TorqueNm::new(25.0) failed: {:?}", e),
+                },
                 encoder_cpr: 4096,
                 min_report_period_us: 1000, // 1kHz
             };
@@ -456,16 +459,25 @@ pub fn revert_windows_rt_setup() -> std::result::Result<(), Box<dyn std::error::
 mod tests {
     use super::*;
 
+    /// Helper function to unwrap Result values in tests
+    /// Panics with a descriptive message if the Result is Err
+    fn must<T, E: std::fmt::Debug>(r: std::result::Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("must() failed: {:?}", e),
+        }
+    }
+
     #[tokio::test]
     async fn test_windows_hid_port_creation() {
-        let port = WindowsHidPort::new().unwrap();
+        let port = must(WindowsHidPort::new());
         assert!(!port.monitoring.load(Ordering::Relaxed));
     }
 
     #[tokio::test]
     async fn test_device_enumeration() {
-        let port = WindowsHidPort::new().unwrap();
-        let devices = port.list_devices().await.unwrap();
+        let port = must(WindowsHidPort::new());
+        let devices = must(port.list_devices().await);
 
         // Should find some mock devices
         assert!(!devices.is_empty());
@@ -479,11 +491,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_device_opening() {
-        let port = WindowsHidPort::new().unwrap();
-        let devices = port.list_devices().await.unwrap();
+        let port = must(WindowsHidPort::new());
+        let devices = must(port.list_devices().await);
 
         if let Some(device_info) = devices.first() {
-            let device = port.open_device(&device_info.id).await.unwrap();
+            let device = must(port.open_device(&device_info.id).await);
             assert!(device.is_connected());
             assert!(device.capabilities().max_torque.value() > 0.0);
         }
@@ -491,13 +503,13 @@ mod tests {
 
     #[test]
     fn test_windows_hid_device_creation() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let capabilities = DeviceCapabilities {
             supports_pid: true,
             supports_raw_torque_1khz: true,
             supports_health_stream: true,
             supports_led_bus: false,
-            max_torque: TorqueNm::new(25.0).unwrap(),
+            max_torque: must(TorqueNm::new(25.0)),
             encoder_cpr: 4096,
             min_report_period_us: 1000,
         };
@@ -513,20 +525,20 @@ mod tests {
             capabilities,
         };
 
-        let device = WindowsHidDevice::new(device_info).unwrap();
+        let device = must(WindowsHidDevice::new(device_info));
         assert!(device.is_connected());
         assert_eq!(device.capabilities().max_torque.value(), 25.0);
     }
 
     #[test]
     fn test_ffb_report_writing() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let capabilities = DeviceCapabilities {
             supports_pid: true,
             supports_raw_torque_1khz: true,
             supports_health_stream: true,
             supports_led_bus: false,
-            max_torque: TorqueNm::new(25.0).unwrap(),
+            max_torque: must(TorqueNm::new(25.0)),
             encoder_cpr: 4096,
             min_report_period_us: 1000,
         };
@@ -542,7 +554,7 @@ mod tests {
             capabilities,
         };
 
-        let mut device = WindowsHidDevice::new(device_info).unwrap();
+        let mut device = must(WindowsHidDevice::new(device_info));
         let result = device.write_ffb_report(5.0, 123);
         assert!(result.is_ok());
     }

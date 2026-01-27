@@ -253,13 +253,13 @@ impl IntegratedFaultManager {
         }
 
         // Update plugin execution tracking
-        if let Some(plugin_execution) = &context.plugin_execution {
-            if let Some(fault) = self.watchdog_system.record_plugin_execution(
+        if let Some(plugin_execution) = &context.plugin_execution
+            && let Some(fault) = self.watchdog_system.record_plugin_execution(
                 &plugin_execution.plugin_id,
                 plugin_execution.execution_time_us,
-            ) {
-                result.new_faults.push(fault);
-            }
+            )
+        {
+            result.new_faults.push(fault);
         }
 
         // Update component heartbeats
@@ -270,19 +270,18 @@ impl IntegratedFaultManager {
         }
 
         // Detect faults using FMEA system
-        if let Some(usb_info) = &context.usb_info {
-            if let Some(fault) = self
+        if let Some(usb_info) = &context.usb_info
+            && let Some(fault) = self
                 .fmea_system
                 .detect_usb_fault(usb_info.consecutive_failures, usb_info.last_success)
-            {
-                result.new_faults.push(fault);
-            }
+        {
+            result.new_faults.push(fault);
         }
 
-        if let Some(encoder_value) = context.encoder_value {
-            if let Some(fault) = self.fmea_system.detect_encoder_fault(encoder_value) {
-                result.new_faults.push(fault);
-            }
+        if let Some(encoder_value) = context.encoder_value
+            && let Some(fault) = self.fmea_system.detect_encoder_fault(encoder_value)
+        {
+            result.new_faults.push(fault);
         }
 
         if let Some(temperature) = context.temperature {
@@ -301,10 +300,10 @@ impl IntegratedFaultManager {
             }
         }
 
-        if let Some(jitter_us) = context.timing_jitter_us {
-            if let Some(fault) = self.fmea_system.detect_timing_violation(jitter_us) {
-                result.new_faults.push(fault);
-            }
+        if let Some(jitter_us) = context.timing_jitter_us
+            && let Some(fault) = self.fmea_system.detect_timing_violation(jitter_us)
+        {
+            result.new_faults.push(fault);
         }
 
         // Update fault injection system
@@ -317,7 +316,7 @@ impl IntegratedFaultManager {
                 .as_ref()
                 .map(|pe| Duration::from_micros(pe.execution_time_us))
                 .unwrap_or_default(),
-            frame: context.frame.clone(),
+            frame: context.frame,
         };
 
         let injected_faults = self.fault_injection.update(&injection_context);
@@ -404,12 +403,12 @@ impl IntegratedFaultManager {
         // Check for plugin quarantine releases
         let quarantined_plugins = self.watchdog_system.get_quarantined_plugins();
         for (plugin_id, remaining_time) in quarantined_plugins {
-            if remaining_time.is_zero() {
-                if let Ok(()) = self.watchdog_system.release_plugin_quarantine(&plugin_id) {
-                    result
-                        .recovery_actions
-                        .push(format!("Released plugin quarantine: {}", plugin_id));
-                }
+            if remaining_time.is_zero()
+                && let Ok(()) = self.watchdog_system.release_plugin_quarantine(&plugin_id)
+            {
+                result
+                    .recovery_actions
+                    .push(format!("Released plugin quarantine: {}", plugin_id));
             }
         }
     }
@@ -829,6 +828,7 @@ mod option_duration_serde {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -846,9 +846,11 @@ mod tests {
     fn test_fault_detection_and_handling() {
         let mut manager = IntegratedFaultManager::new(5.0, 25.0, WatchdogConfig::default());
 
-        let mut context = FaultManagerContext::default();
-        context.current_torque = 10.0;
-        context.encoder_value = Some(f32::NAN); // Trigger encoder fault
+        let context = FaultManagerContext {
+            current_torque: 10.0,
+            encoder_value: Some(f32::NAN), // Trigger encoder fault
+            ..Default::default()
+        };
 
         let result = manager.update(&context);
 
@@ -885,11 +887,13 @@ mod tests {
     fn test_plugin_quarantine_integration() {
         let mut manager = IntegratedFaultManager::new(5.0, 25.0, WatchdogConfig::default());
 
-        let mut context = FaultManagerContext::default();
-        context.plugin_execution = Some(PluginExecution {
-            plugin_id: "test_plugin".to_string(),
-            execution_time_us: 200, // Over default 100us threshold
-        });
+        let context = FaultManagerContext {
+            plugin_execution: Some(PluginExecution {
+                plugin_id: "test_plugin".to_string(),
+                execution_time_us: 200, // Over default 100us threshold
+            }),
+            ..Default::default()
+        };
 
         // Trigger multiple plugin overruns
         for _ in 0..10 {
@@ -912,9 +916,11 @@ mod tests {
         let mut manager = IntegratedFaultManager::new(5.0, 25.0, WatchdogConfig::default());
 
         // Trigger thermal fault
-        let mut context = FaultManagerContext::default();
-        context.current_torque = 15.0;
-        context.temperature = Some(85.0); // Over thermal threshold
+        let context = FaultManagerContext {
+            current_torque: 15.0,
+            temperature: Some(85.0), // Over thermal threshold
+            ..Default::default()
+        };
 
         let result = manager.update(&context);
 

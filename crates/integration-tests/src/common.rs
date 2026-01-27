@@ -13,6 +13,15 @@ use racing_wheel_service::WheelService;
 
 use crate::{PerformanceMetrics, TestConfig};
 
+/// Test helper to unwrap results with panic on error
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
 /// Mock virtual device for testing
 #[derive(Debug, Clone)]
 pub struct VirtualDevice {
@@ -43,7 +52,7 @@ impl VirtualDevice {
                 supports_raw_torque_1khz: true,
                 supports_health_stream: true,
                 supports_led_bus: true,
-                max_torque: TorqueNm::from_raw(25.0), // 25 Nm
+                max_torque: must(TorqueNm::new(25.0)), // 25 Nm
                 encoder_cpr: 65535,
                 min_report_period_us: 1000,
             },
@@ -170,7 +179,15 @@ impl MetricsCollector {
             start_time: Instant::now(),
         }
     }
+}
 
+impl Default for MetricsCollector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MetricsCollector {
     pub fn record_jitter(&mut self, jitter_ms: f64) {
         self.jitter_samples.push(jitter_ms);
     }
@@ -187,14 +204,15 @@ impl MetricsCollector {
     }
 
     pub async fn collect(&self) -> PerformanceMetrics {
-        let mut metrics = PerformanceMetrics::default();
-
-        metrics.total_ticks = self.total_ticks;
-        metrics.missed_ticks = self.missed_ticks;
+        let mut metrics = PerformanceMetrics {
+            total_ticks: self.total_ticks,
+            missed_ticks: self.missed_ticks,
+            ..Default::default()
+        };
 
         if !self.jitter_samples.is_empty() {
             let mut sorted_jitter = self.jitter_samples.clone();
-            sorted_jitter.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_jitter.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             metrics.jitter_p50_ms = percentile(&sorted_jitter, 0.5);
             metrics.jitter_p99_ms = percentile(&sorted_jitter, 0.99);
@@ -202,7 +220,7 @@ impl MetricsCollector {
 
         if !self.hid_latency_samples.is_empty() {
             let mut sorted_latency = self.hid_latency_samples.clone();
-            sorted_latency.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_latency.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             metrics.hid_latency_p50_us = percentile(&sorted_latency, 0.5);
             metrics.hid_latency_p99_us = percentile(&sorted_latency, 0.99);

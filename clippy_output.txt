@@ -1,0 +1,2094 @@
+    Checking racing-wheel-engine v0.1.0 (D:\Code\Rust\OpenRacing\OpenRacing\crates\engine)
+error: redundant pattern matching, consider using `is_err()`
+   --> crates\engine\src\engine.rs:586:20
+    |
+586 |             if let Err(_) = ctx.device.write_ffb_report(final_torque_nm, ctx.seq) {
+    |             -------^^^^^^-------------------------------------------------------- help: try: `if ctx.device.write_ffb_report(final_torque_nm, ctx.seq).is_err()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#redundant_pattern_matching
+    = note: `-D clippy::redundant-pattern-matching` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::redundant_pattern_matching)]`
+
+error: the loop variable `i` is used to index `lut`
+   --> crates\engine\src\filters.rs:164:18
+    |
+164 |         for i in 0..LUT_SIZE {
+    |                  ^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+    = note: `-D clippy::needless-range-loop` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::needless_range_loop)]`
+help: consider using an iterator and enumerate()
+    |
+164 -         for i in 0..LUT_SIZE {
+164 +         for (i, <item>) in lut.iter_mut().enumerate().take(LUT_SIZE) {
+    |
+
+error: empty doc comment
+ --> crates\engine\src\hid\virtual_device.rs:1:1
+  |
+1 | //!
+  | ^^^
+  |
+  = help: consider removing or filling it
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#empty_docs
+  = note: `-D clippy::empty-docs` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(clippy::empty_docs)]`
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\hil_tests.rs:351:13
+    |
+351 | /             if let Err(e) = engine.send_game_input(game_input) {
+352 | |                 if self.config.enable_logging {
+353 | |                     warn!("Failed to send game input: {}", e);
+354 | |                 }
+355 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+351 ~             if let Err(e) = engine.send_game_input(game_input)
+352 ~                 && self.config.enable_logging {
+353 |                     warn!("Failed to send game input: {}", e);
+354 ~                 }
+    |
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\hil_tests.rs:529:17
+    |
+529 | /                 if let Err(e) = engine.send_game_input(game_input) {
+530 | |                     if self.config.enable_logging {
+531 | |                         warn!("Failed to send game input: {}", e);
+532 | |                     }
+533 | |                 }
+    | |_________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+529 ~                 if let Err(e) = engine.send_game_input(game_input)
+530 ~                     && self.config.enable_logging {
+531 |                         warn!("Failed to send game input: {}", e);
+532 ~                     }
+    |
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\hil_tests.rs:681:13
+    |
+681 | /             if elapsed >= fault_inject_time && elapsed <= fault_inject_time + fault_duration {
+682 | |                 if !fault_injected {
+683 | |                     info!("Injecting safety fault at {:?}", elapsed);
+684 | |                     fault_injected = true;
+...   |
+692 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+681 ~             if elapsed >= fault_inject_time && elapsed <= fault_inject_time + fault_duration
+682 ~                 && !fault_injected {
+683 |                     info!("Injecting safety fault at {:?}", elapsed);
+...
+690 |                     }
+691 ~                 }
+    |
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\hil_tests.rs:710:13
+    |
+710 | /             if let Err(e) = engine.send_game_input(game_input) {
+711 | |                 if self.config.enable_logging {
+712 | |                     warn!("Failed to send game input: {}", e);
+713 | |                 }
+714 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+710 ~             if let Err(e) = engine.send_game_input(game_input)
+711 ~                 && self.config.enable_logging {
+712 |                     warn!("Failed to send game input: {}", e);
+713 ~                 }
+    |
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\hil_tests.rs:717:13
+    |
+717 | /             if fault_injected && fault_response_time.is_none() {
+718 | |                 if let Ok(stats) = engine.get_stats().await {
+719 | |                     if matches!(stats.safety_state, SafetyState::Faulted { .. }) {
+720 | |                         fault_response_time = Some(elapsed - fault_inject_time);
+...   |
+727 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+717 ~             if fault_injected && fault_response_time.is_none()
+718 ~                 && let Ok(stats) = engine.get_stats().await {
+719 |                     if matches!(stats.safety_state, SafetyState::Faulted { .. }) {
+...
+725 |                     }
+726 ~                 }
+    |
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\hil_tests.rs:718:17
+    |
+718 | /                 if let Ok(stats) = engine.get_stats().await {
+719 | |                     if matches!(stats.safety_state, SafetyState::Faulted { .. }) {
+720 | |                         fault_response_time = Some(elapsed - fault_inject_time);
+721 | |                         info!(
+...   |
+726 | |                 }
+    | |_________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+718 ~                 if let Ok(stats) = engine.get_stats().await
+719 ~                     && matches!(stats.safety_state, SafetyState::Faulted { .. }) {
+720 |                         fault_response_time = Some(elapsed - fault_inject_time);
+...
+724 |                         );
+725 ~                     }
+    |
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\hil_tests.rs:915:13
+    |
+915 | /             if let Err(e) = engine.send_game_input(game_input) {
+916 | |                 if self.config.enable_logging {
+917 | |                     warn!("Failed to send game input: {}", e);
+918 | |                 }
+919 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+915 ~             if let Err(e) = engine.send_game_input(game_input)
+916 ~                 && self.config.enable_logging {
+917 |                     warn!("Failed to send game input: {}", e);
+918 ~                 }
+    |
+
+error: manual implementation of `.is_multiple_of()`
+    --> crates\engine\src\hil_tests.rs:1078:54
+     |
+1078 |                     if self.config.enable_logging && send_failures % 100 == 0 {
+     |                                                      ^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `send_failures.is_multiple_of(100)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#manual_is_multiple_of
+     = note: `-D clippy::manual-is-multiple-of` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::manual_is_multiple_of)]`
+
+error: useless use of `format!`
+    --> crates\engine\src\hil_tests.rs:1164:26
+     |
+1164 |         report.push_str(&format!("## Summary\n"));
+     |                          ^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `.to_string()`: `"## Summary\n".to_string()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#useless_format
+     = note: `-D clippy::useless-format` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::useless_format)]`
+
+error: calling `push_str()` using a single-character string literal
+    --> crates\engine\src\hil_tests.rs:1214:13
+     |
+1214 |             report.push_str("\n");
+     |             ^^^^^^^^^^^^^^^^^^^^^ help: consider using `push` with a character literal: `report.push('\n')`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#single_char_add_str
+     = note: `-D clippy::single-char-add-str` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::single_char_add_str)]`
+
+error: the loop variable `i` is used to index `colors`
+   --> crates\engine\src\led_haptics.rs:320:26
+    |
+320 |                 for i in 0..leds_to_light {
+    |                          ^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+320 -                 for i in 0..leds_to_light {
+320 +                 for (i, <item>) in colors.iter_mut().enumerate().take(leds_to_light) {
+    |
+
+error: manual implementation of `.is_multiple_of()`
+   --> crates\engine\src\led_haptics.rs:343:40
+    |
+343 |                         let blink_on = (now.elapsed().as_millis() / 500) % 2 == 0;
+    |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `(now.elapsed().as_millis() / 500).is_multiple_of(2)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#manual_is_multiple_of
+
+error: the loop variable `i` is only used to index `colors`
+   --> crates\engine\src\led_haptics.rs:354:34
+    |
+354 |                         for i in 0..=led_position.min(LED_COUNT - 1) {
+    |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator
+    |
+354 -                         for i in 0..=led_position.min(LED_COUNT - 1) {
+354 +                         for <item> in colors.iter_mut().take(led_position.min(LED_COUNT - 1) + 1) {
+    |
+
+error: manual implementation of `.is_multiple_of()`
+   --> crates\engine\src\led_haptics.rs:359:40
+    |
+359 |                         let flash_on = (now.elapsed().as_millis() / 100) % 2 == 0;
+    |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `(now.elapsed().as_millis() / 100).is_multiple_of(2)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#manual_is_multiple_of
+
+error: manual implementation of `.is_multiple_of()`
+   --> crates\engine\src\led_haptics.rs:372:32
+    |
+372 |                 let blink_on = (now.elapsed().as_millis() / period_ms) % 2 == 0;
+    |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `(now.elapsed().as_millis() / period_ms).is_multiple_of(2)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#manual_is_multiple_of
+
+error: you should consider adding a `Default` implementation for `DashWidgetSystem`
+   --> crates\engine\src\led_haptics.rs:505:5
+    |
+505 | /     pub fn new() -> Self {
+506 | |         Self {
+507 | |             widgets: HashMap::new(),
+508 | |             last_update: Instant::now(),
+509 | |         }
+510 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#new_without_default
+    = note: `-D clippy::new-without-default` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::new_without_default)]`
+help: try adding this
+    |
+503 + impl Default for DashWidgetSystem {
+504 +     fn default() -> Self {
+505 +         Self::new()
+506 +     }
+507 + }
+    |
+
+error: you should consider adding a `Default` implementation for `AtomicCounters`
+   --> crates\engine\src\metrics.rs:338:5
+    |
+338 | /     pub fn new() -> Self {
+339 | |         Self {
+340 | |             total_ticks: AtomicU64::new(0),
+341 | |             missed_ticks: AtomicU64::new(0),
+...   |
+350 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#new_without_default
+help: try adding this
+    |
+337 + impl Default for AtomicCounters {
+338 +     fn default() -> Self {
+339 +         Self::new()
+340 +     }
+341 + }
+    |
+
+error: the `Err`-variant returned from this function is very large
+   --> crates\engine\src\metrics.rs:489:47
+    |
+489 |     pub fn emit(&self, event: HealthEvent) -> Result<(), broadcast::error::SendError<HealthEvent>> {
+    |                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 136 bytes
+    |
+    = help: try reducing the size of `tokio::sync::broadcast::error::SendError<metrics::HealthEvent>`, for example by boxing large elements or replacing it with `Box<tokio::sync::broadcast::error::SendError<metrics::HealthEvent>>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#result_large_err
+    = note: `-D clippy::result-large-err` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::result_large_err)]`
+
+error: you should consider adding a `Default` implementation for `SystemMonitor`
+   --> crates\engine\src\metrics.rs:802:5
+    |
+802 | /     pub fn new() -> Self {
+803 | |         let mut system = sysinfo::System::new();
+804 | |         system.refresh_all();
+...   |
+812 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#new_without_default
+help: try adding this
+    |
+801 + impl Default for SystemMonitor {
+802 +     fn default() -> Self {
+803 +         Self::new()
+804 +     }
+805 + }
+    |
+
+error: unneeded `return` statement
+  --> crates\engine\src\pipeline.rs:98:13
+   |
+98 |             return Ok(());
+   |             ^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_return
+   = note: `-D clippy::needless-return` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::needless_return)]`
+help: remove `return`
+   |
+98 -             return Ok(());
+98 +             Ok(())
+   |
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\policies.rs:383:9
+    |
+383 | /         if parts.len() >= 3 {
+384 | |             if let Ok(patch) = parts[2].parse::<u32>() {
+385 | |                 return format!("{}.{}.{}", parts[0], parts[1], patch + 1);
+386 | |             }
+387 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+383 ~         if parts.len() >= 3
+384 ~             && let Ok(patch) = parts[2].parse::<u32>() {
+385 |                 return format!("{}.{}.{}", parts[0], parts[1], patch + 1);
+386 ~             }
+    |
+
+error: you seem to be trying to use `match` for destructuring a single pattern. Consider using `if let`
+   --> crates\engine\src\safety.rs:436:13
+    |
+436 | /             match &self.state {
+437 | |                 SafetyState::HighTorqueActive { .. } => {
+438 | |                     self.report_fault(FaultType::HandsOffTimeout);
+...   |
+441 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#single_match
+    = note: `-D clippy::single-match` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::single_match)]`
+help: try
+    |
+436 ~             if let SafetyState::HighTorqueActive { .. } = &self.state {
+437 +                 self.report_fault(FaultType::HandsOffTimeout);
+438 +             }
+    |
+
+error: this `map_or` can be simplified
+   --> crates\engine\src\safety\fault_injection.rs:121:21
+    |
+121 |                     self.trigger_time.map_or(false, |t| t.elapsed() >= *delay)
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unnecessary_map_or
+    = note: `-D clippy::unnecessary-map-or` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::unnecessary_map_or)]`
+help: use is_some_and instead
+    |
+121 -                     self.trigger_time.map_or(false, |t| t.elapsed() >= *delay)
+121 +                     self.trigger_time.is_some_and(|t| t.elapsed() >= *delay)
+    |
+
+error: this `map_or` can be simplified
+   --> crates\engine\src\safety\fault_injection.rs:135:17
+    |
+135 |                 self.trigger_time.map_or(false, |t| t.elapsed() >= duration)
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unnecessary_map_or
+help: use is_some_and instead
+    |
+135 -                 self.trigger_time.map_or(false, |t| t.elapsed() >= duration)
+135 +                 self.trigger_time.is_some_and(|t| t.elapsed() >= duration)
+    |
+
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> crates\engine\src\safety\fault_injection.rs:188:22
+    |
+188 |     fault_callbacks: Vec<Box<dyn Fn(FaultType, &str) + Send + Sync>>,
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#type_complexity
+    = note: `-D clippy::type-complexity` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::type_complexity)]`
+
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> crates\engine\src\safety\fault_injection.rs:189:25
+    |
+189 |     recovery_callbacks: Vec<Box<dyn Fn(FaultType, &str) + Send + Sync>>,
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#type_complexity
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\safety\fault_injection.rs:311:9
+    |
+311 | /         if let Some(recovery_condition) = &state.scenario.recovery_condition {
+312 | |             if !matches!(recovery_condition, RecoveryCondition::Manual) {
+313 | |                 return Err(format!(
+314 | |                     "Scenario '{}' does not support manual recovery",
+...   |
+318 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+311 ~         if let Some(recovery_condition) = &state.scenario.recovery_condition
+312 ~             && !matches!(recovery_condition, RecoveryCondition::Manual) {
+313 |                 return Err(format!(
+...
+316 |                 ));
+317 ~             }
+    |
+
+error: this `impl` can be derived
+   --> crates\engine\src\safety\fmea.rs:120:1
+    |
+120 | / impl Default for FaultDetectionState {
+121 | |     fn default() -> Self {
+122 | |         Self {
+123 | |             consecutive_count: 0,
+...   |
+131 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#derivable_impls
+    = note: `-D clippy::derivable-impls` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::derivable_impls)]`
+help: replace the manual implementation with a derive attribute
+    |
+107 + #[derive(Default)]
+108 | struct FaultDetectionState {
+    |
+
+error: you should consider adding a `Default` implementation for `SoftStopController`
+   --> crates\engine\src\safety\fmea.rs:145:5
+    |
+145 | /     pub fn new() -> Self {
+146 | |         Self {
+147 | |             active: false,
+148 | |             start_time: None,
+...   |
+154 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#new_without_default
+help: try adding this
+    |
+144 + impl Default for SoftStopController {
+145 +     fn default() -> Self {
+146 +         Self::new()
+147 +     }
+148 + }
+    |
+
+error: this `let...else` may be rewritten with the `?` operator
+   --> crates\engine\src\safety\fmea.rs:202:9
+    |
+202 | /         let Some(start_time) = self.start_time else {
+203 | |             return None;
+204 | |         };
+    | |__________^ help: replace it with: `let start_time = self.start_time?;`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#question_mark
+    = note: `-D clippy::question-mark` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::question_mark)]`
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\safety\integration.rs:256:9
+    |
+256 | /         if let Some(plugin_execution) = &context.plugin_execution {
+257 | |             if let Some(fault) = self.watchdog_system.record_plugin_execution(
+258 | |                 &plugin_execution.plugin_id,
+259 | |                 plugin_execution.execution_time_us,
+...   |
+263 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+256 ~         if let Some(plugin_execution) = &context.plugin_execution
+257 ~             && let Some(fault) = self.watchdog_system.record_plugin_execution(
+258 |                 &plugin_execution.plugin_id,
+...
+261 |                 result.new_faults.push(fault);
+262 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\safety\integration.rs:273:9
+    |
+273 | /         if let Some(usb_info) = &context.usb_info {
+274 | |             if let Some(fault) = self
+275 | |                 .fmea_system
+276 | |                 .detect_usb_fault(usb_info.consecutive_failures, usb_info.last_success)
+...   |
+280 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+273 ~         if let Some(usb_info) = &context.usb_info
+274 ~             && let Some(fault) = self
+275 |                 .fmea_system
+...
+278 |                 result.new_faults.push(fault);
+279 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\safety\integration.rs:282:9
+    |
+282 | /         if let Some(encoder_value) = context.encoder_value {
+283 | |             if let Some(fault) = self.fmea_system.detect_encoder_fault(encoder_value) {
+284 | |                 result.new_faults.push(fault);
+285 | |             }
+286 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+282 ~         if let Some(encoder_value) = context.encoder_value
+283 ~             && let Some(fault) = self.fmea_system.detect_encoder_fault(encoder_value) {
+284 |                 result.new_faults.push(fault);
+285 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\safety\integration.rs:304:9
+    |
+304 | /         if let Some(jitter_us) = context.timing_jitter_us {
+305 | |             if let Some(fault) = self.fmea_system.detect_timing_violation(jitter_us) {
+306 | |                 result.new_faults.push(fault);
+307 | |             }
+308 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+304 ~         if let Some(jitter_us) = context.timing_jitter_us
+305 ~             && let Some(fault) = self.fmea_system.detect_timing_violation(jitter_us) {
+306 |                 result.new_faults.push(fault);
+307 ~             }
+    |
+
+error: using `clone` on type `Option<Frame>` which implements the `Copy` trait
+   --> crates\engine\src\safety\integration.rs:320:20
+    |
+320 |             frame: context.frame.clone(),
+    |                    ^^^^^^^^^^^^^^^^^^^^^ help: try removing the `clone` call: `context.frame`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#clone_on_copy
+    = note: `-D clippy::clone-on-copy` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::clone_on_copy)]`
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\safety\integration.rs:407:13
+    |
+407 | /             if remaining_time.is_zero() {
+408 | |                 if let Ok(()) = self.watchdog_system.release_plugin_quarantine(&plugin_id) {
+409 | |                     result
+410 | |                         .recovery_actions
+...   |
+413 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+407 ~             if remaining_time.is_zero()
+408 ~                 && let Ok(()) = self.watchdog_system.release_plugin_quarantine(&plugin_id) {
+409 |                     result
+410 |                         .recovery_actions
+411 |                         .push(format!("Released plugin quarantine: {}", plugin_id));
+412 ~                 }
+    |
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\safety\watchdog.rs:166:9
+    |
+166 | /         if let Some(last_heartbeat) = self.last_heartbeat {
+167 | |             if last_heartbeat.elapsed() > timeout {
+168 | |                 self.report_failure(Some("Heartbeat timeout".to_string()));
+169 | |                 return true;
+170 | |             }
+171 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+166 ~         if let Some(last_heartbeat) = self.last_heartbeat
+167 ~             && last_heartbeat.elapsed() > timeout {
+168 |                 self.report_failure(Some("Heartbeat timeout".to_string()));
+169 |                 return true;
+170 ~             }
+    |
+
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> crates\engine\src\safety\watchdog.rs:188:22
+    |
+188 |     fault_callbacks: Vec<Box<dyn Fn(FaultType, &str) + Send + Sync>>,
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#type_complexity
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\safety\watchdog.rs:375:9
+    |
+375 | /         if let Some(health_check) = self.health_checks.get_mut(&SystemComponent::RtThread) {
+376 | |             if health_check.check_timeout(Duration::from_millis(self.config.rt_thread_timeout_ms)) {
+377 | |                 faults.push(FaultType::TimingViolation);
+378 | |             }
+379 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+375 ~         if let Some(health_check) = self.health_checks.get_mut(&SystemComponent::RtThread)
+376 ~             && health_check.check_timeout(Duration::from_millis(self.config.rt_thread_timeout_ms)) {
+377 |                 faults.push(FaultType::TimingViolation);
+378 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\safety\watchdog.rs:382:9
+    |
+382 | /         if let Some(health_check) = self
+383 | |             .health_checks
+384 | |             .get_mut(&SystemComponent::HidCommunication)
+...   |
+389 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+384 ~             .get_mut(&SystemComponent::HidCommunication)
+385 ~             && health_check.check_timeout(Duration::from_millis(self.config.hid_timeout_ms)) {
+386 |                 faults.push(FaultType::UsbStall);
+387 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\safety\watchdog.rs:392:9
+    |
+392 | /         if let Some(health_check) = self
+393 | |             .health_checks
+394 | |             .get_mut(&SystemComponent::TelemetryAdapter)
+...   |
+399 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+394 ~             .get_mut(&SystemComponent::TelemetryAdapter)
+395 ~             && health_check.check_timeout(Duration::from_millis(self.config.telemetry_timeout_ms)) {
+396 |                 // Telemetry timeout is not critical, just log it
+397 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\safety\watchdog.rs:410:13
+    |
+410 | /             if let Some(quarantine_until) = stats.quarantined_until {
+411 | |                 if Instant::now() >= quarantine_until {
+412 | |                     stats.quarantined_until = None;
+413 | |                 }
+414 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+410 ~             if let Some(quarantine_until) = stats.quarantined_until
+411 ~                 && Instant::now() >= quarantine_until {
+412 |                     stats.quarantined_until = None;
+413 ~                 }
+    |
+
+error: useless use of `format!`
+   --> crates\engine\src\test_harness.rs:733:26
+    |
+733 |         report.push_str(&format!("## Summary\n"));
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `.to_string()`: `"## Summary\n".to_string()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#useless_format
+
+error: calling `push_str()` using a single-character string literal
+   --> crates\engine\src\test_harness.rs:782:13
+    |
+782 |             report.push_str("\n");
+    |             ^^^^^^^^^^^^^^^^^^^^^ help: consider using `push` with a character literal: `report.push('\n')`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#single_char_add_str
+
+error: you should consider adding a `Default` implementation for `FallbackProvider`
+   --> crates\engine\src\tracing.rs:638:5
+    |
+638 | /     pub fn new() -> Self {
+639 | |         Self {
+640 | |             metrics: TracingMetrics::default(),
+641 | |         }
+642 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#new_without_default
+help: try adding this
+    |
+637 + impl Default for FallbackProvider {
+638 +     fn default() -> Self {
+639 +         Self::new()
+640 +     }
+641 + }
+    |
+
+error: useless use of `vec!`
+   --> crates\engine\src\hil_tests.rs:476:24
+    |
+476 |           let patterns = vec![
+    |  ________________________^
+477 | |             FFBPattern::SineWave {
+478 | |                 amplitude: 0.8,
+479 | |                 frequency_hz: 2.0,
+...   |
+491 | |             },
+492 | |         ];
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#useless_vec
+    = note: `-D clippy::useless-vec` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::useless_vec)]`
+help: you can use an array directly
+    |
+476 ~         let patterns = [FFBPattern::SineWave {
+477 +                 amplitude: 0.8,
+478 +                 frequency_hz: 2.0,
+479 +                 phase: 0.0,
+480 +             },
+481 +             FFBPattern::SquareWave {
+482 +                 amplitude: 0.6,
+483 +                 frequency_hz: 1.0,
+484 +                 duty_cycle: 0.5,
+485 +             },
+486 +             FFBPattern::Ramp {
+487 +                 start: -0.5,
+488 +                 end: 0.5,
+489 +                 duration: Duration::from_secs(1),
+490 ~             }];
+    |
+
+error: useless use of `vec!`
+   --> crates\engine\src\led_haptics.rs:277:21
+    |
+277 |         let bands = vec![0.75, 0.82, 0.88, 0.92, 0.96]; // Should come from config
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: you can use an array directly: `[0.75, 0.82, 0.88, 0.92, 0.96]`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#useless_vec
+
+error: could not compile `racing-wheel-engine` (lib) due to 50 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic\blackbox.rs:465:24
+    |
+465 |         let temp_dir = TempDir::new().unwrap();
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+note: the lint level is defined here
+   --> crates\engine\src\lib.rs:8:9
+    |
+  8 | #![deny(clippy::unwrap_used)]
+    |         ^^^^^^^^^^^^^^^^^^^
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic\blackbox.rs:485:24
+    |
+485 |         let recorder = recorder.unwrap();
+    |                        ^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic\blackbox.rs:494:28
+    |
+494 |         let mut recorder = BlackboxRecorder::new(config).unwrap();
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic\blackbox.rs:520:28
+    |
+520 |         let mut recorder = BlackboxRecorder::new(config).unwrap();
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic\blackbox.rs:537:13
+    |
+537 | /             recorder
+538 | |                 .record_frame(&frame, &node_outputs, &safety_state, processing_time_us)
+539 | |                 .unwrap();
+    | |_________________________^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic\blackbox.rs:546:27
+    |
+546 |         let output_path = output_path.unwrap();
+    |                           ^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on an `Option` value
+   --> crates\engine\src\diagnostic\blackbox.rs:548:17
+    |
+548 |         assert!(output_path.extension().unwrap() == "wbb");
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is `None`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic\blackbox.rs:551:24
+    |
+551 |         let metadata = std::fs::metadata(&output_path).unwrap();
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic\blackbox.rs:563:39
+    |
+563 |         let deserialized: WbbHeader = codec::decode_from_slice(&serialized.unwrap()).unwrap();
+    |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic\blackbox.rs:563:65
+    |
+563 |         let deserialized: WbbHeader = codec::decode_from_slice(&serialized.unwrap()).unwrap();
+    |                                                                 ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic\blackbox.rs:573:28
+    |
+573 |         let mut recorder = BlackboxRecorder::new(config).unwrap();
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic\blackbox.rs:586:13
+    |
+586 | /             recorder
+587 | |                 .record_frame(&frame, &[], &SafetyState::SafeTorque, 100)
+588 | |                 .unwrap();
+    | |_________________________^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic\blackbox.rs:603:28
+    |
+603 |         let mut recorder = BlackboxRecorder::new(config).unwrap();
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic\blackbox.rs:617:13
+    |
+617 | /             recorder
+618 | |                 .record_frame(&frame, &node_outputs, &SafetyState::SafeTorque, 100)
+619 | |                 .unwrap();
+    | |_________________________^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic.rs:272:24
+    |
+272 |         let temp_dir = TempDir::new().unwrap();
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic.rs:292:23
+    |
+292 |         let service = service.unwrap();
+    |                       ^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\diagnostic.rs:344:9
+    |
+344 |         service.start_recording(device_id).unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\engine.rs:857:9
+    |
+857 |         engine.start(device).await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\engine.rs:875:9
+    |
+875 |         engine.stop().await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\engine.rs:885:9
+    |
+885 |         engine.start(device).await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\engine.rs:897:9
+    |
+897 |         engine.stop().await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\engine.rs:907:9
+    |
+907 |         engine.start(device).await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\engine.rs:917:9
+    |
+917 |         engine.stop().await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\engine.rs:927:9
+    |
+927 |         engine.start(device).await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\engine.rs:936:21
+    |
+936 |         let stats = stats.unwrap();
+    |                     ^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\engine.rs:939:9
+    |
+939 |         engine.stop().await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\engine.rs:949:9
+    |
+949 |         engine.start(device).await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\engine.rs:968:9
+    |
+968 |         engine.stop().await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\engine.rs:982:9
+    |
+982 |         engine.start(device).await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\engine.rs:987:22
+    |
+987 |         let _stats = engine.get_stats().await.unwrap();
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\engine.rs:993:9
+    |
+993 |         engine.stop().await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\ffb.rs:366:20
+    |
+366 |         let caps = CapabilityNegotiator::parse_capabilities_report(&report).unwrap();
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on an `Option` value
+   --> crates\engine\src\hid\mod.rs:264:22
+    |
+264 |         let report = DeviceTelemetryReport::from_bytes(&data).unwrap();
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is `None`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on an `Option` value
+   --> crates\engine\src\hid\mod.rs:294:22
+    |
+294 |         let report = DeviceCapabilitiesReport::from_bytes(&data).unwrap();
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is `None`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+    --> crates\engine\src\metrics.rs:1009:9
+     |
+1009 |         streamer.emit(event.clone()).unwrap();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: if this value is an `Err`, it will panic
+     = help: consider using `expect()` to provide a better panic message
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+    --> crates\engine\src\metrics.rs:1012:24
+     |
+1012 |         let received = stream.next().await.unwrap().unwrap();
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: if this value is an `Err`, it will panic
+     = help: consider using `expect()` to provide a better panic message
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on an `Option` value
+    --> crates\engine\src\metrics.rs:1012:24
+     |
+1012 |         let received = stream.next().await.unwrap().unwrap();
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: if this value is `None`, it will panic
+     = help: consider using `expect()` to provide a better panic message
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+    --> crates\engine\src\metrics.rs:1019:29
+     |
+1019 |         let mut collector = MetricsCollector::new().unwrap();
+     |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: if this value is an `Err`, it will panic
+     = help: consider using `expect()` to provide a better panic message
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+    --> crates\engine\src\metrics.rs:1029:9
+     |
+1029 |         collector.collect_metrics().await.unwrap();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: if this value is an `Err`, it will panic
+     = help: consider using `expect()` to provide a better panic message
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+    --> crates\engine\src\metrics.rs:1036:9
+     |
+1036 |         collector.collect_metrics().await.unwrap();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: if this value is an `Err`, it will panic
+     = help: consider using `expect()` to provide a better panic message
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: this `if let` can be collapsed into the outer `if let`
+   --> crates\engine\src\metrics_tests.rs:374:13
+    |
+374 | /             if let Ok(health_event) = health_event_result {
+375 | |                 assert!(health_event.message.contains("Missed"));
+376 | |                 assert!(health_event.message.contains("RT ticks"));
+377 | |             }
+    | |_____________^
+    |
+help: the outer pattern can be modified to include the inner pattern
+   --> crates\engine\src\metrics_tests.rs:373:21
+    |
+373 |         if let Some(health_event_result) = health_event_result {
+    |                     ^^^^^^^^^^^^^^^^^^^ replace this binding
+374 |             if let Ok(health_event) = health_event_result {
+    |                    ^^^^^^^^^^^^^^^^ with this pattern
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_match
+    = note: `-D clippy::collapsible-match` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_match)]`
+
+error: this `if` statement can be collapsed
+   --> crates\engine\src\metrics_tests.rs:373:9
+    |
+373 | /         if let Some(health_event_result) = health_event_result {
+374 | |             if let Ok(health_event) = health_event_result {
+375 | |                 assert!(health_event.message.contains("Missed"));
+376 | |                 assert!(health_event.message.contains("RT ticks"));
+377 | |             }
+378 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if
+help: collapse nested if block
+    |
+373 ~         if let Some(health_event_result) = health_event_result
+374 ~             && let Ok(health_event) = health_event_result {
+375 |                 assert!(health_event.message.contains("Missed"));
+376 |                 assert!(health_event.message.contains("RT ticks"));
+377 ~             }
+    |
+
+error: manual absolute difference pattern without using `abs_diff`
+   --> crates\engine\src\metrics_tests.rs:532:24
+    |
+532 |           let mem_diff = if mem2 > mem1 {
+    |  ________________________^
+533 | |             mem2 - mem1
+534 | |         } else {
+535 | |             mem1 - mem2
+536 | |         };
+    | |_________^ help: replace with `abs_diff`: `mem2.abs_diff(mem1)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#manual_abs_diff
+    = note: `-D clippy::manual-abs-diff` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_abs_diff)]`
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\pipeline.rs:693:9
+    |
+693 | /         FilterConfig::new_complete(
+694 | |             4,                        // reconstruction
+695 | |             must(Gain::new(0.1)),  // friction
+696 | |             must(Gain::new(0.15)), // damper
+...   |
+709 | |         .unwrap()
+    | |_________________^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\pipeline.rs:713:9
+    |
+713 | /         FilterConfig::new_complete(
+714 | |             0,                       // no reconstruction
+715 | |             must(Gain::new(0.0)), // no friction
+716 | |             must(Gain::new(0.0)), // no damper
+...   |
+728 | |         .unwrap()
+    | |_________________^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\pipeline.rs:739:24
+    |
+739 |         let compiled = result.unwrap();
+    |                        ^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\pipeline.rs:750:23
+    |
+750 |         let result1 = compiler.compile_pipeline(config.clone()).await.unwrap();
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\pipeline.rs:751:23
+    |
+751 |         let result2 = compiler.compile_pipeline(config).await.unwrap();
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\pipeline.rs:764:23
+    |
+764 |         let result1 = compiler.compile_pipeline(config1).await.unwrap();
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\pipeline.rs:765:23
+    |
+765 |         let result2 = compiler.compile_pipeline(config2).await.unwrap();
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap_err()` on a `Result` value
+   --> crates\engine\src\pipeline.rs:847:15
+    |
+847 |         match result.unwrap_err() {
+    |               ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Ok`, it will panic
+    = help: consider using `expect_err()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\pipeline.rs:891:30
+    |
+891 |           let invalid_config = FilterConfig::new_complete(
+    |  ______________________________^
+892 | |             4,
+893 | |             must(Gain::new(0.1)),
+894 | |             must(Gain::new(0.15)),
+...   |
+912 | |         .unwrap();
+    | |_________________^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap_err()` on a `Result` value
+   --> crates\engine\src\pipeline.rs:917:15
+    |
+917 |         match result.unwrap_err() {
+    |               ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Ok`, it will panic
+    = help: consider using `expect_err()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+    --> crates\engine\src\pipeline.rs:1024:18
+     |
+1024 |         let rx = compiler.compile_pipeline_async(config).await.unwrap();
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: if this value is an `Err`, it will panic
+     = help: consider using `expect()` to provide a better panic message
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+    --> crates\engine\src\pipeline.rs:1025:22
+     |
+1025 |         let result = rx.await.unwrap();
+     |                      ^^^^^^^^^^^^^^^^^
+     |
+     = note: if this value is an `Err`, it will panic
+     = help: consider using `expect()` to provide a better panic message
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+    --> crates\engine\src\pipeline.rs:1028:24
+     |
+1028 |         let compiled = result.unwrap();
+     |                        ^^^^^^^^^^^^^^^
+     |
+     = note: if this value is an `Err`, it will panic
+     = help: consider using `expect()` to provide a better panic message
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:360:22
+    |
+360 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+    = note: `-D clippy::default-constructed-unit-structs` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::default_constructed_unit_structs)]`
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:372:22
+    |
+372 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:389:22
+    |
+389 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:419:22
+    |
+419 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:436:22
+    |
+436 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:457:22
+    |
+457 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:476:22
+    |
+476 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:491:22
+    |
+491 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:510:22
+    |
+510 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:531:22
+    |
+531 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:570:22
+    |
+570 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:611:22
+    |
+611 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:635:22
+    |
+635 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:648:22
+    |
+648 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:669:22
+    |
+669 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+   --> crates\engine\src\profile_merge.rs:688:22
+    |
+688 |         let engine = ProfileMergeEngine::default();
+    |                      ^^^^^^^^^^^^^^^^^^-----------
+    |                                        |
+    |                                        help: remove this call to `default`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#default_constructed_unit_structs
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\profile_service.rs:609:9
+    |
+609 |         service.initialize().await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\profile_service.rs:631:24
+    |
+631 |         let resolved = service.resolve_profile(&context, None).await.unwrap();
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\profile_service.rs:643:9
+    |
+643 |         service.initialize().await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\profile_service.rs:649:25
+    |
+649 |         let resolved1 = service.resolve_profile(&context, None).await.unwrap();
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\profile_service.rs:652:25
+    |
+652 |         let resolved2 = service.resolve_profile(&context, None).await.unwrap();
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\profile_service.rs:658:21
+    |
+658 |         let stats = service.get_statistics().await.unwrap();
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\profile_service.rs:667:9
+    |
+667 |         service.initialize().await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\profile_service.rs:681:33
+    |
+681 |           let validation_result = service
+    |  _________________________________^
+682 | |             .validate_profile(&profile, &capabilities)
+683 | |             .await
+684 | |             .unwrap();
+    | |_____________________^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\profile_service.rs:694:9
+    |
+694 |         service.initialize().await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\profile_service.rs:710:22
+    |
+710 |         let loaded = service.load_profile(&profile.id).await.unwrap();
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\protocol.rs:706:22
+    |
+706 |         let parsed = TorqueCommand::from_bytes(&bytes).unwrap();
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\protocol.rs:728:22
+    |
+728 |         let parsed = DeviceTelemetryReport::from_bytes(&bytes).unwrap();
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\protocol.rs:754:22
+    |
+754 |         let parsed = DeviceCapabilitiesReport::from_bytes(&bytes).unwrap();
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\protocol.rs:872:22
+    |
+872 |         let parsed = TorqueCommand::from_bytes(&bytes).unwrap();
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\protocol.rs:903:22
+    |
+903 |         let parsed = SafetyInterlockChallenge::from_bytes(&bytes).unwrap();
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\protocol.rs:931:22
+    |
+931 |         let parsed = SafetyInterlockAck::from_bytes(&bytes).unwrap();
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap_err()` on a `Result` value
+   --> crates\engine\src\protocol.rs:957:17
+    |
+957 |         assert!(corrupted.unwrap_err().contains("CRC validation failed"));
+    |                 ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Ok`, it will panic
+    = help: consider using `expect_err()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\safety\fmea.rs:856:9
+    |
+856 | /         fmea.handle_fault(FaultType::UsbStall, 10.0, &mut safety_service)
+857 | |             .unwrap();
+    | |_____________________^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\safety\fmea.rs:911:9
+    |
+911 | /         fmea.handle_fault(FaultType::UsbStall, 5.0, &mut safety_service)
+912 | |             .unwrap();
+    | |_____________________^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\safety\fmea.rs:913:9
+    |
+913 | /         fmea.handle_fault(FaultType::ThermalLimit, 3.0, &mut safety_service)
+914 | |             .unwrap();
+    | |_____________________^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: field assignment outside of initializer for an instance created with Default::default()
+   --> crates\engine\src\safety\integration.rs:850:9
+    |
+850 |         context.current_torque = 10.0;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `safety::integration::FaultManagerContext { current_torque: 10.0, encoder_value: Some(f32::NAN), ..Default::default() }` and removing relevant reassignments
+   --> crates\engine\src\safety\integration.rs:849:9
+    |
+849 |         let mut context = FaultManagerContext::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#field_reassign_with_default
+    = note: `-D clippy::field-reassign-with-default` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::field_reassign_with_default)]`
+
+error: field assignment outside of initializer for an instance created with Default::default()
+   --> crates\engine\src\safety\integration.rs:889:9
+    |
+889 | /         context.plugin_execution = Some(PluginExecution {
+890 | |             plugin_id: "test_plugin".to_string(),
+891 | |             execution_time_us: 200, // Over default 100us threshold
+892 | |         });
+    | |___________^
+    |
+note: consider initializing the variable with `safety::integration::FaultManagerContext { plugin_execution: Some(PluginExecution {
+                  plugin_id: "test_plugin".to_string(),
+                  execution_time_us: 200, // Over default 100us threshold
+              }), ..Default::default() }` and removing relevant reassignments
+   --> crates\engine\src\safety\integration.rs:888:9
+    |
+888 |         let mut context = FaultManagerContext::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#field_reassign_with_default
+
+error: field assignment outside of initializer for an instance created with Default::default()
+   --> crates\engine\src\safety\integration.rs:916:9
+    |
+916 |         context.current_torque = 15.0;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `safety::integration::FaultManagerContext { current_torque: 15.0, temperature: Some(85.0), ..Default::default() }` and removing relevant reassignments
+   --> crates\engine\src\safety\integration.rs:915:9
+    |
+915 |         let mut context = FaultManagerContext::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#field_reassign_with_default
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\safety\integration.rs:969:9
+    |
+969 | /         manager
+970 | |             .fault_injection_mut()
+971 | |             .add_scenario(scenario)
+972 | |             .unwrap();
+    | |_____________________^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\safety\integration.rs:973:9
+    |
+973 | /         manager
+974 | |             .fault_injection_mut()
+975 | |             .trigger_scenario("test_scenario")
+976 | |             .unwrap();
+    | |_____________________^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on an `Option` value
+   --> crates\engine\src\safety\watchdog.rs:537:21
+    |
+537 |         let stats = watchdog.get_plugin_stats("test_plugin").unwrap();
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is `None`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on an `Option` value
+   --> crates\engine\src\safety\watchdog.rs:554:21
+    |
+554 |         let stats = watchdog.get_plugin_stats("test_plugin").unwrap();
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is `None`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\safety\watchdog.rs:590:9
+    |
+590 |         watchdog.release_plugin_quarantine("test_plugin").unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on an `Option` value
+   --> crates\engine\src\safety\watchdog.rs:599:22
+    |
+599 |           let health = watchdog
+    |  ______________________^
+600 | |             .get_component_health(SystemComponent::RtThread)
+601 | |             .unwrap();
+    | |_____________________^
+    |
+    = note: if this value is `None`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on an `Option` value
+   --> crates\engine\src\safety\watchdog.rs:606:22
+    |
+606 |           let health = watchdog
+    |  ______________________^
+607 | |             .get_component_health(SystemComponent::RtThread)
+608 | |             .unwrap();
+    | |_____________________^
+    |
+    = note: if this value is `None`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on an `Option` value
+   --> crates\engine\src\safety\watchdog.rs:614:22
+    |
+614 |           let health = watchdog
+    |  ______________________^
+615 | |             .get_component_health(SystemComponent::RtThread)
+616 | |             .unwrap();
+    | |_____________________^
+    |
+    = note: if this value is `None`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on an `Option` value
+   --> crates\engine\src\safety\watchdog.rs:639:22
+    |
+639 |           let health = watchdog
+    |  ______________________^
+640 | |             .get_component_health(SystemComponent::RtThread)
+641 | |             .unwrap();
+    | |_____________________^
+    |
+    = note: if this value is `None`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on an `Option` value
+   --> crates\engine\src\safety\watchdog.rs:654:21
+    |
+654 |         let stats = watchdog.get_plugin_stats("test_plugin").unwrap();
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is `None`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: manual `RangeInclusive::contains` implementation
+   --> crates\engine\src\test_harness.rs:922:17
+    |
+922 |         assert!(actual_angle >= -10.0 && actual_angle <= 10.0);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: use: `(-10.0..=10.0).contains(&actual_angle)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#manual_range_contains
+    = note: `-D clippy::manual-range-contains` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_range_contains)]`
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\tracing.rs:874:9
+    |
+874 |         provider.initialize().unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\tracing.rs:911:9
+    |
+911 |         provider.initialize().unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\tracing.rs:920:27
+    |
+920 |         let mut manager = TracingManager::new().unwrap();
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\tracing.rs:923:9
+    |
+923 |         manager.initialize().unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+  --> crates\engine\src\tracing_test.rs:68:9
+   |
+68 |         provider.initialize().unwrap();
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: if this value is an `Err`, it will panic
+   = help: consider using `expect()` to provide a better panic message
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\tracing_test.rs:105:9
+    |
+105 |         provider.initialize().unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\tracing_test.rs:114:27
+    |
+114 |         let mut manager = TracingManager::new().unwrap();
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+   --> crates\engine\src\tracing_test.rs:117:9
+    |
+117 |         manager.initialize().unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is an `Err`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_used
+
+error: could not compile `racing-wheel-engine` (lib) due to 50 previous errors
+error: this comparison involving the minimum or maximum element for this type contains a case that is always true or always false
+   --> crates\engine\src\two_phase_apply.rs:698:17
+    |
+698 |         assert!(result.stats.swap_time_us >= 0);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: because `0` is the minimum value for this type, this comparison is always true
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#absurd_extreme_comparisons
+    = note: `#[deny(clippy::absurd_extreme_comparisons)]` on by default
+
+error: this comparison involving the minimum or maximum element for this type contains a case that is always true or always false
+   --> crates\engine\src\two_phase_apply.rs:699:17
+    |
+699 |         assert!(result.stats.wait_time_ms >= 0);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: because `0` is the minimum value for this type, this comparison is always true
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#absurd_extreme_comparisons
+
+error: literal out of range for `i16`
+   --> crates\engine\src\hid\mod.rs:243:28
+    |
+243 |         assert_eq!(torque, 1280000i16);
+    |                            ^^^^^^^^^^
+    |
+    = note: the literal `1280000i16` does not fit into the type `i16` whose range is `-32768..=32767`
+    = help: consider using the type `i32` instead
+    = note: `#[deny(overflowing_literals)]` on by default
+
+error: comparison is useless due to type limits
+   --> crates\engine\src\two_phase_apply.rs:698:17
+    |
+698 |         assert!(result.stats.swap_time_us >= 0);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `-D unused-comparisons` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unused_comparisons)]`
+
+error: comparison is useless due to type limits
+   --> crates\engine\src\two_phase_apply.rs:699:17
+    |
+699 |         assert!(result.stats.wait_time_ms >= 0);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `racing-wheel-engine` (lib test) due to 169 previous errors

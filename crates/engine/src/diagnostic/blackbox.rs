@@ -448,15 +448,24 @@ pub fn calculate_file_crc32c(file_path: &Path) -> Result<u32, String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::safety::SafetyState;
     use tempfile::TempDir;
 
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
     fn create_test_config() -> (BlackboxConfig, TempDir) {
         let temp_dir = TempDir::new().unwrap();
         let config = BlackboxConfig {
-            device_id: DeviceId::new("test-device".to_string()).unwrap(),
+            device_id: must("test-device".parse::<DeviceId>()),
             output_dir: temp_dir.path().to_path_buf(),
             max_duration_s: 10,
             max_file_size_bytes: 1024 * 1024, // 1MB
@@ -546,7 +555,7 @@ mod tests {
 
     #[test]
     fn test_wbb_header_serialization() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let header = WbbHeader::new(device_id, 1, 7, 6);
 
         let serialized = codec::encode_to_vec(&header);

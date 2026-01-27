@@ -163,11 +163,11 @@ impl HealthCheck {
 
     /// Check if component has timed out
     pub fn check_timeout(&mut self, timeout: Duration) -> bool {
-        if let Some(last_heartbeat) = self.last_heartbeat {
-            if last_heartbeat.elapsed() > timeout {
-                self.report_failure(Some("Heartbeat timeout".to_string()));
-                return true;
-            }
+        if let Some(last_heartbeat) = self.last_heartbeat
+            && last_heartbeat.elapsed() > timeout
+        {
+            self.report_failure(Some("Heartbeat timeout".to_string()));
+            return true;
         }
         false
     }
@@ -178,6 +178,9 @@ impl HealthCheck {
     }
 }
 
+/// Callback function for fault notification
+type FaultCallback = Box<dyn Fn(FaultType, &str) + Send + Sync>;
+
 /// Watchdog system for monitoring plugins and system components
 pub struct WatchdogSystem {
     config: WatchdogConfig,
@@ -185,7 +188,7 @@ pub struct WatchdogSystem {
     health_checks: HashMap<SystemComponent, HealthCheck>,
     last_health_check: Instant,
     quarantine_policy_enabled: bool,
-    fault_callbacks: Vec<Box<dyn Fn(FaultType, &str) + Send + Sync>>,
+    fault_callbacks: Vec<FaultCallback>,
 }
 
 impl WatchdogSystem {
@@ -372,30 +375,24 @@ impl WatchdogSystem {
         let mut faults = Vec::new();
 
         // Check RT thread timeout
-        if let Some(health_check) = self.health_checks.get_mut(&SystemComponent::RtThread) {
-            if health_check.check_timeout(Duration::from_millis(self.config.rt_thread_timeout_ms)) {
-                faults.push(FaultType::TimingViolation);
-            }
+        if let Some(health_check) = self.health_checks.get_mut(&SystemComponent::RtThread)
+            && health_check.check_timeout(Duration::from_millis(self.config.rt_thread_timeout_ms))
+        {
+            faults.push(FaultType::TimingViolation);
         }
 
         // Check HID communication timeout
-        if let Some(health_check) = self
-            .health_checks
-            .get_mut(&SystemComponent::HidCommunication)
+        if let Some(health_check) = self.health_checks.get_mut(&SystemComponent::HidCommunication)
+            && health_check.check_timeout(Duration::from_millis(self.config.hid_timeout_ms))
         {
-            if health_check.check_timeout(Duration::from_millis(self.config.hid_timeout_ms)) {
-                faults.push(FaultType::UsbStall);
-            }
+            faults.push(FaultType::UsbStall);
         }
 
         // Check telemetry timeout
-        if let Some(health_check) = self
-            .health_checks
-            .get_mut(&SystemComponent::TelemetryAdapter)
+        if let Some(health_check) = self.health_checks.get_mut(&SystemComponent::TelemetryAdapter)
+            && health_check.check_timeout(Duration::from_millis(self.config.telemetry_timeout_ms))
         {
-            if health_check.check_timeout(Duration::from_millis(self.config.telemetry_timeout_ms)) {
-                // Telemetry timeout is not critical, just log it
-            }
+            // Telemetry timeout is not critical, just log it
         }
 
         // Clean up expired quarantines
@@ -407,10 +404,10 @@ impl WatchdogSystem {
     /// Clean up expired plugin quarantines
     fn cleanup_expired_quarantines(&mut self) {
         for stats in self.plugin_stats.values_mut() {
-            if let Some(quarantine_until) = stats.quarantined_until {
-                if Instant::now() >= quarantine_until {
-                    stats.quarantined_until = None;
-                }
+            if let Some(quarantine_until) = stats.quarantined_until
+                && Instant::now() >= quarantine_until
+            {
+                stats.quarantined_until = None;
             }
         }
     }
@@ -520,6 +517,7 @@ impl Default for WatchdogSystem {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

@@ -5,6 +5,7 @@
 //! performance measurement, and integration testing capabilities.
 
 use crate::ports::{HidDevice, HidPort};
+use crate::prelude::MutexExt;
 use crate::{PerformanceMetrics, TelemetryData, VirtualDevice, VirtualHidPort};
 use racing_wheel_schemas::prelude::*;
 use std::collections::VecDeque;
@@ -277,9 +278,10 @@ impl RTLoopTestHarness {
     }
 
     /// Create a standard test device
-    pub fn create_test_device(&self, id: &str, name: &str) -> VirtualDevice {
-        let device_id = id.parse::<DeviceId>().unwrap();
-        VirtualDevice::new(device_id, name.to_string())
+    pub fn create_test_device(&self, id: &str, name: &str) -> Result<VirtualDevice, Box<dyn std::error::Error>> {
+        let device_id = id.parse::<DeviceId>()
+            .map_err(|e| format!("Failed to parse DeviceId: {e}"))?;
+        Ok(VirtualDevice::new(device_id, name.to_string()))
     }
 
     /// Run a test scenario
@@ -293,11 +295,11 @@ impl RTLoopTestHarness {
         self.stop_flag.store(false, Ordering::Relaxed);
         self.tick_counter.store(0, Ordering::Relaxed);
         {
-            let mut metrics = self.performance_metrics.lock().unwrap();
+            let mut metrics = self.performance_metrics.lock_or_panic();
             *metrics = PerformanceMetrics::default();
         }
         {
-            let mut timing = self.timing_data.lock().unwrap();
+            let mut timing = self.timing_data.lock_or_panic();
             timing.clear();
         }
 
@@ -331,7 +333,7 @@ impl RTLoopTestHarness {
 
         // Collect and analyze results
         let performance = {
-            let metrics = self.performance_metrics.lock().unwrap();
+            let metrics = self.performance_metrics.lock_or_panic();
             metrics.clone()
         };
 
@@ -425,15 +427,11 @@ impl RTLoopTestHarness {
 
                 // Calculate timing metrics
                 let tick_interval_actual = tick_start.duration_since(last_tick_time);
-                let jitter = if tick_interval_actual > tick_interval {
-                    tick_interval_actual - tick_interval
-                } else {
-                    tick_interval - tick_interval_actual
-                };
+                let jitter = tick_interval_actual.abs_diff(tick_interval);
 
                 // Update timing data
                 {
-                    let mut timing = timing_data.lock().unwrap();
+                    let mut timing = timing_data.lock_or_panic();
                     timing.push_back(jitter);
                     if timing.len() > 10000 {
                         timing.pop_front();
@@ -465,7 +463,7 @@ impl RTLoopTestHarness {
 
                 // Update performance metrics
                 {
-                    let mut metrics = performance_metrics.lock().unwrap();
+                    let mut metrics = performance_metrics.lock_or_panic();
                     metrics.total_ticks = tick_count;
 
                     let jitter_ns = jitter.as_nanos() as u64;
@@ -488,7 +486,7 @@ impl RTLoopTestHarness {
                     tokio::time::sleep(next_tick - now).await;
                 } else {
                     // Missed deadline
-                    let mut metrics = performance_metrics.lock().unwrap();
+                    let mut metrics = performance_metrics.lock_or_panic();
                     metrics.missed_ticks += 1;
                     next_tick = now;
                 }
@@ -506,8 +504,8 @@ impl RTLoopTestHarness {
 
     /// Analyze timing data and generate validation results
     fn analyze_timing_data(&self) -> TimingValidation {
-        let timing_data = self.timing_data.lock().unwrap();
-        let performance = self.performance_metrics.lock().unwrap();
+        let timing_data = self.timing_data.lock_or_panic();
+        let performance = self.performance_metrics.lock_or_panic();
 
         if timing_data.is_empty() {
             return TimingValidation {
@@ -526,7 +524,7 @@ impl RTLoopTestHarness {
             .map(|d| d.as_nanos() as f64 / 1000.0) // Convert to microseconds
             .collect();
 
-        jitter_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        jitter_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let avg_jitter_us = jitter_values.iter().sum::<f64>() / jitter_values.len() as f64;
         let max_jitter_us = jitter_values.last().copied().unwrap_or(0.0);
@@ -647,7 +645,7 @@ impl RTLoopTestHarness {
         let mut results = Vec::new();
 
         // Add test devices
-        let device1 = self.create_test_device("test-wheel-1", "Test Wheel Base 1");
+        let device1 = self.create_test_device("test-wheel-1", "Test Wheel Base 1")?;
         self.add_virtual_device(device1)?;
 
         // Test scenarios
@@ -732,7 +730,7 @@ impl RTLoopTestHarness {
         let passed_count = results.iter().filter(|r| r.passed).count();
         let total_count = results.len();
 
-        report.push_str(&format!("## Summary\n"));
+        report.push_str("## Summary\n");
         report.push_str(&format!("- Total tests: {}\n", total_count));
         report.push_str(&format!("- Passed: {}\n", passed_count));
         report.push_str(&format!("- Failed: {}\n", total_count - passed_count));
@@ -781,7 +779,7 @@ impl RTLoopTestHarness {
                 }
             }
 
-            report.push_str("\n");
+            report.push('\n');
         }
 
         report
@@ -789,9 +787,26 @@ impl RTLoopTestHarness {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use tokio;
+
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
+    #[track_caller]
+    fn must_some<T>(o: Option<T>, msg: &str) -> T {
+        match o {
+            Some(v) => v,
+            None => panic!("must_some failed: {}", msg),
+        }
+    }
 
     #[tokio::test]
     async fn test_harness_basic_functionality() {
@@ -803,8 +818,8 @@ mod tests {
         let mut harness = RTLoopTestHarness::new(config);
 
         // Add a test device
-        let device = harness.create_test_device("test-device", "Test Device");
-        harness.add_virtual_device(device).unwrap();
+        let device = must(harness.create_test_device("test-device", "Test Device"));
+        must(harness.add_virtual_device(device));
 
         // Create a simple test scenario
         let scenario = TestScenario {
@@ -815,7 +830,7 @@ mod tests {
         };
 
         // Run the test
-        let result = harness.run_scenario(scenario).await.unwrap();
+        let result = must(harness.run_scenario(scenario).await);
 
         // Verify basic metrics
         assert!(result.performance.total_ticks > 0);
@@ -858,17 +873,17 @@ mod tests {
         let mut port = VirtualHidPort::new();
 
         // Create and add a virtual device
-        let device_id = DeviceId::new("integration-test".to_string()).unwrap();
+        let device_id = must("integration-test".parse::<DeviceId>());
         let device = VirtualDevice::new(device_id.clone(), "Integration Test Device".to_string());
-        port.add_device(device).unwrap();
+        must(port.add_device(device));
 
         // List devices
-        let devices = port.list_devices().await.unwrap();
+        let devices = must(port.list_devices().await);
         assert_eq!(devices.len(), 1);
         assert_eq!(devices[0].id.as_str(), "integration-test");
 
         // Open device
-        let mut opened_device = port.open_device(&device_id).await.unwrap();
+        let mut opened_device = must(port.open_device(&device_id).await);
 
         // Test device operations
         let write_result = opened_device.write_ffb_report(10.0, 1);
@@ -878,7 +893,7 @@ mod tests {
         let telemetry = opened_device.read_telemetry();
         assert!(telemetry.is_some());
 
-        let tel = telemetry.unwrap();
+        let _tel = must_some(telemetry, "expected telemetry data");
         // Note: sequence field removed from TelemetryData
     }
 
@@ -904,12 +919,12 @@ mod tests {
 
         // Validate ranges manually (this would be done by the harness)
         let actual_angle = good_telemetry.wheel_angle_deg;
-        assert!(actual_angle >= -10.0 && actual_angle <= 10.0);
+        assert!((-10.0..=10.0).contains(&actual_angle));
 
         let actual_speed = good_telemetry.wheel_speed_rad_s;
-        assert!(actual_speed >= -5.0 && actual_speed <= 5.0);
+        assert!((-5.0..=5.0).contains(&actual_speed));
 
-        assert!(good_telemetry.temperature_c >= 20 && good_telemetry.temperature_c <= 80);
+        assert!((20..=80).contains(&good_telemetry.temperature_c));
         assert_eq!(good_telemetry.fault_flags, 0);
     }
 }

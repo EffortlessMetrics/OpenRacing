@@ -3,9 +3,12 @@
 //! These tests verify that each filter node behaves correctly with closed-form
 //! expectations and bounds checking as required by task 3.2.
 
+#![allow(unused_assignments)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+
 use racing_wheel_engine::filters::*;
 use racing_wheel_engine::rt::Frame;
-use std::f32::consts::PI;
 
 /// Helper function to create a test frame
 fn create_test_frame(ffb_in: f32, wheel_speed: f32) -> Frame {
@@ -638,6 +641,7 @@ mod bumpstop_filter_tests {
     }
 
     #[test]
+    #[allow(unused_assignments)]
     fn test_bumpstop_filter_within_range() {
         let mut state = BumpstopState::new(true, 450.0, 540.0, 0.8, 0.3);
         let state_ptr = &mut state as *mut _ as *mut u8;
@@ -646,7 +650,7 @@ mod bumpstop_filter_tests {
         state.current_angle = 400.0; // Below start_angle
 
         let mut frame = create_test_frame(0.0, 1.0);
-        let initial_torque = frame.torque_out;
+        let _initial_torque = frame.torque_out;
 
         bumpstop_filter(&mut frame, state_ptr);
 
@@ -656,6 +660,7 @@ mod bumpstop_filter_tests {
     }
 
     #[test]
+    #[allow(unused_assignments)]
     fn test_bumpstop_filter_at_limit() {
         let mut state = BumpstopState::new(true, 450.0, 540.0, 0.8, 0.3);
         let state_ptr = &mut state as *mut _ as *mut u8;
@@ -674,6 +679,7 @@ mod bumpstop_filter_tests {
     }
 
     #[test]
+    #[allow(unused_assignments)]
     fn test_bumpstop_filter_progressive_force() {
         let mut state = BumpstopState::new(true, 450.0, 540.0, 0.8, 0.3);
         let state_ptr = &mut state as *mut _ as *mut u8;

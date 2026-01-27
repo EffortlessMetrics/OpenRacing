@@ -298,10 +298,11 @@ pub struct ProfileStatistics {
 mod tests {
     use super::*;
     use ed25519_dalek::SigningKey;
-    use racing_wheel_schemas::{
-        BaseSettings, Degrees, DeviceCapabilities, DeviceType, FilterConfig, Gain, ProfileScope,
-        TorqueNm, TorqueNm as DeviceTorqueNm,
+    use racing_wheel_schemas::prelude::{
+        BaseSettings, Degrees, DeviceCapabilities, FilterConfig, Gain, ProfileScope,
+        TorqueNm,
     };
+    use racing_wheel_schemas::prelude::TorqueNm as DeviceTorqueNm;
     use rand::rngs::OsRng;
     use tempfile::TempDir;
 
@@ -410,7 +411,7 @@ mod tests {
             ProfileScope::global(),
             BaseSettings {
                 ffb_gain: Gain::new(0.5).unwrap(),
-                degrees_of_rotation: Degrees::new(900.0).unwrap(),
+                degrees_of_rotation: Degrees::new_dor(900.0).unwrap(),
                 torque_cap: TorqueNm::new(10.0).unwrap(),
                 filters: FilterConfig::default(),
             },
@@ -422,7 +423,7 @@ mod tests {
             ProfileScope::for_game("iracing".to_string()),
             BaseSettings {
                 ffb_gain: Gain::new(0.7).unwrap(),
-                degrees_of_rotation: Degrees::new(540.0).unwrap(),
+                degrees_of_rotation: Degrees::new_dor(540.0).unwrap(),
                 torque_cap: TorqueNm::new(15.0).unwrap(),
                 filters: FilterConfig::default(),
             },
@@ -519,7 +520,7 @@ mod tests {
             ProfileScope::global(),
             BaseSettings {
                 ffb_gain: Gain::new(0.8).unwrap(),
-                degrees_of_rotation: Degrees::new(540.0).unwrap(),
+                degrees_of_rotation: Degrees::new_dor(540.0).unwrap(),
                 torque_cap: TorqueNm::new(20.0).unwrap(), // Exceeds device max
                 filters: FilterConfig::default(),
             },

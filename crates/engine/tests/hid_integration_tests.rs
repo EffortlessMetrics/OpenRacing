@@ -3,15 +3,23 @@
 //! These tests validate the HID adapter implementations using virtual devices
 //! to ensure proper enumeration, I/O operations, and RT optimizations.
 
+#![allow(unused_comparisons)]
 use racing_wheel_engine::{
-    DeviceEvent, TelemetryData,
+    DeviceEvent,
     hid::{RTSetup, create_hid_port},
-    ports::{HidDevice, HidPort},
 };
-use racing_wheel_schemas::{DeviceCapabilities, DeviceId, TorqueNm};
+use racing_wheel_schemas::prelude::DeviceId;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use tokio::time::{Duration, timeout};
+
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
 
 /// Test HID port creation for current platform
 #[tokio::test]
@@ -273,12 +281,12 @@ async fn test_telemetry_reading_consistency() {
 
         // Fault flags should be a valid bitfield (u8 is always <= 0xFF)
         // This assertion is always true but kept for documentation
-        assert!(
-            telemetry.fault_flags <= u8::MAX,
-            "Reading {}: Invalid fault flags: 0x{:02X}",
-            i,
-            telemetry.fault_flags
-        );
+        // assert!(
+        //     true,
+        //     "Reading {}: Invalid fault flags: 0x{:02X}",
+        //     i,
+        //     telemetry.fault_flags
+        // );
     }
 }
 
@@ -331,14 +339,14 @@ async fn test_device_capabilities_validation() {
 
         // Validate encoder resolution
         assert!(
-            caps.encoder_cpr >= 100 && caps.encoder_cpr <= 65535,
+            caps.encoder_cpr >= 100,
             "Invalid encoder CPR: {}",
             caps.encoder_cpr
         );
 
         // Validate minimum report period
         assert!(
-            caps.min_report_period_us >= 100 && caps.min_report_period_us <= 65535,
+            caps.min_report_period_us >= 100,
             "Invalid min report period: {}μs",
             caps.min_report_period_us
         );
@@ -357,7 +365,7 @@ async fn test_error_handling_and_recovery() {
     let port = create_hid_port().expect("Failed to create HID port");
 
     // Try to open non-existent device
-    let fake_id = DeviceId::new("non-existent-device".to_string()).unwrap();
+    let fake_id = must(DeviceId::new("non-existent-device".to_string()));
     let result = port.open_device(&fake_id).await;
     assert!(result.is_err(), "Opening non-existent device should fail");
 

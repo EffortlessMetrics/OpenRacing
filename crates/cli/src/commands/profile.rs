@@ -76,14 +76,14 @@ async fn list_profiles(game: Option<&str>, car: Option<&str>, json: bool) -> Res
                 "●".color("green"),
                 profile_info.path.display().to_string().bold()
             );
-            if let Some(ref scope) = profile_info.scope {
-                if let Some(ref game) = scope.game {
-                    print!("    Game: {}", game.cyan());
-                    if let Some(ref car) = scope.car {
-                        print!(" | Car: {}", car.cyan());
-                    }
-                    println!();
+            if let Some(ref scope) = profile_info.scope
+                && let Some(ref game) = scope.game
+            {
+                print!("    Game: {}", game.cyan());
+                if let Some(ref car) = scope.car {
+                    print!(" | Car: {}", car.cyan());
                 }
+                println!();
             }
         }
     }
@@ -402,26 +402,26 @@ fn scan_profiles(
         let entry = entry?;
         let path = entry.path();
 
-        if path.is_file() && path.extension().map_or(false, |ext| ext == "json") {
-            if let Ok(content) = fs::read_to_string(&path) {
-                if let Ok(profile) = serde_json::from_str::<ProfileSchema>(&content) {
-                    // Apply filters
-                    let matches = match (game_filter, car_filter) {
-                        (Some(game), Some(car)) => {
-                            profile.scope.game.as_deref() == Some(game)
-                                && profile.scope.car.as_deref() == Some(car)
-                        }
-                        (Some(game), None) => profile.scope.game.as_deref() == Some(game),
-                        (None, Some(car)) => profile.scope.car.as_deref() == Some(car),
-                        (None, None) => true,
-                    };
-
-                    if matches {
-                        profiles.push(ProfileInfo {
-                            path,
-                            scope: Some(profile.scope),
-                        });
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "json") {
+            if let Ok(content) = fs::read_to_string(&path)
+                && let Ok(profile) = serde_json::from_str::<ProfileSchema>(&content)
+            {
+                // Apply filters
+                let matches = match (game_filter, car_filter) {
+                    (Some(game), Some(car)) => {
+                        profile.scope.game.as_deref() == Some(game)
+                            && profile.scope.car.as_deref() == Some(car)
                     }
+                    (Some(game), None) => profile.scope.game.as_deref() == Some(game),
+                    (None, Some(car)) => profile.scope.car.as_deref() == Some(car),
+                    (None, None) => true,
+                };
+
+                if matches {
+                    profiles.push(ProfileInfo {
+                        path,
+                        scope: Some(profile.scope),
+                    });
                 }
             }
         } else if path.is_dir() {

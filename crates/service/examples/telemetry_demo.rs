@@ -98,16 +98,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("   ✓ Started telemetry monitoring...");
     for i in 0..5 {
-        if let Ok(frame) = tokio::time::timeout(Duration::from_millis(100), receiver.recv()).await {
-            if let Some(frame) = frame {
-                println!(
-                    "   📊 Frame {}: RPM={:.0}, Speed={:.1} m/s, FFB={:.2}",
-                    i + 1,
-                    frame.data.rpm.unwrap_or(0.0),
-                    frame.data.speed_ms.unwrap_or(0.0),
-                    frame.data.ffb_scalar.unwrap_or(0.0)
-                );
-            }
+        if let Ok(Some(frame)) = tokio::time::timeout(Duration::from_millis(100), receiver.recv()).await {
+            println!(
+                "   📊 Frame {}: RPM={:.0}, Speed={:.1} m/s, FFB={:.2}",
+                i + 1,
+                frame.data.rpm.unwrap_or(0.0),
+                frame.data.speed_ms.unwrap_or(0.0),
+                frame.data.ffb_scalar.unwrap_or(0.0)
+            );
         }
     }
 
@@ -197,10 +195,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 8. Demonstrate telemetry flags and extended data
     println!("\n8. 🏁 Telemetry Flags & Extended Data");
-    let mut flags = TelemetryFlags::default();
-    flags.yellow_flag = true;
-    flags.pit_limiter = true;
-    flags.drs_available = true;
+    let flags = TelemetryFlags {
+        yellow_flag: true,
+        pit_limiter: true,
+        drs_available: true,
+        ..Default::default()
+    };
 
     let extended_telemetry = NormalizedTelemetry::default()
         .with_flags(flags)

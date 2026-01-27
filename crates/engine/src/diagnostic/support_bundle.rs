@@ -10,7 +10,7 @@ use std::{
     fs::{File, read_dir, read_to_string},
     io::Write,
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use sysinfo::System;
 use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
@@ -427,12 +427,11 @@ impl SupportBundle {
             let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
             let path = entry.path();
 
-            if path.is_file() {
-                if let Some(extension) = path.extension() {
-                    if extension == "log" || extension == "txt" {
-                        log_files.push(path);
-                    }
-                }
+            if path.is_file()
+                && let Some(extension) = path.extension()
+                && (extension == "log" || extension == "txt")
+            {
+                log_files.push(path);
             }
         }
 
@@ -453,12 +452,11 @@ impl SupportBundle {
             let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
             let path = entry.path();
 
-            if path.is_file() {
-                if let Some(extension) = path.extension() {
-                    if extension == "json" || extension == "profile" {
-                        profile_files.push(path);
-                    }
-                }
+            if path.is_file()
+                && let Some(extension) = path.extension()
+                && (extension == "json" || extension == "profile")
+            {
+                profile_files.push(path);
             }
         }
 
@@ -482,12 +480,11 @@ impl SupportBundle {
             let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
             let path = entry.path();
 
-            if path.is_file() {
-                if let Some(extension) = path.extension() {
-                    if extension == "wbb" {
-                        recordings.push(path);
-                    }
-                }
+            if path.is_file()
+                && let Some(extension) = path.extension()
+                && extension == "wbb"
+            {
+                recordings.push(path);
             }
         }
 
@@ -511,7 +508,7 @@ impl SupportBundle {
     ) -> Result<(), String> {
         let manifest = serde_json::json!({
             "bundle_version": "1.0",
-            "created_at": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            "created_at": SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or(Duration::ZERO).as_secs(),
             "config": {
                 "include_logs": self.config.include_logs,
                 "include_profiles": self.config.include_profiles,
@@ -624,11 +621,20 @@ impl SupportBundle {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use racing_wheel_schemas::prelude::DeviceId;
     use std::fs::write;
     use tempfile::TempDir;
+
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
 
     #[test]
     fn test_support_bundle_creation() {
@@ -656,7 +662,7 @@ mod tests {
         let config = SupportBundleConfig::default();
         let mut bundle = SupportBundle::new(config);
 
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let events = vec![
             HealthEvent {
                 timestamp: SystemTime::now(),
@@ -716,7 +722,7 @@ mod tests {
         // Add some test data
         bundle.add_system_info().unwrap();
 
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let events = vec![HealthEvent {
             timestamp: SystemTime::now(),
             device_id,
@@ -746,7 +752,7 @@ mod tests {
         let mut bundle = SupportBundle::new(config);
 
         // Try to add too much data
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let large_context = serde_json::json!({
             "large_data": "x".repeat(2 * 1024 * 1024) // 2MB of data
         });

@@ -7,6 +7,23 @@ use jsonschema::Validator;
 use racing_wheel_schemas::config::{BaseConfig, FilterConfig, Profile, ProfileScope};
 use serde_json::{Value, json};
 
+// Test helper for Result values
+#[allow(dead_code)]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("must failed: {:?}", e),
+    }
+}
+
+// Test helper for Option values
+fn must_some<T>(o: Option<T>, msg: &str) -> T {
+    match o {
+        Some(v) => v,
+        None => panic!("must_some failed: {}", msg),
+    }
+}
+
 #[test]
 fn test_profile_schema_validation() {
     // Load the JSON schema
@@ -95,7 +112,7 @@ fn test_profile_schema_required_fields() {
         "Profile missing required 'schema' field should fail validation"
     );
 
-    let error = validation_result.unwrap_err();
+    let error = must_some(validation_result.err(), "expected validation error");
     let error_message = error.to_string();
     assert!(
         error_message.contains("schema") || error_message.contains("required"),
@@ -151,10 +168,14 @@ fn test_profile_round_trip_serialization() {
 
     let validation_result = compiled_schema.validate(&json_value);
     if let Err(error) = validation_result {
+        let json_str = match serde_json::to_string_pretty(&json_value) {
+            Ok(s) => s,
+            Err(e) => format!("<failed to serialize: {}>", e),
+        };
         panic!(
             "Round-trip serialized profile should pass schema validation. Error: {}\nJSON: {}",
             error,
-            serde_json::to_string_pretty(&json_value).unwrap()
+            json_str
         );
     }
 }

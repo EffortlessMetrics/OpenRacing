@@ -550,6 +550,21 @@ impl From<HapticsConfig> for proto::HapticsConfig {
 mod tests {
     use super::*;
 
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("must failed: {:?}", e),
+        }
+    }
+
+    #[allow(dead_code)]
+    fn must_some<T>(o: Option<T>, msg: &str) -> T {
+        match o {
+            Some(v) => v,
+            None => panic!("must_some failed: {}", msg),
+        }
+    }
+
     #[test]
     fn test_device_capabilities_conversion() {
         let domain_caps = DeviceCapabilities::new(
@@ -557,13 +572,13 @@ mod tests {
             true,
             true,
             false,
-            TorqueNm::new(25.0).unwrap(),
+            must(TorqueNm::new(25.0)),
             10000,
             1000,
         );
 
         let wire_caps: proto::DeviceCapabilities = domain_caps.clone().into();
-        let back_to_domain: DeviceCapabilities = wire_caps.try_into().unwrap();
+        let back_to_domain: DeviceCapabilities = must(wire_caps.try_into());
 
         assert_eq!(domain_caps.supports_pid, back_to_domain.supports_pid);
         assert_eq!(
@@ -592,7 +607,7 @@ mod tests {
         assert_eq!(wire_telemetry.temp_c, 45);
         assert_eq!(wire_telemetry.faults, 0b10101010);
 
-        let back_to_domain: TelemetryData = wire_telemetry.try_into().unwrap();
+        let back_to_domain: TelemetryData = must(wire_telemetry.try_into());
 
         // Check conversion accuracy (within 0.001 for floating point)
         assert!((back_to_domain.wheel_angle_deg - 123.456).abs() < 0.001);
@@ -660,7 +675,7 @@ mod tests {
             gain_db: -20.0,
         };
 
-        let domain_filter: NotchFilter = valid_filter.try_into().unwrap();
+        let domain_filter: NotchFilter = must(valid_filter.try_into());
         assert_eq!(domain_filter.frequency.value(), 60.0);
 
         // Invalid Q factor

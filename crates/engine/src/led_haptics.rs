@@ -5,6 +5,7 @@
 //! force feedback performance.
 
 use crate::ports::{NormalizedTelemetry, TelemetryFlags};
+use crate::prelude::MutexExt;
 use racing_wheel_schemas::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -273,7 +274,7 @@ impl LedMappingEngine {
     /// Update RPM hysteresis state to prevent flickering
     fn update_rpm_hysteresis(&mut self, rpm: f32) {
         let hysteresis = self.rpm_hysteresis_state.hysteresis_percent;
-        let bands = vec![0.75, 0.82, 0.88, 0.92, 0.96]; // Should come from config
+        let bands = [0.75, 0.82, 0.88, 0.92, 0.96]; // Should come from config
 
         // Normalize RPM (assuming max RPM is available in telemetry)
         let max_rpm = 8000.0; // Should come from car/engine data
@@ -316,6 +317,7 @@ impl LedMappingEngine {
                 let current_band = self.rpm_hysteresis_state.current_band;
                 let leds_to_light = ((current_band + 1) * LED_COUNT / bands.len()).min(LED_COUNT);
 
+                #[allow(clippy::needless_range_loop)]
                 for i in 0..leds_to_light {
                     let band_index = (i * bands.len() / LED_COUNT).min(band_colors.len() - 1);
                     colors[i] = band_colors[band_index];
@@ -339,7 +341,7 @@ impl LedMappingEngine {
                         colors.fill(color);
                     }
                     FlagPattern::Blink => {
-                        let blink_on = (now.elapsed().as_millis() / 500) % 2 == 0;
+                        let blink_on = (now.elapsed().as_millis() / 500).is_multiple_of(2);
                         if blink_on {
                             colors.fill(color);
                         }
@@ -350,12 +352,13 @@ impl LedMappingEngine {
                             (now.elapsed().as_millis() % cycle_ms) as f32 / cycle_ms as f32;
                         let led_position = (position * LED_COUNT as f32) as usize;
 
-                        for i in 0..=led_position.min(LED_COUNT - 1) {
+                        #[allow(clippy::needless_range_loop)]
+                        for i in 0..led_position.min(LED_COUNT - 1) {
                             colors[i] = color;
                         }
                     }
                     FlagPattern::Flash => {
-                        let flash_on = (now.elapsed().as_millis() / 100) % 2 == 0;
+                        let flash_on = (now.elapsed().as_millis() / 100).is_multiple_of(2);
                         if flash_on {
                             colors.fill(color);
                         }
@@ -368,7 +371,7 @@ impl LedMappingEngine {
                 color,
             } => {
                 let period_ms = (1000.0 / blink_rate_hz) as u128;
-                let blink_on = (now.elapsed().as_millis() / period_ms) % 2 == 0;
+                let blink_on = (now.elapsed().as_millis() / period_ms).is_multiple_of(2);
                 if blink_on {
                     colors.fill(*color);
                 }
@@ -590,6 +593,12 @@ impl DashWidgetSystem {
     }
 }
 
+impl Default for DashWidgetSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Rate-independent LED and haptics output system
 ///
 /// This system operates at 60-200Hz independently of the 1kHz FFB loop
@@ -647,7 +656,7 @@ impl LedHapticsSystem {
         self.telemetry_rx = Some(telemetry_rx);
 
         {
-            let mut running = self.is_running.lock().unwrap();
+            let mut running = self.is_running.lock_or_panic();
             *running = true;
         }
 
@@ -659,7 +668,7 @@ impl LedHapticsSystem {
         let is_running = Arc::clone(&self.is_running);
         let update_rate_hz = self.update_rate_hz;
 
-        let mut telemetry_rx = self.telemetry_rx.take().unwrap();
+        let mut telemetry_rx = self.telemetry_rx.take().ok_or("telemetry receiver already taken")?;
 
         tokio::spawn(async move {
             let mut interval = interval(Duration::from_secs_f32(1.0 / update_rate_hz));
@@ -668,7 +677,7 @@ impl LedHapticsSystem {
             loop {
                 // Check if we should continue running
                 {
-                    let running = is_running.lock().unwrap();
+                    let running = is_running.lock_or_panic();
                     if !*running {
                         break;
                     }
@@ -682,17 +691,17 @@ impl LedHapticsSystem {
                 // Process output if we have telemetry
                 if let Some(ref telemetry) = last_telemetry {
                     let led_colors = {
-                        let mut engine = led_engine.lock().unwrap();
+                        let mut engine = led_engine.lock_or_panic();
                         engine.update_pattern(telemetry)
                     };
 
                     let haptics_patterns = {
-                        let mut router = haptics_router.lock().unwrap();
+                        let mut router = haptics_router.lock_or_panic();
                         router.update_patterns(telemetry)
                     };
 
                     let widgets = {
-                        let mut dash = dash_widgets.lock().unwrap();
+                        let mut dash = dash_widgets.lock_or_panic();
                         dash.update_widgets(telemetry)
                     };
 
@@ -720,24 +729,24 @@ impl LedHapticsSystem {
 
     /// Stop the LED and haptics processing
     pub fn stop(&self) {
-        let mut running = self.is_running.lock().unwrap();
+        let mut running = self.is_running.lock_or_panic();
         *running = false;
     }
 
     /// Update LED configuration
     pub fn update_led_config(&self, config: LedConfig) {
-        let mut engine = self.led_engine.lock().unwrap();
+        let mut engine = self.led_engine.lock_or_panic();
         engine.update_config(config);
     }
 
     /// Update haptics configuration
     pub fn update_haptics_config(&self, config: HapticsConfig) {
-        let mut router = self.haptics_router.lock().unwrap();
+        let mut router = self.haptics_router.lock_or_panic();
         router.update_config(config);
     }
 
     /// Check if system is running
     pub fn is_running(&self) -> bool {
-        *self.is_running.lock().unwrap()
+        *self.is_running.lock_or_panic()
     }
 }

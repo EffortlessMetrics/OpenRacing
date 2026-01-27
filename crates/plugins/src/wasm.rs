@@ -219,7 +219,7 @@ impl WasmPlugin {
             let store = &mut runtime.store;
             let func = instance
                 .get_typed_func::<(), ()>(store, func_name)
-                .map_err(|e| PluginError::WasmRuntime(e))?;
+                .map_err(PluginError::WasmRuntime)?;
 
             tokio::time::timeout(timeout, async move {
                 // Increment epoch to trigger interruption if needed
@@ -227,7 +227,7 @@ impl WasmPlugin {
 
                 // Call function
                 func.call(&mut runtime.store, ())
-                    .map_err(|e| PluginError::WasmRuntime(e))
+                    .map_err(PluginError::WasmRuntime)
             })
             .await
         };

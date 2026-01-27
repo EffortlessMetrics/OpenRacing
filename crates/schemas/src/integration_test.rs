@@ -10,19 +10,34 @@ mod tests {
     use crate::generated::wheel::v1 as proto;
     use crate::ipc_conversion::ConversionError;
     use crate::telemetry::TelemetryData;
+    use std::f64::consts::PI;
+
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("must failed: {:?}", e),
+        }
+    }
+
+    fn must_some<T>(o: Option<T>, msg: &str) -> T {
+        match o {
+            Some(v) => v,
+            None => panic!("must_some failed: {}", msg),
+        }
+    }
 
     /// Test that demonstrates a complete service workflow using conversions
     #[test]
     fn test_service_workflow_with_conversions() {
         // 1. Create domain objects (what the service layer works with)
-        let device_id: DeviceId = "wheel-base-001".parse().unwrap();
+        let device_id: DeviceId = must("wheel-base-001".parse());
 
         let capabilities = DeviceCapabilities::new(
             true,  // supports_pid
             true,  // supports_raw_torque_1khz
             true,  // supports_health_stream
             false, // supports_led_bus
-            TorqueNm::new(25.0).unwrap(),
+            must(TorqueNm::new(25.0)),
             10000, // encoder_cpr
             1000,  // min_report_period_us (1kHz)
         );
@@ -36,7 +51,7 @@ mod tests {
 
         let telemetry = TelemetryData {
             wheel_angle_deg: 180.5,
-            wheel_speed_rad_s: 3.14159,
+            wheel_speed_rad_s: PI as f32,
             temperature_c: 65,
             fault_flags: 0b00000001, // Single fault bit set
             hands_on: true,
@@ -53,7 +68,7 @@ mod tests {
         assert_eq!(wire_device.r#type, 1); // WheelBase = 1
         assert_eq!(wire_device.state, 1); // Connected = 1
 
-        let wire_caps = wire_device.capabilities.unwrap();
+        let wire_caps = must_some(wire_device.capabilities, "expected capabilities");
         assert_eq!(wire_caps.max_torque_cnm, 2500); // 25.0 Nm = 2500 cNm
         assert_eq!(wire_caps.encoder_cpr, 10000);
         assert_eq!(wire_caps.min_report_period_us, 1000);
@@ -63,12 +78,12 @@ mod tests {
         assert_eq!(wire_telemetry.wheel_speed_mrad_s, 3142); // 3.14159 rad/s ≈ 3142 mrad/s
         assert_eq!(wire_telemetry.temp_c, 65);
         assert_eq!(wire_telemetry.faults, 1);
-        assert_eq!(wire_telemetry.hands_on, true);
+        assert!(wire_telemetry.hands_on);
         assert_eq!(wire_telemetry.sequence, 0); // Deprecated field
 
         // 3. Convert wire format back to domain objects (after IPC reception)
-        let received_device: Device = wire_device.try_into().unwrap();
-        let received_telemetry: TelemetryData = wire_telemetry.try_into().unwrap();
+        let received_device: Device = must(wire_device.try_into());
+        let received_telemetry: TelemetryData = must(wire_telemetry.try_into());
 
         // Verify domain objects are correctly reconstructed
         assert_eq!(received_device.id.as_str(), "wheel-base-001");
@@ -78,21 +93,21 @@ mod tests {
 
         // Verify telemetry precision is preserved within acceptable tolerance
         assert!((received_telemetry.wheel_angle_deg - 180.5).abs() < 0.001);
-        assert!((received_telemetry.wheel_speed_rad_s - 3.14159).abs() < 0.001);
+        assert!((received_telemetry.wheel_speed_rad_s - PI as f32).abs() < 0.001);
         assert_eq!(received_telemetry.temperature_c, 65);
         assert_eq!(received_telemetry.fault_flags, 1);
-        assert_eq!(received_telemetry.hands_on, true);
+        assert!(received_telemetry.hands_on);
     }
 
     /// Test that demonstrates profile conversion with validation
     #[test]
     fn test_profile_conversion_with_validation() {
         // Create a domain profile
-        let profile_id: ProfileId = "iracing-gt3".parse().unwrap();
+        let profile_id: ProfileId = must("iracing-gt3".parse());
         let base_settings = BaseSettings::new(
-            Gain::new(0.85).unwrap(),
-            Degrees::new_dor(540.0).unwrap(),
-            TorqueNm::new(20.0).unwrap(),
+            must(Gain::new(0.85)),
+            must(Degrees::new_dor(540.0)),
+            must(TorqueNm::new(20.0)),
             FilterConfig::default(),
         );
 
@@ -108,13 +123,13 @@ mod tests {
 
         // Verify wire format
         assert_eq!(wire_profile.schema_version, "wheel.profile/1");
-        assert_eq!(wire_profile.scope.as_ref().unwrap().game, "iRacing");
-        assert_eq!(wire_profile.base.as_ref().unwrap().ffb_gain, 0.85);
-        assert_eq!(wire_profile.base.as_ref().unwrap().dor_deg, 540);
-        assert_eq!(wire_profile.base.as_ref().unwrap().torque_cap_nm, 20.0);
+        assert_eq!(must_some(wire_profile.scope.as_ref(), "expected scope").game, "iRacing");
+        assert_eq!(must_some(wire_profile.base.as_ref(), "expected base").ffb_gain, 0.85);
+        assert_eq!(must_some(wire_profile.base.as_ref(), "expected base").dor_deg, 540);
+        assert_eq!(must_some(wire_profile.base.as_ref(), "expected base").torque_cap_nm, 20.0);
 
         // Convert back to domain
-        let received_profile: Profile = wire_profile.try_into().unwrap();
+        let received_profile: Profile = must(wire_profile.try_into());
 
         // Verify domain reconstruction
         assert_eq!(received_profile.base_settings.ffb_gain.value(), 0.85);
@@ -143,7 +158,7 @@ mod tests {
         let result: Result<TelemetryData, ConversionError> = invalid_telemetry.try_into();
         assert!(result.is_err());
 
-        match result.unwrap_err() {
+        match must_some(result.err(), "expected error") {
             ConversionError::RangeValidation {
                 field,
                 value,
@@ -187,7 +202,7 @@ mod tests {
         let result: Result<BaseSettings, ConversionError> = invalid_profile.try_into();
         assert!(result.is_err());
 
-        match result.unwrap_err() {
+        match must_some(result.err(), "expected error") {
             ConversionError::DomainError(domain_error) => {
                 // Should be InvalidGain error
                 assert!(domain_error.to_string().contains("Invalid gain"));
@@ -209,7 +224,7 @@ mod tests {
                 true,
                 true,
                 false,
-                TorqueNm::new(15.0).unwrap(),
+                must(TorqueNm::new(15.0)),
                 8192,
                 1000,
             );
@@ -234,8 +249,8 @@ mod tests {
         }
 
         // Service call with domain types
-        let device_id: DeviceId = "test-device".parse().unwrap();
-        let (device, telemetry) = mock_service_method(&device_id).unwrap();
+        let device_id: DeviceId = must("test-device".parse());
+        let (device, telemetry) = must(mock_service_method(&device_id));
 
         // IPC layer converts to wire format for transmission
         let wire_device: proto::DeviceInfo = device.into();
@@ -248,8 +263,8 @@ mod tests {
         assert_eq!(wire_telemetry.wheel_speed_mrad_s, 1000);
 
         // Client receives wire format and converts back to domain types
-        let client_device: Device = wire_device.try_into().unwrap();
-        let client_telemetry: TelemetryData = wire_telemetry.try_into().unwrap();
+        let client_device: Device = must(wire_device.try_into());
+        let client_telemetry: TelemetryData = must(wire_telemetry.try_into());
 
         // Client now has domain types to work with
         assert_eq!(client_device.id.as_str(), "test-device");

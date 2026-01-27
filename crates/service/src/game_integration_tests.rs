@@ -4,17 +4,15 @@
 //! Requirements: GI-01, GI-02
 
 use crate::auto_profile_switching::AutoProfileSwitchingService;
-use crate::config_validation::{ConfigValidationService, ValidationResult, ValidationType};
-use crate::config_writers::{ACCConfigWriter, IRacingConfigWriter};
-use crate::game_service::{ConfigDiff, ConfigWriter, DiffOperation, GameService, TelemetryConfig};
+use crate::config_validation::{ConfigValidationService, ValidationResult};
+use crate::game_service::GameService;
 use crate::profile_service::ProfileService;
 use anyhow::Result;
-use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio::time::timeout;
-use tracing::{info, warn};
+use tracing::info;
 
 /// End-to-end test suite for game integration
 pub struct GameIntegrationTestSuite {
@@ -212,7 +210,7 @@ impl GameIntegrationTestSuite {
         let mut validation_results = Vec::new();
 
         // Generate configuration first
-        let diffs = self
+        let _diffs = self
             .game_service
             .configure_telemetry(&game_id, self.temp_dir.path())
             .await?;
@@ -295,7 +293,7 @@ impl GameIntegrationTestSuite {
         info!(test_name = %test_name, "Starting auto profile switching test");
 
         let mut errors = Vec::new();
-        let mut validation_results = Vec::new();
+        let validation_results = Vec::new();
 
         // Create auto profile switching service
         let switching_service = AutoProfileSwitchingService::new(self.profile_service.clone())?;
@@ -582,6 +580,14 @@ pub struct TestSummary {
     pub errors: Vec<String>,
 }
 
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -590,15 +596,15 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_suite_creation() {
-        let suite = GameIntegrationTestSuite::new().await.unwrap();
+        let suite = must(GameIntegrationTestSuite::new().await);
         assert!(suite.temp_dir.path().exists());
     }
 
     #[tokio::test]
     #[traced_test]
     async fn test_iracing_config_generation() {
-        let mut suite = GameIntegrationTestSuite::new().await.unwrap();
-        let result = suite.test_iracing_config_generation().await.unwrap();
+        let mut suite = must(GameIntegrationTestSuite::new().await);
+        let result = must(suite.test_iracing_config_generation().await);
 
         assert_eq!(result.test_name, "iracing_config_generation");
         assert_eq!(result.game_id, "iracing");
@@ -608,8 +614,8 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_acc_config_generation() {
-        let mut suite = GameIntegrationTestSuite::new().await.unwrap();
-        let result = suite.test_acc_config_generation().await.unwrap();
+        let mut suite = must(GameIntegrationTestSuite::new().await);
+        let result = must(suite.test_acc_config_generation().await);
 
         assert_eq!(result.test_name, "acc_config_generation");
         assert_eq!(result.game_id, "acc");
@@ -619,8 +625,8 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_led_heartbeat_validation() {
-        let mut suite = GameIntegrationTestSuite::new().await.unwrap();
-        let result = suite.test_led_heartbeat_validation().await.unwrap();
+        let mut suite = must(GameIntegrationTestSuite::new().await);
+        let result = must(suite.test_led_heartbeat_validation().await);
 
         assert_eq!(result.test_name, "led_heartbeat_validation");
         assert!(result.duration_ms > 0);
@@ -629,8 +635,8 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_performance_requirements() {
-        let mut suite = GameIntegrationTestSuite::new().await.unwrap();
-        let result = suite.test_performance_requirements().await.unwrap();
+        let mut suite = must(GameIntegrationTestSuite::new().await);
+        let result = must(suite.test_performance_requirements().await);
 
         assert_eq!(result.test_name, "performance_requirements");
         // Should complete within reasonable time

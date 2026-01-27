@@ -1,3 +1,4 @@
+#![allow(clippy::field_reassign_with_default)]
 //! Tests for pipeline swap atomicity and deterministic profile resolution
 //!
 //! These tests verify that:
@@ -6,10 +7,21 @@
 //! 3. No heap allocations occur on the hot path after pipeline compile
 //! 4. Two-phase apply works correctly under concurrent load
 
+// Test helper functions to replace unwrap
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
 use racing_wheel_engine::{
-    Pipeline, PipelineCompiler, ProfileMergeEngine, TwoPhaseApplyCoordinator,
+    pipeline::{Pipeline, PipelineCompiler},
+    profile_merge::ProfileMergeEngine,
+    TwoPhaseApplyCoordinator,
 };
-use racing_wheel_schemas::{
+use racing_wheel_schemas::prelude::{
     BaseSettings, CurvePoint, Degrees, FilterConfig, Gain, Profile, ProfileId, ProfileScope,
     TorqueNm,
 };
@@ -30,7 +42,7 @@ async fn test_pipeline_swap_atomicity() {
     let global_profile = create_test_profile("global", ProfileScope::global());
     let mut game_profile =
         create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
-    game_profile.base_settings.ffb_gain = Gain::new(0.8).unwrap();
+    game_profile.base_settings.ffb_gain = must(Gain::new(0.8));
 
     // Counter to track RT thread executions
     let rt_executions = Arc::new(AtomicUsize::new(0));
@@ -92,10 +104,10 @@ async fn test_pipeline_swap_atomicity() {
                 tokio::time::sleep(Duration::from_millis(10)).await;
             }
 
-            let result = result_rx.unwrap().await;
+            let result = must(result_rx).await;
             assert!(result.is_ok(), "Apply {} failed: {:?}", i, result);
 
-            let apply_result = result.unwrap();
+            let apply_result = must(result);
             assert!(apply_result.success, "Apply {} was not successful", i);
         });
 
@@ -104,11 +116,11 @@ async fn test_pipeline_swap_atomicity() {
 
     // Wait for all applies to complete
     for handle in apply_handles {
-        handle.await.unwrap();
+        must(handle.await);
     }
 
     // Wait for RT thread to complete
-    rt_handle.await.unwrap();
+    must(rt_handle.await);
 
     // Verify RT thread executed without interruption
     let final_executions = rt_executions.load(Ordering::Relaxed);
@@ -124,7 +136,7 @@ async fn test_pipeline_swap_atomicity() {
 /// Test deterministic profile resolution
 #[tokio::test]
 async fn test_deterministic_profile_resolution() {
-    let merge_engine = ProfileMergeEngine::default();
+    let merge_engine = ProfileMergeEngine;
 
     // Create test profiles
     let global_profile = create_test_profile("global", ProfileScope::global());
@@ -136,13 +148,13 @@ async fn test_deterministic_profile_resolution() {
     );
 
     // Set specific values
-    game_profile.base_settings.ffb_gain = Gain::new(0.8).unwrap();
-    car_profile.base_settings.degrees_of_rotation = Degrees::new_dor(540.0).unwrap();
+    game_profile.base_settings.ffb_gain = must(Gain::new(0.8));
+    car_profile.base_settings.degrees_of_rotation = must(Degrees::new_dor(540.0));
 
     let session_overrides = BaseSettings::new(
-        Gain::new(0.9).unwrap(),
-        Degrees::new_dor(720.0).unwrap(),
-        TorqueNm::new(18.0).unwrap(),
+        must(Gain::new(0.9)),
+        must(Degrees::new_dor(720.0)),
+        must(TorqueNm::new(18.0)),
         FilterConfig::default(),
     );
 
@@ -189,7 +201,7 @@ async fn test_deterministic_profile_resolution() {
 /// Test that different inputs produce different hashes
 #[tokio::test]
 async fn test_different_inputs_different_hashes() {
-    let merge_engine = ProfileMergeEngine::default();
+    let merge_engine = ProfileMergeEngine;
 
     let global_profile = create_test_profile("global", ProfileScope::global());
     let mut game_profile1 =
@@ -197,8 +209,8 @@ async fn test_different_inputs_different_hashes() {
     let mut game_profile2 = create_test_profile("acc", ProfileScope::for_game("acc".to_string()));
 
     // Make profiles different
-    game_profile1.base_settings.ffb_gain = Gain::new(0.7).unwrap();
-    game_profile2.base_settings.ffb_gain = Gain::new(0.8).unwrap();
+    game_profile1.base_settings.ffb_gain = must(Gain::new(0.7));
+    game_profile2.base_settings.ffb_gain = must(Gain::new(0.8));
 
     let result1 = merge_engine.merge_profiles(&global_profile, Some(&game_profile1), None, None);
     let result2 = merge_engine.merge_profiles(&global_profile, Some(&game_profile2), None, None);
@@ -225,12 +237,12 @@ async fn test_pipeline_compilation_determinism() {
     // Create filter config with various settings
     let mut filter_config = FilterConfig::default();
     filter_config.reconstruction = 6;
-    filter_config.friction = Gain::new(0.2).unwrap();
-    filter_config.damper = Gain::new(0.25).unwrap();
+    filter_config.friction = must(Gain::new(0.2));
+    filter_config.damper = must(Gain::new(0.25));
     filter_config.curve_points = vec![
-        CurvePoint::new(0.0, 0.0).unwrap(),
-        CurvePoint::new(0.5, 0.7).unwrap(),
-        CurvePoint::new(1.0, 1.0).unwrap(),
+        must(CurvePoint::new(0.0, 0.0)),
+        must(CurvePoint::new(0.5, 0.7)),
+        must(CurvePoint::new(1.0, 1.0)),
     ];
 
     // Compile the same config multiple times
@@ -242,7 +254,7 @@ async fn test_pipeline_compilation_determinism() {
             "Pipeline compilation failed: {:?}",
             compiled
         );
-        compiled_pipelines.push(compiled.unwrap());
+        compiled_pipelines.push(must(compiled));
     }
 
     // All compilations should produce identical hashes
@@ -266,7 +278,7 @@ async fn test_no_allocations_on_hot_path() {
     let filter_config = FilterConfig::default();
 
     // Compile pipeline
-    let compiled = compiler.compile_pipeline(filter_config).await.unwrap();
+    let compiled = must(compiler.compile_pipeline(filter_config).await);
     let mut pipeline = compiled.pipeline;
 
     // Create test frame
@@ -310,7 +322,7 @@ async fn test_concurrent_pipeline_compilation() {
         let handle = tokio::spawn(async move {
             let result = compiler_clone.compile_pipeline(config).await;
             assert!(result.is_ok(), "Compilation {} failed: {:?}", i, result);
-            result.unwrap()
+            must(result)
         });
         handles.push(handle);
     }
@@ -318,7 +330,7 @@ async fn test_concurrent_pipeline_compilation() {
     // Wait for all compilations to complete
     let mut compiled_pipelines = Vec::new();
     for handle in handles {
-        let compiled = handle.await.unwrap();
+        let compiled = must(handle.await);
         compiled_pipelines.push(compiled);
     }
 
@@ -338,31 +350,31 @@ async fn test_concurrent_pipeline_compilation() {
 /// Test profile hierarchy precedence
 #[tokio::test]
 async fn test_profile_hierarchy_precedence() {
-    let merge_engine = ProfileMergeEngine::default();
+    let merge_engine = ProfileMergeEngine;
 
     // Create profiles with different values at each level
     let mut global_profile = create_test_profile("global", ProfileScope::global());
-    global_profile.base_settings.ffb_gain = Gain::new(0.5).unwrap();
-    global_profile.base_settings.degrees_of_rotation = Degrees::new_dor(900.0).unwrap();
-    global_profile.base_settings.torque_cap = TorqueNm::new(10.0).unwrap();
+    global_profile.base_settings.ffb_gain = must(Gain::new(0.5));
+    global_profile.base_settings.degrees_of_rotation = must(Degrees::new_dor(900.0));
+    global_profile.base_settings.torque_cap = must(TorqueNm::new(10.0));
 
     let mut game_profile =
         create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
-    game_profile.base_settings.ffb_gain = Gain::new(0.75).unwrap(); // Non-default value
-    game_profile.base_settings.degrees_of_rotation = Degrees::new_dor(720.0).unwrap();
+    game_profile.base_settings.ffb_gain = must(Gain::new(0.75)); // Non-default value
+    game_profile.base_settings.degrees_of_rotation = must(Degrees::new_dor(720.0));
     // torque_cap left as default (should not override)
 
     let mut car_profile = create_test_profile(
         "gt3",
         ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
     );
-    car_profile.base_settings.ffb_gain = Gain::new(0.8).unwrap();
+    car_profile.base_settings.ffb_gain = must(Gain::new(0.8));
     // Other settings left as default
 
     let session_overrides = BaseSettings::new(
-        Gain::new(0.9).unwrap(),          // Should override everything
-        Degrees::new_dor(540.0).unwrap(), // Should override everything
-        TorqueNm::new(25.0).unwrap(),     // Should override everything
+        must(Gain::new(0.9)),          // Should override everything
+        must(Degrees::new_dor(540.0)), // Should override everything
+        must(TorqueNm::new(25.0)),     // Should override everything
         FilterConfig::default(),
     );
 
@@ -436,20 +448,19 @@ async fn test_curve_monotonicity_validation() {
     let compiler = PipelineCompiler::new();
 
     // Valid monotonic curve
-    let valid_config = FilterConfig::new(
+    let valid_config = must(FilterConfig::new(
         4,
-        Gain::new(0.1).unwrap(),
-        Gain::new(0.15).unwrap(),
-        Gain::new(0.05).unwrap(),
+        must(Gain::new(0.1)),
+        must(Gain::new(0.15)),
+        must(Gain::new(0.05)),
         vec![],
-        Gain::new(0.8).unwrap(),
+        must(Gain::new(0.8)),
         vec![
-            CurvePoint::new(0.0, 0.0).unwrap(),
-            CurvePoint::new(0.5, 0.6).unwrap(),
-            CurvePoint::new(1.0, 1.0).unwrap(),
+            must(CurvePoint::new(0.0, 0.0)),
+            must(CurvePoint::new(0.5, 0.6)),
+            must(CurvePoint::new(1.0, 1.0)),
         ],
-    )
-    .unwrap();
+    ));
 
     let result = compiler.compile_pipeline(valid_config).await;
     assert!(result.is_ok(), "Valid monotonic curve should compile");
@@ -457,16 +468,16 @@ async fn test_curve_monotonicity_validation() {
     // Invalid non-monotonic curve
     let invalid_config = FilterConfig::new(
         4,
-        Gain::new(0.1).unwrap(),
-        Gain::new(0.15).unwrap(),
-        Gain::new(0.05).unwrap(),
+        must(Gain::new(0.1)),
+        must(Gain::new(0.15)),
+        must(Gain::new(0.05)),
         vec![],
-        Gain::new(0.8).unwrap(),
+        must(Gain::new(0.8)),
         vec![
-            CurvePoint::new(0.0, 0.0).unwrap(),
-            CurvePoint::new(0.7, 0.6).unwrap(), // Non-monotonic
-            CurvePoint::new(0.5, 0.8).unwrap(),
-            CurvePoint::new(1.0, 1.0).unwrap(),
+            must(CurvePoint::new(0.0, 0.0)),
+            must(CurvePoint::new(0.7, 0.6)), // Non-monotonic
+            must(CurvePoint::new(0.5, 0.8)),
+            must(CurvePoint::new(1.0, 1.0)),
         ],
     );
 
@@ -481,7 +492,7 @@ async fn test_curve_monotonicity_validation() {
 
 fn create_test_profile(id: &str, scope: ProfileScope) -> Profile {
     Profile::new(
-        ProfileId::new(id.to_string()).unwrap(),
+        must(ProfileId::new(id.to_string())),
         scope,
         BaseSettings::default(),
         format!("Test Profile {}", id),
@@ -490,13 +501,13 @@ fn create_test_profile(id: &str, scope: ProfileScope) -> Profile {
 
 fn create_filter_config_with_friction(friction: f32) -> FilterConfig {
     let mut config = FilterConfig::default();
-    config.friction = Gain::new(friction).unwrap();
+    config.friction = must(Gain::new(friction));
     config
 }
 
 fn create_filter_config_with_damper(damper: f32) -> FilterConfig {
     let mut config = FilterConfig::default();
-    config.damper = Gain::new(damper).unwrap();
+    config.damper = must(Gain::new(damper));
     config
 }
 
@@ -512,12 +523,13 @@ async fn test_two_phase_apply_stress() {
     let mut profiles = Vec::new();
     for i in 0..50 {
         let mut profile = create_test_profile(&format!("profile_{}", i), ProfileScope::global());
-        profile.base_settings.ffb_gain = Gain::new(0.5 + (i as f32 * 0.01)).unwrap();
+        profile.base_settings.ffb_gain = must(Gain::new(0.5 + (i as f32 * 0.01)));
         profiles.push(profile);
     }
 
     // Start many concurrent applies
     let mut handles = Vec::new();
+    #[allow(clippy::async_yields_async)]
     for (i, profile) in profiles.iter().enumerate() {
         let coordinator_clone = coordinator.clone();
         let global_clone = global_profile.clone();
@@ -529,7 +541,8 @@ async fn test_two_phase_apply_stress() {
                 .await;
 
             assert!(result_rx.is_ok(), "Apply {} failed to start", i);
-            result_rx.unwrap()
+            #[allow(clippy::async_yields_async)]
+            must(result_rx)
         });
 
         handles.push(handle);
@@ -538,7 +551,7 @@ async fn test_two_phase_apply_stress() {
     // Collect all result receivers
     let mut result_receivers = Vec::new();
     for handle in handles {
-        let rx = handle.await.unwrap();
+        let rx = must(handle.await);
         result_receivers.push(rx);
     }
 
@@ -554,7 +567,7 @@ async fn test_two_phase_apply_stress() {
         let result = rx.await;
         assert!(result.is_ok(), "Apply {} result channel failed", i);
 
-        let apply_result = result.unwrap();
+        let apply_result = must(result);
         if apply_result.success {
             successful_applies += 1;
         }

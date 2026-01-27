@@ -471,7 +471,7 @@ mod tests {
         let streamer = Arc::new(HealthEventStreamer::new(100));
         let streaming_service = HealthStreamingService::new(streamer.clone(), 10.0);
 
-        let mut stream = streaming_service.start_streaming().await;
+        let stream = streaming_service.start_streaming().await;
         tokio::pin!(stream);
 
         // Emit a test event
@@ -512,7 +512,7 @@ mod tests {
         };
 
         let span = LoggingSpans::device_span(&context);
-        assert_eq!(span.metadata().name(), "device");
+        assert_eq!(span.metadata().expect("metadata").name(), "device");
     }
 
     #[test]
@@ -525,7 +525,7 @@ mod tests {
         };
 
         let span = LoggingSpans::game_span(&context);
-        assert_eq!(span.metadata().name(), "game");
+        assert_eq!(span.metadata().expect("metadata").name(), "game");
     }
 
     #[tokio::test]

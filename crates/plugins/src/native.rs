@@ -15,6 +15,7 @@ use tokio::sync::RwLock;
 use crate::capability::CapabilityChecker;
 use crate::manifest::PluginManifest;
 use crate::{Plugin, PluginContext, PluginError, PluginOutput, PluginResult};
+use racing_wheel_engine::prelude::MutexExt;
 use racing_wheel_engine::NormalizedTelemetry;
 
 /// Native plugin ABI version
@@ -337,6 +338,7 @@ impl NativePluginHelper {
         }
 
         let shmem_os_id = shared_memory.get_os_id().to_string();
+        #[allow(clippy::arc_with_non_send_sync)]
         let shared_memory = Arc::new(Mutex::new(shared_memory));
 
         // Start helper process
@@ -381,7 +383,7 @@ impl NativePluginHelper {
     pub async fn shutdown(&mut self) -> PluginResult<()> {
         // Set shutdown flag
         unsafe {
-            let shared_memory = self.shared_memory.lock().unwrap();
+            let shared_memory = self.shared_memory.lock_or_panic();
             let header = shared_memory.as_ptr() as *mut SharedMemoryHeader;
             (*header).shutdown_flag.store(true, Ordering::Relaxed);
         }
@@ -394,7 +396,7 @@ impl NativePluginHelper {
 
     fn write_frame_to_shared_memory(&self, frame: PluginFrame) -> PluginResult<()> {
         unsafe {
-            let shared_memory = self.shared_memory.lock().unwrap();
+            let shared_memory = self.shared_memory.lock_or_panic();
             let header = shared_memory.as_ptr() as *mut SharedMemoryHeader;
             let frames_ptr = (header as *mut u8).add(std::mem::size_of::<SharedMemoryHeader>())
                 as *mut PluginFrame;
@@ -422,7 +424,7 @@ impl NativePluginHelper {
 
     fn read_frame_from_shared_memory(&self) -> PluginResult<PluginFrame> {
         unsafe {
-            let shared_memory = self.shared_memory.lock().unwrap();
+            let shared_memory = self.shared_memory.lock_or_panic();
             let header = shared_memory.as_ptr() as *mut SharedMemoryHeader;
             let frames_ptr = (header as *mut u8).add(std::mem::size_of::<SharedMemoryHeader>())
                 as *mut PluginFrame;
@@ -452,6 +454,12 @@ impl NativePluginHelper {
 /// Native plugin host manager
 pub struct NativePluginHost {
     plugins: Arc<RwLock<HashMap<uuid::Uuid, NativePlugin>>>,
+}
+
+impl Default for NativePluginHost {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NativePluginHost {

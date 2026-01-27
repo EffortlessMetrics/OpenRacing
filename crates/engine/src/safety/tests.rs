@@ -3,6 +3,23 @@
 use super::*;
 use std::time::{Duration, Instant};
 
+// Test helper functions to replace unwrap
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
+#[track_caller]
+fn must_some<T>(o: Option<T>, msg: &str) -> T {
+    match o {
+        Some(v) => v,
+        None => panic!("{msg}"),
+    }
+}
+
 /// Create a test safety service
 fn create_test_service() -> SafetyService {
     SafetyService::with_timeouts(
@@ -27,7 +44,7 @@ fn test_initial_state() {
 fn test_request_high_torque_success() {
     let mut service = create_test_service();
 
-    let challenge = service.request_high_torque("test_device").unwrap();
+    let challenge = must(service.request_high_torque("test_device"));
 
     assert!(challenge.challenge_token != 0);
     assert_eq!(challenge.combo_required, ButtonCombo::BothClutchPaddles);
@@ -53,21 +70,17 @@ fn test_request_high_torque_already_active() {
     let mut service = create_test_service();
 
     // First request should succeed
-    let challenge = service.request_high_torque("test_device").unwrap();
-    service
-        .provide_ui_consent(challenge.challenge_token)
-        .unwrap();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
 
-    let ack = InterlockAck {
+    let _ack = InterlockAck {
         challenge_token: challenge.challenge_token,
         device_token: 12345,
         combo_completed: ButtonCombo::BothClutchPaddles,
         timestamp: Instant::now(),
     };
 
-    service
-        .report_combo_start(challenge.challenge_token)
-        .unwrap();
+    must(service.report_combo_start(challenge.challenge_token));
     std::thread::sleep(Duration::from_millis(2100)); // Wait for combo duration
 
     // Update the ack timestamp to be after the combo duration
@@ -78,24 +91,22 @@ fn test_request_high_torque_already_active() {
         timestamp: Instant::now(),
     };
 
-    service.confirm_high_torque("test_device", ack).unwrap();
+    must(service.confirm_high_torque("test_device", ack));
 
     // Second request should fail
     let result = service.request_high_torque("test_device");
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("already active"));
+    assert!(must_some(result.err(), "expected error").contains("already active"));
 }
 
 #[test]
 fn test_ui_consent_flow() {
     let mut service = create_test_service();
 
-    let challenge = service.request_high_torque("test_device").unwrap();
+    let challenge = must(service.request_high_torque("test_device"));
 
     // Provide UI consent
-    service
-        .provide_ui_consent(challenge.challenge_token)
-        .unwrap();
+    must(service.provide_ui_consent(challenge.challenge_token));
 
     // State should transition to AwaitingPhysicalAck
     match service.state() {
@@ -108,7 +119,7 @@ fn test_ui_consent_flow() {
     }
 
     // Active challenge should be updated
-    let active_challenge = service.get_active_challenge().unwrap();
+    let active_challenge = must_some(service.get_active_challenge(), "expected active challenge");
     assert!(active_challenge.ui_consent_given);
 }
 
@@ -116,30 +127,26 @@ fn test_ui_consent_flow() {
 fn test_ui_consent_invalid_token() {
     let mut service = create_test_service();
 
-    service.request_high_torque("test_device").unwrap();
+    must(service.request_high_torque("test_device"));
 
     // Try to provide consent with wrong token
     let result = service.provide_ui_consent(99999);
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Invalid challenge token"));
+    assert!(must_some(result.err(), "expected error").contains("Invalid challenge token"));
 }
 
 #[test]
 fn test_physical_combo_flow() {
     let mut service = create_test_service();
 
-    let challenge = service.request_high_torque("test_device").unwrap();
-    service
-        .provide_ui_consent(challenge.challenge_token)
-        .unwrap();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
 
     // Report combo start
-    service
-        .report_combo_start(challenge.challenge_token)
-        .unwrap();
+    must(service.report_combo_start(challenge.challenge_token));
 
     // Active challenge should be updated
-    let active_challenge = service.get_active_challenge().unwrap();
+    let active_challenge = must_some(service.get_active_challenge(), "expected active challenge");
     assert!(active_challenge.combo_start.is_some());
 
     // Wait for combo duration
@@ -153,7 +160,7 @@ fn test_physical_combo_flow() {
         timestamp: Instant::now(),
     };
 
-    service.confirm_high_torque("test_device", ack).unwrap();
+    must(service.confirm_high_torque("test_device", ack));
 
     // Should be in HighTorqueActive state
     match service.state() {
@@ -172,13 +179,9 @@ fn test_physical_combo_flow() {
 fn test_combo_insufficient_hold_duration() {
     let mut service = create_test_service();
 
-    let challenge = service.request_high_torque("test_device").unwrap();
-    service
-        .provide_ui_consent(challenge.challenge_token)
-        .unwrap();
-    service
-        .report_combo_start(challenge.challenge_token)
-        .unwrap();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
+    must(service.report_combo_start(challenge.challenge_token));
 
     // Don't wait long enough
     std::thread::sleep(Duration::from_millis(500));
@@ -192,14 +195,14 @@ fn test_combo_insufficient_hold_duration() {
 
     let result = service.confirm_high_torque("test_device", ack);
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("held for only"));
+    assert!(must_some(result.err(), "expected error").contains("held for only"));
 }
 
 #[test]
 fn test_challenge_expiry() {
     let mut service = create_test_service();
 
-    let challenge = service.request_high_torque("test_device").unwrap();
+    let challenge = must(service.request_high_torque("test_device"));
 
     // Manually expire the challenge by setting state
     service.state = SafetyState::SafeTorque;
@@ -213,7 +216,7 @@ fn test_challenge_expiry() {
     // Trying to provide consent should fail
     let result = service.provide_ui_consent(challenge.challenge_token);
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("No active challenge"));
+    assert!(must_some(result.err(), "expected error").contains("No active challenge"));
 }
 
 #[test]
@@ -221,13 +224,9 @@ fn test_hands_on_timeout() {
     let mut service = create_test_service();
 
     // Activate high torque
-    let challenge = service.request_high_torque("test_device").unwrap();
-    service
-        .provide_ui_consent(challenge.challenge_token)
-        .unwrap();
-    service
-        .report_combo_start(challenge.challenge_token)
-        .unwrap();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
+    must(service.report_combo_start(challenge.challenge_token));
     std::thread::sleep(Duration::from_millis(2100));
 
     let ack = InterlockAck {
@@ -237,10 +236,10 @@ fn test_hands_on_timeout() {
         timestamp: Instant::now(),
     };
 
-    service.confirm_high_torque("test_device", ack).unwrap();
+    must(service.confirm_high_torque("test_device", ack));
 
     // Simulate hands-off for too long
-    service.update_hands_on_status(false).unwrap(); // Initial hands-off is OK
+    must(service.update_hands_on_status(false)); // Initial hands-off is OK
 
     // Wait for timeout
     std::thread::sleep(Duration::from_millis(3100));
@@ -248,7 +247,7 @@ fn test_hands_on_timeout() {
     // Next update should trigger fault
     let result = service.update_hands_on_status(false);
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Hands-off timeout"));
+    assert!(must_some(result.err(), "expected error").contains("Hands-off timeout"));
 
     // Should be in faulted state
     match service.state() {
@@ -264,13 +263,9 @@ fn test_hands_on_reset_timeout() {
     let mut service = create_test_service();
 
     // Activate high torque
-    let challenge = service.request_high_torque("test_device").unwrap();
-    service
-        .provide_ui_consent(challenge.challenge_token)
-        .unwrap();
-    service
-        .report_combo_start(challenge.challenge_token)
-        .unwrap();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
+    must(service.report_combo_start(challenge.challenge_token));
     std::thread::sleep(Duration::from_millis(2100));
 
     let ack = InterlockAck {
@@ -280,18 +275,18 @@ fn test_hands_on_reset_timeout() {
         timestamp: Instant::now(),
     };
 
-    service.confirm_high_torque("test_device", ack).unwrap();
+    must(service.confirm_high_torque("test_device", ack));
 
     // Hands-off for a while
-    service.update_hands_on_status(false).unwrap();
+    must(service.update_hands_on_status(false));
     std::thread::sleep(Duration::from_millis(2000));
 
     // Hands back on should reset timeout
-    service.update_hands_on_status(true).unwrap();
+    must(service.update_hands_on_status(true));
 
     // Wait again, but should not timeout since hands are on
     std::thread::sleep(Duration::from_millis(3100));
-    service.update_hands_on_status(true).unwrap(); // Should still be OK
+    must(service.update_hands_on_status(true)); // Should still be OK
 
     // Should still be in HighTorqueActive state
     assert!(matches!(
@@ -304,13 +299,11 @@ fn test_hands_on_reset_timeout() {
 fn test_cancel_challenge() {
     let mut service = create_test_service();
 
-    let challenge = service.request_high_torque("test_device").unwrap();
-    service
-        .provide_ui_consent(challenge.challenge_token)
-        .unwrap();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
 
     // Cancel the challenge
-    service.cancel_challenge().unwrap();
+    must(service.cancel_challenge());
 
     assert_eq!(service.state(), &SafetyState::SafeTorque);
     assert!(service.get_active_challenge().is_none());
@@ -321,13 +314,9 @@ fn test_disable_high_torque() {
     let mut service = create_test_service();
 
     // Activate high torque
-    let challenge = service.request_high_torque("test_device").unwrap();
-    service
-        .provide_ui_consent(challenge.challenge_token)
-        .unwrap();
-    service
-        .report_combo_start(challenge.challenge_token)
-        .unwrap();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
+    must(service.report_combo_start(challenge.challenge_token));
     std::thread::sleep(Duration::from_millis(2100));
 
     let ack = InterlockAck {
@@ -337,11 +326,11 @@ fn test_disable_high_torque() {
         timestamp: Instant::now(),
     };
 
-    service.confirm_high_torque("test_device", ack).unwrap();
+    must(service.confirm_high_torque("test_device", ack));
     assert!(service.has_valid_token("test_device"));
 
     // Disable high torque
-    service.disable_high_torque("test_device").unwrap();
+    must(service.disable_high_torque("test_device"));
 
     assert_eq!(service.state(), &SafetyState::SafeTorque);
     assert!(!service.has_valid_token("test_device"));
@@ -367,7 +356,7 @@ fn test_fault_handling() {
     // Cannot request high torque while faulted
     let result = service.request_high_torque("test_device");
     assert!(result.is_err());
-    let error_msg = result.unwrap_err();
+    let error_msg = must_some(result.err(), "expected error");
     assert!(error_msg.contains("faulted") || error_msg.contains("active faults"));
 }
 
@@ -380,7 +369,7 @@ fn test_clear_fault() {
     // Wait minimum fault duration
     std::thread::sleep(Duration::from_millis(150));
 
-    service.clear_fault().unwrap();
+    must(service.clear_fault());
     assert_eq!(service.state(), &SafetyState::SafeTorque);
 }
 
@@ -393,7 +382,7 @@ fn test_clear_fault_too_soon() {
     // Try to clear immediately
     let result = service.clear_fault();
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("too short"));
+    assert!(must_some(result.err(), "expected error").contains("too short"));
 }
 
 #[test]
@@ -415,10 +404,10 @@ fn test_challenge_time_remaining() {
     assert!(service.get_challenge_time_remaining().is_none());
 
     // Start challenge
-    service.request_high_torque("test_device").unwrap();
+    must(service.request_high_torque("test_device"));
 
     // Should have time remaining
-    let remaining = service.get_challenge_time_remaining().unwrap();
+    let remaining = must_some(service.get_challenge_time_remaining(), "expected time remaining");
     assert!(remaining > Duration::from_secs(25)); // Should be close to 30 seconds
     assert!(remaining <= Duration::from_secs(30));
 }
@@ -428,13 +417,9 @@ fn test_multiple_devices() {
     let mut service = create_test_service();
 
     // Activate high torque for device 1
-    let challenge1 = service.request_high_torque("device1").unwrap();
-    service
-        .provide_ui_consent(challenge1.challenge_token)
-        .unwrap();
-    service
-        .report_combo_start(challenge1.challenge_token)
-        .unwrap();
+    let challenge1 = must(service.request_high_torque("device1"));
+    must(service.provide_ui_consent(challenge1.challenge_token));
+    must(service.report_combo_start(challenge1.challenge_token));
     std::thread::sleep(Duration::from_millis(2100));
 
     let ack1 = InterlockAck {
@@ -444,14 +429,14 @@ fn test_multiple_devices() {
         timestamp: Instant::now(),
     };
 
-    service.confirm_high_torque("device1", ack1).unwrap();
+    must(service.confirm_high_torque("device1", ack1));
 
     // Device 1 should have token, device 2 should not
     assert!(service.has_valid_token("device1"));
     assert!(!service.has_valid_token("device2"));
 
     // Disable for device 1
-    service.disable_high_torque("device1").unwrap();
+    must(service.disable_high_torque("device1"));
     assert!(!service.has_valid_token("device1"));
 }
 
@@ -469,13 +454,9 @@ fn test_button_combo_types() {
 fn test_interlock_ack_validation() {
     let mut service = create_test_service();
 
-    let challenge = service.request_high_torque("test_device").unwrap();
-    service
-        .provide_ui_consent(challenge.challenge_token)
-        .unwrap();
-    service
-        .report_combo_start(challenge.challenge_token)
-        .unwrap();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
+    must(service.report_combo_start(challenge.challenge_token));
     std::thread::sleep(Duration::from_millis(2100));
 
     // Wrong challenge token
@@ -488,7 +469,7 @@ fn test_interlock_ack_validation() {
 
     let result = service.confirm_high_torque("test_device", wrong_ack);
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Invalid challenge token"));
+    assert!(must_some(result.err(), "expected error").contains("Invalid challenge token"));
 }
 
 #[test]
@@ -509,23 +490,23 @@ fn test_state_transitions() {
     let mut service = create_test_service();
 
     // SafeTorque -> HighTorqueChallenge
-    service.request_high_torque("test_device").unwrap();
+    must(service.request_high_torque("test_device"));
     assert!(matches!(
         service.state(),
         SafetyState::HighTorqueChallenge { .. }
     ));
 
     // HighTorqueChallenge -> AwaitingPhysicalAck
-    let challenge = service.get_active_challenge().unwrap();
+    let challenge = must_some(service.get_active_challenge(), "expected active challenge");
     let challenge_token = challenge.challenge_token;
-    service.provide_ui_consent(challenge_token).unwrap();
+    must(service.provide_ui_consent(challenge_token));
     assert!(matches!(
         service.state(),
         SafetyState::AwaitingPhysicalAck { .. }
     ));
 
     // AwaitingPhysicalAck -> HighTorqueActive
-    service.report_combo_start(challenge_token).unwrap();
+    must(service.report_combo_start(challenge_token));
     std::thread::sleep(Duration::from_millis(2100));
 
     let ack = InterlockAck {
@@ -535,7 +516,7 @@ fn test_state_transitions() {
         timestamp: Instant::now(),
     };
 
-    service.confirm_high_torque("test_device", ack).unwrap();
+    must(service.confirm_high_torque("test_device", ack));
     assert!(matches!(
         service.state(),
         SafetyState::HighTorqueActive { .. }
@@ -547,6 +528,6 @@ fn test_state_transitions() {
 
     // Faulted -> SafeTorque
     std::thread::sleep(Duration::from_millis(150));
-    service.clear_fault().unwrap();
+    must(service.clear_fault());
     assert_eq!(service.state(), &SafetyState::SafeTorque);
 }

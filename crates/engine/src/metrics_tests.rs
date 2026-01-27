@@ -7,6 +7,22 @@
 use crate::metrics::*;
 
 /// Test suite for metrics validation and alerting thresholds
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
+#[track_caller]
+fn must_some<T>(o: Option<T>, msg: &str) -> T {
+    match o {
+        Some(v) => v,
+        None => panic!("must_some failed: {}", msg),
+    }
+}
+
 #[cfg(test)]
 mod metrics_validation_tests {
     use super::*;
@@ -315,7 +331,7 @@ mod metrics_validation_tests {
     /// Test metrics collection and aggregation
     #[tokio::test]
     async fn test_metrics_collection_integration() {
-        let mut collector = MetricsCollector::new().unwrap();
+        let mut collector = must(MetricsCollector::new());
         let counters = collector.atomic_counters();
 
         // Simulate RT activity
@@ -339,29 +355,31 @@ mod metrics_validation_tests {
         counters.inc_telemetry_lost(); // 2% loss rate
 
         // Collect metrics
-        collector.collect_metrics().await.unwrap();
+        must(collector.collect_metrics().await);
 
         // Verify health events were emitted for missed ticks
         let mut health_stream = collector.health_streamer().subscribe();
 
         // Trigger another collection with missed ticks to generate health event
         counters.inc_missed_tick();
-        collector.collect_metrics().await.unwrap();
+        must(collector.collect_metrics().await);
 
         // Should receive health event for missed ticks
         let event_result =
             tokio::time::timeout(Duration::from_millis(100), health_stream.next()).await;
 
         assert!(event_result.is_ok());
-        let event = event_result.unwrap().unwrap().unwrap();
-        assert!(event.message.contains("Missed"));
-        assert!(event.message.contains("RT ticks"));
+        let health_event_result = must_some(event_result.ok(), "expected health event");
+        if let Some(Ok(health_event)) = health_event_result {
+            assert!(health_event.message.contains("Missed"));
+            assert!(health_event.message.contains("RT ticks"));
+        }
     }
 
     /// Test Prometheus metrics export format
     #[test]
     fn test_prometheus_metrics_export() {
-        let prometheus_metrics = PrometheusMetrics::new().unwrap();
+        let prometheus_metrics = must(PrometheusMetrics::new());
 
         // Create test metrics
         let rt_metrics = RTMetrics {
@@ -407,7 +425,7 @@ mod metrics_validation_tests {
         // Verify expected metrics are present
         let metric_names: Vec<String> = metric_families
             .iter()
-            .map(|mf| mf.get_name().to_string())
+            .map(|mf| mf.name().to_string())
             .collect();
 
         assert!(metric_names.contains(&"wheel_rt_ticks_total".to_string()));
@@ -423,7 +441,7 @@ mod metrics_validation_tests {
 
         // Verify metric values
         for mf in &metric_families {
-            match mf.get_name() {
+            match mf.name() {
                 "wheel_rt_ticks_total" => {
                     if let Some(counter) = mf.get_metric()[0].get_counter().as_ref() {
                         assert_eq!(counter.value() as u64, rt_metrics.total_ticks);
@@ -462,7 +480,7 @@ mod metrics_validation_tests {
                 None,
                 serde_json::json!({"index": i}),
             );
-            streamer.emit(event).unwrap();
+            must(streamer.emit(event));
         }
 
         // Collect events with timeout
@@ -509,11 +527,7 @@ mod metrics_validation_tests {
         assert!(mem2 > 0);
 
         // Memory should be relatively stable (within 10MB)
-        let mem_diff = if mem2 > mem1 {
-            mem2 - mem1
-        } else {
-            mem1 - mem2
-        };
+        let mem_diff = mem2.abs_diff(mem1);
         assert!(
             mem_diff < 10 * 1024 * 1024,
             "Memory usage changed by more than 10MB: {} -> {}",
@@ -599,7 +613,7 @@ mod metrics_performance_tests {
 
         // Wait for all threads to complete
         for handle in handles {
-            handle.join().unwrap();
+            must(handle.join());
         }
 
         // Verify total counts
@@ -618,7 +632,7 @@ mod metrics_performance_tests {
     /// Benchmark Prometheus metrics update performance
     #[tokio::test]
     async fn benchmark_prometheus_metrics_performance() {
-        let prometheus_metrics = PrometheusMetrics::new().unwrap();
+        let prometheus_metrics = must(PrometheusMetrics::new());
         let iterations = 10_000;
 
         let rt_metrics = RTMetrics {

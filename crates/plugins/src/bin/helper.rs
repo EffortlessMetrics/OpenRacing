@@ -82,7 +82,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // Log statistics periodically
-            if frame_count % 1000 == 0 {
+            if frame_count.is_multiple_of(1000) {
                 let avg_time = total_processing_time / frame_count as u32;
                 tracing::info!(
                     frames_processed = frame_count,

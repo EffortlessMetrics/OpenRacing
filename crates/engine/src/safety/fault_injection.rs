@@ -118,7 +118,7 @@ impl InjectionState {
         let should_recover = if let Some(recovery_condition) = &self.scenario.recovery_condition {
             match recovery_condition {
                 RecoveryCondition::TimeDelay(delay) => {
-                    self.trigger_time.map_or(false, |t| t.elapsed() >= *delay)
+                    self.trigger_time.is_some_and(|t| t.elapsed() >= *delay)
                 }
                 RecoveryCondition::TickCount(count) => self.tick_count >= *count,
                 RecoveryCondition::TorqueBelowThreshold(threshold) => {
@@ -132,7 +132,7 @@ impl InjectionState {
         } else {
             // No recovery condition - check duration
             if let Some(duration) = self.scenario.duration {
-                self.trigger_time.map_or(false, |t| t.elapsed() >= duration)
+                self.trigger_time.is_some_and(|t| t.elapsed() >= duration)
             } else {
                 false // Permanent fault
             }
@@ -179,14 +179,17 @@ impl Default for InjectionContext {
     }
 }
 
+/// Type alias for fault callback to reduce complexity
+type FaultCallback = Box<dyn Fn(FaultType, &str) + Send + Sync>;
+
 /// Fault injection system for testing failure modes
 pub struct FaultInjectionSystem {
     scenarios: HashMap<String, InjectionState>,
     active_faults: HashMap<FaultType, String>, // fault_type -> scenario_name
     enabled: bool,
     start_time: Instant,
-    fault_callbacks: Vec<Box<dyn Fn(FaultType, &str) + Send + Sync>>,
-    recovery_callbacks: Vec<Box<dyn Fn(FaultType, &str) + Send + Sync>>,
+    fault_callbacks: Vec<FaultCallback>,
+    recovery_callbacks: Vec<FaultCallback>,
 }
 
 impl FaultInjectionSystem {
@@ -308,13 +311,13 @@ impl FaultInjectionSystem {
         }
 
         // Check if manual recovery is allowed
-        if let Some(recovery_condition) = &state.scenario.recovery_condition {
-            if !matches!(recovery_condition, RecoveryCondition::Manual) {
-                return Err(format!(
-                    "Scenario '{}' does not support manual recovery",
-                    name
-                ));
-            }
+        if let Some(recovery_condition) = &state.scenario.recovery_condition
+            && !matches!(recovery_condition, RecoveryCondition::Manual)
+        {
+            return Err(format!(
+                "Scenario '{}' does not support manual recovery",
+                name
+            ));
         }
 
         state.recovered = true;
@@ -592,8 +595,10 @@ impl Default for FaultInjectionSystem {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::prelude::MutexExt;
     use std::sync::{Arc, Mutex};
 
     #[test]
@@ -719,7 +724,10 @@ mod tests {
         system.add_scenario(scenario).unwrap();
 
         // Low torque - should not trigger
-        let mut context = InjectionContext::default();
+        let mut context = InjectionContext {
+            current_torque: 5.0,
+            ..Default::default()
+        };
         context.current_torque = 5.0;
         let faults = system.update(&context);
         assert!(faults.is_empty());
@@ -839,7 +847,7 @@ mod tests {
             enabled: true,
         };
 
-        system.add_scenario(scenario).unwrap();
+        system.add_scenario(scenario).expect("Failed to add scenario");
 
         // Initial stats
         let stats = system.get_scenario_stats("stats_test").unwrap();
@@ -879,7 +887,7 @@ mod tests {
             enabled: true,
         };
 
-        system.add_scenario(scenario).unwrap();
+        system.add_scenario(scenario).expect("Failed to add scenario");
 
         // Should not trigger when disabled
         let result = system.trigger_scenario("enable_test");
@@ -887,7 +895,7 @@ mod tests {
 
         // Enable and trigger
         system.set_enabled(true);
-        system.trigger_scenario("enable_test").unwrap();
+        system.trigger_scenario("enable_test").expect("Failed to trigger scenario");
         assert!(system.is_fault_active(FaultType::UsbStall));
 
         // Disable should clear active faults
@@ -909,10 +917,10 @@ mod tests {
             enabled: true,
         };
 
-        system.add_scenario(scenario).unwrap();
+        system.add_scenario(scenario).expect("Failed to add scenario");
 
         // Trigger scenario
-        system.trigger_scenario("reset_test").unwrap();
+        system.trigger_scenario("reset_test").expect("Failed to trigger scenario");
         assert!(system.is_fault_active(FaultType::UsbStall));
 
         // Reset specific scenario
@@ -927,7 +935,7 @@ mod tests {
     #[test]
     fn test_create_test_scenarios() {
         let mut system = FaultInjectionSystem::new();
-        system.create_test_scenarios().unwrap();
+        system.create_test_scenarios().expect("Failed to create test scenarios");
 
         let scenarios = system.get_all_scenarios();
         assert!(scenarios.len() >= 5);
@@ -956,11 +964,11 @@ mod tests {
         let recovery_flag = recovery_triggered.clone();
 
         system.add_fault_callback(move |_fault_type, _scenario| {
-            *fault_flag.lock().unwrap() = true;
+            *fault_flag.lock_or_panic() = true;
         });
 
         system.add_recovery_callback(move |_fault_type, _scenario| {
-            *recovery_flag.lock().unwrap() = true;
+            *recovery_flag.lock_or_panic() = true;
         });
 
         let scenario = FaultInjectionScenario {
@@ -975,11 +983,11 @@ mod tests {
         system.add_scenario(scenario).unwrap();
 
         // Trigger should call fault callback
-        system.trigger_scenario("callback_test").unwrap();
-        assert!(*fault_triggered.lock().unwrap());
+        system.trigger_scenario("callback_test").expect("Failed to trigger scenario");
+        assert!(*fault_triggered.lock_or_panic());
 
         // Recovery should call recovery callback
         system.recover_scenario("callback_test").unwrap();
-        assert!(*recovery_triggered.lock().unwrap());
+        assert!(*recovery_triggered.lock_or_panic());
     }
 }

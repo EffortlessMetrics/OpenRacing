@@ -343,9 +343,17 @@ impl ProfileContext {
 mod tests {
     use super::*;
 
+    #[track_caller]
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
     #[test]
     fn test_profile_context_creation() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let context = ProfileContext::new(device_id.clone());
 
         assert_eq!(context.device_id, device_id);
@@ -356,7 +364,7 @@ mod tests {
 
     #[test]
     fn test_profile_context_builder() {
-        let device_id = DeviceId::new("test-device".to_string()).unwrap();
+        let device_id = must("test-device".parse::<DeviceId>());
         let context = ProfileContext::new(device_id.clone())
             .with_game("iracing".to_string())
             .with_car("gt3".to_string())

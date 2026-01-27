@@ -1,3 +1,4 @@
+#![allow(clippy::manual_is_multiple_of)]
 //! FFB Jitter Isolation Tests
 //!
 //! This module contains tests to prove that LED and haptics output systems
@@ -5,12 +6,19 @@
 
 use racing_wheel_engine::led_haptics::*;
 use racing_wheel_engine::ports::{NormalizedTelemetry, TelemetryFlags};
-use racing_wheel_schemas::{DeviceId, FrequencyHz, Gain, HapticsConfig, LedConfig};
+use racing_wheel_schemas::prelude::{DeviceId, FrequencyHz, Gain, HapticsConfig, LedConfig};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
+
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
 
 /// Mock FFB engine for testing jitter isolation
 struct MockFfbEngine {
@@ -30,7 +38,7 @@ impl MockFfbEngine {
 
     async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
         {
-            let mut running = self.is_running.lock().unwrap();
+            let mut running = must(self.is_running.lock());
             *running = true;
         }
 
@@ -45,7 +53,7 @@ impl MockFfbEngine {
             loop {
                 // Check if we should continue running
                 {
-                    let running = is_running.lock().unwrap();
+                    let running = must(is_running.lock());
                     if !*running {
                         break;
                     }
@@ -54,7 +62,7 @@ impl MockFfbEngine {
                 // Record tick time
                 let now = Instant::now();
                 {
-                    let mut times = tick_times.lock().unwrap();
+                    let mut times = must(tick_times.lock());
                     times.push(now);
                 }
 
@@ -77,29 +85,37 @@ impl MockFfbEngine {
     }
 
     fn stop(&self) {
-        let mut running = self.is_running.lock().unwrap();
+        let mut running = must(self.is_running.lock());
         *running = false;
     }
 
     fn get_jitter_stats(&self) -> JitterStats {
-        let times = self.tick_times.lock().unwrap();
+        let times = must(self.tick_times.lock());
         calculate_jitter_stats(&times, self.target_frequency)
     }
 
     fn clear_stats(&self) {
-        let mut times = self.tick_times.lock().unwrap();
+        let mut times = must(self.tick_times.lock());
         times.clear();
     }
 }
 
 /// Jitter statistics for analysis
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct JitterStats {
+    // dead_code allowed for test structure fields
+    #[allow(dead_code)]
     mean_interval_ns: f64,
+    #[allow(dead_code)]
     std_dev_ns: f64,
+    #[allow(dead_code)]
     max_jitter_ns: u64,
+    #[allow(dead_code)]
     p99_jitter_ns: u64,
+    #[allow(dead_code)]
     missed_ticks: usize,
+    #[allow(dead_code)]
     total_ticks: usize,
 }
 
@@ -129,11 +145,7 @@ fn calculate_jitter_stats(tick_times: &[Instant], target_frequency: f64) -> Jitt
         .iter()
         .map(|&interval| {
             let target = target_interval_ns as u64;
-            if interval > target {
-                interval - target
-            } else {
-                target - interval
-            }
+            interval.abs_diff(target)
         })
         .collect();
 
@@ -174,13 +186,32 @@ fn calculate_jitter_stats(tick_times: &[Instant], target_frequency: f64) -> Jitt
 }
 
 /// Helper function to create test telemetry with varying characteristics
+fn create_test_telemetry(
+    rpm: f32,
+    speed_ms: f32,
+    slip_ratio: f32,
+    gear: i8,
+) -> NormalizedTelemetry {
+    NormalizedTelemetry {
+        ffb_scalar: 1.0,
+        rpm,
+        speed_ms,
+        slip_ratio,
+        gear,
+        flags: TelemetryFlags::default(),
+        car_id: None,
+        track_id: None,
+        timestamp: Instant::now(),
+    }
+}
+
 fn create_varying_telemetry(index: usize) -> NormalizedTelemetry {
     let base_rpm = 3000.0 + (index as f32 * 100.0) % 5000.0;
     let base_speed = 15.0 + (index as f32 * 2.0) % 30.0;
     let slip = (index as f32 * 0.1) % 0.8;
     let gear = ((index / 10) % 6) as i8 + 1;
 
-    let mut telemetry = NormalizedTelemetry {
+    NormalizedTelemetry {
         ffb_scalar: 0.5 + (index as f32 * 0.1) % 0.5,
         rpm: base_rpm,
         speed_ms: base_speed,
@@ -199,9 +230,7 @@ fn create_varying_telemetry(index: usize) -> NormalizedTelemetry {
         car_id: Some("test_car".to_string()),
         track_id: Some("test_track".to_string()),
         timestamp: std::time::Instant::now(),
-    };
-
-    telemetry
+    }
 }
 
 /// Helper function to create test LED configuration
@@ -212,13 +241,12 @@ fn create_test_led_config() -> LedConfig {
     colors.insert("red".to_string(), [255, 0, 0]);
     colors.insert("blue".to_string(), [0, 0, 255]);
 
-    LedConfig::new(
+    must(LedConfig::new(
         vec![0.75, 0.82, 0.88, 0.92, 0.96],
         "progressive".to_string(),
-        Gain::new(0.8).unwrap(),
+        must(Gain::new(0.8)),
         colors,
-    )
-    .unwrap()
+    ))
 }
 
 /// Helper function to create test haptics configuration
@@ -231,8 +259,8 @@ fn create_test_haptics_config() -> HapticsConfig {
 
     HapticsConfig::new(
         true,
-        Gain::new(0.8).unwrap(), // High intensity to stress test
-        FrequencyHz::new(120.0).unwrap(),
+        must(Gain::new(0.8)), // High intensity to stress test
+        must(FrequencyHz::new(120.0)),
         effects,
     )
 }
@@ -246,7 +274,7 @@ mod jitter_isolation_tests {
         // Test FFB engine alone without LED/haptics interference
         let ffb_engine = MockFfbEngine::new(1000.0); // 1kHz
 
-        ffb_engine.start().await.unwrap();
+        must(ffb_engine.start().await);
 
         // Run for 1 second to collect baseline data
         tokio::time::sleep(Duration::from_millis(1000)).await;
@@ -276,7 +304,7 @@ mod jitter_isolation_tests {
         // Test FFB engine with LED/haptics running at 60Hz
         let ffb_engine = MockFfbEngine::new(1000.0); // 1kHz FFB
 
-        let device_id = DeviceId::new("jitter-test-device".to_string()).unwrap();
+        let device_id = must(DeviceId::new("jitter-test-device".to_string()));
         let led_config = create_test_led_config();
         let haptics_config = create_test_haptics_config();
 
@@ -290,8 +318,8 @@ mod jitter_isolation_tests {
         let (telemetry_tx, telemetry_rx) = mpsc::channel(1000);
 
         // Start both systems
-        ffb_engine.start().await.unwrap();
-        led_haptics_system.start(telemetry_rx).await.unwrap();
+        must(ffb_engine.start().await);
+        must(led_haptics_system.start(telemetry_rx).await);
 
         // Generate varying telemetry to stress test the LED/haptics system
         let telemetry_handle = tokio::spawn(async move {
@@ -358,7 +386,7 @@ mod jitter_isolation_tests {
         // Test FFB engine with LED/haptics running at maximum 200Hz
         let ffb_engine = MockFfbEngine::new(1000.0); // 1kHz FFB
 
-        let device_id = DeviceId::new("jitter-test-device-200hz".to_string()).unwrap();
+        let device_id = must(DeviceId::new("jitter-test-device-200hz".to_string()));
         let led_config = create_test_led_config();
         let haptics_config = create_test_haptics_config();
 
@@ -372,8 +400,8 @@ mod jitter_isolation_tests {
         let (telemetry_tx, telemetry_rx) = mpsc::channel(1000);
 
         // Start both systems
-        ffb_engine.start().await.unwrap();
-        led_haptics_system.start(telemetry_rx).await.unwrap();
+        must(ffb_engine.start().await);
+        must(led_haptics_system.start(telemetry_rx).await);
 
         // Generate high-frequency varying telemetry
         let telemetry_handle = tokio::spawn(async move {
@@ -443,14 +471,14 @@ mod jitter_isolation_tests {
 
         // Test 1: Baseline (FFB only)
         let ffb_engine = MockFfbEngine::new(1000.0);
-        ffb_engine.start().await.unwrap();
+        must(ffb_engine.start().await);
         tokio::time::sleep(Duration::from_millis(5000)).await;
         ffb_engine.stop();
         let baseline_stats = ffb_engine.get_jitter_stats();
         ffb_engine.clear_stats();
 
         // Test 2: With LED/haptics active
-        let device_id = DeviceId::new("comparative-test-device".to_string()).unwrap();
+        let device_id = must(DeviceId::new("comparative-test-device".to_string()));
         let led_config = create_test_led_config();
         let haptics_config = create_test_haptics_config();
 
@@ -463,8 +491,8 @@ mod jitter_isolation_tests {
 
         let (telemetry_tx, telemetry_rx) = mpsc::channel(1000);
 
-        ffb_engine.start().await.unwrap();
-        led_haptics_system.start(telemetry_rx).await.unwrap();
+        must(ffb_engine.start().await);
+        must(led_haptics_system.start(telemetry_rx).await);
 
         // Generate complex telemetry scenario
         let telemetry_handle = tokio::spawn(async move {
@@ -570,7 +598,7 @@ mod jitter_isolation_tests {
         });
 
         // Start LED/haptics system
-        let device_id = DeviceId::new("cpu-test-device".to_string()).unwrap();
+        let device_id = must(DeviceId::new("cpu-test-device".to_string()));
         let led_config = create_test_led_config();
         let haptics_config = create_test_haptics_config();
 
@@ -582,7 +610,7 @@ mod jitter_isolation_tests {
         );
 
         let (telemetry_tx, telemetry_rx) = mpsc::channel(1000);
-        led_haptics_system.start(telemetry_rx).await.unwrap();
+        must(led_haptics_system.start(telemetry_rx).await);
 
         // Generate telemetry
         let telemetry_handle = tokio::spawn(async move {
@@ -596,10 +624,12 @@ mod jitter_isolation_tests {
 
         // Consume outputs
         let output_handle = tokio::spawn(async move {
-            while let Ok(output) =
+            while let Ok(_output) =
                 tokio::time::timeout(Duration::from_millis(50), output_rx.recv()).await
             {
-                if output.is_none() {
+                // if output.is_none() { break; } // accessing _output triggers unused if I don't use it.
+                // But wait, output is Option.
+                if _output.is_none() {
                     break;
                 }
             }
@@ -633,7 +663,7 @@ mod timing_validation_tests {
     #[tokio::test]
     async fn test_led_update_latency() {
         // Test that LED updates happen within 20ms of telemetry input (LDH-01)
-        let device_id = DeviceId::new("latency-test-device".to_string()).unwrap();
+        let device_id = must(DeviceId::new("latency-test-device".to_string()));
         let led_config = create_test_led_config();
         let haptics_config = create_test_haptics_config();
 
@@ -645,15 +675,15 @@ mod timing_validation_tests {
         );
 
         let (telemetry_tx, telemetry_rx) = mpsc::channel(100);
-        system.start(telemetry_rx).await.unwrap();
+        must(system.start(telemetry_rx).await);
 
         // Send telemetry and measure response time
         let send_time = Instant::now();
         let telemetry = create_varying_telemetry(0);
-        telemetry_tx.send(telemetry).await.unwrap();
+        must(telemetry_tx.send(telemetry).await);
 
         // Wait for output
-        if let Ok(Some(output)) =
+        if let Ok(Some(_output)) =
             tokio::time::timeout(Duration::from_millis(50), output_rx.recv()).await
         {
             let response_time = send_time.elapsed();
@@ -676,7 +706,7 @@ mod timing_validation_tests {
     #[tokio::test]
     async fn test_haptics_frequency_range() {
         // Test that haptics operate in the 60-200Hz range (LDH-04)
-        let device_id = DeviceId::new("frequency-test-device".to_string()).unwrap();
+        let device_id = must(DeviceId::new("frequency-test-device".to_string()));
         let led_config = create_test_led_config();
         let haptics_config = create_test_haptics_config();
 
@@ -692,12 +722,12 @@ mod timing_validation_tests {
             );
 
             let (telemetry_tx, telemetry_rx) = mpsc::channel(100);
-            system.start(telemetry_rx).await.unwrap();
+            must(system.start(telemetry_rx).await);
 
             // Send telemetry with haptics-triggering conditions
             let mut telemetry = create_varying_telemetry(0);
             telemetry.slip_ratio = 0.5; // Trigger haptics
-            telemetry_tx.send(telemetry).await.unwrap();
+            must(telemetry_tx.send(telemetry).await);
 
             // Collect timing data
             let mut output_times = Vec::new();

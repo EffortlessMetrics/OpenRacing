@@ -1,15 +1,27 @@
 //! Comprehensive tests for the plugin system
 
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::time::Duration;
+// Test helper functions to replace unwrap
+#[track_caller]
+fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
+}
+
+#[track_caller]
+fn must_some<T>(o: Option<T>, msg: &str) -> T {
+    match o {
+        Some(v) => v,
+        None => panic!("{msg}"),
+    }
+}
 
 use tempfile::tempdir;
 use tokio::fs;
 use uuid::Uuid;
 
 use racing_wheel_plugins::*;
-use racing_wheel_schemas::telemetry::NormalizedTelemetry;
 
 /// Test plugin manifest validation
 #[tokio::test]
@@ -118,23 +130,19 @@ async fn test_quarantine_system() {
     let plugin_id = Uuid::new_v4();
 
     // First crash - should not quarantine
-    manager
-        .record_violation(
-            plugin_id,
-            quarantine::ViolationType::Crash,
-            "Test crash 1".to_string(),
-        )
-        .unwrap();
+    must(manager.record_violation(
+        plugin_id,
+        quarantine::ViolationType::Crash,
+        "Test crash 1".to_string(),
+    ));
     assert!(!manager.is_quarantined(plugin_id));
 
     // Second crash - should quarantine
-    manager
-        .record_violation(
-            plugin_id,
-            quarantine::ViolationType::Crash,
-            "Test crash 2".to_string(),
-        )
-        .unwrap();
+    must(manager.record_violation(
+        plugin_id,
+        quarantine::ViolationType::Crash,
+        "Test crash 2".to_string(),
+    ));
     assert!(manager.is_quarantined(plugin_id));
 }
 
@@ -187,7 +195,7 @@ async fn test_plugin_host_system() {
 
     // Create a mock plugin directory structure
     let plugin_subdir = plugin_dir.join("test-plugin");
-    fs::create_dir_all(&plugin_subdir).await.unwrap();
+    must(fs::create_dir_all(&plugin_subdir).await);
 
     // Create a mock manifest
     let manifest = manifest::PluginManifest {
@@ -219,18 +227,14 @@ async fn test_plugin_host_system() {
     };
 
     // Write manifest file
-    let manifest_content = serde_yaml::to_string(&manifest).unwrap();
-    fs::write(plugin_subdir.join("plugin.yaml"), manifest_content)
-        .await
-        .unwrap();
+    let manifest_content = must(serde_yaml::to_string(&manifest));
+    must(fs::write(plugin_subdir.join("plugin.yaml"), manifest_content).await);
 
     // Create empty WASM file
-    fs::write(plugin_subdir.join("plugin.wasm"), b"mock wasm content")
-        .await
-        .unwrap();
+    must(fs::write(plugin_subdir.join("plugin.wasm"), b"mock wasm content").await);
 
     // Create plugin host
-    let mut host = host::PluginHost::new(plugin_dir)
+    let host = host::PluginHost::new(plugin_dir)
         .await
         .expect("Failed to create plugin host");
 
@@ -238,7 +242,7 @@ async fn test_plugin_host_system() {
     let registry = host.get_registry().await;
     assert_eq!(registry.len(), 1);
 
-    let (plugin_id, entry) = registry.iter().next().unwrap();
+    let (_plugin_id, entry) = must_some(registry.iter().next(), "expected plugin in registry");
     assert_eq!(entry.manifest.name, "Test Plugin");
     assert!(!entry.is_loaded);
     assert!(entry.is_enabled);
@@ -256,24 +260,21 @@ async fn test_budget_violation_detection() {
 
     // Record budget violations
     for i in 0..2 {
-        manager
-            .record_violation(
-                plugin_id,
-                quarantine::ViolationType::BudgetViolation,
-                format!("Budget violation {}", i + 1),
-            )
-            .unwrap();
+        let _ = manager.record_violation(
+            plugin_id,
+            quarantine::ViolationType::BudgetViolation,
+            format!("Budget violation {}", i + 1),
+        );
         assert!(!manager.is_quarantined(plugin_id));
     }
 
     // Third violation should trigger quarantine
-    manager
+    let _ = manager
         .record_violation(
             plugin_id,
             quarantine::ViolationType::BudgetViolation,
             "Budget violation 3".to_string(),
-        )
-        .unwrap();
+        );
     assert!(manager.is_quarantined(plugin_id));
 }
 
@@ -288,7 +289,7 @@ fn test_plugin_statistics() {
     tracker.record_execution(plugin_id, 200, true);
     tracker.record_execution(plugin_id, 150, false); // One failure
 
-    let stats = tracker.get_stats(plugin_id).unwrap();
+    let stats = must_some(tracker.get_stats(plugin_id), "expected stats for plugin");
     assert_eq!(stats.executions, 3);
     assert_eq!(stats.crashes, 1);
     assert_eq!(stats.max_time_us, 200);
@@ -307,28 +308,26 @@ async fn test_quarantine_escalation() {
     let plugin_id = Uuid::new_v4();
 
     // First quarantine
-    manager
+    let _ = manager
         .record_violation(
             plugin_id,
             quarantine::ViolationType::Crash,
             "First crash".to_string(),
-        )
-        .unwrap();
+        );
 
-    let state = manager.get_quarantine_state(plugin_id).unwrap();
+    let state = must_some(manager.get_quarantine_state(plugin_id), "expected quarantine state");
     assert_eq!(state.escalation_level, 1);
 
     // Release and trigger again
-    manager.release_from_quarantine(plugin_id).unwrap();
-    manager
+    must(manager.release_from_quarantine(plugin_id));
+    let _ = manager
         .record_violation(
             plugin_id,
             quarantine::ViolationType::Crash,
             "Second crash".to_string(),
-        )
-        .unwrap();
+        );
 
-    let state = manager.get_quarantine_state(plugin_id).unwrap();
+    let state = must_some(manager.get_quarantine_state(plugin_id), "expected quarantine state");
     assert_eq!(state.escalation_level, 2);
 }
 
@@ -355,7 +354,7 @@ async fn test_plugin_workflow_integration() {
     let plugin_dir = temp_dir.path().to_path_buf();
 
     // Create plugin host
-    let mut host = host::PluginHost::new(plugin_dir)
+    let host = host::PluginHost::new(plugin_dir)
         .await
         .expect("Failed to create plugin host");
 

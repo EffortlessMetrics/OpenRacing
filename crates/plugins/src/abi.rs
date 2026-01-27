@@ -291,7 +291,7 @@ mod tests {
         let frame = TelemetryFrame {
             timestamp_us: 1234567890,
             wheel_angle_deg: 45.5,
-            wheel_speed_rad_s: 3.14159,
+            wheel_speed_rad_s: std::f32::consts::PI,
             temperature_c: 65.0,
             fault_flags: 0x12345678,
             _pad: 0,
