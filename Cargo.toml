@@ -10,6 +10,7 @@ members = [
     "crates/compat",
     "workspace-hack",
 ]
+exclude = ["third_party/shared_memory"]
 resolver = "2"
 
 [workspace.package]
@@ -125,3 +126,6 @@ plugins-native = { owner = "@owner-plug", features = [
     "libloading",
     "abi-stable",
 ] }
+
+[patch.crates-io]
+shared_memory = { path = "third_party/shared_memory" }
