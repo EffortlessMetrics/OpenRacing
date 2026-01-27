@@ -35,7 +35,7 @@ flate2 = "1.1.8"
 futures = "0.3.31"
 prometheus = { workspace = true }
 metrics = { workspace = true }
-sysinfo = "0.37.2"
+sysinfo = "0.38.0"
 axum = "0.8.8"
 clap = { workspace = true }
 os_info = "3.14.0"
