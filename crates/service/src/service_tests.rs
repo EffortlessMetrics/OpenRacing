@@ -103,7 +103,7 @@ mod tests {
                 true,
                 true,
                 true,
-                TorqueNm::new(20.0).unwrap(),
+                TorqueNm::new(20.0).expect("Valid torque value for test"),
                 65_535,
                 1000,
             );
@@ -388,6 +388,5 @@ mod tests {
         }
 
         // If we get here without running out of memory, the test passes
-        assert!(true, "Memory usage test completed");
     }
 }

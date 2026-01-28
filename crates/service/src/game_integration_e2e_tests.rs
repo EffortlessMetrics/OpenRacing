@@ -709,8 +709,8 @@ mod tests {
         let result = must(suite.test_iracing_one_click_config().await);
 
         assert_eq!(result.test_name, "iracing_one_click_config");
-        assert!(result.duration_ms > 0);
-        // Note: May not succeed in test environment without proper game setup
+        // Note: duration_ms may be 0 if test completes in under 1ms
+        // May not succeed in test environment without proper game setup
     }
 
     #[tokio::test]

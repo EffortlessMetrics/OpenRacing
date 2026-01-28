@@ -1,21 +1,14 @@
-error[E0599]: no function or associated item named `new` found for struct `DeviceId` in the current scope
- --> tests/compile_fail/device_id_construction.rs:8:32
-  |
-8 |     let _device_id = DeviceId::new("test-device".to_string()); //~ ERROR
-  |                                ^^^ function or associated item not found in `DeviceId`
-  |
-help: there is a method `ne` with a similar name
-  |
-8 -     let _device_id = DeviceId::new("test-device".to_string()); //~ ERROR
-8 +     let _device_id = DeviceId::ne("test-device".to_string()); //~ ERROR
-  |
-
-error[E0599]: no function or associated item named `from_raw` found for struct `DeviceId` in the current scope
+error[E0599]: no function or associated item named `from_raw` found for struct `racing_wheel_schemas::domain::DeviceId` in the current scope
   --> tests/compile_fail/device_id_construction.rs:11:33
    |
 11 |     let _device_id2 = DeviceId::from_raw("test-device".to_string()); //~ ERROR
-   |                                 ^^^^^^^^ function or associated item not found in `DeviceId`
+   |                                 ^^^^^^^^ function or associated item not found in `racing_wheel_schemas::domain::DeviceId`
    |
+note: if you're trying to build a new `racing_wheel_schemas::domain::DeviceId`, consider using `racing_wheel_schemas::domain::DeviceId::new` which returns `Result<racing_wheel_schemas::domain::DeviceId, racing_wheel_schemas::domain::DomainError>`
+  --> src/domain.rs
+   |
+   |     pub fn new(value: String) -> Result<Self, DomainError> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 help: there is an associated function `from` with a similar name
    |
 11 -     let _device_id2 = DeviceId::from_raw("test-device".to_string()); //~ ERROR

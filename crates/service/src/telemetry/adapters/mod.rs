@@ -129,28 +129,31 @@ fn generate_mock_telemetry(progress: f32) -> NormalizedTelemetry {
 mod tests {
     use super::*;
 
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
     #[tokio::test]
-    async fn test_mock_adapter() {
+    async fn test_mock_adapter() -> TestResult {
         let adapter = MockAdapter::new("test_game".to_string());
 
         assert_eq!(adapter.game_id(), "test_game");
-        assert!(!adapter.is_game_running().await.unwrap());
+        let is_running = adapter.is_game_running().await?;
+        assert!(!is_running);
 
-        let mut receiver = adapter.start_monitoring().await.unwrap();
+        let mut receiver = adapter.start_monitoring().await?;
 
         // Should receive telemetry frames
         let frame = tokio::time::timeout(Duration::from_millis(100), receiver.recv())
-            .await
-            .unwrap()
-            .unwrap();
+            .await?
+            .ok_or("expected telemetry frame but got None")?;
 
         assert!(frame.data.rpm.is_some());
         assert!(frame.data.speed_ms.is_some());
         assert_eq!(frame.data.car_id, Some("mock_car".to_string()));
+        Ok(())
     }
 
     #[test]
-    fn test_mock_telemetry_generation() {
+    fn test_mock_telemetry_generation() -> TestResult {
         let telemetry = generate_mock_telemetry(0.5);
 
         assert!(telemetry.rpm.is_some());
@@ -158,5 +161,6 @@ mod tests {
         assert!(telemetry.ffb_scalar.is_some());
         assert!(telemetry.slip_ratio.is_some());
         assert!(telemetry.gear.is_some());
+        Ok(())
     }
 }

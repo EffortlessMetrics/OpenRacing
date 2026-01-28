@@ -2,7 +2,8 @@
 
 use crate::{ApplicationDeviceService, ApplicationProfileService, ApplicationSafetyService};
 use anyhow::Result;
-use racing_wheel_engine::{SafetyPolicy, TracingManager, VirtualHidPort};
+use racing_wheel_engine::{SafetyPolicy, TracingManager, VirtualDevice, VirtualHidPort};
+use racing_wheel_schemas::prelude::DeviceId;
 use std::sync::Arc;
 use tracing::{error, info};
 
@@ -42,8 +43,19 @@ impl WheelService {
         };
 
         // Initialize HID port (using virtual port for now)
-        let hid_port = Arc::new(VirtualHidPort::new());
-        info!("HID port initialized");
+        let mut virtual_port = VirtualHidPort::new();
+
+        // Seed with a default virtual device for testing/development
+        let device_id: DeviceId = "virtual-wheel-0"
+            .parse()
+            .map_err(|e| anyhow::anyhow!("Failed to parse device ID: {}", e))?;
+        let virtual_device = VirtualDevice::new(device_id, "Virtual Racing Wheel".to_string());
+        virtual_port
+            .add_device(virtual_device)
+            .map_err(|e| anyhow::anyhow!("Failed to add virtual device: {}", e))?;
+
+        let hid_port = Arc::new(virtual_port);
+        info!("HID port initialized with virtual device");
 
         // Initialize profile repository (using simple in-memory storage for now)
         // In a real implementation, this would be a file-based or database repository

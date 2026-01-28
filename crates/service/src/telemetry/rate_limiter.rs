@@ -125,6 +125,7 @@ impl From<&RateLimiter> for RateLimiterStats {
 /// Adaptive rate limiter that adjusts based on system load
 pub struct AdaptiveRateLimiter {
     base_limiter: RateLimiter,
+    initial_rate_hz: u32,
     target_cpu_percent: f32,
     current_cpu_percent: f32,
     adjustment_factor: f32,
@@ -135,6 +136,7 @@ impl AdaptiveRateLimiter {
     pub fn new(initial_rate_hz: u32, target_cpu_percent: f32) -> Self {
         Self {
             base_limiter: RateLimiter::new(initial_rate_hz),
+            initial_rate_hz,
             target_cpu_percent,
             current_cpu_percent: 0.0,
             adjustment_factor: 1.0,
@@ -157,8 +159,8 @@ impl AdaptiveRateLimiter {
         // Clamp adjustment factor
         self.adjustment_factor = self.adjustment_factor.clamp(0.1, 2.0);
 
-        // Apply adjustment
-        let adjusted_rate = (self.base_limiter.max_rate_hz as f32 * self.adjustment_factor) as u32;
+        // Apply adjustment to the original initial rate (not the current adjusted rate)
+        let adjusted_rate = (self.initial_rate_hz as f32 * self.adjustment_factor) as u32;
         self.base_limiter.set_max_rate_hz(adjusted_rate.max(1));
     }
 

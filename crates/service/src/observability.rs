@@ -459,15 +459,17 @@ mod tests {
     use super::*;
     use tokio_stream::StreamExt;
 
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
     #[tokio::test]
-    async fn test_observability_service_creation() {
+    async fn test_observability_service_creation() -> TestResult {
         let config = ObservabilityConfig::default();
-        let service = ObservabilityService::new(config).await;
-        assert!(service.is_ok());
+        let _service = ObservabilityService::new(config).await?;
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_health_streaming_service() {
+    async fn test_health_streaming_service() -> TestResult {
         let streamer = Arc::new(HealthEventStreamer::new(100));
         let streaming_service = HealthStreamingService::new(streamer.clone(), 10.0);
 
@@ -483,32 +485,29 @@ mod tests {
             serde_json::json!({"test": true}),
         );
 
-        streamer
-            .emit(test_event.clone())
-            .expect("Failed to emit test event");
+        streamer.emit(test_event.clone())?;
 
         // Should receive the event
         let received =
-            tokio::time::timeout(Duration::from_millis(100), stream.as_mut().next()).await;
+            tokio::time::timeout(Duration::from_millis(100), stream.as_mut().next()).await?;
 
-        assert!(received.is_ok());
-        let event = received
-            .expect("Timeout waiting for event")
-            .expect("No event received");
+        let event = received.ok_or("No event received")?;
         assert_eq!(event.message, "Test event");
+        Ok(())
     }
 
     #[test]
-    fn test_logging_config() {
+    fn test_logging_config() -> TestResult {
         let config = LoggingConfig::default();
         assert_eq!(config.level, tracing::Level::INFO);
         assert!(!config.json_format);
         assert!(config.include_device_context);
         assert!(config.include_game_context);
+        Ok(())
     }
 
     #[test]
-    fn test_device_context_span() {
+    fn test_device_context_span() -> TestResult {
         let context = DeviceContext {
             device_id: "test-device".to_string(),
             device_name: "Test Device".to_string(),
@@ -516,11 +515,13 @@ mod tests {
         };
 
         let span = LoggingSpans::device_span(&context);
-        assert_eq!(span.metadata().expect("metadata").name(), "device");
+        let metadata = span.metadata().ok_or("missing metadata")?;
+        assert_eq!(metadata.name(), "device");
+        Ok(())
     }
 
     #[test]
-    fn test_game_context_span() {
+    fn test_game_context_span() -> TestResult {
         let context = GameContext {
             game_id: "iracing".to_string(),
             game_version: Some("2024.1".to_string()),
@@ -529,15 +530,16 @@ mod tests {
         };
 
         let span = LoggingSpans::game_span(&context);
-        assert_eq!(span.metadata().expect("metadata").name(), "game");
+        let metadata = span.metadata().ok_or("missing metadata")?;
+        assert_eq!(metadata.name(), "game");
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_observability_config_serialization() {
+    async fn test_observability_config_serialization() -> TestResult {
         let config = ObservabilityConfig::default();
-        let json = serde_json::to_string(&config).expect("Failed to serialize config");
-        let deserialized: ObservabilityConfig =
-            serde_json::from_str(&json).expect("Failed to deserialize config");
+        let json = serde_json::to_string(&config)?;
+        let deserialized: ObservabilityConfig = serde_json::from_str(&json)?;
 
         assert_eq!(
             config.health_stream_rate_hz,
@@ -547,5 +549,6 @@ mod tests {
             config.collection_interval_ms,
             deserialized.collection_interval_ms
         );
+        Ok(())
     }
 }

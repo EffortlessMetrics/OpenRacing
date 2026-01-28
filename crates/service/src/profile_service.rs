@@ -305,79 +305,86 @@ mod tests {
     use rand_core::OsRng;
     use tempfile::TempDir;
 
-    async fn create_test_service() -> (ProfileService, TempDir) {
-        let temp_dir = TempDir::new().unwrap();
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    async fn create_test_service() -> Result<(ProfileService, TempDir), Box<dyn std::error::Error>>
+    {
+        let temp_dir = TempDir::new()?;
         let config = ProfileRepositoryConfig {
             profiles_dir: temp_dir.path().to_path_buf(),
             trusted_keys: Vec::new(),
             auto_migrate: true,
             backup_on_migrate: true,
         };
-        let service = ProfileService::new_with_config(config).await.unwrap();
-        (service, temp_dir)
+        let service = ProfileService::new_with_config(config).await?;
+        Ok((service, temp_dir))
     }
 
-    fn create_test_profile(id: &str) -> Profile {
-        let profile_id = ProfileId::new(id.to_string()).unwrap();
-        Profile::new(
+    fn create_test_profile(id: &str) -> Result<Profile, Box<dyn std::error::Error>> {
+        let profile_id = ProfileId::new(id.to_string())?;
+        Ok(Profile::new(
             profile_id,
             ProfileScope::global(),
             BaseSettings::default(),
             format!("Test Profile {}", id),
-        )
+        ))
     }
 
-    fn create_test_device_capabilities() -> DeviceCapabilities {
-        DeviceCapabilities::new(
+    fn create_test_device_capabilities() -> Result<DeviceCapabilities, Box<dyn std::error::Error>> {
+        Ok(DeviceCapabilities::new(
             false,
             true,
             true,
             true,
-            DeviceTorqueNm::new(25.0).unwrap(),
+            DeviceTorqueNm::new(25.0)?,
             10000,
             1000,
-        )
+        ))
     }
 
     #[tokio::test]
-    async fn test_profile_service_creation() {
-        let (_service, _temp_dir) = create_test_service().await;
+    async fn test_profile_service_creation() -> TestResult {
+        let (_service, _temp_dir) = create_test_service().await?;
         // Service creation should succeed
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_profile_crud_operations() {
-        let (service, _temp_dir) = create_test_service().await;
-        let profile = create_test_profile("test1");
+    async fn test_profile_crud_operations() -> TestResult {
+        let (service, _temp_dir) = create_test_service().await?;
+        let profile = create_test_profile("test1")?;
 
         // Test create
-        let profile_id = service.create_profile(profile.clone()).await.unwrap();
+        let profile_id = service.create_profile(profile.clone()).await?;
         assert_eq!(profile_id, profile.id);
 
         // Test get
-        let retrieved = service.get_profile(&profile_id).await.unwrap();
+        let retrieved = service.get_profile(&profile_id).await?;
         assert!(retrieved.is_some());
-        let retrieved = retrieved.unwrap();
+        let retrieved = retrieved.ok_or("Expected profile to exist")?;
         assert_eq!(retrieved.id, profile.id);
 
         // Test update
         let mut updated_profile = profile.clone();
-        updated_profile.base_settings.ffb_gain = Gain::new(0.9).unwrap();
-        service.update_profile(updated_profile).await.unwrap();
+        updated_profile.base_settings.ffb_gain = Gain::new(0.9)?;
+        service.update_profile(updated_profile).await?;
 
-        let retrieved = service.get_profile(&profile_id).await.unwrap();
-        assert_eq!(retrieved.unwrap().base_settings.ffb_gain.value(), 0.9);
+        let retrieved = service.get_profile(&profile_id).await?;
+        let retrieved = retrieved.ok_or("Expected updated profile to exist")?;
+        assert_eq!(retrieved.base_settings.ffb_gain.value(), 0.9);
 
         // Test delete
-        service.delete_profile(&profile_id).await.unwrap();
-        let retrieved = service.get_profile(&profile_id).await.unwrap();
+        service.delete_profile(&profile_id).await?;
+        let retrieved = service.get_profile(&profile_id).await?;
         assert!(retrieved.is_none());
+
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_signed_profile_operations() {
-        let (service, _temp_dir) = create_test_service().await;
-        let profile = create_test_profile("signed_test");
+    async fn test_signed_profile_operations() -> TestResult {
+        let (service, _temp_dir) = create_test_service().await?;
+        let profile = create_test_profile("signed_test")?;
 
         // Generate signing key
         let mut csprng = OsRng;
@@ -386,58 +393,58 @@ mod tests {
         // Create signed profile
         let profile_id = service
             .create_signed_profile(profile.clone(), &signing_key)
-            .await
-            .unwrap();
+            .await?;
         assert_eq!(profile_id, profile.id);
 
         // Check signature
-        let signature_info = service.get_profile_signature(&profile_id).await.unwrap();
+        let signature_info = service.get_profile_signature(&profile_id).await?;
         assert!(signature_info.is_some());
-        let sig_info = signature_info.unwrap();
+        let sig_info = signature_info.ok_or("Expected signature info to exist")?;
         assert!(!sig_info.signature.is_empty());
         assert!(!sig_info.public_key.is_empty());
+
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_profile_hierarchy_application() {
-        let (service, _temp_dir) = create_test_service().await;
-        let device_id = DeviceId::new("test_device".to_string()).unwrap();
-        let capabilities = create_test_device_capabilities();
+    async fn test_profile_hierarchy_application() -> TestResult {
+        let (service, _temp_dir) = create_test_service().await?;
+        let device_id = DeviceId::new("test_device".to_string())?;
+        let capabilities = create_test_device_capabilities()?;
 
         // Create profiles with different scopes
         let global_profile = Profile::new(
-            ProfileId::new("global".to_string()).unwrap(),
+            ProfileId::new("global".to_string())?,
             ProfileScope::global(),
             BaseSettings {
-                ffb_gain: Gain::new(0.5).unwrap(),
-                degrees_of_rotation: Degrees::new_dor(900.0).unwrap(),
-                torque_cap: TorqueNm::new(10.0).unwrap(),
+                ffb_gain: Gain::new(0.5)?,
+                degrees_of_rotation: Degrees::new_dor(900.0)?,
+                torque_cap: TorqueNm::new(10.0)?,
                 filters: FilterConfig::default(),
             },
             "Global Profile".to_string(),
         );
 
         let game_profile = Profile::new(
-            ProfileId::new("iracing".to_string()).unwrap(),
+            ProfileId::new("iracing".to_string())?,
             ProfileScope::for_game("iracing".to_string()),
             BaseSettings {
-                ffb_gain: Gain::new(0.7).unwrap(),
-                degrees_of_rotation: Degrees::new_dor(540.0).unwrap(),
-                torque_cap: TorqueNm::new(15.0).unwrap(),
+                ffb_gain: Gain::new(0.7)?,
+                degrees_of_rotation: Degrees::new_dor(540.0)?,
+                torque_cap: TorqueNm::new(15.0)?,
                 filters: FilterConfig::default(),
             },
             "iRacing Profile".to_string(),
         );
 
         // Save profiles
-        service.create_profile(global_profile).await.unwrap();
-        service.create_profile(game_profile).await.unwrap();
+        service.create_profile(global_profile).await?;
+        service.create_profile(game_profile).await?;
 
         // Apply profile hierarchy
         let resolved = service
             .apply_profile_to_device(&device_id, Some("iracing"), None, None, &capabilities)
-            .await
-            .unwrap();
+            .await?;
 
         // Should use game-specific settings
         assert_eq!(resolved.base_settings.ffb_gain.value(), 0.7);
@@ -445,62 +452,68 @@ mod tests {
         assert_eq!(resolved.base_settings.torque_cap.value(), 15.0);
 
         // Check active profile
-        let active_profile_id = service.get_active_profile(&device_id).await.unwrap();
+        let active_profile_id = service.get_active_profile(&device_id).await?;
         assert!(active_profile_id.is_some());
+
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_session_overrides() {
-        let (service, _temp_dir) = create_test_service().await;
-        let device_id = DeviceId::new("test_device".to_string()).unwrap();
+    async fn test_session_overrides() -> TestResult {
+        let (service, _temp_dir) = create_test_service().await?;
+        let device_id = DeviceId::new("test_device".to_string())?;
 
-        let override_profile = create_test_profile("session_override");
+        let override_profile = create_test_profile("session_override")?;
 
         // Set session override
         service
             .set_session_override(&device_id, override_profile.clone())
-            .await
-            .unwrap();
+            .await?;
 
         // Get session override
-        let retrieved = service.get_session_override(&device_id).await.unwrap();
+        let retrieved = service.get_session_override(&device_id).await?;
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().id, override_profile.id);
+        let retrieved = retrieved.ok_or("Expected session override to exist")?;
+        assert_eq!(retrieved.id, override_profile.id);
 
         // Clear session override
-        service.clear_session_override(&device_id).await.unwrap();
-        let retrieved = service.get_session_override(&device_id).await.unwrap();
+        service.clear_session_override(&device_id).await?;
+        let retrieved = service.get_session_override(&device_id).await?;
         assert!(retrieved.is_none());
+
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_profile_statistics() {
-        let (service, _temp_dir) = create_test_service().await;
+    async fn test_profile_statistics() -> TestResult {
+        let (service, _temp_dir) = create_test_service().await?;
 
         // Initially should have no profiles
-        let stats = service.get_profile_statistics().await.unwrap();
+        let stats = service.get_profile_statistics().await?;
         assert_eq!(stats.total_profiles, 0);
         assert_eq!(stats.active_profiles, 0);
         assert_eq!(stats.signed_profiles, 0);
         assert_eq!(stats.trusted_profiles, 0);
 
         // Create profiles
-        let profile1 = create_test_profile("stats_test1");
-        let profile2 = create_test_profile("stats_test2");
+        let profile1 = create_test_profile("stats_test1")?;
+        let profile2 = create_test_profile("stats_test2")?;
 
-        service.create_profile(profile1).await.unwrap();
-        service.create_profile(profile2).await.unwrap();
+        service.create_profile(profile1).await?;
+        service.create_profile(profile2).await?;
 
-        let stats = service.get_profile_statistics().await.unwrap();
+        let stats = service.get_profile_statistics().await?;
         assert_eq!(stats.total_profiles, 2);
         assert_eq!(stats.cached_profiles, 2);
         assert_eq!(stats.signed_profiles, 0); // No signed profiles yet
+
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_profile_validation_against_device() {
-        let (service, _temp_dir) = create_test_service().await;
-        let device_id = DeviceId::new("test_device".to_string()).unwrap();
+    async fn test_profile_validation_against_device() -> TestResult {
+        let (service, _temp_dir) = create_test_service().await?;
+        let device_id = DeviceId::new("test_device".to_string())?;
 
         // Create device with limited torque capability
         let limited_capabilities = DeviceCapabilities::new(
@@ -508,25 +521,25 @@ mod tests {
             true,
             true,
             true,
-            DeviceTorqueNm::new(5.0).unwrap(), // Only 5 Nm max
+            DeviceTorqueNm::new(5.0)?, // Only 5 Nm max
             10000,
             1000,
         );
 
         // Create profile that exceeds device capability
         let excessive_profile = Profile::new(
-            ProfileId::new("excessive".to_string()).unwrap(),
+            ProfileId::new("excessive".to_string())?,
             ProfileScope::global(),
             BaseSettings {
-                ffb_gain: Gain::new(0.8).unwrap(),
-                degrees_of_rotation: Degrees::new_dor(540.0).unwrap(),
-                torque_cap: TorqueNm::new(20.0).unwrap(), // Exceeds device max
+                ffb_gain: Gain::new(0.8)?,
+                degrees_of_rotation: Degrees::new_dor(540.0)?,
+                torque_cap: TorqueNm::new(20.0)?, // Exceeds device max
                 filters: FilterConfig::default(),
             },
             "Excessive Profile".to_string(),
         );
 
-        service.create_profile(excessive_profile).await.unwrap();
+        service.create_profile(excessive_profile).await?;
 
         // Applying should fail due to validation
         let result = service
@@ -534,5 +547,7 @@ mod tests {
             .await;
 
         assert!(result.is_err());
+
+        Ok(())
     }
 }

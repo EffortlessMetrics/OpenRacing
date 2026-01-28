@@ -401,31 +401,39 @@ impl Drop for SharedMemoryHandle {
 mod tests {
     use super::*;
 
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
     #[test]
-    fn test_iracing_adapter_creation() {
+    fn test_iracing_adapter_creation() -> TestResult {
         let adapter = IRacingAdapter::new();
         assert_eq!(adapter.game_id(), "iracing");
         assert_eq!(adapter.expected_update_rate(), Duration::from_millis(16));
+        Ok(())
     }
 
     #[test]
-    fn test_normalize_iracing_data() {
+    fn test_normalize_iracing_data() -> TestResult {
         let adapter = IRacingAdapter::new();
 
-        let mut data = IRacingData::default();
-        data.rpm = 6000.0;
-        data.speed = 50.0;
-        data.gear = 4;
-        data.steering_wheel_torque = 25.0;
-        data.throttle = 0.8;
-        data.brake = 0.2;
-        data.session_flags = 0x00000001; // Yellow flag
-
-        // Set car and track names
         let car_name = b"gt3_bmw\0";
         let track_name = b"spa\0";
-        data.car_path[..car_name.len()].copy_from_slice(car_name);
-        data.track_name[..track_name.len()].copy_from_slice(track_name);
+        let mut car_path = [0u8; 64];
+        let mut track_name_arr = [0u8; 64];
+        car_path[..car_name.len()].copy_from_slice(car_name);
+        track_name_arr[..track_name.len()].copy_from_slice(track_name);
+
+        let data = IRacingData {
+            rpm: 6000.0,
+            speed: 50.0,
+            gear: 4,
+            steering_wheel_torque: 25.0,
+            throttle: 0.8,
+            brake: 0.2,
+            session_flags: 0x00000001, // Yellow flag
+            car_path,
+            track_name: track_name_arr,
+            ..Default::default()
+        };
 
         let normalized = adapter.normalize_iracing_data(&data);
 
@@ -440,10 +448,11 @@ mod tests {
         // Check extended data
         assert!(normalized.extended.contains_key("throttle"));
         assert!(normalized.extended.contains_key("brake"));
+        Ok(())
     }
 
     #[test]
-    fn test_extract_string() {
+    fn test_extract_string() -> TestResult {
         let bytes = b"test_string\0extra_data";
         let result = extract_string(bytes);
         assert_eq!(result, "test_string");
@@ -451,10 +460,11 @@ mod tests {
         let bytes_no_null = b"no_null_terminator";
         let result = extract_string(bytes_no_null);
         assert_eq!(result, "no_null_terminator");
+        Ok(())
     }
 
     #[test]
-    fn test_normalize_raw_data() {
+    fn test_normalize_raw_data() -> TestResult {
         let adapter = IRacingAdapter::new();
 
         let data = IRacingData::default();
@@ -467,35 +477,37 @@ mod tests {
 
         let result = adapter.normalize(raw_bytes);
         assert!(result.is_ok());
+        Ok(())
     }
 
     #[test]
-    fn test_normalize_invalid_data() {
+    fn test_normalize_invalid_data() -> TestResult {
         let adapter = IRacingAdapter::new();
 
         let invalid_data = vec![0u8; 10]; // Wrong size
         let result = adapter.normalize(&invalid_data);
         assert!(result.is_err());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_is_game_running() {
+    async fn test_is_game_running() -> TestResult {
         let adapter = IRacingAdapter::new();
 
         // On non-Windows platforms, should always return false
         #[cfg(not(windows))]
         {
-            let result = adapter.is_game_running().await;
-            assert!(result.is_ok());
-            assert!(!result.unwrap());
+            let result = adapter.is_game_running().await?;
+            assert!(!result);
         }
 
         // On Windows, test depends on whether iRacing is actually running
         #[cfg(windows)]
         {
-            let result = adapter.is_game_running().await;
-            assert!(result.is_ok());
+            let _result = adapter.is_game_running().await?;
             // Can't assert the actual value since it depends on system state
         }
+
+        Ok(())
     }
 }

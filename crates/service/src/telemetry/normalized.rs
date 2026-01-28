@@ -257,8 +257,10 @@ pub struct FlagCoverage {
 mod tests {
     use super::*;
 
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
     #[test]
-    fn test_normalized_telemetry_creation() {
+    fn test_normalized_telemetry_creation() -> TestResult {
         let telemetry = NormalizedTelemetry::default()
             .with_ffb_scalar(0.75)
             .with_rpm(6500.0)
@@ -275,67 +277,84 @@ mod tests {
         assert_eq!(telemetry.gear, Some(4));
         assert_eq!(telemetry.car_id, Some("gt3_bmw".to_string()));
         assert_eq!(telemetry.track_id, Some("spa".to_string()));
+        Ok(())
     }
 
     #[test]
-    fn test_ffb_scalar_clamping() {
+    fn test_ffb_scalar_clamping() -> TestResult {
         let telemetry1 = NormalizedTelemetry::default().with_ffb_scalar(1.5);
         assert_eq!(telemetry1.ffb_scalar, Some(1.0));
 
         let telemetry2 = NormalizedTelemetry::default().with_ffb_scalar(-1.5);
         assert_eq!(telemetry2.ffb_scalar, Some(-1.0));
+        Ok(())
     }
 
     #[test]
-    fn test_slip_ratio_clamping() {
+    fn test_slip_ratio_clamping() -> TestResult {
         let telemetry1 = NormalizedTelemetry::default().with_slip_ratio(1.5);
         assert_eq!(telemetry1.slip_ratio, Some(1.0));
 
         let telemetry2 = NormalizedTelemetry::default().with_slip_ratio(-0.5);
         assert_eq!(telemetry2.slip_ratio, Some(0.0));
+        Ok(())
     }
 
     #[test]
-    fn test_invalid_values_rejected() {
+    fn test_invalid_values_rejected() -> TestResult {
         let telemetry = NormalizedTelemetry::default()
             .with_rpm(-100.0) // Negative RPM should be rejected
             .with_speed_ms(f32::NAN); // NaN should be rejected
 
         assert_eq!(telemetry.rpm, None);
         assert_eq!(telemetry.speed_ms, None);
+        Ok(())
     }
 
     #[test]
-    fn test_speed_conversions() {
+    fn test_speed_conversions() -> TestResult {
         let telemetry = NormalizedTelemetry::default().with_speed_ms(27.78); // 100 km/h
 
-        assert!((telemetry.speed_kmh().unwrap() - 100.0).abs() < 0.1);
-        assert!((telemetry.speed_mph().unwrap() - 62.14).abs() < 0.1);
+        let speed_kmh = telemetry
+            .speed_kmh()
+            .ok_or("expected speed_kmh to be Some")?;
+        let speed_mph = telemetry
+            .speed_mph()
+            .ok_or("expected speed_mph to be Some")?;
+        assert!((speed_kmh - 100.0).abs() < 0.1);
+        assert!((speed_mph - 62.14).abs() < 0.1);
+        Ok(())
     }
 
     #[test]
-    fn test_rpm_fraction() {
+    fn test_rpm_fraction() -> TestResult {
         let telemetry = NormalizedTelemetry::default().with_rpm(6000.0);
 
-        let fraction = telemetry.rpm_fraction(8000.0).unwrap();
+        let fraction = telemetry
+            .rpm_fraction(8000.0)
+            .ok_or("expected rpm_fraction to be Some")?;
         assert!((fraction - 0.75).abs() < 0.01);
+        Ok(())
     }
 
     #[test]
-    fn test_flags() {
-        let mut flags = TelemetryFlags::default();
-        flags.yellow_flag = true;
-        flags.pit_limiter = true;
+    fn test_flags() -> TestResult {
+        let flags = TelemetryFlags {
+            yellow_flag: true,
+            pit_limiter: true,
+            ..Default::default()
+        };
 
         let telemetry = NormalizedTelemetry::default().with_flags(flags);
 
         assert!(telemetry.has_active_flags());
         assert!(telemetry.flags.yellow_flag);
         assert!(telemetry.flags.pit_limiter);
+        Ok(())
     }
 
     #[test]
-    fn test_extended_data() {
+    fn test_extended_data() -> TestResult {
         let telemetry = NormalizedTelemetry::default()
             .with_extended("fuel_level".to_string(), TelemetryValue::Float(45.5))
             .with_extended("lap_count".to_string(), TelemetryValue::Integer(12))
@@ -346,10 +365,14 @@ mod tests {
 
         assert_eq!(telemetry.extended.len(), 3);
 
-        if let Some(TelemetryValue::Float(fuel)) = telemetry.extended.get("fuel_level") {
-            assert_eq!(*fuel, 45.5);
-        } else {
-            panic!("Expected fuel_level to be a float");
+        let fuel_value = telemetry
+            .extended
+            .get("fuel_level")
+            .ok_or("expected fuel_level key")?;
+        match fuel_value {
+            TelemetryValue::Float(fuel) => assert_eq!(*fuel, 45.5),
+            _ => return Err("Expected fuel_level to be a float".into()),
         }
+        Ok(())
     }
 }

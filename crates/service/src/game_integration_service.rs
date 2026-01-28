@@ -552,28 +552,27 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
-    async fn create_test_service() -> Result<GameIntegrationService> {
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    async fn create_test_service() -> Result<GameIntegrationService, Box<dyn std::error::Error>> {
         let profile_service = Arc::new(ProfileService::new().await?);
-        GameIntegrationService::new(profile_service).await
+        Ok(GameIntegrationService::new(profile_service).await?)
     }
 
     #[tokio::test]
-    async fn test_service_creation() {
-        let service = create_test_service()
-            .await
-            .expect("Failed to create test service");
+    async fn test_service_creation() -> TestResult {
+        let service = create_test_service().await?;
         let supported_games = service.get_supported_games().await;
         assert!(!supported_games.is_empty());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_one_click_configuration() {
-        let mut service = create_test_service()
-            .await
-            .expect("Failed to create test service");
-        service.start().await.expect("Failed to start service");
+    async fn test_one_click_configuration() -> TestResult {
+        let mut service = create_test_service().await?;
+        service.start().await?;
 
-        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let temp_dir = TempDir::new()?;
 
         let request = OneClickConfigRequest {
             game_id: "iracing".to_string(),
@@ -582,19 +581,15 @@ mod tests {
             profile_id: None,
         };
 
-        let result = service
-            .configure_one_click(request)
-            .await
-            .expect("Failed to configure one-click");
+        let result = service.configure_one_click(request).await?;
         assert_eq!(result.game_id, "iracing");
         // Note: May not succeed in test environment without proper game setup
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_metrics_tracking() {
-        let service = create_test_service()
-            .await
-            .expect("Failed to create test service");
+    async fn test_metrics_tracking() -> TestResult {
+        let service = create_test_service().await?;
 
         let initial_metrics = service.get_metrics().await;
         assert_eq!(initial_metrics.total_configurations, 0);
@@ -608,16 +603,16 @@ mod tests {
         assert_eq!(updated_metrics.total_configurations, 1);
         assert_eq!(updated_metrics.successful_configurations, 1);
         assert_eq!(updated_metrics.avg_config_time_ms, 100);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_supported_games() {
-        let service = create_test_service()
-            .await
-            .expect("Failed to create test service");
+    async fn test_supported_games() -> TestResult {
+        let service = create_test_service().await?;
         let games = service.get_supported_games().await;
 
         assert!(games.contains(&"iracing".to_string()));
         assert!(games.contains(&"acc".to_string()));
+        Ok(())
     }
 }

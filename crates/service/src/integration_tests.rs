@@ -136,6 +136,15 @@ mod tests {
 
         let device = devices.first().expect("No devices found");
 
+        // Register the device with the safety service
+        let max_torque = racing_wheel_schemas::prelude::TorqueNm::new(25.0)
+            .expect("Valid torque value");
+        service
+            .safety_service()
+            .register_device(device.id.clone(), max_torque)
+            .await
+            .expect("Failed to register device with safety service");
+
         // Test initial safety state (should be safe torque)
         let safety_state = service
             .safety_service()
