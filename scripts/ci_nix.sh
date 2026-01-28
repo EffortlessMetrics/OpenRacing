@@ -11,6 +11,7 @@ FORCE_PERFORMANCE=0
 SKIP_COVERAGE=0
 SKIP_SECURITY=0
 SKIP_MINIMAL_VERSIONS=0
+ALLOW_LOCK_UPDATE=0
 BUF_AGAINST=""
 
 usage() {
@@ -19,6 +20,11 @@ OpenRacing CI-equivalent runner (Linux/WSL).
 
 Usage:
   scripts/ci_nix.sh [options]
+
+Modes:
+  fast  - isolation builds + workspace default + lint gates + final validation
+  full  - all phases including schema validation, feature combinations,
+          dependency governance, performance gates, security audit, coverage
 
 Options:
   --mode <full|fast>       Run full (default) or fast subset
@@ -29,6 +35,7 @@ Options:
   --skip-coverage          Skip coverage step
   --skip-security          Skip security audit and license checks
   --skip-minimal-versions  Skip nightly minimal-versions check
+  --allow-lock-update      Allow Cargo.lock to change (otherwise fail if it changes)
   --buf-against <ref>      Run buf breaking against git ref
   --help                   Show this help
 EOF
@@ -66,6 +73,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --skip-minimal-versions)
             SKIP_MINIMAL_VERSIONS=1
+            shift
+            ;;
+        --allow-lock-update)
+            ALLOW_LOCK_UPDATE=1
             shift
             ;;
         --buf-against)
@@ -109,6 +120,26 @@ ensure_clean_tree() {
 
     if ! git diff --quiet || ! git diff --cached --quiet; then
         echo "Working tree is dirty. Commit or stash changes, or pass --allow-dirty."
+        exit 1
+    fi
+}
+
+capture_lockfile_hash() {
+    LOCK_BEFORE="$(sha256sum Cargo.lock 2>/dev/null || echo "missing")"
+}
+
+check_lockfile_unchanged() {
+    if [[ $ALLOW_LOCK_UPDATE -eq 1 ]]; then
+        return
+    fi
+
+    local lock_after
+    lock_after="$(sha256sum Cargo.lock 2>/dev/null || echo "missing")"
+    if [[ "$LOCK_BEFORE" != "$lock_after" ]]; then
+        echo ""
+        echo "ERROR: Cargo.lock changed during CI run."
+        echo "Re-run with --allow-lock-update if intentional, or revert and regenerate."
+        git --no-pager diff -- Cargo.lock 2>/dev/null || true
         exit 1
     fi
 }
@@ -325,6 +356,7 @@ main() {
     fi
 
     ensure_clean_tree
+    capture_lockfile_hash
 
     if is_wsl && [[ $FORCE_PERFORMANCE -eq 0 ]]; then
         SKIP_PERFORMANCE=1
@@ -336,6 +368,9 @@ main() {
         run_workspace_default
         run_lint_gates
         run_final_validation
+        check_lockfile_unchanged
+        phase "CI run complete (fast mode)"
+        echo "All checks passed."
         return
     fi
 
@@ -365,6 +400,11 @@ main() {
     fi
 
     run_final_validation
+
+    check_lockfile_unchanged
+
+    phase "CI run complete"
+    echo "All checks passed."
 }
 
 main "$@"
