@@ -6,6 +6,10 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+[features]
+default = []
+keygen = ["rand_core"]
+
 [dependencies]
 racing-wheel-schemas = { path = "../schemas" }
 racing-wheel-engine = { path = "../engine" }
@@ -26,6 +30,7 @@ async-stream = "0.3.6"
 tokio-stream = "0.1.18"
 prost-types = { workspace = true }
 ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
+rand_core = { version = "0.6", optional = true }
 base64 = "0.22.1"
 sha2 = "0.10.9"
 walkdir = "2.5.0"

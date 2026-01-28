@@ -179,10 +179,11 @@ impl Ed25519Verifier {
     #[cfg(feature = "keygen")]
     pub fn generate_keypair() -> Result<(ed25519_dalek::SigningKey, PublicKey)> {
         use ed25519_dalek::SigningKey;
-        use rand::rngs::OsRng;
-        
-        let mut csprng = OsRng;
-        let signing_key = SigningKey::generate(&mut csprng);
+        // Use rand_core::OsRng directly to ensure trait compatibility with ed25519-dalek.
+        // Do NOT use rand::rngs::OsRng as it may have version mismatches with rand_core.
+        use rand_core::OsRng;
+
+        let signing_key = SigningKey::generate(&mut OsRng);
         let verifying_key = signing_key.verifying_key();
         
         let public_key = PublicKey {
