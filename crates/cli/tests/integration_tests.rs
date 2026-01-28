@@ -69,7 +69,10 @@ fn create_test_profile(dir: &TempDir, name: &str) -> std::path::PathBuf {
     });
 
     let path = dir.path().join(format!("{}.json", name));
-    must(fs::write(&path, must(serde_json::to_string_pretty(&profile))));
+    must(fs::write(
+        &path,
+        must(serde_json::to_string_pretty(&profile)),
+    ));
     path
 }
 
@@ -120,9 +123,7 @@ fn test_device_list_json_output() {
         .stdout(is_json());
 
     // Verify JSON structure
-    let output = must(wheelctl()
-        .args(["--json", "device", "list"])
-        .output());
+    let output = must(wheelctl().args(["--json", "device", "list"]).output());
 
     let json: Value = must(serde_json::from_slice(&output.stdout));
     assert_eq!(json["success"], true);
@@ -221,7 +222,11 @@ fn test_profile_create_and_validate() {
 
     // Validate profile
     wheelctl()
-        .args(["profile", "validate", must_some(profile_path.to_str(), "expected path to_str")])
+        .args([
+            "profile",
+            "validate",
+            must_some(profile_path.to_str(), "expected path to_str"),
+        ])
         .assert()
         .success()
         .stdout(predicate::str::contains("valid"));
@@ -233,7 +238,11 @@ fn test_profile_show() {
     let profile_path = create_test_profile(&temp_dir, "test");
 
     wheelctl()
-        .args(["profile", "show", must_some(profile_path.to_str(), "expected path to_str")])
+        .args([
+            "profile",
+            "show",
+            must_some(profile_path.to_str(), "expected path to_str"),
+        ])
         .assert()
         .success()
         .stdout(predicate::str::contains("Profile Schema"));
@@ -245,7 +254,12 @@ fn test_profile_show_json() {
     let profile_path = create_test_profile(&temp_dir, "test");
 
     wheelctl()
-        .args(["--json", "profile", "show", must_some(profile_path.to_str(), "expected path to_str")])
+        .args([
+            "--json",
+            "profile",
+            "show",
+            must_some(profile_path.to_str(), "expected path to_str"),
+        ])
         .assert()
         .success()
         .stdout(is_json());
@@ -284,7 +298,11 @@ fn test_profile_validation_error() {
     must(fs::write(&invalid_profile, "{ invalid json }"));
 
     wheelctl()
-        .args(["profile", "validate", must_some(invalid_profile.to_str(), "expected path to_str")])
+        .args([
+            "profile",
+            "validate",
+            must_some(invalid_profile.to_str(), "expected path to_str"),
+        ])
         .assert()
         .failure()
         .code(4); // Validation error code
@@ -388,10 +406,17 @@ fn test_diag_record() {
 fn test_diag_replay() {
     let temp_dir = must(TempDir::new());
     let blackbox_path = temp_dir.path().join("test.wbb");
-    must(fs::write(&blackbox_path, "WBB1\x00\x00\x00\x00Mock blackbox data"));
+    must(fs::write(
+        &blackbox_path,
+        "WBB1\x00\x00\x00\x00Mock blackbox data",
+    ));
 
     wheelctl()
-        .args(["diag", "replay", must_some(blackbox_path.to_str(), "expected path to_str")])
+        .args([
+            "diag",
+            "replay",
+            must_some(blackbox_path.to_str(), "expected path to_str"),
+        ])
         .assert()
         .success()
         .stdout(predicate::str::contains("Replay completed"));
@@ -403,7 +428,12 @@ fn test_diag_support_bundle() {
     let bundle_path = temp_dir.path().join("support.zip");
 
     wheelctl()
-        .args(["diag", "support", "--output", must_some(bundle_path.to_str(), "expected path to_str")])
+        .args([
+            "diag",
+            "support",
+            "--output",
+            must_some(bundle_path.to_str(), "expected path to_str"),
+        ])
         .assert()
         .success()
         .stdout(predicate::str::contains("Support bundle created"));
@@ -589,10 +619,7 @@ fn test_all_commands_support_json() {
 
 #[test]
 fn test_verbose_logging() {
-    wheelctl()
-        .args(["-v", "device", "list"])
-        .assert()
-        .success();
+    wheelctl().args(["-v", "device", "list"]).assert().success();
 
     wheelctl()
         .args(["-vv", "device", "list"])
@@ -626,7 +653,11 @@ fn test_complete_profile_workflow() {
 
     // Validate profile
     wheelctl()
-        .args(["profile", "validate", must_some(profile_path.to_str(), "expected path to_str")])
+        .args([
+            "profile",
+            "validate",
+            must_some(profile_path.to_str(), "expected path to_str"),
+        ])
         .assert()
         .success();
 

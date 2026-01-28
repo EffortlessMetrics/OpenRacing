@@ -37,7 +37,7 @@ impl SafetyPolicy {
         Ok(Self {
             max_safe_torque: TorqueNm::new(5.0)?,  // 5 Nm safe limit
             max_high_torque: TorqueNm::new(25.0)?, // 25 Nm high torque limit
-            max_temperature_c: 80,                     // 80°C thermal limit
+            max_temperature_c: 80,                 // 80°C thermal limit
             max_hands_off_duration: Duration::from_secs(5), // 5 second hands-off limit
             min_high_torque_interval: Duration::from_secs(2), // 2 second cooldown
             last_high_torque_request: None,

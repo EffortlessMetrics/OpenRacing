@@ -382,14 +382,18 @@ impl WatchdogSystem {
         }
 
         // Check HID communication timeout
-        if let Some(health_check) = self.health_checks.get_mut(&SystemComponent::HidCommunication)
+        if let Some(health_check) = self
+            .health_checks
+            .get_mut(&SystemComponent::HidCommunication)
             && health_check.check_timeout(Duration::from_millis(self.config.hid_timeout_ms))
         {
             faults.push(FaultType::UsbStall);
         }
 
         // Check telemetry timeout
-        if let Some(health_check) = self.health_checks.get_mut(&SystemComponent::TelemetryAdapter)
+        if let Some(health_check) = self
+            .health_checks
+            .get_mut(&SystemComponent::TelemetryAdapter)
             && health_check.check_timeout(Duration::from_millis(self.config.telemetry_timeout_ms))
         {
             // Telemetry timeout is not critical, just log it

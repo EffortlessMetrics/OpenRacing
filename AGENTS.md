@@ -38,6 +38,7 @@ This file guides automated agents working in this repository. Follow it alongsid
 - ADR validation: `python scripts/validate_adr.py --verbose`
 - Docs index: `python scripts/generate_docs_index.py`
 - Docs build: `cargo doc --all-features --workspace`
+ - **No `unwrap()`/`expect()` in tests**: avoid panics in test code; prefer `Result`-returning tests (e.g. `#[test] fn foo() -> Result<(), Error>`), explicit assertions, or test helper macros.
 
 ## Dependency and config hygiene
 - Use workspace dependencies where possible (see root `Cargo.toml`).

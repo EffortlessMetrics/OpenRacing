@@ -278,8 +278,13 @@ impl RTLoopTestHarness {
     }
 
     /// Create a standard test device
-    pub fn create_test_device(&self, id: &str, name: &str) -> Result<VirtualDevice, Box<dyn std::error::Error>> {
-        let device_id = id.parse::<DeviceId>()
+    pub fn create_test_device(
+        &self,
+        id: &str,
+        name: &str,
+    ) -> Result<VirtualDevice, Box<dyn std::error::Error>> {
+        let device_id = id
+            .parse::<DeviceId>()
             .map_err(|e| format!("Failed to parse DeviceId: {e}"))?;
         Ok(VirtualDevice::new(device_id, name.to_string()))
     }

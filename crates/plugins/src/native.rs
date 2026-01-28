@@ -15,8 +15,8 @@ use tokio::sync::RwLock;
 use crate::capability::CapabilityChecker;
 use crate::manifest::PluginManifest;
 use crate::{Plugin, PluginContext, PluginError, PluginOutput, PluginResult};
-use racing_wheel_engine::prelude::MutexExt;
 use racing_wheel_engine::NormalizedTelemetry;
+use racing_wheel_engine::prelude::MutexExt;
 
 /// Native plugin ABI version
 const PLUGIN_ABI_VERSION: u32 = 1;

@@ -43,7 +43,7 @@ async fn test_device_enumeration_performance() {
     for (i, device_info) in devices.iter().enumerate() {
         assert_eq!(device_info.id.to_string(), format!("test-device-{}", i));
         assert_eq!(device_info.name, format!("Test Device {}", i));
-    // assert_eq!(device_info.device_type, DeviceType::WheelBase as i32);
+        // assert_eq!(device_info.device_type, DeviceType::WheelBase as i32);
     }
 }
 
@@ -97,7 +97,10 @@ async fn test_disconnect_detection() {
 }
 
 /// Test torque limit enforcement
-#[cfg_attr(windows, ignore = "Virtual torque limits are covered by unit tests; integration timing can be flaky on Windows")]
+#[cfg_attr(
+    windows,
+    ignore = "Virtual torque limits are covered by unit tests; integration timing can be flaky on Windows"
+)]
 #[tokio::test]
 #[traced_test]
 async fn test_torque_limit_enforcement() {
@@ -247,7 +250,10 @@ async fn test_hands_on_detection() {
 }
 
 /// Test RT loop with virtual device
-#[cfg_attr(windows, ignore = "RT loop timing is not reliable on Windows without RT scheduling")]
+#[cfg_attr(
+    windows,
+    ignore = "RT loop timing is not reliable on Windows without RT scheduling"
+)]
 #[tokio::test]
 #[traced_test]
 async fn test_rt_loop_with_virtual_device() {
@@ -314,7 +320,10 @@ async fn test_rt_loop_with_virtual_device() {
 }
 
 /// Test comprehensive test suite
-#[cfg_attr(windows, ignore = "RT loop harness requires RT scheduling for jitter limits")]
+#[cfg_attr(
+    windows,
+    ignore = "RT loop harness requires RT scheduling for jitter limits"
+)]
 #[tokio::test]
 #[traced_test]
 async fn test_comprehensive_suite() {

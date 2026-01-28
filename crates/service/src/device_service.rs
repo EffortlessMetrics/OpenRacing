@@ -608,9 +608,14 @@ mod tests {
     #[tokio::test]
     async fn test_device_enumeration() {
         let hid_port = Arc::new(VirtualHidPort::new());
-        let service = ApplicationDeviceService::new(hid_port, None).await.unwrap();
+        let service = ApplicationDeviceService::new(hid_port, None)
+            .await
+            .expect("Failed to create device service");
 
-        let devices = service.enumerate_devices().await.unwrap();
+        let devices = service
+            .enumerate_devices()
+            .await
+            .expect("Failed to enumerate devices");
         // Virtual port should return at least one device
         assert!(!devices.is_empty());
     }
@@ -618,18 +623,29 @@ mod tests {
     #[tokio::test]
     async fn test_device_management() {
         let hid_port = Arc::new(VirtualHidPort::new());
-        let service = ApplicationDeviceService::new(hid_port, None).await.unwrap();
+        let service = ApplicationDeviceService::new(hid_port, None)
+            .await
+            .expect("Failed to create device service");
 
         // Enumerate devices first
-        let devices = service.enumerate_devices().await.unwrap();
+        let devices = service
+            .enumerate_devices()
+            .await
+            .expect("Failed to enumerate devices");
         assert!(!devices.is_empty());
 
         let device_id = &devices[0].id;
 
         // Test getting device
-        let managed_device = service.get_device(device_id).await.unwrap();
+        let managed_device = service
+            .get_device(device_id)
+            .await
+            .expect("Failed to get device");
         assert!(managed_device.is_some());
-        assert_eq!(managed_device.unwrap().state, DeviceState::Connected);
+        assert_eq!(
+            managed_device.expect("Device should exist").state,
+            DeviceState::Connected
+        );
 
         // Test device initialization
         let result = service.initialize_device(device_id).await;
@@ -640,9 +656,14 @@ mod tests {
     #[tokio::test]
     async fn test_device_calibration() {
         let hid_port = Arc::new(VirtualHidPort::new());
-        let service = ApplicationDeviceService::new(hid_port, None).await.unwrap();
+        let service = ApplicationDeviceService::new(hid_port, None)
+            .await
+            .expect("Failed to create device service");
 
-        let devices = service.enumerate_devices().await.unwrap();
+        let devices = service
+            .enumerate_devices()
+            .await
+            .expect("Failed to enumerate devices");
         if !devices.is_empty() {
             let device_id = &devices[0].id;
 
@@ -658,13 +679,18 @@ mod tests {
     #[tokio::test]
     async fn test_device_statistics() {
         let hid_port = Arc::new(VirtualHidPort::new());
-        let service = ApplicationDeviceService::new(hid_port, None).await.unwrap();
+        let service = ApplicationDeviceService::new(hid_port, None)
+            .await
+            .expect("Failed to create device service");
 
         let stats = service.get_statistics().await;
         assert_eq!(stats.total_devices, 0); // Initially no devices
 
         // After enumeration, should have devices
-        let _devices = service.enumerate_devices().await.unwrap();
+        let _devices = service
+            .enumerate_devices()
+            .await
+            .expect("Failed to enumerate devices");
         let stats = service.get_statistics().await;
         assert!(stats.total_devices > 0);
     }

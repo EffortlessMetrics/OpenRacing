@@ -9,8 +9,8 @@ use std::cell::Cell;
 
 thread_local! {
     /// Thread-local allocation counters for tracking heap allocations.
-    static ALLOCATION_COUNT: Cell<usize> = Cell::new(0);
-    static ALLOCATION_BYTES: Cell<usize> = Cell::new(0);
+    static ALLOCATION_COUNT: Cell<usize> = const { Cell::new(0) };
+    static ALLOCATION_BYTES: Cell<usize> = const { Cell::new(0) };
 }
 
 /// Custom allocator that tracks allocations

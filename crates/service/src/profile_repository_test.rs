@@ -4,7 +4,9 @@
 mod tests {
     use super::super::profile_repository::*;
     use ed25519_dalek::SigningKey;
-    use racing_wheel_schemas::prelude::{BaseSettings, Degrees, FilterConfig, Gain, Profile, ProfileId, ProfileScope, TorqueNm};
+    use racing_wheel_schemas::prelude::{
+        BaseSettings, Degrees, FilterConfig, Gain, Profile, ProfileId, ProfileScope, TorqueNm,
+    };
     use rand_core::OsRng;
     use tempfile::TempDir;
 

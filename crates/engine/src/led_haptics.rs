@@ -354,8 +354,7 @@ impl LedMappingEngine {
                     }
                     FlagPattern::Wipe => {
                         let cycle_ms = 1000;
-                        let position =
-                            (elapsed.as_millis() % cycle_ms) as f32 / cycle_ms as f32;
+                        let position = (elapsed.as_millis() % cycle_ms) as f32 / cycle_ms as f32;
                         let led_position = (position * LED_COUNT as f32) as usize;
 
                         #[allow(clippy::needless_range_loop)]
@@ -388,8 +387,7 @@ impl LedMappingEngine {
                 color,
             } => {
                 let period_ms = (1000.0 / pulse_rate_hz) as u128;
-                let pulse_phase =
-                    (elapsed.as_millis() % period_ms) as f32 / period_ms as f32;
+                let pulse_phase = (elapsed.as_millis() % period_ms) as f32 / period_ms as f32;
                 let intensity = (pulse_phase * std::f32::consts::PI * 2.0).sin().abs();
 
                 let dimmed_color = LedColor {
@@ -675,7 +673,10 @@ impl LedHapticsSystem {
         let is_running = Arc::clone(&self.is_running);
         let update_rate_hz = self.update_rate_hz;
 
-        let mut telemetry_rx = self.telemetry_rx.take().ok_or("telemetry receiver already taken")?;
+        let mut telemetry_rx = self
+            .telemetry_rx
+            .take()
+            .ok_or("telemetry receiver already taken")?;
 
         tokio::spawn(async move {
             let mut interval = interval(Duration::from_secs_f32(1.0 / update_rate_hz));

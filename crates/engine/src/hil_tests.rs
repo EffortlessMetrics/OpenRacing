@@ -349,9 +349,10 @@ impl HILTestSuite {
             };
 
             if let Err(e) = engine.send_game_input(game_input)
-                && self.config.enable_logging {
-                    warn!("Failed to send game input: {}", e);
-                }
+                && self.config.enable_logging
+            {
+                warn!("Failed to send game input: {}", e);
+            }
 
             frame_count += 1;
             last_frame_time = now;
@@ -526,9 +527,10 @@ impl HILTestSuite {
                 };
 
                 if let Err(e) = engine.send_game_input(game_input)
-                    && self.config.enable_logging {
-                        warn!("Failed to send game input: {}", e);
-                    }
+                    && self.config.enable_logging
+                {
+                    warn!("Failed to send game input: {}", e);
+                }
 
                 frame_count += 1;
                 last_frame_time = now;
@@ -676,8 +678,10 @@ impl HILTestSuite {
             let ffb_value = ffb_generator.next_value(dt);
 
             // Check if we're in fault injection period
-            if elapsed >= fault_inject_time && elapsed <= fault_inject_time + fault_duration
-                && !fault_injected {
+            if elapsed >= fault_inject_time
+                && elapsed <= fault_inject_time + fault_duration
+                && !fault_injected
+            {
                 info!("Injecting safety fault at {:?}", elapsed);
                 fault_injected = true;
 
@@ -705,14 +709,17 @@ impl HILTestSuite {
             };
 
             if let Err(e) = engine.send_game_input(game_input)
-                && self.config.enable_logging {
-                    warn!("Failed to send game input: {}", e);
-                }
+                && self.config.enable_logging
+            {
+                warn!("Failed to send game input: {}", e);
+            }
 
             // Check for safety response
-            if fault_injected && fault_response_time.is_none()
+            if fault_injected
+                && fault_response_time.is_none()
                 && let Ok(stats) = engine.get_stats().await
-                && matches!(stats.safety_state, SafetyState::Faulted { .. }) {
+                && matches!(stats.safety_state, SafetyState::Faulted { .. })
+            {
                 fault_response_time = Some(elapsed - fault_inject_time);
                 info!(
                     "Safety response detected at {:?}",
@@ -907,9 +914,10 @@ impl HILTestSuite {
             };
 
             if let Err(e) = engine.send_game_input(game_input)
-                && self.config.enable_logging {
-                    warn!("Failed to send game input: {}", e);
-                }
+                && self.config.enable_logging
+            {
+                warn!("Failed to send game input: {}", e);
+            }
 
             frame_count += 1;
             last_frame_time = now;

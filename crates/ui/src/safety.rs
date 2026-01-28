@@ -344,14 +344,18 @@ mod tests {
         assert!(!dialog.is_consent_complete());
 
         // Acknowledge warnings
-        dialog.acknowledge_warnings().expect("Failed to acknowledge warnings");
+        dialog
+            .acknowledge_warnings()
+            .expect("Failed to acknowledge warnings");
         assert!(dialog.warnings_acknowledged);
 
         // Still in warnings step until disclaimers acknowledged
         assert_eq!(dialog.state().step, ConsentStep::ShowWarnings);
 
         // Acknowledge disclaimers
-        dialog.acknowledge_disclaimers().expect("Failed to acknowledge disclaimers");
+        dialog
+            .acknowledge_disclaimers()
+            .expect("Failed to acknowledge disclaimers");
         assert!(dialog.disclaimers_acknowledged);
 
         // Should move to consent step

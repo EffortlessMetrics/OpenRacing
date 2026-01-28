@@ -5,10 +5,10 @@
 
 #[cfg(test)]
 mod tests {
-    use tracing_test::traced_test;
     use crate::{FeatureFlags, ServiceDaemon, SystemConfig, WheelService};
     use std::sync::Arc;
     use std::time::Duration;
+    use tracing_test::traced_test;
 
     /// Integration test configuration
     #[allow(dead_code)]
@@ -42,8 +42,10 @@ mod tests {
         let flags = create_test_feature_flags();
 
         // Create service daemon
-        let mut service_config = crate::ServiceConfig::default();
-        service_config.ipc = crate::IpcConfig::default();
+        let service_config = crate::ServiceConfig {
+            ipc: crate::IpcConfig::default(),
+            ..Default::default()
+        };
 
         let daemon = ServiceDaemon::new_with_flags(service_config, flags)
             .await
@@ -103,7 +105,10 @@ mod tests {
         let test_profile = create_test_profile();
 
         // Create profile
-        let create_result = service.profile_service().create_profile(test_profile.clone()).await;
+        let create_result = service
+            .profile_service()
+            .create_profile(test_profile.clone())
+            .await;
         assert!(create_result.is_ok(), "Failed to create profile");
 
         // Load profile
@@ -128,11 +133,15 @@ mod tests {
             .enumerate_devices()
             .await
             .expect("Failed to enumerate devices");
-            
+
         let device = devices.first().expect("No devices found");
 
         // Test initial safety state (should be safe torque)
-        let safety_state = service.safety_service().get_safety_state(&device.id).await.expect("Failed to get safety state");
+        let safety_state = service
+            .safety_service()
+            .get_safety_state(&device.id)
+            .await
+            .expect("Failed to get safety state");
         assert!(matches!(
             safety_state.interlock_state,
             crate::safety_service::InterlockState::SafeTorque
@@ -147,7 +156,13 @@ mod tests {
 
         // Verify high torque is not active immediately
         if let Ok(state) = high_torque_result {
-             assert!(!matches!(state, crate::safety_service::InterlockState::HighTorqueActive { .. }), "High torque should not be active immediately");
+            assert!(
+                !matches!(
+                    state,
+                    crate::safety_service::InterlockState::HighTorqueActive { .. }
+                ),
+                "High torque should not be active immediately"
+            );
         }
 
         // Test fault injection (reporting)
@@ -162,24 +177,37 @@ mod tests {
         assert!(fault_result.is_ok(), "Failed to report fault");
 
         // Verify fault state
-        let safety_state = service.safety_service().get_safety_state(&device.id).await.expect("Failed to get safety state");
+        let safety_state = service
+            .safety_service()
+            .get_safety_state(&device.id)
+            .await
+            .expect("Failed to get safety state");
         assert!(matches!(
             safety_state.interlock_state,
             crate::safety_service::InterlockState::Faulted { .. }
         ));
 
         // Test fault recovery
-        let recovery_result = service.safety_service().clear_fault(&device.id, racing_wheel_engine::safety::FaultType::ThermalLimit).await;
+        let recovery_result = service
+            .safety_service()
+            .clear_fault(
+                &device.id,
+                racing_wheel_engine::safety::FaultType::ThermalLimit,
+            )
+            .await;
         assert!(recovery_result.is_ok(), "Failed to clear fault");
-        
+
         // Verify recovery
-        let safety_state = service.safety_service().get_safety_state(&device.id).await.expect("Failed to get safety state");
+        let safety_state = service
+            .safety_service()
+            .get_safety_state(&device.id)
+            .await
+            .expect("Failed to get safety state");
         assert!(matches!(
             safety_state.interlock_state,
             crate::safety_service::InterlockState::SafeTorque
         ));
     }
-
 
     /// Test game integration and telemetry
     /// TODO: Re-enable when game_service is implemented
@@ -214,8 +242,7 @@ mod tests {
         //     }
         // }
 
-        // Placeholder assertion
-        assert!(true, "Test disabled - game_service not yet implemented");
+        // Test disabled - game_service not yet implemented
     }
 
     /// Test force feedback pipeline
@@ -262,11 +289,7 @@ mod tests {
             // }
         }
 
-        // Placeholder assertion
-        assert!(
-            true,
-            "Test disabled - FFB pipeline methods not yet implemented"
-        );
+        // Test disabled - FFB pipeline methods not yet implemented
     }
 
     /// Test IPC communication
@@ -274,8 +297,10 @@ mod tests {
     #[traced_test]
     async fn test_ipc_communication() {
         let _config = create_test_system_config().await;
-        let mut service_config = crate::ServiceConfig::default();
-        service_config.ipc = crate::IpcConfig::default();
+        let service_config = crate::ServiceConfig {
+            ipc: crate::IpcConfig::default(),
+            ..Default::default()
+        };
 
         // Create IPC server
         let ipc_server = crate::IpcServer::new(service_config.ipc.clone())
@@ -346,8 +371,7 @@ mod tests {
         //     assert!(execution_result.is_ok(), "Failed to execute plugin");
         // }
 
-        // Placeholder assertion
-        assert!(true, "Test disabled - plugin_service not yet implemented");
+        // Test disabled - plugin_service not yet implemented
     }
 
     /// Test performance under load
@@ -403,11 +427,7 @@ mod tests {
             // assert_eq!(stats.frames_dropped, 0, "Frames were dropped");
         }
 
-        // Placeholder assertion
-        assert!(
-            true,
-            "Test disabled - FFB pipeline methods not yet implemented"
-        );
+        // Test disabled - FFB pipeline methods not yet implemented
     }
 
     /// Test graceful degradation
@@ -573,12 +593,14 @@ mod tests {
     }
 
     fn create_test_profile() -> racing_wheel_schemas::prelude::Profile {
-        let id: racing_wheel_schemas::prelude::ProfileId = "test-profile".parse().expect("Valid profile ID");
+        let id: racing_wheel_schemas::prelude::ProfileId =
+            "test-profile".parse().expect("Valid profile ID");
         let scope = racing_wheel_schemas::prelude::ProfileScope::for_game("test_game".to_string());
-        
+
         let base_settings = racing_wheel_schemas::prelude::BaseSettings {
             ffb_gain: racing_wheel_schemas::prelude::Gain::new(0.8).expect("Valid gain"),
-            degrees_of_rotation: racing_wheel_schemas::prelude::Degrees::new_dor(540.0).expect("Valid DOR"),
+            degrees_of_rotation: racing_wheel_schemas::prelude::Degrees::new_dor(540.0)
+                .expect("Valid DOR"),
             torque_cap: racing_wheel_schemas::prelude::TorqueNm::new(10.0).expect("Valid torque"),
             filters: racing_wheel_schemas::prelude::FilterConfig::default(),
         };

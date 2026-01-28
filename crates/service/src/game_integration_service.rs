@@ -559,17 +559,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_creation() {
-        let service = create_test_service().await.unwrap();
+        let service = create_test_service()
+            .await
+            .expect("Failed to create test service");
         let supported_games = service.get_supported_games().await;
         assert!(!supported_games.is_empty());
     }
 
     #[tokio::test]
     async fn test_one_click_configuration() {
-        let mut service = create_test_service().await.unwrap();
-        service.start().await.unwrap();
+        let mut service = create_test_service()
+            .await
+            .expect("Failed to create test service");
+        service.start().await.expect("Failed to start service");
 
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
         let request = OneClickConfigRequest {
             game_id: "iracing".to_string(),
@@ -578,14 +582,19 @@ mod tests {
             profile_id: None,
         };
 
-        let result = service.configure_one_click(request).await.unwrap();
+        let result = service
+            .configure_one_click(request)
+            .await
+            .expect("Failed to configure one-click");
         assert_eq!(result.game_id, "iracing");
         // Note: May not succeed in test environment without proper game setup
     }
 
     #[tokio::test]
     async fn test_metrics_tracking() {
-        let service = create_test_service().await.unwrap();
+        let service = create_test_service()
+            .await
+            .expect("Failed to create test service");
 
         let initial_metrics = service.get_metrics().await;
         assert_eq!(initial_metrics.total_configurations, 0);
@@ -603,7 +612,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_supported_games() {
-        let service = create_test_service().await.unwrap();
+        let service = create_test_service()
+            .await
+            .expect("Failed to create test service");
         let games = service.get_supported_games().await;
 
         assert!(games.contains(&"iracing".to_string()));

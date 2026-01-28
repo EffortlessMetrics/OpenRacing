@@ -9,10 +9,10 @@
 
 use racing_wheel_engine::rt::Frame;
 use racing_wheel_engine::{
+    TwoPhaseApplyCoordinator,
     allocation_tracker::AllocationBenchmark,
     pipeline::{Pipeline, PipelineCompiler, PipelineError},
     profile_merge::ProfileMergeEngine,
-    TwoPhaseApplyCoordinator,
 };
 use racing_wheel_schemas::prelude::{
     BaseSettings, CurvePoint, Degrees, FilterConfig, FrequencyHz, Gain, HapticsConfig, LedConfig,
@@ -180,14 +180,16 @@ async fn test_two_phase_apply_complete_integration() {
     );
 
     // Phase 1: Start async apply
-    let result_rx = must(coordinator
-        .apply_profile_async(
-            &global_profile,
-            Some(&game_profile),
-            Some(&car_profile),
-            Some(&session_overrides),
-        )
-        .await);
+    let result_rx = must(
+        coordinator
+            .apply_profile_async(
+                &global_profile,
+                Some(&game_profile),
+                Some(&car_profile),
+                Some(&session_overrides),
+            )
+            .await,
+    );
 
     // Verify pipeline hasn't changed yet (no partial application)
     {
@@ -406,7 +408,10 @@ async fn test_monotonic_curve_validation_comprehensive() {
     }
 }
 
-#[cfg_attr(windows, ignore = "Performance timing is unstable on Windows CI/dev machines")]
+#[cfg_attr(
+    windows,
+    ignore = "Performance timing is unstable on Windows CI/dev machines"
+)]
 #[tokio::test]
 async fn test_pipeline_swap_atomicity_under_load() {
     // Test that pipeline swaps remain atomic even under concurrent load
@@ -526,7 +531,10 @@ fn test_ci_allocation_assertion() {
     println!("CI test passed with sum: {}", sum);
 }
 
-#[cfg_attr(windows, ignore = "Performance timing is unstable on Windows CI/dev machines")]
+#[cfg_attr(
+    windows,
+    ignore = "Performance timing is unstable on Windows CI/dev machines"
+)]
 #[tokio::test]
 async fn test_end_to_end_performance_requirements() {
     // Test that the complete system meets performance requirements

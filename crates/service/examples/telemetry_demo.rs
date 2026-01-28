@@ -98,7 +98,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("   ✓ Started telemetry monitoring...");
     for i in 0..5 {
-        if let Ok(Some(frame)) = tokio::time::timeout(Duration::from_millis(100), receiver.recv()).await {
+        if let Ok(Some(frame)) =
+            tokio::time::timeout(Duration::from_millis(100), receiver.recv()).await
+        {
             println!(
                 "   📊 Frame {}: RPM={:.0}, Speed={:.1} m/s, FFB={:.2}",
                 i + 1,

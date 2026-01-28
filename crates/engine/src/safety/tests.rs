@@ -407,7 +407,10 @@ fn test_challenge_time_remaining() {
     must(service.request_high_torque("test_device"));
 
     // Should have time remaining
-    let remaining = must_some(service.get_challenge_time_remaining(), "expected time remaining");
+    let remaining = must_some(
+        service.get_challenge_time_remaining(),
+        "expected time remaining",
+    );
     assert!(remaining > Duration::from_secs(25)); // Should be close to 30 seconds
     assert!(remaining <= Duration::from_secs(30));
 }

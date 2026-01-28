@@ -82,8 +82,7 @@ impl TorqueCommand {
 
     pub fn new(torque_nm: f32, seq: u16, hands_on_hint: bool, sat_warn: bool) -> Self {
         // Convert torque from Nm to Q8.8 fixed point
-        let torque_mn_m =
-            (torque_nm * 256.0).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+        let torque_mn_m = (torque_nm * 256.0).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
 
         let mut flags = 0u8;
         if hands_on_hint {

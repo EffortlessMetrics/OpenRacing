@@ -428,8 +428,10 @@ impl FmeaSystem {
             // Initialize or reset window
             let should_reset = match state.window_start {
                 None => true,
-                Some(start) => now.duration_since(start)
-                    > Duration::from_millis(self.thresholds.encoder_nan_window_ms),
+                Some(start) => {
+                    now.duration_since(start)
+                        > Duration::from_millis(self.thresholds.encoder_nan_window_ms)
+                }
             };
 
             if should_reset {

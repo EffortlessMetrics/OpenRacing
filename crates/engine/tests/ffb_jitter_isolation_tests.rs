@@ -770,7 +770,11 @@ mod timing_validation_tests {
                 let measured_rate = 1.0 / avg_interval.as_secs_f64();
 
                 // Allow extra tolerance on Windows due to timer resolution
-                let rate_tolerance = if cfg!(windows) { rate * 0.2 } else { rate * 0.1 };
+                let rate_tolerance = if cfg!(windows) {
+                    rate * 0.2
+                } else {
+                    rate * 0.1
+                };
                 assert!(
                     (measured_rate - rate as f64).abs() <= rate_tolerance as f64,
                     "Measured rate {:.1}Hz too far from target {:.1}Hz",

@@ -587,7 +587,11 @@ impl Engine {
             let final_torque_nm = frame.torque_out * ctx.config.max_high_torque_nm;
 
             // Handle write_ffb_report Result with RT-safe error counting
-            if ctx.device.write_ffb_report(final_torque_nm, ctx.seq).is_err() {
+            if ctx
+                .device
+                .write_ffb_report(final_torque_nm, ctx.seq)
+                .is_err()
+            {
                 // Non-allocating error accounting - just increment atomic counter
                 ctx.atomic_counters.inc_hid_write_error();
 

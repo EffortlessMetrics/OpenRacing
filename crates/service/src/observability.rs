@@ -483,14 +483,18 @@ mod tests {
             serde_json::json!({"test": true}),
         );
 
-        streamer.emit(test_event.clone()).unwrap();
+        streamer
+            .emit(test_event.clone())
+            .expect("Failed to emit test event");
 
         // Should receive the event
         let received =
             tokio::time::timeout(Duration::from_millis(100), stream.as_mut().next()).await;
 
         assert!(received.is_ok());
-        let event = received.unwrap().unwrap();
+        let event = received
+            .expect("Timeout waiting for event")
+            .expect("No event received");
         assert_eq!(event.message, "Test event");
     }
 
@@ -531,8 +535,9 @@ mod tests {
     #[tokio::test]
     async fn test_observability_config_serialization() {
         let config = ObservabilityConfig::default();
-        let json = serde_json::to_string(&config).unwrap();
-        let deserialized: ObservabilityConfig = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&config).expect("Failed to serialize config");
+        let deserialized: ObservabilityConfig =
+            serde_json::from_str(&json).expect("Failed to deserialize config");
 
         assert_eq!(
             config.health_stream_rate_hz,

@@ -82,7 +82,9 @@ impl PluginHost {
                         Ok(manifest) => {
                             let plugin_path = match manifest.class {
                                 PluginClass::Safe => {
-                                    if let Some(wasm_path) = manifest.entry_points.wasm_module.as_ref() {
+                                    if let Some(wasm_path) =
+                                        manifest.entry_points.wasm_module.as_ref()
+                                    {
                                         path.join(wasm_path)
                                     } else {
                                         tracing::warn!(
@@ -95,7 +97,9 @@ impl PluginHost {
                                     }
                                 }
                                 PluginClass::Fast => {
-                                    if let Some(native_path) = manifest.entry_points.native_library.as_ref() {
+                                    if let Some(native_path) =
+                                        manifest.entry_points.native_library.as_ref()
+                                    {
                                         path.join(native_path)
                                     } else {
                                         tracing::warn!(

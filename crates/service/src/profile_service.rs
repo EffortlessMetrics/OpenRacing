@@ -298,11 +298,10 @@ pub struct ProfileStatistics {
 mod tests {
     use super::*;
     use ed25519_dalek::SigningKey;
-    use racing_wheel_schemas::prelude::{
-        BaseSettings, Degrees, DeviceCapabilities, FilterConfig, Gain, ProfileScope,
-        TorqueNm,
-    };
     use racing_wheel_schemas::prelude::TorqueNm as DeviceTorqueNm;
+    use racing_wheel_schemas::prelude::{
+        BaseSettings, Degrees, DeviceCapabilities, FilterConfig, Gain, ProfileScope, TorqueNm,
+    };
     use rand_core::OsRng;
     use tempfile::TempDir;
 

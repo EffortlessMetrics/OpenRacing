@@ -345,7 +345,7 @@ impl FaultInjectionSystem {
         let mut recovered_faults = Vec::new();
 
         if !self.pending_faults.is_empty() {
-            new_faults.extend(self.pending_faults.drain(..));
+            new_faults.append(&mut self.pending_faults);
         }
 
         // Check all scenarios
@@ -854,7 +854,9 @@ mod tests {
             enabled: true,
         };
 
-        system.add_scenario(scenario).expect("Failed to add scenario");
+        system
+            .add_scenario(scenario)
+            .expect("Failed to add scenario");
 
         // Initial stats
         let stats = system.get_scenario_stats("stats_test").unwrap();
@@ -894,7 +896,9 @@ mod tests {
             enabled: true,
         };
 
-        system.add_scenario(scenario).expect("Failed to add scenario");
+        system
+            .add_scenario(scenario)
+            .expect("Failed to add scenario");
 
         // Should not trigger when disabled
         let result = system.trigger_scenario("enable_test");
@@ -902,7 +906,9 @@ mod tests {
 
         // Enable and trigger
         system.set_enabled(true);
-        system.trigger_scenario("enable_test").expect("Failed to trigger scenario");
+        system
+            .trigger_scenario("enable_test")
+            .expect("Failed to trigger scenario");
         assert!(system.is_fault_active(FaultType::UsbStall));
 
         // Disable should clear active faults
@@ -924,10 +930,14 @@ mod tests {
             enabled: true,
         };
 
-        system.add_scenario(scenario).expect("Failed to add scenario");
+        system
+            .add_scenario(scenario)
+            .expect("Failed to add scenario");
 
         // Trigger scenario
-        system.trigger_scenario("reset_test").expect("Failed to trigger scenario");
+        system
+            .trigger_scenario("reset_test")
+            .expect("Failed to trigger scenario");
         assert!(system.is_fault_active(FaultType::UsbStall));
 
         // Reset specific scenario
@@ -942,7 +952,9 @@ mod tests {
     #[test]
     fn test_create_test_scenarios() {
         let mut system = FaultInjectionSystem::new();
-        system.create_test_scenarios().expect("Failed to create test scenarios");
+        system
+            .create_test_scenarios()
+            .expect("Failed to create test scenarios");
 
         let scenarios = system.get_all_scenarios();
         assert!(scenarios.len() >= 5);
@@ -990,7 +1002,9 @@ mod tests {
         system.add_scenario(scenario).unwrap();
 
         // Trigger should call fault callback
-        system.trigger_scenario("callback_test").expect("Failed to trigger scenario");
+        system
+            .trigger_scenario("callback_test")
+            .expect("Failed to trigger scenario");
         assert!(*fault_triggered.lock_or_panic());
 
         // Recovery should call recovery callback

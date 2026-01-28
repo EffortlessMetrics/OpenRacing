@@ -137,8 +137,7 @@ async fn test_acc_config_writer_golden() {
         // For JSON content, parse and compare structure
         if actual.key == "entire_file" {
             let actual_json: serde_json::Value = must(serde_json::from_str(&actual.new_value));
-            let expected_json: serde_json::Value =
-                must(serde_json::from_str(&expected.new_value));
+            let expected_json: serde_json::Value = must(serde_json::from_str(&expected.new_value));
             assert_eq!(actual_json, expected_json);
         } else {
             assert_eq!(actual.new_value, expected.new_value);
@@ -310,12 +309,20 @@ async fn test_unsupported_game_handling() {
     // Test unsupported game returns error
     let result = service.get_game_support("unsupported_game").await;
     assert!(result.is_err());
-    assert!(result.err().unwrap().to_string().contains("Unsupported game"));
+    assert!(
+        result
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("Unsupported game")
+    );
 
     let mapping_result = service.get_telemetry_mapping("unsupported_game").await;
     assert!(mapping_result.is_err());
     assert!(
-        mapping_result.err().unwrap()
+        mapping_result
+            .err()
+            .unwrap()
             .to_string()
             .contains("Unsupported game")
     );
@@ -334,7 +341,9 @@ async fn test_unsupported_game_handling() {
         .await;
     assert!(config_result.is_err());
     assert!(
-        config_result.err().unwrap()
+        config_result
+            .err()
+            .unwrap()
             .to_string()
             .contains("No config writer for game")
     );
@@ -346,7 +355,11 @@ async fn test_end_to_end_telemetry_configuration() {
     let temp_dir = must(TempDir::new());
 
     // Test iRacing end-to-end configuration
-    let iracing_diffs = must(service.configure_telemetry("iracing", temp_dir.path()).await);
+    let iracing_diffs = must(
+        service
+            .configure_telemetry("iracing", temp_dir.path())
+            .await,
+    );
     assert_eq!(iracing_diffs.len(), 1);
     assert_eq!(iracing_diffs[0].key, "telemetryDiskFile");
     assert_eq!(iracing_diffs[0].new_value, "1");

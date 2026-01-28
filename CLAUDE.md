@@ -83,6 +83,10 @@ Total budget: 1000μs @ 1kHz. Jitter P99 must be ≤0.25ms.
 - **No `static mut`**: use `OnceLock`, `LazyLock`, atomics, or other safe patterns
 - All non-test crates must include `#![deny(static_mut_refs)]`
 
+### Testing Rules
+
+- **No `unwrap()`/`expect()` in tests**: test code must not rely on panics. Prefer `Result`-returning tests (e.g. `#[test] fn foo() -> Result<(), Error>`), use explicit assertions (`assert!(result.is_ok())`, `assert_eq!`), or test helper macros. Avoid `unwrap()` and `expect()` to ensure clearer failures and avoid masking errors.
+
 ### Performance Gates (CI enforced)
 
 - P99 Jitter: ≤0.25ms at 1kHz

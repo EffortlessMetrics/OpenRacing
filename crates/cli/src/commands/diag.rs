@@ -222,8 +222,7 @@ async fn generate_support_bundle(
 
     if !json {
         let pb = ProgressBar::new_spinner();
-        let style = ProgressStyle::default_spinner()
-            .template("{spinner:.green} {msg}")?;
+        let style = ProgressStyle::default_spinner().template("{spinner:.green} {msg}")?;
         pb.set_style(style);
 
         pb.set_message("Collecting system information...");
@@ -363,8 +362,8 @@ async fn run_single_test(
 ) -> Result<TestResult> {
     if !json {
         let pb = ProgressBar::new_spinner();
-        let style = ProgressStyle::default_spinner()
-            .template("{spinner:.green} Running {:?} test...")?;
+        let style =
+            ProgressStyle::default_spinner().template("{spinner:.green} Running {:?} test...")?;
         pb.set_style(style);
         pb.enable_steady_tick(Duration::from_millis(100));
 

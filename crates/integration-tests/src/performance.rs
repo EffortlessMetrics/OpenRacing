@@ -177,7 +177,6 @@ pub fn create_benchmark_suite() -> Vec<PerformanceBenchmark> {
                 enable_tracing: true,
                 enable_metrics: true,
                 stress_level: crate::StressLevel::Medium,
-                ..Default::default()
             },
             PerformanceMetrics {
                 jitter_p99_ms: 0.20,
@@ -201,7 +200,6 @@ pub fn create_benchmark_suite() -> Vec<PerformanceBenchmark> {
                 enable_tracing: true,
                 enable_metrics: true,
                 stress_level: crate::StressLevel::Heavy,
-                ..Default::default()
             },
             PerformanceMetrics {
                 jitter_p99_ms: 0.25,

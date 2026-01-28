@@ -174,8 +174,7 @@ fn test_profile_round_trip_serialization() {
         };
         panic!(
             "Round-trip serialized profile should pass schema validation. Error: {}\nJSON: {}",
-            error,
-            json_str
+            error, json_str
         );
     }
 }

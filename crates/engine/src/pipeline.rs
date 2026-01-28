@@ -692,11 +692,15 @@ mod tests {
 
     fn create_test_filter_config() -> FilterConfig {
         FilterConfig::new_complete(
-            4,                        // reconstruction
+            4,                     // reconstruction
             must(Gain::new(0.1)),  // friction
             must(Gain::new(0.15)), // damper
             must(Gain::new(0.05)), // inertia
-            vec![must(NotchFilter::new(must(FrequencyHz::new(60.0)), 2.0, -12.0))],
+            vec![must(NotchFilter::new(
+                must(FrequencyHz::new(60.0)),
+                2.0,
+                -12.0,
+            ))],
             must(Gain::new(0.8)), // slew_rate
             vec![
                 must(CurvePoint::new(0.0, 0.0)),
@@ -712,11 +716,11 @@ mod tests {
 
     fn create_linear_filter_config() -> FilterConfig {
         FilterConfig::new_complete(
-            0,                       // no reconstruction
+            0,                    // no reconstruction
             must(Gain::new(0.0)), // no friction
             must(Gain::new(0.0)), // no damper
             must(Gain::new(0.0)), // no inertia
-            vec![],                  // no notch filters
+            vec![],               // no notch filters
             must(Gain::new(1.0)), // no slew rate limiting
             vec![
                 must(CurvePoint::new(0.0, 0.0)),
@@ -895,13 +899,11 @@ mod tests {
             must(Gain::new(0.1)),
             must(Gain::new(0.15)),
             must(Gain::new(0.05)),
-            vec![
-                must(NotchFilter::new(
-                    must(FrequencyHz::new(600.0)), // Too high frequency
-                    2.0,
-                    -12.0,
-                )),
-            ],
+            vec![must(NotchFilter::new(
+                must(FrequencyHz::new(600.0)), // Too high frequency
+                2.0,
+                -12.0,
+            ))],
             must(Gain::new(0.8)),
             vec![
                 must(CurvePoint::new(0.0, 0.0)),

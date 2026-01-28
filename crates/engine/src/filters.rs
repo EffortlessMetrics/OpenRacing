@@ -157,12 +157,12 @@ pub struct CurveState {
 }
 
 impl CurveState {
-pub fn new(curve_points: &[(f32, f32)]) -> Self {
-    const LUT_SIZE: usize = 1024;
-    let mut lut = [0.0f32; LUT_SIZE];
+    pub fn new(curve_points: &[(f32, f32)]) -> Self {
+        const LUT_SIZE: usize = 1024;
+        let mut lut = [0.0f32; LUT_SIZE];
 
-    #[allow(clippy::needless_range_loop)]
-    for i in 0..LUT_SIZE {
+        #[allow(clippy::needless_range_loop)]
+        for i in 0..LUT_SIZE {
             let input = i as f32 / (LUT_SIZE - 1) as f32;
             lut[i] = Self::interpolate_curve(input, curve_points);
         }
