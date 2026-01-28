@@ -3,7 +3,7 @@
 //! This example shows how to integrate the observability system with the racing wheel service,
 //! including metrics collection, health event streaming, and Prometheus export.
 
-use racing_wheel_engine::{HealthSeverity};
+use racing_wheel_engine::HealthSeverity;
 use racing_wheel_service::{
     DeviceContext, GameContext, LoggingConfig, LoggingSpans, ObservabilityConfig,
     ObservabilityService, init_logging,

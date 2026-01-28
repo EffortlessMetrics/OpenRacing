@@ -176,3 +176,83 @@ All safety-critical code must follow these guidelines:
 - `deny.toml`: Dependency and license configuration
 - `clippy.toml`: Linting configuration
 - `rustfmt.toml`: Code formatting configuration
+
+## WSL + Nix CI Runner (Windows)
+
+If you want to run the Linux CI-equivalent checks from Windows without moving the
+repo into WSL, use the WSL wrapper script. It maps the Windows path into WSL and
+executes the Nix dev shell before running the CI script.
+
+### Prerequisites
+- WSL2 with a Linux distro (e.g., Ubuntu)
+- Nix installed in WSL (recommended: [Determinate Systems installer](https://install.determinate.systems/nix))
+- Nix flakes enabled (for `flake.nix`)
+
+### Usage
+
+Run from PowerShell in the repo root:
+```powershell
+.\scripts\ci_wsl.ps1 -- --mode fast
+.\scripts\ci_wsl.ps1 -- --mode full
+```
+
+The `--` delimiter separates PowerShell args from Linux script args.
+
+### CI Modes
+
+| Mode | Description |
+|------|-------------|
+| `fast` | Isolation builds, workspace default, lint gates, final validation |
+| `full` | All phases including schema validation, feature combinations, dependency governance, performance gates, security audit, coverage |
+
+### Common Flags
+
+| Flag | Description |
+|------|-------------|
+| `--allow-dirty` | Skip clean-tree checks (useful during iteration) |
+| `--skip-performance` | Skip performance gate steps |
+| `--force-performance` | Run performance gates even on WSL |
+| `--skip-coverage` | Skip coverage collection |
+| `--skip-security` | Skip security audit and license checks |
+| `--skip-minimal-versions` | Skip nightly minimal-versions check |
+| `--allow-lock-update` | Allow Cargo.lock to change (otherwise fails if lockfile changes) |
+| `--buf-against <ref>` | Run buf breaking checks against a git ref |
+
+### Examples
+
+Quick iteration (dirty tree, skip perf):
+```powershell
+.\scripts\ci_wsl.ps1 -- --mode fast --allow-dirty
+```
+
+Full CI with lockfile changes allowed:
+```powershell
+.\scripts\ci_wsl.ps1 -- --mode full --allow-lock-update
+```
+
+Select a specific WSL distro:
+```powershell
+$env:OPENRACING_WSL_DISTRO = "Ubuntu-22.04"
+.\scripts\ci_wsl.ps1 -- --mode fast
+```
+
+Skip Nix (if already in a nix shell or debugging):
+```powershell
+.\scripts\ci_wsl.ps1 -NoNix -- --mode fast
+```
+
+### On Linux (or inside WSL)
+
+Run the CI script directly:
+```bash
+nix develop --command bash scripts/ci_nix.sh --mode fast
+# or without nix:
+scripts/ci_nix.sh --mode fast
+```
+
+### Troubleshooting
+
+- **Nix not found**: Install Nix in your WSL distro
+- **Cargo.lock changed**: The CI run modified the lockfile. Re-run with `--allow-lock-update` if intentional, or revert and regenerate
+- **Performance gate failures on WSL**: WSL timing is unreliable; use `--skip-performance` or `--force-performance` to run anyway
+- **Path mapping failed**: Ensure the repo is accessible from both Windows and WSL

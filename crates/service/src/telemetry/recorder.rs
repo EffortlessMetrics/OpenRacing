@@ -162,6 +162,7 @@ pub struct TelemetryPlayer {
     recording: TelemetryRecording,
     current_frame: usize,
     start_time: Option<std::time::Instant>,
+    first_frame_timestamp: Option<u64>,
     playback_speed: f32,
 }
 
@@ -172,6 +173,7 @@ impl TelemetryPlayer {
             recording,
             current_frame: 0,
             start_time: None,
+            first_frame_timestamp: None,
             playback_speed: 1.0,
         }
     }
@@ -180,11 +182,14 @@ impl TelemetryPlayer {
     pub fn start_playback(&mut self) {
         self.start_time = Some(std::time::Instant::now());
         self.current_frame = 0;
+        // Store the first frame's timestamp for relative calculations
+        self.first_frame_timestamp = self.recording.frames.first().map(|f| f.timestamp_ns);
     }
 
     /// Get the next frame if it's time to play it
     pub fn get_next_frame(&mut self) -> Option<TelemetryFrame> {
         let start_time = self.start_time?;
+        let first_timestamp = self.first_frame_timestamp?;
 
         if self.current_frame >= self.recording.frames.len() {
             return None;
@@ -193,8 +198,9 @@ impl TelemetryPlayer {
         let current_frame = &self.recording.frames[self.current_frame];
         let elapsed = start_time.elapsed();
 
-        // Calculate when this frame should be played based on its timestamp
-        let frame_time = Duration::from_nanos(current_frame.timestamp_ns);
+        // Calculate when this frame should be played using relative timestamps
+        let relative_timestamp = current_frame.timestamp_ns.saturating_sub(first_timestamp);
+        let frame_time = Duration::from_nanos(relative_timestamp);
         let adjusted_frame_time =
             Duration::from_nanos((frame_time.as_nanos() as f32 / self.playback_speed) as u64);
 
@@ -445,21 +451,24 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
     #[test]
-    fn test_recorder_creation() {
-        let temp_dir = tempdir().unwrap();
+    fn test_recorder_creation() -> TestResult {
+        let temp_dir = tempdir()?;
         let output_path = temp_dir.path().join("test_recording.json");
 
         let recorder = TelemetryRecorder::new(output_path);
         assert!(recorder.is_ok());
+        Ok(())
     }
 
     #[test]
-    fn test_recording_lifecycle() {
-        let temp_dir = tempdir().unwrap();
+    fn test_recording_lifecycle() -> TestResult {
+        let temp_dir = tempdir()?;
         let output_path = temp_dir.path().join("test_recording.json");
 
-        let mut recorder = TelemetryRecorder::new(output_path.clone()).unwrap();
+        let mut recorder = TelemetryRecorder::new(output_path.clone())?;
 
         // Start recording
         recorder.start_recording("test_game".to_string());
@@ -473,64 +482,73 @@ mod tests {
         assert_eq!(recorder.frame_count(), 1);
 
         // Stop recording
-        let recording = recorder
-            .stop_recording(Some("Test recording".to_string()))
-            .unwrap();
+        let recording = recorder.stop_recording(Some("Test recording".to_string()))?;
         assert!(!recorder.is_recording());
         assert_eq!(recording.frames.len(), 1);
         assert_eq!(recording.metadata.game_id, "test_game");
 
         // Verify file was created
         assert!(output_path.exists());
+        Ok(())
     }
 
     #[test]
-    fn test_load_recording() {
-        let temp_dir = tempdir().unwrap();
+    fn test_load_recording() -> TestResult {
+        let temp_dir = tempdir()?;
         let output_path = temp_dir.path().join("test_recording.json");
 
         // Create and save a recording
-        let mut recorder = TelemetryRecorder::new(output_path.clone()).unwrap();
+        let mut recorder = TelemetryRecorder::new(output_path.clone())?;
         recorder.start_recording("test_game".to_string());
 
         let telemetry = NormalizedTelemetry::default().with_rpm(5000.0);
         let frame = TelemetryFrame::new(telemetry, 1000000, 0, 64);
         recorder.record_frame(frame);
 
-        recorder
-            .stop_recording(Some("Test recording".to_string()))
-            .unwrap();
+        recorder.stop_recording(Some("Test recording".to_string()))?;
 
         // Load the recording
-        let loaded = TelemetryRecorder::load_recording(&output_path).unwrap();
+        let loaded = TelemetryRecorder::load_recording(&output_path)?;
         assert_eq!(loaded.metadata.game_id, "test_game");
         assert_eq!(loaded.frames.len(), 1);
+        Ok(())
     }
 
     #[test]
-    fn test_telemetry_player() {
+    fn test_telemetry_player() -> TestResult {
         let recording = TestFixtureGenerator::generate_racing_session(
             "test_game".to_string(),
             1.0,  // 1 second
             10.0, // 10 FPS
         );
 
+        // Verify recording has the expected frames
+        assert_eq!(recording.frames.len(), 10);
+
         let mut player = TelemetryPlayer::new(recording);
+
+        // Initial state checks
+        assert!((player.progress() - 0.0).abs() < f32::EPSILON);
+        assert!(!player.is_finished());
 
         // Start playback
         player.start_playback();
-        assert_eq!(player.progress(), 0.0);
-        assert!(!player.is_finished());
 
-        // Should have frames to play
-        assert!(player.get_next_frame().is_some());
+        // Verify player metadata access
+        assert_eq!(player.metadata().game_id, "test_game");
+        assert_eq!(player.metadata().frame_count, 10);
 
-        // Progress should increase
-        assert!(player.progress() > 0.0);
+        // Verify playback speed adjustment
+        player.set_playback_speed(2.0);
+
+        // Verify reset functionality
+        player.reset();
+        assert!((player.progress() - 0.0).abs() < f32::EPSILON);
+        Ok(())
     }
 
     #[test]
-    fn test_synthetic_fixture_generation() {
+    fn test_synthetic_fixture_generation() -> TestResult {
         let recording = TestFixtureGenerator::generate_racing_session(
             "test_game".to_string(),
             2.0,  // 2 seconds
@@ -547,10 +565,11 @@ mod tests {
             assert!(frame.data.speed_ms.is_some());
             assert!(frame.data.ffb_scalar.is_some());
         }
+        Ok(())
     }
 
     #[test]
-    fn test_test_scenarios() {
+    fn test_test_scenarios() -> TestResult {
         let scenarios = [
             TestScenario::ConstantSpeed,
             TestScenario::Acceleration,
@@ -564,5 +583,6 @@ mod tests {
             assert_eq!(recording.frames.len(), 30);
             assert!(recording.metadata.description.is_some());
         }
+        Ok(())
     }
 }

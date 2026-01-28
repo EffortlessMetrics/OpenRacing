@@ -416,7 +416,7 @@ mod tests {
         };
 
         let summary = result.summary();
-        assert!(summary.contains("RawTorque"));
+        assert!(summary.contains("Raw Torque"));
         assert!(summary.contains("1000Hz"));
         assert!(summary.contains("Test warning"));
     }

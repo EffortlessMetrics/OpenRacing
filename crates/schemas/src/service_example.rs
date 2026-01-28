@@ -177,7 +177,10 @@ mod example {
             id: "csl-dd-001".to_string(),
         };
 
-        let status = must_some(ipc_service.get_device_status_ipc(wire_device_id), "expected device status");
+        let status = must_some(
+            ipc_service.get_device_status_ipc(wire_device_id),
+            "expected device status",
+        );
         let device_info = must_some(status.device, "expected device info");
         let telemetry = must_some(status.telemetry, "expected telemetry");
 
@@ -203,7 +206,10 @@ mod example {
         assert!(result.is_ok());
 
         // Verify the update worked
-        let updated_status = must_some(ipc_service.get_device_status_ipc(device_id), "expected device status");
+        let updated_status = must_some(
+            ipc_service.get_device_status_ipc(device_id),
+            "expected device status",
+        );
         let updated_telemetry = must_some(updated_status.telemetry, "expected telemetry");
 
         assert_eq!(updated_telemetry.wheel_angle_mdeg, 90000);

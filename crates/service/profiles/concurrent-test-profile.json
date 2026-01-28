@@ -1,0 +1,85 @@
+{
+  "schema": "wheel.profile/1",
+  "scope": {
+    "game": null,
+    "car": null,
+    "track": null
+  },
+  "base": {
+    "ffbGain": 0.8,
+    "dorDeg": 900,
+    "torqueCapNm": 10.0,
+    "filters": {
+      "reconstruction": 0,
+      "friction": 0.0,
+      "damper": 0.0,
+      "inertia": 0.0,
+      "bumpstop": {
+        "enabled": true,
+        "strength": 0.5
+      },
+      "handsOff": {
+        "enabled": true,
+        "sensitivity": 0.3
+      },
+      "torqueCap": 1.0,
+      "notchFilters": [],
+      "slewRate": 1.0,
+      "curvePoints": [
+        {
+          "input": 0.0,
+          "output": 0.0
+        },
+        {
+          "input": 1.0,
+          "output": 1.0
+        }
+      ]
+    }
+  },
+  "leds": {
+    "rpmBands": [
+      0.75,
+      0.82,
+      0.88,
+      0.92,
+      0.96
+    ],
+    "pattern": "progressive",
+    "brightness": 0.8,
+    "colors": {
+      "blue": [
+        0,
+        0,
+        255
+      ],
+      "red": [
+        255,
+        0,
+        0
+      ],
+      "yellow": [
+        255,
+        255,
+        0
+      ],
+      "green": [
+        0,
+        255,
+        0
+      ]
+    }
+  },
+  "haptics": {
+    "enabled": true,
+    "intensity": 0.6,
+    "frequencyHz": 80.0,
+    "effects": {
+      "kerb": true,
+      "slip": true,
+      "gear_shift": false,
+      "collision": true
+    }
+  },
+  "signature": null
+}

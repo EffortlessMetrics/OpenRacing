@@ -16,7 +16,7 @@
       "description": "Profile application scope",
       "properties": {
         "game": {
-          "type": "string",
+          "type": ["string", "null"],
           "description": "Target game identifier"
         },
         "car": {
@@ -38,18 +38,18 @@
         "ffbGain": {
           "type": "number",
           "minimum": 0.0,
-          "maximum": 2.0,
+          "maximum": 1.0,
           "description": "Force feedback gain multiplier"
         },
         "dorDeg": {
           "type": "integer",
-          "minimum": 90,
-          "maximum": 1800,
+          "minimum": 180,
+          "maximum": 2160,
           "description": "Degrees of rotation"
         },
         "torqueCapNm": {
           "type": "number",
-          "minimum": 0.1,
+          "minimum": 0.0,
           "maximum": 50.0,
           "description": "Maximum torque in Newton-meters"
         },
@@ -59,11 +59,8 @@
           "required": [
             "reconstruction",
             "friction",
-            "damper", 
+            "damper",
             "inertia",
-            "bumpstop",
-            "handsOff",
-            "torqueCap",
             "notchFilters",
             "slewRate",
             "curvePoints"
@@ -71,9 +68,9 @@
           "properties": {
             "reconstruction": {
               "type": "integer",
-              "minimum": 1,
+              "minimum": 0,
               "maximum": 8,
-              "description": "Signal reconstruction filter level"
+              "description": "Signal reconstruction filter level (0 disables reconstruction)"
             },
             "friction": {
               "type": "number",
@@ -129,7 +126,7 @@
             },
             "torqueCap": {
               "type": "number",
-              "minimum": 0.1,
+              "minimum": 0.0,
               "maximum": 50.0,
               "description": "Filter-specific torque cap in Newton-meters"
             },
@@ -142,7 +139,7 @@
                 "properties": {
                   "hz": {
                     "type": "number",
-                    "minimum": 1.0,
+                    "minimum": 0.1,
                     "maximum": 500.0,
                     "description": "Center frequency in Hz"
                   },
@@ -164,7 +161,7 @@
             },
             "slewRate": {
               "type": "number",
-              "minimum": 0.1,
+              "minimum": 0.0,
               "maximum": 1.0,
               "description": "Slew rate limiting factor"
             },
@@ -207,11 +204,13 @@
           "description": "RPM thresholds for LED bands",
           "items": {
             "type": "number",
-            "minimum": 0
+            "minimum": 0.0,
+            "maximum": 1.0
           }
         },
         "pattern": {
           "type": "string",
+          "enum": ["progressive", "wipe"],
           "description": "LED pattern identifier"
         },
         "brightness": {
@@ -256,7 +255,7 @@
         },
         "frequencyHz": {
           "type": "number",
-          "minimum": 1.0,
+          "minimum": 10.0,
           "maximum": 1000.0,
           "description": "Haptic frequency in Hz"
         },

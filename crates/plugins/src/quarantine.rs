@@ -284,11 +284,11 @@ impl FailureTracker {
 
     pub fn record_execution(&mut self, plugin_id: Uuid, duration_us: u32, success: bool) {
         let stats = self.stats.entry(plugin_id).or_default();
-        
+
         stats.executions += 1;
         stats.total_time_us += duration_us as u64;
         stats.avg_time_us = stats.total_time_us as f64 / stats.executions as f64;
-        
+
         if duration_us > stats.max_time_us {
             stats.max_time_us = duration_us;
         }

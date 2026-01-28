@@ -23,3 +23,9 @@ platforms = [
 
 # Write out exact versions rather than a semver range. (Defaults to false.)
 # exact-versions = true
+
+[final-excludes]
+third-party = [
+    { name = "linux-raw-sys" },
+    { name = "rustix" },
+]

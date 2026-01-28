@@ -9,9 +9,7 @@
 //! - Validation system to verify configuration file changes were applied correctly
 //! - End-to-end tests for configuration file generation and LED heartbeat validation
 
-use crate::game_integration_service::{
-    GameIntegrationService, OneClickConfigRequest,
-};
+use crate::game_integration_service::{GameIntegrationService, OneClickConfigRequest};
 use crate::profile_service::ProfileService;
 use anyhow::Result;
 use std::sync::Arc;
@@ -379,7 +377,6 @@ impl GameIntegrationE2ETestSuite {
         info!(test_name = %test_name, "Testing end-to-end workflow");
 
         let mut errors = Vec::new();
-        let details;
 
         // Step 1: Configure game with auto-switching
         let request = OneClickConfigRequest {
@@ -405,7 +402,7 @@ impl GameIntegrationE2ETestSuite {
 
         let success = config_result.success && validation_result.is_ok();
 
-        details = format!(
+        let details = format!(
             "Workflow: config={}, auto_switching={}, validation={}",
             config_result.success,
             config_result.auto_switching_enabled,
@@ -439,7 +436,6 @@ impl GameIntegrationE2ETestSuite {
         info!(test_name = %test_name, "Testing performance requirements");
 
         let mut errors = Vec::new();
-        let details;
 
         // Test configuration performance (should be < 1 second)
         let config_start = std::time::Instant::now();
@@ -497,7 +493,7 @@ impl GameIntegrationE2ETestSuite {
             }
         }
 
-        details = format!(
+        let details = format!(
             "Performance: config={}ms, switch={}ms, config_success={}",
             config_duration.as_millis(),
             switch_duration.as_millis(),
@@ -523,7 +519,6 @@ impl GameIntegrationE2ETestSuite {
         info!(test_name = %test_name, "Testing error handling and recovery");
 
         let mut errors = Vec::new();
-        let details;
 
         // Test 1: Invalid game ID
         let invalid_request = OneClickConfigRequest {
@@ -561,7 +556,7 @@ impl GameIntegrationE2ETestSuite {
 
         let success = handles_invalid_game && handles_invalid_path;
 
-        details = format!(
+        let details = format!(
             "Error handling: invalid_game={}, invalid_path={}",
             handles_invalid_game, handles_invalid_path
         );
@@ -714,8 +709,8 @@ mod tests {
         let result = must(suite.test_iracing_one_click_config().await);
 
         assert_eq!(result.test_name, "iracing_one_click_config");
-        assert!(result.duration_ms > 0);
-        // Note: May not succeed in test environment without proper game setup
+        // Note: duration_ms may be 0 if test completes in under 1ms
+        // May not succeed in test environment without proper game setup
     }
 
     #[tokio::test]

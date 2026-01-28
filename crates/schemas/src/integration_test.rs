@@ -123,10 +123,22 @@ mod tests {
 
         // Verify wire format
         assert_eq!(wire_profile.schema_version, "wheel.profile/1");
-        assert_eq!(must_some(wire_profile.scope.as_ref(), "expected scope").game, "iRacing");
-        assert_eq!(must_some(wire_profile.base.as_ref(), "expected base").ffb_gain, 0.85);
-        assert_eq!(must_some(wire_profile.base.as_ref(), "expected base").dor_deg, 540);
-        assert_eq!(must_some(wire_profile.base.as_ref(), "expected base").torque_cap_nm, 20.0);
+        assert_eq!(
+            must_some(wire_profile.scope.as_ref(), "expected scope").game,
+            "iRacing"
+        );
+        assert_eq!(
+            must_some(wire_profile.base.as_ref(), "expected base").ffb_gain,
+            0.85
+        );
+        assert_eq!(
+            must_some(wire_profile.base.as_ref(), "expected base").dor_deg,
+            540
+        );
+        assert_eq!(
+            must_some(wire_profile.base.as_ref(), "expected base").torque_cap_nm,
+            20.0
+        );
 
         // Convert back to domain
         let received_profile: Profile = must(wire_profile.try_into());

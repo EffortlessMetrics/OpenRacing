@@ -749,188 +749,193 @@ mod tests {
     use super::*;
     use racing_wheel_schemas::prelude::TorqueNm;
 
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
     #[tokio::test]
-    async fn test_safety_service_creation() {
+    async fn test_safety_service_creation() -> TestResult {
         let safety_policy = SafetyPolicy::default();
-        let service = ApplicationSafetyService::new(safety_policy, None).await;
-        assert!(service.is_ok());
+        let service = ApplicationSafetyService::new(safety_policy, None).await?;
+        // Verify service was created by checking initial statistics
+        let stats = service.get_statistics().await;
+        assert_eq!(stats.total_devices, 0);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_device_registration() {
+    async fn test_device_registration() -> TestResult {
         let safety_policy = SafetyPolicy::default();
-        let service = ApplicationSafetyService::new(safety_policy, None)
-            .await
-            .unwrap();
+        let service = ApplicationSafetyService::new(safety_policy, None).await?;
 
-        let device_id: DeviceId = "test-device".parse().expect("valid device id");
-        let max_torque = TorqueNm::new(10.0).expect("valid torque");
+        let device_id: DeviceId = "test-device"
+            .parse()
+            .ok()
+            .ok_or("failed to parse device id")?;
+        let max_torque = TorqueNm::new(10.0)?;
 
         // Test registration
-        let result = service.register_device(device_id.clone(), max_torque).await;
-        assert!(result.is_ok());
+        service
+            .register_device(device_id.clone(), max_torque)
+            .await?;
 
         // Test getting safety state
-        let state = service.get_safety_state(&device_id).await.unwrap();
+        let state = service.get_safety_state(&device_id).await?;
         assert_eq!(state.interlock_state, InterlockState::SafeTorque);
         assert_eq!(state.max_safe_torque, max_torque);
 
         // Test unregistration
-        let result = service.unregister_device(&device_id).await;
-        assert!(result.is_ok());
+        service.unregister_device(&device_id).await?;
 
         // Should fail to get state after unregistration
         let result = service.get_safety_state(&device_id).await;
         assert!(result.is_err());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_high_torque_workflow() {
+    async fn test_high_torque_workflow() -> TestResult {
         let safety_policy = SafetyPolicy::default();
-        let service = ApplicationSafetyService::new(safety_policy, None)
-            .await
-            .unwrap();
+        let service = ApplicationSafetyService::new(safety_policy, None).await?;
 
-        let device_id: DeviceId = "test-device".parse().expect("valid device id");
-        let max_torque = TorqueNm::new(10.0).expect("valid torque");
+        let device_id: DeviceId = "test-device"
+            .parse()
+            .ok()
+            .ok_or("failed to parse device id")?;
+        let max_torque = TorqueNm::new(10.0)?;
 
         // Register device
         service
             .register_device(device_id.clone(), max_torque)
-            .await
-            .unwrap();
+            .await?;
 
         // Enable hands-on detection
-        service
-            .update_hands_on_detection(&device_id, true)
-            .await
-            .unwrap();
+        service.update_hands_on_detection(&device_id, true).await?;
 
         // Request high torque
         let state = service
             .request_high_torque(&device_id, "test_user".to_string())
-            .await
-            .unwrap();
+            .await?;
 
-        if let InterlockState::Challenge {
-            challenge_token, ..
-        } = state
-        {
-            // Respond to challenge
-            let result = service
-                .respond_to_challenge(&device_id, challenge_token)
-                .await
-                .unwrap();
-            assert!(matches!(result, InterlockState::HighTorqueActive { .. }));
+        let challenge_token = match state {
+            InterlockState::Challenge {
+                challenge_token, ..
+            } => challenge_token,
+            _ => return Err("Expected challenge state".into()),
+        };
 
-            // Check torque limit
-            let torque_limit = service.get_torque_limit(&device_id).await.unwrap();
-            assert_eq!(torque_limit, max_torque);
-        } else {
-            panic!("Expected challenge state");
-        }
+        // Respond to challenge
+        let result = service
+            .respond_to_challenge(&device_id, challenge_token)
+            .await?;
+        assert!(matches!(result, InterlockState::HighTorqueActive { .. }));
+
+        // Check torque limit
+        let torque_limit = service.get_torque_limit(&device_id).await?;
+        assert_eq!(torque_limit, max_torque);
+
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_fault_handling() {
+    async fn test_fault_handling() -> TestResult {
         let safety_policy = SafetyPolicy::default();
-        let service = ApplicationSafetyService::new(safety_policy, None)
-            .await
-            .unwrap();
+        let service = ApplicationSafetyService::new(safety_policy, None).await?;
 
-        let device_id: DeviceId = "test-device".parse().expect("valid device id");
-        let max_torque = TorqueNm::new(10.0).expect("valid torque");
+        let device_id: DeviceId = "test-device"
+            .parse()
+            .ok()
+            .ok_or("failed to parse device id")?;
+        let max_torque = TorqueNm::new(10.0)?;
 
         // Register device
         service
             .register_device(device_id.clone(), max_torque)
-            .await
-            .unwrap();
+            .await?;
 
         // Report a fatal fault
         service
             .report_fault(&device_id, FaultType::ThermalLimit, FaultSeverity::Fatal)
-            .await
-            .unwrap();
+            .await?;
 
         // Check that device is now faulted
-        let state = service.get_safety_state(&device_id).await.unwrap();
+        let state = service.get_safety_state(&device_id).await?;
         assert!(matches!(
             state.interlock_state,
             InterlockState::Faulted { .. }
         ));
 
         // Check that torque is disabled
-        let torque_limit = service.get_torque_limit(&device_id).await.unwrap();
-        assert_eq!(torque_limit, TorqueNm::new(0.0).expect("valid torque"));
+        let torque_limit = service.get_torque_limit(&device_id).await?;
+        let zero_torque = TorqueNm::new(0.0)?;
+        assert_eq!(torque_limit, zero_torque);
 
         // Clear the fault
         service
             .clear_fault(&device_id, FaultType::ThermalLimit)
-            .await
-            .unwrap();
+            .await?;
 
         // Check that device is back to safe torque
-        let state = service.get_safety_state(&device_id).await.unwrap();
+        let state = service.get_safety_state(&device_id).await?;
         assert_eq!(state.interlock_state, InterlockState::SafeTorque);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_emergency_stop() {
+    async fn test_emergency_stop() -> TestResult {
         let safety_policy = SafetyPolicy::default();
-        let service = ApplicationSafetyService::new(safety_policy, None)
-            .await
-            .unwrap();
+        let service = ApplicationSafetyService::new(safety_policy, None).await?;
 
-        let device_id: DeviceId = "test-device".parse().expect("valid device id");
-        let max_torque = TorqueNm::new(10.0).expect("valid torque");
+        let device_id: DeviceId = "test-device"
+            .parse()
+            .ok()
+            .ok_or("failed to parse device id")?;
+        let max_torque = TorqueNm::new(10.0)?;
 
         // Register device
         service
             .register_device(device_id.clone(), max_torque)
-            .await
-            .unwrap();
+            .await?;
 
         // Trigger emergency stop
         service
             .emergency_stop(&device_id, "User requested".to_string())
-            .await
-            .unwrap();
+            .await?;
 
         // Check that device is faulted
-        let state = service.get_safety_state(&device_id).await.unwrap();
+        let state = service.get_safety_state(&device_id).await?;
         assert!(matches!(
             state.interlock_state,
             InterlockState::Faulted { .. }
         ));
 
         // Check that torque is disabled
-        let torque_limit = service.get_torque_limit(&device_id).await.unwrap();
-        assert_eq!(torque_limit, TorqueNm::new(0.0).expect("valid torque"));
+        let torque_limit = service.get_torque_limit(&device_id).await?;
+        let zero_torque = TorqueNm::new(0.0)?;
+        assert_eq!(torque_limit, zero_torque);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_safety_statistics() {
+    async fn test_safety_statistics() -> TestResult {
         let safety_policy = SafetyPolicy::default();
-        let service = ApplicationSafetyService::new(safety_policy, None)
-            .await
-            .unwrap();
+        let service = ApplicationSafetyService::new(safety_policy, None).await?;
 
         // Initially no devices
         let stats = service.get_statistics().await;
         assert_eq!(stats.total_devices, 0);
 
         // Register a device
-        let device_id: DeviceId = "test-device".parse().expect("valid device id");
-        service
-            .register_device(device_id, TorqueNm::new(10.0).expect("valid torque"))
-            .await
-            .unwrap();
+        let device_id: DeviceId = "test-device"
+            .parse()
+            .ok()
+            .ok_or("failed to parse device id")?;
+        let max_torque = TorqueNm::new(10.0)?;
+        service.register_device(device_id, max_torque).await?;
 
         let stats = service.get_statistics().await;
         assert_eq!(stats.total_devices, 1);
         assert_eq!(stats.safe_torque_devices, 1);
         assert_eq!(stats.high_torque_devices, 0);
         assert_eq!(stats.faulted_devices, 0);
+        Ok(())
     }
 }

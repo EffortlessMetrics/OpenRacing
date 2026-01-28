@@ -17,9 +17,9 @@ fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
 }
 
 use racing_wheel_engine::{
+    TwoPhaseApplyCoordinator,
     pipeline::{Pipeline, PipelineCompiler},
     profile_merge::ProfileMergeEngine,
-    TwoPhaseApplyCoordinator,
 };
 use racing_wheel_schemas::prelude::{
     BaseSettings, CurvePoint, Degrees, FilterConfig, Gain, Profile, ProfileId, ProfileScope,

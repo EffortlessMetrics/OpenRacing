@@ -428,14 +428,16 @@ mod tests {
 
     #[test]
     fn test_parse_udp_packet() {
-        let mut data = ACCTelemetryData::default();
-        data.packet_id = ACC_TELEMETRY_PACKET_ID;
-        data.rpm = 6000.0;
-        data.speed = 120.0; // km/h
-        data.gear = 4;
-        data.gas = 0.8;
-        data.brake = 0.2;
-        data.steer_angle = 45.0;
+        let data = ACCTelemetryData {
+            packet_id: ACC_TELEMETRY_PACKET_ID,
+            rpm: 6000.0,
+            speed: 120.0, // km/h
+            gear: 4,
+            gas: 0.8,
+            brake: 0.2,
+            steer_angle: 45.0,
+            ..Default::default()
+        };
 
         let raw_bytes = unsafe {
             std::slice::from_raw_parts(
@@ -444,7 +446,8 @@ mod tests {
             )
         };
 
-        let parsed = ACCAdapter::parse_udp_packet(raw_bytes).unwrap();
+        let parsed =
+            ACCAdapter::parse_udp_packet(raw_bytes).expect("Failed to parse valid UDP packet");
         // Copy fields to avoid packed struct alignment issues
         let rpm = parsed.rpm;
         let speed = parsed.speed;
@@ -456,8 +459,10 @@ mod tests {
 
     #[test]
     fn test_parse_invalid_packet() {
-        let mut data = ACCTelemetryData::default();
-        data.packet_id = 0xDEADBEEF; // Wrong packet ID
+        let data = ACCTelemetryData {
+            packet_id: 0xDEADBEEF, // Wrong packet ID
+            ..Default::default()
+        };
 
         let raw_bytes = unsafe {
             std::slice::from_raw_parts(
@@ -479,25 +484,31 @@ mod tests {
 
     #[test]
     fn test_normalize_acc_data() {
-        let mut data = ACCTelemetryData::default();
-        data.rpm = 7000.0;
-        data.speed = 144.0; // 144 km/h = 40 m/s
-        data.gear = 5;
-        data.steer_angle = 90.0; // 90 degrees
-        data.gas = 0.9;
-        data.brake = 0.1;
-        data.fuel = 45.5;
-        data.completed_laps = 12;
-        data.flag = 0x01; // Yellow flag
-        data.is_in_pits = 0;
-        data.tc = 3;
-        data.abs = 2;
-
         // Set car and track names
+        let mut car_model = [0u8; 32];
+        let mut track = [0u8; 32];
         let car_name = b"ferrari_488_gt3\0";
         let track_name = b"monza\0";
-        data.car_model[..car_name.len()].copy_from_slice(car_name);
-        data.track[..track_name.len()].copy_from_slice(track_name);
+        car_model[..car_name.len()].copy_from_slice(car_name);
+        track[..track_name.len()].copy_from_slice(track_name);
+
+        let data = ACCTelemetryData {
+            rpm: 7000.0,
+            speed: 144.0, // 144 km/h = 40 m/s
+            gear: 5,
+            steer_angle: 90.0, // 90 degrees
+            gas: 0.9,
+            brake: 0.1,
+            fuel: 45.5,
+            completed_laps: 12,
+            flag: 0x01, // Yellow flag
+            is_in_pits: 0,
+            tc: 3,
+            abs: 2,
+            car_model,
+            track,
+            ..Default::default()
+        };
 
         let normalized = ACCAdapter::normalize_acc_data(&data);
 
@@ -526,9 +537,11 @@ mod tests {
 
     #[test]
     fn test_normalize_with_slip_calculation() {
-        let mut data = ACCTelemetryData::default();
-        data.speed = 50.0; // km/h
-        data.wheel_slip = [0.1, 0.15, 0.05, 0.08]; // Front tires: 0.1, 0.15
+        let data = ACCTelemetryData {
+            speed: 50.0,                         // km/h
+            wheel_slip: [0.1, 0.15, 0.05, 0.08], // Front tires: 0.1, 0.15
+            ..Default::default()
+        };
 
         let normalized = ACCAdapter::normalize_acc_data(&data);
 
@@ -538,9 +551,11 @@ mod tests {
 
     #[test]
     fn test_normalize_low_speed_slip() {
-        let mut data = ACCTelemetryData::default();
-        data.speed = 0.5; // Very low speed
-        data.wheel_slip = [0.5, 0.6, 0.4, 0.3];
+        let data = ACCTelemetryData {
+            speed: 0.5, // Very low speed
+            wheel_slip: [0.5, 0.6, 0.4, 0.3],
+            ..Default::default()
+        };
 
         let normalized = ACCAdapter::normalize_acc_data(&data);
 

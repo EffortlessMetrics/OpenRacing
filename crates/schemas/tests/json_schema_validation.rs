@@ -6,6 +6,7 @@
 use jsonschema::Validator;
 use racing_wheel_schemas::config::{BaseConfig, FilterConfig, Profile, ProfileScope};
 use serde_json::{Value, json};
+use std::path::PathBuf;
 
 // Test helper for Result values
 #[allow(dead_code)]
@@ -24,10 +25,16 @@ fn must_some<T>(o: Option<T>, msg: &str) -> T {
     }
 }
 
+/// Get the path to the profile schema file
+fn schema_path() -> PathBuf {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    PathBuf::from(manifest_dir).join("schemas").join("profile.schema.json")
+}
+
 #[test]
 fn test_profile_schema_validation() {
     // Load the JSON schema
-    let schema_path = "crates/schemas/schemas/profile.schema.json";
+    let schema_path = schema_path();
     let schema_content =
         std::fs::read_to_string(schema_path).expect("Failed to read profile schema");
     let schema: Value = serde_json::from_str(&schema_content).expect("Failed to parse schema JSON");
@@ -72,7 +79,7 @@ fn test_profile_schema_validation() {
 #[test]
 fn test_profile_schema_required_fields() {
     // Load the JSON schema
-    let schema_path = "crates/schemas/schemas/profile.schema.json";
+    let schema_path = schema_path();
     let schema_content =
         std::fs::read_to_string(schema_path).expect("Failed to read profile schema");
     let schema: Value = serde_json::from_str(&schema_content).expect("Failed to parse schema JSON");
@@ -159,7 +166,7 @@ fn test_profile_round_trip_serialization() {
     );
 
     // Validate against schema
-    let schema_path = "crates/schemas/schemas/profile.schema.json";
+    let schema_path = schema_path();
     let schema_content =
         std::fs::read_to_string(schema_path).expect("Failed to read profile schema");
     let schema: Value = serde_json::from_str(&schema_content).expect("Failed to parse schema JSON");
@@ -174,8 +181,7 @@ fn test_profile_round_trip_serialization() {
         };
         panic!(
             "Round-trip serialized profile should pass schema validation. Error: {}\nJSON: {}",
-            error,
-            json_str
+            error, json_str
         );
     }
 }

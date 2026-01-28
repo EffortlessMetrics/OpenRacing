@@ -26,6 +26,9 @@ This document outlines the development roadmap for the Racing Wheel Software Sui
 - [ ] Complete Windows HID driver implementation
 - [ ] Integrate basic telemetry monitoring
 - [ ] Initial CLI tools for management
+- [ ] **Device Ecosystem**
+    - [ ] Protocol Documentation (Moza, Fanatec, Simagic, etc.)
+    - [ ] `openracing-capture` Utility (Mapper/Sniffer)
 
 ### Phase 2: Feature Completeness
 - [ ] **Advanced Force Feedback**

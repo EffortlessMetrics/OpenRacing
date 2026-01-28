@@ -131,8 +131,7 @@ async fn calibrate_device(
     // Show progress during calibration
     if !json {
         let pb = ProgressBar::new_spinner();
-        let style = ProgressStyle::default_spinner()
-            .template("{spinner:.green} {msg}")?;
+        let style = ProgressStyle::default_spinner().template("{spinner:.green} {msg}")?;
         pb.set_style(style);
 
         match calibration_type {

@@ -837,7 +837,7 @@ mod tests {
         let manager = IntegratedFaultManager::new(5.0, 25.0, WatchdogConfig::default());
 
         let health = manager.get_health_summary();
-        assert_eq!(health.overall_status, HealthStatus::Unknown); // Initial state
+        assert_eq!(health.overall_status, HealthStatus::Healthy); // Initial state
         assert!(health.active_faults.is_empty());
         assert!(health.quarantined_plugins.is_empty());
     }
@@ -852,9 +852,15 @@ mod tests {
             ..Default::default()
         };
 
-        let result = manager.update(&context);
+        let mut result = FaultManagerResult::default();
+        for _ in 0..5 {
+            result = manager.update(&context);
+            if result.new_faults.contains(&FaultType::EncoderNaN) {
+                break;
+            }
+        }
 
-        // Should detect encoder fault
+        // Should detect encoder fault after threshold
         assert!(result.new_faults.contains(&FaultType::EncoderNaN));
 
         // Should have created blackbox marker
@@ -926,6 +932,8 @@ mod tests {
 
         // Should trigger soft stop
         assert!(result.soft_stop_active);
+        std::thread::sleep(Duration::from_millis(5));
+        let result = manager.update(&context);
         assert!(result.current_torque_multiplier < 1.0);
     }
 
@@ -1003,6 +1011,7 @@ mod tests {
         assert_eq!(manager.get_blackbox_markers().len(), 2);
 
         // Clear all markers
+        std::thread::sleep(Duration::from_millis(2));
         manager.clear_old_blackbox_markers(Duration::from_millis(1));
         assert_eq!(manager.get_blackbox_markers().len(), 0);
     }

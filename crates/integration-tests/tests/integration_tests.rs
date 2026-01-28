@@ -188,7 +188,7 @@ async fn test_device_fixtures() -> Result<()> {
     for fixture in fixtures {
         // Validate fixture data
         assert!(!fixture.name.is_empty());
-        assert!(fixture.capabilities.max_torque_cnm > 0);
+        assert!(fixture.capabilities.max_torque.value() > 0.0);
         assert!(fixture.capabilities.encoder_cpr > 0);
         assert!(!fixture.telemetry_data.samples.is_empty());
     }
@@ -228,12 +228,13 @@ async fn test_profile_fixtures() -> Result<()> {
 // Integration test configuration validation
 #[test]
 fn test_performance_thresholds() {
-    // Validate that our performance thresholds are reasonable
-    assert!(MAX_JITTER_P99_MS > 0.0);
-    assert!(MAX_JITTER_P99_MS <= 1.0); // Should be sub-millisecond
-
-    assert!(MAX_HID_LATENCY_P99_US > 0.0);
-    assert!(MAX_HID_LATENCY_P99_US <= 1000.0); // Should be sub-millisecond
+    // Validate that our performance thresholds are reasonable (compile-time checks)
+    const _: () = {
+        assert!(MAX_JITTER_P99_MS > 0.0);
+        assert!(MAX_JITTER_P99_MS <= 1.0); // Should be sub-millisecond
+        assert!(MAX_HID_LATENCY_P99_US > 0.0);
+        assert!(MAX_HID_LATENCY_P99_US <= 1000.0); // Should be sub-millisecond
+    };
 
     assert_eq!(FFB_FREQUENCY_HZ, 1000); // 1kHz requirement
 }

@@ -34,16 +34,14 @@ async fn main() -> Result<()> {
     info!("  Devices: {}", args.devices);
 
     // Run all stress tests
-    let tests: Vec<(
-        &str,
-        std::pin::Pin<
-            Box<
-                dyn std::future::Future<
-                        Output = Result<racing_wheel_integration_tests::TestResult, anyhow::Error>,
-                    > + Send,
-            >,
+    type TestFuture = std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<racing_wheel_integration_tests::TestResult, anyhow::Error>,
+                > + Send,
         >,
-    )> = vec![
+    >;
+    let tests: Vec<(&str, TestFuture)> = vec![
         ("Hot-plug Stress", Box::pin(stress::test_hotplug_stress())),
         (
             "Fault Injection Stress",

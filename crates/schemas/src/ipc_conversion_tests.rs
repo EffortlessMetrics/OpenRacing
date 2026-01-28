@@ -634,10 +634,10 @@ mod tests {
     fn test_precision_preservation() {
         // Test that floating point precision is reasonably preserved
         let test_values = vec![
-            (123.456, 123456, 123.456),                     // wheel_angle_deg
+            (123.456, 123456, 123.456),                       // wheel_angle_deg
             (std::f32::consts::E, 2718, std::f32::consts::E), // wheel_speed_rad_s
-            (0.123, 123, 0.123),                            // small values
-            (999.999, 999999, 999.999),                      // large values
+            (0.123, 123, 0.123),                              // small values
+            (999.999, 999999, 999.999),                       // large values
         ];
 
         for (original, expected_wire, expected_back) in test_values {

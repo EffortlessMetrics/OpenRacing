@@ -8,7 +8,8 @@ use tracing::{error, info};
 use crate::common::TestHarness;
 use crate::{PerformanceMetrics, TestConfig, TestResult};
 
-pub type TestFuture = std::pin::Pin<Box<dyn std::future::Future<Output = Result<TestResult>> + Send>>;
+pub type TestFuture =
+    std::pin::Pin<Box<dyn std::future::Future<Output = Result<TestResult>> + Send>>;
 
 /// Acceptance test definition
 #[derive(Debug, Clone)]

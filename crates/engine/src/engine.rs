@@ -322,6 +322,10 @@ impl Engine {
 
     /// Stop the real-time engine
     pub async fn stop(&mut self) -> Result<(), String> {
+        self.stop_blocking()
+    }
+
+    fn stop_blocking(&mut self) -> Result<(), String> {
         if !self.running.load(Ordering::Acquire) {
             return Ok(()); // Already stopped
         }
@@ -583,7 +587,11 @@ impl Engine {
             let final_torque_nm = frame.torque_out * ctx.config.max_high_torque_nm;
 
             // Handle write_ffb_report Result with RT-safe error counting
-            if ctx.device.write_ffb_report(final_torque_nm, ctx.seq).is_err() {
+            if ctx
+                .device
+                .write_ffb_report(final_torque_nm, ctx.seq)
+                .is_err()
+            {
                 // Non-allocating error accounting - just increment atomic counter
                 ctx.atomic_counters.inc_hid_write_error();
 
@@ -776,10 +784,7 @@ impl Drop for Engine {
     fn drop(&mut self) {
         if self.is_running() {
             warn!("Engine dropped while still running - forcing stop");
-            // Use tokio runtime to block on async stop
-            if let Ok(rt) = tokio::runtime::Runtime::new() {
-                let _ = rt.block_on(self.stop());
-            }
+            let _ = self.stop_blocking();
         }
     }
 }
@@ -867,11 +872,14 @@ mod tests {
         let result = engine.send_game_input(input);
         assert!(result.is_ok());
 
-        // Give engine time to process
-        sleep(TokioDuration::from_millis(10)).await;
-
-        // Check that frames were processed
-        assert!(engine.frame_count() > 0);
+        // Give engine time to process at least one frame.
+        let result = tokio::time::timeout(TokioDuration::from_millis(100), async {
+            while engine.frame_count() == 0 {
+                sleep(TokioDuration::from_millis(5)).await;
+            }
+        })
+        .await;
+        assert!(result.is_ok(), "engine did not process frames within 100ms");
 
         engine.stop().await.unwrap();
     }

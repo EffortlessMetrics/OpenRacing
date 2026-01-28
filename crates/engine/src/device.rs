@@ -98,13 +98,13 @@ impl VirtualDevice {
     /// Create a new virtual device
     pub fn new(id: DeviceId, name: String) -> Self {
         let capabilities = DeviceCapabilities::new(
-            false,                        // supports_pid
-            true,                         // supports_raw_torque_1khz
-            true,                         // supports_health_stream
-            true,                         // supports_led_bus
+            false, // supports_pid
+            true,  // supports_raw_torque_1khz
+            true,  // supports_health_stream
+            true,  // supports_led_bus
             TorqueNm::new(25.0).expect("25.0 is a valid torque"),
-            10000,                        // encoder_cpr
-            1000,                         // min_report_period_us (1ms = 1kHz)
+            10000, // encoder_cpr
+            1000,  // min_report_period_us (1ms = 1kHz)
         );
 
         let info = DeviceInfo {

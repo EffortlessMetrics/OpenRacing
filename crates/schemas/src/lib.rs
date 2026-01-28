@@ -167,8 +167,9 @@ pub mod config {
         pub friction: f32,
         pub damper: f32,
         pub inertia: f32,
+        #[serde(default)]
         pub bumpstop: BumpstopConfig,
-        #[serde(rename = "handsOff")]
+        #[serde(default, rename = "handsOff")]
         pub hands_off: HandsOffConfig,
         #[serde(rename = "torqueCap")]
         pub torque_cap: Option<f32>,

@@ -82,16 +82,32 @@ impl PluginHost {
                         Ok(manifest) => {
                             let plugin_path = match manifest.class {
                                 PluginClass::Safe => {
-                                    if let Some(wasm_path) = manifest.entry_points.wasm_module.as_ref() {
+                                    if let Some(wasm_path) =
+                                        manifest.entry_points.wasm_module.as_ref()
+                                    {
                                         path.join(wasm_path)
                                     } else {
+                                        tracing::warn!(
+                                            manifest_path = %manifest_path.display(),
+                                            plugin_id = %manifest.id,
+                                            plugin_class = ?manifest.class,
+                                            "Skipping plugin: missing wasm entry point"
+                                        );
                                         continue; // Skip plugin with missing wasm module
                                     }
                                 }
                                 PluginClass::Fast => {
-                                    if let Some(native_path) = manifest.entry_points.native_library.as_ref() {
+                                    if let Some(native_path) =
+                                        manifest.entry_points.native_library.as_ref()
+                                    {
                                         path.join(native_path)
                                     } else {
+                                        tracing::warn!(
+                                            manifest_path = %manifest_path.display(),
+                                            plugin_id = %manifest.id,
+                                            plugin_class = ?manifest.class,
+                                            "Skipping plugin: missing native entry point"
+                                        );
                                         continue; // Skip plugin with missing native library
                                     }
                                 }

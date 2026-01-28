@@ -382,14 +382,18 @@ impl WatchdogSystem {
         }
 
         // Check HID communication timeout
-        if let Some(health_check) = self.health_checks.get_mut(&SystemComponent::HidCommunication)
+        if let Some(health_check) = self
+            .health_checks
+            .get_mut(&SystemComponent::HidCommunication)
             && health_check.check_timeout(Duration::from_millis(self.config.hid_timeout_ms))
         {
             faults.push(FaultType::UsbStall);
         }
 
         // Check telemetry timeout
-        if let Some(health_check) = self.health_checks.get_mut(&SystemComponent::TelemetryAdapter)
+        if let Some(health_check) = self
+            .health_checks
+            .get_mut(&SystemComponent::TelemetryAdapter)
             && health_check.check_timeout(Duration::from_millis(self.config.telemetry_timeout_ms))
         {
             // Telemetry timeout is not critical, just log it
@@ -620,6 +624,7 @@ mod tests {
     fn test_component_timeout_detection() {
         let config = WatchdogConfig {
             rt_thread_timeout_ms: 10,
+            health_check_interval: Duration::from_millis(1),
             ..Default::default()
         };
         let mut watchdog = WatchdogSystem::new(config);
@@ -633,6 +638,10 @@ mod tests {
         // Perform health check
         let faults = watchdog.perform_health_checks();
         assert!(faults.contains(&FaultType::TimingViolation));
+
+        // Wait long enough to trigger another timeout for a degraded status
+        std::thread::sleep(Duration::from_millis(15));
+        watchdog.perform_health_checks();
 
         let health = watchdog
             .get_component_health(SystemComponent::RtThread)

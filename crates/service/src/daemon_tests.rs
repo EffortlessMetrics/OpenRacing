@@ -106,6 +106,6 @@ mod tests {
         // This test verifies the restart logic exists
         // In a real scenario, we would simulate service failures
         // For now, just verify the daemon can be created with restart config
-        assert!(true, "Restart configuration accepted");
+        // (daemon creation with expect above validates acceptance)
     }
 }

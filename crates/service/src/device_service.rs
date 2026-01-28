@@ -596,76 +596,86 @@ pub struct DeviceServiceStatistics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use racing_wheel_engine::VirtualHidPort;
+    use racing_wheel_engine::{VirtualDevice, VirtualHidPort};
 
-    #[tokio::test]
-    async fn test_device_service_creation() {
-        let hid_port = Arc::new(VirtualHidPort::new());
-        let service = ApplicationDeviceService::new(hid_port, None).await;
-        assert!(service.is_ok());
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    fn seeded_port() -> Result<Arc<VirtualHidPort>, Box<dyn std::error::Error>> {
+        let mut port = VirtualHidPort::new();
+        let device_id: DeviceId = "test-device-0".parse()?;
+        let device = VirtualDevice::new(device_id, "Test Wheel".to_string());
+        port.add_device(device)?;
+        Ok(Arc::new(port))
     }
 
     #[tokio::test]
-    async fn test_device_enumeration() {
+    async fn test_device_service_creation() -> TestResult {
         let hid_port = Arc::new(VirtualHidPort::new());
-        let service = ApplicationDeviceService::new(hid_port, None).await.unwrap();
+        let _service = ApplicationDeviceService::new(hid_port, None).await?;
+        Ok(())
+    }
 
-        let devices = service.enumerate_devices().await.unwrap();
-        // Virtual port should return at least one device
+    #[tokio::test]
+    async fn test_device_enumeration() -> TestResult {
+        let hid_port = seeded_port()?;
+        let service = ApplicationDeviceService::new(hid_port, None).await?;
+
+        let devices = service.enumerate_devices().await?;
+        // Seeded port should return at least one device
         assert!(!devices.is_empty());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_device_management() {
-        let hid_port = Arc::new(VirtualHidPort::new());
-        let service = ApplicationDeviceService::new(hid_port, None).await.unwrap();
+    async fn test_device_management() -> TestResult {
+        let hid_port = seeded_port()?;
+        let service = ApplicationDeviceService::new(hid_port, None).await?;
 
         // Enumerate devices first
-        let devices = service.enumerate_devices().await.unwrap();
+        let devices = service.enumerate_devices().await?;
         assert!(!devices.is_empty());
 
         let device_id = &devices[0].id;
 
         // Test getting device
-        let managed_device = service.get_device(device_id).await.unwrap();
-        assert!(managed_device.is_some());
-        assert_eq!(managed_device.unwrap().state, DeviceState::Connected);
+        let managed_device = service.get_device(device_id).await?;
+        let device = managed_device.ok_or("Device should exist after enumeration")?;
+        assert_eq!(device.state, DeviceState::Connected);
 
         // Test device initialization
-        let result = service.initialize_device(device_id).await;
-        // This might fail with virtual devices, but we're testing the interface
-        assert!(result.is_ok() || result.is_err());
+        service.initialize_device(device_id).await?;
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_device_calibration() {
-        let hid_port = Arc::new(VirtualHidPort::new());
-        let service = ApplicationDeviceService::new(hid_port, None).await.unwrap();
+    async fn test_device_calibration() -> TestResult {
+        let hid_port = seeded_port()?;
+        let service = ApplicationDeviceService::new(hid_port, None).await?;
 
-        let devices = service.enumerate_devices().await.unwrap();
+        let devices = service.enumerate_devices().await?;
         if !devices.is_empty() {
             let device_id = &devices[0].id;
 
             // Test center calibration
-            let result = service
+            let _result = service
                 .calibrate_device(device_id, CalibrationType::Center)
                 .await;
-            // This might fail with virtual devices, but we're testing the interface
-            assert!(result.is_ok() || result.is_err());
         }
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_device_statistics() {
-        let hid_port = Arc::new(VirtualHidPort::new());
-        let service = ApplicationDeviceService::new(hid_port, None).await.unwrap();
+    async fn test_device_statistics() -> TestResult {
+        let hid_port = seeded_port()?;
+        let service = ApplicationDeviceService::new(hid_port, None).await?;
 
         let stats = service.get_statistics().await;
         assert_eq!(stats.total_devices, 0); // Initially no devices
 
         // After enumeration, should have devices
-        let _devices = service.enumerate_devices().await.unwrap();
+        let _devices = service.enumerate_devices().await?;
         let stats = service.get_statistics().await;
         assert!(stats.total_devices > 0);
+        Ok(())
     }
 }

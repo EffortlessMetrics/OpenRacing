@@ -269,12 +269,11 @@ async fn test_budget_violation_detection() {
     }
 
     // Third violation should trigger quarantine
-    let _ = manager
-        .record_violation(
-            plugin_id,
-            quarantine::ViolationType::BudgetViolation,
-            "Budget violation 3".to_string(),
-        );
+    let _ = manager.record_violation(
+        plugin_id,
+        quarantine::ViolationType::BudgetViolation,
+        "Budget violation 3".to_string(),
+    );
     assert!(manager.is_quarantined(plugin_id));
 }
 
@@ -308,26 +307,30 @@ async fn test_quarantine_escalation() {
     let plugin_id = Uuid::new_v4();
 
     // First quarantine
-    let _ = manager
-        .record_violation(
-            plugin_id,
-            quarantine::ViolationType::Crash,
-            "First crash".to_string(),
-        );
+    let _ = manager.record_violation(
+        plugin_id,
+        quarantine::ViolationType::Crash,
+        "First crash".to_string(),
+    );
 
-    let state = must_some(manager.get_quarantine_state(plugin_id), "expected quarantine state");
+    let state = must_some(
+        manager.get_quarantine_state(plugin_id),
+        "expected quarantine state",
+    );
     assert_eq!(state.escalation_level, 1);
 
     // Release and trigger again
     must(manager.release_from_quarantine(plugin_id));
-    let _ = manager
-        .record_violation(
-            plugin_id,
-            quarantine::ViolationType::Crash,
-            "Second crash".to_string(),
-        );
+    let _ = manager.record_violation(
+        plugin_id,
+        quarantine::ViolationType::Crash,
+        "Second crash".to_string(),
+    );
 
-    let state = must_some(manager.get_quarantine_state(plugin_id), "expected quarantine state");
+    let state = must_some(
+        manager.get_quarantine_state(plugin_id),
+        "expected quarantine state",
+    );
     assert_eq!(state.escalation_level, 2);
 }
 

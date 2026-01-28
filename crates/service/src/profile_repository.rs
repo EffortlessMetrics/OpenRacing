@@ -698,23 +698,25 @@ mod tests {
     use super::*;
     use ed25519_dalek::SigningKey;
     use racing_wheel_schemas::prelude::{Degrees, Gain, TorqueNm};
-    use rand::rngs::OsRng;
+    use rand_core::OsRng;
     use tempfile::TempDir;
 
     async fn create_test_repository() -> (ProfileRepository, TempDir) {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("Failed to create temp directory for test");
         let config = ProfileRepositoryConfig {
             profiles_dir: temp_dir.path().to_path_buf(),
             trusted_keys: Vec::new(),
             auto_migrate: true,
             backup_on_migrate: true,
         };
-        let repo = ProfileRepository::new(config).await.unwrap();
+        let repo = ProfileRepository::new(config)
+            .await
+            .expect("Failed to create ProfileRepository for test");
         (repo, temp_dir)
     }
 
     fn create_test_profile(id: &str) -> Profile {
-        let profile_id = ProfileId::new(id.to_string()).unwrap();
+        let profile_id = ProfileId::new(id.to_string()).expect("Failed to create test profile ID");
         Profile::new(
             profile_id,
             ProfileScope::global(),
@@ -735,12 +737,17 @@ mod tests {
         let profile = create_test_profile("test1");
 
         // Save profile
-        repo.save_profile(&profile, None).await.unwrap();
+        repo.save_profile(&profile, None)
+            .await
+            .expect("Failed to save profile");
 
         // Load profile
-        let loaded = repo.load_profile(&profile.id).await.unwrap();
+        let loaded = repo
+            .load_profile(&profile.id)
+            .await
+            .expect("Failed to load profile");
         assert!(loaded.is_some());
-        let loaded = loaded.unwrap();
+        let loaded = loaded.expect("Profile should exist after save");
 
         assert_eq!(loaded.id, profile.id);
         assert_eq!(loaded.scope, profile.scope);
@@ -762,14 +769,21 @@ mod tests {
         // Save signed profile
         repo.save_profile(&profile, Some(&signing_key))
             .await
-            .unwrap();
+            .expect("Failed to save signed profile");
 
         // Load and verify signature
-        let _loaded = repo.load_profile(&profile.id).await.unwrap().unwrap();
-        let signature_info = repo.get_profile_signature(&profile.id).await.unwrap();
+        let _loaded = repo
+            .load_profile(&profile.id)
+            .await
+            .expect("Failed to load profile")
+            .expect("Profile should exist after save");
+        let signature_info = repo
+            .get_profile_signature(&profile.id)
+            .await
+            .expect("Failed to get profile signature");
 
         assert!(signature_info.is_some());
-        let sig_info = signature_info.unwrap();
+        let sig_info = signature_info.expect("Signature info should exist for signed profile");
         assert!(!sig_info.signature.is_empty());
         assert!(!sig_info.public_key.is_empty());
         // Note: Will be ValidUnknown since we didn't add the key to trusted_keys
@@ -785,51 +799,57 @@ mod tests {
 
         // Create profiles with different scopes
         let global_profile = Profile::new(
-            ProfileId::new("global".to_string()).unwrap(),
+            ProfileId::new("global".to_string()).expect("Valid profile ID"),
             ProfileScope::global(),
             BaseSettings {
-                ffb_gain: Gain::new(0.5).unwrap(),
-                degrees_of_rotation: Degrees::new_dor(900.0).unwrap(),
-                torque_cap: TorqueNm::new(10.0).unwrap(),
+                ffb_gain: Gain::new(0.5).expect("Valid gain value"),
+                degrees_of_rotation: Degrees::new_dor(900.0).expect("Valid DOR value"),
+                torque_cap: TorqueNm::new(10.0).expect("Valid torque cap"),
                 filters: FilterConfig::default(),
             },
             "Global Profile".to_string(),
         );
 
         let game_profile = Profile::new(
-            ProfileId::new("iracing".to_string()).unwrap(),
+            ProfileId::new("iracing".to_string()).expect("Valid profile ID"),
             ProfileScope::for_game("iracing".to_string()),
             BaseSettings {
-                ffb_gain: Gain::new(0.7).unwrap(),
-                degrees_of_rotation: Degrees::new_dor(540.0).unwrap(),
-                torque_cap: TorqueNm::new(15.0).unwrap(),
+                ffb_gain: Gain::new(0.7).expect("Valid gain value"),
+                degrees_of_rotation: Degrees::new_dor(540.0).expect("Valid DOR value"),
+                torque_cap: TorqueNm::new(15.0).expect("Valid torque cap"),
                 filters: FilterConfig::default(),
             },
             "iRacing Profile".to_string(),
         );
 
         let car_profile = Profile::new(
-            ProfileId::new("iracing_gt3".to_string()).unwrap(),
+            ProfileId::new("iracing_gt3".to_string()).expect("Valid profile ID"),
             ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
             BaseSettings {
-                ffb_gain: Gain::new(0.8).unwrap(),
-                degrees_of_rotation: Degrees::new_dor(480.0).unwrap(),
-                torque_cap: TorqueNm::new(20.0).unwrap(),
+                ffb_gain: Gain::new(0.8).expect("Valid gain value"),
+                degrees_of_rotation: Degrees::new_dor(480.0).expect("Valid DOR value"),
+                torque_cap: TorqueNm::new(20.0).expect("Valid torque cap"),
                 filters: FilterConfig::default(),
             },
             "iRacing GT3 Profile".to_string(),
         );
 
         // Save all profiles
-        repo.save_profile(&global_profile, None).await.unwrap();
-        repo.save_profile(&game_profile, None).await.unwrap();
-        repo.save_profile(&car_profile, None).await.unwrap();
+        repo.save_profile(&global_profile, None)
+            .await
+            .expect("Failed to save global profile");
+        repo.save_profile(&game_profile, None)
+            .await
+            .expect("Failed to save game profile");
+        repo.save_profile(&car_profile, None)
+            .await
+            .expect("Failed to save car profile");
 
         // Test hierarchy resolution
         let resolved = repo
             .resolve_profile_hierarchy(Some("iracing"), Some("gt3"), None, None)
             .await
-            .unwrap();
+            .expect("Failed to resolve profile hierarchy");
 
         // Should use car-specific settings (most specific)
         assert_eq!(resolved.base_settings.ffb_gain.value(), 0.8);
@@ -842,24 +862,24 @@ mod tests {
         let (repo, _temp_dir) = create_test_repository().await;
 
         let base_profile = Profile::new(
-            ProfileId::new("base".to_string()).unwrap(),
+            ProfileId::new("base".to_string()).expect("Valid profile ID"),
             ProfileScope::global(),
             BaseSettings {
-                ffb_gain: Gain::new(0.5).unwrap(),
-                degrees_of_rotation: Degrees::new_dor(900.0).unwrap(),
-                torque_cap: TorqueNm::new(10.0).unwrap(),
+                ffb_gain: Gain::new(0.5).expect("Valid gain value"),
+                degrees_of_rotation: Degrees::new_dor(900.0).expect("Valid DOR value"),
+                torque_cap: TorqueNm::new(10.0).expect("Valid torque cap"),
                 filters: FilterConfig::default(),
             },
             "Base Profile".to_string(),
         );
 
         let override_profile = Profile::new(
-            ProfileId::new("override".to_string()).unwrap(),
+            ProfileId::new("override".to_string()).expect("Valid profile ID"),
             ProfileScope::global(),
             BaseSettings {
-                ffb_gain: Gain::new(0.8).unwrap(),
-                degrees_of_rotation: Degrees::new_dor(540.0).unwrap(),
-                torque_cap: TorqueNm::new(15.0).unwrap(),
+                ffb_gain: Gain::new(0.8).expect("Valid gain value"),
+                degrees_of_rotation: Degrees::new_dor(540.0).expect("Valid DOR value"),
+                torque_cap: TorqueNm::new(15.0).expect("Valid torque cap"),
                 filters: FilterConfig::default(),
             },
             "Override Profile".to_string(),
@@ -867,7 +887,7 @@ mod tests {
 
         let merged = repo
             .merge_profiles_deterministic(&base_profile, &override_profile)
-            .unwrap();
+            .expect("Failed to merge profiles");
 
         // Override profile should take precedence
         assert_eq!(merged.base_settings.ffb_gain.value(), 0.8);
@@ -882,7 +902,10 @@ mod tests {
         // Test invalid JSON
         let invalid_json = r#"{"invalid": "json", "missing": "required_fields"}"#;
         let result = repo
-            .load_profile_from_json(invalid_json, &ProfileId::new("test".to_string()).unwrap())
+            .load_profile_from_json(
+                invalid_json,
+                &ProfileId::new("test".to_string()).expect("Valid profile ID"),
+            )
             .await;
         assert!(result.is_err());
     }
@@ -893,17 +916,27 @@ mod tests {
         let profile = create_test_profile("delete_test");
 
         // Save profile
-        repo.save_profile(&profile, None).await.unwrap();
+        repo.save_profile(&profile, None)
+            .await
+            .expect("Failed to save profile");
 
         // Verify it exists
-        let loaded = repo.load_profile(&profile.id).await.unwrap();
+        let loaded = repo
+            .load_profile(&profile.id)
+            .await
+            .expect("Failed to load profile");
         assert!(loaded.is_some());
 
         // Delete profile
-        repo.delete_profile(&profile.id).await.unwrap();
+        repo.delete_profile(&profile.id)
+            .await
+            .expect("Failed to delete profile");
 
         // Verify it's gone
-        let loaded = repo.load_profile(&profile.id).await.unwrap();
+        let loaded = repo
+            .load_profile(&profile.id)
+            .await
+            .expect("Failed to load profile after deletion");
         assert!(loaded.is_none());
     }
 
@@ -916,12 +949,18 @@ mod tests {
         let profile2 = create_test_profile("list_test2");
         let profile3 = create_test_profile("list_test3");
 
-        repo.save_profile(&profile1, None).await.unwrap();
-        repo.save_profile(&profile2, None).await.unwrap();
-        repo.save_profile(&profile3, None).await.unwrap();
+        repo.save_profile(&profile1, None)
+            .await
+            .expect("Failed to save profile1");
+        repo.save_profile(&profile2, None)
+            .await
+            .expect("Failed to save profile2");
+        repo.save_profile(&profile3, None)
+            .await
+            .expect("Failed to save profile3");
 
         // List profiles
-        let profiles = repo.list_profiles().await.unwrap();
+        let profiles = repo.list_profiles().await.expect("Failed to list profiles");
         assert_eq!(profiles.len(), 3);
 
         let profile_ids: Vec<String> = profiles.iter().map(|p| p.id.to_string()).collect();
@@ -936,13 +975,23 @@ mod tests {
         let profile = create_test_profile("cache_test");
 
         // Save profile
-        repo.save_profile(&profile, None).await.unwrap();
+        repo.save_profile(&profile, None)
+            .await
+            .expect("Failed to save profile");
 
         // Load profile (should cache it)
-        let loaded1 = repo.load_profile(&profile.id).await.unwrap().unwrap();
+        let loaded1 = repo
+            .load_profile(&profile.id)
+            .await
+            .expect("Failed to load profile first time")
+            .expect("Profile should exist after save");
 
         // Load again (should come from cache)
-        let loaded2 = repo.load_profile(&profile.id).await.unwrap().unwrap();
+        let loaded2 = repo
+            .load_profile(&profile.id)
+            .await
+            .expect("Failed to load profile second time")
+            .expect("Profile should still exist in cache");
 
         assert_eq!(loaded1.id, loaded2.id);
         assert_eq!(
@@ -991,7 +1040,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_json_schema_validation() {
-        let validator = ProfileValidator::new().unwrap();
+        let validator = ProfileValidator::new().expect("Failed to create ProfileValidator");
 
         // Valid profile JSON
         let valid_json = r#"{
@@ -1033,7 +1082,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_curve_monotonic_validation() {
-        let validator = ProfileValidator::new().unwrap();
+        let validator = ProfileValidator::new().expect("Failed to create ProfileValidator");
 
         // Non-monotonic curve should fail validation
         let non_monotonic_json = r#"{

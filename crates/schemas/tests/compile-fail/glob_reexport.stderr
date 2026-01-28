@@ -1,7 +1,7 @@
-error[E0560]: struct `TelemetryData` has no field named `sequence`
+error[E0560]: struct `racing_wheel_schemas::prelude::TelemetryData` has no field named `sequence`
   --> tests/compile-fail/glob_reexport.rs:14:9
    |
 14 |         sequence: 123,  // This field was removed
-   |         ^^^^^^^^ `TelemetryData` does not have this field
+   |         ^^^^^^^^ `racing_wheel_schemas::prelude::TelemetryData` does not have this field
    |
    = note: all struct fields are already assigned

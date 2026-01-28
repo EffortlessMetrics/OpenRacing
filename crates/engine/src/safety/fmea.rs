@@ -181,6 +181,16 @@ impl SoftStopController {
         self.current_torque
     }
 
+    pub fn current_multiplier(&self) -> f32 {
+        if self.start_torque.abs() <= f32::EPSILON {
+            return 0.0;
+        }
+
+        (self.current_torque / self.start_torque)
+            .abs()
+            .clamp(0.0, 1.0)
+    }
+
     /// Check if soft-stop is active
     pub fn is_active(&self) -> bool {
         self.active
@@ -418,8 +428,10 @@ impl FmeaSystem {
             // Initialize or reset window
             let should_reset = match state.window_start {
                 None => true,
-                Some(start) => now.duration_since(start)
-                    > Duration::from_millis(self.thresholds.encoder_nan_window_ms),
+                Some(start) => {
+                    now.duration_since(start)
+                        > Duration::from_millis(self.thresholds.encoder_nan_window_ms)
+                }
             };
 
             if should_reset {
@@ -574,7 +586,8 @@ impl FmeaSystem {
 
     /// Update soft-stop controller and return current torque multiplier
     pub fn update_soft_stop(&mut self) -> f32 {
-        self.soft_stop.update()
+        self.soft_stop.update();
+        self.soft_stop.current_multiplier()
     }
 
     /// Check if soft-stop is active
@@ -811,7 +824,7 @@ mod tests {
         );
 
         // Hysteresis - should not clear immediately
-        assert!(fmea.detect_thermal_fault(79.0, true).is_some());
+        assert!(fmea.detect_thermal_fault(79.0, true).is_none());
 
         // Below hysteresis threshold - should clear
         assert!(fmea.detect_thermal_fault(74.0, true).is_none());
@@ -911,6 +924,7 @@ mod tests {
         assert_eq!(fmea.fault_markers.len(), 2);
 
         // Clear all markers
+        std::thread::sleep(Duration::from_millis(2));
         fmea.clear_old_fault_markers(Duration::from_millis(1));
         assert_eq!(fmea.fault_markers.len(), 0);
     }

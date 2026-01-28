@@ -10,8 +10,10 @@ mod tests {
         }
     }
     use crate::WheelService;
-    use racing_wheel_schemas::domain::{DeviceId, TorqueNm, ProfileId, Gain, Degrees};
-    use racing_wheel_schemas::entities::{Profile, BaseSettings, DeviceCapabilities, FilterConfig, ProfileScope};
+    use racing_wheel_schemas::domain::{Degrees, DeviceId, Gain, ProfileId, TorqueNm};
+    use racing_wheel_schemas::entities::{
+        BaseSettings, DeviceCapabilities, FilterConfig, Profile, ProfileScope,
+    };
     use std::sync::Arc;
     use tokio::time::{Duration, timeout};
 
@@ -94,12 +96,16 @@ mod tests {
 
         if let Ok(_profile_id) = service.profile_service().create_profile(profile).await {
             // 3. Try to apply profile to device (this might fail due to mock limitations)
-            
+
             // Need device capabilities for validation
-             let capabilities = DeviceCapabilities::new(
-                true, true, true, true, 
-                TorqueNm::new(20.0).unwrap(), 
-                65536, 1000
+            let capabilities = DeviceCapabilities::new(
+                true,
+                true,
+                true,
+                true,
+                TorqueNm::new(20.0).expect("Valid torque value for test"),
+                65_535,
+                1000,
             );
 
             let apply_result = service
@@ -131,15 +137,15 @@ mod tests {
         // Test error handling in profile service
         // Construct invalid profile
         let invalid_profile = Profile::new(
-             "invalid-profile".parse().expect("valid id"),
-             ProfileScope::global(),
-             BaseSettings { 
-                 ffb_gain: Gain::new(0.8).expect("valid gain"),
-                 degrees_of_rotation: Degrees::new_dor(900.0).expect("valid dor"),
-                 torque_cap: TorqueNm::new(10.0).expect("valid torque"),
-                 filters: FilterConfig::default() 
-             },
-             "".to_string() // Invalid empty name
+            "invalid-profile".parse().expect("valid id"),
+            ProfileScope::global(),
+            BaseSettings {
+                ffb_gain: Gain::new(0.8).expect("valid gain"),
+                degrees_of_rotation: Degrees::new_dor(900.0).expect("valid dor"),
+                torque_cap: TorqueNm::new(10.0).expect("valid torque"),
+                filters: FilterConfig::default(),
+            },
+            "".to_string(), // Invalid empty name
         );
 
         let result = service
@@ -177,10 +183,7 @@ mod tests {
         let service = must(WheelService::new().await);
 
         // Get initial statistics
-        let profile_stats = service
-            .profile_service()
-            .get_profile_statistics()
-            .await;
+        let profile_stats = service.profile_service().get_profile_statistics().await;
         let safety_stats = service.safety_service().get_statistics().await;
 
         // Initially should have no active items
@@ -189,10 +192,14 @@ mod tests {
 
         // Add some data and check statistics change
         let device_id: DeviceId = "stats-test-device".parse().expect("valid device id");
-        service
+        let register_result = service
             .safety_service()
             .register_device(device_id, TorqueNm::new(10.0).expect("valid torque"))
             .await;
+        assert!(
+            register_result.is_ok(),
+            "Device registration should succeed"
+        );
 
         let updated_safety_stats = service.safety_service().get_statistics().await;
         assert_eq!(updated_safety_stats.total_devices, 1);
@@ -246,10 +253,7 @@ mod tests {
         assert!(result1.is_ok(), "Task 1 should complete");
         assert!(result2.is_ok(), "Task 2 should complete");
         assert!(result3.is_ok(), "Task 3 should complete");
-        assert!(
-            must(result3).is_ok(),
-            "Safety registration should succeed"
-        );
+        assert!(must(result3).is_ok(), "Safety registration should succeed");
     }
 
     #[tokio::test]
@@ -363,7 +367,9 @@ mod tests {
             let _ = service.safety_service().unregister_device(&device_id).await;
 
             // Create and potentially delete profile
-            let profile_id: ProfileId = format!("memory-test-profile-{}", i).parse().expect("valid id");
+            let profile_id: ProfileId = format!("memory-test-profile-{}", i)
+                .parse()
+                .expect("valid id");
             let profile = Profile::new(
                 profile_id.clone(),
                 ProfileScope::global(),
@@ -382,6 +388,5 @@ mod tests {
         }
 
         // If we get here without running out of memory, the test passes
-        assert!(true, "Memory usage test completed");
     }
 }

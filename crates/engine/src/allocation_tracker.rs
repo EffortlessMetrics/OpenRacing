@@ -5,11 +5,13 @@
 #![allow(dead_code)]
 
 use std::alloc::{GlobalAlloc, Layout, System};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::cell::Cell;
 
-/// Global allocation counter for tracking heap allocations
-static ALLOCATION_COUNT: AtomicUsize = AtomicUsize::new(0);
-static ALLOCATION_BYTES: AtomicUsize = AtomicUsize::new(0);
+thread_local! {
+    /// Thread-local allocation counters for tracking heap allocations.
+    static ALLOCATION_COUNT: Cell<usize> = const { Cell::new(0) };
+    static ALLOCATION_BYTES: Cell<usize> = const { Cell::new(0) };
+}
 
 /// Custom allocator that tracks allocations
 pub struct TrackingAllocator;
@@ -18,24 +20,27 @@ unsafe impl GlobalAlloc for TrackingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ptr = unsafe { System.alloc(layout) };
         if !ptr.is_null() {
-            ALLOCATION_COUNT.fetch_add(1, Ordering::Relaxed);
-            ALLOCATION_BYTES.fetch_add(layout.size(), Ordering::Relaxed);
+            ALLOCATION_COUNT.with(|count| {
+                count.set(count.get().saturating_add(1));
+            });
+            ALLOCATION_BYTES.with(|bytes| {
+                bytes.set(bytes.get().saturating_add(layout.size()));
+            });
         }
         ptr
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         unsafe { System.dealloc(ptr, layout) };
-        ALLOCATION_COUNT.fetch_sub(1, Ordering::Relaxed);
-        ALLOCATION_BYTES.fetch_sub(layout.size(), Ordering::Relaxed);
+        let _ = layout;
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         let new_ptr = unsafe { System.realloc(ptr, layout, new_size) };
         if !new_ptr.is_null() && new_size > layout.size() {
-            ALLOCATION_BYTES.fetch_add(new_size - layout.size(), Ordering::Relaxed);
-        } else if !new_ptr.is_null() && new_size < layout.size() {
-            ALLOCATION_BYTES.fetch_sub(layout.size() - new_size, Ordering::Relaxed);
+            ALLOCATION_BYTES.with(|bytes| {
+                bytes.set(bytes.get().saturating_add(new_size - layout.size()));
+            });
         }
         new_ptr
     }
@@ -57,8 +62,8 @@ impl Default for AllocationGuard {
 impl AllocationGuard {
     /// Create a new allocation guard and reset counters
     pub fn new() -> Self {
-        let start_count = ALLOCATION_COUNT.load(Ordering::Relaxed);
-        let start_bytes = ALLOCATION_BYTES.load(Ordering::Relaxed);
+        let start_count = ALLOCATION_COUNT.with(|count| count.get());
+        let start_bytes = ALLOCATION_BYTES.with(|bytes| bytes.get());
 
         Self {
             start_count,
@@ -69,42 +74,42 @@ impl AllocationGuard {
     /// Get the number of allocations since guard creation
     pub fn allocations_since_start(&self) -> usize {
         ALLOCATION_COUNT
-            .load(Ordering::Relaxed)
+            .with(|count| count.get())
             .saturating_sub(self.start_count)
     }
 
     /// Get the number of bytes allocated since guard creation
     pub fn bytes_allocated_since_start(&self) -> usize {
         ALLOCATION_BYTES
-            .load(Ordering::Relaxed)
+            .with(|bytes| bytes.get())
             .saturating_sub(self.start_bytes)
     }
 
     /// Get the current total allocation count
     pub fn total_allocations(&self) -> usize {
-        ALLOCATION_COUNT.load(Ordering::Relaxed)
+        ALLOCATION_COUNT.with(|count| count.get())
     }
 
     /// Get the current total allocated bytes
     pub fn total_bytes(&self) -> usize {
-        ALLOCATION_BYTES.load(Ordering::Relaxed)
+        ALLOCATION_BYTES.with(|bytes| bytes.get())
     }
 
     /// Reset allocation counters to zero
     pub fn reset_counters(&self) {
-        ALLOCATION_COUNT.store(0, Ordering::Relaxed);
-        ALLOCATION_BYTES.store(0, Ordering::Relaxed);
+        ALLOCATION_COUNT.with(|count| count.set(0));
+        ALLOCATION_BYTES.with(|bytes| bytes.set(0));
     }
 }
 
 /// Get current allocation count (for compatibility)
 pub fn get_allocation_count() -> usize {
-    ALLOCATION_COUNT.load(Ordering::Relaxed)
+    ALLOCATION_COUNT.with(|count| count.get())
 }
 
 /// Get current allocated bytes
 pub fn get_allocated_bytes() -> usize {
-    ALLOCATION_BYTES.load(Ordering::Relaxed)
+    ALLOCATION_BYTES.with(|bytes| bytes.get())
 }
 
 /// Create an allocation tracking guard
@@ -251,7 +256,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Expected zero allocations")]
+    #[should_panic(expected = "RT path allocation violation")]
     fn test_zero_alloc_macro_fails() {
         let guard = track();
 
