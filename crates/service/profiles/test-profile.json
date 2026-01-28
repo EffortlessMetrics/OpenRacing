@@ -1,13 +1,13 @@
 {
   "schema": "wheel.profile/1",
   "scope": {
-    "game": null,
+    "game": "test_game",
     "car": null,
     "track": null
   },
   "base": {
     "ffbGain": 0.8,
-    "dorDeg": 900,
+    "dorDeg": 540,
     "torqueCapNm": 10.0,
     "filters": {
       "reconstruction": 0,
@@ -48,24 +48,24 @@
     "pattern": "progressive",
     "brightness": 0.8,
     "colors": {
-      "yellow": [
-        255,
-        255,
-        0
-      ],
       "blue": [
         0,
         0,
         255
       ],
-      "green": [
-        0,
+      "yellow": [
+        255,
         255,
         0
       ],
       "red": [
         255,
         0,
+        0
+      ],
+      "green": [
+        0,
+        255,
         0
       ]
     }
@@ -76,9 +76,9 @@
     "frequencyHz": 80.0,
     "effects": {
       "collision": true,
-      "gear_shift": false,
+      "slip": true,
       "kerb": true,
-      "slip": true
+      "gear_shift": false
     }
   },
   "signature": null

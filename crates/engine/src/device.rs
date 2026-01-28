@@ -42,37 +42,6 @@ pub enum DeviceEvent {
     Disconnected(DeviceInfo),
 }
 
-/// OWP-1 Protocol structures
-#[repr(C, packed)]
-pub struct TorqueCommand {
-    pub report_id: u8,    // 0x20
-    pub torque_mn_m: i16, // Q8.8 fixed point, milliNewton-meters
-    pub flags: u8,        // bit0: hands_on_hint, bit1: sat_warn
-    pub seq: u16,         // sequence number
-}
-
-#[repr(C, packed)]
-pub struct DeviceTelemetryReport {
-    pub report_id: u8,           // 0x21
-    pub wheel_angle_mdeg: i32,   // millidegrees
-    pub wheel_speed_mrad_s: i16, // milliradians per second
-    pub temp_c: u8,              // temperature in Celsius
-    pub faults: u8,              // fault bitfield
-    pub hands_on: u8,            // 0/1 hands detection
-}
-
-#[repr(C, packed)]
-pub struct DeviceCapabilitiesReport {
-    pub report_id: u8,    // 0x01
-    pub supports_pid: u8, // bit flags
-    pub supports_raw_torque_1khz: u8,
-    pub supports_health_stream: u8,
-    pub supports_led_bus: u8,
-    pub max_torque_cnm: u16,      // centiNewton-meters
-    pub encoder_cpr: u16,         // counts per revolution
-    pub min_report_period_us: u8, // minimum report period in microseconds
-}
-
 /// Virtual device implementation for testing
 pub struct VirtualDevice {
     info: DeviceInfo,

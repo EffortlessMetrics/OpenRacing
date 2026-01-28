@@ -6,6 +6,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{FeatureFlags, ServiceDaemon, SystemConfig, WheelService};
+    use anyhow::{Context, Result};
     use std::sync::Arc;
     use std::time::Duration;
     use tracing_test::traced_test;
@@ -37,7 +38,7 @@ mod tests {
     /// Test complete system startup and shutdown
     #[tokio::test]
     #[traced_test]
-    async fn test_complete_system_startup_shutdown() {
+    async fn test_complete_system_startup_shutdown() -> Result<()> {
         let _config = create_test_system_config().await;
         let flags = create_test_feature_flags();
 
@@ -49,7 +50,7 @@ mod tests {
 
         let daemon = ServiceDaemon::new_with_flags(service_config, flags)
             .await
-            .expect("Failed to create service daemon");
+            .context("create service daemon")?;
 
         // Start daemon in background
         let daemon_handle = tokio::spawn(async move { daemon.run().await });
@@ -63,23 +64,25 @@ mod tests {
 
         // Cancel the daemon task
         daemon_handle.abort();
+        Ok(())
     }
 
     /// Test device enumeration and management
     #[tokio::test]
     #[traced_test]
-    async fn test_device_enumeration_and_management() {
-        let service = create_test_service().await;
+    async fn test_device_enumeration_and_management() -> Result<()> {
+        let service = create_test_service().await?;
 
         // Test device enumeration
         let devices = service
             .device_service()
             .enumerate_devices()
             .await
-            .expect("Failed to enumerate devices");
+            .context("enumerate devices")?;
 
         // Should have at least one virtual device
         assert!(!devices.is_empty(), "No devices found");
+        Ok(())
 
         // Test device connection
         // TODO: Re-enable when connect_device is implemented
@@ -98,11 +101,11 @@ mod tests {
     /// Test profile management and application
     #[tokio::test]
     #[traced_test]
-    async fn test_profile_management() {
-        let service = create_test_service().await;
+    async fn test_profile_management() -> Result<()> {
+        let service = create_test_service().await?;
 
         // Create test profile
-        let test_profile = create_test_profile();
+        let test_profile = create_test_profile()?;
 
         // Create profile
         let create_result = service
@@ -119,38 +122,39 @@ mod tests {
         assert!(loaded_profile.is_ok(), "Failed to load profile");
 
         // Note: apply_profile tests are done via apply_profile_to_device in other tests
+        Ok(())
     }
 
     /// Test safety system functionality
     #[tokio::test]
     #[traced_test]
-    async fn test_safety_system() {
-        let service = create_test_service().await;
+    async fn test_safety_system() -> Result<()> {
+        let service = create_test_service().await?;
 
         // Enumerate devices first to get a valid ID
         let devices = service
             .device_service()
             .enumerate_devices()
             .await
-            .expect("Failed to enumerate devices");
+            .context("enumerate devices")?;
 
-        let device = devices.first().expect("No devices found");
+        let device = devices.first().context("no devices found")?;
 
         // Register the device with the safety service
-        let max_torque = racing_wheel_schemas::prelude::TorqueNm::new(25.0)
-            .expect("Valid torque value");
+        let max_torque =
+            racing_wheel_schemas::prelude::TorqueNm::new(25.0).context("invalid torque value")?;
         service
             .safety_service()
             .register_device(device.id.clone(), max_torque)
             .await
-            .expect("Failed to register device with safety service");
+            .context("register device with safety service")?;
 
         // Test initial safety state (should be safe torque)
         let safety_state = service
             .safety_service()
             .get_safety_state(&device.id)
             .await
-            .expect("Failed to get safety state");
+            .context("get safety state")?;
         assert!(matches!(
             safety_state.interlock_state,
             crate::safety_service::InterlockState::SafeTorque
@@ -190,7 +194,7 @@ mod tests {
             .safety_service()
             .get_safety_state(&device.id)
             .await
-            .expect("Failed to get safety state");
+            .context("get safety state after fault")?;
         assert!(matches!(
             safety_state.interlock_state,
             crate::safety_service::InterlockState::Faulted { .. }
@@ -211,11 +215,12 @@ mod tests {
             .safety_service()
             .get_safety_state(&device.id)
             .await
-            .expect("Failed to get safety state");
+            .context("get safety state after recovery")?;
         assert!(matches!(
             safety_state.interlock_state,
             crate::safety_service::InterlockState::SafeTorque
         ));
+        Ok(())
     }
 
     /// Test game integration and telemetry
@@ -259,15 +264,15 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     #[ignore]
-    async fn test_force_feedback_pipeline() {
-        let service = create_test_service().await;
+    async fn test_force_feedback_pipeline() -> Result<()> {
+        let service = create_test_service().await?;
 
         // Get devices
         let devices = service
             .device_service()
             .enumerate_devices()
             .await
-            .expect("Failed to enumerate devices");
+            .context("enumerate devices")?;
 
         if let Some(_device) = devices.first() {
             // Connect device
@@ -299,12 +304,13 @@ mod tests {
         }
 
         // Test disabled - FFB pipeline methods not yet implemented
+        Ok(())
     }
 
     /// Test IPC communication
     #[tokio::test]
     #[traced_test]
-    async fn test_ipc_communication() {
+    async fn test_ipc_communication() -> Result<()> {
         let _config = create_test_system_config().await;
         let service_config = crate::ServiceConfig {
             ipc: crate::IpcConfig::default(),
@@ -314,10 +320,10 @@ mod tests {
         // Create IPC server
         let ipc_server = crate::IpcServer::new(service_config.ipc.clone())
             .await
-            .expect("Failed to create IPC server");
+            .context("create IPC server")?;
 
         // Create service
-        let service = create_test_service().await;
+        let service = create_test_service().await?;
 
         // Start IPC server in background
         let server_handle = tokio::spawn(async move { ipc_server.serve(Arc::new(service)).await });
@@ -339,6 +345,7 @@ mod tests {
 
         // Cleanup
         server_handle.abort();
+        Ok(())
     }
 
     /// Test plugin system
@@ -388,15 +395,15 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     #[ignore]
-    async fn test_performance_under_load() {
-        let service = create_test_service().await;
+    async fn test_performance_under_load() -> Result<()> {
+        let service = create_test_service().await?;
 
         // Get devices
         let devices = service
             .device_service()
             .enumerate_devices()
             .await
-            .expect("Failed to enumerate devices");
+            .context("enumerate devices")?;
 
         if let Some(_device) = devices.first() {
             // Connect device
@@ -437,13 +444,14 @@ mod tests {
         }
 
         // Test disabled - FFB pipeline methods not yet implemented
+        Ok(())
     }
 
     /// Test graceful degradation
     #[tokio::test]
     #[traced_test]
-    async fn test_graceful_degradation() {
-        let service = create_test_service().await;
+    async fn test_graceful_degradation() -> Result<()> {
+        let service = create_test_service().await?;
 
         // Test with no devices connected
         let no_device_stats = service.device_service().get_statistics().await;
@@ -454,7 +462,7 @@ mod tests {
             .profile_service()
             .get_profile_statistics()
             .await
-            .expect("Profile service should work without devices");
+            .context("profile service should work without devices")?;
         assert!(profile_stats.total_profiles >= profile_stats.active_profiles);
 
         // Test with telemetry unavailable
@@ -472,6 +480,7 @@ mod tests {
         //         println!("Telemetry unavailable for {}, continuing", game.name);
         //     }
         // }
+        Ok(())
     }
 
     /// Test configuration validation and migration
@@ -509,11 +518,11 @@ mod tests {
     /// Test anti-cheat compatibility
     #[tokio::test]
     #[traced_test]
-    async fn test_anticheat_compatibility() {
+    async fn test_anticheat_compatibility() -> Result<()> {
         // Generate anti-cheat report
         let report = crate::AntiCheatReport::generate()
             .await
-            .expect("Failed to generate anti-cheat report");
+            .context("generate anti-cheat report")?;
 
         // Verify key compatibility points
         assert!(
@@ -562,14 +571,13 @@ mod tests {
             markdown.contains("No Kernel Drivers"),
             "Should document no kernel drivers"
         );
+        Ok(())
     }
 
     // Helper functions
 
-    async fn create_test_service() -> WheelService {
-        WheelService::new()
-            .await
-            .expect("Failed to create test service")
+    async fn create_test_service() -> Result<WheelService> {
+        WheelService::new().await.context("create test service")
     }
 
     async fn create_test_system_config() -> SystemConfig {
@@ -601,24 +609,25 @@ mod tests {
         }
     }
 
-    fn create_test_profile() -> racing_wheel_schemas::prelude::Profile {
+    fn create_test_profile() -> Result<racing_wheel_schemas::prelude::Profile> {
         let id: racing_wheel_schemas::prelude::ProfileId =
-            "test-profile".parse().expect("Valid profile ID");
+            "test-profile".parse().context("parse profile ID")?;
         let scope = racing_wheel_schemas::prelude::ProfileScope::for_game("test_game".to_string());
 
         let base_settings = racing_wheel_schemas::prelude::BaseSettings {
-            ffb_gain: racing_wheel_schemas::prelude::Gain::new(0.8).expect("Valid gain"),
+            ffb_gain: racing_wheel_schemas::prelude::Gain::new(0.8).context("valid gain")?,
             degrees_of_rotation: racing_wheel_schemas::prelude::Degrees::new_dor(540.0)
-                .expect("Valid DOR"),
-            torque_cap: racing_wheel_schemas::prelude::TorqueNm::new(10.0).expect("Valid torque"),
+                .context("valid DOR")?,
+            torque_cap: racing_wheel_schemas::prelude::TorqueNm::new(10.0)
+                .context("valid torque")?,
             filters: racing_wheel_schemas::prelude::FilterConfig::default(),
         };
 
-        racing_wheel_schemas::prelude::Profile::new(
+        Ok(racing_wheel_schemas::prelude::Profile::new(
             id,
             scope,
             base_settings,
             "Test Profile".to_string(),
-        )
+        ))
     }
 }

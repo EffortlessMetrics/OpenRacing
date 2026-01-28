@@ -82,9 +82,9 @@ pub struct TorqueCommand {
     /// Report ID (0x20)
     pub report_id: u8,
 
-    /// Torque value in milliNewton-meters (Q8.8 fixed point)
-    /// Range: -327.68 to +327.67 Nm
-    pub torque_mn_m: i16,
+    /// Torque value in milliNewton-meters
+    /// Range: -32.768 to +32.767 Nm
+    pub torque_mnm: i16,
 
     /// Command flags (see torque_flags module)
     pub flags: u8,
@@ -99,12 +99,12 @@ pub struct TorqueCommand {
 impl TorqueCommand {
     /// Create a new torque command
     pub fn new(torque_nm: f32, flags: u8, sequence: u16) -> Self {
-        // Convert torque to milliNewton-meters (Q8.8 fixed point)
-        let torque_mn_m = (torque_nm * 1000.0).clamp(-32768.0, 32767.0) as i16;
+        // Convert torque from Nm to milliNewton-meters
+        let torque_mnm = (torque_nm * 1000.0).clamp(-32768.0, 32767.0) as i16;
 
         let mut cmd = Self {
             report_id: report_ids::TORQUE_COMMAND,
-            torque_mn_m,
+            torque_mnm,
             flags,
             sequence,
             crc8: 0,
@@ -117,7 +117,7 @@ impl TorqueCommand {
 
     /// Get torque value in Newton-meters
     pub fn torque_nm(&self) -> f32 {
-        (self.torque_mn_m as f32) / 1000.0
+        (self.torque_mnm as f32) / 1000.0
     }
 
     /// Validate the CRC8 checksum
@@ -129,8 +129,8 @@ impl TorqueCommand {
     /// Calculate CRC8 checksum over the payload
     fn calculate_crc8(cmd: &Self) -> u8 {
         let payload = [
-            (cmd.torque_mn_m & 0xFF) as u8,
-            (cmd.torque_mn_m >> 8) as u8,
+            (cmd.torque_mnm & 0xFF) as u8,
+            (cmd.torque_mnm >> 8) as u8,
             cmd.flags,
             (cmd.sequence & 0xFF) as u8,
             (cmd.sequence >> 8) as u8,
@@ -793,17 +793,17 @@ mod tests {
     fn test_torque_command_range_limits() {
         // Test maximum positive torque
         let cmd_max = TorqueCommand::new(327.67, 0, 0);
-        let torque_max = cmd_max.torque_mn_m;
+        let torque_max = cmd_max.torque_mnm;
         assert_eq!(torque_max, 32767);
 
         // Test maximum negative torque
         let cmd_min = TorqueCommand::new(-327.68, 0, 0);
-        let torque_min = cmd_min.torque_mn_m;
+        let torque_min = cmd_min.torque_mnm;
         assert_eq!(torque_min, -32768);
 
         // Test clamping beyond range
         let cmd_over = TorqueCommand::new(500.0, 0, 0);
-        let torque_over = cmd_over.torque_mn_m;
+        let torque_over = cmd_over.torque_mnm;
         assert_eq!(torque_over, 32767);
     }
 

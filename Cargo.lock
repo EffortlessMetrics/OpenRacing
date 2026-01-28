@@ -4824,6 +4824,7 @@ checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 name = "racing-wheel-engine"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "chrono",
  "compat",
@@ -4848,7 +4849,7 @@ dependencies = [
  "rand 0.9.2",
  "serde",
  "serde_json",
- "sysinfo 0.37.2",
+ "sysinfo 0.38.0",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",

@@ -28,7 +28,9 @@ fn must_some<T>(o: Option<T>, msg: &str) -> T {
 /// Get the path to the profile schema file
 fn schema_path() -> PathBuf {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    PathBuf::from(manifest_dir).join("schemas").join("profile.schema.json")
+    PathBuf::from(manifest_dir)
+        .join("schemas")
+        .join("profile.schema.json")
 }
 
 #[test]
