@@ -252,7 +252,7 @@ async fn validate_profile(path: &str, json: bool, detailed: bool) -> Result<()> 
                 println!("✗ Profile validation failed:");
                 println!("  {}", e);
             }
-            return Err(e.into());
+            return Err(CliError::from(e).into());
         }
     }
 
@@ -296,8 +296,8 @@ async fn import_profile(path: &str, target: Option<&str>, json: bool, verify: bo
     let content =
         fs::read_to_string(path).map_err(|_| CliError::ProfileNotFound(path.to_string()))?;
 
-    let validator = ProfileValidator::new()?;
-    let profile = validator.validate_json(&content)?;
+    let validator = ProfileValidator::new().map_err(CliError::from)?;
+    let profile = validator.validate_json(&content).map_err(CliError::from)?;
 
     // Verify signature if requested
     if verify && profile.signature.is_none() {

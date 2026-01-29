@@ -71,10 +71,10 @@ impl HidDeviceInfo {
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 pub struct TorqueCommand {
-    pub report_id: u8,    // 0x20
-    pub torque_mn_m: i16, // Q8.8 fixed point, Newton-meters
-    pub flags: u8,        // bit0: hands_on_hint, bit1: sat_warn
-    pub seq: u16,         // sequence number, wraps
+    pub report_id: u8,       // 0x20
+    pub torque_nm_q8_8: i16, // Q8.8 fixed point, Newton-meters
+    pub flags: u8,           // bit0: hands_on_hint, bit1: sat_warn
+    pub seq: u16,            // sequence number, wraps
 }
 
 impl TorqueCommand {
@@ -82,7 +82,7 @@ impl TorqueCommand {
 
     pub fn new(torque_nm: f32, seq: u16, hands_on_hint: bool, sat_warn: bool) -> Self {
         // Convert torque from Nm to Q8.8 fixed point
-        let torque_mn_m = (torque_nm * 256.0).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+        let torque_nm_q8_8 = (torque_nm * 256.0).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
 
         let mut flags = 0u8;
         if hands_on_hint {
@@ -94,7 +94,7 @@ impl TorqueCommand {
 
         Self {
             report_id: Self::REPORT_ID,
-            torque_mn_m,
+            torque_nm_q8_8,
             flags,
             seq,
         }
@@ -235,7 +235,7 @@ mod tests {
         // Copy packed fields to avoid alignment issues
         let seq = cmd.seq;
         let flags = cmd.flags;
-        let torque = cmd.torque_mn_m;
+        let torque = cmd.torque_nm_q8_8;
 
         assert_eq!(seq, 123);
         assert_eq!(flags, 0x01); // hands_on_hint set

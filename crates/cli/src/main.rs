@@ -129,7 +129,9 @@ async fn main() -> Result<()> {
             let exit_code = match e.downcast_ref::<CliError>() {
                 Some(CliError::DeviceNotFound(_)) => 2,
                 Some(CliError::ProfileNotFound(_)) => 3,
-                Some(CliError::ValidationError(_)) => 4,
+                Some(CliError::ValidationError(_))
+                | Some(CliError::JsonError(_))
+                | Some(CliError::SchemaError(_)) => 4,
                 Some(CliError::ServiceUnavailable(_)) => 5,
                 Some(CliError::PermissionDenied(_)) => 6,
                 _ => 1,

@@ -587,7 +587,7 @@ fn test_invalid_command() {
         .args(["invalid", "command"])
         .assert()
         .failure()
-        .code(1); // General error code
+        .code(2); // clap returns exit code 2 for usage errors
 }
 
 // JSON Output Validation Tests

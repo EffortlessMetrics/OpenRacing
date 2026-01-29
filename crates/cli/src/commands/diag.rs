@@ -25,7 +25,7 @@ pub async fn execute(cmd: &DiagCommands, json: bool, endpoint: Option<&str>) -> 
             duration,
             output,
         } => record_blackbox(&client, device, *duration, output.as_deref(), json).await,
-        DiagCommands::Replay { file, verbose } => replay_blackbox(file, json, *verbose).await,
+        DiagCommands::Replay { file, detailed } => replay_blackbox(file, json, *detailed).await,
         DiagCommands::Support { blackbox, output } => {
             generate_support_bundle(&client, *blackbox, output.as_deref(), json).await
         }
@@ -165,7 +165,7 @@ async fn record_blackbox(
 }
 
 /// Replay blackbox recording
-async fn replay_blackbox(file: &str, json: bool, verbose: bool) -> Result<()> {
+async fn replay_blackbox(file: &str, json: bool, detailed: bool) -> Result<()> {
     let content =
         fs::read_to_string(file).map_err(|_| CliError::ProfileNotFound(file.to_string()))?;
 
@@ -189,7 +189,7 @@ async fn replay_blackbox(file: &str, json: bool, verbose: bool) -> Result<()> {
         println!("Duration: 1.0s");
         println!("Frames: 1000");
 
-        if verbose {
+        if detailed {
             println!("\nFrame-by-frame output:");
             for i in 0..10 {
                 println!(
@@ -362,9 +362,9 @@ async fn run_single_test(
 ) -> Result<TestResult> {
     if !json {
         let pb = ProgressBar::new_spinner();
-        let style =
-            ProgressStyle::default_spinner().template("{spinner:.green} Running {:?} test...")?;
+        let style = ProgressStyle::default_spinner().template("{spinner:.green} {msg}")?;
         pb.set_style(style);
+        pb.set_message(format!("Running {:?} test...", test_type));
         pb.enable_steady_tick(Duration::from_millis(100));
 
         // Simulate test duration
