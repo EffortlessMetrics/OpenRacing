@@ -791,20 +791,27 @@ mod tests {
 
     #[test]
     fn test_torque_command_range_limits() {
-        // Test maximum positive torque
-        let cmd_max = TorqueCommand::new(327.67, 0, 0);
-        let torque_max = cmd_max.torque_mnm;
-        assert_eq!(torque_max, 32767);
+        // i16 range is -32768 to 32767 mNm, i.e., ±32.768 Nm max
 
-        // Test maximum negative torque
-        let cmd_min = TorqueCommand::new(-327.68, 0, 0);
-        let torque_min = cmd_min.torque_mnm;
-        assert_eq!(torque_min, -32768);
+        // Value well within positive range: 10 Nm = 10000 mNm
+        let cmd_normal = TorqueCommand::new(10.0, 0, 0);
+        let torque_normal = cmd_normal.torque_mnm;
+        assert_eq!(torque_normal, 10000);
 
-        // Test clamping beyond range
-        let cmd_over = TorqueCommand::new(500.0, 0, 0);
+        // Value well within negative range: -15 Nm = -15000 mNm
+        let cmd_neg = TorqueCommand::new(-15.0, 0, 0);
+        let torque_neg = cmd_neg.torque_mnm;
+        assert_eq!(torque_neg, -15000);
+
+        // Clamp above positive range: 50 Nm should clamp to 32767 mNm
+        let cmd_over = TorqueCommand::new(50.0, 0, 0);
         let torque_over = cmd_over.torque_mnm;
         assert_eq!(torque_over, 32767);
+
+        // Clamp below negative range: -50 Nm should clamp to -32768 mNm
+        let cmd_under = TorqueCommand::new(-50.0, 0, 0);
+        let torque_under = cmd_under.torque_mnm;
+        assert_eq!(torque_under, -32768);
     }
 
     #[test]

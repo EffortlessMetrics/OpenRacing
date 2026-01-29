@@ -75,7 +75,7 @@ tonic-prost-build = "0.14.2"
 prometheus = "0.14.0"
 metrics = "0.24.3"
 metrics-exporter-prometheus = "0.18.1"
-sysinfo = "0.37.2"
+sysinfo = "0.38.0"
 tokio-stream = "0.1.18"
 
 # System integration dependencies
