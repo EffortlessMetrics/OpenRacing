@@ -169,7 +169,7 @@ pub enum DiagCommands {
         file: String,
         /// Show frame-by-frame output
         #[arg(short, long)]
-        verbose: bool,
+        detailed: bool,
     },
 
     /// Generate support bundle

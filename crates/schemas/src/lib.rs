@@ -135,8 +135,11 @@ pub mod config {
         pub schema: String,
         pub scope: ProfileScope,
         pub base: BaseConfig,
+        #[serde(skip_serializing_if = "Option::is_none")]
         pub leds: Option<LedConfig>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         pub haptics: Option<HapticsConfig>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         pub signature: Option<String>,
     }
 
@@ -145,8 +148,11 @@ pub mod config {
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct ProfileScope {
+        #[serde(skip_serializing_if = "Option::is_none")]
         pub game: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         pub car: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         pub track: Option<String>,
     }
 
@@ -171,7 +177,7 @@ pub mod config {
         pub bumpstop: BumpstopConfig,
         #[serde(default, rename = "handsOff")]
         pub hands_off: HandsOffConfig,
-        #[serde(rename = "torqueCap")]
+        #[serde(rename = "torqueCap", skip_serializing_if = "Option::is_none")]
         pub torque_cap: Option<f32>,
         #[serde(rename = "notchFilters")]
         pub notch_filters: Vec<NotchFilter>,
