@@ -1121,7 +1121,7 @@ OpenRacing continuously monitors for fault conditions:
 **Symptoms**: Inconsistent force feedback, stuttering
 
 **Solutions**:
-1. Check power management settings (see [POWER_MANAGEMENT.md](POWER_MANAGEMENT.md))
+1. Check power management settings (see [Power Management Guide](POWER_MANAGEMENT_GUIDE.md))
 2. Disable USB selective suspend
 3. Use USB 2.0 ports instead of 3.0
 4. Close unnecessary background applications
@@ -1235,7 +1235,7 @@ If you're still experiencing issues:
 
 ### Power Management
 
-Optimizing power management settings is crucial for consistent performance. See [POWER_MANAGEMENT.md](POWER_MANAGEMENT.md) for detailed guidance.
+Optimizing power management settings is crucial for consistent performance. See [Power Management Guide](POWER_MANAGEMENT_GUIDE.md) for detailed guidance.
 
 **Quick Tips:**
 
@@ -1366,7 +1366,7 @@ A: Use `wheelctl device reset <device-id>` to reset the device to safe state, or
 ### Performance
 
 **Q: Why is my FFB jittery?**  
-A: Jitter is usually caused by power management settings. See [POWER_MANAGEMENT.md](POWER_MANAGEMENT.md) for optimization tips.
+A: Jitter is usually caused by power management settings. See [Power Management Guide](POWER_MANAGEMENT_GUIDE.md) for optimization tips.
 
 **Q: What is the ideal tick rate?**  
 A: OpenRacing targets 1000 Hz (1ms intervals) for optimal force feedback quality.
@@ -1422,7 +1422,7 @@ A: See [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) for information on creatin
 
 - [Development Guide](DEVELOPMENT.md) - Contributing to OpenRacing
 - [System Integration](SYSTEM_INTEGRATION.md) - Technical integration details
-- [Power Management](POWER_MANAGEMENT.md) - Optimizing system performance
+- [Power Management Guide](POWER_MANAGEMENT_GUIDE.md) - Optimizing system performance
 - [Anti-Cheat Compatibility](ANTICHEAT_COMPATIBILITY.md) - Anti-cheat information
 - [Plugin Development](PLUGIN_DEVELOPMENT.md) - Creating custom plugins
 - [GitHub Repository](https://github.com/EffortlessMetrics/OpenRacing) - Source code and issues
@@ -1430,6 +1430,6 @@ A: See [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) for information on creatin
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2026-01-23  
+**Document Version**: 1.1
+**Last Updated**: 2026-01-30
 **OpenRacing Version**: 0.1.0

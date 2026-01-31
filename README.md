@@ -63,19 +63,19 @@ Run the MSI installer from the [releases page](https://github.com/EffortlessMetr
 
 ```bash
 # List connected devices
-openracing device list
-
-# Start the force feedback engine
-openracing engine start
-
-# Load a force feedback profile
-openracing profile load path/to/profile.json
+wheelctl device list
 
 # Check system health
-openracing health check
+wheelctl health
 
-# View diagnostic information
-openracing diag status
+# Apply a force feedback profile
+wheelctl profile apply <device-id> path/to/profile.json
+
+# View device status
+wheelctl device status <device-id>
+
+# Run diagnostics
+wheelctl diag test
 ```
 
 ## Documentation
