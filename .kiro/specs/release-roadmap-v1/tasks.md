@@ -395,7 +395,7 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
     - Add version compatibility logic
     - Check major version for breaking changes
     - _Requirements: 16.6_
-  - [ ]* 21.5 Write property test for semver compatibility
+  - [ ] 21.5 Write property test for semver compatibility
     - **Property 28: Semver Compatibility**
     - **Validates: Requirements 16.6**
   - [ ] 21.6 Add wheelctl plugin install command
@@ -417,21 +417,21 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
     - Implement state transitions
     - Block FFB during update
     - _Requirements: 17.4_
-  - [ ]* 23.3 Write property test for firmware update mutual exclusion
+  - [ ] 23.3 Write property test for firmware update mutual exclusion
     - **Property 29: Firmware Update Mutual Exclusion**
     - **Validates: Requirements 17.4**
   - [ ] 23.4 Implement rollback support
     - Store backup of current firmware
     - Restore on update failure
     - _Requirements: 17.3, 17.5_
-  - [ ]* 23.5 Write property test for firmware rollback on failure
+  - [ ] 23.5 Write property test for firmware rollback on failure
     - **Property 30: Firmware Rollback on Failure**
     - **Validates: Requirements 17.3, 17.5**
   - [ ] 23.6 Implement firmware cache
     - Cache downloaded firmware images
     - Support offline updates from cache
     - _Requirements: 17.6_
-  - [ ]* 23.7 Write property test for firmware cache operations
+  - [ ] 23.7 Write property test for firmware cache operations
     - **Property 31: Firmware Cache Operations**
     - **Validates: Requirements 17.6**
 
@@ -445,14 +445,14 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
     - Command zero torque on timeout
     - Transition to safe mode
     - _Requirements: 18.2_
-  - [ ]* 24.3 Write property test for watchdog timeout response
+  - [ ] 24.3 Write property test for watchdog timeout response
     - **Property 32: Watchdog Timeout Response**
     - **Validates: Requirements 18.2**
   - [ ] 24.4 Implement torque limit enforcement
     - Clamp torque to device maximum
     - Log limit violations
     - _Requirements: 18.3_
-  - [ ]* 24.5 Write property test for torque limit enforcement
+  - [ ] 24.5 Write property test for torque limit enforcement
     - **Property 33: Torque Limit Enforcement**
     - **Validates: Requirements 18.3**
   - [ ] 24.6 Implement fault detection and response
@@ -460,14 +460,14 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
     - Enter safe mode on fault
     - Log fault to black box
     - _Requirements: 18.4_
-  - [ ]* 24.7 Write property test for fault detection response
+  - [ ] 24.7 Write property test for fault detection response
     - **Property 34: Fault Detection Response**
     - **Validates: Requirements 18.4**
   - [ ] 24.8 Implement communication loss handling
     - Detect communication timeout
     - Reach safe state within 50ms
     - _Requirements: 18.6_
-  - [ ]* 24.9 Write property test for communication loss response
+  - [ ] 24.9 Write property test for communication loss response
     - **Property 35: Communication Loss Response**
     - **Validates: Requirements 18.6**
   - [ ] 24.10 Implement emergency stop
@@ -486,14 +486,14 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
     - Migrate to current schema
     - Restore backup on failure
     - _Requirements: 20.2, 20.4_
-  - [ ]* 25.3 Write property test for migration round-trip
+  - [ ] 25.3 Write property test for migration round-trip
     - **Property 36: Migration Round-Trip (Consolidated)**
     - **Validates: Requirements 20.1, 20.2, 20.3, 20.4**
   - [ ] 25.4 Implement backward compatibility
     - Ensure old schemas parse with new code
     - Add compatibility tests
     - _Requirements: 20.5_
-  - [ ]* 25.5 Write property test for schema backward compatibility
+  - [ ] 25.5 Write property test for schema backward compatibility
     - **Property 37: Schema Backward Compatibility**
     - **Validates: Requirements 20.5**
 
@@ -529,7 +529,7 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
 
 ## Notes
 
-- Tasks marked with `*` are optional property-based tests and can be skipped for faster MVP
+- All tasks including property-based tests are required for comprehensive testing
 - Each task references specific requirements for traceability
 - Checkpoints ensure incremental validation at key milestones
 - Property tests validate universal correctness properties from the design document
