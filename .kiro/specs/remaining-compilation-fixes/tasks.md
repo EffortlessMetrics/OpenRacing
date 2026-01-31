@@ -279,7 +279,7 @@ The plan follows a specific execution order: establish workspace governance firs
 0 (Triage) → 1 (Workspace Deps) → 2 (Schema API) → 3 (FilterConfig) → 4 (TelemetryData)
                                                                             ↓
 5 (Async Patterns) → 6 (IPC Conversion) → 7 (CLI) → 8 (Service) → 9 (Plugin ABI)
-                                                                            ↓
+                                                                           proc ↓
 10 (Plugins) → 11 (Integration Tests) → 12 (Trybuild) → 13 (CI Matrix)
                                                                             ↓
 14 (Lint Gates) → 15 (Governance) → 16 (Final Validation)
