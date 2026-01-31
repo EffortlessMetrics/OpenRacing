@@ -4989,7 +4989,7 @@ dependencies = [
  "racing-wheel-engine",
  "racing-wheel-schemas",
  "rand 0.9.2",
- "rand_core 0.6.4",
+ "rand_core 0.9.5",
  "semver",
  "serde",
  "serde_json",
