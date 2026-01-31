@@ -6,6 +6,9 @@
 
 pub mod anticheat;
 pub mod auto_profile_switching;
+pub mod changelog;
+#[cfg(test)]
+mod changelog_property_tests;
 pub mod config_validation;
 pub mod config_writers;
 pub mod daemon;

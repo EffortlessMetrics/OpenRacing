@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 3de19b764548f4ec2c61a6bb00f35d1feeeebc4b9fb915cef73b8f35155c8838 # shrinks to entry = ChangelogEntry { version: Version { major: 0, minor: 0, patch: 0 }, date: 2020-01-01, added: ["A"], changed: ["a"], deprecated: [], removed: [], fixed: [], security: [], breaking: ["A"] }

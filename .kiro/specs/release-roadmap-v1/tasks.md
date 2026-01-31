@@ -9,48 +9,48 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
 ### Phase 1: v0.1.0 Alpha Release
 
 - [ ] 1. Create CHANGELOG infrastructure
-  - [ ] 1.1 Create CHANGELOG.md with initial content following Keep a Changelog format
+  - [x] 1.1 Create CHANGELOG.md with initial content following Keep a Changelog format
     - Add header with format description and semver adherence note
     - Add [Unreleased] section
     - Add [0.1.0] section with current features (core engine, Linux HID, CLI, service)
     - _Requirements: 1.1, 1.3, 1.5_
-  - [ ] 1.2 Write property test for CHANGELOG format validation
+  - [-] 1.2 Write property test for CHANGELOG format validation
     - **Property 1: CHANGELOG Format Validity**
     - **Validates: Requirements 1.1, 1.3, 1.5**
-  - [ ] 1.3 Add CHANGELOG validation to CI workflow
+  - [~] 1.3 Add CHANGELOG validation to CI workflow
     - Create script to validate CHANGELOG format
     - Add CI step to run validation on PRs
     - _Requirements: 1.1_
 
 - [ ] 2. Fix test stability issues
-  - [ ] 2.1 Add timeout to test_hotplug_stress_basic test
+  - [~] 2.1 Add timeout to test_hotplug_stress_basic test
     - Add `#[tokio::test(flavor = "multi_thread", worker_threads = 2)]` attribute
     - Wrap test body with `tokio::time::timeout(Duration::from_secs(30), ...)`
     - Add diagnostic output on timeout
     - _Requirements: 2.1, 2.5_
-  - [ ] 2.2 Review and fix other potentially slow tests
+  - [~] 2.2 Review and fix other potentially slow tests
     - Audit integration tests for unbounded waits
     - Add timeouts to async tests without explicit bounds
     - _Requirements: 2.1_
 
 - [ ] 3. Update CI and README badges
-  - [ ] 3.1 Add CI status badges to README.md
+  - [~] 3.1 Add CI status badges to README.md
     - Add build status badge for main branch
     - Add test status badge
     - Add coverage badge (if codecov configured)
     - _Requirements: 3.2_
-  - [ ] 3.2 Verify CI passes on both Ubuntu and Windows
+  - [~] 3.2 Verify CI passes on both Ubuntu and Windows
     - Run full CI workflow manually
     - Fix any platform-specific failures
     - _Requirements: 2.2_
 
-- [ ] 4. Checkpoint - Alpha release preparation
+- [~] 4. Checkpoint - Alpha release preparation
   - Ensure all tests pass, ask the user if questions arise.
   - Verify CHANGELOG is complete
   - Verify README badges display correctly
 
 - [ ] 5. Tag v0.1.0-alpha release
-  - [ ] 5.1 Create release tag and GitHub release
+  - [~] 5.1 Create release tag and GitHub release
     - Create annotated git tag v0.1.0-alpha
     - Create GitHub release with release notes from CHANGELOG
     - _Requirements: 3.1_
