@@ -70,7 +70,10 @@ pub async fn test_uj01_first_run() -> Result<TestResult> {
     let led_threshold = Duration::from_millis(20);
 
     if led_response_time <= led_threshold {
-        info!("✓ LED response time: {:?} (≤{:?})", led_response_time, led_threshold);
+        info!(
+            "✓ LED response time: {:?} (≤{:?})",
+            led_response_time, led_threshold
+        );
     } else {
         errors.push(format!(
             "LED response time exceeded {:?}: {:?}",
