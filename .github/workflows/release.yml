@@ -1,0 +1,354 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g., 1.0.0)"
+        required: true
+        type: string
+      prerelease:
+        description: "Mark as prerelease"
+        required: false
+        type: boolean
+        default: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+permissions:
+  contents: write
+
+jobs:
+  # ============================================
+  # Prepare Release
+  # ============================================
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag or input
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+            PRERELEASE="${{ github.event.inputs.prerelease }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG#v}"
+            # Check if this is a prerelease (alpha, beta, rc)
+            if [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
+              PRERELEASE="true"
+            else
+              PRERELEASE="false"
+            fi
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "prerelease=$PRERELEASE" >> $GITHUB_OUTPUT
+
+          echo "Version: $VERSION"
+          echo "Prerelease: $PRERELEASE"
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "Error: Invalid version format: $VERSION"
+            echo "Expected format: X.Y.Z or X.Y.Z-suffix"
+            exit 1
+          fi
+
+      - name: Extract changelog for version
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BASE_VERSION=$(echo "$VERSION" | sed 's/-\(alpha\|beta\|rc\).*//')
+
+          # Extract changelog section for this version
+          CHANGELOG=$(awk -v ver="$BASE_VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if ($0 ~ "\\[" ver "\\]") found=1
+            }
+            found { print }
+          ' CHANGELOG.md)
+
+          if [ -z "$CHANGELOG" ]; then
+            echo "Warning: No changelog entry found for version $BASE_VERSION"
+            CHANGELOG="## Release $VERSION"
+          fi
+
+          echo "$CHANGELOG" > changelog_section.md
+
+      - name: Upload changelog section
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog-section
+          path: changelog_section.md
+
+  # ============================================
+  # Build Linux Packages
+  # ============================================
+  build-linux:
+    name: Build Linux (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            arch: amd64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config dpkg-dev rpm
+
+      - name: Build release binaries
+        run: |
+          cargo build --release --target ${{ matrix.target }} -p racing-wheel-cli
+          cargo build --release --target ${{ matrix.target }} -p racing-wheel-service
+
+      - name: Build Linux packages
+        run: |
+          chmod +x packaging/linux/build-packages.sh
+          ./packaging/linux/build-packages.sh \
+            --bin-path target/${{ matrix.target }}/release \
+            --version ${{ needs.prepare.outputs.version }} \
+            --arch ${{ matrix.arch }} \
+            --output dist
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.deb
+            dist/*.rpm
+            dist/*.sha256
+
+  # ============================================
+  # Build Windows Packages
+  # ============================================
+  build-windows:
+    name: Build Windows (${{ matrix.target }})
+    runs-on: windows-latest
+    needs: prepare
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            arch: x64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install WiX Toolset
+        run: |
+          choco install wixtoolset -y
+          echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" >> $env:GITHUB_PATH
+
+      - name: Build release binaries
+        run: |
+          cargo build --release --target ${{ matrix.target }} -p racing-wheel-cli
+          cargo build --release --target ${{ matrix.target }} -p racing-wheel-service
+
+      - name: Build portable ZIP
+        shell: pwsh
+        run: |
+          .\packaging\windows\build-portable.ps1 `
+            -BinPath "target\${{ matrix.target }}\release" `
+            -Version "${{ needs.prepare.outputs.version }}" `
+            -Platform "${{ matrix.arch }}" `
+            -OutputPath "dist"
+
+      - name: Build MSI installer
+        shell: pwsh
+        run: |
+          .\packaging\windows\build-msi.ps1 `
+            -BinPath "target\${{ matrix.target }}\release" `
+            -OutputPath "dist" `
+            -Configuration "Release" `
+            -Platform "${{ matrix.arch }}" `
+            -SkipValidation
+        continue-on-error: true
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.arch }}
+          path: |
+            dist/*.zip
+            dist/*.msi
+            dist/*.sha256
+
+  # ============================================
+  # Sign Release Artifacts
+  # ============================================
+  sign-artifacts:
+    name: Sign Artifacts
+    runs-on: ubuntu-latest
+    needs: [prepare, build-linux, build-windows]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+
+          # Move all artifacts to release-assets
+          find artifacts -type f \( \
+            -name "*.tar.gz" -o \
+            -name "*.zip" -o \
+            -name "*.deb" -o \
+            -name "*.rpm" -o \
+            -name "*.msi" \
+          \) -exec mv {} release-assets/ \;
+
+          echo "Release assets:"
+          ls -la release-assets/
+
+      - name: Generate checksums and manifest
+        run: |
+          chmod +x scripts/sign-release.sh
+          ./scripts/sign-release.sh \
+            --artifacts release-assets \
+            --output release-assets \
+            --skip-signing
+
+      - name: Sign with GPG (if key available)
+        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
+
+          cd release-assets
+          for file in *.tar.gz *.zip *.deb *.rpm *.msi; do
+            if [[ -f "$file" ]]; then
+              gpg --armor --detach-sign --local-user "${{ secrets.GPG_KEY_ID }}" "$file"
+            fi
+          done
+
+          gpg --armor --detach-sign --local-user "${{ secrets.GPG_KEY_ID }}" SHA256SUMS.txt
+        env:
+          GPG_TTY: /dev/tty
+
+      - name: Upload signed artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: release-assets/
+
+  # ============================================
+  # Create GitHub Release
+  # ============================================
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [prepare, sign-artifacts]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: release-assets
+
+      - name: Download changelog section
+        uses: actions/download-artifact@v4
+        with:
+          name: changelog-section
+          path: .
+
+      - name: List release assets
+        run: |
+          echo "Release assets:"
+          ls -la release-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: OpenRacing v${{ needs.prepare.outputs.version }}
+          tag_name: v${{ needs.prepare.outputs.version }}
+          body_path: changelog_section.md
+          draft: false
+          prerelease: ${{ needs.prepare.outputs.prerelease == 'true' }}
+          files: |
+            release-assets/*
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate release summary
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.prepare.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Prerelease:** ${{ needs.prepare.outputs.prerelease }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+          for file in release-assets/*; do
+            if [[ -f "$file" ]]; then
+              name=$(basename "$file")
+              size=$(ls -lh "$file" | awk '{print $5}')
+              echo "| $name | $size |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Checksums" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat release-assets/SHA256SUMS.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ============================================
+  # Post-Release Notifications
+  # ============================================
+  notify:
+    name: Post-Release
+    runs-on: ubuntu-latest
+    needs: [prepare, release]
+    if: success()
+
+    steps:
+      - name: Release notification
+        run: |
+          echo "🎉 OpenRacing v${{ needs.prepare.outputs.version }} has been released!"
+          echo ""
+          echo "Release URL: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.prepare.outputs.version }}"

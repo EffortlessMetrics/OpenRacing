@@ -107,6 +107,10 @@ pub enum EngineCommand {
     GetStats {
         response: oneshot::Sender<EngineStats>,
     },
+    /// Emergency stop - immediately zero torque
+    EmergencyStop {
+        response: oneshot::Sender<Result<(), String>>,
+    },
 }
 
 /// Diagnostic signals sent from RT thread to diagnostic thread
@@ -438,6 +442,49 @@ impl Engine {
         }
     }
 
+    /// Emergency stop - immediately zero torque on all devices
+    ///
+    /// This command triggers an immediate transition to safe mode,
+    /// commanding zero torque. The response is sent once the command
+    /// has been received by the RT thread.
+    pub async fn emergency_stop(&self) -> Result<(), String> {
+        if let Some(ref command_tx) = self.command_tx {
+            let (response_tx, response_rx) = oneshot::channel();
+
+            command_tx
+                .try_send(EngineCommand::EmergencyStop {
+                    response: response_tx,
+                })
+                .map_err(|_| "Failed to send emergency stop command")?;
+
+            response_rx
+                .await
+                .map_err(|_| "Emergency stop command response lost")?
+        } else {
+            Err("Engine not started".to_string())
+        }
+    }
+
+    /// Emergency stop (blocking version for non-async contexts)
+    ///
+    /// This is a synchronous version that can be called from non-async code.
+    /// It sends the command but does not wait for confirmation.
+    pub fn emergency_stop_sync(&self) -> Result<(), String> {
+        if let Some(ref command_tx) = self.command_tx {
+            let (response_tx, _response_rx) = oneshot::channel();
+
+            command_tx
+                .try_send(EngineCommand::EmergencyStop {
+                    response: response_tx,
+                })
+                .map_err(|_| "Failed to send emergency stop command")?;
+
+            Ok(())
+        } else {
+            Err("Engine not started".to_string())
+        }
+    }
+
     /// Get blackbox frames (non-blocking)
     pub fn get_blackbox_frames(&self) -> Vec<BlackboxFrame> {
         if let Some(ref rx) = self.blackbox_rx {
@@ -722,6 +769,14 @@ impl Engine {
                         last_update: Instant::now(),
                     };
                     let _ = response.send(stats);
+                }
+
+                EngineCommand::EmergencyStop { response } => {
+                    info!("Emergency stop command received - zeroing torque immediately");
+                    // Report fault to safety service to enter safe mode
+                    ctx.safety.report_fault(FaultType::SafetyInterlockViolation);
+                    // Zero torque command will be applied on next tick due to faulted state
+                    let _ = response.send(Ok(()));
                 }
             }
         }

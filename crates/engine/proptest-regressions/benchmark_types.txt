@@ -1,0 +1,10 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 04c36a3757d5b56d5bf8c9c2438bcc81270cd2b91607a5d86c168d3640f45a56 # shrinks to result = BenchmarkResult { rt_loop_us: 0.0, jitter_p99_ms: 0.0, missed_tick_rate: 0.0, processing_time_median_us: 497580.97862212564, processing_time_p99_us: 0.0 }
+cc 6e228b06b727ddc986994617e19b8a766cd6e768f4a8de73a8485454610b7346 # shrinks to metrics = CustomMetrics { missed_tick_rate: 0.0, e2e_latency_p99_us: 226714.51460629446, rt_heap_allocs: 0 }
+cc 41628b6709677c36ed3b27e7974d5d8848624e7fba73ca2f4a4613cd3cab8a6e # shrinks to results = BenchmarkResults { benchmarks: [], summary: BenchmarkResult { rt_loop_us: 0.0, jitter_p99_ms: 0.0, missed_tick_rate: 92296.81299843203, processing_time_median_us: 0.0, processing_time_p99_us: 0.0 } }
+cc a6a44207edd80c5fae1db3a18d2da6849afed7ba46d8ede0bf3e8e0763641db3 # shrinks to entry = BenchmarkEntry { name: "a", percentiles: Percentiles { p50: 0, p99: 0 }, custom_metrics: CustomMetrics { missed_tick_rate: 920456.0616474305, e2e_latency_p99_us: 0.0, rt_heap_allocs: 0 }, sample_count: 0 }

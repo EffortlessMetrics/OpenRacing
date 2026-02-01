@@ -1,0 +1,528 @@
+/* OpenRacing UI Styles */
+
+:root {
+    /* Colors */
+    --color-bg: #1a1a2e;
+    --color-bg-secondary: #16213e;
+    --color-bg-card: #0f3460;
+    --color-primary: #e94560;
+    --color-primary-hover: #ff6b6b;
+    --color-secondary: #4a90d9;
+    --color-success: #4caf50;
+    --color-warning: #ff9800;
+    --color-danger: #f44336;
+    --color-text: #eaeaea;
+    --color-text-muted: #a0a0a0;
+    --color-border: #2a2a4a;
+
+    /* Spacing */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+
+    /* Border radius */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-normal: 250ms ease;
+}
+
+/* Reset */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    line-height: 1.5;
+    min-height: 100vh;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Header */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-lg);
+    background-color: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.header-brand {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spacing-sm);
+}
+
+.header-brand h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.header-brand .version {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.header-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--color-danger);
+}
+
+.status-indicator.connected {
+    background-color: var(--color-success);
+}
+
+.status-indicator.disconnected {
+    background-color: var(--color-danger);
+}
+
+.status-text {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+
+/* Main Layout */
+.app-main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 280px;
+    background-color: var(--color-bg-secondary);
+    border-right: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.sidebar-header h2 {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+/* Device List */
+.device-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-sm);
+}
+
+.device-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.device-item:hover {
+    background-color: var(--color-bg-card);
+}
+
+.device-item.selected {
+    background-color: var(--color-bg-card);
+    border-left: 3px solid var(--color-primary);
+}
+
+.device-item .device-icon {
+    font-size: 1.5rem;
+}
+
+.device-item .device-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.device-item .device-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.device-item .device-type {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.device-item .device-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--color-success);
+}
+
+.device-item .device-status.disconnected {
+    background-color: var(--color-danger);
+}
+
+.device-item .device-status.error {
+    background-color: var(--color-warning);
+}
+
+/* Content Area */
+.content {
+    flex: 1;
+    padding: var(--spacing-lg);
+    overflow-y: auto;
+}
+
+/* Panels */
+.panel {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.connection-panel,
+.no-device-panel {
+    text-align: center;
+    padding: var(--spacing-xl);
+}
+
+.panel-icon {
+    font-size: 4rem;
+    margin-bottom: var(--spacing-lg);
+}
+
+.panel h2 {
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-md);
+}
+
+.panel p {
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-lg);
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.panel-header h2 {
+    margin-bottom: 0;
+}
+
+/* Cards */
+.card {
+    background-color: var(--color-bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.card h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-md);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.card-danger {
+    border: 1px solid var(--color-danger);
+}
+
+/* Status Grid */
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.status-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.status-item label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+}
+
+.status-item .value {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+/* Telemetry Grid */
+.telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--spacing-lg);
+    text-align: center;
+}
+
+.telemetry-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.telemetry-item label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+}
+
+.telemetry-item .value.large {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+/* Capabilities */
+.capabilities-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.capability-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+}
+
+.capability-badge.enabled {
+    background-color: rgba(76, 175, 80, 0.2);
+    color: var(--color-success);
+}
+
+.capability-badge.disabled {
+    background-color: rgba(160, 160, 160, 0.2);
+    color: var(--color-text-muted);
+}
+
+/* Profile Actions */
+.profile-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.profile-name {
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+.profile-loaded {
+    color: var(--color-success);
+    font-style: normal;
+    font-weight: 500;
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-primary {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--color-primary-hover);
+}
+
+.btn-secondary {
+    background-color: var(--color-secondary);
+    color: white;
+}
+
+.btn-secondary:hover {
+    opacity: 0.9;
+}
+
+.btn-danger {
+    background-color: var(--color-danger);
+    color: white;
+    font-weight: 600;
+}
+
+.btn-danger:hover {
+    opacity: 0.9;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.btn-icon:hover {
+    color: var(--color-text);
+    background-color: var(--color-bg-card);
+}
+
+/* Badge */
+.badge {
+    display: inline-block;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background-color: var(--color-secondary);
+    color: white;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+/* Error Banner */
+.error-banner {
+    position: fixed;
+    bottom: var(--spacing-lg);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background-color: var(--color-danger);
+    color: white;
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    max-width: 90%;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateX(-50%) translateY(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+
+.error-banner.hidden {
+    display: none;
+}
+
+/* Error banner type variants */
+.error-banner.error-banner-error {
+    background-color: var(--color-danger);
+}
+
+.error-banner.error-banner-warning {
+    background-color: var(--color-warning);
+}
+
+.error-banner.error-banner-success {
+    background-color: var(--color-success);
+}
+
+/* Error Message */
+.error-message {
+    color: var(--color-danger);
+    font-size: 0.875rem;
+    margin-top: var(--spacing-sm);
+}
+
+.error-message.hidden {
+    display: none;
+}
+
+/* Help Text */
+.help-text {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    margin-top: var(--spacing-sm);
+}
+
+/* Loading */
+.loading {
+    text-align: center;
+    padding: var(--spacing-lg);
+    color: var(--color-text-muted);
+}
+
+/* Hidden */
+.hidden {
+    display: none !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-muted);
+}

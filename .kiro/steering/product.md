@@ -1,6 +1,6 @@
 # OpenRacing Product Overview
 
-OpenRacing is a high-performance, safety-critical racing wheel and force feedback simulation software built in Rust.
+OpenRacing is a safety-critical racing wheel and force feedback simulation software built in Rust.
 
 ## Purpose
 Real-time force feedback processing at 1kHz with deterministic latency for sim-racing enthusiasts and professionals.
@@ -19,3 +19,11 @@ Real-time force feedback processing at 1kHz with deterministic latency for sim-r
 - Sim-racing enthusiasts
 - Professional racing simulator operators
 - Hardware developers building racing peripherals
+
+## CLI Tool
+The `wheelctl` CLI provides device management:
+- `wheelctl device list` - List connected devices
+- `wheelctl device status <id>` - View device status
+- `wheelctl profile apply <id> <path>` - Apply FFB profile
+- `wheelctl health` - Check system health
+- `wheelctl diag test` - Run diagnostics

@@ -179,21 +179,35 @@ fn test_stats_reset() {
 
 #[tokio::test]
 async fn test_async_rate_limiting() {
-    let mut limiter = RateLimiter::new(100); // 100 Hz = 10ms interval
+    // Wrap test body with timeout to ensure test completes within 5 seconds
+    // Requirements: 2.1, 2.5
+    let test_future = async {
+        let mut limiter = RateLimiter::new(100); // 100 Hz = 10ms interval
 
-    let start = std::time::Instant::now();
+        let start = std::time::Instant::now();
 
-    // First call should be immediate
-    limiter.wait_for_slot().await;
-    let first_elapsed = start.elapsed();
+        // First call should be immediate
+        limiter.wait_for_slot().await;
+        let first_elapsed = start.elapsed();
 
-    // Second call should wait
-    limiter.wait_for_slot().await;
-    let second_elapsed = start.elapsed();
+        // Second call should wait
+        limiter.wait_for_slot().await;
+        let second_elapsed = start.elapsed();
 
-    // Should have waited at least the minimum interval
-    assert!(second_elapsed >= first_elapsed + Duration::from_millis(8)); // Allow some tolerance
-    assert_eq!(limiter.processed_count(), 2);
+        // Should have waited at least the minimum interval
+        assert!(second_elapsed >= first_elapsed + Duration::from_millis(8)); // Allow some tolerance
+        assert_eq!(limiter.processed_count(), 2);
+    };
+
+    match tokio::time::timeout(Duration::from_secs(5), test_future).await {
+        Ok(()) => {}
+        Err(_elapsed) => {
+            panic!(
+                "test_async_rate_limiting timed out after 5 seconds - \
+                 rate limiter may be blocked"
+            );
+        }
+    }
 }
 
 #[test]
@@ -347,23 +361,37 @@ fn test_test_scenarios() {
 
 #[tokio::test]
 async fn test_mock_adapter() {
-    let mut adapter = MockAdapter::new("test_game".to_string());
-    adapter.set_running(true);
+    // Wrap test body with timeout to ensure test completes within 5 seconds
+    // Requirements: 2.1, 2.5
+    let test_future = async {
+        let mut adapter = MockAdapter::new("test_game".to_string());
+        adapter.set_running(true);
 
-    assert_eq!(adapter.game_id(), "test_game");
-    assert!(must(adapter.is_game_running().await));
+        assert_eq!(adapter.game_id(), "test_game");
+        assert!(must(adapter.is_game_running().await));
 
-    let mut receiver = must(adapter.start_monitoring().await);
+        let mut receiver = must(adapter.start_monitoring().await);
 
-    // Should receive telemetry frames
-    let frame = must_some(
-        must(tokio::time::timeout(Duration::from_millis(100), receiver.recv()).await),
-        "expected frame",
-    );
+        // Should receive telemetry frames
+        let frame = must_some(
+            must(tokio::time::timeout(Duration::from_millis(100), receiver.recv()).await),
+            "expected frame",
+        );
 
-    assert!(frame.data.rpm.is_some());
-    assert!(frame.data.speed_ms.is_some());
-    assert_eq!(frame.data.car_id, Some("mock_car".to_string()));
+        assert!(frame.data.rpm.is_some());
+        assert!(frame.data.speed_ms.is_some());
+        assert_eq!(frame.data.car_id, Some("mock_car".to_string()));
+    };
+
+    match tokio::time::timeout(Duration::from_secs(5), test_future).await {
+        Ok(()) => {}
+        Err(_elapsed) => {
+            panic!(
+                "test_mock_adapter timed out after 5 seconds - \
+                 mock adapter may be blocked"
+            );
+        }
+    }
 }
 
 #[test]
@@ -391,18 +419,32 @@ fn test_telemetry_service_creation() {
 
 #[tokio::test]
 async fn test_telemetry_service_monitoring() {
-    let mut service = TelemetryService::new();
+    // Wrap test body with timeout to ensure test completes within 5 seconds
+    // Requirements: 2.1, 2.5
+    let test_future = async {
+        let mut service = TelemetryService::new();
 
-    // Test starting monitoring for unsupported game
-    let result = service.start_monitoring("unsupported_game").await;
-    assert!(result.is_err());
+        // Test starting monitoring for unsupported game
+        let result = service.start_monitoring("unsupported_game").await;
+        assert!(result.is_err());
 
-    // Test checking if games are running
-    let iracing_running = service.is_game_running("iracing").await;
-    assert!(iracing_running.is_ok());
+        // Test checking if games are running
+        let iracing_running = service.is_game_running("iracing").await;
+        assert!(iracing_running.is_ok());
 
-    let acc_running = service.is_game_running("acc").await;
-    assert!(acc_running.is_ok());
+        let acc_running = service.is_game_running("acc").await;
+        assert!(acc_running.is_ok());
+    };
+
+    match tokio::time::timeout(Duration::from_secs(5), test_future).await {
+        Ok(()) => {}
+        Err(_elapsed) => {
+            panic!(
+                "test_telemetry_service_monitoring timed out after 5 seconds - \
+                 telemetry service may be blocked"
+            );
+        }
+    }
 }
 
 /// Integration test that validates the complete telemetry pipeline

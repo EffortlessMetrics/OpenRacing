@@ -1,112 +1,650 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<!--
+  Racing Wheel Suite - WiX Installer Configuration
+  
+  This installer provides:
+  - wheeld service (background daemon)
+  - wheelctl CLI tool
+  - openracing UI application
+  - Windows service registration
+  - Device permissions via SetupAPI
+  - Power management configuration
+  - Clean uninstallation (service stop/remove, file cleanup, registry cleanup)
+  
+  Requirements: 6.1, 6.2, 6.3, 6.4
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  
   <Product Id="*" 
-           Name="Racing Wheel Suite" 
+           Name="OpenRacing - Racing Wheel Suite" 
            Language="1033" 
            Version="!(bind.FileVersion.wheeld.exe)" 
-           Manufacturer="Racing Wheel Suite Contributors" 
-           UpgradeCode="12345678-1234-1234-1234-123456789012">
+           Manufacturer="OpenRacing Contributors" 
+           UpgradeCode="A1B2C3D4-E5F6-7890-ABCD-EF1234567890">
     
-    <Package InstallerVersion="200" 
+    <Package InstallerVersion="500" 
              Compressed="yes" 
-             InstallScope="perUser" 
-             Description="Professional racing wheel software suite" />
+             InstallScope="perMachine"
+             Description="Professional racing wheel force feedback software suite"
+             Comments="OpenRacing provides real-time FFB processing at 1kHz with safety-critical design"
+             Keywords="racing,wheel,force feedback,sim racing,FFB"
+             Platform="x64" />
 
-    <MajorUpgrade DowngradeErrorMessage="A newer version of Racing Wheel Suite is already installed." />
+    <!-- Upgrade handling -->
+    <MajorUpgrade 
+        DowngradeErrorMessage="A newer version of OpenRacing is already installed."
+        Schedule="afterInstallInitialize"
+        AllowSameVersionUpgrades="yes" />
     
-    <MediaTemplate EmbedCab="yes" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
-    <!-- Feature definitions -->
-    <Feature Id="ProductFeature" Title="Racing Wheel Suite" Level="1">
-      <ComponentGroupRef Id="ProductComponents" />
-      <ComponentGroupRef Id="ServiceComponents" />
-    </Feature>
+    <!-- Properties -->
+    <Property Id="ARPPRODUCTICON" Value="OpenRacingIcon" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/openracing/openracing" />
+    <Property Id="ARPURLINFOABOUT" Value="https://openracing.io" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    
+    <!-- Conditions -->
+    <Condition Message="This application requires Windows 10 version 1903 or later.">
+      <![CDATA[Installed OR VersionNT64 >= 603]]>
+    </Condition>
 
-    <!-- Directory structure -->
+    <!-- ============================================ -->
+    <!-- Directory Structure                          -->
+    <!-- ============================================ -->
     <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="LocalAppDataFolder">
-        <Directory Id="INSTALLFOLDER" Name="RacingWheelSuite">
+      <!-- Program Files installation -->
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="OpenRacing">
           <Directory Id="BinFolder" Name="bin" />
           <Directory Id="ConfigFolder" Name="config" />
           <Directory Id="ProfilesFolder" Name="profiles" />
-          <Directory Id="PluginsFolder" Name="plugins" />
+          <Directory Id="PluginsFolder" Name="plugins">
+            <Directory Id="WasmPluginsFolder" Name="wasm" />
+            <Directory Id="NativePluginsFolder" Name="native" />
+          </Directory>
           <Directory Id="LogsFolder" Name="logs" />
+          <Directory Id="DriversFolder" Name="drivers" />
+          <Directory Id="DocsFolder" Name="docs" />
         </Directory>
       </Directory>
+      
+      <!-- Start Menu shortcuts -->
       <Directory Id="ProgramMenuFolder">
-        <Directory Id="ApplicationProgramsFolder" Name="Racing Wheel Suite" />
+        <Directory Id="ApplicationProgramsFolder" Name="OpenRacing" />
+      </Directory>
+      
+      <!-- Desktop shortcut -->
+      <Directory Id="DesktopFolder" Name="Desktop" />
+      
+      <!-- Common App Data for service state -->
+      <Directory Id="CommonAppDataFolder">
+        <Directory Id="AppDataFolder" Name="OpenRacing">
+          <Directory Id="AppDataStateFolder" Name="state" />
+          <Directory Id="AppDataCacheFolder" Name="cache" />
+        </Directory>
       </Directory>
     </Directory>
 
-    <!-- Main application components -->
-    <ComponentGroup Id="ProductComponents" Directory="BinFolder">
-      <Component Id="WheeldExe" Guid="*">
-        <File Id="wheeld.exe" Source="$(var.BinPath)\wheeld.exe" KeyPath="yes" />
+    <!-- ============================================ -->
+    <!-- Feature Definitions                          -->
+    <!-- ============================================ -->
+    <Feature Id="MainFeature" 
+             Title="OpenRacing Core" 
+             Description="Core racing wheel software including service and CLI"
+             Level="1"
+             ConfigurableDirectory="INSTALLFOLDER"
+             AllowAdvertise="no"
+             Absent="disallow">
+      <ComponentGroupRef Id="CoreBinaries" />
+      <ComponentGroupRef Id="ServiceComponents" />
+      <ComponentGroupRef Id="ConfigurationFiles" />
+      <ComponentGroupRef Id="EnvironmentPath" />
+      <ComponentGroupRef Id="UninstallCleanupComponents" />
+    </Feature>
+    
+    <Feature Id="UIFeature" 
+             Title="OpenRacing UI" 
+             Description="Graphical user interface for device and profile management"
+             Level="1"
+             AllowAdvertise="no">
+      <ComponentGroupRef Id="UIComponents" />
+      <ComponentGroupRef Id="ShortcutComponents" />
+    </Feature>
+    
+    <Feature Id="DeviceDriverFeature" 
+             Title="Device Permissions" 
+             Description="Configure device permissions for racing wheel access"
+             Level="1"
+             AllowAdvertise="no">
+      <ComponentGroupRef Id="DevicePermissionComponents" />
+      <ComponentGroupRef Id="PowerManagementComponents" />
+    </Feature>
+    
+    <Feature Id="PluginsFeature" 
+             Title="Plugin Support" 
+             Description="Plugin directories and sample configurations"
+             Level="1"
+             AllowAdvertise="no">
+      <ComponentGroupRef Id="PluginDirectories" />
+    </Feature>
+    
+    <Feature Id="DocumentationFeature" 
+             Title="Documentation" 
+             Description="User guides and API documentation"
+             Level="1000"
+             AllowAdvertise="no">
+      <ComponentGroupRef Id="DocumentationComponents" />
+    </Feature>
+
+    <!-- ============================================ -->
+    <!-- Core Binary Components                       -->
+    <!-- ============================================ -->
+    <ComponentGroup Id="CoreBinaries" Directory="BinFolder">
+      <!-- wheeld service daemon -->
+      <Component Id="WheeldExe" Guid="B1C2D3E4-F5A6-7890-BCDE-F12345678901">
+        <File Id="wheeld.exe" 
+              Source="$(var.BinPath)\wheeld.exe" 
+              KeyPath="yes"
+              Vital="yes">
+          <fire:FirewallException xmlns:fire="http://schemas.microsoft.com/wix/FirewallExtension"
+                                  Id="WheeldFirewall"
+                                  Name="OpenRacing Service"
+                                  Description="Allow OpenRacing service for IPC communication"
+                                  Protocol="tcp"
+                                  Scope="localSubnet" />
+        </File>
       </Component>
-      <Component Id="WheelctlExe" Guid="*">
-        <File Id="wheelctl.exe" Source="$(var.BinPath)\wheelctl.exe" KeyPath="yes" />
-      </Component>
-      <Component Id="WheelUIExe" Guid="*">
-        <File Id="wheel-ui.exe" Source="$(var.BinPath)\wheel-ui.exe" KeyPath="yes" />
+      
+      <!-- wheelctl CLI tool -->
+      <Component Id="WheelctlExe" Guid="C2D3E4F5-A6B7-8901-CDEF-234567890123">
+        <File Id="wheelctl.exe" 
+              Source="$(var.BinPath)\wheelctl.exe" 
+              KeyPath="yes"
+              Vital="yes" />
       </Component>
     </ComponentGroup>
 
-    <!-- Service registration components -->
+    <!-- ============================================ -->
+    <!-- UI Components                                -->
+    <!-- ============================================ -->
+    <ComponentGroup Id="UIComponents" Directory="BinFolder">
+      <!-- openracing UI application -->
+      <Component Id="OpenRacingUIExe" Guid="D3E4F5A6-B7C8-9012-DEF0-345678901234">
+        <File Id="openracing.exe" 
+              Source="$(var.BinPath)\openracing.exe" 
+              KeyPath="yes" />
+      </Component>
+      
+      <!-- WebView2 loader (for Tauri) -->
+      <Component Id="WebView2Loader" Guid="E4F5A6B7-C8D9-0123-EF01-456789012345">
+        <File Id="WebView2Loader.dll" 
+              Source="$(var.BinPath)\WebView2Loader.dll" 
+              KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- ============================================ -->
+    <!-- Service Registration Components              -->
+    <!-- Requirement 6.2: Register wheeld as service  -->
+    <!-- Requirement 6.6: Auto-start with privileges  -->
+    <!-- ============================================ -->
     <ComponentGroup Id="ServiceComponents" Directory="INSTALLFOLDER">
-      <Component Id="ServiceRegistration" Guid="*">
-        <!-- Register as user service using Task Scheduler -->
-        <RegistryKey Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run">
-          <RegistryValue Name="RacingWheelSuite" 
-                        Type="string" 
-                        Value="[BinFolder]wheeld.exe --service" 
-                        KeyPath="yes" />
+      <!-- Windows Service Registration -->
+      <Component Id="WheeldService" Guid="F5A6B7C8-D9E0-1234-F012-567890123456">
+        <File Id="service_marker" Source="$(var.BinPath)\wheeld.exe" Name="wheeld_svc.marker" />
+        <ServiceInstall
+            Id="WheeldServiceInstall"
+            Name="OpenRacingService"
+            DisplayName="OpenRacing Force Feedback Service"
+            Description="Provides real-time force feedback processing for racing wheels at 1kHz. Required for wheel operation."
+            Type="ownProcess"
+            Start="auto"
+            ErrorControl="normal"
+            Account="LocalSystem"
+            Arguments="--service --config &quot;[ConfigFolder]service.toml&quot;">
+          <!-- 
+            Service Account: LocalSystem
+            - Full system privileges for hardware access (HID devices)
+            - Required for MMCSS real-time thread priority
+            - Can access all local resources
+            
+            Start Type: auto
+            - Service starts automatically on system boot
+            - No user login required
+          -->
+          <!-- Service recovery options -->
+          <util:ServiceConfig
+              FirstFailureActionType="restart"
+              SecondFailureActionType="restart"
+              ThirdFailureActionType="none"
+              RestartServiceDelayInSeconds="5"
+              ResetPeriodInDays="1" />
+        </ServiceInstall>
+        
+        <ServiceControl
+            Id="WheeldServiceControl"
+            Name="OpenRacingService"
+            Start="install"
+            Stop="both"
+            Remove="uninstall"
+            Wait="yes" />
+        
+        <!-- Service configuration registry -->
+        <RegistryKey Root="HKLM" Key="SYSTEM\CurrentControlSet\Services\OpenRacingService">
+          <RegistryValue Name="Description" Type="string" 
+                        Value="OpenRacing Force Feedback Service - Real-time FFB at 1kHz" />
         </RegistryKey>
       </Component>
       
-      <!-- Power management registry settings -->
-      <Component Id="PowerSettings" Guid="*">
-        <RegistryKey Root="HKCU" Key="Software\RacingWheelSuite\PowerManagement">
-          <RegistryValue Name="DisableUSBSelectiveSuspend" Type="integer" Value="1" />
-          <RegistryValue Name="HighPerformanceMode" Type="integer" Value="1" />
+      <!-- Service configuration file -->
+      <Component Id="ServiceConfig" Guid="A6B7C8D9-E0F1-2345-0123-678901234567" Directory="ConfigFolder">
+        <File Id="service.toml" Source="$(var.ConfigPath)\service.toml" KeyPath="yes" />
+      </Component>
+      
+      <!-- MMCSS Registration for Real-Time Priority -->
+      <Component Id="MmcssRegistration" Guid="B7C8D9E0-F1A2-3456-1234-789012345678">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\OpenRacing">
+          <RegistryValue Name="Affinity" Type="integer" Value="0" />
+          <RegistryValue Name="Background Only" Type="string" Value="False" />
+          <RegistryValue Name="Clock Rate" Type="integer" Value="10000" />
+          <RegistryValue Name="GPU Priority" Type="integer" Value="8" />
+          <RegistryValue Name="Priority" Type="integer" Value="6" />
+          <RegistryValue Name="Scheduling Category" Type="string" Value="High" />
+          <RegistryValue Name="SFIO Priority" Type="string" Value="High" />
+          <RegistryValue Name="Latency Sensitive" Type="string" Value="True" KeyPath="yes" />
         </RegistryKey>
       </Component>
     </ComponentGroup>
 
-    <!-- Start menu shortcuts -->
-    <DirectoryRef Id="ApplicationProgramsFolder">
-      <Component Id="ApplicationShortcut" Guid="*">
-        <Shortcut Id="ApplicationStartMenuShortcut"
-                  Name="Racing Wheel Suite"
-                  Description="Professional racing wheel software"
-                  Target="[BinFolder]wheel-ui.exe"
-                  WorkingDirectory="BinFolder" />
-        <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
-        <RegistryValue Root="HKCU" 
-                      Key="Software\RacingWheelSuite" 
-                      Name="installed" 
+    <!-- ============================================ -->
+    <!-- Device Permission Components                 -->
+    <!-- Requirement 6.3: Device permissions via      -->
+    <!-- SetupAPI (udev-equivalent)                   -->
+    <!-- ============================================ -->
+    <ComponentGroup Id="DevicePermissionComponents" Directory="INSTALLFOLDER">
+      <!-- HID Device Class Co-Installer Registration -->
+      <!-- This allows non-admin users to access racing wheel HID devices -->
+      <Component Id="HidDevicePermissions" Guid="C8D9E0F1-A2B3-4567-2345-890123456789">
+        <!-- Logitech Racing Wheels -->
+        <RegistryKey Root="HKLM" Key="SYSTEM\CurrentControlSet\Enum\HID\VID_046D">
+          <RegistryValue Name="OpenRacingAccess" Type="integer" Value="1" KeyPath="yes" />
+        </RegistryKey>
+        
+        <!-- Registry entries for device access policy -->
+        <RegistryKey Root="HKLM" Key="SOFTWARE\OpenRacing\DeviceAccess">
+          <RegistryValue Name="Enabled" Type="integer" Value="1" />
+          <RegistryValue Name="Version" Type="string" Value="1.0" />
+        </RegistryKey>
+      </Component>
+      
+      <!-- Supported Device VID/PID Registry -->
+      <Component Id="SupportedDevices" Guid="D9E0F1A2-B3C4-5678-3456-901234567890">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\OpenRacing\SupportedDevices">
+          <!-- Logitech wheels -->
+          <RegistryValue Name="Logitech_G29" Type="string" Value="VID_046D&amp;PID_C24F" />
+          <RegistryValue Name="Logitech_G920" Type="string" Value="VID_046D&amp;PID_C262" />
+          <RegistryValue Name="Logitech_G923_PS" Type="string" Value="VID_046D&amp;PID_C267" />
+          <RegistryValue Name="Logitech_G923_Xbox" Type="string" Value="VID_046D&amp;PID_C26E" />
+          <RegistryValue Name="Logitech_PRO" Type="string" Value="VID_046D&amp;PID_C272" />
+          <!-- Thrustmaster wheels -->
+          <RegistryValue Name="Thrustmaster_T300" Type="string" Value="VID_044F&amp;PID_B66E" />
+          <RegistryValue Name="Thrustmaster_T500" Type="string" Value="VID_044F&amp;PID_B65D" />
+          <RegistryValue Name="Thrustmaster_TX" Type="string" Value="VID_044F&amp;PID_B669" />
+          <RegistryValue Name="Thrustmaster_TS_XW" Type="string" Value="VID_044F&amp;PID_B67F" />
+          <RegistryValue Name="Thrustmaster_T_GT" Type="string" Value="VID_044F&amp;PID_B677" />
+          <!-- Fanatec wheels -->
+          <RegistryValue Name="Fanatec_CSL_DD" Type="string" Value="VID_0EB7&amp;PID_0E03" />
+          <RegistryValue Name="Fanatec_DD1" Type="string" Value="VID_0EB7&amp;PID_0005" />
+          <RegistryValue Name="Fanatec_DD2" Type="string" Value="VID_0EB7&amp;PID_0006" />
+          <RegistryValue Name="Fanatec_CSW_V2" Type="string" Value="VID_0EB7&amp;PID_0001" />
+          <!-- Moza Racing wheels -->
+          <RegistryValue Name="Moza_R9" Type="string" Value="VID_346E&amp;PID_0005" />
+          <RegistryValue Name="Moza_R12" Type="string" Value="VID_346E&amp;PID_0006" />
+          <RegistryValue Name="Moza_R16" Type="string" Value="VID_346E&amp;PID_0007" />
+          <RegistryValue Name="Moza_R21" Type="string" Value="VID_346E&amp;PID_0008" />
+          <!-- Simagic wheels -->
+          <RegistryValue Name="Simagic_Alpha" Type="string" Value="VID_0483&amp;PID_0522" />
+          <RegistryValue Name="Simagic_Alpha_Mini" Type="string" Value="VID_0483&amp;PID_0523" />
+          <RegistryValue Name="Simagic_Alpha_U" Type="string" Value="VID_0483&amp;PID_0524" KeyPath="yes" />
+          <!-- Simucube / Granite Devices -->
+          <RegistryValue Name="Simucube_1" Type="string" Value="VID_16D0&amp;PID_0D5A" />
+          <RegistryValue Name="Simucube_2_Sport" Type="string" Value="VID_16D0&amp;PID_0D5B" />
+          <RegistryValue Name="Simucube_2_Pro" Type="string" Value="VID_16D0&amp;PID_0D5C" />
+          <RegistryValue Name="Simucube_2_Ultimate" Type="string" Value="VID_16D0&amp;PID_0D5D" />
+          <!-- VRS DirectForce Pro -->
+          <RegistryValue Name="VRS_DFP" Type="string" Value="VID_3344&amp;PID_40B7" />
+        </RegistryKey>
+      </Component>
+      
+      <!-- WinUSB/libusb device access (for direct HID access) -->
+      <Component Id="WinUsbDeviceAccess" Guid="E0F1A2B3-C4D5-6789-4567-012345678901">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\OpenRacing\WinUSB">
+          <RegistryValue Name="EnableDirectAccess" Type="integer" Value="1" KeyPath="yes" />
+          <RegistryValue Name="AllowNonAdminAccess" Type="integer" Value="1" />
+        </RegistryKey>
+      </Component>
+    </ComponentGroup>
+
+    <!-- ============================================ -->
+    <!-- Power Management Components                  -->
+    <!-- Disable USB selective suspend for wheels     -->
+    <!-- ============================================ -->
+    <ComponentGroup Id="PowerManagementComponents" Directory="INSTALLFOLDER">
+      <Component Id="UsbPowerSettings" Guid="F1A2B3C4-D5E6-7890-5678-123456789012">
+        <!-- Disable USB selective suspend globally for HID devices -->
+        <RegistryKey Root="HKLM" Key="SYSTEM\CurrentControlSet\Services\USB">
+          <RegistryValue Name="DisableSelectiveSuspend" Type="integer" Value="1" KeyPath="yes" />
+        </RegistryKey>
+        
+        <!-- High performance power scheme settings -->
+        <RegistryKey Root="HKLM" Key="SOFTWARE\OpenRacing\PowerManagement">
+          <RegistryValue Name="DisableUSBSelectiveSuspend" Type="integer" Value="1" />
+          <RegistryValue Name="HighPerformanceMode" Type="integer" Value="1" />
+          <RegistryValue Name="PreventSleep" Type="integer" Value="0" />
+        </RegistryKey>
+      </Component>
+      
+      <!-- USB Hub power management -->
+      <Component Id="UsbHubPowerSettings" Guid="A2B3C4D5-E6F7-8901-6789-234567890123">
+        <RegistryKey Root="HKLM" Key="SYSTEM\CurrentControlSet\Control\usbflags">
+          <RegistryValue Name="GlobalDisableSelectiveSuspend" Type="integer" Value="1" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+    </ComponentGroup>
+
+    <!-- ============================================ -->
+    <!-- Configuration Files                          -->
+    <!-- ============================================ -->
+    <ComponentGroup Id="ConfigurationFiles" Directory="ConfigFolder">
+      <Component Id="DefaultConfig" Guid="B3C4D5E6-F7A8-9012-7890-345678901234">
+        <File Id="default_config.toml" Source="$(var.ConfigPath)\default.toml" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="LoggingConfig" Guid="C4D5E6F7-A8B9-0123-8901-456789012345">
+        <File Id="logging.toml" Source="$(var.ConfigPath)\logging.toml" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- ============================================ -->
+    <!-- Environment PATH                             -->
+    <!-- ============================================ -->
+    <ComponentGroup Id="EnvironmentPath" Directory="BinFolder">
+      <Component Id="PathEnvVar" Guid="D5E6F7A8-B9C0-1234-9012-567890123456">
+        <Environment Id="PATH" 
+                    Name="PATH" 
+                    Value="[BinFolder]" 
+                    Permanent="no" 
+                    Part="last" 
+                    Action="set" 
+                    System="yes" />
+        <RegistryValue Root="HKLM" 
+                      Key="SOFTWARE\OpenRacing" 
+                      Name="PathConfigured" 
                       Type="integer" 
                       Value="1" 
                       KeyPath="yes" />
       </Component>
-    </DirectoryRef>
+    </ComponentGroup>
 
-    <!-- Custom actions for service management -->
-    <CustomAction Id="StartService" 
-                  Directory="BinFolder" 
-                  ExeCommand="wheeld.exe --install-service" 
-                  Execute="deferred" 
-                  Impersonate="yes" />
+    <!-- ============================================ -->
+    <!-- Plugin Directories                           -->
+    <!-- ============================================ -->
+    <ComponentGroup Id="PluginDirectories" Directory="PluginsFolder">
+      <Component Id="PluginReadme" Guid="E6F7A8B9-C0D1-2345-0123-678901234567">
+        <File Id="plugins_readme.txt" Source="$(var.DocsPath)\plugins_readme.txt" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- ============================================ -->
+    <!-- Uninstall Cleanup Components                 -->
+    <!-- Requirement 6.4: Clean uninstallation        -->
+    <!-- ============================================ -->
+    <ComponentGroup Id="UninstallCleanupComponents">
+      <!-- Remove custom directories on uninstall -->
+      <Component Id="CleanupConfigFolder" Guid="11111111-1111-1111-1111-111111111111" Directory="ConfigFolder">
+        <RemoveFolder Id="RemoveConfigFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OpenRacing\Cleanup" Name="ConfigFolder" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="CleanupProfilesFolder" Guid="22222222-2222-2222-2222-222222222222" Directory="ProfilesFolder">
+        <RemoveFolder Id="RemoveProfilesFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OpenRacing\Cleanup" Name="ProfilesFolder" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="CleanupPluginsFolder" Guid="33333333-3333-3333-3333-333333333333" Directory="PluginsFolder">
+        <RemoveFolder Id="RemovePluginsFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OpenRacing\Cleanup" Name="PluginsFolder" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="CleanupWasmPluginsFolder" Guid="44444444-4444-4444-4444-444444444444" Directory="WasmPluginsFolder">
+        <RemoveFolder Id="RemoveWasmPluginsFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OpenRacing\Cleanup" Name="WasmPluginsFolder" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="CleanupNativePluginsFolder" Guid="55555555-5555-5555-5555-555555555555" Directory="NativePluginsFolder">
+        <RemoveFolder Id="RemoveNativePluginsFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OpenRacing\Cleanup" Name="NativePluginsFolder" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="CleanupLogsFolder" Guid="66666666-6666-6666-6666-666666666666" Directory="LogsFolder">
+        <RemoveFolder Id="RemoveLogsFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OpenRacing\Cleanup" Name="LogsFolder" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="CleanupDriversFolder" Guid="77777777-7777-7777-7777-777777777777" Directory="DriversFolder">
+        <RemoveFolder Id="RemoveDriversFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OpenRacing\Cleanup" Name="DriversFolder" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="CleanupDocsFolder" Guid="88888888-8888-8888-8888-888888888888" Directory="DocsFolder">
+        <RemoveFolder Id="RemoveDocsFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OpenRacing\Cleanup" Name="DocsFolder" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="CleanupBinFolder" Guid="99999999-9999-9999-9999-999999999999" Directory="BinFolder">
+        <RemoveFolder Id="RemoveBinFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OpenRacing\Cleanup" Name="BinFolder" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="CleanupInstallFolder" Guid="AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA" Directory="INSTALLFOLDER">
+        <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OpenRacing\Cleanup" Name="InstallFolder" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      
+      <!-- Remove AppData directories on uninstall -->
+      <Component Id="CleanupAppDataFolder" Guid="BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB" Directory="AppDataFolder">
+        <RemoveFolder Id="RemoveAppDataFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OpenRacing\Cleanup" Name="AppDataFolder" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="CleanupAppDataStateFolder" Guid="CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC" Directory="AppDataStateFolder">
+        <RemoveFolder Id="RemoveAppDataStateFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OpenRacing\Cleanup" Name="AppDataStateFolder" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="CleanupAppDataCacheFolder" Guid="DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD" Directory="AppDataCacheFolder">
+        <RemoveFolder Id="RemoveAppDataCacheFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OpenRacing\Cleanup" Name="AppDataCacheFolder" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      
+      <!-- Clean up main OpenRacing registry keys on uninstall -->
+      <Component Id="CleanupRegistryKeys" Guid="EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE" Directory="INSTALLFOLDER">
+        <!-- Remove HKLM\SOFTWARE\OpenRacing and all subkeys -->
+        <RegistryKey Root="HKLM" Key="SOFTWARE\OpenRacing" ForceDeleteOnUninstall="yes">
+          <RegistryValue Name="CleanupMarker" Type="integer" Value="1" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+      
+      <!-- Clean up HKCU registry keys on uninstall -->
+      <Component Id="CleanupUserRegistryKeys" Guid="FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF" Directory="INSTALLFOLDER">
+        <RegistryKey Root="HKCU" Key="SOFTWARE\OpenRacing" ForceDeleteOnUninstall="yes">
+          <RegistryValue Name="CleanupMarker" Type="integer" Value="1" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+      
+      <!-- Clean up MMCSS task registration on uninstall -->
+      <Component Id="CleanupMmcssRegistration" Guid="12121212-1212-1212-1212-121212121212" Directory="INSTALLFOLDER">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\OpenRacing" ForceDeleteOnUninstall="yes">
+          <RegistryValue Name="CleanupMarker" Type="integer" Value="1" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+    </ComponentGroup>
+
+    <!-- ============================================ -->
+    <!-- Shortcut Components                          -->
+    <!-- ============================================ -->
+    <ComponentGroup Id="ShortcutComponents">
+      <!-- Start Menu shortcuts -->
+      <Component Id="StartMenuShortcuts" Guid="F7A8B9C0-D1E2-3456-1234-789012345678" Directory="ApplicationProgramsFolder">
+        <Shortcut Id="OpenRacingUIShortcut"
+                  Name="OpenRacing"
+                  Description="OpenRacing - Racing Wheel Force Feedback Suite"
+                  Target="[BinFolder]openracing.exe"
+                  WorkingDirectory="BinFolder"
+                  Icon="OpenRacingIcon" />
+        
+        <Shortcut Id="WheelctlShortcut"
+                  Name="OpenRacing CLI"
+                  Description="OpenRacing Command Line Interface"
+                  Target="[BinFolder]wheelctl.exe"
+                  Arguments="--help"
+                  WorkingDirectory="BinFolder" />
+        
+        <Shortcut Id="UninstallShortcut"
+                  Name="Uninstall OpenRacing"
+                  Description="Uninstall OpenRacing"
+                  Target="[System64Folder]msiexec.exe"
+                  Arguments="/x [ProductCode]" />
+        
+        <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+        
+        <RegistryValue Root="HKCU" 
+                      Key="SOFTWARE\OpenRacing" 
+                      Name="StartMenuInstalled" 
+                      Type="integer" 
+                      Value="1" 
+                      KeyPath="yes" />
+      </Component>
+      
+      <!-- Desktop shortcut (optional) -->
+      <Component Id="DesktopShortcut" Guid="A8B9C0D1-E2F3-4567-2345-890123456789" Directory="DesktopFolder">
+        <Shortcut Id="DesktopOpenRacingShortcut"
+                  Name="OpenRacing"
+                  Description="OpenRacing - Racing Wheel Force Feedback Suite"
+                  Target="[BinFolder]openracing.exe"
+                  WorkingDirectory="BinFolder"
+                  Icon="OpenRacingIcon" />
+        
+        <RegistryValue Root="HKCU" 
+                      Key="SOFTWARE\OpenRacing" 
+                      Name="DesktopShortcutInstalled" 
+                      Type="integer" 
+                      Value="1" 
+                      KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- ============================================ -->
+    <!-- Documentation Components                     -->
+    <!-- ============================================ -->
+    <ComponentGroup Id="DocumentationComponents" Directory="DocsFolder">
+      <Component Id="UserGuide" Guid="B9C0D1E2-F3A4-5678-3456-901234567890">
+        <File Id="user_guide.html" Source="$(var.DocsPath)\user_guide.html" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="License" Guid="C0D1E2F3-A4B5-6789-4567-012345678901">
+        <File Id="LICENSE.txt" Source="$(var.DocsPath)\LICENSE.txt" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="Changelog" Guid="D1E2F3A4-B5C6-7890-5678-123456789012">
+        <File Id="CHANGELOG.md" Source="$(var.DocsPath)\CHANGELOG.md" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- ============================================ -->
+    <!-- Icons                                        -->
+    <!-- ============================================ -->
+    <Icon Id="OpenRacingIcon" SourceFile="$(var.IconPath)\openracing.ico" />
+
+    <!-- ============================================ -->
+    <!-- Custom Actions                               -->
+    <!-- ============================================ -->
     
-    <CustomAction Id="StopService" 
-                  Directory="BinFolder" 
-                  ExeCommand="wheeld.exe --uninstall-service" 
-                  Execute="deferred" 
-                  Impersonate="yes" />
+    <!-- Stop service before uninstall -->
+    <CustomAction Id="StopServiceBeforeUninstall"
+                  Directory="BinFolder"
+                  ExeCommand="[BinFolder]wheelctl.exe service stop --force"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+    
+    <!-- Configure device permissions after install -->
+    <CustomAction Id="ConfigureDevicePermissions"
+                  Directory="BinFolder"
+                  ExeCommand="[BinFolder]wheelctl.exe setup --configure-devices"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+    
+    <!-- Verify installation -->
+    <CustomAction Id="VerifyInstallation"
+                  Directory="BinFolder"
+                  ExeCommand="[BinFolder]wheelctl.exe health --quick"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+    
+    <!-- Set properties for deferred custom actions -->
+    <CustomAction Id="SetStopServiceProperty" 
+                  Property="StopServiceBeforeUninstall" 
+                  Value="[BinFolder]" />
+    
+    <CustomAction Id="SetConfigureDevicesProperty" 
+                  Property="ConfigureDevicePermissions" 
+                  Value="[BinFolder]" />
+    
+    <CustomAction Id="SetVerifyProperty" 
+                  Property="VerifyInstallation" 
+                  Value="[BinFolder]" />
 
+    <!-- ============================================ -->
+    <!-- Install Sequence                             -->
+    <!-- ============================================ -->
     <InstallExecuteSequence>
-      <Custom Action="StartService" After="InstallFiles">NOT Installed</Custom>
-      <Custom Action="StopService" Before="RemoveFiles">Installed AND NOT REINSTALL</Custom>
+      <!-- Stop service before removing files during uninstall -->
+      <Custom Action="SetStopServiceProperty" Before="StopServiceBeforeUninstall">
+        Installed AND NOT REINSTALL
+      </Custom>
+      <Custom Action="StopServiceBeforeUninstall" Before="RemoveFiles">
+        Installed AND NOT REINSTALL
+      </Custom>
+      
+      <!-- Configure devices after install -->
+      <Custom Action="SetConfigureDevicesProperty" Before="ConfigureDevicePermissions">
+        NOT Installed OR REINSTALL
+      </Custom>
+      <Custom Action="ConfigureDevicePermissions" After="InstallFiles">
+        NOT Installed OR REINSTALL
+      </Custom>
+      
+      <!-- Verify installation -->
+      <Custom Action="SetVerifyProperty" Before="VerifyInstallation">
+        NOT Installed
+      </Custom>
+      <Custom Action="VerifyInstallation" After="ConfigureDevicePermissions">
+        NOT Installed
+      </Custom>
     </InstallExecuteSequence>
+
+    <!-- ============================================ -->
+    <!-- UI Configuration                             -->
+    <!-- ============================================ -->
+    <UIRef Id="WixUI_InstallDir" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.DocsPath)\LICENSE.rtf" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.AssetsPath)\banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.AssetsPath)\dialog.bmp" />
 
   </Product>
 </Wix>

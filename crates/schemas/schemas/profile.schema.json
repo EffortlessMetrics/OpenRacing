@@ -4,27 +4,47 @@
   "title": "Racing Wheel Profile Schema",
   "description": "Schema for racing wheel configuration profiles",
   "type": "object",
-  "required": ["schema", "scope", "base"],
+  "required": [
+    "schema",
+    "scope",
+    "base"
+  ],
   "properties": {
     "schema": {
       "type": "string",
       "const": "wheel.profile/1",
       "description": "Schema version identifier"
     },
+    "parent": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Parent profile ID for inheritance. When set, this profile inherits settings from the parent profile. Child values override parent values, unspecified values inherit from parent. Inheritance chains are limited to 5 levels deep."
+    },
     "scope": {
       "type": "object",
       "description": "Profile application scope",
       "properties": {
         "game": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Target game identifier"
         },
         "car": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Specific car model (optional)"
         },
         "track": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Specific track (optional)"
         }
       },
@@ -33,7 +53,12 @@
     "base": {
       "type": "object",
       "description": "Base configuration settings",
-      "required": ["ffbGain", "dorDeg", "torqueCapNm", "filters"],
+      "required": [
+        "ffbGain",
+        "dorDeg",
+        "torqueCapNm",
+        "filters"
+      ],
       "properties": {
         "ffbGain": {
           "type": "number",
@@ -135,7 +160,11 @@
               "description": "Notch filters for frequency-specific attenuation",
               "items": {
                 "type": "object",
-                "required": ["hz", "q", "gainDb"],
+                "required": [
+                  "hz",
+                  "q",
+                  "gainDb"
+                ],
                 "properties": {
                   "hz": {
                     "type": "number",
@@ -171,7 +200,10 @@
               "minItems": 2,
               "items": {
                 "type": "object",
-                "required": ["input", "output"],
+                "required": [
+                  "input",
+                  "output"
+                ],
                 "properties": {
                   "input": {
                     "type": "number",
@@ -196,7 +228,10 @@
       "additionalProperties": false
     },
     "leds": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "description": "LED configuration (optional)",
       "properties": {
         "rpmBands": {
@@ -210,7 +245,10 @@
         },
         "pattern": {
           "type": "string",
-          "enum": ["progressive", "wipe"],
+          "enum": [
+            "progressive",
+            "wipe"
+          ],
           "description": "LED pattern identifier"
         },
         "brightness": {
@@ -240,7 +278,10 @@
       "additionalProperties": false
     },
     "haptics": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "description": "Haptic feedback configuration (optional)",
       "properties": {
         "enabled": {
@@ -273,7 +314,10 @@
       "additionalProperties": false
     },
     "signature": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "description": "Profile signature for integrity verification (optional)"
     }
   },

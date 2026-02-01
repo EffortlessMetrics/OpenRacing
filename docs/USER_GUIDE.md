@@ -74,105 +74,382 @@ OpenRacing supports a wide range of racing wheels through HID (Human Interface D
 
 ## Installation
 
+This section provides detailed installation instructions for all supported platforms. Choose the method that best suits your needs.
+
 ### Windows Installation
+
+OpenRacing supports Windows 10 and later (x64). Multiple installation methods are available.
 
 #### Using MSI Installer (Recommended)
 
-1. Download the latest MSI installer from the [releases page](https://github.com/EffortlessMetrics/OpenRacing/releases)
-2. Double-click the installer to run it
-3. Follow the installation wizard
-4. Optionally enable power optimization during installation
+The MSI installer is the easiest way to install OpenRacing on Windows. It handles service registration, device permissions, and PATH configuration automatically.
 
+1. Download the latest MSI installer (`OpenRacing-x.x.x-x64.msi`) from the [releases page](https://github.com/EffortlessMetrics/OpenRacing/releases)
+2. Double-click the installer to run it
+3. Follow the installation wizard:
+   - Accept the license agreement
+   - Choose installation directory (default: `C:\Program Files\OpenRacing`)
+   - Select components to install (CLI, Service, UI)
+   - Optionally enable power optimization
+4. Click "Install" and wait for completion
+5. Restart your computer if prompted
+
+**Installation Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `INSTALLDIR` | Installation directory | `C:\Program Files\OpenRacing` |
+| `OPTIMIZE_POWER` | Enable power optimization | `0` (disabled) |
+| `INSTALL_SERVICE` | Install wheeld service | `1` (enabled) |
+| `ADD_TO_PATH` | Add to system PATH | `1` (enabled) |
+
+**Example with options:**
 ```cmd
-# Run installer with power optimization
-RacingWheelSuite.msi OPTIMIZE_POWER=1
+msiexec /i OpenRacing-1.0.0-x64.msi OPTIMIZE_POWER=1 INSTALLDIR="D:\OpenRacing"
 ```
 
-#### Manual Setup
+#### Silent Installation
 
-1. Download the pre-built binaries from the releases page
-2. Extract the archive to a directory of your choice
-3. Add the `bin` directory to your PATH:
+For automated deployments or scripted installations, use silent installation mode:
+
+```cmd
+# Basic silent installation
+msiexec /i OpenRacing-1.0.0-x64.msi /quiet /norestart
+
+# Silent installation with logging
+msiexec /i OpenRacing-1.0.0-x64.msi /quiet /norestart /log install.log
+
+# Silent installation with custom options
+msiexec /i OpenRacing-1.0.0-x64.msi /quiet /norestart OPTIMIZE_POWER=1
+
+# Silent installation to custom directory
+msiexec /i OpenRacing-1.0.0-x64.msi /quiet /norestart INSTALLDIR="D:\OpenRacing"
+
+# Silent uninstallation
+msiexec /x OpenRacing-1.0.0-x64.msi /quiet /norestart
+```
+
+**Silent Installation Exit Codes:**
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1602 | User cancelled |
+| 1603 | Fatal error |
+| 1618 | Another installation in progress |
+| 3010 | Reboot required |
+
+#### Portable ZIP Installation
+
+For users who prefer not to use an installer:
+
+1. Download `OpenRacing-x.x.x-x64-portable.zip` from the releases page
+2. Extract to your preferred location (e.g., `C:\OpenRacing`)
+3. Add the directory to your PATH:
    ```cmd
-   setx PATH "%PATH%;C:\path\to\OpenRacing\bin"
+   setx PATH "%PATH%;C:\OpenRacing\bin"
    ```
-4. Install the service:
+4. Install the service manually:
    ```cmd
-   wheeld install
+   # Run as Administrator
+   wheeld.exe install
+   sc start wheeld
    ```
+
+#### Windows Service Management
+
+The `wheeld` service runs in the background and manages device communication:
+
+```cmd
+# Check service status
+sc query wheeld
+
+# Start the service
+sc start wheeld
+
+# Stop the service
+sc stop wheeld
+
+# Restart the service
+sc stop wheeld && sc start wheeld
+
+# Remove the service (run as Administrator)
+wheeld.exe uninstall
+```
+
+**Service Configuration:**
+- **Service Name**: `wheeld`
+- **Display Name**: OpenRacing Wheel Daemon
+- **Startup Type**: Automatic
+- **Account**: Local System
 
 ### Linux Installation
 
-#### Package Manager (Ubuntu/Debian)
+OpenRacing supports modern Linux distributions with kernel 4.0+. Multiple package formats are available.
+
+#### Debian/Ubuntu (.deb Package)
+
+For Debian, Ubuntu 22.04+, Linux Mint, and other Debian-based distributions:
+
+```bash
+# Download the .deb package
+wget https://github.com/EffortlessMetrics/OpenRacing/releases/download/v1.0.0/openracing_1.0.0_amd64.deb
+
+# Install the package
+sudo dpkg -i openracing_1.0.0_amd64.deb
+
+# Install any missing dependencies
+sudo apt-get install -f
+
+# Reload udev rules (installed automatically)
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+
+# Enable and start the service
+systemctl --user enable --now wheeld
+```
+
+**Alternative: Using APT Repository**
 
 ```bash
 # Add the OpenRacing repository
-sudo apt-add-repository ppa:openracing/stable
+curl -fsSL https://openracing.io/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/openracing-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/openracing-archive-keyring.gpg] https://apt.openracing.io stable main" | sudo tee /etc/apt/sources.list.d/openracing.list
+
+# Update and install
 sudo apt update
+sudo apt install openracing
 
-# Install OpenRacing
-sudo apt install openracing openracing-cli
-
-# Install udev rules for device access
-sudo cp /usr/share/openracing/99-racing-wheel-suite.rules /etc/udev/rules.d/
-sudo udevadm control --reload-rules
-sudo udevadm trigger
+# Enable and start the service
+systemctl --user enable --now wheeld
 ```
 
-#### Manual Setup
+#### Fedora/RHEL/CentOS (.rpm Package)
+
+For Fedora, RHEL 8+, CentOS Stream, Rocky Linux, and other RPM-based distributions:
 
 ```bash
+# Download the .rpm package
+wget https://github.com/EffortlessMetrics/OpenRacing/releases/download/v1.0.0/openracing-1.0.0-1.x86_64.rpm
+
+# Install the package (Fedora)
+sudo dnf install ./openracing-1.0.0-1.x86_64.rpm
+
+# Or for older systems using yum
+sudo yum install ./openracing-1.0.0-1.x86_64.rpm
+
+# Reload udev rules
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+
+# Enable and start the service
+systemctl --user enable --now wheeld
+```
+
+**Alternative: Using DNF/YUM Repository**
+
+```bash
+# Add the OpenRacing repository
+sudo dnf config-manager --add-repo https://rpm.openracing.io/openracing.repo
+
+# Install
+sudo dnf install openracing
+
+# Enable and start the service
+systemctl --user enable --now wheeld
+```
+
+#### Generic Linux (Tarball)
+
+For any Linux distribution or manual installation:
+
+```bash
+# Download the tarball
+wget https://github.com/EffortlessMetrics/OpenRacing/releases/download/v1.0.0/openracing-1.0.0-linux-x86_64.tar.gz
+
+# Extract to /opt (or your preferred location)
+sudo tar -xzf openracing-1.0.0-linux-x86_64.tar.gz -C /opt
+
+# Create symlinks for CLI access
+sudo ln -s /opt/openracing/bin/wheelctl /usr/local/bin/wheelctl
+sudo ln -s /opt/openracing/bin/wheeld /usr/local/bin/wheeld
+
+# Install udev rules
+sudo cp /opt/openracing/share/udev/99-racing-wheel-suite.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+
+# Install systemd service
+mkdir -p ~/.config/systemd/user
+cp /opt/openracing/share/systemd/wheeld.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now wheeld
+```
+
+#### Building from Source
+
+For developers or users who want the latest features:
+
+```bash
+# Install Rust toolchain (if not already installed)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+
 # Clone the repository
 git clone https://github.com/EffortlessMetrics/OpenRacing.git
 cd OpenRacing
 
-# Build the project
+# Build release binaries
 cargo build --release
 
-# Install the CLI tool
-cargo install --path crates/cli
+# Install binaries
+sudo cp target/release/wheelctl /usr/local/bin/
+sudo cp target/release/wheeld /usr/local/bin/
 
 # Install udev rules
 sudo cp packaging/linux/99-racing-wheel-suite.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 
-# Install the service (systemd)
-sudo cp packaging/linux/wheeld.service /etc/systemd/user/
+# Install systemd service
+mkdir -p ~/.config/systemd/user
+cp packaging/linux/wheeld.service ~/.config/systemd/user/
+systemctl --user daemon-reload
 systemctl --user enable --now wheeld
 ```
 
-#### Udev Rules
+#### Udev Rules Explained
 
-The udev rules file ensures proper permissions for racing wheel devices:
+The udev rules file (`99-racing-wheel-suite.rules`) ensures proper permissions for racing wheel devices:
 
 ```bash
 # /etc/udev/rules.d/99-racing-wheel-suite.rules
+
+# Logitech wheels
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", MODE="0666"
+ACTION=="add", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", MODE="0666"
+
+# Fanatec wheels
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0eb7", MODE="0666"
+ACTION=="add", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0eb7", MODE="0666"
+
+# Thrustmaster wheels
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="044f", MODE="0666"
+ACTION=="add", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", MODE="0666"
+
+# Moza wheels
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="346e", MODE="0666"
+ACTION=="add", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="346e", MODE="0666"
+
+# Simagic wheels
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", MODE="0666"
+ACTION=="add", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", MODE="0666"
+
+# Generic HID racing wheels
 ACTION=="add", SUBSYSTEM=="hidraw", MODE="0666"
+```
+
+After modifying udev rules, reload them:
+```bash
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+#### Linux Service Management
+
+```bash
+# Check service status
+systemctl --user status wheeld
+
+# Start the service
+systemctl --user start wheeld
+
+# Stop the service
+systemctl --user stop wheeld
+
+# Restart the service
+systemctl --user restart wheeld
+
+# View service logs
+journalctl --user -u wheeld -f
+
+# Disable service autostart
+systemctl --user disable wheeld
 ```
 
 ### macOS Installation
 
+OpenRacing supports macOS 10.15 (Catalina) and later.
+
+> **Note**: macOS support is currently in beta. Some features may have limited functionality.
+
+#### Using Homebrew (Recommended)
+
 ```bash
-# Clone the repository
+# Add the OpenRacing tap
+brew tap openracing/tap
+
+# Install OpenRacing
+brew install openracing
+
+# Start the service
+brew services start openracing
+```
+
+#### Manual Installation
+
+```bash
+# Download the macOS package
+curl -LO https://github.com/EffortlessMetrics/OpenRacing/releases/download/v1.0.0/openracing-1.0.0-macos-x86_64.tar.gz
+
+# Extract to /usr/local
+sudo tar -xzf openracing-1.0.0-macos-x86_64.tar.gz -C /usr/local
+
+# Install launchd service
+cp /usr/local/openracing/share/launchd/com.openracing.wheeld.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.openracing.wheeld.plist
+```
+
+#### Building from Source (macOS)
+
+```bash
+# Install Rust toolchain
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+
+# Clone and build
 git clone https://github.com/EffortlessMetrics/OpenRacing.git
 cd OpenRacing
-
-# Build the project
 cargo build --release
 
-# Install the CLI tool
-cargo install --path crates/cli
+# Install binaries
+sudo cp target/release/wheelctl /usr/local/bin/
+sudo cp target/release/wheeld /usr/local/bin/
 
 # Install launchd service
 cp packaging/macos/com.openracing.wheeld.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.openracing.wheeld.plist
 ```
 
+#### macOS Service Management
+
+```bash
+# Check service status
+launchctl list | grep openracing
+
+# Start the service
+launchctl load ~/Library/LaunchAgents/com.openracing.wheeld.plist
+
+# Stop the service
+launchctl unload ~/Library/LaunchAgents/com.openracing.wheeld.plist
+
+# View logs
+log show --predicate 'subsystem == "com.openracing.wheeld"' --last 1h
+```
+
 ### Verification Steps
 
-After installation, verify that OpenRacing is working correctly:
+After installation on any platform, verify that OpenRacing is working correctly:
 
 ```bash
 # Check CLI installation
@@ -185,15 +462,71 @@ wheelctl health
 wheelctl device list
 ```
 
-Expected output:
+**Expected output:**
 ```
-OpenRacing CLI version 0.1.0
+OpenRacing CLI version 1.0.0
 
 Service Health Status
   Service: Running
   Overall: Healthy
   Devices: 1
     ✓ Logitech G29 (046d:c29f)
+```
+
+### Uninstallation
+
+#### Windows
+
+```cmd
+# Using Control Panel
+# Go to Settings > Apps > OpenRacing > Uninstall
+
+# Using MSI (silent)
+msiexec /x OpenRacing-1.0.0-x64.msi /quiet /norestart
+
+# Manual cleanup (if needed)
+sc stop wheeld
+sc delete wheeld
+rmdir /s /q "C:\Program Files\OpenRacing"
+```
+
+#### Linux (Debian/Ubuntu)
+
+```bash
+# Remove package
+sudo apt remove openracing
+
+# Remove package and configuration
+sudo apt purge openracing
+
+# Remove udev rules (if not removed automatically)
+sudo rm /etc/udev/rules.d/99-racing-wheel-suite.rules
+sudo udevadm control --reload-rules
+```
+
+#### Linux (Fedora/RHEL)
+
+```bash
+# Remove package
+sudo dnf remove openracing
+
+# Remove udev rules (if not removed automatically)
+sudo rm /etc/udev/rules.d/99-racing-wheel-suite.rules
+sudo udevadm control --reload-rules
+```
+
+#### macOS
+
+```bash
+# Using Homebrew
+brew services stop openracing
+brew uninstall openracing
+
+# Manual removal
+launchctl unload ~/Library/LaunchAgents/com.openracing.wheeld.plist
+rm ~/Library/LaunchAgents/com.openracing.wheeld.plist
+sudo rm -rf /usr/local/openracing
+sudo rm /usr/local/bin/wheelctl /usr/local/bin/wheeld
 ```
 
 ---
@@ -296,6 +629,359 @@ wheelctl diag metrics --watch
 ```
 
 You should feel smooth, responsive force feedback when the tests pass.
+
+---
+
+## Configuration Guide
+
+This section covers all aspects of configuring OpenRacing for optimal performance and personalized force feedback.
+
+### Configuration Files
+
+OpenRacing uses several configuration files stored in platform-specific locations:
+
+| File | Purpose | Location (Windows) | Location (Linux/macOS) |
+|------|---------|-------------------|------------------------|
+| `config.toml` | Global settings | `%LOCALAPPDATA%\Wheel\config.toml` | `~/.config/wheel/config.toml` |
+| `profiles/*.json` | FFB profiles | `%LOCALAPPDATA%\Wheel\profiles\` | `~/.config/wheel/profiles/` |
+| `trust_store.json` | Plugin signatures | `%LOCALAPPDATA%\Wheel\trust_store.json` | `~/.config/wheel/trust_store.json` |
+| `devices.json` | Device settings | `%LOCALAPPDATA%\Wheel\devices.json` | `~/.config/wheel/devices.json` |
+
+### Global Configuration (config.toml)
+
+The main configuration file controls service behavior and default settings:
+
+```toml
+# OpenRacing Configuration File
+
+[service]
+# Log level: trace, debug, info, warn, error
+log_level = "info"
+
+# IPC socket path (Linux/macOS only)
+socket_path = "/tmp/wheeld.sock"
+
+# Enable telemetry collection
+telemetry_enabled = true
+
+[safety]
+# Global maximum torque limit (Nm)
+max_torque_nm = 20.0
+
+# Require physical confirmation for high torque
+require_physical_interlock = true
+
+# Watchdog timeout (ms)
+watchdog_timeout_ms = 100
+
+# Communication loss timeout (ms)
+comm_loss_timeout_ms = 50
+
+[performance]
+# Target tick rate (Hz)
+tick_rate_hz = 1000
+
+# Enable MMCSS (Windows only)
+enable_mmcss = true
+
+# CPU affinity (comma-separated core IDs, empty for auto)
+cpu_affinity = ""
+
+[plugins]
+# Allow unsigned plugins (security risk!)
+allow_unsigned = false
+
+# Plugin directory
+plugin_dir = "~/.config/wheel/plugins"
+
+# Maximum WASM memory (bytes)
+wasm_max_memory = 16777216
+
+[telemetry_adapters]
+# Enable specific game adapters
+iracing_enabled = true
+acc_enabled = true
+ams2_enabled = true
+rf2_enabled = false
+
+# iRacing shared memory name
+iracing_shm_name = "Local\\IRSDKMemMapFileName"
+
+# ACC UDP port
+acc_udp_port = 9996
+```
+
+### Profile Management
+
+Profiles define force feedback settings for your racing wheel. They support inheritance, allowing you to create base profiles and override specific settings for different games or cars.
+
+#### Profile Directory Structure
+
+Organize your profiles for easy management:
+
+```
+~/.config/wheel/profiles/
+├── base/
+│   ├── default.json          # Default base profile
+│   └── high-torque.json      # High torque base profile
+├── iracing/
+│   ├── gt3.json              # iRacing GT3 cars
+│   ├── formula.json          # iRacing Formula cars
+│   └── oval.json             # iRacing Oval racing
+├── acc/
+│   ├── gt3.json              # ACC GT3 cars
+│   └── gt4.json              # ACC GT4 cars
+└── community/
+    └── imported-profile.json # Community profiles
+```
+
+#### Creating Profiles
+
+```bash
+# Create a new profile with default settings
+wheelctl profile create profiles/my-profile.json
+
+# Create a profile inheriting from a base profile
+wheelctl profile create profiles/iracing/gt3.json --from profiles/base/default.json
+
+# Create a profile with game/car scope
+wheelctl profile create profiles/iracing/gt3.json --game iracing --car gt3
+
+# Create from template with all options
+wheelctl profile create profiles/acc/gt3.json \
+  --from profiles/base/high-torque.json \
+  --game acc \
+  --car gt3 \
+  --name "ACC GT3 Profile"
+```
+
+#### Profile Inheritance
+
+Profiles can inherit from parent profiles, allowing you to maintain a base configuration with game-specific overrides:
+
+```json
+{
+  "schema": "wheel.profile/1",
+  "name": "iRacing GT3",
+  "parent": "base/default.json",
+  "scope": {
+    "game": "iracing",
+    "car": "gt3"
+  },
+  "base": {
+    "ffbGain": 0.85,
+    "filters": {
+      "damper": 0.15
+    }
+  }
+}
+```
+
+In this example:
+- The profile inherits all settings from `base/default.json`
+- Only `ffbGain` and `damper` are overridden
+- All other settings come from the parent profile
+
+**Inheritance Rules:**
+- Child values override parent values
+- Unspecified values inherit from parent
+- Maximum inheritance depth: 5 levels
+- Circular inheritance is detected and rejected
+
+#### Editing Profiles
+
+```bash
+# Interactive edit (opens in default editor)
+wheelctl profile edit profiles/my-profile.json
+
+# Edit specific fields directly
+wheelctl profile edit profiles/my-profile.json --field base.ffbGain --value 0.8
+wheelctl profile edit profiles/my-profile.json --field base.dorDeg --value 900
+wheelctl profile edit profiles/my-profile.json --field base.filters.damper --value 0.2
+
+# Batch edit multiple fields
+wheelctl profile edit profiles/my-profile.json \
+  --field base.ffbGain --value 0.8 \
+  --field base.filters.damper --value 0.15 \
+  --field base.filters.friction --value 0.1
+```
+
+### FFB Settings Reference
+
+#### Core FFB Parameters
+
+| Parameter | Description | Range | Recommended |
+|-----------|-------------|-------|-------------|
+| `ffbGain` | Overall force feedback strength | 0.0 - 1.0 | 0.7 - 0.9 |
+| `dorDeg` | Degrees of rotation | 0 - 3600 | Match car's real steering |
+| `torqueCapNm` | Maximum torque output | 0.1 - device max | Based on wheel capability |
+
+#### Filter Parameters
+
+| Parameter | Description | Range | Effect |
+|-----------|-------------|-------|--------|
+| `reconstruction` | Signal reconstruction level | 0 - 8 | Higher = smoother, more latency |
+| `friction` | Static friction simulation | 0.0 - 1.0 | Adds resistance at center |
+| `damper` | Dynamic damping | 0.0 - 1.0 | Reduces oscillation |
+| `inertia` | Wheel inertia simulation | 0.0 - 1.0 | Adds weight to steering |
+| `slewRate` | Torque change rate limit | 0.0 - 2.0 | Lower = smoother transitions |
+
+#### Response Curves
+
+Response curves modify how input torque maps to output torque:
+
+```json
+{
+  "base": {
+    "filters": {
+      "curvePoints": [
+        {"input": 0.0, "output": 0.0},
+        {"input": 0.25, "output": 0.2},
+        {"input": 0.5, "output": 0.45},
+        {"input": 0.75, "output": 0.7},
+        {"input": 1.0, "output": 1.0}
+      ]
+    }
+  }
+}
+```
+
+**Curve Types:**
+- **Linear**: 1:1 input to output mapping
+- **Exponential**: More detail at low forces, compressed at high forces
+- **Logarithmic**: More detail at high forces, compressed at low forces
+- **Custom Bezier**: Full control over the response curve
+
+#### Bumpstop Configuration
+
+```json
+{
+  "base": {
+    "filters": {
+      "bumpstop": {
+        "enabled": true,
+        "strength": 0.5,
+        "range_deg": 5.0
+      }
+    }
+  }
+}
+```
+
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `enabled` | Enable bumpstop effect | true/false |
+| `strength` | Bumpstop force intensity | 0.0 - 1.0 |
+| `range_deg` | Degrees before full stop | 1.0 - 30.0 |
+
+#### Hands-Off Detection
+
+```json
+{
+  "base": {
+    "filters": {
+      "handsOff": {
+        "enabled": true,
+        "sensitivity": 0.3,
+        "timeout_ms": 500,
+        "reduction": 0.5
+      }
+    }
+  }
+}
+```
+
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `enabled` | Enable hands-off detection | true/false |
+| `sensitivity` | Detection sensitivity | 0.0 - 1.0 |
+| `timeout_ms` | Time before torque reduction | 100 - 5000 |
+| `reduction` | Torque reduction factor | 0.0 - 1.0 |
+
+### Device-Specific Configuration
+
+Each device can have specific settings stored in `devices.json`:
+
+```json
+{
+  "devices": {
+    "046d:c29f": {
+      "name": "Logitech G29",
+      "max_torque_nm": 2.5,
+      "default_dor_deg": 900,
+      "calibration": {
+        "center_offset": 0,
+        "dor_actual": 900
+      },
+      "default_profile": "profiles/base/default.json"
+    }
+  }
+}
+```
+
+### Auto Profile Switching
+
+Configure automatic profile switching based on game and car:
+
+```bash
+# Enable auto-switching
+wheelctl config set auto_profile_switch true
+
+# Set profile priorities
+wheelctl config set profile_priority "game,car,track"
+```
+
+**Profile Matching Order:**
+1. Exact match: game + car + track
+2. Game + car match
+3. Game match only
+4. Default profile
+
+### Performance Tuning
+
+#### Windows Performance Settings
+
+```cmd
+# Set high performance power plan
+powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+
+# Disable USB selective suspend (Device Manager)
+# Or via registry:
+reg add "HKLM\SYSTEM\CurrentControlSet\Services\USB\DisableSelectiveSuspend" /v DisableSelectiveSuspend /t REG_DWORD /d 1 /f
+
+# Enable MMCSS for OpenRacing (automatic if enabled in config)
+```
+
+#### Linux Performance Settings
+
+```bash
+# Set CPU governor to performance
+echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+
+# Disable USB autosuspend
+echo -1 | sudo tee /sys/bus/usb/devices/*/power/autosuspend_delay_ms
+
+# Set real-time priority for wheeld (if using systemd)
+# Add to wheeld.service:
+# [Service]
+# CPUSchedulingPolicy=fifo
+# CPUSchedulingPriority=50
+```
+
+#### Configuration Validation
+
+Validate your configuration before applying:
+
+```bash
+# Validate global config
+wheelctl config validate
+
+# Validate a specific profile
+wheelctl profile validate profiles/my-profile.json --detailed
+
+# Check for configuration issues
+wheelctl diag config
+```
 
 ---
 
@@ -1099,135 +1785,473 @@ OpenRacing continuously monitors for fault conditions:
 
 ## Troubleshooting
 
+This section provides solutions for common issues and guidance on diagnosing problems with OpenRacing.
+
+### Quick Diagnostics
+
+Before diving into specific issues, run these diagnostic commands:
+
+```bash
+# Check overall system health
+wheelctl health
+
+# Run comprehensive diagnostics
+wheelctl diag test
+
+# Check service status
+wheelctl health --watch
+
+# View recent logs
+wheelctl diag logs --lines 100
+```
+
 ### Common Issues and Solutions
 
 #### Device Not Detected
 
-**Symptoms**: `wheelctl device list` shows no devices
+**Symptoms**: `wheelctl device list` shows no devices or missing devices
 
-**Solutions**:
-1. Check USB connection - try a different port
-2. Verify device is powered on
-3. Check udev rules (Linux):
+**Diagnostic Steps:**
+```bash
+# Check if device is recognized by the OS
+# Windows:
+Get-PnpDevice | Where-Object { $_.Class -eq "HIDClass" }
+
+# Linux:
+lsusb | grep -i "logitech\|fanatec\|thrustmaster"
+ls -la /dev/hidraw*
+
+# macOS:
+system_profiler SPUSBDataType | grep -A 10 "Wheel\|Racing"
+```
+
+**Solutions:**
+
+1. **Check USB connection**
+   - Try a different USB port (preferably USB 2.0)
+   - Connect directly to motherboard, avoid USB hubs
+   - Use a high-quality, short USB cable
+
+2. **Verify device power**
+   - Ensure the wheel is powered on
+   - Check power supply connections
+   - Some wheels require external power
+
+3. **Check permissions (Linux)**
    ```bash
+   # Verify udev rules are installed
+   ls -la /etc/udev/rules.d/99-racing-wheel-suite.rules
+   
+   # Reload udev rules
    sudo udevadm control --reload-rules
    sudo udevadm trigger
+   
+   # Check device permissions
+   ls -la /dev/hidraw*
+   # Should show mode 0666 or your user should have access
    ```
-4. Try unplugging and reconnecting the device
-5. Check device manager for driver issues
+
+4. **Check driver status (Windows)**
+   - Open Device Manager
+   - Look for "Human Interface Devices"
+   - Check for yellow warning icons
+   - Try "Update driver" or "Uninstall device" and reconnect
+
+5. **Restart the service**
+   ```bash
+   # Linux
+   systemctl --user restart wheeld
+   
+   # Windows (as Administrator)
+   sc stop wheeld && sc start wheeld
+   
+   # macOS
+   launchctl unload ~/Library/LaunchAgents/com.openracing.wheeld.plist
+   launchctl load ~/Library/LaunchAgents/com.openracing.wheeld.plist
+   ```
+
+#### Service Not Running
+
+**Symptoms**: `wheelctl health` shows "Service: Not Running" or connection errors
+
+**Diagnostic Steps:**
+```bash
+# Check service status
+# Linux
+systemctl --user status wheeld
+journalctl --user -u wheeld -n 50
+
+# Windows
+sc query wheeld
+Get-EventLog -LogName Application -Source wheeld -Newest 20
+
+# macOS
+launchctl list | grep openracing
+log show --predicate 'subsystem == "com.openracing.wheeld"' --last 30m
+```
+
+**Solutions:**
+
+1. **Start the service**
+   ```bash
+   # Linux
+   systemctl --user start wheeld
+   
+   # Windows (as Administrator)
+   sc start wheeld
+   
+   # macOS
+   launchctl load ~/Library/LaunchAgents/com.openracing.wheeld.plist
+   ```
+
+2. **Check for port conflicts**
+   ```bash
+   # Linux/macOS
+   lsof -i :9999  # Default IPC port
+   
+   # Windows
+   netstat -ano | findstr :9999
+   ```
+
+3. **Verify installation**
+   ```bash
+   # Check binary exists
+   which wheeld
+   wheeld --version
+   ```
+
+4. **Check configuration**
+   ```bash
+   wheelctl config validate
+   ```
+
+5. **Reinstall service**
+   ```bash
+   # Windows (as Administrator)
+   wheeld uninstall
+   wheeld install
+   sc start wheeld
+   ```
 
 #### High Jitter/Latency
 
-**Symptoms**: Inconsistent force feedback, stuttering
+**Symptoms**: Inconsistent force feedback, stuttering, delayed response
 
-**Solutions**:
-1. Check power management settings (see [POWER_MANAGEMENT.md](POWER_MANAGEMENT.md))
-2. Disable USB selective suspend
-3. Use USB 2.0 ports instead of 3.0
-4. Close unnecessary background applications
-5. Verify CPU is not thermal throttling
+**Diagnostic Steps:**
+```bash
+# Monitor performance metrics
+wheelctl diag metrics --watch
 
-#### Device Disconnects
+# Check for missed ticks
+wheelctl diag test --type timing
 
-**Symptoms**: Wheel randomly disconnects
+# Record performance data
+wheelctl diag record <device-id> --duration 60
+```
 
-**Solutions**:
-1. Check USB cable quality - use a high-quality, short cable
-2. Connect directly to motherboard (avoid hubs)
-3. Disable USB power saving
-4. Check for loose connections
-5. Update USB drivers
+**Solutions:**
 
-#### Force Feedback Weak
+1. **Optimize power settings**
 
-**Symptoms**: FFB feels weak or muted
+   **Windows:**
+   ```cmd
+   # Set high performance power plan
+   powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+   
+   # Disable USB selective suspend
+   powercfg /setacvalueindex SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0
+   powercfg /setactive SCHEME_CURRENT
+   ```
 
-**Solutions**:
-1. Increase `ffbGain` in profile
-2. Check game FFB settings
-3. Verify torque cap isn't limiting output
-4. Check for high torque limit in safety settings
-5. Recalibrate the device
+   **Linux:**
+   ```bash
+   # Set CPU governor to performance
+   echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+   
+   # Disable USB autosuspend
+   echo -1 | sudo tee /sys/bus/usb/devices/*/power/autosuspend_delay_ms
+   
+   # Disable CPU frequency scaling
+   sudo systemctl disable ondemand
+   ```
 
-#### Force Feedback Too Strong
+2. **Use USB 2.0 ports**
+   - USB 3.0 can introduce additional latency for HID devices
+   - Connect to USB 2.0 ports on the motherboard
 
-**Symptoms**: Wheel is hard to turn, uncomfortable
+3. **Close background applications**
+   - Disable unnecessary startup programs
+   - Close browser tabs and streaming software
+   - Disable antivirus real-time scanning during racing
 
-**Solutions**:
+4. **Check CPU thermal throttling**
+   ```bash
+   # Linux
+   cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq
+   sensors  # If lm-sensors is installed
+   
+   # Windows
+   # Use Task Manager > Performance > CPU
+   ```
+
+5. **Adjust reconstruction filter**
+   ```bash
+   # Lower reconstruction filter reduces latency
+   wheelctl profile edit <profile> --field base.filters.reconstruction --value 0
+   ```
+
+#### Device Disconnects Randomly
+
+**Symptoms**: Wheel disconnects during use, requires reconnection
+
+**Diagnostic Steps:**
+```bash
+# Check for disconnect events
+wheelctl diag logs --filter "disconnect"
+
+# Monitor device status
+wheelctl device status <device-id> --watch
+```
+
+**Solutions:**
+
+1. **Check USB cable**
+   - Use a high-quality, shielded USB cable
+   - Keep cable length under 2 meters
+   - Avoid cable stress and sharp bends
+
+2. **Disable USB power saving**
+
+   **Windows:**
+   - Device Manager > USB Root Hub > Properties > Power Management
+   - Uncheck "Allow the computer to turn off this device"
+
+   **Linux:**
+   ```bash
+   # Disable autosuspend for all USB devices
+   echo -1 | sudo tee /sys/bus/usb/devices/*/power/autosuspend_delay_ms
+   
+   # Or add to /etc/udev/rules.d/99-usb-power.rules:
+   ACTION=="add", SUBSYSTEM=="usb", ATTR{power/autosuspend_delay_ms}="-1"
+   ```
+
+3. **Check for EMI interference**
+   - Move wheel away from other electronics
+   - Use a ferrite core on the USB cable
+
+4. **Update USB drivers (Windows)**
+   - Download latest chipset drivers from motherboard manufacturer
+   - Update USB controller drivers
+
+#### Force Feedback Issues
+
+##### FFB Too Weak
+
+**Solutions:**
+1. Increase `ffbGain` in profile (0.0 - 1.0)
+2. Check game FFB settings (often separate from OpenRacing)
+3. Verify `torqueCapNm` isn't limiting output
+4. Check safety torque limits: `wheelctl safety status`
+5. Recalibrate: `wheelctl device calibrate <device-id> --type all`
+
+##### FFB Too Strong
+
+**Solutions:**
 1. Decrease `ffbGain` in profile
-2. Lower torque cap in profile
-3. Set lower torque limit via `wheelctl safety limit`
-4. Increase damper effect for smoother feel
-5. Check for conflicting FFB settings in game
+2. Lower `torqueCapNm` in profile
+3. Set safety limit: `wheelctl safety limit <device-id> 5.0`
+4. Increase `damper` filter for smoother feel
+5. Check game FFB multiplier settings
+
+##### FFB Oscillation/Vibration
+
+**Solutions:**
+1. Increase `damper` filter (0.1 - 0.3 recommended)
+2. Add `friction` filter (0.05 - 0.15)
+3. Lower `reconstruction` filter
+4. Reduce `slewRate` for smoother transitions
+5. Check for mechanical issues with the wheel
+
+##### FFB Clipping
+
+**Symptoms**: FFB feels flat at high forces, loss of detail
+
+**Solutions:**
+1. Reduce `ffbGain` to prevent saturation
+2. Lower game FFB strength
+3. Use a response curve to compress high forces:
+   ```json
+   {
+     "curvePoints": [
+       {"input": 0.0, "output": 0.0},
+       {"input": 0.5, "output": 0.6},
+       {"input": 1.0, "output": 1.0}
+     ]
+   }
+   ```
+
+#### Game Integration Issues
+
+##### Telemetry Not Received
+
+**Diagnostic Steps:**
+```bash
+# Test game connection
+wheelctl game test <game-id> --duration 30
+
+# Check telemetry status
+wheelctl game status --telemetry
+```
+
+**Solutions:**
+
+1. **Verify game configuration**
+   ```bash
+   # Auto-configure game
+   wheelctl game configure <game-id> --auto
+   ```
+
+2. **Check firewall settings**
+   - Allow UDP traffic on telemetry ports
+   - iRacing: Port 9999
+   - ACC: Port 9996
+
+3. **Verify game is running**
+   - Telemetry only available during active sessions
+   - Some games require being on track
+
+4. **Manual game configuration**
+   - See [Game Integration](#game-integration) section for game-specific setup
+
+##### Profile Not Auto-Switching
+
+**Solutions:**
+1. Verify profile has correct scope:
+   ```bash
+   wheelctl profile show <profile> | grep scope
+   ```
+2. Check auto-switch is enabled:
+   ```bash
+   wheelctl config get auto_profile_switch
+   ```
+3. Verify telemetry is providing car ID:
+   ```bash
+   wheelctl game status --telemetry
+   ```
+
+#### Profile Issues
+
+##### Profile Won't Load
+
+**Diagnostic Steps:**
+```bash
+# Validate profile
+wheelctl profile validate <profile> --detailed
+```
+
+**Solutions:**
+1. Check JSON syntax errors
+2. Verify schema version compatibility
+3. Check parent profile exists (if using inheritance)
+4. Ensure all required fields are present
+
+##### Circular Inheritance Error
+
+**Solution:**
+Review profile inheritance chain and remove circular references:
+```bash
+# Check inheritance chain
+wheelctl profile show <profile> --inheritance
+```
+
+### Error Messages Reference
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `DeviceNotFound` | Device not connected or not recognized | Check USB connection, reload udev rules |
+| `ServiceUnavailable` | wheeld service not running | Start the service |
+| `PermissionDenied` | Insufficient permissions | Check udev rules (Linux), run as admin (Windows) |
+| `ProfileValidationFailed` | Invalid profile JSON | Run `wheelctl profile validate` |
+| `TorqueLimitExceeded` | Requested torque above safety limit | Adjust safety limits or profile settings |
+| `CommunicationTimeout` | USB communication failed | Check cable, try different port |
+| `WatchdogTimeout` | Safety watchdog triggered | Check for system performance issues |
+| `PluginLoadFailed` | Plugin couldn't be loaded | Check plugin signature and compatibility |
 
 ### Diagnostic Tools
 
-#### Run Diagnostics
+#### Generate Support Bundle
+
+When reporting issues, generate a support bundle:
 
 ```bash
-# Run all diagnostic tests
-wheelctl diag test
-
-# Run specific test
-wheelctl diag test --type motor
-wheelctl diag test --type encoder
-wheelctl diag test --type usb
-wheelctl diag test --type thermal
-```
-
-#### Record Blackbox
-
-```bash
-# Record 2 minutes of data
-wheelctl diag record <device-id> --duration 120
-
-# Record with custom output
-wheelctl diag record <device-id> --output issue-blackbox.wbb
-```
-
-#### Replay Blackbox
-
-```bash
-# Replay recording
-wheelctl diag replay issue-blackbox.wbb
-
-# Replay with verbose output
-wheelctl diag replay issue-blackbox.wbb --verbose
-```
-
-### Support Bundle Generation
-
-Generate a comprehensive support bundle for troubleshooting:
-
-```bash
-# Generate basic support bundle
+# Basic support bundle
 wheelctl diag support
 
 # Include blackbox recording
 wheelctl diag support --blackbox
 
+# Include extended logs
+wheelctl diag support --blackbox --logs-days 7
+
 # Specify output location
-wheelctl diag support --output my-support-bundle.zip
+wheelctl diag support --output ~/Desktop/openracing-support.zip
 ```
 
-The support bundle includes:
-- System information (OS, CPU, RAM)
+**Support bundle contents:**
+- System information (OS, CPU, RAM, USB controllers)
 - OpenRacing version and configuration
-- Device information and status
+- Device information and calibration data
+- Service logs (last 24 hours)
 - Diagnostic test results
 - Performance metrics
 - Fault history
-- Optional blackbox recording
+- Optional: Blackbox recordings
+
+#### Blackbox Recording
+
+Record detailed telemetry for analysis:
+
+```bash
+# Record 2 minutes of data
+wheelctl diag record <device-id> --duration 120
+
+# Record with high detail
+wheelctl diag record <device-id> --duration 60 --detail high
+
+# Replay recording
+wheelctl diag replay recording.wbb --verbose
+
+# Export to CSV for analysis
+wheelctl diag replay recording.wbb --export csv --output data.csv
+```
+
+#### Performance Analysis
+
+```bash
+# Real-time performance monitoring
+wheelctl diag metrics --watch
+
+# Detailed timing analysis
+wheelctl diag test --type timing --duration 60
+
+# Generate performance report
+wheelctl diag metrics --report --output perf-report.json
+```
 
 ### Getting Help
 
-If you're still experiencing issues:
+If you're still experiencing issues after trying the solutions above:
 
-1. **Check the documentation**: Review this guide and other docs in the `docs/` directory
-2. **Search existing issues**: Check [GitHub Issues](https://github.com/EffortlessMetrics/OpenRacing/issues)
-3. **Generate a support bundle**: Run `wheelctl diag support` and attach it to your issue
-4. **Join the community**: Participate in [GitHub Discussions](https://github.com/EffortlessMetrics/OpenRacing/discussions)
-5. **Contact support**: Reach out through official channels
+1. **Search existing issues**: [GitHub Issues](https://github.com/EffortlessMetrics/OpenRacing/issues)
+2. **Check discussions**: [GitHub Discussions](https://github.com/EffortlessMetrics/OpenRacing/discussions)
+3. **Generate support bundle**: `wheelctl diag support --blackbox`
+4. **Open a new issue** with:
+   - OpenRacing version (`wheelctl --version`)
+   - Operating system and version
+   - Racing wheel model
+   - Steps to reproduce the issue
+   - Support bundle attachment
+5. **Join the community**: Discord server (link in README)
 
 ---
 
@@ -1235,7 +2259,7 @@ If you're still experiencing issues:
 
 ### Power Management
 
-Optimizing power management settings is crucial for consistent performance. See [POWER_MANAGEMENT.md](POWER_MANAGEMENT.md) for detailed guidance.
+Optimizing power management settings is crucial for consistent performance. See [Power Management Guide](POWER_MANAGEMENT_GUIDE.md) for detailed guidance.
 
 **Quick Tips:**
 
@@ -1366,7 +2390,7 @@ A: Use `wheelctl device reset <device-id>` to reset the device to safe state, or
 ### Performance
 
 **Q: Why is my FFB jittery?**  
-A: Jitter is usually caused by power management settings. See [POWER_MANAGEMENT.md](POWER_MANAGEMENT.md) for optimization tips.
+A: Jitter is usually caused by power management settings. See [Power Management Guide](POWER_MANAGEMENT_GUIDE.md) for optimization tips.
 
 **Q: What is the ideal tick rate?**  
 A: OpenRacing targets 1000 Hz (1ms intervals) for optimal force feedback quality.
@@ -1422,7 +2446,7 @@ A: See [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) for information on creatin
 
 - [Development Guide](DEVELOPMENT.md) - Contributing to OpenRacing
 - [System Integration](SYSTEM_INTEGRATION.md) - Technical integration details
-- [Power Management](POWER_MANAGEMENT.md) - Optimizing system performance
+- [Power Management Guide](POWER_MANAGEMENT_GUIDE.md) - Optimizing system performance
 - [Anti-Cheat Compatibility](ANTICHEAT_COMPATIBILITY.md) - Anti-cheat information
 - [Plugin Development](PLUGIN_DEVELOPMENT.md) - Creating custom plugins
 - [GitHub Repository](https://github.com/EffortlessMetrics/OpenRacing) - Source code and issues
@@ -1430,6 +2454,6 @@ A: See [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) for information on creatin
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2026-01-23  
-**OpenRacing Version**: 0.1.0
+**Document Version**: 2.0
+**Last Updated**: 2026-02-15
+**OpenRacing Version**: 1.0.0

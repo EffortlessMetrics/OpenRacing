@@ -6,12 +6,18 @@
 2. [Plugin Architecture](#plugin-architecture)
 3. [Safe Plugins (WASM)](#safe-plugins-wasm)
 4. [Fast Plugins (Native)](#fast-plugins-native)
+   - [ABI Requirements and Version Compatibility](#abi-requirements-and-version-compatibility)
+   - [Code Signing and Trust Store](#code-signing-and-trust-store)
 5. [Plugin Manifest](#plugin-manifest)
 6. [Development Setup](#development-setup)
 7. [Deployment](#deployment)
 8. [Best Practices](#best-practices)
 9. [Troubleshooting](#troubleshooting)
 10. [References](#references)
+11. [Appendix](#appendix)
+    - [A. Plugin Manifest Schema](#a-plugin-manifest-schema)
+    - [B. ABI Version History](#b-abi-version-history)
+    - [C. Quick Reference](#c-quick-reference)
 
 ---
 
@@ -504,39 +510,205 @@ Budget violations result in:
 - Tire slip effects
 - Custom game-specific effects
 
-### Code Signing Requirements
+### ABI Requirements and Version Compatibility
 
-Native plugins require Ed25519 code signing for security:
+Native plugins must adhere to strict ABI (Application Binary Interface) requirements to ensure compatibility with the OpenRacing plugin loader. The ABI defines the binary contract between plugins and the host system.
 
-1. **Generate signing key**:
+#### Current ABI Version
+
+```c
+// Current ABI version - plugins MUST match this exactly
+#define CURRENT_ABI_VERSION 1
+```
+
+The current ABI version is **1**. Plugins with any other ABI version will be rejected at load time with an `AbiMismatch` error.
+
+#### ABI Compatibility Rules
+
+1. **Exact Version Match Required**: The plugin's `abi_version` field in `PluginInfo` must exactly match `CURRENT_ABI_VERSION`. There is no backward or forward compatibility—mismatched versions are always rejected.
+
+2. **Breaking Changes Increment Version**: When the host makes breaking changes to:
+   - Function signatures in `PluginVTable`
+   - Structure layouts (`PluginFrame`, `PluginInfo`)
+   - Calling conventions or memory layout
+   
+   The `CURRENT_ABI_VERSION` is incremented, requiring plugin recompilation.
+
+3. **Version Check Timing**: ABI version is checked immediately after loading the shared library, before any plugin code executes.
+
+#### Required Structures
+
+All native plugins must define these structures with exact memory layouts:
+
+```c
+// Plugin frame for RT communication (32 bytes, packed)
+#[repr(C)]
+typedef struct {
+    float ffb_in;           // Input force feedback value
+    float torque_out;       // Output torque value
+    float wheel_speed;      // Current wheel speed (rad/s)
+    uint64_t timestamp_ns;  // Frame timestamp in nanoseconds
+    uint32_t budget_us;     // Execution budget in microseconds
+    uint32_t sequence;      // Frame sequence number
+} PluginFrame;
+
+// Plugin metadata
+typedef struct {
+    const char* name;        // Plugin display name
+    const char* version;     // Semantic version string
+    const char* author;      // Author name
+    const char* description; // Brief description
+    uint32_t abi_version;    // MUST equal CURRENT_ABI_VERSION
+} PluginInfo;
+
+// Plugin function table (vtable)
+typedef struct {
+    void* (*create)(const uint8_t* config, size_t config_len);
+    int (*process)(void* state, float ffb_in, float wheel_speed, 
+                   float wheel_angle, float dt, float* ffb_out);
+    void (*destroy)(void* state);
+    PluginInfo (*get_info)(void);
+} PluginVTable;
+```
+
+#### Required Export Function
+
+Every native plugin must export a single function:
+
+```c
+// This function MUST be exported with C linkage
+extern "C" PluginVTable get_plugin_vtable(void);
+```
+
+The loader calls this function to obtain the plugin's vtable. The `abi_version` field in the returned `PluginInfo` is checked before any other plugin functions are called.
+
+#### ABI Mismatch Error
+
+When a plugin's ABI version doesn't match, the loader returns:
+
+```rust
+NativePluginLoadError::AbiMismatch {
+    expected: CURRENT_ABI_VERSION,  // What the host expects
+    actual: plugin_abi_version,      // What the plugin reported
+}
+```
+
+**Resolution**: Recompile the plugin against the current OpenRacing SDK headers.
+
+#### ABI Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1 | 2024-01-15 | Initial ABI release |
+
+### Code Signing and Trust Store
+
+Native plugins require Ed25519 code signing for security. The signing system uses a trust store to manage trusted public keys and verify plugin authenticity.
+
+#### Signature Verification Modes
+
+The plugin loader supports different security configurations:
+
+| `require_signatures` | `allow_unsigned` | Behavior |
+|---------------------|------------------|----------|
+| `true` | `false` | **Strict mode** (Production): Only signed plugins with valid signatures are loaded |
+| `true` | `true` | **Permissive mode**: Signed plugins verified, unsigned allowed with warning |
+| `false` | `true` | **Development mode**: No signature verification |
+| `false` | `false` | Same as strict mode |
+
+**Recommendation**: Use strict mode (`require_signatures: true`, `allow_unsigned: false`) in production.
+
+#### Trust Store Management
+
+The trust store manages public keys and their trust levels:
+
+```rust
+// Trust levels
+pub enum TrustLevel {
+    Trusted,     // Key is explicitly trusted
+    Unknown,     // Key is not in trust store
+    Distrusted,  // Key is explicitly distrusted (blocked)
+}
+```
+
+**Trust Store Operations**:
+
+```bash
+# Add a trusted key
+wheelctl trust add --key plugin_public.pem --level trusted --reason "Verified developer"
+
+# List trusted keys
+wheelctl trust list
+
+# Remove a key (user keys only, system keys are protected)
+wheelctl trust remove --fingerprint <key-fingerprint>
+
+# Import keys from file
+wheelctl trust import --file trusted_keys.json
+
+# Export keys for sharing
+wheelctl trust export --file my_keys.json --include-system false
+```
+
+**Trust Store Location**: `~/.config/openracing/trust_store.json`
+
+#### Signature Metadata
+
+Each signed plugin includes metadata in a detached `.sig` file:
+
+```json
+{
+  "signature": "base64-encoded-ed25519-signature",
+  "key_fingerprint": "sha256-hash-of-public-key-in-hex",
+  "signer": "Developer Name",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "content_type": "Plugin",
+  "comment": "Optional description"
+}
+```
+
+#### Signing Workflow
+
+1. **Generate signing key pair**:
    ```bash
-   # Generate private key (keep this secret!)
+   # Generate Ed25519 private key (keep this secret!)
    openssl genpkey -algorithm ED25519 -out plugin_private.pem
    
    # Extract public key for distribution
    openssl pkey -in plugin_private.pem -pubout -out plugin_public.pem
-   ```
-
-2. **Sign the plugin**:
-   ```bash
-   # Create manifest
-   cat > plugin.yaml << EOF
-   id: "550e8400-e29b-41d4-a716-446655440000"
-   name: "My Fast Plugin"
-   version: "1.0.0"
-   # ... other fields
-   EOF
    
-   # Sign manifest
-   openssl dgst -sha256 -sign plugin_private.pem -out plugin.sig plugin.yaml
+   # Get key fingerprint (SHA256 of public key bytes)
+   wheelctl crypto fingerprint --key plugin_public.pem
    ```
 
-3. **Include signature in manifest**:
-   ```yaml
-   signature: "base64-encoded-signature"
+2. **Sign the plugin binary**:
+   ```bash
+   # Sign the shared library
+   wheelctl plugin sign --library libmy_plugin.so --key plugin_private.pem --signer "Your Name"
+   
+   # This creates libmy_plugin.so.sig alongside the library
    ```
 
-4. **Distribute public key** for verification.
+3. **Verify signature** (optional):
+   ```bash
+   wheelctl plugin verify --library libmy_plugin.so --key plugin_public.pem
+   ```
+
+4. **Distribute your public key** to users who want to trust your plugins.
+
+#### Unsigned Plugin Configuration
+
+For development, you can allow unsigned plugins:
+
+```yaml
+# ~/.config/openracing/config.yaml
+plugins:
+  native:
+    allow_unsigned: true        # Allow unsigned plugins (development only!)
+    require_signatures: false   # Skip signature verification
+```
+
+**Security Warning**: Never enable `allow_unsigned` in production environments.
 
 ### Development Workflow
 

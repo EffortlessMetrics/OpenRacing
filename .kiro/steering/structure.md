@@ -8,6 +8,7 @@ OpenRacing/
 ├── packaging/        # Platform installers (Linux, Windows)
 ├── scripts/          # Build, validation, and CI scripts
 ├── benches/          # Performance benchmarks
+├── third_party/      # Vendored dependencies (shared_memory)
 └── workspace-hack/   # Cargo hakari feature unification
 ```
 
@@ -18,7 +19,7 @@ OpenRacing/
 | `schemas` | Protocol buffers, JSON schemas, domain types |
 | `engine` | Core FFB engine, RT pipeline, safety systems |
 | `service` | Background daemon, IPC, game integration |
-| `cli` | Command-line interface |
+| `cli` | Command-line interface (`wheelctl`) |
 | `plugins` | WASM and native plugin system |
 | `ui` | User interface components |
 | `compat` | Legacy compatibility layer |
@@ -36,8 +37,9 @@ OpenRacing/
 ### `crates/service/src/`
 - `daemon.rs` - System service lifecycle
 - `ipc_*.rs` - IPC transport and services
-- `telemetry/` - Game telemetry adapters
+- `telemetry/` - Game telemetry adapters (iRacing, ACC)
 - `update/` - Firmware update system
+- `crypto/` - Ed25519 signing, trust store
 
 ### `crates/schemas/src/`
 - `domain.rs` - Core domain types (DeviceId, TorqueNm, etc.)
@@ -58,3 +60,9 @@ All significant decisions documented in `docs/adr/`:
 - No glob re-exports (`pub use *`)
 - Test modules: `#[cfg(test)]` in same file or `tests/` directory
 - Feature-gated test harness: `#[cfg(any(test, feature = "harness"))]`
+
+## Scripts
+- `scripts/validate_performance.py` - Performance gate validation
+- `scripts/validate_adr.py` - ADR format validation
+- `scripts/ci_nix.sh` - Linux CI script
+- `scripts/ci_wsl.ps1` - Windows WSL CI wrapper

@@ -559,6 +559,7 @@ mod option_instant_serde {
 
 pub mod fault_injection;
 pub mod fmea;
+pub mod hardware_watchdog;
 pub mod integration;
 pub mod watchdog;
 
@@ -569,5 +570,10 @@ mod tests;
 
 pub use fault_injection::{FaultInjectionScenario, FaultInjectionSystem, TriggerCondition};
 pub use fmea::{AudioAlert, FaultThresholds, FmeaSystem, SoftStopController};
+pub use hardware_watchdog::{
+    FaultLogEntry, HardwareWatchdog, SafetyInterlockState, SafetyInterlockSystem, SafetyTickResult,
+    SafetyTrigger, SharedWatchdog, SoftwareWatchdog, TimeoutResponse, TorqueLimit, WatchdogError,
+    WatchdogTimeoutHandler,
+};
 pub use integration::{FaultManagerContext, FaultManagerResult, IntegratedFaultManager};
 pub use watchdog::{HealthStatus, SystemComponent, WatchdogConfig, WatchdogSystem};

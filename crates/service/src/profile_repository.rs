@@ -677,6 +677,7 @@ impl ProfileRepository {
 
         Ok(Profile {
             id: profile_id.clone(),
+            parent: None, // Schema-loaded profiles don't have parent set directly
             scope,
             base_settings,
             led_config,
@@ -698,7 +699,7 @@ mod tests {
     use super::*;
     use ed25519_dalek::SigningKey;
     use racing_wheel_schemas::prelude::{Degrees, Gain, TorqueNm};
-    use rand_core::OsRng;
+    use rand::rngs::OsRng;
     use tempfile::TempDir;
 
     async fn create_test_repository() -> (ProfileRepository, TempDir) {

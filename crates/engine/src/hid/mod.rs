@@ -12,6 +12,10 @@ pub mod virtual_device;
 #[cfg(windows)]
 pub mod windows;
 
+#[cfg(windows)]
+#[cfg(test)]
+mod windows_property_tests;
+
 #[cfg(unix)]
 pub mod linux;
 

@@ -65,6 +65,10 @@ enum Commands {
     #[command(subcommand)]
     Profile(ProfileCommands),
 
+    /// Plugin management commands
+    #[command(subcommand)]
+    Plugin(PluginCommands),
+
     /// Diagnostic and monitoring commands
     #[command(subcommand)]
     Diag(DiagCommands),
@@ -149,6 +153,9 @@ async fn execute_command(cli: &Cli) -> Result<()> {
         }
         Commands::Profile(cmd) => {
             commands::profile::execute(cmd, cli.json, cli.endpoint.as_deref()).await
+        }
+        Commands::Plugin(cmd) => {
+            commands::plugin::execute(cmd, cli.json, cli.endpoint.as_deref()).await
         }
         Commands::Diag(cmd) => {
             commands::diag::execute(cmd, cli.json, cli.endpoint.as_deref()).await

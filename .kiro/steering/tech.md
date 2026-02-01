@@ -7,13 +7,13 @@
 
 ## Core Dependencies
 - **Async Runtime**: tokio 1.49+ (full features)
-- **Serialization**: serde, serde_json, serde_yaml_ng
-- **IPC/RPC**: tonic, prost (Protocol Buffers)
+- **Serialization**: serde, serde_json, serde_yaml_ng, cu-bincode
+- **IPC/RPC**: tonic 0.14, prost 0.14 (Protocol Buffers)
 - **Tracing**: tracing, tracing-subscriber
 - **Memory**: mimalloc (RT allocator), parking_lot, crossbeam
 - **HID**: hidapi, libudev (Linux)
 - **Schema Validation**: jsonschema
-- **Testing**: criterion, proptest, mockall, wiremock
+- **Testing**: criterion, proptest, mockall, wiremock, hdrhistogram
 
 ## Build Profiles
 - `dev`: Standard development with panic=abort
@@ -61,3 +61,15 @@ All non-test crates must include:
 ## Memory Safety Rules
 - No `static mut` - use `std::sync::OnceLock` or atomics
 - Prefer `AtomicBool`, `OnceLock`, `LazyLock` over unsafe static patterns
+- No heap allocations in RT code paths after initialization
+- No blocking operations (I/O, locks, syscalls) in RT hot paths
+
+## Performance Budgets (RT Path)
+- Total RT Budget: 1000μs @ 1kHz
+- P99 Jitter: ≤ 0.25ms
+- Missed Ticks: ≤ 0.001% rate
+- Processing Time: ≤ 50μs median, ≤ 200μs p99
+
+## Testing Rules
+- No `unwrap()`/`expect()` in tests - use `Result`-returning tests
+- Prefer explicit assertions or test helper macros

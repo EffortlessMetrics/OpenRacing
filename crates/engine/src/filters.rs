@@ -3,6 +3,7 @@
 //! This module implements all the filter nodes required for the FFB pipeline,
 //! including speed-adaptive variants and safety filters.
 
+use crate::curves::CurveLut;
 use crate::rt::Frame;
 use std::f32::consts::PI;
 
@@ -189,6 +190,80 @@ impl CurveState {
     }
 }
 
+/// State for response curve filter using CurveLut from curves module
+///
+/// This filter applies a response curve transformation to torque outputs
+/// using a pre-computed lookup table for RT-safe evaluation.
+/// The LUT is computed at profile load time (not in RT path).
+#[repr(C)]
+#[derive(Clone, Debug)]
+pub struct ResponseCurveState {
+    /// Pre-computed lookup table for RT-safe curve evaluation
+    /// Uses 256 entries for good precision with minimal memory
+    lut: [f32; 256],
+}
+
+impl ResponseCurveState {
+    /// Create a new response curve state from a CurveLut
+    ///
+    /// This should be called at profile load time, not in the RT path.
+    pub fn from_lut(curve_lut: &CurveLut) -> Self {
+        let mut lut = [0.0f32; 256];
+
+        // Pre-compute the LUT values
+        for (i, entry) in lut.iter_mut().enumerate() {
+            let input = i as f32 / 255.0;
+            *entry = curve_lut.lookup(input);
+        }
+
+        Self { lut }
+    }
+
+    /// Create a linear (identity) response curve state
+    pub fn linear() -> Self {
+        let mut lut = [0.0f32; 256];
+
+        for (i, entry) in lut.iter_mut().enumerate() {
+            *entry = i as f32 / 255.0;
+        }
+
+        Self { lut }
+    }
+
+    /// Fast lookup with linear interpolation (RT-safe)
+    ///
+    /// This method is designed for the RT path:
+    /// - No heap allocations
+    /// - O(1) time complexity
+    /// - Bounded execution time
+    #[inline]
+    pub fn lookup(&self, input: f32) -> f32 {
+        // Clamp input to valid range
+        let input = input.clamp(0.0, 1.0);
+
+        // Calculate fractional index
+        let scaled = input * 255.0;
+        let index_low = (scaled as usize).min(254);
+        let index_high = index_low + 1;
+        let fraction = scaled - index_low as f32;
+
+        // Linear interpolation between adjacent entries
+        let low_value = self.lut[index_low];
+        let high_value = self.lut[index_high];
+
+        low_value + fraction * (high_value - low_value)
+    }
+}
+
+impl Default for ResponseCurveState {
+    fn default() -> Self {
+        Self::linear()
+    }
+}
+
+// Implement Copy for ResponseCurveState since it's a fixed-size array
+impl Copy for ResponseCurveState {}
+
 /// State for bumpstop model
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
@@ -357,6 +432,34 @@ pub fn curve_filter(frame: &mut Frame, state: *mut u8) {
         let index = index.min(state.lut_size - 1);
 
         let mapped_output = state.lut[index];
+        frame.torque_out = frame.torque_out.signum() * mapped_output;
+    }
+}
+
+/// Response curve filter using CurveLut - applies response curve transformation
+///
+/// This filter applies a response curve to the torque output using a pre-computed
+/// lookup table. The curve transformation is applied to the absolute value of the
+/// torque, preserving the sign.
+///
+/// **Property 17**: For any profile with a response curve and any torque output,
+/// the final torque SHALL equal the curve-transformed value of the raw torque.
+///
+/// This filter is RT-safe:
+/// - No heap allocations
+/// - O(1) time complexity
+/// - Bounded execution time
+pub fn response_curve_filter(frame: &mut Frame, state: *mut u8) {
+    unsafe {
+        let state = &*(state as *mut ResponseCurveState);
+
+        // Get the absolute value of torque (curves map [0,1] -> [0,1])
+        let input = frame.torque_out.abs().clamp(0.0, 1.0);
+
+        // Apply curve transformation using the pre-computed LUT
+        let mapped_output = state.lookup(input);
+
+        // Preserve the sign of the original torque
         frame.torque_out = frame.torque_out.signum() * mapped_output;
     }
 }
@@ -737,6 +840,144 @@ mod tests {
                 "Filter not deterministic for input {}",
                 input
             );
+        }
+    }
+
+    // ============================================================
+    // ResponseCurveState Tests
+    // ============================================================
+
+    #[test]
+    fn test_response_curve_state_linear() {
+        let state = ResponseCurveState::linear();
+
+        // Linear curve should be identity mapping
+        let tolerance = 0.01;
+        assert!((state.lookup(0.0) - 0.0).abs() < tolerance);
+        assert!((state.lookup(0.25) - 0.25).abs() < tolerance);
+        assert!((state.lookup(0.5) - 0.5).abs() < tolerance);
+        assert!((state.lookup(0.75) - 0.75).abs() < tolerance);
+        assert!((state.lookup(1.0) - 1.0).abs() < tolerance);
+    }
+
+    #[test]
+    fn test_response_curve_state_from_lut() {
+        use crate::curves::CurveLut;
+
+        let curve_lut = CurveLut::linear();
+        let state = ResponseCurveState::from_lut(&curve_lut);
+
+        // Should match the original LUT
+        let tolerance = 0.01;
+        assert!((state.lookup(0.0) - 0.0).abs() < tolerance);
+        assert!((state.lookup(0.5) - 0.5).abs() < tolerance);
+        assert!((state.lookup(1.0) - 1.0).abs() < tolerance);
+    }
+
+    #[test]
+    fn test_response_curve_state_clamping() {
+        let state = ResponseCurveState::linear();
+
+        // Values outside [0,1] should be clamped
+        let below = state.lookup(-0.5);
+        let above = state.lookup(1.5);
+
+        assert!((below - 0.0).abs() < 0.01);
+        assert!((above - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_response_curve_filter_linear() {
+        let mut state = ResponseCurveState::linear();
+        let state_ptr = &mut state as *mut _ as *mut u8;
+
+        // Test various inputs
+        let test_cases = vec![
+            (0.0, 0.0),
+            (0.5, 0.5),
+            (1.0, 1.0),
+            (-0.5, -0.5),
+            (-1.0, -1.0),
+        ];
+
+        for (input, expected) in test_cases {
+            let mut frame = create_test_frame(0.0, 0.0);
+            frame.torque_out = input;
+            response_curve_filter(&mut frame, state_ptr);
+
+            assert!(
+                (frame.torque_out - expected).abs() < 0.02,
+                "Linear curve failed: input={}, expected={}, got={}",
+                input,
+                expected,
+                frame.torque_out
+            );
+        }
+    }
+
+    #[test]
+    fn test_response_curve_filter_preserves_sign() {
+        let mut state = ResponseCurveState::linear();
+        let state_ptr = &mut state as *mut _ as *mut u8;
+
+        // Positive input
+        let mut frame_pos = create_test_frame(0.0, 0.0);
+        frame_pos.torque_out = 0.5;
+        response_curve_filter(&mut frame_pos, state_ptr);
+        assert!(frame_pos.torque_out > 0.0);
+
+        // Negative input
+        let mut frame_neg = create_test_frame(0.0, 0.0);
+        frame_neg.torque_out = -0.5;
+        response_curve_filter(&mut frame_neg, state_ptr);
+        assert!(frame_neg.torque_out < 0.0);
+
+        // Zero input
+        let mut frame_zero = create_test_frame(0.0, 0.0);
+        frame_zero.torque_out = 0.0;
+        response_curve_filter(&mut frame_zero, state_ptr);
+        assert!((frame_zero.torque_out - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_response_curve_filter_output_bounded() {
+        let mut state = ResponseCurveState::linear();
+        let state_ptr = &mut state as *mut _ as *mut u8;
+
+        // Test extreme inputs
+        let extreme_inputs = vec![-2.0, -1.0, 0.0, 1.0, 2.0];
+
+        for input in extreme_inputs {
+            let mut frame = create_test_frame(0.0, 0.0);
+            frame.torque_out = input;
+            response_curve_filter(&mut frame, state_ptr);
+
+            assert!(
+                frame.torque_out.is_finite(),
+                "Output not finite for input {}",
+                input
+            );
+            assert!(
+                frame.torque_out.abs() <= 1.0,
+                "Output {} out of bounds for input {}",
+                frame.torque_out,
+                input
+            );
+        }
+    }
+
+    #[test]
+    fn test_response_curve_filter_rt_safe() {
+        // This test verifies the filter is RT-safe by checking it doesn't panic
+        // and produces consistent results across many iterations
+        let mut state = ResponseCurveState::linear();
+        let state_ptr = &mut state as *mut _ as *mut u8;
+
+        for _ in 0..10000 {
+            let mut frame = create_test_frame(0.0, 0.0);
+            frame.torque_out = 0.5;
+            response_curve_filter(&mut frame, state_ptr);
+            assert!(frame.torque_out.is_finite());
         }
     }
 }

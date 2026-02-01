@@ -210,50 +210,65 @@ mod tests {
     async fn test_concurrent_service_operations() {
         let service = Arc::new(must(WheelService::new().await));
 
-        // Test concurrent operations on different services
-        let service1 = Arc::clone(&service);
-        let service2 = Arc::clone(&service);
-        let service3 = Arc::clone(&service);
+        // Wrap test body with timeout to ensure test completes within 10 seconds
+        // Requirements: 2.1, 2.5
+        let test_future = async {
+            // Test concurrent operations on different services
+            let service1 = Arc::clone(&service);
+            let service2 = Arc::clone(&service);
+            let service3 = Arc::clone(&service);
 
-        let task1 = tokio::spawn(async move {
-            // Profile operations
-            let profile_id: ProfileId = "concurrent-test-profile".parse().expect("valid id");
-            let profile = Profile::new(
-                profile_id,
-                ProfileScope::global(),
-                BaseSettings {
-                    ffb_gain: Gain::new(0.8).expect("valid gain"),
-                    degrees_of_rotation: Degrees::new_dor(900.0).expect("valid dor"),
-                    torque_cap: TorqueNm::new(10.0).expect("valid torque"),
-                    filters: FilterConfig::default(),
-                },
-                "Concurrent Test Profile".to_string(),
-            );
-            service1.profile_service().create_profile(profile).await
-        });
+            let task1 = tokio::spawn(async move {
+                // Profile operations
+                let profile_id: ProfileId = "concurrent-test-profile".parse().expect("valid id");
+                let profile = Profile::new(
+                    profile_id,
+                    ProfileScope::global(),
+                    BaseSettings {
+                        ffb_gain: Gain::new(0.8).expect("valid gain"),
+                        degrees_of_rotation: Degrees::new_dor(900.0).expect("valid dor"),
+                        torque_cap: TorqueNm::new(10.0).expect("valid torque"),
+                        filters: FilterConfig::default(),
+                    },
+                    "Concurrent Test Profile".to_string(),
+                );
+                service1.profile_service().create_profile(profile).await
+            });
 
-        let task2 = tokio::spawn(async move {
-            // Device operations
-            service2.device_service().enumerate_devices().await
-        });
+            let task2 = tokio::spawn(async move {
+                // Device operations
+                service2.device_service().enumerate_devices().await
+            });
 
-        let task3 = tokio::spawn(async move {
-            // Safety operations
-            let device_id: DeviceId = "concurrent-test-device".parse().expect("valid device id");
-            service3
-                .safety_service()
-                .register_device(device_id, TorqueNm::new(10.0).expect("valid torque"))
-                .await
-        });
+            let task3 = tokio::spawn(async move {
+                // Safety operations
+                let device_id: DeviceId =
+                    "concurrent-test-device".parse().expect("valid device id");
+                service3
+                    .safety_service()
+                    .register_device(device_id, TorqueNm::new(10.0).expect("valid torque"))
+                    .await
+            });
 
-        // Wait for all tasks to complete
-        let (result1, result2, result3) = tokio::join!(task1, task2, task3);
+            // Wait for all tasks to complete with individual timeouts
+            let (result1, result2, result3) = tokio::join!(task1, task2, task3);
 
-        // Check that all tasks completed (success or failure is acceptable)
-        assert!(result1.is_ok(), "Task 1 should complete");
-        assert!(result2.is_ok(), "Task 2 should complete");
-        assert!(result3.is_ok(), "Task 3 should complete");
-        assert!(must(result3).is_ok(), "Safety registration should succeed");
+            // Check that all tasks completed (success or failure is acceptable)
+            assert!(result1.is_ok(), "Task 1 should complete");
+            assert!(result2.is_ok(), "Task 2 should complete");
+            assert!(result3.is_ok(), "Task 3 should complete");
+            assert!(must(result3).is_ok(), "Safety registration should succeed");
+        };
+
+        match timeout(Duration::from_secs(10), test_future).await {
+            Ok(()) => {}
+            Err(_elapsed) => {
+                panic!(
+                    "test_concurrent_service_operations timed out after 10 seconds - \
+                     concurrent tasks may be deadlocked"
+                );
+            }
+        }
     }
 
     #[tokio::test]
@@ -348,45 +363,59 @@ mod tests {
     #[tokio::test]
     async fn test_service_memory_usage() {
         // Test that services don't leak memory with repeated operations
-        let service = must(WheelService::new().await);
+        // Wrap test body with timeout to ensure test completes within 30 seconds
+        // Requirements: 2.1, 2.5
+        let test_future = async {
+            let service = must(WheelService::new().await);
 
-        // Perform many operations to check for memory leaks
-        for i in 0..100 {
-            let device_id: DeviceId = format!("memory-test-device-{}", i)
-                .parse()
-                .expect("valid device id");
+            // Perform many operations to check for memory leaks
+            for i in 0..100 {
+                let device_id: DeviceId = format!("memory-test-device-{}", i)
+                    .parse()
+                    .expect("valid device id");
 
-            // Register and unregister device
-            let _ = service
-                .safety_service()
-                .register_device(
-                    device_id.clone(),
-                    TorqueNm::new(10.0).expect("valid torque"),
-                )
-                .await;
-            let _ = service.safety_service().unregister_device(&device_id).await;
+                // Register and unregister device
+                let _ = service
+                    .safety_service()
+                    .register_device(
+                        device_id.clone(),
+                        TorqueNm::new(10.0).expect("valid torque"),
+                    )
+                    .await;
+                let _ = service.safety_service().unregister_device(&device_id).await;
 
-            // Create and potentially delete profile
-            let profile_id: ProfileId = format!("memory-test-profile-{}", i)
-                .parse()
-                .expect("valid id");
-            let profile = Profile::new(
-                profile_id.clone(),
-                ProfileScope::global(),
-                BaseSettings {
-                    ffb_gain: Gain::new(0.8).expect("valid gain"),
-                    degrees_of_rotation: Degrees::new_dor(900.0).expect("valid dor"),
-                    torque_cap: TorqueNm::new(10.0).expect("valid torque"),
-                    filters: FilterConfig::default(),
-                },
-                format!("Memory Test Profile {}", i),
-            );
+                // Create and potentially delete profile
+                let profile_id: ProfileId = format!("memory-test-profile-{}", i)
+                    .parse()
+                    .expect("valid id");
+                let profile = Profile::new(
+                    profile_id.clone(),
+                    ProfileScope::global(),
+                    BaseSettings {
+                        ffb_gain: Gain::new(0.8).expect("valid gain"),
+                        degrees_of_rotation: Degrees::new_dor(900.0).expect("valid dor"),
+                        torque_cap: TorqueNm::new(10.0).expect("valid torque"),
+                        filters: FilterConfig::default(),
+                    },
+                    format!("Memory Test Profile {}", i),
+                );
 
-            if let Ok(profile_id) = service.profile_service().create_profile(profile).await {
-                let _ = service.profile_service().delete_profile(&profile_id).await;
+                if let Ok(profile_id) = service.profile_service().create_profile(profile).await {
+                    let _ = service.profile_service().delete_profile(&profile_id).await;
+                }
+            }
+
+            // If we get here without running out of memory, the test passes
+        };
+
+        match timeout(Duration::from_secs(30), test_future).await {
+            Ok(()) => {}
+            Err(_elapsed) => {
+                panic!(
+                    "test_service_memory_usage timed out after 30 seconds - \
+                     memory operations may be blocked"
+                );
             }
         }
-
-        // If we get here without running out of memory, the test passes
     }
 }

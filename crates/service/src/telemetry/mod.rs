@@ -1,14 +1,32 @@
 //! Game Telemetry Adapters Module
 //!
 //! Implements task 8: Game telemetry adapters with rate limiting
-//! Requirements: GI-03, GI-04
+//! Requirements: GI-03, GI-04, 12.1-12.4, 12.6
+//!
+//! This module provides:
+//! - `GameTelemetry`: Common telemetry data structure for all racing games
+//! - `GameTelemetryAdapter`: Trait for game-specific telemetry adapters
+//! - `TelemetryError`: Error types for telemetry operations
+//! - `NormalizedTelemetry`: Legacy normalized telemetry format
+//! - `ConnectionState`: Connection state enumeration
+//! - `ConnectionStateEvent`: Event for connection state changes
+//! - `DisconnectionTracker`: Utility for detecting disconnection
+//! - Game-specific adapters: iRacing, ACC, AMS2, rFactor 2
 
 pub mod adapters;
+pub mod game_telemetry;
 pub mod normalized;
 pub mod rate_limiter;
 pub mod recorder;
 
+#[cfg(test)]
+mod telemetry_property_tests;
+
+#[cfg(test)]
+mod disconnection_property_tests;
+
 pub use adapters::*;
+pub use game_telemetry::*;
 pub use normalized::*;
 pub use rate_limiter::*;
 pub use recorder::*;

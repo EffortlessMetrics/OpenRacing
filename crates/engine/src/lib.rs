@@ -20,8 +20,12 @@ static GLOBAL: crate::allocation_tracker::TrackingAllocator =
 static GLOBAL: MiMalloc = MiMalloc;
 
 pub mod allocation_tracker;
+pub mod benchmark_types;
 #[cfg(test)]
 pub mod compat_impl;
+pub mod curves;
+#[cfg(test)]
+pub mod curves_property_tests;
 pub mod device;
 pub mod diagnostic;
 pub mod engine;
@@ -52,12 +56,15 @@ pub mod two_phase_apply;
 // Explicit exports from rt module (canonical FFBMode and Frame)
 pub use rt::{FFBMode, Frame, PerformanceMetrics, RTError, RTResult};
 
+// Pipeline for FFB processing
+pub use pipeline::Pipeline;
+
 // Explicit exports from ffb module (no FFBMode to avoid conflict)
 pub use ffb::{CapabilityNegotiator, GameCompatibility, ModeSelectionPolicy, NegotiationResult};
 
 // Explicit exports from other modules - only export what actually exists
 pub use engine::{BlackboxFrame, Engine, EngineCommand, EngineConfig, EngineStats, GameInput};
-pub use scheduler::{JitterMetrics, PLL, RTSetup};
+pub use scheduler::{AbsoluteScheduler, JitterMetrics, PLL, RTSetup};
 #[cfg(any(test, feature = "harness"))]
 pub use test_harness::{
     ExpectedResponse, FaultInjection, RTLoopTestHarness, ResponseValidationResult,
@@ -81,4 +88,12 @@ pub use ports::{
 pub use protocol::{DeviceCapabilitiesReport, DeviceTelemetryReport, TorqueCommand};
 pub use tracing::{
     AppTraceEvent, RTTraceEvent, TracingError, TracingManager, TracingMetrics, TracingProvider,
+};
+
+// Curve-based FFB effects
+pub use curves::{BezierCurve, CurveError, CurveLut, CurveType};
+
+// Benchmark result types for JSON output
+pub use benchmark_types::{
+    BenchmarkEntry, BenchmarkResult, BenchmarkResults, CustomMetrics, Percentiles,
 };
