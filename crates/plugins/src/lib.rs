@@ -183,3 +183,9 @@ pub use capability::*;
 pub use host::*;
 pub use manifest::*;
 pub use quarantine::*;
+
+#[cfg(test)]
+mod wasm_property_tests;
+
+#[cfg(test)]
+mod native_property_tests;

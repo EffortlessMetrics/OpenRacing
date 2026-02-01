@@ -25,3 +25,4 @@ tonic-prost-build = { workspace = true }
 
 [dev-dependencies]
 trybuild = "1.0.114"
+proptest = { workspace = true }

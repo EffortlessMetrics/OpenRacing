@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRacing - Racing Wheel Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-brand">
+                <h1>OpenRacing</h1>
+                <span class="version">v0.1.0</span>
+            </div>
+            <div class="header-status" id="service-status">
+                <span class="status-indicator disconnected"></span>
+                <span class="status-text">Disconnected</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="app-main">
+            <!-- Sidebar - Device List -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h2>Devices</h2>
+                    <button id="refresh-devices" class="btn-icon" title="Refresh devices">
+                        ⟳
+                    </button>
+                </div>
+                <div id="device-list" class="device-list">
+                    <div class="loading">Connecting to service...</div>
+                </div>
+            </aside>
+
+            <!-- Content Area -->
+            <section class="content">
+                <!-- Connection Panel (shown when disconnected) -->
+                <div id="connection-panel" class="panel connection-panel">
+                    <div class="panel-icon">🎮</div>
+                    <h2>Welcome to OpenRacing</h2>
+                    <p>Connect to the wheeld service to manage your racing wheel devices.</p>
+                    <button id="connect-btn" class="btn btn-primary">Connect to Service</button>
+                    <div id="connection-error" class="error-message hidden"></div>
+                </div>
+
+                <!-- Device Detail Panel (shown when device selected) -->
+                <div id="device-panel" class="panel device-panel hidden">
+                    <div class="panel-header">
+                        <h2 id="device-name">Device Name</h2>
+                        <span id="device-type" class="badge">WheelBase</span>
+                    </div>
+
+                    <!-- Device Status -->
+                    <div class="card">
+                        <h3>Status</h3>
+                        <div class="status-grid">
+                            <div class="status-item">
+                                <label>Connection</label>
+                                <span id="device-state" class="value">Connected</span>
+                            </div>
+                            <div class="status-item">
+                                <label>Last Seen</label>
+                                <span id="device-last-seen" class="value">-</span>
+                            </div>
+                            <div class="status-item">
+                                <label>Active Faults</label>
+                                <span id="device-faults" class="value">None</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Telemetry -->
+                    <div class="card">
+                        <h3>Telemetry</h3>
+                        <div class="telemetry-grid">
+                            <div class="telemetry-item">
+                                <label>Wheel Angle</label>
+                                <span id="telemetry-angle" class="value large">0°</span>
+                            </div>
+                            <div class="telemetry-item">
+                                <label>Temperature</label>
+                                <span id="telemetry-temp" class="value large">--°C</span>
+                            </div>
+                            <div class="telemetry-item">
+                                <label>Hands On</label>
+                                <span id="telemetry-hands" class="value">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Capabilities -->
+                    <div class="card">
+                        <h3>Capabilities</h3>
+                        <div class="capabilities-list" id="device-capabilities">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Profile Management -->
+                    <div class="card">
+                        <h3>Profile</h3>
+                        <div class="profile-actions">
+                            <button id="load-profile-btn" class="btn btn-secondary">Load Profile</button>
+                            <span id="current-profile" class="profile-name">No profile loaded</span>
+                        </div>
+                    </div>
+
+                    <!-- Safety Controls -->
+                    <div class="card card-danger">
+                        <h3>Safety Controls</h3>
+                        <button id="emergency-stop-btn" class="btn btn-danger">
+                            ⚠ Emergency Stop
+                        </button>
+                        <p class="help-text">Immediately stops all force feedback output.</p>
+                    </div>
+                </div>
+
+                <!-- No Device Selected -->
+                <div id="no-device-panel" class="panel no-device-panel hidden">
+                    <div class="panel-icon">←</div>
+                    <h2>Select a Device</h2>
+                    <p>Choose a device from the list to view its details and manage settings.</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Error Banner -->
+        <div id="error-banner" class="error-banner hidden">
+            <span id="error-message"></span>
+            <button id="error-dismiss" class="btn-icon">×</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

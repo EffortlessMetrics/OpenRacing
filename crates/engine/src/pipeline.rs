@@ -1,5 +1,6 @@
 //! Filter pipeline for real-time force feedback processing
 
+use crate::curves::{CurveLut, CurveType};
 use crate::rt::Frame;
 use crate::rt::RTResult;
 use racing_wheel_schemas::prelude::*;
@@ -21,6 +22,9 @@ pub struct Pipeline {
     state_offsets: Vec<usize>,
     /// Configuration hash for deterministic comparison
     config_hash: u64,
+    /// Optional response curve for torque transformation (pre-computed LUT)
+    /// Boxed to reduce Pipeline size in enum variants
+    response_curve: Option<Box<CurveLut>>,
 }
 
 /// Pipeline compilation result
@@ -71,6 +75,7 @@ impl Pipeline {
             state: Vec::new(),
             state_offsets: Vec::new(),
             config_hash: 0,
+            response_curve: None,
         }
     }
 
@@ -81,7 +86,29 @@ impl Pipeline {
             state: Vec::new(),
             state_offsets: Vec::new(),
             config_hash,
+            response_curve: None,
         }
+    }
+
+    /// Set the response curve for this pipeline
+    ///
+    /// The curve is pre-computed as a LUT at profile load time (not in RT path).
+    /// This ensures zero allocations during RT processing.
+    pub fn set_response_curve(&mut self, curve: CurveLut) {
+        self.response_curve = Some(Box::new(curve));
+    }
+
+    /// Set the response curve from a CurveType
+    ///
+    /// This converts the CurveType to a pre-computed LUT for RT-safe evaluation.
+    /// Should be called at profile load time, not in the RT path.
+    pub fn set_response_curve_from_type(&mut self, curve_type: &CurveType) {
+        self.response_curve = Some(Box::new(curve_type.to_lut()));
+    }
+
+    /// Get the response curve if set
+    pub fn response_curve(&self) -> Option<&CurveLut> {
+        self.response_curve.as_deref()
     }
 
     /// Process frame through pipeline (RT-safe, no allocations)
@@ -117,6 +144,15 @@ impl Pipeline {
             if !frame.torque_out.is_finite() || frame.torque_out.abs() > 1.0 {
                 return Err(crate::RTError::PipelineFault);
             }
+        }
+
+        // Apply response curve transformation to final torque output (RT-safe)
+        // Property 17: For any profile with a response curve and any torque output,
+        // the final torque SHALL equal the curve-transformed value of the raw torque.
+        if let Some(ref curve) = self.response_curve {
+            let input = frame.torque_out.abs().clamp(0.0, 1.0);
+            let mapped = curve.lookup(input);
+            frame.torque_out = frame.torque_out.signum() * mapped;
         }
 
         Ok(())
@@ -231,6 +267,70 @@ impl PipelineCompiler {
         debug!(
             "Pipeline compiled successfully with {} nodes, hash: {:x}",
             pipeline.node_count(),
+            config_hash
+        );
+
+        Ok(CompiledPipeline {
+            pipeline,
+            config_hash,
+        })
+    }
+
+    /// Compile a FilterConfig into an executable pipeline with a response curve (off-thread)
+    ///
+    /// This method extends `compile_pipeline` by adding support for response curves
+    /// from the curves module. The response curve is pre-computed as a LUT at compile
+    /// time (not in RT path) and applied to all torque outputs.
+    ///
+    /// **Property 17**: For any profile with a response curve and any torque output,
+    /// the final torque SHALL equal the curve-transformed value of the raw torque.
+    pub async fn compile_pipeline_with_response_curve(
+        &self,
+        config: FilterConfig,
+        response_curve: Option<&CurveType>,
+    ) -> Result<CompiledPipeline, PipelineError> {
+        debug!("Compiling pipeline from FilterConfig with response curve");
+
+        // Validate configuration first
+        self.validate_config(&config)?;
+
+        // Validate response curve if provided
+        if let Some(curve) = response_curve {
+            curve.validate().map_err(|e| {
+                PipelineError::InvalidConfig(format!("Invalid response curve: {}", e))
+            })?;
+        }
+
+        // Calculate deterministic hash of the configuration (including response curve)
+        let config_hash = self.calculate_config_hash_with_curve(&config, response_curve);
+
+        // Create new pipeline
+        let mut pipeline = Pipeline::with_hash(config_hash);
+
+        // Add filter nodes in the correct order
+        self.add_reconstruction_filter(&mut pipeline, config.reconstruction)?;
+        self.add_friction_filter(&mut pipeline, config.friction)?;
+        self.add_damper_filter(&mut pipeline, config.damper)?;
+        self.add_inertia_filter(&mut pipeline, config.inertia)?;
+        self.add_notch_filters(&mut pipeline, &config.notch_filters)?;
+        self.add_slew_rate_filter(&mut pipeline, config.slew_rate)?;
+        self.add_curve_filter(&mut pipeline, &config.curve_points)?;
+
+        // Add safety and model filters
+        self.add_torque_cap_filter(&mut pipeline, config.torque_cap.value())?;
+        self.add_bumpstop_filter(&mut pipeline, &config.bumpstop)?;
+        self.add_hands_off_detector(&mut pipeline, &config.hands_off)?;
+
+        // Set response curve if provided (pre-compute LUT at compile time)
+        if let Some(curve) = response_curve {
+            pipeline.set_response_curve_from_type(curve);
+            debug!("Response curve set on pipeline");
+        }
+
+        debug!(
+            "Pipeline compiled successfully with {} nodes, response_curve={}, hash: {:x}",
+            pipeline.node_count(),
+            response_curve.is_some(),
             config_hash
         );
 
@@ -403,6 +503,76 @@ impl PipelineCompiler {
             filter.frequency.value().to_bits().hash(&mut hasher);
             filter.q_factor.to_bits().hash(&mut hasher);
             filter.gain_db.to_bits().hash(&mut hasher);
+        }
+
+        hasher.finish()
+    }
+
+    /// Calculate deterministic hash of filter configuration including response curve
+    fn calculate_config_hash_with_curve(
+        &self,
+        config: &FilterConfig,
+        response_curve: Option<&CurveType>,
+    ) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+
+        // Hash all configuration parameters that affect pipeline behavior
+        config.reconstruction.hash(&mut hasher);
+        config.friction.value().to_bits().hash(&mut hasher);
+        config.damper.value().to_bits().hash(&mut hasher);
+        config.inertia.value().to_bits().hash(&mut hasher);
+        config.slew_rate.value().to_bits().hash(&mut hasher);
+
+        // Hash curve points
+        for point in &config.curve_points {
+            point.input.to_bits().hash(&mut hasher);
+            point.output.to_bits().hash(&mut hasher);
+        }
+
+        // Hash notch filters
+        for filter in &config.notch_filters {
+            filter.frequency.value().to_bits().hash(&mut hasher);
+            filter.q_factor.to_bits().hash(&mut hasher);
+            filter.gain_db.to_bits().hash(&mut hasher);
+        }
+
+        // Hash response curve type
+        if let Some(curve) = response_curve {
+            // Hash a discriminant for the curve type
+            match curve {
+                CurveType::Linear => {
+                    0u8.hash(&mut hasher);
+                }
+                CurveType::Exponential { exponent } => {
+                    1u8.hash(&mut hasher);
+                    exponent.to_bits().hash(&mut hasher);
+                }
+                CurveType::Logarithmic { base } => {
+                    2u8.hash(&mut hasher);
+                    base.to_bits().hash(&mut hasher);
+                }
+                CurveType::Bezier(bezier) => {
+                    3u8.hash(&mut hasher);
+                    for (x, y) in &bezier.control_points {
+                        x.to_bits().hash(&mut hasher);
+                        y.to_bits().hash(&mut hasher);
+                    }
+                }
+                CurveType::Custom(lut) => {
+                    4u8.hash(&mut hasher);
+                    // Hash a sample of LUT values for efficiency
+                    for i in [0, 64, 128, 192, 255] {
+                        let val = lut.lookup(i as f32 / 255.0);
+                        val.to_bits().hash(&mut hasher);
+                    }
+                }
+            }
+        } else {
+            // No response curve - hash a sentinel value
+            255u8.hash(&mut hasher);
         }
 
         hasher.finish()
@@ -1072,5 +1242,265 @@ mod tests {
             "Compilation took too long: {:?}",
             duration
         );
+    }
+
+    // ============================================================
+    // Response Curve Integration Tests
+    // ============================================================
+
+    #[test]
+    fn test_pipeline_response_curve_set() {
+        let mut pipeline = Pipeline::new();
+        assert!(pipeline.response_curve().is_none());
+
+        let lut = crate::curves::CurveLut::linear();
+        pipeline.set_response_curve(lut);
+
+        assert!(pipeline.response_curve().is_some());
+    }
+
+    #[test]
+    fn test_pipeline_response_curve_from_type() {
+        let mut pipeline = Pipeline::new();
+
+        // Test with linear curve
+        let curve_type = CurveType::Linear;
+        pipeline.set_response_curve_from_type(&curve_type);
+
+        assert!(pipeline.response_curve().is_some());
+    }
+
+    #[test]
+    fn test_pipeline_process_with_response_curve_linear() {
+        let mut pipeline = Pipeline::new();
+        pipeline.set_response_curve_from_type(&CurveType::Linear);
+
+        let mut frame = crate::rt::Frame {
+            ffb_in: 0.5,
+            torque_out: 0.5,
+            wheel_speed: 0.0,
+            hands_off: false,
+            ts_mono_ns: 0,
+            seq: 1,
+        };
+
+        let result = pipeline.process(&mut frame);
+        assert!(result.is_ok());
+
+        // Linear curve should preserve the value (approximately)
+        assert!(
+            (frame.torque_out - 0.5).abs() < 0.02,
+            "Linear curve should preserve value, got {}",
+            frame.torque_out
+        );
+    }
+
+    #[test]
+    fn test_pipeline_process_with_response_curve_exponential()
+    -> Result<(), crate::curves::CurveError> {
+        let mut pipeline = Pipeline::new();
+        let curve_type = CurveType::exponential(2.0)?;
+        pipeline.set_response_curve_from_type(&curve_type);
+
+        let mut frame = crate::rt::Frame {
+            ffb_in: 0.5,
+            torque_out: 0.5,
+            wheel_speed: 0.0,
+            hands_off: false,
+            ts_mono_ns: 0,
+            seq: 1,
+        };
+
+        let result = pipeline.process(&mut frame);
+        assert!(result.is_ok());
+
+        // Exponential curve with exponent 2: 0.5^2 = 0.25
+        assert!(
+            (frame.torque_out - 0.25).abs() < 0.02,
+            "Exponential curve should map 0.5 to ~0.25, got {}",
+            frame.torque_out
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_pipeline_process_with_response_curve_preserves_sign()
+    -> Result<(), crate::curves::CurveError> {
+        let mut pipeline = Pipeline::new();
+        let curve_type = CurveType::exponential(2.0)?;
+        pipeline.set_response_curve_from_type(&curve_type);
+
+        // Test positive value
+        let mut frame_pos = crate::rt::Frame {
+            ffb_in: 0.5,
+            torque_out: 0.5,
+            wheel_speed: 0.0,
+            hands_off: false,
+            ts_mono_ns: 0,
+            seq: 1,
+        };
+        let result = pipeline.process(&mut frame_pos);
+        assert!(result.is_ok());
+        assert!(
+            frame_pos.torque_out > 0.0,
+            "Positive input should produce positive output"
+        );
+
+        // Test negative value
+        let mut frame_neg = crate::rt::Frame {
+            ffb_in: -0.5,
+            torque_out: -0.5,
+            wheel_speed: 0.0,
+            hands_off: false,
+            ts_mono_ns: 0,
+            seq: 1,
+        };
+        let result = pipeline.process(&mut frame_neg);
+        assert!(result.is_ok());
+        assert!(
+            frame_neg.torque_out < 0.0,
+            "Negative input should produce negative output"
+        );
+
+        // Magnitudes should be equal
+        assert!(
+            (frame_pos.torque_out.abs() - frame_neg.torque_out.abs()).abs() < 0.01,
+            "Magnitudes should be equal"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_pipeline_process_without_response_curve() {
+        let mut pipeline = Pipeline::new();
+        // No response curve set
+
+        let mut frame = crate::rt::Frame {
+            ffb_in: 0.5,
+            torque_out: 0.5,
+            wheel_speed: 0.0,
+            hands_off: false,
+            ts_mono_ns: 0,
+            seq: 1,
+        };
+
+        let result = pipeline.process(&mut frame);
+        assert!(result.is_ok());
+
+        // Without response curve, value should be unchanged
+        assert!(
+            (frame.torque_out - 0.5).abs() < 0.01,
+            "Without response curve, value should be unchanged, got {}",
+            frame.torque_out
+        );
+    }
+
+    #[tokio::test]
+    async fn test_compile_pipeline_with_response_curve() -> Result<(), crate::curves::CurveError> {
+        let compiler = PipelineCompiler::new();
+        let config = create_linear_filter_config();
+        let curve_type = CurveType::exponential(2.0)?;
+
+        let result = compiler
+            .compile_pipeline_with_response_curve(config, Some(&curve_type))
+            .await;
+
+        assert!(result.is_ok());
+        let compiled = result.map_err(|_| {
+            crate::curves::CurveError::InvalidConfiguration("compile failed".to_string())
+        })?;
+        assert!(compiled.pipeline.response_curve().is_some());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_compile_pipeline_with_response_curve_none() {
+        let compiler = PipelineCompiler::new();
+        let config = create_linear_filter_config();
+
+        let result = compiler
+            .compile_pipeline_with_response_curve(config, None)
+            .await;
+
+        assert!(result.is_ok());
+        let compiled = result.map_err(|e| panic!("compile failed: {:?}", e)).ok();
+        assert!(compiled.is_some());
+        assert!(
+            compiled
+                .as_ref()
+                .map_or(false, |c| c.pipeline.response_curve().is_none())
+        );
+    }
+
+    #[tokio::test]
+    async fn test_compile_pipeline_with_response_curve_different_hashes()
+    -> Result<(), crate::curves::CurveError> {
+        let compiler = PipelineCompiler::new();
+        let config = create_linear_filter_config();
+
+        // Compile without response curve
+        let result1 = compiler
+            .compile_pipeline_with_response_curve(config.clone(), None)
+            .await
+            .map_err(|_| {
+                crate::curves::CurveError::InvalidConfiguration("compile failed".to_string())
+            })?;
+
+        // Compile with linear response curve
+        let linear_curve = CurveType::Linear;
+        let result2 = compiler
+            .compile_pipeline_with_response_curve(config.clone(), Some(&linear_curve))
+            .await
+            .map_err(|_| {
+                crate::curves::CurveError::InvalidConfiguration("compile failed".to_string())
+            })?;
+
+        // Compile with exponential response curve
+        let exp_curve = CurveType::exponential(2.0)?;
+        let result3 = compiler
+            .compile_pipeline_with_response_curve(config, Some(&exp_curve))
+            .await
+            .map_err(|_| {
+                crate::curves::CurveError::InvalidConfiguration("compile failed".to_string())
+            })?;
+
+        // All hashes should be different
+        assert_ne!(
+            result1.config_hash, result2.config_hash,
+            "None vs Linear should have different hashes"
+        );
+        assert_ne!(
+            result2.config_hash, result3.config_hash,
+            "Linear vs Exponential should have different hashes"
+        );
+        assert_ne!(
+            result1.config_hash, result3.config_hash,
+            "None vs Exponential should have different hashes"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_pipeline_response_curve_rt_safe() {
+        // This test verifies the response curve application is RT-safe
+        let mut pipeline = Pipeline::new();
+        pipeline.set_response_curve_from_type(&CurveType::Linear);
+
+        // Process many frames to ensure stability
+        for i in 0..10000 {
+            let mut frame = crate::rt::Frame {
+                ffb_in: (i as f32 / 10000.0).sin(),
+                torque_out: (i as f32 / 10000.0).sin(),
+                wheel_speed: 0.0,
+                hands_off: false,
+                ts_mono_ns: i as u64,
+                seq: (i % 65536) as u16,
+            };
+
+            let result = pipeline.process(&mut frame);
+            assert!(result.is_ok());
+            assert!(frame.torque_out.is_finite());
+            assert!(frame.torque_out.abs() <= 1.0);
+        }
     }
 }

@@ -8,326 +8,326 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
 
 ### Phase 1: v0.1.0 Alpha Release
 
-- [ ] 1. Create CHANGELOG infrastructure
+- [x] 1. Create CHANGELOG infrastructure
   - [x] 1.1 Create CHANGELOG.md with initial content following Keep a Changelog format
     - Add header with format description and semver adherence note
     - Add [Unreleased] section
     - Add [0.1.0] section with current features (core engine, Linux HID, CLI, service)
     - _Requirements: 1.1, 1.3, 1.5_
-  - [-] 1.2 Write property test for CHANGELOG format validation
+  - [x] 1.2 Write property test for CHANGELOG format validation
     - **Property 1: CHANGELOG Format Validity**
     - **Validates: Requirements 1.1, 1.3, 1.5**
-  - [~] 1.3 Add CHANGELOG validation to CI workflow
+  - [x] 1.3 Add CHANGELOG validation to CI workflow
     - Create script to validate CHANGELOG format
     - Add CI step to run validation on PRs
     - _Requirements: 1.1_
 
-- [ ] 2. Fix test stability issues
-  - [~] 2.1 Add timeout to test_hotplug_stress_basic test
+- [x] 2. Fix test stability issues
+  - [x] 2.1 Add timeout to test_hotplug_stress_basic test
     - Add `#[tokio::test(flavor = "multi_thread", worker_threads = 2)]` attribute
     - Wrap test body with `tokio::time::timeout(Duration::from_secs(30), ...)`
     - Add diagnostic output on timeout
     - _Requirements: 2.1, 2.5_
-  - [~] 2.2 Review and fix other potentially slow tests
+  - [x] 2.2 Review and fix other potentially slow tests
     - Audit integration tests for unbounded waits
     - Add timeouts to async tests without explicit bounds
     - _Requirements: 2.1_
 
-- [ ] 3. Update CI and README badges
-  - [~] 3.1 Add CI status badges to README.md
+- [x] 3. Update CI and README badges
+  - [x] 3.1 Add CI status badges to README.md
     - Add build status badge for main branch
     - Add test status badge
     - Add coverage badge (if codecov configured)
     - _Requirements: 3.2_
-  - [~] 3.2 Verify CI passes on both Ubuntu and Windows
+  - [x] 3.2 Verify CI passes on both Ubuntu and Windows
     - Run full CI workflow manually
     - Fix any platform-specific failures
     - _Requirements: 2.2_
 
-- [~] 4. Checkpoint - Alpha release preparation
+- [x] 4. Checkpoint - Alpha release preparation
   - Ensure all tests pass, ask the user if questions arise.
   - Verify CHANGELOG is complete
   - Verify README badges display correctly
 
-- [ ] 5. Tag v0.1.0-alpha release
-  - [~] 5.1 Create release tag and GitHub release
+- [x] 5. Tag v0.1.0-alpha release
+  - [x] 5.1 Create release tag and GitHub release
     - Create annotated git tag v0.1.0-alpha
     - Create GitHub release with release notes from CHANGELOG
     - _Requirements: 3.1_
 
 ### Phase 2: v0.2.0 Windows & UI
 
-- [ ] 6. Complete Windows HID driver implementation
-  - [ ] 6.1 Implement real device enumeration using hidapi
+- [x] 6. Complete Windows HID driver implementation
+  - [x] 6.1 Implement real device enumeration using hidapi
     - Replace mock enumeration with actual hidapi calls
     - Add device filtering by VID/PID for supported wheels
     - Implement device path resolution
     - _Requirements: 4.1_
-  - [ ] 6.2 Write property test for HID enumeration completeness
+  - [x] 6.2 Write property test for HID enumeration completeness
     - **Property 4: HID Device Enumeration Completeness**
     - **Validates: Requirements 4.1**
-  - [ ] 6.3 Implement Windows device notification registration
+  - [x] 6.3 Implement Windows device notification registration
     - Use RegisterDeviceNotification for hotplug events
     - Handle WM_DEVICECHANGE messages
     - Emit DeviceEvent::Connected/Disconnected events
     - _Requirements: 4.2, 4.6_
-  - [ ] 6.4 Implement overlapped I/O for HID writes
+  - [x] 6.4 Implement overlapped I/O for HID writes
     - Create OVERLAPPED structures for async writes
     - Use WriteFile with overlapped flag
     - Implement non-blocking completion check
     - _Requirements: 4.3, 4.4_
-  - [ ] 6.5 Write property test for HID write non-blocking behavior
+  - [x] 6.5 Write property test for HID write non-blocking behavior
     - **Property 5: HID Write Non-Blocking**
     - **Validates: Requirements 4.3, 4.4, 4.7**
-  - [ ] 6.6 Integrate MMCSS for RT thread priority
+  - [x] 6.6 Integrate MMCSS for RT thread priority
     - Call AvSetMmThreadCharacteristicsW with "Pro Audio" category
     - Set thread priority via AvSetMmMaxThreadCharacteristics
     - Handle MMCSS unavailability gracefully
     - _Requirements: 4.5_
 
-- [ ] 7. Checkpoint - Windows HID verification
+- [x] 7. Checkpoint - Windows HID verification
   - Ensure all tests pass, ask the user if questions arise.
   - Test with real hardware if available
 
-- [ ] 8. Fix UI crate Linux build
-  - [ ] 8.1 Update Tauri dependency to 2.x with WebKitGTK 4.1 support
+- [x] 8. Fix UI crate Linux build
+  - [x] 8.1 Update Tauri dependency to 2.x with WebKitGTK 4.1 support
     - Update tauri version in crates/ui/Cargo.toml
     - Update any tauri-related dependencies
     - _Requirements: 5.1, 5.2_
-  - [ ] 8.2 Add conditional compilation for webkit2gtk version
+  - [x] 8.2 Add conditional compilation for webkit2gtk version
     - Add build.rs to detect webkit2gtk version
     - Provide clear error message if incompatible version found
     - _Requirements: 5.3_
-  - [ ] 8.3 Test build on Ubuntu 22.04 and 24.04
+  - [x] 8.3 Test build on Ubuntu 22.04 and 24.04
     - Verify compilation succeeds on both versions
     - Document any version-specific requirements
     - _Requirements: 5.4_
 
-- [ ] 9. Implement basic Tauri UI
-  - [ ] 9.1 Create Tauri application scaffold
+- [x] 9. Implement basic Tauri UI
+  - [x] 9.1 Create Tauri application scaffold
     - Initialize Tauri app structure in crates/ui
     - Configure tauri.conf.json with app metadata
     - Set up IPC communication with wheeld service
     - _Requirements: 7.6_
-  - [ ] 9.2 Implement device list view
+  - [x] 9.2 Implement device list view
     - Create DeviceList component
     - Fetch devices via IPC command
     - Display device name, status, and connection state
     - _Requirements: 7.1_
-  - [ ] 9.3 Implement device detail view
+  - [x] 9.3 Implement device detail view
     - Create DeviceDetail component
     - Show device health, temperature, fault status
     - Display real-time telemetry when available
     - _Requirements: 7.2, 7.4_
-  - [ ] 9.4 Implement profile management
+  - [x] 9.4 Implement profile management
     - Create ProfileSelector component
     - Implement profile loading from file
     - Implement profile application to device
     - _Requirements: 7.3_
-  - [ ] 9.5 Implement error display
+  - [x] 9.5 Implement error display
     - Create ErrorBanner component
     - Display user-friendly error messages
     - Handle IPC errors gracefully
     - _Requirements: 7.5_
-  - [ ] 9.6 Write property test for UI error display
+  - [x] 9.6 Write property test for UI error display
     - **Property 6: UI Error Display**
     - **Validates: Requirements 7.5**
 
-- [ ] 10. Create Windows installer
-  - [ ] 10.1 Complete WiX installer configuration
+- [x] 10. Create Windows installer
+  - [x] 10.1 Complete WiX installer configuration
     - Update packaging/windows/wheel-suite.wxs with all components
     - Add service registration component
     - Add device driver installation component
     - _Requirements: 6.1, 6.2, 6.3_
-  - [ ] 10.2 Implement Windows service registration
+  - [x] 10.2 Implement Windows service registration
     - Create service installation custom action
     - Configure service to start automatically
     - Set appropriate service account and privileges
     - _Requirements: 6.2, 6.6_
-  - [ ] 10.3 Implement clean uninstallation
+  - [x] 10.3 Implement clean uninstallation
     - Stop and remove service on uninstall
     - Remove all installed files
     - Clean up registry entries
     - _Requirements: 6.4_
-  - [ ] 10.4 Add silent installation support
+  - [x] 10.4 Add silent installation support
     - Test msiexec /quiet installation
     - Document silent installation parameters
     - _Requirements: 6.5_
 
-- [ ] 11. Checkpoint - v0.2.0 release preparation
+- [x] 11. Checkpoint - v0.2.0 release preparation
   - Ensure all tests pass, ask the user if questions arise.
   - Test Windows installer end-to-end
   - Update CHANGELOG with v0.2.0 changes
 
 ### Phase 3: v0.3.0 Plugin System & Advanced FFB
 
-- [ ] 12. Implement WASM plugin runtime
-  - [ ] 12.1 Set up wasmtime integration
+- [x] 12. Implement WASM plugin runtime
+  - [x] 12.1 Set up wasmtime integration
     - Add wasmtime dependency to crates/plugins
     - Create WasmRuntime struct with engine and linker
     - Configure resource limits (memory, fuel)
     - _Requirements: 8.1, 8.2_
-  - [ ] 12.2 Write property test for WASM plugin loading
+  - [x] 12.2 Write property test for WASM plugin loading
     - **Property 7: WASM Plugin Loading**
     - **Validates: Requirements 8.1**
-  - [ ] 12.3 Write property test for WASM resource sandboxing
+  - [x] 12.3 Write property test for WASM resource sandboxing
     - **Property 8: WASM Resource Sandboxing**
     - **Validates: Requirements 8.2, 8.6**
-  - [ ] 12.4 Implement WASM plugin ABI
+  - [x] 12.4 Implement WASM plugin ABI
     - Define host functions for plugin communication
     - Implement process() function binding
     - Create plugin state management
     - _Requirements: 8.3_
-  - [ ] 12.5 Implement panic isolation
+  - [x] 12.5 Implement panic isolation
     - Wrap plugin calls in catch_unwind equivalent
     - Disable plugin on panic
     - Log panic information
     - _Requirements: 8.4_
-  - [ ] 12.6 Write property test for WASM panic isolation
+  - [x] 12.6 Write property test for WASM panic isolation
     - **Property 9: WASM Panic Isolation**
     - **Validates: Requirements 8.4**
-  - [ ] 12.7 Implement hot-reload support
+  - [x] 12.7 Implement hot-reload support
     - Add reload_plugin() method
     - Preserve service state during reload
     - Handle reload failures gracefully
     - _Requirements: 8.5_
-  - [ ] 12.8 Write property test for hot-reload state preservation
+  - [x] 12.8 Write property test for hot-reload state preservation
     - **Property 10: WASM Hot-Reload State Preservation**
     - **Validates: Requirements 8.5**
 
-- [ ] 13. Implement native plugin loading with signatures
-  - [ ] 13.1 Implement Ed25519 signature verification
+- [x] 13. Implement native plugin loading with signatures
+  - [x] 13.1 Implement Ed25519 signature verification
     - Complete crates/service/src/crypto/ed25519.rs implementation
     - Add signature verification for plugin files
     - Implement detached signature file support
     - _Requirements: 9.2_
-  - [ ] 13.2 Write property test for signature verification
+  - [x] 13.2 Write property test for signature verification
     - **Property 11: Signature Verification (Consolidated)**
     - **Validates: Requirements 9.2, 9.3, 16.2, 16.5, 17.2**
-  - [ ] 13.3 Implement trust store
+  - [x] 13.3 Implement trust store
     - Create TrustStore struct in crates/service/src/crypto/trust_store.rs
     - Implement add/remove/query operations
     - Persist trust store to disk
     - _Requirements: 9.4_
-  - [ ] 13.4 Write property test for trust store operations
+  - [x] 13.4 Write property test for trust store operations
     - **Property 14: Trust Store Operations**
     - **Validates: Requirements 9.4**
-  - [ ] 13.5 Implement native plugin loader
+  - [x] 13.5 Implement native plugin loader
     - Use libloading for dynamic library loading
     - Verify ABI version before loading
     - Check signature against trust store
     - _Requirements: 9.1, 9.5_
-  - [ ] 13.6 Write property test for ABI compatibility check
+  - [x] 13.6 Write property test for ABI compatibility check
     - **Property 12: Native Plugin ABI Compatibility**
     - **Validates: Requirements 9.5**
-  - [ ] 13.7 Implement unsigned plugin configuration
+  - [x] 13.7 Implement unsigned plugin configuration
     - Add allow_unsigned_plugins config option
     - Reject unsigned plugins when disabled
     - Log warning when loading unsigned plugins
     - _Requirements: 9.6_
-  - [ ] 13.8 Write property test for unsigned plugin configuration
+  - [x] 13.8 Write property test for unsigned plugin configuration
     - **Property 13: Unsigned Plugin Configuration**
     - **Validates: Requirements 9.6**
 
-- [ ] 14. Checkpoint - Plugin system verification
+- [x] 14. Checkpoint - Plugin system verification
   - Ensure all tests pass, ask the user if questions arise.
   - Test with sample WASM and native plugins
 
-- [ ] 15. Implement curve-based FFB effects
-  - [ ] 15.1 Implement Bezier curve evaluation
+- [x] 15. Implement curve-based FFB effects
+  - [x] 15.1 Implement Bezier curve evaluation
     - Create BezierCurve struct with control points
     - Implement cubic Bezier evaluation algorithm
     - Pre-compute LUT for RT path
     - _Requirements: 10.1, 10.2_
-  - [ ] 15.2 Write property test for Bezier curve interpolation
+  - [x] 15.2 Write property test for Bezier curve interpolation
     - **Property 15: Bezier Curve Interpolation**
     - **Validates: Requirements 10.1, 10.2**
-  - [ ] 15.3 Implement multiple curve types
+  - [x] 15.3 Implement multiple curve types
     - Add linear, exponential, logarithmic curve types
     - Implement CurveType enum with evaluation methods
     - Ensure all types produce valid output ranges
     - _Requirements: 10.3_
-  - [ ] 15.4 Write property test for curve type consistency
+  - [x] 15.4 Write property test for curve type consistency
     - **Property 16: Curve Type Consistency**
     - **Validates: Requirements 10.3**
-  - [ ] 15.5 Integrate curves into FFB pipeline
+  - [x] 15.5 Integrate curves into FFB pipeline
     - Apply curve transformation in pipeline processing
     - Ensure curve is applied to all torque outputs
     - _Requirements: 10.4_
-  - [ ] 15.6 Write property test for curve application to torque
+  - [x] 15.6 Write property test for curve application to torque
     - **Property 17: Curve Application to Torque**
     - **Validates: Requirements 10.4**
-  - [ ] 15.7 Implement curve parameter validation
+  - [x] 15.7 Implement curve parameter validation
     - Validate control points are in valid range
     - Validate exponent/base parameters for exp/log curves
     - Return clear validation errors
     - _Requirements: 10.5_
-  - [ ] 15.8 Write property test for curve parameter validation
+  - [x] 15.8 Write property test for curve parameter validation
     - **Property 18: Curve Parameter Validation**
     - **Validates: Requirements 10.5**
 
-- [ ] 16. Implement profile inheritance
-  - [ ] 16.1 Add parent field to Profile struct
+- [x] 16. Implement profile inheritance
+  - [x] 16.1 Add parent field to Profile struct
     - Update Profile schema with optional parent field
     - Update JSON schema validation
     - _Requirements: 11.1_
-  - [ ] 16.2 Implement profile merge logic
+  - [x] 16.2 Implement profile merge logic
     - Create merge_with_parent() method
     - Child values override parent values
     - Unspecified values inherit from parent
     - _Requirements: 11.2_
-  - [ ] 16.3 Write property test for profile inheritance merge
+  - [x] 16.3 Write property test for profile inheritance merge
     - **Property 19: Profile Inheritance Merge**
     - **Validates: Requirements 11.1, 11.2**
-  - [ ] 16.4 Implement inheritance chain resolution
+  - [x] 16.4 Implement inheritance chain resolution
     - Resolve up to 5 levels of inheritance
     - Return error if depth exceeded
     - _Requirements: 11.3_
-  - [ ] 16.5 Write property test for inheritance depth limit
+  - [x] 16.5 Write property test for inheritance depth limit
     - **Property 20: Profile Inheritance Depth Limit**
     - **Validates: Requirements 11.3**
-  - [ ] 16.6 Implement circular inheritance detection
+  - [x] 16.6 Implement circular inheritance detection
     - Track visited profiles during resolution
     - Return error if cycle detected
     - _Requirements: 11.5_
-  - [ ] 16.7 Write property test for circular inheritance detection
+  - [x] 16.7 Write property test for circular inheritance detection
     - **Property 21: Circular Inheritance Detection**
     - **Validates: Requirements 11.5**
-  - [ ] 16.8 Implement parent change notification
+  - [x] 16.8 Implement parent change notification
     - Add observer pattern for profile changes
     - Notify child profiles when parent changes
     - _Requirements: 11.4_
 
 - [ ] 17. Implement game telemetry adapters
-  - [ ] 17.1 Create telemetry adapter trait and common types
+  - [x] 17.1 Create telemetry adapter trait and common types
     - Define TelemetryAdapter trait
     - Define GameTelemetry struct with common fields
     - _Requirements: 12.1-12.4_
-  - [ ] 17.2 Implement iRacing adapter
+  - [x] 17.2 Implement iRacing adapter
     - Use shared memory for telemetry access
     - Parse iRacing telemetry format
     - _Requirements: 12.1_
-  - [ ] 17.3 Implement ACC adapter
+  - [x] 17.3 Implement ACC adapter
     - Use UDP socket for telemetry
     - Parse ACC telemetry format
     - _Requirements: 12.2_
-  - [ ] 17.4 Implement AMS2 adapter
+  - [x] 17.4 Implement AMS2 adapter
     - Use shared memory for telemetry
     - Parse AMS2 telemetry format
     - _Requirements: 12.3_
-  - [ ] 17.5 Implement rFactor 2 adapter
+  - [x] 17.5 Implement rFactor 2 adapter
     - Use plugin interface for telemetry
     - Parse rFactor 2 telemetry format
     - _Requirements: 12.4_
-  - [ ] 17.6 Write property test for telemetry parsing performance
+  - [x] 17.6 Write property test for telemetry parsing performance
     - **Property 22: Telemetry Parsing Performance**
     - **Validates: Requirements 12.5**
-  - [ ] 17.7 Implement disconnection handling
+  - [x] 17.7 Implement disconnection handling
     - Detect game disconnection
     - Transition to disconnected state
     - Notify FFB engine
     - _Requirements: 12.6_
-  - [ ] 17.8 Write property test for disconnection handling
+  - [-] 17.8 Write property test for disconnection handling
     - **Property 23: Telemetry Disconnection Handling**
     - **Validates: Requirements 12.6**
 

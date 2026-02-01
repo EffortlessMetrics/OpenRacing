@@ -1,0 +1,15 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc fc85d04a2b59b8790c92ad259ee13fb9fff936be660c00732b17e1537de07268 # shrinks to input = 0.0
+cc 9c0823075b77c7c104a392f40907573e04ab4453f935e08d49f77250757a1727 # shrinks to input = 0.0, dt = 0.0001
+cc 345fdf9ad815af3536f3e316ddb392c49d653c99aeb8ca175cdf00ec3da86db7 # shrinks to wasm_bytes = [0, 97, 115, 109, 1, 0, 0, 0, 5, 3, 1, 0, 1, 7, 10, 1, 6, 109, 101, 109, 111, 114, 121, 2, 0], capabilities = []
+cc e9a7163766b017a16ee7dbcbbc1d29718f42f0b0ebce7db69bd0c8b55703305c # shrinks to module1 = [0, 97, 115, 109, 1, 0, 0, 0, 5, 3, 1, 0, 1, 7, 10, 1, 6, 109, 101, 109, 111, 114, 121, 2, 0], module2 = [0, 97, 115, 109, 1, 0, 0, 0, 5, 3, 1, 0, 1, 7, 10, 1, 6, 109, 101, 109, 111, 114, 121, 2, 0], capabilities = []
+cc 52d101732ea055fb6f442cea2175681ec2232aa02f1e321c9227268f3283d62f # shrinks to wasm_bytes = [0, 97, 115, 109, 1, 0, 0, 0, 5, 3, 1, 0, 1, 7, 10, 1, 6, 109, 101, 109, 111, 114, 121, 2, 0], capabilities = []
+cc c8be907a52bcc4fa8ccdff0c092727f62194ccb36ca168822e7e3fdb710d2945 # shrinks to wasm_bytes = [0, 97, 115, 109, 1, 0, 0, 0, 5, 3, 1, 0, 1, 7, 10, 1, 6, 109, 101, 109, 111, 114, 121, 2, 0], limits = ResourceLimits { max_memory_bytes: 1048576, max_fuel: 1000000, max_table_elements: 1000, max_instances: 1 }, capabilities = []
+cc d4328a9e439b5a1d9b20ca4ce17a0aee6f387f1e345783880d66d23d08c082e2 # shrinks to max_instances = 1, wasm_bytes = [0, 97, 115, 109, 1, 0, 0, 0, 5, 3, 1, 0, 1, 7, 10, 1, 6, 109, 101, 109, 111, 114, 121, 2, 0]
+cc 523dd2904cb563afd205d019cea36e00efcb6fc546f3079d24dfdd278453374c # shrinks to plugin_count = 1, wasm_bytes = [0, 97, 115, 109, 1, 0, 0, 0, 5, 3, 1, 0, 1, 7, 10, 1, 6, 109, 101, 109, 111, 114, 121, 2, 0], capabilities = []
+cc 8f74ebd7c3258b88788b9aa42b8600525deabc2d814968e3d4e0c2c928428c5c # shrinks to plugin_data = [("h", []), ("h", [0])]

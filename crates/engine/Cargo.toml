@@ -39,6 +39,7 @@ quickcheck = "1.0.3"
 quickcheck_macros = "1.1.0"
 tempfile = "3.24.0"
 compat = { path = "../compat" }
+proptest = { workspace = true }
 num_cpus = { workspace = true }
 
 # Enable harness feature for integration tests and examples
@@ -55,6 +56,13 @@ windows = { version = "0.62.2", features = [
     "Win32_Security",
     "Win32_System_Power",
     "Win32_System_Diagnostics_Etw",
+    # Device notification features
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_LibraryLoader",
+    "Win32_Graphics_Gdi",
+    # Overlapped I/O features for HID writes
+    "Win32_System_IO",
+    "Win32_Storage_FileSystem",
 ] }
 hidapi = { workspace = true }
 
@@ -65,7 +73,7 @@ libudev = { workspace = true }
 [features]
 default = ["mimalloc"]
 rt-allocator = ["mimalloc"]
-harness = []         # opt-in visibility for the test harness in non-test builds
+harness = []                # opt-in visibility for the test harness in non-test builds
 
 [[example]]
 name = "virtual_device_demo"

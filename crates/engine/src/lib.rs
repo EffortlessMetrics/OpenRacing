@@ -22,6 +22,9 @@ static GLOBAL: MiMalloc = MiMalloc;
 pub mod allocation_tracker;
 #[cfg(test)]
 pub mod compat_impl;
+pub mod curves;
+#[cfg(test)]
+pub mod curves_property_tests;
 pub mod device;
 pub mod diagnostic;
 pub mod engine;
@@ -82,3 +85,6 @@ pub use protocol::{DeviceCapabilitiesReport, DeviceTelemetryReport, TorqueComman
 pub use tracing::{
     AppTraceEvent, RTTraceEvent, TracingError, TracingManager, TracingMetrics, TracingProvider,
 };
+
+// Curve-based FFB effects
+pub use curves::{BezierCurve, CurveError, CurveLut, CurveType};

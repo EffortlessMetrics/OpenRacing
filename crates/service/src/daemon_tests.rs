@@ -77,18 +77,32 @@ mod tests {
             .await
             .expect("Failed to create daemon");
 
-        // Test that daemon can be started and shut down quickly
-        let daemon_handle = tokio::spawn(async move { daemon.run().await });
+        // Wrap test body with timeout to ensure test completes within 5 seconds
+        // Requirements: 2.1, 2.5
+        let test_future = async {
+            // Test that daemon can be started and shut down quickly
+            let daemon_handle = tokio::spawn(async move { daemon.run().await });
 
-        // Give the daemon a moment to start
-        tokio::time::sleep(Duration::from_millis(100)).await;
+            // Give the daemon a moment to start
+            tokio::time::sleep(Duration::from_millis(100)).await;
 
-        // Send shutdown signal (in a real test, we'd use the proper shutdown mechanism)
-        daemon_handle.abort();
+            // Send shutdown signal (in a real test, we'd use the proper shutdown mechanism)
+            daemon_handle.abort();
 
-        // Verify the task was aborted (simulating shutdown)
-        let result = daemon_handle.await;
-        assert!(result.is_err()); // Should be cancelled
+            // Verify the task was aborted (simulating shutdown)
+            let result = daemon_handle.await;
+            assert!(result.is_err()); // Should be cancelled
+        };
+
+        match tokio::time::timeout(Duration::from_secs(5), test_future).await {
+            Ok(()) => {}
+            Err(_elapsed) => {
+                panic!(
+                    "test_service_daemon_startup_shutdown timed out after 5 seconds - \
+                     daemon may be blocked during startup or shutdown"
+                );
+            }
+        }
     }
 
     #[tokio::test]

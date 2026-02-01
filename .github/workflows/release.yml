@@ -1,0 +1,274 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+permissions:
+  contents: write
+
+jobs:
+  # Extract version and validate tag format
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Check if this is a prerelease (alpha, beta, rc)
+          if [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "Tag: $TAG"
+          echo "Version: $VERSION"
+          echo "Prerelease: $(grep prerelease $GITHUB_OUTPUT | cut -d= -f2)"
+
+      - name: Validate tag matches Cargo.toml version
+        run: |
+          CARGO_VERSION=$(grep -m1 'version = ' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          TAG_VERSION="${{ steps.version.outputs.version }}"
+
+          # For prereleases, strip the prerelease suffix for comparison
+          BASE_TAG_VERSION=$(echo "$TAG_VERSION" | sed 's/-\(alpha\|beta\|rc\).*//')
+
+          if [[ "$CARGO_VERSION" != "$BASE_TAG_VERSION" ]]; then
+            echo "Error: Tag version ($TAG_VERSION / base: $BASE_TAG_VERSION) does not match Cargo.toml version ($CARGO_VERSION)"
+            exit 1
+          fi
+
+          echo "Version validation passed: $CARGO_VERSION"
+
+      - name: Extract changelog for version
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BASE_VERSION=$(echo "$VERSION" | sed 's/-\(alpha\|beta\|rc\).*//')
+
+          # Extract changelog section for this version
+          # Look for the version header and extract until the next version header
+          CHANGELOG=$(awk -v ver="$BASE_VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if ($0 ~ "\\[" ver "\\]") found=1
+            }
+            found { print }
+          ' CHANGELOG.md)
+
+          if [ -z "$CHANGELOG" ]; then
+            echo "Warning: No changelog entry found for version $BASE_VERSION"
+            CHANGELOG="Release $VERSION"
+          fi
+
+          # Write to file for multi-line output
+          echo "$CHANGELOG" > changelog_section.md
+          echo "changelog_file=changelog_section.md" >> $GITHUB_OUTPUT
+
+      - name: Upload changelog section
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog-section
+          path: changelog_section.md
+
+  # Build Linux artifacts
+  build-linux:
+    name: Build Linux (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            arch: amd64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Build release binaries
+        run: |
+          cargo build --release --target ${{ matrix.target }} -p racing-wheel-cli
+          cargo build --release --target ${{ matrix.target }} -p racing-wheel-service
+
+      - name: Create tarball
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          TARBALL_NAME="openracing-${VERSION}-linux-${{ matrix.arch }}"
+
+          mkdir -p dist/${TARBALL_NAME}
+
+          # Copy binaries
+          cp target/${{ matrix.target }}/release/wheelctl dist/${TARBALL_NAME}/
+          cp target/${{ matrix.target }}/release/wheeld dist/${TARBALL_NAME}/
+
+          # Copy packaging files
+          cp packaging/linux/99-racing-wheel-suite.rules dist/${TARBALL_NAME}/
+          cp packaging/linux/wheeld.service.template dist/${TARBALL_NAME}/wheeld.service
+          cp packaging/linux/install.sh dist/${TARBALL_NAME}/
+
+          # Copy documentation
+          cp README.md dist/${TARBALL_NAME}/
+          cp LICENSE-MIT dist/${TARBALL_NAME}/ || cp LICENSE dist/${TARBALL_NAME}/ || true
+          cp LICENSE-APACHE dist/${TARBALL_NAME}/ || true
+          cp CHANGELOG.md dist/${TARBALL_NAME}/
+
+          # Create tarball
+          cd dist
+          tar -czvf ${TARBALL_NAME}.tar.gz ${TARBALL_NAME}
+
+          # Generate checksum
+          sha256sum ${TARBALL_NAME}.tar.gz > ${TARBALL_NAME}.tar.gz.sha256
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+
+  # Build Windows artifacts
+  build-windows:
+    name: Build Windows (${{ matrix.target }})
+    runs-on: windows-latest
+    needs: prepare
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            arch: x64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build release binaries
+        run: |
+          cargo build --release --target ${{ matrix.target }} -p racing-wheel-cli
+          cargo build --release --target ${{ matrix.target }} -p racing-wheel-service
+
+      - name: Create portable ZIP
+        shell: pwsh
+        run: |
+          $VERSION = "${{ needs.prepare.outputs.version }}"
+          $ZIP_NAME = "openracing-${VERSION}-windows-${{ matrix.arch }}"
+
+          New-Item -ItemType Directory -Force -Path "dist/${ZIP_NAME}"
+
+          # Copy binaries
+          Copy-Item "target/${{ matrix.target }}/release/wheelctl.exe" "dist/${ZIP_NAME}/"
+          Copy-Item "target/${{ matrix.target }}/release/wheeld.exe" "dist/${ZIP_NAME}/"
+
+          # Copy documentation
+          Copy-Item "README.md" "dist/${ZIP_NAME}/"
+          if (Test-Path "LICENSE-MIT") { Copy-Item "LICENSE-MIT" "dist/${ZIP_NAME}/" }
+          if (Test-Path "LICENSE-APACHE") { Copy-Item "LICENSE-APACHE" "dist/${ZIP_NAME}/" }
+          if (Test-Path "LICENSE") { Copy-Item "LICENSE" "dist/${ZIP_NAME}/" }
+          Copy-Item "CHANGELOG.md" "dist/${ZIP_NAME}/"
+
+          # Create ZIP
+          Compress-Archive -Path "dist/${ZIP_NAME}" -DestinationPath "dist/${ZIP_NAME}.zip"
+
+          # Generate checksum
+          $hash = Get-FileHash "dist/${ZIP_NAME}.zip" -Algorithm SHA256
+          "$($hash.Hash.ToLower())  ${ZIP_NAME}.zip" | Out-File -FilePath "dist/${ZIP_NAME}.zip.sha256" -Encoding ASCII
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.arch }}
+          path: |
+            dist/*.zip
+            dist/*.sha256
+
+  # Create GitHub Release
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [prepare, build-linux, build-windows]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Download changelog section
+        uses: actions/download-artifact@v4
+        with:
+          name: changelog-section
+          path: .
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+
+          # Move all artifacts to release-assets
+          find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.sha256" \) -exec mv {} release-assets/ \;
+
+          # Create combined checksums file
+          cd release-assets
+          cat *.sha256 > SHA256SUMS.txt
+
+          echo "Release assets:"
+          ls -la
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: OpenRacing ${{ needs.prepare.outputs.version }}
+          body_path: changelog_section.md
+          draft: false
+          prerelease: ${{ needs.prepare.outputs.prerelease == 'true' }}
+          files: |
+            release-assets/*
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.prepare.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Prerelease:** ${{ needs.prepare.outputs.prerelease }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          ls -la release-assets/ | tail -n +2 >> $GITHUB_STEP_SUMMARY

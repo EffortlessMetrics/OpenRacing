@@ -46,7 +46,7 @@ impl PluginHost {
     /// Create a new plugin host
     pub async fn new(plugin_directory: PathBuf) -> PluginResult<Self> {
         let wasm_host = WasmPluginHost::new()?;
-        let native_host = NativePluginHost::new();
+        let native_host = NativePluginHost::new_with_defaults();
         let quarantine_manager = Arc::new(RwLock::new(QuarantineManager::new(
             QuarantinePolicy::default(),
         )));

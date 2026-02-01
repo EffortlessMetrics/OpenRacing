@@ -30,6 +30,28 @@ pub enum DomainError {
 
     #[error("Invalid curve points: {0}")]
     InvalidCurvePoints(String),
+
+    #[error("Profile inheritance depth exceeded: {depth} levels (maximum is {max_depth})")]
+    InheritanceDepthExceeded {
+        /// The depth at which the limit was exceeded
+        depth: usize,
+        /// The maximum allowed depth
+        max_depth: usize,
+    },
+
+    #[error(
+        "Circular inheritance detected: profile '{profile_id}' appears multiple times in inheritance chain"
+    )]
+    CircularInheritance {
+        /// The profile ID that was detected as circular
+        profile_id: String,
+    },
+
+    #[error("Parent profile not found: '{profile_id}'")]
+    ParentProfileNotFound {
+        /// The profile ID that was not found
+        profile_id: String,
+    },
 }
 
 /// Torque value in Newton-meters with validation

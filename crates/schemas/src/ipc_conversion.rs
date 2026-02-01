@@ -262,6 +262,7 @@ impl TryFrom<proto::Profile> for Profile {
 
         Ok(Profile {
             id: profile_id,
+            parent: None, // IPC profiles don't support inheritance yet
             scope,
             base_settings,
             led_config,

@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
@@ -14,6 +14,24 @@ env:
   RUSTC_WRAPPER: "sccache"
 
 jobs:
+  # Phase 0: Documentation and format validation (fast, no build required)
+  changelog-validation:
+    name: CHANGELOG Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate CHANGELOG format
+        run: |
+          chmod +x scripts/validate_changelog.py
+          python3 scripts/validate_changelog.py --verbose
+
   # Phase 1: Fast isolation builds (run in parallel for quick feedback)
   isolation-cli:
     name: CLI Isolation Build
@@ -21,29 +39,29 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
-    
-    - name: Install system dependencies (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config
-    
-    - name: Build CLI in isolation
-      run: cargo build -p racing-wheel-cli --locked
-    
-    - name: Test CLI help (smoke test)
-      run: cargo run -p racing-wheel-cli -- --help
+      - uses: actions/checkout@v4
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Build CLI in isolation
+        run: cargo build -p racing-wheel-cli --locked
+
+      - name: Test CLI help (smoke test)
+        run: cargo run -p racing-wheel-cli -- --help
 
   isolation-service:
     name: Service Isolation Build
@@ -51,29 +69,29 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
-    
-    - name: Install system dependencies (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config
-    
-    - name: Build Service in isolation
-      run: cargo build -p racing-wheel-service --locked
-    
-    - name: Test Service help (smoke test)
-      run: cargo run -p racing-wheel-service -- --help
+      - uses: actions/checkout@v4
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Build Service in isolation
+        run: cargo build -p racing-wheel-service --locked
+
+      - name: Test Service help (smoke test)
+        run: cargo run -p racing-wheel-service -- --help
 
   isolation-plugins:
     name: Plugins Isolation Build
@@ -81,90 +99,138 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
-    
-    - name: Install system dependencies (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config
-    
-    - name: Build Plugins in isolation
-      run: cargo build -p racing-wheel-plugins --locked
-    
-    - name: Build sample plugin (feature gated)
-      run: cargo build -p racing-wheel-plugins --features sample-plugin
+      - uses: actions/checkout@v4
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Build Plugins in isolation
+        run: cargo build -p racing-wheel-plugins --locked
+
+      - name: Build sample plugin (feature gated)
+        run: cargo build -p racing-wheel-plugins --features sample-plugin
+
+  # UI crate build verification on Ubuntu 22.04 and 24.04
+  # Tests webkit2gtk-4.1 compatibility across supported Ubuntu LTS versions
+  isolation-ui:
+    name: UI Isolation Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          # Install webkit2gtk-4.1 and related dependencies for Tauri 2.x
+          # Ubuntu 22.04 provides webkit2gtk 2.38.x (minimum supported)
+          # Ubuntu 24.04 provides webkit2gtk 2.44.x (recommended)
+          sudo apt-get install -y \
+            libudev-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Verify webkit2gtk version (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          echo "Checking webkit2gtk-4.1 version..."
+          pkg-config --modversion webkit2gtk-4.1
+          echo "webkit2gtk-4.1 is available and meets Tauri 2.x requirements"
+
+      - name: Build UI in isolation
+        run: cargo build -p racing-wheel-ui --locked
+
+      - name: Verify UI crate compiles with release profile
+        run: cargo build -p racing-wheel-ui --release --locked
 
   # Phase 2: Schema validation and trybuild guards
   schemas-validation:
     name: Schemas & Trybuild
     runs-on: ubuntu-latest
-    needs: [isolation-cli, isolation-service, isolation-plugins]
-    
+    needs: [isolation-cli, isolation-service, isolation-plugins, isolation-ui]
+
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Needed for buf breaking change detection
-    
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
-    
-    - name: Install buf
-      uses: bufbuild/buf-setup-action@v1
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Install protoc
-      uses: arduino/setup-protoc@v2
-      with:
-        version: '23.x'
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config
-    
-    - name: Build schemas crate
-      run: cargo build -p racing-wheel-schemas --locked
-    
-    - name: Run trybuild compile-fail guards
-      run: cargo test -p racing-wheel-schemas --test trybuild_guards
-    
-    - name: Run buf breaking change detection
-      run: |
-        if [ "${{ github.event_name }}" = "pull_request" ]; then
-          buf breaking --against '.git#branch=main'
-        else
-          echo "Skipping breaking change detection on main branch"
-        fi
-    
-    - name: Run JSON schema round-trip tests
-      run: cargo test -p racing-wheel-schemas schema_roundtrip
-    
-    - name: Verify generated files are up to date
-      run: |
-        # Regenerate and check if anything changed
-        buf generate
-        if ! git diff --exit-code; then
-          echo "Generated files are out of date. Please regenerate and commit."
-          exit 1
-        fi
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed for buf breaking change detection
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v2
+        with:
+          version: "23.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Build schemas crate
+        run: cargo build -p racing-wheel-schemas --locked
+
+      - name: Run trybuild compile-fail guards
+        run: cargo test -p racing-wheel-schemas --test trybuild_guards
+
+      - name: Run buf breaking change detection
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            buf breaking --against '.git#branch=main'
+          else
+            echo "Skipping breaking change detection on main branch"
+          fi
+
+      - name: Run JSON schema round-trip tests
+        run: cargo test -p racing-wheel-schemas schema_roundtrip
+
+      - name: Verify generated files are up to date
+        run: |
+          # Regenerate and check if anything changed
+          buf generate
+          if ! git diff --exit-code; then
+            echo "Generated files are out of date. Please regenerate and commit."
+            exit 1
+          fi
 
   # Phase 3: Workspace default build
   workspace-default:
@@ -174,118 +240,118 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     needs: [schemas-validation]
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
-    
-    - name: Install system dependencies (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config
-    
-    - name: Build workspace with default features
-      run: cargo build --workspace --locked
-    
-    - name: Test workspace compilation
-      run: cargo test --workspace --no-run
+      - uses: actions/checkout@v4
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Build workspace with default features
+        run: cargo build --workspace --locked
+
+      - name: Test workspace compilation
+        run: cargo test --workspace --no-run
 
   # Phase 4: Feature combinations
   feature-combinations:
     name: Feature Combinations
     runs-on: ubuntu-latest
     needs: [workspace-default]
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
-    
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config
-    
-    - name: Build with all features
-      run: cargo build --workspace --all-features --locked
-    
-    - name: Build with no default features
-      run: cargo build --workspace --no-default-features --locked
-    
-    - name: Test all feature combinations compile
-      run: cargo test --workspace --all-features --no-run
+      - uses: actions/checkout@v4
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Build with all features
+        run: cargo build --workspace --all-features --locked
+
+      - name: Build with no default features
+        run: cargo build --workspace --no-default-features --locked
+
+      - name: Test all feature combinations compile
+        run: cargo test --workspace --all-features --no-run
 
   # Phase 5: Dependency governance and minimal versions (nightly)
   dependency-governance:
     name: Dependency Governance
     runs-on: ubuntu-latest
     needs: [feature-combinations]
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
-    
-    - name: Install Rust stable
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
-    
-    - name: Install Rust nightly
-      uses: dtolnay/rust-toolchain@nightly
-    
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config
-    
-    - name: Install cargo-hakari
-      run: cargo install cargo-hakari --locked
-    
-    - name: Install cargo-udeps
-      run: cargo install cargo-udeps --locked
-    
-    - name: Check for duplicate dependencies
-      run: |
-        DUPLICATES=$(cargo tree --duplicates)
-        if [ -n "$DUPLICATES" ]; then
-          echo "Duplicate dependencies found:"
-          echo "$DUPLICATES"
-          exit 1
-        else
-          echo "No duplicate dependencies found"
-        fi
-    
-    - name: Verify cargo-hakari feature unification
-      run: |
-        cargo hakari generate
-        if ! git diff --exit-code; then
-          echo "cargo-hakari generated changes. Please run 'cargo hakari generate' and commit."
-          exit 1
-        fi
-    
-    - name: Check unused dependencies
-      run: cargo +nightly udeps --all-targets
-    
-    - name: Test minimal versions (nightly)
-      run: |
-        cargo +nightly update -Z minimal-versions
-        cargo +nightly build --workspace -Z minimal-versions --locked
+      - uses: actions/checkout@v4
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Install cargo-hakari
+        run: cargo install cargo-hakari --locked
+
+      - name: Install cargo-udeps
+        run: cargo install cargo-udeps --locked
+
+      - name: Check for duplicate dependencies
+        run: |
+          DUPLICATES=$(cargo tree --duplicates)
+          if [ -n "$DUPLICATES" ]; then
+            echo "Duplicate dependencies found:"
+            echo "$DUPLICATES"
+            exit 1
+          else
+            echo "No duplicate dependencies found"
+          fi
+
+      - name: Verify cargo-hakari feature unification
+        run: |
+          cargo hakari generate
+          if ! git diff --exit-code; then
+            echo "cargo-hakari generated changes. Please run 'cargo hakari generate' and commit."
+            exit 1
+          fi
+
+      - name: Check unused dependencies
+        run: cargo +nightly udeps --all-targets
+
+      - name: Test minimal versions (nightly)
+        run: |
+          cargo +nightly update -Z minimal-versions
+          cargo +nightly build --workspace -Z minimal-versions --locked
 
   # Phase 6: Comprehensive lint gates and governance enforcement
   lint-gates:
@@ -295,216 +361,216 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     needs: [dependency-governance]
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
-    
-    - name: Install Rust stable
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
-    
-    - name: Install Rust nightly (for cargo-udeps)
-      uses: dtolnay/rust-toolchain@nightly
-    
-    - name: Install system dependencies (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config python3
-    
-    - name: Install system dependencies (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        # Python should already be available on Windows runners
-        python --version
-    
-    - name: Install cargo-udeps
-      run: cargo install cargo-udeps --locked
-    
-    - name: Run comprehensive lint gates (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        chmod +x scripts/lint_gates.py
-        python3 scripts/lint_gates.py
-    
-    - name: Run comprehensive lint gates (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        powershell -ExecutionPolicy Bypass -File scripts/lint_gates.ps1
-    
-    - name: Verify lint attributes in source files
-      run: |
-        echo "Verifying lint enforcement attributes in source files..."
-        
-        # Check that non-test crates have required lint attributes
-        REQUIRED_LINTS=(
-          "static_mut_refs"
-          "unused_must_use"
-          "clippy::unwrap_used"
-        )
-        
-        NON_TEST_CRATES=(
-          "crates/schemas/src/lib.rs"
-          "crates/engine/src/lib.rs"
-          "crates/service/src/lib.rs"
-          "crates/ui/src/lib.rs"
-          "crates/plugins/src/lib.rs"
-          "crates/cli/src/main.rs"
-        )
-        
-        for crate_file in "${NON_TEST_CRATES[@]}"; do
-          if [ -f "$crate_file" ]; then
-            echo "Checking lint attributes in: $crate_file"
-            
-            for lint in "${REQUIRED_LINTS[@]}"; do
-              if ! grep -q "#!\[deny($lint)\]" "$crate_file"; then
-                echo "❌ Missing required lint attribute in $crate_file: #![deny($lint)]"
-                exit 1
-              fi
-            done
-            
-            echo "✅ All required lint attributes found in: $crate_file"
-          else
-            echo "⚠️ Crate file not found: $crate_file"
+      - uses: actions/checkout@v4
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install Rust nightly (for cargo-udeps)
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config python3
+
+      - name: Install system dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Python should already be available on Windows runners
+          python --version
+
+      - name: Install cargo-udeps
+        run: cargo install cargo-udeps --locked
+
+      - name: Run comprehensive lint gates (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          chmod +x scripts/lint_gates.py
+          python3 scripts/lint_gates.py
+
+      - name: Run comprehensive lint gates (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          powershell -ExecutionPolicy Bypass -File scripts/lint_gates.ps1
+
+      - name: Verify lint attributes in source files
+        run: |
+          echo "Verifying lint enforcement attributes in source files..."
+
+          # Check that non-test crates have required lint attributes
+          REQUIRED_LINTS=(
+            "static_mut_refs"
+            "unused_must_use"
+            "clippy::unwrap_used"
+          )
+
+          NON_TEST_CRATES=(
+            "crates/schemas/src/lib.rs"
+            "crates/engine/src/lib.rs"
+            "crates/service/src/lib.rs"
+            "crates/ui/src/lib.rs"
+            "crates/plugins/src/lib.rs"
+            "crates/cli/src/main.rs"
+          )
+
+          for crate_file in "${NON_TEST_CRATES[@]}"; do
+            if [ -f "$crate_file" ]; then
+              echo "Checking lint attributes in: $crate_file"
+              
+              for lint in "${REQUIRED_LINTS[@]}"; do
+                if ! grep -q "#!\[deny($lint)\]" "$crate_file"; then
+                  echo "❌ Missing required lint attribute in $crate_file: #![deny($lint)]"
+                  exit 1
+                fi
+              done
+              
+              echo "✅ All required lint attributes found in: $crate_file"
+            else
+              echo "⚠️ Crate file not found: $crate_file"
+            fi
+          done
+        shell: bash
+
+      - name: Additional governance checks
+        run: |
+          echo "Running additional governance enforcement checks..."
+
+          # Check for print statements in non-test code (should use tracing instead)
+          if find crates/ -name "*.rs" -not -path "*/test*" -not -path "*/integration-tests/*" -exec grep -l "println!\|print!\|dbg!\|eprintln!\|eprint!" {} \; | head -5; then
+            echo "❌ Print statements found in non-test code. Use tracing macros instead."
+            echo "Found in files:"
+            find crates/ -name "*.rs" -not -path "*/test*" -not -path "*/integration-tests/*" -exec grep -l "println!\|print!\|dbg!\|eprintln!\|eprint!" {} \;
+            exit 1
           fi
-        done
-      shell: bash
-    
-    - name: Additional governance checks
-      run: |
-        echo "Running additional governance enforcement checks..."
-        
-        # Check for print statements in non-test code (should use tracing instead)
-        if find crates/ -name "*.rs" -not -path "*/test*" -not -path "*/integration-tests/*" -exec grep -l "println!\|print!\|dbg!\|eprintln!\|eprint!" {} \; | head -5; then
-          echo "❌ Print statements found in non-test code. Use tracing macros instead."
-          echo "Found in files:"
-          find crates/ -name "*.rs" -not -path "*/test*" -not -path "*/integration-tests/*" -exec grep -l "println!\|print!\|dbg!\|eprintln!\|eprint!" {} \;
-          exit 1
-        fi
-        
-        # Check for unwrap() usage in non-test code
-        if find crates/ -name "*.rs" -not -path "*/test*" -not -path "*/integration-tests/*" -exec grep -l "\.unwrap()" {} \; | head -5; then
-          echo "❌ unwrap() usage found in non-test code. Use proper error handling."
-          echo "Found in files:"
-          find crates/ -name "*.rs" -not -path "*/test*" -not -path "*/integration-tests/*" -exec grep -l "\.unwrap()" {} \;
-          exit 1
-        fi
-        
-        echo "✅ Additional governance checks passed"
-      shell: bash
+
+          # Check for unwrap() usage in non-test code
+          if find crates/ -name "*.rs" -not -path "*/test*" -not -path "*/integration-tests/*" -exec grep -l "\.unwrap()" {} \; | head -5; then
+            echo "❌ unwrap() usage found in non-test code. Use proper error handling."
+            echo "Found in files:"
+            find crates/ -name "*.rs" -not -path "*/test*" -not -path "*/integration-tests/*" -exec grep -l "\.unwrap()" {} \;
+            exit 1
+          fi
+
+          echo "✅ Additional governance checks passed"
+        shell: bash
 
   performance-gate:
     name: Performance Gate
     runs-on: ubuntu-latest
     needs: [lint-gates]
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-    
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config python3
-    
-    - name: Set CPU governor to performance
-      run: |
-        echo 'GOVERNOR="performance"' | sudo tee /etc/default/cpufrequtils
-        sudo systemctl disable ondemand
-        sudo systemctl enable cpufrequtils
-        sudo cpufreq-set -g performance || true
-    
-    - name: Set RT scheduling limits
-      run: |
-        echo "$(whoami) soft rtprio 99" | sudo tee -a /etc/security/limits.conf
-        echo "$(whoami) hard rtprio 99" | sudo tee -a /etc/security/limits.conf
-        echo "$(whoami) soft memlock unlimited" | sudo tee -a /etc/security/limits.conf
-        echo "$(whoami) hard memlock unlimited" | sudo tee -a /etc/security/limits.conf
-    
-    - name: Build release with RT profile
-      run: cargo build --profile rt --bin racing-wheel-service --locked
-    
-    - name: Run RT timing benchmarks
-      run: |
-        # Run benchmarks with JSON output for validation
-        cargo bench --bench rt_timing -- --output-format json | tee bench_results.json
-    
-    - name: Validate performance gates
-      run: |
-        python3 scripts/validate_performance.py bench_results.json --strict
-    
-    - name: Check for RT heap allocations
-      run: |
-        # Additional check for zero allocations in RT path
-        RUST_LOG=debug cargo test --release test_zero_alloc_rt_path
-    
-    - name: Upload benchmark results
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: benchmark-results-${{ github.sha }}
-        path: bench_results.json
+      - uses: actions/checkout@v4
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config python3
+
+      - name: Set CPU governor to performance
+        run: |
+          echo 'GOVERNOR="performance"' | sudo tee /etc/default/cpufrequtils
+          sudo systemctl disable ondemand
+          sudo systemctl enable cpufrequtils
+          sudo cpufreq-set -g performance || true
+
+      - name: Set RT scheduling limits
+        run: |
+          echo "$(whoami) soft rtprio 99" | sudo tee -a /etc/security/limits.conf
+          echo "$(whoami) hard rtprio 99" | sudo tee -a /etc/security/limits.conf
+          echo "$(whoami) soft memlock unlimited" | sudo tee -a /etc/security/limits.conf
+          echo "$(whoami) hard memlock unlimited" | sudo tee -a /etc/security/limits.conf
+
+      - name: Build release with RT profile
+        run: cargo build --profile rt --bin racing-wheel-service --locked
+
+      - name: Run RT timing benchmarks
+        run: |
+          # Run benchmarks with JSON output for validation
+          cargo bench --bench rt_timing -- --output-format json | tee bench_results.json
+
+      - name: Validate performance gates
+        run: |
+          python3 scripts/validate_performance.py bench_results.json --strict
+
+      - name: Check for RT heap allocations
+        run: |
+          # Additional check for zero allocations in RT path
+          RUST_LOG=debug cargo test --release test_zero_alloc_rt_path
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: bench_results.json
 
   security-audit:
     name: Security & License Audit
     runs-on: ubuntu-latest
     needs: [lint-gates]
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-    
-    - name: Install cargo-audit
-      run: cargo install cargo-audit
-    
-    - name: Install cargo-deny
-      run: cargo install cargo-deny
-    
-    - name: Run security audit
-      run: cargo audit --deny warnings
-    
-    - name: Check licenses and dependencies
-      run: cargo deny check
-    
-    - name: Generate third-party license report
-      run: |
-        cargo tree --format "{p} {l}" | grep -v "racing-wheel" | sort | uniq > third_party_licenses.txt
-    
-    - name: Validate ADR format and references
-      run: |
-        python3 scripts/validate_adr.py --verbose
-    
-    - name: Generate documentation index
-      run: |
-        python3 scripts/generate_docs_index.py
-    
-    - name: Upload license report
-      uses: actions/upload-artifact@v3
-      with:
-        name: third-party-licenses-${{ github.sha }}
-        path: third_party_licenses.txt
-    
-    - name: Upload documentation artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: documentation-${{ github.sha }}
-        path: |
-          docs/adr/INDEX.md
-          third_party_licenses.txt
+      - uses: actions/checkout@v4
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny
+
+      - name: Run security audit
+        run: cargo audit --deny warnings
+
+      - name: Check licenses and dependencies
+        run: cargo deny check
+
+      - name: Generate third-party license report
+        run: |
+          cargo tree --format "{p} {l}" | grep -v "racing-wheel" | sort | uniq > third_party_licenses.txt
+
+      - name: Validate ADR format and references
+        run: |
+          python3 scripts/validate_adr.py --verbose
+
+      - name: Generate documentation index
+        run: |
+          python3 scripts/generate_docs_index.py
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v3
+        with:
+          name: third-party-licenses-${{ github.sha }}
+          path: third_party_licenses.txt
+
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: documentation-${{ github.sha }}
+          path: |
+            docs/adr/INDEX.md
+            third_party_licenses.txt
 
   cross-platform-performance:
     name: Cross-Platform Performance
@@ -513,134 +579,135 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-    
-    - name: Install system dependencies (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config python3
-    
-    - name: Install system dependencies (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        # Windows-specific RT setup would go here
-        echo "Windows RT setup"
-    
-    - name: Build RT profile
-      run: cargo build --profile rt --bin racing-wheel-service --locked
-    
-    - name: Run platform-specific RT benchmarks
-      run: |
-        cargo bench --bench rt_timing -- --output-format json | tee bench_results_${{ matrix.os }}.json
-    
-    - name: Validate performance (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        python3 scripts/validate_performance.py bench_results_${{ matrix.os }}.json
-    
-    - name: Validate performance (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        python scripts/validate_performance.py bench_results_${{ matrix.os }}.json
-    
-    - name: Upload platform benchmark results
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: benchmark-results-${{ matrix.os }}-${{ github.sha }}
-        path: bench_results_${{ matrix.os }}.json
+      - uses: actions/checkout@v4
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config python3
+
+      - name: Install system dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Windows-specific RT setup would go here
+          echo "Windows RT setup"
+
+      - name: Build RT profile
+        run: cargo build --profile rt --bin racing-wheel-service --locked
+
+      - name: Run platform-specific RT benchmarks
+        run: |
+          cargo bench --bench rt_timing -- --output-format json | tee bench_results_${{ matrix.os }}.json
+
+      - name: Validate performance (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          python3 scripts/validate_performance.py bench_results_${{ matrix.os }}.json
+
+      - name: Validate performance (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          python scripts/validate_performance.py bench_results_${{ matrix.os }}.json
+
+      - name: Upload platform benchmark results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: benchmark-results-${{ matrix.os }}-${{ github.sha }}
+          path: bench_results_${{ matrix.os }}.json
 
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
     needs: [lint-gates]
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: llvm-tools-preview
-    
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config
-    
-    - name: Install cargo-llvm-cov
-      run: cargo install cargo-llvm-cov
-    
-    - name: Generate coverage report
-      run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
-    
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        files: lcov.info
-        fail_ci_if_error: true
+      - uses: actions/checkout@v4
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
+
+      - name: Generate coverage report
+        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: lcov.info
+          fail_ci_if_error: true
 
   # Final validation: Complete workspace compilation and integration
   final-validation:
     name: Final Workspace Validation
     runs-on: ${{ matrix.os }}
-    needs: [performance-gate, security-audit, cross-platform-performance, coverage]
+    needs:
+      [performance-gate, security-audit, cross-platform-performance, coverage]
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
-    
-    - name: Install system dependencies (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config
-    
-    - name: Final workspace build verification
-      run: cargo build --workspace --locked
-    
-    - name: Final workspace test compilation
-      run: cargo test --workspace --no-run --locked
-    
-    - name: Verify all isolation builds still work
-      run: |
-        cargo build -p racing-wheel-cli --locked
-        cargo build -p racing-wheel-service --locked  
-        cargo build -p racing-wheel-plugins --locked
-    
-    - name: Verify all feature combinations
-      run: |
-        cargo build --workspace --all-features --locked
-        cargo build --workspace --no-default-features --locked
-    
-    - name: Run comprehensive test suite
-      run: cargo test --workspace --locked
-    
-    - name: Validate cross-platform compatibility
-      run: |
-        echo "Cross-platform validation complete for ${{ matrix.os }}"
-        echo "All isolation builds: ✅"
-        echo "All feature combinations: ✅" 
-        echo "Complete workspace: ✅"
+      - uses: actions/checkout@v4
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Final workspace build verification
+        run: cargo build --workspace --locked
+
+      - name: Final workspace test compilation
+        run: cargo test --workspace --no-run --locked
+
+      - name: Verify all isolation builds still work
+        run: |
+          cargo build -p racing-wheel-cli --locked
+          cargo build -p racing-wheel-service --locked  
+          cargo build -p racing-wheel-plugins --locked
+
+      - name: Verify all feature combinations
+        run: |
+          cargo build --workspace --all-features --locked
+          cargo build --workspace --no-default-features --locked
+
+      - name: Run comprehensive test suite
+        run: cargo test --workspace --locked
+
+      - name: Validate cross-platform compatibility
+        run: |
+          echo "Cross-platform validation complete for ${{ matrix.os }}"
+          echo "All isolation builds: ✅"
+          echo "All feature combinations: ✅" 
+          echo "Complete workspace: ✅"

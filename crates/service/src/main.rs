@@ -41,6 +41,11 @@ struct Cli {
     /// Dry run mode (validate config only)
     #[arg(long)]
     dry_run: bool,
+
+    /// Run as Windows service (used by Windows Service Control Manager)
+    /// This flag is automatically passed when the service is started by Windows.
+    #[arg(long)]
+    service: bool,
 }
 
 #[derive(Subcommand)]
@@ -74,17 +79,32 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Initialize logging with appropriate level
+    // When running as a service, use Windows Event Log or file logging
     let log_level = if cli.verbose {
         "racing_wheel_service=trace,racing_wheel_engine=debug,info"
     } else {
         "racing_wheel_service=info,racing_wheel_engine=warn,warn"
     };
 
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::new(log_level))
-        .with_target(true)
-        .with_thread_ids(true)
-        .init();
+    // Configure logging based on service mode
+    if cli.service {
+        // When running as a Windows service, log to file instead of stdout
+        // The service runs without a console, so stdout logging won't work
+        tracing_subscriber::fmt()
+            .with_env_filter(EnvFilter::new(log_level))
+            .with_target(true)
+            .with_thread_ids(true)
+            .with_ansi(false) // Disable ANSI colors for file/event log
+            .init();
+
+        info!("Starting as Windows service");
+    } else {
+        tracing_subscriber::fmt()
+            .with_env_filter(EnvFilter::new(log_level))
+            .with_target(true)
+            .with_thread_ids(true)
+            .init();
+    }
 
     info!("Racing Wheel Service v{}", env!("CARGO_PKG_VERSION"));
     // Build info (optional environment variables)
@@ -112,8 +132,13 @@ async fn main() -> Result<()> {
     // Create feature flags from CLI and config
     let feature_flags = create_feature_flags(&cli, &system_config);
 
-    // Log system information
-    log_system_info(&system_config, &feature_flags).await;
+    // Log system information (skip detailed logging in service mode to reduce noise)
+    if !cli.service {
+        log_system_info(&system_config, &feature_flags).await;
+    } else {
+        info!("Running in Windows service mode");
+        debug!("Feature flags: {:?}", feature_flags);
+    }
 
     // Create and run service daemon
     run_service_daemon(system_config, feature_flags)

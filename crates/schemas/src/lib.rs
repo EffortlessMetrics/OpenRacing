@@ -16,6 +16,8 @@ mod integration_test;
 #[cfg(test)]
 mod ipc_conversion_tests;
 #[cfg(test)]
+mod profile_inheritance_property_tests;
+#[cfg(test)]
 mod service_example;
 #[cfg(test)]
 mod validation_tests;
@@ -43,8 +45,10 @@ pub mod prelude {
     // Entity types
     pub use crate::entities::{
         BaseSettings, BumpstopConfig, CalibrationData, CalibrationType, Device, DeviceCapabilities,
-        DeviceState, DeviceType, FilterConfig, HandsOffConfig, HapticsConfig, LedConfig,
-        NotchFilter, PedalCalibrationData, Profile, ProfileMetadata, ProfileScope,
+        DeviceState, DeviceType, FilterConfig, HandsOffConfig, HapticsConfig, InMemoryProfileStore,
+        LedConfig, MAX_INHERITANCE_DEPTH, NotchFilter, PedalCalibrationData, Profile,
+        ProfileChangeEvent, ProfileChangeObserver, ProfileMetadata, ProfileScope, ProfileStore,
+        ResolvedProfile,
     };
 
     // Telemetry types
@@ -60,7 +64,11 @@ pub mod prelude {
 pub mod profile {
     //! Profile types for JSON serialization
     pub use crate::config::{ProfileMigrator, ProfileSchema, ProfileValidator};
-    pub use crate::entities::{BaseSettings, FilterConfig, Profile, ProfileMetadata, ProfileScope};
+    pub use crate::entities::{
+        BaseSettings, FilterConfig, InMemoryProfileStore, MAX_INHERITANCE_DEPTH, Profile,
+        ProfileChangeEvent, ProfileChangeObserver, ProfileMetadata, ProfileScope, ProfileStore,
+        ResolvedProfile,
+    };
 }
 
 pub mod telemetry {

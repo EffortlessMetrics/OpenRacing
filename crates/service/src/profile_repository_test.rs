@@ -7,7 +7,7 @@ mod tests {
     use racing_wheel_schemas::prelude::{
         BaseSettings, Degrees, FilterConfig, Gain, Profile, ProfileId, ProfileScope, TorqueNm,
     };
-    use rand_core::OsRng;
+    use rand::rngs::OsRng;
     use tempfile::TempDir;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;

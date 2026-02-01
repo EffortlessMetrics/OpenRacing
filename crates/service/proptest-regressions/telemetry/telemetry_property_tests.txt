@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 2184962c885d1bb0d589b78fc8f1aac70f43f7fb9271083c6bd2c840829f7f91 # shrinks to data = ACCTelemetryData { packet_id: 305419896, speed: 235.80896, rpm: 0.0, gear: 0, gas: 0.0, brake: 0.0, steer_angle: 0.0, wheel_slip: [0.0, 0.0, 0.0, 0.0], wheel_load: [0.0, 0.0, 0.0, 0.0], wheel_pressure: [0.0, 0.0, 0.0, 0.0], wheel_angular_speed: [0.0, 0.0, 0.0, 0.0], completed_laps: 0, current_lap_time: 0.0, last_lap: 0.0, best_lap: 0.0, fuel: 0.0, tc: 0, abs: 0, ers_recovery_level: 0.0, ers_power_level: 0.0, drs_available: 0, drs_enabled: 0, flag: 0, is_in_pits: 0, pit_limiter_on: 0, car_model: [102, 101, 114, 114, 97, 114, 105, 95, 52, 56, 56, 95, 103, 116, 51, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], track: [109, 111, 110, 122, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], _padding: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }
