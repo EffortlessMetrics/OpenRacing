@@ -672,10 +672,11 @@ mod tests {
     #[test]
     fn test_log_level_constants() {
         // Verify log levels are in correct order (lower = more severe)
-        assert!(log_level::ERROR < log_level::WARN);
-        assert!(log_level::WARN < log_level::INFO);
-        assert!(log_level::INFO < log_level::DEBUG);
-        assert!(log_level::DEBUG < log_level::TRACE);
+        // Use const blocks to satisfy clippy::assertions_on_constants
+        const _: () = assert!(log_level::ERROR < log_level::WARN);
+        const _: () = assert!(log_level::WARN < log_level::INFO);
+        const _: () = assert!(log_level::INFO < log_level::DEBUG);
+        const _: () = assert!(log_level::DEBUG < log_level::TRACE);
     }
 
     #[test]
@@ -683,11 +684,12 @@ mod tests {
         // Success should be 0
         assert_eq!(return_code::SUCCESS, 0);
         // All error codes should be negative
-        assert!(return_code::ERROR < 0);
-        assert!(return_code::INVALID_ARG < 0);
-        assert!(return_code::PERMISSION_DENIED < 0);
-        assert!(return_code::BUFFER_TOO_SMALL < 0);
-        assert!(return_code::NOT_INITIALIZED < 0);
+        // Use const blocks to satisfy clippy::assertions_on_constants
+        const _: () = assert!(return_code::ERROR < 0);
+        const _: () = assert!(return_code::INVALID_ARG < 0);
+        const _: () = assert!(return_code::PERMISSION_DENIED < 0);
+        const _: () = assert!(return_code::BUFFER_TOO_SMALL < 0);
+        const _: () = assert!(return_code::NOT_INITIALIZED < 0);
     }
 
     #[test]

@@ -266,7 +266,10 @@ proptest! {
             "Failed to create test device: {:?}",
             device_result.err()
         );
-        let mut device = device_result.ok().expect("device creation verified above");
+        let mut device = match device_result {
+            Ok(d) => d,
+            Err(_) => return Ok(()), // Already asserted above, this is unreachable
+        };
 
         // Create the torque command
         let command = TorqueCommand::new(torque, seq, true, false);
@@ -323,7 +326,10 @@ proptest! {
             "Failed to create test device: {:?}",
             device_result.err()
         );
-        let mut device = device_result.ok().expect("device creation verified above");
+        let mut device = match device_result {
+            Ok(d) => d,
+            Err(_) => return Ok(()), // Already asserted above, this is unreachable
+        };
 
         let max_latency = Duration::from_micros(MAX_WRITE_LATENCY_US * 10); // 2ms for CI
         let mut max_observed_latency = Duration::ZERO;
@@ -378,7 +384,10 @@ proptest! {
             "Failed to create test device: {:?}",
             device_result.err()
         );
-        let mut device = device_result.ok().expect("device creation verified above");
+        let mut device = match device_result {
+            Ok(d) => d,
+            Err(_) => return Ok(()), // Already asserted above, this is unreachable
+        };
 
         let max_latency = Duration::from_micros(MAX_WRITE_LATENCY_US * 10);
 
@@ -412,7 +421,10 @@ proptest! {
             "Failed to create test device: {:?}",
             device_result.err()
         );
-        let mut device = device_result.ok().expect("device creation verified above");
+        let mut device = match device_result {
+            Ok(d) => d,
+            Err(_) => return Ok(()), // Already asserted above, this is unreachable
+        };
 
         let max_latency = Duration::from_micros(MAX_WRITE_LATENCY_US * 10);
 

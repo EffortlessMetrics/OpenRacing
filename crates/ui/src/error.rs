@@ -469,7 +469,7 @@ mod property_tests {
 
             // The sanitized message should not contain the path
             prop_assert!(
-                !sanitized.contains(&path_type),
+                !sanitized.contains(path_type),
                 "Sanitized error should not contain path '{}'. Got: '{}'",
                 path_type,
                 sanitized

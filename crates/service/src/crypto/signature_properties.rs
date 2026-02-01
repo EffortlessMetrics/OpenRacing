@@ -263,7 +263,10 @@ proptest! {
         );
 
         // Check that the error is specifically about untrusted signer
-        let err_string = result.unwrap_err().to_string();
+        let err_string = match &result {
+            Err(e) => e.to_string(),
+            Ok(_) => String::new(), // Already asserted above, this is unreachable
+        };
         prop_assert!(
             err_string.contains("Untrusted") || err_string.contains("untrusted"),
             "Error should indicate untrusted signer, got: {}", err_string

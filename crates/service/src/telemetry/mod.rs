@@ -22,6 +22,9 @@ pub mod recorder;
 #[cfg(test)]
 mod telemetry_property_tests;
 
+#[cfg(test)]
+mod disconnection_property_tests;
+
 pub use adapters::*;
 pub use game_telemetry::*;
 pub use normalized::*;

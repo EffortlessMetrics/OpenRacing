@@ -298,7 +298,7 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
     - Notify child profiles when parent changes
     - _Requirements: 11.4_
 
-- [ ] 17. Implement game telemetry adapters
+- [x] 17. Implement game telemetry adapters
   - [x] 17.1 Create telemetry adapter trait and common types
     - Define TelemetryAdapter trait
     - Define GameTelemetry struct with common fields
@@ -327,11 +327,11 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
     - Transition to disconnected state
     - Notify FFB engine
     - _Requirements: 12.6_
-  - [-] 17.8 Write property test for disconnection handling
+  - [x] 17.8 Write property test for disconnection handling
     - **Property 23: Telemetry Disconnection Handling**
     - **Validates: Requirements 12.6**
 
-- [ ] 18. Checkpoint - v0.3.0 release preparation
+- [-] 18. Checkpoint - v0.3.0 release preparation
   - Ensure all tests pass, ask the user if questions arise.
   - Update CHANGELOG with v0.3.0 changes
   - Test plugin system end-to-end

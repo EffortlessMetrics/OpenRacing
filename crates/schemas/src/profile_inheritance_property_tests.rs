@@ -1874,16 +1874,14 @@ mod circular_inheritance_tests {
         );
 
         // The detected profile should be B (the one that appears twice)
-        match result {
-            Err(DomainError::CircularInheritance {
-                profile_id: detected,
-            }) => {
-                assert_eq!(
-                    detected, "chain-cycle-b",
-                    "Should detect profile B as the circular reference"
-                );
-            }
-            _ => {}
+        if let Err(DomainError::CircularInheritance {
+            profile_id: detected,
+        }) = result
+        {
+            assert_eq!(
+                detected, "chain-cycle-b",
+                "Should detect profile B as the circular reference"
+            );
         }
 
         Ok(())

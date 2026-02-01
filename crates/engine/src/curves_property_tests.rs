@@ -1868,10 +1868,9 @@ proptest! {
         );
 
         // Error message should be non-empty
-        let error_msg = format!("{}", error.as_ref().map_or_else(
-            || "no error".to_string(),
-            |e| e.to_string()
-        ));
+        let error_msg = error
+            .as_ref()
+            .map_or_else(|| "no error".to_string(), |e| e.to_string());
         prop_assert!(
             !error_msg.is_empty() && error_msg != "no error",
             "Error message should be non-empty and descriptive"

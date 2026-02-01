@@ -793,8 +793,10 @@ mod tests {
         let adapter = RFactor2Adapter::new();
 
         // Test with speed > 1.0
-        let mut vehicle = RF2VehicleTelemetry::default();
-        vehicle.speed = 50.0;
+        let mut vehicle = RF2VehicleTelemetry {
+            speed: 50.0,
+            ..Default::default()
+        };
         vehicle.wheels[0].lateral_patch_slip = 0.1;
         vehicle.wheels[1].lateral_patch_slip = 0.15;
         vehicle.wheels[2].lateral_patch_slip = 0.08;
@@ -808,8 +810,10 @@ mod tests {
         assert!((slip - expected_slip).abs() < 0.001);
 
         // Test with low speed (should be 0)
-        let mut vehicle_low_speed = RF2VehicleTelemetry::default();
-        vehicle_low_speed.speed = 0.5;
+        let mut vehicle_low_speed = RF2VehicleTelemetry {
+            speed: 0.5,
+            ..Default::default()
+        };
         vehicle_low_speed.wheels[0].lateral_patch_slip = 0.5;
 
         let normalized = adapter.normalize_rf2_data(&vehicle_low_speed, None);
@@ -822,8 +826,10 @@ mod tests {
     fn test_slip_ratio_clamping() -> TestResult {
         let adapter = RFactor2Adapter::new();
 
-        let mut vehicle = RF2VehicleTelemetry::default();
-        vehicle.speed = 50.0;
+        let mut vehicle = RF2VehicleTelemetry {
+            speed: 50.0,
+            ..Default::default()
+        };
         vehicle.wheels[0].lateral_patch_slip = 2.0;
         vehicle.wheels[1].lateral_patch_slip = 2.0;
         vehicle.wheels[2].lateral_patch_slip = 2.0;
@@ -852,8 +858,10 @@ mod tests {
         let adapter = RFactor2Adapter::new();
 
         // Test normal steering torque
-        let mut vehicle = RF2VehicleTelemetry::default();
-        vehicle.steering_shaft_torque = 25.0; // 25 Nm
+        let mut vehicle = RF2VehicleTelemetry {
+            steering_shaft_torque: 25.0, // 25 Nm
+            ..Default::default()
+        };
 
         let normalized = adapter.normalize_rf2_data(&vehicle, None);
         // 25.0 / 50.0 = 0.5
@@ -877,10 +885,12 @@ mod tests {
     fn test_normalize_without_scoring() -> TestResult {
         let adapter = RFactor2Adapter::new();
 
-        let mut vehicle = RF2VehicleTelemetry::default();
-        vehicle.engine_rpm = 6000.0;
-        vehicle.speed = 40.0;
-        vehicle.gear = 3;
+        let vehicle = RF2VehicleTelemetry {
+            engine_rpm: 6000.0,
+            speed: 40.0,
+            gear: 3,
+            ..Default::default()
+        };
 
         let normalized = adapter.normalize_rf2_data(&vehicle, None);
 

@@ -796,8 +796,10 @@ mod tests {
 
     #[test]
     fn test_speed_conversions() -> TestResult {
-        let mut telemetry = GameTelemetry::default();
-        telemetry.speed_mps = 27.78; // ~100 km/h
+        let telemetry = GameTelemetry {
+            speed_mps: 27.78, // ~100 km/h
+            ..Default::default()
+        };
 
         let speed_kmh = telemetry.speed_kmh();
         let speed_mph = telemetry.speed_mph();
@@ -809,11 +811,13 @@ mod tests {
 
     #[test]
     fn test_slip_angle_calculations() -> TestResult {
-        let mut telemetry = GameTelemetry::default();
-        telemetry.slip_angle_fl = 0.02;
-        telemetry.slip_angle_fr = 0.04;
-        telemetry.slip_angle_rl = 0.06;
-        telemetry.slip_angle_rr = 0.08;
+        let telemetry = GameTelemetry {
+            slip_angle_fl: 0.02,
+            slip_angle_fr: 0.04,
+            slip_angle_rl: 0.06,
+            slip_angle_rr: 0.08,
+            ..Default::default()
+        };
 
         let avg = telemetry.average_slip_angle();
         let front = telemetry.front_slip_angle();
@@ -848,9 +852,11 @@ mod tests {
 
     #[test]
     fn test_total_g() -> TestResult {
-        let mut telemetry = GameTelemetry::default();
-        telemetry.lateral_g = 3.0;
-        telemetry.longitudinal_g = 4.0;
+        let telemetry = GameTelemetry {
+            lateral_g: 3.0,
+            longitudinal_g: 4.0,
+            ..Default::default()
+        };
 
         let total = telemetry.total_g();
         assert!((total - 5.0).abs() < 0.001); // 3-4-5 triangle

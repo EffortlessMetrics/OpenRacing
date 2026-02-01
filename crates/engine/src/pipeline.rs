@@ -1428,7 +1428,7 @@ mod tests {
         assert!(
             compiled
                 .as_ref()
-                .map_or(false, |c| c.pipeline.response_curve().is_none())
+                .is_some_and(|c| c.pipeline.response_curve().is_none())
         );
     }
 

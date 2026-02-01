@@ -701,8 +701,8 @@ mod tests {
         let below = curve.map(-0.5);
         let above = curve.map(1.5);
 
-        assert!(below >= 0.0 && below <= 1.0);
-        assert!(above >= 0.0 && above <= 1.0);
+        assert!((0.0..=1.0).contains(&below));
+        assert!((0.0..=1.0).contains(&above));
     }
 
     #[test]
@@ -743,8 +743,8 @@ mod tests {
         let below = lut.lookup(-0.5);
         let above = lut.lookup(1.5);
 
-        assert!(below >= 0.0 && below <= 1.0);
-        assert!(above >= 0.0 && above <= 1.0);
+        assert!((0.0..=1.0).contains(&below));
+        assert!((0.0..=1.0).contains(&above));
         assert!((below - 0.0).abs() < 0.01);
         assert!((above - 1.0).abs() < 0.01);
     }
@@ -765,7 +765,7 @@ mod tests {
             let input = i as f32 / 100.0;
             let output = lut.lookup(input);
             assert!(
-                output >= 0.0 && output <= 1.0,
+                (0.0..=1.0).contains(&output),
                 "Output {} out of range for input {}",
                 output,
                 input
@@ -850,7 +850,7 @@ mod tests {
         assert!(json.is_ok());
 
         let deserialized: Result<BezierCurve, _> =
-            serde_json::from_str(&json.as_ref().map_or("", |s| s));
+            serde_json::from_str(json.as_ref().map_or("", |s| s));
         assert!(deserialized.is_ok());
         assert_eq!(curve, deserialized.map_or(BezierCurve::linear(), |c| c));
     }
@@ -992,7 +992,7 @@ mod tests {
             let input = i as f32 / 100.0;
             let output = curve.evaluate(input);
             assert!(
-                output >= 0.0 && output <= 1.0,
+                (0.0..=1.0).contains(&output),
                 "Output {} out of range for input {}",
                 output,
                 input
@@ -1107,7 +1107,7 @@ mod tests {
             let input = i as f32 / 100.0;
             let output = curve.evaluate(input);
             assert!(
-                output >= 0.0 && output <= 1.0,
+                (0.0..=1.0).contains(&output),
                 "Output {} out of range for input {}",
                 output,
                 input
@@ -1378,7 +1378,7 @@ mod tests {
         let json = serde_json::to_string(&linear);
         assert!(json.is_ok());
         let deserialized: Result<CurveType, _> =
-            serde_json::from_str(&json.as_ref().map_or("", |s| s));
+            serde_json::from_str(json.as_ref().map_or("", |s| s));
         assert!(deserialized.is_ok());
 
         // Test Exponential
@@ -1386,7 +1386,7 @@ mod tests {
         let json = serde_json::to_string(&exp);
         assert!(json.is_ok());
         let deserialized: Result<CurveType, _> =
-            serde_json::from_str(&json.as_ref().map_or("", |s| s));
+            serde_json::from_str(json.as_ref().map_or("", |s| s));
         assert!(deserialized.is_ok());
 
         // Test Logarithmic
@@ -1394,7 +1394,7 @@ mod tests {
         let json = serde_json::to_string(&log);
         assert!(json.is_ok());
         let deserialized: Result<CurveType, _> =
-            serde_json::from_str(&json.as_ref().map_or("", |s| s));
+            serde_json::from_str(json.as_ref().map_or("", |s| s));
         assert!(deserialized.is_ok());
 
         Ok(())
@@ -1414,12 +1414,12 @@ mod tests {
             let above = curve.evaluate(1.5);
 
             assert!(
-                below >= 0.0 && below <= 1.0,
+                (0.0..=1.0).contains(&below),
                 "Output {} out of range for input -0.5",
                 below
             );
             assert!(
-                above >= 0.0 && above <= 1.0,
+                (0.0..=1.0).contains(&above),
                 "Output {} out of range for input 1.5",
                 above
             );
@@ -1653,30 +1653,21 @@ mod tests {
         // Exponential error
         let exp_err = CurveType::exponential(-1.0).err();
         assert!(exp_err.is_some());
-        let msg = format!(
-            "{}",
-            exp_err.as_ref().map_or_else(String::new, |e| e.to_string())
-        );
+        let msg = exp_err.as_ref().map_or_else(String::new, |e| e.to_string());
         assert!(msg.contains("must be > 0") || msg.contains("-1"));
 
         // Logarithmic error
         let log_err = CurveType::logarithmic(0.5).err();
         assert!(log_err.is_some());
-        let msg = format!(
-            "{}",
-            log_err.as_ref().map_or_else(String::new, |e| e.to_string())
-        );
+        let msg = log_err.as_ref().map_or_else(String::new, |e| e.to_string());
         assert!(msg.contains("must be > 1") || msg.contains("0.5"));
 
         // Bezier error
         let bezier_err = BezierCurve::new([(0.0, 0.0), (1.5, 0.5), (0.75, 0.25), (1.0, 1.0)]).err();
         assert!(bezier_err.is_some());
-        let msg = format!(
-            "{}",
-            bezier_err
-                .as_ref()
-                .map_or_else(String::new, |e| e.to_string())
-        );
+        let msg = bezier_err
+            .as_ref()
+            .map_or_else(String::new, |e| e.to_string());
         assert!(msg.contains("Control point") && msg.contains("1.5"));
     }
 }
