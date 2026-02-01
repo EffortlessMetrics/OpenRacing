@@ -331,198 +331,198 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
     - **Property 23: Telemetry Disconnection Handling**
     - **Validates: Requirements 12.6**
 
-- [-] 18. Checkpoint - v0.3.0 release preparation
+- [x] 18. Checkpoint - v0.3.0 release preparation
   - Ensure all tests pass, ask the user if questions arise.
   - Update CHANGELOG with v0.3.0 changes
   - Test plugin system end-to-end
 
 ### Phase 4: v1.0.0 Stable Release
 
-- [ ] 19. Implement performance validation gates
-  - [ ] 19.1 Enhance benchmark output format
+- [-] 19. Implement performance validation gates
+  - [-] 19.1 Enhance benchmark output format
     - Add JSON output to rt_timing benchmark
     - Include all required metrics (RT loop, jitter, missed ticks, processing time)
     - _Requirements: 14.6_
-  - [ ] 19.2 Write property test for benchmark JSON round-trip
+  - [~] 19.2 Write property test for benchmark JSON round-trip
     - **Property 25: Benchmark JSON Round-Trip**
     - **Validates: Requirements 14.6**
-  - [ ] 19.3 Implement performance gate validation script
+  - [~] 19.3 Implement performance gate validation script
     - Update scripts/validate_performance.py
     - Add threshold checks for all metrics
     - Report specific failed metrics
     - _Requirements: 14.2, 14.3, 14.4, 14.5_
-  - [ ] 19.4 Write property test for performance gate validation
+  - [~] 19.4 Write property test for performance gate validation
     - **Property 24: Performance Gate Validation (Consolidated)**
     - **Validates: Requirements 14.2, 14.3, 14.4, 14.5**
-  - [ ] 19.5 Integrate performance gates into CI
+  - [~] 19.5 Integrate performance gates into CI
     - Add benchmark step to CI workflow
     - Fail build on threshold violations
     - _Requirements: 14.1_
 
 - [ ] 20. Complete documentation
-  - [ ] 20.1 Update User Guide
+  - [~] 20.1 Update User Guide
     - Add installation instructions for all platforms
     - Add configuration guide
     - Add troubleshooting section
     - _Requirements: 13.1_
-  - [ ] 20.2 Generate and publish API documentation
+  - [~] 20.2 Generate and publish API documentation
     - Run cargo doc with all features
     - Publish to GitHub Pages or docs.rs
     - _Requirements: 13.2_
-  - [ ] 20.3 Complete Plugin Development Guide
+  - [~] 20.3 Complete Plugin Development Guide
     - Add WASM plugin examples
     - Add native plugin examples
     - Document ABI requirements
     - _Requirements: 13.3_
-  - [ ] 20.4 Complete protocol documentation
+  - [~] 20.4 Complete protocol documentation
     - Review and update docs/protocols/*.md
     - Add any missing device protocols
     - _Requirements: 13.4_
 
 - [ ] 21. Implement plugin registry
-  - [ ] 21.1 Create plugin registry data structures
+  - [~] 21.1 Create plugin registry data structures
     - Define PluginMetadata struct
     - Define PluginCatalog struct
     - Implement search functionality
     - _Requirements: 16.1, 16.3_
-  - [ ] 21.2 Write property test for plugin registry search
+  - [~] 21.2 Write property test for plugin registry search
     - **Property 26: Plugin Registry Search**
     - **Validates: Requirements 16.1**
-  - [ ] 21.3 Write property test for plugin metadata completeness
+  - [~] 21.3 Write property test for plugin metadata completeness
     - **Property 27: Plugin Metadata Completeness**
     - **Validates: Requirements 16.3**
-  - [ ] 21.4 Implement semver compatibility checking
+  - [~] 21.4 Implement semver compatibility checking
     - Add version compatibility logic
     - Check major version for breaking changes
     - _Requirements: 16.6_
-  - [ ] 21.5 Write property test for semver compatibility
+  - [~] 21.5 Write property test for semver compatibility
     - **Property 28: Semver Compatibility**
     - **Validates: Requirements 16.6**
-  - [ ] 21.6 Add wheelctl plugin install command
+  - [~] 21.6 Add wheelctl plugin install command
     - Implement plugin download from registry
     - Verify signature matches registry entry
     - Install plugin to local directory
     - _Requirements: 16.4, 16.5_
 
-- [ ] 22. Checkpoint - Plugin registry verification
+- [~] 22. Checkpoint - Plugin registry verification
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 23. Implement firmware update system
-  - [ ] 23.1 Create firmware image structures
+  - [~] 23.1 Create firmware image structures
     - Define FirmwareImage struct
     - Define UpdateState enum
     - Implement signature verification for firmware
     - _Requirements: 17.1, 17.2_
-  - [ ] 23.2 Implement firmware update state machine
+  - [~] 23.2 Implement firmware update state machine
     - Implement state transitions
     - Block FFB during update
     - _Requirements: 17.4_
-  - [ ] 23.3 Write property test for firmware update mutual exclusion
+  - [~] 23.3 Write property test for firmware update mutual exclusion
     - **Property 29: Firmware Update Mutual Exclusion**
     - **Validates: Requirements 17.4**
-  - [ ] 23.4 Implement rollback support
+  - [~] 23.4 Implement rollback support
     - Store backup of current firmware
     - Restore on update failure
     - _Requirements: 17.3, 17.5_
-  - [ ] 23.5 Write property test for firmware rollback on failure
+  - [~] 23.5 Write property test for firmware rollback on failure
     - **Property 30: Firmware Rollback on Failure**
     - **Validates: Requirements 17.3, 17.5**
-  - [ ] 23.6 Implement firmware cache
+  - [~] 23.6 Implement firmware cache
     - Cache downloaded firmware images
     - Support offline updates from cache
     - _Requirements: 17.6_
-  - [ ] 23.7 Write property test for firmware cache operations
+  - [~] 23.7 Write property test for firmware cache operations
     - **Property 31: Firmware Cache Operations**
     - **Validates: Requirements 17.6**
 
 - [ ] 24. Finalize safety interlocks
-  - [ ] 24.1 Implement hardware watchdog integration
+  - [~] 24.1 Implement hardware watchdog integration
     - Create HardwareWatchdog trait implementation
     - Configure 100ms timeout
     - Implement feed() method for RT loop
     - _Requirements: 18.1_
-  - [ ] 24.2 Implement watchdog timeout response
+  - [~] 24.2 Implement watchdog timeout response
     - Command zero torque on timeout
     - Transition to safe mode
     - _Requirements: 18.2_
-  - [ ] 24.3 Write property test for watchdog timeout response
+  - [~] 24.3 Write property test for watchdog timeout response
     - **Property 32: Watchdog Timeout Response**
     - **Validates: Requirements 18.2**
-  - [ ] 24.4 Implement torque limit enforcement
+  - [~] 24.4 Implement torque limit enforcement
     - Clamp torque to device maximum
     - Log limit violations
     - _Requirements: 18.3_
-  - [ ] 24.5 Write property test for torque limit enforcement
+  - [~] 24.5 Write property test for torque limit enforcement
     - **Property 33: Torque Limit Enforcement**
     - **Validates: Requirements 18.3**
-  - [ ] 24.6 Implement fault detection and response
+  - [~] 24.6 Implement fault detection and response
     - Detect fault conditions
     - Enter safe mode on fault
     - Log fault to black box
     - _Requirements: 18.4_
-  - [ ] 24.7 Write property test for fault detection response
+  - [~] 24.7 Write property test for fault detection response
     - **Property 34: Fault Detection Response**
     - **Validates: Requirements 18.4**
-  - [ ] 24.8 Implement communication loss handling
+  - [~] 24.8 Implement communication loss handling
     - Detect communication timeout
     - Reach safe state within 50ms
     - _Requirements: 18.6_
-  - [ ] 24.9 Write property test for communication loss response
+  - [~] 24.9 Write property test for communication loss response
     - **Property 35: Communication Loss Response**
     - **Validates: Requirements 18.6**
-  - [ ] 24.10 Implement emergency stop
+  - [~] 24.10 Implement emergency stop
     - Add e-stop command to IPC
     - Implement immediate zero torque
     - _Requirements: 18.5_
 
 - [ ] 25. Implement migration system
-  - [ ] 25.1 Create migration framework
+  - [~] 25.1 Create migration framework
     - Define schema version detection
     - Define migration trait
     - Implement backup creation
     - _Requirements: 20.1, 20.3_
-  - [ ] 25.2 Implement profile migration
+  - [~] 25.2 Implement profile migration
     - Detect old profile versions
     - Migrate to current schema
     - Restore backup on failure
     - _Requirements: 20.2, 20.4_
-  - [ ] 25.3 Write property test for migration round-trip
+  - [~] 25.3 Write property test for migration round-trip
     - **Property 36: Migration Round-Trip (Consolidated)**
     - **Validates: Requirements 20.1, 20.2, 20.3, 20.4**
-  - [ ] 25.4 Implement backward compatibility
+  - [~] 25.4 Implement backward compatibility
     - Ensure old schemas parse with new code
     - Add compatibility tests
     - _Requirements: 20.5_
-  - [ ] 25.5 Write property test for schema backward compatibility
+  - [~] 25.5 Write property test for schema backward compatibility
     - **Property 37: Schema Backward Compatibility**
     - **Validates: Requirements 20.5**
 
-- [ ] 26. Checkpoint - Pre-release verification
+- [~] 26. Checkpoint - Pre-release verification
   - Ensure all tests pass, ask the user if questions arise.
   - Run full test suite including property tests
   - Run performance benchmarks and validate gates
 
 - [ ] 27. Create release artifacts
-  - [ ] 27.1 Build Linux packages
+  - [~] 27.1 Build Linux packages
     - Build .deb package for Debian/Ubuntu
     - Build .rpm package for Fedora/RHEL
     - Build tarball for generic Linux
     - _Requirements: 19.1_
-  - [ ] 27.2 Build Windows packages
+  - [~] 27.2 Build Windows packages
     - Build MSI installer
     - Build portable ZIP
     - _Requirements: 19.2_
-  - [ ] 27.3 Sign release artifacts
+  - [~] 27.3 Sign release artifacts
     - Sign all packages with release key
     - Generate SHA256 checksums
     - _Requirements: 19.5, 19.6_
-  - [ ] 27.4 Publish GitHub release
+  - [~] 27.4 Publish GitHub release
     - Create v1.0.0 tag
     - Upload all artifacts
     - Publish release notes from CHANGELOG
     - _Requirements: 19.4_
 
-- [ ] 28. Final checkpoint - v1.0.0 release
+- [~] 28. Final checkpoint - v1.0.0 release
   - Ensure all tests pass, ask the user if questions arise.
   - Verify all release artifacts are published
   - Update CHANGELOG with v1.0.0 release date

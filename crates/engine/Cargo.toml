@@ -82,3 +82,8 @@ required-features = ["harness"]
 [[test]]
 name = "virtual_device_integration"
 required-features = ["harness"]
+
+[[bench]]
+name = "rt_timing"
+harness = false
+path = "../../benches/rt_timing.rs"

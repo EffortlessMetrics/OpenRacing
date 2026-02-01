@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-02-01
+
+### Added
+
+- **WASM Plugin Runtime**: Sandboxed plugin execution using wasmtime
+  - Memory and CPU resource limits for plugin isolation
+  - Stable ABI for DSP filter plugins
+  - Panic isolation - plugin crashes don't affect the service
+  - Hot-reload support without service restart
+  - Resource limit enforcement with automatic plugin termination
+- **Native Plugin Signature Verification**: Ed25519 cryptographic signatures
+  - Signature verification for all native plugins before loading
+  - Detached signature file support (.sig files)
+  - Security warnings logged for invalid signatures
+  - Configurable unsigned plugin policy (allow_unsigned_plugins option)
+- **Trust Store**: Centralized management of trusted plugin signers
+  - Add/remove/query operations for trusted public keys
+  - Persistent storage to disk
+  - Key fingerprint-based trust verification
+- **Native Plugin ABI Compatibility**: Version checking for native plugins
+  - ABI version verification before plugin execution
+  - Clear error messages for version mismatches
+- **Curve-Based FFB Effects**: Customizable force feedback response curves
+  - Cubic Bezier curves for torque response mapping
+  - Multiple curve types: linear, exponential, logarithmic, custom Bezier
+  - Pre-computed lookup tables (LUT) for RT-safe evaluation
+  - Zero-allocation curve application in the RT path
+  - Curve parameter validation with descriptive error messages
+- **Profile Inheritance**: Hierarchical profile system
+  - Parent-child profile relationships
+  - Settings merge with child values overriding parent values
+  - Inheritance chain resolution up to 5 levels deep
+  - Circular inheritance detection with clear error messages
+  - Parent change notification for dependent child profiles
+- **Game Telemetry Adapters**: Native integration with racing simulators
+  - iRacing adapter via shared memory
+  - Assetto Corsa Competizione (ACC) adapter via UDP
+  - Automobilista 2 (AMS2) adapter via shared memory
+  - rFactor 2 adapter via plugin interface
+  - Telemetry parsing within 1ms performance budget
+  - Graceful disconnection handling with FFB engine notification
+
+### Changed
+
+- Profile schema updated to support optional parent field for inheritance
+- Pipeline compilation now supports response curve integration
+
+### Fixed
+
+- Various clippy warnings resolved across the codebase
+
 ## [0.2.0] - 2026-02-01
 
 ### Added
