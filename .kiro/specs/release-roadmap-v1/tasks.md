@@ -502,7 +502,7 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
   - Run full test suite including property tests
   - Run performance benchmarks and validate gates
 
-- [-] 27. Create release artifacts
+- [x] 27. Create release artifacts
   - [x] 27.1 Build Linux packages
     - Build .deb package for Debian/Ubuntu
     - Build .rpm package for Fedora/RHEL
@@ -512,17 +512,17 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
     - Build MSI installer
     - Build portable ZIP
     - _Requirements: 19.2_
-  - [-] 27.3 Sign release artifacts
+  - [x] 27.3 Sign release artifacts
     - Sign all packages with release key
     - Generate SHA256 checksums
     - _Requirements: 19.5, 19.6_
-  - [~] 27.4 Publish GitHub release
+  - [x] 27.4 Publish GitHub release
     - Create v1.0.0 tag
     - Upload all artifacts
     - Publish release notes from CHANGELOG
     - _Requirements: 19.4_
 
-- [~] 28. Final checkpoint - v1.0.0 release
+- [x] 28. Final checkpoint - v1.0.0 release
   - Ensure all tests pass, ask the user if questions arise.
   - Verify all release artifacts are published
   - Update CHANGELOG with v1.0.0 release date

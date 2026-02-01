@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-15
+
+### Added
+
+- **Production Safety Interlocks**: FMEA-validated safety system
+  - Hardware watchdog integration with 100ms timeout
+  - Automatic zero-torque command on watchdog timeout within 1ms
+  - Maximum torque limit enforcement based on device capabilities
+  - Fault detection with automatic safe mode transition
+  - Communication loss handling with safe state within 50ms
+  - Emergency stop via dedicated input or software command
+- **Performance Validation Gates**: Automated performance regression prevention
+  - RT timing benchmarks integrated into CI pipeline
+  - Threshold enforcement: RT loop ≤1000μs, p99 jitter ≤0.25ms
+  - Processing time gates: ≤50μs median, ≤200μs p99
+  - Missed tick rate validation: ≤0.001%
+  - JSON benchmark output for historical tracking
+- **Plugin Registry**: Centralized plugin discovery and installation
+  - Searchable plugin catalog with metadata
+  - Signature verification for registry plugins
+  - Semantic versioning compatibility checking
+  - `wheelctl plugin install` command for easy installation
+- **Firmware Update System**: Safe device firmware management
+  - Firmware image signature verification
+  - Rollback support on update failure
+  - FFB operation blocking during updates
+  - Local firmware cache for offline updates
+- **Migration System**: Seamless upgrade path from previous versions
+  - Automatic profile schema version detection
+  - Profile migration with backup creation
+  - Backup restoration on migration failure
+  - Backward compatibility within major versions
+- **Complete Documentation**: Comprehensive user and developer guides
+  - User Guide with installation and configuration instructions
+  - API documentation via rustdoc for all public interfaces
+  - Plugin Development Guide with WASM and native examples
+  - Protocol documentation for all supported wheel manufacturers
+  - Troubleshooting guides for common issues
+
+### Changed
+
+- **BREAKING**: Profile schema v2 with inheritance support
+  - Profiles now support parent-child relationships
+  - Settings merge with child values overriding parent values
+  - Inheritance chain resolution up to 5 levels deep
+
+### Security
+
+- Completed third-party security audit
+- All cryptographic implementations verified (Ed25519 signatures)
+- Plugin sandboxing escape prevention validated
+- IPC interface injection attack prevention verified
+- Zero critical vulnerabilities in dependency audit (cargo-audit, cargo-deny)
+
 ## [0.3.0] - 2026-02-01
 
 ### Added
