@@ -10,6 +10,7 @@
 pub mod domain;
 pub mod entities;
 pub mod ipc_conversion;
+pub mod migration;
 
 #[cfg(test)]
 mod integration_test;
@@ -56,6 +57,12 @@ pub mod prelude {
 
     // Configuration types
     pub use crate::config::{ProfileMigrator, ProfileSchema, ProfileValidator};
+
+    // Migration types
+    pub use crate::migration::{
+        BackupInfo, CURRENT_SCHEMA_VERSION, Migration, MigrationConfig, MigrationError,
+        MigrationManager, MigrationResult, SchemaVersion,
+    };
 
     // IPC conversion types
     pub use crate::ipc_conversion::ConversionError;

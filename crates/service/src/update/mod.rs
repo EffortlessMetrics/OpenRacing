@@ -23,6 +23,9 @@ pub mod staged_rollout;
 #[cfg(test)]
 pub mod firmware_tests;
 
+#[cfg(test)]
+mod firmware_property_tests;
+
 // Re-export key firmware update types
 pub use firmware::UpdateResult as FirmwareUpdateResult;
 pub use firmware::{
@@ -410,7 +413,8 @@ impl UpdateManager {
                         return Err(UpdateError::HealthCheckFailed(format!(
                             "Critical health check '{}' failed: {}",
                             check.id, e
-                        )));
+                        ))
+                        .into());
                     } else {
                         tracing::warn!("Non-critical health check failed, continuing: {}", e);
                     }
@@ -531,7 +535,8 @@ impl UpdateManager {
                         file.path.display(),
                         file.expected_hash,
                         actual_hash
-                    )));
+                    ))
+                    .into());
                 }
 
                 tracing::debug!("Replaced file: {}", target_path.display());
@@ -554,7 +559,8 @@ impl UpdateManager {
                         file.path.display(),
                         file.expected_hash,
                         actual_hash
-                    )));
+                    ))
+                    .into());
                 }
 
                 tracing::debug!("Applied delta patch: {}", target_path.display());

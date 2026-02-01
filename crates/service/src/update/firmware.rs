@@ -67,9 +67,10 @@ pub enum FirmwareUpdateError {
 ///
 /// This enum represents the high-level state of the firmware update system,
 /// as specified in the design document (Requirement 17).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum UpdateState {
     /// No update in progress, system is idle
+    #[default]
     Idle,
 
     /// Downloading firmware image from remote source
@@ -102,12 +103,6 @@ pub enum UpdateState {
     },
 }
 
-impl Default for UpdateState {
-    fn default() -> Self {
-        Self::Idle
-    }
-}
-
 impl UpdateState {
     /// Check if an update is currently in progress
     pub fn is_in_progress(&self) -> bool {
@@ -127,7 +122,7 @@ impl UpdateState {
 }
 
 /// Firmware partition identifier
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Partition {
     /// Partition A
     A,
@@ -402,6 +397,7 @@ pub struct FirmwareUpdateManager {
     verifier: crate::crypto::verification::VerificationService,
 
     /// Configuration for staged rollout
+    #[allow(dead_code)]
     rollout_config: StagedRolloutConfig,
 
     /// Progress broadcast channel
@@ -414,8 +410,10 @@ pub struct FirmwareUpdateManager {
 
 /// Handle for tracking an active update
 struct UpdateHandle {
+    #[allow(dead_code)]
     device_id: String,
     cancel_tx: mpsc::Sender<()>,
+    #[allow(dead_code)]
     progress_rx: mpsc::Receiver<UpdateProgress>,
 }
 
@@ -494,7 +492,7 @@ impl FirmwareUpdateManager {
         }
 
         // Create progress tracking
-        let (progress_tx, mut progress_rx) = mpsc::channel(100);
+        let (progress_tx, progress_rx) = mpsc::channel(100);
         let (cancel_tx, mut cancel_rx) = mpsc::channel(1);
 
         // Register active update
@@ -701,7 +699,9 @@ impl FirmwareUpdateManager {
             bytes_transferred += chunk.len() as u64;
 
             // Update progress every 64KB or at the end
-            if bytes_transferred % (64 * 1024) == 0 || bytes_transferred == firmware.size_bytes {
+            if bytes_transferred.is_multiple_of(64 * 1024)
+                || bytes_transferred == firmware.size_bytes
+            {
                 let elapsed = transfer_start.elapsed();
                 let transfer_rate = if elapsed.as_secs() > 0 {
                     bytes_transferred / elapsed.as_secs()
@@ -709,11 +709,7 @@ impl FirmwareUpdateManager {
                     0
                 };
 
-                let eta = if transfer_rate > 0 {
-                    Some((firmware.size_bytes - bytes_transferred) / transfer_rate)
-                } else {
-                    None
-                };
+                let eta = (firmware.size_bytes - bytes_transferred).checked_div(transfer_rate);
 
                 let progress_percent = 15 + ((bytes_transferred * 60) / firmware.size_bytes) as u8;
 
@@ -926,25 +922,25 @@ impl FirmwareUpdateManager {
     /// Check firmware compatibility with device
     fn check_compatibility(&self, firmware: &FirmwareImage, hardware_version: &str) -> Result<()> {
         // Check minimum hardware version
-        if let Some(min_version) = &firmware.min_hardware_version {
-            if hardware_version < min_version {
-                return Err(FirmwareUpdateError::InvalidFirmware(format!(
-                    "Hardware version {} is below minimum required version {}",
-                    hardware_version, min_version
-                ))
-                .into());
-            }
+        if let Some(min_version) = &firmware.min_hardware_version
+            && hardware_version < min_version.as_str()
+        {
+            return Err(FirmwareUpdateError::InvalidFirmware(format!(
+                "Hardware version {} is below minimum required version {}",
+                hardware_version, min_version
+            ))
+            .into());
         }
 
         // Check maximum hardware version
-        if let Some(max_version) = &firmware.max_hardware_version {
-            if hardware_version > max_version {
-                return Err(FirmwareUpdateError::InvalidFirmware(format!(
-                    "Hardware version {} is above maximum supported version {}",
-                    hardware_version, max_version
-                ))
-                .into());
-            }
+        if let Some(max_version) = &firmware.max_hardware_version
+            && hardware_version > max_version.as_str()
+        {
+            return Err(FirmwareUpdateError::InvalidFirmware(format!(
+                "Hardware version {} is above maximum supported version {}",
+                hardware_version, max_version
+            ))
+            .into());
         }
 
         Ok(())
@@ -1481,7 +1477,7 @@ impl FirmwareCache {
         };
 
         // Sort by cached_at (oldest first)
-        entries.sort_by(|a, b| a.cached_at.cmp(&b.cached_at));
+        entries.sort_by_key(|a| a.cached_at);
 
         let mut freed_space = 0u64;
         for entry in entries {
@@ -1517,7 +1513,7 @@ impl FirmwareCache {
 
 #[cfg(test)]
 pub mod tests {
-    pub use super::firmware_tests::*;
+    // Tests are in the separate firmware_tests.rs file in the parent module
 }
 
 #[cfg(test)]
@@ -1720,38 +1716,36 @@ mod firmware_tests_internal {
     }
 
     #[tokio::test]
-    async fn test_successful_firmware_update() {
+    async fn test_successful_firmware_update() -> Result<()> {
         // Create mock device and firmware
         let device = Box::new(MockFirmwareDevice::new("test_device".to_string()));
         let firmware = create_test_firmware();
 
         // Create update manager with mock verifier
-        let temp_dir = tempfile::TempDir::new().unwrap();
+        let temp_dir = tempfile::TempDir::new()?;
         let config = crate::crypto::VerificationConfig {
             trust_store_path: temp_dir.path().join("trust_store.json"),
             require_firmware_signatures: false, // Disable for test
             ..Default::default()
         };
-        let verifier = crate::crypto::verification::VerificationService::new(config).unwrap();
+        let verifier = crate::crypto::verification::VerificationService::new(config)?;
         let rollout_config = StagedRolloutConfig::default();
 
         let manager = FirmwareUpdateManager::new(verifier, rollout_config);
 
         // Perform update
-        let result = manager
-            .update_device_firmware(device, &firmware)
-            .await
-            .unwrap();
+        let result = manager.update_device_firmware(device, &firmware).await?;
 
         // Verify result
         assert!(result.success);
         assert_eq!(result.new_version, Some(firmware.version));
         assert_eq!(result.updated_partition, Some(Partition::B));
         assert!(!result.rollback_performed);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_firmware_update_with_health_check_failure() {
+    async fn test_firmware_update_with_health_check_failure() -> Result<()> {
         // Create mock device that will fail health check
         let device = MockFirmwareDevice::new("test_device".to_string());
         device.set_health_check_failure(true).await;
@@ -1759,33 +1753,26 @@ mod firmware_tests_internal {
         let firmware = create_test_firmware();
 
         // Create update manager
-        let temp_dir = tempfile::TempDir::new().unwrap();
+        let temp_dir = tempfile::TempDir::new()?;
         let config = crate::crypto::VerificationConfig {
             trust_store_path: temp_dir.path().join("trust_store.json"),
             require_firmware_signatures: false,
             ..Default::default()
         };
-        let verifier = crate::crypto::verification::VerificationService::new(config).unwrap();
+        let verifier = crate::crypto::verification::VerificationService::new(config)?;
         let rollout_config = StagedRolloutConfig::default();
 
         let manager = FirmwareUpdateManager::new(verifier, rollout_config);
 
         // Perform update (should fail and rollback)
-        let result = manager
-            .update_device_firmware(device, &firmware)
-            .await
-            .unwrap();
+        let result = manager.update_device_firmware(device, &firmware).await?;
 
         // Verify result shows failure
         assert!(!result.success);
         assert!(result.error.is_some());
-        assert!(
-            result
-                .error
-                .as_ref()
-                .unwrap()
-                .contains("Health check failed")
-        );
+        let error_msg = result.error.as_ref().expect("Expected error message");
+        assert!(error_msg.contains("Health check failed"));
+        Ok(())
     }
 
     #[test]
@@ -1795,13 +1782,14 @@ mod firmware_tests_internal {
     }
 
     #[test]
-    fn test_firmware_image_serialization() {
+    fn test_firmware_image_serialization() -> Result<(), serde_json::Error> {
         let firmware = create_test_firmware();
-        let json = serde_json::to_string(&firmware).unwrap();
-        let deserialized: FirmwareImage = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&firmware)?;
+        let deserialized: FirmwareImage = serde_json::from_str(&json)?;
 
         assert_eq!(firmware.device_model, deserialized.device_model);
         assert_eq!(firmware.version, deserialized.version);
         assert_eq!(firmware.hash, deserialized.hash);
+        Ok(())
     }
 }

@@ -407,112 +407,112 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
 - [x] 22. Checkpoint - Plugin registry verification
   - Ensure all tests pass, ask the user if questions arise.
 
-- [-] 23. Implement firmware update system
-  - [-] 23.1 Create firmware image structures
+- [x] 23. Implement firmware update system
+  - [x] 23.1 Create firmware image structures
     - Define FirmwareImage struct
     - Define UpdateState enum
     - Implement signature verification for firmware
     - _Requirements: 17.1, 17.2_
-  - [~] 23.2 Implement firmware update state machine
+  - [x] 23.2 Implement firmware update state machine
     - Implement state transitions
     - Block FFB during update
     - _Requirements: 17.4_
-  - [~] 23.3 Write property test for firmware update mutual exclusion
+  - [x] 23.3 Write property test for firmware update mutual exclusion
     - **Property 29: Firmware Update Mutual Exclusion**
     - **Validates: Requirements 17.4**
-  - [~] 23.4 Implement rollback support
+  - [x] 23.4 Implement rollback support
     - Store backup of current firmware
     - Restore on update failure
     - _Requirements: 17.3, 17.5_
-  - [~] 23.5 Write property test for firmware rollback on failure
+  - [x] 23.5 Write property test for firmware rollback on failure
     - **Property 30: Firmware Rollback on Failure**
     - **Validates: Requirements 17.3, 17.5**
-  - [~] 23.6 Implement firmware cache
+  - [x] 23.6 Implement firmware cache
     - Cache downloaded firmware images
     - Support offline updates from cache
     - _Requirements: 17.6_
-  - [~] 23.7 Write property test for firmware cache operations
+  - [x] 23.7 Write property test for firmware cache operations
     - **Property 31: Firmware Cache Operations**
     - **Validates: Requirements 17.6**
 
-- [ ] 24. Finalize safety interlocks
-  - [~] 24.1 Implement hardware watchdog integration
+- [x] 24. Finalize safety interlocks
+  - [x] 24.1 Implement hardware watchdog integration
     - Create HardwareWatchdog trait implementation
     - Configure 100ms timeout
     - Implement feed() method for RT loop
     - _Requirements: 18.1_
-  - [~] 24.2 Implement watchdog timeout response
+  - [x] 24.2 Implement watchdog timeout response
     - Command zero torque on timeout
     - Transition to safe mode
     - _Requirements: 18.2_
-  - [~] 24.3 Write property test for watchdog timeout response
+  - [x] 24.3 Write property test for watchdog timeout response
     - **Property 32: Watchdog Timeout Response**
     - **Validates: Requirements 18.2**
-  - [~] 24.4 Implement torque limit enforcement
+  - [x] 24.4 Implement torque limit enforcement
     - Clamp torque to device maximum
     - Log limit violations
     - _Requirements: 18.3_
-  - [~] 24.5 Write property test for torque limit enforcement
+  - [x] 24.5 Write property test for torque limit enforcement
     - **Property 33: Torque Limit Enforcement**
     - **Validates: Requirements 18.3**
-  - [~] 24.6 Implement fault detection and response
+  - [x] 24.6 Implement fault detection and response
     - Detect fault conditions
     - Enter safe mode on fault
     - Log fault to black box
     - _Requirements: 18.4_
-  - [~] 24.7 Write property test for fault detection response
+  - [x] 24.7 Write property test for fault detection response
     - **Property 34: Fault Detection Response**
     - **Validates: Requirements 18.4**
-  - [~] 24.8 Implement communication loss handling
+  - [x] 24.8 Implement communication loss handling
     - Detect communication timeout
     - Reach safe state within 50ms
     - _Requirements: 18.6_
-  - [~] 24.9 Write property test for communication loss response
+  - [x] 24.9 Write property test for communication loss response
     - **Property 35: Communication Loss Response**
     - **Validates: Requirements 18.6**
-  - [~] 24.10 Implement emergency stop
+  - [x] 24.10 Implement emergency stop
     - Add e-stop command to IPC
     - Implement immediate zero torque
     - _Requirements: 18.5_
 
-- [ ] 25. Implement migration system
-  - [~] 25.1 Create migration framework
+- [x] 25. Implement migration system
+  - [x] 25.1 Create migration framework
     - Define schema version detection
     - Define migration trait
     - Implement backup creation
     - _Requirements: 20.1, 20.3_
-  - [~] 25.2 Implement profile migration
+  - [x] 25.2 Implement profile migration
     - Detect old profile versions
     - Migrate to current schema
     - Restore backup on failure
     - _Requirements: 20.2, 20.4_
-  - [~] 25.3 Write property test for migration round-trip
+  - [x] 25.3 Write property test for migration round-trip
     - **Property 36: Migration Round-Trip (Consolidated)**
     - **Validates: Requirements 20.1, 20.2, 20.3, 20.4**
-  - [~] 25.4 Implement backward compatibility
+  - [x] 25.4 Implement backward compatibility
     - Ensure old schemas parse with new code
     - Add compatibility tests
     - _Requirements: 20.5_
-  - [~] 25.5 Write property test for schema backward compatibility
+  - [x] 25.5 Write property test for schema backward compatibility
     - **Property 37: Schema Backward Compatibility**
     - **Validates: Requirements 20.5**
 
-- [~] 26. Checkpoint - Pre-release verification
+- [x] 26. Checkpoint - Pre-release verification
   - Ensure all tests pass, ask the user if questions arise.
   - Run full test suite including property tests
   - Run performance benchmarks and validate gates
 
-- [ ] 27. Create release artifacts
-  - [~] 27.1 Build Linux packages
+- [-] 27. Create release artifacts
+  - [x] 27.1 Build Linux packages
     - Build .deb package for Debian/Ubuntu
     - Build .rpm package for Fedora/RHEL
     - Build tarball for generic Linux
     - _Requirements: 19.1_
-  - [~] 27.2 Build Windows packages
+  - [x] 27.2 Build Windows packages
     - Build MSI installer
     - Build portable ZIP
     - _Requirements: 19.2_
-  - [~] 27.3 Sign release artifacts
+  - [-] 27.3 Sign release artifacts
     - Sign all packages with release key
     - Generate SHA256 checksums
     - _Requirements: 19.5, 19.6_
