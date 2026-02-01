@@ -1,73 +1,167 @@
 # Device Protocol Knowledge Base
 
-This document summarizes the known communication protocols for supported and planned racing wheels. It serves as the reference for implementing `crates/engine/src/hw/` drivers.
+This directory contains detailed protocol documentation for all racing wheel manufacturers supported by OpenRacing. Each document serves as the reference for implementing device drivers in `crates/engine/src/hw/`.
 
-## 1. Moza Racing
-**Status:** Well-Documented
-**Type:** Serial over USB / Custom HID
+## Supported Manufacturers
 
-*   **Protocol:**
-    *   Uses a serial-like protocol encapsulated in USB HID Feature Reports or direct USB bulk transfers depending on the model.
-    *   **Documentation:** The [Boxflat](https://github.com/Lawstorant/boxflat) project contains a detailed `moza-protocol.md`.
-    *   **Linux Driver:** `hid-universal-pidff` supports Moza wheels via standard PIDFF after initialization.
-*   **Initialization:** Requires specific "handshake" commands to unlock high-torque modes and FFB.
-*   **Implementation Strategy:**
-    *   Port the command structure from Boxflat.
-    *   Implement as `MozaDevice` struct in `engine`.
+| Manufacturer | Status | Protocol Type | Documentation |
+|--------------|--------|---------------|---------------|
+| [Logitech](LOGITECH_PROTOCOL.md) | ✅ Supported | HID PIDFF + TrueForce | Well-documented |
+| [Fanatec](FANATEC_PROTOCOL.md) | ✅ Supported | Custom HID | Community reverse-engineered |
+| [Thrustmaster](THRUSTMASTER_PROTOCOL.md) | ✅ Supported | HID PIDFF | Partially documented |
+| [Moza](MOZA_PROTOCOL.md) | ✅ Supported | Serial/HID PIDFF | Well-documented |
+| [Simagic](SIMAGIC_PROTOCOL.md) | ⚠️ Partial | HID PIDFF / Proprietary | Version-dependent |
 
-## 2. Simagic
-**Status:** Fragmented (Old vs. New)
-**Type:** HID PIDFF (Old) / Proprietary (New)
+## Protocol Overview
 
-*   **Legacy (Firmware <= v159):**
-    *   Standard USB HID PIDFF.
-    *   Works with generic drivers (mostly).
-*   **Modern (Firmware >= v171):**
-    *   **Protocol:** Proprietary. Shifts standard HID reports by one byte (byte 0 = 0x01).
-    *   **Obfuscation:** Removes FFB descriptors from the USB descriptor, making OS drivers fail.
-    *   **Research:** [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) is the active hub for reverse engineering.
-*   **Implementation Strategy:**
-    *   Support Legacy mode immediately (Standard HID).
-    *   For Modern mode, we need to sniff the init sequence that `SimPro Manager` sends.
+### Common Concepts
 
-## 3. Fanatec
-**Status:** Reverse-Engineered
-**Type:** Custom HID
+All racing wheel protocols share these fundamental concepts:
 
-*   **Protocol:**
-    *   Fanatec wheels start in "Xbox" or "Compatibility" mode.
-    *   **Initialization:** Requires a "Magic Byte" sequence to switch to "PC Mode" (native).
-    *   **FFB:** Standard-ish, but often requires specific report IDs.
-*   **Resources:**
-    *   [hid-fanatecff](https://github.com/gotzl/hid-fanatecff): Full Linux kernel driver source. Contains all device IDs, init sequences, and report structures.
-*   **Implementation Strategy:**
-    *   Transpile the C logic from `hid-fanatecff` to Rust.
+1. **Device Enumeration**: USB HID device discovery via Vendor ID (VID) and Product ID (PID)
+2. **Initialization**: Mode switching from generic/compatibility mode to native/advanced mode
+3. **Input Reports**: Steering angle, pedal positions, button states
+4. **Output Reports**: Force feedback effects, LED control, display data
+5. **Feature Reports**: Configuration, calibration, firmware queries
 
-## 4. Logitech (G29/G923)
-**Status:** Standard + Proprietary Extensions
-**Type:** HID PIDFF + TrueForce
+### Force Feedback Standards
 
-*   **Basic:** Standard HID PIDFF. Documented by Linux `hid-logitech` driver.
-*   **TrueForce (High Frequency):**
-    *   Audio-based haptics sent over a separate endpoint or specific report.
-    *   Proprietary and requires reverse engineering G-Hub if we want to support it (low priority).
-*   **Implementation Strategy:**
-    *   Use `generic_hid` implementation for basic FFB.
+| Standard | Description | Supported By |
+|----------|-------------|--------------|
+| USB HID PID | Physical Interface Device standard | Logitech, Thrustmaster, Moza |
+| Custom HID | Vendor-specific FFB protocol | Fanatec, Simagic (modern) |
+| TrueForce | High-frequency audio-based haptics | Logitech G923+ |
 
-## 5. Thrustmaster (T300/T-GT)
-**Status:** Niche
-**Type:** USB HID
+### Common Effect Types
 
-*   **Protocol:** Standard HID, but notoriously picky about USB initialization.
-*   **Resources:** Arduino emulator projects (e.g., `rr-m.org/blog`) document the packet structures.
+| Effect | Description | Usage |
+|--------|-------------|-------|
+| Constant | Steady force in one direction | Steering resistance, weight transfer |
+| Spring | Position-dependent centering force | Self-centering, road feel |
+| Damper | Velocity-dependent resistance | Steering smoothness |
+| Friction | Static resistance to movement | Tire grip simulation |
+| Periodic | Oscillating forces (sine, square, etc.) | Engine vibration, curbs |
+| Ramp | Linearly changing force | Acceleration effects |
 
----
+## Implementation Architecture
 
-# Capture Strategy
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    OpenRacing Engine                         │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │  Logitech   │  │   Fanatec   │  │ Thrustmaster│  ...    │
+│  │   Driver    │  │   Driver    │  │   Driver    │         │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘         │
+│         │                │                │                 │
+│  ┌──────┴────────────────┴────────────────┴──────┐         │
+│  │              HID Abstraction Layer             │         │
+│  │         (hidapi / Windows HID / hidraw)        │         │
+│  └────────────────────────┬──────────────────────┘         │
+└───────────────────────────┼─────────────────────────────────┘
+                            │
+                    ┌───────┴───────┐
+                    │   USB Stack   │
+                    └───────────────┘
+```
 
-To support these devices, we will build:
+## Adding New Device Support
 
-1.  **`openracing-mapper`**: A CLI tool for users to map buttons and axes.
-2.  **`docs/new_device_guide.md`**: A guide for capturing USB traffic using Wireshark (for the "hard" parts like init sequences).
+### Prerequisites
 
-We will **not** build a custom USB sniffer, as Wireshark + USBPcap is the industry standard and safer for users.
+1. Physical access to the device
+2. USB traffic capture tools (Wireshark + USBPcap)
+3. Manufacturer's official software (for protocol sniffing)
+
+### Capture Process
+
+1. **Install USBPcap**: Download from [USBPcap](https://desowin.org/usbpcap/)
+2. **Start Capture**: Filter by device VID/PID
+3. **Record Initialization**: Capture the official software's init sequence
+4. **Document Effects**: Send each FFB effect type and record the packets
+5. **Create Protocol Doc**: Follow the template in this directory
+
+### Protocol Document Template
+
+```markdown
+# [Manufacturer] Protocol Documentation
+
+**Status**: [Supported/Partial/Research]
+
+## Device Identification
+| Model | VID | PID | Notes |
+|-------|-----|-----|-------|
+
+## Initialization Sequence
+[Document the mode switch commands]
+
+## Input Reports
+[Document input report structure]
+
+## Output Reports (FFB)
+[Document FFB report structure]
+
+## Feature Reports
+[Document configuration reports]
+
+## Resources
+[Links to community projects, drivers, etc.]
+```
+
+## USB Traffic Analysis Tips
+
+### Wireshark Filters
+
+```
+# Filter by Vendor ID
+usb.idVendor == 0x046d
+
+# Filter by specific device
+usb.device_address == 5
+
+# Filter HID reports only
+usbhid
+
+# Filter output reports (FFB)
+usb.endpoint_address.direction == OUT
+```
+
+### Common Pitfalls
+
+1. **Descriptor Parsing**: Some devices have malformed HID descriptors
+2. **Timing Sensitivity**: Init sequences may require specific delays
+3. **Mode Dependencies**: Some features only work in specific modes
+4. **Firmware Variations**: Protocol may change between firmware versions
+
+## Safety Considerations
+
+When implementing device protocols:
+
+1. **Torque Limits**: Always respect device maximum torque ratings
+2. **Watchdog**: Implement communication timeout handling
+3. **Graceful Degradation**: Fall back to safe mode on protocol errors
+4. **User Safety**: Never exceed safe force levels during development
+
+## External Resources
+
+### Community Projects
+
+- [new-lg4ff](https://github.com/berarma/new-lg4ff) - Logitech Linux driver
+- [hid-fanatecff](https://github.com/gotzl/hid-fanatecff) - Fanatec Linux driver
+- [hid-tmff2](https://github.com/Kimplul/hid-tmff2) - Thrustmaster Linux driver
+- [universal-pidff](https://github.com/JacKeTUs/universal-pidff) - Generic PIDFF driver
+- [Boxflat](https://github.com/Lawstorant/boxflat) - Moza protocol documentation
+
+### Specifications
+
+- [USB HID Specification](https://www.usb.org/hid)
+- [HID Usage Tables](https://usb.org/document-library/hid-usage-tables-14)
+- [PID Usage Page (0x0F)](https://www.usb.org/sites/default/files/hut1_4.pdf)
+
+## Version History
+
+| Date | Change |
+|------|--------|
+| 2024-01 | Initial protocol documentation |
+| 2024-06 | Added Moza and Simagic protocols |
+| 2024-12 | Comprehensive update for v1.0.0 release |

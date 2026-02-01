@@ -42,6 +42,7 @@ pub mod service;
 pub mod service_tests;
 pub mod system_config;
 pub mod telemetry;
+pub mod update;
 
 pub use anticheat::AntiCheatReport;
 pub use daemon::{ServiceConfig, ServiceDaemon};

@@ -4,6 +4,7 @@ pub mod device;
 pub mod diag;
 pub mod game;
 pub mod health;
+pub mod plugin;
 pub mod profile;
 pub mod safety;
 
@@ -262,6 +263,49 @@ pub enum SafetyCommands {
         /// Apply to all profiles
         #[arg(long)]
         global: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum PluginCommands {
+    /// List available plugins from registry
+    List {
+        /// Filter by category (e.g., ffb, telemetry, led)
+        #[arg(short, long)]
+        category: Option<String>,
+    },
+
+    /// Search for plugins by name or description
+    Search {
+        /// Search query
+        query: String,
+    },
+
+    /// Install a plugin from the registry
+    Install {
+        /// Plugin ID or name
+        plugin_id: String,
+        /// Specific version to install (defaults to latest)
+        #[arg(long)]
+        version: Option<String>,
+    },
+
+    /// Uninstall a plugin
+    Uninstall {
+        /// Plugin ID or name
+        plugin_id: String,
+        /// Force uninstall without confirmation
+        #[arg(short, long)]
+        force: bool,
+    },
+
+    /// Show detailed plugin information
+    Info {
+        /// Plugin ID or name
+        plugin_id: String,
+        /// Show info for specific version
+        #[arg(long)]
+        version: Option<String>,
     },
 }
 

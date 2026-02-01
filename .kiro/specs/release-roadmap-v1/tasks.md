@@ -338,77 +338,77 @@ This implementation plan covers the path from current state to v1.0.0 stable rel
 
 ### Phase 4: v1.0.0 Stable Release
 
-- [-] 19. Implement performance validation gates
-  - [-] 19.1 Enhance benchmark output format
+- [x] 19. Implement performance validation gates
+  - [x] 19.1 Enhance benchmark output format
     - Add JSON output to rt_timing benchmark
     - Include all required metrics (RT loop, jitter, missed ticks, processing time)
     - _Requirements: 14.6_
-  - [~] 19.2 Write property test for benchmark JSON round-trip
+  - [x] 19.2 Write property test for benchmark JSON round-trip
     - **Property 25: Benchmark JSON Round-Trip**
     - **Validates: Requirements 14.6**
-  - [~] 19.3 Implement performance gate validation script
+  - [x] 19.3 Implement performance gate validation script
     - Update scripts/validate_performance.py
     - Add threshold checks for all metrics
     - Report specific failed metrics
     - _Requirements: 14.2, 14.3, 14.4, 14.5_
-  - [~] 19.4 Write property test for performance gate validation
+  - [x] 19.4 Write property test for performance gate validation
     - **Property 24: Performance Gate Validation (Consolidated)**
     - **Validates: Requirements 14.2, 14.3, 14.4, 14.5**
-  - [~] 19.5 Integrate performance gates into CI
+  - [x] 19.5 Integrate performance gates into CI
     - Add benchmark step to CI workflow
     - Fail build on threshold violations
     - _Requirements: 14.1_
 
-- [ ] 20. Complete documentation
-  - [~] 20.1 Update User Guide
+- [x] 20. Complete documentation
+  - [x] 20.1 Update User Guide
     - Add installation instructions for all platforms
     - Add configuration guide
     - Add troubleshooting section
     - _Requirements: 13.1_
-  - [~] 20.2 Generate and publish API documentation
+  - [x] 20.2 Generate and publish API documentation
     - Run cargo doc with all features
     - Publish to GitHub Pages or docs.rs
     - _Requirements: 13.2_
-  - [~] 20.3 Complete Plugin Development Guide
+  - [x] 20.3 Complete Plugin Development Guide
     - Add WASM plugin examples
     - Add native plugin examples
     - Document ABI requirements
     - _Requirements: 13.3_
-  - [~] 20.4 Complete protocol documentation
+  - [x] 20.4 Complete protocol documentation
     - Review and update docs/protocols/*.md
     - Add any missing device protocols
     - _Requirements: 13.4_
 
-- [ ] 21. Implement plugin registry
-  - [~] 21.1 Create plugin registry data structures
+- [x] 21. Implement plugin registry
+  - [x] 21.1 Create plugin registry data structures
     - Define PluginMetadata struct
     - Define PluginCatalog struct
     - Implement search functionality
     - _Requirements: 16.1, 16.3_
-  - [~] 21.2 Write property test for plugin registry search
+  - [x] 21.2 Write property test for plugin registry search
     - **Property 26: Plugin Registry Search**
     - **Validates: Requirements 16.1**
-  - [~] 21.3 Write property test for plugin metadata completeness
+  - [x] 21.3 Write property test for plugin metadata completeness
     - **Property 27: Plugin Metadata Completeness**
     - **Validates: Requirements 16.3**
-  - [~] 21.4 Implement semver compatibility checking
+  - [x] 21.4 Implement semver compatibility checking
     - Add version compatibility logic
     - Check major version for breaking changes
     - _Requirements: 16.6_
-  - [~] 21.5 Write property test for semver compatibility
+  - [x] 21.5 Write property test for semver compatibility
     - **Property 28: Semver Compatibility**
     - **Validates: Requirements 16.6**
-  - [~] 21.6 Add wheelctl plugin install command
+  - [x] 21.6 Add wheelctl plugin install command
     - Implement plugin download from registry
     - Verify signature matches registry entry
     - Install plugin to local directory
     - _Requirements: 16.4, 16.5_
 
-- [~] 22. Checkpoint - Plugin registry verification
+- [x] 22. Checkpoint - Plugin registry verification
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 23. Implement firmware update system
-  - [~] 23.1 Create firmware image structures
+- [-] 23. Implement firmware update system
+  - [-] 23.1 Create firmware image structures
     - Define FirmwareImage struct
     - Define UpdateState enum
     - Implement signature verification for firmware

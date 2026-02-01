@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/EffortlessMetrics/OpenRacing/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/EffortlessMetrics/OpenRacing/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/EffortlessMetrics/OpenRacing/branch/main/graph/badge.svg)](https://codecov.io/gh/EffortlessMetrics/OpenRacing)
+[![Documentation](https://img.shields.io/badge/docs-API-blue.svg)](https://effortlessmetrics.github.io/OpenRacing/)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
 [![Platform: Windows](https://img.shields.io/badge/platform-Windows%2010%2B-blue.svg)](https://www.microsoft.com/windows)
 [![Platform: Linux](https://img.shields.io/badge/platform-Linux%20Kernel%204.0%2B-blue.svg)](https://www.kernel.org)
@@ -82,6 +83,7 @@ wheelctl diag test
 
 ## Documentation
 
+- **[API Documentation](https://effortlessmetrics.github.io/OpenRacing/)** - Generated rustdoc for all public interfaces
 - [Development Guide](docs/DEVELOPMENT.md) - Setting up the development environment and contributing
 - [System Integration](docs/SYSTEM_INTEGRATION.md) - Integrating OpenRacing with racing games and hardware
 - [Architecture Decision Records](docs/adr/INDEX.md) - Design decisions and technical rationale

@@ -18,6 +18,7 @@ pub mod host;
 pub mod manifest;
 pub mod native;
 pub mod quarantine;
+pub mod registry;
 pub mod sdk;
 pub mod wasm;
 
@@ -183,6 +184,7 @@ pub use capability::*;
 pub use host::*;
 pub use manifest::*;
 pub use quarantine::*;
+pub use registry::*;
 
 #[cfg(test)]
 mod wasm_property_tests;

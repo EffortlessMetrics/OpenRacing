@@ -41,6 +41,7 @@ tempfile = "3.24.0"
 compat = { path = "../compat" }
 proptest = { workspace = true }
 num_cpus = { workspace = true }
+criterion = { workspace = true }
 
 # Enable harness feature for integration tests and examples
 [dev-dependencies.racing-wheel-engine]
