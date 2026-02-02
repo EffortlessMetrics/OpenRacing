@@ -3,6 +3,7 @@
 //! This module provides a client for interacting with remote plugin registries,
 //! supporting index caching, signature verification, and configurable refresh intervals.
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -30,6 +31,12 @@ pub struct RemoteRegistryConfig {
     pub refresh_interval: Duration,
     /// Whether to require signature verification for the index
     pub require_signed_index: bool,
+    /// Path to trust store for signature verification (optional)
+    /// If not set, signature verification will only check format validity
+    pub trust_store_path: Option<PathBuf>,
+    /// Expected key fingerprint for registry signing key (optional)
+    /// If set, only signatures from this key will be accepted
+    pub registry_key_fingerprint: Option<String>,
 }
 
 impl Default for RemoteRegistryConfig {
@@ -39,6 +46,8 @@ impl Default for RemoteRegistryConfig {
             cache_dir: PathBuf::from(".cache/plugins"),
             refresh_interval: Duration::from_secs(3600), // 1 hour
             require_signed_index: true,
+            trust_store_path: None,
+            registry_key_fingerprint: None,
         }
     }
 }
@@ -69,6 +78,18 @@ impl RemoteRegistryConfig {
         self.require_signed_index = require;
         self
     }
+
+    /// Set the trust store path for signature verification
+    pub fn with_trust_store_path(mut self, path: PathBuf) -> Self {
+        self.trust_store_path = Some(path);
+        self
+    }
+
+    /// Set the expected registry signing key fingerprint
+    pub fn with_registry_key_fingerprint(mut self, fingerprint: impl Into<String>) -> Self {
+        self.registry_key_fingerprint = Some(fingerprint.into());
+        self
+    }
 }
 
 /// Cached registry index with metadata
@@ -91,7 +112,7 @@ impl RegistryIndex {
     ///
     /// The catalog hash is computed from the canonical JSON serialization of the catalog.
     pub fn new(catalog: PluginCatalog) -> Self {
-        let catalog_hash = Self::compute_catalog_hash(&catalog);
+        let catalog_hash = Self::compute_canonical_catalog_hash(&catalog);
 
         Self {
             version: "1.0.0".to_string(),
@@ -105,40 +126,60 @@ impl RegistryIndex {
         }
     }
 
-    /// Compute the SHA256 hash of a catalog's serialized form
-    fn compute_catalog_hash(catalog: &PluginCatalog) -> String {
-        let catalog_json = serde_json::to_string(catalog).unwrap_or_default();
+    /// Compute the SHA256 hash of a catalog using canonical (deterministic) serialization
+    ///
+    /// This uses BTreeMap to ensure consistent ordering regardless of HashMap iteration order,
+    /// making the hash deterministic across serialization round-trips.
+    #[cfg_attr(test, allow(dead_code))]
+    pub(crate) fn compute_canonical_catalog_hash(catalog: &PluginCatalog) -> String {
+        // Build a canonical representation with sorted keys
+        // Structure: { plugin_id_string: [sorted_versions] }
+        let mut canonical: BTreeMap<String, Vec<&PluginMetadata>> = BTreeMap::new();
+
+        for plugin in catalog.list_all() {
+            // Get all versions of this plugin
+            if let Some(versions) = catalog.get_all_versions(&plugin.id) {
+                // Clone versions sorted by version number for determinism
+                let mut sorted_versions: Vec<&PluginMetadata> = versions.iter().collect();
+                sorted_versions.sort_by(|a, b| a.version.cmp(&b.version));
+                canonical.insert(plugin.id.0.to_string(), sorted_versions);
+            }
+        }
+
+        // Serialize to JSON (BTreeMap ensures key ordering)
+        let canonical_json = serde_json::to_string(&canonical).unwrap_or_default();
+
         let mut hasher = Sha256::new();
-        hasher.update(catalog_json.as_bytes());
-        let hash = hasher.finalize();
-        hex::encode(hash)
+        hasher.update(canonical_json.as_bytes());
+        hex::encode(hasher.finalize())
     }
 
     /// Verify the catalog hash matches the stored hash
     ///
     /// Note: This verifies that the catalog data has not been tampered with
-    /// since the index was created. The hash is computed from the JSON
-    /// serialization of the catalog.
+    /// since the index was created. The hash is computed from the canonical JSON
+    /// serialization of the catalog (using sorted structures for determinism).
     ///
-    /// IMPORTANT: Due to HashMap serialization non-determinism, hash verification
-    /// may fail after JSON round-trips. For production use, consider using a
-    /// canonical JSON serialization format or verifying hashes differently.
-    /// Returns true if hash is empty (skips verification).
+    /// SECURITY: Empty hashes are rejected - they are never valid.
+    /// This prevents bypassing verification by providing an empty hash.
     pub fn verify_hash(&self) -> bool {
-        // Skip verification if hash is empty (for development/testing)
+        // SECURITY: Empty hash is NEVER valid - reject it
+        // This prevents attackers from bypassing hash verification
         if self.catalog_hash.is_empty() {
-            return true;
+            warn!("Registry index has empty catalog hash - rejecting as invalid");
+            return false;
         }
-        let computed_hash = Self::compute_catalog_hash(&self.catalog);
+
+        let computed_hash = Self::compute_canonical_catalog_hash(&self.catalog);
         computed_hash == self.catalog_hash
     }
 
-    /// Recompute and update the catalog hash
+    /// Recompute and update the catalog hash using canonical serialization
     ///
-    /// This should be called after deserializing an index to ensure the hash
-    /// reflects the current state of the catalog.
+    /// This should be called after modifying the catalog to ensure the hash
+    /// reflects the current state.
     pub fn update_hash(&mut self) {
-        self.catalog_hash = Self::compute_catalog_hash(&self.catalog);
+        self.catalog_hash = Self::compute_canonical_catalog_hash(&self.catalog);
     }
 }
 
@@ -183,6 +224,8 @@ pub struct RemoteRegistryClient {
     client: Client,
     /// Cached registry state
     state: Arc<RwLock<RegistryState>>,
+    /// Optional verification service for cryptographic signature verification
+    verifier: Option<racing_wheel_service::crypto::verification::VerificationService>,
 }
 
 impl RemoteRegistryClient {
@@ -194,10 +237,31 @@ impl RemoteRegistryClient {
             .build()
             .context("Failed to create HTTP client")?;
 
+        // Initialize verifier if trust store path is provided
+        let verifier = if let Some(ref trust_store_path) = config.trust_store_path {
+            let verification_config = racing_wheel_service::crypto::VerificationConfig {
+                trust_store_path: trust_store_path.clone(),
+                require_firmware_signatures: false,
+                require_binary_signatures: false,
+                require_plugin_signatures: config.require_signed_index,
+                allow_unknown_signers: true,
+                max_signature_age_seconds: None,
+            };
+            Some(
+                racing_wheel_service::crypto::verification::VerificationService::new(
+                    verification_config,
+                )
+                .context("Failed to initialize verification service")?,
+            )
+        } else {
+            None
+        };
+
         Ok(Self {
             config,
             client,
             state: Arc::new(RwLock::new(RegistryState::default())),
+            verifier,
         })
     }
 
@@ -308,24 +372,89 @@ impl RemoteRegistryClient {
     }
 
     /// Verify the Ed25519 signature of the registry index
+    ///
+    /// This performs cryptographic verification of the signature against the catalog hash.
+    /// If a verifier is configured with a trust store, full signature verification is performed.
+    /// Otherwise, only format validation is done (signature present and decodable).
     fn verify_index_signature(&self, index: &RegistryIndex) -> Result<()> {
-        let signature = index
+        use racing_wheel_service::crypto::{ContentType, SignatureMetadata, TrustLevel};
+
+        let signature_b64 = index
             .signature
             .as_ref()
             .ok_or_else(|| anyhow!("Registry index is not signed but signature is required"))?;
 
-        // Decode the signature
-        let _signature_bytes = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            signature,
-        )
-        .context("Failed to decode signature")?;
+        // Decode the signature to verify it's valid base64
+        let signature_bytes =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, signature_b64)
+                .context("Failed to decode registry index signature")?;
 
-        // In a production implementation, we would:
-        // 1. Load the trusted public key(s) from configuration
-        // 2. Verify the signature against the catalog hash
-        // For now, we just verify the signature is present and decodable
-        debug!("Index signature verified (signature present and decodable)");
+        // Verify signature length (Ed25519 signatures are 64 bytes)
+        if signature_bytes.len() != 64 {
+            bail!(
+                "Invalid signature length: expected 64 bytes, got {}",
+                signature_bytes.len()
+            );
+        }
+
+        // If we have a verifier, perform full cryptographic verification
+        if let Some(ref verifier) = self.verifier {
+            // Get the hash bytes that were signed
+            let hash_bytes =
+                hex::decode(&index.catalog_hash).context("Failed to decode catalog hash")?;
+
+            // Build signature metadata for verification
+            // Note: The registry server should include full metadata in the index
+            // For now, we construct minimal metadata
+            let metadata = SignatureMetadata {
+                signature: signature_b64.clone(),
+                key_fingerprint: self
+                    .config
+                    .registry_key_fingerprint
+                    .clone()
+                    .unwrap_or_default(),
+                signer: "registry".to_string(),
+                timestamp: chrono::Utc::now(),
+                content_type: ContentType::Update, // Registry index is like an update manifest
+                comment: Some("Registry index signature".to_string()),
+            };
+
+            // Verify the signature cryptographically
+            let verification_result = verifier
+                .verify_content(&hash_bytes, &metadata)
+                .context("Failed to verify registry index signature")?;
+
+            if !verification_result.signature_valid {
+                bail!("Registry index signature is cryptographically invalid");
+            }
+
+            // Check trust level
+            match verification_result.trust_level {
+                TrustLevel::Trusted => {
+                    info!("Registry index signature verified: trusted signer");
+                }
+                TrustLevel::Unknown => {
+                    warn!(
+                        "Registry index signed by unknown key (fingerprint: {}). \
+                         Consider adding to trust store.",
+                        metadata.key_fingerprint
+                    );
+                }
+                TrustLevel::Distrusted => {
+                    bail!(
+                        "Registry index signed by distrusted key: {}",
+                        metadata.key_fingerprint
+                    );
+                }
+            }
+
+            debug!("Registry index signature cryptographically verified");
+        } else {
+            // No verifier configured - just verify format
+            debug!(
+                "Registry index signature format verified (no trust store configured for full verification)"
+            );
+        }
 
         Ok(())
     }
@@ -379,7 +508,8 @@ impl PluginRegistry for RemoteRegistryClient {
             .as_ref()
             .ok_or_else(|| anyhow!("Registry index not loaded"))?;
 
-        let results: Vec<PluginMetadata> = index.catalog.search(query).into_iter().cloned().collect();
+        let results: Vec<PluginMetadata> =
+            index.catalog.search(query).into_iter().cloned().collect();
 
         Ok(results)
     }
@@ -429,14 +559,19 @@ mod tests {
 
     fn create_test_metadata(name: &str, version: &str) -> PluginMetadata {
         let ver = semver::Version::parse(version).unwrap_or_else(|_| semver::Version::new(1, 0, 0));
-        PluginMetadata::new(name, ver, "Test Author", format!("Description for {}", name), "MIT")
+        PluginMetadata::new(
+            name,
+            ver,
+            "Test Author",
+            format!("Description for {}", name),
+            "MIT",
+        )
     }
 
     /// Create a test index for use with HTTP mocking.
     ///
-    /// Note: Hash verification is disabled for test indices because HashMap
-    /// serialization order is non-deterministic, causing hash mismatches after
-    /// JSON round-trips through wiremock.
+    /// Uses canonical hash computation which is deterministic, so hash verification
+    /// should work correctly after JSON round-trips.
     fn create_test_index() -> RegistryIndex {
         let mut catalog = PluginCatalog::new();
         let p1 = create_test_metadata("FFB Filter Pro", "1.2.0");
@@ -448,12 +583,14 @@ mod tests {
         let _ = catalog.add_plugin(p2);
         let _ = catalog.add_plugin(p3);
 
-        let mut index = RegistryIndex::new(catalog);
+        // Create index with canonical hash
+        RegistryIndex::new(catalog)
+    }
 
-        // Clear the hash to skip verification in tests
-        // This is necessary because HashMap serialization is non-deterministic
+    /// Create a test index with an empty hash (for testing hash validation rejection)
+    fn create_test_index_with_empty_hash() -> RegistryIndex {
+        let mut index = create_test_index();
         index.catalog_hash = String::new();
-
         index
     }
 
@@ -483,7 +620,10 @@ mod tests {
     #[tokio::test]
     async fn test_registry_index_hash_verification() -> Result<()> {
         let index = create_test_index();
-        assert!(index.verify_hash(), "Index hash should be valid");
+        assert!(
+            index.verify_hash(),
+            "Index hash should be valid with canonical hash"
+        );
         Ok(())
     }
 
@@ -492,7 +632,70 @@ mod tests {
         let mut index = create_test_index();
         // Tamper with the hash
         index.catalog_hash = "invalid_hash".to_string();
-        assert!(!index.verify_hash(), "Index hash should be invalid after tampering");
+        assert!(
+            !index.verify_hash(),
+            "Index hash should be invalid after tampering"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_registry_index_empty_hash_fails() -> Result<()> {
+        // SECURITY: Empty hashes must be rejected
+        let index = create_test_index_with_empty_hash();
+        assert!(
+            !index.verify_hash(),
+            "Empty hash should be rejected for security"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_registry_index_hash_deterministic_on_same_catalog() -> Result<()> {
+        // Create one index and compute its hash multiple times
+        let index = create_test_index();
+
+        // Hash should be consistent across multiple computations
+        let hash1 = RegistryIndex::compute_canonical_catalog_hash(&index.catalog);
+        let hash2 = RegistryIndex::compute_canonical_catalog_hash(&index.catalog);
+
+        assert_eq!(
+            hash1, hash2,
+            "Canonical hash should be deterministic for the same catalog"
+        );
+
+        // Also verify the stored hash matches
+        assert_eq!(
+            index.catalog_hash, hash1,
+            "Stored hash should match computed hash"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_registry_index_hash_survives_roundtrip() -> Result<()> {
+        // Create an index and serialize/deserialize it
+        let original_index = create_test_index();
+        let original_hash = original_index.catalog_hash.clone();
+
+        // Serialize to JSON
+        let json = serde_json::to_string(&original_index)?;
+
+        // Deserialize back
+        let mut restored_index: RegistryIndex = serde_json::from_str(&json)?;
+        restored_index.catalog.rebuild_index();
+
+        // The hash should still verify after round-trip
+        assert!(
+            restored_index.verify_hash(),
+            "Hash should verify after JSON round-trip"
+        );
+
+        // And the stored hash should still match
+        assert_eq!(
+            restored_index.catalog_hash, original_hash,
+            "Hash should be preserved through serialization"
+        );
         Ok(())
     }
 
@@ -502,10 +705,12 @@ mod tests {
         let temp_dir = TempDir::new()?;
 
         let mut index = create_test_index();
-        // Add a signature so verification passes
+        // Add a valid-length signature (64 bytes for Ed25519) so format verification passes
+        // Note: This is not cryptographically valid, but passes format validation
+        // when no trust store is configured for full verification
         index.signature = Some(base64::Engine::encode(
             &base64::engine::general_purpose::STANDARD,
-            b"fake_signature_for_testing",
+            &[0u8; 64], // 64-byte fake signature
         ));
 
         Mock::given(method("GET"))
@@ -668,7 +873,10 @@ mod tests {
 
         let result = client.get_plugin(&plugin_id, None).await?;
         assert!(result.is_some());
-        assert_eq!(result.as_ref().map(|p| &p.name), Some(&"Test Plugin".to_string()));
+        assert_eq!(
+            result.as_ref().map(|p| &p.name),
+            Some(&"Test Plugin".to_string())
+        );
 
         Ok(())
     }
@@ -857,7 +1065,11 @@ mod tests {
         let result = client.refresh().await;
 
         assert!(result.is_err());
-        let err_msg = result.as_ref().err().map(|e| e.to_string()).unwrap_or_default();
+        let err_msg = result
+            .as_ref()
+            .err()
+            .map(|e| e.to_string())
+            .unwrap_or_default();
         assert!(
             err_msg.contains("not signed") || err_msg.contains("signature"),
             "Error should mention missing signature: {}",
@@ -916,7 +1128,11 @@ mod tests {
         let result = client.refresh().await;
 
         assert!(result.is_err());
-        let err_msg = result.as_ref().err().map(|e| e.to_string()).unwrap_or_default();
+        let err_msg = result
+            .as_ref()
+            .err()
+            .map(|e| e.to_string())
+            .unwrap_or_default();
         assert!(
             err_msg.contains("404") || err_msg.contains("error status"),
             "Error should mention HTTP error: {}",

@@ -312,7 +312,8 @@ pub mod utils {
         use goblin::Object;
         use tracing::debug;
 
-        let file_data = std::fs::read(file_path).context("Failed to read file for signature extraction")?;
+        let file_data =
+            std::fs::read(file_path).context("Failed to read file for signature extraction")?;
 
         let object = match Object::parse(&file_data) {
             Ok(obj) => obj,
@@ -354,7 +355,10 @@ pub mod utils {
     }
 
     /// Extract signature section from a PE binary
-    fn extract_pe_signature_section<'a>(pe: &goblin::pe::PE<'_>, file_data: &'a [u8]) -> Option<&'a [u8]> {
+    fn extract_pe_signature_section<'a>(
+        pe: &goblin::pe::PE<'_>,
+        file_data: &'a [u8],
+    ) -> Option<&'a [u8]> {
         for section in &pe.sections {
             let name = String::from_utf8_lossy(&section.name);
             let name = name.trim_end_matches('\0');
@@ -375,7 +379,10 @@ pub mod utils {
     }
 
     /// Extract signature section from an ELF binary
-    fn extract_elf_signature_section<'a>(elf: &goblin::elf::Elf<'_>, file_data: &'a [u8]) -> Option<&'a [u8]> {
+    fn extract_elf_signature_section<'a>(
+        elf: &goblin::elf::Elf<'_>,
+        file_data: &'a [u8],
+    ) -> Option<&'a [u8]> {
         for section in &elf.section_headers {
             if let Some(name) = elf.shdr_strtab.get_at(section.sh_name) {
                 if name == ELF_SIGNATURE_SECTION {
@@ -395,11 +402,12 @@ pub mod utils {
     }
 
     /// Extract signature section from a Mach-O binary
-    fn extract_macho_signature_section<'a>(mach: &goblin::mach::Mach<'_>, file_data: &'a [u8]) -> Option<&'a [u8]> {
+    fn extract_macho_signature_section<'a>(
+        mach: &goblin::mach::Mach<'_>,
+        file_data: &'a [u8],
+    ) -> Option<&'a [u8]> {
         match mach {
-            goblin::mach::Mach::Binary(macho) => {
-                extract_macho_binary_signature(macho, file_data)
-            }
+            goblin::mach::Mach::Binary(macho) => extract_macho_binary_signature(macho, file_data),
             goblin::mach::Mach::Fat(fat) => {
                 // For fat binaries, check each architecture
                 for arch in fat.iter_arches().flatten() {
@@ -415,7 +423,10 @@ pub mod utils {
     }
 
     /// Extract signature from a single Mach-O binary
-    fn extract_macho_binary_signature<'a>(macho: &goblin::mach::MachO<'_>, file_data: &'a [u8]) -> Option<&'a [u8]> {
+    fn extract_macho_binary_signature<'a>(
+        macho: &goblin::mach::MachO<'_>,
+        file_data: &'a [u8],
+    ) -> Option<&'a [u8]> {
         for segment in &macho.segments {
             if let Ok(name) = segment.name() {
                 if name == MACHO_SIGNATURE_SEGMENT {

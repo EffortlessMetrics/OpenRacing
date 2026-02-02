@@ -920,27 +920,54 @@ impl FirmwareUpdateManager {
     }
 
     /// Check firmware compatibility with device
+    ///
+    /// Uses proper numeric version comparison so that "2.0" < "10.0" works correctly.
     fn check_compatibility(&self, firmware: &FirmwareImage, hardware_version: &str) -> Result<()> {
+        use super::hardware_version::HardwareVersion;
+        use std::cmp::Ordering;
+
         // Check minimum hardware version
-        if let Some(min_version) = &firmware.min_hardware_version
-            && hardware_version < min_version.as_str()
-        {
-            return Err(FirmwareUpdateError::InvalidFirmware(format!(
-                "Hardware version {} is below minimum required version {}",
-                hardware_version, min_version
-            ))
-            .into());
+        if let Some(min_version) = &firmware.min_hardware_version {
+            match HardwareVersion::try_compare(hardware_version, min_version) {
+                Some(Ordering::Less) => {
+                    return Err(FirmwareUpdateError::InvalidFirmware(format!(
+                        "Hardware version {} is below minimum required version {}",
+                        hardware_version, min_version
+                    ))
+                    .into());
+                }
+                None => {
+                    // Parse error - fail closed for safety
+                    return Err(FirmwareUpdateError::InvalidFirmware(format!(
+                        "Failed to parse hardware version '{}' or minimum version '{}'",
+                        hardware_version, min_version
+                    ))
+                    .into());
+                }
+                _ => {}
+            }
         }
 
         // Check maximum hardware version
-        if let Some(max_version) = &firmware.max_hardware_version
-            && hardware_version > max_version.as_str()
-        {
-            return Err(FirmwareUpdateError::InvalidFirmware(format!(
-                "Hardware version {} is above maximum supported version {}",
-                hardware_version, max_version
-            ))
-            .into());
+        if let Some(max_version) = &firmware.max_hardware_version {
+            match HardwareVersion::try_compare(hardware_version, max_version) {
+                Some(Ordering::Greater) => {
+                    return Err(FirmwareUpdateError::InvalidFirmware(format!(
+                        "Hardware version {} is above maximum supported version {}",
+                        hardware_version, max_version
+                    ))
+                    .into());
+                }
+                None => {
+                    // Parse error - fail closed for safety
+                    return Err(FirmwareUpdateError::InvalidFirmware(format!(
+                        "Failed to parse hardware version '{}' or maximum version '{}'",
+                        hardware_version, max_version
+                    ))
+                    .into());
+                }
+                _ => {}
+            }
         }
 
         Ok(())

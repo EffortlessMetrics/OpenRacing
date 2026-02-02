@@ -17,9 +17,12 @@ use thiserror::Error;
 pub mod bundle;
 pub mod delta;
 pub mod firmware;
+pub mod hardware_version;
 pub mod health;
 pub mod rollback;
 pub mod staged_rollout;
+
+pub use hardware_version::{HardwareVersion, HardwareVersionError};
 
 #[cfg(test)]
 pub mod firmware_tests;

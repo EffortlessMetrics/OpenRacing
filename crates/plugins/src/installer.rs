@@ -108,7 +108,10 @@ fn default_plugin_directory() -> PathBuf {
     if let Some(home) = dirs::home_dir() {
         #[cfg(windows)]
         {
-            home.join("AppData").join("Local").join("Wheel").join("plugins")
+            home.join("AppData")
+                .join("Local")
+                .join("Wheel")
+                .join("plugins")
         }
         #[cfg(not(windows))]
         {
@@ -161,15 +164,14 @@ impl PluginInstaller {
     /// Install a plugin from the registry
     ///
     /// Downloads the plugin, verifies it, and installs it to the local plugin directory.
-    pub async fn install(
-        &self,
-        id: &PluginId,
-        version: Option<&Version>,
-    ) -> Result<InstallResult> {
+    pub async fn install(&self, id: &PluginId, version: Option<&Version>) -> Result<InstallResult> {
         info!("Installing plugin: {} (version: {:?})", id, version);
 
         // Fetch plugin metadata
-        let metadata = self.registry.get_plugin(id, version).await?
+        let metadata = self
+            .registry
+            .get_plugin(id, version)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Plugin not found: {}", id))?;
 
         info!("Found plugin: {} v{}", metadata.name, metadata.version);
@@ -179,7 +181,10 @@ impl PluginInstaller {
             let installed = self.installed.read();
             if let Some(existing) = installed.get(id) {
                 if existing.metadata.version == metadata.version {
-                    warn!("Plugin {} v{} is already installed", metadata.name, metadata.version);
+                    warn!(
+                        "Plugin {} v{} is already installed",
+                        metadata.name, metadata.version
+                    );
                     return Ok(InstallResult {
                         plugin_id: id.clone(),
                         version: metadata.version.clone(),
@@ -192,19 +197,23 @@ impl PluginInstaller {
         }
 
         // Create installation directory
-        let plugin_dir = self.config.install_dir
+        let plugin_dir = self
+            .config
+            .install_dir
             .join(&metadata.name.to_lowercase().replace(' ', "-"))
             .join(metadata.version.to_string());
 
-        fs::create_dir_all(&plugin_dir).await
+        fs::create_dir_all(&plugin_dir)
+            .await
             .context("Failed to create plugin directory")?;
 
         // Download plugin (in a real implementation, this would fetch from the registry URL)
         // For now, we create a placeholder manifest
         let manifest_path = plugin_dir.join("manifest.json");
-        let manifest_content = serde_json::to_string_pretty(&metadata)
-            .context("Failed to serialize manifest")?;
-        fs::write(&manifest_path, manifest_content).await
+        let manifest_content =
+            serde_json::to_string_pretty(&metadata).context("Failed to serialize manifest")?;
+        fs::write(&manifest_path, manifest_content)
+            .await
             .context("Failed to write manifest")?;
 
         debug!("Plugin installed to: {}", plugin_dir.display());
@@ -245,7 +254,10 @@ impl PluginInstaller {
         // Save installation index
         self.save_installed_index().await?;
 
-        info!("Plugin {} v{} installed successfully", metadata.name, metadata.version);
+        info!(
+            "Plugin {} v{} installed successfully",
+            metadata.name, metadata.version
+        );
 
         Ok(InstallResult {
             plugin_id: id.clone(),
@@ -262,14 +274,16 @@ impl PluginInstaller {
 
         let install_path = {
             let installed = self.installed.read();
-            installed.get(id)
+            installed
+                .get(id)
                 .map(|p| p.install_path.clone())
                 .ok_or_else(|| anyhow::anyhow!("Plugin not installed: {}", id))?
         };
 
         // Remove plugin directory
         if install_path.exists() {
-            fs::remove_dir_all(&install_path).await
+            fs::remove_dir_all(&install_path)
+                .await
                 .context("Failed to remove plugin directory")?;
         }
 
@@ -304,7 +318,9 @@ impl PluginInstaller {
 
         let installed = {
             let installed = self.installed.read();
-            installed.get(id).cloned()
+            installed
+                .get(id)
+                .cloned()
                 .ok_or_else(|| anyhow::anyhow!("Plugin not installed: {}", id))?
         };
 
@@ -366,7 +382,8 @@ impl PluginInstaller {
 
     /// Get the installed version of a plugin
     pub fn installed_version(&self, id: &PluginId) -> Option<Version> {
-        self.installed.read()
+        self.installed
+            .read()
             .get(id)
             .map(|p| p.metadata.version.clone())
     }
@@ -379,11 +396,12 @@ impl PluginInstaller {
             return Ok(());
         }
 
-        let content = fs::read_to_string(&index_path).await
+        let content = fs::read_to_string(&index_path)
+            .await
             .context("Failed to read installed index")?;
 
-        let plugins: Vec<InstalledPlugin> = serde_json::from_str(&content)
-            .context("Failed to parse installed index")?;
+        let plugins: Vec<InstalledPlugin> =
+            serde_json::from_str(&content).context("Failed to parse installed index")?;
 
         let mut installed = self.installed.write();
         let mut catalog = self.local_catalog.write();
@@ -403,7 +421,8 @@ impl PluginInstaller {
 
     /// Save the installed plugins index to disk
     async fn save_installed_index(&self) -> Result<()> {
-        fs::create_dir_all(&self.config.install_dir).await
+        fs::create_dir_all(&self.config.install_dir)
+            .await
             .context("Failed to create install directory")?;
 
         let index_path = self.config.install_dir.join("installed.json");
@@ -416,7 +435,8 @@ impl PluginInstaller {
         let content = serde_json::to_string_pretty(&plugins)
             .context("Failed to serialize installed index")?;
 
-        fs::write(&index_path, content).await
+        fs::write(&index_path, content)
+            .await
             .context("Failed to write installed index")?;
 
         debug!("Saved installed index to: {}", index_path.display());
@@ -435,12 +455,18 @@ mod tests {
     use super::*;
     use crate::registry_client::{PluginRegistry, RemoteRegistryClient, RemoteRegistryConfig};
     use tempfile::TempDir;
-    use wiremock::{Mock, MockServer, ResponseTemplate};
     use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     fn create_test_metadata(name: &str, version: &str) -> PluginMetadata {
         let ver = semver::Version::parse(version).unwrap_or_else(|_| semver::Version::new(1, 0, 0));
-        PluginMetadata::new(name, ver, "Test Author", format!("Test plugin {}", name), "MIT")
+        PluginMetadata::new(
+            name,
+            ver,
+            "Test Author",
+            format!("Test plugin {}", name),
+            "MIT",
+        )
     }
 
     #[tokio::test]

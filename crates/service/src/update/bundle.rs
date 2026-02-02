@@ -18,15 +18,44 @@ use std::io::{Read, Write};
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
+use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
-use flate2::Compression;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info};
+use thiserror::Error;
+use tracing::{debug, info, warn};
 
 use super::FirmwareImage;
-use crate::crypto::SignatureMetadata;
 use crate::crypto::verification::VerificationService;
+use crate::crypto::{SignatureMetadata, TrustLevel};
+
+/// Errors that can occur during firmware bundle operations
+#[derive(Error, Debug)]
+pub enum BundleError {
+    /// Bundle signature is required but not present
+    #[error("firmware signature required but bundle is unsigned")]
+    SignatureRequired,
+
+    /// Signature verification failed cryptographically
+    #[error("firmware signature verification failed: {0}")]
+    SignatureVerificationFailed(String),
+
+    /// Signer is not in trust store or is distrusted
+    #[error("firmware signed by untrusted key: {0}")]
+    UntrustedSigner(String),
+
+    /// Payload hash does not match header
+    #[error("payload hash mismatch: expected {expected}, got {actual}")]
+    PayloadHashMismatch { expected: String, actual: String },
+
+    /// Invalid bundle format
+    #[error("invalid bundle format: {0}")]
+    InvalidFormat(String),
+
+    /// I/O error during bundle operations
+    #[error("I/O error: {0}")]
+    IoError(#[from] std::io::Error),
+}
 
 /// Magic bytes for the OWFB format (version 1)
 pub const OWFB_MAGIC: &[u8; 8] = b"OWFB\0\0\0\x01";
@@ -169,7 +198,9 @@ impl FirmwareBundle {
             CompressionType::None => image.data.clone(),
             CompressionType::Gzip => {
                 let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-                encoder.write_all(&image.data).context("Failed to compress payload")?;
+                encoder
+                    .write_all(&image.data)
+                    .context("Failed to compress payload")?;
                 encoder.finish().context("Failed to finish compression")?
             }
         };
@@ -212,16 +243,21 @@ impl FirmwareBundle {
 
         // Read and verify magic
         let mut magic = [0u8; 8];
-        cursor.read_exact(&mut magic).context("Failed to read magic")?;
+        cursor
+            .read_exact(&mut magic)
+            .context("Failed to read magic")?;
         if &magic != OWFB_MAGIC {
             bail!("Invalid bundle magic: expected OWFB format");
         }
 
-        // Read header
-        let header: BundleHeader = read_json_block(&mut cursor)
-            .context("Failed to read bundle header")?;
+        // Read header - keep raw bytes for signature verification
+        let (header, header_bytes): (BundleHeader, Vec<u8>) =
+            read_json_block_with_bytes(&mut cursor).context("Failed to read bundle header")?;
 
-        debug!("Bundle header: device={}, version={}", header.device_model, header.firmware_version);
+        debug!(
+            "Bundle header: device={}, version={}",
+            header.device_model, header.firmware_version
+        );
 
         // Verify format version
         if header.format_version > BUNDLE_FORMAT_VERSION {
@@ -233,15 +269,68 @@ impl FirmwareBundle {
         }
 
         // Read metadata
-        let metadata: BundleMetadata = read_json_block(&mut cursor)
-            .context("Failed to read bundle metadata")?;
+        let metadata: BundleMetadata =
+            read_json_block(&mut cursor).context("Failed to read bundle metadata")?;
 
         // Read compressed payload
         let mut payload = vec![0u8; header.compressed_size as usize];
-        cursor.read_exact(&mut payload).context("Failed to read payload")?;
+        cursor
+            .read_exact(&mut payload)
+            .context("Failed to read payload")?;
 
         // Read signature (optional - may not be present)
         let signature: Option<SignatureMetadata> = read_json_block(&mut cursor).ok();
+
+        // Verify signature if verifier is provided
+        if let Some(verifier) = verifier {
+            let require_signatures = verifier.get_config().require_firmware_signatures;
+
+            match &signature {
+                Some(sig) => {
+                    debug!("Verifying bundle signature from: {}", sig.signer);
+
+                    // Cryptographically verify the signature against the header bytes
+                    let verification_result = verifier
+                        .verify_content(&header_bytes, sig)
+                        .context("Failed to verify bundle signature")?;
+
+                    if !verification_result.signature_valid {
+                        return Err(BundleError::SignatureVerificationFailed(
+                            "cryptographic signature verification failed".to_string(),
+                        )
+                        .into());
+                    }
+
+                    // Check trust level - warn but don't fail for unknown signers
+                    // unless they are explicitly distrusted
+                    match verification_result.trust_level {
+                        TrustLevel::Trusted => {
+                            info!("Bundle signature verified: trusted signer '{}'", sig.signer);
+                        }
+                        TrustLevel::Unknown => {
+                            warn!(
+                                "Bundle signed by unknown key (fingerprint: {}). \
+                                 Consider adding to trust store.",
+                                sig.key_fingerprint
+                            );
+                        }
+                        TrustLevel::Distrusted => {
+                            return Err(BundleError::UntrustedSigner(format!(
+                                "key '{}' is explicitly distrusted",
+                                sig.key_fingerprint
+                            ))
+                            .into());
+                        }
+                    }
+                }
+                None => {
+                    if require_signatures {
+                        return Err(BundleError::SignatureRequired.into());
+                    }
+                    warn!("Bundle is unsigned - firmware signature verification skipped");
+                }
+            }
+        }
 
         let bundle = Self {
             header,
@@ -250,25 +339,21 @@ impl FirmwareBundle {
             signature,
         };
 
-        // Verify signature if verifier is provided and signature exists
-        if let (Some(_verifier), Some(sig)) = (verifier, &bundle.signature) {
-            debug!("Verifying bundle signature from: {}", sig.signer);
-            // Note: Full signature verification would require the original file path
-            // For embedded bundles, we verify the payload hash instead
-            // In production, signature would be verified against the payload hash
-            debug!("Signature present from signer: {}", sig.signer);
-        }
-
         // Verify payload hash
         let decompressed = bundle.extract_payload()?;
         let computed_hash = crate::crypto::utils::compute_sha256_hex(&decompressed);
         if computed_hash != bundle.header.payload_hash {
-            bail!("Bundle payload hash mismatch: expected {}, got {}",
-                  bundle.header.payload_hash, computed_hash);
+            return Err(BundleError::PayloadHashMismatch {
+                expected: bundle.header.payload_hash.clone(),
+                actual: computed_hash,
+            }
+            .into());
         }
 
-        info!("Bundle loaded successfully: {} v{}",
-              bundle.header.device_model, bundle.header.firmware_version);
+        info!(
+            "Bundle loaded successfully: {} v{}",
+            bundle.header.device_model, bundle.header.firmware_version
+        );
 
         Ok(bundle)
     }
@@ -280,7 +365,8 @@ impl FirmwareBundle {
             CompressionType::Gzip => {
                 let mut decoder = GzDecoder::new(&self.payload[..]);
                 let mut decompressed = Vec::with_capacity(self.header.uncompressed_size as usize);
-                decoder.read_to_end(&mut decompressed)
+                decoder
+                    .read_to_end(&mut decompressed)
                     .context("Failed to decompress payload")?;
                 Ok(decompressed)
             }
@@ -338,18 +424,28 @@ impl FirmwareBundle {
     }
 
     /// Check if this bundle is compatible with the given hardware version
+    ///
+    /// Uses proper numeric version comparison so that "2.0" < "10.0" works correctly.
+    /// If version parsing fails, returns false (fail closed for safety).
     pub fn is_compatible_with_hardware(&self, hw_version: &str) -> bool {
+        use super::hardware_version::HardwareVersion;
+        use std::cmp::Ordering;
+
         // Check minimum version
         if let Some(ref min) = self.header.min_hw_version {
-            if hw_version < min.as_str() {
-                return false;
+            match HardwareVersion::try_compare(hw_version, min) {
+                Some(Ordering::Less) => return false,
+                None => return false, // Parse error = fail closed for safety
+                _ => {}
             }
         }
 
         // Check maximum version
         if let Some(ref max) = self.header.max_hw_version {
-            if hw_version > max.as_str() {
-                return false;
+            match HardwareVersion::try_compare(hw_version, max) {
+                Some(Ordering::Greater) => return false,
+                None => return false, // Parse error = fail closed for safety
+                _ => {}
             }
         }
 
@@ -380,14 +476,29 @@ impl FirmwareBundle {
 
 /// Read a length-prefixed JSON block from a reader
 fn read_json_block<R: Read, T: serde::de::DeserializeOwned>(reader: &mut R) -> Result<T> {
+    let (value, _bytes) = read_json_block_with_bytes(reader)?;
+    Ok(value)
+}
+
+/// Read a length-prefixed JSON block from a reader, returning both the parsed value and raw bytes
+///
+/// This is useful when we need to verify signatures against the raw JSON bytes.
+fn read_json_block_with_bytes<R: Read, T: serde::de::DeserializeOwned>(
+    reader: &mut R,
+) -> Result<(T, Vec<u8>)> {
     let mut len_buf = [0u8; 4];
-    reader.read_exact(&mut len_buf).context("Failed to read block length")?;
+    reader
+        .read_exact(&mut len_buf)
+        .context("Failed to read block length")?;
     let len = u32::from_le_bytes(len_buf) as usize;
 
     let mut json_buf = vec![0u8; len];
-    reader.read_exact(&mut json_buf).context("Failed to read block data")?;
+    reader
+        .read_exact(&mut json_buf)
+        .context("Failed to read block data")?;
 
-    serde_json::from_slice(&json_buf).context("Failed to parse JSON block")
+    let value = serde_json::from_slice(&json_buf).context("Failed to parse JSON block")?;
+    Ok((value, json_buf))
 }
 
 /// Write a length-prefixed JSON block to a writer
@@ -395,8 +506,12 @@ fn write_json_block<W: Write, T: serde::Serialize>(writer: &mut W, value: &T) ->
     let json = serde_json::to_vec(value).context("Failed to serialize JSON block")?;
     let len = json.len() as u32;
 
-    writer.write_all(&len.to_le_bytes()).context("Failed to write block length")?;
-    writer.write_all(&json).context("Failed to write block data")?;
+    writer
+        .write_all(&len.to_le_bytes())
+        .context("Failed to write block length")?;
+    writer
+        .write_all(&json)
+        .context("Failed to write block data")?;
 
     Ok(())
 }
@@ -435,7 +550,10 @@ mod tests {
         let parsed = FirmwareBundle::parse(&serialized, None)?;
 
         assert_eq!(parsed.header.device_model, "test-wheel");
-        assert_eq!(parsed.header.firmware_version, semver::Version::new(1, 2, 3));
+        assert_eq!(
+            parsed.header.firmware_version,
+            semver::Version::new(1, 2, 3)
+        );
         assert_eq!(parsed.header.compression, CompressionType::None);
 
         let extracted = parsed.extract_image()?;
@@ -536,6 +654,168 @@ mod tests {
 
         let serialized = bundle.serialize()?;
         assert_eq!(bundle.bundle_size(), serialized.len());
+
+        Ok(())
+    }
+
+    // =========================================================================
+    // Security Fix Tests: Hardware Version Comparison
+    // =========================================================================
+
+    #[test]
+    fn test_hardware_version_numeric_comparison_10_vs_2() -> Result<()> {
+        // This is the critical bug fix test
+        // String comparison: "10.0" < "2.0" is TRUE (wrong!)
+        // Numeric comparison: 10.0 > 2.0 (correct!)
+        let mut image = create_test_image();
+        image.min_hardware_version = Some("2.0".to_string());
+        image.max_hardware_version = Some("10.0".to_string());
+
+        let metadata = BundleMetadata::default();
+        let bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+
+        // Hardware version 5.0 should be compatible (2.0 <= 5.0 <= 10.0)
+        assert!(
+            bundle.is_compatible_with_hardware("5.0"),
+            "5.0 should be between 2.0 and 10.0"
+        );
+
+        // Hardware version 10.0 should be compatible (boundary)
+        assert!(
+            bundle.is_compatible_with_hardware("10.0"),
+            "10.0 should equal max version"
+        );
+
+        // Hardware version 2.0 should be compatible (boundary)
+        assert!(
+            bundle.is_compatible_with_hardware("2.0"),
+            "2.0 should equal min version"
+        );
+
+        // Hardware version 1.0 should NOT be compatible (below min)
+        assert!(
+            !bundle.is_compatible_with_hardware("1.0"),
+            "1.0 should be below 2.0 minimum"
+        );
+
+        // Hardware version 11.0 should NOT be compatible (above max)
+        assert!(
+            !bundle.is_compatible_with_hardware("11.0"),
+            "11.0 should be above 10.0 maximum"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_hardware_version_invalid_fails_closed() -> Result<()> {
+        // Security: Invalid version strings should fail closed (return false)
+        let image = create_test_image();
+        let metadata = BundleMetadata::default();
+        let bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+
+        // Invalid hardware version should be rejected
+        assert!(
+            !bundle.is_compatible_with_hardware("invalid"),
+            "Invalid version should fail closed"
+        );
+        assert!(
+            !bundle.is_compatible_with_hardware(""),
+            "Empty version should fail closed"
+        );
+        assert!(
+            !bundle.is_compatible_with_hardware("1.x.2"),
+            "Non-numeric version should fail closed"
+        );
+
+        Ok(())
+    }
+
+    // =========================================================================
+    // Security Fix Tests: Signature Verification
+    // =========================================================================
+
+    #[test]
+    fn test_missing_signature_with_require_false_passes() -> Result<()> {
+        // When require_firmware_signatures is false, unsigned bundles should pass
+        let temp_dir = TempDir::new()?;
+        let config = crate::crypto::VerificationConfig {
+            trust_store_path: temp_dir.path().join("trust_store.json"),
+            require_firmware_signatures: false,
+            ..Default::default()
+        };
+        let verifier = crate::crypto::verification::VerificationService::new(config)?;
+
+        let image = create_test_image();
+        let metadata = BundleMetadata::default();
+        let bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+        let serialized = bundle.serialize()?;
+
+        // Should succeed - signature not required
+        let result = FirmwareBundle::parse(&serialized, Some(&verifier));
+        assert!(
+            result.is_ok(),
+            "Unsigned bundle should pass when signatures not required"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_missing_signature_with_require_true_fails() -> Result<()> {
+        // When require_firmware_signatures is true, unsigned bundles should fail
+        let temp_dir = TempDir::new()?;
+        let config = crate::crypto::VerificationConfig {
+            trust_store_path: temp_dir.path().join("trust_store.json"),
+            require_firmware_signatures: true,
+            ..Default::default()
+        };
+        let verifier = crate::crypto::verification::VerificationService::new(config)?;
+
+        let image = create_test_image();
+        let metadata = BundleMetadata::default();
+        let bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+        let serialized = bundle.serialize()?;
+
+        // Should fail - signature required but missing
+        let result = FirmwareBundle::parse(&serialized, Some(&verifier));
+        assert!(
+            result.is_err(),
+            "Unsigned bundle should fail when signatures required"
+        );
+
+        // Verify the error type
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("signature required") || err_msg.contains("SignatureRequired"),
+            "Error should indicate signature is required: {}",
+            err_msg
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_tampered_payload_fails_hash_verification() -> Result<()> {
+        let image = create_test_image();
+        let metadata = BundleMetadata::default();
+        let bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+        let mut serialized = bundle.serialize()?;
+
+        // Find the payload in the serialized data and tamper with it
+        // The payload is after magic (8) + header block + metadata block
+        // For simplicity, just flip a byte near the end
+        let len = serialized.len();
+        if len > 10 {
+            serialized[len - 5] ^= 0xFF; // Flip bits in payload area
+        }
+
+        // Should fail due to hash mismatch
+        let result = FirmwareBundle::parse(&serialized, None);
+        assert!(
+            result.is_err(),
+            "Tampered bundle should fail hash verification"
+        );
 
         Ok(())
     }

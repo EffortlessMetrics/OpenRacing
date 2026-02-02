@@ -414,9 +414,11 @@ async fn verify_plugin(plugin_id: &str, json: bool) -> Result<()> {
 
     // Check if installed
     if !plugin.installed {
-        return Err(
-            CliError::ValidationError(format!("Plugin '{}' is not installed", plugin.name)).into(),
-        );
+        return Err(CliError::ValidationError(format!(
+            "Plugin '{}' is not installed",
+            plugin.name
+        ))
+        .into());
     }
 
     if json {
