@@ -1,0 +1,278 @@
+//! Moza Racing protocol handler
+//!
+//! Implements the initialization handshake and configuration for Moza wheelbases.
+//! Supports both V1 (0x000x) and V2 (0x001x) hardware revisions.
+
+#![deny(static_mut_refs)]
+
+use super::{DeviceWriter, FfbConfig, VendorProtocol};
+use tracing::{debug, info, warn};
+
+/// Moza HID Report IDs
+pub mod report_ids {
+    /// Device info query
+    pub const DEVICE_INFO: u8 = 0x01;
+    /// High torque enable
+    pub const HIGH_TORQUE: u8 = 0x02;
+    /// Start input reports
+    pub const START_REPORTS: u8 = 0x03;
+    /// Set rotation range
+    pub const ROTATION_RANGE: u8 = 0x10;
+    /// Set FFB mode
+    pub const FFB_MODE: u8 = 0x11;
+    /// Direct torque output
+    pub const DIRECT_TORQUE: u8 = 0x20;
+    /// Device gain
+    pub const DEVICE_GAIN: u8 = 0x21;
+}
+
+/// FFB mode options
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FfbMode {
+    Off = 0x00,
+    Standard = 0x01, // PIDFF
+    Direct = 0x02,   // Raw torque
+}
+
+/// Moza device model
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MozaModel {
+    R3,
+    R5,
+    R9,
+    R12,
+    R16,
+    R21,
+    SrpPedals,
+    Unknown,
+}
+
+impl MozaModel {
+    pub(crate) fn from_pid(pid: u16) -> Self {
+        match pid {
+            0x0005 | 0x0015 => Self::R3,
+            0x0004 | 0x0014 => Self::R5,
+            0x0002 | 0x0012 => Self::R9,
+            0x0006 | 0x0016 => Self::R12,
+            0x0000 | 0x0010 => Self::R16, // R16/R21 share PID, differentiate by torque query
+            0x0003 => Self::SrpPedals,
+            _ => Self::Unknown,
+        }
+    }
+
+    pub(crate) fn max_torque_nm(&self) -> f32 {
+        match self {
+            Self::R3 => 3.9,
+            Self::R5 => 5.5,
+            Self::R9 => 9.0,
+            Self::R12 => 12.0,
+            Self::R16 => 16.0,
+            Self::R21 => 21.0,
+            Self::SrpPedals => 0.0,
+            Self::Unknown => 10.0,
+        }
+    }
+}
+
+/// Moza protocol handler
+pub struct MozaProtocol {
+    product_id: u16,
+    model: MozaModel,
+    is_v2: bool,
+}
+
+impl MozaProtocol {
+    /// Create a new Moza protocol handler
+    pub fn new(product_id: u16) -> Self {
+        let is_v2 = (product_id & 0x0010) != 0;
+        let model = MozaModel::from_pid(product_id);
+
+        debug!(
+            "Created MozaProtocol for PID 0x{:04X}, model: {:?}, V2: {}",
+            product_id, model, is_v2
+        );
+
+        Self {
+            product_id,
+            model,
+            is_v2,
+        }
+    }
+
+    /// Get the product ID
+    pub fn product_id(&self) -> u16 {
+        self.product_id
+    }
+
+    /// Get the device model
+    pub fn model(&self) -> MozaModel {
+        self.model
+    }
+
+    /// Enable high torque mode
+    pub fn enable_high_torque(
+        &self,
+        writer: &mut dyn DeviceWriter,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let report = [
+            report_ids::HIGH_TORQUE,
+            0x01, // Command: Enable High Torque
+            0x01, // Enable
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00, // Reserved
+        ];
+
+        writer.write_feature_report(&report)?;
+        info!("Enabled high torque mode for Moza {:?}", self.model);
+        Ok(())
+    }
+
+    /// Start input reports
+    pub fn start_input_reports(
+        &self,
+        writer: &mut dyn DeviceWriter,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let report = [
+            report_ids::START_REPORTS,
+            0x01, // Command: Start
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00, // Reserved
+        ];
+
+        writer.write_feature_report(&report)?;
+        debug!("Started input reports for Moza {:?}", self.model);
+        Ok(())
+    }
+
+    /// Set FFB mode
+    pub fn set_ffb_mode(
+        &self,
+        writer: &mut dyn DeviceWriter,
+        mode: FfbMode,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let report = [
+            report_ids::FFB_MODE,
+            mode as u8,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00, // Reserved
+        ];
+
+        writer.write_feature_report(&report)?;
+        debug!("Set FFB mode to {:?} for Moza {:?}", mode, self.model);
+        Ok(())
+    }
+
+    /// Set rotation range in degrees
+    pub fn set_rotation_range(
+        &self,
+        writer: &mut dyn DeviceWriter,
+        degrees: u16,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let range_bytes = degrees.to_le_bytes();
+        let report = [
+            report_ids::ROTATION_RANGE,
+            0x01, // Command: Set Range
+            range_bytes[0],
+            range_bytes[1],
+            0x00,
+            0x00,
+            0x00,
+            0x00, // Reserved
+        ];
+
+        writer.write_feature_report(&report)?;
+        debug!(
+            "Set rotation range to {} degrees for Moza {:?}",
+            degrees, self.model
+        );
+        Ok(())
+    }
+
+    /// Get encoder CPR based on model and hardware version
+    fn encoder_cpr(&self) -> u32 {
+        if self.is_v2 {
+            match self.model {
+                MozaModel::R16 | MozaModel::R21 => 2097152, // 21-bit
+                _ => 262144,                                // 18-bit
+            }
+        } else {
+            32768 // 15-bit for V1
+        }
+    }
+}
+
+impl VendorProtocol for MozaProtocol {
+    fn initialize_device(
+        &self,
+        writer: &mut dyn DeviceWriter,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        info!(
+            "Initializing Moza {:?} (V{})",
+            self.model,
+            if self.is_v2 { 2 } else { 1 }
+        );
+
+        // Skip initialization for pedals
+        if self.model == MozaModel::SrpPedals {
+            debug!("Skipping initialization for SR-P Pedals");
+            return Ok(());
+        }
+
+        // Step 1: Enable high torque mode (unlocks FFB)
+        if let Err(e) = self.enable_high_torque(writer) {
+            warn!("Failed to enable high torque: {}", e);
+            // Continue anyway - device may still work in limited mode
+        }
+
+        // Step 2: Start input reports
+        if let Err(e) = self.start_input_reports(writer) {
+            warn!("Failed to start input reports: {}", e);
+        }
+
+        // Step 3: Set FFB to Standard (PIDFF) mode
+        if let Err(e) = self.set_ffb_mode(writer, FfbMode::Standard) {
+            warn!("Failed to set FFB mode: {}", e);
+        }
+
+        info!("Moza {:?} initialization complete", self.model);
+        Ok(())
+    }
+
+    fn send_feature_report(
+        &self,
+        writer: &mut dyn DeviceWriter,
+        report_id: u8,
+        data: &[u8],
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut report = vec![report_id];
+        report.extend_from_slice(data);
+        writer.write_feature_report(&report)?;
+        Ok(())
+    }
+
+    fn get_ffb_config(&self) -> FfbConfig {
+        FfbConfig {
+            // Moza devices need conditional direction fix
+            fix_conditional_direction: true,
+            uses_vendor_usage_page: true,
+            required_b_interval: Some(1), // 1ms for 1kHz
+            max_torque_nm: self.model.max_torque_nm(),
+            encoder_cpr: self.encoder_cpr(),
+        }
+    }
+
+    fn is_v2_hardware(&self) -> bool {
+        self.is_v2
+    }
+}

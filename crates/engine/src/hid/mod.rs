@@ -7,6 +7,8 @@ use crate::ports::HidPort;
 use crate::{DeviceInfo, TelemetryData};
 use racing_wheel_schemas::prelude::*;
 
+pub mod quirks;
+pub mod vendor;
 pub mod virtual_device;
 
 #[cfg(windows)]

@@ -9,16 +9,24 @@ Moza Racing wheelbases use a combination of serial-like communication encapsulat
 
 ## Device Identification
 
+### V1 vs V2 Hardware Revisions
+
+Moza Racing wheelbases exist in two hardware revisions, distinguished by their Product ID ranges:
+
+- **V1 Hardware** (PIDs `0x000x`): Original hardware revision with 15-bit encoder resolution
+- **V2 Hardware** (PIDs `0x001x`): Updated hardware with higher encoder resolution (18/21-bit) and improved peripheral data aggregation
+
+V2 PIDs follow the pattern of adding `0x0010` to the corresponding V1 PID. For example, R9 V1 uses `0x0002` while R9 V2 uses `0x0012`.
+
 ### Wheel Bases
 
-| Model | Vendor ID | Product ID | Max Torque | Notes |
-|-------|-----------|------------|------------|-------|
-| R3 | `0x346E` | `0x0005` | 3.9 Nm | Entry-level DD |
-| R5 | `0x346E` | `0x0004` | 5.5 Nm | Mid-range DD |
-| R9 | `0x346E` | `0x0003` | 9 Nm | High-end DD |
-| R12 | `0x346E` | `0x0002` | 12 Nm | Pro DD |
-| R16 | `0x346E` | `0x0001` | 16 Nm | Top-tier DD |
-| R21 | `0x346E` | `0x0006` | 21 Nm | Flagship DD |
+| Model | Vendor ID | V1 PID | V2 PID | Max Torque | Notes |
+|-------|-----------|--------|--------|------------|-------|
+| R3 | `0x346E` | `0x0005` | `0x0015` | 3.9 Nm | Entry-level DD |
+| R5 | `0x346E` | `0x0004` | `0x0014` | 5.5 Nm | Mid-range DD |
+| R9 | `0x346E` | `0x0002` | `0x0012` | 9 Nm | High-end DD |
+| R12 | `0x346E` | `0x0006` | `0x0016` | 12 Nm | Pro DD |
+| R16/R21 | `0x346E` | `0x0000` | `0x0010` | 16-21 Nm | Top-tier/Flagship DD |
 
 *Note: Vendor ID `0x346E` is registered to Moza Racing. Some databases may show `0x3416` (Lenovo) for older firmware versions.*
 
@@ -30,17 +38,34 @@ Moza Racing wheelbases use a combination of serial-like communication encapsulat
 | GS V2 | `0x02` | GT style |
 | RS V2 | `0x03` | Round, rally |
 | FSR | `0x04` | Formula style |
-| KS | `0x05` | Karting style |
-| ES | `0x06` | Esports formula |
+| KS | `0x05` | Butterfly |
+| ES | `0x06` | Entry Level |
+
+### KS Wheel Modes
+
+The KS wheel supports two connection modes:
+
+- **I2C Mode**: Connected through the wheelbase via the standard quick-release connection. The wheel appears as part of the wheelbase's composite device and its buttons/inputs are reported in the wheelbase's input report.
+
+- **USB Mode**: When connected via a Universal Hub, the KS wheel can operate in standalone USB mode. This allows independent connection to the PC without requiring the wheelbase, useful for setups where the wheel is used with third-party equipment.
 
 ### Pedals
 
 | Model | Vendor ID | Product ID | Notes |
 |-------|-----------|------------|-------|
-| SR-P | `0x346E` | `0x0010` | 2-pedal set |
-| SR-P Lite | `0x346E` | `0x0011` | Budget 2-pedal |
+| SR-P | `0x346E` | `0x0003` | 2-pedal set (USB mode) |
+| SR-P Lite | N/A | N/A | Analog via RJ11 to wheelbase (no separate USB PID) |
 | CRP | `0x346E` | `0x0012` | 3-pedal, load cell |
 | CRP2 | `0x346E` | `0x0013` | Updated load cell |
+
+### SR-P Lite Integration
+
+The SR-P Lite pedals connect via RJ11 cable directly to the wheelbase rather than using a separate USB connection:
+
+- **Connection**: RJ11 cable to wheelbase's pedal port
+- **Data Path**: Pedal axis data appears as analog axes within the wheelbase's input report
+- **USB Enumeration**: No separate USB device; the wheelbase aggregates pedal data
+- **Axis Mapping**: Throttle and brake axes are reported at the standard input report offsets (bytes 3-6)
 
 ### Other Peripherals
 
@@ -126,7 +151,7 @@ Note: Direct mode bypasses PIDFF for custom FFB implementations
 ### Standard Input Report (ID: 0x01)
 
 ```
-Total Size: 32 bytes
+Total Size: 32 bytes (standard) / 64 bytes (extended)
 
 Byte 0:     Report ID (0x01)
 Byte 1-2:   Steering Axis (16-bit, little-endian)
@@ -135,23 +160,19 @@ Byte 3-4:   Throttle (16-bit, 0x0000 = released)
 Byte 5-6:   Brake (16-bit, 0x0000 = released)
 Byte 7-8:   Clutch (16-bit, 0x0000 = released)
 Byte 9-10:  Handbrake (16-bit, if connected)
-Byte 11-12: Buttons Low (16 bits)
-            Bit 0:  Button 1 (varies by rim)
-            Bit 1:  Button 2
-            Bit 2:  Button 3
-            Bit 3:  Button 4
-            Bit 4:  Button 5
-            Bit 5:  Button 6
-            Bit 6:  Button 7
-            Bit 7:  Button 8
-            Bit 8:  Paddle Right
-            Bit 9:  Paddle Left
-            Bit 10: Funky Switch Press
-            Bit 11: Rotary 1 Press
-            Bit 12: Rotary 2 Press
-            Bit 13-15: Reserved
-Byte 13-14: Buttons High (16 bits, rim-specific)
-Byte 15:    D-Pad / Hat Switch
+Byte 11-26: Button Bitmap (128 buttons)
+            Supports up to 128 buttons across 16 bytes
+            Bit ordering: LSB first within each byte
+            Byte 11 Bit 0:  Button 1 (varies by rim)
+            Byte 11 Bit 1:  Button 2
+            ...
+            Byte 11 Bit 8:  Paddle Right
+            Byte 11 Bit 9:  Paddle Left
+            Byte 11 Bit 10: Funky Switch Press
+            Byte 11 Bit 11: Rotary 1 Press
+            Byte 11 Bit 12: Rotary 2 Press
+            Byte 12-26:     Extended button bitmap (rim-specific)
+Byte 27:    D-Pad / Hat Switch
             0x0: Up
             0x1: Up-Right
             0x2: Right
@@ -161,18 +182,23 @@ Byte 15:    D-Pad / Hat Switch
             0x6: Left
             0x7: Up-Left
             0x8: Neutral
-Byte 16:    Funky Switch Direction
+Byte 28:    Funky Switch Direction
             0x00: Center
             0x01: Up
             0x02: Right
             0x03: Down
             0x04: Left
-Byte 17:    Rotary 1 Position (0-255)
-Byte 18:    Rotary 2 Position (0-255)
-Byte 19-20: Dual Clutch Left (FSR wheel)
-Byte 21-22: Dual Clutch Right (FSR wheel)
-Byte 23-31: Reserved / Rim-specific
+Byte 29:    Rotary 1 Position (0-255)
+Byte 30:    Rotary 2 Position (0-255)
+Byte 31:    Reserved (standard report ends here)
+
+Extended Report (64 bytes):
+Byte 32-33: Dual Clutch Left (FSR wheel)
+Byte 34-35: Dual Clutch Right (FSR wheel)
+Byte 36-63: Reserved / Rim-specific / V2 peripheral data
 ```
+
+**Note on V2 Hardware**: V2 wheelbases use the 64-byte extended input report format by default and aggregate peripheral data at different byte offsets compared to V1. V2 hardware may include additional peripheral status and aggregated axis data in bytes 36-63.
 
 ### Extended Telemetry Report (ID: 0x02)
 
@@ -378,6 +404,9 @@ Byte 6-7: Max Position
 1. **Firmware Variations**: Protocol may differ between firmware versions
 2. **Pit House Integration**: Some features require Pit House software
 3. **USB Enumeration**: May enumerate as composite device
+4. **Conditional Direction Inversion**: Spring, Damper, Friction, and Inertia effects have inverted positive/negative coefficients compared to the HID PID specification. When creating these effect types, swap the positive and negative coefficient values to achieve correct behavior.
+5. **Vendor Usage Page**: Moza devices use custom HID usage pages for vendor-specific features. These non-standard usage pages may not be recognized by generic HID parsers.
+6. **V2 Encoder Resolution**: V2 hardware features significantly higher encoder resolution (18-bit or 21-bit depending on model) compared to V1 hardware (15-bit). This provides finer positional accuracy but may require scaling adjustments when processing position data.
 
 ### Platform Differences
 

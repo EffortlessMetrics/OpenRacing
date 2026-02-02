@@ -346,13 +346,20 @@ impl SupportedDevices {
             (vendor_ids::THRUSTMASTER, 0xB66F, "Thrustmaster T300RS GT"),
             (vendor_ids::THRUSTMASTER, 0xB65E, "Thrustmaster T150 Pro"),
             (vendor_ids::THRUSTMASTER, 0xB664, "Thrustmaster T248"),
-            // Moza Racing wheels
-            (vendor_ids::MOZA, 0x0001, "Moza R9"),
-            (vendor_ids::MOZA, 0x0002, "Moza R16"),
-            (vendor_ids::MOZA, 0x0003, "Moza R21"),
-            (vendor_ids::MOZA, 0x0004, "Moza R5"),
+            // Moza Racing wheelbases - V1
             (vendor_ids::MOZA, 0x0005, "Moza R3"),
-            (vendor_ids::MOZA, 0x0010, "Moza R12"),
+            (vendor_ids::MOZA, 0x0004, "Moza R5"),
+            (vendor_ids::MOZA, 0x0002, "Moza R9"),
+            (vendor_ids::MOZA, 0x0006, "Moza R12"),
+            (vendor_ids::MOZA, 0x0000, "Moza R16/R21"),
+            // Moza Racing wheelbases - V2
+            (vendor_ids::MOZA, 0x0015, "Moza R3 V2"),
+            (vendor_ids::MOZA, 0x0014, "Moza R5 V2"),
+            (vendor_ids::MOZA, 0x0012, "Moza R9 V2"),
+            (vendor_ids::MOZA, 0x0016, "Moza R12 V2"),
+            (vendor_ids::MOZA, 0x0010, "Moza R16/R21 V2"),
+            // Moza Racing peripherals
+            (vendor_ids::MOZA, 0x0003, "Moza SR-P Pedals"),
             // Simagic wheels
             (vendor_ids::SIMAGIC, 0x0522, "Simagic Alpha"),
             (vendor_ids::SIMAGIC, 0x0523, "Simagic Alpha Mini"),
@@ -1047,44 +1054,81 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             }
         }
         vendor_ids::MOZA => {
-            // Moza direct drive wheels
+            capabilities.supports_pid = true;
             capabilities.supports_raw_torque_1khz = true;
             capabilities.supports_health_stream = true;
             capabilities.supports_led_bus = true;
-            capabilities.encoder_cpr = 65535; // High resolution (max u16)
             capabilities.min_report_period_us = 1000; // 1kHz
 
             match product_id {
-                0x0001 => {
-                    // R9
-                    capabilities.max_torque = TorqueNm::new(9.0).unwrap_or(capabilities.max_torque);
-                }
-                0x0002 => {
-                    // R16
-                    capabilities.max_torque =
-                        TorqueNm::new(16.0).unwrap_or(capabilities.max_torque);
-                }
-                0x0003 => {
-                    // R21
-                    capabilities.max_torque =
-                        TorqueNm::new(21.0).unwrap_or(capabilities.max_torque);
+                // V1 wheelbases (15-bit encoder)
+                0x0005 => {
+                    // R3
+                    capabilities.max_torque = TorqueNm::new(3.9).unwrap_or(capabilities.max_torque);
+                    capabilities.encoder_cpr = 32768; // 15-bit
                 }
                 0x0004 => {
                     // R5
                     capabilities.max_torque = TorqueNm::new(5.5).unwrap_or(capabilities.max_torque);
+                    capabilities.encoder_cpr = 32768;
                 }
-                0x0005 => {
-                    // R3
-                    capabilities.max_torque = TorqueNm::new(3.9).unwrap_or(capabilities.max_torque);
+                0x0002 => {
+                    // R9
+                    capabilities.max_torque = TorqueNm::new(9.0).unwrap_or(capabilities.max_torque);
+                    capabilities.encoder_cpr = 32768;
                 }
-                0x0010 => {
+                0x0006 => {
                     // R12
                     capabilities.max_torque =
                         TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
+                    capabilities.encoder_cpr = 32768;
+                }
+                0x0000 => {
+                    // R16/R21
+                    capabilities.max_torque =
+                        TorqueNm::new(21.0).unwrap_or(capabilities.max_torque);
+                    capabilities.encoder_cpr = 32768;
+                }
+                // V2 wheelbases (18/21-bit encoder, capped to u16::MAX for DeviceCapabilities)
+                // Note: Actual encoder resolution is higher; use vendor::moza::MozaProtocol for true values
+                0x0015 => {
+                    // R3 V2
+                    capabilities.max_torque = TorqueNm::new(3.9).unwrap_or(capabilities.max_torque);
+                    capabilities.encoder_cpr = u16::MAX; // 18-bit actual, capped
+                }
+                0x0014 => {
+                    // R5 V2
+                    capabilities.max_torque = TorqueNm::new(5.5).unwrap_or(capabilities.max_torque);
+                    capabilities.encoder_cpr = u16::MAX; // 18-bit actual, capped
+                }
+                0x0012 => {
+                    // R9 V2
+                    capabilities.max_torque = TorqueNm::new(9.0).unwrap_or(capabilities.max_torque);
+                    capabilities.encoder_cpr = u16::MAX; // 18-bit actual, capped
+                }
+                0x0016 => {
+                    // R12 V2
+                    capabilities.max_torque =
+                        TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
+                    capabilities.encoder_cpr = u16::MAX; // 18-bit actual, capped
+                }
+                0x0010 => {
+                    // R16/R21 V2
+                    capabilities.max_torque =
+                        TorqueNm::new(21.0).unwrap_or(capabilities.max_torque);
+                    capabilities.encoder_cpr = u16::MAX; // 21-bit actual, capped
+                }
+                0x0003 => {
+                    // SR-P Pedals
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.supports_led_bus = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                    capabilities.encoder_cpr = 4096;
                 }
                 _ => {
                     capabilities.max_torque =
                         TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
+                    capabilities.encoder_cpr = 32768;
                 }
             }
         }
@@ -1974,8 +2018,14 @@ mod tests {
     #[test]
     fn test_supported_devices_moza() {
         assert!(SupportedDevices::is_supported_vendor(vendor_ids::MOZA));
-        assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0001)); // R9
-        assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0002)); // R16
+        // V1 wheelbases
+        assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0002)); // R9
+        assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0005)); // R3
+        // V2 wheelbases
+        assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0012)); // R9 V2
+        assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0010)); // R16/R21 V2
+        // Peripherals
+        assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0003)); // SR-P Pedals
     }
 
     #[test]
@@ -2055,12 +2105,34 @@ mod tests {
     }
 
     #[test]
-    fn test_device_capabilities_moza_r21() {
-        let caps = determine_device_capabilities(vendor_ids::MOZA, 0x0003);
+    fn test_device_capabilities_moza_r16_r21_v2() {
+        // R16/R21 V2 with 21-bit encoder (capped to u16::MAX)
+        let caps = determine_device_capabilities(vendor_ids::MOZA, 0x0010);
         assert!(caps.supports_raw_torque_1khz);
         assert!(caps.supports_health_stream);
+        assert!(caps.supports_led_bus);
         assert!((caps.max_torque.value() - 21.0).abs() < 0.1);
-        assert_eq!(caps.encoder_cpr, 65535);
+        assert_eq!(caps.encoder_cpr, u16::MAX); // 21-bit actual, capped to u16
+    }
+
+    #[test]
+    fn test_device_capabilities_moza_r9_v1() {
+        // R9 V1 with 15-bit encoder
+        let caps = determine_device_capabilities(vendor_ids::MOZA, 0x0002);
+        assert!(caps.supports_raw_torque_1khz);
+        assert!(caps.supports_health_stream);
+        assert!((caps.max_torque.value() - 9.0).abs() < 0.1);
+        assert_eq!(caps.encoder_cpr, 32768);
+    }
+
+    #[test]
+    fn test_device_capabilities_moza_pedals() {
+        // SR-P Pedals have no FFB
+        let caps = determine_device_capabilities(vendor_ids::MOZA, 0x0003);
+        assert!(!caps.supports_raw_torque_1khz);
+        assert!(!caps.supports_led_bus);
+        assert_eq!(caps.max_torque.value(), 0.0);
+        assert_eq!(caps.encoder_cpr, 4096);
     }
 
     #[test]
