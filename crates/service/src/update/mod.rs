@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
+pub mod bundle;
 pub mod delta;
 pub mod firmware;
 pub mod health;

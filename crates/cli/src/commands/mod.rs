@@ -307,6 +307,12 @@ pub enum PluginCommands {
         #[arg(long)]
         version: Option<String>,
     },
+
+    /// Verify an installed plugin's integrity and signature
+    Verify {
+        /// Plugin ID or name
+        plugin_id: String,
+    },
 }
 
 #[derive(clap::ValueEnum, Clone, Debug)]

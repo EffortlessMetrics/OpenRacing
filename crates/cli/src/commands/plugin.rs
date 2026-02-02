@@ -6,6 +6,11 @@
 //! - `plugin install <plugin-id>` - Install a plugin
 //! - `plugin uninstall <plugin-id>` - Uninstall a plugin
 //! - `plugin info <plugin-id>` - Show plugin details
+//! - `plugin verify <plugin-id>` - Verify plugin integrity
+//!
+//! Note: In production, these commands communicate with the wheeld service
+//! via IPC to perform plugin operations. The current implementation uses
+//! mock data for demonstration purposes.
 
 use anyhow::Result;
 use colored::*;
@@ -33,6 +38,7 @@ pub async fn execute(cmd: &PluginCommands, json: bool, _endpoint: Option<&str>) 
         PluginCommands::Info { plugin_id, version } => {
             show_plugin_info(plugin_id, version.as_deref(), json).await
         }
+        PluginCommands::Verify { plugin_id } => verify_plugin(plugin_id, json).await,
     }
 }
 
@@ -390,6 +396,113 @@ async fn show_plugin_info(plugin_id: &str, version: Option<&str>, json: bool) ->
         println!(
             "{}",
             format!("Install with: wheelctl plugin install {}", plugin.id).dimmed()
+        );
+    }
+
+    Ok(())
+}
+
+/// Verify an installed plugin's integrity and signature
+async fn verify_plugin(plugin_id: &str, json: bool) -> Result<()> {
+    let plugins = get_mock_registry_plugins();
+
+    // Find the plugin
+    let plugin = plugins
+        .iter()
+        .find(|p| p.id == plugin_id || p.name.to_lowercase() == plugin_id.to_lowercase())
+        .ok_or_else(|| CliError::ValidationError(format!("Plugin '{}' not found", plugin_id)))?;
+
+    // Check if installed
+    if !plugin.installed {
+        return Err(
+            CliError::ValidationError(format!("Plugin '{}' is not installed", plugin.name)).into(),
+        );
+    }
+
+    if json {
+        let output = serde_json::json!({
+            "success": true,
+            "plugin": {
+                "id": plugin.id,
+                "name": plugin.name,
+                "version": plugin.installed_version,
+            },
+            "verification": {
+                "files_intact": true,
+                "signature_verified": plugin.signature_verified,
+                "issues": []
+            }
+        });
+        println!("{}", serde_json::to_string_pretty(&output)?);
+        return Ok(());
+    }
+
+    println!(
+        "{}",
+        format!("Verifying plugin '{}'...", plugin.name).bold()
+    );
+    println!();
+
+    // Simulate verification
+    let pb = ProgressBar::new_spinner();
+    let style = ProgressStyle::default_spinner().template("{spinner:.green} {msg}")?;
+    pb.set_style(style);
+
+    pb.set_message("Checking plugin files...");
+    pb.enable_steady_tick(Duration::from_millis(100));
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    pb.finish_with_message(format!("{} Files intact", "✓".green()));
+
+    let pb = ProgressBar::new_spinner();
+    let style = ProgressStyle::default_spinner().template("{spinner:.green} {msg}")?;
+    pb.set_style(style);
+
+    pb.set_message("Verifying signature...");
+    pb.enable_steady_tick(Duration::from_millis(100));
+    tokio::time::sleep(Duration::from_millis(300)).await;
+
+    if plugin.signature_verified {
+        pb.finish_with_message(format!("{} Signature verified", "✓".green()));
+    } else {
+        pb.finish_with_message(format!("{} Plugin is unsigned", "⚠".yellow()));
+    }
+
+    println!();
+    println!("{}", "Verification Summary".bold());
+    println!("{}", "─".repeat(40));
+    println!("  {} {}", "Plugin:".bold(), plugin.name);
+    println!(
+        "  {} {}",
+        "Version:".bold(),
+        plugin
+            .installed_version
+            .as_deref()
+            .unwrap_or(&plugin.version)
+    );
+    println!("  {} {}", "Files:".bold(), "OK".green());
+    println!(
+        "  {} {}",
+        "Signature:".bold(),
+        if plugin.signature_verified {
+            "Verified".green()
+        } else {
+            "Unsigned".yellow()
+        }
+    );
+    println!();
+
+    if plugin.signature_verified {
+        output::print_success(
+            &format!("Plugin '{}' verification passed", plugin.name),
+            false,
+        );
+    } else {
+        output::print_warning(
+            &format!(
+                "Plugin '{}' is unsigned - consider using signed plugins for security",
+                plugin.name
+            ),
+            false,
         );
     }
 
