@@ -15,10 +15,12 @@ pub mod abi;
 pub mod capability;
 pub mod helper;
 pub mod host;
+pub mod installer;
 pub mod manifest;
 pub mod native;
 pub mod quarantine;
 pub mod registry;
+pub mod registry_client;
 pub mod sdk;
 pub mod wasm;
 
@@ -185,6 +187,7 @@ pub use host::*;
 pub use manifest::*;
 pub use quarantine::*;
 pub use registry::*;
+pub use registry_client::*;
 
 #[cfg(test)]
 mod wasm_property_tests;

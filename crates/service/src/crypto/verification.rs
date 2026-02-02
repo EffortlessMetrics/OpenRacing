@@ -197,6 +197,19 @@ impl VerificationService {
         Ok(results)
     }
 
+    /// Verify content directly with signature metadata
+    ///
+    /// This is useful for verifying embedded signatures (e.g., in firmware bundles)
+    /// where the content and signature metadata are both in memory.
+    pub fn verify_content(
+        &self,
+        content: &[u8],
+        metadata: &super::SignatureMetadata,
+    ) -> Result<VerificationResult> {
+        use super::SignatureVerifier;
+        self.verifier.verify_content(content, metadata)
+    }
+
     /// Get verification configuration
     pub fn get_config(&self) -> &VerificationConfig {
         &self.config

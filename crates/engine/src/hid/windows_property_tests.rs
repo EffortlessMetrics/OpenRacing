@@ -532,7 +532,7 @@ mod unit_tests {
         let dd_devices = [
             (vendor_ids::FANATEC, 0x0006, 15.0), // DD1 - at least 15Nm
             (vendor_ids::FANATEC, 0x0007, 20.0), // DD2 - at least 20Nm
-            (vendor_ids::MOZA, 0x0003, 15.0),    // R21 - at least 15Nm
+            (vendor_ids::MOZA, 0x0010, 15.0),    // R16/R21 V2 - at least 15Nm
         ];
 
         for (vid, pid, min_torque) in dd_devices {

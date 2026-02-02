@@ -201,8 +201,10 @@ pub mod utils {
             return Ok(Some(metadata));
         }
 
-        // TODO: Check for embedded signatures in PE/ELF sections
-        // TODO: Check extended attributes on Unix systems
+        // Try embedded signature in binary sections
+        if let Some(metadata) = extract_embedded_signature(file_path)? {
+            return Ok(Some(metadata));
+        }
 
         Ok(None)
     }
@@ -277,5 +279,183 @@ pub mod utils {
     pub fn compute_file_sha256_hex(file_path: &Path) -> Result<String> {
         let content = std::fs::read(file_path).context("Failed to read file for hashing")?;
         Ok(compute_sha256_hex(&content))
+    }
+
+    /// Section name for embedded signatures in PE binaries (Windows)
+    pub const PE_SIGNATURE_SECTION: &str = ".orsig";
+
+    /// Section name for embedded signatures in ELF binaries (Linux)
+    pub const ELF_SIGNATURE_SECTION: &str = ".note.openracing.sig";
+
+    /// Section name for embedded signatures in Mach-O binaries (macOS)
+    pub const MACHO_SIGNATURE_SECTION: &str = "__orsig";
+
+    /// Mach-O segment containing the signature section
+    pub const MACHO_SIGNATURE_SEGMENT: &str = "__DATA";
+
+    /// Extract embedded signature from a binary file (PE/ELF/Mach-O)
+    ///
+    /// This function attempts to find and extract signature metadata that has been
+    /// embedded directly in the binary file's sections. This is useful for native
+    /// plugins and executables where a detached .sig file may not be desirable.
+    ///
+    /// # Section Names
+    /// - PE (Windows): `.orsig` section
+    /// - ELF (Linux): `.note.openracing.sig` section
+    /// - Mach-O (macOS): `__orsig` section in `__DATA` segment
+    ///
+    /// # Returns
+    /// - `Ok(Some(metadata))` if a valid embedded signature was found
+    /// - `Ok(None)` if no embedded signature exists
+    /// - `Err(_)` if the file could not be read or parsed
+    pub fn extract_embedded_signature(file_path: &Path) -> Result<Option<SignatureMetadata>> {
+        use goblin::Object;
+        use tracing::debug;
+
+        let file_data =
+            std::fs::read(file_path).context("Failed to read file for signature extraction")?;
+
+        let object = match Object::parse(&file_data) {
+            Ok(obj) => obj,
+            Err(_) => {
+                // Not a recognized binary format, no embedded signature possible
+                return Ok(None);
+            }
+        };
+
+        let section_data = match object {
+            Object::PE(pe) => {
+                debug!("Checking PE binary for embedded signature");
+                extract_pe_signature_section(&pe, &file_data)
+            }
+            Object::Elf(elf) => {
+                debug!("Checking ELF binary for embedded signature");
+                extract_elf_signature_section(&elf, &file_data)
+            }
+            Object::Mach(mach) => {
+                debug!("Checking Mach-O binary for embedded signature");
+                extract_macho_signature_section(&mach, &file_data)
+            }
+            _ => {
+                // Unknown or archive format
+                None
+            }
+        };
+
+        match section_data {
+            Some(data) => {
+                // Parse the section content as JSON SignatureMetadata
+                let metadata: SignatureMetadata = serde_json::from_slice(data)
+                    .context("Failed to parse embedded signature metadata")?;
+                debug!("Found embedded signature from signer: {}", metadata.signer);
+                Ok(Some(metadata))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Extract signature section from a PE binary
+    fn extract_pe_signature_section<'a>(
+        pe: &goblin::pe::PE<'_>,
+        file_data: &'a [u8],
+    ) -> Option<&'a [u8]> {
+        for section in &pe.sections {
+            let name = String::from_utf8_lossy(&section.name);
+            let name = name.trim_end_matches('\0');
+            if name == PE_SIGNATURE_SECTION {
+                let start = section.pointer_to_raw_data as usize;
+                let size = section.size_of_raw_data as usize;
+                if start + size <= file_data.len() {
+                    // Trim null padding from the section data
+                    let data = &file_data[start..start + size];
+                    let trimmed = trim_null_bytes(data);
+                    if !trimmed.is_empty() {
+                        return Some(trimmed);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Extract signature section from an ELF binary
+    fn extract_elf_signature_section<'a>(
+        elf: &goblin::elf::Elf<'_>,
+        file_data: &'a [u8],
+    ) -> Option<&'a [u8]> {
+        for section in &elf.section_headers {
+            if let Some(name) = elf.shdr_strtab.get_at(section.sh_name) {
+                if name == ELF_SIGNATURE_SECTION {
+                    let start = section.sh_offset as usize;
+                    let size = section.sh_size as usize;
+                    if start + size <= file_data.len() {
+                        let data = &file_data[start..start + size];
+                        let trimmed = trim_null_bytes(data);
+                        if !trimmed.is_empty() {
+                            return Some(trimmed);
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Extract signature section from a Mach-O binary
+    fn extract_macho_signature_section<'a>(
+        mach: &goblin::mach::Mach<'_>,
+        file_data: &'a [u8],
+    ) -> Option<&'a [u8]> {
+        match mach {
+            goblin::mach::Mach::Binary(macho) => extract_macho_binary_signature(macho, file_data),
+            goblin::mach::Mach::Fat(fat) => {
+                // For fat binaries, check each architecture
+                for arch in fat.iter_arches().flatten() {
+                    if let Ok(macho) = goblin::mach::MachO::parse(file_data, arch.offset as usize) {
+                        if let Some(data) = extract_macho_binary_signature(&macho, file_data) {
+                            return Some(data);
+                        }
+                    }
+                }
+                None
+            }
+        }
+    }
+
+    /// Extract signature from a single Mach-O binary
+    fn extract_macho_binary_signature<'a>(
+        macho: &goblin::mach::MachO<'_>,
+        file_data: &'a [u8],
+    ) -> Option<&'a [u8]> {
+        for segment in &macho.segments {
+            if let Ok(name) = segment.name() {
+                if name == MACHO_SIGNATURE_SEGMENT {
+                    if let Ok(sections) = segment.sections() {
+                        for (section, _data) in sections {
+                            if let Ok(sect_name) = section.name() {
+                                if sect_name == MACHO_SIGNATURE_SECTION {
+                                    let start = section.offset as usize;
+                                    let size = section.size as usize;
+                                    if start + size <= file_data.len() {
+                                        let data = &file_data[start..start + size];
+                                        let trimmed = trim_null_bytes(data);
+                                        if !trimmed.is_empty() {
+                                            return Some(trimmed);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Trim null bytes from the end of section data
+    fn trim_null_bytes(data: &[u8]) -> &[u8] {
+        let end = data.iter().rposition(|&b| b != 0).map_or(0, |i| i + 1);
+        &data[..end]
     }
 }

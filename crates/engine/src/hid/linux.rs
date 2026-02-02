@@ -75,6 +75,20 @@ impl LinuxHidPort {
             (0x044F, 0xB677), // Thrustmaster T500RS
             (0x044F, 0xB696), // Thrustmaster TS-XW
             (0x044F, 0xB69A), // Thrustmaster T-GT
+            // Moza Racing - V1
+            (0x346E, 0x0005), // Moza R3
+            (0x346E, 0x0004), // Moza R5
+            (0x346E, 0x0002), // Moza R9
+            (0x346E, 0x0006), // Moza R12
+            (0x346E, 0x0000), // Moza R16/R21
+            // Moza Racing - V2
+            (0x346E, 0x0015), // Moza R3 V2
+            (0x346E, 0x0014), // Moza R5 V2
+            (0x346E, 0x0012), // Moza R9 V2
+            (0x346E, 0x0016), // Moza R12 V2
+            (0x346E, 0x0010), // Moza R16/R21 V2
+            // Moza Racing peripherals
+            (0x346E, 0x0003), // Moza SR-P Pedals
         ];
 
         // Scan /dev/hidraw* devices
