@@ -44,14 +44,14 @@
     "pattern": "progressive",
     "brightness": 0.8,
     "colors": {
-      "yellow": [
-        255,
-        255,
-        0
-      ],
       "red": [
         255,
         0,
+        0
+      ],
+      "yellow": [
+        255,
+        255,
         0
       ],
       "blue": [

@@ -49,20 +49,20 @@
         0,
         0
       ],
-      "green": [
+      "blue": [
         0,
-        255,
-        0
+        0,
+        255
       ],
       "yellow": [
         255,
         255,
         0
       ],
-      "blue": [
+      "green": [
         0,
-        0,
-        255
+        255,
+        0
       ]
     }
   },
@@ -71,9 +71,9 @@
     "intensity": 0.6,
     "frequencyHz": 80.0,
     "effects": {
-      "gear_shift": false,
-      "collision": true,
       "kerb": true,
+      "collision": true,
+      "gear_shift": false,
       "slip": true
     }
   }

@@ -2,6 +2,61 @@
 //!
 //! This module provides a client for interacting with remote plugin registries,
 //! supporting index caching, signature verification, and configurable refresh intervals.
+//!
+//! # Registry Index Signature Format
+//!
+//! The registry index supports Ed25519 digital signatures for supply chain security.
+//!
+//! ## What is Signed
+//!
+//! The signature is computed over the **32-byte SHA256 digest** of the canonical
+//! catalog JSON serialization. This is:
+//!
+//! ```text
+//! signature = Ed25519.sign(SHA256(canonical_catalog_json))
+//! ```
+//!
+//! **Important:** The signature is over the raw digest bytes (32 bytes), NOT the
+//! hex-encoded digest string (64 characters), and NOT the raw JSON bytes.
+//!
+//! ## Canonical Serialization
+//!
+//! The catalog is serialized deterministically using `BTreeMap` to ensure consistent
+//! key ordering. This makes the hash reproducible regardless of the internal `HashMap`
+//! iteration order.
+//!
+//! The canonical structure is:
+//! ```json
+//! {
+//!   "plugin-id-1": [plugin_metadata_v1, plugin_metadata_v2, ...],
+//!   "plugin-id-2": [...],
+//!   ...
+//! }
+//! ```
+//!
+//! Where:
+//! - Plugin IDs are sorted lexicographically
+//! - Each plugin's versions are sorted by semver (ascending)
+//!
+//! ## Signature Metadata
+//!
+//! The [`IndexSignature`] struct embeds the full signature metadata in the index:
+//! - `signature`: Base64-encoded Ed25519 signature (64 bytes)
+//! - `key_fingerprint`: SHA256 of the public key (64-char hex string)
+//! - `signer`: Human-readable signer identity
+//! - `timestamp`: When the signature was created (ISO 8601)
+//! - `comment`: Optional release notes
+//!
+//! **Security:** The timestamp and signer identity are bound to the signature.
+//! The client MUST NOT fabricate these values - they come from the index.
+//!
+//! ## Verification Requirements
+//!
+//! When `require_signed_index` is enabled:
+//! 1. A `trust_store_path` MUST be configured (checked at client creation)
+//! 2. The signature MUST be cryptographically valid
+//! 3. The signer MUST be in the trust store with `TrustLevel::Trusted`
+//!    (unless `allow_untrusted_signers` is enabled for dev environments)
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -20,6 +75,34 @@ use tracing::{debug, info, warn};
 
 use crate::registry::{PluginCatalog, PluginId, PluginMetadata};
 
+/// Signature metadata for a registry index
+///
+/// This struct is embedded in the registry index JSON and contains all information
+/// needed to verify the index signature. The signature is over the SHA256 digest
+/// of the canonical catalog JSON serialization.
+///
+/// SECURITY NOTE: The timestamp and signer identity MUST come from this struct,
+/// not be fabricated by the client. This ensures signature freshness can be enforced
+/// and the signer's claimed identity is bound to the signature.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndexSignature {
+    /// Ed25519 signature in base64 format over the catalog hash
+    pub signature: String,
+
+    /// SHA256 fingerprint of the signing public key (64-char hex string)
+    pub key_fingerprint: String,
+
+    /// Human-readable signer identity
+    pub signer: String,
+
+    /// Timestamp when the signature was created (ISO 8601 format)
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+
+    /// Optional comment describing the signature/release
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+}
+
 /// Configuration for the remote registry client
 #[derive(Debug, Clone)]
 pub struct RemoteRegistryConfig {
@@ -30,13 +113,24 @@ pub struct RemoteRegistryConfig {
     /// How often to refresh the registry index
     pub refresh_interval: Duration,
     /// Whether to require signature verification for the index
+    ///
+    /// SECURITY: When true, `trust_store_path` MUST also be configured.
+    /// Signature verification without a trust anchor provides no security guarantee.
     pub require_signed_index: bool,
-    /// Path to trust store for signature verification (optional)
-    /// If not set, signature verification will only check format validity
+    /// Path to trust store for signature verification
+    ///
+    /// REQUIRED when `require_signed_index` is true. The trust store contains
+    /// public keys of trusted registry signers.
     pub trust_store_path: Option<PathBuf>,
     /// Expected key fingerprint for registry signing key (optional)
     /// If set, only signatures from this key will be accepted
     pub registry_key_fingerprint: Option<String>,
+    /// Whether to allow unknown signers (signers not in trust store)
+    ///
+    /// WARNING: Setting this to true significantly weakens security.
+    /// Only use for development/testing environments.
+    /// Default: false (require trusted signers)
+    pub allow_untrusted_signers: bool,
 }
 
 impl Default for RemoteRegistryConfig {
@@ -45,9 +139,13 @@ impl Default for RemoteRegistryConfig {
             registry_url: "https://registry.openracing.io".to_string(),
             cache_dir: PathBuf::from(".cache/plugins"),
             refresh_interval: Duration::from_secs(3600), // 1 hour
-            require_signed_index: true,
+            // NOTE: Default is false since trust_store_path is None.
+            // In production, users should configure both require_signed_index: true
+            // AND a valid trust_store_path.
+            require_signed_index: false,
             trust_store_path: None,
             registry_key_fingerprint: None,
+            allow_untrusted_signers: false,
         }
     }
 }
@@ -90,18 +188,44 @@ impl RemoteRegistryConfig {
         self.registry_key_fingerprint = Some(fingerprint.into());
         self
     }
+
+    /// Set whether to allow untrusted signers (signers not in trust store)
+    ///
+    /// WARNING: Setting this to true significantly weakens security.
+    /// Only use for development/testing environments.
+    pub fn with_allow_untrusted_signers(mut self, allow: bool) -> Self {
+        self.allow_untrusted_signers = allow;
+        self
+    }
 }
 
 /// Cached registry index with metadata
+///
+/// The index contains a plugin catalog along with integrity information.
+///
+/// ## Signature Verification
+///
+/// When `signature` is present, it contains full metadata about the signature
+/// including the signer's identity, timestamp, and key fingerprint. The signature
+/// is computed over the 32-byte SHA256 digest of the canonical catalog JSON
+/// (NOT the hex-encoded hash string, and NOT the raw JSON bytes).
+///
+/// The canonical catalog JSON uses `BTreeMap` to ensure deterministic key ordering.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegistryIndex {
     /// Version of the index format
     pub version: String,
     /// Timestamp when the index was generated (Unix epoch seconds)
     pub generated_at: u64,
-    /// Optional signature of the index (base64-encoded Ed25519 signature)
-    pub signature: Option<String>,
+    /// Optional cryptographic signature of the index
+    ///
+    /// When present, contains full signature metadata including the Ed25519
+    /// signature, signer identity, timestamp, and key fingerprint.
+    pub signature: Option<IndexSignature>,
     /// SHA256 hash of the catalog data (hex-encoded)
+    ///
+    /// This hash is computed from the canonical JSON serialization of the catalog
+    /// (using BTreeMap for deterministic key ordering).
     pub catalog_hash: String,
     /// The plugin catalog containing all plugin metadata
     pub catalog: PluginCatalog,
@@ -128,8 +252,29 @@ impl RegistryIndex {
 
     /// Compute the SHA256 hash of a catalog using canonical (deterministic) serialization
     ///
-    /// This uses BTreeMap to ensure consistent ordering regardless of HashMap iteration order,
-    /// making the hash deterministic across serialization round-trips.
+    /// This function produces a deterministic hash of the catalog by:
+    /// 1. Converting the internal `HashMap` to a `BTreeMap` (sorted keys)
+    /// 2. Sorting each plugin's versions by semver (ascending)
+    /// 3. Serializing to compact JSON (no pretty-printing)
+    /// 4. Computing SHA256 of the JSON bytes
+    ///
+    /// ## Canonical Format
+    ///
+    /// The canonical JSON structure is:
+    /// ```json
+    /// {"plugin-id-1":[{...v1...},{...v2...}],"plugin-id-2":[...]}
+    /// ```
+    ///
+    /// ## Signature Usage
+    ///
+    /// Registry signatures are computed over the **raw SHA256 digest bytes** (32 bytes),
+    /// NOT the hex-encoded string returned by this function. To verify:
+    ///
+    /// ```ignore
+    /// let hash_hex = RegistryIndex::compute_canonical_catalog_hash(&catalog);
+    /// let hash_bytes = hex::decode(&hash_hex)?; // 32 bytes
+    /// verifier.verify_content(&hash_bytes, &signature_metadata)?;
+    /// ```
     #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn compute_canonical_catalog_hash(catalog: &PluginCatalog) -> String {
         // Build a canonical representation with sorted keys
@@ -139,14 +284,15 @@ impl RegistryIndex {
         for plugin in catalog.list_all() {
             // Get all versions of this plugin
             if let Some(versions) = catalog.get_all_versions(&plugin.id) {
-                // Clone versions sorted by version number for determinism
+                // Sort versions by semver (ascending) for determinism
                 let mut sorted_versions: Vec<&PluginMetadata> = versions.iter().collect();
                 sorted_versions.sort_by(|a, b| a.version.cmp(&b.version));
                 canonical.insert(plugin.id.0.to_string(), sorted_versions);
             }
         }
 
-        // Serialize to JSON (BTreeMap ensures key ordering)
+        // Serialize to compact JSON (BTreeMap ensures key ordering)
+        // Note: Uses compact format, not pretty-printed, for consistency
         let canonical_json = serde_json::to_string(&canonical).unwrap_or_default();
 
         let mut hasher = Sha256::new();
@@ -230,7 +376,27 @@ pub struct RemoteRegistryClient {
 
 impl RemoteRegistryClient {
     /// Create a new remote registry client with the given configuration
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - `require_signed_index` is true but no `trust_store_path` is configured
+    ///   (signatures cannot be cryptographically verified without a trust anchor)
+    /// - The HTTP client fails to initialize
+    /// - The verification service fails to initialize
     pub fn new(config: RemoteRegistryConfig) -> Result<Self> {
+        // SECURITY: If signatures are required, we MUST have a trust store configured.
+        // Without a trust store, we can only do format validation (signature looks like
+        // a valid Ed25519 signature), which provides no security guarantee.
+        if config.require_signed_index && config.trust_store_path.is_none() {
+            bail!(
+                "Configuration error: require_signed_index is true but no trust_store_path is configured. \
+                 Signature verification requires a trust anchor. Either:\n\
+                 - Configure trust_store_path with a valid trust store, or\n\
+                 - Set require_signed_index to false (not recommended for production)"
+            );
+        }
+
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
             .user_agent(concat!("openracing-plugins/", env!("CARGO_PKG_VERSION")))
@@ -244,7 +410,7 @@ impl RemoteRegistryClient {
                 require_firmware_signatures: false,
                 require_binary_signatures: false,
                 require_plugin_signatures: config.require_signed_index,
-                allow_unknown_signers: true,
+                allow_unknown_signers: config.allow_untrusted_signers,
                 max_signature_age_seconds: None,
             };
             Some(
@@ -374,19 +540,24 @@ impl RemoteRegistryClient {
     /// Verify the Ed25519 signature of the registry index
     ///
     /// This performs cryptographic verification of the signature against the catalog hash.
-    /// If a verifier is configured with a trust store, full signature verification is performed.
-    /// Otherwise, only format validation is done (signature present and decodable).
+    /// The signature metadata (signer, timestamp, key fingerprint) comes from the index itself,
+    /// NOT fabricated by the client. This ensures the signature is bound to its claimed metadata.
+    ///
+    /// ## What is signed
+    ///
+    /// The signature is computed over the 32-byte SHA256 digest of the canonical catalog JSON.
+    /// This is the raw bytes of the digest, NOT the hex-encoded string.
     fn verify_index_signature(&self, index: &RegistryIndex) -> Result<()> {
         use racing_wheel_service::crypto::{ContentType, SignatureMetadata, TrustLevel};
 
-        let signature_b64 = index
+        let index_sig = index
             .signature
             .as_ref()
             .ok_or_else(|| anyhow!("Registry index is not signed but signature is required"))?;
 
         // Decode the signature to verify it's valid base64
         let signature_bytes =
-            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, signature_b64)
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &index_sig.signature)
                 .context("Failed to decode registry index signature")?;
 
         // Verify signature length (Ed25519 signatures are 64 bytes)
@@ -397,26 +568,35 @@ impl RemoteRegistryClient {
             );
         }
 
+        // If a specific key fingerprint is required, verify it matches
+        if let Some(ref expected_fingerprint) = self.config.registry_key_fingerprint {
+            if index_sig.key_fingerprint != *expected_fingerprint {
+                bail!(
+                    "Registry key fingerprint mismatch: expected '{}', got '{}'. \
+                     The registry is signed by a different key than expected.",
+                    expected_fingerprint,
+                    index_sig.key_fingerprint
+                );
+            }
+        }
+
         // If we have a verifier, perform full cryptographic verification
         if let Some(ref verifier) = self.verifier {
             // Get the hash bytes that were signed
+            // IMPORTANT: We sign the raw SHA256 digest bytes, NOT the hex string
             let hash_bytes =
                 hex::decode(&index.catalog_hash).context("Failed to decode catalog hash")?;
 
-            // Build signature metadata for verification
-            // Note: The registry server should include full metadata in the index
-            // For now, we construct minimal metadata
+            // Convert IndexSignature to SignatureMetadata for the verification service
+            // SECURITY: We use the metadata from the index, NOT fabricated values.
+            // This binds the signature to its claimed timestamp and signer identity.
             let metadata = SignatureMetadata {
-                signature: signature_b64.clone(),
-                key_fingerprint: self
-                    .config
-                    .registry_key_fingerprint
-                    .clone()
-                    .unwrap_or_default(),
-                signer: "registry".to_string(),
-                timestamp: chrono::Utc::now(),
+                signature: index_sig.signature.clone(),
+                key_fingerprint: index_sig.key_fingerprint.clone(),
+                signer: index_sig.signer.clone(),
+                timestamp: index_sig.timestamp,
                 content_type: ContentType::Update, // Registry index is like an update manifest
-                comment: Some("Registry index signature".to_string()),
+                comment: index_sig.comment.clone(),
             };
 
             // Verify the signature cryptographically
@@ -429,16 +609,29 @@ impl RemoteRegistryClient {
             }
 
             // Check trust level
+            // SECURITY: By default, require Trusted signers when signature verification is enabled.
+            // Unknown signers are only allowed if explicitly configured via allow_untrusted_signers.
             match verification_result.trust_level {
                 TrustLevel::Trusted => {
                     info!("Registry index signature verified: trusted signer");
                 }
                 TrustLevel::Unknown => {
-                    warn!(
-                        "Registry index signed by unknown key (fingerprint: {}). \
-                         Consider adding to trust store.",
-                        metadata.key_fingerprint
-                    );
+                    if self.config.allow_untrusted_signers {
+                        warn!(
+                            "Registry index signed by UNKNOWN key (fingerprint: {}). \
+                             This is allowed due to allow_untrusted_signers=true, but is NOT SECURE. \
+                             Add the key to your trust store for production use.",
+                            metadata.key_fingerprint
+                        );
+                    } else {
+                        bail!(
+                            "Registry index signed by unknown key (fingerprint: {}). \
+                             The signer is not in the trust store. Either:\n\
+                             - Add the registry's public key to your trust store, or\n\
+                             - Set allow_untrusted_signers=true (not recommended for production)",
+                            metadata.key_fingerprint
+                        );
+                    }
                 }
                 TrustLevel::Distrusted => {
                     bail!(
@@ -450,9 +643,10 @@ impl RemoteRegistryClient {
 
             debug!("Registry index signature cryptographically verified");
         } else {
-            // No verifier configured - just verify format
+            // No verifier configured - this should not happen if require_signed_index is true
+            // due to the check in RemoteRegistryClient::new()
             debug!(
-                "Registry index signature format verified (no trust store configured for full verification)"
+                "Registry index signature format verified (no trust store configured)"
             );
         }
 
@@ -599,7 +793,9 @@ mod tests {
         let config = RemoteRegistryConfig::default();
         assert_eq!(config.registry_url, "https://registry.openracing.io");
         assert_eq!(config.refresh_interval, Duration::from_secs(3600));
-        assert!(config.require_signed_index);
+        // Default is false when no trust store is configured (safe default)
+        assert!(!config.require_signed_index);
+        assert!(!config.allow_untrusted_signers);
         Ok(())
     }
 
@@ -700,18 +896,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_fetch_remote_index_success() -> Result<()> {
+    async fn test_fetch_remote_index_success_unsigned() -> Result<()> {
+        // Test fetching an unsigned index when signatures are not required
         let mock_server = MockServer::start().await;
         let temp_dir = TempDir::new()?;
 
-        let mut index = create_test_index();
-        // Add a valid-length signature (64 bytes for Ed25519) so format verification passes
-        // Note: This is not cryptographically valid, but passes format validation
-        // when no trust store is configured for full verification
-        index.signature = Some(base64::Engine::encode(
-            &base64::engine::general_purpose::STANDARD,
-            &[0u8; 64], // 64-byte fake signature
-        ));
+        let index = create_test_index();
 
         Mock::given(method("GET"))
             .and(path("/v1/index.json"))
@@ -721,7 +911,7 @@ mod tests {
 
         let config = RemoteRegistryConfig::new(mock_server.uri())
             .with_cache_dir(temp_dir.path().to_path_buf())
-            .with_require_signed_index(true);
+            .with_require_signed_index(false);
 
         let client = RemoteRegistryClient::new(config)?;
         client.refresh().await?;
@@ -730,6 +920,32 @@ mod tests {
         let results = client.search("FFB").await?;
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].name, "FFB Filter Pro");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_require_signed_index_without_trust_store_errors() -> Result<()> {
+        // SECURITY: Requiring signatures without a trust store should fail at config time
+        let temp_dir = TempDir::new()?;
+
+        let config = RemoteRegistryConfig::new("https://example.com")
+            .with_cache_dir(temp_dir.path().to_path_buf())
+            .with_require_signed_index(true);
+        // Note: trust_store_path is None
+
+        let result = RemoteRegistryClient::new(config);
+        assert!(
+            result.is_err(),
+            "Should fail when require_signed_index is true but no trust_store_path"
+        );
+
+        let err_msg = result.err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(
+            err_msg.contains("trust_store_path") || err_msg.contains("trust anchor"),
+            "Error should mention trust store requirement: {}",
+            err_msg
+        );
 
         Ok(())
     }
@@ -1049,6 +1265,10 @@ mod tests {
         let mock_server = MockServer::start().await;
         let temp_dir = TempDir::new()?;
 
+        // Create a trust store file (empty map is fine for this test)
+        let trust_store_path = temp_dir.path().join("trust_store.json");
+        std::fs::write(&trust_store_path, "{}")?;
+
         let index = create_test_index(); // No signature
 
         Mock::given(method("GET"))
@@ -1059,7 +1279,8 @@ mod tests {
 
         let config = RemoteRegistryConfig::new(mock_server.uri())
             .with_cache_dir(temp_dir.path().to_path_buf())
-            .with_require_signed_index(true);
+            .with_require_signed_index(true)
+            .with_trust_store_path(trust_store_path);
 
         let client = RemoteRegistryClient::new(config)?;
         let result = client.refresh().await;

@@ -819,4 +819,246 @@ mod tests {
 
         Ok(())
     }
+
+    // =========================================================================
+    // Security Test: Real Ed25519 Signature Round-Trip
+    //
+    // This test verifies that the ACTUAL cryptographic signature verification
+    // is wired up correctly:
+    // 1. Generate a real Ed25519 key pair
+    // 2. Create a trust store containing the public key
+    // 3. Sign a bundle with the real signature
+    // 4. Verify the signed bundle passes verification
+    // 5. Tamper with the signed bytes and verify it FAILS
+    // =========================================================================
+
+    #[test]
+    fn test_real_ed25519_signature_roundtrip_pass() -> Result<()> {
+        use crate::crypto::ed25519::{Ed25519Signer, KeyPair};
+        use crate::crypto::trust_store::TrustStore;
+        use crate::crypto::{ContentType, TrustLevel, VerificationConfig};
+
+        // 1. Generate a real Ed25519 key pair
+        let keypair = KeyPair::generate().map_err(|e| anyhow::anyhow!("{}", e))?;
+        let fingerprint = keypair.fingerprint();
+
+        // 2. Create a trust store with the public key
+        let temp_dir = TempDir::new()?;
+        let trust_store_path = temp_dir.path().join("trust_store.json");
+        let mut trust_store = TrustStore::new(trust_store_path.clone())?;
+        trust_store.add_key(
+            keypair.public_key.clone(),
+            TrustLevel::Trusted,
+            Some("Test signing key".to_string()),
+        )?;
+        trust_store.save_to_file()?;
+
+        // 3. Create a bundle and sign it with the real key
+        let image = create_test_image();
+        let metadata = BundleMetadata::default();
+        let mut bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+
+        // Serialize just the header to get the bytes we need to sign
+        let header_json = serde_json::to_vec(&bundle.header)?;
+
+        // Create a real signature over the header bytes
+        let signature_metadata = Ed25519Signer::sign_with_metadata(
+            &header_json,
+            &keypair,
+            "Test Firmware Signer",
+            ContentType::Firmware,
+            Some("Test bundle signature".to_string()),
+        )
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        // Attach the signature to the bundle
+        bundle.signature = Some(signature_metadata);
+
+        // Serialize the complete bundle with signature
+        let serialized = bundle.serialize()?;
+
+        // 4. Create verification service and verify the bundle
+        let config = VerificationConfig {
+            trust_store_path,
+            require_firmware_signatures: true,
+            ..Default::default()
+        };
+        let verifier = crate::crypto::verification::VerificationService::new(config)?;
+
+        // Parse and verify - this should PASS
+        let parsed = FirmwareBundle::parse(&serialized, Some(&verifier))?;
+
+        // Verify the signature is present and matches
+        assert!(parsed.signature.is_some(), "Signature should be present");
+        assert_eq!(
+            parsed.signature.as_ref().map(|s| &s.key_fingerprint),
+            Some(&fingerprint),
+            "Fingerprint should match"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_real_ed25519_signature_tamper_detection() -> Result<()> {
+        use crate::crypto::ed25519::{Ed25519Signer, KeyPair};
+        use crate::crypto::trust_store::TrustStore;
+        use crate::crypto::{ContentType, TrustLevel, VerificationConfig};
+
+        // 1. Generate a real Ed25519 key pair
+        let keypair = KeyPair::generate().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        // 2. Create a trust store with the public key
+        let temp_dir = TempDir::new()?;
+        let trust_store_path = temp_dir.path().join("trust_store.json");
+        let mut trust_store = TrustStore::new(trust_store_path.clone())?;
+        trust_store.add_key(
+            keypair.public_key.clone(),
+            TrustLevel::Trusted,
+            Some("Test signing key".to_string()),
+        )?;
+        trust_store.save_to_file()?;
+
+        // 3. Create and sign a bundle
+        let image = create_test_image();
+        let metadata = BundleMetadata::default();
+        let mut bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+
+        // Get the original header JSON bytes
+        let header_json = serde_json::to_vec(&bundle.header)?;
+
+        // Sign the header
+        let signature_metadata = Ed25519Signer::sign_with_metadata(
+            &header_json,
+            &keypair,
+            "Test Firmware Signer",
+            ContentType::Firmware,
+            Some("Test bundle signature".to_string()),
+        )
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        bundle.signature = Some(signature_metadata);
+
+        // Serialize the bundle
+        let mut serialized = bundle.serialize()?;
+
+        // 5. TAMPER with the header bytes in the serialized bundle
+        // The header starts after the 8-byte magic and 4-byte length prefix (12 bytes total)
+        // We need to flip a bit in the JSON data itself, not in the length prefix
+        // Let's flip a byte further into the header JSON to avoid corrupting the length
+        if serialized.len() > 50 {
+            // Tamper with a byte well into the header JSON region
+            serialized[40] ^= 0x01; // Flip one bit in the header JSON
+        }
+
+        // 6. Create verification service
+        let config = VerificationConfig {
+            trust_store_path,
+            require_firmware_signatures: true,
+            ..Default::default()
+        };
+        let verifier = crate::crypto::verification::VerificationService::new(config)?;
+
+        // 7. Parse and verify - this should FAIL due to tampered header
+        // The failure could manifest as:
+        // - JSON parse error (if we corrupted the JSON structure)
+        // - Signature verification failure (if the JSON is still valid but content changed)
+        // - Hash mismatch (if the payload hash check fails)
+        let result = FirmwareBundle::parse(&serialized, Some(&verifier));
+
+        assert!(
+            result.is_err(),
+            "Tampered bundle should fail verification"
+        );
+
+        // Any error is acceptable here - the point is the bundle is rejected
+        // The specific error depends on where in the header the tampering occurred
+        let err_msg = result.err().map(|e| e.to_string().to_lowercase()).unwrap_or_default();
+        assert!(
+            !err_msg.is_empty(),
+            "Should have an error message"
+        );
+        // Log the error for debugging
+        eprintln!("Tamper detection error (expected): {}", err_msg);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_signature_from_wrong_key_fails() -> Result<()> {
+        use crate::crypto::ed25519::{Ed25519Signer, KeyPair};
+        use crate::crypto::trust_store::TrustStore;
+        use crate::crypto::{ContentType, TrustLevel, VerificationConfig};
+
+        // 1. Generate TWO key pairs - one trusted, one used for signing
+        let trusted_keypair = KeyPair::generate().map_err(|e| anyhow::anyhow!("{}", e))?;
+        let attacker_keypair = KeyPair::generate().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        // 2. Create a trust store with ONLY the trusted key
+        let temp_dir = TempDir::new()?;
+        let trust_store_path = temp_dir.path().join("trust_store.json");
+        let mut trust_store = TrustStore::new(trust_store_path.clone())?;
+        trust_store.add_key(
+            trusted_keypair.public_key.clone(),
+            TrustLevel::Trusted,
+            Some("Legitimate key".to_string()),
+        )?;
+        trust_store.save_to_file()?;
+
+        // 3. Create a bundle and sign it with the ATTACKER's key
+        let image = create_test_image();
+        let metadata = BundleMetadata::default();
+        let mut bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+
+        let header_json = serde_json::to_vec(&bundle.header)?;
+
+        // Sign with attacker's key (not in trust store)
+        let signature_metadata = Ed25519Signer::sign_with_metadata(
+            &header_json,
+            &attacker_keypair, // Wrong key!
+            "Attacker",
+            ContentType::Firmware,
+            None,
+        )
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        bundle.signature = Some(signature_metadata);
+        let serialized = bundle.serialize()?;
+
+        // 4. Create verification service
+        let config = VerificationConfig {
+            trust_store_path,
+            require_firmware_signatures: true,
+            allow_unknown_signers: false,
+            ..Default::default()
+        };
+        let verifier = crate::crypto::verification::VerificationService::new(config)?;
+
+        // 5. Parse and verify - should FAIL because attacker's key is not trusted
+        let result = FirmwareBundle::parse(&serialized, Some(&verifier));
+
+        assert!(
+            result.is_err(),
+            "Bundle signed by untrusted key should fail"
+        );
+
+        // The error could be:
+        // - "untrusted signer" if the key is explicitly distrusted
+        // - "unknown" if the key is not in the trust store
+        // - "failed to verify" if signature verification fails
+        let err_msg = result.err().map(|e| e.to_string().to_lowercase()).unwrap_or_default();
+        assert!(
+            err_msg.contains("untrust")
+                || err_msg.contains("unknown")
+                || err_msg.contains("signer")
+                || err_msg.contains("failed")
+                || err_msg.contains("verify"),
+            "Error should indicate verification failure: {}",
+            err_msg
+        );
+        // Log the error for debugging
+        eprintln!("Wrong key error (expected): {}", err_msg);
+
+        Ok(())
+    }
 }
