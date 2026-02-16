@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 10d134b2b0dcabb789e5f15ea6c9ac19d509266c201535be8aed83c8c5db4d6d # shrinks to device = (13422, 3, "Moza SR-P Pedals")

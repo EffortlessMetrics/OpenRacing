@@ -1,0 +1,812 @@
+syntax = "proto3";
+
+package plugin.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Plugin Registry Service
+// =============================================================================
+// The Plugin Registry service provides operations for discovering and querying
+// plugins from remote registries. It supports searching, listing, and retrieving
+// detailed plugin metadata.
+
+service PluginRegistry {
+  // Search for plugins in the registry by query string and filters.
+  // Returns matching plugins sorted by relevance or specified sort order.
+  rpc SearchPlugins(SearchRequest) returns (SearchResponse);
+
+  // Get detailed metadata for a specific plugin by ID.
+  // Optionally specify a version to retrieve a specific version.
+  rpc GetPlugin(GetPluginRequest) returns (PluginMetadata);
+
+  // List all plugins currently installed on the local system.
+  rpc ListInstalledPlugins(google.protobuf.Empty) returns (InstalledPluginsResponse);
+
+  // Refresh the local registry cache from remote sources.
+  // This fetches the latest plugin catalog from configured registries.
+  rpc RefreshRegistry(google.protobuf.Empty) returns (RefreshResponse);
+
+  // Get all available versions of a specific plugin.
+  rpc GetPluginVersions(GetPluginVersionsRequest) returns (GetPluginVersionsResponse);
+
+  // Check if a plugin version is compatible with the current system.
+  rpc CheckCompatibility(CheckCompatibilityRequest) returns (CheckCompatibilityResponse);
+}
+
+// =============================================================================
+// Plugin Installer Service
+// =============================================================================
+// The Plugin Installer service handles downloading, installing, verifying,
+// and uninstalling plugins. Download and install operations are streaming
+// to provide progress updates for large plugins.
+
+service PluginInstaller {
+  // Download a plugin from the registry.
+  // Returns a stream of progress updates during download.
+  rpc DownloadPlugin(DownloadRequest) returns (stream DownloadProgress);
+
+  // Install a plugin from a downloaded bundle or local path.
+  // Returns a stream of progress updates during installation.
+  rpc InstallPlugin(InstallRequest) returns (stream InstallProgress);
+
+  // Uninstall a plugin from the local system.
+  rpc UninstallPlugin(UninstallRequest) returns (UninstallResponse);
+
+  // Verify the integrity and signature of an installed plugin.
+  rpc VerifyPlugin(VerifyRequest) returns (VerifyResponse);
+
+  // Update a plugin to a newer version.
+  // Returns a stream of progress updates during update.
+  rpc UpdatePlugin(UpdateRequest) returns (stream InstallProgress);
+
+  // Rollback a plugin to a previously installed version.
+  rpc RollbackPlugin(RollbackRequest) returns (RollbackResponse);
+}
+
+// =============================================================================
+// Plugin Metadata Messages
+// =============================================================================
+
+// Unique identifier for a plugin in the registry.
+// Uses UUID format for global uniqueness.
+message PluginId {
+  // The UUID string representation of the plugin ID.
+  string id = 1;
+}
+
+// Complete metadata for a plugin in the registry.
+// Contains all information needed to display, search, and install a plugin.
+message PluginMetadata {
+  // Unique identifier for this plugin.
+  PluginId id = 1;
+
+  // Human-readable name of the plugin.
+  string name = 2;
+
+  // Semantic version string (e.g., "1.2.3").
+  string version = 3;
+
+  // Author or organization that created the plugin.
+  string author = 4;
+
+  // Description of what the plugin does.
+  string description = 5;
+
+  // Optional homepage URL for the plugin.
+  string homepage = 6;
+
+  // License identifier (e.g., "MIT", "Apache-2.0").
+  string license = 7;
+
+  // List of capabilities this plugin requires.
+  repeated PluginCapability capabilities = 8;
+
+  // Plugin class (Safe/WASM or Fast/Native).
+  PluginClass plugin_class = 9;
+
+  // List of operations this plugin provides.
+  repeated PluginOperation operations = 10;
+
+  // Optional Ed25519 signature fingerprint for verification.
+  string signature_fingerprint = 11;
+
+  // Download size in bytes.
+  uint64 download_size_bytes = 12;
+
+  // Installed size in bytes.
+  uint64 installed_size_bytes = 13;
+
+  // Release date of this version.
+  google.protobuf.Timestamp release_date = 14;
+
+  // Minimum required OpenRacing version.
+  string min_openracing_version = 15;
+
+  // List of categories/tags for this plugin.
+  repeated string tags = 16;
+
+  // Average user rating (0.0 - 5.0).
+  float rating = 17;
+
+  // Number of downloads.
+  uint64 download_count = 18;
+
+  // Whether this plugin is verified/official.
+  bool verified = 19;
+
+  // Repository URL for source code.
+  string repository = 20;
+
+  // Optional icon URL for UI display.
+  string icon_url = 21;
+
+  // List of screenshots/preview URLs.
+  repeated string screenshot_urls = 22;
+}
+
+// Information about a specific plugin version.
+message PluginVersion {
+  // Semantic version string.
+  string version = 1;
+
+  // Release date of this version.
+  google.protobuf.Timestamp release_date = 2;
+
+  // Changelog/release notes for this version.
+  string changelog = 3;
+
+  // Minimum required OpenRacing version.
+  string min_openracing_version = 4;
+
+  // Whether this version is deprecated.
+  bool deprecated = 5;
+
+  // Deprecation message if deprecated.
+  string deprecation_message = 6;
+
+  // Download size in bytes for this version.
+  uint64 download_size_bytes = 7;
+
+  // SHA-256 hash of the plugin bundle.
+  string sha256_hash = 8;
+
+  // Ed25519 signature of the plugin bundle.
+  string signature = 9;
+
+  // Pre-release flag (alpha, beta, rc).
+  bool prerelease = 10;
+
+  // Pre-release identifier (e.g., "alpha.1", "beta.2").
+  string prerelease_identifier = 11;
+}
+
+// Plugin capability requirements.
+// Defines what system resources the plugin needs access to.
+enum PluginCapability {
+  PLUGIN_CAPABILITY_UNSPECIFIED = 0;
+
+  // Read-only access to telemetry data.
+  PLUGIN_CAPABILITY_READ_TELEMETRY = 1;
+
+  // Ability to modify telemetry data.
+  PLUGIN_CAPABILITY_MODIFY_TELEMETRY = 2;
+
+  // Control LED outputs.
+  PLUGIN_CAPABILITY_CONTROL_LEDS = 3;
+
+  // DSP/filter processing.
+  PLUGIN_CAPABILITY_PROCESS_DSP = 4;
+
+  // File system access (restricted paths).
+  PLUGIN_CAPABILITY_FILE_SYSTEM = 5;
+
+  // Network access (restricted hosts).
+  PLUGIN_CAPABILITY_NETWORK = 6;
+
+  // Inter-plugin communication.
+  PLUGIN_CAPABILITY_INTER_PLUGIN_COMM = 7;
+}
+
+// Plugin class determines execution model and safety guarantees.
+enum PluginClass {
+  PLUGIN_CLASS_UNSPECIFIED = 0;
+
+  // Safe plugins run in WASM sandbox at 60-200Hz.
+  // Automatic crash recovery, memory isolation.
+  PLUGIN_CLASS_SAFE = 1;
+
+  // Fast plugins run as native code at 1kHz.
+  // Requires Ed25519 code signing, isolated process.
+  PLUGIN_CLASS_FAST = 2;
+}
+
+// Operations that a plugin can provide.
+enum PluginOperation {
+  PLUGIN_OPERATION_UNSPECIFIED = 0;
+
+  // Processes telemetry data.
+  PLUGIN_OPERATION_TELEMETRY_PROCESSOR = 1;
+
+  // Maps telemetry to LED patterns.
+  PLUGIN_OPERATION_LED_MAPPER = 2;
+
+  // Applies DSP filters to force feedback.
+  PLUGIN_OPERATION_DSP_FILTER = 3;
+
+  // Provides telemetry data source (game integration).
+  PLUGIN_OPERATION_TELEMETRY_SOURCE = 4;
+}
+
+// =============================================================================
+// Search Messages
+// =============================================================================
+
+// Request to search for plugins in the registry.
+message SearchRequest {
+  // Search query string. Searches name, description, and tags.
+  string query = 1;
+
+  // Optional filters to narrow search results.
+  SearchFilters filters = 2;
+
+  // Field to sort results by.
+  SortField sort_by = 3;
+
+  // Sort direction (ascending or descending).
+  SortDirection sort_direction = 4;
+
+  // Maximum number of results to return (default: 20, max: 100).
+  uint32 limit = 5;
+
+  // Offset for pagination (default: 0).
+  uint32 offset = 6;
+}
+
+// Filters for narrowing search results.
+message SearchFilters {
+  // Only include plugins with these capabilities.
+  repeated PluginCapability capabilities = 1;
+
+  // Only include plugins of this class.
+  PluginClass plugin_class = 2;
+
+  // Only include plugins with these operations.
+  repeated PluginOperation operations = 3;
+
+  // Only include plugins with these tags.
+  repeated string tags = 4;
+
+  // Only include verified plugins.
+  bool verified_only = 5;
+
+  // Minimum rating filter (0.0 - 5.0).
+  float min_rating = 6;
+
+  // Only include plugins compatible with this OpenRacing version.
+  string compatible_with_version = 7;
+
+  // Only include plugins by this author.
+  string author = 8;
+
+  // Only include plugins with this license.
+  string license = 9;
+}
+
+// Fields available for sorting search results.
+enum SortField {
+  SORT_FIELD_UNSPECIFIED = 0;
+  SORT_FIELD_NAME = 1;
+  SORT_FIELD_DOWNLOADS = 2;
+  SORT_FIELD_RATING = 3;
+  SORT_FIELD_RELEASE_DATE = 4;
+  SORT_FIELD_RELEVANCE = 5;
+}
+
+// Sort direction for search results.
+enum SortDirection {
+  SORT_DIRECTION_UNSPECIFIED = 0;
+  SORT_DIRECTION_ASCENDING = 1;
+  SORT_DIRECTION_DESCENDING = 2;
+}
+
+// Response containing search results.
+message SearchResponse {
+  // List of plugins matching the search criteria.
+  repeated PluginMetadata plugins = 1;
+
+  // Total number of matching plugins (for pagination).
+  uint32 total_count = 2;
+
+  // Whether there are more results beyond this page.
+  bool has_more = 3;
+
+  // The offset to use for the next page.
+  uint32 next_offset = 4;
+}
+
+// =============================================================================
+// Plugin Retrieval Messages
+// =============================================================================
+
+// Request to get a specific plugin by ID.
+message GetPluginRequest {
+  // Plugin ID to retrieve.
+  PluginId id = 1;
+
+  // Optional specific version to retrieve.
+  // If not specified, returns the latest version.
+  string version = 2;
+}
+
+// Request to get all versions of a plugin.
+message GetPluginVersionsRequest {
+  // Plugin ID to get versions for.
+  PluginId id = 1;
+
+  // Include pre-release versions in the response.
+  bool include_prerelease = 2;
+
+  // Include deprecated versions in the response.
+  bool include_deprecated = 3;
+}
+
+// Response containing all versions of a plugin.
+message GetPluginVersionsResponse {
+  // Plugin ID.
+  PluginId id = 1;
+
+  // Plugin name for display.
+  string name = 2;
+
+  // List of all available versions (sorted newest first).
+  repeated PluginVersion versions = 3;
+
+  // The recommended/latest stable version.
+  string latest_stable_version = 4;
+}
+
+// =============================================================================
+// Compatibility Messages
+// =============================================================================
+
+// Request to check plugin compatibility.
+message CheckCompatibilityRequest {
+  // Plugin ID to check.
+  PluginId id = 1;
+
+  // Version to check compatibility for.
+  string version = 2;
+
+  // Target OpenRacing version to check against.
+  // If not specified, uses the current running version.
+  string target_openracing_version = 3;
+}
+
+// Response containing compatibility information.
+message CheckCompatibilityResponse {
+  // Whether the plugin version is compatible.
+  bool compatible = 1;
+
+  // Compatibility status with details.
+  VersionCompatibility compatibility_status = 2;
+
+  // Human-readable compatibility message.
+  string message = 3;
+
+  // If incompatible, suggested compatible version (if any).
+  string suggested_version = 4;
+
+  // List of specific compatibility issues.
+  repeated CompatibilityIssue issues = 5;
+}
+
+// Version compatibility status.
+enum VersionCompatibility {
+  VERSION_COMPATIBILITY_UNSPECIFIED = 0;
+  VERSION_COMPATIBILITY_COMPATIBLE = 1;
+  VERSION_COMPATIBILITY_INCOMPATIBLE = 2;
+  VERSION_COMPATIBILITY_UNKNOWN = 3;
+}
+
+// Specific compatibility issue details.
+message CompatibilityIssue {
+  // Issue severity.
+  CompatibilityIssueSeverity severity = 1;
+
+  // Issue description.
+  string description = 2;
+
+  // Component that has the issue (e.g., "OpenRacing version", "capability").
+  string component = 3;
+}
+
+// Severity of a compatibility issue.
+enum CompatibilityIssueSeverity {
+  COMPATIBILITY_ISSUE_SEVERITY_UNSPECIFIED = 0;
+  COMPATIBILITY_ISSUE_SEVERITY_WARNING = 1;
+  COMPATIBILITY_ISSUE_SEVERITY_ERROR = 2;
+}
+
+// =============================================================================
+// Installed Plugins Messages
+// =============================================================================
+
+// Response containing list of installed plugins.
+message InstalledPluginsResponse {
+  // List of installed plugins with their status.
+  repeated InstalledPlugin plugins = 1;
+
+  // Total number of installed plugins.
+  uint32 total_count = 2;
+}
+
+// Information about an installed plugin.
+message InstalledPlugin {
+  // Plugin metadata.
+  PluginMetadata metadata = 1;
+
+  // Installation path on the local system.
+  string install_path = 2;
+
+  // When the plugin was installed.
+  google.protobuf.Timestamp installed_at = 3;
+
+  // When the plugin was last updated.
+  google.protobuf.Timestamp last_updated = 4;
+
+  // Whether the plugin is currently enabled.
+  bool enabled = 5;
+
+  // Current plugin state.
+  InstalledPluginState state = 6;
+
+  // Whether an update is available.
+  bool update_available = 7;
+
+  // The latest available version (if update available).
+  string latest_version = 8;
+
+  // Configuration for this plugin instance.
+  map<string, string> config = 9;
+}
+
+// State of an installed plugin.
+enum InstalledPluginState {
+  INSTALLED_PLUGIN_STATE_UNSPECIFIED = 0;
+  INSTALLED_PLUGIN_STATE_ACTIVE = 1;
+  INSTALLED_PLUGIN_STATE_DISABLED = 2;
+  INSTALLED_PLUGIN_STATE_ERROR = 3;
+  INSTALLED_PLUGIN_STATE_UPDATING = 4;
+  INSTALLED_PLUGIN_STATE_QUARANTINED = 5;
+}
+
+// =============================================================================
+// Registry Refresh Messages
+// =============================================================================
+
+// Response after refreshing the registry cache.
+message RefreshResponse {
+  // Whether the refresh was successful.
+  bool success = 1;
+
+  // Number of plugins added since last refresh.
+  uint32 plugins_added = 2;
+
+  // Number of plugins updated since last refresh.
+  uint32 plugins_updated = 3;
+
+  // Number of plugins removed since last refresh.
+  uint32 plugins_removed = 4;
+
+  // Timestamp of the refresh.
+  google.protobuf.Timestamp refreshed_at = 5;
+
+  // Error message if refresh failed.
+  string error_message = 6;
+
+  // List of registries that were refreshed.
+  repeated RegistrySource sources = 7;
+}
+
+// Information about a registry source.
+message RegistrySource {
+  // Registry URL.
+  string url = 1;
+
+  // Registry name/identifier.
+  string name = 2;
+
+  // Whether this source was successfully refreshed.
+  bool success = 3;
+
+  // Number of plugins from this source.
+  uint32 plugin_count = 4;
+
+  // Error message if this source failed.
+  string error_message = 5;
+}
+
+// =============================================================================
+// Download Messages
+// =============================================================================
+
+// Request to download a plugin.
+message DownloadRequest {
+  // Plugin ID to download.
+  PluginId id = 1;
+
+  // Version to download. If not specified, downloads latest.
+  string version = 2;
+
+  // Optional destination path. If not specified, uses temp directory.
+  string destination_path = 3;
+
+  // Whether to verify the signature after download.
+  bool verify_signature = 4;
+}
+
+// Progress update during plugin download.
+message DownloadProgress {
+  // Current download status.
+  DownloadStatus status = 1;
+
+  // Bytes downloaded so far.
+  uint64 bytes_downloaded = 2;
+
+  // Total bytes to download.
+  uint64 total_bytes = 3;
+
+  // Download speed in bytes per second.
+  uint64 bytes_per_second = 4;
+
+  // Estimated time remaining in seconds.
+  uint32 eta_seconds = 5;
+
+  // Progress percentage (0-100).
+  float progress_percent = 6;
+
+  // Human-readable status message.
+  string message = 7;
+
+  // Path to downloaded file (set when complete).
+  string downloaded_path = 8;
+
+  // SHA-256 hash of downloaded file (set when complete).
+  string sha256_hash = 9;
+
+  // Error message if download failed.
+  string error_message = 10;
+}
+
+// Download status codes.
+enum DownloadStatus {
+  DOWNLOAD_STATUS_UNSPECIFIED = 0;
+  DOWNLOAD_STATUS_PENDING = 1;
+  DOWNLOAD_STATUS_CONNECTING = 2;
+  DOWNLOAD_STATUS_DOWNLOADING = 3;
+  DOWNLOAD_STATUS_VERIFYING = 4;
+  DOWNLOAD_STATUS_COMPLETE = 5;
+  DOWNLOAD_STATUS_FAILED = 6;
+  DOWNLOAD_STATUS_CANCELLED = 7;
+}
+
+// =============================================================================
+// Install Messages
+// =============================================================================
+
+// Request to install a plugin.
+message InstallRequest {
+  // Plugin ID to install (for registry installs).
+  PluginId id = 1;
+
+  // Version to install. If not specified, installs latest.
+  string version = 2;
+
+  // Path to local plugin bundle (for local installs).
+  // If specified, id and version are ignored.
+  string local_path = 3;
+
+  // Whether to enable the plugin after installation.
+  bool enable_after_install = 4;
+
+  // Initial configuration for the plugin.
+  map<string, string> initial_config = 5;
+
+  // Whether to force reinstall if already installed.
+  bool force_reinstall = 6;
+}
+
+// Progress update during plugin installation.
+message InstallProgress {
+  // Current installation stage.
+  InstallStage stage = 1;
+
+  // Progress percentage for current stage (0-100).
+  float progress_percent = 2;
+
+  // Overall progress percentage (0-100).
+  float overall_progress_percent = 3;
+
+  // Human-readable status message.
+  string message = 4;
+
+  // Details about current operation.
+  string details = 5;
+
+  // Whether installation completed successfully.
+  bool complete = 6;
+
+  // Whether installation failed.
+  bool failed = 7;
+
+  // Error message if installation failed.
+  string error_message = 8;
+
+  // Installed plugin info (set when complete).
+  InstalledPlugin installed_plugin = 9;
+}
+
+// Stages of plugin installation.
+enum InstallStage {
+  INSTALL_STAGE_UNSPECIFIED = 0;
+  INSTALL_STAGE_VALIDATING = 1;
+  INSTALL_STAGE_VERIFYING_SIGNATURE = 2;
+  INSTALL_STAGE_EXTRACTING = 3;
+  INSTALL_STAGE_CHECKING_DEPENDENCIES = 4;
+  INSTALL_STAGE_COPYING_FILES = 5;
+  INSTALL_STAGE_REGISTERING = 6;
+  INSTALL_STAGE_CONFIGURING = 7;
+  INSTALL_STAGE_COMPLETE = 8;
+  INSTALL_STAGE_FAILED = 9;
+  INSTALL_STAGE_ROLLING_BACK = 10;
+}
+
+// =============================================================================
+// Uninstall Messages
+// =============================================================================
+
+// Request to uninstall a plugin.
+message UninstallRequest {
+  // Plugin ID to uninstall.
+  PluginId id = 1;
+
+  // Whether to remove all plugin data and configuration.
+  bool remove_data = 2;
+
+  // Whether to force uninstall even if plugin is in use.
+  bool force = 3;
+}
+
+// Response after uninstalling a plugin.
+message UninstallResponse {
+  // Whether uninstall was successful.
+  bool success = 1;
+
+  // Plugin that was uninstalled.
+  PluginId id = 2;
+
+  // Version that was uninstalled.
+  string version = 3;
+
+  // Human-readable message.
+  string message = 4;
+
+  // Error message if uninstall failed.
+  string error_message = 5;
+
+  // Whether data was removed.
+  bool data_removed = 6;
+}
+
+// =============================================================================
+// Verify Messages
+// =============================================================================
+
+// Request to verify an installed plugin.
+message VerifyRequest {
+  // Plugin ID to verify.
+  PluginId id = 1;
+
+  // Whether to verify file integrity (hash check).
+  bool verify_integrity = 2;
+
+  // Whether to verify Ed25519 signature.
+  bool verify_signature = 3;
+
+  // Whether to re-download and compare if verification fails.
+  bool redownload_if_invalid = 4;
+}
+
+// Response after verifying a plugin.
+message VerifyResponse {
+  // Plugin that was verified.
+  PluginId id = 1;
+
+  // Overall verification result.
+  bool valid = 2;
+
+  // Integrity check result.
+  VerificationResult integrity_result = 3;
+
+  // Signature verification result.
+  VerificationResult signature_result = 4;
+
+  // Detailed verification messages.
+  repeated string messages = 5;
+
+  // Expected SHA-256 hash.
+  string expected_hash = 6;
+
+  // Actual SHA-256 hash.
+  string actual_hash = 7;
+
+  // Signer identity if signature is valid.
+  string signer_identity = 8;
+}
+
+// Result of a verification check.
+enum VerificationResult {
+  VERIFICATION_RESULT_UNSPECIFIED = 0;
+  VERIFICATION_RESULT_PASSED = 1;
+  VERIFICATION_RESULT_FAILED = 2;
+  VERIFICATION_RESULT_SKIPPED = 3;
+  VERIFICATION_RESULT_ERROR = 4;
+}
+
+// =============================================================================
+// Update Messages
+// =============================================================================
+
+// Request to update a plugin.
+message UpdateRequest {
+  // Plugin ID to update.
+  PluginId id = 1;
+
+  // Target version to update to. If not specified, updates to latest.
+  string target_version = 2;
+
+  // Whether to allow downgrade.
+  bool allow_downgrade = 3;
+
+  // Whether to preserve existing configuration.
+  bool preserve_config = 4;
+}
+
+// =============================================================================
+// Rollback Messages
+// =============================================================================
+
+// Request to rollback a plugin to a previous version.
+message RollbackRequest {
+  // Plugin ID to rollback.
+  PluginId id = 1;
+
+  // Version to rollback to.
+  string target_version = 2;
+
+  // Whether to preserve current configuration.
+  bool preserve_config = 3;
+}
+
+// Response after rolling back a plugin.
+message RollbackResponse {
+  // Whether rollback was successful.
+  bool success = 1;
+
+  // Plugin that was rolled back.
+  PluginId id = 2;
+
+  // Previous version (before rollback).
+  string previous_version = 3;
+
+  // Current version (after rollback).
+  string current_version = 4;
+
+  // Human-readable message.
+  string message = 5;
+
+  // Error message if rollback failed.
+  string error_message = 6;
+}

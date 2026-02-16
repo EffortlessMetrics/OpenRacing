@@ -19,29 +19,51 @@ use std::hint::black_box;
 use std::time::Instant;
 
 /// Collect timing samples and compute percentiles.
+///
+/// Samples are collected during benchmarking and then sorted once via `finalize()`
+/// before computing any percentiles. This avoids clone+sort overhead on each
+/// percentile call which would distort benchmark measurements.
 struct TimingCollector {
     samples: Vec<u64>,
+    sorted: bool,
 }
 
 impl TimingCollector {
     fn new(capacity: usize) -> Self {
         Self {
             samples: Vec::with_capacity(capacity),
+            sorted: false,
         }
     }
 
     fn add_sample(&mut self, sample_ns: u64) {
         self.samples.push(sample_ns);
+        self.sorted = false;
     }
 
+    /// Sort samples in place. Must be called before computing percentiles.
+    /// This ensures we sort once rather than cloning+sorting per percentile call.
+    fn finalize(&mut self) {
+        if !self.sorted {
+            self.samples.sort_unstable();
+            self.sorted = true;
+        }
+    }
+
+    /// Compute percentile from pre-sorted samples.
+    ///
+    /// # Panics
+    /// Panics if `finalize()` was not called after the last `add_sample()`.
     fn percentile(&self, p: f64) -> u64 {
+        assert!(
+            self.sorted,
+            "TimingCollector::finalize() must be called before computing percentiles"
+        );
         if self.samples.is_empty() {
             return 0;
         }
-        let mut sorted = self.samples.clone();
-        sorted.sort_unstable();
-        let idx = ((p / 100.0) * (sorted.len() - 1) as f64).round() as usize;
-        sorted[idx.min(sorted.len() - 1)]
+        let idx = ((p / 100.0) * (self.samples.len() - 1) as f64).round() as usize;
+        self.samples[idx.min(self.samples.len() - 1)]
     }
 
     fn p50(&self) -> u64 {
@@ -124,15 +146,19 @@ fn benchmark_rt_timing(c: &mut Criterion) {
 
     // Generate JSON output if requested via environment variable
     if env::var("BENCHMARK_JSON_OUTPUT").is_ok() {
-        generate_json_output(&metrics, &jitter_collector, &processing_collector);
+        generate_json_output(&metrics, &mut jitter_collector, &mut processing_collector);
     }
 }
 
 fn generate_json_output(
     metrics: &PerformanceMetrics,
-    jitter_collector: &TimingCollector,
-    processing_collector: &TimingCollector,
+    jitter_collector: &mut TimingCollector,
+    processing_collector: &mut TimingCollector,
 ) {
+    // Sort samples once before computing multiple percentiles
+    jitter_collector.finalize();
+    processing_collector.finalize();
+
     let missed_tick_rate = if metrics.total_ticks > 0 {
         (metrics.missed_ticks as f64 / metrics.total_ticks as f64) * 100.0
     } else {
