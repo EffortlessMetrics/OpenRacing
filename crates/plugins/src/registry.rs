@@ -178,6 +178,12 @@ pub struct PluginMetadata {
     pub capabilities: Vec<Capability>,
     /// Optional Ed25519 signature fingerprint for verification
     pub signature_fingerprint: Option<String>,
+    /// Optional download URL for the plugin package
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub download_url: Option<String>,
+    /// Optional SHA256 hash of the plugin package
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub package_hash: Option<String>,
 }
 
 impl PluginMetadata {
@@ -199,6 +205,8 @@ impl PluginMetadata {
             license: license.into(),
             capabilities: Vec::new(),
             signature_fingerprint: None,
+            download_url: None,
+            package_hash: None,
         }
     }
 
@@ -217,6 +225,18 @@ impl PluginMetadata {
     /// Builder method to set signature fingerprint
     pub fn with_signature_fingerprint(mut self, fingerprint: impl Into<String>) -> Self {
         self.signature_fingerprint = Some(fingerprint.into());
+        self
+    }
+
+    /// Builder method to set download URL
+    pub fn with_download_url(mut self, url: impl Into<String>) -> Self {
+        self.download_url = Some(url.into());
+        self
+    }
+
+    /// Builder method to set package hash
+    pub fn with_package_hash(mut self, hash: impl Into<String>) -> Self {
+        self.package_hash = Some(hash.into());
         self
     }
 
@@ -774,11 +794,18 @@ mod tests {
         )
         .with_homepage("https://example.com")
         .with_capabilities(vec![Capability::ReadTelemetry])
-        .with_signature_fingerprint("abc123");
+        .with_signature_fingerprint("abc123")
+        .with_download_url("https://registry.example.com/plugin.zip")
+        .with_package_hash("deadbeef");
 
         assert_eq!(metadata.homepage, Some("https://example.com".to_string()));
         assert_eq!(metadata.capabilities.len(), 1);
         assert_eq!(metadata.signature_fingerprint, Some("abc123".to_string()));
+        assert_eq!(
+            metadata.download_url,
+            Some("https://registry.example.com/plugin.zip".to_string())
+        );
+        assert_eq!(metadata.package_hash, Some("deadbeef".to_string()));
     }
 
     // ============================================================================
@@ -1409,6 +1436,8 @@ mod property_tests {
                 license: "MIT".to_string(),
                 capabilities: Vec::new(),
                 signature_fingerprint: None,
+                download_url: None,
+                package_hash: None,
             };
 
             let result = metadata.validate();
@@ -1447,6 +1476,8 @@ mod property_tests {
                 license: "MIT".to_string(),
                 capabilities: Vec::new(),
                 signature_fingerprint: None,
+                download_url: None,
+                package_hash: None,
             };
 
             let result = metadata.validate();
@@ -1485,6 +1516,8 @@ mod property_tests {
                 license: "MIT".to_string(),
                 capabilities: Vec::new(),
                 signature_fingerprint: None,
+                download_url: None,
+                package_hash: None,
             };
 
             let result = metadata.validate();
@@ -1529,6 +1562,8 @@ mod property_tests {
                     license: "MIT".to_string(),
                     capabilities: Vec::new(),
                     signature_fingerprint: None,
+                    download_url: None,
+                    package_hash: None,
                 },
                 1 => PluginMetadata {
                     id: PluginId::new(),
@@ -1540,6 +1575,8 @@ mod property_tests {
                     license: "MIT".to_string(),
                     capabilities: Vec::new(),
                     signature_fingerprint: None,
+                    download_url: None,
+                    package_hash: None,
                 },
                 _ => PluginMetadata {
                     id: PluginId::new(),
@@ -1551,6 +1588,8 @@ mod property_tests {
                     license: "MIT".to_string(),
                     capabilities: Vec::new(),
                     signature_fingerprint: None,
+                    download_url: None,
+                    package_hash: None,
                 },
             };
 
@@ -1648,6 +1687,8 @@ mod property_tests {
                 license,
                 capabilities: Vec::new(),
                 signature_fingerprint: None,
+                download_url: None,
+                package_hash: None,
             };
 
             let result = metadata.validate();

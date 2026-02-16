@@ -579,15 +579,15 @@ impl RemoteRegistryClient {
         }
 
         // If a specific key fingerprint is required, verify it matches
-        if let Some(ref expected_fingerprint) = self.config.registry_key_fingerprint {
-            if index_sig.key_fingerprint != *expected_fingerprint {
-                bail!(
-                    "Registry key fingerprint mismatch: expected '{}', got '{}'. \
-                     The registry is signed by a different key than expected.",
-                    expected_fingerprint,
-                    index_sig.key_fingerprint
-                );
-            }
+        if let Some(ref expected_fingerprint) = self.config.registry_key_fingerprint
+            && index_sig.key_fingerprint != *expected_fingerprint
+        {
+            bail!(
+                "Registry key fingerprint mismatch: expected '{}', got '{}'. \
+                 The registry is signed by a different key than expected.",
+                expected_fingerprint,
+                index_sig.key_fingerprint
+            );
         }
 
         // If we have a verifier, perform full cryptographic verification
