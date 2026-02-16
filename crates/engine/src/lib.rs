@@ -64,7 +64,10 @@ pub use ffb::{CapabilityNegotiator, GameCompatibility, ModeSelectionPolicy, Nego
 
 // Explicit exports from other modules - only export what actually exists
 pub use engine::{BlackboxFrame, Engine, EngineCommand, EngineConfig, EngineStats, GameInput};
-pub use scheduler::{AbsoluteScheduler, JitterMetrics, PLL, RTSetup};
+pub use scheduler::{
+    AbsoluteScheduler, AdaptiveSchedulingConfig, AdaptiveSchedulingState, JitterMetrics, PLL,
+    RTSetup,
+};
 #[cfg(any(test, feature = "harness"))]
 pub use test_harness::{
     ExpectedResponse, FaultInjection, RTLoopTestHarness, ResponseValidationResult,

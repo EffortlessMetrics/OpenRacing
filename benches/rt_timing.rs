@@ -160,7 +160,7 @@ fn generate_json_output(
     processing_collector.finalize();
 
     let missed_tick_rate = if metrics.total_ticks > 0 {
-        (metrics.missed_ticks as f64 / metrics.total_ticks as f64) * 100.0
+        metrics.missed_ticks as f64 / metrics.total_ticks as f64
     } else {
         0.0
     };

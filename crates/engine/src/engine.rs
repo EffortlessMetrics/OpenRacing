@@ -11,7 +11,7 @@ use crate::{
     rt::{Frame, PerformanceMetrics, RTError, RTResult},
     safety::integration::{FaultManagerContext, IntegratedFaultManager},
     safety::{FaultType, SafetyService, SafetyState},
-    scheduler::{AbsoluteScheduler, JitterMetrics, RTSetup},
+    scheduler::{AbsoluteScheduler, AdaptiveSchedulingConfig, JitterMetrics, RTSetup},
     tracing::{RTTraceEvent, TracingManager},
 };
 use crossbeam::channel::{Receiver, Sender, TrySendError};
@@ -265,7 +265,14 @@ impl Engine {
         let mut rt_context = RTContext {
             device,
             pipeline: Pipeline::new(),
-            scheduler: AbsoluteScheduler::new_1khz(),
+            scheduler: {
+                let mut scheduler = AbsoluteScheduler::new_1khz();
+                scheduler.set_adaptive_scheduling(AdaptiveSchedulingConfig {
+                    enabled: true,
+                    ..Default::default()
+                });
+                scheduler
+            },
             safety: SafetyService::new(
                 self.config.max_safe_torque_nm,
                 self.config.max_high_torque_nm,
@@ -674,6 +681,7 @@ impl Engine {
             // Check timing budget
             let total_processing_time = tick_start.elapsed();
             let processing_time_us = total_processing_time.as_micros() as u64;
+            ctx.scheduler.record_processing_time_us(processing_time_us);
 
             if processing_time_us > MAX_PROCESSING_TIME_US {
                 warn!(
