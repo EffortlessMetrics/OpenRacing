@@ -152,8 +152,8 @@ impl Default for VerificationConfig {
         Self {
             require_binary_signatures: true,
             require_firmware_signatures: true,
-            require_plugin_signatures: false, // Allow unsigned plugins by default
-            allow_unknown_signers: true,      // Allow but warn
+            require_plugin_signatures: true, // Secure-by-default: plugins must be signed
+            allow_unknown_signers: true,     // Allow but warn
             trust_store_path: std::path::PathBuf::from("trust_store"),
             max_signature_age_seconds: Some(365 * 24 * 3600), // 1 year
         }

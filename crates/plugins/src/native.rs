@@ -882,13 +882,32 @@ impl NativePluginHost {
         }
     }
 
-    /// Create a new native plugin host with default configuration (in-memory trust store)
+    /// Create a new native plugin host with secure default configuration
+    ///
+    /// Default behavior is secure-by-default:
+    /// - `require_signatures = true`
+    /// - `allow_unsigned = false`
+    ///
+    /// Use [`NativePluginHost::new_permissive_for_development`] for explicit
+    /// development opt-out.
     pub fn new_with_defaults() -> Self {
         Self {
             plugins: Arc::new(RwLock::new(HashMap::new())),
             trust_store: Arc::new(TrustStore::new_in_memory()),
+            config: NativePluginConfig::default(),
+        }
+    }
+
+    /// Create a native plugin host with permissive development defaults
+    ///
+    /// This is an explicit opt-out from secure defaults and should only be used
+    /// in development/testing environments.
+    pub fn new_permissive_for_development() -> Self {
+        Self {
+            plugins: Arc::new(RwLock::new(HashMap::new())),
+            trust_store: Arc::new(TrustStore::new_in_memory()),
             config: NativePluginConfig {
-                allow_unsigned: true, // Default to allowing unsigned for backward compatibility
+                allow_unsigned: true,
                 require_signatures: false,
             },
         }
@@ -1018,7 +1037,19 @@ mod tests {
     fn test_native_plugin_host_new_with_defaults() -> Result<(), Box<dyn std::error::Error>> {
         let host = NativePluginHost::new_with_defaults();
 
-        // Default host should allow unsigned for backward compatibility
+        // Default host should be secure-by-default
+        assert!(!host.config().allow_unsigned);
+        assert!(host.config().require_signatures);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_native_plugin_host_new_permissive_for_development()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let host = NativePluginHost::new_permissive_for_development();
+
+        // Development host explicitly opts out of strict verification
         assert!(host.config().allow_unsigned);
         assert!(!host.config().require_signatures);
 

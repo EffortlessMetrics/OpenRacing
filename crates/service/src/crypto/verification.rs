@@ -398,8 +398,8 @@ mod tests {
             &config
         ));
 
-        // Plugin should NOT be verified by default (allow_unsigned_plugins)
-        assert!(!utils::should_verify_file(
+        // Plugin should be verified by default (secure-by-default)
+        assert!(utils::should_verify_file(
             Path::new("test.wasm"),
             &ContentType::Plugin,
             &config

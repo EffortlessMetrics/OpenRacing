@@ -10,15 +10,18 @@
 use anyhow::{Context, Result};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use ed25519_dalek::{Signature, Signer, Verifier, VerifyingKey};
-use racing_wheel_schemas::config::{ProfileMigrator, ProfileSchema, ProfileValidator, SchemaError};
 use racing_wheel_schemas::prelude::{
     BaseSettings, FilterConfig, HapticsConfig, LedConfig, Profile, ProfileId, ProfileMetadata,
     ProfileScope,
 };
+use racing_wheel_schemas::{
+    config::{ProfileSchema, ProfileValidator, SchemaError},
+    migration::{MigrationConfig, ProfileMigrationService},
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::fs as async_fs;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
@@ -195,7 +198,9 @@ impl ProfileRepository {
             .await
             .with_context(|| format!("Failed to read profile file: {:?}", file_path))?;
 
-        let profile = self.load_profile_from_json(&json, profile_id).await?;
+        let profile = self
+            .load_profile_from_json(&json, profile_id, Some(file_path.as_path()))
+            .await?;
 
         // Update cache
         {
@@ -208,30 +213,33 @@ impl ProfileRepository {
     }
 
     /// Load profile from JSON string with migration and validation
-    async fn load_profile_from_json(&self, json: &str, profile_id: &ProfileId) -> Result<Profile> {
-        // Try to migrate if needed
-        let profile_schema = if self.config.auto_migrate {
-            match ProfileMigrator::migrate_profile(json) {
-                Ok(schema) => schema,
-                Err(SchemaError::UnsupportedSchemaVersion(version)) => {
-                    return Err(anyhow::anyhow!(
-                        "Unsupported profile schema version: {}",
-                        version
-                    ));
-                }
-                Err(e) => {
-                    return Err(anyhow::anyhow!("Profile migration failed: {}", e));
-                }
-            }
+    async fn load_profile_from_json(
+        &self,
+        json: &str,
+        profile_id: &ProfileId,
+        source_path: Option<&Path>,
+    ) -> Result<Profile> {
+        // Migrate to latest schema when enabled. This is idempotent for current profiles.
+        let effective_json = if self.config.auto_migrate {
+            self.migrate_profile_json_if_needed(json, source_path)
+                .await?
         } else {
-            self.validator
-                .validate_json(json)
-                .context("Profile validation failed")?
+            json.to_string()
         };
+
+        let profile_schema =
+            self.validator
+                .validate_json(&effective_json)
+                .map_err(|e| match e {
+                    SchemaError::UnsupportedSchemaVersion(version) => {
+                        anyhow::anyhow!("Unsupported profile schema version: {}", version)
+                    }
+                    other => anyhow::anyhow!("Profile validation failed: {}", other),
+                })?;
 
         // Verify signature if present
         let signature_info = if let Some(ref sig_b64) = profile_schema.signature {
-            Some(self.verify_profile_signature(json, sig_b64)?)
+            Some(self.verify_profile_signature(&effective_json, sig_b64)?)
         } else {
             None
         };
@@ -246,6 +254,73 @@ impl ProfileRepository {
         }
 
         Ok(profile)
+    }
+
+    /// Migrate profile JSON to current schema and persist migration when needed.
+    async fn migrate_profile_json_if_needed(
+        &self,
+        json: &str,
+        source_path: Option<&Path>,
+    ) -> Result<String> {
+        let migration_service = ProfileMigrationService::new(MigrationConfig {
+            backup_dir: self.config.profiles_dir.join("backups"),
+            create_backups: self.config.backup_on_migrate,
+            max_backups: 5,
+            validate_after_migration: true,
+        })
+        .map_err(|e| anyhow::anyhow!("Failed to initialize migration service: {}", e))?;
+
+        let outcome = migration_service
+            .migrate_with_backup(
+                json,
+                if self.config.backup_on_migrate {
+                    source_path
+                } else {
+                    None
+                },
+            )
+            .map_err(|e| anyhow::anyhow!("Profile migration failed: {}", e))?;
+
+        if !outcome.was_migrated() {
+            return Ok(json.to_string());
+        }
+
+        // Persist migrated JSON so subsequent loads are stable and idempotent.
+        if let Some(path) = source_path {
+            let temp_path = path.with_extension("tmp");
+            async_fs::write(&temp_path, &outcome.migrated_json)
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to write migrated profile to temp file: {:?}",
+                        temp_path
+                    )
+                })?;
+            async_fs::rename(&temp_path, path).await.with_context(|| {
+                format!(
+                    "Failed to replace profile with migrated version: {:?}",
+                    path
+                )
+            })?;
+        }
+
+        if let Some(backup_info) = &outcome.backup_info {
+            info!(
+                profile_path = ?backup_info.original_path,
+                backup_path = ?backup_info.backup_path,
+                from = %outcome.original_version,
+                to = %outcome.target_version,
+                "Profile migrated with backup"
+            );
+        } else {
+            info!(
+                from = %outcome.original_version,
+                to = %outcome.target_version,
+                "Profile migrated"
+            );
+        }
+
+        Ok(outcome.migrated_json)
     }
 
     /// Delete a profile from disk and cache
@@ -700,6 +775,7 @@ mod tests {
     use ed25519_dalek::SigningKey;
     use racing_wheel_schemas::prelude::{Degrees, Gain, TorqueNm};
     use rand::rngs::OsRng;
+    use std::{fs, path::Path};
     use tempfile::TempDir;
 
     async fn create_test_repository() -> (ProfileRepository, TempDir) {
@@ -724,6 +800,26 @@ mod tests {
             BaseSettings::default(),
             format!("Test Profile {}", id),
         )
+    }
+
+    fn count_backups_for_profile(backup_dir: &Path, profile_stem: &str) -> Result<usize> {
+        if !backup_dir.exists() {
+            return Ok(0);
+        }
+
+        let prefix = format!("{profile_stem}_");
+        let mut count = 0usize;
+
+        for entry in fs::read_dir(backup_dir)? {
+            let entry = entry?;
+            let file_name = entry.file_name();
+            let file_name = file_name.to_string_lossy();
+            if file_name.starts_with(&prefix) && file_name.ends_with(".json.bak") {
+                count += 1;
+            }
+        }
+
+        Ok(count)
     }
 
     #[tokio::test]
@@ -906,9 +1002,155 @@ mod tests {
             .load_profile_from_json(
                 invalid_json,
                 &ProfileId::new("test".to_string()).expect("Valid profile ID"),
+                None,
             )
             .await;
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_legacy_profile_auto_migration_creates_backup_and_rewrites_file() -> Result<()> {
+        let (repo, _temp_dir) = create_test_repository().await;
+        let profile_id = ProfileId::new("legacy_profile".to_string())?;
+        let profile_path = repo.get_profile_file_path(&profile_id);
+
+        let legacy_json = r#"{
+            "ffb_gain": 0.72,
+            "degrees_of_rotation": 900,
+            "torque_cap": 13.0
+        }"#;
+        async_fs::write(&profile_path, legacy_json).await?;
+
+        let loaded = repo
+            .load_profile(&profile_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Migrated profile should load successfully"))?;
+
+        assert!((loaded.base_settings.ffb_gain.value() - 0.72).abs() < 0.000_1);
+        assert_eq!(loaded.base_settings.degrees_of_rotation.value(), 900.0);
+        assert!((loaded.base_settings.torque_cap.value() - 13.0).abs() < 0.000_1);
+
+        let migrated_json = async_fs::read_to_string(&profile_path).await?;
+        let migrated_value: serde_json::Value = serde_json::from_str(&migrated_json)?;
+        assert_eq!(
+            migrated_value.get("schema").and_then(|v| v.as_str()),
+            Some("wheel.profile/1")
+        );
+
+        let backup_dir = repo.config.profiles_dir.join("backups");
+        let backup_count = count_backups_for_profile(&backup_dir, "legacy_profile")?;
+        assert_eq!(backup_count, 1);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_profile_migration_is_idempotent_on_subsequent_loads() -> Result<()> {
+        let (repo, temp_dir) = create_test_repository().await;
+        let profile_id = ProfileId::new("legacy_idempotent".to_string())?;
+        let profile_path = repo.get_profile_file_path(&profile_id);
+
+        let legacy_json = r#"{
+            "ffb_gain": 0.65,
+            "degrees_of_rotation": 1080,
+            "torque_cap": 16.0
+        }"#;
+        async_fs::write(&profile_path, legacy_json).await?;
+
+        let _ = repo.load_profile(&profile_id).await?;
+        let backup_dir = repo.config.profiles_dir.join("backups");
+        let first_backup_count = count_backups_for_profile(&backup_dir, "legacy_idempotent")?;
+        let migrated_once = async_fs::read_to_string(&profile_path).await?;
+
+        drop(repo);
+
+        // Re-open repository to bypass in-memory cache and verify persisted idempotency.
+        let repo_reloaded = ProfileRepository::new(ProfileRepositoryConfig {
+            profiles_dir: temp_dir.path().to_path_buf(),
+            trusted_keys: Vec::new(),
+            auto_migrate: true,
+            backup_on_migrate: true,
+        })
+        .await?;
+
+        let _ = repo_reloaded.load_profile(&profile_id).await?;
+        let second_backup_count = count_backups_for_profile(&backup_dir, "legacy_idempotent")?;
+        let migrated_twice = async_fs::read_to_string(&profile_path).await?;
+
+        assert_eq!(first_backup_count, 1);
+        assert_eq!(second_backup_count, first_backup_count);
+        assert_eq!(migrated_once, migrated_twice);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_legacy_profile_fails_without_auto_migration() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let repo = ProfileRepository::new(ProfileRepositoryConfig {
+            profiles_dir: temp_dir.path().to_path_buf(),
+            trusted_keys: Vec::new(),
+            auto_migrate: false,
+            backup_on_migrate: false,
+        })
+        .await?;
+
+        let profile_id = ProfileId::new("legacy_no_migrate".to_string())?;
+        let profile_path = repo.get_profile_file_path(&profile_id);
+        let legacy_json = r#"{
+            "ffb_gain": 0.5,
+            "degrees_of_rotation": 900,
+            "torque_cap": 10.0
+        }"#;
+        async_fs::write(&profile_path, legacy_json).await?;
+
+        let result = repo.load_profile(&profile_id).await;
+        assert!(result.is_err());
+
+        let err_msg = result.err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(
+            err_msg.contains("Profile validation failed")
+                || err_msg.contains("Unsupported profile schema version"),
+            "Expected strict schema validation error, got: {}",
+            err_msg
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_legacy_profile_migration_without_backup_when_disabled() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let repo = ProfileRepository::new(ProfileRepositoryConfig {
+            profiles_dir: temp_dir.path().to_path_buf(),
+            trusted_keys: Vec::new(),
+            auto_migrate: true,
+            backup_on_migrate: false,
+        })
+        .await?;
+
+        let profile_id = ProfileId::new("legacy_no_backup".to_string())?;
+        let profile_path = repo.get_profile_file_path(&profile_id);
+        let legacy_json = r#"{
+            "ffb_gain": 0.8,
+            "degrees_of_rotation": 1080,
+            "torque_cap": 14.0
+        }"#;
+        async_fs::write(&profile_path, legacy_json).await?;
+
+        let loaded = repo
+            .load_profile(&profile_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Expected migrated profile to load"))?;
+
+        assert!((loaded.base_settings.ffb_gain.value() - 0.8).abs() < 0.000_1);
+        assert_eq!(loaded.base_settings.degrees_of_rotation.value(), 1080.0);
+
+        let backup_dir = repo.config.profiles_dir.join("backups");
+        let backup_count = count_backups_for_profile(&backup_dir, "legacy_no_backup")?;
+        assert_eq!(backup_count, 0);
+
+        Ok(())
     }
 
     #[tokio::test]

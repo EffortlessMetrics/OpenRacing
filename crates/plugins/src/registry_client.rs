@@ -474,6 +474,14 @@ impl RemoteRegistryClient {
             return Ok(None);
         }
 
+        // Verify signature integrity when configured.
+        if self.config.require_signed_index
+            && let Err(e) = self.verify_index_signature(&index)
+        {
+            warn!("Cached index signature verification failed, will refresh from remote: {e}");
+            return Ok(None);
+        }
+
         Ok(Some(index))
     }
 
@@ -556,9 +564,11 @@ impl RemoteRegistryClient {
             .ok_or_else(|| anyhow!("Registry index is not signed but signature is required"))?;
 
         // Decode the signature to verify it's valid base64
-        let signature_bytes =
-            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &index_sig.signature)
-                .context("Failed to decode registry index signature")?;
+        let signature_bytes = base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            &index_sig.signature,
+        )
+        .context("Failed to decode registry index signature")?;
 
         // Verify signature length (Ed25519 signatures are 64 bytes)
         if signature_bytes.len() != 64 {
@@ -645,9 +655,7 @@ impl RemoteRegistryClient {
         } else {
             // No verifier configured - this should not happen if require_signed_index is true
             // due to the check in RemoteRegistryClient::new()
-            debug!(
-                "Registry index signature format verified (no trust store configured)"
-            );
+            debug!("Registry index signature format verified (no trust store configured)");
         }
 
         Ok(())
@@ -1257,6 +1265,34 @@ mod tests {
         let results = client.search("FFB").await?;
         assert_eq!(results.len(), 1);
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_cached_index_rejected_when_signature_required_and_missing() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let cache_dir = temp_dir.path().join("cache");
+        std::fs::create_dir_all(&cache_dir)?;
+
+        // Trust store is required for signed-index mode.
+        let trust_store_path = temp_dir.path().join("trust_store.json");
+        std::fs::write(&trust_store_path, "{}")?;
+
+        // Write an unsigned index into cache.
+        let index = create_test_index();
+        let cache_path = cache_dir.join("registry_index.json");
+        std::fs::write(&cache_path, serde_json::to_string_pretty(&index)?)?;
+
+        let config = RemoteRegistryConfig::new("https://example.com")
+            .with_cache_dir(cache_dir)
+            .with_require_signed_index(true)
+            .with_trust_store_path(trust_store_path);
+
+        let client = RemoteRegistryClient::new(config)?;
+        let cached = client.load_cached_index().await?;
+
+        // Unsigned cache must be rejected in secure mode.
+        assert!(cached.is_none());
         Ok(())
     }
 

@@ -96,7 +96,7 @@ impl Default for InstallerConfig {
     fn default() -> Self {
         Self {
             install_dir: default_plugin_directory(),
-            require_signatures: false,
+            require_signatures: true,
             verify_hashes: true,
             download_timeout: std::time::Duration::from_secs(300),
         }
@@ -472,7 +472,7 @@ mod tests {
     #[tokio::test]
     async fn test_installer_config_default() -> Result<()> {
         let config = InstallerConfig::default();
-        assert!(!config.require_signatures);
+        assert!(config.require_signatures);
         assert!(config.verify_hashes);
         Ok(())
     }
@@ -490,6 +490,7 @@ mod tests {
 
         let config = InstallerConfig {
             install_dir: temp_dir.path().join("plugins"),
+            require_signatures: false,
             ..Default::default()
         };
 
@@ -497,6 +498,51 @@ mod tests {
         let installed = installer.list_installed().await?;
 
         assert!(installed.is_empty());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_install_unsigned_plugin_rejected_when_signatures_required() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let mock_server = MockServer::start().await;
+
+        let mut catalog = PluginCatalog::new();
+        let metadata = create_test_metadata("Unsigned Plugin", "1.0.0");
+        let plugin_id = metadata.id.clone();
+        let _ = catalog.add_plugin(metadata);
+        let index = crate::registry_client::RegistryIndex::new(catalog);
+
+        Mock::given(method("GET"))
+            .and(path("/v1/index.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(&index))
+            .mount(&mock_server)
+            .await;
+
+        let registry_config = RemoteRegistryConfig::new(mock_server.uri())
+            .with_cache_dir(temp_dir.path().join("cache"))
+            .with_require_signed_index(false);
+        let registry = Arc::new(RemoteRegistryClient::new(registry_config)?);
+        registry.refresh().await?;
+
+        let installer = PluginInstaller::new(
+            registry,
+            InstallerConfig {
+                install_dir: temp_dir.path().join("plugins"),
+                require_signatures: true,
+                ..Default::default()
+            },
+        )?;
+
+        let result = installer.install(&plugin_id, None).await;
+        assert!(result.is_err());
+
+        let err_msg = result.err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(
+            err_msg.to_lowercase().contains("unsigned"),
+            "expected unsigned-plugin rejection, got: {}",
+            err_msg
+        );
 
         Ok(())
     }
@@ -514,6 +560,7 @@ mod tests {
 
         let config = InstallerConfig {
             install_dir: temp_dir.path().join("plugins"),
+            require_signatures: false,
             ..Default::default()
         };
 

@@ -72,8 +72,8 @@ impl Default for PluginRegistryServiceConfig {
             registry_url: "https://registry.openracing.io".to_string(),
             cache_dir: default_cache_directory(),
             install_dir: default_plugin_directory(),
-            require_signatures: false,
-            trust_store_path: None,
+            require_signatures: true,
+            trust_store_path: Some(default_trust_store_path()),
             search_cache_ttl: Duration::from_secs(300), // 5 minutes
             refresh_interval: Duration::from_secs(3600), // 1 hour
             offline_mode: false,
@@ -159,6 +159,25 @@ fn default_plugin_directory() -> PathBuf {
         }
     } else {
         PathBuf::from("plugins")
+    }
+}
+
+/// Get the default trust store path
+fn default_trust_store_path() -> PathBuf {
+    if let Some(home) = dirs::home_dir() {
+        #[cfg(windows)]
+        {
+            home.join("AppData")
+                .join("Local")
+                .join("OpenRacing")
+                .join("trust_store.json")
+        }
+        #[cfg(not(windows))]
+        {
+            home.join(".openracing").join("trust_store.json")
+        }
+    } else {
+        PathBuf::from("trust_store.json")
     }
 }
 
@@ -260,6 +279,12 @@ impl PluginRegistryServiceImpl {
     ///
     /// Returns an error if the service fails to initialize
     pub fn new(config: PluginRegistryServiceConfig) -> PluginRegistryResult<Self> {
+        if config.require_signatures && config.trust_store_path.is_none() {
+            return Err(PluginRegistryError::ConfigurationError(
+                "require_signatures is true but no trust_store_path is configured".to_string(),
+            ));
+        }
+
         let http_client = reqwest::Client::builder()
             .timeout(config.download_timeout)
             .user_agent(concat!("openracing-service/", env!("CARGO_PKG_VERSION")))
@@ -654,9 +679,15 @@ impl PluginRegistryServiceImpl {
             }
         }
 
-        // If no trust store, just verify signature format is valid
-        debug!("Signature format verified (no trust store configured)");
-        Ok(true)
+        // No trust store available: this cannot produce a verified result.
+        if self.config.require_signatures {
+            return Err(PluginRegistryError::SignatureVerificationFailed(
+                "Signature verification requires a configured trust store".to_string(),
+            ));
+        }
+
+        debug!("Signature format parsed, but no trust store configured (unverified)");
+        Ok(false)
     }
 
     /// Perform the actual download
@@ -1213,6 +1244,7 @@ mod tests {
         let config = PluginRegistryServiceConfig::new("https://test-registry.example.com")
             .with_cache_dir(temp_dir.path().join("cache"))
             .with_install_dir(temp_dir.path().join("plugins"))
+            .with_require_signatures(false)
             .with_offline_mode(true);
 
         Ok(PluginRegistryServiceImpl::new(config)?)
@@ -1221,9 +1253,34 @@ mod tests {
     #[tokio::test]
     async fn test_service_config_default() -> Result<(), Box<dyn std::error::Error>> {
         let config = PluginRegistryServiceConfig::default();
-        assert!(!config.require_signatures);
+        assert!(config.require_signatures);
+        assert!(config.trust_store_path.is_some());
         assert!(!config.offline_mode);
         assert_eq!(config.max_download_retries, 3);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_service_creation_requires_trust_store_when_signatures_required(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let config = PluginRegistryServiceConfig::new("https://test-registry.example.com")
+            .with_require_signatures(true);
+        // Explicitly clear trust store path to simulate invalid config
+        let config = PluginRegistryServiceConfig {
+            trust_store_path: None,
+            ..config
+        };
+
+        let result = PluginRegistryServiceImpl::new(config);
+        assert!(result.is_err());
+
+        let err_msg = result.err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(
+            err_msg.contains("trust_store_path"),
+            "Expected trust_store_path validation error, got: {}",
+            err_msg
+        );
+
         Ok(())
     }
 
@@ -1317,6 +1374,39 @@ mod tests {
         let nonexistent_path = temp_dir.path().join("nonexistent_plugin_xyz123");
         let result = service.install_plugin(&nonexistent_path).await;
         assert!(result.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_install_plugin_rejects_unsigned_when_signatures_required(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp_dir = TempDir::new()?;
+        let config = PluginRegistryServiceConfig::new("https://test-registry.example.com")
+            .with_cache_dir(temp_dir.path().join("cache"))
+            .with_install_dir(temp_dir.path().join("plugins"))
+            .with_require_signatures(true)
+            .with_trust_store_path(temp_dir.path().join("trust_store.json"))
+            .with_offline_mode(true);
+        let service = PluginRegistryServiceImpl::new(config)?;
+
+        let plugin_dir = temp_dir.path().join("unsigned-plugin");
+        fs::create_dir_all(&plugin_dir).await?;
+
+        let metadata = create_test_metadata("Unsigned Plugin", "1.0.0");
+        let manifest_content = serde_json::to_string_pretty(&metadata)?;
+        fs::write(plugin_dir.join("manifest.json"), manifest_content).await?;
+
+        let result = service.install_plugin(&plugin_dir).await;
+        assert!(result.is_err());
+
+        let err_msg = result.err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(
+            err_msg.to_lowercase().contains("unsigned")
+                || err_msg.to_lowercase().contains("signature"),
+            "expected unsigned/signature error, got: {}",
+            err_msg
+        );
+
         Ok(())
     }
 

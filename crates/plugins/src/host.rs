@@ -9,10 +9,11 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::manifest::{PluginManifest, PluginOperation, load_manifest};
-use crate::native::NativePluginHost;
+use crate::native::{NativePluginConfig, NativePluginHost};
 use crate::quarantine::{QuarantineManager, QuarantinePolicy, ViolationType};
 use crate::wasm::WasmPluginHost;
 use crate::{PluginClass, PluginContext, PluginError, PluginOutput, PluginResult, PluginStats};
+use racing_wheel_service::crypto::trust_store::TrustStore;
 
 /// Plugin registry entry
 #[derive(Debug, Clone)]
@@ -45,8 +46,19 @@ pub struct PluginHost {
 impl PluginHost {
     /// Create a new plugin host
     pub async fn new(plugin_directory: PathBuf) -> PluginResult<Self> {
+        Self::new_with_native_config(plugin_directory, NativePluginConfig::default()).await
+    }
+
+    /// Create a new plugin host with explicit native plugin verification configuration
+    ///
+    /// This enables explicit opt-out from secure defaults when needed for
+    /// development environments.
+    pub async fn new_with_native_config(
+        plugin_directory: PathBuf,
+        native_config: NativePluginConfig,
+    ) -> PluginResult<Self> {
         let wasm_host = WasmPluginHost::new()?;
-        let native_host = NativePluginHost::new_with_defaults();
+        let native_host = NativePluginHost::new(TrustStore::new_in_memory(), native_config);
         let quarantine_manager = Arc::new(RwLock::new(QuarantineManager::new(
             QuarantinePolicy::default(),
         )));
