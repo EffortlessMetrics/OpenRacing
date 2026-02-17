@@ -11,6 +11,9 @@ use tracing::info;
 const EAWRC_STRUCTURE_ID: &str = "openracing";
 const EAWRC_PACKET_ID: &str = "session_update";
 const EAWRC_DEFAULT_PORT: u16 = 20778;
+const AC_RALLY_DEFAULT_DISCOVERY_PORT: u16 = 9000;
+const AC_RALLY_PROBE_RELATIVE_PATH: &str =
+    "Documents/Assetto Corsa Rally/Config/openracing_probe.json";
 
 /// iRacing configuration writer
 pub struct IRacingConfigWriter;
@@ -204,6 +207,143 @@ impl ConfigWriter for ACCConfigWriter {
             key: "entire_file".to_string(),
             old_value: None,
             new_value: new_content,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Assetto Corsa Rally configuration writer.
+///
+/// AC Rally telemetry transport is currently discovery-based in OpenRacing.
+/// This writer creates a sidecar probe profile consumed by OpenRacing tooling.
+pub struct ACRallyConfigWriter;
+
+impl Default for ACRallyConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for ACRallyConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Assetto Corsa Rally telemetry probe configuration");
+
+        let probe_json_path = game_path.join(AC_RALLY_PROBE_RELATIVE_PATH);
+        let existed_before = probe_json_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&probe_json_path)?)
+        } else {
+            None
+        };
+
+        let mut root = existing_content
+            .as_deref()
+            .and_then(parse_json_object)
+            .unwrap_or_default();
+
+        let listener_port =
+            parse_target_port(&config.output_target).unwrap_or(AC_RALLY_DEFAULT_DISCOVERY_PORT);
+        root.insert("enabled".to_string(), Value::from(config.enabled));
+        root.insert("mode".to_string(), Value::String("discovery".to_string()));
+        root.insert(
+            "updateRateHz".to_string(),
+            Value::from(config.update_rate_hz),
+        );
+        root.insert(
+            "outputTarget".to_string(),
+            Value::String(config.output_target.clone()),
+        );
+        root.insert(
+            "probeOrder".to_string(),
+            Value::Array(vec![
+                Value::String("udp_handshake".to_string()),
+                Value::String("udp_passive".to_string()),
+                Value::String("shared_memory".to_string()),
+            ]),
+        );
+        root.insert(
+            "udpCandidates".to_string(),
+            Value::Array(vec![Value::from(listener_port)]),
+        );
+        root.entry("sharedMemoryCandidates".to_string())
+            .or_insert(Value::Array(Vec::new()));
+        root.insert(
+            "note".to_string(),
+            Value::String(
+                "OpenRacing discovery profile. Populate sharedMemoryCandidates when map names are known."
+                    .to_string(),
+            ),
+        );
+
+        let new_content = serde_json::to_string_pretty(&Value::Object(root))?;
+
+        if let Some(parent) = probe_json_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&probe_json_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: probe_json_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let probe_json_path = game_path.join(AC_RALLY_PROBE_RELATIVE_PATH);
+        if !probe_json_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(probe_json_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let mode_discovery = value
+            .get("mode")
+            .and_then(Value::as_str)
+            .map(|mode| mode == "discovery")
+            .unwrap_or(false);
+        let has_probe_order = value
+            .get("probeOrder")
+            .and_then(Value::as_array)
+            .map(|items| !items.is_empty())
+            .unwrap_or(false);
+        let has_udp_candidates = value
+            .get("udpCandidates")
+            .and_then(Value::as_array)
+            .map(|items| !items.is_empty())
+            .unwrap_or(false);
+
+        Ok(mode_discovery && has_probe_order && has_udp_candidates)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let listener_port =
+            parse_target_port(&config.output_target).unwrap_or(AC_RALLY_DEFAULT_DISCOVERY_PORT);
+        let content = serde_json::to_string_pretty(&serde_json::json!({
+            "enabled": config.enabled,
+            "mode": "discovery",
+            "updateRateHz": config.update_rate_hz,
+            "outputTarget": config.output_target,
+            "probeOrder": ["udp_handshake", "udp_passive", "shared_memory"],
+            "udpCandidates": [listener_port],
+            "sharedMemoryCandidates": [],
+            "note": "OpenRacing discovery profile. Populate sharedMemoryCandidates when map names are known."
+        }))?;
+
+        Ok(vec![ConfigDiff {
+            file_path: AC_RALLY_PROBE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: content,
             operation: DiffOperation::Add,
         }])
     }
@@ -886,6 +1026,29 @@ mod tests {
             .path()
             .join("Documents/My Games/WRC/telemetry/udp/openracing.json");
         assert!(expected_structure.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn test_ac_rally_writer_round_trip() -> TestResult {
+        let writer = ACRallyConfigWriter;
+        let temp_dir = tempdir()?;
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 60,
+            output_method: "probe_discovery".to_string(),
+            output_target: "127.0.0.1:9000".to_string(),
+            fields: vec![],
+        };
+
+        let diffs = writer.write_config(temp_dir.path(), &config)?;
+        assert_eq!(diffs.len(), 1);
+        assert!(writer.validate_config(temp_dir.path())?);
+
+        let probe_config = temp_dir
+            .path()
+            .join("Documents/Assetto Corsa Rally/Config/openracing_probe.json");
+        assert!(probe_config.exists());
         Ok(())
     }
 }

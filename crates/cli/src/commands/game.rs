@@ -116,6 +116,11 @@ async fn configure_game(
                 println!("  • Configured telemetry output rate");
                 println!("  • Added LED heartbeat validation");
             }
+            "ac_rally" => {
+                println!("  • Installed OpenRacing discovery profile for AC Rally");
+                println!("  • Configured ACC-style UDP handshake probe endpoint");
+                println!("  • Configured passive UDP capture candidate port");
+            }
             "ams2" => {
                 println!("  • Enabled shared memory telemetry");
                 println!("  • Configured data export settings");
@@ -287,6 +292,21 @@ fn get_supported_games() -> Vec<GameInfo> {
             config_method: "UDP broadcast".to_string(),
             default_path: Some(
                 "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Assetto Corsa Competizione"
+                    .to_string(),
+            ),
+        },
+        GameInfo {
+            id: "ac_rally".to_string(),
+            name: "Assetto Corsa Rally".to_string(),
+            version: "Early Access".to_string(),
+            features: vec![
+                "Discovery Probe".to_string(),
+                "UDP Handshake Trial".to_string(),
+                "Raw Capture".to_string(),
+            ],
+            config_method: "OpenRacing probe sidecar".to_string(),
+            default_path: Some(
+                "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Assetto Corsa Rally"
                     .to_string(),
             ),
         },

@@ -4,7 +4,8 @@
 //! according to requirements GI-01 and GI-03.
 
 use crate::config_writers::{
-    ACCConfigWriter, AMS2ConfigWriter, EAWRCConfigWriter, IRacingConfigWriter, RFactor2ConfigWriter,
+    ACCConfigWriter, ACRallyConfigWriter, AMS2ConfigWriter, EAWRCConfigWriter, IRacingConfigWriter,
+    RFactor2ConfigWriter,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -136,6 +137,7 @@ impl GameService {
         // Register config writers
         config_writers.insert("iracing".to_string(), Box::new(IRacingConfigWriter));
         config_writers.insert("acc".to_string(), Box::new(ACCConfigWriter));
+        config_writers.insert("ac_rally".to_string(), Box::new(ACRallyConfigWriter));
         config_writers.insert("ams2".to_string(), Box::new(AMS2ConfigWriter));
         config_writers.insert("rfactor2".to_string(), Box::new(RFactor2ConfigWriter));
         config_writers.insert("eawrc".to_string(), Box::new(EAWRCConfigWriter));
@@ -180,6 +182,7 @@ impl GameService {
         // Create telemetry configuration
         let output_target = match game_id {
             "acc" => "127.0.0.1:9000".to_string(),
+            "ac_rally" => "127.0.0.1:9000".to_string(),
             "eawrc" => "127.0.0.1:20778".to_string(),
             _ => "127.0.0.1:12345".to_string(),
         };

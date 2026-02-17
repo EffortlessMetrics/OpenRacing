@@ -111,6 +111,46 @@ impl GameSupportMatrix {
             },
         });
 
+        // Assetto Corsa Rally support (discovery-first probe profile)
+        games.insert(
+            "ac_rally".to_string(),
+            GameSupport {
+                name: "Assetto Corsa Rally".to_string(),
+                versions: vec![GameVersion {
+                    version: "Early Access".to_string(),
+                    config_paths: vec![
+                        "Documents/Assetto Corsa Rally/Config/openracing_probe.json".to_string(),
+                    ],
+                    executable_patterns: vec![],
+                    telemetry_method: "probe_discovery".to_string(),
+                    supported_fields: vec![],
+                }],
+                telemetry: TelemetrySupport {
+                    method: "probe_discovery".to_string(),
+                    update_rate_hz: 60,
+                    fields: TelemetryFieldMapping {
+                        ffb_scalar: None,
+                        rpm: None,
+                        speed_ms: None,
+                        slip_ratio: None,
+                        gear: None,
+                        flags: None,
+                        car_id: None,
+                        track_id: None,
+                    },
+                },
+                config_writer: "ac_rally".to_string(),
+                auto_detect: AutoDetectConfig {
+                    process_names: vec![],
+                    install_registry_keys: vec![],
+                    install_paths: vec![
+                        "Program Files (x86)/Steam/steamapps/common/Assetto Corsa Rally"
+                            .to_string(),
+                    ],
+                },
+            },
+        );
+
         // AMS2 support
         games.insert(
             "ams2".to_string(),

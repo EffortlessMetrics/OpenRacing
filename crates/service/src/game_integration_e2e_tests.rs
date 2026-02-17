@@ -702,6 +702,7 @@ mod tests {
         assert!(!supported_games.is_empty());
         assert!(supported_games.contains(&"iracing".to_string()));
         assert!(supported_games.contains(&"acc".to_string()));
+        assert!(supported_games.contains(&"ac_rally".to_string()));
     }
 
     #[tokio::test]

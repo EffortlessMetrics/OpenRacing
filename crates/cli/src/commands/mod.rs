@@ -7,6 +7,7 @@ pub mod health;
 pub mod plugin;
 pub mod profile;
 pub mod safety;
+pub mod telemetry;
 
 use clap::Subcommand;
 
@@ -228,6 +229,44 @@ pub enum GameCommands {
         /// Test duration in seconds
         #[arg(short, long, default_value = "10")]
         duration: u64,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum TelemetryCommands {
+    /// Probe telemetry transport for a game
+    Probe {
+        /// Game ID
+        #[arg(long)]
+        game: String,
+        /// Handshake endpoint host:port
+        #[arg(long, default_value = "127.0.0.1:9000")]
+        endpoint: String,
+        /// Timeout per probe attempt in milliseconds
+        #[arg(long, default_value = "400")]
+        timeout_ms: u64,
+        /// Number of handshake attempts
+        #[arg(long, default_value = "3")]
+        attempts: u32,
+    },
+
+    /// Capture raw UDP telemetry packets to a binary file
+    Capture {
+        /// Game ID
+        #[arg(long)]
+        game: String,
+        /// Local UDP listen port
+        #[arg(long, default_value = "9000")]
+        port: u16,
+        /// Capture duration in seconds
+        #[arg(long, default_value = "10")]
+        duration: u64,
+        /// Output file path
+        #[arg(long)]
+        out: String,
+        /// Maximum payload bytes to store per packet
+        #[arg(long, default_value = "2048")]
+        max_payload: usize,
     },
 }
 

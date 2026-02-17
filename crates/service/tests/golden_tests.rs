@@ -154,10 +154,11 @@ async fn test_game_service_yaml_loading() {
     let supported_games = service.get_supported_games().await;
     assert!(supported_games.contains(&"iracing".to_string()));
     assert!(supported_games.contains(&"acc".to_string()));
+    assert!(supported_games.contains(&"ac_rally".to_string()));
     assert!(supported_games.contains(&"ams2".to_string()));
     assert!(supported_games.contains(&"rfactor2".to_string()));
     assert!(supported_games.contains(&"eawrc".to_string()));
-    assert_eq!(supported_games.len(), 5);
+    assert_eq!(supported_games.len(), 6);
 }
 
 #[tokio::test]

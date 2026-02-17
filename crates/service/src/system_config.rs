@@ -307,6 +307,19 @@ impl Default for GameConfig {
             },
         );
 
+        // Assetto Corsa Rally discovery configuration
+        supported_games.insert(
+            "ac_rally".to_string(),
+            GameSupportConfig {
+                executables: vec![],
+                telemetry_method: "probe_discovery".to_string(),
+                config_paths: vec![
+                    "Documents/Assetto Corsa Rally/Config/openracing_probe.json".to_string(),
+                ],
+                auto_configure: true,
+            },
+        );
+
         Self {
             auto_configure: true,
             auto_profile_switch: true,

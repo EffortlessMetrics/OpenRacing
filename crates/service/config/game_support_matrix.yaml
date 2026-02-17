@@ -80,6 +80,34 @@ games:
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/Assetto Corsa Competizione"
 
+  ac_rally:
+    name: "Assetto Corsa Rally"
+    versions:
+      - version: "Early Access"
+        config_paths:
+          - "Documents/Assetto Corsa Rally/Config/openracing_probe.json"
+        executable_patterns: []
+        telemetry_method: "probe_discovery"
+        supported_fields: []
+    telemetry:
+      method: "probe_discovery"
+      update_rate_hz: 60
+      fields:
+        ffb_scalar: null
+        rpm: null
+        speed_ms: null
+        slip_ratio: null
+        gear: null
+        flags: null
+        car_id: null
+        track_id: null
+    config_writer: "ac_rally"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Assetto Corsa Rally"
+
   ams2:
     name: "Automobilista 2"
     versions:
