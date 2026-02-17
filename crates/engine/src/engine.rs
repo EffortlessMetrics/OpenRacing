@@ -33,6 +33,65 @@ const RING_BUFFER_SIZE: usize = 4096;
 /// Maximum processing time budget per tick (200µs)
 const MAX_PROCESSING_TIME_US: u64 = 200;
 
+#[derive(Debug, Clone, Copy)]
+struct TorqueControlResult {
+    torque_out: f32,
+    saturated: bool,
+}
+
+fn sanitize_unit_interval(value: f32) -> f32 {
+    if value.is_finite() {
+        value.clamp(0.0, 1.0)
+    } else {
+        0.0
+    }
+}
+
+fn sanitize_signed_unit(value: f32) -> f32 {
+    if value.is_finite() {
+        value.clamp(-1.0, 1.0)
+    } else {
+        0.0
+    }
+}
+
+fn apply_torque_safety_controls(
+    pipeline_torque: f32,
+    max_torque_normalized: f32,
+    fault_torque_multiplier: f32,
+    emergency_stop_active: bool,
+) -> TorqueControlResult {
+    if emergency_stop_active {
+        return TorqueControlResult {
+            torque_out: 0.0,
+            saturated: sanitize_signed_unit(pipeline_torque).abs() > f32::EPSILON,
+        };
+    }
+
+    let safe_pipeline_torque = sanitize_signed_unit(pipeline_torque);
+    let safe_max_torque = sanitize_unit_interval(max_torque_normalized);
+    let safe_multiplier = sanitize_unit_interval(fault_torque_multiplier);
+    let requested_torque = safe_pipeline_torque * safe_multiplier;
+    let clamped_torque = requested_torque.clamp(-safe_max_torque, safe_max_torque);
+
+    TorqueControlResult {
+        torque_out: clamped_torque,
+        saturated: (requested_torque - clamped_torque).abs() > 0.001,
+    }
+}
+
+fn should_latch_safety_fault(fault: FaultType) -> bool {
+    matches!(
+        fault,
+        FaultType::UsbStall
+            | FaultType::EncoderNaN
+            | FaultType::Overcurrent
+            | FaultType::SafetyInterlockViolation
+            | FaultType::HandsOffTimeout
+            | FaultType::PipelineFault
+    )
+}
+
 /// Input data from game to engine
 #[derive(Debug, Clone)]
 pub struct GameInput {
@@ -201,6 +260,12 @@ struct RTContext {
     /// Atomic counters for RT-safe metrics collection
     atomic_counters: Arc<AtomicCounters>,
 
+    /// Latest soft-stop/fault torque multiplier from fault manager.
+    fault_torque_multiplier: f32,
+
+    /// Latched emergency stop state.
+    emergency_stop_active: bool,
+
     /// Tracing manager for observability
     tracing_manager: Option<TracingManager>,
 }
@@ -292,6 +357,8 @@ impl Engine {
             seq: 0,
             metrics: PerformanceMetrics::default(),
             atomic_counters: Arc::clone(&self.atomic_counters),
+            fault_torque_multiplier: 1.0,
+            emergency_stop_active: false,
             tracing_manager,
         };
 
@@ -620,21 +687,23 @@ impl Engine {
 
             let _pipeline_time = pipeline_start.elapsed();
 
-            // Apply safety limits
-            let max_torque =
-                ctx.safety.get_max_torque(true).value() / ctx.config.max_high_torque_nm;
-            let clamped_torque = frame.torque_out.clamp(-max_torque, max_torque);
+            // Apply torque safety chain:
+            // pipeline torque -> fault multiplier -> safety clamp -> emergency-stop latch.
+            let max_torque_normalized = if ctx.config.max_high_torque_nm > f32::EPSILON {
+                ctx.safety.get_max_torque(true).value() / ctx.config.max_high_torque_nm
+            } else {
+                0.0
+            };
 
-            // Record torque saturation (RT-safe)
-            let is_saturated = (frame.torque_out.abs() - clamped_torque.abs()).abs() > 0.001;
-            ctx.atomic_counters.record_torque_saturation(is_saturated);
-
-            frame.torque_out = clamped_torque;
-
-            // Check for safety violations
-            if frame.torque_out.abs() > max_torque {
-                ctx.safety.report_fault(FaultType::SafetyInterlockViolation);
-            }
+            let torque_control = apply_torque_safety_controls(
+                frame.torque_out,
+                max_torque_normalized,
+                ctx.fault_torque_multiplier,
+                ctx.emergency_stop_active,
+            );
+            ctx.atomic_counters
+                .record_torque_saturation(torque_control.saturated);
+            frame.torque_out = torque_control.torque_out;
 
             // Write to device
             let device_write_start = Instant::now();
@@ -731,7 +800,15 @@ impl Engine {
                     seq: frame.seq,
                 }),
             };
-            let _fault_result = ctx.fault_manager.update(&fault_context);
+            let fault_result = ctx.fault_manager.update(&fault_context);
+            ctx.fault_torque_multiplier =
+                sanitize_unit_interval(fault_result.current_torque_multiplier);
+
+            for fault in fault_result.new_faults {
+                if should_latch_safety_fault(fault) {
+                    ctx.safety.report_fault(fault);
+                }
+            }
         }
 
         info!("RT thread stopping");
@@ -781,9 +858,10 @@ impl Engine {
 
                 EngineCommand::EmergencyStop { response } => {
                     info!("Emergency stop command received - zeroing torque immediately");
-                    // Report fault to safety service to enter safe mode
+                    // Latch emergency stop and fault state.
+                    ctx.emergency_stop_active = true;
                     ctx.safety.report_fault(FaultType::SafetyInterlockViolation);
-                    // Zero torque command will be applied on next tick due to faulted state
+                    // Zero torque is enforced in the same RT tick after command processing.
                     let _ = response.send(Ok(()));
                 }
             }
@@ -882,6 +960,30 @@ mod tests {
             enable_blackbox: true,
             rt_setup: RTSetup::default(),
         }
+    }
+
+    #[test]
+    fn test_torque_safety_controls_apply_multiplier_and_clamp() {
+        let result = apply_torque_safety_controls(0.8, 0.5, 0.5, false);
+        assert!((result.torque_out - 0.4).abs() < 0.0001);
+        assert!(!result.saturated);
+
+        let clamped = apply_torque_safety_controls(0.9, 0.4, 1.0, false);
+        assert!((clamped.torque_out - 0.4).abs() < 0.0001);
+        assert!(clamped.saturated);
+    }
+
+    #[test]
+    fn test_torque_safety_controls_emergency_stop_forces_zero() {
+        let result = apply_torque_safety_controls(0.75, 1.0, 1.0, true);
+        assert_eq!(result.torque_out, 0.0);
+        assert!(result.saturated);
+    }
+
+    #[test]
+    fn test_torque_safety_controls_sanitizes_non_finite_inputs() {
+        let result = apply_torque_safety_controls(f32::NAN, f32::INFINITY, -5.0, false);
+        assert_eq!(result.torque_out, 0.0);
     }
 
     #[tokio::test]

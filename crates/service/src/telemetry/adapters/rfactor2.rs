@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::mem;
 use std::ptr;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
@@ -389,8 +389,6 @@ impl TelemetryAdapter for RFactor2Adapter {
             info!("Started rFactor 2 telemetry monitoring");
 
             loop {
-                let start_time = std::time::Instant::now();
-
                 match adapter.read_telemetry_data() {
                     Ok((header, vehicle)) => {
                         if header.update_index != last_update_index {
@@ -401,7 +399,7 @@ impl TelemetryAdapter for RFactor2Adapter {
 
                             let frame = TelemetryFrame::new(
                                 normalized,
-                                start_time.elapsed().as_nanos() as u64,
+                                unix_timestamp_ns(),
                                 sequence,
                                 mem::size_of::<RF2VehicleTelemetry>(),
                             );
@@ -453,6 +451,13 @@ impl TelemetryAdapter for RFactor2Adapter {
 
     async fn is_game_running(&self) -> Result<bool> {
         Ok(self.check_rf2_running().await)
+    }
+}
+
+fn unix_timestamp_ns() -> u64 {
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(duration) => duration.as_nanos() as u64,
+        Err(_) => 0,
     }
 }
 

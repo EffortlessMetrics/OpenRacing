@@ -1,16 +1,43 @@
 //! Diagnostic and monitoring commands
 
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use indicatif::{ProgressBar, ProgressStyle};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 use tokio::time::interval;
 
-use crate::client::WheelClient;
+use crate::client::{DeviceStatus, DiagnosticInfo, WheelClient};
 use crate::commands::{DiagCommands, TestType};
 use crate::error::CliError;
 use crate::output;
+
+const BLACKBOX_MAGIC: &[u8; 4] = b"WBB1";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct BlackboxSample {
+    timestamp: DateTime<Utc>,
+    status: DeviceStatus,
+    diagnostics: DiagnosticInfo,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct BlackboxRecording {
+    format: String,
+    recorded_at: DateTime<Utc>,
+    device_id: String,
+    duration_secs: u64,
+    sample_period_ms: u64,
+    samples: Vec<BlackboxSample>,
+}
+
+#[derive(Debug, Clone)]
+enum ParsedBlackbox {
+    Structured(BlackboxRecording),
+    Legacy,
+}
 
 /// Execute diagnostic command
 pub async fn execute(cmd: &DiagCommands, json: bool, endpoint: Option<&str>) -> Result<()> {
@@ -128,6 +155,8 @@ async fn record_blackbox(
         PathBuf::from(format!("blackbox_{}_{}.wbb", device, timestamp))
     });
 
+    let mut samples = Vec::with_capacity(duration as usize);
+
     if !json {
         println!("Recording blackbox data for {} seconds...", duration);
         let pb = ProgressBar::new(duration);
@@ -141,20 +170,44 @@ async fn record_blackbox(
         let mut interval = interval(Duration::from_secs(1));
         for i in 0..duration {
             interval.tick().await;
+
+            let status = client.get_device_status(device).await?;
+            let diagnostics = client.get_diagnostics(device).await?;
+            samples.push(BlackboxSample {
+                timestamp: Utc::now(),
+                status,
+                diagnostics,
+            });
+
             pb.set_position(i + 1);
             pb.set_message(format!("Recording to {}", output_path.display()));
         }
         pb.finish_with_message("Recording complete");
     } else {
-        tokio::time::sleep(Duration::from_secs(duration)).await;
+        let mut interval = interval(Duration::from_secs(1));
+        for _ in 0..duration {
+            interval.tick().await;
+            let status = client.get_device_status(device).await?;
+            let diagnostics = client.get_diagnostics(device).await?;
+            samples.push(BlackboxSample {
+                timestamp: Utc::now(),
+                status,
+                diagnostics,
+            });
+        }
     }
 
-    // Mock blackbox file creation
-    let mock_data = format!(
-        "WBB1\x00\x00\x00\x00Mock blackbox data for device {} recorded for {} seconds\n",
-        device, duration
-    );
-    fs::write(&output_path, mock_data)?;
+    let recording = BlackboxRecording {
+        format: "WBB1".to_string(),
+        recorded_at: Utc::now(),
+        device_id: device.to_string(),
+        duration_secs: duration,
+        sample_period_ms: 1000,
+        samples,
+    };
+
+    let encoded = encode_blackbox_recording(&recording)?;
+    fs::write(&output_path, encoded)?;
 
     output::print_success(
         &format!("Blackbox recorded to {}", output_path.display()),
@@ -166,46 +219,138 @@ async fn record_blackbox(
 
 /// Replay blackbox recording
 async fn replay_blackbox(file: &str, json: bool, detailed: bool) -> Result<()> {
-    let content =
-        fs::read_to_string(file).map_err(|_| CliError::ProfileNotFound(file.to_string()))?;
+    let content = fs::read(file).map_err(|_| CliError::ProfileNotFound(file.to_string()))?;
+    let parsed = parse_blackbox_file(&content)?;
 
-    if !content.starts_with("WBB1") {
-        return Err(CliError::ValidationError("Invalid blackbox file format".to_string()).into());
-    }
+    match parsed {
+        ParsedBlackbox::Structured(recording) => {
+            let frame_count = recording.samples.len();
+            let duration_ms = recording_duration_ms(&recording);
 
-    if json {
-        let output = serde_json::json!({
-            "success": true,
-            "file": file,
-            "format": "WBB1",
-            "frames_replayed": 1000,
-            "duration_ms": 1000,
-            "validation": "passed"
-        });
-        println!("{}", serde_json::to_string_pretty(&output)?);
-    } else {
-        println!("Replaying blackbox file: {}", file);
-        println!("Format: WBB1");
-        println!("Duration: 1.0s");
-        println!("Frames: 1000");
+            if json {
+                let output = serde_json::json!({
+                    "success": true,
+                    "file": file,
+                    "format": "WBB1",
+                    "device_id": recording.device_id,
+                    "frames_replayed": frame_count,
+                    "duration_ms": duration_ms,
+                    "sample_period_ms": recording.sample_period_ms,
+                    "validation": "passed"
+                });
+                println!("{}", serde_json::to_string_pretty(&output)?);
+            } else {
+                println!("Replaying blackbox file: {}", file);
+                println!("Format: WBB1");
+                println!("Device: {}", recording.device_id);
+                println!("Duration: {:.1}s", duration_ms as f64 / 1000.0);
+                println!("Frames: {}", frame_count);
 
-        if detailed {
-            println!("\nFrame-by-frame output:");
-            for i in 0..10 {
-                println!(
-                    "  Frame {}: torque=0.{:02}, angle={}°, speed=0.0 rad/s",
-                    i,
-                    i * 5,
-                    i * 10
-                );
+                if detailed {
+                    println!("\nFrame-by-frame output:");
+                    for (index, sample) in recording.samples.iter().enumerate().take(10) {
+                        println!(
+                            "  Frame {}: ts={}, angle={:.1}°, speed={:.2} rad/s, temp={}°C, jitter_p99={:.3}us",
+                            index,
+                            sample.timestamp,
+                            sample.status.telemetry.wheel_angle_deg,
+                            sample.status.telemetry.wheel_speed_rad_s,
+                            sample.status.telemetry.temperature_c,
+                            sample.diagnostics.performance.p99_jitter_us
+                        );
+                    }
+                    if frame_count > 10 {
+                        println!("  ... ({} more frames)", frame_count - 10);
+                    }
+                }
+
+                println!("✓ Replay completed successfully");
             }
-            println!("  ... (990 more frames)");
         }
-
-        println!("✓ Replay completed successfully");
+        ParsedBlackbox::Legacy => {
+            if json {
+                let output = serde_json::json!({
+                    "success": true,
+                    "file": file,
+                    "format": "WBB1",
+                    "frames_replayed": 1000,
+                    "duration_ms": 1000,
+                    "validation": "passed",
+                    "legacy_format": true
+                });
+                println!("{}", serde_json::to_string_pretty(&output)?);
+            } else {
+                println!("Replaying blackbox file: {}", file);
+                println!("Format: WBB1 (legacy)");
+                println!("Duration: 1.0s");
+                println!("Frames: 1000");
+                println!("✓ Replay completed successfully");
+            }
+        }
     }
 
     Ok(())
+}
+
+fn encode_blackbox_recording(recording: &BlackboxRecording) -> Result<Vec<u8>> {
+    let payload = serde_json::to_vec(recording)?;
+    let payload_len = u32::try_from(payload.len()).map_err(|_| {
+        CliError::ValidationError(format!(
+            "Blackbox payload too large: {} bytes",
+            payload.len()
+        ))
+    })?;
+
+    let mut output = Vec::with_capacity(BLACKBOX_MAGIC.len() + 4 + payload.len());
+    output.extend_from_slice(BLACKBOX_MAGIC);
+    output.extend_from_slice(&payload_len.to_le_bytes());
+    output.extend_from_slice(&payload);
+    Ok(output)
+}
+
+fn parse_blackbox_file(content: &[u8]) -> Result<ParsedBlackbox> {
+    if !content.starts_with(BLACKBOX_MAGIC) {
+        return Err(CliError::ValidationError("Invalid blackbox file format".to_string()).into());
+    }
+
+    if content.len() < 8 {
+        return Ok(ParsedBlackbox::Legacy);
+    }
+
+    let mut len_bytes = [0u8; 4];
+    len_bytes.copy_from_slice(&content[4..8]);
+    let payload_len = u32::from_le_bytes(len_bytes) as usize;
+
+    if payload_len == 0 {
+        return Ok(ParsedBlackbox::Legacy);
+    }
+
+    let payload_end = 8usize
+        .checked_add(payload_len)
+        .ok_or_else(|| CliError::ValidationError("Blackbox payload size overflow".to_string()))?;
+
+    if payload_end > content.len() {
+        return Err(CliError::ValidationError("Blackbox payload truncated".to_string()).into());
+    }
+
+    let recording: BlackboxRecording = serde_json::from_slice(&content[8..payload_end])?;
+    if recording.format != "WBB1" {
+        return Err(CliError::ValidationError("Unsupported blackbox version".to_string()).into());
+    }
+
+    Ok(ParsedBlackbox::Structured(recording))
+}
+
+fn recording_duration_ms(recording: &BlackboxRecording) -> u64 {
+    if let (Some(first), Some(last)) = (recording.samples.first(), recording.samples.last()) {
+        let elapsed = last
+            .timestamp
+            .signed_duration_since(first.timestamp)
+            .num_milliseconds();
+        return elapsed.max(0) as u64;
+    }
+
+    recording.duration_secs.saturating_mul(1000)
 }
 
 /// Generate support bundle
@@ -418,4 +563,86 @@ async fn run_single_test(
     };
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::{
+        DeviceCapabilities, DeviceInfo, DeviceState, DeviceType, PerformanceMetrics, TelemetryData,
+    };
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    fn sample_recording() -> BlackboxRecording {
+        let status = DeviceStatus {
+            device: DeviceInfo {
+                id: "wheel-001".to_string(),
+                name: "Test Wheel".to_string(),
+                device_type: DeviceType::WheelBase,
+                state: DeviceState::Connected,
+                capabilities: DeviceCapabilities::default(),
+            },
+            last_seen: Utc::now(),
+            active_faults: Vec::new(),
+            telemetry: TelemetryData {
+                wheel_angle_deg: 1.5,
+                wheel_speed_rad_s: 2.0,
+                temperature_c: 42,
+                fault_flags: 0,
+                hands_on: true,
+            },
+        };
+
+        let diagnostics = DiagnosticInfo {
+            device_id: "wheel-001".to_string(),
+            system_info: std::collections::HashMap::new(),
+            recent_faults: Vec::new(),
+            performance: PerformanceMetrics {
+                p99_jitter_us: 0.2,
+                missed_tick_rate: 0.0,
+                total_ticks: 10,
+                missed_ticks: 0,
+            },
+        };
+
+        BlackboxRecording {
+            format: "WBB1".to_string(),
+            recorded_at: Utc::now(),
+            device_id: "wheel-001".to_string(),
+            duration_secs: 1,
+            sample_period_ms: 1000,
+            samples: vec![BlackboxSample {
+                timestamp: Utc::now(),
+                status,
+                diagnostics,
+            }],
+        }
+    }
+
+    #[test]
+    fn test_blackbox_round_trip() -> TestResult {
+        let recording = sample_recording();
+        let encoded = encode_blackbox_recording(&recording)?;
+        let parsed = parse_blackbox_file(&encoded)?;
+
+        match parsed {
+            ParsedBlackbox::Structured(parsed_recording) => {
+                assert_eq!(parsed_recording.format, "WBB1");
+                assert_eq!(parsed_recording.device_id, recording.device_id);
+                assert_eq!(parsed_recording.samples.len(), 1);
+            }
+            ParsedBlackbox::Legacy => return Err("expected structured blackbox".into()),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_legacy_blackbox_parse() -> TestResult {
+        let bytes = b"WBB1\x00\x00\x00\x00legacy";
+        let parsed = parse_blackbox_file(bytes)?;
+        assert!(matches!(parsed, ParsedBlackbox::Legacy));
+        Ok(())
+    }
 }
