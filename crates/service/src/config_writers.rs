@@ -205,6 +205,267 @@ impl ConfigWriter for ACCConfigWriter {
     }
 }
 
+/// AMS2 (Automobilista 2) configuration writer.
+///
+/// AMS2 shared-memory telemetry requires an in-game toggle. This writer
+/// stores explicit telemetry intent in the player config while preserving
+/// existing content.
+pub struct AMS2ConfigWriter;
+
+impl Default for AMS2ConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for AMS2ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing AMS2 telemetry configuration");
+
+        let player_json_path =
+            game_path.join("Documents/Automobilista 2/UserData/player/player.json");
+        let existed_before = player_json_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&player_json_path)?)
+        } else {
+            None
+        };
+
+        let mut json_map = existing_content
+            .as_deref()
+            .and_then(parse_json_object)
+            .unwrap_or_default();
+
+        json_map.insert(
+            "sharedMemoryEnabled".to_string(),
+            Value::from(config.enabled),
+        );
+        json_map.insert(
+            "openRacingTelemetry".to_string(),
+            Value::Object(Map::from_iter([
+                ("enabled".to_string(), Value::from(config.enabled)),
+                (
+                    "sharedMemoryMap".to_string(),
+                    Value::String("$pcars2$".to_string()),
+                ),
+                (
+                    "updateRateHz".to_string(),
+                    Value::from(config.update_rate_hz),
+                ),
+                (
+                    "note".to_string(),
+                    Value::String(
+                        "Enable Project CARS 2 shared memory in AMS2 options.".to_string(),
+                    ),
+                ),
+            ])),
+        );
+
+        let new_content = serde_json::to_string_pretty(&Value::Object(json_map))?;
+
+        if let Some(parent) = player_json_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&player_json_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: player_json_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let player_json_path =
+            game_path.join("Documents/Automobilista 2/UserData/player/player.json");
+        if !player_json_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(player_json_path)?;
+        let config: Value = serde_json::from_str(&content)?;
+
+        let top_level_enabled = config
+            .get("sharedMemoryEnabled")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let openracing_enabled = config
+            .get("openRacingTelemetry")
+            .and_then(Value::as_object)
+            .and_then(|obj| obj.get("enabled"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+
+        Ok(top_level_enabled && openracing_enabled)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let mut root = Map::new();
+        root.insert(
+            "sharedMemoryEnabled".to_string(),
+            Value::from(config.enabled),
+        );
+        root.insert(
+            "openRacingTelemetry".to_string(),
+            Value::Object(Map::from_iter([
+                ("enabled".to_string(), Value::from(config.enabled)),
+                (
+                    "sharedMemoryMap".to_string(),
+                    Value::String("$pcars2$".to_string()),
+                ),
+                (
+                    "updateRateHz".to_string(),
+                    Value::from(config.update_rate_hz),
+                ),
+                (
+                    "note".to_string(),
+                    Value::String(
+                        "Enable Project CARS 2 shared memory in AMS2 options.".to_string(),
+                    ),
+                ),
+            ])),
+        );
+
+        Ok(vec![ConfigDiff {
+            file_path: "Documents/Automobilista 2/UserData/player/player.json".to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&Value::Object(root))?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// rFactor 2 configuration writer.
+///
+/// rFactor 2 telemetry requires the shared-memory plugin. This writer
+/// generates an explicit plugin telemetry configuration contract.
+pub struct RFactor2ConfigWriter;
+
+impl Default for RFactor2ConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for RFactor2ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing rFactor 2 telemetry configuration");
+
+        let config_path = game_path.join("UserData/player/OpenRacing.Telemetry.json");
+        let existed_before = config_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&config_path)?)
+        } else {
+            None
+        };
+
+        let mut root = existing_content
+            .as_deref()
+            .and_then(parse_json_object)
+            .unwrap_or_default();
+        root.insert("enabled".to_string(), Value::from(config.enabled));
+        root.insert("requiresSharedMemoryPlugin".to_string(), Value::from(true));
+        root.insert(
+            "telemetryMap".to_string(),
+            Value::String("$rFactor2SMMP_Telemetry$".to_string()),
+        );
+        root.insert(
+            "scoringMap".to_string(),
+            Value::String("$rFactor2SMMP_Scoring$".to_string()),
+        );
+        root.insert(
+            "forceFeedbackMap".to_string(),
+            Value::String("$rFactor2SMMP_ForceFeedback$".to_string()),
+        );
+        root.insert(
+            "updateRateHz".to_string(),
+            Value::from(config.update_rate_hz),
+        );
+
+        let new_content = serde_json::to_string_pretty(&Value::Object(root))?;
+
+        if let Some(parent) = config_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&config_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: config_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let config_path = game_path.join("UserData/player/OpenRacing.Telemetry.json");
+        if !config_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(config_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let plugin_required = value
+            .get("requiresSharedMemoryPlugin")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let has_telemetry_map = value.get("telemetryMap").and_then(Value::as_str).is_some();
+        let has_force_map = value
+            .get("forceFeedbackMap")
+            .and_then(Value::as_str)
+            .is_some();
+
+        Ok(plugin_required && has_telemetry_map && has_force_map)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let mut root = Map::new();
+        root.insert("enabled".to_string(), Value::from(config.enabled));
+        root.insert("requiresSharedMemoryPlugin".to_string(), Value::from(true));
+        root.insert(
+            "telemetryMap".to_string(),
+            Value::String("$rFactor2SMMP_Telemetry$".to_string()),
+        );
+        root.insert(
+            "scoringMap".to_string(),
+            Value::String("$rFactor2SMMP_Scoring$".to_string()),
+        );
+        root.insert(
+            "forceFeedbackMap".to_string(),
+            Value::String("$rFactor2SMMP_ForceFeedback$".to_string()),
+        );
+        root.insert(
+            "updateRateHz".to_string(),
+            Value::from(config.update_rate_hz),
+        );
+
+        Ok(vec![ConfigDiff {
+            file_path: "UserData/player/OpenRacing.Telemetry.json".to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&Value::Object(root))?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
 fn upsert_ini_value(
     content: &str,
     section: &str,
@@ -298,4 +559,48 @@ fn parse_target_port(target: &str) -> Option<u16> {
 
     let (_, port_part) = target.rsplit_once(':')?;
     port_part.parse::<u16>().ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn test_ams2_writer_round_trip() -> TestResult {
+        let writer = AMS2ConfigWriter;
+        let temp_dir = tempdir()?;
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 60,
+            output_method: "shared_memory".to_string(),
+            output_target: "127.0.0.1:12345".to_string(),
+            fields: vec!["ffb_scalar".to_string()],
+        };
+
+        let diffs = writer.write_config(temp_dir.path(), &config)?;
+        assert_eq!(diffs.len(), 1);
+        assert!(writer.validate_config(temp_dir.path())?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_rfactor2_writer_round_trip() -> TestResult {
+        let writer = RFactor2ConfigWriter;
+        let temp_dir = tempdir()?;
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 100,
+            output_method: "shared_memory".to_string(),
+            output_target: "127.0.0.1:12345".to_string(),
+            fields: vec!["ffb_scalar".to_string()],
+        };
+
+        let diffs = writer.write_config(temp_dir.path(), &config)?;
+        assert_eq!(diffs.len(), 1);
+        assert!(writer.validate_config(temp_dir.path())?);
+        Ok(())
+    }
 }

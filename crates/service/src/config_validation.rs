@@ -163,7 +163,7 @@ impl ConfigValidationService {
                     enabled: true,
                     update_rate_hz: 100,
                     output_method: "udp_broadcast".to_string(),
-                    output_target: "127.0.0.1:9996".to_string(),
+                    output_target: "127.0.0.1:9000".to_string(),
                     fields: vec![
                         "ffb_scalar".to_string(),
                         "rpm".to_string(),
@@ -177,7 +177,7 @@ impl ConfigValidationService {
                     key: "entire_file".to_string(),
                     old_value: None,
                     new_value: r#"{
-  "updListenerPort": 9996,
+  "updListenerPort": 9000,
   "connectionId": "",
   "connectionPassword": "",
   "broadcastingPort": 9000,
@@ -191,7 +191,7 @@ impl ConfigValidationService {
                     path: "Documents/Assetto Corsa Competizione/Config/broadcasting.json"
                         .to_string(),
                     content: r#"{
-  "updListenerPort": 9996,
+  "updListenerPort": 9000,
   "connectionId": "",
   "connectionPassword": "",
   "broadcastingPort": 9000,

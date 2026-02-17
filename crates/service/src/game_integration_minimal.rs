@@ -194,7 +194,7 @@ impl ConfigWriter for ACCConfigWriter {
         
         // Create broadcasting configuration JSON
         let broadcasting_config = serde_json::json!({
-            "updListenerPort": 9996,
+            "updListenerPort": 9000,
             "connectionId": "",
             "broadcastingPort": 9000,
             "commandPassword": "",
@@ -225,7 +225,7 @@ impl ConfigWriter for ACCConfigWriter {
         let mut diffs = Vec::new();
         
         let broadcasting_config = serde_json::json!({
-            "updListenerPort": 9996,
+            "updListenerPort": 9000,
             "connectionId": "",
             "broadcastingPort": 9000,
             "commandPassword": "",
@@ -385,7 +385,7 @@ mod tests {
             enabled: true,
             update_rate_hz: 100,
             output_method: "udp_broadcast".to_string(),
-            output_target: "127.0.0.1:9996".to_string(),
+            output_target: "127.0.0.1:9000".to_string(),
             fields: vec!["ffb_scalar".to_string(), "rpm".to_string()],
         };
         
@@ -397,7 +397,7 @@ mod tests {
         
         // Verify JSON structure
         let json: serde_json::Value = serde_json::from_str(&expected_diffs[0].new_value).unwrap();
-        assert_eq!(json["updListenerPort"], 9996);
+        assert_eq!(json["updListenerPort"], 9000);
         assert_eq!(json["broadcastingPort"], 9000);
         assert_eq!(json["updateRateHz"], 100);
         

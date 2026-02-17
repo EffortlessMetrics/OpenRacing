@@ -112,7 +112,7 @@ async fn configure_game(
                 println!("  • Set telemetry rate to 60Hz");
             }
             "acc" => {
-                println!("  • Enabled UDP broadcast on port 9996");
+                println!("  • Enabled UDP broadcast on port 9000");
                 println!("  • Configured telemetry output rate");
                 println!("  • Added LED heartbeat validation");
             }
@@ -296,13 +296,14 @@ fn get_supported_games() -> Vec<GameInfo> {
             ),
         },
         GameInfo {
-            id: "rf2".to_string(),
+            id: "rfactor2".to_string(),
             name: "rFactor 2".to_string(),
             version: "1.1.x".to_string(),
             features: vec![
                 "FFB Scalar".to_string(),
                 "RPM".to_string(),
                 "Telemetry".to_string(),
+                "ForceFeedback map".to_string(),
             ],
             config_method: "Plugin".to_string(),
             default_path: Some(

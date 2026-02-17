@@ -731,7 +731,7 @@ impl DiagnosticTest for NetworkTest {
         let status = DiagnosticStatus::Pass;
 
         // Test UDP socket binding for telemetry
-        let test_ports = [9996, 20777, 12345]; // Common telemetry ports
+        let test_ports = [9000, 9996, 20777, 12345]; // Common telemetry ports (incl. ACC default)
         let mut bindable_ports = 0;
 
         for &port in &test_ports {

@@ -3,7 +3,9 @@
 //! Handles telemetry configuration, auto-switching, and game-specific integrations
 //! according to requirements GI-01 and GI-03.
 
-use crate::config_writers::{ACCConfigWriter, IRacingConfigWriter};
+use crate::config_writers::{
+    ACCConfigWriter, AMS2ConfigWriter, IRacingConfigWriter, RFactor2ConfigWriter,
+};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -134,6 +136,8 @@ impl GameService {
         // Register config writers
         config_writers.insert("iracing".to_string(), Box::new(IRacingConfigWriter));
         config_writers.insert("acc".to_string(), Box::new(ACCConfigWriter));
+        config_writers.insert("ams2".to_string(), Box::new(AMS2ConfigWriter));
+        config_writers.insert("rfactor2".to_string(), Box::new(RFactor2ConfigWriter));
 
         Ok(Self {
             support_matrix: Arc::new(RwLock::new(support_matrix)),

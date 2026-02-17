@@ -155,7 +155,8 @@ async fn test_game_service_yaml_loading() {
     assert!(supported_games.contains(&"iracing".to_string()));
     assert!(supported_games.contains(&"acc".to_string()));
     assert!(supported_games.contains(&"ams2".to_string()));
-    assert_eq!(supported_games.len(), 3);
+    assert!(supported_games.contains(&"rfactor2".to_string()));
+    assert_eq!(supported_games.len(), 4);
 }
 
 #[tokio::test]

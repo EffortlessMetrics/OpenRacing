@@ -524,7 +524,7 @@ impl GameIntegrationTestSuite {
 
                 let config_file = config_dir.join("broadcasting.json");
                 let config_content = r#"{
-  "updListenerPort": 9996,
+  "updListenerPort": 9000,
   "connectionId": "",
   "connectionPassword": "",
   "broadcastingPort": 9000,
