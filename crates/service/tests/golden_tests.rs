@@ -81,6 +81,7 @@ impl TestGameConfig {
                 new_value: must(serde_json::to_string_pretty(&serde_json::json!({
                     "updListenerPort": 9996,
                     "connectionId": "",
+                    "connectionPassword": "",
                     "broadcastingPort": 9000,
                     "commandPassword": "",
                     "updateRateHz": 100

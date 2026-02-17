@@ -173,6 +173,8 @@ mod tests {
         let supported_games = service.supported_games();
         assert!(supported_games.contains(&"iracing".to_string()));
         assert!(supported_games.contains(&"acc".to_string()));
+        assert!(supported_games.contains(&"ams2".to_string()));
+        assert!(supported_games.contains(&"rfactor2".to_string()));
     }
 
     #[test]

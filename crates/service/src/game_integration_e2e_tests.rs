@@ -601,6 +601,7 @@ impl GameIntegrationE2ETestSuite {
                 let config_content = r#"{
   "updListenerPort": 9996,
   "connectionId": "",
+  "connectionPassword": "",
   "broadcastingPort": 9000,
   "commandPassword": "",
   "updateRateHz": 100

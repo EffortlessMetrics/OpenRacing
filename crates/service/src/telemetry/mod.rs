@@ -118,6 +118,8 @@ impl TelemetryService {
         // Register adapters
         adapters.insert("iracing".to_string(), Box::new(IRacingAdapter::new()));
         adapters.insert("acc".to_string(), Box::new(ACCAdapter::new()));
+        adapters.insert("ams2".to_string(), Box::new(AMS2Adapter::new()));
+        adapters.insert("rfactor2".to_string(), Box::new(RFactor2Adapter::new()));
 
         Self {
             adapters,

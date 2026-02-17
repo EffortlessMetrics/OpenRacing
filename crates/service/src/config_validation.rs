@@ -179,6 +179,7 @@ impl ConfigValidationService {
                     new_value: r#"{
   "updListenerPort": 9996,
   "connectionId": "",
+  "connectionPassword": "",
   "broadcastingPort": 9000,
   "commandPassword": "",
   "updateRateHz": 100
@@ -192,6 +193,7 @@ impl ConfigValidationService {
                     content: r#"{
   "updListenerPort": 9996,
   "connectionId": "",
+  "connectionPassword": "",
   "broadcastingPort": 9000,
   "commandPassword": "",
   "updateRateHz": 100

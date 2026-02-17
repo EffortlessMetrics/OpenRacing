@@ -173,11 +173,17 @@ impl GameService {
             .ok_or_else(|| anyhow::anyhow!("No config writer for game: {}", game_id))?;
 
         // Create telemetry configuration
+        let output_target = if game_id == "acc" {
+            "127.0.0.1:9000".to_string()
+        } else {
+            "127.0.0.1:12345".to_string()
+        };
+
         let telemetry_config = TelemetryConfig {
             enabled: true,
             update_rate_hz: game_support.telemetry.update_rate_hz,
             output_method: game_support.telemetry.method.clone(),
-            output_target: "127.0.0.1:12345".to_string(),
+            output_target,
             fields: game_support.versions[0].supported_fields.clone(),
         };
 
