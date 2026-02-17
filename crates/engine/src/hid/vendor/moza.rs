@@ -26,6 +26,137 @@ pub mod report_ids {
     pub const DEVICE_GAIN: u8 = 0x21;
 }
 
+/// Known Moza product IDs.
+pub mod product_ids {
+    // Wheelbases (V1)
+    pub const R16_R21_V1: u16 = 0x0000;
+    pub const R9_V1: u16 = 0x0002;
+    pub const R5_V1: u16 = 0x0004;
+    pub const R3_V1: u16 = 0x0005;
+    pub const R12_V1: u16 = 0x0006;
+
+    // Wheelbases (V2)
+    pub const R16_R21_V2: u16 = 0x0010;
+    pub const R9_V2: u16 = 0x0012;
+    pub const R5_V2: u16 = 0x0014;
+    pub const R3_V2: u16 = 0x0015;
+    pub const R12_V2: u16 = 0x0016;
+
+    // Peripherals
+    pub const SR_P_PEDALS: u16 = 0x0003;
+    pub const HGP_SHIFTER: u16 = 0x0020;
+    pub const SGP_SHIFTER: u16 = 0x0021;
+    pub const HBP_HANDBRAKE: u16 = 0x0022;
+}
+
+/// High-level category for Moza USB products.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MozaDeviceCategory {
+    Wheelbase,
+    Pedals,
+    Shifter,
+    Handbrake,
+    Unknown,
+}
+
+/// Integration topology hint for runtime handling and capture strategy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MozaTopologyHint {
+    /// USB-facing wheelbase that aggregates connected peripherals (e.g. KS on quick-release).
+    WheelbaseAggregated,
+    /// Standalone USB peripheral connected directly to host.
+    StandaloneUsb,
+    /// Product not yet identified from verified captures.
+    Unknown,
+}
+
+/// Identity metadata for a Moza product ID.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MozaDeviceIdentity {
+    pub product_id: u16,
+    pub name: &'static str,
+    pub category: MozaDeviceCategory,
+    pub topology_hint: MozaTopologyHint,
+    pub supports_ffb: bool,
+}
+
+/// Identify a Moza product and provide conservative runtime hints.
+pub fn identify_device(product_id: u16) -> MozaDeviceIdentity {
+    match product_id {
+        product_ids::R3_V1 | product_ids::R3_V2 => MozaDeviceIdentity {
+            product_id,
+            name: "Moza R3",
+            category: MozaDeviceCategory::Wheelbase,
+            topology_hint: MozaTopologyHint::WheelbaseAggregated,
+            supports_ffb: true,
+        },
+        product_ids::R5_V1 | product_ids::R5_V2 => MozaDeviceIdentity {
+            product_id,
+            name: "Moza R5",
+            category: MozaDeviceCategory::Wheelbase,
+            topology_hint: MozaTopologyHint::WheelbaseAggregated,
+            supports_ffb: true,
+        },
+        product_ids::R9_V1 | product_ids::R9_V2 => MozaDeviceIdentity {
+            product_id,
+            name: "Moza R9",
+            category: MozaDeviceCategory::Wheelbase,
+            topology_hint: MozaTopologyHint::WheelbaseAggregated,
+            supports_ffb: true,
+        },
+        product_ids::R12_V1 | product_ids::R12_V2 => MozaDeviceIdentity {
+            product_id,
+            name: "Moza R12",
+            category: MozaDeviceCategory::Wheelbase,
+            topology_hint: MozaTopologyHint::WheelbaseAggregated,
+            supports_ffb: true,
+        },
+        product_ids::R16_R21_V1 | product_ids::R16_R21_V2 => MozaDeviceIdentity {
+            product_id,
+            name: "Moza R16/R21",
+            category: MozaDeviceCategory::Wheelbase,
+            topology_hint: MozaTopologyHint::WheelbaseAggregated,
+            supports_ffb: true,
+        },
+        product_ids::SR_P_PEDALS => MozaDeviceIdentity {
+            product_id,
+            name: "Moza SR-P Pedals",
+            category: MozaDeviceCategory::Pedals,
+            topology_hint: MozaTopologyHint::StandaloneUsb,
+            supports_ffb: false,
+        },
+        product_ids::HGP_SHIFTER | product_ids::SGP_SHIFTER => MozaDeviceIdentity {
+            product_id,
+            name: "Moza Shifter",
+            category: MozaDeviceCategory::Shifter,
+            topology_hint: MozaTopologyHint::StandaloneUsb,
+            supports_ffb: false,
+        },
+        product_ids::HBP_HANDBRAKE => MozaDeviceIdentity {
+            product_id,
+            name: "Moza HBP Handbrake",
+            category: MozaDeviceCategory::Handbrake,
+            topology_hint: MozaTopologyHint::StandaloneUsb,
+            supports_ffb: false,
+        },
+        _ => MozaDeviceIdentity {
+            product_id,
+            name: "Moza Unknown",
+            category: MozaDeviceCategory::Unknown,
+            topology_hint: MozaTopologyHint::Unknown,
+            supports_ffb: false,
+        },
+    }
+}
+
+/// Return true when the product ID is a known Moza wheelbase.
+pub fn is_wheelbase_product(product_id: u16) -> bool {
+    matches!(
+        identify_device(product_id).category,
+        MozaDeviceCategory::Wheelbase
+    )
+}
+
 /// FFB mode options
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FfbMode {
@@ -50,12 +181,12 @@ pub enum MozaModel {
 impl MozaModel {
     pub(crate) fn from_pid(pid: u16) -> Self {
         match pid {
-            0x0005 | 0x0015 => Self::R3,
-            0x0004 | 0x0014 => Self::R5,
-            0x0002 | 0x0012 => Self::R9,
-            0x0006 | 0x0016 => Self::R12,
-            0x0000 | 0x0010 => Self::R16, // R16/R21 share PID, differentiate by torque query
-            0x0003 => Self::SrpPedals,
+            product_ids::R3_V1 | product_ids::R3_V2 => Self::R3,
+            product_ids::R5_V1 | product_ids::R5_V2 => Self::R5,
+            product_ids::R9_V1 | product_ids::R9_V2 => Self::R9,
+            product_ids::R12_V1 | product_ids::R12_V2 => Self::R12,
+            product_ids::R16_R21_V1 | product_ids::R16_R21_V2 => Self::R16, // R16/R21 share PID, differentiate by torque query
+            product_ids::SR_P_PEDALS => Self::SrpPedals,
             _ => Self::Unknown,
         }
     }

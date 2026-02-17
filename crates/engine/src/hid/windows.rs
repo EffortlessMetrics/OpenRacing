@@ -360,6 +360,9 @@ impl SupportedDevices {
             (vendor_ids::MOZA, 0x0010, "Moza R16/R21 V2"),
             // Moza Racing peripherals
             (vendor_ids::MOZA, 0x0003, "Moza SR-P Pedals"),
+            (vendor_ids::MOZA, 0x0020, "Moza HGP Shifter"),
+            (vendor_ids::MOZA, 0x0021, "Moza SGP Sequential Shifter"),
+            (vendor_ids::MOZA, 0x0022, "Moza HBP Handbrake"),
             // Simagic wheels
             (vendor_ids::SIMAGIC, 0x0522, "Simagic Alpha"),
             (vendor_ids::SIMAGIC, 0x0523, "Simagic Alpha Mini"),
@@ -1120,15 +1123,31 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                 }
                 0x0003 => {
                     // SR-P Pedals
+                    capabilities.supports_pid = false;
                     capabilities.supports_raw_torque_1khz = false;
+                    capabilities.supports_health_stream = false;
+                    capabilities.supports_led_bus = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                    capabilities.encoder_cpr = 4096;
+                }
+                0x0020 | 0x0021 | 0x0022 => {
+                    // HGP shifter / SGP sequential / HBP handbrake (input peripherals)
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.supports_health_stream = false;
                     capabilities.supports_led_bus = false;
                     capabilities.max_torque = TorqueNm::ZERO;
                     capabilities.encoder_cpr = 4096;
                 }
                 _ => {
-                    capabilities.max_torque =
-                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
-                    capabilities.encoder_cpr = 32768;
+                    // Unknown Moza devices are treated conservatively until explicitly captured.
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.supports_health_stream = false;
+                    capabilities.supports_led_bus = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                    capabilities.encoder_cpr = 4096;
+                    capabilities.min_report_period_us = 4000;
                 }
             }
         }
@@ -2057,6 +2076,9 @@ mod tests {
         assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0010)); // R16/R21 V2
         // Peripherals
         assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0003)); // SR-P Pedals
+        assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0020)); // HGP Shifter
+        assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0021)); // SGP Sequential Shifter
+        assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0022)); // HBP Handbrake
     }
 
     #[test]
@@ -2160,10 +2182,32 @@ mod tests {
     fn test_device_capabilities_moza_pedals() {
         // SR-P Pedals have no FFB
         let caps = determine_device_capabilities(vendor_ids::MOZA, 0x0003);
+        assert!(!caps.supports_pid);
         assert!(!caps.supports_raw_torque_1khz);
         assert!(!caps.supports_led_bus);
         assert_eq!(caps.max_torque.value(), 0.0);
         assert_eq!(caps.encoder_cpr, 4096);
+    }
+
+    #[test]
+    fn test_device_capabilities_moza_hgp_shifter() {
+        // HGP is an input peripheral and must not be exposed as an FFB device.
+        let caps = determine_device_capabilities(vendor_ids::MOZA, 0x0020);
+        assert!(!caps.supports_pid);
+        assert!(!caps.supports_raw_torque_1khz);
+        assert!(!caps.supports_led_bus);
+        assert_eq!(caps.max_torque.value(), 0.0);
+        assert_eq!(caps.encoder_cpr, 4096);
+    }
+
+    #[test]
+    fn test_device_capabilities_unknown_moza_is_safe_default() {
+        let caps = determine_device_capabilities(vendor_ids::MOZA, 0x7FFF);
+        assert!(!caps.supports_pid);
+        assert!(!caps.supports_raw_torque_1khz);
+        assert!(!caps.supports_health_stream);
+        assert!(!caps.supports_led_bus);
+        assert_eq!(caps.max_torque.value(), 0.0);
     }
 
     #[test]

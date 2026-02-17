@@ -1,6 +1,9 @@
 //! Tests for Moza protocol handler
 
-use super::moza::{FfbMode, MozaModel, MozaProtocol};
+use super::moza::{
+    FfbMode, MozaDeviceCategory, MozaModel, MozaProtocol, MozaTopologyHint, identify_device,
+    is_wheelbase_product, product_ids,
+};
 use super::{DeviceWriter, FfbConfig, VendorProtocol, get_vendor_protocol};
 use std::cell::RefCell;
 
@@ -83,6 +86,37 @@ fn test_moza_model_from_pid() {
 
     // Unknown
     assert_eq!(MozaModel::from_pid(0xFFFF), MozaModel::Unknown);
+}
+
+#[test]
+fn test_moza_identity_wheelbase_topology() {
+    let identity = identify_device(product_ids::R9_V2);
+    assert_eq!(identity.category, MozaDeviceCategory::Wheelbase);
+    assert_eq!(
+        identity.topology_hint,
+        MozaTopologyHint::WheelbaseAggregated
+    );
+    assert!(identity.supports_ffb);
+    assert!(is_wheelbase_product(product_ids::R9_V2));
+}
+
+#[test]
+fn test_moza_identity_peripherals() {
+    let pedals = identify_device(product_ids::SR_P_PEDALS);
+    assert_eq!(pedals.category, MozaDeviceCategory::Pedals);
+    assert_eq!(pedals.topology_hint, MozaTopologyHint::StandaloneUsb);
+    assert!(!pedals.supports_ffb);
+
+    let shifter = identify_device(product_ids::HGP_SHIFTER);
+    assert_eq!(shifter.category, MozaDeviceCategory::Shifter);
+    assert_eq!(shifter.topology_hint, MozaTopologyHint::StandaloneUsb);
+    assert!(!shifter.supports_ffb);
+
+    let unknown = identify_device(0xFEED);
+    assert_eq!(unknown.category, MozaDeviceCategory::Unknown);
+    assert_eq!(unknown.topology_hint, MozaTopologyHint::Unknown);
+    assert!(!unknown.supports_ffb);
+    assert!(!is_wheelbase_product(0xFEED));
 }
 
 #[test]

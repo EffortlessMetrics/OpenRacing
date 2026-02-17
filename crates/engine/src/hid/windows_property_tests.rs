@@ -167,7 +167,8 @@ proptest! {
 
         // Property: FFB wheel devices must have positive max torque.
         // Known non-FFB peripherals (e.g. pedals) should report zero torque.
-        let is_non_ffb_peripheral = vid == vendor_ids::MOZA && pid == 0x0003;
+        let is_non_ffb_peripheral = vid == vendor_ids::MOZA
+            && matches!(pid, 0x0003 | 0x0020 | 0x0021 | 0x0022);
         if is_non_ffb_peripheral {
             prop_assert_eq!(
                 caps.max_torque.value(),
