@@ -11,7 +11,7 @@ use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
@@ -105,10 +105,10 @@ impl ACCAdapter {
             _ => return false,
         };
 
-        match parse_inbound_message(&buf[..len]) {
-            Ok(ACCInboundMessage::RegistrationResult(result)) => result.success,
-            _ => false,
-        }
+        matches!(
+            parse_inbound_message(&buf[..len]),
+            Ok(ACCInboundMessage::RegistrationResult(_))
+        )
     }
 }
 
@@ -167,6 +167,7 @@ impl TelemetryAdapter for ACCAdapter {
 
             let mut sequence = 0u64;
             let mut state = ACCSessionState::default();
+            let epoch = Instant::now();
             let mut buf = [0u8; MAX_PACKET_SIZE];
 
             loop {
@@ -205,7 +206,7 @@ impl TelemetryAdapter for ACCAdapter {
                                 if let Some(normalized) = state.update_and_normalize(&message) {
                                     let frame = TelemetryFrame::new(
                                         normalized,
-                                        unix_timestamp_ns(),
+                                        monotonic_ns_since(epoch, Instant::now()),
                                         sequence,
                                         len,
                                     );
@@ -679,11 +680,11 @@ fn duration_to_interval_ms(update_rate: Duration) -> i32 {
     millis as i32
 }
 
-fn unix_timestamp_ns() -> u64 {
-    match SystemTime::now().duration_since(UNIX_EPOCH) {
-        Ok(duration) => duration.as_nanos() as u64,
-        Err(_) => 0,
-    }
+fn monotonic_ns_since(epoch: Instant, now: Instant) -> u64 {
+    now.checked_duration_since(epoch)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0)
+        .min(u64::MAX as u128) as u64
 }
 
 struct PacketReader<'a> {

@@ -117,32 +117,37 @@ impl ConfigWriter for ACCConfigWriter {
             None
         };
 
-        let mut json_map = existing_content
+        let existing_map = existing_content
             .as_deref()
             .and_then(parse_json_object)
             .unwrap_or_default();
 
         let listener_port = parse_target_port(&config.output_target).unwrap_or(9000);
+        let connection_password = existing_map
+            .get("connectionPassword")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let command_password = existing_map
+            .get("commandPassword")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
 
-        json_map.insert("updListenerPort".to_string(), Value::from(listener_port));
-        json_map
-            .entry("broadcastingPort".to_string())
-            .or_insert(Value::from(9000));
-        json_map
-            .entry("connectionId".to_string())
-            .or_insert(Value::String(String::new()));
-        json_map
-            .entry("connectionPassword".to_string())
-            .or_insert(Value::String(String::new()));
-        json_map
-            .entry("commandPassword".to_string())
-            .or_insert(Value::String(String::new()));
-        json_map.insert(
-            "updateRateHz".to_string(),
-            Value::from(config.update_rate_hz),
+        let mut broadcasting_config = Map::new();
+        broadcasting_config.insert("updListenerPort".to_string(), Value::from(listener_port));
+        // Keep compatibility with environments/tools expecting the corrected key.
+        broadcasting_config.insert("udpListenerPort".to_string(), Value::from(listener_port));
+        broadcasting_config.insert(
+            "connectionPassword".to_string(),
+            Value::String(connection_password),
+        );
+        broadcasting_config.insert(
+            "commandPassword".to_string(),
+            Value::String(command_password),
         );
 
-        let new_content = serde_json::to_string_pretty(&Value::Object(json_map))?;
+        let new_content = serde_json::to_string_pretty(&Value::Object(broadcasting_config))?;
 
         if let Some(parent) = broadcasting_json_path.parent() {
             fs::create_dir_all(parent)?;
@@ -174,30 +179,40 @@ impl ConfigWriter for ACCConfigWriter {
         }
 
         let content = fs::read_to_string(broadcasting_json_path)?;
-        let config: Value = serde_json::from_str(&content)?;
+        let config_value: Value = serde_json::from_str(&content)?;
+        let object = match config_value.as_object() {
+            Some(obj) => obj,
+            None => return Ok(false),
+        };
 
-        // Check if broadcasting is properly configured.
-        let has_udp_port = config.get("updListenerPort").is_some();
-        let has_broadcast_port = config.get("broadcastingPort").is_some();
+        // Accept both the original ACC key and the corrected compatibility key.
+        let has_listener_port = object
+            .get("updListenerPort")
+            .or_else(|| object.get("udpListenerPort"))
+            .and_then(Value::as_u64)
+            .is_some();
+        let has_connection_password = object
+            .get("connectionPassword")
+            .and_then(Value::as_str)
+            .is_some();
+        let has_command_password = object
+            .get("commandPassword")
+            .and_then(Value::as_str)
+            .is_some();
 
-        Ok(has_udp_port && has_broadcast_port)
+        Ok(has_listener_port && has_connection_password && has_command_password)
     }
 
     fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         let listener_port = parse_target_port(&config.output_target).unwrap_or(9000);
         let mut broadcasting_config = Map::new();
         broadcasting_config.insert("updListenerPort".to_string(), Value::from(listener_port));
-        broadcasting_config.insert("connectionId".to_string(), Value::String(String::new()));
+        broadcasting_config.insert("udpListenerPort".to_string(), Value::from(listener_port));
         broadcasting_config.insert(
             "connectionPassword".to_string(),
             Value::String(String::new()),
         );
-        broadcasting_config.insert("broadcastingPort".to_string(), Value::from(9000));
         broadcasting_config.insert("commandPassword".to_string(), Value::String(String::new()));
-        broadcasting_config.insert(
-            "updateRateHz".to_string(),
-            Value::from(config.update_rate_hz),
-        );
 
         let new_content = serde_json::to_string_pretty(&Value::Object(broadcasting_config))?;
 
@@ -1049,6 +1064,56 @@ mod tests {
             .path()
             .join("Documents/Assetto Corsa Rally/Config/openracing_probe.json");
         assert!(probe_config.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn test_acc_writer_round_trip_compat_schema() -> TestResult {
+        let writer = ACCConfigWriter;
+        let temp_dir = tempdir()?;
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 100,
+            output_method: "udp_broadcast".to_string(),
+            output_target: "127.0.0.1:9000".to_string(),
+            fields: vec!["speed_ms".to_string()],
+        };
+
+        let diffs = writer.write_config(temp_dir.path(), &config)?;
+        assert_eq!(diffs.len(), 1);
+        assert!(writer.validate_config(temp_dir.path())?);
+
+        let value: Value = serde_json::from_str(&diffs[0].new_value)?;
+        assert_eq!(value["updListenerPort"], 9000);
+        assert_eq!(value["udpListenerPort"], 9000);
+        assert_eq!(value["connectionPassword"], "");
+        assert_eq!(value["commandPassword"], "");
+        assert!(value.get("broadcastingPort").is_none());
+        assert!(value.get("updateRateHz").is_none());
+        assert!(value.get("connectionId").is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_acc_validate_accepts_udp_listener_port_only() -> TestResult {
+        let writer = ACCConfigWriter;
+        let temp_dir = tempdir()?;
+        let config_path = temp_dir
+            .path()
+            .join("Documents/Assetto Corsa Competizione/Config/broadcasting.json");
+        if let Some(parent) = config_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(
+            &config_path,
+            r#"{
+  "udpListenerPort": 9000,
+  "connectionPassword": "",
+  "commandPassword": ""
+}"#,
+        )?;
+
+        assert!(writer.validate_config(temp_dir.path())?);
         Ok(())
     }
 }

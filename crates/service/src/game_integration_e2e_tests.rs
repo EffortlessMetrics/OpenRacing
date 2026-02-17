@@ -600,11 +600,9 @@ impl GameIntegrationE2ETestSuite {
                 let config_file = config_dir.join("broadcasting.json");
                 let config_content = r#"{
   "updListenerPort": 9000,
-  "connectionId": "",
+  "udpListenerPort": 9000,
   "connectionPassword": "",
-  "broadcastingPort": 9000,
-  "commandPassword": "",
-  "updateRateHz": 100
+  "commandPassword": ""
 }"#;
                 std::fs::write(&config_file, config_content)?;
             }

@@ -61,7 +61,7 @@ impl TestGameConfig {
                 enabled: true,
                 update_rate_hz: 100,
                 output_method: "udp_broadcast".to_string(),
-                output_target: "127.0.0.1:9996".to_string(),
+                output_target: "127.0.0.1:9000".to_string(),
                 fields: vec![
                     "ffb_scalar".to_string(),
                     "rpm".to_string(),
@@ -79,12 +79,10 @@ impl TestGameConfig {
                 key: "entire_file".to_string(),
                 old_value: None,
                 new_value: must(serde_json::to_string_pretty(&serde_json::json!({
-                    "updListenerPort": 9996,
-                    "connectionId": "",
+                    "updListenerPort": 9000,
+                    "udpListenerPort": 9000,
                     "connectionPassword": "",
-                    "broadcastingPort": 9000,
-                    "commandPassword": "",
-                    "updateRateHz": 100
+                    "commandPassword": ""
                 }))),
                 operation: DiffOperation::Add,
             }],
@@ -271,7 +269,7 @@ async fn test_configuration_diff_generation() {
         enabled: true,
         update_rate_hz: 100,
         output_method: "udp_broadcast".to_string(),
-        output_target: "127.0.0.1:9996".to_string(),
+        output_target: "127.0.0.1:9000".to_string(),
         fields: vec!["ffb_scalar".to_string(), "rpm".to_string()],
     };
 
@@ -282,9 +280,10 @@ async fn test_configuration_diff_generation() {
 
     // Verify ACC JSON structure
     let acc_json: serde_json::Value = must(serde_json::from_str(&acc_diffs[0].new_value));
-    assert_eq!(acc_json["updListenerPort"], 9996);
-    assert_eq!(acc_json["broadcastingPort"], 9000);
-    assert_eq!(acc_json["updateRateHz"], 100);
+    assert_eq!(acc_json["updListenerPort"], 9000);
+    assert_eq!(acc_json["udpListenerPort"], 9000);
+    assert_eq!(acc_json["connectionPassword"], "");
+    assert_eq!(acc_json["commandPassword"], "");
 }
 
 #[tokio::test]
@@ -378,5 +377,5 @@ async fn test_end_to_end_telemetry_configuration() {
     let acc_json: serde_json::Value = must(serde_json::from_str(&acc_diffs[0].new_value));
     assert!(acc_json.is_object());
     assert!(acc_json.get("updListenerPort").is_some());
-    assert!(acc_json.get("broadcastingPort").is_some());
+    assert!(acc_json.get("udpListenerPort").is_some());
 }

@@ -316,6 +316,10 @@ pub struct AbsoluteScheduler {
 
     /// RT setup applied
     rt_setup_applied: bool,
+
+    /// Reused waitable timer handle for Windows high-precision sleep.
+    #[cfg(target_os = "windows")]
+    waitable_timer_raw: Option<isize>,
 }
 
 impl AbsoluteScheduler {
@@ -333,6 +337,8 @@ impl AbsoluteScheduler {
             last_processing_time_us: 0,
             processing_time_ema_us: 0.0,
             rt_setup_applied: false,
+            #[cfg(target_os = "windows")]
+            waitable_timer_raw: None,
         }
     }
 
@@ -526,11 +532,8 @@ impl AbsoluteScheduler {
 
     /// Platform-specific high-precision sleep with busy-spin tail
     #[cfg(target_os = "windows")]
-    fn sleep_until(&self, target: Instant) -> RTResult {
-        use windows::Win32::Foundation::CloseHandle;
-        use windows::Win32::System::Threading::{
-            CreateWaitableTimerW, INFINITE, SetWaitableTimer, WaitForSingleObject,
-        };
+    fn sleep_until(&mut self, target: Instant) -> RTResult {
+        use windows::Win32::System::Threading::{INFINITE, SetWaitableTimer, WaitForSingleObject};
 
         let now = Instant::now();
         if target <= now {
@@ -551,18 +554,14 @@ impl AbsoluteScheduler {
         let sleep_duration = duration.saturating_sub(Duration::from_micros(80));
         let _sleep_target = now + sleep_duration;
 
+        let timer = self.get_or_create_waitable_timer()?;
+        // Relative due time in 100ns units. Negative means relative wait.
+        let due_time_100ns = relative_due_time_100ns(sleep_duration);
+
         unsafe {
-            let timer =
-                CreateWaitableTimerW(None, true, None).map_err(|_| RTError::TimingViolation)?;
-
-            // Relative due time in 100ns units. Negative means relative wait.
-            let due_time_100ns = -(sleep_duration.as_nanos() as i64 / 100);
-
             SetWaitableTimer(timer, &due_time_100ns, 0, None, None, false)
                 .map_err(|_| RTError::TimingViolation)?;
-
             WaitForSingleObject(timer, INFINITE);
-            let _ = CloseHandle(timer);
         }
 
         // Busy-spin for the final precision
@@ -604,7 +603,7 @@ impl AbsoluteScheduler {
 
     /// Platform-specific high-precision sleep with busy-spin tail
     #[cfg(target_os = "linux")]
-    fn sleep_until(&self, target: Instant) -> RTResult {
+    fn sleep_until(&mut self, target: Instant) -> RTResult {
         use libc::{CLOCK_MONOTONIC, clock_nanosleep, timespec};
 
         let now = Instant::now();
@@ -653,7 +652,7 @@ impl AbsoluteScheduler {
 
     /// Fallback sleep implementation
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
-    fn sleep_until(&self, target: Instant) -> RTResult {
+    fn sleep_until(&mut self, target: Instant) -> RTResult {
         let now = Instant::now();
         if target > now {
             std::thread::sleep(target - now);
@@ -691,6 +690,47 @@ impl AbsoluteScheduler {
     /// Check if RT setup has been applied
     pub fn is_rt_setup_applied(&self) -> bool {
         self.rt_setup_applied
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl AbsoluteScheduler {
+    fn get_or_create_waitable_timer(&mut self) -> RTResult<windows::Win32::Foundation::HANDLE> {
+        use std::ffi::c_void;
+        use windows::Win32::Foundation::HANDLE;
+        use windows::Win32::System::Threading::CreateWaitableTimerW;
+
+        if let Some(raw_handle) = self.waitable_timer_raw {
+            return Ok(HANDLE(raw_handle as *mut c_void));
+        }
+
+        let timer = unsafe {
+            CreateWaitableTimerW(None, true, None).map_err(|_| RTError::TimingViolation)?
+        };
+        self.waitable_timer_raw = Some(timer.0 as isize);
+        Ok(timer)
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn relative_due_time_100ns(duration: Duration) -> i64 {
+    let ticks_100ns = (duration.as_nanos() / 100).min(i64::MAX as u128) as i64;
+    -ticks_100ns.max(1)
+}
+
+#[cfg(target_os = "windows")]
+impl Drop for AbsoluteScheduler {
+    fn drop(&mut self) {
+        use std::ffi::c_void;
+        use windows::Win32::Foundation::CloseHandle;
+        use windows::Win32::Foundation::HANDLE;
+
+        if let Some(raw_handle) = self.waitable_timer_raw.take() {
+            unsafe {
+                let timer = HANDLE(raw_handle as *mut c_void);
+                let _ = CloseHandle(timer);
+            }
+        }
     }
 }
 

@@ -1,7 +1,6 @@
 {
-  "updListenerPort": 9996,
-  "connectionId": "",
-  "broadcastingPort": 9000,
-  "commandPassword": "",
-  "updateRateHz": 100
+  "updListenerPort": 9000,
+  "udpListenerPort": 9000,
+  "connectionPassword": "",
+  "commandPassword": ""
 }

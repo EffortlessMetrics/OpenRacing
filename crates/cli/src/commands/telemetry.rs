@@ -290,7 +290,7 @@ async fn capture(
 }
 
 fn ensure_probe_game(game_id: &str) -> Result<()> {
-    let allowed = ["ac_rally"];
+    let allowed = ["acc", "ac_rally"];
     if allowed.iter().any(|id| id == &game_id) {
         return Ok(());
     }
@@ -448,5 +448,22 @@ impl<'a> PacketReader<'a> {
     fn read_i32_le(&mut self) -> Result<i32> {
         let bytes = self.read_exact(4)?;
         Ok(i32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ensure_probe_game_accepts_acc_and_ac_rally() {
+        assert!(ensure_probe_game("acc").is_ok());
+        assert!(ensure_probe_game("ac_rally").is_ok());
+    }
+
+    #[test]
+    fn test_ensure_probe_game_rejects_unsupported_game() {
+        let result = ensure_probe_game("iracing");
+        assert!(result.is_err());
     }
 }

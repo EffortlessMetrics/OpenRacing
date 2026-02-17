@@ -178,11 +178,9 @@ impl ConfigValidationService {
                     old_value: None,
                     new_value: r#"{
   "updListenerPort": 9000,
-  "connectionId": "",
+  "udpListenerPort": 9000,
   "connectionPassword": "",
-  "broadcastingPort": 9000,
-  "commandPassword": "",
-  "updateRateHz": 100
+  "commandPassword": ""
 }"#
                     .to_string(),
                     operation: DiffOperation::Add,
@@ -192,11 +190,9 @@ impl ConfigValidationService {
                         .to_string(),
                     content: r#"{
   "updListenerPort": 9000,
-  "connectionId": "",
+  "udpListenerPort": 9000,
   "connectionPassword": "",
-  "broadcastingPort": 9000,
-  "commandPassword": "",
-  "updateRateHz": 100
+  "commandPassword": ""
 }"#
                     .to_string(),
                     checksum: None,
