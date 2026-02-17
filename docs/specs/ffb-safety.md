@@ -119,6 +119,10 @@ Final torque MUST be computed as:
 4. Emergency stop:
    - if `estop == true`, output torque MUST be **exactly 0** regardless of `tau_cmd`
 
+Implementation note:
+- Runtime output should be clamped in **Nm** using one authoritative safety function
+  (`Faulted -> 0 Nm`), instead of split normalized-ratio paths.
+
 ### 4.3 Fault-to-zero deadlines
 
 If a fault is raised:

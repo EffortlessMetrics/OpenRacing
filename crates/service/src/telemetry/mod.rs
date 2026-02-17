@@ -120,6 +120,8 @@ impl TelemetryService {
         adapters.insert("acc".to_string(), Box::new(ACCAdapter::new()));
         adapters.insert("ams2".to_string(), Box::new(AMS2Adapter::new()));
         adapters.insert("rfactor2".to_string(), Box::new(RFactor2Adapter::new()));
+        adapters.insert("eawrc".to_string(), Box::new(EAWRCAdapter::new()));
+        adapters.insert("ea_wrc".to_string(), Box::new(EAWRCAdapter::new()));
 
         Self {
             adapters,

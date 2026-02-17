@@ -5,11 +5,13 @@
 
 pub mod acc;
 pub mod ams2;
+pub mod eawrc;
 pub mod iracing;
 pub mod rfactor2;
 
 pub use acc::ACCAdapter;
 pub use ams2::AMS2Adapter;
+pub use eawrc::EAWRCAdapter;
 pub use iracing::IRacingAdapter;
 pub use rfactor2::RFactor2Adapter;
 

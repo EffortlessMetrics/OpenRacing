@@ -151,3 +151,42 @@ games:
         - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 365960"
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/rFactor 2"
+
+  eawrc:
+    name: "EA SPORTS WRC"
+    versions:
+      - version: "1.x"
+        config_paths:
+          - "Documents/My Games/WRC/telemetry/config.json"
+        executable_patterns:
+          - "WRC.exe"
+          - "EASPORTSWRC.exe"
+        telemetry_method: "udp_schema"
+        supported_fields:
+          - "ffb_scalar"
+          - "rpm"
+          - "speed_ms"
+          - "slip_ratio"
+          - "gear"
+          - "car_id"
+          - "track_id"
+    telemetry:
+      method: "udp_schema"
+      update_rate_hz: 120
+      fields:
+        ffb_scalar: "ffb_scalar"
+        rpm: "engine_rpm"
+        speed_ms: "vehicle_speed"
+        slip_ratio: "slip_ratio"
+        gear: "gear"
+        car_id: "vehicle_id"
+        track_id: "track_name"
+    config_writer: "eawrc"
+    auto_detect:
+      process_names:
+        - "WRC.exe"
+        - "EASPORTSWRC.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1849250"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/WRC"

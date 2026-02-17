@@ -120,6 +120,11 @@ async fn configure_game(
                 println!("  • Enabled shared memory telemetry");
                 println!("  • Configured data export settings");
             }
+            "eawrc" => {
+                println!("  • Patched telemetry/config.json UDP packet assignments");
+                println!("  • Installed telemetry/udp/openracing.json packet structure");
+                println!("  • Configured schema-driven UDP output endpoint");
+            }
             _ => {
                 println!("  • Applied game-specific configuration");
             }
@@ -308,6 +313,21 @@ fn get_supported_games() -> Vec<GameInfo> {
             config_method: "Plugin".to_string(),
             default_path: Some(
                 "C:\\Program Files (x86)\\Steam\\steamapps\\common\\rFactor 2".to_string(),
+            ),
+        },
+        GameInfo {
+            id: "eawrc".to_string(),
+            name: "EA SPORTS WRC".to_string(),
+            version: "1.x".to_string(),
+            features: vec![
+                "FFB Scalar".to_string(),
+                "RPM".to_string(),
+                "Speed".to_string(),
+                "Schema-driven UDP".to_string(),
+            ],
+            config_method: "config.json + udp/openracing.json".to_string(),
+            default_path: Some(
+                "C:\\Users\\<user>\\Documents\\My Games\\WRC\\telemetry".to_string(),
             ),
         },
     ]

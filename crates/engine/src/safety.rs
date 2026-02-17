@@ -174,6 +174,23 @@ impl SafetyService {
         TorqueNm::new(torque_nm).expect("torque_nm should be valid")
     }
 
+    /// Clamp requested output torque against the current safety state.
+    ///
+    /// This method is authoritative for runtime output clamping:
+    /// - `Faulted` always clamps to `0 Nm`
+    /// - `HighTorqueActive` clamps to configured high-torque limit
+    /// - all other states clamp to safe-torque limit
+    pub fn clamp_torque_nm(&self, requested_nm: f32) -> f32 {
+        let safe_requested = if requested_nm.is_finite() {
+            requested_nm
+        } else {
+            0.0
+        };
+
+        let max_torque = self.max_torque_nm();
+        safe_requested.clamp(-max_torque, max_torque)
+    }
+
     /// Get consent requirements for high torque mode
     pub fn get_consent_requirements(&self) -> ConsentRequirements {
         ConsentRequirements {

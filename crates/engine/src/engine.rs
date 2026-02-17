@@ -36,7 +36,7 @@ const MAX_PROCESSING_TIME_US: u64 = 200;
 
 #[derive(Debug, Clone, Copy)]
 struct TorqueControlResult {
-    torque_out: f32,
+    torque_out_nm: f32,
     saturated: bool,
 }
 
@@ -64,27 +64,37 @@ fn monotonic_ns_since(epoch: Instant, now: Instant) -> u64 {
 }
 
 fn apply_torque_safety_controls(
-    pipeline_torque: f32,
-    max_torque_normalized: f32,
+    pipeline_torque_normalized: f32,
+    max_high_torque_nm: f32,
     fault_torque_multiplier: f32,
+    safety: &SafetyService,
     force_zero_torque: bool,
 ) -> TorqueControlResult {
+    let safe_pipeline_torque = sanitize_signed_unit(pipeline_torque_normalized);
+    let safe_max_torque_nm = if max_high_torque_nm.is_finite() && max_high_torque_nm > 0.0 {
+        max_high_torque_nm
+    } else {
+        0.0
+    };
+    let safe_multiplier = sanitize_unit_interval(fault_torque_multiplier);
+    let requested_torque_nm = safe_pipeline_torque * safe_max_torque_nm * safe_multiplier;
+
+    let torque_out_nm = if force_zero_torque {
+        0.0
+    } else {
+        safety.clamp_torque_nm(requested_torque_nm)
+    };
+
     if force_zero_torque {
         return TorqueControlResult {
-            torque_out: 0.0,
-            saturated: sanitize_signed_unit(pipeline_torque).abs() > f32::EPSILON,
+            torque_out_nm,
+            saturated: requested_torque_nm.abs() > f32::EPSILON,
         };
     }
 
-    let safe_pipeline_torque = sanitize_signed_unit(pipeline_torque);
-    let safe_max_torque = sanitize_unit_interval(max_torque_normalized);
-    let safe_multiplier = sanitize_unit_interval(fault_torque_multiplier);
-    let requested_torque = safe_pipeline_torque * safe_multiplier;
-    let clamped_torque = requested_torque.clamp(-safe_max_torque, safe_max_torque);
-
     TorqueControlResult {
-        torque_out: clamped_torque,
-        saturated: (requested_torque - clamped_torque).abs() > 0.001,
+        torque_out_nm,
+        saturated: (requested_torque_nm - torque_out_nm).abs() > 0.001,
     }
 }
 
@@ -725,27 +735,27 @@ impl Engine {
 
             // Apply torque safety chain:
             // pipeline torque -> fault multiplier -> safety clamp -> hard zero latch.
-            let max_torque_normalized = if ctx.config.max_high_torque_nm > f32::EPSILON {
-                ctx.safety.max_torque_nm() / ctx.config.max_high_torque_nm
-            } else {
-                0.0
-            };
             let force_zero_output = ctx.emergency_stop_active
                 || matches!(ctx.safety.state(), SafetyState::Faulted { .. });
 
             let torque_control = apply_torque_safety_controls(
                 frame.torque_out,
-                max_torque_normalized,
+                ctx.config.max_high_torque_nm,
                 ctx.fault_torque_multiplier,
+                &ctx.safety,
                 force_zero_output,
             );
             ctx.atomic_counters
                 .record_torque_saturation(torque_control.saturated);
-            frame.torque_out = torque_control.torque_out;
+            let final_torque_nm = torque_control.torque_out_nm;
+            frame.torque_out = if ctx.config.max_high_torque_nm > f32::EPSILON {
+                (final_torque_nm / ctx.config.max_high_torque_nm).clamp(-1.0, 1.0)
+            } else {
+                0.0
+            };
 
             // Write to device
             let device_write_start = Instant::now();
-            let final_torque_nm = frame.torque_out * ctx.config.max_high_torque_nm;
 
             // Handle write_ffb_report Result with RT-safe error counting
             if ctx
@@ -827,7 +837,7 @@ impl Engine {
             };
 
             let fault_context = FaultManagerContext {
-                current_torque: frame.torque_out * ctx.config.max_high_torque_nm,
+                current_torque: final_torque_nm,
                 temperature: None,   // Would be read from device telemetry
                 encoder_value: None, // Would be read from device telemetry
                 timing_jitter_us: Some(ctx.scheduler.metrics().last_jitter_ns / 1_000),
@@ -1131,33 +1141,40 @@ mod tests {
 
     #[test]
     fn test_torque_safety_controls_apply_multiplier_and_clamp() {
-        let result = apply_torque_safety_controls(0.8, 0.5, 0.5, false);
-        assert!((result.torque_out - 0.4).abs() < 0.0001);
+        let safety = SafetyService::new(5.0, 25.0);
+
+        let result = apply_torque_safety_controls(0.2, 25.0, 1.0, &safety, false);
+        assert!((result.torque_out_nm - 5.0).abs() < 0.0001);
         assert!(!result.saturated);
 
-        let clamped = apply_torque_safety_controls(0.9, 0.4, 1.0, false);
-        assert!((clamped.torque_out - 0.4).abs() < 0.0001);
+        let clamped = apply_torque_safety_controls(0.9, 25.0, 1.0, &safety, false);
+        assert!((clamped.torque_out_nm - 5.0).abs() < 0.0001);
         assert!(clamped.saturated);
     }
 
     #[test]
     fn test_torque_safety_controls_emergency_stop_forces_zero() {
-        let result = apply_torque_safety_controls(0.75, 1.0, 1.0, true);
-        assert_eq!(result.torque_out, 0.0);
+        let safety = SafetyService::new(5.0, 25.0);
+        let result = apply_torque_safety_controls(0.75, 25.0, 1.0, &safety, true);
+        assert_eq!(result.torque_out_nm, 0.0);
         assert!(result.saturated);
     }
 
     #[test]
     fn test_torque_safety_controls_fault_latch_forces_zero() {
-        let result = apply_torque_safety_controls(0.25, 1.0, 0.6, true);
-        assert_eq!(result.torque_out, 0.0);
+        let mut safety = SafetyService::new(5.0, 25.0);
+        safety.report_fault(FaultType::SafetyInterlockViolation);
+
+        let result = apply_torque_safety_controls(0.25, 25.0, 0.6, &safety, false);
+        assert_eq!(result.torque_out_nm, 0.0);
         assert!(result.saturated);
     }
 
     #[test]
     fn test_torque_safety_controls_sanitizes_non_finite_inputs() {
-        let result = apply_torque_safety_controls(f32::NAN, f32::INFINITY, -5.0, false);
-        assert_eq!(result.torque_out, 0.0);
+        let safety = SafetyService::new(5.0, 25.0);
+        let result = apply_torque_safety_controls(f32::NAN, f32::INFINITY, -5.0, &safety, false);
+        assert_eq!(result.torque_out_nm, 0.0);
     }
 
     #[tokio::test]

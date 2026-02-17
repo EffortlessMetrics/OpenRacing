@@ -204,6 +204,124 @@ impl ConfigValidationService {
             },
         );
 
+        // EA WRC golden file fixture
+        fixtures.insert(
+            "eawrc".to_string(),
+            GoldenFileFixture {
+                game_id: "eawrc".to_string(),
+                config: TelemetryConfig {
+                    enabled: true,
+                    update_rate_hz: 120,
+                    output_method: "udp_schema".to_string(),
+                    output_target: "127.0.0.1:20778".to_string(),
+                    fields: vec![
+                        "ffb_scalar".to_string(),
+                        "rpm".to_string(),
+                        "speed_ms".to_string(),
+                    ],
+                },
+                expected_diffs: vec![
+                    ConfigDiff {
+                        file_path: "Documents/My Games/WRC/telemetry/config.json".to_string(),
+                        section: None,
+                        key: "entire_file".to_string(),
+                        old_value: None,
+                        new_value: r#"{
+  "udp": {
+    "packetAssignments": [
+      {
+        "packetId": "session_update",
+        "structureId": "openracing",
+        "ip": "127.0.0.1",
+        "port": 20778,
+        "frequencyHz": 120,
+        "bEnabled": true
+      }
+    ]
+  }
+}"#
+                        .to_string(),
+                        operation: DiffOperation::Add,
+                    },
+                    ConfigDiff {
+                        file_path: "Documents/My Games/WRC/telemetry/udp/openracing.json"
+                            .to_string(),
+                        section: None,
+                        key: "entire_file".to_string(),
+                        old_value: None,
+                        new_value: r#"{
+  "id": "openracing",
+  "packets": [
+    {
+      "id": "session_update",
+      "header": {
+        "channels": [
+          "packet_uid"
+        ]
+      },
+      "channels": [
+        "ffb_scalar",
+        "engine_rpm",
+        "vehicle_speed",
+        "gear",
+        "slip_ratio"
+      ]
+    }
+  ]
+}"#
+                        .to_string(),
+                        operation: DiffOperation::Add,
+                    },
+                ],
+                expected_files: vec![
+                    ExpectedFile {
+                        path: "Documents/My Games/WRC/telemetry/config.json".to_string(),
+                        content: r#"{
+  "udp": {
+    "packetAssignments": [
+      {
+        "packetId": "session_update",
+        "structureId": "openracing",
+        "ip": "127.0.0.1",
+        "port": 20778,
+        "frequencyHz": 120,
+        "bEnabled": true
+      }
+    ]
+  }
+}"#
+                        .to_string(),
+                        checksum: None,
+                    },
+                    ExpectedFile {
+                        path: "Documents/My Games/WRC/telemetry/udp/openracing.json".to_string(),
+                        content: r#"{
+  "id": "openracing",
+  "packets": [
+    {
+      "id": "session_update",
+      "header": {
+        "channels": [
+          "packet_uid"
+        ]
+      },
+      "channels": [
+        "ffb_scalar",
+        "engine_rpm",
+        "vehicle_speed",
+        "gear",
+        "slip_ratio"
+      ]
+    }
+  ]
+}"#
+                        .to_string(),
+                        checksum: None,
+                    },
+                ],
+            },
+        );
+
         fixtures
     }
 
@@ -634,6 +752,7 @@ mod tests {
         let service = ConfigValidationService::new();
         assert!(service.golden_files.contains_key("iracing"));
         assert!(service.golden_files.contains_key("acc"));
+        assert!(service.golden_files.contains_key("eawrc"));
     }
 
     #[tokio::test]

@@ -4,7 +4,7 @@ use crate::game_service::*;
 use std::collections::HashMap;
 
 impl GameSupportMatrix {
-    /// Create default support matrix with iRacing, ACC, AMS2 and rFactor 2
+    /// Create default support matrix with iRacing, ACC, AMS2, rFactor 2 and EA WRC
     pub fn create_default() -> Self {
         let mut games = HashMap::new();
 
@@ -204,6 +204,56 @@ impl GameSupportMatrix {
                     ],
                     install_paths: vec![
                         "Program Files (x86)/Steam/steamapps/common/rFactor 2".to_string(),
+                    ],
+                },
+            },
+        );
+
+        // EA SPORTS WRC support
+        games.insert(
+            "eawrc".to_string(),
+            GameSupport {
+                name: "EA SPORTS WRC".to_string(),
+                versions: vec![GameVersion {
+                    version: "1.x".to_string(),
+                    config_paths: vec!["Documents/My Games/WRC/telemetry/config.json".to_string()],
+                    executable_patterns: vec![
+                        "WRC.exe".to_string(),
+                        "EASPORTSWRC.exe".to_string(),
+                    ],
+                    telemetry_method: "udp_schema".to_string(),
+                    supported_fields: vec![
+                        "ffb_scalar".to_string(),
+                        "rpm".to_string(),
+                        "speed_ms".to_string(),
+                        "slip_ratio".to_string(),
+                        "gear".to_string(),
+                        "car_id".to_string(),
+                        "track_id".to_string(),
+                    ],
+                }],
+                telemetry: TelemetrySupport {
+                    method: "udp_schema".to_string(),
+                    update_rate_hz: 120,
+                    fields: TelemetryFieldMapping {
+                        ffb_scalar: Some("ffb_scalar".to_string()),
+                        rpm: Some("engine_rpm".to_string()),
+                        speed_ms: Some("vehicle_speed".to_string()),
+                        slip_ratio: Some("slip_ratio".to_string()),
+                        gear: Some("gear".to_string()),
+                        flags: None,
+                        car_id: Some("vehicle_id".to_string()),
+                        track_id: Some("track_name".to_string()),
+                    },
+                },
+                config_writer: "eawrc".to_string(),
+                auto_detect: AutoDetectConfig {
+                    process_names: vec!["WRC.exe".to_string(), "EASPORTSWRC.exe".to_string()],
+                    install_registry_keys: vec![
+                        "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1849250".to_string(),
+                    ],
+                    install_paths: vec![
+                        "Program Files (x86)/Steam/steamapps/common/WRC".to_string(),
                     ],
                 },
             },

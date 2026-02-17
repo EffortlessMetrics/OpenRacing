@@ -7,7 +7,7 @@
 #![deny(unused_must_use)]
 #![deny(clippy::unwrap_used)]
 
-#[cfg(all(not(test), feature = "rt-allocator"))]
+#[cfg(all(not(test), not(feature = "rt-hardening"), feature = "rt-allocator"))]
 use mimalloc::MiMalloc;
 
 #[cfg(test)]

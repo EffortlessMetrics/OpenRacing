@@ -1,12 +1,16 @@
 //! Configuration writers for game-specific telemetry setup
 
 use crate::game_service::{ConfigDiff, ConfigWriter, DiffOperation, TelemetryConfig};
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use serde_json::{Map, Value};
 use std::fs;
 use std::net::SocketAddr;
 use std::path::Path;
 use tracing::info;
+
+const EAWRC_STRUCTURE_ID: &str = "openracing";
+const EAWRC_PACKET_ID: &str = "session_update";
+const EAWRC_DEFAULT_PORT: u16 = 20778;
 
 /// iRacing configuration writer
 pub struct IRacingConfigWriter;
@@ -466,6 +470,241 @@ impl ConfigWriter for RFactor2ConfigWriter {
     }
 }
 
+/// EA SPORTS WRC configuration writer.
+///
+/// EA WRC telemetry is configured through a generated telemetry folder under
+/// `Documents/My Games/WRC/telemetry`.
+pub struct EAWRCConfigWriter;
+
+impl Default for EAWRCConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for EAWRCConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing EA WRC telemetry configuration");
+
+        let telemetry_root = game_path.join("Documents/My Games/WRC/telemetry");
+        let config_path = telemetry_root.join("config.json");
+        let structure_path = telemetry_root
+            .join("udp")
+            .join(format!("{EAWRC_STRUCTURE_ID}.json"));
+
+        let existed_before = config_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&config_path)?)
+        } else {
+            None
+        };
+
+        let mut root = existing_content
+            .as_deref()
+            .and_then(parse_json_object)
+            .unwrap_or_default();
+
+        let udp_value = root
+            .entry("udp".to_string())
+            .or_insert_with(|| Value::Object(Map::new()));
+        let udp_object = udp_value
+            .as_object_mut()
+            .ok_or_else(|| anyhow!("EA WRC config field 'udp' is not a JSON object"))?;
+
+        let assignments_value = udp_object
+            .entry("packetAssignments".to_string())
+            .or_insert_with(|| Value::Array(Vec::new()));
+        let assignments = assignments_value.as_array_mut().ok_or_else(|| {
+            anyhow!("EA WRC config field 'udp.packetAssignments' is not a JSON array")
+        })?;
+
+        let listener_port = parse_target_port(&config.output_target).unwrap_or(EAWRC_DEFAULT_PORT);
+        let listener_ip =
+            parse_target_host(&config.output_target).unwrap_or_else(|| "127.0.0.1".to_string());
+
+        let assignment = serde_json::json!({
+            "packetId": EAWRC_PACKET_ID,
+            "structureId": EAWRC_STRUCTURE_ID,
+            "ip": listener_ip,
+            "port": listener_port,
+            "frequencyHz": i64::from(config.update_rate_hz),
+            "bEnabled": config.enabled,
+        });
+
+        let mut updated_existing = false;
+        for existing in assignments.iter_mut() {
+            let same_packet = existing
+                .get("packetId")
+                .and_then(Value::as_str)
+                .map(|value| value == EAWRC_PACKET_ID)
+                .unwrap_or(false);
+            let same_structure = existing
+                .get("structureId")
+                .and_then(Value::as_str)
+                .map(|value| value == EAWRC_STRUCTURE_ID)
+                .unwrap_or(false);
+
+            if same_packet && same_structure {
+                *existing = assignment.clone();
+                updated_existing = true;
+                break;
+            }
+        }
+
+        if !updated_existing {
+            assignments.push(assignment);
+        }
+
+        let new_config_content = serde_json::to_string_pretty(&Value::Object(root))?;
+
+        if let Some(parent) = config_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&config_path, &new_config_content)?;
+
+        if let Some(parent) = structure_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let structure_content = serde_json::to_string_pretty(&eawrc_structure_definition())?;
+        fs::write(&structure_path, &structure_content)?;
+
+        Ok(vec![
+            ConfigDiff {
+                file_path: config_path.to_string_lossy().to_string(),
+                section: None,
+                key: "entire_file".to_string(),
+                old_value: existing_content,
+                new_value: new_config_content,
+                operation: if existed_before {
+                    DiffOperation::Modify
+                } else {
+                    DiffOperation::Add
+                },
+            },
+            ConfigDiff {
+                file_path: structure_path.to_string_lossy().to_string(),
+                section: None,
+                key: "entire_file".to_string(),
+                old_value: None,
+                new_value: structure_content,
+                operation: DiffOperation::Add,
+            },
+        ])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let telemetry_root = game_path.join("Documents/My Games/WRC/telemetry");
+        let config_path = telemetry_root.join("config.json");
+        let structure_path = telemetry_root
+            .join("udp")
+            .join(format!("{EAWRC_STRUCTURE_ID}.json"));
+
+        if !config_path.exists() || !structure_path.exists() {
+            return Ok(false);
+        }
+
+        let config_value: Value = serde_json::from_str(&fs::read_to_string(config_path)?)?;
+        let assignments = config_value
+            .get("udp")
+            .and_then(Value::as_object)
+            .and_then(|udp| udp.get("packetAssignments"))
+            .and_then(Value::as_array)
+            .or_else(|| {
+                config_value
+                    .get("packetAssignments")
+                    .and_then(Value::as_array)
+            });
+
+        let assignment_ok = assignments
+            .map(|entries| {
+                entries.iter().any(|entry| {
+                    let packet_ok = entry
+                        .get("packetId")
+                        .and_then(Value::as_str)
+                        .map(|value| value == EAWRC_PACKET_ID)
+                        .unwrap_or(false);
+                    let structure_ok = entry
+                        .get("structureId")
+                        .and_then(Value::as_str)
+                        .map(|value| value == EAWRC_STRUCTURE_ID)
+                        .unwrap_or(false);
+                    let enabled_ok = entry
+                        .get("bEnabled")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false);
+                    packet_ok && structure_ok && enabled_ok
+                })
+            })
+            .unwrap_or(false);
+
+        Ok(assignment_ok)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let listener_port = parse_target_port(&config.output_target).unwrap_or(EAWRC_DEFAULT_PORT);
+        let listener_ip =
+            parse_target_host(&config.output_target).unwrap_or_else(|| "127.0.0.1".to_string());
+
+        let config_content = serde_json::to_string_pretty(&serde_json::json!({
+            "udp": {
+                "packetAssignments": [
+                    {
+                        "packetId": EAWRC_PACKET_ID,
+                        "structureId": EAWRC_STRUCTURE_ID,
+                        "ip": listener_ip,
+                        "port": listener_port,
+                        "frequencyHz": i64::from(config.update_rate_hz),
+                        "bEnabled": config.enabled
+                    }
+                ]
+            }
+        }))?;
+        let structure_content = serde_json::to_string_pretty(&eawrc_structure_definition())?;
+
+        Ok(vec![
+            ConfigDiff {
+                file_path: "Documents/My Games/WRC/telemetry/config.json".to_string(),
+                section: None,
+                key: "entire_file".to_string(),
+                old_value: None,
+                new_value: config_content,
+                operation: DiffOperation::Add,
+            },
+            ConfigDiff {
+                file_path: format!(
+                    "Documents/My Games/WRC/telemetry/udp/{EAWRC_STRUCTURE_ID}.json"
+                ),
+                section: None,
+                key: "entire_file".to_string(),
+                old_value: None,
+                new_value: structure_content,
+                operation: DiffOperation::Add,
+            },
+        ])
+    }
+}
+
+fn eawrc_structure_definition() -> Value {
+    serde_json::json!({
+        "id": EAWRC_STRUCTURE_ID,
+        "packets": [
+            {
+                "id": EAWRC_PACKET_ID,
+                "header": {
+                    "channels": ["packet_uid"]
+                },
+                "channels": [
+                    "ffb_scalar",
+                    "engine_rpm",
+                    "vehicle_speed",
+                    "gear",
+                    "slip_ratio"
+                ]
+            }
+        ]
+    })
+}
+
 fn upsert_ini_value(
     content: &str,
     section: &str,
@@ -566,6 +805,24 @@ fn parse_target_port(target: &str) -> Option<u16> {
     port_part.parse::<u16>().ok()
 }
 
+fn parse_target_host(target: &str) -> Option<String> {
+    if let Ok(addr) = target.parse::<SocketAddr>() {
+        return Some(addr.ip().to_string());
+    }
+
+    let (host_part, _) = target.rsplit_once(':')?;
+    if host_part.starts_with('[') && host_part.ends_with(']') {
+        return Some(
+            host_part
+                .trim_start_matches('[')
+                .trim_end_matches(']')
+                .to_string(),
+        );
+    }
+
+    Some(host_part.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -606,6 +863,29 @@ mod tests {
         let diffs = writer.write_config(temp_dir.path(), &config)?;
         assert_eq!(diffs.len(), 1);
         assert!(writer.validate_config(temp_dir.path())?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_eawrc_writer_round_trip() -> TestResult {
+        let writer = EAWRCConfigWriter;
+        let temp_dir = tempdir()?;
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 120,
+            output_method: "udp_schema".to_string(),
+            output_target: "127.0.0.1:20790".to_string(),
+            fields: vec!["ffb_scalar".to_string(), "rpm".to_string()],
+        };
+
+        let diffs = writer.write_config(temp_dir.path(), &config)?;
+        assert_eq!(diffs.len(), 2);
+        assert!(writer.validate_config(temp_dir.path())?);
+
+        let expected_structure = temp_dir
+            .path()
+            .join("Documents/My Games/WRC/telemetry/udp/openracing.json");
+        assert!(expected_structure.exists());
         Ok(())
     }
 }
