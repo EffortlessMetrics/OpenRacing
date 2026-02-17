@@ -204,6 +204,9 @@ pub struct JitterMetrics {
 
     /// Ring buffer write index once `recent_jitter_samples` reaches `max_samples`.
     next_sample_index: usize,
+
+    /// Reused scratch storage for percentile selection to avoid per-call allocations.
+    percentile_scratch: Vec<u64>,
 }
 
 impl Default for JitterMetrics {
@@ -218,6 +221,7 @@ impl Default for JitterMetrics {
             recent_jitter_samples: Vec::with_capacity(DEFAULT_MAX_SAMPLES),
             max_samples: DEFAULT_MAX_SAMPLES,
             next_sample_index: 0,
+            percentile_scratch: Vec::with_capacity(DEFAULT_MAX_SAMPLES),
         }
     }
 }
@@ -257,16 +261,24 @@ impl JitterMetrics {
     }
 
     /// Calculate p99 jitter in nanoseconds
-    pub fn p99_jitter_ns(&self) -> u64 {
+    pub fn p99_jitter_ns(&mut self) -> u64 {
         if self.recent_jitter_samples.is_empty() {
             return 0;
         }
 
-        let mut sorted = self.recent_jitter_samples.clone();
-        sorted.sort_unstable();
+        if self.percentile_scratch.capacity() < self.recent_jitter_samples.len() {
+            self.percentile_scratch
+                .reserve(self.recent_jitter_samples.len() - self.percentile_scratch.capacity());
+        }
 
-        let p99_index = (sorted.len() as f64 * 0.99) as usize;
-        sorted.get(p99_index).copied().unwrap_or(0)
+        self.percentile_scratch.clear();
+        self.percentile_scratch
+            .extend_from_slice(&self.recent_jitter_samples);
+
+        let len = self.percentile_scratch.len();
+        let p99_index = ((len as f64 * 0.99) as usize).min(len.saturating_sub(1));
+        let (_, p99, _) = self.percentile_scratch.select_nth_unstable(p99_index);
+        *p99
     }
 
     /// Calculate missed tick rate (0.0 to 1.0)
@@ -279,7 +291,7 @@ impl JitterMetrics {
     }
 
     /// Check if metrics meet performance requirements
-    pub fn meets_requirements(&self) -> bool {
+    pub fn meets_requirements(&mut self) -> bool {
         // Requirements: p99 jitter ≤ 0.25ms, missed tick rate ≤ 0.001%
         self.p99_jitter_ns() <= 250_000 && self.missed_tick_rate() <= 0.00001
     }

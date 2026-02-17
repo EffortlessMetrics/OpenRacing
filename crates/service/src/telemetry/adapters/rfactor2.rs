@@ -12,7 +12,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::mem;
 use std::ptr;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
@@ -457,6 +457,7 @@ impl TelemetryAdapter for RFactor2Adapter {
             let mut adapter = RFactor2Adapter::new();
             let mut sequence = 0u64;
             let mut last_update_index = 0u32;
+            let epoch = Instant::now();
 
             // Try to initialize shared memory
             if let Err(e) = adapter.initialize_telemetry_memory() {
@@ -507,7 +508,7 @@ impl TelemetryAdapter for RFactor2Adapter {
 
                             let frame = TelemetryFrame::new(
                                 normalized,
-                                unix_timestamp_ns(),
+                                monotonic_ns_since(epoch, Instant::now()),
                                 sequence,
                                 raw_size,
                             );
@@ -562,11 +563,11 @@ impl TelemetryAdapter for RFactor2Adapter {
     }
 }
 
-fn unix_timestamp_ns() -> u64 {
-    match SystemTime::now().duration_since(UNIX_EPOCH) {
-        Ok(duration) => duration.as_nanos() as u64,
-        Err(_) => 0,
-    }
+fn monotonic_ns_since(epoch: Instant, now: Instant) -> u64 {
+    now.checked_duration_since(epoch)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0)
+        .min(u64::MAX as u128) as u64
 }
 
 /// Extract null-terminated string from byte array

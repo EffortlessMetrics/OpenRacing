@@ -11,7 +11,7 @@ use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use std::mem;
 use std::ptr;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
@@ -287,6 +287,7 @@ impl TelemetryAdapter for IRacingAdapter {
             let mut adapter = IRacingAdapter::new();
             let mut sequence = 0u64;
             let mut last_tick_count = None;
+            let epoch = Instant::now();
 
             if let Err(e) = adapter.initialize_shared_memory() {
                 error!("Failed to initialize iRacing shared memory: {}", e);
@@ -306,7 +307,7 @@ impl TelemetryAdapter for IRacingAdapter {
 
                         let frame = TelemetryFrame::new(
                             adapter.normalize_iracing_data(&sample.data),
-                            unix_timestamp_ns(),
+                            monotonic_ns_since(epoch, Instant::now()),
                             sequence,
                             mem::size_of::<IRacingData>(),
                         );
@@ -425,11 +426,11 @@ fn extract_string(bytes: &[u8]) -> String {
     }
 }
 
-fn unix_timestamp_ns() -> u64 {
-    match SystemTime::now().duration_since(UNIX_EPOCH) {
-        Ok(duration) => duration.as_nanos() as u64,
-        Err(_) => 0,
-    }
+fn monotonic_ns_since(epoch: Instant, now: Instant) -> u64 {
+    now.checked_duration_since(epoch)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0)
+        .min(u64::MAX as u128) as u64
 }
 
 fn validate_irsdk_header(header: &IRSDKHeader) -> Result<()> {
