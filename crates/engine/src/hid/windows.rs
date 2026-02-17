@@ -1373,6 +1373,27 @@ pub struct WindowsHidDevice {
     hidapi_device: Option<Arc<Mutex<hidapi::HidDevice>>>,
 }
 
+/// Shared hidapi context used for opening per-device handles.
+///
+/// Keeping this context alive for the process lifetime avoids high-frequency
+/// HidApi init/drop churn under parallel test execution.
+static HIDAPI_DEVICE_OPEN_CONTEXT: OnceLock<std::result::Result<Arc<Mutex<HidApi>>, String>> =
+    OnceLock::new();
+
+fn get_hidapi_device_open_context() -> Option<&'static Arc<Mutex<HidApi>>> {
+    match HIDAPI_DEVICE_OPEN_CONTEXT.get_or_init(|| {
+        HidApi::new()
+            .map(|api| Arc::new(Mutex::new(api)))
+            .map_err(|e| format!("Failed to initialize shared HidApi context: {}", e))
+    }) {
+        Ok(api) => Some(api),
+        Err(msg) => {
+            warn!("{}", msg);
+            None
+        }
+    }
+}
+
 impl WindowsHidDevice {
     /// Create a new Windows HID device with overlapped I/O support
     ///
@@ -1429,9 +1450,19 @@ impl WindowsHidDevice {
 
     /// Open a device using hidapi
     fn open_hidapi_device(path: &str) -> Option<Arc<Mutex<hidapi::HidDevice>>> {
-        let api = HidApi::new().ok()?;
+        // Unit tests use placeholder paths like "test-path"; skip hidapi open attempts.
+        if !path.starts_with("\\\\?\\") {
+            return None;
+        }
+
+        let api = get_hidapi_device_open_context()?;
         let c_path = std::ffi::CString::new(path).ok()?;
-        let device = api.open_path(&c_path).ok()?;
+
+        let device = {
+            let api_guard = api.lock();
+            api_guard.open_path(&c_path).ok()?
+        };
+
         Some(Arc::new(Mutex::new(device)))
     }
 

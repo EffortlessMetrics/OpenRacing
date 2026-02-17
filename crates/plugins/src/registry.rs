@@ -66,7 +66,7 @@ impl std::fmt::Display for VersionCompatibility {
 ///
 /// ```
 /// use semver::Version;
-/// use openracing_plugins::registry::{check_compatibility, VersionCompatibility};
+/// use racing_wheel_plugins::registry::{check_compatibility, VersionCompatibility};
 ///
 /// // Same major, higher minor - compatible
 /// let required = Version::new(1, 0, 0);
@@ -473,7 +473,7 @@ impl PluginCatalog {
     /// # Examples
     ///
     /// ```
-    /// use openracing_plugins::registry::{PluginCatalog, PluginMetadata};
+    /// use racing_wheel_plugins::registry::{PluginCatalog, PluginMetadata};
     /// use semver::Version;
     ///
     /// let mut catalog = PluginCatalog::new();

@@ -118,7 +118,7 @@ async fn test_user_journey_uj04_debug_workflow() -> Result<()> {
     // Wrap test body with timeout to ensure test completes within 30 seconds
     // Requirements: 2.1, 2.5
     let test_future = async {
-        let result = user_journeys::test_uj04_debug_workflow().await?;
+        let result = user_journeys::test_uj04_debug_workflow_ci().await?;
 
         if !result.passed {
             anyhow::bail!("UJ-04 test failed: {:?}", result.errors);
@@ -274,7 +274,7 @@ async fn test_hotplug_stress_basic() -> Result<()> {
     // Wrap test body with timeout to ensure test completes within 30 seconds
     // Requirements: 2.1, 2.5
     let test_future = async {
-        let result = stress::test_hotplug_stress().await?;
+        let result = stress::test_hotplug_stress_ci().await?;
 
         if !result.passed {
             anyhow::bail!("Hot-plug stress test failed: {:?}", result.errors);
