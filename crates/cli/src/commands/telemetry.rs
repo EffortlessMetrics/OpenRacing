@@ -190,10 +190,10 @@ async fn probe(
             if let Some(readonly) = attempt.registration_readonly {
                 println!("    registration_readonly: {}", readonly);
             }
-            if let Some(error) = &attempt.registration_error {
-                if !error.is_empty() {
-                    println!("    registration_error: {}", error);
-                }
+            if let Some(error) = &attempt.registration_error
+                && !error.is_empty()
+            {
+                println!("    registration_error: {}", error);
             }
         }
     }
@@ -248,7 +248,7 @@ async fn capture(
         let source_len = u16::try_from(source_raw.len()).map_err(|_| {
             anyhow!(
                 "source endpoint string too long to encode: {}",
-                source.to_string()
+                source_bytes
             )
         })?;
 

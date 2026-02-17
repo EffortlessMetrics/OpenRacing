@@ -113,13 +113,27 @@ pub struct SafetyService {
 }
 
 impl SafetyService {
+    fn initialize_fault_count_map() -> HashMap<FaultType, u32> {
+        let mut fault_count = HashMap::with_capacity(9);
+        fault_count.insert(FaultType::UsbStall, 0);
+        fault_count.insert(FaultType::EncoderNaN, 0);
+        fault_count.insert(FaultType::ThermalLimit, 0);
+        fault_count.insert(FaultType::Overcurrent, 0);
+        fault_count.insert(FaultType::PluginOverrun, 0);
+        fault_count.insert(FaultType::TimingViolation, 0);
+        fault_count.insert(FaultType::SafetyInterlockViolation, 0);
+        fault_count.insert(FaultType::HandsOffTimeout, 0);
+        fault_count.insert(FaultType::PipelineFault, 0);
+        fault_count
+    }
+
     /// Create new safety service
     pub fn new(max_safe_torque_nm: f32, max_high_torque_nm: f32) -> Self {
         Self {
             state: SafetyState::SafeTorque,
             max_safe_torque_nm,
             max_high_torque_nm,
-            fault_count: HashMap::new(),
+            fault_count: Self::initialize_fault_count_map(),
             active_challenge: None,
             device_tokens: HashMap::new(),
             hands_off_timeout: Duration::from_secs(5),
@@ -138,7 +152,7 @@ impl SafetyService {
             state: SafetyState::SafeTorque,
             max_safe_torque_nm,
             max_high_torque_nm,
-            fault_count: HashMap::new(),
+            fault_count: Self::initialize_fault_count_map(),
             active_challenge: None,
             device_tokens: HashMap::new(),
             hands_off_timeout,
@@ -328,7 +342,7 @@ impl SafetyService {
     /// Check high torque preconditions
     fn check_high_torque_preconditions(&self) -> Result<(), String> {
         // Check for active faults
-        if !self.fault_count.is_empty() {
+        if self.fault_count.values().any(|count| *count > 0) {
             return Err("Cannot enable high torque with active faults".to_string());
         }
 
@@ -396,7 +410,12 @@ impl SafetyService {
 
     /// Report a fault
     pub fn report_fault(&mut self, fault: FaultType) {
-        *self.fault_count.entry(fault).or_insert(0) += 1;
+        if let Some(count) = self.fault_count.get_mut(&fault) {
+            *count = count.saturating_add(1);
+        } else {
+            // Keep behavior robust if new fault variants are introduced without map updates.
+            self.fault_count.insert(fault, 1);
+        }
 
         self.state = SafetyState::Faulted {
             fault,

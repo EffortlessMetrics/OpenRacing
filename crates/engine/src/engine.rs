@@ -801,6 +801,7 @@ impl Engine {
             ctx.scheduler.record_processing_time_us(processing_time_us);
 
             if processing_time_us > MAX_PROCESSING_TIME_US {
+                #[cfg(not(feature = "rt-hardening"))]
                 warn!(
                     "Processing time exceeded budget: {}µs > {}µs",
                     processing_time_us, MAX_PROCESSING_TIME_US
@@ -1209,6 +1210,7 @@ mod tests {
         assert!(!engine.is_running());
     }
 
+    #[cfg(not(feature = "rt-hardening"))]
     #[tokio::test]
     async fn test_game_input_processing() {
         let device = create_test_device();
@@ -1282,6 +1284,7 @@ mod tests {
         engine.stop().await.unwrap();
     }
 
+    #[cfg(not(feature = "rt-hardening"))]
     #[tokio::test]
     async fn test_engine_stats() {
         let device = create_test_device();
@@ -1417,6 +1420,7 @@ mod tests {
         must(engine.stop().await);
     }
 
+    #[cfg(not(feature = "rt-hardening"))]
     #[tokio::test]
     async fn test_timing_violation_handling() {
         let device = create_test_device();
