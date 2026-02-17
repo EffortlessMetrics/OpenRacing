@@ -179,7 +179,7 @@ pub struct AdaptiveSchedulingState {
 }
 
 /// Jitter metrics collection
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct JitterMetrics {
     /// Total number of ticks
     pub total_ticks: u64,
@@ -193,20 +193,39 @@ pub struct JitterMetrics {
     /// Running sum of squared jitter for variance calculation
     pub jitter_sum_squared: f64,
 
+    /// Last observed jitter sample.
+    pub last_jitter_ns: u64,
+
     /// Recent jitter samples for percentile calculation
     pub recent_jitter_samples: Vec<u64>,
 
     /// Maximum samples to keep for percentile calculation
     pub max_samples: usize,
+
+    /// Ring buffer write index once `recent_jitter_samples` reaches `max_samples`.
+    next_sample_index: usize,
+}
+
+impl Default for JitterMetrics {
+    fn default() -> Self {
+        const DEFAULT_MAX_SAMPLES: usize = 10_000;
+        Self {
+            total_ticks: 0,
+            missed_ticks: 0,
+            max_jitter_ns: 0,
+            jitter_sum_squared: 0.0,
+            last_jitter_ns: 0,
+            recent_jitter_samples: Vec::with_capacity(DEFAULT_MAX_SAMPLES),
+            max_samples: DEFAULT_MAX_SAMPLES,
+            next_sample_index: 0,
+        }
+    }
 }
 
 impl JitterMetrics {
     /// Create new jitter metrics collector
     pub fn new() -> Self {
-        Self {
-            max_samples: 10000, // Keep last 10k samples for p99 calculation
-            ..Default::default()
-        }
+        Self::default()
     }
 
     /// Record a tick with its jitter
@@ -219,11 +238,21 @@ impl JitterMetrics {
 
         self.max_jitter_ns = self.max_jitter_ns.max(jitter_ns);
         self.jitter_sum_squared += (jitter_ns as f64).powi(2);
+        self.last_jitter_ns = jitter_ns;
 
-        // Keep recent samples for percentile calculation
-        self.recent_jitter_samples.push(jitter_ns);
-        if self.recent_jitter_samples.len() > self.max_samples {
-            self.recent_jitter_samples.remove(0);
+        if self.max_samples == 0 {
+            return;
+        }
+
+        // Keep recent samples in a bounded ring to avoid per-tick shifting.
+        if self.recent_jitter_samples.len() < self.max_samples {
+            self.recent_jitter_samples.push(jitter_ns);
+            if self.recent_jitter_samples.len() == self.max_samples {
+                self.next_sample_index = 0;
+            }
+        } else {
+            self.recent_jitter_samples[self.next_sample_index] = jitter_ns;
+            self.next_sample_index = (self.next_sample_index + 1) % self.max_samples;
         }
     }
 
@@ -498,7 +527,7 @@ impl AbsoluteScheduler {
     /// Platform-specific high-precision sleep with busy-spin tail
     #[cfg(target_os = "windows")]
     fn sleep_until(&self, target: Instant) -> RTResult {
-        use windows::Win32::Foundation::{CloseHandle, FILETIME};
+        use windows::Win32::Foundation::CloseHandle;
         use windows::Win32::System::Threading::{
             CreateWaitableTimerW, INFINITE, SetWaitableTimer, WaitForSingleObject,
         };
@@ -526,22 +555,11 @@ impl AbsoluteScheduler {
             let timer =
                 CreateWaitableTimerW(None, true, None).map_err(|_| RTError::TimingViolation)?;
 
-            let ft_duration = -(sleep_duration.as_nanos() as i64 / 100); // 100ns units, negative for relative
+            // Relative due time in 100ns units. Negative means relative wait.
+            let due_time_100ns = -(sleep_duration.as_nanos() as i64 / 100);
 
-            let due_time = FILETIME {
-                dwLowDateTime: ft_duration as u32,
-                dwHighDateTime: (ft_duration >> 32) as u32,
-            };
-
-            SetWaitableTimer(
-                timer,
-                &due_time.dwLowDateTime as *const u32 as *const i64,
-                0,
-                None,
-                None,
-                false,
-            )
-            .map_err(|_| RTError::TimingViolation)?;
+            SetWaitableTimer(timer, &due_time_100ns, 0, None, None, false)
+                .map_err(|_| RTError::TimingViolation)?;
 
             WaitForSingleObject(timer, INFINITE);
             let _ = CloseHandle(timer);
@@ -729,6 +747,24 @@ mod tests {
         let p99 = metrics.p99_jitter_ns();
         assert!(p99 >= 98_000); // Should be around 98-99µs
         assert!(p99 <= 99_000);
+    }
+
+    #[test]
+    fn test_jitter_metrics_uses_bounded_ring_buffer() {
+        let mut metrics = JitterMetrics::new();
+        metrics.max_samples = 3;
+        metrics.recent_jitter_samples.clear();
+
+        for i in 1..=5 {
+            metrics.record_tick(i * 1_000, false);
+        }
+
+        assert_eq!(metrics.recent_jitter_samples.len(), 3);
+
+        let mut sorted = metrics.recent_jitter_samples.clone();
+        sorted.sort_unstable();
+        assert_eq!(sorted, vec![3_000, 4_000, 5_000]);
+        assert_eq!(metrics.last_jitter_ns, 5_000);
     }
 
     #[test]

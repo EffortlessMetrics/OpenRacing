@@ -682,9 +682,10 @@ pub fn print_test_summary(results: &[E2ETestResult]) {
 
 #[track_caller]
 fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    assert!(r.is_ok(), "unexpected Err: {:?}", r.as_ref().err());
     match r {
         Ok(v) => v,
-        Err(e) => panic!("unexpected Err: {e:?}"),
+        Err(_) => unreachable!("asserted Ok above"),
     }
 }
 

@@ -626,7 +626,6 @@ impl Default for ConfigValidationService {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
     use tempfile::TempDir;
 
@@ -638,7 +637,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_config_generation_validation() {
+    async fn test_config_generation_validation() -> anyhow::Result<()> {
         let service = ConfigValidationService::new();
 
         let actual_diffs = vec![ConfigDiff {
@@ -652,39 +651,40 @@ mod tests {
 
         let result = service
             .validate_config_generation("iracing", &actual_diffs)
-            .await
-            .unwrap();
+            .await?;
         assert!(result.success);
         assert_eq!(result.details.matched_items.len(), 1);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_config_file_validation() {
+    async fn test_config_file_validation() -> anyhow::Result<()> {
         let service = ConfigValidationService::new();
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new()?;
 
         // Create test config file
         let config_dir = temp_dir.path().join("Documents/iRacing");
-        fs::create_dir_all(&config_dir).unwrap();
+        fs::create_dir_all(&config_dir)?;
 
         let config_file = config_dir.join("app.ini");
-        fs::write(&config_file, "[Telemetry]\ntelemetryDiskFile=1\n").unwrap();
+        fs::write(&config_file, "[Telemetry]\ntelemetryDiskFile=1\n")?;
 
         let result = service
             .validate_config_files("iracing", temp_dir.path())
-            .await
-            .unwrap();
+            .await?;
         assert!(result.success);
         assert_eq!(result.details.matched_items.len(), 1);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_led_heartbeat_validation() {
+    async fn test_led_heartbeat_validation() -> anyhow::Result<()> {
         let service = ConfigValidationService::new();
 
-        let result = service.validate_led_heartbeat().await.unwrap();
+        let result = service.validate_led_heartbeat().await?;
         assert!(result.success);
         assert!(result.details.actual_count > 0);
+        Ok(())
     }
 
     #[test]

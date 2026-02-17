@@ -333,10 +333,10 @@ impl ACCSessionState {
             ACCInboundMessage::RealtimeCarUpdate(update) => {
                 self.latest_car_updates
                     .insert(update.car_index, update.clone());
-                if let Some(focused) = self.focused_car_index {
-                    if focused != update.car_index {
-                        return None;
-                    }
+                if let Some(focused) = self.focused_car_index
+                    && focused != update.car_index
+                {
+                    return None;
                 }
 
                 Some(self.normalize_car(update))
@@ -350,9 +350,11 @@ impl ACCSessionState {
     }
 
     fn normalize_car(&self, car: &RealtimeCarUpdate) -> NormalizedTelemetry {
-        let mut flags = TelemetryFlags::default();
-        flags.in_pits = matches!(car.car_location, 2 | 3 | 4);
-        flags.pit_limiter = car.car_location == 2;
+        let flags = TelemetryFlags {
+            in_pits: matches!(car.car_location, 2..=4),
+            pit_limiter: car.car_location == 2,
+            ..TelemetryFlags::default()
+        };
 
         let mut telemetry = NormalizedTelemetry::default()
             .with_speed_ms(f32::from(car.speed_kmh) / 3.6)
@@ -753,16 +755,9 @@ mod tests {
     const FIXTURE_REALTIME_CAR_UPDATE_CAR_7: &[u8] =
         include_bytes!("../../../tests/fixtures/acc/realtime_car_update_car_7.bin");
 
-    #[track_caller]
-    fn must<T, E: std::fmt::Debug>(result: Result<T, E>) -> T {
-        match result {
-            Ok(value) => value,
-            Err(error) => panic!("unexpected Err: {error:?}"),
-        }
-    }
-
-    fn push_acc_string(buffer: &mut Vec<u8>, value: &str) {
-        must(write_acc_string(buffer, value));
+    fn push_acc_string(buffer: &mut Vec<u8>, value: &str) -> TestResult {
+        write_acc_string(buffer, value)?;
+        Ok(())
     }
 
     fn push_lap(buffer: &mut Vec<u8>, lap_time_ms: i32) {
@@ -816,7 +811,7 @@ mod tests {
         packet.extend_from_slice(&42i32.to_le_bytes());
         packet.push(1);
         packet.push(0);
-        push_acc_string(&mut packet, "");
+        push_acc_string(&mut packet, "")?;
 
         let message = parse_inbound_message(&packet)?;
         match message {
@@ -923,7 +918,7 @@ mod tests {
     fn test_parse_realtime_car_update_to_normalized() -> TestResult {
         let mut track_packet = vec![MSG_TRACK_DATA];
         track_packet.extend_from_slice(&7i32.to_le_bytes());
-        push_acc_string(&mut track_packet, "monza");
+        push_acc_string(&mut track_packet, "monza")?;
         track_packet.extend_from_slice(&1i32.to_le_bytes());
         track_packet.extend_from_slice(&5793i32.to_le_bytes());
         track_packet.push(0); // camera sets

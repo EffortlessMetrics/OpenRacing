@@ -538,6 +538,7 @@ pub struct SafetyInterlockSystem {
     torque_limit: TorqueLimit,
     fault_log: Vec<FaultLogEntry>,
     max_fault_log_entries: usize,
+    fault_log_next_index: usize,
     communication_timeout: Duration,
     last_communication: Option<Instant>,
 }
@@ -652,6 +653,7 @@ impl SafetyInterlockSystem {
             torque_limit: TorqueLimit::new(max_torque_nm, max_torque_nm * 0.2),
             fault_log: Vec::new(),
             max_fault_log_entries: 1000,
+            fault_log_next_index: 0,
             communication_timeout: Duration::from_millis(50),
             last_communication: None,
         }
@@ -670,6 +672,7 @@ impl SafetyInterlockSystem {
             torque_limit,
             fault_log: Vec::new(),
             max_fault_log_entries: 1000,
+            fault_log_next_index: 0,
             communication_timeout,
             last_communication: None,
         }
@@ -871,6 +874,10 @@ impl SafetyInterlockSystem {
         response_time: Duration,
         description: String,
     ) {
+        if self.max_fault_log_entries == 0 {
+            return;
+        }
+
         let entry = FaultLogEntry {
             timestamp: Instant::now(),
             fault_type,
@@ -880,11 +887,15 @@ impl SafetyInterlockSystem {
             description,
         };
 
-        self.fault_log.push(entry);
-
-        // Trim log if too large
-        if self.fault_log.len() > self.max_fault_log_entries {
-            self.fault_log.remove(0);
+        if self.fault_log.len() < self.max_fault_log_entries {
+            self.fault_log.push(entry);
+            if self.fault_log.len() == self.max_fault_log_entries {
+                self.fault_log_next_index = 0;
+            }
+        } else {
+            self.fault_log[self.fault_log_next_index] = entry;
+            self.fault_log_next_index =
+                (self.fault_log_next_index + 1) % self.max_fault_log_entries;
         }
     }
 
@@ -1160,6 +1171,37 @@ mod safety_interlock_tests {
         assert_eq!(log.len(), 2);
         assert_eq!(log[0].fault_type, FaultType::ThermalLimit);
         assert_eq!(log[1].fault_type, FaultType::Overcurrent);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_safety_interlock_fault_log_stays_bounded_without_shifting() -> Result<(), WatchdogError>
+    {
+        let mut system = create_test_system();
+        system.max_fault_log_entries = 3;
+        system.arm()?;
+
+        system.report_fault(FaultType::ThermalLimit);
+        system.report_fault(FaultType::Overcurrent);
+        system.report_fault(FaultType::UsbStall);
+        system.report_fault(FaultType::EncoderNaN);
+        system.report_fault(FaultType::PipelineFault);
+
+        let log = system.fault_log();
+        assert_eq!(log.len(), 3);
+        assert!(
+            log.iter()
+                .any(|entry| entry.fault_type == FaultType::UsbStall)
+        );
+        assert!(
+            log.iter()
+                .any(|entry| entry.fault_type == FaultType::EncoderNaN)
+        );
+        assert!(
+            log.iter()
+                .any(|entry| entry.fault_type == FaultType::PipelineFault)
+        );
 
         Ok(())
     }

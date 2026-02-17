@@ -10,6 +10,7 @@ use crate::{
     rt::FFBMode,
     rt::{Frame, PerformanceMetrics, RTError, RTResult},
     safety::integration::{FaultManagerContext, IntegratedFaultManager},
+    safety::watchdog::SystemComponent,
     safety::{FaultType, SafetyService, SafetyState},
     scheduler::{AbsoluteScheduler, AdaptiveSchedulingConfig, JitterMetrics, RTSetup},
     tracing::{RTTraceEvent, TracingManager},
@@ -55,13 +56,20 @@ fn sanitize_signed_unit(value: f32) -> f32 {
     }
 }
 
+fn monotonic_ns_since(epoch: Instant, now: Instant) -> u64 {
+    now.checked_duration_since(epoch)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0)
+        .min(u64::MAX as u128) as u64
+}
+
 fn apply_torque_safety_controls(
     pipeline_torque: f32,
     max_torque_normalized: f32,
     fault_torque_multiplier: f32,
-    emergency_stop_active: bool,
+    force_zero_torque: bool,
 ) -> TorqueControlResult {
-    if emergency_stop_active {
+    if force_zero_torque {
         return TorqueControlResult {
             torque_out: 0.0,
             saturated: sanitize_signed_unit(pipeline_torque).abs() > f32::EPSILON,
@@ -251,6 +259,9 @@ struct RTContext {
     /// Frame counter
     frame_counter: Arc<AtomicU64>,
 
+    /// Monotonic epoch for RT event/frame timestamps.
+    rt_epoch: Instant,
+
     /// Current frame sequence number
     seq: u16,
 
@@ -268,6 +279,9 @@ struct RTContext {
 
     /// Tracing manager for observability
     tracing_manager: Option<TracingManager>,
+
+    /// Reused heartbeat map to avoid per-tick hash-map initialization in the RT loop.
+    component_heartbeats_scratch: Option<std::collections::HashMap<SystemComponent, bool>>,
 }
 
 impl Engine {
@@ -311,6 +325,10 @@ impl Engine {
         let (diagnostic_tx, diagnostic_rx) = crossbeam::channel::bounded(1024);
 
         // Initialize tracing manager
+        #[cfg(feature = "rt-hardening")]
+        let tracing_manager = None;
+
+        #[cfg(not(feature = "rt-hardening"))]
         let tracing_manager = match TracingManager::new() {
             Ok(mut manager) => {
                 if let Err(e) = manager.initialize() {
@@ -325,6 +343,8 @@ impl Engine {
                 None
             }
         };
+
+        let rt_epoch = Instant::now();
 
         // Create RT context
         let mut rt_context = RTContext {
@@ -354,12 +374,14 @@ impl Engine {
             config: self.config.clone(),
             running: Arc::clone(&self.running),
             frame_counter: Arc::clone(&self.frame_counter),
+            rt_epoch,
             seq: 0,
             metrics: PerformanceMetrics::default(),
             atomic_counters: Arc::clone(&self.atomic_counters),
             fault_torque_multiplier: 1.0,
             emergency_stop_active: false,
             tracing_manager,
+            component_heartbeats_scratch: Some(std::collections::HashMap::with_capacity(8)),
         };
 
         // Apply RT setup
@@ -409,6 +431,7 @@ impl Engine {
         }
 
         info!("Stopping RT engine");
+        let mut stop_error: Option<String> = None;
 
         // Signal shutdown
         self.running.store(false, Ordering::Release);
@@ -423,9 +446,15 @@ impl Engine {
             match rt_thread.join() {
                 Ok(result) => match result {
                     Ok(()) => info!("RT thread stopped cleanly"),
-                    Err(e) => warn!("RT thread stopped with error: {:?}", e),
+                    Err(e) => {
+                        warn!("RT thread stopped with error: {:?}", e);
+                        stop_error = Some(format!("RT thread stopped with error: {:?}", e));
+                    }
                 },
-                Err(_) => error!("RT thread panicked"),
+                Err(_) => {
+                    error!("RT thread panicked");
+                    stop_error = Some("RT thread panicked".to_string());
+                }
             }
         }
 
@@ -443,7 +472,10 @@ impl Engine {
         self.blackbox_rx = None;
 
         info!("RT engine stopped");
-        Ok(())
+        match stop_error {
+            Some(err) => Err(err),
+            None => Ok(()),
+        }
     }
 
     /// Send game input to the engine
@@ -597,19 +629,11 @@ impl Engine {
             timestamp: Instant::now(),
         };
 
+        #[cfg(feature = "rt-hardening")]
+        let mut rt_tick_alloc_guard = crate::allocation_tracker::track();
+
         // Main RT loop
         while ctx.running.load(Ordering::Acquire) {
-            let tick_start = Instant::now();
-            let tick_start_ns = tick_start.elapsed().as_nanos() as u64;
-
-            // Emit RT trace event for tick start
-            if let Some(ref tracer) = ctx.tracing_manager {
-                tracer.emit_rt_event(RTTraceEvent::TickStart {
-                    tick_count: ctx.frame_counter.load(Ordering::Relaxed),
-                    timestamp_ns: tick_start_ns,
-                });
-            }
-
             // Wait for next 1kHz tick
             let tick_count = match ctx.scheduler.wait_for_tick() {
                 Ok(count) => {
@@ -624,10 +648,11 @@ impl Engine {
 
                     // Emit RT trace event for deadline miss
                     if let Some(ref tracer) = ctx.tracing_manager {
+                        let deadline_miss_ts_ns = monotonic_ns_since(ctx.rt_epoch, Instant::now());
                         tracer.emit_rt_event(RTTraceEvent::DeadlineMiss {
                             tick_count: ctx.frame_counter.load(Ordering::Relaxed),
-                            timestamp_ns: tick_start_ns,
-                            jitter_ns: tick_start.elapsed().as_nanos() as u64,
+                            timestamp_ns: deadline_miss_ts_ns,
+                            jitter_ns: ctx.scheduler.metrics().last_jitter_ns,
                         });
                     }
 
@@ -639,6 +664,17 @@ impl Engine {
                     return Err(e);
                 }
             };
+
+            let tick_start = Instant::now();
+            let tick_start_ns = monotonic_ns_since(ctx.rt_epoch, tick_start);
+
+            // Emit RT trace event for tick start after scheduler gate.
+            if let Some(ref tracer) = ctx.tracing_manager {
+                tracer.emit_rt_event(RTTraceEvent::TickStart {
+                    tick_count,
+                    timestamp_ns: tick_start_ns,
+                });
+            }
 
             // Process commands (non-blocking)
             Self::process_commands(&mut ctx)?;
@@ -658,7 +694,7 @@ impl Engine {
                     .map(|t| t.speed_ms * 3.6) // Convert m/s to km/h for display
                     .unwrap_or(0.0),
                 hands_off: false, // Will be updated by hands-off detector
-                ts_mono_ns: tick_start.elapsed().as_nanos() as u64,
+                ts_mono_ns: tick_start_ns,
                 seq: ctx.seq,
             };
 
@@ -688,18 +724,20 @@ impl Engine {
             let _pipeline_time = pipeline_start.elapsed();
 
             // Apply torque safety chain:
-            // pipeline torque -> fault multiplier -> safety clamp -> emergency-stop latch.
+            // pipeline torque -> fault multiplier -> safety clamp -> hard zero latch.
             let max_torque_normalized = if ctx.config.max_high_torque_nm > f32::EPSILON {
-                ctx.safety.get_max_torque(true).value() / ctx.config.max_high_torque_nm
+                ctx.safety.max_torque_nm() / ctx.config.max_high_torque_nm
             } else {
                 0.0
             };
+            let force_zero_output = ctx.emergency_stop_active
+                || matches!(ctx.safety.state(), SafetyState::Faulted { .. });
 
             let torque_control = apply_torque_safety_controls(
                 frame.torque_out,
                 max_torque_normalized,
                 ctx.fault_torque_multiplier,
-                ctx.emergency_stop_active,
+                force_zero_output,
             );
             ctx.atomic_counters
                 .record_torque_saturation(torque_control.saturated);
@@ -736,7 +774,7 @@ impl Engine {
             if let Some(ref tracer) = ctx.tracing_manager {
                 tracer.emit_rt_event(RTTraceEvent::HidWrite {
                     tick_count,
-                    timestamp_ns: device_write_start.elapsed().as_nanos() as u64,
+                    timestamp_ns: monotonic_ns_since(ctx.rt_epoch, device_write_start),
                     torque_nm: final_torque_nm,
                     seq: ctx.seq,
                 });
@@ -764,7 +802,7 @@ impl Engine {
             if let Some(ref tracer) = ctx.tracing_manager {
                 tracer.emit_rt_event(RTTraceEvent::TickEnd {
                     tick_count,
-                    timestamp_ns: tick_start.elapsed().as_nanos() as u64,
+                    timestamp_ns: monotonic_ns_since(ctx.rt_epoch, Instant::now()),
                     processing_time_ns: total_processing_time.as_nanos() as u64,
                 });
             }
@@ -783,14 +821,19 @@ impl Engine {
             }
 
             // Update fault manager with context
+            let component_heartbeats = match ctx.component_heartbeats_scratch.take() {
+                Some(existing) => existing,
+                None => std::collections::HashMap::with_capacity(8),
+            };
+
             let fault_context = FaultManagerContext {
                 current_torque: frame.torque_out * ctx.config.max_high_torque_nm,
                 temperature: None,   // Would be read from device telemetry
                 encoder_value: None, // Would be read from device telemetry
-                timing_jitter_us: Some(total_processing_time.as_micros() as u64),
+                timing_jitter_us: Some(ctx.scheduler.metrics().last_jitter_ns / 1_000),
                 usb_info: None,
                 plugin_execution: None,
-                component_heartbeats: std::collections::HashMap::new(),
+                component_heartbeats,
                 frame: Some(crate::rt::Frame {
                     ffb_in: frame.ffb_in,
                     torque_out: frame.torque_out,
@@ -801,6 +844,7 @@ impl Engine {
                 }),
             };
             let fault_result = ctx.fault_manager.update(&fault_context);
+            ctx.component_heartbeats_scratch = Some(fault_context.component_heartbeats);
             ctx.fault_torque_multiplier =
                 sanitize_unit_interval(fault_result.current_torque_multiplier);
 
@@ -808,6 +852,23 @@ impl Engine {
                 if should_latch_safety_fault(fault) {
                     ctx.safety.report_fault(fault);
                 }
+            }
+
+            #[cfg(feature = "rt-hardening")]
+            {
+                const HARDENING_WARMUP_TICKS: u64 = 8;
+                if tick_count > HARDENING_WARMUP_TICKS {
+                    let allocs = rt_tick_alloc_guard.allocations_since_start();
+                    if allocs > 0 {
+                        let bytes = rt_tick_alloc_guard.bytes_allocated_since_start();
+                        error!(
+                            "RT hardening allocation violation: {} allocations ({} bytes) at tick {}",
+                            allocs, bytes, tick_count
+                        );
+                        return Err(RTError::PipelineFault);
+                    }
+                }
+                rt_tick_alloc_guard = crate::allocation_tracker::track();
             }
         }
 
@@ -935,6 +996,8 @@ impl Drop for Engine {
 mod tests {
     use super::*;
     use crate::device::VirtualDevice;
+    use crate::{DeviceHealthStatus, DeviceInfo, TelemetryData};
+    use std::sync::{Arc, Mutex};
     use tokio::time::{Duration as TokioDuration, sleep};
 
     #[track_caller]
@@ -949,6 +1012,110 @@ mod tests {
         let device_id = must("test-device".parse::<DeviceId>());
         let virtual_device = VirtualDevice::new(device_id, "Test Device".to_string());
         Box::new(virtual_device)
+    }
+
+    struct CapturingDevice {
+        info: DeviceInfo,
+        capabilities: DeviceCapabilities,
+        writes: Option<Arc<Mutex<Vec<f32>>>>,
+        connected: bool,
+    }
+
+    impl CapturingDevice {
+        fn new(device_id: DeviceId, writes: Option<Arc<Mutex<Vec<f32>>>>) -> Self {
+            let capabilities = DeviceCapabilities::new(
+                false,
+                true,
+                true,
+                false,
+                must(TorqueNm::new(25.0)),
+                10000,
+                1000,
+            );
+
+            let info = DeviceInfo {
+                id: device_id,
+                name: "Capturing Device".to_string(),
+                vendor_id: 0xCAFE,
+                product_id: 0xBEEF,
+                serial_number: Some("CAPTURE001".to_string()),
+                manufacturer: Some("OpenRacing".to_string()),
+                path: "capture://test-device".to_string(),
+                capabilities: capabilities.clone(),
+                is_connected: true,
+            };
+
+            Self {
+                info,
+                capabilities,
+                writes,
+                connected: true,
+            }
+        }
+    }
+
+    impl HidDevice for CapturingDevice {
+        fn write_ffb_report(&mut self, torque_nm: f32, _seq: u16) -> RTResult {
+            if !self.connected {
+                return Err(RTError::DeviceDisconnected);
+            }
+
+            let max_torque = self.capabilities.max_torque.value();
+            if torque_nm.abs() > max_torque {
+                return Err(RTError::TorqueLimit);
+            }
+
+            if let Some(writes) = &self.writes {
+                let mut guard = match writes.lock() {
+                    Ok(g) => g,
+                    Err(e) => e.into_inner(),
+                };
+                if guard.len() < guard.capacity() {
+                    guard.push(torque_nm);
+                }
+            }
+
+            Ok(())
+        }
+
+        fn read_telemetry(&mut self) -> Option<TelemetryData> {
+            None
+        }
+
+        fn capabilities(&self) -> &DeviceCapabilities {
+            &self.capabilities
+        }
+
+        fn device_info(&self) -> &DeviceInfo {
+            &self.info
+        }
+
+        fn is_connected(&self) -> bool {
+            self.connected
+        }
+
+        fn health_status(&self) -> DeviceHealthStatus {
+            DeviceHealthStatus {
+                temperature_c: 30,
+                fault_flags: 0,
+                hands_on: true,
+                last_communication: Instant::now(),
+                communication_errors: 0,
+            }
+        }
+    }
+
+    fn create_capturing_device(writes: Option<Arc<Mutex<Vec<f32>>>>) -> Box<dyn HidDevice> {
+        let device_id = must("test-device".parse::<DeviceId>());
+        Box::new(CapturingDevice::new(device_id, writes))
+    }
+
+    #[cfg(not(feature = "rt-hardening"))]
+    fn snapshot_torque_writes(writes: &Arc<Mutex<Vec<f32>>>) -> Vec<f32> {
+        match writes.lock() {
+            Ok(guard) => guard.clone(),
+            Err(e) => e.into_inner().clone(),
+        }
     }
 
     fn create_test_config() -> EngineConfig {
@@ -976,6 +1143,13 @@ mod tests {
     #[test]
     fn test_torque_safety_controls_emergency_stop_forces_zero() {
         let result = apply_torque_safety_controls(0.75, 1.0, 1.0, true);
+        assert_eq!(result.torque_out, 0.0);
+        assert!(result.saturated);
+    }
+
+    #[test]
+    fn test_torque_safety_controls_fault_latch_forces_zero() {
+        let result = apply_torque_safety_controls(0.25, 1.0, 0.6, true);
         assert_eq!(result.torque_out, 0.0);
         assert!(result.saturated);
     }
@@ -1140,6 +1314,90 @@ mod tests {
         assert!(!frames.is_empty());
 
         engine.stop().await.unwrap();
+    }
+
+    #[cfg(not(feature = "rt-hardening"))]
+    #[tokio::test]
+    async fn test_emergency_stop_collapses_torque_within_two_writes() {
+        let captured_writes = Arc::new(Mutex::new(Vec::with_capacity(4096)));
+        let bootstrap_device = create_test_device();
+        let mut config = create_test_config();
+        config.enable_blackbox = false;
+
+        let mut engine = must(Engine::new(bootstrap_device, config));
+        let runtime_device = create_capturing_device(Some(Arc::clone(&captured_writes)));
+        must(engine.start(runtime_device).await);
+
+        let mut filter_config = FilterConfig::default();
+        filter_config.reconstruction = 1;
+        let compiler = crate::pipeline::PipelineCompiler::new();
+        let compiled = must(compiler.compile_pipeline(filter_config).await);
+        must(engine.apply_pipeline(compiled).await);
+
+        for _ in 0..16 {
+            let _ = engine.send_game_input(GameInput {
+                ffb_scalar: 1.0,
+                telemetry: None,
+                timestamp: Instant::now(),
+            });
+            sleep(TokioDuration::from_millis(2)).await;
+        }
+
+        let writes_before_stop = snapshot_torque_writes(&captured_writes);
+        assert!(!writes_before_stop.is_empty());
+
+        let write_count_before_stop = writes_before_stop.len();
+        must(engine.emergency_stop().await);
+
+        sleep(TokioDuration::from_millis(10)).await;
+        must(engine.stop().await);
+
+        let writes_after_stop = snapshot_torque_writes(&captured_writes);
+        assert!(writes_after_stop.len() > write_count_before_stop);
+
+        let post_stop_writes = &writes_after_stop[write_count_before_stop..];
+        let first_zero_index = post_stop_writes.iter().position(|t| t.abs() <= 0.0001);
+        assert!(
+            matches!(first_zero_index, Some(idx) if idx <= 2),
+            "expected zero torque within two writes after emergency stop, got {:?}",
+            post_stop_writes
+        );
+
+        if let Some(zero_index) = first_zero_index {
+            assert!(
+                post_stop_writes[zero_index..]
+                    .iter()
+                    .all(|t| t.abs() <= 0.0001),
+                "expected zero-torque latch after collapse, got {:?}",
+                post_stop_writes
+            );
+        }
+    }
+
+    #[cfg(feature = "rt-hardening")]
+    #[tokio::test]
+    async fn test_rt_hardening_steady_state_has_no_rt_allocations() {
+        let bootstrap_device = create_test_device();
+        let mut config = create_test_config();
+        config.enable_blackbox = false;
+        config.rt_setup.high_priority = false;
+        config.rt_setup.lock_memory = false;
+
+        let mut engine = must(Engine::new(bootstrap_device, config));
+        let runtime_device = create_capturing_device(None);
+        must(engine.start(runtime_device).await);
+
+        for _ in 0..20 {
+            let _ = engine.send_game_input(GameInput {
+                ffb_scalar: 0.5,
+                telemetry: None,
+                timestamp: Instant::now(),
+            });
+            sleep(TokioDuration::from_millis(1)).await;
+        }
+
+        sleep(TokioDuration::from_millis(30)).await;
+        must(engine.stop().await);
     }
 
     #[tokio::test]

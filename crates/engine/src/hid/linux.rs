@@ -608,17 +608,19 @@ pub fn revert_linux_rt_setup() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
 
     #[tokio::test]
-    async fn test_linux_hid_port_creation() {
-        let port = LinuxHidPort::new().unwrap();
+    async fn test_linux_hid_port_creation() -> TestResult {
+        let port = LinuxHidPort::new()?;
         assert!(!port.monitoring.load(Ordering::Relaxed));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_device_enumeration() {
-        let port = LinuxHidPort::new().unwrap();
-        let devices = port.list_devices().await.unwrap();
+    async fn test_device_enumeration() -> TestResult {
+        let port = LinuxHidPort::new()?;
+        let devices = port.list_devices().await?;
 
         // Should find some mock devices
         assert!(!devices.is_empty());
@@ -628,22 +630,24 @@ mod tests {
             assert!(device.vendor_id != 0);
             assert!(device.product_id != 0);
         }
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_device_opening() {
-        let port = LinuxHidPort::new().unwrap();
-        let devices = port.list_devices().await.unwrap();
+    async fn test_device_opening() -> TestResult {
+        let port = LinuxHidPort::new()?;
+        let devices = port.list_devices().await?;
 
         if let Some(device_info) = devices.first() {
-            let device = port.open_device(&device_info.id).await.unwrap();
+            let device = port.open_device(&device_info.id).await?;
             assert!(device.is_connected());
             assert!(device.capabilities().max_torque.value() > 0.0);
         }
+        Ok(())
     }
 
     #[test]
-    fn test_linux_hid_device_creation() {
+    fn test_linux_hid_device_creation() -> TestResult {
         let device_id = must("test-device".parse::<DeviceId>());
         let capabilities = DeviceCapabilities {
             supports_pid: true,
@@ -666,13 +670,14 @@ mod tests {
             capabilities,
         };
 
-        let device = LinuxHidDevice::new(device_info).unwrap();
+        let device = LinuxHidDevice::new(device_info)?;
         assert!(device.is_connected());
         assert_eq!(device.capabilities().max_torque.value(), 25.0);
+        Ok(())
     }
 
     #[test]
-    fn test_ffb_report_writing() {
+    fn test_ffb_report_writing() -> TestResult {
         let device_id = must("test-device".parse::<DeviceId>());
         let capabilities = DeviceCapabilities {
             supports_pid: true,
@@ -695,9 +700,9 @@ mod tests {
             capabilities,
         };
 
-        let mut device = LinuxHidDevice::new(device_info).unwrap();
-        let result = device.write_ffb_report(5.0, 123);
-        assert!(result.is_ok());
+        let mut device = LinuxHidDevice::new(device_info)?;
+        device.write_ffb_report(5.0, 123)?;
+        Ok(())
     }
 
     #[test]
@@ -708,11 +713,12 @@ mod tests {
     }
 
     #[test]
-    fn test_hidraw_device_probing() {
-        let port = LinuxHidPort::new().unwrap();
+    fn test_hidraw_device_probing() -> TestResult {
+        let port = LinuxHidPort::new()?;
         let path = Path::new("/dev/hidraw0");
 
         // This should not panic even if the device doesn't exist
         let _ = port.probe_hidraw_device(path);
+        Ok(())
     }
 }

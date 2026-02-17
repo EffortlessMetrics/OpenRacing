@@ -503,32 +503,33 @@ fn read_iracing_data_from_ptr(
             buffer.buf_offset
         )
     })?;
-    let mut data = IRacingData::default();
-
-    data.session_time = read_f32_var(base_ptr, offset, layout.session_time).unwrap_or(0.0);
-    data.session_flags = read_i32_var(base_ptr, offset, layout.session_flags).unwrap_or(0) as u32;
-    data.speed = read_f32_var(base_ptr, offset, layout.speed).unwrap_or(0.0);
-    data.rpm = read_f32_var(base_ptr, offset, layout.rpm).unwrap_or(0.0);
-    data.gear = read_i32_var(base_ptr, offset, layout.gear)
-        .unwrap_or(0)
-        .clamp(i32::from(i8::MIN), i32::from(i8::MAX)) as i8;
-    data.throttle = read_f32_var(base_ptr, offset, layout.throttle).unwrap_or(0.0);
-    data.brake = read_f32_var(base_ptr, offset, layout.brake).unwrap_or(0.0);
-    data.steering_wheel_angle =
-        read_f32_var(base_ptr, offset, layout.steering_wheel_angle).unwrap_or(0.0);
-    data.steering_wheel_torque =
-        read_f32_var(base_ptr, offset, layout.steering_wheel_torque).unwrap_or(0.0);
-    data.lf_tire_rps = read_f32_var(base_ptr, offset, layout.lf_tire_speed).unwrap_or(0.0);
-    data.rf_tire_rps = read_f32_var(base_ptr, offset, layout.rf_tire_speed).unwrap_or(0.0);
-    data.lr_tire_rps = read_f32_var(base_ptr, offset, layout.lr_tire_speed).unwrap_or(0.0);
-    data.rr_tire_rps = read_f32_var(base_ptr, offset, layout.rr_tire_speed).unwrap_or(0.0);
-    data.lap_current = read_i32_var(base_ptr, offset, layout.lap_current).unwrap_or(0);
-    data.lap_best_time = read_f32_var(base_ptr, offset, layout.lap_best_time).unwrap_or(0.0);
-    data.fuel_level = read_f32_var(base_ptr, offset, layout.fuel_level).unwrap_or(0.0);
-    data.on_pit_road = if read_bool_var(base_ptr, offset, layout.on_pit_road).unwrap_or(false) {
-        1
-    } else {
-        0
+    let mut data = IRacingData {
+        session_time: read_f32_var(base_ptr, offset, layout.session_time).unwrap_or(0.0),
+        session_flags: read_i32_var(base_ptr, offset, layout.session_flags).unwrap_or(0) as u32,
+        speed: read_f32_var(base_ptr, offset, layout.speed).unwrap_or(0.0),
+        rpm: read_f32_var(base_ptr, offset, layout.rpm).unwrap_or(0.0),
+        gear: read_i32_var(base_ptr, offset, layout.gear)
+            .unwrap_or(0)
+            .clamp(i32::from(i8::MIN), i32::from(i8::MAX)) as i8,
+        throttle: read_f32_var(base_ptr, offset, layout.throttle).unwrap_or(0.0),
+        brake: read_f32_var(base_ptr, offset, layout.brake).unwrap_or(0.0),
+        steering_wheel_angle: read_f32_var(base_ptr, offset, layout.steering_wheel_angle)
+            .unwrap_or(0.0),
+        steering_wheel_torque: read_f32_var(base_ptr, offset, layout.steering_wheel_torque)
+            .unwrap_or(0.0),
+        lf_tire_rps: read_f32_var(base_ptr, offset, layout.lf_tire_speed).unwrap_or(0.0),
+        rf_tire_rps: read_f32_var(base_ptr, offset, layout.rf_tire_speed).unwrap_or(0.0),
+        lr_tire_rps: read_f32_var(base_ptr, offset, layout.lr_tire_speed).unwrap_or(0.0),
+        rr_tire_rps: read_f32_var(base_ptr, offset, layout.rr_tire_speed).unwrap_or(0.0),
+        lap_current: read_i32_var(base_ptr, offset, layout.lap_current).unwrap_or(0),
+        lap_best_time: read_f32_var(base_ptr, offset, layout.lap_best_time).unwrap_or(0.0),
+        fuel_level: read_f32_var(base_ptr, offset, layout.fuel_level).unwrap_or(0.0),
+        on_pit_road: if read_bool_var(base_ptr, offset, layout.on_pit_road).unwrap_or(false) {
+            1
+        } else {
+            0
+        },
+        ..IRacingData::default()
     };
 
     copy_string_var(base_ptr, offset, layout.car_path, &mut data.car_path);

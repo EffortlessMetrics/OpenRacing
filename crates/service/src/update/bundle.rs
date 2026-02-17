@@ -95,18 +95,13 @@ pub struct BundleHeader {
 }
 
 /// Compression types supported by the bundle format
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CompressionType {
     /// No compression
     None,
     /// Gzip compression
+    #[default]
     Gzip,
-}
-
-impl Default for CompressionType {
-    fn default() -> Self {
-        Self::Gzip
-    }
 }
 
 /// Bundle metadata containing release information
@@ -785,7 +780,10 @@ mod tests {
         );
 
         // Verify the error type
-        let err_msg = result.unwrap_err().to_string();
+        let err_msg = match result {
+            Ok(_) => String::new(),
+            Err(error) => error.to_string(),
+        };
         assert!(
             err_msg.contains("signature required") || err_msg.contains("SignatureRequired"),
             "Error should indicate signature is required: {}",

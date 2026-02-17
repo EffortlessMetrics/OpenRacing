@@ -503,8 +503,13 @@ fn upsert_ini_value(
         let search_start = start + 1;
         let mut key_line_index = None;
 
-        for index in search_start..section_end {
-            let trimmed = lines[index].trim();
+        for (index, line) in lines
+            .iter()
+            .enumerate()
+            .take(section_end)
+            .skip(search_start)
+        {
+            let trimmed = line.trim();
             if trimmed.starts_with(&key_prefix) {
                 key_line_index = Some(index);
                 previous_value = Some(trimmed[key_prefix.len()..].trim().to_string());

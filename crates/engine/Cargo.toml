@@ -74,6 +74,7 @@ libudev = { workspace = true }
 [features]
 default = ["mimalloc"]
 rt-allocator = ["mimalloc"]
+rt-hardening = []          # opt-in RT allocation tracking and hot-path enforcement
 harness = []                # opt-in visibility for the test harness in non-test builds
 
 [[example]]

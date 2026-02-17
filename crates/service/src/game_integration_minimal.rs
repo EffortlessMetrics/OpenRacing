@@ -335,22 +335,24 @@ impl GameIntegrationService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
+    use anyhow::{Result, anyhow};
     use serde_json;
+    use tempfile::TempDir;
 
     #[test]
-    fn test_yaml_support_matrix_loading() {
-        let service = GameIntegrationService::new().unwrap();
-        
+    fn test_yaml_support_matrix_loading() -> Result<()> {
+        let service = GameIntegrationService::new()?;
+
         // Test that YAML was loaded correctly
         let supported_games = service.get_supported_games();
         assert!(supported_games.contains(&"iracing".to_string()));
         assert!(supported_games.contains(&"acc".to_string()));
         assert_eq!(supported_games.len(), 2);
+        Ok(())
     }
 
     #[test]
-    fn test_iracing_config_writer_golden() {
+    fn test_iracing_config_writer_golden() -> Result<()> {
         let writer = IRacingConfigWriter::default();
         let config = TelemetryConfig {
             enabled: true,
@@ -359,27 +361,28 @@ mod tests {
             output_target: "127.0.0.1:12345".to_string(),
             fields: vec!["ffb_scalar".to_string(), "rpm".to_string()],
         };
-        
+
         // Test expected diffs
-        let expected_diffs = writer.get_expected_diffs(&config).unwrap();
+        let expected_diffs = writer.get_expected_diffs(&config)?;
         assert_eq!(expected_diffs.len(), 1);
         assert_eq!(expected_diffs[0].key, "telemetryDiskFile");
         assert_eq!(expected_diffs[0].new_value, "1");
         assert_eq!(expected_diffs[0].operation, DiffOperation::Add);
-        
+
         // Test actual config writing
-        let temp_dir = TempDir::new().unwrap();
-        let actual_diffs = writer.write_config(temp_dir.path(), &config).unwrap();
-        
+        let temp_dir = TempDir::new()?;
+        let actual_diffs = writer.write_config(temp_dir.path(), &config)?;
+
         // Compare structure (ignoring file paths)
         assert_eq!(actual_diffs.len(), expected_diffs.len());
         assert_eq!(actual_diffs[0].key, expected_diffs[0].key);
         assert_eq!(actual_diffs[0].new_value, expected_diffs[0].new_value);
         assert_eq!(actual_diffs[0].operation, expected_diffs[0].operation);
+        Ok(())
     }
 
     #[test]
-    fn test_acc_config_writer_golden() {
+    fn test_acc_config_writer_golden() -> Result<()> {
         let writer = ACCConfigWriter::default();
         let config = TelemetryConfig {
             enabled: true,
@@ -388,40 +391,41 @@ mod tests {
             output_target: "127.0.0.1:9000".to_string(),
             fields: vec!["ffb_scalar".to_string(), "rpm".to_string()],
         };
-        
+
         // Test expected diffs
-        let expected_diffs = writer.get_expected_diffs(&config).unwrap();
+        let expected_diffs = writer.get_expected_diffs(&config)?;
         assert_eq!(expected_diffs.len(), 1);
         assert_eq!(expected_diffs[0].key, "entire_file");
         assert_eq!(expected_diffs[0].operation, DiffOperation::Add);
-        
+
         // Verify JSON structure
-        let json: serde_json::Value = serde_json::from_str(&expected_diffs[0].new_value).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&expected_diffs[0].new_value)?;
         assert_eq!(json["updListenerPort"], 9000);
         assert_eq!(json["broadcastingPort"], 9000);
         assert_eq!(json["updateRateHz"], 100);
-        
+
         // Test actual config writing
-        let temp_dir = TempDir::new().unwrap();
-        let actual_diffs = writer.write_config(temp_dir.path(), &config).unwrap();
-        
+        let temp_dir = TempDir::new()?;
+        let actual_diffs = writer.write_config(temp_dir.path(), &config)?;
+
         // Compare structure
         assert_eq!(actual_diffs.len(), expected_diffs.len());
         assert_eq!(actual_diffs[0].key, expected_diffs[0].key);
         assert_eq!(actual_diffs[0].operation, expected_diffs[0].operation);
-        
+
         // Compare JSON content
-        let actual_json: serde_json::Value = serde_json::from_str(&actual_diffs[0].new_value).unwrap();
-        let expected_json: serde_json::Value = serde_json::from_str(&expected_diffs[0].new_value).unwrap();
+        let actual_json: serde_json::Value = serde_json::from_str(&actual_diffs[0].new_value)?;
+        let expected_json: serde_json::Value = serde_json::from_str(&expected_diffs[0].new_value)?;
         assert_eq!(actual_json, expected_json);
+        Ok(())
     }
 
     #[test]
-    fn test_telemetry_field_mapping() {
-        let service = GameIntegrationService::new().unwrap();
-        
+    fn test_telemetry_field_mapping() -> Result<()> {
+        let service = GameIntegrationService::new()?;
+
         // Test iRacing field mapping
-        let iracing_mapping = service.get_telemetry_mapping("iracing").unwrap();
+        let iracing_mapping = service.get_telemetry_mapping("iracing")?;
         assert_eq!(iracing_mapping.ffb_scalar, Some("SteeringWheelTorque".to_string()));
         assert_eq!(iracing_mapping.rpm, Some("RPM".to_string()));
         assert_eq!(iracing_mapping.speed_ms, Some("Speed".to_string()));
@@ -429,9 +433,9 @@ mod tests {
         assert_eq!(iracing_mapping.gear, Some("Gear".to_string()));
         assert_eq!(iracing_mapping.car_id, Some("CarIdx".to_string()));
         assert_eq!(iracing_mapping.track_id, Some("TrackId".to_string()));
-        
+
         // Test ACC field mapping
-        let acc_mapping = service.get_telemetry_mapping("acc").unwrap();
+        let acc_mapping = service.get_telemetry_mapping("acc")?;
         assert_eq!(acc_mapping.ffb_scalar, Some("steerAngle".to_string()));
         assert_eq!(acc_mapping.rpm, Some("rpms".to_string()));
         assert_eq!(acc_mapping.speed_ms, Some("speedKmh".to_string()));
@@ -439,42 +443,51 @@ mod tests {
         assert_eq!(acc_mapping.gear, Some("gear".to_string()));
         assert_eq!(acc_mapping.car_id, Some("carModel".to_string()));
         assert_eq!(acc_mapping.track_id, Some("track".to_string()));
+        Ok(())
     }
 
     #[test]
-    fn test_end_to_end_configuration() {
-        let service = GameIntegrationService::new().unwrap();
-        let temp_dir = TempDir::new().unwrap();
-        
+    fn test_end_to_end_configuration() -> Result<()> {
+        let service = GameIntegrationService::new()?;
+        let temp_dir = TempDir::new()?;
+
         // Test iRacing configuration
-        let iracing_diffs = service.configure_telemetry("iracing", temp_dir.path()).unwrap();
+        let iracing_diffs = service.configure_telemetry("iracing", temp_dir.path())?;
         assert_eq!(iracing_diffs.len(), 1);
         assert_eq!(iracing_diffs[0].key, "telemetryDiskFile");
         assert_eq!(iracing_diffs[0].new_value, "1");
-        
+
         // Test ACC configuration
-        let acc_diffs = service.configure_telemetry("acc", temp_dir.path()).unwrap();
+        let acc_diffs = service.configure_telemetry("acc", temp_dir.path())?;
         assert_eq!(acc_diffs.len(), 1);
         assert_eq!(acc_diffs[0].key, "entire_file");
-        
+
         // Verify ACC JSON is valid
-        let acc_json: serde_json::Value = serde_json::from_str(&acc_diffs[0].new_value).unwrap();
+        let acc_json: serde_json::Value = serde_json::from_str(&acc_diffs[0].new_value)?;
         assert!(acc_json.is_object());
         assert!(acc_json.get("updListenerPort").is_some());
         assert!(acc_json.get("broadcastingPort").is_some());
+        Ok(())
     }
 
     #[test]
-    fn test_unsupported_game_handling() {
-        let service = GameIntegrationService::new().unwrap();
-        
+    fn test_unsupported_game_handling() -> Result<()> {
+        let service = GameIntegrationService::new()?;
+
         // Test unsupported game returns error
         let result = service.get_game_support("unsupported_game");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Unsupported game"));
-        
+        let err = match result {
+            Ok(_) => return Err(anyhow!("Expected unsupported game error for get_game_support")),
+            Err(error) => error,
+        };
+        assert!(err.to_string().contains("Unsupported game"));
+
         let mapping_result = service.get_telemetry_mapping("unsupported_game");
-        assert!(mapping_result.is_err());
-        assert!(mapping_result.unwrap_err().to_string().contains("Unsupported game"));
+        let err = match mapping_result {
+            Ok(_) => return Err(anyhow!("Expected unsupported game error for get_telemetry_mapping")),
+            Err(error) => error,
+        };
+        assert!(err.to_string().contains("Unsupported game"));
+        Ok(())
     }
 }

@@ -57,8 +57,7 @@ impl Default for ChangelogEntry {
     fn default() -> Self {
         Self {
             version: Version::new(0, 1, 0),
-            date: NaiveDate::from_ymd_opt(2025, 1, 1)
-                .unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 1).expect("valid date")),
+            date: NaiveDate::from_ymd_opt(2025, 1, 1).unwrap_or(NaiveDate::MIN),
             added: Vec::new(),
             changed: Vec::new(),
             deprecated: Vec::new(),

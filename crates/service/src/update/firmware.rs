@@ -1797,7 +1797,10 @@ mod firmware_tests_internal {
         // Verify result shows failure
         assert!(!result.success);
         assert!(result.error.is_some());
-        let error_msg = result.error.as_ref().expect("Expected error message");
+        let error_msg = match &result.error {
+            Some(message) => message,
+            None => return Err(anyhow::anyhow!("Expected error message")),
+        };
         assert!(error_msg.contains("Health check failed"));
         Ok(())
     }

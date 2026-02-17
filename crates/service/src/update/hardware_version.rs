@@ -35,9 +35,12 @@ pub enum HardwareVersionError {
 /// ```ignore
 /// use racing_wheel_service::update::hardware_version::HardwareVersion;
 ///
-/// let v2 = HardwareVersion::parse("2.0").unwrap();
-/// let v10 = HardwareVersion::parse("10.0").unwrap();
-/// assert!(v2 < v10);  // Correct! String comparison would give wrong result.
+/// # fn demo() -> Result<(), Box<dyn std::error::Error>> {
+/// let v2 = HardwareVersion::parse("2.0")?;
+/// let v10 = HardwareVersion::parse("10.0")?;
+/// assert!(v2 < v10); // Correct! String comparison would give wrong result.
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HardwareVersion {
@@ -159,21 +162,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_simple_version() {
-        let v = HardwareVersion::parse("1").expect("should parse");
+    fn test_parse_simple_version() -> Result<(), HardwareVersionError> {
+        let v = HardwareVersion::parse("1")?;
         assert_eq!(v.components(), &[1]);
+        Ok(())
     }
 
     #[test]
-    fn test_parse_two_component_version() {
-        let v = HardwareVersion::parse("1.2").expect("should parse");
+    fn test_parse_two_component_version() -> Result<(), HardwareVersionError> {
+        let v = HardwareVersion::parse("1.2")?;
         assert_eq!(v.components(), &[1, 2]);
+        Ok(())
     }
 
     #[test]
-    fn test_parse_three_component_version() {
-        let v = HardwareVersion::parse("1.2.3").expect("should parse");
+    fn test_parse_three_component_version() -> Result<(), HardwareVersionError> {
+        let v = HardwareVersion::parse("1.2.3")?;
         assert_eq!(v.components(), &[1, 2, 3]);
+        Ok(())
     }
 
     #[test]
@@ -216,53 +222,58 @@ mod tests {
     }
 
     #[test]
-    fn test_numeric_comparison_10_vs_2() {
+    fn test_numeric_comparison_10_vs_2() -> Result<(), HardwareVersionError> {
         // This is the critical bug fix test
         // String comparison: "10.0" < "2.0" is TRUE (wrong!)
         // Numeric comparison: 10.0 < 2.0 is FALSE (correct!)
-        let v2 = HardwareVersion::parse("2.0").expect("should parse");
-        let v10 = HardwareVersion::parse("10.0").expect("should parse");
+        let v2 = HardwareVersion::parse("2.0")?;
+        let v10 = HardwareVersion::parse("10.0")?;
 
         assert!(v2 < v10, "2.0 should be less than 10.0");
         assert!(v10 > v2, "10.0 should be greater than 2.0");
+        Ok(())
     }
 
     #[test]
-    fn test_comparison_1_2_vs_1_2_1() {
-        let v1_2 = HardwareVersion::parse("1.2").expect("should parse");
-        let v1_2_1 = HardwareVersion::parse("1.2.1").expect("should parse");
+    fn test_comparison_1_2_vs_1_2_1() -> Result<(), HardwareVersionError> {
+        let v1_2 = HardwareVersion::parse("1.2")?;
+        let v1_2_1 = HardwareVersion::parse("1.2.1")?;
 
         assert!(v1_2 < v1_2_1, "1.2 should be less than 1.2.1");
+        Ok(())
     }
 
     #[test]
-    fn test_comparison_1_2_0_equals_1_2() {
+    fn test_comparison_1_2_0_equals_1_2() -> Result<(), HardwareVersionError> {
         // Trailing zeros should be treated as equal
-        let v1_2 = HardwareVersion::parse("1.2").expect("should parse");
-        let v1_2_0 = HardwareVersion::parse("1.2.0").expect("should parse");
+        let v1_2 = HardwareVersion::parse("1.2")?;
+        let v1_2_0 = HardwareVersion::parse("1.2.0")?;
 
         assert_eq!(v1_2.cmp(&v1_2_0), Ordering::Equal);
+        Ok(())
     }
 
     #[test]
-    fn test_comparison_equal_versions() {
-        let v1 = HardwareVersion::parse("1.2.3").expect("should parse");
-        let v2 = HardwareVersion::parse("1.2.3").expect("should parse");
+    fn test_comparison_equal_versions() -> Result<(), HardwareVersionError> {
+        let v1 = HardwareVersion::parse("1.2.3")?;
+        let v2 = HardwareVersion::parse("1.2.3")?;
 
         assert_eq!(v1, v2);
         assert_eq!(v1.cmp(&v2), Ordering::Equal);
+        Ok(())
     }
 
     #[test]
-    fn test_comparison_chain() {
-        let v1_0 = HardwareVersion::parse("1.0").expect("should parse");
-        let v1_5 = HardwareVersion::parse("1.5").expect("should parse");
-        let v2_0 = HardwareVersion::parse("2.0").expect("should parse");
-        let v10_0 = HardwareVersion::parse("10.0").expect("should parse");
+    fn test_comparison_chain() -> Result<(), HardwareVersionError> {
+        let v1_0 = HardwareVersion::parse("1.0")?;
+        let v1_5 = HardwareVersion::parse("1.5")?;
+        let v2_0 = HardwareVersion::parse("2.0")?;
+        let v10_0 = HardwareVersion::parse("10.0")?;
 
         assert!(v1_0 < v1_5);
         assert!(v1_5 < v2_0);
         assert!(v2_0 < v10_0);
+        Ok(())
     }
 
     #[test]
@@ -281,36 +292,41 @@ mod tests {
     }
 
     #[test]
-    fn test_display() {
-        let v = HardwareVersion::parse("1.2.3").expect("should parse");
+    fn test_display() -> Result<(), HardwareVersionError> {
+        let v = HardwareVersion::parse("1.2.3")?;
         assert_eq!(format!("{}", v), "1.2.3");
+        Ok(())
     }
 
     #[test]
-    fn test_from_str() {
-        let v: HardwareVersion = "1.2.3".parse().expect("should parse");
+    fn test_from_str() -> Result<(), HardwareVersionError> {
+        let v: HardwareVersion = "1.2.3".parse()?;
         assert_eq!(v.components(), &[1, 2, 3]);
+        Ok(())
     }
 
     #[test]
-    fn test_large_version_numbers() {
-        let v = HardwareVersion::parse("100.200.300").expect("should parse");
+    fn test_large_version_numbers() -> Result<(), HardwareVersionError> {
+        let v = HardwareVersion::parse("100.200.300")?;
         assert_eq!(v.components(), &[100, 200, 300]);
+        Ok(())
     }
 
     #[test]
-    fn test_single_digit_ordering() {
-        let v1 = HardwareVersion::parse("1").expect("should parse");
-        let v2 = HardwareVersion::parse("2").expect("should parse");
-        let v10 = HardwareVersion::parse("10").expect("should parse");
+    fn test_single_digit_ordering() -> Result<(), HardwareVersionError> {
+        let v1 = HardwareVersion::parse("1")?;
+        let v2 = HardwareVersion::parse("2")?;
+        let v10 = HardwareVersion::parse("10")?;
 
         assert!(v1 < v2);
         assert!(v2 < v10);
+        Ok(())
     }
 
     #[test]
-    fn test_parse_with_whitespace_trim() {
-        let v = HardwareVersion::parse("  1.2.3  ").expect("should parse");
+    fn test_parse_with_whitespace_trim() -> Result<(), HardwareVersionError> {
+        let v = HardwareVersion::parse("  1.2.3  ")?;
         assert_eq!(v.components(), &[1, 2, 3]);
+        Ok(())
     }
 }

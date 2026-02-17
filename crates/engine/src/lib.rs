@@ -15,7 +15,12 @@ use mimalloc::MiMalloc;
 static GLOBAL: crate::allocation_tracker::TrackingAllocator =
     crate::allocation_tracker::TrackingAllocator;
 
-#[cfg(all(not(test), feature = "rt-allocator"))]
+#[cfg(all(not(test), feature = "rt-hardening"))]
+#[global_allocator]
+static GLOBAL: crate::allocation_tracker::TrackingAllocator =
+    crate::allocation_tracker::TrackingAllocator;
+
+#[cfg(all(not(test), not(feature = "rt-hardening"), feature = "rt-allocator"))]
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
