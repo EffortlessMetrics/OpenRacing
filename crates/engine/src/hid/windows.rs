@@ -349,7 +349,7 @@ impl SupportedDevices {
             // Moza Racing wheelbases - V1
             (vendor_ids::MOZA, 0x0005, "Moza R3"),
             (vendor_ids::MOZA, 0x0004, "Moza R5"),
-            (vendor_ids::MOZA, 0x0002, "Moza R9"),
+            (vendor_ids::MOZA, 0x0002, "Moza R9 V1 (ES incompatible)"),
             (vendor_ids::MOZA, 0x0006, "Moza R12"),
             (vendor_ids::MOZA, 0x0000, "Moza R16/R21"),
             // Moza Racing wheelbases - V2

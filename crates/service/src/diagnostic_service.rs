@@ -4,8 +4,9 @@
 //! and configuration for optimal racing wheel operation.
 
 use anyhow::Result;
+use racing_wheel_engine::hid::vendor::moza;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::time::{Duration, Instant};
 use tracing::{error, info};
 
@@ -267,7 +268,6 @@ impl DiagnosticTest for HidDeviceTest {
 
     async fn run(&self, _system_info: &SystemInfo) -> Result<DiagnosticResult> {
         let mut metadata = HashMap::new();
-        let _suggested_actions: Vec<String> = Vec::new();
 
         // Check for HID devices
         #[cfg(target_os = "linux")]
@@ -326,13 +326,88 @@ impl DiagnosticTest for HidDeviceTest {
                         ],
                     })
                 } else {
+                    let mut moza_es_warnings = BTreeSet::new();
+                    let mut unsupported_r9_v1_seen = false;
+                    let mut unknown_moza_seen = false;
+
+                    for device in &wheel_devices {
+                        if device.vendor_id() != 0x346e {
+                            continue;
+                        }
+
+                        let compatibility = moza::es_compatibility(device.product_id());
+                        let key = format!("moza_es_compat_{:04x}", device.product_id());
+                        metadata.insert(key, format!("{:?}", compatibility));
+
+                        if let Some(msg) = compatibility.diagnostic_message() {
+                            match compatibility {
+                                moza::MozaEsCompatibility::UnsupportedHardwareRevision => {
+                                    unsupported_r9_v1_seen = true;
+                                    moza_es_warnings.insert(format!(
+                                        "Moza {:04X}:{:04X}: {}",
+                                        device.vendor_id(),
+                                        device.product_id(),
+                                        msg
+                                    ));
+                                }
+                                moza::MozaEsCompatibility::UnknownWheelbase => {
+                                    unknown_moza_seen = true;
+                                    moza_es_warnings.insert(format!(
+                                        "Moza {:04X}:{:04X}: {}",
+                                        device.vendor_id(),
+                                        device.product_id(),
+                                        msg
+                                    ));
+                                }
+                                moza::MozaEsCompatibility::Supported
+                                | moza::MozaEsCompatibility::NotWheelbase => {}
+                            }
+                        }
+                    }
+
+                    if moza_es_warnings.is_empty() {
+                        return Ok(DiagnosticResult {
+                            name: self.name().to_string(),
+                            status: DiagnosticStatus::Pass,
+                            message: format!(
+                                "Found {} racing wheel device(s)",
+                                wheel_devices.len()
+                            ),
+                            execution_time_ms: 0,
+                            metadata,
+                            suggested_actions: vec![],
+                        });
+                    }
+
+                    let mut suggested_actions = Vec::new();
+                    if unsupported_r9_v1_seen {
+                        suggested_actions.push(
+                            "Use an R9 V2 or another ES-compatible MOZA wheelbase when using the ES rim"
+                                .to_string(),
+                        );
+                        suggested_actions.push(
+                            "If ES inputs are missing on R9 V1, this is expected hardware incompatibility"
+                                .to_string(),
+                        );
+                    }
+                    if unknown_moza_seen {
+                        suggested_actions.push(
+                            "Capture HID descriptors and input reports for this MOZA wheelbase before enabling ES-specific mappings"
+                                .to_string(),
+                        );
+                    }
+
                     Ok(DiagnosticResult {
                         name: self.name().to_string(),
-                        status: DiagnosticStatus::Pass,
-                        message: format!("Found {} racing wheel device(s)", wheel_devices.len()),
+                        status: DiagnosticStatus::Warn,
+                        message: format!(
+                            "Found {} racing wheel device(s); {}",
+                            wheel_devices.len(),
+                            moza_es_warnings.into_iter().collect::<Vec<_>>().join(" | ")
+                        ),
                         execution_time_ms: 0,
                         metadata,
-                        suggested_actions: vec![],
+                        suggested_actions,
                     })
                 }
             }
@@ -353,16 +428,23 @@ impl DiagnosticTest for HidDeviceTest {
 }
 
 impl HidDeviceTest {
-    fn is_racing_wheel_device(device: &hidapi::DeviceInfo) -> bool {
-        // Check for known racing wheel vendor IDs
+    fn is_racing_wheel_vendor_id(vendor_id: u16) -> bool {
+        // Known racing wheel vendor IDs.
         let racing_wheel_vendors = [
             0x046d, // Logitech
             0x044f, // ThrustMaster
             0x0eb7, // Endor (Fanatec)
+            0x346e, // Moza Racing
+            0x0483, // Simagic (STMicroelectronics-based)
+            0x16d0, // Simagic alternate VID
             0x1209, // Generic/Community VID
         ];
 
-        racing_wheel_vendors.contains(&device.vendor_id())
+        racing_wheel_vendors.contains(&vendor_id)
+    }
+
+    fn is_racing_wheel_device(device: &hidapi::DeviceInfo) -> bool {
+        Self::is_racing_wheel_vendor_id(device.vendor_id())
     }
 }
 
@@ -891,5 +973,22 @@ impl DiagnosticTest for SafetySystemTest {
             metadata,
             suggested_actions,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::HidDeviceTest;
+
+    #[test]
+    fn test_racing_wheel_vendor_ids_include_moza_and_simagic() {
+        assert!(HidDeviceTest::is_racing_wheel_vendor_id(0x346e));
+        assert!(HidDeviceTest::is_racing_wheel_vendor_id(0x0483));
+        assert!(HidDeviceTest::is_racing_wheel_vendor_id(0x16d0));
+    }
+
+    #[test]
+    fn test_racing_wheel_vendor_ids_reject_unknown_vendor() {
+        assert!(!HidDeviceTest::is_racing_wheel_vendor_id(0x9999));
     }
 }

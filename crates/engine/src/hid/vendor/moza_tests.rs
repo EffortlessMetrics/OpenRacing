@@ -1,8 +1,9 @@
 //! Tests for Moza protocol handler
 
 use super::moza::{
-    FfbMode, MozaDeviceCategory, MozaModel, MozaProtocol, MozaTopologyHint, identify_device,
-    is_wheelbase_product, product_ids,
+    ES_BUTTON_COUNT, ES_LED_COUNT, FfbMode, MozaDeviceCategory, MozaEsCompatibility,
+    MozaEsJoystickMode, MozaHatDirection, MozaModel, MozaProtocol, MozaTopologyHint,
+    es_compatibility, identify_device, is_wheelbase_product, product_ids,
 };
 use super::{DeviceWriter, FfbConfig, VendorProtocol, get_vendor_protocol};
 use std::cell::RefCell;
@@ -117,6 +118,98 @@ fn test_moza_identity_peripherals() {
     assert_eq!(unknown.topology_hint, MozaTopologyHint::Unknown);
     assert!(!unknown.supports_ffb);
     assert!(!is_wheelbase_product(0xFEED));
+}
+
+#[test]
+fn test_moza_es_compatibility_matrix() {
+    // Vendor-documented R9 split.
+    assert_eq!(
+        es_compatibility(product_ids::R9_V1),
+        MozaEsCompatibility::UnsupportedHardwareRevision
+    );
+    assert_eq!(
+        es_compatibility(product_ids::R9_V2),
+        MozaEsCompatibility::Supported
+    );
+
+    // Known bundle-compatible base.
+    assert_eq!(
+        es_compatibility(product_ids::R5_V1),
+        MozaEsCompatibility::Supported
+    );
+
+    // Not yet capture-validated in this codebase.
+    assert_eq!(
+        es_compatibility(product_ids::R12_V2),
+        MozaEsCompatibility::UnknownWheelbase
+    );
+
+    // Not a wheelbase.
+    assert_eq!(
+        es_compatibility(product_ids::SR_P_PEDALS),
+        MozaEsCompatibility::NotWheelbase
+    );
+}
+
+#[test]
+fn test_moza_es_compatibility_protocol_accessor() {
+    let v1 = MozaProtocol::new(product_ids::R9_V1);
+    assert_eq!(
+        v1.es_compatibility(),
+        MozaEsCompatibility::UnsupportedHardwareRevision
+    );
+
+    let v2 = MozaProtocol::new(product_ids::R9_V2);
+    assert_eq!(v2.es_compatibility(), MozaEsCompatibility::Supported);
+    assert!(v2.es_compatibility().is_supported());
+}
+
+#[test]
+fn test_moza_es_compatibility_diagnostic_messages() {
+    let incompatible = MozaEsCompatibility::UnsupportedHardwareRevision.diagnostic_message();
+    assert!(incompatible.is_some());
+
+    let unknown = MozaEsCompatibility::UnknownWheelbase.diagnostic_message();
+    assert!(unknown.is_some());
+
+    let not_wheelbase = MozaEsCompatibility::NotWheelbase.diagnostic_message();
+    assert!(not_wheelbase.is_none());
+}
+
+#[test]
+fn test_moza_es_joystick_mode_from_config() {
+    assert_eq!(
+        MozaEsJoystickMode::from_config_value(0),
+        Some(MozaEsJoystickMode::Buttons)
+    );
+    assert_eq!(
+        MozaEsJoystickMode::from_config_value(1),
+        Some(MozaEsJoystickMode::DPad)
+    );
+    assert_eq!(MozaEsJoystickMode::from_config_value(2), None);
+}
+
+#[test]
+fn test_moza_hat_direction_parsing() {
+    assert_eq!(
+        MozaHatDirection::from_hid_hat_value(0),
+        Some(MozaHatDirection::Up)
+    );
+    assert_eq!(
+        MozaHatDirection::from_hid_hat_value(4),
+        Some(MozaHatDirection::Down)
+    );
+    assert_eq!(
+        MozaHatDirection::from_hid_hat_value(8),
+        Some(MozaHatDirection::Center)
+    );
+    assert_eq!(MozaHatDirection::from_hid_hat_value(9), None);
+}
+
+#[test]
+fn test_moza_es_surface_constants() {
+    assert_eq!(ES_BUTTON_COUNT, 22);
+    assert_eq!(ES_LED_COUNT, 10);
 }
 
 #[test]
