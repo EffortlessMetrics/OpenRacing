@@ -15,6 +15,10 @@ const AC_RALLY_DEFAULT_DISCOVERY_PORT: u16 = 9000;
 const AC_RALLY_PROBE_RELATIVE_PATH: &str =
     "Documents/Assetto Corsa Rally/Config/openracing_probe.json";
 const IRACING_360HZ_KEY: &str = "irsdkLog360Hz";
+const DIRT5_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/dirt5_bridge_contract.json";
+const DIRT5_BRIDGE_PROTOCOL: &str = "codemasters_udp";
+const DIRT5_DEFAULT_PORT: u16 = 20777;
+const DIRT5_DEFAULT_MODE: u8 = 1;
 
 /// iRacing configuration writer
 pub struct IRacingConfigWriter;
@@ -669,6 +673,108 @@ impl Default for EAWRCConfigWriter {
     }
 }
 
+/// Dirt 5 configuration writer.
+///
+/// Dirt 5 has no native in-game telemetry export settings to toggle. This writer
+/// creates a sidecar contract file consumed by OpenRacing and external bridge tools.
+pub struct Dirt5ConfigWriter;
+
+impl Default for Dirt5ConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for Dirt5ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Dirt 5 bridge contract configuration");
+
+        let contract_path = game_path.join(DIRT5_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(DIRT5_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "dirt5",
+            "telemetry_protocol": DIRT5_BRIDGE_PROTOCOL,
+            "mode": DIRT5_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Dirt 5 telemetry is bridge-backed; no native game config is modified.",
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(DIRT5_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|value| value == DIRT5_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|value| value == "dirt5")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(DIRT5_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "dirt5",
+            "telemetry_protocol": DIRT5_BRIDGE_PROTOCOL,
+            "mode": DIRT5_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Dirt 5 telemetry is bridge-backed; no native game config is modified.",
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: DIRT5_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
 impl ConfigWriter for EAWRCConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing EA WRC telemetry configuration");
@@ -1245,6 +1351,36 @@ mod tests {
         )?;
 
         assert!(writer.validate_config(temp_dir.path())?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_dirt5_writer_round_trip() -> TestResult {
+        let writer = Dirt5ConfigWriter;
+        let temp_dir = tempdir()?;
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 120,
+            output_method: "udp_custom_codemasters".to_string(),
+            output_target: "127.0.0.1:20777".to_string(),
+            fields: vec![
+                "rpm".to_string(),
+                "speed_ms".to_string(),
+                "gear".to_string(),
+                "slip_ratio".to_string(),
+            ],
+            enable_high_rate_iracing_360hz: false,
+        };
+
+        let diffs = writer.write_config(temp_dir.path(), &config)?;
+        assert_eq!(diffs.len(), 1);
+        assert!(writer.validate_config(temp_dir.path())?);
+
+        let expected = writer.get_expected_diffs(&config)?;
+        assert_eq!(diffs.len(), expected.len());
+        assert_eq!(diffs[0].file_path, expected[0].file_path);
+        assert_eq!(diffs[0].new_value, expected[0].new_value);
+        assert_eq!(diffs[0].operation, expected[0].operation);
         Ok(())
     }
 }

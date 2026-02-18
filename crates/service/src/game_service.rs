@@ -6,6 +6,7 @@
 use crate::config_writers::{
     ACCConfigWriter, ACRallyConfigWriter, AMS2ConfigWriter, EAWRCConfigWriter, IRacingConfigWriter,
     RFactor2ConfigWriter,
+    Dirt5ConfigWriter,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -143,6 +144,7 @@ impl GameService {
         config_writers.insert("ams2".to_string(), Box::new(AMS2ConfigWriter));
         config_writers.insert("rfactor2".to_string(), Box::new(RFactor2ConfigWriter));
         config_writers.insert("eawrc".to_string(), Box::new(EAWRCConfigWriter));
+        config_writers.insert("dirt5".to_string(), Box::new(Dirt5ConfigWriter));
 
         Ok(Self {
             support_matrix: Arc::new(RwLock::new(support_matrix)),
@@ -186,6 +188,7 @@ impl GameService {
             "acc" => "127.0.0.1:9000".to_string(),
             "ac_rally" => "127.0.0.1:9000".to_string(),
             "eawrc" => "127.0.0.1:20778".to_string(),
+            "dirt5" => "127.0.0.1:20777".to_string(),
             _ => "127.0.0.1:12345".to_string(),
         };
 

@@ -219,3 +219,44 @@ games:
         - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1849250"
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/WRC"
+
+  dirt5:
+    name: "Dirt 5"
+    versions:
+      - version: "1.x"
+        config_paths:
+          - "Documents/OpenRacing/dirt5_bridge_contract.json"
+        executable_patterns:
+          - "DIRT5.exe"
+          - "DIRT5_Launcher.exe"
+          - "game_release.exe"
+          - "game_dev.exe"
+        telemetry_method: "udp_custom_codemasters"
+        supported_fields:
+          - "rpm"
+          - "speed_ms"
+          - "gear"
+          - "slip_ratio"
+        # Dirt 5 currently does not provide native force-feedback torque requests.
+    telemetry:
+      method: "udp_custom_codemasters"
+      update_rate_hz: 60
+      fields:
+        ffb_scalar: null
+        rpm: "engine_rate"
+        speed_ms: "speed"
+        slip_ratio: "slip_ratio"
+        gear: "gear"
+        flags: null
+        car_id: null
+        track_id: null
+    config_writer: "dirt5"
+    auto_detect:
+      process_names:
+        - "DIRT5.exe"
+        - "game_release.exe"
+        - "game_dev.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1238860"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Dirt 5"

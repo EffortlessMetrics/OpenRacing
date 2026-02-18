@@ -20,6 +20,7 @@ async fn test_telemetry_service_creation() -> TestResult {
     assert!(supported_games.contains(&"ams2".to_string()));
     assert!(supported_games.contains(&"rfactor2".to_string()));
     assert!(supported_games.contains(&"eawrc".to_string()));
+    assert!(supported_games.contains(&"dirt5".to_string()));
     Ok(())
 }
 

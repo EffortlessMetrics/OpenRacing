@@ -6,13 +6,16 @@
 pub mod ac_rally;
 pub mod acc;
 pub mod ams2;
+mod codemasters_udp;
 pub mod eawrc;
+pub mod dirt5;
 pub mod iracing;
 pub mod rfactor2;
 
 pub use ac_rally::ACRallyAdapter;
 pub use acc::ACCAdapter;
 pub use ams2::AMS2Adapter;
+pub use dirt5::Dirt5Adapter;
 pub use eawrc::EAWRCAdapter;
 pub use iracing::IRacingAdapter;
 pub use rfactor2::RFactor2Adapter;

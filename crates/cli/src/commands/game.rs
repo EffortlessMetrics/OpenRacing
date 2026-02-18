@@ -130,6 +130,11 @@ async fn configure_game(
                 println!("  • Installed telemetry/udp/openracing.json packet structure");
                 println!("  • Configured schema-driven UDP output endpoint");
             }
+            "dirt5" => {
+                println!("  • Wrote OpenRacing Dirt 5 bridge contract");
+                println!("  • Configured UDP export port for Codemasters-style bridge payloads");
+                println!("  • No native game file edits are required");
+            }
             _ => {
                 println!("  • Applied game-specific configuration");
             }
@@ -348,6 +353,23 @@ fn get_supported_games() -> Vec<GameInfo> {
             config_method: "config.json + udp/openracing.json".to_string(),
             default_path: Some(
                 "C:\\Users\\<user>\\Documents\\My Games\\WRC\\telemetry".to_string(),
+            ),
+        },
+        GameInfo {
+            id: "dirt5".to_string(),
+            name: "Dirt 5".to_string(),
+            version: "1.x".to_string(),
+            features: vec![
+                "No native telemetry".to_string(),
+                "Bridge-backed protocol".to_string(),
+                "Codemasters-style UDP".to_string(),
+                "Speed".to_string(),
+                "RPM".to_string(),
+                "Wheel patch + suspension".to_string(),
+            ],
+            config_method: "OpenRacing bridge contract".to_string(),
+            default_path: Some(
+                "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Dirt 5".to_string(),
             ),
         },
     ]

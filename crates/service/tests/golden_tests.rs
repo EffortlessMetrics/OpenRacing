@@ -12,7 +12,7 @@ fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
     }
 }
 
-use racing_wheel_service::config_writers::{ACCConfigWriter, IRacingConfigWriter};
+use racing_wheel_service::config_writers::{ACCConfigWriter, Dirt5ConfigWriter, IRacingConfigWriter};
 use racing_wheel_service::game_service::*;
 use tempfile::TempDir;
 
@@ -147,6 +147,33 @@ async fn test_acc_config_writer_golden() {
 }
 
 #[tokio::test]
+async fn test_dirt5_config_writer_golden() {
+    let writer = Dirt5ConfigWriter;
+    let temp_dir = must(TempDir::new());
+    let config = TelemetryConfig {
+        enabled: true,
+        update_rate_hz: 60,
+        output_method: "udp_custom_codemasters".to_string(),
+        output_target: "127.0.0.1:20777".to_string(),
+        fields: vec!["rpm".to_string(), "speed_ms".to_string(), "gear".to_string()],
+        enable_high_rate_iracing_360hz: false,
+    };
+
+    let expected_diffs = must(writer.get_expected_diffs(&config));
+    assert_eq!(expected_diffs.len(), 1);
+
+    let actual_diffs = must(writer.write_config(temp_dir.path(), &config));
+    assert_eq!(actual_diffs.len(), expected_diffs.len());
+    assert_eq!(actual_diffs[0].key, expected_diffs[0].key);
+    assert_eq!(actual_diffs[0].operation, expected_diffs[0].operation);
+
+    let contract: serde_json::Value = must(serde_json::from_str(&actual_diffs[0].new_value));
+    assert_eq!(contract["game_id"], "dirt5");
+    assert_eq!(contract["telemetry_protocol"], "codemasters_udp");
+    assert_eq!(contract["udp_port"], 20777);
+}
+
+#[tokio::test]
 async fn test_game_service_yaml_loading() {
     let service = must(GameService::new().await);
 
@@ -158,7 +185,8 @@ async fn test_game_service_yaml_loading() {
     assert!(supported_games.contains(&"ams2".to_string()));
     assert!(supported_games.contains(&"rfactor2".to_string()));
     assert!(supported_games.contains(&"eawrc".to_string()));
-    assert_eq!(supported_games.len(), 6);
+    assert!(supported_games.contains(&"dirt5".to_string()));
+    assert_eq!(supported_games.len(), 7);
 }
 
 #[tokio::test]

@@ -299,6 +299,60 @@ impl GameSupportMatrix {
             },
         );
 
+        // Dirt 5 support via bridge-provided Codemasters UDP stream.
+        games.insert(
+            "dirt5".to_string(),
+            GameSupport {
+                name: "Dirt 5".to_string(),
+                versions: vec![GameVersion {
+                    version: "1.x".to_string(),
+                    config_paths: vec!["Documents/OpenRacing/dirt5_bridge_contract.json".to_string()],
+                    executable_patterns: vec![
+                        "DIRT5.exe".to_string(),
+                        "DIRT5_Launcher.exe".to_string(),
+                        "game_release.exe".to_string(),
+                        "game_dev.exe".to_string(),
+                    ],
+                    telemetry_method: "udp_custom_codemasters".to_string(),
+                    supported_fields: vec![
+                        "rpm".to_string(),
+                        "speed_ms".to_string(),
+                        "gear".to_string(),
+                        "slip_ratio".to_string(),
+                    ],
+                }],
+                telemetry: TelemetrySupport {
+                    method: "udp_custom_codemasters".to_string(),
+                    update_rate_hz: 60,
+                    fields: TelemetryFieldMapping {
+                        ffb_scalar: None,
+                        rpm: Some("engine_rate".to_string()),
+                        speed_ms: Some("speed".to_string()),
+                        slip_ratio: Some("slip_ratio".to_string()),
+                        gear: Some("gear".to_string()),
+                        flags: None,
+                        car_id: None,
+                        track_id: None,
+                    },
+                },
+                config_writer: "dirt5".to_string(),
+                auto_detect: AutoDetectConfig {
+                    process_names: vec![
+                        "DIRT5.exe".to_string(),
+                        "game_release.exe".to_string(),
+                        "game_dev.exe".to_string(),
+                    ],
+                    install_registry_keys: vec![
+                        "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1238860"
+                            .to_string(),
+                    ],
+                    install_paths: vec![
+                        "Program Files (x86)/Steam/steamapps/common/Dirt 5".to_string(),
+                    ],
+                },
+            },
+        );
+
         Self { games }
     }
 }

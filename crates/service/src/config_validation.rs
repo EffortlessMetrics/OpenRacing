@@ -321,6 +321,58 @@ impl ConfigValidationService {
             },
         );
 
+        // Dirt 5 bridge contract golden file fixture
+        fixtures.insert(
+            "dirt5".to_string(),
+            GoldenFileFixture {
+                game_id: "dirt5".to_string(),
+                config: TelemetryConfig {
+                    enabled: true,
+                    update_rate_hz: 60,
+                    output_method: "udp_custom_codemasters".to_string(),
+                    output_target: "127.0.0.1:20777".to_string(),
+                    fields: vec![
+                        "rpm".to_string(),
+                        "speed_ms".to_string(),
+                        "gear".to_string(),
+                        "slip_ratio".to_string(),
+                    ],
+                    enable_high_rate_iracing_360hz: false,
+                },
+                expected_diffs: vec![ConfigDiff {
+                    file_path: "Documents/OpenRacing/dirt5_bridge_contract.json".to_string(),
+                    section: None,
+                    key: "entire_file".to_string(),
+                    old_value: None,
+                    new_value: r#"{
+  "bridge_notes": "Dirt 5 telemetry is bridge-backed; no native game config is modified.",
+  "enabled": true,
+  "game_id": "dirt5",
+  "mode": 1,
+  "telemetry_protocol": "codemasters_udp",
+  "udp_port": 20777,
+  "update_rate_hz": 60
+}"#
+                    .to_string(),
+                    operation: DiffOperation::Add,
+                }],
+                expected_files: vec![ExpectedFile {
+                    path: "Documents/OpenRacing/dirt5_bridge_contract.json".to_string(),
+                    content: r#"{
+  "bridge_notes": "Dirt 5 telemetry is bridge-backed; no native game config is modified.",
+  "enabled": true,
+  "game_id": "dirt5",
+  "mode": 1,
+  "telemetry_protocol": "codemasters_udp",
+  "udp_port": 20777,
+  "update_rate_hz": 60
+}"#
+                    .to_string(),
+                    checksum: None,
+                }],
+            },
+        );
+
         fixtures
     }
 
@@ -752,6 +804,7 @@ mod tests {
         assert!(service.golden_files.contains_key("iracing"));
         assert!(service.golden_files.contains_key("acc"));
         assert!(service.golden_files.contains_key("eawrc"));
+        assert!(service.golden_files.contains_key("dirt5"));
     }
 
     #[tokio::test]

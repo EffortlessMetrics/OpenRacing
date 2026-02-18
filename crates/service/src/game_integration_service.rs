@@ -617,6 +617,7 @@ mod tests {
         assert!(games.contains(&"ams2".to_string()));
         assert!(games.contains(&"rfactor2".to_string()));
         assert!(games.contains(&"eawrc".to_string()));
+        assert!(games.contains(&"dirt5".to_string()));
         Ok(())
     }
 }
