@@ -2,9 +2,12 @@
 
 use super::moza::{
     ES_BUTTON_COUNT, ES_LED_COUNT, FfbMode, MozaDeviceCategory, MozaEsCompatibility,
-    MozaEsJoystickMode, MozaHatDirection, MozaModel, MozaProtocol, MozaTopologyHint,
+    MozaEsJoystickMode, MozaHatDirection, MozaInitState, MozaModel, MozaProtocol, MozaTopologyHint,
     es_compatibility, identify_device, input_report, is_wheelbase_product, product_ids,
+    report_ids,
 };
+use crate::input::KsClutchMode;
+use super::moza_direct::REPORT_LEN;
 use super::{DeviceWriter, FfbConfig, VendorProtocol, get_vendor_protocol};
 use std::cell::RefCell;
 
@@ -189,6 +192,57 @@ fn test_moza_parse_aggregated_pedal_axes_rejects_wrong_report_id() {
 }
 
 #[test]
+fn test_moza_parse_input_state_populates_ks_snapshot() {
+    let protocol = MozaProtocol::new(product_ids::R5_V1);
+
+    let report = [
+        input_report::REPORT_ID,
+        0x00,
+        0x80,
+        0x34,
+        0x12,
+        0xCD,
+        0xAB,
+        0x0F,
+        0x0F,
+        0xAA,
+        0x55,
+        0x01,
+        0x02,
+        0x03,
+        0x04,
+        0x05,
+        0x06,
+        0x07,
+        0x08,
+        0x09,
+        0x0A,
+        0x0B,
+        0x0C,
+        0x0D,
+        0x0E,
+        0x0F,
+        0x10,
+        0x11,
+        0x12,
+        0x13,
+        0x14,
+        0x15,
+        0x16,
+    ];
+
+    let state = protocol
+        .parse_input_state(&report)
+        .expect("expected wheelbase state parse");
+
+    let expected_buttons = [0x01u8, 0x02, 0x03, 0x04];
+    assert_eq!(&state.ks_snapshot.buttons[..4], &expected_buttons[..]);
+    assert_eq!(state.ks_snapshot.hat, 0x14);
+    assert_eq!(state.ks_snapshot.clutch_mode, KsClutchMode::Unknown);
+    assert_eq!(state.ks_snapshot.clutch_left, None);
+}
+
+#[test]
 fn test_moza_pedal_axis_normalization() -> Result<(), Box<dyn std::error::Error>> {
     let protocol = MozaProtocol::new(product_ids::R5_V2);
 
@@ -215,6 +269,33 @@ fn test_moza_pedal_axis_normalization() -> Result<(), Box<dyn std::error::Error>
     let clutch = normalized.clutch.ok_or("expected clutch sample")?;
     assert!((clutch - (32768.0 / 65535.0)).abs() < 0.000_01);
     assert_eq!(normalized.handbrake, None);
+    Ok(())
+}
+
+#[test]
+fn test_moza_parse_standalone_hbp_state_with_report_id() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new(product_ids::HBP_HANDBRAKE);
+    let report = [0x11, 0x34, 0x12, 0x80];
+    let state = protocol
+        .parse_input_state(&report)
+        .ok_or("expected handbrake-only report")?;
+
+    assert_eq!(state.handbrake_u16, 0x1234);
+    assert_eq!(state.clutch_u16, 0);
+    assert_eq!(state.buttons[0], 0x80);
+    Ok(())
+}
+
+#[test]
+fn test_moza_parse_standalone_hbp_state_without_report_id() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new(product_ids::HBP_HANDBRAKE);
+    let report = [0xAA, 0x55];
+    let state = protocol
+        .parse_input_state(&report)
+        .ok_or("expected handbrake-only report")?;
+
+    assert_eq!(state.handbrake_u16, 0x55AA);
+    assert_eq!(state.clutch_u16, 0);
     Ok(())
 }
 
@@ -383,6 +464,42 @@ fn test_moza_initialize_device() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_moza_initialize_device_respects_configured_mode() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new_with_ffb_mode(0x0002, FfbMode::Direct);
+    let mut writer = MockDeviceWriter::new();
+
+    protocol.initialize_device(&mut writer)?;
+
+    let reports = writer.get_feature_reports();
+    assert_eq!(reports.len(), 3);
+    assert_eq!(reports[2][0], report_ids::FFB_MODE);
+    assert_eq!(reports[2][1], FfbMode::Direct as u8);
+    assert_eq!(reports[2][2], 0x00);
+    assert_eq!(reports[2][3], 0x00);
+
+    Ok(())
+}
+
+#[test]
+fn test_moza_initialize_device_idempotent_and_stateful() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new(0x0002); // R9
+    let mut writer = MockDeviceWriter::new();
+
+    assert_eq!(protocol.init_state(), MozaInitState::Uninitialized);
+
+    protocol.initialize_device(&mut writer)?;
+    assert_eq!(protocol.init_state(), MozaInitState::Ready);
+    let sent = writer.get_feature_reports().len();
+    assert_eq!(sent, 3);
+
+    protocol.initialize_device(&mut writer)?;
+    assert_eq!(protocol.init_state(), MozaInitState::Ready);
+    assert_eq!(writer.get_feature_reports().len(), sent);
+
+    Ok(())
+}
+
+#[test]
 fn test_moza_pedals_skip_initialization() -> Result<(), Box<dyn std::error::Error>> {
     let protocol = MozaProtocol::new(0x0003); // SR-P Pedals
     let mut writer = MockDeviceWriter::new();
@@ -396,6 +513,32 @@ fn test_moza_pedals_skip_initialization() -> Result<(), Box<dyn std::error::Erro
 }
 
 #[test]
+fn test_moza_peripheral_skip_initialization_state() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new(0x0003); // SR-P Pedals
+    let mut writer = MockDeviceWriter::new();
+
+    protocol.initialize_device(&mut writer)?;
+    assert_eq!(protocol.init_state(), MozaInitState::Uninitialized);
+    assert!(protocol.output_report_id().is_none());
+    assert!(protocol.output_report_len().is_none());
+
+    Ok(())
+}
+
+#[test]
+fn test_moza_handbrake_skip_initialization() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new(product_ids::HBP_HANDBRAKE);
+    let mut writer = MockDeviceWriter::new();
+
+    protocol.initialize_device(&mut writer)?;
+
+    let reports = writer.get_feature_reports();
+    assert!(reports.is_empty());
+
+    Ok(())
+}
+
+#[test]
 fn test_moza_initialization_continues_on_failure() -> Result<(), Box<dyn std::error::Error>> {
     let protocol = MozaProtocol::new(0x0002); // R9
     let mut writer = MockDeviceWriter::with_failure();
@@ -403,8 +546,23 @@ fn test_moza_initialization_continues_on_failure() -> Result<(), Box<dyn std::er
     // Should not return error, just warn
     let result = protocol.initialize_device(&mut writer);
     assert!(result.is_ok());
+    assert_eq!(protocol.init_state(), MozaInitState::Failed);
 
     Ok(())
+}
+
+#[test]
+fn test_moza_output_report_metadata() {
+    let protocol = MozaProtocol::new(0x0004); // R5 V1
+    assert_eq!(
+        protocol.output_report_id(),
+        Some(report_ids::DIRECT_TORQUE)
+    );
+    assert_eq!(protocol.output_report_len(), Some(REPORT_LEN));
+
+    let protocol_peripheral = MozaProtocol::new(0x0003); // SR-P Pedals
+    assert!(protocol_peripheral.output_report_id().is_none());
+    assert!(protocol_peripheral.output_report_len().is_none());
 }
 
 #[test]

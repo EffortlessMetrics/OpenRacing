@@ -18,20 +18,21 @@ games:
           - "speed_ms"
           - "slip_ratio"
           - "gear"
+          - "flags"
           - "car_id"
           - "track_id"
     telemetry:
       method: "shared_memory"
       update_rate_hz: 60
       fields:
-        ffb_scalar: "SteeringWheelTorque"
+        ffb_scalar: "SteeringWheelPctTorqueSign"
         rpm: "RPM"
         speed_ms: "Speed"
-        slip_ratio: "LFslipRatio"
+        slip_ratio: "LFSlipRatio"
         gear: "Gear"
         flags: "SessionFlags"
-        car_id: "CarIdx"
-        track_id: "TrackId"
+        car_id: "CarPath"
+        track_id: "TrackName"
     config_writer: "iracing"
     auto_detect:
       process_names:

@@ -29,19 +29,19 @@ pub struct NormalizedTelemetry {
 
 | Normalized Field | iRacing Field | Type | Notes |
 |------------------|---------------|------|-------|
-| `ffb_scalar` | `SteeringWheelTorque` | float | Direct mapping, already normalized |
+| `ffb_scalar` | `SteeringWheelPctTorqueSign` | float | Signed percent of max torque |
 | `rpm` | `RPM` | float | Engine RPM |
 | `speed_ms` | `Speed` | float | Already in m/s |
-| `slip_ratio` | `LFslipRatio` | float | Left front tire slip ratio |
+| `slip_ratio` | `LFSlipRatio` | float | Left front tire slip ratio |
 | `gear` | `Gear` | int | Direct mapping |
 | `flags` | `SessionFlags` | bitfield | Requires flag parsing |
-| `car_id` | `CarIdx` | int | Car index in session |
-| `track_id` | `TrackId` | int | Track identifier |
+| `car_id` | `CarPath` | string | Car path/model in session data |
+| `track_id` | `TrackName` | string | Track name/path |
 
 **Coverage:** ✅ Full coverage of all normalized fields
 
 **Special Notes:**
-- iRacing provides multiple tire slip ratios (LF, RF, LR, RR). We use left front as primary.
+- iRacing provides multiple tire slip ratios (LF, RF, LR, RR). Left-front is preferred.
 - SessionFlags is a bitfield that needs parsing for yellow flags, checkered flag, etc.
 - Speed is already in m/s, no conversion needed.
 
@@ -74,7 +74,7 @@ pub struct NormalizedTelemetry {
 
 | Game | FFB Scalar | RPM | Speed | Slip Ratio | Gear | Flags | Car ID | Track ID |
 |------|------------|-----|-------|------------|------|-------|--------|----------|
-| iRacing | ✅ Direct | ✅ Direct | ✅ Direct | ✅ LF Tire | ✅ Direct | ✅ Bitfield | ✅ Index | ✅ ID |
+| iRacing | ✅ Direct | ✅ Direct | ✅ Direct | ✅ LF Tire | ✅ Direct | ✅ Bitfield | ✅ Path | ✅ Name |
 | ACC | ⚠️ Convert | ✅ Direct | ⚠️ Convert | ✅ FL Wheel | ✅ Direct | ✅ Enum | ✅ Model | ✅ Name |
 
 **Legend:**

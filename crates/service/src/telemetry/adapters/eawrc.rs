@@ -26,6 +26,7 @@ const DEFAULT_PACKET_ID: &str = "session_update";
 const SUPPORTED_SCHEMA_VERSION: u32 = 1;
 const MAX_PACKET_SIZE: usize = 8192;
 const TELEMETRY_DIR_OVERRIDE_ENV: &str = "OPENRACING_EAWRC_TELEMETRY_DIR";
+const PACKET_UID_KEY: &str = "packetuid";
 
 pub struct EAWRCAdapter {
     telemetry_dir: PathBuf,
@@ -122,7 +123,14 @@ impl EAWRCAdapter {
 
         if let Some(value) = value_f32(
             &packet.values,
-            &["ffb_scalar", "steering_force", "steering_torque"],
+            &[
+                "ffb_scalar",
+                "steering_force",
+                "steering_torque",
+                "ffb_torque",
+                "steer_torque",
+                "ffb",
+            ],
         ) {
             telemetry = telemetry.with_ffb_scalar(value);
         }
@@ -139,7 +147,17 @@ impl EAWRCAdapter {
             telemetry = telemetry.with_rpm(value);
         }
 
-        if let Some(value) = value_f32(&packet.values, &["speed", "vehicle_speed", "speed_ms"]) {
+        if let Some(value) = value_f32(
+            &packet.values,
+            &[
+                "speed",
+                "vehicle_speed",
+                "vehicle_speed_mps",
+                "speed_ms",
+                "speed_mps",
+                "mps",
+            ],
+        ) {
             telemetry = telemetry.with_speed_ms(value);
         }
 
@@ -162,7 +180,10 @@ impl EAWRCAdapter {
             telemetry = telemetry.with_car_id(value);
         }
 
-        if let Some(value) = value_string(&packet.values, &["track_id", "track_name", "stage_name"])
+        if let Some(value) = value_string(
+            &packet.values,
+            &["track_id", "track_name", "stage_name", "stage"],
+        )
         {
             telemetry = telemetry.with_track_id(value);
         }
@@ -319,6 +340,7 @@ struct DecoderPlan {
 struct PacketLayout {
     channels: Vec<ChannelLayout>,
     total_size: usize,
+    packet_uid_offset: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -356,10 +378,14 @@ impl DecoderPlan {
 
             let mut channels = Vec::with_capacity(order.len());
             let mut offset = 0usize;
+            let mut packet_uid_offset = None;
             for channel_id in order {
                 let ty = channel_types.get(&channel_id).copied().ok_or_else(|| {
                     anyhow!("unknown channel '{}' in packet '{}'", channel_id, packet.id)
                 })?;
+                if canonical_channel_id(&channel_id) == PACKET_UID_KEY {
+                    packet_uid_offset = Some(offset);
+                }
                 channels.push(ChannelLayout {
                     id: channel_id,
                     ty,
@@ -375,6 +401,7 @@ impl DecoderPlan {
                 PacketLayout {
                     channels,
                     total_size: offset,
+                    packet_uid_offset,
                 },
             );
         }
@@ -388,7 +415,12 @@ impl DecoderPlan {
                 catalog
                     .packets
                     .iter()
-                    .map(|packet| (packet.four_cc.clone(), packet.id.clone()))
+                    .map(|packet| {
+                        (
+                            normalize_packet_uid(&packet.four_cc),
+                            packet.id.clone(),
+                        )
+                    })
                     .collect::<HashMap<_, _>>()
             })
             .unwrap_or_default();
@@ -412,6 +444,10 @@ impl DecoderPlan {
             return self.decode(DEFAULT_PACKET_ID, raw);
         }
 
+        if let Some(resolved_packet_id) = self.resolve_packet_by_uid(packet_ids, raw) {
+            return self.decode(&resolved_packet_id, raw);
+        }
+
         let mut last_error: Option<anyhow::Error> = None;
         for packet_id in packet_ids {
             match self.decode(packet_id, raw) {
@@ -421,6 +457,35 @@ impl DecoderPlan {
         }
 
         Err(last_error.unwrap_or_else(|| anyhow!("unable to decode packet for any known layout")))
+    }
+
+    fn resolve_packet_by_uid(&self, packet_ids: &[String], raw: &[u8]) -> Option<String> {
+        if self.packet_uid_to_id.is_empty() {
+            return None;
+        }
+
+        packet_ids
+            .iter()
+            .find_map(|packet_id| self.layout_packet_uid(packet_id, raw))
+            .and_then(|packet_uid| {
+                let normalized = normalize_packet_uid(&packet_uid);
+                self.packet_uid_to_id.get(&normalized).cloned()
+            })
+            .filter(|resolved| packet_ids.iter().any(|packet_id| packet_id == resolved))
+    }
+
+    fn layout_packet_uid(&self, packet_id: &str, raw: &[u8]) -> Option<String> {
+        let layout = self.layouts.get(packet_id)?;
+        let packet_uid_offset = layout.packet_uid_offset?;
+        let channel = layout
+            .channels
+            .iter()
+            .find(|channel| canonical_channel_id(&channel.id) == PACKET_UID_KEY)?;
+
+        DecodedValue::read(channel.ty, raw, packet_uid_offset)
+            .ok()?
+            .as_string()
+            .map(|value| normalize_packet_uid(&value))
     }
 
     fn decode(&self, packet_id: &str, raw: &[u8]) -> Result<DecodedPacket> {
@@ -458,24 +523,31 @@ impl DecoderPlan {
             values.insert(channel.id.clone(), value);
         }
 
-        if let Some(DecodedValue::String(packet_uid)) = values.get("packet_uid")
-            && !self.packet_uid_to_id.is_empty()
-        {
-            let expected_packet_id = self.packet_uid_to_id.get(packet_uid).ok_or_else(|| {
-                anyhow!(
-                    "packet_uid '{}' is not present in packets catalog for structure '{}'",
-                    packet_uid,
-                    self.structure_id
-                )
-            })?;
+        if !self.packet_uid_to_id.is_empty() {
+            let packet_uid = values.iter().find_map(|(key, value)| {
+                (canonical_channel_id(key) == PACKET_UID_KEY)
+                    .then_some(value.as_string())
+                    .flatten()
+                    .map(|raw| normalize_packet_uid(&raw))
+            });
 
-            if expected_packet_id != packet_id {
-                return Err(anyhow!(
-                    "packet_uid '{}' maps to '{}', but layout '{}' was used",
-                    packet_uid,
-                    expected_packet_id,
-                    packet_id
-                ));
+            if let Some(packet_uid) = packet_uid {
+                let expected_packet_id = self.packet_uid_to_id.get(&packet_uid).ok_or_else(|| {
+                    anyhow!(
+                        "packet_uid '{}' is not present in packets catalog for structure '{}'",
+                        packet_uid,
+                        self.structure_id
+                    )
+                })?;
+
+                if expected_packet_id != packet_id {
+                    return Err(anyhow!(
+                        "packet_uid '{}' maps to '{}', but layout '{}' was used",
+                        packet_uid,
+                        expected_packet_id,
+                        packet_id
+                    ));
+                }
             }
         }
 
@@ -705,7 +777,7 @@ struct PacketsCatalogFile {
 #[derive(Debug, Deserialize)]
 struct PacketCatalogEntry {
     id: String,
-    #[serde(rename = "fourCC")]
+    #[serde(rename = "fourCC", alias = "fourcc", alias = "four_CC")]
     four_cc: String,
 }
 
@@ -732,6 +804,8 @@ struct ConfigAssignment {
     #[serde(default)]
     port: Option<u16>,
     #[serde(default, rename = "bEnabled")]
+    b_enabled: Option<bool>,
+    #[serde(default, rename = "enabled")]
     enabled: Option<bool>,
 }
 
@@ -756,7 +830,7 @@ impl ConfigFile {
     fn assignments_for_structure(&self, structure_id: &str) -> Vec<PacketAssignment> {
         self.all_assignments()
             .filter_map(|assignment| {
-                if assignment.enabled == Some(false) {
+                if assignment.is_disabled() {
                     return None;
                 }
 
@@ -778,6 +852,20 @@ impl ConfigFile {
             })
             .collect()
     }
+}
+
+impl ConfigAssignment {
+    fn is_disabled(&self) -> bool {
+        self.b_enabled == Some(false) || self.enabled == Some(false)
+    }
+}
+
+fn canonical_channel_id(raw: &str) -> String {
+    raw.trim().to_ascii_lowercase().replace([' ', '-', '_'], "")
+}
+
+fn normalize_packet_uid(raw: &str) -> String {
+    raw.trim_end_matches('\0').trim().to_string()
 }
 
 fn read_json<T: DeserializeOwned>(path: &Path) -> Result<T> {
@@ -813,9 +901,10 @@ fn find_value<'a>(
             return Some(value);
         }
 
+        let normalized_alias = canonical_channel_id(alias);
         if let Some((_, value)) = values
             .iter()
-            .find(|(key, _)| key.eq_ignore_ascii_case(alias))
+            .find(|(key, _)| canonical_channel_id(key) == normalized_alias)
         {
             return Some(value);
         }
@@ -906,6 +995,33 @@ mod tests {
         })
     }
 
+    fn structure_json_multi() -> serde_json::Value {
+        serde_json::json!({
+            "id": "openracing",
+            "packets": [
+                {
+                    "id": "session_update",
+                    "header": { "channels": ["packet_uid"] },
+                    "channels": ["ffb_scalar", "engine_rpm", "vehicle_speed", "gear"]
+                },
+                {
+                    "id": "session_event",
+                    "header": { "channels": ["packet_uid"] },
+                    "channels": ["ffb_scalar", "engine_rpm", "vehicle_speed", "gear"]
+                }
+            ]
+        })
+    }
+
+    fn packets_json_multi() -> serde_json::Value {
+        serde_json::json!({
+            "packets": [
+                { "id": "session_update", "fourCC": "SU01" },
+                { "id": "session_event", "fourCC": "LEVN" }
+            ]
+        })
+    }
+
     #[test]
     fn test_decoder_compile_and_decode() -> TestResult {
         let channels: ChannelsFile = serde_json::from_value(channels_json())?;
@@ -962,6 +1078,65 @@ mod tests {
 
         let result = plan.decode("session_update", &packet);
         assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_decode_any_prefers_packet_uid_routing() -> TestResult {
+        let channels: ChannelsFile = serde_json::from_value(channels_json())?;
+        let structure: StructureFile = serde_json::from_value(structure_json_multi())?;
+        let catalog: PacketsCatalogFile = serde_json::from_value(packets_json_multi())?;
+
+        let plan = DecoderPlan::compile(
+            &channels,
+            &structure,
+            Some(&catalog),
+            "openracing".to_string(),
+        )?;
+
+        let packet_ids = vec!["session_update".to_string(), "session_event".to_string()];
+
+        let mut event_packet = Vec::new();
+        event_packet.extend_from_slice(b"LEVN");
+        event_packet.extend_from_slice(&0.1f32.to_le_bytes());
+        event_packet.extend_from_slice(&2200.0f32.to_le_bytes());
+        event_packet.extend_from_slice(&10.0f32.to_le_bytes());
+        event_packet.extend_from_slice(&2i8.to_le_bytes());
+
+        let decoded = plan.decode_any(&packet_ids, &event_packet)?;
+        assert_eq!(decoded.packet_id, "session_event");
+        Ok(())
+    }
+
+    #[test]
+    fn test_decode_any_handles_padded_packet_uid() -> TestResult {
+        let channels: ChannelsFile = serde_json::from_value(channels_json())?;
+        let structure: StructureFile = serde_json::from_value(structure_json_multi())?;
+        let catalog: PacketsCatalogFile = serde_json::from_value(serde_json::json!({
+            "packets": [
+                { "id": "session_update", "fourCC": "SU0\0" },
+                { "id": "session_event", "fourCC": "EVT1" },
+            ]
+        }))?;
+
+        let plan = DecoderPlan::compile(
+            &channels,
+            &structure,
+            Some(&catalog),
+            "openracing".to_string(),
+        )?;
+
+        let packet_ids = vec!["session_update".to_string(), "session_event".to_string()];
+
+        let mut event_packet = Vec::new();
+        event_packet.extend_from_slice(b"SU0\0");
+        event_packet.extend_from_slice(&0.1f32.to_le_bytes());
+        event_packet.extend_from_slice(&2200.0f32.to_le_bytes());
+        event_packet.extend_from_slice(&10.0f32.to_le_bytes());
+        event_packet.extend_from_slice(&2i8.to_le_bytes());
+
+        let decoded = plan.decode_any(&packet_ids, &event_packet)?;
+        assert_eq!(decoded.packet_id, "session_update");
         Ok(())
     }
 

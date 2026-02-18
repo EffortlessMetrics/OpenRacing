@@ -1,6 +1,8 @@
 //! Tests for safety interlock system
 
 use super::*;
+use crate::hid::MozaInputState;
+use crate::input::{KsClutchMode, KsReportSnapshot};
 use std::time::{Duration, Instant};
 
 // Test helper functions to replace unwrap
@@ -559,4 +561,183 @@ fn test_state_transitions() {
     std::thread::sleep(Duration::from_millis(150));
     must(service.clear_fault());
     assert_eq!(service.state(), &SafetyState::SafeTorque);
+}
+
+#[test]
+fn test_moza_process_clutch_combo_starts_hold_timer() {
+    let mut service = create_test_service();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
+
+    let mut input = MozaInputState::empty(0);
+    input.clutch_u16 = 40_000;
+    input.handbrake_u16 = 40_000;
+
+    let progressed = service.process_moza_interlock_inputs("test_device", input, 30_000, 99);
+    assert!(progressed);
+
+    let active = must_some(service.get_active_challenge(), "expected active challenge");
+    assert!(active.combo_start.is_some());
+}
+
+#[test]
+fn test_moza_process_clutch_combo_confirms_high_torque_after_hold() {
+    let mut service = create_test_service();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
+
+    let mut input = MozaInputState::empty(0);
+    input.clutch_u16 = 40_000;
+    input.handbrake_u16 = 40_000;
+
+    assert!(service.process_moza_interlock_inputs(
+        "test_device",
+        input,
+        30_000,
+        99
+    ));
+
+    std::thread::sleep(Duration::from_millis(2100));
+
+    assert!(service.process_moza_interlock_inputs(
+        "test_device",
+        input,
+        30_000,
+        99
+    ));
+
+    match service.state() {
+        SafetyState::HighTorqueActive { device_token, .. } => {
+            assert_eq!(*device_token, 99);
+        }
+        _ => panic!("expected high torque active after clutch hold"),
+    }
+}
+
+#[test]
+fn test_moza_interlock_combo_hold_cleared_when_released() {
+    let mut service = create_test_service();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
+
+    let mut input = MozaInputState::empty(0);
+    input.clutch_u16 = 40_000;
+    input.handbrake_u16 = 40_000;
+
+    assert!(service.process_moza_interlock_inputs(
+        "test_device",
+        input,
+        30_000,
+        99
+    ));
+
+    let active = must_some(service.get_active_challenge(), "expected active challenge");
+    assert!(active.combo_start.is_some());
+
+    let mut input_released = MozaInputState::empty(0);
+    assert!(service.process_moza_interlock_inputs(
+        "test_device",
+        input_released,
+        30_000,
+        99
+    )
+    .not());
+    let active = must_some(service.get_active_challenge(), "expected active challenge");
+    assert!(active.combo_start.is_none());
+}
+
+#[test]
+fn test_moza_interlock_inputs_stale_resets_combo() {
+    let mut service = create_test_service();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
+
+    let mut input = MozaInputState::empty(0);
+    input.clutch_u16 = 40_000;
+    input.handbrake_u16 = 40_000;
+
+    assert!(service.process_moza_interlock_inputs(
+        "test_device",
+        input,
+        30_000,
+        99
+    ));
+
+    let active = must_some(service.get_active_challenge(), "expected active challenge");
+    assert!(active.combo_start.is_some());
+
+    service.process_moza_interlock_inputs_stale();
+    let active = must_some(service.get_active_challenge(), "expected active challenge");
+    assert!(active.combo_start.is_none());
+}
+
+#[test]
+fn test_moza_process_ks_combined_axis_clutch_mode_for_interlock() {
+    let mut service = create_test_service();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
+
+    let mut input = MozaInputState::empty(0);
+    input.ks_snapshot = KsReportSnapshot {
+        clutch_mode: KsClutchMode::CombinedAxis,
+        clutch_combined: Some(40_000),
+        ..KsReportSnapshot::default()
+    };
+
+    assert!(service.process_moza_interlock_inputs(
+        "test_device",
+        input,
+        30_000,
+        99
+    ));
+
+    let active = must_some(service.get_active_challenge(), "expected active challenge");
+    assert!(active.combo_start.is_some());
+}
+
+#[test]
+fn test_moza_process_ks_independent_axis_clutch_mode_for_interlock() {
+    let mut service = create_test_service();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
+
+    let mut input = MozaInputState::empty(0);
+    input.ks_snapshot = KsReportSnapshot {
+        clutch_mode: KsClutchMode::IndependentAxis,
+        clutch_left: Some(40_000),
+        clutch_right: Some(40_000),
+        ..KsReportSnapshot::default()
+    };
+
+    assert!(service.process_moza_interlock_inputs(
+        "test_device",
+        input,
+        30_000,
+        99
+    ));
+}
+
+#[test]
+fn test_moza_process_ks_button_mode_clutch_for_interlock() {
+    let mut service = create_test_service();
+    let challenge = must(service.request_high_torque("test_device"));
+    must(service.provide_ui_consent(challenge.challenge_token));
+
+    let mut input = MozaInputState::empty(0);
+    input.ks_snapshot = KsReportSnapshot {
+        clutch_mode: KsClutchMode::Button,
+        clutch_left_button: Some(true),
+        clutch_right_button: Some(true),
+        ..KsReportSnapshot::default()
+    };
+
+    assert!(service.process_moza_interlock_inputs(
+        "test_device",
+        input,
+        30_000,
+        99
+    ));
+
+    let active = must_some(service.get_active_challenge(), "expected active challenge");
+    assert!(active.combo_start.is_some());
 }

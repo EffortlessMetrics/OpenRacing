@@ -46,6 +46,7 @@ fn test_eawrc_writer_creates_structure_and_patches_config() -> TestResult {
         output_method: "udp_schema".to_string(),
         output_target: "127.0.0.1:20790".to_string(),
         fields: vec!["ffb_scalar".to_string(), "rpm".to_string()],
+        enable_high_rate_iracing_360hz: false,
     };
 
     let diffs = writer.write_config(temp_dir.path(), &config)?;

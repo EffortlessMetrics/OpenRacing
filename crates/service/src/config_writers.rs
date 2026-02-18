@@ -14,6 +14,7 @@ const EAWRC_DEFAULT_PORT: u16 = 20778;
 const AC_RALLY_DEFAULT_DISCOVERY_PORT: u16 = 9000;
 const AC_RALLY_PROBE_RELATIVE_PATH: &str =
     "Documents/Assetto Corsa Rally/Config/openracing_probe.json";
+const IRACING_360HZ_KEY: &str = "irsdkLog360Hz";
 
 /// iRacing configuration writer
 pub struct IRacingConfigWriter;
@@ -38,19 +39,14 @@ impl ConfigWriter for IRacingConfigWriter {
             String::new()
         };
 
-        let (new_content, prior_value, operation) = upsert_ini_value(
+        let (mut new_content, prior_value, operation) = upsert_ini_value(
             &existing_content,
             "Telemetry",
             "telemetryDiskFile",
             telemetry_enabled,
         );
 
-        if let Some(parent) = app_ini_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(&app_ini_path, &new_content)?;
-
-        let diffs = vec![ConfigDiff {
+        let mut diffs = vec![ConfigDiff {
             file_path: app_ini_path.to_string_lossy().to_string(),
             section: Some("Telemetry".to_string()),
             key: "telemetryDiskFile".to_string(),
@@ -58,6 +54,29 @@ impl ConfigWriter for IRacingConfigWriter {
             new_value: telemetry_enabled.to_string(),
             operation,
         }];
+
+        if config.enable_high_rate_iracing_360hz {
+            let (updated_content, prior_360hz_value, operation_360hz) = upsert_ini_value(
+                &new_content,
+                "Telemetry",
+                IRACING_360HZ_KEY,
+                "1",
+            );
+            new_content = updated_content;
+            diffs.push(ConfigDiff {
+                file_path: app_ini_path.to_string_lossy().to_string(),
+                section: Some("Telemetry".to_string()),
+                key: IRACING_360HZ_KEY.to_string(),
+                old_value: prior_360hz_value,
+                new_value: "1".to_string(),
+                operation: operation_360hz,
+            });
+        }
+
+        if let Some(parent) = app_ini_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&app_ini_path, &new_content)?;
 
         Ok(diffs)
     }
@@ -83,14 +102,27 @@ impl ConfigWriter for IRacingConfigWriter {
     fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         let telemetry_enabled = if config.enabled { "1" } else { "0" };
 
-        Ok(vec![ConfigDiff {
+        let mut diffs = vec![ConfigDiff {
             file_path: "Documents/iRacing/app.ini".to_string(),
             section: Some("Telemetry".to_string()),
             key: "telemetryDiskFile".to_string(),
             old_value: None,
             new_value: telemetry_enabled.to_string(),
             operation: DiffOperation::Add,
-        }])
+        }];
+
+        if config.enable_high_rate_iracing_360hz {
+            diffs.push(ConfigDiff {
+                file_path: "Documents/iRacing/app.ini".to_string(),
+                section: Some("Telemetry".to_string()),
+                key: IRACING_360HZ_KEY.to_string(),
+                old_value: None,
+                new_value: "1".to_string(),
+                operation: DiffOperation::Add,
+            });
+        }
+
+        Ok(diffs)
     }
 }
 
@@ -684,6 +716,7 @@ impl ConfigWriter for EAWRCConfigWriter {
             "port": listener_port,
             "frequencyHz": i64::from(config.update_rate_hz),
             "bEnabled": config.enabled,
+            "enabled": config.enabled,
         });
 
         let mut updated_existing = false;
@@ -786,6 +819,7 @@ impl ConfigWriter for EAWRCConfigWriter {
                     let enabled_ok = entry
                         .get("bEnabled")
                         .and_then(Value::as_bool)
+                        .or_else(|| entry.get("enabled").and_then(Value::as_bool))
                         .unwrap_or(false);
                     packet_ok && structure_ok && enabled_ok
                 })
@@ -809,7 +843,8 @@ impl ConfigWriter for EAWRCConfigWriter {
                         "ip": listener_ip,
                         "port": listener_port,
                         "frequencyHz": i64::from(config.update_rate_hz),
-                        "bEnabled": config.enabled
+                        "bEnabled": config.enabled,
+                        "enabled": config.enabled
                     }
                 ]
             }
@@ -995,11 +1030,48 @@ mod tests {
             output_method: "shared_memory".to_string(),
             output_target: "127.0.0.1:12345".to_string(),
             fields: vec!["ffb_scalar".to_string()],
+            enable_high_rate_iracing_360hz: false,
         };
 
         let diffs = writer.write_config(temp_dir.path(), &config)?;
         assert_eq!(diffs.len(), 1);
         assert!(writer.validate_config(temp_dir.path())?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_iracing_writer_optional_360hz_setting() -> TestResult {
+        let writer = IRacingConfigWriter;
+        let temp_dir = tempdir()?;
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 60,
+            output_method: "shared_memory".to_string(),
+            output_target: "127.0.0.1:12345".to_string(),
+            fields: vec!["ffb_scalar".to_string(), "rpm".to_string()],
+            enable_high_rate_iracing_360hz: true,
+        };
+
+        let diffs = writer.write_config(temp_dir.path(), &config)?;
+        assert_eq!(diffs.len(), 2);
+        assert!(writer.validate_config(temp_dir.path())?);
+
+        let first = diffs
+            .iter()
+            .find(|diff| diff.key == "telemetryDiskFile")
+            .expect("telemetryDiskFile diff should be present");
+        let second = diffs
+            .iter()
+            .find(|diff| diff.key == "irsdkLog360Hz")
+            .expect("irsdkLog360Hz diff should be present when enabled");
+
+        assert_eq!(first.new_value, "1");
+        assert_eq!(second.new_value, "1");
+
+        let expected = writer.get_expected_diffs(&config)?;
+        assert_eq!(expected.len(), 2);
+        assert!(expected.iter().any(|diff| diff.key == "irsdkLog360Hz"));
+
         Ok(())
     }
 
@@ -1013,6 +1085,7 @@ mod tests {
             output_method: "shared_memory".to_string(),
             output_target: "127.0.0.1:12345".to_string(),
             fields: vec!["ffb_scalar".to_string()],
+            enable_high_rate_iracing_360hz: false,
         };
 
         let diffs = writer.write_config(temp_dir.path(), &config)?;
@@ -1031,6 +1104,7 @@ mod tests {
             output_method: "udp_schema".to_string(),
             output_target: "127.0.0.1:20790".to_string(),
             fields: vec!["ffb_scalar".to_string(), "rpm".to_string()],
+            enable_high_rate_iracing_360hz: false,
         };
 
         let diffs = writer.write_config(temp_dir.path(), &config)?;
@@ -1045,6 +1119,61 @@ mod tests {
     }
 
     #[test]
+    fn test_eawrc_validate_accepts_enabled_alias_key() -> TestResult {
+        let writer = EAWRCConfigWriter;
+        let temp_dir = tempdir()?;
+        let config_dir = temp_dir
+            .path()
+            .join("Documents/My Games/WRC/telemetry");
+        let config_path = config_dir.join("config.json");
+        let structure_path = config_dir.join("udp/openracing.json");
+
+        fs::create_dir_all(&config_dir)?;
+        if let Some(parent) = structure_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(
+            &config_path,
+            r#"{
+  "udp": {
+    "packetAssignments": [
+      {
+        "packetId": "session_update",
+        "structureId": "openracing",
+        "ip": "127.0.0.1",
+        "port": 20778,
+        "frequencyHz": 120,
+        "enabled": true
+      }
+    ]
+  }
+}"#,
+        )?;
+        fs::write(
+            &structure_path,
+            r#"{
+  "id": "openracing",
+  "packets": []
+}"#,
+        )?;
+
+        assert!(writer.validate_config(temp_dir.path())?);
+
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 120,
+            output_method: "udp_schema".to_string(),
+            output_target: "127.0.0.1:20778".to_string(),
+            fields: vec!["ffb_scalar".to_string()],
+            enable_high_rate_iracing_360hz: false,
+        };
+        let diffs = writer.write_config(temp_dir.path(), &config)?;
+        assert_eq!(diffs.len(), 2);
+
+        Ok(())
+    }
+
+    #[test]
     fn test_ac_rally_writer_round_trip() -> TestResult {
         let writer = ACRallyConfigWriter;
         let temp_dir = tempdir()?;
@@ -1054,6 +1183,7 @@ mod tests {
             output_method: "probe_discovery".to_string(),
             output_target: "127.0.0.1:9000".to_string(),
             fields: vec![],
+            enable_high_rate_iracing_360hz: false,
         };
 
         let diffs = writer.write_config(temp_dir.path(), &config)?;
@@ -1077,6 +1207,7 @@ mod tests {
             output_method: "udp_broadcast".to_string(),
             output_target: "127.0.0.1:9000".to_string(),
             fields: vec!["speed_ms".to_string()],
+            enable_high_rate_iracing_360hz: false,
         };
 
         let diffs = writer.write_config(temp_dir.path(), &config)?;

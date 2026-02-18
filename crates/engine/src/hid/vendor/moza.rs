@@ -5,8 +5,43 @@
 
 #![deny(static_mut_refs)]
 
-use super::{DeviceWriter, FfbConfig, VendorProtocol};
+use super::{DeviceWriter, FfbConfig, VendorProtocol, MozaInputState};
+use crate::input::{
+    KsAxisSource, KsByteSource, KsClutchMode, KsJoystickMode, KsReportMap, KsRotaryMode,
+    KsReportSnapshot, KS_ENCODER_COUNT,
+};
+use super::moza_direct::REPORT_LEN;
+use std::sync::atomic::{AtomicU8, Ordering};
 use tracing::{debug, info, warn};
+
+const MOZA_INIT_STATE_UNINITIALIZED: u8 = 0;
+const MOZA_INIT_STATE_INITIALIZING: u8 = 1;
+const MOZA_INIT_STATE_READY: u8 = 2;
+const MOZA_INIT_STATE_FAILED: u8 = 3;
+
+/// Moza initialization lifecycle state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MozaInitState {
+    /// No handshake attempt has run on this protocol instance.
+    Uninitialized,
+    /// Handshake currently in progress.
+    Initializing,
+    /// Handshake completed successfully.
+    Ready,
+    /// Handshake attempted and not fully successful.
+    Failed,
+}
+
+impl MozaInitState {
+    fn from_u8(value: u8) -> Self {
+        match value {
+            MOZA_INIT_STATE_INITIALIZING => Self::Initializing,
+            MOZA_INIT_STATE_READY => Self::Ready,
+            MOZA_INIT_STATE_FAILED => Self::Failed,
+            _ => Self::Uninitialized,
+        }
+    }
+}
 
 /// Report ID and axis offsets for aggregated wheelbase input reports.
 ///
@@ -19,6 +54,44 @@ pub mod input_report {
     pub const BRAKE_START: usize = 5;
     pub const CLUTCH_START: usize = 7;
     pub const HANDBRAKE_START: usize = 9;
+    pub const BUTTONS_START: usize = 11;
+    pub const BUTTONS_LEN: usize = 16;
+    pub const HAT_START: usize = BUTTONS_START + BUTTONS_LEN;
+    pub const FUNKY_START: usize = HAT_START + 1;
+    pub const ROTARY_START: usize = FUNKY_START + 1;
+    pub const ROTARY_LEN: usize = 2;
+}
+
+/// Lightweight parsed view over a wheelbase-style input report.
+#[derive(Debug, Clone, Copy)]
+pub struct RawWheelbaseReport<'a> {
+    report: &'a [u8],
+}
+
+impl<'a> RawWheelbaseReport<'a> {
+    fn new(report: &'a [u8]) -> Self {
+        Self { report }
+    }
+
+    pub fn report_id(&self) -> u8 {
+        self.report[0]
+    }
+
+    pub fn report_bytes(&self) -> &'a [u8] {
+        self.report
+    }
+
+    pub fn byte(&self, offset: usize) -> Option<u8> {
+        self.report.get(offset).copied()
+    }
+
+    pub fn axis_u16_le(&self, start: usize) -> Option<u16> {
+        parse_axis(self.report, start)
+    }
+
+    pub fn axis_u16_or_zero(&self, start: usize) -> u16 {
+        self.axis_u16_le(start).unwrap_or(0)
+    }
 }
 
 /// Moza HID Report IDs
@@ -37,6 +110,18 @@ pub mod report_ids {
     pub const DIRECT_TORQUE: u8 = 0x20;
     /// Device gain
     pub const DEVICE_GAIN: u8 = 0x21;
+}
+
+/// Best-effort layouts for direct USB HBP handbrake reports.
+pub mod hbp_report {
+    /// Handbrake axis with report-id prefix.
+    pub const WITH_REPORT_ID_AXIS_START: usize = 1;
+    /// Optional button-style byte with report-id prefix.
+    pub const WITH_REPORT_ID_BUTTON: usize = 3;
+    /// Handbrake axis with no report-id prefix.
+    pub const RAW_AXIS_START: usize = 0;
+    /// Optional button-style byte with no report-id prefix.
+    pub const RAW_BUTTON: usize = 2;
 }
 
 /// Known Moza product IDs.
@@ -60,6 +145,26 @@ pub mod product_ids {
     pub const HGP_SHIFTER: u16 = 0x0020;
     pub const SGP_SHIFTER: u16 = 0x0021;
     pub const HBP_HANDBRAKE: u16 = 0x0022;
+}
+
+fn default_wheelbase_ks_map() -> KsReportMap {
+    KsReportMap {
+        report_id: Some(input_report::REPORT_ID),
+        buttons_offset: Some(input_report::BUTTONS_START),
+        hat_offset: Some(input_report::HAT_START),
+        encoders: [None; KS_ENCODER_COUNT],
+        clutch_left_axis: None,
+        clutch_right_axis: None,
+        clutch_combined_axis: None,
+        clutch_left_button: None,
+        clutch_right_button: None,
+        clutch_mode_hint: KsClutchMode::Unknown,
+        rotary_mode_hint: KsRotaryMode::Unknown,
+        left_rotary_axis: Some(KsAxisSource::new(input_report::ROTARY_START, false)),
+        right_rotary_axis: Some(KsAxisSource::new(input_report::ROTARY_START + 1, false)),
+        joystick_mode_hint: KsJoystickMode::Unknown,
+        joystick_hat: Some(KsByteSource::new(input_report::HAT_START)),
+    }
 }
 
 /// Known Moza rim IDs when attached to a compatible wheelbase.
@@ -301,9 +406,32 @@ pub fn is_wheelbase_product(product_id: u16) -> bool {
 /// FFB mode options
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FfbMode {
-    Off = 0x00,
-    Standard = 0x01, // PIDFF
-    Direct = 0x02,   // Raw torque
+    /// Keep FFB disabled.
+    Off = 0xFF,
+    /// Use vendor PID/PIDFF reporting mode.
+    Standard = 0x00,
+    /// Use raw direct torque mode.
+    Direct = 0x02,
+}
+
+const MOZA_FFB_MODE_ENV: &str = "OPENRACING_MOZA_FFB_MODE";
+
+fn parse_ffb_mode(value: &str) -> Option<FfbMode> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "off" => Some(FfbMode::Off),
+        "standard" | "pidff" | "pid" => Some(FfbMode::Standard),
+        "direct" | "raw" => Some(FfbMode::Direct),
+        "0" => Some(FfbMode::Standard),
+        "2" => Some(FfbMode::Direct),
+        _ => None,
+    }
+}
+
+fn default_ffb_mode() -> FfbMode {
+    std::env::var(MOZA_FFB_MODE_ENV)
+        .ok()
+        .and_then(|value| parse_ffb_mode(&value))
+        .unwrap_or(FfbMode::Standard)
 }
 
 /// Moza device model
@@ -388,16 +516,27 @@ fn parse_axis(report: &[u8], start: usize) -> Option<u16> {
     Some(u16::from_le_bytes([report[start], report[start + 1]]))
 }
 
+fn parse_axis_or_zero(report: &[u8], start: usize) -> u16 {
+    parse_axis(report, start).unwrap_or(0)
+}
+
 /// Moza protocol handler
 pub struct MozaProtocol {
     product_id: u16,
     model: MozaModel,
     is_v2: bool,
+    init_state: AtomicU8,
+    ffb_mode: FfbMode,
 }
 
 impl MozaProtocol {
     /// Create a new Moza protocol handler
     pub fn new(product_id: u16) -> Self {
+        Self::new_with_ffb_mode(product_id, default_ffb_mode())
+    }
+
+    /// Create a new Moza protocol handler with explicit FFB mode.
+    pub fn new_with_ffb_mode(product_id: u16, ffb_mode: FfbMode) -> Self {
         let is_v2 = (product_id & 0x0010) != 0;
         let model = MozaModel::from_pid(product_id);
 
@@ -410,7 +549,48 @@ impl MozaProtocol {
             product_id,
             model,
             is_v2,
+            init_state: AtomicU8::new(MOZA_INIT_STATE_UNINITIALIZED),
+            ffb_mode,
         }
+    }
+
+    /// Get current protocol init state.
+    pub fn init_state(&self) -> MozaInitState {
+        MozaInitState::from_u8(self.init_state.load(Ordering::Acquire))
+    }
+
+    /// Whether this protocol can emit native Moza output commands.
+    fn is_output_capable(&self) -> bool {
+        is_wheelbase_product(self.product_id)
+    }
+
+    fn try_enter_initialization(&self) -> bool {
+        let mut state = self.init_state.load(Ordering::Acquire);
+        loop {
+            match state {
+                MOZA_INIT_STATE_READY | MOZA_INIT_STATE_INITIALIZING => return false,
+                _ => {
+                    match self.init_state.compare_exchange(
+                        state,
+                        MOZA_INIT_STATE_INITIALIZING,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => return true,
+                        Err(observed) => state = observed,
+                    }
+                }
+            }
+        }
+    }
+
+    fn finalize_initialization(&self, success: bool) {
+        let next_state = if success {
+            MOZA_INIT_STATE_READY
+        } else {
+            MOZA_INIT_STATE_FAILED
+        };
+        self.init_state.store(next_state, Ordering::Release);
     }
 
     /// Get the product ID
@@ -421,6 +601,11 @@ impl MozaProtocol {
     /// Get the device model
     pub fn model(&self) -> MozaModel {
         self.model
+    }
+
+    /// Selected mode for FFB initialization and reporting.
+    pub fn ffb_mode(&self) -> FfbMode {
+        self.ffb_mode
     }
 
     /// Get ES compatibility state for this wheelbase/product.
@@ -434,14 +619,16 @@ impl MozaProtocol {
     /// so their axis values are carried in the wheelbase input report rather
     /// than a standalone USB pedal device.
     pub fn parse_aggregated_pedal_axes(&self, report: &[u8]) -> Option<MozaPedalAxesRaw> {
-        if report.first().copied() != Some(input_report::REPORT_ID) {
+        let report = self.parse_wheelbase_report(report)?;
+
+        if report.report_id() != input_report::REPORT_ID {
             return None;
         }
 
-        let throttle = parse_axis(report, input_report::THROTTLE_START)?;
-        let brake = parse_axis(report, input_report::BRAKE_START)?;
-        let clutch = parse_axis(report, input_report::CLUTCH_START);
-        let handbrake = parse_axis(report, input_report::HANDBRAKE_START);
+        let throttle = report.axis_u16_le(input_report::THROTTLE_START)?;
+        let brake = report.axis_u16_le(input_report::BRAKE_START)?;
+        let clutch = report.axis_u16_le(input_report::CLUTCH_START);
+        let handbrake = report.axis_u16_le(input_report::HANDBRAKE_START);
 
         Some(MozaPedalAxesRaw {
             throttle,
@@ -449,6 +636,128 @@ impl MozaProtocol {
             clutch,
             handbrake,
         })
+    }
+
+    /// Parse a wheelbase-style report into a lightweight, non-owning view.
+    ///
+    /// This is used by map-driven parsers so raw reports can be interpreted with
+    /// descriptor-driven offsets without losing bounds safety.
+    pub fn parse_wheelbase_report<'a>(&self, report: &'a [u8]) -> Option<RawWheelbaseReport<'a>> {
+        let len_min = input_report::BRAKE_START + 2;
+        if report.first().copied() != Some(input_report::REPORT_ID) {
+            return None;
+        }
+
+        if report.len() < len_min {
+            return None;
+        }
+
+        Some(RawWheelbaseReport::new(report))
+    }
+
+    /// Parse a full Moza input report into `MozaInputState`.
+    ///
+    /// Axis offsets are stable in current repository documentation, while
+    /// button/metadata fields are parsed conservatively for forward compatibility.
+    pub fn parse_input_state(&self, report: &[u8]) -> Option<MozaInputState> {
+        if report.first().copied() != Some(input_report::REPORT_ID) {
+            if let Some(state) = self.parse_standalone_handbrake_state(report) {
+                return Some(state);
+            }
+
+            return None;
+        }
+
+        let report = self.parse_wheelbase_report(report)?;
+        let steering_u16 = parse_axis(report.report_bytes(), input_report::STEERING_START)?;
+        let throttle_u16 = report.axis_u16_le(input_report::THROTTLE_START)?;
+        let brake_u16 = report.axis_u16_le(input_report::BRAKE_START)?;
+        let clutch_u16 = report.axis_u16_or_zero(input_report::CLUTCH_START);
+        let handbrake_u16 = report.axis_u16_or_zero(input_report::HANDBRAKE_START);
+
+        let mut buttons = [0u8; 16];
+        if report.report_bytes().len() >= input_report::BUTTONS_START + input_report::BUTTONS_LEN {
+            buttons.copy_from_slice(
+                &report.report_bytes()[input_report::BUTTONS_START
+                    ..input_report::BUTTONS_START + input_report::BUTTONS_LEN],
+            );
+        }
+
+        let hat = report.byte(input_report::HAT_START).unwrap_or(0);
+        let funky = report.byte(input_report::FUNKY_START).unwrap_or(0);
+
+        let mut rotary = [0u8; 2];
+        if report.report_bytes().len() >= input_report::ROTARY_START + input_report::ROTARY_LEN {
+            rotary.copy_from_slice(
+                &report.report_bytes()[input_report::ROTARY_START
+                    ..input_report::ROTARY_START + input_report::ROTARY_LEN],
+            );
+        }
+
+        let ks_snapshot = if self.is_wheelbase() {
+            let mut ks_snapshot = KsReportSnapshot::from_common_controls(0, buttons, hat);
+            ks_snapshot.encoders[0] = KsAxisSource::new(input_report::ROTARY_START, false)
+                .parse_i16(report.report_bytes())
+                .unwrap_or(0);
+            ks_snapshot.encoders[1] = KsAxisSource::new(input_report::ROTARY_START + 1, false)
+                .parse_i16(report.report_bytes())
+                .unwrap_or(0);
+
+            default_wheelbase_ks_map()
+                .parse(0, report.report_bytes())
+                .unwrap_or(ks_snapshot)
+        } else {
+            KsReportSnapshot::default()
+        };
+
+        Some(MozaInputState {
+            steering_u16,
+            throttle_u16,
+            brake_u16,
+            clutch_u16,
+            handbrake_u16,
+            buttons,
+            hat,
+            funky,
+            rotary,
+            ks_snapshot,
+            tick: 0,
+        })
+    }
+
+    fn is_standalone_handbrake(&self) -> bool {
+        identify_device(self.product_id).category == MozaDeviceCategory::Handbrake
+    }
+
+    fn is_wheelbase(&self) -> bool {
+        identify_device(self.product_id).category == MozaDeviceCategory::Wheelbase
+    }
+
+    fn parse_standalone_handbrake_state(&self, report: &[u8]) -> Option<MozaInputState> {
+        if !self.is_standalone_handbrake() {
+            return None;
+        }
+
+        let mut handbrake_u16 = None;
+        let mut button_hint = None;
+
+        if report.len() >= hbp_report::WITH_REPORT_ID_BUTTON + 1 && report[0] != input_report::REPORT_ID {
+            handbrake_u16 = parse_axis(report, hbp_report::WITH_REPORT_ID_AXIS_START);
+            button_hint = Some(report[hbp_report::WITH_REPORT_ID_BUTTON]);
+        } else if report.len() == 2 && report[0] != input_report::REPORT_ID {
+            handbrake_u16 = Some(u16::from_le_bytes([report[0], report[1]]));
+        } else if report.len() >= hbp_report::RAW_BUTTON + 1 {
+            handbrake_u16 = Some(u16::from_le_bytes([report[0], report[1]]));
+            button_hint = Some(report[hbp_report::RAW_BUTTON]);
+        }
+
+        let mut state = MozaInputState::empty(0);
+        state.handbrake_u16 = handbrake_u16?;
+        if let Some(buttons) = button_hint {
+            state.buttons[0] = buttons;
+        }
+
+        Some(state)
     }
 
     /// Enable high torque mode
@@ -530,17 +839,29 @@ impl VendorProtocol for MozaProtocol {
         &self,
         writer: &mut dyn DeviceWriter,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        if !self.is_output_capable() {
+            debug!(
+                "Skipping initialization for non-wheelbase Moza product: pid=0x{:04X}, model={:?}",
+                self.product_id, self.model
+            );
+            return Ok(());
+        }
+
+        if !self.try_enter_initialization() {
+            debug!(
+                "Skipping Moza initialize while in-flight or already initialized: pid=0x{:04X}",
+                self.product_id
+            );
+            return Ok(());
+        }
+
         info!(
             "Initializing Moza {:?} (V{})",
             self.model,
             if self.is_v2 { 2 } else { 1 }
         );
 
-        // Skip initialization for pedals
-        if self.model == MozaModel::SrpPedals {
-            debug!("Skipping initialization for SR-P Pedals");
-            return Ok(());
-        }
+        let mut success = true;
 
         match self.es_compatibility() {
             MozaEsCompatibility::UnsupportedHardwareRevision => warn!(
@@ -557,21 +878,27 @@ impl VendorProtocol for MozaProtocol {
         // Step 1: Enable high torque mode (unlocks FFB)
         if let Err(e) = self.enable_high_torque(writer) {
             warn!("Failed to enable high torque: {}", e);
-            // Continue anyway - device may still work in limited mode
+            success = false;
         }
 
         // Step 2: Start input reports
         if let Err(e) = self.start_input_reports(writer) {
             warn!("Failed to start input reports: {}", e);
+            success = false;
         }
 
-        // Step 3: Set FFB to Standard (PIDFF) mode
-        // Uses the confirmed handshake payload (`0x00`) for standard mode.
-        if let Err(e) = writer.write_feature_report(&[report_ids::FFB_MODE, 0x00, 0x00, 0x00]) {
+        // Step 3: Set FFB to the configured mode.
+        if let Err(e) = self.set_ffb_mode(writer, self.ffb_mode) {
             warn!("Failed to set FFB mode: {}", e);
+            success = false;
         }
 
-        info!("Moza {:?} initialization complete", self.model);
+        self.finalize_initialization(success);
+        if success {
+            info!("Moza {:?} initialization complete", self.model);
+        } else {
+            warn!("Moza {:?} initialization incomplete; device not ready for native output", self.model);
+        }
         Ok(())
     }
 
@@ -613,5 +940,21 @@ impl VendorProtocol for MozaProtocol {
 
     fn is_v2_hardware(&self) -> bool {
         self.is_v2
+    }
+
+    fn output_report_id(&self) -> Option<u8> {
+        if self.is_output_capable() {
+            Some(report_ids::DIRECT_TORQUE)
+        } else {
+            None
+        }
+    }
+
+    fn output_report_len(&self) -> Option<usize> {
+        if self.is_output_capable() {
+            Some(REPORT_LEN)
+        } else {
+            None
+        }
     }
 }

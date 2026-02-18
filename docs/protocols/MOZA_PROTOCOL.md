@@ -19,6 +19,49 @@ Moza Racing hardware generally follows a unified HID-over-USB protocol. However,
 | **SR-P Lite** | Pedals | **Wheelbase Port** | N/A (Embedded) | **Supported** |
 | **SR-P (Standard)** | Pedals | USB | `0x0003` (Typical) | *Partial* |
 | **CRP Pedals** | Pedals | USB | `0x0001` (Typical) | *Partial* |
+| **HBP Handbrake** | Handbrake | USB | `0x0022` (standalone) | *Planned* |
+
+## Moza KS support model (wheel + controls)
+
+The KS is **not** treated as a normal wheel peripheral. OpenRacing uses a topology-first model:
+
+1. **Wheelbase topology (primary):** host sees only the wheelbase USB device; KS controls are aggregated into wheelbase input reports.
+2. **Universal Hub topology (secondary):** host may see the hub as a USB HID with exposed wheel and accessory ports; behavior is firmware-dependent and must be capture-gated.
+
+### Recommended canonical handling
+
+- **Never hard-code KS physical layout in runtime code paths.**
+- **Derive control interpretation from capture-derived maps** (`device_map.json`) and runtime profile metadata.
+- **Gate KS support on explicit transport/signature identity** (VID/PID + interface + descriptor hash + report IDs).
+- Use mode-aware normalization for:
+  - dual clutches (combined axis / independent axis / button modes),
+  - rotaries (button deltas vs knob values),
+  - joysticks (button mode vs D-pad mode).
+- Treat all mode decisions as potentially changing with firmware and Pit House profile settings unless validated in artifact checks.
+
+### Open items from current implementation
+
+- Confirm exact report IDs / descriptor signatures for:
+  - KS over wheelbase path (including whether rim ID bytes expose “KS attached”),
+  - KS via Universal Hub USB mode.
+- Reconcile Universal Hub manual wording variance:
+  - product page suggests wheel support,
+  - manual screenshots can show `Wheel (currently FSR only)`.
+- Validate clutch/button mode mapping from capture vectors before enabling mode-specific safety assumptions.
+- Do not claim KS support for Universal Hub without a validated report-signature and interface mapping gate.
+
+### KS capture-validated checklist (before shipping production support)
+
+- [ ] Wheelbase path report descriptor captured for at least one KS-verified firmware.
+- [ ] Universal Hub path descriptor captured (if supported by product revision) with report IDs and report lengths.
+- [ ] Baseline + transition traces for:
+  - clutch combined mode,
+  - clutch independent axis mode,
+  - clutch button mode.
+- [ ] Baseline + transition traces for rotary button mode and rotary knob mode.
+- [ ] Baseline + transition traces for joystick button mode and D-pad mode.
+- [ ] Topology diagnostics for missing controls when pairing is incomplete (stale reports, no deltas, no joystick updates).
+- [ ] Golden normalized snapshots committed to `device_map.json`/`capture_notes.json`.
 
 ## Discovery & Initialization
 
@@ -30,7 +73,18 @@ Moza wheelbases start in a restricted mode. To enable high-frequency force feedb
 
 1. **Enable High Torque / Motor:** Feature Report `0x02` -> `[0x02, 0x00, 0x00, 0x00]`
 2. **Start Reporting:** Feature Report `0x03` -> `[0x03, 0x00, 0x00, 0x00]`
-3. **Set Standard FFB Mode:** Feature Report `0x11` -> `[0x11, 0x00, 0x00, 0x00]`
+3. **Set FFB Mode:** Feature Report `0x11` -> `[0x11, <mode>, 0x00, 0x00]`
+
+`<mode>` is currently configured in OpenRacing via `OPENRACING_MOZA_FFB_MODE`:
+
+- `standard` or `0` (default): PID/PIDFF mode (`0x00`)
+- `direct` or `raw` or `2`: Direct torque mode (`0x02`)
+- `off`: Disabled (`0xFF`)
+
+On Linux, the runtime transport is also controlled by `OPENRACING_MOZA_TRANSPORT_MODE`:
+
+- `raw-hidraw` or `raw` (default): OpenRacing sends feature reports and direct torque output through `hidraw`.
+- `kernel-pidff` or `kernel`: OpenRacing only runs kernel-PIDFF-compatible mode. Vendor handshake and raw writes are skipped so the kernel driver can own FFB control.
 
 *Note: Without Step 2, the wheelbase may not report pedal axis changes.*
 
@@ -56,6 +110,33 @@ When SR-P Lite pedals are connected to the wheelbase, their axis data is mapped 
 **Normalization:**  
 OpenRacing normalizes all axes to `0.0` (released) to `1.0` (fully pressed).  
 `Value_Float = Value_Raw / 65535.0`
+
+### HBP handbrake topology classes
+
+Moza handbrake input appears in two supported runtime paths:
+
+1. **Direct USB HBP**
+   - HID device is present as `VID=0x346E`, `PID=0x0022`.
+   - No wheelbase handshake required.
+   - Parse path uses a dedicated HBP parser in `crates/engine/src/hid/vendor/moza.rs`.
+
+2. **Wheelbase-embedded HBP**
+   - HBP is attached to a wheelbase port and exposed through the wheelbase report.
+   - Requires normal wheelbase initialization (`0x02`, `0x03`, `0x11`) to start reporting.
+   - Axis is expected in the wheelbase report handbrake field (`report_id=0x01`, offset 9..10), when present.
+
+Only topology-level behavior and timing has been implemented in-engine; exact payload layouts and optional button semantics are marked **capture-validated only** until USB traces are added in the capture utility.
+
+## HBP Capture and Validation Notes
+
+- **Unknowns to capture before finalizing production support**
+  - Whether HBP reports always include a byte suitable for button-mode inference.
+  - Whether HBP USB emits explicit report IDs in all firmware modes.
+  - Confirmed axis endianness and calibration defaults for both topologies.
+- **Capture artifacts required before firmware-specific finalization**
+  - `device_map.json`: identity entry for `0x346E:0x0022`.
+  - Raw baseline + sweep traces (USB mode and wheelbase-embedded mode).
+  - Optional button-mode trace set if community-reported button mode is in use.
 
 ### SR-P Lite Specifics
 
