@@ -8,7 +8,10 @@
 //! - Guidance for USB selective suspend
 //! - Overlapped I/O for non-blocking HID writes in RT path
 
-use super::{DeviceTelemetryReport, HidDeviceInfo, TorqueCommand, vendor};
+use super::{
+    DeviceTelemetryReport, HidDeviceInfo, MAX_TORQUE_REPORT_SIZE, encode_torque_report_for_device,
+    vendor,
+};
 use crate::ports::{DeviceHealthStatus, HidDevice, HidPort};
 use crate::{DeviceEvent, DeviceInfo, RTResult, TelemetryData};
 use async_trait::async_trait;
@@ -1858,12 +1861,18 @@ impl HidDevice for WindowsHidDevice {
             *last_seq = seq;
         }
 
-        // Create torque command
-        let command = TorqueCommand::new(torque_nm, seq, true, false);
-        let data = command.as_bytes();
+        let mut report = [0u8; MAX_TORQUE_REPORT_SIZE];
+        let len = encode_torque_report_for_device(
+            self.device_info.vendor_id,
+            self.device_info.product_id,
+            self.device_info.capabilities.max_torque.value(),
+            torque_nm,
+            seq,
+            &mut report,
+        );
 
         // Perform overlapped write (RT-safe)
-        self.write_overlapped(data)
+        self.write_overlapped(&report[..len])
     }
 
     fn read_telemetry(&mut self) -> Option<TelemetryData> {
@@ -2132,6 +2141,40 @@ mod tests {
         let mut device = WindowsHidDevice::new(device_info)?;
         let result = device.write_ffb_report(5.0, 123);
         assert!(result.is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn test_moza_ffb_report_uses_direct_torque_encoding() -> TestResult {
+        let device_id = "test-moza-device".parse::<DeviceId>()?;
+        let capabilities = DeviceCapabilities {
+            supports_pid: true,
+            supports_raw_torque_1khz: true,
+            supports_health_stream: true,
+            supports_led_bus: false,
+            max_torque: TorqueNm::new(5.5)?,
+            encoder_cpr: 32768,
+            min_report_period_us: 1000,
+        };
+
+        let device_info = HidDeviceInfo {
+            device_id,
+            vendor_id: vendor_ids::MOZA,
+            product_id: vendor::moza::product_ids::R5_V1,
+            serial_number: Some("TEST123".to_string()),
+            manufacturer: Some("Moza Racing".to_string()),
+            product_name: Some("Moza R5".to_string()),
+            path: "test-path".to_string(),
+            capabilities,
+        };
+
+        let mut device = WindowsHidDevice::new(device_info)?;
+        let result = device.write_ffb_report(5.5, 123);
+        assert!(result.is_ok());
+
+        let buffer = &device.overlapped_state.lock().write_buffer;
+        assert_eq!(buffer[0], vendor::moza::report_ids::DIRECT_TORQUE);
+        assert_eq!(i16::from_le_bytes([buffer[1], buffer[2]]), i16::MAX);
         Ok(())
     }
 

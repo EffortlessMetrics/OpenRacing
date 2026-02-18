@@ -456,16 +456,8 @@ impl MozaProtocol {
         &self,
         writer: &mut dyn DeviceWriter,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let report = [
-            report_ids::HIGH_TORQUE,
-            0x01, // Command: Enable High Torque
-            0x01, // Enable
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00, // Reserved
-        ];
+        // Confirmed wheelbase handshake frame.
+        let report = [report_ids::HIGH_TORQUE, 0x00, 0x00, 0x00];
 
         writer.write_feature_report(&report)?;
         info!("Enabled high torque mode for Moza {:?}", self.model);
@@ -477,16 +469,8 @@ impl MozaProtocol {
         &self,
         writer: &mut dyn DeviceWriter,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let report = [
-            report_ids::START_REPORTS,
-            0x01, // Command: Start
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00, // Reserved
-        ];
+        // Confirmed wheelbase handshake frame.
+        let report = [report_ids::START_REPORTS, 0x00, 0x00, 0x00];
 
         writer.write_feature_report(&report)?;
         debug!("Started input reports for Moza {:?}", self.model);
@@ -499,16 +483,7 @@ impl MozaProtocol {
         writer: &mut dyn DeviceWriter,
         mode: FfbMode,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let report = [
-            report_ids::FFB_MODE,
-            mode as u8,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00, // Reserved
-        ];
+        let report = [report_ids::FFB_MODE, mode as u8, 0x00, 0x00];
 
         writer.write_feature_report(&report)?;
         debug!("Set FFB mode to {:?} for Moza {:?}", mode, self.model);
@@ -527,10 +502,6 @@ impl MozaProtocol {
             0x01, // Command: Set Range
             range_bytes[0],
             range_bytes[1],
-            0x00,
-            0x00,
-            0x00,
-            0x00, // Reserved
         ];
 
         writer.write_feature_report(&report)?;
@@ -595,7 +566,8 @@ impl VendorProtocol for MozaProtocol {
         }
 
         // Step 3: Set FFB to Standard (PIDFF) mode
-        if let Err(e) = self.set_ffb_mode(writer, FfbMode::Standard) {
+        // Uses the confirmed handshake payload (`0x00`) for standard mode.
+        if let Err(e) = writer.write_feature_report(&[report_ids::FFB_MODE, 0x00, 0x00, 0x00]) {
             warn!("Failed to set FFB mode: {}", e);
         }
 
@@ -609,9 +581,22 @@ impl VendorProtocol for MozaProtocol {
         report_id: u8,
         data: &[u8],
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut report = vec![report_id];
-        report.extend_from_slice(data);
-        writer.write_feature_report(&report)?;
+        const MAX_REPORT_BYTES: usize = 64;
+
+        if data.len() + 1 > MAX_REPORT_BYTES {
+            return Err(format!(
+                "feature report payload too large: {} > {} bytes",
+                data.len() + 1,
+                MAX_REPORT_BYTES
+            )
+            .into());
+        }
+
+        let mut report = [0u8; MAX_REPORT_BYTES];
+        report[0] = report_id;
+        let end = data.len() + 1;
+        report[1..end].copy_from_slice(data);
+        writer.write_feature_report(&report[..end])?;
         Ok(())
     }
 

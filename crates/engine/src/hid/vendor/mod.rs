@@ -6,6 +6,7 @@
 #![deny(static_mut_refs)]
 
 pub mod moza;
+pub mod moza_direct;
 pub mod simagic;
 
 #[cfg(test)]

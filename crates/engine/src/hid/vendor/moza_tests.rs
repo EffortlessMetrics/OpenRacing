@@ -363,16 +363,21 @@ fn test_moza_initialize_device() -> Result<(), Box<dyn std::error::Error>> {
 
     // Check high torque report
     assert_eq!(reports[0][0], super::moza::report_ids::HIGH_TORQUE);
-    assert_eq!(reports[0][1], 0x01); // Enable command
-    assert_eq!(reports[0][2], 0x01); // Enable flag
+    assert_eq!(reports[0][1], 0x00);
+    assert_eq!(reports[0][2], 0x00);
+    assert_eq!(reports[0][3], 0x00);
 
     // Check start reports
     assert_eq!(reports[1][0], super::moza::report_ids::START_REPORTS);
-    assert_eq!(reports[1][1], 0x01); // Start command
+    assert_eq!(reports[1][1], 0x00);
+    assert_eq!(reports[1][2], 0x00);
+    assert_eq!(reports[1][3], 0x00);
 
     // Check FFB mode
     assert_eq!(reports[2][0], super::moza::report_ids::FFB_MODE);
-    assert_eq!(reports[2][1], FfbMode::Standard as u8);
+    assert_eq!(reports[2][1], 0x00);
+    assert_eq!(reports[2][2], 0x00);
+    assert_eq!(reports[2][3], 0x00);
 
     Ok(())
 }
@@ -433,6 +438,8 @@ fn test_moza_set_ffb_mode() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(reports.len(), 1);
     assert_eq!(reports[0][0], super::moza::report_ids::FFB_MODE);
     assert_eq!(reports[0][1], FfbMode::Direct as u8);
+    assert_eq!(reports[0][2], 0x00);
+    assert_eq!(reports[0][3], 0x00);
 
     Ok(())
 }
