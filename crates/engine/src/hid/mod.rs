@@ -6,6 +6,8 @@
 use crate::ports::HidPort;
 use crate::{DeviceInfo, TelemetryData};
 use racing_wheel_schemas::prelude::*;
+use std::cell::UnsafeCell;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 pub mod quirks;
 pub mod rt_stream;
@@ -51,6 +53,82 @@ pub struct HidDeviceInfo {
     pub product_name: Option<String>,
     pub path: String,
     pub capabilities: DeviceCapabilities,
+}
+
+/// Raw input snapshot for Moza reports after report normalization.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct MozaInputState {
+    pub steering_u16: u16,
+    pub throttle_u16: u16,
+    pub brake_u16: u16,
+    pub clutch_u16: u16,
+    pub handbrake_u16: u16,
+    pub buttons: [u8; 16],
+    pub hat: u8,
+    pub funky: u8,
+    pub rotary: [u8; 2],
+    pub tick: u32,
+}
+
+impl MozaInputState {
+    /// Return a zero-initialized state with a tick marker.
+    pub const fn empty(tick: u32) -> Self {
+        Self {
+            steering_u16: 0,
+            throttle_u16: 0,
+            brake_u16: 0,
+            clutch_u16: 0,
+            handbrake_u16: 0,
+            buttons: [0u8; 16],
+            hat: 0,
+            funky: 0,
+            rotary: [0u8; 2],
+            tick,
+        }
+    }
+
+    pub const fn both_clutches_pressed(&self, threshold: u16) -> bool {
+        self.clutch_u16 >= threshold && self.handbrake_u16 >= threshold
+    }
+}
+
+/// Lock-free, single-writer/multi-reader snapshot holder.
+pub struct Seqlock<T: Copy> {
+    seq: AtomicU32,
+    data: UnsafeCell<T>,
+}
+
+unsafe impl<T: Copy> Sync for Seqlock<T> {}
+
+impl<T: Copy> Seqlock<T> {
+    pub const fn new(value: T) -> Self {
+        Self {
+            seq: AtomicU32::new(0),
+            data: UnsafeCell::new(value),
+        }
+    }
+
+    pub fn write(&self, value: T) {
+        let seq_start = self.seq.load(Ordering::Relaxed);
+        self.seq.store(seq_start.wrapping_add(1), Ordering::Release);
+        unsafe { *self.data.get() = value; }
+        self.seq.store(seq_start.wrapping_add(2), Ordering::Release);
+    }
+
+    pub fn read(&self) -> T {
+        loop {
+            let seq_first = self.seq.load(Ordering::Acquire);
+            if (seq_first & 1) != 0 {
+                continue;
+            }
+
+            let value = unsafe { *self.data.get() };
+            let seq_second = self.seq.load(Ordering::Acquire);
+            if seq_first == seq_second {
+                return value;
+            }
+        }
+    }
 }
 
 impl HidDeviceInfo {

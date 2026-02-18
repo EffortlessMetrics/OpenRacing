@@ -35,6 +35,22 @@ pub trait VendorProtocol: Send + Sync {
 
     /// Check if this is a V2 hardware revision
     fn is_v2_hardware(&self) -> bool;
+
+    /// Preferred direct-output report ID used by this vendor protocol.
+    ///
+    /// When implemented, this identifies the protocol-level output report used
+    /// for force feedback in non-PID or native output modes.
+    fn output_report_id(&self) -> Option<u8> {
+        None
+    }
+
+    /// Preferred direct-output report length used by this vendor protocol.
+    ///
+    /// This is primarily used by capture and diagnostics tooling to validate
+    /// expected report framing.
+    fn output_report_len(&self) -> Option<usize> {
+        None
+    }
 }
 
 /// Device writer abstraction for sending reports

@@ -33,6 +33,8 @@ const RING_BUFFER_SIZE: usize = 4096;
 
 /// Maximum processing time budget per tick (200µs)
 const MAX_PROCESSING_TIME_US: u64 = 200;
+const MOZA_INTERLOCK_THRESHOLD_RAW: u16 = 30_000;
+const NO_MOZA_INTERLOCK_THRESHOLD: u16 = u16::MAX;
 
 #[derive(Debug, Clone, Copy)]
 struct TorqueControlResult {
@@ -95,6 +97,23 @@ fn apply_torque_safety_controls(
     TorqueControlResult {
         torque_out_nm,
         saturated: (requested_torque_nm - torque_out_nm).abs() > 0.001,
+    }
+}
+
+fn moza_interlock_device_token(device_id: &DeviceId) -> u32 {
+    const FNV_OFFSET_BASIS: u32 = 0x811C9DC5;
+    const FNV_PRIME: u32 = 16_777_619;
+
+    let mut token = FNV_OFFSET_BASIS;
+    for byte in device_id.as_str().as_bytes() {
+        token ^= *byte as u32;
+        token = token.wrapping_mul(FNV_PRIME);
+    }
+
+    if token == 0 {
+        1
+    } else {
+        token
     }
 }
 
@@ -284,6 +303,12 @@ struct RTContext {
     /// Latest soft-stop/fault torque multiplier from fault manager.
     fault_torque_multiplier: f32,
 
+    /// Raw threshold used for Moza dual-clutch interlock detection.
+    moza_clutch_threshold: u16,
+
+    /// Stable interlock token derived from device identity.
+    interlock_device_token: u32,
+
     /// Latched emergency stop state.
     emergency_stop_active: bool,
 
@@ -355,6 +380,12 @@ impl Engine {
         };
 
         let rt_epoch = Instant::now();
+        let moza_interlock_threshold = if device.device_info().vendor_id == 0x346E {
+            MOZA_INTERLOCK_THRESHOLD_RAW
+        } else {
+            NO_MOZA_INTERLOCK_THRESHOLD
+        };
+        let interlock_device_token = moza_interlock_device_token(&self.config.device_id);
 
         // Create RT context
         let mut rt_context = RTContext {
@@ -389,6 +420,8 @@ impl Engine {
             metrics: PerformanceMetrics::default(),
             atomic_counters: Arc::clone(&self.atomic_counters),
             fault_torque_multiplier: 1.0,
+            moza_clutch_threshold: moza_interlock_threshold,
+            interlock_device_token,
             emergency_stop_active: false,
             tracing_manager,
             component_heartbeats_scratch: Some(std::collections::HashMap::with_capacity(8)),
@@ -694,6 +727,9 @@ impl Engine {
                 last_game_input = input;
             }
 
+            // Update Moza interlock state from latest control surface snapshot.
+            Self::process_moza_interlock_inputs(&mut ctx);
+
             // Create frame for processing
             let mut frame = Frame {
                 ffb_in: last_game_input.ffb_scalar,
@@ -885,6 +921,24 @@ impl Engine {
 
         info!("RT thread stopping");
         Ok(())
+    }
+
+    fn process_moza_interlock_inputs(ctx: &mut RTContext) {
+        if ctx.moza_clutch_threshold == NO_MOZA_INTERLOCK_THRESHOLD {
+            return;
+        }
+
+        let _ = ctx.safety.check_challenge_expiry();
+        if let Some(input) = ctx.device.moza_input_state() {
+            let _ = ctx.safety.process_moza_interlock_inputs(
+                ctx.config.device_id.as_str(),
+                input,
+                ctx.moza_clutch_threshold,
+                ctx.interlock_device_token,
+            );
+        } else {
+            ctx.safety.process_moza_interlock_inputs_stale();
+        }
     }
 
     /// Process commands from main thread (RT-safe, non-blocking)

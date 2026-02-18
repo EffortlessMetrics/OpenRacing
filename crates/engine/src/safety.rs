@@ -3,6 +3,7 @@
 use racing_wheel_schemas::prelude::TorqueNm;
 use std::collections::HashMap;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use crate::hid::MozaInputState;
 
 /// Safety state machine for torque management
 #[derive(Debug, Clone, PartialEq)]
@@ -337,6 +338,83 @@ impl SafetyService {
             }
             _ => Err("Not awaiting physical acknowledgment".to_string()),
         }
+    }
+
+    /// Process a decoded Moza input snapshot for interlock evaluation.
+    ///
+    /// This method is intended to be used by the platform input thread or input
+    /// aggregator when Moza control input data becomes available.
+    pub fn process_moza_interlock_inputs(
+        &mut self,
+        device_id: &str,
+        input: MozaInputState,
+        clutch_threshold: u16,
+        device_token: u32,
+    ) -> bool {
+        if !input.both_clutches_pressed(clutch_threshold) {
+            self.clear_moza_interlock_combo();
+            return false;
+        }
+
+        let now = Instant::now();
+
+        match &mut self.state {
+            SafetyState::AwaitingPhysicalAck {
+                challenge_token,
+                expires,
+                combo_start,
+            } => {
+                if now > *expires {
+                    self.state = SafetyState::SafeTorque;
+                    self.active_challenge = None;
+                    return false;
+                }
+
+                if let Some(start_time) = combo_start {
+                    if now.duration_since(*start_time) >= self.combo_hold_duration {
+                        let ack = InterlockAck {
+                            challenge_token: *challenge_token,
+                            device_token,
+                            combo_completed: ButtonCombo::BothClutchPaddles,
+                            timestamp: now,
+                        };
+                        return self.confirm_high_torque(device_id, ack).is_ok();
+                    }
+
+                    return true;
+                }
+
+                *combo_start = Some(now);
+                if let Some(ref mut challenge) = self.active_challenge {
+                    challenge.combo_start = Some(now);
+                }
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn clear_moza_interlock_combo(&mut self) {
+        if let SafetyState::AwaitingPhysicalAck {
+            combo_start,
+            ..
+        } = &mut self.state
+        {
+            if combo_start.is_some() {
+                *combo_start = None;
+                if let Some(challenge) = self.active_challenge.as_mut() {
+                    challenge.combo_start = None;
+                }
+            }
+        }
+    }
+
+    /// Clear interlock hold timers when input reports become stale or absent.
+    ///
+    /// This prevents stale combo hold state from persisting during USB disconnects
+    /// or temporary report starvation.
+    pub fn process_moza_interlock_inputs_stale(&mut self) {
+        self.clear_moza_interlock_combo();
     }
 
     /// Check high torque preconditions

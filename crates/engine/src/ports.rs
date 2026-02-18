@@ -6,6 +6,7 @@
 
 use crate::{DeviceEvent, DeviceInfo, RTResult, TelemetryData};
 use async_trait::async_trait;
+use crate::hid::MozaInputState;
 use racing_wheel_schemas::prelude::*;
 use tokio::sync::mpsc;
 
@@ -40,6 +41,23 @@ pub trait HidDevice: Send + Sync {
 
     /// Get device health status (non-RT)
     fn health_status(&self) -> DeviceHealthStatus;
+
+    /// Read the latest decoded non-OWP Moza input snapshot when available.
+    ///
+    /// Implementations that do not expose these fields return `None`.
+    fn moza_input_state(&self) -> Option<MozaInputState> {
+        None
+    }
+}
+
+/// Input-state reader for non-telemetry HID snapshots.
+///
+/// This trait keeps input decode pathways separate from telemetry packets
+/// and avoids overloading a telemetry read call when devices expose richer
+/// report layouts (for example Moza aggregated wheel inputs).
+pub trait HidInputDevice: Send + Sync {
+    /// Read the latest decoded Moza-style input snapshot from this device.
+    fn moza_input_state(&self) -> Option<MozaInputState>;
 }
 
 /// Device health status information

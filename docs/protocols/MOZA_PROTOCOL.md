@@ -19,6 +19,7 @@ Moza Racing hardware generally follows a unified HID-over-USB protocol. However,
 | **SR-P Lite** | Pedals | **Wheelbase Port** | N/A (Embedded) | **Supported** |
 | **SR-P (Standard)** | Pedals | USB | `0x0003` (Typical) | *Partial* |
 | **CRP Pedals** | Pedals | USB | `0x0001` (Typical) | *Partial* |
+| **HBP Handbrake** | Handbrake | USB | `0x0022` (standalone) | *Planned* |
 
 ## Discovery & Initialization
 
@@ -56,6 +57,33 @@ When SR-P Lite pedals are connected to the wheelbase, their axis data is mapped 
 **Normalization:**  
 OpenRacing normalizes all axes to `0.0` (released) to `1.0` (fully pressed).  
 `Value_Float = Value_Raw / 65535.0`
+
+### HBP handbrake topology classes
+
+Moza handbrake input appears in two supported runtime paths:
+
+1. **Direct USB HBP**
+   - HID device is present as `VID=0x346E`, `PID=0x0022`.
+   - No wheelbase handshake required.
+   - Parse path uses a dedicated HBP parser in `crates/engine/src/hid/vendor/moza.rs`.
+
+2. **Wheelbase-embedded HBP**
+   - HBP is attached to a wheelbase port and exposed through the wheelbase report.
+   - Requires normal wheelbase initialization (`0x02`, `0x03`, `0x11`) to start reporting.
+   - Axis is expected in the wheelbase report handbrake field (`report_id=0x01`, offset 9..10), when present.
+
+Only topology-level behavior and timing has been implemented in-engine; exact payload layouts and optional button semantics are marked **capture-validated only** until USB traces are added in the capture utility.
+
+## HBP Capture and Validation Notes
+
+- **Unknowns to capture before finalizing production support**
+  - Whether HBP reports always include a byte suitable for button-mode inference.
+  - Whether HBP USB emits explicit report IDs in all firmware modes.
+  - Confirmed axis endianness and calibration defaults for both topologies.
+- **Capture artifacts required before firmware-specific finalization**
+  - `device_map.json`: identity entry for `0x346E:0x0022`.
+  - Raw baseline + sweep traces (USB mode and wheelbase-embedded mode).
+  - Optional button-mode trace set if community-reported button mode is in use.
 
 ### SR-P Lite Specifics
 

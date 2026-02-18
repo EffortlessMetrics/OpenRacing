@@ -110,3 +110,11 @@ fn test_get_vendor_protocol_simagic_vids() {
     assert!(get_vendor_protocol(vendor_ids::SIMAGIC_ALT, product_ids::M10).is_some());
     assert!(get_vendor_protocol(vendor_ids::SIMAGIC_EVO, 0x1234).is_some());
 }
+
+#[test]
+fn test_simagic_output_report_metadata_defaults_to_none() {
+    let protocol = SimagicProtocol::new(vendor_ids::SIMAGIC_STM, product_ids::ALPHA);
+
+    assert!(protocol.output_report_id().is_none());
+    assert!(protocol.output_report_len().is_none());
+}

@@ -9,8 +9,8 @@
 //! - Overlapped I/O for non-blocking HID writes in RT path
 
 use super::{
-    DeviceTelemetryReport, HidDeviceInfo, MAX_TORQUE_REPORT_SIZE, encode_torque_report_for_device,
-    vendor,
+    DeviceTelemetryReport, HidDeviceInfo, MAX_TORQUE_REPORT_SIZE, MozaInputState, Seqlock,
+    encode_torque_report_for_device, vendor,
 };
 use crate::ports::{DeviceHealthStatus, HidDevice, HidPort};
 use crate::{DeviceEvent, DeviceInfo, RTResult, TelemetryData};
@@ -1409,6 +1409,9 @@ pub struct WindowsHidDevice {
     pub(crate) connected: Arc<AtomicBool>,
     last_seq: Arc<Mutex<u16>>,
     health_status: Arc<RwLock<DeviceHealthStatus>>,
+    moza_protocol: Option<vendor::moza::MozaProtocol>,
+    has_moza_input: AtomicBool,
+    moza_input_state: Seqlock<MozaInputState>,
     /// Windows HANDLE for the HID device (opened with FILE_FLAG_OVERLAPPED)
     /// Wrapped in SendableHandle for thread-safety
     device_handle: Arc<Mutex<SendableHandle>>,
@@ -1517,6 +1520,10 @@ impl WindowsHidDevice {
             connected: Arc::new(AtomicBool::new(true)),
             last_seq: Arc::new(Mutex::new(0)),
             health_status: Arc::new(RwLock::new(health_status)),
+            moza_protocol: (device_info.vendor_id == 0x346E)
+                .then_some(vendor::moza::MozaProtocol::new(device_info.product_id)),
+            has_moza_input: AtomicBool::new(false),
+            moza_input_state: Seqlock::new(MozaInputState::empty(0)),
             device_handle,
             overlapped_state,
             hidapi_device,
@@ -1570,6 +1577,25 @@ impl WindowsHidDevice {
                 device_info.device_id, device_info.vendor_id, device_info.product_id, e
             );
         }
+    }
+
+    fn publish_moza_input_state(&self, mut state: MozaInputState) {
+        let elapsed_ms = self
+            .health_status
+            .read()
+            .last_communication
+            .elapsed()
+            .as_millis();
+
+        state.tick = if elapsed_ms > u32::MAX as u128 {
+            u32::MAX
+        } else {
+            elapsed_ms as u32
+        };
+
+        self.moza_input_state.write(state);
+        self.has_moza_input.store(true, Ordering::Relaxed);
+        self.health_status.write().last_communication = Instant::now();
     }
 
     /// Perform overlapped write operation (RT-safe)
@@ -1817,13 +1843,18 @@ impl WindowsHidDevice {
             match device.read_timeout(&mut buf, 10) {
                 Ok(len) if len > 0 => {
                     // Parse the telemetry report
-                    if len >= std::mem::size_of::<DeviceTelemetryReport>() {
-                        // Safety: We're reading a packed struct from raw bytes
-                        let report = unsafe {
-                            std::ptr::read_unaligned(buf.as_ptr() as *const DeviceTelemetryReport)
-                        };
+                    let data = &buf[..len];
+                    if let Some(report) = DeviceTelemetryReport::from_bytes(data) {
                         return Some(report.to_telemetry_data());
                     }
+
+                    if let Some(protocol) = self.moza_protocol.as_ref() {
+                        if let Some(state) = protocol.parse_input_state(data) {
+                            self.publish_moza_input_state(state);
+                        }
+                    }
+
+                    return None;
                 }
                 Ok(_) => {
                     // No data available
@@ -1844,6 +1875,10 @@ impl WindowsHidDevice {
             hands_on: 1,
             reserved: [0; 2],
         };
+
+        if self.moza_protocol.is_some() {
+            self.publish_moza_input_state(MozaInputState::default());
+        }
 
         Some(report.to_telemetry_data())
     }
@@ -1897,6 +1932,14 @@ impl HidDevice for WindowsHidDevice {
 
     fn health_status(&self) -> DeviceHealthStatus {
         self.health_status.read().clone()
+    }
+
+    fn moza_input_state(&self) -> Option<MozaInputState> {
+        if !self.has_moza_input.load(Ordering::Relaxed) {
+            return None;
+        }
+
+        Some(self.moza_input_state.read())
     }
 }
 

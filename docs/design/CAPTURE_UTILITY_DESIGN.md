@@ -78,10 +78,41 @@ The tool is split into two distinct modes of operation: **Mapping** (Safe, Easy)
 - Support: Windows & Linux.
 - Deliverable: Tool that produces valid JSON for Button/Axis mapping.
 
+### Phase 1b: Moza HBP capture recipe
+
+- Add a guided Moza section to capture utility:
+  - device selection for standalone Moza VID/PID (`0x346E:0x0022`) and Moza wheelbase products,
+  - mode selector:
+    - **USB mode** (HBP directly connected),
+    - **Wheelbase mode** (HBP through wheelbase).
+- USB mode handbrake procedure:
+  1. Capture 25 frames at rest (baseline `uint16_t` axis).
+  2. Prompt operator: “Move handbrake slowly from rest to full and back.”
+  3. Record candidate bytes where the high bit transitions.
+  4. Offer second confirmation sweep against baseline ± hysteresis window.
+- Wheelbase mode handbrake procedure:
+  1. Connect HBP to wheelbase RJ45 path.
+  2. Verify wheelbase report ID and fields include handbrake bytes.
+  3. Record baseline + sweep for at least 2 full travel cycles.
+- Button-mode capture:
+  1. Put HBP into button mode.
+  2. Toggle on/off with a known input pattern.
+  3. Confirm as bitfield (`ButtonMode=on`) or axis threshold profile.
+
 ### Phase 2: Sniffer Integration
 - Integrate `pcap` crate.
 - Add admin-check logic.
 - Deliverable: Tool can capture Init packets.
+
+### Artifacts produced for Moza HBP
+
+- `device_map.json`
+- `hbp_usb_baseline.bin`
+- `hbp_usb_sweep.bin`
+- `hbp_button_mode.bin`
+- `hbp_wheelbase_baseline.bin`
+- `hbp_wheelbase_sweep.bin`
+- `capture_notes.json` (topology + report IDs + axis offsets + button mapping assumptions)
 
 ### Phase 3: Community Platform
 - GitHub Actions workflow to validate submitted JSONs.

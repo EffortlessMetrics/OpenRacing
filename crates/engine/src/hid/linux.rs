@@ -7,10 +7,9 @@
 //! - mlockall for memory locking
 //! - udev rules guidance for device permissions
 
-use super::vendor::VendorProtocol;
 use super::{
-    DeviceTelemetryReport, HidDeviceInfo, MAX_TORQUE_REPORT_SIZE, encode_torque_report_for_device,
-    vendor,
+    DeviceTelemetryReport, HidDeviceInfo, MozaInputState, Seqlock, MAX_TORQUE_REPORT_SIZE,
+    encode_torque_report_for_device, vendor,
 };
 use crate::ports::{DeviceHealthStatus, HidDevice, HidPort};
 use crate::{DeviceEvent, DeviceInfo, RTResult, TelemetryData};
@@ -22,6 +21,7 @@ use std::convert::TryFrom;
 use std::fs::{File, OpenOptions};
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
+use std::os::unix::io::RawFd;
 use std::path::Path;
 use std::sync::{
     Arc, OnceLock,
@@ -43,6 +43,7 @@ const HIDIOC_NR_GRDESC_SIZE: u8 = 0x01;
 const HIDIOC_NR_GRDESC: u8 = 0x02;
 const HIDIOC_NR_GRRAWINFO: u8 = 0x03;
 const HIDIOC_NR_GRRAWNAME: u8 = 0x04;
+const HIDIOC_NR_SET_FEATURE: u8 = 0x06;
 
 const IOC_NRBITS: u32 = 8;
 const IOC_TYPEBITS: u32 = 8;
@@ -89,6 +90,10 @@ const fn ior_read<T>(kind: u8, nr: u8) -> libc::c_ulong {
     ioctl_code(IOC_READ, kind, nr, std::mem::size_of::<T>())
 }
 
+const fn ior_len(kind: u8, nr: u8, len: usize) -> libc::c_ulong {
+    ioctl_code(IOC_READ, kind, nr, len)
+}
+
 const fn iorw_len(kind: u8, nr: u8, len: usize) -> libc::c_ulong {
     ioctl_code(IOC_READ_WRITE, kind, nr, len)
 }
@@ -101,7 +106,11 @@ const HIDIOCGRDESC: libc::c_ulong =
     ior_read::<HidrawReportDescriptor>(HIDRAW_IOCTL_TYPE, HIDIOC_NR_GRDESC);
 
 fn hidiocgrawname(len: usize) -> libc::c_ulong {
-    iorw_len(HIDRAW_IOCTL_TYPE, HIDIOC_NR_GRRAWNAME, len)
+    ior_len(HIDRAW_IOCTL_TYPE, HIDIOC_NR_GRRAWNAME, len)
+}
+
+fn hidiocsfeature(len: usize) -> libc::c_ulong {
+    iorw_len(HIDRAW_IOCTL_TYPE, HIDIOC_NR_SET_FEATURE, len)
 }
 
 fn parse_c_string(bytes: &[u8]) -> Option<String> {
@@ -141,6 +150,25 @@ fn parse_descriptor_flags(descriptor: &[u8]) -> (bool, bool) {
     (supports_pid, uses_vendor_usage_page)
 }
 
+fn is_supported_by_descriptor(vendor_id: u16, product_id: u16, descriptor: &[u8]) -> bool {
+    let has_descriptor = !descriptor.is_empty();
+    let (supports_pid, uses_vendor_usage_page) = parse_descriptor_flags(descriptor);
+    let has_force_hints = has_descriptor && (supports_pid || uses_vendor_usage_page);
+
+    if !has_force_hints {
+        return false;
+    }
+
+    match vendor_id {
+        0x346E => {
+            // Moza identity space used by wheelbases/peripherals is currently in low-byte space.
+            (product_id & 0xFF00) == 0x0000
+        }
+        0x0483 | 0x16D0 | 0x3670 => true,
+        _ => false,
+    }
+}
+
 fn build_capabilities_from_identity(
     vendor_id: u16,
     product_id: u16,
@@ -159,6 +187,23 @@ fn build_capabilities_from_identity(
             supports_pid: descriptor_pid || identity.supports_ffb,
             supports_raw_torque_1khz: identity.supports_ffb,
             supports_health_stream: identity.supports_ffb,
+            supports_led_bus: false,
+            max_torque,
+            encoder_cpr: u16::try_from(config.encoder_cpr).unwrap_or(u16::MAX),
+            min_report_period_us: config.required_b_interval.unwrap_or(1) as u16 * 1000,
+        };
+    }
+
+    if vendor_id == 0x0483 || vendor_id == 0x16D0 || vendor_id == 0x3670 {
+        let protocol = vendor::simagic::SimagicProtocol::new(vendor_id, product_id);
+        let config = protocol.get_ffb_config();
+        let max_torque = config.max_torque_nm.clamp(0.0, TorqueNm::MAX_TORQUE);
+        let max_torque = TorqueNm::new(max_torque).unwrap_or(TorqueNm::ZERO);
+
+        return DeviceCapabilities {
+            supports_pid: descriptor_pid,
+            supports_raw_torque_1khz: true,
+            supports_health_stream: true,
             supports_led_bus: false,
             max_torque,
             encoder_cpr: u16::try_from(config.encoder_cpr).unwrap_or(u16::MAX),
@@ -257,25 +302,25 @@ impl LinuxHidPort {
                 if let Some(filename) = path.file_name() {
                     if let Some(filename_str) = filename.to_str() {
                         if filename_str.starts_with("hidraw") {
-                            if let Ok(device_info) = self.probe_hidraw_device(&path) {
+                            if let Ok((device_info, descriptor)) = self.probe_hidraw_device(&path) {
                                 // Check if this is a racing wheel
-                                let mut is_supported = false;
-                                for (vid, pid) in racing_wheel_ids.iter() {
-                                    if device_info.vendor_id == *vid
-                                        && device_info.product_id == *pid
-                                    {
-                                        is_supported = true;
-                                        break;
-                                    }
-                                }
+                                let is_supported_by_id = racing_wheel_ids
+                                    .iter()
+                                    .any(|(vid, pid)| {
+                                        device_info.vendor_id == *vid && device_info.product_id == *pid
+                                    });
 
                                 // Alpha EVO-generation devices should be discoverable even when
                                 // PID mapping is incomplete; descriptor capture confirms details.
-                                if !is_supported && device_info.vendor_id == 0x3670 {
-                                    is_supported = true;
-                                }
+                                let is_simagic_evo = device_info.vendor_id == 0x3670;
+                                let is_supported_by_descriptor =
+                                    is_supported_by_descriptor(
+                                        device_info.vendor_id,
+                                        device_info.product_id,
+                                        &descriptor,
+                                    );
 
-                                if is_supported {
+                                if is_supported_by_id || is_simagic_evo || is_supported_by_descriptor {
                                     devices.push(device_info);
                                 }
                             }
@@ -285,8 +330,8 @@ impl LinuxHidPort {
             }
         }
 
-        // If no real devices found, add mock devices for testing
-        if devices.is_empty() {
+        // If no real devices found, add mock devices for tests.
+        if cfg!(test) && devices.is_empty() {
             for (vid, pid) in racing_wheel_ids.iter().take(3) {
                 let device_id = DeviceId::new(format!("hidraw_{:04X}_{:04X}", vid, pid))?;
                 let path = format!("/dev/hidraw_mock_{:04X}_{:04X}", vid, pid);
@@ -331,7 +376,7 @@ impl LinuxHidPort {
     fn probe_hidraw_device(
         &self,
         path: &Path,
-    ) -> Result<HidDeviceInfo, Box<dyn std::error::Error>> {
+    ) -> Result<(HidDeviceInfo, Vec<u8>), Box<dyn std::error::Error>> {
         let file = OpenOptions::new().read(true).open(path)?;
         let fd = file.as_raw_fd();
 
@@ -379,7 +424,8 @@ impl LinuxHidPort {
             path.display()
         ))?;
 
-        Ok(HidDeviceInfo {
+        Ok((
+            HidDeviceInfo {
             device_id,
             vendor_id,
             product_id,
@@ -389,7 +435,9 @@ impl LinuxHidPort {
                 .or_else(|| Some(format!("Racing Wheel {:04X}:{:04X}", vendor_id, product_id))),
             path: path.to_string_lossy().to_string(),
             capabilities,
-        })
+        },
+            descriptor,
+        ))
     }
 }
 
@@ -519,6 +567,43 @@ impl HidPort for LinuxHidPort {
     }
 }
 
+/// hidraw feature-report writer used for vendor initialization handshakes
+struct HidrawVendorWriter {
+    fd: RawFd,
+}
+
+impl vendor::DeviceWriter for HidrawVendorWriter {
+    fn write_feature_report(&mut self, data: &[u8]) -> Result<usize, Box<dyn std::error::Error>> {
+        const MAX_FEATURE_REPORT_BYTES: usize = 64;
+        if data.len() > MAX_FEATURE_REPORT_BYTES {
+            return Err(format!(
+                "feature report too large for hidraw: {} bytes",
+                data.len()
+            )
+            .into());
+        }
+
+        let mut report = [0u8; MAX_FEATURE_REPORT_BYTES];
+        report[..data.len()].copy_from_slice(data);
+
+        let rc = unsafe { libc::ioctl(self.fd, hidiocsfeature(data.len()), report.as_mut_ptr()) };
+        if rc < 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+
+        Ok(rc as usize)
+    }
+
+    fn write_output_report(&mut self, data: &[u8]) -> Result<usize, Box<dyn std::error::Error>> {
+        let rc = unsafe { libc::write(self.fd, data.as_ptr() as *const libc::c_void, data.len()) };
+        if rc < 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+
+        Ok(rc as usize)
+    }
+}
+
 /// Linux-specific HID device implementation with non-blocking I/O
 pub struct LinuxHidDevice {
     device_info: HidDeviceInfo,
@@ -530,6 +615,9 @@ pub struct LinuxHidDevice {
     temperature_c: AtomicU8,
     fault_flags: AtomicU8,
     hands_on: AtomicBool,
+    moza_protocol: Option<vendor::moza::MozaProtocol>,
+    has_moza_input: AtomicBool,
+    moza_input_state: Seqlock<MozaInputState>,
     write_file: Option<File>,
     read_file: Option<File>,
 }
@@ -569,6 +657,8 @@ impl LinuxHidDevice {
             }
         };
 
+        Self::initialize_vendor_protocol(&device_info, &write_file);
+
         Ok(Self {
             device_info,
             connected: AtomicBool::new(true),
@@ -579,9 +669,38 @@ impl LinuxHidDevice {
             temperature_c: AtomicU8::new(25),
             fault_flags: AtomicU8::new(0),
             hands_on: AtomicBool::new(false),
+            moza_protocol: (device_info.vendor_id == 0x346E)
+                .then_some(vendor::moza::MozaProtocol::new(device_info.product_id)),
+            has_moza_input: AtomicBool::new(false),
+            moza_input_state: Seqlock::new(MozaInputState::empty(0)),
             write_file,
             read_file,
         })
+    }
+
+    fn initialize_vendor_protocol(device_info: &HidDeviceInfo, write_file: &Option<File>) {
+        let Some(protocol) = vendor::get_vendor_protocol(device_info.vendor_id, device_info.product_id)
+        else {
+            return;
+        };
+
+        let Some(write_file) = write_file.as_ref() else {
+            debug!(
+                "Skipping vendor initialization for {} (VID={:04X}, PID={:04X}) - no writable handle",
+                device_info.device_id, device_info.vendor_id, device_info.product_id
+            );
+            return;
+        };
+
+        let mut writer = HidrawVendorWriter {
+            fd: write_file.as_raw_fd(),
+        };
+        if let Err(e) = protocol.initialize_device(&mut writer) {
+            warn!(
+                "Vendor initialization failed for {} (VID={:04X}, PID={:04X}): {}",
+                device_info.device_id, device_info.vendor_id, device_info.product_id, e
+            );
+        }
     }
 
     #[inline]
@@ -640,6 +759,19 @@ impl LinuxHidDevice {
         Ok(())
     }
 
+    fn publish_moza_input_state(&self, mut state: MozaInputState) {
+        let elapsed_ms = self.created_at.elapsed().as_millis();
+        state.tick = if elapsed_ms > u32::MAX as u128 {
+            u32::MAX
+        } else {
+            elapsed_ms as u32
+        };
+
+        self.moza_input_state.write(state);
+        self.mark_communication();
+        self.has_moza_input.store(true, Ordering::Relaxed);
+    }
+
     /// Read telemetry data (non-RT, can block)
     fn read_telemetry_blocking(&mut self) -> Option<TelemetryData> {
         let fd = match self.read_file.as_ref() {
@@ -659,6 +791,9 @@ impl LinuxHidDevice {
                 self.fault_flags.store(report.faults, Ordering::Relaxed);
                 self.hands_on.store(report.hands_on != 0, Ordering::Relaxed);
                 self.mark_communication();
+                if self.moza_protocol.is_some() {
+                    self.publish_moza_input_state(MozaInputState::empty(0));
+                }
                 return Some(report.to_telemetry_data());
             }
         };
@@ -681,13 +816,19 @@ impl LinuxHidDevice {
             return None;
         }
 
-        // Parse telemetry report
-        if let Some(report) = DeviceTelemetryReport::from_bytes(&buffer[..result as usize]) {
+        let result_bytes = &buffer[..result as usize];
+
+        if let Some(report) = DeviceTelemetryReport::from_bytes(result_bytes) {
             self.temperature_c.store(report.temp_c, Ordering::Relaxed);
             self.fault_flags.store(report.faults, Ordering::Relaxed);
             self.hands_on.store(report.hands_on != 0, Ordering::Relaxed);
             self.mark_communication();
             Some(report.to_telemetry_data())
+        } else if let Some(moza_protocol) = self.moza_protocol.as_ref() {
+            if let Some(state) = moza_protocol.parse_input_state(result_bytes) {
+                self.publish_moza_input_state(state);
+            }
+            None
         } else {
             None
         }
@@ -754,6 +895,14 @@ impl HidDevice for LinuxHidDevice {
             last_communication,
             communication_errors: self.communication_errors.load(Ordering::Relaxed),
         }
+    }
+
+    fn moza_input_state(&self) -> Option<MozaInputState> {
+        if !self.has_moza_input.load(Ordering::Relaxed) {
+            return None;
+        }
+
+        Some(self.moza_input_state.read())
     }
 }
 
@@ -877,6 +1026,13 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn test_hidiocgrawname_direction_is_read() {
+        let code = hidiocgrawname(256);
+        let direction = (code >> IOC_DIRSHIFT) & 0x3;
+        assert_eq!(direction, IOC_READ as libc::c_ulong);
+    }
+
     #[tokio::test]
     async fn test_device_opening() -> TestResult {
         let port = LinuxHidPort::new()?;
@@ -887,6 +1043,16 @@ mod tests {
             assert!(device.is_connected());
             assert!(device.capabilities().max_torque.value() > 0.0);
         }
+        Ok(())
+    }
+
+    #[test]
+    fn test_simagic_capabilities_from_identity() -> TestResult {
+        let caps = build_capabilities_from_identity(0x0483, 0x0522, &[]);
+        assert!(caps.supports_raw_torque_1khz);
+        assert!(caps.supports_health_stream);
+        assert!((caps.max_torque.value() - 15.0).abs() < 0.01);
+        assert_eq!(caps.encoder_cpr, u16::MAX);
         Ok(())
     }
 
@@ -964,5 +1130,38 @@ mod tests {
         // This should not panic even if the device doesn't exist
         let _ = port.probe_hidraw_device(path);
         Ok(())
+    }
+
+    #[test]
+    fn test_is_supported_by_descriptor_moza() {
+        let descriptor_with_pid = [0x05u8, 0x0F, 0x09, 0x30, 0x26, 0xFF];
+        let descriptor_with_vendor_usage = [0x06u8, 0xC0, 0xFF, 0x09, 0x30];
+
+        assert!(is_supported_by_descriptor(0x346E, 0x0004, &descriptor_with_pid));
+        assert!(is_supported_by_descriptor(
+            0x346E,
+            0x0022,
+            &descriptor_with_vendor_usage
+        ));
+        assert!(!is_supported_by_descriptor(
+            0x346E,
+            0x1234,
+            &descriptor_with_pid
+        ));
+        assert!(!is_supported_by_descriptor(
+            0x046D,
+            0xC294,
+            &descriptor_with_pid
+        ));
+    }
+
+    #[test]
+    fn test_is_supported_by_descriptor_requires_feature_hints() {
+        let empty_descriptor = [0u8; 4];
+        let no_hint_descriptor = [0x01, 0x02, 0x03, 0x04];
+
+        assert!(!is_supported_by_descriptor(0x346E, 0x0004, &empty_descriptor));
+        assert!(!is_supported_by_descriptor(0x346E, 0x0004, &no_hint_descriptor));
+        assert!(!is_supported_by_descriptor(0x0000, 0x0004, &no_hint_descriptor));
     }
 }
