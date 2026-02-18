@@ -8,6 +8,7 @@ use crate::{DeviceInfo, TelemetryData};
 use racing_wheel_schemas::prelude::*;
 
 pub mod quirks;
+pub mod rt_stream;
 pub mod vendor;
 pub mod virtual_device;
 
@@ -114,6 +115,32 @@ impl TorqueCommand {
             )
         }
     }
+}
+
+/// Maximum wire size of torque output reports used by current device encoders.
+pub const MAX_TORQUE_REPORT_SIZE: usize = 8;
+
+/// Encode a torque report for the target device.
+///
+/// - Moza wheelbases: vendor-native direct torque report (`0x20`, 8 bytes)
+/// - Other devices: legacy OWP-1 torque command layout
+pub fn encode_torque_report_for_device(
+    vendor_id: u16,
+    product_id: u16,
+    max_torque_nm: f32,
+    torque_nm: f32,
+    seq: u16,
+    out: &mut [u8; MAX_TORQUE_REPORT_SIZE],
+) -> usize {
+    if vendor_id == 0x346E && vendor::moza::is_wheelbase_product(product_id) {
+        let encoder = vendor::moza_direct::MozaDirectTorqueEncoder::new(max_torque_nm);
+        return encoder.encode(torque_nm, seq, out);
+    }
+
+    let command = TorqueCommand::new(torque_nm, seq, true, false);
+    let bytes = command.as_bytes();
+    out[..bytes.len()].copy_from_slice(bytes);
+    bytes.len()
 }
 
 #[repr(C, packed)]
@@ -308,5 +335,28 @@ mod tests {
         assert!((caps.max_torque.value() - 25.0).abs() < 0.001);
         assert_eq!(caps.encoder_cpr, 4096);
         assert_eq!(caps.min_report_period_us, 100);
+    }
+
+    #[test]
+    fn test_encode_torque_report_generic_device_uses_owp1_layout() {
+        let mut out = [0u8; MAX_TORQUE_REPORT_SIZE];
+        let len = encode_torque_report_for_device(0x046D, 0xC294, 5.0, 2.0, 77, &mut out);
+
+        assert_eq!(len, std::mem::size_of::<TorqueCommand>());
+        assert_eq!(out[0], TorqueCommand::REPORT_ID);
+        let encoded = i16::from_le_bytes([out[1], out[2]]);
+        assert_eq!(encoded, (2.0 * 256.0) as i16);
+        let seq = u16::from_le_bytes([out[4], out[5]]);
+        assert_eq!(seq, 77);
+    }
+
+    #[test]
+    fn test_encode_torque_report_moza_uses_direct_layout() {
+        let mut out = [0u8; MAX_TORQUE_REPORT_SIZE];
+        let len = encode_torque_report_for_device(0x346E, 0x0004, 5.5, 5.5, 11, &mut out);
+
+        assert_eq!(len, MAX_TORQUE_REPORT_SIZE);
+        assert_eq!(out[0], vendor::moza::report_ids::DIRECT_TORQUE);
+        assert_eq!(i16::from_le_bytes([out[1], out[2]]), i16::MAX);
     }
 }

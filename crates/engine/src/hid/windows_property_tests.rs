@@ -485,6 +485,7 @@ mod unit_tests {
             (vendor_ids::MOZA, "Moza Racing"),
             (vendor_ids::SIMAGIC, "Simagic"),
             (vendor_ids::SIMAGIC_ALT, "Simagic"),
+            (vendor_ids::SIMAGIC_EVO, "Simagic"),
         ];
 
         for (vid, expected_name) in vendors {
@@ -534,8 +535,13 @@ mod unit_tests {
     fn test_each_vendor_has_devices() -> TestResult {
         let vendor_ids_list = SupportedDevices::supported_vendor_ids();
         let devices = SupportedDevices::all();
+        let descriptor_first_vendors = [vendor_ids::SIMAGIC_EVO];
 
         for vid in vendor_ids_list {
+            if descriptor_first_vendors.contains(vid) {
+                continue;
+            }
+
             let vendor_devices: Vec<_> = devices.iter().filter(|(v, _, _)| v == vid).collect();
 
             assert!(

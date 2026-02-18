@@ -36,7 +36,7 @@ impl DeviceQuirks {
             // Fanatec
             0x0EB7 => Self::fanatec_quirks(product_id),
             // Simagic
-            0x0483 | 0x16D0 => Self::simagic_quirks(product_id),
+            0x0483 | 0x16D0 | 0x3670 => Self::simagic_quirks(product_id),
             // Default - no quirks
             _ => Self::default(),
         }
@@ -150,6 +150,13 @@ mod tests {
     fn test_unknown_device_no_quirks() {
         let quirks = DeviceQuirks::for_device(0x1234, 0x5678);
         assert!(!quirks.has_quirks());
+    }
+
+    #[test]
+    fn test_simagic_evo_vendor_quirks_detection() {
+        let quirks = DeviceQuirks::for_device(0x3670, 0x0001);
+        assert!(quirks.required_b_interval.is_some());
+        assert!(!quirks.requires_init_handshake);
     }
 
     #[test]

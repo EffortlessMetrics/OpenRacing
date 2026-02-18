@@ -7,13 +7,18 @@
 //! - mlockall for memory locking
 //! - udev rules guidance for device permissions
 
-use super::{DeviceTelemetryReport, HidDeviceInfo, TorqueCommand};
+use super::vendor::VendorProtocol;
+use super::{
+    DeviceTelemetryReport, HidDeviceInfo, MAX_TORQUE_REPORT_SIZE, encode_torque_report_for_device,
+    vendor,
+};
 use crate::ports::{DeviceHealthStatus, HidDevice, HidPort};
 use crate::{DeviceEvent, DeviceInfo, RTResult, TelemetryData};
 use async_trait::async_trait;
 use parking_lot::RwLock;
 use racing_wheel_schemas::prelude::*;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::fs::{File, OpenOptions};
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
@@ -30,6 +35,146 @@ use tracing::{debug, info, warn};
 fn get_cached_device_info(device_info: &HidDeviceInfo) -> &'static DeviceInfo {
     static CACHED_INFO: OnceLock<DeviceInfo> = OnceLock::new();
     CACHED_INFO.get_or_init(|| device_info.to_device_info())
+}
+
+const HID_MAX_DESCRIPTOR_SIZE: usize = 4096;
+const HIDRAW_IOCTL_TYPE: u8 = b'H';
+const HIDIOC_NR_GRDESC_SIZE: u8 = 0x01;
+const HIDIOC_NR_GRDESC: u8 = 0x02;
+const HIDIOC_NR_GRRAWINFO: u8 = 0x03;
+const HIDIOC_NR_GRRAWNAME: u8 = 0x04;
+
+const IOC_NRBITS: u32 = 8;
+const IOC_TYPEBITS: u32 = 8;
+const IOC_SIZEBITS: u32 = 14;
+const IOC_NRSHIFT: u32 = 0;
+const IOC_TYPESHIFT: u32 = IOC_NRSHIFT + IOC_NRBITS;
+const IOC_SIZESHIFT: u32 = IOC_TYPESHIFT + IOC_TYPEBITS;
+const IOC_DIRSHIFT: u32 = IOC_SIZESHIFT + IOC_SIZEBITS;
+const IOC_READ: u32 = 2;
+const IOC_READ_WRITE: u32 = 3;
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct HidrawDevInfo {
+    bustype: u32,
+    vendor: i16,
+    product: i16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct HidrawReportDescriptor {
+    size: u32,
+    value: [u8; HID_MAX_DESCRIPTOR_SIZE],
+}
+
+impl Default for HidrawReportDescriptor {
+    fn default() -> Self {
+        Self {
+            size: 0,
+            value: [0u8; HID_MAX_DESCRIPTOR_SIZE],
+        }
+    }
+}
+
+const fn ioctl_code(direction: u32, kind: u8, nr: u8, size: usize) -> libc::c_ulong {
+    ((direction << IOC_DIRSHIFT)
+        | ((kind as u32) << IOC_TYPESHIFT)
+        | ((nr as u32) << IOC_NRSHIFT)
+        | ((size as u32) << IOC_SIZESHIFT)) as libc::c_ulong
+}
+
+const fn ior_read<T>(kind: u8, nr: u8) -> libc::c_ulong {
+    ioctl_code(IOC_READ, kind, nr, std::mem::size_of::<T>())
+}
+
+const fn iorw_len(kind: u8, nr: u8, len: usize) -> libc::c_ulong {
+    ioctl_code(IOC_READ_WRITE, kind, nr, len)
+}
+
+const HIDIOCGRAWINFO: libc::c_ulong =
+    ior_read::<HidrawDevInfo>(HIDRAW_IOCTL_TYPE, HIDIOC_NR_GRRAWINFO);
+const HIDIOCGRDESCSIZE: libc::c_ulong =
+    ior_read::<libc::c_int>(HIDRAW_IOCTL_TYPE, HIDIOC_NR_GRDESC_SIZE);
+const HIDIOCGRDESC: libc::c_ulong =
+    ior_read::<HidrawReportDescriptor>(HIDRAW_IOCTL_TYPE, HIDIOC_NR_GRDESC);
+
+fn hidiocgrawname(len: usize) -> libc::c_ulong {
+    iorw_len(HIDRAW_IOCTL_TYPE, HIDIOC_NR_GRRAWNAME, len)
+}
+
+fn parse_c_string(bytes: &[u8]) -> Option<String> {
+    let nul_idx = bytes.iter().position(|b| *b == 0).unwrap_or(bytes.len());
+    if nul_idx == 0 {
+        return None;
+    }
+
+    Some(
+        String::from_utf8_lossy(&bytes[..nul_idx])
+            .trim()
+            .to_string(),
+    )
+}
+
+fn manufacturer_for_vendor(vendor_id: u16) -> Option<String> {
+    let name = match vendor_id {
+        0x046D => "Logitech",
+        0x0EB7 => "Fanatec",
+        0x044F => "Thrustmaster",
+        0x346E => "Moza Racing",
+        0x0483 | 0x16D0 | 0x3670 => "Simagic",
+        _ => return None,
+    };
+    Some(name.to_string())
+}
+
+fn parse_descriptor_flags(descriptor: &[u8]) -> (bool, bool) {
+    // Usage Page (PID) appears as 0x05, 0x0F in many PID descriptors.
+    let supports_pid = descriptor.windows(2).any(|win| win == [0x05, 0x0F]);
+
+    // Vendor usage pages often use 16-bit form: 0x06 <low> <high> where high=0xFF.
+    let uses_vendor_usage_page = descriptor
+        .windows(3)
+        .any(|win| win[0] == 0x06 && win[2] == 0xFF);
+
+    (supports_pid, uses_vendor_usage_page)
+}
+
+fn build_capabilities_from_identity(
+    vendor_id: u16,
+    product_id: u16,
+    descriptor: &[u8],
+) -> DeviceCapabilities {
+    let (descriptor_pid, _) = parse_descriptor_flags(descriptor);
+
+    if vendor_id == 0x346E {
+        let protocol = vendor::moza::MozaProtocol::new(product_id);
+        let identity = vendor::moza::identify_device(product_id);
+        let config = protocol.get_ffb_config();
+        let max_torque = config.max_torque_nm.clamp(0.0, TorqueNm::MAX_TORQUE);
+        let max_torque = TorqueNm::new(max_torque).unwrap_or(TorqueNm::ZERO);
+
+        return DeviceCapabilities {
+            supports_pid: descriptor_pid || identity.supports_ffb,
+            supports_raw_torque_1khz: identity.supports_ffb,
+            supports_health_stream: identity.supports_ffb,
+            supports_led_bus: false,
+            max_torque,
+            encoder_cpr: u16::try_from(config.encoder_cpr).unwrap_or(u16::MAX),
+            min_report_period_us: config.required_b_interval.unwrap_or(1) as u16 * 1000,
+        };
+    }
+
+    DeviceCapabilities {
+        supports_pid: descriptor_pid,
+        supports_raw_torque_1khz: false,
+        supports_health_stream: false,
+        supports_led_bus: false,
+        max_torque: TorqueNm::new(10.0).unwrap_or(TorqueNm::ZERO),
+        encoder_cpr: 4096,
+        min_report_period_us: 1000,
+    }
 }
 
 /// Linux-specific HID port implementation
@@ -92,6 +237,16 @@ impl LinuxHidPort {
             (0x346E, 0x0020), // Moza HGP Shifter
             (0x346E, 0x0021), // Moza SGP Sequential Shifter
             (0x346E, 0x0022), // Moza HBP Handbrake
+            // Simagic legacy devices
+            (0x0483, 0x0522), // Simagic Alpha
+            (0x0483, 0x0523), // Simagic Alpha Mini
+            (0x0483, 0x0524), // Simagic Alpha Ultimate
+            (0x16D0, 0x0D5A), // Simagic M10
+            (0x16D0, 0x0D5B), // Simagic FX
+            // Simagic Alpha EVO candidate identities
+            (0x3670, 0x0001), // Alpha EVO Sport (capture-candidate PID)
+            (0x3670, 0x0002), // Alpha EVO (capture-candidate PID)
+            (0x3670, 0x0003), // Alpha EVO Pro (capture-candidate PID)
         ];
 
         // Scan /dev/hidraw* devices
@@ -104,13 +259,24 @@ impl LinuxHidPort {
                         if filename_str.starts_with("hidraw") {
                             if let Ok(device_info) = self.probe_hidraw_device(&path) {
                                 // Check if this is a racing wheel
+                                let mut is_supported = false;
                                 for (vid, pid) in racing_wheel_ids.iter() {
                                     if device_info.vendor_id == *vid
                                         && device_info.product_id == *pid
                                     {
-                                        devices.push(device_info);
+                                        is_supported = true;
                                         break;
                                     }
+                                }
+
+                                // Alpha EVO-generation devices should be discoverable even when
+                                // PID mapping is incomplete; descriptor capture confirms details.
+                                if !is_supported && device_info.vendor_id == 0x3670 {
+                                    is_supported = true;
+                                }
+
+                                if is_supported {
+                                    devices.push(device_info);
                                 }
                             }
                         }
@@ -144,6 +310,8 @@ impl LinuxHidPort {
                         0x046D => "Logitech".to_string(),
                         0x0EB7 => "Fanatec".to_string(),
                         0x044F => "Thrustmaster".to_string(),
+                        0x346E => "Moza Racing".to_string(),
+                        0x0483 | 0x16D0 | 0x3670 => "Simagic".to_string(),
                         _ => "Unknown".to_string(),
                     }),
                     product_name: Some(format!("Racing Wheel {:04X}:{:04X}", vid, pid)),
@@ -164,32 +332,61 @@ impl LinuxHidPort {
         &self,
         path: &Path,
     ) -> Result<HidDeviceInfo, Box<dyn std::error::Error>> {
-        // In a real implementation, this would:
-        // 1. Open the hidraw device
-        // 2. Use HIDIOCGRAWINFO ioctl to get vendor/product ID
-        // 3. Use HIDIOCGRAWNAME ioctl to get device name
-        // 4. Use HIDIOCGRDESC ioctl to get report descriptor
-        // 5. Parse capabilities from report descriptor
+        let file = OpenOptions::new().read(true).open(path)?;
+        let fd = file.as_raw_fd();
 
-        // For now, return mock data
-        let device_id = DeviceId::new(format!("linux_{}", path.display()))?;
-        let capabilities = DeviceCapabilities {
-            supports_pid: true,
-            supports_raw_torque_1khz: true,
-            supports_health_stream: true,
-            supports_led_bus: false,
-            max_torque: must(TorqueNm::new(25.0)),
-            encoder_cpr: 4096,
-            min_report_period_us: 1000,
+        let mut raw_info = HidrawDevInfo::default();
+        let raw_info_result = unsafe { libc::ioctl(fd, HIDIOCGRAWINFO, &mut raw_info) };
+        if raw_info_result < 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+
+        let vendor_id = u16::from_ne_bytes(raw_info.vendor.to_ne_bytes());
+        let product_id = u16::from_ne_bytes(raw_info.product.to_ne_bytes());
+
+        let mut name_buf = [0u8; 256];
+        let name_result =
+            unsafe { libc::ioctl(fd, hidiocgrawname(name_buf.len()), name_buf.as_mut_ptr()) };
+        let product_name = if name_result > 0 {
+            parse_c_string(&name_buf)
+        } else {
+            None
         };
+
+        let mut desc_size: libc::c_int = 0;
+        let desc_size_result = unsafe { libc::ioctl(fd, HIDIOCGRDESCSIZE, &mut desc_size) };
+        let descriptor = if desc_size_result >= 0 {
+            let mut descriptor = HidrawReportDescriptor::default();
+            let safe_size = desc_size.clamp(0, HID_MAX_DESCRIPTOR_SIZE as libc::c_int);
+            descriptor.size = safe_size as u32;
+            let desc_result = unsafe { libc::ioctl(fd, HIDIOCGRDESC, &mut descriptor) };
+            if desc_result >= 0 {
+                let used = usize::try_from(descriptor.size).unwrap_or(0);
+                let used = used.min(HID_MAX_DESCRIPTOR_SIZE);
+                descriptor.value[..used].to_vec()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+
+        let capabilities = build_capabilities_from_identity(vendor_id, product_id, &descriptor);
+        let device_id = DeviceId::new(format!(
+            "linux_{:04X}_{:04X}_{}",
+            vendor_id,
+            product_id,
+            path.display()
+        ))?;
 
         Ok(HidDeviceInfo {
             device_id,
-            vendor_id: 0x046D,
-            product_id: 0xC294,
-            serial_number: Some("LINUX123".to_string()),
-            manufacturer: Some("Mock Manufacturer".to_string()),
-            product_name: Some("Mock Racing Wheel".to_string()),
+            vendor_id,
+            product_id,
+            serial_number: None,
+            manufacturer: manufacturer_for_vendor(vendor_id),
+            product_name: product_name
+                .or_else(|| Some(format!("Racing Wheel {:04X}:{:04X}", vendor_id, product_id))),
             path: path.to_string_lossy().to_string(),
             capabilities,
         })
@@ -506,12 +703,18 @@ impl HidDevice for LinuxHidDevice {
         // Sequence tracking stays lock-free for RT determinism.
         self.last_seq.store(seq, Ordering::Relaxed);
 
-        // Create torque command
-        let command = TorqueCommand::new(torque_nm, seq, true, false);
-        let data = command.as_bytes();
+        let mut report = [0u8; MAX_TORQUE_REPORT_SIZE];
+        let len = encode_torque_report_for_device(
+            self.device_info.vendor_id,
+            self.device_info.product_id,
+            self.device_info.capabilities.max_torque.value(),
+            torque_nm,
+            seq,
+            &mut report,
+        );
 
         // Perform non-blocking write (RT-safe)
-        self.write_nonblocking(data)
+        self.write_nonblocking(&report[..len])
     }
 
     fn read_telemetry(&mut self) -> Option<TelemetryData> {
@@ -607,6 +810,10 @@ pub fn apply_linux_rt_setup() -> Result<(), Box<dyn std::error::Error>> {
     );
     info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"0eb7\", MODE=\"0666\", GROUP=\"input\"");
     info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"044f\", MODE=\"0666\", GROUP=\"input\"");
+    info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"346e\", MODE=\"0666\", GROUP=\"input\"");
+    info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"0483\", MODE=\"0666\", GROUP=\"input\"");
+    info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"16d0\", MODE=\"0666\", GROUP=\"input\"");
+    info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"3670\", MODE=\"0666\", GROUP=\"input\"");
     info!("Then run: sudo udevadm control --reload-rules && sudo udevadm trigger");
 
     // Guidance for rtkit setup
