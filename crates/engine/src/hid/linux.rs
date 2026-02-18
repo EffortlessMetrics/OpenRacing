@@ -92,6 +92,16 @@ impl LinuxHidPort {
             (0x346E, 0x0020), // Moza HGP Shifter
             (0x346E, 0x0021), // Moza SGP Sequential Shifter
             (0x346E, 0x0022), // Moza HBP Handbrake
+            // Simagic legacy devices
+            (0x0483, 0x0522), // Simagic Alpha
+            (0x0483, 0x0523), // Simagic Alpha Mini
+            (0x0483, 0x0524), // Simagic Alpha Ultimate
+            (0x16D0, 0x0D5A), // Simagic M10
+            (0x16D0, 0x0D5B), // Simagic FX
+            // Simagic Alpha EVO candidate identities
+            (0x3670, 0x0001), // Alpha EVO Sport (capture-candidate PID)
+            (0x3670, 0x0002), // Alpha EVO (capture-candidate PID)
+            (0x3670, 0x0003), // Alpha EVO Pro (capture-candidate PID)
         ];
 
         // Scan /dev/hidraw* devices
@@ -104,13 +114,24 @@ impl LinuxHidPort {
                         if filename_str.starts_with("hidraw") {
                             if let Ok(device_info) = self.probe_hidraw_device(&path) {
                                 // Check if this is a racing wheel
+                                let mut is_supported = false;
                                 for (vid, pid) in racing_wheel_ids.iter() {
                                     if device_info.vendor_id == *vid
                                         && device_info.product_id == *pid
                                     {
-                                        devices.push(device_info);
+                                        is_supported = true;
                                         break;
                                     }
+                                }
+
+                                // Alpha EVO-generation devices should be discoverable even when
+                                // PID mapping is incomplete; descriptor capture confirms details.
+                                if !is_supported && device_info.vendor_id == 0x3670 {
+                                    is_supported = true;
+                                }
+
+                                if is_supported {
+                                    devices.push(device_info);
                                 }
                             }
                         }
@@ -144,6 +165,8 @@ impl LinuxHidPort {
                         0x046D => "Logitech".to_string(),
                         0x0EB7 => "Fanatec".to_string(),
                         0x044F => "Thrustmaster".to_string(),
+                        0x346E => "Moza Racing".to_string(),
+                        0x0483 | 0x16D0 | 0x3670 => "Simagic".to_string(),
                         _ => "Unknown".to_string(),
                     }),
                     product_name: Some(format!("Racing Wheel {:04X}:{:04X}", vid, pid)),
@@ -607,6 +630,10 @@ pub fn apply_linux_rt_setup() -> Result<(), Box<dyn std::error::Error>> {
     );
     info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"0eb7\", MODE=\"0666\", GROUP=\"input\"");
     info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"044f\", MODE=\"0666\", GROUP=\"input\"");
+    info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"346e\", MODE=\"0666\", GROUP=\"input\"");
+    info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"0483\", MODE=\"0666\", GROUP=\"input\"");
+    info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"16d0\", MODE=\"0666\", GROUP=\"input\"");
+    info!("SUBSYSTEM==\"hidraw\", ATTRS{{idVendor}}==\"3670\", MODE=\"0666\", GROUP=\"input\"");
     info!("Then run: sudo udevadm control --reload-rules && sudo udevadm trigger");
 
     // Guidance for rtkit setup

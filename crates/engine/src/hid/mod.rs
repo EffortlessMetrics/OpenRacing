@@ -8,6 +8,7 @@ use crate::{DeviceInfo, TelemetryData};
 use racing_wheel_schemas::prelude::*;
 
 pub mod quirks;
+pub mod rt_stream;
 pub mod vendor;
 pub mod virtual_device;
 

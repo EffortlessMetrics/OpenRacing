@@ -233,6 +233,7 @@ Likely files to anchor the spec:
 - `crates/engine/src/scheduler.rs` (timing)
 - `crates/engine/src/safety.rs` and `crates/engine/src/safety/*` (fault + soft-stop)
 - `crates/engine/src/ports.rs` (device IO + watchdog capability surface)
+- `crates/engine/src/hid/rt_stream.rs` (RT-safe torque transport abstraction for HID backends)
 - `crates/cli/src/commands/diag.rs` (black-box tooling surface; must not be "mock" in a safety claim)
 
 ---

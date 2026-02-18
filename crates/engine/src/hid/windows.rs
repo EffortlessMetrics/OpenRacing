@@ -8,7 +8,7 @@
 //! - Guidance for USB selective suspend
 //! - Overlapped I/O for non-blocking HID writes in RT path
 
-use super::{DeviceTelemetryReport, HidDeviceInfo, TorqueCommand};
+use super::{DeviceTelemetryReport, HidDeviceInfo, TorqueCommand, vendor};
 use crate::ports::{DeviceHealthStatus, HidDevice, HidPort};
 use crate::{DeviceEvent, DeviceInfo, RTResult, TelemetryData};
 use async_trait::async_trait;
@@ -296,6 +296,8 @@ pub mod vendor_ids {
     pub const SIMAGIC: u16 = 0x0483;
     /// Simagic alternate vendor ID
     pub const SIMAGIC_ALT: u16 = 0x16D0;
+    /// Simagic-owned vendor ID used by Alpha EVO generation devices
+    pub const SIMAGIC_EVO: u16 = 0x3670;
 }
 
 /// Known racing wheel product IDs organized by vendor
@@ -381,6 +383,7 @@ impl SupportedDevices {
             vendor_ids::MOZA,
             vendor_ids::SIMAGIC,
             vendor_ids::SIMAGIC_ALT,
+            vendor_ids::SIMAGIC_EVO,
         ]
     }
 
@@ -411,7 +414,7 @@ impl SupportedDevices {
             vendor_ids::FANATEC => "Fanatec",
             vendor_ids::THRUSTMASTER => "Thrustmaster",
             vendor_ids::MOZA => "Moza Racing",
-            vendor_ids::SIMAGIC | vendor_ids::SIMAGIC_ALT => "Simagic",
+            vendor_ids::SIMAGIC | vendor_ids::SIMAGIC_ALT | vendor_ids::SIMAGIC_EVO => "Simagic",
             _ => "Unknown",
         }
     }
@@ -1151,7 +1154,7 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                 }
             }
         }
-        vendor_ids::SIMAGIC | vendor_ids::SIMAGIC_ALT => {
+        vendor_ids::SIMAGIC | vendor_ids::SIMAGIC_ALT | vendor_ids::SIMAGIC_EVO => {
             // Simagic direct drive wheels
             capabilities.supports_raw_torque_1khz = true;
             capabilities.supports_health_stream = true;
@@ -1183,9 +1186,30 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     // FX
                     capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
                 }
-                _ => {
+                0x0001 => {
+                    // Alpha EVO Sport (capture-candidate PID)
+                    capabilities.max_torque = TorqueNm::new(9.0).unwrap_or(capabilities.max_torque);
+                }
+                0x0002 => {
+                    // Alpha EVO (capture-candidate PID)
                     capabilities.max_torque =
-                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
+                        TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
+                }
+                0x0003 => {
+                    // Alpha EVO Pro (capture-candidate PID)
+                    capabilities.max_torque =
+                        TorqueNm::new(18.0).unwrap_or(capabilities.max_torque);
+                }
+                _ => {
+                    // Unknown Simagic product IDs remain conservative until capture confirms
+                    // hardware tier and protocol details.
+                    let conservative_nm = if vendor_id == vendor_ids::SIMAGIC_EVO {
+                        9.0
+                    } else {
+                        10.0
+                    };
+                    capabilities.max_torque =
+                        TorqueNm::new(conservative_nm).unwrap_or(capabilities.max_torque);
                 }
             }
         }
@@ -1413,6 +1437,32 @@ fn get_hidapi_device_open_context() -> Option<&'static Arc<Mutex<HidApi>>> {
     }
 }
 
+/// Adapter for vendor protocol initialization over hidapi.
+struct HidApiVendorWriter<'a> {
+    device: &'a mut hidapi::HidDevice,
+}
+
+impl<'a> vendor::DeviceWriter for HidApiVendorWriter<'a> {
+    fn write_feature_report(
+        &mut self,
+        data: &[u8],
+    ) -> std::result::Result<usize, Box<dyn std::error::Error>> {
+        self.device
+            .send_feature_report(data)
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+        Ok(data.len())
+    }
+
+    fn write_output_report(
+        &mut self,
+        data: &[u8],
+    ) -> std::result::Result<usize, Box<dyn std::error::Error>> {
+        self.device
+            .write(data)
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
+    }
+}
+
 impl WindowsHidDevice {
     /// Create a new Windows HID device with overlapped I/O support
     ///
@@ -1450,6 +1500,9 @@ impl WindowsHidDevice {
         // compatibility and handles HID-specific setup.
         let device_handle = Arc::new(Mutex::new(SendableHandle::default())); // Placeholder - hidapi manages the actual handle
 
+        // Apply vendor-specific initialization on non-RT path when transport is available.
+        Self::initialize_vendor_protocol(&device_info, &hidapi_device);
+
         info!(
             "Opened Windows HID device: {} ({})",
             device_info.product_name.as_deref().unwrap_or("Unknown"),
@@ -1483,6 +1536,37 @@ impl WindowsHidDevice {
         };
 
         Some(Arc::new(Mutex::new(device)))
+    }
+
+    fn initialize_vendor_protocol(
+        device_info: &HidDeviceInfo,
+        hidapi_device: &Option<Arc<Mutex<hidapi::HidDevice>>>,
+    ) {
+        let Some(protocol) =
+            vendor::get_vendor_protocol(device_info.vendor_id, device_info.product_id)
+        else {
+            return;
+        };
+
+        let Some(hidapi_device) = hidapi_device else {
+            debug!(
+                "Skipping vendor initialization for {} (VID={:04X}, PID={:04X}); no hidapi handle available",
+                device_info.device_id, device_info.vendor_id, device_info.product_id
+            );
+            return;
+        };
+
+        let mut device = hidapi_device.lock();
+        let mut writer = HidApiVendorWriter {
+            device: &mut device,
+        };
+
+        if let Err(e) = protocol.initialize_device(&mut writer) {
+            warn!(
+                "Vendor initialization failed for {} (VID={:04X}, PID={:04X}): {}",
+                device_info.device_id, device_info.vendor_id, device_info.product_id, e
+            );
+        }
     }
 
     /// Perform overlapped write operation (RT-safe)
@@ -1992,6 +2076,36 @@ mod tests {
     }
 
     #[test]
+    fn test_vendor_initialization_skips_without_hidapi_handle() -> TestResult {
+        let device_id = "test-moza-device".parse::<DeviceId>()?;
+        let capabilities = DeviceCapabilities {
+            supports_pid: true,
+            supports_raw_torque_1khz: true,
+            supports_health_stream: true,
+            supports_led_bus: false,
+            max_torque: TorqueNm::new(9.0)?,
+            encoder_cpr: 4096,
+            min_report_period_us: 1000,
+        };
+
+        // "test-path" does not map to a real hidapi path, so vendor init must skip safely.
+        let device_info = HidDeviceInfo {
+            device_id,
+            vendor_id: vendor_ids::MOZA,
+            product_id: 0x0002,
+            serial_number: Some("TEST123".to_string()),
+            manufacturer: Some("Moza Racing".to_string()),
+            product_name: Some("Moza R9".to_string()),
+            path: "test-path".to_string(),
+            capabilities,
+        };
+
+        let device = WindowsHidDevice::new(device_info)?;
+        assert!(device.is_connected());
+        Ok(())
+    }
+
+    #[test]
     fn test_ffb_report_writing() -> TestResult {
         let device_id = "test-device".parse::<DeviceId>()?;
         let capabilities = DeviceCapabilities {
@@ -2087,6 +2201,9 @@ mod tests {
         assert!(SupportedDevices::is_supported_vendor(
             vendor_ids::SIMAGIC_ALT
         ));
+        assert!(SupportedDevices::is_supported_vendor(
+            vendor_ids::SIMAGIC_EVO
+        ));
         assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC, 0x0522)); // Alpha
     }
 
@@ -2116,6 +2233,10 @@ mod tests {
         );
         assert_eq!(
             SupportedDevices::get_manufacturer_name(vendor_ids::SIMAGIC),
+            "Simagic"
+        );
+        assert_eq!(
+            SupportedDevices::get_manufacturer_name(vendor_ids::SIMAGIC_EVO),
             "Simagic"
         );
         assert_eq!(SupportedDevices::get_manufacturer_name(0x1234), "Unknown");
@@ -2216,6 +2337,14 @@ mod tests {
         assert!(!caps.supports_pid);
         assert!(!caps.supports_raw_torque_1khz);
         assert!((caps.max_torque.value() - 5.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_device_capabilities_simagic_evo_unknown_pid_is_conservative() {
+        let caps = determine_device_capabilities(vendor_ids::SIMAGIC_EVO, 0x7FFF);
+        assert!(caps.supports_raw_torque_1khz);
+        assert!(caps.supports_health_stream);
+        assert!((caps.max_torque.value() - 9.0).abs() < 0.1);
     }
 
     #[test]
