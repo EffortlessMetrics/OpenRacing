@@ -2,10 +2,10 @@
 """
 Performance gate validation script.
 Validates that RT timing benchmarks meet the requirements from NFR-01 and tech.md:
-- RT loop total ≤ 1000μs @ 1kHz
-- P99 jitter ≤ 0.25ms (250μs)
-- Missed ticks ≤ 0.001%
-- Processing time ≤ 50μs median, ≤ 200μs p99
+- RT loop total <= 1000us @ 1kHz
+- P99 jitter <= 0.25ms (250us)
+- Missed ticks <= 0.001%
+- Processing time <= 50us median, <= 200us p99
 
 Requirements: 14.2, 14.3, 14.4, 14.5
 """
@@ -35,12 +35,13 @@ class MetricResult:
     unit: str
     status: MetricStatus
     description: str
+    source: str
 
     def __str__(self) -> str:
         status_icon = {
-            MetricStatus.PASSED: "✅",
-            MetricStatus.FAILED: "❌",
-            MetricStatus.SKIPPED: "⏭️",
+            MetricStatus.PASSED: "[PASS]",
+            MetricStatus.FAILED: "[FAIL]",
+            MetricStatus.SKIPPED: "[SKIP]",
         }[self.status]
         value_str = _format_value(self.value, self.unit)
         threshold_str = _format_value(self.threshold, self.unit)
@@ -84,17 +85,34 @@ class ValidationResult:
 
 
 # Performance thresholds from requirements (NFR-01) and tech.md
-# Requirement 14.3: RT loop ≤1000μs total, p99 jitter ≤0.25ms, missed ticks ≤0.001%
-# Requirement 14.4: processing time ≤50μs median, ≤200μs p99
+# Requirement 14.3: RT loop <=1000us total, p99 jitter <=0.25ms, missed ticks <=0.001%
+# Requirement 14.4: processing time <=50us median, <=200us p99
 THRESHOLDS = {
-    "rt_loop_us": 1000.0,           # Total RT Budget: 1000μs @ 1kHz
-    "jitter_p99_ms": 0.25,          # P99 Jitter: ≤ 0.25ms
-    "jitter_p99_us": 250.0,         # P99 Jitter: ≤ 250μs (same as above, different unit)
-    "missed_tick_rate": 0.00001,    # Missed Ticks: ≤ 0.001% (0.00001 as decimal)
-    "processing_time_median_us": 50.0,   # Processing Time: ≤ 50μs median
-    "processing_time_p99_us": 200.0,     # Processing Time: ≤ 200μs p99
-    "e2e_latency_p99_us": 2000.0,        # E2E latency: ≤ 2ms p99 (optional)
+    "rt_loop_us": 1000.0,           # Total RT Budget: 1000us @ 1kHz
+    "jitter_p99_ms": 0.25,          # P99 Jitter: <= 0.25ms
+    "jitter_p99_us": 250.0,         # P99 Jitter: <= 250us (same as above, different unit)
+    "missed_tick_rate": 0.00001,    # Missed Ticks: <= 0.001% (0.00001 as decimal)
+    "processing_time_median_us": 50.0,   # Processing Time: <= 50us median
+    "processing_time_p99_us": 200.0,     # Processing Time: <= 200us p99
+    "e2e_latency_p99_us": 2000.0,        # E2E latency: <= 2ms p99 (optional)
 }
+
+
+def resolve_benchmark_path(file_path: str) -> str:
+    """Resolve benchmark result path across common workspace locations."""
+    if os.path.exists(file_path):
+        return file_path
+
+    candidates = []
+    if not os.path.isabs(file_path):
+        candidates.append(os.path.join("crates", "engine", file_path))
+
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            print(f"[INFO] Benchmark file not found at {file_path}; using {candidate}")
+            return candidate
+
+    return file_path
 
 
 def parse_benchmark_results(file_path: str) -> Dict[str, Any]:
@@ -109,19 +127,21 @@ def parse_benchmark_results(file_path: str) -> Dict[str, Any]:
     Raises:
         SystemExit: If file cannot be read or parsed.
     """
-    if not os.path.exists(file_path):
-        print(f"❌ Benchmark file not found: {file_path}")
+    resolved_path = resolve_benchmark_path(file_path)
+
+    if not os.path.exists(resolved_path):
+        print(f"[ERROR] Benchmark file not found: {file_path}")
         sys.exit(1)
         
     try:
-        with open(file_path, 'r') as f:
+        with open(resolved_path, 'r') as f:
             data = json.load(f)
         return data
     except json.JSONDecodeError as e:
-        print(f"❌ Error parsing benchmark JSON: {e}")
+        print(f"[ERROR] Error parsing benchmark JSON: {e}")
         sys.exit(1)
     except IOError as e:
-        print(f"❌ Error reading benchmark file: {e}")
+        print(f"[ERROR] Error reading benchmark file: {e}")
         sys.exit(1)
 
 
@@ -131,6 +151,7 @@ def check_metric(
     threshold: float,
     unit: str,
     description: str,
+    source: str,
     lower_is_better: bool = True
 ) -> MetricResult:
     """Check a single metric against its threshold.
@@ -153,7 +174,8 @@ def check_metric(
             threshold=threshold,
             unit=unit,
             status=MetricStatus.SKIPPED,
-            description=f"{description} (not available)"
+            description=f"{description} (not available)",
+            source=source,
         )
     
     if lower_is_better:
@@ -167,7 +189,8 @@ def check_metric(
         threshold=threshold,
         unit=unit,
         status=MetricStatus.PASSED if passed else MetricStatus.FAILED,
-        description=description
+        description=description,
+        source=source,
     )
 
 
@@ -187,29 +210,42 @@ def validate_summary_metrics(summary: Dict[str, Any]) -> List[MetricResult]:
         name="RT Loop Total",
         value=summary.get("rt_loop_us"),
         threshold=THRESHOLDS["rt_loop_us"],
-        unit="μs",
-        description="Total RT loop time @ 1kHz"
+        unit="us",
+        description="Total RT loop time @ 1kHz",
+        source="summary.rt_loop_us",
     ))
-    
+
     # P99 Jitter (Requirement 14.3)
-    # Check both ms and us versions
+    # Accept either ms or us summary fields.
     jitter_ms = summary.get("jitter_p99_ms")
+    jitter_us = summary.get("jitter_p99_us")
     if jitter_ms is not None:
         results.append(check_metric(
             name="P99 Jitter",
             value=jitter_ms,
             threshold=THRESHOLDS["jitter_p99_ms"],
             unit="ms",
-            description="P99 jitter at 1kHz"
+            description="P99 jitter at 1kHz",
+            source="summary.jitter_p99_ms",
         ))
-    
+    elif jitter_us is not None:
+        results.append(check_metric(
+            name="P99 Jitter",
+            value=jitter_us,
+            threshold=THRESHOLDS["jitter_p99_us"],
+            unit="us",
+            description="P99 jitter at 1kHz",
+            source="summary.jitter_p99_us",
+        ))
+
     # Missed tick rate (Requirement 14.3)
     results.append(check_metric(
         name="Missed Tick Rate",
         value=summary.get("missed_tick_rate"),
         threshold=THRESHOLDS["missed_tick_rate"],
         unit="",
-        description="Missed tick rate (0.001% = 0.00001)"
+        description="Missed tick rate ratio (0.001% = 0.00001)",
+        source="summary.missed_tick_rate",
     ))
     
     # Processing time median (Requirement 14.4)
@@ -217,8 +253,9 @@ def validate_summary_metrics(summary: Dict[str, Any]) -> List[MetricResult]:
         name="Processing Time Median",
         value=summary.get("processing_time_median_us"),
         threshold=THRESHOLDS["processing_time_median_us"],
-        unit="μs",
-        description="Median processing time per tick"
+        unit="us",
+        description="Median processing time per tick",
+        source="summary.processing_time_median_us",
     ))
     
     # Processing time P99 (Requirement 14.4)
@@ -226,8 +263,9 @@ def validate_summary_metrics(summary: Dict[str, Any]) -> List[MetricResult]:
         name="Processing Time P99",
         value=summary.get("processing_time_p99_us"),
         threshold=THRESHOLDS["processing_time_p99_us"],
-        unit="μs",
-        description="P99 processing time per tick"
+        unit="us",
+        description="P99 processing time per tick",
+        source="summary.processing_time_p99_us",
     ))
     
     return results
@@ -243,43 +281,66 @@ def validate_benchmark_metrics(benchmarks: List[Dict[str, Any]]) -> List[MetricR
         List of MetricResult for each checked metric.
     """
     results = []
-    
+
     # Find RT timing benchmarks
     rt_benchmarks = [
         bench for bench in benchmarks
         if 'rt_timing' in bench.get('name', '') or '1khz' in bench.get('name', '').lower()
     ]
-    
+
     for bench in rt_benchmarks:
         name = bench.get('name', 'unknown')
+        lower_name = name.lower()
         percentiles = bench.get('percentiles', {})
         custom_metrics = bench.get('custom_metrics', {})
-        
-        # P50 (median) from percentiles - convert from ns to us
+
         p50_ns = percentiles.get('p50')
-        if p50_ns is not None:
-            p50_us = p50_ns / 1000.0
-            results.append(check_metric(
-                name=f"{name} - Median",
-                value=p50_us,
-                threshold=THRESHOLDS["processing_time_median_us"],
-                unit="μs",
-                description=f"Median processing time for {name}"
-            ))
-        
-        # P99 from percentiles - convert from ns to us
         p99_ns = percentiles.get('p99')
-        if p99_ns is not None:
+
+        is_jitter_benchmark = ('tick_precision' in lower_name) or ('jitter' in lower_name)
+        is_processing_benchmark = (
+            'pipeline_processing' in lower_name
+            or ('processing' in lower_name and not is_jitter_benchmark)
+        )
+
+        # Metric mapping must match benchmark intent:
+        # - tick/jitter benchmark percentiles -> jitter thresholds
+        # - processing benchmark percentiles -> processing thresholds
+        if is_jitter_benchmark and p99_ns is not None:
             p99_us = p99_ns / 1000.0
             results.append(check_metric(
-                name=f"{name} - P99",
+                name=f"{name} - Jitter P99",
                 value=p99_us,
-                threshold=THRESHOLDS["processing_time_p99_us"],
-                unit="μs",
-                description=f"P99 processing time for {name}"
+                threshold=THRESHOLDS["jitter_p99_us"],
+                unit="us",
+                description=f"P99 jitter for {name}",
+                source=f"benchmarks[{name}].percentiles.p99",
             ))
-        
-        # Missed tick rate from custom metrics
+
+        if is_processing_benchmark:
+            if p50_ns is not None:
+                p50_us = p50_ns / 1000.0
+                results.append(check_metric(
+                    name=f"{name} - Processing Median",
+                    value=p50_us,
+                    threshold=THRESHOLDS["processing_time_median_us"],
+                    unit="us",
+                    description=f"Median processing time for {name}",
+                    source=f"benchmarks[{name}].percentiles.p50",
+                ))
+
+            if p99_ns is not None:
+                p99_us = p99_ns / 1000.0
+                results.append(check_metric(
+                    name=f"{name} - Processing P99",
+                    value=p99_us,
+                    threshold=THRESHOLDS["processing_time_p99_us"],
+                    unit="us",
+                    description=f"P99 processing time for {name}",
+                    source=f"benchmarks[{name}].percentiles.p99",
+                ))
+
+        # Missed tick rate from custom metrics (ratio: 0.0 to 1.0)
         missed_rate = custom_metrics.get('missed_tick_rate')
         if missed_rate is not None:
             results.append(check_metric(
@@ -287,9 +348,10 @@ def validate_benchmark_metrics(benchmarks: List[Dict[str, Any]]) -> List[MetricR
                 value=missed_rate,
                 threshold=THRESHOLDS["missed_tick_rate"],
                 unit="",
-                description=f"Missed tick rate for {name}"
+                description=f"Missed tick rate ratio for {name}",
+                source=f"benchmarks[{name}].custom_metrics.missed_tick_rate",
             ))
-        
+
         # E2E latency from custom metrics
         e2e_latency = custom_metrics.get('e2e_latency_p99_us')
         if e2e_latency is not None:
@@ -297,10 +359,11 @@ def validate_benchmark_metrics(benchmarks: List[Dict[str, Any]]) -> List[MetricR
                 name=f"{name} - E2E Latency P99",
                 value=e2e_latency,
                 threshold=THRESHOLDS["e2e_latency_p99_us"],
-                unit="μs",
-                description=f"E2E latency P99 for {name}"
+                unit="us",
+                description=f"E2E latency P99 for {name}",
+                source=f"benchmarks[{name}].custom_metrics.e2e_latency_p99_us",
             ))
-        
+
         # RT heap allocations (should be 0)
         rt_allocs = custom_metrics.get('rt_heap_allocs')
         if rt_allocs is not None:
@@ -309,9 +372,10 @@ def validate_benchmark_metrics(benchmarks: List[Dict[str, Any]]) -> List[MetricR
                 value=float(rt_allocs),
                 threshold=0.0,
                 unit="",
-                description=f"RT heap allocations for {name} (must be 0)"
+                description=f"RT heap allocations for {name} (must be 0)",
+                source=f"benchmarks[{name}].custom_metrics.rt_heap_allocs",
             ))
-    
+
     return results
 
 
@@ -363,22 +427,23 @@ def print_validation_report(result: ValidationResult, verbose: bool = False) -> 
     
     # Always show failed metrics
     if failed:
-        print("\n❌ FAILED METRICS:")
+        print("\n[FAIL] FAILED METRICS:")
         print("-" * 40)
         for metric in failed:
             print(f"  {metric}")
-            print(f"     → {metric.description}")
+            print(f"     -> Source: {metric.source}")
+            print(f"     -> {metric.description}")
     
     # Show passed metrics in verbose mode
     if verbose and passed:
-        print("\n✅ PASSED METRICS:")
+        print("\n[PASS] PASSED METRICS:")
         print("-" * 40)
         for metric in passed:
             print(f"  {metric}")
     
     # Show skipped metrics in verbose mode
     if verbose and skipped:
-        print("\n⏭️  SKIPPED METRICS (not available in input):")
+        print("\n[SKIP] SKIPPED METRICS (not available in input):")
         print("-" * 40)
         for metric in skipped:
             print(f"  {metric.name}")
@@ -389,12 +454,12 @@ def print_validation_report(result: ValidationResult, verbose: bool = False) -> 
     print(f"Summary: {len(passed)}/{total} metrics passed")
     
     if result.passed:
-        print("\n✅ All performance gates PASSED!")
+        print("\n[PASS] All performance gates PASSED!")
         print("   Requirements validated:")
-        print("   - 14.3: RT loop ≤1000μs, p99 jitter ≤0.25ms, missed ticks ≤0.001%")
-        print("   - 14.4: Processing time ≤50μs median, ≤200μs p99")
+        print("   - 14.3: RT loop <=1000us, p99 jitter <=0.25ms, missed ticks <=0.001%")
+        print("   - 14.4: Processing time <=50us median, <=200us p99")
     else:
-        print("\n❌ Performance gate validation FAILED!")
+        print("\n[FAIL] Performance gate validation FAILED!")
         print(f"   {len(failed)} metric(s) exceeded threshold(s)")
         print("\n   Failed requirements:")
         # Report which specific requirements failed (Requirement 14.5)
@@ -402,11 +467,20 @@ def print_validation_report(result: ValidationResult, verbose: bool = False) -> 
             value_str = _format_value(metric.value, metric.unit)
             threshold_str = _format_value(metric.threshold, metric.unit)
             if "RT Loop" in metric.name or "Jitter" in metric.name or "Missed" in metric.name:
-                print(f"   - 14.3: {metric.name} = {value_str} > {threshold_str}")
+                print(
+                    f"   - 14.3: {metric.name} = {value_str} > {threshold_str} "
+                    f"(source: {metric.source})"
+                )
             elif "Processing" in metric.name:
-                print(f"   - 14.4: {metric.name} = {value_str} > {threshold_str}")
+                print(
+                    f"   - 14.4: {metric.name} = {value_str} > {threshold_str} "
+                    f"(source: {metric.source})"
+                )
             else:
-                print(f"   - {metric.name} = {value_str} > {threshold_str}")
+                print(
+                    f"   - {metric.name} = {value_str} > {threshold_str} "
+                    f"(source: {metric.source})"
+                )
 
 
 def generate_performance_report(results: Dict[str, Any], validation: ValidationResult, output_file: str) -> None:
@@ -439,8 +513,8 @@ def generate_performance_report(results: Dict[str, Any], validation: ValidationR
         "",
         "### Results",
         "",
-        "| Metric | Value | Threshold | Status |",
-        "|--------|-------|-----------|--------|",
+        "| Metric | Source | Value | Threshold | Status |",
+        "|--------|--------|-------|-----------|--------|",
     ]
     
     for metric in validation.metrics:
@@ -450,7 +524,9 @@ def generate_performance_report(results: Dict[str, Any], validation: ValidationR
         # Use appropriate precision for the value
         value_str = _format_value(metric.value, metric.unit)
         threshold_str = _format_value(metric.threshold, metric.unit)
-        lines.append(f"| {metric.name} | {value_str} | {threshold_str} | {status} |")
+        lines.append(
+            f"| {metric.name} | `{metric.source}` | {value_str} | {threshold_str} | {status} |"
+        )
     
     lines.extend([
         "",
@@ -484,9 +560,9 @@ def generate_performance_report(results: Dict[str, Any], validation: ValidationR
     try:
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(report_content)
-        print(f"📄 Performance report written to {output_file}")
+        print(f"[INFO] Performance report written to {output_file}")
     except IOError as e:
-        print(f"⚠️  Warning: Could not write report to {output_file}: {e}")
+        print(f"[WARN] Could not write report to {output_file}: {e}")
 
 
 def main() -> int:
@@ -539,7 +615,7 @@ Examples:
     
     args = parser.parse_args()
     
-    print("🚀 Validating performance gates...")
+    print("[INFO] Validating performance gates...")
     print(f"   Input: {args.benchmark_file}")
     print(f"   Mode: {'warn-only' if args.warn_only else 'strict'}")
     

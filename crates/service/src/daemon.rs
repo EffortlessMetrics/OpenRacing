@@ -278,12 +278,33 @@ impl ServiceDaemon {
         {
             use tokio::signal::unix::{SignalKind, signal};
 
-            let mut sigterm =
-                signal(SignalKind::terminate()).expect("Failed to register SIGTERM handler");
-            let mut sigint =
-                signal(SignalKind::interrupt()).expect("Failed to register SIGINT handler");
-            let mut sighup =
-                signal(SignalKind::hangup()).expect("Failed to register SIGHUP handler");
+            let mut sigterm = match signal(SignalKind::terminate()) {
+                Ok(signal) => signal,
+                Err(e) => {
+                    error!(error = %e, "Failed to register SIGTERM handler");
+                    is_running.store(false, Ordering::SeqCst);
+                    let _ = shutdown_tx.send(());
+                    return;
+                }
+            };
+            let mut sigint = match signal(SignalKind::interrupt()) {
+                Ok(signal) => signal,
+                Err(e) => {
+                    error!(error = %e, "Failed to register SIGINT handler");
+                    is_running.store(false, Ordering::SeqCst);
+                    let _ = shutdown_tx.send(());
+                    return;
+                }
+            };
+            let mut sighup = match signal(SignalKind::hangup()) {
+                Ok(signal) => signal,
+                Err(e) => {
+                    error!(error = %e, "Failed to register SIGHUP handler");
+                    is_running.store(false, Ordering::SeqCst);
+                    let _ = shutdown_tx.send(());
+                    return;
+                }
+            };
 
             tokio::select! {
                 _ = sigterm.recv() => {

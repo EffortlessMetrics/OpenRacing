@@ -4,9 +4,10 @@
 mod tests {
     #[track_caller]
     fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        assert!(r.is_ok(), "unexpected Err: {:?}", r.as_ref().err());
         match r {
             Ok(v) => v,
-            Err(e) => panic!("unexpected Err: {e:?}"),
+            Err(_) => unreachable!("asserted Ok above"),
         }
     }
     use crate::WheelService;
@@ -16,6 +17,76 @@ mod tests {
     };
     use std::sync::Arc;
     use tokio::time::{Duration, timeout};
+
+    fn valid_profile_id(value: &str) -> ProfileId {
+        let parsed = value.parse();
+        assert!(
+            parsed.is_ok(),
+            "invalid profile id {:?}: {:?}",
+            value,
+            parsed.as_ref().err()
+        );
+        match parsed {
+            Ok(id) => id,
+            Err(_) => unreachable!("asserted valid profile id above"),
+        }
+    }
+
+    fn valid_device_id(value: &str) -> DeviceId {
+        let parsed = value.parse();
+        assert!(
+            parsed.is_ok(),
+            "invalid device id {:?}: {:?}",
+            value,
+            parsed.as_ref().err()
+        );
+        match parsed {
+            Ok(id) => id,
+            Err(_) => unreachable!("asserted valid device id above"),
+        }
+    }
+
+    fn valid_gain(value: f32) -> Gain {
+        let gain = Gain::new(value);
+        assert!(
+            gain.is_ok(),
+            "invalid gain {}: {:?}",
+            value,
+            gain.as_ref().err()
+        );
+        match gain {
+            Ok(v) => v,
+            Err(_) => unreachable!("asserted valid gain above"),
+        }
+    }
+
+    fn valid_dor(value: f32) -> Degrees {
+        let dor = Degrees::new_dor(value);
+        assert!(
+            dor.is_ok(),
+            "invalid degrees of rotation {}: {:?}",
+            value,
+            dor.as_ref().err()
+        );
+        match dor {
+            Ok(v) => v,
+            Err(_) => unreachable!("asserted valid dor above"),
+        }
+    }
+
+    fn valid_torque(value: f32) -> TorqueNm {
+        let torque = TorqueNm::new(value);
+        assert!(
+            torque.is_ok(),
+            "invalid torque {}: {:?}",
+            value,
+            torque.as_ref().err()
+        );
+        match torque {
+            Ok(v) => v,
+            Err(_) => unreachable!("asserted valid torque above"),
+        }
+    }
 
     #[tokio::test]
     async fn test_wheel_service_creation() {
@@ -35,14 +106,14 @@ mod tests {
         // Test basic operations on each service
 
         // Profile service test
-        let profile_id: ProfileId = "test-profile".parse().expect("valid id");
+        let profile_id = valid_profile_id("test-profile");
         let profile = Profile::new(
             profile_id,
             ProfileScope::global(),
             BaseSettings {
-                ffb_gain: Gain::new(0.8).expect("valid gain"),
-                degrees_of_rotation: Degrees::new_dor(900.0).expect("valid dor"),
-                torque_cap: TorqueNm::new(10.0).expect("valid torque"),
+                ffb_gain: valid_gain(0.8),
+                degrees_of_rotation: valid_dor(900.0),
+                torque_cap: valid_torque(10.0),
                 filters: FilterConfig::default(),
             },
             "Test Profile".to_string(),
@@ -56,9 +127,9 @@ mod tests {
         assert!(devices_result.is_ok(), "Device enumeration should succeed");
 
         // Safety service test
-        let device_id: DeviceId = "test-device".parse().expect("valid device id");
+        let device_id = valid_device_id("test-device");
         let safety_result = safety_service
-            .register_device(device_id, TorqueNm::new(10.0).expect("valid torque"))
+            .register_device(device_id, valid_torque(10.0))
             .await;
         assert!(
             safety_result.is_ok(),
@@ -70,8 +141,8 @@ mod tests {
     async fn test_service_integration_workflow() {
         let service = must(WheelService::new().await);
 
-        let device_id: DeviceId = "integration-test-device".parse().expect("valid device id");
-        let max_torque = TorqueNm::new(15.0).expect("valid torque");
+        let device_id = valid_device_id("integration-test-device");
+        let max_torque = valid_torque(15.0);
 
         // 1. Register device with safety service
         let safety_result = service
@@ -81,14 +152,14 @@ mod tests {
         assert!(safety_result.is_ok(), "Device registration should succeed");
 
         // 2. Create a profile
-        let profile_id: ProfileId = "integration-test-profile".parse().expect("valid id");
+        let profile_id = valid_profile_id("integration-test-profile");
         let profile = Profile::new(
             profile_id,
             ProfileScope::global(),
             BaseSettings {
-                ffb_gain: Gain::new(0.9).expect("valid gain"),
-                degrees_of_rotation: Degrees::new_dor(900.0).expect("valid dor"),
-                torque_cap: TorqueNm::new(15.0).expect("valid torque"),
+                ffb_gain: valid_gain(0.9),
+                degrees_of_rotation: valid_dor(900.0),
+                torque_cap: valid_torque(15.0),
                 filters: FilterConfig::default(),
             },
             "Integration Test Profile".to_string(),
@@ -98,15 +169,8 @@ mod tests {
             // 3. Try to apply profile to device (this might fail due to mock limitations)
 
             // Need device capabilities for validation
-            let capabilities = DeviceCapabilities::new(
-                true,
-                true,
-                true,
-                true,
-                TorqueNm::new(20.0).expect("Valid torque value for test"),
-                65_535,
-                1000,
-            );
+            let capabilities =
+                DeviceCapabilities::new(true, true, true, true, valid_torque(20.0), 65_535, 1000);
 
             let apply_result = service
                 .profile_service()
@@ -137,12 +201,12 @@ mod tests {
         // Test error handling in profile service
         // Construct invalid profile
         let invalid_profile = Profile::new(
-            "invalid-profile".parse().expect("valid id"),
+            valid_profile_id("invalid-profile"),
             ProfileScope::global(),
             BaseSettings {
-                ffb_gain: Gain::new(0.8).expect("valid gain"),
-                degrees_of_rotation: Degrees::new_dor(900.0).expect("valid dor"),
-                torque_cap: TorqueNm::new(10.0).expect("valid torque"),
+                ffb_gain: valid_gain(0.8),
+                degrees_of_rotation: valid_dor(900.0),
+                torque_cap: valid_torque(10.0),
                 filters: FilterConfig::default(),
             },
             "".to_string(), // Invalid empty name
@@ -156,7 +220,7 @@ mod tests {
         assert!(result.is_ok() || result.is_err());
 
         // Test error handling in safety service
-        let nonexistent_device: DeviceId = "nonexistent-device".parse().expect("valid device id");
+        let nonexistent_device = valid_device_id("nonexistent-device");
         let result = service
             .safety_service()
             .get_safety_state(&nonexistent_device)
@@ -191,10 +255,10 @@ mod tests {
         assert_eq!(safety_stats.total_devices, 0);
 
         // Add some data and check statistics change
-        let device_id: DeviceId = "stats-test-device".parse().expect("valid device id");
+        let device_id = valid_device_id("stats-test-device");
         let register_result = service
             .safety_service()
-            .register_device(device_id, TorqueNm::new(10.0).expect("valid torque"))
+            .register_device(device_id, valid_torque(10.0))
             .await;
         assert!(
             register_result.is_ok(),
@@ -220,14 +284,14 @@ mod tests {
 
             let task1 = tokio::spawn(async move {
                 // Profile operations
-                let profile_id: ProfileId = "concurrent-test-profile".parse().expect("valid id");
+                let profile_id = valid_profile_id("concurrent-test-profile");
                 let profile = Profile::new(
                     profile_id,
                     ProfileScope::global(),
                     BaseSettings {
-                        ffb_gain: Gain::new(0.8).expect("valid gain"),
-                        degrees_of_rotation: Degrees::new_dor(900.0).expect("valid dor"),
-                        torque_cap: TorqueNm::new(10.0).expect("valid torque"),
+                        ffb_gain: valid_gain(0.8),
+                        degrees_of_rotation: valid_dor(900.0),
+                        torque_cap: valid_torque(10.0),
                         filters: FilterConfig::default(),
                     },
                     "Concurrent Test Profile".to_string(),
@@ -242,11 +306,10 @@ mod tests {
 
             let task3 = tokio::spawn(async move {
                 // Safety operations
-                let device_id: DeviceId =
-                    "concurrent-test-device".parse().expect("valid device id");
+                let device_id = valid_device_id("concurrent-test-device");
                 service3
                     .safety_service()
-                    .register_device(device_id, TorqueNm::new(10.0).expect("valid torque"))
+                    .register_device(device_id, valid_torque(10.0))
                     .await
             });
 
@@ -260,15 +323,11 @@ mod tests {
             assert!(must(result3).is_ok(), "Safety registration should succeed");
         };
 
-        match timeout(Duration::from_secs(10), test_future).await {
-            Ok(()) => {}
-            Err(_elapsed) => {
-                panic!(
-                    "test_concurrent_service_operations timed out after 10 seconds - \
-                     concurrent tasks may be deadlocked"
-                );
-            }
-        }
+        let timed_out = timeout(Duration::from_secs(10), test_future).await.is_err();
+        assert!(
+            !timed_out,
+            "test_concurrent_service_operations timed out after 10 seconds - concurrent tasks may be deadlocked"
+        );
     }
 
     #[tokio::test]
@@ -276,7 +335,7 @@ mod tests {
         let service = must(WheelService::new().await);
 
         // Test that services continue to work after errors
-        let device_id: DeviceId = "resilience-test-device".parse().expect("valid device id");
+        let device_id = valid_device_id("resilience-test-device");
 
         // 1. Cause an error in safety service
         let error_result = service.safety_service().get_safety_state(&device_id).await;
@@ -285,10 +344,7 @@ mod tests {
         // 2. Verify service still works after error
         let register_result = service
             .safety_service()
-            .register_device(
-                device_id.clone(),
-                TorqueNm::new(10.0).expect("valid torque"),
-            )
+            .register_device(device_id.clone(), valid_torque(10.0))
             .await;
         assert!(register_result.is_ok(), "Should work after previous error");
 
@@ -307,12 +363,10 @@ mod tests {
             let service = must(service);
 
             // Perform some operations
-            let device_id: DeviceId = format!("lifecycle-test-device-{}", i)
-                .parse()
-                .expect("valid device id");
+            let device_id = valid_device_id(&format!("lifecycle-test-device-{}", i));
             let result = service
                 .safety_service()
-                .register_device(device_id, TorqueNm::new(10.0).expect("valid torque"))
+                .register_device(device_id, valid_torque(10.0))
                 .await;
             assert!(result.is_ok(), "Operation {} should succeed", i);
 
@@ -341,12 +395,12 @@ mod tests {
         );
 
         // Test safety service operations
-        let device_id: DeviceId = "timeout-test-device".parse().expect("valid device id");
+        let device_id = valid_device_id("timeout-test-device");
         let safety_registration = timeout(
             Duration::from_secs(5),
             service
                 .safety_service()
-                .register_device(device_id, TorqueNm::new(10.0).expect("valid torque")),
+                .register_device(device_id, valid_torque(10.0)),
         )
         .await;
 
@@ -370,31 +424,24 @@ mod tests {
 
             // Perform many operations to check for memory leaks
             for i in 0..100 {
-                let device_id: DeviceId = format!("memory-test-device-{}", i)
-                    .parse()
-                    .expect("valid device id");
+                let device_id = valid_device_id(&format!("memory-test-device-{}", i));
 
                 // Register and unregister device
                 let _ = service
                     .safety_service()
-                    .register_device(
-                        device_id.clone(),
-                        TorqueNm::new(10.0).expect("valid torque"),
-                    )
+                    .register_device(device_id.clone(), valid_torque(10.0))
                     .await;
                 let _ = service.safety_service().unregister_device(&device_id).await;
 
                 // Create and potentially delete profile
-                let profile_id: ProfileId = format!("memory-test-profile-{}", i)
-                    .parse()
-                    .expect("valid id");
+                let profile_id = valid_profile_id(&format!("memory-test-profile-{}", i));
                 let profile = Profile::new(
                     profile_id.clone(),
                     ProfileScope::global(),
                     BaseSettings {
-                        ffb_gain: Gain::new(0.8).expect("valid gain"),
-                        degrees_of_rotation: Degrees::new_dor(900.0).expect("valid dor"),
-                        torque_cap: TorqueNm::new(10.0).expect("valid torque"),
+                        ffb_gain: valid_gain(0.8),
+                        degrees_of_rotation: valid_dor(900.0),
+                        torque_cap: valid_torque(10.0),
                         filters: FilterConfig::default(),
                     },
                     format!("Memory Test Profile {}", i),
@@ -408,14 +455,10 @@ mod tests {
             // If we get here without running out of memory, the test passes
         };
 
-        match timeout(Duration::from_secs(30), test_future).await {
-            Ok(()) => {}
-            Err(_elapsed) => {
-                panic!(
-                    "test_service_memory_usage timed out after 30 seconds - \
-                     memory operations may be blocked"
-                );
-            }
-        }
+        let timed_out = timeout(Duration::from_secs(30), test_future).await.is_err();
+        assert!(
+            !timed_out,
+            "test_service_memory_usage timed out after 30 seconds - memory operations may be blocked"
+        );
     }
 }

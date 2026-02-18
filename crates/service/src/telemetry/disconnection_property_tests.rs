@@ -40,9 +40,23 @@ fn disconnection_config_strategy() -> impl Strategy<Value = DisconnectionConfig>
 
 /// Strategy for generating game IDs
 fn game_id_strategy() -> impl Strategy<Value = String> {
-    prop::string::string_regex("[a-z][a-z0-9_]{0,15}")
-        .expect("valid regex")
-        .prop_filter("non-empty game id", |s| !s.is_empty())
+    (
+        prop::char::range('a', 'z'),
+        prop::collection::vec(
+            prop_oneof![
+                prop::char::range('a', 'z'),
+                prop::char::range('0', '9'),
+                Just('_')
+            ],
+            0..15,
+        ),
+    )
+        .prop_map(|(first, rest)| {
+            let mut id = String::with_capacity(1 + rest.len());
+            id.push(first);
+            id.extend(rest);
+            id
+        })
 }
 
 /// Strategy for generating connection states

@@ -91,7 +91,7 @@ jobs:
         run: cargo build -p racing-wheel-service --locked
 
       - name: Test Service help (smoke test)
-        run: cargo run -p racing-wheel-service -- --help
+        run: cargo run -p racing-wheel-service --bin wheeld -- --help
 
   isolation-plugins:
     name: Plugins Isolation Build
@@ -500,7 +500,7 @@ jobs:
           echo "$(whoami) hard memlock unlimited" | sudo tee -a /etc/security/limits.conf
 
       - name: Build release with RT profile
-        run: cargo build --profile rt --bin racing-wheel-service --locked
+        run: cargo build --profile rt --bin wheeld --locked
 
       - name: Run RT timing benchmarks with JSON output
         env:
@@ -631,7 +631,7 @@ jobs:
           echo "Windows RT setup"
 
       - name: Build RT profile
-        run: cargo build --profile rt --bin racing-wheel-service --locked
+        run: cargo build --profile rt --bin wheeld --locked
 
       - name: Run platform-specific RT benchmarks
         env:

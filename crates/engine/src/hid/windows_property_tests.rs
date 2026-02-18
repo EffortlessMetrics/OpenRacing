@@ -165,12 +165,35 @@ proptest! {
 
         let caps = super::windows::determine_device_capabilities(vid, pid);
 
-        // Property: Max torque must be positive
-        prop_assert!(
-            caps.max_torque.value() > 0.0,
-            "Device {} ({:04X}:{:04X}) should have positive max torque",
-            name, vid, pid
-        );
+        // Property: FFB wheel devices must have positive max torque.
+        // Known non-FFB peripherals (e.g. pedals) should report zero torque.
+        let is_non_ffb_peripheral = vid == vendor_ids::MOZA
+            && matches!(pid, 0x0003 | 0x0020 | 0x0021 | 0x0022);
+        if is_non_ffb_peripheral {
+            prop_assert_eq!(
+                caps.max_torque.value(),
+                0.0,
+                "Non-FFB device {} ({:04X}:{:04X}) should report zero max torque",
+                name,
+                vid,
+                pid
+            );
+            prop_assert!(
+                !caps.supports_raw_torque_1khz,
+                "Non-FFB device {} ({:04X}:{:04X}) should not support raw torque",
+                name,
+                vid,
+                pid
+            );
+        } else {
+            prop_assert!(
+                caps.max_torque.value() > 0.0,
+                "FFB device {} ({:04X}:{:04X}) should have positive max torque",
+                name,
+                vid,
+                pid
+            );
+        }
 
         // Property: Encoder CPR must be positive
         prop_assert!(

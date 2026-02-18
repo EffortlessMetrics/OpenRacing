@@ -464,7 +464,11 @@ impl AntiCheatReport {
             protocol: "UDP".to_string(),
             direction: "Inbound".to_string(),
             purpose: "Receive game telemetry data".to_string(),
-            endpoints: vec!["localhost:9996".to_string(), "localhost:20777".to_string()],
+            endpoints: vec![
+                "localhost:9000".to_string(),
+                "localhost:9996".to_string(),
+                "localhost:20777".to_string(),
+            ],
             data_transmitted: "Game telemetry data (RPM, speed, etc.)".to_string(),
             user_consent: false,
         }])

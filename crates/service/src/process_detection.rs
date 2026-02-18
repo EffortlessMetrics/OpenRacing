@@ -312,6 +312,7 @@ impl Default for ProcessDetectionService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::{Result, anyhow};
     use tokio::time::timeout;
 
     #[tokio::test]
@@ -363,7 +364,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_process_event_handling() {
+    async fn test_process_event_handling() -> Result<()> {
         let (mut service, mut receiver) = ProcessDetectionService::new();
 
         service.add_game_patterns("test_game".to_string(), vec!["test.exe".to_string()]);
@@ -383,14 +384,14 @@ mod tests {
         // Should receive a game started event
         let event = timeout(Duration::from_millis(100), receiver.recv())
             .await
-            .expect("Should receive event")
-            .expect("Should have event");
+            .map_err(|_| anyhow!("Should receive event"))?
+            .ok_or_else(|| anyhow!("Should have event"))?;
 
-        match event {
-            ProcessEvent::GameStarted { game_id, .. } => {
-                assert_eq!(game_id, "test_game");
-            }
-            _ => panic!("Expected GameStarted event"),
+        assert!(matches!(event, ProcessEvent::GameStarted { .. }));
+        if let ProcessEvent::GameStarted { game_id, .. } = event {
+            assert_eq!(game_id, "test_game");
         }
+
+        Ok(())
     }
 }

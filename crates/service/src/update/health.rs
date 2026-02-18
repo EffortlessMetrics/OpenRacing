@@ -379,15 +379,36 @@ mod tests {
 
     #[tokio::test]
     async fn test_command_check() -> Result<()> {
-        // Test with a simple command that should succeed
+        #[cfg(windows)]
+        let result = check_command(
+            "cmd",
+            &["/C".to_string(), "echo".to_string(), "hello".to_string()],
+            0,
+        )
+        .await;
+        #[cfg(not(windows))]
         let result = check_command("echo", &["hello".to_string()], 0).await;
         assert!(result.is_ok());
 
-        // Test with a command that should fail
+        #[cfg(windows)]
+        let result = check_command(
+            "cmd",
+            &["/C".to_string(), "exit".to_string(), "1".to_string()],
+            1,
+        )
+        .await;
+        #[cfg(not(windows))]
         let result = check_command("false", &[], 1).await;
         assert!(result.is_ok());
 
-        // Test with wrong expected exit code
+        #[cfg(windows)]
+        let result = check_command(
+            "cmd",
+            &["/C".to_string(), "exit".to_string(), "0".to_string()],
+            1,
+        )
+        .await;
+        #[cfg(not(windows))]
         let result = check_command("true", &[], 1).await;
         assert!(result.is_err());
         Ok(())

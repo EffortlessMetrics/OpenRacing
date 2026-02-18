@@ -317,17 +317,10 @@ impl IpcTestFixture {
     }
 }
 
-#[track_caller]
-fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-    match r {
-        Ok(v) => v,
-        Err(e) => panic!("unexpected Err: {e:?}"),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Result;
     use tokio::time::sleep;
 
     #[tokio::test]
@@ -346,27 +339,29 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_device_listing() {
+    async fn test_device_listing() -> Result<()> {
         let fixture = IpcTestFixture::new().await;
-        
+
         // Test the mock device service directly
-        let devices = must(fixture.mock_device_service.list_devices().await);
-        
+        let devices = fixture.mock_device_service.list_devices().await?;
+
         assert_eq!(devices.len(), 1);
         assert_eq!(devices[0].name, "Test Wheel Base");
         assert_eq!(devices[0].device_type, 1); // WheelBase
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_profile_management() {
+    async fn test_profile_management() -> Result<()> {
         let fixture = IpcTestFixture::new().await;
-        
+
         // Test the mock profile service directly
-        let profiles = must(fixture.mock_profile_service.list_profiles().await);
-        
+        let profiles = fixture.mock_profile_service.list_profiles().await?;
+
         assert_eq!(profiles.len(), 1);
         assert_eq!(profiles[0].schema_version, "wheel.profile/1");
         assert_eq!(profiles[0].base.ffb_gain, 0.75);
+        Ok(())
     }
 
     #[tokio::test]
@@ -400,17 +395,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_game_integration() {
+    async fn test_game_integration() -> Result<()> {
         let fixture = IpcTestFixture::new().await;
-        
+
         // Test telemetry configuration
-        let result = fixture.mock_game_service.configure_telemetry("iRacing", "/path/to/iracing", true).await;
-        assert!(result.is_ok());
-        
+        fixture
+            .mock_game_service
+            .configure_telemetry("iRacing", "/path/to/iracing", true)
+            .await?;
+
         // Test game status
-        let status = must(fixture.mock_game_service.get_game_status().await);
+        let status = fixture.mock_game_service.get_game_status().await?;
         assert_eq!(status.active_game, Some("iRacing".to_string()));
         assert!(status.telemetry_active);
+        Ok(())
     }
 
     #[tokio::test]
@@ -468,13 +466,14 @@ mod tests {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
+    use anyhow::{Result, anyhow};
     
     // These tests would be run with a real server instance
     // They are marked as ignored by default to avoid requiring server setup in CI
     
     #[tokio::test]
     #[ignore = "requires running server"]
-    async fn test_full_client_server_communication() {
+    async fn test_full_client_server_communication() -> Result<()> {
         let fixture = IpcTestFixture::new().await;
         let server_handle = fixture.start_server().await;
         
@@ -485,27 +484,30 @@ mod integration_tests {
         let mut client = timeout(
             Duration::from_secs(10),
             IpcClient::connect(fixture.client_config.clone())
-        ).await.expect("Connection timeout").expect("Failed to connect");
-        
+        )
+        .await
+        .map_err(|_| anyhow!("Connection timeout"))??;
+
         // Test device listing
-        let devices = client.list_devices().await.expect("Failed to list devices");
+        let devices = client.list_devices().await?;
         assert!(!devices.is_empty());
-        
+
         // Test profile listing
-        let profiles = client.list_profiles().await.expect("Failed to list profiles");
+        let profiles = client.list_profiles().await?;
         assert!(!profiles.is_empty());
-        
+
         // Test game status
-        let game_status = client.get_game_status().await.expect("Failed to get game status");
+        let game_status = client.get_game_status().await?;
         assert!(!game_status.active_game.is_empty());
-        
+
         // Clean up
         server_handle.abort();
+        Ok(())
     }
     
     #[tokio::test]
     #[ignore = "requires running server"]
-    async fn test_health_event_streaming() {
+    async fn test_health_event_streaming() -> Result<()> {
         let fixture = IpcTestFixture::new().await;
         let server_handle = fixture.start_server().await;
         
@@ -516,15 +518,18 @@ mod integration_tests {
         let mut client = timeout(
             Duration::from_secs(10),
             IpcClient::connect(fixture.client_config.clone())
-        ).await.expect("Connection timeout").expect("Failed to connect");
-        
+        )
+        .await
+        .map_err(|_| anyhow!("Connection timeout"))??;
+
         // Subscribe to health events
-        let mut health_stream = client.subscribe_health().await.expect("Failed to subscribe to health events");
+        let _health_stream = client.subscribe_health().await?;
         
         // Test that we can receive health events (this would require the server to emit events)
         // In a real test, we'd trigger some events and verify we receive them
-        
+
         // Clean up
         server_handle.abort();
+        Ok(())
     }
 }

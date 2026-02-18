@@ -1,8 +1,8 @@
 //! High-level verification interface for Racing Wheel Suite
 
 use super::{
-    ContentType, CryptoError, SignatureVerifier, VerificationConfig, VerificationResult,
-    ed25519::Ed25519Verifier, trust_store::TrustStore,
+    ContentType, CryptoError, SignatureVerifier, TrustLevel, VerificationConfig,
+    VerificationResult, ed25519::Ed25519Verifier, trust_store::TrustStore,
 };
 use anyhow::{Context, Result};
 use std::path::Path;
@@ -45,6 +45,8 @@ impl VerificationService {
             .into());
         }
 
+        self.enforce_trust_policy(&result, "binary")?;
+
         // Log verification result
         match result.signature_valid {
             true => info!("Binary signature verification: PASS"),
@@ -75,6 +77,8 @@ impl VerificationService {
             .into());
         }
 
+        self.enforce_trust_policy(&result, "firmware")?;
+
         // Log verification result
         match result.signature_valid {
             true => info!("Firmware signature verification: PASS"),
@@ -98,6 +102,8 @@ impl VerificationService {
                     )
                     .into());
                 }
+
+                self.enforce_trust_policy(&result, "plugin")?;
 
                 // Log result
                 match result.signature_valid {
@@ -168,6 +174,8 @@ impl VerificationService {
             .into());
         }
 
+        self.enforce_trust_policy(&result, "update package")?;
+
         info!("Update package signature verification: PASS");
         Ok(result)
     }
@@ -227,6 +235,24 @@ impl VerificationService {
 
         self.config = new_config;
         Ok(())
+    }
+
+    fn enforce_trust_policy(&self, result: &VerificationResult, content_label: &str) -> Result<()> {
+        match result.trust_level {
+            TrustLevel::Distrusted => Err(CryptoError::UntrustedSigner(format!(
+                "Signer for {} is distrusted: {}",
+                content_label, result.metadata.key_fingerprint
+            ))
+            .into()),
+            TrustLevel::Unknown if !self.config.allow_unknown_signers => {
+                Err(CryptoError::UntrustedSigner(format!(
+                    "Signer for {} is unknown and allow_unknown_signers=false: {}",
+                    content_label, result.metadata.key_fingerprint
+                ))
+                .into())
+            }
+            _ => Ok(()),
+        }
     }
 }
 
@@ -339,6 +365,9 @@ use std::path::PathBuf;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::crypto::ed25519::{Ed25519Signer, KeyPair};
+    use crate::crypto::trust_store::TrustStore;
+    use crate::crypto::utils::create_detached_signature;
     use tempfile::TempDir;
 
     #[test]
@@ -398,8 +427,8 @@ mod tests {
             &config
         ));
 
-        // Plugin should NOT be verified by default (allow_unsigned_plugins)
-        assert!(!utils::should_verify_file(
+        // Plugin should be verified by default (secure-by-default)
+        assert!(utils::should_verify_file(
             Path::new("test.wasm"),
             &ContentType::Plugin,
             &config
@@ -418,6 +447,94 @@ mod tests {
             &ContentType::Update,
             &config
         ));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_verify_plugin_rejects_unknown_signer_when_disallowed()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let temp_dir = TempDir::new()?;
+        let plugin_path = temp_dir.path().join("test_plugin.wasm");
+        let plugin_content = b"(module)";
+        std::fs::write(&plugin_path, plugin_content)?;
+
+        let keypair = KeyPair::generate()?;
+        let metadata = Ed25519Signer::sign_with_metadata(
+            plugin_content,
+            &keypair,
+            "Test Signer",
+            ContentType::Plugin,
+            None,
+        )?;
+        create_detached_signature(&plugin_path, &metadata)?;
+
+        let trust_store_path = temp_dir.path().join("trust_store.json");
+        let mut trust_store = TrustStore::new(trust_store_path.clone())?;
+        trust_store.add_key(
+            keypair.public_key.clone(),
+            TrustLevel::Unknown,
+            Some("Unknown for policy test".to_string()),
+        )?;
+        trust_store.save_to_file()?;
+
+        let service = VerificationService::new(VerificationConfig {
+            require_plugin_signatures: true,
+            allow_unknown_signers: false,
+            trust_store_path,
+            ..Default::default()
+        })?;
+
+        let result = service.verify_plugin(&plugin_path);
+        assert!(result.is_err());
+
+        let err_msg = result.err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(
+            err_msg.to_lowercase().contains("unknown"),
+            "expected unknown-signer rejection, got: {}",
+            err_msg
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_verify_plugin_allows_unknown_signer_when_enabled()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let temp_dir = TempDir::new()?;
+        let plugin_path = temp_dir.path().join("test_plugin.wasm");
+        let plugin_content = b"(module)";
+        std::fs::write(&plugin_path, plugin_content)?;
+
+        let keypair = KeyPair::generate()?;
+        let metadata = Ed25519Signer::sign_with_metadata(
+            plugin_content,
+            &keypair,
+            "Test Signer",
+            ContentType::Plugin,
+            None,
+        )?;
+        create_detached_signature(&plugin_path, &metadata)?;
+
+        let trust_store_path = temp_dir.path().join("trust_store.json");
+        let mut trust_store = TrustStore::new(trust_store_path.clone())?;
+        trust_store.add_key(
+            keypair.public_key.clone(),
+            TrustLevel::Unknown,
+            Some("Unknown allowed".to_string()),
+        )?;
+        trust_store.save_to_file()?;
+
+        let service = VerificationService::new(VerificationConfig {
+            require_plugin_signatures: true,
+            allow_unknown_signers: true,
+            trust_store_path,
+            ..Default::default()
+        })?;
+
+        let result = service.verify_plugin(&plugin_path)?;
+        assert!(result.signature_valid);
+        assert_eq!(result.trust_level, TrustLevel::Unknown);
 
         Ok(())
     }

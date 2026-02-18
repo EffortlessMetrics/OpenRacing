@@ -77,6 +77,10 @@ enum Commands {
     #[command(subcommand)]
     Game(GameCommands),
 
+    /// Telemetry probe and capture commands
+    #[command(subcommand)]
+    Telemetry(TelemetryCommands),
+
     /// Safety and control commands
     #[command(subcommand)]
     Safety(SafetyCommands),
@@ -163,6 +167,7 @@ async fn execute_command(cli: &Cli) -> Result<()> {
         Commands::Game(cmd) => {
             commands::game::execute(cmd, cli.json, cli.endpoint.as_deref()).await
         }
+        Commands::Telemetry(cmd) => commands::telemetry::execute(cmd, cli.json).await,
         Commands::Safety(cmd) => {
             commands::safety::execute(cmd, cli.json, cli.endpoint.as_deref()).await
         }

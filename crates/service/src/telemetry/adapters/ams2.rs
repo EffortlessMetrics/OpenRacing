@@ -10,10 +10,9 @@ use crate::telemetry::{
 };
 use anyhow::Result;
 use async_trait::async_trait;
-use std::collections::HashMap;
 use std::mem;
 use std::ptr;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
@@ -26,6 +25,7 @@ use winapi::um::{
 
 /// AMS2 shared memory name (same as PCARS2)
 const AMS2_SHARED_MEMORY_NAME: &str = "$pcars2$";
+const AMS2_STABLE_READ_ATTEMPTS: usize = 3;
 
 /// AMS2 telemetry adapter using shared memory (PCARS2 format)
 pub struct AMS2Adapter {
@@ -113,8 +113,15 @@ impl AMS2Adapter {
             .ok_or_else(|| anyhow::anyhow!("Shared memory not initialized"))?;
 
         unsafe {
-            let data = ptr::read_volatile(shared_memory.data_ptr);
-            Ok(data)
+            for _ in 0..AMS2_STABLE_READ_ATTEMPTS {
+                let first = ptr::read_volatile(shared_memory.data_ptr);
+                let second = ptr::read_volatile(shared_memory.data_ptr);
+                if first.update_index == second.update_index {
+                    return Ok(second);
+                }
+            }
+
+            Ok(ptr::read_volatile(shared_memory.data_ptr))
         }
     }
 
@@ -188,57 +195,6 @@ impl AMS2Adapter {
         let car_id = extract_string(&data.car_name);
         let track_id = extract_string(&data.track_location);
 
-        // Create extended data with AMS2-specific information
-        let mut extended = HashMap::new();
-        extended.insert(
-            "fuel_level".to_string(),
-            TelemetryValue::Float(data.fuel_level),
-        );
-        extended.insert(
-            "fuel_capacity".to_string(),
-            TelemetryValue::Float(data.fuel_capacity),
-        );
-        extended.insert(
-            "lap_count".to_string(),
-            TelemetryValue::Integer(data.laps_completed as i32),
-        );
-        extended.insert(
-            "current_lap_time".to_string(),
-            TelemetryValue::Float(data.current_time),
-        );
-        extended.insert(
-            "last_lap_time".to_string(),
-            TelemetryValue::Float(data.last_lap_time),
-        );
-        extended.insert(
-            "best_lap_time".to_string(),
-            TelemetryValue::Float(data.best_lap_time),
-        );
-        extended.insert("throttle".to_string(), TelemetryValue::Float(data.throttle));
-        extended.insert("brake".to_string(), TelemetryValue::Float(data.brake));
-        extended.insert("clutch".to_string(), TelemetryValue::Float(data.clutch));
-        extended.insert("steering".to_string(), TelemetryValue::Float(data.steering));
-        extended.insert(
-            "water_temp".to_string(),
-            TelemetryValue::Float(data.water_temp_celsius),
-        );
-        extended.insert(
-            "oil_temp".to_string(),
-            TelemetryValue::Float(data.oil_temp_celsius),
-        );
-        extended.insert(
-            "boost_pressure".to_string(),
-            TelemetryValue::Float(data.boost_pressure),
-        );
-        extended.insert(
-            "tc_setting".to_string(),
-            TelemetryValue::Integer(data.tc_setting as i32),
-        );
-        extended.insert(
-            "abs_setting".to_string(),
-            TelemetryValue::Integer(data.abs_setting as i32),
-        );
-
         // Calculate FFB scalar from steering force
         // AMS2 provides steering force in the range of approximately -1.0 to 1.0
         let ffb_scalar = data.steering.clamp(-1.0, 1.0);
@@ -281,6 +237,7 @@ impl TelemetryAdapter for AMS2Adapter {
             let mut adapter = AMS2Adapter::new();
             let mut sequence = 0u64;
             let mut last_update_index = 0u32;
+            let epoch = Instant::now();
 
             // Try to initialize shared memory
             if let Err(e) = adapter.initialize_shared_memory() {
@@ -291,8 +248,6 @@ impl TelemetryAdapter for AMS2Adapter {
             info!("Started AMS2 telemetry monitoring");
 
             loop {
-                let start_time = std::time::Instant::now();
-
                 match adapter.read_telemetry_data() {
                     Ok(data) => {
                         // Check if data has been updated using the update index
@@ -304,7 +259,7 @@ impl TelemetryAdapter for AMS2Adapter {
 
                             let frame = TelemetryFrame::new(
                                 normalized,
-                                start_time.elapsed().as_nanos() as u64,
+                                monotonic_ns_since(epoch, Instant::now()),
                                 sequence,
                                 mem::size_of::<AMS2SharedMemory>(),
                             );
@@ -346,7 +301,8 @@ impl TelemetryAdapter for AMS2Adapter {
             ));
         }
 
-        let data: AMS2SharedMemory = unsafe { ptr::read(raw.as_ptr() as *const AMS2SharedMemory) };
+        let data: AMS2SharedMemory =
+            unsafe { ptr::read_unaligned(raw.as_ptr() as *const AMS2SharedMemory) };
 
         Ok(self.normalize_ams2_data(&data))
     }
@@ -358,6 +314,13 @@ impl TelemetryAdapter for AMS2Adapter {
     async fn is_game_running(&self) -> Result<bool> {
         Ok(self.check_ams2_running().await)
     }
+}
+
+fn monotonic_ns_since(epoch: Instant, now: Instant) -> u64 {
+    now.checked_duration_since(epoch)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0)
+        .min(u64::MAX as u128) as u64
 }
 
 /// Extract null-terminated string from byte array

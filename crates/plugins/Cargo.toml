@@ -47,6 +47,7 @@ tracing-subscriber = { workspace = true }
 semver = { workspace = true }
 static_assertions = "1.1.0"
 bitflags = "2.10.0"
+zip = { version = "2.4.2", default-features = false, features = ["deflate"] }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [target.'cfg(windows)'.dependencies]

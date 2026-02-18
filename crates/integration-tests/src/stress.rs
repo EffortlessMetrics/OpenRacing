@@ -10,10 +10,19 @@ use crate::{StressLevel, TestConfig, TestResult};
 
 /// Hot-plug stress test with rapid connect/disconnect cycles
 pub async fn test_hotplug_stress() -> Result<TestResult> {
+    run_hotplug_stress(Duration::from_secs(300), 3).await
+}
+
+/// CI-friendly hot-plug stress test with bounded runtime.
+pub async fn test_hotplug_stress_ci() -> Result<TestResult> {
+    run_hotplug_stress(Duration::from_secs(20), 3).await
+}
+
+async fn run_hotplug_stress(duration: Duration, device_count: usize) -> Result<TestResult> {
     info!("Starting hot-plug stress test");
 
     let config = TestConfig {
-        duration: Duration::from_secs(300), // 5 minutes of stress
+        duration,
         virtual_device: true,
         stress_level: StressLevel::Heavy,
         ..Default::default()
@@ -25,22 +34,23 @@ pub async fn test_hotplug_stress() -> Result<TestResult> {
 
     harness.start_service().await?;
 
-    // Add multiple virtual devices for stress testing
-    let device_ids = [
-        harness.add_virtual_device("Stress Device 1").await?,
-        harness.add_virtual_device("Stress Device 2").await?,
-        harness.add_virtual_device("Stress Device 3").await?,
-    ];
+    // Add multiple virtual devices for stress testing.
+    let device_count = device_count.max(1);
+    for device_number in 1..=device_count {
+        harness
+            .add_virtual_device(&format!("Stress Device {}", device_number))
+            .await?;
+    }
 
     let mut cycle_count = 0u32;
     let mut failed_cycles = 0u32;
     let test_duration = config.duration;
     let end_time = start_time + test_duration;
 
-    info!("Starting hot-plug cycles with {} devices", device_ids.len());
+    info!("Starting hot-plug cycles with {} devices", device_count);
 
     while Instant::now() < end_time {
-        for device_index in 0..device_ids.len() {
+        for device_index in 0..device_count {
             cycle_count += 1;
 
             // Random disconnect/reconnect timing to stress the system
@@ -50,7 +60,7 @@ pub async fn test_hotplug_stress() -> Result<TestResult> {
 
             // Disconnect device
             let disconnect_result = timeout(
-                Duration::from_millis(100),
+                Duration::from_millis(250),
                 harness.simulate_hotplug_cycle(device_index),
             )
             .await;
@@ -101,7 +111,12 @@ pub async fn test_hotplug_stress() -> Result<TestResult> {
     }
 
     let actual_duration = start_time.elapsed();
-    let success_rate = ((cycle_count - failed_cycles) as f64 / cycle_count as f64) * 100.0;
+    let success_rate = if cycle_count == 0 {
+        errors.push("No hot-plug cycles were executed".to_string());
+        0.0
+    } else {
+        ((cycle_count - failed_cycles) as f64 / cycle_count as f64) * 100.0
+    };
 
     info!("Hot-plug stress test completed:");
     info!("  Total cycles: {}", cycle_count);

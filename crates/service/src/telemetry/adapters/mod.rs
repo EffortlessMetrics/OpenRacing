@@ -3,13 +3,17 @@
 //! Implements adapters for different racing games with their specific
 //! telemetry protocols and data formats.
 
+pub mod ac_rally;
 pub mod acc;
 pub mod ams2;
+pub mod eawrc;
 pub mod iracing;
 pub mod rfactor2;
 
+pub use ac_rally::ACRallyAdapter;
 pub use acc::ACCAdapter;
 pub use ams2::AMS2Adapter;
+pub use eawrc::EAWRCAdapter;
 pub use iracing::IRacingAdapter;
 pub use rfactor2::RFactor2Adapter;
 

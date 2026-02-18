@@ -364,7 +364,7 @@ Run in parallel where possible, but these items should land early:
     - [ ] Linux packages (deb, rpm, flatpak)
     - [ ] macOS DMG with notarization
 - [ ] **Adaptive Scheduling**
-    - [ ] Dynamic deadline adjustment based on system load
+    - [x] Dynamic deadline adjustment based on system load
     - [ ] CPU governor integration
 
 ## Future Considerations
@@ -383,7 +383,6 @@ The following TODOs exist in the codebase and should be addressed before v1.0.0:
 |----------|-------|
 | `crates/service/src/security/signature.rs:111` | Replace stub with actual Ed25519 verification |
 | `crates/service/src/crypto/mod.rs:204-205` | Implement PE/ELF embedded signature checking |
-| `crates/engine/src/scheduler.rs:181` | Implement adaptive scheduling |
 | `crates/engine/src/diagnostic/blackbox.rs:152` | Index optimization for large recordings |
 | `crates/service/src/integration_tests.rs` | Re-enable disabled integration tests |
 

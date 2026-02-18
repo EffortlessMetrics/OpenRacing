@@ -502,6 +502,50 @@ fn test_game_test_telemetry() {
         .stdout(predicate::str::contains("Test Results"));
 }
 
+#[test]
+fn test_telemetry_probe_ac_rally() {
+    wheelctl()
+        .args([
+            "telemetry",
+            "probe",
+            "--game",
+            "ac_rally",
+            "--attempts",
+            "1",
+            "--timeout-ms",
+            "10",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Telemetry probe"));
+}
+
+#[test]
+fn test_telemetry_capture_json() {
+    let temp_dir = must(TempDir::new());
+    let capture_path = temp_dir.path().join("ac_rally_capture.bin");
+
+    wheelctl()
+        .args([
+            "--json",
+            "telemetry",
+            "capture",
+            "--game",
+            "ac_rally",
+            "--port",
+            "0",
+            "--duration",
+            "1",
+            "--out",
+            must_some(capture_path.to_str(), "expected capture path"),
+        ])
+        .assert()
+        .success()
+        .stdout(is_json());
+
+    assert!(capture_path.exists());
+}
+
 // Safety Tests
 
 #[test]

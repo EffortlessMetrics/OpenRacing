@@ -3,6 +3,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{IpcConfig, ServiceConfig, ServiceDaemon, TransportType};
+    use anyhow::{Result, anyhow};
     use std::time::Duration;
     use tempfile::TempDir;
     use tracing_test::traced_test;
@@ -28,18 +29,18 @@ mod tests {
 
     #[tokio::test]
     #[traced_test]
-    async fn test_service_daemon_creation() {
+    async fn test_service_daemon_creation() -> Result<()> {
         let config = create_test_config();
-        let daemon = ServiceDaemon::new(config).await;
+        let _daemon = ServiceDaemon::new(config).await?;
 
-        assert!(daemon.is_ok(), "Failed to create service daemon");
+        Ok(())
     }
 
     #[tokio::test]
     #[traced_test]
     #[cfg_attr(target_os = "windows", ignore)]
-    async fn test_service_config_save_load() {
-        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    async fn test_service_config_save_load() -> Result<()> {
+        let temp_dir = TempDir::new()?;
 
         // Override the config path for testing
         // SAFETY: This is a test-only function that sets environment variables
@@ -53,10 +54,10 @@ mod tests {
         let original_config = create_test_config();
 
         // Save config
-        original_config.save().await.expect("Failed to save config");
+        original_config.save().await?;
 
         // Load config
-        let loaded_config = ServiceConfig::load().await.expect("Failed to load config");
+        let loaded_config = ServiceConfig::load().await?;
 
         assert_eq!(original_config.service_name, loaded_config.service_name);
         assert_eq!(
@@ -67,15 +68,14 @@ mod tests {
             original_config.max_restart_attempts,
             loaded_config.max_restart_attempts
         );
+        Ok(())
     }
 
     #[tokio::test]
     #[traced_test]
-    async fn test_service_daemon_startup_shutdown() {
+    async fn test_service_daemon_startup_shutdown() -> Result<()> {
         let config = create_test_config();
-        let daemon = ServiceDaemon::new(config)
-            .await
-            .expect("Failed to create daemon");
+        let daemon = ServiceDaemon::new(config).await?;
 
         // Wrap test body with timeout to ensure test completes within 5 seconds
         // Requirements: 2.1, 2.5
@@ -94,32 +94,30 @@ mod tests {
             assert!(result.is_err()); // Should be cancelled
         };
 
-        match tokio::time::timeout(Duration::from_secs(5), test_future).await {
-            Ok(()) => {}
-            Err(_elapsed) => {
-                panic!(
-                    "test_service_daemon_startup_shutdown timed out after 5 seconds - \
-                     daemon may be blocked during startup or shutdown"
-                );
-            }
-        }
+        tokio::time::timeout(Duration::from_secs(5), test_future)
+            .await
+            .map_err(|_elapsed| {
+                anyhow!(
+                    "test_service_daemon_startup_shutdown timed out after 5 seconds - daemon may be blocked during startup or shutdown"
+                )
+            })?;
+        Ok(())
     }
 
     #[tokio::test]
     #[traced_test]
-    async fn test_service_restart_logic() {
+    async fn test_service_restart_logic() -> Result<()> {
         let mut config = create_test_config();
         config.auto_restart = true;
         config.max_restart_attempts = 2;
         config.restart_delay = 1;
 
-        let _daemon = ServiceDaemon::new(config)
-            .await
-            .expect("Failed to create daemon");
+        let _daemon = ServiceDaemon::new(config).await?;
 
         // This test verifies the restart logic exists
         // In a real scenario, we would simulate service failures
         // For now, just verify the daemon can be created with restart config
         // (daemon creation with expect above validates acceptance)
+        Ok(())
     }
 }

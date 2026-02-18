@@ -112,13 +112,23 @@ async fn configure_game(
                 println!("  • Set telemetry rate to 60Hz");
             }
             "acc" => {
-                println!("  • Enabled UDP broadcast on port 9996");
+                println!("  • Enabled UDP broadcast on port 9000");
                 println!("  • Configured telemetry output rate");
                 println!("  • Added LED heartbeat validation");
+            }
+            "ac_rally" => {
+                println!("  • Installed OpenRacing discovery profile for AC Rally");
+                println!("  • Configured ACC-style UDP handshake probe endpoint");
+                println!("  • Configured passive UDP capture candidate port");
             }
             "ams2" => {
                 println!("  • Enabled shared memory telemetry");
                 println!("  • Configured data export settings");
+            }
+            "eawrc" => {
+                println!("  • Patched telemetry/config.json UDP packet assignments");
+                println!("  • Installed telemetry/udp/openracing.json packet structure");
+                println!("  • Configured schema-driven UDP output endpoint");
             }
             _ => {
                 println!("  • Applied game-specific configuration");
@@ -286,6 +296,21 @@ fn get_supported_games() -> Vec<GameInfo> {
             ),
         },
         GameInfo {
+            id: "ac_rally".to_string(),
+            name: "Assetto Corsa Rally".to_string(),
+            version: "Early Access".to_string(),
+            features: vec![
+                "Discovery Probe".to_string(),
+                "UDP Handshake Trial".to_string(),
+                "Raw Capture".to_string(),
+            ],
+            config_method: "OpenRacing probe sidecar".to_string(),
+            default_path: Some(
+                "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Assetto Corsa Rally"
+                    .to_string(),
+            ),
+        },
+        GameInfo {
             id: "ams2".to_string(),
             name: "Automobilista 2".to_string(),
             version: "1.5.x".to_string(),
@@ -296,17 +321,33 @@ fn get_supported_games() -> Vec<GameInfo> {
             ),
         },
         GameInfo {
-            id: "rf2".to_string(),
+            id: "rfactor2".to_string(),
             name: "rFactor 2".to_string(),
             version: "1.1.x".to_string(),
             features: vec![
                 "FFB Scalar".to_string(),
                 "RPM".to_string(),
                 "Telemetry".to_string(),
+                "ForceFeedback map".to_string(),
             ],
             config_method: "Plugin".to_string(),
             default_path: Some(
                 "C:\\Program Files (x86)\\Steam\\steamapps\\common\\rFactor 2".to_string(),
+            ),
+        },
+        GameInfo {
+            id: "eawrc".to_string(),
+            name: "EA SPORTS WRC".to_string(),
+            version: "1.x".to_string(),
+            features: vec![
+                "FFB Scalar".to_string(),
+                "RPM".to_string(),
+                "Speed".to_string(),
+                "Schema-driven UDP".to_string(),
+            ],
+            config_method: "config.json + udp/openracing.json".to_string(),
+            default_path: Some(
+                "C:\\Users\\<user>\\Documents\\My Games\\WRC\\telemetry".to_string(),
             ),
         },
     ]

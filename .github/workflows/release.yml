@@ -127,7 +127,7 @@ jobs:
 
       - name: Build release binaries
         run: |
-          cargo build --release --target ${{ matrix.target }} -p racing-wheel-cli
+          cargo build --release --target ${{ matrix.target }} -p wheelctl
           cargo build --release --target ${{ matrix.target }} -p racing-wheel-service
 
       - name: Build Linux packages
@@ -177,7 +177,7 @@ jobs:
 
       - name: Build release binaries
         run: |
-          cargo build --release --target ${{ matrix.target }} -p racing-wheel-cli
+          cargo build --release --target ${{ matrix.target }} -p wheelctl
           cargo build --release --target ${{ matrix.target }} -p racing-wheel-service
 
       - name: Build portable ZIP

@@ -3,7 +3,10 @@
 //! Handles telemetry configuration, auto-switching, and game-specific integrations
 //! according to requirements GI-01 and GI-03.
 
-use crate::config_writers::{ACCConfigWriter, IRacingConfigWriter};
+use crate::config_writers::{
+    ACCConfigWriter, ACRallyConfigWriter, AMS2ConfigWriter, EAWRCConfigWriter, IRacingConfigWriter,
+    RFactor2ConfigWriter,
+};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -134,6 +137,10 @@ impl GameService {
         // Register config writers
         config_writers.insert("iracing".to_string(), Box::new(IRacingConfigWriter));
         config_writers.insert("acc".to_string(), Box::new(ACCConfigWriter));
+        config_writers.insert("ac_rally".to_string(), Box::new(ACRallyConfigWriter));
+        config_writers.insert("ams2".to_string(), Box::new(AMS2ConfigWriter));
+        config_writers.insert("rfactor2".to_string(), Box::new(RFactor2ConfigWriter));
+        config_writers.insert("eawrc".to_string(), Box::new(EAWRCConfigWriter));
 
         Ok(Self {
             support_matrix: Arc::new(RwLock::new(support_matrix)),
@@ -173,11 +180,18 @@ impl GameService {
             .ok_or_else(|| anyhow::anyhow!("No config writer for game: {}", game_id))?;
 
         // Create telemetry configuration
+        let output_target = match game_id {
+            "acc" => "127.0.0.1:9000".to_string(),
+            "ac_rally" => "127.0.0.1:9000".to_string(),
+            "eawrc" => "127.0.0.1:20778".to_string(),
+            _ => "127.0.0.1:12345".to_string(),
+        };
+
         let telemetry_config = TelemetryConfig {
             enabled: true,
             update_rate_hz: game_support.telemetry.update_rate_hz,
             output_method: game_support.telemetry.method.clone(),
-            output_target: "127.0.0.1:12345".to_string(),
+            output_target,
             fields: game_support.versions[0].supported_fields.clone(),
         };
 

@@ -2,18 +2,20 @@
 
 #[track_caller]
 fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+    assert!(r.is_ok(), "unexpected Err: {:?}", r.as_ref().err());
     match r {
         Ok(v) => v,
-        Err(e) => panic!("unexpected Err: {e:?}"),
+        Err(_) => unreachable!("asserted Ok above"),
     }
 }
 
 #[track_caller]
 #[allow(dead_code)]
 fn must_some<T>(opt: Option<T>) -> T {
+    assert!(opt.is_some(), "unexpected None");
     match opt {
         Some(v) => v,
-        None => panic!("unexpected None"),
+        None => unreachable!("asserted Some above"),
     }
 }
 
@@ -22,9 +24,16 @@ fn must_parse<T: std::str::FromStr>(s: &str) -> T
 where
     <T as std::str::FromStr>::Err: std::fmt::Debug,
 {
-    match s.parse::<T>() {
+    let parsed = s.parse::<T>();
+    assert!(
+        parsed.is_ok(),
+        "parse failed for {:?}: {:?}",
+        s,
+        parsed.as_ref().err()
+    );
+    match parsed {
         Ok(v) => v,
-        Err(e) => panic!("parse failed for {s:?}: {e:?}"),
+        Err(_) => unreachable!("asserted parse success above"),
     }
 }
 

@@ -209,7 +209,7 @@ run_isolation_builds() {
     run cargo +stable run -p racing-wheel-cli -- --help
 
     run cargo +stable build -p racing-wheel-service --locked
-    run cargo +stable run -p racing-wheel-service -- --help
+    run cargo +stable run -p racing-wheel-service --bin wheeld -- --help
 
     run cargo +stable build -p racing-wheel-plugins --locked
 
@@ -300,7 +300,7 @@ run_lint_gates() {
 
 run_performance_gate() {
     phase "Performance gate"
-    run cargo +stable build --profile rt --bin racing-wheel-service --locked
+    run cargo +stable build --profile rt --bin wheeld --locked
     run cargo +stable bench --bench rt_timing -- --output-format json | tee bench_results.json
     run python3 scripts/validate_performance.py bench_results.json --strict
     run RUST_LOG=debug cargo +stable test --release test_zero_alloc_rt_path

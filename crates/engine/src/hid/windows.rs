@@ -349,7 +349,7 @@ impl SupportedDevices {
             // Moza Racing wheelbases - V1
             (vendor_ids::MOZA, 0x0005, "Moza R3"),
             (vendor_ids::MOZA, 0x0004, "Moza R5"),
-            (vendor_ids::MOZA, 0x0002, "Moza R9"),
+            (vendor_ids::MOZA, 0x0002, "Moza R9 V1 (ES incompatible)"),
             (vendor_ids::MOZA, 0x0006, "Moza R12"),
             (vendor_ids::MOZA, 0x0000, "Moza R16/R21"),
             // Moza Racing wheelbases - V2
@@ -360,6 +360,9 @@ impl SupportedDevices {
             (vendor_ids::MOZA, 0x0010, "Moza R16/R21 V2"),
             // Moza Racing peripherals
             (vendor_ids::MOZA, 0x0003, "Moza SR-P Pedals"),
+            (vendor_ids::MOZA, 0x0020, "Moza HGP Shifter"),
+            (vendor_ids::MOZA, 0x0021, "Moza SGP Sequential Shifter"),
+            (vendor_ids::MOZA, 0x0022, "Moza HBP Handbrake"),
             // Simagic wheels
             (vendor_ids::SIMAGIC, 0x0522, "Simagic Alpha"),
             (vendor_ids::SIMAGIC, 0x0523, "Simagic Alpha Mini"),
@@ -1120,15 +1123,31 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                 }
                 0x0003 => {
                     // SR-P Pedals
+                    capabilities.supports_pid = false;
                     capabilities.supports_raw_torque_1khz = false;
+                    capabilities.supports_health_stream = false;
+                    capabilities.supports_led_bus = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                    capabilities.encoder_cpr = 4096;
+                }
+                0x0020..=0x0022 => {
+                    // HGP shifter / SGP sequential / HBP handbrake (input peripherals)
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.supports_health_stream = false;
                     capabilities.supports_led_bus = false;
                     capabilities.max_torque = TorqueNm::ZERO;
                     capabilities.encoder_cpr = 4096;
                 }
                 _ => {
-                    capabilities.max_torque =
-                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
-                    capabilities.encoder_cpr = 32768;
+                    // Unknown Moza devices are treated conservatively until explicitly captured.
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.supports_health_stream = false;
+                    capabilities.supports_led_bus = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                    capabilities.encoder_cpr = 4096;
+                    capabilities.min_report_period_us = 4000;
                 }
             }
         }
@@ -1373,6 +1392,27 @@ pub struct WindowsHidDevice {
     hidapi_device: Option<Arc<Mutex<hidapi::HidDevice>>>,
 }
 
+/// Shared hidapi context used for opening per-device handles.
+///
+/// Keeping this context alive for the process lifetime avoids high-frequency
+/// HidApi init/drop churn under parallel test execution.
+static HIDAPI_DEVICE_OPEN_CONTEXT: OnceLock<std::result::Result<Arc<Mutex<HidApi>>, String>> =
+    OnceLock::new();
+
+fn get_hidapi_device_open_context() -> Option<&'static Arc<Mutex<HidApi>>> {
+    match HIDAPI_DEVICE_OPEN_CONTEXT.get_or_init(|| {
+        HidApi::new()
+            .map(|api| Arc::new(Mutex::new(api)))
+            .map_err(|e| format!("Failed to initialize shared HidApi context: {}", e))
+    }) {
+        Ok(api) => Some(api),
+        Err(msg) => {
+            warn!("{}", msg);
+            None
+        }
+    }
+}
+
 impl WindowsHidDevice {
     /// Create a new Windows HID device with overlapped I/O support
     ///
@@ -1429,9 +1469,19 @@ impl WindowsHidDevice {
 
     /// Open a device using hidapi
     fn open_hidapi_device(path: &str) -> Option<Arc<Mutex<hidapi::HidDevice>>> {
-        let api = HidApi::new().ok()?;
+        // Unit tests use placeholder paths like "test-path"; skip hidapi open attempts.
+        if !path.starts_with("\\\\?\\") {
+            return None;
+        }
+
+        let api = get_hidapi_device_open_context()?;
         let c_path = std::ffi::CString::new(path).ok()?;
-        let device = api.open_path(&c_path).ok()?;
+
+        let device = {
+            let api_guard = api.lock();
+            api_guard.open_path(&c_path).ok()?
+        };
+
         Some(Arc::new(Mutex::new(device)))
     }
 
@@ -2026,6 +2076,9 @@ mod tests {
         assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0010)); // R16/R21 V2
         // Peripherals
         assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0003)); // SR-P Pedals
+        assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0020)); // HGP Shifter
+        assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0021)); // SGP Sequential Shifter
+        assert!(SupportedDevices::is_supported(vendor_ids::MOZA, 0x0022)); // HBP Handbrake
     }
 
     #[test]
@@ -2129,10 +2182,32 @@ mod tests {
     fn test_device_capabilities_moza_pedals() {
         // SR-P Pedals have no FFB
         let caps = determine_device_capabilities(vendor_ids::MOZA, 0x0003);
+        assert!(!caps.supports_pid);
         assert!(!caps.supports_raw_torque_1khz);
         assert!(!caps.supports_led_bus);
         assert_eq!(caps.max_torque.value(), 0.0);
         assert_eq!(caps.encoder_cpr, 4096);
+    }
+
+    #[test]
+    fn test_device_capabilities_moza_hgp_shifter() {
+        // HGP is an input peripheral and must not be exposed as an FFB device.
+        let caps = determine_device_capabilities(vendor_ids::MOZA, 0x0020);
+        assert!(!caps.supports_pid);
+        assert!(!caps.supports_raw_torque_1khz);
+        assert!(!caps.supports_led_bus);
+        assert_eq!(caps.max_torque.value(), 0.0);
+        assert_eq!(caps.encoder_cpr, 4096);
+    }
+
+    #[test]
+    fn test_device_capabilities_unknown_moza_is_safe_default() {
+        let caps = determine_device_capabilities(vendor_ids::MOZA, 0x7FFF);
+        assert!(!caps.supports_pid);
+        assert!(!caps.supports_raw_torque_1khz);
+        assert!(!caps.supports_health_stream);
+        assert!(!caps.supports_led_bus);
+        assert_eq!(caps.max_torque.value(), 0.0);
     }
 
     #[test]

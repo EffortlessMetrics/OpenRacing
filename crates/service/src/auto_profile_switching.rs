@@ -311,52 +311,54 @@ impl AutoProfileSwitchingService {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
     use crate::profile_service::ProfileService;
     use std::sync::Arc;
 
-    async fn create_test_service() -> AutoProfileSwitchingService {
-        let profile_service = Arc::new(ProfileService::new().await.unwrap());
-        AutoProfileSwitchingService::new(profile_service).unwrap()
+    async fn create_test_service() -> anyhow::Result<AutoProfileSwitchingService> {
+        let profile_service = Arc::new(ProfileService::new().await?);
+        AutoProfileSwitchingService::new(profile_service)
     }
 
     #[tokio::test]
-    async fn test_service_creation() {
-        let service = create_test_service().await;
+    async fn test_service_creation() -> anyhow::Result<()> {
+        let service = create_test_service().await?;
         assert_eq!(service.switch_timeout, Duration::from_millis(500));
 
         let active_profile = service.get_active_profile().await;
         assert!(active_profile.is_none());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_game_profile_mapping() {
-        let service = create_test_service().await;
+    async fn test_game_profile_mapping() -> anyhow::Result<()> {
+        let service = create_test_service().await?;
 
         service
             .set_game_profile("iracing".to_string(), "iracing_gt3".to_string())
-            .await
-            .unwrap();
+            .await?;
 
         let profile = service.get_game_profile("iracing").await;
         assert_eq!(profile, Some("iracing_gt3".to_string()));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_switch_timeout_requirement() {
-        let service = create_test_service().await;
+    async fn test_switch_timeout_requirement() -> anyhow::Result<()> {
+        let service = create_test_service().await?;
 
         // Verify the timeout meets the ≤500ms requirement
         assert!(service.switch_timeout <= Duration::from_millis(500));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_running_games_tracking() {
-        let service = create_test_service().await;
+    async fn test_running_games_tracking() -> anyhow::Result<()> {
+        let service = create_test_service().await?;
 
         // Initially no games should be running
         let running_games = service.get_running_games();
         assert!(running_games.is_empty());
+        Ok(())
     }
 }

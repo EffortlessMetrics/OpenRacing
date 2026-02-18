@@ -152,8 +152,8 @@ impl Default for VerificationConfig {
         Self {
             require_binary_signatures: true,
             require_firmware_signatures: true,
-            require_plugin_signatures: false, // Allow unsigned plugins by default
-            allow_unknown_signers: true,      // Allow but warn
+            require_plugin_signatures: true, // Secure-by-default: plugins must be signed
+            allow_unknown_signers: true,     // Allow but warn
             trust_store_path: std::path::PathBuf::from("trust_store"),
             max_signature_age_seconds: Some(365 * 24 * 3600), // 1 year
         }
@@ -384,16 +384,16 @@ pub mod utils {
         file_data: &'a [u8],
     ) -> Option<&'a [u8]> {
         for section in &elf.section_headers {
-            if let Some(name) = elf.shdr_strtab.get_at(section.sh_name) {
-                if name == ELF_SIGNATURE_SECTION {
-                    let start = section.sh_offset as usize;
-                    let size = section.sh_size as usize;
-                    if start + size <= file_data.len() {
-                        let data = &file_data[start..start + size];
-                        let trimmed = trim_null_bytes(data);
-                        if !trimmed.is_empty() {
-                            return Some(trimmed);
-                        }
+            if let Some(name) = elf.shdr_strtab.get_at(section.sh_name)
+                && name == ELF_SIGNATURE_SECTION
+            {
+                let start = section.sh_offset as usize;
+                let size = section.sh_size as usize;
+                if start + size <= file_data.len() {
+                    let data = &file_data[start..start + size];
+                    let trimmed = trim_null_bytes(data);
+                    if !trimmed.is_empty() {
+                        return Some(trimmed);
                     }
                 }
             }
@@ -411,10 +411,10 @@ pub mod utils {
             goblin::mach::Mach::Fat(fat) => {
                 // For fat binaries, check each architecture
                 for arch in fat.iter_arches().flatten() {
-                    if let Ok(macho) = goblin::mach::MachO::parse(file_data, arch.offset as usize) {
-                        if let Some(data) = extract_macho_binary_signature(&macho, file_data) {
-                            return Some(data);
-                        }
+                    if let Ok(macho) = goblin::mach::MachO::parse(file_data, arch.offset as usize)
+                        && let Some(data) = extract_macho_binary_signature(&macho, file_data)
+                    {
+                        return Some(data);
                     }
                 }
                 None
@@ -428,22 +428,21 @@ pub mod utils {
         file_data: &'a [u8],
     ) -> Option<&'a [u8]> {
         for segment in &macho.segments {
-            if let Ok(name) = segment.name() {
-                if name == MACHO_SIGNATURE_SEGMENT {
-                    if let Ok(sections) = segment.sections() {
-                        for (section, _data) in sections {
-                            if let Ok(sect_name) = section.name() {
-                                if sect_name == MACHO_SIGNATURE_SECTION {
-                                    let start = section.offset as usize;
-                                    let size = section.size as usize;
-                                    if start + size <= file_data.len() {
-                                        let data = &file_data[start..start + size];
-                                        let trimmed = trim_null_bytes(data);
-                                        if !trimmed.is_empty() {
-                                            return Some(trimmed);
-                                        }
-                                    }
-                                }
+            if let Ok(name) = segment.name()
+                && name == MACHO_SIGNATURE_SEGMENT
+                && let Ok(sections) = segment.sections()
+            {
+                for (section, _data) in sections {
+                    if let Ok(sect_name) = section.name()
+                        && sect_name == MACHO_SIGNATURE_SECTION
+                    {
+                        let start = section.offset as usize;
+                        let size = section.size as usize;
+                        if start + size <= file_data.len() {
+                            let data = &file_data[start..start + size];
+                            let trimmed = trim_null_bytes(data);
+                            if !trimmed.is_empty() {
+                                return Some(trimmed);
                             }
                         }
                     }

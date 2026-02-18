@@ -68,6 +68,24 @@ impl PLL {
         self.phase_error_ns = 0.0;
         self.last_tick = None;
     }
+
+    /// Update the target period used by the PLL.
+    ///
+    /// This is used by adaptive scheduling to change the loop period based on
+    /// observed system load while keeping PLL drift correction behavior.
+    pub fn set_target_period_ns(&mut self, target_period_ns: u64) {
+        self.target_period_ns = target_period_ns.max(1);
+
+        // Keep the estimated period in a sane range around the new target.
+        let min_period = self.target_period_ns as f64 * 0.9;
+        let max_period = self.target_period_ns as f64 * 1.1;
+        self.estimated_period_ns = self.estimated_period_ns.clamp(min_period, max_period);
+    }
+
+    /// Get current target period in nanoseconds.
+    pub fn target_period_ns(&self) -> u64 {
+        self.target_period_ns
+    }
 }
 
 /// Real-time setup configuration
@@ -97,8 +115,71 @@ impl Default for RTSetup {
     }
 }
 
+/// Adaptive scheduling configuration.
+///
+/// Adaptive scheduling dynamically adjusts the scheduler period within bounded
+/// limits to reduce timing violations under load, then returns toward the base
+/// period when the system is healthy.
+#[derive(Debug, Clone)]
+pub struct AdaptiveSchedulingConfig {
+    /// Enable adaptive scheduling.
+    pub enabled: bool,
+    /// Minimum allowed period in nanoseconds.
+    pub min_period_ns: u64,
+    /// Maximum allowed period in nanoseconds.
+    pub max_period_ns: u64,
+    /// Step size for period increase when overloaded.
+    pub increase_step_ns: u64,
+    /// Step size for period decrease when healthy.
+    pub decrease_step_ns: u64,
+    /// Jitter threshold above which period should be relaxed.
+    pub jitter_relax_threshold_ns: u64,
+    /// Jitter threshold below which period can tighten.
+    pub jitter_tighten_threshold_ns: u64,
+    /// Processing-time threshold above which period should be relaxed.
+    pub processing_relax_threshold_us: u64,
+    /// Processing-time threshold below which period can tighten.
+    pub processing_tighten_threshold_us: u64,
+    /// EMA alpha for processing-time smoothing [0.01, 1.0].
+    pub processing_ema_alpha: f64,
+}
+
+impl Default for AdaptiveSchedulingConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            min_period_ns: 900_000,              // 0.9ms
+            max_period_ns: 1_100_000,            // 1.1ms
+            increase_step_ns: 5_000,             // 5us
+            decrease_step_ns: 2_000,             // 2us
+            jitter_relax_threshold_ns: 200_000,  // 0.2ms
+            jitter_tighten_threshold_ns: 50_000, // 0.05ms
+            processing_relax_threshold_us: 180,
+            processing_tighten_threshold_us: 80,
+            processing_ema_alpha: 0.2,
+        }
+    }
+}
+
+/// Snapshot of adaptive scheduling runtime state.
+#[derive(Debug, Clone, Copy)]
+pub struct AdaptiveSchedulingState {
+    /// Whether adaptive scheduling is enabled.
+    pub enabled: bool,
+    /// Current adaptive target period in nanoseconds.
+    pub target_period_ns: u64,
+    /// Minimum allowed period in nanoseconds.
+    pub min_period_ns: u64,
+    /// Maximum allowed period in nanoseconds.
+    pub max_period_ns: u64,
+    /// Last recorded processing time in microseconds.
+    pub last_processing_time_us: u64,
+    /// Exponential moving average of processing time in microseconds.
+    pub processing_time_ema_us: f64,
+}
+
 /// Jitter metrics collection
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct JitterMetrics {
     /// Total number of ticks
     pub total_ticks: u64,
@@ -112,20 +193,43 @@ pub struct JitterMetrics {
     /// Running sum of squared jitter for variance calculation
     pub jitter_sum_squared: f64,
 
+    /// Last observed jitter sample.
+    pub last_jitter_ns: u64,
+
     /// Recent jitter samples for percentile calculation
     pub recent_jitter_samples: Vec<u64>,
 
     /// Maximum samples to keep for percentile calculation
     pub max_samples: usize,
+
+    /// Ring buffer write index once `recent_jitter_samples` reaches `max_samples`.
+    next_sample_index: usize,
+
+    /// Reused scratch storage for percentile selection to avoid per-call allocations.
+    percentile_scratch: Vec<u64>,
+}
+
+impl Default for JitterMetrics {
+    fn default() -> Self {
+        const DEFAULT_MAX_SAMPLES: usize = 10_000;
+        Self {
+            total_ticks: 0,
+            missed_ticks: 0,
+            max_jitter_ns: 0,
+            jitter_sum_squared: 0.0,
+            last_jitter_ns: 0,
+            recent_jitter_samples: Vec::with_capacity(DEFAULT_MAX_SAMPLES),
+            max_samples: DEFAULT_MAX_SAMPLES,
+            next_sample_index: 0,
+            percentile_scratch: Vec::with_capacity(DEFAULT_MAX_SAMPLES),
+        }
+    }
 }
 
 impl JitterMetrics {
     /// Create new jitter metrics collector
     pub fn new() -> Self {
-        Self {
-            max_samples: 10000, // Keep last 10k samples for p99 calculation
-            ..Default::default()
-        }
+        Self::default()
     }
 
     /// Record a tick with its jitter
@@ -138,25 +242,43 @@ impl JitterMetrics {
 
         self.max_jitter_ns = self.max_jitter_ns.max(jitter_ns);
         self.jitter_sum_squared += (jitter_ns as f64).powi(2);
+        self.last_jitter_ns = jitter_ns;
 
-        // Keep recent samples for percentile calculation
-        self.recent_jitter_samples.push(jitter_ns);
-        if self.recent_jitter_samples.len() > self.max_samples {
-            self.recent_jitter_samples.remove(0);
+        if self.max_samples == 0 {
+            return;
+        }
+
+        // Keep recent samples in a bounded ring to avoid per-tick shifting.
+        if self.recent_jitter_samples.len() < self.max_samples {
+            self.recent_jitter_samples.push(jitter_ns);
+            if self.recent_jitter_samples.len() == self.max_samples {
+                self.next_sample_index = 0;
+            }
+        } else {
+            self.recent_jitter_samples[self.next_sample_index] = jitter_ns;
+            self.next_sample_index = (self.next_sample_index + 1) % self.max_samples;
         }
     }
 
     /// Calculate p99 jitter in nanoseconds
-    pub fn p99_jitter_ns(&self) -> u64 {
+    pub fn p99_jitter_ns(&mut self) -> u64 {
         if self.recent_jitter_samples.is_empty() {
             return 0;
         }
 
-        let mut sorted = self.recent_jitter_samples.clone();
-        sorted.sort_unstable();
+        if self.percentile_scratch.capacity() < self.recent_jitter_samples.len() {
+            self.percentile_scratch
+                .reserve(self.recent_jitter_samples.len() - self.percentile_scratch.capacity());
+        }
 
-        let p99_index = (sorted.len() as f64 * 0.99) as usize;
-        sorted.get(p99_index).copied().unwrap_or(0)
+        self.percentile_scratch.clear();
+        self.percentile_scratch
+            .extend_from_slice(&self.recent_jitter_samples);
+
+        let len = self.percentile_scratch.len();
+        let p99_index = ((len as f64 * 0.99) as usize).min(len.saturating_sub(1));
+        let (_, p99, _) = self.percentile_scratch.select_nth_unstable(p99_index);
+        *p99
     }
 
     /// Calculate missed tick rate (0.0 to 1.0)
@@ -169,7 +291,7 @@ impl JitterMetrics {
     }
 
     /// Check if metrics meet performance requirements
-    pub fn meets_requirements(&self) -> bool {
+    pub fn meets_requirements(&mut self) -> bool {
         // Requirements: p99 jitter ≤ 0.25ms, missed tick rate ≤ 0.001%
         self.p99_jitter_ns() <= 250_000 && self.missed_tick_rate() <= 0.00001
     }
@@ -178,8 +300,6 @@ impl JitterMetrics {
 /// Absolute scheduler for precise 1kHz timing with PLL and jitter metrics
 pub struct AbsoluteScheduler {
     /// Target period in nanoseconds
-    /// TODO: Used for future adaptive scheduling implementation
-    #[allow(dead_code)]
     period_ns: u64,
 
     /// Next scheduled tick time
@@ -194,8 +314,24 @@ pub struct AbsoluteScheduler {
     /// Jitter metrics collection
     metrics: JitterMetrics,
 
+    /// Adaptive scheduling configuration
+    adaptive_config: AdaptiveSchedulingConfig,
+
+    /// Current adaptive target period
+    adaptive_period_ns: u64,
+
+    /// Last processing time reported by the engine loop (microseconds)
+    last_processing_time_us: u64,
+
+    /// Exponential moving average of processing time (microseconds)
+    processing_time_ema_us: f64,
+
     /// RT setup applied
     rt_setup_applied: bool,
+
+    /// Reused waitable timer handle for Windows high-precision sleep.
+    #[cfg(target_os = "windows")]
+    waitable_timer_raw: Option<isize>,
 }
 
 impl AbsoluteScheduler {
@@ -208,8 +344,119 @@ impl AbsoluteScheduler {
             tick_count: 0,
             pll: PLL::new(period_ns),
             metrics: JitterMetrics::new(),
+            adaptive_config: AdaptiveSchedulingConfig::default(),
+            adaptive_period_ns: period_ns,
+            last_processing_time_us: 0,
+            processing_time_ema_us: 0.0,
             rt_setup_applied: false,
+            #[cfg(target_os = "windows")]
+            waitable_timer_raw: None,
         }
+    }
+
+    /// Configure adaptive scheduling.
+    ///
+    /// The configuration is normalized to maintain safe, bounded behavior.
+    pub fn set_adaptive_scheduling(&mut self, mut config: AdaptiveSchedulingConfig) {
+        if config.min_period_ns > config.max_period_ns {
+            std::mem::swap(&mut config.min_period_ns, &mut config.max_period_ns);
+        }
+
+        // Keep limits sane and non-zero.
+        config.min_period_ns = config.min_period_ns.max(1);
+        config.max_period_ns = config.max_period_ns.max(config.min_period_ns);
+        config.increase_step_ns = config.increase_step_ns.max(1);
+        config.decrease_step_ns = config.decrease_step_ns.max(1);
+
+        // Ensure tighten thresholds are not above relax thresholds.
+        if config.jitter_tighten_threshold_ns > config.jitter_relax_threshold_ns {
+            config.jitter_tighten_threshold_ns = config.jitter_relax_threshold_ns;
+        }
+        if config.processing_tighten_threshold_us > config.processing_relax_threshold_us {
+            config.processing_tighten_threshold_us = config.processing_relax_threshold_us;
+        }
+
+        // Clamp EMA alpha to a stable range.
+        config.processing_ema_alpha = config.processing_ema_alpha.clamp(0.01, 1.0);
+
+        self.adaptive_config = config;
+        self.adaptive_period_ns = self.period_ns.clamp(
+            self.adaptive_config.min_period_ns,
+            self.adaptive_config.max_period_ns,
+        );
+
+        let pll_target = if self.adaptive_config.enabled {
+            self.adaptive_period_ns
+        } else {
+            self.period_ns
+        };
+        self.pll.set_target_period_ns(pll_target);
+    }
+
+    /// Get adaptive scheduling runtime state.
+    pub fn adaptive_scheduling(&self) -> AdaptiveSchedulingState {
+        AdaptiveSchedulingState {
+            enabled: self.adaptive_config.enabled,
+            target_period_ns: self.adaptive_period_ns,
+            min_period_ns: self.adaptive_config.min_period_ns,
+            max_period_ns: self.adaptive_config.max_period_ns,
+            last_processing_time_us: self.last_processing_time_us,
+            processing_time_ema_us: self.processing_time_ema_us,
+        }
+    }
+
+    /// Report per-tick processing time in microseconds.
+    ///
+    /// This signal is consumed by adaptive scheduling to estimate current load.
+    pub fn record_processing_time_us(&mut self, processing_time_us: u64) {
+        self.last_processing_time_us = processing_time_us;
+
+        if self.processing_time_ema_us <= f64::EPSILON {
+            self.processing_time_ema_us = processing_time_us as f64;
+            return;
+        }
+
+        let alpha = self.adaptive_config.processing_ema_alpha;
+        self.processing_time_ema_us =
+            (1.0 - alpha) * self.processing_time_ema_us + alpha * processing_time_us as f64;
+    }
+
+    /// Compute updated target period from current load signals.
+    fn update_adaptive_target_period(&mut self, jitter_ns: u64, missed_deadline: bool) -> u64 {
+        if !self.adaptive_config.enabled {
+            self.adaptive_period_ns = self.period_ns;
+            return self.period_ns;
+        }
+
+        let jitter_overloaded =
+            missed_deadline || jitter_ns >= self.adaptive_config.jitter_relax_threshold_ns;
+        let jitter_healthy =
+            !missed_deadline && jitter_ns <= self.adaptive_config.jitter_tighten_threshold_ns;
+
+        let has_processing_signal = self.last_processing_time_us > 0;
+        let processing_overloaded = has_processing_signal
+            && self.processing_time_ema_us
+                >= self.adaptive_config.processing_relax_threshold_us as f64;
+        let processing_healthy = has_processing_signal
+            && self.processing_time_ema_us
+                <= self.adaptive_config.processing_tighten_threshold_us as f64;
+
+        if jitter_overloaded || processing_overloaded {
+            self.adaptive_period_ns = self
+                .adaptive_period_ns
+                .saturating_add(self.adaptive_config.increase_step_ns);
+        } else if jitter_healthy && processing_healthy {
+            self.adaptive_period_ns = self
+                .adaptive_period_ns
+                .saturating_sub(self.adaptive_config.decrease_step_ns);
+        }
+
+        self.adaptive_period_ns = self.adaptive_period_ns.clamp(
+            self.adaptive_config.min_period_ns,
+            self.adaptive_config.max_period_ns,
+        );
+
+        self.adaptive_period_ns
     }
 
     /// Apply real-time setup for optimal performance
@@ -252,6 +499,11 @@ impl AbsoluteScheduler {
             self.sleep_until(self.next_tick)?;
         }
 
+        // Update adaptive target from observed load/jitter before PLL correction.
+        let adaptive_target_period_ns =
+            self.update_adaptive_target_period(jitter_ns, missed_deadline);
+        self.pll.set_target_period_ns(adaptive_target_period_ns);
+
         // Update PLL with actual tick timing
         let actual_tick_time = Instant::now();
         let corrected_period = self.pll.update(actual_tick_time);
@@ -292,11 +544,8 @@ impl AbsoluteScheduler {
 
     /// Platform-specific high-precision sleep with busy-spin tail
     #[cfg(target_os = "windows")]
-    fn sleep_until(&self, target: Instant) -> RTResult {
-        use windows::Win32::Foundation::{CloseHandle, FILETIME};
-        use windows::Win32::System::Threading::{
-            CreateWaitableTimerW, INFINITE, SetWaitableTimer, WaitForSingleObject,
-        };
+    fn sleep_until(&mut self, target: Instant) -> RTResult {
+        use windows::Win32::System::Threading::{INFINITE, SetWaitableTimer, WaitForSingleObject};
 
         let now = Instant::now();
         if target <= now {
@@ -317,29 +566,14 @@ impl AbsoluteScheduler {
         let sleep_duration = duration.saturating_sub(Duration::from_micros(80));
         let _sleep_target = now + sleep_duration;
 
+        let timer = self.get_or_create_waitable_timer()?;
+        // Relative due time in 100ns units. Negative means relative wait.
+        let due_time_100ns = relative_due_time_100ns(sleep_duration);
+
         unsafe {
-            let timer =
-                CreateWaitableTimerW(None, true, None).map_err(|_| RTError::TimingViolation)?;
-
-            let ft_duration = -(sleep_duration.as_nanos() as i64 / 100); // 100ns units, negative for relative
-
-            let due_time = FILETIME {
-                dwLowDateTime: ft_duration as u32,
-                dwHighDateTime: (ft_duration >> 32) as u32,
-            };
-
-            SetWaitableTimer(
-                timer,
-                &due_time.dwLowDateTime as *const u32 as *const i64,
-                0,
-                None,
-                None,
-                false,
-            )
-            .map_err(|_| RTError::TimingViolation)?;
-
+            SetWaitableTimer(timer, &due_time_100ns, 0, None, None, false)
+                .map_err(|_| RTError::TimingViolation)?;
             WaitForSingleObject(timer, INFINITE);
-            let _ = CloseHandle(timer);
         }
 
         // Busy-spin for the final precision
@@ -381,7 +615,7 @@ impl AbsoluteScheduler {
 
     /// Platform-specific high-precision sleep with busy-spin tail
     #[cfg(target_os = "linux")]
-    fn sleep_until(&self, target: Instant) -> RTResult {
+    fn sleep_until(&mut self, target: Instant) -> RTResult {
         use libc::{CLOCK_MONOTONIC, clock_nanosleep, timespec};
 
         let now = Instant::now();
@@ -430,7 +664,7 @@ impl AbsoluteScheduler {
 
     /// Fallback sleep implementation
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
-    fn sleep_until(&self, target: Instant) -> RTResult {
+    fn sleep_until(&mut self, target: Instant) -> RTResult {
         let now = Instant::now();
         if target > now {
             std::thread::sleep(target - now);
@@ -458,12 +692,57 @@ impl AbsoluteScheduler {
         self.next_tick = Instant::now();
         self.tick_count = 0;
         self.pll.reset();
+        self.pll.set_target_period_ns(self.period_ns);
         self.metrics = JitterMetrics::new();
+        self.adaptive_period_ns = self.period_ns;
+        self.last_processing_time_us = 0;
+        self.processing_time_ema_us = 0.0;
     }
 
     /// Check if RT setup has been applied
     pub fn is_rt_setup_applied(&self) -> bool {
         self.rt_setup_applied
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl AbsoluteScheduler {
+    fn get_or_create_waitable_timer(&mut self) -> RTResult<windows::Win32::Foundation::HANDLE> {
+        use std::ffi::c_void;
+        use windows::Win32::Foundation::HANDLE;
+        use windows::Win32::System::Threading::CreateWaitableTimerW;
+
+        if let Some(raw_handle) = self.waitable_timer_raw {
+            return Ok(HANDLE(raw_handle as *mut c_void));
+        }
+
+        let timer = unsafe {
+            CreateWaitableTimerW(None, true, None).map_err(|_| RTError::TimingViolation)?
+        };
+        self.waitable_timer_raw = Some(timer.0 as isize);
+        Ok(timer)
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn relative_due_time_100ns(duration: Duration) -> i64 {
+    let ticks_100ns = (duration.as_nanos() / 100).min(i64::MAX as u128) as i64;
+    -ticks_100ns.max(1)
+}
+
+#[cfg(target_os = "windows")]
+impl Drop for AbsoluteScheduler {
+    fn drop(&mut self) {
+        use std::ffi::c_void;
+        use windows::Win32::Foundation::CloseHandle;
+        use windows::Win32::Foundation::HANDLE;
+
+        if let Some(raw_handle) = self.waitable_timer_raw.take() {
+            unsafe {
+                let timer = HANDLE(raw_handle as *mut c_void);
+                let _ = CloseHandle(timer);
+            }
+        }
     }
 }
 
@@ -523,11 +802,156 @@ mod tests {
     }
 
     #[test]
+    fn test_jitter_metrics_uses_bounded_ring_buffer() {
+        let mut metrics = JitterMetrics::new();
+        metrics.max_samples = 3;
+        metrics.recent_jitter_samples.clear();
+
+        for i in 1..=5 {
+            metrics.record_tick(i * 1_000, false);
+        }
+
+        assert_eq!(metrics.recent_jitter_samples.len(), 3);
+
+        let mut sorted = metrics.recent_jitter_samples.clone();
+        sorted.sort_unstable();
+        assert_eq!(sorted, vec![3_000, 4_000, 5_000]);
+        assert_eq!(metrics.last_jitter_ns, 5_000);
+    }
+
+    #[test]
     fn test_scheduler_creation() {
         let scheduler = AbsoluteScheduler::new_1khz();
         assert_eq!(scheduler.period_ns, 1_000_000);
         assert_eq!(scheduler.tick_count(), 0);
         assert!(!scheduler.is_rt_setup_applied());
+    }
+
+    #[test]
+    fn test_adaptive_scheduling_defaults_disabled() {
+        let scheduler = AbsoluteScheduler::new_1khz();
+        let adaptive = scheduler.adaptive_scheduling();
+
+        assert!(!adaptive.enabled);
+        assert_eq!(adaptive.target_period_ns, 1_000_000);
+        assert_eq!(adaptive.min_period_ns, 900_000);
+        assert_eq!(adaptive.max_period_ns, 1_100_000);
+    }
+
+    #[test]
+    fn test_adaptive_scheduling_increases_period_under_load() {
+        let mut scheduler = AbsoluteScheduler::new_1khz();
+        scheduler.set_adaptive_scheduling(AdaptiveSchedulingConfig {
+            enabled: true,
+            min_period_ns: 950_000,
+            max_period_ns: 1_050_000,
+            increase_step_ns: 10_000,
+            decrease_step_ns: 5_000,
+            jitter_relax_threshold_ns: 200_000,
+            jitter_tighten_threshold_ns: 50_000,
+            processing_relax_threshold_us: 150,
+            processing_tighten_threshold_us: 80,
+            processing_ema_alpha: 1.0,
+        });
+
+        scheduler.record_processing_time_us(220);
+        let p1 = scheduler.update_adaptive_target_period(260_000, true);
+        let p2 = scheduler.update_adaptive_target_period(280_000, true);
+
+        assert_eq!(p1, 1_010_000);
+        assert_eq!(p2, 1_020_000);
+    }
+
+    #[test]
+    fn test_adaptive_scheduling_requires_processing_signal_for_tightening() {
+        let mut scheduler = AbsoluteScheduler::new_1khz();
+        scheduler.set_adaptive_scheduling(AdaptiveSchedulingConfig {
+            enabled: true,
+            min_period_ns: 950_000,
+            max_period_ns: 1_050_000,
+            increase_step_ns: 10_000,
+            decrease_step_ns: 5_000,
+            jitter_relax_threshold_ns: 200_000,
+            jitter_tighten_threshold_ns: 50_000,
+            processing_relax_threshold_us: 150,
+            processing_tighten_threshold_us: 80,
+            processing_ema_alpha: 1.0,
+        });
+
+        // No processing signal yet; healthy jitter alone should not tighten period.
+        let period = scheduler.update_adaptive_target_period(20_000, false);
+        assert_eq!(period, 1_000_000);
+    }
+
+    #[test]
+    fn test_adaptive_scheduling_recovers_period_when_healthy() {
+        let mut scheduler = AbsoluteScheduler::new_1khz();
+        scheduler.set_adaptive_scheduling(AdaptiveSchedulingConfig {
+            enabled: true,
+            min_period_ns: 950_000,
+            max_period_ns: 1_050_000,
+            increase_step_ns: 10_000,
+            decrease_step_ns: 5_000,
+            jitter_relax_threshold_ns: 200_000,
+            jitter_tighten_threshold_ns: 50_000,
+            processing_relax_threshold_us: 150,
+            processing_tighten_threshold_us: 80,
+            processing_ema_alpha: 1.0,
+        });
+
+        // Increase target period first.
+        scheduler.record_processing_time_us(220);
+        let _ = scheduler.update_adaptive_target_period(260_000, true);
+        let _ = scheduler.update_adaptive_target_period(260_000, true);
+
+        // Then recover toward base period under healthy conditions.
+        scheduler.record_processing_time_us(40);
+        let recovered_1 = scheduler.update_adaptive_target_period(20_000, false);
+        let recovered_2 = scheduler.update_adaptive_target_period(20_000, false);
+
+        assert_eq!(recovered_1, 1_015_000);
+        assert_eq!(recovered_2, 1_010_000);
+    }
+
+    #[test]
+    fn test_adaptive_scheduling_clamps_to_bounds() {
+        let mut scheduler = AbsoluteScheduler::new_1khz();
+        scheduler.set_adaptive_scheduling(AdaptiveSchedulingConfig {
+            enabled: true,
+            min_period_ns: 990_000,
+            max_period_ns: 1_010_000,
+            increase_step_ns: 20_000,
+            decrease_step_ns: 20_000,
+            jitter_relax_threshold_ns: 100_000,
+            jitter_tighten_threshold_ns: 10_000,
+            processing_relax_threshold_us: 120,
+            processing_tighten_threshold_us: 60,
+            processing_ema_alpha: 1.0,
+        });
+
+        scheduler.record_processing_time_us(300);
+        let high = scheduler.update_adaptive_target_period(500_000, true);
+        assert_eq!(high, 1_010_000);
+
+        scheduler.record_processing_time_us(10);
+        let low = scheduler.update_adaptive_target_period(1_000, false);
+        assert_eq!(low, 990_000);
+    }
+
+    #[test]
+    fn test_record_processing_time_updates_ema() {
+        let mut scheduler = AbsoluteScheduler::new_1khz();
+        scheduler.set_adaptive_scheduling(AdaptiveSchedulingConfig {
+            processing_ema_alpha: 0.5,
+            ..Default::default()
+        });
+
+        scheduler.record_processing_time_us(100);
+        scheduler.record_processing_time_us(200);
+
+        let adaptive = scheduler.adaptive_scheduling();
+        assert_eq!(adaptive.last_processing_time_us, 200);
+        assert!((adaptive.processing_time_ema_us - 150.0).abs() < 1e-6);
     }
 
     #[test]

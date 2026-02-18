@@ -11,16 +11,16 @@ use super::{DeviceTelemetryReport, HidDeviceInfo, TorqueCommand};
 use crate::ports::{DeviceHealthStatus, HidDevice, HidPort};
 use crate::{DeviceEvent, DeviceInfo, RTResult, TelemetryData};
 use async_trait::async_trait;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use racing_wheel_schemas::prelude::*;
 use std::collections::HashMap;
-use std::fs::OpenOptions;
+use std::fs::{File, OpenOptions};
 use std::os::unix::fs::OpenOptionsExt;
-use std::os::unix::io::{AsRawFd, RawFd};
+use std::os::unix::io::AsRawFd;
 use std::path::Path;
 use std::sync::{
     Arc, OnceLock,
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU8, AtomicU16, AtomicU32, AtomicU64, Ordering},
 };
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -89,6 +89,9 @@ impl LinuxHidPort {
             (0x346E, 0x0010), // Moza R16/R21 V2
             // Moza Racing peripherals
             (0x346E, 0x0003), // Moza SR-P Pedals
+            (0x346E, 0x0020), // Moza HGP Shifter
+            (0x346E, 0x0021), // Moza SGP Sequential Shifter
+            (0x346E, 0x0022), // Moza HBP Handbrake
         ];
 
         // Scan /dev/hidraw* devices
@@ -322,25 +325,24 @@ impl HidPort for LinuxHidPort {
 /// Linux-specific HID device implementation with non-blocking I/O
 pub struct LinuxHidDevice {
     device_info: HidDeviceInfo,
-    connected: Arc<AtomicBool>,
-    last_seq: Arc<Mutex<u16>>,
-    health_status: Arc<RwLock<DeviceHealthStatus>>,
-    write_fd: Arc<Mutex<Option<RawFd>>>,
-    read_fd: Arc<Mutex<Option<RawFd>>>,
+    connected: AtomicBool,
+    last_seq: AtomicU16,
+    created_at: Instant,
+    last_communication_us: AtomicU64,
+    communication_errors: AtomicU32,
+    temperature_c: AtomicU8,
+    fault_flags: AtomicU8,
+    hands_on: AtomicBool,
+    write_file: Option<File>,
+    read_file: Option<File>,
 }
 
 impl LinuxHidDevice {
     pub fn new(device_info: HidDeviceInfo) -> Result<Self, Box<dyn std::error::Error>> {
-        let health_status = DeviceHealthStatus {
-            temperature_c: 25,
-            fault_flags: 0,
-            hands_on: false,
-            last_communication: Instant::now(),
-            communication_errors: 0,
-        };
+        let created_at = Instant::now();
 
         // In a real implementation, open the hidraw device
-        let write_fd = if device_info.path.contains("mock") {
+        let write_file = if device_info.path.contains("mock") {
             None // Mock device
         } else {
             // Open device for writing with non-blocking flag
@@ -349,7 +351,7 @@ impl LinuxHidDevice {
                 .custom_flags(libc::O_NONBLOCK)
                 .open(&device_info.path)
             {
-                Ok(file) => Some(file.as_raw_fd()),
+                Ok(file) => Some(file),
                 Err(e) => {
                     warn!("Failed to open {} for writing: {}", device_info.path, e);
                     None
@@ -357,12 +359,12 @@ impl LinuxHidDevice {
             }
         };
 
-        let read_fd = if device_info.path.contains("mock") {
+        let read_file = if device_info.path.contains("mock") {
             None // Mock device
         } else {
             // Open device for reading
             match OpenOptions::new().read(true).open(&device_info.path) {
-                Ok(file) => Some(file.as_raw_fd()),
+                Ok(file) => Some(file),
                 Err(e) => {
                     warn!("Failed to open {} for reading: {}", device_info.path, e);
                     None
@@ -372,22 +374,39 @@ impl LinuxHidDevice {
 
         Ok(Self {
             device_info,
-            connected: Arc::new(AtomicBool::new(true)),
-            last_seq: Arc::new(Mutex::new(0)),
-            health_status: Arc::new(RwLock::new(health_status)),
-            write_fd: Arc::new(Mutex::new(write_fd)),
-            read_fd: Arc::new(Mutex::new(read_fd)),
+            connected: AtomicBool::new(true),
+            last_seq: AtomicU16::new(0),
+            created_at,
+            last_communication_us: AtomicU64::new(0),
+            communication_errors: AtomicU32::new(0),
+            temperature_c: AtomicU8::new(25),
+            fault_flags: AtomicU8::new(0),
+            hands_on: AtomicBool::new(false),
+            write_file,
+            read_file,
         })
+    }
+
+    #[inline]
+    fn mark_communication(&self) {
+        let elapsed = self.created_at.elapsed().as_micros();
+        let elapsed_u64 = if elapsed > u64::MAX as u128 {
+            u64::MAX
+        } else {
+            elapsed as u64
+        };
+        self.last_communication_us
+            .store(elapsed_u64, Ordering::Relaxed);
     }
 
     /// Perform non-blocking write operation (RT-safe)
     fn write_nonblocking(&mut self, data: &[u8]) -> RTResult {
-        let fd_guard = self.write_fd.lock();
-        let fd = match *fd_guard {
-            Some(fd) => fd,
+        let fd = match self.write_file.as_ref() {
+            Some(file) => file.as_raw_fd(),
             None => {
                 // Mock device - simulate successful write
                 debug!("Writing {} bytes to mock HID device", data.len());
+                self.mark_communication();
                 return Ok(());
             }
         };
@@ -404,10 +423,12 @@ impl LinuxHidDevice {
             } else if errno == libc::ENODEV || errno == libc::EPIPE {
                 // Device disconnected
                 self.connected.store(false, Ordering::Relaxed);
+                self.communication_errors.fetch_add(1, Ordering::Relaxed);
                 return Err(crate::RTError::DeviceDisconnected);
             } else {
                 // Other error
                 warn!("HID write error: errno {}", errno);
+                self.communication_errors.fetch_add(1, Ordering::Relaxed);
                 return Err(crate::RTError::PipelineFault);
             }
         }
@@ -416,11 +437,7 @@ impl LinuxHidDevice {
             warn!("Partial HID write: {} of {} bytes", result, data.len());
         }
 
-        // Update health status
-        {
-            let mut health = self.health_status.write();
-            health.last_communication = Instant::now();
-        }
+        self.mark_communication();
 
         debug!("Wrote {} bytes to HID device", result);
         Ok(())
@@ -428,9 +445,8 @@ impl LinuxHidDevice {
 
     /// Read telemetry data (non-RT, can block)
     fn read_telemetry_blocking(&mut self) -> Option<TelemetryData> {
-        let fd_guard = self.read_fd.lock();
-        let fd = match *fd_guard {
-            Some(fd) => fd,
+        let fd = match self.read_file.as_ref() {
+            Some(file) => file.as_raw_fd(),
             None => {
                 // Mock device - simulate telemetry data
                 let report = DeviceTelemetryReport {
@@ -442,6 +458,10 @@ impl LinuxHidDevice {
                     hands_on: 1,
                     reserved: [0; 2],
                 };
+                self.temperature_c.store(report.temp_c, Ordering::Relaxed);
+                self.fault_flags.store(report.faults, Ordering::Relaxed);
+                self.hands_on.store(report.hands_on != 0, Ordering::Relaxed);
+                self.mark_communication();
                 return Some(report.to_telemetry_data());
             }
         };
@@ -456,6 +476,7 @@ impl LinuxHidDevice {
             if errno == libc::ENODEV {
                 self.connected.store(false, Ordering::Relaxed);
             }
+            self.communication_errors.fetch_add(1, Ordering::Relaxed);
             return None;
         }
 
@@ -465,6 +486,10 @@ impl LinuxHidDevice {
 
         // Parse telemetry report
         if let Some(report) = DeviceTelemetryReport::from_bytes(&buffer[..result as usize]) {
+            self.temperature_c.store(report.temp_c, Ordering::Relaxed);
+            self.fault_flags.store(report.faults, Ordering::Relaxed);
+            self.hands_on.store(report.hands_on != 0, Ordering::Relaxed);
+            self.mark_communication();
             Some(report.to_telemetry_data())
         } else {
             None
@@ -478,11 +503,8 @@ impl HidDevice for LinuxHidDevice {
             return Err(crate::RTError::DeviceDisconnected);
         }
 
-        // Update sequence number
-        {
-            let mut last_seq = self.last_seq.lock();
-            *last_seq = seq;
-        }
+        // Sequence tracking stays lock-free for RT determinism.
+        self.last_seq.store(seq, Ordering::Relaxed);
 
         // Create torque command
         let command = TorqueCommand::new(torque_nm, seq, true, false);
@@ -513,7 +535,22 @@ impl HidDevice for LinuxHidDevice {
     }
 
     fn health_status(&self) -> DeviceHealthStatus {
-        self.health_status.read().clone()
+        let elapsed_us = self.last_communication_us.load(Ordering::Relaxed);
+        let last_communication = match self
+            .created_at
+            .checked_add(Duration::from_micros(elapsed_us))
+        {
+            Some(ts) => ts,
+            None => self.created_at,
+        };
+
+        DeviceHealthStatus {
+            temperature_c: self.temperature_c.load(Ordering::Relaxed),
+            fault_flags: self.fault_flags.load(Ordering::Relaxed),
+            hands_on: self.hands_on.load(Ordering::Relaxed),
+            last_communication,
+            communication_errors: self.communication_errors.load(Ordering::Relaxed),
+        }
     }
 }
 
@@ -608,17 +645,19 @@ pub fn revert_linux_rt_setup() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
 
     #[tokio::test]
-    async fn test_linux_hid_port_creation() {
-        let port = LinuxHidPort::new().unwrap();
+    async fn test_linux_hid_port_creation() -> TestResult {
+        let port = LinuxHidPort::new()?;
         assert!(!port.monitoring.load(Ordering::Relaxed));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_device_enumeration() {
-        let port = LinuxHidPort::new().unwrap();
-        let devices = port.list_devices().await.unwrap();
+    async fn test_device_enumeration() -> TestResult {
+        let port = LinuxHidPort::new()?;
+        let devices = port.list_devices().await?;
 
         // Should find some mock devices
         assert!(!devices.is_empty());
@@ -628,22 +667,24 @@ mod tests {
             assert!(device.vendor_id != 0);
             assert!(device.product_id != 0);
         }
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_device_opening() {
-        let port = LinuxHidPort::new().unwrap();
-        let devices = port.list_devices().await.unwrap();
+    async fn test_device_opening() -> TestResult {
+        let port = LinuxHidPort::new()?;
+        let devices = port.list_devices().await?;
 
         if let Some(device_info) = devices.first() {
-            let device = port.open_device(&device_info.id).await.unwrap();
+            let device = port.open_device(&device_info.id).await?;
             assert!(device.is_connected());
             assert!(device.capabilities().max_torque.value() > 0.0);
         }
+        Ok(())
     }
 
     #[test]
-    fn test_linux_hid_device_creation() {
+    fn test_linux_hid_device_creation() -> TestResult {
         let device_id = must("test-device".parse::<DeviceId>());
         let capabilities = DeviceCapabilities {
             supports_pid: true,
@@ -666,13 +707,14 @@ mod tests {
             capabilities,
         };
 
-        let device = LinuxHidDevice::new(device_info).unwrap();
+        let device = LinuxHidDevice::new(device_info)?;
         assert!(device.is_connected());
         assert_eq!(device.capabilities().max_torque.value(), 25.0);
+        Ok(())
     }
 
     #[test]
-    fn test_ffb_report_writing() {
+    fn test_ffb_report_writing() -> TestResult {
         let device_id = must("test-device".parse::<DeviceId>());
         let capabilities = DeviceCapabilities {
             supports_pid: true,
@@ -695,9 +737,9 @@ mod tests {
             capabilities,
         };
 
-        let mut device = LinuxHidDevice::new(device_info).unwrap();
-        let result = device.write_ffb_report(5.0, 123);
-        assert!(result.is_ok());
+        let mut device = LinuxHidDevice::new(device_info)?;
+        device.write_ffb_report(5.0, 123)?;
+        Ok(())
     }
 
     #[test]
@@ -708,11 +750,12 @@ mod tests {
     }
 
     #[test]
-    fn test_hidraw_device_probing() {
-        let port = LinuxHidPort::new().unwrap();
+    fn test_hidraw_device_probing() -> TestResult {
+        let port = LinuxHidPort::new()?;
         let path = Path::new("/dev/hidraw0");
 
         // This should not panic even if the device doesn't exist
         let _ = port.probe_hidraw_device(path);
+        Ok(())
     }
 }

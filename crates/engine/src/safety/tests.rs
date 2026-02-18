@@ -361,6 +361,32 @@ fn test_fault_handling() {
 }
 
 #[test]
+fn test_faulted_state_forces_zero_torque_even_when_high_torque_enabled() {
+    let mut service = create_test_service();
+    service.report_fault(FaultType::SafetyInterlockViolation);
+
+    assert_eq!(service.get_max_torque(true).value(), 0.0);
+    assert_eq!(service.get_max_torque(false).value(), 0.0);
+}
+
+#[test]
+fn test_clamp_torque_nm_faulted_state_forces_zero() {
+    let mut service = create_test_service();
+    service.report_fault(FaultType::UsbStall);
+
+    assert_eq!(service.clamp_torque_nm(25.0), 0.0);
+    assert_eq!(service.clamp_torque_nm(-25.0), 0.0);
+}
+
+#[test]
+fn test_clamp_torque_nm_respects_safe_limit() {
+    let service = create_test_service();
+
+    assert_eq!(service.clamp_torque_nm(10.0), 5.0);
+    assert_eq!(service.clamp_torque_nm(-10.0), -5.0);
+}
+
+#[test]
 fn test_clear_fault() {
     let mut service = create_test_service();
 

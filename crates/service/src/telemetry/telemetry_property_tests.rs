@@ -134,133 +134,46 @@ fn iracing_data_strategy() -> impl Strategy<Value = IRacingData> {
 // ACC Telemetry Data Generator
 // ============================================================================
 
-/// ACC telemetry packet ID
-const ACC_TELEMETRY_PACKET_ID: u32 = 0x12345678;
+const ACC_MSG_REALTIME_CAR_UPDATE: u8 = 3;
 
-/// ACC telemetry data structure (must match acc.rs)
-#[repr(C, packed)]
-#[derive(Debug, Clone, Copy)]
-struct ACCTelemetryData {
-    packet_id: u32,
-    speed: f32,
-    rpm: f32,
-    gear: i8,
-    gas: f32,
-    brake: f32,
-    steer_angle: f32,
-    wheel_slip: [f32; 4],
-    wheel_load: [f32; 4],
-    wheel_pressure: [f32; 4],
-    wheel_angular_speed: [f32; 4],
-    completed_laps: i32,
-    current_lap_time: f32,
-    last_lap: f32,
-    best_lap: f32,
-    fuel: f32,
-    tc: u8,
-    abs: u8,
-    ers_recovery_level: f32,
-    ers_power_level: f32,
-    drs_available: u8,
-    drs_enabled: u8,
-    flag: u8,
-    is_in_pits: u8,
-    pit_limiter_on: u8,
-    car_model: [u8; 32],
-    track: [u8; 32],
-    _padding: [u8; 64],
-}
-
-impl Default for ACCTelemetryData {
-    fn default() -> Self {
-        Self {
-            packet_id: ACC_TELEMETRY_PACKET_ID,
-            speed: 0.0,
-            rpm: 0.0,
-            gear: 0,
-            gas: 0.0,
-            brake: 0.0,
-            steer_angle: 0.0,
-            wheel_slip: [0.0; 4],
-            wheel_load: [0.0; 4],
-            wheel_pressure: [0.0; 4],
-            wheel_angular_speed: [0.0; 4],
-            completed_laps: 0,
-            current_lap_time: 0.0,
-            last_lap: 0.0,
-            best_lap: 0.0,
-            fuel: 0.0,
-            tc: 0,
-            abs: 0,
-            ers_recovery_level: 0.0,
-            ers_power_level: 0.0,
-            drs_available: 0,
-            drs_enabled: 0,
-            flag: 0,
-            is_in_pits: 0,
-            pit_limiter_on: 0,
-            car_model: [0; 32],
-            track: [0; 32],
-            _padding: [0; 64],
-        }
-    }
-}
-
-/// Strategy for generating valid ACC telemetry data
-fn acc_data_strategy() -> impl Strategy<Value = ACCTelemetryData> {
-    // Group 1: Core dynamics (8 elements)
-    // Note: ACC validates speed in 0.0..=200.0 km/h and rpm in 0.0..=20000.0
-    let dynamics = (
-        0.0f32..200.0,    // speed (km/h) - valid range per ACC validation
-        0.0f32..20000.0,  // rpm - valid range per ACC validation
-        -1i8..8,          // gear
-        0.0f32..1.0,      // gas
-        0.0f32..1.0,      // brake
-        -450.0f32..450.0, // steer_angle (degrees)
-        0i32..100,        // completed_laps
-        0.0f32..300.0,    // current_lap_time
-    );
-
-    // Group 2: Additional data (8 elements)
-    let additional = (
-        0.0f32..300.0,                      // last_lap
-        0.0f32..300.0,                      // best_lap
-        0.0f32..120.0,                      // fuel
-        0u8..12,                            // tc level
-        0u8..12,                            // abs level
-        any::<u8>(),                        // flag
-        0u8..2,                             // is_in_pits
-        prop::array::uniform4(0.0f32..1.0), // wheel_slip
-    );
-
-    (dynamics, additional).prop_map(|(d, a)| {
-        let mut data = ACCTelemetryData {
-            packet_id: ACC_TELEMETRY_PACKET_ID,
-            speed: d.0,
-            rpm: d.1,
-            gear: d.2,
-            gas: d.3,
-            brake: d.4,
-            steer_angle: d.5,
-            completed_laps: d.6,
-            current_lap_time: d.7,
-            last_lap: a.0,
-            best_lap: a.1,
-            fuel: a.2,
-            tc: a.3,
-            abs: a.4,
-            flag: a.5,
-            is_in_pits: a.6,
-            wheel_slip: a.7,
-            ..Default::default()
-        };
-        // Add car and track names
-        let car_name = b"ferrari_488_gt3\0";
-        let track_name = b"monza\0";
-        data.car_model[..car_name.len()].copy_from_slice(car_name);
-        data.track[..track_name.len()].copy_from_slice(track_name);
-        data
-    })
+/// Strategy for generating valid ACC realtime car update packets.
+fn acc_packet_strategy() -> impl Strategy<Value = Vec<u8>> {
+    (
+        0u16..128,         // car index
+        2u8..10,           // gear raw (ACC reports gear + 2)
+        0u8..5,            // car location enum values
+        0u16..360,         // speed km/h
+        1u16..80,          // position
+        1u16..80,          // cup position
+        1u16..80,          // track position
+        0u16..200,         // laps
+        -5000i32..5000i32, // delta ms
+    )
+        .prop_map(
+            |(
+                car_index,
+                gear_raw,
+                car_location,
+                speed_kmh,
+                position,
+                cup_position,
+                track_position,
+                laps,
+                delta_ms,
+            )| {
+                build_acc_realtime_car_update_packet(
+                    car_index,
+                    gear_raw,
+                    car_location,
+                    speed_kmh,
+                    position,
+                    cup_position,
+                    track_position,
+                    laps,
+                    delta_ms,
+                )
+            },
+        )
 }
 
 // ============================================================================
@@ -586,6 +499,53 @@ fn rfactor2_data_strategy() -> impl Strategy<Value = RF2VehicleTelemetry> {
 // Helper Functions
 // ============================================================================
 
+fn append_acc_lap(buffer: &mut Vec<u8>, lap_time_ms: i32) {
+    buffer.extend_from_slice(&lap_time_ms.to_le_bytes());
+    buffer.extend_from_slice(&0u16.to_le_bytes()); // car index
+    buffer.extend_from_slice(&0u16.to_le_bytes()); // driver index
+    buffer.push(0); // split count
+    buffer.push(0); // invalid
+    buffer.push(1); // valid for best
+    buffer.push(0); // outlap
+    buffer.push(0); // inlap
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_acc_realtime_car_update_packet(
+    car_index: u16,
+    gear_raw: u8,
+    car_location: u8,
+    speed_kmh: u16,
+    position: u16,
+    cup_position: u16,
+    track_position: u16,
+    laps: u16,
+    delta_ms: i32,
+) -> Vec<u8> {
+    let mut packet = Vec::with_capacity(128);
+    packet.push(ACC_MSG_REALTIME_CAR_UPDATE);
+    packet.extend_from_slice(&car_index.to_le_bytes());
+    packet.extend_from_slice(&0u16.to_le_bytes()); // driver index
+    packet.push(1); // driver count
+    packet.push(gear_raw);
+    packet.extend_from_slice(&0.0f32.to_le_bytes()); // world_pos_x
+    packet.extend_from_slice(&0.0f32.to_le_bytes()); // world_pos_y
+    packet.extend_from_slice(&0.0f32.to_le_bytes()); // yaw
+    packet.push(car_location);
+    packet.extend_from_slice(&speed_kmh.to_le_bytes());
+    packet.extend_from_slice(&position.to_le_bytes());
+    packet.extend_from_slice(&cup_position.to_le_bytes());
+    packet.extend_from_slice(&track_position.to_le_bytes());
+    packet.extend_from_slice(&0.0f32.to_le_bytes()); // spline position
+    packet.extend_from_slice(&laps.to_le_bytes());
+    packet.extend_from_slice(&delta_ms.to_le_bytes());
+
+    append_acc_lap(&mut packet, 90_000);
+    append_acc_lap(&mut packet, 91_000);
+    append_acc_lap(&mut packet, 44_000);
+    packet
+}
+
 /// Convert a struct to raw bytes for parsing
 fn to_raw_bytes<T: Copy>(data: &T) -> Vec<u8> {
     let size = std::mem::size_of::<T>();
@@ -649,9 +609,8 @@ proptest! {
     ///
     /// For any valid ACC telemetry packet, parsing SHALL complete within 1ms.
     #[test]
-    fn prop_acc_parsing_performance(data in acc_data_strategy()) {
+    fn prop_acc_parsing_performance(raw_bytes in acc_packet_strategy()) {
         let adapter = ACCAdapter::new();
-        let raw_bytes = to_raw_bytes(&data);
 
         verify_parsing_time(
             || adapter.normalize(&raw_bytes),
@@ -728,8 +687,7 @@ mod unit_tests {
     #[test]
     fn test_acc_default_parsing_time() -> UnitTestResult {
         let adapter = ACCAdapter::new();
-        let data = ACCTelemetryData::default();
-        let raw_bytes = to_raw_bytes(&data);
+        let raw_bytes = build_acc_realtime_car_update_packet(1, 4, 1, 120, 1, 1, 1, 3, 0);
 
         let start = Instant::now();
         let result = adapter.normalize(&raw_bytes);
@@ -819,13 +777,7 @@ mod unit_tests {
 
         // Test ACC with extreme values
         let acc_adapter = ACCAdapter::new();
-        let acc_data = ACCTelemetryData {
-            rpm: 15000.0,
-            speed: 350.0,
-            steer_angle: 450.0,
-            ..Default::default()
-        };
-        let acc_bytes = to_raw_bytes(&acc_data);
+        let acc_bytes = build_acc_realtime_car_update_packet(42, 10, 3, 350, 1, 1, 1, 99, -4999);
 
         let start = Instant::now();
         let _ = acc_adapter.normalize(&acc_bytes);

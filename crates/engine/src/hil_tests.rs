@@ -366,7 +366,7 @@ impl HILTestSuite {
 
         // Get engine statistics
         match engine.get_stats().await {
-            Ok(stats) => {
+            Ok(mut stats) => {
                 result.missed_frames = stats.dropped_frames;
                 result.max_jitter_us = stats.jitter_metrics.max_jitter_ns as f64 / 1000.0;
                 result.p99_jitter_us = stats.jitter_metrics.p99_jitter_ns() as f64 / 1000.0;
@@ -544,7 +544,7 @@ impl HILTestSuite {
 
         // Get final statistics
         match engine.get_stats().await {
-            Ok(stats) => {
+            Ok(mut stats) => {
                 result.missed_frames = stats.dropped_frames;
                 result.max_jitter_us = stats.jitter_metrics.max_jitter_ns as f64 / 1000.0;
                 result.p99_jitter_us = stats.jitter_metrics.p99_jitter_ns() as f64 / 1000.0;
@@ -761,7 +761,7 @@ impl HILTestSuite {
 
         // Get final statistics
         match engine.get_stats().await {
-            Ok(stats) => {
+            Ok(mut stats) => {
                 result.missed_frames = stats.dropped_frames;
                 result.max_jitter_us = stats.jitter_metrics.max_jitter_ns as f64 / 1000.0;
                 result.p99_jitter_us = stats.jitter_metrics.p99_jitter_ns() as f64 / 1000.0;
@@ -930,7 +930,7 @@ impl HILTestSuite {
 
         // Get statistics and validate under load
         match engine.get_stats().await {
-            Ok(stats) => {
+            Ok(mut stats) => {
                 result.missed_frames = stats.dropped_frames;
                 result.max_jitter_us = stats.jitter_metrics.max_jitter_ns as f64 / 1000.0;
                 result.p99_jitter_us = stats.jitter_metrics.p99_jitter_ns() as f64 / 1000.0;
@@ -1105,7 +1105,7 @@ impl HILTestSuite {
 
         // Get final statistics
         match engine.get_stats().await {
-            Ok(stats) => {
+            Ok(mut stats) => {
                 result.missed_frames = stats.dropped_frames;
                 result.max_jitter_us = stats.jitter_metrics.max_jitter_ns as f64 / 1000.0;
                 result.p99_jitter_us = stats.jitter_metrics.p99_jitter_ns() as f64 / 1000.0;

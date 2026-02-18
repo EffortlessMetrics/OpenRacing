@@ -95,18 +95,13 @@ pub struct BundleHeader {
 }
 
 /// Compression types supported by the bundle format
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CompressionType {
     /// No compression
     None,
     /// Gzip compression
+    #[default]
     Gzip,
-}
-
-impl Default for CompressionType {
-    fn default() -> Self {
-        Self::Gzip
-    }
 }
 
 /// Bundle metadata containing release information
@@ -785,7 +780,10 @@ mod tests {
         );
 
         // Verify the error type
-        let err_msg = result.unwrap_err().to_string();
+        let err_msg = match result {
+            Ok(_) => String::new(),
+            Err(error) => error.to_string(),
+        };
         assert!(
             err_msg.contains("signature required") || err_msg.contains("SignatureRequired"),
             "Error should indicate signature is required: {}",
@@ -966,18 +964,15 @@ mod tests {
         // - Hash mismatch (if the payload hash check fails)
         let result = FirmwareBundle::parse(&serialized, Some(&verifier));
 
-        assert!(
-            result.is_err(),
-            "Tampered bundle should fail verification"
-        );
+        assert!(result.is_err(), "Tampered bundle should fail verification");
 
         // Any error is acceptable here - the point is the bundle is rejected
         // The specific error depends on where in the header the tampering occurred
-        let err_msg = result.err().map(|e| e.to_string().to_lowercase()).unwrap_or_default();
-        assert!(
-            !err_msg.is_empty(),
-            "Should have an error message"
-        );
+        let err_msg = result
+            .err()
+            .map(|e| e.to_string().to_lowercase())
+            .unwrap_or_default();
+        assert!(!err_msg.is_empty(), "Should have an error message");
         // Log the error for debugging
         eprintln!("Tamper detection error (expected): {}", err_msg);
 
@@ -1046,7 +1041,10 @@ mod tests {
         // - "untrusted signer" if the key is explicitly distrusted
         // - "unknown" if the key is not in the trust store
         // - "failed to verify" if signature verification fails
-        let err_msg = result.err().map(|e| e.to_string().to_lowercase()).unwrap_or_default();
+        let err_msg = result
+            .err()
+            .map(|e| e.to_string().to_lowercase())
+            .unwrap_or_default();
         assert!(
             err_msg.contains("untrust")
                 || err_msg.contains("unknown")

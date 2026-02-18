@@ -10,17 +10,19 @@ use crate::telemetry::{
 };
 use anyhow::Result;
 use async_trait::async_trait;
-use std::collections::HashMap;
 use std::mem;
 use std::ptr;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
 #[cfg(windows)]
 use winapi::um::{
-    handleapi::CloseHandle,
+    handleapi::{CloseHandle, INVALID_HANDLE_VALUE},
     memoryapi::{FILE_MAP_READ, MapViewOfFile, OpenFileMappingW, UnmapViewOfFile},
+    tlhelp32::{
+        CreateToolhelp32Snapshot, PROCESSENTRY32, Process32First, Process32Next, TH32CS_SNAPPROCESS,
+    },
     winnt::HANDLE,
 };
 
@@ -29,6 +31,9 @@ const RF2_TELEMETRY_SHARED_MEMORY_NAME: &str = "$rFactor2SMMP_Telemetry$";
 
 /// rFactor 2 shared memory name for scoring data
 const RF2_SCORING_SHARED_MEMORY_NAME: &str = "$rFactor2SMMP_Scoring$";
+/// rFactor 2 shared memory name for force feedback data
+const RF2_FORCE_FEEDBACK_SHARED_MEMORY_NAME: &str = "$rFactor2SMMP_ForceFeedback$";
+const RF2_PROCESS_NAME_PATTERNS: [&str; 2] = ["rfactor2.exe", "rfactor2 dedicated.exe"];
 
 /// Maximum number of wheels per vehicle
 const RF2_MAX_WHEELS: usize = 4;
@@ -40,6 +45,8 @@ pub struct RFactor2Adapter {
     telemetry_memory: Option<TelemetryMemoryHandle>,
     #[cfg(windows)]
     scoring_memory: Option<ScoringMemoryHandle>,
+    #[cfg(windows)]
+    force_feedback_memory: Option<ForceFeedbackMemoryHandle>,
 }
 
 #[cfg(windows)]
@@ -59,6 +66,14 @@ struct ScoringMemoryHandle {
 }
 
 #[cfg(windows)]
+struct ForceFeedbackMemoryHandle {
+    handle: HANDLE,
+    base_ptr: *const u8,
+    #[allow(dead_code)]
+    size: usize,
+}
+
+#[cfg(windows)]
 unsafe impl Send for TelemetryMemoryHandle {}
 #[cfg(windows)]
 unsafe impl Sync for TelemetryMemoryHandle {}
@@ -67,6 +82,11 @@ unsafe impl Sync for TelemetryMemoryHandle {}
 unsafe impl Send for ScoringMemoryHandle {}
 #[cfg(windows)]
 unsafe impl Sync for ScoringMemoryHandle {}
+
+#[cfg(windows)]
+unsafe impl Send for ForceFeedbackMemoryHandle {}
+#[cfg(windows)]
+unsafe impl Sync for ForceFeedbackMemoryHandle {}
 
 impl Default for RFactor2Adapter {
     fn default() -> Self {
@@ -83,28 +103,25 @@ impl RFactor2Adapter {
             telemetry_memory: None,
             #[cfg(windows)]
             scoring_memory: None,
+            #[cfg(windows)]
+            force_feedback_memory: None,
         }
     }
 
     /// Initialize shared memory connection to rFactor 2 telemetry
     #[cfg(windows)]
     fn initialize_telemetry_memory(&mut self) -> Result<()> {
-        use std::ffi::OsStr;
-        use std::os::windows::ffi::OsStrExt;
-
-        let wide_name: Vec<u16> = OsStr::new(RF2_TELEMETRY_SHARED_MEMORY_NAME)
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
+        let pid = detect_rfactor2_pid();
+        let candidate_names = build_mapping_candidates(RF2_TELEMETRY_SHARED_MEMORY_NAME, pid);
 
         unsafe {
-            let handle = OpenFileMappingW(FILE_MAP_READ, 0, wide_name.as_ptr());
-
-            if handle.is_null() {
-                return Err(anyhow::anyhow!(
-                    "Failed to open rFactor 2 telemetry shared memory. Is rFactor 2 running?"
-                ));
-            }
+            let (handle, opened_name) =
+                open_file_mapping_first(&candidate_names).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Failed to open rFactor 2 telemetry shared memory. Tried {:?}",
+                        candidate_names
+                    )
+                })?;
 
             // Map a reasonable size for the telemetry header + first vehicle
             let map_size =
@@ -124,7 +141,11 @@ impl RFactor2Adapter {
                 size: map_size,
             });
 
-            info!("Successfully connected to rFactor 2 telemetry shared memory");
+            info!(
+                map_name = %opened_name,
+                pid = ?pid,
+                "Successfully connected to rFactor 2 telemetry shared memory"
+            );
             Ok(())
         }
     }
@@ -139,22 +160,17 @@ impl RFactor2Adapter {
     /// Initialize shared memory connection to rFactor 2 scoring data
     #[cfg(windows)]
     fn initialize_scoring_memory(&mut self) -> Result<()> {
-        use std::ffi::OsStr;
-        use std::os::windows::ffi::OsStrExt;
-
-        let wide_name: Vec<u16> = OsStr::new(RF2_SCORING_SHARED_MEMORY_NAME)
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
+        let pid = detect_rfactor2_pid();
+        let candidate_names = build_mapping_candidates(RF2_SCORING_SHARED_MEMORY_NAME, pid);
 
         unsafe {
-            let handle = OpenFileMappingW(FILE_MAP_READ, 0, wide_name.as_ptr());
-
-            if handle.is_null() {
-                return Err(anyhow::anyhow!(
-                    "Failed to open rFactor 2 scoring shared memory. Is rFactor 2 running?"
-                ));
-            }
+            let (handle, opened_name) =
+                open_file_mapping_first(&candidate_names).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Failed to open rFactor 2 scoring shared memory. Tried {:?}",
+                        candidate_names
+                    )
+                })?;
 
             let map_size = mem::size_of::<RF2ScoringHeader>();
             let base_ptr = MapViewOfFile(handle, FILE_MAP_READ, 0, 0, map_size) as *const u8;
@@ -172,13 +188,64 @@ impl RFactor2Adapter {
                 size: map_size,
             });
 
-            info!("Successfully connected to rFactor 2 scoring shared memory");
+            info!(
+                map_name = %opened_name,
+                pid = ?pid,
+                "Successfully connected to rFactor 2 scoring shared memory"
+            );
             Ok(())
         }
     }
 
     #[cfg(not(windows))]
     fn initialize_scoring_memory(&mut self) -> Result<()> {
+        Err(anyhow::anyhow!(
+            "rFactor 2 shared memory only available on Windows"
+        ))
+    }
+
+    /// Initialize shared memory connection to rFactor 2 force-feedback data
+    #[cfg(windows)]
+    fn initialize_force_feedback_memory(&mut self) -> Result<()> {
+        let pid = detect_rfactor2_pid();
+        let candidate_names = build_mapping_candidates(RF2_FORCE_FEEDBACK_SHARED_MEMORY_NAME, pid);
+
+        unsafe {
+            let (handle, opened_name) =
+                open_file_mapping_first(&candidate_names).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Failed to open rFactor 2 force-feedback shared memory. Tried {:?}",
+                        candidate_names
+                    )
+                })?;
+
+            let map_size = mem::size_of::<RF2ForceFeedback>();
+            let base_ptr = MapViewOfFile(handle, FILE_MAP_READ, 0, 0, map_size) as *const u8;
+
+            if base_ptr.is_null() {
+                CloseHandle(handle);
+                return Err(anyhow::anyhow!(
+                    "Failed to map rFactor 2 force-feedback shared memory"
+                ));
+            }
+
+            self.force_feedback_memory = Some(ForceFeedbackMemoryHandle {
+                handle,
+                base_ptr,
+                size: map_size,
+            });
+
+            info!(
+                map_name = %opened_name,
+                pid = ?pid,
+                "Successfully connected to rFactor 2 force-feedback shared memory"
+            );
+            Ok(())
+        }
+    }
+
+    #[cfg(not(windows))]
+    fn initialize_force_feedback_memory(&mut self) -> Result<()> {
         Err(anyhow::anyhow!(
             "rFactor 2 shared memory only available on Windows"
         ))
@@ -228,21 +295,32 @@ impl RFactor2Adapter {
         ))
     }
 
+    /// Read force-feedback data from shared memory
+    #[cfg(windows)]
+    fn read_force_feedback_data(&self) -> Result<RF2ForceFeedback> {
+        let mem = self
+            .force_feedback_memory
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Force-feedback shared memory not initialized"))?;
+
+        Ok(read_force_feedback_stable(mem.base_ptr))
+    }
+
+    #[cfg(not(windows))]
+    fn read_force_feedback_data(&self) -> Result<RF2ForceFeedback> {
+        Err(anyhow::anyhow!(
+            "rFactor 2 shared memory only available on Windows"
+        ))
+    }
+
     /// Check if rFactor 2 is running by attempting to open shared memory
     #[cfg(windows)]
     async fn check_rf2_running(&self) -> bool {
-        use std::ffi::OsStr;
-        use std::os::windows::ffi::OsStrExt;
-
-        let wide_name: Vec<u16> = OsStr::new(RF2_TELEMETRY_SHARED_MEMORY_NAME)
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
+        let pid = detect_rfactor2_pid();
+        let candidate_names = build_mapping_candidates(RF2_TELEMETRY_SHARED_MEMORY_NAME, pid);
 
         unsafe {
-            let handle = OpenFileMappingW(FILE_MAP_READ, 0, wide_name.as_ptr());
-
-            if !handle.is_null() {
+            if let Some((handle, _)) = open_file_mapping_first(&candidate_names) {
                 CloseHandle(handle);
                 true
             } else {
@@ -261,6 +339,7 @@ impl RFactor2Adapter {
         &self,
         vehicle: &RF2VehicleTelemetry,
         scoring: Option<&RF2ScoringHeader>,
+        force_feedback: Option<&RF2ForceFeedback>,
     ) -> NormalizedTelemetry {
         // Extract flags from scoring data if available
         let flags = if let Some(scoring_data) = scoring {
@@ -276,39 +355,16 @@ impl RFactor2Adapter {
         let car_id = extract_string(&vehicle.vehicle_name);
         let track_id = extract_string(&vehicle.track_name);
 
-        // Create extended data with rFactor 2-specific information
-        let mut extended = HashMap::new();
-        extended.insert(
-            "fuel_level".to_string(),
-            TelemetryValue::Float(vehicle.fuel),
-        );
-        extended.insert(
-            "throttle".to_string(),
-            TelemetryValue::Float(vehicle.unfiltered_throttle),
-        );
-        extended.insert(
-            "brake".to_string(),
-            TelemetryValue::Float(vehicle.unfiltered_brake),
-        );
-        extended.insert(
-            "clutch".to_string(),
-            TelemetryValue::Float(vehicle.unfiltered_clutch),
-        );
-        extended.insert(
-            "steering".to_string(),
-            TelemetryValue::Float(vehicle.unfiltered_steering),
-        );
-        extended.insert(
-            "water_temp".to_string(),
-            TelemetryValue::Float(vehicle.engine_water_temp),
-        );
-        extended.insert(
-            "oil_temp".to_string(),
-            TelemetryValue::Float(vehicle.engine_oil_temp),
-        );
-
-        // Calculate FFB scalar from steering torque (normalize to -1.0 to 1.0)
-        let ffb_scalar = (vehicle.steering_shaft_torque / 50.0).clamp(-1.0, 1.0);
+        let ffb_from_map = force_feedback.and_then(RF2ForceFeedback::stable_force_value);
+        let (ffb_raw, ffb_source) = if let Some(force_value) = ffb_from_map {
+            (force_value, "force_feedback_map")
+        } else {
+            (
+                vehicle.steering_shaft_torque,
+                "telemetry_steering_shaft_torque",
+            )
+        };
+        let ffb_scalar = derive_ffb_scalar(ffb_raw);
 
         NormalizedTelemetry::default()
             .with_ffb_scalar(ffb_scalar)
@@ -319,6 +375,39 @@ impl RFactor2Adapter {
             .with_car_id(car_id)
             .with_track_id(track_id)
             .with_flags(flags)
+            .with_extended(
+                "fuel_level".to_string(),
+                TelemetryValue::Float(vehicle.fuel),
+            )
+            .with_extended(
+                "throttle".to_string(),
+                TelemetryValue::Float(vehicle.unfiltered_throttle),
+            )
+            .with_extended(
+                "brake".to_string(),
+                TelemetryValue::Float(vehicle.unfiltered_brake),
+            )
+            .with_extended(
+                "clutch".to_string(),
+                TelemetryValue::Float(vehicle.unfiltered_clutch),
+            )
+            .with_extended(
+                "steering".to_string(),
+                TelemetryValue::Float(vehicle.unfiltered_steering),
+            )
+            .with_extended(
+                "water_temp".to_string(),
+                TelemetryValue::Float(vehicle.engine_water_temp),
+            )
+            .with_extended(
+                "oil_temp".to_string(),
+                TelemetryValue::Float(vehicle.engine_oil_temp),
+            )
+            .with_extended("ffb_raw".to_string(), TelemetryValue::Float(ffb_raw))
+            .with_extended(
+                "ffb_source".to_string(),
+                TelemetryValue::String(ffb_source.to_string()),
+            )
     }
 
     /// Extract flags from scoring data
@@ -368,6 +457,7 @@ impl TelemetryAdapter for RFactor2Adapter {
             let mut adapter = RFactor2Adapter::new();
             let mut sequence = 0u64;
             let mut last_update_index = 0u32;
+            let epoch = Instant::now();
 
             // Try to initialize shared memory
             if let Err(e) = adapter.initialize_telemetry_memory() {
@@ -386,24 +476,41 @@ impl TelemetryAdapter for RFactor2Adapter {
                 );
             }
 
+            // Try to initialize dedicated force-feedback map (optional).
+            if let Err(e) = adapter.initialize_force_feedback_memory() {
+                warn!(
+                    "Failed to initialize rFactor 2 force-feedback shared memory: {}",
+                    e
+                );
+            }
+
             info!("Started rFactor 2 telemetry monitoring");
 
             loop {
-                let start_time = std::time::Instant::now();
-
                 match adapter.read_telemetry_data() {
                     Ok((header, vehicle)) => {
                         if header.update_index != last_update_index {
                             last_update_index = header.update_index;
 
                             let scoring = adapter.read_scoring_data().ok();
-                            let normalized = adapter.normalize_rf2_data(&vehicle, scoring.as_ref());
+                            let force_feedback = adapter.read_force_feedback_data().ok();
+                            let normalized = adapter.normalize_rf2_data(
+                                &vehicle,
+                                scoring.as_ref(),
+                                force_feedback.as_ref(),
+                            );
+                            let raw_size = mem::size_of::<RF2VehicleTelemetry>()
+                                + if force_feedback.is_some() {
+                                    mem::size_of::<RF2ForceFeedback>()
+                                } else {
+                                    0
+                                };
 
                             let frame = TelemetryFrame::new(
                                 normalized,
-                                start_time.elapsed().as_nanos() as u64,
+                                monotonic_ns_since(epoch, Instant::now()),
                                 sequence,
-                                mem::size_of::<RF2VehicleTelemetry>(),
+                                raw_size,
                             );
 
                             if tx.send(frame).await.is_err() {
@@ -442,9 +549,9 @@ impl TelemetryAdapter for RFactor2Adapter {
         }
 
         let vehicle: RF2VehicleTelemetry =
-            unsafe { ptr::read(raw.as_ptr() as *const RF2VehicleTelemetry) };
+            unsafe { ptr::read_unaligned(raw.as_ptr() as *const RF2VehicleTelemetry) };
 
-        Ok(self.normalize_rf2_data(&vehicle, None))
+        Ok(self.normalize_rf2_data(&vehicle, None, None))
     }
 
     fn expected_update_rate(&self) -> Duration {
@@ -456,11 +563,124 @@ impl TelemetryAdapter for RFactor2Adapter {
     }
 }
 
+fn monotonic_ns_since(epoch: Instant, now: Instant) -> u64 {
+    now.checked_duration_since(epoch)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0)
+        .min(u64::MAX as u128) as u64
+}
+
 /// Extract null-terminated string from byte array
 fn extract_string(bytes: &[u8]) -> String {
     match bytes.iter().position(|&b| b == 0) {
         Some(pos) => String::from_utf8_lossy(&bytes[..pos]).into_owned(),
         None => String::from_utf8_lossy(bytes).into_owned(),
+    }
+}
+
+fn build_mapping_candidates(base_name: &str, pid: Option<u32>) -> Vec<String> {
+    let mut candidates = Vec::with_capacity(2);
+    if let Some(pid_value) = pid {
+        candidates.push(format!("{base_name}{pid_value}"));
+    }
+    candidates.push(base_name.to_string());
+    candidates
+}
+
+fn derive_ffb_scalar(ffb_raw: f32) -> f32 {
+    if !ffb_raw.is_finite() {
+        return 0.0;
+    }
+
+    if ffb_raw.abs() <= 1.5 {
+        ffb_raw.clamp(-1.0, 1.0)
+    } else {
+        (ffb_raw / 50.0).clamp(-1.0, 1.0)
+    }
+}
+
+fn is_rfactor2_process_name(process_name: &str) -> bool {
+    let lowered = process_name.to_ascii_lowercase();
+    RF2_PROCESS_NAME_PATTERNS
+        .iter()
+        .any(|pattern| lowered.contains(pattern))
+}
+
+#[cfg(windows)]
+fn detect_rfactor2_pid() -> Option<u32> {
+    use std::ffi::CStr;
+
+    // SAFETY: Windows snapshot API requires unsafe FFI calls and pointer traversal.
+    unsafe {
+        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if snapshot == INVALID_HANDLE_VALUE {
+            return None;
+        }
+
+        let mut entry: PROCESSENTRY32 = mem::zeroed();
+        entry.dwSize = mem::size_of::<PROCESSENTRY32>() as u32;
+
+        let mut detected_pid = None;
+        if Process32First(snapshot, &mut entry) != 0 {
+            loop {
+                let process_name = CStr::from_ptr(entry.szExeFile.as_ptr())
+                    .to_string_lossy()
+                    .into_owned();
+                if is_rfactor2_process_name(&process_name) {
+                    detected_pid = Some(entry.th32ProcessID);
+                    break;
+                }
+
+                if Process32Next(snapshot, &mut entry) == 0 {
+                    break;
+                }
+            }
+        }
+
+        CloseHandle(snapshot);
+        detected_pid
+    }
+}
+
+#[cfg(windows)]
+fn to_wide_null_terminated(value: &str) -> Vec<u16> {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+
+    OsStr::new(value)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect()
+}
+
+#[cfg(windows)]
+unsafe fn open_file_mapping_first(candidates: &[String]) -> Option<(HANDLE, String)> {
+    for candidate in candidates {
+        let wide_name = to_wide_null_terminated(candidate);
+        // SAFETY: wide_name is null-terminated and lives for the duration of the call.
+        let handle = unsafe { OpenFileMappingW(FILE_MAP_READ, 0, wide_name.as_ptr()) };
+        if !handle.is_null() {
+            return Some((handle, candidate.clone()));
+        }
+    }
+
+    None
+}
+
+#[cfg(windows)]
+fn read_force_feedback_stable(base_ptr: *const u8) -> RF2ForceFeedback {
+    const STABLE_READ_ATTEMPTS: usize = 3;
+
+    // SAFETY: caller provides a valid mapped view with at least RF2ForceFeedback bytes.
+    unsafe {
+        for _ in 0..STABLE_READ_ATTEMPTS {
+            let sample = ptr::read_volatile(base_ptr as *const RF2ForceFeedback);
+            if sample.version_update_begin == sample.version_update_end {
+                return sample;
+            }
+        }
+
+        ptr::read_volatile(base_ptr as *const RF2ForceFeedback)
     }
 }
 
@@ -657,6 +877,28 @@ pub struct RF2ScoringHeader {
     pub in_pits: i32,
 }
 
+/// rFactor 2 force-feedback shared-memory block.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RF2ForceFeedback {
+    /// Start version marker for stable reads.
+    pub version_update_begin: u32,
+    /// Force-feedback value from plugin output.
+    pub force_value: f64,
+    /// End version marker for stable reads.
+    pub version_update_end: u32,
+}
+
+impl RF2ForceFeedback {
+    fn stable_force_value(&self) -> Option<f32> {
+        if self.version_update_begin == self.version_update_end && self.force_value.is_finite() {
+            Some(self.force_value as f32)
+        } else {
+            None
+        }
+    }
+}
+
 #[cfg(windows)]
 impl Drop for TelemetryMemoryHandle {
     fn drop(&mut self) {
@@ -673,6 +915,20 @@ impl Drop for TelemetryMemoryHandle {
 
 #[cfg(windows)]
 impl Drop for ScoringMemoryHandle {
+    fn drop(&mut self) {
+        unsafe {
+            if !self.base_ptr.is_null() {
+                UnmapViewOfFile(self.base_ptr as *const _);
+            }
+            if !self.handle.is_null() {
+                CloseHandle(self.handle);
+            }
+        }
+    }
+}
+
+#[cfg(windows)]
+impl Drop for ForceFeedbackMemoryHandle {
     fn drop(&mut self) {
         unsafe {
             if !self.base_ptr.is_null() {
@@ -733,7 +989,7 @@ mod tests {
             ..Default::default()
         };
 
-        let normalized = adapter.normalize_rf2_data(&vehicle, Some(&scoring));
+        let normalized = adapter.normalize_rf2_data(&vehicle, Some(&scoring), None);
 
         assert_eq!(normalized.rpm, Some(8500.0));
         assert_eq!(normalized.speed_ms, Some(65.0));
@@ -743,6 +999,14 @@ mod tests {
         assert_eq!(normalized.track_id, Some("spa_francorchamps".to_string()));
         assert!(normalized.flags.green_flag);
         assert!(!normalized.flags.in_pits);
+        assert_eq!(
+            normalized.extended.get("fuel_level"),
+            Some(&TelemetryValue::Float(42.0))
+        );
+        assert_eq!(
+            normalized.extended.get("throttle"),
+            Some(&TelemetryValue::Float(0.85))
+        );
         Ok(())
     }
 
@@ -757,7 +1021,7 @@ mod tests {
             game_phase: GamePhase::FullCourseYellow as i32,
             ..Default::default()
         };
-        let normalized = adapter.normalize_rf2_data(&vehicle, Some(&scoring_yellow));
+        let normalized = adapter.normalize_rf2_data(&vehicle, Some(&scoring_yellow), None);
         assert!(normalized.flags.yellow_flag);
         assert!(!normalized.flags.green_flag);
 
@@ -766,7 +1030,7 @@ mod tests {
             game_phase: GamePhase::RedFlag as i32,
             ..Default::default()
         };
-        let normalized = adapter.normalize_rf2_data(&vehicle, Some(&scoring_red));
+        let normalized = adapter.normalize_rf2_data(&vehicle, Some(&scoring_red), None);
         assert!(normalized.flags.red_flag);
 
         // Test checkered flag
@@ -774,7 +1038,7 @@ mod tests {
             game_phase: GamePhase::Checkered as i32,
             ..Default::default()
         };
-        let normalized = adapter.normalize_rf2_data(&vehicle, Some(&scoring_checkered));
+        let normalized = adapter.normalize_rf2_data(&vehicle, Some(&scoring_checkered), None);
         assert!(normalized.flags.checkered_flag);
 
         // Test in pits
@@ -782,7 +1046,7 @@ mod tests {
             in_pits: 1,
             ..Default::default()
         };
-        let normalized = adapter.normalize_rf2_data(&vehicle, Some(&scoring_pits));
+        let normalized = adapter.normalize_rf2_data(&vehicle, Some(&scoring_pits), None);
         assert!(normalized.flags.in_pits);
 
         Ok(())
@@ -802,7 +1066,7 @@ mod tests {
         vehicle.wheels[2].lateral_patch_slip = 0.08;
         vehicle.wheels[3].lateral_patch_slip = 0.12;
 
-        let normalized = adapter.normalize_rf2_data(&vehicle, None);
+        let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
 
         // Average: (0.1 + 0.15 + 0.08 + 0.12) / 4 = 0.1125
         let expected_slip = 0.1125;
@@ -816,7 +1080,7 @@ mod tests {
         };
         vehicle_low_speed.wheels[0].lateral_patch_slip = 0.5;
 
-        let normalized = adapter.normalize_rf2_data(&vehicle_low_speed, None);
+        let normalized = adapter.normalize_rf2_data(&vehicle_low_speed, None, None);
         assert_eq!(normalized.slip_ratio, Some(0.0));
 
         Ok(())
@@ -835,7 +1099,7 @@ mod tests {
         vehicle.wheels[2].lateral_patch_slip = 2.0;
         vehicle.wheels[3].lateral_patch_slip = 2.0;
 
-        let normalized = adapter.normalize_rf2_data(&vehicle, None);
+        let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
         assert_eq!(normalized.slip_ratio, Some(1.0));
 
         Ok(())
@@ -863,21 +1127,104 @@ mod tests {
             ..Default::default()
         };
 
-        let normalized = adapter.normalize_rf2_data(&vehicle, None);
+        let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
         // 25.0 / 50.0 = 0.5
         let ffb = normalized.ffb_scalar.ok_or("expected ffb_scalar")?;
         assert!((ffb - 0.5).abs() < 0.01);
 
         // Test high steering torque (should be clamped)
         vehicle.steering_shaft_torque = 100.0;
-        let normalized = adapter.normalize_rf2_data(&vehicle, None);
+        let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
         assert_eq!(normalized.ffb_scalar, Some(1.0));
 
         // Test negative steering torque
         vehicle.steering_shaft_torque = -75.0;
-        let normalized = adapter.normalize_rf2_data(&vehicle, None);
+        let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
         assert_eq!(normalized.ffb_scalar, Some(-1.0));
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_mapping_candidates_with_pid() -> TestResult {
+        let candidates = build_mapping_candidates(RF2_TELEMETRY_SHARED_MEMORY_NAME, Some(4242));
+        assert_eq!(
+            candidates,
+            vec![
+                "$rFactor2SMMP_Telemetry$4242".to_string(),
+                "$rFactor2SMMP_Telemetry$".to_string()
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_mapping_candidates_without_pid() -> TestResult {
+        let candidates = build_mapping_candidates(RF2_SCORING_SHARED_MEMORY_NAME, None);
+        assert_eq!(candidates, vec!["$rFactor2SMMP_Scoring$".to_string()]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_rfactor_process_name_matching() -> TestResult {
+        assert!(is_rfactor2_process_name("rFactor2.exe"));
+        assert!(is_rfactor2_process_name("RFACTOR2 DEDICATED.EXE"));
+        assert!(!is_rfactor2_process_name("notepad.exe"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_derive_ffb_scalar() -> TestResult {
+        assert!((derive_ffb_scalar(0.5) - 0.5).abs() < 0.001);
+        assert_eq!(derive_ffb_scalar(120.0), 1.0);
+        assert_eq!(derive_ffb_scalar(-120.0), -1.0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_force_feedback_preferred_over_telemetry_torque() -> TestResult {
+        let adapter = RFactor2Adapter::new();
+        let vehicle = RF2VehicleTelemetry {
+            steering_shaft_torque: 25.0,
+            ..Default::default()
+        };
+        let force_feedback = RF2ForceFeedback {
+            version_update_begin: 7,
+            force_value: 0.35,
+            version_update_end: 7,
+        };
+
+        let normalized = adapter.normalize_rf2_data(&vehicle, None, Some(&force_feedback));
+        assert_eq!(normalized.ffb_scalar, Some(0.35));
+        assert_eq!(
+            normalized.extended.get("ffb_source"),
+            Some(&TelemetryValue::String("force_feedback_map".to_string()))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_force_feedback_falls_back_when_unstable() -> TestResult {
+        let adapter = RFactor2Adapter::new();
+        let vehicle = RF2VehicleTelemetry {
+            steering_shaft_torque: 25.0,
+            ..Default::default()
+        };
+        let force_feedback = RF2ForceFeedback {
+            version_update_begin: 7,
+            force_value: 0.35,
+            version_update_end: 8,
+        };
+
+        let normalized = adapter.normalize_rf2_data(&vehicle, None, Some(&force_feedback));
+        let ffb_scalar = normalized.ffb_scalar.ok_or("expected ffb scalar")?;
+        assert!((ffb_scalar - 0.5).abs() < 0.01);
+        assert_eq!(
+            normalized.extended.get("ffb_source"),
+            Some(&TelemetryValue::String(
+                "telemetry_steering_shaft_torque".to_string()
+            ))
+        );
         Ok(())
     }
 
@@ -892,7 +1239,7 @@ mod tests {
             ..Default::default()
         };
 
-        let normalized = adapter.normalize_rf2_data(&vehicle, None);
+        let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
 
         assert_eq!(normalized.rpm, Some(6000.0));
         assert_eq!(normalized.speed_ms, Some(40.0));

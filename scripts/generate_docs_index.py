@@ -129,17 +129,17 @@ def main():
     adr_dir = Path("docs/adr")
     
     if not adr_dir.exists():
-        print("❌ ADR directory not found")
+        print("[ERROR] ADR directory not found")
         return
     
-    print("📚 Generating documentation index...")
+    print("[INFO] Generating documentation index...")
     
     index_content = generate_adr_index(adr_dir)
     
     index_file = adr_dir / "INDEX.md"
     index_file.write_text(index_content, encoding='utf-8')
     
-    print(f"✅ Generated ADR index: {index_file}")
+    print(f"[OK] Generated ADR index: {index_file}")
 
 if __name__ == '__main__':
     main()

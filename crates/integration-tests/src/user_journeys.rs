@@ -236,10 +236,36 @@ pub async fn test_uj03_fault_recovery() -> Result<TestResult> {
 /// UJ-04: Debug workflow
 /// Repro glitch → 2-min blackbox → attach Support ZIP → dev replays and bisects
 pub async fn test_uj04_debug_workflow() -> Result<TestResult> {
+    run_uj04_debug_workflow(
+        Duration::from_secs(130), // 2+ minutes for blackbox workflow
+        Duration::from_secs(30),
+        Duration::from_secs(90),
+        Duration::from_secs(120),
+    )
+    .await
+}
+
+/// CI-friendly UJ-04 variant with compressed recording windows.
+pub async fn test_uj04_debug_workflow_ci() -> Result<TestResult> {
+    run_uj04_debug_workflow(
+        Duration::from_secs(20),
+        Duration::from_secs(3),
+        Duration::from_secs(6),
+        Duration::from_secs(9),
+    )
+    .await
+}
+
+async fn run_uj04_debug_workflow(
+    total_duration: Duration,
+    pre_glitch_duration: Duration,
+    post_glitch_duration: Duration,
+    min_recording_duration: Duration,
+) -> Result<TestResult> {
     info!("Starting UJ-04: Debug workflow test");
 
     let config = TestConfig {
-        duration: Duration::from_secs(130), // 2+ minutes for blackbox
+        duration: total_duration,
         virtual_device: true,
         enable_metrics: true,
         ..Default::default()
@@ -260,11 +286,11 @@ pub async fn test_uj04_debug_workflow() -> Result<TestResult> {
     }
 
     // Simulate glitch/issue during recording
-    tokio::time::sleep(Duration::from_secs(30)).await;
+    tokio::time::sleep(pre_glitch_duration).await;
     simulate_ffb_glitch().await?;
 
-    // Continue recording for 2 minutes total
-    tokio::time::sleep(Duration::from_secs(90)).await;
+    // Continue recording to satisfy the selected workflow profile duration.
+    tokio::time::sleep(post_glitch_duration).await;
 
     // Stop recording and verify duration
     let recording_duration = recording_start.elapsed();
@@ -277,11 +303,14 @@ pub async fn test_uj04_debug_workflow() -> Result<TestResult> {
                 recording_duration, recording_size
             );
 
-            // Verify recording is ≥2 minutes and <25MB (DIAG-03)
-            if recording_duration >= Duration::from_secs(120) {
-                info!("✓ Recording duration ≥2 minutes");
+            // Verify recording meets minimum duration for the selected profile
+            if recording_duration >= min_recording_duration {
+                info!("✓ Recording duration met: {:?}", recording_duration);
             } else {
-                errors.push("Recording duration <2 minutes".to_string());
+                errors.push(format!(
+                    "Recording duration {:?} below minimum {:?}",
+                    recording_duration, min_recording_duration
+                ));
             }
 
             if recording_size < 25.0 {

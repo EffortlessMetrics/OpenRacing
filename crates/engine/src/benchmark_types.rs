@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 /// This struct captures all required metrics for performance gate validation:
 /// - RT loop timing in microseconds
 /// - P99 jitter in milliseconds
-/// - Missed tick rate as a percentage
+/// - Missed tick rate as a ratio (0.0 to 1.0)
 /// - Processing time (median and p99) in microseconds
 ///
 /// **Validates: Requirements 14.6**
@@ -22,7 +22,7 @@ pub struct BenchmarkResult {
     pub rt_loop_us: f64,
     /// P99 jitter in milliseconds
     pub jitter_p99_ms: f64,
-    /// Missed tick rate as a percentage (0.0 to 100.0)
+    /// Missed tick rate as a ratio (0.0 to 1.0)
     pub missed_tick_rate: f64,
     /// Median processing time in microseconds
     pub processing_time_median_us: f64,
@@ -70,7 +70,7 @@ impl BenchmarkResult {
     pub fn meets_performance_gates(&self) -> bool {
         self.rt_loop_us <= 1000.0
             && self.jitter_p99_ms <= 0.25
-            && self.missed_tick_rate <= 0.001
+            && self.missed_tick_rate <= 0.00001
             && self.processing_time_median_us <= 50.0
             && self.processing_time_p99_us <= 200.0
     }
@@ -88,7 +88,7 @@ pub struct Percentiles {
 /// Custom metrics for benchmark results.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CustomMetrics {
-    /// Missed tick rate as a percentage
+    /// Missed tick rate as a ratio (0.0 to 1.0)
     pub missed_tick_rate: f64,
     /// End-to-end latency p99 in microseconds
     pub e2e_latency_p99_us: f64,
@@ -179,11 +179,11 @@ mod tests {
     #[test]
     fn test_benchmark_result_json_roundtrip() -> Result<(), serde_json::Error> {
         let result = BenchmarkResult::new(
-            100.5,  // rt_loop_us
-            0.15,   // jitter_p99_ms
-            0.0005, // missed_tick_rate
-            25.0,   // processing_time_median_us
-            150.0,  // processing_time_p99_us
+            100.5,    // rt_loop_us
+            0.15,     // jitter_p99_ms
+            0.000005, // missed_tick_rate
+            25.0,     // processing_time_median_us
+            150.0,    // processing_time_p99_us
         );
 
         let json = serde_json::to_string(&result)?;
@@ -206,14 +206,14 @@ mod tests {
                 p99: 150000,
             },
             custom_metrics: CustomMetrics {
-                missed_tick_rate: 0.0001,
+                missed_tick_rate: 0.000001,
                 e2e_latency_p99_us: 150.0,
                 rt_heap_allocs: 0,
             },
             sample_count: 1000,
         });
 
-        results.set_summary(BenchmarkResult::new(100.0, 0.15, 0.0001, 50.0, 150.0));
+        results.set_summary(BenchmarkResult::new(100.0, 0.15, 0.000001, 50.0, 150.0));
 
         let json = results.to_json()?;
         let deserialized = BenchmarkResults::from_json(&json)?;
@@ -226,11 +226,11 @@ mod tests {
     #[test]
     fn test_performance_gates_pass() {
         let result = BenchmarkResult::new(
-            500.0,  // rt_loop_us (< 1000)
-            0.20,   // jitter_p99_ms (< 0.25)
-            0.0005, // missed_tick_rate (< 0.001)
-            40.0,   // processing_time_median_us (< 50)
-            180.0,  // processing_time_p99_us (< 200)
+            500.0,    // rt_loop_us (< 1000)
+            0.20,     // jitter_p99_ms (< 0.25)
+            0.000005, // missed_tick_rate (< 0.00001)
+            40.0,     // processing_time_median_us (< 50)
+            180.0,    // processing_time_p99_us (< 200)
         );
 
         assert!(result.meets_performance_gates());
@@ -242,7 +242,7 @@ mod tests {
         let result = BenchmarkResult::new(
             500.0, // rt_loop_us
             0.30,  // jitter_p99_ms (> 0.25 - FAIL)
-            0.0005, 40.0, 180.0,
+            0.000005, 40.0, 180.0,
         );
 
         assert!(!result.meets_performance_gates());
@@ -252,7 +252,7 @@ mod tests {
     #[test]
     fn test_performance_gates_fail_missed_ticks() {
         let result = BenchmarkResult::new(
-            500.0, 0.20, 0.002, // missed_tick_rate (> 0.001 - FAIL)
+            500.0, 0.20, 0.00002, // missed_tick_rate (> 0.00001 - FAIL)
             40.0, 180.0,
         );
 
@@ -263,7 +263,7 @@ mod tests {
     #[test]
     fn test_performance_gates_fail_processing_time() {
         let result = BenchmarkResult::new(
-            500.0, 0.20, 0.0005, 60.0, // processing_time_median_us (> 50 - FAIL)
+            500.0, 0.20, 0.000005, 60.0, // processing_time_median_us (> 50 - FAIL)
             180.0,
         );
 
@@ -275,7 +275,7 @@ mod tests {
     fn test_performance_gates_fail_rt_loop() {
         let result = BenchmarkResult::new(
             1100.0, // rt_loop_us (> 1000 - FAIL)
-            0.20, 0.0005, 40.0, 180.0,
+            0.20, 0.000005, 40.0, 180.0,
         );
 
         assert!(!result.meets_performance_gates());
@@ -285,7 +285,7 @@ mod tests {
     #[test]
     fn test_performance_gates_fail_processing_p99() {
         let result = BenchmarkResult::new(
-            500.0, 0.20, 0.0005, 40.0, 250.0, // processing_time_p99_us (> 200 - FAIL)
+            500.0, 0.20, 0.000005, 40.0, 250.0, // processing_time_p99_us (> 200 - FAIL)
         );
 
         assert!(!result.meets_performance_gates());
@@ -674,7 +674,7 @@ mod property_tests {
 /// Property-based tests for performance gate validation.
 ///
 /// These tests validate that the performance gate validation correctly identifies
-/// violations of: RT loop >1000μs, p99 jitter >0.25ms, missed ticks >0.001%,
+/// violations of: RT loop >1000μs, p99 jitter >0.25ms, missed ticks >0.00001,
 /// processing time >50μs median or >200μs p99.
 ///
 /// **Property 24: Performance Gate Validation (Consolidated)**
@@ -687,7 +687,7 @@ mod performance_gate_property_tests {
     // Performance gate thresholds (from design document and code)
     const RT_LOOP_THRESHOLD_US: f64 = 1000.0;
     const JITTER_P99_THRESHOLD_MS: f64 = 0.25;
-    const MISSED_TICK_RATE_THRESHOLD: f64 = 0.001;
+    const MISSED_TICK_RATE_THRESHOLD: f64 = 0.00001;
     const PROCESSING_TIME_MEDIAN_THRESHOLD_US: f64 = 50.0;
     const PROCESSING_TIME_P99_THRESHOLD_US: f64 = 200.0;
 
@@ -944,7 +944,7 @@ mod performance_gate_property_tests {
 
         /// Feature: release-roadmap-v1, Property 24: Performance Gate Validation (Consolidated)
         ///
-        /// *For any* benchmark result with missed tick rate exceeding 0.001%,
+        /// *For any* benchmark result with missed tick rate exceeding 0.00001,
         /// the performance validator SHALL correctly identify the violation.
         ///
         /// **Validates: Requirements 14.3**

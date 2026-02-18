@@ -163,7 +163,7 @@ impl ConfigValidationService {
                     enabled: true,
                     update_rate_hz: 100,
                     output_method: "udp_broadcast".to_string(),
-                    output_target: "127.0.0.1:9996".to_string(),
+                    output_target: "127.0.0.1:9000".to_string(),
                     fields: vec![
                         "ffb_scalar".to_string(),
                         "rpm".to_string(),
@@ -177,11 +177,10 @@ impl ConfigValidationService {
                     key: "entire_file".to_string(),
                     old_value: None,
                     new_value: r#"{
-  "updListenerPort": 9996,
-  "connectionId": "",
-  "broadcastingPort": 9000,
-  "commandPassword": "",
-  "updateRateHz": 100
+  "updListenerPort": 9000,
+  "udpListenerPort": 9000,
+  "connectionPassword": "",
+  "commandPassword": ""
 }"#
                     .to_string(),
                     operation: DiffOperation::Add,
@@ -190,15 +189,132 @@ impl ConfigValidationService {
                     path: "Documents/Assetto Corsa Competizione/Config/broadcasting.json"
                         .to_string(),
                     content: r#"{
-  "updListenerPort": 9996,
-  "connectionId": "",
-  "broadcastingPort": 9000,
-  "commandPassword": "",
-  "updateRateHz": 100
+  "updListenerPort": 9000,
+  "udpListenerPort": 9000,
+  "connectionPassword": "",
+  "commandPassword": ""
 }"#
                     .to_string(),
                     checksum: None,
                 }],
+            },
+        );
+
+        // EA WRC golden file fixture
+        fixtures.insert(
+            "eawrc".to_string(),
+            GoldenFileFixture {
+                game_id: "eawrc".to_string(),
+                config: TelemetryConfig {
+                    enabled: true,
+                    update_rate_hz: 120,
+                    output_method: "udp_schema".to_string(),
+                    output_target: "127.0.0.1:20778".to_string(),
+                    fields: vec![
+                        "ffb_scalar".to_string(),
+                        "rpm".to_string(),
+                        "speed_ms".to_string(),
+                    ],
+                },
+                expected_diffs: vec![
+                    ConfigDiff {
+                        file_path: "Documents/My Games/WRC/telemetry/config.json".to_string(),
+                        section: None,
+                        key: "entire_file".to_string(),
+                        old_value: None,
+                        new_value: r#"{
+  "udp": {
+    "packetAssignments": [
+      {
+        "packetId": "session_update",
+        "structureId": "openracing",
+        "ip": "127.0.0.1",
+        "port": 20778,
+        "frequencyHz": 120,
+        "bEnabled": true
+      }
+    ]
+  }
+}"#
+                        .to_string(),
+                        operation: DiffOperation::Add,
+                    },
+                    ConfigDiff {
+                        file_path: "Documents/My Games/WRC/telemetry/udp/openracing.json"
+                            .to_string(),
+                        section: None,
+                        key: "entire_file".to_string(),
+                        old_value: None,
+                        new_value: r#"{
+  "id": "openracing",
+  "packets": [
+    {
+      "id": "session_update",
+      "header": {
+        "channels": [
+          "packet_uid"
+        ]
+      },
+      "channels": [
+        "ffb_scalar",
+        "engine_rpm",
+        "vehicle_speed",
+        "gear",
+        "slip_ratio"
+      ]
+    }
+  ]
+}"#
+                        .to_string(),
+                        operation: DiffOperation::Add,
+                    },
+                ],
+                expected_files: vec![
+                    ExpectedFile {
+                        path: "Documents/My Games/WRC/telemetry/config.json".to_string(),
+                        content: r#"{
+  "udp": {
+    "packetAssignments": [
+      {
+        "packetId": "session_update",
+        "structureId": "openracing",
+        "ip": "127.0.0.1",
+        "port": 20778,
+        "frequencyHz": 120,
+        "bEnabled": true
+      }
+    ]
+  }
+}"#
+                        .to_string(),
+                        checksum: None,
+                    },
+                    ExpectedFile {
+                        path: "Documents/My Games/WRC/telemetry/udp/openracing.json".to_string(),
+                        content: r#"{
+  "id": "openracing",
+  "packets": [
+    {
+      "id": "session_update",
+      "header": {
+        "channels": [
+          "packet_uid"
+        ]
+      },
+      "channels": [
+        "ffb_scalar",
+        "engine_rpm",
+        "vehicle_speed",
+        "gear",
+        "slip_ratio"
+      ]
+    }
+  ]
+}"#
+                        .to_string(),
+                        checksum: None,
+                    },
+                ],
             },
         );
 
@@ -624,7 +740,6 @@ impl Default for ConfigValidationService {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
     use tempfile::TempDir;
 
@@ -633,10 +748,11 @@ mod tests {
         let service = ConfigValidationService::new();
         assert!(service.golden_files.contains_key("iracing"));
         assert!(service.golden_files.contains_key("acc"));
+        assert!(service.golden_files.contains_key("eawrc"));
     }
 
     #[tokio::test]
-    async fn test_config_generation_validation() {
+    async fn test_config_generation_validation() -> anyhow::Result<()> {
         let service = ConfigValidationService::new();
 
         let actual_diffs = vec![ConfigDiff {
@@ -650,39 +766,40 @@ mod tests {
 
         let result = service
             .validate_config_generation("iracing", &actual_diffs)
-            .await
-            .unwrap();
+            .await?;
         assert!(result.success);
         assert_eq!(result.details.matched_items.len(), 1);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_config_file_validation() {
+    async fn test_config_file_validation() -> anyhow::Result<()> {
         let service = ConfigValidationService::new();
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new()?;
 
         // Create test config file
         let config_dir = temp_dir.path().join("Documents/iRacing");
-        fs::create_dir_all(&config_dir).unwrap();
+        fs::create_dir_all(&config_dir)?;
 
         let config_file = config_dir.join("app.ini");
-        fs::write(&config_file, "[Telemetry]\ntelemetryDiskFile=1\n").unwrap();
+        fs::write(&config_file, "[Telemetry]\ntelemetryDiskFile=1\n")?;
 
         let result = service
             .validate_config_files("iracing", temp_dir.path())
-            .await
-            .unwrap();
+            .await?;
         assert!(result.success);
         assert_eq!(result.details.matched_items.len(), 1);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_led_heartbeat_validation() {
+    async fn test_led_heartbeat_validation() -> anyhow::Result<()> {
         let service = ConfigValidationService::new();
 
-        let result = service.validate_led_heartbeat().await.unwrap();
+        let result = service.validate_led_heartbeat().await?;
         assert!(result.success);
         assert!(result.details.actual_count > 0);
+        Ok(())
     }
 
     #[test]

@@ -44,13 +44,8 @@
     "pattern": "progressive",
     "brightness": 0.8,
     "colors": {
-      "red": [
-        255,
+      "green": [
         0,
-        0
-      ],
-      "yellow": [
-        255,
         255,
         0
       ],
@@ -59,9 +54,14 @@
         0,
         255
       ],
-      "green": [
-        0,
+      "yellow": [
         255,
+        255,
+        0
+      ],
+      "red": [
+        255,
+        0,
         0
       ]
     }
@@ -71,10 +71,10 @@
     "intensity": 0.6,
     "frequencyHz": 80.0,
     "effects": {
-      "slip": true,
       "collision": true,
+      "gear_shift": false,
       "kerb": true,
-      "gear_shift": false
+      "slip": true
     }
   }
 }

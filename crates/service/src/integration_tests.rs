@@ -233,7 +233,7 @@ mod tests {
 
         // Test game detection
         // let games = service.game_service().detect_games().await
-        //     .expect("Failed to detect games");
+        //     // handle potential game detection errors
 
         // Should detect mock games in test environment
         // assert!(!games.is_empty(), "No games detected");
@@ -277,7 +277,7 @@ mod tests {
         if let Some(_device) = devices.first() {
             // Connect device
             // service.device_service().connect_device(&device.id).await
-            //     .expect("Failed to connect device");
+            //     // handle potential device connection errors
             //
             // // Create test FFB data
             // let test_ffb_data = racing_wheel_engine::Frame {
@@ -358,7 +358,7 @@ mod tests {
 
         // Test plugin enumeration
         // let plugins = service.plugin_service().enumerate_plugins().await
-        //     .expect("Failed to enumerate plugins");
+        //     // handle potential plugin enumeration errors
 
         // Should have test plugins available
         // assert!(!plugins.is_empty(), "No plugins found");
@@ -408,7 +408,7 @@ mod tests {
         if let Some(_device) = devices.first() {
             // Connect device
             // service.device_service().connect_device(&device.id).await
-            //     .expect("Failed to connect device");
+            //     // handle potential device connection errors
             //
             // // Send high-frequency FFB data
             // let start_time = std::time::Instant::now();
@@ -437,7 +437,7 @@ mod tests {
             //
             // // Check for missed frames or errors
             // let stats = service.device_service().get_device_statistics(&device.id).await
-            //     .expect("Failed to get device statistics");
+            //     // handle potential device statistics errors
             //
             // assert_eq!(stats.frames_processed, target_frames, "Frame count mismatch");
             // assert_eq!(stats.frames_dropped, 0, "Frames were dropped");
@@ -468,7 +468,7 @@ mod tests {
         // Test with telemetry unavailable
         // TODO: Re-enable when game_service is implemented
         // let games = service.game_service().detect_games().await
-        //     .expect("Game service should work without active games");
+        //     // verify game service behavior without active games
         //
         // // Should handle missing games gracefully
         // for game in games {

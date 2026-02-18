@@ -7,7 +7,7 @@
 #![deny(unused_must_use)]
 #![deny(clippy::unwrap_used)]
 
-#[cfg(all(not(test), feature = "rt-allocator"))]
+#[cfg(all(not(test), not(feature = "rt-hardening"), feature = "rt-allocator"))]
 use mimalloc::MiMalloc;
 
 #[cfg(test)]
@@ -15,7 +15,12 @@ use mimalloc::MiMalloc;
 static GLOBAL: crate::allocation_tracker::TrackingAllocator =
     crate::allocation_tracker::TrackingAllocator;
 
-#[cfg(all(not(test), feature = "rt-allocator"))]
+#[cfg(all(not(test), feature = "rt-hardening"))]
+#[global_allocator]
+static GLOBAL: crate::allocation_tracker::TrackingAllocator =
+    crate::allocation_tracker::TrackingAllocator;
+
+#[cfg(all(not(test), not(feature = "rt-hardening"), feature = "rt-allocator"))]
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
@@ -64,7 +69,10 @@ pub use ffb::{CapabilityNegotiator, GameCompatibility, ModeSelectionPolicy, Nego
 
 // Explicit exports from other modules - only export what actually exists
 pub use engine::{BlackboxFrame, Engine, EngineCommand, EngineConfig, EngineStats, GameInput};
-pub use scheduler::{AbsoluteScheduler, JitterMetrics, PLL, RTSetup};
+pub use scheduler::{
+    AbsoluteScheduler, AdaptiveSchedulingConfig, AdaptiveSchedulingState, JitterMetrics, PLL,
+    RTSetup,
+};
 #[cfg(any(test, feature = "harness"))]
 pub use test_harness::{
     ExpectedResponse, FaultInjection, RTLoopTestHarness, ResponseValidationResult,

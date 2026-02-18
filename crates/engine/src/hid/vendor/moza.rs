@@ -26,6 +26,265 @@ pub mod report_ids {
     pub const DEVICE_GAIN: u8 = 0x21;
 }
 
+/// Known Moza product IDs.
+pub mod product_ids {
+    // Wheelbases (V1)
+    pub const R16_R21_V1: u16 = 0x0000;
+    pub const R9_V1: u16 = 0x0002;
+    pub const R5_V1: u16 = 0x0004;
+    pub const R3_V1: u16 = 0x0005;
+    pub const R12_V1: u16 = 0x0006;
+
+    // Wheelbases (V2)
+    pub const R16_R21_V2: u16 = 0x0010;
+    pub const R9_V2: u16 = 0x0012;
+    pub const R5_V2: u16 = 0x0014;
+    pub const R3_V2: u16 = 0x0015;
+    pub const R12_V2: u16 = 0x0016;
+
+    // Peripherals
+    pub const SR_P_PEDALS: u16 = 0x0003;
+    pub const HGP_SHIFTER: u16 = 0x0020;
+    pub const SGP_SHIFTER: u16 = 0x0021;
+    pub const HBP_HANDBRAKE: u16 = 0x0022;
+}
+
+/// Known Moza rim IDs when attached to a compatible wheelbase.
+///
+/// These are rim identity values reported through the wheelbase transport,
+/// not standalone USB product IDs.
+pub mod rim_ids {
+    pub const CS_V2: u8 = 0x01;
+    pub const GS_V2: u8 = 0x02;
+    pub const RS_V2: u8 = 0x03;
+    pub const FSR: u8 = 0x04;
+    pub const KS: u8 = 0x05;
+    pub const ES: u8 = 0x06;
+}
+
+/// ES control-surface dimensions documented by Moza.
+pub const ES_BUTTON_COUNT: usize = 22;
+pub const ES_LED_COUNT: usize = 10;
+
+/// ES compatibility status derived from known wheelbase compatibility rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MozaEsCompatibility {
+    /// Compatibility is known and expected to work.
+    Supported,
+    /// Hardware revision is known to be incompatible (R9 V1).
+    UnsupportedHardwareRevision,
+    /// Device is a wheelbase, but compatibility has not been capture-validated.
+    UnknownWheelbase,
+    /// Product is not a wheelbase, so ES compatibility does not apply.
+    NotWheelbase,
+}
+
+impl MozaEsCompatibility {
+    /// Returns true when ES usage is expected to work on this product.
+    pub const fn is_supported(self) -> bool {
+        matches!(self, Self::Supported)
+    }
+
+    /// Human-readable compatibility diagnostic for operators and logs.
+    pub const fn diagnostic_message(self) -> Option<&'static str> {
+        match self {
+            Self::Supported => Some("ES compatibility supported"),
+            Self::UnsupportedHardwareRevision => Some(
+                "R9 V1 is not compatible with the ES wheel; use R9 V2 or another supported base",
+            ),
+            Self::UnknownWheelbase => {
+                Some("ES compatibility for this wheelbase is not capture-validated yet")
+            }
+            Self::NotWheelbase => None,
+        }
+    }
+}
+
+/// Determine ES compatibility from a Moza USB product ID.
+pub fn es_compatibility(product_id: u16) -> MozaEsCompatibility {
+    match product_id {
+        // Vendor-documented incompatibility gate.
+        product_ids::R9_V1 => MozaEsCompatibility::UnsupportedHardwareRevision,
+
+        // Known compatible pairings used by Moza bundles and support guidance.
+        product_ids::R5_V1 | product_ids::R5_V2 | product_ids::R9_V2 => {
+            MozaEsCompatibility::Supported
+        }
+
+        // Wheelbases that require descriptor/capture confirmation in this codebase.
+        product_ids::R3_V1
+        | product_ids::R3_V2
+        | product_ids::R12_V1
+        | product_ids::R12_V2
+        | product_ids::R16_R21_V1
+        | product_ids::R16_R21_V2 => MozaEsCompatibility::UnknownWheelbase,
+
+        _ => MozaEsCompatibility::NotWheelbase,
+    }
+}
+
+/// ES joystick mode as configured in Moza Pit House.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MozaEsJoystickMode {
+    /// Joystick directions are exposed as discrete button bits.
+    Buttons,
+    /// Joystick directions are exposed as a HID hat / D-pad semantic.
+    DPad,
+}
+
+impl MozaEsJoystickMode {
+    /// Parse mode value from persisted configuration/probe metadata.
+    ///
+    /// `0` => buttons mode, `1` => D-pad mode.
+    pub const fn from_config_value(mode: u8) -> Option<Self> {
+        match mode {
+            0 => Some(Self::Buttons),
+            1 => Some(Self::DPad),
+            _ => None,
+        }
+    }
+}
+
+/// Normalized 8-way hat direction used by ES joystick D-pad mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MozaHatDirection {
+    Up,
+    UpRight,
+    Right,
+    DownRight,
+    Down,
+    DownLeft,
+    Left,
+    UpLeft,
+    Center,
+}
+
+impl MozaHatDirection {
+    /// Parse a HID hat value (0..=8) into normalized direction.
+    pub const fn from_hid_hat_value(value: u8) -> Option<Self> {
+        match value {
+            0 => Some(Self::Up),
+            1 => Some(Self::UpRight),
+            2 => Some(Self::Right),
+            3 => Some(Self::DownRight),
+            4 => Some(Self::Down),
+            5 => Some(Self::DownLeft),
+            6 => Some(Self::Left),
+            7 => Some(Self::UpLeft),
+            8 => Some(Self::Center),
+            _ => None,
+        }
+    }
+}
+
+/// High-level category for Moza USB products.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MozaDeviceCategory {
+    Wheelbase,
+    Pedals,
+    Shifter,
+    Handbrake,
+    Unknown,
+}
+
+/// Integration topology hint for runtime handling and capture strategy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MozaTopologyHint {
+    /// USB-facing wheelbase that aggregates connected peripherals (e.g. KS on quick-release).
+    WheelbaseAggregated,
+    /// Standalone USB peripheral connected directly to host.
+    StandaloneUsb,
+    /// Product not yet identified from verified captures.
+    Unknown,
+}
+
+/// Identity metadata for a Moza product ID.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MozaDeviceIdentity {
+    pub product_id: u16,
+    pub name: &'static str,
+    pub category: MozaDeviceCategory,
+    pub topology_hint: MozaTopologyHint,
+    pub supports_ffb: bool,
+}
+
+/// Identify a Moza product and provide conservative runtime hints.
+pub fn identify_device(product_id: u16) -> MozaDeviceIdentity {
+    match product_id {
+        product_ids::R3_V1 | product_ids::R3_V2 => MozaDeviceIdentity {
+            product_id,
+            name: "Moza R3",
+            category: MozaDeviceCategory::Wheelbase,
+            topology_hint: MozaTopologyHint::WheelbaseAggregated,
+            supports_ffb: true,
+        },
+        product_ids::R5_V1 | product_ids::R5_V2 => MozaDeviceIdentity {
+            product_id,
+            name: "Moza R5",
+            category: MozaDeviceCategory::Wheelbase,
+            topology_hint: MozaTopologyHint::WheelbaseAggregated,
+            supports_ffb: true,
+        },
+        product_ids::R9_V1 | product_ids::R9_V2 => MozaDeviceIdentity {
+            product_id,
+            name: "Moza R9",
+            category: MozaDeviceCategory::Wheelbase,
+            topology_hint: MozaTopologyHint::WheelbaseAggregated,
+            supports_ffb: true,
+        },
+        product_ids::R12_V1 | product_ids::R12_V2 => MozaDeviceIdentity {
+            product_id,
+            name: "Moza R12",
+            category: MozaDeviceCategory::Wheelbase,
+            topology_hint: MozaTopologyHint::WheelbaseAggregated,
+            supports_ffb: true,
+        },
+        product_ids::R16_R21_V1 | product_ids::R16_R21_V2 => MozaDeviceIdentity {
+            product_id,
+            name: "Moza R16/R21",
+            category: MozaDeviceCategory::Wheelbase,
+            topology_hint: MozaTopologyHint::WheelbaseAggregated,
+            supports_ffb: true,
+        },
+        product_ids::SR_P_PEDALS => MozaDeviceIdentity {
+            product_id,
+            name: "Moza SR-P Pedals",
+            category: MozaDeviceCategory::Pedals,
+            topology_hint: MozaTopologyHint::StandaloneUsb,
+            supports_ffb: false,
+        },
+        product_ids::HGP_SHIFTER | product_ids::SGP_SHIFTER => MozaDeviceIdentity {
+            product_id,
+            name: "Moza Shifter",
+            category: MozaDeviceCategory::Shifter,
+            topology_hint: MozaTopologyHint::StandaloneUsb,
+            supports_ffb: false,
+        },
+        product_ids::HBP_HANDBRAKE => MozaDeviceIdentity {
+            product_id,
+            name: "Moza HBP Handbrake",
+            category: MozaDeviceCategory::Handbrake,
+            topology_hint: MozaTopologyHint::StandaloneUsb,
+            supports_ffb: false,
+        },
+        _ => MozaDeviceIdentity {
+            product_id,
+            name: "Moza Unknown",
+            category: MozaDeviceCategory::Unknown,
+            topology_hint: MozaTopologyHint::Unknown,
+            supports_ffb: false,
+        },
+    }
+}
+
+/// Return true when the product ID is a known Moza wheelbase.
+pub fn is_wheelbase_product(product_id: u16) -> bool {
+    matches!(
+        identify_device(product_id).category,
+        MozaDeviceCategory::Wheelbase
+    )
+}
+
 /// FFB mode options
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FfbMode {
@@ -50,12 +309,12 @@ pub enum MozaModel {
 impl MozaModel {
     pub(crate) fn from_pid(pid: u16) -> Self {
         match pid {
-            0x0005 | 0x0015 => Self::R3,
-            0x0004 | 0x0014 => Self::R5,
-            0x0002 | 0x0012 => Self::R9,
-            0x0006 | 0x0016 => Self::R12,
-            0x0000 | 0x0010 => Self::R16, // R16/R21 share PID, differentiate by torque query
-            0x0003 => Self::SrpPedals,
+            product_ids::R3_V1 | product_ids::R3_V2 => Self::R3,
+            product_ids::R5_V1 | product_ids::R5_V2 => Self::R5,
+            product_ids::R9_V1 | product_ids::R9_V2 => Self::R9,
+            product_ids::R12_V1 | product_ids::R12_V2 => Self::R12,
+            product_ids::R16_R21_V1 | product_ids::R16_R21_V2 => Self::R16, // R16/R21 share PID, differentiate by torque query
+            product_ids::SR_P_PEDALS => Self::SrpPedals,
             _ => Self::Unknown,
         }
     }
@@ -107,6 +366,11 @@ impl MozaProtocol {
     /// Get the device model
     pub fn model(&self) -> MozaModel {
         self.model
+    }
+
+    /// Get ES compatibility state for this wheelbase/product.
+    pub fn es_compatibility(&self) -> MozaEsCompatibility {
+        es_compatibility(self.product_id)
     }
 
     /// Enable high torque mode
@@ -227,6 +491,18 @@ impl VendorProtocol for MozaProtocol {
         if self.model == MozaModel::SrpPedals {
             debug!("Skipping initialization for SR-P Pedals");
             return Ok(());
+        }
+
+        match self.es_compatibility() {
+            MozaEsCompatibility::UnsupportedHardwareRevision => warn!(
+                "Moza PID 0x{:04X} is R9 V1; ES wheel compatibility is not supported",
+                self.product_id
+            ),
+            MozaEsCompatibility::UnknownWheelbase => debug!(
+                "Moza PID 0x{:04X} ES compatibility is not capture-validated",
+                self.product_id
+            ),
+            MozaEsCompatibility::Supported | MozaEsCompatibility::NotWheelbase => {}
         }
 
         // Step 1: Enable high torque mode (unlocks FFB)

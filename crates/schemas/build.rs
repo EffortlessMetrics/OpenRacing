@@ -42,6 +42,12 @@ fn compile_protos(
     // Configure protobuf compilation for deterministic output
     let mut config = prost_build::Config::new();
 
+    // Use vendored protoc for reproducible cross-platform builds.
+    // This avoids hard dependency on a system-installed protoc binary.
+    if let Ok(protoc_path) = protoc_bin_vendored::protoc_bin_path() {
+        config.protoc_executable(protoc_path);
+    }
+
     // Ensure deterministic output by setting consistent options
     config.btree_map(["."]); // Use BTreeMap for deterministic field ordering
     config.bytes(["."]); // Use bytes for binary data
