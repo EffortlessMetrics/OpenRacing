@@ -1182,6 +1182,40 @@ mod tests {
     }
 
     #[test]
+    fn test_iracing_writer_without_360hz_is_idempotent() -> TestResult {
+        let writer = IRacingConfigWriter;
+        let temp_dir = tempdir()?;
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 60,
+            output_method: "shared_memory".to_string(),
+            output_target: "127.0.0.1:12345".to_string(),
+            fields: vec!["ffb_scalar".to_string(), "rpm".to_string()],
+            enable_high_rate_iracing_360hz: false,
+        };
+
+        let first = writer.write_config(temp_dir.path(), &config)?;
+        assert_eq!(first.len(), 1);
+
+        let app_ini_path = temp_dir.path().join("Documents/iRacing/app.ini");
+        let first_content = std::fs::read_to_string(&app_ini_path)?;
+        assert!(first_content.contains("telemetryDiskFile=1"));
+        assert!(!first_content.lines().any(|line| line.starts_with("irsdkLog360Hz=")));
+
+        let second = writer.write_config(temp_dir.path(), &config)?;
+        assert_eq!(second.len(), 1);
+        assert!(
+            second.iter().all(|diff| diff.key == "telemetryDiskFile" && diff.new_value == "1")
+        );
+
+        let second_content = std::fs::read_to_string(&app_ini_path)?;
+        assert!(second_content.contains("telemetryDiskFile=1"));
+        assert!(!second_content.lines().any(|line| line.starts_with("irsdkLog360Hz=")));
+
+        Ok(())
+    }
+
+    #[test]
     fn test_rfactor2_writer_round_trip() -> TestResult {
         let writer = RFactor2ConfigWriter;
         let temp_dir = tempdir()?;

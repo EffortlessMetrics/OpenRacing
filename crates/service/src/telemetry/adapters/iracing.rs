@@ -32,7 +32,6 @@ const IRACING_DATA_VALID_EVENT_NAME: &str = "Local\\IRSDKDataValidEvent";
 const IRSDK_MAX_BUFS: usize = 4;
 const IRSDK_DEFAULT_TICK_RATE: Duration = Duration::from_millis(16);
 const IRSDK_SESSION_FLAG_CHECKERED: u32 = 0x0000_0001;
-const IRSDK_SESSION_FLAG_WHITE: u32 = 0x0000_0002;
 const IRSDK_SESSION_FLAG_GREEN: u32 = 0x0000_0004;
 const IRSDK_SESSION_FLAG_YELLOW: u32 = 0x0000_0008;
 const IRSDK_SESSION_FLAG_RED: u32 = 0x0000_0010;
@@ -363,11 +362,7 @@ impl TelemetryAdapter for IRacingAdapter {
                 if let Some(handle) = adapter.shared_memory.as_ref() {
                     if let Some(event_handle) = handle.data_valid_event {
                         match wait_for_data_valid_event(event_handle, tick_interval).await {
-                            Ok(true) => {}
-                            Ok(false) => {
-                                // Timeout without a new tick; skip read and wait again.
-                                continue;
-                            }
+                            Ok(_) => {}
                             Err(err) => {
                                 warn!("Failed waiting on iRacing data-valid event: {}", err);
                                 adapter.shared_memory = None;
@@ -554,8 +549,8 @@ impl IRacingAdapter {
         telemetry = telemetry.with_track_id(track_id);
         telemetry = telemetry.with_flags(flags);
         telemetry = telemetry.with_extended(
-            "session_flag_white".to_string(),
-            TelemetryValue::Boolean((data.session_flags & IRSDK_SESSION_FLAG_WHITE) != 0),
+            "session_flags_raw".to_string(),
+            TelemetryValue::Integer(data.session_flags as i32),
         );
 
         if let Some(slip_ratio) = resolve_slip_ratio(data, layout) {
@@ -1424,7 +1419,6 @@ mod tests {
         let adapter = IRacingAdapter::new();
         let data = IRacingData {
             session_flags: IRSDK_SESSION_FLAG_CHECKERED
-                | IRSDK_SESSION_FLAG_WHITE
                 | IRSDK_SESSION_FLAG_YELLOW
                 | IRSDK_SESSION_FLAG_GREEN,
             ..IRacingData::default()
@@ -1438,8 +1432,21 @@ mod tests {
         assert!(normalized.flags.green_flag);
         assert!(!normalized.flags.red_flag);
         assert!(!normalized.flags.blue_flag);
-        assert!(flag_boolean_value(&normalized, "session_flag_white"));
+        assert_eq!(
+            telemetry_integer_value(&normalized, "session_flags_raw"),
+            Some(
+                (IRSDK_SESSION_FLAG_CHECKERED | IRSDK_SESSION_FLAG_YELLOW | IRSDK_SESSION_FLAG_GREEN)
+                    as i32
+            )
+        );
         Ok(())
+    }
+
+    fn telemetry_integer_value(telemetry: &NormalizedTelemetry, key: &str) -> Option<i32> {
+        match telemetry.extended.get(key) {
+            Some(TelemetryValue::Integer(value)) => Some(*value),
+            _ => None,
+        }
     }
 
     #[test]
