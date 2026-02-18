@@ -5,6 +5,8 @@
 
 /// Number of encoder-like slots in a generic KS snapshot.
 pub const KS_ENCODER_COUNT: usize = 8;
+/// Number of packed button bytes in a normalized KS snapshot.
+pub const KS_BUTTON_BYTES: usize = 16;
 
 /// Supported clutch interpretation modes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,7 +93,7 @@ impl KsAxisSource {
         if self.signed {
             Some(i16::from_le_bytes(bytes))
         } else {
-            i16::from_ne_bytes(u16::from_le_bytes(bytes).to_ne_bytes())
+            i16::from_le_bytes(bytes)
         }
     }
 }
@@ -122,6 +124,10 @@ impl KsBitSource {
             mask,
             invert: true,
         }
+    }
+
+    pub const fn inverted(offset: usize, mask: u8) -> Self {
+        Self::with_invert(offset, mask)
     }
 
     pub fn parse(&self, report: &[u8]) -> Option<bool> {
@@ -157,7 +163,7 @@ pub struct KsReportSnapshot {
     /// Frame marker from a sequence counter at parse time.
     pub tick: u32,
     /// Raw packed button bitmap bytes (16 bytes for historical compatibility).
-    pub buttons: [u8; 16],
+    pub buttons: [u8; KS_BUTTON_BYTES],
     /// Joystick/hat direction source.
     pub hat: u8,
     /// Encoders/rotary axis-like channels as signed 16-bit values.
@@ -184,7 +190,7 @@ impl Default for KsReportSnapshot {
     fn default() -> Self {
         Self {
             tick: 0,
-            buttons: [0u8; 16],
+            buttons: [0u8; KS_BUTTON_BYTES],
             hat: 0,
             encoders: [0i16; KS_ENCODER_COUNT],
             clutch_combined: None,
@@ -214,20 +220,21 @@ impl KsReportSnapshot {
                 .clutch_left_button
                 .zip(self.clutch_right_button)
                 .map(|(left, right)| left && right),
-            KsClutchMode::Unknown => {
-                if let Some(combined) = self.clutch_combined {
-                    Some(combined >= threshold)
-                } else {
-                    self.clutch_left
-                        .zip(self.clutch_right)
-                        .map(|(left, right)| left >= threshold && right >= threshold)
-                        .or_else(|| {
-                            self.clutch_left_button
-                                .zip(self.clutch_right_button)
-                                .map(|(left, right)| left && right)
-                        })
-                }
-            }
+            KsClutchMode::Unknown => None,
+        }
+    }
+
+    /// Conservative constructor for a populated wheelbase surface without KS map bindings.
+    pub fn from_common_controls(
+        tick: u32,
+        buttons: [u8; KS_BUTTON_BYTES],
+        hat: u8,
+    ) -> Self {
+        Self {
+            tick,
+            buttons,
+            hat,
+            ..Self::default()
         }
     }
 }
@@ -371,6 +378,25 @@ mod tests {
         assert_eq!(snapshot.both_clutches_pressed(30_000), Some(true));
         snapshot.clutch_right_button = Some(false);
         assert_eq!(snapshot.both_clutches_pressed(30_000), Some(false));
+    }
+
+    #[test]
+    fn ks_snapshot_unknown_mode_defers_to_input_state() {
+        let snapshot = KsReportSnapshot::default();
+
+        assert_eq!(snapshot.both_clutches_pressed(30_000), None);
+    }
+
+    #[test]
+    fn ks_snapshot_from_common_controls() {
+        let buttons = [0x01u8; KS_BUTTON_BYTES];
+        let snapshot = KsReportSnapshot::from_common_controls(7, buttons, 0x42);
+
+        assert_eq!(snapshot.tick, 7);
+        assert_eq!(snapshot.buttons, buttons);
+        assert_eq!(snapshot.hat, 0x42);
+        assert_eq!(snapshot.clutch_mode, KsClutchMode::Unknown);
+        assert_eq!(snapshot.clutch_combined, None);
     }
 
     #[test]

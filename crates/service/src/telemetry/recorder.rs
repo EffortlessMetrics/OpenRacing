@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// Telemetry recording session
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -256,11 +256,8 @@ impl TestFixtureGenerator {
     ) -> TelemetryRecording {
         let frame_count = (duration_seconds * fps) as usize;
         let mut frames = Vec::with_capacity(frame_count);
-
-        let start_timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos() as u64;
+        let _start_time = Instant::now();
+        let start_timestamp = 0u64;
 
         for i in 0..frame_count {
             let time_offset = (i as f32 / fps * 1_000_000_000.0) as u64;
@@ -282,7 +279,7 @@ impl TestFixtureGenerator {
 
         let metadata = RecordingMetadata {
             game_id: game_id.clone(),
-            timestamp: start_timestamp / 1_000_000_000,
+            timestamp: 0,
             duration_seconds: duration_seconds as f64,
             frame_count,
             average_fps: fps,

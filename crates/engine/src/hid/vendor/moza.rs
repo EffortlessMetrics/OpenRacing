@@ -8,7 +8,7 @@
 use super::{DeviceWriter, FfbConfig, VendorProtocol, MozaInputState};
 use crate::input::{
     KsAxisSource, KsByteSource, KsClutchMode, KsJoystickMode, KsReportMap, KsRotaryMode,
-    KS_ENCODER_COUNT,
+    KsReportSnapshot, KS_ENCODER_COUNT,
 };
 use super::moza_direct::REPORT_LEN;
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -695,11 +695,19 @@ impl MozaProtocol {
         }
 
         let ks_snapshot = if self.is_wheelbase() {
+            let mut ks_snapshot = KsReportSnapshot::from_common_controls(0, buttons, hat);
+            ks_snapshot.encoders[0] = KsAxisSource::new(input_report::ROTARY_START, false)
+                .parse_i16(report.report_bytes())
+                .unwrap_or(0);
+            ks_snapshot.encoders[1] = KsAxisSource::new(input_report::ROTARY_START + 1, false)
+                .parse_i16(report.report_bytes())
+                .unwrap_or(0);
+
             default_wheelbase_ks_map()
                 .parse(0, report.report_bytes())
-                .unwrap_or_default()
+                .unwrap_or(ks_snapshot)
         } else {
-            crate::input::KsReportSnapshot::default()
+            KsReportSnapshot::default()
         };
 
         Some(MozaInputState {

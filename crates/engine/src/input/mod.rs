@@ -13,6 +13,7 @@ pub use ks::{
     KsReportMap,
     KsReportSnapshot,
     KsRotaryMode,
+    KS_BUTTON_BYTES,
     KS_ENCODER_COUNT,
 };
 pub use device_map::{

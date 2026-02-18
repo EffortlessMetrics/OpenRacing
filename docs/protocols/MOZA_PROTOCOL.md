@@ -32,6 +32,7 @@ The KS is **not** treated as a normal wheel peripheral. OpenRacing uses a topolo
 
 - **Never hard-code KS physical layout in runtime code paths.**
 - **Derive control interpretation from capture-derived maps** (`device_map.json`) and runtime profile metadata.
+- **Gate KS support on explicit transport/signature identity** (VID/PID + interface + descriptor hash + report IDs).
 - Use mode-aware normalization for:
   - dual clutches (combined axis / independent axis / button modes),
   - rotaries (button deltas vs knob values),
@@ -47,6 +48,7 @@ The KS is **not** treated as a normal wheel peripheral. OpenRacing uses a topolo
   - product page suggests wheel support,
   - manual screenshots can show `Wheel (currently FSR only)`.
 - Validate clutch/button mode mapping from capture vectors before enabling mode-specific safety assumptions.
+- Do not claim KS support for Universal Hub without a validated report-signature and interface mapping gate.
 
 ### KS capture-validated checklist (before shipping production support)
 

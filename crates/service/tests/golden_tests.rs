@@ -42,6 +42,7 @@ impl TestGameConfig {
                     "car_id".to_string(),
                     "track_id".to_string(),
                 ],
+                enable_high_rate_iracing_360hz: false,
             },
             expected_diffs: vec![ConfigDiff {
                 file_path: "Documents/iRacing/app.ini".to_string(),
@@ -71,6 +72,7 @@ impl TestGameConfig {
                     "car_id".to_string(),
                     "track_id".to_string(),
                 ],
+                enable_high_rate_iracing_360hz: false,
             },
             expected_diffs: vec![ConfigDiff {
                 file_path: "Documents/Assetto Corsa Competizione/Config/broadcasting.json"
@@ -223,15 +225,15 @@ async fn test_telemetry_field_mapping_coverage() {
     let iracing_mapping = must(service.get_telemetry_mapping("iracing").await);
     assert_eq!(
         iracing_mapping.ffb_scalar,
-        Some("SteeringWheelTorque".to_string())
+        Some("SteeringWheelPctTorqueSign".to_string())
     );
     assert_eq!(iracing_mapping.rpm, Some("RPM".to_string()));
     assert_eq!(iracing_mapping.speed_ms, Some("Speed".to_string()));
-    assert_eq!(iracing_mapping.slip_ratio, Some("LFslipRatio".to_string()));
+    assert_eq!(iracing_mapping.slip_ratio, Some("LFSlipRatio".to_string()));
     assert_eq!(iracing_mapping.gear, Some("Gear".to_string()));
     assert_eq!(iracing_mapping.flags, Some("SessionFlags".to_string()));
-    assert_eq!(iracing_mapping.car_id, Some("CarIdx".to_string()));
-    assert_eq!(iracing_mapping.track_id, Some("TrackId".to_string()));
+    assert_eq!(iracing_mapping.car_id, Some("CarPath".to_string()));
+    assert_eq!(iracing_mapping.track_id, Some("TrackName".to_string()));
 
     // Test ACC field mapping coverage
     let acc_mapping = must(service.get_telemetry_mapping("acc").await);
@@ -256,6 +258,7 @@ async fn test_configuration_diff_generation() {
         output_method: "shared_memory".to_string(),
         output_target: "127.0.0.1:12345".to_string(),
         fields: vec!["ffb_scalar".to_string(), "rpm".to_string()],
+        enable_high_rate_iracing_360hz: false,
     };
 
     let iracing_diffs = must(service.get_expected_diffs("iracing", &iracing_config).await);
@@ -271,6 +274,7 @@ async fn test_configuration_diff_generation() {
         output_method: "udp_broadcast".to_string(),
         output_target: "127.0.0.1:9000".to_string(),
         fields: vec!["ffb_scalar".to_string(), "rpm".to_string()],
+        enable_high_rate_iracing_360hz: false,
     };
 
     let acc_diffs = must(service.get_expected_diffs("acc", &acc_config).await);
@@ -340,6 +344,7 @@ async fn test_unsupported_game_handling() {
                 output_method: "test".to_string(),
                 output_target: "test".to_string(),
                 fields: vec![],
+                enable_high_rate_iracing_360hz: false,
             },
         )
         .await;

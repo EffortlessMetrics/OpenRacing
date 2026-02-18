@@ -426,13 +426,16 @@ mod tests {
 
         // Test iRacing field mapping
         let iracing_mapping = service.get_telemetry_mapping("iracing")?;
-        assert_eq!(iracing_mapping.ffb_scalar, Some("SteeringWheelTorque".to_string()));
+        assert_eq!(
+            iracing_mapping.ffb_scalar,
+            Some("SteeringWheelPctTorqueSign".to_string())
+        );
         assert_eq!(iracing_mapping.rpm, Some("RPM".to_string()));
         assert_eq!(iracing_mapping.speed_ms, Some("Speed".to_string()));
-        assert_eq!(iracing_mapping.slip_ratio, Some("LFslipRatio".to_string()));
+        assert_eq!(iracing_mapping.slip_ratio, Some("LFSlipRatio".to_string()));
         assert_eq!(iracing_mapping.gear, Some("Gear".to_string()));
-        assert_eq!(iracing_mapping.car_id, Some("CarIdx".to_string()));
-        assert_eq!(iracing_mapping.track_id, Some("TrackId".to_string()));
+        assert_eq!(iracing_mapping.car_id, Some("CarPath".to_string()));
+        assert_eq!(iracing_mapping.track_id, Some("TrackName".to_string()));
 
         // Test ACC field mapping
         let acc_mapping = service.get_telemetry_mapping("acc")?;

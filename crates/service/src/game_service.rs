@@ -97,6 +97,8 @@ pub struct TelemetryConfig {
     pub output_method: String,
     pub output_target: String, // IP:port for UDP, file path for file-based, etc.
     pub fields: Vec<String>,
+    #[serde(default)]
+    pub enable_high_rate_iracing_360hz: bool,
 }
 
 /// Represents a configuration change made to a game file
@@ -193,6 +195,7 @@ impl GameService {
             output_method: game_support.telemetry.method.clone(),
             output_target,
             fields: game_support.versions[0].supported_fields.clone(),
+            enable_high_rate_iracing_360hz: false,
         };
 
         // Write configuration and get diffs

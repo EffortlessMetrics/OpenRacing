@@ -23,12 +23,11 @@ impl<T: Copy> SnapshotMailbox<T> {
     }
 
     pub fn write(&self, value: T) {
-        let seq = self.seq.load(Ordering::Relaxed);
-        self.seq.store(seq.saturating_add(1), Ordering::Release);
+        self.seq.fetch_add(1, Ordering::Release);
         unsafe {
             *self.data.get() = value;
         }
-        self.seq.store(seq.saturating_add(2), Ordering::Release);
+        self.seq.fetch_add(1, Ordering::Release);
     }
 
     pub fn read(&self) -> T {
@@ -46,4 +45,3 @@ impl<T: Copy> SnapshotMailbox<T> {
         }
     }
 }
-

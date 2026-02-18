@@ -137,6 +137,7 @@ impl ConfigValidationService {
                         "rpm".to_string(),
                         "speed_ms".to_string(),
                     ],
+                    enable_high_rate_iracing_360hz: false,
                 },
                 expected_diffs: vec![ConfigDiff {
                     file_path: "Documents/iRacing/app.ini".to_string(),
@@ -169,6 +170,7 @@ impl ConfigValidationService {
                         "rpm".to_string(),
                         "gear".to_string(),
                     ],
+                    enable_high_rate_iracing_360hz: false,
                 },
                 expected_diffs: vec![ConfigDiff {
                     file_path: "Documents/Assetto Corsa Competizione/Config/broadcasting.json"
@@ -215,6 +217,7 @@ impl ConfigValidationService {
                         "rpm".to_string(),
                         "speed_ms".to_string(),
                     ],
+                    enable_high_rate_iracing_360hz: false,
                 },
                 expected_diffs: vec![
                     ConfigDiff {
