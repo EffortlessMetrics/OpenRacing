@@ -4,7 +4,7 @@
 //! from infrastructure concerns. These traits define contracts for external
 //! dependencies without coupling to specific implementations.
 
-use crate::{DeviceEvent, DeviceInfo, RTResult, TelemetryData};
+use crate::{DeviceEvent, DeviceInfo, DeviceInputs, RTResult, TelemetryData};
 use async_trait::async_trait;
 use crate::hid::MozaInputState;
 use racing_wheel_schemas::prelude::*;
@@ -48,6 +48,14 @@ pub trait HidDevice: Send + Sync {
     fn moza_input_state(&self) -> Option<MozaInputState> {
         None
     }
+
+    /// Read the latest decoded generic non-RT input snapshot for UI, diagnostics,
+    /// and mode-aware safety logic.
+    ///
+    /// Implementations that do not expose these fields return `None`.
+    fn read_inputs(&self) -> Option<DeviceInputs> {
+        None
+    }
 }
 
 /// Input-state reader for non-telemetry HID snapshots.
@@ -57,7 +65,48 @@ pub trait HidDevice: Send + Sync {
 /// report layouts (for example Moza aggregated wheel inputs).
 pub trait HidInputDevice: Send + Sync {
     /// Read the latest decoded Moza-style input snapshot from this device.
+    fn read_inputs(&self) -> Option<DeviceInputs> {
+        None
+    }
+
+    /// Backward-compatible typed snapshot API.
     fn moza_input_state(&self) -> Option<MozaInputState>;
+}
+
+impl DeviceInputs {
+    pub(crate) fn from_moza_input_state(state: &MozaInputState) -> Self {
+        let mut inputs = DeviceInputs {
+            tick: state.tick,
+            buttons: state.buttons,
+            hat: state.hat,
+            steering: Some(state.steering_u16),
+            throttle: Some(state.throttle_u16),
+            brake: Some(state.brake_u16),
+            clutch_left: state.ks_snapshot.clutch_left,
+            clutch_right: state.ks_snapshot.clutch_right,
+            clutch_combined: state.ks_snapshot.clutch_combined,
+            clutch_left_button: state.ks_snapshot.clutch_left_button,
+            clutch_right_button: state.ks_snapshot.clutch_right_button,
+            handbrake: Some(state.handbrake_u16),
+            rotaries: [0i16; 8],
+        };
+
+        if inputs.clutch_left.is_none() && inputs.clutch_right.is_none() {
+            inputs.clutch_left = state
+                .ks_snapshot
+                .clutch_left
+                .or(state.ks_snapshot.clutch_combined)
+                .or(Some(state.clutch_u16));
+        }
+
+        if inputs.clutch_combined.is_none() && inputs.clutch_left.is_none() {
+            inputs.clutch_combined = Some(state.clutch_u16);
+        }
+
+        inputs.rotaries[0] = i16::from(state.rotary[0]);
+        inputs.rotaries[1] = i16::from(state.rotary[1]);
+        inputs
+    }
 }
 
 /// Device health status information

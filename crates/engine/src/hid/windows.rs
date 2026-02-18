@@ -1928,6 +1928,10 @@ impl HidDevice for WindowsHidDevice {
 
         Some(self.moza_input_state.read())
     }
+
+    fn read_inputs(&self) -> Option<crate::DeviceInputs> {
+        self.moza_input_state().map(crate::DeviceInputs::from_moza_input_state)
+    }
 }
 
 /// Apply Windows-specific RT optimizations

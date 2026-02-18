@@ -2,6 +2,7 @@
 
 pub mod ks;
 pub mod mailbox;
+pub mod device_map;
 
 pub use ks::{
     KsAxisSource,
@@ -14,5 +15,18 @@ pub use ks::{
     KsRotaryMode,
     KS_ENCODER_COUNT,
 };
+pub use device_map::{
+    AxisDataType,
+    ButtonBinding,
+    ClutchBinding,
+    ClutchModeHint,
+    DeviceInputMap,
+    DeviceInputMapError,
+    DeviceMapModeHints,
+    DeviceTransportHint,
+    InitReportFrame,
+    JsBinding,
+    ReportConstraint,
+    RotaryBinding,
+};
 pub use mailbox::SnapshotMailbox;
-

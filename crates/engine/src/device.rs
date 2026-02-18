@@ -18,6 +18,44 @@ pub struct TelemetryData {
     pub timestamp: Instant,
 }
 
+/// Generic non-RT control-surface snapshot used by input pipeline and diagnostics.
+#[derive(Debug, Clone, Copy)]
+pub struct DeviceInputs {
+    pub tick: u32,
+    pub buttons: [u8; 16],
+    pub hat: u8,
+    pub steering: Option<u16>,
+    pub throttle: Option<u16>,
+    pub brake: Option<u16>,
+    pub clutch_left: Option<u16>,
+    pub clutch_right: Option<u16>,
+    pub clutch_combined: Option<u16>,
+    pub clutch_left_button: Option<bool>,
+    pub clutch_right_button: Option<bool>,
+    pub handbrake: Option<u16>,
+    pub rotaries: [i16; 8],
+}
+
+impl Default for DeviceInputs {
+    fn default() -> Self {
+        Self {
+            tick: 0,
+            buttons: [0u8; 16],
+            hat: 0,
+            steering: None,
+            throttle: None,
+            brake: None,
+            clutch_left: None,
+            clutch_right: None,
+            clutch_combined: None,
+            clutch_left_button: None,
+            clutch_right_button: None,
+            handbrake: None,
+            rotaries: [0i16; 8],
+        }
+    }
+}
+
 /// Device info for enumeration and management
 #[derive(Debug, Clone)]
 pub struct DeviceInfo {

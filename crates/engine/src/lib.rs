@@ -82,7 +82,7 @@ pub use test_harness::{
 pub use two_phase_apply::{ApplyOperationStats, ApplyResult, ApplyStats, TwoPhaseApplyCoordinator};
 
 // Re-export specific items to avoid conflicts
-pub use device::{DeviceEvent, DeviceInfo, TelemetryData, VirtualDevice, VirtualHidPort};
+pub use device::{DeviceEvent, DeviceInfo, DeviceInputs, TelemetryData, VirtualDevice, VirtualHidPort};
 pub use metrics::{
     AlertingThresholds, AppMetrics, AtomicCounters, HealthEvent, HealthEventStreamer,
     HealthEventType, HealthSeverity, MetricsCollector, MetricsValidator, PrometheusMetrics,

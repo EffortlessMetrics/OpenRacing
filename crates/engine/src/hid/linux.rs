@@ -997,6 +997,10 @@ impl HidDevice for LinuxHidDevice {
 
         Some(self.moza_input_state.read())
     }
+
+    fn read_inputs(&self) -> Option<crate::DeviceInputs> {
+        self.moza_input_state().map(crate::DeviceInputs::from_moza_input_state)
+    }
 }
 
 /// Apply Linux-specific RT optimizations

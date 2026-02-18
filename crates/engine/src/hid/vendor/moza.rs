@@ -62,6 +62,38 @@ pub mod input_report {
     pub const ROTARY_LEN: usize = 2;
 }
 
+/// Lightweight parsed view over a wheelbase-style input report.
+#[derive(Debug, Clone, Copy)]
+pub struct RawWheelbaseReport<'a> {
+    report: &'a [u8],
+}
+
+impl<'a> RawWheelbaseReport<'a> {
+    fn new(report: &'a [u8]) -> Self {
+        Self { report }
+    }
+
+    pub fn report_id(&self) -> u8 {
+        self.report[0]
+    }
+
+    pub fn report_bytes(&self) -> &'a [u8] {
+        self.report
+    }
+
+    pub fn byte(&self, offset: usize) -> Option<u8> {
+        self.report.get(offset).copied()
+    }
+
+    pub fn axis_u16_le(&self, start: usize) -> Option<u16> {
+        parse_axis(self.report, start)
+    }
+
+    pub fn axis_u16_or_zero(&self, start: usize) -> u16 {
+        self.axis_u16_le(start).unwrap_or(0)
+    }
+}
+
 /// Moza HID Report IDs
 pub mod report_ids {
     /// Device info query
@@ -587,14 +619,16 @@ impl MozaProtocol {
     /// so their axis values are carried in the wheelbase input report rather
     /// than a standalone USB pedal device.
     pub fn parse_aggregated_pedal_axes(&self, report: &[u8]) -> Option<MozaPedalAxesRaw> {
-        if report.first().copied() != Some(input_report::REPORT_ID) {
+        let report = self.parse_wheelbase_report(report)?;
+
+        if report.report_id() != input_report::REPORT_ID {
             return None;
         }
 
-        let throttle = parse_axis(report, input_report::THROTTLE_START)?;
-        let brake = parse_axis(report, input_report::BRAKE_START)?;
-        let clutch = parse_axis(report, input_report::CLUTCH_START);
-        let handbrake = parse_axis(report, input_report::HANDBRAKE_START);
+        let throttle = report.axis_u16_le(input_report::THROTTLE_START)?;
+        let brake = report.axis_u16_le(input_report::BRAKE_START)?;
+        let clutch = report.axis_u16_le(input_report::CLUTCH_START);
+        let handbrake = report.axis_u16_le(input_report::HANDBRAKE_START);
 
         Some(MozaPedalAxesRaw {
             throttle,
@@ -602,6 +636,23 @@ impl MozaProtocol {
             clutch,
             handbrake,
         })
+    }
+
+    /// Parse a wheelbase-style report into a lightweight, non-owning view.
+    ///
+    /// This is used by map-driven parsers so raw reports can be interpreted with
+    /// descriptor-driven offsets without losing bounds safety.
+    pub fn parse_wheelbase_report<'a>(&self, report: &'a [u8]) -> Option<RawWheelbaseReport<'a>> {
+        let len_min = input_report::BRAKE_START + 2;
+        if report.first().copied() != Some(input_report::REPORT_ID) {
+            return None;
+        }
+
+        if report.len() < len_min {
+            return None;
+        }
+
+        Some(RawWheelbaseReport::new(report))
     }
 
     /// Parse a full Moza input report into `MozaInputState`.
@@ -617,34 +668,35 @@ impl MozaProtocol {
             return None;
         }
 
-        let steering_u16 = parse_axis(report, input_report::STEERING_START)?;
-        let throttle_u16 = parse_axis(report, input_report::THROTTLE_START)?;
-        let brake_u16 = parse_axis(report, input_report::BRAKE_START)?;
-        let clutch_u16 = parse_axis_or_zero(report, input_report::CLUTCH_START);
-        let handbrake_u16 = parse_axis_or_zero(report, input_report::HANDBRAKE_START);
+        let report = self.parse_wheelbase_report(report)?;
+        let steering_u16 = parse_axis(report.report_bytes(), input_report::STEERING_START)?;
+        let throttle_u16 = report.axis_u16_le(input_report::THROTTLE_START)?;
+        let brake_u16 = report.axis_u16_le(input_report::BRAKE_START)?;
+        let clutch_u16 = report.axis_u16_or_zero(input_report::CLUTCH_START);
+        let handbrake_u16 = report.axis_u16_or_zero(input_report::HANDBRAKE_START);
 
         let mut buttons = [0u8; 16];
-        if report.len() >= input_report::BUTTONS_START + input_report::BUTTONS_LEN {
+        if report.report_bytes().len() >= input_report::BUTTONS_START + input_report::BUTTONS_LEN {
             buttons.copy_from_slice(
-                &report[input_report::BUTTONS_START
+                &report.report_bytes()[input_report::BUTTONS_START
                     ..input_report::BUTTONS_START + input_report::BUTTONS_LEN],
             );
         }
 
-        let hat = report.get(input_report::HAT_START).copied().unwrap_or(0);
-        let funky = report.get(input_report::FUNKY_START).copied().unwrap_or(0);
+        let hat = report.byte(input_report::HAT_START).unwrap_or(0);
+        let funky = report.byte(input_report::FUNKY_START).unwrap_or(0);
 
         let mut rotary = [0u8; 2];
-        if report.len() >= input_report::ROTARY_START + input_report::ROTARY_LEN {
+        if report.report_bytes().len() >= input_report::ROTARY_START + input_report::ROTARY_LEN {
             rotary.copy_from_slice(
-                &report[input_report::ROTARY_START
+                &report.report_bytes()[input_report::ROTARY_START
                     ..input_report::ROTARY_START + input_report::ROTARY_LEN],
             );
         }
 
         let ks_snapshot = if self.is_wheelbase() {
             default_wheelbase_ks_map()
-                .parse(0, report)
+                .parse(0, report.report_bytes())
                 .unwrap_or_default()
         } else {
             crate::input::KsReportSnapshot::default()
