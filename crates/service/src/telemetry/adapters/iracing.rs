@@ -36,6 +36,8 @@ const IRSDK_SESSION_FLAG_GREEN: u32 = 0x0000_0004;
 const IRSDK_SESSION_FLAG_YELLOW: u32 = 0x0000_0008;
 const IRSDK_SESSION_FLAG_RED: u32 = 0x0000_0010;
 const IRSDK_SESSION_FLAG_BLUE: u32 = 0x0000_0020;
+const IRSDK_DEFAULT_TIRE_RADIUS_M: f32 = 0.33;
+const IRSDK_MIN_TIRE_SURFACE_SPEED_MPS: f32 = 0.05;
 const IRSDK_STABLE_READ_ATTEMPTS: usize = 3;
 const IRSDK_MAX_VARS: i32 = 4096;
 const IRSDK_VAR_NAME_LEN: usize = 32;
@@ -526,7 +528,7 @@ impl IRacingAdapter {
         if let Some(ffb_scalar) = resolve_ffb_scalar(data, layout) {
             telemetry = telemetry.with_ffb_scalar(ffb_scalar);
         } else if !*warned_unscaled_ffb {
-            warn!("iRacing FFB scalar missing. Using legacy fallback if available.");
+            warn!("iRacing FFB scalar missing. Data source may not expose steering torque metadata yet.");
             *warned_unscaled_ffb = true;
         }
 
@@ -553,8 +555,15 @@ impl IRacingAdapter {
             TelemetryValue::Integer(data.session_flags as i32),
         );
 
-        if let Some(slip_ratio) = resolve_slip_ratio(data, layout) {
+        if let Some((slip_ratio, slip_ratio_source)) = resolve_slip_ratio(data, layout) {
             telemetry = telemetry.with_slip_ratio(slip_ratio);
+            telemetry = telemetry.with_extended(
+                "slip_ratio_source".to_string(),
+                TelemetryValue::String(match slip_ratio_source {
+                    SlipRatioSource::Explicit => "explicit".to_string(),
+                    SlipRatioSource::DerivedFromWheelSpeeds => "derived_wheel_rps".to_string(),
+                }),
+            );
         }
 
         if layout.steering_wheel_limiter.is_some() && data.steering_wheel_limiter.is_finite() {
@@ -1069,14 +1078,16 @@ fn resolve_ffb_scalar(data: &IRacingData, layout: &IRacingLayout) -> Option<f32>
         );
     }
 
-    if layout.steering_wheel_torque.is_some() && data.steering_wheel_torque.is_finite() {
-        return Some((data.steering_wheel_torque / 100.0).clamp(-1.0, 1.0));
-    }
-
     None
 }
 
-fn resolve_slip_ratio(data: &IRacingData, layout: &IRacingLayout) -> Option<f32> {
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum SlipRatioSource {
+    Explicit,
+    DerivedFromWheelSpeeds,
+}
+
+fn resolve_slip_ratio(data: &IRacingData, layout: &IRacingLayout) -> Option<(f32, SlipRatioSource)> {
     let max_abs_slip = [
         (layout.lf_tire_slip_ratio, data.lf_tire_slip_ratio),
         (layout.rf_tire_slip_ratio, data.rf_tire_slip_ratio),
@@ -1094,9 +1105,54 @@ fn resolve_slip_ratio(data: &IRacingData, layout: &IRacingLayout) -> Option<f32>
     .max_by(f32::total_cmp);
 
     if let Some(max_abs) = max_abs_slip {
-        return Some(max_abs.clamp(0.0, 1.0));
+        return Some((max_abs.clamp(0.0, 1.0), SlipRatioSource::Explicit));
+    }
+
+    let derived_max_abs_slip = [
+        (layout.lf_tire_rps, data.lf_tire_rps),
+        (layout.rf_tire_rps, data.rf_tire_rps),
+        (layout.lr_tire_rps, data.lr_tire_rps),
+        (layout.rr_tire_rps, data.rr_tire_rps),
+    ]
+    .into_iter()
+    .filter_map(|(binding, value)| {
+        if binding.is_some() {
+            derive_slip_ratio_from_tire_rps(value, data.speed)
+        } else {
+            None
+        }
+    })
+    .max_by(f32::total_cmp);
+
+    if let Some(max_abs) = derived_max_abs_slip {
+        return Some((max_abs, SlipRatioSource::DerivedFromWheelSpeeds));
     }
     None
+}
+
+fn derive_slip_ratio_from_tire_rps(tire_rps: f32, vehicle_speed_ms: f32) -> Option<f32> {
+    if !tire_rps.is_finite() || !vehicle_speed_ms.is_finite() {
+        return None;
+    }
+    if tire_rps.abs() < f32::EPSILON {
+        return None;
+    }
+
+    let vehicle_speed_ms = vehicle_speed_ms.abs();
+    let wheel_surface_speed_ms =
+        tire_rps.abs() * 2.0 * std::f32::consts::PI * IRSDK_DEFAULT_TIRE_RADIUS_M;
+
+    if wheel_surface_speed_ms < IRSDK_MIN_TIRE_SURFACE_SPEED_MPS {
+        return None;
+    }
+
+    let reference_speed = wheel_surface_speed_ms
+        .max(vehicle_speed_ms)
+        .max(IRSDK_MIN_TIRE_SURFACE_SPEED_MPS);
+    Some(
+        ((wheel_surface_speed_ms - vehicle_speed_ms).abs() / reference_speed)
+            .clamp(0.0, 1.0),
+    )
 }
 
 fn decode_iso_8859_1_string(bytes: &[u8]) -> String {
@@ -1329,7 +1385,7 @@ mod tests {
     fn test_normalize_iracing_data() -> TestResult {
         let adapter = IRacingAdapter::new();
         let mut layout = IRacingLayout::default();
-        layout.steering_wheel_torque = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
+        layout.steering_wheel_pct_torque_sign = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
         layout.steering_wheel_limiter = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
 
         let car_name = b"gt3_bmw\0";
@@ -1344,8 +1400,8 @@ mod tests {
             speed: 50.0,
             gear: 4,
             steering_wheel_torque: 25.0,
+            steering_wheel_pct_torque_sign: 25.0,
             steering_wheel_limiter: 73.0,
-            steering_wheel_pct_torque_sign: 0.0,
             steering_wheel_max_force_nm: 0.0,
             throttle: 0.8,
             brake: 0.2,
@@ -1514,7 +1570,7 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_ffb_scalar_uses_legacy_scaling_when_bound() -> TestResult {
+    fn test_resolve_ffb_scalar_is_none_without_percent_or_maxforce_binding() -> TestResult {
         let mut layout = IRacingLayout::default();
         layout.steering_wheel_torque = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
         let data = IRacingData {
@@ -1523,7 +1579,7 @@ mod tests {
         };
 
         let resolved = resolve_ffb_scalar(&data, &layout);
-        assert_eq!(resolved, Some(0.32));
+        assert_eq!(resolved, None);
         Ok(())
     }
 
@@ -1568,7 +1624,32 @@ mod tests {
         };
 
         let resolved = resolve_slip_ratio(&data, &layout);
-        assert_eq!(resolved, Some(0.8));
+        assert_eq!(
+            resolved,
+            Some((0.8, SlipRatioSource::Explicit))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_slip_ratio_falls_back_to_wheel_speed_derivation() -> TestResult {
+        let mut layout = IRacingLayout::default();
+        layout.lf_tire_rps = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
+
+        let data = IRacingData {
+            lf_tire_rps: 20.0,
+            speed: 30.0,
+            ..IRacingData::default()
+        };
+
+        let resolved = resolve_slip_ratio(&data, &layout);
+        assert_eq!(
+            resolved,
+            Some((
+                derive_slip_ratio_from_tire_rps(20.0, 30.0).expect("fallback should produce ratio"),
+                SlipRatioSource::DerivedFromWheelSpeeds,
+            ))
+        );
         Ok(())
     }
 
