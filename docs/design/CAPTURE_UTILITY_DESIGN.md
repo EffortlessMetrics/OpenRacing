@@ -169,3 +169,36 @@ KS has mode-sensitive control semantics and should not be hard-coded. Add a dedi
 ### Phase 3: Community Platform
 - GitHub Actions workflow to validate submitted JSONs.
 - "Device Library" registry in the main `OpenRacing` repo.
+
+## Moza R5 identity capture (deterministic matrix capture)
+
+The repository now includes a small cross-platform capture utility:
+
+- `crates/openracing-capture-ids`
+- crate name: `openracing-capture-ids`
+
+This utility captures the full HID interface matrix for Moza devices and emits JSON suitable for stable identity baselines.
+
+For each interface it emits:
+
+- `vendor_id` / `product_id` (hex and decimal)
+- `interface_number` (when present)
+- `usage_page` / `usage`
+- `path` (`/dev/hidrawX` on Linux, Windows HID path on Windows)
+- Linux report descriptor summary (`len`, `crc32`, optional hex via `--descriptor-hex`)
+
+Run examples:
+
+```bash
+cargo run -p openracing-capture-ids --release -- --vid 0x346E --descriptor-hex > moza_ids_linux.json
+```
+
+```powershell
+cargo run -p openracing-capture-ids --release -- --vid 0x346E > moza_ids_windows.json
+```
+
+Use the captured output to:
+
+- select the correct output/FFB interface by usage + descriptor fingerprint,
+- gate direct torque behind known descriptors,
+- track layout drift across firmware versions.

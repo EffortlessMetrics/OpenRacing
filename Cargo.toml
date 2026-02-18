@@ -8,6 +8,7 @@ members = [
     "crates/plugins",
     "crates/integration-tests",
     "crates/compat",
+    "crates/openracing-capture-ids",
     "workspace-hack",
 ]
 exclude = ["third_party/shared_memory"]
@@ -47,6 +48,7 @@ mimalloc = "0.1.48"
 # HID and hardware
 hidapi = "2.6.4"
 libudev = "0.3.0"
+crc32fast = "1.4.0"
 
 # Schema and validation
 jsonschema = "0.40.2"
