@@ -99,6 +99,58 @@ The tool is split into two distinct modes of operation: **Mapping** (Safe, Easy)
   2. Toggle on/off with a known input pattern.
   3. Confirm as bitfield (`ButtonMode=on`) or axis threshold profile.
 
+### Phase 1c: KS capture and map workflow (capture-driven, mode-aware)
+
+KS has mode-sensitive control semantics and should not be hard-coded. Add a dedicated workflow branch:
+
+#### A) Topology discovery
+
+1. Detect one of:
+   - Moza wheelbase VID/PID with KS present via user confirmation,
+   - Universal Hub VID/PID with a selected hub-port profile.
+2. Log explicit topology decision:
+   - `wheelbase-aggregated`,
+   - `universal-hub`.
+3. Persist topology in `capture_notes.json` with firmware/build + HID signature summary.
+
+#### B) Wheelbase workflow (aggregated)
+
+1. Capture 60s baseline with KS disconnected/unmoved.
+2. Walk controls in deterministic script:
+   - clutch axes to both extremes in combined mode,
+   - left/right clutch axes independently if firmware exposes them,
+   - clutch buttons if button mode is enabled,
+   - joystick directions, joystick button mode,
+   - each rotary as press/release and dial rotation.
+3. Capture report bytes and infer `KsReportMap`:
+   - buttons bitmap span,
+   - clutch encoders / clutch button bits,
+   - rotary source bytes,
+   - joystick source.
+
+#### C) Universal Hub workflow
+
+1. Validate which USB interface carries wheel input (if multiple interfaces are visible).
+2. Capture `start` + `stop` to confirm no duplicate interfaces (and which interface terminates feature-like writes).
+3. Run the same scripted action set and compare with wheelbase traces for:
+   - identical control semantics in same KS profile,
+   - reduced/failing controls in firmware-limited revisions.
+4. If wheel payload is absent, mark device signature as `fsr-only` and fail the KS mode path with user-facing diagnostic.
+
+#### D) Artifact set for each topology/mode
+
+- `capture_notes.json`:
+  - topology,
+  - product/firmware strings,
+  - report ID map,
+  - ks mode hypothesis log.
+- `descriptor.bin` (raw, per interface),
+- `device_map.json` (KS offsets/bitmasks + mode hints),
+- `ks_input_trace.bin` (timestamped raw input stream),
+- `ks_init_bytes.bin` (if any OUT traffic is detected for mode toggles),
+- `ks_golden_snapshots.json` (expected `KsReportSnapshot` per scripted actions),
+- `ks_pairing_notes.txt` (indicator behavior, pairing retries, known cable caveats).
+
 ### Phase 2: Sniffer Integration
 - Integrate `pcap` crate.
 - Add admin-check logic.

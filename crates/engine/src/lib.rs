@@ -36,6 +36,7 @@ pub mod diagnostic;
 pub mod engine;
 pub mod ffb;
 pub mod filters;
+pub mod input;
 pub mod hid;
 pub mod hil_tests;
 pub mod led_haptics;

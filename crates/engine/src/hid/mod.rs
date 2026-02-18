@@ -4,10 +4,9 @@
 //! the HidPort and HidDevice traits with real-time optimizations for each OS.
 
 use crate::ports::HidPort;
+use crate::input::{KsReportSnapshot, SnapshotMailbox as Seqlock};
 use crate::{DeviceInfo, TelemetryData};
 use racing_wheel_schemas::prelude::*;
-use std::cell::UnsafeCell;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 pub mod quirks;
 pub mod rt_stream;
@@ -67,6 +66,7 @@ pub struct MozaInputState {
     pub hat: u8,
     pub funky: u8,
     pub rotary: [u8; 2],
+    pub ks_snapshot: KsReportSnapshot,
     pub tick: u32,
 }
 
@@ -83,51 +83,17 @@ impl MozaInputState {
             hat: 0,
             funky: 0,
             rotary: [0u8; 2],
+            ks_snapshot: KsReportSnapshot::default(),
             tick,
         }
     }
 
-    pub const fn both_clutches_pressed(&self, threshold: u16) -> bool {
+    pub fn both_clutches_pressed(&self, threshold: u16) -> bool {
+        if let Some(pressed) = self.ks_snapshot.both_clutches_pressed(threshold) {
+            return pressed;
+        }
+
         self.clutch_u16 >= threshold && self.handbrake_u16 >= threshold
-    }
-}
-
-/// Lock-free, single-writer/multi-reader snapshot holder.
-pub struct Seqlock<T: Copy> {
-    seq: AtomicU32,
-    data: UnsafeCell<T>,
-}
-
-unsafe impl<T: Copy> Sync for Seqlock<T> {}
-
-impl<T: Copy> Seqlock<T> {
-    pub const fn new(value: T) -> Self {
-        Self {
-            seq: AtomicU32::new(0),
-            data: UnsafeCell::new(value),
-        }
-    }
-
-    pub fn write(&self, value: T) {
-        let seq_start = self.seq.load(Ordering::Relaxed);
-        self.seq.store(seq_start.wrapping_add(1), Ordering::Release);
-        unsafe { *self.data.get() = value; }
-        self.seq.store(seq_start.wrapping_add(2), Ordering::Release);
-    }
-
-    pub fn read(&self) -> T {
-        loop {
-            let seq_first = self.seq.load(Ordering::Acquire);
-            if (seq_first & 1) != 0 {
-                continue;
-            }
-
-            let value = unsafe { *self.data.get() };
-            let seq_second = self.seq.load(Ordering::Acquire);
-            if seq_first == seq_second {
-                return value;
-            }
-        }
     }
 }
 

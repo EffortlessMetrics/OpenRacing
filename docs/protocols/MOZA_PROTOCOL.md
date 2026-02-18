@@ -21,6 +21,46 @@ Moza Racing hardware generally follows a unified HID-over-USB protocol. However,
 | **CRP Pedals** | Pedals | USB | `0x0001` (Typical) | *Partial* |
 | **HBP Handbrake** | Handbrake | USB | `0x0022` (standalone) | *Planned* |
 
+## Moza KS support model (wheel + controls)
+
+The KS is **not** treated as a normal wheel peripheral. OpenRacing uses a topology-first model:
+
+1. **Wheelbase topology (primary):** host sees only the wheelbase USB device; KS controls are aggregated into wheelbase input reports.
+2. **Universal Hub topology (secondary):** host may see the hub as a USB HID with exposed wheel and accessory ports; behavior is firmware-dependent and must be capture-gated.
+
+### Recommended canonical handling
+
+- **Never hard-code KS physical layout in runtime code paths.**
+- **Derive control interpretation from capture-derived maps** (`device_map.json`) and runtime profile metadata.
+- Use mode-aware normalization for:
+  - dual clutches (combined axis / independent axis / button modes),
+  - rotaries (button deltas vs knob values),
+  - joysticks (button mode vs D-pad mode).
+- Treat all mode decisions as potentially changing with firmware and Pit House profile settings unless validated in artifact checks.
+
+### Open items from current implementation
+
+- Confirm exact report IDs / descriptor signatures for:
+  - KS over wheelbase path (including whether rim ID bytes expose “KS attached”),
+  - KS via Universal Hub USB mode.
+- Reconcile Universal Hub manual wording variance:
+  - product page suggests wheel support,
+  - manual screenshots can show `Wheel (currently FSR only)`.
+- Validate clutch/button mode mapping from capture vectors before enabling mode-specific safety assumptions.
+
+### KS capture-validated checklist (before shipping production support)
+
+- [ ] Wheelbase path report descriptor captured for at least one KS-verified firmware.
+- [ ] Universal Hub path descriptor captured (if supported by product revision) with report IDs and report lengths.
+- [ ] Baseline + transition traces for:
+  - clutch combined mode,
+  - clutch independent axis mode,
+  - clutch button mode.
+- [ ] Baseline + transition traces for rotary button mode and rotary knob mode.
+- [ ] Baseline + transition traces for joystick button mode and D-pad mode.
+- [ ] Topology diagnostics for missing controls when pairing is incomplete (stale reports, no deltas, no joystick updates).
+- [ ] Golden normalized snapshots committed to `device_map.json`/`capture_notes.json`.
+
 ## Discovery & Initialization
 
 ### The "Magic" Handshake

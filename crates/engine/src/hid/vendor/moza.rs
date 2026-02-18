@@ -6,6 +6,10 @@
 #![deny(static_mut_refs)]
 
 use super::{DeviceWriter, FfbConfig, VendorProtocol, MozaInputState};
+use crate::input::{
+    KsAxisSource, KsByteSource, KsClutchMode, KsJoystickMode, KsReportMap, KsRotaryMode,
+    KS_ENCODER_COUNT,
+};
 use super::moza_direct::REPORT_LEN;
 use std::sync::atomic::{AtomicU8, Ordering};
 use tracing::{debug, info, warn};
@@ -109,6 +113,26 @@ pub mod product_ids {
     pub const HGP_SHIFTER: u16 = 0x0020;
     pub const SGP_SHIFTER: u16 = 0x0021;
     pub const HBP_HANDBRAKE: u16 = 0x0022;
+}
+
+fn default_wheelbase_ks_map() -> KsReportMap {
+    KsReportMap {
+        report_id: Some(input_report::REPORT_ID),
+        buttons_offset: Some(input_report::BUTTONS_START),
+        hat_offset: Some(input_report::HAT_START),
+        encoders: [None; KS_ENCODER_COUNT],
+        clutch_left_axis: None,
+        clutch_right_axis: None,
+        clutch_combined_axis: None,
+        clutch_left_button: None,
+        clutch_right_button: None,
+        clutch_mode_hint: KsClutchMode::Unknown,
+        rotary_mode_hint: KsRotaryMode::Unknown,
+        left_rotary_axis: Some(KsAxisSource::new(input_report::ROTARY_START, false)),
+        right_rotary_axis: Some(KsAxisSource::new(input_report::ROTARY_START + 1, false)),
+        joystick_mode_hint: KsJoystickMode::Unknown,
+        joystick_hat: Some(KsByteSource::new(input_report::HAT_START)),
+    }
 }
 
 /// Known Moza rim IDs when attached to a compatible wheelbase.
@@ -618,6 +642,14 @@ impl MozaProtocol {
             );
         }
 
+        let ks_snapshot = if self.is_wheelbase() {
+            default_wheelbase_ks_map()
+                .parse(0, report)
+                .unwrap_or_default()
+        } else {
+            crate::input::KsReportSnapshot::default()
+        };
+
         Some(MozaInputState {
             steering_u16,
             throttle_u16,
@@ -628,12 +660,17 @@ impl MozaProtocol {
             hat,
             funky,
             rotary,
+            ks_snapshot,
             tick: 0,
         })
     }
 
     fn is_standalone_handbrake(&self) -> bool {
         identify_device(self.product_id).category == MozaDeviceCategory::Handbrake
+    }
+
+    fn is_wheelbase(&self) -> bool {
+        identify_device(self.product_id).category == MozaDeviceCategory::Wheelbase
     }
 
     fn parse_standalone_handbrake_state(&self, report: &[u8]) -> Option<MozaInputState> {

@@ -6,6 +6,7 @@ use super::moza::{
     es_compatibility, identify_device, input_report, is_wheelbase_product, product_ids,
     report_ids,
 };
+use crate::input::KsClutchMode;
 use super::moza_direct::REPORT_LEN;
 use super::{DeviceWriter, FfbConfig, VendorProtocol, get_vendor_protocol};
 use std::cell::RefCell;
@@ -188,6 +189,57 @@ fn test_moza_parse_aggregated_pedal_axes_rejects_wrong_report_id() {
 
     let parsed = protocol.parse_aggregated_pedal_axes(&report);
     assert_eq!(parsed, None);
+}
+
+#[test]
+fn test_moza_parse_input_state_populates_ks_snapshot() {
+    let protocol = MozaProtocol::new(product_ids::R5_V1);
+
+    let report = [
+        input_report::REPORT_ID,
+        0x00,
+        0x80,
+        0x34,
+        0x12,
+        0xCD,
+        0xAB,
+        0x0F,
+        0x0F,
+        0xAA,
+        0x55,
+        0x01,
+        0x02,
+        0x03,
+        0x04,
+        0x05,
+        0x06,
+        0x07,
+        0x08,
+        0x09,
+        0x0A,
+        0x0B,
+        0x0C,
+        0x0D,
+        0x0E,
+        0x0F,
+        0x10,
+        0x11,
+        0x12,
+        0x13,
+        0x14,
+        0x15,
+        0x16,
+    ];
+
+    let state = protocol
+        .parse_input_state(&report)
+        .expect("expected wheelbase state parse");
+
+    let expected_buttons = [0x01u8, 0x02, 0x03, 0x04];
+    assert_eq!(&state.ks_snapshot.buttons[..4], &expected_buttons[..]);
+    assert_eq!(state.ks_snapshot.hat, 0x14);
+    assert_eq!(state.ks_snapshot.clutch_mode, KsClutchMode::Unknown);
+    assert_eq!(state.ks_snapshot.clutch_left, None);
 }
 
 #[test]
