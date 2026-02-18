@@ -3,7 +3,7 @@
 use super::moza::{
     ES_BUTTON_COUNT, ES_LED_COUNT, FfbMode, MozaDeviceCategory, MozaEsCompatibility,
     MozaEsJoystickMode, MozaHatDirection, MozaModel, MozaProtocol, MozaTopologyHint,
-    es_compatibility, identify_device, is_wheelbase_product, product_ids,
+    es_compatibility, identify_device, input_report, is_wheelbase_product, product_ids,
 };
 use super::{DeviceWriter, FfbConfig, VendorProtocol, get_vendor_protocol};
 use std::cell::RefCell;
@@ -118,6 +118,104 @@ fn test_moza_identity_peripherals() {
     assert_eq!(unknown.topology_hint, MozaTopologyHint::Unknown);
     assert!(!unknown.supports_ffb);
     assert!(!is_wheelbase_product(0xFEED));
+}
+
+#[test]
+fn test_moza_parse_aggregated_pedal_axes_basic() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new(product_ids::R5_V1);
+
+    let report = [
+        input_report::REPORT_ID,
+        0x00,
+        0x80, // steering center
+        0x34,
+        0x12, // throttle = 0x1234
+        0xCD,
+        0xAB, // brake = 0xABCD
+        0x0F,
+        0x0F, // clutch = 0x0F0F
+        0xAA,
+        0x55, // handbrake = 0x55AA
+    ];
+
+    let parsed = protocol
+        .parse_aggregated_pedal_axes(&report)
+        .ok_or("failed to parse aggregated pedal axes")?;
+
+    assert_eq!(parsed.throttle, 0x1234);
+    assert_eq!(parsed.brake, 0xABCD);
+    assert_eq!(parsed.clutch, Some(0x0F0F));
+    assert_eq!(parsed.handbrake, Some(0x55AA));
+    Ok(())
+}
+
+#[test]
+fn test_moza_parse_aggregated_pedal_axes_missing_optional_axes()
+-> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new(product_ids::R3_V1);
+
+    // Includes report ID + steering + throttle + brake only.
+    let report = [
+        input_report::REPORT_ID,
+        0xFF,
+        0x7F, // steering near center
+        0x00,
+        0x10, // throttle = 0x1000
+        0x00,
+        0x20, // brake = 0x2000
+    ];
+
+    let parsed = protocol
+        .parse_aggregated_pedal_axes(&report)
+        .ok_or("failed to parse required throttle/brake axes")?;
+
+    assert_eq!(parsed.throttle, 0x1000);
+    assert_eq!(parsed.brake, 0x2000);
+    assert_eq!(parsed.clutch, None);
+    assert_eq!(parsed.handbrake, None);
+    Ok(())
+}
+
+#[test]
+fn test_moza_parse_aggregated_pedal_axes_rejects_wrong_report_id() {
+    let protocol = MozaProtocol::new(product_ids::R9_V2);
+    let report = [
+        0x02, // telemetry report, not input report
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ];
+
+    let parsed = protocol.parse_aggregated_pedal_axes(&report);
+    assert_eq!(parsed, None);
+}
+
+#[test]
+fn test_moza_pedal_axis_normalization() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new(product_ids::R5_V2);
+
+    let report = [
+        input_report::REPORT_ID,
+        0x00,
+        0x80,
+        0x00,
+        0x00, // throttle = 0x0000
+        0xFF,
+        0xFF, // brake = 0xFFFF
+        0x00,
+        0x80, // clutch = 0x8000
+    ];
+
+    let normalized = protocol
+        .parse_aggregated_pedal_axes(&report)
+        .ok_or("failed to parse report for normalization test")?
+        .normalize();
+
+    assert_eq!(normalized.throttle, 0.0);
+    assert_eq!(normalized.brake, 1.0);
+
+    let clutch = normalized.clutch.ok_or("expected clutch sample")?;
+    assert!((clutch - (32768.0 / 65535.0)).abs() < 0.000_01);
+    assert_eq!(normalized.handbrake, None);
+    Ok(())
 }
 
 #[test]

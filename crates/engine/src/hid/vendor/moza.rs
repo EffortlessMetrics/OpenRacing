@@ -8,6 +8,19 @@
 use super::{DeviceWriter, FfbConfig, VendorProtocol};
 use tracing::{debug, info, warn};
 
+/// Report ID and axis offsets for aggregated wheelbase input reports.
+///
+/// These offsets are based on the current Moza protocol document in this
+/// repository and should be validated against per-firmware capture traces.
+pub mod input_report {
+    pub const REPORT_ID: u8 = 0x01;
+    pub const STEERING_START: usize = 1;
+    pub const THROTTLE_START: usize = 3;
+    pub const BRAKE_START: usize = 5;
+    pub const CLUTCH_START: usize = 7;
+    pub const HANDBRAKE_START: usize = 9;
+}
+
 /// Moza HID Report IDs
 pub mod report_ids {
     /// Device info query
@@ -333,6 +346,48 @@ impl MozaModel {
     }
 }
 
+/// Raw pedal axis samples parsed from an aggregated wheelbase input report.
+///
+/// `throttle` and `brake` are required for SR-P Lite integration. `clutch` and
+/// `handbrake` are optional and only present when the report length includes the
+/// corresponding fields.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MozaPedalAxesRaw {
+    pub throttle: u16,
+    pub brake: u16,
+    pub clutch: Option<u16>,
+    pub handbrake: Option<u16>,
+}
+
+/// Normalized pedal axis samples in the `[0.0, 1.0]` range.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MozaPedalAxes {
+    pub throttle: f32,
+    pub brake: f32,
+    pub clutch: Option<f32>,
+    pub handbrake: Option<f32>,
+}
+
+impl MozaPedalAxesRaw {
+    /// Normalize 16-bit raw samples to `[0.0, 1.0]`.
+    pub fn normalize(self) -> MozaPedalAxes {
+        const MAX: f32 = u16::MAX as f32;
+        MozaPedalAxes {
+            throttle: self.throttle as f32 / MAX,
+            brake: self.brake as f32 / MAX,
+            clutch: self.clutch.map(|value| value as f32 / MAX),
+            handbrake: self.handbrake.map(|value| value as f32 / MAX),
+        }
+    }
+}
+
+fn parse_axis(report: &[u8], start: usize) -> Option<u16> {
+    if report.len() < start.saturating_add(2) {
+        return None;
+    }
+    Some(u16::from_le_bytes([report[start], report[start + 1]]))
+}
+
 /// Moza protocol handler
 pub struct MozaProtocol {
     product_id: u16,
@@ -371,6 +426,29 @@ impl MozaProtocol {
     /// Get ES compatibility state for this wheelbase/product.
     pub fn es_compatibility(&self) -> MozaEsCompatibility {
         es_compatibility(self.product_id)
+    }
+
+    /// Parse pedal axis data from a wheelbase input report.
+    ///
+    /// SR-P Lite pedals are typically connected to the wheelbase pedal port,
+    /// so their axis values are carried in the wheelbase input report rather
+    /// than a standalone USB pedal device.
+    pub fn parse_aggregated_pedal_axes(&self, report: &[u8]) -> Option<MozaPedalAxesRaw> {
+        if report.first().copied() != Some(input_report::REPORT_ID) {
+            return None;
+        }
+
+        let throttle = parse_axis(report, input_report::THROTTLE_START)?;
+        let brake = parse_axis(report, input_report::BRAKE_START)?;
+        let clutch = parse_axis(report, input_report::CLUTCH_START);
+        let handbrake = parse_axis(report, input_report::HANDBRAKE_START);
+
+        Some(MozaPedalAxesRaw {
+            throttle,
+            brake,
+            clutch,
+            handbrake,
+        })
     }
 
     /// Enable high torque mode
