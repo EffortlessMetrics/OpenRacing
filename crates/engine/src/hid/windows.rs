@@ -1130,7 +1130,7 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque = TorqueNm::ZERO;
                     capabilities.encoder_cpr = 4096;
                 }
-                0x0020 | 0x0021 | 0x0022 => {
+                0x0020..=0x0022 => {
                     // HGP shifter / SGP sequential / HBP handbrake (input peripherals)
                     capabilities.supports_pid = false;
                     capabilities.supports_raw_torque_1khz = false;

@@ -98,6 +98,23 @@ THRESHOLDS = {
 }
 
 
+def resolve_benchmark_path(file_path: str) -> str:
+    """Resolve benchmark result path across common workspace locations."""
+    if os.path.exists(file_path):
+        return file_path
+
+    candidates = []
+    if not os.path.isabs(file_path):
+        candidates.append(os.path.join("crates", "engine", file_path))
+
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            print(f"[INFO] Benchmark file not found at {file_path}; using {candidate}")
+            return candidate
+
+    return file_path
+
+
 def parse_benchmark_results(file_path: str) -> Dict[str, Any]:
     """Parse benchmark results from JSON file.
     
@@ -110,12 +127,14 @@ def parse_benchmark_results(file_path: str) -> Dict[str, Any]:
     Raises:
         SystemExit: If file cannot be read or parsed.
     """
-    if not os.path.exists(file_path):
+    resolved_path = resolve_benchmark_path(file_path)
+
+    if not os.path.exists(resolved_path):
         print(f"[ERROR] Benchmark file not found: {file_path}")
         sys.exit(1)
         
     try:
-        with open(file_path, 'r') as f:
+        with open(resolved_path, 'r') as f:
             data = json.load(f)
         return data
     except json.JSONDecodeError as e:

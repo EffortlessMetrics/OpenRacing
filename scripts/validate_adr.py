@@ -138,19 +138,19 @@ def main():
     requirements_file = Path(args.requirements)
     
     if not adr_dir.exists():
-        print(f"❌ ADR directory not found: {adr_dir}")
+        print(f"[ERROR] ADR directory not found: {adr_dir}")
         sys.exit(1)
-    
-    print("🔍 Validating ADR files...")
+
+    print("[INFO] Validating ADR files...")
     
     adr_files = find_adr_files(adr_dir)
     
     if not adr_files:
-        print("❌ No ADR files found")
+        print("[ERROR] No ADR files found")
         sys.exit(1)
-    
+
     if args.verbose:
-        print(f"📄 Found {len(adr_files)} ADR files")
+        print(f"[INFO] Found {len(adr_files)} ADR files")
     
     total_errors = 0
     
@@ -158,27 +158,27 @@ def main():
     for adr_path in adr_files:
         errors = validate_adr_format(adr_path)
         if errors:
-            print(f"\n❌ {adr_path.name}:")
+            print(f"\n[ERROR] {adr_path.name}:")
             for error in errors:
                 print(f"   - {error}")
             total_errors += len(errors)
         elif args.verbose:
-            print(f"✅ {adr_path.name}: Format OK")
+            print(f"[OK] {adr_path.name}: Format OK")
     
     # Validate requirement references
     req_errors = validate_requirement_references(adr_files, requirements_file)
     for file_name, errors in req_errors.items():
         if errors:
-            print(f"\n❌ {file_name} (requirements):")
+            print(f"\n[ERROR] {file_name} (requirements):")
             for error in errors:
                 print(f"   - {error}")
             total_errors += len(errors)
     
     if total_errors == 0:
-        print(f"\n✅ All {len(adr_files)} ADR files are valid!")
+        print(f"\n[OK] All {len(adr_files)} ADR files are valid!")
         sys.exit(0)
     else:
-        print(f"\n❌ Found {total_errors} validation errors")
+        print(f"\n[ERROR] Found {total_errors} validation errors")
         sys.exit(1)
 
 if __name__ == '__main__':

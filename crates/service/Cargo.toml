@@ -6,6 +6,10 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+[[bin]]
+name = "wheeld"
+path = "src/main.rs"
+
 [features]
 default = []
 # Legacy feature flag - keygen is now always available

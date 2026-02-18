@@ -1,0 +1,37 @@
+{
+  "benchmarks": [
+    {
+      "name": "rt_timing/1khz_tick_precision",
+      "percentiles": {
+        "p50": 501500,
+        "p99": 1013500
+      },
+      "custom_metrics": {
+        "missed_tick_rate": 0.9318857554734661,
+        "e2e_latency_p99_us": 1013.5,
+        "rt_heap_allocs": 0
+      },
+      "sample_count": 767
+    },
+    {
+      "name": "rt_timing/pipeline_processing",
+      "percentiles": {
+        "p50": 100,
+        "p99": 200
+      },
+      "custom_metrics": {
+        "missed_tick_rate": 0.0,
+        "e2e_latency_p99_us": 0.0,
+        "rt_heap_allocs": 0
+      },
+      "sample_count": 767
+    }
+  ],
+  "summary": {
+    "rt_loop_us": 1013.5,
+    "jitter_p99_ms": 1.0135,
+    "missed_tick_rate": 0.9318857554734661,
+    "processing_time_median_us": 0.1,
+    "processing_time_p99_us": 0.2
+  }
+}
