@@ -716,6 +716,7 @@ impl ConfigWriter for EAWRCConfigWriter {
             "port": listener_port,
             "frequencyHz": i64::from(config.update_rate_hz),
             "bEnabled": config.enabled,
+            "enabled": config.enabled,
         });
 
         let mut updated_existing = false;
@@ -818,6 +819,7 @@ impl ConfigWriter for EAWRCConfigWriter {
                     let enabled_ok = entry
                         .get("bEnabled")
                         .and_then(Value::as_bool)
+                        .or_else(|| entry.get("enabled").and_then(Value::as_bool))
                         .unwrap_or(false);
                     packet_ok && structure_ok && enabled_ok
                 })
@@ -841,7 +843,8 @@ impl ConfigWriter for EAWRCConfigWriter {
                         "ip": listener_ip,
                         "port": listener_port,
                         "frequencyHz": i64::from(config.update_rate_hz),
-                        "bEnabled": config.enabled
+                        "bEnabled": config.enabled,
+                        "enabled": config.enabled
                     }
                 ]
             }
@@ -1112,6 +1115,61 @@ mod tests {
             .path()
             .join("Documents/My Games/WRC/telemetry/udp/openracing.json");
         assert!(expected_structure.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn test_eawrc_validate_accepts_enabled_alias_key() -> TestResult {
+        let writer = EAWRCConfigWriter;
+        let temp_dir = tempdir()?;
+        let config_dir = temp_dir
+            .path()
+            .join("Documents/My Games/WRC/telemetry");
+        let config_path = config_dir.join("config.json");
+        let structure_path = config_dir.join("udp/openracing.json");
+
+        fs::create_dir_all(&config_dir)?;
+        if let Some(parent) = structure_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(
+            &config_path,
+            r#"{
+  "udp": {
+    "packetAssignments": [
+      {
+        "packetId": "session_update",
+        "structureId": "openracing",
+        "ip": "127.0.0.1",
+        "port": 20778,
+        "frequencyHz": 120,
+        "enabled": true
+      }
+    ]
+  }
+}"#,
+        )?;
+        fs::write(
+            &structure_path,
+            r#"{
+  "id": "openracing",
+  "packets": []
+}"#,
+        )?;
+
+        assert!(writer.validate_config(temp_dir.path())?);
+
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 120,
+            output_method: "udp_schema".to_string(),
+            output_target: "127.0.0.1:20778".to_string(),
+            fields: vec!["ffb_scalar".to_string()],
+            enable_high_rate_iracing_360hz: false,
+        };
+        let diffs = writer.write_config(temp_dir.path(), &config)?;
+        assert_eq!(diffs.len(), 2);
+
         Ok(())
     }
 
