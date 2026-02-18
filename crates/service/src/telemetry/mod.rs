@@ -194,3 +194,15 @@ impl TelemetryService {
         adapter.is_game_running().await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_telemetry_now_ns_is_monotonic() {
+        let first = telemetry_now_ns();
+        let second = telemetry_now_ns();
+        assert!(second >= first);
+    }
+}

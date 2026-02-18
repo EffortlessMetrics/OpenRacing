@@ -152,6 +152,7 @@ struct IRacingLayout {
     steering_wheel_torque: Option<VarBinding>,
     steering_wheel_pct_torque_sign: Option<VarBinding>,
     steering_wheel_max_force_nm: Option<VarBinding>,
+    steering_wheel_limiter: Option<VarBinding>,
     lf_tire_speed: Option<VarBinding>,
     rf_tire_speed: Option<VarBinding>,
     lr_tire_speed: Option<VarBinding>,
@@ -331,6 +332,7 @@ impl TelemetryAdapter for IRacingAdapter {
             let mut sequence = 0u64;
             let mut last_tick_count = None;
             let mut last_session_info_update = None;
+            let mut last_layout_signature = None;
             let mut warned_unscaled_ffb = false;
             let mut tick_interval = update_rate;
 
@@ -348,6 +350,7 @@ impl TelemetryAdapter for IRacingAdapter {
                     }
                     warned_unscaled_ffb = false;
                     last_tick_count = None;
+                    last_layout_signature = None;
                     last_session_info_update = None;
                     info!("Connected to iRacing shared memory");
                 }
@@ -383,7 +386,27 @@ impl TelemetryAdapter for IRacingAdapter {
                         }
                         last_tick_count = Some(sample.tick_count);
                         tick_interval = sample.tick_interval;
+                        let layout_signature = irsdk_layout_signature(&sample.header);
+                        let layout_changed = last_layout_signature != Some(layout_signature);
                         let session_info_changed = last_session_info_update != Some(sample.session_info_update);
+
+                        if layout_changed {
+                            if let Some(shared) = adapter.shared_memory.as_mut() {
+                                match build_iracing_layout(shared.base_ptr, &sample.header) {
+                                    Ok(updated_layout) => {
+                                        shared.layout = updated_layout;
+                                        last_layout_signature = Some(layout_signature);
+                                        debug!("Refreshed iRacing layout from header change");
+                                    }
+                                    Err(err) => {
+                                        warn!(
+                                            "Failed to refresh iRacing variable layout after header change: {}",
+                                            err
+                                        );
+                                    }
+                                }
+                            }
+                        }
 
                         if session_info_changed {
                             last_session_info_update = Some(sample.session_info_update);
@@ -402,13 +425,15 @@ impl TelemetryAdapter for IRacingAdapter {
                                 }
                             }
 
-                            if let Some(shared) = adapter.shared_memory.as_mut() {
-                                match build_iracing_layout(shared.base_ptr, &sample.header) {
-                                    Ok(updated_layout) => {
-                                        shared.layout = updated_layout;
-                                    }
-                                    Err(err) => {
-                                        warn!("Failed to refresh iRacing variable layout: {}", err);
+                            if !layout_changed {
+                                if let Some(shared) = adapter.shared_memory.as_mut() {
+                                    match build_iracing_layout(shared.base_ptr, &sample.header) {
+                                        Ok(updated_layout) => {
+                                            shared.layout = updated_layout;
+                                        }
+                                        Err(err) => {
+                                            warn!("Failed to refresh iRacing variable layout: {}", err);
+                                        }
                                     }
                                 }
                             }
@@ -537,6 +562,13 @@ impl IRacingAdapter {
             telemetry = telemetry.with_slip_ratio(slip_ratio);
         }
 
+        if layout.steering_wheel_limiter.is_some() && data.steering_wheel_limiter.is_finite() {
+            telemetry = telemetry.with_extended(
+                "ffb_limiter_pct".to_string(),
+                TelemetryValue::Float(data.steering_wheel_limiter),
+            );
+        }
+
         telemetry
             .with_extended(
                 "fuel_level".to_string(),
@@ -624,6 +656,15 @@ fn select_latest_var_buffer(header: &IRSDKHeader) -> Option<(usize, IRSDKVarBuf)
     Some((best_index, best))
 }
 
+fn irsdk_layout_signature(header: &IRSDKHeader) -> (i32, i32, i32, i32) {
+    (
+        header.num_vars,
+        header.var_header_offset,
+        header.num_buf,
+        header.buf_len,
+    )
+}
+
 #[cfg(windows)]
 fn read_irsdk_header_from_ptr(base_ptr: *const u8) -> IRSDKHeader {
     // SAFETY: caller provides a valid mapped view beginning at IRSDK header.
@@ -662,6 +703,8 @@ fn read_iracing_data_from_ptr(
             layout.steering_wheel_pct_torque_sign,
         )
         .unwrap_or(0.0),
+        steering_wheel_limiter: read_f32_var(base_ptr, offset, layout.steering_wheel_limiter)
+            .unwrap_or(0.0),
         steering_wheel_max_force_nm: read_f32_var(
             base_ptr,
             offset,
@@ -893,6 +936,8 @@ fn assign_var_binding(layout: &mut IRacingLayout, name: &str, binding: VarBindin
         layout.steering_wheel_pct_torque_sign = Some(binding);
     } else if matches_irsdk_name(name, &["SteeringWheelMaxForceNm"]) {
         layout.steering_wheel_max_force_nm = Some(binding);
+    } else if matches_irsdk_name(name, &["SteeringWheelLimiter"]) {
+        layout.steering_wheel_limiter = Some(binding);
     } else if matches_irsdk_name(name, &["LFwheelSpeed", "LFWheelSpeed", "LFspeed"]) {
         layout.lf_tire_speed = Some(binding);
     } else if matches_irsdk_name(name, &["RFwheelSpeed", "RFWheelSpeed", "RFspeed"]) {
@@ -1078,6 +1123,7 @@ struct IRacingData {
     steering_wheel_torque: f32,
     steering_wheel_pct_torque_sign: f32,
     steering_wheel_max_force_nm: f32,
+    steering_wheel_limiter: f32,
     lf_tire_slip_ratio: f32,
     rf_tire_slip_ratio: f32,
     lr_tire_slip_ratio: f32,
@@ -1108,6 +1154,7 @@ impl Default for IRacingData {
             steering_wheel_torque: 0.0,
             steering_wheel_pct_torque_sign: 0.0,
             steering_wheel_max_force_nm: 0.0,
+            steering_wheel_limiter: 0.0,
             lf_tire_slip_ratio: 0.0,
             rf_tire_slip_ratio: 0.0,
             lr_tire_slip_ratio: 0.0,
@@ -1288,6 +1335,7 @@ mod tests {
         let adapter = IRacingAdapter::new();
         let mut layout = IRacingLayout::default();
         layout.steering_wheel_torque = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
+        layout.steering_wheel_limiter = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
 
         let car_name = b"gt3_bmw\0";
         let track_name = b"spa\0";
@@ -1301,6 +1349,7 @@ mod tests {
             speed: 50.0,
             gear: 4,
             steering_wheel_torque: 25.0,
+            steering_wheel_limiter: 73.0,
             steering_wheel_pct_torque_sign: 0.0,
             steering_wheel_max_force_nm: 0.0,
             throttle: 0.8,
@@ -1322,6 +1371,10 @@ mod tests {
         assert_eq!(normalized.track_id, Some("spa".to_string()));
         assert!(!normalized.flags.yellow_flag);
         assert!(normalized.flags.checkered_flag);
+        assert_eq!(
+            normalized.extended.get("ffb_limiter_pct"),
+            Some(&TelemetryValue::Float(73.0))
+        );
         assert!(normalized.extended.contains_key("throttle"));
         assert!(normalized.extended.contains_key("brake"));
         Ok(())
@@ -1386,6 +1439,27 @@ mod tests {
         assert!(!normalized.flags.red_flag);
         assert!(!normalized.flags.blue_flag);
         assert!(flag_boolean_value(&normalized, "session_flag_white"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_layout_signature_changes_are_detected() -> TestResult {
+        let mut header = IRSDKHeader::default();
+        header.num_vars = 10;
+        header.var_header_offset = 128;
+        header.num_buf = 3;
+        header.buf_len = 256;
+
+        let mut last_signature = None;
+        let first_signature = irsdk_layout_signature(&header);
+        assert_ne!(Some(first_signature), last_signature);
+
+        last_signature = Some(first_signature);
+        assert_eq!(Some(first_signature), last_signature);
+
+        header.var_header_offset = 192;
+        assert_ne!(Some(irsdk_layout_signature(&header)), last_signature);
+
         Ok(())
     }
 
@@ -1457,6 +1531,17 @@ mod tests {
         let resolved = resolve_ffb_scalar(&data, &layout);
         assert_eq!(resolved, None);
         Ok(())
+    }
+
+    #[test]
+    fn test_assign_var_binding_maps_steering_wheel_limiter() {
+        let mut layout = IRacingLayout::default();
+        assign_var_binding(
+            &mut layout,
+            "SteeringWheelLimiter",
+            make_binding(IRSDK_VAR_TYPE_FLOAT),
+        );
+        assert!(layout.steering_wheel_limiter.is_some());
     }
 
     #[test]
