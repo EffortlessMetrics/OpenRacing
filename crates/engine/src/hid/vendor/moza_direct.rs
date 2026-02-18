@@ -6,6 +6,7 @@
 #![deny(static_mut_refs)]
 
 use super::moza::report_ids;
+use crate::hid::rt_stream::{TorqueEncoder, TorqueQ8_8};
 
 /// Wire size of a Moza direct-torque output report.
 pub const REPORT_LEN: usize = 8;
@@ -44,15 +45,29 @@ impl MozaDirectTorqueEncoder {
     /// - Byte 4-5: slew-rate in Nm/s when enabled, otherwise 0
     /// - Byte 6-7: reserved (0)
     pub fn encode(&self, torque_nm: f32, _seq: u16, out: &mut [u8; REPORT_LEN]) -> usize {
+        let torque_raw = self.torque_percent_to_raw(torque_nm);
+        self.encode_torque_raw(torque_raw, 0, out)
+    }
+
+    /// Encode an explicit zero-torque, motor-disabled command.
+    pub fn encode_zero(&self, out: &mut [u8; REPORT_LEN]) -> usize {
+        self.encode_torque_raw(0, 0, out)
+    }
+
+    fn encode_torque_raw(
+        &self,
+        torque_raw: i16,
+        extra_flags: u8,
+        out: &mut [u8; REPORT_LEN],
+    ) -> usize {
         out.fill(0);
         out[0] = report_ids::DIRECT_TORQUE;
 
-        let torque_raw = self.torque_percent_to_raw(torque_nm);
         let torque_bytes = torque_raw.to_le_bytes();
         out[1] = torque_bytes[0];
         out[2] = torque_bytes[1];
 
-        let mut flags = 0u8;
+        let mut flags = extra_flags;
         if torque_raw != 0 {
             flags |= 0x01;
         }
@@ -64,13 +79,6 @@ impl MozaDirectTorqueEncoder {
         }
         out[3] = flags;
 
-        REPORT_LEN
-    }
-
-    /// Encode an explicit zero-torque, motor-disabled command.
-    pub fn encode_zero(&self, out: &mut [u8; REPORT_LEN]) -> usize {
-        out.fill(0);
-        out[0] = report_ids::DIRECT_TORQUE;
         REPORT_LEN
     }
 
@@ -86,6 +94,35 @@ impl MozaDirectTorqueEncoder {
         } else {
             (normalized * (-(i16::MIN as f32))).round() as i32 as i16
         }
+    }
+
+    fn max_torque_q8(&self) -> TorqueQ8_8 {
+        (self.max_torque_nm * 256.0).clamp(0.0, i16::MAX as f32).round() as TorqueQ8_8
+    }
+}
+
+impl TorqueEncoder<REPORT_LEN> for MozaDirectTorqueEncoder {
+    fn encode(&self, torque: TorqueQ8_8, seq: u16, flags: u8, out: &mut [u8; REPORT_LEN]) -> usize {
+        let _ = seq;
+        let torque_nm = f32::from(torque) / 256.0;
+        let torque_raw = self.torque_percent_to_raw(torque_nm);
+        self.encode_torque_raw(torque_raw, flags, out)
+    }
+
+    fn encode_zero(&self, out: &mut [u8; REPORT_LEN]) -> usize {
+        self.encode_torque_raw(0, 0, out)
+    }
+
+    fn clamp_min(&self) -> TorqueQ8_8 {
+        -self.max_torque_q8()
+    }
+
+    fn clamp_max(&self) -> TorqueQ8_8 {
+        self.max_torque_q8()
+    }
+
+    fn positive_is_clockwise(&self) -> bool {
+        true
     }
 }
 
@@ -156,5 +193,20 @@ mod tests {
 
         assert_eq!(i16::from_le_bytes([out[1], out[2]]), 0);
         assert_eq!(out[3] & 0x01, 0x00);
+    }
+
+    #[test]
+    fn test_rt_encoder_layout_for_flags_and_clamps() {
+        let enc = MozaDirectTorqueEncoder::new(5.5);
+        let mut out = [0u8; REPORT_LEN];
+
+        let len = TorqueEncoder::encode(&enc, 1408, 123, 0xAA, &mut out);
+        assert_eq!(len, REPORT_LEN);
+        assert_eq!(out[0], report_ids::DIRECT_TORQUE);
+        assert_eq!(out[3], 0xAB);
+
+        assert_eq!(enc.clamp_max(), 1408);
+        assert_eq!(enc.clamp_min(), -1408);
+        assert!(enc.positive_is_clockwise());
     }
 }

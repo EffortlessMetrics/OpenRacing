@@ -31,7 +31,18 @@ Moza wheelbases start in a restricted mode. To enable high-frequency force feedb
 
 1. **Enable High Torque / Motor:** Feature Report `0x02` -> `[0x02, 0x00, 0x00, 0x00]`
 2. **Start Reporting:** Feature Report `0x03` -> `[0x03, 0x00, 0x00, 0x00]`
-3. **Set Standard FFB Mode:** Feature Report `0x11` -> `[0x11, 0x00, 0x00, 0x00]`
+3. **Set FFB Mode:** Feature Report `0x11` -> `[0x11, <mode>, 0x00, 0x00]`
+
+`<mode>` is currently configured in OpenRacing via `OPENRACING_MOZA_FFB_MODE`:
+
+- `standard` or `0` (default): PID/PIDFF mode (`0x00`)
+- `direct` or `raw` or `2`: Direct torque mode (`0x02`)
+- `off`: Disabled (`0xFF`)
+
+On Linux, the runtime transport is also controlled by `OPENRACING_MOZA_TRANSPORT_MODE`:
+
+- `raw-hidraw` or `raw` (default): OpenRacing sends feature reports and direct torque output through `hidraw`.
+- `kernel-pidff` or `kernel`: OpenRacing only runs kernel-PIDFF-compatible mode. Vendor handshake and raw writes are skipped so the kernel driver can own FFB control.
 
 *Note: Without Step 2, the wheelbase may not report pedal axis changes.*
 

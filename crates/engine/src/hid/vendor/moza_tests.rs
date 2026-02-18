@@ -412,6 +412,23 @@ fn test_moza_initialize_device() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_moza_initialize_device_respects_configured_mode() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new_with_ffb_mode(0x0002, FfbMode::Direct);
+    let mut writer = MockDeviceWriter::new();
+
+    protocol.initialize_device(&mut writer)?;
+
+    let reports = writer.get_feature_reports();
+    assert_eq!(reports.len(), 3);
+    assert_eq!(reports[2][0], report_ids::FFB_MODE);
+    assert_eq!(reports[2][1], FfbMode::Direct as u8);
+    assert_eq!(reports[2][2], 0x00);
+    assert_eq!(reports[2][3], 0x00);
+
+    Ok(())
+}
+
+#[test]
 fn test_moza_initialize_device_idempotent_and_stateful() -> Result<(), Box<dyn std::error::Error>> {
     let protocol = MozaProtocol::new(0x0002); // R9
     let mut writer = MockDeviceWriter::new();

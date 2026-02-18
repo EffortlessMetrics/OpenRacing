@@ -1411,6 +1411,7 @@ pub struct WindowsHidDevice {
     health_status: Arc<RwLock<DeviceHealthStatus>>,
     moza_protocol: Option<vendor::moza::MozaProtocol>,
     has_moza_input: AtomicBool,
+    moza_input_seq: AtomicU32,
     moza_input_state: Seqlock<MozaInputState>,
     /// Windows HANDLE for the HID device (opened with FILE_FLAG_OVERLAPPED)
     /// Wrapped in SendableHandle for thread-safety
@@ -1523,6 +1524,7 @@ impl WindowsHidDevice {
             moza_protocol: (device_info.vendor_id == 0x346E)
                 .then_some(vendor::moza::MozaProtocol::new(device_info.product_id)),
             has_moza_input: AtomicBool::new(false),
+            moza_input_seq: AtomicU32::new(0),
             moza_input_state: Seqlock::new(MozaInputState::empty(0)),
             device_handle,
             overlapped_state,
@@ -1580,18 +1582,7 @@ impl WindowsHidDevice {
     }
 
     fn publish_moza_input_state(&self, mut state: MozaInputState) {
-        let elapsed_ms = self
-            .health_status
-            .read()
-            .last_communication
-            .elapsed()
-            .as_millis();
-
-        state.tick = if elapsed_ms > u32::MAX as u128 {
-            u32::MAX
-        } else {
-            elapsed_ms as u32
-        };
+        state.tick = self.moza_input_seq.fetch_add(1, Ordering::Relaxed);
 
         self.moza_input_state.write(state);
         self.has_moza_input.store(true, Ordering::Relaxed);
@@ -1875,10 +1866,6 @@ impl WindowsHidDevice {
             hands_on: 1,
             reserved: [0; 2],
         };
-
-        if self.moza_protocol.is_some() {
-            self.publish_moza_input_state(MozaInputState::default());
-        }
 
         Some(report.to_telemetry_data())
     }

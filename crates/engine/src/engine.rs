@@ -6,6 +6,7 @@
 use crate::{
     metrics::AtomicCounters,
     pipeline::{CompiledPipeline, Pipeline},
+    hid::MozaInputState,
     ports::{HidDevice, NormalizedTelemetry},
     rt::FFBMode,
     rt::{Frame, PerformanceMetrics, RTError, RTResult},
@@ -35,6 +36,7 @@ const RING_BUFFER_SIZE: usize = 4096;
 const MAX_PROCESSING_TIME_US: u64 = 200;
 const MOZA_INTERLOCK_THRESHOLD_RAW: u16 = 30_000;
 const NO_MOZA_INTERLOCK_THRESHOLD: u16 = u16::MAX;
+const MOZA_INTERLOCK_INPUT_STALE_FRAMES: u32 = 5;
 
 #[derive(Debug, Clone, Copy)]
 struct TorqueControlResult {
@@ -309,6 +311,12 @@ struct RTContext {
     /// Stable interlock token derived from device identity.
     interlock_device_token: u32,
 
+    /// Last observed Moza input snapshot for stale detection.
+    last_moza_input_state: Option<MozaInputState>,
+
+    /// Consecutive frames with no fresh Moza input.
+    moza_interlock_input_stale_frames: u32,
+
     /// Latched emergency stop state.
     emergency_stop_active: bool,
 
@@ -422,6 +430,8 @@ impl Engine {
             fault_torque_multiplier: 1.0,
             moza_clutch_threshold: moza_interlock_threshold,
             interlock_device_token,
+            last_moza_input_state: None,
+            moza_interlock_input_stale_frames: 0,
             emergency_stop_active: false,
             tracing_manager,
             component_heartbeats_scratch: Some(std::collections::HashMap::with_capacity(8)),
@@ -929,14 +939,42 @@ impl Engine {
         }
 
         let _ = ctx.safety.check_challenge_expiry();
-        if let Some(input) = ctx.device.moza_input_state() {
-            let _ = ctx.safety.process_moza_interlock_inputs(
-                ctx.config.device_id.as_str(),
-                input,
-                ctx.moza_clutch_threshold,
-                ctx.interlock_device_token,
-            );
-        } else {
+
+        let is_stale = match ctx.device.moza_input_state() {
+            Some(input) => {
+                let is_fresh = match ctx.last_moza_input_state {
+                    Some(last_input) => last_input.tick != input.tick,
+                    None => true,
+                };
+
+                if is_fresh {
+                    ctx.moza_interlock_input_stale_frames = 0;
+                    let _ = ctx.safety.process_moza_interlock_inputs(
+                        ctx.config.device_id.as_str(),
+                        input,
+                        ctx.moza_clutch_threshold,
+                        ctx.interlock_device_token,
+                    );
+                }
+
+                ctx.last_moza_input_state = Some(input);
+                !is_fresh
+            }
+            None => {
+                ctx.last_moza_input_state = None;
+                true
+            }
+        };
+
+        if !is_stale {
+            return;
+        }
+
+        ctx.moza_interlock_input_stale_frames = ctx
+            .moza_interlock_input_stale_frames
+            .saturating_add(1);
+
+        if ctx.moza_interlock_input_stale_frames >= MOZA_INTERLOCK_INPUT_STALE_FRAMES {
             ctx.safety.process_moza_interlock_inputs_stale();
         }
     }

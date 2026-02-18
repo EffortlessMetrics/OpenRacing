@@ -350,9 +350,32 @@ pub fn is_wheelbase_product(product_id: u16) -> bool {
 /// FFB mode options
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FfbMode {
-    Off = 0x00,
-    Standard = 0x01, // PIDFF
-    Direct = 0x02,   // Raw torque
+    /// Keep FFB disabled.
+    Off = 0xFF,
+    /// Use vendor PID/PIDFF reporting mode.
+    Standard = 0x00,
+    /// Use raw direct torque mode.
+    Direct = 0x02,
+}
+
+const MOZA_FFB_MODE_ENV: &str = "OPENRACING_MOZA_FFB_MODE";
+
+fn parse_ffb_mode(value: &str) -> Option<FfbMode> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "off" => Some(FfbMode::Off),
+        "standard" | "pidff" | "pid" => Some(FfbMode::Standard),
+        "direct" | "raw" => Some(FfbMode::Direct),
+        "0" => Some(FfbMode::Standard),
+        "2" => Some(FfbMode::Direct),
+        _ => None,
+    }
+}
+
+fn default_ffb_mode() -> FfbMode {
+    std::env::var(MOZA_FFB_MODE_ENV)
+        .ok()
+        .and_then(|value| parse_ffb_mode(&value))
+        .unwrap_or(FfbMode::Standard)
 }
 
 /// Moza device model
@@ -447,11 +470,17 @@ pub struct MozaProtocol {
     model: MozaModel,
     is_v2: bool,
     init_state: AtomicU8,
+    ffb_mode: FfbMode,
 }
 
 impl MozaProtocol {
     /// Create a new Moza protocol handler
     pub fn new(product_id: u16) -> Self {
+        Self::new_with_ffb_mode(product_id, default_ffb_mode())
+    }
+
+    /// Create a new Moza protocol handler with explicit FFB mode.
+    pub fn new_with_ffb_mode(product_id: u16, ffb_mode: FfbMode) -> Self {
         let is_v2 = (product_id & 0x0010) != 0;
         let model = MozaModel::from_pid(product_id);
 
@@ -465,6 +494,7 @@ impl MozaProtocol {
             model,
             is_v2,
             init_state: AtomicU8::new(MOZA_INIT_STATE_UNINITIALIZED),
+            ffb_mode,
         }
     }
 
@@ -515,6 +545,11 @@ impl MozaProtocol {
     /// Get the device model
     pub fn model(&self) -> MozaModel {
         self.model
+    }
+
+    /// Selected mode for FFB initialization and reporting.
+    pub fn ffb_mode(&self) -> FfbMode {
+        self.ffb_mode
     }
 
     /// Get ES compatibility state for this wheelbase/product.
@@ -755,9 +790,8 @@ impl VendorProtocol for MozaProtocol {
             success = false;
         }
 
-        // Step 3: Set FFB to Standard (PIDFF) mode
-        // Uses the confirmed handshake payload (`0x00`) for standard mode.
-        if let Err(e) = self.set_ffb_mode(writer, FfbMode::Standard) {
+        // Step 3: Set FFB to the configured mode.
+        if let Err(e) = self.set_ffb_mode(writer, self.ffb_mode) {
             warn!("Failed to set FFB mode: {}", e);
             success = false;
         }

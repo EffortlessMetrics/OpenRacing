@@ -18,6 +18,7 @@ use parking_lot::RwLock;
 use racing_wheel_schemas::prelude::*;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::env;
 use std::fs::{File, OpenOptions};
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
@@ -54,6 +55,26 @@ const IOC_SIZESHIFT: u32 = IOC_TYPESHIFT + IOC_TYPEBITS;
 const IOC_DIRSHIFT: u32 = IOC_SIZESHIFT + IOC_SIZEBITS;
 const IOC_READ: u32 = 2;
 const IOC_READ_WRITE: u32 = 3;
+const MOZA_TRANSPORT_MODE_ENV: &str = "OPENRACING_MOZA_TRANSPORT_MODE";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MozaTransportMode {
+    RawHidraw,
+    KernelPidff,
+}
+
+impl MozaTransportMode {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::RawHidraw => "raw-hidraw",
+            Self::KernelPidff => "kernel-pidff",
+        }
+    }
+
+    fn uses_raw_torque(self) -> bool {
+        matches!(self, Self::RawHidraw)
+    }
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -150,6 +171,37 @@ fn parse_descriptor_flags(descriptor: &[u8]) -> (bool, bool) {
     (supports_pid, uses_vendor_usage_page)
 }
 
+fn parse_moza_transport_mode(value: &str) -> Option<MozaTransportMode> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "raw" | "hidraw" | "raw-hidraw" => Some(MozaTransportMode::RawHidraw),
+        "kernel" | "kernelpidff" | "kernel-pidff" | "pidff" => {
+            Some(MozaTransportMode::KernelPidff)
+        }
+        "0" => Some(MozaTransportMode::RawHidraw),
+        "1" => Some(MozaTransportMode::KernelPidff),
+        _ => None,
+    }
+}
+
+fn moza_transport_mode() -> MozaTransportMode {
+    env::var(MOZA_TRANSPORT_MODE_ENV)
+        .ok()
+        .and_then(|value| parse_moza_transport_mode(&value))
+        .unwrap_or(MozaTransportMode::RawHidraw)
+}
+
+fn is_moza_raw_transport_enabled(vendor_id: u16, product_id: u16) -> bool {
+    if vendor_id == 0x346E {
+        let is_wheelbase = vendor::moza::is_wheelbase_product(product_id);
+        if !is_wheelbase {
+            return true;
+        }
+        return moza_transport_mode().uses_raw_torque();
+    }
+
+    true
+}
+
 fn is_supported_by_descriptor(vendor_id: u16, product_id: u16, descriptor: &[u8]) -> bool {
     let has_descriptor = !descriptor.is_empty();
     let (supports_pid, uses_vendor_usage_page) = parse_descriptor_flags(descriptor);
@@ -185,7 +237,8 @@ fn build_capabilities_from_identity(
 
         return DeviceCapabilities {
             supports_pid: descriptor_pid || identity.supports_ffb,
-            supports_raw_torque_1khz: identity.supports_ffb,
+            supports_raw_torque_1khz: identity.supports_ffb
+                && is_moza_raw_transport_enabled(vendor_id, product_id),
             supports_health_stream: identity.supports_ffb,
             supports_led_bus: false,
             max_torque,
@@ -615,8 +668,10 @@ pub struct LinuxHidDevice {
     temperature_c: AtomicU8,
     fault_flags: AtomicU8,
     hands_on: AtomicBool,
+    moza_raw_transport_enabled: bool,
     moza_protocol: Option<vendor::moza::MozaProtocol>,
     has_moza_input: AtomicBool,
+    moza_input_seq: AtomicU32,
     moza_input_state: Seqlock<MozaInputState>,
     write_file: Option<File>,
     read_file: Option<File>,
@@ -657,7 +712,30 @@ impl LinuxHidDevice {
             }
         };
 
-        Self::initialize_vendor_protocol(&device_info, &write_file);
+        let moza_raw_transport_enabled =
+            is_moza_raw_transport_enabled(device_info.vendor_id, device_info.product_id);
+        if device_info.vendor_id == 0x346E {
+            let transport_mode = moza_transport_mode();
+            if transport_mode.uses_raw_torque() {
+                info!(
+                    "Opening Moza device {} in transport mode: {}",
+                    device_info.device_id,
+                    transport_mode.as_str()
+                );
+            } else {
+                info!(
+                    "Opening Moza device {} in transport mode: {} (raw torque disabled)",
+                    device_info.device_id,
+                    transport_mode.as_str()
+                );
+            }
+        }
+
+        Self::initialize_vendor_protocol(
+            &device_info,
+            &write_file,
+            moza_raw_transport_enabled,
+        );
 
         Ok(Self {
             device_info,
@@ -669,16 +747,31 @@ impl LinuxHidDevice {
             temperature_c: AtomicU8::new(25),
             fault_flags: AtomicU8::new(0),
             hands_on: AtomicBool::new(false),
+            moza_raw_transport_enabled,
             moza_protocol: (device_info.vendor_id == 0x346E)
                 .then_some(vendor::moza::MozaProtocol::new(device_info.product_id)),
             has_moza_input: AtomicBool::new(false),
+            moza_input_seq: AtomicU32::new(0),
             moza_input_state: Seqlock::new(MozaInputState::empty(0)),
             write_file,
             read_file,
         })
     }
 
-    fn initialize_vendor_protocol(device_info: &HidDeviceInfo, write_file: &Option<File>) {
+    fn initialize_vendor_protocol(
+        device_info: &HidDeviceInfo,
+        write_file: &Option<File>,
+        moza_raw_transport_enabled: bool,
+    ) {
+        if device_info.vendor_id == 0x346E && !moza_raw_transport_enabled {
+            debug!(
+                "Skipping Moza vendor initialization for {} because transport mode is {}",
+                device_info.device_id,
+                MozaTransportMode::KernelPidff.as_str()
+            );
+            return;
+        }
+
         let Some(protocol) = vendor::get_vendor_protocol(device_info.vendor_id, device_info.product_id)
         else {
             return;
@@ -760,12 +853,7 @@ impl LinuxHidDevice {
     }
 
     fn publish_moza_input_state(&self, mut state: MozaInputState) {
-        let elapsed_ms = self.created_at.elapsed().as_millis();
-        state.tick = if elapsed_ms > u32::MAX as u128 {
-            u32::MAX
-        } else {
-            elapsed_ms as u32
-        };
+        state.tick = self.moza_input_seq.fetch_add(1, Ordering::Relaxed);
 
         self.moza_input_state.write(state);
         self.mark_communication();
@@ -791,9 +879,6 @@ impl LinuxHidDevice {
                 self.fault_flags.store(report.faults, Ordering::Relaxed);
                 self.hands_on.store(report.hands_on != 0, Ordering::Relaxed);
                 self.mark_communication();
-                if self.moza_protocol.is_some() {
-                    self.publish_moza_input_state(MozaInputState::empty(0));
-                }
                 return Some(report.to_telemetry_data());
             }
         };
@@ -839,6 +924,14 @@ impl HidDevice for LinuxHidDevice {
     fn write_ffb_report(&mut self, torque_nm: f32, seq: u16) -> RTResult {
         if !self.connected.load(Ordering::Relaxed) {
             return Err(crate::RTError::DeviceDisconnected);
+        }
+        if self.moza_protocol.is_some() && !self.moza_raw_transport_enabled {
+            debug!(
+                "Skipping Moza raw torque write for {} because transport mode is {}",
+                self.device_info.device_id,
+                MozaTransportMode::KernelPidff.as_str()
+            );
+            return Ok(());
         }
 
         // Sequence tracking stays lock-free for RT determinism.
@@ -1003,6 +1096,26 @@ mod tests {
     use super::*;
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+    fn with_moza_transport_mode<T, F>(mode: Option<&str>, test: F) -> T
+    where
+        F: FnOnce() -> T,
+    {
+        let previous = env::var(MOZA_TRANSPORT_MODE_ENV).ok();
+        match mode {
+            Some(value) => env::set_var(MOZA_TRANSPORT_MODE_ENV, value),
+            None => env::remove_var(MOZA_TRANSPORT_MODE_ENV),
+        }
+
+        let result = test();
+
+        match previous {
+            Some(value) => env::set_var(MOZA_TRANSPORT_MODE_ENV, value),
+            None => env::remove_var(MOZA_TRANSPORT_MODE_ENV),
+        }
+
+        result
+    }
+
     #[tokio::test]
     async fn test_linux_hid_port_creation() -> TestResult {
         let port = LinuxHidPort::new()?;
@@ -1163,5 +1276,72 @@ mod tests {
         assert!(!is_supported_by_descriptor(0x346E, 0x0004, &empty_descriptor));
         assert!(!is_supported_by_descriptor(0x346E, 0x0004, &no_hint_descriptor));
         assert!(!is_supported_by_descriptor(0x0000, 0x0004, &no_hint_descriptor));
+    }
+
+    #[test]
+    fn test_moza_transport_mode_defaults_to_raw() {
+        with_moza_transport_mode(None, || {
+            let caps = build_capabilities_from_identity(
+                0x346E,
+                vendor::moza::product_ids::R5_V1,
+                &[0x05, 0x0F, 0x09, 0x30],
+            );
+            assert!(caps.supports_raw_torque_1khz);
+        });
+    }
+
+    #[test]
+    fn test_moza_transport_mode_kernel_disables_raw_capability() {
+        with_moza_transport_mode(Some("kernel"), || {
+            let caps = build_capabilities_from_identity(
+                0x346E,
+                vendor::moza::product_ids::R5_V1,
+                &[0x05, 0x0F, 0x09, 0x30],
+            );
+            assert!(!caps.supports_raw_torque_1khz);
+        });
+    }
+
+    #[test]
+    fn test_moza_transport_mode_invalid_value_defaults_to_raw() {
+        with_moza_transport_mode(Some("mystery"), || {
+            let caps = build_capabilities_from_identity(
+                0x346E,
+                vendor::moza::product_ids::R5_V1,
+                &[0x05, 0x0F, 0x09, 0x30],
+            );
+            assert!(caps.supports_raw_torque_1khz);
+        });
+    }
+
+    #[test]
+    fn test_moza_transport_mode_kernel_disables_ffb_write() -> TestResult {
+        with_moza_transport_mode(Some("kernel-pidff"), || -> TestResult {
+            let device_id = must("test-moza-kernel-pidff".parse::<DeviceId>());
+            let capabilities = DeviceCapabilities {
+                supports_pid: true,
+                supports_raw_torque_1khz: false,
+                supports_health_stream: true,
+                supports_led_bus: false,
+                max_torque: must(TorqueNm::new(5.5)),
+                encoder_cpr: 65_535,
+                min_report_period_us: 1000,
+            };
+
+            let device_info = HidDeviceInfo {
+                device_id,
+                vendor_id: 0x346E,
+                product_id: vendor::moza::product_ids::R5_V1,
+                serial_number: Some("SN346E0004".to_string()),
+                manufacturer: Some("Moza Racing".to_string()),
+                product_name: Some("Moza R5".to_string()),
+                path: "/dev/hidraw_mock".to_string(),
+                capabilities,
+            };
+
+            let mut device = LinuxHidDevice::new(device_info)?;
+            assert!(device.write_ffb_report(5.0, 123).is_ok());
+            Ok(())
+        })
     }
 }
