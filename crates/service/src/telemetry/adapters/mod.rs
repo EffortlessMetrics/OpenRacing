@@ -17,7 +17,9 @@ pub use eawrc::EAWRCAdapter;
 pub use iracing::IRacingAdapter;
 pub use rfactor2::RFactor2Adapter;
 
-use crate::telemetry::{NormalizedTelemetry, TelemetryAdapter, TelemetryReceiver};
+use crate::telemetry::{
+    telemetry_now_ns, NormalizedTelemetry, TelemetryAdapter, TelemetryReceiver,
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::time::Duration;
@@ -58,11 +60,10 @@ impl TelemetryAdapter for MockAdapter {
 
         tokio::spawn(async move {
             let mut sequence = 0u64;
-            let start_time = std::time::Instant::now();
 
             loop {
-                let elapsed = start_time.elapsed();
-                let timestamp_ns = elapsed.as_nanos() as u64;
+                let timestamp_ns = telemetry_now_ns();
+                let elapsed = std::time::Duration::from_nanos(timestamp_ns);
 
                 // Generate mock telemetry
                 let progress = (elapsed.as_secs_f32() % 10.0) / 10.0; // 10-second cycle

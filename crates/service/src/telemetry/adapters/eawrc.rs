@@ -2,6 +2,7 @@
 
 use crate::telemetry::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, TelemetryValue,
+    telemetry_now_ns,
 };
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
@@ -15,7 +16,7 @@ use std::sync::{
     Arc,
     atomic::{AtomicU64, Ordering},
 };
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
@@ -215,7 +216,6 @@ impl TelemetryAdapter for EAWRCAdapter {
         let (tx, rx) = mpsc::channel(100);
 
         let sequence = Arc::new(AtomicU64::new(0));
-        let epoch = Instant::now();
 
         let mut packet_ids_by_port: HashMap<u16, Vec<String>> = HashMap::new();
         for assignment in bundle.assignments {
@@ -271,7 +271,7 @@ impl TelemetryAdapter for EAWRCAdapter {
 
                     let frame = TelemetryFrame::new(
                         EAWRCAdapter::normalize_decoded(&decoded),
-                        monotonic_ns_since(epoch, Instant::now()),
+                        telemetry_now_ns(),
                         sequence.fetch_add(1, Ordering::Relaxed),
                         len,
                     );
@@ -939,13 +939,6 @@ fn telemetry_root_from_environment() -> PathBuf {
     }
 
     PathBuf::from("Documents/My Games/WRC/telemetry")
-}
-
-fn monotonic_ns_since(epoch: Instant, now: Instant) -> u64 {
-    now.checked_duration_since(epoch)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0)
-        .min(u64::MAX as u128) as u64
 }
 
 #[cfg(test)]

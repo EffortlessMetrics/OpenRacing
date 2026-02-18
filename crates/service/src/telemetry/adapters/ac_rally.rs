@@ -8,6 +8,7 @@
 
 use crate::telemetry::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, TelemetryValue,
+    telemetry_now_ns,
 };
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
@@ -101,7 +102,6 @@ impl TelemetryAdapter for ACRallyAdapter {
 
         tokio::spawn(async move {
             let mut sequence = 0u64;
-            let epoch = Instant::now();
 
             let handshake = probe_udp_handshake(
                 adapter.handshake_endpoint,
@@ -115,7 +115,6 @@ impl TelemetryAdapter for ACRallyAdapter {
             if !send_probe_frame(
                 &tx,
                 &mut sequence,
-                epoch,
                 handshake_telemetry,
                 handshake.raw_size(),
             )
@@ -162,7 +161,6 @@ impl TelemetryAdapter for ACRallyAdapter {
             run_passive_udp_probe(
                 &tx,
                 &mut sequence,
-                epoch,
                 adapter.passive_bind_address,
                 adapter.passive_probe_window,
                 adapter.update_rate,
@@ -290,7 +288,6 @@ async fn probe_udp_handshake(
 async fn run_passive_udp_probe(
     tx: &mpsc::Sender<TelemetryFrame>,
     sequence: &mut u64,
-    epoch: Instant,
     bind_address: SocketAddr,
     probe_window: Duration,
     update_rate: Duration,
@@ -315,7 +312,7 @@ async fn run_passive_udp_probe(
                     "probe_bind".to_string(),
                     TelemetryValue::String(bind_address.to_string()),
                 );
-            let _ = send_probe_frame(tx, sequence, epoch, telemetry, 0).await;
+            let _ = send_probe_frame(tx, sequence, telemetry, 0).await;
             return;
         }
     };
@@ -364,7 +361,7 @@ async fn run_passive_udp_probe(
                         TelemetryValue::String(bind_address.to_string()),
                     );
 
-                if !send_probe_frame(tx, sequence, epoch, telemetry, len).await {
+                if !send_probe_frame(tx, sequence, telemetry, len).await {
                     return;
                 }
             }
@@ -386,7 +383,7 @@ async fn run_passive_udp_probe(
                         "probe_bind".to_string(),
                         TelemetryValue::String(bind_address.to_string()),
                     );
-                if !send_probe_frame(tx, sequence, epoch, telemetry, 0).await {
+                if !send_probe_frame(tx, sequence, telemetry, 0).await {
                     return;
                 }
             }
@@ -410,7 +407,7 @@ async fn run_passive_udp_probe(
                 "probe_bind".to_string(),
                 TelemetryValue::String(bind_address.to_string()),
             );
-        let _ = send_probe_frame(tx, sequence, epoch, telemetry, 0).await;
+        let _ = send_probe_frame(tx, sequence, telemetry, 0).await;
     }
 }
 
@@ -485,13 +482,12 @@ fn telemetry_from_handshake(
 async fn send_probe_frame(
     tx: &mpsc::Sender<TelemetryFrame>,
     sequence: &mut u64,
-    epoch: Instant,
     telemetry: NormalizedTelemetry,
     raw_size: usize,
 ) -> bool {
     let frame = TelemetryFrame::new(
         telemetry,
-        monotonic_ns_since(epoch, Instant::now()),
+        telemetry_now_ns(),
         *sequence,
         raw_size,
     );
@@ -633,13 +629,6 @@ fn nibble_to_hex(value: u8) -> char {
 
 fn capped_i32(value: usize) -> i32 {
     value.min(i32::MAX as usize) as i32
-}
-
-fn monotonic_ns_since(epoch: Instant, now: Instant) -> u64 {
-    now.checked_duration_since(epoch)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0)
-        .min(u64::MAX as u128) as u64
 }
 
 struct PacketReader<'a> {

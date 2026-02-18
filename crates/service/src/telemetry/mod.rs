@@ -34,8 +34,23 @@ pub use recorder::*;
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
+
+static TELEMETRY_EPOCH: OnceLock<Instant> = OnceLock::new();
+
+/// Return a monotonic timestamp in nanoseconds using a process-wide epoch.
+///
+/// This keeps timestamps aligned across telemetry adapters in the same process.
+pub fn telemetry_now_ns() -> u64 {
+    let epoch = TELEMETRY_EPOCH.get_or_init(Instant::now);
+    Instant::now()
+        .checked_duration_since(*epoch)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0)
+        .min(u64::MAX as u128) as u64
+}
 
 /// Telemetry adapter trait for game-specific telemetry sources
 #[async_trait]
