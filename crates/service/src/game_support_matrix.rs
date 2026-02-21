@@ -34,6 +34,7 @@ impl GameSupportMatrix {
                 telemetry: TelemetrySupport {
                     method: "shared_memory".to_string(),
                     update_rate_hz: 60,
+                    output_target: Some("127.0.0.1:12345".to_string()),
                     fields: TelemetryFieldMapping {
                         ffb_scalar: Some("SteeringWheelPctTorqueSign".to_string()),
                         rpm: Some("RPM".to_string()),
@@ -86,6 +87,7 @@ impl GameSupportMatrix {
             telemetry: TelemetrySupport {
                 method: "udp_broadcast".to_string(),
                 update_rate_hz: 100,
+                output_target: Some("127.0.0.1:9000".to_string()),
                 fields: TelemetryFieldMapping {
                     ffb_scalar: Some("steerAngle".to_string()),
                     rpm: Some("rpms".to_string()),
@@ -128,6 +130,7 @@ impl GameSupportMatrix {
                 telemetry: TelemetrySupport {
                     method: "probe_discovery".to_string(),
                     update_rate_hz: 60,
+                    output_target: Some("127.0.0.1:9000".to_string()),
                     fields: TelemetryFieldMapping {
                         ffb_scalar: None,
                         rpm: None,
@@ -171,6 +174,7 @@ impl GameSupportMatrix {
                 telemetry: TelemetrySupport {
                     method: "shared_memory".to_string(),
                     update_rate_hz: 60,
+                    output_target: Some("127.0.0.1:12345".to_string()),
                     fields: TelemetryFieldMapping {
                         ffb_scalar: Some("mSteering".to_string()),
                         rpm: Some("mRpm".to_string()),
@@ -222,6 +226,7 @@ impl GameSupportMatrix {
                 telemetry: TelemetrySupport {
                     method: "shared_memory".to_string(),
                     update_rate_hz: 60,
+                    output_target: Some("127.0.0.1:12345".to_string()),
                     fields: TelemetryFieldMapping {
                         ffb_scalar: Some("mForceFeedback".to_string()),
                         rpm: Some("mEngineRPM".to_string()),
@@ -275,6 +280,7 @@ impl GameSupportMatrix {
                 telemetry: TelemetrySupport {
                     method: "udp_schema".to_string(),
                     update_rate_hz: 120,
+                    output_target: Some("127.0.0.1:20778".to_string()),
                     fields: TelemetryFieldMapping {
                         ffb_scalar: Some("ffb_scalar".to_string()),
                         rpm: Some("engine_rpm".to_string()),
@@ -324,6 +330,7 @@ impl GameSupportMatrix {
                 telemetry: TelemetrySupport {
                     method: "udp_custom_codemasters".to_string(),
                     update_rate_hz: 60,
+                    output_target: Some("127.0.0.1:20777".to_string()),
                     fields: TelemetryFieldMapping {
                         ffb_scalar: None,
                         rpm: Some("engine_rate".to_string()),

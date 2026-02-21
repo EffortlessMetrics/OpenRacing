@@ -54,6 +54,7 @@ pub struct GameVersion {
 pub struct TelemetrySupport {
     pub method: String, // "shared_memory", "udp_broadcast", "file_based"
     pub update_rate_hz: u32,
+    pub output_target: Option<String>,
     pub fields: TelemetryFieldMapping,
 }
 
@@ -170,6 +171,20 @@ impl GameService {
         game_id: &str,
         game_path: &Path,
     ) -> Result<Vec<ConfigDiff>> {
+        self.configure_telemetry_with_options(game_id, game_path, false)
+            .await
+    }
+
+    /// Configure telemetry for a specific game with extra options.
+    ///
+    /// This is the primary path for callers that need feature-flagged options
+    /// without changing default behavior.
+    pub async fn configure_telemetry_with_options(
+        &self,
+        game_id: &str,
+        game_path: &Path,
+        enable_high_rate_iracing_360hz: bool,
+    ) -> Result<Vec<ConfigDiff>> {
         info!(game_id = %game_id, game_path = ?game_path, "Configuring telemetry");
 
         let support_matrix = self.support_matrix.read().await;
@@ -184,13 +199,17 @@ impl GameService {
             .ok_or_else(|| anyhow::anyhow!("No config writer for game: {}", game_id))?;
 
         // Create telemetry configuration
-        let output_target = match game_id {
-            "acc" => "127.0.0.1:9000".to_string(),
-            "ac_rally" => "127.0.0.1:9000".to_string(),
-            "eawrc" => "127.0.0.1:20778".to_string(),
-            "dirt5" => "127.0.0.1:20777".to_string(),
-            _ => "127.0.0.1:12345".to_string(),
-        };
+        let output_target = game_support
+            .telemetry
+            .output_target
+            .clone()
+            .unwrap_or_else(|| match game_id {
+                "acc" => "127.0.0.1:9000".to_string(),
+                "ac_rally" => "127.0.0.1:9000".to_string(),
+                "eawrc" => "127.0.0.1:20778".to_string(),
+                "dirt5" => "127.0.0.1:20777".to_string(),
+                _ => "127.0.0.1:12345".to_string(),
+            });
 
         let telemetry_config = TelemetryConfig {
             enabled: true,
@@ -198,7 +217,7 @@ impl GameService {
             output_method: game_support.telemetry.method.clone(),
             output_target,
             fields: game_support.versions[0].supported_fields.clone(),
-            enable_high_rate_iracing_360hz: false,
+            enable_high_rate_iracing_360hz,
         };
 
         // Write configuration and get diffs

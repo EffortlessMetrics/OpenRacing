@@ -199,6 +199,10 @@ async fn test_game_support_matrix_structure() {
     assert_eq!(iracing_support.telemetry.method, "shared_memory");
     assert_eq!(iracing_support.telemetry.update_rate_hz, 60);
     assert_eq!(iracing_support.config_writer, "iracing");
+    assert_eq!(
+        iracing_support.telemetry.output_target,
+        Some("127.0.0.1:12345".to_string())
+    );
 
     // Verify version information
     assert_eq!(iracing_support.versions.len(), 1);
@@ -234,6 +238,26 @@ async fn test_game_support_matrix_structure() {
     assert_eq!(acc_support.telemetry.method, "udp_broadcast");
     assert_eq!(acc_support.telemetry.update_rate_hz, 100);
     assert_eq!(acc_support.config_writer, "acc");
+    assert_eq!(
+        acc_support.telemetry.output_target,
+        Some("127.0.0.1:9000".to_string())
+    );
+
+    let eawrc_support = must(service.get_game_support("eawrc").await);
+    assert_eq!(eawrc_support.name, "EA SPORTS WRC");
+    assert_eq!(eawrc_support.config_writer, "eawrc");
+    assert_eq!(
+        eawrc_support.telemetry.output_target,
+        Some("127.0.0.1:20778".to_string())
+    );
+
+    let dirt5_support = must(service.get_game_support("dirt5").await);
+    assert_eq!(dirt5_support.name, "Dirt 5");
+    assert_eq!(dirt5_support.config_writer, "dirt5");
+    assert_eq!(
+        dirt5_support.telemetry.output_target,
+        Some("127.0.0.1:20777".to_string())
+    );
 
     // Verify version information
     assert_eq!(acc_support.versions.len(), 1);

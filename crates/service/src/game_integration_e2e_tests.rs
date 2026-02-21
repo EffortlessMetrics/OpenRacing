@@ -106,6 +106,7 @@ impl GameIntegrationE2ETestSuite {
             game_id: "iracing".to_string(),
             game_path: self.temp_dir.path().to_string_lossy().to_string(),
             enable_auto_switching: false,
+            enable_high_rate_iracing_360hz: false,
             profile_id: None,
         };
 
@@ -162,6 +163,7 @@ impl GameIntegrationE2ETestSuite {
             game_id: "acc".to_string(),
             game_path: self.temp_dir.path().to_string_lossy().to_string(),
             enable_auto_switching: false,
+            enable_high_rate_iracing_360hz: false,
             profile_id: None,
         };
 
@@ -272,6 +274,7 @@ impl GameIntegrationE2ETestSuite {
             game_id: "iracing".to_string(),
             game_path: self.temp_dir.path().to_string_lossy().to_string(),
             enable_auto_switching: false,
+            enable_high_rate_iracing_360hz: false,
             profile_id: None,
         };
 
@@ -383,6 +386,7 @@ impl GameIntegrationE2ETestSuite {
             game_id: "iracing".to_string(),
             game_path: self.temp_dir.path().to_string_lossy().to_string(),
             enable_auto_switching: true,
+            enable_high_rate_iracing_360hz: false,
             profile_id: Some("test_profile".to_string()),
         };
 
@@ -443,6 +447,7 @@ impl GameIntegrationE2ETestSuite {
             game_id: "iracing".to_string(),
             game_path: self.temp_dir.path().to_string_lossy().to_string(),
             enable_auto_switching: false,
+            enable_high_rate_iracing_360hz: false,
             profile_id: None,
         };
 
@@ -525,6 +530,7 @@ impl GameIntegrationE2ETestSuite {
             game_id: "invalid_game".to_string(),
             game_path: self.temp_dir.path().to_string_lossy().to_string(),
             enable_auto_switching: false,
+            enable_high_rate_iracing_360hz: false,
             profile_id: None,
         };
 
@@ -542,6 +548,7 @@ impl GameIntegrationE2ETestSuite {
             game_id: "iracing".to_string(),
             game_path: "/nonexistent/path".to_string(),
             enable_auto_switching: false,
+            enable_high_rate_iracing_360hz: false,
             profile_id: None,
         };
 

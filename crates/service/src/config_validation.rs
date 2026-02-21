@@ -13,6 +13,8 @@ use std::time::{Duration, Instant};
 use tokio::time::{sleep, timeout};
 use tracing::{debug, error, info, warn};
 
+const IRACING_360HZ_KEY: &str = "irsdkLog360Hz";
+
 /// Configuration validation service
 pub struct ConfigValidationService {
     /// Golden file fixtures for testing
@@ -395,7 +397,30 @@ impl ConfigValidationService {
             .get(game_id)
             .ok_or_else(|| anyhow::anyhow!("No golden file fixture for game: {}", game_id))?;
 
-        let expected_diffs = &fixture.expected_diffs;
+        let mut expected_diffs = fixture.expected_diffs.clone();
+        if fixture.game_id == "iracing"
+            && actual_diffs
+                .iter()
+                .any(|diff| diff.key == IRACING_360HZ_KEY)
+            && !expected_diffs
+                .iter()
+                .any(|diff| diff.key == IRACING_360HZ_KEY)
+        {
+            if let Some(actual_360hz_diff) =
+                actual_diffs.iter().find(|diff| diff.key == IRACING_360HZ_KEY)
+            {
+                expected_diffs.push(ConfigDiff {
+                    file_path: actual_360hz_diff.file_path.clone(),
+                    section: actual_360hz_diff.section.clone(),
+                    key: IRACING_360HZ_KEY.to_string(),
+                    old_value: None,
+                    new_value: actual_360hz_diff.new_value.clone(),
+                    operation: actual_360hz_diff.operation,
+                });
+            }
+        }
+
+        let expected_diffs = &expected_diffs;
         let mut details = ValidationDetails {
             expected_count: expected_diffs.len(),
             actual_count: actual_diffs.len(),
@@ -825,6 +850,37 @@ mod tests {
             .await?;
         assert!(result.success);
         assert_eq!(result.details.matched_items.len(), 1);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_config_generation_validation_accepts_optional_iracing_360hz() -> anyhow::Result<()> {
+        let service = ConfigValidationService::new();
+
+        let actual_diffs = vec![
+            ConfigDiff {
+                file_path: "Documents/iRacing/app.ini".to_string(),
+                section: Some("Telemetry".to_string()),
+                key: "telemetryDiskFile".to_string(),
+                old_value: None,
+                new_value: "1".to_string(),
+                operation: DiffOperation::Add,
+            },
+            ConfigDiff {
+                file_path: "Documents/iRacing/app.ini".to_string(),
+                section: Some("Telemetry".to_string()),
+                key: "irsdkLog360Hz".to_string(),
+                old_value: None,
+                new_value: "1".to_string(),
+                operation: DiffOperation::Add,
+            },
+        ];
+
+        let result = service
+            .validate_config_generation("iracing", &actual_diffs)
+            .await?;
+        assert!(result.success);
+        assert_eq!(result.details.matched_items.len(), 2);
         Ok(())
     }
 

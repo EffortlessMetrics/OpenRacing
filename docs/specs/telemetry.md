@@ -202,6 +202,7 @@ Mapping:
 OpenRacing MUST keep deterministic tests for:
 - buffer selection (highest tick wins),
 - rotated-buffer read behavior using a synthetic memory image.
+- decoding resilience for variable iRacing payload sizes, including minimum legacy payload and full payload layouts.
 
 ---
 

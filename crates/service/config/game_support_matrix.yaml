@@ -24,6 +24,7 @@ games:
     telemetry:
       method: "shared_memory"
       update_rate_hz: 60
+      output_target: "127.0.0.1:12345"
       fields:
         ffb_scalar: "SteeringWheelPctTorqueSign"
         rpm: "RPM"
@@ -63,6 +64,7 @@ games:
     telemetry:
       method: "udp_broadcast"
       update_rate_hz: 100
+      output_target: "127.0.0.1:9000"
       fields:
         ffb_scalar: "steerAngle"
         rpm: "rpms"
@@ -93,6 +95,7 @@ games:
     telemetry:
       method: "probe_discovery"
       update_rate_hz: 60
+      output_target: "127.0.0.1:9000"
       fields:
         ffb_scalar: null
         rpm: null
@@ -126,6 +129,7 @@ games:
     telemetry:
       method: "shared_memory"
       update_rate_hz: 60
+      output_target: "127.0.0.1:12345"
       fields:
         ffb_scalar: "mSteering"
         rpm: "mRpm"
@@ -162,6 +166,7 @@ games:
     telemetry:
       method: "shared_memory"
       update_rate_hz: 60
+      output_target: "127.0.0.1:12345"
       fields:
         ffb_scalar: "mForceFeedback"
         rpm: "mEngineRPM"
@@ -202,6 +207,7 @@ games:
     telemetry:
       method: "udp_schema"
       update_rate_hz: 120
+      output_target: "127.0.0.1:20778"
       fields:
         ffb_scalar: "ffb_scalar"
         rpm: "engine_rpm"
@@ -241,6 +247,7 @@ games:
     telemetry:
       method: "udp_custom_codemasters"
       update_rate_hz: 60
+      output_target: "127.0.0.1:20777"
       fields:
         ffb_scalar: null
         rpm: "engine_rate"

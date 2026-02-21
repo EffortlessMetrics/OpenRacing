@@ -489,16 +489,27 @@ impl TelemetryAdapter for IRacingAdapter {
     }
 
     fn normalize(&self, raw: &[u8]) -> Result<NormalizedTelemetry> {
-        if raw.len() != mem::size_of::<IRacingData>() {
+        let min_raw_size = mem::size_of::<IRacingLegacyData>();
+        let max_raw_size = mem::size_of::<IRacingData>();
+
+        if raw.len() < min_raw_size {
             return Err(anyhow!(
-                "Invalid iRacing raw size: expected {}, got {}",
-                mem::size_of::<IRacingData>(),
+                "Invalid iRacing raw size: expected at least {min_raw_size}, got {}",
                 raw.len()
             ));
         }
 
-        // SAFETY: size is validated above; unaligned read avoids UB for arbitrary slices.
-        let data = unsafe { ptr::read_unaligned(raw.as_ptr() as *const IRacingData) };
+        let mut data = IRacingData::default();
+        let copy_len = raw.len().min(max_raw_size);
+
+        // SAFETY: destination is a plain-old-data struct and `raw` length is validated.
+        unsafe {
+            ptr::copy_nonoverlapping(
+                raw.as_ptr(),
+                &mut data as *mut IRacingData as *mut u8,
+                copy_len,
+            );
+        }
         let mut warned_unscaled_ffb = false;
         Ok(self.normalize_iracing_data(
             &data,
@@ -524,13 +535,19 @@ impl IRacingAdapter {
         warned_unscaled_ffb: &mut bool,
     ) -> NormalizedTelemetry {
         let mut telemetry = NormalizedTelemetry::default();
+        let (ffb_scalar_source, ffb_scalar) = resolve_ffb_scalar_with_source(data, layout);
 
-        if let Some(ffb_scalar) = resolve_ffb_scalar(data, layout) {
+        if let Some(ffb_scalar) = ffb_scalar {
             telemetry = telemetry.with_ffb_scalar(ffb_scalar);
         } else if !*warned_unscaled_ffb {
             warn!("iRacing FFB scalar missing. Data source may not expose steering torque metadata yet.");
             *warned_unscaled_ffb = true;
         }
+
+        telemetry = telemetry.with_extended(
+            "ffb_scalar_source".to_string(),
+            TelemetryValue::String(ffb_scalar_source.as_str().to_string()),
+        );
 
         let flags = TelemetryFlags {
             yellow_flag: (data.session_flags & IRSDK_SESSION_FLAG_YELLOW) != 0,
@@ -602,8 +619,8 @@ impl IRacingAdapter {
 /// Extract null-terminated string from byte array.
 fn extract_string(bytes: &[u8]) -> String {
     match bytes.iter().position(|&b| b == 0) {
-        Some(pos) => String::from_utf8_lossy(&bytes[..pos]).into_owned(),
-        None => String::from_utf8_lossy(bytes).into_owned(),
+        Some(pos) => decode_iso_8859_1_string(&bytes[..pos]),
+        None => decode_iso_8859_1_string(bytes),
     }
 }
 
@@ -1063,22 +1080,36 @@ fn read_session_info_yaml(
 }
 
 fn resolve_ffb_scalar(data: &IRacingData, layout: &IRacingLayout) -> Option<f32> {
+    resolve_ffb_scalar_with_source(data, layout).1
+}
+
+fn resolve_ffb_scalar_with_source(
+    data: &IRacingData,
+    layout: &IRacingLayout,
+) -> (FfbScalarSource, Option<f32>) {
     if layout.steering_wheel_pct_torque_sign.is_some()
         && data.steering_wheel_pct_torque_sign.is_finite()
     {
-        return Some((data.steering_wheel_pct_torque_sign / 100.0).clamp(-1.0, 1.0));
+        return (
+            FfbScalarSource::PctTorqueSign,
+            Some((data.steering_wheel_pct_torque_sign / 100.0).clamp(-1.0, 1.0)),
+        );
     }
 
     if layout.steering_wheel_max_force_nm.is_some()
         && data.steering_wheel_max_force_nm.is_finite()
         && data.steering_wheel_max_force_nm.abs() > f32::EPSILON
     {
-        return Some(
-            (data.steering_wheel_torque / data.steering_wheel_max_force_nm).clamp(-1.0, 1.0),
+        return (
+            FfbScalarSource::MaxForceNm,
+            Some(
+                (data.steering_wheel_torque / data.steering_wheel_max_force_nm)
+                    .clamp(-1.0, 1.0),
+            ),
         );
     }
 
-    None
+    (FfbScalarSource::Unknown, None)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -1159,6 +1190,23 @@ fn decode_iso_8859_1_string(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| *byte as char).collect()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FfbScalarSource {
+    PctTorqueSign,
+    MaxForceNm,
+    Unknown,
+}
+
+impl FfbScalarSource {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::PctTorqueSign => "pct_torque_sign",
+            Self::MaxForceNm => "max_force_nm",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
 /// iRacing shared-memory payload (simplified local view).
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -1191,6 +1239,30 @@ struct IRacingData {
     track_name: [u8; 64],
 }
 
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+struct IRacingLegacyData {
+    session_time: f32,
+    session_flags: u32,
+    speed: f32,
+    rpm: f32,
+    gear: i8,
+    throttle: f32,
+    brake: f32,
+    steering_wheel_angle: f32,
+    steering_wheel_torque: f32,
+    lf_tire_rps: f32,
+    rf_tire_rps: f32,
+    lr_tire_rps: f32,
+    rr_tire_rps: f32,
+    lap_current: i32,
+    lap_best_time: f32,
+    fuel_level: f32,
+    on_pit_road: i32,
+    car_path: [u8; 64],
+    track_name: [u8; 64],
+}
+
 impl Default for IRacingData {
     fn default() -> Self {
         Self {
@@ -1210,6 +1282,32 @@ impl Default for IRacingData {
             rf_tire_slip_ratio: 0.0,
             lr_tire_slip_ratio: 0.0,
             rr_tire_slip_ratio: 0.0,
+            lf_tire_rps: 0.0,
+            rf_tire_rps: 0.0,
+            lr_tire_rps: 0.0,
+            rr_tire_rps: 0.0,
+            lap_current: 0,
+            lap_best_time: 0.0,
+            fuel_level: 0.0,
+            on_pit_road: 0,
+            car_path: [0; 64],
+            track_name: [0; 64],
+        }
+    }
+}
+
+impl Default for IRacingLegacyData {
+    fn default() -> Self {
+        Self {
+            session_time: 0.0,
+            session_flags: 0,
+            speed: 0.0,
+            rpm: 0.0,
+            gear: 0,
+            throttle: 0.0,
+            brake: 0.0,
+            steering_wheel_angle: 0.0,
+            steering_wheel_torque: 0.0,
             lf_tire_rps: 0.0,
             rf_tire_rps: 0.0,
             lr_tire_rps: 0.0,
@@ -1426,6 +1524,10 @@ mod tests {
             normalized.extended.get("ffb_limiter_pct"),
             Some(&TelemetryValue::Float(73.0))
         );
+        assert_eq!(
+            normalized.extended.get("ffb_scalar_source"),
+            Some(&TelemetryValue::String("pct_torque_sign".to_string()))
+        );
         assert!(normalized.extended.contains_key("throttle"));
         assert!(normalized.extended.contains_key("brake"));
         Ok(())
@@ -1444,6 +1546,14 @@ mod tests {
     }
 
     #[test]
+    fn test_extract_string_decodes_iso_8859_1() -> TestResult {
+        let bytes = [b'g', b't', b'3', b'_', b'\xE9', 0];
+        let result = extract_string(&bytes);
+        assert_eq!(result, "gt3_é");
+        Ok(())
+    }
+
+    #[test]
     fn test_normalize_raw_data() -> TestResult {
         let adapter = IRacingAdapter::new();
         let data = IRacingData::default();
@@ -1451,6 +1561,72 @@ mod tests {
 
         let result = adapter.normalize(&raw_bytes);
         assert!(result.is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn test_normalize_legacy_minimum_iracing_raw() -> TestResult {
+        let adapter = IRacingAdapter::new();
+        let mut legacy = IRacingLegacyData::default();
+        legacy.rpm = 5200.0;
+        legacy.speed = 33.0;
+        legacy.gear = 5;
+        legacy.lf_tire_rps = 12.0;
+        legacy.rf_tire_rps = 11.0;
+        legacy.lr_tire_rps = 12.0;
+        legacy.rr_tire_rps = 11.0;
+        legacy.car_path[..8].copy_from_slice(b"gt4_test");
+
+        let minimum_raw = to_raw_bytes(&legacy);
+        let normalized = adapter.normalize(&minimum_raw)?;
+
+        assert_eq!(normalized.rpm, Some(5200.0));
+        assert_eq!(normalized.speed_ms, Some(33.0));
+        assert_eq!(normalized.gear, Some(5));
+        assert_eq!(normalized.car_id, Some("gt4_test".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn test_normalize_legacy_iracing_raw() -> TestResult {
+        let adapter = IRacingAdapter::new();
+        let mut legacy = IRacingLegacyData::default();
+
+        legacy.rpm = 6200.0;
+        legacy.speed = 45.0;
+        legacy.gear = 4;
+        let legacy_name = b"legacy_gt3\0";
+        let legacy_track = b"legacy_track\0";
+        legacy.car_path[..legacy_name.len()].copy_from_slice(legacy_name);
+        legacy.track_name[..legacy_track.len()].copy_from_slice(legacy_track);
+
+        let normalized = adapter.normalize(&to_raw_bytes(&legacy))?;
+
+        assert_eq!(normalized.rpm, Some(6200.0));
+        assert_eq!(normalized.speed_ms, Some(45.0));
+        assert_eq!(normalized.gear, Some(4));
+        assert_eq!(normalized.car_id, Some("legacy_gt3".to_string()));
+        assert_eq!(normalized.track_id, Some("legacy_track".to_string()));
+        assert_eq!(normalized.ffb_scalar, None);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_normalize_iracing_raw_accepts_trailing_bytes() -> TestResult {
+        let adapter = IRacingAdapter::new();
+        let mut data = IRacingData::default();
+        data.rpm = 6000.0;
+        data.speed = 55.0;
+        data.gear = 3;
+
+        let mut raw = to_raw_bytes(&data);
+        raw.extend_from_slice(&[0xFA, 0xCE, 0x00, 0x11, 0x22, 0x33]);
+
+        let normalized = adapter.normalize(&raw)?;
+        let normalized_base = adapter.normalize(&to_raw_bytes(&data))?;
+
+        assert_eq!(normalized, normalized_base);
         Ok(())
     }
 
@@ -1539,6 +1715,8 @@ mod tests {
     fn test_resolve_ffb_scalar_prefers_pct_torque_sign() -> TestResult {
         let mut layout = IRacingLayout::default();
         layout.steering_wheel_pct_torque_sign = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
+        layout.steering_wheel_max_force_nm = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
+        layout.steering_wheel_torque = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
 
         let data = IRacingData {
             steering_wheel_pct_torque_sign: 42.0,
@@ -1549,6 +1727,9 @@ mod tests {
 
         let resolved = resolve_ffb_scalar(&data, &layout);
         assert_eq!(resolved, Some(0.42));
+        let (source, scalar) = resolve_ffb_scalar_with_source(&data, &layout);
+        assert_eq!(source, FfbScalarSource::PctTorqueSign);
+        assert_eq!(scalar, Some(0.42));
         Ok(())
     }
 
@@ -1566,6 +1747,9 @@ mod tests {
 
         let resolved = resolve_ffb_scalar(&data, &layout);
         assert_eq!(resolved, Some(0.5));
+        let (source, scalar) = resolve_ffb_scalar_with_source(&data, &layout);
+        assert_eq!(source, FfbScalarSource::MaxForceNm);
+        assert_eq!(scalar, Some(0.5));
         Ok(())
     }
 
@@ -1580,6 +1764,9 @@ mod tests {
 
         let resolved = resolve_ffb_scalar(&data, &layout);
         assert_eq!(resolved, None);
+        let (source, scalar) = resolve_ffb_scalar_with_source(&data, &layout);
+        assert_eq!(source, FfbScalarSource::Unknown);
+        assert_eq!(scalar, None);
         Ok(())
     }
 
