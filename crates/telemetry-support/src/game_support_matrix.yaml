@@ -294,6 +294,47 @@ games:
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/F1 25"
 
+  f1_25:
+    name: "EA F1 25 (Native UDP)"
+    versions:
+      - version: "2025.x"
+        config_paths:
+          - "Documents/OpenRacing/f1_25_contract.json"
+        executable_patterns:
+          - "F1_25.exe"
+        telemetry_method: "udp_native_f1_25"
+        supported_fields:
+          - "rpm"
+          - "speed_ms"
+          - "gear"
+          - "flags"
+          - "car_id"
+          - "track_id"
+    telemetry:
+      method: "udp_native_f1_25"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:20777"
+      fields:
+        ffb_scalar: null
+        rpm: "m_engineRPM"
+        speed_ms: "m_speed"
+        slip_ratio: null
+        gear: "m_gear"
+        flags: "m_drs/m_pitLimiterStatus/m_drsAllowed/m_ersDeployMode"
+        car_id: "m_playerCarIndex"
+        track_id: "m_trackId"
+    status: "experimental"
+    config_writer: "f1_25"
+    auto_detect:
+      process_names:
+        - "F1_25.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 2488620"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/F1 25"
+
   dirt5:
     name: "Dirt 5"
     versions:

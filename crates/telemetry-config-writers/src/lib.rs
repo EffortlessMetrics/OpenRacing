@@ -87,6 +87,10 @@ fn new_f1_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(F1ConfigWriter)
 }
 
+fn new_f1_25_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(F1_25ConfigWriter)
+}
+
 /// Returns the canonical config writer registry for all supported integrations.
 pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory)] {
     &[
@@ -97,6 +101,7 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("rfactor2", new_rfactor2_config_writer),
         ("eawrc", new_eawrc_config_writer),
         ("f1", new_f1_config_writer),
+        ("f1_25", new_f1_25_config_writer),
         ("dirt5", new_dirt5_config_writer),
     ]
 }
@@ -116,6 +121,9 @@ const F1_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/f1_bridge_contract.j
 const F1_BRIDGE_PROTOCOL: &str = "codemasters_udp";
 const F1_DEFAULT_PORT: u16 = 20777;
 const F1_DEFAULT_MODE: u8 = 3;
+const F1_25_CONTRACT_RELATIVE_PATH: &str = "Documents/OpenRacing/f1_25_contract.json";
+const F1_25_NATIVE_PROTOCOL: &str = "f1_25_native_udp";
+const F1_25_DEFAULT_PORT: u16 = 20777;
 
 /// iRacing configuration writer
 pub struct IRacingConfigWriter;
@@ -991,6 +999,133 @@ impl ConfigWriter for F1ConfigWriter {
 
         Ok(vec![ConfigDiff {
             file_path: F1_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// F1 25 native UDP configuration writer.
+///
+/// EA F1 25 telemetry is transmitted via the game's built-in UDP broadcast.
+/// No in-game file needs to be modified; this writer creates a sidecar contract
+/// that documents the required game settings (port 20777, packet format 2025)
+/// for tooling and diagnostics.
+pub struct F1_25ConfigWriter;
+
+impl Default for F1_25ConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for F1_25ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing F1 25 native UDP contract configuration");
+
+        let contract_path = game_path.join(F1_25_CONTRACT_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(F1_25_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "f1_25",
+            "telemetry_protocol": F1_25_NATIVE_PROTOCOL,
+            "packet_format": 2025,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "setup_notes": [
+                "In F1 25 game settings, enable UDP telemetry:",
+                "  UDP Telemetry: On",
+                "  UDP Broadcast Mode: Off",
+                "  UDP IP Address: 127.0.0.1",
+                "  UDP Port: 20777",
+                "  UDP Send Rate: 60Hz",
+                "  UDP Format: 2025"
+            ],
+            "supported_packets": ["session (1)", "car_telemetry (6)", "car_status (7)"],
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(F1_25_CONTRACT_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == F1_25_NATIVE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "f1_25")
+            .unwrap_or(false);
+        let valid_format = value
+            .get("packet_format")
+            .and_then(Value::as_u64)
+            .map(|v| v == 2025)
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game && valid_format)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(F1_25_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "f1_25",
+            "telemetry_protocol": F1_25_NATIVE_PROTOCOL,
+            "packet_format": 2025,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "setup_notes": [
+                "In F1 25 game settings, enable UDP telemetry:",
+                "  UDP Telemetry: On",
+                "  UDP Broadcast Mode: Off",
+                "  UDP IP Address: 127.0.0.1",
+                "  UDP Port: 20777",
+                "  UDP Send Rate: 60Hz",
+                "  UDP Format: 2025"
+            ],
+            "supported_packets": ["session (1)", "car_telemetry (6)", "car_status (7)"],
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: F1_25_CONTRACT_RELATIVE_PATH.to_string(),
             section: None,
             key: "entire_file".to_string(),
             old_value: None,

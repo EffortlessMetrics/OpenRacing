@@ -21,7 +21,7 @@ members = [
     "crates/telemetry-recorder",
       "workspace-hack",
   ]
-exclude = ["third_party/shared_memory"]
+exclude = ["third_party/shared_memory", "fuzz"]
 resolver = "2"
 
 [workspace.package]

@@ -142,6 +142,12 @@ async fn configure_game(
                 println!("  • Configured UDP export port for Codemasters-style bridge payloads");
                 println!("  • Added normalized channels for DRS/ERS/fuel telemetry when provided");
             }
+            "f1_25" => {
+                println!("  • Wrote EA F1 25 native UDP contract");
+                println!("  • Telemetry port: 20777 (EA native binary protocol, format 2025)");
+                println!("  • In-game: Settings → Telemetry → UDP Telemetry: On, Port: 20777");
+                println!("  • Captures RPM, speed, gear, DRS, ERS, fuel, tyre data natively");
+            }
             _ => {
                 println!("  • Applied game-specific configuration");
             }

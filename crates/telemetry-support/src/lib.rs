@@ -80,8 +80,9 @@ pub struct AutoDetectConfig {
 pub fn normalize_game_id(game_id: &str) -> &str {
     if game_id.eq_ignore_ascii_case("ea_wrc") {
         "eawrc"
-    } else if game_id.eq_ignore_ascii_case("f1_25") || game_id.eq_ignore_ascii_case("f1_2025") {
-        "f1"
+    } else if game_id.eq_ignore_ascii_case("f1_2025") {
+        // f1_2025 is an alias for the native EA protocol adapter (f1_25)
+        "f1_25"
     } else {
         game_id
     }
@@ -189,8 +190,11 @@ mod tests {
     #[test]
     fn normalize_game_id_supports_historical_aliases() {
         assert_eq!(normalize_game_id("ea_wrc"), "eawrc");
-        assert_eq!(normalize_game_id("f1_25"), "f1");
-        assert_eq!(normalize_game_id("f1_2025"), "f1");
+        // f1_25 is now a first-class game_id (native EA UDP protocol)
+        assert_eq!(normalize_game_id("f1_25"), "f1_25");
+        // f1_2025 aliases to the native EA protocol adapter
+        assert_eq!(normalize_game_id("f1_2025"), "f1_25");
+        // legacy Codemasters bridge adapter
         assert_eq!(normalize_game_id("f1"), "f1");
     }
 }

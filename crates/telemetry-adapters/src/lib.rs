@@ -24,6 +24,7 @@ pub mod codemasters_udp;
 pub mod dirt5;
 pub mod eawrc;
 pub mod f1;
+pub mod f1_25;
 pub mod iracing;
 pub mod rfactor2;
 
@@ -99,6 +100,10 @@ fn new_f1_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(F1Adapter::new())
 }
 
+fn new_f1_25_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(F1_25Adapter::new())
+}
+
 /// Returns the canonical adapter factory registry for all supported native adapters.
 pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
     &[
@@ -108,6 +113,7 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("dirt5", new_dirt5_adapter),
         ("eawrc", new_eawrc_adapter),
         ("f1", new_f1_adapter),
+        ("f1_25", new_f1_25_adapter),
         ("iracing", new_iracing_adapter),
         ("rfactor2", new_rfactor2_adapter),
     ]
@@ -120,6 +126,7 @@ pub use codemasters_udp::{CustomUdpSpec, DecodedCodemastersPacket, FieldSpec};
 pub use dirt5::Dirt5Adapter;
 pub use eawrc::EAWRCAdapter;
 pub use f1::F1Adapter;
+pub use f1_25::F1_25Adapter;
 pub use iracing::IRacingAdapter;
 pub use rfactor2::RFactor2Adapter;
 
