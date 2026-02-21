@@ -80,6 +80,8 @@ pub struct AutoDetectConfig {
 pub fn normalize_game_id(game_id: &str) -> &str {
     if game_id.eq_ignore_ascii_case("ea_wrc") {
         "eawrc"
+    } else if game_id.eq_ignore_ascii_case("f1_25") || game_id.eq_ignore_ascii_case("f1_2025") {
+        "f1"
     } else {
         game_id
     }
@@ -141,7 +143,7 @@ impl GameSupportMatrix {
 
 #[cfg(test)]
 mod tests {
-    use super::{load_default_matrix, matrix_game_ids};
+    use super::{load_default_matrix, matrix_game_ids, normalize_game_id};
 
     #[test]
     fn matrix_metadata_game_ids_is_sorted_and_non_empty() -> Result<(), Box<dyn std::error::Error>>
@@ -182,5 +184,13 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn normalize_game_id_supports_historical_aliases() {
+        assert_eq!(normalize_game_id("ea_wrc"), "eawrc");
+        assert_eq!(normalize_game_id("f1_25"), "f1");
+        assert_eq!(normalize_game_id("f1_2025"), "f1");
+        assert_eq!(normalize_game_id("f1"), "f1");
     }
 }

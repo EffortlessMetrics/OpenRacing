@@ -249,6 +249,51 @@ games:
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/WRC"
 
+  f1:
+    name: "F1 2025"
+    versions:
+      - version: "2025.x"
+        config_paths:
+          - "Documents/OpenRacing/f1_bridge_contract.json"
+        executable_patterns:
+          - "F1_25.exe"
+          - "F1_24.exe"
+        telemetry_method: "udp_custom_codemasters"
+        supported_fields:
+          - "ffb_scalar"
+          - "rpm"
+          - "speed_ms"
+          - "slip_ratio"
+          - "gear"
+          - "flags"
+          - "car_id"
+          - "track_id"
+    telemetry:
+      method: "udp_custom_codemasters"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:20777"
+      fields:
+        ffb_scalar: "steering_force"
+        rpm: "engine_rpm"
+        speed_ms: "speed"
+        slip_ratio: "slip_ratio"
+        gear: "gear"
+        flags: "drs_active/ers_deploy_mode/pit_limiter"
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "f1"
+    auto_detect:
+      process_names:
+        - "F1_25.exe"
+        - "F1_24.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 2488620"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/F1 25"
+
   dirt5:
     name: "Dirt 5"
     versions:

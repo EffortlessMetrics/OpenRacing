@@ -120,6 +120,7 @@ and `config_writer` fields consumed by service startup.
 | Automobilista 2 | `ams2` | Shared memory | `shared_memory` | `127.0.0.1:12345` | `ams2` | experimental |
 | rFactor 2 | `rfactor2` | Shared memory | `shared_memory` | `127.0.0.1:12345` | `rfactor2` | experimental |
 | EA SPORTS WRC | `eawrc` | UDP schema | `udp_schema` | `127.0.0.1:20778` | `eawrc` | experimental |
+| F1 2025 | `f1` | Codemasters UDP bridge | `udp_custom_codemasters` | `127.0.0.1:20777` | `f1` | experimental |
 | Dirt 5 | `dirt5` | Codemasters UDP bridge | `udp_custom_codemasters` | `127.0.0.1:20777` | `dirt5` | experimental |
 
 ---
@@ -359,6 +360,26 @@ Implementation touchpoints:
 - Configuration writes should never assume native game config directories exist.
 - Bridge contract should remain minimal and explicit (game id + protocol + UDP port).
 
+## 3.9 F1 2025
+
+Transport: **bridge-backed custom UDP protocol**.
+
+Status: **experimental / best-effort**.
+
+Config path:
+- `Documents/OpenRacing/f1_bridge_contract.json`
+
+Implementation touchpoints:
+- `crates/telemetry-adapters/src/f1.rs`
+- `crates/telemetry-config-writers/src/lib.rs` (`F1ConfigWriter`)
+
+### 3.9.1 Conformance expectations (MUST)
+
+- F1 bridge packets must be decoded through the shared Codemasters UDP path.
+- Adapter normalization must preserve all decoded channels in `extended`.
+- Adapter should map F1 flags when present (`drs_available`, `drs_active`, `ers_available`, pit flags).
+- Configuration writes should not assume native game config files exist.
+
 ## 4) Config writers
 
 Config writers MUST:
@@ -383,6 +404,15 @@ Config writers MUST:
 Implementation touchpoint:
 - `crates/telemetry-config-writers/src/lib.rs`
 
+### 4.3 F1 (Bridge Contract)
+
+- Write `Documents/OpenRacing/f1_bridge_contract.json` with:
+  - `game_id = "f1"`
+  - `telemetry_protocol = "codemasters_udp"`
+  - `mode` defaulted for extended channel coverage
+  - `udp_port` derived from `TelemetryConfig.output_target`
+  - `update_rate_hz` and `enabled` from the requested config
+
 ---
 
 ## 5) Troubleshooting checklist
@@ -396,6 +426,11 @@ Implementation touchpoint:
 - Windows only: confirm you're running on Windows.
 - Confirm the mapping can be opened read-only with FILE_MAP_READ.
 - Verify variable names against the installed IRSDK header if values stay zero.
+
+### F1: no frames
+- Verify `Documents/OpenRacing/f1_bridge_contract.json` exists and has `game_id = "f1"`.
+- Confirm UDP port matches service config (default 20777).
+- If using custom channel mapping, set `OPENRACING_F1_CUSTOM_UDP_XML` to a valid XML schema.
 
 ---
 

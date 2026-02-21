@@ -14,7 +14,7 @@ Game-specific telemetry configuration writers for OpenRacing.
 - `ConfigDiff`
 - `DiffOperation`
 - `ConfigWriter`
-- `IRacingConfigWriter`, `ACCConfigWriter`, `ACRallyConfigWriter`, `AMS2ConfigWriter`, `RFactor2ConfigWriter`, `EAWRCConfigWriter`, `Dirt5ConfigWriter`
+- `IRacingConfigWriter`, `ACCConfigWriter`, `ACRallyConfigWriter`, `AMS2ConfigWriter`, `RFactor2ConfigWriter`, `EAWRCConfigWriter`, `F1ConfigWriter`, `Dirt5ConfigWriter`
 
 ## Registry
 

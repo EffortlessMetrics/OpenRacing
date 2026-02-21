@@ -10,6 +10,7 @@ Game-specific telemetry adapter implementations for OpenRacing.
   - AMS2 shared memory (`AMS2Adapter`)
   - Dirt 5 Codemasters-UDP bridge (`Dirt5Adapter`)
   - EA WRC schema-driven UDP (`EAWRCAdapter`)
+  - F1 Codemasters-UDP bridge (`F1Adapter`)
   - iRacing shared memory (`IRacingAdapter`)
   - rFactor 2 shared memory (`RFactor2Adapter`)
 

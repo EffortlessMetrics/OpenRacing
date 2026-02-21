@@ -9,7 +9,7 @@ mod disconnection_property_tests;
 mod telemetry_property_tests;
 
 pub use adapters::{
-    ACCAdapter, ACRallyAdapter, AMS2Adapter, Dirt5Adapter, EAWRCAdapter, IRacingAdapter,
+    ACCAdapter, ACRallyAdapter, AMS2Adapter, Dirt5Adapter, EAWRCAdapter, F1Adapter, IRacingAdapter,
     MockAdapter, RFactor2Adapter, TelemetryAdapter, TelemetryReceiver, telemetry_now_ns,
 };
 pub use game_telemetry::*;

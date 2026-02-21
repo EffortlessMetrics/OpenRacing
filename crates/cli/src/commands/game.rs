@@ -137,6 +137,11 @@ async fn configure_game(
                 println!("  • Configured UDP export port for Codemasters-style bridge payloads");
                 println!("  • No native game file edits are required");
             }
+            "f1" => {
+                println!("  • Wrote OpenRacing F1 bridge contract");
+                println!("  • Configured UDP export port for Codemasters-style bridge payloads");
+                println!("  • Added normalized channels for DRS/ERS/fuel telemetry when provided");
+            }
             _ => {
                 println!("  • Applied game-specific configuration");
             }

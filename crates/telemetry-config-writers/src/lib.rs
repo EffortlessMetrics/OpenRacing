@@ -83,6 +83,10 @@ fn new_dirt5_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(Dirt5ConfigWriter)
 }
 
+fn new_f1_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(F1ConfigWriter)
+}
+
 /// Returns the canonical config writer registry for all supported integrations.
 pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory)] {
     &[
@@ -92,6 +96,7 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("ams2", new_ams2_config_writer),
         ("rfactor2", new_rfactor2_config_writer),
         ("eawrc", new_eawrc_config_writer),
+        ("f1", new_f1_config_writer),
         ("dirt5", new_dirt5_config_writer),
     ]
 }
@@ -107,6 +112,10 @@ const DIRT5_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/dirt5_bridge_cont
 const DIRT5_BRIDGE_PROTOCOL: &str = "codemasters_udp";
 const DIRT5_DEFAULT_PORT: u16 = 20777;
 const DIRT5_DEFAULT_MODE: u8 = 1;
+const F1_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/f1_bridge_contract.json";
+const F1_BRIDGE_PROTOCOL: &str = "codemasters_udp";
+const F1_DEFAULT_PORT: u16 = 20777;
+const F1_DEFAULT_MODE: u8 = 3;
 
 /// iRacing configuration writer
 pub struct IRacingConfigWriter;
@@ -889,6 +898,108 @@ impl ConfigWriter for Dirt5ConfigWriter {
     }
 }
 
+/// F1 configuration writer.
+///
+/// F1 telemetry support is currently bridge-backed. This writer creates a
+/// sidecar contract consumed by OpenRacing and optional bridge tools.
+pub struct F1ConfigWriter;
+
+impl Default for F1ConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for F1ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing F1 bridge contract configuration");
+
+        let contract_path = game_path.join(F1_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(F1_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "f1",
+            "telemetry_protocol": F1_BRIDGE_PROTOCOL,
+            "mode": F1_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "F1 telemetry is bridge-backed; no native game config is modified.",
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(F1_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|value| value == F1_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|value| value == "f1")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(F1_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "f1",
+            "telemetry_protocol": F1_BRIDGE_PROTOCOL,
+            "mode": F1_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "F1 telemetry is bridge-backed; no native game config is modified.",
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: F1_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
 impl ConfigWriter for EAWRCConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing EA WRC telemetry configuration");
@@ -1528,6 +1639,40 @@ mod tests {
                 "speed_ms".to_string(),
                 "gear".to_string(),
                 "slip_ratio".to_string(),
+            ],
+            enable_high_rate_iracing_360hz: false,
+        };
+
+        let diffs = writer.write_config(temp_dir.path(), &config)?;
+        assert_eq!(diffs.len(), 1);
+        assert!(writer.validate_config(temp_dir.path())?);
+
+        let expected = writer.get_expected_diffs(&config)?;
+        assert_eq!(diffs.len(), expected.len());
+        assert!(
+            std::path::Path::new(&diffs[0].file_path)
+                .ends_with(std::path::Path::new(&expected[0].file_path))
+        );
+        assert_eq!(diffs[0].new_value, expected[0].new_value);
+        assert_eq!(diffs[0].operation, expected[0].operation);
+        Ok(())
+    }
+
+    #[test]
+    fn test_f1_writer_round_trip() -> TestResult {
+        let writer = F1ConfigWriter;
+        let temp_dir = tempdir()?;
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 60,
+            output_method: "udp_custom_codemasters".to_string(),
+            output_target: "127.0.0.1:20777".to_string(),
+            fields: vec![
+                "rpm".to_string(),
+                "speed_ms".to_string(),
+                "gear".to_string(),
+                "slip_ratio".to_string(),
+                "flags".to_string(),
             ],
             enable_high_rate_iracing_360hz: false,
         };
