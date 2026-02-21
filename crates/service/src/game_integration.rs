@@ -3,66 +3,13 @@
 //! Implements task 4: Game Support Matrix & Golden Writers
 //! Requirements: GI-01, GI-03
 
+use crate::game_support_matrix::create_default_matrix;
 use anyhow::Result;
+pub use racing_wheel_telemetry_support::{GameSupport, GameSupportMatrix, TelemetryFieldMapping};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::info;
-
-/// Game support matrix defining per-sim capabilities and config paths
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
-pub struct GameSupportMatrix {
-    pub games: HashMap<String, GameSupport>,
-}
-
-/// Support information for a specific game
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct GameSupport {
-    pub name: String,
-    pub versions: Vec<GameVersion>,
-    pub telemetry: TelemetrySupport,
-    pub config_writer: String,
-    pub auto_detect: AutoDetectConfig,
-}
-
-/// Version-specific game support
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct GameVersion {
-    pub version: String,
-    pub config_paths: Vec<String>,
-    pub executable_patterns: Vec<String>,
-    pub telemetry_method: String,
-    pub supported_fields: Vec<String>,
-}
-
-/// Telemetry support configuration
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TelemetrySupport {
-    pub method: String, // "shared_memory", "udp_broadcast", "file_based"
-    pub update_rate_hz: u32,
-    pub fields: TelemetryFieldMapping,
-}
-
-/// Mapping of normalized telemetry fields to game-specific fields
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TelemetryFieldMapping {
-    pub ffb_scalar: Option<String>,
-    pub rpm: Option<String>,
-    pub speed_ms: Option<String>,
-    pub slip_ratio: Option<String>,
-    pub gear: Option<String>,
-    pub flags: Option<String>,
-    pub car_id: Option<String>,
-    pub track_id: Option<String>,
-}
-
-/// Auto-detection configuration for games
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct AutoDetectConfig {
-    pub process_names: Vec<String>,
-    pub install_registry_keys: Vec<String>,
-    pub install_paths: Vec<String>,
-}
 
 /// Configuration to be applied to a game
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,7 +67,7 @@ impl GameIntegrationService {
 
 impl Default for GameIntegrationService {
     fn default() -> Self {
-        let support_matrix = GameSupportMatrix::default();
+        let support_matrix = create_default_matrix();
         let config_writers: HashMap<String, Box<dyn ConfigWriter + Send + Sync>> = HashMap::new();
 
         // Register config writers

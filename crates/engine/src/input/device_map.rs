@@ -68,10 +68,15 @@ impl Default for DeviceInputMap {
 impl DeviceInputMap {
     pub fn validate(&self) -> Result<(), DeviceInputMapError> {
         if self.schema_version == 0 {
-            return Err(DeviceInputMapError::UnsupportedSchemaVersion(self.schema_version));
+            return Err(DeviceInputMapError::UnsupportedSchemaVersion(
+                self.schema_version,
+            ));
         }
 
-        if self.axes.is_empty() && self.buttons.is_empty() && self.rotaries.is_empty() && self.clutch.is_none()
+        if self.axes.is_empty()
+            && self.buttons.is_empty()
+            && self.rotaries.is_empty()
+            && self.clutch.is_none()
         {
             return Err(DeviceInputMapError::NoInputsDefined);
         }
@@ -180,6 +185,12 @@ pub enum ClutchModeHint {
     IndependentAxis,
     Button,
     Unknown,
+}
+
+impl Default for ClutchModeHint {
+    fn default() -> Self {
+        Self::Unknown
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -5,7 +5,9 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
+    use racing_wheel_telemetry_support::matrix_game_ids;
     use std::time::Duration;
+    use std::collections::HashSet;
     use tempfile::tempdir;
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -164,13 +166,20 @@ mod tests {
     fn test_telemetry_service_creation() -> TestResult {
         let service = TelemetryService::new()?;
 
-        let supported_games = service.supported_games();
-        assert!(supported_games.contains(&"iracing".to_string()));
-        assert!(supported_games.contains(&"acc".to_string()));
-        assert!(supported_games.contains(&"ams2".to_string()));
-        assert!(supported_games.contains(&"rfactor2".to_string()));
-        assert!(supported_games.contains(&"eawrc".to_string()));
-        assert!(supported_games.contains(&"dirt5".to_string()));
+        let expected: HashSet<String> = matrix_game_ids()?.into_iter().collect();
+        let actual: HashSet<String> = service.supported_games().into_iter().collect();
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_telemetry_service_aliases_eawrc_game_id() -> TestResult {
+        let service = TelemetryService::new()?;
+
+        let alias_running = service.is_game_running("ea_wrc").await?;
+        let canonical_running = service.is_game_running("eawrc").await?;
+
+        assert_eq!(alias_running, canonical_running);
         Ok(())
     }
 

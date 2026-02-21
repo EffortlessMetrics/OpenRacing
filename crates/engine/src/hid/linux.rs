@@ -8,7 +8,7 @@
 //! - udev rules guidance for device permissions
 
 use super::{
-    DeviceTelemetryReport, HidDeviceInfo, MozaInputState, Seqlock, MAX_TORQUE_REPORT_SIZE,
+    DeviceTelemetryReport, HidDeviceInfo, MAX_TORQUE_REPORT_SIZE, MozaInputState, Seqlock,
     encode_torque_report_for_device, vendor,
 };
 use crate::ports::{DeviceHealthStatus, HidDevice, HidPort};
@@ -174,9 +174,7 @@ fn parse_descriptor_flags(descriptor: &[u8]) -> (bool, bool) {
 fn parse_moza_transport_mode(value: &str) -> Option<MozaTransportMode> {
     match value.trim().to_ascii_lowercase().as_str() {
         "raw" | "hidraw" | "raw-hidraw" => Some(MozaTransportMode::RawHidraw),
-        "kernel" | "kernelpidff" | "kernel-pidff" | "pidff" => {
-            Some(MozaTransportMode::KernelPidff)
-        }
+        "kernel" | "kernelpidff" | "kernel-pidff" | "pidff" => Some(MozaTransportMode::KernelPidff),
         "0" => Some(MozaTransportMode::RawHidraw),
         "1" => Some(MozaTransportMode::KernelPidff),
         _ => None,
@@ -357,23 +355,25 @@ impl LinuxHidPort {
                         if filename_str.starts_with("hidraw") {
                             if let Ok((device_info, descriptor)) = self.probe_hidraw_device(&path) {
                                 // Check if this is a racing wheel
-                                let is_supported_by_id = racing_wheel_ids
-                                    .iter()
-                                    .any(|(vid, pid)| {
-                                        device_info.vendor_id == *vid && device_info.product_id == *pid
+                                let is_supported_by_id =
+                                    racing_wheel_ids.iter().any(|(vid, pid)| {
+                                        device_info.vendor_id == *vid
+                                            && device_info.product_id == *pid
                                     });
 
                                 // Alpha EVO-generation devices should be discoverable even when
                                 // PID mapping is incomplete; descriptor capture confirms details.
                                 let is_simagic_evo = device_info.vendor_id == 0x3670;
-                                let is_supported_by_descriptor =
-                                    is_supported_by_descriptor(
-                                        device_info.vendor_id,
-                                        device_info.product_id,
-                                        &descriptor,
-                                    );
+                                let is_supported_by_descriptor = is_supported_by_descriptor(
+                                    device_info.vendor_id,
+                                    device_info.product_id,
+                                    &descriptor,
+                                );
 
-                                if is_supported_by_id || is_simagic_evo || is_supported_by_descriptor {
+                                if is_supported_by_id
+                                    || is_simagic_evo
+                                    || is_supported_by_descriptor
+                                {
                                     devices.push(device_info);
                                 }
                             }
@@ -479,16 +479,16 @@ impl LinuxHidPort {
 
         Ok((
             HidDeviceInfo {
-            device_id,
-            vendor_id,
-            product_id,
-            serial_number: None,
-            manufacturer: manufacturer_for_vendor(vendor_id),
-            product_name: product_name
-                .or_else(|| Some(format!("Racing Wheel {:04X}:{:04X}", vendor_id, product_id))),
-            path: path.to_string_lossy().to_string(),
-            capabilities,
-        },
+                device_id,
+                vendor_id,
+                product_id,
+                serial_number: None,
+                manufacturer: manufacturer_for_vendor(vendor_id),
+                product_name: product_name
+                    .or_else(|| Some(format!("Racing Wheel {:04X}:{:04X}", vendor_id, product_id))),
+                path: path.to_string_lossy().to_string(),
+                capabilities,
+            },
             descriptor,
         ))
     }
@@ -629,11 +629,9 @@ impl vendor::DeviceWriter for HidrawVendorWriter {
     fn write_feature_report(&mut self, data: &[u8]) -> Result<usize, Box<dyn std::error::Error>> {
         const MAX_FEATURE_REPORT_BYTES: usize = 64;
         if data.len() > MAX_FEATURE_REPORT_BYTES {
-            return Err(format!(
-                "feature report too large for hidraw: {} bytes",
-                data.len()
-            )
-            .into());
+            return Err(
+                format!("feature report too large for hidraw: {} bytes", data.len()).into(),
+            );
         }
 
         let mut report = [0u8; MAX_FEATURE_REPORT_BYTES];
@@ -731,11 +729,7 @@ impl LinuxHidDevice {
             }
         }
 
-        Self::initialize_vendor_protocol(
-            &device_info,
-            &write_file,
-            moza_raw_transport_enabled,
-        );
+        Self::initialize_vendor_protocol(&device_info, &write_file, moza_raw_transport_enabled);
 
         Ok(Self {
             device_info,
@@ -772,7 +766,8 @@ impl LinuxHidDevice {
             return;
         }
 
-        let Some(protocol) = vendor::get_vendor_protocol(device_info.vendor_id, device_info.product_id)
+        let Some(protocol) =
+            vendor::get_vendor_protocol(device_info.vendor_id, device_info.product_id)
         else {
             return;
         };
@@ -999,7 +994,8 @@ impl HidDevice for LinuxHidDevice {
     }
 
     fn read_inputs(&self) -> Option<crate::DeviceInputs> {
-        self.moza_input_state().map(crate::DeviceInputs::from_moza_input_state)
+        self.moza_input_state()
+            .map(crate::DeviceInputs::from_moza_input_state)
     }
 }
 
@@ -1254,7 +1250,11 @@ mod tests {
         let descriptor_with_pid = [0x05u8, 0x0F, 0x09, 0x30, 0x26, 0xFF];
         let descriptor_with_vendor_usage = [0x06u8, 0xC0, 0xFF, 0x09, 0x30];
 
-        assert!(is_supported_by_descriptor(0x346E, 0x0004, &descriptor_with_pid));
+        assert!(is_supported_by_descriptor(
+            0x346E,
+            0x0004,
+            &descriptor_with_pid
+        ));
         assert!(is_supported_by_descriptor(
             0x346E,
             0x0022,
@@ -1277,9 +1277,21 @@ mod tests {
         let empty_descriptor = [0u8; 4];
         let no_hint_descriptor = [0x01, 0x02, 0x03, 0x04];
 
-        assert!(!is_supported_by_descriptor(0x346E, 0x0004, &empty_descriptor));
-        assert!(!is_supported_by_descriptor(0x346E, 0x0004, &no_hint_descriptor));
-        assert!(!is_supported_by_descriptor(0x0000, 0x0004, &no_hint_descriptor));
+        assert!(!is_supported_by_descriptor(
+            0x346E,
+            0x0004,
+            &empty_descriptor
+        ));
+        assert!(!is_supported_by_descriptor(
+            0x346E,
+            0x0004,
+            &no_hint_descriptor
+        ));
+        assert!(!is_supported_by_descriptor(
+            0x0000,
+            0x0004,
+            &no_hint_descriptor
+        ));
     }
 
     #[test]

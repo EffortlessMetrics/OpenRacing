@@ -6,7 +6,7 @@
 //! 2) Run a passive UDP capture window on a configurable local bind address.
 //! 3) Emit probe diagnostics as normalized telemetry `extended` fields.
 
-use crate::telemetry::{
+use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, TelemetryValue,
     telemetry_now_ns,
 };
@@ -485,12 +485,7 @@ async fn send_probe_frame(
     telemetry: NormalizedTelemetry,
     raw_size: usize,
 ) -> bool {
-    let frame = TelemetryFrame::new(
-        telemetry,
-        telemetry_now_ns(),
-        *sequence,
-        raw_size,
-    );
+    let frame = TelemetryFrame::new(telemetry, telemetry_now_ns(), *sequence, raw_size);
 
     if tx.send(frame).await.is_err() {
         return false;

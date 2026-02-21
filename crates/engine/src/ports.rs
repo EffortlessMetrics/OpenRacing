@@ -4,9 +4,9 @@
 //! from infrastructure concerns. These traits define contracts for external
 //! dependencies without coupling to specific implementations.
 
+use crate::hid::MozaInputState;
 use crate::{DeviceEvent, DeviceInfo, DeviceInputs, RTResult, TelemetryData};
 use async_trait::async_trait;
-use crate::hid::MozaInputState;
 use racing_wheel_schemas::prelude::*;
 use tokio::sync::mpsc;
 

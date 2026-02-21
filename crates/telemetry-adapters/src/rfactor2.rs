@@ -4,7 +4,7 @@
 //! rFactor 2 exposes telemetry data through memory-mapped files.
 //! Requirements: 12.4
 
-use crate::telemetry::{
+use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
     TelemetryValue, telemetry_now_ns,
 };

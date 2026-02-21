@@ -5,10 +5,8 @@
 //! no force-feedback scalar is emitted because the protocol family is not known
 //! to include a steering torque request.
 
-use crate::telemetry::adapters::codemasters_udp::{
-    canonical_channel_id, CustomUdpSpec, DecodedCodemastersPacket,
-};
-use crate::telemetry::{
+use crate::codemasters_udp::{CustomUdpSpec, DecodedCodemastersPacket, canonical_channel_id};
+use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, TelemetryValue,
     telemetry_now_ns,
 };
@@ -16,7 +14,7 @@ use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::f32::consts::PI;
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::path::PathBuf;
 use std::sync::{
     Arc,
@@ -93,7 +91,9 @@ impl Dirt5Adapter {
     }
 
     fn expected_packet_size(&self) -> usize {
-        self.load_spec().map(|spec| spec.expected_bytes()).unwrap_or(0)
+        self.load_spec()
+            .map(|spec| spec.expected_bytes())
+            .unwrap_or(0)
     }
 
     fn load_spec(&self) -> Result<CustomUdpSpec> {
@@ -111,9 +111,7 @@ impl Dirt5Adapter {
 
     fn normalize_decoded(packet: &DecodedCodemastersPacket) -> NormalizedTelemetry {
         let mut telemetry = NormalizedTelemetry::default();
-        let lookup = |aliases: &[&str]| -> Option<f32> {
-            packet_f32(&packet.values, aliases)
-        };
+        let lookup = |aliases: &[&str]| -> Option<f32> { packet_f32(&packet.values, aliases) };
 
         if let Some(speed_ms) = lookup(&["speed"]) {
             telemetry = telemetry.with_speed_ms(speed_ms);
@@ -124,12 +122,12 @@ impl Dirt5Adapter {
             telemetry = telemetry.with_rpm(rpm);
         }
 
-        if let Some(gear_raw) = lookup(&["gear"]) {
-            if gear_raw.is_finite() {
-                let gear = gear_raw.trunc();
-                if (-127.0..=127.0).contains(&gear) {
-                    telemetry = telemetry.with_gear(gear as i8);
-                }
+        if let Some(gear_raw) = lookup(&["gear"])
+            && gear_raw.is_finite()
+        {
+            let gear = gear_raw.trunc();
+            if (-127.0..=127.0).contains(&gear) {
+                telemetry = telemetry.with_gear(gear as i8);
             }
         }
 
@@ -160,7 +158,8 @@ impl Dirt5Adapter {
         }
 
         if let Some(fourcc) = &packet.fourcc {
-            telemetry = telemetry.with_extended("fourcc".to_string(), TelemetryValue::String(fourcc.clone()));
+            telemetry = telemetry
+                .with_extended("fourcc".to_string(), TelemetryValue::String(fourcc.clone()));
         }
 
         telemetry.with_extended(

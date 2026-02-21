@@ -557,6 +557,8 @@ impl GameIntegrationService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use racing_wheel_telemetry_support::matrix_game_ids;
+    use std::collections::HashSet;
     use tempfile::TempDir;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -613,10 +615,12 @@ mod tests {
         let result = service.configure_one_click(request).await?;
         assert_eq!(result.game_id, "iracing");
         assert!(result.success);
-        assert!(result
-            .config_diffs
-            .iter()
-            .any(|diff| diff.key == "irsdkLog360Hz"));
+        assert!(
+            result
+                .config_diffs
+                .iter()
+                .any(|diff| diff.key == "irsdkLog360Hz")
+        );
 
         Ok(())
     }
@@ -644,14 +648,12 @@ mod tests {
     async fn test_supported_games() -> TestResult {
         let service = create_test_service().await?;
         let games = service.get_supported_games().await;
-
-        assert!(games.contains(&"iracing".to_string()));
-        assert!(games.contains(&"acc".to_string()));
-        assert!(games.contains(&"ac_rally".to_string()));
-        assert!(games.contains(&"ams2".to_string()));
-        assert!(games.contains(&"rfactor2".to_string()));
-        assert!(games.contains(&"eawrc".to_string()));
-        assert!(games.contains(&"dirt5".to_string()));
+        let expected: HashSet<String> = matrix_game_ids()
+            .expect("matrix should load")
+            .into_iter()
+            .collect();
+        let actual: HashSet<String> = games.into_iter().collect();
+        assert_eq!(actual, expected);
         Ok(())
     }
 }

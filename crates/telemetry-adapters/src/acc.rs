@@ -3,7 +3,7 @@
 //! Implements telemetry adapter for ACC using UDP broadcast protocol v4.
 //! Requirements: GI-03, GI-04
 
-use crate::telemetry::{
+use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
     TelemetryValue, telemetry_now_ns,
 };
@@ -740,13 +740,13 @@ mod tests {
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
     const FIXTURE_REGISTRATION_RESULT_SUCCESS: &[u8] =
-        include_bytes!("../../../tests/fixtures/acc/registration_result_success.bin");
+        include_bytes!("../../service/tests/fixtures/acc/registration_result_success.bin");
     const FIXTURE_TRACK_DATA_MONZA: &[u8] =
-        include_bytes!("../../../tests/fixtures/acc/track_data_monza.bin");
+        include_bytes!("../../service/tests/fixtures/acc/track_data_monza.bin");
     const FIXTURE_REALTIME_UPDATE_FOCUSED_CAR_7: &[u8] =
-        include_bytes!("../../../tests/fixtures/acc/realtime_update_focused_car_7.bin");
+        include_bytes!("../../service/tests/fixtures/acc/realtime_update_focused_car_7.bin");
     const FIXTURE_REALTIME_CAR_UPDATE_CAR_7: &[u8] =
-        include_bytes!("../../../tests/fixtures/acc/realtime_car_update_car_7.bin");
+        include_bytes!("../../service/tests/fixtures/acc/realtime_car_update_car_7.bin");
 
     fn push_acc_string(buffer: &mut Vec<u8>, value: &str) -> TestResult {
         write_acc_string(buffer, value)?;

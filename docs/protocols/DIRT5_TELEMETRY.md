@@ -26,7 +26,7 @@ The bridge should provide packets compatible with Codemasters custom UDP semanti
 - A `speed`, `engine_rate`, `gear` base field set
 - Optional mode 1/2/3 field expansion (wheels/suspension/acceleration)
 
-This is implemented by `crates/service/src/telemetry/adapters/codemasters_udp.rs`.
+This is implemented by `crates/telemetry-adapters/src/codemasters_udp.rs`.
 
 ## Runtime contract
 

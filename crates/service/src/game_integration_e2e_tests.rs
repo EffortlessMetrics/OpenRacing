@@ -608,8 +608,11 @@ impl GameIntegrationE2ETestSuite {
                 let config_content = r#"{
   "updListenerPort": 9000,
   "udpListenerPort": 9000,
+  "broadcastingPort": 9000,
+  "connectionId": "",
   "connectionPassword": "",
-  "commandPassword": ""
+  "commandPassword": "",
+  "updateRateHz": 100
 }"#;
                 std::fs::write(&config_file, config_content)?;
             }
@@ -697,6 +700,7 @@ fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use racing_wheel_telemetry_support::matrix_game_ids;
     use tracing_test::traced_test;
 
     #[tokio::test]
@@ -704,10 +708,13 @@ mod tests {
     async fn test_e2e_suite_creation() {
         let suite = must(GameIntegrationE2ETestSuite::new().await);
         let supported_games = suite.get_supported_games().await;
-        assert!(!supported_games.is_empty());
-        assert!(supported_games.contains(&"iracing".to_string()));
-        assert!(supported_games.contains(&"acc".to_string()));
-        assert!(supported_games.contains(&"ac_rally".to_string()));
+        let expected: std::collections::HashSet<String> = matrix_game_ids()
+            .expect("matrix should load")
+            .into_iter()
+            .collect();
+        let actual: std::collections::HashSet<String> = supported_games.into_iter().collect();
+
+        assert_eq!(actual, expected);
     }
 
     #[tokio::test]

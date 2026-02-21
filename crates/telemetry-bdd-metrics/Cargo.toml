@@ -1,0 +1,16 @@
+[package]
+name = "racing-wheel-telemetry-bdd-metrics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-telemetry-bdd-metrics"
+publish = true
+description = "BDD-oriented telemetry matrix parity metrics for OpenRacing"
+readme = "README.md"
+keywords = ["telemetry", "bdd", "matrix", "metrics", "parity"]
+categories = ["development-tools::testing"]
+
+[dependencies]

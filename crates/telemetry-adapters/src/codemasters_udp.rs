@@ -1,8 +1,8 @@
 //! Codemasters-style custom UDP packet decoding and XML specification support.
 //! Supports the Dirt 4 / DiRT 4-legacy custom UDP format where each field is 4 bytes.
 use anyhow::{Context, Result, anyhow};
-use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
+use quick_xml::events::{BytesStart, Event};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -29,7 +29,7 @@ pub struct DecodedCodemastersPacket {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum FieldType {
+pub enum FieldType {
     U32,
     I32,
     F32,
@@ -82,8 +82,12 @@ impl CustomUdpSpec {
     }
 
     pub fn from_xml_path<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let raw = fs::read_to_string(path.as_ref())
-            .with_context(|| format!("Failed to read custom UDP definition at {:?}", path.as_ref()))?;
+        let raw = fs::read_to_string(path.as_ref()).with_context(|| {
+            format!(
+                "Failed to read custom UDP definition at {:?}",
+                path.as_ref()
+            )
+        })?;
         parse_custom_udp_xml(&raw)
     }
 
@@ -135,9 +139,7 @@ impl CustomUdpSpec {
 }
 
 pub(crate) fn canonical_channel_id(raw: &str) -> String {
-    raw.trim()
-        .to_ascii_lowercase()
-        .replace([' ', '-', '_'], "")
+    raw.trim().to_ascii_lowercase().replace([' ', '-', '_'], "")
 }
 
 fn parse_custom_udp_xml(raw: &str) -> Result<CustomUdpSpec> {
@@ -152,10 +154,14 @@ fn parse_custom_udp_xml(raw: &str) -> Result<CustomUdpSpec> {
     let mut depth = 0usize;
 
     loop {
-        match reader.read_event_into(&mut buf).map_err(|e| anyhow!("{e:?}"))? {
+        match reader
+            .read_event_into(&mut buf)
+            .map_err(|e| anyhow!("{e:?}"))?
+        {
             Event::Start(element) => {
                 depth += 1;
-                let tag = element.name().as_ref();
+                let element_name = element.name();
+                let tag = element_name.as_ref();
 
                 if is_field_tag(tag) {
                     let field = parse_field_tag(&element)?;
@@ -173,7 +179,8 @@ fn parse_custom_udp_xml(raw: &str) -> Result<CustomUdpSpec> {
                 }
             }
             Event::Empty(element) => {
-                let tag = element.name().as_ref();
+                let element_name = element.name();
+                let tag = element_name.as_ref();
                 if is_field_tag(tag) {
                     let field = parse_field_tag(&element)?;
                     if let Some(completed) = finalize_field(field)? {
@@ -182,7 +189,9 @@ fn parse_custom_udp_xml(raw: &str) -> Result<CustomUdpSpec> {
                 }
             }
             Event::Text(text) => {
-                if let (Some(active_field), Some(child_name)) = (active.as_mut(), active_child.as_deref()) {
+                if let (Some(active_field), Some(child_name)) =
+                    (active.as_mut(), active_child.as_deref())
+                {
                     let text = std::str::from_utf8(text.as_ref())
                         .unwrap_or("")
                         .trim()
@@ -206,7 +215,8 @@ fn parse_custom_udp_xml(raw: &str) -> Result<CustomUdpSpec> {
                 }
             }
             Event::End(end_tag) => {
-                let tag = end_tag.name().as_ref();
+                let end_name = end_tag.name();
+                let tag = end_name.as_ref();
                 let tag_name = tag_name(tag);
 
                 if matches!(tag_name, "name" | "type" | "scale" | "fourcc") {
@@ -214,21 +224,22 @@ fn parse_custom_udp_xml(raw: &str) -> Result<CustomUdpSpec> {
                 }
 
                 if is_field_tag(tag) {
-                    if in_field_depth == Some(depth) && let Some(field) = active.take() {
-                        if let Some(completed) = finalize_field(field)? {
-                            fields.push(completed);
-                        }
+                    if in_field_depth == Some(depth)
+                        && let Some(field) = active.take()
+                        && let Some(completed) = finalize_field(field)?
+                    {
+                        fields.push(completed);
                     }
                     in_field_depth = None;
                 }
 
-                if let Some(current_depth) = in_field_depth && depth == current_depth {
+                if let Some(current_depth) = in_field_depth
+                    && depth == current_depth
+                {
                     in_field_depth = None;
                 }
 
-                if depth > 0 {
-                    depth -= 1;
-                }
+                depth = depth.saturating_sub(1);
             }
             Event::Eof => break,
             _ => {}
@@ -237,9 +248,7 @@ fn parse_custom_udp_xml(raw: &str) -> Result<CustomUdpSpec> {
     }
 
     if fields.is_empty() {
-        return Err(anyhow!(
-            "custom UDP XML did not produce any valid fields"
-        ));
+        return Err(anyhow!("custom UDP XML did not produce any valid fields"));
     }
 
     Ok(CustomUdpSpec { fields })
@@ -290,9 +299,7 @@ fn parse_field_tag(element: &BytesStart<'_>) -> Result<PendingField> {
 }
 
 fn finalize_field(mut field: PendingField) -> Result<Option<FieldSpec>> {
-    if let Some(pending_name) = field.pending_name.take()
-        .or_else(|| field.channel.clone())
-    {
+    if let Some(pending_name) = field.pending_name.take().or_else(|| field.channel.clone()) {
         field.channel = Some(canonical_channel_id(&pending_name));
     }
 
@@ -318,7 +325,9 @@ fn finalize_field(mut field: PendingField) -> Result<Option<FieldSpec>> {
 
 fn complete_field(field: PendingField) -> FieldSpec {
     // The caller already guarantees field completeness.
-    let channel = field.channel.unwrap_or_else(|| "unnamed_channel".to_string());
+    let channel = field
+        .channel
+        .unwrap_or_else(|| "unnamed_channel".to_string());
     let field_type = field.field_type.unwrap_or(FieldType::F32);
     FieldSpec {
         channel,
@@ -336,7 +345,7 @@ fn tag_name(tag: &[u8]) -> &str {
     std::str::from_utf8(tag).unwrap_or("")
 }
 
-fn builtin_mode_spec(mode: u8) -> Self {
+fn builtin_mode_spec(mode: u8) -> CustomUdpSpec {
     let mut fields = base_fields();
     match mode {
         1 => {

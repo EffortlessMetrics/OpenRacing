@@ -1,6 +1,6 @@
 //! EA SPORTS WRC telemetry adapter using schema-driven UDP decoding.
 
-use crate::telemetry::{
+use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, TelemetryValue,
     telemetry_now_ns,
 };
@@ -184,8 +184,7 @@ impl EAWRCAdapter {
         if let Some(value) = value_string(
             &packet.values,
             &["track_id", "track_name", "stage_name", "stage"],
-        )
-        {
+        ) {
             telemetry = telemetry.with_track_id(value);
         }
 
@@ -415,12 +414,7 @@ impl DecoderPlan {
                 catalog
                     .packets
                     .iter()
-                    .map(|packet| {
-                        (
-                            normalize_packet_uid(&packet.four_cc),
-                            packet.id.clone(),
-                        )
-                    })
+                    .map(|packet| (normalize_packet_uid(&packet.four_cc), packet.id.clone()))
                     .collect::<HashMap<_, _>>()
             })
             .unwrap_or_default();
@@ -532,13 +526,14 @@ impl DecoderPlan {
             });
 
             if let Some(packet_uid) = packet_uid {
-                let expected_packet_id = self.packet_uid_to_id.get(&packet_uid).ok_or_else(|| {
-                    anyhow!(
-                        "packet_uid '{}' is not present in packets catalog for structure '{}'",
-                        packet_uid,
-                        self.structure_id
-                    )
-                })?;
+                let expected_packet_id =
+                    self.packet_uid_to_id.get(&packet_uid).ok_or_else(|| {
+                        anyhow!(
+                            "packet_uid '{}' is not present in packets catalog for structure '{}'",
+                            packet_uid,
+                            self.structure_id
+                        )
+                    })?;
 
                 if expected_packet_id != packet_id {
                     return Err(anyhow!(

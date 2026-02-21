@@ -1,0 +1,37 @@
+[package]
+name = "racing-wheel-telemetry-adapters"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-telemetry-adapters"
+publish = true
+description = "Game-specific telemetry adapters extracted into a standalone crate"
+readme = "README.md"
+keywords = ["telemetry", "gaming", "adapters", "ffb", "racing"]
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+quick-xml = { workspace = true }
+racing-wheel-telemetry-contracts = { path = "../telemetry-contracts" }
+
+[dev-dependencies]
+proptest = { workspace = true }
+tempfile = "3.25.0"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3.9", features = [
+    "handleapi",
+    "memoryapi",
+    "winnt",
+    "synchapi",
+    "tlhelp32",
+] }

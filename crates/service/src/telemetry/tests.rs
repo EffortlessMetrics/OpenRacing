@@ -5,7 +5,9 @@
 //! Requirements: GI-03, GI-04
 
 use crate::telemetry::*;
+use racing_wheel_telemetry_support::load_default_matrix;
 use std::time::Duration;
+use std::collections::HashSet;
 use tempfile::tempdir;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -13,14 +15,27 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 #[tokio::test]
 async fn test_telemetry_service_creation() -> TestResult {
     let service = TelemetryService::new()?;
+    let matrix = load_default_matrix()?;
+    let matrix_game_ids: HashSet<String> = matrix.games.keys().cloned().collect();
 
-    let supported_games = service.supported_games();
-    assert!(supported_games.contains(&"iracing".to_string()));
-    assert!(supported_games.contains(&"acc".to_string()));
-    assert!(supported_games.contains(&"ams2".to_string()));
-    assert!(supported_games.contains(&"rfactor2".to_string()));
-    assert!(supported_games.contains(&"eawrc".to_string()));
-    assert!(supported_games.contains(&"dirt5".to_string()));
+    let supported_games: HashSet<String> = service.supported_games().into_iter().collect();
+
+    for matrix_game in &matrix_game_ids {
+        assert!(
+            supported_games.contains(matrix_game),
+            "Telemetry service should register matrix game '{}'",
+            matrix_game
+        );
+    }
+
+    for service_game in &supported_games {
+        assert!(
+            matrix_game_ids.contains(service_game),
+            "Telemetry service registered non-matrix game '{}'",
+            service_game
+        );
+    }
+
     Ok(())
 }
 
@@ -38,6 +53,17 @@ async fn test_telemetry_service_monitoring() -> TestResult {
 
     let acc_running = service.is_game_running("acc").await;
     assert!(acc_running.is_ok());
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_telemetry_service_aliases_eawrc_game_id() -> TestResult {
+    let service = TelemetryService::new()?;
+
+    let alias_running = service.is_game_running("ea_wrc").await?;
+    let canonical_running = service.is_game_running("eawrc").await?;
+
+    assert_eq!(alias_running, canonical_running);
     Ok(())
 }
 

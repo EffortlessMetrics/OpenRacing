@@ -74,6 +74,16 @@ Each workspace crate has its own documentation:
 | `engine` | Core force feedback engine | See [ADR-0004](adr/0004-rt-scheduling-architecture.md) |
 | `plugins` | Plugin system (WASM + native) | See [ADR-0005](adr/0005-plugin-architecture.md), [Plugin Development](PLUGIN_DEVELOPMENT.md) |
 | `schemas` | Protocol and schema definitions | [README](../crates/schemas/README.md) |
+| `telemetry-core` | Telemetry domain models and disconnection state | [README](../crates/telemetry-core/README.md) |
+| `telemetry-support` | Shared telemetry game support matrix | [README](../crates/telemetry-support/README.md) |
+| `telemetry-contracts` | Shared normalized telemetry contracts | [README](../crates/telemetry-contracts/README.md) |
+| `telemetry-adapters` | Game-specific telemetry protocol adapters | [README](../crates/telemetry-adapters/README.md) |
+| `telemetry-config-writers` | Game telemetry configuration file writers | [README](../crates/telemetry-config-writers/README.md) |
+| `telemetry-integration` | Matrix parity comparison and runtime coverage reporting | [README](../crates/telemetry-integration/README.md) |
+| `telemetry-bdd-metrics` | Policy-aware BDD parity counters and ratios | [README](../crates/telemetry-bdd-metrics/README.md) |
+| `telemetry-orchestrator` | Matrix-driven telemetry adapter orchestration | [README](../crates/telemetry-orchestrator/README.md) |
+| `telemetry-rate-limiter` | Rate limiting primitives for telemetry stream ingestion | [README](../crates/telemetry-rate-limiter/README.md) |
+| `telemetry-recorder` | Telemetry recording, replay, and fixture generation | [README](../crates/telemetry-recorder/README.md) |
 | `service` | Background service and IPC | See [ADR-0002](adr/0002-ipc-transport.md), [System Integration](SYSTEM_INTEGRATION.md) |
 | `ui` | User interface components | See [ADR-0006](adr/0006-safety-interlocks.md) |
 | `compat` | Compatibility layer | [README](../crates/compat/README.md) |

@@ -63,25 +63,20 @@ fn parse_vid(raw: &str) -> Result<u16, Box<dyn Error>> {
     let raw = raw.trim();
     let v = raw.trim_start_matches("0x").trim_start_matches("0X");
     if raw.starts_with("0x") || raw.starts_with("0X") {
-        u16::from_str_radix(v, 16).map_err(|_| {
-            format!("invalid VID value '{raw}', expected hex like 0x346E")
-                .into()
-        })
+        u16::from_str_radix(v, 16)
+            .map_err(|_| format!("invalid VID value '{raw}', expected hex like 0x346E").into())
     } else {
-        raw.parse::<u16>()
-            .or_else(|_| u16::from_str_radix(v, 16).map_err(|_| {
-                format!("invalid VID value '{raw}', expected hex or decimal number")
-                    .into()
-            }))
+        raw.parse::<u16>().or_else(|_| {
+            u16::from_str_radix(v, 16).map_err(|_| {
+                format!("invalid VID value '{raw}', expected hex or decimal number").into()
+            })
+        })
     }
 }
 
 /// If the HID path looks like /dev/hidrawX, try to read the report descriptor from
 /// sysfs. This avoids ioctl complexity and is usually sufficient for identity capture.
-fn try_read_linux_report_descriptor(
-    hid_path: &str,
-    include_hex: bool,
-) -> Option<DescriptorInfo> {
+fn try_read_linux_report_descriptor(hid_path: &str, include_hex: bool) -> Option<DescriptorInfo> {
     if !hid_path.starts_with("/dev/hidraw") {
         return None;
     }

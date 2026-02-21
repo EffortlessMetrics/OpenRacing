@@ -3,12 +3,11 @@
 use super::moza::{
     ES_BUTTON_COUNT, ES_LED_COUNT, FfbMode, MozaDeviceCategory, MozaEsCompatibility,
     MozaEsJoystickMode, MozaHatDirection, MozaInitState, MozaModel, MozaProtocol, MozaTopologyHint,
-    es_compatibility, identify_device, input_report, is_wheelbase_product, product_ids,
-    report_ids,
+    es_compatibility, identify_device, input_report, is_wheelbase_product, product_ids, report_ids,
 };
-use crate::input::KsClutchMode;
 use super::moza_direct::REPORT_LEN;
 use super::{DeviceWriter, FfbConfig, VendorProtocol, get_vendor_protocol};
+use crate::input::KsClutchMode;
 use std::cell::RefCell;
 
 /// Mock device writer for testing
@@ -287,7 +286,8 @@ fn test_moza_parse_standalone_hbp_state_with_report_id() -> Result<(), Box<dyn s
 }
 
 #[test]
-fn test_moza_parse_standalone_hbp_state_without_report_id() -> Result<(), Box<dyn std::error::Error>> {
+fn test_moza_parse_standalone_hbp_state_without_report_id() -> Result<(), Box<dyn std::error::Error>>
+{
     let protocol = MozaProtocol::new(product_ids::HBP_HANDBRAKE);
     let report = [0xAA, 0x55];
     let state = protocol
@@ -464,7 +464,8 @@ fn test_moza_initialize_device() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_moza_initialize_device_respects_configured_mode() -> Result<(), Box<dyn std::error::Error>> {
+fn test_moza_initialize_device_respects_configured_mode() -> Result<(), Box<dyn std::error::Error>>
+{
     let protocol = MozaProtocol::new_with_ffb_mode(0x0002, FfbMode::Direct);
     let mut writer = MockDeviceWriter::new();
 
@@ -554,10 +555,7 @@ fn test_moza_initialization_continues_on_failure() -> Result<(), Box<dyn std::er
 #[test]
 fn test_moza_output_report_metadata() {
     let protocol = MozaProtocol::new(0x0004); // R5 V1
-    assert_eq!(
-        protocol.output_report_id(),
-        Some(report_ids::DIRECT_TORQUE)
-    );
+    assert_eq!(protocol.output_report_id(), Some(report_ids::DIRECT_TORQUE));
     assert_eq!(protocol.output_report_len(), Some(REPORT_LEN));
 
     let protocol_peripheral = MozaProtocol::new(0x0003); // SR-P Pedals

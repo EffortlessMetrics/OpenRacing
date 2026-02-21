@@ -526,8 +526,11 @@ impl GameIntegrationTestSuite {
                 let config_content = r#"{
   "updListenerPort": 9000,
   "udpListenerPort": 9000,
+  "broadcastingPort": 9000,
+  "connectionId": "",
   "connectionPassword": "",
-  "commandPassword": ""
+  "commandPassword": "",
+  "updateRateHz": 100
 }"#;
                 std::fs::write(&config_file, config_content)?;
             }
@@ -672,5 +675,16 @@ mod tests {
         assert_eq!(summary.total_duration_ms, 300);
         assert_eq!(summary.avg_duration_ms, 150);
         assert_eq!(summary.errors.len(), 1);
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn test_game_service_exposes_writer_bdd_metrics() {
+        let service = must(GameService::new().await);
+        let metrics = service.writer_bdd_metrics();
+
+        assert!(metrics.matrix_game_count > 0);
+        assert_eq!(metrics.missing_count, 0);
+        assert!(metrics.parity_ok);
     }
 }

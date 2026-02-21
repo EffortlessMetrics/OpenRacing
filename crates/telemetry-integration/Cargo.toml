@@ -1,0 +1,16 @@
+[package]
+name = "racing-wheel-telemetry-integration"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-telemetry-integration"
+publish = true
+description = "Utilities for validating telemetry matrix and runtime registry parity."
+readme = "README.md"
+keywords = ["telemetry", "racing", "matrix", "integration", "compatibility"]
+
+[dependencies]
+racing-wheel-telemetry-bdd-metrics = { path = "../telemetry-bdd-metrics" }

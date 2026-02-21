@@ -1516,13 +1516,15 @@ impl WindowsHidDevice {
             device_info.device_id
         );
 
+        let moza_protocol = (device_info.vendor_id == 0x346E)
+            .then_some(vendor::moza::MozaProtocol::new(device_info.product_id));
+
         Ok(Self {
             device_info,
             connected: Arc::new(AtomicBool::new(true)),
             last_seq: Arc::new(Mutex::new(0)),
             health_status: Arc::new(RwLock::new(health_status)),
-            moza_protocol: (device_info.vendor_id == 0x346E)
-                .then_some(vendor::moza::MozaProtocol::new(device_info.product_id)),
+            moza_protocol,
             has_moza_input: AtomicBool::new(false),
             moza_input_seq: AtomicU32::new(0),
             moza_input_state: Seqlock::new(MozaInputState::empty(0)),
@@ -1930,7 +1932,8 @@ impl HidDevice for WindowsHidDevice {
     }
 
     fn read_inputs(&self) -> Option<crate::DeviceInputs> {
-        self.moza_input_state().map(crate::DeviceInputs::from_moza_input_state)
+        self.moza_input_state()
+            .map(|state| crate::DeviceInputs::from_moza_input_state(&state))
     }
 }
 

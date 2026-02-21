@@ -93,7 +93,7 @@ impl KsAxisSource {
         if self.signed {
             Some(i16::from_le_bytes(bytes))
         } else {
-            i16::from_le_bytes(bytes)
+            Some(i16::from_le_bytes(bytes))
         }
     }
 }
@@ -225,11 +225,7 @@ impl KsReportSnapshot {
     }
 
     /// Conservative constructor for a populated wheelbase surface without KS map bindings.
-    pub fn from_common_controls(
-        tick: u32,
-        buttons: [u8; KS_BUTTON_BYTES],
-        hat: u8,
-    ) -> Self {
+    pub fn from_common_controls(tick: u32, buttons: [u8; KS_BUTTON_BYTES], hat: u8) -> Self {
         Self {
             tick,
             buttons,
@@ -305,19 +301,24 @@ impl KsReportMap {
         snapshot.joystick_mode = self.joystick_mode_hint;
 
         if let Some(offset) = self.buttons_offset {
-            if report.len() >= offset.saturating_add(snapshot.buttons.len()) {
-                snapshot.buttons.copy_from_slice(&report[offset..offset + snapshot.buttons.len()]);
+            let button_len = snapshot.buttons.len();
+            if report.len() >= offset.saturating_add(button_len) {
+                snapshot
+                    .buttons
+                    .copy_from_slice(&report[offset..offset + button_len]);
             } else {
                 let available = report.len().saturating_sub(offset);
-                snapshot.buttons[..available]
-                    .copy_from_slice(&report[offset..offset + available]);
+                snapshot.buttons[..available].copy_from_slice(&report[offset..offset + available]);
             }
         }
 
         snapshot.hat = self
             .joystick_hat
             .and_then(|source| source.parse(report))
-            .or_else(|| self.hat_offset.and_then(|offset| report.get(offset).copied()))
+            .or_else(|| {
+                self.hat_offset
+                    .and_then(|offset| report.get(offset).copied())
+            })
             .unwrap_or_default();
 
         for i in 0..KS_ENCODER_COUNT {
@@ -333,9 +334,15 @@ impl KsReportMap {
             snapshot.encoders[1] = axis.parse_i16(report).unwrap_or(0);
         }
 
-        snapshot.clutch_combined = self.clutch_combined_axis.and_then(|axis| axis.parse_u16(report));
-        snapshot.clutch_left = self.clutch_left_axis.and_then(|axis| axis.parse_u16(report));
-        snapshot.clutch_right = self.clutch_right_axis.and_then(|axis| axis.parse_u16(report));
+        snapshot.clutch_combined = self
+            .clutch_combined_axis
+            .and_then(|axis| axis.parse_u16(report));
+        snapshot.clutch_left = self
+            .clutch_left_axis
+            .and_then(|axis| axis.parse_u16(report));
+        snapshot.clutch_right = self
+            .clutch_right_axis
+            .and_then(|axis| axis.parse_u16(report));
         snapshot.clutch_left_button = self.clutch_left_button.and_then(|bit| bit.parse(report));
         snapshot.clutch_right_button = self.clutch_right_button.and_then(|bit| bit.parse(report));
 
@@ -409,9 +416,9 @@ mod tests {
         map.clutch_combined_axis = Some(KsAxisSource::new(7, false));
 
         let report = [
-            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x88, 0x77, 0x66, 0x55, 0x11,
-            0xAB, 0xCD, 0xEF, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A,
-            0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x33,
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x88, 0x77, 0x66, 0x55, 0x11, 0xAB, 0xCD,
+            0xEF, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+            0x0E, 0x0F, 0x33,
         ];
 
         let snapshot = match map.parse(9, &report) {
