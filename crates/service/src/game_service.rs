@@ -3,121 +3,33 @@
 //! Handles telemetry configuration, auto-switching, and game-specific integrations
 //! according to requirements GI-01 and GI-03.
 
-use crate::config_writers::{
-    ACCConfigWriter, ACRallyConfigWriter, AMS2ConfigWriter, EAWRCConfigWriter, IRacingConfigWriter,
-    RFactor2ConfigWriter,
+pub use crate::config_writers::{
+    ConfigDiff, ConfigWriter, DiffOperation, TelemetryConfig, config_writer_factories,
 };
 use anyhow::Result;
+use racing_wheel_telemetry_bdd_metrics::BddMatrixMetrics;
+use racing_wheel_telemetry_integration::{
+    CoveragePolicy, compare_runtime_registries_with_policies,
+};
+pub use racing_wheel_telemetry_support::{
+    AutoDetectConfig, GameSupport, GameSupportMatrix, GameSupportStatus, GameVersion,
+    TelemetryFieldMapping, TelemetrySupport,
+};
+use racing_wheel_telemetry_support::{load_default_matrix, normalize_game_id};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
+use tracing::warn;
 
 /// Game integration service that manages telemetry configuration and auto-switching
 pub struct GameService {
     support_matrix: Arc<RwLock<GameSupportMatrix>>,
     config_writers: HashMap<String, Box<dyn ConfigWriter + Send + Sync>>,
+    writer_bdd_metrics: BddMatrixMetrics,
     active_game: Arc<RwLock<Option<String>>>,
-}
-
-/// Game support matrix loaded from YAML configuration
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct GameSupportMatrix {
-    pub games: HashMap<String, GameSupport>,
-}
-
-/// Support information for a specific game
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct GameSupport {
-    pub name: String,
-    pub versions: Vec<GameVersion>,
-    pub telemetry: TelemetrySupport,
-    pub config_writer: String,
-    pub auto_detect: AutoDetectConfig,
-}
-
-/// Version-specific game support
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct GameVersion {
-    pub version: String,
-    pub config_paths: Vec<String>,
-    pub executable_patterns: Vec<String>,
-    pub telemetry_method: String,
-    pub supported_fields: Vec<String>,
-}
-
-/// Telemetry support configuration
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TelemetrySupport {
-    pub method: String, // "shared_memory", "udp_broadcast", "file_based"
-    pub update_rate_hz: u32,
-    pub fields: TelemetryFieldMapping,
-}
-
-/// Mapping of normalized telemetry fields to game-specific fields
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TelemetryFieldMapping {
-    pub ffb_scalar: Option<String>,
-    pub rpm: Option<String>,
-    pub speed_ms: Option<String>,
-    pub slip_ratio: Option<String>,
-    pub gear: Option<String>,
-    pub flags: Option<String>,
-    pub car_id: Option<String>,
-    pub track_id: Option<String>,
-}
-
-/// Auto-detection configuration for games
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct AutoDetectConfig {
-    pub process_names: Vec<String>,
-    pub install_registry_keys: Vec<String>,
-    pub install_paths: Vec<String>,
-}
-
-/// Configuration writer trait for game-specific config generation
-pub trait ConfigWriter {
-    /// Write telemetry configuration for the game
-    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>>;
-
-    /// Validate that configuration was applied correctly
-    fn validate_config(&self, game_path: &Path) -> Result<bool>;
-
-    /// Get the expected configuration diffs for testing
-    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>>;
-}
-
-/// Configuration to be applied to a game
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TelemetryConfig {
-    pub enabled: bool,
-    pub update_rate_hz: u32,
-    pub output_method: String,
-    pub output_target: String, // IP:port for UDP, file path for file-based, etc.
-    pub fields: Vec<String>,
-    #[serde(default)]
-    pub enable_high_rate_iracing_360hz: bool,
-}
-
-/// Represents a configuration change made to a game file
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ConfigDiff {
-    pub file_path: String,
-    pub section: Option<String>,
-    pub key: String,
-    pub old_value: Option<String>,
-    pub new_value: String,
-    pub operation: DiffOperation,
-}
-
-/// Type of configuration operation
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum DiffOperation {
-    Add,
-    Modify,
-    Remove,
 }
 
 /// Game status information
@@ -133,28 +45,98 @@ impl GameService {
     /// Create new game service with YAML-loaded support matrix
     pub async fn new() -> Result<Self> {
         let support_matrix = Self::load_support_matrix().await?;
-        let mut config_writers: HashMap<String, Box<dyn ConfigWriter + Send + Sync>> =
-            HashMap::new();
-
-        // Register config writers
-        config_writers.insert("iracing".to_string(), Box::new(IRacingConfigWriter));
-        config_writers.insert("acc".to_string(), Box::new(ACCConfigWriter));
-        config_writers.insert("ac_rally".to_string(), Box::new(ACRallyConfigWriter));
-        config_writers.insert("ams2".to_string(), Box::new(AMS2ConfigWriter));
-        config_writers.insert("rfactor2".to_string(), Box::new(RFactor2ConfigWriter));
-        config_writers.insert("eawrc".to_string(), Box::new(EAWRCConfigWriter));
+        let (config_writers, writer_bdd_metrics) = Self::build_config_writers(&support_matrix)?;
 
         Ok(Self {
             support_matrix: Arc::new(RwLock::new(support_matrix)),
             config_writers,
+            writer_bdd_metrics,
             active_game: Arc::new(RwLock::new(None)),
         })
     }
 
-    /// Load game support matrix from YAML file
+    fn build_config_writers(
+        support_matrix: &GameSupportMatrix,
+    ) -> Result<(
+        HashMap<String, Box<dyn ConfigWriter + Send + Sync>>,
+        BddMatrixMetrics,
+    )> {
+        let mut config_writers = HashMap::new();
+        let writer_factories: Vec<_> = config_writer_factories().to_vec();
+        let coverage = compare_runtime_registries_with_policies(
+            support_matrix.game_ids(),
+            std::iter::empty::<&str>(),
+            writer_factories.iter().map(|(writer_id, _)| *writer_id),
+            CoveragePolicy::LENIENT,
+            CoveragePolicy::MATRIX_COMPLETE,
+        );
+        let metrics = coverage.metrics();
+        let writer_bdd_metrics = coverage
+            .writer_coverage
+            .bdd_metrics(CoveragePolicy::MATRIX_COMPLETE);
+
+        info!(
+            matrix_game_count = metrics.matrix_game_count,
+            writer_matrix_coverage = metrics.writer.matrix_coverage_ratio,
+            writer_registry_coverage = metrics.writer.registry_coverage_ratio,
+            writer_missing_count = metrics.writer.missing_count,
+            writer_extra_count = metrics.writer.extra_count,
+            writer_parity_ok = writer_bdd_metrics.parity_ok,
+            matrix_writer_parity_ok = coverage.writer_policy_ok(),
+            "Config writer registry parity checked against support matrix"
+        );
+
+        if !coverage.writer_coverage.has_no_extra_coverage() {
+            warn!(
+                extra_writers = ?coverage.writer_coverage.extra_in_registry,
+                "Config writer registry contains game IDs not present in support matrix"
+            );
+        }
+
+        if !coverage.writer_policy_ok() {
+            return Err(anyhow::anyhow!(
+                "Missing config writers for matrix games: {:?}",
+                coverage.writer_coverage.missing_in_registry
+            ));
+        }
+
+        let writer_factory_lookup = writer_factories
+            .iter()
+            .map(|(writer_id, factory)| (writer_id.to_ascii_lowercase(), *factory))
+            .collect::<HashMap<_, _>>();
+
+        for (game_id, game_support) in &support_matrix.games {
+            let config_writer_id = game_support.config_writer.to_ascii_lowercase();
+            let factory = writer_factory_lookup
+                .get(config_writer_id.as_str())
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Missing config writer '{}' for game '{}'",
+                        game_support.config_writer,
+                        game_id
+                    )
+                })?;
+
+            if config_writers.insert(game_id.clone(), factory()).is_some() {
+                warn!(
+                    game_id = %game_id,
+                    config_writer = %game_support.config_writer,
+                    "Overwriting existing config writer mapping; matrix entries should be unique"
+                );
+            }
+        }
+
+        Ok((config_writers, writer_bdd_metrics))
+    }
+
+    /// Load game support matrix from centralized telemetry-support metadata
     async fn load_support_matrix() -> Result<GameSupportMatrix> {
-        let yaml_content = include_str!("../config/game_support_matrix.yaml");
-        let matrix: GameSupportMatrix = serde_yaml::from_str(yaml_content)?;
+        let matrix = load_default_matrix().map_err(|err| {
+            anyhow::anyhow!(
+                "Failed to load default telemetry support matrix from shared metadata: {}",
+                err
+            )
+        })?;
         info!(
             games_count = matrix.games.len(),
             "Loaded game support matrix"
@@ -168,6 +150,21 @@ impl GameService {
         game_id: &str,
         game_path: &Path,
     ) -> Result<Vec<ConfigDiff>> {
+        self.configure_telemetry_with_options(game_id, game_path, false)
+            .await
+    }
+
+    /// Configure telemetry for a specific game with extra options.
+    ///
+    /// This is the primary path for callers that need feature-flagged options
+    /// without changing default behavior.
+    pub async fn configure_telemetry_with_options(
+        &self,
+        game_id: &str,
+        game_path: &Path,
+        enable_high_rate_iracing_360hz: bool,
+    ) -> Result<Vec<ConfigDiff>> {
+        let game_id = normalize_game_id(game_id);
         info!(game_id = %game_id, game_path = ?game_path, "Configuring telemetry");
 
         let support_matrix = self.support_matrix.read().await;
@@ -176,26 +173,39 @@ impl GameService {
             .get(game_id)
             .ok_or_else(|| anyhow::anyhow!("Unsupported game: {}", game_id))?;
 
+        if enable_high_rate_iracing_360hz && !game_support.telemetry.supports_360hz_option {
+            return Err(anyhow::anyhow!(
+                "High-rate 360Hz telemetry option is not supported for game: {}",
+                game_id
+            ));
+        }
+
         let config_writer = self
             .config_writers
             .get(game_id)
             .ok_or_else(|| anyhow::anyhow!("No config writer for game: {}", game_id))?;
 
         // Create telemetry configuration
-        let output_target = match game_id {
-            "acc" => "127.0.0.1:9000".to_string(),
-            "ac_rally" => "127.0.0.1:9000".to_string(),
-            "eawrc" => "127.0.0.1:20778".to_string(),
-            _ => "127.0.0.1:12345".to_string(),
-        };
+        let output_target = game_support
+            .telemetry
+            .output_target
+            .clone()
+            .unwrap_or_else(|| "127.0.0.1:12345".to_string());
 
         let telemetry_config = TelemetryConfig {
             enabled: true,
-            update_rate_hz: game_support.telemetry.update_rate_hz,
+            update_rate_hz: if enable_high_rate_iracing_360hz {
+                game_support
+                    .telemetry
+                    .high_rate_update_rate_hz
+                    .unwrap_or(game_support.telemetry.update_rate_hz)
+            } else {
+                game_support.telemetry.update_rate_hz
+            },
             output_method: game_support.telemetry.method.clone(),
             output_target,
             fields: game_support.versions[0].supported_fields.clone(),
-            enable_high_rate_iracing_360hz: false,
+            enable_high_rate_iracing_360hz,
         };
 
         // Write configuration and get diffs
@@ -207,6 +217,7 @@ impl GameService {
 
     /// Get normalized telemetry field mapping for a game (GI-03)
     pub async fn get_telemetry_mapping(&self, game_id: &str) -> Result<TelemetryFieldMapping> {
+        let game_id = normalize_game_id(game_id);
         let support_matrix = self.support_matrix.read().await;
         let game_support = support_matrix
             .games
@@ -219,11 +230,24 @@ impl GameService {
     /// Get list of supported games
     pub async fn get_supported_games(&self) -> Vec<String> {
         let support_matrix = self.support_matrix.read().await;
-        support_matrix.games.keys().cloned().collect()
+        support_matrix.game_ids()
+    }
+
+    /// Get stable game integrations from the matrix.
+    pub async fn get_stable_games(&self) -> Vec<String> {
+        let support_matrix = self.support_matrix.read().await;
+        support_matrix.game_ids_by_status(GameSupportStatus::Stable)
+    }
+
+    /// Get experimental game integrations from the matrix.
+    pub async fn get_experimental_games(&self) -> Vec<String> {
+        let support_matrix = self.support_matrix.read().await;
+        support_matrix.game_ids_by_status(GameSupportStatus::Experimental)
     }
 
     /// Get game support information
     pub async fn get_game_support(&self, game_id: &str) -> Result<GameSupport> {
+        let game_id = normalize_game_id(game_id);
         let support_matrix = self.support_matrix.read().await;
         support_matrix
             .games
@@ -253,6 +277,7 @@ impl GameService {
 
     /// Validate configuration was applied correctly
     pub async fn validate_telemetry_config(&self, game_id: &str, game_path: &Path) -> Result<bool> {
+        let game_id = normalize_game_id(game_id);
         let config_writer = self
             .config_writers
             .get(game_id)
@@ -267,12 +292,18 @@ impl GameService {
         game_id: &str,
         config: &TelemetryConfig,
     ) -> Result<Vec<ConfigDiff>> {
+        let game_id = normalize_game_id(game_id);
         let config_writer = self
             .config_writers
             .get(game_id)
             .ok_or_else(|| anyhow::anyhow!("No config writer for game: {}", game_id))?;
 
         config_writer.get_expected_diffs(config)
+    }
+
+    /// Return startup writer parity metrics aligned with telemetry BDD checks.
+    pub fn writer_bdd_metrics(&self) -> &BddMatrixMetrics {
+        &self.writer_bdd_metrics
     }
 
     /// Get game status (for IPC service compatibility)

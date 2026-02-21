@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **EA F1 25 Native UDP Adapter** (`game_id = "f1_25"`): Native binary protocol support
+  - Parses EA F1 25 UDP packets (format 2025) directly — no bridge required
+  - Decodes PacketCarTelemetryData (ID=6): speed, gear, RPM, DRS, throttle, brake, tyre pressures/temps
+  - Decodes PacketCarStatusData (ID=7): fuel mass, ERS energy, pit limiter, tyre compound, engine power
+  - Decodes PacketSessionData (ID=1): track ID, ambient/track temperature
+  - All F1-specific fields exposed as typed extended telemetry (`drs_active`, `fuel_remaining_kg`, `ers_store_j`, `tyre_pressure_*`, etc.)
+  - Config writer generates `Documents/OpenRacing/f1_25_contract.json` with game setup instructions
+  - In-game setup: Settings → Telemetry → UDP Telemetry: On, Port: 20777, Format: 2025
+  - `f1_25` registered in game support matrix, adapter factory, and config writer factory
+  - BDD parity validation automatically covers `f1_25` (adapter + writer both registered)
+  - 40+ unit tests, property tests (100 cases, <1ms budget), golden tests, binary fixture codec tests
+  - cargo-fuzz targets for header, CarTelemetry, CarStatus, and end-to-end normalize() parsing
+  - `f1_2025` is now an alias for `f1_25`; legacy `f1` (Codemasters bridge) adapter unchanged
+
 ## [1.0.0] - 2026-10-15
 
 ### Added

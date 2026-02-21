@@ -24,6 +24,9 @@ games:
     telemetry:
       method: "shared_memory"
       update_rate_hz: 60
+      supports_360hz_option: true
+      high_rate_update_rate_hz: 360
+      output_target: "127.0.0.1:12345"
       fields:
         ffb_scalar: "SteeringWheelPctTorqueSign"
         rpm: "RPM"
@@ -33,6 +36,7 @@ games:
         flags: "SessionFlags"
         car_id: "CarPath"
         track_id: "TrackName"
+    status: "stable"
     config_writer: "iracing"
     auto_detect:
       process_names:
@@ -63,6 +67,9 @@ games:
     telemetry:
       method: "udp_broadcast"
       update_rate_hz: 100
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:9000"
       fields:
         ffb_scalar: "steerAngle"
         rpm: "rpms"
@@ -72,6 +79,7 @@ games:
         flags: "flag"
         car_id: "carModel"
         track_id: "track"
+    status: "stable"
     config_writer: "acc"
     auto_detect:
       process_names:
@@ -93,6 +101,9 @@ games:
     telemetry:
       method: "probe_discovery"
       update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:9000"
       fields:
         ffb_scalar: null
         rpm: null
@@ -102,6 +113,7 @@ games:
         flags: null
         car_id: null
         track_id: null
+    status: "experimental"
     config_writer: "ac_rally"
     auto_detect:
       process_names: []
@@ -126,11 +138,19 @@ games:
     telemetry:
       method: "shared_memory"
       update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:12345"
       fields:
         ffb_scalar: "mSteering"
         rpm: "mRpm"
         speed_ms: "mSpeed"
+        slip_ratio: null
         gear: "mGear"
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
     config_writer: "ams2"
     auto_detect:
       process_names:
@@ -162,6 +182,9 @@ games:
     telemetry:
       method: "shared_memory"
       update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:12345"
       fields:
         ffb_scalar: "mForceFeedback"
         rpm: "mEngineRPM"
@@ -171,6 +194,7 @@ games:
         flags: "mGamePhase/mYellowFlagState/mInPits"
         car_id: "mVehicleName"
         track_id: "mTrackName"
+    status: "experimental"
     config_writer: "rfactor2"
     auto_detect:
       process_names:
@@ -202,14 +226,19 @@ games:
     telemetry:
       method: "udp_schema"
       update_rate_hz: 120
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:20778"
       fields:
         ffb_scalar: "ffb_scalar"
         rpm: "engine_rpm"
         speed_ms: "vehicle_speed"
         slip_ratio: "slip_ratio"
         gear: "gear"
+        flags: null
         car_id: "vehicle_id"
         track_id: "track_name"
+    status: "experimental"
     config_writer: "eawrc"
     auto_detect:
       process_names:
@@ -219,3 +248,134 @@ games:
         - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1849250"
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/WRC"
+
+  f1:
+    name: "F1 2025"
+    versions:
+      - version: "2025.x"
+        config_paths:
+          - "Documents/OpenRacing/f1_bridge_contract.json"
+        executable_patterns:
+          - "F1_25.exe"
+          - "F1_24.exe"
+        telemetry_method: "udp_custom_codemasters"
+        supported_fields:
+          - "ffb_scalar"
+          - "rpm"
+          - "speed_ms"
+          - "slip_ratio"
+          - "gear"
+          - "flags"
+          - "car_id"
+          - "track_id"
+    telemetry:
+      method: "udp_custom_codemasters"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:20777"
+      fields:
+        ffb_scalar: "steering_force"
+        rpm: "engine_rpm"
+        speed_ms: "speed"
+        slip_ratio: "slip_ratio"
+        gear: "gear"
+        flags: "drs_active/ers_deploy_mode/pit_limiter"
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "f1"
+    auto_detect:
+      process_names:
+        - "F1_25.exe"
+        - "F1_24.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 2488620"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/F1 25"
+
+  f1_25:
+    name: "EA F1 25 (Native UDP)"
+    versions:
+      - version: "2025.x"
+        config_paths:
+          - "Documents/OpenRacing/f1_25_contract.json"
+        executable_patterns:
+          - "F1_25.exe"
+        telemetry_method: "udp_native_f1_25"
+        supported_fields:
+          - "rpm"
+          - "speed_ms"
+          - "gear"
+          - "flags"
+          - "car_id"
+          - "track_id"
+    telemetry:
+      method: "udp_native_f1_25"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:20777"
+      fields:
+        ffb_scalar: null
+        rpm: "m_engineRPM"
+        speed_ms: "m_speed"
+        slip_ratio: null
+        gear: "m_gear"
+        flags: "m_drs/m_pitLimiterStatus/m_drsAllowed/m_ersDeployMode"
+        car_id: "m_playerCarIndex"
+        track_id: "m_trackId"
+    status: "experimental"
+    config_writer: "f1_25"
+    auto_detect:
+      process_names:
+        - "F1_25.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 2488620"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/F1 25"
+
+  dirt5:
+    name: "Dirt 5"
+    versions:
+      - version: "1.x"
+        config_paths:
+          - "Documents/OpenRacing/dirt5_bridge_contract.json"
+        executable_patterns:
+          - "DIRT5.exe"
+          - "DIRT5_Launcher.exe"
+          - "game_release.exe"
+          - "game_dev.exe"
+        telemetry_method: "udp_custom_codemasters"
+        supported_fields:
+          - "rpm"
+          - "speed_ms"
+          - "gear"
+          - "slip_ratio"
+          # Dirt 5 currently does not provide native force-feedback torque requests.
+    telemetry:
+      method: "udp_custom_codemasters"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:20777"
+      fields:
+        ffb_scalar: null
+        rpm: "engine_rate"
+        speed_ms: "speed"
+        slip_ratio: "slip_ratio"
+        gear: "gear"
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "dirt5"
+    auto_detect:
+      process_names:
+        - "DIRT5.exe"
+        - "game_release.exe"
+        - "game_dev.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1238860"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Dirt 5"

@@ -4,9 +4,9 @@
 //! at 1kHz with integrated safety systems, SPSC communication rings, and fault handling.
 
 use crate::{
+    hid::MozaInputState,
     metrics::AtomicCounters,
     pipeline::{CompiledPipeline, Pipeline},
-    hid::MozaInputState,
     ports::{HidDevice, NormalizedTelemetry},
     rt::FFBMode,
     rt::{Frame, PerformanceMetrics, RTError, RTResult},
@@ -112,11 +112,7 @@ fn moza_interlock_device_token(device_id: &DeviceId) -> u32 {
         token = token.wrapping_mul(FNV_PRIME);
     }
 
-    if token == 0 {
-        1
-    } else {
-        token
-    }
+    if token == 0 { 1 } else { token }
 }
 
 fn should_latch_safety_fault(fault: FaultType) -> bool {
@@ -970,9 +966,8 @@ impl Engine {
             return;
         }
 
-        ctx.moza_interlock_input_stale_frames = ctx
-            .moza_interlock_input_stale_frames
-            .saturating_add(1);
+        ctx.moza_interlock_input_stale_frames =
+            ctx.moza_interlock_input_stale_frames.saturating_add(1);
 
         if ctx.moza_interlock_input_stale_frames >= MOZA_INTERLOCK_INPUT_STALE_FRAMES {
             ctx.safety.process_moza_interlock_inputs_stale();

@@ -3,19 +3,19 @@
 //! This adapter opens `Local\\IRSDKMemMapFileName` with `FILE_MAP_READ`,
 //! reads the IRSDK header, and selects the newest rotating telemetry buffer.
 
-use crate::telemetry::{
+use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
-    TelemetryValue,
+    TelemetryValue, telemetry_now_ns,
 };
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use std::mem;
 use std::ptr;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::sync::mpsc;
 #[cfg(windows)]
 use tokio::task;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 #[cfg(windows)]
 use winapi::um::{
@@ -32,15 +32,15 @@ const IRACING_DATA_VALID_EVENT_NAME: &str = "Local\\IRSDKDataValidEvent";
 const IRSDK_MAX_BUFS: usize = 4;
 const IRSDK_DEFAULT_TICK_RATE: Duration = Duration::from_millis(16);
 const IRSDK_SESSION_FLAG_CHECKERED: u32 = 0x0000_0001;
-const IRSDK_SESSION_FLAG_WHITE: u32 = 0x0000_0002;
 const IRSDK_SESSION_FLAG_GREEN: u32 = 0x0000_0004;
 const IRSDK_SESSION_FLAG_YELLOW: u32 = 0x0000_0008;
 const IRSDK_SESSION_FLAG_RED: u32 = 0x0000_0010;
 const IRSDK_SESSION_FLAG_BLUE: u32 = 0x0000_0020;
+const IRSDK_DEFAULT_TIRE_RADIUS_M: f32 = 0.33;
+const IRSDK_MIN_TIRE_SURFACE_SPEED_MPS: f32 = 0.05;
 const IRSDK_STABLE_READ_ATTEMPTS: usize = 3;
 const IRSDK_MAX_VARS: i32 = 4096;
 const IRSDK_VAR_NAME_LEN: usize = 32;
-const IRSDK_DEFAULT_TIRE_RADIUS_M: f32 = 0.31;
 #[cfg(windows)]
 const WAIT_OBJECT_0: u32 = 0;
 #[cfg(windows)]
@@ -137,7 +137,7 @@ struct VarBinding {
     var_type: i32,
     offset: usize,
     count: usize,
-    unit: [u8; 32],
+    _unit: [u8; 32],
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -153,6 +153,7 @@ struct IRacingLayout {
     steering_wheel_torque: Option<VarBinding>,
     steering_wheel_pct_torque_sign: Option<VarBinding>,
     steering_wheel_max_force_nm: Option<VarBinding>,
+    steering_wheel_limiter: Option<VarBinding>,
     lf_tire_speed: Option<VarBinding>,
     rf_tire_speed: Option<VarBinding>,
     lr_tire_speed: Option<VarBinding>,
@@ -332,8 +333,8 @@ impl TelemetryAdapter for IRacingAdapter {
             let mut sequence = 0u64;
             let mut last_tick_count = None;
             let mut last_session_info_update = None;
+            let mut last_layout_signature = None;
             let mut warned_unscaled_ffb = false;
-            let epoch = Instant::now();
             let mut tick_interval = update_rate;
 
             #[cfg(windows)]
@@ -350,6 +351,7 @@ impl TelemetryAdapter for IRacingAdapter {
                     }
                     warned_unscaled_ffb = false;
                     last_tick_count = None;
+                    last_layout_signature = None;
                     last_session_info_update = None;
                     info!("Connected to iRacing shared memory");
                 }
@@ -361,12 +363,9 @@ impl TelemetryAdapter for IRacingAdapter {
                     .is_some();
                 if let Some(handle) = adapter.shared_memory.as_ref() {
                     if let Some(event_handle) = handle.data_valid_event {
-                        match wait_for_data_valid_event(event_handle, tick_interval).await {
-                            Ok(true) => {}
-                            Ok(false) => {
-                                // Timeout without a new tick; skip read and wait again.
-                                continue;
-                            }
+                        match wait_for_data_valid_event(event_handle as usize, tick_interval).await
+                        {
+                            Ok(_) => {}
                             Err(err) => {
                                 warn!("Failed waiting on iRacing data-valid event: {}", err);
                                 adapter.shared_memory = None;
@@ -385,7 +384,26 @@ impl TelemetryAdapter for IRacingAdapter {
                         }
                         last_tick_count = Some(sample.tick_count);
                         tick_interval = sample.tick_interval;
-                        let session_info_changed = last_session_info_update != Some(sample.session_info_update);
+                        let layout_signature = irsdk_layout_signature(&sample.header);
+                        let layout_changed = last_layout_signature != Some(layout_signature);
+                        let session_info_changed =
+                            last_session_info_update != Some(sample.session_info_update);
+
+                        if layout_changed && let Some(shared) = adapter.shared_memory.as_mut() {
+                            match build_iracing_layout(shared.base_ptr, &sample.header) {
+                                Ok(updated_layout) => {
+                                    shared.layout = updated_layout;
+                                    last_layout_signature = Some(layout_signature);
+                                    debug!("Refreshed iRacing layout from header change");
+                                }
+                                Err(err) => {
+                                    warn!(
+                                        "Failed to refresh iRacing variable layout after header change: {}",
+                                        err
+                                    );
+                                }
+                            }
+                        }
 
                         if session_info_changed {
                             last_session_info_update = Some(sample.session_info_update);
@@ -399,12 +417,15 @@ impl TelemetryAdapter for IRacingAdapter {
                                     "Updated iRacing session info ({} bytes)",
                                     session_info.len()
                                 );
-                                if let Err(err) = serde_yaml::from_str::<serde_yaml::Value>(&session_info) {
+                                if let Err(err) =
+                                    serde_yaml::from_str::<serde_yaml::Value>(&session_info)
+                                {
                                     debug!("Failed to parse iRacing session info YAML: {}", err);
                                 }
                             }
 
-                            if let Some(shared) = adapter.shared_memory.as_mut() {
+                            if !layout_changed && let Some(shared) = adapter.shared_memory.as_mut()
+                            {
                                 match build_iracing_layout(shared.base_ptr, &sample.header) {
                                     Ok(updated_layout) => {
                                         shared.layout = updated_layout;
@@ -427,7 +448,7 @@ impl TelemetryAdapter for IRacingAdapter {
                                 &layout,
                                 &mut warned_unscaled_ffb,
                             ),
-                            monotonic_ns_since(epoch, Instant::now()),
+                            telemetry_now_ns(),
                             sequence,
                             mem::size_of::<IRacingData>(),
                         );
@@ -469,22 +490,41 @@ impl TelemetryAdapter for IRacingAdapter {
     }
 
     fn normalize(&self, raw: &[u8]) -> Result<NormalizedTelemetry> {
-        if raw.len() != mem::size_of::<IRacingData>() {
+        let min_raw_size = mem::size_of::<IRacingLegacyData>();
+        let max_raw_size = mem::size_of::<IRacingData>();
+
+        if raw.len() < min_raw_size {
             return Err(anyhow!(
-                "Invalid iRacing raw size: expected {}, got {}",
-                mem::size_of::<IRacingData>(),
+                "Invalid iRacing raw size: expected at least {min_raw_size}, got {}",
                 raw.len()
             ));
         }
 
-        // SAFETY: size is validated above; unaligned read avoids UB for arbitrary slices.
-        let data = unsafe { ptr::read_unaligned(raw.as_ptr() as *const IRacingData) };
+        let data = if raw.len() < max_raw_size {
+            let mut legacy = IRacingLegacyData::default();
+            // SAFETY: destination is a plain-old-data struct and `raw` length is validated.
+            unsafe {
+                ptr::copy_nonoverlapping(
+                    raw.as_ptr(),
+                    &mut legacy as *mut IRacingLegacyData as *mut u8,
+                    min_raw_size,
+                );
+            }
+            convert_legacy_to_current(&legacy)
+        } else {
+            let mut data = IRacingData::default();
+            // SAFETY: destination is a plain-old-data struct and `raw` length is validated.
+            unsafe {
+                ptr::copy_nonoverlapping(
+                    raw.as_ptr(),
+                    &mut data as *mut IRacingData as *mut u8,
+                    max_raw_size,
+                );
+            }
+            data
+        };
         let mut warned_unscaled_ffb = false;
-        Ok(self.normalize_iracing_data(
-            &data,
-            &IRacingLayout::default(),
-            &mut warned_unscaled_ffb,
-        ))
+        Ok(self.normalize_iracing_data(&data, &IRacingLayout::default(), &mut warned_unscaled_ffb))
     }
 
     fn expected_update_rate(&self) -> Duration {
@@ -504,13 +544,21 @@ impl IRacingAdapter {
         warned_unscaled_ffb: &mut bool,
     ) -> NormalizedTelemetry {
         let mut telemetry = NormalizedTelemetry::default();
+        let (ffb_scalar_source, ffb_scalar) = resolve_ffb_scalar_with_source(data, layout);
 
-        if let Some(ffb_scalar) = resolve_ffb_scalar(data, layout) {
+        if let Some(ffb_scalar) = ffb_scalar {
             telemetry = telemetry.with_ffb_scalar(ffb_scalar);
         } else if !*warned_unscaled_ffb {
-            warn!("iRacing FFB scalar missing. Using legacy fallback if available.");
+            warn!(
+                "iRacing FFB scalar missing. Data source may not expose steering torque metadata yet."
+            );
             *warned_unscaled_ffb = true;
         }
+
+        telemetry = telemetry.with_extended(
+            "ffb_scalar_source".to_string(),
+            TelemetryValue::String(ffb_scalar_source.as_str().to_string()),
+        );
 
         let flags = TelemetryFlags {
             yellow_flag: (data.session_flags & IRSDK_SESSION_FLAG_YELLOW) != 0,
@@ -531,12 +579,26 @@ impl IRacingAdapter {
         telemetry = telemetry.with_track_id(track_id);
         telemetry = telemetry.with_flags(flags);
         telemetry = telemetry.with_extended(
-            "session_flag_white".to_string(),
-            TelemetryValue::Boolean((data.session_flags & IRSDK_SESSION_FLAG_WHITE) != 0),
+            "session_flags_raw".to_string(),
+            TelemetryValue::Integer(data.session_flags as i32),
         );
 
-        if let Some(slip_ratio) = resolve_slip_ratio(data, layout) {
+        if let Some((slip_ratio, slip_ratio_source)) = resolve_slip_ratio(data, layout) {
             telemetry = telemetry.with_slip_ratio(slip_ratio);
+            telemetry = telemetry.with_extended(
+                "slip_ratio_source".to_string(),
+                TelemetryValue::String(match slip_ratio_source {
+                    SlipRatioSource::Explicit => "explicit".to_string(),
+                    SlipRatioSource::DerivedFromWheelSpeeds => "derived_wheel_rps".to_string(),
+                }),
+            );
+        }
+
+        if layout.steering_wheel_limiter.is_some() && data.steering_wheel_limiter.is_finite() {
+            telemetry = telemetry.with_extended(
+                "ffb_limiter_pct".to_string(),
+                TelemetryValue::Float(data.steering_wheel_limiter),
+            );
         }
 
         telemetry
@@ -565,19 +627,37 @@ impl IRacingAdapter {
     }
 }
 
-/// Extract null-terminated string from byte array.
-fn extract_string(bytes: &[u8]) -> String {
-    match bytes.iter().position(|&b| b == 0) {
-        Some(pos) => String::from_utf8_lossy(&bytes[..pos]).into_owned(),
-        None => String::from_utf8_lossy(bytes).into_owned(),
+fn convert_legacy_to_current(legacy: &IRacingLegacyData) -> IRacingData {
+    IRacingData {
+        session_time: legacy.session_time,
+        session_flags: legacy.session_flags,
+        speed: legacy.speed,
+        rpm: legacy.rpm,
+        gear: legacy.gear,
+        throttle: legacy.throttle,
+        brake: legacy.brake,
+        steering_wheel_angle: legacy.steering_wheel_angle,
+        steering_wheel_torque: legacy.steering_wheel_torque,
+        lf_tire_rps: legacy.lf_tire_rps,
+        rf_tire_rps: legacy.rf_tire_rps,
+        lr_tire_rps: legacy.lr_tire_rps,
+        rr_tire_rps: legacy.rr_tire_rps,
+        lap_current: legacy.lap_current,
+        lap_best_time: legacy.lap_best_time,
+        fuel_level: legacy.fuel_level,
+        on_pit_road: legacy.on_pit_road,
+        car_path: legacy.car_path,
+        track_name: legacy.track_name,
+        ..IRacingData::default()
     }
 }
 
-fn monotonic_ns_since(epoch: Instant, now: Instant) -> u64 {
-    now.checked_duration_since(epoch)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0)
-        .min(u64::MAX as u128) as u64
+/// Extract null-terminated string from byte array.
+fn extract_string(bytes: &[u8]) -> String {
+    match bytes.iter().position(|&b| b == 0) {
+        Some(pos) => decode_iso_8859_1_string(&bytes[..pos]),
+        None => decode_iso_8859_1_string(bytes),
+    }
 }
 
 fn validate_irsdk_header(header: &IRSDKHeader) -> Result<()> {
@@ -633,6 +713,15 @@ fn select_latest_var_buffer(header: &IRSDKHeader) -> Option<(usize, IRSDKVarBuf)
     Some((best_index, best))
 }
 
+fn irsdk_layout_signature(header: &IRSDKHeader) -> (i32, i32, i32, i32) {
+    (
+        header.num_vars,
+        header.var_header_offset,
+        header.num_buf,
+        header.buf_len,
+    )
+}
+
 #[cfg(windows)]
 fn read_irsdk_header_from_ptr(base_ptr: *const u8) -> IRSDKHeader {
     // SAFETY: caller provides a valid mapped view beginning at IRSDK header.
@@ -671,16 +760,22 @@ fn read_iracing_data_from_ptr(
             layout.steering_wheel_pct_torque_sign,
         )
         .unwrap_or(0.0),
+        steering_wheel_limiter: read_f32_var(base_ptr, offset, layout.steering_wheel_limiter)
+            .unwrap_or(0.0),
         steering_wheel_max_force_nm: read_f32_var(
             base_ptr,
             offset,
             layout.steering_wheel_max_force_nm,
         )
         .unwrap_or(0.0),
-        lf_tire_slip_ratio: read_f32_var(base_ptr, offset, layout.lf_tire_slip_ratio).unwrap_or(0.0),
-        rf_tire_slip_ratio: read_f32_var(base_ptr, offset, layout.rf_tire_slip_ratio).unwrap_or(0.0),
-        lr_tire_slip_ratio: read_f32_var(base_ptr, offset, layout.lr_tire_slip_ratio).unwrap_or(0.0),
-        rr_tire_slip_ratio: read_f32_var(base_ptr, offset, layout.rr_tire_slip_ratio).unwrap_or(0.0),
+        lf_tire_slip_ratio: read_f32_var(base_ptr, offset, layout.lf_tire_slip_ratio)
+            .unwrap_or(0.0),
+        rf_tire_slip_ratio: read_f32_var(base_ptr, offset, layout.rf_tire_slip_ratio)
+            .unwrap_or(0.0),
+        lr_tire_slip_ratio: read_f32_var(base_ptr, offset, layout.lr_tire_slip_ratio)
+            .unwrap_or(0.0),
+        rr_tire_slip_ratio: read_f32_var(base_ptr, offset, layout.rr_tire_slip_ratio)
+            .unwrap_or(0.0),
         lf_tire_rps: read_f32_var(base_ptr, offset, layout.lf_tire_speed).unwrap_or(0.0),
         rf_tire_rps: read_f32_var(base_ptr, offset, layout.rf_tire_speed).unwrap_or(0.0),
         lr_tire_rps: read_f32_var(base_ptr, offset, layout.lr_tire_speed).unwrap_or(0.0),
@@ -864,7 +959,7 @@ fn var_binding_from_header(var_header: &IRSDKVarHeader, buf_len: usize) -> Optio
         var_type: var_header.var_type,
         offset,
         count,
-        unit: var_header.unit,
+        _unit: var_header.unit,
     })
 }
 
@@ -902,6 +997,8 @@ fn assign_var_binding(layout: &mut IRacingLayout, name: &str, binding: VarBindin
         layout.steering_wheel_pct_torque_sign = Some(binding);
     } else if matches_irsdk_name(name, &["SteeringWheelMaxForceNm"]) {
         layout.steering_wheel_max_force_nm = Some(binding);
+    } else if matches_irsdk_name(name, &["SteeringWheelLimiter"]) {
+        layout.steering_wheel_limiter = Some(binding);
     } else if matches_irsdk_name(name, &["LFwheelSpeed", "LFWheelSpeed", "LFspeed"]) {
         layout.lf_tire_speed = Some(binding);
     } else if matches_irsdk_name(name, &["RFwheelSpeed", "RFWheelSpeed", "RFspeed"]) {
@@ -953,15 +1050,11 @@ fn to_wide_null_terminated(value: &str) -> Vec<u16> {
 
 #[cfg(windows)]
 fn open_irsdk_data_valid_event() -> Option<HANDLE> {
-    let wide_name = to_wide_null_terminated(IRSDK_DATA_VALID_EVENT_NAME);
+    let wide_name = to_wide_null_terminated(IRACING_DATA_VALID_EVENT_NAME);
 
     // SAFETY: Win32 call with a valid null-terminated UTF-16 event name.
     let handle = unsafe { OpenEventW(SYNCHRONIZE, 0, wide_name.as_ptr()) };
-    if handle.is_null() {
-        None
-    } else {
-        Some(handle)
-    }
+    if handle.is_null() { None } else { Some(handle) }
 }
 
 fn calculate_tick_interval(tick_rate: i32) -> Duration {
@@ -981,9 +1074,10 @@ fn duration_to_wait_ms(duration: Duration) -> u32 {
 }
 
 #[cfg(windows)]
-async fn wait_for_data_valid_event(handle: HANDLE, timeout: Duration) -> Result<bool> {
+async fn wait_for_data_valid_event(handle: usize, timeout: Duration) -> Result<bool> {
     let timeout_ms = duration_to_wait_ms(timeout);
     let wait_result = task::spawn_blocking(move || {
+        let handle = handle as HANDLE;
         // SAFETY: waiting on event handle acquired via OpenEventW.
         unsafe { WaitForSingleObject(handle, timeout_ms) }
     })
@@ -1022,31 +1116,48 @@ fn read_session_info_yaml(
     Some(decode_iso_8859_1_string(&bytes[..end]))
 }
 
+#[cfg(test)]
 fn resolve_ffb_scalar(data: &IRacingData, layout: &IRacingLayout) -> Option<f32> {
+    resolve_ffb_scalar_with_source(data, layout).1
+}
+
+fn resolve_ffb_scalar_with_source(
+    data: &IRacingData,
+    layout: &IRacingLayout,
+) -> (FfbScalarSource, Option<f32>) {
     if layout.steering_wheel_pct_torque_sign.is_some()
         && data.steering_wheel_pct_torque_sign.is_finite()
     {
-        return Some((data.steering_wheel_pct_torque_sign / 100.0).clamp(-1.0, 1.0));
+        return (
+            FfbScalarSource::PctTorqueSign,
+            Some((data.steering_wheel_pct_torque_sign / 100.0).clamp(-1.0, 1.0)),
+        );
     }
 
     if layout.steering_wheel_max_force_nm.is_some()
         && data.steering_wheel_max_force_nm.is_finite()
         && data.steering_wheel_max_force_nm.abs() > f32::EPSILON
     {
-        return Some(
-            (data.steering_wheel_torque / data.steering_wheel_max_force_nm).clamp(-1.0, 1.0),
+        return (
+            FfbScalarSource::MaxForceNm,
+            Some((data.steering_wheel_torque / data.steering_wheel_max_force_nm).clamp(-1.0, 1.0)),
         );
     }
 
-    if data.steering_wheel_torque.is_finite() {
-        return Some((data.steering_wheel_torque / 100.0).clamp(-1.0, 1.0));
-    }
-
-    None
+    (FfbScalarSource::Unknown, None)
 }
 
-fn resolve_slip_ratio(data: &IRacingData, layout: &IRacingLayout) -> Option<f32> {
-    let mut sampled_values = [
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum SlipRatioSource {
+    Explicit,
+    DerivedFromWheelSpeeds,
+}
+
+fn resolve_slip_ratio(
+    data: &IRacingData,
+    layout: &IRacingLayout,
+) -> Option<(f32, SlipRatioSource)> {
+    let max_abs_slip = [
         (layout.lf_tire_slip_ratio, data.lf_tire_slip_ratio),
         (layout.rf_tire_slip_ratio, data.rf_tire_slip_ratio),
         (layout.lr_tire_slip_ratio, data.lr_tire_slip_ratio),
@@ -1054,64 +1165,81 @@ fn resolve_slip_ratio(data: &IRacingData, layout: &IRacingLayout) -> Option<f32>
     ]
     .into_iter()
     .filter_map(|(binding, value)| {
-        binding.is_some().then_some(value).filter(|value| value.is_finite())
+        if binding.is_some() && value.is_finite() {
+            Some(value.abs())
+        } else {
+            None
+        }
     })
-    .collect::<Vec<_>>();
+    .max_by(f32::total_cmp);
 
-    if !sampled_values.is_empty() {
-        let avg = sampled_values.iter().sum::<f32>() / sampled_values.len() as f32;
-        return Some(avg.abs().clamp(0.0, 1.0));
+    if let Some(max_abs) = max_abs_slip {
+        return Some((max_abs.clamp(0.0, 1.0), SlipRatioSource::Explicit));
     }
 
-    sampled_values = [
+    let derived_max_abs_slip = [
         (layout.lf_tire_speed, data.lf_tire_rps),
         (layout.rf_tire_speed, data.rf_tire_rps),
         (layout.lr_tire_speed, data.lr_tire_rps),
         (layout.rr_tire_speed, data.rr_tire_rps),
     ]
     .into_iter()
-    .filter_map(|(binding, value)| binding.and_then(|b| speed_to_meter_per_second(value, &b)))
-    .collect::<Vec<_>>();
+    .filter_map(|(binding, value)| {
+        if binding.is_some() {
+            derive_slip_ratio_from_tire_rps(value, data.speed)
+        } else {
+            None
+        }
+    })
+    .max_by(f32::total_cmp);
 
-    if sampled_values.is_empty() || data.speed < 1.0 {
-        return None;
+    if let Some(max_abs) = derived_max_abs_slip {
+        return Some((max_abs, SlipRatioSource::DerivedFromWheelSpeeds));
     }
-
-    let avg_speed = sampled_values.iter().sum::<f32>() / sampled_values.len() as f32;
-    if avg_speed <= 0.0 {
-        return None;
-    }
-
-    Some(((avg_speed - data.speed).abs() / data.speed).clamp(0.0, 1.0))
+    None
 }
 
-fn speed_to_meter_per_second(speed: f32, binding: &VarBinding) -> Option<f32> {
-    if !speed.is_finite() {
+fn derive_slip_ratio_from_tire_rps(tire_rps: f32, vehicle_speed_ms: f32) -> Option<f32> {
+    if !tire_rps.is_finite() || !vehicle_speed_ms.is_finite() {
+        return None;
+    }
+    if tire_rps.abs() < f32::EPSILON {
         return None;
     }
 
-    let unit = extract_string(&binding.unit).to_lowercase();
-    let normalized = if unit.contains("m/s") || unit.contains("ms") {
-        speed
-    } else if unit.contains("ft/s") || unit.contains("fts") {
-        speed * 0.3048
-    } else if unit.contains("km/h") || unit.contains("kph") {
-        speed / 3.6
-    } else if unit.contains("mph") {
-        speed * 0.44704
-    } else if unit.contains("rev/s") || unit.contains("r/s") || unit.contains("hz") {
-        speed * std::f32::consts::TAU * IRSDK_DEFAULT_TIRE_RADIUS_M
-    } else if unit.contains("rad/s") || unit.contains("rad s") || unit.contains("radians") {
-        speed * IRSDK_DEFAULT_TIRE_RADIUS_M
-    } else {
-        speed
-    };
+    let vehicle_speed_ms = vehicle_speed_ms.abs();
+    let wheel_surface_speed_ms =
+        tire_rps.abs() * 2.0 * std::f32::consts::PI * IRSDK_DEFAULT_TIRE_RADIUS_M;
 
-    Some(normalized)
+    if wheel_surface_speed_ms < IRSDK_MIN_TIRE_SURFACE_SPEED_MPS {
+        return None;
+    }
+
+    let reference_speed = wheel_surface_speed_ms
+        .max(vehicle_speed_ms)
+        .max(IRSDK_MIN_TIRE_SURFACE_SPEED_MPS);
+    Some(((wheel_surface_speed_ms - vehicle_speed_ms).abs() / reference_speed).clamp(0.0, 1.0))
 }
 
 fn decode_iso_8859_1_string(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| *byte as char).collect()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FfbScalarSource {
+    PctTorqueSign,
+    MaxForceNm,
+    Unknown,
+}
+
+impl FfbScalarSource {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::PctTorqueSign => "pct_torque_sign",
+            Self::MaxForceNm => "max_force_nm",
+            Self::Unknown => "unknown",
+        }
+    }
 }
 
 /// iRacing shared-memory payload (simplified local view).
@@ -1129,10 +1257,35 @@ struct IRacingData {
     steering_wheel_torque: f32,
     steering_wheel_pct_torque_sign: f32,
     steering_wheel_max_force_nm: f32,
+    steering_wheel_limiter: f32,
     lf_tire_slip_ratio: f32,
     rf_tire_slip_ratio: f32,
     lr_tire_slip_ratio: f32,
     rr_tire_slip_ratio: f32,
+    lf_tire_rps: f32,
+    rf_tire_rps: f32,
+    lr_tire_rps: f32,
+    rr_tire_rps: f32,
+    lap_current: i32,
+    lap_best_time: f32,
+    fuel_level: f32,
+    on_pit_road: i32,
+    car_path: [u8; 64],
+    track_name: [u8; 64],
+}
+
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+struct IRacingLegacyData {
+    session_time: f32,
+    session_flags: u32,
+    speed: f32,
+    rpm: f32,
+    gear: i8,
+    throttle: f32,
+    brake: f32,
+    steering_wheel_angle: f32,
+    steering_wheel_torque: f32,
     lf_tire_rps: f32,
     rf_tire_rps: f32,
     lr_tire_rps: f32,
@@ -1159,10 +1312,37 @@ impl Default for IRacingData {
             steering_wheel_torque: 0.0,
             steering_wheel_pct_torque_sign: 0.0,
             steering_wheel_max_force_nm: 0.0,
+            steering_wheel_limiter: 0.0,
             lf_tire_slip_ratio: 0.0,
             rf_tire_slip_ratio: 0.0,
             lr_tire_slip_ratio: 0.0,
             rr_tire_slip_ratio: 0.0,
+            lf_tire_rps: 0.0,
+            rf_tire_rps: 0.0,
+            lr_tire_rps: 0.0,
+            rr_tire_rps: 0.0,
+            lap_current: 0,
+            lap_best_time: 0.0,
+            fuel_level: 0.0,
+            on_pit_road: 0,
+            car_path: [0; 64],
+            track_name: [0; 64],
+        }
+    }
+}
+
+impl Default for IRacingLegacyData {
+    fn default() -> Self {
+        Self {
+            session_time: 0.0,
+            session_flags: 0,
+            speed: 0.0,
+            rpm: 0.0,
+            gear: 0,
+            throttle: 0.0,
+            brake: 0.0,
+            steering_wheel_angle: 0.0,
+            steering_wheel_torque: 0.0,
             lf_tire_rps: 0.0,
             rf_tire_rps: 0.0,
             lr_tire_rps: 0.0,
@@ -1197,6 +1377,8 @@ impl Drop for SharedMemoryHandle {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::field_reassign_with_default)]
+
     use super::*;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -1337,7 +1519,9 @@ mod tests {
     #[test]
     fn test_normalize_iracing_data() -> TestResult {
         let adapter = IRacingAdapter::new();
-        let layout = IRacingLayout::default();
+        let mut layout = IRacingLayout::default();
+        layout.steering_wheel_pct_torque_sign = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
+        layout.steering_wheel_limiter = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
 
         let car_name = b"gt3_bmw\0";
         let track_name = b"spa\0";
@@ -1351,7 +1535,8 @@ mod tests {
             speed: 50.0,
             gear: 4,
             steering_wheel_torque: 25.0,
-            steering_wheel_pct_torque_sign: 0.0,
+            steering_wheel_pct_torque_sign: 25.0,
+            steering_wheel_limiter: 73.0,
             steering_wheel_max_force_nm: 0.0,
             throttle: 0.8,
             brake: 0.2,
@@ -1372,6 +1557,14 @@ mod tests {
         assert_eq!(normalized.track_id, Some("spa".to_string()));
         assert!(!normalized.flags.yellow_flag);
         assert!(normalized.flags.checkered_flag);
+        assert_eq!(
+            normalized.extended.get("ffb_limiter_pct"),
+            Some(&TelemetryValue::Float(73.0))
+        );
+        assert_eq!(
+            normalized.extended.get("ffb_scalar_source"),
+            Some(&TelemetryValue::String("pct_torque_sign".to_string()))
+        );
         assert!(normalized.extended.contains_key("throttle"));
         assert!(normalized.extended.contains_key("brake"));
         Ok(())
@@ -1390,6 +1583,14 @@ mod tests {
     }
 
     #[test]
+    fn test_extract_string_decodes_iso_8859_1() -> TestResult {
+        let bytes = [b'g', b't', b'3', b'_', b'\xE9', 0];
+        let result = extract_string(&bytes);
+        assert_eq!(result, "gt3_é");
+        Ok(())
+    }
+
+    #[test]
     fn test_normalize_raw_data() -> TestResult {
         let adapter = IRacingAdapter::new();
         let data = IRacingData::default();
@@ -1397,6 +1598,72 @@ mod tests {
 
         let result = adapter.normalize(&raw_bytes);
         assert!(result.is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn test_normalize_legacy_minimum_iracing_raw() -> TestResult {
+        let adapter = IRacingAdapter::new();
+        let mut legacy = IRacingLegacyData::default();
+        legacy.rpm = 5200.0;
+        legacy.speed = 33.0;
+        legacy.gear = 5;
+        legacy.lf_tire_rps = 12.0;
+        legacy.rf_tire_rps = 11.0;
+        legacy.lr_tire_rps = 12.0;
+        legacy.rr_tire_rps = 11.0;
+        legacy.car_path[..8].copy_from_slice(b"gt4_test");
+
+        let minimum_raw = to_raw_bytes(&legacy);
+        let normalized = adapter.normalize(&minimum_raw)?;
+
+        assert_eq!(normalized.rpm, Some(5200.0));
+        assert_eq!(normalized.speed_ms, Some(33.0));
+        assert_eq!(normalized.gear, Some(5));
+        assert_eq!(normalized.car_id, Some("gt4_test".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn test_normalize_legacy_iracing_raw() -> TestResult {
+        let adapter = IRacingAdapter::new();
+        let mut legacy = IRacingLegacyData::default();
+
+        legacy.rpm = 6200.0;
+        legacy.speed = 45.0;
+        legacy.gear = 4;
+        let legacy_name = b"legacy_gt3\0";
+        let legacy_track = b"legacy_track\0";
+        legacy.car_path[..legacy_name.len()].copy_from_slice(legacy_name);
+        legacy.track_name[..legacy_track.len()].copy_from_slice(legacy_track);
+
+        let normalized = adapter.normalize(&to_raw_bytes(&legacy))?;
+
+        assert_eq!(normalized.rpm, Some(6200.0));
+        assert_eq!(normalized.speed_ms, Some(45.0));
+        assert_eq!(normalized.gear, Some(4));
+        assert_eq!(normalized.car_id, Some("legacy_gt3".to_string()));
+        assert_eq!(normalized.track_id, Some("legacy_track".to_string()));
+        assert_eq!(normalized.ffb_scalar, None);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_normalize_iracing_raw_accepts_trailing_bytes() -> TestResult {
+        let adapter = IRacingAdapter::new();
+        let mut data = IRacingData::default();
+        data.rpm = 6000.0;
+        data.speed = 55.0;
+        data.gear = 3;
+
+        let mut raw = to_raw_bytes(&data);
+        raw.extend_from_slice(&[0xFA, 0xCE, 0x00, 0x11, 0x22, 0x33]);
+
+        let normalized = adapter.normalize(&raw)?;
+        let normalized_base = adapter.normalize(&to_raw_bytes(&data))?;
+
+        assert_eq!(normalized, normalized_base);
         Ok(())
     }
 
@@ -1409,33 +1676,64 @@ mod tests {
         Ok(())
     }
 
-    fn flag_boolean_value(telemetry: &NormalizedTelemetry, key: &str) -> bool {
-        match telemetry.extended.get(key) {
-            Some(TelemetryValue::Boolean(value)) => *value,
-            _ => false,
-        }
-    }
-
     #[test]
     fn test_normalize_session_flags_are_canonical_bits() -> TestResult {
         let adapter = IRacingAdapter::new();
         let data = IRacingData {
             session_flags: IRSDK_SESSION_FLAG_CHECKERED
-                | IRSDK_SESSION_FLAG_WHITE
                 | IRSDK_SESSION_FLAG_YELLOW
                 | IRSDK_SESSION_FLAG_GREEN,
             ..IRacingData::default()
         };
 
         let mut warned_unscaled_ffb = false;
-        let normalized = adapter.normalize_iracing_data(&data, &IRacingLayout::default(), &mut warned_unscaled_ffb);
+        let normalized = adapter.normalize_iracing_data(
+            &data,
+            &IRacingLayout::default(),
+            &mut warned_unscaled_ffb,
+        );
 
         assert!(normalized.flags.checkered_flag);
         assert!(normalized.flags.yellow_flag);
         assert!(normalized.flags.green_flag);
         assert!(!normalized.flags.red_flag);
         assert!(!normalized.flags.blue_flag);
-        assert!(flag_boolean_value(&normalized, "session_flag_white"));
+        assert_eq!(
+            telemetry_integer_value(&normalized, "session_flags_raw"),
+            Some(
+                (IRSDK_SESSION_FLAG_CHECKERED
+                    | IRSDK_SESSION_FLAG_YELLOW
+                    | IRSDK_SESSION_FLAG_GREEN) as i32
+            )
+        );
+        Ok(())
+    }
+
+    fn telemetry_integer_value(telemetry: &NormalizedTelemetry, key: &str) -> Option<i32> {
+        match telemetry.extended.get(key) {
+            Some(TelemetryValue::Integer(value)) => Some(*value),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn test_layout_signature_changes_are_detected() -> TestResult {
+        let mut header = IRSDKHeader::default();
+        header.num_vars = 10;
+        header.var_header_offset = 128;
+        header.num_buf = 3;
+        header.buf_len = 256;
+
+        let mut last_signature = None;
+        let first_signature = irsdk_layout_signature(&header);
+        assert_ne!(Some(first_signature), last_signature);
+
+        last_signature = Some(first_signature);
+        assert_eq!(Some(first_signature), last_signature);
+
+        header.var_header_offset = 192;
+        assert_ne!(Some(irsdk_layout_signature(&header)), last_signature);
+
         Ok(())
     }
 
@@ -1444,7 +1742,7 @@ mod tests {
             var_type,
             offset: 0,
             count: 1,
-            unit: [0u8; 32],
+            _unit: [0u8; 32],
         }
     }
 
@@ -1452,6 +1750,8 @@ mod tests {
     fn test_resolve_ffb_scalar_prefers_pct_torque_sign() -> TestResult {
         let mut layout = IRacingLayout::default();
         layout.steering_wheel_pct_torque_sign = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
+        layout.steering_wheel_max_force_nm = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
+        layout.steering_wheel_torque = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
 
         let data = IRacingData {
             steering_wheel_pct_torque_sign: 42.0,
@@ -1462,6 +1762,9 @@ mod tests {
 
         let resolved = resolve_ffb_scalar(&data, &layout);
         assert_eq!(resolved, Some(0.42));
+        let (source, scalar) = resolve_ffb_scalar_with_source(&data, &layout);
+        assert_eq!(source, FfbScalarSource::PctTorqueSign);
+        assert_eq!(scalar, Some(0.42));
         Ok(())
     }
 
@@ -1479,11 +1782,31 @@ mod tests {
 
         let resolved = resolve_ffb_scalar(&data, &layout);
         assert_eq!(resolved, Some(0.5));
+        let (source, scalar) = resolve_ffb_scalar_with_source(&data, &layout);
+        assert_eq!(source, FfbScalarSource::MaxForceNm);
+        assert_eq!(scalar, Some(0.5));
         Ok(())
     }
 
     #[test]
-    fn test_resolve_ffb_scalar_uses_legacy_scaling_when_unbound() -> TestResult {
+    fn test_resolve_ffb_scalar_is_none_without_percent_or_maxforce_binding() -> TestResult {
+        let mut layout = IRacingLayout::default();
+        layout.steering_wheel_torque = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
+        let data = IRacingData {
+            steering_wheel_torque: 32.0,
+            ..IRacingData::default()
+        };
+
+        let resolved = resolve_ffb_scalar(&data, &layout);
+        assert_eq!(resolved, None);
+        let (source, scalar) = resolve_ffb_scalar_with_source(&data, &layout);
+        assert_eq!(source, FfbScalarSource::Unknown);
+        assert_eq!(scalar, None);
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_ffb_scalar_is_none_when_no_binding_available() -> TestResult {
         let layout = IRacingLayout::default();
         let data = IRacingData {
             steering_wheel_torque: 32.0,
@@ -1491,7 +1814,75 @@ mod tests {
         };
 
         let resolved = resolve_ffb_scalar(&data, &layout);
-        assert_eq!(resolved, Some(0.32));
+        assert_eq!(resolved, None);
+        Ok(())
+    }
+
+    #[test]
+    fn test_assign_var_binding_maps_steering_wheel_limiter() {
+        let mut layout = IRacingLayout::default();
+        assign_var_binding(
+            &mut layout,
+            "SteeringWheelLimiter",
+            make_binding(IRSDK_VAR_TYPE_FLOAT),
+        );
+        assert!(layout.steering_wheel_limiter.is_some());
+    }
+
+    #[test]
+    fn test_resolve_slip_ratio_prefers_max_explicit_wheel_ratio() -> TestResult {
+        let mut layout = IRacingLayout::default();
+        layout.lf_tire_slip_ratio = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
+        layout.rf_tire_slip_ratio = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
+        layout.lr_tire_slip_ratio = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
+        layout.rr_tire_slip_ratio = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
+
+        let data = IRacingData {
+            lf_tire_slip_ratio: 0.2,
+            rf_tire_slip_ratio: -0.8,
+            lr_tire_slip_ratio: 0.1,
+            rr_tire_slip_ratio: 0.5,
+            ..IRacingData::default()
+        };
+
+        let resolved = resolve_slip_ratio(&data, &layout);
+        assert_eq!(resolved, Some((0.8, SlipRatioSource::Explicit)));
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_slip_ratio_falls_back_to_wheel_speed_derivation() -> TestResult {
+        let mut layout = IRacingLayout::default();
+        layout.lf_tire_speed = Some(make_binding(IRSDK_VAR_TYPE_FLOAT));
+
+        let data = IRacingData {
+            lf_tire_rps: 20.0,
+            speed: 30.0,
+            ..IRacingData::default()
+        };
+
+        let resolved = resolve_slip_ratio(&data, &layout);
+        assert_eq!(
+            resolved,
+            Some((
+                derive_slip_ratio_from_tire_rps(20.0, 30.0)
+                    .ok_or("fallback should produce ratio")?,
+                SlipRatioSource::DerivedFromWheelSpeeds,
+            ))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_slip_ratio_absent_without_binding() -> TestResult {
+        let data = IRacingData {
+            lf_tire_slip_ratio: 0.4,
+            rf_tire_slip_ratio: 0.9,
+            ..IRacingData::default()
+        };
+
+        let resolved = resolve_slip_ratio(&data, &IRacingLayout::default());
+        assert_eq!(resolved, None);
         Ok(())
     }
 

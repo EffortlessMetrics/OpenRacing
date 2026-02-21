@@ -9,6 +9,7 @@ use crate::client::WheelClient;
 use crate::commands::GameCommands;
 use crate::error::CliError;
 use crate::output;
+use racing_wheel_telemetry_support::{GameSupport, load_default_matrix, normalize_game_id};
 
 /// Execute game command
 pub async fn execute(cmd: &GameCommands, json: bool, endpoint: Option<&str>) -> Result<()> {
@@ -69,17 +70,18 @@ async fn configure_game(
     json: bool,
     auto: bool,
 ) -> Result<()> {
+    let canonical_game_id = normalize_game_id(game_id);
     let games = get_supported_games();
     let game = games
         .iter()
-        .find(|g| g.id == game_id)
+        .find(|g| g.id == canonical_game_id)
         .ok_or_else(|| CliError::InvalidConfiguration(format!("Unsupported game: {}", game_id)))?;
 
     let install_path = if let Some(path) = path {
         path.to_string()
     } else if auto {
         // Try to auto-detect installation path
-        detect_game_path(game_id)?
+        detect_game_path(canonical_game_id)?
     } else if !json {
         // Interactive path input
         Input::new()
@@ -94,7 +96,7 @@ async fn configure_game(
 
     // Configure telemetry
     client
-        .configure_telemetry(game_id, Some(&install_path))
+        .configure_telemetry(canonical_game_id, Some(&install_path))
         .await?;
 
     output::print_success(
@@ -105,7 +107,7 @@ async fn configure_game(
     // Show configuration details
     if !json {
         println!("\nConfiguration applied:");
-        match game_id {
+        match canonical_game_id {
             "iracing" => {
                 println!("  • Updated app.ini with UDP telemetry settings");
                 println!("  • Enabled shared memory interface");
@@ -129,6 +131,22 @@ async fn configure_game(
                 println!("  • Patched telemetry/config.json UDP packet assignments");
                 println!("  • Installed telemetry/udp/openracing.json packet structure");
                 println!("  • Configured schema-driven UDP output endpoint");
+            }
+            "dirt5" => {
+                println!("  • Wrote OpenRacing Dirt 5 bridge contract");
+                println!("  • Configured UDP export port for Codemasters-style bridge payloads");
+                println!("  • No native game file edits are required");
+            }
+            "f1" => {
+                println!("  • Wrote OpenRacing F1 bridge contract");
+                println!("  • Configured UDP export port for Codemasters-style bridge payloads");
+                println!("  • Added normalized channels for DRS/ERS/fuel telemetry when provided");
+            }
+            "f1_25" => {
+                println!("  • Wrote EA F1 25 native UDP contract");
+                println!("  • Telemetry port: 20777 (EA native binary protocol, format 2025)");
+                println!("  • In-game: Settings → Telemetry → UDP Telemetry: On, Port: 20777");
+                println!("  • Captures RPM, speed, gear, DRS, ERS, fuel, tyre data natively");
             }
             _ => {
                 println!("  • Applied game-specific configuration");
@@ -177,10 +195,11 @@ async fn test_telemetry(
     duration: u64,
     json: bool,
 ) -> Result<()> {
+    let canonical_game_id = normalize_game_id(game_id);
     let games = get_supported_games();
     let game = games
         .iter()
-        .find(|g| g.id == game_id)
+        .find(|g| g.id == canonical_game_id)
         .ok_or_else(|| CliError::InvalidConfiguration(format!("Unsupported game: {}", game_id)))?;
 
     if !json {
@@ -223,7 +242,7 @@ async fn test_telemetry(
     if json {
         let output = serde_json::json!({
             "success": test_passed,
-            "game_id": game_id,
+            "game_id": canonical_game_id,
             "duration_seconds": duration,
             "packets_received": packets_received,
             "led_heartbeats": led_heartbeats,
@@ -266,100 +285,29 @@ struct GameInfo {
 }
 
 fn get_supported_games() -> Vec<GameInfo> {
-    vec![
-        GameInfo {
-            id: "iracing".to_string(),
-            name: "iRacing".to_string(),
-            version: "2024.x".to_string(),
-            features: vec![
-                "FFB Scalar".to_string(),
-                "RPM".to_string(),
-                "Car ID".to_string(),
-            ],
-            config_method: "app.ini[v17]".to_string(),
-            default_path: Some("C:\\Program Files (x86)\\iRacing".to_string()),
-        },
-        GameInfo {
-            id: "acc".to_string(),
-            name: "Assetto Corsa Competizione".to_string(),
-            version: "1.9.x".to_string(),
-            features: vec![
-                "FFB Scalar".to_string(),
-                "RPM".to_string(),
-                "Car ID".to_string(),
-                "DRS".to_string(),
-            ],
-            config_method: "UDP broadcast".to_string(),
-            default_path: Some(
-                "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Assetto Corsa Competizione"
-                    .to_string(),
-            ),
-        },
-        GameInfo {
-            id: "ac_rally".to_string(),
-            name: "Assetto Corsa Rally".to_string(),
-            version: "Early Access".to_string(),
-            features: vec![
-                "Discovery Probe".to_string(),
-                "UDP Handshake Trial".to_string(),
-                "Raw Capture".to_string(),
-            ],
-            config_method: "OpenRacing probe sidecar".to_string(),
-            default_path: Some(
-                "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Assetto Corsa Rally"
-                    .to_string(),
-            ),
-        },
-        GameInfo {
-            id: "ams2".to_string(),
-            name: "Automobilista 2".to_string(),
-            version: "1.5.x".to_string(),
-            features: vec!["FFB Scalar".to_string(), "RPM".to_string()],
-            config_method: "Shared memory".to_string(),
-            default_path: Some(
-                "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Automobilista 2".to_string(),
-            ),
-        },
-        GameInfo {
-            id: "rfactor2".to_string(),
-            name: "rFactor 2".to_string(),
-            version: "1.1.x".to_string(),
-            features: vec![
-                "FFB Scalar".to_string(),
-                "RPM".to_string(),
-                "Telemetry".to_string(),
-                "ForceFeedback map".to_string(),
-            ],
-            config_method: "Plugin".to_string(),
-            default_path: Some(
-                "C:\\Program Files (x86)\\Steam\\steamapps\\common\\rFactor 2".to_string(),
-            ),
-        },
-        GameInfo {
-            id: "eawrc".to_string(),
-            name: "EA SPORTS WRC".to_string(),
-            version: "1.x".to_string(),
-            features: vec![
-                "FFB Scalar".to_string(),
-                "RPM".to_string(),
-                "Speed".to_string(),
-                "Schema-driven UDP".to_string(),
-            ],
-            config_method: "config.json + udp/openracing.json".to_string(),
-            default_path: Some(
-                "C:\\Users\\<user>\\Documents\\My Games\\WRC\\telemetry".to_string(),
-            ),
-        },
-    ]
+    let matrix = match load_default_matrix() {
+        Ok(matrix) => matrix,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut games: Vec<GameInfo> = matrix
+        .games
+        .into_iter()
+        .map(|(game_id, game)| game_info_from_matrix(game_id, game))
+        .collect();
+
+    games.sort_by(|a, b| a.id.cmp(&b.id));
+    games
 }
 
 fn detect_game_path(game_id: &str) -> Result<String> {
+    let normalized_game_id = normalize_game_id(game_id);
     // Mock auto-detection - in real implementation this would check registry,
     // Steam library folders, etc.
     let games = get_supported_games();
     let game = games
         .iter()
-        .find(|g| g.id == game_id)
+        .find(|g| g.id == normalized_game_id)
         .ok_or_else(|| CliError::InvalidConfiguration(format!("Unknown game: {}", game_id)))?;
 
     if let Some(ref default_path) = game.default_path {
@@ -370,5 +318,74 @@ fn detect_game_path(game_id: &str) -> Result<String> {
             CliError::InvalidConfiguration(format!("Cannot auto-detect path for {}", game.name))
                 .into(),
         )
+    }
+}
+
+fn game_info_from_matrix(game_id: String, game: GameSupport) -> GameInfo {
+    let version = game
+        .versions
+        .first()
+        .map(|version| version.version.clone())
+        .unwrap_or_default();
+
+    let fields = game
+        .versions
+        .first()
+        .map(|version| {
+            let mut features: Vec<String> = version
+                .supported_fields
+                .iter()
+                .filter_map(|field| field_name_label(field))
+                .collect();
+            features.sort_unstable();
+            features
+        })
+        .unwrap_or_default();
+
+    GameInfo {
+        id: game_id,
+        name: game.name,
+        version,
+        features: if fields.is_empty() {
+            vec![format_telemetry_method(&game.telemetry.method)]
+        } else {
+            fields
+        },
+        config_method: format_telemetry_method(&game.telemetry.method),
+        default_path: game
+            .auto_detect
+            .install_paths
+            .into_iter()
+            .next()
+            .or_else(|| {
+                game.versions
+                    .first()
+                    .and_then(|v| v.config_paths.first().cloned())
+            }),
+    }
+}
+
+fn format_telemetry_method(method: &str) -> String {
+    match method {
+        "shared_memory" => "Shared memory".to_string(),
+        "udp_broadcast" => "UDP broadcast".to_string(),
+        "probe_discovery" => "Probe discovery".to_string(),
+        "udp_schema" => "Schema-driven UDP".to_string(),
+        "udp_custom_codemasters" => "OpenRacing bridge contract".to_string(),
+        _ => method.to_string(),
+    }
+}
+
+fn field_name_label(field: &str) -> Option<String> {
+    match field {
+        "ffb_scalar" => Some("FFB Scalar".to_string()),
+        "rpm" => Some("RPM".to_string()),
+        "speed_ms" => Some("Speed".to_string()),
+        "slip_ratio" => Some("Slip ratio".to_string()),
+        "gear" => Some("Gear".to_string()),
+        "flags" => Some("Flags".to_string()),
+        "car_id" => Some("Car ID".to_string()),
+        "track_id" => Some("Track ID".to_string()),
+        _ => None,
     }
 }

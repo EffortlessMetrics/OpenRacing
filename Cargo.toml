@@ -7,11 +7,21 @@ members = [
     "crates/ui",
     "crates/plugins",
     "crates/integration-tests",
-    "crates/compat",
-    "crates/openracing-capture-ids",
-    "workspace-hack",
-]
-exclude = ["third_party/shared_memory"]
+      "crates/compat",
+      "crates/openracing-capture-ids",
+    "crates/telemetry-support",
+    "crates/telemetry-config-writers",
+    "crates/telemetry-core",
+    "crates/telemetry-integration",
+    "crates/telemetry-bdd-metrics",
+    "crates/telemetry-contracts",
+    "crates/telemetry-adapters",
+    "crates/telemetry-rate-limiter",
+    "crates/telemetry-orchestrator",
+    "crates/telemetry-recorder",
+      "workspace-hack",
+  ]
+exclude = ["third_party/shared_memory", "fuzz"]
 resolver = "2"
 
 [workspace.package]
@@ -34,6 +44,7 @@ async-trait = "0.1.89"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 serde_yaml = { package = "serde_yaml_ng", version = "0.10.0" }
+quick-xml = "0.37.5"
 bincode = { package = "cu-bincode", version = "2.0.2", features = ["serde"] }
 anyhow = "1.0.100"
 thiserror = "2.0.18"

@@ -1,9 +1,9 @@
 //! Safety systems and fault handling
 
+use crate::hid::MozaInputState;
 use racing_wheel_schemas::prelude::TorqueNm;
 use std::collections::HashMap;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use crate::hid::MozaInputState;
 
 /// Safety state machine for torque management
 #[derive(Debug, Clone, PartialEq)]
@@ -395,11 +395,7 @@ impl SafetyService {
     }
 
     fn clear_moza_interlock_combo(&mut self) {
-        if let SafetyState::AwaitingPhysicalAck {
-            combo_start,
-            ..
-        } = &mut self.state
-        {
+        if let SafetyState::AwaitingPhysicalAck { combo_start, .. } = &mut self.state {
             if combo_start.is_some() {
                 *combo_start = None;
                 if let Some(challenge) = self.active_challenge.as_mut() {

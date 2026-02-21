@@ -71,6 +71,7 @@ async fn demo_one_click_configuration() -> Result<(), Box<dyn std::error::Error>
         game_id: "iracing".to_string(),
         game_path: temp_dir.path().to_string_lossy().to_string(),
         enable_auto_switching: true,
+        enable_high_rate_iracing_360hz: false,
         profile_id: Some("iracing_default".to_string()),
     };
 
@@ -90,6 +91,7 @@ async fn demo_one_click_configuration() -> Result<(), Box<dyn std::error::Error>
         game_id: "acc".to_string(),
         game_path: temp_dir.path().to_string_lossy().to_string(),
         enable_auto_switching: false,
+        enable_high_rate_iracing_360hz: false,
         profile_id: None,
     };
 
@@ -151,6 +153,7 @@ async fn demo_performance_testing() -> Result<(), Box<dyn std::error::Error>> {
         game_id: "iracing".to_string(),
         game_path: temp_dir.path().to_string_lossy().to_string(),
         enable_auto_switching: false,
+        enable_high_rate_iracing_360hz: false,
         profile_id: None,
     };
 

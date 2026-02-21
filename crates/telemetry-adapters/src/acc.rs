@@ -3,15 +3,15 @@
 //! Implements telemetry adapter for ACC using UDP broadcast protocol v4.
 //! Requirements: GI-03, GI-04
 
-use crate::telemetry::{
+use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
-    TelemetryValue,
+    TelemetryValue, telemetry_now_ns,
 };
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
@@ -167,7 +167,6 @@ impl TelemetryAdapter for ACCAdapter {
 
             let mut sequence = 0u64;
             let mut state = ACCSessionState::default();
-            let epoch = Instant::now();
             let mut buf = [0u8; MAX_PACKET_SIZE];
 
             loop {
@@ -206,7 +205,7 @@ impl TelemetryAdapter for ACCAdapter {
                                 if let Some(normalized) = state.update_and_normalize(&message) {
                                     let frame = TelemetryFrame::new(
                                         normalized,
-                                        monotonic_ns_since(epoch, Instant::now()),
+                                        telemetry_now_ns(),
                                         sequence,
                                         len,
                                     );
@@ -680,13 +679,6 @@ fn duration_to_interval_ms(update_rate: Duration) -> i32 {
     millis as i32
 }
 
-fn monotonic_ns_since(epoch: Instant, now: Instant) -> u64 {
-    now.checked_duration_since(epoch)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0)
-        .min(u64::MAX as u128) as u64
-}
-
 struct PacketReader<'a> {
     data: &'a [u8],
     offset: usize,
@@ -748,13 +740,13 @@ mod tests {
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
     const FIXTURE_REGISTRATION_RESULT_SUCCESS: &[u8] =
-        include_bytes!("../../../tests/fixtures/acc/registration_result_success.bin");
+        include_bytes!("../../service/tests/fixtures/acc/registration_result_success.bin");
     const FIXTURE_TRACK_DATA_MONZA: &[u8] =
-        include_bytes!("../../../tests/fixtures/acc/track_data_monza.bin");
+        include_bytes!("../../service/tests/fixtures/acc/track_data_monza.bin");
     const FIXTURE_REALTIME_UPDATE_FOCUSED_CAR_7: &[u8] =
-        include_bytes!("../../../tests/fixtures/acc/realtime_update_focused_car_7.bin");
+        include_bytes!("../../service/tests/fixtures/acc/realtime_update_focused_car_7.bin");
     const FIXTURE_REALTIME_CAR_UPDATE_CAR_7: &[u8] =
-        include_bytes!("../../../tests/fixtures/acc/realtime_car_update_car_7.bin");
+        include_bytes!("../../service/tests/fixtures/acc/realtime_car_update_car_7.bin");
 
     fn push_acc_string(buffer: &mut Vec<u8>, value: &str) -> TestResult {
         write_acc_string(buffer, value)?;

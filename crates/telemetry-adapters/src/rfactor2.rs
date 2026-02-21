@@ -4,15 +4,15 @@
 //! rFactor 2 exposes telemetry data through memory-mapped files.
 //! Requirements: 12.4
 
-use crate::telemetry::{
+use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
-    TelemetryValue,
+    TelemetryValue, telemetry_now_ns,
 };
 use anyhow::Result;
 use async_trait::async_trait;
 use std::mem;
 use std::ptr;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
@@ -457,7 +457,6 @@ impl TelemetryAdapter for RFactor2Adapter {
             let mut adapter = RFactor2Adapter::new();
             let mut sequence = 0u64;
             let mut last_update_index = 0u32;
-            let epoch = Instant::now();
 
             // Try to initialize shared memory
             if let Err(e) = adapter.initialize_telemetry_memory() {
@@ -508,7 +507,7 @@ impl TelemetryAdapter for RFactor2Adapter {
 
                             let frame = TelemetryFrame::new(
                                 normalized,
-                                monotonic_ns_since(epoch, Instant::now()),
+                                telemetry_now_ns(),
                                 sequence,
                                 raw_size,
                             );
@@ -561,13 +560,6 @@ impl TelemetryAdapter for RFactor2Adapter {
     async fn is_game_running(&self) -> Result<bool> {
         Ok(self.check_rf2_running().await)
     }
-}
-
-fn monotonic_ns_since(epoch: Instant, now: Instant) -> u64 {
-    now.checked_duration_since(epoch)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0)
-        .min(u64::MAX as u128) as u64
 }
 
 /// Extract null-terminated string from byte array

@@ -94,6 +94,8 @@ pub struct OneClickConfigRequest {
     pub game_path: String,
     pub enable_auto_switching: bool,
     pub profile_id: Option<String>,
+    #[serde(default)]
+    pub enable_high_rate_iracing_360hz: bool,
 }
 
 /// One-click configuration result
@@ -152,6 +154,7 @@ impl GameIntegrationService {
 
         info!(
             game_id = %request.game_id,
+            enable_high_rate_iracing_360hz = request.enable_high_rate_iracing_360hz,
             game_path = %request.game_path,
             enable_auto_switching = request.enable_auto_switching,
             "Starting one-click configuration"
@@ -166,7 +169,11 @@ impl GameIntegrationService {
         let game_path = Path::new(&request.game_path);
         match self
             .game_service
-            .configure_telemetry(&request.game_id, game_path)
+            .configure_telemetry_with_options(
+                &request.game_id,
+                game_path,
+                request.enable_high_rate_iracing_360hz,
+            )
             .await
         {
             Ok(diffs) => {
@@ -550,6 +557,8 @@ impl GameIntegrationService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use racing_wheel_telemetry_support::matrix_game_ids;
+    use std::collections::HashSet;
     use tempfile::TempDir;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -578,12 +587,41 @@ mod tests {
             game_id: "iracing".to_string(),
             game_path: temp_dir.path().to_string_lossy().to_string(),
             enable_auto_switching: false,
+            enable_high_rate_iracing_360hz: false,
             profile_id: None,
         };
 
         let result = service.configure_one_click(request).await?;
         assert_eq!(result.game_id, "iracing");
         // Note: May not succeed in test environment without proper game setup
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_one_click_configuration_with_360hz_option() -> TestResult {
+        let mut service = create_test_service().await?;
+        service.start().await?;
+
+        let temp_dir = TempDir::new()?;
+
+        let request = OneClickConfigRequest {
+            game_id: "iracing".to_string(),
+            game_path: temp_dir.path().to_string_lossy().to_string(),
+            enable_auto_switching: false,
+            enable_high_rate_iracing_360hz: true,
+            profile_id: None,
+        };
+
+        let result = service.configure_one_click(request).await?;
+        assert_eq!(result.game_id, "iracing");
+        assert!(result.success);
+        assert!(
+            result
+                .config_diffs
+                .iter()
+                .any(|diff| diff.key == "irsdkLog360Hz")
+        );
+
         Ok(())
     }
 
@@ -610,13 +648,12 @@ mod tests {
     async fn test_supported_games() -> TestResult {
         let service = create_test_service().await?;
         let games = service.get_supported_games().await;
-
-        assert!(games.contains(&"iracing".to_string()));
-        assert!(games.contains(&"acc".to_string()));
-        assert!(games.contains(&"ac_rally".to_string()));
-        assert!(games.contains(&"ams2".to_string()));
-        assert!(games.contains(&"rfactor2".to_string()));
-        assert!(games.contains(&"eawrc".to_string()));
+        let expected: HashSet<String> = matrix_game_ids()
+            .expect("matrix should load")
+            .into_iter()
+            .collect();
+        let actual: HashSet<String> = games.into_iter().collect();
+        assert_eq!(actual, expected);
         Ok(())
     }
 }

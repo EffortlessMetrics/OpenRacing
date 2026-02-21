@@ -1,0 +1,22 @@
+[package]
+name = "racing-wheel-telemetry-config-writers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-telemetry-config-writers"
+publish = true
+description = "Game-specific telemetry config writers for OpenRacing"
+readme = "README.md"
+keywords = ["telemetry", "racing", "simulator", "ffb", "config"]
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.24.0"

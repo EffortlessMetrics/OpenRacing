@@ -1,0 +1,23 @@
+[package]
+name = "racing-wheel-telemetry-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-telemetry-core"
+publish = true
+description = "Telemetry domain models and disconnection state for OpenRacing"
+readme = "README.md"
+keywords = ["telemetry", "racing", "ffb", "connection", "normalization"]
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

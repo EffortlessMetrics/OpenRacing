@@ -3,8 +3,8 @@
 //! This module provides platform-specific HID device adapters that implement
 //! the HidPort and HidDevice traits with real-time optimizations for each OS.
 
-use crate::ports::HidPort;
 use crate::input::{KsReportSnapshot, SnapshotMailbox as Seqlock};
+use crate::ports::HidPort;
 use crate::{DeviceInfo, TelemetryData};
 use racing_wheel_schemas::prelude::*;
 
@@ -72,7 +72,7 @@ pub struct MozaInputState {
 
 impl MozaInputState {
     /// Return a zero-initialized state with a tick marker.
-    pub const fn empty(tick: u32) -> Self {
+    pub fn empty(tick: u32) -> Self {
         Self {
             steering_u16: 0,
             throttle_u16: 0,

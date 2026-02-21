@@ -6,6 +6,7 @@
 use crate::process_detection::{ProcessDetectionService, ProcessEvent};
 use crate::profile_service::ProfileService;
 use anyhow::Result;
+use racing_wheel_telemetry_support::load_default_matrix;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -78,22 +79,25 @@ impl AutoProfileSwitchingService {
 
     /// Setup game process patterns from support matrix
     async fn setup_game_patterns(&mut self) -> Result<()> {
-        // Add iRacing patterns
-        self.process_detection.add_game_patterns(
-            "iracing".to_string(),
-            vec![
-                "iRacingSim64DX11.exe".to_string(),
-                "iRacingService.exe".to_string(),
-            ],
-        );
+        let matrix = load_default_matrix().map_err(|err| {
+            anyhow::anyhow!(
+                "Failed to load telemetry support matrix for auto-detection: {}",
+                err
+            )
+        })?;
+        let game_count = matrix.games.len();
 
-        // Add ACC patterns
-        self.process_detection.add_game_patterns(
-            "acc".to_string(),
-            vec!["AC2-Win64-Shipping.exe".to_string()],
-        );
+        for (game_id, game_support) in matrix.games {
+            if !game_support.auto_detect.process_names.is_empty() {
+                self.process_detection
+                    .add_game_patterns(game_id, game_support.auto_detect.process_names);
+            }
+        }
 
-        info!("Setup game process patterns for auto-detection");
+        info!(
+            games = game_count,
+            "Setup game process patterns from shared telemetry support matrix"
+        );
         Ok(())
     }
 

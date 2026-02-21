@@ -1,7 +1,8 @@
 //! EA SPORTS WRC telemetry adapter using schema-driven UDP decoding.
 
-use crate::telemetry::{
+use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, TelemetryValue,
+    telemetry_now_ns,
 };
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
@@ -15,7 +16,7 @@ use std::sync::{
     Arc,
     atomic::{AtomicU64, Ordering},
 };
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
@@ -183,8 +184,7 @@ impl EAWRCAdapter {
         if let Some(value) = value_string(
             &packet.values,
             &["track_id", "track_name", "stage_name", "stage"],
-        )
-        {
+        ) {
             telemetry = telemetry.with_track_id(value);
         }
 
@@ -215,7 +215,6 @@ impl TelemetryAdapter for EAWRCAdapter {
         let (tx, rx) = mpsc::channel(100);
 
         let sequence = Arc::new(AtomicU64::new(0));
-        let epoch = Instant::now();
 
         let mut packet_ids_by_port: HashMap<u16, Vec<String>> = HashMap::new();
         for assignment in bundle.assignments {
@@ -271,7 +270,7 @@ impl TelemetryAdapter for EAWRCAdapter {
 
                     let frame = TelemetryFrame::new(
                         EAWRCAdapter::normalize_decoded(&decoded),
-                        monotonic_ns_since(epoch, Instant::now()),
+                        telemetry_now_ns(),
                         sequence.fetch_add(1, Ordering::Relaxed),
                         len,
                     );
@@ -415,12 +414,7 @@ impl DecoderPlan {
                 catalog
                     .packets
                     .iter()
-                    .map(|packet| {
-                        (
-                            normalize_packet_uid(&packet.four_cc),
-                            packet.id.clone(),
-                        )
-                    })
+                    .map(|packet| (normalize_packet_uid(&packet.four_cc), packet.id.clone()))
                     .collect::<HashMap<_, _>>()
             })
             .unwrap_or_default();
@@ -532,13 +526,14 @@ impl DecoderPlan {
             });
 
             if let Some(packet_uid) = packet_uid {
-                let expected_packet_id = self.packet_uid_to_id.get(&packet_uid).ok_or_else(|| {
-                    anyhow!(
-                        "packet_uid '{}' is not present in packets catalog for structure '{}'",
-                        packet_uid,
-                        self.structure_id
-                    )
-                })?;
+                let expected_packet_id =
+                    self.packet_uid_to_id.get(&packet_uid).ok_or_else(|| {
+                        anyhow!(
+                            "packet_uid '{}' is not present in packets catalog for structure '{}'",
+                            packet_uid,
+                            self.structure_id
+                        )
+                    })?;
 
                 if expected_packet_id != packet_id {
                     return Err(anyhow!(
@@ -939,13 +934,6 @@ fn telemetry_root_from_environment() -> PathBuf {
     }
 
     PathBuf::from("Documents/My Games/WRC/telemetry")
-}
-
-fn monotonic_ns_since(epoch: Instant, now: Instant) -> u64 {
-    now.checked_duration_since(epoch)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0)
-        .min(u64::MAX as u128) as u64
 }
 
 #[cfg(test)]

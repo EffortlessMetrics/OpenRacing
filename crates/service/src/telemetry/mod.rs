@@ -1,180 +1,32 @@
-//! Game Telemetry Adapters Module
-//!
-//! Implements task 8: Game telemetry adapters with rate limiting
-//! Requirements: GI-03, GI-04, 12.1-12.4, 12.6
-//!
-//! This module provides:
-//! - `GameTelemetry`: Common telemetry data structure for all racing games
-//! - `GameTelemetryAdapter`: Trait for game-specific telemetry adapters
-//! - `TelemetryError`: Error types for telemetry operations
-//! - `NormalizedTelemetry`: Legacy normalized telemetry format
-//! - `ConnectionState`: Connection state enumeration
-//! - `ConnectionStateEvent`: Event for connection state changes
-//! - `DisconnectionTracker`: Utility for detecting disconnection
-//! - Game-specific adapters: iRacing, ACC, AC Rally, AMS2, rFactor 2, EA WRC
-
-pub mod adapters;
 pub mod game_telemetry;
 pub mod normalized;
 pub mod rate_limiter;
 pub mod recorder;
 
 #[cfg(test)]
+mod disconnection_property_tests;
+#[cfg(test)]
 mod telemetry_property_tests;
 
-#[cfg(test)]
-mod disconnection_property_tests;
-
-pub use adapters::*;
+pub use adapters::{
+    ACCAdapter, ACRallyAdapter, AMS2Adapter, Dirt5Adapter, EAWRCAdapter, F1Adapter, IRacingAdapter,
+    MockAdapter, RFactor2Adapter, TelemetryAdapter, TelemetryReceiver, telemetry_now_ns,
+};
 pub use game_telemetry::*;
 pub use normalized::*;
+pub use racing_wheel_telemetry_adapters as adapters;
+pub use racing_wheel_telemetry_orchestrator::TelemetryService;
 pub use rate_limiter::*;
 pub use recorder::*;
 
-use anyhow::Result;
-use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use std::time::Duration;
-use tokio::sync::mpsc;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// Telemetry adapter trait for game-specific telemetry sources
-#[async_trait]
-pub trait TelemetryAdapter: Send + Sync {
-    /// Get the game identifier this adapter supports
-    fn game_id(&self) -> &str;
-
-    /// Start monitoring telemetry from the game
-    async fn start_monitoring(&self) -> Result<TelemetryReceiver>;
-
-    /// Stop monitoring telemetry
-    async fn stop_monitoring(&self) -> Result<()>;
-
-    /// Normalize raw telemetry data to common format
-    fn normalize(&self, raw: &[u8]) -> Result<NormalizedTelemetry>;
-
-    /// Get the expected update rate for this adapter
-    fn expected_update_rate(&self) -> Duration;
-
-    /// Check if the game is currently running
-    async fn is_game_running(&self) -> Result<bool>;
-}
-
-/// Telemetry receiver for streaming telemetry data
-pub type TelemetryReceiver = mpsc::Receiver<TelemetryFrame>;
-
-/// Telemetry frame with timing information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TelemetryFrame {
-    /// Normalized telemetry data
-    pub data: NormalizedTelemetry,
-
-    /// Timestamp when frame was received (monotonic)
-    pub timestamp_ns: u64,
-
-    /// Sequence number for ordering
-    pub sequence: u64,
-
-    /// Raw data size for diagnostics
-    pub raw_size: usize,
-}
-
-impl TelemetryFrame {
-    /// Create a new telemetry frame
-    pub fn new(
-        data: NormalizedTelemetry,
-        timestamp_ns: u64,
-        sequence: u64,
-        raw_size: usize,
-    ) -> Self {
-        Self {
-            data,
-            timestamp_ns,
-            sequence,
-            raw_size,
-        }
-    }
-}
-
-/// Telemetry service that manages multiple adapters
-pub struct TelemetryService {
-    adapters: std::collections::HashMap<String, Box<dyn TelemetryAdapter>>,
-    #[allow(dead_code)]
-    rate_limiter: RateLimiter,
-    recorder: Option<TelemetryRecorder>,
-}
-
-impl Default for TelemetryService {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl TelemetryService {
-    /// Create a new telemetry service
-    pub fn new() -> Self {
-        let mut adapters: std::collections::HashMap<String, Box<dyn TelemetryAdapter>> =
-            std::collections::HashMap::new();
-
-        // Register adapters
-        adapters.insert("iracing".to_string(), Box::new(IRacingAdapter::new()));
-        adapters.insert("acc".to_string(), Box::new(ACCAdapter::new()));
-        adapters.insert("ac_rally".to_string(), Box::new(ACRallyAdapter::new()));
-        adapters.insert("ams2".to_string(), Box::new(AMS2Adapter::new()));
-        adapters.insert("rfactor2".to_string(), Box::new(RFactor2Adapter::new()));
-        adapters.insert("eawrc".to_string(), Box::new(EAWRCAdapter::new()));
-        adapters.insert("ea_wrc".to_string(), Box::new(EAWRCAdapter::new()));
-
-        Self {
-            adapters,
-            rate_limiter: RateLimiter::new(1000), // 1kHz max rate to protect RT thread
-            recorder: None,
-        }
-    }
-
-    /// Start telemetry monitoring for a specific game
-    pub async fn start_monitoring(&mut self, game_id: &str) -> Result<TelemetryReceiver> {
-        let adapter = self
-            .adapters
-            .get(game_id)
-            .ok_or_else(|| anyhow::anyhow!("No adapter for game: {}", game_id))?;
-
-        let receiver = adapter.start_monitoring().await?;
-        Ok(receiver)
-    }
-
-    /// Stop telemetry monitoring for a specific game
-    pub async fn stop_monitoring(&self, game_id: &str) -> Result<()> {
-        let adapter = self
-            .adapters
-            .get(game_id)
-            .ok_or_else(|| anyhow::anyhow!("No adapter for game: {}", game_id))?;
-
-        adapter.stop_monitoring().await
-    }
-
-    /// Enable telemetry recording for CI testing
-    pub fn enable_recording(&mut self, output_path: std::path::PathBuf) -> Result<()> {
-        self.recorder = Some(TelemetryRecorder::new(output_path)?);
-        Ok(())
-    }
-
-    /// Disable telemetry recording
-    pub fn disable_recording(&mut self) {
-        self.recorder = None;
-    }
-
-    /// Get list of supported games
-    pub fn supported_games(&self) -> Vec<String> {
-        self.adapters.keys().cloned().collect()
-    }
-
-    /// Check if a game is currently running
-    pub async fn is_game_running(&self, game_id: &str) -> Result<bool> {
-        let adapter = self
-            .adapters
-            .get(game_id)
-            .ok_or_else(|| anyhow::anyhow!("No adapter for game: {}", game_id))?;
-
-        adapter.is_game_running().await
+    #[test]
+    fn test_telemetry_now_ns_is_monotonic() {
+        let first = telemetry_now_ns();
+        let second = telemetry_now_ns();
+        assert!(second >= first);
     }
 }

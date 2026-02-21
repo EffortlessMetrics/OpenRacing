@@ -10,8 +10,10 @@ use std::time::Instant;
 
 use crate::telemetry::TelemetryAdapter;
 use crate::telemetry::adapters::{
-    acc::ACCAdapter, ams2::AMS2Adapter, iracing::IRacingAdapter, rfactor2::RFactor2Adapter,
+    acc::ACCAdapter, ams2::AMS2Adapter, f1_25::F1_25Adapter, iracing::IRacingAdapter,
+    rfactor2::RFactor2Adapter,
 };
+use racing_wheel_telemetry_adapters::f1_25::build_car_telemetry_packet;
 
 /// Maximum allowed parsing time in nanoseconds (1ms = 1,000,000ns)
 const MAX_PARSING_TIME_NS: u128 = 1_000_000;
@@ -496,6 +498,37 @@ fn rfactor2_data_strategy() -> impl Strategy<Value = RF2VehicleTelemetry> {
 }
 
 // ============================================================================
+// F1 25 Telemetry Data Generator
+// ============================================================================
+
+/// Strategy for generating valid F1 25 CarTelemetry packets.
+fn f1_25_packet_strategy() -> impl Strategy<Value = Vec<u8>> {
+    (
+        0u8..4,      // player_car_index
+        0u16..350,   // speed_kmh (0–350 km/h)
+        -1i8..9,     // gear (-1=R, 0=N, 1..8)
+        0u16..18000, // engine_rpm
+        0.0f32..1.0, // throttle
+        0.0f32..1.0, // brake
+        0u8..2,      // drs (0 or 1)
+    )
+        .prop_map(
+            |(player_idx, speed_kmh, gear, engine_rpm, throttle, brake, drs)| {
+                build_car_telemetry_packet(
+                    player_idx,
+                    speed_kmh,
+                    gear,
+                    engine_rpm,
+                    throttle,
+                    brake,
+                    drs,
+                    [1.9f32, 1.9, 2.1, 2.1],
+                )
+            },
+        )
+}
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 
@@ -647,6 +680,20 @@ proptest! {
             "rFactor2"
         )?;
     }
+
+    /// Feature: f1-25-native-adapter, Property 22: Telemetry Parsing Performance
+    /// **Validates: Requirements 12.5**
+    ///
+    /// For any valid F1 25 CarTelemetry packet, parsing SHALL complete within 1ms.
+    #[test]
+    fn prop_f1_25_parsing_performance(raw_bytes in f1_25_packet_strategy()) {
+        let adapter = F1_25Adapter::new();
+
+        verify_parsing_time(
+            || adapter.normalize(&raw_bytes),
+            "F1_25"
+        )?;
+    }
 }
 
 // ============================================================================
@@ -745,6 +792,36 @@ mod unit_tests {
             return Err(
                 format!("rFactor2 parsing took {}ns, exceeds 1ms budget", elapsed_ns).into(),
             );
+        }
+
+        Ok(())
+    }
+
+    /// Test that F1 25 parsing with known packet data completes within 1ms
+    #[test]
+    fn test_f1_25_default_parsing_time() -> UnitTestResult {
+        let adapter = F1_25Adapter::new();
+        let raw_bytes = build_car_telemetry_packet(
+            0,                    // player_car_index
+            150,                  // speed_kmh
+            5,                    // gear
+            12000,                // engine_rpm
+            0.8,                  // throttle
+            0.0,                  // brake
+            1,                    // drs
+            [1.9, 1.9, 2.1, 2.1], // tyres_pressure
+        );
+
+        let start = Instant::now();
+        let result = adapter.normalize(&raw_bytes);
+        let elapsed_ns = start.elapsed().as_nanos();
+
+        if result.is_err() {
+            return Err(format!("F1 25 parsing failed: {:?}", result.err()).into());
+        }
+
+        if elapsed_ns > MAX_PARSING_TIME_NS {
+            return Err(format!("F1 25 parsing took {}ns, exceeds 1ms budget", elapsed_ns).into());
         }
 
         Ok(())

@@ -97,7 +97,9 @@ impl MozaDirectTorqueEncoder {
     }
 
     fn max_torque_q8(&self) -> TorqueQ8_8 {
-        (self.max_torque_nm * 256.0).clamp(0.0, i16::MAX as f32).round() as TorqueQ8_8
+        (self.max_torque_nm * 256.0)
+            .clamp(0.0, i16::MAX as f32)
+            .round() as TorqueQ8_8
     }
 }
 

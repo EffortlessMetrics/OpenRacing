@@ -1,0 +1,17 @@
+[package]
+name = "racing-wheel-telemetry-support"
+version.workspace = true
+edition.workspace = true
+keywords = ["telemetry", "racing", "simulator", "ffb"]
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-telemetry-support"
+publish = true
+description = "Shared game support matrix definitions for OpenRacing telemetry integrations"
+readme = "README.md"
+
+[dependencies]
+serde = { workspace = true }
+serde_yaml = { workspace = true }

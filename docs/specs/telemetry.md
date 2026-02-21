@@ -23,9 +23,10 @@ Where a vendor's primary documentation is not publicly accessible, this spec is 
   - detection ("is game running?").
 
 Implementation touchpoints:
-- `crates/service/src/telemetry/mod.rs` (adapter registration)
-- `crates/service/src/telemetry/adapters/*` (per-game)
-- `crates/service/src/telemetry/normalized.rs` (schema)
+- `crates/telemetry-orchestrator/src/lib.rs` (adapter registration + matrix-driven startup)
+- `crates/telemetry-adapters/src/*` (per-game adapter implementations)
+- `crates/telemetry-contracts/src/lib.rs` (normalized telemetry schema)
+- `crates/service/src/telemetry/mod.rs` (service-level compatibility re-exports)
 
 ### 1.2 Adapter runtime contract (MUST)
 
@@ -42,6 +43,37 @@ An adapter MUST:
 An adapter SHOULD:
 - Avoid unbounded allocations per packet.
 - Emit updates at its `expected_update_rate()` (best effort).
+
+### 1.3 Matrix integration governance
+
+- The support matrix is the source of truth for active telemetry integrations.
+- The runtime should validate registry parity between:
+  - matrix-defined game IDs (`game_support_matrix.yaml`)
+  - adapter factories (`racing-wheel-telemetry-adapters`)
+  - config writer factories (`racing-wheel-telemetry-config-writers`)
+- Missing adapter/writer coverage must be surfaced through startup logs; missing writers are a hard failure path for game configuration services.
+
+### 1.4 BDD matrix metrics (MUST)
+
+OpenRacing MUST compute deterministic matrix metrics at runtime so parity checks are observable, testable, and enforceable in BDD scenarios.
+
+Required metrics:
+- `matrix_game_count`: total matrix-defined game IDs.
+- `registry_game_count`: total IDs in the runtime registry being checked (adapter or writer).
+- `missing_count`: matrix IDs missing in the runtime registry.
+- `extra_count`: runtime IDs not present in the matrix.
+- `matrix_coverage_ratio`: `(matrix_game_count - missing_count) / matrix_game_count`.
+- `registry_coverage_ratio`: `(registry_game_count - extra_count) / registry_game_count`.
+- `parity_ok`: true only when configured policies are satisfied.
+
+Implementation touchpoints:
+- `crates/telemetry-bdd-metrics/src/lib.rs` (`BddMatrixMetrics`, `RuntimeBddMatrixMetrics`, policy evaluation)
+- `crates/telemetry-integration/src/lib.rs` (`RegistryCoverage::bdd_metrics`, `RuntimeCoverageReport::bdd_metrics`)
+- `crates/telemetry-orchestrator/src/lib.rs` (`TelemetryService::runtime_bdd_metrics`)
+
+BDD acceptance examples:
+- Given the matrix includes `acc`, `iracing`, and `dirt5`, when adapter registry omits `dirt5`, then `missing_count > 0` and `parity_ok = false` under `MATRIX_COMPLETE`.
+- Given the matrix is fully represented and registry includes extra experimental IDs, when policy is `MATRIX_COMPLETE`, then matrix coverage remains valid and extras are reported without blocking.
 
 ---
 
@@ -73,9 +105,29 @@ Rules:
 
 ## 3) Game integrations
 
-## 3.1 Assetto Corsa Competizione (ACC)
+## 3.1 Telemetry support matrix (authoritative)
 
-### 3.1.1 Transport and config
+The following table is derived from the authoritative matrix in
+`crates/telemetry-support/src/game_support_matrix.yaml`.
+Each entry is now the source of truth for runtime wiring, including the `status`
+and `config_writer` fields consumed by service startup.
+
+| Game | `game_id` | Transport | Method | Default `output_target` | Config writer | Status |
+|---|---|---|---|---|---|---|
+| iRacing | `iracing` | Windows shared memory | `shared_memory` | `127.0.0.1:12345` | `iracing` | stable |
+| Assetto Corsa Competizione | `acc` | UDP broadcast | `udp_broadcast` | `127.0.0.1:9000` | `acc` | stable |
+| Assetto Corsa Rally | `ac_rally` | Probe discovery | `probe_discovery` | `127.0.0.1:9000` | `ac_rally` | experimental |
+| Automobilista 2 | `ams2` | Shared memory | `shared_memory` | `127.0.0.1:12345` | `ams2` | experimental |
+| rFactor 2 | `rfactor2` | Shared memory | `shared_memory` | `127.0.0.1:12345` | `rfactor2` | experimental |
+| EA SPORTS WRC | `eawrc` | UDP schema | `udp_schema` | `127.0.0.1:20778` | `eawrc` | experimental |
+| F1 2025 | `f1` | Codemasters UDP bridge | `udp_custom_codemasters` | `127.0.0.1:20777` | `f1` | experimental |
+| Dirt 5 | `dirt5` | Codemasters UDP bridge | `udp_custom_codemasters` | `127.0.0.1:20777` | `dirt5` | experimental |
+
+---
+
+## 3.2 Assetto Corsa Competizione (ACC)
+
+### 3.2.1 Transport and config
 
 Transport: **UDP** "broadcasting" protocol.
 
@@ -96,11 +148,11 @@ OpenRacing default:
 > NOTE: Some ACC clients configure separate "listener" and "broadcasting" ports. OpenRacing's default stance is to keep this simple: use a single port unless you have a known reason not to.
 
 Implementation touchpoints:
-- `crates/service/src/telemetry/adapters/acc.rs`
-- `crates/service/src/config_writers.rs` (writes `broadcasting.json`)
+- `crates/telemetry-adapters/src/acc.rs`
+- `crates/telemetry-config-writers/src/lib.rs` (`ACCConfigWriter`, writes `broadcasting.json`)
 - Fixture conformance: `crates/service/tests/fixtures/acc/*.bin`
 
-### 3.1.2 Wire format (MUST)
+### 3.2.2 Wire format (MUST)
 
 Strings are encoded as:
 - `u16` little-endian length (byte count),
@@ -124,7 +176,7 @@ OpenRacing parses (at minimum):
 - Track data
 - Entry list / events (best-effort; primarily for enrichment)
 
-### 3.1.3 Normalization mapping (SHOULD)
+### 3.2.3 Normalization mapping (SHOULD)
 
 For realtime car update:
 - `speed_ms = speed_kmh / 3.6`
@@ -134,7 +186,7 @@ For realtime car update:
 - Extend:
   - positions, lap count, delta, temps/wetness where available
 
-### 3.1.4 Conformance tests (MUST)
+### 3.2.4 Conformance tests (MUST)
 
 OpenRacing MUST maintain:
 - Unit test for registration packet layout.
@@ -146,16 +198,16 @@ OpenRacing MUST maintain:
 
 ---
 
-## 3.2 iRacing
+## 3.3 iRacing
 
-### 3.2.1 Transport and platform constraints
+### 3.3.1 Transport and platform constraints
 
 Transport: **Windows shared memory (memory-mapped file)**.
 
 Non-Windows behavior:
 - Adapter SHOULD return "not running" and SHOULD NOT crash.
 
-### 3.2.2 Win32 mapping rules (MUST)
+### 3.3.2 Win32 mapping rules (MUST)
 
 The shared memory mapping MUST be opened read-only using:
 - `OpenFileMappingW(dwDesiredAccess = FILE_MAP_READ, ...)`
@@ -165,7 +217,7 @@ Do not confuse:
 - FILE mapping access flags (`FILE_MAP_READ`) with
 - file share flags (`FILE_SHARE_READ`).
 
-### 3.2.3 IRSDK buffer semantics (MUST)
+### 3.3.3 IRSDK buffer semantics (MUST)
 
 The mapping contains:
 - a header at base,
@@ -181,9 +233,9 @@ OpenRacing SHOULD:
 - tolerate missing variables (treat as 0 / empty) to avoid breaking across IRSDK revisions.
 
 Implementation touchpoints:
-- `crates/service/src/telemetry/adapters/iracing.rs`
+- `crates/telemetry-adapters/src/iracing.rs`
 
-### 3.2.4 Normalization mapping (SHOULD)
+### 3.3.4 Normalization mapping (SHOULD)
 
 Variables of interest (names subject to IRSDK header verification on a dev machine):
 - SessionTime, SessionFlags
@@ -197,15 +249,16 @@ Mapping:
 - `speed_ms` MUST be m/s in normalized form.
 - `ffb_scalar` is best-effort (not safety-critical). If torque is in Nm, normalize consistently (e.g., divide by a configured max).
 
-### 3.2.5 Conformance tests (MUST)
+### 3.3.5 Conformance tests (MUST)
 
 OpenRacing MUST keep deterministic tests for:
 - buffer selection (highest tick wins),
 - rotated-buffer read behavior using a synthetic memory image.
+- decoding resilience for variable iRacing payload sizes, including minimum legacy payload and full payload layouts.
 
 ---
 
-## 3.3 Automobilista 2 (AMS2)
+## 3.4 Automobilista 2 (AMS2)
 
 Status: **experimental / best-effort**.
 
@@ -219,11 +272,11 @@ Spec requirement:
 - Torn-read avoidance MUST follow the header's published sequencing/version fields (if present).
 
 Implementation touchpoints:
-- `crates/service/src/telemetry/adapters/ams2.rs`
+- `crates/telemetry-adapters/src/ams2.rs`
 
 ---
 
-## 3.4 rFactor 2
+## 3.5 rFactor 2
 
 Status: **experimental / best-effort**.
 
@@ -239,9 +292,93 @@ Naming:
 - Prefer dedicated force feedback maps when available (do not infer torque from unrelated signals).
 
 Implementation touchpoints:
-- `crates/service/src/telemetry/adapters/rfactor2.rs`
+- `crates/telemetry-adapters/src/rfactor2.rs`
 
 ---
+
+## 3.6 Assetto Corsa Rally (AC Rally)
+
+Transport: **probe/discovery** path for mixed shared-memory + UDP discovery.
+
+Status: **experimental / best-effort**.
+
+Config path:
+- `Documents/Assetto Corsa Rally/Config/openracing_probe.json`
+
+OpenRacing expects a probe profile with:
+- `mode = "discovery"`
+- `probeOrder`
+- `udpCandidates`
+- `sharedMemoryCandidates`
+- `outputTarget`
+- `updateRateHz`
+
+Implementation touchpoints:
+- `crates/telemetry-adapters/src/ac_rally.rs`
+- `crates/telemetry-config-writers/src/lib.rs` (`ACRallyConfigWriter`)
+
+### 3.6.1 Conformance expectations (MUST)
+
+- `get_supported_games()` includes `ac_rally`.
+- Config generation must be idempotent.
+- Probe profile should be preserved when existing data is present.
+
+## 3.7 EA SPORTS WRC
+
+Transport: **UDP schema-driven JSON decode**.
+
+Status: **experimental / best-effort**.
+
+Config path:
+- `Documents/My Games/WRC/telemetry/config.json`
+- `Documents/My Games/WRC/telemetry/udp/openracing.json`
+
+Implementation touchpoints:
+- `crates/telemetry-adapters/src/eawrc.rs`
+- `crates/telemetry-config-writers/src/lib.rs` (`EAWRCConfigWriter`)
+
+### 3.7.1 Conformance expectations (MUST)
+
+- Writer must emit packet/structure assignments that align with default game port and selected fields.
+- Decoder must map schema channels into normalized telemetry and extended payload fields.
+
+## 3.8 Dirt 5
+
+Transport: **bridge-backed custom UDP protocol**.
+
+Status: **experimental / best-effort**.
+
+Config path:
+- `Documents/OpenRacing/dirt5_bridge_contract.json`
+
+Implementation touchpoints:
+- `crates/telemetry-adapters/src/dirt5.rs`
+- `crates/telemetry-config-writers/src/lib.rs` (`Dirt5ConfigWriter`)
+
+### 3.8.1 Conformance expectations (MUST)
+
+- Configuration writes should never assume native game config directories exist.
+- Bridge contract should remain minimal and explicit (game id + protocol + UDP port).
+
+## 3.9 F1 2025
+
+Transport: **bridge-backed custom UDP protocol**.
+
+Status: **experimental / best-effort**.
+
+Config path:
+- `Documents/OpenRacing/f1_bridge_contract.json`
+
+Implementation touchpoints:
+- `crates/telemetry-adapters/src/f1.rs`
+- `crates/telemetry-config-writers/src/lib.rs` (`F1ConfigWriter`)
+
+### 3.9.1 Conformance expectations (MUST)
+
+- F1 bridge packets must be decoded through the shared Codemasters UDP path.
+- Adapter normalization must preserve all decoded channels in `extended`.
+- Adapter should map F1 flags when present (`drs_available`, `drs_active`, `ers_available`, pit flags).
+- Configuration writes should not assume native game config files exist.
 
 ## 4) Config writers
 
@@ -265,7 +402,16 @@ Config writers MUST:
   - `telemetryDiskFile=1` when enabled.
 
 Implementation touchpoint:
-- `crates/service/src/config_writers.rs`
+- `crates/telemetry-config-writers/src/lib.rs`
+
+### 4.3 F1 (Bridge Contract)
+
+- Write `Documents/OpenRacing/f1_bridge_contract.json` with:
+  - `game_id = "f1"`
+  - `telemetry_protocol = "codemasters_udp"`
+  - `mode` defaulted for extended channel coverage
+  - `udp_port` derived from `TelemetryConfig.output_target`
+  - `update_rate_hz` and `enabled` from the requested config
 
 ---
 
@@ -280,6 +426,11 @@ Implementation touchpoint:
 - Windows only: confirm you're running on Windows.
 - Confirm the mapping can be opened read-only with FILE_MAP_READ.
 - Verify variable names against the installed IRSDK header if values stay zero.
+
+### F1: no frames
+- Verify `Documents/OpenRacing/f1_bridge_contract.json` exists and has `game_id = "f1"`.
+- Confirm UDP port matches service config (default 20777).
+- If using custom channel mapping, set `OPENRACING_F1_CUSTOM_UDP_XML` to a valid XML schema.
 
 ---
 

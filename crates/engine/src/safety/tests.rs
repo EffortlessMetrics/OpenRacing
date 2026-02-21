@@ -590,21 +590,11 @@ fn test_moza_process_clutch_combo_confirms_high_torque_after_hold() {
     input.clutch_u16 = 40_000;
     input.handbrake_u16 = 40_000;
 
-    assert!(service.process_moza_interlock_inputs(
-        "test_device",
-        input,
-        30_000,
-        99
-    ));
+    assert!(service.process_moza_interlock_inputs("test_device", input, 30_000, 99));
 
     std::thread::sleep(Duration::from_millis(2100));
 
-    assert!(service.process_moza_interlock_inputs(
-        "test_device",
-        input,
-        30_000,
-        99
-    ));
+    assert!(service.process_moza_interlock_inputs("test_device", input, 30_000, 99));
 
     match service.state() {
         SafetyState::HighTorqueActive { device_token, .. } => {
@@ -624,24 +614,17 @@ fn test_moza_interlock_combo_hold_cleared_when_released() {
     input.clutch_u16 = 40_000;
     input.handbrake_u16 = 40_000;
 
-    assert!(service.process_moza_interlock_inputs(
-        "test_device",
-        input,
-        30_000,
-        99
-    ));
+    assert!(service.process_moza_interlock_inputs("test_device", input, 30_000, 99));
 
     let active = must_some(service.get_active_challenge(), "expected active challenge");
     assert!(active.combo_start.is_some());
 
     let mut input_released = MozaInputState::empty(0);
-    assert!(service.process_moza_interlock_inputs(
-        "test_device",
-        input_released,
-        30_000,
-        99
-    )
-    .not());
+    assert!(
+        service
+            .process_moza_interlock_inputs("test_device", input_released, 30_000, 99)
+            .not()
+    );
     let active = must_some(service.get_active_challenge(), "expected active challenge");
     assert!(active.combo_start.is_none());
 }
@@ -656,12 +639,7 @@ fn test_moza_interlock_inputs_stale_resets_combo() {
     input.clutch_u16 = 40_000;
     input.handbrake_u16 = 40_000;
 
-    assert!(service.process_moza_interlock_inputs(
-        "test_device",
-        input,
-        30_000,
-        99
-    ));
+    assert!(service.process_moza_interlock_inputs("test_device", input, 30_000, 99));
 
     let active = must_some(service.get_active_challenge(), "expected active challenge");
     assert!(active.combo_start.is_some());
@@ -684,12 +662,7 @@ fn test_moza_process_ks_combined_axis_clutch_mode_for_interlock() {
         ..KsReportSnapshot::default()
     };
 
-    assert!(service.process_moza_interlock_inputs(
-        "test_device",
-        input,
-        30_000,
-        99
-    ));
+    assert!(service.process_moza_interlock_inputs("test_device", input, 30_000, 99));
 
     let active = must_some(service.get_active_challenge(), "expected active challenge");
     assert!(active.combo_start.is_some());
@@ -709,12 +682,7 @@ fn test_moza_process_ks_independent_axis_clutch_mode_for_interlock() {
         ..KsReportSnapshot::default()
     };
 
-    assert!(service.process_moza_interlock_inputs(
-        "test_device",
-        input,
-        30_000,
-        99
-    ));
+    assert!(service.process_moza_interlock_inputs("test_device", input, 30_000, 99));
 }
 
 #[test]
@@ -731,12 +699,7 @@ fn test_moza_process_ks_button_mode_clutch_for_interlock() {
         ..KsReportSnapshot::default()
     };
 
-    assert!(service.process_moza_interlock_inputs(
-        "test_device",
-        input,
-        30_000,
-        99
-    ));
+    assert!(service.process_moza_interlock_inputs("test_device", input, 30_000, 99));
 
     let active = must_some(service.get_active_challenge(), "expected active challenge");
     assert!(active.combo_start.is_some());

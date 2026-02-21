@@ -11,6 +11,8 @@
 //! Requirements: GI-03, GI-04
 
 use racing_wheel_service::telemetry::*;
+use racing_wheel_telemetry_support::matrix_game_ids;
+use std::collections::HashSet;
 use std::time::Duration;
 use tempfile::tempdir;
 
@@ -412,12 +414,9 @@ fn test_acc_adapter_creation() {
 fn test_telemetry_service_creation() {
     let service = TelemetryService::new();
 
-    let supported_games = service.supported_games();
-    assert!(supported_games.contains(&"iracing".to_string()));
-    assert!(supported_games.contains(&"acc".to_string()));
-    assert!(supported_games.contains(&"ams2".to_string()));
-    assert!(supported_games.contains(&"rfactor2".to_string()));
-    assert!(supported_games.contains(&"eawrc".to_string()));
+    let expected: HashSet<String> = must(matrix_game_ids()).into_iter().collect();
+    let actual: HashSet<String> = service.supported_games().into_iter().collect();
+    assert_eq!(actual, expected);
 }
 
 #[tokio::test]

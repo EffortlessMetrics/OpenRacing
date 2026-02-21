@@ -13,6 +13,8 @@ use std::time::{Duration, Instant};
 use tokio::time::{sleep, timeout};
 use tracing::{debug, error, info, warn};
 
+const IRACING_360HZ_KEY: &str = "irsdkLog360Hz";
+
 /// Configuration validation service
 pub struct ConfigValidationService {
     /// Golden file fixtures for testing
@@ -181,8 +183,11 @@ impl ConfigValidationService {
                     new_value: r#"{
   "updListenerPort": 9000,
   "udpListenerPort": 9000,
+  "broadcastingPort": 9000,
+  "connectionId": "",
   "connectionPassword": "",
-  "commandPassword": ""
+  "commandPassword": "",
+  "updateRateHz": 100
 }"#
                     .to_string(),
                     operation: DiffOperation::Add,
@@ -193,8 +198,11 @@ impl ConfigValidationService {
                     content: r#"{
   "updListenerPort": 9000,
   "udpListenerPort": 9000,
+  "broadcastingPort": 9000,
+  "connectionId": "",
   "connectionPassword": "",
-  "commandPassword": ""
+  "commandPassword": "",
+  "updateRateHz": 100
 }"#
                     .to_string(),
                     checksum: None,
@@ -321,6 +329,112 @@ impl ConfigValidationService {
             },
         );
 
+        // Dirt 5 bridge contract golden file fixture
+        fixtures.insert(
+            "dirt5".to_string(),
+            GoldenFileFixture {
+                game_id: "dirt5".to_string(),
+                config: TelemetryConfig {
+                    enabled: true,
+                    update_rate_hz: 60,
+                    output_method: "udp_custom_codemasters".to_string(),
+                    output_target: "127.0.0.1:20777".to_string(),
+                    fields: vec![
+                        "rpm".to_string(),
+                        "speed_ms".to_string(),
+                        "gear".to_string(),
+                        "slip_ratio".to_string(),
+                    ],
+                    enable_high_rate_iracing_360hz: false,
+                },
+                expected_diffs: vec![ConfigDiff {
+                    file_path: "Documents/OpenRacing/dirt5_bridge_contract.json".to_string(),
+                    section: None,
+                    key: "entire_file".to_string(),
+                    old_value: None,
+                    new_value: r#"{
+  "bridge_notes": "Dirt 5 telemetry is bridge-backed; no native game config is modified.",
+  "enabled": true,
+  "game_id": "dirt5",
+  "mode": 1,
+  "telemetry_protocol": "codemasters_udp",
+  "udp_port": 20777,
+  "update_rate_hz": 60
+}"#
+                    .to_string(),
+                    operation: DiffOperation::Add,
+                }],
+                expected_files: vec![ExpectedFile {
+                    path: "Documents/OpenRacing/dirt5_bridge_contract.json".to_string(),
+                    content: r#"{
+  "bridge_notes": "Dirt 5 telemetry is bridge-backed; no native game config is modified.",
+  "enabled": true,
+  "game_id": "dirt5",
+  "mode": 1,
+  "telemetry_protocol": "codemasters_udp",
+  "udp_port": 20777,
+  "update_rate_hz": 60
+}"#
+                    .to_string(),
+                    checksum: None,
+                }],
+            },
+        );
+
+        // F1 bridge contract golden file fixture
+        fixtures.insert(
+            "f1".to_string(),
+            GoldenFileFixture {
+                game_id: "f1".to_string(),
+                config: TelemetryConfig {
+                    enabled: true,
+                    update_rate_hz: 60,
+                    output_method: "udp_custom_codemasters".to_string(),
+                    output_target: "127.0.0.1:20777".to_string(),
+                    fields: vec![
+                        "ffb_scalar".to_string(),
+                        "rpm".to_string(),
+                        "speed_ms".to_string(),
+                        "slip_ratio".to_string(),
+                        "gear".to_string(),
+                        "flags".to_string(),
+                    ],
+                    enable_high_rate_iracing_360hz: false,
+                },
+                expected_diffs: vec![ConfigDiff {
+                    file_path: "Documents/OpenRacing/f1_bridge_contract.json".to_string(),
+                    section: None,
+                    key: "entire_file".to_string(),
+                    old_value: None,
+                    new_value: r#"{
+  "bridge_notes": "F1 telemetry is bridge-backed; no native game config is modified.",
+  "enabled": true,
+  "game_id": "f1",
+  "mode": 3,
+  "telemetry_protocol": "codemasters_udp",
+  "udp_port": 20777,
+  "update_rate_hz": 60
+}"#
+                    .to_string(),
+                    operation: DiffOperation::Add,
+                }],
+                expected_files: vec![ExpectedFile {
+                    path: "Documents/OpenRacing/f1_bridge_contract.json".to_string(),
+                    content: r#"{
+  "bridge_notes": "F1 telemetry is bridge-backed; no native game config is modified.",
+  "enabled": true,
+  "game_id": "f1",
+  "mode": 3,
+  "telemetry_protocol": "codemasters_udp",
+  "udp_port": 20777,
+  "update_rate_hz": 60
+}"#
+                    .to_string(),
+                    checksum: None,
+                }],
+            },
+        );
+
         fixtures
     }
 
@@ -343,7 +457,31 @@ impl ConfigValidationService {
             .get(game_id)
             .ok_or_else(|| anyhow::anyhow!("No golden file fixture for game: {}", game_id))?;
 
-        let expected_diffs = &fixture.expected_diffs;
+        let mut expected_diffs = fixture.expected_diffs.clone();
+        if fixture.game_id == "iracing"
+            && actual_diffs
+                .iter()
+                .any(|diff| diff.key == IRACING_360HZ_KEY)
+            && !expected_diffs
+                .iter()
+                .any(|diff| diff.key == IRACING_360HZ_KEY)
+        {
+            if let Some(actual_360hz_diff) = actual_diffs
+                .iter()
+                .find(|diff| diff.key == IRACING_360HZ_KEY)
+            {
+                expected_diffs.push(ConfigDiff {
+                    file_path: actual_360hz_diff.file_path.clone(),
+                    section: actual_360hz_diff.section.clone(),
+                    key: IRACING_360HZ_KEY.to_string(),
+                    old_value: None,
+                    new_value: actual_360hz_diff.new_value.clone(),
+                    operation: actual_360hz_diff.operation.clone(),
+                });
+            }
+        }
+
+        let expected_diffs = &expected_diffs;
         let mut details = ValidationDetails {
             expected_count: expected_diffs.len(),
             actual_count: actual_diffs.len(),
@@ -357,10 +495,10 @@ impl ConfigValidationService {
         for expected_diff in expected_diffs {
             let diff_key = format!("{}:{}", expected_diff.file_path, expected_diff.key);
 
-            if let Some(actual_diff) = actual_diffs
-                .iter()
-                .find(|d| d.file_path == expected_diff.file_path && d.key == expected_diff.key)
-            {
+            if let Some(actual_diff) = actual_diffs.iter().find(|d| {
+                self.paths_match(&expected_diff.file_path, &d.file_path)
+                    && d.key == expected_diff.key
+            }) {
                 if self.compare_config_diffs(expected_diff, actual_diff) {
                     details.matched_items.push(diff_key);
                 } else {
@@ -378,10 +516,9 @@ impl ConfigValidationService {
         for actual_diff in actual_diffs {
             let diff_key = format!("{}:{}", actual_diff.file_path, actual_diff.key);
 
-            if !expected_diffs
-                .iter()
-                .any(|d| d.file_path == actual_diff.file_path && d.key == actual_diff.key)
-            {
+            if !expected_diffs.iter().any(|d| {
+                self.paths_match(&d.file_path, &actual_diff.file_path) && d.key == actual_diff.key
+            }) {
                 details.unexpected_items.push(diff_key);
             }
         }
@@ -671,11 +808,30 @@ impl ConfigValidationService {
 
     /// Compare two configuration diffs
     fn compare_config_diffs(&self, expected: &ConfigDiff, actual: &ConfigDiff) -> bool {
-        expected.file_path == actual.file_path
+        self.paths_match(&expected.file_path, &actual.file_path)
             && expected.section == actual.section
             && expected.key == actual.key
             && expected.operation == actual.operation
             && self.compare_diff_values(&expected.new_value, &actual.new_value)
+    }
+
+    /// Compare config file paths while tolerating relative-vs-absolute forms.
+    fn paths_match(&self, expected: &str, actual: &str) -> bool {
+        if expected.eq_ignore_ascii_case(actual) {
+            return true;
+        }
+
+        let expected_components: Vec<String> = Path::new(expected)
+            .components()
+            .map(|component| component.as_os_str().to_string_lossy().to_ascii_lowercase())
+            .collect();
+        let actual_components: Vec<String> = Path::new(actual)
+            .components()
+            .map(|component| component.as_os_str().to_string_lossy().to_ascii_lowercase())
+            .collect();
+
+        components_suffix_match(&expected_components, &actual_components)
+            || components_suffix_match(&actual_components, &expected_components)
     }
 
     /// Compare diff values (allowing for minor formatting differences)
@@ -752,6 +908,8 @@ mod tests {
         assert!(service.golden_files.contains_key("iracing"));
         assert!(service.golden_files.contains_key("acc"));
         assert!(service.golden_files.contains_key("eawrc"));
+        assert!(service.golden_files.contains_key("f1"));
+        assert!(service.golden_files.contains_key("dirt5"));
     }
 
     #[tokio::test]
@@ -772,6 +930,38 @@ mod tests {
             .await?;
         assert!(result.success);
         assert_eq!(result.details.matched_items.len(), 1);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_config_generation_validation_accepts_optional_iracing_360hz() -> anyhow::Result<()>
+    {
+        let service = ConfigValidationService::new();
+
+        let actual_diffs = vec![
+            ConfigDiff {
+                file_path: "Documents/iRacing/app.ini".to_string(),
+                section: Some("Telemetry".to_string()),
+                key: "telemetryDiskFile".to_string(),
+                old_value: None,
+                new_value: "1".to_string(),
+                operation: DiffOperation::Add,
+            },
+            ConfigDiff {
+                file_path: "Documents/iRacing/app.ini".to_string(),
+                section: Some("Telemetry".to_string()),
+                key: "irsdkLog360Hz".to_string(),
+                old_value: None,
+                new_value: "1".to_string(),
+                operation: DiffOperation::Add,
+            },
+        ];
+
+        let result = service
+            .validate_config_generation("iracing", &actual_diffs)
+            .await?;
+        assert!(result.success);
+        assert_eq!(result.details.matched_items.len(), 2);
         Ok(())
     }
 
@@ -832,4 +1022,22 @@ mod tests {
 
         assert!(service.compare_file_content(content1, content2));
     }
+
+    #[test]
+    fn test_path_comparison_accepts_absolute_and_relative_forms() {
+        let service = ConfigValidationService::new();
+        let expected = "Documents/iRacing/app.ini";
+        let actual = r"C:\temp\Documents\iRacing\app.ini";
+
+        assert!(service.paths_match(expected, actual));
+    }
+}
+
+fn components_suffix_match(expected: &[String], actual: &[String]) -> bool {
+    if expected.len() > actual.len() {
+        return false;
+    }
+
+    let start_index = actual.len().saturating_sub(expected.len());
+    actual[start_index..] == *expected
 }

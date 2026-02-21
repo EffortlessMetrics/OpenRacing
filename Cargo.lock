@@ -4400,7 +4400,7 @@ checksum = "740ebea15c5d1428f910cd1a5f52cebf8d25006245ed8ade92702f4943d91e07"
 dependencies = [
  "base64 0.22.1",
  "indexmap 2.13.0",
- "quick-xml",
+ "quick-xml 0.38.4",
  "serde",
  "time",
 ]
@@ -4830,6 +4830,15 @@ checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
 name = "quick-xml"
+version = "0.37.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "331e97a1af0bf59823e6eadffe373d7b27f485be8748f71471c662c1f269b7fb"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
+name = "quick-xml"
 version = "0.38.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b66c2058c55a409d601666cffe35f04333cf1013010882cec174a7467cd4e21c"
@@ -5109,8 +5118,19 @@ dependencies = [
  "prometheus",
  "proptest",
  "prost-types",
+ "quick-xml 0.37.5",
  "racing-wheel-engine",
  "racing-wheel-schemas",
+ "racing-wheel-telemetry-adapters",
+ "racing-wheel-telemetry-bdd-metrics",
+ "racing-wheel-telemetry-config-writers",
+ "racing-wheel-telemetry-contracts",
+ "racing-wheel-telemetry-core",
+ "racing-wheel-telemetry-integration",
+ "racing-wheel-telemetry-orchestrator",
+ "racing-wheel-telemetry-rate-limiter",
+ "racing-wheel-telemetry-recorder",
+ "racing-wheel-telemetry-support",
  "rand 0.8.5",
  "semver",
  "serde",
@@ -5130,6 +5150,106 @@ dependencies = [
  "walkdir",
  "winapi",
  "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-adapters"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "proptest",
+ "quick-xml 0.37.5",
+ "racing-wheel-telemetry-contracts",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "winapi",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-bdd-metrics"
+version = "0.1.0"
+
+[[package]]
+name = "racing-wheel-telemetry-config-writers"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tracing",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-contracts"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-integration"
+version = "0.1.0"
+dependencies = [
+ "racing-wheel-telemetry-bdd-metrics",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-orchestrator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "racing-wheel-telemetry-adapters",
+ "racing-wheel-telemetry-bdd-metrics",
+ "racing-wheel-telemetry-config-writers",
+ "racing-wheel-telemetry-integration",
+ "racing-wheel-telemetry-rate-limiter",
+ "racing-wheel-telemetry-recorder",
+ "racing-wheel-telemetry-support",
+ "tracing",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-rate-limiter"
+version = "0.1.0"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-recorder"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "racing-wheel-telemetry-contracts",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-support"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_yaml_ng",
 ]
 
 [[package]]
@@ -8440,6 +8560,7 @@ dependencies = [
  "indicatif",
  "predicates",
  "racing-wheel-schemas",
+ "racing-wheel-telemetry-support",
  "rand 0.9.2",
  "serde",
  "serde_json",

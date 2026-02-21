@@ -11,6 +11,7 @@ name = "wheelctl"
 path = "src/main.rs"
 
 [dependencies]
+racing-wheel-telemetry-support = { path = "../telemetry-support" }
 racing-wheel-schemas = { path = "../schemas" }
 tokio = { workspace = true }
 tonic = { workspace = true }

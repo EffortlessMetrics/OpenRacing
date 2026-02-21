@@ -5,12 +5,13 @@
 
 #![deny(static_mut_refs)]
 
-use super::{DeviceWriter, FfbConfig, VendorProtocol, MozaInputState};
-use crate::input::{
-    KsAxisSource, KsByteSource, KsClutchMode, KsJoystickMode, KsReportMap, KsRotaryMode,
-    KsReportSnapshot, KS_ENCODER_COUNT,
-};
 use super::moza_direct::REPORT_LEN;
+use super::{DeviceWriter, FfbConfig, VendorProtocol};
+use crate::hid::MozaInputState;
+use crate::input::{
+    KS_ENCODER_COUNT, KsAxisSource, KsByteSource, KsClutchMode, KsJoystickMode, KsReportMap,
+    KsReportSnapshot, KsRotaryMode,
+};
 use std::sync::atomic::{AtomicU8, Ordering};
 use tracing::{debug, info, warn};
 
@@ -516,10 +517,6 @@ fn parse_axis(report: &[u8], start: usize) -> Option<u16> {
     Some(u16::from_le_bytes([report[start], report[start + 1]]))
 }
 
-fn parse_axis_or_zero(report: &[u8], start: usize) -> u16 {
-    parse_axis(report, start).unwrap_or(0)
-}
-
 /// Moza protocol handler
 pub struct MozaProtocol {
     product_id: u16,
@@ -741,7 +738,9 @@ impl MozaProtocol {
         let mut handbrake_u16 = None;
         let mut button_hint = None;
 
-        if report.len() >= hbp_report::WITH_REPORT_ID_BUTTON + 1 && report[0] != input_report::REPORT_ID {
+        if report.len() >= hbp_report::WITH_REPORT_ID_BUTTON + 1
+            && report[0] != input_report::REPORT_ID
+        {
             handbrake_u16 = parse_axis(report, hbp_report::WITH_REPORT_ID_AXIS_START);
             button_hint = Some(report[hbp_report::WITH_REPORT_ID_BUTTON]);
         } else if report.len() == 2 && report[0] != input_report::REPORT_ID {
@@ -897,7 +896,10 @@ impl VendorProtocol for MozaProtocol {
         if success {
             info!("Moza {:?} initialization complete", self.model);
         } else {
-            warn!("Moza {:?} initialization incomplete; device not ready for native output", self.model);
+            warn!(
+                "Moza {:?} initialization incomplete; device not ready for native output",
+                self.model
+            );
         }
         Ok(())
     }

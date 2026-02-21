@@ -36,9 +36,9 @@ pub mod diagnostic;
 pub mod engine;
 pub mod ffb;
 pub mod filters;
-pub mod input;
 pub mod hid;
 pub mod hil_tests;
+pub mod input;
 pub mod led_haptics;
 pub mod metrics;
 #[cfg(test)]
@@ -82,7 +82,9 @@ pub use test_harness::{
 pub use two_phase_apply::{ApplyOperationStats, ApplyResult, ApplyStats, TwoPhaseApplyCoordinator};
 
 // Re-export specific items to avoid conflicts
-pub use device::{DeviceEvent, DeviceInfo, DeviceInputs, TelemetryData, VirtualDevice, VirtualHidPort};
+pub use device::{
+    DeviceEvent, DeviceInfo, DeviceInputs, TelemetryData, VirtualDevice, VirtualHidPort,
+};
 pub use metrics::{
     AlertingThresholds, AppMetrics, AtomicCounters, HealthEvent, HealthEventStreamer,
     HealthEventType, HealthSeverity, MetricsCollector, MetricsValidator, PrometheusMetrics,

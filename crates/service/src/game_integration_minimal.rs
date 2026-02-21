@@ -9,66 +9,14 @@
 //! Requirements: GI-01, GI-03
 
 use anyhow::Result;
+use racing_wheel_telemetry_support::load_default_matrix;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use std::fs;
 use tracing::info;
 
-/// Game support matrix loaded from YAML
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct GameSupportMatrix {
-    pub games: HashMap<String, GameSupport>,
-}
-
-/// Support information for a specific game
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct GameSupport {
-    pub name: String,
-    pub versions: Vec<GameVersion>,
-    pub telemetry: TelemetrySupport,
-    pub config_writer: String,
-    pub auto_detect: AutoDetectConfig,
-}
-
-/// Version-specific game support
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct GameVersion {
-    pub version: String,
-    pub config_paths: Vec<String>,
-    pub executable_patterns: Vec<String>,
-    pub telemetry_method: String,
-    pub supported_fields: Vec<String>,
-}
-
-/// Telemetry support configuration
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TelemetrySupport {
-    pub method: String,
-    pub update_rate_hz: u32,
-    pub fields: TelemetryFieldMapping,
-}
-
-/// Mapping of normalized telemetry fields to game-specific fields
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TelemetryFieldMapping {
-    pub ffb_scalar: Option<String>,
-    pub rpm: Option<String>,
-    pub speed_ms: Option<String>,
-    pub slip_ratio: Option<String>,
-    pub gear: Option<String>,
-    pub flags: Option<String>,
-    pub car_id: Option<String>,
-    pub track_id: Option<String>,
-}
-
-/// Auto-detection configuration for games
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct AutoDetectConfig {
-    pub process_names: Vec<String>,
-    pub install_registry_keys: Vec<String>,
-    pub install_paths: Vec<String>,
-}
+pub use racing_wheel_telemetry_support::{GameSupport, GameSupportMatrix, TelemetryFieldMapping};
 
 /// Configuration to be applied to a game
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -271,9 +219,13 @@ impl GameIntegrationService {
     
     /// Load game support matrix from YAML file
     fn load_support_matrix() -> Result<GameSupportMatrix> {
-        let yaml_content = include_str!("../config/game_support_matrix.yaml");
-        let matrix: GameSupportMatrix = serde_yaml::from_str(yaml_content)?;
-        info!(games_count = matrix.games.len(), "Loaded game support matrix from YAML");
+        let matrix = load_default_matrix().map_err(|e| {
+            anyhow::anyhow!("Failed to load default telemetry support matrix: {}", e)
+        })?;
+        info!(
+            games_count = matrix.games.len(),
+            "Loaded telemetry support matrix from shared metadata"
+        );
         Ok(matrix)
     }
     
@@ -336,8 +288,10 @@ impl GameIntegrationService {
 mod tests {
     use super::*;
     use anyhow::{Result, anyhow};
+    use racing_wheel_telemetry_support::matrix_game_ids;
     use serde_json;
     use tempfile::TempDir;
+    use std::collections::HashSet;
 
     #[test]
     fn test_yaml_support_matrix_loading() -> Result<()> {
@@ -345,9 +299,9 @@ mod tests {
 
         // Test that YAML was loaded correctly
         let supported_games = service.get_supported_games();
-        assert!(supported_games.contains(&"iracing".to_string()));
-        assert!(supported_games.contains(&"acc".to_string()));
-        assert_eq!(supported_games.len(), 2);
+        let expected: HashSet<String> = matrix_game_ids()?.into_iter().collect();
+        let actual: HashSet<String> = supported_games.into_iter().collect();
+        assert_eq!(actual, expected);
         Ok(())
     }
 
