@@ -10,3 +10,11 @@ lint:
   except:
     - PACKAGE_DIRECTORY_MATCH
     - PACKAGE_VERSION_SUFFIX
+    # Pre-existing: proto was designed with shared/reused message types
+    # rather than following the strict Request/Response naming convention.
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+    - RPC_REQUEST_RESPONSE_UNIQUE
+    # Pre-existing: enum zero values use _UNKNOWN; migrating to _UNSPECIFIED
+    # is a breaking API change deferred to a future release.
+    - ENUM_ZERO_VALUE_SUFFIX

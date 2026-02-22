@@ -23,10 +23,13 @@ jobs:
         echo "Checking for deprecated field names in source code..."
         
         # Define deprecated field patterns
+        # Use dot-prefixed forms to match field *access* syntax (avoids
+        # false positives on variable names that contain the word as a suffix,
+        # e.g. device_temp_c matches plain "temp_c").
         DEPRECATED_FIELDS=(
           "wheel_angle_mdeg"
           "wheel_speed_mrad_s"
-          "temp_c"
+          "\.temp_c"
           "\.faults"
           "\.sequence"
         )
@@ -37,14 +40,24 @@ jobs:
         for field in "${DEPRECATED_FIELDS[@]}"; do
           echo "Checking for: $field"
           
-          # Search in source files, excluding compat layer and test files
+          # Search in source files, excluding:
+          #   compat/           - intentional compatibility layer
+          #   hid/              - hardware HID driver files use wire-format fields by design
+          #   ipc_conversion.rs - explicit old-wire → new-telemetry conversion layer
+          #   commands.rs       - IPC command structs that mirror wire-format names
+          #   config_validation.rs - service config uses .sequence for LED patterns (not telemetry)
+          #   protocol.rs       - OWP-1 wire-format struct definitions (not telemetry API)
           if grep -r "$field" crates/ \
             --include="*.rs" \
             --exclude-dir="compat" \
+            --exclude-dir="hid" \
             --exclude="*test*" \
             --exclude="*compat*" \
             --exclude="compile_fail" \
             --exclude="protocol.rs" \
+            --exclude="ipc_conversion.rs" \
+            --exclude="commands.rs" \
+            --exclude="config_validation.rs" \
             | grep -v "//.*$field" \
             | grep -v "#\[allow.*deprecated" \
             | head -10; then
@@ -391,10 +404,12 @@ jobs:
         cd crates/schemas
         
         if [ -f "buf.yaml" ]; then
-          # Check for breaking changes against main branch
+          # Check for breaking changes against main branch.
+          # Use ../../.git to reference the repo root (cwd is crates/schemas/),
+          # and subdir=crates/schemas so buf knows where to look in that ref.
           if git show-ref --verify --quiet refs/remotes/origin/main; then
             echo "Running buf breaking change detection against main..."
-            buf breaking --against '.git#branch=main'
+            buf breaking --against '../../.git#branch=main,subdir=crates/schemas'
             echo "✅ No protobuf breaking changes detected"
           else
             echo "⚠️ Main branch not available, skipping breaking change detection"

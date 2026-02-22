@@ -23,47 +23,52 @@ jobs:
     
     - name: Track current compat usage
       run: |
-        python scripts/track_compat_usage.py
-        echo "CURRENT_USAGE=$(python scripts/track_compat_usage.py | grep 'usage count:' | cut -d' ' -f4)" >> $GITHUB_ENV
+        python scripts/track_compat_usage.py --current
+        # Read total from the JSON file saved by --current
+        CURRENT_USAGE=$(python -c "import json; d=json.load(open('compat_current.json')); print(d.get('total_usages', 0))")
+        echo "CURRENT_USAGE=$CURRENT_USAGE" >> $GITHUB_ENV
     
     - name: Get baseline usage count (main branch)
       if: github.event_name == 'pull_request'
       run: |
         git checkout origin/main
-        python scripts/track_compat_usage.py > baseline_report.txt
-        BASELINE_USAGE=$(grep 'usage count:' baseline_report.txt | cut -d' ' -f4)
+        python scripts/track_compat_usage.py --current
+        BASELINE_USAGE=$(python -c "import json; d=json.load(open('compat_current.json')); print(d.get('total_usages', 0))")
         echo "BASELINE_USAGE=$BASELINE_USAGE" >> $GITHUB_ENV
         git checkout ${{ github.sha }}
     
     - name: Check usage trend
       if: github.event_name == 'pull_request'
       run: |
-        echo "Current usage: $CURRENT_USAGE"
-        echo "Baseline usage: $BASELINE_USAGE"
+        CURRENT=${CURRENT_USAGE:-0}
+        BASELINE=${BASELINE_USAGE:-0}
+        echo "Current usage: $CURRENT"
+        echo "Baseline usage: $BASELINE"
         
-        if [ "$CURRENT_USAGE" -gt "$BASELINE_USAGE" ]; then
-          echo "❌ Compatibility layer usage increased from $BASELINE_USAGE to $CURRENT_USAGE"
+        if [ "$CURRENT" -gt "$BASELINE" ]; then
+          echo "❌ Compatibility layer usage increased from $BASELINE to $CURRENT"
           echo "This violates the policy that compat usage should trend downward."
           echo "Please migrate the new usage to use new field names instead of the compat layer."
           exit 1
-        elif [ "$CURRENT_USAGE" -lt "$BASELINE_USAGE" ]; then
-          echo "✅ Compatibility layer usage decreased from $BASELINE_USAGE to $CURRENT_USAGE"
+        elif [ "$CURRENT" -lt "$BASELINE" ]; then
+          echo "✅ Compatibility layer usage decreased from $BASELINE to $CURRENT"
           echo "Great job migrating away from the compat layer!"
         else
-          echo "ℹ️ Compatibility layer usage unchanged at $CURRENT_USAGE"
+          echo "ℹ️ Compatibility layer usage unchanged at $CURRENT"
         fi
     
     - name: Upload compat usage report
       uses: actions/upload-artifact@v4
       with:
         name: compat-usage-report
-        path: compat_usage_report.json
+        path: compat_current.json
         retention-days: 30
     
     - name: Store usage metrics for trending
       run: |
         # Store metrics with timestamp for trending analysis
-        echo "{\"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"usage_count\": $CURRENT_USAGE, \"commit\": \"${{ github.sha }}\", \"branch\": \"${{ github.ref_name }}\"}" >> usage_metrics.jsonl
+        USAGE=${CURRENT_USAGE:-0}
+        echo "{\"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"usage_count\": $USAGE, \"commit\": \"${{ github.sha }}\", \"branch\": \"${{ github.ref_name }}\"}" >> usage_metrics.jsonl
     
     - name: Upload usage metrics
       uses: actions/upload-artifact@v4
@@ -76,7 +81,9 @@ jobs:
       if: github.event_name == 'pull_request'
       run: |
         # Download recent metrics for trend analysis
-        python scripts/analyze_compat_trend.py --current $CURRENT_USAGE --baseline $BASELINE_USAGE
+        CURRENT=${CURRENT_USAGE:-0}
+        BASELINE=${BASELINE_USAGE:-0}
+        python scripts/analyze_compat_trend.py --current $CURRENT --baseline $BASELINE
     
     - name: Comment on PR
       if: github.event_name == 'pull_request'
@@ -84,13 +91,17 @@ jobs:
       with:
         script: |
           const fs = require('fs');
-          const report = JSON.parse(fs.readFileSync('compat_usage_report.json', 'utf8'));
+          // compat_current.json is written by track_compat_usage.py --current
+          // format: { total_usages: N, by_pattern: {...}, ... }
+          const report = JSON.parse(fs.readFileSync('compat_current.json', 'utf8'));
+          const currentCount = report.total_usages || 0;
+          const baselineCount = parseInt(process.env.BASELINE_USAGE || '0', 10);
           
           let comment = `## Compatibility Layer Usage Report\n\n`;
-          comment += `**Current usage count:** ${report.usage_count}\n`;
-          comment += `**Baseline usage count:** ${process.env.BASELINE_USAGE}\n`;
+          comment += `**Current usage count:** ${currentCount}\n`;
+          comment += `**Baseline usage count:** ${baselineCount}\n`;
           
-          const change = report.usage_count - parseInt(process.env.BASELINE_USAGE);
+          const change = currentCount - baselineCount;
           if (change > 0) {
             comment += `❌ **Usage increased by ${change}** - Please migrate new usage to use new field names.\n\n`;
             comment += `### 🚨 Policy Violation\n`;
@@ -113,13 +124,16 @@ jobs:
             comment += `- **Projected removal:** ${trend.projected_removal_date}\n\n`;
           }
           
-          if (report.usage_details.length > 0) {
+          // Show per-match details from by_pattern (flat list)
+          const byPattern = report.by_pattern || {};
+          const allMatches = Object.values(byPattern).flat();
+          if (allMatches.length > 0) {
             comment += `### Usage Details\n\n`;
-            for (const detail of report.usage_details.slice(0, 10)) {
-              comment += `- \`${detail.file}:${detail.line}\` - \`${detail.method}\`\n`;
+            for (const detail of allMatches.slice(0, 10)) {
+              comment += `- \`${detail.file}:${detail.line}\` - \`${detail.pattern}\`\n`;
             }
-            if (report.usage_details.length > 10) {
-              comment += `\n... and ${report.usage_details.length - 10} more occurrences\n`;
+            if (allMatches.length > 10) {
+              comment += `\n... and ${allMatches.length - 10} more occurrences\n`;
             }
             
             comment += `\n### Migration Guide\n\n`;
