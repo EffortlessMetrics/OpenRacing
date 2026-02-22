@@ -219,12 +219,12 @@ fn torque_value_strategy() -> impl Strategy<Value = f32> {
         .prop_map(|v| v.clamp(-25.0, 25.0))
 }
 
-/// Strategy for generating arbitrary sequence numbers.
+/// Strategy for generating arbitrary frame counter values (for FFB write ordering).
 fn sequence_number_strategy() -> impl Strategy<Value = u16> {
     any::<u16>()
 }
 
-/// Strategy for generating FFB report data (torque value and sequence number).
+/// Strategy for generating FFB report data (torque value and frame counter).
 fn ffb_report_strategy() -> impl Strategy<Value = (f32, u16)> {
     (torque_value_strategy(), sequence_number_strategy())
 }
@@ -339,7 +339,7 @@ proptest! {
 
     /// Property: Multiple consecutive writes complete within timing requirements.
     ///
-    /// For any sequence of FFB report writes, each individual write SHALL complete
+    /// For any batch of FFB report writes, each individual write SHALL complete
     /// within the 200μs latency requirement.
     ///
     /// **Validates: Requirements 4.3, 4.4, 4.7**
@@ -416,7 +416,7 @@ proptest! {
 
         let max_latency = Duration::from_micros(MAX_WRITE_LATENCY_US * 10);
 
-        // Test with the given torque value and a fixed sequence number
+        // Test with the given torque value and a fixed frame counter
         let command = TorqueCommand::new(torque, 0, true, false);
         let data = command.as_bytes();
 
@@ -432,9 +432,9 @@ proptest! {
         );
     }
 
-    /// Property: Write timing is consistent across sequence number wraparound.
+    /// Property: Write timing is consistent across frame counter wraparound.
     ///
-    /// For any sequence number (including boundary values 0, u16::MAX), the write
+    /// For any frame counter (including boundary values 0, u16::MAX), the write
     /// latency SHALL be consistent and within the 200μs requirement.
     ///
     /// **Validates: Requirements 4.3, 4.4**
@@ -453,7 +453,7 @@ proptest! {
 
         let max_latency = Duration::from_micros(MAX_WRITE_LATENCY_US * 10);
 
-        // Test with a fixed torque value and the given sequence number
+        // Test with a fixed torque value and the given frame counter
         let command = TorqueCommand::new(5.0, seq, true, false);
         let data = command.as_bytes();
 
@@ -461,10 +461,10 @@ proptest! {
         let _ = device.write_overlapped(data);
         let elapsed = start.elapsed();
 
-        // Property: Write latency should not depend on sequence number
+        // Property: Write latency should not depend on frame counter
         prop_assert!(
             elapsed < max_latency,
-            "Write with sequence {} took {:?}, exceeding maximum allowed latency of {:?}",
+            "Write with frame counter {} took {:?}, exceeding maximum allowed latency of {:?}",
             seq, elapsed, max_latency
         );
     }
@@ -673,7 +673,7 @@ mod unit_tests {
         Ok(())
     }
 
-    /// Test that write with sequence number at boundary (0) completes within timing requirements.
+    /// Test that write with frame counter at boundary (0) completes within timing requirements.
     #[test]
     fn test_write_sequence_zero_timing() -> TestResult {
         let mut device = create_test_device()?;
@@ -694,7 +694,7 @@ mod unit_tests {
         Ok(())
     }
 
-    /// Test that write with sequence number at boundary (u16::MAX) completes within timing requirements.
+    /// Test that write with frame counter at boundary (u16::MAX) completes within timing requirements.
     #[test]
     fn test_write_sequence_max_timing() -> TestResult {
         let mut device = create_test_device()?;

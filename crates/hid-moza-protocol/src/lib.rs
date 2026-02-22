@@ -17,12 +17,20 @@ pub mod types;
 pub mod writer;
 
 // Flat re-exports so callers can use `racing_wheel_hid_moza_protocol::Foo`.
-pub use direct::*;
-pub use ids::*;
-pub use protocol::*;
-pub use report::*;
-pub use rt_types::*;
-pub use signature::*;
-pub use standalone::*;
-pub use types::*;
-pub use writer::*;
+pub use direct::{MozaDirectTorqueEncoder, REPORT_LEN};
+pub use ids::{MOZA_VENDOR_ID, product_ids, rim_ids};
+pub use protocol::{
+    DEFAULT_MAX_RETRIES, FfbMode, MozaInitState, MozaProtocol, MozaRetryPolicy,
+    default_ffb_mode, default_high_torque_enabled, effective_ffb_mode,
+    effective_high_torque_opt_in, signature_is_trusted,
+};
+pub use report::{RawWheelbaseReport, parse_axis, report_ids, input_report, hbp_report};
+pub use rt_types::{TorqueEncoder, TorqueQ8_8};
+pub use signature::{DeviceSignature, SignatureVerdict, verify_signature};
+pub use standalone::{StandaloneAxes, StandaloneParseResult, parse_hbp_report, parse_srp_report};
+pub use types::{
+    ES_BUTTON_COUNT, ES_LED_COUNT, MozaDeviceCategory, MozaDeviceIdentity, MozaEsCompatibility,
+    MozaEsJoystickMode, MozaHatDirection, MozaInputState, MozaModel, MozaPedalAxes,
+    MozaPedalAxesRaw, MozaTopologyHint, es_compatibility, identify_device, is_wheelbase_product,
+};
+pub use writer::{DeviceWriter, FfbConfig, VendorProtocol};
