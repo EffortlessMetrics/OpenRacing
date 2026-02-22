@@ -40,6 +40,7 @@ pub struct ProfileService {
 
 impl ProfileService {
     /// Create a new profile service
+    #[allow(clippy::expect_used)]
     pub fn new(repo: Arc<dyn ProfileRepo>) -> Self {
         Self {
             repo,

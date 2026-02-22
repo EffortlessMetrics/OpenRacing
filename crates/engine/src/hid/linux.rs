@@ -212,10 +212,8 @@ fn try_read_linux_interface_number(hid_path: &Path) -> Option<i32> {
         if !s.contains(':') {
             continue;
         }
-        if let Some(dot_idx) = s.rfind('.') {
-            if let Ok(v) = s[dot_idx + 1..].parse::<i32>() {
-                return Some(v);
-            }
+        if let Some(v) = s.rfind('.').and_then(|di| s[di + 1..].parse::<i32>().ok()) {
+            return Some(v);
         }
     }
     None
@@ -339,6 +337,7 @@ fn build_capabilities_from_identity(
 pub struct LinuxHidPort {
     devices: Arc<RwLock<HashMap<DeviceId, HidDeviceInfo>>>,
     monitoring: Arc<AtomicBool>,
+    #[allow(dead_code)]
     event_sender: Option<mpsc::UnboundedSender<DeviceEvent>>,
 }
 
@@ -412,34 +411,31 @@ impl LinuxHidPort {
         if let Ok(entries) = std::fs::read_dir(hidraw_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if let Some(filename) = path.file_name() {
-                    if let Some(filename_str) = filename.to_str() {
-                        if filename_str.starts_with("hidraw") {
-                            if let Ok((device_info, descriptor)) = self.probe_hidraw_device(&path) {
-                                // Check if this is a racing wheel
-                                let is_supported_by_id =
-                                    racing_wheel_ids.iter().any(|(vid, pid)| {
-                                        device_info.vendor_id == *vid
-                                            && device_info.product_id == *pid
-                                    });
+                let Some(filename_str) =
+                    path.file_name().and_then(|f| f.to_str()).map(str::to_owned)
+                else {
+                    continue;
+                };
+                if !filename_str.starts_with("hidraw") {
+                    continue;
+                }
+                if let Ok((device_info, descriptor)) = self.probe_hidraw_device(&path) {
+                    // Check if this is a racing wheel
+                    let is_supported_by_id = racing_wheel_ids.iter().any(|(vid, pid)| {
+                        device_info.vendor_id == *vid && device_info.product_id == *pid
+                    });
 
-                                // Alpha EVO-generation devices should be discoverable even when
-                                // PID mapping is incomplete; descriptor capture confirms details.
-                                let is_simagic_evo = device_info.vendor_id == 0x3670;
-                                let is_supported_by_descriptor = is_supported_by_descriptor(
-                                    device_info.vendor_id,
-                                    device_info.product_id,
-                                    &descriptor,
-                                );
+                    // Alpha EVO-generation devices should be discoverable even when
+                    // PID mapping is incomplete; descriptor capture confirms details.
+                    let is_simagic_evo = device_info.vendor_id == 0x3670;
+                    let is_supported_by_descriptor = is_supported_by_descriptor(
+                        device_info.vendor_id,
+                        device_info.product_id,
+                        &descriptor,
+                    );
 
-                                if is_supported_by_id
-                                    || is_simagic_evo
-                                    || is_supported_by_descriptor
-                                {
-                                    devices.push(device_info);
-                                }
-                            }
-                        }
+                    if is_supported_by_id || is_simagic_evo || is_supported_by_descriptor {
+                        devices.push(device_info);
                     }
                 }
             }

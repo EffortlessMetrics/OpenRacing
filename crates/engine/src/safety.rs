@@ -178,6 +178,7 @@ impl SafetyService {
     }
 
     /// Get the current maximum allowed torque as TorqueNm
+    #[allow(clippy::expect_used)]
     pub fn get_max_torque(&self, is_high_torque_enabled: bool) -> TorqueNm {
         let torque_nm = match &self.state {
             SafetyState::Faulted { .. } => 0.0,

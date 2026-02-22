@@ -216,6 +216,7 @@ impl DeviceCapabilitiesReport {
         unsafe { Some(std::ptr::read_unaligned(data.as_ptr() as *const Self)) }
     }
 
+    #[allow(clippy::expect_used)]
     pub fn to_device_capabilities(&self) -> DeviceCapabilities {
         // Convert cNm to Nm, clamping to valid range
         let nm = (self.max_torque_cnm as f32) / 100.0;

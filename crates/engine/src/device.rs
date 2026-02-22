@@ -83,6 +83,7 @@ struct VirtualDeviceState {
 
 impl VirtualDevice {
     /// Create a new virtual device
+    #[allow(clippy::expect_used)]
     pub fn new(id: DeviceId, name: String) -> Self {
         let capabilities = DeviceCapabilities::new(
             false, // supports_pid

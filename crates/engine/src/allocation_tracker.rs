@@ -192,6 +192,7 @@ pub struct AllocationReport {
 }
 
 impl AllocationReport {
+    #[allow(clippy::panic)]
     pub fn assert_zero_alloc(&self) {
         if self.allocations > 0 {
             panic!(

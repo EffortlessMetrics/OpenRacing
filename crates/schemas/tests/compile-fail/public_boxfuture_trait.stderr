@@ -6,11 +6,6 @@ error[E0107]: enum takes 2 generic arguments but 1 generic argument was supplied
   |                         |
   |                         expected 2 generic arguments
   |
-note: enum defined here, with 2 generic parameters: `T`, `E`
- --> $RUST/core/src/result.rs
-  |
-  | pub enum Result<T, E> {
-  |          ^^^^^^ -  -
 help: add missing generic argument
   |
 5 |     fn method(&self) -> Result<String, E, >; // Missing error type
