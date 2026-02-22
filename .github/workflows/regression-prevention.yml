@@ -296,7 +296,10 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config
+        sudo apt-get install -y \
+          libudev-dev pkg-config \
+          libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+          librsvg2-dev patchelf libxdo-dev
     
     - name: Install cargo-udeps
       run: cargo install cargo-udeps --locked
