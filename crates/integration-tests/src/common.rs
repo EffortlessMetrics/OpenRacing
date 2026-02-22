@@ -1,5 +1,6 @@
 //! Common utilities for integration tests
 
+#![allow(clippy::panic, clippy::expect_used)]
 use anyhow::Result;
 use std::sync::Arc;
 use std::time::{Duration, Instant};

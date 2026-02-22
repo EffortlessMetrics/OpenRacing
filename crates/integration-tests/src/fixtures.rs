@@ -1,5 +1,6 @@
 //! Test fixtures and data for integration tests
 
+#![allow(clippy::panic)]
 use racing_wheel_schemas::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
