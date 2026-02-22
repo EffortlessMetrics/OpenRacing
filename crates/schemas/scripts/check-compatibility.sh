@@ -25,7 +25,8 @@ buf lint
 # Check for breaking changes against main branch
 if git rev-parse --verify origin/main >/dev/null 2>&1; then
     echo "Checking for breaking changes against origin/main..."
-    buf breaking --against '.git#branch=origin/main,subdir=crates/schemas'
+    # Use ../../.git because this script runs from crates/schemas/ (not repo root)
+    buf breaking --against '../../.git#branch=origin/main,subdir=crates/schemas'
 else
     echo "Warning: origin/main not found, skipping breaking change detection"
 fi
