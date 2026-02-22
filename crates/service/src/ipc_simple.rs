@@ -4,9 +4,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+#[cfg(unix)]
+use anyhow::Context;
+use anyhow::Result;
 use tokio::sync::{Mutex, RwLock, broadcast};
-use tracing::{debug, error, info, warn};
+#[cfg(unix)]
+use tracing::error;
+use tracing::{debug, info, warn};
 
 use crate::WheelService;
 

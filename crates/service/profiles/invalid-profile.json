@@ -44,9 +44,14 @@
     "pattern": "progressive",
     "brightness": 0.8,
     "colors": {
-      "yellow": [
+      "green": [
+        0,
         255,
+        0
+      ],
+      "red": [
         255,
+        0,
         0
       ],
       "blue": [
@@ -54,13 +59,8 @@
         0,
         255
       ],
-      "red": [
+      "yellow": [
         255,
-        0,
-        0
-      ],
-      "green": [
-        0,
         255,
         0
       ]
