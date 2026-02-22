@@ -41,23 +41,34 @@ jobs:
           echo "Checking for: $field"
           
           # Search in source files, excluding:
-          #   compat/           - intentional compatibility layer
-          #   hid/              - hardware HID driver files use wire-format fields by design
-          #   ipc_conversion.rs - explicit old-wire → new-telemetry conversion layer
-          #   commands.rs       - IPC command structs that mirror wire-format names
+          #   compat/            - intentional compatibility layer
+          #   hid/               - hardware HID driver files use wire-format fields by design
+          #   tests/             - test files intentionally reference deprecated names
+          #   compile_fail/      - trybuild compile-fail tests (same reason)
+          #   compile-fail/      - alternate spelling used in schemas crate
+          #   ipc_conversion.rs  - explicit old-wire → new-telemetry conversion layer
+          #   ipc.rs             - service IPC layer maps old proto field names to new telemetry
+          #   ipc_service.rs     - same
+          #   commands.rs        - IPC command structs that mirror wire-format names
           #   config_validation.rs - service config uses .sequence for LED patterns (not telemetry)
-          #   protocol.rs       - OWP-1 wire-format struct definitions (not telemetry API)
+          #   protocol.rs        - OWP-1 wire-format struct definitions (not telemetry API)
+          #   service_example.rs - example code that explicitly documents old API (intentional)
           if grep -r "$field" crates/ \
             --include="*.rs" \
             --exclude-dir="compat" \
             --exclude-dir="hid" \
+            --exclude-dir="tests" \
+            --exclude-dir="compile_fail" \
+            --exclude-dir="compile-fail" \
             --exclude="*test*" \
             --exclude="*compat*" \
-            --exclude="compile_fail" \
             --exclude="protocol.rs" \
             --exclude="ipc_conversion.rs" \
+            --exclude="ipc.rs" \
+            --exclude="ipc_service.rs" \
             --exclude="commands.rs" \
             --exclude="config_validation.rs" \
+            --exclude="service_example.rs" \
             | grep -v "//.*$field" \
             | grep -v "#\[allow.*deprecated" \
             | head -10; then
@@ -409,7 +420,7 @@ jobs:
           # and subdir=crates/schemas so buf knows where to look in that ref.
           if git show-ref --verify --quiet refs/remotes/origin/main; then
             echo "Running buf breaking change detection against main..."
-            buf breaking --against '../../.git#branch=main,subdir=crates/schemas'
+            buf breaking --against '../../.git#branch=origin/main,subdir=crates/schemas'
             echo "✅ No protobuf breaking changes detected"
           else
             echo "⚠️ Main branch not available, skipping breaking change detection"

@@ -21,6 +21,9 @@ jobs:
       with:
         python-version: '3.11'
     
+    - name: Install ripgrep
+      run: sudo apt-get install -y ripgrep
+    
     - name: Track current compat usage
       run: |
         python scripts/track_compat_usage.py --current

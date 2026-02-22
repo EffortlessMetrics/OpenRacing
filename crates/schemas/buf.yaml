@@ -6,7 +6,7 @@ breaking:
     - FILE
 lint:
   use:
-    - DEFAULT
+    - STANDARD
   except:
     - PACKAGE_DIRECTORY_MATCH
     - PACKAGE_VERSION_SUFFIX
@@ -18,3 +18,6 @@ lint:
     # Pre-existing: enum zero values use _UNKNOWN; migrating to _UNSPECIFIED
     # is a breaking API change deferred to a future release.
     - ENUM_ZERO_VALUE_SUFFIX
+    # Pre-existing: service names use short identifiers (PluginRegistry etc.)
+    # rather than the suffixed pattern. Renaming is a breaking proto change.
+    - SERVICE_SUFFIX
