@@ -1,0 +1,17 @@
+# cargo-mutants configuration
+#
+# Scoped to the Moza protocol microcrates for focused, fast mutation testing.
+# Run with: cargo mutants -p racing-wheel-hid-moza-protocol -p racing-wheel-ks -p racing-wheel-input-maps
+
+[packages]
+include = [
+    "racing-wheel-hid-moza-protocol",
+    "racing-wheel-ks",
+    "racing-wheel-input-maps",
+]
+
+# Skip trivial and auto-generated code
+exclude_globs = [
+    "**/target/**",
+    "**/build.rs",
+]

@@ -13,6 +13,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 racing-wheel-telemetry-adapters = { path = "../crates/telemetry-adapters" }
 racing-wheel-telemetry-contracts = { path = "../crates/telemetry-contracts" }
+racing-wheel-hid-moza-protocol = { path = "../crates/hid-moza-protocol" }
 
 # Fuzzing requires nightly and release-like optimizations.
 [[bin]]
@@ -36,6 +37,30 @@ doc = false
 [[bin]]
 name = "fuzz_f1_25_normalize"
 path = "fuzz_targets/fuzz_f1_25_normalize.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_moza_wheelbase_report"
+path = "fuzz_targets/fuzz_moza_wheelbase_report.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_moza_hbp_report"
+path = "fuzz_targets/fuzz_moza_hbp_report.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_moza_handshake_frames"
+path = "fuzz_targets/fuzz_moza_handshake_frames.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_moza_direct_torque_encode"
+path = "fuzz_targets/fuzz_moza_direct_torque_encode.rs"
 test = false
 doc = false
 
