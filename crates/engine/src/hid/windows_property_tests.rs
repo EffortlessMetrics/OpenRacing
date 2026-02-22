@@ -6,9 +6,6 @@
 //!
 //! **Validates: Requirements 4.1, 4.3, 4.4, 4.7**
 
-#![cfg(test)]
-#![cfg(windows)]
-
 use super::windows::{SupportedDevices, vendor_ids};
 use super::{HidDeviceInfo, TorqueCommand};
 use proptest::prelude::*;
@@ -260,6 +257,11 @@ fn create_test_device() -> Result<super::windows::WindowsHidDevice, Box<dyn std:
         manufacturer: Some("Test Manufacturer".to_string()),
         product_name: Some("Test Racing Wheel".to_string()),
         path: "test-timing-path".to_string(),
+        interface_number: None,
+        usage_page: None,
+        usage: None,
+        report_descriptor_len: None,
+        report_descriptor_crc32: None,
         capabilities,
     };
 

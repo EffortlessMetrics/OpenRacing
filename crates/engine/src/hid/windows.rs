@@ -623,6 +623,11 @@ fn enumerate_hid_devices(
             manufacturer,
             product_name,
             path,
+            interface_number: Some(device_info.interface_number()),
+            usage_page: Some(device_info.usage_page()),
+            usage: Some(device_info.usage()),
+            report_descriptor_len: None,
+            report_descriptor_crc32: None,
             capabilities,
         };
 
@@ -853,6 +858,11 @@ impl WindowsHidPort {
                     manufacturer,
                     product_name,
                     path,
+                    interface_number: Some(device_info.interface_number()),
+                    usage_page: Some(device_info.usage_page()),
+                    usage: Some(device_info.usage()),
+                    report_descriptor_len: None,
+                    report_descriptor_crc32: None,
                     capabilities,
                 };
 
@@ -1841,10 +1851,10 @@ impl WindowsHidDevice {
                         return Some(report.to_telemetry_data());
                     }
 
-                    if let Some(protocol) = self.moza_protocol.as_ref() {
-                        if let Some(state) = protocol.parse_input_state(data) {
-                            self.publish_moza_input_state(state);
-                        }
+                    if let Some(protocol) = self.moza_protocol.as_ref()
+                        && let Some(state) = protocol.parse_input_state(data)
+                    {
+                        self.publish_moza_input_state(state);
                     }
 
                     return None;
@@ -2112,6 +2122,11 @@ mod tests {
             manufacturer: Some("Test Manufacturer".to_string()),
             product_name: Some("Test Racing Wheel".to_string()),
             path: "test-path".to_string(),
+            interface_number: None,
+            usage_page: None,
+            usage: None,
+            report_descriptor_len: None,
+            report_descriptor_crc32: None,
             capabilities,
         };
 
@@ -2143,6 +2158,11 @@ mod tests {
             manufacturer: Some("Moza Racing".to_string()),
             product_name: Some("Moza R9".to_string()),
             path: "test-path".to_string(),
+            interface_number: None,
+            usage_page: None,
+            usage: None,
+            report_descriptor_len: None,
+            report_descriptor_crc32: None,
             capabilities,
         };
 
@@ -2172,6 +2192,11 @@ mod tests {
             manufacturer: Some("Test Manufacturer".to_string()),
             product_name: Some("Test Racing Wheel".to_string()),
             path: "test-path".to_string(),
+            interface_number: None,
+            usage_page: None,
+            usage: None,
+            report_descriptor_len: None,
+            report_descriptor_crc32: None,
             capabilities,
         };
 
@@ -2202,6 +2227,11 @@ mod tests {
             manufacturer: Some("Moza Racing".to_string()),
             product_name: Some("Moza R5".to_string()),
             path: "test-path".to_string(),
+            interface_number: None,
+            usage_page: None,
+            usage: None,
+            report_descriptor_len: None,
+            report_descriptor_crc32: None,
             capabilities,
         };
 
@@ -2522,6 +2552,11 @@ mod tests {
             manufacturer: Some("Test Manufacturer".to_string()),
             product_name: Some("Test Racing Wheel".to_string()),
             path: "test-path".to_string(),
+            interface_number: None,
+            usage_page: None,
+            usage: None,
+            report_descriptor_len: None,
+            report_descriptor_crc32: None,
             capabilities,
         };
 
@@ -2562,6 +2597,11 @@ mod tests {
             manufacturer: Some("Test Manufacturer".to_string()),
             product_name: Some("Test Racing Wheel".to_string()),
             path: "test-path".to_string(),
+            interface_number: None,
+            usage_page: None,
+            usage: None,
+            report_descriptor_len: None,
+            report_descriptor_crc32: None,
             capabilities,
         };
 
@@ -2599,6 +2639,11 @@ mod tests {
             manufacturer: Some("Test Manufacturer".to_string()),
             product_name: Some("Test Racing Wheel".to_string()),
             path: "test-path".to_string(),
+            interface_number: None,
+            usage_page: None,
+            usage: None,
+            report_descriptor_len: None,
+            report_descriptor_crc32: None,
             capabilities,
         };
 
@@ -2639,6 +2684,11 @@ mod tests {
             manufacturer: Some("Test Manufacturer".to_string()),
             product_name: Some("Test Racing Wheel".to_string()),
             path: "test-path".to_string(),
+            interface_number: None,
+            usage_page: None,
+            usage: None,
+            report_descriptor_len: None,
+            report_descriptor_crc32: None,
             capabilities,
         };
 
@@ -2684,6 +2734,11 @@ mod tests {
             manufacturer: Some("Test Manufacturer".to_string()),
             product_name: Some("Test Racing Wheel".to_string()),
             path: "test-path".to_string(),
+            interface_number: None,
+            usage_page: None,
+            usage: None,
+            report_descriptor_len: None,
+            report_descriptor_crc32: None,
             capabilities,
         };
 
