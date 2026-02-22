@@ -11,12 +11,12 @@ use super::{
     DeviceTelemetryReport, HidDeviceInfo, MAX_TORQUE_REPORT_SIZE, MozaInputState, Seqlock,
     encode_torque_report_for_device, vendor,
 };
-use racing_wheel_hid_moza_protocol::VendorProtocol;
 use crate::ports::{DeviceHealthStatus, HidDevice, HidPort};
 use crate::{DeviceEvent, DeviceInfo, RTResult, TelemetryData};
 use async_trait::async_trait;
 use crc32fast::Hasher as Crc32Hasher;
 use parking_lot::RwLock;
+use racing_wheel_hid_moza_protocol::VendorProtocol;
 use racing_wheel_schemas::prelude::*;
 use std::collections::HashMap;
 use std::convert::TryFrom;
