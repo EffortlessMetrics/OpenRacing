@@ -390,6 +390,7 @@ pub mod config {
     }
 
     impl Default for ProfileValidator {
+        #[allow(clippy::panic)]
         fn default() -> Self {
             match Self::new() {
                 Ok(validator) => validator,
