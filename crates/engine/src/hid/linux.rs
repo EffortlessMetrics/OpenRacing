@@ -11,6 +11,7 @@ use super::{
     DeviceTelemetryReport, HidDeviceInfo, MAX_TORQUE_REPORT_SIZE, MozaInputState, Seqlock,
     encode_torque_report_for_device, vendor,
 };
+use racing_wheel_hid_moza_protocol::VendorProtocol;
 use crate::ports::{DeviceHealthStatus, HidDevice, HidPort};
 use crate::{DeviceEvent, DeviceInfo, RTResult, TelemetryData};
 use async_trait::async_trait;
@@ -455,7 +456,7 @@ impl LinuxHidPort {
                     supports_raw_torque_1khz: true,
                     supports_health_stream: true,
                     supports_led_bus: false,
-                    max_torque: must(TorqueNm::new(25.0)),
+                    max_torque: TorqueNm::new(25.0).unwrap_or(TorqueNm::ZERO),
                     encoder_cpr: 4096,
                     min_report_period_us: 1000, // 1kHz
                 };
@@ -813,6 +814,9 @@ impl LinuxHidDevice {
 
         Self::initialize_vendor_protocol(&device_info, &write_file, moza_raw_transport_enabled);
 
+        let moza_protocol = (device_info.vendor_id == 0x346E)
+            .then_some(vendor::moza::MozaProtocol::new(device_info.product_id));
+
         Ok(Self {
             device_info,
             connected: AtomicBool::new(true),
@@ -824,8 +828,7 @@ impl LinuxHidDevice {
             fault_flags: AtomicU8::new(0),
             hands_on: AtomicBool::new(false),
             moza_raw_transport_enabled,
-            moza_protocol: (device_info.vendor_id == 0x346E)
-                .then_some(vendor::moza::MozaProtocol::new(device_info.product_id)),
+            moza_protocol,
             has_moza_input: AtomicBool::new(false),
             moza_input_seq: AtomicU32::new(0),
             moza_input_state: Seqlock::new(MozaInputState::empty(0)),
@@ -1123,7 +1126,7 @@ impl HidDevice for LinuxHidDevice {
 
     fn read_inputs(&self) -> Option<crate::DeviceInputs> {
         self.moza_input_state()
-            .map(crate::DeviceInputs::from_moza_input_state)
+            .map(|s| crate::DeviceInputs::from_moza_input_state(&s))
     }
 }
 
