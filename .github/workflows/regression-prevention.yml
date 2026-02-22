@@ -46,6 +46,7 @@ jobs:
           #   tests/             - test files intentionally reference deprecated names
           #   compile_fail/      - trybuild compile-fail tests (same reason)
           #   compile-fail/      - alternate spelling used in schemas crate
+          #   generated/         - auto-generated protobuf Rust files (must contain old field defs)
           #   ipc_conversion.rs  - explicit old-wire → new-telemetry conversion layer
           #   ipc.rs             - service IPC layer maps old proto field names to new telemetry
           #   ipc_service.rs     - same
@@ -60,6 +61,7 @@ jobs:
             --exclude-dir="tests" \
             --exclude-dir="compile_fail" \
             --exclude-dir="compile-fail" \
+            --exclude-dir="generated" \
             --exclude="*test*" \
             --exclude="*compat*" \
             --exclude="protocol.rs" \
@@ -423,7 +425,7 @@ jobs:
           # and subdir=crates/schemas so buf knows where to look in that ref.
           if git show-ref --verify --quiet refs/remotes/origin/main; then
             echo "Running buf breaking change detection against main..."
-            buf breaking --against '../../.git#branch=origin/main,subdir=crates/schemas'
+            buf breaking --against '../../.git#branch=origin/main,subdir=crates/schemas' --against-config buf.yaml
             echo "✅ No protobuf breaking changes detected"
           else
             echo "⚠️ Main branch not available, skipping breaking change detection"
