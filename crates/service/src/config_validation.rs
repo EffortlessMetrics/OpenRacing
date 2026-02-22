@@ -892,6 +892,15 @@ impl Default for ConfigValidationService {
     }
 }
 
+fn components_suffix_match(expected: &[String], actual: &[String]) -> bool {
+    if expected.len() > actual.len() {
+        return false;
+    }
+
+    let start_index = actual.len().saturating_sub(expected.len());
+    actual[start_index..] == *expected
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1026,13 +1035,4 @@ mod tests {
 
         assert!(service.paths_match(expected, actual));
     }
-}
-
-fn components_suffix_match(expected: &[String], actual: &[String]) -> bool {
-    if expected.len() > actual.len() {
-        return false;
-    }
-
-    let start_index = actual.len().saturating_sub(expected.len());
-    actual[start_index..] == *expected
 }

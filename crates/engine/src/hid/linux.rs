@@ -1223,21 +1223,29 @@ mod tests {
     use super::*;
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
     fn with_moza_transport_mode<T, F>(mode: Option<&str>, test: F) -> T
     where
         F: FnOnce() -> T,
     {
         let previous = env::var(MOZA_TRANSPORT_MODE_ENV).ok();
+        #[allow(clippy::panic)]
         match mode {
-            Some(value) => env::set_var(MOZA_TRANSPORT_MODE_ENV, value),
-            None => env::remove_var(MOZA_TRANSPORT_MODE_ENV),
+            Some(value) => unsafe { env::set_var(MOZA_TRANSPORT_MODE_ENV, value) },
+            None => unsafe { env::remove_var(MOZA_TRANSPORT_MODE_ENV) },
         }
 
         let result = test();
 
         match previous {
-            Some(value) => env::set_var(MOZA_TRANSPORT_MODE_ENV, value),
-            None => env::remove_var(MOZA_TRANSPORT_MODE_ENV),
+            Some(value) => unsafe { env::set_var(MOZA_TRANSPORT_MODE_ENV, value) },
+            None => unsafe { env::remove_var(MOZA_TRANSPORT_MODE_ENV) },
         }
 
         result
