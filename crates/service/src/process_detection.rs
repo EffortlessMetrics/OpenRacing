@@ -174,18 +174,18 @@ impl ProcessDetectionService {
             if let Some(pid_str) = path.file_name().and_then(|n| n.to_str())
                 && let Ok(pid) = pid_str.parse::<u32>()
             {
-                    let comm_path = path.join("comm");
-                    if let Ok(process_name) = fs::read_to_string(comm_path) {
-                        let process_name = process_name.trim().to_string();
-                        let game_id = self.match_process_to_game(&process_name);
+                let comm_path = path.join("comm");
+                if let Ok(process_name) = fs::read_to_string(comm_path) {
+                    let process_name = process_name.trim().to_string();
+                    let game_id = self.match_process_to_game(&process_name);
 
-                        processes.push(ProcessInfo {
-                            pid,
-                            name: process_name,
-                            game_id,
-                            detected_at: Instant::now(),
-                        });
-                    }
+                    processes.push(ProcessInfo {
+                        pid,
+                        name: process_name,
+                        game_id,
+                        detected_at: Instant::now(),
+                    });
+                }
             }
         }
 
