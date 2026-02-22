@@ -20,6 +20,8 @@ fi
 
 # Lint the protobuf files
 echo "Running buf lint..."
+# Emit rule IDs in JSON for diagnostics, then show text output
+buf lint --error-format json 2>&1 | python3 -c "import sys,json; [print(f'{e[\"path\"]}:{e[\"start_line\"]}:{e[\"start_column\"]}:[{e.get(\"type\",\"?\")}] {e[\"message\"]}') for line in sys.stdin for e in [json.loads(line)] if line.strip()]" || true
 buf lint
 
 # Check for breaking changes against main branch
