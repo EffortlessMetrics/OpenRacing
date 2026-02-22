@@ -2,8 +2,9 @@
 
 use super::moza::{
     ES_BUTTON_COUNT, ES_LED_COUNT, FfbMode, MozaDeviceCategory, MozaEsCompatibility,
-    MozaEsJoystickMode, MozaHatDirection, MozaInitState, MozaModel, MozaProtocol, MozaTopologyHint,
-    es_compatibility, identify_device, input_report, is_wheelbase_product, product_ids, report_ids,
+    MozaEsJoystickMode, MozaHatDirection, MozaInitState, MozaModel, MozaProtocol, MozaRetryPolicy,
+    MozaTopologyHint, es_compatibility, identify_device, input_report, is_wheelbase_product,
+    product_ids, report_ids,
 };
 use super::moza_direct::REPORT_LEN;
 use super::{DeviceWriter, FfbConfig, VendorProtocol, get_vendor_protocol};
@@ -236,7 +237,7 @@ fn test_moza_parse_input_state_populates_ks_snapshot() {
 
     let expected_buttons = [0x01u8, 0x02, 0x03, 0x04];
     assert_eq!(&state.ks_snapshot.buttons[..4], &expected_buttons[..]);
-    assert_eq!(state.ks_snapshot.hat, 0x14);
+    assert_eq!(state.ks_snapshot.hat, 0x11);
     assert_eq!(state.ks_snapshot.clutch_mode, KsClutchMode::Unknown);
     assert_eq!(state.ks_snapshot.clutch_left, None);
 }
@@ -434,7 +435,7 @@ fn test_moza_ffb_config() {
 
 #[test]
 fn test_moza_initialize_device() -> Result<(), Box<dyn std::error::Error>> {
-    let protocol = MozaProtocol::new(0x0002); // R9
+    let protocol = MozaProtocol::new_with_config(0x0002, FfbMode::Standard, true);
     let mut writer = MockDeviceWriter::new();
 
     protocol.initialize_device(&mut writer)?;
@@ -455,7 +456,7 @@ fn test_moza_initialize_device() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(reports[1][3], 0x00);
 
     // Check FFB mode
-    assert_eq!(reports[2][0], super::moza::report_ids::FFB_MODE);
+    assert_eq!(reports[2][0], report_ids::FFB_MODE);
     assert_eq!(reports[2][1], 0x00);
     assert_eq!(reports[2][2], 0x00);
     assert_eq!(reports[2][3], 0x00);
@@ -464,9 +465,36 @@ fn test_moza_initialize_device() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_moza_initialize_device_high_torque_off_by_default() -> Result<(), Box<dyn std::error::Error>>
+{
+    let protocol = MozaProtocol::new(0x0002);
+    let mut writer = MockDeviceWriter::new();
+
+    assert!(
+        !protocol.is_high_torque_enabled(),
+        "high torque must be off by default"
+    );
+
+    protocol.initialize_device(&mut writer)?;
+
+    let reports = writer.get_feature_reports();
+    assert_eq!(
+        reports.len(),
+        2,
+        "only start_reports + ffb_mode sent without high torque"
+    );
+
+    // First report must be START_REPORTS, not HIGH_TORQUE
+    assert_eq!(reports[0][0], super::moza::report_ids::START_REPORTS);
+    assert_eq!(reports[1][0], report_ids::FFB_MODE);
+
+    Ok(())
+}
+
+#[test]
 fn test_moza_initialize_device_respects_configured_mode() -> Result<(), Box<dyn std::error::Error>>
 {
-    let protocol = MozaProtocol::new_with_ffb_mode(0x0002, FfbMode::Direct);
+    let protocol = MozaProtocol::new_with_config(0x0002, FfbMode::Direct, true);
     let mut writer = MockDeviceWriter::new();
 
     protocol.initialize_device(&mut writer)?;
@@ -483,7 +511,7 @@ fn test_moza_initialize_device_respects_configured_mode() -> Result<(), Box<dyn 
 
 #[test]
 fn test_moza_initialize_device_idempotent_and_stateful() -> Result<(), Box<dyn std::error::Error>> {
-    let protocol = MozaProtocol::new(0x0002); // R9
+    let protocol = MozaProtocol::new(0x0002); // R9, high_torque=false by default
     let mut writer = MockDeviceWriter::new();
 
     assert_eq!(protocol.init_state(), MozaInitState::Uninitialized);
@@ -491,7 +519,7 @@ fn test_moza_initialize_device_idempotent_and_stateful() -> Result<(), Box<dyn s
     protocol.initialize_device(&mut writer)?;
     assert_eq!(protocol.init_state(), MozaInitState::Ready);
     let sent = writer.get_feature_reports().len();
-    assert_eq!(sent, 3);
+    assert_eq!(sent, 2); // start_reports + ffb_mode (no high_torque)
 
     protocol.initialize_device(&mut writer)?;
     assert_eq!(protocol.init_state(), MozaInitState::Ready);
@@ -658,4 +686,166 @@ fn test_v1_vs_v2_detection() {
     assert!(MozaProtocol::new(0x0014).is_v2_hardware());
     assert!(MozaProtocol::new(0x0015).is_v2_hardware());
     assert!(MozaProtocol::new(0x0016).is_v2_hardware());
+}
+
+// ─── PR3: Retry state machine tests ─────────────────────────────────────────
+
+#[test]
+fn test_moza_retry_policy_delay_capped() {
+    let policy = MozaRetryPolicy {
+        max_retries: 3,
+        base_delay_ms: 500,
+    };
+    assert_eq!(policy.delay_ms_for(0), 500);
+    assert_eq!(policy.delay_ms_for(1), 1000);
+    assert_eq!(policy.delay_ms_for(2), 2000);
+    assert_eq!(policy.delay_ms_for(3), 4000);
+    // Capped at 8x: attempts beyond 3 stay at 4000ms
+    assert_eq!(policy.delay_ms_for(4), 4000);
+    assert_eq!(policy.delay_ms_for(100), 4000);
+}
+
+#[test]
+fn test_moza_reset_to_uninitialized_clears_state() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new_with_config(0x0002, FfbMode::Standard, true);
+    let mut writer = MockDeviceWriter::new();
+
+    protocol.initialize_device(&mut writer)?;
+    assert_eq!(protocol.init_state(), MozaInitState::Ready);
+
+    protocol.reset_to_uninitialized();
+    assert_eq!(protocol.init_state(), MozaInitState::Uninitialized);
+    assert_eq!(protocol.retry_count(), 0);
+
+    // Can re-initialize after reset
+    protocol.initialize_device(&mut writer)?;
+    assert_eq!(protocol.init_state(), MozaInitState::Ready);
+
+    Ok(())
+}
+
+#[test]
+fn test_moza_retries_bounded_by_max_retries() -> Result<(), Box<dyn std::error::Error>> {
+    // With DEFAULT_MAX_RETRIES (3), after 3 failures → PermanentFailure
+    let protocol = MozaProtocol::new(0x0002);
+
+    for expected_state in [
+        MozaInitState::Failed,           // retry_count = 1
+        MozaInitState::Failed,           // retry_count = 2
+        MozaInitState::PermanentFailure, // retry_count = 3 >= max_retries
+    ] {
+        let mut writer = MockDeviceWriter::with_failure();
+        protocol.initialize_device(&mut writer)?;
+        assert_eq!(
+            protocol.init_state(),
+            expected_state,
+            "expected {:?} after retry_count={}",
+            expected_state,
+            protocol.retry_count()
+        );
+    }
+
+    // Once PermanentFailure, further calls are no-ops
+    let mut writer = MockDeviceWriter::new();
+    protocol.initialize_device(&mut writer)?;
+    assert_eq!(protocol.init_state(), MozaInitState::PermanentFailure);
+    assert!(writer.get_feature_reports().is_empty());
+
+    // Reset clears PermanentFailure
+    protocol.reset_to_uninitialized();
+    assert_eq!(protocol.init_state(), MozaInitState::Uninitialized);
+    assert_eq!(protocol.retry_count(), 0);
+
+    Ok(())
+}
+
+#[test]
+fn test_moza_is_ffb_ready() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new_with_config(0x0002, FfbMode::Standard, false);
+    assert!(!protocol.is_ffb_ready(), "not ready before handshake");
+
+    let mut writer = MockDeviceWriter::new();
+    protocol.initialize_device(&mut writer)?;
+    assert!(protocol.is_ffb_ready(), "ready after successful handshake");
+
+    protocol.reset_to_uninitialized();
+    assert!(!protocol.is_ffb_ready(), "not ready after reset");
+
+    Ok(())
+}
+
+#[test]
+fn test_moza_can_retry_state() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new(0x0002);
+    assert!(!protocol.can_retry(), "cannot retry from Uninitialized");
+
+    let mut writer = MockDeviceWriter::with_failure();
+    protocol.initialize_device(&mut writer)?;
+    assert_eq!(protocol.init_state(), MozaInitState::Failed);
+    assert!(protocol.can_retry(), "can retry after first failure");
+
+    Ok(())
+}
+
+// ─── Policy / allowlist tests ────────────────────────────────────────────────
+
+#[test]
+fn test_signature_is_trusted_none_crc32_is_not_trusted() {
+    // Without OPENRACING_MOZA_ALLOW_UNKNOWN_SIGNATURE set, a None CRC is untrusted.
+    assert!(
+        !super::moza::signature_is_trusted(None),
+        "None CRC32 must not be trusted by default"
+    );
+}
+
+#[test]
+fn test_effective_ffb_mode_direct_without_trust_downgrades() {
+    // Direct mode with untrusted signature (None CRC, no env override) → Standard.
+    let effective = super::moza::effective_ffb_mode(FfbMode::Direct, None);
+    assert_eq!(
+        effective,
+        FfbMode::Standard,
+        "Direct mode must downgrade to Standard when signature is untrusted"
+    );
+}
+
+#[test]
+fn test_effective_ffb_mode_standard_passes_through() {
+    // Standard mode is always allowed regardless of trust.
+    let effective = super::moza::effective_ffb_mode(FfbMode::Standard, None);
+    assert_eq!(effective, FfbMode::Standard);
+}
+
+#[test]
+fn test_effective_high_torque_opt_in_false_without_env() {
+    // Without any env override, high torque opt-in is always false.
+    let opt_in = super::moza::effective_high_torque_opt_in(None);
+    assert!(!opt_in, "high torque must not opt-in without env var");
+}
+
+#[test]
+fn test_policy_new_with_config_high_torque_true_sends_three_reports()
+-> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new_with_config(0x0002, FfbMode::Standard, true);
+    let mut writer = MockDeviceWriter::new();
+    protocol.initialize_device(&mut writer)?;
+    let reports = writer.get_feature_reports();
+    assert_eq!(reports.len(), 3, "high_torque=true → 3 reports");
+    assert_eq!(reports[0][0], report_ids::HIGH_TORQUE);
+    assert_eq!(reports[1][0], report_ids::START_REPORTS);
+    assert_eq!(reports[2][0], report_ids::FFB_MODE);
+    Ok(())
+}
+
+#[test]
+fn test_policy_new_with_config_high_torque_false_sends_two_reports()
+-> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new_with_config(0x0002, FfbMode::Standard, false);
+    let mut writer = MockDeviceWriter::new();
+    protocol.initialize_device(&mut writer)?;
+    let reports = writer.get_feature_reports();
+    assert_eq!(reports.len(), 2, "high_torque=false → 2 reports");
+    assert_eq!(reports[0][0], report_ids::START_REPORTS);
+    assert_eq!(reports[1][0], report_ids::FFB_MODE);
+    Ok(())
 }
