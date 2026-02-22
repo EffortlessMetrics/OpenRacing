@@ -473,7 +473,7 @@ impl DiagnosticTest for RealtimeCapabilityTest {
         {
             // Check for rtkit
             if let Ok(output) = tokio::process::Command::new("systemctl")
-                .args(&["is-active", "rtkit-daemon"])
+                .args(["is-active", "rtkit-daemon"])
                 .output()
                 .await
             {
@@ -758,7 +758,7 @@ impl DiagnosticTest for PermissionsTest {
 
                 let mut accessible_count = 0;
                 for device in &hidraw_devices {
-                    if let Ok(_) = std::fs::File::open(device.path()) {
+                    if std::fs::File::open(device.path()).is_ok() {
                         accessible_count += 1;
                     }
                 }

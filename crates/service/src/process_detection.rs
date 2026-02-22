@@ -171,8 +171,9 @@ impl ProcessDetectionService {
             let entry = entry?;
             let path = entry.path();
 
-            if let Some(pid_str) = path.file_name().and_then(|n| n.to_str()) {
-                if let Ok(pid) = pid_str.parse::<u32>() {
+            if let Some(pid_str) = path.file_name().and_then(|n| n.to_str())
+                && let Ok(pid) = pid_str.parse::<u32>()
+            {
                     let comm_path = path.join("comm");
                     if let Ok(process_name) = fs::read_to_string(comm_path) {
                         let process_name = process_name.trim().to_string();
@@ -185,7 +186,6 @@ impl ProcessDetectionService {
                             detected_at: Instant::now(),
                         });
                     }
-                }
             }
         }
 
