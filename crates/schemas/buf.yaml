@@ -9,6 +9,7 @@ lint:
     - STANDARD
   except:
     - PACKAGE_DIRECTORY_MATCH
+    - PACKAGE_SAME_DIRECTORY
     - PACKAGE_VERSION_SUFFIX
     # Pre-existing: proto was designed with shared/reused message types
     # rather than following the strict Request/Response naming convention.
