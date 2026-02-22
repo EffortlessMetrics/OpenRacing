@@ -331,9 +331,9 @@ impl TelemetryAdapter for IRacingAdapter {
         tokio::spawn(async move {
             let mut adapter = IRacingAdapter::new();
             let mut sequence = 0u64;
-            let mut last_tick_count = None;
-            let mut last_session_info_update = None;
-            let mut last_layout_signature = None;
+            let mut last_tick_count: Option<i32> = None;
+            let mut last_session_info_update: Option<i32> = None;
+            let mut last_layout_signature: Option<(i32, i32, i32, i32)> = None;
             let mut warned_unscaled_ffb = false;
             let mut tick_interval = update_rate;
 

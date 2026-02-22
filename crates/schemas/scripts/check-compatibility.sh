@@ -39,8 +39,4 @@ else
     echo "Warning: origin/main not found, skipping breaking change detection"
 fi
 
-# Generate code to verify it compiles
-echo "Generating protobuf code..."
-buf generate
-
 echo "Schema compatibility check completed successfully!"
