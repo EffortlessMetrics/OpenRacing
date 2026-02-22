@@ -3,6 +3,7 @@
 //! Implements telemetry adapter for AMS2 using the Project CARS 2 shared memory format.
 //! AMS2 uses the same shared memory interface as Project CARS 2 (PCARS2).
 //! Requirements: 12.3
+#![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,

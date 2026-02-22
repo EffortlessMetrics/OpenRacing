@@ -2,6 +2,7 @@
 //!
 //! This adapter opens `Local\\IRSDKMemMapFileName` with `FILE_MAP_READ`,
 //! reads the IRSDK header, and selects the newest rotating telemetry buffer.
+#![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
@@ -474,10 +475,7 @@ impl TelemetryAdapter for IRacingAdapter {
             }
 
             #[cfg(not(windows))]
-            loop {
-                warn!("iRacing shared memory is only supported on Windows");
-                break;
-            }
+            warn!("iRacing shared memory is only supported on Windows");
 
             info!("Stopped iRacing telemetry monitoring");
         });
