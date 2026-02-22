@@ -68,7 +68,7 @@ jobs:
       run: cargo run --package racing-wheel-integration-tests --bin performance-gate --release
     
     - name: Upload performance results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: performance-results
@@ -130,7 +130,7 @@ jobs:
       run: cargo test test_fault_injection_stress --package racing-wheel-integration-tests
     
     - name: Upload stress test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: stress-test-results
@@ -161,7 +161,7 @@ jobs:
       run: cargo run --package racing-wheel-integration-tests --bin soak-test --release -- --mode ci
     
     - name: Upload soak test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: soak-test-results
@@ -192,7 +192,7 @@ jobs:
       run: cargo test test_acceptance_tests_subset --package racing-wheel-integration-tests
     
     - name: Upload acceptance test report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: acceptance-test-report
@@ -259,7 +259,7 @@ jobs:
       run: cargo run --package racing-wheel-integration-tests --bin soak-test --release -- --mode full
     
     - name: Upload soak test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: full-soak-test-results

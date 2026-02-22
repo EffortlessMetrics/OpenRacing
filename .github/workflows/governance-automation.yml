@@ -137,7 +137,7 @@ jobs:
         echo "3. Plan removal timeline: Target v${{ steps.version.outputs.next_version }} if usage is low" >> governance_report.md
         
     - name: Upload governance report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: governance-report-${{ github.run_id }}
         path: governance_report.md

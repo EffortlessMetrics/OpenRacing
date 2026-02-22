@@ -1,4 +1,6 @@
-version: v1
+version: v2
+modules:
+  - path: proto
 breaking:
   use:
     - FILE
@@ -8,6 +10,3 @@ lint:
   except:
     - PACKAGE_DIRECTORY_MATCH
     - PACKAGE_VERSION_SUFFIX
-build:
-  roots:
-    - proto
