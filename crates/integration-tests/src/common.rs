@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 // use racing_wheel_engine::{Engine, EngineConfig};
 use racing_wheel_schemas::prelude::*;
-use racing_wheel_service::WheelService;
+use racing_wheel_service::{WheelService, profile_repository::ProfileRepositoryConfig};
 
 use crate::{PerformanceMetrics, TestConfig};
 
@@ -88,6 +88,7 @@ impl VirtualDevice {
 pub struct TestHarness {
     pub config: TestConfig,
     pub service: Option<Arc<WheelService>>,
+    _profile_temp_dir: Option<tempfile::TempDir>,
     pub virtual_devices: Vec<Arc<RwLock<VirtualDevice>>>,
     pub metrics_collector: MetricsCollector,
     pub start_time: Instant,
@@ -99,6 +100,7 @@ impl TestHarness {
         let mut harness = Self {
             config,
             service: None,
+            _profile_temp_dir: None,
             virtual_devices: Vec::new(),
             metrics_collector: MetricsCollector::new(),
             start_time: Instant::now(),
@@ -112,8 +114,16 @@ impl TestHarness {
     }
 
     pub async fn start_service(&mut self) -> Result<()> {
-        let service = WheelService::new().await?;
+        let temp_dir = tempfile::TempDir::new()?;
+        let profile_config = ProfileRepositoryConfig {
+            profiles_dir: temp_dir.path().to_path_buf(),
+            trusted_keys: Vec::new(),
+            auto_migrate: true,
+            backup_on_migrate: false,
+        };
+        let service = WheelService::new_with_profile_config(profile_config).await?;
         self.service = Some(Arc::new(service));
+        self._profile_temp_dir = Some(temp_dir);
 
         info!("Test service started");
         Ok(())
@@ -157,6 +167,7 @@ impl TestHarness {
             info!("Shutting down test service");
         }
         self.service = None;
+        self._profile_temp_dir = None;
         Ok(())
     }
 }

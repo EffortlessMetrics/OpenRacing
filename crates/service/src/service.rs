@@ -1,6 +1,9 @@
 //! Main service implementation
 
-use crate::{ApplicationDeviceService, ApplicationProfileService, ApplicationSafetyService};
+use crate::{
+    ApplicationDeviceService, ApplicationProfileService, ApplicationSafetyService,
+    profile_repository::ProfileRepositoryConfig,
+};
 use anyhow::Result;
 use racing_wheel_engine::{SafetyPolicy, TracingManager, VirtualDevice, VirtualHidPort};
 use racing_wheel_schemas::prelude::DeviceId;
@@ -23,6 +26,11 @@ pub struct WheelService {
 impl WheelService {
     /// Create new service instance
     pub async fn new() -> Result<Self> {
+        Self::new_with_profile_config(ProfileRepositoryConfig::default()).await
+    }
+
+    /// Create new service instance with custom profile repository configuration
+    pub async fn new_with_profile_config(profile_config: ProfileRepositoryConfig) -> Result<Self> {
         info!("Initializing Racing Wheel Service");
 
         // Initialize tracing
@@ -67,7 +75,7 @@ impl WheelService {
 
         // Create application services
         let profile_service = Arc::new(
-            ApplicationProfileService::new()
+            ApplicationProfileService::new_with_config(profile_config)
                 .await
                 .map_err(|e| anyhow::anyhow!("Failed to create profile service: {}", e))?,
         );
