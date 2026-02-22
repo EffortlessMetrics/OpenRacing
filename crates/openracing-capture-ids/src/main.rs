@@ -147,9 +147,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             manufacturer: d.manufacturer_string().map(str::to_string),
             product: d.product_string().map(str::to_string),
             serial: d.serial_number().map(str::to_string),
-            interface_number: d.interface_number(),
-            usage_page: d.usage_page(),
-            usage: d.usage(),
+            interface_number: Some(d.interface_number()),
+            usage_page: Some(d.usage_page()),
+            usage: Some(d.usage()),
             path,
             report_descriptor,
         });

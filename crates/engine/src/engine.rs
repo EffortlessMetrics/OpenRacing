@@ -1435,8 +1435,10 @@ mod tests {
         let runtime_device = create_capturing_device(Some(Arc::clone(&captured_writes)));
         must(engine.start(runtime_device).await);
 
-        let mut filter_config = FilterConfig::default();
-        filter_config.reconstruction = 1;
+        let filter_config = FilterConfig {
+            reconstruction: 1,
+            ..Default::default()
+        };
         let compiler = crate::pipeline::PipelineCompiler::new();
         let compiled = must(compiler.compile_pipeline(filter_config).await);
         must(engine.apply_pipeline(compiled).await);

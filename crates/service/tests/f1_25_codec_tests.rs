@@ -7,10 +7,8 @@ use racing_wheel_service::telemetry::{TelemetryAdapter, adapters::f1_25::F1_25Ad
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-const FIXTURE_CAR_TELEMETRY: &[u8] =
-    include_bytes!("fixtures/f1_25/car_telemetry_packet.bin");
-const FIXTURE_CAR_STATUS: &[u8] =
-    include_bytes!("fixtures/f1_25/car_status_packet.bin");
+const FIXTURE_CAR_TELEMETRY: &[u8] = include_bytes!("fixtures/f1_25/car_telemetry_packet.bin");
+const FIXTURE_CAR_STATUS: &[u8] = include_bytes!("fixtures/f1_25/car_status_packet.bin");
 
 /// CarTelemetry (packet_id=6) must normalize to the expected core fields.
 ///
@@ -45,7 +43,9 @@ fn test_f1_25_car_telemetry_fixture_drs_active() -> TestResult {
     let adapter = F1_25Adapter::new();
     let normalized = adapter.normalize(FIXTURE_CAR_TELEMETRY)?;
 
-    let drs = normalized.extended.get("drs_active")
+    let drs = normalized
+        .extended
+        .get("drs_active")
         .expect("drs_active must be in extended map");
     assert_eq!(
         drs,
@@ -63,12 +63,22 @@ fn test_f1_25_car_telemetry_fixture_tyre_pressures() -> TestResult {
     let adapter = F1_25Adapter::new();
     let normalized = adapter.normalize(FIXTURE_CAR_TELEMETRY)?;
 
-    for key in ["tyre_pressure_fl_psi", "tyre_pressure_fr_psi", "tyre_pressure_rl_psi", "tyre_pressure_rr_psi"] {
-        let val = normalized.extended.get(key)
+    for key in [
+        "tyre_pressure_fl_psi",
+        "tyre_pressure_fr_psi",
+        "tyre_pressure_rl_psi",
+        "tyre_pressure_rr_psi",
+    ] {
+        let val = normalized
+            .extended
+            .get(key)
             .unwrap_or_else(|| panic!("{key} must be in extended map"));
         match val {
             TelemetryValue::Float(psi) => {
-                assert!(*psi > 20.0 && *psi < 35.0, "{key} PSI {psi} out of expected range");
+                assert!(
+                    *psi > 20.0 && *psi < 35.0,
+                    "{key} PSI {psi} out of expected range"
+                );
             }
             other => panic!("{key} should be Float, got {other:?}"),
         }

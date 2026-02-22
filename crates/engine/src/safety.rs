@@ -395,12 +395,12 @@ impl SafetyService {
     }
 
     fn clear_moza_interlock_combo(&mut self) {
-        if let SafetyState::AwaitingPhysicalAck { combo_start, .. } = &mut self.state {
-            if combo_start.is_some() {
-                *combo_start = None;
-                if let Some(challenge) = self.active_challenge.as_mut() {
-                    challenge.combo_start = None;
-                }
+        if let SafetyState::AwaitingPhysicalAck { combo_start, .. } = &mut self.state
+            && combo_start.is_some()
+        {
+            *combo_start = None;
+            if let Some(challenge) = self.active_challenge.as_mut() {
+                challenge.combo_start = None;
             }
         }
     }
