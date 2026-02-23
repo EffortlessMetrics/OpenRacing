@@ -4979,6 +4979,7 @@ name = "racing-wheel-hid-moza-protocol"
 version = "0.1.0"
 dependencies = [
  "racing-wheel-ks",
+ "racing-wheel-srp",
  "tracing",
 ]
 
@@ -5164,6 +5165,10 @@ dependencies = [
  "winapi",
  "workspace-hack",
 ]
+
+[[package]]
+name = "racing-wheel-srp"
+version = "0.1.0"
 
 [[package]]
 name = "racing-wheel-telemetry-adapters"

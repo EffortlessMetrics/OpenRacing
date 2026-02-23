@@ -24,6 +24,7 @@ pub use protocol::{
     default_high_torque_enabled, effective_ffb_mode, effective_high_torque_opt_in,
     signature_is_trusted,
 };
+pub use racing_wheel_srp::{SrpPedalAxes, SrpPedalAxesRaw, parse_srp_usb_report_best_effort};
 pub use report::{RawWheelbaseReport, hbp_report, input_report, parse_axis, report_ids};
 pub use rt_types::{TorqueEncoder, TorqueQ8_8};
 pub use signature::{DeviceSignature, SignatureVerdict, verify_signature};

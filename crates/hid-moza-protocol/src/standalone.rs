@@ -9,6 +9,7 @@
 
 use crate::ids::product_ids;
 use crate::report::{hbp_report, parse_axis};
+use racing_wheel_srp::parse_srp_usb_report_best_effort;
 
 /// Axis data from a parsed standalone Moza peripheral report.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -100,24 +101,15 @@ pub fn parse_srp_report(product_id: u16, report: &[u8]) -> StandaloneParseResult
         return StandaloneParseResult::Unsupported;
     }
 
-    // SR-P pedal best-effort: first axis = throttle at offset 1 (after report ID),
-    // second axis = brake at offset 3. Minimum meaningful length = 5 bytes.
-    if report.len() < 5 {
+    let Some(axes) = parse_srp_usb_report_best_effort(report) else {
         return StandaloneParseResult::Unsupported;
-    }
+    };
 
-    let throttle = parse_axis(report, 1);
-    let brake = parse_axis(report, 3);
-
-    match (throttle, brake) {
-        (Some(t), Some(b)) => {
-            StandaloneParseResult::ParsedBestEffort(StandaloneAxes::from_raw(t, Some(b), None))
-        }
-        (Some(t), None) => {
-            StandaloneParseResult::ParsedBestEffort(StandaloneAxes::from_raw(t, None, None))
-        }
-        _ => StandaloneParseResult::Unsupported,
-    }
+    StandaloneParseResult::ParsedBestEffort(StandaloneAxes::from_raw(
+        axes.throttle,
+        axes.brake,
+        None,
+    ))
 }
 
 #[cfg(test)]

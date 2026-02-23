@@ -1,5 +1,5 @@
 [package]
-name = "racing-wheel-hid-moza-protocol"
+name = "racing-wheel-srp"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -12,8 +12,3 @@ unused_must_use = "deny"
 
 [lints.clippy]
 unwrap_used = "deny"
-
-[dependencies]
-racing-wheel-ks = { path = "../ks" }
-racing-wheel-srp = { path = "../srp" }
-tracing = { workspace = true }

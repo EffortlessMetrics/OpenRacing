@@ -16,8 +16,9 @@ pub use racing_wheel_hid_moza_protocol::{
 };
 // Types from other modules
 pub use racing_wheel_hid_moza_protocol::{
-    DeviceSignature, MOZA_VENDOR_ID, RawWheelbaseReport, SignatureVerdict, StandaloneAxes,
-    StandaloneParseResult, parse_axis, parse_hbp_report, parse_srp_report, verify_signature,
+    DeviceSignature, MOZA_VENDOR_ID, RawWheelbaseReport, SignatureVerdict, SrpPedalAxes,
+    SrpPedalAxesRaw, StandaloneAxes, StandaloneParseResult, parse_axis, parse_hbp_report,
+    parse_srp_report, parse_srp_usb_report_best_effort, verify_signature,
 };
 // Submodules (re-exported so callers can write `vendor::moza::product_ids::R5_V1` etc.)
 pub use racing_wheel_hid_moza_protocol::hbp_report;

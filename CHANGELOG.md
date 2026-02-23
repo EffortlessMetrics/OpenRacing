@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Moza Racing hardware support** (wheelbase + peripherals, hardware-ready):
-  - `racing-wheel-hid-moza-protocol` microcrate: pure protocol logic (report IDs/offsets, product IDs, handshake frame generator, wheelbase input parser, direct torque encoder, standalone device parsers, signature verification)
+  - `racing-wheel-hid-moza-protocol` microcrate: pure protocol logic (report IDs/offsets, product IDs, handshake frame generator, wheelbase input parser, direct torque encoder, standalone HBP parser, signature verification)
+  - `racing-wheel-srp` microcrate: standalone SR-P pedal USB report parser + normalization primitives
   - `racing-wheel-ks` microcrate: map-driven KS wheel controls parser (`KsReportMap`, `KsReportSnapshot`)
   - `racing-wheel-input-maps` microcrate: `DeviceInputMap` schema + `compile_ks_map()` helper
   - Supported wheelbases: R3, R5 V1/V2, R9 V1/V2, R12 V1/V2, R16, R21
