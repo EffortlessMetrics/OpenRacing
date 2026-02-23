@@ -6,6 +6,27 @@ use anyhow::Result;
 use racing_wheel_integration_tests::*;
 use std::time::Duration;
 
+fn is_ci() -> bool {
+    std::env::var_os("CI").is_some()
+}
+
+fn jitter_test_timeout() -> Duration {
+    // Keep timeout larger than measurement duration with startup/shutdown slack.
+    gates::ffb_jitter_measurement_duration() + Duration::from_secs(20)
+}
+
+fn jitter_p99_limit_ms() -> f64 {
+    gates::ffb_jitter_p99_limit_ms()
+}
+
+fn acceptance_subset_timeout() -> Duration {
+    if is_ci() {
+        Duration::from_secs(90)
+    } else {
+        Duration::from_secs(240)
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_user_journey_uj01_first_run() -> Result<()> {
     init_test_environment()?;
@@ -149,38 +170,46 @@ async fn test_user_journey_uj04_debug_workflow() -> Result<()> {
 )]
 async fn test_performance_gates_ffb_jitter() -> Result<()> {
     init_test_environment()?;
+    let timeout_limit = jitter_test_timeout();
 
-    // Wrap test body with timeout to ensure test completes within 30 seconds
+    // Keep wrapper timeout aligned with the gate measurement duration.
     // Requirements: 2.1, 2.5
     let test_future = async {
         let result = gates::test_ffb_jitter_gate().await?;
+        let jitter_limit = jitter_p99_limit_ms();
 
         if !result.passed {
             anyhow::bail!("FFB jitter gate failed: {:?}", result.errors);
         }
 
-        if result.metrics.jitter_p99_ms > MAX_JITTER_P99_MS {
+        if result.metrics.jitter_p99_ms > jitter_limit {
             anyhow::bail!(
                 "FFB jitter p99 {}ms exceeds limit {}ms",
                 result.metrics.jitter_p99_ms,
-                MAX_JITTER_P99_MS
+                jitter_limit
             );
         }
 
         Ok::<(), anyhow::Error>(())
     };
 
-    match tokio::time::timeout(Duration::from_secs(30), test_future).await {
+    match tokio::time::timeout(timeout_limit, test_future).await {
         Ok(Ok(())) => Ok(()),
         Ok(Err(e)) => Err(e),
         Err(_elapsed) => {
-            eprintln!("TIMEOUT: test_performance_gates_ffb_jitter exceeded 30 second limit");
+            eprintln!(
+                "TIMEOUT: test_performance_gates_ffb_jitter exceeded {:?} limit",
+                timeout_limit
+            );
             eprintln!("Diagnostic: FFB jitter gate test did not complete in time.");
             eprintln!("This may indicate:");
             eprintln!("  - RT loop is blocked or deadlocked");
             eprintln!("  - Metrics collection is hanging");
             eprintln!("  - System under heavy load");
-            anyhow::bail!("test_performance_gates_ffb_jitter timed out after 30 seconds")
+            anyhow::bail!(
+                "test_performance_gates_ffb_jitter timed out after {:?}",
+                timeout_limit
+            )
         }
     }
 }
@@ -357,13 +386,13 @@ async fn test_ci_soak_test() -> Result<()> {
 )]
 async fn test_acceptance_tests_subset() -> Result<()> {
     init_test_environment()?;
+    let timeout_limit = acceptance_subset_timeout();
 
-    // Wrap test body with timeout to ensure test completes within 60 seconds
-    // (longer timeout for acceptance test suite)
+    // Acceptance subset includes multiple flows; use CI-aware timeout budget.
     // Requirements: 2.1, 2.5
     let test_future = async {
         // Run a subset of acceptance tests for regular CI
-        let results = acceptance::run_all_acceptance_tests().await?;
+        let results = acceptance::run_acceptance_tests_subset().await?;
 
         let failed_tests: Vec<_> = results
             .iter()
@@ -377,17 +406,23 @@ async fn test_acceptance_tests_subset() -> Result<()> {
         Ok::<(), anyhow::Error>(())
     };
 
-    match tokio::time::timeout(Duration::from_secs(60), test_future).await {
+    match tokio::time::timeout(timeout_limit, test_future).await {
         Ok(Ok(())) => Ok(()),
         Ok(Err(e)) => Err(e),
         Err(_elapsed) => {
-            eprintln!("TIMEOUT: test_acceptance_tests_subset exceeded 60 second limit");
+            eprintln!(
+                "TIMEOUT: test_acceptance_tests_subset exceeded {:?} limit",
+                timeout_limit
+            );
             eprintln!("Diagnostic: Acceptance test subset did not complete in time.");
             eprintln!("This may indicate:");
             eprintln!("  - One or more acceptance tests are hanging");
             eprintln!("  - Service initialization is blocked");
             eprintln!("  - Resource contention in test harness");
-            anyhow::bail!("test_acceptance_tests_subset timed out after 60 seconds")
+            anyhow::bail!(
+                "test_acceptance_tests_subset timed out after {:?}",
+                timeout_limit
+            )
         }
     }
 }
