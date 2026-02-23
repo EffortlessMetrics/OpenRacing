@@ -8,7 +8,7 @@
 #![deny(static_mut_refs)]
 
 use crate::ids::product_ids;
-use crate::report::{hbp_report, parse_axis};
+use racing_wheel_hbp::parse_hbp_usb_report_best_effort;
 use racing_wheel_srp::parse_srp_usb_report_best_effort;
 
 /// Axis data from a parsed standalone Moza peripheral report.
@@ -54,42 +54,15 @@ pub fn parse_hbp_report(product_id: u16, report: &[u8]) -> StandaloneParseResult
         return StandaloneParseResult::Unsupported;
     }
 
-    if report.is_empty() {
+    let Some(parsed) = parse_hbp_usb_report_best_effort(report) else {
         return StandaloneParseResult::Unsupported;
-    }
+    };
 
-    // Layout 1: with report ID prefix (report[0] is non-zero report ID)
-    if report.len() > hbp_report::WITH_REPORT_ID_BUTTON
-        && report[0] != 0x00
-        && report.len() >= 4
-        && let Some(axis) = parse_axis(report, hbp_report::WITH_REPORT_ID_AXIS_START)
-    {
-        let button = Some(report[hbp_report::WITH_REPORT_ID_BUTTON]);
-        return StandaloneParseResult::ParsedBestEffort(StandaloneAxes::from_raw(
-            axis, None, button,
-        ));
-    }
-
-    // Layout 2: raw two-byte (no report ID)
-    if report.len() == 2 {
-        let axis = u16::from_le_bytes([report[0], report[1]]);
-        return StandaloneParseResult::ParsedBestEffort(StandaloneAxes::from_raw(axis, None, None));
-    }
-
-    // Layout 3: raw with button byte
-    if report.len() >= 3 {
-        let axis = u16::from_le_bytes([report[0], report[1]]);
-        let button = if report.len() > hbp_report::RAW_BUTTON {
-            Some(report[hbp_report::RAW_BUTTON])
-        } else {
-            None
-        };
-        return StandaloneParseResult::ParsedBestEffort(StandaloneAxes::from_raw(
-            axis, None, button,
-        ));
-    }
-
-    StandaloneParseResult::Unsupported
+    StandaloneParseResult::ParsedBestEffort(StandaloneAxes::from_raw(
+        parsed.handbrake,
+        None,
+        parsed.button_byte,
+    ))
 }
 
 /// Parse a standalone SR-P pedal USB report into axis data.

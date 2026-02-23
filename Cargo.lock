@@ -4975,10 +4975,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "racing-wheel-hbp"
+version = "0.1.0"
+
+[[package]]
 name = "racing-wheel-hid-moza-protocol"
 version = "0.1.0"
 dependencies = [
+ "racing-wheel-hbp",
  "racing-wheel-ks",
+ "racing-wheel-moza-wheelbase-report",
  "racing-wheel-srp",
  "tracing",
 ]
@@ -5032,6 +5038,10 @@ dependencies = [
 
 [[package]]
 name = "racing-wheel-ks"
+version = "0.1.0"
+
+[[package]]
+name = "racing-wheel-moza-wheelbase-report"
 version = "0.1.0"
 
 [[package]]

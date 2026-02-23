@@ -5,15 +5,20 @@
 #![deny(static_mut_refs)]
 
 use crate::direct::REPORT_LEN;
-use crate::report::{RawWheelbaseReport, hbp_report, input_report, parse_axis, report_ids};
+use crate::ids::rim_ids;
+use crate::report::{
+    RawWheelbaseReport, input_report, parse_wheelbase_input_report, parse_wheelbase_pedal_axes,
+    parse_wheelbase_report, report_ids,
+};
 use crate::types::{
     MozaDeviceCategory, MozaInputState, MozaModel, MozaPedalAxesRaw, es_compatibility,
     identify_device, is_wheelbase_product,
 };
 use crate::writer::{DeviceWriter, FfbConfig, VendorProtocol};
+use racing_wheel_hbp::parse_hbp_usb_report_best_effort;
 use racing_wheel_ks::{
-    KS_ENCODER_COUNT, KsAxisSource, KsByteSource, KsClutchMode, KsJoystickMode, KsReportMap,
-    KsReportSnapshot, KsRotaryMode,
+    KS_ENCODER_COUNT, KsByteSource, KsClutchMode, KsJoystickMode, KsReportMap, KsReportSnapshot,
+    KsRotaryMode,
 };
 use racing_wheel_srp::parse_srp_usb_report_best_effort;
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -222,8 +227,8 @@ fn default_wheelbase_ks_map() -> KsReportMap {
         clutch_right_button: None,
         clutch_mode_hint: KsClutchMode::Unknown,
         rotary_mode_hint: KsRotaryMode::Unknown,
-        left_rotary_axis: Some(KsAxisSource::new(input_report::ROTARY_START, false)),
-        right_rotary_axis: Some(KsAxisSource::new(input_report::ROTARY_START + 1, false)),
+        left_rotary_axis: None,
+        right_rotary_axis: None,
         joystick_mode_hint: KsJoystickMode::Unknown,
         joystick_hat: Some(KsByteSource::new(input_report::HAT_START)),
     }
@@ -343,35 +348,19 @@ impl MozaProtocol {
     /// so their axis values are carried in the wheelbase input report rather
     /// than a standalone USB pedal device.
     pub fn parse_aggregated_pedal_axes(&self, report: &[u8]) -> Option<MozaPedalAxesRaw> {
-        let report = self.parse_wheelbase_report(report)?;
-
-        if report.report_id() != input_report::REPORT_ID {
-            return None;
-        }
-
-        let throttle = report.axis_u16_le(input_report::THROTTLE_START)?;
-        let brake = report.axis_u16_le(input_report::BRAKE_START)?;
-        let clutch = report.axis_u16_le(input_report::CLUTCH_START);
-        let handbrake = report.axis_u16_le(input_report::HANDBRAKE_START);
+        let axes = parse_wheelbase_pedal_axes(report)?;
 
         Some(MozaPedalAxesRaw {
-            throttle,
-            brake,
-            clutch,
-            handbrake,
+            throttle: axes.throttle,
+            brake: axes.brake,
+            clutch: axes.clutch,
+            handbrake: axes.handbrake,
         })
     }
 
     /// Parse a wheelbase-style report into a lightweight, non-owning view.
     pub fn parse_wheelbase_report<'a>(&self, report: &'a [u8]) -> Option<RawWheelbaseReport<'a>> {
-        let len_min = input_report::BRAKE_START + 2;
-        if report.first().copied() != Some(input_report::REPORT_ID) {
-            return None;
-        }
-        if report.len() < len_min {
-            return None;
-        }
-        Some(RawWheelbaseReport::new(report))
+        parse_wheelbase_report(report)
     }
 
     /// Parse a full Moza input report into `MozaInputState`.
@@ -380,46 +369,37 @@ impl MozaProtocol {
             return self.parse_standalone_peripheral_state(report);
         }
 
-        let Some(report) = self.parse_wheelbase_report(report) else {
+        let Some(parsed) = parse_wheelbase_input_report(report) else {
             return self.parse_standalone_peripheral_state(report);
         };
-        let steering_u16 = parse_axis(report.report_bytes(), input_report::STEERING_START)?;
-        let throttle_u16 = report.axis_u16_le(input_report::THROTTLE_START)?;
-        let brake_u16 = report.axis_u16_le(input_report::BRAKE_START)?;
-        let clutch_u16 = report.axis_u16_or_zero(input_report::CLUTCH_START);
-        let handbrake_u16 = report.axis_u16_or_zero(input_report::HANDBRAKE_START);
-
-        let mut buttons = [0u8; 16];
-        if report.report_bytes().len() >= input_report::BUTTONS_START + input_report::BUTTONS_LEN {
-            buttons.copy_from_slice(
-                &report.report_bytes()[input_report::BUTTONS_START
-                    ..input_report::BUTTONS_START + input_report::BUTTONS_LEN],
-            );
-        }
-
-        let hat = report.byte(input_report::HAT_START).unwrap_or(0);
-        let funky = report.byte(input_report::FUNKY_START).unwrap_or(0);
-
-        let mut rotary = [0u8; 2];
-        if report.report_bytes().len() >= input_report::ROTARY_START + input_report::ROTARY_LEN {
-            rotary.copy_from_slice(
-                &report.report_bytes()[input_report::ROTARY_START
-                    ..input_report::ROTARY_START + input_report::ROTARY_LEN],
-            );
-        }
+        let steering_u16 = parsed.steering;
+        let throttle_u16 = parsed.pedals.throttle;
+        let brake_u16 = parsed.pedals.brake;
+        let clutch_u16 = parsed.pedals.clutch.unwrap_or(0);
+        let handbrake_u16 = parsed.pedals.handbrake.unwrap_or(0);
+        let buttons = parsed.buttons;
+        let hat = parsed.hat;
+        let funky = parsed.funky;
+        let rotary = parsed.rotary;
 
         let ks_snapshot = if self.is_wheelbase() {
-            let mut ks_snapshot = KsReportSnapshot::from_common_controls(0, buttons, hat);
-            ks_snapshot.encoders[0] = KsAxisSource::new(input_report::ROTARY_START, false)
-                .parse_i16(report.report_bytes())
-                .unwrap_or(0);
-            ks_snapshot.encoders[1] = KsAxisSource::new(input_report::ROTARY_START + 1, false)
-                .parse_i16(report.report_bytes())
-                .unwrap_or(0);
+            let mut fallback_snapshot = KsReportSnapshot::from_common_controls(0, buttons, hat);
+            fallback_snapshot.encoders[0] = i16::from(rotary[0]);
+            fallback_snapshot.encoders[1] = i16::from(rotary[1]);
 
-            default_wheelbase_ks_map()
-                .parse(0, report.report_bytes())
-                .unwrap_or(ks_snapshot)
+            if funky == rim_ids::KS {
+                if let Some(mut mapped) = default_wheelbase_ks_map().parse(0, report) {
+                    // Base wheelbase rotary bytes are still authoritative unless capture map
+                    // provides explicit validated bindings.
+                    mapped.encoders[0] = fallback_snapshot.encoders[0];
+                    mapped.encoders[1] = fallback_snapshot.encoders[1];
+                    mapped
+                } else {
+                    fallback_snapshot
+                }
+            } else {
+                fallback_snapshot
+            }
         } else {
             KsReportSnapshot::default()
         };
@@ -575,22 +555,11 @@ impl MozaProtocol {
             return None;
         }
 
-        let mut handbrake_u16 = None;
-        let mut button_hint = None;
-
-        if report.len() > hbp_report::WITH_REPORT_ID_BUTTON && report[0] != 0x00 {
-            handbrake_u16 = parse_axis(report, hbp_report::WITH_REPORT_ID_AXIS_START);
-            button_hint = Some(report[hbp_report::WITH_REPORT_ID_BUTTON]);
-        } else if report.len() == 2 {
-            handbrake_u16 = Some(u16::from_le_bytes([report[0], report[1]]));
-        } else if report.len() > hbp_report::RAW_BUTTON {
-            handbrake_u16 = Some(u16::from_le_bytes([report[0], report[1]]));
-            button_hint = Some(report[hbp_report::RAW_BUTTON]);
-        }
+        let parsed = parse_hbp_usb_report_best_effort(report)?;
 
         let mut state = MozaInputState::empty(0);
-        state.handbrake_u16 = handbrake_u16?;
-        if let Some(buttons) = button_hint {
+        state.handbrake_u16 = parsed.handbrake;
+        if let Some(buttons) = parsed.button_byte {
             state.buttons[0] = buttons;
         }
 
@@ -749,7 +718,7 @@ impl VendorProtocol for MozaProtocol {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ids::product_ids;
+    use crate::ids::{product_ids, rim_ids};
 
     #[test]
     fn parse_input_state_maps_standalone_srp_axes() -> Result<(), Box<dyn std::error::Error>> {
@@ -790,6 +759,100 @@ mod tests {
         assert_eq!(state.buttons[0], 0xA5);
         assert_eq!(state.throttle_u16, 0);
         assert_eq!(state.brake_u16, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_input_state_wheelbase_rotary_bytes_stay_stable_without_ks_rim()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let protocol = MozaProtocol::new(product_ids::R9_V2);
+        let report = [
+            input_report::REPORT_ID,
+            0x00,
+            0x80, // steering
+            0x00,
+            0x00, // throttle
+            0x00,
+            0x00, // brake
+            0x00,
+            0x00, // clutch
+            0x00,
+            0x00, // handbrake
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,        // buttons
+            0x00,        // hat
+            rim_ids::ES, // non-KS rim marker
+            0x2A,        // rotary 0
+            0x7F,        // rotary 1
+        ];
+
+        let parsed = protocol
+            .parse_input_state(&report)
+            .ok_or("expected wheelbase parse")?;
+
+        assert_eq!(parsed.ks_snapshot.encoders[0], 0x2A);
+        assert_eq!(parsed.ks_snapshot.encoders[1], 0x7F);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_input_state_wheelbase_rotary_bytes_stay_stable_with_ks_rim()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let protocol = MozaProtocol::new(product_ids::R9_V2);
+        let report = [
+            input_report::REPORT_ID,
+            0x00,
+            0x80, // steering
+            0x00,
+            0x00, // throttle
+            0x00,
+            0x00, // brake
+            0x00,
+            0x00, // clutch
+            0x00,
+            0x00, // handbrake
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,        // buttons
+            0x00,        // hat
+            rim_ids::KS, // KS rim marker
+            0x19,        // rotary 0
+            0x64,        // rotary 1
+        ];
+
+        let parsed = protocol
+            .parse_input_state(&report)
+            .ok_or("expected wheelbase parse")?;
+
+        assert_eq!(parsed.ks_snapshot.encoders[0], 0x19);
+        assert_eq!(parsed.ks_snapshot.encoders[1], 0x64);
         Ok(())
     }
 }

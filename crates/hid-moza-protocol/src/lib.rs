@@ -24,8 +24,15 @@ pub use protocol::{
     default_high_torque_enabled, effective_ffb_mode, effective_high_torque_opt_in,
     signature_is_trusted,
 };
+pub use racing_wheel_hbp::{
+    HbpHandbrakeSample, HbpHandbrakeSampleRaw, parse_hbp_usb_report_best_effort,
+};
 pub use racing_wheel_srp::{SrpPedalAxes, SrpPedalAxesRaw, parse_srp_usb_report_best_effort};
-pub use report::{RawWheelbaseReport, hbp_report, input_report, parse_axis, report_ids};
+pub use report::{
+    RawWheelbaseReport, WheelbaseInputRaw, WheelbasePedalAxesRaw, hbp_report, input_report,
+    parse_axis, parse_wheelbase_input_report, parse_wheelbase_pedal_axes, parse_wheelbase_report,
+    report_ids,
+};
 pub use rt_types::{TorqueEncoder, TorqueQ8_8};
 pub use signature::{DeviceSignature, SignatureVerdict, verify_signature};
 pub use standalone::{StandaloneAxes, StandaloneParseResult, parse_hbp_report, parse_srp_report};

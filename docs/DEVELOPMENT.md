@@ -111,6 +111,37 @@ fn test_zero_alloc_rt_path() {
 }
 ```
 
+## Single Responsibility Principle (SRP) Micro-Crates
+
+Use micro-crates when a component has one clear reason to change and can be reused
+across runtime layers.
+
+### When to extract
+
+- A module mixes pure protocol/data logic with runtime concerns (HID I/O, env/config, logging).
+- The same parsing/normalization/encoding logic is needed in multiple crates.
+- Test coverage is easier to maintain when logic is isolated from device plumbing.
+
+### Micro-crate rules
+
+- Keep scope narrow: one domain concern per crate (for example, one hardware protocol parser).
+- Prefer pure functions and small value types over stateful services.
+- Keep hot-path APIs allocation-free and deterministic.
+- Avoid blocking, syscalls, and runtime I/O inside parsing/encoding functions.
+- Expose stable, minimal APIs and re-export from higher-level crates only where needed.
+
+### Non-goals
+
+- Do not split crates only for naming or directory symmetry.
+- Do not extract code that is tightly coupled to a single runtime implementation.
+
+### Verification checklist for extractions
+
+- Unit tests move with the extracted logic crate.
+- Integration paths in consuming crates continue to pass.
+- RT safety expectations remain explicit (no allocations, no blocking, bounded execution).
+- Public API and dependency changes are documented in `docs/` and ADRs when architectural impact is significant.
+
 ## Safety Requirements
 
 All safety-critical code must follow these guidelines:

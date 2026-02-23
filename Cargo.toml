@@ -3,6 +3,8 @@ members = [
     "crates/schemas",
     "crates/ks",
     "crates/srp",
+    "crates/hbp",
+    "crates/moza-wheelbase-report",
     "crates/input-maps",
     "crates/hid-moza-protocol",
     "crates/engine",

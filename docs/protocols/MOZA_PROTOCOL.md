@@ -19,7 +19,7 @@ Moza Racing hardware generally follows a unified HID-over-USB protocol. However,
 | **SR-P Lite** | Pedals | **Wheelbase Port** | N/A (Embedded) | **Supported** |
 | **SR-P (Standard)** | Pedals | USB | `0x0003` (Typical) | *Partial* |
 | **CRP Pedals** | Pedals | USB | `0x0001` (Typical) | *Partial* |
-| **HBP Handbrake** | Handbrake | USB | `0x0022` (standalone) | *Planned* |
+| **HBP Handbrake** | Handbrake | USB | `0x0022` (standalone) | *Partial* |
 
 ## Moza KS support model (wheel + controls)
 
@@ -116,8 +116,13 @@ When SR-P Lite pedals are connected to the wheelbase, their axis data is mapped 
 OpenRacing normalizes all axes to `0.0` (released) to `1.0` (fully pressed).  
 `Value_Float = Value_Raw / 65535.0`
 
-**Implementation note:** Standalone SR-P USB pedal parsing is isolated in the
-`crates/srp` microcrate (`racing-wheel-srp`) and consumed by
+**Implementation note (wheelbase reports):** Aggregated wheelbase input parsing is isolated in a
+single-responsibility microcrate (`crates/moza-wheelbase-report`, crate name
+`racing-wheel-moza-wheelbase-report`) and consumed by
+`racing-wheel-hid-moza-protocol::MozaProtocol::parse_input_state` / `parse_aggregated_pedal_axes`.
+
+**Implementation note:** Standalone SR-P USB pedal parsing is isolated in a
+single-responsibility microcrate (`crates/srp`, crate name `racing-wheel-srp`) and consumed by
 `racing-wheel-hid-moza-protocol::MozaProtocol::parse_input_state` for
 `PID=0x0003`.
 
@@ -128,7 +133,8 @@ Moza handbrake input appears in two supported runtime paths:
 1. **Direct USB HBP**
    - HID device is present as `VID=0x346E`, `PID=0x0022`.
    - No wheelbase handshake required.
-   - Parse path uses a dedicated HBP parser in `crates/engine/src/hid/vendor/moza.rs`.
+   - Parse path uses a dedicated HBP parser microcrate (`crates/hbp`, crate name `racing-wheel-hbp`) consumed by
+     `racing-wheel-hid-moza-protocol::MozaProtocol::parse_input_state` for `PID=0x0022`.
 
 2. **Wheelbase-embedded HBP**
    - HBP is attached to a wheelbase port and exposed through the wheelbase report.
