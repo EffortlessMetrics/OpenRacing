@@ -471,10 +471,10 @@ fn scenario_ffb_off_mode_encoding() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-// ─── Scenario 19: R9 V2 full handshake byte sequence ─────────────────────────
+// ─── Scenario 19: R9 V2 full handshake report order ──────────────────────────
 
 #[test]
-fn scenario_r9_v2_full_handshake_byte_sequence() -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_r9_v2_full_handshake_report_order() -> Result<(), Box<dyn std::error::Error>> {
     // Given: R9 V2 with high torque enabled
     let mut s =
         MozaScenario::wheelbase_with_config(product_ids::R9_V2, FfbMode::Standard, true);
