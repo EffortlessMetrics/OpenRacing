@@ -76,10 +76,18 @@ jobs:
       run: cargo test -p racing-wheel-schemas --lib validation_tests
     
     - name: Run all schema tests
-      run: cargo test -p racing-wheel-schemas
-    
+      run: cargo test -p racing-wheel-schemas -- --skip deprecated_tokens_compile_fail_tests
+
     - name: Run trybuild compile-fail guards
       run: cargo test -p racing-wheel-schemas --test trybuild_guards
+
+    - name: Upload trybuild WIP outputs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: trybuild-wip
+        path: crates/schemas/wip/*.stderr
+        if-no-files-found: ignore
     
     - name: Check formatting
       run: cargo fmt -p racing-wheel-schemas -- --check

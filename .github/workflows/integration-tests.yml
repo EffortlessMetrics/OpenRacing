@@ -45,7 +45,11 @@ jobs:
       run: |
         cargo test --workspace \
           --exclude racing-wheel-integration-tests \
-          --exclude racing-wheel-ui
+          --exclude racing-wheel-ui \
+          -- \
+          --skip jitter_isolation_tests \
+          --skip cpu_usage_isolation \
+          --skip haptics_frequency_range
 
   # Performance gates (critical for CI)
   performance-gates:

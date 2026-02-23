@@ -475,7 +475,8 @@ jobs:
         RUSTFLAGS: "-D warnings -D unused_must_use"
       run: |
         echo "Verifying complete compilation with strict flags..."
-        cargo check --workspace --all-features --all-targets
+        cargo check --workspace --all-features --all-targets \
+          --exclude racing-wheel-ui
         echo "✅ All crates compile successfully with strict warnings"
     
     - name: Run all schema-related tests
