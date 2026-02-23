@@ -116,6 +116,11 @@ When SR-P Lite pedals are connected to the wheelbase, their axis data is mapped 
 OpenRacing normalizes all axes to `0.0` (released) to `1.0` (fully pressed).  
 `Value_Float = Value_Raw / 65535.0`
 
+**Implementation note:** Standalone SR-P USB pedal parsing is isolated in the
+`crates/srp` microcrate (`racing-wheel-srp`) and consumed by
+`racing-wheel-hid-moza-protocol::MozaProtocol::parse_input_state` for
+`PID=0x0003`.
+
 ### HBP handbrake topology classes
 
 Moza handbrake input appears in two supported runtime paths:

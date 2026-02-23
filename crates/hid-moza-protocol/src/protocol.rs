@@ -15,6 +15,7 @@ use racing_wheel_ks::{
     KS_ENCODER_COUNT, KsAxisSource, KsByteSource, KsClutchMode, KsJoystickMode, KsReportMap,
     KsReportSnapshot, KsRotaryMode,
 };
+use racing_wheel_srp::parse_srp_usb_report_best_effort;
 use std::sync::atomic::{AtomicU8, Ordering};
 use tracing::{debug, info, warn};
 
@@ -376,13 +377,12 @@ impl MozaProtocol {
     /// Parse a full Moza input report into `MozaInputState`.
     pub fn parse_input_state(&self, report: &[u8]) -> Option<MozaInputState> {
         if report.first().copied() != Some(input_report::REPORT_ID) {
-            if let Some(state) = self.parse_standalone_handbrake_state(report) {
-                return Some(state);
-            }
-            return None;
+            return self.parse_standalone_peripheral_state(report);
         }
 
-        let report = self.parse_wheelbase_report(report)?;
+        let Some(report) = self.parse_wheelbase_report(report) else {
+            return self.parse_standalone_peripheral_state(report);
+        };
         let steering_u16 = parse_axis(report.report_bytes(), input_report::STEERING_START)?;
         let throttle_u16 = report.axis_u16_le(input_report::THROTTLE_START)?;
         let brake_u16 = report.axis_u16_le(input_report::BRAKE_START)?;
@@ -545,8 +545,29 @@ impl MozaProtocol {
         identify_device(self.product_id).category == MozaDeviceCategory::Handbrake
     }
 
+    fn is_standalone_pedals(&self) -> bool {
+        identify_device(self.product_id).category == MozaDeviceCategory::Pedals
+    }
+
     fn is_wheelbase(&self) -> bool {
         identify_device(self.product_id).category == MozaDeviceCategory::Wheelbase
+    }
+
+    fn parse_standalone_peripheral_state(&self, report: &[u8]) -> Option<MozaInputState> {
+        self.parse_standalone_pedal_state(report)
+            .or_else(|| self.parse_standalone_handbrake_state(report))
+    }
+
+    fn parse_standalone_pedal_state(&self, report: &[u8]) -> Option<MozaInputState> {
+        if !self.is_standalone_pedals() {
+            return None;
+        }
+
+        let axes = parse_srp_usb_report_best_effort(report)?;
+        let mut state = MozaInputState::empty(0);
+        state.throttle_u16 = axes.throttle;
+        state.brake_u16 = axes.brake.unwrap_or(0);
+        Some(state)
     }
 
     fn parse_standalone_handbrake_state(&self, report: &[u8]) -> Option<MozaInputState> {
@@ -557,11 +578,10 @@ impl MozaProtocol {
         let mut handbrake_u16 = None;
         let mut button_hint = None;
 
-        if report.len() > hbp_report::WITH_REPORT_ID_BUTTON && report[0] != input_report::REPORT_ID
-        {
+        if report.len() > hbp_report::WITH_REPORT_ID_BUTTON && report[0] != 0x00 {
             handbrake_u16 = parse_axis(report, hbp_report::WITH_REPORT_ID_AXIS_START);
             button_hint = Some(report[hbp_report::WITH_REPORT_ID_BUTTON]);
-        } else if report.len() == 2 && report[0] != input_report::REPORT_ID {
+        } else if report.len() == 2 {
             handbrake_u16 = Some(u16::from_le_bytes([report[0], report[1]]));
         } else if report.len() > hbp_report::RAW_BUTTON {
             handbrake_u16 = Some(u16::from_le_bytes([report[0], report[1]]));
@@ -723,5 +743,53 @@ impl VendorProtocol for MozaProtocol {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ids::product_ids;
+
+    #[test]
+    fn parse_input_state_maps_standalone_srp_axes() -> Result<(), Box<dyn std::error::Error>> {
+        let protocol = MozaProtocol::new(product_ids::SR_P_PEDALS);
+        let report = [0x01u8, 0x34, 0x12, 0x78, 0x56];
+
+        let state = protocol
+            .parse_input_state(&report)
+            .ok_or("expected standalone SR-P parse")?;
+
+        assert_eq!(state.steering_u16, 0);
+        assert_eq!(state.throttle_u16, 0x1234);
+        assert_eq!(state.brake_u16, 0x5678);
+        assert_eq!(state.clutch_u16, 0);
+        assert_eq!(state.handbrake_u16, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_input_state_rejects_short_standalone_srp_report() {
+        let protocol = MozaProtocol::new(product_ids::SR_P_PEDALS);
+        let report = [0x01u8, 0x34, 0x12];
+
+        assert_eq!(protocol.parse_input_state(&report), None);
+    }
+
+    #[test]
+    fn parse_input_state_accepts_hbp_report_id_one_layout() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let protocol = MozaProtocol::new(product_ids::HBP_HANDBRAKE);
+        let report = [0x01u8, 0x34, 0x12, 0xA5];
+
+        let state = protocol
+            .parse_input_state(&report)
+            .ok_or("expected standalone HBP parse")?;
+
+        assert_eq!(state.handbrake_u16, 0x1234);
+        assert_eq!(state.buttons[0], 0xA5);
+        assert_eq!(state.throttle_u16, 0);
+        assert_eq!(state.brake_u16, 0);
+        Ok(())
     }
 }

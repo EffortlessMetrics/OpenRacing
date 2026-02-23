@@ -287,6 +287,21 @@ fn test_moza_parse_standalone_hbp_state_with_report_id() -> Result<(), Box<dyn s
 }
 
 #[test]
+fn test_moza_parse_standalone_srp_state() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new(product_ids::SR_P_PEDALS);
+    let report = [input_report::REPORT_ID, 0x34, 0x12, 0x78, 0x56];
+    let state = protocol
+        .parse_input_state(&report)
+        .ok_or("expected standalone SR-P pedal report")?;
+
+    assert_eq!(state.throttle_u16, 0x1234);
+    assert_eq!(state.brake_u16, 0x5678);
+    assert_eq!(state.clutch_u16, 0);
+    assert_eq!(state.handbrake_u16, 0);
+    Ok(())
+}
+
+#[test]
 fn test_moza_parse_standalone_hbp_state_without_report_id() -> Result<(), Box<dyn std::error::Error>>
 {
     let protocol = MozaProtocol::new(product_ids::HBP_HANDBRAKE);
