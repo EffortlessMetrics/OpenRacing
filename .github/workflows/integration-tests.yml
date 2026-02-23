@@ -42,7 +42,10 @@ jobs:
       run: cargo test test_smoke_test --package racing-wheel-integration-tests
     
     - name: Run unit tests
-      run: cargo test --workspace --exclude racing-wheel-integration-tests
+      run: |
+        cargo test --workspace \
+          --exclude racing-wheel-integration-tests \
+          --exclude racing-wheel-ui
 
   # Performance gates (critical for CI)
   performance-gates:

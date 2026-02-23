@@ -76,9 +76,9 @@ Moza wheelbases start in a restricted mode. To enable high-frequency force feedb
 
 **Optional: Enable High Torque (requires explicit arming):**
 
-0. **Enable High Torque / Motor:** Feature Report `0x02` → `[0x02, 0x00, 0x00, 0x00]`
-   — sent _before_ step 1, only when `OPENRACING_MOZA_HIGH_TORQUE=1` and the device signature is trusted.
-   See [Signature Fingerprinting and Safe Arming Policy](#signature-fingerprinting-and-safe-arming-policy).
+* **Pre-step (optional): Enable High Torque / Motor:** Feature Report `0x02` → `[0x02, 0x00, 0x00, 0x00]`
+  — sent *before* step 1, only when `OPENRACING_MOZA_HIGH_TORQUE=1` and the device signature is trusted.
+  See [Signature Fingerprinting and Safe Arming Policy](#signature-fingerprinting-and-safe-arming-policy).
 
 `<mode>` is currently configured in OpenRacing via `OPENRACING_MOZA_FFB_MODE`:
 
@@ -198,7 +198,7 @@ Windows does not expose raw report descriptor bytes via hidapi. The `report_desc
 
 On Linux, a device is trusted when its `report_descriptor_crc32` appears in:
 
-```
+```text
 OPENRACING_MOZA_DESCRIPTOR_CRC32_ALLOWLIST=0xDEADBEEF,0x12345678
 ```
 
