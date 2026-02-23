@@ -738,6 +738,9 @@ jobs:
       - name: Run comprehensive test suite
         run: cargo test --workspace --locked
 
+      - name: Ensure tests did not mutate profile fixtures
+        run: git diff --exit-code -- crates/service/profiles
+
       - name: Validate cross-platform compatibility
         run: |
           echo "Cross-platform validation complete for ${{ matrix.os }}"

@@ -52,9 +52,20 @@ mod tests {
             ..Default::default()
         };
 
-        let daemon = ServiceDaemon::new_with_flags(service_config, flags)
-            .await
-            .context("create service daemon")?;
+        let temp_dir = TempDir::new().context("create temp profile dir")?;
+        let profile_config = ProfileRepositoryConfig {
+            profiles_dir: temp_dir.path().to_path_buf(),
+            trusted_keys: Vec::new(),
+            auto_migrate: true,
+            backup_on_migrate: false,
+        };
+
+        let daemon =
+            ServiceDaemon::new_with_flags_and_profile_config(service_config, flags, profile_config)
+                .await
+                .context("create service daemon")?;
+
+        let _keep_temp_dir_alive = temp_dir;
 
         // Start daemon in background
         let daemon_handle = tokio::spawn(async move { daemon.run().await });
