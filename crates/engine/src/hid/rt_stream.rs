@@ -5,10 +5,7 @@
 
 use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU8, AtomicU16, Ordering};
 
-/// Torque in Q8.8 fixed-point Newton-meters (Nm).
-///
-/// `1.0 Nm == 256`.
-pub type TorqueQ8_8 = i16;
+pub use racing_wheel_hid_moza_protocol::{TorqueEncoder, TorqueQ8_8};
 
 /// RT I/O error classification for streaming writes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,17 +21,6 @@ pub enum RtIoError {
 /// Implementations must avoid allocation and blocking in `write`.
 pub trait RtWriter {
     fn write(&mut self, bytes: &[u8]) -> Result<(), RtIoError>;
-}
-
-/// Device-specific torque encoder.
-pub trait TorqueEncoder<const N: usize> {
-    /// Encode torque command into `out`, returning payload length.
-    fn encode(&self, torque: TorqueQ8_8, seq: u16, flags: u8, out: &mut [u8; N]) -> usize;
-    /// Encode an explicit zero torque command into `out`, returning payload length.
-    fn encode_zero(&self, out: &mut [u8; N]) -> usize;
-    fn clamp_min(&self) -> TorqueQ8_8;
-    fn clamp_max(&self) -> TorqueQ8_8;
-    fn positive_is_clockwise(&self) -> bool;
 }
 
 /// Lock-free command mailbox shared between non-RT producer and RT writer.

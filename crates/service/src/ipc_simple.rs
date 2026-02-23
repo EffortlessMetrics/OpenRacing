@@ -4,8 +4,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+#[cfg(unix)]
+use anyhow::Context;
 use anyhow::Result;
 use tokio::sync::{Mutex, RwLock, broadcast};
+#[cfg(unix)]
+use tracing::error;
 use tracing::{debug, info, warn};
 
 use crate::WheelService;
@@ -168,7 +172,6 @@ impl IpcServer {
         _service: Arc<WheelService>,
         shutdown_rx: &mut broadcast::Receiver<()>,
     ) -> Result<()> {
-        use std::os::unix::fs::PermissionsExt;
         use tokio::net::UnixListener;
 
         info!("Starting Unix Domain Socket server: {}", socket_path);
@@ -202,11 +205,12 @@ impl IpcServer {
                             debug!("New connection from {:?}", addr);
 
                             // Verify peer credentials if ACL is enabled
-                            if self.config.enable_acl {
-                                if let Err(e) = self.verify_unix_peer_credentials(&stream).await {
-                                    warn!("Connection rejected due to ACL: {}", e);
-                                    continue;
-                                }
+                            if self.config.enable_acl
+                                && let Err(e) =
+                                    self.verify_unix_peer_credentials(&stream).await
+                            {
+                                warn!("Connection rejected due to ACL: {}", e);
+                                continue;
                             }
 
                             // Handle the connection
@@ -264,7 +268,7 @@ impl IpcServer {
 
         // Get peer credentials
         let raw_fd = stream.as_raw_fd();
-        let std_stream = unsafe { StdUnixStream::from_raw_fd(raw_fd) };
+        let _std_stream = unsafe { StdUnixStream::from_raw_fd(raw_fd) };
 
         // Use SO_PEERCRED to get peer process info
         // This is a simplified version - full implementation would use libc calls

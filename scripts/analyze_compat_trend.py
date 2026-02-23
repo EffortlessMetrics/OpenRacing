@@ -47,7 +47,9 @@ def calculate_trend(data, current_usage, baseline_usage):
             'trend_direction': 'insufficient_data',
             'trend_percentage': 0,
             'peak_usage': current_usage,
-            'projected_removal_date': 'unknown'
+            'projected_removal_date': 'unknown',
+            'current_usage': current_usage,
+            'baseline_usage': baseline_usage,
         }
     
     # Sort by timestamp
@@ -62,7 +64,9 @@ def calculate_trend(data, current_usage, baseline_usage):
             'trend_direction': 'insufficient_data',
             'trend_percentage': 0,
             'peak_usage': max(usage_counts) if usage_counts else current_usage,
-            'projected_removal_date': 'unknown'
+            'projected_removal_date': 'unknown',
+            'current_usage': current_usage,
+            'baseline_usage': baseline_usage,
         }
     
     # Calculate linear trend

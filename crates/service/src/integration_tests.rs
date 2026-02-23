@@ -5,10 +5,14 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::{FeatureFlags, ServiceDaemon, SystemConfig, WheelService};
+    use crate::{
+        FeatureFlags, ServiceDaemon, SystemConfig, WheelService,
+        profile_repository::ProfileRepositoryConfig,
+    };
     use anyhow::{Context, Result};
     use std::sync::Arc;
     use std::time::Duration;
+    use tempfile::TempDir;
     use tracing_test::traced_test;
 
     /// Integration test configuration
@@ -48,9 +52,20 @@ mod tests {
             ..Default::default()
         };
 
-        let daemon = ServiceDaemon::new_with_flags(service_config, flags)
-            .await
-            .context("create service daemon")?;
+        let temp_dir = TempDir::new().context("create temp profile dir")?;
+        let profile_config = ProfileRepositoryConfig {
+            profiles_dir: temp_dir.path().to_path_buf(),
+            trusted_keys: Vec::new(),
+            auto_migrate: true,
+            backup_on_migrate: false,
+        };
+
+        let daemon =
+            ServiceDaemon::new_with_flags_and_profile_config(service_config, flags, profile_config)
+                .await
+                .context("create service daemon")?;
+
+        let _keep_temp_dir_alive = temp_dir;
 
         // Start daemon in background
         let daemon_handle = tokio::spawn(async move { daemon.run().await });
@@ -71,7 +86,7 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_device_enumeration_and_management() -> Result<()> {
-        let service = create_test_service().await?;
+        let (service, _temp_dir) = create_test_service().await?;
 
         // Test device enumeration
         let devices = service
@@ -102,7 +117,7 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_profile_management() -> Result<()> {
-        let service = create_test_service().await?;
+        let (service, _temp_dir) = create_test_service().await?;
 
         // Create test profile
         let test_profile = create_test_profile()?;
@@ -129,7 +144,7 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_safety_system() -> Result<()> {
-        let service = create_test_service().await?;
+        let (service, _temp_dir) = create_test_service().await?;
 
         // Enumerate devices first to get a valid ID
         let devices = service
@@ -265,7 +280,7 @@ mod tests {
     #[traced_test]
     #[ignore]
     async fn test_force_feedback_pipeline() -> Result<()> {
-        let service = create_test_service().await?;
+        let (service, _temp_dir) = create_test_service().await?;
 
         // Get devices
         let devices = service
@@ -323,7 +338,7 @@ mod tests {
             .context("create IPC server")?;
 
         // Create service
-        let service = create_test_service().await?;
+        let (service, _temp_dir) = create_test_service().await?;
 
         // Start IPC server in background
         let server_handle = tokio::spawn(async move { ipc_server.serve(Arc::new(service)).await });
@@ -396,7 +411,7 @@ mod tests {
     #[traced_test]
     #[ignore]
     async fn test_performance_under_load() -> Result<()> {
-        let service = create_test_service().await?;
+        let (service, _temp_dir) = create_test_service().await?;
 
         // Get devices
         let devices = service
@@ -451,7 +466,7 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_graceful_degradation() -> Result<()> {
-        let service = create_test_service().await?;
+        let (service, _temp_dir) = create_test_service().await?;
 
         // Test with no devices connected
         let no_device_stats = service.device_service().get_statistics().await;
@@ -576,8 +591,18 @@ mod tests {
 
     // Helper functions
 
-    async fn create_test_service() -> Result<WheelService> {
-        WheelService::new().await.context("create test service")
+    async fn create_test_service() -> Result<(WheelService, TempDir)> {
+        let temp_dir = TempDir::new().context("create temp profile directory for test service")?;
+        let profile_config = ProfileRepositoryConfig {
+            profiles_dir: temp_dir.path().to_path_buf(),
+            trusted_keys: Vec::new(),
+            auto_migrate: true,
+            backup_on_migrate: false,
+        };
+        let service = WheelService::new_with_profile_config(profile_config)
+            .await
+            .context("create test service")?;
+        Ok((service, temp_dir))
     }
 
     async fn create_test_system_config() -> SystemConfig {

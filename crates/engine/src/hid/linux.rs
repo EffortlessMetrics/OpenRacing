@@ -14,7 +14,9 @@ use super::{
 use crate::ports::{DeviceHealthStatus, HidDevice, HidPort};
 use crate::{DeviceEvent, DeviceInfo, RTResult, TelemetryData};
 use async_trait::async_trait;
+use crc32fast::Hasher as Crc32Hasher;
 use parking_lot::RwLock;
+use racing_wheel_hid_moza_protocol::VendorProtocol;
 use racing_wheel_schemas::prelude::*;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -159,6 +161,64 @@ fn manufacturer_for_vendor(vendor_id: u16) -> Option<String> {
     Some(name.to_string())
 }
 
+/// Best-effort parse of the first top-level Usage Page and Usage from a HID report descriptor.
+fn parse_usage_page_and_usage(descriptor: &[u8]) -> (Option<u16>, Option<u16>) {
+    let mut usage_page: Option<u16> = None;
+    let mut usage: Option<u16> = None;
+    let mut i = 0usize;
+    while i < descriptor.len() {
+        match descriptor[i] {
+            0x05 if i + 1 < descriptor.len() => {
+                usage_page = Some(descriptor[i + 1] as u16);
+                i += 2;
+            }
+            0x06 if i + 2 < descriptor.len() => {
+                usage_page = Some(u16::from_le_bytes([descriptor[i + 1], descriptor[i + 2]]));
+                i += 3;
+            }
+            0x09 if i + 1 < descriptor.len() => {
+                usage = Some(descriptor[i + 1] as u16);
+                i += 2;
+            }
+            0x0A if i + 2 < descriptor.len() => {
+                usage = Some(u16::from_le_bytes([descriptor[i + 1], descriptor[i + 2]]));
+                i += 3;
+            }
+            _ => {
+                i += 1;
+            }
+        }
+        if usage_page.is_some() && usage.is_some() {
+            break;
+        }
+    }
+    (usage_page, usage)
+}
+
+/// Attempt to derive the USB interface number from the sysfs path for a hidraw node.
+/// Parses a component like `1-2:1.0` and returns the trailing integer (0 here).
+fn try_read_linux_interface_number(hid_path: &Path) -> Option<i32> {
+    let lossy = hid_path.to_string_lossy();
+    if !lossy.starts_with("/dev/hidraw") {
+        return None;
+    }
+    let node = hid_path.file_name()?.to_str()?;
+    let sysfs = std::path::Path::new("/sys/class/hidraw")
+        .join(node)
+        .join("device");
+    let target = std::fs::read_link(&sysfs).ok()?;
+    for comp in target.components() {
+        let s = comp.as_os_str().to_string_lossy();
+        if !s.contains(':') {
+            continue;
+        }
+        if let Some(v) = s.rfind('.').and_then(|di| s[di + 1..].parse::<i32>().ok()) {
+            return Some(v);
+        }
+    }
+    None
+}
+
 fn parse_descriptor_flags(descriptor: &[u8]) -> (bool, bool) {
     // Usage Page (PID) appears as 0x05, 0x0F in many PID descriptors.
     let supports_pid = descriptor.windows(2).any(|win| win == [0x05, 0x0F]);
@@ -277,6 +337,7 @@ fn build_capabilities_from_identity(
 pub struct LinuxHidPort {
     devices: Arc<RwLock<HashMap<DeviceId, HidDeviceInfo>>>,
     monitoring: Arc<AtomicBool>,
+    #[allow(dead_code)]
     event_sender: Option<mpsc::UnboundedSender<DeviceEvent>>,
 }
 
@@ -350,34 +411,31 @@ impl LinuxHidPort {
         if let Ok(entries) = std::fs::read_dir(hidraw_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if let Some(filename) = path.file_name() {
-                    if let Some(filename_str) = filename.to_str() {
-                        if filename_str.starts_with("hidraw") {
-                            if let Ok((device_info, descriptor)) = self.probe_hidraw_device(&path) {
-                                // Check if this is a racing wheel
-                                let is_supported_by_id =
-                                    racing_wheel_ids.iter().any(|(vid, pid)| {
-                                        device_info.vendor_id == *vid
-                                            && device_info.product_id == *pid
-                                    });
+                let Some(filename_str) =
+                    path.file_name().and_then(|f| f.to_str()).map(str::to_owned)
+                else {
+                    continue;
+                };
+                if !filename_str.starts_with("hidraw") {
+                    continue;
+                }
+                if let Ok((device_info, descriptor)) = self.probe_hidraw_device(&path) {
+                    // Check if this is a racing wheel
+                    let is_supported_by_id = racing_wheel_ids.iter().any(|(vid, pid)| {
+                        device_info.vendor_id == *vid && device_info.product_id == *pid
+                    });
 
-                                // Alpha EVO-generation devices should be discoverable even when
-                                // PID mapping is incomplete; descriptor capture confirms details.
-                                let is_simagic_evo = device_info.vendor_id == 0x3670;
-                                let is_supported_by_descriptor = is_supported_by_descriptor(
-                                    device_info.vendor_id,
-                                    device_info.product_id,
-                                    &descriptor,
-                                );
+                    // Alpha EVO-generation devices should be discoverable even when
+                    // PID mapping is incomplete; descriptor capture confirms details.
+                    let is_simagic_evo = device_info.vendor_id == 0x3670;
+                    let is_supported_by_descriptor = is_supported_by_descriptor(
+                        device_info.vendor_id,
+                        device_info.product_id,
+                        &descriptor,
+                    );
 
-                                if is_supported_by_id
-                                    || is_simagic_evo
-                                    || is_supported_by_descriptor
-                                {
-                                    devices.push(device_info);
-                                }
-                            }
-                        }
+                    if is_supported_by_id || is_simagic_evo || is_supported_by_descriptor {
+                        devices.push(device_info);
                     }
                 }
             }
@@ -394,7 +452,7 @@ impl LinuxHidPort {
                     supports_raw_torque_1khz: true,
                     supports_health_stream: true,
                     supports_led_bus: false,
-                    max_torque: must(TorqueNm::new(25.0)),
+                    max_torque: TorqueNm::new(25.0).unwrap_or(TorqueNm::ZERO),
                     encoder_cpr: 4096,
                     min_report_period_us: 1000, // 1kHz
                 };
@@ -414,6 +472,11 @@ impl LinuxHidPort {
                     }),
                     product_name: Some(format!("Racing Wheel {:04X}:{:04X}", vid, pid)),
                     path,
+                    interface_number: None,
+                    usage_page: None,
+                    usage: None,
+                    report_descriptor_len: None,
+                    report_descriptor_crc32: None,
                     capabilities,
                 };
 
@@ -477,6 +540,17 @@ impl LinuxHidPort {
             path.display()
         ))?;
 
+        let (usage_page, usage) = parse_usage_page_and_usage(&descriptor);
+        let interface_number = try_read_linux_interface_number(path);
+        let report_descriptor_len = u32::try_from(descriptor.len()).ok();
+        let report_descriptor_crc32 = if descriptor.is_empty() {
+            None
+        } else {
+            let mut hasher = Crc32Hasher::new();
+            hasher.update(&descriptor);
+            Some(hasher.finalize())
+        };
+
         Ok((
             HidDeviceInfo {
                 device_id,
@@ -487,6 +561,11 @@ impl LinuxHidPort {
                 product_name: product_name
                     .or_else(|| Some(format!("Racing Wheel {:04X}:{:04X}", vendor_id, product_id))),
                 path: path.to_string_lossy().to_string(),
+                interface_number,
+                usage_page,
+                usage,
+                report_descriptor_len,
+                report_descriptor_crc32,
                 capabilities,
             },
             descriptor,
@@ -731,6 +810,9 @@ impl LinuxHidDevice {
 
         Self::initialize_vendor_protocol(&device_info, &write_file, moza_raw_transport_enabled);
 
+        let moza_protocol = (device_info.vendor_id == 0x346E)
+            .then_some(vendor::moza::MozaProtocol::new(device_info.product_id));
+
         Ok(Self {
             device_info,
             connected: AtomicBool::new(true),
@@ -742,8 +824,7 @@ impl LinuxHidDevice {
             fault_flags: AtomicU8::new(0),
             hands_on: AtomicBool::new(false),
             moza_raw_transport_enabled,
-            moza_protocol: (device_info.vendor_id == 0x346E)
-                .then_some(vendor::moza::MozaProtocol::new(device_info.product_id)),
+            moza_protocol,
             has_moza_input: AtomicBool::new(false),
             moza_input_seq: AtomicU32::new(0),
             moza_input_state: Seqlock::new(MozaInputState::empty(0)),
@@ -766,17 +847,63 @@ impl LinuxHidDevice {
             return;
         }
 
-        let Some(protocol) =
-            vendor::get_vendor_protocol(device_info.vendor_id, device_info.product_id)
-        else {
-            return;
-        };
-
         let Some(write_file) = write_file.as_ref() else {
             debug!(
                 "Skipping vendor initialization for {} (VID={:04X}, PID={:04X}) - no writable handle",
                 device_info.device_id, device_info.vendor_id, device_info.product_id
             );
+            return;
+        };
+
+        // For Moza wheelbases in raw-transport mode, apply signature-based policy before
+        // constructing the protocol handler (so high torque + direct mode are gated).
+        if device_info.vendor_id == 0x346E
+            && moza_raw_transport_enabled
+            && vendor::moza::is_wheelbase_product(device_info.product_id)
+        {
+            let crc32 = device_info.report_descriptor_crc32;
+            let requested_mode = vendor::moza::default_ffb_mode();
+            let effective_mode = vendor::moza::effective_ffb_mode(requested_mode, crc32);
+            let high_torque_opt_in = vendor::moza::effective_high_torque_opt_in(crc32);
+
+            if vendor::moza::default_high_torque_enabled() && !high_torque_opt_in {
+                warn!(
+                    "Moza high torque requested but signature not trusted (crc32={:?}) for {}. \
+                     Add CRC32 to {} or set {}=1 to override.",
+                    crc32,
+                    device_info.device_id,
+                    "OPENRACING_MOZA_DESCRIPTOR_CRC32_ALLOWLIST",
+                    "OPENRACING_MOZA_ALLOW_UNKNOWN_SIGNATURE"
+                );
+            }
+            if requested_mode != effective_mode {
+                warn!(
+                    "Moza FFB mode {:?} requested but signature not trusted (crc32={:?}) for {}; \
+                     using {:?}.",
+                    requested_mode, crc32, device_info.device_id, effective_mode
+                );
+            }
+
+            let protocol = vendor::moza::MozaProtocol::new_with_config(
+                device_info.product_id,
+                effective_mode,
+                high_torque_opt_in,
+            );
+            let mut writer = HidrawVendorWriter {
+                fd: write_file.as_raw_fd(),
+            };
+            if let Err(e) = protocol.initialize_device(&mut writer) {
+                warn!(
+                    "Moza vendor initialization failed for {} (VID={:04X}, PID={:04X}): {}",
+                    device_info.device_id, device_info.vendor_id, device_info.product_id, e
+                );
+            }
+            return;
+        }
+
+        let Some(protocol) =
+            vendor::get_vendor_protocol(device_info.vendor_id, device_info.product_id)
+        else {
             return;
         };
 
@@ -995,7 +1122,7 @@ impl HidDevice for LinuxHidDevice {
 
     fn read_inputs(&self) -> Option<crate::DeviceInputs> {
         self.moza_input_state()
-            .map(crate::DeviceInputs::from_moza_input_state)
+            .map(|s| crate::DeviceInputs::from_moza_input_state(&s))
     }
 }
 
@@ -1096,21 +1223,29 @@ mod tests {
     use super::*;
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => panic!("unexpected Err: {e:?}"),
+        }
+    }
+
     fn with_moza_transport_mode<T, F>(mode: Option<&str>, test: F) -> T
     where
         F: FnOnce() -> T,
     {
         let previous = env::var(MOZA_TRANSPORT_MODE_ENV).ok();
+        #[allow(clippy::panic)]
         match mode {
-            Some(value) => env::set_var(MOZA_TRANSPORT_MODE_ENV, value),
-            None => env::remove_var(MOZA_TRANSPORT_MODE_ENV),
+            Some(value) => unsafe { env::set_var(MOZA_TRANSPORT_MODE_ENV, value) },
+            None => unsafe { env::remove_var(MOZA_TRANSPORT_MODE_ENV) },
         }
 
         let result = test();
 
         match previous {
-            Some(value) => env::set_var(MOZA_TRANSPORT_MODE_ENV, value),
-            None => env::remove_var(MOZA_TRANSPORT_MODE_ENV),
+            Some(value) => unsafe { env::set_var(MOZA_TRANSPORT_MODE_ENV, value) },
+            None => unsafe { env::remove_var(MOZA_TRANSPORT_MODE_ENV) },
         }
 
         result
@@ -1190,6 +1325,11 @@ mod tests {
             manufacturer: Some("Test Manufacturer".to_string()),
             product_name: Some("Test Racing Wheel".to_string()),
             path: "/dev/hidraw_mock".to_string(),
+            interface_number: None,
+            usage_page: None,
+            usage: None,
+            report_descriptor_len: None,
+            report_descriptor_crc32: None,
             capabilities,
         };
 
@@ -1220,6 +1360,11 @@ mod tests {
             manufacturer: Some("Test Manufacturer".to_string()),
             product_name: Some("Test Racing Wheel".to_string()),
             path: "/dev/hidraw_mock".to_string(),
+            interface_number: None,
+            usage_page: None,
+            usage: None,
+            report_descriptor_len: None,
+            report_descriptor_crc32: None,
             capabilities,
         };
 
@@ -1352,6 +1497,11 @@ mod tests {
                 manufacturer: Some("Moza Racing".to_string()),
                 product_name: Some("Moza R5".to_string()),
                 path: "/dev/hidraw_mock".to_string(),
+                interface_number: None,
+                usage_page: None,
+                usage: None,
+                report_descriptor_len: None,
+                report_descriptor_crc32: None,
                 capabilities,
             };
 

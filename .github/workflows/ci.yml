@@ -9,9 +9,6 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  # Enable sccache for faster builds
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: "sccache"
 
 jobs:
   # Phase 0: Documentation and format validation (fast, no build required)
@@ -46,6 +43,41 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - &sccache_best_effort
+        name: Configure sccache (best effort)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! command -v sccache >/dev/null 2>&1; then
+            echo "sccache not found; continuing without cache"
+            exit 0
+          fi
+
+          # Clean slate (avoid stale config from previous attempts)
+          sccache --stop-server || true
+
+          # Try GH Actions Cache backend first.
+          if SCCACHE_GHA_ENABLED=true sccache --start-server; then
+            echo "SCCACHE_GHA_ENABLED=true" >> "$GITHUB_ENV"
+            sccache --show-stats || true
+            exit 0
+          fi
+
+          echo "GH Actions Cache backend unavailable; falling back to local disk cache."
+          sccache --stop-server || true
+
+          # Fall back to local cache (no GHAC dependency)
+          if SCCACHE_GHA_ENABLED=false sccache --start-server; then
+            echo "SCCACHE_GHA_ENABLED=false" >> "$GITHUB_ENV"
+            sccache --show-stats || true
+            exit 0
+          fi
+
+          # Absolute last resort: keep the job running, even if sccache is busted.
+          echo "sccache failed to start; disabling caching."
+          echo "SCCACHE_DISABLE=1" >> "$GITHUB_ENV"
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -58,10 +90,10 @@ jobs:
           sudo apt-get install -y libudev-dev pkg-config
 
       - name: Build CLI in isolation
-        run: cargo build -p racing-wheel-cli --locked
+        run: cargo build -p wheelctl --locked
 
       - name: Test CLI help (smoke test)
-        run: cargo run -p racing-wheel-cli -- --help
+        run: cargo run -p wheelctl -- --help
 
   isolation-service:
     name: Service Isolation Build
@@ -75,6 +107,8 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
+
+      - *sccache_best_effort
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -106,6 +140,8 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - *sccache_best_effort
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -121,7 +157,7 @@ jobs:
         run: cargo build -p racing-wheel-plugins --locked
 
       - name: Build sample plugin (feature gated)
-        run: cargo build -p racing-wheel-plugins --features sample-plugin
+        run: cargo build -p racing-wheel-plugins --features sample-plugins
 
   # UI crate build verification on Ubuntu 22.04 and 24.04
   # Tests webkit2gtk-4.1 compatibility across supported Ubuntu LTS versions
@@ -137,6 +173,8 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
+
+      - *sccache_best_effort
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -185,6 +223,8 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - *sccache_best_effort
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -214,8 +254,9 @@ jobs:
 
       - name: Run buf breaking change detection
         run: |
+          cd crates/schemas
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            buf breaking --against '.git#branch=main'
+            buf breaking --against '../../.git#branch=origin/main,subdir=crates/schemas'
           else
             echo "Skipping breaking change detection on main branch"
           fi
@@ -225,9 +266,9 @@ jobs:
 
       - name: Verify generated files are up to date
         run: |
-          # Regenerate and check if anything changed
+          cd crates/schemas
           buf generate
-          if ! git diff --exit-code; then
+          if ! git diff --exit-code -- src/generated; then
             echo "Generated files are out of date. Please regenerate and commit."
             exit 1
           fi
@@ -246,6 +287,8 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
+
+      - *sccache_best_effort
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -275,6 +318,8 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
+
+      - *sccache_best_effort
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -306,6 +351,8 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
+
+      - *sccache_best_effort
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -367,6 +414,8 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
+
+      - *sccache_best_effort
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -477,6 +526,8 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - *sccache_best_effort
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -560,6 +611,8 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - *sccache_best_effort
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -615,6 +668,8 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - *sccache_best_effort
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -669,6 +724,8 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - *sccache_best_effort
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -707,6 +764,8 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - *sccache_best_effort
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -726,7 +785,7 @@ jobs:
 
       - name: Verify all isolation builds still work
         run: |
-          cargo build -p racing-wheel-cli --locked
+          cargo build -p wheelctl --locked
           cargo build -p racing-wheel-service --locked  
           cargo build -p racing-wheel-plugins --locked
 
@@ -737,6 +796,9 @@ jobs:
 
       - name: Run comprehensive test suite
         run: cargo test --workspace --locked
+
+      - name: Ensure tests did not mutate profile fixtures
+        run: git diff --exit-code -- crates/service/profiles
 
       - name: Validate cross-platform compatibility
         run: |

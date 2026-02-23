@@ -16,6 +16,7 @@ use commands::AppState;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+#[allow(clippy::expect_used)]
 fn main() {
     // Initialize tracing for debug builds
     #[cfg(debug_assertions)]

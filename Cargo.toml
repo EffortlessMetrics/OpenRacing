@@ -1,6 +1,10 @@
 [workspace]
 members = [
     "crates/schemas",
+    "crates/ks",
+    "crates/srp",
+    "crates/input-maps",
+    "crates/hid-moza-protocol",
     "crates/engine",
     "crates/service",
     "crates/cli",

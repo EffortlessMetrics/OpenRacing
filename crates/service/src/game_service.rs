@@ -55,6 +55,7 @@ impl GameService {
         })
     }
 
+    #[allow(clippy::type_complexity)]
     fn build_config_writers(
         support_matrix: &GameSupportMatrix,
     ) -> Result<(

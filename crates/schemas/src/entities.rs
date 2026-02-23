@@ -417,6 +417,7 @@ impl Default for FilterConfig {
     ///
     /// These defaults are designed to be stable at 1kHz update rates
     /// with no oscillation or instability.
+    #[allow(clippy::panic)]
     fn default() -> Self {
         Self {
             // Stable values - no reconstruction filtering
@@ -460,6 +461,7 @@ impl Default for FilterConfig {
 
 impl FilterConfig {
     /// Create a new filter configuration with validation
+    #[allow(clippy::panic)]
     pub fn new(
         reconstruction: u8,
         friction: Gain,
@@ -596,6 +598,7 @@ impl BaseSettings {
 }
 
 impl Default for BaseSettings {
+    #[allow(clippy::panic)]
     fn default() -> Self {
         Self {
             ffb_gain: match Gain::new(0.7) {
@@ -668,6 +671,7 @@ impl LedConfig {
 }
 
 impl Default for LedConfig {
+    #[allow(clippy::panic)]
     fn default() -> Self {
         let mut colors = HashMap::new();
         colors.insert("green".to_string(), [0, 255, 0]);
@@ -721,6 +725,7 @@ impl HapticsConfig {
 }
 
 impl Default for HapticsConfig {
+    #[allow(clippy::panic)]
     fn default() -> Self {
         let mut effects = HashMap::new();
         effects.insert("kerb".to_string(), true);

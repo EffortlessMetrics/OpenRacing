@@ -459,26 +459,21 @@ impl ConfigValidationService {
 
         let mut expected_diffs = fixture.expected_diffs.clone();
         if fixture.game_id == "iracing"
-            && actual_diffs
-                .iter()
-                .any(|diff| diff.key == IRACING_360HZ_KEY)
             && !expected_diffs
                 .iter()
                 .any(|diff| diff.key == IRACING_360HZ_KEY)
-        {
-            if let Some(actual_360hz_diff) = actual_diffs
+            && let Some(actual_360hz_diff) = actual_diffs
                 .iter()
                 .find(|diff| diff.key == IRACING_360HZ_KEY)
-            {
-                expected_diffs.push(ConfigDiff {
-                    file_path: actual_360hz_diff.file_path.clone(),
-                    section: actual_360hz_diff.section.clone(),
-                    key: IRACING_360HZ_KEY.to_string(),
-                    old_value: None,
-                    new_value: actual_360hz_diff.new_value.clone(),
-                    operation: actual_360hz_diff.operation.clone(),
-                });
-            }
+        {
+            expected_diffs.push(ConfigDiff {
+                file_path: actual_360hz_diff.file_path.clone(),
+                section: actual_360hz_diff.section.clone(),
+                key: IRACING_360HZ_KEY.to_string(),
+                old_value: None,
+                new_value: actual_360hz_diff.new_value.clone(),
+                operation: actual_360hz_diff.operation.clone(),
+            });
         }
 
         let expected_diffs = &expected_diffs;
@@ -897,6 +892,15 @@ impl Default for ConfigValidationService {
     }
 }
 
+fn components_suffix_match(expected: &[String], actual: &[String]) -> bool {
+    if expected.len() > actual.len() {
+        return false;
+    }
+
+    let start_index = actual.len().saturating_sub(expected.len());
+    actual[start_index..] == *expected
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1031,13 +1035,4 @@ mod tests {
 
         assert!(service.paths_match(expected, actual));
     }
-}
-
-fn components_suffix_match(expected: &[String], actual: &[String]) -> bool {
-    if expected.len() > actual.len() {
-        return false;
-    }
-
-    let start_index = actual.len().saturating_sub(expected.len());
-    actual[start_index..] == *expected
 }

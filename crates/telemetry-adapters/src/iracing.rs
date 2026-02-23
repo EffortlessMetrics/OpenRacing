@@ -2,6 +2,7 @@
 //!
 //! This adapter opens `Local\\IRSDKMemMapFileName` with `FILE_MAP_READ`,
 //! reads the IRSDK header, and selects the newest rotating telemetry buffer.
+#![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
@@ -331,9 +332,9 @@ impl TelemetryAdapter for IRacingAdapter {
         tokio::spawn(async move {
             let mut adapter = IRacingAdapter::new();
             let mut sequence = 0u64;
-            let mut last_tick_count = None;
-            let mut last_session_info_update = None;
-            let mut last_layout_signature = None;
+            let mut last_tick_count: Option<i32> = None;
+            let mut last_session_info_update: Option<i32> = None;
+            let mut last_layout_signature: Option<(i32, i32, i32, i32)> = None;
             let mut warned_unscaled_ffb = false;
             let mut tick_interval = update_rate;
 
@@ -474,10 +475,7 @@ impl TelemetryAdapter for IRacingAdapter {
             }
 
             #[cfg(not(windows))]
-            loop {
-                warn!("iRacing shared memory is only supported on Windows");
-                break;
-            }
+            warn!("iRacing shared memory is only supported on Windows");
 
             info!("Stopped iRacing telemetry monitoring");
         });
@@ -973,7 +971,6 @@ fn irsdk_var_type_size(var_type: i32) -> Option<usize> {
     })
 }
 
-#[cfg(windows)]
 fn assign_var_binding(layout: &mut IRacingLayout, name: &str, binding: VarBinding) {
     if matches_irsdk_name(name, &["SessionTime"]) {
         layout.session_time = Some(binding);
@@ -1030,7 +1027,6 @@ fn assign_var_binding(layout: &mut IRacingLayout, name: &str, binding: VarBindin
     }
 }
 
-#[cfg(windows)]
 fn matches_irsdk_name(name: &str, candidates: &[&str]) -> bool {
     candidates
         .iter()

@@ -1,7 +1,11 @@
 //! Platform-specific service daemon implementations
 
 use anyhow::{Context, Result};
+#[cfg(unix)]
+use std::path::PathBuf;
 use tracing::info;
+#[cfg(unix)]
+use tracing::warn;
 
 use crate::daemon::ServiceDaemon;
 
@@ -114,7 +118,7 @@ WantedBy=default.target
 
         // Enable and start the service
         let output = std::process::Command::new("systemctl")
-            .args(&["--user", "daemon-reload"])
+            .args(["--user", "daemon-reload"])
             .output()
             .context("Failed to reload systemd")?;
 
@@ -124,7 +128,7 @@ WantedBy=default.target
         }
 
         let output = std::process::Command::new("systemctl")
-            .args(&["--user", "enable", "wheeld.service"])
+            .args(["--user", "enable", "wheeld.service"])
             .output()
             .context("Failed to enable service")?;
 
@@ -140,11 +144,11 @@ WantedBy=default.target
     pub(crate) async fn uninstall_unix_service() -> Result<()> {
         // Stop and disable service
         let _ = std::process::Command::new("systemctl")
-            .args(&["--user", "stop", "wheeld.service"])
+            .args(["--user", "stop", "wheeld.service"])
             .output();
 
         let _ = std::process::Command::new("systemctl")
-            .args(&["--user", "disable", "wheeld.service"])
+            .args(["--user", "disable", "wheeld.service"])
             .output();
 
         // Remove service file
@@ -160,7 +164,7 @@ WantedBy=default.target
 
         // Reload systemd
         let _ = std::process::Command::new("systemctl")
-            .args(&["--user", "daemon-reload"])
+            .args(["--user", "daemon-reload"])
             .output();
 
         info!("Unix service uninstalled successfully");
@@ -169,7 +173,7 @@ WantedBy=default.target
 
     pub(crate) async fn status_unix_service() -> Result<String> {
         let output = std::process::Command::new("systemctl")
-            .args(&["--user", "status", "wheeld.service"])
+            .args(["--user", "status", "wheeld.service"])
             .output()
             .context("Failed to execute systemctl command")?;
 

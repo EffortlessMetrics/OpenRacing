@@ -619,12 +619,8 @@ fn test_moza_interlock_combo_hold_cleared_when_released() {
     let active = must_some(service.get_active_challenge(), "expected active challenge");
     assert!(active.combo_start.is_some());
 
-    let mut input_released = MozaInputState::empty(0);
-    assert!(
-        service
-            .process_moza_interlock_inputs("test_device", input_released, 30_000, 99)
-            .not()
-    );
+    let input_released = MozaInputState::empty(0);
+    assert!(!service.process_moza_interlock_inputs("test_device", input_released, 30_000, 99));
     let active = must_some(service.get_active_challenge(), "expected active challenge");
     assert!(active.combo_start.is_none());
 }

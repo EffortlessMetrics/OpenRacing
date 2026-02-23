@@ -202,3 +202,5 @@ Use the captured output to:
 - select the correct output/FFB interface by usage + descriptor fingerprint,
 - gate direct torque behind known descriptors,
 - track layout drift across firmware versions.
+
+The `crc32` field from this tool maps directly to `OPENRACING_MOZA_DESCRIPTOR_CRC32_ALLOWLIST` in the runtime. See [Moza Protocol: Signature Fingerprinting and Safe Arming Policy](../protocols/MOZA_PROTOCOL.md#signature-fingerprinting-and-safe-arming-policy) for the full capture → allowlist → arm workflow.

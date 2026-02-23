@@ -37,6 +37,7 @@ pub mod engine;
 pub mod ffb;
 pub mod filters;
 pub mod hid;
+#[cfg(test)]
 pub mod hil_tests;
 pub mod input;
 pub mod led_haptics;

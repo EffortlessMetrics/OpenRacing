@@ -109,7 +109,7 @@ jobs:
               <ul>
                   <li><a href="racing_wheel_engine/index.html">racing-wheel-engine</a> - Core FFB engine and RT pipeline</li>
                   <li><a href="racing_wheel_service/index.html">racing-wheel-service</a> - Background service and IPC</li>
-                  <li><a href="racing_wheel_cli/index.html">racing-wheel-cli</a> - Command-line interface</li>
+                  <li><a href="wheelctl/index.html">wheelctl</a> - Command-line interface</li>
                   <li><a href="racing_wheel_plugins/index.html">racing-wheel-plugins</a> - Plugin system (WASM + native)</li>
                   <li><a href="racing_wheel_schemas/index.html">racing-wheel-schemas</a> - Protocol and schema definitions</li>
                   <li><a href="racing_wheel_ui/index.html">racing-wheel-ui</a> - User interface components</li>
@@ -153,7 +153,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- [racing-wheel-engine](${{ steps.deployment.outputs.page_url }}racing_wheel_engine/)" >> $GITHUB_STEP_SUMMARY
           echo "- [racing-wheel-service](${{ steps.deployment.outputs.page_url }}racing_wheel_service/)" >> $GITHUB_STEP_SUMMARY
-          echo "- [racing-wheel-cli](${{ steps.deployment.outputs.page_url }}racing_wheel_cli/)" >> $GITHUB_STEP_SUMMARY
+          echo "- [wheelctl](${{ steps.deployment.outputs.page_url }}wheelctl/)" >> $GITHUB_STEP_SUMMARY
           echo "- [racing-wheel-plugins](${{ steps.deployment.outputs.page_url }}racing_wheel_plugins/)" >> $GITHUB_STEP_SUMMARY
           echo "- [racing-wheel-schemas](${{ steps.deployment.outputs.page_url }}racing_wheel_schemas/)" >> $GITHUB_STEP_SUMMARY
           echo "- [racing-wheel-ui](${{ steps.deployment.outputs.page_url }}racing_wheel_ui/)" >> $GITHUB_STEP_SUMMARY

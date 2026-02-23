@@ -69,16 +69,21 @@ The KS is **not** treated as a normal wheel peripheral. OpenRacing uses a topolo
 
 Moza wheelbases start in a restricted mode. To enable high-frequency force feedback and full input reporting (including aggregated pedals), the host must send a specific feature report sequence.
 
-**Required Sequence:**
+**Safe-default sequence (2 reports — always sent in raw-hidraw mode):**
 
-1. **Enable High Torque / Motor:** Feature Report `0x02` -> `[0x02, 0x00, 0x00, 0x00]`
-2. **Start Reporting:** Feature Report `0x03` -> `[0x03, 0x00, 0x00, 0x00]`
-3. **Set FFB Mode:** Feature Report `0x11` -> `[0x11, <mode>, 0x00, 0x00]`
+1. **Start Reporting:** Feature Report `0x03` → `[0x03, 0x00, 0x00, 0x00]`
+2. **Set FFB Mode:** Feature Report `0x11` → `[0x11, <mode>, 0x00, 0x00]`
+
+**Optional: Enable High Torque (requires explicit arming):**
+
+* **Pre-step (optional): Enable High Torque / Motor:** Feature Report `0x02` → `[0x02, 0x00, 0x00, 0x00]`
+  — sent *before* step 1, only when `OPENRACING_MOZA_HIGH_TORQUE=1` and the device signature is trusted.
+  See [Signature Fingerprinting and Safe Arming Policy](#signature-fingerprinting-and-safe-arming-policy).
 
 `<mode>` is currently configured in OpenRacing via `OPENRACING_MOZA_FFB_MODE`:
 
 - `standard` or `0` (default): PID/PIDFF mode (`0x00`)
-- `direct` or `raw` or `2`: Direct torque mode (`0x02`)
+- `direct` or `raw` or `2`: Direct torque mode (`0x02`) — requires trusted signature
 - `off`: Disabled (`0xFF`)
 
 On Linux, the runtime transport is also controlled by `OPENRACING_MOZA_TRANSPORT_MODE`:
@@ -86,7 +91,7 @@ On Linux, the runtime transport is also controlled by `OPENRACING_MOZA_TRANSPORT
 - `raw-hidraw` or `raw` (default): OpenRacing sends feature reports and direct torque output through `hidraw`.
 - `kernel-pidff` or `kernel`: OpenRacing only runs kernel-PIDFF-compatible mode. Vendor handshake and raw writes are skipped so the kernel driver can own FFB control.
 
-*Note: Without Step 2, the wheelbase may not report pedal axis changes.*
+*Note: Without the High Torque step, the wheelbase may not report pedal axis changes in some firmware versions.*
 
 ## Input Protocols
 
@@ -110,6 +115,11 @@ When SR-P Lite pedals are connected to the wheelbase, their axis data is mapped 
 **Normalization:**  
 OpenRacing normalizes all axes to `0.0` (released) to `1.0` (fully pressed).  
 `Value_Float = Value_Raw / 65535.0`
+
+**Implementation note:** Standalone SR-P USB pedal parsing is isolated in the
+`crates/srp` microcrate (`racing-wheel-srp`) and consumed by
+`racing-wheel-hid-moza-protocol::MozaProtocol::parse_input_state` for
+`PID=0x0003`.
 
 ### HBP handbrake topology classes
 
@@ -156,3 +166,86 @@ Moza wheelbases support standard HID PID (Physical Interface Device) force feedb
 
 1. **"Aggregates Peripherals":** This property is critical. V2 hardware revisions might shift the byte offsets. The current implementation assumes the standard `0x01` report structure defined above.
 2. **Linux Permissions:** The device must be accessed via `hidraw`. A udev rule is required to grant permission (VID `0x346E`).
+
+---
+
+## Signature Fingerprinting and Safe Arming Policy
+
+### Overview
+
+OpenRacing uses hardware signature material from `HidDeviceInfo` to gate high-risk device actions (high torque, direct FFB mode) behind a known-good device allowlist.
+
+This design mirrors the [`openracing-capture-ids`](../../crates/openracing-capture-ids/) tooling: capture identifies a device by its descriptor fingerprint, and the runtime policy allows high-risk paths only when that fingerprint is explicitly trusted.
+
+### Signature fields in `HidDeviceInfo`
+
+| Field | Source | Linux | Windows |
+|---|---|---|---|
+| `interface_number` | hidapi / sysfs | sysfs symlink (`.N` suffix) | hidapi `interface_number()` |
+| `usage_page` | report descriptor / hidapi | parsed from first `0x05/0x06` tag | hidapi `usage_page()` |
+| `usage` | report descriptor / hidapi | parsed from first `0x09/0x0A` tag | hidapi `usage()` |
+| `report_descriptor_len` | raw descriptor bytes | `descriptor.len()` | not available (always `None`) |
+| `report_descriptor_crc32` | CRC32 of raw descriptor | `crc32fast::Hasher` over descriptor | not available (always `None`) |
+
+Windows does not expose raw report descriptor bytes via hidapi. The `report_descriptor_crc32` is therefore always `None` on Windows until a separate Windows fingerprinting path is implemented.
+
+### Arming policy
+
+**High torque** (`report_ids::HIGH_TORQUE`, feature report `0x02`):
+- Never sent by default.
+- Opt in: `OPENRACING_MOZA_HIGH_TORQUE=1` **and** a trusted signature (see below).
+- If `OPENRACING_MOZA_HIGH_TORQUE=1` is set but the signature is not trusted, a `warn!` log entry is emitted and high torque is skipped.
+
+**Direct FFB mode** (`OPENRACING_MOZA_FFB_MODE=direct`):
+- If the device signature is not trusted, the runtime downgrades to `standard` mode and emits a warning.
+
+### Descriptor CRC32 allowlist
+
+On Linux, a device is trusted when its `report_descriptor_crc32` appears in:
+
+```text
+OPENRACING_MOZA_DESCRIPTOR_CRC32_ALLOWLIST=0xDEADBEEF,0x12345678
+```
+
+Values are comma- or semicolon-separated hex (`0x` prefix optional) or decimal integers.
+
+**Populate the allowlist via the capture tool:**
+
+```bash
+# Step 1: capture signature material from a connected Moza wheelbase
+cargo run -p openracing-capture-ids -- --vid 0x346E > moza_capture.json
+
+# Step 2: inspect the crc32 field for the wheelbase interface
+# (look for the entry with usage_page=0x01 / usage=0x04 or vendor usage page)
+
+# Step 3: export and run
+export OPENRACING_MOZA_DESCRIPTOR_CRC32_ALLOWLIST=0xDEADBEEF
+export OPENRACING_MOZA_HIGH_TORQUE=1
+```
+
+### Escape hatch (developers only)
+
+```bash
+# Bypasses allowlist check entirely. Use for bring-up of unknown hardware.
+export OPENRACING_MOZA_ALLOW_UNKNOWN_SIGNATURE=1
+export OPENRACING_MOZA_HIGH_TORQUE=1
+```
+
+**Warning:** the escape hatch sends high torque to any Moza wheelbase regardless of identity. Only use on hardware you own in a safe environment.
+
+### Windows parity note
+
+Windows currently gets `report_descriptor_crc32=None`, which means:
+- `signature_is_trusted(None)` returns `false` by default.
+- High torque and direct mode require `OPENRACING_MOZA_ALLOW_UNKNOWN_SIGNATURE=1` on Windows until a Windows descriptor fingerprinting path is implemented.
+- This is a deliberate safe-default: do not assume Windows is silently working in an untrusted state.
+
+### Environment variable reference
+
+| Variable | Values | Effect |
+|---|---|---|
+| `OPENRACING_MOZA_FFB_MODE` | `standard` (default), `direct`, `off` | Selects FFB mode; `direct` is downgraded if untrusted |
+| `OPENRACING_MOZA_HIGH_TORQUE` | `1` / `true` | Requests high torque (requires trusted signature) |
+| `OPENRACING_MOZA_DESCRIPTOR_CRC32_ALLOWLIST` | `0xHEX,...` | Comma-separated trusted descriptor CRC32s (Linux) |
+| `OPENRACING_MOZA_ALLOW_UNKNOWN_SIGNATURE` | `1` / `true` | Bypass allowlist check (developer escape hatch) |
+| `OPENRACING_MOZA_TRANSPORT_MODE` | `raw-hidraw` (default), `kernel-pidff` | Linux transport; `kernel-pidff` skips vendor handshake |

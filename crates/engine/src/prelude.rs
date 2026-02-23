@@ -15,6 +15,7 @@ pub trait MutexExt<T> {
 }
 
 impl<T> MutexExt<T> for Mutex<T> {
+    #[allow(clippy::panic)]
     fn lock_or_panic(&self) -> MutexGuard<'_, T> {
         match self.lock() {
             Ok(g) => g,
@@ -32,6 +33,7 @@ pub trait RwLockExt<T> {
 }
 
 impl<T> RwLockExt<T> for RwLock<T> {
+    #[allow(clippy::panic)]
     fn read_or_panic(&self) -> RwLockReadGuard<'_, T> {
         match self.read() {
             Ok(g) => g,
@@ -39,6 +41,7 @@ impl<T> RwLockExt<T> for RwLock<T> {
         }
     }
 
+    #[allow(clippy::panic)]
     fn write_or_panic(&self) -> RwLockWriteGuard<'_, T> {
         match self.write() {
             Ok(g) => g,

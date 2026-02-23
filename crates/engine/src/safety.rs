@@ -178,6 +178,7 @@ impl SafetyService {
     }
 
     /// Get the current maximum allowed torque as TorqueNm
+    #[allow(clippy::expect_used)]
     pub fn get_max_torque(&self, is_high_torque_enabled: bool) -> TorqueNm {
         let torque_nm = match &self.state {
             SafetyState::Faulted { .. } => 0.0,
@@ -395,12 +396,12 @@ impl SafetyService {
     }
 
     fn clear_moza_interlock_combo(&mut self) {
-        if let SafetyState::AwaitingPhysicalAck { combo_start, .. } = &mut self.state {
-            if combo_start.is_some() {
-                *combo_start = None;
-                if let Some(challenge) = self.active_challenge.as_mut() {
-                    challenge.combo_start = None;
-                }
+        if let SafetyState::AwaitingPhysicalAck { combo_start, .. } = &mut self.state
+            && combo_start.is_some()
+        {
+            *combo_start = None;
+            if let Some(challenge) = self.active_challenge.as_mut() {
+                challenge.combo_start = None;
             }
         }
     }

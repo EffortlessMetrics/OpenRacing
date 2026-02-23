@@ -3,10 +3,12 @@
 //! This module provides platform-specific HID device adapters that implement
 //! the HidPort and HidDevice traits with real-time optimizations for each OS.
 
-use crate::input::{KsReportSnapshot, SnapshotMailbox as Seqlock};
+use crate::input::SnapshotMailbox as Seqlock;
 use crate::ports::HidPort;
 use crate::{DeviceInfo, TelemetryData};
 use racing_wheel_schemas::prelude::*;
+
+pub use racing_wheel_hid_moza_protocol::MozaInputState;
 
 pub mod quirks;
 pub mod rt_stream;
@@ -51,50 +53,17 @@ pub struct HidDeviceInfo {
     pub manufacturer: Option<String>,
     pub product_name: Option<String>,
     pub path: String,
+    /// HID interface number from the OS (used for multi-interface devices).
+    pub interface_number: Option<i32>,
+    /// HID usage page from the device descriptor (top-level collection).
+    pub usage_page: Option<u16>,
+    /// HID usage from the device descriptor (top-level collection).
+    pub usage: Option<u16>,
+    /// Length of the raw HID report descriptor in bytes (Linux/capture-ids).
+    pub report_descriptor_len: Option<u32>,
+    /// CRC32 of the raw HID report descriptor (Linux/capture-ids, for allowlisting).
+    pub report_descriptor_crc32: Option<u32>,
     pub capabilities: DeviceCapabilities,
-}
-
-/// Raw input snapshot for Moza reports after report normalization.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct MozaInputState {
-    pub steering_u16: u16,
-    pub throttle_u16: u16,
-    pub brake_u16: u16,
-    pub clutch_u16: u16,
-    pub handbrake_u16: u16,
-    pub buttons: [u8; 16],
-    pub hat: u8,
-    pub funky: u8,
-    pub rotary: [u8; 2],
-    pub ks_snapshot: KsReportSnapshot,
-    pub tick: u32,
-}
-
-impl MozaInputState {
-    /// Return a zero-initialized state with a tick marker.
-    pub fn empty(tick: u32) -> Self {
-        Self {
-            steering_u16: 0,
-            throttle_u16: 0,
-            brake_u16: 0,
-            clutch_u16: 0,
-            handbrake_u16: 0,
-            buttons: [0u8; 16],
-            hat: 0,
-            funky: 0,
-            rotary: [0u8; 2],
-            ks_snapshot: KsReportSnapshot::default(),
-            tick,
-        }
-    }
-
-    pub fn both_clutches_pressed(&self, threshold: u16) -> bool {
-        if let Some(pressed) = self.ks_snapshot.both_clutches_pressed(threshold) {
-            return pressed;
-        }
-
-        self.clutch_u16 >= threshold && self.handbrake_u16 >= threshold
-    }
 }
 
 impl HidDeviceInfo {
@@ -247,6 +216,7 @@ impl DeviceCapabilitiesReport {
         unsafe { Some(std::ptr::read_unaligned(data.as_ptr() as *const Self)) }
     }
 
+    #[allow(clippy::expect_used)]
     pub fn to_device_capabilities(&self) -> DeviceCapabilities {
         // Convert cNm to Nm, clamping to valid range
         let nm = (self.max_torque_cnm as f32) / 100.0;

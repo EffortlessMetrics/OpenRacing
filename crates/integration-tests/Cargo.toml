@@ -20,6 +20,7 @@ print_stdout = "deny"
 racing-wheel-engine = { path = "../engine" }
 racing-wheel-service = { path = "../service" }
 racing-wheel-schemas = { path = "../schemas" }
+racing-wheel-hid-moza-protocol = { path = "../hid-moza-protocol" }
 tokio = { workspace = true, features = ["full"] }
 tokio-test = "0.4.5"
 serde = { workspace = true }

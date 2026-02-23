@@ -181,6 +181,7 @@ impl SafetyPolicy {
 }
 
 impl Default for SafetyPolicy {
+    #[allow(clippy::expect_used)]
     fn default() -> Self {
         Self::new().expect("SafetyPolicy::new() should not fail with default values")
     }

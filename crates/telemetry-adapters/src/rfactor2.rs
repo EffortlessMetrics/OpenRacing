@@ -3,6 +3,7 @@
 //! Implements telemetry adapter for rFactor 2 using shared memory.
 //! rFactor 2 exposes telemetry data through memory-mapped files.
 //! Requirements: 12.4
+#![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,

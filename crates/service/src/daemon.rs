@@ -9,7 +9,9 @@ use tokio::sync::broadcast;
 use tokio::time::{Duration, interval};
 use tracing::{debug, error, info, warn};
 
-use crate::{IpcConfig, IpcServer, TransportType, WheelService};
+use crate::{
+    IpcConfig, IpcServer, TransportType, WheelService, profile_repository::ProfileRepositoryConfig,
+};
 
 /// Service configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -118,6 +120,7 @@ pub struct ServiceDaemon {
     shutdown_tx: broadcast::Sender<()>,
     is_running: Arc<AtomicBool>,
     restart_count: Arc<std::sync::atomic::AtomicU32>,
+    profile_config: ProfileRepositoryConfig,
 }
 
 impl ServiceDaemon {
@@ -130,6 +133,7 @@ impl ServiceDaemon {
             shutdown_tx,
             is_running: Arc::new(AtomicBool::new(false)),
             restart_count: Arc::new(std::sync::atomic::AtomicU32::new(0)),
+            profile_config: ProfileRepositoryConfig::default(),
         })
     }
 
@@ -138,8 +142,26 @@ impl ServiceDaemon {
         config: ServiceConfig,
         _flags: crate::FeatureFlags,
     ) -> Result<Self> {
-        // Feature flags are passed to the WheelService during creation
         Self::new(config).await
+    }
+
+    /// Create new service daemon with explicit profile repository config (tests/dev)
+    pub async fn new_with_profile_config(
+        config: ServiceConfig,
+        profile_config: ProfileRepositoryConfig,
+    ) -> Result<Self> {
+        let mut daemon = Self::new(config).await?;
+        daemon.profile_config = profile_config;
+        Ok(daemon)
+    }
+
+    /// Create new service daemon with feature flags and explicit profile repository config (tests/dev)
+    pub async fn new_with_flags_and_profile_config(
+        config: ServiceConfig,
+        _flags: crate::FeatureFlags,
+        profile_config: ProfileRepositoryConfig,
+    ) -> Result<Self> {
+        Self::new_with_profile_config(config, profile_config).await
     }
 
     /// Run the service daemon
@@ -203,7 +225,7 @@ impl ServiceDaemon {
 
         // Create wheel service
         let wheel_service = Arc::new(
-            WheelService::new()
+            WheelService::new_with_profile_config(self.profile_config.clone())
                 .await
                 .context("Failed to create wheel service")?,
         );

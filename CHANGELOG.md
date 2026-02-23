@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Moza Racing hardware support** (wheelbase + peripherals, hardware-ready):
+  - `racing-wheel-hid-moza-protocol` microcrate: pure protocol logic (report IDs/offsets, product IDs, handshake frame generator, wheelbase input parser, direct torque encoder, standalone HBP parser, signature verification)
+  - `racing-wheel-srp` microcrate: standalone SR-P pedal USB report parser + normalization primitives
+  - `racing-wheel-ks` microcrate: map-driven KS wheel controls parser (`KsReportMap`, `KsReportSnapshot`)
+  - `racing-wheel-input-maps` microcrate: `DeviceInputMap` schema + `compile_ks_map()` helper
+  - Supported wheelbases: R3, R5 V1/V2, R9 V1/V2, R12 V1/V2, R16, R21
+  - SR-P Lite embedded pedals (throttle/brake/clutch) via wheelbase aggregated report
+  - HBP handbrake: embedded path (wheelbase offset 9–10) + standalone USB (best-effort + capture-driven)
+  - KS wheel controls via capture-derived `device_map.json` (never hard-coded)
+  - High torque mode is opt-in only (`OPENRACING_MOZA_HIGH_TORQUE=1` or explicit config); default handshake skips HIGH_TORQUE report
+  - Handshake state machine with bounded retry (`MozaRetryPolicy`, default 3 retries, exponential backoff), `PermanentFailure` terminal state, and `reset_to_uninitialized()` for reconnect
+  - `DeviceSignature` + `verify_signature()` for identity gating (known PIDs → handshake allowed; unknown/peripheral → gated)
+  - `VirtualMozaDevice` in `racing-wheel-integration-tests` for deterministic e2e testing without hardware
+  - 10 BDD e2e scenarios covering handshake, high-torque gate, retry, disconnect/reconnect, FFB mode, peripherals
+  - 4 cargo-fuzz targets: `fuzz_moza_wheelbase_report`, `fuzz_moza_hbp_report`, `fuzz_moza_handshake_frames`, `fuzz_moza_direct_torque_encode`
+  - `mutants.toml` scoping cargo-mutants to `hid-moza-protocol`, `ks`, and `input-maps` crates
+  - Engine re-exports all Moza types via thin wrappers — no downstream churn
+
 - **EA F1 25 Native UDP Adapter** (`game_id = "f1_25"`): Native binary protocol support
   - Parses EA F1 25 UDP packets (format 2025) directly — no bridge required
   - Decodes PacketCarTelemetryData (ID=6): speed, gear, RPM, DRS, throttle, brake, tyre pressures/temps

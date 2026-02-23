@@ -2,6 +2,7 @@
 
 #[cfg(test)]
 mod tests {
+    use crate::profile_repository::ProfileRepositoryConfig;
     #[track_caller]
     fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
         assert!(r.is_ok(), "unexpected Err: {:?}", r.as_ref().err());
@@ -16,6 +17,7 @@ mod tests {
         BaseSettings, DeviceCapabilities, FilterConfig, Profile, ProfileScope,
     };
     use std::sync::Arc;
+    use tempfile::TempDir;
     use tokio::time::{Duration, timeout};
 
     fn valid_profile_id(value: &str) -> ProfileId {
@@ -88,15 +90,29 @@ mod tests {
         }
     }
 
+    async fn create_test_service()
+    -> Result<(WheelService, TempDir), Box<dyn std::error::Error + Send + Sync>> {
+        let temp_dir = TempDir::new()?;
+        let config = ProfileRepositoryConfig {
+            profiles_dir: temp_dir.path().to_path_buf(),
+            trusted_keys: Vec::new(),
+            auto_migrate: true,
+            backup_on_migrate: false,
+        };
+
+        let service = WheelService::new_with_profile_config(config).await?;
+        Ok((service, temp_dir))
+    }
+
     #[tokio::test]
     async fn test_wheel_service_creation() {
-        let service = WheelService::new().await;
+        let service = create_test_service().await;
         assert!(service.is_ok(), "WheelService creation should succeed");
     }
 
     #[tokio::test]
     async fn test_service_orchestration() {
-        let service = must(WheelService::new().await);
+        let (service, _temp_dir) = must(create_test_service().await);
 
         // Test that all services are accessible
         let profile_service = service.profile_service();
@@ -139,7 +155,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_integration_workflow() {
-        let service = must(WheelService::new().await);
+        let (service, _temp_dir) = must(create_test_service().await);
 
         let device_id = valid_device_id("integration-test-device");
         let max_torque = valid_torque(15.0);
@@ -196,7 +212,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_error_handling_scenarios() {
-        let service = must(WheelService::new().await);
+        let (service, _temp_dir) = must(create_test_service().await);
 
         // Test error handling in profile service
         // Construct invalid profile
@@ -244,7 +260,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_statistics() {
-        let service = must(WheelService::new().await);
+        let (service, _temp_dir) = must(create_test_service().await);
 
         // Get initial statistics
         let profile_stats = service.profile_service().get_profile_statistics().await;
@@ -272,7 +288,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_concurrent_service_operations() {
-        let service = Arc::new(must(WheelService::new().await));
+        let (service, _temp_dir) = must(create_test_service().await);
+        let service = Arc::new(service);
 
         // Wrap test body with timeout to ensure test completes within 10 seconds
         // Requirements: 2.1, 2.5
@@ -332,7 +349,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_resilience() {
-        let service = must(WheelService::new().await);
+        let (service, _temp_dir) = must(create_test_service().await);
 
         // Test that services continue to work after errors
         let device_id = valid_device_id("resilience-test-device");
@@ -357,10 +374,10 @@ mod tests {
     async fn test_service_lifecycle() {
         // Test that service can be created and destroyed multiple times
         for i in 0..3 {
-            let service = WheelService::new().await;
+            let service = create_test_service().await;
             assert!(service.is_ok(), "Service creation {} should succeed", i);
 
-            let service = must(service);
+            let (service, _temp_dir) = must(service);
 
             // Perform some operations
             let device_id = valid_device_id(&format!("lifecycle-test-device-{}", i));
@@ -376,7 +393,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_timeout_handling() {
-        let service = must(WheelService::new().await);
+        let (service, _temp_dir) = must(create_test_service().await);
 
         // Test that operations complete within reasonable time
         let device_enumeration = timeout(
@@ -420,7 +437,7 @@ mod tests {
         // Wrap test body with timeout to ensure test completes within 30 seconds
         // Requirements: 2.1, 2.5
         let test_future = async {
-            let service = must(WheelService::new().await);
+            let (service, _temp_dir) = must(create_test_service().await);
 
             // Perform many operations to check for memory leaks
             for i in 0..100 {
