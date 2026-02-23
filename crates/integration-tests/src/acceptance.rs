@@ -669,10 +669,11 @@ async fn generate_acceptance_report(results: &HashMap<String, TestResult>) -> Re
     // Generate detailed report file
     let report_path = "target/acceptance_test_report.json";
     let report_json = serde_json::to_string_pretty(results)?;
-    if let Some(parent) = Path::new(report_path).parent() {
-        if !parent.as_os_str().is_empty() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
+    if let Some(parent) = Path::new(report_path)
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+    {
+        tokio::fs::create_dir_all(parent).await?;
     }
     tokio::fs::write(report_path, report_json).await?;
 

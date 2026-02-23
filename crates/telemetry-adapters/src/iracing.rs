@@ -971,7 +971,6 @@ fn irsdk_var_type_size(var_type: i32) -> Option<usize> {
     })
 }
 
-#[cfg(windows)]
 fn assign_var_binding(layout: &mut IRacingLayout, name: &str, binding: VarBinding) {
     if matches_irsdk_name(name, &["SessionTime"]) {
         layout.session_time = Some(binding);
@@ -1028,7 +1027,6 @@ fn assign_var_binding(layout: &mut IRacingLayout, name: &str, binding: VarBindin
     }
 }
 
-#[cfg(windows)]
 fn matches_irsdk_name(name: &str, candidates: &[&str]) -> bool {
     candidates
         .iter()
