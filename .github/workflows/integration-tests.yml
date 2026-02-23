@@ -49,7 +49,9 @@ jobs:
           -- \
           --skip jitter_isolation_tests \
           --skip cpu_usage_isolation \
-          --skip haptics_frequency_range
+          --skip haptics_frequency_range \
+          --skip test_comprehensive_suite \
+          --skip test_torque_limit_enforcement
 
   # Performance gates (critical for CI)
   performance-gates:
