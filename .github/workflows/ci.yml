@@ -9,9 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  # Enable sccache for faster builds
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: "sccache"
+  # sccache is configured per-job so CI can fall back if GitHub Actions Cache is unhealthy.
 
 jobs:
   # Phase 0: Documentation and format validation (fast, no build required)
@@ -46,6 +44,40 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - &sccache_best_effort
+        name: Configure sccache (best effort)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v sccache >/dev/null 2>&1; then
+            echo "sccache not found; continuing without compiler cache"
+            exit 0
+          fi
+
+          # Always use the wrapper if possible.
+          echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
+
+          # Prefer GH Actions Cache backend, but fall back to local disk cache if GHAC is down.
+          export SCCACHE_GHA_ENABLED=true
+          echo "SCCACHE_GHA_ENABLED=true" >> "$GITHUB_ENV"
+          if sccache --start-server; then
+            sccache --show-stats || true
+            exit 0
+          fi
+
+          echo "sccache GH Actions cache backend unavailable; falling back to local cache."
+          sccache --stop-server || true
+
+          export SCCACHE_GHA_ENABLED=false
+          echo "SCCACHE_GHA_ENABLED=false" >> "$GITHUB_ENV"
+          if sccache --start-server; then
+            sccache --show-stats || true
+            exit 0
+          fi
+
+          echo "sccache failed to start; disabling RUSTC_WRAPPER."
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -76,6 +108,8 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - *sccache_best_effort
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -105,6 +139,8 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
+
+      - *sccache_best_effort
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -137,6 +173,8 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
+
+      - *sccache_best_effort
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -184,6 +222,8 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
+
+      - *sccache_best_effort
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -247,6 +287,8 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - *sccache_best_effort
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -275,6 +317,8 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
+
+      - *sccache_best_effort
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -306,6 +350,8 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
+
+      - *sccache_best_effort
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -367,6 +413,8 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
+
+      - *sccache_best_effort
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -477,6 +525,8 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - *sccache_best_effort
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -560,6 +610,8 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - *sccache_best_effort
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -615,6 +667,8 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - *sccache_best_effort
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -669,6 +723,8 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - *sccache_best_effort
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -706,6 +762,8 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
+
+      - *sccache_best_effort
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
