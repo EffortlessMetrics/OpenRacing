@@ -254,8 +254,9 @@ jobs:
 
       - name: Run buf breaking change detection
         run: |
+          cd crates/schemas
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            buf breaking --against '.git#branch=main'
+            buf breaking --against '../../.git#branch=origin/main,subdir=crates/schemas'
           else
             echo "Skipping breaking change detection on main branch"
           fi
@@ -265,9 +266,9 @@ jobs:
 
       - name: Verify generated files are up to date
         run: |
-          # Regenerate and check if anything changed
+          cd crates/schemas
           buf generate
-          if ! git diff --exit-code; then
+          if ! git diff --exit-code -- src/generated; then
             echo "Generated files are out of date. Please regenerate and commit."
             exit 1
           fi

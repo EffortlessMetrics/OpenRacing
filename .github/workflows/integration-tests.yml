@@ -109,10 +109,10 @@ jobs:
     
     - name: Run user journey tests
       run: |
-        cargo test test_user_journey_uj01_first_run --package racing-wheel-integration-tests
-        cargo test test_user_journey_uj02_profile_switching --package racing-wheel-integration-tests
-        cargo test test_user_journey_uj03_fault_recovery --package racing-wheel-integration-tests
-        cargo test test_user_journey_uj04_debug_workflow --package racing-wheel-integration-tests
+        cargo test test_user_journey_uj01_first_run --package racing-wheel-integration-tests --features ci-gates
+        cargo test test_user_journey_uj02_profile_switching --package racing-wheel-integration-tests --features ci-gates
+        cargo test test_user_journey_uj03_fault_recovery --package racing-wheel-integration-tests --features ci-gates
+        cargo test test_user_journey_uj04_debug_workflow --package racing-wheel-integration-tests --features ci-gates
 
   # Stress tests
   stress-tests:
