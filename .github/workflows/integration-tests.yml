@@ -70,10 +70,10 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Build integration tests
-      run: cargo build --package racing-wheel-integration-tests --release
-    
+      run: cargo build --package racing-wheel-integration-tests --features ci-gates --release
+
     - name: Run performance gates
-      run: cargo run --package racing-wheel-integration-tests --bin performance-gate --release
+      run: cargo run --package racing-wheel-integration-tests --bin performance-gate --features ci-gates --release
     
     - name: Upload performance results
       uses: actions/upload-artifact@v4
@@ -213,7 +213,7 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Run acceptance tests
-      run: cargo test test_acceptance_tests_subset --package racing-wheel-integration-tests
+      run: cargo test test_acceptance_tests_subset --package racing-wheel-integration-tests --features ci-gates
     
     - name: Upload acceptance test report
       uses: actions/upload-artifact@v4
@@ -251,7 +251,7 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Run platform-specific tests
-      run: cargo test test_performance_gates_ffb_jitter --package racing-wheel-integration-tests
+      run: cargo test test_performance_gates_ffb_jitter --package racing-wheel-integration-tests --features ci-gates
 
 # Nightly full soak test (48 hours) - separate workflow
 ---

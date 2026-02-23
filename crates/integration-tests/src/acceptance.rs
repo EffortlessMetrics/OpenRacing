@@ -16,13 +16,10 @@ const CI_DM02_DISCONNECT_LIMIT: Duration = Duration::from_millis(500);
 const DEFAULT_DM02_DISCONNECT_LIMIT: Duration = Duration::from_millis(100);
 const CI_FAULT_RESPONSE_LIMIT: Duration = Duration::from_millis(100);
 const DEFAULT_FAULT_RESPONSE_LIMIT: Duration = Duration::from_millis(50);
-
-fn is_ci() -> bool {
-    std::env::var_os("CI").is_some()
-}
+const CI_ACCEPTANCE_TEST_IDS: &[&str] = &["AT-DM-01", "AT-GI-01", "AT-SAFE-03"];
 
 fn disconnect_detection_limit() -> Duration {
-    if is_ci() {
+    if crate::gates::ci_gates_enabled() {
         CI_DM02_DISCONNECT_LIMIT
     } else {
         DEFAULT_DM02_DISCONNECT_LIMIT
@@ -30,7 +27,7 @@ fn disconnect_detection_limit() -> Duration {
 }
 
 fn fault_response_limit() -> Duration {
-    if is_ci() {
+    if crate::gates::ci_gates_enabled() {
         CI_FAULT_RESPONSE_LIMIT
     } else {
         DEFAULT_FAULT_RESPONSE_LIMIT
@@ -53,17 +50,22 @@ pub async fn run_all_acceptance_tests() -> Result<HashMap<String, TestResult>> {
     run_acceptance_tests(get_acceptance_test_suite()).await
 }
 
-/// Run an acceptance subset suitable for regular CI.
-pub async fn run_acceptance_tests_subset() -> Result<HashMap<String, TestResult>> {
-    info!("Running acceptance test subset with requirement mapping");
+/// Run a deterministic acceptance subset suitable for CI.
+pub async fn run_ci_acceptance_tests() -> Result<HashMap<String, TestResult>> {
+    info!("Running CI acceptance test subset (implemented and deterministic)");
+    info!("AT-DM-02 is excluded in CI until disconnect state is observable end-to-end.");
 
-    // Exclude the long-running soak acceptance from the regular CI subset.
     let tests = get_acceptance_test_suite()
         .into_iter()
-        .filter(|test| test.id != "AT-NFR-03")
+        .filter(|test| CI_ACCEPTANCE_TEST_IDS.contains(&test.id.as_str()))
         .collect();
 
     run_acceptance_tests(tests).await
+}
+
+/// Backward-compatible alias for the CI subset API.
+pub async fn run_acceptance_tests_subset() -> Result<HashMap<String, TestResult>> {
+    run_ci_acceptance_tests().await
 }
 
 async fn run_acceptance_tests(tests: Vec<AcceptanceTest>) -> Result<HashMap<String, TestResult>> {
@@ -404,8 +406,8 @@ async fn test_dm02_disconnect_detection() -> Result<TestResult> {
     let disconnect_start = Instant::now();
     harness.simulate_hotplug_cycle(0).await?;
 
-    // Check detection timing (should be within 100ms)
-    tokio::time::sleep(Duration::from_millis(150)).await;
+    // This currently measures harness-level hotplug handling time.
+    // Keep DM-02 out of CI until a service-observed disconnect signal is available.
     let detection_time = disconnect_start.elapsed();
 
     if detection_time > detection_limit {

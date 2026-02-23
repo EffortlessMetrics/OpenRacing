@@ -205,21 +205,14 @@ is_wsl() {
 
 run_isolation_builds() {
     phase "Isolation builds"
-    run cargo +stable build -p racing-wheel-cli --locked
-    run cargo +stable run -p racing-wheel-cli -- --help
+    run cargo +stable build -p wheelctl --locked
+    run cargo +stable run -p wheelctl -- --help
 
     run cargo +stable build -p racing-wheel-service --locked
     run cargo +stable run -p racing-wheel-service --bin wheeld -- --help
 
     run cargo +stable build -p racing-wheel-plugins --locked
-
-    if grep -q "^\[features\]" crates/plugins/Cargo.toml; then
-        if grep -q "^sample-plugins" crates/plugins/Cargo.toml; then
-            run cargo +stable build -p racing-wheel-plugins --features sample-plugins
-        else
-            run cargo +stable build -p racing-wheel-plugins --features sample-plugin
-        fi
-    fi
+    run cargo +stable build -p racing-wheel-plugins --features sample-plugins
 }
 
 run_schema_validation() {
@@ -324,7 +317,7 @@ run_final_validation() {
     run cargo +stable build --workspace --locked
     run cargo +stable test --workspace --no-run --locked
 
-    run cargo +stable build -p racing-wheel-cli --locked
+    run cargo +stable build -p wheelctl --locked
     run cargo +stable build -p racing-wheel-service --locked
     run cargo +stable build -p racing-wheel-plugins --locked
 

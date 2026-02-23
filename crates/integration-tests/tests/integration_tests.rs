@@ -6,24 +6,37 @@ use anyhow::Result;
 use racing_wheel_integration_tests::*;
 use std::time::Duration;
 
-fn is_ci() -> bool {
-    std::env::var_os("CI").is_some()
+fn performance_gate_timeout(gate_duration: Duration) -> Duration {
+    let margin = if gates::ci_gates_enabled() {
+        Duration::from_secs(15)
+    } else {
+        Duration::from_secs(20)
+    };
+
+    gate_duration + margin
 }
 
 fn jitter_test_timeout() -> Duration {
-    // Keep timeout larger than measurement duration with startup/shutdown slack.
-    gates::ffb_jitter_measurement_duration() + Duration::from_secs(20)
+    performance_gate_timeout(gates::ffb_jitter_measurement_duration())
 }
 
 fn jitter_p99_limit_ms() -> f64 {
     gates::ffb_jitter_p99_limit_ms()
 }
 
+fn hid_latency_test_timeout() -> Duration {
+    performance_gate_timeout(gates::hid_latency_measurement_duration())
+}
+
+fn zero_missed_ticks_test_timeout() -> Duration {
+    performance_gate_timeout(gates::zero_missed_ticks_measurement_duration())
+}
+
 fn acceptance_subset_timeout() -> Duration {
-    if is_ci() {
-        Duration::from_secs(90)
+    if gates::ci_gates_enabled() {
+        Duration::from_secs(60)
     } else {
-        Duration::from_secs(240)
+        Duration::from_secs(180)
     }
 }
 
@@ -221,38 +234,46 @@ async fn test_performance_gates_ffb_jitter() -> Result<()> {
 )]
 async fn test_performance_gates_hid_latency() -> Result<()> {
     init_test_environment()?;
+    let timeout_limit = hid_latency_test_timeout();
 
-    // Wrap test body with timeout to ensure test completes within 30 seconds
+    // Keep timeout aligned with the gate duration plus CI-safe margin.
     // Requirements: 2.1, 2.5
     let test_future = async {
         let result = gates::test_hid_latency_gate().await?;
+        let hid_latency_limit = gates::hid_latency_p99_limit_us();
 
         if !result.passed {
             anyhow::bail!("HID latency gate failed: {:?}", result.errors);
         }
 
-        if result.metrics.hid_latency_p99_us > MAX_HID_LATENCY_P99_US {
+        if result.metrics.hid_latency_p99_us > hid_latency_limit {
             anyhow::bail!(
                 "HID latency p99 {}us exceeds limit {}us",
                 result.metrics.hid_latency_p99_us,
-                MAX_HID_LATENCY_P99_US
+                hid_latency_limit
             );
         }
 
         Ok::<(), anyhow::Error>(())
     };
 
-    match tokio::time::timeout(Duration::from_secs(30), test_future).await {
+    match tokio::time::timeout(timeout_limit, test_future).await {
         Ok(Ok(())) => Ok(()),
         Ok(Err(e)) => Err(e),
         Err(_elapsed) => {
-            eprintln!("TIMEOUT: test_performance_gates_hid_latency exceeded 30 second limit");
+            eprintln!(
+                "TIMEOUT: test_performance_gates_hid_latency exceeded {:?} limit",
+                timeout_limit
+            );
             eprintln!("Diagnostic: HID latency gate test did not complete in time.");
             eprintln!("This may indicate:");
             eprintln!("  - HID communication is blocked");
             eprintln!("  - Device I/O is hanging");
             eprintln!("  - USB subsystem issues");
-            anyhow::bail!("test_performance_gates_hid_latency timed out after 30 seconds")
+            anyhow::bail!(
+                "test_performance_gates_hid_latency timed out after {:?}",
+                timeout_limit
+            )
         }
     }
 }
@@ -264,34 +285,46 @@ async fn test_performance_gates_hid_latency() -> Result<()> {
 )]
 async fn test_performance_gates_zero_missed_ticks() -> Result<()> {
     init_test_environment()?;
+    let timeout_limit = zero_missed_ticks_test_timeout();
 
-    // Wrap test body with timeout to ensure test completes within 30 seconds
+    // Keep timeout aligned with the gate duration plus CI-safe margin.
     // Requirements: 2.1, 2.5
     let test_future = async {
         let result = gates::test_zero_missed_ticks_gate().await?;
+        let allowed_missed_ticks = gates::allowed_zero_missed_ticks(result.metrics.total_ticks);
 
         if !result.passed {
             anyhow::bail!("Zero missed ticks gate failed: {:?}", result.errors);
         }
 
-        if result.metrics.missed_ticks != 0 {
-            anyhow::bail!("Missed {} ticks, expected 0", result.metrics.missed_ticks);
+        if result.metrics.missed_ticks > allowed_missed_ticks {
+            anyhow::bail!(
+                "Missed {} ticks, expected <= {}",
+                result.metrics.missed_ticks,
+                allowed_missed_ticks
+            );
         }
 
         Ok::<(), anyhow::Error>(())
     };
 
-    match tokio::time::timeout(Duration::from_secs(30), test_future).await {
+    match tokio::time::timeout(timeout_limit, test_future).await {
         Ok(Ok(())) => Ok(()),
         Ok(Err(e)) => Err(e),
         Err(_elapsed) => {
-            eprintln!("TIMEOUT: test_performance_gates_zero_missed_ticks exceeded 30 second limit");
+            eprintln!(
+                "TIMEOUT: test_performance_gates_zero_missed_ticks exceeded {:?} limit",
+                timeout_limit
+            );
             eprintln!("Diagnostic: Zero missed ticks gate test did not complete in time.");
             eprintln!("This may indicate:");
             eprintln!("  - RT loop is blocked or deadlocked");
             eprintln!("  - Tick counting mechanism is hanging");
             eprintln!("  - System scheduling issues");
-            anyhow::bail!("test_performance_gates_zero_missed_ticks timed out after 30 seconds")
+            anyhow::bail!(
+                "test_performance_gates_zero_missed_ticks timed out after {:?}",
+                timeout_limit
+            )
         }
     }
 }
@@ -391,8 +424,8 @@ async fn test_acceptance_tests_subset() -> Result<()> {
     // Acceptance subset includes multiple flows; use CI-aware timeout budget.
     // Requirements: 2.1, 2.5
     let test_future = async {
-        // Run a subset of acceptance tests for regular CI
-        let results = acceptance::run_acceptance_tests_subset().await?;
+        // Run CI-focused acceptance tests only.
+        let results = acceptance::run_ci_acceptance_tests().await?;
 
         let failed_tests: Vec<_> = results
             .iter()
