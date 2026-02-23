@@ -271,7 +271,11 @@ mod tests {
             (raw - expected).abs() <= 1,
             "half-scale negative raw={raw} expected≈{expected}"
         );
-        assert_eq!(out[3] & 0x01, 0x01, "motor-enable bit must be set for negative torque");
+        assert_eq!(
+            out[3] & 0x01,
+            0x01,
+            "motor-enable bit must be set for negative torque"
+        );
     }
 
     /// Property: zero torque always encodes to raw=0 with motor disabled.
@@ -300,9 +304,15 @@ mod tests {
             enc.encode(torque, 0, &mut out);
             let raw = i16::from_le_bytes([out[1], out[2]]);
             if expected_sign_dir > 0 {
-                assert!(raw >= 0, "positive torque {torque} must encode as non-negative raw={raw}");
+                assert!(
+                    raw >= 0,
+                    "positive torque {torque} must encode as non-negative raw={raw}"
+                );
             } else {
-                assert!(raw <= 0, "negative torque {torque} must encode as non-positive raw={raw}");
+                assert!(
+                    raw <= 0,
+                    "negative torque {torque} must encode as non-positive raw={raw}"
+                );
             }
         }
     }

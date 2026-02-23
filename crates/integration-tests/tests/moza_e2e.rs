@@ -477,14 +477,17 @@ fn scenario_ffb_off_mode_encoding() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn scenario_r9_v2_full_handshake_report_order() -> Result<(), Box<dyn std::error::Error>> {
     // Given: R9 V2 with high torque enabled
-    let mut s =
-        MozaScenario::wheelbase_with_config(product_ids::R9_V2, FfbMode::Standard, true);
+    let mut s = MozaScenario::wheelbase_with_config(product_ids::R9_V2, FfbMode::Standard, true);
 
     // When: initialized
     s.initialize()?;
 
     let reports = s.device.feature_reports();
-    assert_eq!(reports.len(), 3, "R9 V2 high_torque=true requires 3 reports");
+    assert_eq!(
+        reports.len(),
+        3,
+        "R9 V2 high_torque=true requires 3 reports"
+    );
 
     // Then: report 0 = [HIGH_TORQUE, 0, 0, 0]
     assert_eq!(reports[0], vec![report_ids::HIGH_TORQUE, 0x00, 0x00, 0x00]);
