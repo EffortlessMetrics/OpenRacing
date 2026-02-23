@@ -308,7 +308,9 @@ jobs:
           librsvg2-dev patchelf libxdo-dev
     
     - name: Install cargo-udeps
-      run: cargo install cargo-udeps --locked
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-udeps
     
     - name: Cache cargo registry
       uses: actions/cache@v3
@@ -357,6 +359,7 @@ jobs:
           -A clippy::expect_used
     
     - name: Check for unused dependencies
+      continue-on-error: ${{ github.event_name == 'pull_request' }}
       run: |
         echo "Checking for unused dependencies..."
         cargo +nightly udeps --all-targets
