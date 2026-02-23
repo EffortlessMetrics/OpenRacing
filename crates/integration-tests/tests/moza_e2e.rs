@@ -274,13 +274,14 @@ fn scenario_r5_v1_golden_input_report_parse() -> Result<(), Box<dyn std::error::
 
 #[test]
 fn scenario_srp_standalone_golden_parse() -> Result<(), Box<dyn std::error::Error>> {
-    use racing_wheel_hid_moza_protocol::{MozaProtocol, input_report};
+    use racing_wheel_hid_moza_protocol::MozaProtocol;
 
     // Given: SR-P standalone protocol
     let protocol = MozaProtocol::new(product_ids::SR_P_PEDALS);
 
     // When: a golden SR-P report [report_id, thr_lo, thr_hi, brk_lo, brk_hi]
-    let report = [input_report::REPORT_ID, 0x00, 0x40, 0xFF, 0xFF];
+    // Note: SR-P standalone reports use 0x01 as the report ID byte.
+    let report = [0x01u8, 0x00, 0x40, 0xFF, 0xFF];
 
     let state = protocol
         .parse_input_state(&report)
@@ -396,7 +397,7 @@ fn scenario_ks_attached_wheelbase_buttons_and_hat() -> Result<(), Box<dyn std::e
     // Layout: [report_id, steer_lo, steer_hi, thr_lo, thr_hi, brk_lo, brk_hi,
     //          clch_lo, clch_hi, hb_lo, hb_hi,
     //          btn[0..16], hat, funky, rot[0..1], rot[1..2]]
-    let mut report = [0u8; 33];
+    let mut report = [0u8; 31];
     report[0] = input_report::REPORT_ID;
     report[1] = 0x00;
     report[2] = 0x80; // steering center

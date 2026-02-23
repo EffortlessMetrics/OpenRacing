@@ -6,6 +6,7 @@
 //! Run with:
 //!   cargo +nightly fuzz run fuzz_ks_report
 
+#![deny(static_mut_refs)]
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;

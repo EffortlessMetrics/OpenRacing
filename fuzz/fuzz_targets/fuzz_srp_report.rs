@@ -3,6 +3,7 @@
 //! Run with:
 //!   cargo +nightly fuzz run fuzz_srp_report
 
+#![deny(static_mut_refs)]
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
