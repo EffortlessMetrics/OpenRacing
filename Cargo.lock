@@ -4982,6 +4982,7 @@ version = "0.1.0"
 name = "racing-wheel-hid-moza-protocol"
 version = "0.1.0"
 dependencies = [
+ "proptest",
  "racing-wheel-hbp",
  "racing-wheel-ks",
  "racing-wheel-moza-wheelbase-report",

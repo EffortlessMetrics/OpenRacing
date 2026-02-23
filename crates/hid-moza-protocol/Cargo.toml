@@ -19,3 +19,6 @@ racing-wheel-ks = { path = "../ks" }
 racing-wheel-moza-wheelbase-report = { path = "../moza-wheelbase-report" }
 racing-wheel-srp = { path = "../srp" }
 tracing = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

@@ -209,4 +209,246 @@ mod tests {
         assert_eq!(enc.clamp_min(), -1408);
         assert!(enc.positive_is_clockwise());
     }
+
+    // ─── Mid-scale golden tests ──────────────────────────────────────────────
+
+    /// Snapshot: quarter-scale positive torque encodes to ≈ i16::MAX / 4.
+    #[test]
+    fn test_encode_quarter_scale_positive() {
+        let max = 12.0_f32;
+        let enc = MozaDirectTorqueEncoder::new(max);
+        let mut out = [0u8; REPORT_LEN];
+        enc.encode(max * 0.25, 0, &mut out);
+        let raw = i16::from_le_bytes([out[1], out[2]]);
+        let expected = (i16::MAX as f32 * 0.25).round() as i16;
+        assert!(
+            (raw - expected).abs() <= 1,
+            "quarter-scale raw={raw} expected≈{expected}"
+        );
+        assert_eq!(out[3] & 0x01, 0x01, "motor-enable bit must be set");
+    }
+
+    /// Snapshot: half-scale positive torque encodes to ≈ i16::MAX / 2.
+    #[test]
+    fn test_encode_half_scale_positive() {
+        let max = 9.0_f32;
+        let enc = MozaDirectTorqueEncoder::new(max);
+        let mut out = [0u8; REPORT_LEN];
+        enc.encode(max * 0.5, 0, &mut out);
+        let raw = i16::from_le_bytes([out[1], out[2]]);
+        let expected = (i16::MAX as f32 * 0.5).round() as i16;
+        assert!(
+            (raw - expected).abs() <= 1,
+            "half-scale raw={raw} expected≈{expected}"
+        );
+    }
+
+    /// Snapshot: three-quarter-scale positive torque encodes to ≈ i16::MAX * 0.75.
+    #[test]
+    fn test_encode_three_quarter_scale_positive() {
+        let max = 5.5_f32;
+        let enc = MozaDirectTorqueEncoder::new(max);
+        let mut out = [0u8; REPORT_LEN];
+        enc.encode(max * 0.75, 0, &mut out);
+        let raw = i16::from_le_bytes([out[1], out[2]]);
+        let expected = (i16::MAX as f32 * 0.75).round() as i16;
+        assert!(
+            (raw - expected).abs() <= 1,
+            "three-quarter-scale raw={raw} expected≈{expected}"
+        );
+    }
+
+    /// Snapshot: half-scale negative torque encodes to ≈ i16::MIN / 2.
+    #[test]
+    fn test_encode_half_scale_negative() {
+        let max = 9.0_f32;
+        let enc = MozaDirectTorqueEncoder::new(max);
+        let mut out = [0u8; REPORT_LEN];
+        enc.encode(-max * 0.5, 0, &mut out);
+        let raw = i16::from_le_bytes([out[1], out[2]]);
+        let expected = ((i16::MIN as f32) * 0.5).round() as i16;
+        assert!(
+            (raw - expected).abs() <= 1,
+            "half-scale negative raw={raw} expected≈{expected}"
+        );
+        assert_eq!(out[3] & 0x01, 0x01, "motor-enable bit must be set for negative torque");
+    }
+
+    /// Property: zero torque always encodes to raw=0 with motor disabled.
+    #[test]
+    fn test_encode_exact_zero_always_disables_motor() {
+        for max in [0.1_f32, 1.0, 5.5, 9.0, 12.0, 21.0] {
+            let enc = MozaDirectTorqueEncoder::new(max);
+            let mut out = [0u8; REPORT_LEN];
+            enc.encode(0.0, 0, &mut out);
+            let raw = i16::from_le_bytes([out[1], out[2]]);
+            assert_eq!(raw, 0, "zero torque must encode as raw=0 for max={max}");
+            assert_eq!(out[3] & 0x01, 0, "motor must be disabled for zero torque");
+        }
+    }
+
+    /// Property: positive torque always encodes positive raw, negative encodes negative.
+    #[test]
+    fn test_encode_sign_consistency() {
+        let enc = MozaDirectTorqueEncoder::new(10.0);
+        let samples: &[(f32, i16)] = &[
+            (0.001, 1),   // very small positive → positive raw
+            (-0.001, -1), // very small negative → negative raw (approximately)
+        ];
+        for &(torque, expected_sign_dir) in samples {
+            let mut out = [0u8; REPORT_LEN];
+            enc.encode(torque, 0, &mut out);
+            let raw = i16::from_le_bytes([out[1], out[2]]);
+            if expected_sign_dir > 0 {
+                assert!(raw >= 0, "positive torque {torque} must encode as non-negative raw={raw}");
+            } else {
+                assert!(raw <= 0, "negative torque {torque} must encode as non-positive raw={raw}");
+            }
+        }
+    }
+
+    /// Snapshot: exact byte-level encoding for known torque values (regression guard).
+    #[test]
+    fn test_encode_golden_byte_snapshot_r5_max() {
+        // R5 max torque = 5.5 Nm; half scale = 2.75 Nm
+        let enc = MozaDirectTorqueEncoder::new(5.5);
+        let mut out = [0u8; REPORT_LEN];
+        enc.encode(2.75, 0, &mut out);
+
+        // Report ID
+        assert_eq!(out[0], report_ids::DIRECT_TORQUE);
+        // Raw torque ≈ i16::MAX / 2 = 16383
+        let raw = i16::from_le_bytes([out[1], out[2]]);
+        assert!((raw - 16384).abs() <= 1, "golden raw={raw}");
+        // Motor enable flag
+        assert_eq!(out[3] & 0x01, 0x01);
+        // Unused bytes are zero
+        assert_eq!(out[4], 0);
+        assert_eq!(out[5], 0);
+        assert_eq!(out[6], 0);
+        assert_eq!(out[7], 0);
+    }
+}
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// For any torque in [-max, max], encoded raw value has the same sign as torque.
+        #[test]
+        fn prop_torque_sign_preserved(
+            max in 0.1_f32..=21.0_f32,
+            frac in -1.0_f32..=1.0_f32,
+        ) {
+            let torque_nm = max * frac;
+            let enc = MozaDirectTorqueEncoder::new(max);
+            let mut out = [0u8; REPORT_LEN];
+            enc.encode(torque_nm, 0, &mut out);
+            let raw = i16::from_le_bytes([out[1], out[2]]);
+
+            if torque_nm > 0.001 {
+                prop_assert!(raw > 0, "positive torque {torque_nm} should yield positive raw {raw}");
+            } else if torque_nm < -0.001 {
+                prop_assert!(raw < 0, "negative torque {torque_nm} should yield negative raw {raw}");
+            }
+        }
+
+        /// For any torque in [-max, max], absolute encoded raw is ≤ |i16::MAX|.
+        #[test]
+        fn prop_encoded_value_never_overflows(
+            max in 0.001_f32..=21.0_f32,
+            torque in -100.0_f32..=100.0_f32,
+        ) {
+            let enc = MozaDirectTorqueEncoder::new(max);
+            let mut out = [0u8; REPORT_LEN];
+            enc.encode(torque, 0, &mut out);
+            // Must not panic; raw must be in valid i16 range (this is a no-op since i16::from_le always holds)
+            let raw = i16::from_le_bytes([out[1], out[2]]);
+            prop_assert!(raw >= i16::MIN);
+            prop_assert!(raw <= i16::MAX);
+        }
+
+        /// Motor-enable bit is set iff raw torque != 0.
+        #[test]
+        fn prop_motor_enable_bit_iff_nonzero_torque(
+            max in 0.1_f32..=21.0_f32,
+            frac in -1.0_f32..=1.0_f32,
+        ) {
+            let torque_nm = max * frac;
+            let enc = MozaDirectTorqueEncoder::new(max);
+            let mut out = [0u8; REPORT_LEN];
+            enc.encode(torque_nm, 0, &mut out);
+            let raw = i16::from_le_bytes([out[1], out[2]]);
+            let motor_enabled = out[3] & 0x01 != 0;
+
+            prop_assert_eq!(
+                motor_enabled,
+                raw != 0,
+                "motor-enable={} must match raw!=0 (raw={}, torque={})",
+                motor_enabled,
+                raw,
+                torque_nm
+            );
+        }
+
+        /// Encoding is monotone: if torque_a > torque_b (and both in-range), raw_a >= raw_b.
+        #[test]
+        fn prop_encoding_is_monotone(
+            max in 0.1_f32..=21.0_f32,
+            frac_a in -1.0_f32..=1.0_f32,
+            frac_b in -1.0_f32..=1.0_f32,
+        ) {
+            let ta = max * frac_a;
+            let tb = max * frac_b;
+            let enc = MozaDirectTorqueEncoder::new(max);
+
+            let mut out_a = [0u8; REPORT_LEN];
+            let mut out_b = [0u8; REPORT_LEN];
+            enc.encode(ta, 0, &mut out_a);
+            enc.encode(tb, 0, &mut out_b);
+
+            let raw_a = i16::from_le_bytes([out_a[1], out_a[2]]);
+            let raw_b = i16::from_le_bytes([out_b[1], out_b[2]]);
+
+            if ta > tb {
+                prop_assert!(
+                    raw_a >= raw_b,
+                    "monotone violation: torque {ta} > {tb} but raw {raw_a} < {raw_b}"
+                );
+            } else if ta < tb {
+                prop_assert!(
+                    raw_a <= raw_b,
+                    "monotone violation: torque {ta} < {tb} but raw {raw_a} > {raw_b}"
+                );
+            }
+        }
+
+        /// Report ID byte is always the DIRECT_TORQUE constant regardless of input.
+        #[test]
+        fn prop_report_id_always_correct(
+            max in 0.001_f32..=21.0_f32,
+            torque in -100.0_f32..=100.0_f32,
+        ) {
+            let enc = MozaDirectTorqueEncoder::new(max);
+            let mut out = [0u8; REPORT_LEN];
+            enc.encode(torque, 0, &mut out);
+            prop_assert_eq!(out[0], report_ids::DIRECT_TORQUE);
+        }
+
+        /// Encoding length is always REPORT_LEN.
+        #[test]
+        fn prop_encode_len_always_report_len(
+            max in 0.001_f32..=21.0_f32,
+            torque in -100.0_f32..=100.0_f32,
+        ) {
+            let enc = MozaDirectTorqueEncoder::new(max);
+            let mut out = [0u8; REPORT_LEN];
+            let len = enc.encode(torque, 0, &mut out);
+            prop_assert_eq!(len, REPORT_LEN);
+        }
+    }
 }
