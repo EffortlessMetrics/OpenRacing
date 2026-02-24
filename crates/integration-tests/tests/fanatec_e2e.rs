@@ -341,3 +341,204 @@ fn scenario_csl_dd_sends_mode_switch_on_initialize() -> Result<(), Box<dyn std::
 
     Ok(())
 }
+
+// ─── Scenario 16: McLaren funky switch center direction is 0x00 ───────────────
+
+#[test]
+fn scenario_mclaren_funky_switch_center() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_fanatec_protocol::parse_standard_report;
+
+    // Given: a 64-byte standard input report with funky switch byte 10 = center (0x00)
+    let mut raw = [0u8; 64];
+    raw[0] = report_ids::STANDARD_INPUT;
+    raw[10] = 0x00; // center
+
+    // When: parsed
+    let state = parse_standard_report(&raw).ok_or("parse failed")?;
+
+    // Then: funky_dir is 0x00
+    assert_eq!(state.funky_dir, 0x00, "funky switch center must be 0x00");
+
+    Ok(())
+}
+
+// ─── Scenario 17: McLaren funky switch up direction is 0x01 ──────────────────
+
+#[test]
+fn scenario_mclaren_funky_switch_up() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_fanatec_protocol::parse_standard_report;
+
+    // Given: a standard input report with funky switch up (0x01)
+    let mut raw = [0u8; 64];
+    raw[0] = report_ids::STANDARD_INPUT;
+    raw[10] = 0x01; // up
+
+    // When: parsed
+    let state = parse_standard_report(&raw).ok_or("parse failed")?;
+
+    // Then: funky_dir is 0x01
+    assert_eq!(state.funky_dir, 0x01, "funky switch up must be 0x01");
+
+    Ok(())
+}
+
+// ─── Scenario 18: McLaren rotary encoder values round-trip correctly ──────────
+
+#[test]
+fn scenario_mclaren_rotary_encoder_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_fanatec_protocol::parse_standard_report;
+
+    // Given: rotary1 = 512, rotary2 = -256 encoded as LE i16
+    let mut raw = [0u8; 64];
+    raw[0] = report_ids::STANDARD_INPUT;
+    let r1 = 512i16.to_le_bytes();
+    raw[11] = r1[0];
+    raw[12] = r1[1];
+    let r2 = (-256i16).to_le_bytes();
+    raw[13] = r2[0];
+    raw[14] = r2[1];
+
+    // When: parsed
+    let state = parse_standard_report(&raw).ok_or("parse failed")?;
+
+    // Then: rotary values match
+    assert_eq!(state.rotary1, 512, "rotary1 must round-trip");
+    assert_eq!(state.rotary2, -256, "rotary2 must round-trip");
+
+    Ok(())
+}
+
+// ─── Scenario 19: McLaren dual clutch paddles are correctly normalized ────────
+
+#[test]
+fn scenario_mclaren_dual_clutch_paddles_normalized() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_fanatec_protocol::parse_standard_report;
+
+    // Given: left clutch fully pressed (byte 15 = 0x00 inverted → 1.0),
+    //        right clutch released   (byte 16 = 0xFF inverted → 0.0)
+    let mut raw = [0u8; 64];
+    raw[0] = report_ids::STANDARD_INPUT;
+    raw[15] = 0x00; // left pressed
+    raw[16] = 0xFF; // right released
+
+    // When: parsed
+    let state = parse_standard_report(&raw).ok_or("parse failed")?;
+
+    // Then: clutch_left is ~1.0 and clutch_right is ~0.0
+    assert!(
+        (state.clutch_left - 1.0).abs() < 1e-4,
+        "left clutch fully pressed must be ~1.0"
+    );
+    assert!(
+        state.clutch_right.abs() < 1e-4,
+        "right clutch released must be ~0.0"
+    );
+
+    Ok(())
+}
+
+// ─── Scenario 20: pedal report parses throttle and brake ─────────────────────
+
+#[test]
+fn scenario_pedal_report_parses_throttle_and_brake() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_fanatec_protocol::parse_pedal_report;
+
+    // Given: a 2-axis pedal report with throttle half, brake full
+    let mut raw = [0u8; 5];
+    raw[0] = report_ids::STANDARD_INPUT; // 0x01
+    // throttle = 0x0800 (half)
+    raw[1] = 0x00;
+    raw[2] = 0x08;
+    // brake = 0x0FFF (full)
+    raw[3] = 0xFF;
+    raw[4] = 0x0F;
+
+    // When: parsed
+    let state = parse_pedal_report(&raw).ok_or("parse failed")?;
+
+    // Then: raw values and axis count are correct
+    assert_eq!(state.throttle_raw, 0x0800, "throttle must be half-pressed");
+    assert_eq!(state.brake_raw, 0x0FFF, "brake must be fully pressed");
+    assert_eq!(state.axis_count, 2, "5-byte report means 2 axes");
+
+    Ok(())
+}
+
+// ─── Scenario 21: pedal report parses clutch on 3-axis set ───────────────────
+
+#[test]
+fn scenario_pedal_report_parses_clutch_axis() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_fanatec_protocol::parse_pedal_report;
+
+    // Given: a 3-axis ClubSport Pedals V3 report
+    let mut raw = [0u8; 7];
+    raw[0] = report_ids::STANDARD_INPUT;
+    raw[1] = 0x00;
+    raw[2] = 0x04; // throttle = 0x0400
+    raw[3] = 0x00;
+    raw[4] = 0x08; // brake   = 0x0800
+    raw[5] = 0xFF;
+    raw[6] = 0x0F; // clutch  = 0x0FFF
+
+    // When: parsed
+    let state = parse_pedal_report(&raw).ok_or("parse failed")?;
+
+    // Then: clutch axis is present
+    assert_eq!(state.clutch_raw, 0x0FFF, "clutch must be fully pressed");
+    assert_eq!(state.axis_count, 3, "7-byte report means 3 axes");
+
+    Ok(())
+}
+
+// ─── Scenario 22: ClubSport Pedals V3 PID is not a wheelbase ─────────────────
+
+#[test]
+fn scenario_clubsport_pedals_v3_pid_is_not_a_wheelbase() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_fanatec_protocol::{is_pedal_product, is_wheelbase_product, product_ids};
+
+    // Given: the ClubSport Pedals V3 product ID
+    let pid = product_ids::CLUBSPORT_PEDALS_V3;
+
+    // Then: recognised as a pedal, not a wheelbase
+    assert!(is_pedal_product(pid), "CLUBSPORT_PEDALS_V3 must be a pedal product");
+    assert!(!is_wheelbase_product(pid), "CLUBSPORT_PEDALS_V3 must not be a wheelbase");
+
+    Ok(())
+}
+
+// ─── Scenario 23: Podium DD2 torque capacity is 25 Nm ────────────────────────
+
+#[test]
+fn scenario_podium_dd2_torque_capacity_is_25nm() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_fanatec_protocol::{FanatecModel, product_ids};
+
+    // Given: Podium DD2 product ID
+    let model = FanatecModel::from_product_id(product_ids::DD2);
+
+    // Then: maximum torque is 25 Nm
+    assert!(
+        (model.max_torque_nm() - 25.0).abs() < 0.1,
+        "Podium DD2 max torque must be 25 Nm, got {}",
+        model.max_torque_nm()
+    );
+
+    Ok(())
+}
+
+// ─── Scenario 24: rim ID byte 0x04 is McLaren GT3 V2 with funky switch ────────
+
+#[test]
+fn scenario_rim_id_mclaren_has_funky_switch() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_fanatec_protocol::{FanatecRimId, rim_ids};
+
+    // Given: rim ID byte from feature report 0x02
+    let rim = FanatecRimId::from_byte(rim_ids::MCLAREN_GT3_V2);
+
+    // Then: classified as McLaren GT3 V2 with all rim extras
+    assert_eq!(rim, FanatecRimId::McLarenGt3V2);
+    assert!(rim.has_funky_switch(), "McLaren GT3 V2 must have funky switch");
+    assert!(rim.has_dual_clutch(), "McLaren GT3 V2 must have dual clutch paddles");
+    assert!(rim.has_rotary_encoders(), "McLaren GT3 V2 must have rotary encoders");
+
+    Ok(())
+}

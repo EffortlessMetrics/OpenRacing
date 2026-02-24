@@ -61,4 +61,31 @@ pub mod product_ids {
     pub const CSL_ELITE: u16 = 0x0E03;
     /// ClubSport V2 — legacy USB HID stack (8 Nm).
     pub const CLUBSPORT_V2_LEGACY: u16 = 0x6204;
+
+    // ── Standalone pedal devices ───────────────────────────────────────────
+
+    /// ClubSport Pedals V1 / V2 (USB, 2-axis or 3-axis set).
+    pub const CLUBSPORT_PEDALS_V1_V2: u16 = 0x1839;
+    /// ClubSport Pedals V3 (USB, 3-axis with load cell brake).
+    pub const CLUBSPORT_PEDALS_V3: u16 = 0x183B;
+    /// CSL Pedals with Load Cell Kit (USB adapter).
+    pub const CSL_PEDALS_LC: u16 = 0x6205;
+    /// CSL Pedals V2 (USB adapter, updated Hall sensors).
+    pub const CSL_PEDALS_V2: u16 = 0x6206;
+}
+
+/// Rim IDs reported in feature report 0x02, byte 2.
+///
+/// These identify which steering wheel rim is attached to the wheelbase.
+pub mod rim_ids {
+    pub const BMW_GT2: u8 = 0x01;
+    pub const FORMULA_V2: u8 = 0x02;
+    pub const FORMULA_V2_5: u8 = 0x03;
+    /// McLaren GT3 V2 — has funky switch, rotary encoders, dual clutch paddles.
+    pub const MCLAREN_GT3_V2: u8 = 0x04;
+    pub const PORSCHE_918_RSR: u8 = 0x05;
+    pub const CLUBSPORT_RS: u8 = 0x06;
+    pub const WRC: u8 = 0x07;
+    pub const CSL_ELITE_P1: u8 = 0x08;
+    pub const PODIUM_HUB: u8 = 0x09;
 }

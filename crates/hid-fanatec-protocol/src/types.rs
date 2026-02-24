@@ -2,7 +2,7 @@
 
 #![deny(static_mut_refs)]
 
-use crate::ids::product_ids;
+use crate::ids::{product_ids, rim_ids};
 
 /// Fanatec wheelbase model classification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,6 +79,104 @@ pub fn is_wheelbase_product(product_id: u16) -> bool {
     )
 }
 
+/// Return `true` if the product ID corresponds to a standalone pedal device.
+pub fn is_pedal_product(product_id: u16) -> bool {
+    matches!(
+        product_id,
+        product_ids::CLUBSPORT_PEDALS_V1_V2
+            | product_ids::CLUBSPORT_PEDALS_V3
+            | product_ids::CSL_PEDALS_LC
+            | product_ids::CSL_PEDALS_V2
+    )
+}
+
+/// Fanatec standalone pedal device model classification.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FanatecPedalModel {
+    /// ClubSport Pedals V1 or V2 (2-pedal or 3-pedal set).
+    ClubSportV1V2,
+    /// ClubSport Pedals V3 with load cell brake.
+    ClubSportV3,
+    /// CSL Pedals with Load Cell Kit.
+    CslPedalsLc,
+    /// CSL Pedals V2.
+    CslPedalsV2,
+    /// Unknown or future pedal device.
+    Unknown,
+}
+
+impl FanatecPedalModel {
+    /// Classify a pedal device from its product ID.
+    pub fn from_product_id(product_id: u16) -> Self {
+        match product_id {
+            product_ids::CLUBSPORT_PEDALS_V1_V2 => Self::ClubSportV1V2,
+            product_ids::CLUBSPORT_PEDALS_V3 => Self::ClubSportV3,
+            product_ids::CSL_PEDALS_LC => Self::CslPedalsLc,
+            product_ids::CSL_PEDALS_V2 => Self::CslPedalsV2,
+            _ => Self::Unknown,
+        }
+    }
+
+    /// Number of analog axes for this pedal model (throttle + brake [+ clutch]).
+    pub fn axis_count(self) -> u8 {
+        match self {
+            Self::ClubSportV3 | Self::CslPedalsLc | Self::CslPedalsV2 => 3,
+            Self::ClubSportV1V2 => 2,
+            Self::Unknown => 2,
+        }
+    }
+}
+
+/// Steering wheel rim IDs as reported in feature report 0x02, byte 2.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FanatecRimId {
+    BmwGt2,
+    FormulaV2,
+    FormulaV25,
+    /// McLaren GT3 V2 — funky switch + rotary encoders + dual clutch paddles.
+    McLarenGt3V2,
+    Porsche918Rsr,
+    ClubSportRs,
+    Wrc,
+    CslEliteP1,
+    PodiumHub,
+    /// Rim is not attached or ID is unrecognised.
+    Unknown,
+}
+
+impl FanatecRimId {
+    /// Decode a rim ID byte from the device-info feature report.
+    pub fn from_byte(byte: u8) -> Self {
+        match byte {
+            rim_ids::BMW_GT2 => Self::BmwGt2,
+            rim_ids::FORMULA_V2 => Self::FormulaV2,
+            rim_ids::FORMULA_V2_5 => Self::FormulaV25,
+            rim_ids::MCLAREN_GT3_V2 => Self::McLarenGt3V2,
+            rim_ids::PORSCHE_918_RSR => Self::Porsche918Rsr,
+            rim_ids::CLUBSPORT_RS => Self::ClubSportRs,
+            rim_ids::WRC => Self::Wrc,
+            rim_ids::CSL_ELITE_P1 => Self::CslEliteP1,
+            rim_ids::PODIUM_HUB => Self::PodiumHub,
+            _ => Self::Unknown,
+        }
+    }
+
+    /// Return `true` if this rim has a funky switch (multidirectional D-pad with rotation).
+    pub fn has_funky_switch(self) -> bool {
+        matches!(self, Self::McLarenGt3V2)
+    }
+
+    /// Return `true` if this rim has dual-clutch paddles.
+    pub fn has_dual_clutch(self) -> bool {
+        matches!(self, Self::FormulaV2 | Self::FormulaV25 | Self::McLarenGt3V2)
+    }
+
+    /// Return `true` if this rim has rotary encoders (beyond the standard hat switch).
+    pub fn has_rotary_encoders(self) -> bool {
+        matches!(self, Self::McLarenGt3V2 | Self::FormulaV25)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,6 +224,74 @@ mod tests {
         let model = FanatecModel::from_product_id(0xDEAD);
         assert_eq!(model, FanatecModel::Unknown);
         assert!((model.max_torque_nm() - 5.0).abs() < 0.1);
+        Ok(())
+    }
+
+    #[test]
+    fn test_is_pedal_product() -> Result<(), Box<dyn std::error::Error>> {
+        assert!(is_pedal_product(product_ids::CLUBSPORT_PEDALS_V3));
+        assert!(is_pedal_product(product_ids::CLUBSPORT_PEDALS_V1_V2));
+        assert!(is_pedal_product(product_ids::CSL_PEDALS_LC));
+        assert!(is_pedal_product(product_ids::CSL_PEDALS_V2));
+        assert!(!is_pedal_product(product_ids::CSL_DD));
+        assert!(!is_pedal_product(product_ids::DD1));
+        assert!(!is_pedal_product(0xFFFF));
+        Ok(())
+    }
+
+    #[test]
+    fn test_pedal_model_from_product_id() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            FanatecPedalModel::from_product_id(product_ids::CLUBSPORT_PEDALS_V3),
+            FanatecPedalModel::ClubSportV3
+        );
+        assert_eq!(
+            FanatecPedalModel::from_product_id(product_ids::CLUBSPORT_PEDALS_V1_V2),
+            FanatecPedalModel::ClubSportV1V2
+        );
+        assert_eq!(
+            FanatecPedalModel::from_product_id(product_ids::CSL_PEDALS_LC),
+            FanatecPedalModel::CslPedalsLc
+        );
+        assert_eq!(
+            FanatecPedalModel::from_product_id(0xDEAD),
+            FanatecPedalModel::Unknown
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_pedal_model_axis_count() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(FanatecPedalModel::ClubSportV3.axis_count(), 3);
+        assert_eq!(FanatecPedalModel::ClubSportV1V2.axis_count(), 2);
+        assert_eq!(FanatecPedalModel::CslPedalsLc.axis_count(), 3);
+        Ok(())
+    }
+
+    #[test]
+    fn test_rim_id_mclaren_from_byte() -> Result<(), Box<dyn std::error::Error>> {
+        let rim = FanatecRimId::from_byte(rim_ids::MCLAREN_GT3_V2);
+        assert_eq!(rim, FanatecRimId::McLarenGt3V2);
+        assert!(rim.has_funky_switch());
+        assert!(rim.has_dual_clutch());
+        assert!(rim.has_rotary_encoders());
+        Ok(())
+    }
+
+    #[test]
+    fn test_rim_id_unknown_byte() -> Result<(), Box<dyn std::error::Error>> {
+        let rim = FanatecRimId::from_byte(0xFF);
+        assert_eq!(rim, FanatecRimId::Unknown);
+        assert!(!rim.has_funky_switch());
+        assert!(!rim.has_dual_clutch());
+        Ok(())
+    }
+
+    #[test]
+    fn test_rim_id_formula_v2_has_dual_clutch() -> Result<(), Box<dyn std::error::Error>> {
+        let rim = FanatecRimId::from_byte(rim_ids::FORMULA_V2);
+        assert!(rim.has_dual_clutch());
+        assert!(!rim.has_funky_switch());
         Ok(())
     }
 }

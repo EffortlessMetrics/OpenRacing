@@ -21,6 +21,19 @@ pub struct FanatecInputState {
     pub buttons: u16,
     /// D-pad / hat direction nibble (0x0–0x7 = cardinal/diagonal, 0xF = neutral).
     pub hat: u8,
+    /// Funky switch direction (byte 10): 0=center, 1=up, 2=right, 3=down, 4=left.
+    /// Present on McLaren GT3 V2 and similar rims; 0 when rim does not have one.
+    pub funky_dir: u8,
+    /// Rotary encoder 1 raw value (signed 16-bit, bytes 11–12).
+    /// Represents absolute position or cumulative delta depending on rim firmware.
+    pub rotary1: i16,
+    /// Rotary encoder 2 raw value (signed 16-bit, bytes 13–14).
+    pub rotary2: i16,
+    /// Left dual-clutch paddle [0.0=released, 1.0=fully pressed] (byte 15, inverted).
+    /// Present on Formula V2/V2.5 and McLaren GT3 V2.
+    pub clutch_left: f32,
+    /// Right dual-clutch paddle [0.0=released, 1.0=fully pressed] (byte 16, inverted).
+    pub clutch_right: f32,
 }
 
 /// Parsed state from a Fanatec extended telemetry report (ID 0x02).
@@ -67,6 +80,27 @@ pub fn parse_standard_report(data: &[u8]) -> Option<FanatecInputState> {
         clutch,
         buttons,
         hat,
+        funky_dir: if data.len() > 10 { data[10] } else { 0 },
+        rotary1: if data.len() > 12 {
+            i16::from_le_bytes([data[11], data[12]])
+        } else {
+            0
+        },
+        rotary2: if data.len() > 14 {
+            i16::from_le_bytes([data[13], data[14]])
+        } else {
+            0
+        },
+        clutch_left: if data.len() > 15 {
+            normalize_inverted_axis(data[15])
+        } else {
+            0.0
+        },
+        clutch_right: if data.len() > 16 {
+            normalize_inverted_axis(data[16])
+        } else {
+            0.0
+        },
     })
 }
 
@@ -93,6 +127,44 @@ pub fn parse_extended_report(data: &[u8]) -> Option<FanatecExtendedState> {
         current_raw,
         fault_flags,
     })
+}
+
+/// Parsed state from a Fanatec standalone pedal USB report.
+///
+/// Hall sensor values are 12-bit (0x000=released, 0xFFF=fully pressed), zero-padded
+/// to 16 bits in the wire format. See FANATEC_PROTOCOL.md §Pedal Input Report for layout.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FanatecPedalState {
+    /// Raw throttle value (0=released, 0x0FFF=fully pressed).
+    pub throttle_raw: u16,
+    /// Raw brake value (0=released, 0x0FFF=fully pressed).
+    pub brake_raw: u16,
+    /// Raw clutch value (0=released, 0x0FFF=fully pressed; 0 if not present).
+    pub clutch_raw: u16,
+    /// Number of axes detected in the report (2 = throttle+brake, 3 = +clutch).
+    pub axis_count: u8,
+}
+
+/// Parse a Fanatec pedal standalone USB input report.
+///
+/// The wire format is: `[0x01, throttle_lo, throttle_hi, brake_lo, brake_hi,
+/// [clutch_lo, clutch_hi, ...]]` where each axis is a 12-bit Hall sensor value
+/// packed into a `u16` LE (mask with `0x0FFF`).
+///
+/// Returns `None` if `data` is too short (less than 5 bytes) or the report ID
+/// does not match `0x01`.
+pub fn parse_pedal_report(data: &[u8]) -> Option<FanatecPedalState> {
+    if data.len() < 5 || data[0] != report_ids::STANDARD_INPUT {
+        return None;
+    }
+    let throttle_raw = u16::from_le_bytes([data[1], data[2]]) & 0x0FFF;
+    let brake_raw = u16::from_le_bytes([data[3], data[4]]) & 0x0FFF;
+    let (clutch_raw, axis_count) = if data.len() >= 7 {
+        (u16::from_le_bytes([data[5], data[6]]) & 0x0FFF, 3)
+    } else {
+        (0, 2)
+    };
+    Some(FanatecPedalState { throttle_raw, brake_raw, clutch_raw, axis_count })
 }
 
 /// Normalize a 16-bit steering value (center = 0x8000) to [-1.0, +1.0].
@@ -190,6 +262,132 @@ mod tests {
         let mut data = [0u8; 64];
         data[0] = 0x01; // wrong report ID for extended
         assert!(parse_extended_report(&data).is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_funky_switch_center() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 64];
+        data[0] = 0x01;
+        data[10] = 0x00; // funky center
+        let state = parse_standard_report(&data).ok_or("parse failed")?;
+        assert_eq!(state.funky_dir, 0x00, "funky center should be 0");
+        Ok(())
+    }
+
+    #[test]
+    fn test_funky_switch_up() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 64];
+        data[0] = 0x01;
+        data[10] = 0x01; // funky up
+        let state = parse_standard_report(&data).ok_or("parse failed")?;
+        assert_eq!(state.funky_dir, 0x01, "funky up should be 1");
+        Ok(())
+    }
+
+    #[test]
+    fn test_rotary_encoder_values() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 64];
+        data[0] = 0x01;
+        // rotary1 = 0x00F0 = 240 (little-endian)
+        data[11] = 0xF0;
+        data[12] = 0x00;
+        // rotary2 = -100 = 0xFF9C
+        data[13] = 0x9C;
+        data[14] = 0xFF;
+        let state = parse_standard_report(&data).ok_or("parse failed")?;
+        assert_eq!(state.rotary1, 240);
+        assert_eq!(state.rotary2, -100);
+        Ok(())
+    }
+
+    #[test]
+    fn test_dual_clutch_paddles() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 64];
+        data[0] = 0x01;
+        data[15] = 0x00; // left clutch fully pressed (inverted: 0x00 → 1.0)
+        data[16] = 0xFF; // right clutch released (inverted: 0xFF → 0.0)
+        let state = parse_standard_report(&data).ok_or("parse failed")?;
+        assert!((state.clutch_left - 1.0).abs() < 1e-4, "left clutch should be ~1.0");
+        assert!((state.clutch_right).abs() < 1e-4, "right clutch should be ~0.0");
+        Ok(())
+    }
+
+    #[test]
+    fn test_short_report_without_rim_extras() -> Result<(), Box<dyn std::error::Error>> {
+        // 10-byte report with no rim extension bytes — extras should default to 0
+        let mut data = [0u8; 10];
+        data[0] = 0x01;
+        let state = parse_standard_report(&data).ok_or("parse failed")?;
+        assert_eq!(state.funky_dir, 0);
+        assert_eq!(state.rotary1, 0);
+        assert_eq!(state.rotary2, 0);
+        assert!((state.clutch_left).abs() < 1e-4);
+        assert!((state.clutch_right).abs() < 1e-4);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_pedal_report_throttle_brake() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 8];
+        data[0] = 0x01;
+        // throttle = 0x0800 (half pressed)
+        data[1] = 0x00;
+        data[2] = 0x08;
+        // brake = 0x0FFF (fully pressed)
+        data[3] = 0xFF;
+        data[4] = 0x0F;
+        let state = parse_pedal_report(&data).ok_or("parse failed")?;
+        assert_eq!(state.throttle_raw, 0x0800);
+        assert_eq!(state.brake_raw, 0x0FFF);
+        assert_eq!(state.axis_count, 3); // 8 bytes → clutch present
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_pedal_report_clutch_axis() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 7];
+        data[0] = 0x01;
+        data[1] = 0x00;
+        data[2] = 0x04; // throttle = 0x0400
+        data[3] = 0x00;
+        data[4] = 0x08; // brake = 0x0800
+        data[5] = 0xFF;
+        data[6] = 0x0F; // clutch = 0x0FFF
+        let state = parse_pedal_report(&data).ok_or("parse failed")?;
+        assert_eq!(state.throttle_raw, 0x0400);
+        assert_eq!(state.brake_raw, 0x0800);
+        assert_eq!(state.clutch_raw, 0x0FFF);
+        assert_eq!(state.axis_count, 3);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_pedal_report_two_axis() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 5];
+        data[0] = 0x01;
+        data[1] = 0x00;
+        data[2] = 0x08; // throttle = 0x0800
+        data[3] = 0xFF;
+        data[4] = 0x0F; // brake = 0x0FFF
+        let state = parse_pedal_report(&data).ok_or("parse failed")?;
+        assert_eq!(state.axis_count, 2);
+        assert_eq!(state.clutch_raw, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_pedal_report_rejects_wrong_id() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 8];
+        data[0] = 0x02; // not a pedal report
+        assert!(parse_pedal_report(&data).is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_pedal_report_rejects_short_data() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0x01u8; 4]; // too short
+        assert!(parse_pedal_report(&data).is_none());
         Ok(())
     }
 }

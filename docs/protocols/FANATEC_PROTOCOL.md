@@ -26,17 +26,35 @@ Fanatec devices use a proprietary HID protocol that requires initialization to s
 
 ### Steering Wheels (Rims)
 
-| Model | Rim ID | Notes |
-|-------|--------|-------|
-| BMW GT2 | `0x01` | Standard buttons |
-| Formula V2 | `0x02` | Dual clutch paddles |
-| Formula V2.5 | `0x03` | Updated Formula |
-| McLaren GT3 V2 | `0x04` | Funky switch |
-| Porsche 918 RSR | `0x05` | Limited edition |
-| ClubSport RS | `0x06` | Round wheel |
-| WRC | `0x07` | Rally style |
-| CSL Elite P1 | `0x08` | Xbox compatible |
-| Podium Hub | `0x09` | Adapter for 3rd party |
+| Model | Rim ID | Extra Inputs | Notes |
+|-------|--------|-------------|-------|
+| BMW GT2 | `0x01` | — | Standard buttons |
+| Formula V2 | `0x02` | Dual clutch paddles | |
+| Formula V2.5 | `0x03` | Dual clutch, rotary encoders | |
+| McLaren GT3 V2 | `0x04` | Funky switch, rotary encoders, dual clutch | Bytes 10–16 in standard report |
+| Porsche 918 RSR | `0x05` | — | Limited edition |
+| ClubSport RS | `0x06` | — | Round wheel |
+| WRC | `0x07` | — | Rally style |
+| CSL Elite P1 | `0x08` | — | Xbox compatible |
+| Podium Hub | `0x09` | Depends on attached rim | Adapter for 3rd-party rims |
+
+Rim IDs are reported in feature report `0x02`, byte 2. See `ids::rim_ids` for constants and
+`FanatecRimId` for the Rust enum with capability helpers (`has_funky_switch()`,
+`has_dual_clutch()`, `has_rotary_encoders()`).
+
+### Standalone Pedal Devices
+
+Fanatec pedal sets connect via USB and use a separate VID/PID from the wheelbase.
+
+| Model | Vendor ID | Product ID | Axes | Notes |
+|-------|-----------|------------|------|-------|
+| ClubSport Pedals V1/V2 | `0x0EB7` | `0x1839` | 2–3 | Hall sensors |
+| ClubSport Pedals V3 | `0x0EB7` | `0x183B` | 3 | Load cell brake |
+| CSL Pedals with LC Kit | `0x0EB7` | `0x6205` | 3 | Load cell add-on |
+| CSL Pedals V2 | `0x0EB7` | `0x6206` | 3 | Updated Hall sensors |
+
+Use `is_pedal_product(pid)` to distinguish pedal devices from wheelbases. Use
+`FanatecPedalModel::from_product_id(pid)` to get the axis count and model variant.
 
 ## Initialization Sequence
 
@@ -159,7 +177,23 @@ Byte 10:    Fault Flags
 Byte 11-63: Reserved
 ```
 
-## Output Reports (Force Feedback)
+### Pedal Input Report (Standalone Pedal Devices)
+
+```
+Report ID: 0x01
+Total Size: 5 bytes (2-axis) or 7 bytes (3-axis)
+
+Byte 0:   Report ID (0x01)
+Byte 1-2: Throttle axis (u16 little-endian, 12-bit Hall sensor: 0x000–0x0FFF)
+Byte 3-4: Brake axis   (u16 little-endian, 12-bit Hall sensor: 0x000–0x0FFF)
+Byte 5-6: Clutch axis  (u16 little-endian, 12-bit Hall sensor; only on 3-pedal sets)
+
+Value encoding: 0x0000 = released (pedal up), 0x0FFF = fully pressed.
+Note: opposite of wheelbase pedal axes which are inverted (0xFF = released).
+```
+
+Use `parse_pedal_report(data)` to parse; returns a `FanatecPedalState` with `throttle_raw`,
+`brake_raw`, `clutch_raw` (12-bit, 0=released), and `axis_count` (2 or 3).
 
 ### Set Constant Force (ID: 0x01)
 
