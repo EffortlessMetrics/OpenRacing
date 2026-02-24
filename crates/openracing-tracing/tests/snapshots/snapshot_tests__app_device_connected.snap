@@ -1,0 +1,5 @@
+---
+source: crates/openracing-tracing/tests/snapshot_tests.rs
+expression: "format!(\"{}\", event)"
+---
+DeviceConnected(id=wheel-001, name=Simagic Alpha Mini, caps=torque,rotation,ffb)

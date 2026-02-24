@@ -1,0 +1,35 @@
+[package]
+name = "openracing-curves"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-curves"
+publish = true
+description = "Curve-based FFB effects with LUT evaluation for OpenRacing"
+readme = "README.md"
+keywords = ["curve", "bezier", "ffb", "lut", "real-time"]
+categories = ["embedded", "game-development", "mathematics"]
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+proptest = { workspace = true }
+insta = { version = "1.42.2", features = ["json"] }
+criterion = { workspace = true }
+approx = "0.5.1"
+fastrand = "2.3.0"
+
+[[bench]]
+name = "curve_benchmarks"
+harness = false
+
+[features]
+default = []

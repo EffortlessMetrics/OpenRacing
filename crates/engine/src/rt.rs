@@ -1,5 +1,7 @@
 //! Real-time engine core types and structures
 
+pub use openracing_errors::RTError;
+pub use openracing_errors::RTResult;
 use std::time::Instant;
 
 /// Real-time frame data processed at 1kHz
@@ -44,29 +46,6 @@ pub enum FFBMode {
     TelemetrySynth,
 }
 
-/// Real-time error codes (pre-allocated for RT path)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum RTError {
-    DeviceDisconnected = 1,
-    TorqueLimit = 2,
-    PipelineFault = 3,
-    TimingViolation = 4,
-}
-
-impl std::fmt::Display for RTError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RTError::DeviceDisconnected => write!(f, "Device disconnected"),
-            RTError::TorqueLimit => write!(f, "Torque limit exceeded"),
-            RTError::PipelineFault => write!(f, "Pipeline processing fault"),
-            RTError::TimingViolation => write!(f, "Real-time timing violation"),
-        }
-    }
-}
-
-impl std::error::Error for RTError {}
-
 impl std::fmt::Display for FFBMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -76,9 +55,6 @@ impl std::fmt::Display for FFBMode {
         }
     }
 }
-
-/// RT-safe result type
-pub type RTResult<T = ()> = Result<T, RTError>;
 
 /// Performance metrics for monitoring
 #[derive(Debug, Clone)]

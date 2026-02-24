@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "DeviceError::CommunicationError\n{\n    device: \"moza-r9\".into(), message: \"failed to read HID report\".into(),\n}.to_string()"
+---
+Communication error with device moza-r9: failed to read HID report

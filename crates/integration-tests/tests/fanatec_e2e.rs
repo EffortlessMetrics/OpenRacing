@@ -4,7 +4,7 @@
 //! behaviors without real USB hardware.
 
 use racing_wheel_hid_fanatec_protocol::{
-    ids::report_ids, product_ids, FanatecConstantForceEncoder, CONSTANT_FORCE_REPORT_LEN,
+    CONSTANT_FORCE_REPORT_LEN, FanatecConstantForceEncoder, ids::report_ids, product_ids,
 };
 use racing_wheel_integration_tests::fanatec_virtual::FanatecScenario;
 
@@ -80,7 +80,10 @@ fn scenario_initialize_returns_error_on_io_failure() {
     let result = s.initialize();
 
     // Then: returns Err (write failure propagated)
-    assert!(result.is_err(), "I/O failure must propagate from initialize");
+    assert!(
+        result.is_err(),
+        "I/O failure must propagate from initialize"
+    );
 }
 
 // ─── Scenario 5: disconnect, reconnect, and reinitialize ─────────────────────
@@ -131,7 +134,11 @@ fn scenario_constant_force_max_torque_encoding() {
 
     // Then: report ID and command byte are correct
     assert_eq!(written, CONSTANT_FORCE_REPORT_LEN);
-    assert_eq!(out[0], report_ids::FFB_OUTPUT, "byte 0 must be FFB_OUTPUT report ID");
+    assert_eq!(
+        out[0],
+        report_ids::FFB_OUTPUT,
+        "byte 0 must be FFB_OUTPUT report ID"
+    );
     assert_eq!(out[1], 0x01, "byte 1 must be CONSTANT_FORCE command");
 
     // Then: signed i16 LE at bytes 2–3 must be +32767 (maximum positive)
@@ -195,9 +202,16 @@ fn scenario_shutdown_sends_stop_all_output_report() -> Result<(), Box<dyn std::e
         "shutdown must send exactly one stop-all output report"
     );
 
-    let report = s.device.last_output_report().expect("report must be present");
+    let report = s
+        .device
+        .last_output_report()
+        .expect("report must be present");
     // stop-all layout: [FFB_OUTPUT=0x01, STOP_ALL=0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-    assert_eq!(report[0], report_ids::FFB_OUTPUT, "byte 0 must be FFB_OUTPUT");
+    assert_eq!(
+        report[0],
+        report_ids::FFB_OUTPUT,
+        "byte 0 must be FFB_OUTPUT"
+    );
     assert_eq!(report[1], 0x0F, "byte 1 must be STOP_ALL command (0x0F)");
     assert_eq!(&report[2..], &[0x00u8; 6], "trailing bytes must be zero");
 
@@ -236,9 +250,9 @@ fn scenario_extended_report_parses_telemetry() -> Result<(), Box<dyn std::error:
     let mut raw = [0u8; 64];
     raw[0] = report_ids::EXTENDED_INPUT; // report ID 0x02
     // Steering velocity (bytes 3–4): ignored in this test
-    raw[5] = 82;   // motor temperature: 82 °C
-    raw[6] = 41;   // board temperature: 41 °C
-    raw[7] = 15;   // current draw: 1.5 A (in 0.1 A units)
+    raw[5] = 82; // motor temperature: 82 °C
+    raw[6] = 41; // board temperature: 41 °C
+    raw[7] = 15; // current draw: 1.5 A (in 0.1 A units)
     raw[10] = 0x03; // fault_flags: over-temp (bit 0) + over-current (bit 1)
 
     // When: parsed
@@ -500,8 +514,14 @@ fn scenario_clubsport_pedals_v3_pid_is_not_a_wheelbase() -> Result<(), Box<dyn s
     let pid = product_ids::CLUBSPORT_PEDALS_V3;
 
     // Then: recognised as a pedal, not a wheelbase
-    assert!(is_pedal_product(pid), "CLUBSPORT_PEDALS_V3 must be a pedal product");
-    assert!(!is_wheelbase_product(pid), "CLUBSPORT_PEDALS_V3 must not be a wheelbase");
+    assert!(
+        is_pedal_product(pid),
+        "CLUBSPORT_PEDALS_V3 must be a pedal product"
+    );
+    assert!(
+        !is_wheelbase_product(pid),
+        "CLUBSPORT_PEDALS_V3 must not be a wheelbase"
+    );
 
     Ok(())
 }
@@ -536,9 +556,18 @@ fn scenario_rim_id_mclaren_has_funky_switch() -> Result<(), Box<dyn std::error::
 
     // Then: classified as McLaren GT3 V2 with all rim extras
     assert_eq!(rim, FanatecRimId::McLarenGt3V2);
-    assert!(rim.has_funky_switch(), "McLaren GT3 V2 must have funky switch");
-    assert!(rim.has_dual_clutch(), "McLaren GT3 V2 must have dual clutch paddles");
-    assert!(rim.has_rotary_encoders(), "McLaren GT3 V2 must have rotary encoders");
+    assert!(
+        rim.has_funky_switch(),
+        "McLaren GT3 V2 must have funky switch"
+    );
+    assert!(
+        rim.has_dual_clutch(),
+        "McLaren GT3 V2 must have dual clutch paddles"
+    );
+    assert!(
+        rim.has_rotary_encoders(),
+        "McLaren GT3 V2 must have rotary encoders"
+    );
 
     Ok(())
 }

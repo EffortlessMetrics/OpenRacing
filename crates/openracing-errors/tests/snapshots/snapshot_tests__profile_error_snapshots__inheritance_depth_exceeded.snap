@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ProfileError::InheritanceDepthExceeded\n{ depth: 10, max_depth: 5, }.to_string()"
+---
+Profile inheritance depth exceeded: 10 levels (max: 5)

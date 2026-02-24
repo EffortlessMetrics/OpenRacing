@@ -9,9 +9,9 @@ use super::{DeviceWriter, FfbConfig, VendorProtocol};
 use tracing::{debug, info};
 
 pub use racing_wheel_hid_logitech_protocol::{
-    build_native_mode_report, build_set_range_report, ids::report_ids, is_wheel_product,
-    parse_input_report, product_ids, LogitechConstantForceEncoder, LogitechInputState,
-    LogitechModel, CONSTANT_FORCE_REPORT_LEN, LOGITECH_VENDOR_ID,
+    CONSTANT_FORCE_REPORT_LEN, LOGITECH_VENDOR_ID, LogitechConstantForceEncoder,
+    LogitechInputState, LogitechModel, build_native_mode_report, build_set_range_report,
+    ids::report_ids, is_wheel_product, parse_input_report, product_ids,
 };
 
 /// Logitech protocol state.

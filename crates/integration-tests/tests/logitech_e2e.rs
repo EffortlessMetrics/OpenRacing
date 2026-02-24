@@ -4,9 +4,9 @@
 //! behaviors without real USB hardware.
 
 use racing_wheel_hid_logitech_protocol::{
-    build_gain_report, build_native_mode_report, build_set_leds_report, build_set_range_report,
-    ids::report_ids, parse_input_report, product_ids, LogitechConstantForceEncoder,
-    CONSTANT_FORCE_REPORT_LEN,
+    CONSTANT_FORCE_REPORT_LEN, LogitechConstantForceEncoder, build_gain_report,
+    build_native_mode_report, build_set_leds_report, build_set_range_report, ids::report_ids,
+    parse_input_report, product_ids,
 };
 use racing_wheel_integration_tests::logitech_virtual::LogitechScenario;
 
@@ -218,11 +218,7 @@ fn scenario_g923_ps_initializes() -> Result<(), Box<dyn std::error::Error>> {
         0x0A,
         "native mode command"
     );
-    assert_eq!(
-        s.device.feature_reports()[1][1],
-        0x81,
-        "set range command"
-    );
+    assert_eq!(s.device.feature_reports()[1][1], 0x81, "set range command");
 
     Ok(())
 }

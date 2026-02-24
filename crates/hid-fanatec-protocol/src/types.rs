@@ -168,7 +168,10 @@ impl FanatecRimId {
 
     /// Return `true` if this rim has dual-clutch paddles.
     pub fn has_dual_clutch(self) -> bool {
-        matches!(self, Self::FormulaV2 | Self::FormulaV25 | Self::McLarenGt3V2)
+        matches!(
+            self,
+            Self::FormulaV2 | Self::FormulaV25 | Self::McLarenGt3V2
+        )
     }
 
     /// Return `true` if this rim has rotary encoders (beyond the standard hat switch).

@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "RTError::RTSetupFailed.to_string()"
+---
+Failed to apply real-time setup

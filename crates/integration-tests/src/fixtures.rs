@@ -1,18 +1,10 @@
 //! Test fixtures and data for integration tests
 
 #![allow(clippy::panic)]
+use openracing_test_helpers::prelude::*;
 use racing_wheel_schemas::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-
-/// Test helper to unwrap results with panic on error
-#[track_caller]
-fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-    match r {
-        Ok(v) => v,
-        Err(e) => panic!("unexpected Err: {e:?}"),
-    }
-}
 
 /// Test fixture for virtual device configurations
 #[derive(Debug, Clone, Serialize, Deserialize)]

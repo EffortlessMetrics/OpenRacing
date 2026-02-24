@@ -10,11 +10,11 @@ pub mod input;
 pub mod output;
 pub mod types;
 
-pub use ids::{product_ids, LOGITECH_VENDOR_ID};
-pub use input::{parse_input_report, LogitechInputState};
+pub use ids::{LOGITECH_VENDOR_ID, product_ids};
+pub use input::{LogitechInputState, parse_input_report};
 pub use output::{
-    build_gain_report, build_native_mode_report, build_set_autocenter_report,
-    build_set_leds_report, build_set_range_report, LogitechConstantForceEncoder,
-    CONSTANT_FORCE_REPORT_LEN, VENDOR_REPORT_LEN,
+    CONSTANT_FORCE_REPORT_LEN, LogitechConstantForceEncoder, VENDOR_REPORT_LEN, build_gain_report,
+    build_native_mode_report, build_set_autocenter_report, build_set_leds_report,
+    build_set_range_report,
 };
-pub use types::{is_wheel_product, LogitechModel};
+pub use types::{LogitechModel, is_wheel_product};

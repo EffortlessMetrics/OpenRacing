@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: categories
+---
+RT Device Profile Config IO Validation Plugin Telemetry Other

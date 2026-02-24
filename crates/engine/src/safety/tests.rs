@@ -3,24 +3,8 @@
 use super::*;
 use crate::hid::MozaInputState;
 use crate::input::{KsClutchMode, KsReportSnapshot};
+use openracing_test_helpers::prelude::*;
 use std::time::{Duration, Instant};
-
-// Test helper functions to replace unwrap
-#[track_caller]
-fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-    match r {
-        Ok(v) => v,
-        Err(e) => panic!("unexpected Err: {e:?}"),
-    }
-}
-
-#[track_caller]
-fn must_some<T>(o: Option<T>, msg: &str) -> T {
-    match o {
-        Some(v) => v,
-        None => panic!("{msg}"),
-    }
-}
 
 /// Create a test safety service
 fn create_test_service() -> SafetyService {

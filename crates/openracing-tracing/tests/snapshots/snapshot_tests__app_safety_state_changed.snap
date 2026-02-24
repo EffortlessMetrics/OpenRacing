@@ -1,0 +1,5 @@
+---
+source: crates/openracing-tracing/tests/snapshot_tests.rs
+expression: "format!(\"{}\", event)"
+---
+SafetyStateChanged(device=wheel-001, safe->high_torque, reason=user_consent)

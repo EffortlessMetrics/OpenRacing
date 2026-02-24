@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "DeviceError::timeout(\"logitech-g27\", 5000).to_string()"
+---
+Device logitech-g27 timeout after 5000ms

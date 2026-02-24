@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ProfileError::MissingField\n{ profile: \"my-profile\".into(), field: \"torque_limit\".into(), }.to_string()"
+---
+Missing required field 'torque_limit' in profile my-profile

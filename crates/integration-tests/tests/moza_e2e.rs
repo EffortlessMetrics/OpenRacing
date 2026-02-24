@@ -483,7 +483,10 @@ fn scenario_hbp_button_released_has_zero_button_byte() -> Result<(), Box<dyn std
     assert_eq!(state.handbrake_u16, 0x0000, "released HBP should be 0x0000");
 
     // Then: buttons[0] is clear (no button byte in this layout)
-    assert_eq!(state.buttons[0], 0x00, "buttons[0] must be clear without button byte");
+    assert_eq!(
+        state.buttons[0], 0x00,
+        "buttons[0] must be clear without button byte"
+    );
 
     Ok(())
 }
@@ -638,7 +641,7 @@ fn scenario_ks_rim_rotary_bytes_preserved() -> Result<(), Box<dyn std::error::Er
     report[0] = input_report::REPORT_ID;
     report[2] = 0x80;
     report[input_report::FUNKY_START] = rim_ids::KS;
-    report[input_report::ROTARY_START] = 0x42;     // rotary 0
+    report[input_report::ROTARY_START] = 0x42; // rotary 0
     report[input_report::ROTARY_START + 1] = 0x7E; // rotary 1
 
     let state = protocol
@@ -669,16 +672,21 @@ fn scenario_ks_hat_byte_round_trip() -> Result<(), Box<dyn std::error::Error>> {
     let protocol = MozaProtocol::new(product_ids::R12_V2);
 
     // Hat encoding (Moza): 0=center, 1=up, 2=right, 3=down, 4=left
-    for (hat_value, description) in [(0x00u8, "center"), (0x01, "up"), (0x03, "down"), (0x04, "left")] {
+    for (hat_value, description) in [
+        (0x00u8, "center"),
+        (0x01, "up"),
+        (0x03, "down"),
+        (0x04, "left"),
+    ] {
         let mut report = [0u8; 31];
         report[0] = input_report::REPORT_ID;
         report[2] = 0x80;
         report[input_report::FUNKY_START] = rim_ids::KS;
         report[input_report::HAT_START] = hat_value;
 
-        let state = protocol
-            .parse_input_state(&report)
-            .ok_or(format!("expected parse for hat={hat_value} ({description})"))?;
+        let state = protocol.parse_input_state(&report).ok_or(format!(
+            "expected parse for hat={hat_value} ({description})"
+        ))?;
 
         assert_eq!(
             state.ks_snapshot.hat, hat_value,

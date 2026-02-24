@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "OpenRacingError::config(\"missing required field: torque_limit\").to_string()"
+---
+Configuration error: missing required field: torque_limit

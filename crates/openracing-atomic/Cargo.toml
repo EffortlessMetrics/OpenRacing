@@ -1,0 +1,28 @@
+[package]
+name = "openracing-atomic"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "RT-safe atomic counters and metrics primitives for OpenRacing"
+keywords = ["real-time", "atomic", "metrics", "counters", "no-std"]
+categories = ["concurrency", "embedded", "no-std"]
+
+[dependencies]
+crossbeam = { workspace = true, optional = true }
+
+[dev-dependencies]
+quickcheck = "1.0.3"
+quickcheck_macros = "1.1.0"
+criterion = { workspace = true }
+
+[features]
+default = ["std"]
+std = ["crossbeam"]
+# Enable lock-free sample queues (requires crossbeam)
+queues = ["crossbeam"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

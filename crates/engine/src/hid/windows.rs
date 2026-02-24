@@ -2445,9 +2445,18 @@ mod tests {
     fn test_device_capabilities_fanatec_gt_dd_pro() {
         for pid in [0x0020u16, 0x0024u16] {
             let caps = determine_device_capabilities(vendor_ids::FANATEC, pid);
-            assert!(caps.supports_raw_torque_1khz, "PID {pid:#06x} should support raw torque");
-            assert!(caps.supports_health_stream, "PID {pid:#06x} should support health stream");
-            assert!(caps.supports_led_bus, "PID {pid:#06x} should support LED bus");
+            assert!(
+                caps.supports_raw_torque_1khz,
+                "PID {pid:#06x} should support raw torque"
+            );
+            assert!(
+                caps.supports_health_stream,
+                "PID {pid:#06x} should support health stream"
+            );
+            assert!(
+                caps.supports_led_bus,
+                "PID {pid:#06x} should support LED bus"
+            );
             assert!(
                 (caps.max_torque.value() - 8.0).abs() < 0.1,
                 "PID {pid:#06x} expected 8 Nm, got {}",

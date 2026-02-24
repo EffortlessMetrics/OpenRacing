@@ -97,7 +97,10 @@ fn test_initialize_non_wheelbase_skips_handshake() -> Result<(), Box<dyn std::er
     let mut writer = MockDeviceWriter::new();
 
     protocol.initialize_device(&mut writer)?;
-    assert!(writer.feature_reports().is_empty(), "no reports for non-wheelbase");
+    assert!(
+        writer.feature_reports().is_empty(),
+        "no reports for non-wheelbase"
+    );
     Ok(())
 }
 
@@ -161,7 +164,11 @@ fn test_shutdown_wheelbase_sends_stop_all() -> Result<(), Box<dyn std::error::Er
     protocol.shutdown_device(&mut writer)?;
 
     let reports = writer.output_reports();
-    assert_eq!(reports.len(), 1, "expected exactly one output report on shutdown");
+    assert_eq!(
+        reports.len(),
+        1,
+        "expected exactly one output report on shutdown"
+    );
     // stop-all payload: [FFB_OUTPUT=0x01, STOP_ALL=0x0F, 0x00, ...]
     assert_eq!(reports[0][0], 0x01, "byte 0 must be FFB_OUTPUT report ID");
     assert_eq!(reports[0][1], 0x0F, "byte 1 must be STOP_ALL command");

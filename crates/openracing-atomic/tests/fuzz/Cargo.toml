@@ -1,0 +1,36 @@
+[package]
+name = "openracing-atomic-fuzz"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+openracing-atomic = { path = ".." }
+
+[[bin]]
+name = "fuzz_counter_overflow"
+path = "fuzz_counter_overflow.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_torque_saturation"
+path = "fuzz_torque_saturation.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_telemetry_loss"
+path = "fuzz_telemetry_loss.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_streaming_stats"
+path = "fuzz_streaming_stats.rs"
+test = false
+doc = false

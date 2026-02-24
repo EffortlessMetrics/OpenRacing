@@ -238,7 +238,8 @@ mod tests {
     }
 
     #[test]
-    fn test_constant_force_zero_max_torque_returns_zero() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_constant_force_zero_max_torque_returns_zero() -> Result<(), Box<dyn std::error::Error>>
+    {
         let encoder = FanatecConstantForceEncoder::new(0.0);
         let mut out = [0u8; CONSTANT_FORCE_REPORT_LEN];
         encoder.encode(5.0, 0, &mut out);

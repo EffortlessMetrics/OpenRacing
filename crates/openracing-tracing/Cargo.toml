@@ -1,0 +1,43 @@
+[package]
+name = "openracing-tracing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-tracing"
+publish = true
+description = "RT-safe tracing and observability for OpenRacing"
+readme = "README.md"
+keywords = ["tracing", "observability", "realtime", "etw", "tracepoints"]
+categories = ["development-tools::profiling", "os"]
+
+[dependencies]
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+insta = "1.42.2"
+criterion = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.2", features = [
+    "Win32_System_Diagnostics_Etw",
+    "Win32_Foundation",
+] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.180"
+
+[features]
+default = []
+rt-validation = []
+
+[[bench]]
+name = "tracing_overhead"
+harness = false

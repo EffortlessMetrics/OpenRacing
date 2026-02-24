@@ -53,6 +53,7 @@ pub use ipc_service::WheelServiceImpl;
 pub use ipc_simple::{
     HealthEventInternal, IpcClient, IpcClientConfig, IpcConfig, IpcServer, TransportType,
 };
+pub use openracing_errors;
 pub use profile_service::*;
 pub use safety_service::*;
 pub use service::*;

@@ -159,6 +159,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f0e0fee31ef5ed1ba1316088939cea399010ed7731dba877ed44aeb407a75ea"
 
 [[package]]
+name = "approx"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -873,6 +882,18 @@ dependencies = [
 
 [[package]]
 name = "console"
+version = "0.15.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "054ccb5b10f9f2cbf51eb355ca1d05c2d279ce1804688d0db74b4733a5aeafd8"
+dependencies = [
+ "encode_unicode",
+ "libc",
+ "once_cell",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "console"
 version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03e45a4a8926227e4197636ba97a9fc9b00477e9f4bd711395687c5f0734bec4"
@@ -1456,7 +1477,7 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25f104b501bf2364e78d0d3974cbc774f738f5865306ed128e1e0d7499c0ad96"
 dependencies = [
- "console",
+ "console 0.16.2",
  "shell-words",
  "tempfile",
  "zeroize",
@@ -2859,7 +2880,7 @@ version = "0.18.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25470f23803092da7d239834776d653104d551bc4d7eacaf31e6837854b8e9eb"
 dependencies = [
- "console",
+ "console 0.16.2",
  "portable-atomic",
  "unicode-width",
  "unit-prefix",
@@ -2882,6 +2903,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879f10e63c20629ecabbb64a8010319738c66a5cd0c29b02d63d272b03751d01"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "insta"
+version = "1.46.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e82db8c87c7f1ccecb34ce0c24399b8a73081427f3c7c50a5d597925356115e4"
+dependencies = [
+ "console 0.15.11",
+ "once_cell",
+ "serde",
+ "similar",
+ "tempfile",
 ]
 
 [[package]]
@@ -4054,6 +4088,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 
 [[package]]
+name = "openracing-atomic"
+version = "0.1.0"
+dependencies = [
+ "criterion",
+ "crossbeam",
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
 name = "openracing-capture-ids"
 version = "0.1.0"
 dependencies = [
@@ -4061,6 +4105,76 @@ dependencies = [
  "hidapi",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "openracing-curves"
+version = "0.1.0"
+dependencies = [
+ "approx",
+ "criterion",
+ "fastrand",
+ "insta",
+ "proptest",
+ "quickcheck",
+ "quickcheck_macros",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "openracing-errors"
+version = "0.1.0"
+dependencies = [
+ "insta",
+ "proptest",
+ "quickcheck",
+ "quickcheck_macros",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "openracing-scheduler"
+version = "0.1.0"
+dependencies = [
+ "criterion",
+ "libc",
+ "proptest",
+ "quickcheck",
+ "quickcheck_macros",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "windows 0.62.2",
+]
+
+[[package]]
+name = "openracing-test-helpers"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "openracing-tracing"
+version = "0.1.0"
+dependencies = [
+ "criterion",
+ "insta",
+ "libc",
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "windows 0.62.2",
 ]
 
 [[package]]
@@ -4956,6 +5070,11 @@ dependencies = [
  "metrics",
  "mimalloc",
  "num_cpus",
+ "openracing-atomic",
+ "openracing-curves",
+ "openracing-errors",
+ "openracing-test-helpers",
+ "openracing-tracing",
  "parking_lot",
  "prometheus",
  "proptest",
@@ -5036,6 +5155,7 @@ dependencies = [
  "libc",
  "mockall",
  "num_cpus",
+ "openracing-test-helpers",
  "parking_lot",
  "proptest",
  "quickcheck",
@@ -5129,6 +5249,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "jsonschema",
+ "openracing-errors",
  "proptest",
  "prost",
  "prost-build",
@@ -5166,6 +5287,7 @@ dependencies = [
  "libudev",
  "metrics",
  "num_cpus",
+ "openracing-errors",
  "os_info",
  "prometheus",
  "proptest",
@@ -6428,6 +6550,12 @@ name = "simd-adler32"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
+
+[[package]]
+name = "similar"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
 
 [[package]]
 name = "siphasher"

@@ -164,7 +164,12 @@ pub fn parse_pedal_report(data: &[u8]) -> Option<FanatecPedalState> {
     } else {
         (0, 2)
     };
-    Some(FanatecPedalState { throttle_raw, brake_raw, clutch_raw, axis_count })
+    Some(FanatecPedalState {
+        throttle_raw,
+        brake_raw,
+        clutch_raw,
+        axis_count,
+    })
 }
 
 /// Normalize a 16-bit steering value (center = 0x8000) to [-1.0, +1.0].
@@ -223,7 +228,10 @@ mod tests {
         data[5] = 0xFF;
 
         let state = parse_standard_report(&data).ok_or("parse failed")?;
-        assert!((state.throttle - 1.0).abs() < 1e-4, "throttle should be ~1.0");
+        assert!(
+            (state.throttle - 1.0).abs() < 1e-4,
+            "throttle should be ~1.0"
+        );
         Ok(())
     }
 
@@ -246,8 +254,8 @@ mod tests {
     fn test_parse_extended_report_basic() -> Result<(), Box<dyn std::error::Error>> {
         let mut data = [0u8; 64];
         data[0] = 0x02; // extended report ID
-        data[5] = 75;   // motor temp
-        data[6] = 45;   // board temp
+        data[5] = 75; // motor temp
+        data[6] = 45; // board temp
         data[10] = 0x01; // over-temp fault
 
         let state = parse_extended_report(&data).ok_or("parse failed")?;
@@ -308,8 +316,14 @@ mod tests {
         data[15] = 0x00; // left clutch fully pressed (inverted: 0x00 → 1.0)
         data[16] = 0xFF; // right clutch released (inverted: 0xFF → 0.0)
         let state = parse_standard_report(&data).ok_or("parse failed")?;
-        assert!((state.clutch_left - 1.0).abs() < 1e-4, "left clutch should be ~1.0");
-        assert!((state.clutch_right).abs() < 1e-4, "right clutch should be ~0.0");
+        assert!(
+            (state.clutch_left - 1.0).abs() < 1e-4,
+            "left clutch should be ~1.0"
+        );
+        assert!(
+            (state.clutch_right).abs() < 1e-4,
+            "right clutch should be ~0.0"
+        );
         Ok(())
     }
 

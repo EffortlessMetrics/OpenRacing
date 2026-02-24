@@ -1057,7 +1057,8 @@ impl LinuxHidDevice {
             None
         } else if self.device_info.vendor_id == vendor::fanatec::FANATEC_VENDOR_ID {
             if let Some(state) = vendor::fanatec::parse_extended_report(result_bytes) {
-                self.temperature_c.store(state.motor_temp_c, Ordering::Relaxed);
+                self.temperature_c
+                    .store(state.motor_temp_c, Ordering::Relaxed);
                 self.fault_flags.store(state.fault_flags, Ordering::Relaxed);
                 self.mark_communication();
             }
@@ -1538,7 +1539,10 @@ mod tests {
                 caps.supports_health_stream,
                 "GT DD Pro PID {pid:#06x} should support health stream"
             );
-            assert!(caps.supports_led_bus, "GT DD Pro PID {pid:#06x} should have LED bus");
+            assert!(
+                caps.supports_led_bus,
+                "GT DD Pro PID {pid:#06x} should have LED bus"
+            );
             assert!(
                 (caps.max_torque.value() - 8.0).abs() < 0.1,
                 "GT DD Pro PID {pid:#06x} expected 8 Nm, got {}",

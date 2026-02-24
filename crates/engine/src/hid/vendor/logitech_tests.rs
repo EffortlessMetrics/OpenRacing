@@ -1,7 +1,7 @@
 //! Tests for the Logitech protocol handler.
 
-use super::logitech::{is_wheel_product, product_ids, LogitechModel, LogitechProtocol};
-use super::{get_vendor_protocol, DeviceWriter, VendorProtocol};
+use super::logitech::{LogitechModel, LogitechProtocol, is_wheel_product, product_ids};
+use super::{DeviceWriter, VendorProtocol, get_vendor_protocol};
 use racing_wheel_hid_logitech_protocol::LOGITECH_VENDOR_ID;
 use std::cell::RefCell;
 

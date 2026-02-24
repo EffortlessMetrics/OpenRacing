@@ -10,6 +10,12 @@ members = [
     "crates/hid-moza-protocol",
     "crates/hid-fanatec-protocol",
     "crates/hid-logitech-protocol",
+    "crates/openracing-atomic",
+    "crates/openracing-tracing",
+    "crates/openracing-scheduler",
+    "crates/openracing-curves",
+    "crates/openracing-errors",
+    "crates/openracing-test-helpers",
     "crates/engine",
     "crates/service",
     "crates/cli",
@@ -65,6 +71,14 @@ parking_lot = "0.12.5"
 crossbeam = "0.8.4"
 mimalloc = "0.1.48"
 
+# Workspace-local microcrates
+openracing-atomic = { path = "crates/openracing-atomic" }
+openracing-tracing = { path = "crates/openracing-tracing" }
+openracing-scheduler = { path = "crates/openracing-scheduler" }
+openracing-curves = { path = "crates/openracing-curves" }
+openracing-errors = { path = "crates/openracing-errors" }
+openracing-test-helpers = { path = "crates/openracing-test-helpers" }
+
 # HID and hardware
 hidapi = "2.6.4"
 libudev = "0.3.0"
@@ -76,6 +90,8 @@ jsonschema = "0.40.2"
 # Testing
 criterion = "0.8.1"
 proptest = "1.9.0"
+quickcheck = "1.0.3"
+quickcheck_macros = "1.1.0"
 hdrhistogram = "7.5.4"
 mockall = "0.14.0"
 wiremock = "0.6.5"
