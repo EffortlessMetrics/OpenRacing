@@ -123,4 +123,28 @@ impl VendorProtocol for FanatecProtocol {
             None
         }
     }
+
+    fn shutdown_device(
+        &self,
+        writer: &mut dyn DeviceWriter,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        if !is_wheelbase_product(self.product_id) {
+            return Ok(());
+        }
+
+        debug!(
+            "Sending stop-all to Fanatec VID=0x{:04X} PID=0x{:04X} on shutdown",
+            self.vendor_id, self.product_id
+        );
+
+        let report = racing_wheel_hid_fanatec_protocol::build_stop_all_report();
+        // Write errors are logged at debug — device may already be disconnected.
+        if let Err(e) = writer.write_output_report(&report) {
+            debug!(
+                "Fanatec stop-all failed for VID=0x{:04X} PID=0x{:04X} (device may be disconnected): {}",
+                self.vendor_id, self.product_id, e
+            );
+        }
+        Ok(())
+    }
 }

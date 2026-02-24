@@ -21,6 +21,10 @@ impl MockDeviceWriter {
     fn feature_reports(&self) -> Vec<Vec<u8>> {
         self.feature_reports.borrow().clone()
     }
+
+    fn output_reports(&self) -> Vec<Vec<u8>> {
+        self.output_reports.borrow().clone()
+    }
 }
 
 impl DeviceWriter for MockDeviceWriter {
@@ -147,4 +151,33 @@ fn test_is_wheelbase_product_consistency() {
     assert!(is_wheelbase_product(product_ids::CSL_DD));
     assert!(is_wheelbase_product(product_ids::GT_DD_PRO));
     assert!(!is_wheelbase_product(0xFFFF));
+}
+
+#[test]
+fn test_shutdown_wheelbase_sends_stop_all() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = FanatecProtocol::new(FANATEC_VENDOR_ID, product_ids::GT_DD_PRO);
+    let mut writer = MockDeviceWriter::new();
+
+    protocol.shutdown_device(&mut writer)?;
+
+    let reports = writer.output_reports();
+    assert_eq!(reports.len(), 1, "expected exactly one output report on shutdown");
+    // stop-all payload: [FFB_OUTPUT=0x01, STOP_ALL=0x0F, 0x00, ...]
+    assert_eq!(reports[0][0], 0x01, "byte 0 must be FFB_OUTPUT report ID");
+    assert_eq!(reports[0][1], 0x0F, "byte 1 must be STOP_ALL command");
+    Ok(())
+}
+
+#[test]
+fn test_shutdown_non_wheelbase_is_noop() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = FanatecProtocol::new(FANATEC_VENDOR_ID, 0xFFFF);
+    let mut writer = MockDeviceWriter::new();
+
+    protocol.shutdown_device(&mut writer)?;
+
+    assert!(
+        writer.output_reports().is_empty(),
+        "non-wheelbase shutdown must not write any reports"
+    );
+    Ok(())
 }

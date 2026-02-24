@@ -1594,6 +1594,37 @@ impl WindowsHidDevice {
         }
     }
 
+    fn shutdown_vendor_protocol(
+        device_info: &HidDeviceInfo,
+        hidapi_device: &Option<Arc<Mutex<hidapi::HidDevice>>>,
+    ) {
+        let Some(protocol) =
+            vendor::get_vendor_protocol(device_info.vendor_id, device_info.product_id)
+        else {
+            return;
+        };
+
+        let Some(hidapi_device) = hidapi_device else {
+            debug!(
+                "Skipping vendor shutdown for {} (VID={:04X}, PID={:04X}); no hidapi handle available",
+                device_info.device_id, device_info.vendor_id, device_info.product_id
+            );
+            return;
+        };
+
+        let mut device = hidapi_device.lock();
+        let mut writer = HidApiVendorWriter {
+            device: &mut device,
+        };
+
+        if let Err(e) = protocol.shutdown_device(&mut writer) {
+            debug!(
+                "Vendor shutdown failed for {} (VID={:04X}, PID={:04X}): {}",
+                device_info.device_id, device_info.vendor_id, device_info.product_id, e
+            );
+        }
+    }
+
     fn publish_moza_input_state(&self, mut state: MozaInputState) {
         state.tick = self.moza_input_seq.fetch_add(1, Ordering::Relaxed);
 
@@ -1881,6 +1912,12 @@ impl WindowsHidDevice {
         };
 
         Some(report.to_telemetry_data())
+    }
+}
+
+impl Drop for WindowsHidDevice {
+    fn drop(&mut self) {
+        Self::shutdown_vendor_protocol(&self.device_info, &self.hidapi_device);
     }
 }
 

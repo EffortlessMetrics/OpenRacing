@@ -70,6 +70,11 @@ impl VirtualFanatecDevice {
         self.output_reports.back()
     }
 
+    /// All output reports written since creation, in order.
+    pub fn output_reports(&self) -> &VecDeque<Vec<u8>> {
+        &self.output_reports
+    }
+
     /// True when `feature_reports` contains a report whose first byte matches `report_id`.
     pub fn sent_feature_report_id(&self, report_id: u8) -> bool {
         self.feature_reports
@@ -141,5 +146,10 @@ impl FanatecScenario {
     /// Run `initialize_device` and return whether it succeeded.
     pub fn initialize(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.protocol.initialize_device(&mut self.device)
+    }
+
+    /// Run `shutdown_device` and return whether it succeeded.
+    pub fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.protocol.shutdown_device(&mut self.device)
     }
 }

@@ -1068,6 +1068,31 @@ impl LinuxHidDevice {
     }
 }
 
+impl Drop for LinuxHidDevice {
+    fn drop(&mut self) {
+        let Some(write_file) = &self.write_file else {
+            return;
+        };
+        let Some(protocol) =
+            vendor::get_vendor_protocol(self.device_info.vendor_id, self.device_info.product_id)
+        else {
+            return;
+        };
+        let mut writer = HidrawVendorWriter {
+            fd: write_file.as_raw_fd(),
+        };
+        if let Err(e) = protocol.shutdown_device(&mut writer) {
+            debug!(
+                "Vendor shutdown failed for {} (VID={:04X}, PID={:04X}): {}",
+                self.device_info.device_id,
+                self.device_info.vendor_id,
+                self.device_info.product_id,
+                e
+            );
+        }
+    }
+}
+
 impl HidDevice for LinuxHidDevice {
     fn write_ffb_report(&mut self, torque_nm: f32, seq: u16) -> RTResult {
         if !self.connected.load(Ordering::Relaxed) {

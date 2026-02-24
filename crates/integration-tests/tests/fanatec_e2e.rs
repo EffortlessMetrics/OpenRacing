@@ -175,3 +175,55 @@ fn scenario_dd1_sends_mode_switch_on_initialize() -> Result<(), Box<dyn std::err
 
     Ok(())
 }
+
+// ─── Scenario 9: graceful shutdown sends stop-all ─────────────────────────────
+
+#[test]
+fn scenario_shutdown_sends_stop_all_output_report() -> Result<(), Box<dyn std::error::Error>> {
+    // Given: initialized GT DD Pro wheelbase
+    let mut s = FanatecScenario::wheelbase(product_ids::GT_DD_PRO);
+    s.initialize()?;
+    s.device.clear_records();
+
+    // When: graceful shutdown
+    s.shutdown()?;
+
+    // Then: exactly one output report sent (stop-all)
+    assert_eq!(
+        s.device.output_reports().len(),
+        1,
+        "shutdown must send exactly one stop-all output report"
+    );
+
+    let report = s.device.last_output_report().expect("report must be present");
+    // stop-all layout: [FFB_OUTPUT=0x01, STOP_ALL=0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+    assert_eq!(report[0], report_ids::FFB_OUTPUT, "byte 0 must be FFB_OUTPUT");
+    assert_eq!(report[1], 0x0F, "byte 1 must be STOP_ALL command (0x0F)");
+    assert_eq!(&report[2..], &[0x00u8; 6], "trailing bytes must be zero");
+
+    // Then: no feature reports during shutdown
+    assert_eq!(
+        s.device.feature_reports().len(),
+        0,
+        "shutdown must not send any feature reports"
+    );
+
+    Ok(())
+}
+
+// ─── Scenario 10: non-wheelbase shutdown is a no-op ───────────────────────────
+
+#[test]
+fn scenario_non_wheelbase_shutdown_is_noop() -> Result<(), Box<dyn std::error::Error>> {
+    // Given: unknown/accessory PID
+    let mut s = FanatecScenario::wheelbase(0xFF00);
+
+    // When: shutdown
+    s.shutdown()?;
+
+    // Then: no reports sent at all
+    assert_eq!(s.device.output_reports().len(), 0);
+    assert_eq!(s.device.feature_reports().len(), 0);
+
+    Ok(())
+}
