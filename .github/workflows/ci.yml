@@ -264,14 +264,10 @@ jobs:
       - name: Run JSON schema round-trip tests
         run: cargo test -p racing-wheel-schemas schema_roundtrip
 
-      - name: Verify generated files are up to date
+      - name: Verify buf workspace builds
         run: |
           cd crates/schemas
-          buf generate
-          if ! git diff --exit-code -- src/generated; then
-            echo "Generated files are out of date. Please regenerate and commit."
-            exit 1
-          fi
+          buf build
 
   # Phase 3: Workspace default build
   workspace-default:

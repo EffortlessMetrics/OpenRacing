@@ -14,10 +14,10 @@ unused_must_use = "deny"
 unwrap_used = "deny"
 
 [dependencies]
-racing-wheel-hbp = { path = "../hbp" }
-racing-wheel-ks = { path = "../ks" }
-racing-wheel-moza-wheelbase-report = { path = "../moza-wheelbase-report" }
-racing-wheel-srp = { path = "../srp" }
+racing-wheel-hbp = { workspace = true }
+racing-wheel-ks = { workspace = true }
+racing-wheel-moza-wheelbase-report = { workspace = true }
+racing-wheel-srp = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]

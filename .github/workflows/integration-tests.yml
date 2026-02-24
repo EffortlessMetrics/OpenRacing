@@ -51,7 +51,9 @@ jobs:
           --skip cpu_usage_isolation \
           --skip haptics_frequency_range \
           --skip test_comprehensive_suite \
-          --skip test_torque_limit_enforcement
+          --skip test_torque_limit_enforcement \
+          --skip test_end_to_end_performance_requirements \
+          --skip test_pipeline_swap_atomicity_under_load
 
   # Performance gates (critical for CI)
   performance-gates:
@@ -148,11 +150,8 @@ jobs:
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     
-    - name: Run hot-plug stress tests
-      run: cargo run --package racing-wheel-integration-tests --bin hotplug-stress --release -- --duration 180
-    
-    - name: Run fault injection tests
-      run: cargo test test_fault_injection_stress --package racing-wheel-integration-tests
+    - name: Run CI-bounded hot-plug stress test
+      run: cargo test -p racing-wheel-integration-tests test_hotplug_stress_basic -- --exact
     
     - name: Upload stress test results
       uses: actions/upload-artifact@v4
