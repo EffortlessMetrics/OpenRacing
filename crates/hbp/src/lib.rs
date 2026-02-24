@@ -60,19 +60,21 @@ pub fn parse_axis(report: &[u8], start: usize) -> Option<u16> {
 /// 1. With report ID prefix: `[report_id, axis_lo, axis_hi, button]`
 /// 2. Raw two-byte: `[axis_lo, axis_hi]`
 /// 3. Raw with button: `[axis_lo, axis_hi, button]`
+///
+/// When layouts overlap (for example, a 4-byte packet), the report-ID-prefixed
+/// interpretation takes precedence when the first byte is non-zero.
 pub fn parse_hbp_usb_report_best_effort(report: &[u8]) -> Option<HbpHandbrakeSampleRaw> {
     if report.is_empty() {
         return None;
     }
 
-    if report.len() > WITH_REPORT_ID_BUTTON
-        && report[0] != 0x00
-        && let Some(axis) = parse_axis(report, WITH_REPORT_ID_AXIS_START)
-    {
-        return Some(HbpHandbrakeSampleRaw {
-            handbrake: axis,
-            button_byte: Some(report[WITH_REPORT_ID_BUTTON]),
-        });
+    if report.len() > WITH_REPORT_ID_BUTTON && report[0] != 0x00 {
+        if let Some(axis) = parse_axis(report, WITH_REPORT_ID_AXIS_START) {
+            return Some(HbpHandbrakeSampleRaw {
+                handbrake: axis,
+                button_byte: Some(report[WITH_REPORT_ID_BUTTON]),
+            });
+        }
     }
 
     if report.len() == 2 {

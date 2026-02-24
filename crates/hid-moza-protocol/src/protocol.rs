@@ -389,8 +389,8 @@ impl MozaProtocol {
 
             if funky == rim_ids::KS {
                 if let Some(mut mapped) = default_wheelbase_ks_map().parse(0, report) {
-                    // Base wheelbase rotary bytes are still authoritative unless capture map
-                    // provides explicit validated bindings.
+                    // Base wheelbase rotary bytes are authoritative for this path.
+                    // Keep these values even when the KS map parser yields encoder data.
                     mapped.encoders[0] = fallback_snapshot.encoders[0];
                     mapped.encoders[1] = fallback_snapshot.encoders[1];
                     mapped

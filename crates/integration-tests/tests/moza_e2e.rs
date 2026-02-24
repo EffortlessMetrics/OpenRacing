@@ -388,7 +388,7 @@ fn scenario_v1_vs_v2_encoder_cpr_differs() {
 
 #[test]
 fn scenario_ks_attached_wheelbase_buttons_and_hat() -> Result<(), Box<dyn std::error::Error>> {
-    use racing_wheel_hid_moza_protocol::{MozaProtocol, input_report};
+    use racing_wheel_hid_moza_protocol::{MozaProtocol, input_report, rim_ids};
 
     // Given: R9 V2 with KS wheel attached
     let protocol = MozaProtocol::new(product_ids::R9_V2);
@@ -409,6 +409,8 @@ fn scenario_ks_attached_wheelbase_buttons_and_hat() -> Result<(), Box<dyn std::e
     report[11] = 0x03;
     // hat byte at [27]
     report[27] = 0x04; // Down (per Moza hat encoding)
+    // funky byte at [28] identifies KS rim attachment
+    report[input_report::FUNKY_START] = rim_ids::KS;
 
     let state = protocol
         .parse_input_state(&report)

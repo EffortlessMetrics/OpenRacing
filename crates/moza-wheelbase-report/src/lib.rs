@@ -32,6 +32,9 @@ pub struct RawWheelbaseReport<'a> {
 }
 
 impl<'a> RawWheelbaseReport<'a> {
+    /// Construct a borrowed report view without validation.
+    ///
+    /// Prefer [`parse_wheelbase_report`] when report ID/length validation is required.
     pub fn new(report: &'a [u8]) -> Self {
         Self { report }
     }

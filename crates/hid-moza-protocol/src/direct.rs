@@ -222,7 +222,7 @@ mod tests {
         let raw = i16::from_le_bytes([out[1], out[2]]);
         let expected = (i16::MAX as f32 * 0.25).round() as i16;
         assert!(
-            (raw - expected).abs() <= 1,
+            (raw as i32 - expected as i32).abs() <= 1,
             "quarter-scale raw={raw} expected≈{expected}"
         );
         assert_eq!(out[3] & 0x01, 0x01, "motor-enable bit must be set");
@@ -238,9 +238,10 @@ mod tests {
         let raw = i16::from_le_bytes([out[1], out[2]]);
         let expected = (i16::MAX as f32 * 0.5).round() as i16;
         assert!(
-            (raw - expected).abs() <= 1,
+            (raw as i32 - expected as i32).abs() <= 1,
             "half-scale raw={raw} expected≈{expected}"
         );
+        assert_eq!(out[3] & 0x01, 0x01, "motor-enable bit must be set");
     }
 
     /// Snapshot: three-quarter-scale positive torque encodes to ≈ i16::MAX * 0.75.
@@ -253,9 +254,10 @@ mod tests {
         let raw = i16::from_le_bytes([out[1], out[2]]);
         let expected = (i16::MAX as f32 * 0.75).round() as i16;
         assert!(
-            (raw - expected).abs() <= 1,
+            (raw as i32 - expected as i32).abs() <= 1,
             "three-quarter-scale raw={raw} expected≈{expected}"
         );
+        assert_eq!(out[3] & 0x01, 0x01, "motor-enable bit must be set");
     }
 
     /// Snapshot: half-scale negative torque encodes to ≈ i16::MIN / 2.
@@ -268,7 +270,7 @@ mod tests {
         let raw = i16::from_le_bytes([out[1], out[2]]);
         let expected = ((i16::MIN as f32) * 0.5).round() as i16;
         assert!(
-            (raw - expected).abs() <= 1,
+            (raw as i32 - expected as i32).abs() <= 1,
             "half-scale negative raw={raw} expected≈{expected}"
         );
         assert_eq!(
@@ -327,9 +329,9 @@ mod tests {
 
         // Report ID
         assert_eq!(out[0], report_ids::DIRECT_TORQUE);
-        // Raw torque ≈ i16::MAX / 2 = 16383
+        // Raw torque ≈ round(i16::MAX as f32 * 0.5) = 16384
         let raw = i16::from_le_bytes([out[1], out[2]]);
-        assert!((raw - 16384).abs() <= 1, "golden raw={raw}");
+        assert!((raw as i32 - 16384).abs() <= 1, "golden raw={raw}");
         // Motor enable flag
         assert_eq!(out[3] & 0x01, 0x01);
         // Unused bytes are zero
@@ -367,7 +369,7 @@ mod property_tests {
             }
         }
 
-        /// For any torque in [-max, max], encode must not panic and output is 8 bytes.
+        /// For any torque, output is always valid and saturates when input exceeds max.
         #[test]
         fn prop_encoded_value_never_overflows(
             max in 0.001_f32..=21.0_f32,
@@ -376,12 +378,21 @@ mod property_tests {
             let enc = MozaDirectTorqueEncoder::new(max);
             let mut out = [0u8; REPORT_LEN];
             enc.encode(torque, 0, &mut out);
-            // Raw value must be in the clamped range: [-max_raw, max_raw] where max_raw ≤ i16::MAX.
             let raw = i16::from_le_bytes([out[1], out[2]]);
-            // After clamping, |raw| must not exceed i16::MAX (trivially held, but we also
-            // verify the encode didn't write garbage into non-raw bytes).
-            prop_assert_eq!(out[0], 0x20, "report ID byte must always be 0x20");
-            let _sign_preserved = raw; // must be a valid i16 (no panic above is the real check)
+            prop_assert_eq!(
+                out[0],
+                report_ids::DIRECT_TORQUE,
+                "report ID byte must always be DIRECT_TORQUE"
+            );
+            if torque > max {
+                prop_assert_eq!(raw, i16::MAX, "over-max torque must saturate to i16::MAX");
+            } else if torque < -max {
+                prop_assert_eq!(raw, i16::MIN, "under-max torque must saturate to i16::MIN");
+            } else if torque > 0.0 {
+                prop_assert!(raw >= 0, "positive in-range torque must stay non-negative");
+            } else if torque < 0.0 {
+                prop_assert!(raw <= 0, "negative in-range torque must stay non-positive");
+            }
         }
 
         /// Motor-enable bit is set iff raw torque != 0.

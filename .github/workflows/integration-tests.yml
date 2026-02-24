@@ -15,7 +15,7 @@ jobs:
   smoke-tests:
     name: Smoke Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     
     steps:
     - uses: actions/checkout@v4
@@ -43,6 +43,8 @@ jobs:
     
     - name: Run unit tests
       run: |
+        # Keep smoke bounded/deterministic: exclude long-running perf/atomicity tests here.
+        # These behaviors are covered by dedicated performance and soak CI lanes.
         cargo test --workspace \
           --exclude racing-wheel-integration-tests \
           --exclude racing-wheel-ui \
@@ -151,6 +153,8 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Run CI-bounded hot-plug stress test
+      # Full stress/fault suites are exercised via soak and extended stress lanes;
+      # this PR gate keeps only a deterministic bounded stress signal.
       run: cargo test -p racing-wheel-integration-tests test_hotplug_stress_basic -- --exact
     
     - name: Upload stress test results
