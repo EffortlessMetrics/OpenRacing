@@ -17,6 +17,7 @@ pub mod acceptance;
 pub mod common;
 pub mod fixtures;
 pub mod gates;
+pub mod fanatec_virtual;
 pub mod moza_virtual;
 pub mod performance;
 pub mod soak;
