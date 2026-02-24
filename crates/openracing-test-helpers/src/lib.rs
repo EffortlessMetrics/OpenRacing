@@ -39,6 +39,10 @@ pub mod prelude;
 #[cfg_attr(docsrs, doc(cfg(feature = "tracking")))]
 pub mod tracking;
 
+#[cfg(all(test, feature = "tracking"))]
+#[global_allocator]
+static GLOBAL_TEST: tracking::TrackingAllocator = tracking::TrackingAllocator;
+
 #[cfg(feature = "mock")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mock")))]
 pub mod mock;

@@ -4,6 +4,7 @@
 #[allow(clippy::unwrap_used)]
 mod tests {
     use crate::tracing::*;
+    use openracing_tracing::platform::FallbackProvider;
 
     #[test]
     fn test_tracing_manager_creation() {

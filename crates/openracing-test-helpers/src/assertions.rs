@@ -9,7 +9,7 @@
 /// ```rust
 /// use openracing_test_helpers::assert_approx_eq;
 ///
-/// assert_approx_eq!(1.0, 1.0001, 0.001);
+/// assert_approx_eq!(1.0_f64, 1.0001_f64, 0.001_f64);
 /// ```
 #[macro_export]
 macro_rules! assert_approx_eq {
@@ -323,7 +323,7 @@ macro_rules! assert_none {
 /// ```rust
 /// use openracing_test_helpers::assert_empty;
 ///
-/// assert_empty!(&[]);
+/// assert_empty!(&[] as &[i32]);
 /// ```
 #[macro_export]
 macro_rules! assert_empty {
@@ -397,13 +397,13 @@ macro_rules! assert_in_range {
 mod tests {
     #[test]
     fn test_assert_approx_eq_pass() {
-        assert_approx_eq!(1.0, 1.0001, 0.001);
+        assert_approx_eq!(1.0_f64, 1.0001_f64, 0.001_f64);
     }
 
     #[test]
     #[should_panic(expected = "assertion failed: `(left ≈ right)`")]
     fn test_assert_approx_eq_fail() {
-        assert_approx_eq!(1.0, 1.1, 0.001);
+        assert_approx_eq!(1.0_f64, 1.1_f64, 0.001_f64);
     }
 
     #[test]

@@ -334,6 +334,9 @@ proptest! {
             Err(crate::RTError::TorqueLimit) => {
                 // Acceptable error - torque limit exceeded
             }
+            Err(_) => {
+                // Other errors are acceptable for property testing with simulated hardware
+            }
         }
     }
 

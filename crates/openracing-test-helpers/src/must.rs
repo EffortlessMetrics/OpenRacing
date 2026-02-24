@@ -165,7 +165,6 @@ mod async_helpers {
     ///     assert_eq!(value, 42);
     /// }
     /// ```
-    #[track_caller]
     pub async fn must_async<F, T, E>(future: F) -> T
     where
         F: Future<Output = Result<T, E>>,
@@ -180,7 +179,6 @@ mod async_helpers {
     /// Await a future that returns `Option`, unwrapping with context on `None`.
     ///
     /// This is the async version of [`must_some`].
-    #[track_caller]
     pub async fn must_some_async<F, T>(future: F, msg: &str) -> T
     where
         F: Future<Output = Option<T>>,

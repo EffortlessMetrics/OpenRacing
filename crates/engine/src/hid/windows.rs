@@ -2528,6 +2528,35 @@ mod tests {
     }
 
     #[test]
+    fn test_device_capabilities_fanatec_pedals_no_ffb() {
+        // Fanatec standalone pedal sets must not expose raw torque or LED bus
+        for pid in [0x1839u16, 0x183B, 0x6205, 0x6206] {
+            let caps = determine_device_capabilities(vendor_ids::FANATEC, pid);
+            assert!(
+                !caps.supports_raw_torque_1khz,
+                "PID {pid:#06x}: pedal must not support raw torque"
+            );
+            assert!(
+                !caps.supports_health_stream,
+                "PID {pid:#06x}: pedal must not expose health stream"
+            );
+            assert!(
+                !caps.supports_led_bus,
+                "PID {pid:#06x}: pedal must not have LED bus"
+            );
+        }
+    }
+
+    #[test]
+    fn test_supported_devices_fanatec_pedals() {
+        // Pedal PIDs must be enumerable (so the engine can open and read them)
+        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x1839)); // V1/V2
+        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x183B)); // V3
+        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x6205)); // LC
+        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x6206)); // V2
+    }
+
+    #[test]
     fn test_device_capabilities_moza_hgp_shifter() {
         // HGP is an input peripheral and must not be exposed as an FFB device.
         let caps = determine_device_capabilities(vendor_ids::MOZA, 0x0020);

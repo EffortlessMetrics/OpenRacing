@@ -1565,6 +1565,42 @@ mod tests {
     }
 
     #[test]
+    fn test_fanatec_pedal_capabilities_no_ffb() {
+        // Standalone pedal devices: no raw torque, no health stream, no LED bus
+        for pid in [0x1839u16, 0x183B, 0x6205, 0x6206] {
+            let caps = build_capabilities_from_identity(0x0EB7, pid, &[]);
+            assert!(
+                !caps.supports_raw_torque_1khz,
+                "PID {pid:#06x}: pedal must not support raw torque"
+            );
+            assert!(
+                !caps.supports_health_stream,
+                "PID {pid:#06x}: pedal must not expose health stream"
+            );
+            assert!(
+                !caps.supports_led_bus,
+                "PID {pid:#06x}: pedal must not have LED bus"
+            );
+        }
+    }
+
+    #[test]
+    fn test_fanatec_wheelbase_capabilities_have_led_bus() {
+        // Wheelbases always have LED bus support
+        for pid in [0x0006u16, 0x0007, 0x0020, 0x0024] {
+            let caps = build_capabilities_from_identity(0x0EB7, pid, &[]);
+            assert!(
+                caps.supports_led_bus,
+                "PID {pid:#06x}: wheelbase must have LED bus"
+            );
+            assert!(
+                caps.supports_raw_torque_1khz,
+                "PID {pid:#06x}: wheelbase must support raw torque"
+            );
+        }
+    }
+
+    #[test]
     fn test_moza_transport_mode_kernel_disables_ffb_write() -> TestResult {
         with_moza_transport_mode(Some("kernel-pidff"), || -> TestResult {
             let device_id = must("test-moza-kernel-pidff".parse::<DeviceId>());
