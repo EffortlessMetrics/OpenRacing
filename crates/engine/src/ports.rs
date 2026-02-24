@@ -105,6 +105,9 @@ impl DeviceInputs {
 
         inputs.rotaries[0] = i16::from(state.rotary[0]);
         inputs.rotaries[1] = i16::from(state.rotary[1]);
+        for idx in 2..inputs.rotaries.len() {
+            inputs.rotaries[idx] = state.ks_snapshot.encoders[idx];
+        }
         inputs
     }
 }
@@ -466,5 +469,36 @@ mod tests {
         assert!(stats.last_packet_time.is_none());
         assert_eq!(stats.average_rate_hz, 0.0);
         assert_eq!(stats.connection_errors, 0);
+    }
+
+    #[test]
+    fn test_from_moza_input_state_maps_extended_ks_rotaries() {
+        let mut state = MozaInputState::empty(42);
+        state.rotary = [3, 9];
+        state.ks_snapshot.encoders = [101, 202, 303, 404, 505, 606, 707, 808];
+
+        let inputs = DeviceInputs::from_moza_input_state(&state);
+
+        assert_eq!(inputs.tick, 42);
+        assert_eq!(inputs.rotaries[0], 3);
+        assert_eq!(inputs.rotaries[1], 9);
+        assert_eq!(inputs.rotaries[2], 303);
+        assert_eq!(inputs.rotaries[3], 404);
+        assert_eq!(inputs.rotaries[4], 505);
+        assert_eq!(inputs.rotaries[5], 606);
+        assert_eq!(inputs.rotaries[6], 707);
+        assert_eq!(inputs.rotaries[7], 808);
+    }
+
+    #[test]
+    fn test_from_moza_input_state_clutch_fallback_prefers_combined_snapshot_then_raw() {
+        let mut state = MozaInputState::empty(1);
+        state.clutch_u16 = 1200;
+        state.ks_snapshot.clutch_combined = Some(7000);
+
+        let inputs = DeviceInputs::from_moza_input_state(&state);
+
+        assert_eq!(inputs.clutch_left, Some(7000));
+        assert_eq!(inputs.clutch_combined, Some(7000));
     }
 }

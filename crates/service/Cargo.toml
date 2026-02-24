@@ -28,6 +28,7 @@ racing-wheel-telemetry-integration = { path = "../telemetry-integration" }
 racing-wheel-telemetry-rate-limiter = { path = "../telemetry-rate-limiter" }
 racing-wheel-telemetry-recorder = { path = "../telemetry-recorder" }
 racing-wheel-telemetry-config-writers = { path = "../telemetry-config-writers" }
+racing-wheel-changelog = { workspace = true }
 tokio = { workspace = true }
 tonic = { workspace = true }
 serde = { workspace = true }

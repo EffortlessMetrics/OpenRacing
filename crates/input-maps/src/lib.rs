@@ -274,6 +274,7 @@ pub fn compile_ks_map(map: &DeviceInputMap) -> Option<KsReportMap> {
     // Wire rotaries (first two map to left/right rotary axes).
     for (i, rotary) in map.rotaries.iter().enumerate().take(KS_ENCODER_COUNT) {
         let source = KsAxisSource::new(rotary.byte_offset as usize, false);
+        ks.encoders[i] = Some(source);
         match i {
             0 => ks.left_rotary_axis = Some(source),
             1 => ks.right_rotary_axis = Some(source),
@@ -406,5 +407,45 @@ mod tests {
         assert_eq!(ks.clutch_mode_hint, KsClutchMode::CombinedAxis);
         assert!(ks.clutch_combined_axis.is_some());
         assert_eq!(ks.clutch_combined_axis.map(|s| s.offset), Some(7));
+    }
+
+    #[test]
+    fn compile_ks_map_wires_all_rotary_slots() {
+        let mut map = DeviceInputMap {
+            vendor_id: 0x346E,
+            product_id: 0x0002,
+            ..Default::default()
+        };
+
+        map.rotaries = vec![
+            RotaryBinding {
+                name: "rotary_left".to_string(),
+                byte_offset: 29,
+                mode: RotaryModeHint::Button,
+            },
+            RotaryBinding {
+                name: "rotary_right".to_string(),
+                byte_offset: 30,
+                mode: RotaryModeHint::Button,
+            },
+            RotaryBinding {
+                name: "thumb_left".to_string(),
+                byte_offset: 31,
+                mode: RotaryModeHint::Knob,
+            },
+        ];
+
+        let compiled = compile_ks_map(&map);
+        assert!(compiled.is_some());
+        let ks = match compiled {
+            Some(value) => value,
+            None => panic!("expected compiled KS map"),
+        };
+
+        assert_eq!(ks.left_rotary_axis.map(|s| s.offset), Some(29));
+        assert_eq!(ks.right_rotary_axis.map(|s| s.offset), Some(30));
+        assert_eq!(ks.encoders[0].map(|s| s.offset), Some(29));
+        assert_eq!(ks.encoders[1].map(|s| s.offset), Some(30));
+        assert_eq!(ks.encoders[2].map(|s| s.offset), Some(31));
     }
 }

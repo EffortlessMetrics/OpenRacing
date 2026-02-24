@@ -3,6 +3,9 @@ members = [
     "crates/schemas",
     "crates/ks",
     "crates/srp",
+    "crates/hbp",
+    "crates/changelog",
+    "crates/moza-wheelbase-report",
     "crates/input-maps",
     "crates/hid-moza-protocol",
     "crates/engine",
@@ -99,6 +102,13 @@ tokio-stream = "0.1.18"
 # System integration dependencies
 os_info = "3.14.0"
 chrono = { version = "0.4.43", features = ["serde"] }
+
+# Workspace-local crates (prefer workspace deps over per-crate path deps)
+racing-wheel-hbp = { path = "crates/hbp" }
+racing-wheel-ks = { path = "crates/ks" }
+racing-wheel-moza-wheelbase-report = { path = "crates/moza-wheelbase-report" }
+racing-wheel-changelog = { path = "crates/changelog" }
+racing-wheel-srp = { path = "crates/srp" }
 
 [profile.release]
 lto = true

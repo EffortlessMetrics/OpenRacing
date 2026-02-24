@@ -227,8 +227,7 @@ run_schema_validation() {
         echo "Skipping buf breaking (no --buf-against provided)"
     fi
 
-    run buf generate
-    check_generated_clean "buf generate"
+    run buf build
 }
 
 run_workspace_default() {

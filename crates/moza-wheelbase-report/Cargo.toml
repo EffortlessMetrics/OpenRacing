@@ -1,0 +1,15 @@
+[package]
+name = "racing-wheel-moza-wheelbase-report"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[lints.rust]
+warnings = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+

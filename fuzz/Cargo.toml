@@ -14,6 +14,10 @@ libfuzzer-sys = "0.4"
 racing-wheel-telemetry-adapters = { path = "../crates/telemetry-adapters" }
 racing-wheel-telemetry-contracts = { path = "../crates/telemetry-contracts" }
 racing-wheel-hid-moza-protocol = { path = "../crates/hid-moza-protocol" }
+racing-wheel-ks = { path = "../crates/ks" }
+racing-wheel-srp = { path = "../crates/srp" }
+racing-wheel-hbp = { path = "../crates/hbp" }
+racing-wheel-moza-wheelbase-report = { path = "../crates/moza-wheelbase-report" }
 
 # Fuzzing requires nightly and release-like optimizations.
 [[bin]]
@@ -61,6 +65,18 @@ doc = false
 [[bin]]
 name = "fuzz_moza_direct_torque_encode"
 path = "fuzz_targets/fuzz_moza_direct_torque_encode.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ks_report"
+path = "fuzz_targets/fuzz_ks_report.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_srp_report"
+path = "fuzz_targets/fuzz_srp_report.rs"
 test = false
 doc = false
 

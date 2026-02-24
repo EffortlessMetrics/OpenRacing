@@ -4927,6 +4927,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 
 [[package]]
+name = "racing-wheel-changelog"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "semver",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "racing-wheel-engine"
 version = "0.1.0"
 dependencies = [
@@ -4975,10 +4984,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "racing-wheel-hbp"
+version = "0.1.0"
+
+[[package]]
 name = "racing-wheel-hid-moza-protocol"
 version = "0.1.0"
 dependencies = [
+ "proptest",
+ "racing-wheel-hbp",
  "racing-wheel-ks",
+ "racing-wheel-moza-wheelbase-report",
  "racing-wheel-srp",
  "tracing",
 ]
@@ -5032,6 +5048,10 @@ dependencies = [
 
 [[package]]
 name = "racing-wheel-ks"
+version = "0.1.0"
+
+[[package]]
+name = "racing-wheel-moza-wheelbase-report"
 version = "0.1.0"
 
 [[package]]
@@ -5133,6 +5153,7 @@ dependencies = [
  "proptest",
  "prost-types",
  "quick-xml 0.37.5",
+ "racing-wheel-changelog",
  "racing-wheel-engine",
  "racing-wheel-schemas",
  "racing-wheel-telemetry-adapters",
