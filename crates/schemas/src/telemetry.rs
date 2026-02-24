@@ -41,7 +41,7 @@ use std::time::{Duration, Instant};
 pub struct NormalizedTelemetry {
     // === Motion Data ===
     /// Vehicle speed in meters per second.
-    pub speed_mps: f32,
+    pub speed_ms: f32,
 
     /// Steering wheel angle in radians (positive = right, negative = left).
     pub steering_angle: f32,
@@ -201,7 +201,7 @@ fn default_timestamp() -> Instant {
 impl Default for NormalizedTelemetry {
     fn default() -> Self {
         Self {
-            speed_mps: 0.0,
+            speed_ms: 0.0,
             steering_angle: 0.0,
             throttle: 0.0,
             brake: 0.0,
