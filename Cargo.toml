@@ -4,6 +4,7 @@ members = [
     "crates/ks",
     "crates/srp",
     "crates/hbp",
+    "crates/changelog",
     "crates/moza-wheelbase-report",
     "crates/input-maps",
     "crates/hid-moza-protocol",
@@ -106,6 +107,7 @@ chrono = { version = "0.4.43", features = ["serde"] }
 racing-wheel-hbp = { path = "crates/hbp" }
 racing-wheel-ks = { path = "crates/ks" }
 racing-wheel-moza-wheelbase-report = { path = "crates/moza-wheelbase-report" }
+racing-wheel-changelog = { path = "crates/changelog" }
 racing-wheel-srp = { path = "crates/srp" }
 
 [profile.release]
