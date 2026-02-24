@@ -333,7 +333,7 @@ fn build_capabilities_from_identity(
             supports_pid: descriptor_pid,
             supports_raw_torque_1khz: is_base,
             supports_health_stream: is_base,
-            supports_led_bus: true,
+            supports_led_bus: is_base,
             max_torque,
             encoder_cpr: u16::try_from(config.encoder_cpr).unwrap_or(u16::MAX),
             min_report_period_us: config.required_b_interval.unwrap_or(1) as u16 * 1000,
@@ -390,6 +390,10 @@ impl LinuxHidPort {
             (0x0EB7, 0x0011), // Fanatec CSL DD (legacy)
             (0x0EB7, 0x0020), // Fanatec CSL DD
             (0x0EB7, 0x0024), // Fanatec Gran Turismo DD Pro
+            (0x0EB7, 0x1839), // Fanatec ClubSport Pedals V1/V2
+            (0x0EB7, 0x183B), // Fanatec ClubSport Pedals V3
+            (0x0EB7, 0x6205), // Fanatec CSL Pedals with Load Cell Kit
+            (0x0EB7, 0x6206), // Fanatec CSL Pedals V2
             (0x044F, 0xB65D), // Thrustmaster T150
             (0x044F, 0xB66D), // Thrustmaster TMX
             (0x044F, 0xB66E), // Thrustmaster T300RS

@@ -10,8 +10,9 @@ use tracing::{debug, info, warn};
 
 pub use racing_wheel_hid_fanatec_protocol::{
     CONSTANT_FORCE_REPORT_LEN, FANATEC_VENDOR_ID, FanatecConstantForceEncoder,
-    FanatecExtendedState, FanatecInputState, FanatecModel, is_wheelbase_product,
-    parse_extended_report, parse_standard_report, product_ids,
+    FanatecExtendedState, FanatecInputState, FanatecModel, FanatecPedalModel, FanatecPedalState,
+    FanatecRimId, is_pedal_product, is_wheelbase_product, parse_extended_report,
+    parse_pedal_report, parse_standard_report, product_ids, rim_ids,
 };
 
 /// Fanatec protocol state.

@@ -342,6 +342,23 @@ impl SupportedDevices {
                 0x0E03,
                 "Fanatec ClubSport Wheel Base V1",
             ),
+            // Fanatec standalone pedal sets
+            (
+                vendor_ids::FANATEC,
+                0x1839,
+                "Fanatec ClubSport Pedals V1/V2",
+            ),
+            (
+                vendor_ids::FANATEC,
+                0x183B,
+                "Fanatec ClubSport Pedals V3",
+            ),
+            (
+                vendor_ids::FANATEC,
+                0x6205,
+                "Fanatec CSL Pedals with Load Cell Kit",
+            ),
+            (vendor_ids::FANATEC, 0x6206, "Fanatec CSL Pedals V2"),
             // Thrustmaster wheels
             (vendor_ids::THRUSTMASTER, 0xB65D, "Thrustmaster T150"),
             (vendor_ids::THRUSTMASTER, 0xB66D, "Thrustmaster TMX"),
@@ -986,7 +1003,19 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             }
         }
         vendor_ids::FANATEC => {
-            // Fanatec wheels support raw torque and health streaming
+            use vendor::fanatec::is_pedal_product;
+
+            // Standalone pedal devices have no FFB, no LED bus, no health stream.
+            if is_pedal_product(product_id) {
+                capabilities.supports_raw_torque_1khz = false;
+                capabilities.supports_health_stream = false;
+                capabilities.supports_led_bus = false;
+                capabilities.min_report_period_us = 1000;
+                // No torque capability for pedals.
+                return capabilities;
+            }
+
+            // Wheelbase devices support raw torque and health streaming.
             capabilities.supports_raw_torque_1khz = true;
             capabilities.supports_health_stream = true;
             capabilities.supports_led_bus = true;

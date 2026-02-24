@@ -1,6 +1,9 @@
 //! Tests for the Fanatec protocol handler.
 
-use super::fanatec::{FanatecModel, FanatecProtocol, is_wheelbase_product, product_ids};
+use super::fanatec::{
+    FanatecModel, FanatecProtocol, FanatecRimId, FanatecPedalModel,
+    is_pedal_product, is_wheelbase_product, product_ids, rim_ids,
+};
 use super::{DeviceWriter, VendorProtocol, get_vendor_protocol};
 use racing_wheel_hid_fanatec_protocol::FANATEC_VENDOR_ID;
 use std::cell::RefCell;
@@ -187,4 +190,84 @@ fn test_shutdown_non_wheelbase_is_noop() -> Result<(), Box<dyn std::error::Error
         "non-wheelbase shutdown must not write any reports"
     );
     Ok(())
+}
+
+#[test]
+fn test_is_pedal_product_consistency() {
+    // Known pedal PIDs
+    assert!(is_pedal_product(product_ids::CLUBSPORT_PEDALS_V3));
+    assert!(is_pedal_product(product_ids::CLUBSPORT_PEDALS_V1_V2));
+    assert!(is_pedal_product(product_ids::CSL_PEDALS_LC));
+    assert!(is_pedal_product(product_ids::CSL_PEDALS_V2));
+    // Wheelbase PIDs must not match
+    assert!(!is_pedal_product(product_ids::DD1));
+    assert!(!is_pedal_product(product_ids::DD2));
+    assert!(!is_pedal_product(product_ids::CSL_DD));
+    assert!(!is_pedal_product(product_ids::GT_DD_PRO));
+    assert!(!is_pedal_product(0xFFFF));
+}
+
+#[test]
+fn test_pedal_device_skips_handshake() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = FanatecProtocol::new(FANATEC_VENDOR_ID, product_ids::CLUBSPORT_PEDALS_V3);
+    let mut writer = MockDeviceWriter::new();
+
+    protocol.initialize_device(&mut writer)?;
+
+    assert!(
+        writer.feature_reports().is_empty(),
+        "pedal device must not send mode-switch handshake"
+    );
+    Ok(())
+}
+
+#[test]
+fn test_pedal_device_no_output_report_metadata() {
+    let protocol = FanatecProtocol::new(FANATEC_VENDOR_ID, product_ids::CLUBSPORT_PEDALS_V3);
+    assert!(
+        protocol.output_report_id().is_none(),
+        "pedal device must have no output report ID"
+    );
+    assert!(
+        protocol.output_report_len().is_none(),
+        "pedal device must have no output report length"
+    );
+}
+
+#[test]
+fn test_pedal_device_shutdown_is_noop() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = FanatecProtocol::new(FANATEC_VENDOR_ID, product_ids::CSL_PEDALS_LC);
+    let mut writer = MockDeviceWriter::new();
+
+    protocol.shutdown_device(&mut writer)?;
+
+    assert!(
+        writer.output_reports().is_empty(),
+        "pedal device shutdown must not write any output reports"
+    );
+    Ok(())
+}
+
+#[test]
+fn test_rim_id_mclaren_from_byte() {
+    let rim = FanatecRimId::from_byte(rim_ids::MCLAREN_GT3_V2);
+    assert_eq!(rim, FanatecRimId::McLarenGt3V2);
+    assert!(rim.has_funky_switch());
+    assert!(rim.has_dual_clutch());
+    assert!(rim.has_rotary_encoders());
+}
+
+#[test]
+fn test_pedal_model_clubsport_v3_axis_count() {
+    let model = FanatecPedalModel::from_product_id(product_ids::CLUBSPORT_PEDALS_V3);
+    assert_eq!(model, FanatecPedalModel::ClubSportV3);
+    assert_eq!(model.axis_count(), 3);
+}
+
+#[test]
+fn test_is_wheelbase_product_does_not_include_pedals() {
+    assert!(!is_wheelbase_product(product_ids::CLUBSPORT_PEDALS_V3));
+    assert!(!is_wheelbase_product(product_ids::CLUBSPORT_PEDALS_V1_V2));
+    assert!(!is_wheelbase_product(product_ids::CSL_PEDALS_LC));
+    assert!(!is_wheelbase_product(product_ids::CSL_PEDALS_V2));
 }
