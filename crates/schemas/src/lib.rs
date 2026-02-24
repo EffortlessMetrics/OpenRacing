@@ -53,7 +53,10 @@ pub mod prelude {
     };
 
     // Telemetry types
-    pub use crate::telemetry::TelemetryData;
+    pub use crate::telemetry::{
+        NormalizedTelemetry, NormalizedTelemetryBuilder, TelemetryData, TelemetryFlags,
+        TelemetryFrame, TelemetrySnapshot, TelemetryValue,
+    };
 
     // Configuration types
     pub use crate::config::{ProfileMigrator, ProfileSchema, ProfileValidator};
@@ -78,36 +81,7 @@ pub mod profile {
     };
 }
 
-pub mod telemetry {
-    //! Telemetry data types
-    use serde::{Deserialize, Serialize};
-
-    /// Telemetry data with explicit units and field documentation
-    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-    pub struct TelemetryData {
-        /// Wheel angle in degrees (°)
-        /// Range: -1800.0 to +1800.0 degrees for 5-turn wheels
-        pub wheel_angle_deg: f32,
-
-        /// Wheel speed in radians per second (rad/s)
-        /// Positive values indicate clockwise rotation
-        pub wheel_speed_rad_s: f32,
-
-        /// Temperature in degrees Celsius (°C)
-        /// Typical range: 20-80°C for normal operation
-        pub temperature_c: u8,
-
-        /// Fault flags bitfield
-        /// Each bit represents a specific fault condition
-        pub fault_flags: u8,
-
-        /// Hands on wheel detection
-        pub hands_on: bool,
-
-        /// Timestamp in milliseconds since system start
-        pub timestamp: u64,
-    }
-}
+pub mod telemetry;
 
 pub mod device {
     //! Device types

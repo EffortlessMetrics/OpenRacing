@@ -17,7 +17,7 @@ use racing_wheel_service::config_writers::{
 };
 use racing_wheel_service::game_service::*;
 use racing_wheel_service::telemetry::TelemetryService;
-use racing_wheel_telemetry_support::matrix_game_ids;
+use racing_wheel_telemetry_config::support::matrix_game_ids;
 use std::collections::HashSet;
 use std::path::Path;
 use tempfile::TempDir;

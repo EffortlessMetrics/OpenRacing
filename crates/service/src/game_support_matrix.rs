@@ -1,12 +1,12 @@
 //! Game support matrix shim backed by shared telemetry metadata.
 //!
 //! This module is intentionally lightweight and delegates schema ownership to
-//! `racing_wheel_telemetry_support`.
+//! `racing-wheel-telemetry-config`.
 
 use std::collections::HashMap;
 
-use racing_wheel_telemetry_support::load_default_matrix;
-pub use racing_wheel_telemetry_support::{
+use racing_wheel_telemetry_config::support::load_default_matrix;
+pub use racing_wheel_telemetry_config::support::{
     AutoDetectConfig, GameSupport, GameSupportMatrix, GameVersion, TelemetryFieldMapping,
     TelemetrySupport,
 };

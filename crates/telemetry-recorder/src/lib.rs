@@ -1,6 +1,6 @@
 //! Telemetry recording, playback, and synthetic fixture generation utilities.
 
-use racing_wheel_telemetry_contracts::{NormalizedTelemetry, TelemetryFlags, TelemetryFrame};
+use racing_wheel_schemas::telemetry::{NormalizedTelemetry, TelemetryFlags, TelemetryFrame};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
@@ -255,14 +255,15 @@ impl TestFixtureGenerator {
             _ => 6,
         };
 
-        NormalizedTelemetry::default()
-            .with_ffb_scalar(ffb_scalar)
-            .with_rpm(rpm)
-            .with_speed_ms(speed)
-            .with_slip_ratio(slip_ratio)
-            .with_gear(gear)
-            .with_car_id("test_car".to_string())
-            .with_track_id("test_track".to_string())
+        NormalizedTelemetry::builder()
+            .ffb_scalar(ffb_scalar)
+            .rpm(rpm)
+            .speed_mps(speed)
+            .slip_ratio(slip_ratio)
+            .gear(gear)
+            .car_id("test_car")
+            .track_id("test_track")
+            .build()
     }
 
     pub fn generate_test_scenario(
@@ -286,12 +287,13 @@ impl TestFixtureGenerator {
         let mut recording =
             Self::generate_racing_session("test".to_string(), duration_seconds, fps);
         for frame in &mut recording.frames {
-            frame.data = NormalizedTelemetry::default()
-                .with_ffb_scalar(0.5)
-                .with_rpm(6000.0)
-                .with_speed_ms(50.0)
-                .with_slip_ratio(0.1)
-                .with_gear(4);
+            frame.data = NormalizedTelemetry::builder()
+                .ffb_scalar(0.5)
+                .rpm(6000.0)
+                .speed_mps(50.0)
+                .slip_ratio(0.1)
+                .gear(4)
+                .build();
         }
         recording.metadata.description = Some("Constant speed test scenario".to_string());
         recording
@@ -309,12 +311,13 @@ impl TestFixtureGenerator {
             };
             let speed = progress * 80.0;
             let rpm = 2000.0 + progress * 6000.0;
-            frame.data = NormalizedTelemetry::default()
-                .with_ffb_scalar(0.3)
-                .with_rpm(rpm)
-                .with_speed_ms(speed)
-                .with_slip_ratio(0.05)
-                .with_gear(((speed / 15.0) as i8 + 1).min(6));
+            frame.data = NormalizedTelemetry::builder()
+                .ffb_scalar(0.3)
+                .rpm(rpm)
+                .speed_mps(speed)
+                .slip_ratio(0.05)
+                .gear(((speed / 15.0) as i8 + 1).min(6))
+                .build();
         }
         recording.metadata.description = Some("Acceleration test scenario".to_string());
         recording
@@ -324,12 +327,13 @@ impl TestFixtureGenerator {
         let mut recording =
             Self::generate_racing_session("test".to_string(), duration_seconds, fps);
         for frame in &mut recording.frames {
-            frame.data = NormalizedTelemetry::default()
-                .with_ffb_scalar(0.9)
-                .with_rpm(5500.0)
-                .with_speed_ms(35.0)
-                .with_slip_ratio(0.4)
-                .with_gear(3);
+            frame.data = NormalizedTelemetry::builder()
+                .ffb_scalar(0.9)
+                .rpm(5500.0)
+                .speed_mps(35.0)
+                .slip_ratio(0.4)
+                .gear(3)
+                .build();
         }
         recording.metadata.description = Some("Cornering test scenario".to_string());
         recording
@@ -347,22 +351,21 @@ impl TestFixtureGenerator {
             };
             let in_pits = progress > 0.3 && progress < 0.7;
 
-            let flags = TelemetryFlags {
-                in_pits,
-                pit_limiter: in_pits,
-                ..Default::default()
-            };
+            let mut flags = TelemetryFlags::default();
+            flags.in_pits = in_pits;
+            flags.pit_limiter = in_pits;
 
             let speed = if in_pits { 15.0 } else { 45.0 };
             let rpm = if in_pits { 2000.0 } else { 6000.0 };
 
-            frame.data = NormalizedTelemetry::default()
-                .with_ffb_scalar(0.2)
-                .with_rpm(rpm)
-                .with_speed_ms(speed)
-                .with_slip_ratio(0.05)
-                .with_gear(if in_pits { 1 } else { 4 })
-                .with_flags(flags);
+            frame.data = NormalizedTelemetry::builder()
+                .ffb_scalar(0.2)
+                .rpm(rpm)
+                .speed_mps(speed)
+                .slip_ratio(0.05)
+                .gear(if in_pits { 1 } else { 4 })
+                .flags(flags)
+                .build();
         }
         recording.metadata.description = Some("Pit stop test scenario".to_string());
         recording
@@ -401,7 +404,7 @@ mod tests {
         recorder.start_recording("test_game".to_string());
         assert!(recorder.is_recording());
 
-        let telemetry = NormalizedTelemetry::default().with_rpm(5000.0);
+        let telemetry = NormalizedTelemetry::builder().rpm(5000.0).build();
         let frame = TelemetryFrame::new(telemetry, 1_000_000, 0, 64);
         recorder.record_frame(frame);
 
@@ -436,9 +439,8 @@ mod tests {
         assert_eq!(recording.metadata.frame_count, 120);
         assert_eq!(recording.frames.len(), 120);
         for frame in &recording.frames {
-            assert!(frame.data.rpm.is_some());
-            assert!(frame.data.speed_ms.is_some());
-            assert!(frame.data.ffb_scalar.is_some());
+            assert!(frame.data.rpm > 0.0);
+            assert!(frame.data.speed_mps > 0.0);
         }
     }
 }

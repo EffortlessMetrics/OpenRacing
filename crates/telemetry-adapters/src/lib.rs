@@ -11,7 +11,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 
-pub use racing_wheel_telemetry_contracts::{
+pub use racing_wheel_telemetry_core::{
     NormalizedTelemetry, TelemetryFlags, TelemetryFrame, TelemetryValue,
 };
 

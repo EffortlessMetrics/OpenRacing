@@ -1,22 +1,24 @@
 //! Minimal Game Integration Implementation for Task 4
-//! 
+//!
 //! This module implements the core requirements for task 4:
 //! - YAML-based support matrix
 //! - Table-driven configuration writers
 //! - Golden file tests
 //! - Telemetry field mapping documentation
-//! 
+//!
 //! Requirements: GI-01, GI-03
 
 use anyhow::Result;
-use racing_wheel_telemetry_support::load_default_matrix;
+use racing_wheel_telemetry_config::support::load_default_matrix;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 use tracing::info;
 
-pub use racing_wheel_telemetry_support::{GameSupport, GameSupportMatrix, TelemetryFieldMapping};
+pub use racing_wheel_telemetry_config::support::{
+    GameSupport, GameSupportMatrix, TelemetryFieldMapping,
+};
 
 /// Configuration to be applied to a game
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,10 +53,10 @@ pub enum DiffOperation {
 pub trait ConfigWriter {
     /// Write telemetry configuration for the game
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>>;
-    
+
     /// Validate that configuration was applied correctly
     fn validate_config(&self, game_path: &Path) -> Result<bool>;
-    
+
     /// Get the expected configuration diffs for testing
     fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>>;
 }
@@ -71,18 +73,18 @@ impl Default for IRacingConfigWriter {
 impl ConfigWriter for IRacingConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing iRacing telemetry configuration");
-        
+
         let app_ini_path = game_path.join("Documents/iRacing/app.ini");
         let mut diffs = Vec::new();
-        
+
         // Create directory if it doesn't exist
         if let Some(parent) = app_ini_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        
+
         // For demonstration, we create a simple INI modification
         let telemetry_enabled = if config.enabled { "1" } else { "0" };
-        
+
         diffs.push(ConfigDiff {
             file_path: app_ini_path.to_string_lossy().to_string(),
             section: Some("Telemetry".to_string()),
@@ -91,21 +93,21 @@ impl ConfigWriter for IRacingConfigWriter {
             new_value: telemetry_enabled.to_string(),
             operation: DiffOperation::Add,
         });
-        
+
         info!("iRacing configuration completed with {} diffs", diffs.len());
         Ok(diffs)
     }
-    
+
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
         let app_ini_path = game_path.join("Documents/iRacing/app.ini");
         Ok(app_ini_path.exists())
     }
-    
+
     fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         let mut diffs = Vec::new();
-        
+
         let telemetry_enabled = if config.enabled { "1" } else { "0" };
-        
+
         diffs.push(ConfigDiff {
             file_path: "Documents/iRacing/app.ini".to_string(),
             section: Some("Telemetry".to_string()),
@@ -114,7 +116,7 @@ impl ConfigWriter for IRacingConfigWriter {
             new_value: telemetry_enabled.to_string(),
             operation: DiffOperation::Add,
         });
-        
+
         Ok(diffs)
     }
 }
@@ -131,15 +133,16 @@ impl Default for ACCConfigWriter {
 impl ConfigWriter for ACCConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing ACC telemetry configuration");
-        
-        let broadcasting_json_path = game_path.join("Documents/Assetto Corsa Competizione/Config/broadcasting.json");
+
+        let broadcasting_json_path =
+            game_path.join("Documents/Assetto Corsa Competizione/Config/broadcasting.json");
         let mut diffs = Vec::new();
-        
+
         // Create directory if it doesn't exist
         if let Some(parent) = broadcasting_json_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        
+
         // Create broadcasting configuration JSON
         let broadcasting_config = serde_json::json!({
             "updListenerPort": 9000,
@@ -148,9 +151,9 @@ impl ConfigWriter for ACCConfigWriter {
             "commandPassword": "",
             "updateRateHz": config.update_rate_hz
         });
-        
+
         let new_content = serde_json::to_string_pretty(&broadcasting_config)?;
-        
+
         diffs.push(ConfigDiff {
             file_path: broadcasting_json_path.to_string_lossy().to_string(),
             section: None,
@@ -159,19 +162,20 @@ impl ConfigWriter for ACCConfigWriter {
             new_value: new_content,
             operation: DiffOperation::Add,
         });
-        
+
         info!("ACC configuration completed with {} diffs", diffs.len());
         Ok(diffs)
     }
-    
+
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let broadcasting_json_path = game_path.join("Documents/Assetto Corsa Competizione/Config/broadcasting.json");
+        let broadcasting_json_path =
+            game_path.join("Documents/Assetto Corsa Competizione/Config/broadcasting.json");
         Ok(broadcasting_json_path.exists())
     }
-    
+
     fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         let mut diffs = Vec::new();
-        
+
         let broadcasting_config = serde_json::json!({
             "updListenerPort": 9000,
             "connectionId": "",
@@ -179,9 +183,9 @@ impl ConfigWriter for ACCConfigWriter {
             "commandPassword": "",
             "updateRateHz": config.update_rate_hz
         });
-        
+
         let new_content = serde_json::to_string_pretty(&broadcasting_config)?;
-        
+
         diffs.push(ConfigDiff {
             file_path: "Documents/Assetto Corsa Competizione/Config/broadcasting.json".to_string(),
             section: None,
@@ -190,7 +194,7 @@ impl ConfigWriter for ACCConfigWriter {
             new_value: new_content,
             operation: DiffOperation::Add,
         });
-        
+
         Ok(diffs)
     }
 }
@@ -205,18 +209,22 @@ impl GameIntegrationService {
     /// Create new game integration service with YAML-loaded support matrix
     pub fn new() -> Result<Self> {
         let support_matrix = Self::load_support_matrix()?;
-        let mut config_writers: HashMap<String, Box<dyn ConfigWriter + Send + Sync>> = HashMap::new();
-        
+        let mut config_writers: HashMap<String, Box<dyn ConfigWriter + Send + Sync>> =
+            HashMap::new();
+
         // Register config writers
-        config_writers.insert("iracing".to_string(), Box::new(IRacingConfigWriter::default()));
+        config_writers.insert(
+            "iracing".to_string(),
+            Box::new(IRacingConfigWriter::default()),
+        );
         config_writers.insert("acc".to_string(), Box::new(ACCConfigWriter::default()));
-        
+
         Ok(Self {
             support_matrix,
             config_writers,
         })
     }
-    
+
     /// Load game support matrix from YAML file
     fn load_support_matrix() -> Result<GameSupportMatrix> {
         let matrix = load_default_matrix().map_err(|e| {
@@ -228,17 +236,22 @@ impl GameIntegrationService {
         );
         Ok(matrix)
     }
-    
+
     /// Configure telemetry for a specific game (GI-01)
     pub fn configure_telemetry(&self, game_id: &str, game_path: &Path) -> Result<Vec<ConfigDiff>> {
         info!(game_id = %game_id, game_path = ?game_path, "Configuring telemetry");
-        
-        let game_support = self.support_matrix.games.get(game_id)
+
+        let game_support = self
+            .support_matrix
+            .games
+            .get(game_id)
             .ok_or_else(|| anyhow::anyhow!("Unsupported game: {}", game_id))?;
-        
-        let config_writer = self.config_writers.get(game_id)
+
+        let config_writer = self
+            .config_writers
+            .get(game_id)
             .ok_or_else(|| anyhow::anyhow!("No config writer for game: {}", game_id))?;
-        
+
         // Create telemetry configuration
         let telemetry_config = TelemetryConfig {
             enabled: true,
@@ -247,39 +260,50 @@ impl GameIntegrationService {
             output_target: "127.0.0.1:12345".to_string(),
             fields: game_support.versions[0].supported_fields.clone(),
         };
-        
+
         // Write configuration and get diffs
         let diffs = config_writer.write_config(game_path, &telemetry_config)?;
-        
+
         info!(game_id = %game_id, diffs_count = diffs.len(), "Telemetry configuration completed");
         Ok(diffs)
     }
-    
+
     /// Get normalized telemetry field mapping for a game (GI-03)
     pub fn get_telemetry_mapping(&self, game_id: &str) -> Result<TelemetryFieldMapping> {
-        let game_support = self.support_matrix.games.get(game_id)
+        let game_support = self
+            .support_matrix
+            .games
+            .get(game_id)
             .ok_or_else(|| anyhow::anyhow!("Unsupported game: {}", game_id))?;
-        
+
         Ok(game_support.telemetry.fields.clone())
     }
-    
+
     /// Get list of supported games
     pub fn get_supported_games(&self) -> Vec<String> {
         self.support_matrix.games.keys().cloned().collect()
     }
-    
+
     /// Get game support information
     pub fn get_game_support(&self, game_id: &str) -> Result<GameSupport> {
-        self.support_matrix.games.get(game_id)
+        self.support_matrix
+            .games
+            .get(game_id)
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("Unsupported game: {}", game_id))
     }
-    
+
     /// Get expected configuration diffs for testing
-    pub fn get_expected_diffs(&self, game_id: &str, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
-        let config_writer = self.config_writers.get(game_id)
+    pub fn get_expected_diffs(
+        &self,
+        game_id: &str,
+        config: &TelemetryConfig,
+    ) -> Result<Vec<ConfigDiff>> {
+        let config_writer = self
+            .config_writers
+            .get(game_id)
             .ok_or_else(|| anyhow::anyhow!("No config writer for game: {}", game_id))?;
-        
+
         config_writer.get_expected_diffs(config)
     }
 }
@@ -290,8 +314,8 @@ mod tests {
     use anyhow::{Result, anyhow};
     use racing_wheel_telemetry_support::matrix_game_ids;
     use serde_json;
-    use tempfile::TempDir;
     use std::collections::HashSet;
+    use tempfile::TempDir;
 
     #[test]
     fn test_yaml_support_matrix_loading() -> Result<()> {
@@ -434,14 +458,22 @@ mod tests {
         // Test unsupported game returns error
         let result = service.get_game_support("unsupported_game");
         let err = match result {
-            Ok(_) => return Err(anyhow!("Expected unsupported game error for get_game_support")),
+            Ok(_) => {
+                return Err(anyhow!(
+                    "Expected unsupported game error for get_game_support"
+                ));
+            }
             Err(error) => error,
         };
         assert!(err.to_string().contains("Unsupported game"));
 
         let mapping_result = service.get_telemetry_mapping("unsupported_game");
         let err = match mapping_result {
-            Ok(_) => return Err(anyhow!("Expected unsupported game error for get_telemetry_mapping")),
+            Ok(_) => {
+                return Err(anyhow!(
+                    "Expected unsupported game error for get_telemetry_mapping"
+                ));
+            }
             Err(error) => error,
         };
         assert!(err.to_string().contains("Unsupported game"));

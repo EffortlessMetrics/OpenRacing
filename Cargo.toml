@@ -22,19 +22,13 @@ members = [
     "crates/ui",
     "crates/plugins",
     "crates/integration-tests",
-      "crates/compat",
-      "crates/openracing-capture-ids",
-    "crates/telemetry-support",
-    "crates/telemetry-config-writers",
+    "crates/compat",
+    "crates/openracing-capture-ids",
     "crates/telemetry-core",
-    "crates/telemetry-integration",
-    "crates/telemetry-bdd-metrics",
-    "crates/telemetry-contracts",
+    "crates/telemetry-config",
     "crates/telemetry-adapters",
-    "crates/telemetry-rate-limiter",
-    "crates/telemetry-orchestrator",
     "crates/telemetry-recorder",
-      "workspace-hack",
+    "workspace-hack",
   ]
 exclude = ["third_party/shared_memory", "fuzz"]
 resolver = "2"

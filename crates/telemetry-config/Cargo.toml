@@ -1,22 +1,23 @@
 [package]
-name = "racing-wheel-telemetry-recorder"
+name = "racing-wheel-telemetry-config"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage = "https://github.com/EffortlessMetrics/OpenRacing"
-documentation = "https://docs.rs/racing-wheel-telemetry-recorder"
+documentation = "https://docs.rs/racing-wheel-telemetry-config"
 publish = true
-description = "Telemetry recording, playback, and synthetic fixture generation for OpenRacing"
+description = "Game support matrix, utilities, and config writers for OpenRacing telemetry"
 readme = "README.md"
-keywords = ["telemetry", "recording", "replay", "fixtures", "racing"]
+keywords = ["telemetry", "racing", "simulator", "ffb", "config"]
 
 [dependencies]
-racing-wheel-schemas = { path = "../schemas" }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3.24.0"

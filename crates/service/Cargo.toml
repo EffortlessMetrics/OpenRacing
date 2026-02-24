@@ -20,14 +20,8 @@ racing-wheel-schemas = { path = "../schemas" }
 racing-wheel-engine = { path = "../engine" }
 racing-wheel-telemetry-core = { path = "../telemetry-core" }
 racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
-racing-wheel-telemetry-bdd-metrics = { path = "../telemetry-bdd-metrics" }
-racing-wheel-telemetry-support = { path = "../telemetry-support" }
-racing-wheel-telemetry-contracts = { path = "../telemetry-contracts" }
-racing-wheel-telemetry-orchestrator = { path = "../telemetry-orchestrator" }
-racing-wheel-telemetry-integration = { path = "../telemetry-integration" }
-racing-wheel-telemetry-rate-limiter = { path = "../telemetry-rate-limiter" }
 racing-wheel-telemetry-recorder = { path = "../telemetry-recorder" }
-racing-wheel-telemetry-config-writers = { path = "../telemetry-config-writers" }
+racing-wheel-telemetry-config = { path = "../telemetry-config" }
 racing-wheel-changelog = { workspace = true }
 openracing-errors = { workspace = true }
 tokio = { workspace = true }

@@ -21,7 +21,7 @@ serde_yaml = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 quick-xml = { workspace = true }
-racing-wheel-telemetry-contracts = { path = "../telemetry-contracts" }
+racing-wheel-telemetry-core = { path = "../telemetry-core" }
 
 [dev-dependencies]
 proptest = { workspace = true }

@@ -5,7 +5,9 @@
 
 use crate::game_support_matrix::create_default_matrix;
 use anyhow::Result;
-pub use racing_wheel_telemetry_support::{GameSupport, GameSupportMatrix, TelemetryFieldMapping};
+pub use racing_wheel_telemetry_config::support::{
+    GameSupport, GameSupportMatrix, TelemetryFieldMapping,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;

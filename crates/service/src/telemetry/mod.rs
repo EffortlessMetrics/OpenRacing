@@ -15,7 +15,7 @@ pub use adapters::{
 pub use game_telemetry::*;
 pub use normalized::*;
 pub use racing_wheel_telemetry_adapters as adapters;
-pub use racing_wheel_telemetry_orchestrator::TelemetryService;
+pub use racing_wheel_telemetry_core::TelemetryService;
 pub use rate_limiter::*;
 pub use recorder::*;
 

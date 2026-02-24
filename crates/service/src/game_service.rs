@@ -7,15 +7,14 @@ pub use crate::config_writers::{
     ConfigDiff, ConfigWriter, DiffOperation, TelemetryConfig, config_writer_factories,
 };
 use anyhow::Result;
-use racing_wheel_telemetry_bdd_metrics::BddMatrixMetrics;
-use racing_wheel_telemetry_integration::{
-    CoveragePolicy, compare_runtime_registries_with_policies,
-};
-pub use racing_wheel_telemetry_support::{
+pub use racing_wheel_telemetry_config::support::{
     AutoDetectConfig, GameSupport, GameSupportMatrix, GameSupportStatus, GameVersion,
     TelemetryFieldMapping, TelemetrySupport,
 };
-use racing_wheel_telemetry_support::{load_default_matrix, normalize_game_id};
+use racing_wheel_telemetry_config::support::{load_default_matrix, normalize_game_id};
+use racing_wheel_telemetry_core::{
+    BddMatrixMetrics, CoveragePolicy, compare_runtime_registries_with_policies,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;

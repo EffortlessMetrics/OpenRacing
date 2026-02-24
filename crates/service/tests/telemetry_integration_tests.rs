@@ -11,7 +11,7 @@
 //! Requirements: GI-03, GI-04
 
 use racing_wheel_service::telemetry::*;
-use racing_wheel_telemetry_support::matrix_game_ids;
+use racing_wheel_telemetry_config::support::matrix_game_ids;
 use std::collections::HashSet;
 use std::time::Duration;
 use tempfile::tempdir;
