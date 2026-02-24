@@ -42,3 +42,10 @@ pub use types::{
     MozaPedalAxesRaw, MozaTopologyHint, es_compatibility, identify_device, is_wheelbase_product,
 };
 pub use writer::{DeviceWriter, FfbConfig, VendorProtocol};
+
+// KS control-surface types re-exported so callers don't need a direct
+// `racing-wheel-ks` dependency when inspecting `MozaInputState::ks_snapshot`.
+pub use racing_wheel_ks::{
+    KS_BUTTON_BYTES, KS_ENCODER_COUNT, KsAxisSource, KsBitSource, KsByteSource, KsClutchMode,
+    KsJoystickMode, KsReportMap, KsReportSnapshot, KsRotaryMode,
+};
