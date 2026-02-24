@@ -227,3 +227,117 @@ fn scenario_non_wheelbase_shutdown_is_noop() -> Result<(), Box<dyn std::error::E
 
     Ok(())
 }
+
+// ─── Scenario 11: extended telemetry report parses temperature and faults ─────
+
+#[test]
+fn scenario_extended_report_parses_telemetry() -> Result<(), Box<dyn std::error::Error>> {
+    // Given: a raw 64-byte extended telemetry report (ID 0x02)
+    let mut raw = [0u8; 64];
+    raw[0] = report_ids::EXTENDED_INPUT; // report ID 0x02
+    // Steering velocity (bytes 3–4): ignored in this test
+    raw[5] = 82;   // motor temperature: 82 °C
+    raw[6] = 41;   // board temperature: 41 °C
+    raw[7] = 15;   // current draw: 1.5 A (in 0.1 A units)
+    raw[10] = 0x03; // fault_flags: over-temp (bit 0) + over-current (bit 1)
+
+    // When: parsed
+    use racing_wheel_hid_fanatec_protocol::parse_extended_report;
+    let state = parse_extended_report(&raw).ok_or("parse failed")?;
+
+    // Then: fields match the raw bytes
+    assert_eq!(state.motor_temp_c, 82, "motor temperature must match");
+    assert_eq!(state.board_temp_c, 41, "board temperature must match");
+    assert_eq!(state.current_raw, 15, "current draw must match");
+    assert_eq!(
+        state.fault_flags & 0x03,
+        0x03,
+        "over-temp and over-current bits must be set"
+    );
+
+    Ok(())
+}
+
+// ─── Scenario 12: LED report encodes bitmask and brightness correctly ─────────
+
+#[test]
+fn scenario_led_report_encoding() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_fanatec_protocol::build_led_report;
+
+    // Given: 8 rev-lights lit (low byte = 0xFF) at 75 % brightness (≈ 191)
+    let report = build_led_report(0x00FF, 191);
+
+    // Then: wire layout is [0x08, 0x80, bitmask_lo, bitmask_hi, brightness, 0, 0, 0]
+    assert_eq!(report[0], 0x08, "byte 0 must be LED_DISPLAY report ID");
+    assert_eq!(report[1], 0x80, "byte 1 must be REV_LIGHTS command");
+    assert_eq!(report[2], 0xFF, "byte 2 must be bitmask low byte");
+    assert_eq!(report[3], 0x00, "byte 3 must be bitmask high byte");
+    assert_eq!(report[4], 191, "byte 4 must be brightness");
+    assert_eq!(&report[5..], &[0u8; 3], "trailing bytes must be zero");
+
+    Ok(())
+}
+
+// ─── Scenario 13: display report carries gear digit and brightness ─────────────
+
+#[test]
+fn scenario_display_report_encoding() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_fanatec_protocol::build_display_report;
+
+    // Given: display gear "3" at full brightness
+    let report = build_display_report(0x00, [b'3', b' ', b' '], 255);
+
+    // Then: layout is [0x08, 0x81, mode, d0, d1, d2, brightness, 0]
+    assert_eq!(report[0], 0x08, "byte 0 must be LED_DISPLAY report ID");
+    assert_eq!(report[1], 0x81, "byte 1 must be DISPLAY command");
+    assert_eq!(report[2], 0x00, "byte 2 must be mode");
+    assert_eq!(report[3], b'3', "byte 3 must be digit 0");
+    assert_eq!(report[6], 255, "byte 6 must be brightness");
+    assert_eq!(report[7], 0, "byte 7 must be reserved zero");
+
+    Ok(())
+}
+
+// ─── Scenario 14: rumble report encodes left/right intensity and duration ──────
+
+#[test]
+fn scenario_rumble_report_encoding() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_fanatec_protocol::build_rumble_report;
+
+    // Given: both motors at max for 200 ms (= 20 × 10 ms units)
+    let report = build_rumble_report(255, 255, 20);
+
+    // Then: layout is [0x08, 0x82, left, right, duration, 0, 0, 0]
+    assert_eq!(report[0], 0x08, "byte 0 must be LED_DISPLAY report ID");
+    assert_eq!(report[1], 0x82, "byte 1 must be RUMBLE command");
+    assert_eq!(report[2], 255, "byte 2 must be left motor intensity");
+    assert_eq!(report[3], 255, "byte 3 must be right motor intensity");
+    assert_eq!(report[4], 20, "byte 4 must be duration (×10 ms)");
+    assert_eq!(&report[5..], &[0u8; 3], "trailing bytes must be zero");
+
+    Ok(())
+}
+
+// ─── Scenario 15: CSL DD sends mode-switch on initialize ──────────────────────
+
+#[test]
+fn scenario_csl_dd_sends_mode_switch_on_initialize() -> Result<(), Box<dyn std::error::Error>> {
+    // Given: CSL DD wheelbase (primary PID 0x0020)
+    let mut s = FanatecScenario::wheelbase(product_ids::CSL_DD);
+
+    // When: initialized
+    s.initialize()?;
+
+    // Then: exactly one mode-switch feature report sent
+    assert_eq!(
+        s.device.feature_reports().len(),
+        1,
+        "CSL DD must send exactly one mode-switch on init"
+    );
+    assert!(
+        s.device.sent_feature_report_id(report_ids::MODE_SWITCH),
+        "CSL DD init report must carry MODE_SWITCH report ID"
+    );
+
+    Ok(())
+}

@@ -387,9 +387,9 @@ impl LinuxHidPort {
             (0x0EB7, 0x0005), // Fanatec ClubSport Wheel Base V2.5
             (0x0EB7, 0x0006), // Fanatec Podium Wheel Base DD1
             (0x0EB7, 0x0007), // Fanatec Podium Wheel Base DD2
-            (0x0EB7, 0x0011), // Fanatec CSL DD
-            (0x0EB7, 0x0020), // Fanatec Gran Turismo DD Pro
-            (0x0EB7, 0x0024), // Fanatec Gran Turismo DD Pro (alt HW rev)
+            (0x0EB7, 0x0011), // Fanatec CSL DD (legacy)
+            (0x0EB7, 0x0020), // Fanatec CSL DD
+            (0x0EB7, 0x0024), // Fanatec Gran Turismo DD Pro
             (0x044F, 0xB65D), // Thrustmaster T150
             (0x044F, 0xB66D), // Thrustmaster TMX
             (0x044F, 0xB66E), // Thrustmaster T300RS

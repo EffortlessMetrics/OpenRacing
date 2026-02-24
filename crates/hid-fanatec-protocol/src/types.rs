@@ -29,13 +29,13 @@ impl FanatecModel {
     /// Classify a device by its product ID.
     pub fn from_product_id(product_id: u16) -> Self {
         match product_id {
+            product_ids::CLUBSPORT_V2 | product_ids::CLUBSPORT_V2_LEGACY => Self::ClubSportV2,
+            product_ids::CSL_ELITE_BASE | product_ids::CSL_ELITE => Self::CslElite,
+            product_ids::CLUBSPORT_V2_5 => Self::ClubSportV25,
             product_ids::DD1 => Self::Dd1,
-            product_ids::DD2 | product_ids::DD2_VARIANT => Self::Dd2,
-            product_ids::CSL_ELITE | product_ids::CSL_ELITE_PS4 => Self::CslElite,
+            product_ids::DD2 => Self::Dd2,
             product_ids::CSL_DD | product_ids::CSL_DD_LEGACY => Self::CslDd,
             product_ids::GT_DD_PRO => Self::GtDdPro,
-            product_ids::CLUBSPORT_V2_LEGACY => Self::ClubSportV2,
-            product_ids::CLUBSPORT_V2_5 => Self::ClubSportV25,
             _ => Self::Unknown,
         }
     }
@@ -66,11 +66,11 @@ impl FanatecModel {
 pub fn is_wheelbase_product(product_id: u16) -> bool {
     matches!(
         product_id,
-        product_ids::DD1
-            | product_ids::DD2
-            | product_ids::DD2_VARIANT
-            | product_ids::CSL_ELITE_PS4
+        product_ids::CLUBSPORT_V2
+            | product_ids::CSL_ELITE_BASE
             | product_ids::CLUBSPORT_V2_5
+            | product_ids::DD1
+            | product_ids::DD2
             | product_ids::CSL_DD_LEGACY
             | product_ids::CSL_DD
             | product_ids::GT_DD_PRO
@@ -85,9 +85,11 @@ mod tests {
 
     #[test]
     fn test_is_wheelbase_product_known() -> Result<(), Box<dyn std::error::Error>> {
+        assert!(is_wheelbase_product(product_ids::CLUBSPORT_V2));
+        assert!(is_wheelbase_product(product_ids::CSL_ELITE_BASE));
+        assert!(is_wheelbase_product(product_ids::CLUBSPORT_V2_5));
         assert!(is_wheelbase_product(product_ids::DD1));
         assert!(is_wheelbase_product(product_ids::DD2));
-        assert!(is_wheelbase_product(product_ids::DD2_VARIANT));
         assert!(is_wheelbase_product(product_ids::CSL_DD));
         assert!(is_wheelbase_product(product_ids::GT_DD_PRO));
         assert!(is_wheelbase_product(product_ids::CSL_ELITE));

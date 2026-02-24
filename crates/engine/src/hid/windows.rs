@@ -334,8 +334,8 @@ impl SupportedDevices {
             ),
             (vendor_ids::FANATEC, 0x0006, "Fanatec Podium Wheel Base DD1"),
             (vendor_ids::FANATEC, 0x0007, "Fanatec Podium Wheel Base DD2"),
-            (vendor_ids::FANATEC, 0x0011, "Fanatec CSL DD"),
-            (vendor_ids::FANATEC, 0x0020, "Fanatec Gran Turismo DD Pro"),
+            (vendor_ids::FANATEC, 0x0011, "Fanatec CSL DD (legacy)"),
+            (vendor_ids::FANATEC, 0x0020, "Fanatec CSL DD"),
             (vendor_ids::FANATEC, 0x0024, "Fanatec Gran Turismo DD Pro"),
             (
                 vendor_ids::FANATEC,
@@ -1016,8 +1016,12 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     // CSL DD
                     capabilities.max_torque = TorqueNm::new(8.0).unwrap_or(capabilities.max_torque);
                 }
-                0x0020 | 0x0024 => {
-                    // GT DD Pro (PID 0x0020 and 0x0024 are hardware revisions of the same base)
+                0x0020 => {
+                    // CSL DD (main PID for current hardware)
+                    capabilities.max_torque = TorqueNm::new(8.0).unwrap_or(capabilities.max_torque);
+                }
+                0x0024 => {
+                    // Gran Turismo DD Pro (8 Nm, shares architecture with CSL DD)
                     capabilities.max_torque = TorqueNm::new(8.0).unwrap_or(capabilities.max_torque);
                 }
                 _ => {
@@ -1887,6 +1891,15 @@ impl WindowsHidDevice {
                         && let Some(state) = protocol.parse_input_state(data)
                     {
                         self.publish_moza_input_state(state);
+                    }
+
+                    if self.device_info.vendor_id == vendor::fanatec::FANATEC_VENDOR_ID
+                        && let Some(state) = vendor::fanatec::parse_extended_report(data)
+                    {
+                        let mut health = self.health_status.write();
+                        health.temperature_c = state.motor_temp_c;
+                        health.fault_flags = state.fault_flags;
+                        health.last_communication = std::time::Instant::now();
                     }
 
                     return None;

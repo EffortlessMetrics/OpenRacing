@@ -12,11 +12,13 @@ pub mod output;
 pub mod types;
 
 pub use ids::{product_ids, FANATEC_VENDOR_ID};
+pub use ids::led_commands;
 pub use input::{
     FanatecExtendedState, FanatecInputState, parse_extended_report, parse_standard_report,
 };
 pub use output::{
-    FanatecConstantForceEncoder, CONSTANT_FORCE_REPORT_LEN, build_mode_switch_report,
+    FanatecConstantForceEncoder, CONSTANT_FORCE_REPORT_LEN, LED_REPORT_LEN,
+    build_display_report, build_led_report, build_mode_switch_report, build_rumble_report,
     build_set_gain_report, build_stop_all_report,
 };
 pub use types::{FanatecModel, is_wheelbase_product};

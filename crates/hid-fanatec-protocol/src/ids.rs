@@ -15,6 +15,8 @@ pub mod report_ids {
     pub const MODE_SWITCH: u8 = 0x01;
     /// Force feedback output report ID.
     pub const FFB_OUTPUT: u8 = 0x01;
+    /// LED / display / rumble output report ID.
+    pub const LED_DISPLAY: u8 = 0x08;
 }
 
 /// FFB command bytes carried in output report 0x01.
@@ -27,26 +29,36 @@ pub mod ffb_commands {
     pub const STOP_ALL: u8 = 0x0F;
 }
 
+/// LED / display / rumble command bytes carried in output report 0x08.
+pub mod led_commands {
+    /// Set rev-light LEDs on the attached steering-wheel rim.
+    pub const REV_LIGHTS: u8 = 0x80;
+    /// Set the numeric display (3-digit / OLED) on the attached rim.
+    pub const DISPLAY: u8 = 0x81;
+    /// Activate rumble motors on the attached rim.
+    pub const RUMBLE: u8 = 0x82;
+}
+
 /// Known Fanatec wheelbase product IDs.
 pub mod product_ids {
-    /// DD1 / Podium DD1 (20 Nm).
-    pub const DD1: u16 = 0x0001;
-    /// DD2 / Podium DD2 (25 Nm).
-    pub const DD2: u16 = 0x0004;
-    /// CSL Elite PS4 edition (6 Nm).
-    pub const CSL_ELITE_PS4: u16 = 0x0005;
-    /// ClubSport V2.5 (8 Nm).
-    pub const CLUBSPORT_V2_5: u16 = 0x0006;
-    /// DD2 variant observed in firmware captures (25 Nm).
-    pub const DD2_VARIANT: u16 = 0x0007;
-    /// CSL DD legacy PID / alternate firmware variant (8 Nm).
+    /// ClubSport Wheel Base V2 (8 Nm belt-drive).
+    pub const CLUBSPORT_V2: u16 = 0x0001;
+    /// CSL Elite Wheel Base (6 Nm belt-drive).
+    pub const CSL_ELITE_BASE: u16 = 0x0004;
+    /// ClubSport Wheel Base V2.5 (8 Nm belt-drive).
+    pub const CLUBSPORT_V2_5: u16 = 0x0005;
+    /// Podium Wheel Base DD1 (20 Nm direct-drive).
+    pub const DD1: u16 = 0x0006;
+    /// Podium Wheel Base DD2 (25 Nm direct-drive).
+    pub const DD2: u16 = 0x0007;
+    /// CSL DD legacy PID / alternate USB stack (8 Nm).
     pub const CSL_DD_LEGACY: u16 = 0x0011;
-    /// CSL DD (8 Nm).
+    /// CSL DD (8 Nm direct-drive).
     pub const CSL_DD: u16 = 0x0020;
-    /// Gran Turismo DD Pro (8 Nm).
+    /// Gran Turismo DD Pro (8 Nm direct-drive).
     pub const GT_DD_PRO: u16 = 0x0024;
-    /// CSL Elite (6 Nm).
+    /// CSL Elite V1 / alternate SKU (6 Nm).
     pub const CSL_ELITE: u16 = 0x0E03;
-    /// ClubSport V2 — legacy USB stack (8 Nm).
+    /// ClubSport V2 — legacy USB HID stack (8 Nm).
     pub const CLUBSPORT_V2_LEGACY: u16 = 0x6204;
 }
