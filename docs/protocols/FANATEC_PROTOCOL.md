@@ -15,10 +15,10 @@ Fanatec devices use a proprietary HID protocol that requires initialization to s
 |-------|-----------|------------|------------|-------|
 | CSL Elite | `0x0EB7` | `0x0E03` | 6 Nm | Belt-driven |
 | CSL Elite PS4 | `0x0EB7` | `0x0005` | 6 Nm | PlayStation compatible |
-| CSL DD | `0x0EB7` | `0x0020` | 5/8 Nm | Direct Drive |
+| CSL DD | `0x0EB7` | `0x0020` | 5/8 Nm | Direct Drive; PID shared with GT DD Pro on some revisions |
 | DD1 | `0x0EB7` | `0x0001` | 20 Nm | Direct Drive, Pro |
 | DD2 | `0x0EB7` | `0x0004` | 25 Nm | Direct Drive, Pro |
-| GT DD Pro | `0x0EB7` | `0x0024` | 5/8 Nm | PlayStation compatible |
+| GT DD Pro | `0x0EB7` | `0x0020` / `0x0024` | 5/8 Nm | PlayStation compatible; `0x0020` is the observed USB PID |
 | ClubSport V2 | `0x0EB7` | `0x6204` | 8 Nm | Legacy |
 | ClubSport V2.5 | `0x0EB7` | `0x0006` | 8 Nm | Belt-driven |
 | Podium DD1 | `0x0EB7` | `0x0001` | 20 Nm | Same as DD1 |

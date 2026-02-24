@@ -322,6 +322,24 @@ fn build_capabilities_from_identity(
         };
     }
 
+    if vendor_id == 0x0EB7 {
+        let protocol = vendor::fanatec::FanatecProtocol::new(vendor_id, product_id);
+        let config = protocol.get_ffb_config();
+        let is_base = vendor::fanatec::is_wheelbase_product(product_id);
+        let max_torque = config.max_torque_nm.clamp(0.0, TorqueNm::MAX_TORQUE);
+        let max_torque = TorqueNm::new(max_torque).unwrap_or(TorqueNm::ZERO);
+
+        return DeviceCapabilities {
+            supports_pid: descriptor_pid,
+            supports_raw_torque_1khz: is_base,
+            supports_health_stream: is_base,
+            supports_led_bus: true,
+            max_torque,
+            encoder_cpr: u16::try_from(config.encoder_cpr).unwrap_or(u16::MAX),
+            min_report_period_us: config.required_b_interval.unwrap_or(1) as u16 * 1000,
+        };
+    }
+
     DeviceCapabilities {
         supports_pid: descriptor_pid,
         supports_raw_torque_1khz: false,
@@ -371,6 +389,7 @@ impl LinuxHidPort {
             (0x0EB7, 0x0007), // Fanatec Podium Wheel Base DD2
             (0x0EB7, 0x0011), // Fanatec CSL DD
             (0x0EB7, 0x0020), // Fanatec Gran Turismo DD Pro
+            (0x0EB7, 0x0024), // Fanatec Gran Turismo DD Pro (alt HW rev)
             (0x044F, 0xB65D), // Thrustmaster T150
             (0x044F, 0xB66D), // Thrustmaster TMX
             (0x044F, 0xB66E), // Thrustmaster T300RS
@@ -1036,6 +1055,13 @@ impl LinuxHidDevice {
                 self.publish_moza_input_state(state);
             }
             None
+        } else if self.device_info.vendor_id == vendor::fanatec::FANATEC_VENDOR_ID {
+            if let Some(state) = vendor::fanatec::parse_extended_report(result_bytes) {
+                self.temperature_c.store(state.motor_temp_c, Ordering::Relaxed);
+                self.fault_flags.store(state.fault_flags, Ordering::Relaxed);
+                self.mark_communication();
+            }
+            None
         } else {
             None
         }
@@ -1473,6 +1499,36 @@ mod tests {
             );
             assert!(caps.supports_raw_torque_1khz);
         });
+    }
+
+    #[test]
+    fn test_fanatec_capabilities_gt_dd_pro() {
+        for pid in [0x0020u16, 0x0024u16] {
+            let caps = build_capabilities_from_identity(0x0EB7, pid, &[]);
+            assert!(
+                caps.supports_raw_torque_1khz,
+                "GT DD Pro PID {pid:#06x} should support raw torque"
+            );
+            assert!(
+                caps.supports_health_stream,
+                "GT DD Pro PID {pid:#06x} should support health stream"
+            );
+            assert!(caps.supports_led_bus, "GT DD Pro PID {pid:#06x} should have LED bus");
+            assert!(
+                (caps.max_torque.value() - 8.0).abs() < 0.1,
+                "GT DD Pro PID {pid:#06x} expected 8 Nm, got {}",
+                caps.max_torque.value()
+            );
+            assert_eq!(caps.min_report_period_us, 1000);
+        }
+    }
+
+    #[test]
+    fn test_fanatec_capabilities_non_wheelbase_uses_defaults() {
+        // Unknown Fanatec PID (e.g. pedals/accessory) should still report safe defaults
+        let caps = build_capabilities_from_identity(0x0EB7, 0x9999, &[]);
+        assert!(!caps.supports_raw_torque_1khz);
+        assert!(!caps.supports_health_stream);
     }
 
     #[test]

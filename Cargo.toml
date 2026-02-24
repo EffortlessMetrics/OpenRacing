@@ -8,6 +8,7 @@ members = [
     "crates/moza-wheelbase-report",
     "crates/input-maps",
     "crates/hid-moza-protocol",
+    "crates/hid-fanatec-protocol",
     "crates/engine",
     "crates/service",
     "crates/cli",
@@ -105,6 +106,7 @@ chrono = { version = "0.4.43", features = ["serde"] }
 
 # Workspace-local crates (prefer workspace deps over per-crate path deps)
 racing-wheel-hbp = { path = "crates/hbp" }
+racing-wheel-hid-fanatec-protocol = { path = "crates/hid-fanatec-protocol" }
 racing-wheel-ks = { path = "crates/ks" }
 racing-wheel-moza-wheelbase-report = { path = "crates/moza-wheelbase-report" }
 racing-wheel-changelog = { path = "crates/changelog" }

@@ -2,7 +2,10 @@ error[E0432]: unresolved import `racing_wheel_schemas::ipc_conversion_tests`
  --> tests/compile-fail/internal_module_import.rs:4:5
   |
 4 | use racing_wheel_schemas::ipc_conversion_tests;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `ipc_conversion_tests` in the root
+  |     ^^^^^^^^^^^^^^^^^^^^^^--------------------
+  |     |                     |
+  |     |                     help: a similar name exists in the module: `ipc_conversion`
+  |     no `ipc_conversion_tests` in the root
   |
 note: found an item that was configured out
  --> src/lib.rs
@@ -11,8 +14,3 @@ note: found an item that was configured out
   |       ---- the item is gated here
   | mod ipc_conversion_tests;
   |     ^^^^^^^^^^^^^^^^^^^^
-help: a similar name exists in the module
-  |
-4 - use racing_wheel_schemas::ipc_conversion_tests;
-4 + use racing_wheel_schemas::ipc_conversion;
-  |

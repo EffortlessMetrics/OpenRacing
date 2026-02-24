@@ -4962,6 +4962,7 @@ dependencies = [
  "quickcheck",
  "quickcheck_macros",
  "racing-wheel-engine",
+ "racing-wheel-hid-fanatec-protocol",
  "racing-wheel-hid-moza-protocol",
  "racing-wheel-input-maps",
  "racing-wheel-ks",
@@ -4986,6 +4987,13 @@ dependencies = [
 [[package]]
 name = "racing-wheel-hbp"
 version = "0.1.0"
+
+[[package]]
+name = "racing-wheel-hid-fanatec-protocol"
+version = "0.1.0"
+dependencies = [
+ "tracing",
+]
 
 [[package]]
 name = "racing-wheel-hid-moza-protocol"

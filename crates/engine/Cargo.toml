@@ -11,6 +11,7 @@ racing-wheel-schemas = { path = "../schemas" }
 racing-wheel-ks = { path = "../ks" }
 racing-wheel-input-maps = { path = "../input-maps" }
 racing-wheel-hid-moza-protocol = { path = "../hid-moza-protocol" }
+racing-wheel-hid-fanatec-protocol = { path = "../hid-fanatec-protocol" }
 tokio = { workspace = true, features = ["time", "sync", "rt-multi-thread"] }
 parking_lot = { workspace = true }
 crossbeam = { workspace = true }

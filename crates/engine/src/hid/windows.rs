@@ -336,6 +336,7 @@ impl SupportedDevices {
             (vendor_ids::FANATEC, 0x0007, "Fanatec Podium Wheel Base DD2"),
             (vendor_ids::FANATEC, 0x0011, "Fanatec CSL DD"),
             (vendor_ids::FANATEC, 0x0020, "Fanatec Gran Turismo DD Pro"),
+            (vendor_ids::FANATEC, 0x0024, "Fanatec Gran Turismo DD Pro"),
             (
                 vendor_ids::FANATEC,
                 0x0E03,
@@ -1015,8 +1016,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     // CSL DD
                     capabilities.max_torque = TorqueNm::new(8.0).unwrap_or(capabilities.max_torque);
                 }
-                0x0020 => {
-                    // GT DD Pro
+                0x0020 | 0x0024 => {
+                    // GT DD Pro (PID 0x0020 and 0x0024 are hardware revisions of the same base)
                     capabilities.max_torque = TorqueNm::new(8.0).unwrap_or(capabilities.max_torque);
                 }
                 _ => {
@@ -2272,6 +2273,8 @@ mod tests {
         assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0006)); // DD1
         assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0007)); // DD2
         assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0011)); // CSL DD
+        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0020)); // GT DD Pro
+        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0024)); // GT DD Pro (alt PID)
     }
 
     #[test]
@@ -2386,6 +2389,22 @@ mod tests {
         assert!((caps.max_torque.value() - 25.0).abs() < 0.1);
         assert_eq!(caps.encoder_cpr, 4096);
         assert_eq!(caps.min_report_period_us, 1000);
+    }
+
+    #[test]
+    fn test_device_capabilities_fanatec_gt_dd_pro() {
+        for pid in [0x0020u16, 0x0024u16] {
+            let caps = determine_device_capabilities(vendor_ids::FANATEC, pid);
+            assert!(caps.supports_raw_torque_1khz, "PID {pid:#06x} should support raw torque");
+            assert!(caps.supports_health_stream, "PID {pid:#06x} should support health stream");
+            assert!(caps.supports_led_bus, "PID {pid:#06x} should support LED bus");
+            assert!(
+                (caps.max_torque.value() - 8.0).abs() < 0.1,
+                "PID {pid:#06x} expected 8 Nm, got {}",
+                caps.max_torque.value()
+            );
+            assert_eq!(caps.min_report_period_us, 1000);
+        }
     }
 
     #[test]
