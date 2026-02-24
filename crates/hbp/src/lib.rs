@@ -68,13 +68,16 @@ pub fn parse_hbp_usb_report_best_effort(report: &[u8]) -> Option<HbpHandbrakeSam
         return None;
     }
 
-    if report.len() > WITH_REPORT_ID_BUTTON && report[0] != 0x00 {
-        if let Some(axis) = parse_axis(report, WITH_REPORT_ID_AXIS_START) {
-            return Some(HbpHandbrakeSampleRaw {
-                handbrake: axis,
-                button_byte: Some(report[WITH_REPORT_ID_BUTTON]),
-            });
-        }
+    let axis = if report.len() > WITH_REPORT_ID_BUTTON && report[0] != 0x00 {
+        parse_axis(report, WITH_REPORT_ID_AXIS_START)
+    } else {
+        None
+    };
+    if let Some(axis) = axis {
+        return Some(HbpHandbrakeSampleRaw {
+            handbrake: axis,
+            button_byte: Some(report[WITH_REPORT_ID_BUTTON]),
+        });
     }
 
     if report.len() == 2 {

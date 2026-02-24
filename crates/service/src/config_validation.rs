@@ -94,6 +94,16 @@ pub struct ValidationDetails {
 }
 
 impl ConfigValidationService {
+    fn normalized_path_components(path: &str) -> Vec<String> {
+        // Treat both Windows and POSIX separators as separators regardless of host OS.
+        // This keeps fixture path comparisons stable across CI platforms.
+        path.replace('\\', "/")
+            .split('/')
+            .filter(|component| !component.is_empty() && *component != ".")
+            .map(|component| component.to_ascii_lowercase())
+            .collect()
+    }
+
     /// Create new configuration validation service
     pub fn new() -> Self {
         Self {
@@ -816,14 +826,8 @@ impl ConfigValidationService {
             return true;
         }
 
-        let expected_components: Vec<String> = Path::new(expected)
-            .components()
-            .map(|component| component.as_os_str().to_string_lossy().to_ascii_lowercase())
-            .collect();
-        let actual_components: Vec<String> = Path::new(actual)
-            .components()
-            .map(|component| component.as_os_str().to_string_lossy().to_ascii_lowercase())
-            .collect();
+        let expected_components = Self::normalized_path_components(expected);
+        let actual_components = Self::normalized_path_components(actual);
 
         components_suffix_match(&expected_components, &actual_components)
             || components_suffix_match(&actual_components, &expected_components)

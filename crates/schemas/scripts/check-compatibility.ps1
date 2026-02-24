@@ -37,9 +37,9 @@ try {
         }
     }
 
-    # Generate code to verify it compiles
-    Write-Host "Generating protobuf code..." -ForegroundColor Blue
-    buf generate
+    # Verify buf workspace and proto correctness
+    Write-Host "Verifying buf workspace..." -ForegroundColor Blue
+    buf build
 
     Write-Host "Schema compatibility check completed successfully!" -ForegroundColor Green
 }
