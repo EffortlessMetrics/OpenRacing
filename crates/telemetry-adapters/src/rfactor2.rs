@@ -416,17 +416,22 @@ impl RFactor2Adapter {
         TelemetryFlags {
             yellow_flag: scoring.yellow_flag_state != 0,
             red_flag: scoring.game_phase == GamePhase::RedFlag as i32,
-            blue_flag: false, // Blue flag is per-vehicle in rF2
+            blue_flag: false,
             checkered_flag: scoring.game_phase == GamePhase::Checkered as i32,
             green_flag: scoring.game_phase == GamePhase::GreenFlag as i32,
-            pit_limiter: false, // Per-vehicle data
+            pit_limiter: false,
             in_pits: scoring.in_pits != 0,
             drs_available: false,
             drs_active: false,
             ers_available: false,
+            ers_active: false,
             launch_control: false,
             traction_control: false,
             abs_active: false,
+            engine_limiter: false,
+            safety_car: false,
+            formation_lap: false,
+            session_paused: false,
         }
     }
 

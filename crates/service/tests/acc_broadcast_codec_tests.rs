@@ -13,8 +13,8 @@ fn test_acc_normalize_realtime_car_update_fixture() -> TestResult {
     let normalized = adapter.normalize(FIXTURE_REALTIME_CAR_UPDATE_CAR_7)?;
 
     assert_eq!(normalized.car_id.as_deref(), Some("car_7"));
-    assert_eq!(normalized.speed_ms, Some(50.0));
-    assert_eq!(normalized.gear, Some(4));
+    assert!((normalized.speed_ms - 50.0).abs() < 0.01);
+    assert_eq!(normalized.gear, 4);
     Ok(())
 }
 

@@ -29,7 +29,7 @@ use std::time::{Duration, Instant};
 /// use std::time::Instant;
 ///
 /// let telemetry = NormalizedTelemetry::builder()
-///     .speed_mps(45.0)
+///     .speed_ms(45.0)
 ///     .rpm(6500.0)
 ///     .gear(4)
 ///     .steering_angle(0.15)
@@ -263,12 +263,12 @@ impl NormalizedTelemetry {
 
     /// Get speed in km/h.
     pub fn speed_kmh(&self) -> f32 {
-        self.speed_mps * 3.6
+        self.speed_ms * 3.6
     }
 
     /// Get speed in mph.
     pub fn speed_mph(&self) -> f32 {
-        self.speed_mps * 2.237
+        self.speed_ms * 2.237
     }
 
     /// Get the average slip angle across all tires.
@@ -288,7 +288,7 @@ impl NormalizedTelemetry {
 
     /// Check if the vehicle is stationary (speed below threshold).
     pub fn is_stationary(&self) -> bool {
-        self.speed_mps < 0.5
+        self.speed_ms < 0.5
     }
 
     /// Get total G-force magnitude.
@@ -380,11 +380,11 @@ impl NormalizedTelemetry {
     /// Set speed in meters per second.
     #[deprecated(
         since = "0.2.0",
-        note = "Use NormalizedTelemetry::builder().speed_mps() instead"
+        note = "Use NormalizedTelemetry::builder().speed_ms() instead"
     )]
     pub fn with_speed_ms(mut self, value: f32) -> Self {
         if value >= 0.0 && value.is_finite() {
-            self.speed_mps = value;
+            self.speed_ms = value;
         }
         self
     }
@@ -450,8 +450,8 @@ impl NormalizedTelemetry {
     /// Validate and clamp all fields to reasonable ranges.
     pub fn validated(self) -> Self {
         Self {
-            speed_mps: if self.speed_mps.is_finite() {
-                self.speed_mps.max(0.0)
+            speed_ms: if self.speed_ms.is_finite() {
+                self.speed_ms.max(0.0)
             } else {
                 0.0
             },
@@ -563,9 +563,9 @@ impl NormalizedTelemetryBuilder {
     }
 
     /// Set speed in meters per second.
-    pub fn speed_mps(mut self, value: f32) -> Self {
+    pub fn speed_ms(mut self, value: f32) -> Self {
         if value.is_finite() && value >= 0.0 {
-            self.inner.speed_mps = value;
+            self.inner.speed_ms = value;
         }
         self
     }
@@ -976,7 +976,7 @@ pub struct TelemetrySnapshot {
     pub timestamp_ns: u64,
 
     /// Vehicle speed in meters per second.
-    pub speed_mps: f32,
+    pub speed_ms: f32,
 
     /// Steering wheel angle in radians.
     pub steering_angle: f32,
@@ -1080,7 +1080,7 @@ impl TelemetrySnapshot {
 
         Self {
             timestamp_ns,
-            speed_mps: telemetry.speed_mps,
+            speed_ms: telemetry.speed_ms,
             steering_angle: telemetry.steering_angle,
             throttle: telemetry.throttle,
             brake: telemetry.brake,
@@ -1112,7 +1112,7 @@ impl TelemetrySnapshot {
     pub fn to_telemetry(&self, epoch: Instant) -> NormalizedTelemetry {
         NormalizedTelemetry {
             timestamp: epoch + Duration::from_nanos(self.timestamp_ns),
-            speed_mps: self.speed_mps,
+            speed_ms: self.speed_ms,
             steering_angle: self.steering_angle,
             throttle: self.throttle,
             brake: self.brake,
@@ -1273,7 +1273,7 @@ mod tests {
     fn test_default_telemetry() -> TestResult {
         let telemetry = NormalizedTelemetry::default();
 
-        assert_eq!(telemetry.speed_mps, 0.0);
+        assert_eq!(telemetry.speed_ms, 0.0);
         assert_eq!(telemetry.rpm, 0.0);
         assert_eq!(telemetry.gear, 0);
         assert_eq!(telemetry.steering_angle, 0.0);
@@ -1289,7 +1289,7 @@ mod tests {
     #[test]
     fn test_builder_pattern() -> TestResult {
         let telemetry = NormalizedTelemetry::builder()
-            .speed_mps(50.0)
+            .speed_ms(50.0)
             .rpm(6000.0)
             .gear(4)
             .steering_angle(0.1)
@@ -1302,7 +1302,7 @@ mod tests {
             .track_id("spa".to_string())
             .build();
 
-        assert_eq!(telemetry.speed_mps, 50.0);
+        assert_eq!(telemetry.speed_ms, 50.0);
         assert_eq!(telemetry.rpm, 6000.0);
         assert_eq!(telemetry.gear, 4);
         assert_eq!(telemetry.steering_angle, 0.1);
@@ -1318,7 +1318,7 @@ mod tests {
 
     #[test]
     fn test_speed_conversions() -> TestResult {
-        let telemetry = NormalizedTelemetry::builder().speed_mps(27.78).build();
+        let telemetry = NormalizedTelemetry::builder().speed_ms(27.78).build();
 
         let speed_kmh = telemetry.speed_kmh();
         let speed_mph = telemetry.speed_mph();
@@ -1349,10 +1349,10 @@ mod tests {
 
     #[test]
     fn test_is_stationary() -> TestResult {
-        let telemetry = NormalizedTelemetry::builder().speed_mps(0.4).build();
+        let telemetry = NormalizedTelemetry::builder().speed_ms(0.4).build();
         assert!(telemetry.is_stationary());
 
-        let telemetry = NormalizedTelemetry::builder().speed_mps(10.0).build();
+        let telemetry = NormalizedTelemetry::builder().speed_ms(10.0).build();
         assert!(!telemetry.is_stationary());
         Ok(())
     }
@@ -1403,7 +1403,7 @@ mod tests {
             brake: -0.2,
             slip_ratio: 1.5,
             ffb_scalar: -2.0,
-            speed_mps: -10.0,
+            speed_ms: -10.0,
             ..Default::default()
         };
 
@@ -1413,20 +1413,20 @@ mod tests {
         assert_eq!(validated.brake, 0.0);
         assert_eq!(validated.slip_ratio, 1.0);
         assert_eq!(validated.ffb_scalar, -1.0);
-        assert_eq!(validated.speed_mps, 0.0);
+        assert_eq!(validated.speed_ms, 0.0);
         Ok(())
     }
 
     #[test]
     fn test_nan_handling() -> TestResult {
         let telemetry = NormalizedTelemetry::builder()
-            .speed_mps(f32::NAN)
+            .speed_ms(f32::NAN)
             .throttle(f32::NAN)
             .rpm(f32::INFINITY)
             .ffb_scalar(f32::NEG_INFINITY)
             .build();
 
-        assert_eq!(telemetry.speed_mps, 0.0);
+        assert_eq!(telemetry.speed_ms, 0.0);
         assert_eq!(telemetry.throttle, 0.0);
         assert_eq!(telemetry.rpm, 0.0);
         assert_eq!(telemetry.ffb_scalar, 0.0);
@@ -1439,7 +1439,7 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(10));
 
         let telemetry = NormalizedTelemetry::builder()
-            .speed_mps(50.0)
+            .speed_ms(50.0)
             .rpm(6000.0)
             .gear(4)
             .steering_angle(0.1)
@@ -1458,7 +1458,7 @@ mod tests {
         let snapshot = TelemetrySnapshot::from_telemetry(&telemetry, epoch);
         let restored = snapshot.to_telemetry(epoch);
 
-        assert_eq!(restored.speed_mps, telemetry.speed_mps);
+        assert_eq!(restored.speed_ms, telemetry.speed_ms);
         assert_eq!(restored.rpm, telemetry.rpm);
         assert_eq!(restored.gear, telemetry.gear);
         assert_eq!(restored.steering_angle, telemetry.steering_angle);
@@ -1479,7 +1479,7 @@ mod tests {
     fn test_snapshot_serialization() -> TestResult {
         let snapshot = TelemetrySnapshot {
             timestamp_ns: 1000000,
-            speed_mps: 50.0,
+            speed_ms: 50.0,
             steering_angle: 0.1,
             throttle: 0.8,
             brake: 0.0,
@@ -1510,7 +1510,7 @@ mod tests {
         let deserialized: TelemetrySnapshot = serde_json::from_str(&json)?;
 
         assert_eq!(deserialized.timestamp_ns, snapshot.timestamp_ns);
-        assert_eq!(deserialized.speed_mps, snapshot.speed_mps);
+        assert_eq!(deserialized.speed_ms, snapshot.speed_ms);
         assert_eq!(deserialized.rpm, snapshot.rpm);
         assert_eq!(deserialized.gear, snapshot.gear);
         Ok(())
@@ -1589,7 +1589,7 @@ mod tests {
     #[test]
     fn test_telemetry_json_serialization() -> TestResult {
         let telemetry = NormalizedTelemetry::builder()
-            .speed_mps(50.0)
+            .speed_ms(50.0)
             .rpm(6000.0)
             .gear(4)
             .car_id("test_car".to_string())
@@ -1598,7 +1598,7 @@ mod tests {
         let json = serde_json::to_string(&telemetry)?;
         let deserialized: NormalizedTelemetry = serde_json::from_str(&json)?;
 
-        assert_eq!(deserialized.speed_mps, 50.0);
+        assert_eq!(deserialized.speed_ms, 50.0);
         assert_eq!(deserialized.rpm, 6000.0);
         assert_eq!(deserialized.gear, 4);
         assert_eq!(deserialized.car_id, Some("test_car".to_string()));

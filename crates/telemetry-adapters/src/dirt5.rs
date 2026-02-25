@@ -147,9 +147,13 @@ impl Dirt5Adapter {
                 .map(|speed| speed.abs())
                 .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-            if let (Some(speed_ms), Some(patch_speed)) = (telemetry.speed_ms, patch_speed_max) {
-                let denominator = speed_ms.max(1.0);
-                telemetry = telemetry.with_slip_ratio((patch_speed - speed_ms).abs() / denominator);
+            if let Some(patch_speed) = patch_speed_max {
+                let speed_ms = telemetry.speed_ms;
+                if speed_ms > 0.0 {
+                    let denominator = speed_ms.max(1.0);
+                    telemetry =
+                        telemetry.with_slip_ratio((patch_speed - speed_ms).abs() / denominator);
+                }
             }
         }
 

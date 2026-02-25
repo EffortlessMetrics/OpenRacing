@@ -5356,24 +5356,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "racing-wheel-telemetry-config-writers"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "tempfile",
- "tracing",
-]
-
-[[package]]
 name = "racing-wheel-telemetry-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
  "racing-wheel-schemas",
- "racing-wheel-telemetry-config-writers",
+ "racing-wheel-telemetry-config",
  "racing-wheel-telemetry-recorder",
  "serde",
  "serde_json",

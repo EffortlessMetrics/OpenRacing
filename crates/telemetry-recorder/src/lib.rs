@@ -258,7 +258,7 @@ impl TestFixtureGenerator {
         NormalizedTelemetry::builder()
             .ffb_scalar(ffb_scalar)
             .rpm(rpm)
-            .speed_mps(speed)
+            .speed_ms(speed)
             .slip_ratio(slip_ratio)
             .gear(gear)
             .car_id("test_car")
@@ -290,7 +290,7 @@ impl TestFixtureGenerator {
             frame.data = NormalizedTelemetry::builder()
                 .ffb_scalar(0.5)
                 .rpm(6000.0)
-                .speed_mps(50.0)
+                .speed_ms(50.0)
                 .slip_ratio(0.1)
                 .gear(4)
                 .build();
@@ -314,7 +314,7 @@ impl TestFixtureGenerator {
             frame.data = NormalizedTelemetry::builder()
                 .ffb_scalar(0.3)
                 .rpm(rpm)
-                .speed_mps(speed)
+                .speed_ms(speed)
                 .slip_ratio(0.05)
                 .gear(((speed / 15.0) as i8 + 1).min(6))
                 .build();
@@ -330,7 +330,7 @@ impl TestFixtureGenerator {
             frame.data = NormalizedTelemetry::builder()
                 .ffb_scalar(0.9)
                 .rpm(5500.0)
-                .speed_mps(35.0)
+                .speed_ms(35.0)
                 .slip_ratio(0.4)
                 .gear(3)
                 .build();
@@ -361,7 +361,7 @@ impl TestFixtureGenerator {
             frame.data = NormalizedTelemetry::builder()
                 .ffb_scalar(0.2)
                 .rpm(rpm)
-                .speed_mps(speed)
+                .speed_ms(speed)
                 .slip_ratio(0.05)
                 .gear(if in_pits { 1 } else { 4 })
                 .flags(flags)
@@ -440,7 +440,7 @@ mod tests {
         assert_eq!(recording.frames.len(), 120);
         for frame in &recording.frames {
             assert!(frame.data.rpm > 0.0);
-            assert!(frame.data.speed_mps > 0.0);
+            assert!(frame.data.speed_ms > 0.0);
         }
     }
 }

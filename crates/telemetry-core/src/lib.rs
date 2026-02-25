@@ -155,7 +155,7 @@ impl GameTelemetry {
     pub fn to_normalized(&self) -> NormalizedTelemetry {
         NormalizedTelemetry::builder()
             .rpm(self.rpm)
-            .speed_mps(self.speed_mps)
+            .speed_ms(self.speed_mps)
             .gear(self.gear)
             .steering_angle(self.steering_angle)
             .throttle(self.throttle)

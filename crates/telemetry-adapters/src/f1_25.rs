@@ -782,160 +782,159 @@ pub fn normalize(
         .with_flags(flags)
         .with_track_id(track_id)
         // ── Core F1 inputs ──────────────────────────────────────────────────
-        .with_extended("throttle".into(), TelemetryValue::Float(telem.throttle))
-        .with_extended("brake".into(), TelemetryValue::Float(telem.brake))
-        .with_extended("steer".into(), TelemetryValue::Float(telem.steer))
-        // ── DRS / ERS ───────────────────────────────────────────────────────
-        .with_extended("drs_active".into(), TelemetryValue::Boolean(drs_active))
         .with_extended(
-            "drs_available".into(),
+            "throttle".to_string(),
+            TelemetryValue::Float(telem.throttle),
+        )
+        .with_extended("brake".to_string(), TelemetryValue::Float(telem.brake))
+        .with_extended("steer".to_string(), TelemetryValue::Float(telem.steer))
+        .with_extended(
+            "drs_active".to_string(),
+            TelemetryValue::Boolean(drs_active),
+        )
+        .with_extended(
+            "drs_available".to_string(),
             TelemetryValue::Boolean(drs_available),
         )
         .with_extended(
-            "ers_store_energy_j".into(),
+            "ers_store_energy_j".to_string(),
             TelemetryValue::Float(status.ers_store_energy),
         )
         .with_extended(
-            "ers_store_fraction".into(),
+            "ers_store_fraction".to_string(),
             TelemetryValue::Float(ers_fraction),
         )
         .with_extended(
-            "ers_deploy_mode".into(),
+            "ers_deploy_mode".to_string(),
             TelemetryValue::Integer(i32::from(status.ers_deploy_mode)),
         )
         .with_extended(
-            "ers_harvested_mguk_j".into(),
+            "ers_harvested_mguk_j".to_string(),
             TelemetryValue::Float(status.ers_harvested_mguk),
         )
         .with_extended(
-            "ers_harvested_mguh_j".into(),
+            "ers_harvested_mguh_j".to_string(),
             TelemetryValue::Float(status.ers_harvested_mguh),
         )
         .with_extended(
-            "ers_deployed_j".into(),
+            "ers_deployed_j".to_string(),
             TelemetryValue::Float(status.ers_deployed),
         )
-        // ── Engine ──────────────────────────────────────────────────────────
         .with_extended(
-            "engine_power_ice_w".into(),
+            "engine_power_ice_w".to_string(),
             TelemetryValue::Float(status.engine_power_ice),
         )
         .with_extended(
-            "engine_power_mguk_w".into(),
+            "engine_power_mguk_w".to_string(),
             TelemetryValue::Float(status.engine_power_mguk),
         )
         .with_extended(
-            "engine_temperature_c".into(),
+            "engine_temperature_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.engine_temperature)),
         )
-        .with_extended("rpm_fraction".into(), TelemetryValue::Float(rpm_fraction))
-        // ── Fuel ────────────────────────────────────────────────────────────
         .with_extended(
-            "fuel_remaining_kg".into(),
+            "rpm_fraction".to_string(),
+            TelemetryValue::Float(rpm_fraction),
+        )
+        .with_extended(
+            "fuel_remaining_kg".to_string(),
             TelemetryValue::Float(status.fuel_in_tank),
         )
         .with_extended(
-            "fuel_remaining_laps".into(),
+            "fuel_remaining_laps".to_string(),
             TelemetryValue::Float(status.fuel_remaining_laps),
         )
-        // ── Tyres ───────────────────────────────────────────────────────────
         .with_extended(
-            "tyre_compound".into(),
+            "tyre_compound".to_string(),
             TelemetryValue::Integer(i32::from(status.actual_tyre_compound)),
         )
         .with_extended(
-            "tyre_compound_name".into(),
+            "tyre_compound_name".to_string(),
             TelemetryValue::String(tyre_name.to_string()),
         )
         .with_extended(
-            "tyre_age_laps".into(),
+            "tyre_age_laps".to_string(),
             TelemetryValue::Integer(i32::from(status.tyre_age_laps)),
         )
-        // Pressures [RL, RR, FL, FR]
         .with_extended(
-            "tyre_pressure_rl_psi".into(),
+            "tyre_pressure_rl_psi".to_string(),
             TelemetryValue::Float(telem.tyres_pressure[0]),
         )
         .with_extended(
-            "tyre_pressure_rr_psi".into(),
+            "tyre_pressure_rr_psi".to_string(),
             TelemetryValue::Float(telem.tyres_pressure[1]),
         )
         .with_extended(
-            "tyre_pressure_fl_psi".into(),
+            "tyre_pressure_fl_psi".to_string(),
             TelemetryValue::Float(telem.tyres_pressure[2]),
         )
         .with_extended(
-            "tyre_pressure_fr_psi".into(),
+            "tyre_pressure_fr_psi".to_string(),
             TelemetryValue::Float(telem.tyres_pressure[3]),
         )
-        // Surface temperatures [RL, RR, FL, FR]
         .with_extended(
-            "tyre_surface_temp_rl_c".into(),
+            "tyre_surface_temp_rl_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[0])),
         )
         .with_extended(
-            "tyre_surface_temp_rr_c".into(),
+            "tyre_surface_temp_rr_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[1])),
         )
         .with_extended(
-            "tyre_surface_temp_fl_c".into(),
+            "tyre_surface_temp_fl_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[2])),
         )
         .with_extended(
-            "tyre_surface_temp_fr_c".into(),
+            "tyre_surface_temp_fr_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[3])),
         )
-        // Inner temperatures [RL, RR, FL, FR]
         .with_extended(
-            "tyre_inner_temp_rl_c".into(),
+            "tyre_inner_temp_rl_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_inner_temperature[0])),
         )
         .with_extended(
-            "tyre_inner_temp_rr_c".into(),
+            "tyre_inner_temp_rr_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_inner_temperature[1])),
         )
         .with_extended(
-            "tyre_inner_temp_fl_c".into(),
+            "tyre_inner_temp_fl_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_inner_temperature[2])),
         )
         .with_extended(
-            "tyre_inner_temp_fr_c".into(),
+            "tyre_inner_temp_fr_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_inner_temperature[3])),
         )
-        // Brake temperatures [RL, RR, FL, FR]
         .with_extended(
-            "brake_temp_rl_c".into(),
+            "brake_temp_rl_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.brakes_temperature[0])),
         )
         .with_extended(
-            "brake_temp_rr_c".into(),
+            "brake_temp_rr_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.brakes_temperature[1])),
         )
         .with_extended(
-            "brake_temp_fl_c".into(),
+            "brake_temp_fl_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.brakes_temperature[2])),
         )
         .with_extended(
-            "brake_temp_fr_c".into(),
+            "brake_temp_fr_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.brakes_temperature[3])),
         )
-        // ── Session ─────────────────────────────────────────────────────────
         .with_extended(
-            "session_type".into(),
+            "session_type".to_string(),
             TelemetryValue::Integer(i32::from(session.session_type)),
         )
         .with_extended(
-            "track_temperature_c".into(),
+            "track_temperature_c".to_string(),
             TelemetryValue::Integer(i32::from(session.track_temperature)),
         )
         .with_extended(
-            "air_temperature_c".into(),
+            "air_temperature_c".to_string(),
             TelemetryValue::Integer(i32::from(session.air_temperature)),
         )
-        // ── Meta ────────────────────────────────────────────────────────────
         .with_extended(
-            "decoder_type".into(),
-            TelemetryValue::String("f1_25_native_udp".into()),
+            "decoder_type".to_string(),
+            TelemetryValue::String("f1_25_native_udp".to_string()),
         )
 }
 

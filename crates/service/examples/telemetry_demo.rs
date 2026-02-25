@@ -32,18 +32,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "   ✓ Created telemetry: FFB={:.2}, RPM={:.0}, Speed={:.1} m/s, Gear={}",
-        telemetry.ffb_scalar.unwrap_or(0.0),
-        telemetry.rpm.unwrap_or(0.0),
-        telemetry.speed_ms.unwrap_or(0.0),
-        telemetry.gear.unwrap_or(0)
+        telemetry.ffb_scalar, telemetry.rpm, telemetry.speed_ms, telemetry.gear
     );
 
     // Test value clamping
     let clamped = NormalizedTelemetry::default().with_ffb_scalar(1.5);
-    println!(
-        "   ✓ FFB scalar clamping: 1.5 → {:.1}",
-        clamped.ffb_scalar.unwrap()
-    );
+    println!("   ✓ FFB scalar clamping: 1.5 → {:.1}", clamped.ffb_scalar);
 
     // 2. Demonstrate rate limiter functionality
     println!("\n2. ⚡ Rate Limiter Protection");
@@ -104,9 +98,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!(
                 "   📊 Frame {}: RPM={:.0}, Speed={:.1} m/s, FFB={:.2}",
                 i + 1,
-                frame.data.rpm.unwrap_or(0.0),
-                frame.data.speed_ms.unwrap_or(0.0),
-                frame.data.ffb_scalar.unwrap_or(0.0)
+                frame.data.rpm,
+                frame.data.speed_ms,
+                frame.data.ffb_scalar
             );
         }
     }
@@ -150,9 +144,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if replayed_count <= 3 {
             println!(
                 "   📊 Replay {}: RPM={:.0}, Speed={:.1} m/s",
-                replayed_count,
-                frame.data.rpm.unwrap_or(0.0),
-                frame.data.speed_ms.unwrap_or(0.0)
+                replayed_count, frame.data.rpm, frame.data.speed_ms
             );
         }
         if replayed_count >= recording.frames.len() {

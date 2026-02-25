@@ -43,11 +43,11 @@ fn test_normalized_telemetry_creation() {
         .with_car_id("gt3_bmw".to_string())
         .with_track_id("spa".to_string());
 
-    assert_eq!(telemetry.ffb_scalar, Some(0.75));
-    assert_eq!(telemetry.rpm, Some(6500.0));
-    assert_eq!(telemetry.speed_ms, Some(45.0));
-    assert_eq!(telemetry.slip_ratio, Some(0.15));
-    assert_eq!(telemetry.gear, Some(4));
+    assert!((telemetry.ffb_scalar - 0.75).abs() < 0.01);
+    assert!((telemetry.rpm - 6500.0).abs() < 0.01);
+    assert!((telemetry.speed_ms - 45.0).abs() < 0.01);
+    assert!((telemetry.slip_ratio - 0.15).abs() < 0.01);
+    assert_eq!(telemetry.gear, 4);
     assert_eq!(telemetry.car_id, Some("gt3_bmw".to_string()));
     assert_eq!(telemetry.track_id, Some("spa".to_string()));
 }
@@ -55,19 +55,19 @@ fn test_normalized_telemetry_creation() {
 #[test]
 fn test_ffb_scalar_clamping() {
     let telemetry1 = NormalizedTelemetry::default().with_ffb_scalar(1.5);
-    assert_eq!(telemetry1.ffb_scalar, Some(1.0));
+    assert!((telemetry1.ffb_scalar - 1.0).abs() < 0.01);
 
     let telemetry2 = NormalizedTelemetry::default().with_ffb_scalar(-1.5);
-    assert_eq!(telemetry2.ffb_scalar, Some(-1.0));
+    assert!((telemetry2.ffb_scalar - (-1.0)).abs() < 0.01);
 }
 
 #[test]
 fn test_slip_ratio_clamping() {
     let telemetry1 = NormalizedTelemetry::default().with_slip_ratio(1.5);
-    assert_eq!(telemetry1.slip_ratio, Some(1.0));
+    assert!((telemetry1.slip_ratio - 1.0).abs() < 0.01);
 
     let telemetry2 = NormalizedTelemetry::default().with_slip_ratio(-0.5);
-    assert_eq!(telemetry2.slip_ratio, Some(0.0));
+    assert!((telemetry2.slip_ratio - 0.0).abs() < 0.01);
 }
 
 #[test]
@@ -76,23 +76,26 @@ fn test_invalid_values_rejected() {
         .with_rpm(-100.0) // Negative RPM should be rejected
         .with_speed_ms(f32::NAN); // NaN should be rejected
 
-    assert_eq!(telemetry.rpm, None);
-    assert_eq!(telemetry.speed_ms, None);
+    assert!((telemetry.rpm - 0.0).abs() < 0.01); // Default to 0
+    assert!((telemetry.speed_ms - 0.0).abs() < 0.01); // Default to 0
 }
 
 #[test]
 fn test_speed_conversions() {
     let telemetry = NormalizedTelemetry::default().with_speed_ms(27.78); // 100 km/h
 
-    assert!((must_some(telemetry.speed_kmh(), "expected speed_kmh") - 100.0).abs() < 0.1);
-    assert!((must_some(telemetry.speed_mph(), "expected speed_mph") - 62.14).abs() < 0.1);
+    assert!((telemetry.speed_kmh() - 100.0).abs() < 0.1);
+    assert!((telemetry.speed_mph() - 62.14).abs() < 0.1);
 }
 
 #[test]
 fn test_rpm_fraction() {
-    let telemetry = NormalizedTelemetry::default().with_rpm(6000.0);
+    let telemetry = NormalizedTelemetry::builder()
+        .rpm(6000.0)
+        .max_rpm(8000.0)
+        .build();
 
-    let fraction = must_some(telemetry.rpm_fraction(8000.0), "expected rpm_fraction");
+    let fraction = telemetry.rpm_fraction();
     assert!((fraction - 0.75).abs() < 0.01);
 }
 
@@ -338,9 +341,9 @@ fn test_synthetic_fixture_generation() {
 
     // Check that frames have reasonable data
     for frame in &recording.frames {
-        assert!(frame.data.rpm.is_some());
-        assert!(frame.data.speed_ms.is_some());
-        assert!(frame.data.ffb_scalar.is_some());
+        assert!(frame.data.rpm > 0.0);
+        assert!(frame.data.speed_ms > 0.0);
+        assert!(frame.data.ffb_scalar > 0.0);
     }
 }
 
@@ -380,8 +383,8 @@ async fn test_mock_adapter() {
             "expected frame",
         );
 
-        assert!(frame.data.rpm.is_some());
-        assert!(frame.data.speed_ms.is_some());
+        assert!(frame.data.rpm > 0.0);
+        assert!(frame.data.speed_ms > 0.0);
         assert_eq!(frame.data.car_id, Some("mock_car".to_string()));
     };
 
@@ -549,10 +552,10 @@ fn test_normalization_consistency() {
             .with_ffb_scalar(ffb);
 
         // Verify normalization is consistent
-        assert_eq!(telemetry.rpm, Some(rpm));
-        assert_eq!(telemetry.speed_ms, Some(speed));
-        assert_eq!(telemetry.gear, Some(gear));
-        assert_eq!(telemetry.ffb_scalar, Some(ffb.clamp(-1.0, 1.0)));
+        assert!((telemetry.rpm - rpm).abs() < 0.01);
+        assert!((telemetry.speed_ms - speed).abs() < 0.01);
+        assert_eq!(telemetry.gear, gear);
+        assert!((telemetry.ffb_scalar - ffb.clamp(-1.0, 1.0)).abs() < 0.01);
     }
 }
 
@@ -572,12 +575,16 @@ fn test_telemetry_field_coverage() {
     assert!(telemetry.has_rpm_data());
 
     // Test RPM fraction calculation
-    let rpm_fraction = must_some(telemetry.rpm_fraction(8000.0), "expected rpm_fraction");
+    let telemetry_with_max = NormalizedTelemetry::builder()
+        .rpm(6500.0)
+        .max_rpm(8000.0)
+        .build();
+    let rpm_fraction = telemetry_with_max.rpm_fraction();
     assert!((rpm_fraction - 0.8125).abs() < 0.01); // 6500/8000 = 0.8125
 
     // Test speed conversions
-    assert!((must_some(telemetry.speed_kmh(), "expected speed_kmh") - 162.0).abs() < 0.1); // 45 m/s = 162 km/h
-    assert!((must_some(telemetry.speed_mph(), "expected speed_mph") - 100.65).abs() < 0.1); // 45 m/s ≈ 100.65 mph
+    assert!((telemetry.speed_kmh() - 162.0).abs() < 0.1); // 45 m/s = 162 km/h
+    assert!((telemetry.speed_mph() - 100.65).abs() < 0.1); // 45 m/s ≈ 100.65 mph
 }
 
 /// Test telemetry flags functionality

@@ -7,14 +7,15 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use crate::bdd_metrics::RuntimeBddMatrixMetrics;
-use crate::config::config_writer_factories;
-use crate::config::support::{GameSupportMatrix, normalize_game_id};
 use crate::integration::{
     CoveragePolicy, RuntimeCoverageReport, compare_runtime_registries_with_policies,
 };
 use crate::rate_limiter::RateLimiter;
-use crate::{AdapterFactory, TelemetryAdapter, TelemetryReceiver, adapter_factories};
+use crate::{TelemetryAdapter, TelemetryReceiver, adapter_factories};
 use anyhow::Result;
+use racing_wheel_telemetry_config::{
+    GameSupportMatrix, config_writer_factories, load_default_matrix, normalize_game_id,
+};
 use racing_wheel_telemetry_recorder::TelemetryRecorder;
 use tracing::{debug, warn};
 
@@ -39,7 +40,7 @@ impl Default for TelemetryService {
 
 impl TelemetryService {
     fn load_support_matrix() -> Option<GameSupportMatrix> {
-        crate::config::support::load_default_matrix().ok()
+        load_default_matrix().ok()
     }
 
     /// Create a new telemetry service from the shipped support matrix.
@@ -256,7 +257,7 @@ impl TelemetryService {
 mod tests {
     use super::TelemetryService;
     use crate::bdd_metrics::{BddMatrixMetrics, MatrixParityPolicy};
-    use crate::config::support::load_default_matrix;
+    use racing_wheel_telemetry_config::load_default_matrix;
 
     #[test]
     fn telemetry_service_records_matrix_if_available() {

@@ -245,8 +245,8 @@ mod tests {
             .await?
             .ok_or("expected telemetry frame")?;
 
-        assert!(frame.data.rpm.is_some());
-        assert!(frame.data.speed_ms.is_some());
+        assert!(frame.data.rpm > 0.0);
+        assert!(frame.data.speed_ms > 0.0);
         assert_eq!(frame.data.car_id, Some("mock_car".to_string()));
         Ok(())
     }
@@ -255,11 +255,10 @@ mod tests {
     fn test_mock_telemetry_generation() -> TestResult {
         let telemetry = generate_mock_telemetry(0.5);
 
-        assert!(telemetry.rpm.is_some());
-        assert!(telemetry.speed_ms.is_some());
-        assert!(telemetry.ffb_scalar.is_some());
-        assert!(telemetry.slip_ratio.is_some());
-        assert!(telemetry.gear.is_some());
+        assert!(telemetry.rpm > 0.0);
+        assert!(telemetry.speed_ms > 0.0);
+        assert!(telemetry.ffb_scalar > 0.0);
+        assert!(telemetry.slip_ratio >= 0.0);
         Ok(())
     }
 }
