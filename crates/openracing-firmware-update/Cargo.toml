@@ -1,0 +1,47 @@
+[package]
+name = "openracing-firmware-update"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Firmware update management for OpenRacing with A/B partition support"
+keywords = ["firmware", "update", "ota", "rollback", "embedded"]
+categories = ["embedded", "filesystem", "hardware-support"]
+
+[dependencies]
+tokio = { workspace = true, features = ["fs", "io-util", "sync", "time", "rt"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+semver = { workspace = true, features = ["serde"] }
+sha2 = "0.10.9"
+hex = "0.4.3"
+flate2 = "1.1.8"
+futures = "0.3.31"
+async-trait = { workspace = true }
+uuid = { workspace = true }
+openracing-crypto = { workspace = true }
+openracing-errors = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }
+tempfile = "3.24.0"
+proptest = { workspace = true }
+criterion = { workspace = true }
+tracing-test = "0.2.5"
+
+[features]
+default = ["std"]
+std = []
+
+[[bench]]
+name = "update_bench"
+harness = false
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -4167,6 +4167,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "openracing-diagnostic"
+version = "0.1.0"
+dependencies = [
+ "crc32c",
+ "criterion",
+ "cu-bincode",
+ "flate2",
+ "insta",
+ "proptest",
+ "quickcheck",
+ "quickcheck_macros",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tracing",
+ "zip 7.2.0",
+]
+
+[[package]]
 name = "openracing-errors"
 version = "0.1.0"
 dependencies = [
@@ -4191,6 +4212,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "openracing-firmware-update"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "criterion",
+ "flate2",
+ "futures",
+ "hex",
+ "openracing-crypto",
+ "openracing-errors",
+ "proptest",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-test",
+ "uuid",
+]
+
+[[package]]
 name = "openracing-fmea"
 version = "0.1.0"
 dependencies = [
@@ -4202,6 +4249,44 @@ dependencies = [
  "quickcheck_macros",
  "serde",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "openracing-hardware-watchdog"
+version = "0.1.0"
+dependencies = [
+ "criterion",
+ "portable-atomic",
+ "proptest",
+]
+
+[[package]]
+name = "openracing-ipc"
+version = "0.1.0"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "chrono",
+ "criterion",
+ "futures",
+ "libc",
+ "openracing-errors",
+ "proptest",
+ "prost",
+ "prost-types",
+ "quickcheck",
+ "quickcheck_macros",
+ "serde",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-stream",
+ "tokio-test",
+ "tonic",
+ "tracing",
+ "tracing-test",
+ "uuid",
+ "winapi",
 ]
 
 [[package]]
@@ -4261,6 +4346,30 @@ dependencies = [
  "serde",
  "serde_json",
  "static_assertions",
+]
+
+[[package]]
+name = "openracing-profile-repository"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "chrono",
+ "criterion",
+ "ed25519-dalek",
+ "openracing-errors",
+ "proptest",
+ "racing-wheel-schemas",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-test",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5241,6 +5350,7 @@ dependencies = [
  "openracing-errors",
  "openracing-filters",
  "openracing-fmea",
+ "openracing-hardware-watchdog",
  "openracing-test-helpers",
  "openracing-tracing",
  "openracing-watchdog",
@@ -5460,6 +5570,8 @@ dependencies = [
  "metrics",
  "num_cpus",
  "openracing-errors",
+ "openracing-ipc",
+ "openracing-profile-repository",
  "os_info",
  "prometheus",
  "proptest",

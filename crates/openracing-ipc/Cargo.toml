@@ -1,0 +1,60 @@
+[package]
+name = "openracing-ipc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "IPC server and transport for OpenRacing"
+keywords = ["ipc", "grpc", "tonic", "transport", "racing"]
+categories = ["network-programming", "asynchronous"]
+
+[dependencies]
+openracing-errors = { workspace = true }
+tokio = { workspace = true }
+tonic = { workspace = true }
+prost = { workspace = true }
+prost-types = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio-stream = { workspace = true }
+async-stream = "0.3.6"
+serde = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+futures = "0.3.31"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.180"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3.9", features = [
+    "handleapi",
+    "winnt",
+    "namedpipeapi",
+    "winbase",
+] }
+
+[dev-dependencies]
+proptest = { workspace = true }
+quickcheck = "1.0.3"
+quickcheck_macros = "1.1.0"
+criterion = { workspace = true }
+tokio-test = "0.4.4"
+tempfile = "3.24.0"
+tracing-test = "0.2.5"
+
+[[bench]]
+name = "ipc_throughput"
+harness = false
+
+[features]
+default = ["tcp"]
+tcp = []
+unix = []
+named-pipe = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

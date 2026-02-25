@@ -24,6 +24,8 @@ racing-wheel-telemetry-recorder = { path = "../telemetry-recorder" }
 racing-wheel-telemetry-config = { path = "../telemetry-config" }
 racing-wheel-changelog = { workspace = true }
 openracing-errors = { workspace = true }
+openracing-profile-repository = { workspace = true }
+openracing-ipc = { workspace = true }
 tokio = { workspace = true }
 tonic = { workspace = true }
 serde = { workspace = true }

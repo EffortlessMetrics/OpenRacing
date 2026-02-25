@@ -24,6 +24,11 @@ members = [
     "crates/openracing-test-helpers",
     "crates/openracing-fmea",
     "crates/openracing-watchdog",
+    "crates/openracing-hardware-watchdog",
+    "crates/openracing-profile-repository",
+    "crates/openracing-firmware-update",
+    "crates/openracing-ipc",
+    "crates/openracing-diagnostic",
     "crates/engine",
     "crates/service",
     "crates/cli",
@@ -88,6 +93,11 @@ openracing-wasm-runtime = { path = "crates/openracing-wasm-runtime" }
 openracing-test-helpers = { path = "crates/openracing-test-helpers" }
 openracing-fmea = { path = "crates/openracing-fmea" }
 openracing-watchdog = { path = "crates/openracing-watchdog" }
+openracing-hardware-watchdog = { path = "crates/openracing-hardware-watchdog" }
+openracing-profile-repository = { path = "crates/openracing-profile-repository" }
+openracing-firmware-update = { path = "crates/openracing-firmware-update" }
+openracing-ipc = { path = "crates/openracing-ipc" }
+openracing-diagnostic = { path = "crates/openracing-diagnostic" }
 
 # HID and hardware
 hidapi = "2.6.4"
