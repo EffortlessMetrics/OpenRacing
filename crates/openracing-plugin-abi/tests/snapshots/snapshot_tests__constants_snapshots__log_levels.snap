@@ -1,0 +1,5 @@
+---
+source: crates/openracing-plugin-abi/tests/snapshot_tests.rs
+expression: levels
+---
+ERROR=0 WARN=1 INFO=2 DEBUG=3 TRACE=4

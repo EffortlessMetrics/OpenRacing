@@ -295,23 +295,24 @@ async fn run_passive_udp_probe(
     let socket = match TokioUdpSocket::bind(bind_address).await {
         Ok(socket) => socket,
         Err(error) => {
-            let telemetry = NormalizedTelemetry::default()
-                .with_extended(
+            let telemetry = NormalizedTelemetry::builder()
+                .extended(
                     "probe_stage".to_string(),
                     TelemetryValue::String("udp_passive".to_string()),
                 )
-                .with_extended(
+                .extended(
                     "probe_status".to_string(),
                     TelemetryValue::String("bind_error".to_string()),
                 )
-                .with_extended(
+                .extended(
                     "probe_error".to_string(),
                     TelemetryValue::String(error.to_string()),
                 )
-                .with_extended(
+                .extended(
                     "probe_bind".to_string(),
                     TelemetryValue::String(bind_address.to_string()),
-                );
+                )
+                .build();
             let _ = send_probe_frame(tx, sequence, telemetry, 0).await;
             return;
         }
@@ -335,15 +336,15 @@ async fn run_passive_udp_probe(
         match recv {
             Ok(Ok((len, source))) => {
                 packets_seen = packets_seen.saturating_add(1);
-                let mut telemetry = match normalize_probe_packet(&buf[..len]) {
-                    Ok(telemetry) => telemetry,
+                let telemetry = match normalize_probe_packet(&buf[..len]) {
+                    Ok(base) => base,
                     Err(error) => {
                         debug!(error = %error, "AC Rally passive packet normalization failed");
                         continue;
                     }
                 };
 
-                telemetry = telemetry
+                let telemetry = telemetry
                     .with_extended(
                         "probe_stage".to_string(),
                         TelemetryValue::String("udp_passive".to_string()),
@@ -366,23 +367,24 @@ async fn run_passive_udp_probe(
                 }
             }
             Ok(Err(error)) => {
-                let telemetry = NormalizedTelemetry::default()
-                    .with_extended(
+                let telemetry = NormalizedTelemetry::builder()
+                    .extended(
                         "probe_stage".to_string(),
                         TelemetryValue::String("udp_passive".to_string()),
                     )
-                    .with_extended(
+                    .extended(
                         "probe_status".to_string(),
                         TelemetryValue::String("receive_error".to_string()),
                     )
-                    .with_extended(
+                    .extended(
                         "probe_error".to_string(),
                         TelemetryValue::String(error.to_string()),
                     )
-                    .with_extended(
+                    .extended(
                         "probe_bind".to_string(),
                         TelemetryValue::String(bind_address.to_string()),
-                    );
+                    )
+                    .build();
                 if !send_probe_frame(tx, sequence, telemetry, 0).await {
                     return;
                 }
@@ -394,19 +396,20 @@ async fn run_passive_udp_probe(
     }
 
     if packets_seen == 0 {
-        let telemetry = NormalizedTelemetry::default()
-            .with_extended(
+        let telemetry = NormalizedTelemetry::builder()
+            .extended(
                 "probe_stage".to_string(),
                 TelemetryValue::String("udp_passive".to_string()),
             )
-            .with_extended(
+            .extended(
                 "probe_status".to_string(),
                 TelemetryValue::String("no_packets".to_string()),
             )
-            .with_extended(
+            .extended(
                 "probe_bind".to_string(),
                 TelemetryValue::String(bind_address.to_string()),
-            );
+            )
+            .build();
         let _ = send_probe_frame(tx, sequence, telemetry, 0).await;
     }
 }
@@ -415,68 +418,78 @@ fn telemetry_from_handshake(
     outcome: &HandshakeProbeOutcome,
     endpoint: SocketAddr,
 ) -> NormalizedTelemetry {
-    let base = NormalizedTelemetry::default()
-        .with_extended(
+    let mut builder = NormalizedTelemetry::builder()
+        .extended(
             "probe_stage".to_string(),
             TelemetryValue::String("udp_handshake".to_string()),
         )
-        .with_extended(
+        .extended(
             "probe_endpoint".to_string(),
             TelemetryValue::String(endpoint.to_string()),
         );
 
     match outcome {
-        HandshakeProbeOutcome::Registration(result) => base
-            .with_extended(
-                "probe_status".to_string(),
-                TelemetryValue::String("registration_result".to_string()),
-            )
-            .with_extended(
-                "registration_success".to_string(),
-                TelemetryValue::Boolean(result.success),
-            )
-            .with_extended(
-                "registration_readonly".to_string(),
-                TelemetryValue::Boolean(result.readonly),
-            )
-            .with_extended(
-                "registration_connection_id".to_string(),
-                TelemetryValue::Integer(result.connection_id),
-            )
-            .with_extended(
-                "registration_error".to_string(),
-                TelemetryValue::String(result.error.clone()),
-            ),
+        HandshakeProbeOutcome::Registration(result) => {
+            builder = builder
+                .extended(
+                    "probe_status".to_string(),
+                    TelemetryValue::String("registration_result".to_string()),
+                )
+                .extended(
+                    "registration_success".to_string(),
+                    TelemetryValue::Boolean(result.success),
+                )
+                .extended(
+                    "registration_readonly".to_string(),
+                    TelemetryValue::Boolean(result.readonly),
+                )
+                .extended(
+                    "registration_connection_id".to_string(),
+                    TelemetryValue::Integer(result.connection_id),
+                )
+                .extended(
+                    "registration_error".to_string(),
+                    TelemetryValue::String(result.error.clone()),
+                );
+        }
         HandshakeProbeOutcome::Response {
             message_type,
             raw_size,
-        } => base
-            .with_extended(
+        } => {
+            builder = builder
+                .extended(
+                    "probe_status".to_string(),
+                    TelemetryValue::String("unexpected_response".to_string()),
+                )
+                .extended(
+                    "response_message_type".to_string(),
+                    TelemetryValue::Integer(i32::from(*message_type)),
+                )
+                .extended(
+                    "response_size".to_string(),
+                    TelemetryValue::Integer(capped_i32(*raw_size)),
+                );
+        }
+        HandshakeProbeOutcome::Timeout => {
+            builder = builder.extended(
                 "probe_status".to_string(),
-                TelemetryValue::String("unexpected_response".to_string()),
-            )
-            .with_extended(
-                "response_message_type".to_string(),
-                TelemetryValue::Integer(i32::from(*message_type)),
-            )
-            .with_extended(
-                "response_size".to_string(),
-                TelemetryValue::Integer(capped_i32(*raw_size)),
-            ),
-        HandshakeProbeOutcome::Timeout => base.with_extended(
-            "probe_status".to_string(),
-            TelemetryValue::String("timeout".to_string()),
-        ),
-        HandshakeProbeOutcome::Error { message } => base
-            .with_extended(
-                "probe_status".to_string(),
-                TelemetryValue::String("error".to_string()),
-            )
-            .with_extended(
-                "probe_error".to_string(),
-                TelemetryValue::String(message.clone()),
-            ),
+                TelemetryValue::String("timeout".to_string()),
+            );
+        }
+        HandshakeProbeOutcome::Error { message } => {
+            builder = builder
+                .extended(
+                    "probe_status".to_string(),
+                    TelemetryValue::String("error".to_string()),
+                )
+                .extended(
+                    "probe_error".to_string(),
+                    TelemetryValue::String(message.clone()),
+                );
+        }
     }
+
+    builder.build()
 }
 
 async fn send_probe_frame(
@@ -500,32 +513,32 @@ fn normalize_probe_packet(raw: &[u8]) -> Result<NormalizedTelemetry> {
         return Err(anyhow!("AC Rally probe packet is empty"));
     }
 
-    let mut telemetry = NormalizedTelemetry::default()
-        .with_extended(
+    let mut builder = NormalizedTelemetry::builder()
+        .extended(
             "probe_status".to_string(),
             TelemetryValue::String("raw_packet".to_string()),
         )
-        .with_extended(
+        .extended(
             "raw_size".to_string(),
             TelemetryValue::Integer(capped_i32(raw.len())),
         )
-        .with_extended(
+        .extended(
             "raw_preview_hex".to_string(),
             TelemetryValue::String(hex_preview(raw, 32)),
         )
-        .with_extended(
+        .extended(
             "raw_first_byte".to_string(),
             TelemetryValue::Integer(i32::from(raw[0])),
         );
 
     if let Ok(text) = std::str::from_utf8(raw) {
-        telemetry = telemetry.with_extended(
+        builder = builder.extended(
             "raw_utf8_preview".to_string(),
             TelemetryValue::String(text.chars().take(32).collect()),
         );
     }
 
-    Ok(telemetry)
+    Ok(builder.build())
 }
 
 fn build_register_packet(

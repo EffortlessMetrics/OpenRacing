@@ -1,0 +1,10 @@
+---
+source: crates/openracing-plugin-abi/tests/snapshot_tests.rs
+expression: "format!(\"{:#?}\", header)"
+---
+PluginHeader {
+    magic: 1465338929,
+    abi_version: 65536,
+    capabilities: 0,
+    reserved: 0,
+}

@@ -17,6 +17,9 @@ openracing-atomic = { workspace = true }
 openracing-tracing = { workspace = true }
 openracing-curves = { workspace = true }
 openracing-errors = { workspace = true }
+openracing-filters = { workspace = true }
+openracing-fmea = { workspace = true }
+openracing-watchdog = { workspace = true }
 tokio = { workspace = true, features = ["time", "sync", "rt-multi-thread"] }
 parking_lot = { workspace = true }
 crossbeam = { workspace = true }

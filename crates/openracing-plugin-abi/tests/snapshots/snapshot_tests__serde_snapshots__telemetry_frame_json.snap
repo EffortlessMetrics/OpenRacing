@@ -1,0 +1,12 @@
+---
+source: crates/openracing-plugin-abi/tests/snapshot_tests.rs
+expression: json
+---
+{
+  "timestamp_us": 12345,
+  "wheel_angle_deg": 90.0,
+  "wheel_speed_rad_s": 1.57,
+  "temperature_c": 45.5,
+  "fault_flags": 255,
+  "_pad": 0
+}

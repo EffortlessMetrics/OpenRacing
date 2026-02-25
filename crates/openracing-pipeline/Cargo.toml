@@ -1,0 +1,41 @@
+[package]
+name = "openracing-pipeline"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-pipeline"
+publish = true
+description = "FFB pipeline compilation and execution for OpenRacing"
+readme = "README.md"
+keywords = ["pipeline", "ffb", "real-time", "filter", "compilation"]
+categories = ["embedded", "game-development", "algorithms"]
+
+[dependencies]
+openracing-curves = { workspace = true }
+openracing-errors = { workspace = true }
+openracing-filters = { workspace = true }
+racing-wheel-schemas = { path = "../schemas" }
+tokio = { workspace = true, features = ["sync"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+proptest = { workspace = true }
+criterion = { workspace = true }
+tokio-test = "0.4.5"
+
+[[bench]]
+name = "pipeline_benchmarks"
+harness = false
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -1,0 +1,5 @@
+---
+source: crates/openracing-plugin-abi/tests/snapshot_tests.rs
+expression: "format!(\"{:?}\", caps)"
+---
+PluginCapabilities(HAPTICS)

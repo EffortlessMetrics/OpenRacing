@@ -15,7 +15,15 @@ members = [
     "crates/openracing-scheduler",
     "crates/openracing-curves",
     "crates/openracing-errors",
+    "crates/openracing-filters",
+    "crates/openracing-pipeline",
+    "crates/openracing-crypto",
+    "crates/openracing-plugin-abi",
+    "crates/openracing-native-plugin",
+    "crates/openracing-wasm-runtime",
     "crates/openracing-test-helpers",
+    "crates/openracing-fmea",
+    "crates/openracing-watchdog",
     "crates/engine",
     "crates/service",
     "crates/cli",
@@ -71,7 +79,15 @@ openracing-tracing = { path = "crates/openracing-tracing" }
 openracing-scheduler = { path = "crates/openracing-scheduler" }
 openracing-curves = { path = "crates/openracing-curves" }
 openracing-errors = { path = "crates/openracing-errors" }
+openracing-filters = { path = "crates/openracing-filters" }
+openracing-pipeline = { path = "crates/openracing-pipeline" }
+openracing-crypto = { path = "crates/openracing-crypto" }
+openracing-plugin-abi = { path = "crates/openracing-plugin-abi" }
+openracing-native-plugin = { path = "crates/openracing-native-plugin" }
+openracing-wasm-runtime = { path = "crates/openracing-wasm-runtime" }
 openracing-test-helpers = { path = "crates/openracing-test-helpers" }
+openracing-fmea = { path = "crates/openracing-fmea" }
+openracing-watchdog = { path = "crates/openracing-watchdog" }
 
 # HID and hardware
 hidapi = "2.6.4"

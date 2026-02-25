@@ -1,0 +1,36 @@
+[package]
+name = "openracing-fmea"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "FMEA (Failure Mode & Effects Analysis) fault management for OpenRacing"
+keywords = ["fmea", "fault-management", "safety", "real-time", "racing"]
+categories = ["embedded", "game-development", "no-std"]
+
+[dependencies]
+serde = { workspace = true, optional = true }
+thiserror = { workspace = true }
+heapless = { version = "0.8.0", default-features = false, features = ["portable-atomic"] }
+proptest = { workspace = true, optional = true }
+
+[dev-dependencies]
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+proptest = { workspace = true }
+criterion = { workspace = true }
+approx = "0.5.1"
+
+[features]
+default = ["std"]
+std = ["serde", "proptest"]
+serde = ["dep:serde"]
+
+[[bench]]
+name = "fmea_benchmarks"
+harness = false
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

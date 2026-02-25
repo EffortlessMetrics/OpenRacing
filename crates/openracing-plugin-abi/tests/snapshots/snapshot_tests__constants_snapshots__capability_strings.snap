@@ -1,0 +1,8 @@
+---
+source: crates/openracing-plugin-abi/tests/snapshot_tests.rs
+expression: strings
+---
+READ_TELEMETRY=read_telemetry
+MODIFY_TELEMETRY=modify_telemetry
+CONTROL_LEDS=control_leds
+PROCESS_DSP=process_dsp

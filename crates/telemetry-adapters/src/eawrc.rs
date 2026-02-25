@@ -120,9 +120,7 @@ impl EAWRCAdapter {
     }
 
     fn normalize_decoded(packet: &DecodedPacket) -> NormalizedTelemetry {
-        let mut telemetry = NormalizedTelemetry::default();
-
-        if let Some(value) = value_f32(
+        let ffb_scalar = value_f32(
             &packet.values,
             &[
                 "ffb_scalar",
@@ -132,11 +130,8 @@ impl EAWRCAdapter {
                 "steer_torque",
                 "ffb",
             ],
-        ) {
-            telemetry = telemetry.with_ffb_scalar(value);
-        }
-
-        if let Some(value) = value_f32(
+        );
+        let rpm = value_f32(
             &packet.values,
             &[
                 "rpm",
@@ -144,11 +139,8 @@ impl EAWRCAdapter {
                 "vehicle_engine_rpm",
                 "powertrain_engine_rpm",
             ],
-        ) {
-            telemetry = telemetry.with_rpm(value);
-        }
-
-        if let Some(value) = value_f32(
+        );
+        let speed_ms = value_f32(
             &packet.values,
             &[
                 "speed",
@@ -158,49 +150,59 @@ impl EAWRCAdapter {
                 "speed_mps",
                 "mps",
             ],
-        ) {
-            telemetry = telemetry.with_speed_ms(value);
-        }
-
-        if let Some(value) = value_f32(
+        );
+        let slip_ratio = value_f32(
             &packet.values,
             &["slip_ratio", "vehicle_slip_ratio", "tyre_slip"],
-        ) {
-            telemetry = telemetry.with_slip_ratio(value);
-        }
-
-        if let Some(value) = value_i8(
+        );
+        let gear = value_i8(
             &packet.values,
             &["gear", "vehicle_gear", "gear_index", "vehicle_gear_index"],
-        ) {
-            telemetry = telemetry.with_gear(value);
-        }
-
-        if let Some(value) = value_string(&packet.values, &["car_id", "vehicle_name", "vehicle_id"])
-        {
-            telemetry = telemetry.with_car_id(value);
-        }
-
-        if let Some(value) = value_string(
+        );
+        let car_id = value_string(&packet.values, &["car_id", "vehicle_name", "vehicle_id"]);
+        let track_id = value_string(
             &packet.values,
             &["track_id", "track_name", "stage_name", "stage"],
-        ) {
-            telemetry = telemetry.with_track_id(value);
+        );
+
+        let mut builder = NormalizedTelemetry::builder();
+
+        if let Some(value) = ffb_scalar {
+            builder = builder.ffb_scalar(value);
+        }
+        if let Some(value) = rpm {
+            builder = builder.rpm(value);
+        }
+        if let Some(value) = speed_ms {
+            builder = builder.speed_ms(value);
+        }
+        if let Some(value) = slip_ratio {
+            builder = builder.slip_ratio(value);
+        }
+        if let Some(value) = gear {
+            builder = builder.gear(value);
+        }
+        if let Some(value) = car_id {
+            builder = builder.car_id(value);
+        }
+        if let Some(value) = track_id {
+            builder = builder.track_id(value);
         }
 
         for (channel_id, value) in &packet.values {
-            telemetry = telemetry.with_extended(channel_id.clone(), value.to_telemetry_value());
+            builder = builder.extended(channel_id.clone(), value.to_telemetry_value());
         }
 
-        telemetry
-            .with_extended(
+        builder
+            .extended(
                 "packet_id".to_string(),
                 TelemetryValue::String(packet.packet_id.clone()),
             )
-            .with_extended(
+            .extended(
                 "decoder_structure_id".to_string(),
                 TelemetryValue::String(packet.structure_id.clone()),
             )
+            .build()
     }
 }
 
@@ -1033,10 +1035,10 @@ mod tests {
         let decoded = plan.decode("session_update", &packet)?;
         let telemetry = EAWRCAdapter::normalize_decoded(&decoded);
 
-        assert_eq!(telemetry.ffb_scalar, Some(0.6));
-        assert_eq!(telemetry.rpm, Some(6400.0));
-        assert_eq!(telemetry.speed_ms, Some(51.0));
-        assert_eq!(telemetry.gear, Some(4));
+        assert_eq!(telemetry.ffb_scalar, 0.6);
+        assert_eq!(telemetry.rpm, 6400.0);
+        assert_eq!(telemetry.speed_ms, 51.0);
+        assert_eq!(telemetry.gear, 4);
         assert_eq!(
             telemetry.extended.get("packet_uid"),
             Some(&TelemetryValue::String("SU01".to_string()))
@@ -1176,10 +1178,10 @@ mod tests {
         packet.extend_from_slice(&3i8.to_le_bytes());
 
         let telemetry = adapter.normalize(&packet)?;
-        assert_eq!(telemetry.ffb_scalar, Some(0.25));
-        assert_eq!(telemetry.rpm, Some(5000.0));
-        assert_eq!(telemetry.speed_ms, Some(33.0));
-        assert_eq!(telemetry.gear, Some(3));
+        assert_eq!(telemetry.ffb_scalar, 0.25);
+        assert_eq!(telemetry.rpm, 5000.0);
+        assert_eq!(telemetry.speed_ms, 33.0);
+        assert_eq!(telemetry.gear, 3);
         Ok(())
     }
 }

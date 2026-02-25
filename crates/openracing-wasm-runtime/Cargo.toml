@@ -1,0 +1,33 @@
+[package]
+name = "openracing-wasm-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "WASM plugin runtime with capability-based sandboxing for OpenRacing"
+
+[dependencies]
+openracing-plugin-abi = { workspace = true }
+wasmtime = "41.0.0"
+wasmtime-wasi = "41.0.0"
+wasi-common = "41.0.0"
+cap-std = "4.0.0"
+tokio = { workspace = true, features = ["sync", "time", "fs"] }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+uuid = { version = "1.19.0", features = ["v4", "serde"] }
+
+[dev-dependencies]
+wat = "1.230.0"
+tempfile = "3.24.0"
+tracing-test = "0.2.5"
+proptest = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "runtime_bench"
+harness = false
+
+[features]
+default = []

@@ -8,12 +8,13 @@ pub mod support;
 pub mod writers;
 
 pub use support::{
-    load_default_matrix, matrix_game_id_set, matrix_game_ids, normalize_game_id,
-    AutoDetectConfig, GameSupport, GameSupportMatrix, GameSupportStatus, TelemetryFieldMapping,
-    TelemetrySupport, GameVersion, TELEMETRY_SUPPORT_MATRIX_YAML,
+    AutoDetectConfig, GameSupport, GameSupportMatrix, GameSupportStatus, GameVersion,
+    TELEMETRY_SUPPORT_MATRIX_YAML, TelemetryFieldMapping, TelemetrySupport, load_default_matrix,
+    matrix_game_id_set, matrix_game_ids, normalize_game_id,
 };
 pub use writers::{
-    config_writer_factories, ConfigDiff, ConfigWriter, ConfigWriterFactory, TelemetryConfig,
-    DiffOperation, ACCConfigWriter, ACRallyConfigWriter, AMS2ConfigWriter, Dirt5ConfigWriter,
-    EAWRCConfigWriter, F1ConfigWriter, F1_25ConfigWriter, IRacingConfigWriter, RFactor2ConfigWriter,
+    ACCConfigWriter, ACRallyConfigWriter, AMS2ConfigWriter, ConfigDiff, ConfigWriter,
+    ConfigWriterFactory, DiffOperation, Dirt5ConfigWriter, EAWRCConfigWriter, F1_25ConfigWriter,
+    F1ConfigWriter, IRacingConfigWriter, RFactor2ConfigWriter, TelemetryConfig,
+    config_writer_factories,
 };

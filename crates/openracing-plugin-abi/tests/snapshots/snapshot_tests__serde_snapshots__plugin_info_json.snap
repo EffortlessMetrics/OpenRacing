@@ -1,0 +1,11 @@
+---
+source: crates/openracing-plugin-abi/tests/snapshot_tests.rs
+expression: json
+---
+{
+  "name": "test",
+  "version": "1.0.0",
+  "author": "test",
+  "description": "test",
+  "abi_version": 1
+}

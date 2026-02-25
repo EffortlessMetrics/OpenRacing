@@ -348,11 +348,7 @@ impl SupportedDevices {
                 0x1839,
                 "Fanatec ClubSport Pedals V1/V2",
             ),
-            (
-                vendor_ids::FANATEC,
-                0x183B,
-                "Fanatec ClubSport Pedals V3",
-            ),
+            (vendor_ids::FANATEC, 0x183B, "Fanatec ClubSport Pedals V3"),
             (
                 vendor_ids::FANATEC,
                 0x6205,

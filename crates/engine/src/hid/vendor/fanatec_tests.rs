@@ -1,8 +1,8 @@
 //! Tests for the Fanatec protocol handler.
 
 use super::fanatec::{
-    FanatecModel, FanatecProtocol, FanatecRimId, FanatecPedalModel,
-    is_pedal_product, is_wheelbase_product, product_ids, rim_ids,
+    FanatecModel, FanatecPedalModel, FanatecProtocol, FanatecRimId, is_pedal_product,
+    is_wheelbase_product, product_ids, rim_ids,
 };
 use super::{DeviceWriter, VendorProtocol, get_vendor_protocol};
 use racing_wheel_hid_fanatec_protocol::FANATEC_VENDOR_ID;

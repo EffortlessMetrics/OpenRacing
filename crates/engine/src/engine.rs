@@ -895,6 +895,7 @@ impl Engine {
                     ts_mono_ns: frame.ts_mono_ns,
                     seq: frame.seq,
                 }),
+                tick_delta: std::time::Duration::from_micros(1000), // 1ms tick
             };
             let fault_result = ctx.fault_manager.update(&fault_context);
             ctx.component_heartbeats_scratch = Some(fault_context.component_heartbeats);

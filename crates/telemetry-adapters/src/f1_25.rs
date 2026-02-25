@@ -775,167 +775,167 @@ pub fn normalize(
         0.0
     };
 
-    NormalizedTelemetry::default()
-        .with_speed_ms(speed_ms)
-        .with_rpm(rpm)
-        .with_gear(telem.gear)
-        .with_flags(flags)
-        .with_track_id(track_id)
-        // ── Core F1 inputs ──────────────────────────────────────────────────
-        .with_extended(
+    NormalizedTelemetry::builder()
+        .speed_ms(speed_ms)
+        .rpm(rpm)
+        .gear(telem.gear)
+        .flags(flags)
+        .track_id(track_id)
+        .extended(
             "throttle".to_string(),
             TelemetryValue::Float(telem.throttle),
         )
-        .with_extended("brake".to_string(), TelemetryValue::Float(telem.brake))
-        .with_extended("steer".to_string(), TelemetryValue::Float(telem.steer))
-        .with_extended(
+        .extended("brake".to_string(), TelemetryValue::Float(telem.brake))
+        .extended("steer".to_string(), TelemetryValue::Float(telem.steer))
+        .extended(
             "drs_active".to_string(),
             TelemetryValue::Boolean(drs_active),
         )
-        .with_extended(
+        .extended(
             "drs_available".to_string(),
             TelemetryValue::Boolean(drs_available),
         )
-        .with_extended(
+        .extended(
             "ers_store_energy_j".to_string(),
             TelemetryValue::Float(status.ers_store_energy),
         )
-        .with_extended(
+        .extended(
             "ers_store_fraction".to_string(),
             TelemetryValue::Float(ers_fraction),
         )
-        .with_extended(
+        .extended(
             "ers_deploy_mode".to_string(),
             TelemetryValue::Integer(i32::from(status.ers_deploy_mode)),
         )
-        .with_extended(
+        .extended(
             "ers_harvested_mguk_j".to_string(),
             TelemetryValue::Float(status.ers_harvested_mguk),
         )
-        .with_extended(
+        .extended(
             "ers_harvested_mguh_j".to_string(),
             TelemetryValue::Float(status.ers_harvested_mguh),
         )
-        .with_extended(
+        .extended(
             "ers_deployed_j".to_string(),
             TelemetryValue::Float(status.ers_deployed),
         )
-        .with_extended(
+        .extended(
             "engine_power_ice_w".to_string(),
             TelemetryValue::Float(status.engine_power_ice),
         )
-        .with_extended(
+        .extended(
             "engine_power_mguk_w".to_string(),
             TelemetryValue::Float(status.engine_power_mguk),
         )
-        .with_extended(
+        .extended(
             "engine_temperature_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.engine_temperature)),
         )
-        .with_extended(
+        .extended(
             "rpm_fraction".to_string(),
             TelemetryValue::Float(rpm_fraction),
         )
-        .with_extended(
+        .extended(
             "fuel_remaining_kg".to_string(),
             TelemetryValue::Float(status.fuel_in_tank),
         )
-        .with_extended(
+        .extended(
             "fuel_remaining_laps".to_string(),
             TelemetryValue::Float(status.fuel_remaining_laps),
         )
-        .with_extended(
+        .extended(
             "tyre_compound".to_string(),
             TelemetryValue::Integer(i32::from(status.actual_tyre_compound)),
         )
-        .with_extended(
+        .extended(
             "tyre_compound_name".to_string(),
             TelemetryValue::String(tyre_name.to_string()),
         )
-        .with_extended(
+        .extended(
             "tyre_age_laps".to_string(),
             TelemetryValue::Integer(i32::from(status.tyre_age_laps)),
         )
-        .with_extended(
+        .extended(
             "tyre_pressure_rl_psi".to_string(),
             TelemetryValue::Float(telem.tyres_pressure[0]),
         )
-        .with_extended(
+        .extended(
             "tyre_pressure_rr_psi".to_string(),
             TelemetryValue::Float(telem.tyres_pressure[1]),
         )
-        .with_extended(
+        .extended(
             "tyre_pressure_fl_psi".to_string(),
             TelemetryValue::Float(telem.tyres_pressure[2]),
         )
-        .with_extended(
+        .extended(
             "tyre_pressure_fr_psi".to_string(),
             TelemetryValue::Float(telem.tyres_pressure[3]),
         )
-        .with_extended(
+        .extended(
             "tyre_surface_temp_rl_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[0])),
         )
-        .with_extended(
+        .extended(
             "tyre_surface_temp_rr_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[1])),
         )
-        .with_extended(
+        .extended(
             "tyre_surface_temp_fl_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[2])),
         )
-        .with_extended(
+        .extended(
             "tyre_surface_temp_fr_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[3])),
         )
-        .with_extended(
+        .extended(
             "tyre_inner_temp_rl_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_inner_temperature[0])),
         )
-        .with_extended(
+        .extended(
             "tyre_inner_temp_rr_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_inner_temperature[1])),
         )
-        .with_extended(
+        .extended(
             "tyre_inner_temp_fl_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_inner_temperature[2])),
         )
-        .with_extended(
+        .extended(
             "tyre_inner_temp_fr_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.tyres_inner_temperature[3])),
         )
-        .with_extended(
+        .extended(
             "brake_temp_rl_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.brakes_temperature[0])),
         )
-        .with_extended(
+        .extended(
             "brake_temp_rr_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.brakes_temperature[1])),
         )
-        .with_extended(
+        .extended(
             "brake_temp_fl_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.brakes_temperature[2])),
         )
-        .with_extended(
+        .extended(
             "brake_temp_fr_c".to_string(),
             TelemetryValue::Integer(i32::from(telem.brakes_temperature[3])),
         )
-        .with_extended(
+        .extended(
             "session_type".to_string(),
             TelemetryValue::Integer(i32::from(session.session_type)),
         )
-        .with_extended(
+        .extended(
             "track_temperature_c".to_string(),
             TelemetryValue::Integer(i32::from(session.track_temperature)),
         )
-        .with_extended(
+        .extended(
             "air_temperature_c".to_string(),
             TelemetryValue::Integer(i32::from(session.air_temperature)),
         )
-        .with_extended(
+        .extended(
             "decoder_type".to_string(),
             TelemetryValue::String("f1_25_native_udp".to_string()),
         )
+        .build()
 }
 
 // ── Defaults for single-packet normalize() ────────────────────────────────────
@@ -1262,13 +1262,13 @@ mod tests {
         let nt = normalize(&telem, &status, &session);
 
         let expected_ms = 180.0 / 3.6;
-        let actual_ms = nt.speed_ms.expect("speed_ms should be set");
+        let actual_ms = nt.speed_ms;
         assert!(
             (actual_ms - expected_ms).abs() < 0.01,
             "speed mismatch: {actual_ms} ≠ {expected_ms}"
         );
-        assert_eq!(nt.gear, Some(7));
-        assert_eq!(nt.rpm, Some(13000.0));
+        assert_eq!(nt.gear, 7);
+        assert_eq!(nt.rpm, 13000.0);
         Ok(())
     }
 
@@ -1436,9 +1436,9 @@ mod tests {
         let result2 = F1_25Adapter::process_packet(&mut state, &status_pkt)?;
         let nt = result2.expect("should emit after both packets");
 
-        let speed_ms = nt.speed_ms.expect("speed_ms");
+        let speed_ms = nt.speed_ms;
         assert!((speed_ms - 150.0 / 3.6).abs() < 0.01);
-        assert_eq!(nt.gear, Some(5));
+        assert_eq!(nt.gear, 5);
         Ok(())
     }
 
@@ -1479,9 +1479,9 @@ mod tests {
         let adapter = F1_25Adapter::new();
         let raw = build_car_telemetry_packet(0, 200, 7, 14500, 1.0, 0.0, 1, [23.0; 4]);
         let nt = adapter.normalize(&raw)?;
-        let speed_ms = nt.speed_ms.expect("speed_ms");
+        let speed_ms = nt.speed_ms;
         assert!((speed_ms - 200.0 / 3.6).abs() < 0.01);
-        assert_eq!(nt.gear, Some(7));
+        assert_eq!(nt.gear, 7);
         assert!(nt.flags.drs_active);
         Ok(())
     }
@@ -1631,11 +1631,11 @@ mod tests {
         let nt = normalize(&car_telem, &car_status, &session);
 
         // Speed: 310 km/h → 86.11 m/s
-        let speed = nt.speed_ms.expect("speed_ms");
+        let speed = nt.speed_ms;
         assert!((speed - 310.0 / 3.6).abs() < 0.01, "speed={speed}");
 
-        assert_eq!(nt.gear, Some(8));
-        assert_eq!(nt.rpm, Some(15000.0));
+        assert_eq!(nt.gear, 8);
+        assert_eq!(nt.rpm, 15000.0);
         assert!(nt.flags.drs_active);
         assert!(nt.flags.drs_available);
         assert!(!nt.flags.pit_limiter);
@@ -1701,7 +1701,7 @@ mod tests {
                 &CarStatusData::default_for_normalize(),
                 &SessionData::default(),
             );
-            let ms = nt.speed_ms.expect("speed_ms should always be set");
+            let ms = nt.speed_ms;
             let expected = f32::from(kmh) / 3.6;
             assert!(
                 (ms - expected).abs() < 0.01,
@@ -1732,7 +1732,7 @@ mod tests {
                 &CarStatusData::default_for_normalize(),
                 &SessionData::default(),
             );
-            assert_eq!(nt.gear, Some(gear), "gear={gear} not preserved");
+            assert_eq!(nt.gear, gear, "gear={gear} not preserved");
         }
     }
 

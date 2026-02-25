@@ -5,6 +5,13 @@ use racing_wheel_schemas::prelude::TorqueNm;
 use std::collections::HashMap;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+// Re-export FMEA types from the openracing-fmea crate
+pub use openracing_fmea::{
+    AudioAlert, AudioAlertSystem, FaultAction, FaultDetectionState, FaultMarker, FaultThresholds,
+    FaultType, FmeaEntry, FmeaError, FmeaMatrix, FmeaResult, FmeaSystem, PostMortemConfig,
+    RecoveryContext, RecoveryProcedure, RecoveryResult, RecoveryStatus, SoftStopController,
+};
+
 /// Safety state machine for torque management
 #[derive(Debug, Clone, PartialEq)]
 pub enum SafetyState {
@@ -30,20 +37,6 @@ pub enum SafetyState {
     },
     /// Faulted state (torque disabled)
     Faulted { fault: FaultType, since: Instant },
-}
-
-/// Types of faults that can occur
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum FaultType {
-    UsbStall,
-    EncoderNaN,
-    ThermalLimit,
-    Overcurrent,
-    PluginOverrun,
-    TimingViolation,
-    SafetyInterlockViolation,
-    HandsOffTimeout,
-    PipelineFault,
 }
 
 /// Physical button combination for safety interlock
@@ -83,22 +76,6 @@ pub struct ConsentRequirements {
     pub warnings: Vec<String>,
     pub disclaimers: Vec<String>,
     pub requires_explicit_consent: bool,
-}
-
-impl std::fmt::Display for FaultType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FaultType::UsbStall => write!(f, "USB communication stall"),
-            FaultType::EncoderNaN => write!(f, "Encoder returned invalid data"),
-            FaultType::ThermalLimit => write!(f, "Thermal protection triggered"),
-            FaultType::Overcurrent => write!(f, "Overcurrent protection triggered"),
-            FaultType::PluginOverrun => write!(f, "Plugin exceeded timing budget"),
-            FaultType::TimingViolation => write!(f, "Real-time timing violation"),
-            FaultType::SafetyInterlockViolation => write!(f, "Safety interlock violation"),
-            FaultType::HandsOffTimeout => write!(f, "Hands-off timeout exceeded"),
-            FaultType::PipelineFault => write!(f, "Filter pipeline processing fault"),
-        }
-    }
 }
 
 /// Safety service for managing torque limits and fault handling
@@ -668,7 +645,16 @@ pub mod fault_injection;
 pub mod fmea;
 pub mod hardware_watchdog;
 pub mod integration;
-pub mod watchdog;
+
+// Compatibility alias for watchdog module
+pub mod watchdog {
+    pub use super::hardware_watchdog::{
+        FaultLogEntry, HardwareWatchdog, SafetyInterlockState, SafetyInterlockSystem,
+        SafetyTickResult, SafetyTrigger, SharedWatchdog, SoftwareWatchdog, TimeoutResponse,
+        TorqueLimit, WatchdogError, WatchdogTimeoutHandler,
+    };
+    pub use openracing_watchdog::{HealthStatus, SystemComponent, WatchdogConfig, WatchdogSystem};
+}
 
 #[cfg(test)]
 pub mod comprehensive_tests;
@@ -676,11 +662,16 @@ pub mod comprehensive_tests;
 mod tests;
 
 pub use fault_injection::{FaultInjectionScenario, FaultInjectionSystem, TriggerCondition};
-pub use fmea::{AudioAlert, FaultThresholds, FmeaSystem, SoftStopController};
 pub use hardware_watchdog::{
     FaultLogEntry, HardwareWatchdog, SafetyInterlockState, SafetyInterlockSystem, SafetyTickResult,
     SafetyTrigger, SharedWatchdog, SoftwareWatchdog, TimeoutResponse, TorqueLimit, WatchdogError,
     WatchdogTimeoutHandler,
 };
 pub use integration::{FaultManagerContext, FaultManagerResult, IntegratedFaultManager};
-pub use watchdog::{HealthStatus, SystemComponent, WatchdogConfig, WatchdogSystem};
+// Re-export watchdog types from openracing-watchdog crate
+pub use openracing_watchdog::{
+    FaultCallback, HealthCheck, PluginStats, QuarantineEntry, QuarantineManager, QuarantineReason,
+    WatchdogConfig, WatchdogConfigBuilder, WatchdogResult, WatchdogSystem,
+};
+// Re-export health types for convenience
+pub use openracing_watchdog::{HealthStatus, SystemComponent};

@@ -189,7 +189,7 @@ impl TelemetryAdapter for MockAdapter {
     }
 
     fn normalize(&self, _raw: &[u8]) -> Result<NormalizedTelemetry> {
-        Ok(NormalizedTelemetry::default().with_rpm(5000.0))
+        Ok(NormalizedTelemetry::builder().rpm(5000.0).build())
     }
 
     fn expected_update_rate(&self) -> Duration {
@@ -216,14 +216,15 @@ fn generate_mock_telemetry(progress: f32) -> NormalizedTelemetry {
         _ => 6,
     };
 
-    NormalizedTelemetry::default()
-        .with_ffb_scalar(ffb_scalar)
-        .with_rpm(rpm.max(0.0))
-        .with_speed_ms(speed)
-        .with_slip_ratio(slip_ratio)
-        .with_gear(gear)
-        .with_car_id("mock_car".to_string())
-        .with_track_id("mock_track".to_string())
+    NormalizedTelemetry::builder()
+        .ffb_scalar(ffb_scalar)
+        .rpm(rpm.max(0.0))
+        .speed_ms(speed)
+        .slip_ratio(slip_ratio)
+        .gear(gear)
+        .car_id("mock_car".to_string())
+        .track_id("mock_track".to_string())
+        .build()
 }
 
 #[cfg(test)]

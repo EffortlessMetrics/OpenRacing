@@ -7,9 +7,9 @@ use std::time::{Duration, Instant};
 use super::{
     FaultType, SafetyService, SafetyState,
     fault_injection::{FaultInjectionSystem, InjectionContext},
-    fmea::{FaultMarker, FmeaSystem},
     watchdog::{HealthStatus, SystemComponent, WatchdogConfig, WatchdogSystem},
 };
+use openracing_fmea::{FaultMarker, FmeaSystem};
 
 /// Integrated fault management system combining FMEA, watchdog, and fault injection
 pub struct IntegratedFaultManager {
@@ -270,12 +270,21 @@ impl IntegratedFaultManager {
         }
 
         // Detect faults using FMEA system
-        if let Some(usb_info) = &context.usb_info
-            && let Some(fault) = self
+        if let Some(usb_info) = &context.usb_info {
+            // Convert Instant to Duration (elapsed since system start)
+            let last_success_duration = usb_info.last_success.map(|instant| {
+                if instant >= self.system_start_time {
+                    instant.duration_since(self.system_start_time)
+                } else {
+                    Duration::ZERO
+                }
+            });
+            if let Some(fault) = self
                 .fmea_system
-                .detect_usb_fault(usb_info.consecutive_failures, usb_info.last_success)
-        {
-            result.new_faults.push(fault);
+                .detect_usb_fault(usb_info.consecutive_failures, last_success_duration)
+            {
+                result.new_faults.push(fault);
+            }
         }
 
         if let Some(encoder_value) = context.encoder_value
@@ -328,7 +337,7 @@ impl IntegratedFaultManager {
         }
 
         // Update soft-stop controller
-        result.current_torque_multiplier = self.fmea_system.update_soft_stop();
+        result.current_torque_multiplier = self.fmea_system.update_soft_stop(context.tick_delta);
         result.soft_stop_active = self.fmea_system.is_soft_stop_active();
 
         // Check for recovery opportunities
@@ -356,35 +365,26 @@ impl IntegratedFaultManager {
 
     /// Handle a detected fault
     fn handle_fault(&mut self, fault_type: FaultType, current_torque: f32) {
+        // Update FMEA system time
+        let elapsed = self.system_start_time.elapsed();
+        self.fmea_system.update_time(elapsed);
+
         // Handle fault through FMEA system
-        if let Err(e) =
-            self.fmea_system
-                .handle_fault(fault_type, current_torque, &mut self.safety_service)
-        {
+        if let Err(e) = self.fmea_system.handle_fault(fault_type, current_torque) {
             eprintln!("Error handling fault {:?}: {}", fault_type, e);
         }
 
-        // Create blackbox marker
-        let marker = FaultMarker {
-            fault_type,
-            timestamp: Instant::now(),
-            pre_fault_data_offset: 0, // Would be calculated by blackbox system
-            post_fault_data_length: 0, // Would be calculated by blackbox system
-            device_state: HashMap::new(), // Would be populated with actual device state
-            telemetry_snapshot: None, // Would be populated with telemetry data
-            plugin_states: HashMap::new(), // Would be populated with plugin states
-            recovery_actions: self
-                .recovery_procedures
-                .get(&fault_type)
-                .map(|proc| {
-                    proc.steps
-                        .iter()
-                        .map(|step| step.description.clone())
-                        .collect()
-                })
-                .unwrap_or_default(),
-        };
+        // Report fault to safety service
+        self.safety_service.report_fault(fault_type);
 
+        // Create blackbox marker
+        let mut marker = FaultMarker::new(fault_type, elapsed);
+        // Add recovery actions
+        if let Some(proc) = self.recovery_procedures.get(&fault_type) {
+            for step in &proc.steps {
+                let _ = marker.add_recovery_action(&step.description);
+            }
+        }
         self.blackbox_markers.push(marker);
     }
 
@@ -516,7 +516,9 @@ impl IntegratedFaultManager {
             }
             RecoveryAction::RestartPlugin(plugin_id) => {
                 // Release from quarantine to allow restart
-                self.watchdog_system.release_plugin_quarantine(plugin_id)
+                self.watchdog_system
+                    .release_plugin_quarantine(plugin_id)
+                    .map_err(|e| format!("Failed to restart plugin: {:?}", e))
             }
             RecoveryAction::Custom(action_name, _parameters) => {
                 // Custom actions would be implemented based on specific needs
@@ -676,7 +678,8 @@ impl IntegratedFaultManager {
 
     /// Clear old blackbox markers
     pub fn clear_old_blackbox_markers(&mut self, older_than: Duration) {
-        let cutoff = Instant::now() - older_than;
+        let elapsed = self.system_start_time.elapsed();
+        let cutoff = elapsed.saturating_sub(older_than);
         self.blackbox_markers
             .retain(|marker| marker.timestamp > cutoff);
     }
@@ -693,6 +696,8 @@ pub struct FaultManagerContext {
     pub plugin_execution: Option<PluginExecution>,
     pub component_heartbeats: HashMap<SystemComponent, bool>,
     pub frame: Option<crate::rt::Frame>,
+    /// Time delta since last update (for soft-stop controller)
+    pub tick_delta: Duration,
 }
 
 /// USB communication information

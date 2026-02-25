@@ -1,0 +1,31 @@
+[package]
+name = "openracing-plugin-abi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Plugin ABI definitions for OpenRacing with versioning and stability guarantees"
+keywords = ["abi", "plugin", "wasm", "ffi", "real-time"]
+categories = ["no-std", "embedded", "wasm"]
+
+[dependencies]
+bitflags = "2.10.0"
+serde = { workspace = true, optional = true }
+static_assertions = "1.1.0"
+
+[dev-dependencies]
+proptest = { workspace = true }
+quickcheck = "1.0.3"
+quickcheck_macros = "1.1.0"
+insta = "1.42.2"
+serde_json = { workspace = true }
+
+[features]
+default = ["std"]
+std = ["serde"]
+serde = ["dep:serde"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

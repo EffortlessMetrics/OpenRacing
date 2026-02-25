@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
+use openracing_crypto::trust_store::TrustStore;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -13,7 +14,6 @@ use crate::native::{NativePluginConfig, NativePluginHost};
 use crate::quarantine::{QuarantineManager, QuarantinePolicy, ViolationType};
 use crate::wasm::WasmPluginHost;
 use crate::{PluginClass, PluginContext, PluginError, PluginOutput, PluginResult, PluginStats};
-use racing_wheel_service::crypto::trust_store::TrustStore;
 
 /// Plugin registry entry
 #[derive(Debug, Clone)]
@@ -190,8 +190,14 @@ impl PluginHost {
                     .await?;
             }
             PluginClass::Fast => {
+                let max_execution_time_us = entry.manifest.constraints.max_execution_time_us;
                 self.native_host
-                    .load_plugin(entry.manifest.clone(), &entry.plugin_path)
+                    .load_plugin(
+                        entry.manifest.id,
+                        entry.manifest.name.clone(),
+                        &entry.plugin_path,
+                        max_execution_time_us,
+                    )
                     .await?;
             }
         }

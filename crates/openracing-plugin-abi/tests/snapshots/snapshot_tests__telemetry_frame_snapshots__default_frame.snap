@@ -1,0 +1,12 @@
+---
+source: crates/openracing-plugin-abi/tests/snapshot_tests.rs
+expression: "format!(\"{:#?}\", frame)"
+---
+TelemetryFrame {
+    timestamp_us: 0,
+    wheel_angle_deg: 0.0,
+    wheel_speed_rad_s: 0.0,
+    temperature_c: 20.0,
+    fault_flags: 0,
+    _pad: 0,
+}
