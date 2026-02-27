@@ -30,6 +30,8 @@ racing-wheel-srp = { path = "../crates/srp" }
 racing-wheel-hbp = { path = "../crates/hbp" }
 racing-wheel-moza-wheelbase-report = { path = "../crates/moza-wheelbase-report" }
 
+racing-wheel-hid-button-box-protocol = { path = "../crates/hid-button-box-protocol" }
+
 # Fuzzing requires nightly and release-like optimizations.
 [[bin]]
 name = "fuzz_ffbeast_input"
@@ -190,6 +192,12 @@ doc = false
 [[bin]]
 name = "fuzz_openffboard_input"
 path = "fuzz_targets/fuzz_openffboard_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_button_box_input"
+path = "fuzz_targets/fuzz_button_box_input.rs"
 test = false
 doc = false
 

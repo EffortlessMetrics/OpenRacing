@@ -221,6 +221,7 @@ mod tests {
     #[test]
     fn test_axis_access() {
         let report = ButtonBoxInputReport {
+            axis_x: 1000,
             axis_y: 2000,
             axis_z: 3000,
             axis_rz: 4000,
