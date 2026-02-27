@@ -42,7 +42,7 @@ impl Default for WatchdogConfig {
         Self {
             plugin_timeout_us: 100,
             plugin_max_timeouts: 5,
-            plugin_quarantine_duration: Duration::from_secs(300),
+            plugin_quarantine_duration: Duration::from_mins(5),
             rt_thread_timeout_ms: 10,
             hid_timeout_ms: 50,
             telemetry_timeout_ms: 1000,
@@ -155,6 +155,9 @@ impl WatchdogConfigBuilder {
     }
 }
 
+/// Type alias for the list of registered fault callbacks.
+type FaultCallbacks = Vec<Arc<dyn Fn(FaultType, &str) + Send + Sync>>;
+
 /// Watchdog system for monitoring plugins and system components.
 ///
 /// This struct provides comprehensive monitoring capabilities:
@@ -182,7 +185,7 @@ pub struct WatchdogSystem {
     quarantine_manager: RwLock<QuarantineManager>,
     last_health_check: RwLock<Instant>,
     quarantine_policy_enabled: RwLock<bool>,
-    fault_callbacks: RwLock<Vec<Arc<dyn Fn(FaultType, &str) + Send + Sync>>>,
+    fault_callbacks: RwLock<FaultCallbacks>,
 }
 
 impl WatchdogSystem {
@@ -284,7 +287,7 @@ impl WatchdogSystem {
     #[must_use]
     pub fn is_plugin_quarantined(&self, plugin_id: &str) -> bool {
         let stats = self.plugin_stats.read();
-        stats.get(plugin_id).map_or(false, |s| s.is_quarantined())
+        stats.get(plugin_id).is_some_and(PluginStats::is_quarantined)
     }
 
     /// Get plugin statistics.
@@ -360,12 +363,14 @@ impl WatchdogSystem {
 
         if status == HealthStatus::Faulted {
             let fault_type = match component {
-                SystemComponent::RtThread => FaultType::TimingViolation,
-                SystemComponent::HidCommunication => FaultType::UsbStall,
-                SystemComponent::TelemetryAdapter => FaultType::TimingViolation,
+                SystemComponent::RtThread | SystemComponent::TelemetryAdapter => {
+                    FaultType::TimingViolation
+                }
+                SystemComponent::HidCommunication | SystemComponent::DeviceManager => {
+                    FaultType::UsbStall
+                }
                 SystemComponent::PluginHost => FaultType::PluginOverrun,
                 SystemComponent::SafetySystem => FaultType::SafetyInterlockViolation,
-                SystemComponent::DeviceManager => FaultType::UsbStall,
             };
 
             let callbacks = self.fault_callbacks.read();
@@ -420,18 +425,17 @@ impl WatchdogSystem {
         {
             let mut checks = self.health_checks.write();
 
-            if let Some(health_check) = checks.get_mut(&SystemComponent::RtThread) {
-                if health_check
+            if let Some(health_check) = checks.get_mut(&SystemComponent::RtThread)
+                && health_check
                     .check_timeout(Duration::from_millis(self.config.rt_thread_timeout_ms))
-                {
-                    faults.push(FaultType::TimingViolation);
-                }
+            {
+                faults.push(FaultType::TimingViolation);
             }
 
-            if let Some(health_check) = checks.get_mut(&SystemComponent::HidCommunication) {
-                if health_check.check_timeout(Duration::from_millis(self.config.hid_timeout_ms)) {
-                    faults.push(FaultType::UsbStall);
-                }
+            if let Some(health_check) = checks.get_mut(&SystemComponent::HidCommunication)
+                && health_check.check_timeout(Duration::from_millis(self.config.hid_timeout_ms))
+            {
+                faults.push(FaultType::UsbStall);
             }
 
             if let Some(health_check) = checks.get_mut(&SystemComponent::TelemetryAdapter) {
@@ -497,6 +501,7 @@ impl WatchdogSystem {
 
     /// Get plugin performance metrics.
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn get_plugin_performance_metrics(&self) -> HashMap<String, HashMap<String, f64>> {
         let stats = self.plugin_stats.read();
         stats
@@ -517,18 +522,17 @@ impl WatchdogSystem {
                 );
                 metrics.insert(
                     "quarantine_count".to_string(),
-                    plugin_stats.quarantine_count as f64,
+                    f64::from(plugin_stats.quarantine_count),
                 );
                 metrics.insert(
                     "consecutive_timeouts".to_string(),
-                    plugin_stats.consecutive_timeouts as f64,
+                    f64::from(plugin_stats.consecutive_timeouts),
                 );
 
                 if let Some(remaining) = plugin_stats.quarantine_remaining() {
-                    metrics.insert(
-                        "quarantine_remaining_ms".to_string(),
-                        remaining.as_millis() as f64,
-                    );
+                    #[allow(clippy::cast_precision_loss)]
+                    let remaining_ms = remaining.as_millis() as f64;
+                    metrics.insert("quarantine_remaining_ms".to_string(), remaining_ms);
                 }
 
                 (plugin_id.clone(), metrics)
@@ -608,7 +612,7 @@ impl std::fmt::Debug for WatchdogSystem {
                 "quarantine_policy_enabled",
                 &*self.quarantine_policy_enabled.read(),
             )
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 

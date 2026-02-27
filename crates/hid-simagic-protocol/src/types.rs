@@ -28,19 +28,26 @@ pub struct SimagicDeviceIdentity {
 /// Identify a Simagic product.
 pub fn identify_device(product_id: u16) -> SimagicDeviceIdentity {
     match product_id {
-        product_ids::ALPHA => SimagicDeviceIdentity {
+        product_ids::EVO_SPORT => SimagicDeviceIdentity {
             product_id,
-            name: "Simagic Alpha",
+            name: "Simagic EVO Sport",
             category: SimagicDeviceCategory::Wheelbase,
             supports_ffb: true,
             max_torque_nm: Some(15.0),
         },
-        product_ids::ALPHA_MINI => SimagicDeviceIdentity {
+        product_ids::EVO => SimagicDeviceIdentity {
             product_id,
-            name: "Simagic Alpha Mini",
+            name: "Simagic EVO",
             category: SimagicDeviceCategory::Wheelbase,
             supports_ffb: true,
-            max_torque_nm: Some(10.0),
+            max_torque_nm: Some(20.0),
+        },
+        product_ids::EVO_PRO => SimagicDeviceIdentity {
+            product_id,
+            name: "Simagic EVO Pro",
+            category: SimagicDeviceCategory::Wheelbase,
+            supports_ffb: true,
+            max_torque_nm: Some(30.0),
         },
         product_ids::ALPHA_EVO => SimagicDeviceIdentity {
             product_id,
@@ -48,13 +55,6 @@ pub fn identify_device(product_id: u16) -> SimagicDeviceIdentity {
             category: SimagicDeviceCategory::Wheelbase,
             supports_ffb: true,
             max_torque_nm: Some(15.0),
-        },
-        product_ids::M10 => SimagicDeviceIdentity {
-            product_id,
-            name: "Simagic M10",
-            category: SimagicDeviceCategory::Wheelbase,
-            supports_ffb: true,
-            max_torque_nm: Some(10.0),
         },
         product_ids::NEO => SimagicDeviceIdentity {
             product_id,
@@ -136,10 +136,10 @@ pub fn is_wheelbase_product(product_id: u16) -> bool {
 /// Simagic device model.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SimagicModel {
-    Alpha,
-    AlphaMini,
+    EvoSport,
+    Evo,
+    EvoPro,
     AlphaEvo,
-    M10,
     Neo,
     NeoMini,
     P1000,
@@ -153,10 +153,10 @@ pub enum SimagicModel {
 impl SimagicModel {
     pub fn from_pid(pid: u16) -> Self {
         match pid {
-            product_ids::ALPHA => Self::Alpha,
-            product_ids::ALPHA_MINI => Self::AlphaMini,
+            product_ids::EVO_SPORT => Self::EvoSport,
+            product_ids::EVO => Self::Evo,
+            product_ids::EVO_PRO => Self::EvoPro,
             product_ids::ALPHA_EVO => Self::AlphaEvo,
-            product_ids::M10 => Self::M10,
             product_ids::NEO => Self::Neo,
             product_ids::NEO_MINI => Self::NeoMini,
             product_ids::P1000_PEDALS | product_ids::P1000A_PEDALS => Self::P1000,
@@ -170,11 +170,12 @@ impl SimagicModel {
 
     pub fn max_torque_nm(&self) -> f32 {
         match self {
-            Self::Alpha | Self::AlphaEvo => 15.0,
-            Self::AlphaMini | Self::M10 | Self::Neo => 10.0,
-            Self::NeoMini => 7.0,
+            Self::EvoPro => 30.0,
+            Self::Evo | Self::AlphaEvo => 20.0,
+            Self::EvoSport | Self::Neo => 15.0,
+            Self::NeoMini => 10.0,
             Self::P1000 | Self::P2000 | Self::ShifterH | Self::ShifterSeq | Self::Handbrake => 0.0,
-            Self::Unknown => 10.0,
+            Self::Unknown => 15.0,
         }
     }
 }
@@ -291,8 +292,10 @@ mod tests {
     #[test]
     fn test_identify_device_known_pids() {
         let known_pids = [
-            0x0101u16, 0x0102, 0x0103, 0x0201, 0x0301, 0x0302, 0x1001, 0x1002, 0x2001, 0x2002,
-            0x3001,
+            // EVO wheelbases (verified)
+            0x0500u16, 0x0501, 0x0502,
+            // Accessories (estimated PIDs)
+            0x1001, 0x1002, 0x2001, 0x2002, 0x3001,
         ];
 
         for &pid in &known_pids {
@@ -316,7 +319,7 @@ mod tests {
 
     #[test]
     fn test_is_wheelbase_product_known_wheelbases() {
-        let wheelbase_pids = [0x0101u16, 0x0102, 0x0103, 0x0201, 0x0301, 0x0302];
+        let wheelbase_pids = [0x0500u16, 0x0501, 0x0502];
 
         for &pid in &wheelbase_pids {
             assert!(is_wheelbase_product(pid));
@@ -335,18 +338,18 @@ mod tests {
     #[test]
     fn test_simagic_model_max_torque() {
         let models_and_torques = [
-            (SimagicModel::Alpha, 15.0),
-            (SimagicModel::AlphaMini, 10.0),
-            (SimagicModel::AlphaEvo, 15.0),
-            (SimagicModel::M10, 10.0),
-            (SimagicModel::Neo, 10.0),
-            (SimagicModel::NeoMini, 7.0),
+            (SimagicModel::EvoSport, 15.0),
+            (SimagicModel::Evo, 20.0),
+            (SimagicModel::EvoPro, 30.0),
+            (SimagicModel::AlphaEvo, 20.0),
+            (SimagicModel::Neo, 15.0),
+            (SimagicModel::NeoMini, 10.0),
             (SimagicModel::P1000, 0.0),
             (SimagicModel::P2000, 0.0),
             (SimagicModel::ShifterH, 0.0),
             (SimagicModel::ShifterSeq, 0.0),
             (SimagicModel::Handbrake, 0.0),
-            (SimagicModel::Unknown, 10.0),
+            (SimagicModel::Unknown, 15.0),
         ];
 
         for (model, expected_torque) in models_and_torques {

@@ -1,0 +1,11 @@
+---
+source: crates/hid-ffbeast-protocol/tests/snapshot_tests.rs
+expression: report
+---
+[
+    1,
+    16,
+    39,
+    0,
+    0,
+]

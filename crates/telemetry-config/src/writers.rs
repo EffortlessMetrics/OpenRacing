@@ -94,6 +94,18 @@ fn new_gran_turismo_7_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(GranTurismo7ConfigWriter)
 }
 
+fn new_assetto_corsa_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(AssettoCorsaConfigWriter)
+}
+
+fn new_forza_motorsport_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(ForzaMotorsportConfigWriter)
+}
+
+fn new_beamng_drive_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(BeamNGDriveConfigWriter)
+}
+
 fn new_f1_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(F1ConfigWriter)
 }
@@ -117,6 +129,9 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("dirt_rally_2", new_dirt_rally_2_config_writer),
         ("rbr", new_rbr_config_writer),
         ("gran_turismo_7", new_gran_turismo_7_config_writer),
+        ("assetto_corsa", new_assetto_corsa_config_writer),
+        ("forza_motorsport", new_forza_motorsport_config_writer),
+        ("beamng_drive", new_beamng_drive_config_writer),
     ]
 }
 
@@ -1639,6 +1654,360 @@ impl ConfigWriter for EAWRCConfigWriter {
                 operation: DiffOperation::Add,
             },
         ])
+    }
+}
+
+/// Assetto Corsa (original) configuration writer.
+///
+/// AC uses the OutGauge UDP protocol (port 9996). Since the OutGauge output target
+/// is configured inside the game, this writer creates a bridge contract that documents
+/// the expected UDP listener configuration.
+pub struct AssettoCorsaConfigWriter;
+
+impl Default for AssettoCorsaConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+const AC_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/assetto_corsa_bridge_contract.json";
+const AC_BRIDGE_PROTOCOL: &str = "ac_outgauge_udp";
+const AC_DEFAULT_PORT: u16 = 9996;
+
+impl ConfigWriter for AssettoCorsaConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Assetto Corsa bridge contract configuration");
+
+        let contract_path = game_path.join(AC_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(AC_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "assetto_corsa",
+            "telemetry_protocol": AC_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "setup_notes": [
+                "In Assetto Corsa, enable OutGauge in the Documents/Assetto Corsa/cfg/openracing.ini file:",
+                "  [OutGauge]",
+                "  Mode=2",
+                "  IP=127.0.0.1",
+                "  Port=9996",
+                "  Delay=0",
+                "  ID=1"
+            ],
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(AC_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == AC_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "assetto_corsa")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(AC_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "assetto_corsa",
+            "telemetry_protocol": AC_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "setup_notes": [
+                "In Assetto Corsa, enable OutGauge in the Documents/Assetto Corsa/cfg/openracing.ini file:",
+                "  [OutGauge]",
+                "  Mode=2",
+                "  IP=127.0.0.1",
+                "  Port=9996",
+                "  Delay=0",
+                "  ID=1"
+            ],
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: AC_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Forza Motorsport / Forza Horizon configuration writer.
+///
+/// Forza's "Data Out" feature is configured in-game only. This writer creates a bridge
+/// contract documenting the expected UDP listener on port 5300.
+pub struct ForzaMotorsportConfigWriter;
+
+impl Default for ForzaMotorsportConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+const FORZA_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/forza_motorsport_bridge_contract.json";
+const FORZA_BRIDGE_PROTOCOL: &str = "forza_data_out_udp";
+const FORZA_DEFAULT_PORT: u16 = 5300;
+
+impl ConfigWriter for ForzaMotorsportConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Forza Motorsport bridge contract configuration");
+
+        let contract_path = game_path.join(FORZA_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(FORZA_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "forza_motorsport",
+            "telemetry_protocol": FORZA_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "supported_formats": ["sled_232", "cardash_311"],
+            "setup_notes": [
+                "In Forza Motorsport / Forza Horizon, enable Data Out in game settings:",
+                "  HUD and Gameplay > Data Out > On",
+                "  Data Out IP Address: 127.0.0.1",
+                "  Data Out IP Port: 5300"
+            ],
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(FORZA_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == FORZA_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "forza_motorsport")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(FORZA_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "forza_motorsport",
+            "telemetry_protocol": FORZA_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "supported_formats": ["sled_232", "cardash_311"],
+            "setup_notes": [
+                "In Forza Motorsport / Forza Horizon, enable Data Out in game settings:",
+                "  HUD and Gameplay > Data Out > On",
+                "  Data Out IP Address: 127.0.0.1",
+                "  Data Out IP Port: 5300"
+            ],
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: FORZA_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// BeamNG.drive configuration writer.
+///
+/// BeamNG.drive exposes telemetry via the OutGauge protocol (port 4444), enabled through
+/// its in-game apps system. This writer creates a bridge contract documenting the listener.
+pub struct BeamNGDriveConfigWriter;
+
+impl Default for BeamNGDriveConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+const BEAMNG_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/beamng_drive_bridge_contract.json";
+const BEAMNG_BRIDGE_PROTOCOL: &str = "beamng_outgauge_udp";
+const BEAMNG_DEFAULT_PORT: u16 = 4444;
+
+impl ConfigWriter for BeamNGDriveConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing BeamNG.drive bridge contract configuration");
+
+        let contract_path = game_path.join(BEAMNG_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(BEAMNG_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "beamng_drive",
+            "telemetry_protocol": BEAMNG_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "packet_format": "lfs_outgauge_96bytes",
+            "setup_notes": [
+                "In BeamNG.drive, enable the OutGauge app from the apps menu.",
+                "Set the UDP IP to 127.0.0.1 and port to 4444.",
+                "Alternatively, edit settings/electrics.json to enable OutGauge."
+            ],
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(BEAMNG_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == BEAMNG_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "beamng_drive")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(BEAMNG_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "beamng_drive",
+            "telemetry_protocol": BEAMNG_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "packet_format": "lfs_outgauge_96bytes",
+            "setup_notes": [
+                "In BeamNG.drive, enable the OutGauge app from the apps menu.",
+                "Set the UDP IP to 127.0.0.1 and port to 4444.",
+                "Alternatively, edit settings/electrics.json to enable OutGauge."
+            ],
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: BEAMNG_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
     }
 }
 

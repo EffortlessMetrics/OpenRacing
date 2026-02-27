@@ -1,13 +1,16 @@
 //! Cammus USB vendor and product ID constants.
+//!
+//! VID `0x3416` is assigned to Shenzhen Cammus Electronic Technology Co., Ltd.
+//! Source: linux-steering-wheels compatibility table, USB VID registry.
 
-/// Cammus USB Vendor ID.
-pub const VENDOR_ID: u16 = 0x3285;
+/// Cammus USB Vendor ID (Shenzhen Cammus Electronic Technology Co., Ltd.).
+pub const VENDOR_ID: u16 = 0x3416;
 
 /// Cammus C5 (5 Nm desktop direct drive wheel) product ID.
-pub const PRODUCT_C5: u16 = 0x0002;
+pub const PRODUCT_C5: u16 = 0x0301;
 
 /// Cammus C12 (12 Nm desktop direct drive wheel) product ID.
-pub const PRODUCT_C12: u16 = 0x0003;
+pub const PRODUCT_C12: u16 = 0x0302;
 
 /// Returns `true` if the VID/PID pair identifies a known Cammus device.
 pub fn is_cammus(vid: u16, pid: u16) -> bool {

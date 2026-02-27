@@ -1,0 +1,12 @@
+---
+source: crates/hid-ffbeast-protocol/src/output.rs
+assertion_line: 188
+expression: enc.encode(0.0)
+---
+[
+    1,
+    0,
+    0,
+    0,
+    0,
+]

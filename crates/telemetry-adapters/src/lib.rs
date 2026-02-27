@@ -4,6 +4,8 @@
 //! `racing_wheel_service` while preserving the external adapter trait and types used by
 //! higher layers.
 
+#![deny(static_mut_refs)]
+
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 

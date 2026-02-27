@@ -1,6 +1,6 @@
 # Architecture Decision Records Index
 
-Total ADRs: 6
+Total ADRs: 7
 
 | ADR | Title | Status | Date | Authors |
 |-----|-------|--------|------|---------|
@@ -10,10 +10,11 @@ Total ADRs: 6
 | [0004](0004-rt-scheduling-architecture.md) | ADR-0004: Real-Time Scheduling Architecture | Accepted | 2024-01-15 | Architecture Team, Performance Team |
 | [0005](0005-plugin-architecture.md) | ADR-0005: Plugin Architecture | Accepted | 2024-01-15 | Architecture Team, Security Team |
 | [0006](0006-safety-interlocks.md) | ADR-0006: Safety Interlocks and Fault Management | Accepted | 2024-01-15 | Safety Team, Architecture Team |
+| [0007](0007-multi-vendor-hid-protocol-architecture.md) | ADR-0007: Multi-Vendor HID Protocol Architecture (SRP Microcrates) | Accepted | 2025-01-01 | Architecture Team, Hardware Team |
 
 ## Status Summary
 
-- **Accepted**: 6
+- **Accepted**: 7
 
 ## Recent Changes
 

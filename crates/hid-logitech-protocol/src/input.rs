@@ -72,6 +72,7 @@ fn normalize_steering(raw: u16) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn test_parse_center_steering() -> Result<(), Box<dyn std::error::Error>> {
@@ -158,5 +159,63 @@ mod tests {
         let data = [0x02u8, 0x00, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         assert!(parse_input_report(&data).is_none());
         Ok(())
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        /// Parsing any arbitrary byte sequence must never panic.
+        #[test]
+        fn prop_parse_never_panics(data in proptest::collection::vec(proptest::num::u8::ANY, 0..=64)) {
+            let _ = parse_input_report(&data);
+        }
+
+        /// When parse succeeds, steering must always be in [-1.0, 1.0].
+        #[test]
+        fn prop_steering_in_valid_range(
+            steer_lsb in proptest::num::u8::ANY,
+            steer_msb in proptest::num::u8::ANY,
+            rest in proptest::collection::vec(proptest::num::u8::ANY, 8usize),
+        ) {
+            let mut data = vec![0x01u8, steer_lsb, steer_msb];
+            data.extend_from_slice(&rest);
+            if let Some(state) = parse_input_report(&data) {
+                prop_assert!(
+                    state.steering >= -1.0 && state.steering <= 1.0,
+                    "steering {} out of [-1.0, 1.0]",
+                    state.steering
+                );
+            }
+        }
+
+        /// When parse succeeds, axis values must be finite (no NaN/inf).
+        #[test]
+        fn prop_parsed_values_always_finite(
+            data in proptest::collection::vec(proptest::num::u8::ANY, 10usize..=16usize),
+        ) {
+            if data[0] == 0x01 {
+                if let Some(state) = parse_input_report(&data) {
+                    prop_assert!(state.steering.is_finite(), "steering must be finite");
+                    prop_assert!(state.throttle.is_finite(), "throttle must be finite");
+                    prop_assert!(state.brake.is_finite(), "brake must be finite");
+                    prop_assert!(state.clutch.is_finite(), "clutch must be finite");
+                    prop_assert!(state.throttle >= 0.0 && state.throttle <= 1.0);
+                    prop_assert!(state.brake >= 0.0 && state.brake <= 1.0);
+                    prop_assert!(state.clutch >= 0.0 && state.clutch <= 1.0);
+                }
+            }
+        }
+
+        /// Paddle bits must always be in 0..=3 (2-bit field).
+        #[test]
+        fn prop_paddles_two_bit(
+            data in proptest::collection::vec(proptest::num::u8::ANY, 12usize),
+        ) {
+            let mut d = data;
+            d[0] = 0x01;
+            if let Some(state) = parse_input_report(&d) {
+                prop_assert!(state.paddles <= 3, "paddles must be 0..=3, got {}", state.paddles);
+            }
+        }
     }
 }

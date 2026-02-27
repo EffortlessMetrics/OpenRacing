@@ -1,5 +1,7 @@
 //! Configuration writers for game-specific telemetry setup
 
+#![deny(static_mut_refs)]
+
 use anyhow::{Result, anyhow};
 use serde_json::{Map, Value};
 use std::fs;

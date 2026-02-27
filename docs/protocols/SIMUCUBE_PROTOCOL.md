@@ -11,22 +11,27 @@ USB connection — no proprietary handshake or initialization sequence is needed
 
 Simucube devices run at approximately 360 Hz (`bInterval = 3`) and use 64-byte HID reports.
 
+**Vendor ID note:** Simucube 2 devices use VID `0x16D0` (registered to MCS Electronics /
+OpenMoko), which is shared with Heusinkveld pedals and legacy Simagic products. Devices are
+distinguished by their product ID. Sources: Linux kernel `hid-ids.h` (`USB_VENDOR_ID_MCS =
+0x16d0`), JacKeTUs/linux-steering-wheels compatibility table.
+
 ## Device Identification
 
 ### Wheel Bases
 
 | Model | Vendor ID | Product ID | Max Torque | Encoder | Notes |
 |-------|-----------|------------|------------|---------|-------|
-| Simucube 2 Sport | `0x2D6A` | `0x0101` | 15 Nm | 22-bit | Entry direct drive |
-| Simucube 2 Pro | `0x2D6A` | `0x0102` | 25 Nm | 22-bit | Mid-tier |
-| Simucube 2 Ultimate | `0x2D6A` | `0x0103` | 35 Nm | 22-bit | Top-tier |
+| Simucube 2 Sport | `0x16D0` | `0x0D61` | 15 Nm | 22-bit | Entry direct drive |
+| Simucube 2 Pro | `0x16D0` | `0x0D60` | 25 Nm | 22-bit | Mid-tier |
+| Simucube 2 Ultimate | `0x16D0` | `0x0D5F` | 35 Nm | 22-bit | Top-tier |
 
 ### Accessories
 
 | Model | Vendor ID | Product ID | Notes |
 |-------|-----------|------------|-------|
-| Simucube ActivePedal | `0x2D6A` | `0x0201` | Load-cell force feedback pedal |
-| SimuCube Wireless Wheel | `0x2D6A` | `0x0301` | Wireless steering wheel |
+| Simucube ActivePedal | `0x16D0` | `0x0D62` | Load-cell force feedback pedal (PID estimated) |
+| SimuCube Wireless Wheel | `0x16D0` | `0x0D63` | Wireless steering wheel (PID estimated) |
 
 ## Initialization
 

@@ -394,3 +394,53 @@ mod tests {
         assert_eq!(adapter.expected_update_rate(), Duration::from_millis(16));
     }
 }
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn parse_sled_no_panic_on_arbitrary_bytes(
+            data in proptest::collection::vec(any::<u8>(), 0..512)
+        ) {
+            let _ = parse_forza_sled(&data);
+        }
+
+        #[test]
+        fn parse_cardash_no_panic_on_arbitrary_bytes(
+            data in proptest::collection::vec(any::<u8>(), 0..512)
+        ) {
+            let _ = parse_forza_cardash(&data);
+        }
+
+        #[test]
+        fn parse_forza_packet_no_panic(
+            data in proptest::collection::vec(any::<u8>(), 0..512)
+        ) {
+            let _ = parse_forza_packet(&data);
+        }
+
+        #[test]
+        fn parse_sled_rpm_nonneg_when_race_on(rpm in 0.0f32..=20000.0f32) {
+            let mut data = vec![0u8; FORZA_SLED_SIZE];
+            data[OFF_IS_RACE_ON..OFF_IS_RACE_ON + 4].copy_from_slice(&1i32.to_le_bytes());
+            data[OFF_CURRENT_RPM..OFF_CURRENT_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
+            if let Ok(result) = parse_forza_sled(&data) {
+                prop_assert!(result.rpm >= 0.0);
+            }
+        }
+
+        #[test]
+        fn parse_sled_steering_clamped(steer in any::<f32>()) {
+            let mut data = vec![0u8; FORZA_SLED_SIZE];
+            data[OFF_IS_RACE_ON..OFF_IS_RACE_ON + 4].copy_from_slice(&1i32.to_le_bytes());
+            data[OFF_STEER..OFF_STEER + 4].copy_from_slice(&steer.to_le_bytes());
+            if let Ok(result) = parse_forza_sled(&data) {
+                prop_assert!(result.steering_angle >= -1.0);
+                prop_assert!(result.steering_angle <= 1.0);
+            }
+        }
+    }
+}

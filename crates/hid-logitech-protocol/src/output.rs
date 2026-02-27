@@ -137,6 +137,7 @@ pub fn build_gain_report(gain: u8) -> [u8; 2] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn test_native_mode_report() -> Result<(), Box<dyn std::error::Error>> {
@@ -184,6 +185,17 @@ mod tests {
         assert_eq!(r[1], 0x14, "command must be SET_AUTOCENTER (0x14)");
         assert_eq!(r[2], 0x40, "strength byte");
         assert_eq!(r[3], 0x80, "rate byte");
+        assert_eq!(&r[4..], &[0u8; 3]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_set_autocenter_zero() -> Result<(), Box<dyn std::error::Error>> {
+        let r = build_set_autocenter_report(0x00, 0x00);
+        assert_eq!(r[0], 0xF8);
+        assert_eq!(r[1], 0x14);
+        assert_eq!(r[2], 0x00, "zero strength");
+        assert_eq!(r[3], 0x00, "zero rate");
         assert_eq!(&r[4..], &[0u8; 3]);
         Ok(())
     }
@@ -260,5 +272,97 @@ mod tests {
         let mag = i16::from_le_bytes([out[2], out[3]]);
         assert_eq!(mag, -10000, "over-torque must saturate at -10000");
         Ok(())
+    }
+
+    /// Verify that vendor (0xF8) report bytes 2–6 are zero for all commands.
+    #[test]
+    fn test_vendor_report_padding_zero() -> Result<(), Box<dyn std::error::Error>> {
+        let reports: [[u8; VENDOR_REPORT_LEN]; 3] = [
+            build_native_mode_report(),
+            build_set_range_report(0),
+            build_set_autocenter_report(0, 0),
+        ];
+        for r in &reports {
+            assert_eq!(r[0], 0xF8, "report ID must always be 0xF8");
+        }
+        // Native mode: bytes 2–6 all zero
+        assert_eq!(&build_native_mode_report()[2..], &[0u8; 5]);
+        Ok(())
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        #[test]
+        fn prop_encode_no_overflow(torque_nm in proptest::num::f32::ANY) {
+            let enc = LogitechConstantForceEncoder::new(2.2);
+            let mut out = [0u8; CONSTANT_FORCE_REPORT_LEN];
+            enc.encode(torque_nm, &mut out);
+            let mag = i16::from_le_bytes([out[2], out[3]]);
+            prop_assert!(
+                mag >= -10_000 && mag <= 10_000,
+                "magnitude {} out of range for torque_nm={}",
+                mag,
+                torque_nm
+            );
+        }
+
+        #[test]
+        fn prop_report_id_always_correct(torque_nm in proptest::num::f32::ANY) {
+            let enc = LogitechConstantForceEncoder::new(2.2);
+            let mut out = [0u8; CONSTANT_FORCE_REPORT_LEN];
+            enc.encode(torque_nm, &mut out);
+            prop_assert_eq!(out[0], 0x12, "report ID must always be 0x12");
+            prop_assert_eq!(out[1], 1u8, "effect block index must always be 1");
+        }
+
+        /// Verify that encoding within [-max, +max] is monotone (larger input → larger or equal output).
+        #[test]
+        fn prop_encode_monotone(
+            a in -2.2f32..=2.2f32,
+            b in -2.2f32..=2.2f32,
+        ) {
+            let enc = LogitechConstantForceEncoder::new(2.2);
+            let mut out_a = [0u8; CONSTANT_FORCE_REPORT_LEN];
+            let mut out_b = [0u8; CONSTANT_FORCE_REPORT_LEN];
+            enc.encode(a, &mut out_a);
+            enc.encode(b, &mut out_b);
+            let mag_a = i16::from_le_bytes([out_a[2], out_a[3]]);
+            let mag_b = i16::from_le_bytes([out_b[2], out_b[3]]);
+            if a <= b {
+                prop_assert!(mag_a <= mag_b, "monotone violated: encode({}) = {} > encode({}) = {}", a, mag_a, b, mag_b);
+            } else {
+                prop_assert!(mag_a >= mag_b, "monotone violated: encode({}) = {} < encode({}) = {}", a, mag_a, b, mag_b);
+            }
+        }
+
+        /// Boundary: normalized input ±1.0 × max_torque must produce ±10000.
+        #[test]
+        fn prop_boundary_inputs_produce_full_scale(
+            max_torque in 0.01f32..=20.0f32,
+        ) {
+            let enc = LogitechConstantForceEncoder::new(max_torque);
+            let mut out = [0u8; CONSTANT_FORCE_REPORT_LEN];
+
+            enc.encode(max_torque, &mut out);
+            let mag_pos = i16::from_le_bytes([out[2], out[3]]);
+            prop_assert_eq!(mag_pos, 10_000i16, "positive full scale must be 10000");
+
+            enc.encode(-max_torque, &mut out);
+            let mag_neg = i16::from_le_bytes([out[2], out[3]]);
+            prop_assert_eq!(mag_neg, -10_000i16, "negative full scale must be -10000");
+        }
+
+        /// Zero torque must always encode to zero magnitude.
+        #[test]
+        fn prop_zero_input_produces_zero(
+            max_torque in 0.01f32..=20.0f32,
+        ) {
+            let enc = LogitechConstantForceEncoder::new(max_torque);
+            let mut out = [0u8; CONSTANT_FORCE_REPORT_LEN];
+            enc.encode(0.0, &mut out);
+            let mag = i16::from_le_bytes([out[2], out[3]]);
+            prop_assert_eq!(mag, 0i16, "zero torque must encode to zero");
+        }
     }
 }

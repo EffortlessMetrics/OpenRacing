@@ -1,7 +1,7 @@
 //! Simagic protocol handler.
 //!
-//! Legacy devices (VIDs 0x0483, 0x16D0, 0x3670) use capture-first/passive mode.
-//! Modern 0x2D5C devices use active FFB initialization via the simagic protocol crate.
+//! Legacy devices (VIDs 0x0483, 0x16D0) use passive/capture mode.
+//! EVO-generation devices (VID 0x3670) use active FFB initialization.
 
 #![deny(static_mut_refs)]
 
@@ -17,15 +17,13 @@ use racing_wheel_hid_simagic_protocol::ids::report_ids;
 pub mod vendor_ids {
     /// Legacy Simagic VID (STMicroelectronics-based USB stack).
     pub const SIMAGIC_STM: u16 = 0x0483;
-    /// Legacy Simagic alternate VID.
+    /// Legacy Simagic alternate VID (MCS/OpenMoko, shared with Heusinkveld).
     pub const SIMAGIC_ALT: u16 = 0x16D0;
-    /// Simagic-owned VID used by newer devices.
+    /// Simagic EVO VID (Shen Zhen Simagic Technology Co., Ltd.).
     pub const SIMAGIC_EVO: u16 = 0x3670;
-    /// Modern Simagic VID (2D5C family) with active FFB support.
-    pub const SIMAGIC_MODERN: u16 = 0x2D5C;
 }
 
-/// Known and candidate Simagic product IDs.
+/// Known Simagic product IDs.
 pub mod product_ids {
     // Legacy PIDs (VIDs 0x0483, 0x16D0)
     pub const ALPHA: u16 = 0x0522;
@@ -34,18 +32,10 @@ pub mod product_ids {
     pub const M10: u16 = 0x0D5A;
     pub const FX: u16 = 0x0D5B;
 
-    // Capture-candidate IDs for Alpha EVO generation (VID 0x3670).
-    pub const ALPHA_EVO_SPORT_CANDIDATE: u16 = 0x0001;
-    pub const ALPHA_EVO_CANDIDATE: u16 = 0x0002;
-    pub const ALPHA_EVO_PRO_CANDIDATE: u16 = 0x0003;
-
-    // Modern PIDs (VID 0x2D5C)
-    pub const ALPHA_MODERN: u16 = 0x0101;
-    pub const ALPHA_MINI_MODERN: u16 = 0x0102;
-    pub const ALPHA_EVO: u16 = 0x0103;
-    pub const M10_MODERN: u16 = 0x0201;
-    pub const NEO: u16 = 0x0301;
-    pub const NEO_MINI: u16 = 0x0302;
+    // EVO generation PIDs (VID 0x3670) — verified via linux-steering-wheels
+    pub const EVO_SPORT: u16 = 0x0500;
+    pub const EVO: u16 = 0x0501;
+    pub const EVO_PRO: u16 = 0x0502;
 }
 
 /// Simagic model classification used for conservative defaults.
@@ -56,38 +46,21 @@ pub enum SimagicModel {
     AlphaUltimate,
     M10,
     Fx,
-    AlphaEvoSportCandidate,
-    AlphaEvoCandidate,
-    AlphaEvoProCandidate,
-    AlphaEvoUnknown,
-    // Modern 0x2D5C variants
-    AlphaEvo,
-    M10New,
-    Neo,
-    NeoMini,
+    EvoSport,
+    Evo,
+    EvoPro,
+    EvoUnknown,
     Unknown,
 }
 
 impl SimagicModel {
     fn from_ids(vendor_id: u16, product_id: u16) -> Self {
-        if vendor_id == vendor_ids::SIMAGIC_MODERN {
-            return match product_id {
-                product_ids::ALPHA_MODERN => Self::Alpha,
-                product_ids::ALPHA_MINI_MODERN => Self::AlphaMini,
-                product_ids::ALPHA_EVO => Self::AlphaEvo,
-                product_ids::M10_MODERN => Self::M10New,
-                product_ids::NEO => Self::Neo,
-                product_ids::NEO_MINI => Self::NeoMini,
-                _ => Self::Unknown,
-            };
-        }
-
         if vendor_id == vendor_ids::SIMAGIC_EVO {
             return match product_id {
-                product_ids::ALPHA_EVO_SPORT_CANDIDATE => Self::AlphaEvoSportCandidate,
-                product_ids::ALPHA_EVO_CANDIDATE => Self::AlphaEvoCandidate,
-                product_ids::ALPHA_EVO_PRO_CANDIDATE => Self::AlphaEvoProCandidate,
-                _ => Self::AlphaEvoUnknown,
+                product_ids::EVO_SPORT => Self::EvoSport,
+                product_ids::EVO => Self::Evo,
+                product_ids::EVO_PRO => Self::EvoPro,
+                _ => Self::EvoUnknown,
             };
         }
 
@@ -108,29 +81,17 @@ impl SimagicModel {
             Self::AlphaUltimate => 23.0,
             Self::M10 => 10.0,
             Self::Fx => 6.0,
-            Self::AlphaEvoSportCandidate => 9.0,
-            Self::AlphaEvoCandidate => 12.0,
-            Self::AlphaEvoProCandidate => 18.0,
-            // Conservative default until capture confirms exact hardware tier.
-            Self::AlphaEvoUnknown => 9.0,
-            Self::AlphaEvo => 15.0,
-            Self::M10New => 10.0,
-            Self::Neo => 10.0,
-            Self::NeoMini => 7.0,
+            Self::EvoSport => 15.0,
+            Self::Evo => 20.0,
+            Self::EvoPro => 30.0,
+            Self::EvoUnknown => 15.0,
             Self::Unknown => 5.0,
         }
     }
 
     fn encoder_cpr(self) -> u32 {
         match self {
-            Self::AlphaEvoSportCandidate
-            | Self::AlphaEvoCandidate
-            | Self::AlphaEvoProCandidate
-            | Self::AlphaEvoUnknown
-            | Self::AlphaEvo
-            | Self::M10New
-            | Self::Neo
-            | Self::NeoMini => 2_097_152,
+            Self::EvoSport | Self::Evo | Self::EvoPro | Self::EvoUnknown => 2_097_152,
             _ => 262_144,
         }
     }
@@ -138,10 +99,7 @@ impl SimagicModel {
     fn is_evo_generation(self) -> bool {
         matches!(
             self,
-            Self::AlphaEvoSportCandidate
-                | Self::AlphaEvoCandidate
-                | Self::AlphaEvoProCandidate
-                | Self::AlphaEvoUnknown
+            Self::EvoSport | Self::Evo | Self::EvoPro | Self::EvoUnknown
         )
     }
 }
@@ -173,8 +131,8 @@ impl SimagicProtocol {
         self.model
     }
 
-    fn is_modern_device(&self) -> bool {
-        self.vendor_id == vendor_ids::SIMAGIC_MODERN
+    fn is_evo_device(&self) -> bool {
+        self.vendor_id == vendor_ids::SIMAGIC_EVO
     }
 }
 
@@ -188,17 +146,20 @@ impl VendorProtocol for SimagicProtocol {
             self.vendor_id, self.product_id, self.model
         );
 
-        if self.is_modern_device() {
-            debug!("Simagic modern device (0x2D5C): sending gain and rotation range");
+        if self.is_evo_device() {
+            if matches!(self.model, SimagicModel::EvoUnknown) {
+                warn!(
+                    "Unknown EVO device PID=0x{:04X}; sending conservative gain and rotation range",
+                    self.product_id
+                );
+            } else {
+                debug!("Simagic EVO device (0x3670): sending gain and rotation range");
+            }
             writer.write_feature_report(&build_device_gain(0xFF))?;
             writer.write_feature_report(&build_rotation_range(900))?;
-        } else if self.model.is_evo_generation() {
-            warn!(
-                "Alpha EVO initialization handshake is capture-pending; skipping unverified arming sequence"
-            );
         } else {
             debug!(
-                "No vendor handshake applied for Simagic model {:?}; continuing in passive mode",
+                "No vendor handshake applied for legacy Simagic model {:?}; continuing in passive mode",
                 self.model
             );
         }
@@ -239,11 +200,11 @@ impl VendorProtocol for SimagicProtocol {
     }
 
     fn is_v2_hardware(&self) -> bool {
-        self.model.is_evo_generation() || self.is_modern_device()
+        self.model.is_evo_generation()
     }
 
     fn output_report_id(&self) -> Option<u8> {
-        if self.is_modern_device() {
+        if self.is_evo_device() {
             Some(report_ids::CONSTANT_FORCE)
         } else {
             None
@@ -251,7 +212,7 @@ impl VendorProtocol for SimagicProtocol {
     }
 
     fn output_report_len(&self) -> Option<usize> {
-        if self.is_modern_device() {
+        if self.is_evo_device() {
             Some(CONSTANT_FORCE_REPORT_LEN)
         } else {
             None

@@ -46,10 +46,10 @@ impl From<HidCommonError> for AsetekError {
     }
 }
 
-pub const VENDOR_ID: u16 = 0x2E5A;
-pub const PRODUCT_ID_FORTE: u16 = 0x0001;
-pub const PRODUCT_ID_INVICTA: u16 = 0x0002;
-pub const PRODUCT_ID_LAPRIMA: u16 = 0x0003;
+pub const VENDOR_ID: u16 = 0x2433;
+pub const PRODUCT_ID_FORTE: u16 = 0xF301;
+pub const PRODUCT_ID_INVICTA: u16 = 0xF300;
+pub const PRODUCT_ID_LAPRIMA: u16 = 0xF303;
 
 pub const REPORT_SIZE_INPUT: usize = 32;
 pub const REPORT_SIZE_OUTPUT: usize = 32;
@@ -62,6 +62,6 @@ mod tests {
 
     #[test]
     fn test_constants() {
-        assert_eq!(VENDOR_ID, 0x2E5A);
+        assert_eq!(VENDOR_ID, 0x2433);
     }
 }

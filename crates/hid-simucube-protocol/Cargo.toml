@@ -16,3 +16,4 @@ tracing = { workspace = true }
 proptest = { workspace = true }
 quickcheck = { workspace = true }
 criterion = { workspace = true }
+insta = { version = "1.44.1", features = ["yaml"] }

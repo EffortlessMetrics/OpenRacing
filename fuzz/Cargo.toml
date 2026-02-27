@@ -13,6 +13,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 racing-wheel-telemetry-adapters = { path = "../crates/telemetry-adapters" }
 racing-wheel-telemetry-core = { path = "../crates/telemetry-core" }
+racing-wheel-hid-ffbeast-protocol = { path = "../crates/hid-ffbeast-protocol" }
 racing-wheel-hid-moza-protocol = { path = "../crates/hid-moza-protocol" }
 racing-wheel-hid-thrustmaster-protocol = { path = "../crates/hid-thrustmaster-protocol" }
 racing-wheel-hid-simucube-protocol = { path = "../crates/hid-simucube-protocol", package = "hid-simucube-protocol" }
@@ -21,13 +22,21 @@ racing-wheel-hid-vrs-protocol = { path = "../crates/hid-vrs-protocol" }
 racing-wheel-hid-simagic-protocol = { path = "../crates/hid-simagic-protocol" }
 racing-wheel-hid-heusinkveld-protocol = { path = "../crates/hid-heusinkveld-protocol", package = "hid-heusinkveld-protocol" }
 racing-wheel-hid-cammus-protocol = { path = "../crates/hid-cammus-protocol" }
-racing-wheel-simplemotion-v2 = { path = "../crates/simplemotion-v2" }
+racing-wheel-hid-fanatec-protocol = { path = "../crates/hid-fanatec-protocol" }
+racing-wheel-hid-openffboard-protocol = { path = "../crates/hid-openffboard-protocol" }
+racing-wheel-hid-logitech-protocol = { path = "../crates/hid-logitech-protocol" }
 racing-wheel-ks = { path = "../crates/ks" }
 racing-wheel-srp = { path = "../crates/srp" }
 racing-wheel-hbp = { path = "../crates/hbp" }
 racing-wheel-moza-wheelbase-report = { path = "../crates/moza-wheelbase-report" }
 
 # Fuzzing requires nightly and release-like optimizations.
+[[bin]]
+name = "fuzz_ffbeast_input"
+path = "fuzz_targets/fuzz_ffbeast_input.rs"
+test = false
+doc = false
+
 [[bin]]
 name = "fuzz_f1_25_header"
 path = "fuzz_targets/fuzz_f1_25_header.rs"
@@ -125,6 +134,12 @@ test = false
 doc = false
 
 [[bin]]
+name = "fuzz_logitech_input"
+path = "fuzz_targets/fuzz_logitech_input.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "fuzz_simplemotion"
 path = "fuzz_targets/fuzz_simplemotion.rs"
 test = false
@@ -163,6 +178,18 @@ doc = false
 [[bin]]
 name = "fuzz_cammus_direct"
 path = "fuzz_targets/fuzz_cammus_direct.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_fanatec_input"
+path = "fuzz_targets/fuzz_fanatec_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_openffboard_input"
+path = "fuzz_targets/fuzz_openffboard_input.rs"
 test = false
 doc = false
 

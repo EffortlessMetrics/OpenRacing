@@ -1,0 +1,5 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshot_tests.rs
+expression: "format!(\"connected={}, calibrated={}, fault={}\", report.is_connected(),\nreport.is_calibrated(), report.has_fault())"
+---
+"connected=true, calibrated=true, fault=true"

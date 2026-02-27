@@ -1,12 +1,23 @@
 //! Device IDs for Simucube products
+//!
+//! Simucube 2 wheelbases (by Granite Devices) use VID `0x16D0` (MCS Electronics /
+//! OpenMoko), the same VID used by the Simucube 1 IONI servo drives and legacy
+//! Simagic devices. Products are distinguished by product ID.
+//!
+//! Sources: JacKeTUs/linux-steering-wheels compatibility table, USB VID registry.
 
-pub const SIMUCUBE_VENDOR_ID: u16 = 0x2D6A;
+pub const SIMUCUBE_VENDOR_ID: u16 = 0x16D0;
 
-pub const SIMUCUBE_2_SPORT_PID: u16 = 0x0101;
-pub const SIMUCUBE_2_PRO_PID: u16 = 0x0102;
-pub const SIMUCUBE_2_ULTIMATE_PID: u16 = 0x0103;
-pub const SIMUCUBE_ACTIVE_PEDAL_PID: u16 = 0x0201;
-pub const SIMUCUBE_WIRELESS_WHEEL_PID: u16 = 0x0301;
+/// Simucube 2 Sport (15 Nm direct drive).
+pub const SIMUCUBE_2_SPORT_PID: u16 = 0x0D61;
+/// Simucube 2 Pro (25 Nm direct drive).
+pub const SIMUCUBE_2_PRO_PID: u16 = 0x0D60;
+/// Simucube 2 Ultimate (35 Nm direct drive).
+pub const SIMUCUBE_2_ULTIMATE_PID: u16 = 0x0D5F;
+/// Simucube ActivePedal (load-cell force feedback pedal). PID estimated — not independently verified.
+pub const SIMUCUBE_ACTIVE_PEDAL_PID: u16 = 0x0D62;
+/// SimuCUBE Wireless Wheel. PID estimated — not independently verified.
+pub const SIMUCUBE_WIRELESS_WHEEL_PID: u16 = 0x0D63;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SimucubeModel {

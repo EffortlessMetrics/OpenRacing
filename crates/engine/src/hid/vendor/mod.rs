@@ -72,26 +72,28 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
                 Some(Box::new(simagic::SimagicProtocol::new(vendor_id, product_id)))
             }
         }
-        // OpenMoko VID: shared by Simagic legacy AND Heusinkveld (0x115x PIDs)
+        // OpenMoko/MCS VID (0x16D0): shared by Heusinkveld (0x115x), Simucube 2 (0x0D5x),
+        // and legacy Simagic/Simucube 1 (0x0D5A/0x0D5B). Disambiguate by product_id.
         0x16D0 => {
             if heusinkveld::is_heusinkveld_product(product_id) {
                 Some(Box::new(heusinkveld::HeusinkveldProtocolHandler::new(
                     vendor_id, product_id,
                 )))
+            } else if simucube::is_simucube_product(product_id) {
+                Some(Box::new(simucube::SimucubeProtocolHandler::new(
+                    vendor_id, product_id,
+                )))
             } else {
+                // Legacy Simagic / Simucube 1 devices
                 Some(Box::new(simagic::SimagicProtocol::new(vendor_id, product_id)))
             }
         }
-        // Simagic EVO and modern (including 0x2D5C)
-        0x3670 | 0x2D5C => Some(Box::new(simagic::SimagicProtocol::new(
+        // Simagic EVO generation (VID 0x3670 = Shen Zhen Simagic Technology Co., Ltd.)
+        0x3670 => Some(Box::new(simagic::SimagicProtocol::new(
             vendor_id, product_id,
         ))),
-        // Simucube 2 Sport/Pro/Ultimate
-        0x2D6A => Some(Box::new(simucube::SimucubeProtocolHandler::new(
-            vendor_id, product_id,
-        ))),
-        // Asetek Forte/Invicta/LaPrima
-        0x2E5A => Some(Box::new(asetek::AsetekProtocolHandler::new(
+        // Asetek SimSports (VID 0x2433 = Asetek A/S)
+        0x2433 => Some(Box::new(asetek::AsetekProtocolHandler::new(
             vendor_id, product_id,
         ))),
         // Granite Devices SimpleMotion V2 (IONI, ARGON, OSW)
@@ -120,8 +122,8 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
                 None
             }
         }
-        // Cammus C5/C12 direct drive wheels
-        0x3285 => {
+        // Cammus C5/C12 direct drive wheels (VID 0x3416 = Shenzhen Cammus Electronics)
+        0x3416 => {
             if cammus::is_cammus(vendor_id, product_id) {
                 Some(Box::new(cammus::CammusProtocolHandler::new(
                     vendor_id, product_id,

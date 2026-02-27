@@ -11,8 +11,13 @@ pub mod product_ids {
     pub const T150: u16 = 0xB65D;
     /// T150 Pro (with T3PA pedals).
     pub const T150_PRO: u16 = 0xB65E;
-    /// TMX (Xbox variant of T150).
-    pub const TMX: u16 = 0xB66D;
+    /// T300 RS in PlayStation 4 compatibility mode (same hardware as T300_RS,
+    /// different PID reported when the PS4-mode switch is active).
+    /// Verified: linux-steering-wheels table (044f:b66d = "T300RS (PS4 mode)").
+    pub const T300_RS_PS4: u16 = 0xB66D;
+    /// TMX (Xbox One variant of the T150/T300 family).
+    /// Verified: linux-steering-wheels table (044f:b67f = "TMX", uses hid-tminit).
+    pub const TMX: u16 = 0xB67F;
     /// T300 RS (belt-driven).
     pub const T300_RS: u16 = 0xB66E;
     /// T300 RS GT (GT Edition).
@@ -53,6 +58,7 @@ pub enum Model {
     T150Pro,
     TMX,
     T300RS,
+    T300RSPS4,
     T300RSGT,
     TXRacing,
     T500RS,
@@ -77,6 +83,7 @@ impl Model {
             product_ids::T150_PRO => Self::T150Pro,
             product_ids::TMX => Self::TMX,
             product_ids::T300_RS => Self::T300RS,
+            product_ids::T300_RS_PS4 => Self::T300RSPS4,
             product_ids::T300_RS_GT => Self::T300RSGT,
             product_ids::TX_RACING => Self::TXRacing,
             product_ids::T500_RS => Self::T500RS,
@@ -98,7 +105,7 @@ impl Model {
     pub fn max_torque_nm(self) -> f32 {
         match self {
             Self::T150 | Self::T150Pro | Self::TMX | Self::T500RS => 2.5,
-            Self::T300RS | Self::T300RSGT | Self::TXRacing | Self::T248 | Self::T248X => 4.0,
+            Self::T300RS | Self::T300RSPS4 | Self::T300RSGT | Self::TXRacing | Self::T248 | Self::T248X => 4.0,
             Self::TGT | Self::TGTII | Self::TSPCRacer | Self::TSXW => 6.0,
             Self::T818 => 10.0,
             Self::T3PA | Self::T3PAPro | Self::TLCM | Self::TLCMPro => 0.0,
@@ -128,6 +135,7 @@ impl Model {
             Self::T150Pro => "Thrustmaster T150 Pro",
             Self::TMX => "Thrustmaster TMX",
             Self::T300RS => "Thrustmaster T300 RS",
+            Self::T300RSPS4 => "Thrustmaster T300 RS (PS4 mode)",
             Self::T300RSGT => "Thrustmaster T300 RS GT",
             Self::TXRacing => "Thrustmaster TX Racing",
             Self::T500RS => "Thrustmaster T500 RS",

@@ -43,8 +43,8 @@ fn test_logitech_model_classification() {
     let g923 = LogitechProtocol::new(LOGITECH_VENDOR_ID, product_ids::G923_XBOX);
     assert_eq!(g923.model(), LogitechModel::G923);
 
-    let pro = LogitechProtocol::new(LOGITECH_VENDOR_ID, product_ids::PRO_RACING);
-    assert_eq!(pro.model(), LogitechModel::ProRacing);
+    let pro = LogitechProtocol::new(LOGITECH_VENDOR_ID, product_ids::G_PRO);
+    assert_eq!(pro.model(), LogitechModel::GPro);
 
     let unknown = LogitechProtocol::new(LOGITECH_VENDOR_ID, 0xBEEF);
     assert_eq!(unknown.model(), LogitechModel::Unknown);
@@ -60,10 +60,10 @@ fn test_logitech_ffb_config_g920() {
 }
 
 #[test]
-fn test_logitech_ffb_config_pro_racing() {
-    let protocol = LogitechProtocol::new(LOGITECH_VENDOR_ID, product_ids::PRO_RACING);
+fn test_logitech_ffb_config_g_pro() {
+    let protocol = LogitechProtocol::new(LOGITECH_VENDOR_ID, product_ids::G_PRO);
     let config = protocol.get_ffb_config();
-    assert!((config.max_torque_nm - 11.0).abs() < 0.1);
+    assert!((config.max_torque_nm - 2.2).abs() < 0.05);
 }
 
 #[test]
@@ -99,16 +99,16 @@ fn test_logitech_unknown_product_skips_init() -> Result<(), Box<dyn std::error::
 }
 
 #[test]
-fn test_logitech_initialize_pro_racing_1080deg() -> Result<(), Box<dyn std::error::Error>> {
-    let protocol = LogitechProtocol::new(LOGITECH_VENDOR_ID, product_ids::PRO_RACING);
+fn test_logitech_initialize_g_pro_900deg() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = LogitechProtocol::new(LOGITECH_VENDOR_ID, product_ids::G_PRO);
     let mut writer = MockDeviceWriter::new();
     protocol.initialize_device(&mut writer)?;
 
     let reports = writer.feature_reports();
     assert_eq!(reports.len(), 2);
-    // Range = 1080° = 0x0438; little-endian [0x38, 0x04]
-    assert_eq!(reports[1][2], 0x38, "LSB of 1080°");
-    assert_eq!(reports[1][3], 0x04, "MSB of 1080°");
+    // Range = 900° = 0x0384; little-endian [0x84, 0x03]
+    assert_eq!(reports[1][2], 0x84, "LSB of 900°");
+    assert_eq!(reports[1][3], 0x03, "MSB of 900°");
     Ok(())
 }
 
@@ -141,6 +141,6 @@ fn test_is_wheel_product_known_ids() {
     assert!(is_wheel_product(product_ids::G920));
     assert!(is_wheel_product(product_ids::G923_XBOX));
     assert!(is_wheel_product(product_ids::G923_PS));
-    assert!(is_wheel_product(product_ids::PRO_RACING));
+    assert!(is_wheel_product(product_ids::G_PRO));
     assert!(!is_wheel_product(0xFFFF));
 }

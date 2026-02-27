@@ -10,6 +10,8 @@
 //! - `integration` - Matrix/registry coverage validation utilities (feature: orchestrator)
 //! - `orchestrator` - Telemetry service coordination (feature: orchestrator)
 
+#![deny(static_mut_refs)]
+
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

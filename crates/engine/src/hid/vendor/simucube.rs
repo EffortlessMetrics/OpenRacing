@@ -101,3 +101,15 @@ impl VendorProtocol for SimucubeProtocolHandler {
         Some(REPORT_SIZE_OUTPUT)
     }
 }
+
+/// Return `true` when `product_id` belongs to a known Simucube 2 wheelbase.
+pub fn is_simucube_product(product_id: u16) -> bool {
+    matches!(
+        product_id,
+        SIMUCUBE_2_SPORT_PID
+            | SIMUCUBE_2_PRO_PID
+            | SIMUCUBE_2_ULTIMATE_PID
+            | SIMUCUBE_ACTIVE_PEDAL_PID
+            | SIMUCUBE_WIRELESS_WHEEL_PID
+    )
+}

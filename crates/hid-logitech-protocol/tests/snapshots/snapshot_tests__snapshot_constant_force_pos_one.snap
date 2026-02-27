@@ -1,0 +1,6 @@
+---
+source: crates/hid-logitech-protocol/tests/snapshot_tests.rs
+assertion_line: 27
+expression: "format!(\"{:?}\", out)"
+---
+[18, 1, 16, 39]

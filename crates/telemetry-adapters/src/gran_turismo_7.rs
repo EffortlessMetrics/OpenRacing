@@ -223,7 +223,10 @@ pub(crate) fn decrypt_and_parse(data: &[u8]) -> Result<NormalizedTelemetry> {
 /// The 8-byte nonce is read from bytes `[0x40..0x48]` of the **raw**
 /// (pre-decryption) packet, as specified by the GT7 protocol.
 fn salsa20_xor(buf: &mut [u8; PACKET_SIZE]) {
-    let nonce: [u8; 8] = buf[0x40..0x48].try_into().expect("slice length is 8");
+    let nonce: [u8; 8] = [
+        buf[0x40], buf[0x41], buf[0x42], buf[0x43],
+        buf[0x44], buf[0x45], buf[0x46], buf[0x47],
+    ];
 
     let blocks_needed = PACKET_SIZE.div_ceil(64); // 5 full 64-byte blocks
     for block_idx in 0..blocks_needed {
@@ -245,20 +248,20 @@ fn salsa20_block(key: &[u8; 32], nonce: &[u8; 8], counter: u64) -> [u8; 64] {
     //  10: sigma[2] 11–14: key[16..32] 15: sigma[3]
     let mut state = [0u32; 16];
     state[0] = 0x6170_7865; // "expa"
-    state[1] = u32::from_le_bytes(key[0..4].try_into().unwrap());
-    state[2] = u32::from_le_bytes(key[4..8].try_into().unwrap());
-    state[3] = u32::from_le_bytes(key[8..12].try_into().unwrap());
-    state[4] = u32::from_le_bytes(key[12..16].try_into().unwrap());
+    state[1] = u32::from_le_bytes([key[0], key[1], key[2], key[3]]);
+    state[2] = u32::from_le_bytes([key[4], key[5], key[6], key[7]]);
+    state[3] = u32::from_le_bytes([key[8], key[9], key[10], key[11]]);
+    state[4] = u32::from_le_bytes([key[12], key[13], key[14], key[15]]);
     state[5] = 0x3320_646e; // "nd 3"
-    state[6] = u32::from_le_bytes(nonce[0..4].try_into().unwrap());
-    state[7] = u32::from_le_bytes(nonce[4..8].try_into().unwrap());
+    state[6] = u32::from_le_bytes([nonce[0], nonce[1], nonce[2], nonce[3]]);
+    state[7] = u32::from_le_bytes([nonce[4], nonce[5], nonce[6], nonce[7]]);
     state[8] = counter as u32;
     state[9] = (counter >> 32) as u32;
     state[10] = 0x7962_2d32; // "2-by"
-    state[11] = u32::from_le_bytes(key[16..20].try_into().unwrap());
-    state[12] = u32::from_le_bytes(key[20..24].try_into().unwrap());
-    state[13] = u32::from_le_bytes(key[24..28].try_into().unwrap());
-    state[14] = u32::from_le_bytes(key[28..32].try_into().unwrap());
+    state[11] = u32::from_le_bytes([key[16], key[17], key[18], key[19]]);
+    state[12] = u32::from_le_bytes([key[20], key[21], key[22], key[23]]);
+    state[13] = u32::from_le_bytes([key[24], key[25], key[26], key[27]]);
+    state[14] = u32::from_le_bytes([key[28], key[29], key[30], key[31]]);
     state[15] = 0x6b20_6574; // "te k"
 
     let mut working = state;

@@ -175,11 +175,9 @@ proptest! {
             || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x1156 | 0x1157 | 0x1158))
             // VRS accessories (pedals, handbrake, shifter) — share VID with Simagic
             || (vid == vendor_ids::SIMAGIC && matches!(pid, 0xA357 | 0xA358 | 0xA359 | 0xA35A))
-            // Simagic modern pedals, shifters, handbrake
-            || (vid == vendor_ids::SIMAGIC_MODERN
-                && matches!(pid, 0x1001 | 0x1002 | 0x1003 | 0x2001 | 0x2002 | 0x3001))
-            // Simucube ActivePedal and Wireless Wheel
-            || (vid == vendor_ids::SIMUCUBE && matches!(pid, 0x0201 | 0x0301))
+            // Simagic modern pedals, shifters, handbrake — VID 0x2D5C removed; EVO has no such peripherals yet
+            // Simucube ActivePedal and Wireless Wheel — PIDs 0x0D62/0x0D63 (estimated, not yet in SupportedDevices)
+            || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x0D62 | 0x0D63))
             // Generic HID button box (pid.codes VID, PID 0x1BBD — input-only)
             || (vid == vendor_ids::OPENFFBOARD && pid == 0x1BBD);
         if is_non_ffb_peripheral {

@@ -1,0 +1,14 @@
+---
+source: crates/hid-cammus-protocol/tests/snapshot_tests.rs
+expression: report
+---
+[
+    1,
+    255,
+    31,
+    1,
+    0,
+    0,
+    0,
+    0,
+]

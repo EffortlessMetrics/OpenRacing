@@ -1307,6 +1307,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctrlc"
+version = "3.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73736a89c4aff73035ba2ed2e565061954da00d4970fc9ac25dcc85a2a20d790"
+dependencies = [
+ "dispatch2",
+ "nix",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "cu-bincode"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2558,6 +2569,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 name = "hid-asetek-protocol"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "openracing-hid-common",
  "proptest",
  "quickcheck",
@@ -2582,6 +2594,7 @@ dependencies = [
 name = "hid-heusinkveld-protocol"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "openracing-hid-common",
  "proptest",
  "quickcheck",
@@ -2595,6 +2608,7 @@ name = "hid-simucube-protocol"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "insta",
  "openracing-hid-common",
  "proptest",
  "quickcheck",
@@ -4180,8 +4194,14 @@ dependencies = [
 name = "openracing-capture-ids"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
  "crc32fast",
+ "ctrlc",
  "hidapi",
+ "racing-wheel-hid-logitech-protocol",
+ "racing-wheel-moza-wheelbase-report",
  "serde",
  "serde_json",
 ]
@@ -5526,6 +5546,7 @@ version = "0.1.0"
 name = "racing-wheel-hid-cammus-protocol"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "proptest",
 ]
 
@@ -5533,17 +5554,25 @@ dependencies = [
 name = "racing-wheel-hid-fanatec-protocol"
 version = "0.1.0"
 dependencies = [
+ "insta",
+ "proptest",
  "tracing",
 ]
 
 [[package]]
 name = "racing-wheel-hid-ffbeast-protocol"
 version = "0.1.0"
+dependencies = [
+ "insta",
+ "proptest",
+]
 
 [[package]]
 name = "racing-wheel-hid-logitech-protocol"
 version = "0.1.0"
 dependencies = [
+ "insta",
+ "proptest",
  "tracing",
 ]
 
@@ -5562,6 +5591,10 @@ dependencies = [
 [[package]]
 name = "racing-wheel-hid-openffboard-protocol"
 version = "0.1.0"
+dependencies = [
+ "insta",
+ "proptest",
+]
 
 [[package]]
 name = "racing-wheel-hid-simagic-protocol"

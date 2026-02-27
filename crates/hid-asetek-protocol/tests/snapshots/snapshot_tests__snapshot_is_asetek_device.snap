@@ -1,0 +1,5 @@
+---
+source: crates/hid-asetek-protocol/tests/snapshot_tests.rs
+expression: "format!(\"{:?}\", results)"
+---
+"[(\"correct_vid\", true), (\"wrong_vid\", false)]"

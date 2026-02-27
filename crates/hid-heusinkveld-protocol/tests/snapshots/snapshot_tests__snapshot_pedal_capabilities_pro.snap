@@ -1,0 +1,5 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshot_tests.rs
+expression: "format!(\"max_load={:.1}, hydraulic={}, load_cell={}, pedals={}\",\ncaps.max_load_kg, caps.has_hydraulic_damping, caps.has_load_cell,\ncaps.pedal_count)"
+---
+"max_load=200.0, hydraulic=true, load_cell=true, pedals=3"

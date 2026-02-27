@@ -15,10 +15,12 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c261", GROUP="i
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c262", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c26d", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c26e", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c266", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c267", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c268", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c272", GROUP="input", MODE="0664", TAG+="uaccess"
 
 # ─── Thrustmaster (0x044F) ─────────────────────────────────────────────────
-# T150, T150 Pro, TMX, T300RS, T300RS GT, TX Racing, T500RS
+# T150, T150 Pro, T300RS (PS4 mode), T300RS, T300RS GT, TX Racing, T500RS, TMX
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b65d", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b65e", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b66d", GROUP="input", MODE="0664", TAG+="uaccess"
@@ -26,6 +28,7 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b66e", GROUP="i
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b66f", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b669", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b677", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b67f", GROUP="input", MODE="0664", TAG+="uaccess"
 # T248, T248X
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b696", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b697", GROUP="input", MODE="0664", TAG+="uaccess"
@@ -66,7 +69,7 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a358", GROUP="i
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a359", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a35a", GROUP="input", MODE="0664", TAG+="uaccess"
 
-# ─── OpenMoko VID (0x16D0) — Simagic legacy + Heusinkveld pedals ──────────
+# ─── OpenMoko / MCS VID (0x16D0) — Simagic legacy, Heusinkveld, Simucube 2 ─
 # Simagic M10, FX (OpenMoko VID variant)
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5a", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5b", GROUP="input", MODE="0664", TAG+="uaccess"
@@ -74,41 +77,29 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5b", GROUP="i
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="1156", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="1157", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="1158", GROUP="input", MODE="0664", TAG+="uaccess"
+# Simucube 2 Ultimate, Pro, Sport (Granite Devices, VID registered to MCS Electronics)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5f", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d60", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d61", GROUP="input", MODE="0664", TAG+="uaccess"
+# Simucube ActivePedal, Wireless Wheel (PIDs estimated — not independently verified)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d62", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d63", GROUP="input", MODE="0664", TAG+="uaccess"
 
 # ─── Simagic EVO generation (0x3670) ──────────────────────────────────────
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3670", GROUP="input", MODE="0664", TAG+="uaccess"
 
-# ─── Simagic modern (0x2D5C) — Alpha, Alpha EVO, M10, Neo, accessories ────
-# Wheelbases
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="0101", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="0102", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="0103", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="0201", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="0301", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="0302", GROUP="input", MODE="0664", TAG+="uaccess"
-# Pedals: P1000, P2000, P1000A
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="1001", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="1002", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="1003", GROUP="input", MODE="0664", TAG+="uaccess"
-# Accessories: shifters, handbrake
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="2001", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="2002", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="3001", GROUP="input", MODE="0664", TAG+="uaccess"
+# ─── Cammus (0x3416) ──────────────────────────────────────────────────────
+# Shenzhen Cammus Electronic Technology Co., Ltd.
+# C5 (5 Nm), C12 (12 Nm) desktop direct drive wheelbases
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3416", ATTRS{idProduct}=="0301", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3416", ATTRS{idProduct}=="0302", GROUP="input", MODE="0664", TAG+="uaccess"
 
-# ─── Simucube 2 / Granite Devices (0x2D6A) ────────────────────────────────
-# Wheelbases: Sport, Pro, Ultimate
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d6a", ATTRS{idProduct}=="0101", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d6a", ATTRS{idProduct}=="0102", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d6a", ATTRS{idProduct}=="0103", GROUP="input", MODE="0664", TAG+="uaccess"
-# Accessories: ActivePedal, Wireless Wheel
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d6a", ATTRS{idProduct}=="0201", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d6a", ATTRS{idProduct}=="0301", GROUP="input", MODE="0664", TAG+="uaccess"
-
-# ─── Asetek SimSports (0x2E5A) ────────────────────────────────────────────
-# Forte, Invicta, LaPrima wheelbases
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2e5a", ATTRS{idProduct}=="0001", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2e5a", ATTRS{idProduct}=="0002", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2e5a", ATTRS{idProduct}=="0003", GROUP="input", MODE="0664", TAG+="uaccess"
+# ─── Asetek SimSports (0x2433) ────────────────────────────────────────────
+# Invicta, Forte, La Prima wheelbases, Tony Kanaan Edition
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f300", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f301", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f303", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f306", GROUP="input", MODE="0664", TAG+="uaccess"
 
 # ─── OpenFFBoard (0x1209, pid.codes open hardware) ────────────────────────
 # Open-source direct drive wheel controller — https://github.com/Ultrawipf/OpenFFBoard
@@ -150,20 +141,25 @@ ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="052
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="0524", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a355", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a356", ATTR{power/autosuspend}="-1"
-# Simagic legacy / Heusinkveld (OpenMoko VID)
+# Simagic legacy / Heusinkveld / Simucube 2 (MCS/OpenMoko VID)
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5a", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5b", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="1156", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="1157", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="1158", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5f", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d60", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d61", ATTR{power/autosuspend}="-1"
 # Simagic EVO
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="3670", ATTR{power/autosuspend}="-1"
-# Simagic modern
-ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2d5c", ATTR{power/autosuspend}="-1"
-# Simucube 2 / Granite Devices
-ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2d6a", ATTR{power/autosuspend}="-1"
+# Cammus
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="3416", ATTRS{idProduct}=="0301", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="3416", ATTRS{idProduct}=="0302", ATTR{power/autosuspend}="-1"
 # Asetek SimSports
-ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2e5a", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f300", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f301", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f303", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f306", ATTR{power/autosuspend}="-1"
 # OpenFFBoard (pid.codes shared VID — only disable for our PIDs)
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ffb0", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ffb1", ATTR{power/autosuspend}="-1"

@@ -299,14 +299,13 @@ pub mod vendor_ids {
     pub const SIMAGIC: u16 = 0x0483;
     /// Simagic alternate vendor ID
     pub const SIMAGIC_ALT: u16 = 0x16D0;
-    /// Simagic-owned vendor ID used by Alpha EVO generation devices
+    /// Simagic EVO vendor ID (Shen Zhen Simagic Technology Co., Ltd.)
     pub const SIMAGIC_EVO: u16 = 0x3670;
-    /// Simagic modern (2D5C, post-2023 unified VID)
-    pub const SIMAGIC_MODERN: u16 = 0x2D5C;
-    /// Simucube 2 (Granite Devices)
-    pub const SIMUCUBE: u16 = 0x2D6A;
-    /// Asetek SimSports
-    pub const ASETEK: u16 = 0x2E5A;
+    // Simucube 2 also uses VID 0x16D0 (= SIMAGIC_ALT). Dispatch is done by product ID.
+    /// Asetek SimSports (Asetek A/S, Denmark)
+    pub const ASETEK: u16 = 0x2433;
+    /// Cammus (Shenzhen Cammus Electronic Technology Co., Ltd.)
+    pub const CAMMUS: u16 = 0x3416;
     /// Granite Devices SimpleMotion V2 (IONI / ARGON / SimuCube 1)
     pub const GRANITE_DEVICES: u16 = 0x1D50;
     /// OpenFFBoard open-source direct drive controller + button boxes (pid.codes shared VID)
@@ -330,7 +329,7 @@ impl SupportedDevices {
             (vendor_ids::LOGITECH, 0xC261, "Logitech G920"),
             (vendor_ids::LOGITECH, 0xC262, "Logitech G920 (alt)"),
             (vendor_ids::LOGITECH, 0xC26D, "Logitech G923 Xbox"),
-            (vendor_ids::LOGITECH, 0xC26E, "Logitech G923 PS"),
+            (vendor_ids::LOGITECH, 0xC267, "Logitech G923 PS"),
             (vendor_ids::LOGITECH, 0xC266, "Logitech G PRO"),
             // Fanatec wheels
             (
@@ -370,7 +369,8 @@ impl SupportedDevices {
             // Thrustmaster wheels
             (vendor_ids::THRUSTMASTER, 0xB65D, "Thrustmaster T150"),
             (vendor_ids::THRUSTMASTER, 0xB65E, "Thrustmaster T150 Pro"),
-            (vendor_ids::THRUSTMASTER, 0xB66D, "Thrustmaster TMX"),
+            (vendor_ids::THRUSTMASTER, 0xB66D, "Thrustmaster T300RS (PS4 mode)"),
+            (vendor_ids::THRUSTMASTER, 0xB67F, "Thrustmaster TMX"),
             (vendor_ids::THRUSTMASTER, 0xB66E, "Thrustmaster T300RS"),
             (vendor_ids::THRUSTMASTER, 0xB66F, "Thrustmaster T300RS GT"),
             (vendor_ids::THRUSTMASTER, 0xB669, "Thrustmaster TX Racing"),
@@ -420,29 +420,22 @@ impl SupportedDevices {
             (vendor_ids::SIMAGIC_ALT, 0x1156, "Heusinkveld Sprint"),
             (vendor_ids::SIMAGIC_ALT, 0x1157, "Heusinkveld Ultimate+"),
             (vendor_ids::SIMAGIC_ALT, 0x1158, "Heusinkveld Pro"),
-            // Simagic modern (post-2023 unified VID 0x2D5C)
-            (vendor_ids::SIMAGIC_MODERN, 0x0101, "Simagic Alpha"),
-            (vendor_ids::SIMAGIC_MODERN, 0x0102, "Simagic Alpha Mini"),
-            (vendor_ids::SIMAGIC_MODERN, 0x0103, "Simagic Alpha EVO"),
-            (vendor_ids::SIMAGIC_MODERN, 0x0201, "Simagic M10"),
-            (vendor_ids::SIMAGIC_MODERN, 0x0301, "Simagic Neo"),
-            (vendor_ids::SIMAGIC_MODERN, 0x0302, "Simagic Neo Mini"),
-            (vendor_ids::SIMAGIC_MODERN, 0x1001, "Simagic P1000 Pedals"),
-            (vendor_ids::SIMAGIC_MODERN, 0x1002, "Simagic P2000 Pedals"),
-            (vendor_ids::SIMAGIC_MODERN, 0x1003, "Simagic P1000A Pedals"),
-            (vendor_ids::SIMAGIC_MODERN, 0x2001, "Simagic H-Pattern Shifter"),
-            (vendor_ids::SIMAGIC_MODERN, 0x2002, "Simagic Sequential Shifter"),
-            (vendor_ids::SIMAGIC_MODERN, 0x3001, "Simagic Handbrake"),
-            // Simucube 2 (Granite Devices)
-            (vendor_ids::SIMUCUBE, 0x0101, "Simucube 2 Sport"),
-            (vendor_ids::SIMUCUBE, 0x0102, "Simucube 2 Pro"),
-            (vendor_ids::SIMUCUBE, 0x0103, "Simucube 2 Ultimate"),
-            (vendor_ids::SIMUCUBE, 0x0201, "Simucube ActivePedal"),
-            (vendor_ids::SIMUCUBE, 0x0301, "SimuCube Wireless Wheel"),
-            // Asetek SimSports
-            (vendor_ids::ASETEK, 0x0001, "Asetek Forte"),
-            (vendor_ids::ASETEK, 0x0002, "Asetek Invicta"),
-            (vendor_ids::ASETEK, 0x0003, "Asetek LaPrima"),
+            // Simagic EVO generation (VID 0x3670 — verified via linux-steering-wheels)
+            (vendor_ids::SIMAGIC_EVO, 0x0500, "Simagic EVO Sport"),
+            (vendor_ids::SIMAGIC_EVO, 0x0501, "Simagic EVO"),
+            (vendor_ids::SIMAGIC_EVO, 0x0502, "Simagic EVO Pro"),
+            // Simucube 2 (VID 0x16D0 = SIMAGIC_ALT, dispatched by product ID)
+            (vendor_ids::SIMAGIC_ALT, 0x0D5F, "Simucube 2 Ultimate"),
+            (vendor_ids::SIMAGIC_ALT, 0x0D60, "Simucube 2 Pro"),
+            (vendor_ids::SIMAGIC_ALT, 0x0D61, "Simucube 2 Sport"),
+            // Asetek SimSports (VID 0x2433)
+            (vendor_ids::ASETEK, 0xF300, "Asetek Invicta"),
+            (vendor_ids::ASETEK, 0xF301, "Asetek Forte"),
+            (vendor_ids::ASETEK, 0xF303, "Asetek LaPrima"),
+            (vendor_ids::ASETEK, 0xF306, "Asetek Tony Kanaan Edition"),
+            // Cammus (VID 0x3416)
+            (vendor_ids::CAMMUS, 0x0301, "Cammus C5"),
+            (vendor_ids::CAMMUS, 0x0302, "Cammus C12"),
             // OpenFFBoard (open-source direct drive controller)
             (vendor_ids::OPENFFBOARD, 0xFFB0, "OpenFFBoard"),
             (vendor_ids::OPENFFBOARD, 0xFFB1, "OpenFFBoard (alt firmware)"),
@@ -469,9 +462,8 @@ impl SupportedDevices {
             vendor_ids::SIMAGIC,
             vendor_ids::SIMAGIC_ALT,
             vendor_ids::SIMAGIC_EVO,
-            vendor_ids::SIMAGIC_MODERN,
-            vendor_ids::SIMUCUBE,
             vendor_ids::ASETEK,
+            vendor_ids::CAMMUS,
             vendor_ids::OPENFFBOARD,
             vendor_ids::FFBEAST,
             vendor_ids::GRANITE_DEVICES,
@@ -506,9 +498,9 @@ impl SupportedDevices {
             vendor_ids::THRUSTMASTER => "Thrustmaster",
             vendor_ids::MOZA => "Moza Racing",
             vendor_ids::SIMAGIC | vendor_ids::SIMAGIC_ALT | vendor_ids::SIMAGIC_EVO => "Simagic",
-            vendor_ids::SIMAGIC_MODERN => "Simagic",
-            vendor_ids::SIMUCUBE => "Granite Devices",
+            // Note: SIMAGIC_ALT (0x16D0) is shared with Simucube 2 and Heusinkveld; dispatch by PID
             vendor_ids::ASETEK => "Asetek SimSports",
+            vendor_ids::CAMMUS => "Cammus",
             vendor_ids::OPENFFBOARD => "OpenFFBoard / Generic HID",
             vendor_ids::FFBEAST => "FFBeast",
             vendor_ids::GRANITE_DEVICES => "Granite Devices",
@@ -1064,8 +1056,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque = TorqueNm::new(2.8).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 2000; // 500Hz
                 }
-                0xC26D | 0xC26E => {
-                    // G923
+                0xC26D | 0xC267 => {
+                    // G923 (Xbox: 0xC26D, PS: 0xC267)
                     capabilities.max_torque = TorqueNm::new(3.0).unwrap_or(capabilities.max_torque);
                     capabilities.supports_raw_torque_1khz = true;
                     capabilities.min_report_period_us = 1000; // 1kHz
@@ -1321,8 +1313,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                 }
             }
         }
-        vendor_ids::SIMAGIC | vendor_ids::SIMAGIC_ALT | vendor_ids::SIMAGIC_EVO => {
-            // Simagic direct drive wheels
+        vendor_ids::SIMAGIC | vendor_ids::SIMAGIC_ALT => {
+            // Simagic legacy direct drive wheels + Simucube 2 + Heusinkveld (share VID 0x16D0)
             capabilities.supports_raw_torque_1khz = true;
             capabilities.supports_health_stream = true;
             capabilities.encoder_cpr = 65535; // High resolution (max u16)
@@ -1353,18 +1345,21 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     // FX
                     capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
                 }
-                0x0001 => {
-                    capabilities.max_torque = TorqueNm::new(9.0).unwrap_or(capabilities.max_torque);
+                // Simucube 2 PIDs (share VID 0x16D0 with Simagic legacy and Heusinkveld)
+                0x0D5F => {
+                    // Simucube 2 Ultimate
+                    capabilities.min_report_period_us = 3000;
+                    capabilities.max_torque = TorqueNm::new(35.0).unwrap_or(capabilities.max_torque);
                 }
-                0x0002 => {
-                    // Alpha EVO (capture-candidate PID)
-                    capabilities.max_torque =
-                        TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
+                0x0D60 => {
+                    // Simucube 2 Pro
+                    capabilities.min_report_period_us = 3000;
+                    capabilities.max_torque = TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
                 }
-                0x0003 => {
-                    // Alpha EVO Pro (capture-candidate PID)
-                    capabilities.max_torque =
-                        TorqueNm::new(18.0).unwrap_or(capabilities.max_torque);
+                0x0D61 => {
+                    // Simucube 2 Sport
+                    capabilities.min_report_period_us = 3000;
+                    capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
                 }
                 // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
                 0xA355 => {
@@ -1389,62 +1384,22 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque = TorqueNm::ZERO;
                 }
                 _ => {
-                    // Unknown Simagic product IDs remain conservative until capture confirms
-                    // hardware tier and protocol details.
-                    let conservative_nm = if vendor_id == vendor_ids::SIMAGIC_EVO {
-                        9.0
-                    } else {
-                        10.0
-                    };
                     capabilities.max_torque =
-                        TorqueNm::new(conservative_nm).unwrap_or(capabilities.max_torque);
+                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
                 }
             }
         }
-        vendor_ids::SIMAGIC_MODERN => {
+        vendor_ids::SIMAGIC_EVO => {
             capabilities.supports_pid = true;
             capabilities.supports_raw_torque_1khz = true;
             capabilities.supports_health_stream = true;
             capabilities.encoder_cpr = u16::MAX;
             capabilities.min_report_period_us = 1000;
             match product_id {
-                0x0101 => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); }
-                0x0102 => { capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque); }
-                0x0103 => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); }
-                0x0201 => { capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque); }
-                0x0301 => { capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque); }
-                0x0302 => { capabilities.max_torque = TorqueNm::new(7.0).unwrap_or(capabilities.max_torque); }
-                0x1001..=0x1003 | 0x2001..=0x2002 | 0x3001 => {
-                    // Simagic pedals, shifters, handbrake (input-only)
-                    capabilities.supports_pid = false;
-                    capabilities.supports_raw_torque_1khz = false;
-                    capabilities.max_torque = TorqueNm::ZERO;
-                }
-                _ => { capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque); }
-            }
-        }
-        vendor_ids::SIMUCUBE => {
-            capabilities.supports_pid = true;
-            capabilities.supports_raw_torque_1khz = true;
-            capabilities.encoder_cpr = u16::MAX; // 22-bit actual (4_194_304 CPR), capped
-            capabilities.min_report_period_us = 3000; // ~360 Hz
-            match product_id {
-                0x0101 => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); } // Sport
-                0x0102 => { capabilities.max_torque = TorqueNm::new(25.0).unwrap_or(capabilities.max_torque); } // Pro
-                0x0103 => { capabilities.max_torque = TorqueNm::new(35.0).unwrap_or(capabilities.max_torque); } // Ultimate
-                0x0201 => {
-                    // ActivePedal - input-only
-                    capabilities.supports_pid = false;
-                    capabilities.supports_raw_torque_1khz = false;
-                    capabilities.max_torque = TorqueNm::ZERO;
-                }
-                0x0301 => {
-                    // Wireless Wheel - input-only
-                    capabilities.supports_pid = false;
-                    capabilities.supports_raw_torque_1khz = false;
-                    capabilities.max_torque = TorqueNm::ZERO;
-                }
-                _ => { capabilities.max_torque = TorqueNm::new(25.0).unwrap_or(capabilities.max_torque); }
+                0x0500 => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); } // EVO Sport
+                0x0501 => { capabilities.max_torque = TorqueNm::new(20.0).unwrap_or(capabilities.max_torque); } // EVO
+                0x0502 => { capabilities.max_torque = TorqueNm::new(30.0).unwrap_or(capabilities.max_torque); } // EVO Pro
+                _ => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); }
             }
         }
         vendor_ids::ASETEK => {
@@ -1453,10 +1408,22 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = u16::MAX; // 20-bit actual
             capabilities.min_report_period_us = 1000;
             match product_id {
-                0x0001 => { capabilities.max_torque = TorqueNm::new(20.0).unwrap_or(capabilities.max_torque); } // Forte
-                0x0002 => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); } // Invicta
-                0x0003 => { capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque); } // LaPrima
+                0xF301 => { capabilities.max_torque = TorqueNm::new(20.0).unwrap_or(capabilities.max_torque); } // Forte
+                0xF300 => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); } // Invicta
+                0xF303 => { capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque); } // LaPrima
+                0xF306 => { capabilities.max_torque = TorqueNm::new(25.0).unwrap_or(capabilities.max_torque); } // Tony Kanaan Edition
                 _ => { capabilities.max_torque = TorqueNm::new(20.0).unwrap_or(capabilities.max_torque); }
+            }
+        }
+        vendor_ids::CAMMUS => {
+            capabilities.supports_pid = false;
+            capabilities.supports_raw_torque_1khz = true;
+            capabilities.encoder_cpr = u16::MAX;
+            capabilities.min_report_period_us = 1000;
+            match product_id {
+                0x0301 => { capabilities.max_torque = TorqueNm::new(5.0).unwrap_or(capabilities.max_torque); } // C5
+                0x0302 => { capabilities.max_torque = TorqueNm::new(12.0).unwrap_or(capabilities.max_torque); } // C12
+                _ => { capabilities.max_torque = TorqueNm::new(5.0).unwrap_or(capabilities.max_torque); }
             }
         }
         vendor_ids::OPENFFBOARD => {
@@ -2575,7 +2542,7 @@ mod tests {
         assert!(SupportedDevices::is_supported_vendor(vendor_ids::LOGITECH));
         assert!(SupportedDevices::is_supported(vendor_ids::LOGITECH, 0xC24F)); // G29
         assert!(SupportedDevices::is_supported(vendor_ids::LOGITECH, 0xC261)); // G920
-        assert!(SupportedDevices::is_supported(vendor_ids::LOGITECH, 0xC26E)); // G923 PS
+        assert!(SupportedDevices::is_supported(vendor_ids::LOGITECH, 0xC267)); // G923 PS
         assert!(!SupportedDevices::is_supported(
             vendor_ids::LOGITECH,
             0x0000
@@ -2641,17 +2608,17 @@ mod tests {
 
     #[test]
     fn test_supported_devices_simucube() {
-        assert!(SupportedDevices::is_supported_vendor(vendor_ids::SIMUCUBE));
-        assert!(SupportedDevices::is_supported(vendor_ids::SIMUCUBE, 0x0101)); // Sport
-        assert!(SupportedDevices::is_supported(vendor_ids::SIMUCUBE, 0x0102)); // Pro
-        assert!(SupportedDevices::is_supported(vendor_ids::SIMUCUBE, 0x0103)); // Ultimate
+        assert!(SupportedDevices::is_supported_vendor(vendor_ids::SIMAGIC_ALT));
+        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC_ALT, 0x0D61)); // Sport
+        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC_ALT, 0x0D60)); // Pro
+        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC_ALT, 0x0D5F)); // Ultimate
     }
 
     #[test]
     fn test_supported_devices_asetek() {
         assert!(SupportedDevices::is_supported_vendor(vendor_ids::ASETEK));
-        assert!(SupportedDevices::is_supported(vendor_ids::ASETEK, 0x0001)); // Forte
-        assert!(SupportedDevices::is_supported(vendor_ids::ASETEK, 0x0002)); // Invicta
+        assert!(SupportedDevices::is_supported(vendor_ids::ASETEK, 0xF301)); // Forte
+        assert!(SupportedDevices::is_supported(vendor_ids::ASETEK, 0xF300)); // Invicta
     }
 
     #[test]
@@ -2669,10 +2636,10 @@ mod tests {
     }
 
     #[test]
-    fn test_supported_devices_simagic_modern() {
-        assert!(SupportedDevices::is_supported_vendor(vendor_ids::SIMAGIC_MODERN));
-        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC_MODERN, 0x0101)); // Alpha
-        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC_MODERN, 0x0103)); // Alpha EVO
+    fn test_supported_devices_simagic_evo() {
+        assert!(SupportedDevices::is_supported_vendor(vendor_ids::SIMAGIC_EVO));
+        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC_EVO, 0x0500)); // EVO Sport
+        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC_EVO, 0x0502)); // EVO Pro
     }
 
     #[test]
@@ -2866,7 +2833,7 @@ mod tests {
         let caps = determine_device_capabilities(vendor_ids::SIMAGIC_EVO, 0x7FFF);
         assert!(caps.supports_raw_torque_1khz);
         assert!(caps.supports_health_stream);
-        assert!((caps.max_torque.value() - 9.0).abs() < 0.1);
+        assert!((caps.max_torque.value() - 15.0).abs() < 0.1);
     }
 
     #[test]

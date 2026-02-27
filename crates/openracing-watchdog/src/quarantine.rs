@@ -70,7 +70,7 @@ impl QuarantineManager {
     pub fn new() -> Self {
         Self {
             quarantined: HashMap::new(),
-            default_duration: Duration::from_secs(300), // 5 minutes
+            default_duration: Duration::from_mins(5), // 5 minutes
         }
     }
 
@@ -132,8 +132,7 @@ impl QuarantineManager {
     pub fn is_quarantined(&self, plugin_id: &str) -> bool {
         self.quarantined
             .get(plugin_id)
-            .map(|entry| Instant::now() < entry.expires_at)
-            .unwrap_or(false)
+            .is_some_and(|entry| Instant::now() < entry.expires_at)
     }
 
     /// Get quarantine entry for a plugin.
@@ -144,7 +143,7 @@ impl QuarantineManager {
 
     /// Get all currently quarantined plugins.
     ///
-    /// Returns a list of (plugin_id, remaining_duration) tuples.
+    /// Returns a list of `(plugin_id, remaining_duration)` tuples.
     #[must_use]
     pub fn get_quarantined(&self) -> Vec<(String, Duration)> {
         let now = Instant::now();

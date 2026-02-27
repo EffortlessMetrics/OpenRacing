@@ -1,16 +1,26 @@
-//! Device IDs for Asetek products
+//! Device IDs for Asetek SimSports products
+//!
+//! VID `0x2433` is the official USB vendor ID registered to Asetek A/S.
+//! Sources: USB VID registry (the-sz.com), JacKeTUs/linux-steering-wheels
+//! compatibility table.
 
-pub const ASETEK_VENDOR_ID: u16 = 0x2E5A;
+pub const ASETEK_VENDOR_ID: u16 = 0x2433;
 
-pub const ASETEK_FORTE_PID: u16 = 0x0001;
-pub const ASETEK_INVICTA_PID: u16 = 0x0002;
-pub const ASETEK_LAPRIMA_PID: u16 = 0x0003;
+/// Asetek Invicta (15 Nm entry direct drive).
+pub const ASETEK_INVICTA_PID: u16 = 0xF300;
+/// Asetek Forte (20 Nm mid-range direct drive).
+pub const ASETEK_FORTE_PID: u16 = 0xF301;
+/// Asetek La Prima (10 Nm compact direct drive).
+pub const ASETEK_LAPRIMA_PID: u16 = 0xF303;
+/// Asetek Tony Kanaan Edition.
+pub const ASETEK_TONY_KANNAN_PID: u16 = 0xF306;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AsetekModel {
     Forte,
     Invicta,
     LaPrima,
+    TonyKannan,
     Unknown,
 }
 
@@ -20,6 +30,7 @@ impl AsetekModel {
             ASETEK_FORTE_PID => Self::Forte,
             ASETEK_INVICTA_PID => Self::Invicta,
             ASETEK_LAPRIMA_PID => Self::LaPrima,
+            ASETEK_TONY_KANNAN_PID => Self::TonyKannan,
             _ => Self::Unknown,
         }
     }
@@ -28,7 +39,8 @@ impl AsetekModel {
         match self {
             Self::Forte => "Asetek Forte",
             Self::Invicta => "Asetek Invicta",
-            Self::LaPrima => "Asetek LaPrima",
+            Self::LaPrima => "Asetek La Prima",
+            Self::TonyKannan => "Asetek Tony Kanaan Edition",
             Self::Unknown => "Unknown Asetek Device",
         }
     }
@@ -38,6 +50,7 @@ impl AsetekModel {
             Self::Forte => 20.0,
             Self::Invicta => 15.0,
             Self::LaPrima => 10.0,
+            Self::TonyKannan => 20.0,
             Self::Unknown => 20.0,
         }
     }

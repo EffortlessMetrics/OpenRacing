@@ -187,7 +187,7 @@ fn test_snapshot_triangle_effect() {
 
 #[test]
 fn test_snapshot_device_alpha() {
-    let identity = simagic::identify_device(0x0101);
+    let identity = simagic::identify_device(0x0500);  // EVO Sport (correct VID 0x3670 product)
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
         identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
@@ -196,7 +196,7 @@ fn test_snapshot_device_alpha() {
 
 #[test]
 fn test_snapshot_device_alpha_mini() {
-    let identity = simagic::identify_device(0x0102);
+    let identity = simagic::identify_device(0x0501);  // EVO
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
         identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
@@ -205,7 +205,7 @@ fn test_snapshot_device_alpha_mini() {
 
 #[test]
 fn test_snapshot_device_alpha_evo() {
-    let identity = simagic::identify_device(0x0103);
+    let identity = simagic::identify_device(0x0502);  // EVO Pro
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
         identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
@@ -214,7 +214,7 @@ fn test_snapshot_device_alpha_evo() {
 
 #[test]
 fn test_snapshot_device_m10() {
-    let identity = simagic::identify_device(0x0201);
+    let identity = simagic::identify_device(0x0600);  // Alpha EVO (estimated)
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
         identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
@@ -223,7 +223,7 @@ fn test_snapshot_device_m10() {
 
 #[test]
 fn test_snapshot_device_neo() {
-    let identity = simagic::identify_device(0x0301);
+    let identity = simagic::identify_device(0x0700);  // Neo
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
         identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
@@ -251,12 +251,12 @@ fn test_snapshot_device_unknown() {
 #[test]
 fn test_snapshot_is_wheelbase_product() {
     let results = [
-        ("ALPHA", simagic::is_wheelbase_product(0x0101)),
-        ("ALPHA_MINI", simagic::is_wheelbase_product(0x0102)),
-        ("ALPHA_EVO", simagic::is_wheelbase_product(0x0103)),
-        ("M10", simagic::is_wheelbase_product(0x0201)),
-        ("NEO", simagic::is_wheelbase_product(0x0301)),
-        ("NEO_MINI", simagic::is_wheelbase_product(0x0302)),
+        ("EVO_SPORT", simagic::is_wheelbase_product(0x0500)),
+        ("EVO", simagic::is_wheelbase_product(0x0501)),
+        ("EVO_PRO", simagic::is_wheelbase_product(0x0502)),
+        ("ALPHA_EVO", simagic::is_wheelbase_product(0x0600)),
+        ("NEO", simagic::is_wheelbase_product(0x0700)),
+        ("NEO_MINI", simagic::is_wheelbase_product(0x0701)),
         ("P1000_PEDALS", simagic::is_wheelbase_product(0x1001)),
         ("UNKNOWN", simagic::is_wheelbase_product(0xFFFF)),
     ];

@@ -16,3 +16,4 @@ unwrap_used = "deny"
 
 [dev-dependencies]
 proptest = { workspace = true }
+insta = { version = "1.44.1", features = ["yaml"] }

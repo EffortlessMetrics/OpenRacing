@@ -15,3 +15,7 @@ unwrap_used = "deny"
 
 [dependencies]
 tracing = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+insta = { version = "1.44.1", features = ["yaml"] }

@@ -1,0 +1,5 @@
+---
+source: crates/hid-openffboard-protocol/tests/snapshot_tests.rs
+expression: "format!(\"{:?}\", report)"
+---
+[96, 0, 0]

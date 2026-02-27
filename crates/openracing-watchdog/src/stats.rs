@@ -49,6 +49,7 @@ impl PluginStats {
     ///
     /// Returns 0.0 if no executions have been recorded.
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn average_execution_time_us(&self) -> f64 {
         if self.total_executions == 0 {
             0.0
@@ -61,11 +62,12 @@ impl PluginStats {
     ///
     /// Returns 0.0 if no executions have been recorded.
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn timeout_rate(&self) -> f64 {
         if self.total_executions == 0 {
             0.0
         } else {
-            (self.timeout_count as f64 / self.total_executions as f64) * 100.0
+            (f64::from(self.timeout_count) / self.total_executions as f64) * 100.0
         }
     }
 
@@ -77,7 +79,7 @@ impl PluginStats {
     #[must_use]
     pub fn is_quarantined(&self) -> bool {
         self.quarantined_until
-            .map_or(false, |quarantine_until| Instant::now() < quarantine_until)
+            .is_some_and(|quarantine_until| Instant::now() < quarantine_until)
     }
 
     /// Get remaining quarantine time.
@@ -144,11 +146,11 @@ impl PluginStats {
     ///
     /// Returns `true` if the quarantine was cleared.
     pub fn check_quarantine_expiry(&mut self) -> bool {
-        if let Some(quarantine_until) = self.quarantined_until {
-            if Instant::now() >= quarantine_until {
-                self.quarantined_until = None;
-                return true;
-            }
+        if let Some(quarantine_until) = self.quarantined_until
+            && Instant::now() >= quarantine_until
+        {
+            self.quarantined_until = None;
+            return true;
         }
         false
     }

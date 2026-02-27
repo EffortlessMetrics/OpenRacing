@@ -52,10 +52,10 @@ impl From<HidCommonError> for SimucubeError {
     }
 }
 
-pub const VENDOR_ID: u16 = 0x2D6A;
-pub const PRODUCT_ID_SPORT: u16 = 0x0101;
-pub const PRODUCT_ID_PRO: u16 = 0x0102;
-pub const PRODUCT_ID_ULTIMATE: u16 = 0x0103;
+pub const VENDOR_ID: u16 = 0x16D0;
+pub const PRODUCT_ID_SPORT: u16 = 0x0D61;
+pub const PRODUCT_ID_PRO: u16 = 0x0D60;
+pub const PRODUCT_ID_ULTIMATE: u16 = 0x0D5F;
 
 pub const REPORT_SIZE_INPUT: usize = 64;
 pub const REPORT_SIZE_OUTPUT: usize = 64;
@@ -74,7 +74,7 @@ mod tests {
 
     #[test]
     fn test_constants() {
-        assert_eq!(VENDOR_ID, 0x2D6A);
+        assert_eq!(VENDOR_ID, 0x16D0);
         assert_eq!(ANGLE_SENSOR_BITS, 22);
         assert_eq!(ANGLE_SENSOR_MAX, 0x3FFFFF);
     }

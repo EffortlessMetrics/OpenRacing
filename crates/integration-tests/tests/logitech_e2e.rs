@@ -106,22 +106,22 @@ fn scenario_set_range_encodes_900_degrees() -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
-// ─── Scenario 6: Pro Racing Wheel uses 1080° range ───────────────────────────
+// ─── Scenario 6: G PRO Wheel uses 900° range ─────────────────────────────────
 
 #[test]
 fn scenario_pro_racing_uses_1080_degree_range() -> Result<(), Box<dyn std::error::Error>> {
-    // Given: Pro Racing Wheel
-    let mut s = LogitechScenario::wheel(product_ids::PRO_RACING);
+    // Given: G PRO Racing Wheel (PS variant)
+    let mut s = LogitechScenario::wheel(product_ids::G_PRO);
 
     // When: initialized
     s.initialize()?;
 
-    // Then: second feature report sets range to 1080° (0x0438 = [0x38, 0x04])
+    // Then: second feature report sets range to 900° (0x0384 = [0x84, 0x03])
     let reports = s.device.feature_reports_with_id(report_ids::VENDOR);
     assert_eq!(reports.len(), 2, "expected native mode + set range");
     assert_eq!(reports[1][1], 0x81, "second report is SET_RANGE");
-    assert_eq!(reports[1][2], 0x38, "LSB of 1080°");
-    assert_eq!(reports[1][3], 0x04, "MSB of 1080°");
+    assert_eq!(reports[1][2], 0x84, "LSB of 900°");
+    assert_eq!(reports[1][3], 0x03, "MSB of 900°");
 
     Ok(())
 }

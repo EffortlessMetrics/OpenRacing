@@ -6,4 +6,6 @@ license = "MIT OR Apache-2.0"
 description = "FFBeast USB HID protocol constants and encoders (I/O-free, allocation-free)"
 repository = "https://github.com/openracing/openracing"
 
-[dependencies]
+[dev-dependencies]
+proptest = { workspace = true }
+insta = { version = "1.44.1", features = ["yaml"] }

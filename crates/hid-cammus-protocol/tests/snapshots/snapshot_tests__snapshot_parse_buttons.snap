@@ -1,0 +1,5 @@
+---
+source: crates/hid-cammus-protocol/tests/snapshot_tests.rs
+expression: "format!(\"buttons={:#06X}\", report.buttons)"
+---
+"buttons=0xCDAB"

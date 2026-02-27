@@ -123,3 +123,86 @@ mod tests {
         assert_eq!(report[1], 255);
     }
 }
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn encode_no_panic_on_arbitrary_float(torque in any::<f32>()) {
+            let enc = FFBeastTorqueEncoder;
+            let _ = enc.encode(torque);
+        }
+
+        #[test]
+        fn encode_report_id_always_constant_force(torque in any::<f32>()) {
+            let enc = FFBeastTorqueEncoder;
+            let report = enc.encode(torque);
+            prop_assert_eq!(report[0], CONSTANT_FORCE_REPORT_ID);
+        }
+
+        #[test]
+        fn encode_reserved_bytes_always_zero(torque in any::<f32>()) {
+            let enc = FFBeastTorqueEncoder;
+            let report = enc.encode(torque);
+            prop_assert_eq!(report[3], 0u8);
+            prop_assert_eq!(report[4], 0u8);
+        }
+
+        #[test]
+        fn encode_in_range_stays_bounded(torque in -1.0f32..=1.0f32) {
+            let enc = FFBeastTorqueEncoder;
+            let report = enc.encode(torque);
+            let raw = i16::from_le_bytes([report[1], report[2]]);
+            prop_assert!(raw >= -MAX_TORQUE_SCALE, "raw {raw} < -{MAX_TORQUE_SCALE}");
+            prop_assert!(raw <= MAX_TORQUE_SCALE, "raw {raw} > {MAX_TORQUE_SCALE}");
+        }
+
+        #[test]
+        fn encode_over_range_clamps_to_max(torque in 1.000001f32..=1000.0f32) {
+            let enc = FFBeastTorqueEncoder;
+            let report = enc.encode(torque);
+            let expected = enc.encode(1.0);
+            prop_assert_eq!(report, expected);
+        }
+
+        #[test]
+        fn encode_under_range_clamps_to_min(torque in -1000.0f32..=-1.000001f32) {
+            let enc = FFBeastTorqueEncoder;
+            let report = enc.encode(torque);
+            let expected = enc.encode(-1.0);
+            prop_assert_eq!(report, expected);
+        }
+    }
+}
+
+#[cfg(test)]
+mod snapshot_tests {
+    use super::*;
+
+    #[test]
+    fn snapshot_encode_zero_torque() {
+        let enc = FFBeastTorqueEncoder;
+        insta::assert_debug_snapshot!("encode_zero_torque", enc.encode(0.0));
+    }
+
+    #[test]
+    fn snapshot_encode_full_positive() {
+        let enc = FFBeastTorqueEncoder;
+        insta::assert_debug_snapshot!("encode_full_positive", enc.encode(1.0));
+    }
+
+    #[test]
+    fn snapshot_encode_full_negative() {
+        let enc = FFBeastTorqueEncoder;
+        insta::assert_debug_snapshot!("encode_full_negative", enc.encode(-1.0));
+    }
+
+    #[test]
+    fn snapshot_encode_half_positive() {
+        let enc = FFBeastTorqueEncoder;
+        insta::assert_debug_snapshot!("encode_half_positive", enc.encode(0.5));
+    }
+}

@@ -40,7 +40,7 @@ fn parse_outgauge_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
 
     let speed_mps = read_f32_le(data, OFF_SPEED).unwrap_or(0.0);
     let rpm = read_f32_le(data, OFF_RPM).unwrap_or(0.0);
-    let gear_raw = data[OFF_GEAR] as i8;
+    let gear_raw = data[OFF_GEAR]; // u8: 0=R, 1=N, 2=1st, 3=2nd, …
     let throttle = read_f32_le(data, OFF_THROTTLE).unwrap_or(0.0);
     let brake = read_f32_le(data, OFF_BRAKE).unwrap_or(0.0);
     let clutch = read_f32_le(data, OFF_CLUTCH).unwrap_or(0.0);
@@ -50,7 +50,7 @@ fn parse_outgauge_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     let gear: i8 = match gear_raw {
         0 => -1,
         1 => 0,
-        g => g - 1,
+        g => (g - 1) as i8, // g is u8 2..=255; g-1 is 1..=254, cast to i8 is safe for realistic gear values
     };
 
     Ok(NormalizedTelemetry::builder()
@@ -298,5 +298,55 @@ mod tests {
         let result = adapter.normalize(&data)?;
         assert!((result.speed_ms - 40.0).abs() < 0.01);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn parse_outgauge_no_panic_on_arbitrary_bytes(
+            data in proptest::collection::vec(any::<u8>(), 0..256)
+        ) {
+            let _ = parse_outgauge_packet(&data);
+        }
+
+        #[test]
+        fn parse_outgauge_too_short_always_errors(size in 0usize..OUTGAUGE_PACKET_SIZE) {
+            let data = vec![0u8; size];
+            prop_assert!(parse_outgauge_packet(&data).is_err());
+        }
+
+        #[test]
+        fn parse_outgauge_speed_nonneg(speed in 0.0f32..=300.0f32) {
+            let mut data = vec![0u8; OUTGAUGE_PACKET_SIZE];
+            data[OFF_SPEED..OFF_SPEED + 4].copy_from_slice(&speed.to_le_bytes());
+            if let Ok(result) = parse_outgauge_packet(&data) {
+                prop_assert!(result.speed_ms >= 0.0);
+            }
+        }
+
+        #[test]
+        fn parse_outgauge_throttle_clamped(throttle in any::<f32>()) {
+            let mut data = vec![0u8; OUTGAUGE_PACKET_SIZE];
+            data[OFF_THROTTLE..OFF_THROTTLE + 4].copy_from_slice(&throttle.to_le_bytes());
+            if let Ok(result) = parse_outgauge_packet(&data) {
+                prop_assert!(result.throttle >= 0.0);
+                prop_assert!(result.throttle <= 1.0);
+            }
+        }
+
+        #[test]
+        fn parse_outgauge_brake_clamped(brake in any::<f32>()) {
+            let mut data = vec![0u8; OUTGAUGE_PACKET_SIZE];
+            data[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&brake.to_le_bytes());
+            if let Ok(result) = parse_outgauge_packet(&data) {
+                prop_assert!(result.brake >= 0.0);
+                prop_assert!(result.brake <= 1.0);
+            }
+        }
     }
 }

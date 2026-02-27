@@ -13,9 +13,13 @@ sequence is needed. The device is FFB-ready immediately after USB connection.
 
 | Model | Vendor ID | Product ID | Max Torque | Notes |
 |-------|-----------|------------|------------|-------|
-| Forte | `0x2E5A` | `0x0001` | 20 Nm | Mid-range direct drive |
-| Invicta | `0x2E5A` | `0x0002` | 15 Nm | Entry direct drive |
-| LaPrima | `0x2E5A` | `0x0003` | 10 Nm | Compact direct drive |
+| Invicta | `0x2433` | `0xF300` | 15 Nm | Entry direct drive |
+| Forte | `0x2433` | `0xF301` | 20 Nm | Mid-range direct drive |
+| La Prima | `0x2433` | `0xF303` | 10 Nm | Compact direct drive |
+| Tony Kanaan Edition | `0x2433` | `0xF306` | 20 Nm | Limited edition |
+
+**Vendor ID note:** VID `0x2433` is registered to Asetek A/S (USB VID registry).
+Source: JacKeTUs/linux-steering-wheels compatibility table.
 
 ## Initialization
 

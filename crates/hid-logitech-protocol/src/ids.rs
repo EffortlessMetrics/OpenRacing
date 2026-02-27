@@ -30,27 +30,39 @@ pub mod commands {
 }
 
 /// Known Logitech wheel product IDs.
+///
+/// VID/PID values verified against the Linux kernel hid-ids.h and the
+/// oversteer project (berarma/oversteer).
 pub mod product_ids {
     /// G25 racing wheel (900°, 2.5 Nm belt-drive).
     pub const G25: u16 = 0xC299;
-    /// G27 racing wheel — revision A.
+    /// Driving Force / Formula EX wheel; also appears when a G27 is in
+    /// compatibility (emulation) mode.
     pub const G27_A: u16 = 0xC294;
-    /// G27 racing wheel — revision B.
+    /// G27 racing wheel (900°, 2.5 Nm belt-drive).
     pub const G27: u16 = 0xC29B;
     /// G29 racing wheel (PlayStation/PC, 900°, 2.2 Nm).
     pub const G29_PS: u16 = 0xC24F;
-    /// G29 racing wheel (Xbox variant, 900°, 2.2 Nm).
+    /// G29 racing wheel (pre-production / limited Xbox variant, 900°, 2.2 Nm).
     pub const G29_XBOX: u16 = 0xC260;
-    /// G920 racing wheel — revision 1.
+    /// G920 racing wheel — revision 1 (pre-production variant).
     pub const G920_V1: u16 = 0xC261;
     /// G920 racing wheel (Xbox/PC, 900°, 2.2 Nm).
     pub const G920: u16 = 0xC262;
-    /// G923 racing wheel (Xbox, 900°, 2.2 Nm, TrueForce).
-    pub const G923_XBOX: u16 = 0xC26D;
-    /// G923 racing wheel (PlayStation, 900°, 2.2 Nm, TrueForce).
-    pub const G923_PS: u16 = 0xC26E;
-    /// G PRO racing wheel.
-    pub const G_PRO: u16 = 0xC266;
-    /// Pro Racing Wheel (direct drive, 1080°, 11 Nm, TrueForce).
-    pub const PRO_RACING: u16 = 0xC272;
+    /// G923 racing wheel (PlayStation/PC, 900°, 2.2 Nm, TrueForce).
+    ///
+    /// Verified: linux-steering-wheels compatibility table (046d:c267).
+    pub const G923_PS: u16 = 0xC267;
+    /// G923 racing wheel (Xbox/PC, 900°, 2.2 Nm, TrueForce).
+    ///
+    /// Verified: Linux kernel hid-ids.h `USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL = 0xc26e`.
+    pub const G923_XBOX: u16 = 0xC26E;
+    /// G PRO racing wheel (PlayStation/PC, 900°, 2.2 Nm).
+    ///
+    /// Verified: oversteer project `LG_GPRO_PS = '046d:c268'`.
+    pub const G_PRO: u16 = 0xC268;
+    /// G PRO racing wheel (Xbox/PC, 900°, 2.2 Nm).
+    ///
+    /// Verified: oversteer project `LG_GPRO_XBOX = '046d:c272'`.
+    pub const G_PRO_XBOX: u16 = 0xC272;
 }

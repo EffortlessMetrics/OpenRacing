@@ -314,3 +314,53 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn parse_ac_packet_no_panic_on_arbitrary_bytes(
+            data in proptest::collection::vec(any::<u8>(), 0..512)
+        ) {
+            // Must never panic on arbitrary input.
+            let _ = parse_ac_packet(&data);
+        }
+
+        #[test]
+        fn parse_ac_packet_too_short_always_errors(size in 0usize..AC_PACKET_MIN_SIZE) {
+            let data = vec![0u8; size];
+            prop_assert!(parse_ac_packet(&data).is_err());
+        }
+
+        #[test]
+        fn parse_ac_packet_speed_always_nonneg(speed in 0u16..=300u16) {
+            let mut data = vec![0u8; AC_PACKET_MIN_SIZE];
+            data[OFF_SPEED_KMH..OFF_SPEED_KMH + 2].copy_from_slice(&speed.to_le_bytes());
+            let result = parse_ac_packet(&data);
+            prop_assert!(result.is_ok());
+            prop_assert!(result.unwrap().speed_ms >= 0.0);
+        }
+
+        #[test]
+        fn parse_ac_packet_steering_clamped(steer in any::<f32>()) {
+            let mut data = vec![0u8; AC_PACKET_MIN_SIZE];
+            data[OFF_STEER..OFF_STEER + 4].copy_from_slice(&steer.to_le_bytes());
+            if let Ok(result) = parse_ac_packet(&data) {
+                prop_assert!(result.steering_angle >= -1.0);
+                prop_assert!(result.steering_angle <= 1.0);
+            }
+        }
+
+        #[test]
+        fn parse_ac_packet_rpm_nonneg_on_valid_input(rpm in 0.0f32..=20000.0f32) {
+            let mut data = vec![0u8; AC_PACKET_MIN_SIZE];
+            data[OFF_RPM..OFF_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
+            let result = parse_ac_packet(&data);
+            prop_assert!(result.is_ok());
+            prop_assert!(result.unwrap().rpm >= 0.0);
+        }
+    }
+}

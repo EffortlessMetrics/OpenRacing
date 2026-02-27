@@ -510,3 +510,129 @@ games:
       process_names: []
       install_registry_keys: []
       install_paths: []
+
+  assetto_corsa:
+    name: "Assetto Corsa"
+    versions:
+      - version: "1.16.x"
+        config_paths: []
+        executable_patterns:
+          - "acs.exe"
+        telemetry_method: "udp_outgauge"
+        supported_fields:
+          - "rpm"
+          - "max_rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+    telemetry:
+      method: "udp_outgauge"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:9996"
+      fields:
+        ffb_scalar: null
+        rpm: "rpm"
+        speed_ms: "speed_kmh"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: null
+        track_id: null
+    status: "stable"
+    config_writer: "assetto_corsa"
+    auto_detect:
+      process_names:
+        - "acs.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 244210"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/assettocorsa"
+
+  forza_motorsport:
+    name: "Forza Motorsport / Forza Horizon"
+    versions:
+      - version: "FM8 / FH5"
+        config_paths: []
+        executable_patterns:
+          - "forzamotorsport.exe"
+          - "forzahorizon5.exe"
+        telemetry_method: "udp_forza_data_out"
+        supported_fields:
+          - "rpm"
+          - "max_rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+    telemetry:
+      method: "udp_forza_data_out"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:5300"
+      fields:
+        ffb_scalar: null
+        rpm: "current_engine_rpm"
+        speed_ms: "velocity_magnitude"
+        slip_ratio: null
+        gear: "gear"
+        flags: "is_race_on"
+        car_id: null
+        track_id: null
+    status: "stable"
+    config_writer: "forza_motorsport"
+    auto_detect:
+      process_names:
+        - "forzamotorsport.exe"
+        - "forzahorizon5.exe"
+      install_registry_keys: []
+      install_paths:
+        - "Program Files/WindowsApps/Microsoft.ForzaMotorsport"
+        - "Program Files/WindowsApps/Microsoft.ForzaHorizon5"
+
+  beamng_drive:
+    name: "BeamNG.drive"
+    versions:
+      - version: "0.32.x"
+        config_paths: []
+        executable_patterns:
+          - "beamng.drive.x64.exe"
+          - "beamng.drive.exe"
+        telemetry_method: "udp_outgauge"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "clutch"
+    telemetry:
+      method: "udp_outgauge"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:4444"
+      fields:
+        ffb_scalar: null
+        rpm: "rpm"
+        speed_ms: "speed_mps"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: null
+        track_id: null
+    status: "stable"
+    config_writer: "beamng_drive"
+    auto_detect:
+      process_names:
+        - "beamng.drive.x64.exe"
+        - "beamng.drive.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 284160"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/BeamNG.drive"

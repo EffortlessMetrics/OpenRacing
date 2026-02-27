@@ -17,10 +17,8 @@ pub enum LogitechModel {
     G920,
     /// G923 racing wheel with TrueForce (2.2 Nm, 900°).
     G923,
-    /// G PRO racing wheel (2.2 Nm, 900°).
+    /// G PRO racing wheel (2.2 Nm, 900°; PS and Xbox/PC variants).
     GPro,
-    /// Pro Racing Wheel (direct-drive, 11 Nm, 1080°, TrueForce).
-    ProRacing,
     /// Unknown or future Logitech wheel.
     Unknown,
 }
@@ -34,8 +32,7 @@ impl LogitechModel {
             product_ids::G29_PS | product_ids::G29_XBOX => Self::G29,
             product_ids::G920_V1 | product_ids::G920 => Self::G920,
             product_ids::G923_XBOX | product_ids::G923_PS => Self::G923,
-            product_ids::G_PRO => Self::GPro,
-            product_ids::PRO_RACING => Self::ProRacing,
+            product_ids::G_PRO | product_ids::G_PRO_XBOX => Self::GPro,
             _ => Self::Unknown,
         }
     }
@@ -45,22 +42,18 @@ impl LogitechModel {
         match self {
             Self::G25 | Self::G27 => 2.5,
             Self::G29 | Self::G920 | Self::G923 | Self::GPro => 2.2,
-            Self::ProRacing => 11.0,
             Self::Unknown => 2.0,
         }
     }
 
     /// Maximum wheel rotation in degrees.
     pub fn max_rotation_deg(self) -> u16 {
-        match self {
-            Self::ProRacing => 1080,
-            _ => 900,
-        }
+        900
     }
 
     /// Whether this model supports TrueForce haptics.
     pub fn supports_trueforce(self) -> bool {
-        matches!(self, Self::G923 | Self::ProRacing)
+        matches!(self, Self::G923)
     }
 }
 
@@ -78,7 +71,7 @@ pub fn is_wheel_product(product_id: u16) -> bool {
             | product_ids::G923_XBOX
             | product_ids::G923_PS
             | product_ids::G_PRO
-            | product_ids::PRO_RACING
+            | product_ids::G_PRO_XBOX
     )
 }
 
@@ -105,12 +98,21 @@ mod tests {
     }
 
     #[test]
-    fn test_model_pro_racing() -> Result<(), Box<dyn std::error::Error>> {
-        let model = LogitechModel::from_product_id(product_ids::PRO_RACING);
-        assert_eq!(model, LogitechModel::ProRacing);
-        assert_eq!(model.max_rotation_deg(), 1080);
-        assert!((model.max_torque_nm() - 11.0).abs() < 0.1);
+    fn test_model_g923_ps_trueforce() -> Result<(), Box<dyn std::error::Error>> {
+        let model = LogitechModel::from_product_id(product_ids::G923_PS);
+        assert_eq!(model, LogitechModel::G923);
         assert!(model.supports_trueforce());
+        Ok(())
+    }
+
+    #[test]
+    fn test_model_g_pro() -> Result<(), Box<dyn std::error::Error>> {
+        let model_ps = LogitechModel::from_product_id(product_ids::G_PRO);
+        let model_xbox = LogitechModel::from_product_id(product_ids::G_PRO_XBOX);
+        assert_eq!(model_ps, LogitechModel::GPro);
+        assert_eq!(model_xbox, LogitechModel::GPro);
+        assert!((model_ps.max_torque_nm() - 2.2).abs() < 0.05);
+        assert_eq!(model_ps.max_rotation_deg(), 900);
         Ok(())
     }
 
@@ -126,7 +128,8 @@ mod tests {
         assert!(is_wheel_product(product_ids::G920));
         assert!(is_wheel_product(product_ids::G923_XBOX));
         assert!(is_wheel_product(product_ids::G923_PS));
-        assert!(is_wheel_product(product_ids::PRO_RACING));
+        assert!(is_wheel_product(product_ids::G_PRO));
+        assert!(is_wheel_product(product_ids::G_PRO_XBOX));
         assert!(is_wheel_product(product_ids::G29_PS));
         assert!(!is_wheel_product(0xFFFF));
         assert!(!is_wheel_product(0x0000));
@@ -138,6 +141,56 @@ mod tests {
         let model = LogitechModel::from_product_id(product_ids::G27);
         assert_eq!(model, LogitechModel::G27);
         assert!((model.max_torque_nm() - 2.5).abs() < 0.05);
+        Ok(())
+    }
+
+    /// Verify that all known PIDs round-trip correctly through from_product_id → is_wheel_product.
+    #[test]
+    fn test_all_known_pids_are_wheels() -> Result<(), Box<dyn std::error::Error>> {
+        let known_pids = [
+            product_ids::G25,
+            product_ids::G27_A,
+            product_ids::G27,
+            product_ids::G29_PS,
+            product_ids::G29_XBOX,
+            product_ids::G920_V1,
+            product_ids::G920,
+            product_ids::G923_PS,
+            product_ids::G923_XBOX,
+            product_ids::G_PRO,
+            product_ids::G_PRO_XBOX,
+        ];
+        for pid in known_pids {
+            assert!(
+                is_wheel_product(pid),
+                "PID 0x{:04X} should be a known wheel product",
+                pid
+            );
+            let model = LogitechModel::from_product_id(pid);
+            assert_ne!(
+                model,
+                LogitechModel::Unknown,
+                "PID 0x{:04X} should classify to a known model",
+                pid
+            );
+        }
+        Ok(())
+    }
+
+    /// Verify specific VID/PID constant values against authoritative sources
+    /// (Linux kernel hid-ids.h; oversteer project wheel_ids.py).
+    #[test]
+    fn test_pid_constant_values() -> Result<(), Box<dyn std::error::Error>> {
+        use crate::ids::{LOGITECH_VENDOR_ID, product_ids};
+        assert_eq!(LOGITECH_VENDOR_ID, 0x046D, "Logitech VID");
+        assert_eq!(product_ids::G25, 0xC299, "G25 PID (kernel: USB_DEVICE_ID_LOGITECH_G25_WHEEL)");
+        assert_eq!(product_ids::G27, 0xC29B, "G27 PID (kernel: USB_DEVICE_ID_LOGITECH_G27_WHEEL)");
+        assert_eq!(product_ids::G29_PS, 0xC24F, "G29 PID (kernel: USB_DEVICE_ID_LOGITECH_G29_WHEEL)");
+        assert_eq!(product_ids::G920, 0xC262, "G920 PID (kernel: USB_DEVICE_ID_LOGITECH_G920_WHEEL)");
+        assert_eq!(product_ids::G923_PS, 0xC267, "G923 PS PID (oversteer: LG_G923P)");
+        assert_eq!(product_ids::G923_XBOX, 0xC26E, "G923 Xbox PID (kernel: USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL)");
+        assert_eq!(product_ids::G_PRO, 0xC268, "G PRO PS PID (oversteer: LG_GPRO_PS)");
+        assert_eq!(product_ids::G_PRO_XBOX, 0xC272, "G PRO Xbox PID (oversteer: LG_GPRO_XBOX)");
         Ok(())
     }
 }

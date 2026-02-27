@@ -1,9 +1,9 @@
 //! Cammus C5/C12 direct drive wheel vendor protocol handler.
 //!
 //! ## Device IDs
-//! - Vendor ID: `0x3285`
-//! - Product ID `0x0002`: Cammus C5 (5 Nm)
-//! - Product ID `0x0003`: Cammus C12 (12 Nm)
+//! - Vendor ID: `0x3416` (Shenzhen Cammus Electronic Technology Co., Ltd.)
+//! - Product ID `0x0301`: Cammus C5 (5 Nm)
+//! - Product ID `0x0302`: Cammus C12 (12 Nm)
 //!
 //! ## Protocol
 //! Uses a simple 8-byte USB HID output report for real-time torque output.
