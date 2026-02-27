@@ -1,4 +1,4 @@
-//! Integration tests for newer game telemetry adapters added during the RC sprint.
+﻿//! Integration tests for newer game telemetry adapters added during the RC sprint.
 //!
 //! Covers: ETS2/ATS, Wreckfest, Rennsport, WRC Generations, Dirt 4, Project CARS 2, LFS.
 //!
@@ -8,8 +8,8 @@
 //!   - A proptest fuzz section (≥256 random-byte cases → never panics)
 
 use racing_wheel_telemetry_adapters::{
-    Dirt4Adapter, Ets2Adapter, LFSAdapter, PCars2Adapter, RennsportAdapter, TelemetryAdapter,
-    WrcGenerationsAdapter, WreckfestAdapter, ets2::Ets2Variant,
+    DakarDesertRallyAdapter, Dirt4Adapter, Ets2Adapter, FlatOutAdapter, LFSAdapter, PCars2Adapter,
+    RennsportAdapter, TelemetryAdapter, WrcGenerationsAdapter, WreckfestAdapter, ets2::Ets2Variant,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -510,6 +510,213 @@ fn lfs_first_gear_maps_to_one() -> TestResult {
 
 // ─── Property-based fuzz tests ────────────────────────────────────────────────
 
+// ─── FlatOut UC / FlatOut 4 ──────────────────────────────────────────────────
+//
+// UDP port 7776, FOTC magic (4 bytes), then:
+//   offset 4  u32  sequence
+//   offset 8  f32  speed_ms
+//   offset 12 f32  rpm
+//   offset 16 u8   gear  (0=neutral, 1+=forward)
+//   offset 20 f32  lateral_g
+//   offset 24 f32  longitudinal_g
+//   offset 28 f32  throttle [0, 1]
+//   offset 32 f32  brake [0, 1]
+
+const FOTC_MAGIC: [u8; 4] = [0x46, 0x4F, 0x54, 0x43];
+
+fn make_flatout_packet(
+    speed: f32,
+    rpm: f32,
+    gear: u8,
+    lat_g: f32,
+    lon_g: f32,
+    throttle: f32,
+    brake: f32,
+) -> Vec<u8> {
+    let mut data = vec![0u8; 36];
+    data[0..4].copy_from_slice(&FOTC_MAGIC);
+    write_f32_le(&mut data, 8, speed);
+    write_f32_le(&mut data, 12, rpm);
+    data[16] = gear;
+    write_f32_le(&mut data, 20, lat_g);
+    write_f32_le(&mut data, 24, lon_g);
+    write_f32_le(&mut data, 28, throttle);
+    write_f32_le(&mut data, 32, brake);
+    data
+}
+
+#[test]
+fn flatout_happy_path_parses_fields() -> TestResult {
+    let pkt = make_flatout_packet(30.0, 4000.0, 3, 0.5, 0.2, 0.8, 0.1);
+    let t = FlatOutAdapter::new().normalize(&pkt)?;
+    assert!((t.speed_ms - 30.0).abs() < 0.01, "speed_ms={}", t.speed_ms);
+    assert!((t.rpm - 4000.0).abs() < 0.1, "rpm={}", t.rpm);
+    assert_eq!(t.gear, 3, "gear={}", t.gear);
+    assert!(
+        (t.lateral_g - 0.5).abs() < 0.001,
+        "lateral_g={}",
+        t.lateral_g
+    );
+    assert!((t.throttle - 0.8).abs() < 0.001, "throttle={}", t.throttle);
+    Ok(())
+}
+
+#[test]
+fn flatout_empty_packet_returns_error() -> TestResult {
+    assert!(FlatOutAdapter::new().normalize(&[]).is_err());
+    Ok(())
+}
+
+#[test]
+fn flatout_short_packet_returns_error() -> TestResult {
+    assert!(FlatOutAdapter::new().normalize(&[0u8; 10]).is_err());
+    Ok(())
+}
+
+#[test]
+fn flatout_bad_magic_returns_error() -> TestResult {
+    let mut pkt = make_flatout_packet(10.0, 2000.0, 2, 0.0, 0.0, 0.5, 0.0);
+    pkt[0] = 0xFF;
+    assert!(FlatOutAdapter::new().normalize(&pkt).is_err());
+    Ok(())
+}
+
+#[test]
+fn flatout_ffb_scalar_stays_in_range() -> TestResult {
+    let pkt = make_flatout_packet(60.0, 7000.0, 5, 2.0, 1.5, 1.0, 0.0);
+    let t = FlatOutAdapter::new().normalize(&pkt)?;
+    assert!(
+        t.ffb_scalar >= -1.0 && t.ffb_scalar <= 1.0,
+        "ffb_scalar={} must be in [-1, 1]",
+        t.ffb_scalar
+    );
+    Ok(())
+}
+
+#[test]
+fn flatout_adapter_game_id() {
+    assert_eq!(FlatOutAdapter::new().game_id(), "flatout");
+}
+
+// ─── Dakar Desert Rally ───────────────────────────────────────────────────────
+//
+// UDP port 7779, DAKR magic (4 bytes), then:
+//   offset 4  u32  sequence
+//   offset 8  f32  speed_ms
+//   offset 12 f32  rpm
+//   offset 16 u8   gear  (0=neutral, 255=reverse, 1+=forward)
+//   offset 20 f32  lateral_g
+//   offset 24 f32  longitudinal_g
+//   offset 28 f32  throttle [0, 1]
+//   offset 32 f32  brake [0, 1]
+//   offset 36 f32  steering_angle [-1, 1]
+
+const DAKR_MAGIC: [u8; 4] = [0x44, 0x41, 0x4B, 0x52];
+
+fn make_dakar_packet(
+    speed: f32,
+    rpm: f32,
+    gear: u8,
+    lat_g: f32,
+    lon_g: f32,
+    throttle: f32,
+    brake: f32,
+    steering: f32,
+) -> Vec<u8> {
+    let mut data = vec![0u8; 40];
+    data[0..4].copy_from_slice(&DAKR_MAGIC);
+    write_f32_le(&mut data, 8, speed);
+    write_f32_le(&mut data, 12, rpm);
+    data[16] = gear;
+    write_f32_le(&mut data, 20, lat_g);
+    write_f32_le(&mut data, 24, lon_g);
+    write_f32_le(&mut data, 28, throttle);
+    write_f32_le(&mut data, 32, brake);
+    write_f32_le(&mut data, 36, steering);
+    data
+}
+
+#[test]
+fn dakar_happy_path_parses_fields() -> TestResult {
+    let pkt = make_dakar_packet(25.0, 3500.0, 3, 0.4, 0.1, 0.7, 0.0, 0.2);
+    let t = DakarDesertRallyAdapter::new().normalize(&pkt)?;
+    assert!((t.speed_ms - 25.0).abs() < 0.01, "speed_ms={}", t.speed_ms);
+    assert!((t.rpm - 3500.0).abs() < 0.1, "rpm={}", t.rpm);
+    assert_eq!(t.gear, 3, "gear={}", t.gear);
+    assert!(
+        (t.lateral_g - 0.4).abs() < 0.001,
+        "lateral_g={}",
+        t.lateral_g
+    );
+    assert!((t.throttle - 0.7).abs() < 0.001, "throttle={}", t.throttle);
+    assert!(
+        (t.steering_angle - 0.2).abs() < 0.001,
+        "steering_angle={}",
+        t.steering_angle
+    );
+    Ok(())
+}
+
+#[test]
+fn dakar_empty_packet_returns_error() -> TestResult {
+    assert!(DakarDesertRallyAdapter::new().normalize(&[]).is_err());
+    Ok(())
+}
+
+#[test]
+fn dakar_short_packet_returns_error() -> TestResult {
+    assert!(
+        DakarDesertRallyAdapter::new()
+            .normalize(&[0u8; 10])
+            .is_err()
+    );
+    Ok(())
+}
+
+#[test]
+fn dakar_bad_magic_returns_error() -> TestResult {
+    let mut pkt = make_dakar_packet(10.0, 2000.0, 2, 0.0, 0.0, 0.5, 0.0, 0.0);
+    pkt[0] = 0xFF;
+    assert!(DakarDesertRallyAdapter::new().normalize(&pkt).is_err());
+    Ok(())
+}
+
+#[test]
+fn dakar_reverse_gear_maps_to_minus_one() -> TestResult {
+    let pkt = make_dakar_packet(5.0, 1500.0, 255, 0.0, -0.3, 0.0, 0.3, 0.0);
+    let t = DakarDesertRallyAdapter::new().normalize(&pkt)?;
+    assert_eq!(t.gear, -1, "gear 255 must map to -1 (reverse)");
+    Ok(())
+}
+
+#[test]
+fn dakar_neutral_gear_maps_to_zero() -> TestResult {
+    let pkt = make_dakar_packet(0.0, 800.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    let t = DakarDesertRallyAdapter::new().normalize(&pkt)?;
+    assert_eq!(t.gear, 0);
+    Ok(())
+}
+
+#[test]
+fn dakar_ffb_scalar_stays_in_range() -> TestResult {
+    let pkt = make_dakar_packet(60.0, 6000.0, 5, 2.0, 1.5, 1.0, 0.0, 0.0);
+    let t = DakarDesertRallyAdapter::new().normalize(&pkt)?;
+    assert!(
+        t.ffb_scalar >= -1.0 && t.ffb_scalar <= 1.0,
+        "ffb_scalar={} must be in [-1, 1]",
+        t.ffb_scalar
+    );
+    Ok(())
+}
+
+#[test]
+fn dakar_adapter_game_id() {
+    assert_eq!(
+        DakarDesertRallyAdapter::new().game_id(),
+        "dakar_desert_rally"
+    );
+}
+
 mod proptest_tests {
     use super::*;
     use proptest::prelude::*;
@@ -676,6 +883,44 @@ mod proptest_tests {
                 "throttle {} must be in [0, 1]",
                 t.throttle
             );
+        }
+    }
+
+    // FlatOut ─────────────────────────────────────────────────────────────────
+
+    proptest! {
+        #[test]
+        fn flatout_no_panic_on_arbitrary_bytes(
+            data in proptest::collection::vec(any::<u8>(), 0..512)
+        ) {
+            let _ = FlatOutAdapter::new().normalize(&data);
+        }
+
+        #[test]
+        fn flatout_short_packet_always_errors(
+            // FLATOUT_MIN_PACKET_SIZE = 36
+            data in proptest::collection::vec(any::<u8>(), 0..36usize)
+        ) {
+            prop_assert!(FlatOutAdapter::new().normalize(&data).is_err());
+        }
+    }
+
+    // Dakar Desert Rally ──────────────────────────────────────────────────────
+
+    proptest! {
+        #[test]
+        fn dakar_no_panic_on_arbitrary_bytes(
+            data in proptest::collection::vec(any::<u8>(), 0..512)
+        ) {
+            let _ = DakarDesertRallyAdapter::new().normalize(&data);
+        }
+
+        #[test]
+        fn dakar_short_packet_always_errors(
+            // DAKAR_MIN_PACKET_SIZE = 40
+            data in proptest::collection::vec(any::<u8>(), 0..40usize)
+        ) {
+            prop_assert!(DakarDesertRallyAdapter::new().normalize(&data).is_err());
         }
     }
 }

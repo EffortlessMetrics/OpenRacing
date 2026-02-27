@@ -1,14 +1,25 @@
 //! Forza Motorsport / Forza Horizon telemetry adapter using UDP.
 //!
-//! Supports two packet formats:
-//! - "Sled" (232 bytes): Forza 7 and earlier.
-//! - "CarDash" (311 bytes): FM8, FH5, Forza 7+.
+//! Supports two packet formats defined by Forza's "Data Out" feature:
 //!
-//! Both formats use little-endian encoding.
+//! - **Sled** (232 bytes): FM7 and earlier. Contains physics data (velocity,
+//!   wheel speeds, suspension travel, G-forces, tire slip). No user-input
+//!   fields (throttle/brake/steer are absent in this format).
+//! - **CarDash** (311 bytes): FM8, FH5, FH4+. Sled data plus dashboard
+//!   fields: speed, throttle, brake, clutch, gear, steer, lap times, fuel.
+//!
+//! Both formats use little-endian encoding. Wheel telemetry (rotation speeds
+//! and suspension travel) is stored in the `extended` map of
+//! [`NormalizedTelemetry`] using keys `wheel_speed_fl/fr/rl/rr` and
+//! `suspension_travel_fl/fr/rl/rr`.
+//!
+//! # Reference
+//! <https://support.forzamotorsport.net/hc/en-us/articles/21742934790291>
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
-    NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, telemetry_now_ns,
+    NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, TelemetryValue,
+    telemetry_now_ns,
 };
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
@@ -19,27 +30,68 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 const DEFAULT_FORZA_PORT: u16 = 5300;
+/// Sled packet: 58 × 4-byte fields = 232 bytes.
 const FORZA_SLED_SIZE: usize = 232;
+/// CarDash packet: Sled (232) + 17×f32 + u16 + 9×u8/i8 = 311 bytes.
 const FORZA_CARDASH_SIZE: usize = 311;
 const MAX_PACKET_SIZE: usize = 512;
 
-// Sled format byte offsets
-const OFF_IS_RACE_ON: usize = 0;
-const OFF_ENGINE_MAX_RPM: usize = 8;
-const OFF_CURRENT_RPM: usize = 16;
-const OFF_ACCEL: usize = 20;
-const OFF_BRAKE: usize = 24;
-const OFF_GEAR: usize = 36;
-const OFF_STEER: usize = 40;
-const OFF_VEL_X: usize = 52;
-const OFF_VEL_Y: usize = 56;
-const OFF_VEL_Z: usize = 60;
+// ── Sled format byte offsets ─────────────────────────────────────────────────
+const OFF_IS_RACE_ON: usize = 0; // i32
+const OFF_ENGINE_MAX_RPM: usize = 8; // f32
+const OFF_ENGINE_IDLE_RPM: usize = 12; // f32 (unused but documented)
+const OFF_CURRENT_RPM: usize = 16; // f32
+// World-space acceleration (m/s²)
+const OFF_ACCEL_X: usize = 20; // f32 – lateral (right = positive)
+const OFF_ACCEL_Y: usize = 24; // f32 – vertical (up = positive)
+const OFF_ACCEL_Z: usize = 28; // f32 – longitudinal (forward = positive)
+// World-space velocity (m/s)
+const OFF_VEL_X: usize = 32; // f32
+const OFF_VEL_Y: usize = 36; // f32
+const OFF_VEL_Z: usize = 40; // f32
+// Wheel rotation speeds (rad/s)
+const OFF_WHEEL_SPEED_FL: usize = 100; // f32
+const OFF_WHEEL_SPEED_FR: usize = 104; // f32
+const OFF_WHEEL_SPEED_RL: usize = 108; // f32
+const OFF_WHEEL_SPEED_RR: usize = 112; // f32
+// Tire slip angles (rad)
+const OFF_SLIP_ANGLE_FL: usize = 164; // f32
+const OFF_SLIP_ANGLE_FR: usize = 168; // f32
+const OFF_SLIP_ANGLE_RL: usize = 172; // f32
+const OFF_SLIP_ANGLE_RR: usize = 176; // f32
+// Suspension travel (m)
+const OFF_SUSP_TRAVEL_FL: usize = 196; // f32
+const OFF_SUSP_TRAVEL_FR: usize = 200; // f32
+const OFF_SUSP_TRAVEL_RL: usize = 204; // f32
+const OFF_SUSP_TRAVEL_RR: usize = 208; // f32
+
+// ── CarDash extension offsets (bytes 232+) ───────────────────────────────────
+const OFF_DASH_SPEED: usize = 244; // f32 m/s
+const OFF_DASH_TIRE_TEMP_FL: usize = 256; // f32 Kelvin
+const OFF_DASH_TIRE_TEMP_FR: usize = 260; // f32 Kelvin
+const OFF_DASH_TIRE_TEMP_RL: usize = 264; // f32 Kelvin
+const OFF_DASH_TIRE_TEMP_RR: usize = 268; // f32 Kelvin
+const OFF_DASH_FUEL: usize = 276; // f32 (0-1)
+const OFF_DASH_BEST_LAP: usize = 284; // f32 seconds
+const OFF_DASH_LAST_LAP: usize = 288; // f32 seconds
+const OFF_DASH_CUR_LAP: usize = 292; // f32 seconds
+const OFF_DASH_LAP_NUMBER: usize = 300; // u16
+const OFF_DASH_RACE_POS: usize = 302; // u8
+const OFF_DASH_ACCEL: usize = 303; // u8 (0-255 → 0.0-1.0)
+const OFF_DASH_BRAKE: usize = 304; // u8 (0-255 → 0.0-1.0)
+const OFF_DASH_CLUTCH: usize = 305; // u8 (0-255 → 0.0-1.0)
+const OFF_DASH_GEAR: usize = 307; // u8 (0=R, 1=N, 2=1st, …)
+const OFF_DASH_STEER: usize = 308; // i8 (-127 to 127 → -1.0 to 1.0)
+
+const G: f32 = 9.806_65; // standard gravity (m/s²)
 
 #[cfg(windows)]
 const FORZA_PROCESS_NAMES: &[&str] = &[
     "forzahorizon5.exe",
+    "forzahorizon4.exe",
     "forzamotorsport.exe",
     "forza motorsport 7.exe",
+    "forza_street.exe",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -57,6 +109,65 @@ fn detect_format(len: usize) -> ForzaPacketFormat {
     }
 }
 
+/// Parse the common Sled portion (first 232 bytes) present in both formats.
+///
+/// Returns speed, G-forces, wheel speeds, suspension travel, and tire slip.
+/// Throttle, brake, gear, and steer are absent from the Sled format; the
+/// caller should overlay those from the CarDash extension when available.
+fn parse_sled_common(data: &[u8]) -> NormalizedTelemetry {
+    debug_assert!(data.len() >= FORZA_SLED_SIZE);
+
+    let engine_max_rpm = read_f32_le(data, OFF_ENGINE_MAX_RPM).unwrap_or(0.0);
+    let current_rpm = read_f32_le(data, OFF_CURRENT_RPM).unwrap_or(0.0);
+
+    // Velocity → speed magnitude
+    let vel_x = read_f32_le(data, OFF_VEL_X).unwrap_or(0.0);
+    let vel_y = read_f32_le(data, OFF_VEL_Y).unwrap_or(0.0);
+    let vel_z = read_f32_le(data, OFF_VEL_Z).unwrap_or(0.0);
+    let speed_mps = (vel_x * vel_x + vel_y * vel_y + vel_z * vel_z).sqrt();
+
+    // World-space acceleration → G-forces
+    let accel_x = read_f32_le(data, OFF_ACCEL_X).unwrap_or(0.0);
+    let accel_z = read_f32_le(data, OFF_ACCEL_Z).unwrap_or(0.0);
+
+    // Tire slip angles
+    let slip_fl = read_f32_le(data, OFF_SLIP_ANGLE_FL).unwrap_or(0.0);
+    let slip_fr = read_f32_le(data, OFF_SLIP_ANGLE_FR).unwrap_or(0.0);
+    let slip_rl = read_f32_le(data, OFF_SLIP_ANGLE_RL).unwrap_or(0.0);
+    let slip_rr = read_f32_le(data, OFF_SLIP_ANGLE_RR).unwrap_or(0.0);
+
+    // Wheel rotation speeds and suspension travel go into extended fields.
+    let ws_fl = read_f32_le(data, OFF_WHEEL_SPEED_FL).unwrap_or(0.0);
+    let ws_fr = read_f32_le(data, OFF_WHEEL_SPEED_FR).unwrap_or(0.0);
+    let ws_rl = read_f32_le(data, OFF_WHEEL_SPEED_RL).unwrap_or(0.0);
+    let ws_rr = read_f32_le(data, OFF_WHEEL_SPEED_RR).unwrap_or(0.0);
+
+    let st_fl = read_f32_le(data, OFF_SUSP_TRAVEL_FL).unwrap_or(0.0);
+    let st_fr = read_f32_le(data, OFF_SUSP_TRAVEL_FR).unwrap_or(0.0);
+    let st_rl = read_f32_le(data, OFF_SUSP_TRAVEL_RL).unwrap_or(0.0);
+    let st_rr = read_f32_le(data, OFF_SUSP_TRAVEL_RR).unwrap_or(0.0);
+
+    NormalizedTelemetry::builder()
+        .rpm(current_rpm)
+        .max_rpm(engine_max_rpm)
+        .speed_ms(speed_mps)
+        .lateral_g(accel_x / G)
+        .longitudinal_g(accel_z / G)
+        .slip_angle_fl(slip_fl)
+        .slip_angle_fr(slip_fr)
+        .slip_angle_rl(slip_rl)
+        .slip_angle_rr(slip_rr)
+        .extended("wheel_speed_fl", TelemetryValue::Float(ws_fl))
+        .extended("wheel_speed_fr", TelemetryValue::Float(ws_fr))
+        .extended("wheel_speed_rl", TelemetryValue::Float(ws_rl))
+        .extended("wheel_speed_rr", TelemetryValue::Float(ws_rr))
+        .extended("suspension_travel_fl", TelemetryValue::Float(st_fl))
+        .extended("suspension_travel_fr", TelemetryValue::Float(st_fr))
+        .extended("suspension_travel_rl", TelemetryValue::Float(st_rl))
+        .extended("suspension_travel_rr", TelemetryValue::Float(st_rr))
+        .build()
+}
+
 fn parse_forza_sled(data: &[u8]) -> Result<NormalizedTelemetry> {
     if data.len() < FORZA_SLED_SIZE {
         return Err(anyhow!(
@@ -70,41 +181,10 @@ fn parse_forza_sled(data: &[u8]) -> Result<NormalizedTelemetry> {
         return Ok(NormalizedTelemetry::builder().build());
     }
 
-    let engine_max_rpm = read_f32_le(data, OFF_ENGINE_MAX_RPM).unwrap_or(0.0);
-    let current_rpm = read_f32_le(data, OFF_CURRENT_RPM).unwrap_or(0.0);
-    let throttle = read_f32_le(data, OFF_ACCEL).unwrap_or(0.0);
-    let brake = read_f32_le(data, OFF_BRAKE).unwrap_or(0.0);
-    let gear_raw = read_f32_le(data, OFF_GEAR).unwrap_or(1.0);
-    let steer = read_f32_le(data, OFF_STEER).unwrap_or(0.0).clamp(-1.0, 1.0);
-    let vel_x = read_f32_le(data, OFF_VEL_X).unwrap_or(0.0);
-    let vel_y = read_f32_le(data, OFF_VEL_Y).unwrap_or(0.0);
-    let vel_z = read_f32_le(data, OFF_VEL_Z).unwrap_or(0.0);
-    let speed_mps = (vel_x * vel_x + vel_y * vel_y + vel_z * vel_z).sqrt();
-
-    // Forza gear: 0=Reverse, 1-8=forward gears.
-    // Normalized: -1=Reverse, 0=Neutral (not present), 1-8=forward.
-    let gear: i8 = if gear_raw.is_finite() {
-        match gear_raw.trunc() as i32 {
-            0 => -1,
-            g @ 1..=8 => g as i8,
-            _ => 0,
-        }
-    } else {
-        0
-    };
-
-    Ok(NormalizedTelemetry::builder()
-        .rpm(current_rpm)
-        .max_rpm(engine_max_rpm)
-        .throttle(throttle)
-        .brake(brake)
-        .steering_angle(steer)
-        .speed_ms(speed_mps)
-        .gear(gear)
-        .build())
+    Ok(parse_sled_common(data))
 }
 
-/// CarDash format shares the Sled layout for the first 232 bytes.
+/// CarDash format: Sled physics data plus dashboard / user-input fields.
 fn parse_forza_cardash(data: &[u8]) -> Result<NormalizedTelemetry> {
     if data.len() < FORZA_CARDASH_SIZE {
         return Err(anyhow!(
@@ -112,7 +192,98 @@ fn parse_forza_cardash(data: &[u8]) -> Result<NormalizedTelemetry> {
             data.len()
         ));
     }
-    parse_forza_sled(data)
+
+    let is_race_on = read_i32_le(data, OFF_IS_RACE_ON).unwrap_or(0);
+    if is_race_on == 0 {
+        return Ok(NormalizedTelemetry::builder().build());
+    }
+
+    // Start with the common Sled fields
+    let sled = parse_sled_common(data);
+
+    // CarDash extension: direct speed measurement (more accurate than velocity)
+    let speed_mps = read_f32_le(data, OFF_DASH_SPEED).unwrap_or(sled.speed_ms);
+
+    // User inputs (u8 0-255 → f32 0.0-1.0)
+    let throttle = data
+        .get(OFF_DASH_ACCEL)
+        .map(|&b| b as f32 / 255.0)
+        .unwrap_or(0.0);
+    let brake = data
+        .get(OFF_DASH_BRAKE)
+        .map(|&b| b as f32 / 255.0)
+        .unwrap_or(0.0);
+    let clutch = data
+        .get(OFF_DASH_CLUTCH)
+        .map(|&b| b as f32 / 255.0)
+        .unwrap_or(0.0);
+
+    // Gear: 0=Reverse → -1, 1=Neutral → 0, 2..=9 = 1st..=8th
+    let gear: i8 = match data.get(OFF_DASH_GEAR).copied().unwrap_or(1) {
+        0 => -1,
+        1 => 0,
+        g => (g - 1) as i8,
+    };
+
+    // Steer: i8 −127 to 127 → −1.0 to 1.0
+    let steer_raw = data.get(OFF_DASH_STEER).map(|&b| b as i8).unwrap_or(0);
+    let steer = (steer_raw as f32 / 127.0).clamp(-1.0, 1.0);
+
+    // Tire temperatures: Kelvin → Celsius, clamped to u8
+    let temp = |off: usize| -> u8 {
+        let kelvin = read_f32_le(data, off).unwrap_or(293.15);
+        let celsius = (kelvin - 273.15).clamp(0.0, 255.0);
+        celsius as u8
+    };
+    let tire_temps = [
+        temp(OFF_DASH_TIRE_TEMP_FL),
+        temp(OFF_DASH_TIRE_TEMP_FR),
+        temp(OFF_DASH_TIRE_TEMP_RL),
+        temp(OFF_DASH_TIRE_TEMP_RR),
+    ];
+
+    let fuel = read_f32_le(data, OFF_DASH_FUEL).unwrap_or(0.0);
+    let best_lap = read_f32_le(data, OFF_DASH_BEST_LAP).unwrap_or(0.0);
+    let last_lap = read_f32_le(data, OFF_DASH_LAST_LAP).unwrap_or(0.0);
+    let cur_lap = read_f32_le(data, OFF_DASH_CUR_LAP).unwrap_or(0.0);
+    let lap_number = data
+        .get(OFF_DASH_LAP_NUMBER..OFF_DASH_LAP_NUMBER + 2)
+        .and_then(|b| b.try_into().ok())
+        .map(u16::from_le_bytes)
+        .unwrap_or(0);
+    let race_pos = data.get(OFF_DASH_RACE_POS).copied().unwrap_or(0);
+
+    // Overlay CarDash fields onto the Sled base, preserving extended map entries.
+    let mut telemetry = NormalizedTelemetry::builder()
+        .rpm(sled.rpm)
+        .max_rpm(sled.max_rpm)
+        .speed_ms(speed_mps)
+        .throttle(throttle)
+        .brake(brake)
+        .clutch(clutch)
+        .steering_angle(steer)
+        .gear(gear)
+        .lateral_g(sled.lateral_g)
+        .longitudinal_g(sled.longitudinal_g)
+        .slip_angle_fl(sled.slip_angle_fl)
+        .slip_angle_fr(sled.slip_angle_fr)
+        .slip_angle_rl(sled.slip_angle_rl)
+        .slip_angle_rr(sled.slip_angle_rr)
+        .tire_temps_c(tire_temps)
+        .fuel_percent(fuel)
+        .best_lap_time_s(best_lap)
+        .last_lap_time_s(last_lap)
+        .current_lap_time_s(cur_lap)
+        .lap(lap_number)
+        .position(race_pos)
+        .build();
+
+    // Propagate extended wheel/suspension fields from the Sled parse.
+    for (k, v) in &sled.extended {
+        telemetry.extended.insert(k.clone(), v.clone());
+    }
+
+    Ok(telemetry)
 }
 
 fn parse_forza_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
@@ -129,6 +300,9 @@ fn parse_forza_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
 }
 
 /// Forza Motorsport / Forza Horizon telemetry adapter.
+///
+/// Listens for UDP packets on the configured port and decodes both the
+/// 232-byte Sled and 311-byte CarDash formats automatically.
 pub struct ForzaAdapter {
     bind_port: u16,
     update_rate: Duration,

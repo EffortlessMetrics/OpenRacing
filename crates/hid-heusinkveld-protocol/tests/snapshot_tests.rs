@@ -22,6 +22,32 @@ fn test_snapshot_parse_center() -> Result<(), String> {
 }
 
 #[test]
+fn test_snapshot_parse_full_range_all_pedals() -> Result<(), String> {
+    // throttle=0xFFFF, brake=0xFFFF, clutch=0xFFFF, status=0x03 (connected + calibrated)
+    let data = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x03, 0x00];
+    let report = heusinkveld::HeusinkveldInputReport::parse(&data).map_err(|e| e.to_string())?;
+    assert_debug_snapshot!(format!(
+        "throttle={:.4}, brake={:.4}, clutch={:.4}, connected={}, calibrated={}",
+        report.throttle_normalized(),
+        report.brake_normalized(),
+        report.clutch_normalized(),
+        report.is_connected(),
+        report.is_calibrated()
+    ));
+    Ok(())
+}
+
+#[test]
+fn test_snapshot_parse_short_report_error() {
+    let data = [0u8; 4];
+    let result = heusinkveld::HeusinkveldInputReport::parse(&data);
+    assert!(result.is_err(), "parsing a 4-byte report must fail");
+    if let Err(e) = result {
+        assert_debug_snapshot!(format!("{e:?}"));
+    }
+}
+
+#[test]
 fn test_snapshot_parse_full_throttle() -> Result<(), String> {
     let mut data = [0u8; 8];
     data[0] = 0xFF;
@@ -105,6 +131,15 @@ fn test_snapshot_model_pro() {
 #[test]
 fn test_snapshot_pedal_capabilities_sprint() {
     let caps = heusinkveld::PedalCapabilities::for_model(heusinkveld::PedalModel::Sprint);
+    assert_debug_snapshot!(format!(
+        "max_load={:.1}, hydraulic={}, load_cell={}, pedals={}",
+        caps.max_load_kg, caps.has_hydraulic_damping, caps.has_load_cell, caps.pedal_count
+    ));
+}
+
+#[test]
+fn test_snapshot_pedal_capabilities_ultimate() {
+    let caps = heusinkveld::PedalCapabilities::for_model(heusinkveld::PedalModel::Ultimate);
     assert_debug_snapshot!(format!(
         "max_load={:.1}, hydraulic={}, load_cell={}, pedals={}",
         caps.max_load_kg, caps.has_hydraulic_damping, caps.has_load_cell, caps.pedal_count

@@ -5659,6 +5659,7 @@ name = "racing-wheel-integration-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "clap",
  "criterion",

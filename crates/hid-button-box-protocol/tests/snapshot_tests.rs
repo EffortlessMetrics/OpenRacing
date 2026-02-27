@@ -91,8 +91,10 @@ fn test_snapshot_parse_extended_all_buttons() -> Result<(), String> {
 fn test_snapshot_hat_directions_all() {
     let directions: Vec<_> = (0u8..=8)
         .map(|hat| {
-            let mut report = button_box::ButtonBoxInputReport::default();
-            report.hat = hat;
+            let report = button_box::ButtonBoxInputReport {
+                hat,
+                ..Default::default()
+            };
             format!("hat_byte={} -> {:?}", hat, report.hat_direction())
         })
         .collect();

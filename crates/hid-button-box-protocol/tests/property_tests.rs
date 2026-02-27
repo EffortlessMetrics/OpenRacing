@@ -60,8 +60,7 @@ proptest! {
     /// button() must return false for any index >= MAX_BUTTONS, even with all bits set.
     #[test]
     fn prop_button_out_of_range_always_false(index in MAX_BUTTONS..1024usize) {
-        let mut report = ButtonBoxInputReport::default();
-        report.buttons = u32::MAX;
+        let report = ButtonBoxInputReport { buttons: u32::MAX, ..Default::default() };
         prop_assert!(
             !report.button(index),
             "out-of-range button index {} must always return false",
@@ -93,8 +92,7 @@ proptest! {
     /// hat_direction() returns Neutral for all hat byte values 8..=255.
     #[test]
     fn prop_hat_neutral_for_out_of_range(hat in 8u8..=255u8) {
-        let mut report = ButtonBoxInputReport::default();
-        report.hat = hat;
+        let report = ButtonBoxInputReport { hat, ..Default::default() };
         prop_assert_eq!(
             report.hat_direction(),
             HatDirection::Neutral,
@@ -106,8 +104,7 @@ proptest! {
     /// hat_direction() returns a non-Neutral direction for values 0..=7.
     #[test]
     fn prop_hat_non_neutral_for_in_range(hat in 0u8..8u8) {
-        let mut report = ButtonBoxInputReport::default();
-        report.hat = hat;
+        let report = ButtonBoxInputReport { hat, ..Default::default() };
         prop_assert_ne!(
             report.hat_direction(),
             HatDirection::Neutral,
@@ -142,7 +139,7 @@ proptest! {
         }
         let normalized = report.axis_normalized(index);
         prop_assert!(
-            normalized >= -1.001 && normalized <= 1.0,
+            (-1.001..=1.0).contains(&normalized),
             "axis_normalized({}) = {} must be near [-1.0, 1.0] for value {}",
             index,
             normalized,
@@ -215,8 +212,10 @@ fn test_hat_directions_all_distinct() -> Result<(), Box<dyn std::error::Error>> 
     use std::collections::HashSet;
     let mut seen = HashSet::new();
     for hat in 0u8..8 {
-        let mut report = ButtonBoxInputReport::default();
-        report.hat = hat;
+        let report = ButtonBoxInputReport {
+            hat,
+            ..Default::default()
+        };
         let dir = report.hat_direction();
         assert_ne!(
             dir,

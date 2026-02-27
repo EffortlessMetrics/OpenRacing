@@ -1295,3 +1295,133 @@ games:
         - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 211500"
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/Race Room Racing Experience"
+
+  simhub:
+    name: "SimHub"
+    versions:
+      - version: "9.x"
+        config_paths: []
+        executable_patterns:
+          - "SimHub.exe"
+          - "SimHubDash.exe"
+        telemetry_method: "simhub_udp_json"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+          - "lateral_g"
+          - "longitudinal_g"
+          - "ffb_scalar"
+          - "fuel_percent"
+          - "car_id"
+          - "track_id"
+    telemetry:
+      method: "simhub_udp_json"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:5555"
+      fields:
+        ffb_scalar: "FFBValue"
+        rpm: "Rpm"
+        speed_ms: "SpeedMs"
+        slip_ratio: null
+        gear: "Gear"
+        flags: null
+        car_id: "CarId"
+        track_id: "TrackId"
+    status: "experimental"
+    config_writer: "simhub"
+    auto_detect:
+      process_names:
+        - "SimHub.exe"
+        - "SimHubDash.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\SimHub"
+      install_paths:
+        - "Program Files (x86)/SimHub"
+
+  mudrunner:
+    name: "Spintires: MudRunner"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "MudRunner.exe"
+          - "spintires.exe"
+        telemetry_method: "simhub_udp_json"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+    telemetry:
+      method: "simhub_udp_json"
+      update_rate_hz: 30
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:8877"
+      fields:
+        ffb_scalar: null
+        rpm: "Rpm"
+        speed_ms: "SpeedMs"
+        slip_ratio: null
+        gear: "Gear"
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "mudrunner"
+    auto_detect:
+      process_names:
+        - "MudRunner.exe"
+        - "spintires.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 675010"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/MudRunner"
+
+  snowrunner:
+    name: "SnowRunner"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "SnowRunner.exe"
+        telemetry_method: "simhub_udp_json"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+    telemetry:
+      method: "simhub_udp_json"
+      update_rate_hz: 30
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:8877"
+      fields:
+        ffb_scalar: null
+        rpm: "Rpm"
+        speed_ms: "SpeedMs"
+        slip_ratio: null
+        gear: "Gear"
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "snowrunner"
+    auto_detect:
+      process_names:
+        - "SnowRunner.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1465360"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/SnowRunner"

@@ -52,7 +52,7 @@ fn test_snapshot_friction_effect() {
 }
 
 #[test]
-fn test_snapshot_input_report_center() {
+fn test_snapshot_input_report_center() -> Result<(), Box<dyn std::error::Error>> {
     let data = vec![
         0x00, 0x00, // steering center (0)
         0x00, 0x00, // throttle (0)
@@ -66,7 +66,8 @@ fn test_snapshot_input_report_center() {
         0x00, // encoder2
         0x00, 0x00, 0x00, // padding to reach 17 bytes
     ];
-    let state = vrs::parse_input_report(&data).expect("parse should succeed");
+    let state =
+        vrs::parse_input_report(&data).ok_or("parse should succeed for valid 17-byte data")?;
     assert_snapshot!(format!(
         "steering={:.4}, throttle={:.4}, brake={:.4}, clutch={:.4}, buttons={}, hat={}, encoder1={}, encoder2={}",
         state.steering,
@@ -78,10 +79,11 @@ fn test_snapshot_input_report_center() {
         state.encoder1,
         state.encoder2
     ));
+    Ok(())
 }
 
 #[test]
-fn test_snapshot_input_report_full_throttle() {
+fn test_snapshot_input_report_full_throttle() -> Result<(), Box<dyn std::error::Error>> {
     let data = vec![
         0x00, 0x00, // steering center
         0xFF, 0xFF, // throttle full
@@ -95,35 +97,41 @@ fn test_snapshot_input_report_full_throttle() {
         0x00, // encoder2
         0x00, 0x00, // padding to reach 17 bytes
     ];
-    let state = vrs::parse_input_report(&data).expect("parse should succeed");
+    let state =
+        vrs::parse_input_report(&data).ok_or("parse should succeed for valid 17-byte data")?;
     assert_snapshot!(format!(
         "steering={:.4}, throttle={:.4}, brake={:.4}, clutch={:.4}",
         state.steering, state.throttle, state.brake, state.clutch
     ));
+    Ok(())
 }
 
 #[test]
-fn test_snapshot_input_report_full_left() {
+fn test_snapshot_input_report_full_left() -> Result<(), Box<dyn std::error::Error>> {
     let mut data = vec![0u8; 17];
     data[0] = 0x00; // steering low byte (-32768 = 0x8000)
     data[1] = 0x80;
     data[12] = 0x07; // hat left
-    let state = vrs::parse_input_report(&data).expect("parse should succeed");
+    let state =
+        vrs::parse_input_report(&data).ok_or("parse should succeed for valid 17-byte data")?;
     assert_snapshot!(format!("steering={:.4}, hat={}", state.steering, state.hat));
+    Ok(())
 }
 
 #[test]
-fn test_snapshot_input_report_full_right() {
+fn test_snapshot_input_report_full_right() -> Result<(), Box<dyn std::error::Error>> {
     let mut data = vec![0u8; 17];
     data[0] = 0xFF; // steering high byte (32767 = 0x7FFF)
     data[1] = 0x7F;
     data[12] = 0x03; // hat right
-    let state = vrs::parse_input_report(&data).expect("parse should succeed");
+    let state =
+        vrs::parse_input_report(&data).ok_or("parse should succeed for valid 17-byte data")?;
     assert_snapshot!(format!("steering={:.4}, hat={}", state.steering, state.hat));
+    Ok(())
 }
 
 #[test]
-fn test_snapshot_input_report_pedals_full() {
+fn test_snapshot_input_report_pedals_full() -> Result<(), Box<dyn std::error::Error>> {
     let data = vec![
         0x00, 0x00, // steering center
         0xFF, 0xFF, // throttle full
@@ -137,23 +145,27 @@ fn test_snapshot_input_report_pedals_full() {
         0x00, // encoder2
         0x00, 0x00, // padding to reach 17 bytes
     ];
-    let state = vrs::parse_input_report(&data).expect("parse should succeed");
+    let state =
+        vrs::parse_input_report(&data).ok_or("parse should succeed for valid 17-byte data")?;
     assert_snapshot!(format!(
         "throttle={:.4}, brake={:.4}, clutch={:.4}",
         state.throttle, state.brake, state.clutch
     ));
+    Ok(())
 }
 
 #[test]
-fn test_snapshot_input_report_encoders() {
+fn test_snapshot_input_report_encoders() -> Result<(), Box<dyn std::error::Error>> {
     let mut data = vec![0u8; 17];
     data[13] = 0x2A; // encoder1 = 42
     data[15] = 0x80; // encoder2 = -128
-    let state = vrs::parse_input_report(&data).expect("parse should succeed");
+    let state =
+        vrs::parse_input_report(&data).ok_or("parse should succeed for valid 17-byte data")?;
     assert_snapshot!(format!(
         "encoder1={}, encoder2={}",
         state.encoder1, state.encoder2
     ));
+    Ok(())
 }
 
 #[test]
@@ -202,6 +214,30 @@ fn test_snapshot_ffb_enable() {
 fn test_snapshot_ffb_disable() {
     let report = vrs::build_ffb_enable(false);
     assert_snapshot!(format!("{:?}", report));
+}
+
+#[test]
+fn test_snapshot_constant_force_setpoint_min() {
+    let encoder = vrs::VrsConstantForceEncoder::new(20.0);
+    let mut out = [0u8; vrs::CONSTANT_FORCE_REPORT_LEN];
+    encoder.encode(-20.0, &mut out);
+    assert_snapshot!(format!("{:?}", out));
+}
+
+#[test]
+fn test_snapshot_constant_force_setpoint_max() {
+    let encoder = vrs::VrsConstantForceEncoder::new(20.0);
+    let mut out = [0u8; vrs::CONSTANT_FORCE_REPORT_LEN];
+    encoder.encode(20.0, &mut out);
+    assert_snapshot!(format!("{:?}", out));
+}
+
+#[test]
+fn test_snapshot_constant_force_setpoint_midpoint() {
+    let encoder = vrs::VrsConstantForceEncoder::new(20.0);
+    let mut out = [0u8; vrs::CONSTANT_FORCE_REPORT_LEN];
+    encoder.encode(0.0, &mut out);
+    assert_snapshot!(format!("{:?}", out));
 }
 
 #[test]

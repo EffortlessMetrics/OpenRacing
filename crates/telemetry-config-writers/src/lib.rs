@@ -189,6 +189,18 @@ fn new_trackmania_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(TrackmaniaConfigWriter)
 }
 
+fn new_simhub_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(SimHubConfigWriter)
+}
+
+fn new_mudrunner_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(MudRunnerConfigWriter)
+}
+
+fn new_snowrunner_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(SnowRunnerConfigWriter)
+}
+
 /// Returns the canonical config writer registry for all supported integrations.
 pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory)] {
     &[
@@ -225,6 +237,9 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("le_mans_ultimate", new_le_mans_ultimate_config_writer),
         ("wtcr", new_wtcr_config_writer),
         ("trackmania", new_trackmania_config_writer),
+        ("simhub", new_simhub_config_writer),
+        ("mudrunner", new_mudrunner_config_writer),
+        ("snowrunner", new_snowrunner_config_writer),
     ]
 }
 
@@ -325,6 +340,19 @@ const TRACKMANIA_BRIDGE_RELATIVE_PATH: &str =
     "Documents/OpenRacing/trackmania_bridge_contract.json";
 const TRACKMANIA_BRIDGE_PROTOCOL: &str = "trackmania_json_udp";
 const TRACKMANIA_DEFAULT_PORT: u16 = 5004;
+
+const SIMHUB_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/simhub_bridge_contract.json";
+const SIMHUB_BRIDGE_PROTOCOL: &str = "simhub_udp_json";
+const SIMHUB_DEFAULT_PORT: u16 = 5555;
+
+const MUDRUNNER_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/mudrunner_bridge_contract.json";
+const MUDRUNNER_BRIDGE_PROTOCOL: &str = "simhub_udp_json";
+const MUDRUNNER_DEFAULT_PORT: u16 = 8877;
+
+const SNOWRUNNER_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/snowrunner_bridge_contract.json";
+const SNOWRUNNER_BRIDGE_PROTOCOL: &str = "simhub_udp_json";
+const SNOWRUNNER_DEFAULT_PORT: u16 = 8877;
 
 /// iRacing configuration writer
 pub struct IRacingConfigWriter;
@@ -3921,6 +3949,252 @@ impl ConfigWriter for TrackmaniaConfigWriter {
         });
         Ok(vec![ConfigDiff {
             file_path: TRACKMANIA_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// SimHub UDP JSON passthrough configuration writer.
+pub struct SimHubConfigWriter;
+
+impl Default for SimHubConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for SimHubConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing SimHub bridge contract configuration");
+        let contract_path = game_path.join(SIMHUB_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(SIMHUB_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "simhub",
+            "telemetry_protocol": SIMHUB_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "SimHub forwards game telemetry as JSON UDP datagrams on port 5555.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(SIMHUB_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "simhub")
+            .unwrap_or(false))
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(SIMHUB_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "simhub",
+            "telemetry_protocol": SIMHUB_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "SimHub forwards game telemetry as JSON UDP datagrams on port 5555.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: SIMHUB_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// MudRunner (Spintires: MudRunner) bridge contract writer.
+pub struct MudRunnerConfigWriter;
+
+impl Default for MudRunnerConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for MudRunnerConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing MudRunner bridge contract configuration");
+        let contract_path = game_path.join(MUDRUNNER_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(MUDRUNNER_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "mudrunner",
+            "telemetry_protocol": MUDRUNNER_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "MudRunner routes telemetry through SimHub JSON UDP on port 8877.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(MUDRUNNER_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "mudrunner")
+            .unwrap_or(false))
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(MUDRUNNER_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "mudrunner",
+            "telemetry_protocol": MUDRUNNER_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "MudRunner routes telemetry through SimHub JSON UDP on port 8877.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: MUDRUNNER_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// SnowRunner bridge contract writer.
+pub struct SnowRunnerConfigWriter;
+
+impl Default for SnowRunnerConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for SnowRunnerConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing SnowRunner bridge contract configuration");
+        let contract_path = game_path.join(SNOWRUNNER_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(SNOWRUNNER_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "snowrunner",
+            "telemetry_protocol": SNOWRUNNER_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "SnowRunner routes telemetry through SimHub JSON UDP on port 8877.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(SNOWRUNNER_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "snowrunner")
+            .unwrap_or(false))
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(SNOWRUNNER_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "snowrunner",
+            "telemetry_protocol": SNOWRUNNER_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "SnowRunner routes telemetry through SimHub JSON UDP on port 8877.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: SNOWRUNNER_BRIDGE_RELATIVE_PATH.to_string(),
             section: None,
             key: "entire_file".to_string(),
             old_value: None,
