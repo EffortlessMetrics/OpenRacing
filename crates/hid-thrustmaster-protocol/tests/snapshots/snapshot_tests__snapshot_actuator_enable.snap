@@ -1,0 +1,6 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_tests.rs
+assertion_line: 87
+expression: "format!(\"{:?}\", report)"
+---
+[130, 1]

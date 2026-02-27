@@ -2555,6 +2555,55 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "hid-asetek-protocol"
+version = "0.1.0"
+dependencies = [
+ "openracing-hid-common",
+ "proptest",
+ "quickcheck",
+ "serde",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
+name = "hid-button-box-protocol"
+version = "0.1.0"
+dependencies = [
+ "openracing-hid-common",
+ "proptest",
+ "quickcheck",
+ "serde",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
+name = "hid-heusinkveld-protocol"
+version = "0.1.0"
+dependencies = [
+ "openracing-hid-common",
+ "proptest",
+ "quickcheck",
+ "serde",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
+name = "hid-simucube-protocol"
+version = "0.1.0"
+dependencies = [
+ "criterion",
+ "openracing-hid-common",
+ "proptest",
+ "quickcheck",
+ "serde",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
 name = "hidapi"
 version = "2.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4118,6 +4167,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "openracing-calibration"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "quickcheck",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "openracing-capture-ids"
 version = "0.1.0"
 dependencies = [
@@ -4167,6 +4226,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "openracing-device-types"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "quickcheck",
+ "racing-wheel-schemas",
+]
+
+[[package]]
 name = "openracing-diagnostic"
 version = "0.1.0"
 dependencies = [
@@ -4195,6 +4263,16 @@ dependencies = [
  "proptest",
  "quickcheck",
  "quickcheck_macros",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "openracing-ffb"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "quickcheck",
+ "serde",
  "thiserror 2.0.18",
 ]
 
@@ -4252,12 +4330,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "openracing-handbrake"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "quickcheck",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "openracing-hardware-watchdog"
 version = "0.1.0"
 dependencies = [
  "criterion",
  "portable-atomic",
  "proptest",
+]
+
+[[package]]
+name = "openracing-hid-common"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "criterion",
+ "hidapi",
+ "proptest",
+ "quickcheck",
+ "racing-wheel-schemas",
+ "serde",
+ "thiserror 2.0.18",
+ "tracing",
 ]
 
 [[package]]
@@ -4385,6 +4488,16 @@ dependencies = [
  "tokio",
  "tracing",
  "windows 0.62.2",
+]
+
+[[package]]
+name = "openracing-shifter"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "quickcheck",
+ "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -5414,6 +5527,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "racing-wheel-hid-simagic-protocol"
+version = "0.1.0"
+dependencies = [
+ "insta",
+ "proptest",
+ "tracing",
+]
+
+[[package]]
+name = "racing-wheel-hid-thrustmaster-protocol"
+version = "0.1.0"
+dependencies = [
+ "insta",
+ "proptest",
+ "tracing",
+]
+
+[[package]]
+name = "racing-wheel-hid-vrs-protocol"
+version = "0.1.0"
+dependencies = [
+ "insta",
+ "proptest",
+ "tracing",
+]
+
+[[package]]
 name = "racing-wheel-input-maps"
 version = "0.1.0"
 dependencies = [
@@ -5584,6 +5724,7 @@ dependencies = [
  "racing-wheel-telemetry-config",
  "racing-wheel-telemetry-core",
  "racing-wheel-telemetry-recorder",
+ "racing-wheel-telemetry-support",
  "rand 0.8.5",
  "semver",
  "serde",
@@ -5603,6 +5744,16 @@ dependencies = [
  "walkdir",
  "winapi",
  "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-simplemotion-v2"
+version = "0.1.0"
+dependencies = [
+ "insta",
+ "proptest",
+ "thiserror 2.0.18",
+ "tracing",
 ]
 
 [[package]]
@@ -5664,6 +5815,14 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-support"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_yaml_ng",
 ]
 
 [[package]]

@@ -769,11 +769,11 @@ impl ComprehensiveFaultTests {
         let final_marker_count = self.fault_manager.get_blackbox_markers().len();
         let markers_created = final_marker_count > initial_marker_count;
 
-        // Verify marker content
+        // Verify marker content - timestamp should be a valid Duration (non-zero)
         let markers = self.fault_manager.get_blackbox_markers();
-        let has_required_fields = markers.iter().all(|marker| {
-            !marker.recovery_actions.is_empty() && marker.timestamp <= Instant::now()
-        });
+        let has_required_fields = markers
+            .iter()
+            .all(|marker| !marker.recovery_actions.is_empty() && !marker.timestamp.is_zero());
 
         let test_result = TestResult {
             test_name: test_name.to_string(),

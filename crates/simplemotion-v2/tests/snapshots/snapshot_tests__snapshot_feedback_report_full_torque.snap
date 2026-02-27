@@ -1,0 +1,5 @@
+---
+source: crates/simplemotion-v2/tests/snapshot_tests.rs
+expression: "format!(\"torque={:.4}, torque_nm={:.4}\", state.motor.torque as f32,\nstate.torque_nm(0.1))"
+---
+torque=-32768.0000, torque_nm=-12.8000

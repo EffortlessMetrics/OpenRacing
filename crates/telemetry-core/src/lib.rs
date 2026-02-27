@@ -546,9 +546,9 @@ mod tests {
 
         let normalized = telemetry.to_normalized();
 
-        assert_eq!(normalized.rpm, Some(6000.0));
-        assert_eq!(normalized.speed_ms, Some(50.0));
-        assert_eq!(normalized.gear, Some(4));
+        assert_eq!(normalized.rpm, 6000.0);
+        assert_eq!(normalized.speed_ms, 50.0);
+        assert_eq!(normalized.gear, 4);
         Ok(())
     }
 

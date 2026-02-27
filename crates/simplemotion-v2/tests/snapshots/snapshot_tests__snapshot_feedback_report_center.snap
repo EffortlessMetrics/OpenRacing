@@ -1,0 +1,5 @@
+---
+source: crates/simplemotion-v2/tests/snapshot_tests.rs
+expression: "format!(\"seq={}, status={:?}, pos={}, vel={}, torque={}\", state.seq,\nstate.status, state.motor.position, state.motor.velocity, state.motor.torque)"
+---
+seq=5, status=Ok, pos=0, vel=0, torque=0

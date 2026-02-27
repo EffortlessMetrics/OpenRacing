@@ -67,6 +67,7 @@ rand = "0.8.5"
 tempfile = "3.24.0"
 tracing-test = "0.2.5"
 proptest = { workspace = true }
+racing-wheel-telemetry-support = { path = "../telemetry-support" }
 
 [target.'cfg(unix)'.dependencies]
 libudev = { workspace = true }

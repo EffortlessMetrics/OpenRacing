@@ -1,0 +1,106 @@
+//! Device IDs for Simucube products
+
+pub const SIMUCUBE_VENDOR_ID: u16 = 0x2D6A;
+
+pub const SIMUCUBE_2_SPORT_PID: u16 = 0x0101;
+pub const SIMUCUBE_2_PRO_PID: u16 = 0x0102;
+pub const SIMUCUBE_2_ULTIMATE_PID: u16 = 0x0103;
+pub const SIMUCUBE_ACTIVE_PEDAL_PID: u16 = 0x0201;
+pub const SIMUCUBE_WIRELESS_WHEEL_PID: u16 = 0x0301;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SimucubeModel {
+    Sport,
+    Pro,
+    Ultimate,
+    ActivePedal,
+    WirelessWheel,
+    Unknown,
+}
+
+impl SimucubeModel {
+    pub fn from_product_id(product_id: u16) -> Self {
+        match product_id {
+            SIMUCUBE_2_SPORT_PID => Self::Sport,
+            SIMUCUBE_2_PRO_PID => Self::Pro,
+            SIMUCUBE_2_ULTIMATE_PID => Self::Ultimate,
+            SIMUCUBE_ACTIVE_PEDAL_PID => Self::ActivePedal,
+            SIMUCUBE_WIRELESS_WHEEL_PID => Self::WirelessWheel,
+            _ => Self::Unknown,
+        }
+    }
+
+    pub fn max_torque_nm(&self) -> f32 {
+        match self {
+            Self::Sport => 15.0,
+            Self::Pro => 25.0,
+            Self::Ultimate => 35.0,
+            Self::ActivePedal => 0.0,
+            Self::WirelessWheel => 25.0,
+            Self::Unknown => 25.0,
+        }
+    }
+
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::Sport => "Simucube 2 Sport",
+            Self::Pro => "Simucube 2 Pro",
+            Self::Ultimate => "Simucube 2 Ultimate",
+            Self::ActivePedal => "Simucube ActivePedal",
+            Self::WirelessWheel => "SimuCube Wireless Wheel",
+            Self::Unknown => "Unknown Simucube Device",
+        }
+    }
+}
+
+pub fn simucube_model_from_info(vendor_id: u16, product_id: u16) -> SimucubeModel {
+    if vendor_id != SIMUCUBE_VENDOR_ID {
+        return SimucubeModel::Unknown;
+    }
+    SimucubeModel::from_product_id(product_id)
+}
+
+pub fn is_simucube_device(vendor_id: u16) -> bool {
+    vendor_id == SIMUCUBE_VENDOR_ID
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_model_from_pid() {
+        assert_eq!(
+            SimucubeModel::from_product_id(SIMUCUBE_2_SPORT_PID),
+            SimucubeModel::Sport
+        );
+        assert_eq!(
+            SimucubeModel::from_product_id(SIMUCUBE_2_PRO_PID),
+            SimucubeModel::Pro
+        );
+        assert_eq!(
+            SimucubeModel::from_product_id(SIMUCUBE_2_ULTIMATE_PID),
+            SimucubeModel::Ultimate
+        );
+        assert_eq!(
+            SimucubeModel::from_product_id(0xFFFF),
+            SimucubeModel::Unknown
+        );
+    }
+
+    #[test]
+    fn test_max_torque() {
+        assert_eq!(SimucubeModel::Sport.max_torque_nm(), 15.0);
+        assert_eq!(SimucubeModel::Pro.max_torque_nm(), 25.0);
+        assert_eq!(SimucubeModel::Ultimate.max_torque_nm(), 35.0);
+    }
+
+    #[test]
+    fn test_display_name() {
+        assert_eq!(SimucubeModel::Pro.display_name(), "Simucube 2 Pro");
+        assert_eq!(
+            SimucubeModel::Unknown.display_name(),
+            "Unknown Simucube Device"
+        );
+    }
+}

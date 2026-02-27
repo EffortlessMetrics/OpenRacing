@@ -1,0 +1,5 @@
+---
+source: crates/hid-vrs-protocol/tests/snapshot_tests.rs
+expression: "format!(\"name={}, category={:?}, supports_ffb={}, max_torque={:?}\",\nidentity.name, identity.category, identity.supports_ffb,\nidentity.max_torque_nm)"
+---
+name=VRS DirectForce Pro V2, category=Wheelbase, supports_ffb=true, max_torque=Some(25.0)

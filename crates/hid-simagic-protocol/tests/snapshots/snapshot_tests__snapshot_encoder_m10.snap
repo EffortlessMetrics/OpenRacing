@@ -1,0 +1,5 @@
+---
+source: crates/hid-simagic-protocol/tests/snapshot_tests.rs
+expression: "format!(\"{:?}\", out)"
+---
+[17, 1, 0, 136, 19, 0, 0, 0]

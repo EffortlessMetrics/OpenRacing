@@ -1,0 +1,5 @@
+---
+source: crates/hid-vrs-protocol/tests/snapshot_tests.rs
+expression: "format!(\"{:?}\", out)"
+---
+[25, 1, 136, 19, 0, 0, 0, 0, 244, 1]

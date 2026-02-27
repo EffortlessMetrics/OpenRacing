@@ -1,0 +1,5 @@
+---
+source: crates/hid-simagic-protocol/tests/snapshot_tests.rs
+expression: "format!(\"{:?}\", results)"
+---
+[("ALPHA", true), ("ALPHA_MINI", true), ("ALPHA_EVO", true), ("M10", true), ("NEO", true), ("NEO_MINI", true), ("P1000_PEDALS", false), ("UNKNOWN", false)]

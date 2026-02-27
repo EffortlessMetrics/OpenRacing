@@ -10,6 +10,14 @@ members = [
     "crates/hid-moza-protocol",
     "crates/hid-fanatec-protocol",
     "crates/hid-logitech-protocol",
+    "crates/hid-thrustmaster-protocol",
+    "crates/hid-simagic-protocol",
+    "crates/hid-vrs-protocol",
+    "crates/hid-simucube-protocol",
+    "crates/hid-heusinkveld-protocol",
+    "crates/hid-asetek-protocol",
+    "crates/hid-button-box-protocol",
+    "crates/simplemotion-v2",
     "crates/openracing-atomic",
     "crates/openracing-tracing",
     "crates/openracing-scheduler",
@@ -29,6 +37,12 @@ members = [
     "crates/openracing-firmware-update",
     "crates/openracing-ipc",
     "crates/openracing-diagnostic",
+    "crates/openracing-device-types",
+    "crates/openracing-hid-common",
+    "crates/openracing-shifter",
+    "crates/openracing-handbrake",
+    "crates/openracing-ffb",
+    "crates/openracing-calibration",
     "crates/engine",
     "crates/service",
     "crates/cli",
@@ -98,6 +112,12 @@ openracing-profile-repository = { path = "crates/openracing-profile-repository" 
 openracing-firmware-update = { path = "crates/openracing-firmware-update" }
 openracing-ipc = { path = "crates/openracing-ipc" }
 openracing-diagnostic = { path = "crates/openracing-diagnostic" }
+openracing-device-types = { path = "crates/openracing-device-types" }
+openracing-hid-common = { path = "crates/openracing-hid-common" }
+openracing-shifter = { path = "crates/openracing-shifter" }
+openracing-handbrake = { path = "crates/openracing-handbrake" }
+openracing-ffb = { path = "crates/openracing-ffb" }
+openracing-calibration = { path = "crates/openracing-calibration" }
 
 # HID and hardware
 hidapi = "2.6.4"
@@ -145,6 +165,13 @@ chrono = { version = "0.4.43", features = ["serde"] }
 racing-wheel-hbp = { path = "crates/hbp" }
 racing-wheel-hid-fanatec-protocol = { path = "crates/hid-fanatec-protocol" }
 racing-wheel-hid-logitech-protocol = { path = "crates/hid-logitech-protocol" }
+racing-wheel-hid-simagic-protocol = { path = "crates/hid-simagic-protocol" }
+racing-wheel-hid-vrs-protocol = { path = "crates/hid-vrs-protocol" }
+racing-wheel-hid-simucube-protocol = { path = "crates/hid-simucube-protocol" }
+racing-wheel-hid-heusinkveld-protocol = { path = "crates/hid-heusinkveld-protocol" }
+racing-wheel-hid-asetek-protocol = { path = "crates/hid-asetek-protocol" }
+racing-wheel-hid-button-box-protocol = { path = "crates/hid-button-box-protocol" }
+racing-wheel-simplemotion-v2 = { path = "crates/simplemotion-v2" }
 racing-wheel-ks = { path = "crates/ks" }
 racing-wheel-moza-wheelbase-report = { path = "crates/moza-wheelbase-report" }
 racing-wheel-changelog = { path = "crates/changelog" }

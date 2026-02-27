@@ -19,15 +19,15 @@ fn test_f1_25_car_telemetry_fixture_normalizes() -> TestResult {
     let normalized = adapter.normalize(FIXTURE_CAR_TELEMETRY)?;
 
     // 216 km/h ÷ 3.6 = 60.0 m/s
-    let speed = normalized.speed_ms.expect("speed_ms must be present");
+    let speed = normalized.speed_ms;
     assert!(
         (speed - 60.0).abs() < 0.1,
         "expected speed ~60.0 m/s, got {speed}"
     );
 
-    assert_eq!(normalized.gear, Some(7), "gear must be 7");
+    assert_eq!(normalized.gear, 7, "gear must be 7");
 
-    let rpm = normalized.rpm.expect("rpm must be present");
+    let rpm = normalized.rpm;
     assert!(
         (rpm - 14500.0).abs() < 1.0,
         "expected rpm ~14500, got {rpm}"

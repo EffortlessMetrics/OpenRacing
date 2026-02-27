@@ -1,0 +1,5 @@
+---
+source: crates/simplemotion-v2/tests/snapshot_tests.rs
+expression: "format!(\"name={}, category={:?}, max_rpm={:?}\", identity.name,\nidentity.category, identity.max_rpm)"
+---
+name=Simucube Sport / ARGON Servo Drive, category=Wheelbase, max_rpm=Some(8000)

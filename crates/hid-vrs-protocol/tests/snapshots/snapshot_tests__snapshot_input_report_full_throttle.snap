@@ -1,0 +1,5 @@
+---
+source: crates/hid-vrs-protocol/tests/snapshot_tests.rs
+expression: "format!(\"steering={:.4}, throttle={:.4}, brake={:.4}, clutch={:.4}\",\nstate.steering, state.throttle, state.brake, state.clutch)"
+---
+steering=0.0000, throttle=1.0000, brake=0.0000, clutch=0.0000

@@ -1,0 +1,5 @@
+---
+source: crates/simplemotion-v2/tests/snapshot_tests.rs
+expression: "format!(\"name={}, category={:?}, supports_ffb={}\", identity.name,\nidentity.category, identity.supports_ffb)"
+---
+name=Unknown SimpleMotion Device, category=Unknown, supports_ffb=false
