@@ -34,40 +34,41 @@ class CompatUsageTracker:
         
         # Define deprecated patterns to search for
         self.deprecated_patterns = {
-            # Telemetry field renames
+            # Telemetry field renames — match only dot-access to detect deprecated field usage,
+            # not standalone variable names that happen to share a name.
             "temp_c": {
-                "pattern": r"\b(temp_c|\.temp_c)\b",
+                "pattern": r"\.temp_c\b",
                 "category": "telemetry_fields",
                 "deprecated_in": "1.2.0",
                 "remove_in": "1.4.0",
                 "replacement": "temperature_c"
             },
             "wheel_angle_mdeg": {
-                "pattern": r"\b(wheel_angle_mdeg|\.wheel_angle_mdeg)\b", 
+                "pattern": r"\.wheel_angle_mdeg\b",
                 "category": "telemetry_fields",
                 "deprecated_in": "1.2.0",
                 "remove_in": "1.4.0",
                 "replacement": "wheel_angle_deg"
             },
             "wheel_speed_mrad_s": {
-                "pattern": r"\b(wheel_speed_mrad_s|\.wheel_speed_mrad_s)\b",
-                "category": "telemetry_fields", 
+                "pattern": r"\.wheel_speed_mrad_s\b",
+                "category": "telemetry_fields",
                 "deprecated_in": "1.2.0",
                 "remove_in": "1.4.0",
                 "replacement": "wheel_speed_rad_s"
             },
             "faults": {
-                "pattern": r"\b(faults|\.faults)\b",
+                "pattern": r"\.faults\b",
                 "category": "telemetry_fields",
-                "deprecated_in": "1.2.0", 
+                "deprecated_in": "1.2.0",
                 "remove_in": "1.4.0",
                 "replacement": "fault_flags"
             },
             "sequence": {
-                "pattern": r"\b(sequence|\.sequence)\b",
+                "pattern": r"\.sequence\b",
                 "category": "telemetry_fields",
                 "deprecated_in": "1.2.0",
-                "remove_in": "1.4.0", 
+                "remove_in": "1.4.0",
                 "replacement": "removed (no replacement)"
             },
             
@@ -125,9 +126,16 @@ class CompatUsageTracker:
         # Directories to search
         self.search_dirs = [
             "crates/",
-            "benches/", 
+            "benches/",
             "scripts/",
             "docs/"
+        ]
+
+        # Directories to exclude from scanning (contain definitions, not usages)
+        self.excluded_dirs = [
+            "crates/compat/",  # defines deprecated APIs
+            "crates/schemas/tests/compile-fail/",  # tests that deprecated APIs fail
+            "crates/schemas/tests/compile_fail/",  # same
         ]
         
         # File extensions to search
@@ -155,11 +163,11 @@ class CompatUsageTracker:
     def _search_pattern(self, pattern: str, search_path: Path, pattern_name: str) -> List[Dict]:
         """Search for a specific pattern in files."""
         matches = []
-        
+
         try:
             # Use ripgrep for fast searching
             cmd = [
-                "rg", 
+                "rg",
                 "--json",
                 "--type-add", "rust:*.rs",
                 "--type-add", "toml:*.toml", 
@@ -168,9 +176,9 @@ class CompatUsageTracker:
                 "-e", pattern,
                 str(search_path)
             ]
-            
+
             result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-            
+
             if result.returncode == 0:
                 for line in result.stdout.strip().split('\n'):
                     if not line:
@@ -179,8 +187,13 @@ class CompatUsageTracker:
                         match_data = json.loads(line)
                         if match_data.get("type") == "match":
                             data = match_data["data"]
+                            file_path = data["path"]["text"]
+                            # Skip files in excluded directories
+                            rel_path = file_path.replace("\\", "/")
+                            if any(excl in rel_path for excl in self.excluded_dirs):
+                                continue
                             matches.append({
-                                "file": data["path"]["text"],
+                                "file": file_path,
                                 "line": data["line_number"],
                                 "column": data["submatches"][0]["start"],
                                 "text": data["lines"]["text"].strip(),
@@ -189,10 +202,10 @@ class CompatUsageTracker:
                             })
                     except (json.JSONDecodeError, KeyError):
                         continue
-                        
+
         except subprocess.SubprocessError as e:
             print(f"Warning: Failed to search for pattern {pattern_name}: {e}")
-            
+
         return matches
 
     def save_usage_data(self, usage_data: Dict, filename: Path):
