@@ -16,6 +16,7 @@ use std::time::Duration;
 /// Tests that an overcurrent fault is detected above the threshold
 /// and that a recovery procedure is available (though manual-only).
 #[test]
+#[allow(clippy::result_large_err)]
 fn test_overcurrent_fault_detection_and_recovery() -> Result<(), FmeaError> {
     let thresholds = FaultThresholds {
         overcurrent_limit_a: 10.0,
@@ -47,6 +48,7 @@ fn test_overcurrent_fault_detection_and_recovery() -> Result<(), FmeaError> {
 
 /// Tests communication loss (USB stall) fault detection with recovery.
 #[test]
+#[allow(clippy::result_large_err)]
 fn test_communication_loss_fault_and_recovery() -> Result<(), FmeaError> {
     let mut fmea = FmeaSystem::new();
 
@@ -81,6 +83,7 @@ fn test_communication_loss_fault_and_recovery() -> Result<(), FmeaError> {
 
 /// Tests encoder fault detection after the NaN window threshold is exceeded.
 #[test]
+#[allow(clippy::result_large_err)]
 fn test_encoder_fault_detection() -> Result<(), FmeaError> {
     let mut fmea = FmeaSystem::new();
 
@@ -148,6 +151,7 @@ fn test_soft_stop_75ms_ramp_timing() {
 /// Tests fault escalation: a lower-priority active fault is replaced
 /// by a higher-priority fault.
 #[test]
+#[allow(clippy::result_large_err)]
 fn test_fault_escalation() -> Result<(), FmeaError> {
     let mut fmea = FmeaSystem::new();
 
@@ -181,6 +185,7 @@ fn test_fault_escalation() -> Result<(), FmeaError> {
 /// Tests alert deduplication: triggering the same fault type twice should
 /// not produce a second distinct alert — the existing alert stays active.
 #[test]
+#[allow(clippy::result_large_err)]
 fn test_alert_deduplication() -> Result<(), FmeaError> {
     let mut fmea = FmeaSystem::new();
 

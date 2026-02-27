@@ -43,23 +43,12 @@ impl WheelProfile {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WheelSettings {
     pub ffb: FfbSettings,
     pub input: InputSettings,
     pub limits: LimitSettings,
     pub advanced: AdvancedSettings,
-}
-
-impl Default for WheelSettings {
-    fn default() -> Self {
-        Self {
-            ffb: FfbSettings::default(),
-            input: InputSettings::default(),
-            limits: LimitSettings::default(),
-            advanced: AdvancedSettings::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,18 +95,13 @@ impl Default for InputSettings {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum CurveType {
+    #[default]
     Linear,
     Exponential,
     Logarithmic,
     Custom,
-}
-
-impl Default for CurveType {
-    fn default() -> Self {
-        Self::Linear
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -156,19 +140,14 @@ impl Default for AdvancedSettings {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum LedMode {
+    #[default]
     Default,
     Speed,
     Rpm,
     Custom,
     Off,
-}
-
-impl Default for LedMode {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 #[cfg(test)]

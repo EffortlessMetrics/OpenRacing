@@ -193,8 +193,7 @@ mod tests {
         fn prop_parsed_values_always_finite(
             data in proptest::collection::vec(proptest::num::u8::ANY, 10usize..=16usize),
         ) {
-            if data[0] == 0x01 {
-                if let Some(state) = parse_input_report(&data) {
+            if data[0] == 0x01 && let Some(state) = parse_input_report(&data) {
                     prop_assert!(state.steering.is_finite(), "steering must be finite");
                     prop_assert!(state.throttle.is_finite(), "throttle must be finite");
                     prop_assert!(state.brake.is_finite(), "brake must be finite");
@@ -203,7 +202,6 @@ mod tests {
                     prop_assert!(state.brake >= 0.0 && state.brake <= 1.0);
                     prop_assert!(state.clutch >= 0.0 && state.clutch <= 1.0);
                 }
-            }
         }
 
         /// Paddle bits must always be in 0..=3 (2-bit field).

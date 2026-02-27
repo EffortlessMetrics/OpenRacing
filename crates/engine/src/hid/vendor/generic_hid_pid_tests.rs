@@ -137,7 +137,7 @@ fn fallback_prefers_specific_vendor_handler_over_generic() {
         get_vendor_protocol_with_hid_pid_fallback(0x346E, 0x0002, true);
     assert!(handler.is_some(), "Moza device must have a specific vendor handler");
     // Verify the config resembles a Moza handler (high torque, not 8 Nm generic default).
-    let config = handler.map(|h| h.get_ffb_config()).unwrap();
+    let config = handler.map(|h| h.get_ffb_config()).expect("handler should be some");
     assert!(
         config.max_torque_nm > 8.0,
         "Moza handler torque must exceed the 8 Nm generic default"

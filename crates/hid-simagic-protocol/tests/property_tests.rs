@@ -40,7 +40,7 @@ proptest! {
         enc.encode(torque, &mut out);
         let raw = i16::from_le_bytes([out[3], out[4]]);
         prop_assert!(
-            raw >= -10_000 && raw <= 10_000,
+            (-10_000..=10_000).contains(&raw),
             "magnitude {} must be within ±10000",
             raw
         );

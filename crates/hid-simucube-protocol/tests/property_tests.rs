@@ -84,7 +84,7 @@ proptest! {
         let report = SimucubeOutputReport::new(0).with_torque(torque);
         let clamped_nm = report.torque_cNm as f32 / 100.0;
         prop_assert!(
-            clamped_nm >= -MAX_TORQUE_NM && clamped_nm <= MAX_TORQUE_NM,
+            (-MAX_TORQUE_NM..=MAX_TORQUE_NM).contains(&clamped_nm),
             "clamped value {} must be within +/-{}",
             clamped_nm,
             MAX_TORQUE_NM

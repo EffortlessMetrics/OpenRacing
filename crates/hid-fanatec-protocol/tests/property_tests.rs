@@ -34,12 +34,8 @@ proptest! {
         let encoder = FanatecConstantForceEncoder::new(max_torque);
         let mut out = [0u8; CONSTANT_FORCE_REPORT_LEN];
         encoder.encode(torque, 0, &mut out);
-        let raw = i16::from_le_bytes([out[2], out[3]]);
-        prop_assert!(
-            raw >= i16::MIN && raw <= i16::MAX,
-            "raw value {} must fit in i16",
-            raw
-        );
+        let _raw = i16::from_le_bytes([out[2], out[3]]);
+        // raw is i16, so it always fits in i16 by definition — no assertion needed.
     }
 
     /// A positive torque (> 0) must produce a non-negative raw value.

@@ -300,7 +300,7 @@ mod tests {
             enc.encode(torque_nm, &mut out);
             let mag = i16::from_le_bytes([out[2], out[3]]);
             prop_assert!(
-                mag >= -10_000 && mag <= 10_000,
+                (-10_000..=10_000).contains(&mag),
                 "magnitude {} out of range for torque_nm={}",
                 mag,
                 torque_nm

@@ -19,7 +19,7 @@ proptest! {
         let report = enc.encode(torque);
         let raw = i16::from_le_bytes([report[1], report[2]]);
         prop_assert!(
-            raw >= -10_000 && raw <= 10_000,
+            (-10_000..=10_000).contains(&raw),
             "raw torque {raw} must be in [-10000, 10000]"
         );
     }
