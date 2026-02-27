@@ -313,6 +313,15 @@ pub mod vendor_ids {
     pub const OPENFFBOARD: u16 = 0x1209;
     /// FFBeast open-source direct drive controller
     pub const FFBEAST: u16 = 0x045B;
+    /// Cammus Technology Co., Ltd. (C5 / C12 direct drive wheelbases)
+    /// Source: community USB captures, RetroBat Wheels.cs commit 0a54752
+    pub const CAMMUS: u16 = 0x3416;
+    /// SimExperience (AccuForce Pro) — NXP Semiconductors USB chip VID
+    /// Source: community USB captures, RetroBat Wheels.cs commit 0a54752
+    pub const SIMEXPERIENCE: u16 = 0x1FC9;
+    /// Cube Controls S.r.l. — PROVISIONAL (unconfirmed VID, uses STM shared VID)
+    /// ACTION REQUIRED: confirm VID from real hardware capture and update if needed.
+    pub const CUBE_CONTROLS: u16 = 0x0483; // same as SIMAGIC; see cube_controls.rs
 }
 
 /// Known racing wheel product IDs organized by vendor
@@ -456,6 +465,18 @@ impl SupportedDevices {
             (vendor_ids::GRANITE_DEVICES, 0x6050, "Simucube 1 / IONI Servo Drive"),
             (vendor_ids::GRANITE_DEVICES, 0x6051, "Simucube 2 / IONI Premium Servo Drive"),
             (vendor_ids::GRANITE_DEVICES, 0x6052, "Simucube Sport / ARGON Servo Drive"),
+            // Cammus Technology Co., Ltd. (source: community USB captures)
+            (vendor_ids::CAMMUS, 0x0301, "Cammus C5"),
+            (vendor_ids::CAMMUS, 0x0302, "Cammus C12"),
+            // SimExperience AccuForce Pro (NXP USB chip VID 0x1FC9)
+            // Source: community USB captures, RetroBat Wheels.cs
+            (vendor_ids::SIMEXPERIENCE, 0x804C, "SimExperience AccuForce Pro"),
+            // Cube Controls S.r.l. — PIDs are PROVISIONAL/UNCONFIRMED
+            // ACTION REQUIRED: replace PIDs once confirmed from real hardware capture.
+            // Uses STM shared VID 0x0483; dispatched in get_vendor_protocol() before Simagic.
+            (vendor_ids::SIMAGIC, 0x0C73, "Cube Controls GT Pro (provisional)"),
+            (vendor_ids::SIMAGIC, 0x0C74, "Cube Controls Formula Pro (provisional)"),
+            (vendor_ids::SIMAGIC, 0x0C75, "Cube Controls CSX3 (provisional)"),
         ]
     }
 
@@ -475,6 +496,8 @@ impl SupportedDevices {
             vendor_ids::OPENFFBOARD,
             vendor_ids::FFBEAST,
             vendor_ids::GRANITE_DEVICES,
+            vendor_ids::CAMMUS,
+            vendor_ids::SIMEXPERIENCE,
         ]
     }
 

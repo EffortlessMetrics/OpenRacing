@@ -4,8 +4,11 @@
 //! configuration, and quirks handling.
 #![deny(static_mut_refs)]
 
+pub mod accuforce;
 pub mod asetek;
 pub mod button_box;
+pub mod cammus;
+pub mod cube_controls;
 pub mod fanatec;
 pub mod heusinkveld;
 pub mod logitech;
@@ -20,9 +23,15 @@ pub mod thrustmaster;
 pub mod vrs;
 
 #[cfg(test)]
+mod accuforce_tests;
+#[cfg(test)]
 mod asetek_tests;
 #[cfg(test)]
 mod button_box_tests;
+#[cfg(test)]
+mod cammus_tests;
+#[cfg(test)]
+mod cube_controls_tests;
 #[cfg(test)]
 mod fanatec_tests;
 #[cfg(test)]
@@ -61,10 +70,15 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
         0x044F => Some(Box::new(thrustmaster::ThrustmasterProtocolHandler::new(
             vendor_id, product_id,
         ))),
-        // STM VID: shared by Simagic legacy AND VRS DirectForce Pro (0xA3xx PIDs)
+        // STM VID: shared by Simagic legacy, VRS DirectForce Pro (0xA3xx PIDs),
+        // and provisional Cube Controls assignments (0x0C7x PIDs).
         0x0483 => {
             if vrs::is_vrs_product(product_id) {
                 Some(Box::new(vrs::VrsProtocolHandler::new(vendor_id, product_id)))
+            } else if cube_controls::is_cube_controls_product(product_id) {
+                Some(Box::new(cube_controls::CubeControlsProtocolHandler::new(
+                    vendor_id, product_id,
+                )))
             } else {
                 Some(Box::new(simagic::SimagicProtocol::new(vendor_id, product_id)))
             }
@@ -113,6 +127,20 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
         0x045B => {
             if ffbeast::is_ffbeast_product(product_id) {
                 Some(Box::new(ffbeast::FFBeastHandler::new(vendor_id, product_id)))
+            } else {
+                None
+            }
+        }
+        // Cammus Technology Co., Ltd. (C5, C12 direct drive wheelbases)
+        0x3416 => Some(Box::new(cammus::CammusProtocolHandler::new(
+            vendor_id, product_id,
+        ))),
+        // SimExperience AccuForce Pro (NXP USB chip VID)
+        0x1FC9 => {
+            if accuforce::is_accuforce_product(product_id) {
+                Some(Box::new(accuforce::AccuForceProtocolHandler::new(
+                    vendor_id, product_id,
+                )))
             } else {
                 None
             }
