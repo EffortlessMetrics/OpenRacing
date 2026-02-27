@@ -60,6 +60,11 @@ members = [
     "crates/telemetry-adapters",
     "crates/telemetry-recorder",
     "crates/telemetry-config-writers",
+    "crates/telemetry-rate-limiter",
+    "crates/telemetry-orchestrator",
+    "crates/telemetry-bdd-metrics",
+    "crates/telemetry-support",
+    "crates/telemetry-integration",
     "workspace-hack",
   ]
 exclude = ["third_party/shared_memory", "fuzz"]

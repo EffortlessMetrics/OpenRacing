@@ -339,4 +339,38 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn adapter_ids_are_lexicographically_sorted() {
+        let service = TelemetryService::new();
+        let ids = service.adapter_ids();
+        let mut sorted = ids.clone();
+        sorted.sort_unstable();
+        assert_eq!(ids, sorted);
+    }
+
+    #[test]
+    fn from_support_matrix_none_still_registers_adapters() {
+        // Fallback: when no matrix is supplied all adapters should still register.
+        let service = TelemetryService::from_support_matrix(None);
+        assert!(service.adapter_count() > 0);
+    }
+
+    #[test]
+    fn is_game_matrix_supported_false_for_unknown_game() {
+        let service = TelemetryService::new();
+        assert!(!service.is_game_matrix_supported("not_a_real_game_xyz_999"));
+    }
+
+    #[test]
+    fn supported_games_len_matches_adapter_count() {
+        let service = TelemetryService::new();
+        assert_eq!(service.supported_games().len(), service.adapter_count());
+    }
+
+    #[test]
+    fn runtime_coverage_report_is_present_when_matrix_loaded() {
+        let service = TelemetryService::new();
+        assert!(service.runtime_coverage_report().is_some());
+    }
 }

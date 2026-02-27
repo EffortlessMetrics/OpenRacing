@@ -252,4 +252,107 @@ mod tests {
         assert_eq!(stats.dropped_count, 2);
         assert!(stats.drop_rate_percent > 0.0);
     }
+
+    #[test]
+    fn zero_capacity_is_safe() {
+        // new(0): divisor is clamped to 1, so min_interval = 1s; stored rate may be 0
+        let mut limiter = RateLimiter::new(0);
+        // First call is always accepted regardless of stored rate
+        assert!(limiter.should_process());
+        // Second immediate call must be rejected (min_interval = 1s)
+        assert!(!limiter.should_process());
+    }
+
+    #[test]
+    fn set_max_rate_hz_zero_is_clamped_to_one() {
+        let mut limiter = RateLimiter::new(100);
+        limiter.set_max_rate_hz(0);
+        assert_eq!(limiter.max_rate_hz(), 1);
+    }
+
+    #[test]
+    fn drop_rate_percent_is_zero_when_no_events() {
+        let limiter = RateLimiter::new(100);
+        assert_eq!(limiter.drop_rate_percent(), 0.0);
+    }
+
+    #[test]
+    fn drop_rate_percent_is_bounded() {
+        let mut limiter = RateLimiter::new(10);
+        assert!(limiter.should_process());
+        // Drop many calls
+        for _ in 0..99 {
+            limiter.should_process();
+        }
+        let rate = limiter.drop_rate_percent();
+        assert!((0.0..=100.0).contains(&rate));
+    }
+
+    #[test]
+    fn adaptive_limiter_clamps_adjustment_factor() {
+        let mut adaptive = AdaptiveRateLimiter::new(100, 50.0);
+        // Drive factor down toward minimum (0.1) by many high-cpu updates
+        for _ in 0..200 {
+            adaptive.update_cpu_usage(100.0);
+        }
+        let stats = adaptive.stats();
+        assert!(stats.max_rate_hz >= 1);
+        // Drive factor up toward maximum (2.0) by many low-cpu updates
+        for _ in 0..200 {
+            adaptive.update_cpu_usage(0.0);
+        }
+        let stats_high = adaptive.stats();
+        assert!(stats_high.max_rate_hz >= stats.max_rate_hz);
+    }
+
+    #[test]
+    fn first_call_always_accepted_for_positive_rate() {
+        for rate in [1u32, 10, 100, 1000, u16::MAX as u32, u32::MAX] {
+            let mut limiter = RateLimiter::new(rate);
+            assert!(
+                limiter.should_process(),
+                "first call should be accepted for rate {rate}"
+            );
+        }
+    }
+
+    #[test]
+    fn second_immediate_call_rejected_for_positive_rate() {
+        for rate in [1u32, 10, 100, 1_000_000] {
+            let mut limiter = RateLimiter::new(rate);
+            let _ = limiter.should_process();
+            assert!(
+                !limiter.should_process(),
+                "second immediate call should be rejected for rate {rate}"
+            );
+        }
+    }
+
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(200))]
+
+        #[test]
+        fn prop_first_call_always_accepted(rate in 1u32..=1_000_000u32) {
+            let mut limiter = RateLimiter::new(rate);
+            prop_assert!(limiter.should_process());
+            prop_assert_eq!(limiter.processed_count(), 1);
+            prop_assert_eq!(limiter.dropped_count(), 0);
+        }
+
+        #[test]
+        fn prop_second_immediate_call_rejected(rate in 1u32..=1_000_000u32) {
+            let mut limiter = RateLimiter::new(rate);
+            let _ = limiter.should_process();
+            prop_assert!(!limiter.should_process());
+        }
+
+        #[test]
+        fn prop_set_max_rate_hz_roundtrips(rate in 1u32..=100_000u32) {
+            let mut limiter = RateLimiter::new(1);
+            limiter.set_max_rate_hz(rate);
+            prop_assert_eq!(limiter.max_rate_hz(), rate);
+        }
+    }
 }

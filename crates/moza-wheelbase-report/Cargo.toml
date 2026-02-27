@@ -13,3 +13,6 @@ unused_must_use = "deny"
 [lints.clippy]
 unwrap_used = "deny"
 
+[dev-dependencies]
+proptest = { workspace = true }
+

@@ -448,4 +448,212 @@ mod tests {
         assert_eq!(ks.encoders[1].map(|s| s.offset), Some(30));
         assert_eq!(ks.encoders[2].map(|s| s.offset), Some(31));
     }
+
+    // ── Additional unit tests ────────────────────────────────────────────────
+
+    #[test]
+    fn validation_rejects_schema_version_zero() {
+        let map = DeviceInputMap {
+            schema_version: 0,
+            vendor_id: 0x346E,
+            product_id: 0x0022,
+            axes: vec![AxisBinding {
+                name: "steering".to_string(),
+                byte_offset: 1,
+                bit_offset: None,
+                data_type: AxisDataType::U16Le,
+                signed: false,
+                invert: false,
+                min: None,
+                max: None,
+            }],
+            ..Default::default()
+        };
+        assert!(matches!(
+            map.validate(),
+            Err(DeviceInputMapError::UnsupportedSchemaVersion(0))
+        ));
+    }
+
+    #[test]
+    fn validation_rejects_missing_vendor_id() {
+        let map = DeviceInputMap {
+            schema_version: 1,
+            vendor_id: 0,
+            product_id: 0x0022,
+            axes: vec![AxisBinding {
+                name: "steering".to_string(),
+                byte_offset: 1,
+                bit_offset: None,
+                data_type: AxisDataType::U16Le,
+                signed: false,
+                invert: false,
+                min: None,
+                max: None,
+            }],
+            ..Default::default()
+        };
+        assert!(matches!(map.validate(), Err(DeviceInputMapError::MissingIdentity)));
+    }
+
+    #[test]
+    fn validation_rejects_missing_product_id() {
+        let map = DeviceInputMap {
+            schema_version: 1,
+            vendor_id: 0x346E,
+            product_id: 0,
+            axes: vec![AxisBinding {
+                name: "steering".to_string(),
+                byte_offset: 1,
+                bit_offset: None,
+                data_type: AxisDataType::U16Le,
+                signed: false,
+                invert: false,
+                min: None,
+                max: None,
+            }],
+            ..Default::default()
+        };
+        assert!(matches!(map.validate(), Err(DeviceInputMapError::MissingIdentity)));
+    }
+
+    #[test]
+    fn device_input_map_json_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let map = DeviceInputMap {
+            schema_version: 1,
+            vendor_id: 0x346E,
+            product_id: 0x0022,
+            transport: DeviceTransportHint::StandaloneUsb,
+            report: ReportConstraint {
+                report_id: Some(1),
+                report_len: Some(64),
+            },
+            axes: vec![AxisBinding {
+                name: "steering".to_string(),
+                byte_offset: 1,
+                bit_offset: None,
+                data_type: AxisDataType::U16Le,
+                signed: false,
+                invert: false,
+                min: Some(-32768),
+                max: Some(32767),
+            }],
+            buttons: vec![ButtonBinding {
+                name: "paddle_left".to_string(),
+                byte_offset: 11,
+                bit_mask: 0x01,
+                invert: false,
+            }],
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&map)?;
+        let round_tripped: DeviceInputMap = serde_json::from_str(&json)?;
+        assert_eq!(map, round_tripped);
+        Ok(())
+    }
+
+    #[test]
+    fn device_input_map_deserializes_minimal_json() -> Result<(), Box<dyn std::error::Error>> {
+        let json = r#"{
+            "schema_version": 1,
+            "vendor_id": 13422,
+            "product_id": 34,
+            "axes": [{
+                "name": "throttle",
+                "byte_offset": 3,
+                "bit_offset": null,
+                "data_type": "u16_le",
+                "signed": false,
+                "invert": false,
+                "min": null,
+                "max": null
+            }],
+            "buttons": [],
+            "rotaries": [],
+            "init_sequence": []
+        }"#;
+
+        let map: DeviceInputMap = serde_json::from_str(json)?;
+        assert_eq!(map.schema_version, 1);
+        assert_eq!(map.vendor_id, 13422);
+        assert_eq!(map.axes.len(), 1);
+        assert_eq!(map.axes[0].name, "throttle");
+        Ok(())
+    }
+
+    #[test]
+    fn device_input_map_rejects_unknown_fields() {
+        let json = r#"{
+            "schema_version": 1,
+            "vendor_id": 1,
+            "product_id": 2,
+            "axes": [],
+            "unknown_field": true
+        }"#;
+        let result: Result<DeviceInputMap, _> = serde_json::from_str(json);
+        assert!(result.is_err(), "unknown fields should be rejected");
+    }
+
+    #[test]
+    fn compile_ks_map_wires_joystick_dpad() {
+        let map = DeviceInputMap {
+            vendor_id: 0x346E,
+            product_id: 0x0002,
+            joystick: Some(JsBinding {
+                mode_hint: JsModeHint::DPad,
+                axis: Some(AxisBinding {
+                    name: "hat".to_string(),
+                    byte_offset: 27,
+                    bit_offset: None,
+                    data_type: AxisDataType::U8,
+                    signed: false,
+                    invert: false,
+                    min: None,
+                    max: None,
+                }),
+                buttons: vec![],
+            }),
+            ..Default::default()
+        };
+
+        let ks = compile_ks_map(&map).expect("should compile ks map for joystick");
+        assert!(ks.joystick_hat.is_some());
+        assert_eq!(ks.joystick_hat.map(|s| s.offset), Some(27));
+    }
+
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(200))]
+
+        #[test]
+        fn prop_json_round_trip_with_varied_axis_offsets(
+            byte_offset in 0u16..=255u16,
+            vendor_id in 1u16..=0xFFFFu16,
+            product_id in 1u16..=0xFFFFu16,
+        ) {
+            let map = DeviceInputMap {
+                schema_version: 1,
+                vendor_id,
+                product_id,
+                axes: vec![AxisBinding {
+                    name: "test_axis".to_string(),
+                    byte_offset,
+                    bit_offset: None,
+                    data_type: AxisDataType::U16Le,
+                    signed: false,
+                    invert: false,
+                    min: None,
+                    max: None,
+                }],
+                ..Default::default()
+            };
+
+            let json = serde_json::to_string(&map).expect("serialization should succeed");
+            let round_tripped: DeviceInputMap =
+                serde_json::from_str(&json).expect("deserialization should succeed");
+            prop_assert_eq!(map, round_tripped);
+        }
+    }
 }
