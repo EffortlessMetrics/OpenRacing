@@ -40,6 +40,7 @@ const DEFAULT_ENCODER_CPR: u32 = 65_536;
 pub struct OpenFFBoardHandler {
     vendor_id: u16,
     product_id: u16,
+    #[allow(dead_code)]
     encoder: OpenFFBoardTorqueEncoder,
 }
 

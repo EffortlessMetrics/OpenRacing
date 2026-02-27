@@ -41,6 +41,7 @@ const DEFAULT_ENCODER_CPR: u32 = 65_535;
 pub struct FFBeastHandler {
     vendor_id: u16,
     product_id: u16,
+    #[allow(dead_code)]
     encoder: FFBeastTorqueEncoder,
 }
 

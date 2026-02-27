@@ -82,7 +82,7 @@ proptest! {
     #[test]
     fn prop_torque_clamped_to_max(torque in -200.0f32..200.0f32) {
         let report = SimucubeOutputReport::new(0).with_torque(torque);
-        let clamped_nm = report.torque_c_nm as f32 / 100.0;
+        let clamped_nm = report.torque_cNm as f32 / 100.0;
         prop_assert!(
             clamped_nm >= -MAX_TORQUE_NM && clamped_nm <= MAX_TORQUE_NM,
             "clamped value {} must be within +/-{}",
@@ -98,10 +98,10 @@ proptest! {
     fn prop_nonneg_torque_nonneg_cnm(torque in 0.0f32..200.0f32) {
         let report = SimucubeOutputReport::new(0).with_torque(torque);
         prop_assert!(
-            report.torque_c_nm >= 0,
+            report.torque_cNm >= 0,
             "non-negative torque {} must give torque_cNm >= 0, got {}",
             torque,
-            report.torque_c_nm
+            report.torque_cNm
         );
     }
 
@@ -110,10 +110,10 @@ proptest! {
     fn prop_nonpos_torque_nonpos_cnm(torque in -200.0f32..0.0f32) {
         let report = SimucubeOutputReport::new(0).with_torque(torque);
         prop_assert!(
-            report.torque_c_nm <= 0,
+            report.torque_cNm <= 0,
             "non-positive torque {} must give torque_cNm <= 0, got {}",
             torque,
-            report.torque_c_nm
+            report.torque_cNm
         );
     }
 

@@ -819,3 +819,156 @@ games:
       install_paths:
         - "Program Files (x86)/LFS"
         - "LFS"
+
+  ets2:
+    name: "Euro Truck Simulator 2"
+    versions:
+      - version: "1.x"
+        config_paths:
+          - "Documents/Euro Truck Simulator 2/telemetry"
+        executable_patterns:
+          - "eurotrucks2.exe"
+        telemetry_method: "scs_shared_memory"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "fuel_percent"
+    telemetry:
+      method: "scs_shared_memory"
+      update_rate_hz: 20
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:0"
+      fields:
+        ffb_scalar: null
+        rpm: "engineRpm"
+        speed_ms: "speed"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: "truckId"
+        track_id: "jobSource"
+    status: "experimental"
+    config_writer: "ets2"
+    auto_detect:
+      process_names:
+        - "eurotrucks2.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 227300"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Euro Truck Simulator 2"
+
+  ats:
+    name: "American Truck Simulator"
+    versions:
+      - version: "1.x"
+        config_paths:
+          - "Documents/American Truck Simulator/telemetry"
+        executable_patterns:
+          - "amtrucks.exe"
+        telemetry_method: "scs_shared_memory"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "fuel_percent"
+    telemetry:
+      method: "scs_shared_memory"
+      update_rate_hz: 20
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:0"
+      fields:
+        ffb_scalar: null
+        rpm: "engineRpm"
+        speed_ms: "speed"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: "truckId"
+        track_id: "jobSource"
+    status: "experimental"
+    config_writer: "ats"
+    auto_detect:
+      process_names:
+        - "amtrucks.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 270880"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/American Truck Simulator"
+
+  wreckfest:
+    name: "Wreckfest"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "Wreckfest.exe"
+        telemetry_method: "udp_wreckfest"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "ffb_scalar"
+    telemetry:
+      method: "udp_wreckfest"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:5606"
+      fields:
+        ffb_scalar: "gforce_derived"
+        rpm: "rpm"
+        speed_ms: "speed_mps"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "wreckfest"
+    auto_detect:
+      process_names:
+        - "Wreckfest.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 228380"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Wreckfest"
+
+  rennsport:
+    name: "Rennsport"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "Rennsport.exe"
+        telemetry_method: "udp_rennsport"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "ffb_scalar"
+    telemetry:
+      method: "udp_rennsport"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:9000"
+      fields:
+        ffb_scalar: "ffb"
+        rpm: "rpm"
+        speed_ms: "speed_mps"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "rennsport"
+    auto_detect:
+      process_names:
+        - "Rennsport.exe"
+      install_registry_keys: []
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/RENNSPORT"

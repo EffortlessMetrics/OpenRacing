@@ -34,7 +34,7 @@ pub fn parse_capture_line(line: &str) -> Result<CapturedReport> {
 
 /// Decode a lowercase hex string into raw bytes.
 pub fn decode_hex(s: &str) -> Result<Vec<u8>> {
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         return Err(anyhow!("hex string has odd length ({} chars): '{s}'", s.len()));
     }
     (0..s.len() / 2)

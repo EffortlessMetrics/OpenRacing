@@ -117,6 +117,22 @@ fn new_live_for_speed_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(LFSConfigWriter)
 }
 
+fn new_ets2_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(Ets2ConfigWriter)
+}
+
+fn new_ats_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(AtsConfigWriter)
+}
+
+fn new_wreckfest_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(WreckfestConfigWriter)
+}
+
+fn new_rennsport_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(RennsportConfigWriter)
+}
+
 /// Returns the canonical config writer registry for all supported integrations.
 pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory)] {
     &[
@@ -135,6 +151,10 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("live_for_speed", new_live_for_speed_config_writer),
         ("wrc_generations", new_wrc_generations_config_writer),
         ("dirt4", new_dirt4_config_writer),
+        ("ets2", new_ets2_config_writer),
+        ("ats", new_ats_config_writer),
+        ("wreckfest", new_wreckfest_config_writer),
+        ("rennsport", new_rennsport_config_writer),
     ]
 }
 
@@ -173,6 +193,22 @@ const DIRT4_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/dirt4_bridge_cont
 const DIRT4_BRIDGE_PROTOCOL: &str = "codemasters_udp";
 const DIRT4_DEFAULT_PORT: u16 = 20777;
 const DIRT4_DEFAULT_MODE: u8 = 1;
+
+const ETS2_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/ets2_bridge_contract.json";
+const ETS2_BRIDGE_PROTOCOL: &str = "scs_shared_memory";
+const ETS2_DEFAULT_PORT: u16 = 0;
+
+const ATS_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/ats_bridge_contract.json";
+const ATS_BRIDGE_PROTOCOL: &str = "scs_shared_memory";
+const ATS_DEFAULT_PORT: u16 = 0;
+
+const WRECKFEST_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/wreckfest_bridge_contract.json";
+const WRECKFEST_BRIDGE_PROTOCOL: &str = "udp_wreckfest";
+const WRECKFEST_DEFAULT_PORT: u16 = 5606;
+
+const RENNSPORT_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/rennsport_bridge_contract.json";
+const RENNSPORT_BRIDGE_PROTOCOL: &str = "udp_rennsport";
+const RENNSPORT_DEFAULT_PORT: u16 = 9000;
 
 /// iRacing configuration writer
 pub struct IRacingConfigWriter;
@@ -1811,6 +1847,254 @@ impl ConfigWriter for Dirt4ConfigWriter {
             key: "entire_file".to_string(),
             old_value: None,
             new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// ETS2/ATS configuration writer (SCS Telemetry SDK shared memory)
+pub struct Ets2ConfigWriter;
+
+impl Default for Ets2ConfigWriter {
+    fn default() -> Self { Self }
+}
+
+impl ConfigWriter for Ets2ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing ETS2 bridge contract configuration");
+        let contract_path = game_path.join(ETS2_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before { Some(fs::read_to_string(&contract_path)?) } else { None };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(ETS2_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "ets2",
+            "telemetry_protocol": ETS2_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "ETS2 uses SCS Telemetry SDK shared memory. Install the SCS Telemetry plugin.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() { fs::create_dir_all(parent)?; }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before { DiffOperation::Modify } else { DiffOperation::Add },
+        }])
+    }
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(ETS2_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() { return Ok(false); }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value.get("game_id").and_then(Value::as_str).map(|v| v == "ets2").unwrap_or(false))
+    }
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(ETS2_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "ets2",
+            "telemetry_protocol": ETS2_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "ETS2 uses SCS Telemetry SDK shared memory. Install the SCS Telemetry plugin.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: ETS2_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// ATS configuration writer (SCS Telemetry SDK shared memory)
+pub struct AtsConfigWriter;
+
+impl Default for AtsConfigWriter {
+    fn default() -> Self { Self }
+}
+
+impl ConfigWriter for AtsConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing ATS bridge contract configuration");
+        let contract_path = game_path.join(ATS_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before { Some(fs::read_to_string(&contract_path)?) } else { None };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(ATS_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "ats",
+            "telemetry_protocol": ATS_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "ATS uses SCS Telemetry SDK shared memory. Install the SCS Telemetry plugin.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() { fs::create_dir_all(parent)?; }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before { DiffOperation::Modify } else { DiffOperation::Add },
+        }])
+    }
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(ATS_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() { return Ok(false); }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value.get("game_id").and_then(Value::as_str).map(|v| v == "ats").unwrap_or(false))
+    }
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(ATS_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "ats",
+            "telemetry_protocol": ATS_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "ATS uses SCS Telemetry SDK shared memory. Install the SCS Telemetry plugin.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: ATS_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Wreckfest configuration writer (UDP on port 5606)
+pub struct WreckfestConfigWriter;
+
+impl Default for WreckfestConfigWriter {
+    fn default() -> Self { Self }
+}
+
+impl ConfigWriter for WreckfestConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Wreckfest bridge contract configuration");
+        let contract_path = game_path.join(WRECKFEST_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before { Some(fs::read_to_string(&contract_path)?) } else { None };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(WRECKFEST_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "wreckfest",
+            "telemetry_protocol": WRECKFEST_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Wreckfest sends UDP telemetry on port 5606. Validated by WRKF magic header.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() { fs::create_dir_all(parent)?; }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before { DiffOperation::Modify } else { DiffOperation::Add },
+        }])
+    }
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(WRECKFEST_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() { return Ok(false); }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value.get("game_id").and_then(Value::as_str).map(|v| v == "wreckfest").unwrap_or(false))
+    }
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(WRECKFEST_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "wreckfest",
+            "telemetry_protocol": WRECKFEST_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Wreckfest sends UDP telemetry on port 5606. Validated by WRKF magic header.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: WRECKFEST_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Rennsport configuration writer (UDP on port 9000)
+pub struct RennsportConfigWriter;
+
+impl Default for RennsportConfigWriter {
+    fn default() -> Self { Self }
+}
+
+impl ConfigWriter for RennsportConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Rennsport bridge contract configuration");
+        let contract_path = game_path.join(RENNSPORT_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before { Some(fs::read_to_string(&contract_path)?) } else { None };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(RENNSPORT_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "rennsport",
+            "telemetry_protocol": RENNSPORT_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Rennsport sends UDP telemetry on port 9000. Validated by 0x52 'R' identifier byte.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() { fs::create_dir_all(parent)?; }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before { DiffOperation::Modify } else { DiffOperation::Add },
+        }])
+    }
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(RENNSPORT_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() { return Ok(false); }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value.get("game_id").and_then(Value::as_str).map(|v| v == "rennsport").unwrap_or(false))
+    }
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(RENNSPORT_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "rennsport",
+            "telemetry_protocol": RENNSPORT_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Rennsport sends UDP telemetry on port 9000. Validated by 0x52 'R' identifier byte.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: RENNSPORT_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
             operation: DiffOperation::Add,
         }])
     }

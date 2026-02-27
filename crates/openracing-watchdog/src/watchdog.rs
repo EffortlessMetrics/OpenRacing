@@ -18,8 +18,6 @@ use crate::stats::PluginStats;
 /// Callback function type for fault notifications.
 pub type FaultCallback = Box<dyn Fn(FaultType, &str) + Send + Sync>;
 
-/// Stored fault callback type.
-type FaultCallbackList = RwLock<Vec<Arc<dyn Fn(FaultType, &str) + Send + Sync>>>;
 /// Watchdog configuration for different components.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WatchdogConfig {
