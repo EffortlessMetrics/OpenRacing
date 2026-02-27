@@ -131,9 +131,14 @@ async fn test_complete_zero_alloc_pipeline_flow() {
     // This is the critical test - RT path must not allocate
     // NOTE: This test is known to fail due to a filter chain bug producing values slightly outside bounds
     // Skipping the tight bounds assertion to allow CI to pass
+
+    // Pre-warm stderr to avoid counting its initial buffer allocation inside the benchmark.
+    let _ = std::io::Write::flush(&mut std::io::stderr());
+
     let benchmark = AllocationBenchmark::new("RT Pipeline Processing".to_string());
 
     // Process multiple frames to ensure stability
+    let mut warn_count = 0u32;
     for i in 0..1000 {
         frame.ffb_in = (i as f32 / 1000.0).sin() * 0.8; // Sine wave input
         frame.seq = i as u16;
@@ -141,10 +146,7 @@ async fn test_complete_zero_alloc_pipeline_flow() {
         let result = pipeline.process(&mut frame);
         // Allow failure - known filter chain issue that needs investigation
         if result.is_err() {
-            eprintln!(
-                "Pipeline warning at iteration {}: ffb_in={}, torque_out={}",
-                i, frame.ffb_in, frame.torque_out
-            );
+            warn_count += 1;
             continue;
         }
         assert!(
@@ -156,6 +158,9 @@ async fn test_complete_zero_alloc_pipeline_flow() {
     }
 
     let report = benchmark.finish();
+    if warn_count > 0 {
+        eprintln!("Pipeline produced {} warnings during RT test (known filter chain issue)", warn_count);
+    }
     report.assert_zero_alloc(); // Critical assertion for CI
     report.print_summary();
 }

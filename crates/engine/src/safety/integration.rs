@@ -337,7 +337,8 @@ impl IntegratedFaultManager {
         }
 
         // Update soft-stop controller
-        result.current_torque_multiplier = self.fmea_system.update_soft_stop(context.tick_delta);
+        self.fmea_system.update_soft_stop(context.tick_delta);
+        result.current_torque_multiplier = self.fmea_system.soft_stop().current_multiplier();
         result.soft_stop_active = self.fmea_system.is_soft_stop_active();
 
         // Check for recovery opportunities
@@ -938,7 +939,13 @@ mod tests {
         // Should trigger soft stop
         assert!(result.soft_stop_active);
         std::thread::sleep(Duration::from_millis(5));
-        let result = manager.update(&context);
+        let context2 = FaultManagerContext {
+            current_torque: 15.0,
+            temperature: Some(85.0),
+            tick_delta: Duration::from_millis(5),
+            ..Default::default()
+        };
+        let result = manager.update(&context2);
         assert!(result.current_torque_multiplier < 1.0);
     }
 
