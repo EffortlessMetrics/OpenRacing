@@ -225,6 +225,14 @@ fn new_trackmania_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(TrackmaniaAdapter::new())
 }
 
+fn new_dakar_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(DakarDesertRallyAdapter::new())
+}
+
+fn new_flatout_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(FlatOutAdapter::new())
+}
+
 /// Returns the canonical adapter factory registry for all supported native adapters.
 pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
     &[
@@ -261,6 +269,8 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("le_mans_ultimate", new_le_mans_ultimate_adapter),
         ("wtcr", new_wtcr_adapter),
         ("trackmania", new_trackmania_adapter),
+        ("dakar_desert_rally", new_dakar_adapter),
+        ("flatout", new_flatout_adapter),
     ]
 }
 

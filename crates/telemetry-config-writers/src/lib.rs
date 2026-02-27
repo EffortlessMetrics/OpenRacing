@@ -4204,6 +4204,174 @@ impl ConfigWriter for SnowRunnerConfigWriter {
     }
 }
 
+/// MotoGP 23 / MotoGP 24 (Milestone) bridge contract writer.
+///
+/// Routes telemetry through SimHub JSON UDP on port 5556.
+pub struct MotoGPConfigWriter;
+
+impl Default for MotoGPConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for MotoGPConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing MotoGP bridge contract configuration");
+        let contract_path = game_path.join(MOTOGP_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(MOTOGP_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "motogp",
+            "telemetry_protocol": MOTOGP_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "MotoGP 23/24 telemetry requires SimHub UDP bridge on port 5556.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(MOTOGP_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "motogp")
+            .unwrap_or(false))
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(MOTOGP_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "motogp",
+            "telemetry_protocol": MOTOGP_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "MotoGP 23/24 telemetry requires SimHub UDP bridge on port 5556.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: MOTOGP_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// RIDE 5 (Milestone) bridge contract writer.
+///
+/// Routes telemetry through SimHub JSON UDP on port 5558.
+pub struct Ride5ConfigWriter;
+
+impl Default for Ride5ConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for Ride5ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing RIDE 5 bridge contract configuration");
+        let contract_path = game_path.join(RIDE5_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(RIDE5_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "ride5",
+            "telemetry_protocol": RIDE5_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "RIDE 5 telemetry requires SimHub UDP bridge on port 5558.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(RIDE5_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "ride5")
+            .unwrap_or(false))
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(RIDE5_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "ride5",
+            "telemetry_protocol": RIDE5_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "RIDE 5 telemetry requires SimHub UDP bridge on port 5558.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: RIDE5_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
