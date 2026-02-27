@@ -13,6 +13,7 @@ categories = ["no-std", "embedded", "wasm"]
 bitflags = "2.10.0"
 serde = { workspace = true, optional = true }
 static_assertions = "1.1.0"
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 proptest = { workspace = true }

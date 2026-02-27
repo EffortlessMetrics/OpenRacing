@@ -9,3 +9,6 @@ repository = "https://github.com/openracing/openracing"
 [dev-dependencies]
 proptest = { workspace = true }
 insta = { version = "1.44.1", features = ["yaml"] }
+
+[dependencies]
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }

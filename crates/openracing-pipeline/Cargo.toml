@@ -21,6 +21,7 @@ racing-wheel-schemas = { path = "../schemas" }
 tokio = { workspace = true, features = ["sync"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 quickcheck = { workspace = true }

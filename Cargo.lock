@@ -2576,6 +2576,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -2589,6 +2590,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -2602,6 +2604,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -2616,6 +2619,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4179,6 +4183,7 @@ dependencies = [
  "crossbeam",
  "quickcheck",
  "quickcheck_macros",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4189,6 +4194,7 @@ dependencies = [
  "quickcheck",
  "serde",
  "thiserror 2.0.18",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4205,6 +4211,7 @@ dependencies = [
  "racing-wheel-moza-wheelbase-report",
  "serde",
  "serde_json",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4228,6 +4235,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "walkdir",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4244,6 +4252,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4253,6 +4262,7 @@ dependencies = [
  "proptest",
  "quickcheck",
  "racing-wheel-schemas",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4273,6 +4283,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
+ "workspace-hack",
  "zip 7.2.0",
 ]
 
@@ -4285,6 +4296,7 @@ dependencies = [
  "quickcheck",
  "quickcheck_macros",
  "thiserror 2.0.18",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4295,6 +4307,7 @@ dependencies = [
  "quickcheck",
  "serde",
  "thiserror 2.0.18",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4308,6 +4321,7 @@ dependencies = [
  "proptest",
  "quickcheck",
  "quickcheck_macros",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4334,6 +4348,7 @@ dependencies = [
  "tracing",
  "tracing-test",
  "uuid",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4348,6 +4363,7 @@ dependencies = [
  "quickcheck_macros",
  "serde",
  "thiserror 2.0.18",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4358,6 +4374,7 @@ dependencies = [
  "quickcheck",
  "serde",
  "thiserror 2.0.18",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4367,6 +4384,7 @@ dependencies = [
  "criterion",
  "portable-atomic",
  "proptest",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4382,6 +4400,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4411,6 +4430,7 @@ dependencies = [
  "tracing-test",
  "uuid",
  "winapi",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4438,6 +4458,7 @@ dependencies = [
  "tracing-test",
  "uuid",
  "windows 0.62.2",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4456,6 +4477,7 @@ dependencies = [
  "tokio",
  "tokio-test",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4470,6 +4492,7 @@ dependencies = [
  "serde",
  "serde_json",
  "static_assertions",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4481,6 +4504,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "uuid",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4520,6 +4544,7 @@ dependencies = [
  "tokio",
  "tracing",
  "windows 0.62.2",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4530,6 +4555,7 @@ dependencies = [
  "quickcheck",
  "serde",
  "thiserror 2.0.18",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4542,6 +4568,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4558,6 +4585,7 @@ dependencies = [
  "tokio",
  "tracing",
  "windows 0.62.2",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4578,6 +4606,7 @@ dependencies = [
  "wasmtime",
  "wasmtime-wasi",
  "wat",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4595,6 +4624,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5467,6 +5497,7 @@ dependencies = [
  "chrono",
  "semver",
  "thiserror 2.0.18",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5545,6 +5576,9 @@ dependencies = [
 [[package]]
 name = "racing-wheel-hbp"
 version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
 
 [[package]]
 name = "racing-wheel-hid-accuforce-protocol"
@@ -5552,6 +5586,7 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "proptest",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5560,6 +5595,7 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "proptest",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5569,6 +5605,7 @@ dependencies = [
  "insta",
  "proptest",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5577,6 +5614,7 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "proptest",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5585,6 +5623,7 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "proptest",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5594,6 +5633,7 @@ dependencies = [
  "insta",
  "proptest",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5607,6 +5647,7 @@ dependencies = [
  "racing-wheel-moza-wheelbase-report",
  "racing-wheel-srp",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5615,6 +5656,7 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "proptest",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5624,6 +5666,7 @@ dependencies = [
  "insta",
  "proptest",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5633,6 +5676,7 @@ dependencies = [
  "insta",
  "proptest",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5642,6 +5686,7 @@ dependencies = [
  "insta",
  "proptest",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5652,6 +5697,7 @@ dependencies = [
  "racing-wheel-ks",
  "serde",
  "serde_json",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5707,12 +5753,16 @@ dependencies = [
 [[package]]
 name = "racing-wheel-ks"
 version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
 
 [[package]]
 name = "racing-wheel-moza-wheelbase-report"
 version = "0.1.0"
 dependencies = [
  "proptest",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5859,11 +5909,15 @@ dependencies = [
  "proptest",
  "thiserror 2.0.18",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
 name = "racing-wheel-srp"
 version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
 
 [[package]]
 name = "racing-wheel-telemetry-adapters"
@@ -5882,6 +5936,7 @@ dependencies = [
  "tokio",
  "tracing",
  "winapi",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5894,11 +5949,15 @@ dependencies = [
  "racing-wheel-telemetry-core",
  "tokio",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
 name = "racing-wheel-telemetry-bdd-metrics"
 version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
 
 [[package]]
 name = "racing-wheel-telemetry-config"
@@ -5911,6 +5970,7 @@ dependencies = [
  "serde_yaml_ng",
  "tempfile",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5922,6 +5982,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5929,6 +5990,7 @@ name = "racing-wheel-telemetry-contracts"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5945,6 +6007,20 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-forza"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "racing-wheel-telemetry-adapters",
+ "racing-wheel-telemetry-core",
+ "tokio",
+ "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5952,10 +6028,24 @@ name = "racing-wheel-telemetry-integration"
 version = "0.1.0"
 dependencies = [
  "racing-wheel-telemetry-bdd-metrics",
+ "workspace-hack",
 ]
 
 [[package]]
 name = "racing-wheel-telemetry-lfs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "racing-wheel-telemetry-adapters",
+ "racing-wheel-telemetry-core",
+ "tokio",
+ "tracing",
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-mudrunner"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -5979,6 +6069,7 @@ dependencies = [
  "racing-wheel-telemetry-recorder",
  "racing-wheel-telemetry-support",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5987,6 +6078,7 @@ version = "0.1.0"
 dependencies = [
  "proptest",
  "tokio",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5998,6 +6090,19 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-simhub"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "racing-wheel-telemetry-adapters",
+ "racing-wheel-telemetry-core",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -6006,6 +6111,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_yaml_ng",
+ "workspace-hack",
 ]
 
 [[package]]

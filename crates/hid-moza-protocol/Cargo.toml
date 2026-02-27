@@ -19,6 +19,7 @@ racing-wheel-ks = { workspace = true }
 racing-wheel-moza-wheelbase-report = { workspace = true }
 racing-wheel-srp = { workspace = true }
 tracing = { workspace = true }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 proptest = { workspace = true }

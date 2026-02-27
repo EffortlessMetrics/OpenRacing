@@ -16,6 +16,7 @@ unwrap_used = "deny"
 [dependencies]
 serde = { workspace = true }
 racing-wheel-ks = { path = "../ks" }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 serde_json = { workspace = true }

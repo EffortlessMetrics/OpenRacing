@@ -22,6 +22,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 quick-xml = { workspace = true }
 racing-wheel-telemetry-core = { path = "../telemetry-core" }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 proptest = { workspace = true }

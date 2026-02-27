@@ -19,6 +19,7 @@ crc32c = "0.6.8"
 flate2 = "1.1.8"
 zip = "7.2.0"
 sysinfo = { workspace = true }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 tempfile = "3.24.0"

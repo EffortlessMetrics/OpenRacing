@@ -24,6 +24,7 @@ tracing = { workspace = true }
 goblin = "0.9"
 walkdir = "2.5.0"
 subtle = "2.6.1"
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 proptest = { workspace = true }

@@ -10,6 +10,7 @@ description = "Absolute scheduling with PLL drift correction and jitter tracking
 [dependencies]
 thiserror = { workspace = true }
 tracing = { workspace = true }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62.2", features = [

@@ -13,6 +13,7 @@ unused_must_use = "deny"
 unwrap_used = "deny"
 
 [dependencies]
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 insta = "1.44.1"
