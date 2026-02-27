@@ -2,51 +2,143 @@
 # Place in /etc/udev/rules.d/ or /usr/lib/udev/rules.d/
 
 # Racing wheel devices - grant access to input and plugdev groups
-# Common racing wheel vendor IDs
 
-# Logitech wheels
+# ─── Logitech (0x046D) ─────────────────────────────────────────────────────
+# G25, G27, G29, G920, G923, G PRO
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c24f", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c29b", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c298", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c299", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c29a", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c260", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c261", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c262", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c26d", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c26e", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c266", GROUP="input", MODE="0664", TAG+="uaccess"
 
-# Thrustmaster wheels  
+# ─── Thrustmaster (0x044F) ─────────────────────────────────────────────────
+# T150, T150 Pro, TMX, T300RS, T300RS GT, TX Racing, T500RS
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b65d", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b65e", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b66d", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b66e", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b66f", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b669", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b677", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b687", GROUP="input", MODE="0664", TAG+="uaccess"
+# T248, T248X
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b696", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b697", GROUP="input", MODE="0664", TAG+="uaccess"
+# T-GT, T-GT II, TS-PC Racer, TS-XW
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b68e", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b692", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b689", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b691", GROUP="input", MODE="0664", TAG+="uaccess"
+# T818 (direct drive)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b69b", GROUP="input", MODE="0664", TAG+="uaccess"
+# Pedals: T3PA, T3PA Pro, T-LCM, T-LCM Pro
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b678", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b679", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b68d", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b69a", GROUP="input", MODE="0664", TAG+="uaccess"
 
-# Fanatec wheels
+# ─── Fanatec (0x0EB7) ─────────────────────────────────────────────────────
+# All Fanatec products share VID 0x0EB7 — match vendor-wide
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0eb7", GROUP="input", MODE="0664", TAG+="uaccess"
 
-# Simucube / Granite Devices
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5a", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5b", GROUP="input", MODE="0664", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5c", GROUP="input", MODE="0664", TAG+="uaccess"
-
-# VRS DirectForce Pro
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3344", ATTRS{idProduct}=="40b7", GROUP="input", MODE="0664", TAG+="uaccess"
-
-# Moza Racing wheels
+# ─── Moza Racing (0x346E) ─────────────────────────────────────────────────
+# All Moza products share VID 0x346E — match vendor-wide
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="346e", GROUP="input", MODE="0664", TAG+="uaccess"
 
-# Generic HID devices that might be racing wheels - be more restrictive
-# Only match devices with specific usage pages for game controllers
-SUBSYSTEM=="hidraw", ATTRS{bInterfaceClass}=="03", ATTRS{bInterfaceSubClass}=="00", ATTRS{bInterfaceProtocol}=="00", GROUP="input", MODE="0664", TAG+="uaccess"
+# ─── STMicroelectronics VID (0x0483) — Simagic legacy + VRS DirectForce ───
+# Simagic Alpha, Alpha Mini, Alpha Ultimate (legacy firmware)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="0522", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="0523", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="0524", GROUP="input", MODE="0664", TAG+="uaccess"
+# Simagic M10, FX (legacy firmware)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="0d5a", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="0d5b", GROUP="input", MODE="0664", TAG+="uaccess"
+# VRS DirectForce Pro, Pro V2, Pedals V1/V2, Handbrake, Shifter
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a355", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a356", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a357", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a358", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a359", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a35a", GROUP="input", MODE="0664", TAG+="uaccess"
 
-# Set scheduler policy for racing wheel suite processes
-# This allows the service to request real-time scheduling via rtkit
+# ─── OpenMoko VID (0x16D0) — Simagic legacy + Heusinkveld pedals ──────────
+# Simagic M10, FX (OpenMoko VID variant)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5a", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5b", GROUP="input", MODE="0664", TAG+="uaccess"
+# Heusinkveld Sprint, Ultimate+, Pro pedals
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="1156", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="1157", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="1158", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── Simagic EVO generation (0x3670) ──────────────────────────────────────
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3670", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── Simagic modern (0x2D5C) — Alpha, Alpha EVO, M10, Neo, accessories ────
+# Wheelbases
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="0101", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="0102", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="0103", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="0201", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="0301", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="0302", GROUP="input", MODE="0664", TAG+="uaccess"
+# Pedals: P1000, P2000, P1000A
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="1001", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="1002", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="1003", GROUP="input", MODE="0664", TAG+="uaccess"
+# Accessories: shifters, handbrake
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="2001", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="2002", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d5c", ATTRS{idProduct}=="3001", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── Simucube 2 / Granite Devices (0x2D6A) ────────────────────────────────
+# Wheelbases: Sport, Pro, Ultimate
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d6a", ATTRS{idProduct}=="0101", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d6a", ATTRS{idProduct}=="0102", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d6a", ATTRS{idProduct}=="0103", GROUP="input", MODE="0664", TAG+="uaccess"
+# Accessories: ActivePedal, Wireless Wheel
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d6a", ATTRS{idProduct}=="0201", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2d6a", ATTRS{idProduct}=="0301", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── Asetek SimSports (0x2E5A) ────────────────────────────────────────────
+# Forte, Invicta, LaPrima wheelbases
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2e5a", ATTRS{idProduct}=="0001", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2e5a", ATTRS{idProduct}=="0002", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2e5a", ATTRS{idProduct}=="0003", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── Service restart on device connect ────────────────────────────────────
 ACTION=="add", SUBSYSTEM=="hidraw", TAG=="uaccess", RUN+="/bin/systemctl --user try-restart racing-wheel-suite.service"
 
-# Power management - disable USB autosuspend for racing wheels
-ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c24f", ATTR{power/autosuspend}="-1"
-ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c29b", ATTR{power/autosuspend}="-1"
+# ─── Power management — disable USB autosuspend for racing wheels ──────────
+# Logitech
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", ATTR{power/autosuspend}="-1"
+# Thrustmaster
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="044f", ATTR{power/autosuspend}="-1"
+# Fanatec
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0eb7", ATTR{power/autosuspend}="-1"
+# Moza Racing
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="346e", ATTR{power/autosuspend}="-1"
+# Simagic legacy / VRS (STM VID)
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="0522", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="0523", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="0524", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a355", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a356", ATTR{power/autosuspend}="-1"
+# Simagic legacy / Heusinkveld (OpenMoko VID)
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5a", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5b", ATTR{power/autosuspend}="-1"
-ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5c", ATTR{power/autosuspend}="-1"
-ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="3344", ATTRS{idProduct}=="40b7", ATTR{power/autosuspend}="-1"
-ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="346e", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="1156", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="1157", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="1158", ATTR{power/autosuspend}="-1"
+# Simagic EVO
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="3670", ATTR{power/autosuspend}="-1"
+# Simagic modern
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2d5c", ATTR{power/autosuspend}="-1"
+# Simucube 2 / Granite Devices
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2d6a", ATTR{power/autosuspend}="-1"
+# Asetek SimSports
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2e5a", ATTR{power/autosuspend}="-1"

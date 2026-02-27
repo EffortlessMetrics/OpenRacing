@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Multi-vendor plug-and-play device support** — 7 vendors now fully handled:
+  - **Thrustmaster** (VID `0x044F`): T150, T150 Pro, TMX, T300RS/GT, TX Racing, T500RS, T248/T248X, T-GT/T-GT II, TS-PC Racer, TS-XW, T818 (direct drive), T3PA/T3PA Pro, T-LCM/T-LCM Pro pedals
+    - 4-step FFB init: reset gain → set full gain → enable actuators → set rotation range
+    - Per-model rotation limits (T818/T-GT/T500RS: 1080°; TS-PC/TS-XW: 1070°; others: 900°)
+    - `racing-wheel-hid-thrustmaster-protocol` microcrate
+  - **Simucube 2 / Granite Devices** (VID `0x2D6A`): Sport (15 Nm), Pro (25 Nm), Ultimate (35 Nm), ActivePedal, Wireless Wheel
+    - Plug-and-play — no initialization sequence required
+    - 22-bit angle sensor (4,194,304 CPR), ~360 Hz, 64-byte HID reports
+    - `hid-simucube-protocol` microcrate
+  - **Asetek SimSports** (VID `0x2E5A`): Forte (20 Nm), Invicta (15 Nm), LaPrima (10 Nm)
+    - Plug-and-play — no initialization sequence required
+    - `hid-asetek-protocol` microcrate
+  - **VRS DirectForce Pro** (VID `0x0483`, PIDs `0xA3xx`): DirectForce Pro (20 Nm), DirectForce Pro V2 (25 Nm), Pedals V1/V2, Handbrake, Shifter
+    - 3-step init: enable FFB → set device gain → set 1080° rotation range
+    - `racing-wheel-hid-vrs-protocol` microcrate
+  - **Heusinkveld** (VID `0x16D0`, PIDs `0x115x`): Sprint (2-pedal), Ultimate+ (3-pedal, 140 kg), Pro (3-pedal, 200 kg)
+    - Input-only; no force feedback — pure HID input device
+    - `hid-heusinkveld-protocol` microcrate
+  - **Simagic modern** (VID `0x2D5C`): Alpha (15 Nm), Alpha Mini (10 Nm), Alpha EVO (15 Nm), M10 (10 Nm), Neo (10 Nm), Neo Mini (7 Nm), P1000/P2000/P1000A pedals, H/Seq shifters, handbrake
+    - Active FFB initialization (gain + rotation range) for modern firmware
+    - `racing-wheel-hid-simagic-protocol` microcrate (upgraded from passive capture)
+  - **VID disambiguation**: `0x0483` (STM) → VRS if PID in `0xA3xx`, else Simagic legacy; `0x16D0` (OpenMoko) → Heusinkveld if PID in `0x115x`, else Simagic legacy
+- **Linux udev rules** (`packaging/linux/99-racing-wheel-suite.rules`): Complete rewrite covering all vendors, correct VIDs for Simucube (now `0x2D6A`), VRS, Heusinkveld, Simagic modern, power autosuspend disabled for all racing peripherals
+- **Windows device registry** (`crates/engine/src/hid/windows.rs`): All new vendors added to `SupportedDevices` with correct VIDs/PIDs, capability blocks, and manufacturer names; Thrustmaster PID table corrected (T248=`0xB696`, T-LCM Pro=`0xB69A`)
+- **Protocol documentation**: Added `SIMUCUBE_PROTOCOL.md`, `VRS_PROTOCOL.md`, `HEUSINKVELD_PROTOCOL.md`, `ASETEK_PROTOCOL.md`; fixed wrong PIDs in `THRUSTMASTER_PROTOCOL.md` (T150, T150 Pro, TMX)
+
 - **Moza Racing hardware support** (wheelbase + peripherals, hardware-ready):
   - `racing-wheel-hid-moza-protocol` microcrate: pure protocol logic (report IDs/offsets, product IDs, handshake frame generator, wheelbase input parser, direct torque encoder, standalone HBP parser, signature verification)
   - `racing-wheel-srp` microcrate: standalone SR-P pedal USB report parser + normalization primitives

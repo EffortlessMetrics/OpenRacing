@@ -13,9 +13,9 @@ Thrustmaster racing wheels use standard USB HID PID (Physical Interface Device) 
 
 | Model | Vendor ID | Product ID | Max Torque | Notes |
 |-------|-----------|------------|------------|-------|
-| T150 | `0x044F` | `0xB677` | 2.5 Nm | Entry-level, belt |
-| T150 Pro | `0x044F` | `0xB67F` | 2.5 Nm | With T3PA pedals |
-| TMX | `0x044F` | `0xB67E` | 2.5 Nm | Xbox variant of T150 |
+| T150 | `0x044F` | `0xB65D` | 2.5 Nm | Entry-level, belt |
+| T150 Pro | `0x044F` | `0xB65E` | 2.5 Nm | With T3PA pedals |
+| TMX | `0x044F` | `0xB66D` | 2.5 Nm | Xbox variant of T150 |
 | T248 | `0x044F` | `0xB696` | 4.0 Nm | Hybrid drive |
 | T248X | `0x044F` | `0xB697` | 4.0 Nm | Xbox variant |
 | T300 RS | `0x044F` | `0xB66E` | 4.0 Nm | Belt-driven |

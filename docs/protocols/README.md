@@ -8,9 +8,13 @@ This directory contains detailed protocol documentation for all racing wheel man
 |--------------|--------|---------------|---------------|
 | [Logitech](LOGITECH_PROTOCOL.md) | ✅ Supported | HID PIDFF + TrueForce | Well-documented |
 | [Fanatec](FANATEC_PROTOCOL.md) | ✅ Supported | Custom HID | Community reverse-engineered |
-| [Thrustmaster](THRUSTMASTER_PROTOCOL.md) | ✅ Supported | HID PIDFF | Partially documented |
+| [Thrustmaster](THRUSTMASTER_PROTOCOL.md) | ✅ Supported | HID PIDFF | Full model coverage |
 | [Moza](MOZA_PROTOCOL.md) | ✅ Supported | Serial/HID PIDFF | Well-documented |
-| [Simagic](SIMAGIC_PROTOCOL.md) | ⚠️ Partial | HID PIDFF / Proprietary | Version-dependent |
+| [Simagic](SIMAGIC_PROTOCOL.md) | ✅ Supported | HID PIDFF / Proprietary | Legacy + modern (0x2D5C) |
+| [Simucube 2](SIMUCUBE_PROTOCOL.md) | ✅ Supported | HID PIDFF (plug-and-play) | Granite Devices |
+| [VRS DirectForce Pro](VRS_PROTOCOL.md) | ✅ Supported | HID PIDFF | VRS (shares VID with Simagic) |
+| [Heusinkveld](HEUSINKVELD_PROTOCOL.md) | ✅ Supported | HID Input (no FFB) | Pedal sets only |
+| [Asetek SimSports](ASETEK_PROTOCOL.md) | ✅ Supported | HID PIDFF (plug-and-play) | Forte/Invicta/LaPrima |
 
 ## Protocol Overview
 
@@ -28,8 +32,8 @@ All racing wheel protocols share these fundamental concepts:
 
 | Standard | Description | Supported By |
 |----------|-------------|--------------|
-| USB HID PID | Physical Interface Device standard | Logitech, Thrustmaster, Moza |
-| Custom HID | Vendor-specific FFB protocol | Fanatec, Simagic (modern) |
+| USB HID PID | Physical Interface Device standard | Logitech, Thrustmaster, Moza, VRS, Simucube, Asetek, Simagic modern |
+| Custom HID | Vendor-specific FFB protocol | Fanatec, Simagic (legacy) |
 | TrueForce | High-frequency audio-based haptics | Logitech G923+ |
 
 ### Common Effect Types
@@ -165,3 +169,4 @@ When implementing device protocols:
 | 2024-01 | Initial protocol documentation |
 | 2024-06 | Added Moza and Simagic protocols |
 | 2024-12 | Comprehensive update for v1.0.0 release |
+| 2026-02 | Added Simucube 2, VRS, Heusinkveld, Asetek; corrected Thrustmaster PIDs; upgraded Simagic to cover modern VID 0x2D5C |
