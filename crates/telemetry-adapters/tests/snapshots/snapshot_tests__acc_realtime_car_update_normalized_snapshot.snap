@@ -1,5 +1,6 @@
 ---
 source: crates/telemetry-adapters/tests/snapshot_tests.rs
+assertion_line: 20
 expression: normalized
 ---
 speed_ms: 50
@@ -61,19 +62,19 @@ delta_behind_s: 0
 fuel_percent: 0
 engine_temp_c: 0
 extended:
-  laps:
-    type: Integer
-    value: 12
-  track_position:
-    type: Integer
-    value: 2
-  position:
-    type: Integer
-    value: 2
   cup_position:
     type: Integer
     value: 2
   delta_ms:
     type: Integer
     value: -120
+  laps:
+    type: Integer
+    value: 12
+  position:
+    type: Integer
+    value: 2
+  track_position:
+    type: Integer
+    value: 2
 sequence: 0

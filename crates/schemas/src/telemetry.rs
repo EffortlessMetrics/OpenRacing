@@ -4,7 +4,7 @@
 //! The `NormalizedTelemetry` struct combines data from all game adapters into a consistent format.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::time::{Duration, Instant};
 
 /// Canonical normalized telemetry data from racing games.
@@ -180,8 +180,8 @@ pub struct NormalizedTelemetry {
 
     // === Extended Data ===
     /// Additional game-specific data that doesn't fit into standard fields.
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub extended: HashMap<String, TelemetryValue>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub extended: BTreeMap<String, TelemetryValue>,
 
     // === Timing ===
     /// Timestamp when this telemetry sample was captured (monotonic).
@@ -235,7 +235,7 @@ impl Default for NormalizedTelemetry {
             delta_behind_s: 0.0,
             fuel_percent: 0.0,
             engine_temp_c: 0.0,
-            extended: HashMap::new(),
+            extended: BTreeMap::new(),
             timestamp: Instant::now(),
             sequence: 0,
         }
