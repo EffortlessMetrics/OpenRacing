@@ -313,6 +313,8 @@ pub mod vendor_ids {
     pub const OPENFFBOARD: u16 = 0x1209;
     /// FFBeast open-source direct drive controller
     pub const FFBEAST: u16 = 0x045B;
+    /// Leo Bodnar USB sim racing interfaces (UK manufacturer)
+    pub const LEO_BODNAR: u16 = 0x1DD2;
 }
 
 /// Known racing wheel product IDs organized by vendor
@@ -456,6 +458,11 @@ impl SupportedDevices {
             (vendor_ids::GRANITE_DEVICES, 0x6050, "Simucube 1 / IONI Servo Drive"),
             (vendor_ids::GRANITE_DEVICES, 0x6051, "Simucube 2 / IONI Premium Servo Drive"),
             (vendor_ids::GRANITE_DEVICES, 0x6052, "Simucube Sport / ARGON Servo Drive"),
+            // Leo Bodnar sim racing interfaces and peripherals
+            (vendor_ids::LEO_BODNAR, 0x000E, "Leo Bodnar USB Sim Racing Wheel Interface"),
+            (vendor_ids::LEO_BODNAR, 0x000C, "Leo Bodnar BBI-32 Button Box"),
+            (vendor_ids::LEO_BODNAR, 0xBEEF, "Leo Bodnar SLI-M Shift Light Indicator"),
+            (vendor_ids::LEO_BODNAR, 0x0001, "Leo Bodnar USB Joystick"),
         ]
     }
 
@@ -475,6 +482,7 @@ impl SupportedDevices {
             vendor_ids::OPENFFBOARD,
             vendor_ids::FFBEAST,
             vendor_ids::GRANITE_DEVICES,
+            vendor_ids::LEO_BODNAR,
         ]
     }
 
@@ -512,6 +520,7 @@ impl SupportedDevices {
             vendor_ids::OPENFFBOARD => "OpenFFBoard / Generic HID",
             vendor_ids::FFBEAST => "FFBeast",
             vendor_ids::GRANITE_DEVICES => "Granite Devices",
+            vendor_ids::LEO_BODNAR => "Leo Bodnar",
             _ => "Unknown",
         }
     }
@@ -1494,6 +1503,24 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                 0x6051 => { capabilities.max_torque = TorqueNm::new(35.0).unwrap_or(capabilities.max_torque); } // IONI Premium
                 0x6052 => { capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque); } // ARGON
                 _ => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); }
+            }
+        }
+        vendor_ids::LEO_BODNAR => {
+            match product_id {
+                // USB Sim Racing Wheel Interface — standard HID PID, motor-dependent torque.
+                0x000E => {
+                    capabilities.supports_pid = true;
+                    capabilities.supports_raw_torque_1khz = false; // standard HID PID @ 100-500 Hz
+                    capabilities.encoder_cpr = u16::MAX; // 16-bit via HID PID
+                    capabilities.min_report_period_us = 2000; // 500 Hz typical
+                    capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
+                }
+                // BBI-32 Button Box, SLI-M, USB Joystick — input-only
+                _ => {
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                }
             }
         }
         _ => {

@@ -7,7 +7,9 @@
 pub mod asetek;
 pub mod button_box;
 pub mod fanatec;
+pub mod generic_hid_pid;
 pub mod heusinkveld;
+pub mod leo_bodnar;
 pub mod logitech;
 pub mod moza;
 pub mod moza_direct;
@@ -21,6 +23,10 @@ pub mod vrs;
 
 #[cfg(test)]
 mod asetek_tests;
+#[cfg(test)]
+mod generic_hid_pid_tests;
+#[cfg(test)]
+mod leo_bodnar_tests;
 #[cfg(test)]
 mod button_box_tests;
 #[cfg(test)]
@@ -117,6 +123,33 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
                 None
             }
         }
+        // Leo Bodnar USB sim racing interfaces and peripherals
+        0x1DD2 => Some(Box::new(leo_bodnar::LeoBodnarHandler::new(
+            vendor_id, product_id,
+        ))),
         _ => None,
+    }
+}
+
+/// Get the vendor protocol handler for a device, falling back to a generic HID PID
+/// handler when no specific vendor is matched and the device advertises standard
+/// USB HID PID (Usage Page `0x000F`) force feedback capabilities.
+///
+/// This covers community builds, AccuForce Pro (VID `0x16D0`), and assorted
+/// Chinese direct-drive controllers not otherwise identified.
+pub fn get_vendor_protocol_with_hid_pid_fallback(
+    vendor_id: u16,
+    product_id: u16,
+    has_hid_pid_capability: bool,
+) -> Option<Box<dyn VendorProtocol>> {
+    if let Some(handler) = get_vendor_protocol(vendor_id, product_id) {
+        return Some(handler);
+    }
+    if has_hid_pid_capability {
+        Some(Box::new(generic_hid_pid::GenericHidPidHandler::new(
+            vendor_id, product_id,
+        )))
+    } else {
+        None
     }
 }
