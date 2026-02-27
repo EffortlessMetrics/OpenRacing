@@ -163,9 +163,23 @@ proptest! {
         let caps = super::windows::determine_device_capabilities(vid, pid);
 
         // Property: FFB wheel devices must have positive max torque.
-        // Known non-FFB peripherals (e.g. pedals) should report zero torque.
-        let is_non_ffb_peripheral = vid == vendor_ids::MOZA
-            && matches!(pid, 0x0003 | 0x0020 | 0x0021 | 0x0022);
+        // Known non-FFB peripherals (pedals, shifters, handbrakes, wireless wheels)
+        // report zero torque. Enumerated explicitly since some FFB vendors (e.g. Fanatec)
+        // also set supports_pid = false (they use proprietary protocols, not HID PID).
+        let is_non_ffb_peripheral =
+            // Moza peripherals (pedals, hub, handbrake, shifter)
+            (vid == vendor_ids::MOZA && matches!(pid, 0x0003 | 0x0020 | 0x0021 | 0x0022))
+            // Thrustmaster pedals (T3PA, T3PA Pro, T-LCM, T-LCM Pro)
+            || (vid == vendor_ids::THRUSTMASTER && matches!(pid, 0xB678 | 0xB679 | 0xB68D | 0xB69A))
+            // Heusinkveld pedals (Sprint / Ultimate+ / Pro) — share VID with Simagic legacy
+            || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x1156 | 0x1157 | 0x1158))
+            // VRS accessories (pedals, handbrake, shifter) — share VID with Simagic
+            || (vid == vendor_ids::SIMAGIC && matches!(pid, 0xA357 | 0xA358 | 0xA359 | 0xA35A))
+            // Simagic modern pedals, shifters, handbrake
+            || (vid == vendor_ids::SIMAGIC_MODERN
+                && matches!(pid, 0x1001 | 0x1002 | 0x1003 | 0x2001 | 0x2002 | 0x3001))
+            // Simucube ActivePedal and Wireless Wheel
+            || (vid == vendor_ids::SIMUCUBE && matches!(pid, 0x0201 | 0x0301));
         if is_non_ffb_peripheral {
             prop_assert_eq!(
                 caps.max_torque.value(),
