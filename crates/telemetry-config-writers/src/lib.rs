@@ -133,6 +133,26 @@ fn new_rennsport_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(RennsportConfigWriter)
 }
 
+fn new_grid_autosport_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(GridAutosportConfigWriter)
+}
+
+fn new_grid_2019_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(Grid2019ConfigWriter)
+}
+
+fn new_grid_legends_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(GridLegendsConfigWriter)
+}
+
+fn new_automobilista_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(AutomobilistaConfigWriter)
+}
+
+fn new_kartkraft_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(KartKraftConfigWriter)
+}
+
 fn new_raceroom_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(RaceRoomConfigWriter)
 }
@@ -160,6 +180,11 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("wreckfest", new_wreckfest_config_writer),
         ("rennsport", new_rennsport_config_writer),
         ("raceroom", new_raceroom_config_writer),
+        ("kartkraft", new_kartkraft_config_writer),
+        ("grid_autosport", new_grid_autosport_config_writer),
+        ("grid_2019", new_grid_2019_config_writer),
+        ("grid_legends", new_grid_legends_config_writer),
+        ("automobilista", new_automobilista_config_writer),
     ]
 }
 
@@ -214,6 +239,32 @@ const WRECKFEST_DEFAULT_PORT: u16 = 5606;
 const RENNSPORT_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/rennsport_bridge_contract.json";
 const RENNSPORT_BRIDGE_PROTOCOL: &str = "udp_rennsport";
 const RENNSPORT_DEFAULT_PORT: u16 = 9000;
+
+const GRID_AUTOSPORT_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/grid_autosport_bridge_contract.json";
+const GRID_AUTOSPORT_BRIDGE_PROTOCOL: &str = "codemasters_udp";
+const GRID_AUTOSPORT_DEFAULT_PORT: u16 = 20777;
+const GRID_AUTOSPORT_DEFAULT_MODE: u8 = 1;
+
+const GRID_2019_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/grid_2019_bridge_contract.json";
+const GRID_2019_BRIDGE_PROTOCOL: &str = "codemasters_udp";
+const GRID_2019_DEFAULT_PORT: u16 = 20777;
+const GRID_2019_DEFAULT_MODE: u8 = 1;
+
+const GRID_LEGENDS_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/grid_legends_bridge_contract.json";
+const GRID_LEGENDS_BRIDGE_PROTOCOL: &str = "codemasters_udp";
+const GRID_LEGENDS_DEFAULT_PORT: u16 = 20777;
+const GRID_LEGENDS_DEFAULT_MODE: u8 = 1;
+
+const AUTOMOBILISTA_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/automobilista_bridge_contract.json";
+const AUTOMOBILISTA_BRIDGE_PROTOCOL: &str = "isi_rf1_shared_memory";
+
+const KARTKRAFT_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/kartkraft_bridge_contract.json";
+const KARTKRAFT_BRIDGE_PROTOCOL: &str = "udp_flatbuffers_kartkraft";
+const KARTKRAFT_DEFAULT_PORT: u16 = 5000;
 
 const RACEROOM_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/raceroom_bridge_contract.json";
 const RACEROOM_BRIDGE_PROTOCOL: &str = "r3e_shared_memory";
@@ -2099,6 +2150,347 @@ impl ConfigWriter for RennsportConfigWriter {
         });
         Ok(vec![ConfigDiff {
             file_path: RENNSPORT_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// GRID Autosport configuration writer (Codemasters UDP Mode 1, port 20777).
+pub struct GridAutosportConfigWriter;
+
+impl Default for GridAutosportConfigWriter {
+    fn default() -> Self { Self }
+}
+
+impl ConfigWriter for GridAutosportConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing GRID Autosport bridge contract configuration");
+        let contract_path = game_path.join(GRID_AUTOSPORT_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before { Some(fs::read_to_string(&contract_path)?) } else { None };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(GRID_AUTOSPORT_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "grid_autosport",
+            "telemetry_protocol": GRID_AUTOSPORT_BRIDGE_PROTOCOL,
+            "mode": GRID_AUTOSPORT_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "GRID Autosport uses Codemasters UDP Mode 1 on port 20777.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() { fs::create_dir_all(parent)?; }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before { DiffOperation::Modify } else { DiffOperation::Add },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(GRID_AUTOSPORT_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() { return Ok(false); }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        let valid_protocol = value.get("telemetry_protocol").and_then(Value::as_str)
+            .map(|v| v == GRID_AUTOSPORT_BRIDGE_PROTOCOL).unwrap_or(false);
+        let valid_game = value.get("game_id").and_then(Value::as_str)
+            .map(|v| v == "grid_autosport").unwrap_or(false);
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(GRID_AUTOSPORT_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "grid_autosport",
+            "telemetry_protocol": GRID_AUTOSPORT_BRIDGE_PROTOCOL,
+            "mode": GRID_AUTOSPORT_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "GRID Autosport uses Codemasters UDP Mode 1 on port 20777.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: GRID_AUTOSPORT_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// GRID 2019 configuration writer (Codemasters UDP Mode 1, port 20777).
+pub struct Grid2019ConfigWriter;
+
+impl Default for Grid2019ConfigWriter {
+    fn default() -> Self { Self }
+}
+
+impl ConfigWriter for Grid2019ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing GRID 2019 bridge contract configuration");
+        let contract_path = game_path.join(GRID_2019_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before { Some(fs::read_to_string(&contract_path)?) } else { None };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(GRID_2019_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "grid_2019",
+            "telemetry_protocol": GRID_2019_BRIDGE_PROTOCOL,
+            "mode": GRID_2019_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "GRID (2019) uses Codemasters UDP Mode 1 on port 20777.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() { fs::create_dir_all(parent)?; }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before { DiffOperation::Modify } else { DiffOperation::Add },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(GRID_2019_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() { return Ok(false); }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        let valid_protocol = value.get("telemetry_protocol").and_then(Value::as_str)
+            .map(|v| v == GRID_2019_BRIDGE_PROTOCOL).unwrap_or(false);
+        let valid_game = value.get("game_id").and_then(Value::as_str)
+            .map(|v| v == "grid_2019").unwrap_or(false);
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(GRID_2019_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "grid_2019",
+            "telemetry_protocol": GRID_2019_BRIDGE_PROTOCOL,
+            "mode": GRID_2019_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "GRID (2019) uses Codemasters UDP Mode 1 on port 20777.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: GRID_2019_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// GRID Legends configuration writer (Codemasters UDP Mode 1, port 20777).
+pub struct GridLegendsConfigWriter;
+
+impl Default for GridLegendsConfigWriter {
+    fn default() -> Self { Self }
+}
+
+impl ConfigWriter for GridLegendsConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing GRID Legends bridge contract configuration");
+        let contract_path = game_path.join(GRID_LEGENDS_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before { Some(fs::read_to_string(&contract_path)?) } else { None };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(GRID_LEGENDS_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "grid_legends",
+            "telemetry_protocol": GRID_LEGENDS_BRIDGE_PROTOCOL,
+            "mode": GRID_LEGENDS_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "GRID Legends uses Codemasters UDP Mode 1 on port 20777.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() { fs::create_dir_all(parent)?; }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before { DiffOperation::Modify } else { DiffOperation::Add },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(GRID_LEGENDS_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() { return Ok(false); }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        let valid_protocol = value.get("telemetry_protocol").and_then(Value::as_str)
+            .map(|v| v == GRID_LEGENDS_BRIDGE_PROTOCOL).unwrap_or(false);
+        let valid_game = value.get("game_id").and_then(Value::as_str)
+            .map(|v| v == "grid_legends").unwrap_or(false);
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(GRID_LEGENDS_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "grid_legends",
+            "telemetry_protocol": GRID_LEGENDS_BRIDGE_PROTOCOL,
+            "mode": GRID_LEGENDS_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "GRID Legends uses Codemasters UDP Mode 1 on port 20777.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: GRID_LEGENDS_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Automobilista 1 configuration writer.
+///
+/// Automobilista 1 uses the ISI rFactor 1 shared memory (`$rFactor$`).
+/// This writer creates a bridge contract for the OpenRacing telemetry pipeline.
+pub struct AutomobilistaConfigWriter;
+
+impl Default for AutomobilistaConfigWriter {
+    fn default() -> Self { Self }
+}
+
+impl ConfigWriter for AutomobilistaConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Automobilista 1 bridge contract configuration");
+        let contract_path = game_path.join(AUTOMOBILISTA_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before { Some(fs::read_to_string(&contract_path)?) } else { None };
+        let contract = serde_json::json!({
+            "game_id": "automobilista",
+            "telemetry_protocol": AUTOMOBILISTA_BRIDGE_PROTOCOL,
+            "shared_memory_name": "$rFactor$",
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Automobilista 1 uses ISI rFactor 1 shared memory. No in-game config file is required.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() { fs::create_dir_all(parent)?; }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before { DiffOperation::Modify } else { DiffOperation::Add },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(AUTOMOBILISTA_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() { return Ok(false); }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        let valid_protocol = value.get("telemetry_protocol").and_then(Value::as_str)
+            .map(|v| v == AUTOMOBILISTA_BRIDGE_PROTOCOL).unwrap_or(false);
+        let valid_game = value.get("game_id").and_then(Value::as_str)
+            .map(|v| v == "automobilista").unwrap_or(false);
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let contract = serde_json::json!({
+            "game_id": "automobilista",
+            "telemetry_protocol": AUTOMOBILISTA_BRIDGE_PROTOCOL,
+            "shared_memory_name": "$rFactor$",
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Automobilista 1 uses ISI rFactor 1 shared memory. No in-game config file is required.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: AUTOMOBILISTA_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// KartKraft configuration writer (FlatBuffers UDP on port 5000).
+pub struct KartKraftConfigWriter;
+
+impl Default for KartKraftConfigWriter {
+    fn default() -> Self { Self }
+}
+
+impl ConfigWriter for KartKraftConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing KartKraft bridge contract configuration");
+        let contract_path = game_path.join(KARTKRAFT_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before { Some(fs::read_to_string(&contract_path)?) } else { None };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(KARTKRAFT_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "kartkraft",
+            "telemetry_protocol": KARTKRAFT_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "KartKraft sends FlatBuffers UDP packets (KKFB identifier) on port 5000.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() { fs::create_dir_all(parent)?; }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before { DiffOperation::Modify } else { DiffOperation::Add },
+        }])
+    }
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(KARTKRAFT_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() { return Ok(false); }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value.get("game_id").and_then(Value::as_str).map(|v| v == "kartkraft").unwrap_or(false))
+    }
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(KARTKRAFT_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "kartkraft",
+            "telemetry_protocol": KARTKRAFT_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "KartKraft sends FlatBuffers UDP packets (KKFB identifier) on port 5000.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: KARTKRAFT_BRIDGE_RELATIVE_PATH.to_string(),
             section: None,
             key: "entire_file".to_string(),
             old_value: None,

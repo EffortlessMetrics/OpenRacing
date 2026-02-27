@@ -967,6 +967,97 @@ games:
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/RENNSPORT"
 
+  kartkraft:
+    name: "KartKraft"
+    versions:
+      - version: "Early Access (Steam)"
+        config_paths:
+          - "%LOCALAPPDATA%/project_k/Saved/Config/WindowsNoEditor/Game.ini"
+        executable_patterns:
+          - "KartKraft.exe"
+          - "project_k.exe"
+        telemetry_method: "udp_flatbuffers_kkfb"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+          - "slip_ratio"
+          - "max_rpm"
+          - "track_id"
+    telemetry:
+      method: "udp_flatbuffers_kkfb"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:5000"
+      fields:
+        ffb_scalar: null
+        rpm: "Dashboard.rpm"
+        speed_ms: "Dashboard.speed"
+        slip_ratio: "Motion.tractionLoss"
+        gear: "Dashboard.gear"
+        flags: null
+        car_id: null
+        track_id: "TrackConfig.name"
+    status: "experimental"
+    config_writer: "kartkraft"
+    auto_detect:
+      process_names:
+        - "KartKraft.exe"
+        - "project_k.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 878620"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/KartKraft"
+
+  raceroom:
+    name: "RaceRoom Racing Experience"
+    versions:
+      - version: "2024.x"
+        config_paths:
+          - "Documents/OpenRacing/raceroom_bridge_contract.json"
+        executable_patterns:
+          - "RRRE.exe"
+          - "RRRE64.exe"
+        telemetry_method: "r3e_shared_memory"
+        supported_fields:
+          - "ffb_scalar"
+          - "rpm"
+          - "speed_ms"
+          - "slip_ratio"
+          - "gear"
+          - "flags"
+          - "car_id"
+          - "track_id"
+    telemetry:
+      method: "r3e_shared_memory"
+      update_rate_hz: 100
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:0"
+      fields:
+        ffb_scalar: "ForceFeedback"
+        rpm: "EngineRps"
+        speed_ms: "CarSpeed"
+        slip_ratio: "TireGrip"
+        gear: "Gear"
+        flags: "SessionPhase"
+        car_id: "VehicleInfo/ModelId"
+        track_id: "TrackId"
+    status: "experimental"
+    config_writer: "raceroom"
+    auto_detect:
+      process_names:
+        - "RRRE.exe"
+        - "RRRE64.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 211500"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/raceroom racing experience"
+
   raceroom:
     name: "RaceRoom Racing Experience"
     versions:
@@ -1011,3 +1102,190 @@ games:
         - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 211500"
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/Race Room Racing Experience"
+
+  grid_autosport:
+    name: "GRID Autosport"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "GRID_Autosport.exe"
+          - "gridautosport.exe"
+        telemetry_method: "udp_codemasters_mode1"
+        supported_fields:
+          - "rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+          - "lateral_g"
+          - "longitudinal_g"
+          - "fuel_percent"
+          - "tire_temps_c"
+          - "tire_pressures_psi"
+    telemetry:
+      method: "udp_codemasters_mode1"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:20777"
+      fields:
+        ffb_scalar: "gforce_lat"
+        rpm: "rpm"
+        speed_ms: "wheel_speed_avg"
+        slip_ratio: null
+        gear: "gear"
+        flags: "in_pit"
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "grid_autosport"
+    auto_detect:
+      process_names:
+        - "GRID_Autosport.exe"
+        - "gridautosport.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 255220"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/GRID Autosport"
+
+  grid_2019:
+    name: "GRID (2019)"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "GRID2019.exe"
+          - "grid2019.exe"
+        telemetry_method: "udp_codemasters_mode1"
+        supported_fields:
+          - "rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+          - "lateral_g"
+          - "longitudinal_g"
+          - "fuel_percent"
+          - "tire_temps_c"
+          - "tire_pressures_psi"
+    telemetry:
+      method: "udp_codemasters_mode1"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:20777"
+      fields:
+        ffb_scalar: "gforce_lat"
+        rpm: "rpm"
+        speed_ms: "wheel_speed_avg"
+        slip_ratio: null
+        gear: "gear"
+        flags: "in_pit"
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "grid_2019"
+    auto_detect:
+      process_names:
+        - "GRID2019.exe"
+        - "grid2019.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1089710"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/GRID 2019"
+
+  grid_legends:
+    name: "GRID Legends"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "GRIDLegends.exe"
+          - "gridlegends.exe"
+        telemetry_method: "udp_codemasters_mode1"
+        supported_fields:
+          - "rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+          - "lateral_g"
+          - "longitudinal_g"
+          - "fuel_percent"
+          - "tire_temps_c"
+          - "tire_pressures_psi"
+    telemetry:
+      method: "udp_codemasters_mode1"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:20777"
+      fields:
+        ffb_scalar: "gforce_lat"
+        rpm: "rpm"
+        speed_ms: "wheel_speed_avg"
+        slip_ratio: null
+        gear: "gear"
+        flags: "in_pit"
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "grid_legends"
+    auto_detect:
+      process_names:
+        - "GRIDLegends.exe"
+        - "gridlegends.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1307710"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/GRID Legends"
+
+  automobilista:
+    name: "Automobilista 1"
+    versions:
+      - version: "1.5.x"
+        config_paths: []
+        executable_patterns:
+          - "automobilista.exe"
+          - "game.exe"
+        telemetry_method: "shared_memory_isi_rf1"
+        supported_fields:
+          - "rpm"
+          - "max_rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+          - "lateral_g"
+          - "longitudinal_g"
+          - "fuel_percent"
+    telemetry:
+      method: "shared_memory_isi_rf1"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:0"
+      fields:
+        ffb_scalar: "lat_accel_g"
+        rpm: "mEngineRPM"
+        speed_ms: "mSpeed"
+        slip_ratio: null
+        gear: "mGear"
+        flags: null
+        car_id: "mVehicleName"
+        track_id: "mTrackName"
+    status: "experimental"
+    config_writer: "automobilista"
+    auto_detect:
+      process_names:
+        - "automobilista.exe"
+        - "game.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 431600"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Automobilista"

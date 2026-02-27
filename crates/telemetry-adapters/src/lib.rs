@@ -23,6 +23,7 @@ pub mod ac_rally;
 pub mod acc;
 pub mod ams2;
 pub mod assetto_corsa;
+pub mod automobilista;
 pub mod beamng;
 pub mod codemasters_udp;
 pub mod dirt4;
@@ -34,7 +35,11 @@ pub mod f1;
 pub mod f1_25;
 pub mod forza;
 pub mod gran_turismo_7;
+pub mod grid_2019;
+pub mod grid_autosport;
+pub mod grid_legends;
 pub mod iracing;
+pub mod kartkraft;
 pub mod lfs;
 pub mod pcars2;
 pub mod raceroom;
@@ -116,6 +121,10 @@ fn new_iracing_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(IRacingAdapter::new())
 }
 
+fn new_kartkraft_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(KartKraftAdapter::new())
+}
+
 fn new_lfs_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(LFSAdapter::new())
 }
@@ -176,6 +185,22 @@ fn new_wreckfest_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(WreckfestAdapter::new())
 }
 
+fn new_automobilista_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(Automobilista1Adapter::new())
+}
+
+fn new_grid_autosport_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(GridAutosportAdapter::new())
+}
+
+fn new_grid_2019_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(Grid2019Adapter::new())
+}
+
+fn new_grid_legends_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(GridLegendsAdapter::new())
+}
+
 fn new_rennsport_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(RennsportAdapter::new())
 }
@@ -199,10 +224,15 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("forza_motorsport", new_forza_adapter),
         ("gran_turismo_7", new_gran_turismo_7_adapter),
         ("iracing", new_iracing_adapter),
+        ("kartkraft", new_kartkraft_adapter),
         ("live_for_speed", new_lfs_adapter),
         ("project_cars_2", new_pcars2_adapter),
         ("raceroom", new_raceroom_adapter),
         ("rbr", new_rbr_adapter),
+        ("automobilista", new_automobilista_adapter),
+        ("grid_autosport", new_grid_autosport_adapter),
+        ("grid_2019", new_grid_2019_adapter),
+        ("grid_legends", new_grid_legends_adapter),
         ("rennsport", new_rennsport_adapter),
         ("rfactor2", new_rfactor2_adapter),
         ("wrc_generations", new_wrc_generations_adapter),
@@ -214,6 +244,7 @@ pub use ac_rally::ACRallyAdapter;
 pub use acc::ACCAdapter;
 pub use ams2::AMS2Adapter;
 pub use assetto_corsa::AssettoCorsaAdapter;
+pub use automobilista::Automobilista1Adapter;
 pub use beamng::BeamNGAdapter;
 pub use codemasters_udp::{CustomUdpSpec, DecodedCodemastersPacket, FieldSpec};
 pub use dirt4::Dirt4Adapter;
@@ -225,7 +256,11 @@ pub use f1::F1Adapter;
 pub use f1_25::F1_25Adapter;
 pub use forza::ForzaAdapter;
 pub use gran_turismo_7::GranTurismo7Adapter;
+pub use grid_2019::Grid2019Adapter;
+pub use grid_autosport::GridAutosportAdapter;
+pub use grid_legends::GridLegendsAdapter;
 pub use iracing::IRacingAdapter;
+pub use kartkraft::KartKraftAdapter;
 pub use lfs::LFSAdapter;
 pub use pcars2::PCars2Adapter;
 pub use raceroom::RaceRoomAdapter;
