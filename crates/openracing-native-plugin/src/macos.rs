@@ -114,12 +114,12 @@ pub unsafe fn protect_memory(
     size: usize,
     prot: c_int,
 ) -> Result<(), NativePluginError> {
-    let page_size = libc::sysconf(libc::_SC_PAGESIZE) as usize;
+    let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
     let page_mask = !(page_size - 1);
     let aligned_addr = (address as usize) & page_mask;
     let aligned_size = ((address as usize) + size - aligned_addr + page_size - 1) & page_mask;
 
-    let result = libc::mprotect(aligned_addr as *mut c_void, aligned_size, prot);
+    let result = unsafe { libc::mprotect(aligned_addr as *mut c_void, aligned_size, prot) };
 
     if result != 0 {
         return Err(NativePluginError::LoadingFailed(format!(
