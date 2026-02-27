@@ -307,12 +307,12 @@ pub mod vendor_ids {
     pub const SIMUCUBE: u16 = 0x2D6A;
     /// Asetek SimSports
     pub const ASETEK: u16 = 0x2E5A;
-    /// OpenFFBoard open-source direct drive controller (pid.codes VID)
+    /// Granite Devices SimpleMotion V2 (IONI / ARGON / SimuCube 1)
+    pub const GRANITE_DEVICES: u16 = 0x1D50;
+    /// OpenFFBoard open-source direct drive controller + button boxes (pid.codes shared VID)
     pub const OPENFFBOARD: u16 = 0x1209;
     /// FFBeast open-source direct drive controller
     pub const FFBEAST: u16 = 0x045B;
-    /// Granite Devices SimpleMotion V2 (IONI / ARGON / SimuCube 1)
-    pub const GRANITE_DEVICES: u16 = 0x1D50;
 }
 
 /// Known racing wheel product IDs organized by vendor
@@ -446,6 +446,8 @@ impl SupportedDevices {
             // OpenFFBoard (open-source direct drive controller)
             (vendor_ids::OPENFFBOARD, 0xFFB0, "OpenFFBoard"),
             (vendor_ids::OPENFFBOARD, 0xFFB1, "OpenFFBoard (alt firmware)"),
+            // Generic HID button box (pid.codes VID)
+            (vendor_ids::OPENFFBOARD, 0x1BBD, "Generic HID Button Box"),
             // FFBeast (open-source direct drive controller)
             (vendor_ids::FFBEAST, 0x58F9, "FFBeast Joystick"),
             (vendor_ids::FFBEAST, 0x5968, "FFBeast Rudder"),
@@ -507,7 +509,7 @@ impl SupportedDevices {
             vendor_ids::SIMAGIC_MODERN => "Simagic",
             vendor_ids::SIMUCUBE => "Granite Devices",
             vendor_ids::ASETEK => "Asetek SimSports",
-            vendor_ids::OPENFFBOARD => "OpenFFBoard",
+            vendor_ids::OPENFFBOARD => "OpenFFBoard / Generic HID",
             vendor_ids::FFBEAST => "FFBeast",
             vendor_ids::GRANITE_DEVICES => "Granite Devices",
             _ => "Unknown",
@@ -682,7 +684,9 @@ fn enumerate_hid_devices(
         let vendor_id = device_info.vendor_id();
         let product_id = device_info.product_id();
 
-        if !SupportedDevices::is_supported_vendor(vendor_id) {
+        if !SupportedDevices::is_supported_vendor(vendor_id)
+            && !SupportedDevices::is_supported(vendor_id, product_id)
+        {
             continue;
         }
 
@@ -903,8 +907,10 @@ impl WindowsHidPort {
                 let vendor_id = device_info.vendor_id();
                 let product_id = device_info.product_id();
 
-                // Check if this is a supported racing wheel vendor
-                if !SupportedDevices::is_supported_vendor(vendor_id) {
+                // Check if this is a supported racing wheel vendor or a specifically supported device
+                if !SupportedDevices::is_supported_vendor(vendor_id)
+                    && !SupportedDevices::is_supported(vendor_id, product_id)
+                {
                     continue;
                 }
 
@@ -1454,17 +1460,23 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             }
         }
         vendor_ids::OPENFFBOARD => {
-            // OpenFFBoard uses standard HID PID. Torque capacity depends on the
-            // motor and PSU configuration; 20 Nm is a reasonable default.
-            capabilities.supports_pid = true;
-            capabilities.supports_raw_torque_1khz = true;
-            capabilities.encoder_cpr = u16::MAX; // 65535 typical (16-bit)
-            capabilities.min_report_period_us = 1000; // 1 kHz
-            capabilities.max_torque = TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
+            // pid.codes shared VID: OpenFFBoard (FFB0/FFB1) or button box (1BBD)
+            if product_id == 0xFFB0 || product_id == 0xFFB1 {
+                // OpenFFBoard uses standard HID PID. 20 Nm is a reasonable default.
+                capabilities.supports_pid = true;
+                capabilities.supports_raw_torque_1khz = true;
+                capabilities.encoder_cpr = u16::MAX; // 65535 typical (16-bit)
+                capabilities.min_report_period_us = 1000; // 1 kHz
+                capabilities.max_torque = TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
+            } else {
+                // Generic HID button box — input-only
+                capabilities.supports_pid = false;
+                capabilities.supports_raw_torque_1khz = false;
+                capabilities.max_torque = TorqueNm::ZERO;
+            }
         }
         vendor_ids::FFBEAST => {
-            // FFBeast uses standard HID PID. Torque capacity depends on the
-            // motor and PSU configuration; 20 Nm is a reasonable default.
+            // FFBeast uses standard HID PID. 20 Nm is a reasonable default.
             capabilities.supports_pid = true;
             capabilities.supports_raw_torque_1khz = true;
             capabilities.encoder_cpr = u16::MAX; // 65535 typical (16-bit)
@@ -1475,7 +1487,7 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             // Granite Devices SimpleMotion V2: IONI, IONI Premium, ARGON
             capabilities.supports_pid = true;
             capabilities.supports_raw_torque_1khz = true;
-            capabilities.encoder_cpr = u16::MAX; // high resolution
+            capabilities.encoder_cpr = u16::MAX; // 17-bit actual, capped at u16::MAX
             capabilities.min_report_period_us = 1000;
             match product_id {
                 0x6050 => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); } // IONI / Simucube 1

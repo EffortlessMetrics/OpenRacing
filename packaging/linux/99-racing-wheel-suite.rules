@@ -114,6 +114,8 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2e5a", ATTRS{idProduct}=="0003", GROUP="i
 # Open-source direct drive wheel controller — https://github.com/Ultrawipf/OpenFFBoard
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ffb0", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ffb1", GROUP="input", MODE="0664", TAG+="uaccess"
+# Generic HID button box (pid.codes shared VID)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="1bbd", GROUP="input", MODE="0664", TAG+="uaccess"
 
 # ─── FFBeast (0x045B) ─────────────────────────────────────────────────────
 # Open-source direct drive FFB controller — https://github.com/HF-Robotics/FFBeast
@@ -122,10 +124,13 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="045b", ATTRS{idProduct}=="5968", GROUP="i
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="045b", ATTRS{idProduct}=="59d7", GROUP="input", MODE="0664", TAG+="uaccess"
 
 # ─── Granite Devices SimpleMotion V2 (0x1D50) ────────────────────────────
-# IONI servo drive / Simucube 1, IONI Premium / Simucube 2, ARGON / OSW builds
+# IONI servo drive / Simucube 1 / Open Sim Wheel (OSW)
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6050", GROUP="input", MODE="0664", TAG+="uaccess"
+# IONI Premium servo drive / Simucube 2
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6051", GROUP="input", MODE="0664", TAG+="uaccess"
+# ARGON servo drive / Simucube Sport
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6052", GROUP="input", MODE="0664", TAG+="uaccess"
+
 
 # ─── Service restart on device connect ────────────────────────────────────
 ACTION=="add", SUBSYSTEM=="hidraw", TAG=="uaccess", RUN+="/bin/systemctl --user try-restart racing-wheel-suite.service"
@@ -162,9 +167,12 @@ ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2e5a", ATTR{power/autosuspend
 # OpenFFBoard (pid.codes shared VID — only disable for our PIDs)
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ffb0", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ffb1", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="1bbd", ATTR{power/autosuspend}="-1"
 # FFBeast open-source FFB controller
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="045b", ATTRS{idProduct}=="58f9", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="045b", ATTRS{idProduct}=="5968", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="045b", ATTRS{idProduct}=="59d7", ATTR{power/autosuspend}="-1"
 # Granite Devices SimpleMotion V2 / Simucube 1
-ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6050", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6051", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6052", ATTR{power/autosuspend}="-1"

@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 666003aa9784c9011c7b419dee0b0140c796ee2c705a6b1f2c30e597a5892a50 # shrinks to current_torque = 40.0, comm_timeout_ms = 40
