@@ -103,7 +103,10 @@ fn test_truncated_packet_returns_error() {
 #[test]
 fn test_empty_packet_returns_error() {
     let adapter = LFSAdapter::new();
-    assert!(adapter.normalize(&[]).is_err(), "empty packet must return error");
+    assert!(
+        adapter.normalize(&[]).is_err(),
+        "empty packet must return error"
+    );
 }
 
 #[test]

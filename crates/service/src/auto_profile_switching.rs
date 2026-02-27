@@ -137,7 +137,7 @@ impl AutoProfileSwitchingService {
     /// Process a single [`ProcessEvent`].
     ///
     /// Extracted from the event loop so it can be called directly in tests.
-    async fn handle_event(&self, event: ProcessEvent) {
+    pub async fn handle_event(&self, event: ProcessEvent) {
         match event {
             ProcessEvent::GameStarted {
                 game_id,

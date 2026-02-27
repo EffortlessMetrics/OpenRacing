@@ -56,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **GRID Legends** — Codemasters UDP
   - **Automobilista 1** — ISI/reiza UDP (OutGauge-compatible), port 4444
   - **KartKraft** — FlatBuffers UDP, port 5678
+  - **NASCAR Heat 5 / NASCAR 21 Ignition** — Papyrus UDP, port 7777
+  - **Le Mans Ultimate** — rFactor2 UDP bridge, port 6789
+  - **WTCR** — Codemasters Mode 1 UDP, port 6778
+  - **Trackmania** — OpenPlanet JSON-over-UDP, port 5004
   - All adapters registered in `adapter_factories()` and tested via BDD parity validation
 
 - **AccuForce SRP protocol** (`crates/hid-accuforce-protocol` microcrate):

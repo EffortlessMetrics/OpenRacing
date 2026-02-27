@@ -14,7 +14,9 @@
 //!   within defined timing budgets.
 
 use racing_wheel_engine::policies::SafetyPolicy;
-use racing_wheel_hid_fanatec_protocol::{ids::report_ids as fanatec_report_ids, product_ids as fanatec_product_ids};
+use racing_wheel_hid_fanatec_protocol::{
+    ids::report_ids as fanatec_report_ids, product_ids as fanatec_product_ids,
+};
 use racing_wheel_hid_moza_protocol::{MozaInitState, product_ids as moza_product_ids};
 use racing_wheel_integration_tests::fanatec_virtual::FanatecScenario;
 use racing_wheel_integration_tests::moza_virtual::MozaScenario;
@@ -71,8 +73,8 @@ impl CommTimeoutChecker {
 /// And    force feedback is available
 /// ```
 #[test]
-fn scenario_moza_r9_wheel_plugged_in_protocol_selected_and_ffb_available(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_moza_r9_wheel_plugged_in_protocol_selected_and_ffb_available()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: no wheel is connected – protocol not yet initialised
     let mut scenario = MozaScenario::wheelbase(moza_product_ids::R9_V2);
     assert!(
@@ -119,8 +121,8 @@ fn scenario_moza_r9_wheel_plugged_in_protocol_selected_and_ffb_available(
 /// And    the Fanatec protocol is selected
 /// ```
 #[test]
-fn scenario_fanatec_clubsport_wheel_plugged_in_protocol_selected(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_fanatec_clubsport_wheel_plugged_in_protocol_selected()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: no Fanatec wheel is connected (ClubSport V2.5 – PID 0x0005)
     let mut scenario = FanatecScenario::wheelbase(fanatec_product_ids::CLUBSPORT_V2_5);
     assert!(
@@ -152,8 +154,7 @@ fn scenario_fanatec_clubsport_wheel_plugged_in_protocol_selected(
 /// Then   force feedback becomes available
 /// ```
 #[test]
-fn scenario_moza_plug_in_failure_recovers_on_retry(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_moza_plug_in_failure_recovers_on_retry() -> Result<(), Box<dyn std::error::Error>> {
     // Given: a Moza R9 with a simulated I/O error on first plug-in
     let mut scenario = MozaScenario::wheelbase_failing(moza_product_ids::R9_V2);
 
@@ -203,8 +204,8 @@ fn scenario_moza_plug_in_failure_recovers_on_retry(
 /// And    the telemetry adapter starts automatically
 /// ```
 #[test]
-fn scenario_iracing_first_launch_writes_config_and_adapter_starts(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_iracing_first_launch_writes_config_and_adapter_starts()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: OpenRacing is running, iRacing directory is empty (never configured)
     let game_dir = TempDir::new()?;
     let writer = IRacingConfigWriter;
@@ -250,8 +251,7 @@ fn scenario_iracing_first_launch_writes_config_and_adapter_starts(
 /// And    the telemetry adapter starts
 /// ```
 #[test]
-fn scenario_iracing_subsequent_launch_preserves_config(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_iracing_subsequent_launch_preserves_config() -> Result<(), Box<dyn std::error::Error>> {
     // Given: iRacing was previously configured and the user has added their own
     //        custom [Video] settings to app.ini (simulating real-world customisation)
     let game_dir = TempDir::new()?;
@@ -315,8 +315,8 @@ fn scenario_iracing_subsequent_launch_preserves_config(
 /// And    a safety fault is logged
 /// ```
 #[test]
-fn scenario_overcurrent_triggers_motor_stop_within_50ms(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_overcurrent_triggers_motor_stop_within_50ms() -> Result<(), Box<dyn std::error::Error>>
+{
     // Given: the motor is running (no active faults)
     let policy = SafetyPolicy::new()?;
     assert!(
