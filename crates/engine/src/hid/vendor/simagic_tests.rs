@@ -1,6 +1,6 @@
 //! Tests for Simagic protocol handler.
 
-use super::simagic::{SimagicModel, SimagicProtocol, product_ids, vendor_ids};
+use super::simagic::{product_ids, vendor_ids, SimagicModel, SimagicProtocol};
 use super::{DeviceWriter, VendorProtocol, get_vendor_protocol};
 use std::cell::RefCell;
 
@@ -117,4 +117,69 @@ fn test_simagic_output_report_metadata_defaults_to_none() {
 
     assert!(protocol.output_report_id().is_none());
     assert!(protocol.output_report_len().is_none());
+}
+
+#[test]
+fn test_modern_alpha_init() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol =
+        SimagicProtocol::new(vendor_ids::SIMAGIC_MODERN, product_ids::ALPHA_MODERN);
+    let mut writer = MockDeviceWriter::new();
+    protocol.initialize_device(&mut writer)?;
+    let reports = writer.feature_reports();
+    assert_eq!(reports.len(), 2, "modern device must send 2 init reports");
+    // First report: device gain (report ID 0x21)
+    assert_eq!(reports[0][0], 0x21);
+    // Second report: rotation range (report ID 0x20)
+    assert_eq!(reports[1][0], 0x20);
+    Ok(())
+}
+
+#[test]
+fn test_modern_alpha_evo_init() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = SimagicProtocol::new(vendor_ids::SIMAGIC_MODERN, product_ids::ALPHA_EVO);
+    let mut writer = MockDeviceWriter::new();
+    protocol.initialize_device(&mut writer)?;
+    let reports = writer.feature_reports();
+    assert_eq!(reports.len(), 2, "modern AlphaEvo must send 2 init reports");
+    Ok(())
+}
+
+#[test]
+fn test_legacy_alpha_passive() -> Result<(), Box<dyn std::error::Error>> {
+    let protocol = SimagicProtocol::new(vendor_ids::SIMAGIC_STM, product_ids::ALPHA);
+    let mut writer = MockDeviceWriter::new();
+    protocol.initialize_device(&mut writer)?;
+    assert!(
+        writer.feature_reports().is_empty(),
+        "legacy device must not send init reports"
+    );
+    Ok(())
+}
+
+#[test]
+fn test_modern_device_output_report_metadata() {
+    let protocol =
+        SimagicProtocol::new(vendor_ids::SIMAGIC_MODERN, product_ids::ALPHA_MODERN);
+    assert_eq!(protocol.output_report_id(), Some(0x11));
+    assert_eq!(protocol.output_report_len(), Some(8));
+}
+
+#[test]
+fn test_modern_device_is_v2_hardware() {
+    let protocol = SimagicProtocol::new(vendor_ids::SIMAGIC_MODERN, product_ids::NEO);
+    assert!(protocol.is_v2_hardware());
+}
+
+#[test]
+fn test_modern_neo_mini_ffb_config() {
+    let protocol = SimagicProtocol::new(vendor_ids::SIMAGIC_MODERN, product_ids::NEO_MINI);
+    let config = protocol.get_ffb_config();
+    assert!((config.max_torque_nm - 7.0).abs() < 0.01);
+    assert_eq!(config.encoder_cpr, 2_097_152);
+}
+
+#[test]
+fn test_get_vendor_protocol_simagic_modern_vid() {
+    assert!(get_vendor_protocol(vendor_ids::SIMAGIC_MODERN, product_ids::ALPHA_MODERN).is_some());
+    assert!(get_vendor_protocol(vendor_ids::SIMAGIC_MODERN, product_ids::NEO).is_some());
 }
