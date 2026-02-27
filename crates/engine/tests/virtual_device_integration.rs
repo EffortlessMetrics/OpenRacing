@@ -21,7 +21,7 @@ async fn test_device_enumeration_performance() {
 
     // Add multiple virtual devices
     for i in 0..5 {
-        let device_id = DeviceId::new(format!("test-device-{}", i)).unwrap();
+        let device_id = format!("test-device-{}", i).parse::<DeviceId>().unwrap();
         let device = VirtualDevice::new(device_id, format!("Test Device {}", i));
         port.add_device(device).unwrap();
     }
@@ -54,7 +54,7 @@ async fn test_disconnect_detection() {
     let mut port = VirtualHidPort::new();
 
     // Add a virtual device
-    let device_id = DeviceId::new("disconnect-test".to_string()).unwrap();
+    let device_id = "disconnect-test".parse::<DeviceId>().unwrap();
     let device = VirtualDevice::new(device_id.clone(), "Disconnect Test Device".to_string());
     port.add_device(device).unwrap();
 
@@ -75,7 +75,7 @@ async fn test_disconnect_detection() {
     // Test that disconnected device returns appropriate error
     // We'll simulate this by creating a disconnected device
     let mut disconnected_device = VirtualDevice::new(
-        DeviceId::new("disconnected-test".to_string()).unwrap(),
+        "disconnected-test".parse::<DeviceId>().unwrap(),
         "Disconnected Device".to_string(),
     );
     disconnected_device.disconnect();
@@ -104,7 +104,7 @@ async fn test_disconnect_detection() {
 #[tokio::test]
 #[traced_test]
 async fn test_torque_limit_enforcement() {
-    let device_id = DeviceId::new("torque-limit-test".to_string()).unwrap();
+    let device_id = "torque-limit-test".parse::<DeviceId>().unwrap();
     let mut device = VirtualDevice::new(device_id, "Torque Limit Test Device".to_string());
 
     // Test normal torque values
@@ -140,7 +140,7 @@ async fn test_torque_limit_enforcement() {
 #[tokio::test]
 #[traced_test]
 async fn test_physics_simulation() {
-    let device_id = DeviceId::new("physics-test".to_string()).unwrap();
+    let device_id = "physics-test".parse::<DeviceId>().unwrap();
     let mut device = VirtualDevice::new(device_id, "Physics Test Device".to_string());
 
     // Apply constant torque
@@ -189,7 +189,7 @@ async fn test_physics_simulation() {
 #[tokio::test]
 #[traced_test]
 async fn test_fault_injection() {
-    let device_id = DeviceId::new("fault-test".to_string()).unwrap();
+    let device_id = "fault-test".parse::<DeviceId>().unwrap();
     let mut device = VirtualDevice::new(device_id, "Fault Test Device".to_string());
 
     // Initially no faults
@@ -219,7 +219,7 @@ async fn test_fault_injection() {
 #[tokio::test]
 #[traced_test]
 async fn test_hands_on_detection() {
-    let device_id = DeviceId::new("hands-on-test".to_string()).unwrap();
+    let device_id = "hands-on-test".parse::<DeviceId>().unwrap();
     let mut device = VirtualDevice::new(device_id, "Hands-On Test Device".to_string());
 
     // Initially hands should be detected (default state)
@@ -370,7 +370,7 @@ async fn test_comprehensive_suite() {
 #[tokio::test]
 #[traced_test]
 async fn test_device_capabilities() {
-    let device_id = DeviceId::new("capabilities-test".to_string()).unwrap();
+    let device_id = "capabilities-test".parse::<DeviceId>().unwrap();
     let device = VirtualDevice::new(device_id, "Capabilities Test Device".to_string());
 
     let capabilities = device.capabilities();
@@ -403,7 +403,7 @@ async fn test_multiple_devices() {
     ];
 
     for (id, name, _device_type) in devices_config {
-        let device_id = DeviceId::new(id.to_string()).unwrap();
+        let device_id = id.parse::<DeviceId>().unwrap();
         let device = VirtualDevice::new(device_id, name.to_string());
 
         // Customize device based on type (in a real implementation)
@@ -446,7 +446,7 @@ async fn test_device_hotplug() {
     assert_eq!(devices.len(), 0);
 
     // Add a device (simulate plug-in)
-    let device_id = DeviceId::new("hotplug-test".to_string()).unwrap();
+    let device_id = "hotplug-test".parse::<DeviceId>().unwrap();
     let device = VirtualDevice::new(device_id.clone(), "Hotplug Test Device".to_string());
     port.add_device(device).unwrap();
 
@@ -479,7 +479,7 @@ async fn benchmark_device_enumeration() {
     // Add many devices
     const DEVICE_COUNT: usize = 100;
     for i in 0..DEVICE_COUNT {
-        let device_id = DeviceId::new(format!("benchmark-device-{:03}", i)).unwrap();
+        let device_id = format!("benchmark-device-{:03}", i).parse::<DeviceId>().unwrap();
         let device = VirtualDevice::new(device_id, format!("Benchmark Device {}", i));
         port.add_device(device).unwrap();
     }
@@ -516,7 +516,7 @@ async fn benchmark_device_enumeration() {
 #[tokio::test]
 #[traced_test]
 async fn test_telemetry_consistency() {
-    let device_id = DeviceId::new("telemetry-test".to_string()).unwrap();
+    let device_id = "telemetry-test".parse::<DeviceId>().unwrap();
     let mut device = VirtualDevice::new(device_id, "Telemetry Test Device".to_string());
 
     // Apply known torque sequence

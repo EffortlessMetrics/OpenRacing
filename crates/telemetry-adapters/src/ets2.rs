@@ -145,7 +145,7 @@ impl TelemetryAdapter for Ets2Adapter {
         let update_rate = self.update_rate;
 
         tokio::spawn(async move {
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
 
             loop {
                 match try_read_scs_shared_memory() {
@@ -153,14 +153,14 @@ impl TelemetryAdapter for Ets2Adapter {
                         let frame = TelemetryFrame::new(
                             normalized,
                             telemetry_now_ns(),
-                            sequence,
+                            frame_seq,
                             SCS_SHARED_MEMORY_SIZE,
                         );
                         if tx.send(frame).await.is_err() {
                             debug!("Receiver dropped, stopping ETS2/ATS monitoring");
                             break;
                         }
-                        sequence = sequence.saturating_add(1);
+                        frame_seq = frame_seq.saturating_add(1);
                     }
                     None => {
                         debug!("SCS shared memory not available, retrying…");

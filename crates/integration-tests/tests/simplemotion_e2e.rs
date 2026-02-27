@@ -282,7 +282,7 @@ fn scenario_torque_command_type_is_set_torque() -> Result<(), Box<dyn std::error
     Ok(())
 }
 
-// ─── Scenario 14: torque encoder sequence increments ─────────────────────────
+// ─── Scenario 14: torque encoder seq increments ─────────────────────────
 
 #[test]
 fn scenario_torque_encoder_sequence_increments() -> Result<(), Box<dyn std::error::Error>> {
@@ -293,13 +293,13 @@ fn scenario_torque_encoder_sequence_increments() -> Result<(), Box<dyn std::erro
     s.write_torque(0.0)?;
     s.write_torque(0.0)?;
 
-    // Then: sequence bytes in successive reports differ by 1
+    // Then: seq bytes in successive reports differ by 1
     let seq0 = s.device.output_reports()[0][1];
     let seq1 = s.device.output_reports()[1][1];
     assert_eq!(
         seq0.wrapping_add(1),
         seq1,
-        "sequence must increment by 1 between consecutive commands"
+        "seq must increment by 1 between consecutive commands"
     );
 
     Ok(())

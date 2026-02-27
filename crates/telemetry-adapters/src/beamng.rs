@@ -112,7 +112,7 @@ impl TelemetryAdapter for BeamNGAdapter {
             };
             info!("BeamNG adapter listening on UDP port {bind_port}");
             let mut buf = [0u8; MAX_PACKET_SIZE];
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
 
             loop {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
@@ -121,14 +121,14 @@ impl TelemetryAdapter for BeamNGAdapter {
                             let frame = TelemetryFrame::new(
                                 normalized,
                                 telemetry_now_ns(),
-                                sequence,
+                                frame_seq,
                                 len,
                             );
                             if tx.send(frame).await.is_err() {
                                 debug!("Receiver dropped, stopping BeamNG monitoring");
                                 break;
                             }
-                            sequence = sequence.saturating_add(1);
+                            frame_seq = frame_seq.saturating_add(1);
                         }
                         Err(e) => debug!("Failed to parse BeamNG OutGauge packet: {e}"),
                     },

@@ -6,7 +6,7 @@
 //!
 //! ```text
 //! offset  0: [u8; 4]  magic  "WRKF"
-//! offset  4: u32      packet sequence number
+//! offset  4: u32      packet seq number
 //! offset  8: f32      speed_ms    (m/s)
 //! offset 12: f32      rpm         (rev/min)
 //! offset 16: u8       gear        (0 = neutral / reverse, 1+ = forward)
@@ -135,19 +135,19 @@ impl TelemetryAdapter for WreckfestAdapter {
             };
             info!("Wreckfest adapter listening on UDP port {bind_port}");
             let mut buf = [0u8; MAX_PACKET_SIZE];
-            let mut sequence = 0u64;
+            let mut frame_idx = 0u64;
 
             loop {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
                     Ok(Ok(len)) => match parse_wreckfest_packet(&buf[..len]) {
                         Ok(normalized) => {
                             let frame =
-                                TelemetryFrame::new(normalized, telemetry_now_ns(), sequence, len);
+                                TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
                             if tx.send(frame).await.is_err() {
                                 debug!("Receiver dropped, stopping Wreckfest monitoring");
                                 break;
                             }
-                            sequence = sequence.saturating_add(1);
+                            frame_idx = frame_idx.saturating_add(1);
                         }
                         Err(e) => debug!("Failed to parse Wreckfest packet: {e}"),
                     },

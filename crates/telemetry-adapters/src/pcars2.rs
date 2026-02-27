@@ -113,21 +113,21 @@ impl TelemetryAdapter for PCars2Adapter {
             #[cfg(windows)]
             if try_read_pcars2_shared_memory().is_some() {
                 info!("PCARS2 adapter using shared memory");
-                let mut sequence = 0u64;
+                let mut frame_idx = 0u64;
                 loop {
                     match try_read_pcars2_shared_memory() {
                         Some(normalized) => {
                             let frame = TelemetryFrame::new(
                                 normalized,
                                 telemetry_now_ns(),
-                                sequence,
+                                frame_idx,
                                 PCARS2_SHARED_MEMORY_SIZE,
                             );
                             if tx.send(frame).await.is_err() {
                                 debug!("Receiver dropped, stopping PCARS2 shared memory monitoring");
                                 break;
                             }
-                            sequence = sequence.saturating_add(1);
+                            frame_idx = frame_idx.saturating_add(1);
                         }
                         None => {
                             info!("PCARS2 shared memory no longer available");
@@ -151,7 +151,7 @@ impl TelemetryAdapter for PCars2Adapter {
             };
             info!("PCARS2 adapter listening on UDP port {bind_port}");
             let mut buf = [0u8; MAX_PACKET_SIZE];
-            let mut sequence = 0u64;
+            let mut frame_idx = 0u64;
 
             loop {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
@@ -160,14 +160,14 @@ impl TelemetryAdapter for PCars2Adapter {
                             let frame = TelemetryFrame::new(
                                 normalized,
                                 telemetry_now_ns(),
-                                sequence,
+                                frame_idx,
                                 len,
                             );
                             if tx.send(frame).await.is_err() {
                                 debug!("Receiver dropped, stopping PCARS2 UDP monitoring");
                                 break;
                             }
-                            sequence = sequence.saturating_add(1);
+                            frame_idx = frame_idx.saturating_add(1);
                         }
                         Err(e) => debug!("Failed to parse PCARS2 UDP packet: {e}"),
                     },

@@ -122,7 +122,7 @@ impl TelemetryAdapter for GranTurismo7Adapter {
 
             let heartbeat_payload = b"A";
             let mut buf = [0u8; PACKET_SIZE + 16];
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
             let mut last_heartbeat = tokio::time::Instant::now();
             // Track the source address so heartbeats go to the right host.
             let mut source_addr: Option<SocketAddr> = None;
@@ -151,14 +151,14 @@ impl TelemetryAdapter for GranTurismo7Adapter {
                                 let frame = TelemetryFrame::new(
                                     normalized,
                                     telemetry_now_ns(),
-                                    sequence,
+                                    frame_seq,
                                     len,
                                 );
                                 if tx.send(frame).await.is_err() {
                                     debug!("Receiver dropped, stopping GT7 monitoring");
                                     break;
                                 }
-                                sequence = sequence.saturating_add(1);
+                                frame_seq = frame_seq.saturating_add(1);
                             }
                             Err(e) => debug!("Failed to parse GT7 packet: {e}"),
                         }

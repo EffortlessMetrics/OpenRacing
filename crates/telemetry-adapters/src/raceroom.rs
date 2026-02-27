@@ -136,7 +136,7 @@ impl TelemetryAdapter for RaceRoomAdapter {
             #[cfg(windows)]
             {
                 info!("RaceRoom adapter attempting shared memory connection");
-                let mut sequence = 0u64;
+                let mut frame_seq = 0u64;
                 let mut warned = false;
                 loop {
                     match read_r3e_shared_memory() {
@@ -144,14 +144,14 @@ impl TelemetryAdapter for RaceRoomAdapter {
                             let frame = TelemetryFrame::new(
                                 normalized,
                                 telemetry_now_ns(),
-                                sequence,
+                                frame_seq,
                                 R3E_VIEW_SIZE,
                             );
                             if tx.send(frame).await.is_err() {
                                 debug!("Receiver dropped, stopping RaceRoom monitoring");
                                 break;
                             }
-                            sequence = sequence.saturating_add(1);
+                            frame_seq = frame_seq.saturating_add(1);
                             warned = false;
                         }
                         Err(e) => {
