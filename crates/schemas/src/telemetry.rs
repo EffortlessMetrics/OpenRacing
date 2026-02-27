@@ -301,8 +301,13 @@ impl NormalizedTelemetry {
         self.ffb_scalar != 0.0 || self.ffb_torque_nm != 0.0
     }
 
-    /// Check if telemetry has valid RPM data for LED display.
+    /// Check if telemetry has RPM data present.
     pub fn has_rpm_data(&self) -> bool {
+        self.rpm > 0.0
+    }
+
+    /// Check if telemetry has valid RPM data for LED display (requires both rpm and max_rpm).
+    pub fn has_rpm_display_data(&self) -> bool {
         self.rpm > 0.0 && self.max_rpm > 0.0
     }
 

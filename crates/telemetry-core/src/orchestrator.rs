@@ -217,15 +217,22 @@ impl TelemetryService {
     }
 
     /// Check if a game is currently running.
+    /// Returns `Ok(false)` if the game is in the support matrix but has no registered adapter.
+    /// Returns `Err` only for games not present in the matrix.
     pub async fn is_game_running(&self, game_id: &str) -> Result<bool> {
         let game_id = normalize_game_id(game_id);
 
-        let adapter = self
-            .adapters
-            .get(game_id)
-            .ok_or_else(|| anyhow::anyhow!("No adapter for game: {}", game_id))?;
+        if let Some(adapter) = self.adapters.get(game_id) {
+            return adapter.is_game_running().await;
+        }
 
-        adapter.is_game_running().await
+        // If the game is in the support matrix, it's a known game — just not detectable without
+        // a registered adapter, so return Ok(false) rather than an error.
+        if self.is_game_matrix_supported(game_id) {
+            return Ok(false);
+        }
+
+        Err(anyhow::anyhow!("No adapter for game: {}", game_id))
     }
 
     /// Return the current support matrix snapshot, if loaded.

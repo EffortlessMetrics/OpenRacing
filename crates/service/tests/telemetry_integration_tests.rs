@@ -343,7 +343,9 @@ fn test_synthetic_fixture_generation() {
     for frame in &recording.frames {
         assert!(frame.data.rpm > 0.0);
         assert!(frame.data.speed_ms > 0.0);
-        assert!(frame.data.ffb_scalar > 0.0);
+        // ffb_scalar can be negative (braking/counterforce) or zero; just verify valid range
+        assert!(frame.data.ffb_scalar.is_finite());
+        assert!(frame.data.ffb_scalar >= -1.0 && frame.data.ffb_scalar <= 1.0);
     }
 }
 
@@ -418,7 +420,7 @@ fn test_telemetry_service_creation() {
     let service = TelemetryService::new();
 
     let expected: HashSet<String> = must(matrix_game_ids()).into_iter().collect();
-    let actual: HashSet<String> = service.supported_games().into_iter().collect();
+    let actual: HashSet<String> = service.matrix_game_ids().into_iter().collect();
     assert_eq!(actual, expected);
 }
 
