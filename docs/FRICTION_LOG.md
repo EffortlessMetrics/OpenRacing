@@ -20,6 +20,8 @@ Every time a game is added, both files must be updated manually. When they diver
 
 **Remedy:** Generate one file from the other at build time, or introduce a CI check that diffs the two files and fails if they differ. Long term: merge into a single source of truth consumed by both crates.
 
+**Update:** A CI check has been added (`.github/workflows/yaml-sync-check.yml` + `scripts/check_yaml_sync.py`). The workflow runs on every push/PR and fails with a clear diff message if the files diverge. The files currently differ (see diff); the single-source-of-truth refactor is still pending before this issue can be marked Resolved.
+
 ---
 
 ### F-002 · Duplicate config writer registration (High · Open)
