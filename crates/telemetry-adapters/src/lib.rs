@@ -25,13 +25,16 @@ pub mod beamng;
 pub mod codemasters_udp;
 pub mod dirt5;
 pub mod eawrc;
+pub mod ets2;
 pub mod f1;
 pub mod f1_25;
 pub mod forza;
 pub mod iracing;
 pub mod pcars2;
 pub mod raceroom;
+pub mod rennsport;
 pub mod rfactor2;
+pub mod wreckfest;
 
 /// Shared type alias for outbound telemetry streams.
 pub type TelemetryReceiver = mpsc::Receiver<TelemetryFrame>;
@@ -129,6 +132,22 @@ fn new_f1_25_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(F1_25Adapter::new())
 }
 
+fn new_ets2_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(Ets2Adapter::with_variant(ets2::Ets2Variant::Ets2))
+}
+
+fn new_ats_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(Ets2Adapter::with_variant(ets2::Ets2Variant::Ats))
+}
+
+fn new_wreckfest_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(WreckfestAdapter::new())
+}
+
+fn new_rennsport_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(RennsportAdapter::new())
+}
+
 /// Returns the canonical adapter factory registry for all supported native adapters.
 pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
     &[
@@ -136,16 +155,20 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("ac_rally", new_ac_rally_adapter),
         ("ams2", new_ams2_adapter),
         ("assetto_corsa", new_assetto_corsa_adapter),
+        ("ats", new_ats_adapter),
         ("beamng_drive", new_beamng_adapter),
         ("dirt5", new_dirt5_adapter),
         ("eawrc", new_eawrc_adapter),
+        ("ets2", new_ets2_adapter),
         ("f1", new_f1_adapter),
         ("f1_25", new_f1_25_adapter),
         ("forza_motorsport", new_forza_adapter),
         ("iracing", new_iracing_adapter),
         ("project_cars_2", new_pcars2_adapter),
         ("raceroom", new_raceroom_adapter),
+        ("rennsport", new_rennsport_adapter),
         ("rfactor2", new_rfactor2_adapter),
+        ("wreckfest", new_wreckfest_adapter),
     ]
 }
 
@@ -157,13 +180,16 @@ pub use beamng::BeamNGAdapter;
 pub use codemasters_udp::{CustomUdpSpec, DecodedCodemastersPacket, FieldSpec};
 pub use dirt5::Dirt5Adapter;
 pub use eawrc::EAWRCAdapter;
+pub use ets2::Ets2Adapter;
 pub use f1::F1Adapter;
 pub use f1_25::F1_25Adapter;
 pub use forza::ForzaAdapter;
 pub use iracing::IRacingAdapter;
 pub use pcars2::PCars2Adapter;
 pub use raceroom::RaceRoomAdapter;
+pub use rennsport::RennsportAdapter;
 pub use rfactor2::RFactor2Adapter;
+pub use wreckfest::WreckfestAdapter;
 
 /// Mock adapter for testing and deterministic fixture generation.
 pub struct MockAdapter {
