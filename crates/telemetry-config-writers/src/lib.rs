@@ -93,6 +93,22 @@ fn new_rbr_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(RBRConfigWriter)
 }
 
+fn new_gran_turismo_7_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(GranTurismo7ConfigWriter)
+}
+
+fn new_assetto_corsa_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(AssettoCorsaConfigWriter)
+}
+
+fn new_forza_motorsport_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(ForzaMotorsportConfigWriter)
+}
+
+fn new_beamng_drive_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(BeamNGDriveConfigWriter)
+}
+
 fn new_wrc_generations_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(WrcGenerationsConfigWriter)
 }
@@ -157,6 +173,22 @@ fn new_raceroom_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(RaceRoomConfigWriter)
 }
 
+fn new_nascar_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(NascarConfigWriter)
+}
+
+fn new_le_mans_ultimate_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(LeMansUltimateConfigWriter)
+}
+
+fn new_wtcr_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(WtcrConfigWriter)
+}
+
+fn new_trackmania_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(TrackmaniaConfigWriter)
+}
+
 /// Returns the canonical config writer registry for all supported integrations.
 pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory)] {
     &[
@@ -171,6 +203,10 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("dirt5", new_dirt5_config_writer),
         ("dirt_rally_2", new_dirt_rally_2_config_writer),
         ("rbr", new_rbr_config_writer),
+        ("gran_turismo_7", new_gran_turismo_7_config_writer),
+        ("assetto_corsa", new_assetto_corsa_config_writer),
+        ("forza_motorsport", new_forza_motorsport_config_writer),
+        ("beamng_drive", new_beamng_drive_config_writer),
         ("project_cars_2", new_project_cars_2_config_writer),
         ("live_for_speed", new_live_for_speed_config_writer),
         ("wrc_generations", new_wrc_generations_config_writer),
@@ -185,6 +221,10 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("grid_2019", new_grid_2019_config_writer),
         ("grid_legends", new_grid_legends_config_writer),
         ("automobilista", new_automobilista_config_writer),
+        ("nascar", new_nascar_config_writer),
+        ("le_mans_ultimate", new_le_mans_ultimate_config_writer),
+        ("wtcr", new_wtcr_config_writer),
+        ("trackmania", new_trackmania_config_writer),
     ]
 }
 
@@ -268,6 +308,23 @@ const KARTKRAFT_DEFAULT_PORT: u16 = 5000;
 
 const RACEROOM_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/raceroom_bridge_contract.json";
 const RACEROOM_BRIDGE_PROTOCOL: &str = "r3e_shared_memory";
+
+const NASCAR_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/nascar_bridge_contract.json";
+const NASCAR_BRIDGE_PROTOCOL: &str = "papyrus_udp";
+const NASCAR_DEFAULT_PORT: u16 = 5606;
+
+const LMU_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/lmu_bridge_contract.json";
+const LMU_BRIDGE_PROTOCOL: &str = "rf2_udp";
+const LMU_DEFAULT_PORT: u16 = 6789;
+
+const WTCR_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/wtcr_bridge_contract.json";
+const WTCR_BRIDGE_PROTOCOL: &str = "codemasters_udp";
+const WTCR_DEFAULT_PORT: u16 = 6778;
+const WTCR_DEFAULT_MODE: u8 = 1;
+
+const TRACKMANIA_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/trackmania_bridge_contract.json";
+const TRACKMANIA_BRIDGE_PROTOCOL: &str = "trackmania_json_udp";
+const TRACKMANIA_DEFAULT_PORT: u16 = 5004;
 
 /// iRacing configuration writer
 pub struct IRacingConfigWriter;
@@ -1254,6 +1311,110 @@ impl ConfigWriter for RBRConfigWriter {
     }
 }
 
+/// Gran Turismo 7 configuration writer.
+///
+/// GT7 is a PlayStation-exclusive title; there is no PC executable or config file to write.
+/// This writer creates a bridge contract that documents the Salsa20-encrypted UDP connection.
+pub struct GranTurismo7ConfigWriter;
+
+impl Default for GranTurismo7ConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+const GT7_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/gran_turismo_7_bridge_contract.json";
+const GT7_BRIDGE_PROTOCOL: &str = "gt7_salsa20_udp";
+const GT7_DEFAULT_PORT: u16 = 33740;
+
+impl ConfigWriter for GranTurismo7ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Gran Turismo 7 bridge contract configuration");
+
+        let contract_path = game_path.join(GT7_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(GT7_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "gran_turismo_7",
+            "telemetry_protocol": GT7_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "GT7 sends Salsa20-encrypted UDP packets from the PS4/PS5 to this port. Enable telemetry in GT7 Settings > Options > Machine/Car Settings > Vehicle Data Output.",
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(GT7_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == GT7_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "gran_turismo_7")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(GT7_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "gran_turismo_7",
+            "telemetry_protocol": GT7_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "GT7 sends Salsa20-encrypted UDP packets from the PS4/PS5 to this port. Enable telemetry in GT7 Settings > Options > Machine/Car Settings > Vehicle Data Output.",
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: GT7_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
 /// F1 configuration writer.
 ///
 /// F1 telemetry support is currently bridge-backed. This writer creates a
@@ -1474,6 +1635,360 @@ impl ConfigWriter for F1_25ConfigWriter {
 
         Ok(vec![ConfigDiff {
             file_path: F1_25_CONTRACT_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Assetto Corsa (original) configuration writer.
+///
+/// AC uses the OutGauge UDP protocol (port 9996). Since the OutGauge output target
+/// is configured inside the game, this writer creates a bridge contract that documents
+/// the expected UDP listener configuration.
+pub struct AssettoCorsaConfigWriter;
+
+impl Default for AssettoCorsaConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+const AC_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/assetto_corsa_bridge_contract.json";
+const AC_BRIDGE_PROTOCOL: &str = "ac_outgauge_udp";
+const AC_DEFAULT_PORT: u16 = 9996;
+
+impl ConfigWriter for AssettoCorsaConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Assetto Corsa bridge contract configuration");
+
+        let contract_path = game_path.join(AC_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(AC_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "assetto_corsa",
+            "telemetry_protocol": AC_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "setup_notes": [
+                "In Assetto Corsa, enable OutGauge in the Documents/Assetto Corsa/cfg/openracing.ini file:",
+                "  [OutGauge]",
+                "  Mode=2",
+                "  IP=127.0.0.1",
+                "  Port=9996",
+                "  Delay=0",
+                "  ID=1"
+            ],
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(AC_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == AC_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "assetto_corsa")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(AC_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "assetto_corsa",
+            "telemetry_protocol": AC_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "setup_notes": [
+                "In Assetto Corsa, enable OutGauge in the Documents/Assetto Corsa/cfg/openracing.ini file:",
+                "  [OutGauge]",
+                "  Mode=2",
+                "  IP=127.0.0.1",
+                "  Port=9996",
+                "  Delay=0",
+                "  ID=1"
+            ],
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: AC_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Forza Motorsport / Forza Horizon configuration writer.
+///
+/// Forza's "Data Out" feature is configured in-game only. This writer creates a bridge
+/// contract documenting the expected UDP listener on port 5300.
+pub struct ForzaMotorsportConfigWriter;
+
+impl Default for ForzaMotorsportConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+const FORZA_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/forza_motorsport_bridge_contract.json";
+const FORZA_BRIDGE_PROTOCOL: &str = "forza_data_out_udp";
+const FORZA_DEFAULT_PORT: u16 = 5300;
+
+impl ConfigWriter for ForzaMotorsportConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Forza Motorsport bridge contract configuration");
+
+        let contract_path = game_path.join(FORZA_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(FORZA_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "forza_motorsport",
+            "telemetry_protocol": FORZA_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "supported_formats": ["sled_232", "cardash_311"],
+            "setup_notes": [
+                "In Forza Motorsport / Forza Horizon, enable Data Out in game settings:",
+                "  HUD and Gameplay > Data Out > On",
+                "  Data Out IP Address: 127.0.0.1",
+                "  Data Out IP Port: 5300"
+            ],
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(FORZA_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == FORZA_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "forza_motorsport")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(FORZA_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "forza_motorsport",
+            "telemetry_protocol": FORZA_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "supported_formats": ["sled_232", "cardash_311"],
+            "setup_notes": [
+                "In Forza Motorsport / Forza Horizon, enable Data Out in game settings:",
+                "  HUD and Gameplay > Data Out > On",
+                "  Data Out IP Address: 127.0.0.1",
+                "  Data Out IP Port: 5300"
+            ],
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: FORZA_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// BeamNG.drive configuration writer.
+///
+/// BeamNG.drive exposes telemetry via the OutGauge protocol (port 4444), enabled through
+/// its in-game apps system. This writer creates a bridge contract documenting the listener.
+pub struct BeamNGDriveConfigWriter;
+
+impl Default for BeamNGDriveConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+const BEAMNG_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/beamng_drive_bridge_contract.json";
+const BEAMNG_BRIDGE_PROTOCOL: &str = "beamng_outgauge_udp";
+const BEAMNG_DEFAULT_PORT: u16 = 4444;
+
+impl ConfigWriter for BeamNGDriveConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing BeamNG.drive bridge contract configuration");
+
+        let contract_path = game_path.join(BEAMNG_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(BEAMNG_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "beamng_drive",
+            "telemetry_protocol": BEAMNG_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "packet_format": "lfs_outgauge_96bytes",
+            "setup_notes": [
+                "In BeamNG.drive, enable the OutGauge app from the apps menu.",
+                "Set the UDP IP to 127.0.0.1 and port to 4444.",
+                "Alternatively, edit settings/electrics.json to enable OutGauge."
+            ],
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(BEAMNG_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == BEAMNG_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "beamng_drive")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(BEAMNG_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "beamng_drive",
+            "telemetry_protocol": BEAMNG_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "packet_format": "lfs_outgauge_96bytes",
+            "setup_notes": [
+                "In BeamNG.drive, enable the OutGauge app from the apps menu.",
+                "Set the UDP IP to 127.0.0.1 and port to 4444.",
+                "Alternatively, edit settings/electrics.json to enable OutGauge."
+            ],
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: BEAMNG_BRIDGE_RELATIVE_PATH.to_string(),
             section: None,
             key: "entire_file".to_string(),
             old_value: None,
@@ -2902,6 +3417,256 @@ fn parse_target_host(target: &str) -> Option<String> {
     }
 
     Some(host_part.to_string())
+}
+
+/// NASCAR configuration writer (Papyrus UDP telemetry on port 5606)
+pub struct NascarConfigWriter;
+
+impl Default for NascarConfigWriter {
+    fn default() -> Self { Self }
+}
+
+impl ConfigWriter for NascarConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing NASCAR bridge contract configuration");
+        let contract_path = game_path.join(NASCAR_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before { Some(fs::read_to_string(&contract_path)?) } else { None };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(NASCAR_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "nascar",
+            "telemetry_protocol": NASCAR_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "NASCAR Racing (Papyrus series) sends Papyrus UDP packets on port 5606.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() { fs::create_dir_all(parent)?; }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before { DiffOperation::Modify } else { DiffOperation::Add },
+        }])
+    }
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(NASCAR_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() { return Ok(false); }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value.get("game_id").and_then(Value::as_str).map(|v| v == "nascar").unwrap_or(false))
+    }
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(NASCAR_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "nascar",
+            "telemetry_protocol": NASCAR_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "NASCAR Racing (Papyrus series) sends Papyrus UDP packets on port 5606.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: NASCAR_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Le Mans Ultimate configuration writer (rF2 UDP telemetry on port 6789)
+pub struct LeMansUltimateConfigWriter;
+
+impl Default for LeMansUltimateConfigWriter {
+    fn default() -> Self { Self }
+}
+
+impl ConfigWriter for LeMansUltimateConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Le Mans Ultimate bridge contract configuration");
+        let contract_path = game_path.join(LMU_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before { Some(fs::read_to_string(&contract_path)?) } else { None };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(LMU_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "le_mans_ultimate",
+            "telemetry_protocol": LMU_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Le Mans Ultimate uses rF2 UDP telemetry protocol on port 6789.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() { fs::create_dir_all(parent)?; }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before { DiffOperation::Modify } else { DiffOperation::Add },
+        }])
+    }
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(LMU_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() { return Ok(false); }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value.get("game_id").and_then(Value::as_str).map(|v| v == "le_mans_ultimate").unwrap_or(false))
+    }
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(LMU_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "le_mans_ultimate",
+            "telemetry_protocol": LMU_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Le Mans Ultimate uses rF2 UDP telemetry protocol on port 6789.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: LMU_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// WTCR configuration writer (Codemasters UDP Mode 1 on port 6778)
+pub struct WtcrConfigWriter;
+
+impl Default for WtcrConfigWriter {
+    fn default() -> Self { Self }
+}
+
+impl ConfigWriter for WtcrConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing WTCR bridge contract configuration");
+        let contract_path = game_path.join(WTCR_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before { Some(fs::read_to_string(&contract_path)?) } else { None };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(WTCR_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "wtcr",
+            "telemetry_protocol": WTCR_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "udp_mode": WTCR_DEFAULT_MODE,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "WTCR Race of the World uses Codemasters UDP Mode 1 on port 6778.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() { fs::create_dir_all(parent)?; }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before { DiffOperation::Modify } else { DiffOperation::Add },
+        }])
+    }
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(WTCR_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() { return Ok(false); }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value.get("game_id").and_then(Value::as_str).map(|v| v == "wtcr").unwrap_or(false))
+    }
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(WTCR_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "wtcr",
+            "telemetry_protocol": WTCR_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "udp_mode": WTCR_DEFAULT_MODE,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "WTCR Race of the World uses Codemasters UDP Mode 1 on port 6778.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: WTCR_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Trackmania configuration writer (JSON-over-UDP on port 5004)
+pub struct TrackmaniaConfigWriter;
+
+impl Default for TrackmaniaConfigWriter {
+    fn default() -> Self { Self }
+}
+
+impl ConfigWriter for TrackmaniaConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Trackmania bridge contract configuration");
+        let contract_path = game_path.join(TRACKMANIA_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before { Some(fs::read_to_string(&contract_path)?) } else { None };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(TRACKMANIA_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "trackmania",
+            "telemetry_protocol": TRACKMANIA_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Trackmania sends JSON-over-UDP telemetry on port 5004.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() { fs::create_dir_all(parent)?; }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before { DiffOperation::Modify } else { DiffOperation::Add },
+        }])
+    }
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(TRACKMANIA_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() { return Ok(false); }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value.get("game_id").and_then(Value::as_str).map(|v| v == "trackmania").unwrap_or(false))
+    }
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(TRACKMANIA_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "trackmania",
+            "telemetry_protocol": TRACKMANIA_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Trackmania sends JSON-over-UDP telemetry on port 5004.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: TRACKMANIA_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
 }
 
 #[cfg(test)]

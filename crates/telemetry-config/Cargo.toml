@@ -14,6 +14,7 @@ keywords = ["telemetry", "racing", "simulator", "ffb", "config"]
 
 [dependencies]
 anyhow = { workspace = true }
+racing-wheel-telemetry-config-writers = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

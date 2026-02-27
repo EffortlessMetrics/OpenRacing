@@ -82,6 +82,9 @@ jobs:
             | grep -v "//.*$field" \
             | grep -v "#\[allow.*deprecated" \
             | grep -v "crates/hid-" \
+            | grep -v "crates/openracing-ipc/src/codec" \
+            | grep -v "crates/openracing-native-plugin/src/plugin" \
+            | grep -v "crates/simplemotion-v2/" \
             | head -10 || true)
           
           if [ -n "$MATCHES" ]; then

@@ -111,18 +111,16 @@ pub struct DeviceStatus {
 /// Telemetry data
 #[derive(Debug, Clone)]
 pub struct TelemetryData {
-    /// Wheel angle in millidegrees
-    pub wheel_angle_mdeg: i32,
-    /// Wheel speed in milliradians per second
-    pub wheel_speed_mrad_s: i32,
+    /// Wheel angle in degrees
+    pub wheel_angle_deg: f32,
+    /// Wheel speed in radians per second
+    pub wheel_speed_rad_s: f32,
     /// Temperature in Celsius
-    pub temp_c: u32,
+    pub temperature_c: f32,
     /// Fault flags
-    pub faults: u32,
+    pub fault_flags: u32,
     /// Hands on detection
     pub hands_on: bool,
-    /// Sequence number
-    pub sequence: u32,
 }
 
 /// Profile information
