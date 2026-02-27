@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `LeoBodnarHandler` engine vendor handler integrated in the multi-vendor HID pipeline; HID PID constant-force path used for FFB-capable products (`0x000E`, `0x000F`)
   - 14 insta snapshot tests + 4 proptest property tests (512 cases each)
 
-- **Game Telemetry Adapters** — 24 game adapters now in `telemetry-adapters` crate + game support matrix:
+- **Game Telemetry Adapters** — 29 game adapters now in `telemetry-adapters` crate + game support matrix:
   - **Assetto Corsa** — OutGauge UDP, port 9996
   - **Forza Motorsport / Horizon** — Forza Data Out UDP, port 5300
   - **BeamNG.drive** — OutGauge UDP, port 4444
@@ -49,7 +49,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **American Truck Simulator** — SCS shared memory
   - **Wreckfest** — UDP, port 5606
   - **Rennsport** — UDP, port 9000
+  - **GRID Autosport** — Codemasters Mode 1 UDP, port 20777
+  - **GRID 2019** — Codemasters Mode 1 UDP, port 20777
+  - **GRID Legends** — Codemasters UDP
+  - **Automobilista 1** — ISI/reiza UDP (OutGauge-compatible), port 4444
+  - **KartKraft** — FlatBuffers UDP, port 5678
   - All adapters registered in `adapter_factories()` and tested via BDD parity validation
+
+- **AccuForce SRP protocol** (`crates/hid-accuforce-protocol` microcrate):
+  - VID `0x1FC9`, AccuForce Pro PID `0x804C`
+  - Pure protocol logic: torque encoder, HID report layout constants, enable/gain feature reports
+  - Integrated into the multi-vendor HID pipeline and `SupportedDevices` registry
+
+- **Game-to-Telemetry Bridge** (`crates/service/src/game_telemetry_bridge.rs`):
+  - Monitors running processes and auto-starts the matching telemetry adapter when a supported game is detected
+  - Stops the adapter automatically when the game process exits
+  - Zero user configuration required for supported titles
+
+- **Game Auto-Configure** (`crates/service/src/game_auto_configure.rs`):
+  - Writes per-game telemetry config files (UDP port, format) on first detection of a new game
+  - Idempotent: no-ops on subsequent runs once the config file exists
+  - Enables fully plug-and-play telemetry for all 29 supported games without manual in-game setup steps
 
 - **Expanded test infrastructure**:
   - 9 cargo-fuzz targets for protocol parsers (FFBeast, SimpleMotion V2, Moza, F1 25, Codemasters UDP, and more)

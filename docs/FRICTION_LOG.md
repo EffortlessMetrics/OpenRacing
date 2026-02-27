@@ -42,6 +42,14 @@ Missing one silently causes tests to pass while runtime silently skips the write
 
 ---
 
+### F-012 · Manual telemetry configuration required per game (Low · Resolved)
+
+**Encountered:** RC sprint — users had to manually enable UDP telemetry in each game's settings menu and enter the correct port/IP. Easy to miss; caused "no telemetry" support tickets.
+
+**Fix applied:** `crates/service/src/game_auto_configure.rs` writes the required telemetry config file on first game detection; `crates/service/src/game_telemetry_bridge.rs` auto-starts/stops the matching adapter when the game process starts/exits. All 29 supported games are now plug-and-play with zero user setup steps.
+
+---
+
 ### F-003 · Race condition: agents editing files during compilation (High · Open)
 
 **Encountered:** RC sprint — agent-26 modifying `windows.rs` while `cargo check` was running
@@ -165,6 +173,7 @@ No compile-time help distinguishes "this is a renamed constant" from "this const
 | F-009 | static_mut_refs missing | commit cdd69f0 |
 | F-010 | Stale integration test name | agent-30 |
 | F-011 | Linux emit_rt_event borrow error | commit 1c3fea5 |
+| F-012 | Manual telemetry config per game | game_auto_configure + game_telemetry_bridge |
 
 ---
 
