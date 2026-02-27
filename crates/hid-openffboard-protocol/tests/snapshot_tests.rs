@@ -61,3 +61,4 @@ fn test_snapshot_set_gain_full() {
     let report = build_set_gain(255);
     assert_snapshot!(format!("{:?}", report));
 }
+// UNIQUE_MARKER_12345
