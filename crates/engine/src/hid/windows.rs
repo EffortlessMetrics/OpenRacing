@@ -309,6 +309,8 @@ pub mod vendor_ids {
     pub const ASETEK: u16 = 0x2E5A;
     /// OpenFFBoard open-source direct drive controller (pid.codes VID)
     pub const OPENFFBOARD: u16 = 0x1209;
+    /// FFBeast open-source direct drive controller
+    pub const FFBEAST: u16 = 0x045B;
     /// Granite Devices SimpleMotion V2 (IONI / ARGON / SimuCube 1)
     pub const GRANITE_DEVICES: u16 = 0x1D50;
 }
@@ -444,6 +446,10 @@ impl SupportedDevices {
             // OpenFFBoard (open-source direct drive controller)
             (vendor_ids::OPENFFBOARD, 0xFFB0, "OpenFFBoard"),
             (vendor_ids::OPENFFBOARD, 0xFFB1, "OpenFFBoard (alt firmware)"),
+            // FFBeast (open-source direct drive controller)
+            (vendor_ids::FFBEAST, 0x58F9, "FFBeast Joystick"),
+            (vendor_ids::FFBEAST, 0x5968, "FFBeast Rudder"),
+            (vendor_ids::FFBEAST, 0x59D7, "FFBeast Wheel"),
             // Granite Devices SimpleMotion V2 (Simucube 1, IONI, ARGON, OSW)
             (vendor_ids::GRANITE_DEVICES, 0x6050, "Simucube 1 / IONI Servo Drive"),
             (vendor_ids::GRANITE_DEVICES, 0x6051, "Simucube 2 / IONI Premium Servo Drive"),
@@ -465,6 +471,7 @@ impl SupportedDevices {
             vendor_ids::SIMUCUBE,
             vendor_ids::ASETEK,
             vendor_ids::OPENFFBOARD,
+            vendor_ids::FFBEAST,
             vendor_ids::GRANITE_DEVICES,
         ]
     }
@@ -501,6 +508,7 @@ impl SupportedDevices {
             vendor_ids::SIMUCUBE => "Granite Devices",
             vendor_ids::ASETEK => "Asetek SimSports",
             vendor_ids::OPENFFBOARD => "OpenFFBoard",
+            vendor_ids::FFBEAST => "FFBeast",
             vendor_ids::GRANITE_DEVICES => "Granite Devices",
             _ => "Unknown",
         }
@@ -1447,6 +1455,15 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
         }
         vendor_ids::OPENFFBOARD => {
             // OpenFFBoard uses standard HID PID. Torque capacity depends on the
+            // motor and PSU configuration; 20 Nm is a reasonable default.
+            capabilities.supports_pid = true;
+            capabilities.supports_raw_torque_1khz = true;
+            capabilities.encoder_cpr = u16::MAX; // 65535 typical (16-bit)
+            capabilities.min_report_period_us = 1000; // 1 kHz
+            capabilities.max_torque = TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
+        }
+        vendor_ids::FFBEAST => {
+            // FFBeast uses standard HID PID. Torque capacity depends on the
             // motor and PSU configuration; 20 Nm is a reasonable default.
             capabilities.supports_pid = true;
             capabilities.supports_raw_torque_1khz = true;

@@ -10,6 +10,7 @@ pub mod heusinkveld;
 pub mod logitech;
 pub mod moza;
 pub mod moza_direct;
+pub mod ffbeast;
 pub mod openffboard;
 pub mod simagic;
 pub mod simucube;
@@ -26,6 +27,8 @@ mod heusinkveld_tests;
 mod logitech_tests;
 #[cfg(test)]
 mod moza_tests;
+#[cfg(test)]
+mod ffbeast_tests;
 #[cfg(test)]
 mod openffboard_tests;
 #[cfg(test)]
@@ -88,6 +91,14 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
                 Some(Box::new(openffboard::OpenFFBoardHandler::new(
                     vendor_id, product_id,
                 )))
+            } else {
+                None
+            }
+        }
+        // FFBeast open-source direct drive controller
+        0x045B => {
+            if ffbeast::is_ffbeast_product(product_id) {
+                Some(Box::new(ffbeast::FFBeastHandler::new(vendor_id, product_id)))
             } else {
                 None
             }

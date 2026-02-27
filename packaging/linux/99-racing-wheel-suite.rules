@@ -115,6 +115,12 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2e5a", ATTRS{idProduct}=="0003", GROUP="i
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ffb0", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ffb1", GROUP="input", MODE="0664", TAG+="uaccess"
 
+# ─── FFBeast (0x045B) ─────────────────────────────────────────────────────
+# Open-source direct drive FFB controller — https://github.com/HF-Robotics/FFBeast
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="045b", ATTRS{idProduct}=="58f9", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="045b", ATTRS{idProduct}=="5968", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="045b", ATTRS{idProduct}=="59d7", GROUP="input", MODE="0664", TAG+="uaccess"
+
 # ─── Granite Devices SimpleMotion V2 (0x1D50) ────────────────────────────
 # IONI servo drive / Simucube 1, IONI Premium / Simucube 2, ARGON / OSW builds
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6050", GROUP="input", MODE="0664", TAG+="uaccess"
@@ -156,5 +162,9 @@ ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2e5a", ATTR{power/autosuspend
 # OpenFFBoard (pid.codes shared VID — only disable for our PIDs)
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ffb0", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ffb1", ATTR{power/autosuspend}="-1"
+# FFBeast open-source FFB controller
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="045b", ATTRS{idProduct}=="58f9", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="045b", ATTRS{idProduct}=="5968", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="045b", ATTRS{idProduct}=="59d7", ATTR{power/autosuspend}="-1"
 # Granite Devices SimpleMotion V2 / Simucube 1
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTR{power/autosuspend}="-1"
