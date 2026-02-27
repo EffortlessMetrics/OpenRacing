@@ -6071,6 +6071,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "racing-wheel-telemetry-mudrunner"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "racing-wheel-telemetry-adapters",
+ "racing-wheel-telemetry-core",
+ "tokio",
+ "tracing",
+ "workspace-hack",
+]
+
+[[package]]
 name = "racing-wheel-telemetry-orchestrator"
 version = "0.1.0"
 dependencies = [
@@ -6122,6 +6135,19 @@ dependencies = [
 
 [[package]]
 name = "racing-wheel-telemetry-rennsport"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "racing-wheel-telemetry-adapters",
+ "racing-wheel-telemetry-core",
+ "tokio",
+ "tracing",
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-simhub"
 version = "0.1.0"
 dependencies = [
  "anyhow",

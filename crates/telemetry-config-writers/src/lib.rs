@@ -125,6 +125,10 @@ fn new_f1_25_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(F1_25ConfigWriter)
 }
 
+fn new_f1_native_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(F1NativeConfigWriter)
+}
+
 fn new_project_cars_2_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(PCars2ConfigWriter)
 }
@@ -228,6 +232,7 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("eawrc", new_eawrc_config_writer),
         ("f1", new_f1_config_writer),
         ("f1_25", new_f1_25_config_writer),
+        ("f1_native", new_f1_native_config_writer),
         ("dirt5", new_dirt5_config_writer),
         ("dirt_rally_2", new_dirt_rally_2_config_writer),
         ("rbr", new_rbr_config_writer),
@@ -289,6 +294,9 @@ const F1_DEFAULT_MODE: u8 = 3;
 const F1_25_CONTRACT_RELATIVE_PATH: &str = "Documents/OpenRacing/f1_25_contract.json";
 const F1_25_NATIVE_PROTOCOL: &str = "f1_25_native_udp";
 const F1_25_DEFAULT_PORT: u16 = 20777;
+const F1_NATIVE_CONTRACT_RELATIVE_PATH: &str = "Documents/OpenRacing/f1_native_contract.json";
+const F1_NATIVE_PROTOCOL: &str = "udp_native_f1_native";
+const F1_NATIVE_DEFAULT_PORT: u16 = 20777;
 const WRC_GENERATIONS_BRIDGE_RELATIVE_PATH: &str =
     "Documents/OpenRacing/wrc_generations_bridge_contract.json";
 const WRC_GENERATIONS_BRIDGE_PROTOCOL: &str = "codemasters_udp";
@@ -1710,6 +1718,114 @@ impl ConfigWriter for F1_25ConfigWriter {
 
         Ok(vec![ConfigDiff {
             file_path: F1_25_CONTRACT_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// EA F1 2023/2024 native UDP configuration writer.
+///
+/// Writes a contract file to Documents/OpenRacing/f1_native_contract.json
+/// documenting the expected native UDP configuration.
+pub struct F1NativeConfigWriter;
+
+impl Default for F1NativeConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for F1NativeConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing F1 native UDP contract configuration");
+
+        let contract_path = game_path.join(F1_NATIVE_CONTRACT_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(F1_NATIVE_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "f1_native",
+            "telemetry_protocol": F1_NATIVE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "setup_notes": [
+                "In F1 23/24 game settings, enable UDP telemetry:",
+                "  UDP Telemetry: On",
+                "  UDP Broadcast Mode: Off",
+                "  UDP IP Address: 127.0.0.1",
+                "  UDP Port: 20777",
+                "  UDP Send Rate: 60Hz"
+            ],
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(F1_NATIVE_CONTRACT_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(|v| v.as_str())
+            .map_or(false, |p| p == F1_NATIVE_PROTOCOL);
+        let valid_game = value
+            .get("game_id")
+            .and_then(|v| v.as_str())
+            .map_or(false, |g| g == "f1_native");
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(F1_NATIVE_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "f1_native",
+            "telemetry_protocol": F1_NATIVE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "setup_notes": [
+                "In F1 23/24 game settings, enable UDP telemetry:",
+                "  UDP Telemetry: On",
+                "  UDP Broadcast Mode: Off",
+                "  UDP IP Address: 127.0.0.1",
+                "  UDP Port: 20777",
+                "  UDP Send Rate: 60Hz"
+            ],
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+        Ok(vec![ConfigDiff {
+            file_path: F1_NATIVE_CONTRACT_RELATIVE_PATH.to_string(),
             section: None,
             key: "entire_file".to_string(),
             old_value: None,

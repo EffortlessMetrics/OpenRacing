@@ -58,14 +58,12 @@ fn forza_sled_not_racing_returns_empty_telemetry() -> TestResult {
 }
 
 #[test]
-fn forza_sled_valid_packet_parses_rpm_and_gear() -> TestResult {
+fn forza_sled_valid_packet_parses_rpm_and_speed() -> TestResult {
     let mut pkt = vec![0u8; 232];
     write_i32_le(&mut pkt, 0, 1); // is_race_on = 1
     write_f32_le(&mut pkt, 8, 9000.0); // engine_max_rpm
     write_f32_le(&mut pkt, 16, 6000.0); // current_rpm
-    write_f32_le(&mut pkt, 20, 0.8); // throttle
-    write_f32_le(&mut pkt, 36, 3.0); // gear_raw → 3rd gear
-    write_f32_le(&mut pkt, 52, 30.0); // vel_x → speed ~30 m/s
+    write_f32_le(&mut pkt, 32, 30.0); // vel_x (OFF_VEL_X=32) → speed ~30 m/s
 
     let adapter = ForzaAdapter::new();
     let t = adapter.normalize(&pkt)?;
@@ -75,24 +73,30 @@ fn forza_sled_valid_packet_parses_rpm_and_gear() -> TestResult {
         "rpm must be ~6000, got {}",
         t.rpm
     );
-    assert_eq!(t.gear, 3, "gear must be 3, got {}", t.gear);
     assert!(
-        (t.throttle - 0.8).abs() < 0.01,
-        "throttle must be ~0.8, got {}",
-        t.throttle
+        (t.speed_ms - 30.0).abs() < 0.1,
+        "speed_ms must be ~30, got {}",
+        t.speed_ms
     );
     Ok(())
 }
 
 #[test]
-fn forza_sled_reverse_gear_maps_to_minus_one() -> TestResult {
+fn forza_sled_speed_from_negative_velocity() -> TestResult {
+    // Sled format has no gear field; verify speed_ms is non-negative for
+    // negative velocity (moving backwards).
     let mut pkt = vec![0u8; 232];
     write_i32_le(&mut pkt, 0, 1); // is_race_on
-    write_f32_le(&mut pkt, 36, 0.0); // gear_raw=0 → Reverse
+    write_f32_le(&mut pkt, 32, -20.0); // vel_x = -20 m/s (OFF_VEL_X=32)
 
     let adapter = ForzaAdapter::new();
     let t = adapter.normalize(&pkt)?;
-    assert_eq!(t.gear, -1, "gear=0 in Forza must map to -1 (Reverse)");
+    assert!(t.speed_ms >= 0.0, "speed_ms must be non-negative");
+    assert!(
+        (t.speed_ms - 20.0).abs() < 0.1,
+        "speed_ms must be ~20 for vel_x=-20, got {}",
+        t.speed_ms
+    );
     Ok(())
 }
 

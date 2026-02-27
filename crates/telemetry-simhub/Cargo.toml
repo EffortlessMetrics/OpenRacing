@@ -5,8 +5,12 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-publish = false
-description = "SimHub UDP bridge telemetry adapter"
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-telemetry-simhub"
+publish = true
+description = "SimHub UDP JSON bridge telemetry adapter"
+readme = "README.md"
+keywords = ["telemetry", "simhub", "udp", "json", "racing"]
 
 [dependencies]
 racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
@@ -16,3 +20,6 @@ async-trait = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }

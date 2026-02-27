@@ -68,7 +68,8 @@ impl TelemetryAdapter for SimHubAdapter {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
                     Ok(Ok(len)) => {
                         let normalized = NormalizedTelemetry::builder().build();
-                        let frame = TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
+                        let frame =
+                            TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
                         if tx.send(frame).await.is_err() {
                             debug!("Receiver dropped, stopping SimHub monitoring");
                             break;

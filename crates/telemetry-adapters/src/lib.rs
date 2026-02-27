@@ -27,6 +27,7 @@ pub mod automobilista;
 pub mod beamng;
 pub mod codemasters_udp;
 pub mod dakar;
+pub mod dirt3;
 pub mod dirt4;
 pub mod dirt5;
 pub mod dirt_rally_2;
@@ -45,12 +46,13 @@ pub mod iracing;
 pub mod kartkraft;
 pub mod le_mans_ultimate;
 pub mod lfs;
+pub mod mudrunner;
 pub mod nascar;
 pub mod pcars2;
+pub mod race_driver_grid;
 pub mod raceroom;
 pub mod rbr;
 pub mod rennsport;
-pub mod mudrunner;
 pub mod rfactor2;
 pub mod simhub;
 pub mod trackmania;
@@ -182,6 +184,10 @@ fn new_dirt4_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(Dirt4Adapter::new())
 }
 
+fn new_dirt3_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(Dirt3Adapter::new())
+}
+
 fn new_ets2_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(Ets2Adapter::with_variant(ets2::Ets2Variant::Ets2))
 }
@@ -208,6 +214,10 @@ fn new_grid_2019_adapter() -> Box<dyn TelemetryAdapter> {
 
 fn new_grid_legends_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(GridLegendsAdapter::new())
+}
+
+fn new_race_driver_grid_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(RaceDriverGridAdapter::new())
 }
 
 fn new_rennsport_adapter() -> Box<dyn TelemetryAdapter> {
@@ -266,6 +276,7 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("dirt5", new_dirt5_adapter),
         ("dirt_rally_2", new_dirt_rally_2_adapter),
         ("dirt4", new_dirt4_adapter),
+        ("dirt3", new_dirt3_adapter),
         ("eawrc", new_eawrc_adapter),
         ("ets2", new_ets2_adapter),
         ("f1", new_f1_adapter),
@@ -282,6 +293,7 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("grid_autosport", new_grid_autosport_adapter),
         ("grid_2019", new_grid_2019_adapter),
         ("grid_legends", new_grid_legends_adapter),
+        ("race_driver_grid", new_race_driver_grid_adapter),
         ("rennsport", new_rennsport_adapter),
         ("rfactor2", new_rfactor2_adapter),
         ("wrc_generations", new_wrc_generations_adapter),
@@ -292,10 +304,10 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("trackmania", new_trackmania_adapter),
         ("dakar_desert_rally", new_dakar_adapter),
         ("flatout", new_flatout_adapter),
-
         ("simhub", new_simhub_adapter),
         ("mudrunner", new_mudrunner_adapter),
-        ("snowrunner", new_snowrunner_adapter),    ]
+        ("snowrunner", new_snowrunner_adapter),
+    ]
 }
 
 pub use ac_rally::ACRallyAdapter;
@@ -307,6 +319,7 @@ pub use beamng::BeamNGAdapter;
 pub use codemasters_udp::{CustomUdpSpec, DecodedCodemastersPacket, FieldSpec};
 pub use dakar::DakarDesertRallyAdapter;
 pub use dirt_rally_2::DirtRally2Adapter;
+pub use dirt3::Dirt3Adapter;
 pub use dirt4::Dirt4Adapter;
 pub use dirt5::Dirt5Adapter;
 pub use eawrc::EAWRCAdapter;
@@ -324,13 +337,14 @@ pub use iracing::IRacingAdapter;
 pub use kartkraft::KartKraftAdapter;
 pub use le_mans_ultimate::LeMansUltimateAdapter;
 pub use lfs::LFSAdapter;
+pub use mudrunner::MudRunnerAdapter;
 pub use nascar::NascarAdapter;
 pub use pcars2::PCars2Adapter;
+pub use race_driver_grid::RaceDriverGridAdapter;
 pub use raceroom::RaceRoomAdapter;
 pub use rbr::RBRAdapter;
 pub use rennsport::RennsportAdapter;
 pub use rfactor2::RFactor2Adapter;
-pub use mudrunner::MudRunnerAdapter;
 pub use simhub::SimHubAdapter;
 pub use trackmania::TrackmaniaAdapter;
 pub use wrc_generations::WrcGenerationsAdapter;
