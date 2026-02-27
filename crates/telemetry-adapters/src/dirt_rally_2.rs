@@ -322,6 +322,146 @@ impl TelemetryAdapter for DirtRally2Adapter {
 }
 
 #[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn make_min_packet() -> Vec<u8> {
+        vec![0u8; MIN_PACKET_SIZE]
+    }
+
+    fn write_f32_le(buf: &mut [u8], offset: usize, value: f32) {
+        buf[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Any packet shorter than MIN_PACKET_SIZE must return Err, never panic.
+        #[test]
+        fn prop_short_packet_returns_err(len in 0usize..MIN_PACKET_SIZE) {
+            let data = vec![0u8; len];
+            prop_assert!(parse_packet(&data).is_err());
+        }
+
+        /// Arbitrary bytes at or above MIN_PACKET_SIZE must never panic.
+        #[test]
+        fn prop_arbitrary_packet_no_panic(
+            data in proptest::collection::vec(any::<u8>(), MIN_PACKET_SIZE..=MIN_PACKET_SIZE * 2)
+        ) {
+            let _ = parse_packet(&data);
+        }
+
+        /// FFB scalar is always clamped to [-1, 1] regardless of lateral G input.
+        #[test]
+        fn prop_ffb_scalar_in_range(lat_g in -10.0f32..=10.0f32) {
+            let mut buf = make_min_packet();
+            write_f32_le(&mut buf, OFF_GFORCE_LAT, lat_g);
+            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            prop_assert!(
+                t.ffb_scalar >= -1.0 && t.ffb_scalar <= 1.0,
+                "ffb_scalar {} must be in [-1, 1]",
+                t.ffb_scalar
+            );
+        }
+
+        /// Throttle is always clamped to [0, 1].
+        #[test]
+        fn prop_throttle_clamped(throttle in -5.0f32..=5.0f32) {
+            let mut buf = make_min_packet();
+            write_f32_le(&mut buf, OFF_THROTTLE, throttle);
+            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            prop_assert!(
+                t.throttle >= 0.0 && t.throttle <= 1.0,
+                "throttle {} must be in [0, 1]",
+                t.throttle
+            );
+        }
+
+        /// Brake is always clamped to [0, 1].
+        #[test]
+        fn prop_brake_clamped(brake in -5.0f32..=5.0f32) {
+            let mut buf = make_min_packet();
+            write_f32_le(&mut buf, OFF_BRAKE, brake);
+            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            prop_assert!(
+                t.brake >= 0.0 && t.brake <= 1.0,
+                "brake {} must be in [0, 1]",
+                t.brake
+            );
+        }
+
+        /// Steering angle is always clamped to [-1, 1].
+        #[test]
+        fn prop_steering_clamped(steer in -5.0f32..=5.0f32) {
+            let mut buf = make_min_packet();
+            write_f32_le(&mut buf, OFF_STEER, steer);
+            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            prop_assert!(
+                t.steering_angle >= -1.0 && t.steering_angle <= 1.0,
+                "steering_angle {} must be in [-1, 1]",
+                t.steering_angle
+            );
+        }
+
+        /// Gear field is always in the valid range [-1, 8].
+        #[test]
+        fn prop_gear_in_valid_range(gear_val in 0.0f32..=10.0f32) {
+            let mut buf = make_min_packet();
+            write_f32_le(&mut buf, OFF_GEAR, gear_val);
+            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            prop_assert!(
+                t.gear >= -1 && t.gear <= 8,
+                "gear {} must be in [-1, 8]",
+                t.gear
+            );
+        }
+
+        /// Speed from normal wheel-speed values is finite and non-negative.
+        #[test]
+        fn prop_speed_non_negative_from_wheel_speeds(ws in 0.0f32..=100.0f32) {
+            let mut buf = make_min_packet();
+            write_f32_le(&mut buf, OFF_WHEEL_SPEED_FL, ws);
+            write_f32_le(&mut buf, OFF_WHEEL_SPEED_FR, ws);
+            write_f32_le(&mut buf, OFF_WHEEL_SPEED_RL, ws);
+            write_f32_le(&mut buf, OFF_WHEEL_SPEED_RR, ws);
+            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            prop_assert!(
+                t.speed_ms >= 0.0 && t.speed_ms.is_finite(),
+                "speed_ms {} must be finite and non-negative",
+                t.speed_ms
+            );
+        }
+
+        /// RPM is always non-negative (negative inputs are clamped to 0).
+        #[test]
+        fn prop_rpm_non_negative(rpm in -1000.0f32..=20000.0f32) {
+            let mut buf = make_min_packet();
+            write_f32_le(&mut buf, OFF_RPM, rpm);
+            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            prop_assert!(t.rpm >= 0.0, "rpm {} must be non-negative", t.rpm);
+        }
+
+        /// Fuel percent is always in [0, 100] when capacity is positive.
+        #[test]
+        fn prop_fuel_percent_in_range(
+            fuel_in in 0.0f32..=200.0f32,
+            fuel_cap in 1.0f32..=300.0f32,
+        ) {
+            let mut buf = make_min_packet();
+            write_f32_le(&mut buf, OFF_FUEL_IN_TANK, fuel_in);
+            write_f32_le(&mut buf, OFF_FUEL_CAPACITY, fuel_cap);
+            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            prop_assert!(
+                t.fuel_percent >= 0.0 && t.fuel_percent <= 100.0,
+                "fuel_percent {} must be in [0, 100]",
+                t.fuel_percent
+            );
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

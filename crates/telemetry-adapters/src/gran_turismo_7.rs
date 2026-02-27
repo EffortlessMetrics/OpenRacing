@@ -225,7 +225,7 @@ pub(crate) fn decrypt_and_parse(data: &[u8]) -> Result<NormalizedTelemetry> {
 fn salsa20_xor(buf: &mut [u8; PACKET_SIZE]) {
     let nonce: [u8; 8] = buf[0x40..0x48].try_into().expect("slice length is 8");
 
-    let blocks_needed = (PACKET_SIZE + 63) / 64; // 5 full 64-byte blocks
+    let blocks_needed = PACKET_SIZE.div_ceil(64); // 5 full 64-byte blocks
     for block_idx in 0..blocks_needed {
         let ks = salsa20_block(SALSA_KEY, &nonce, block_idx as u64);
         let start = block_idx * 64;
@@ -410,6 +410,124 @@ fn read_i32_le(data: &[u8], offset: usize) -> i32 {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn buf_with_magic() -> [u8; PACKET_SIZE] {
+        let mut buf = [0u8; PACKET_SIZE];
+        buf[OFF_MAGIC..OFF_MAGIC + 4].copy_from_slice(&MAGIC.to_le_bytes());
+        buf
+    }
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Any input shorter than PACKET_SIZE must return Err from decrypt_and_parse.
+        #[test]
+        fn prop_short_input_returns_err(len in 0usize..PACKET_SIZE) {
+            let data = vec![0u8; len];
+            prop_assert!(decrypt_and_parse(&data).is_err());
+        }
+
+        /// Arbitrary bytes at PACKET_SIZE must never panic in decrypt_and_parse.
+        #[test]
+        fn prop_arbitrary_packet_no_panic(
+            data in proptest::collection::vec(any::<u8>(), PACKET_SIZE..=PACKET_SIZE)
+        ) {
+            let _ = decrypt_and_parse(&data);
+        }
+
+        /// parse_decrypted with valid magic and finite speed produces non-negative speed.
+        #[test]
+        fn prop_speed_non_negative(speed in 0.0f32..=300.0f32) {
+            let mut buf = buf_with_magic();
+            buf[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&speed.to_le_bytes());
+            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            prop_assert!(
+                t.speed_ms >= 0.0 && t.speed_ms.is_finite(),
+                "speed_ms {} must be finite and non-negative",
+                t.speed_ms
+            );
+        }
+
+        /// Throttle is always normalized to [0, 1] (u8 → f32 / 255).
+        #[test]
+        fn prop_throttle_normalized(throttle_byte in 0u8..=255u8) {
+            let mut buf = buf_with_magic();
+            buf[OFF_THROTTLE] = throttle_byte;
+            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            prop_assert!(
+                t.throttle >= 0.0 && t.throttle <= 1.0,
+                "throttle {} must be in [0, 1]",
+                t.throttle
+            );
+        }
+
+        /// Brake is always normalized to [0, 1] (u8 → f32 / 255).
+        #[test]
+        fn prop_brake_normalized(brake_byte in 0u8..=255u8) {
+            let mut buf = buf_with_magic();
+            buf[OFF_BRAKE] = brake_byte;
+            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            prop_assert!(
+                t.brake >= 0.0 && t.brake <= 1.0,
+                "brake {} must be in [0, 1]",
+                t.brake
+            );
+        }
+
+        /// Gear (low nibble of gear byte) is always in [0, 8].
+        #[test]
+        fn prop_gear_in_range(gear_byte in 0u8..=255u8) {
+            let mut buf = buf_with_magic();
+            buf[OFF_GEAR_BYTE] = gear_byte;
+            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            prop_assert!(
+                t.gear >= 0 && t.gear <= 8,
+                "gear {} must be in [0, 8]",
+                t.gear
+            );
+        }
+
+        /// Fuel percent is always in [0, 1] when capacity is positive.
+        #[test]
+        fn prop_fuel_percent_in_range(
+            fuel in 0.0f32..=100.0f32,
+            cap in 1.0f32..=200.0f32,
+        ) {
+            let mut buf = buf_with_magic();
+            buf[OFF_FUEL_LEVEL..OFF_FUEL_LEVEL + 4].copy_from_slice(&fuel.to_le_bytes());
+            buf[OFF_FUEL_CAPACITY..OFF_FUEL_CAPACITY + 4].copy_from_slice(&cap.to_le_bytes());
+            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            prop_assert!(
+                t.fuel_percent >= 0.0 && t.fuel_percent <= 1.0,
+                "fuel_percent {} must be in [0, 1]",
+                t.fuel_percent
+            );
+        }
+
+        /// RPM is finite when a valid RPM is placed at the expected offset.
+        #[test]
+        fn prop_rpm_finite(rpm in 0.0f32..=20000.0f32) {
+            let mut buf = buf_with_magic();
+            buf[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
+            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            prop_assert!(t.rpm.is_finite(), "rpm must be finite");
+        }
+
+        /// salsa20_block is deterministic: same inputs always give same output.
+        #[test]
+        fn prop_salsa20_block_is_deterministic(counter in any::<u64>()) {
+            let nonce = [0u8; 8];
+            let block_a = salsa20_block(SALSA_KEY, &nonce, counter);
+            let block_b = salsa20_block(SALSA_KEY, &nonce, counter);
+            prop_assert_eq!(block_a, block_b, "salsa20_block must be deterministic");
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

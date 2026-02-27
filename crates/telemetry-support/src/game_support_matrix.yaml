@@ -412,7 +412,7 @@ games:
         car_id: "car_code"
         track_id: null
     status: "experimental"
-    config_writer: null
+    config_writer: "gran_turismo_7"
     auto_detect:
       process_names: []
       install_registry_keys: []

@@ -5525,6 +5525,9 @@ version = "0.1.0"
 [[package]]
 name = "racing-wheel-hid-cammus-protocol"
 version = "0.1.0"
+dependencies = [
+ "proptest",
+]
 
 [[package]]
 name = "racing-wheel-hid-fanatec-protocol"

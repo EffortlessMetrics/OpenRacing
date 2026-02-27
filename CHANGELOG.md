@@ -120,6 +120,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - cargo-fuzz targets for header, CarTelemetry, CarStatus, and end-to-end normalize() parsing
   - `f1_2025` is now an alias for `f1_25`; legacy `f1` (Codemasters bridge) adapter unchanged
 
+## [1.0.0-rc.1] - 2026-11-01
+
+### Added
+
+- **Cammus C5/C12 direct drive support**:
+  - New `racing-wheel-hid-cammus-protocol` SRP microcrate with `CammusInputReport` parser
+  - 64-byte HID report ID `0x01`: steering (±540°), throttle/brake/clutch/handbrake axes, 16-button bitmask
+  - `CammusTorqueEncoder` for constant-force output, `build_enable_ffb` / `build_set_gain` feature reports
+  - Covers C5 (8 Nm, PID `0x0C5x`) and C12 (12 Nm, PID `0x0C12`)
+  - udev rules + Windows device registry + capabilities block added
+
+- **DiRT Rally 2.0 telemetry adapter** (`game_id = "dirt_rally_2"`):
+  - Codemasters UDP Mode 1 protocol, port 20777
+  - Decodes all motion channels: speed, RPM, gear, throttle, brake, steering angle, lateral/longitudinal G, fuel %, tyre temps/pressures
+  - Config writer generates instructions for enabling UDP output in-game
+  - Registered in `adapter_factories()`, game support matrix, and config writer factory
+
+- **Gran Turismo 7 telemetry adapter** (`game_id = "gran_turismo_7"`):
+  - Salsa20-encrypted UDP on port 33740 (PS4/PS5 console broadcast)
+  - Pure-Rust Salsa20 keystream implementation using the embedded 32-byte key and 8-byte nonce at offset `0x40`
+  - Decodes: RPM, speed, gear, throttle, brake, fuel %, engine temp, per-corner tyre temps, flags, car code
+  - Config writer documents PS4/PS5 network setup to direct packets to the host PC
+  - Registered in `adapter_factories()`, game support matrix, and config writer factory
+
+- **Richard Burns Rally telemetry adapter** (`game_id = "rbr"`):
+  - RSF LiveData UDP protocol, port 6776
+  - Decodes: speed, RPM, gear, throttle, brake, clutch, steering angle, FFB scalar, handbrake flag
+  - Config writer generates RSF plugin configuration (`RBRPlugin.ini` path and UDP target)
+  - Registered in `adapter_factories()`, game support matrix, and config writer factory
+
+- **Config writers for `dirt_rally_2`, `rbr`, and `gran_turismo_7`** games added to the config-writers crate
+
+- **Game support matrix synchronization**: `crates/telemetry-config` and `crates/telemetry-support` both now carry the full 12-game matrix (iracing, acc, ac_rally, ams2, rfactor2, eawrc, f1, f1_25, dirt5, dirt_rally_2, rbr, gran_turismo_7) with consistent `config_writer` entries
+
+### Changed
+
+- **`NormalizedTelemetry` snapshot serialization**: switched internal `extended` map from `HashMap` to `BTreeMap` for deterministic key ordering in JSON/YAML snapshots and golden tests
+- **`has_rpm_data()` semantics fixed**: now returns `true` only when a valid RPM value is present (non-zero, non-NaN); new companion `has_rpm_display_data()` returns `true` when RPM is available for gauge/LED display even if not used for FFB
+- **`is_game_running()` semantics fixed**: returns `Ok(false)` (not an error) when the game ID is known but has no active adapter registered, eliminating spurious error log noise during normal operation
+
+### Fixed
+
+- **Test stability — soft-stop multiplier**: clamped the configurable soft-stop torque multiplier to `[0.0, 1.0]` to prevent oscillation in tests that use boundary values
+- **Test stability — zero-alloc stderr capture**: replaced heap-allocating stderr capture helper with a fixed-size ring buffer, eliminating spurious allocation warnings in RT path tests
+
 ## [1.0.0] - 2026-10-15
 
 ### Added

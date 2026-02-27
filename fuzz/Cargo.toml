@@ -20,6 +20,7 @@ racing-wheel-hid-asetek-protocol = { path = "../crates/hid-asetek-protocol", pac
 racing-wheel-hid-vrs-protocol = { path = "../crates/hid-vrs-protocol" }
 racing-wheel-hid-simagic-protocol = { path = "../crates/hid-simagic-protocol" }
 racing-wheel-hid-heusinkveld-protocol = { path = "../crates/hid-heusinkveld-protocol", package = "hid-heusinkveld-protocol" }
+racing-wheel-hid-cammus-protocol = { path = "../crates/hid-cammus-protocol" }
 racing-wheel-simplemotion-v2 = { path = "../crates/simplemotion-v2" }
 racing-wheel-ks = { path = "../crates/ks" }
 racing-wheel-srp = { path = "../crates/srp" }
@@ -138,6 +139,30 @@ doc = false
 [[bin]]
 name = "fuzz_acc_udp"
 path = "fuzz_targets/fuzz_acc_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_dirt_rally_2"
+path = "fuzz_targets/fuzz_dirt_rally_2.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_gran_turismo_7"
+path = "fuzz_targets/fuzz_gran_turismo_7.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_rbr"
+path = "fuzz_targets/fuzz_rbr.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_cammus_direct"
+path = "fuzz_targets/fuzz_cammus_direct.rs"
 test = false
 doc = false
 

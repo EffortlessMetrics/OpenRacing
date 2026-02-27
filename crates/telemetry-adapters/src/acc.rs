@@ -1007,8 +1007,9 @@ mod tests {
         #[test]
         fn prop_acc_normalize_gear_in_range(data: Vec<u8>) {
             if let Ok(normalized) = ACCAdapter::new().normalize(&data) {
-                // Gear is decoded as (raw_byte - 2) clamped to i8; [-2, 7] is the practical range
-                prop_assert!(normalized.gear >= i8::MIN && normalized.gear <= i8::MAX);
+                // Gear is decoded as (raw_byte - 2) clamped to i8.
+                // Just verify normalization succeeds without panicking.
+                let _gear: i8 = normalized.gear;
             }
         }
     }

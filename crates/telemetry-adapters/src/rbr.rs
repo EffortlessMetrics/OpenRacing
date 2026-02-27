@@ -229,6 +229,106 @@ fn is_rbr_process_running() -> bool {
 }
 
 #[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn make_min_packet() -> Vec<u8> {
+        vec![0u8; MIN_PACKET_SIZE]
+    }
+
+    fn write_f32_le(buf: &mut [u8], offset: usize, value: f32) {
+        buf[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Any packet shorter than MIN_PACKET_SIZE must return Err, never panic.
+        #[test]
+        fn prop_short_packet_returns_err(len in 0usize..MIN_PACKET_SIZE) {
+            let data = vec![0u8; len];
+            prop_assert!(parse_rbr_packet(&data).is_err());
+        }
+
+        /// Arbitrary bytes at or above MIN_PACKET_SIZE must never panic.
+        #[test]
+        fn prop_arbitrary_packet_no_panic(
+            data in proptest::collection::vec(any::<u8>(), MIN_PACKET_SIZE..=256)
+        ) {
+            let _ = parse_rbr_packet(&data);
+        }
+
+        /// Gear is always -1 (reverse) or >= 1 (forward) — never 0 or other invalid values.
+        #[test]
+        fn prop_gear_is_reverse_or_forward(gear_val in 0.0f32..=10.0f32) {
+            let mut buf = make_min_packet();
+            write_f32_le(&mut buf, OFF_GEAR, gear_val);
+            let t = parse_rbr_packet(&buf).expect("parse must succeed for valid-size packet");
+            prop_assert!(
+                t.gear == -1 || t.gear >= 1,
+                "gear {} must be -1 (reverse) or >= 1 (forward)",
+                t.gear
+            );
+        }
+
+        /// FFB scalar equals throttle minus brake for inputs in [0, 1].
+        #[test]
+        fn prop_ffb_scalar_matches_throttle_minus_brake(
+            throttle in 0.0f32..=1.0f32,
+            brake in 0.0f32..=1.0f32,
+        ) {
+            let mut buf = make_min_packet();
+            write_f32_le(&mut buf, OFF_THROTTLE, throttle);
+            write_f32_le(&mut buf, OFF_BRAKE, brake);
+            let t = parse_rbr_packet(&buf).expect("parse must succeed for valid-size packet");
+            let expected = throttle - brake;
+            prop_assert!(
+                (t.ffb_scalar - expected).abs() < 1e-5,
+                "ffb_scalar {} must equal throttle({}) - brake({})",
+                t.ffb_scalar,
+                throttle,
+                brake
+            );
+        }
+
+        /// Handbrake > 0.5 sets session_paused; <= 0.5 clears it.
+        #[test]
+        fn prop_handbrake_flag_threshold(handbrake in 0.0f32..=2.0f32) {
+            let mut buf = make_min_packet();
+            write_f32_le(&mut buf, OFF_HANDBRAKE, handbrake);
+            let t = parse_rbr_packet(&buf).expect("parse must succeed for valid-size packet");
+            let expected = handbrake > 0.5;
+            prop_assert_eq!(
+                t.flags.session_paused,
+                expected,
+                "session_paused must be {} for handbrake={}",
+                expected,
+                handbrake
+            );
+        }
+
+        /// Speed from valid finite inputs is finite.
+        #[test]
+        fn prop_speed_is_finite(speed in 0.0f32..=300.0f32) {
+            let mut buf = make_min_packet();
+            write_f32_le(&mut buf, OFF_SPEED_MS, speed);
+            let t = parse_rbr_packet(&buf).expect("parse must succeed for valid-size packet");
+            prop_assert!(t.speed_ms.is_finite(), "speed_ms {} must be finite", t.speed_ms);
+        }
+
+        /// RPM from valid finite inputs is finite.
+        #[test]
+        fn prop_rpm_is_finite(rpm in 0.0f32..=20000.0f32) {
+            let mut buf = make_min_packet();
+            write_f32_le(&mut buf, OFF_RPM, rpm);
+            let t = parse_rbr_packet(&buf).expect("parse must succeed for valid-size packet");
+            prop_assert!(t.rpm.is_finite(), "rpm {} must be finite", t.rpm);
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

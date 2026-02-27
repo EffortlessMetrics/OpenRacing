@@ -86,68 +86,75 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_too_short() {
+    fn parse_too_short() -> Result<(), ParseError> {
         assert!(parse(&[0u8; 5]).is_err());
-        let err = parse(&[0u8; 3]).unwrap_err();
+        let err = parse(&[0u8; 3]).expect_err("expected TooShort error");
         assert_eq!(err, ParseError::TooShort { got: 3, need: 12 });
+        Ok(())
     }
 
     #[test]
-    fn parse_center() {
+    fn parse_center() -> Result<(), ParseError> {
         let data = [0u8; 64];
-        let report = parse(&data).unwrap();
+        let report = parse(&data)?;
         assert!(report.steering.abs() < 0.01);
         assert!(report.throttle.abs() < 0.01);
         assert!(report.brake.abs() < 0.01);
+        Ok(())
     }
 
     #[test]
-    fn parse_full_throttle() {
+    fn parse_full_throttle() -> Result<(), ParseError> {
         let mut data = [0u8; 64];
         data[2] = 0xFF;
         data[3] = 0xFF;
-        let report = parse(&data).unwrap();
+        let report = parse(&data)?;
         assert!((report.throttle - 1.0).abs() < 0.01);
+        Ok(())
     }
 
     #[test]
-    fn parse_full_brake() {
+    fn parse_full_brake() -> Result<(), ParseError> {
         let mut data = [0u8; 64];
         data[4] = 0xFF;
         data[5] = 0xFF;
-        let report = parse(&data).unwrap();
+        let report = parse(&data)?;
         assert!((report.brake - 1.0).abs() < 0.01);
+        Ok(())
     }
 
     #[test]
-    fn parse_steering_positive() {
+    fn parse_steering_positive() -> Result<(), ParseError> {
         let mut data = [0u8; 64];
         let val = i16::MAX;
         let bytes = val.to_le_bytes();
         data[0] = bytes[0];
         data[1] = bytes[1];
-        let report = parse(&data).unwrap();
+        let report = parse(&data)?;
         assert!((report.steering - 1.0).abs() < 0.01);
+        Ok(())
     }
 
     #[test]
-    fn parse_steering_negative() {
+    fn parse_steering_negative() -> Result<(), ParseError> {
         let mut data = [0u8; 64];
         let val: i16 = -i16::MAX;
         let bytes = val.to_le_bytes();
         data[0] = bytes[0];
         data[1] = bytes[1];
-        let report = parse(&data).unwrap();
+        let report = parse(&data)?;
         assert!((report.steering + 1.0).abs() < 0.01);
+        Ok(())
     }
 
     #[test]
-    fn parse_buttons() {
+    fn parse_buttons() -> Result<(), ParseError> {
         let mut data = [0u8; 64];
         data[6] = 0xAB;
         data[7] = 0xCD;
-        let report = parse(&data).unwrap();
+        let report = parse(&data)?;
         assert_eq!(report.buttons, 0xCDAB);
+        Ok(())
     }
 
     #[test]

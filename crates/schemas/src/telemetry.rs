@@ -4,7 +4,7 @@
 //! The `NormalizedTelemetry` struct combines data from all game adapters into a consistent format.
 
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 /// Canonical normalized telemetry data from racing games.

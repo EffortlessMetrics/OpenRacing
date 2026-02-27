@@ -103,3 +103,90 @@ mod tests {
         assert_eq!(encode_torque(0.5).len(), FFB_REPORT_LEN);
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Sign is preserved: positive input gives positive raw, negative gives negative.
+        #[test]
+        fn prop_sign_preserved(torque in -1.0f32..=1.0f32) {
+            let report = encode_torque(torque);
+            let raw = i16::from_le_bytes([report[1], report[2]]);
+            if torque > 0.001 {
+                prop_assert!(raw > 0, "positive torque {torque} must yield positive raw {raw}");
+            } else if torque < -0.001 {
+                prop_assert!(raw < 0, "negative torque {torque} must yield negative raw {raw}");
+            }
+        }
+
+        /// Inputs >= 1.0 saturate to i16::MAX; inputs <= -1.0 saturate to -i16::MAX.
+        #[test]
+        fn prop_saturates_at_boundary(torque in -100.0f32..=100.0f32) {
+            let report = encode_torque(torque);
+            let raw = i16::from_le_bytes([report[1], report[2]]);
+            if torque >= 1.0 {
+                prop_assert_eq!(raw, i16::MAX, "torque >= 1.0 must saturate to i16::MAX");
+            } else if torque <= -1.0 {
+                prop_assert_eq!(raw, -i16::MAX, "torque <= -1.0 must saturate to -i16::MAX");
+            }
+        }
+
+        /// Report ID byte is always FFB_REPORT_ID for any input.
+        #[test]
+        fn prop_report_id_always_correct(torque in -100.0f32..=100.0f32) {
+            let report = encode_torque(torque);
+            prop_assert_eq!(report[0], FFB_REPORT_ID);
+        }
+
+        /// Game mode byte (offset 3) is always MODE_GAME for any input.
+        #[test]
+        fn prop_mode_byte_always_game(torque in -100.0f32..=100.0f32) {
+            let report = encode_torque(torque);
+            prop_assert_eq!(report[3], MODE_GAME);
+        }
+
+        /// Reserved bytes [4..8] are always zero.
+        #[test]
+        fn prop_reserved_bytes_zero(torque in -100.0f32..=100.0f32) {
+            let report = encode_torque(torque);
+            prop_assert_eq!(&report[4..], &[0x00u8, 0x00, 0x00, 0x00]);
+        }
+
+        /// encode_stop is idempotent: repeated calls return the same bytes.
+        #[test]
+        fn prop_encode_stop_idempotent(_x in 0u8..=1u8) {
+            prop_assert_eq!(encode_stop(), encode_stop());
+        }
+
+        /// encode_stop always equals encode_torque(0.0).
+        #[test]
+        fn prop_encode_stop_equals_zero_torque(_x in 0u8..=1u8) {
+            prop_assert_eq!(encode_stop(), encode_torque(0.0));
+        }
+
+        /// Encoding is monotone: higher torque yields higher (or equal) raw value.
+        #[test]
+        fn prop_monotone(a in -1.0f32..=1.0f32, b in -1.0f32..=1.0f32) {
+            let r_a = encode_torque(a);
+            let r_b = encode_torque(b);
+            let raw_a = i16::from_le_bytes([r_a[1], r_a[2]]);
+            let raw_b = i16::from_le_bytes([r_b[1], r_b[2]]);
+            if a > b {
+                prop_assert!(raw_a >= raw_b, "monotone: torque {a} > {b} but raw {raw_a} < {raw_b}");
+            } else if a < b {
+                prop_assert!(raw_a <= raw_b, "monotone: torque {a} < {b} but raw {raw_a} > {raw_b}");
+            }
+        }
+
+        /// Report length is always FFB_REPORT_LEN regardless of input.
+        #[test]
+        fn prop_report_length(torque in -100.0f32..=100.0f32) {
+            prop_assert_eq!(encode_torque(torque).len(), FFB_REPORT_LEN);
+        }
+    }
+}
