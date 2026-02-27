@@ -4452,6 +4452,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "openracing-profile"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "quickcheck",
+ "serde",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
 name = "openracing-profile-repository"
 version = "0.1.0"
 dependencies = [
@@ -5477,6 +5488,7 @@ dependencies = [
  "quickcheck_macros",
  "racing-wheel-engine",
  "racing-wheel-hid-fanatec-protocol",
+ "racing-wheel-hid-ffbeast-protocol",
  "racing-wheel-hid-logitech-protocol",
  "racing-wheel-hid-moza-protocol",
  "racing-wheel-hid-openffboard-protocol",
@@ -5513,6 +5525,10 @@ version = "0.1.0"
 dependencies = [
  "tracing",
 ]
+
+[[package]]
+name = "racing-wheel-hid-ffbeast-protocol"
+version = "0.1.0"
 
 [[package]]
 name = "racing-wheel-hid-logitech-protocol"
