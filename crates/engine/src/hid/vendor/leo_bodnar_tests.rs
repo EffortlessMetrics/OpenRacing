@@ -1,8 +1,8 @@
 //! Tests for the Leo Bodnar vendor protocol handler.
 
 use super::leo_bodnar::{
-    LeoBodnarHandler, LEO_BODNAR_PID_BBI32, LEO_BODNAR_PID_JOYSTICK, LEO_BODNAR_PID_SLIM,
-    LEO_BODNAR_PID_WHEEL, LEO_BODNAR_VENDOR_ID, is_leo_bodnar_ffb_product,
+    LeoBodnarHandler, LEO_BODNAR_PID_BBI32, LEO_BODNAR_PID_FFB_JOYSTICK, LEO_BODNAR_PID_JOYSTICK,
+    LEO_BODNAR_PID_SLIM, LEO_BODNAR_PID_WHEEL, LEO_BODNAR_VENDOR_ID, is_leo_bodnar_ffb_product,
 };
 use super::{get_vendor_protocol, DeviceWriter, VendorProtocol};
 use std::cell::RefCell;
@@ -244,14 +244,15 @@ use proptest::prelude::*;
 proptest! {
     #![proptest_config(proptest::test_runner::Config::with_cases(256))]
 
-    /// is_leo_bodnar_ffb_product must be true if and only if the PID is the
-    /// USB Sim Racing Wheel Interface (0x000E).
+    /// is_leo_bodnar_ffb_product must be true if and only if the PID is an
+    /// FFB-capable Leo Bodnar device (Wheel Interface 0x000E or FFB Joystick 0x000F).
     #[test]
     fn prop_is_leo_bodnar_ffb_product_exact_pid(pid in any::<u16>()) {
         prop_assert_eq!(
             is_leo_bodnar_ffb_product(pid),
-            pid == LEO_BODNAR_PID_WHEEL,
-            "is_leo_bodnar_ffb_product must match only PID 0x{:04X}", LEO_BODNAR_PID_WHEEL
+            pid == LEO_BODNAR_PID_WHEEL || pid == LEO_BODNAR_PID_FFB_JOYSTICK,
+            "is_leo_bodnar_ffb_product must match only FFB-capable PIDs (0x{:04X}, 0x{:04X})",
+            LEO_BODNAR_PID_WHEEL, LEO_BODNAR_PID_FFB_JOYSTICK
         );
     }
 

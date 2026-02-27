@@ -18,37 +18,30 @@
 
 #![deny(static_mut_refs)]
 
+use racing_wheel_hid_leo_bodnar_protocol::{
+    is_leo_bodnar_ffb_pid, PID_BBI32, PID_FFB_JOYSTICK, PID_SLI_M, PID_USB_JOYSTICK,
+    PID_WHEEL_INTERFACE, WHEEL_DEFAULT_MAX_TORQUE_NM, WHEEL_ENCODER_CPR, MAX_REPORT_BYTES,
+};
 use super::{DeviceWriter, FfbConfig, VendorProtocol};
 use tracing::{debug, info};
 
 /// Leo Bodnar vendor ID.
-pub const LEO_BODNAR_VENDOR_ID: u16 = 0x1DD2;
+pub use racing_wheel_hid_leo_bodnar_protocol::VENDOR_ID as LEO_BODNAR_VENDOR_ID;
 
 /// USB Sim Racing Wheel Interface product ID (HID PID force feedback).
-pub const LEO_BODNAR_PID_WHEEL: u16 = 0x000E;
+pub const LEO_BODNAR_PID_WHEEL: u16 = PID_WHEEL_INTERFACE;
 /// BBI-32 Button Box product ID (input-only).
-pub const LEO_BODNAR_PID_BBI32: u16 = 0x000C;
+pub const LEO_BODNAR_PID_BBI32: u16 = PID_BBI32;
 /// SLI-M Shift Light Indicator product ID (input-only).
-pub const LEO_BODNAR_PID_SLIM: u16 = 0xBEEF;
+pub const LEO_BODNAR_PID_SLIM: u16 = PID_SLI_M;
 /// USB Joystick product ID (input-only, no FFB).
-pub const LEO_BODNAR_PID_JOYSTICK: u16 = 0x0001;
+pub const LEO_BODNAR_PID_JOYSTICK: u16 = PID_USB_JOYSTICK;
+/// FFB Joystick product ID (HID PID force feedback joystick).
+pub const LEO_BODNAR_PID_FFB_JOYSTICK: u16 = PID_FFB_JOYSTICK;
 
-/// Maximum torque for the Leo Bodnar USB Sim Racing Wheel Interface in Newton-metres.
-///
-/// The actual torque depends on the connected motor and power supply. 10 Nm is a
-/// conservative default for typical direct-drive builds; users can tune this in
-/// their force feedback profile.
-const DEFAULT_MAX_TORQUE_NM: f32 = 10.0;
-
-/// Default encoder CPR for the Leo Bodnar wheel interface.
-///
-/// Leo Bodnar's USB Sim Racing Wheel Interface reports position over a 16-bit
-/// range via standard HID PID.
-const DEFAULT_ENCODER_CPR: u32 = 65_535;
-
-/// Returns `true` if the given product ID is a Leo Bodnar FFB-capable wheel interface.
+/// Returns `true` if the given product ID is a Leo Bodnar FFB-capable device.
 pub fn is_leo_bodnar_ffb_product(product_id: u16) -> bool {
-    product_id == LEO_BODNAR_PID_WHEEL
+    is_leo_bodnar_ffb_pid(product_id)
 }
 
 /// Leo Bodnar vendor protocol handler.
@@ -103,15 +96,14 @@ impl VendorProtocol for LeoBodnarHandler {
         report_id: u8,
         data: &[u8],
     ) -> Result<(), Box<dyn std::error::Error>> {
-        const MAX: usize = 64;
-        if data.len() + 1 > MAX {
+        if data.len() + 1 > MAX_REPORT_BYTES {
             return Err(format!(
                 "Feature report too large for Leo Bodnar transport: {} bytes",
                 data.len() + 1
             )
             .into());
         }
-        let mut buf = [0u8; MAX];
+        let mut buf = [0u8; MAX_REPORT_BYTES];
         buf[0] = report_id;
         buf[1..(data.len() + 1)].copy_from_slice(data);
         writer.write_feature_report(&buf[..(data.len() + 1)])?;
@@ -124,8 +116,8 @@ impl VendorProtocol for LeoBodnarHandler {
                 fix_conditional_direction: false,
                 uses_vendor_usage_page: false,
                 required_b_interval: None,
-                max_torque_nm: DEFAULT_MAX_TORQUE_NM,
-                encoder_cpr: DEFAULT_ENCODER_CPR,
+                max_torque_nm: WHEEL_DEFAULT_MAX_TORQUE_NM,
+                encoder_cpr: WHEEL_ENCODER_CPR,
             }
         } else {
             FfbConfig {
