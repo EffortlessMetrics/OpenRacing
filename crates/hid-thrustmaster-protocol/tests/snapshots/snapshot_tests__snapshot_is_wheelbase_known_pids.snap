@@ -1,0 +1,5 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_tests.rs
+expression: "results.join(\", \")"
+---
+0xB66E=true, 0xB66D=false, 0xB677=true, 0xB68E=true, 0xB692=true, 0xB67F=true, 0xB669=true, 0xB691=true, 0xB689=true, 0xB69B=true

@@ -1,0 +1,5 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_tests.rs
+expression: "format!(\"pid=0x{:04X}, name={}, category={:?}, ffb={}\", ident.product_id,\nident.name, ident.category, ident.supports_ffb)"
+---
+pid=0xB677, name=Thrustmaster T500 RS, category=Wheelbase, ffb=true
