@@ -18,6 +18,7 @@ members = [
     "crates/hid-asetek-protocol",
     "crates/hid-button-box-protocol",
     "crates/hid-leo-bodnar-protocol",
+    "crates/hid-accuforce-protocol",
     "crates/hid-openffboard-protocol",
     "crates/hid-ffbeast-protocol",
     "crates/hid-cammus-protocol",
@@ -183,6 +184,7 @@ racing-wheel-hid-heusinkveld-protocol = { path = "crates/hid-heusinkveld-protoco
 racing-wheel-hid-asetek-protocol = { path = "crates/hid-asetek-protocol" }
 racing-wheel-hid-button-box-protocol = { path = "crates/hid-button-box-protocol" }
 racing-wheel-hid-leo-bodnar-protocol = { path = "crates/hid-leo-bodnar-protocol" }
+racing-wheel-hid-accuforce-protocol = { path = "crates/hid-accuforce-protocol", version = "0.1.0" }
 racing-wheel-simplemotion-v2 = { path = "crates/simplemotion-v2" }
 racing-wheel-ks = { path = "crates/ks" }
 racing-wheel-moza-wheelbase-report = { path = "crates/moza-wheelbase-report" }

@@ -3,62 +3,13 @@
 //! The SimExperience AccuForce Pro is a brushless direct drive wheelbase that
 //! exposes a standard USB HID PID (force feedback) interface. No proprietary
 //! torque protocol is used at the USB level.
-//!
-//! Confirmed VID/PID values (source: community USB device captures and
-//! RetroBat emulator launcher Wheels.cs, commit 0a54752):
-//!   VID 0x1FC9 (NXP Semiconductors — USB chip used internally)
-//!   AccuForce Pro  PID 0x804C
 
 #![deny(static_mut_refs)]
 
+use racing_wheel_hid_accuforce_protocol::{AccuForceModel, MAX_REPORT_BYTES};
+pub use racing_wheel_hid_accuforce_protocol::is_accuforce_pid as is_accuforce_product;
 use super::{DeviceWriter, FfbConfig, VendorProtocol};
 use tracing::{debug, info};
-
-/// AccuForce Pro vendor ID (NXP Semiconductors USB chip, used by SimExperience)
-pub const ACCUFORCE_VENDOR_ID: u16 = 0x1FC9;
-
-/// SimExperience AccuForce Pro product ID (confirmed)
-pub const ACCUFORCE_PRO_PID: u16 = 0x804C;
-
-/// AccuForce model classification.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AccuForceModel {
-    /// SimExperience AccuForce Pro (~7 Nm, 100–200 Hz USB update rate)
-    Pro,
-    /// Future or unrecognised AccuForce product
-    Unknown,
-}
-
-impl AccuForceModel {
-    /// Resolve model from a product ID.
-    pub fn from_product_id(pid: u16) -> Self {
-        match pid {
-            ACCUFORCE_PRO_PID => Self::Pro,
-            _ => Self::Unknown,
-        }
-    }
-
-    /// Human-readable name.
-    pub fn display_name(self) -> &'static str {
-        match self {
-            Self::Pro => "SimExperience AccuForce Pro",
-            Self::Unknown => "SimExperience AccuForce (unknown model)",
-        }
-    }
-
-    /// Rated peak torque in Nm.
-    pub fn max_torque_nm(self) -> f32 {
-        match self {
-            Self::Pro => 7.0,
-            Self::Unknown => 7.0,
-        }
-    }
-}
-
-/// Return true when `product_id` is a known AccuForce product.
-pub fn is_accuforce_product(product_id: u16) -> bool {
-    matches!(product_id, ACCUFORCE_PRO_PID)
-}
 
 /// Protocol handler for SimExperience AccuForce Pro wheelbases.
 ///
@@ -115,7 +66,6 @@ impl VendorProtocol for AccuForceProtocolHandler {
         report_id: u8,
         data: &[u8],
     ) -> Result<(), Box<dyn std::error::Error>> {
-        const MAX_REPORT_BYTES: usize = 64;
         if data.len() + 1 > MAX_REPORT_BYTES {
             return Err(format!(
                 "Feature report too large for AccuForce transport: {} bytes",

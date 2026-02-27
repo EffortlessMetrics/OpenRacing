@@ -5510,6 +5510,7 @@ dependencies = [
  "quickcheck",
  "quickcheck_macros",
  "racing-wheel-engine",
+ "racing-wheel-hid-accuforce-protocol",
  "racing-wheel-hid-cammus-protocol",
  "racing-wheel-hid-fanatec-protocol",
  "racing-wheel-hid-ffbeast-protocol",
@@ -5546,6 +5547,13 @@ name = "racing-wheel-hbp"
 version = "0.1.0"
 
 [[package]]
+name = "racing-wheel-hid-accuforce-protocol"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+]
+
+[[package]]
 name = "racing-wheel-hid-cammus-protocol"
 version = "0.1.0"
 dependencies = [
@@ -5574,6 +5582,7 @@ dependencies = [
 name = "racing-wheel-hid-leo-bodnar-protocol"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "proptest",
 ]
 
@@ -5671,6 +5680,10 @@ dependencies = [
  "racing-wheel-schemas",
  "racing-wheel-service",
  "racing-wheel-simplemotion-v2",
+ "racing-wheel-telemetry-adapters",
+ "racing-wheel-telemetry-config",
+ "racing-wheel-telemetry-config-writers",
+ "racing-wheel-telemetry-support",
  "rand 0.9.2",
  "serde",
  "serde_json",
