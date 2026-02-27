@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OpenFFBoard open-source direct drive support** (VID `0x1209`):
+  - PIDs `0xFFB0` (main) and `0xFFB1` (alt) — covers all production OpenFFBoard firmware releases
+  - `racing-wheel-hid-openffboard-protocol` microcrate: `OpenFFBoardTorqueEncoder`, FFB enable/gain feature reports
+  - `OpenFFBoardHandler` vendor handler: initializes via feature reports (enable FFB + set max gain), 20 Nm default
+  - 8 tests in `openffboard_tests.rs` (all `Result`-returning, no unwrap)
+  - udev rules + Windows device registry + capabilities block added
+
+- **Granite Devices SimpleMotion V2 / Simucube 1** (VID `0x1D50`):
+  - PIDs: `0x6050` (IONI / Simucube 1, 15 Nm), `0x6051` (IONI Premium, 35 Nm), `0x6052` (ARGON / OSW, 10 Nm)
+  - Added to `SupportedDevices::all()`, `determine_device_capabilities()`, `supported_vendor_ids()`, `get_manufacturer_name()`
+  - udev rules entry with autosuspend disabled
+
 - **Multi-vendor plug-and-play device support** — 7 vendors now fully handled:
   - **Thrustmaster** (VID `0x044F`): T150, T150 Pro, TMX, T300RS/GT, TX Racing, T500RS, T248/T248X, T-GT/T-GT II, TS-PC Racer, TS-XW, T818 (direct drive), T3PA/T3PA Pro, T-LCM/T-LCM Pro pedals
     - 4-step FFB init: reset gain → set full gain → enable actuators → set rotation range
