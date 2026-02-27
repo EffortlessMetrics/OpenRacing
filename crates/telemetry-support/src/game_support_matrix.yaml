@@ -1425,3 +1425,164 @@ games:
         - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1465360"
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/SnowRunner"
+
+
+  nascar:
+    name: "NASCAR Racing (Papyrus)"
+    versions:
+      - version: "2003 and earlier"
+        config_paths: []
+        executable_patterns:
+          - "NASCAR Racing.exe"
+          - "NR2003.exe"
+        telemetry_method: "papyrus_udp"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+          - "ffb_scalar"
+    telemetry:
+      method: "papyrus_udp"
+      update_rate_hz: 36
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:5606"
+      fields:
+        ffb_scalar: null
+        rpm: null
+        speed_ms: null
+        slip_ratio: null
+        gear: null
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "nascar"
+    auto_detect:
+      process_names:
+        - "NASCAR Racing.exe"
+        - "NR2003.exe"
+      install_registry_keys: []
+      install_paths: []
+
+  le_mans_ultimate:
+    name: "Le Mans Ultimate"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "LeMansUltimate.exe"
+        telemetry_method: "rf2_udp"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+    telemetry:
+      method: "rf2_udp"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:6789"
+      fields:
+        ffb_scalar: null
+        rpm: null
+        speed_ms: null
+        slip_ratio: null
+        gear: null
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "le_mans_ultimate"
+    auto_detect:
+      process_names:
+        - "LeMansUltimate.exe"
+      install_registry_keys: []
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Le Mans Ultimate"
+
+  wtcr:
+    name: "WTCR Race of the World"
+    versions:
+      - version: "2018-2020"
+        config_paths: []
+        executable_patterns:
+          - "WTCR.exe"
+        telemetry_method: "codemasters_udp"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+          - "ffb_scalar"
+    telemetry:
+      method: "codemasters_udp"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:6778"
+      fields:
+        ffb_scalar: null
+        rpm: null
+        speed_ms: null
+        slip_ratio: null
+        gear: null
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "wtcr"
+    auto_detect:
+      process_names:
+        - "WTCR.exe"
+      install_registry_keys: []
+      install_paths: []
+
+  trackmania:
+    name: "Trackmania"
+    versions:
+      - version: "2020+"
+        config_paths: []
+        executable_patterns:
+          - "TrackMania.exe"
+          - "ManiaPlanet.exe"
+        telemetry_method: "trackmania_json_udp"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+    telemetry:
+      method: "trackmania_json_udp"
+      update_rate_hz: 20
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:5004"
+      fields:
+        ffb_scalar: null
+        rpm: null
+        speed_ms: null
+        slip_ratio: null
+        gear: null
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "trackmania"
+    auto_detect:
+      process_names:
+        - "TrackMania.exe"
+        - "ManiaPlanet.exe"
+      install_registry_keys: []
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Trackmania"

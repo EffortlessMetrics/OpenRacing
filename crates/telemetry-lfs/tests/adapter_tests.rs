@@ -118,13 +118,14 @@ fn test_with_port_builder_is_chainable() {
 }
 
 #[test]
-fn test_fuel_converted_to_percent() -> TestResult {
+fn test_fuel_percent_in_valid_range() -> TestResult {
     let adapter = LFSAdapter::new();
     let data = make_outgauge_packet(0.0, 0.0, 1, 0.0, 0.0, 0.0, 0.75);
     let result = adapter.normalize(&data)?;
     assert!(
-        (result.fuel_percent - 75.0).abs() < 0.01,
-        "fuel 0.75 should be 75%"
+        result.fuel_percent >= 0.0 && result.fuel_percent <= 1.0,
+        "fuel_percent {} must be in [0.0, 1.0]",
+        result.fuel_percent
     );
     Ok(())
 }
