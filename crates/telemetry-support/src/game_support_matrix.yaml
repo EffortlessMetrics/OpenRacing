@@ -380,44 +380,6 @@ games:
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/Dirt 5"
 
-  gran_turismo_7:
-    name: "Gran Turismo 7"
-    versions:
-      - version: "1.x"
-        config_paths: []
-        executable_patterns: []
-        telemetry_method: "udp_salsa20_encrypted"
-        supported_fields:
-          - "rpm"
-          - "speed_ms"
-          - "gear"
-          - "throttle"
-          - "brake"
-          - "fuel_percent"
-          - "engine_temp_c"
-          - "tire_temps_c"
-    telemetry:
-      method: "udp_salsa20_encrypted"
-      update_rate_hz: 60
-      supports_360hz_option: false
-      high_rate_update_rate_hz: null
-      output_target: "0.0.0.0:33740"
-      fields:
-        ffb_scalar: null
-        rpm: "engine_rpm"
-        speed_ms: "speed_ms"
-        slip_ratio: null
-        gear: "gear_byte_low_nibble"
-        flags: "flags_u32"
-        car_id: "car_code"
-        track_id: null
-    status: "experimental"
-    config_writer: "gran_turismo_7"
-    auto_detect:
-      process_names: []
-      install_registry_keys: []
-      install_paths: []
-
   dirt_rally_2:
     name: "DiRT Rally 2.0"
     versions:
@@ -428,13 +390,18 @@ games:
           - "DiRTRally2.0.exe"
         telemetry_method: "udp_codemasters_mode1"
         supported_fields:
-          - "speed_ms"
           - "rpm"
+          - "speed_ms"
           - "gear"
           - "throttle"
           - "brake"
+          - "steering_angle"
+          - "flags"
           - "lateral_g"
           - "longitudinal_g"
+          - "fuel_percent"
+          - "tire_temps_c"
+          - "tire_pressures_psi"
     telemetry:
       method: "udp_codemasters_mode1"
       update_rate_hz: 60
@@ -479,6 +446,7 @@ games:
           - "clutch"
           - "steering_angle"
           - "ffb_scalar"
+          - "flags"
     telemetry:
       method: "udp_livedata"
       update_rate_hz: 60
@@ -504,6 +472,44 @@ games:
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/Richard Burns Rally"
         - "Richard Burns Rally"
+
+  gran_turismo_7:
+    name: "Gran Turismo 7"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "udp_salsa20_encrypted"
+        supported_fields:
+          - "rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "fuel_percent"
+          - "engine_temp_c"
+          - "tire_temps_c"
+    telemetry:
+      method: "udp_salsa20_encrypted"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "0.0.0.0:33740"
+      fields:
+        ffb_scalar: null
+        rpm: "engine_rpm"
+        speed_ms: "speed_ms"
+        slip_ratio: null
+        gear: "gear_byte_low_nibble"
+        flags: "flags_u32"
+        car_id: "car_code"
+        track_id: null
+    status: "experimental"
+    config_writer: "gran_turismo_7"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
 
   assetto_corsa:
     name: "Assetto Corsa"
@@ -967,142 +973,6 @@ games:
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/RENNSPORT"
 
-  kartkraft:
-    name: "KartKraft"
-    versions:
-      - version: "Early Access (Steam)"
-        config_paths:
-          - "%LOCALAPPDATA%/project_k/Saved/Config/WindowsNoEditor/Game.ini"
-        executable_patterns:
-          - "KartKraft.exe"
-          - "project_k.exe"
-        telemetry_method: "udp_flatbuffers_kkfb"
-        supported_fields:
-          - "speed_ms"
-          - "rpm"
-          - "gear"
-          - "throttle"
-          - "brake"
-          - "steering_angle"
-          - "slip_ratio"
-          - "max_rpm"
-          - "track_id"
-    telemetry:
-      method: "udp_flatbuffers_kkfb"
-      update_rate_hz: 60
-      supports_360hz_option: false
-      high_rate_update_rate_hz: null
-      output_target: "127.0.0.1:5000"
-      fields:
-        ffb_scalar: null
-        rpm: "Dashboard.rpm"
-        speed_ms: "Dashboard.speed"
-        slip_ratio: "Motion.tractionLoss"
-        gear: "Dashboard.gear"
-        flags: null
-        car_id: null
-        track_id: "TrackConfig.name"
-    status: "experimental"
-    config_writer: "kartkraft"
-    auto_detect:
-      process_names:
-        - "KartKraft.exe"
-        - "project_k.exe"
-      install_registry_keys:
-        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 878620"
-      install_paths:
-        - "Program Files (x86)/Steam/steamapps/common/KartKraft"
-
-  raceroom:
-    name: "RaceRoom Racing Experience"
-    versions:
-      - version: "2024.x"
-        config_paths:
-          - "Documents/OpenRacing/raceroom_bridge_contract.json"
-        executable_patterns:
-          - "RRRE.exe"
-          - "RRRE64.exe"
-        telemetry_method: "r3e_shared_memory"
-        supported_fields:
-          - "ffb_scalar"
-          - "rpm"
-          - "speed_ms"
-          - "slip_ratio"
-          - "gear"
-          - "flags"
-          - "car_id"
-          - "track_id"
-    telemetry:
-      method: "r3e_shared_memory"
-      update_rate_hz: 100
-      supports_360hz_option: false
-      high_rate_update_rate_hz: null
-      output_target: "127.0.0.1:0"
-      fields:
-        ffb_scalar: "ForceFeedback"
-        rpm: "EngineRps"
-        speed_ms: "CarSpeed"
-        slip_ratio: "TireGrip"
-        gear: "Gear"
-        flags: "SessionPhase"
-        car_id: "VehicleInfo/ModelId"
-        track_id: "TrackId"
-    status: "experimental"
-    config_writer: "raceroom"
-    auto_detect:
-      process_names:
-        - "RRRE.exe"
-        - "RRRE64.exe"
-      install_registry_keys:
-        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 211500"
-      install_paths:
-        - "Program Files (x86)/Steam/steamapps/common/raceroom racing experience"
-
-  raceroom:
-    name: "RaceRoom Racing Experience"
-    versions:
-      - version: "2.x"
-        config_paths: []
-        executable_patterns:
-          - "rrre.exe"
-          - "raceroom.exe"
-        telemetry_method: "shared_memory_r3e"
-        supported_fields:
-          - "rpm"
-          - "max_rpm"
-          - "speed_ms"
-          - "gear"
-          - "throttle"
-          - "brake"
-          - "clutch"
-          - "fuel_percent"
-          - "steering_angle"
-    telemetry:
-      method: "shared_memory_r3e"
-      update_rate_hz: 60
-      supports_360hz_option: false
-      high_rate_update_rate_hz: null
-      output_target: "127.0.0.1:0"
-      fields:
-        ffb_scalar: null
-        rpm: "engine_rpm"
-        speed_ms: "speed"
-        slip_ratio: null
-        gear: "gear"
-        flags: null
-        car_id: null
-        track_id: null
-    status: "experimental"
-    config_writer: "raceroom"
-    auto_detect:
-      process_names:
-        - "rrre.exe"
-        - "raceroom.exe"
-      install_registry_keys:
-        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 211500"
-      install_paths:
-        - "Program Files (x86)/Steam/steamapps/common/Race Room Racing Experience"
-
   grid_autosport:
     name: "GRID Autosport"
     versions:
@@ -1289,3 +1159,139 @@ games:
         - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 431600"
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/Automobilista"
+
+  kartkraft:
+    name: "KartKraft"
+    versions:
+      - version: "Early Access (Steam)"
+        config_paths:
+          - "%LOCALAPPDATA%/project_k/Saved/Config/WindowsNoEditor/Game.ini"
+        executable_patterns:
+          - "KartKraft.exe"
+          - "project_k.exe"
+        telemetry_method: "udp_flatbuffers_kkfb"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+          - "slip_ratio"
+          - "max_rpm"
+          - "track_id"
+    telemetry:
+      method: "udp_flatbuffers_kkfb"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:5000"
+      fields:
+        ffb_scalar: null
+        rpm: "Dashboard.rpm"
+        speed_ms: "Dashboard.speed"
+        slip_ratio: "Motion.tractionLoss"
+        gear: "Dashboard.gear"
+        flags: null
+        car_id: null
+        track_id: "TrackConfig.name"
+    status: "experimental"
+    config_writer: "kartkraft"
+    auto_detect:
+      process_names:
+        - "KartKraft.exe"
+        - "project_k.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 878620"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/KartKraft"
+
+  raceroom:
+    name: "RaceRoom Racing Experience"
+    versions:
+      - version: "2024.x"
+        config_paths:
+          - "Documents/OpenRacing/raceroom_bridge_contract.json"
+        executable_patterns:
+          - "RRRE.exe"
+          - "RRRE64.exe"
+        telemetry_method: "r3e_shared_memory"
+        supported_fields:
+          - "ffb_scalar"
+          - "rpm"
+          - "speed_ms"
+          - "slip_ratio"
+          - "gear"
+          - "flags"
+          - "car_id"
+          - "track_id"
+    telemetry:
+      method: "r3e_shared_memory"
+      update_rate_hz: 100
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:0"
+      fields:
+        ffb_scalar: "ForceFeedback"
+        rpm: "EngineRps"
+        speed_ms: "CarSpeed"
+        slip_ratio: "TireGrip"
+        gear: "Gear"
+        flags: "SessionPhase"
+        car_id: "VehicleInfo/ModelId"
+        track_id: "TrackId"
+    status: "experimental"
+    config_writer: "raceroom"
+    auto_detect:
+      process_names:
+        - "RRRE.exe"
+        - "RRRE64.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 211500"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/raceroom racing experience"
+
+  raceroom:
+    name: "RaceRoom Racing Experience"
+    versions:
+      - version: "2.x"
+        config_paths: []
+        executable_patterns:
+          - "rrre.exe"
+          - "raceroom.exe"
+        telemetry_method: "shared_memory_r3e"
+        supported_fields:
+          - "rpm"
+          - "max_rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "clutch"
+          - "fuel_percent"
+          - "steering_angle"
+    telemetry:
+      method: "shared_memory_r3e"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:0"
+      fields:
+        ffb_scalar: null
+        rpm: "engine_rpm"
+        speed_ms: "speed"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "raceroom"
+    auto_detect:
+      process_names:
+        - "rrre.exe"
+        - "raceroom.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 211500"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Race Room Racing Experience"
