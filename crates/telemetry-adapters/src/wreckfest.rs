@@ -309,4 +309,31 @@ mod tests {
         let adapter = WreckfestAdapter::new();
         assert_eq!(adapter.expected_update_rate(), Duration::from_millis(16));
     }
+
+    #[test]
+    fn test_empty_packet() {
+        assert!(parse_wreckfest_packet(&[]).is_err(), "empty packet must return an error");
+    }
+
+    #[test]
+    fn test_speed_is_nonnegative() -> TestResult {
+        let data = make_wreckfest_packet(45.0, 5500.0, 4, 0.3, 0.1);
+        let result = parse_wreckfest_packet(&data)?;
+        assert!(result.speed_ms >= 0.0, "speed_ms must be non-negative, got {}", result.speed_ms);
+        Ok(())
+    }
+
+    #[test]
+    fn test_gear_in_valid_range() -> TestResult {
+        for g in 0u8..=8 {
+            let data = make_wreckfest_packet(20.0, 3000.0, g, 0.1, 0.0);
+            let result = parse_wreckfest_packet(&data)?;
+            assert!(
+                result.gear >= 0 && result.gear <= 8,
+                "gear {} out of expected range 0..=8",
+                result.gear
+            );
+        }
+        Ok(())
+    }
 }

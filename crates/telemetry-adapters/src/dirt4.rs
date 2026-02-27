@@ -408,4 +408,87 @@ mod tests {
         }
         Ok(())
     }
+
+    #[test]
+    fn empty_input_returns_error() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = Dirt4Adapter::new();
+        assert!(adapter.normalize(&[]).is_err(), "empty input must return an error");
+        Ok(())
+    }
+
+    #[test]
+    fn known_good_payload_throttle_brake_gear() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = Dirt4Adapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_FL, 20.0);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_FR, 20.0);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_RL, 20.0);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_RR, 20.0);
+        write_f32(&mut raw, OFF_THROTTLE, 0.7);
+        write_f32(&mut raw, OFF_BRAKE, 0.0);
+        write_f32(&mut raw, OFF_GEAR, 2.0);
+        let t = adapter.normalize(&raw)?;
+        assert!((t.speed_ms - 20.0).abs() < 0.001, "speed_ms={}", t.speed_ms);
+        assert!((t.throttle - 0.7).abs() < 0.001, "throttle={}", t.throttle);
+        assert!(t.brake.abs() < 0.001, "brake={}", t.brake);
+        assert_eq!(t.gear, 2, "gear={}", t.gear);
+        Ok(())
+    }
+
+    #[test]
+    fn speed_is_nonnegative() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = Dirt4Adapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_FL, 10.0);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_FR, 10.0);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_RL, 10.0);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_RR, 10.0);
+        let t = adapter.normalize(&raw)?;
+        assert!(t.speed_ms >= 0.0, "speed_ms must be non-negative, got {}", t.speed_ms);
+        Ok(())
+    }
+
+    #[test]
+    fn throttle_clamped_to_unit_range() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = Dirt4Adapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_THROTTLE, 3.0);
+        let t = adapter.normalize(&raw)?;
+        assert!(
+            t.throttle >= 0.0 && t.throttle <= 1.0,
+            "throttle={} must be in [0.0, 1.0]",
+            t.throttle
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn brake_clamped_to_unit_range() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = Dirt4Adapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_BRAKE, 5.0);
+        let t = adapter.normalize(&raw)?;
+        assert!(
+            t.brake >= 0.0 && t.brake <= 1.0,
+            "brake={} must be in [0.0, 1.0]",
+            t.brake
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn gear_forward_stays_in_range() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = Dirt4Adapter::new();
+        for g in 1i32..=8 {
+            let mut raw = make_packet(MIN_PACKET_SIZE);
+            write_f32(&mut raw, OFF_GEAR, g as f32);
+            let t = adapter.normalize(&raw)?;
+            assert!(
+                t.gear >= -1 && t.gear <= 8,
+                "gear {} out of expected range -1..=8",
+                t.gear
+            );
+        }
+        Ok(())
+    }
 }

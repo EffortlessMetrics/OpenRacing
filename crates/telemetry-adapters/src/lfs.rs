@@ -314,6 +314,53 @@ mod tests {
         assert_eq!(adapter.bind_port, 31000);
     }
 
+    #[test]
+    fn test_speed_is_nonnegative() -> TestResult {
+        let data = make_lfs_packet(50.0, 5000.0, 3, 0.5, 0.0, 0.0, 0.5);
+        let result = parse_lfs_packet(&data)?;
+        assert!(result.speed_ms >= 0.0, "speed_ms must be non-negative, got {}", result.speed_ms);
+        Ok(())
+    }
+
+    #[test]
+    fn test_throttle_in_unit_range() -> TestResult {
+        let data = make_lfs_packet(30.0, 4000.0, 3, 0.75, 0.0, 0.0, 0.6);
+        let result = parse_lfs_packet(&data)?;
+        assert!(
+            result.throttle >= 0.0 && result.throttle <= 1.0,
+            "throttle={} must be in [0.0, 1.0]",
+            result.throttle
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_brake_in_unit_range() -> TestResult {
+        let data = make_lfs_packet(5.0, 2000.0, 2, 0.0, 0.9, 0.0, 0.8);
+        let result = parse_lfs_packet(&data)?;
+        assert!(
+            result.brake >= 0.0 && result.brake <= 1.0,
+            "brake={} must be in [0.0, 1.0]",
+            result.brake
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_gear_valid_range_for_forward_gears() -> TestResult {
+        for raw_gear in 2u8..=8u8 {
+            let data = make_lfs_packet(20.0, 3000.0, raw_gear, 0.5, 0.0, 0.0, 0.5);
+            let result = parse_lfs_packet(&data)?;
+            assert!(
+                result.gear >= -1 && result.gear <= 8,
+                "gear {} (from raw {}) out of expected range -1..=8",
+                result.gear,
+                raw_gear
+            );
+        }
+        Ok(())
+    }
+
     #[cfg(test)]
     mod proptest_tests {
         use super::*;

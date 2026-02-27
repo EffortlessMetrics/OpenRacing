@@ -320,4 +320,31 @@ mod tests {
         let adapter = RennsportAdapter::new();
         assert_eq!(adapter.expected_update_rate(), Duration::from_millis(16));
     }
+
+    #[test]
+    fn test_empty_packet() {
+        assert!(parse_rennsport_packet(&[]).is_err(), "empty packet must return an error");
+    }
+
+    #[test]
+    fn test_speed_is_nonnegative() -> TestResult {
+        let data = make_rennsport_packet(144.0, 6500.0, 3, 0.4, 0.05);
+        let result = parse_rennsport_packet(&data)?;
+        assert!(result.speed_ms >= 0.0, "speed_ms must be non-negative, got {}", result.speed_ms);
+        Ok(())
+    }
+
+    #[test]
+    fn test_gear_in_valid_range() -> TestResult {
+        for g in -1i8..=8 {
+            let data = make_rennsport_packet(50.0, 5000.0, g, 0.3, 0.0);
+            let result = parse_rennsport_packet(&data)?;
+            assert!(
+                result.gear >= -1 && result.gear <= 8,
+                "gear {} out of expected range -1..=8",
+                result.gear
+            );
+        }
+        Ok(())
+    }
 }

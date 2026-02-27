@@ -377,4 +377,31 @@ mod tests {
         let adapter = Ets2Adapter::new();
         assert_eq!(adapter.expected_update_rate(), Duration::from_millis(50));
     }
+
+    #[test]
+    fn test_empty_input() {
+        assert!(parse_scs_packet(&[]).is_err(), "empty input must return an error");
+    }
+
+    #[test]
+    fn test_speed_is_nonnegative() -> TestResult {
+        let data = make_scs_packet(25.0, 1200.0, 3, 0.6, 0.4);
+        let result = parse_scs_packet(&data)?;
+        assert!(result.speed_ms >= 0.0, "speed_ms must be non-negative, got {}", result.speed_ms);
+        Ok(())
+    }
+
+    #[test]
+    fn test_gear_in_valid_range() -> TestResult {
+        for g in -1i32..=12 {
+            let data = make_scs_packet(10.0, 1000.0, g, 0.5, 0.3);
+            let result = parse_scs_packet(&data)?;
+            assert!(
+                result.gear >= -1 && result.gear <= 12,
+                "gear {} out of expected range -1..=12",
+                result.gear
+            );
+        }
+        Ok(())
+    }
 }
