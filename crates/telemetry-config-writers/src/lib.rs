@@ -1610,6 +1610,212 @@ impl ConfigWriter for LFSConfigWriter {
     }
 }
 
+/// WRC Generations configuration writer.
+///
+/// WRC Generations / WRC 23 uses the Codemasters/RallyEngine UDP Mode 1 format.
+/// This writer creates a bridge contract file for the OpenRacing telemetry pipeline.
+pub struct WrcGenerationsConfigWriter;
+
+impl Default for WrcGenerationsConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for WrcGenerationsConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing WRC Generations bridge contract configuration");
+
+        let contract_path = game_path.join(WRC_GENERATIONS_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port =
+            parse_target_port(&config.output_target).unwrap_or(WRC_GENERATIONS_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "wrc_generations",
+            "telemetry_protocol": WRC_GENERATIONS_BRIDGE_PROTOCOL,
+            "mode": WRC_GENERATIONS_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "WRC Generations / WRC 23 uses the Codemasters/RallyEngine UDP Mode 1 format. Enable UDP telemetry in the game's accessibility settings.",
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(WRC_GENERATIONS_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == WRC_GENERATIONS_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "wrc_generations")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port =
+            parse_target_port(&config.output_target).unwrap_or(WRC_GENERATIONS_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "wrc_generations",
+            "telemetry_protocol": WRC_GENERATIONS_BRIDGE_PROTOCOL,
+            "mode": WRC_GENERATIONS_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "WRC Generations / WRC 23 uses the Codemasters/RallyEngine UDP Mode 1 format. Enable UDP telemetry in the game's accessibility settings.",
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: WRC_GENERATIONS_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Dirt 4 configuration writer.
+///
+/// Dirt 4 uses the Codemasters extradata v0 UDP format on port 20777.
+/// This writer creates a bridge contract file for the OpenRacing telemetry pipeline.
+pub struct Dirt4ConfigWriter;
+
+impl Default for Dirt4ConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for Dirt4ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Dirt 4 bridge contract configuration");
+
+        let contract_path = game_path.join(DIRT4_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(DIRT4_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "dirt4",
+            "telemetry_protocol": DIRT4_BRIDGE_PROTOCOL,
+            "mode": DIRT4_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Dirt 4 uses the Codemasters extradata v0 UDP format. Enable UDP telemetry in the game's settings.",
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(DIRT4_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == DIRT4_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "dirt4")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(DIRT4_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "dirt4",
+            "telemetry_protocol": DIRT4_BRIDGE_PROTOCOL,
+            "mode": DIRT4_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Dirt 4 uses the Codemasters extradata v0 UDP format. Enable UDP telemetry in the game's settings.",
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: DIRT4_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
 impl ConfigWriter for EAWRCConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing EA WRC telemetry configuration");

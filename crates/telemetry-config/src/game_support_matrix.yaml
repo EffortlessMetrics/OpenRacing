@@ -730,3 +730,92 @@ games:
         - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 421020"
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/DiRT 4"
+  project_cars_2:
+    name: "Project CARS 2"
+    versions:
+      - version: "8.x"
+        config_paths:
+          - "Documents/Project CARS 2/UserData/GraphicsOptions.xml"
+        executable_patterns:
+          - "pcars2.exe"
+          - "pcars3.exe"
+          - "projectcars2.exe"
+        telemetry_method: "udp_sms_pcars2"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "max_rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+    telemetry:
+      method: "udp_sms_pcars2"
+      update_rate_hz: 100
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:5606"
+      fields:
+        ffb_scalar: "ffb_from_engine"
+        rpm: "rpm"
+        speed_ms: "speed_ms"
+        slip_ratio: "tyre_slip"
+        gear: "gear"
+        flags: null
+        car_id: null
+        track_id: null
+    status: "stable"
+    config_writer: "project_cars_2"
+    auto_detect:
+      process_names:
+        - "pcars2.exe"
+        - "pcars3.exe"
+        - "projectcars2.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 378860"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Project CARS 2"
+  live_for_speed:
+    name: "Live For Speed"
+    versions:
+      - version: "0.7D+"
+        config_paths:
+          - "cfg.lfs"
+        executable_patterns:
+          - "lfs.exe"
+          - "lfs64.exe"
+        telemetry_method: "udp_outgauge"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "clutch"
+          - "fuel_percent"
+    telemetry:
+      method: "udp_outgauge"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:30000"
+      fields:
+        ffb_scalar: null
+        rpm: "rpm"
+        speed_ms: "speed_mps"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "live_for_speed"
+    auto_detect:
+      process_names:
+        - "lfs.exe"
+        - "lfs64.exe"
+      install_registry_keys:
+        - "HKEY_CURRENT_USER\\Software\\LFS"
+      install_paths:
+        - "Program Files (x86)/LFS"
+        - "LFS"
