@@ -14,4 +14,12 @@ include = [
 exclude_globs = [
     "**/target/**",
     "**/build.rs",
+    "crates/integration-tests/**",
+    "crates/schemas/**",
+    "workspace-hack/**",
+    "benches/**",
+    "fuzz/**",
 ]
+
+# 3x test timeout for mutation test runs
+timeout_multiplier = 3.0

@@ -26,6 +26,7 @@ racing-wheel-telemetry-core = { path = "../telemetry-core" }
 [dev-dependencies]
 proptest = { workspace = true }
 tempfile = "3.25.0"
+insta = { version = "1", features = ["yaml"] }
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.9", features = [

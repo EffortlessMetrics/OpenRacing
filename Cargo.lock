@@ -5772,6 +5772,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "insta",
  "proptest",
  "quick-xml 0.37.5",
  "racing-wheel-telemetry-core",
