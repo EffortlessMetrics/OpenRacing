@@ -96,6 +96,20 @@ No compile-time help distinguishes "this is a renamed constant" from "this const
 
 ---
 
+### F-011 · Linux `emit_rt_event` borrow error hidden on Windows (Medium · Resolved)
+
+**Encountered:** PR #15 CI — `UI Isolation Build (ubuntu-24.04)` failed with E0596:
+`cannot borrow 'file' as mutable, as it is not declared as mutable` in
+`crates/openracing-tracing/src/platform/linux.rs`.
+
+`LinuxTracepointsProvider::trace_file` was `Option<File>` but `TracingProvider::emit_rt_event` takes `&self`, so `write_all` couldn't borrow it mutably. This compiled fine on Windows (only the Windows provider is compiled on that platform).
+
+**Fix applied:** Wrapped in `Option<Mutex<File>>`; `emit_rt_event` uses `try_lock()` — contended writes increment `events_dropped` instead of blocking the RT thread. Commit `1c3fea5`.
+
+**Lesson:** Platform-specific code must be CI-checked on all platforms. A Linux-only compile error was invisible during all local Windows development. See also F-003: the CI platform matrix is the only safety net for cross-platform bugs.
+
+---
+
 ### F-008 · BeamNG gear value overflow (Resolved)
 
 **Encountered:** RC sprint — gear field stored as `i8`, underflowed at `0x80` (reverse/neutral boundary in the game's UDP packet)
@@ -133,6 +147,7 @@ No compile-time help distinguishes "this is a renamed constant" from "this const
 | F-008 | BeamNG gear overflow | commit cdd69f0 |
 | F-009 | static_mut_refs missing | commit cdd69f0 |
 | F-010 | Stale integration test name | agent-30 |
+| F-011 | Linux emit_rt_event borrow error | commit 1c3fea5 |
 
 ---
 
