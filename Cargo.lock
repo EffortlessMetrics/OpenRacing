@@ -5550,6 +5550,7 @@ version = "0.1.0"
 name = "racing-wheel-hid-accuforce-protocol"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "proptest",
 ]
 
