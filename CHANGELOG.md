@@ -20,13 +20,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `hid-button-box-protocol` microcrate: `ButtonBoxInputReport` parser (up to 32 buttons)
   - `ButtonBoxProtocolHandler`: input-only, no initialization required
   - Compatible with DIY Arduino button boxes, BangButtons, SimRacingInputs, and similar HID gamepad devices
+  - 10 insta snapshot tests + 500-case proptest property tests added
+  - `RotaryEncoderState::update` overflow fix: delta computation restricted to half-range to prevent `i32` subtraction overflow
 
-- **Game Telemetry Adapters** — 12 new adapters added to `telemetry-adapters` crate:
+- **Leo Bodnar USB interfaces** (VID `0x1DD2`):
+  - `racing-wheel-hid-leo-bodnar-protocol` microcrate: `LeoBodnarDevice` enum covering BBI-32, BU0836A, BU0836X, BU0836 16-bit, USB Joystick, Wheel Interface, FFB Joystick, SLI-M Shift Light
+  - Protocol constants: HID PID usage page, max torque, encoder CPR, and report size bounds
+  - `LeoBodnarHandler` engine vendor handler integrated in the multi-vendor HID pipeline; HID PID constant-force path used for FFB-capable products (`0x000E`, `0x000F`)
+  - 14 insta snapshot tests + 4 proptest property tests (512 cases each)
+
+- **Game Telemetry Adapters** — 24 game adapters now in `telemetry-adapters` crate + game support matrix:
   - **Assetto Corsa** — OutGauge UDP, port 9996
-  - **Forza Motorsport / Horizon** — Sled 232B + CarDash 311B UDP, port 5300
-  - **BeamNG.drive** — LFS OutGauge UDP, port 4444
-  - **Project CARS 2 / 3** — Windows shared memory `$pcars2$` + UDP port 5606
-  - **RaceRoom Experience** — R3E shared memory `$R3E`
+  - **Forza Motorsport / Horizon** — Forza Data Out UDP, port 5300
+  - **BeamNG.drive** — OutGauge UDP, port 4444
+  - **Project CARS 2 / 3** — shared memory `$pcars2$` + UDP port 5606
+  - **RaceRoom Racing Experience** — R3E shared memory `$R3E`; full YAML config entry + `raceroom` config writer
   - **iRacing** — shared memory `IRSDKMemMapFileName`
   - **rFactor 2** — shared memory
   - **AMS2 / Automobilista 2** — PCARS2-compatible shared memory protocol
@@ -34,6 +42,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Dirt 5** — Codemasters UDP
   - **EA WRC** — Codemasters UDP
   - **F1 2024** — Codemasters bridge adapter (alias `f1`)
+  - **WRC Generations** — Codemasters Mode 1 UDP, port 6777
+  - **DiRT 4** — Codemasters Mode 1 UDP, port 20777
+  - **Live For Speed** — OutGauge UDP, port 30000
+  - **Euro Truck Simulator 2** — SCS shared memory
+  - **American Truck Simulator** — SCS shared memory
+  - **Wreckfest** — UDP, port 5606
+  - **Rennsport** — UDP, port 9000
   - All adapters registered in `adapter_factories()` and tested via BDD parity validation
 
 - **Expanded test infrastructure**:
@@ -87,6 +102,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Linux udev rules** (`packaging/linux/99-racing-wheel-suite.rules`): Complete rewrite covering all vendors, correct VIDs for Simucube (now `0x2D6A`), VRS, Heusinkveld, Simagic modern, power autosuspend disabled for all racing peripherals
 - **Windows device registry** (`crates/engine/src/hid/windows.rs`): All new vendors added to `SupportedDevices` with correct VIDs/PIDs, capability blocks, and manufacturer names; Thrustmaster PID table corrected (T248=`0xB696`, T-LCM Pro=`0xB69A`)
 - **Protocol documentation**: Added `SIMUCUBE_PROTOCOL.md`, `VRS_PROTOCOL.md`, `HEUSINKVELD_PROTOCOL.md`, `ASETEK_PROTOCOL.md`; fixed wrong PIDs in `THRUSTMASTER_PROTOCOL.md` (T150, T150 Pro, TMX)
+- **VID/PID sources documentation** (`docs/protocols/SOURCES.md`): New reference document recording the authoritative source (verified, community, or estimated) for every USB Vendor ID and Product ID across all protocol crates; required citation policy enforced for new device additions
+
+- **Service IPC capabilities** now properly populated: `DeviceCapabilities` block is read from the device during `initialize_device()` and stored on `ManagedDevice`; IPC `GetDeviceStatus` responses now carry correct capability data instead of `None`
+
+- **Firmware rollback detection** improved: `FirmwareBundleMetadata` gains a `rollback_version` field; `is_upgrade_allowed()` rejects downgrades below the minimum version; corresponding unit test `test_rollback_protection` validates both allow and deny paths
+
+- **YAML sync CI check** added (`ci/yaml-sync-check.yml`): New GitHub Actions workflow runs on every push and pull request; uses `scripts/check_yaml_sync.py` to assert that `crates/telemetry-config/src/game_support_matrix.yaml` and `crates/telemetry-support/src/game_support_matrix.yaml` are byte-for-byte identical, preventing silent divergence
 
 - **Moza Racing hardware support** (wheelbase + peripherals, hardware-ready):
   - `racing-wheel-hid-moza-protocol` microcrate: pure protocol logic (report IDs/offsets, product IDs, handshake frame generator, wheelbase input parser, direct torque encoder, standalone HBP parser, signature verification)

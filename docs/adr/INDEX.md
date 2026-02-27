@@ -18,8 +18,8 @@ Total ADRs: 7
 
 ## Recent Changes
 
+- 2025-01-01: [ADR-0007: Multi-Vendor HID Protocol Architecture (SRP Microcrates)](0007-multi-vendor-hid-protocol-architecture.md)
 - 2024-01-15: [ADR-0001: Force Feedback Mode Matrix](0001-ffb-mode-matrix.md)
 - 2024-01-15: [ADR-0002: IPC Transport Layer](0002-ipc-transport.md)
 - 2024-01-15: [ADR-0003: OWP-1 (Open Wheel Protocol) Specification](0003-owp1-protocol.md)
 - 2024-01-15: [ADR-0004: Real-Time Scheduling Architecture](0004-rt-scheduling-architecture.md)
-- 2024-01-15: [ADR-0005: Plugin Architecture](0005-plugin-architecture.md)
