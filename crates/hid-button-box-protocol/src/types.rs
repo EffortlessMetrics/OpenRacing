@@ -45,35 +45,21 @@ impl ButtonBoxCapabilities {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum ButtonBoxType {
     Simple,
+    #[default]
     Standard,
     Extended,
 }
 
-impl Default for ButtonBoxType {
-    fn default() -> Self {
-        Self::Standard
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RotaryEncoderState {
     pub position: i32,
     pub delta: i8,
     pub button_pressed: bool,
 }
 
-impl Default for RotaryEncoderState {
-    fn default() -> Self {
-        Self {
-            position: 0,
-            delta: 0,
-            button_pressed: false,
-        }
-    }
-}
 
 impl RotaryEncoderState {
     pub fn new() -> Self {

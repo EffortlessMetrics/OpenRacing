@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn test_parse_report() {
         let data = make_test_report();
-        let report = HeusinkveldInputReport::parse(&data).unwrap();
+        let report = HeusinkveldInputReport::parse(&data).expect("parse failed");
 
         assert_eq!(report.throttle, 0x1000);
         assert_eq!(report.brake, 0x2000);
@@ -111,9 +111,10 @@ mod tests {
 
     #[test]
     fn test_normalized_values() {
-        let mut report = HeusinkveldInputReport::default();
-
-        report.throttle = MAX_LOAD_CELL_VALUE / 2;
+        let mut report = HeusinkveldInputReport {
+            throttle: MAX_LOAD_CELL_VALUE / 2,
+            ..Default::default()
+        };
         assert!((report.throttle_normalized() - 0.5).abs() < 0.001);
 
         report.brake = MAX_LOAD_CELL_VALUE;
@@ -122,9 +123,10 @@ mod tests {
 
     #[test]
     fn test_status_flags() {
-        let mut report = HeusinkveldInputReport::default();
-
-        report.status = 0x03;
+        let mut report = HeusinkveldInputReport {
+            status: 0x03,
+            ..Default::default()
+        };
         assert!(report.is_connected());
         assert!(report.is_calibrated());
         assert!(!report.has_fault());

@@ -6,6 +6,7 @@ use openracing_curves::{BezierCurve, CurveError, CurveLut, CurveType};
 
 type TestResult = Result<(), CurveError>;
 
+#[allow(dead_code)]
 fn must<T, E: std::fmt::Debug>(result: Result<T, E>) -> T {
     match result {
         Ok(v) => v,

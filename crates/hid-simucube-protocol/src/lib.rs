@@ -80,6 +80,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn test_max_torque_values() {
         assert!(MAX_TORQUE_NM > 0.0);
         assert!(MAX_TORQUE_SPORT > 0.0);

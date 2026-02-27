@@ -3,18 +3,15 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum WheelModel {
     Forte,
     Invicta,
     LaPrima,
+    #[default]
     Unknown,
 }
 
-impl Default for WheelModel {
-    fn default() -> Self {
-        Self::Unknown
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WheelCapabilities {

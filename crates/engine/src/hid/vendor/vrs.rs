@@ -42,7 +42,7 @@ impl VrsProtocolHandler {
 pub fn is_vrs_product(product_id: u16) -> bool {
     matches!(
         product_id,
-        0xA355 | 0xA356 | 0xA357 | 0xA358 | 0xA359 | 0xA35A
+        0xA355..=0xA35A
     )
 }
 

@@ -5580,6 +5580,7 @@ dependencies = [
 name = "racing-wheel-hid-moza-protocol"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "proptest",
  "racing-wheel-hbp",
  "racing-wheel-ks",

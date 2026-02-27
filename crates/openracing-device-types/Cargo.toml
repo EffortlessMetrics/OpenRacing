@@ -6,8 +6,12 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+[features]
+proptest = ["dep:proptest"]
+
 [dependencies]
 racing-wheel-schemas = { path = "../schemas" }
+proptest = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

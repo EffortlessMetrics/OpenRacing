@@ -4,6 +4,7 @@ use openracing_fmea::prelude::*;
 use std::time::Duration;
 
 #[test]
+#[allow(clippy::result_large_err)]
 fn test_full_usb_fault_lifecycle() -> Result<(), FmeaError> {
     let mut fmea = FmeaSystem::new();
 

@@ -1,6 +1,6 @@
 //! WCET benchmarks for hardware watchdog operations.
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
 use openracing_hardware_watchdog::prelude::*;
 
 fn bench_feed(c: &mut Criterion) {
@@ -9,12 +9,12 @@ fn bench_feed(c: &mut Criterion) {
     group.bench_function("feed_armed", |b| {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
         watchdog.arm().expect("Arm should succeed");
-        b.iter(|| black_box(watchdog.feed()));
+        b.iter(|| std::hint::black_box(watchdog.feed()));
     });
 
     group.bench_function("feed_disarmed", |b| {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
-        b.iter(|| black_box(watchdog.feed()));
+        b.iter(|| std::hint::black_box(watchdog.feed()));
     });
 
     group.finish();
@@ -26,15 +26,15 @@ fn bench_status(c: &mut Criterion) {
     let watchdog = SoftwareWatchdog::with_default_timeout();
 
     group.bench_function("status_check", |b| {
-        b.iter(|| black_box(watchdog.status()));
+        b.iter(|| std::hint::black_box(watchdog.status()));
     });
 
     group.bench_function("is_armed", |b| {
-        b.iter(|| black_box(watchdog.is_armed()));
+        b.iter(|| std::hint::black_box(watchdog.is_armed()));
     });
 
     group.bench_function("has_timed_out", |b| {
-        b.iter(|| black_box(watchdog.has_timed_out()));
+        b.iter(|| std::hint::black_box(watchdog.has_timed_out()));
     });
 
     group.finish();
@@ -47,7 +47,7 @@ fn bench_state_transitions(c: &mut Criterion) {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
         b.iter(|| {
             watchdog.reset();
-            black_box(watchdog.arm())
+            std::hint::black_box(watchdog.arm())
         });
     });
 
@@ -55,7 +55,7 @@ fn bench_state_transitions(c: &mut Criterion) {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
         b.iter(|| {
             watchdog.arm().expect("Arm should succeed");
-            black_box(watchdog.disarm())
+            std::hint::black_box(watchdog.disarm())
         });
     });
 
@@ -64,7 +64,7 @@ fn bench_state_transitions(c: &mut Criterion) {
         watchdog.arm().expect("Arm should succeed");
         b.iter(|| {
             watchdog.reset();
-            black_box(())
+            std::hint::black_box(())
         });
     });
 
@@ -77,7 +77,7 @@ fn bench_metrics(c: &mut Criterion) {
     let watchdog = SoftwareWatchdog::with_default_timeout();
 
     group.bench_function("get_metrics", |b| {
-        b.iter(|| black_box(watchdog.metrics()));
+        b.iter(|| std::hint::black_box(watchdog.metrics()));
     });
 
     group.finish();
@@ -94,7 +94,7 @@ fn bench_combined_workflow(c: &mut Criterion) {
             if status == WatchdogStatus::Armed {
                 let _ = watchdog.feed();
             }
-            black_box(status)
+            std::hint::black_box(status)
         });
     });
 
@@ -107,7 +107,7 @@ fn bench_combined_workflow(c: &mut Criterion) {
             }
             watchdog.disarm().expect("Disarm should succeed");
             watchdog.reset();
-            black_box(())
+            std::hint::black_box(())
         });
     });
 
@@ -120,11 +120,11 @@ fn bench_atomic_state(c: &mut Criterion) {
     let state = WatchdogState::new();
 
     group.bench_function("status_load", |b| {
-        b.iter(|| black_box(state.status()));
+        b.iter(|| std::hint::black_box(state.status()));
     });
 
     group.bench_function("arm_count_load", |b| {
-        b.iter(|| black_box(state.arm_count()));
+        b.iter(|| std::hint::black_box(state.arm_count()));
     });
 
     group.finish();

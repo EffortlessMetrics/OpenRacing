@@ -97,7 +97,7 @@ mod tests {
         data[1] = 0x05;
         data[2] = 0x00;
 
-        let state = parse_feedback_report(&data).unwrap();
+        let state = parse_feedback_report(&data).expect("parse failed");
         assert_eq!(state.seq, 0x05);
         assert_eq!(state.status, CmdStatus::Ok);
         assert_eq!(state.motor.position, 0);
@@ -134,7 +134,7 @@ mod tests {
 
         data[18] = 0x32;
 
-        let state = parse_feedback_report(&data).unwrap();
+        let state = parse_feedback_report(&data).expect("parse failed");
         assert_eq!(state.seq, 0x10);
         assert_eq!(state.motor.position, 0x100);
         assert_eq!(state.motor.velocity, 0x200);

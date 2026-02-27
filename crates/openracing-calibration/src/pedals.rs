@@ -1,6 +1,6 @@
 //! Pedal calibration
 
-use crate::{AxisCalibration, CalibrationPoint, CalibrationResult};
+use crate::{AxisCalibration, CalibrationResult};
 
 pub struct PedalCalibrator {
     throttle_samples: Vec<u16>,
@@ -34,18 +34,18 @@ impl PedalCalibrator {
             return Err(crate::CalibrationError::NotComplete);
         }
 
-        let min = *samples.iter().min().unwrap();
-        let max = *samples.iter().max().unwrap();
+        let min = *samples.iter().min().expect("samples not empty");
+        let max = *samples.iter().max().expect("samples not empty");
 
         Ok(AxisCalibration::new(min, max))
     }
 
     pub fn calibrate(&self) -> CalibrationResult<Vec<AxisCalibration>> {
-        let mut results = Vec::new();
-
-        results.push(self.calibrate_axis(&self.throttle_samples)?);
-        results.push(self.calibrate_axis(&self.brake_samples)?);
-        results.push(self.calibrate_axis(&self.clutch_samples)?);
+        let results = vec![
+            self.calibrate_axis(&self.throttle_samples)?,
+            self.calibrate_axis(&self.brake_samples)?,
+            self.calibrate_axis(&self.clutch_samples)?,
+        ];
 
         Ok(results)
     }
@@ -108,7 +108,7 @@ mod tests {
         calibrator.add_clutch(0);
         calibrator.add_clutch(65535);
 
-        let result = calibrator.calibrate().unwrap();
+        let result = calibrator.calibrate().expect("calibrate should succeed");
         assert_eq!(result.len(), 3);
     }
 
@@ -125,7 +125,7 @@ mod tests {
         calibrator.add_clutch(0);
         calibrator.add_clutch(65535);
 
-        let result = calibrator.calibrate().unwrap();
+        let result = calibrator.calibrate().expect("calibrate should succeed");
 
         assert_eq!(result.len(), 3);
 
@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn test_create_pedal_calibration() {
-        let result = create_pedal_calibration(&[0, 65535], &[0, 65535], &[0, 65535]).unwrap();
+        let result = create_pedal_calibration(&[0, 65535], &[0, 65535], &[0, 65535]).expect("create should succeed");
 
         assert_eq!(result.len(), 3);
     }

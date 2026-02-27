@@ -39,8 +39,8 @@ use portable_atomic::{AtomicBool, AtomicU64, Ordering};
 /// let config = WatchdogConfig::new(100).expect("Valid config");
 /// let mut watchdog = SoftwareWatchdog::new(config);
 ///
-/// watchdog.arm().expect("Failed to arm");
-/// watchdog.feed().expect("Failed to feed");
+/// assert!(watchdog.arm().is_ok());
+/// assert!(watchdog.feed().is_ok());
 /// assert!(watchdog.is_armed());
 /// assert!(!watchdog.has_timed_out());
 /// ```
@@ -292,8 +292,7 @@ mod tests {
 
     #[test]
     fn test_software_watchdog_creation() {
-        let config = WatchdogConfig::new(100).expect("Valid config");
-        let watchdog = SoftwareWatchdog::new(config);
+        let watchdog = SoftwareWatchdog::with_default_timeout();
 
         assert_eq!(watchdog.timeout_ms(), 100);
         assert!(!watchdog.is_armed());
@@ -308,18 +307,17 @@ mod tests {
 
     #[test]
     fn test_arm_disarm() {
-        let config = WatchdogConfig::new(100).expect("Valid config");
-        let mut watchdog = SoftwareWatchdog::new(config);
+        let mut watchdog = SoftwareWatchdog::with_default_timeout();
 
         assert!(!watchdog.is_armed());
 
-        watchdog.arm().expect("Arm should succeed");
+        assert!(watchdog.arm().is_ok());
         assert!(watchdog.is_armed());
 
         let result = watchdog.arm();
         assert!(result.is_err());
 
-        watchdog.disarm().expect("Disarm should succeed");
+        assert!(watchdog.disarm().is_ok());
         assert!(!watchdog.is_armed());
 
         let result = watchdog.disarm();
@@ -328,8 +326,7 @@ mod tests {
 
     #[test]
     fn test_feed_when_disarmed() {
-        let config = WatchdogConfig::new(100).expect("Valid config");
-        let mut watchdog = SoftwareWatchdog::new(config);
+        let mut watchdog = SoftwareWatchdog::with_default_timeout();
 
         let result = watchdog.feed();
         assert!(result.is_err());
@@ -337,10 +334,9 @@ mod tests {
 
     #[test]
     fn test_feed_when_armed() {
-        let config = WatchdogConfig::new(100).expect("Valid config");
-        let mut watchdog = SoftwareWatchdog::new(config);
+        let mut watchdog = SoftwareWatchdog::with_default_timeout();
 
-        watchdog.arm().expect("Arm should succeed");
+        assert!(watchdog.arm().is_ok());
         let result = watchdog.feed();
         assert!(result.is_ok());
 
@@ -350,12 +346,9 @@ mod tests {
 
     #[test]
     fn test_trigger_safe_state() {
-        let config = WatchdogConfig::new(100).expect("Valid config");
-        let mut watchdog = SoftwareWatchdog::new(config);
+        let mut watchdog = SoftwareWatchdog::with_default_timeout();
 
-        watchdog
-            .trigger_safe_state()
-            .expect("Safe state should succeed");
+        assert!(watchdog.trigger_safe_state().is_ok());
         assert!(watchdog.is_safe_state_triggered());
         assert_eq!(watchdog.status(), WatchdogStatus::SafeState);
 
@@ -365,11 +358,10 @@ mod tests {
 
     #[test]
     fn test_reset() {
-        let config = WatchdogConfig::new(100).expect("Valid config");
-        let mut watchdog = SoftwareWatchdog::new(config);
+        let mut watchdog = SoftwareWatchdog::with_default_timeout();
 
-        watchdog.arm().expect("Arm should succeed");
-        watchdog.feed().expect("Feed should succeed");
+        assert!(watchdog.arm().is_ok());
+        assert!(watchdog.feed().is_ok());
 
         watchdog.reset();
 
@@ -379,23 +371,23 @@ mod tests {
 
     #[test]
     fn test_status() {
-        let config = WatchdogConfig::new(100).expect("Valid config");
-        let mut watchdog = SoftwareWatchdog::new(config);
+        let mut watchdog = SoftwareWatchdog::with_default_timeout();
 
         assert_eq!(watchdog.status(), WatchdogStatus::Disarmed);
 
-        watchdog.arm().expect("Arm should succeed");
+        assert!(watchdog.arm().is_ok());
         assert_eq!(watchdog.status(), WatchdogStatus::Armed);
     }
 
     #[test]
     fn test_is_healthy() {
-        let config = WatchdogConfig::new(100).expect("Valid config");
-        let mut watchdog = SoftwareWatchdog::new(config);
+        let mut watchdog = SoftwareWatchdog::with_default_timeout();
 
         assert!(watchdog.is_healthy());
 
-        watchdog.arm().expect("Arm should succeed");
+        assert!(watchdog.arm().is_ok());
         assert!(watchdog.is_healthy());
     }
 }
+
+

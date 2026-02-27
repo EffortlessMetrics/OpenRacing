@@ -198,9 +198,9 @@ mod tests {
         let data = vec![0x01, 0x02, 0x03];
         let mut parser = ReportParser::new(data);
 
-        assert_eq!(parser.read_u8().unwrap(), 0x01);
-        assert_eq!(parser.read_u8().unwrap(), 0x02);
-        assert_eq!(parser.read_u8().unwrap(), 0x03);
+        assert_eq!(parser.read_u8().expect("read byte"), 0x01);
+        assert_eq!(parser.read_u8().expect("read byte"), 0x02);
+        assert_eq!(parser.read_u8().expect("read byte"), 0x03);
         assert!(parser.read_u8().is_err());
     }
 
@@ -209,7 +209,7 @@ mod tests {
         let data = vec![0x34, 0x12];
         let mut parser = ReportParser::new(data);
 
-        assert_eq!(parser.read_u16_le().unwrap(), 0x1234);
+        assert_eq!(parser.read_u16_le().expect("read u16"), 0x1234);
     }
 
     #[test]
@@ -217,7 +217,7 @@ mod tests {
         let data = vec![0x78, 0x56, 0x34, 0x12];
         let mut parser = ReportParser::new(data);
 
-        assert_eq!(parser.read_u32_le().unwrap(), 0x12345678);
+        assert_eq!(parser.read_u32_le().expect("read u32"), 0x12345678);
     }
 
     #[test]
@@ -225,10 +225,10 @@ mod tests {
         let data = vec![0x01, 0x02, 0x03, 0x04, 0x05];
         let mut parser = ReportParser::new(data);
 
-        let bytes = parser.read_bytes(3).unwrap();
+        let bytes = parser.read_bytes(3).expect("read bytes");
         assert_eq!(bytes, vec![0x01, 0x02, 0x03]);
 
-        let bytes = parser.read_bytes(2).unwrap();
+        let bytes = parser.read_bytes(2).expect("read bytes");
         assert_eq!(bytes, vec![0x04, 0x05]);
     }
 
@@ -251,11 +251,11 @@ mod tests {
 
     #[test]
     fn test_report_parser_f32() {
-        let value: f32 = 3.14159;
+        let value: f32 = std::f32::consts::PI;
         let bytes = value.to_le_bytes();
 
         let mut parser = ReportParser::new(bytes.to_vec());
-        let parsed = parser.read_f32_le().unwrap();
+        let parsed = parser.read_f32_le().expect("read f32");
 
         assert!((parsed - value).abs() < 0.0001);
     }

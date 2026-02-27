@@ -61,9 +61,8 @@ fn bench_delta_patching(c: &mut Criterion) {
                 b.iter(|| {
                     let rt = tokio::runtime::Runtime::new().expect("Runtime creation failed");
                     rt.block_on(async {
-                        use std::path::Path;
                         let old_path = std::env::temp_dir().join("bench_old.bin");
-                        let new_path = std::env_dir().join("bench_new.bin");
+                        let new_path = std::env::temp_dir().join("bench_new.bin");
                         tokio::fs::write(&old_path, old)
                             .await
                             .expect("Write failed");
@@ -155,7 +154,7 @@ fn bench_bundle_operations(c: &mut Criterion) {
             &(&image, &metadata),
             |b, (img, meta)| {
                 b.iter(|| {
-                    FirmwareBundle::new(img, meta.clone(), CompressionType::None)
+                    FirmwareBundle::new(img, (*meta).clone(), CompressionType::None)
                         .expect("Bundle creation failed")
                 });
             },
@@ -166,7 +165,7 @@ fn bench_bundle_operations(c: &mut Criterion) {
             &(&image, &metadata),
             |b, (img, meta)| {
                 b.iter(|| {
-                    FirmwareBundle::new(img, meta.clone(), CompressionType::Gzip)
+                    FirmwareBundle::new(img, (*meta).clone(), CompressionType::Gzip)
                         .expect("Bundle creation failed")
                 });
             },

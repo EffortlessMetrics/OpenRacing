@@ -57,7 +57,7 @@ fn prop_torque_saturation_never_exceeds_100(saturated: u8, not_saturated: u8) ->
     }
 
     let pct = counters.torque_saturation_percent();
-    pct >= 0.0 && pct <= 100.0
+    (0.0..=100.0).contains(&pct)
 }
 
 #[quickcheck]
@@ -72,7 +72,7 @@ fn prop_telemetry_loss_never_exceeds_100(received: u8, lost: u8) -> bool {
     }
 
     let pct = counters.telemetry_loss_percent();
-    pct >= 0.0 && pct <= 100.0
+    (0.0..=100.0).contains(&pct)
 }
 
 #[quickcheck]
@@ -153,7 +153,7 @@ fn prop_rt_metrics_missed_tick_rate(total: u64, missed: u64) -> bool {
         rate == 0.0
     } else {
         let expected = (missed as f64 / total as f64) * 100.0;
-        (rate - expected).abs() < f64::EPSILON && rate >= 0.0 && rate <= 100.0
+        (rate - expected).abs() < f64::EPSILON && (0.0..=100.0).contains(&rate)
     }
 }
 

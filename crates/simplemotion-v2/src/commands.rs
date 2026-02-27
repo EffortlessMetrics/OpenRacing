@@ -273,7 +273,7 @@ mod tests {
     fn test_encode_set_torque() {
         let cmd = SmCommand::new(0x05, SmCommandType::SetTorque).with_data(1000);
         let mut out = [0u8; 15];
-        let len = encode_command(&cmd, &mut out).unwrap();
+        let len = encode_command(&cmd, &mut out).expect("operation failed");
         assert_eq!(len, 15);
         assert_eq!(out[0], 0x01);
         assert_eq!(out[1], 0x05);
@@ -285,8 +285,8 @@ mod tests {
     fn test_decode_set_torque() {
         let cmd = SmCommand::new(0x05, SmCommandType::SetTorque).with_data(1000);
         let mut out = [0u8; 15];
-        encode_command(&cmd, &mut out).unwrap();
-        let decoded = decode_command(&out).unwrap();
+        encode_command(&cmd, &mut out).expect("operation failed");
+        let decoded = decode_command(&out).expect("operation failed");
         assert_eq!(decoded.seq, 0x05);
         assert_eq!(decoded.cmd_type, SmCommandType::SetTorque);
     }
@@ -295,7 +295,7 @@ mod tests {
     fn test_encode_crc() {
         let cmd = SmCommand::new(0, SmCommandType::GetStatus);
         let mut out = [0u8; 15];
-        encode_command(&cmd, &mut out).unwrap();
+        encode_command(&cmd, &mut out).expect("operation failed");
         assert_ne!(out[14], 0);
     }
 
@@ -375,8 +375,8 @@ mod property_tests {
         fn prop_encode_decode_roundtrip(seq in 0u8..=255, torque in -1000i32..=1000i32) {
             let cmd = SmCommand::new(seq, SmCommandType::SetTorque).with_data(torque);
             let mut out = [0u8; 15];
-            encode_command(&cmd, &mut out).unwrap();
-            let decoded = decode_command(&out).unwrap();
+            encode_command(&cmd, &mut out).expect("operation failed");
+            let decoded = decode_command(&out).expect("operation failed");
             prop_assert_eq!(decoded.seq, seq);
             prop_assert_eq!(decoded.cmd_type, SmCommandType::SetTorque);
         }

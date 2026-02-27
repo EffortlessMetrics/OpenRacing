@@ -141,7 +141,7 @@ mod tests {
         let calib = AxisCalibration::new(0, 65535).with_center(32768);
 
         assert!(calib.center.is_some());
-        assert_eq!(calib.center.unwrap(), 32768);
+        assert_eq!(calib.center.expect("center should be set"), 32768);
     }
 
     #[test]
@@ -150,7 +150,9 @@ mod tests {
 
         assert_eq!(calib.axes.len(), 2);
 
-        calib.axis(0).map(|a| *a = AxisCalibration::new(0, 1000));
+        if let Some(a) = calib.axis(0) {
+            *a = AxisCalibration::new(0, 1000);
+        }
 
         if let Some(axis) = calib.axis(0) {
             assert_eq!(axis.max, 1000);

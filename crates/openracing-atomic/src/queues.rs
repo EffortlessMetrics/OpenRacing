@@ -313,9 +313,9 @@ mod tests {
     fn test_push_and_pop_jitter() {
         let queues = RTSampleQueues::with_capacity(10);
 
-        queues.push_jitter(100).unwrap();
-        queues.push_jitter(200).unwrap();
-        queues.push_jitter(300).unwrap();
+        assert!(queues.push_jitter(100).is_ok());
+        assert!(queues.push_jitter(200).is_ok());
+        assert!(queues.push_jitter(300).is_ok());
 
         assert_eq!(queues.pop_jitter(), Some(100));
         assert_eq!(queues.pop_jitter(), Some(200));
@@ -345,11 +345,11 @@ mod tests {
         assert!(queues.jitter_is_empty());
         assert_eq!(queues.jitter_len(), 0);
 
-        queues.push_jitter(100).unwrap();
+        assert!(queues.push_jitter(100).is_ok());
         assert!(!queues.jitter_is_empty());
         assert_eq!(queues.jitter_len(), 1);
 
-        queues.push_jitter(200).unwrap();
+        assert!(queues.push_jitter(200).is_ok());
         assert_eq!(queues.jitter_len(), 2);
     }
 
@@ -357,11 +357,11 @@ mod tests {
     fn test_queue_stats() {
         let queues = RTSampleQueues::with_capacity(10);
 
-        queues.push_jitter(1).unwrap();
-        queues.push_jitter(2).unwrap();
-        queues.push_processing_time(3).unwrap();
-        queues.push_hid_latency(4).unwrap();
-        queues.push_hid_latency(5).unwrap();
+        assert!(queues.push_jitter(1).is_ok());
+        assert!(queues.push_jitter(2).is_ok());
+        assert!(queues.push_processing_time(3).is_ok());
+        assert!(queues.push_hid_latency(4).is_ok());
+        assert!(queues.push_hid_latency(5).is_ok());
 
         let stats = queues.stats();
         assert_eq!(stats.jitter_count, 2);
@@ -374,9 +374,9 @@ mod tests {
     fn test_drain() {
         let queues = RTSampleQueues::with_capacity(10);
 
-        queues.push_jitter(1).unwrap();
-        queues.push_jitter(2).unwrap();
-        queues.push_jitter(3).unwrap();
+        assert!(queues.push_jitter(1).is_ok());
+        assert!(queues.push_jitter(2).is_ok());
+        assert!(queues.push_jitter(3).is_ok());
 
         let samples = queues.drain_jitter();
         assert_eq!(samples, alloc::vec![1, 2, 3]);

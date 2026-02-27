@@ -53,6 +53,7 @@ impl MockFirmwareDevice {
         }
     }
 
+    #[allow(dead_code)]
     async fn set_health_check_failure(&self, should_fail: bool) {
         *self.should_fail_health_check.lock().await = should_fail;
     }

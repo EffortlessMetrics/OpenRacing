@@ -864,7 +864,7 @@ mod tests {
     fn test_fmea_system_fault_handling() {
         let mut fmea = FmeaSystem::new();
 
-        fmea.handle_fault(FaultType::UsbStall, 10.0).unwrap();
+        fmea.handle_fault(FaultType::UsbStall, 10.0).expect("handle_fault failed");
 
         assert!(fmea.has_active_fault());
         assert_eq!(fmea.active_fault(), Some(FaultType::UsbStall));
@@ -874,9 +874,9 @@ mod tests {
     #[test]
     fn test_fmea_system_clear_fault() {
         let mut fmea = FmeaSystem::new();
-        fmea.handle_fault(FaultType::UsbStall, 10.0).unwrap();
+        fmea.handle_fault(FaultType::UsbStall, 10.0).expect("handle_fault failed");
 
-        fmea.clear_fault().unwrap();
+        fmea.clear_fault().expect("clear_fault failed");
         assert!(!fmea.has_active_fault());
         assert!(!fmea.is_soft_stop_active());
     }
@@ -891,7 +891,7 @@ mod tests {
     #[test]
     fn test_fmea_system_soft_stop_update() {
         let mut fmea = FmeaSystem::new();
-        fmea.handle_fault(FaultType::UsbStall, 10.0).unwrap();
+        fmea.handle_fault(FaultType::UsbStall, 10.0).expect("handle_fault failed");
 
         let torque = fmea.update_soft_stop(Duration::from_millis(25));
         assert!(torque > 0.0 && torque < 10.0);
@@ -905,6 +905,6 @@ mod tests {
         let stats: Vec<_> = fmea.fault_statistics().collect();
         let usb_stat = stats.iter().find(|(ft, _, _)| *ft == FaultType::UsbStall);
         assert!(usb_stat.is_some());
-        assert_eq!(usb_stat.unwrap().1, 2);
+        assert_eq!(usb_stat.expect("usb_stat is some").1, 2);
     }
 }

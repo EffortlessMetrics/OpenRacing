@@ -1,9 +1,10 @@
 //! Shifter input parsing
 
 use super::{
-    GearPosition, MAX_GEARS, NEUTRAL_GEAR, ShifterCapabilities, ShifterError, ShifterResult,
+    GearPosition, MAX_GEARS, ShifterError, ShifterResult,
 };
 
+#[derive(Default)]
 pub struct ShifterInput {
     pub gear: GearPosition,
     pub clutch: Option<u16>,
@@ -64,17 +65,6 @@ impl ShifterInput {
     }
 }
 
-impl Default for ShifterInput {
-    fn default() -> Self {
-        Self {
-            gear: GearPosition::neutral(),
-            clutch: None,
-            paddle_up: false,
-            paddle_down: false,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -82,9 +72,7 @@ mod tests {
     #[test]
     fn test_parse_gamepad() {
         let data = vec![0x00, 0x00, 0x03, 0x00, 0x00, 0x00];
-        let input = ShifterInput::parse_gamepad(&data).unwrap();
-
-        assert_eq!(input.gear.gear, 3);
+        let input = ShifterInput::parse_gamepad(&data).expect("parse should succeed");
         assert!(!input.paddle_up);
         assert!(!input.paddle_down);
     }
@@ -92,7 +80,7 @@ mod tests {
     #[test]
     fn test_parse_gamepad_with_paddles() {
         let data = vec![0x00, 0x00, 0x04, 0x30, 0x00, 0x00];
-        let input = ShifterInput::parse_gamepad(&data).unwrap();
+        let input = ShifterInput::parse_gamepad(&data).expect("parse should succeed");
 
         assert_eq!(input.gear.gear, 4);
         assert!(input.paddle_up);

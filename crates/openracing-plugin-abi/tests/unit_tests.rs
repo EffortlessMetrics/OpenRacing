@@ -394,6 +394,7 @@ mod constants {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn test_log_level_values() {
         assert!(log_level::ERROR < log_level::WARN);
         assert!(log_level::WARN < log_level::INFO);
@@ -402,6 +403,7 @@ mod constants {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn test_return_code_values() {
         assert_eq!(return_code::SUCCESS, 0);
         assert!(return_code::ERROR < 0);

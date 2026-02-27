@@ -235,7 +235,7 @@ fn test_concurrent_telemetry_tracking() {
     }
 
     let pct = counters.telemetry_loss_percent();
-    assert!(pct >= 0.0 && pct <= 100.0);
+    assert!((0.0..=100.0).contains(&pct));
 
     let expected_loss = (num_threads * packets_per_thread) / 20;
     let expected_pct = (expected_loss as f32 / (num_threads * packets_per_thread) as f32) * 100.0;
@@ -320,7 +320,7 @@ mod queue_tests {
                 let queues = Arc::clone(&queues);
                 thread::spawn(move || {
                     for i in 0..samples_per_producer {
-                        let value = (producer_id * 10000 + i) as u64;
+                        let value = producer_id * 10000 + i;
                         queues.push_jitter_drop(value);
                     }
                 })

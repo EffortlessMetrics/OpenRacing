@@ -441,17 +441,17 @@ mod tests {
         let state = WatchdogState::new();
         assert_eq!(state.status(), WatchdogStatus::Disarmed);
 
-        state.arm().expect("Arm should succeed");
+        assert!(state.arm().is_ok());
         assert_eq!(state.status(), WatchdogStatus::Armed);
 
-        state.disarm().expect("Disarm should succeed");
+        assert!(state.disarm().is_ok());
         assert_eq!(state.status(), WatchdogStatus::Disarmed);
     }
 
     #[test]
     fn test_arm_from_wrong_state() {
         let state = WatchdogState::new();
-        state.arm().expect("Arm should succeed");
+        assert!(state.arm().is_ok());
 
         let result = state.arm();
         assert!(result.is_err());
@@ -460,9 +460,9 @@ mod tests {
     #[test]
     fn test_feed_in_armed_state() {
         let state = WatchdogState::new();
-        state.arm().expect("Arm should succeed");
+        assert!(state.arm().is_ok());
 
-        state.feed().expect("Feed should succeed");
+        assert!(state.feed().is_ok());
         assert_eq!(state.feed_count(), 1);
     }
 
@@ -477,9 +477,9 @@ mod tests {
     #[test]
     fn test_timeout_transition() {
         let state = WatchdogState::new();
-        state.arm().expect("Arm should succeed");
+        assert!(state.arm().is_ok());
 
-        state.timeout().expect("Timeout should succeed");
+        assert!(state.timeout().is_ok());
         assert_eq!(state.status(), WatchdogStatus::TimedOut);
         assert_eq!(state.timeout_count(), 1);
     }
@@ -488,9 +488,7 @@ mod tests {
     fn test_safe_state_transition() {
         let state = WatchdogState::new();
 
-        state
-            .trigger_safe_state()
-            .expect("Safe state should succeed");
+        assert!(state.trigger_safe_state().is_ok());
         assert_eq!(state.status(), WatchdogStatus::SafeState);
         assert_eq!(state.safe_state_count(), 1);
 
@@ -501,8 +499,8 @@ mod tests {
     #[test]
     fn test_reset() {
         let state = WatchdogState::new();
-        state.arm().expect("Arm should succeed");
-        state.timeout().expect("Timeout should succeed");
+        assert!(state.arm().is_ok());
+        assert!(state.timeout().is_ok());
 
         state.reset();
         assert_eq!(state.status(), WatchdogStatus::Disarmed);
@@ -543,3 +541,4 @@ mod tests {
         assert_eq!(metrics.timeout_count, 0);
     }
 }
+

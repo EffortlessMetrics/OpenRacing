@@ -3,8 +3,9 @@
 use serde::{Deserialize, Serialize};
 
 /// Types of force feedback effects
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum EffectType {
+    #[default]
     None,
     Constant,
     Ramp,
@@ -17,12 +18,6 @@ pub enum EffectType {
     Damper,
     Friction,
     Custom,
-}
-
-impl Default for EffectType {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 /// Base parameters for all FFB effects
@@ -45,7 +40,7 @@ impl EffectParams {
     }
 
     pub fn with_gain(mut self, gain: u8) -> Self {
-        self.gain = gain.min(255);
+        self.gain = gain;
         self
     }
 
@@ -144,7 +139,7 @@ impl FrictionEffect {
         let sign = velocity.signum();
         let abs_vel = velocity.abs();
         let friction = self.coefficient.saturating_add(abs_vel / 100);
-        -(sign * friction.min(i16::MAX))
+        -(sign * friction)
     }
 }
 

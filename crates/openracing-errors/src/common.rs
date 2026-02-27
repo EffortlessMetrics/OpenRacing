@@ -275,7 +275,8 @@ mod tests {
         let result: std::result::Result<(), RTError> = Err(RTError::DeviceDisconnected);
         let with_ctx = result.with_context("test_operation");
         assert!(with_ctx.is_err());
-        let err = with_ctx.unwrap_err();
-        assert!(err.to_string().contains("test_operation"));
+        if let Err(err) = with_ctx {
+            assert!(err.to_string().contains("test_operation"));
+        }
     }
 }

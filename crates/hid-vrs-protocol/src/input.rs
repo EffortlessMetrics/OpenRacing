@@ -270,9 +270,9 @@ mod property_tests {
             let brake = brake as f32 / u16::MAX as f32;
             let clutch = clutch as f32 / u16::MAX as f32;
 
-            prop_assert!(throttle >= 0.0 && throttle <= 1.0);
-            prop_assert!(brake >= 0.0 && brake <= 1.0);
-            prop_assert!(clutch >= 0.0 && clutch <= 1.0);
+            prop_assert!((0.0..=1.0).contains(&throttle));
+            prop_assert!((0.0..=1.0).contains(&brake));
+            prop_assert!((0.0..=1.0).contains(&clutch));
         }
     }
 }

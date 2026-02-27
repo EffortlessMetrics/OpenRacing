@@ -2,18 +2,13 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum HandbrakeType {
+    #[default]
     Analog,
     Digital,
     LoadCell,
     HallEffect,
-}
-
-impl Default for HandbrakeType {
-    fn default() -> Self {
-        Self::Analog
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

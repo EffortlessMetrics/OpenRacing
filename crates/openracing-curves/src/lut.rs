@@ -355,8 +355,8 @@ mod tests {
     fn test_curve_lut_serialization() {
         let lut = CurveLut::from_fn(|x| x.powf(2.0));
 
-        let json = serde_json::to_string(&lut).unwrap();
-        let deserialized: CurveLut = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&lut).expect("serialization failed");
+        let deserialized: CurveLut = serde_json::from_str(&json).expect("deserialization failed");
 
         for i in 0..CurveLut::SIZE {
             assert!(
@@ -369,7 +369,7 @@ mod tests {
 
     #[test]
     fn test_curve_lut_serialization_wrong_size() {
-        let bad_data = serde_json::to_string(&vec![0.0f32; 100]).unwrap();
+        let bad_data = serde_json::to_string(&vec![0.0f32; 100]).expect("serialization failed");
         let result: Result<CurveLut, _> = serde_json::from_str(&bad_data);
         assert!(result.is_err());
     }
