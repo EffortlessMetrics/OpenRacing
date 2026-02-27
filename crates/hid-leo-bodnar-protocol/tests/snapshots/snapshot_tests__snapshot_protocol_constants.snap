@@ -1,0 +1,5 @@
+---
+source: crates/hid-leo-bodnar-protocol/tests/snapshot_tests.rs
+expression: "format!(\"VENDOR_ID={:#06x}, MAX_REPORT_BYTES={}, HID_PID_USAGE_PAGE={:#06x}, \\\n         WHEEL_ENCODER_CPR={}, WHEEL_DEFAULT_MAX_TORQUE_NM={:.1}\",\nleo_bodnar::VENDOR_ID, leo_bodnar::MAX_REPORT_BYTES,\nleo_bodnar::HID_PID_USAGE_PAGE, leo_bodnar::WHEEL_ENCODER_CPR,\nleo_bodnar::WHEEL_DEFAULT_MAX_TORQUE_NM,)"
+---
+"VENDOR_ID=0x1dd2, MAX_REPORT_BYTES=64, HID_PID_USAGE_PAGE=0x000f, WHEEL_ENCODER_CPR=65535, WHEEL_DEFAULT_MAX_TORQUE_NM=10.0"

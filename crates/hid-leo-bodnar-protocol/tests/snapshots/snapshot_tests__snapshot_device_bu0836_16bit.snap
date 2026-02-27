@@ -1,0 +1,5 @@
+---
+source: crates/hid-leo-bodnar-protocol/tests/snapshot_tests.rs
+expression: "device_summary(leo_bodnar::PID_BU0836_16BIT)"
+---
+"pid=0x0031, name=Leo Bodnar BU0836 16-bit, channels=32, ffb=false"

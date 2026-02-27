@@ -1,0 +1,5 @@
+---
+source: crates/hid-leo-bodnar-protocol/tests/snapshot_tests.rs
+expression: "device_summary(leo_bodnar::PID_FFB_JOYSTICK)"
+---
+"pid=0x000f, name=Leo Bodnar FFB Joystick, channels=32, ffb=true"

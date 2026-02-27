@@ -1,0 +1,5 @@
+---
+source: crates/hid-leo-bodnar-protocol/tests/snapshot_tests.rs
+expression: "format!(\"encoder_cpr={}, max_torque_nm={:.1}, fits_u16={}\",\nleo_bodnar::WHEEL_ENCODER_CPR, leo_bodnar::WHEEL_DEFAULT_MAX_TORQUE_NM,\nleo_bodnar::WHEEL_ENCODER_CPR <= u32::from(u16::MAX),)"
+---
+"encoder_cpr=65535, max_torque_nm=10.0, fits_u16=true"
