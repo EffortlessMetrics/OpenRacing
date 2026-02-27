@@ -179,7 +179,9 @@ proptest! {
             // Simucube ActivePedal and Wireless Wheel — PIDs 0x0D62/0x0D63 (estimated, not yet in SupportedDevices)
             || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x0D62 | 0x0D63))
             // Generic HID button box (pid.codes VID, PID 0x1BBD — input-only)
-            || (vid == vendor_ids::OPENFFBOARD && pid == 0x1BBD);
+            || (vid == vendor_ids::OPENFFBOARD && pid == 0x1BBD)
+            // Leo Bodnar input-only peripherals (BBI-32 button box, SLI-M, USB joystick)
+            || (vid == vendor_ids::LEO_BODNAR && matches!(pid, 0x000C | 0xBEEF | 0x0001));
         if is_non_ffb_peripheral {
             prop_assert_eq!(
                 caps.max_torque.value(),

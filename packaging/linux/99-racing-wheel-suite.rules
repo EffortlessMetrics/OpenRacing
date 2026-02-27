@@ -122,6 +122,16 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6051", GROUP="i
 # ARGON servo drive / Simucube Sport
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6052", GROUP="input", MODE="0664", TAG+="uaccess"
 
+# ─── Leo Bodnar (0x1DD2) ──────────────────────────────────────────────────
+# USB Sim Racing Wheel Interface (HID PID force feedback)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="000e", GROUP="input", MODE="0664", TAG+="uaccess"
+# BBI-32 Button Box (input-only)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="000c", GROUP="input", MODE="0664", TAG+="uaccess"
+# SLI-M Shift Light Indicator (input-only)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="beef", GROUP="input", MODE="0664", TAG+="uaccess"
+# USB Joystick (input-only)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="0001", GROUP="input", MODE="0664", TAG+="uaccess"
+
 
 # ─── Service restart on device connect ────────────────────────────────────
 ACTION=="add", SUBSYSTEM=="hidraw", TAG=="uaccess", RUN+="/bin/systemctl --user try-restart racing-wheel-suite.service"
@@ -172,3 +182,6 @@ ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="045b", ATTRS{idProduct}=="59d
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6050", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6051", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6052", ATTR{power/autosuspend}="-1"
+# Leo Bodnar
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="000e", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="000c", ATTR{power/autosuspend}="-1"
