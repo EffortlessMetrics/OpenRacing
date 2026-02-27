@@ -5569,6 +5569,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "racing-wheel-hid-leo-bodnar-protocol"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+]
+
+[[package]]
 name = "racing-wheel-hid-logitech-protocol"
 version = "0.1.0"
 dependencies = [
