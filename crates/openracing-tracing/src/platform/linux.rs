@@ -4,6 +4,7 @@ use crate::{AppTraceEvent, RTTraceEvent, TracingError, TracingMetrics, TracingPr
 use std::fs::File;
 use std::io::Write;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 
 /// Linux tracepoints provider implementation
 ///
@@ -21,7 +22,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 /// Requires write access to `/sys/kernel/debug/tracing/trace_marker`.
 /// This typically requires root or appropriate group membership.
 pub struct LinuxTracepointsProvider {
-    trace_file: Option<File>,
+    trace_file: Option<Mutex<File>>,
     rt_events_count: AtomicU64,
     app_events_count: AtomicU64,
     events_dropped: AtomicU64,
@@ -98,7 +99,7 @@ impl TracingProvider for LinuxTracepointsProvider {
         {
             Ok(mut file) => {
                 if writeln!(file, "openracing: tracing initialized").is_ok() {
-                    self.trace_file = Some(file);
+                    self.trace_file = Some(Mutex::new(file));
                     tracing::info!("Linux tracepoints initialized");
                 } else {
                     tracing::warn!("Failed to write to trace_marker, falling back to logging");
@@ -116,14 +117,17 @@ impl TracingProvider for LinuxTracepointsProvider {
     }
 
     fn emit_rt_event(&self, event: RTTraceEvent) {
-        if let Some(ref file) = self.trace_file {
-            let buf = self.format_rt_event(event);
-            let len = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-
-            file.write_all(&buf[..len]).ok();
-            file.write_all(b"\n").ok();
-
-            self.rt_events_count.fetch_add(1, Ordering::Relaxed);
+        if let Some(ref mutex) = self.trace_file {
+            // try_lock avoids blocking the RT thread; dropped events are counted
+            if let Ok(mut file) = mutex.try_lock() {
+                let buf = self.format_rt_event(event);
+                let len = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
+                file.write_all(&buf[..len]).ok();
+                file.write_all(b"\n").ok();
+                self.rt_events_count.fetch_add(1, Ordering::Relaxed);
+            } else {
+                self.events_dropped.fetch_add(1, Ordering::Relaxed);
+            }
         }
     }
 
