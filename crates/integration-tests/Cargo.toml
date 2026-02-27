@@ -60,6 +60,7 @@ chrono = { workspace = true }
 openracing-test-helpers = { workspace = true }
 
 # Mock and test doubles
+async-trait = { workspace = true }
 mockall = { workspace = true }
 wiremock = { workspace = true }
 
