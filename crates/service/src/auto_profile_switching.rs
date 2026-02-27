@@ -3,6 +3,8 @@
 //! Implements automatic profile switching based on game detection (GI-02)
 //! Provides ≤500ms response time for profile switching
 
+use crate::game_auto_configure::GameAutoConfigurer;
+use crate::game_telemetry_bridge::TelemetryAdapterControl;
 use crate::process_detection::{ProcessDetectionService, ProcessEvent};
 use crate::profile_service::ProfileService;
 use anyhow::Result;
@@ -30,6 +32,10 @@ pub struct AutoProfileSwitchingService {
     switch_timeout: Duration,
     /// Last switch time for performance tracking
     last_switch_time: Arc<RwLock<Option<Instant>>>,
+    /// Optional telemetry adapter control for starting/stopping adapters on game events
+    adapter_control: Option<Arc<dyn TelemetryAdapterControl>>,
+    /// Optional auto-configurer for writing game telemetry config on first detection
+    auto_configurer: Option<Arc<GameAutoConfigurer>>,
 }
 
 /// Profile switching event
@@ -55,7 +61,23 @@ impl AutoProfileSwitchingService {
             active_profile: Arc::new(RwLock::new(None)),
             switch_timeout: Duration::from_millis(500), // GI-02 requirement
             last_switch_time: Arc::new(RwLock::new(None)),
+            adapter_control: None,
+            auto_configurer: None,
         })
+    }
+
+    /// Attach a [`TelemetryAdapterControl`] so that adapters are started and
+    /// stopped automatically alongside profile switches.
+    pub fn with_adapter_control(mut self, control: Arc<dyn TelemetryAdapterControl>) -> Self {
+        self.adapter_control = Some(control);
+        self
+    }
+
+    /// Attach a [`GameAutoConfigurer`] so that telemetry is configured
+    /// automatically on first game detection.
+    pub fn with_game_auto_configurer(mut self, configurer: Arc<GameAutoConfigurer>) -> Self {
+        self.auto_configurer = Some(configurer);
+        self
     }
 
     /// Start the auto profile switching service
@@ -106,41 +128,80 @@ impl AutoProfileSwitchingService {
         info!("Starting process event handling");
 
         while let Some(event) = self.process_events.recv().await {
-            match event {
-                ProcessEvent::GameStarted {
-                    game_id,
-                    process_info,
-                } => {
-                    info!(
-                        game_id = %game_id,
-                        process = %process_info.name,
-                        pid = process_info.pid,
-                        "Game started, attempting profile switch"
-                    );
-
-                    if let Err(e) = self.switch_to_game_profile(&game_id).await {
-                        error!(
-                            game_id = %game_id,
-                            error = %e,
-                            "Failed to switch to game profile"
-                        );
-                    }
-                }
-                ProcessEvent::GameStopped { game_id, .. } => {
-                    info!(game_id = %game_id, "Game stopped");
-
-                    // Switch back to global profile when game stops
-                    if let Err(e) = self.switch_to_global_profile().await {
-                        error!(error = %e, "Failed to switch to global profile");
-                    }
-                }
-                ProcessEvent::ProcessListUpdated { .. } => {
-                    // Log process list updates at debug level
-                    debug!("Process list updated");
-                }
-            }
+            self.handle_event(event).await;
         }
 
+        Ok(())
+    }
+
+    /// Process a single [`ProcessEvent`].
+    ///
+    /// Extracted from the event loop so it can be called directly in tests.
+    async fn handle_event(&self, event: ProcessEvent) {
+        match event {
+            ProcessEvent::GameStarted {
+                game_id,
+                process_info,
+            } => {
+                info!(
+                    game_id = %game_id,
+                    process = %process_info.name,
+                    pid = process_info.pid,
+                    "Game started, attempting profile switch and telemetry activation"
+                );
+
+                if let Some(configurer) = &self.auto_configurer {
+                    configurer.on_game_detected(&game_id).await;
+                }
+
+                if let Err(e) = self.switch_to_game_profile(&game_id).await {
+                    error!(
+                        game_id = %game_id,
+                        error = %e,
+                        "Failed to switch to game profile"
+                    );
+                }
+
+                if let Err(e) = self.start_telemetry_for_game(&game_id).await {
+                    error!(
+                        game_id = %game_id,
+                        error = %e,
+                        "Failed to start telemetry adapter"
+                    );
+                }
+            }
+            ProcessEvent::GameStopped { game_id, .. } => {
+                info!(game_id = %game_id, "Game stopped, deactivating telemetry and restoring global profile");
+
+                if let Err(e) = self.stop_telemetry_for_game(&game_id).await {
+                    error!(game_id = %game_id, error = %e, "Failed to stop telemetry adapter");
+                }
+
+                // Switch back to global profile when game stops
+                if let Err(e) = self.switch_to_global_profile().await {
+                    error!(error = %e, "Failed to switch to global profile");
+                }
+            }
+            ProcessEvent::ProcessListUpdated { .. } => {
+                // Log process list updates at debug level
+                debug!("Process list updated");
+            }
+        }
+    }
+
+    /// Start the telemetry adapter for `game_id` if a control is configured.
+    async fn start_telemetry_for_game(&self, game_id: &str) -> Result<()> {
+        if let Some(control) = &self.adapter_control {
+            control.start_for_game(game_id).await?;
+        }
+        Ok(())
+    }
+
+    /// Stop the telemetry adapter for `game_id` if a control is configured.
+    async fn stop_telemetry_for_game(&self, game_id: &str) -> Result<()> {
+        if let Some(control) = &self.adapter_control {
+            control.stop_for_game(game_id).await?;
+        }
         Ok(())
     }
 
@@ -363,6 +424,114 @@ mod tests {
         // Initially no games should be running
         let running_games = service.get_running_games();
         assert!(running_games.is_empty());
+        Ok(())
+    }
+
+    // ── Telemetry bridge integration tests ──────────────────────────────────
+
+    use crate::game_telemetry_bridge::TelemetryAdapterControl;
+
+    struct MockTelemetryControl {
+        starts: Arc<tokio::sync::Mutex<Vec<String>>>,
+        stops: Arc<tokio::sync::Mutex<Vec<String>>>,
+    }
+
+    impl MockTelemetryControl {
+        fn new() -> Self {
+            Self {
+                starts: Arc::new(tokio::sync::Mutex::new(Vec::new())),
+                stops: Arc::new(tokio::sync::Mutex::new(Vec::new())),
+            }
+        }
+
+        async fn started_games(&self) -> Vec<String> {
+            self.starts.lock().await.clone()
+        }
+
+        async fn stopped_games(&self) -> Vec<String> {
+            self.stops.lock().await.clone()
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl TelemetryAdapterControl for MockTelemetryControl {
+        async fn start_for_game(&self, game_id: &str) -> anyhow::Result<()> {
+            self.starts.lock().await.push(game_id.to_string());
+            Ok(())
+        }
+
+        async fn stop_for_game(&self, game_id: &str) -> anyhow::Result<()> {
+            self.stops.lock().await.push(game_id.to_string());
+            Ok(())
+        }
+    }
+
+    fn make_process_info(name: &str, game_id: &str) -> crate::process_detection::ProcessInfo {
+        crate::process_detection::ProcessInfo {
+            pid: 1234,
+            name: name.to_string(),
+            game_id: Some(game_id.to_string()),
+            detected_at: std::time::Instant::now(),
+        }
+    }
+
+    #[tokio::test]
+    async fn game_started_event_triggers_adapter_start() -> anyhow::Result<()> {
+        let profile_service = Arc::new(ProfileService::new().await?);
+        let mock = Arc::new(MockTelemetryControl::new());
+
+        let service = AutoProfileSwitchingService::new(profile_service)?
+            .with_adapter_control(mock.clone() as Arc<dyn TelemetryAdapterControl>);
+
+        let event = ProcessEvent::GameStarted {
+            game_id: "iracing".to_string(),
+            process_info: make_process_info("iRacingSim64DX11.exe", "iracing"),
+        };
+
+        service.handle_event(event).await;
+
+        let starts = mock.started_games().await;
+        assert_eq!(starts, vec!["iracing"]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn game_stopped_event_triggers_adapter_stop() -> anyhow::Result<()> {
+        let profile_service = Arc::new(ProfileService::new().await?);
+        let mock = Arc::new(MockTelemetryControl::new());
+
+        let service = AutoProfileSwitchingService::new(profile_service)?
+            .with_adapter_control(mock.clone() as Arc<dyn TelemetryAdapterControl>);
+
+        let event = ProcessEvent::GameStopped {
+            game_id: "acc".to_string(),
+            process_info: make_process_info("AC2-Win64-Shipping.exe", "acc"),
+        };
+
+        service.handle_event(event).await;
+
+        let stops = mock.stopped_games().await;
+        assert_eq!(stops, vec!["acc"]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn no_adapter_control_is_harmless() -> anyhow::Result<()> {
+        // Without a control attached, events must not panic or return errors.
+        let service = create_test_service().await?;
+
+        let start_event = ProcessEvent::GameStarted {
+            game_id: "iracing".to_string(),
+            process_info: make_process_info("iRacingSim64DX11.exe", "iracing"),
+        };
+        service.handle_event(start_event).await;
+
+        let stop_event = ProcessEvent::GameStopped {
+            game_id: "iracing".to_string(),
+            process_info: make_process_info("iRacingSim64DX11.exe", "iracing"),
+        };
+        service.handle_event(stop_event).await;
+
         Ok(())
     }
 }
