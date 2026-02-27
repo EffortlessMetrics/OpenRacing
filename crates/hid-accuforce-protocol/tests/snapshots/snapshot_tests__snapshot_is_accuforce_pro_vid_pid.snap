@@ -1,0 +1,5 @@
+---
+source: crates/hid-accuforce-protocol/tests/snapshot_tests.rs
+expression: "is_accuforce(VENDOR_ID, PID_ACCUFORCE_PRO)"
+---
+true

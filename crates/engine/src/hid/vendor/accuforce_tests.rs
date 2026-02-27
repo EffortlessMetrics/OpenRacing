@@ -1,8 +1,8 @@
 //! Tests for SimExperience AccuForce Pro protocol handler.
 
-use super::accuforce::{
-    is_accuforce_product, AccuForceModel, AccuForceProtocolHandler, ACCUFORCE_PRO_PID,
-    ACCUFORCE_VENDOR_ID,
+use super::accuforce::{is_accuforce_product, AccuForceProtocolHandler};
+use racing_wheel_hid_accuforce_protocol::{
+    AccuForceModel, PID_ACCUFORCE_PRO as ACCUFORCE_PRO_PID, VENDOR_ID as ACCUFORCE_VENDOR_ID,
 };
 use super::{get_vendor_protocol, DeviceWriter, VendorProtocol};
 use std::cell::RefCell;

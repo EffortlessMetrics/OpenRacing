@@ -1,0 +1,9 @@
+---
+source: crates/hid-accuforce-protocol/tests/snapshot_tests.rs
+expression: "DeviceInfo::from_vid_pid(VENDOR_ID, PID_ACCUFORCE_PRO)"
+---
+DeviceInfo {
+    vendor_id: 8137,
+    product_id: 32844,
+    model: Pro,
+}

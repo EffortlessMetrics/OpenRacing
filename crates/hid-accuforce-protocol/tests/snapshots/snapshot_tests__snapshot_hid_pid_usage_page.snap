@@ -1,0 +1,5 @@
+---
+source: crates/hid-accuforce-protocol/tests/snapshot_tests.rs
+expression: HID_PID_USAGE_PAGE
+---
+15
