@@ -109,7 +109,7 @@ fn scenario_set_range_encodes_900_degrees() -> Result<(), Box<dyn std::error::Er
 // ─── Scenario 6: G PRO Wheel uses 900° range ─────────────────────────────────
 
 #[test]
-fn scenario_pro_racing_uses_1080_degree_range() -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_g_pro_uses_900_degree_range() -> Result<(), Box<dyn std::error::Error>> {
     // Given: G PRO Racing Wheel (PS variant)
     let mut s = LogitechScenario::wheel(product_ids::G_PRO);
 
