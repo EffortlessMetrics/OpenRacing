@@ -6011,19 +6011,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "racing-wheel-telemetry-forza"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "racing-wheel-telemetry-adapters",
- "racing-wheel-telemetry-core",
- "tokio",
- "tracing",
- "workspace-hack",
-]
-
-[[package]]
 name = "racing-wheel-telemetry-integration"
 version = "0.1.0"
 dependencies = [
@@ -6042,18 +6029,6 @@ dependencies = [
  "tokio",
  "tracing",
  "workspace-hack",
-]
-
-[[package]]
-name = "racing-wheel-telemetry-mudrunner"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "racing-wheel-telemetry-adapters",
- "racing-wheel-telemetry-core",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -6091,18 +6066,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "workspace-hack",
-]
-
-[[package]]
-name = "racing-wheel-telemetry-simhub"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "racing-wheel-telemetry-adapters",
- "racing-wheel-telemetry-core",
- "tokio",
- "tracing",
 ]
 
 [[package]]

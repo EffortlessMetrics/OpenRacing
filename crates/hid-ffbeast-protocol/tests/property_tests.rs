@@ -1,4 +1,4 @@
-﻿//! Property-based tests for the FFBeast HID protocol encoding.
+//! Property-based tests for the FFBeast HID protocol encoding.
 //!
 //! Uses proptest with 500 cases to verify invariants on torque encoding,
 //! clamping, reserved bytes, and feature report structure.

@@ -1,4 +1,4 @@
-﻿//! Snapshot tests for the FFBeast HID protocol.
+//! Snapshot tests for the FFBeast HID protocol.
 //!
 //! These tests lock in the wire format to catch accidental protocol regressions.
 
@@ -80,7 +80,10 @@ fn test_snapshot_set_gain_half() {
 #[test]
 fn test_snapshot_is_ffbeast_product() {
     let results = [
-        ("wheel", ffbeast::is_ffbeast_product(ffbeast::FFBEAST_PRODUCT_ID_WHEEL)),
+        (
+            "wheel",
+            ffbeast::is_ffbeast_product(ffbeast::FFBEAST_PRODUCT_ID_WHEEL),
+        ),
         (
             "joystick",
             ffbeast::is_ffbeast_product(ffbeast::FFBEAST_PRODUCT_ID_JOYSTICK),
@@ -94,9 +97,18 @@ fn test_snapshot_is_ffbeast_product() {
 #[test]
 fn test_snapshot_is_ffbeast_product_all_devices() {
     let results = [
-        ("joystick", ffbeast::is_ffbeast_product(ffbeast::FFBEAST_PRODUCT_ID_JOYSTICK)),
-        ("rudder", ffbeast::is_ffbeast_product(ffbeast::FFBEAST_PRODUCT_ID_RUDDER)),
-        ("wheel", ffbeast::is_ffbeast_product(ffbeast::FFBEAST_PRODUCT_ID_WHEEL)),
+        (
+            "joystick",
+            ffbeast::is_ffbeast_product(ffbeast::FFBEAST_PRODUCT_ID_JOYSTICK),
+        ),
+        (
+            "rudder",
+            ffbeast::is_ffbeast_product(ffbeast::FFBEAST_PRODUCT_ID_RUDDER),
+        ),
+        (
+            "wheel",
+            ffbeast::is_ffbeast_product(ffbeast::FFBEAST_PRODUCT_ID_WHEEL),
+        ),
         ("wrong_pid_zero", ffbeast::is_ffbeast_product(0x0000)),
         ("wrong_pid_ffff", ffbeast::is_ffbeast_product(0xFFFF)),
     ];

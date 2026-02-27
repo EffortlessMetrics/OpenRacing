@@ -25,7 +25,8 @@ fn test_snapshot_parse_center() -> Result<(), String> {
 fn test_snapshot_parse_full_range_all_pedals() -> Result<(), String> {
     // throttle=0xFFFF, brake=0xFFFF, clutch=0xFFFF, status=0x03 (connected + calibrated)
     let data = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x03, 0x00];
-    let report = heusinkveld::HeusinkveldInputReport::parse(&data).map_err(|e| e.to_string())?;
+    let report = heusinkveld::HeusinkveldInputReport::parse(&data)
+        .map_err(|e| e.to_string())?;
     assert_debug_snapshot!(format!(
         "throttle={:.4}, brake={:.4}, clutch={:.4}, connected={}, calibrated={}",
         report.throttle_normalized(),
@@ -181,6 +182,13 @@ fn test_snapshot_model_from_info() {
             heusinkveld::heusinkveld_model_from_info(
                 heusinkveld::HEUSINKVELD_VENDOR_ID,
                 heusinkveld::HEUSINKVELD_ULTIMATE_PID,
+            ),
+        ),
+        (
+            "pro",
+            heusinkveld::heusinkveld_model_from_info(
+                heusinkveld::HEUSINKVELD_VENDOR_ID,
+                heusinkveld::HEUSINKVELD_PRO_PID,
             ),
         ),
         (
