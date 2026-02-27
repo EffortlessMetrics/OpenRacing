@@ -113,15 +113,17 @@ mod tests {
     #[test]
     fn test_parse_report() {
         let data = make_test_report();
-        let report = SimucubeInputReport::parse(&data).unwrap();
-
-        assert_eq!(report.sequence, 1);
-        assert_eq!(report.wheel_angle_raw, 0x00014000);
-        assert_eq!(report.wheel_speed_rpm, 392);
-        assert_eq!(report.torque_nm, 50);
-        assert_eq!(report.temperature_c, 0);
-        assert_eq!(report.fault_flags, 3);
-        assert_eq!(report.status_flags, 0);
+        let result = SimucubeInputReport::parse(&data);
+        assert!(result.is_ok());
+        if let Ok(report) = result {
+            assert_eq!(report.sequence, 1);
+            assert_eq!(report.wheel_angle_raw, 0x00014000);
+            assert_eq!(report.wheel_speed_rpm, 392);
+            assert_eq!(report.torque_nm, 50);
+            assert_eq!(report.temperature_c, 0);
+            assert_eq!(report.fault_flags, 3);
+            assert_eq!(report.status_flags, 0);
+        }
     }
 
     #[test]
@@ -136,8 +138,10 @@ mod tests {
 
     #[test]
     fn test_wheel_angle() {
-        let mut report = SimucubeInputReport::default();
-        report.wheel_angle_raw = ANGLE_SENSOR_MAX / 4;
+        let report = SimucubeInputReport {
+            wheel_angle_raw: ANGLE_SENSOR_MAX / 4,
+            ..Default::default()
+        };
 
         let degrees = report.wheel_angle_degrees();
         assert!((degrees - 90.0).abs() < 0.1);
@@ -145,8 +149,10 @@ mod tests {
 
     #[test]
     fn test_wheel_speed() {
-        let mut report = SimucubeInputReport::default();
-        report.wheel_speed_rpm = 60;
+        let report = SimucubeInputReport {
+            wheel_speed_rpm: 60,
+            ..Default::default()
+        };
 
         let rad_s = report.wheel_speed_rad_s();
         assert!((rad_s - 2.0 * std::f32::consts::PI).abs() < 0.01);
@@ -154,8 +160,10 @@ mod tests {
 
     #[test]
     fn test_applied_torque() {
-        let mut report = SimucubeInputReport::default();
-        report.torque_nm = 1500;
+        let report = SimucubeInputReport {
+            torque_nm: 1500,
+            ..Default::default()
+        };
 
         let torque = report.applied_torque_nm();
         assert!((torque - 15.0).abs() < 0.01);
@@ -163,9 +171,10 @@ mod tests {
 
     #[test]
     fn test_status_flags() {
-        let mut report = SimucubeInputReport::default();
-
-        report.status_flags = 0x03;
+        let mut report = SimucubeInputReport {
+            status_flags: 0x03,
+            ..Default::default()
+        };
         assert!(report.is_connected());
         assert!(report.is_enabled());
 

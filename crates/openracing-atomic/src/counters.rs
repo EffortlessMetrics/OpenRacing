@@ -478,7 +478,7 @@ mod tests {
     #[test]
     fn test_torque_saturation_percent() {
         let counters = AtomicCounters::new();
-        assert_eq!(counters.torque_saturation_percent(), 0.0);
+        assert!((counters.torque_saturation_percent() - 0.0).abs() < f32::EPSILON);
 
         counters.record_torque_saturation(true);
         counters.record_torque_saturation(true);
@@ -492,7 +492,7 @@ mod tests {
     #[test]
     fn test_telemetry_loss_percent() {
         let counters = AtomicCounters::new();
-        assert_eq!(counters.telemetry_loss_percent(), 0.0);
+        assert!((counters.telemetry_loss_percent() - 0.0).abs() < f32::EPSILON);
 
         for _ in 0..90 {
             counters.inc_telemetry_received();

@@ -415,7 +415,7 @@ mod tests {
     #[test]
     fn test_rt_metrics_missed_tick_rate() {
         let mut metrics = RTMetricsSnapshot::new();
-        assert_eq!(metrics.missed_tick_rate(), 0.0);
+        assert!((metrics.missed_tick_rate() - 0.0).abs() < f64::EPSILON);
 
         metrics.total_ticks = 1000;
         metrics.missed_ticks = 10;

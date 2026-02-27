@@ -444,10 +444,10 @@ mod tests {
         let json = serde_json::to_string(&curve);
         assert!(json.is_ok());
 
-        let json_str = json.unwrap();
+        let json_str = json.expect("serialization failed");
         let deserialized: Result<BezierCurve, _> = serde_json::from_str(&json_str);
         assert!(deserialized.is_ok());
-        assert_eq!(curve, deserialized.unwrap());
+        assert_eq!(curve, deserialized.expect("deserialization failed"));
     }
 
     #[test]

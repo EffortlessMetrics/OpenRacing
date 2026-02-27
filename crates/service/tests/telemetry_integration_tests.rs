@@ -34,14 +34,15 @@ fn must_some<T>(o: Option<T>, msg: &str) -> T {
 
 #[test]
 fn test_normalized_telemetry_creation() {
-    let telemetry = NormalizedTelemetry::default()
-        .with_ffb_scalar(0.75)
-        .with_rpm(6500.0)
-        .with_speed_ms(45.0)
-        .with_slip_ratio(0.15)
-        .with_gear(4)
-        .with_car_id("gt3_bmw".to_string())
-        .with_track_id("spa".to_string());
+    let telemetry = NormalizedTelemetry::builder()
+        .ffb_scalar(0.75)
+        .rpm(6500.0)
+        .speed_ms(45.0)
+        .slip_ratio(0.15)
+        .gear(4)
+        .car_id("gt3_bmw")
+        .track_id("spa")
+        .build();
 
     assert!((telemetry.ffb_scalar - 0.75).abs() < 0.01);
     assert!((telemetry.rpm - 6500.0).abs() < 0.01);
@@ -54,27 +55,28 @@ fn test_normalized_telemetry_creation() {
 
 #[test]
 fn test_ffb_scalar_clamping() {
-    let telemetry1 = NormalizedTelemetry::default().with_ffb_scalar(1.5);
+    let telemetry1 = NormalizedTelemetry::builder().ffb_scalar(1.5).build();
     assert!((telemetry1.ffb_scalar - 1.0).abs() < 0.01);
 
-    let telemetry2 = NormalizedTelemetry::default().with_ffb_scalar(-1.5);
+    let telemetry2 = NormalizedTelemetry::builder().ffb_scalar(-1.5).build();
     assert!((telemetry2.ffb_scalar - (-1.0)).abs() < 0.01);
 }
 
 #[test]
 fn test_slip_ratio_clamping() {
-    let telemetry1 = NormalizedTelemetry::default().with_slip_ratio(1.5);
+    let telemetry1 = NormalizedTelemetry::builder().slip_ratio(1.5).build();
     assert!((telemetry1.slip_ratio - 1.0).abs() < 0.01);
 
-    let telemetry2 = NormalizedTelemetry::default().with_slip_ratio(-0.5);
+    let telemetry2 = NormalizedTelemetry::builder().slip_ratio(-0.5).build();
     assert!((telemetry2.slip_ratio - 0.0).abs() < 0.01);
 }
 
 #[test]
 fn test_invalid_values_rejected() {
-    let telemetry = NormalizedTelemetry::default()
-        .with_rpm(-100.0) // Negative RPM should be rejected
-        .with_speed_ms(f32::NAN); // NaN should be rejected
+    let telemetry = NormalizedTelemetry::builder()
+        .rpm(-100.0) // Negative RPM should be rejected
+        .speed_ms(f32::NAN) // NaN should be rejected
+        .build();
 
     assert!((telemetry.rpm - 0.0).abs() < 0.01); // Default to 0
     assert!((telemetry.speed_ms - 0.0).abs() < 0.01); // Default to 0
@@ -82,7 +84,7 @@ fn test_invalid_values_rejected() {
 
 #[test]
 fn test_speed_conversions() {
-    let telemetry = NormalizedTelemetry::default().with_speed_ms(27.78); // 100 km/h
+    let telemetry = NormalizedTelemetry::builder().speed_ms(27.78).build(); // 100 km/h
 
     assert!((telemetry.speed_kmh() - 100.0).abs() < 0.1);
     assert!((telemetry.speed_mph() - 62.14).abs() < 0.1);
@@ -107,7 +109,7 @@ fn test_flags() {
         ..Default::default()
     };
 
-    let telemetry = NormalizedTelemetry::default().with_flags(flags);
+    let telemetry = NormalizedTelemetry::builder().flags(flags).build();
 
     assert!(telemetry.has_active_flags());
     assert!(telemetry.flags.yellow_flag);
@@ -268,7 +270,7 @@ fn test_recording_lifecycle() {
     assert!(recorder.is_recording());
 
     // Record some frames
-    let telemetry = NormalizedTelemetry::default().with_rpm(5000.0);
+    let telemetry = NormalizedTelemetry::builder().rpm(5000.0).build();
     let frame = TelemetryFrame::new(telemetry, 1000000, 0, 64);
     recorder.record_frame(frame);
 
@@ -293,7 +295,7 @@ fn test_load_recording() {
     let mut recorder = must(TelemetryRecorder::new(output_path.clone()));
     recorder.start_recording("test_game".to_string());
 
-    let telemetry = NormalizedTelemetry::default().with_rpm(5000.0);
+    let telemetry = NormalizedTelemetry::builder().rpm(5000.0).build();
     let frame = TelemetryFrame::new(telemetry, 1000000, 0, 64);
     recorder.record_frame(frame);
 
@@ -545,11 +547,12 @@ fn test_normalization_consistency() {
     ];
 
     for (rpm, speed, gear, ffb) in test_cases {
-        let telemetry = NormalizedTelemetry::default()
-            .with_rpm(rpm)
-            .with_speed_ms(speed)
-            .with_gear(gear)
-            .with_ffb_scalar(ffb);
+        let telemetry = NormalizedTelemetry::builder()
+            .rpm(rpm)
+            .speed_ms(speed)
+            .gear(gear)
+            .ffb_scalar(ffb)
+            .build();
 
         // Verify normalization is consistent
         assert!((telemetry.rpm - rpm).abs() < 0.01);
@@ -562,14 +565,15 @@ fn test_normalization_consistency() {
 /// Test telemetry field coverage information
 #[test]
 fn test_telemetry_field_coverage() {
-    let telemetry = NormalizedTelemetry::default()
-        .with_ffb_scalar(0.75)
-        .with_rpm(6500.0)
-        .with_speed_ms(45.0)
-        .with_slip_ratio(0.15)
-        .with_gear(4)
-        .with_car_id("gt3_bmw".to_string())
-        .with_track_id("spa".to_string());
+    let telemetry = NormalizedTelemetry::builder()
+        .ffb_scalar(0.75)
+        .rpm(6500.0)
+        .speed_ms(45.0)
+        .slip_ratio(0.15)
+        .gear(4)
+        .car_id("gt3_bmw")
+        .track_id("spa")
+        .build();
 
     assert!(telemetry.has_ffb_data());
     assert!(telemetry.has_rpm_data());
@@ -599,7 +603,7 @@ fn test_telemetry_flags_comprehensive() {
         ..Default::default()
     };
 
-    let telemetry = NormalizedTelemetry::default().with_flags(flags);
+    let telemetry = NormalizedTelemetry::builder().flags(flags).build();
 
     assert!(telemetry.has_active_flags());
     assert!(telemetry.flags.yellow_flag);

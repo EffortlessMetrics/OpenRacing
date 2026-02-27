@@ -170,8 +170,10 @@ fn test_state_machine_time_updates() {
 #[test]
 fn test_state_machine_threshold_changes() {
     let mut fmea = FmeaSystem::new();
-    let mut new_thresholds = FaultThresholds::default();
-    new_thresholds.usb_max_consecutive_failures = 1;
+    let new_thresholds = FaultThresholds {
+        usb_max_consecutive_failures: 1,
+        ..Default::default()
+    };
 
     fmea.set_thresholds(new_thresholds);
 

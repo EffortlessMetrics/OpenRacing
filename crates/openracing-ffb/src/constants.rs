@@ -59,6 +59,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn test_constants() {
         assert!(MAX_TORQUE_CNM > 0);
         assert!(MAX_TORQUE_NM > 0.0);

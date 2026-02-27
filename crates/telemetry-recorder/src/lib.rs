@@ -351,9 +351,11 @@ impl TestFixtureGenerator {
             };
             let in_pits = progress > 0.3 && progress < 0.7;
 
-            let mut flags = TelemetryFlags::default();
-            flags.in_pits = in_pits;
-            flags.pit_limiter = in_pits;
+            let flags = TelemetryFlags {
+                in_pits,
+                pit_limiter: in_pits,
+                ..Default::default()
+            };
 
             let speed = if in_pits { 15.0 } else { 45.0 };
             let rpm = if in_pits { 2000.0 } else { 6000.0 };

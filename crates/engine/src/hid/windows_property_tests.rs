@@ -172,9 +172,9 @@ proptest! {
             // Thrustmaster pedals (T3PA, T3PA Pro, T-LCM, T-LCM Pro)
             || (vid == vendor_ids::THRUSTMASTER && matches!(pid, 0xB678 | 0xB679 | 0xB68D | 0xB69A))
             // Heusinkveld pedals (Sprint / Ultimate+ / Pro) — share VID with Simagic legacy
-            || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x1156 | 0x1157 | 0x1158))
+            || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x1156..=0x1158))
             // VRS accessories (pedals, handbrake, shifter) — share VID with Simagic
-            || (vid == vendor_ids::SIMAGIC && matches!(pid, 0xA357 | 0xA358 | 0xA359 | 0xA35A))
+            || (vid == vendor_ids::SIMAGIC && matches!(pid, 0xA357..=0xA35A))
             // Simagic modern pedals, shifters, handbrake
             || (vid == vendor_ids::SIMAGIC_MODERN
                 && matches!(pid, 0x1001 | 0x1002 | 0x1003 | 0x2001 | 0x2002 | 0x3001))

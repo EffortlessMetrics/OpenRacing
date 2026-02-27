@@ -421,18 +421,21 @@ impl InternalSampleQueues {
 
     /// Push a jitter sample (RT-safe, drops on overflow)
     #[inline]
+    #[allow(dead_code)]
     pub fn push_jitter(&self, ns: u64) {
         let _ = self.jitter_ns.push(ns);
     }
 
     /// Push a processing time sample (RT-safe, drops on overflow)
     #[inline]
+    #[allow(dead_code)]
     pub fn push_processing_time(&self, ns: u64) {
         let _ = self.processing_time_ns.push(ns);
     }
 
     /// Push a HID latency sample (RT-safe, drops on overflow)
     #[inline]
+    #[allow(dead_code)]
     pub fn push_hid_latency(&self, ns: u64) {
         let _ = self.hid_latency_ns.push(ns);
     }
@@ -522,6 +525,7 @@ impl MetricsCollector {
     }
 
     /// Get sample queues for RT use.
+    #[allow(dead_code)]
     pub(crate) fn sample_queues(&self) -> Arc<InternalSampleQueues> {
         self.sample_queues.clone()
     }

@@ -4,6 +4,7 @@ use super::{MAX_TORQUE_NM, REPORT_SIZE_OUTPUT, SimucubeError, SimucubeResult};
 use openracing_hid_common::ReportBuilder;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(non_snake_case)]
 pub struct SimucubeOutputReport {
     pub sequence: u16,
     pub torque_cNm: i16,
@@ -136,9 +137,11 @@ mod tests {
     #[test]
     fn test_output_report_build() {
         let report = SimucubeOutputReport::new(42).with_torque(15.0);
-        let data = report.build().unwrap();
-
-        assert!(data.len() >= REPORT_SIZE_OUTPUT);
+        let result = report.build();
+        assert!(result.is_ok());
+        if let Ok(data) = result {
+            assert!(data.len() >= REPORT_SIZE_OUTPUT);
+        }
     }
 
     #[test]

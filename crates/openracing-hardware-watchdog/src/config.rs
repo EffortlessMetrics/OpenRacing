@@ -194,23 +194,27 @@ mod tests {
 
     #[test]
     fn test_config_builder() {
-        let config = WatchdogConfig::builder()
+        let result = WatchdogConfig::builder()
             .timeout_ms(200)
             .max_response_time_us(500)
             .max_feed_failures(3)
             .health_check_enabled(false)
-            .build()
-            .expect("Config should be valid");
-
-        assert_eq!(config.timeout_ms, 200);
-        assert_eq!(config.max_response_time_us, 500);
-        assert_eq!(config.max_feed_failures, 3);
-        assert!(!config.health_check_enabled);
+            .build();
+        assert!(result.is_ok());
+        if let Ok(config) = result {
+            assert_eq!(config.timeout_ms, 200);
+            assert_eq!(config.max_response_time_us, 500);
+            assert_eq!(config.max_feed_failures, 3);
+            assert!(!config.health_check_enabled);
+        }
     }
 
     #[test]
     fn test_timeout_us() {
-        let config = WatchdogConfig::new(100).expect("Valid config");
-        assert_eq!(config.timeout_us(), 100_000);
+        let result = WatchdogConfig::new(100);
+        assert!(result.is_ok());
+        if let Ok(config) = result {
+            assert_eq!(config.timeout_us(), 100_000);
+        }
     }
 }

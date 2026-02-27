@@ -9,9 +9,11 @@ proptest::proptest! {
         temp in 40.0f32..120.0f32,
         hysteresis in 0.0f32..30.0f32,
     ) {
-        let mut t = FaultThresholds::default();
-        t.thermal_limit_celsius = temp;
-        t.thermal_hysteresis_celsius = hysteresis;
+        let t = FaultThresholds {
+            thermal_limit_celsius: temp,
+            thermal_hysteresis_celsius: hysteresis,
+            ..Default::default()
+        };
         assert!(t.validate().is_ok());
     }
 
@@ -20,9 +22,11 @@ proptest::proptest! {
         timeout in 1u64..1000u64,
         max_failures in 1u32..100u32,
     ) {
-        let mut t = FaultThresholds::default();
-        t.usb_timeout_ms = timeout;
-        t.usb_max_consecutive_failures = max_failures;
+        let t = FaultThresholds {
+            usb_timeout_ms: timeout,
+            usb_max_consecutive_failures: max_failures,
+            ..Default::default()
+        };
         assert!(t.validate().is_ok());
     }
 
@@ -53,7 +57,7 @@ proptest::proptest! {
         ctrl.update(delta);
 
         let progress = ctrl.progress();
-        assert!(progress >= 0.0 && progress <= 1.0);
+        assert!((0.0..=1.0).contains(&progress));
     }
 
     #[test]
@@ -95,8 +99,10 @@ proptest::proptest! {
         limit in 50.0f32..100.0f32,
     ) {
         let mut fmea = FmeaSystem::new();
-        let mut thresholds = FaultThresholds::default();
-        thresholds.thermal_limit_celsius = limit;
+        let thresholds = FaultThresholds {
+            thermal_limit_celsius: limit,
+            ..Default::default()
+        };
         fmea.set_thresholds(thresholds);
 
         let result = fmea.detect_thermal_fault(temp, false);
@@ -115,7 +121,7 @@ proptest::proptest! {
         FaultType::TimingViolation,
     ])) {
         let severity = fault_type.severity();
-        assert!(severity >= 1 && severity <= 5);
+        assert!((1..=5).contains(&severity));
 
         // Critical faults should have lowest severity numbers
         if fault_type.requires_immediate_response() {
@@ -132,7 +138,7 @@ proptest::proptest! {
         AudioAlert::Urgent,
     ])) {
         let severity = alert.severity();
-        assert!(severity >= 1 && severity <= 5);
+        assert!((1..=5).contains(&severity));
     }
 }
 
@@ -177,7 +183,7 @@ proptest::proptest! {
         ctrl.update(delta);
 
         let multiplier = ctrl.current_multiplier();
-        assert!(multiplier >= 0.0 && multiplier <= 1.0);
+        assert!((0.0..=1.0).contains(&multiplier));
 
         // At 50% progress, multiplier should be around 0.5
         if progress > 0.4 && progress < 0.6 {

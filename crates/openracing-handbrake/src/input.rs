@@ -1,6 +1,6 @@
 //! Handbrake input parsing
 
-use super::{HandbrakeCapabilities, HandbrakeResult, MAX_ANALOG_VALUE};
+use super::{HandbrakeResult, MAX_ANALOG_VALUE};
 
 pub struct HandbrakeInput {
     pub raw_value: u16,
@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn test_parse_gamepad() {
         let data = vec![0x00, 0x00, 0xFF, 0xFF];
-        let input = HandbrakeInput::parse_gamepad(&data).unwrap();
+        let input = HandbrakeInput::parse_gamepad(&data).expect("parse should succeed");
 
         assert_eq!(input.raw_value, 0xFFFF);
         assert!(input.is_engaged);

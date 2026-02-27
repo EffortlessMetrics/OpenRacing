@@ -72,7 +72,7 @@ pub type AdapterFactory = fn() -> Box<dyn TelemetryAdapter>;
 pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
     static FACTORIES: std::sync::OnceLock<Vec<(&'static str, AdapterFactory)>> =
         std::sync::OnceLock::new();
-    FACTORIES.get_or_init(|| vec![])
+    FACTORIES.get_or_init(std::vec::Vec::new)
 }
 
 #[derive(Clone, Debug)]

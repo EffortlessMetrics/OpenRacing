@@ -32,7 +32,7 @@
 //! Operations that may allocate or block:
 //! - `WatchdogSystem::perform_health_checks()` - Periodic cleanup
 //! - `WatchdogSystem::get_quarantined_plugins()` - Returns Vec
-//! - `WatchdogSystem::get_plugin_performance_metrics()` - Returns HashMap
+//! - `WatchdogSystem::get_plugin_performance_metrics()` - Returns `HashMap`
 //!
 //! ## Example
 //!

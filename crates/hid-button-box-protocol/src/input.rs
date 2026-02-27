@@ -159,10 +159,12 @@ mod tests {
     #[test]
     fn test_parse_gamepad() {
         let data = make_gamepad_report();
-        let report = ButtonBoxInputReport::parse_gamepad(&data).unwrap();
-
-        assert_eq!(report.buttons, 0x0001);
-        assert_eq!(report.axis_x, 0x7F80i16 as i16);
+        let result = ButtonBoxInputReport::parse_gamepad(&data);
+        assert!(result.is_ok());
+        if let Ok(report) = result {
+            assert_eq!(report.buttons, 0x0001);
+            assert_eq!(report.axis_x, 0x7F80_i16);
+        }
     }
 
     #[test]
@@ -218,12 +220,12 @@ mod tests {
 
     #[test]
     fn test_axis_access() {
-        let mut report = ButtonBoxInputReport::default();
-
-        report.axis_x = 1000;
-        report.axis_y = 2000;
-        report.axis_z = 3000;
-        report.axis_rz = 4000;
+        let report = ButtonBoxInputReport {
+            axis_y: 2000,
+            axis_z: 3000,
+            axis_rz: 4000,
+            ..Default::default()
+        };
 
         assert_eq!(report.axis(0), 1000);
         assert_eq!(report.axis(1), 2000);
@@ -234,9 +236,10 @@ mod tests {
 
     #[test]
     fn test_axis_normalized() {
-        let mut report = ButtonBoxInputReport::default();
-
-        report.axis_x = i16::MAX;
+        let mut report = ButtonBoxInputReport {
+            axis_x: i16::MAX,
+            ..Default::default()
+        };
         assert!((report.axis_normalized(0) - 1.0).abs() < 0.001);
 
         report.axis_x = 0;

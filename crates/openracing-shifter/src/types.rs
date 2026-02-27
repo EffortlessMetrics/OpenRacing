@@ -5,17 +5,12 @@ use serde::{Deserialize, Serialize};
 pub const MAX_GEARS: usize = 8;
 pub const NEUTRAL_GEAR: i32 = 0;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ShifterType {
+    #[default]
     Sequential,
     HPattern,
     SequentialWithReverse,
-}
-
-impl Default for ShifterType {
-    fn default() -> Self {
-        Self::Sequential
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

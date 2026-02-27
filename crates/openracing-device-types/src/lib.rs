@@ -6,7 +6,6 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 
-use racing_wheel_schemas::prelude::*;
 
 /// Telemetry data from device
 #[derive(Debug, Clone)]
@@ -110,7 +109,7 @@ impl DeviceInputs {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum HatDirection {
     Up,
     UpRight,
@@ -120,56 +119,42 @@ pub enum HatDirection {
     DownLeft,
     Left,
     UpLeft,
+    #[default]
     Neutral,
-}
-
-impl Default for HatDirection {
-    fn default() -> Self {
-        Self::Neutral
-    }
 }
 
 #[cfg(feature = "proptest")]
 mod proptest_shrinks {
     use super::*;
+    use proptest::prelude::*;
 
-    impl proptest::Arbitrary for DeviceInputs {
+    impl Arbitrary for DeviceInputs {
         type Parameters = ();
-        type Strategy = proptest::strategy::BoxedStrategy<Self>;
+        type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            use proptest::prelude::*;
             (
-                any::<u32>(),
-                any::<[u8; 16]>(),
-                any::<u8>(),
-                any::<Option<u16>>(),
-                any::<Option<u16>>(),
-                any::<Option<u16>>(),
-                any::<Option<u16>>(),
-                any::<Option<u16>>(),
-                any::<Option<u16>>(),
-                any::<Option<bool>>(),
-                any::<Option<bool>>(),
-                any::<Option<u16>>(),
-                any::<[i16; 8]>(),
+                (
+                    any::<u32>(),
+                    any::<[u8; 16]>(),
+                    any::<u8>(),
+                    any::<Option<u16>>(),
+                    any::<Option<u16>>(),
+                    any::<Option<u16>>(),
+                ),
+                (
+                    any::<Option<u16>>(),
+                    any::<Option<u16>>(),
+                    any::<Option<u16>>(),
+                    any::<Option<bool>>(),
+                    any::<Option<bool>>(),
+                    any::<Option<u16>>(),
+                    any::<[i16; 8]>(),
+                ),
             )
                 .prop_map(
-                    |(
-                        tick,
-                        buttons,
-                        hat,
-                        steering,
-                        throttle,
-                        brake,
-                        clutch_left,
-                        clutch_right,
-                        clutch_combined,
-                        clutch_left_button,
-                        clutch_right_button,
-                        handbrake,
-                        rotaries,
-                    )| {
+                    |((tick, buttons, hat, steering, throttle, brake),
+                      (clutch_left, clutch_right, clutch_combined, clutch_left_button, clutch_right_button, handbrake, rotaries))| {
                         Self {
                             tick,
                             buttons,
@@ -272,11 +257,12 @@ mod tests {
 
     #[test]
     fn test_clutch_pedal_separation() {
-        let mut inputs = DeviceInputs::default();
-
-        inputs.clutch_left = Some(100);
-        inputs.clutch_right = Some(200);
-        inputs.clutch_combined = Some(150);
+        let inputs = DeviceInputs {
+            clutch_left: Some(100),
+            clutch_right: Some(200),
+            clutch_combined: Some(150),
+            ..Default::default()
+        };
 
         assert_eq!(inputs.clutch_left, Some(100));
         assert_eq!(inputs.clutch_right, Some(200));

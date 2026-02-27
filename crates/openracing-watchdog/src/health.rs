@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 
 /// System component health status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum HealthStatus {
     /// Component is operating normally.
     Healthy,
@@ -17,14 +18,10 @@ pub enum HealthStatus {
     /// Component has failed and requires attention.
     Faulted,
     /// Component status is unknown (not yet checked).
+    #[default]
     Unknown,
 }
 
-impl Default for HealthStatus {
-    fn default() -> Self {
-        Self::Unknown
-    }
-}
 
 impl std::fmt::Display for HealthStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -117,7 +114,7 @@ impl HealthCheck {
     ///
     /// # RT Safety
     ///
-    /// This method is RT-safe. The HashMap allocation only occurs for new metrics,
+    /// This method is RT-safe. The `HashMap` allocation only occurs for new metrics,
     /// which should be pre-allocated during initialization.
     pub fn heartbeat(&mut self) {
         self.last_heartbeat = Some(Instant::now());
@@ -153,12 +150,11 @@ impl HealthCheck {
     ///
     /// This method is RT-safe and performs no allocations.
     pub fn check_timeout(&mut self, timeout: Duration) -> bool {
-        if let Some(last_heartbeat) = self.last_heartbeat {
-            if last_heartbeat.elapsed() > timeout {
+        if let Some(last_heartbeat) = self.last_heartbeat
+            && last_heartbeat.elapsed() > timeout {
                 self.report_failure(Some("Heartbeat timeout".to_string()));
                 return true;
             }
-        }
         false
     }
 
@@ -183,7 +179,7 @@ impl HealthCheck {
     pub fn time_since_heartbeat(&self) -> Option<Duration> {
         self.last_heartbeat
             .as_ref()
-            .map(|instant| instant.elapsed())
+            .map(std::time::Instant::elapsed)
     }
 }
 

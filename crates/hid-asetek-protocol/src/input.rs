@@ -1,6 +1,6 @@
 //! Input report parsing for Asetek wheelbases
 
-use super::{AsetekError, AsetekResult, REPORT_SIZE_INPUT};
+use super::{AsetekError, AsetekResult};
 use openracing_hid_common::ReportParser;
 
 #[derive(Debug, Clone)]
@@ -85,16 +85,20 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x88, 0x01,
             0x00, 0x00, 0x32, 0x03, 0x00, 0x00,
         ];
-        let report = AsetekInputReport::parse(&data).unwrap();
-
-        assert_eq!(report.sequence, 1);
-        assert_eq!(report.wheel_angle, 0);
+        let result = AsetekInputReport::parse(&data);
+        assert!(result.is_ok());
+        if let Ok(report) = result {
+            assert_eq!(report.sequence, 1);
+            assert_eq!(report.wheel_angle, 0);
+        }
     }
 
     #[test]
     fn test_wheel_angle_degrees() {
-        let mut report = AsetekInputReport::default();
-        report.wheel_angle = 90000;
+        let report = AsetekInputReport {
+            wheel_angle: 90000,
+            ..Default::default()
+        };
 
         let degrees = report.wheel_angle_degrees();
         assert!((degrees - 90.0).abs() < 0.1);
@@ -102,8 +106,10 @@ mod tests {
 
     #[test]
     fn test_applied_torque() {
-        let mut report = AsetekInputReport::default();
-        report.torque = 1500;
+        let report = AsetekInputReport {
+            torque: 1500,
+            ..Default::default()
+        };
 
         let torque = report.applied_torque_nm();
         assert!((torque - 15.0).abs() < 0.01);

@@ -40,7 +40,7 @@ pub fn friction_filter(frame: &mut Frame, state: *mut u8) {
             ts_mono_ns: frame.ts_mono_ns,
             seq: frame.seq,
         };
-        openracing_filters::friction_filter(&mut filter_frame, &state);
+        openracing_filters::friction_filter(&mut filter_frame, state);
         frame.torque_out = filter_frame.torque_out;
     }
 }
@@ -57,7 +57,7 @@ pub fn damper_filter(frame: &mut Frame, state: *mut u8) {
             ts_mono_ns: frame.ts_mono_ns,
             seq: frame.seq,
         };
-        openracing_filters::damper_filter(&mut filter_frame, &state);
+        openracing_filters::damper_filter(&mut filter_frame, state);
         frame.torque_out = filter_frame.torque_out;
     }
 }
@@ -125,7 +125,7 @@ pub fn curve_filter(frame: &mut Frame, state: *mut u8) {
             ts_mono_ns: frame.ts_mono_ns,
             seq: frame.seq,
         };
-        openracing_filters::curve_filter(&mut filter_frame, &state);
+        openracing_filters::curve_filter(&mut filter_frame, state);
         frame.torque_out = filter_frame.torque_out;
     }
 }
@@ -142,7 +142,7 @@ pub fn response_curve_filter(frame: &mut Frame, state: *mut u8) {
             ts_mono_ns: frame.ts_mono_ns,
             seq: frame.seq,
         };
-        openracing_filters::response_curve_filter(&mut filter_frame, &state);
+        openracing_filters::response_curve_filter(&mut filter_frame, state);
         frame.torque_out = filter_frame.torque_out;
     }
 }

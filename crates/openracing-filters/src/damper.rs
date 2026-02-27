@@ -199,7 +199,7 @@ mod tests {
         let state = DamperState::new(0.1, true);
 
         for i in 0..1000 {
-            let speed = ((i as f32) * 0.01 - 5.0).max(-10.0).min(10.0);
+            let speed = ((i as f32) * 0.01 - 5.0).clamp(-10.0, 10.0);
             let mut frame = create_test_frame(0.5, speed);
             damper_filter(&mut frame, &state);
 

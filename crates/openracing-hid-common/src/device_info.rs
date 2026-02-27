@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HidDeviceInfo {
     pub vendor_id: u16,
     pub product_id: u16,
@@ -51,18 +51,6 @@ impl HidDeviceInfo {
     }
 }
 
-impl Default for HidDeviceInfo {
-    fn default() -> Self {
-        Self {
-            vendor_id: 0,
-            product_id: 0,
-            serial_number: None,
-            manufacturer: None,
-            product_name: None,
-            path: String::new(),
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

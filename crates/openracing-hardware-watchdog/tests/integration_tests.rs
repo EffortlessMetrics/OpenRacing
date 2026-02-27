@@ -84,13 +84,13 @@ mod full_lifecycle {
         for cycle in 0..5 {
             watchdog
                 .arm()
-                .expect(&format!("Arm cycle {} should succeed", cycle));
+                .unwrap_or_else(|_| panic!("Arm cycle {cycle} should succeed"));
             for _ in 0..3 {
                 watchdog.feed().expect("Feed should succeed");
             }
             watchdog
                 .disarm()
-                .expect(&format!("Disarm cycle {} should succeed", cycle));
+                .unwrap_or_else(|_| panic!("Disarm cycle {cycle} should succeed"));
         }
 
         let metrics = watchdog.metrics();

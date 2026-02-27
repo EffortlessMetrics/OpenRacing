@@ -1353,7 +1353,7 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque = TorqueNm::ZERO;
                 }
                 // Heusinkveld pedals (share VID 0x16D0 with Simagic)
-                0x1156 | 0x1157 | 0x1158 => {
+                0x1156..=0x1158 => {
                     // Sprint / Ultimate+ / Pro pedals (input-only)
                     capabilities.supports_pid = false;
                     capabilities.supports_raw_torque_1khz = false;

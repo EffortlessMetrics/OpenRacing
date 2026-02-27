@@ -1,9 +1,10 @@
 //! Output report generation for Asetek force feedback
 
-use super::{AsetekError, AsetekResult, MAX_TORQUE_NM, REPORT_SIZE_OUTPUT};
+use super::{AsetekResult, MAX_TORQUE_NM, REPORT_SIZE_OUTPUT};
 use openracing_hid_common::ReportBuilder;
 
 #[derive(Debug, Clone, Copy)]
+#[allow(non_snake_case)]
 pub struct AsetekOutputReport {
     pub sequence: u16,
     pub torque_cNm: i16,
@@ -77,8 +78,10 @@ mod tests {
     #[test]
     fn test_output_report_build() {
         let report = AsetekOutputReport::new(42).with_torque(15.0);
-        let data = report.build().unwrap();
-
-        assert!(data.len() >= REPORT_SIZE_OUTPUT);
+        let result = report.build();
+        assert!(result.is_ok());
+        if let Ok(data) = result {
+            assert!(data.len() >= REPORT_SIZE_OUTPUT);
+        }
     }
 }

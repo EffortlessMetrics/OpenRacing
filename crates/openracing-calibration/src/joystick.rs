@@ -4,6 +4,7 @@ use crate::{AxisCalibration, CalibrationPoint, CalibrationResult};
 
 pub struct JoystickCalibrator {
     points: Vec<CalibrationPoint>,
+    #[allow(dead_code)]
     axis_index: usize,
 }
 
@@ -77,7 +78,7 @@ mod tests {
         calibrator.add_sample(32768, 0.5);
         calibrator.add_sample(65535, 1.0);
 
-        let result = calibrator.calibrate().unwrap();
+        let result = calibrator.calibrate().expect("calibrate should succeed");
         assert_eq!(result.min, 0);
         assert_eq!(result.max, 65535);
     }
@@ -86,7 +87,7 @@ mod tests {
     fn test_calibrate_joystick_axis() {
         let samples = vec![(0, 0.0), (32768, 0.5), (65535, 1.0)];
 
-        let result = calibrate_joystick_axis(&samples).unwrap();
+        let result = calibrate_joystick_axis(&samples).expect("calibrate should succeed");
         assert_eq!(result.min, 0);
         assert_eq!(result.max, 65535);
     }

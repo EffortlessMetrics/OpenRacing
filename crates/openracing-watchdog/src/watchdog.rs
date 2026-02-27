@@ -18,6 +18,8 @@ use crate::stats::PluginStats;
 /// Callback function type for fault notifications.
 pub type FaultCallback = Box<dyn Fn(FaultType, &str) + Send + Sync>;
 
+/// Stored fault callback type.
+type FaultCallbackList = RwLock<Vec<Arc<dyn Fn(FaultType, &str) + Send + Sync>>>;
 /// Watchdog configuration for different components.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WatchdogConfig {
@@ -42,7 +44,7 @@ impl Default for WatchdogConfig {
         Self {
             plugin_timeout_us: 100,
             plugin_max_timeouts: 5,
-            plugin_quarantine_duration: Duration::from_secs(300),
+            plugin_quarantine_duration: Duration::from_mins(5),
             rt_thread_timeout_ms: 10,
             hid_timeout_ms: 50,
             telemetry_timeout_ms: 1000,
@@ -182,7 +184,7 @@ pub struct WatchdogSystem {
     quarantine_manager: RwLock<QuarantineManager>,
     last_health_check: RwLock<Instant>,
     quarantine_policy_enabled: RwLock<bool>,
-    fault_callbacks: RwLock<Vec<Arc<dyn Fn(FaultType, &str) + Send + Sync>>>,
+    fault_callbacks: FaultCallbackList,
 }
 
 impl WatchdogSystem {
@@ -284,7 +286,7 @@ impl WatchdogSystem {
     #[must_use]
     pub fn is_plugin_quarantined(&self, plugin_id: &str) -> bool {
         let stats = self.plugin_stats.read();
-        stats.get(plugin_id).map_or(false, |s| s.is_quarantined())
+        stats.get(plugin_id).is_some_and(super::stats::PluginStats::is_quarantined)
     }
 
     /// Get plugin statistics.
@@ -360,12 +362,14 @@ impl WatchdogSystem {
 
         if status == HealthStatus::Faulted {
             let fault_type = match component {
-                SystemComponent::RtThread => FaultType::TimingViolation,
-                SystemComponent::HidCommunication => FaultType::UsbStall,
-                SystemComponent::TelemetryAdapter => FaultType::TimingViolation,
+                SystemComponent::RtThread | SystemComponent::TelemetryAdapter => {
+                    FaultType::TimingViolation
+                }
+                SystemComponent::HidCommunication | SystemComponent::DeviceManager => {
+                    FaultType::UsbStall
+                }
                 SystemComponent::PluginHost => FaultType::PluginOverrun,
                 SystemComponent::SafetySystem => FaultType::SafetyInterlockViolation,
-                SystemComponent::DeviceManager => FaultType::UsbStall,
             };
 
             let callbacks = self.fault_callbacks.read();
@@ -420,19 +424,17 @@ impl WatchdogSystem {
         {
             let mut checks = self.health_checks.write();
 
-            if let Some(health_check) = checks.get_mut(&SystemComponent::RtThread) {
-                if health_check
+            if let Some(health_check) = checks.get_mut(&SystemComponent::RtThread)
+                && health_check
                     .check_timeout(Duration::from_millis(self.config.rt_thread_timeout_ms))
                 {
                     faults.push(FaultType::TimingViolation);
                 }
-            }
 
-            if let Some(health_check) = checks.get_mut(&SystemComponent::HidCommunication) {
-                if health_check.check_timeout(Duration::from_millis(self.config.hid_timeout_ms)) {
+            if let Some(health_check) = checks.get_mut(&SystemComponent::HidCommunication)
+                && health_check.check_timeout(Duration::from_millis(self.config.hid_timeout_ms)) {
                     faults.push(FaultType::UsbStall);
                 }
-            }
 
             if let Some(health_check) = checks.get_mut(&SystemComponent::TelemetryAdapter) {
                 health_check.check_timeout(Duration::from_millis(self.config.telemetry_timeout_ms));
@@ -505,7 +507,8 @@ impl WatchdogSystem {
                 let mut metrics = HashMap::new();
                 metrics.insert(
                     "total_executions".to_string(),
-                    plugin_stats.total_executions as f64,
+                    #[allow(clippy::cast_precision_loss)]
+                    { plugin_stats.total_executions as f64 },
                 );
                 metrics.insert(
                     "average_execution_time_us".to_string(),
@@ -517,17 +520,18 @@ impl WatchdogSystem {
                 );
                 metrics.insert(
                     "quarantine_count".to_string(),
-                    plugin_stats.quarantine_count as f64,
+                    f64::from(plugin_stats.quarantine_count),
                 );
                 metrics.insert(
                     "consecutive_timeouts".to_string(),
-                    plugin_stats.consecutive_timeouts as f64,
+                    f64::from(plugin_stats.consecutive_timeouts),
                 );
 
                 if let Some(remaining) = plugin_stats.quarantine_remaining() {
                     metrics.insert(
                         "quarantine_remaining_ms".to_string(),
-                        remaining.as_millis() as f64,
+                        #[allow(clippy::cast_precision_loss)]
+                        { remaining.as_millis() as f64 },
                     );
                 }
 
@@ -608,7 +612,7 @@ impl std::fmt::Debug for WatchdogSystem {
                 "quarantine_policy_enabled",
                 &*self.quarantine_policy_enabled.read(),
             )
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -625,10 +629,11 @@ mod tests {
 
         let stats = watchdog.get_plugin_stats("test_plugin");
         assert!(stats.is_some());
-        let stats = stats.unwrap();
-        assert_eq!(stats.total_executions, 1);
-        assert_eq!(stats.last_execution_time_us, 50);
-        assert_eq!(stats.timeout_count, 0);
+        if let Some(stats) = stats {
+            assert_eq!(stats.total_executions, 1);
+            assert_eq!(stats.last_execution_time_us, 50);
+            assert_eq!(stats.timeout_count, 0);
+        }
     }
 
     #[test]
@@ -638,9 +643,12 @@ mod tests {
         let fault = watchdog.record_plugin_execution("test_plugin", 150);
         assert!(fault.is_none()); // First timeout, not quarantined yet
 
-        let stats = watchdog.get_plugin_stats("test_plugin").unwrap();
-        assert_eq!(stats.timeout_count, 1);
-        assert_eq!(stats.consecutive_timeouts, 1);
+        let stats = watchdog.get_plugin_stats("test_plugin");
+        assert!(stats.is_some());
+        if let Some(stats) = stats {
+            assert_eq!(stats.timeout_count, 1);
+            assert_eq!(stats.consecutive_timeouts, 1);
+        }
     }
 
     #[test]
@@ -671,7 +679,8 @@ mod tests {
 
         assert!(watchdog.is_plugin_quarantined("test_plugin"));
 
-        watchdog.release_plugin_quarantine("test_plugin").unwrap();
+        let result = watchdog.release_plugin_quarantine("test_plugin");
+        assert!(result.is_ok());
         assert!(!watchdog.is_plugin_quarantined("test_plugin"));
     }
 
@@ -679,24 +688,27 @@ mod tests {
     fn test_system_component_health() {
         let watchdog = WatchdogSystem::default();
 
-        let health = watchdog
-            .get_component_health(SystemComponent::RtThread)
-            .unwrap();
-        assert_eq!(health.status, HealthStatus::Unknown);
+        let health = watchdog.get_component_health(SystemComponent::RtThread);
+        assert!(health.is_some());
+        if let Some(health) = health {
+            assert_eq!(health.status, HealthStatus::Unknown);
+        }
 
         watchdog.heartbeat(SystemComponent::RtThread);
-        let health = watchdog
-            .get_component_health(SystemComponent::RtThread)
-            .unwrap();
-        assert_eq!(health.status, HealthStatus::Healthy);
+        let health = watchdog.get_component_health(SystemComponent::RtThread);
+        assert!(health.is_some());
+        if let Some(health) = health {
+            assert_eq!(health.status, HealthStatus::Healthy);
+        }
 
         watchdog
             .report_component_failure(SystemComponent::RtThread, Some("Test error".to_string()));
-        let health = watchdog
-            .get_component_health(SystemComponent::RtThread)
-            .unwrap();
-        assert_eq!(health.consecutive_failures, 1);
-        assert_eq!(health.last_error, Some("Test error".to_string()));
+        let health = watchdog.get_component_health(SystemComponent::RtThread);
+        assert!(health.is_some());
+        if let Some(health) = health {
+            assert_eq!(health.consecutive_failures, 1);
+            assert_eq!(health.last_error, Some("Test error".to_string()));
+        }
     }
 
     #[test]
@@ -746,8 +758,8 @@ mod tests {
         assert!(metrics.contains_key("plugin2"));
 
         let plugin1_metrics = &metrics["plugin1"];
-        assert_eq!(plugin1_metrics["total_executions"], 2.0);
-        assert_eq!(plugin1_metrics["timeout_rate_percent"], 50.0);
+        assert!((plugin1_metrics["total_executions"] - 2.0).abs() < f64::EPSILON);
+        assert!((plugin1_metrics["timeout_rate_percent"] - 50.0).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -777,18 +789,20 @@ mod tests {
 
     #[test]
     fn test_config_builder() {
-        let config = WatchdogConfig::builder()
+        let result = WatchdogConfig::builder()
             .plugin_timeout_us(200)
             .plugin_max_timeouts(3)
-            .plugin_quarantine_duration(Duration::from_secs(600))
+            .plugin_quarantine_duration(Duration::from_mins(10))
             .rt_thread_timeout_ms(20)
-            .build()
-            .unwrap();
+            .build();
 
-        assert_eq!(config.plugin_timeout_us, 200);
-        assert_eq!(config.plugin_max_timeouts, 3);
-        assert_eq!(config.plugin_quarantine_duration, Duration::from_secs(600));
-        assert_eq!(config.rt_thread_timeout_ms, 20);
+        assert!(result.is_ok());
+        if let Ok(config) = result {
+            assert_eq!(config.plugin_timeout_us, 200);
+            assert_eq!(config.plugin_max_timeouts, 3);
+            assert_eq!(config.plugin_quarantine_duration, Duration::from_mins(10));
+            assert_eq!(config.rt_thread_timeout_ms, 20);
+        }
     }
 
     #[test]
@@ -816,7 +830,8 @@ mod tests {
         watchdog.register_plugin("plugin_b");
         assert_eq!(watchdog.plugin_count(), 2);
 
-        watchdog.unregister_plugin("plugin_a").unwrap();
+        let result = watchdog.unregister_plugin("plugin_a");
+        assert!(result.is_ok());
         assert_eq!(watchdog.plugin_count(), 1);
 
         let result = watchdog.unregister_plugin("unknown");

@@ -215,7 +215,6 @@ mod property_tests {
             let mut out = [0u8; TORQUE_COMMAND_LEN];
             let _ = enc.encode(torque, &mut out);
             prop_assert_eq!(out[0], 0x01);
-            prop_assert!(out[1] <= u8::MAX);
         }
 
         #[test]
