@@ -8,10 +8,9 @@
 
 use proptest::prelude::*;
 use racing_wheel_hid_logitech_protocol::{
-    CONSTANT_FORCE_REPORT_LEN, LOGITECH_VENDOR_ID, VENDOR_REPORT_LEN,
-    LogitechConstantForceEncoder, LogitechModel, build_gain_report, build_native_mode_report,
-    build_set_autocenter_report, build_set_leds_report, build_set_range_report, is_wheel_product,
-    product_ids,
+    CONSTANT_FORCE_REPORT_LEN, LOGITECH_VENDOR_ID, LogitechConstantForceEncoder, LogitechModel,
+    VENDOR_REPORT_LEN, build_gain_report, build_native_mode_report, build_set_autocenter_report,
+    build_set_leds_report, build_set_range_report, is_wheel_product, product_ids,
 };
 
 // ── VID / PID invariants ──────────────────────────────────────────────────────

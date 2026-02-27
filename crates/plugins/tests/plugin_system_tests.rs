@@ -423,7 +423,11 @@ fn test_wasm_sandbox_network_capability_enforcement() {
 
     // No Network capability granted
     let checker = CapabilityChecker::new(vec![Capability::ReadTelemetry]);
-    assert!(checker.check_network_access("telemetry.example.com").is_err());
+    assert!(
+        checker
+            .check_network_access("telemetry.example.com")
+            .is_err()
+    );
 
     // With specific host granted
     let checker_with_net = CapabilityChecker::new(vec![Capability::Network {
@@ -492,7 +496,12 @@ async fn test_native_plugin_load_rejects_unsigned_library() {
 
     let fake_path = plugin_subdir.join(lib_name);
     let result = host
-        .load_plugin(uuid::Uuid::new_v4(), "unsigned-test".to_string(), &fake_path, 1000)
+        .load_plugin(
+            uuid::Uuid::new_v4(),
+            "unsigned-test".to_string(),
+            &fake_path,
+            1000,
+        )
         .await;
 
     assert!(
@@ -503,8 +512,7 @@ async fn test_native_plugin_load_rejects_unsigned_library() {
 
 /// Crash isolation: a trapping WASM plugin does not affect other loaded plugins.
 #[test]
-fn test_plugin_crash_isolation_does_not_affect_sibling() -> Result<(), Box<dyn std::error::Error>>
-{
+fn test_plugin_crash_isolation_does_not_affect_sibling() -> Result<(), Box<dyn std::error::Error>> {
     use racing_wheel_plugins::wasm::{PluginId, WasmRuntime};
 
     let crash_bytes = wat::parse_str(TRAP_WAT)?;

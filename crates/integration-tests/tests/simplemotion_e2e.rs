@@ -170,7 +170,11 @@ fn scenario_ioni_identity_is_simucube_1() -> Result<(), Box<dyn std::error::Erro
         "IONI name must reference Simucube or IONI, got: {}",
         id.name
     );
-    assert_eq!(id.max_torque_nm, Some(15.0), "IONI max torque must be 15 Nm");
+    assert_eq!(
+        id.max_torque_nm,
+        Some(15.0),
+        "IONI max torque must be 15 Nm"
+    );
     assert!(id.supports_ffb, "IONI must support FFB");
 
     Ok(())
@@ -335,7 +339,10 @@ fn scenario_is_v2_hardware() -> Result<(), Box<dyn std::error::Error>> {
     let argon = SimpleMotionScenario::argon();
 
     // Then: IONI is V1 hardware; IONI Premium and ARGON are V2
-    assert!(!ioni.protocol.is_v2_hardware(), "IONI must not be V2 hardware");
+    assert!(
+        !ioni.protocol.is_v2_hardware(),
+        "IONI must not be V2 hardware"
+    );
     assert!(
         ioni_premium.protocol.is_v2_hardware(),
         "IONI Premium must be V2 hardware"

@@ -183,14 +183,46 @@ mod tests {
     fn test_pid_constant_values() -> Result<(), Box<dyn std::error::Error>> {
         use crate::ids::{LOGITECH_VENDOR_ID, product_ids};
         assert_eq!(LOGITECH_VENDOR_ID, 0x046D, "Logitech VID");
-        assert_eq!(product_ids::G25, 0xC299, "G25 PID (kernel: USB_DEVICE_ID_LOGITECH_G25_WHEEL)");
-        assert_eq!(product_ids::G27, 0xC29B, "G27 PID (kernel: USB_DEVICE_ID_LOGITECH_G27_WHEEL)");
-        assert_eq!(product_ids::G29_PS, 0xC24F, "G29 PID (kernel: USB_DEVICE_ID_LOGITECH_G29_WHEEL)");
-        assert_eq!(product_ids::G920, 0xC262, "G920 PID (kernel: USB_DEVICE_ID_LOGITECH_G920_WHEEL)");
-        assert_eq!(product_ids::G923_PS, 0xC267, "G923 PS PID (oversteer: LG_G923P)");
-        assert_eq!(product_ids::G923_XBOX, 0xC26E, "G923 Xbox PID (kernel: USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL)");
-        assert_eq!(product_ids::G_PRO, 0xC268, "G PRO PS PID (oversteer: LG_GPRO_PS)");
-        assert_eq!(product_ids::G_PRO_XBOX, 0xC272, "G PRO Xbox PID (oversteer: LG_GPRO_XBOX)");
+        assert_eq!(
+            product_ids::G25,
+            0xC299,
+            "G25 PID (kernel: USB_DEVICE_ID_LOGITECH_G25_WHEEL)"
+        );
+        assert_eq!(
+            product_ids::G27,
+            0xC29B,
+            "G27 PID (kernel: USB_DEVICE_ID_LOGITECH_G27_WHEEL)"
+        );
+        assert_eq!(
+            product_ids::G29_PS,
+            0xC24F,
+            "G29 PID (kernel: USB_DEVICE_ID_LOGITECH_G29_WHEEL)"
+        );
+        assert_eq!(
+            product_ids::G920,
+            0xC262,
+            "G920 PID (kernel: USB_DEVICE_ID_LOGITECH_G920_WHEEL)"
+        );
+        assert_eq!(
+            product_ids::G923_PS,
+            0xC267,
+            "G923 PS PID (oversteer: LG_G923P)"
+        );
+        assert_eq!(
+            product_ids::G923_XBOX,
+            0xC26E,
+            "G923 Xbox PID (kernel: USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL)"
+        );
+        assert_eq!(
+            product_ids::G_PRO,
+            0xC268,
+            "G PRO PS PID (oversteer: LG_GPRO_PS)"
+        );
+        assert_eq!(
+            product_ids::G_PRO_XBOX,
+            0xC272,
+            "G PRO Xbox PID (oversteer: LG_GPRO_XBOX)"
+        );
         Ok(())
     }
 }

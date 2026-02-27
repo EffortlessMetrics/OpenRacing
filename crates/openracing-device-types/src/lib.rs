@@ -6,7 +6,6 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 
-
 /// Telemetry data from device
 #[derive(Debug, Clone)]
 pub struct TelemetryData {
@@ -153,8 +152,18 @@ mod proptest_shrinks {
                 ),
             )
                 .prop_map(
-                    |((tick, buttons, hat, steering, throttle, brake),
-                      (clutch_left, clutch_right, clutch_combined, clutch_left_button, clutch_right_button, handbrake, rotaries))| {
+                    |(
+                        (tick, buttons, hat, steering, throttle, brake),
+                        (
+                            clutch_left,
+                            clutch_right,
+                            clutch_combined,
+                            clutch_left_button,
+                            clutch_right_button,
+                            handbrake,
+                            rotaries,
+                        ),
+                    )| {
                         Self {
                             tick,
                             buttons,

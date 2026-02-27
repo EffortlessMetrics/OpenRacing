@@ -170,13 +170,23 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     let fuel_capacity = read_f32(data, OFF_FUEL_CAPACITY).unwrap_or(1.0).max(1.0);
     let fuel_percent = (fuel_in_tank / fuel_capacity).clamp(0.0, 1.0) * 100.0;
 
-    let in_pits = read_f32(data, OFF_IN_PIT).map(|v| v >= 0.5).unwrap_or(false);
+    let in_pits = read_f32(data, OFF_IN_PIT)
+        .map(|v| v >= 0.5)
+        .unwrap_or(false);
 
     let tire_temps_c = [
-        read_f32(data, OFF_BRAKES_TEMP_FL).unwrap_or(0.0).clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 4).unwrap_or(0.0).clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 8).unwrap_or(0.0).clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 12).unwrap_or(0.0).clamp(0.0, 255.0) as u8,
+        read_f32(data, OFF_BRAKES_TEMP_FL)
+            .unwrap_or(0.0)
+            .clamp(0.0, 255.0) as u8,
+        read_f32(data, OFF_BRAKES_TEMP_FL + 4)
+            .unwrap_or(0.0)
+            .clamp(0.0, 255.0) as u8,
+        read_f32(data, OFF_BRAKES_TEMP_FL + 8)
+            .unwrap_or(0.0)
+            .clamp(0.0, 255.0) as u8,
+        read_f32(data, OFF_BRAKES_TEMP_FL + 12)
+            .unwrap_or(0.0)
+            .clamp(0.0, 255.0) as u8,
     ];
 
     let tire_pressures_psi = [
@@ -222,9 +232,10 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
 
     if max_rpm > 0.0 {
         let rpm_fraction = (rpm_raw / max_rpm).clamp(0.0, 1.0);
-        builder = builder
-            .max_rpm(max_rpm)
-            .extended("rpm_fraction".to_string(), TelemetryValue::Float(rpm_fraction));
+        builder = builder.max_rpm(max_rpm).extended(
+            "rpm_fraction".to_string(),
+            TelemetryValue::Float(rpm_fraction),
+        );
     }
 
     Ok(builder.build())
@@ -412,7 +423,10 @@ mod tests {
     #[test]
     fn empty_input_returns_error() -> Result<(), Box<dyn std::error::Error>> {
         let adapter = Dirt4Adapter::new();
-        assert!(adapter.normalize(&[]).is_err(), "empty input must return an error");
+        assert!(
+            adapter.normalize(&[]).is_err(),
+            "empty input must return an error"
+        );
         Ok(())
     }
 
@@ -444,7 +458,11 @@ mod tests {
         write_f32(&mut raw, OFF_WHEEL_SPEED_RL, 10.0);
         write_f32(&mut raw, OFF_WHEEL_SPEED_RR, 10.0);
         let t = adapter.normalize(&raw)?;
-        assert!(t.speed_ms >= 0.0, "speed_ms must be non-negative, got {}", t.speed_ms);
+        assert!(
+            t.speed_ms >= 0.0,
+            "speed_ms must be non-negative, got {}",
+            t.speed_ms
+        );
         Ok(())
     }
 

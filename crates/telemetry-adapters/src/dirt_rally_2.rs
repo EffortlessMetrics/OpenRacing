@@ -174,14 +174,24 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     let fuel_capacity = read_f32(data, OFF_FUEL_CAPACITY).unwrap_or(1.0).max(1.0);
     let fuel_percent = (fuel_in_tank / fuel_capacity).clamp(0.0, 1.0) * 100.0;
 
-    let in_pits = read_f32(data, OFF_IN_PIT).map(|v| v >= 0.5).unwrap_or(false);
+    let in_pits = read_f32(data, OFF_IN_PIT)
+        .map(|v| v >= 0.5)
+        .unwrap_or(false);
 
     // Brake temperatures (°C) clamped to u8 range.
     let tire_temps_c = [
-        read_f32(data, OFF_BRAKES_TEMP_FL).unwrap_or(0.0).clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 4).unwrap_or(0.0).clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 8).unwrap_or(0.0).clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 12).unwrap_or(0.0).clamp(0.0, 255.0) as u8,
+        read_f32(data, OFF_BRAKES_TEMP_FL)
+            .unwrap_or(0.0)
+            .clamp(0.0, 255.0) as u8,
+        read_f32(data, OFF_BRAKES_TEMP_FL + 4)
+            .unwrap_or(0.0)
+            .clamp(0.0, 255.0) as u8,
+        read_f32(data, OFF_BRAKES_TEMP_FL + 8)
+            .unwrap_or(0.0)
+            .clamp(0.0, 255.0) as u8,
+        read_f32(data, OFF_BRAKES_TEMP_FL + 12)
+            .unwrap_or(0.0)
+            .clamp(0.0, 255.0) as u8,
     ];
 
     let tire_pressures_psi = [
@@ -227,9 +237,10 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
 
     if max_rpm > 0.0 {
         let rpm_fraction = (rpm_raw / max_rpm).clamp(0.0, 1.0);
-        builder = builder
-            .max_rpm(max_rpm)
-            .extended("rpm_fraction".to_string(), TelemetryValue::Float(rpm_fraction));
+        builder = builder.max_rpm(max_rpm).extended(
+            "rpm_fraction".to_string(),
+            TelemetryValue::Float(rpm_fraction),
+        );
     }
 
     Ok(builder.build())
@@ -584,7 +595,10 @@ mod tests {
         write_f32(&mut raw, OFF_MAX_RPM, 8000.0);
         let t = adapter.normalize(&raw)?;
         assert!((t.rpm - 5000.0).abs() < 0.001, "rpm should be 5000.0");
-        assert!((t.max_rpm - 8000.0).abs() < 0.001, "max_rpm should be 8000.0");
+        assert!(
+            (t.max_rpm - 8000.0).abs() < 0.001,
+            "max_rpm should be 8000.0"
+        );
         if let Some(TelemetryValue::Float(fraction)) = t.extended.get("rpm_fraction") {
             assert!(
                 (fraction - 0.625).abs() < 0.001,

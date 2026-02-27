@@ -6,9 +6,9 @@
 
 #![deny(static_mut_refs)]
 
-use racing_wheel_hid_accuforce_protocol::{AccuForceModel, MAX_REPORT_BYTES};
-pub use racing_wheel_hid_accuforce_protocol::is_accuforce_pid as is_accuforce_product;
 use super::{DeviceWriter, FfbConfig, VendorProtocol};
+pub use racing_wheel_hid_accuforce_protocol::is_accuforce_pid as is_accuforce_product;
+use racing_wheel_hid_accuforce_protocol::{AccuForceModel, MAX_REPORT_BYTES};
 use tracing::{debug, info};
 
 /// Protocol handler for SimExperience AccuForce Pro wheelbases.

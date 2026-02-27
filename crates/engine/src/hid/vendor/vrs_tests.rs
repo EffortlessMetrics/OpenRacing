@@ -1,7 +1,7 @@
 //! Tests for VRS DirectForce Pro protocol handler.
 
-use super::vrs::{is_vrs_product, product_ids, VrsProtocolHandler};
-use super::{get_vendor_protocol, DeviceWriter, VendorProtocol};
+use super::vrs::{VrsProtocolHandler, is_vrs_product, product_ids};
+use super::{DeviceWriter, VendorProtocol, get_vendor_protocol};
 use std::cell::RefCell;
 
 struct MockDeviceWriter {
@@ -56,7 +56,11 @@ fn test_initialize_wheelbase() -> Result<(), Box<dyn std::error::Error>> {
     let mut writer = MockDeviceWriter::new();
     handler.initialize_device(&mut writer)?;
     let reports = writer.feature_reports();
-    assert_eq!(reports.len(), 3, "wheelbase init must send 3 feature reports");
+    assert_eq!(
+        reports.len(),
+        3,
+        "wheelbase init must send 3 feature reports"
+    );
     Ok(())
 }
 

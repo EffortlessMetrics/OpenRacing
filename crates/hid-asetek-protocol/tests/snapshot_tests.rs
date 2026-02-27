@@ -2,8 +2,8 @@
 //!
 //! These tests lock in the wire format to catch accidental protocol regressions.
 
-use insta::assert_debug_snapshot;
 use hid_asetek_protocol as asetek;
+use insta::assert_debug_snapshot;
 
 #[test]
 fn test_snapshot_output_zero_torque() -> Result<(), String> {
@@ -39,7 +39,9 @@ fn test_snapshot_output_quarter_torque() -> Result<(), String> {
 
 #[test]
 fn test_snapshot_output_with_led() -> Result<(), String> {
-    let report = asetek::AsetekOutputReport::new(1).with_torque(5.0).with_led(0x01, 0x80);
+    let report = asetek::AsetekOutputReport::new(1)
+        .with_torque(5.0)
+        .with_led(0x01, 0x80);
     let data = report.build().map_err(|e| e.to_string())?;
     assert_debug_snapshot!(data);
     Ok(())
@@ -100,7 +102,10 @@ fn test_snapshot_model_from_info() {
             "laprima",
             asetek::asetek_model_from_info(asetek::ASETEK_VENDOR_ID, asetek::ASETEK_LAPRIMA_PID),
         ),
-        ("wrong_vid", asetek::asetek_model_from_info(0x0000, asetek::ASETEK_FORTE_PID)),
+        (
+            "wrong_vid",
+            asetek::asetek_model_from_info(0x0000, asetek::ASETEK_FORTE_PID),
+        ),
     ];
     assert_debug_snapshot!(format!("{:?}", results));
 }
@@ -108,7 +113,10 @@ fn test_snapshot_model_from_info() {
 #[test]
 fn test_snapshot_is_asetek_device() {
     let results = [
-        ("correct_vid", asetek::is_asetek_device(asetek::ASETEK_VENDOR_ID)),
+        (
+            "correct_vid",
+            asetek::is_asetek_device(asetek::ASETEK_VENDOR_ID),
+        ),
         ("wrong_vid", asetek::is_asetek_device(0x0000)),
     ];
     assert_debug_snapshot!(format!("{:?}", results));

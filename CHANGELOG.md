@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **15 HID vendor protocol SRP microcrates**: Moza, Fanatec, Logitech, Thrustmaster, Simagic, Simucube, Asetek, VRS DirectForce, Heusinkveld, OpenFFBoard, FFBeast, AccuForce, Leo Bodnar, Cammus, Button Box — pure protocol logic with zero engine coupling, each independently testable and fuzzable
+
 - **FFBeast open-source FF controller support** (VID `0x045B`):
   - PIDs `0x58F9` (joystick), `0x5968` (rudder), `0x59D7` (wheel)
   - `hid-ffbeast-protocol` microcrate: `FFBeastTorqueEncoder`, `build_enable_ffb`, `build_set_gain` feature reports
@@ -29,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `LeoBodnarHandler` engine vendor handler integrated in the multi-vendor HID pipeline; HID PID constant-force path used for FFB-capable products (`0x000E`, `0x000F`)
   - 14 insta snapshot tests + 4 proptest property tests (512 cases each)
 
-- **Game Telemetry Adapters** — 29 game adapters now in `telemetry-adapters` crate + game support matrix:
+- **Game Telemetry Adapters** — 33+ game adapters now in `telemetry-adapters` crate + game support matrix:
   - **Assetto Corsa** — OutGauge UDP, port 9996
   - **Forza Motorsport / Horizon** — Forza Data Out UDP, port 5300
   - **BeamNG.drive** — OutGauge UDP, port 4444
@@ -72,12 +74,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enables fully plug-and-play telemetry for all 29 supported games without manual in-game setup steps
 
 - **Expanded test infrastructure**:
-  - 9 cargo-fuzz targets for protocol parsers (FFBeast, SimpleMotion V2, Moza, F1 25, Codemasters UDP, and more)
-  - Snapshot tests via `insta` crate for all telemetry adapter normalizers
+  - 40+ fuzz targets covering all HID protocols and game adapters (FFBeast, SimpleMotion V2, Moza, F1 25, Codemasters UDP, ETS2, Wreckfest, Rennsport, WRC, DiRT4, PCARS2, LFS, RaceRoom, KartKraft, Automobilista, Leo Bodnar, AccuForce, and more)
+  - Snapshot tests via `insta` crate for all telemetry adapter normalizers and all 15 HID protocol crates
   - End-to-end user journey tests covering device connect → profile apply → FFB output
   - Hardware watchdog FMEA fault scenario tests (missed tick, write failure, thermal warning)
   - Profile migration idempotency tests
-  - Expanded property-based tests with `proptest` (500 cases each for torque encoders, protocol parsers, feedback parsing)
+  - Property-based tests (`proptest`) for all 15 HID protocol crates and expanded coverage (500 cases each for torque encoders, protocol parsers, feedback parsing)
   - Total workspace test count: **600+**
 
 - **Safety improvements**:
@@ -161,6 +163,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 40+ unit tests, property tests (100 cases, <1ms budget), golden tests, binary fixture codec tests
   - cargo-fuzz targets for header, CarTelemetry, CarStatus, and end-to-end normalize() parsing
   - `f1_2025` is now an alias for `f1_25`; legacy `f1` (Codemasters bridge) adapter unchanged
+
+- **ADR-0008**: Game auto-configure and telemetry bridge architecture — documents the design, rationale, and operational model for automatic game detection, per-game config generation, and telemetry adapter lifecycle management
+
+- **Device capability matrix** (`docs/DEVICE_CAPABILITIES.md`): Reference table of all supported devices with maximum torque, encoder resolution, protocol, FFB support, and connection notes
+
+- **YAML sync enforcement script** (`scripts/sync_yaml.py`): Asserts byte-for-byte identity between the two `game_support_matrix.yaml` copies; integrated into CI to prevent silent divergence
+
+- **Mutation testing infrastructure** for safety-critical engine code via `cargo-mutants`, scoped to `hid-moza-protocol`, `ks`, and `input-maps` crates; `mutants.toml` configuration added
+
+- **HID device capture tool** (`racing-wheel-hid-capture`): CLI binary for capturing raw HID reports from connected devices and writing binary test fixtures for use in fuzz and snapshot tests
+
+- **Plug-and-play auto-detection and configuration** for all supported games: zero user configuration required — telemetry config files are written automatically on first game launch and adapter lifecycle is managed transparently
+
+### Fixed
+
+- **Deprecated TelemetryData field migration**: `wheel_angle_mdeg` → `wheel_angle_deg`, `wheel_speed_mrad_s` → `wheel_speed_rad_s`; all downstream call sites updated to use the non-deprecated field names
+
+- **CI: YAML sync check enforcement** — `scripts/sync_yaml.py` integrated into CI prevents `crates/telemetry-config/src/game_support_matrix.yaml` and `crates/telemetry-support/src/game_support_matrix.yaml` from diverging silently
+
+- **CI: Regression prevention false positives** resolved — HID protocol crates and `schemas` crate excluded from deprecated-field detection, eliminating spurious CI failures on non-engine code
 
 ## [1.0.0-rc.1] - 2026-11-01
 

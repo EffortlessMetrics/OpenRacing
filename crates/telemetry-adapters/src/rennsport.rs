@@ -255,7 +255,11 @@ mod tests {
         let data = make_rennsport_packet(180.0, 7500.0, 4, 0.6, 0.1);
         let result = parse_rennsport_packet(&data)?;
         // speed: 180 km/h → 50 m/s
-        assert!((result.speed_ms - 50.0).abs() < 0.01, "speed_ms={}", result.speed_ms);
+        assert!(
+            (result.speed_ms - 50.0).abs() < 0.01,
+            "speed_ms={}",
+            result.speed_ms
+        );
         assert!((result.rpm - 7500.0).abs() < 0.1);
         assert_eq!(result.gear, 4);
         assert!((result.ffb_scalar - 0.6).abs() < 0.001);
@@ -323,14 +327,21 @@ mod tests {
 
     #[test]
     fn test_empty_packet() {
-        assert!(parse_rennsport_packet(&[]).is_err(), "empty packet must return an error");
+        assert!(
+            parse_rennsport_packet(&[]).is_err(),
+            "empty packet must return an error"
+        );
     }
 
     #[test]
     fn test_speed_is_nonnegative() -> TestResult {
         let data = make_rennsport_packet(144.0, 6500.0, 3, 0.4, 0.05);
         let result = parse_rennsport_packet(&data)?;
-        assert!(result.speed_ms >= 0.0, "speed_ms must be non-negative, got {}", result.speed_ms);
+        assert!(
+            result.speed_ms >= 0.0,
+            "speed_ms must be non-negative, got {}",
+            result.speed_ms
+        );
         Ok(())
     }
 

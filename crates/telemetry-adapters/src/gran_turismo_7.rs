@@ -131,18 +131,14 @@ impl TelemetryAdapter for GranTurismo7Adapter {
                 // Send heartbeat every 100 ms to keep the stream alive.
                 if last_heartbeat.elapsed() >= Duration::from_millis(100) {
                     if let Some(addr) = source_addr {
-                        let hb_addr =
-                            SocketAddr::new(addr.ip(), GT7_SEND_PORT);
+                        let hb_addr = SocketAddr::new(addr.ip(), GT7_SEND_PORT);
                         let _ = socket.send_to(heartbeat_payload, hb_addr).await;
                     }
                     last_heartbeat = tokio::time::Instant::now();
                 }
 
-                match tokio::time::timeout(
-                    Duration::from_millis(50),
-                    socket.recv_from(&mut buf),
-                )
-                .await
+                match tokio::time::timeout(Duration::from_millis(50), socket.recv_from(&mut buf))
+                    .await
                 {
                     Ok(Ok((len, src))) => {
                         source_addr = Some(src);
@@ -224,8 +220,7 @@ pub(crate) fn decrypt_and_parse(data: &[u8]) -> Result<NormalizedTelemetry> {
 /// (pre-decryption) packet, as specified by the GT7 protocol.
 fn salsa20_xor(buf: &mut [u8; PACKET_SIZE]) {
     let nonce: [u8; 8] = [
-        buf[0x40], buf[0x41], buf[0x42], buf[0x43],
-        buf[0x44], buf[0x45], buf[0x46], buf[0x47],
+        buf[0x40], buf[0x41], buf[0x42], buf[0x43], buf[0x44], buf[0x45], buf[0x46], buf[0x47],
     ];
 
     let blocks_needed = PACKET_SIZE.div_ceil(64); // 5 full 64-byte blocks
@@ -578,8 +573,7 @@ mod tests {
     fn test_rpm_extraction() -> TestResult {
         let mut buf = make_decrypted_buf();
         let expected_rpm = 6500.0f32;
-        buf[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4]
-            .copy_from_slice(&expected_rpm.to_le_bytes());
+        buf[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&expected_rpm.to_le_bytes());
 
         let telemetry = parse_decrypted(&buf)?;
         assert!(
@@ -630,7 +624,7 @@ mod tests {
     fn test_throttle_brake_normalisation() -> TestResult {
         let mut buf = make_decrypted_buf();
         buf[OFF_THROTTLE] = 128; // ~50 %
-        buf[OFF_BRAKE] = 255;    // 100 %
+        buf[OFF_BRAKE] = 255; // 100 %
 
         let telemetry = parse_decrypted(&buf)?;
         assert!(
@@ -713,7 +707,10 @@ mod tests {
         buf[OFF_FLAGS..OFF_FLAGS + 4].copy_from_slice(&flags.to_le_bytes());
 
         let telemetry = parse_decrypted(&buf)?;
-        assert!(telemetry.flags.abs_active, "ASM flag should map to abs_active");
+        assert!(
+            telemetry.flags.abs_active,
+            "ASM flag should map to abs_active"
+        );
         Ok(())
     }
 
@@ -769,7 +766,10 @@ mod tests {
         let nonce = [0u8; 8];
         let block_0 = salsa20_block(SALSA_KEY, &nonce, 0);
         let block_1 = salsa20_block(SALSA_KEY, &nonce, 1);
-        assert_ne!(block_0, block_1, "Different counters must produce different blocks");
+        assert_ne!(
+            block_0, block_1,
+            "Different counters must produce different blocks"
+        );
     }
 
     #[test]
@@ -791,7 +791,10 @@ mod tests {
         let mut buf = [0u8; PACKET_SIZE];
         let original = buf;
         salsa20_xor(&mut buf);
-        assert_ne!(buf, original, "Salsa20 XOR should produce non-trivial output");
+        assert_ne!(
+            buf, original,
+            "Salsa20 XOR should produce non-trivial output"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -814,7 +817,10 @@ mod tests {
     async fn test_adapter_is_game_running() -> TestResult {
         let adapter = GranTurismo7Adapter::new();
         let running = adapter.is_game_running().await?;
-        assert!(!running, "GT7 is a console game; process detection returns false");
+        assert!(
+            !running,
+            "GT7 is a console game; process detection returns false"
+        );
         Ok(())
     }
 

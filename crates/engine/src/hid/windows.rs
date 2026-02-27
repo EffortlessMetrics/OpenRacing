@@ -377,7 +377,11 @@ impl SupportedDevices {
             // Thrustmaster wheels
             (vendor_ids::THRUSTMASTER, 0xB65D, "Thrustmaster T150"),
             (vendor_ids::THRUSTMASTER, 0xB65E, "Thrustmaster T150 Pro"),
-            (vendor_ids::THRUSTMASTER, 0xB66D, "Thrustmaster T300RS (PS4 mode)"),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB66D,
+                "Thrustmaster T300RS (PS4 mode)",
+            ),
             (vendor_ids::THRUSTMASTER, 0xB67F, "Thrustmaster TMX"),
             (vendor_ids::THRUSTMASTER, 0xB66E, "Thrustmaster T300RS"),
             (vendor_ids::THRUSTMASTER, 0xB66F, "Thrustmaster T300RS GT"),
@@ -446,7 +450,11 @@ impl SupportedDevices {
             (vendor_ids::CAMMUS, 0x0302, "Cammus C12"),
             // OpenFFBoard (open-source direct drive controller)
             (vendor_ids::OPENFFBOARD, 0xFFB0, "OpenFFBoard"),
-            (vendor_ids::OPENFFBOARD, 0xFFB1, "OpenFFBoard (alt firmware)"),
+            (
+                vendor_ids::OPENFFBOARD,
+                0xFFB1,
+                "OpenFFBoard (alt firmware)",
+            ),
             // Generic HID button box (pid.codes VID)
             (vendor_ids::OPENFFBOARD, 0x1BBD, "Generic HID Button Box"),
             // FFBeast (open-source direct drive controller)
@@ -454,23 +462,63 @@ impl SupportedDevices {
             (vendor_ids::FFBEAST, 0x5968, "FFBeast Rudder"),
             (vendor_ids::FFBEAST, 0x59D7, "FFBeast Wheel"),
             // Granite Devices SimpleMotion V2 (Simucube 1, IONI, ARGON, OSW)
-            (vendor_ids::GRANITE_DEVICES, 0x6050, "Simucube 1 / IONI Servo Drive"),
-            (vendor_ids::GRANITE_DEVICES, 0x6051, "Simucube 2 / IONI Premium Servo Drive"),
-            (vendor_ids::GRANITE_DEVICES, 0x6052, "Simucube Sport / ARGON Servo Drive"),
+            (
+                vendor_ids::GRANITE_DEVICES,
+                0x6050,
+                "Simucube 1 / IONI Servo Drive",
+            ),
+            (
+                vendor_ids::GRANITE_DEVICES,
+                0x6051,
+                "Simucube 2 / IONI Premium Servo Drive",
+            ),
+            (
+                vendor_ids::GRANITE_DEVICES,
+                0x6052,
+                "Simucube Sport / ARGON Servo Drive",
+            ),
             // Leo Bodnar sim racing interfaces and peripherals
-            (vendor_ids::LEO_BODNAR, 0x000E, "Leo Bodnar USB Sim Racing Wheel Interface"),
-            (vendor_ids::LEO_BODNAR, 0x000C, "Leo Bodnar BBI-32 Button Box"),
-            (vendor_ids::LEO_BODNAR, 0xBEEF, "Leo Bodnar SLI-M Shift Light Indicator"),
+            (
+                vendor_ids::LEO_BODNAR,
+                0x000E,
+                "Leo Bodnar USB Sim Racing Wheel Interface",
+            ),
+            (
+                vendor_ids::LEO_BODNAR,
+                0x000C,
+                "Leo Bodnar BBI-32 Button Box",
+            ),
+            (
+                vendor_ids::LEO_BODNAR,
+                0xBEEF,
+                "Leo Bodnar SLI-M Shift Light Indicator",
+            ),
             (vendor_ids::LEO_BODNAR, 0x0001, "Leo Bodnar USB Joystick"),
             // SimExperience AccuForce Pro (NXP USB chip VID 0x1FC9)
             // Source: community USB captures, RetroBat Wheels.cs
-            (vendor_ids::SIMEXPERIENCE, 0x804C, "SimExperience AccuForce Pro"),
+            (
+                vendor_ids::SIMEXPERIENCE,
+                0x804C,
+                "SimExperience AccuForce Pro",
+            ),
             // Cube Controls S.r.l. — PIDs are PROVISIONAL/UNCONFIRMED
             // ACTION REQUIRED: replace PIDs once confirmed from real hardware capture.
             // Uses STM shared VID 0x0483; dispatched in get_vendor_protocol() before Simagic.
-            (vendor_ids::SIMAGIC, 0x0C73, "Cube Controls GT Pro (provisional)"),
-            (vendor_ids::SIMAGIC, 0x0C74, "Cube Controls Formula Pro (provisional)"),
-            (vendor_ids::SIMAGIC, 0x0C75, "Cube Controls CSX3 (provisional)"),
+            (
+                vendor_ids::SIMAGIC,
+                0x0C73,
+                "Cube Controls GT Pro (provisional)",
+            ),
+            (
+                vendor_ids::SIMAGIC,
+                0x0C74,
+                "Cube Controls Formula Pro (provisional)",
+            ),
+            (
+                vendor_ids::SIMAGIC,
+                0x0C75,
+                "Cube Controls CSX3 (provisional)",
+            ),
         ]
     }
 
@@ -1223,7 +1271,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                 }
                 0xB69B => {
                     // T818 (10.0 Nm direct drive)
-                    capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
+                    capabilities.max_torque =
+                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
                     capabilities.supports_raw_torque_1khz = true;
                     capabilities.min_report_period_us = 1000;
                 }
@@ -1374,25 +1423,30 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                 0x0D5F => {
                     // Simucube 2 Ultimate
                     capabilities.min_report_period_us = 3000;
-                    capabilities.max_torque = TorqueNm::new(35.0).unwrap_or(capabilities.max_torque);
+                    capabilities.max_torque =
+                        TorqueNm::new(35.0).unwrap_or(capabilities.max_torque);
                 }
                 0x0D60 => {
                     // Simucube 2 Pro
                     capabilities.min_report_period_us = 3000;
-                    capabilities.max_torque = TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
+                    capabilities.max_torque =
+                        TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
                 }
                 0x0D61 => {
                     // Simucube 2 Sport
                     capabilities.min_report_period_us = 3000;
-                    capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
+                    capabilities.max_torque =
+                        TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
                 }
                 // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
                 0xA355 => {
-                    capabilities.max_torque = TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
+                    capabilities.max_torque =
+                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
                     capabilities.encoder_cpr = u16::MAX;
                 }
                 0xA356 => {
-                    capabilities.max_torque = TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
+                    capabilities.max_torque =
+                        TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
                     capabilities.encoder_cpr = u16::MAX;
                 }
                 0xA357..=0xA35A => {
@@ -1421,10 +1475,22 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = u16::MAX;
             capabilities.min_report_period_us = 1000;
             match product_id {
-                0x0500 => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); } // EVO Sport
-                0x0501 => { capabilities.max_torque = TorqueNm::new(20.0).unwrap_or(capabilities.max_torque); } // EVO
-                0x0502 => { capabilities.max_torque = TorqueNm::new(30.0).unwrap_or(capabilities.max_torque); } // EVO Pro
-                _ => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); }
+                0x0500 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
+                } // EVO Sport
+                0x0501 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
+                } // EVO
+                0x0502 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(30.0).unwrap_or(capabilities.max_torque);
+                } // EVO Pro
+                _ => {
+                    capabilities.max_torque =
+                        TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
+                }
             }
         }
         vendor_ids::ASETEK => {
@@ -1433,11 +1499,26 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = u16::MAX; // 20-bit actual
             capabilities.min_report_period_us = 1000;
             match product_id {
-                0xF301 => { capabilities.max_torque = TorqueNm::new(20.0).unwrap_or(capabilities.max_torque); } // Forte
-                0xF300 => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); } // Invicta
-                0xF303 => { capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque); } // LaPrima
-                0xF306 => { capabilities.max_torque = TorqueNm::new(25.0).unwrap_or(capabilities.max_torque); } // Tony Kanaan Edition
-                _ => { capabilities.max_torque = TorqueNm::new(20.0).unwrap_or(capabilities.max_torque); }
+                0xF301 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
+                } // Forte
+                0xF300 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
+                } // Invicta
+                0xF303 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
+                } // LaPrima
+                0xF306 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
+                } // Tony Kanaan Edition
+                _ => {
+                    capabilities.max_torque =
+                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
+                }
             }
         }
         vendor_ids::CAMMUS => {
@@ -1446,9 +1527,16 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = u16::MAX;
             capabilities.min_report_period_us = 1000;
             match product_id {
-                0x0301 => { capabilities.max_torque = TorqueNm::new(5.0).unwrap_or(capabilities.max_torque); } // C5
-                0x0302 => { capabilities.max_torque = TorqueNm::new(12.0).unwrap_or(capabilities.max_torque); } // C12
-                _ => { capabilities.max_torque = TorqueNm::new(5.0).unwrap_or(capabilities.max_torque); }
+                0x0301 => {
+                    capabilities.max_torque = TorqueNm::new(5.0).unwrap_or(capabilities.max_torque);
+                } // C5
+                0x0302 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
+                } // C12
+                _ => {
+                    capabilities.max_torque = TorqueNm::new(5.0).unwrap_or(capabilities.max_torque);
+                }
             }
         }
         vendor_ids::OPENFFBOARD => {
@@ -1482,10 +1570,22 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = u16::MAX; // 17-bit actual, capped at u16::MAX
             capabilities.min_report_period_us = 1000;
             match product_id {
-                0x6050 => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); } // IONI / Simucube 1
-                0x6051 => { capabilities.max_torque = TorqueNm::new(35.0).unwrap_or(capabilities.max_torque); } // IONI Premium
-                0x6052 => { capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque); } // ARGON
-                _ => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); }
+                0x6050 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
+                } // IONI / Simucube 1
+                0x6051 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(35.0).unwrap_or(capabilities.max_torque);
+                } // IONI Premium
+                0x6052 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
+                } // ARGON
+                _ => {
+                    capabilities.max_torque =
+                        TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
+                }
             }
         }
         vendor_ids::LEO_BODNAR => {
@@ -1496,7 +1596,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.supports_raw_torque_1khz = false; // standard HID PID @ 100-500 Hz
                     capabilities.encoder_cpr = u16::MAX; // 16-bit via HID PID
                     capabilities.min_report_period_us = 2000; // 500 Hz typical
-                    capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
+                    capabilities.max_torque =
+                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
                 }
                 // BBI-32 Button Box, SLI-M, USB Joystick — input-only
                 _ => {
@@ -2651,10 +2752,21 @@ mod tests {
 
     #[test]
     fn test_supported_devices_simucube() {
-        assert!(SupportedDevices::is_supported_vendor(vendor_ids::SIMAGIC_ALT));
-        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC_ALT, 0x0D61)); // Sport
-        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC_ALT, 0x0D60)); // Pro
-        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC_ALT, 0x0D5F)); // Ultimate
+        assert!(SupportedDevices::is_supported_vendor(
+            vendor_ids::SIMAGIC_ALT
+        ));
+        assert!(SupportedDevices::is_supported(
+            vendor_ids::SIMAGIC_ALT,
+            0x0D61
+        )); // Sport
+        assert!(SupportedDevices::is_supported(
+            vendor_ids::SIMAGIC_ALT,
+            0x0D60
+        )); // Pro
+        assert!(SupportedDevices::is_supported(
+            vendor_ids::SIMAGIC_ALT,
+            0x0D5F
+        )); // Ultimate
     }
 
     #[test]
@@ -2674,15 +2786,29 @@ mod tests {
     #[test]
     fn test_supported_devices_heusinkveld() {
         // Heusinkveld uses SIMAGIC_ALT VID
-        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC_ALT, 0x1156)); // Sprint
-        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC_ALT, 0x1157)); // Ultimate+
+        assert!(SupportedDevices::is_supported(
+            vendor_ids::SIMAGIC_ALT,
+            0x1156
+        )); // Sprint
+        assert!(SupportedDevices::is_supported(
+            vendor_ids::SIMAGIC_ALT,
+            0x1157
+        )); // Ultimate+
     }
 
     #[test]
     fn test_supported_devices_simagic_evo() {
-        assert!(SupportedDevices::is_supported_vendor(vendor_ids::SIMAGIC_EVO));
-        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC_EVO, 0x0500)); // EVO Sport
-        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC_EVO, 0x0502)); // EVO Pro
+        assert!(SupportedDevices::is_supported_vendor(
+            vendor_ids::SIMAGIC_EVO
+        ));
+        assert!(SupportedDevices::is_supported(
+            vendor_ids::SIMAGIC_EVO,
+            0x0500
+        )); // EVO Sport
+        assert!(SupportedDevices::is_supported(
+            vendor_ids::SIMAGIC_EVO,
+            0x0502
+        )); // EVO Pro
     }
 
     #[test]

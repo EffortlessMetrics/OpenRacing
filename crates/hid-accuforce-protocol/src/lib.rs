@@ -21,7 +21,7 @@ pub mod ids;
 pub mod report;
 pub mod types;
 
-pub use ids::{VENDOR_ID, PID_ACCUFORCE_PRO, is_accuforce, is_accuforce_pid};
+pub use ids::{PID_ACCUFORCE_PRO, VENDOR_ID, is_accuforce, is_accuforce_pid};
 pub use report::{HID_PID_USAGE_PAGE, MAX_REPORT_BYTES, RECOMMENDED_B_INTERVAL_MS};
 pub use types::{AccuForceModel, DeviceInfo};
 

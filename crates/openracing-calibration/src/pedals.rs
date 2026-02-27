@@ -157,7 +157,8 @@ mod tests {
 
     #[test]
     fn test_create_pedal_calibration() {
-        let result = create_pedal_calibration(&[0, 65535], &[0, 65535], &[0, 65535]).expect("create should succeed");
+        let result = create_pedal_calibration(&[0, 65535], &[0, 65535], &[0, 65535])
+            .expect("create should succeed");
 
         assert_eq!(result.len(), 3);
     }

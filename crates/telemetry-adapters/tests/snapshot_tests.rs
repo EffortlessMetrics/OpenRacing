@@ -26,7 +26,10 @@ fn acc_realtime_car_update_normalized_snapshot() -> TestResult {
 fn acc_registration_result_is_not_telemetry() -> TestResult {
     let adapter = ACCAdapter::new();
     let result = adapter.normalize(FIXTURE_REGISTRATION_RESULT_SUCCESS);
-    assert!(result.is_err(), "registration result should not parse as telemetry");
+    assert!(
+        result.is_err(),
+        "registration result should not parse as telemetry"
+    );
     Ok(())
 }
 

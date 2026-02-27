@@ -117,9 +117,7 @@ pub fn parse_scs_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
 
     // Derive a simple FFB scalar from engine load scaled by speed contribution.
     // Trucks don't have conventional racing FFB; weight-shift is the primary cue.
-    let ffb_scalar = (engine_load * 0.6 + (speed_ms / 30.0).min(1.0) * 0.4)
-        .clamp(0.0, 1.0)
-        - 0.5; // centre around zero so idle = slight return force
+    let ffb_scalar = (engine_load * 0.6 + (speed_ms / 30.0).min(1.0) * 0.4).clamp(0.0, 1.0) - 0.5; // centre around zero so idle = slight return force
 
     Ok(NormalizedTelemetry::builder()
         .speed_ms(speed_ms)
@@ -380,14 +378,21 @@ mod tests {
 
     #[test]
     fn test_empty_input() {
-        assert!(parse_scs_packet(&[]).is_err(), "empty input must return an error");
+        assert!(
+            parse_scs_packet(&[]).is_err(),
+            "empty input must return an error"
+        );
     }
 
     #[test]
     fn test_speed_is_nonnegative() -> TestResult {
         let data = make_scs_packet(25.0, 1200.0, 3, 0.6, 0.4);
         let result = parse_scs_packet(&data)?;
-        assert!(result.speed_ms >= 0.0, "speed_ms must be non-negative, got {}", result.speed_ms);
+        assert!(
+            result.speed_ms >= 0.0,
+            "speed_ms must be non-negative, got {}",
+            result.speed_ms
+        );
         Ok(())
     }
 

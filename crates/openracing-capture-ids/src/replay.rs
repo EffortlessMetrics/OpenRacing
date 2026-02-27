@@ -28,14 +28,16 @@ pub struct CapturedReport {
 
 /// Parse a single JSON Line from a capture file into a [`CapturedReport`].
 pub fn parse_capture_line(line: &str) -> Result<CapturedReport> {
-    serde_json::from_str(line)
-        .with_context(|| format!("failed to parse capture line: {line}"))
+    serde_json::from_str(line).with_context(|| format!("failed to parse capture line: {line}"))
 }
 
 /// Decode a lowercase hex string into raw bytes.
 pub fn decode_hex(s: &str) -> Result<Vec<u8>> {
     if !s.len().is_multiple_of(2) {
-        return Err(anyhow!("hex string has odd length ({} chars): '{s}'", s.len()));
+        return Err(anyhow!(
+            "hex string has odd length ({} chars): '{s}'",
+            s.len()
+        ));
     }
     (0..s.len() / 2)
         .map(|i| {
@@ -105,8 +107,7 @@ pub fn print_capture_entry(entry: &CapturedReport, delta_ns: u64) -> Result<()> 
 /// `speed = 1.0` plays back at real-time; `speed = 2.0` plays back at double
 /// speed; `speed = 0.0` prints all reports without any delay.
 pub fn replay_file(path: &Path, speed: f64) -> Result<()> {
-    let file =
-        File::open(path).with_context(|| format!("failed to open '{}'", path.display()))?;
+    let file = File::open(path).with_context(|| format!("failed to open '{}'", path.display()))?;
     let reader = BufReader::new(file);
     let mut lines = reader.lines();
 
@@ -156,8 +157,7 @@ mod tests {
 
     #[test]
     fn test_parse_capture_line_all_fields() -> Result<()> {
-        let line =
-            r#"{"ts_ns":1234567890,"vid":"0x046D","pid":"0x0002","report":"0102030405"}"#;
+        let line = r#"{"ts_ns":1234567890,"vid":"0x046D","pid":"0x0002","report":"0102030405"}"#;
         let entry = parse_capture_line(line)?;
         assert_eq!(entry.ts_ns, 1_234_567_890);
         assert_eq!(entry.vid, "0x046D");
@@ -223,8 +223,7 @@ mod tests {
             pid: "0x0000".to_string(),
             report: "deadbeef".to_string(),
         };
-        let serialized =
-            serde_json::to_string(&original).map_err(|e| anyhow!("serialize: {e}"))?;
+        let serialized = serde_json::to_string(&original).map_err(|e| anyhow!("serialize: {e}"))?;
         let parsed = parse_capture_line(&serialized)?;
         assert_eq!(parsed.ts_ns, original.ts_ns);
         assert_eq!(parsed.vid, original.vid);

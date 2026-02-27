@@ -312,14 +312,21 @@ mod tests {
 
     #[test]
     fn test_empty_packet() {
-        assert!(parse_wreckfest_packet(&[]).is_err(), "empty packet must return an error");
+        assert!(
+            parse_wreckfest_packet(&[]).is_err(),
+            "empty packet must return an error"
+        );
     }
 
     #[test]
     fn test_speed_is_nonnegative() -> TestResult {
         let data = make_wreckfest_packet(45.0, 5500.0, 4, 0.3, 0.1);
         let result = parse_wreckfest_packet(&data)?;
-        assert!(result.speed_ms >= 0.0, "speed_ms must be non-negative, got {}", result.speed_ms);
+        assert!(
+            result.speed_ms >= 0.0,
+            "speed_ms must be non-negative, got {}",
+            result.speed_ms
+        );
         Ok(())
     }
 

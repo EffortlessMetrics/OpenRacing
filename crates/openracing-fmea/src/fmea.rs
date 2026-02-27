@@ -864,7 +864,8 @@ mod tests {
     fn test_fmea_system_fault_handling() {
         let mut fmea = FmeaSystem::new();
 
-        fmea.handle_fault(FaultType::UsbStall, 10.0).expect("handle_fault failed");
+        fmea.handle_fault(FaultType::UsbStall, 10.0)
+            .expect("handle_fault failed");
 
         assert!(fmea.has_active_fault());
         assert_eq!(fmea.active_fault(), Some(FaultType::UsbStall));
@@ -874,7 +875,8 @@ mod tests {
     #[test]
     fn test_fmea_system_clear_fault() {
         let mut fmea = FmeaSystem::new();
-        fmea.handle_fault(FaultType::UsbStall, 10.0).expect("handle_fault failed");
+        fmea.handle_fault(FaultType::UsbStall, 10.0)
+            .expect("handle_fault failed");
 
         fmea.clear_fault().expect("clear_fault failed");
         assert!(!fmea.has_active_fault());
@@ -891,7 +893,8 @@ mod tests {
     #[test]
     fn test_fmea_system_soft_stop_update() {
         let mut fmea = FmeaSystem::new();
-        fmea.handle_fault(FaultType::UsbStall, 10.0).expect("handle_fault failed");
+        fmea.handle_fault(FaultType::UsbStall, 10.0)
+            .expect("handle_fault failed");
 
         let torque = fmea.update_soft_stop(Duration::from_millis(25));
         assert!(torque > 0.0 && torque < 10.0);

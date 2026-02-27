@@ -39,7 +39,7 @@ impl CammusModel {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ids::{PRODUCT_C12, PRODUCT_C5};
+    use crate::ids::{PRODUCT_C5, PRODUCT_C12};
 
     #[test]
     fn from_pid_known() {

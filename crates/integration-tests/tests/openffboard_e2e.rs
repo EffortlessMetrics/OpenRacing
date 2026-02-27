@@ -3,10 +3,10 @@
 //! Each test follows a Given/When/Then pattern to verify observable hardware-ready
 //! behaviors without real USB hardware.
 
+use racing_wheel_hid_openffboard_protocol::output::ENABLE_FFB_REPORT_ID;
 use racing_wheel_hid_openffboard_protocol::{
     GAIN_REPORT_ID, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT, OPENFFBOARD_VENDOR_ID,
 };
-use racing_wheel_hid_openffboard_protocol::output::ENABLE_FFB_REPORT_ID;
 use racing_wheel_integration_tests::openffboard_virtual::OpenFFBoardScenario;
 
 // ─── Scenario 1: initialize sends enable-FFB and gain reports ─────────────────
@@ -156,10 +156,10 @@ fn scenario_disconnect_reconnect_reinitialize() -> Result<(), Box<dyn std::error
 
 #[test]
 fn scenario_torque_encoder_full_pipeline() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_openffboard_protocol::output::MAX_TORQUE_SCALE;
     use racing_wheel_hid_openffboard_protocol::{
         CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, OpenFFBoardTorqueEncoder,
     };
-    use racing_wheel_hid_openffboard_protocol::output::MAX_TORQUE_SCALE;
 
     // Given: OpenFFBoard encoder
     let encoder = OpenFFBoardTorqueEncoder;
@@ -274,7 +274,8 @@ fn scenario_get_vendor_protocol_returns_openffboard() -> Result<(), Box<dyn std:
 // ─── Scenario 12: get_vendor_protocol returns OpenFFBoard for alt PID ─────────
 
 #[test]
-fn scenario_get_vendor_protocol_returns_openffboard_alt_pid() -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_get_vendor_protocol_returns_openffboard_alt_pid()
+-> Result<(), Box<dyn std::error::Error>> {
     use racing_wheel_engine::hid::vendor::get_vendor_protocol;
 
     // Given: VID/PID for OpenFFBoard alt firmware

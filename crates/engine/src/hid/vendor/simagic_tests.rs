@@ -1,6 +1,6 @@
 //! Tests for Simagic protocol handler.
 
-use super::simagic::{product_ids, vendor_ids, SimagicModel, SimagicProtocol};
+use super::simagic::{SimagicModel, SimagicProtocol, product_ids, vendor_ids};
 use super::{DeviceWriter, VendorProtocol, get_vendor_protocol};
 use std::cell::RefCell;
 
@@ -63,20 +63,26 @@ fn test_simagic_ffb_config_evo_unknown_is_conservative() {
     let config = protocol.get_ffb_config();
 
     assert_eq!(config.required_b_interval, Some(1));
-    assert!((config.max_torque_nm - 15.0).abs() < 0.01, "EVO unknown should use conservative 15 Nm default");
+    assert!(
+        (config.max_torque_nm - 15.0).abs() < 0.01,
+        "EVO unknown should use conservative 15 Nm default"
+    );
     assert_eq!(config.encoder_cpr, 2_097_152);
     assert!(protocol.is_v2_hardware());
 }
 
 #[test]
-fn test_initialize_device_evo_sends_init_reports()
--> Result<(), Box<dyn std::error::Error>> {
+fn test_initialize_device_evo_sends_init_reports() -> Result<(), Box<dyn std::error::Error>> {
     let protocol = SimagicProtocol::new(vendor_ids::SIMAGIC_EVO, 0x1234);
     let mut writer = MockDeviceWriter::new();
 
     protocol.initialize_device(&mut writer)?;
     // EVO devices now actively send gain + rotation range init reports
-    assert_eq!(writer.feature_reports().len(), 2, "EVO device must send 2 init reports");
+    assert_eq!(
+        writer.feature_reports().len(),
+        2,
+        "EVO device must send 2 init reports"
+    );
     Ok(())
 }
 

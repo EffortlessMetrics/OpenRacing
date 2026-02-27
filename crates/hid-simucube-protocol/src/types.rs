@@ -2,8 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum WheelModel {
     Simucube2Sport,
     Simucube2Pro,
@@ -12,7 +11,6 @@ pub enum WheelModel {
     #[default]
     Unknown,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WheelCapabilities {
@@ -62,8 +60,7 @@ impl WheelCapabilities {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum DeviceStatus {
     #[default]
     Disconnected,
@@ -72,7 +69,6 @@ pub enum DeviceStatus {
     Error,
     Calibrating,
 }
-
 
 impl DeviceStatus {
     pub fn from_flags(flags: u8) -> Self {

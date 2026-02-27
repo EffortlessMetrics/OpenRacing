@@ -29,10 +29,10 @@ pub mod ids;
 pub mod output;
 
 pub use ids::{
-    OPENFFBOARD_VENDOR_ID, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT,
-    is_openffboard_product,
+    is_openffboard_product, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT,
+    OPENFFBOARD_VENDOR_ID,
 };
 pub use output::{
-    CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, GAIN_REPORT_ID,
-    OpenFFBoardTorqueEncoder, build_enable_ffb, build_set_gain,
+    build_enable_ffb, build_set_gain, OpenFFBoardTorqueEncoder, CONSTANT_FORCE_REPORT_ID,
+    CONSTANT_FORCE_REPORT_LEN, GAIN_REPORT_ID,
 };

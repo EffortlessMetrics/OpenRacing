@@ -7,12 +7,12 @@
 #![deny(clippy::unwrap_used)]
 
 pub mod device_info;
-pub mod report_parser;
 pub mod hid_traits;
+pub mod report_parser;
 
 pub use device_info::*;
-pub use report_parser::*;
 pub use hid_traits::*;
+pub use report_parser::*;
 
 use thiserror::Error;
 
@@ -20,22 +20,22 @@ use thiserror::Error;
 pub enum HidCommonError {
     #[error("Device not found: {0}")]
     DeviceNotFound(String),
-    
+
     #[error("Failed to open device: {0}")]
     OpenError(String),
-    
+
     #[error("Failed to read from device: {0}")]
     ReadError(String),
-    
+
     #[error("Failed to write to device: {0}")]
     WriteError(String),
-    
+
     #[error("Invalid report format: {0}")]
     InvalidReport(String),
-    
+
     #[error("Device disconnected")]
     Disconnected,
-    
+
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 }
@@ -50,7 +50,7 @@ mod tests {
     fn test_error_types() {
         let err = HidCommonError::DeviceNotFound("test".to_string());
         assert_eq!(format!("{}", err), "Device not found: test");
-        
+
         let err = HidCommonError::Disconnected;
         assert_eq!(format!("{}", err), "Device disconnected");
     }

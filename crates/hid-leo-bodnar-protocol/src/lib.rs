@@ -25,8 +25,8 @@ pub mod report;
 pub mod types;
 
 pub use ids::{
-    VENDOR_ID, PID_BBI32, PID_BU0836A, PID_BU0836X, PID_BU0836_16BIT, PID_FFB_JOYSTICK,
-    PID_SLI_M, PID_USB_JOYSTICK, PID_WHEEL_INTERFACE, is_leo_bodnar, is_leo_bodnar_device,
+    PID_BBI32, PID_BU0836_16BIT, PID_BU0836A, PID_BU0836X, PID_FFB_JOYSTICK, PID_SLI_M,
+    PID_USB_JOYSTICK, PID_WHEEL_INTERFACE, VENDOR_ID, is_leo_bodnar, is_leo_bodnar_device,
     is_leo_bodnar_ffb_pid,
 };
 pub use report::{

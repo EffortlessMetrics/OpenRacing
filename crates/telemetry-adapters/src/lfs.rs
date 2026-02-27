@@ -105,8 +105,7 @@ impl TelemetryAdapter for LFSAdapter {
         let update_rate = self.update_rate;
 
         tokio::spawn(async move {
-            let bind_addr =
-                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, bind_port));
+            let bind_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, bind_port));
             let socket = match TokioUdpSocket::bind(bind_addr).await {
                 Ok(s) => s,
                 Err(e) => {
@@ -122,12 +121,8 @@ impl TelemetryAdapter for LFSAdapter {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
                     Ok(Ok(len)) => match parse_lfs_packet(&buf[..len]) {
                         Ok(normalized) => {
-                            let frame = TelemetryFrame::new(
-                                normalized,
-                                telemetry_now_ns(),
-                                frame_seq,
-                                len,
-                            );
+                            let frame =
+                                TelemetryFrame::new(normalized, telemetry_now_ns(), frame_seq, len);
                             if tx.send(frame).await.is_err() {
                                 debug!("Receiver dropped, stopping LFS UDP monitoring");
                                 break;
@@ -318,7 +313,11 @@ mod tests {
     fn test_speed_is_nonnegative() -> TestResult {
         let data = make_lfs_packet(50.0, 5000.0, 3, 0.5, 0.0, 0.0, 0.5);
         let result = parse_lfs_packet(&data)?;
-        assert!(result.speed_ms >= 0.0, "speed_ms must be non-negative, got {}", result.speed_ms);
+        assert!(
+            result.speed_ms >= 0.0,
+            "speed_ms must be non-negative, got {}",
+            result.speed_ms
+        );
         Ok(())
     }
 

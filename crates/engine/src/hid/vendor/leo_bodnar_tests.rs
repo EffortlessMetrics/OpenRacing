@@ -1,10 +1,11 @@
 //! Tests for the Leo Bodnar vendor protocol handler.
 
 use super::leo_bodnar::{
-    LeoBodnarHandler, LEO_BODNAR_PID_BBI32, LEO_BODNAR_PID_FFB_JOYSTICK, LEO_BODNAR_PID_JOYSTICK,
-    LEO_BODNAR_PID_SLIM, LEO_BODNAR_PID_WHEEL, LEO_BODNAR_VENDOR_ID, is_leo_bodnar_ffb_product,
+    LEO_BODNAR_PID_BBI32, LEO_BODNAR_PID_FFB_JOYSTICK, LEO_BODNAR_PID_JOYSTICK,
+    LEO_BODNAR_PID_SLIM, LEO_BODNAR_PID_WHEEL, LEO_BODNAR_VENDOR_ID, LeoBodnarHandler,
+    is_leo_bodnar_ffb_product,
 };
-use super::{get_vendor_protocol, DeviceWriter, VendorProtocol};
+use super::{DeviceWriter, VendorProtocol, get_vendor_protocol};
 use std::cell::RefCell;
 
 struct MockWriter {
@@ -41,40 +42,62 @@ impl DeviceWriter for MockWriter {
 fn handler_creates_for_ffb_wheel_pid() {
     let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, LEO_BODNAR_PID_WHEEL);
     let config = handler.get_ffb_config();
-    assert!(config.max_torque_nm > 0.0, "wheel interface must have positive max torque");
-    assert!(config.encoder_cpr > 0, "wheel interface must have positive encoder CPR");
+    assert!(
+        config.max_torque_nm > 0.0,
+        "wheel interface must have positive max torque"
+    );
+    assert!(
+        config.encoder_cpr > 0,
+        "wheel interface must have positive encoder CPR"
+    );
 }
 
 #[test]
 fn handler_creates_for_bbi32_pid() {
     let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, LEO_BODNAR_PID_BBI32);
     let config = handler.get_ffb_config();
-    assert_eq!(config.max_torque_nm, 0.0, "BBI-32 is input-only, torque must be zero");
+    assert_eq!(
+        config.max_torque_nm, 0.0,
+        "BBI-32 is input-only, torque must be zero"
+    );
 }
 
 #[test]
 fn handler_creates_for_slim_pid() {
     let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, LEO_BODNAR_PID_SLIM);
     let config = handler.get_ffb_config();
-    assert_eq!(config.max_torque_nm, 0.0, "SLI-M is input-only, torque must be zero");
+    assert_eq!(
+        config.max_torque_nm, 0.0,
+        "SLI-M is input-only, torque must be zero"
+    );
 }
 
 #[test]
 fn handler_creates_for_joystick_pid() {
     let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, LEO_BODNAR_PID_JOYSTICK);
     let config = handler.get_ffb_config();
-    assert_eq!(config.max_torque_nm, 0.0, "USB joystick is input-only, torque must be zero");
+    assert_eq!(
+        config.max_torque_nm, 0.0,
+        "USB joystick is input-only, torque must be zero"
+    );
 }
 
 #[test]
 fn ffb_wheel_supports_pid_ffb() {
     let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, LEO_BODNAR_PID_WHEEL);
-    assert!(handler.supports_pid_ffb(), "PID 0x000E must support HID PID FFB");
+    assert!(
+        handler.supports_pid_ffb(),
+        "PID 0x000E must support HID PID FFB"
+    );
 }
 
 #[test]
 fn input_only_devices_do_not_support_pid_ffb() {
-    for &pid in &[LEO_BODNAR_PID_BBI32, LEO_BODNAR_PID_SLIM, LEO_BODNAR_PID_JOYSTICK] {
+    for &pid in &[
+        LEO_BODNAR_PID_BBI32,
+        LEO_BODNAR_PID_SLIM,
+        LEO_BODNAR_PID_JOYSTICK,
+    ] {
         let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, pid);
         assert!(
             !handler.supports_pid_ffb(),
@@ -102,7 +125,11 @@ fn initialize_input_only_sends_no_reports() -> Result<(), Box<dyn std::error::Er
     let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, LEO_BODNAR_PID_BBI32);
     let mut writer = MockWriter::new();
     handler.initialize_device(&mut writer)?;
-    assert_eq!(writer.feature_reports().len(), 0, "input-only init must send no reports");
+    assert_eq!(
+        writer.feature_reports().len(),
+        0,
+        "input-only init must send no reports"
+    );
     Ok(())
 }
 
@@ -110,23 +137,39 @@ fn initialize_input_only_sends_no_reports() -> Result<(), Box<dyn std::error::Er
 fn ffb_config_for_wheel_has_valid_ranges() {
     let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, LEO_BODNAR_PID_WHEEL);
     let config = handler.get_ffb_config();
-    assert!(config.max_torque_nm >= 1.0, "max torque must be at least 1 Nm");
-    assert!(config.max_torque_nm <= 100.0, "max torque must be within safe range");
-    assert!(config.encoder_cpr >= 100, "encoder CPR must be a reasonable value");
+    assert!(
+        config.max_torque_nm >= 1.0,
+        "max torque must be at least 1 Nm"
+    );
+    assert!(
+        config.max_torque_nm <= 100.0,
+        "max torque must be within safe range"
+    );
+    assert!(
+        config.encoder_cpr >= 100,
+        "encoder CPR must be a reasonable value"
+    );
     assert!(!config.fix_conditional_direction);
     assert!(!config.uses_vendor_usage_page);
 }
 
 #[test]
 fn ffb_config_for_input_only_has_zero_torque() {
-    for &pid in &[LEO_BODNAR_PID_BBI32, LEO_BODNAR_PID_SLIM, LEO_BODNAR_PID_JOYSTICK] {
+    for &pid in &[
+        LEO_BODNAR_PID_BBI32,
+        LEO_BODNAR_PID_SLIM,
+        LEO_BODNAR_PID_JOYSTICK,
+    ] {
         let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, pid);
         let config = handler.get_ffb_config();
         assert_eq!(
             config.max_torque_nm, 0.0,
             "input-only PID 0x{pid:04X} must report zero torque"
         );
-        assert_eq!(config.encoder_cpr, 0, "input-only must report zero encoder CPR");
+        assert_eq!(
+            config.encoder_cpr, 0,
+            "input-only must report zero encoder CPR"
+        );
     }
 }
 
@@ -182,13 +225,19 @@ fn is_leo_bodnar_ffb_product_only_matches_wheel_pid() {
 #[test]
 fn get_vendor_protocol_returns_handler_for_leo_bodnar_vid() {
     let handler = get_vendor_protocol(LEO_BODNAR_VENDOR_ID, LEO_BODNAR_PID_WHEEL);
-    assert!(handler.is_some(), "must return a handler for Leo Bodnar VID");
+    assert!(
+        handler.is_some(),
+        "must return a handler for Leo Bodnar VID"
+    );
 }
 
 #[test]
 fn get_vendor_protocol_returns_handler_for_bbi32() {
     let handler = get_vendor_protocol(LEO_BODNAR_VENDOR_ID, LEO_BODNAR_PID_BBI32);
-    assert!(handler.is_some(), "must return a handler for BBI-32 button box");
+    assert!(
+        handler.is_some(),
+        "must return a handler for BBI-32 button box"
+    );
 }
 
 // ── Insta snapshot tests ──────────────────────────────────────────────────────

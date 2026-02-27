@@ -187,7 +187,7 @@ fn test_snapshot_triangle_effect() {
 
 #[test]
 fn test_snapshot_device_alpha() {
-    let identity = simagic::identify_device(0x0500);  // EVO Sport (correct VID 0x3670 product)
+    let identity = simagic::identify_device(0x0500); // EVO Sport (correct VID 0x3670 product)
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
         identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
@@ -196,7 +196,7 @@ fn test_snapshot_device_alpha() {
 
 #[test]
 fn test_snapshot_device_alpha_mini() {
-    let identity = simagic::identify_device(0x0501);  // EVO
+    let identity = simagic::identify_device(0x0501); // EVO
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
         identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
@@ -205,7 +205,7 @@ fn test_snapshot_device_alpha_mini() {
 
 #[test]
 fn test_snapshot_device_alpha_evo() {
-    let identity = simagic::identify_device(0x0502);  // EVO Pro
+    let identity = simagic::identify_device(0x0502); // EVO Pro
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
         identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
@@ -214,7 +214,7 @@ fn test_snapshot_device_alpha_evo() {
 
 #[test]
 fn test_snapshot_device_m10() {
-    let identity = simagic::identify_device(0x0600);  // Alpha EVO (estimated)
+    let identity = simagic::identify_device(0x0600); // Alpha EVO (estimated)
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
         identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
@@ -223,7 +223,7 @@ fn test_snapshot_device_m10() {
 
 #[test]
 fn test_snapshot_device_neo() {
-    let identity = simagic::identify_device(0x0700);  // Neo
+    let identity = simagic::identify_device(0x0700); // Neo
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
         identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm

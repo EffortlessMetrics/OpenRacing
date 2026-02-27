@@ -1,0 +1,6 @@
+---
+source: crates/hid-ffbeast-protocol/tests/snapshot_tests.rs
+assertion_line: 101
+expression: "format!(\"VID={:#06X}, PID_JOYSTICK={:#06X}, PID_RUDDER={:#06X}, PID_WHEEL={:#06X}, \\\n         REPORT_ID={:#04X}, REPORT_LEN={}, GAIN_ID={:#04X}\",\nffbeast::FFBEAST_VENDOR_ID, ffbeast::FFBEAST_PRODUCT_ID_JOYSTICK,\nffbeast::FFBEAST_PRODUCT_ID_RUDDER, ffbeast::FFBEAST_PRODUCT_ID_WHEEL,\nffbeast::CONSTANT_FORCE_REPORT_ID, ffbeast::CONSTANT_FORCE_REPORT_LEN,\nffbeast::GAIN_REPORT_ID,)"
+---
+"VID=0x045B, PID_JOYSTICK=0x58F9, PID_RUDDER=0x5968, PID_WHEEL=0x59D7, REPORT_ID=0x01, REPORT_LEN=5, GAIN_ID=0x61"

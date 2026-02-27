@@ -7,19 +7,22 @@
 //! - Input report parsing behavior for all u16 inputs
 //! - PedalStatus flag decoding
 
-use proptest::prelude::*;
 use hid_heusinkveld_protocol::{
-    HEUSINKVELD_VENDOR_ID, HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID, HEUSINKVELD_PRO_PID,
-    HeusinkveldModel, HeusinkveldInputReport, PedalCapabilities, PedalModel, PedalStatus,
-    heusinkveld_model_from_info, is_heusinkveld_device, REPORT_SIZE_INPUT,
+    HEUSINKVELD_PRO_PID, HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID, HEUSINKVELD_VENDOR_ID,
+    HeusinkveldInputReport, HeusinkveldModel, PedalCapabilities, PedalModel, PedalStatus,
+    REPORT_SIZE_INPUT, heusinkveld_model_from_info, is_heusinkveld_device,
 };
+use proptest::prelude::*;
 
 // ── VID / PID invariants ──────────────────────────────────────────────────────
 
 /// VID constant must equal the authoritative Heusinkveld USB vendor ID (0x16D0).
 #[test]
 fn test_vendor_id_value() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(HEUSINKVELD_VENDOR_ID, 0x16D0, "Heusinkveld VID must be 0x16D0");
+    assert_eq!(
+        HEUSINKVELD_VENDOR_ID, 0x16D0,
+        "Heusinkveld VID must be 0x16D0"
+    );
     Ok(())
 }
 
@@ -27,9 +30,9 @@ fn test_vendor_id_value() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_all_known_pids_detected() -> Result<(), Box<dyn std::error::Error>> {
     let known = [
-        (HEUSINKVELD_SPRINT_PID,   HeusinkveldModel::Sprint),
+        (HEUSINKVELD_SPRINT_PID, HeusinkveldModel::Sprint),
         (HEUSINKVELD_ULTIMATE_PID, HeusinkveldModel::Ultimate),
-        (HEUSINKVELD_PRO_PID,      HeusinkveldModel::Pro),
+        (HEUSINKVELD_PRO_PID, HeusinkveldModel::Pro),
     ];
     for (pid, expected) in known {
         let model = heusinkveld_model_from_info(HEUSINKVELD_VENDOR_ID, pid);
@@ -49,21 +52,27 @@ fn test_all_known_pids_detected() -> Result<(), Box<dyn std::error::Error>> {
 /// Exact numeric values verified against Heusinkveld USB descriptors.
 #[test]
 fn test_pid_constant_values() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(HEUSINKVELD_SPRINT_PID,   0x1156);
+    assert_eq!(HEUSINKVELD_SPRINT_PID, 0x1156);
     assert_eq!(HEUSINKVELD_ULTIMATE_PID, 0x1157);
-    assert_eq!(HEUSINKVELD_PRO_PID,      0x1158);
+    assert_eq!(HEUSINKVELD_PRO_PID, 0x1158);
     Ok(())
 }
 
 /// Max load must increase Sprint < Ultimate < Pro.
 #[test]
 fn test_max_load_ordering() -> Result<(), Box<dyn std::error::Error>> {
-    let sprint   = HeusinkveldModel::Sprint.max_load_kg();
+    let sprint = HeusinkveldModel::Sprint.max_load_kg();
     let ultimate = HeusinkveldModel::Ultimate.max_load_kg();
-    let pro      = HeusinkveldModel::Pro.max_load_kg();
-    assert!(sprint > 0.0,      "Sprint max load must be positive");
-    assert!(ultimate > sprint, "Ultimate ({ultimate} kg) must exceed Sprint ({sprint} kg)");
-    assert!(pro > ultimate,    "Pro ({pro} kg) must exceed Ultimate ({ultimate} kg)");
+    let pro = HeusinkveldModel::Pro.max_load_kg();
+    assert!(sprint > 0.0, "Sprint max load must be positive");
+    assert!(
+        ultimate > sprint,
+        "Ultimate ({ultimate} kg) must exceed Sprint ({sprint} kg)"
+    );
+    assert!(
+        pro > ultimate,
+        "Pro ({pro} kg) must exceed Ultimate ({ultimate} kg)"
+    );
     Ok(())
 }
 

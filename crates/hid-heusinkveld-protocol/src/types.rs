@@ -2,8 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum PedalModel {
     Sprint,
     Ultimate,
@@ -11,7 +10,6 @@ pub enum PedalModel {
     #[default]
     Unknown,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PedalCapabilities {
@@ -58,8 +56,7 @@ impl PedalCapabilities {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum PedalStatus {
     #[default]
     Disconnected,
@@ -67,7 +64,6 @@ pub enum PedalStatus {
     Calibrating,
     Error,
 }
-
 
 impl PedalStatus {
     pub fn from_flags(flags: u8) -> Self {

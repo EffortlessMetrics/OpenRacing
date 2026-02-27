@@ -2,14 +2,13 @@
 //!
 //! These tests lock in the wire format to catch accidental protocol regressions.
 
-use insta::assert_debug_snapshot;
 use hid_heusinkveld_protocol as heusinkveld;
+use insta::assert_debug_snapshot;
 
 #[test]
 fn test_snapshot_parse_center() -> Result<(), String> {
     let data = [0u8; 8];
-    let report = heusinkveld::HeusinkveldInputReport::parse(&data)
-        .map_err(|e| e.to_string())?;
+    let report = heusinkveld::HeusinkveldInputReport::parse(&data).map_err(|e| e.to_string())?;
     assert_debug_snapshot!(format!(
         "throttle={:.4}, brake={:.4}, clutch={:.4}, connected={}, calibrated={}, fault={}",
         report.throttle_normalized(),
@@ -27,8 +26,7 @@ fn test_snapshot_parse_full_throttle() -> Result<(), String> {
     let mut data = [0u8; 8];
     data[0] = 0xFF;
     data[1] = 0xFF;
-    let report = heusinkveld::HeusinkveldInputReport::parse(&data)
-        .map_err(|e| e.to_string())?;
+    let report = heusinkveld::HeusinkveldInputReport::parse(&data).map_err(|e| e.to_string())?;
     assert_debug_snapshot!(format!("throttle={:.4}", report.throttle_normalized()));
     Ok(())
 }
@@ -38,8 +36,7 @@ fn test_snapshot_parse_full_brake() -> Result<(), String> {
     let mut data = [0u8; 8];
     data[2] = 0xFF;
     data[3] = 0xFF;
-    let report = heusinkveld::HeusinkveldInputReport::parse(&data)
-        .map_err(|e| e.to_string())?;
+    let report = heusinkveld::HeusinkveldInputReport::parse(&data).map_err(|e| e.to_string())?;
     assert_debug_snapshot!(format!("brake={:.4}", report.brake_normalized()));
     Ok(())
 }
@@ -48,8 +45,7 @@ fn test_snapshot_parse_full_brake() -> Result<(), String> {
 fn test_snapshot_parse_status_connected_calibrated() -> Result<(), String> {
     let mut data = [0u8; 8];
     data[6] = 0x03; // connected + calibrated
-    let report = heusinkveld::HeusinkveldInputReport::parse(&data)
-        .map_err(|e| e.to_string())?;
+    let report = heusinkveld::HeusinkveldInputReport::parse(&data).map_err(|e| e.to_string())?;
     assert_debug_snapshot!(format!(
         "connected={}, calibrated={}, fault={}",
         report.is_connected(),
@@ -63,8 +59,7 @@ fn test_snapshot_parse_status_connected_calibrated() -> Result<(), String> {
 fn test_snapshot_parse_status_fault() -> Result<(), String> {
     let mut data = [0u8; 8];
     data[6] = 0x07; // connected + calibrated + fault
-    let report = heusinkveld::HeusinkveldInputReport::parse(&data)
-        .map_err(|e| e.to_string())?;
+    let report = heusinkveld::HeusinkveldInputReport::parse(&data).map_err(|e| e.to_string())?;
     assert_debug_snapshot!(format!(
         "connected={}, calibrated={}, fault={}",
         report.is_connected(),

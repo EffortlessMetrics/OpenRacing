@@ -83,7 +83,10 @@ fn test_safe_state_triggered_exactly_once_after_timeout() -> Result<(), Box<dyn 
 
     // Second trigger must fail
     let result = watchdog.trigger_safe_state();
-    assert!(result.is_err(), "second trigger_safe_state should be an error");
+    assert!(
+        result.is_err(),
+        "second trigger_safe_state should be an error"
+    );
     // Count stays at 1
     assert_eq!(watchdog.metrics().safe_state_count, 1);
 
@@ -135,7 +138,10 @@ fn test_double_arm_is_error() -> Result<(), Box<dyn std::error::Error>> {
 
     watchdog.arm()?;
     let result = watchdog.arm();
-    assert!(result.is_err(), "arming an already-armed watchdog should fail");
+    assert!(
+        result.is_err(),
+        "arming an already-armed watchdog should fail"
+    );
 
     Ok(())
 }

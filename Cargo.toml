@@ -60,6 +60,8 @@ members = [
     "crates/telemetry-core",
     "crates/telemetry-config",
     "crates/telemetry-adapters",
+    "crates/telemetry-lfs",
+    "crates/telemetry-ams2",
     "crates/telemetry-recorder",
     "crates/telemetry-config-writers",
     "crates/telemetry-rate-limiter",

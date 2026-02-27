@@ -1466,8 +1466,7 @@ mod tests {
 
         // Car status → triggers emission
         let status_pkt = build_car_status_packet(0, 15.0, 2_000_000.0, 0, 0, 13, 14000);
-        let nt = F1_25Adapter::process_packet(&mut state, &status_pkt)?
-            .ok_or("should emit")?;
+        let nt = F1_25Adapter::process_packet(&mut state, &status_pkt)?.ok_or("should emit")?;
 
         assert_eq!(nt.track_id, Some("Monza".to_string()));
         Ok(())

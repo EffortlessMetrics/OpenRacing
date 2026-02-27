@@ -77,9 +77,7 @@ fn parse_r3e_memory(data: &[u8]) -> Result<NormalizedTelemetry> {
     let throttle = read_f32_le(data, OFF_THROTTLE).unwrap_or(0.0);
     let brake = read_f32_le(data, OFF_BRAKE).unwrap_or(0.0);
     let clutch = read_f32_le(data, OFF_CLUTCH).unwrap_or(0.0);
-    let gear = read_i32_le(data, OFF_GEAR)
-        .unwrap_or(0)
-        .clamp(-1, 127) as i8;
+    let gear = read_i32_le(data, OFF_GEAR).unwrap_or(0).clamp(-1, 127) as i8;
 
     let fuel_percent = if fuel_capacity > 0.0 {
         (fuel_left / fuel_capacity).clamp(0.0, 1.0)
@@ -298,8 +296,7 @@ mod tests {
         data[OFF_GAME_PAUSED..OFF_GAME_PAUSED + 4].copy_from_slice(&0i32.to_le_bytes());
         data[OFF_GAME_IN_MENUS..OFF_GAME_IN_MENUS + 4].copy_from_slice(&0i32.to_le_bytes());
         data[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
-        data[OFF_ENGINE_RPM_MAX..OFF_ENGINE_RPM_MAX + 4]
-            .copy_from_slice(&8000.0f32.to_le_bytes());
+        data[OFF_ENGINE_RPM_MAX..OFF_ENGINE_RPM_MAX + 4].copy_from_slice(&8000.0f32.to_le_bytes());
         data[OFF_FUEL_LEFT..OFF_FUEL_LEFT + 4].copy_from_slice(&30.0f32.to_le_bytes());
         data[OFF_FUEL_CAPACITY..OFF_FUEL_CAPACITY + 4].copy_from_slice(&60.0f32.to_le_bytes());
         data[OFF_SPEED..OFF_SPEED + 4].copy_from_slice(&speed.to_le_bytes());

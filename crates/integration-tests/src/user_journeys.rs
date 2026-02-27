@@ -480,7 +480,10 @@ pub async fn test_cold_start_device_detection() -> Result<TestResult> {
     // Service should detect pre-connected device without a plug event.
     let device_count = harness.virtual_devices.len();
     if device_count > 0 {
-        info!("✓ Cold-start detection: {} device(s) visible at startup", device_count);
+        info!(
+            "✓ Cold-start detection: {} device(s) visible at startup",
+            device_count
+        );
     } else {
         errors.push("No devices detected after cold start".to_string());
     }
@@ -580,7 +583,10 @@ pub async fn test_malformed_hid_report_does_not_crash() -> Result<TestResult> {
         }
     }
 
-    info!("✓ All {} malformed HID reports handled without panic", malformed_inputs.len());
+    info!(
+        "✓ All {} malformed HID reports handled without panic",
+        malformed_inputs.len()
+    );
 
     let metrics = harness.collect_metrics().await;
     harness.shutdown().await?;
@@ -623,7 +629,10 @@ pub async fn test_telemetry_packet_loss_recovery() -> Result<TestResult> {
     let recovery_elapsed = recovery_start.elapsed();
 
     if recovery_elapsed <= Duration::from_millis(500) {
-        info!("✓ Telemetry recovered after packet-loss gap in {:?}", recovery_elapsed);
+        info!(
+            "✓ Telemetry recovered after packet-loss gap in {:?}",
+            recovery_elapsed
+        );
     } else {
         errors.push(format!(
             "Telemetry recovery took {:?}, exceeds 500 ms gate",

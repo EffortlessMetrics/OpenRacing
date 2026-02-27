@@ -2,8 +2,8 @@
 //!
 //! These tests lock in the wire format to catch accidental protocol regressions.
 
-use insta::assert_debug_snapshot;
 use hid_simucube_protocol as simucube;
+use insta::assert_debug_snapshot;
 
 #[test]
 fn test_snapshot_output_zero_torque() -> Result<(), String> {

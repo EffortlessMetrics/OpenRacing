@@ -2,19 +2,23 @@
 //!
 //! These tests lock in parsed report values to catch accidental protocol regressions.
 
-use insta::assert_debug_snapshot;
 use hid_button_box_protocol as button_box;
+use insta::assert_debug_snapshot;
 
 // parse_gamepad needs 10 bytes: 2 (buttons) + 2+2+2 (axes) + 1 (hat) + 1 (padding)
 
 #[test]
 fn test_snapshot_parse_gamepad_zeros() -> Result<(), String> {
     let data = [0u8; 10];
-    let report = button_box::ButtonBoxInputReport::parse_gamepad(&data)
-        .map_err(|e| e.to_string())?;
+    let report =
+        button_box::ButtonBoxInputReport::parse_gamepad(&data).map_err(|e| e.to_string())?;
     assert_debug_snapshot!(format!(
         "buttons={:#010x}, axis_x={}, axis_y={}, axis_z={}, axis_rz={}, hat={:?}",
-        report.buttons, report.axis_x, report.axis_y, report.axis_z, report.axis_rz,
+        report.buttons,
+        report.axis_x,
+        report.axis_y,
+        report.axis_z,
+        report.axis_rz,
         report.hat_direction()
     ));
     Ok(())
@@ -24,8 +28,8 @@ fn test_snapshot_parse_gamepad_zeros() -> Result<(), String> {
 fn test_snapshot_parse_gamepad_button0_pressed() -> Result<(), String> {
     // byte 0 = 0x01 → button 0 set; byte 8 = 0xFF → hat=Neutral
     let data = [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00];
-    let report = button_box::ButtonBoxInputReport::parse_gamepad(&data)
-        .map_err(|e| e.to_string())?;
+    let report =
+        button_box::ButtonBoxInputReport::parse_gamepad(&data).map_err(|e| e.to_string())?;
     assert_debug_snapshot!(format!(
         "button0={}, button1={}, button_count={}, hat={:?}",
         report.button(0),
@@ -40,8 +44,8 @@ fn test_snapshot_parse_gamepad_button0_pressed() -> Result<(), String> {
 fn test_snapshot_parse_gamepad_hat_right() -> Result<(), String> {
     // byte 8 = 2 → HatDirection::Right
     let data = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00];
-    let report = button_box::ButtonBoxInputReport::parse_gamepad(&data)
-        .map_err(|e| e.to_string())?;
+    let report =
+        button_box::ButtonBoxInputReport::parse_gamepad(&data).map_err(|e| e.to_string())?;
     assert_debug_snapshot!(format!("hat={:?}", report.hat_direction()));
     Ok(())
 }
@@ -51,11 +55,15 @@ fn test_snapshot_parse_gamepad_hat_right() -> Result<(), String> {
 #[test]
 fn test_snapshot_parse_extended_zeros() -> Result<(), String> {
     let data = [0u8; 13];
-    let report = button_box::ButtonBoxInputReport::parse_extended(&data)
-        .map_err(|e| e.to_string())?;
+    let report =
+        button_box::ButtonBoxInputReport::parse_extended(&data).map_err(|e| e.to_string())?;
     assert_debug_snapshot!(format!(
         "buttons={:#010x}, axis_x={}, axis_y={}, axis_z={}, axis_rz={}, hat={:?}",
-        report.buttons, report.axis_x, report.axis_y, report.axis_z, report.axis_rz,
+        report.buttons,
+        report.axis_x,
+        report.axis_y,
+        report.axis_z,
+        report.axis_rz,
         report.hat_direction()
     ));
     Ok(())
@@ -69,8 +77,8 @@ fn test_snapshot_parse_extended_all_buttons() -> Result<(), String> {
     data[1] = 0xFF;
     data[2] = 0xFF;
     data[3] = 0xFF;
-    let report = button_box::ButtonBoxInputReport::parse_extended(&data)
-        .map_err(|e| e.to_string())?;
+    let report =
+        button_box::ButtonBoxInputReport::parse_extended(&data).map_err(|e| e.to_string())?;
     assert_debug_snapshot!(format!(
         "buttons={:#010x}, button_count={}",
         report.buttons,

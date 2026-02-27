@@ -1,7 +1,7 @@
 //! Tests for the OpenFFBoard vendor protocol handler.
 
+use super::VendorProtocol;
 use super::openffboard::OpenFFBoardHandler;
-use super::{VendorProtocol};
 use racing_wheel_hid_openffboard_protocol::{
     OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT, OPENFFBOARD_VENDOR_ID,
 };
@@ -80,8 +80,14 @@ fn shutdown_sends_disable() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn output_report_id_and_len_are_set() {
     let handler = OpenFFBoardHandler::new(OPENFFBOARD_VENDOR_ID, OPENFFBOARD_PRODUCT_ID);
-    assert!(handler.output_report_id().is_some(), "should have output report ID");
-    assert!(handler.output_report_len().is_some(), "should have output report len");
+    assert!(
+        handler.output_report_id().is_some(),
+        "should have output report ID"
+    );
+    assert!(
+        handler.output_report_len().is_some(),
+        "should have output report len"
+    );
     assert_eq!(handler.output_report_id(), Some(0x01));
 }
 
@@ -89,9 +95,18 @@ fn output_report_id_and_len_are_set() {
 fn ffb_config_valid_ranges() {
     let handler = OpenFFBoardHandler::new(OPENFFBOARD_VENDOR_ID, OPENFFBOARD_PRODUCT_ID);
     let config = handler.get_ffb_config();
-    assert!(config.max_torque_nm >= 1.0, "max torque should be at least 1 Nm");
-    assert!(config.max_torque_nm <= 100.0, "max torque should be <= 100 Nm");
-    assert!(config.encoder_cpr >= 100, "encoder CPR should be reasonable");
+    assert!(
+        config.max_torque_nm >= 1.0,
+        "max torque should be at least 1 Nm"
+    );
+    assert!(
+        config.max_torque_nm <= 100.0,
+        "max torque should be <= 100 Nm"
+    );
+    assert!(
+        config.encoder_cpr >= 100,
+        "encoder CPR should be reasonable"
+    );
 }
 
 #[test]

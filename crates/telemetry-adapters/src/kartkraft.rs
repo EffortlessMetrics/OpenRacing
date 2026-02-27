@@ -14,11 +14,16 @@
 //! bEnableOutputStandard=True
 //! ```
 
-use crate::{NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, telemetry_now_ns};
+use crate::{
+    NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, telemetry_now_ns,
+};
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
-use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
 use std::time::Duration;
 use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
@@ -162,7 +167,9 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     // Root table offset is a u32 LE at bytes [0..4].
     let root_offset = u32::from_le_bytes(data[0..4].try_into().unwrap()) as usize;
     if root_offset >= data.len() {
-        return Err(anyhow!("KartKraft: root offset {root_offset} out of bounds"));
+        return Err(anyhow!(
+            "KartKraft: root offset {root_offset} out of bounds"
+        ));
     }
     let frame_pos = root_offset;
 
@@ -170,11 +177,19 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     let dash_pos = fb_subtable_pos(data, frame_pos, FRAME_FIELD_DASH)
         .ok_or_else(|| anyhow!("KartKraft: missing Dashboard data in packet"))?;
 
-    let speed = fb_f32(data, dash_pos, DASH_FIELD_SPEED).unwrap_or(0.0).max(0.0);
-    let rpm = fb_f32(data, dash_pos, DASH_FIELD_RPM).unwrap_or(0.0).max(0.0);
+    let speed = fb_f32(data, dash_pos, DASH_FIELD_SPEED)
+        .unwrap_or(0.0)
+        .max(0.0);
+    let rpm = fb_f32(data, dash_pos, DASH_FIELD_RPM)
+        .unwrap_or(0.0)
+        .max(0.0);
     let steer_deg = fb_f32(data, dash_pos, DASH_FIELD_STEER).unwrap_or(0.0);
-    let throttle = fb_f32(data, dash_pos, DASH_FIELD_THROTTLE).unwrap_or(0.0).clamp(0.0, 1.0);
-    let brake = fb_f32(data, dash_pos, DASH_FIELD_BRAKE).unwrap_or(0.0).clamp(0.0, 1.0);
+    let throttle = fb_f32(data, dash_pos, DASH_FIELD_THROTTLE)
+        .unwrap_or(0.0)
+        .clamp(0.0, 1.0);
+    let brake = fb_f32(data, dash_pos, DASH_FIELD_BRAKE)
+        .unwrap_or(0.0)
+        .clamp(0.0, 1.0);
     // Gear: 0 = neutral, −1 = reverse, 1..N = forward gears.
     let gear = fb_i8(data, dash_pos, DASH_FIELD_GEAR).unwrap_or(0);
 
@@ -415,8 +430,8 @@ mod tests {
         let vtable_dash_start = buf.len(); // byte 0
         push_u16(&mut buf, 16); // vtable_size = 4 + 6*2
         push_u16(&mut buf, 28); // object_size = 4 + 6*4
-        push_u16(&mut buf, 4);  // field 0 (speed)
-        push_u16(&mut buf, 8);  // field 1 (rpm)
+        push_u16(&mut buf, 4); // field 0 (speed)
+        push_u16(&mut buf, 8); // field 1 (rpm)
         push_u16(&mut buf, 12); // field 2 (steer)
         push_u16(&mut buf, 16); // field 3 (throttle)
         push_u16(&mut buf, 20); // field 4 (brake)
@@ -426,11 +441,11 @@ mod tests {
         let dash_table_start = buf.len(); // byte 16
         // soffset = dash_table_start - vtable_dash_start = 16
         push_i32(&mut buf, (dash_table_start - vtable_dash_start) as i32);
-        push_f32(&mut buf, speed);       // field 0 @ offset 4
-        push_f32(&mut buf, rpm);          // field 1 @ offset 8
-        push_f32(&mut buf, steer_deg);    // field 2 @ offset 12
-        push_f32(&mut buf, throttle);     // field 3 @ offset 16
-        push_f32(&mut buf, brake);        // field 4 @ offset 20
+        push_f32(&mut buf, speed); // field 0 @ offset 4
+        push_f32(&mut buf, rpm); // field 1 @ offset 8
+        push_f32(&mut buf, steer_deg); // field 2 @ offset 12
+        push_f32(&mut buf, throttle); // field 3 @ offset 16
+        push_f32(&mut buf, brake); // field 4 @ offset 20
         // gear is i8 but we store it at 4-byte alignment for simplicity
         buf.push(gear as u8);
         buf.push(0);
@@ -441,9 +456,9 @@ mod tests {
         let vtable_frame_start = buf.len(); // byte 44
         push_u16(&mut buf, 10); // vtable_size = 4 + 3*2
         push_u16(&mut buf, 12); // object_size = 4 + 2*u32 (soffset + dash UOffset placeholder)
-        push_u16(&mut buf, 0);  // field 0 (timestamp) absent
-        push_u16(&mut buf, 0);  // field 1 (motion) absent
-        push_u16(&mut buf, 4);  // field 2 (dash) at byte offset 4 from frame_table_start
+        push_u16(&mut buf, 0); // field 0 (timestamp) absent
+        push_u16(&mut buf, 0); // field 1 (motion) absent
+        push_u16(&mut buf, 4); // field 2 (dash) at byte offset 4 from frame_table_start
 
         // ── Frame table ───────────────────────────────────────────────────────
         let frame_table_start = buf.len(); // byte 54
@@ -467,24 +482,24 @@ mod tests {
         buf.clear();
 
         // Reserve space for root_offset (u32) and file identifier (4 bytes).
-        push_u32(&mut buf, 0);          // placeholder for root_offset
+        push_u32(&mut buf, 0); // placeholder for root_offset
         buf.extend_from_slice(b"KKFB"); // file identifier
 
         // ── Frame vtable ─────────────────────────────────────────────────────
         let vt_frame_start = buf.len();
         push_u16(&mut buf, 10); // vtable_size
         push_u16(&mut buf, 12); // object_size (soffset[4] + dash_uoffset[4] + align[4])
-        push_u16(&mut buf, 0);  // field 0 absent
-        push_u16(&mut buf, 0);  // field 1 absent
-        push_u16(&mut buf, 4);  // field 2 (dash) offset 4 from frame_table
+        push_u16(&mut buf, 0); // field 0 absent
+        push_u16(&mut buf, 0); // field 1 absent
+        push_u16(&mut buf, 4); // field 2 (dash) offset 4 from frame_table
 
         // ── Frame table ───────────────────────────────────────────────────────
         let frame_table_pos = buf.len();
         // soffset: frame_table_pos − vt_frame_start
         push_i32(&mut buf, (frame_table_pos - vt_frame_start) as i32);
         // Placeholder for dash UOffset (at frame_table_pos + 4)
-        push_u32(&mut buf, 0);          // will be patched
-        push_u32(&mut buf, 0);          // padding to match object_size = 12
+        push_u32(&mut buf, 0); // will be patched
+        push_u32(&mut buf, 0); // padding to match object_size = 12
 
         // Patch root_offset to point to frame_table_pos
         let root_offset_val = frame_table_pos as u32;
@@ -494,8 +509,8 @@ mod tests {
         let vt_dash_start = buf.len();
         push_u16(&mut buf, 16); // vtable_size = 4 + 6*2
         push_u16(&mut buf, 28); // object_size = 4 + 6*4
-        push_u16(&mut buf, 4);  // speed
-        push_u16(&mut buf, 8);  // rpm
+        push_u16(&mut buf, 4); // speed
+        push_u16(&mut buf, 8); // rpm
         push_u16(&mut buf, 12); // steer
         push_u16(&mut buf, 16); // throttle
         push_u16(&mut buf, 20); // brake
@@ -534,7 +549,11 @@ mod tests {
         assert!((t.brake - 0.1).abs() < 0.001, "brake {}", t.brake);
         assert_eq!(t.gear, 3, "gear");
         // steer: 45° / 90° = 0.5
-        assert!((t.steering_angle - 0.5).abs() < 0.001, "steering_angle {}", t.steering_angle);
+        assert!(
+            (t.steering_angle - 0.5).abs() < 0.001,
+            "steering_angle {}",
+            t.steering_angle
+        );
         Ok(())
     }
 

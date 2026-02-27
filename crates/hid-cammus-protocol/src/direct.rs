@@ -28,7 +28,16 @@ pub fn encode_torque(torque_normalized: f32) -> [u8; FFB_REPORT_LEN] {
     let clamped = torque_normalized.clamp(-1.0, 1.0);
     let raw = (clamped * i16::MAX as f32) as i16;
     let bytes = raw.to_le_bytes();
-    [FFB_REPORT_ID, bytes[0], bytes[1], MODE_GAME, 0x00, 0x00, 0x00, 0x00]
+    [
+        FFB_REPORT_ID,
+        bytes[0],
+        bytes[1],
+        MODE_GAME,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+    ]
 }
 
 /// Encode a safe-state (zero torque) command.

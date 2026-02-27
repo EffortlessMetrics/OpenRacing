@@ -7,8 +7,8 @@
 use racing_wheel_engine::hid::vendor::simplemotion::SimpleMotionProtocolHandler;
 use racing_wheel_hid_moza_protocol::{DeviceWriter, VendorProtocol};
 use racing_wheel_simplemotion_v2::{
-    IONI_PRODUCT_ID, IONI_PRODUCT_ID_PREMIUM, ARGON_PRODUCT_ID, IONI_VENDOR_ID,
-    TorqueCommandEncoder, TORQUE_COMMAND_LEN,
+    ARGON_PRODUCT_ID, IONI_PRODUCT_ID, IONI_PRODUCT_ID_PREMIUM, IONI_VENDOR_ID, TORQUE_COMMAND_LEN,
+    TorqueCommandEncoder,
 };
 use std::collections::VecDeque;
 
@@ -121,9 +121,7 @@ impl SimpleMotionScenario {
         Self {
             protocol: SimpleMotionProtocolHandler::new(IONI_VENDOR_ID, IONI_PRODUCT_ID),
             device: VirtualSimpleMotionDevice::new(IONI_VENDOR_ID, IONI_PRODUCT_ID),
-            encoder: TorqueCommandEncoder::new(
-                identity.max_torque_nm.unwrap_or(15.0),
-            ),
+            encoder: TorqueCommandEncoder::new(identity.max_torque_nm.unwrap_or(15.0)),
         }
     }
 
@@ -133,9 +131,7 @@ impl SimpleMotionScenario {
         Self {
             protocol: SimpleMotionProtocolHandler::new(IONI_VENDOR_ID, IONI_PRODUCT_ID_PREMIUM),
             device: VirtualSimpleMotionDevice::new(IONI_VENDOR_ID, IONI_PRODUCT_ID_PREMIUM),
-            encoder: TorqueCommandEncoder::new(
-                identity.max_torque_nm.unwrap_or(35.0),
-            ),
+            encoder: TorqueCommandEncoder::new(identity.max_torque_nm.unwrap_or(35.0)),
         }
     }
 
@@ -145,9 +141,7 @@ impl SimpleMotionScenario {
         Self {
             protocol: SimpleMotionProtocolHandler::new(IONI_VENDOR_ID, ARGON_PRODUCT_ID),
             device: VirtualSimpleMotionDevice::new(IONI_VENDOR_ID, ARGON_PRODUCT_ID),
-            encoder: TorqueCommandEncoder::new(
-                identity.max_torque_nm.unwrap_or(10.0),
-            ),
+            encoder: TorqueCommandEncoder::new(identity.max_torque_nm.unwrap_or(10.0)),
         }
     }
 
@@ -157,9 +151,7 @@ impl SimpleMotionScenario {
         Self {
             protocol: SimpleMotionProtocolHandler::new(IONI_VENDOR_ID, IONI_PRODUCT_ID),
             device: VirtualSimpleMotionDevice::new_failing(IONI_VENDOR_ID, IONI_PRODUCT_ID),
-            encoder: TorqueCommandEncoder::new(
-                identity.max_torque_nm.unwrap_or(15.0),
-            ),
+            encoder: TorqueCommandEncoder::new(identity.max_torque_nm.unwrap_or(15.0)),
         }
     }
 
@@ -183,8 +175,6 @@ impl SimpleMotionScenario {
 }
 
 pub use racing_wheel_simplemotion_v2::{
-    ARGON_PRODUCT_ID as PID_ARGON,
-    IONI_PRODUCT_ID as PID_IONI,
-    IONI_PRODUCT_ID_PREMIUM as PID_IONI_PREMIUM,
-    IONI_VENDOR_ID as VENDOR_ID,
+    ARGON_PRODUCT_ID as PID_ARGON, IONI_PRODUCT_ID as PID_IONI,
+    IONI_PRODUCT_ID_PREMIUM as PID_IONI_PREMIUM, IONI_VENDOR_ID as VENDOR_ID,
 };

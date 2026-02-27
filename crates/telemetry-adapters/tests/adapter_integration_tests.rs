@@ -8,8 +8,8 @@
 //!   - Game-paused / not-racing states → empty telemetry
 
 use racing_wheel_telemetry_adapters::{
-    AssettoCorsaAdapter, BeamNGAdapter, ForzaAdapter, PCars2Adapter, RaceRoomAdapter,
-    RFactor2Adapter, IRacingAdapter, TelemetryAdapter,
+    AssettoCorsaAdapter, BeamNGAdapter, ForzaAdapter, IRacingAdapter, PCars2Adapter,
+    RFactor2Adapter, RaceRoomAdapter, TelemetryAdapter,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -60,26 +60,34 @@ fn forza_sled_not_racing_returns_empty_telemetry() -> TestResult {
 #[test]
 fn forza_sled_valid_packet_parses_rpm_and_gear() -> TestResult {
     let mut pkt = vec![0u8; 232];
-    write_i32_le(&mut pkt, 0, 1);       // is_race_on = 1
-    write_f32_le(&mut pkt, 8, 9000.0);  // engine_max_rpm
+    write_i32_le(&mut pkt, 0, 1); // is_race_on = 1
+    write_f32_le(&mut pkt, 8, 9000.0); // engine_max_rpm
     write_f32_le(&mut pkt, 16, 6000.0); // current_rpm
-    write_f32_le(&mut pkt, 20, 0.8);    // throttle
-    write_f32_le(&mut pkt, 36, 3.0);    // gear_raw → 3rd gear
-    write_f32_le(&mut pkt, 52, 30.0);   // vel_x → speed ~30 m/s
+    write_f32_le(&mut pkt, 20, 0.8); // throttle
+    write_f32_le(&mut pkt, 36, 3.0); // gear_raw → 3rd gear
+    write_f32_le(&mut pkt, 52, 30.0); // vel_x → speed ~30 m/s
 
     let adapter = ForzaAdapter::new();
     let t = adapter.normalize(&pkt)?;
 
-    assert!((t.rpm - 6000.0).abs() < 1.0, "rpm must be ~6000, got {}", t.rpm);
+    assert!(
+        (t.rpm - 6000.0).abs() < 1.0,
+        "rpm must be ~6000, got {}",
+        t.rpm
+    );
     assert_eq!(t.gear, 3, "gear must be 3, got {}", t.gear);
-    assert!((t.throttle - 0.8).abs() < 0.01, "throttle must be ~0.8, got {}", t.throttle);
+    assert!(
+        (t.throttle - 0.8).abs() < 0.01,
+        "throttle must be ~0.8, got {}",
+        t.throttle
+    );
     Ok(())
 }
 
 #[test]
 fn forza_sled_reverse_gear_maps_to_minus_one() -> TestResult {
     let mut pkt = vec![0u8; 232];
-    write_i32_le(&mut pkt, 0, 1);    // is_race_on
+    write_i32_le(&mut pkt, 0, 1); // is_race_on
     write_f32_le(&mut pkt, 36, 0.0); // gear_raw=0 → Reverse
 
     let adapter = ForzaAdapter::new();
@@ -97,14 +105,21 @@ fn forza_cardash_packet_parses() -> TestResult {
 
     let adapter = ForzaAdapter::new();
     let t = adapter.normalize(&pkt)?;
-    assert!((t.rpm - 5500.0).abs() < 1.0, "CardDash rpm must be ~5500, got {}", t.rpm);
+    assert!(
+        (t.rpm - 5500.0).abs() < 1.0,
+        "CardDash rpm must be ~5500, got {}",
+        t.rpm
+    );
     Ok(())
 }
 
 #[test]
 fn forza_unknown_packet_size_returns_error() -> TestResult {
     let adapter = ForzaAdapter::new();
-    assert!(adapter.normalize(&[0u8; 100]).is_err(), "unknown size must return Err");
+    assert!(
+        adapter.normalize(&[0u8; 100]).is_err(),
+        "unknown size must return Err"
+    );
     Ok(())
 }
 
@@ -120,23 +135,34 @@ fn beamng_empty_packet_returns_error() -> TestResult {
 #[test]
 fn beamng_short_packet_returns_error() -> TestResult {
     let adapter = BeamNGAdapter::new();
-    assert!(adapter.normalize(&[0u8; 50]).is_err(), "short packet must return Err");
+    assert!(
+        adapter.normalize(&[0u8; 50]).is_err(),
+        "short packet must return Err"
+    );
     Ok(())
 }
 
 #[test]
 fn beamng_valid_outgauge_packet_parses_fields() -> TestResult {
     let mut pkt = vec![0u8; 96];
-    write_f32_le(&mut pkt, 12, 25.0);  // speed m/s
+    write_f32_le(&mut pkt, 12, 25.0); // speed m/s
     write_f32_le(&mut pkt, 16, 5000.0); // rpm
-    pkt[10] = 3;                        // gear=3 → 3-1 = 2nd gear normalized
-    write_f32_le(&mut pkt, 48, 0.7);   // throttle
+    pkt[10] = 3; // gear=3 → 3-1 = 2nd gear normalized
+    write_f32_le(&mut pkt, 48, 0.7); // throttle
 
     let adapter = BeamNGAdapter::new();
     let t = adapter.normalize(&pkt)?;
 
-    assert!((t.rpm - 5000.0).abs() < 1.0, "rpm must be ~5000, got {}", t.rpm);
-    assert!((t.speed_ms - 25.0).abs() < 0.01, "speed must be ~25 m/s, got {}", t.speed_ms);
+    assert!(
+        (t.rpm - 5000.0).abs() < 1.0,
+        "rpm must be ~5000, got {}",
+        t.rpm
+    );
+    assert!(
+        (t.speed_ms - 25.0).abs() < 0.01,
+        "speed must be ~25 m/s, got {}",
+        t.speed_ms
+    );
     assert_eq!(t.gear, 2, "OutGauge gear 3 must map to normalized gear 2");
     assert!((t.throttle - 0.7).abs() < 0.01, "throttle must be ~0.7");
     Ok(())
@@ -176,25 +202,32 @@ fn assetto_corsa_empty_packet_returns_error() -> TestResult {
 #[test]
 fn assetto_corsa_short_packet_returns_error() -> TestResult {
     let adapter = AssettoCorsaAdapter::new();
-    assert!(adapter.normalize(&[0u8; 50]).is_err(), "short packet must return Err");
+    assert!(
+        adapter.normalize(&[0u8; 50]).is_err(),
+        "short packet must return Err"
+    );
     Ok(())
 }
 
 #[test]
 fn assetto_corsa_valid_packet_parses_fields() -> TestResult {
     let mut pkt = vec![0u8; 76];
-    pkt[16] = 3;                         // gear
-    write_u16_le(&mut pkt, 18, 108);     // speed_kmh = 108 → 30 m/s
-    write_f32_le(&mut pkt, 20, 5500.0);  // rpm
-    write_f32_le(&mut pkt, 24, 7500.0);  // max_rpm
-    write_f32_le(&mut pkt, 64, 0.3);     // steer
-    write_f32_le(&mut pkt, 68, 0.8);     // gas/throttle
-    write_f32_le(&mut pkt, 72, 0.0);     // brake
+    pkt[16] = 3; // gear
+    write_u16_le(&mut pkt, 18, 108); // speed_kmh = 108 → 30 m/s
+    write_f32_le(&mut pkt, 20, 5500.0); // rpm
+    write_f32_le(&mut pkt, 24, 7500.0); // max_rpm
+    write_f32_le(&mut pkt, 64, 0.3); // steer
+    write_f32_le(&mut pkt, 68, 0.8); // gas/throttle
+    write_f32_le(&mut pkt, 72, 0.0); // brake
 
     let adapter = AssettoCorsaAdapter::new();
     let t = adapter.normalize(&pkt)?;
 
-    assert!((t.rpm - 5500.0).abs() < 1.0, "rpm must be ~5500, got {}", t.rpm);
+    assert!(
+        (t.rpm - 5500.0).abs() < 1.0,
+        "rpm must be ~5500, got {}",
+        t.rpm
+    );
     assert!(
         (t.speed_ms - 30.0).abs() < 0.2,
         "speed must be ~30 m/s, got {}",
@@ -217,25 +250,32 @@ fn pcars2_empty_packet_returns_error() -> TestResult {
 #[test]
 fn pcars2_short_packet_returns_error() -> TestResult {
     let adapter = PCars2Adapter::new();
-    assert!(adapter.normalize(&[0u8; 50]).is_err(), "short packet must return Err");
+    assert!(
+        adapter.normalize(&[0u8; 50]).is_err(),
+        "short packet must return Err"
+    );
     Ok(())
 }
 
 #[test]
 fn pcars2_valid_packet_parses_fields() -> TestResult {
     let mut pkt = vec![0u8; 84];
-    write_f32_le(&mut pkt, 40, -0.15);  // steering
-    write_f32_le(&mut pkt, 44, 0.9);   // throttle
-    write_f32_le(&mut pkt, 48, 0.0);   // brake
-    write_f32_le(&mut pkt, 52, 45.0);  // speed m/s
+    write_f32_le(&mut pkt, 40, -0.15); // steering
+    write_f32_le(&mut pkt, 44, 0.9); // throttle
+    write_f32_le(&mut pkt, 48, 0.0); // brake
+    write_f32_le(&mut pkt, 52, 45.0); // speed m/s
     write_f32_le(&mut pkt, 56, 7000.0); // rpm
     write_f32_le(&mut pkt, 60, 9000.0); // max_rpm
-    write_u32_le(&mut pkt, 80, 4);     // gear
+    write_u32_le(&mut pkt, 80, 4); // gear
 
     let adapter = PCars2Adapter::new();
     let t = adapter.normalize(&pkt)?;
 
-    assert!((t.rpm - 7000.0).abs() < 1.0, "rpm must be ~7000, got {}", t.rpm);
+    assert!(
+        (t.rpm - 7000.0).abs() < 1.0,
+        "rpm must be ~7000, got {}",
+        t.rpm
+    );
     assert!((t.speed_ms - 45.0).abs() < 0.01, "speed must be ~45 m/s");
     assert_eq!(t.gear, 4, "gear must be 4");
     assert!((t.throttle - 0.9).abs() < 0.01, "throttle must be ~0.9");
@@ -254,7 +294,10 @@ fn raceroom_empty_packet_returns_error() -> TestResult {
 #[test]
 fn raceroom_short_packet_returns_error() -> TestResult {
     let adapter = RaceRoomAdapter::new();
-    assert!(adapter.normalize(&[0u8; 500]).is_err(), "short packet must return Err");
+    assert!(
+        adapter.normalize(&[0u8; 500]).is_err(),
+        "short packet must return Err"
+    );
     Ok(())
 }
 
@@ -274,7 +317,7 @@ fn raceroom_wrong_version_returns_error() -> TestResult {
 #[test]
 fn raceroom_game_paused_returns_empty_telemetry() -> TestResult {
     let mut pkt = vec![0u8; 4096];
-    write_i32_le(&mut pkt, 0, 2);    // version_major = 2 (correct)
+    write_i32_le(&mut pkt, 0, 2); // version_major = 2 (correct)
     write_i32_le(&mut pkt, 100, 1); // game_paused = 1
 
     let adapter = RaceRoomAdapter::new();
@@ -286,7 +329,7 @@ fn raceroom_game_paused_returns_empty_telemetry() -> TestResult {
 #[test]
 fn raceroom_game_in_menus_returns_empty_telemetry() -> TestResult {
     let mut pkt = vec![0u8; 4096];
-    write_i32_le(&mut pkt, 0, 2);    // version_major = 2
+    write_i32_le(&mut pkt, 0, 2); // version_major = 2
     write_i32_le(&mut pkt, 100, 0); // game_paused = 0
     write_i32_le(&mut pkt, 104, 1); // game_in_menus = 1
 
@@ -299,20 +342,24 @@ fn raceroom_game_in_menus_returns_empty_telemetry() -> TestResult {
 #[test]
 fn raceroom_valid_packet_parses_fields() -> TestResult {
     let mut pkt = vec![0u8; 4096];
-    write_i32_le(&mut pkt, 0, 2);       // version_major = 2
-    write_i32_le(&mut pkt, 100, 0);    // game_paused = 0
-    write_i32_le(&mut pkt, 104, 0);    // game_in_menus = 0
+    write_i32_le(&mut pkt, 0, 2); // version_major = 2
+    write_i32_le(&mut pkt, 100, 0); // game_paused = 0
+    write_i32_le(&mut pkt, 104, 0); // game_in_menus = 0
     write_f32_le(&mut pkt, 600, 5000.0); // rpm
     write_f32_le(&mut pkt, 604, 8000.0); // max_rpm
-    write_f32_le(&mut pkt, 700, 50.0);  // speed m/s
-    write_f32_le(&mut pkt, 704, 0.1);   // steer
-    write_f32_le(&mut pkt, 708, 0.6);   // throttle
-    write_i32_le(&mut pkt, 730, 3);     // gear
+    write_f32_le(&mut pkt, 700, 50.0); // speed m/s
+    write_f32_le(&mut pkt, 704, 0.1); // steer
+    write_f32_le(&mut pkt, 708, 0.6); // throttle
+    write_i32_le(&mut pkt, 730, 3); // gear
 
     let adapter = RaceRoomAdapter::new();
     let t = adapter.normalize(&pkt)?;
 
-    assert!((t.rpm - 5000.0).abs() < 1.0, "rpm must be ~5000, got {}", t.rpm);
+    assert!(
+        (t.rpm - 5000.0).abs() < 1.0,
+        "rpm must be ~5000, got {}",
+        t.rpm
+    );
     assert!((t.speed_ms - 50.0).abs() < 0.01, "speed must be ~50 m/s");
     assert_eq!(t.gear, 3, "gear must be 3");
     assert!((t.throttle - 0.6).abs() < 0.01, "throttle must be ~0.6");
@@ -324,14 +371,20 @@ fn raceroom_valid_packet_parses_fields() -> TestResult {
 #[test]
 fn rfactor2_empty_packet_returns_error() -> TestResult {
     let adapter = RFactor2Adapter::new();
-    assert!(adapter.normalize(&[]).is_err(), "empty packet must return Err");
+    assert!(
+        adapter.normalize(&[]).is_err(),
+        "empty packet must return Err"
+    );
     Ok(())
 }
 
 #[test]
 fn rfactor2_short_packet_returns_error() -> TestResult {
     let adapter = RFactor2Adapter::new();
-    assert!(adapter.normalize(&[0u8; 16]).is_err(), "short packet must return Err");
+    assert!(
+        adapter.normalize(&[0u8; 16]).is_err(),
+        "short packet must return Err"
+    );
     Ok(())
 }
 
@@ -340,7 +393,10 @@ fn rfactor2_large_zeroed_buffer_returns_ok() -> TestResult {
     // A zeroed 8 KiB buffer is large enough for any RF2VehicleTelemetry struct.
     let adapter = RFactor2Adapter::new();
     let result = adapter.normalize(&[0u8; 8192]);
-    assert!(result.is_ok(), "zero-filled large buffer must parse without error");
+    assert!(
+        result.is_ok(),
+        "zero-filled large buffer must parse without error"
+    );
     Ok(())
 }
 
@@ -349,14 +405,20 @@ fn rfactor2_large_zeroed_buffer_returns_ok() -> TestResult {
 #[test]
 fn iracing_empty_packet_returns_error() -> TestResult {
     let adapter = IRacingAdapter::new();
-    assert!(adapter.normalize(&[]).is_err(), "empty packet must return Err");
+    assert!(
+        adapter.normalize(&[]).is_err(),
+        "empty packet must return Err"
+    );
     Ok(())
 }
 
 #[test]
 fn iracing_short_packet_returns_error() -> TestResult {
     let adapter = IRacingAdapter::new();
-    assert!(adapter.normalize(&[0u8; 16]).is_err(), "short packet must return Err");
+    assert!(
+        adapter.normalize(&[0u8; 16]).is_err(),
+        "short packet must return Err"
+    );
     Ok(())
 }
 
@@ -365,7 +427,10 @@ fn iracing_large_zeroed_buffer_returns_ok() -> TestResult {
     // A zeroed 8 KiB buffer covers both IRacingLegacyData and IRacingData.
     let adapter = IRacingAdapter::new();
     let result = adapter.normalize(&[0u8; 8192]);
-    assert!(result.is_ok(), "zero-filled large buffer must parse without error");
+    assert!(
+        result.is_ok(),
+        "zero-filled large buffer must parse without error"
+    );
     Ok(())
 }
 
@@ -407,6 +472,10 @@ fn adapter_game_ids_are_unique() -> TestResult {
     let factories = adapter_factories();
     let ids: Vec<&str> = factories.iter().map(|(id, _)| *id).collect();
     let unique: HashSet<&&str> = ids.iter().collect();
-    assert_eq!(ids.len(), unique.len(), "all adapter game IDs must be unique");
+    assert_eq!(
+        ids.len(),
+        unique.len(),
+        "all adapter game IDs must be unique"
+    );
     Ok(())
 }

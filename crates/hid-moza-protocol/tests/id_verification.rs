@@ -11,7 +11,10 @@ use racing_wheel_hid_moza_protocol::{MOZA_VENDOR_ID, product_ids};
 /// Source: USB VID registry; JacKeTUs/linux-steering-wheels; iRacing forum USB captures.
 #[test]
 fn vendor_id_is_346e() {
-    assert_eq!(MOZA_VENDOR_ID, 0x346E, "Moza VID changed — update ids.rs and SOURCES.md");
+    assert_eq!(
+        MOZA_VENDOR_ID, 0x346E,
+        "Moza VID changed — update ids.rs and SOURCES.md"
+    );
 }
 
 // ── Wheelbase V1 PIDs ────────────────────────────────────────────────────────

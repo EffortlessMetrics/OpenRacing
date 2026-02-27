@@ -3,8 +3,10 @@
 //! Uses proptest with 500 cases to verify invariants on report parsing,
 //! button access, axis normalization, hat directions, and rotary encoder state.
 
+use hid_button_box_protocol::{
+    ButtonBoxInputReport, HatDirection, MAX_BUTTONS, RotaryEncoderState,
+};
 use proptest::prelude::*;
-use hid_button_box_protocol::{ButtonBoxInputReport, HatDirection, RotaryEncoderState, MAX_BUTTONS};
 
 proptest! {
     #![proptest_config(proptest::test_runner::Config::with_cases(500))]
@@ -199,7 +201,11 @@ fn test_set_button_idempotent() -> Result<(), Box<dyn std::error::Error>> {
     report.set_button(3, true);
     report.set_button(3, true);
     assert!(report.button(3));
-    assert_eq!(report.button_count(), 1, "setting button twice must not increase count");
+    assert_eq!(
+        report.button_count(),
+        1,
+        "setting button twice must not increase count"
+    );
     Ok(())
 }
 
@@ -212,7 +218,11 @@ fn test_hat_directions_all_distinct() -> Result<(), Box<dyn std::error::Error>> 
         let mut report = ButtonBoxInputReport::default();
         report.hat = hat;
         let dir = report.hat_direction();
-        assert_ne!(dir, HatDirection::Neutral, "hat byte {hat} must not be Neutral");
+        assert_ne!(
+            dir,
+            HatDirection::Neutral,
+            "hat byte {hat} must not be Neutral"
+        );
         assert!(
             seen.insert(format!("{dir:?}")),
             "hat direction for byte {hat} must be unique"
@@ -232,8 +242,7 @@ fn test_parse_extended_axes_roundtrip() -> Result<(), Box<dyn std::error::Error>
     data[6] = 0x78; // axis_y low
     data[7] = 0x56; // axis_y high → 0x5678
     data[12] = 0x04; // hat = 4 → Down
-    let report = ButtonBoxInputReport::parse_extended(&data)
-        .map_err(|e| e.to_string())?;
+    let report = ButtonBoxInputReport::parse_extended(&data).map_err(|e| e.to_string())?;
     assert_eq!(report.axis_x, 0x1234_i16);
     assert_eq!(report.axis_y, 0x5678_u16 as i16);
     assert_eq!(report.hat_direction(), HatDirection::Down);

@@ -1,7 +1,7 @@
 //! Tests for the generic HID PID fallback vendor protocol handler.
 
 use super::generic_hid_pid::GenericHidPidHandler;
-use super::{get_vendor_protocol_with_hid_pid_fallback, DeviceWriter, VendorProtocol};
+use super::{DeviceWriter, VendorProtocol, get_vendor_protocol_with_hid_pid_fallback};
 use std::cell::RefCell;
 
 struct MockWriter {
@@ -38,8 +38,14 @@ impl DeviceWriter for MockWriter {
 fn handler_creates_for_arbitrary_vid_pid() {
     let handler = GenericHidPidHandler::new(0xABCD, 0x1234);
     let config = handler.get_ffb_config();
-    assert!(config.max_torque_nm > 0.0, "generic handler must have positive max torque");
-    assert!(config.encoder_cpr > 0, "generic handler must have positive encoder CPR");
+    assert!(
+        config.max_torque_nm > 0.0,
+        "generic handler must have positive max torque"
+    );
+    assert!(
+        config.encoder_cpr > 0,
+        "generic handler must have positive encoder CPR"
+    );
 }
 
 #[test]
@@ -59,7 +65,10 @@ fn initialize_sends_no_vendor_reports() -> Result<(), Box<dyn std::error::Error>
 fn ffb_config_has_conservative_positive_torque() {
     let handler = GenericHidPidHandler::new(0x1234, 0x5678);
     let config = handler.get_ffb_config();
-    assert!(config.max_torque_nm >= 1.0, "generic torque must be at least 1 Nm");
+    assert!(
+        config.max_torque_nm >= 1.0,
+        "generic torque must be at least 1 Nm"
+    );
     assert!(
         config.max_torque_nm <= 15.0,
         "generic torque must be conservative (<=15 Nm) to protect unknown hardware"
@@ -78,7 +87,11 @@ fn send_feature_report_succeeds() -> Result<(), Box<dyn std::error::Error>> {
     let reports = writer.feature_reports();
     assert_eq!(reports.len(), 1);
     assert_eq!(reports[0][0], 0x05, "first byte must be the report ID");
-    assert_eq!(&reports[0][1..4], &payload, "payload bytes must follow report ID");
+    assert_eq!(
+        &reports[0][1..4],
+        &payload,
+        "payload bytes must follow report ID"
+    );
     Ok(())
 }
 
@@ -112,8 +125,7 @@ fn output_report_id_and_len_are_none() {
 #[test]
 fn fallback_returns_generic_handler_when_hid_pid_advertised() {
     // An unknown VID/PID that is not registered with any vendor handler.
-    let handler =
-        get_vendor_protocol_with_hid_pid_fallback(0xABCD, 0x1234, true);
+    let handler = get_vendor_protocol_with_hid_pid_fallback(0xABCD, 0x1234, true);
     assert!(
         handler.is_some(),
         "must return a generic handler when HID PID capability is advertised"
@@ -122,8 +134,7 @@ fn fallback_returns_generic_handler_when_hid_pid_advertised() {
 
 #[test]
 fn fallback_returns_none_when_hid_pid_not_advertised() {
-    let handler =
-        get_vendor_protocol_with_hid_pid_fallback(0xABCD, 0x1234, false);
+    let handler = get_vendor_protocol_with_hid_pid_fallback(0xABCD, 0x1234, false);
     assert!(
         handler.is_none(),
         "must return None when device does not advertise HID PID capability"
@@ -133,11 +144,15 @@ fn fallback_returns_none_when_hid_pid_not_advertised() {
 #[test]
 fn fallback_prefers_specific_vendor_handler_over_generic() {
     // 0x346E is the Moza VID — must get the Moza handler, not the generic one.
-    let handler =
-        get_vendor_protocol_with_hid_pid_fallback(0x346E, 0x0002, true);
-    assert!(handler.is_some(), "Moza device must have a specific vendor handler");
+    let handler = get_vendor_protocol_with_hid_pid_fallback(0x346E, 0x0002, true);
+    assert!(
+        handler.is_some(),
+        "Moza device must have a specific vendor handler"
+    );
     // Verify the config resembles a Moza handler (high torque, not 8 Nm generic default).
-    let config = handler.map(|h| h.get_ffb_config()).expect("handler should be some");
+    let config = handler
+        .map(|h| h.get_ffb_config())
+        .expect("handler should be some");
     assert!(
         config.max_torque_nm > 8.0,
         "Moza handler torque must exceed the 8 Nm generic default"

@@ -4,11 +4,11 @@
 //! model detection determinism, and EVO vs legacy model discrimination.
 
 use proptest::prelude::*;
-use racing_wheel_hid_simagic_protocol::{
-    SimagicConstantForceEncoder, CONSTANT_FORCE_REPORT_LEN, identify_device,
-    is_wheelbase_product, ids::product_ids,
-};
 use racing_wheel_hid_simagic_protocol::types::SimagicModel;
+use racing_wheel_hid_simagic_protocol::{
+    CONSTANT_FORCE_REPORT_LEN, SimagicConstantForceEncoder, identify_device, ids::product_ids,
+    is_wheelbase_product,
+};
 
 proptest! {
     #![proptest_config(proptest::test_runner::Config::with_cases(500))]

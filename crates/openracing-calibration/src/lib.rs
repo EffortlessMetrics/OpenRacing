@@ -5,13 +5,13 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 
-pub mod types;
 pub mod joystick;
 pub mod pedals;
+pub mod types;
 
-pub use types::*;
 pub use joystick::*;
 pub use pedals::*;
+pub use types::*;
 
 use thiserror::Error;
 
@@ -19,10 +19,10 @@ use thiserror::Error;
 pub enum CalibrationError {
     #[error("Invalid calibration data")]
     InvalidData,
-    
+
     #[error("Calibration not complete")]
     NotComplete,
-    
+
     #[error("Device error: {0}")]
     DeviceError(String),
 }
@@ -37,7 +37,7 @@ mod tests {
     fn test_error_types() {
         let err = CalibrationError::InvalidData;
         assert_eq!(format!("{}", err), "Invalid calibration data");
-        
+
         let err = CalibrationError::NotComplete;
         assert_eq!(format!("{}", err), "Calibration not complete");
     }

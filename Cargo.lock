@@ -5884,6 +5884,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "racing-wheel-telemetry-ams2"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "racing-wheel-telemetry-adapters",
+ "racing-wheel-telemetry-core",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "racing-wheel-telemetry-bdd-metrics"
 version = "0.1.0"
 
@@ -5892,6 +5904,7 @@ name = "racing-wheel-telemetry-config"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "racing-wheel-telemetry-config-writers",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -5908,6 +5921,13 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tracing",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-contracts"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -5931,6 +5951,18 @@ name = "racing-wheel-telemetry-integration"
 version = "0.1.0"
 dependencies = [
  "racing-wheel-telemetry-bdd-metrics",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-lfs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "racing-wheel-telemetry-adapters",
+ "racing-wheel-telemetry-core",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

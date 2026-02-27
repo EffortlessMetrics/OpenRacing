@@ -5,11 +5,11 @@
 //! confirmed from real hardware.
 
 use super::cube_controls::{
-    is_cube_controls_product, CubeControlsModel, CubeControlsProtocolHandler,
     CUBE_CONTROLS_CSX3_PID, CUBE_CONTROLS_FORMULA_PRO_PID, CUBE_CONTROLS_GT_PRO_PID,
-    CUBE_CONTROLS_VENDOR_ID,
+    CUBE_CONTROLS_VENDOR_ID, CubeControlsModel, CubeControlsProtocolHandler,
+    is_cube_controls_product,
 };
-use super::{get_vendor_protocol, DeviceWriter, VendorProtocol};
+use super::{DeviceWriter, VendorProtocol, get_vendor_protocol};
 use std::cell::RefCell;
 
 struct MockDeviceWriter {
@@ -44,7 +44,8 @@ impl DeviceWriter for MockDeviceWriter {
 
 #[test]
 fn test_new_gt_pro() {
-    let handler = CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_GT_PRO_PID);
+    let handler =
+        CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_GT_PRO_PID);
     assert_eq!(handler.model(), CubeControlsModel::GtPro);
     let config = handler.get_ffb_config();
     assert!((config.max_torque_nm - 20.0).abs() < 0.01);
@@ -59,8 +60,7 @@ fn test_new_formula_pro() {
 
 #[test]
 fn test_new_csx3() {
-    let handler =
-        CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_CSX3_PID);
+    let handler = CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_CSX3_PID);
     assert_eq!(handler.model(), CubeControlsModel::Csx3);
     let config = handler.get_ffb_config();
     assert!((config.max_torque_nm - 20.0).abs() < 0.01);
@@ -151,14 +151,20 @@ fn test_get_vendor_protocol_cube_controls() {
         "GT Pro must resolve to a vendor protocol (provisional PID)"
     );
     let proto = get_vendor_protocol(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_FORMULA_PRO_PID);
-    assert!(proto.is_some(), "Formula Pro must resolve to a vendor protocol");
+    assert!(
+        proto.is_some(),
+        "Formula Pro must resolve to a vendor protocol"
+    );
     let proto = get_vendor_protocol(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_CSX3_PID);
     assert!(proto.is_some(), "CSX3 must resolve to a vendor protocol");
 }
 
 #[test]
 fn test_cube_controls_model_display_names() {
-    assert_eq!(CubeControlsModel::GtPro.display_name(), "Cube Controls GT Pro");
+    assert_eq!(
+        CubeControlsModel::GtPro.display_name(),
+        "Cube Controls GT Pro"
+    );
     assert_eq!(
         CubeControlsModel::FormulaPro.display_name(),
         "Cube Controls Formula Pro"
@@ -193,8 +199,7 @@ fn snapshot_ffb_config_formula_pro() {
 
 #[test]
 fn snapshot_ffb_config_csx3() {
-    let handler =
-        CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_CSX3_PID);
+    let handler = CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_CSX3_PID);
     insta::assert_debug_snapshot!(handler.get_ffb_config());
 }
 

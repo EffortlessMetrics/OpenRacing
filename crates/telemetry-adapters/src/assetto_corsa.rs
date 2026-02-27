@@ -67,9 +67,7 @@ fn parse_ac_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     let speed_kmh = read_u16_le(data, OFF_SPEED_KMH).unwrap_or(0);
     let rpm = read_f32_le(data, OFF_RPM).unwrap_or(0.0);
     let max_rpm = read_f32_le(data, OFF_MAX_RPM).unwrap_or(0.0);
-    let steer = read_f32_le(data, OFF_STEER)
-        .unwrap_or(0.0)
-        .clamp(-1.0, 1.0);
+    let steer = read_f32_le(data, OFF_STEER).unwrap_or(0.0).clamp(-1.0, 1.0);
     let gas = read_f32_le(data, OFF_GAS).unwrap_or(0.0);
     let brake = read_f32_le(data, OFF_BRAKE).unwrap_or(0.0);
 
@@ -98,8 +96,7 @@ impl TelemetryAdapter for AssettoCorsaAdapter {
         let update_rate = self.update_rate;
 
         tokio::spawn(async move {
-            let bind_addr =
-                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, bind_port));
+            let bind_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, bind_port));
             let socket = match TokioUdpSocket::bind(bind_addr).await {
                 Ok(s) => s,
                 Err(e) => {
@@ -115,12 +112,8 @@ impl TelemetryAdapter for AssettoCorsaAdapter {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
                     Ok(Ok(len)) => match parse_ac_packet(&buf[..len]) {
                         Ok(normalized) => {
-                            let frame = TelemetryFrame::new(
-                                normalized,
-                                telemetry_now_ns(),
-                                frame_seq,
-                                len,
-                            );
+                            let frame =
+                                TelemetryFrame::new(normalized, telemetry_now_ns(), frame_seq, len);
                             if tx.send(frame).await.is_err() {
                                 debug!("Receiver dropped, stopping AC monitoring");
                                 break;

@@ -107,7 +107,10 @@ mod tests {
         assert_eq!(profile.schema_version, CURRENT_SCHEMA_VERSION);
 
         let migrated = migrate_profile(&mut profile)?;
-        assert!(!migrated, "already-current profile must not be marked as migrated");
+        assert!(
+            !migrated,
+            "already-current profile must not be marked as migrated"
+        );
         assert_eq!(profile.schema_version, CURRENT_SCHEMA_VERSION);
 
         Ok(())
@@ -208,4 +211,3 @@ mod tests {
         Ok(())
     }
 }
-

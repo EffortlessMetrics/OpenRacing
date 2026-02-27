@@ -73,7 +73,10 @@ fn test_snapshot_set_gain_half() {
 #[test]
 fn test_snapshot_is_ffbeast_product() {
     let results = [
-        ("wheel", ffbeast::is_ffbeast_product(ffbeast::FFBEAST_PRODUCT_ID_WHEEL)),
+        (
+            "wheel",
+            ffbeast::is_ffbeast_product(ffbeast::FFBEAST_PRODUCT_ID_WHEEL),
+        ),
         (
             "joystick",
             ffbeast::is_ffbeast_product(ffbeast::FFBEAST_PRODUCT_ID_JOYSTICK),

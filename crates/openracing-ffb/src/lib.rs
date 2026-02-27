@@ -6,11 +6,11 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 
-pub mod effects;
 pub mod constants;
+pub mod effects;
 
-pub use effects::*;
 pub use constants::*;
+pub use effects::*;
 
 use serde::{Deserialize, Serialize};
 
@@ -83,7 +83,7 @@ mod tests {
     fn test_ffb_gain_clamping() {
         let gain = FfbGain::new(1.5);
         assert_eq!(gain.overall, 1.0);
-        
+
         let gain = FfbGain::new(-0.5);
         assert_eq!(gain.overall, 0.0);
     }
@@ -98,7 +98,7 @@ mod tests {
     fn test_ffb_direction_wrapping() {
         let dir = FfbDirection::new(450.0);
         assert_eq!(dir.degrees, 90.0);
-        
+
         let dir = FfbDirection::new(-90.0);
         assert_eq!(dir.degrees, 270.0);
     }

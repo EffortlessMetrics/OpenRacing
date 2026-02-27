@@ -8,10 +8,10 @@
 use super::{DeviceWriter, FfbConfig, VendorProtocol};
 use tracing::{debug, info, warn};
 
+use racing_wheel_hid_simagic_protocol::ids::report_ids;
 pub use racing_wheel_hid_simagic_protocol::{
     CONSTANT_FORCE_REPORT_LEN, SIMAGIC_VENDOR_ID, build_device_gain, build_rotation_range,
 };
-use racing_wheel_hid_simagic_protocol::ids::report_ids;
 
 /// Simagic vendor IDs observed across hardware generations.
 pub mod vendor_ids {

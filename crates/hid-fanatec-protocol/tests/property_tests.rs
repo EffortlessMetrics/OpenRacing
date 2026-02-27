@@ -5,7 +5,7 @@
 
 use proptest::prelude::*;
 use racing_wheel_hid_fanatec_protocol::{
-    FanatecConstantForceEncoder, CONSTANT_FORCE_REPORT_LEN, build_display_report, build_led_report,
+    CONSTANT_FORCE_REPORT_LEN, FanatecConstantForceEncoder, build_display_report, build_led_report,
     build_mode_switch_report, build_rumble_report, build_set_gain_report, build_stop_all_report,
 };
 
@@ -174,7 +174,11 @@ fn test_mode_switch_report_bytes() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(report[0], 0x01, "mode-switch report ID must be 0x01");
     assert_eq!(report[1], 0x01, "Set Mode command must be 0x01");
     assert_eq!(report[2], 0x03, "Advanced/PC mode byte must be 0x03");
-    assert_eq!(&report[3..], &[0u8; 5], "mode-switch reserved bytes must be zero");
+    assert_eq!(
+        &report[3..],
+        &[0u8; 5],
+        "mode-switch reserved bytes must be zero"
+    );
     Ok(())
 }
 
@@ -184,6 +188,10 @@ fn test_stop_all_command_byte() -> Result<(), Box<dyn std::error::Error>> {
     let report = build_stop_all_report();
     assert_eq!(report[0], 0x01, "stop-all report ID must be 0x01");
     assert_eq!(report[1], 0x0F, "stop-all command byte must be 0x0F");
-    assert_eq!(&report[2..], &[0u8; 6], "stop-all reserved bytes must be zero");
+    assert_eq!(
+        &report[2..],
+        &[0u8; 6],
+        "stop-all reserved bytes must be zero"
+    );
     Ok(())
 }

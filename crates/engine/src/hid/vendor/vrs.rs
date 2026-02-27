@@ -40,10 +40,7 @@ impl VrsProtocolHandler {
 
 /// Return true when the product ID is a known VRS product.
 pub fn is_vrs_product(product_id: u16) -> bool {
-    matches!(
-        product_id,
-        0xA355..=0xA35A
-    )
+    matches!(product_id, 0xA355..=0xA35A)
 }
 
 impl VendorProtocol for VrsProtocolHandler {

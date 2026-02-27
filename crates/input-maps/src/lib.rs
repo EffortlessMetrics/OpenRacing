@@ -493,7 +493,10 @@ mod tests {
             }],
             ..Default::default()
         };
-        assert!(matches!(map.validate(), Err(DeviceInputMapError::MissingIdentity)));
+        assert!(matches!(
+            map.validate(),
+            Err(DeviceInputMapError::MissingIdentity)
+        ));
     }
 
     #[test]
@@ -514,7 +517,10 @@ mod tests {
             }],
             ..Default::default()
         };
-        assert!(matches!(map.validate(), Err(DeviceInputMapError::MissingIdentity)));
+        assert!(matches!(
+            map.validate(),
+            Err(DeviceInputMapError::MissingIdentity)
+        ));
     }
 
     #[test]

@@ -4,7 +4,7 @@
 //! for the three canonical inputs: full-negative, zero, and full-positive force.
 
 use insta::assert_snapshot;
-use racing_wheel_hid_fanatec_protocol::{FanatecConstantForceEncoder, CONSTANT_FORCE_REPORT_LEN};
+use racing_wheel_hid_fanatec_protocol::{CONSTANT_FORCE_REPORT_LEN, FanatecConstantForceEncoder};
 
 /// Helper: encode `torque_nm` with `max_torque_nm = 1.0` and return formatted bytes.
 fn encode_bytes(torque_nm: f32) -> String {

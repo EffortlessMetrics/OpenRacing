@@ -23,7 +23,10 @@ fn bench_reconstruction_filter(c: &mut Criterion) {
 
     c.bench_function("reconstruction_filter", |b| {
         b.iter(|| {
-            reconstruction_filter(std::hint::black_box(&mut frame), std::hint::black_box(&mut state));
+            reconstruction_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&mut state),
+            );
         })
     });
 }
@@ -34,7 +37,10 @@ fn bench_friction_filter(c: &mut Criterion) {
 
     c.bench_function("friction_filter", |b| {
         b.iter(|| {
-            friction_filter(std::hint::black_box(&mut frame), std::hint::black_box(&state));
+            friction_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&state),
+            );
         })
     });
 }
@@ -45,7 +51,10 @@ fn bench_damper_filter(c: &mut Criterion) {
 
     c.bench_function("damper_filter", |b| {
         b.iter(|| {
-            damper_filter(std::hint::black_box(&mut frame), std::hint::black_box(&state));
+            damper_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&state),
+            );
         })
     });
 }
@@ -56,7 +65,10 @@ fn bench_inertia_filter(c: &mut Criterion) {
 
     c.bench_function("inertia_filter", |b| {
         b.iter(|| {
-            inertia_filter(std::hint::black_box(&mut frame), std::hint::black_box(&mut state));
+            inertia_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&mut state),
+            );
         })
     });
 }
@@ -67,7 +79,10 @@ fn bench_notch_filter(c: &mut Criterion) {
 
     c.bench_function("notch_filter", |b| {
         b.iter(|| {
-            notch_filter(std::hint::black_box(&mut frame), std::hint::black_box(&mut state));
+            notch_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&mut state),
+            );
         })
     });
 }
@@ -78,7 +93,10 @@ fn bench_slew_rate_filter(c: &mut Criterion) {
 
     c.bench_function("slew_rate_filter", |b| {
         b.iter(|| {
-            slew_rate_filter(std::hint::black_box(&mut frame), std::hint::black_box(&mut state));
+            slew_rate_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&mut state),
+            );
         })
     });
 }
@@ -90,7 +108,10 @@ fn bench_curve_filter(c: &mut Criterion) {
 
     c.bench_function("curve_filter", |b| {
         b.iter(|| {
-            curve_filter(std::hint::black_box(&mut frame), std::hint::black_box(&state));
+            curve_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&state),
+            );
         })
     });
 }
@@ -101,7 +122,10 @@ fn bench_response_curve_filter(c: &mut Criterion) {
 
     c.bench_function("response_curve_filter", |b| {
         b.iter(|| {
-            response_curve_filter(std::hint::black_box(&mut frame), std::hint::black_box(&state));
+            response_curve_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&state),
+            );
         })
     });
 }
@@ -112,7 +136,10 @@ fn bench_bumpstop_filter(c: &mut Criterion) {
 
     c.bench_function("bumpstop_filter", |b| {
         b.iter(|| {
-            bumpstop_filter(std::hint::black_box(&mut frame), std::hint::black_box(&mut state));
+            bumpstop_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&mut state),
+            );
         })
     });
 }
@@ -123,7 +150,10 @@ fn bench_hands_off_detector(c: &mut Criterion) {
 
     c.bench_function("hands_off_detector", |b| {
         b.iter(|| {
-            hands_off_detector(std::hint::black_box(&mut frame), std::hint::black_box(&mut state));
+            hands_off_detector(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&mut state),
+            );
         })
     });
 }
@@ -150,12 +180,30 @@ fn bench_combined_filters(c: &mut Criterion) {
 
     c.bench_function("combined_filters", |b| {
         b.iter(|| {
-            reconstruction_filter(std::hint::black_box(&mut frame), std::hint::black_box(&mut recon_state));
-            friction_filter(std::hint::black_box(&mut frame), std::hint::black_box(&friction_state));
-            damper_filter(std::hint::black_box(&mut frame), std::hint::black_box(&damper_state));
-            inertia_filter(std::hint::black_box(&mut frame), std::hint::black_box(&mut inertia_state));
-            slew_rate_filter(std::hint::black_box(&mut frame), std::hint::black_box(&mut slew_state));
-            response_curve_filter(std::hint::black_box(&mut frame), std::hint::black_box(&response_state));
+            reconstruction_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&mut recon_state),
+            );
+            friction_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&friction_state),
+            );
+            damper_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&damper_state),
+            );
+            inertia_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&mut inertia_state),
+            );
+            slew_rate_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&mut slew_state),
+            );
+            response_curve_filter(
+                std::hint::black_box(&mut frame),
+                std::hint::black_box(&response_state),
+            );
             torque_cap_filter(std::hint::black_box(&mut frame), std::hint::black_box(0.8));
         })
     });

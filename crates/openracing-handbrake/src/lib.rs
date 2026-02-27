@@ -6,11 +6,11 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 
-pub mod types;
 pub mod input;
+pub mod types;
 
-pub use types::*;
 pub use input::*;
+pub use types::*;
 
 use thiserror::Error;
 
@@ -18,7 +18,7 @@ use thiserror::Error;
 pub enum HandbrakeError {
     #[error("Invalid position value: {0}")]
     InvalidPosition(u16),
-    
+
     #[error("Handbrake disconnected")]
     Disconnected,
 }

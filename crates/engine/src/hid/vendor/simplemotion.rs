@@ -9,9 +9,9 @@ use super::{DeviceWriter, FfbConfig, VendorProtocol};
 use tracing::{debug, info};
 
 pub use racing_wheel_simplemotion_v2::{
-    ARGON_PRODUCT_ID, IONI_PRODUCT_ID, IONI_PRODUCT_ID_PREMIUM, IONI_VENDOR_ID,
-    SmDeviceIdentity, SmFeedbackState, TORQUE_COMMAND_LEN, TorqueCommandEncoder,
-    build_device_enable, identify_device, is_wheelbase_product, parse_feedback_report,
+    ARGON_PRODUCT_ID, IONI_PRODUCT_ID, IONI_PRODUCT_ID_PREMIUM, IONI_VENDOR_ID, SmDeviceIdentity,
+    SmFeedbackState, TORQUE_COMMAND_LEN, TorqueCommandEncoder, build_device_enable,
+    identify_device, is_wheelbase_product, parse_feedback_report,
 };
 
 /// Granite Devices / SimpleMotion V2 USB Vendor ID.

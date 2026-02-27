@@ -159,7 +159,10 @@ async fn test_complete_zero_alloc_pipeline_flow() {
 
     let report = benchmark.finish();
     if warn_count > 0 {
-        eprintln!("Pipeline produced {} warnings during RT test (known filter chain issue)", warn_count);
+        eprintln!(
+            "Pipeline produced {} warnings during RT test (known filter chain issue)",
+            warn_count
+        );
     }
     report.assert_zero_alloc(); // Critical assertion for CI
     report.print_summary();

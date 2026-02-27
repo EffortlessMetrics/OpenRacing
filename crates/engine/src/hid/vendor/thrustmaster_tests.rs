@@ -1,7 +1,7 @@
 //! Tests for the Thrustmaster protocol handler.
 
 use super::thrustmaster::{
-    Model, ThrustmasterProtocolHandler, EFFECT_REPORT_LEN, THRUSTMASTER_VENDOR_ID,
+    EFFECT_REPORT_LEN, Model, THRUSTMASTER_VENDOR_ID, ThrustmasterProtocolHandler,
     is_pedal_product, is_wheel_product, product_ids,
 };
 use super::{DeviceWriter, VendorProtocol, get_vendor_protocol};

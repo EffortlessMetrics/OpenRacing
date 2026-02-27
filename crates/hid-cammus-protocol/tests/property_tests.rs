@@ -2,8 +2,8 @@
 //!
 //! Verifies invariants across a wide range of inputs using `proptest`.
 
-use racing_wheel_hid_cammus_protocol as cammus;
 use proptest::prelude::*;
+use racing_wheel_hid_cammus_protocol as cammus;
 
 proptest! {
     #![proptest_config(proptest::test_runner::Config::with_cases(500))]

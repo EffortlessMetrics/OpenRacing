@@ -52,7 +52,11 @@ impl OpenFFBoardTorqueEncoder {
 ///
 /// Returns a 3-byte feature report: `[ENABLE_FFB_REPORT_ID, enabled, 0]`.
 pub fn build_enable_ffb(enabled: bool) -> [u8; 3] {
-    [ENABLE_FFB_REPORT_ID, if enabled { 0x01 } else { 0x00 }, 0x00]
+    [
+        ENABLE_FFB_REPORT_ID,
+        if enabled { 0x01 } else { 0x00 },
+        0x00,
+    ]
 }
 
 /// Build a feature report that sets the global FFB gain.

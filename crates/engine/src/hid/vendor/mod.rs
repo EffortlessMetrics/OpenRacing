@@ -1,4 +1,4 @@
-﻿//! Vendor-specific protocol handlers
+//! Vendor-specific protocol handlers
 //!
 //! This module provides abstractions for vendor-specific device initialization,
 //! configuration, and quirks handling.
@@ -10,17 +10,17 @@ pub mod button_box;
 pub mod cammus;
 pub mod cube_controls;
 pub mod fanatec;
+pub mod ffbeast;
 pub mod generic_hid_pid;
 pub mod heusinkveld;
 pub mod leo_bodnar;
 pub mod logitech;
 pub mod moza;
 pub mod moza_direct;
-pub mod ffbeast;
 pub mod openffboard;
 pub mod simagic;
-pub mod simucube;
 pub mod simplemotion;
+pub mod simucube;
 pub mod thrustmaster;
 pub mod vrs;
 
@@ -28,10 +28,6 @@ pub mod vrs;
 mod accuforce_tests;
 #[cfg(test)]
 mod asetek_tests;
-#[cfg(test)]
-mod generic_hid_pid_tests;
-#[cfg(test)]
-mod leo_bodnar_tests;
 #[cfg(test)]
 mod button_box_tests;
 #[cfg(test)]
@@ -41,21 +37,25 @@ mod cube_controls_tests;
 #[cfg(test)]
 mod fanatec_tests;
 #[cfg(test)]
+mod ffbeast_tests;
+#[cfg(test)]
+mod generic_hid_pid_tests;
+#[cfg(test)]
 mod heusinkveld_tests;
+#[cfg(test)]
+mod leo_bodnar_tests;
 #[cfg(test)]
 mod logitech_tests;
 #[cfg(test)]
 mod moza_tests;
 #[cfg(test)]
-mod ffbeast_tests;
-#[cfg(test)]
 mod openffboard_tests;
 #[cfg(test)]
 mod simagic_tests;
 #[cfg(test)]
-mod simucube_tests;
-#[cfg(test)]
 mod simplemotion_tests;
+#[cfg(test)]
+mod simucube_tests;
 #[cfg(test)]
 mod thrustmaster_tests;
 #[cfg(test)]
@@ -80,13 +80,17 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
         // and provisional Cube Controls assignments (0x0C7x PIDs).
         0x0483 => {
             if vrs::is_vrs_product(product_id) {
-                Some(Box::new(vrs::VrsProtocolHandler::new(vendor_id, product_id)))
+                Some(Box::new(vrs::VrsProtocolHandler::new(
+                    vendor_id, product_id,
+                )))
             } else if cube_controls::is_cube_controls_product(product_id) {
                 Some(Box::new(cube_controls::CubeControlsProtocolHandler::new(
                     vendor_id, product_id,
                 )))
             } else {
-                Some(Box::new(simagic::SimagicProtocol::new(vendor_id, product_id)))
+                Some(Box::new(simagic::SimagicProtocol::new(
+                    vendor_id, product_id,
+                )))
             }
         }
         // OpenMoko/MCS VID (0x16D0): shared by Heusinkveld (0x115x), Simucube 2 (0x0D5x),
@@ -102,7 +106,9 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
                 )))
             } else {
                 // Legacy Simagic / Simucube 1 devices
-                Some(Box::new(simagic::SimagicProtocol::new(vendor_id, product_id)))
+                Some(Box::new(simagic::SimagicProtocol::new(
+                    vendor_id, product_id,
+                )))
             }
         }
         // Simagic EVO generation (VID 0x3670 = Shen Zhen Simagic Technology Co., Ltd.)
@@ -134,7 +140,9 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
         // FFBeast open-source direct drive controller
         0x045B => {
             if ffbeast::is_ffbeast_product(product_id) {
-                Some(Box::new(ffbeast::FFBeastHandler::new(vendor_id, product_id)))
+                Some(Box::new(ffbeast::FFBeastHandler::new(
+                    vendor_id, product_id,
+                )))
             } else {
                 None
             }

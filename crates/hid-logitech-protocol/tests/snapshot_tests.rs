@@ -43,15 +43,16 @@ fn test_snapshot_constant_force_half() {
 fn test_snapshot_input_report_known_sequence() {
     let data = [
         0x01u8, // report ID
-        0x00, 0x80, // steering center (0x8000 LE)
-        0xFF, // throttle = 255 (full)
-        0x80, // brake = 128 (~50 %)
-        0x00, // clutch = 0
+        0x00,
+        0x80,        // steering center (0x8000 LE)
+        0xFF,        // throttle = 255 (full)
+        0x80,        // brake = 128 (~50 %)
+        0x00,        // clutch = 0
         0b0000_0101, // buttons: bits 0 and 2 set
-        0x00, // buttons high byte
-        0x08, // hat switch = 0x8 (neutral)
-        0x03, // both paddles
-        0x00, // padding
+        0x00,        // buttons high byte
+        0x08,        // hat switch = 0x8 (neutral)
+        0x03,        // both paddles
+        0x00,        // padding
     ];
     let state = lg::parse_input_report(&data).expect("parse should succeed");
     assert_snapshot!(format!(

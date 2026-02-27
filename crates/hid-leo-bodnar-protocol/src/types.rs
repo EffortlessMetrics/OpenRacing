@@ -1,7 +1,7 @@
 //! Leo Bodnar device classification and input capabilities.
 
 use crate::ids::{
-    PID_BBI32, PID_BU0836A, PID_BU0836X, PID_BU0836_16BIT, PID_FFB_JOYSTICK, PID_SLI_M,
+    PID_BBI32, PID_BU0836_16BIT, PID_BU0836A, PID_BU0836X, PID_FFB_JOYSTICK, PID_SLI_M,
     PID_USB_JOYSTICK, PID_WHEEL_INTERFACE,
 };
 
@@ -88,7 +88,7 @@ impl LeoBodnarDevice {
 mod tests {
     use super::*;
     use crate::ids::{
-        PID_BBI32, PID_BU0836A, PID_BU0836X, PID_BU0836_16BIT, PID_FFB_JOYSTICK, PID_SLI_M,
+        PID_BBI32, PID_BU0836_16BIT, PID_BU0836A, PID_BU0836X, PID_FFB_JOYSTICK, PID_SLI_M,
         PID_USB_JOYSTICK, PID_WHEEL_INTERFACE,
     };
 
@@ -170,7 +170,10 @@ mod tests {
             LeoBodnarDevice::SlimShiftLight,
         ];
         for device in &devices {
-            assert!(!device.name().is_empty(), "name must not be empty for {device:?}");
+            assert!(
+                !device.name().is_empty(),
+                "name must not be empty for {device:?}"
+            );
         }
     }
 }

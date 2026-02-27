@@ -479,7 +479,9 @@ async fn benchmark_device_enumeration() {
     // Add many devices
     const DEVICE_COUNT: usize = 100;
     for i in 0..DEVICE_COUNT {
-        let device_id = format!("benchmark-device-{:03}", i).parse::<DeviceId>().unwrap();
+        let device_id = format!("benchmark-device-{:03}", i)
+            .parse::<DeviceId>()
+            .unwrap();
         let device = VirtualDevice::new(device_id, format!("Benchmark Device {}", i));
         port.add_device(device).unwrap();
     }

@@ -118,8 +118,14 @@ fn test_snapshot_model_c12() {
 #[test]
 fn test_snapshot_is_cammus() {
     let results = [
-        ("c5_correct", cammus::is_cammus(cammus::VENDOR_ID, cammus::PRODUCT_C5)),
-        ("c12_correct", cammus::is_cammus(cammus::VENDOR_ID, cammus::PRODUCT_C12)),
+        (
+            "c5_correct",
+            cammus::is_cammus(cammus::VENDOR_ID, cammus::PRODUCT_C5),
+        ),
+        (
+            "c12_correct",
+            cammus::is_cammus(cammus::VENDOR_ID, cammus::PRODUCT_C12),
+        ),
         ("wrong_vid", cammus::is_cammus(0x0000, cammus::PRODUCT_C5)),
         ("wrong_pid", cammus::is_cammus(cammus::VENDOR_ID, 0xFFFF)),
     ];

@@ -148,6 +148,5 @@ impl OpenFFBoardScenario {
 
 /// Default product ID re-exported for convenience in tests.
 pub use racing_wheel_hid_openffboard_protocol::{
-    OPENFFBOARD_PRODUCT_ID as PRODUCT_ID_MAIN,
-    OPENFFBOARD_PRODUCT_ID_ALT as PRODUCT_ID_ALT,
+    OPENFFBOARD_PRODUCT_ID as PRODUCT_ID_MAIN, OPENFFBOARD_PRODUCT_ID_ALT as PRODUCT_ID_ALT,
 };

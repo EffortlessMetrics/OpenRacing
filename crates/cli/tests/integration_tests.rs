@@ -774,10 +774,7 @@ fn test_profile_subcommand_help() {
 #[test]
 fn test_device_list_smoke_no_hardware() {
     // The CLI uses a mock IPC client — no actual device hardware is required
-    wheelctl()
-        .args(["device", "list"])
-        .assert()
-        .success();
+    wheelctl().args(["device", "list"]).assert().success();
 }
 
 /// `health` command smoke test acts as a system status check
@@ -810,7 +807,10 @@ fn test_invalid_command_produces_stderr() {
         "Expected non-zero exit for unknown command"
     );
     let stderr = std::str::from_utf8(&output.stderr).unwrap_or("");
-    assert!(!stderr.is_empty(), "Expected non-empty stderr with error info");
+    assert!(
+        !stderr.is_empty(),
+        "Expected non-empty stderr with error info"
+    );
 }
 
 /// An unknown subcommand under a known command exits with error code 2

@@ -66,13 +66,22 @@ mod tests {
 
     #[test]
     fn pro_pid_resolves_to_pro_model() {
-        assert_eq!(AccuForceModel::from_product_id(PID_ACCUFORCE_PRO), AccuForceModel::Pro);
+        assert_eq!(
+            AccuForceModel::from_product_id(PID_ACCUFORCE_PRO),
+            AccuForceModel::Pro
+        );
     }
 
     #[test]
     fn unknown_pid_resolves_to_unknown() {
-        assert_eq!(AccuForceModel::from_product_id(0xFFFF), AccuForceModel::Unknown);
-        assert_eq!(AccuForceModel::from_product_id(0x0000), AccuForceModel::Unknown);
+        assert_eq!(
+            AccuForceModel::from_product_id(0xFFFF),
+            AccuForceModel::Unknown
+        );
+        assert_eq!(
+            AccuForceModel::from_product_id(0x0000),
+            AccuForceModel::Unknown
+        );
     }
 
     #[test]

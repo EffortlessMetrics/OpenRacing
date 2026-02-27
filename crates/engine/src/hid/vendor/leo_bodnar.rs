@@ -18,11 +18,11 @@
 
 #![deny(static_mut_refs)]
 
-use racing_wheel_hid_leo_bodnar_protocol::{
-    is_leo_bodnar_ffb_pid, PID_BBI32, PID_FFB_JOYSTICK, PID_SLI_M, PID_USB_JOYSTICK,
-    PID_WHEEL_INTERFACE, WHEEL_DEFAULT_MAX_TORQUE_NM, WHEEL_ENCODER_CPR, MAX_REPORT_BYTES,
-};
 use super::{DeviceWriter, FfbConfig, VendorProtocol};
+use racing_wheel_hid_leo_bodnar_protocol::{
+    MAX_REPORT_BYTES, PID_BBI32, PID_FFB_JOYSTICK, PID_SLI_M, PID_USB_JOYSTICK,
+    PID_WHEEL_INTERFACE, WHEEL_DEFAULT_MAX_TORQUE_NM, WHEEL_ENCODER_CPR, is_leo_bodnar_ffb_pid,
+};
 use tracing::{debug, info};
 
 /// Leo Bodnar vendor ID.

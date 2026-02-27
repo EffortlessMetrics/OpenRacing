@@ -61,7 +61,10 @@ impl core::fmt::Display for ParseError {
 pub fn parse(data: &[u8]) -> Result<CammusInputReport, ParseError> {
     const NEED: usize = 12;
     if data.len() < NEED {
-        return Err(ParseError::TooShort { got: data.len(), need: NEED });
+        return Err(ParseError::TooShort {
+            got: data.len(),
+            need: NEED,
+        });
     }
 
     let raw_steering = i16::from_le_bytes([data[0], data[1]]);

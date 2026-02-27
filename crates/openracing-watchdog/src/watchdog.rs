@@ -287,7 +287,9 @@ impl WatchdogSystem {
     #[must_use]
     pub fn is_plugin_quarantined(&self, plugin_id: &str) -> bool {
         let stats = self.plugin_stats.read();
-        stats.get(plugin_id).is_some_and(PluginStats::is_quarantined)
+        stats
+            .get(plugin_id)
+            .is_some_and(PluginStats::is_quarantined)
     }
 
     /// Get plugin statistics.
@@ -511,7 +513,9 @@ impl WatchdogSystem {
                 metrics.insert(
                     "total_executions".to_string(),
                     #[allow(clippy::cast_precision_loss)]
-                    { plugin_stats.total_executions as f64 },
+                    {
+                        plugin_stats.total_executions as f64
+                    },
                 );
                 metrics.insert(
                     "average_execution_time_us".to_string(),

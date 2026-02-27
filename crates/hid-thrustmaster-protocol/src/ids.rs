@@ -105,7 +105,12 @@ impl Model {
     pub fn max_torque_nm(self) -> f32 {
         match self {
             Self::T150 | Self::T150Pro | Self::TMX | Self::T500RS => 2.5,
-            Self::T300RS | Self::T300RSPS4 | Self::T300RSGT | Self::TXRacing | Self::T248 | Self::T248X => 4.0,
+            Self::T300RS
+            | Self::T300RSPS4
+            | Self::T300RSGT
+            | Self::TXRacing
+            | Self::T248
+            | Self::T248X => 4.0,
             Self::TGT | Self::TGTII | Self::TSPCRacer | Self::TSXW => 6.0,
             Self::T818 => 10.0,
             Self::T3PA | Self::T3PAPro | Self::TLCM | Self::TLCMPro => 0.0,

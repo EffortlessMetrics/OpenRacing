@@ -389,5 +389,3 @@ mod tests {
         assert!(watchdog.is_healthy());
     }
 }
-
-

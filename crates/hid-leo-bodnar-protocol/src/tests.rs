@@ -1,7 +1,7 @@
 //! Integration tests for the Leo Bodnar protocol crate.
 
 use crate::ids::{
-    PID_BBI32, PID_BU0836A, PID_BU0836X, PID_BU0836_16BIT, PID_FFB_JOYSTICK, PID_SLI_M,
+    PID_BBI32, PID_BU0836_16BIT, PID_BU0836A, PID_BU0836X, PID_FFB_JOYSTICK, PID_SLI_M,
     PID_USB_JOYSTICK, PID_WHEEL_INTERFACE, VENDOR_ID, is_leo_bodnar_device, is_leo_bodnar_ffb_pid,
 };
 use crate::types::LeoBodnarDevice;
@@ -74,7 +74,13 @@ fn ffb_pids_are_subset_of_known_pids() {
 
 #[test]
 fn non_ffb_pids_do_not_claim_ffb() {
-    let non_ffb = [PID_USB_JOYSTICK, PID_BBI32, PID_SLI_M, PID_BU0836A, PID_BU0836X];
+    let non_ffb = [
+        PID_USB_JOYSTICK,
+        PID_BBI32,
+        PID_SLI_M,
+        PID_BU0836A,
+        PID_BU0836X,
+    ];
     for &pid in &non_ffb {
         assert!(
             !is_leo_bodnar_ffb_pid(pid),

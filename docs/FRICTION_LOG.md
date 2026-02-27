@@ -38,7 +38,7 @@ The CI check (`check_yaml_sync.py`) would catch divergence at PR time, but offer
 
 ---
 
-
+### F-002 · Duplicate config writer registration (High · **Resolved**)
 
 **Encountered:** RC sprint
 
@@ -48,9 +48,7 @@ Every game's config writer must be registered in **two** separate files:
 
 Missing one silently causes tests to pass while runtime silently skips the writer. Caused several hard-to-debug failures.
 
-**Current state:** Both files retain the duplicate registration pattern. The two files have now diverged — `telemetry-config/src/writers.rs` has 24 registered writers (including `gran_turismo_7`, `assetto_corsa`, `forza_motorsport`, `beamng_drive`) while `telemetry-config-writers/src/lib.rs` only has 20 (missing those four). The `raceroom` writer is present in both. Integration tests in `crates/integration-tests/tests/game_coverage_tests.rs` now enforce that every registered writer appears in both YAML files, catching the most critical failure mode.
-
-**Remedy:** Unify into a single registry; the parallel crate should re-export from `telemetry-config` rather than duplicate logic. Track in a future cleanup issue.
+**Fix applied:** `crates/telemetry-config-writers/src/lib.rs` is now the single source of truth for all ConfigWriter implementations. The four writers that existed only in the duplicate (`GranTurismo7ConfigWriter`, `AssettoCorsaConfigWriter`, `ForzaMotorsportConfigWriter`, `BeamNGDriveConfigWriter`) were migrated there. `crates/telemetry-config/src/writers.rs` was replaced with a single re-export line: `pub use racing_wheel_telemetry_config_writers::*;`. The `telemetry-config` crate now lists `racing-wheel-telemetry-config-writers` as a workspace dependency.
 
 ---
 

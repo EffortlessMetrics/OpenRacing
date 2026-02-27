@@ -3,18 +3,17 @@
 //! Each test follows a Given/When/Then pattern to verify observable hardware-ready
 //! behaviors without real USB hardware.
 
-use racing_wheel_hid_ffbeast_protocol::{
-    FFBEAST_PRODUCT_ID_JOYSTICK, FFBEAST_PRODUCT_ID_RUDDER,
-    FFBEAST_PRODUCT_ID_WHEEL, FFBEAST_VENDOR_ID, GAIN_REPORT_ID,
-};
 use racing_wheel_hid_ffbeast_protocol::output::ENABLE_FFB_REPORT_ID;
+use racing_wheel_hid_ffbeast_protocol::{
+    FFBEAST_PRODUCT_ID_JOYSTICK, FFBEAST_PRODUCT_ID_RUDDER, FFBEAST_PRODUCT_ID_WHEEL,
+    FFBEAST_VENDOR_ID, GAIN_REPORT_ID,
+};
 use racing_wheel_integration_tests::ffbeast_virtual::FFBeastScenario;
 
 // ─── Scenario 1: wheel initialize sends enable-FFB and gain ──────────────────
 
 #[test]
-fn scenario_wheel_initialize_sends_enable_ffb_and_gain() -> Result<(), Box<dyn std::error::Error>>
-{
+fn scenario_wheel_initialize_sends_enable_ffb_and_gain() -> Result<(), Box<dyn std::error::Error>> {
     // Given: FFBeast wheel
     let mut s = FFBeastScenario::wheel();
 
@@ -46,7 +45,10 @@ fn scenario_enable_ffb_byte_is_0x01() -> Result<(), Box<dyn std::error::Error>> 
     // Then: first report enables FFB
     let enable_report = &s.device.feature_reports()[0];
     assert_eq!(enable_report[0], ENABLE_FFB_REPORT_ID);
-    assert_eq!(enable_report[1], 0x01, "FFB must be enabled (byte 1 = 0x01)");
+    assert_eq!(
+        enable_report[1], 0x01,
+        "FFB must be enabled (byte 1 = 0x01)"
+    );
 
     Ok(())
 }
@@ -64,7 +66,10 @@ fn scenario_gain_set_to_maximum_on_init() -> Result<(), Box<dyn std::error::Erro
     // Then: gain report carries maximum scale
     let gain_reports = s.device.feature_reports_with_id(GAIN_REPORT_ID);
     assert_eq!(gain_reports.len(), 1);
-    assert_eq!(gain_reports[0][1], 0xFF, "gain must be set to maximum (0xFF)");
+    assert_eq!(
+        gain_reports[0][1], 0xFF,
+        "gain must be set to maximum (0xFF)"
+    );
 
     Ok(())
 }
@@ -167,10 +172,10 @@ fn scenario_disconnect_reconnect_reinitialize() -> Result<(), Box<dyn std::error
 
 #[test]
 fn scenario_torque_encoder_end_to_end() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_ffbeast_protocol::output::MAX_TORQUE_SCALE;
     use racing_wheel_hid_ffbeast_protocol::{
         CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, FFBeastTorqueEncoder,
     };
-    use racing_wheel_hid_ffbeast_protocol::output::MAX_TORQUE_SCALE;
 
     // Given: FFBeast torque encoder
     let encoder = FFBeastTorqueEncoder;
@@ -239,8 +244,7 @@ fn scenario_get_vendor_protocol_returns_ffbeast() -> Result<(), Box<dyn std::err
 // ─── Scenario 11: unknown PID under FFBeast VID returns None ──────────────────
 
 #[test]
-fn scenario_unknown_pid_under_ffbeast_vid_returns_none() -> Result<(), Box<dyn std::error::Error>>
-{
+fn scenario_unknown_pid_under_ffbeast_vid_returns_none() -> Result<(), Box<dyn std::error::Error>> {
     use racing_wheel_engine::hid::vendor::get_vendor_protocol;
 
     // Given: FFBeast VID with unknown PID

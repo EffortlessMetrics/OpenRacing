@@ -1,10 +1,10 @@
 //! Tests for SimExperience AccuForce Pro protocol handler.
 
-use super::accuforce::{is_accuforce_product, AccuForceProtocolHandler};
+use super::accuforce::{AccuForceProtocolHandler, is_accuforce_product};
+use super::{DeviceWriter, VendorProtocol, get_vendor_protocol};
 use racing_wheel_hid_accuforce_protocol::{
     AccuForceModel, PID_ACCUFORCE_PRO as ACCUFORCE_PRO_PID, VENDOR_ID as ACCUFORCE_VENDOR_ID,
 };
-use super::{get_vendor_protocol, DeviceWriter, VendorProtocol};
 use std::cell::RefCell;
 
 struct MockDeviceWriter {
@@ -117,7 +117,10 @@ fn test_is_accuforce_product() {
 #[test]
 fn test_get_vendor_protocol_accuforce() {
     let proto = get_vendor_protocol(ACCUFORCE_VENDOR_ID, ACCUFORCE_PRO_PID);
-    assert!(proto.is_some(), "AccuForce Pro must resolve to a vendor protocol");
+    assert!(
+        proto.is_some(),
+        "AccuForce Pro must resolve to a vendor protocol"
+    );
 }
 
 #[test]

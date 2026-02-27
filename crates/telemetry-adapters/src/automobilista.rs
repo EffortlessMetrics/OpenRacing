@@ -134,8 +134,7 @@ impl Automobilista1Adapter {
                 ));
             }
 
-            let base_ptr =
-                MapViewOfFile(handle, FILE_MAP_READ, 0, 0, AMS1_MAP_SIZE) as *const u8;
+            let base_ptr = MapViewOfFile(handle, FILE_MAP_READ, 0, 0, AMS1_MAP_SIZE) as *const u8;
             if base_ptr.is_null() {
                 CloseHandle(handle);
                 return Err(anyhow::anyhow!(
@@ -149,7 +148,10 @@ impl Automobilista1Adapter {
                 size: AMS1_MAP_SIZE,
             });
 
-            info!("Connected to Automobilista 1 shared memory '{}'", AMS1_SHARED_MEMORY_NAME);
+            info!(
+                "Connected to Automobilista 1 shared memory '{}'",
+                AMS1_SHARED_MEMORY_NAME
+            );
             Ok(())
         }
     }
@@ -163,9 +165,10 @@ impl Automobilista1Adapter {
 
     #[cfg(windows)]
     fn read_snapshot(&self) -> Result<Vec<u8>> {
-        let mem = self.memory.as_ref().ok_or_else(|| {
-            anyhow::anyhow!("Automobilista 1 shared memory not initialised")
-        })?;
+        let mem = self
+            .memory
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Automobilista 1 shared memory not initialised"))?;
         if mem.size < AMS1_MIN_SHARED_MEMORY_SIZE {
             return Err(anyhow::anyhow!(
                 "Mapped region too small: {} < {}",
@@ -235,10 +238,16 @@ pub(crate) fn parse_snapshot(data: &[u8]) -> Result<NormalizedTelemetry> {
     let gear_raw = read_i32(data, OFF_GEAR).unwrap_or(0);
     let gear: i8 = gear_raw.clamp(-1, 8) as i8;
 
-    let throttle = read_f32(data, OFF_FILTERED_THROTTLE).unwrap_or(0.0).clamp(0.0, 1.0);
-    let brake = read_f32(data, OFF_FILTERED_BRAKE).unwrap_or(0.0).clamp(0.0, 1.0);
+    let throttle = read_f32(data, OFF_FILTERED_THROTTLE)
+        .unwrap_or(0.0)
+        .clamp(0.0, 1.0);
+    let brake = read_f32(data, OFF_FILTERED_BRAKE)
+        .unwrap_or(0.0)
+        .clamp(0.0, 1.0);
     // rFactor 1 steering: negative = left, positive = right (same convention as NormalizedTelemetry)
-    let steering_angle = read_f32(data, OFF_FILTERED_STEERING).unwrap_or(0.0).clamp(-1.0, 1.0);
+    let steering_angle = read_f32(data, OFF_FILTERED_STEERING)
+        .unwrap_or(0.0)
+        .clamp(-1.0, 1.0);
 
     // Convert lateral acceleration (m/s²) → G
     let lat_accel_ms2 = (read_f64(data, OFF_LOCAL_ACCEL_X).unwrap_or(0.0)) as f32;
@@ -457,7 +466,11 @@ mod tests {
         let mut snap = make_snapshot(AMS1_MIN_SHARED_MEMORY_SIZE);
         write_f32_le(&mut snap, OFF_SPEED, 55.0);
         let t = adapter.normalize(&snap)?;
-        assert!((t.speed_ms - 55.0).abs() < 0.001, "speed_ms should be 55.0, got {}", t.speed_ms);
+        assert!(
+            (t.speed_ms - 55.0).abs() < 0.001,
+            "speed_ms should be 55.0, got {}",
+            t.speed_ms
+        );
         Ok(())
     }
 
@@ -467,7 +480,11 @@ mod tests {
         let mut snap = make_snapshot(AMS1_MIN_SHARED_MEMORY_SIZE);
         write_f64_le(&mut snap, OFF_ENGINE_RPM, 6000.0);
         let t = adapter.normalize(&snap)?;
-        assert!((t.rpm - 6000.0).abs() < 0.1, "rpm should be 6000, got {}", t.rpm);
+        assert!(
+            (t.rpm - 6000.0).abs() < 0.1,
+            "rpm should be 6000, got {}",
+            t.rpm
+        );
         Ok(())
     }
 

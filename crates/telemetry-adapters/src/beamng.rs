@@ -21,11 +21,11 @@ const MAX_PACKET_SIZE: usize = 256;
 
 // OutGauge byte offsets
 const OFF_SPEED: usize = 12; // f32, m/s
-const OFF_RPM: usize = 16;   // f32
-const OFF_GEAR: usize = 10;  // i8 (char in C): 0=R, 1=N, 2=1st, 3=2nd, …
+const OFF_RPM: usize = 16; // f32
+const OFF_GEAR: usize = 10; // i8 (char in C): 0=R, 1=N, 2=1st, 3=2nd, …
 const OFF_THROTTLE: usize = 48; // f32
-const OFF_BRAKE: usize = 52;    // f32
-const OFF_CLUTCH: usize = 56;   // f32
+const OFF_BRAKE: usize = 52; // f32
+const OFF_CLUTCH: usize = 56; // f32
 
 #[cfg(windows)]
 const BEAMNG_PROCESS_NAMES: &[&str] = &["beamng.drive.x64.exe", "beamng.drive.exe"];
@@ -101,8 +101,7 @@ impl TelemetryAdapter for BeamNGAdapter {
         let update_rate = self.update_rate;
 
         tokio::spawn(async move {
-            let bind_addr =
-                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, bind_port));
+            let bind_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, bind_port));
             let socket = match TokioUdpSocket::bind(bind_addr).await {
                 Ok(s) => s,
                 Err(e) => {
@@ -118,12 +117,8 @@ impl TelemetryAdapter for BeamNGAdapter {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
                     Ok(Ok(len)) => match parse_outgauge_packet(&buf[..len]) {
                         Ok(normalized) => {
-                            let frame = TelemetryFrame::new(
-                                normalized,
-                                telemetry_now_ns(),
-                                frame_seq,
-                                len,
-                            );
+                            let frame =
+                                TelemetryFrame::new(normalized, telemetry_now_ns(), frame_seq, len);
                             if tx.send(frame).await.is_err() {
                                 debug!("Receiver dropped, stopping BeamNG monitoring");
                                 break;

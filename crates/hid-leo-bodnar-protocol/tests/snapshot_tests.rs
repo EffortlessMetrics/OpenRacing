@@ -116,7 +116,10 @@ fn test_snapshot_axis_report_wheel_constants() {
 
 #[test]
 fn test_snapshot_ffb_device_roundtrip() {
-    let ffb_pids = [leo_bodnar::PID_WHEEL_INTERFACE, leo_bodnar::PID_FFB_JOYSTICK];
+    let ffb_pids = [
+        leo_bodnar::PID_WHEEL_INTERFACE,
+        leo_bodnar::PID_FFB_JOYSTICK,
+    ];
     let summary: Vec<String> = ffb_pids
         .iter()
         .filter_map(|&pid| {

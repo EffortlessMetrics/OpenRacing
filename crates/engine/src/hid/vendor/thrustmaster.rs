@@ -9,9 +9,9 @@ use super::{DeviceWriter, FfbConfig, VendorProtocol};
 use tracing::{debug, info, warn};
 
 pub use racing_wheel_hid_thrustmaster_protocol::{
-    EFFECT_REPORT_LEN, THRUSTMASTER_VENDOR_ID, ThrustmasterConstantForceEncoder, Model,
-    build_actuator_enable, build_device_gain, build_set_range_report,
-    output::report_ids, is_wheel_product, is_pedal_product, product_ids,
+    EFFECT_REPORT_LEN, Model, THRUSTMASTER_VENDOR_ID, ThrustmasterConstantForceEncoder,
+    build_actuator_enable, build_device_gain, build_set_range_report, is_pedal_product,
+    is_wheel_product, output::report_ids, product_ids,
 };
 
 /// Thrustmaster protocol handler.
@@ -110,7 +110,10 @@ impl VendorProtocol for ThrustmasterProtocolHandler {
             return Ok(());
         }
 
-        debug!("Shutting down Thrustmaster {:?}: disabling actuators", self.model);
+        debug!(
+            "Shutting down Thrustmaster {:?}: disabling actuators",
+            self.model
+        );
         let disable = build_actuator_enable(false);
         writer.write_feature_report(&disable)?;
         Ok(())

@@ -10,8 +10,8 @@
 use proptest::prelude::*;
 use racing_wheel_hid_vrs_protocol::{
     CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN, SPRING_REPORT_LEN,
-    VRS_VENDOR_ID, VrsConstantForceEncoder, VrsDamperEncoder, VrsFrictionEncoder,
-    VrsSpringEncoder, build_device_gain, build_ffb_enable, build_rotation_range, identify_device,
+    VRS_VENDOR_ID, VrsConstantForceEncoder, VrsDamperEncoder, VrsFrictionEncoder, VrsSpringEncoder,
+    build_device_gain, build_ffb_enable, build_rotation_range, identify_device,
     is_wheelbase_product, product_ids,
 };
 
@@ -37,10 +37,7 @@ fn test_wheelbase_pids_detected() -> Result<(), Box<dyn std::error::Error>> {
             "PID 0x{pid:04X} must be recognised as a VRS wheelbase"
         );
         let identity = identify_device(pid);
-        assert!(
-            identity.supports_ffb,
-            "PID 0x{pid:04X} must support FFB"
-        );
+        assert!(identity.supports_ffb, "PID 0x{pid:04X} must support FFB");
         assert!(
             identity.max_torque_nm.is_some(),
             "PID 0x{pid:04X} must have a max_torque_nm value"

@@ -40,14 +40,18 @@ pub mod grid_autosport;
 pub mod grid_legends;
 pub mod iracing;
 pub mod kartkraft;
+pub mod le_mans_ultimate;
 pub mod lfs;
+pub mod nascar;
 pub mod pcars2;
 pub mod raceroom;
 pub mod rbr;
 pub mod rennsport;
 pub mod rfactor2;
+pub mod trackmania;
 pub mod wrc_generations;
 pub mod wreckfest;
+pub mod wtcr;
 
 /// Shared type alias for outbound telemetry streams.
 pub type TelemetryReceiver = mpsc::Receiver<TelemetryFrame>;
@@ -205,6 +209,22 @@ fn new_rennsport_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(RennsportAdapter::new())
 }
 
+fn new_nascar_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(NascarAdapter::new())
+}
+
+fn new_le_mans_ultimate_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(LeMansUltimateAdapter::new())
+}
+
+fn new_wtcr_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(WtcrAdapter::new())
+}
+
+fn new_trackmania_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(TrackmaniaAdapter::new())
+}
+
 /// Returns the canonical adapter factory registry for all supported native adapters.
 pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
     &[
@@ -237,6 +257,10 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("rfactor2", new_rfactor2_adapter),
         ("wrc_generations", new_wrc_generations_adapter),
         ("wreckfest", new_wreckfest_adapter),
+        ("nascar", new_nascar_adapter),
+        ("le_mans_ultimate", new_le_mans_ultimate_adapter),
+        ("wtcr", new_wtcr_adapter),
+        ("trackmania", new_trackmania_adapter),
     ]
 }
 
@@ -247,9 +271,9 @@ pub use assetto_corsa::AssettoCorsaAdapter;
 pub use automobilista::Automobilista1Adapter;
 pub use beamng::BeamNGAdapter;
 pub use codemasters_udp::{CustomUdpSpec, DecodedCodemastersPacket, FieldSpec};
+pub use dirt_rally_2::DirtRally2Adapter;
 pub use dirt4::Dirt4Adapter;
 pub use dirt5::Dirt5Adapter;
-pub use dirt_rally_2::DirtRally2Adapter;
 pub use eawrc::EAWRCAdapter;
 pub use ets2::Ets2Adapter;
 pub use f1::F1Adapter;
@@ -261,14 +285,18 @@ pub use grid_autosport::GridAutosportAdapter;
 pub use grid_legends::GridLegendsAdapter;
 pub use iracing::IRacingAdapter;
 pub use kartkraft::KartKraftAdapter;
+pub use le_mans_ultimate::LeMansUltimateAdapter;
 pub use lfs::LFSAdapter;
+pub use nascar::NascarAdapter;
 pub use pcars2::PCars2Adapter;
 pub use raceroom::RaceRoomAdapter;
 pub use rbr::RBRAdapter;
 pub use rennsport::RennsportAdapter;
 pub use rfactor2::RFactor2Adapter;
+pub use trackmania::TrackmaniaAdapter;
 pub use wrc_generations::WrcGenerationsAdapter;
 pub use wreckfest::WreckfestAdapter;
+pub use wtcr::WtcrAdapter;
 
 /// Mock adapter for testing and deterministic fixture generation.
 pub struct MockAdapter {

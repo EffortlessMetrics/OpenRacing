@@ -10,12 +10,22 @@ fn bench_fault_detection(c: &mut Criterion) {
     // USB fault detection
     group.bench_function("detect_usb_fault_no_fault", |b| {
         let mut fmea = FmeaSystem::new();
-        b.iter(|| fmea.detect_usb_fault(std::hint::black_box(0), std::hint::black_box(Some(Duration::ZERO))));
+        b.iter(|| {
+            fmea.detect_usb_fault(
+                std::hint::black_box(0),
+                std::hint::black_box(Some(Duration::ZERO)),
+            )
+        });
     });
 
     group.bench_function("detect_usb_fault_at_threshold", |b| {
         let mut fmea = FmeaSystem::new();
-        b.iter(|| fmea.detect_usb_fault(std::hint::black_box(3), std::hint::black_box(Some(Duration::ZERO))));
+        b.iter(|| {
+            fmea.detect_usb_fault(
+                std::hint::black_box(3),
+                std::hint::black_box(Some(Duration::ZERO)),
+            )
+        });
     });
 
     // Encoder fault detection
@@ -32,7 +42,9 @@ fn bench_fault_detection(c: &mut Criterion) {
     // Thermal fault detection
     group.bench_function("detect_thermal_fault", |b| {
         let mut fmea = FmeaSystem::new();
-        b.iter(|| fmea.detect_thermal_fault(std::hint::black_box(75.0), std::hint::black_box(false)));
+        b.iter(|| {
+            fmea.detect_thermal_fault(std::hint::black_box(75.0), std::hint::black_box(false))
+        });
     });
 
     // Timing violation detection
@@ -50,13 +62,23 @@ fn bench_fault_handling(c: &mut Criterion) {
     group.bench_function("handle_fault_soft_stop", |b| {
         let mut fmea = FmeaSystem::new();
         #[allow(clippy::result_large_err)]
-        b.iter(|| fmea.handle_fault(std::hint::black_box(FaultType::UsbStall), std::hint::black_box(10.0)));
+        b.iter(|| {
+            fmea.handle_fault(
+                std::hint::black_box(FaultType::UsbStall),
+                std::hint::black_box(10.0),
+            )
+        });
     });
 
     group.bench_function("handle_fault_quarantine", |b| {
         let mut fmea = FmeaSystem::new();
         #[allow(clippy::result_large_err)]
-        b.iter(|| fmea.handle_fault(std::hint::black_box(FaultType::PluginOverrun), std::hint::black_box(10.0)));
+        b.iter(|| {
+            fmea.handle_fault(
+                std::hint::black_box(FaultType::PluginOverrun),
+                std::hint::black_box(10.0),
+            )
+        });
     });
 
     group.bench_function("clear_fault", |b| {
@@ -124,7 +146,12 @@ fn bench_audio_alerts(c: &mut Criterion) {
 
     group.bench_function("trigger_alert", |b| {
         let mut system = AudioAlertSystem::new();
-        b.iter(|| system.trigger(std::hint::black_box(AudioAlert::DoubleBeep), std::hint::black_box(0)));
+        b.iter(|| {
+            system.trigger(
+                std::hint::black_box(AudioAlert::DoubleBeep),
+                std::hint::black_box(0),
+            )
+        });
     });
 
     group.bench_function("update_alerts", |b| {

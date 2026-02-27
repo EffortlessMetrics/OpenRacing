@@ -21,8 +21,8 @@ use super::{DeviceWriter, FfbConfig, VendorProtocol};
 use tracing::{debug, info};
 
 pub use racing_wheel_hid_ffbeast_protocol::{
-    CONSTANT_FORCE_REPORT_LEN, FFBEAST_PRODUCT_ID_WHEEL, FFBEAST_VENDOR_ID,
-    FFBeastTorqueEncoder, build_enable_ffb, build_set_gain, is_ffbeast_product,
+    CONSTANT_FORCE_REPORT_LEN, FFBEAST_PRODUCT_ID_WHEEL, FFBEAST_VENDOR_ID, FFBeastTorqueEncoder,
+    build_enable_ffb, build_set_gain, is_ffbeast_product,
 };
 
 /// Default maximum torque for FFBeast in Newton-metres.

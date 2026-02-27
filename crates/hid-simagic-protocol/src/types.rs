@@ -293,8 +293,7 @@ mod tests {
     fn test_identify_device_known_pids() {
         let known_pids = [
             // EVO wheelbases (verified)
-            0x0500u16, 0x0501, 0x0502,
-            // Accessories (estimated PIDs)
+            0x0500u16, 0x0501, 0x0502, // Accessories (estimated PIDs)
             0x1001, 0x1002, 0x2001, 0x2002, 0x3001,
         ];
 

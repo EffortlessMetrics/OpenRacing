@@ -1,10 +1,10 @@
 //! Tests for Cammus C5/C12 protocol handler.
 
 use super::cammus::{
-    is_cammus_product, CammusModel, CammusProtocolHandler, CAMMUS_C12_PID, CAMMUS_C5_PID,
-    CAMMUS_VENDOR_ID,
+    CAMMUS_C5_PID, CAMMUS_C12_PID, CAMMUS_VENDOR_ID, CammusModel, CammusProtocolHandler,
+    is_cammus_product,
 };
-use super::{get_vendor_protocol, DeviceWriter, VendorProtocol};
+use super::{DeviceWriter, VendorProtocol, get_vendor_protocol};
 use std::cell::RefCell;
 
 struct MockDeviceWriter {

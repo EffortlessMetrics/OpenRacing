@@ -60,7 +60,6 @@ pub struct RotaryEncoderState {
     pub button_pressed: bool,
 }
 
-
 impl RotaryEncoderState {
     pub fn new() -> Self {
         Self::default()

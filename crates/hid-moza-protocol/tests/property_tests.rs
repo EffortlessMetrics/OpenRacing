@@ -1,7 +1,7 @@
 use proptest::prelude::*;
 use racing_wheel_hid_moza_protocol::{
-    MozaDirectTorqueEncoder, MozaRetryPolicy, REPORT_LEN, TorqueEncoder,
-    es_compatibility, identify_device, is_wheelbase_product, product_ids,
+    MozaDirectTorqueEncoder, MozaRetryPolicy, REPORT_LEN, TorqueEncoder, es_compatibility,
+    identify_device, is_wheelbase_product, product_ids,
 };
 
 // ── Torque encoder: sign preservation ───────────────────────────────────────

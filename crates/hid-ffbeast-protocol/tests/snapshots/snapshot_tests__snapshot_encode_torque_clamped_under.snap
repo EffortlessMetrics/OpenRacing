@@ -1,0 +1,12 @@
+---
+source: crates/hid-ffbeast-protocol/tests/snapshot_tests.rs
+assertion_line: 118
+expression: report
+---
+[
+    1,
+    240,
+    216,
+    0,
+    0,
+]

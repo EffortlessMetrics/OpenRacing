@@ -51,7 +51,6 @@ impl HidDeviceInfo {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

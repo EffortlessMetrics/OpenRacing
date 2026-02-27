@@ -38,7 +38,12 @@ fn read_f32(data: &[u8], offset: usize) -> f32 {
     if offset + 4 > data.len() {
         return 0.0;
     }
-    f32::from_le_bytes([data[offset], data[offset + 1], data[offset + 2], data[offset + 3]])
+    f32::from_le_bytes([
+        data[offset],
+        data[offset + 1],
+        data[offset + 2],
+        data[offset + 3],
+    ])
 }
 
 fn parse_rbr_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
@@ -142,12 +147,8 @@ impl TelemetryAdapter for RBRAdapter {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
                     Ok(Ok(len)) => match parse_rbr_packet(&buf[..len]) {
                         Ok(normalized) => {
-                            let frame = TelemetryFrame::new(
-                                normalized,
-                                telemetry_now_ns(),
-                                frame_seq,
-                                len,
-                            );
+                            let frame =
+                                TelemetryFrame::new(normalized, telemetry_now_ns(), frame_seq, len);
                             if tx.send(frame).await.is_err() {
                                 debug!("Receiver dropped, stopping RBR monitoring");
                                 break;

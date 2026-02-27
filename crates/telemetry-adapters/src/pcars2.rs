@@ -124,7 +124,9 @@ impl TelemetryAdapter for PCars2Adapter {
                                 PCARS2_SHARED_MEMORY_SIZE,
                             );
                             if tx.send(frame).await.is_err() {
-                                debug!("Receiver dropped, stopping PCARS2 shared memory monitoring");
+                                debug!(
+                                    "Receiver dropped, stopping PCARS2 shared memory monitoring"
+                                );
                                 break;
                             }
                             frame_idx = frame_idx.saturating_add(1);
@@ -140,8 +142,7 @@ impl TelemetryAdapter for PCars2Adapter {
             }
 
             // UDP fallback (non-Windows or shared memory unavailable).
-            let bind_addr =
-                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, bind_port));
+            let bind_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, bind_port));
             let socket = match TokioUdpSocket::bind(bind_addr).await {
                 Ok(s) => s,
                 Err(e) => {
@@ -157,12 +158,8 @@ impl TelemetryAdapter for PCars2Adapter {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
                     Ok(Ok(len)) => match parse_pcars2_packet(&buf[..len]) {
                         Ok(normalized) => {
-                            let frame = TelemetryFrame::new(
-                                normalized,
-                                telemetry_now_ns(),
-                                frame_idx,
-                                len,
-                            );
+                            let frame =
+                                TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
                             if tx.send(frame).await.is_err() {
                                 debug!("Receiver dropped, stopping PCARS2 UDP monitoring");
                                 break;

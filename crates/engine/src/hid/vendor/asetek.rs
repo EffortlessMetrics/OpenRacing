@@ -9,8 +9,8 @@ use super::{DeviceWriter, FfbConfig, VendorProtocol};
 use tracing::{debug, info};
 
 pub use hid_asetek_protocol::{
-    ASETEK_FORTE_PID, ASETEK_INVICTA_PID, ASETEK_LAPRIMA_PID, ASETEK_VENDOR_ID,
-    REPORT_SIZE_OUTPUT, AsetekModel,
+    ASETEK_FORTE_PID, ASETEK_INVICTA_PID, ASETEK_LAPRIMA_PID, ASETEK_VENDOR_ID, AsetekModel,
+    REPORT_SIZE_OUTPUT,
 };
 
 /// Asetek protocol state.

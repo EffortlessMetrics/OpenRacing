@@ -64,5 +64,8 @@ fn test_is_button_box_product() {
 #[test]
 fn test_get_vendor_protocol_button_box() {
     let proto = get_vendor_protocol(VENDOR_ID_GENERIC, PRODUCT_ID_BUTTON_BOX);
-    assert!(proto.is_some(), "known button box must be dispatched to a handler");
+    assert!(
+        proto.is_some(),
+        "known button box must be dispatched to a handler"
+    );
 }

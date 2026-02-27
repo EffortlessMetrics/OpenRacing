@@ -541,4 +541,3 @@ mod tests {
         assert_eq!(metrics.timeout_count, 0);
     }
 }
-

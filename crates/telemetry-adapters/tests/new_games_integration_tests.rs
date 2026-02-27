@@ -8,9 +8,8 @@
 //!   - A proptest fuzz section (≥256 random-byte cases → never panics)
 
 use racing_wheel_telemetry_adapters::{
-    Dirt4Adapter, Ets2Adapter, LFSAdapter, PCars2Adapter, RennsportAdapter,
-    TelemetryAdapter, WrcGenerationsAdapter, WreckfestAdapter,
-    ets2::Ets2Variant,
+    Dirt4Adapter, Ets2Adapter, LFSAdapter, PCars2Adapter, RennsportAdapter, TelemetryAdapter,
+    WrcGenerationsAdapter, WreckfestAdapter, ets2::Ets2Variant,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -57,7 +56,11 @@ fn ets2_happy_path_parses_fields() -> TestResult {
     assert!((t.speed_ms - 20.0).abs() < 0.01, "speed_ms={}", t.speed_ms);
     assert!((t.rpm - 1500.0).abs() < 0.1, "rpm={}", t.rpm);
     assert_eq!(t.gear, 4, "gear={}", t.gear);
-    assert!((t.fuel_percent - 0.7).abs() < 0.001, "fuel={}", t.fuel_percent);
+    assert!(
+        (t.fuel_percent - 0.7).abs() < 0.001,
+        "fuel={}",
+        t.fuel_percent
+    );
     Ok(())
 }
 
@@ -136,7 +139,11 @@ fn wreckfest_happy_path_parses_fields() -> TestResult {
     assert!((t.speed_ms - 30.0).abs() < 0.01, "speed_ms={}", t.speed_ms);
     assert!((t.rpm - 4000.0).abs() < 0.1, "rpm={}", t.rpm);
     assert_eq!(t.gear, 3, "gear={}", t.gear);
-    assert!((t.lateral_g - 0.5).abs() < 0.001, "lateral_g={}", t.lateral_g);
+    assert!(
+        (t.lateral_g - 0.5).abs() < 0.001,
+        "lateral_g={}",
+        t.lateral_g
+    );
     Ok(())
 }
 
@@ -200,7 +207,11 @@ fn rennsport_happy_path_parses_fields() -> TestResult {
     assert!((t.speed_ms - 50.0).abs() < 0.01, "speed_ms={}", t.speed_ms);
     assert!((t.rpm - 7500.0).abs() < 0.1, "rpm={}", t.rpm);
     assert_eq!(t.gear, 4, "gear={}", t.gear);
-    assert!((t.ffb_scalar - 0.6).abs() < 0.001, "ffb_scalar={}", t.ffb_scalar);
+    assert!(
+        (t.ffb_scalar - 0.6).abs() < 0.001,
+        "ffb_scalar={}",
+        t.ffb_scalar
+    );
     Ok(())
 }
 
@@ -236,7 +247,11 @@ fn rennsport_reverse_gear_maps_to_minus_one() -> TestResult {
 fn rennsport_ffb_scalar_clamped() -> TestResult {
     let pkt = make_rennsport_packet(200.0, 8000.0, 5, 9.0, 0.0);
     let t = RennsportAdapter::new().normalize(&pkt)?;
-    assert!(t.ffb_scalar <= 1.0, "ffb_scalar not clamped: {}", t.ffb_scalar);
+    assert!(
+        t.ffb_scalar <= 1.0,
+        "ffb_scalar not clamped: {}",
+        t.ffb_scalar
+    );
     Ok(())
 }
 
@@ -264,8 +279,8 @@ fn wrc_generations_happy_path_parses_fields() -> TestResult {
     write_f32_le(&mut pkt, 104, 25.0);
     write_f32_le(&mut pkt, 140, 5000.0); // rpm
     write_f32_le(&mut pkt, 240, 8000.0); // max_rpm
-    write_f32_le(&mut pkt, 124, 3.0);   // gear = 3rd
-    write_f32_le(&mut pkt, 108, 0.8);   // throttle
+    write_f32_le(&mut pkt, 124, 3.0); // gear = 3rd
+    write_f32_le(&mut pkt, 108, 0.8); // throttle
 
     let t = WrcGenerationsAdapter::new().normalize(&pkt)?;
     assert!((t.speed_ms - 25.0).abs() < 0.01, "speed_ms={}", t.speed_ms);
@@ -324,8 +339,8 @@ fn dirt4_happy_path_parses_fields() -> TestResult {
     write_f32_le(&mut pkt, 104, 20.0);
     write_f32_le(&mut pkt, 140, 4500.0); // rpm
     write_f32_le(&mut pkt, 240, 7000.0); // max_rpm
-    write_f32_le(&mut pkt, 124, 2.0);   // gear = 2nd
-    write_f32_le(&mut pkt, 108, 0.6);   // throttle
+    write_f32_le(&mut pkt, 124, 2.0); // gear = 2nd
+    write_f32_le(&mut pkt, 108, 0.6); // throttle
 
     let t = Dirt4Adapter::new().normalize(&pkt)?;
     assert!((t.speed_ms - 20.0).abs() < 0.01, "speed_ms={}", t.speed_ms);

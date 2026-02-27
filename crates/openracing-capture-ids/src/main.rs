@@ -277,7 +277,9 @@ fn run_record(vid: u16, pid: u16, output: &Path, duration_secs: u64) -> Result<(
     );
 
     while !stop.load(Ordering::Relaxed) && Instant::now() < deadline {
-        let n = device.read_timeout(&mut buf, 100).context("HID read error")?;
+        let n = device
+            .read_timeout(&mut buf, 100)
+            .context("HID read error")?;
         if n == 0 {
             continue;
         }
@@ -325,7 +327,9 @@ fn run_inspect(vid: u16, pid: u16, duration_secs: u64) -> Result<()> {
     eprintln!("Inspecting {vid:04X}:{pid:04X} for up to {duration_secs}s (Ctrl-C to stop)");
 
     while !stop.load(Ordering::Relaxed) && Instant::now() < deadline {
-        let n = device.read_timeout(&mut buf, 100).context("HID read error")?;
+        let n = device
+            .read_timeout(&mut buf, 100)
+            .context("HID read error")?;
         if n == 0 {
             continue;
         }
@@ -412,4 +416,3 @@ fn main() -> Result<()> {
 
     Ok(())
 }
-

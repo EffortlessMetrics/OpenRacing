@@ -1,6 +1,6 @@
 //! Integration tests for the AccuForce protocol crate.
 
-use crate::ids::{VENDOR_ID, PID_ACCUFORCE_PRO, is_accuforce, is_accuforce_pid};
+use crate::ids::{PID_ACCUFORCE_PRO, VENDOR_ID, is_accuforce, is_accuforce_pid};
 use crate::types::{AccuForceModel, DeviceInfo};
 
 const ALL_KNOWN_PIDS: &[u16] = &[PID_ACCUFORCE_PRO];
@@ -48,7 +48,10 @@ fn wrong_vid_not_recognised() {
 #[test]
 fn device_info_model_matches_pid_function() {
     let info = DeviceInfo::from_vid_pid(VENDOR_ID, PID_ACCUFORCE_PRO);
-    assert_eq!(info.model, AccuForceModel::from_product_id(PID_ACCUFORCE_PRO));
+    assert_eq!(
+        info.model,
+        AccuForceModel::from_product_id(PID_ACCUFORCE_PRO)
+    );
 }
 
 #[test]

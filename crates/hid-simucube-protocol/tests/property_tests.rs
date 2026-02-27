@@ -3,13 +3,12 @@
 //! Uses proptest with 500 cases to verify invariants on model detection,
 //! torque encoding/clamping, and output report construction.
 
-use proptest::prelude::*;
 use hid_simucube_protocol::{
-    SimucubeModel, WheelCapabilities, WheelModel,
-    SimucubeOutputReport, MAX_TORQUE_NM,
-    SIMUCUBE_VENDOR_ID, SIMUCUBE_2_SPORT_PID, SIMUCUBE_2_PRO_PID,
-    SIMUCUBE_2_ULTIMATE_PID, simucube_model_from_info, is_simucube_device,
+    MAX_TORQUE_NM, SIMUCUBE_2_PRO_PID, SIMUCUBE_2_SPORT_PID, SIMUCUBE_2_ULTIMATE_PID,
+    SIMUCUBE_VENDOR_ID, SimucubeModel, SimucubeOutputReport, WheelCapabilities, WheelModel,
+    is_simucube_device, simucube_model_from_info,
 };
+use proptest::prelude::*;
 
 proptest! {
     #![proptest_config(proptest::test_runner::Config::with_cases(500))]
@@ -160,7 +159,9 @@ fn test_torque_ordering_sport_lt_pro_lt_ultimate() -> Result<(), Box<dyn std::er
     let ultimate = SimucubeModel::Ultimate.max_torque_nm();
     assert!(sport > 0.0, "Sport max torque must be positive");
     assert!(pro > sport, "Pro ({pro} Nm) must exceed Sport ({sport} Nm)");
-    assert!(ultimate > pro, "Ultimate ({ultimate} Nm) must exceed Pro ({pro} Nm)");
+    assert!(
+        ultimate > pro,
+        "Ultimate ({ultimate} Nm) must exceed Pro ({pro} Nm)"
+    );
     Ok(())
 }
-

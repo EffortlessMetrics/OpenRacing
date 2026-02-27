@@ -3,8 +3,8 @@
 use crate::{AppTraceEvent, RTTraceEvent, TracingError, TracingMetrics, TracingProvider};
 use std::fs::File;
 use std::io::Write;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Linux tracepoints provider implementation
 ///

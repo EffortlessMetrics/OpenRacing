@@ -1,8 +1,6 @@
 //! Shifter input parsing
 
-use super::{
-    GearPosition, MAX_GEARS, ShifterError, ShifterResult,
-};
+use super::{GearPosition, MAX_GEARS, ShifterError, ShifterResult};
 
 #[derive(Default)]
 pub struct ShifterInput {

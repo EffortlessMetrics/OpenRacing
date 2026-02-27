@@ -75,9 +75,7 @@ fn parse_forza_sled(data: &[u8]) -> Result<NormalizedTelemetry> {
     let throttle = read_f32_le(data, OFF_ACCEL).unwrap_or(0.0);
     let brake = read_f32_le(data, OFF_BRAKE).unwrap_or(0.0);
     let gear_raw = read_f32_le(data, OFF_GEAR).unwrap_or(1.0);
-    let steer = read_f32_le(data, OFF_STEER)
-        .unwrap_or(0.0)
-        .clamp(-1.0, 1.0);
+    let steer = read_f32_le(data, OFF_STEER).unwrap_or(0.0).clamp(-1.0, 1.0);
     let vel_x = read_f32_le(data, OFF_VEL_X).unwrap_or(0.0);
     let vel_y = read_f32_le(data, OFF_VEL_Y).unwrap_or(0.0);
     let vel_z = read_f32_le(data, OFF_VEL_Z).unwrap_or(0.0);
@@ -168,8 +166,7 @@ impl TelemetryAdapter for ForzaAdapter {
         let update_rate = self.update_rate;
 
         tokio::spawn(async move {
-            let bind_addr =
-                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, bind_port));
+            let bind_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, bind_port));
             let socket = match TokioUdpSocket::bind(bind_addr).await {
                 Ok(s) => s,
                 Err(e) => {
@@ -185,12 +182,8 @@ impl TelemetryAdapter for ForzaAdapter {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
                     Ok(Ok(len)) => match parse_forza_packet(&buf[..len]) {
                         Ok(normalized) => {
-                            let frame = TelemetryFrame::new(
-                                normalized,
-                                telemetry_now_ns(),
-                                frame_seq,
-                                len,
-                            );
+                            let frame =
+                                TelemetryFrame::new(normalized, telemetry_now_ns(), frame_seq, len);
                             if tx.send(frame).await.is_err() {
                                 debug!("Receiver dropped, stopping Forza monitoring");
                                 break;
@@ -300,8 +293,7 @@ mod tests {
     ) -> Vec<u8> {
         let mut data = vec![0u8; FORZA_SLED_SIZE];
         data[OFF_IS_RACE_ON..OFF_IS_RACE_ON + 4].copy_from_slice(&is_race_on.to_le_bytes());
-        data[OFF_ENGINE_MAX_RPM..OFF_ENGINE_MAX_RPM + 4]
-            .copy_from_slice(&8000.0f32.to_le_bytes());
+        data[OFF_ENGINE_MAX_RPM..OFF_ENGINE_MAX_RPM + 4].copy_from_slice(&8000.0f32.to_le_bytes());
         data[OFF_CURRENT_RPM..OFF_CURRENT_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
         data[OFF_ACCEL..OFF_ACCEL + 4].copy_from_slice(&throttle.to_le_bytes());
         data[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&brake.to_le_bytes());
@@ -351,7 +343,10 @@ mod tests {
     #[test]
     fn test_detect_format() {
         assert_eq!(detect_format(FORZA_SLED_SIZE), ForzaPacketFormat::Sled);
-        assert_eq!(detect_format(FORZA_CARDASH_SIZE), ForzaPacketFormat::CarDash);
+        assert_eq!(
+            detect_format(FORZA_CARDASH_SIZE),
+            ForzaPacketFormat::CarDash
+        );
         assert_eq!(detect_format(100), ForzaPacketFormat::Unknown);
     }
 
