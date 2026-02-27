@@ -193,4 +193,30 @@ mod tests {
         assert_eq!(normalize_game_id("f1_2025"), "f1_25");
         assert_eq!(normalize_game_id("f1"), "f1");
     }
+
+    #[test]
+    fn game_count_meets_minimum_regression_threshold() -> Result<(), Box<dyn std::error::Error>> {
+        let game_ids = matrix_game_ids()?;
+        assert!(game_ids.len() >= 15, "got {}", game_ids.len());
+        Ok(())
+    }
+    #[test]
+    fn each_game_entry_has_required_fields() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        for (id, game) in &matrix.games {
+            assert!(!game.name.is_empty(), "game {} empty name", id);
+            assert!(!game.versions.is_empty(), "game {} no versions", id);
+            assert!(!game.config_writer.is_empty(), "game {} no config_writer", id);
+        }
+        Ok(())
+    }
+    #[test]
+    fn expected_games_are_present_in_matrix_config() -> Result<(), Box<dyn std::error::Error>> {
+        let game_ids = matrix_game_ids()?;
+        for game in ["iracing","acc","f1_25","eawrc","ams2","rfactor2","dirt5"] {
+            assert!(game_ids.contains(&game.to_string()), "missing: {}", game);
+        }
+        Ok(())
+    }
+
 }

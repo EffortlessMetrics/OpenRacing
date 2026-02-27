@@ -145,6 +145,14 @@ fn new_wreckfest_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(WreckfestConfigWriter)
 }
 
+fn new_flatout_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(FlatOutConfigWriter)
+}
+
+fn new_dakar_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(DakarDesertRallyConfigWriter)
+}
+
 fn new_rennsport_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(RennsportConfigWriter)
 }
@@ -226,6 +234,8 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("ets2", new_ets2_config_writer),
         ("ats", new_ats_config_writer),
         ("wreckfest", new_wreckfest_config_writer),
+        ("flatout", new_flatout_config_writer),
+        ("dakar_desert_rally", new_dakar_config_writer),
         ("rennsport", new_rennsport_config_writer),
         ("raceroom", new_raceroom_config_writer),
         ("kartkraft", new_kartkraft_config_writer),
@@ -291,6 +301,14 @@ const WRECKFEST_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/wreckfest_bri
 const WRECKFEST_BRIDGE_PROTOCOL: &str = "udp_wreckfest";
 const WRECKFEST_DEFAULT_PORT: u16 = 5606;
 
+const FLATOUT_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/flatout_bridge_contract.json";
+const FLATOUT_BRIDGE_PROTOCOL: &str = "fotc_udp";
+const FLATOUT_DEFAULT_PORT: u16 = 7776;
+
+const DAKAR_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/dakar_bridge_contract.json";
+const DAKAR_BRIDGE_PROTOCOL: &str = "dakr_udp";
+const DAKAR_DEFAULT_PORT: u16 = 7779;
+
 const RENNSPORT_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/rennsport_bridge_contract.json";
 const RENNSPORT_BRIDGE_PROTOCOL: &str = "udp_rennsport";
 const RENNSPORT_DEFAULT_PORT: u16 = 9000;
@@ -353,6 +371,16 @@ const SNOWRUNNER_BRIDGE_RELATIVE_PATH: &str =
     "Documents/OpenRacing/snowrunner_bridge_contract.json";
 const SNOWRUNNER_BRIDGE_PROTOCOL: &str = "simhub_udp_json";
 const SNOWRUNNER_DEFAULT_PORT: u16 = 8877;
+
+const MOTOGP_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/motogp_bridge_contract.json";
+const MOTOGP_BRIDGE_PROTOCOL: &str = "motogp_udp";
+const MOTOGP_DEFAULT_PORT: u16 = 20777;
+
+const RIDE5_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/ride5_bridge_contract.json";
+const RIDE5_BRIDGE_PROTOCOL: &str = "ride5_udp";
+const RIDE5_DEFAULT_PORT: u16 = 20777;
 
 /// iRacing configuration writer
 pub struct IRacingConfigWriter;
@@ -2691,6 +2719,166 @@ impl ConfigWriter for WreckfestConfigWriter {
     }
 }
 
+/// FlatOut UC / FlatOut 4 configuration writer (UDP bridge on port 7776).
+pub struct FlatOutConfigWriter;
+
+impl Default for FlatOutConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for FlatOutConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing FlatOut bridge contract configuration");
+        let contract_path = game_path.join(FLATOUT_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(FLATOUT_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "flatout",
+            "telemetry_protocol": FLATOUT_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "FlatOut bridge sends UDP telemetry on port 7776. Validated by FOTC magic header.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(FLATOUT_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "flatout")
+            .unwrap_or(false))
+    }
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(FLATOUT_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "flatout",
+            "telemetry_protocol": FLATOUT_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "FlatOut bridge sends UDP telemetry on port 7776. Validated by FOTC magic header.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: FLATOUT_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Dakar Desert Rally configuration writer (UDP bridge on port 7779).
+pub struct DakarDesertRallyConfigWriter;
+
+impl Default for DakarDesertRallyConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for DakarDesertRallyConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Dakar Desert Rally bridge contract configuration");
+        let contract_path = game_path.join(DAKAR_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(DAKAR_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "dakar_desert_rally",
+            "telemetry_protocol": DAKAR_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Dakar Desert Rally bridge sends UDP telemetry on port 7779. Validated by DAKR magic header.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(DAKAR_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "dakar_desert_rally")
+            .unwrap_or(false))
+    }
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(DAKAR_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "dakar_desert_rally",
+            "telemetry_protocol": DAKAR_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Dakar Desert Rally bridge sends UDP telemetry on port 7779. Validated by DAKR magic header.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: DAKAR_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
 /// Rennsport configuration writer (UDP on port 9000)
 pub struct RennsportConfigWriter;
 
@@ -4719,4 +4907,48 @@ mod tests {
         assert_eq!(diffs[0].operation, expected[0].operation);
         Ok(())
     }
+
+    #[test]
+    fn config_writer_factories_is_non_empty() { assert!(!config_writer_factories().is_empty()); }
+    #[test]
+    fn config_writer_factories_contains_known_game_ids() {
+        let ids: Vec<&str> = config_writer_factories().iter().map(|(id,_)| *id).collect();
+        for expected in ["iracing","acc","ams2","rfactor2","eawrc"] {
+            assert!(ids.contains(&expected), "missing: {}", expected);
+        }
+    }
+    #[test]
+    fn config_writer_factories_does_not_contain_unknown() {
+        let ids: Vec<&str> = config_writer_factories().iter().map(|(id,_)| *id).collect();
+        assert!(!ids.contains(&"__no_such_game__"));
+    }
+    #[test]
+    fn f1_25_writer_produces_valid_contract_content() -> TestResult {
+        let writer = F1_25ConfigWriter;
+        let temp_dir = tempdir()?;
+        let config = TelemetryConfig { enabled: true, update_rate_hz: 60,
+            output_method: "f1_25_native_udp".to_string(), output_target: "127.0.0.1:20777".to_string(),
+            fields: vec!["rpm".to_string()], enable_high_rate_iracing_360hz: false };
+        let diffs = writer.write_config(temp_dir.path(), &config)?;
+        assert_eq!(diffs.len(), 1);
+        assert!(writer.validate_config(temp_dir.path())?);
+        let value: Value = serde_json::from_str(&diffs[0].new_value)?;
+        assert_eq!(value["game_id"], "f1_25");
+        assert_eq!(value["packet_format"], 2025);
+        Ok(())
+    }
+    #[test]
+    fn config_writer_factory_instantiates_writer_for_acc() -> TestResult {
+        let factories = config_writer_factories();
+        let acc_factory = factories.iter().find(|(id,_)| *id == "acc").map(|(_,f)| f).ok_or("acc factory not found")?;
+        let writer = acc_factory();
+        let temp_dir = tempdir()?;
+        let config = TelemetryConfig { enabled: true, update_rate_hz: 100,
+            output_method: "udp_broadcast".to_string(), output_target: "127.0.0.1:9000".to_string(),
+            fields: vec!["speed_ms".to_string()], enable_high_rate_iracing_360hz: false };
+        let diffs = writer.write_config(temp_dir.path(), &config)?;
+        assert!(!diffs.is_empty());
+        Ok(())
+    }
+
 }
