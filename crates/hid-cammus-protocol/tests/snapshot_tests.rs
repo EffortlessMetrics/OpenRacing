@@ -125,3 +125,23 @@ fn test_snapshot_is_cammus() {
     ];
     assert_debug_snapshot!(format!("{:?}", results));
 }
+
+#[test]
+fn test_snapshot_protocol_constants() {
+    assert_debug_snapshot!(format!(
+        "VID={:#06X}, C5_PID={:#06X}, C12_PID={:#06X}, \
+         REPORT_LEN={}, FFB_REPORT_LEN={}, STEERING_RANGE={:.1}deg",
+        cammus::VENDOR_ID,
+        cammus::PRODUCT_C5,
+        cammus::PRODUCT_C12,
+        cammus::REPORT_LEN,
+        cammus::FFB_REPORT_LEN,
+        cammus::STEERING_RANGE_DEG,
+    ));
+}
+
+#[test]
+fn test_snapshot_parse_error_too_short() {
+    let err = cammus::parse(&[0u8; 3]).expect_err("should fail for 3-byte slice");
+    assert_debug_snapshot!(format!("{err}"));
+}

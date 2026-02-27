@@ -1,0 +1,6 @@
+---
+source: crates/hid-asetek-protocol/tests/snapshot_tests.rs
+assertion_line: 131
+expression: "format!(\"angle={:.3}deg, speed={:.4}rad_s, torque={:.3}Nm, connected={}, enabled={}\",\nreport.wheel_angle_degrees(), report.wheel_speed_rad_s(),\nreport.applied_torque_nm(), report.is_connected(), report.is_enabled())"
+---
+"angle=0.000deg, speed=0.0000rad_s, torque=0.000Nm, connected=false, enabled=false"

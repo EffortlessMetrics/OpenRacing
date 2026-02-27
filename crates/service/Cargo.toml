@@ -81,3 +81,4 @@ winapi = { version = "0.3.9", features = [
     "synchapi",
     "tlhelp32",
 ] }
+winreg = "0.52"

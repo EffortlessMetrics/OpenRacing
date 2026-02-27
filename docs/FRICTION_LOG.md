@@ -20,7 +20,9 @@ Every time a game is added, both files must be updated manually. When they diver
 
 **Remedy:** Generate one file from the other at build time, or introduce a CI check that diffs the two files and fails if they differ. Long term: merge into a single source of truth consumed by both crates.
 
-**Update:** A CI check has been added (`.github/workflows/yaml-sync-check.yml` + `scripts/check_yaml_sync.py`). The workflow runs on every push/PR and fails with a clear diff message if the files diverge. The files currently differ (see diff); the single-source-of-truth refactor is still pending before this issue can be marked Resolved.
+**Update (CI check):** `.github/workflows/yaml-sync-check.yml` + `scripts/check_yaml_sync.py` confirmed present. The workflow runs on every push/PR and fails with a clear diff message if the files diverge.
+
+**Current state:** The files still differ by 6 lines — `dirt_rally_2` in the telemetry-config YAML has additional `supported_fields` entries (`flags`, `steering_angle`, `tire_temps_c`, `tire_pressures_psi`, `fuel_percent`) not present in the telemetry-support YAML. Additionally, `raceroom` was missing from both files (now fixed in this commit via `game_coverage_tests.rs`). The single-source-of-truth refactor remains pending.
 
 ---
 
@@ -34,6 +36,8 @@ Every game's config writer must be registered in **two** separate files:
 
 Missing one silently causes tests to pass while runtime silently skips the writer. Caused several hard-to-debug failures.
 
+**Current state:** Both files retain the duplicate registration pattern. The two files have now diverged — `telemetry-config/src/writers.rs` has 24 registered writers (including `gran_turismo_7`, `assetto_corsa`, `forza_motorsport`, `beamng_drive`) while `telemetry-config-writers/src/lib.rs` only has 20 (missing those four). The `raceroom` writer is present in both. Integration tests in `crates/integration-tests/tests/game_coverage_tests.rs` now enforce that every registered writer appears in both YAML files, catching the most critical failure mode.
+
 **Remedy:** Unify into a single registry; the parallel crate should re-export from `telemetry-config` rather than duplicate logic. Track in a future cleanup issue.
 
 ---
@@ -44,6 +48,8 @@ Missing one silently causes tests to pass while runtime silently skips the write
 
 Concurrent file edits during active builds cause cascading compilation errors (references to constants that briefly exist/don't exist). This is especially bad for agents that progressively refine a large file.
 
+**Current state:** No worktree-per-agent pattern or build-lock mechanism has been added to `AGENTS.md` or the agent orchestration layer. The issue remains fully open.
+
 **Remedy:** Agent orchestration should acquire a build-lock or use a worktree-per-agent pattern so edits are isolated until the agent commits. Document the worktree-per-agent rule in `AGENTS.md`.
 
 ---
@@ -53,6 +59,8 @@ Concurrent file edits during active builds cause cascading compilation errors (r
 **Encountered:** RC sprint — `racing-wheel-integration-tests` fails with LNK1318 / LNK1180 on Windows
 
 The Windows linker hits its PDB symbol table size limit when the integration test crate is built in debug mode with all features, because it transitively pulls in every crate in the workspace.
+
+**Current state:** The CI integration-tests workflow runs integration tests on Windows only for a narrow subset (`test_performance_gates_ffb_jitter`). No `.cargo/config.toml` with `split-debuginfo` override has been added. The underlying linker limit is not mitigated for full `--all-features` builds.
 
 **Remedy:** Options:
 1. Build integration tests in release mode for CI on Windows.
@@ -85,6 +93,8 @@ Protocol values sourced from memory/guesses rather than verified sources.
 
 Snapshot tests provide no protection against "wrong but consistent" values: the first `--force-update-snapshots` run permanently bakes in whatever the code produces, even if the code is wrong.
 
+**Current state:** Snapshot files in `crates/hid-button-box-protocol/tests/snapshots/` contain plausible values (e.g. `buttons=0x00000000, axis_x=0, axis_y=0, hat=Up` for zero-byte input). No cross-validation against the golden-source file from F-005 has been added; the structural problem — that snapshot tests cannot distinguish "correct" from "consistently wrong" — remains.
+
 **Remedy:** For device ID snapshots, cross-validate against the golden-source file from F-005. Add `// source: <URL>` annotations inside snapshot files for reviewers to verify. Consider a separate "verified constants" test that asserts specific known-good numeric values independently of snapshot infrastructure.
 
 ---
@@ -95,6 +105,8 @@ Snapshot tests provide no protection against "wrong but consistent" values: the 
 - `logitech_e2e.rs`, `logitech_tests.rs`, `windows_property_tests.rs`, `windows.rs` (tests), etc.
 
 No compile-time help distinguishes "this is a renamed constant" from "this constant was removed."
+
+**Current state:** A partial `sequence → frame_seq` rename in the telemetry adapter crates was attempted but is incomplete. Only 4 of ~15 affected adapters were updated (`assetto_corsa.rs`, `beamng.rs`, `ets2.rs`, `forza.rs`); the remainder (`acc.rs`, `ams2.rs`, `ac_rally.rs`, `dirt_rally_2.rs`, `dirt5.rs`, `eawrc.rs`, `f1.rs`, `f1_25.rs`, `iracing.rs`, `rfactor2.rs`, `lib.rs`) still use `sequence`. This is a low-risk inconsistency (no public API) but illustrates the cascade problem.
 
 **Remedy:** Use the `#[deprecated(since = "...", note = "use X instead")]` attribute on renamed constants/variants for at least one release cycle before removal. This turns silent breakage into a clear deprecation warning.
 

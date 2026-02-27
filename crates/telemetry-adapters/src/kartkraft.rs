@@ -135,7 +135,7 @@ fn fb_i8(buf: &[u8], table_pos: usize, field_n: usize) -> Option<i8> {
 ///
 /// String layout: `[u32 length][bytes…]`, reached via a forward UOffset at the
 /// field's data position.
-fn fb_str<'a>(buf: &'a [u8], table_pos: usize, field_n: usize) -> Option<&'a str> {
+fn fb_str(buf: &[u8], table_pos: usize, field_n: usize) -> Option<&str> {
     let ref_pos = fb_field_pos(buf, table_pos, field_n)?;
     let str_offset = read_u32_le(buf, ref_pos)? as usize;
     let str_start = ref_pos + str_offset;

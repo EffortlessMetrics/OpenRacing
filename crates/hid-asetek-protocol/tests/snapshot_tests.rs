@@ -113,3 +113,44 @@ fn test_snapshot_is_asetek_device() {
     ];
     assert_debug_snapshot!(format!("{:?}", results));
 }
+
+#[test]
+fn test_snapshot_model_tony_kannan() {
+    let model = asetek::AsetekModel::TonyKannan;
+    assert_debug_snapshot!(format!(
+        "name={}, max_torque={:.1}",
+        model.display_name(),
+        model.max_torque_nm()
+    ));
+}
+
+#[test]
+fn test_snapshot_input_report_zero() -> Result<(), String> {
+    let data = [0u8; 32];
+    let report = asetek::AsetekInputReport::parse(&data).map_err(|e| e.to_string())?;
+    assert_debug_snapshot!(format!(
+        "angle={:.3}deg, speed={:.4}rad_s, torque={:.3}Nm, connected={}, enabled={}",
+        report.wheel_angle_degrees(),
+        report.wheel_speed_rad_s(),
+        report.applied_torque_nm(),
+        report.is_connected(),
+        report.is_enabled()
+    ));
+    Ok(())
+}
+
+#[test]
+fn test_snapshot_protocol_constants() {
+    assert_debug_snapshot!(format!(
+        "VID={:#06X}, FORTE_PID={:#06X}, INVICTA_PID={:#06X}, LAPRIMA_PID={:#06X}, \
+         TONY_KANNAN_PID={:#06X}, INPUT_SIZE={}, OUTPUT_SIZE={}, MAX_TORQUE={}",
+        asetek::ASETEK_VENDOR_ID,
+        asetek::ASETEK_FORTE_PID,
+        asetek::ASETEK_INVICTA_PID,
+        asetek::ASETEK_LAPRIMA_PID,
+        asetek::ASETEK_TONY_KANNAN_PID,
+        asetek::REPORT_SIZE_INPUT,
+        asetek::REPORT_SIZE_OUTPUT,
+        asetek::MAX_TORQUE_NM,
+    ));
+}

@@ -1,0 +1,357 @@
+//! Game Auto Configuration Module
+//!
+//! Automatically configures game telemetry the first time a game is detected.
+//! Stores a marker file at `~/.openracing/configured_games.json` so each game
+//! is only configured once.
+
+use crate::game_service::GameService;
+use anyhow::Result;
+use racing_wheel_telemetry_config::support::{load_default_matrix, normalize_game_id};
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tracing::{info, warn};
+
+/// Persistent record of games that have already been auto-configured.
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct ConfiguredGamesStore {
+    pub configured: HashSet<String>,
+}
+
+/// Automatically configures game telemetry on first detection.
+pub struct GameAutoConfigurer {
+    game_service: Arc<GameService>,
+    state_path: PathBuf,
+    store: Mutex<ConfiguredGamesStore>,
+    /// Bypass path-discovery logic and use this path directly (useful in tests).
+    install_path_override: Option<PathBuf>,
+}
+
+impl GameAutoConfigurer {
+    /// Create a new configurer using the default state path
+    /// (`~/.openracing/configured_games.json`).
+    pub fn new(game_service: Arc<GameService>) -> Self {
+        Self::with_state_path(game_service, default_state_path())
+    }
+
+    /// Create a new configurer with an explicit state path.
+    pub fn with_state_path(game_service: Arc<GameService>, state_path: PathBuf) -> Self {
+        let store = load_store(&state_path).unwrap_or_default();
+        Self {
+            game_service,
+            state_path,
+            store: Mutex::new(store),
+            install_path_override: None,
+        }
+    }
+
+    /// Override the install-path discovery for testing.
+    pub fn with_install_path_override(mut self, path: PathBuf) -> Self {
+        self.install_path_override = Some(path);
+        self
+    }
+
+    /// Called when a game process is detected.
+    ///
+    /// On first detection the telemetry config is written to the game install
+    /// directory and the game is marked as configured.  Subsequent detections
+    /// are skipped.  All failures are logged as warnings; the function never
+    /// panics or propagates errors.
+    pub async fn on_game_detected(&self, game_id: &str) {
+        let game_id = normalize_game_id(game_id);
+
+        // Early-exit if already configured.
+        {
+            let store = self.store.lock().await;
+            if store.configured.contains(game_id) {
+                info!(game_id, "Game already auto-configured, skipping");
+                return;
+            }
+        }
+
+        // Locate the game install directory.
+        let install_path = match self.find_install_path(game_id) {
+            Some(path) => path,
+            None => {
+                warn!(
+                    game_id,
+                    "Could not find install path for game auto-configuration, skipping"
+                );
+                return;
+            }
+        };
+
+        // Write the telemetry configuration files.
+        match self
+            .game_service
+            .configure_telemetry(game_id, &install_path)
+            .await
+        {
+            Ok(diffs) => {
+                info!(
+                    game_id,
+                    diffs_count = diffs.len(),
+                    path = %install_path.display(),
+                    "Auto-configured game telemetry"
+                );
+            }
+            Err(e) => {
+                warn!(
+                    game_id,
+                    error = %e,
+                    "Failed to auto-configure game telemetry"
+                );
+                return;
+            }
+        }
+
+        // Persist the configured marker.
+        let mut store = self.store.lock().await;
+        store.configured.insert(game_id.to_string());
+        if let Err(e) = save_store(&self.state_path, &*store) {
+            warn!(error = %e, "Failed to save auto-configure state");
+        }
+    }
+
+    /// Find a usable install path for `game_id`.
+    ///
+    /// Resolution order:
+    /// 1. Explicit override (set via [`with_install_path_override`]).
+    /// 2. Windows registry keys listed in `auto_detect.install_registry_keys`.
+    /// 3. `auto_detect.install_paths` checked against common filesystem roots.
+    fn find_install_path(&self, game_id: &str) -> Option<PathBuf> {
+        // 1. Override (tests / explicit configuration).
+        if let Some(ref path) = self.install_path_override {
+            return Some(path.clone());
+        }
+
+        let matrix = load_default_matrix().ok()?;
+        let game_support = matrix.games.get(game_id)?;
+        let auto_detect = &game_support.auto_detect;
+
+        // 2. Windows registry.
+        #[cfg(target_os = "windows")]
+        {
+            if let Some(path) = find_from_registry(&auto_detect.install_registry_keys) {
+                return Some(path);
+            }
+        }
+
+        // 3. Standard filesystem install_paths under known roots.
+        for rel_path in &auto_detect.install_paths {
+            for root in install_path_roots() {
+                let candidate = root.join(rel_path);
+                if candidate.exists() {
+                    return Some(candidate);
+                }
+            }
+        }
+
+        None
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+fn default_state_path() -> PathBuf {
+    home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".openracing")
+        .join("configured_games.json")
+}
+
+fn home_dir() -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        std::env::var("USERPROFILE").ok().map(PathBuf::from)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::env::var("HOME").ok().map(PathBuf::from)
+    }
+}
+
+fn load_store(path: &Path) -> Option<ConfiguredGamesStore> {
+    let content = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+fn save_store(path: &Path, store: &ConfiguredGamesStore) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let json = serde_json::to_string_pretty(store)?;
+    std::fs::write(path, json)?;
+    Ok(())
+}
+
+/// Platform-specific filesystem roots to search for game install_paths.
+fn install_path_roots() -> Vec<PathBuf> {
+    let mut roots: Vec<PathBuf> = Vec::new();
+
+    #[cfg(target_os = "windows")]
+    {
+        for drive in ["C:\\", "D:\\"] {
+            roots.push(PathBuf::from(drive));
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        if let Some(home) = home_dir() {
+            // Common Steam installation paths on Linux/macOS.
+            roots.push(
+                home.join(".steam")
+                    .join("steam")
+                    .join("steamapps")
+                    .join("common"),
+            );
+            roots.push(
+                home.join(".local")
+                    .join("share")
+                    .join("Steam")
+                    .join("steamapps")
+                    .join("common"),
+            );
+        }
+        roots.push(PathBuf::from("/"));
+    }
+
+    roots
+}
+
+/// Probe Windows registry keys for a game install path.
+#[cfg(target_os = "windows")]
+fn find_from_registry(keys: &[String]) -> Option<PathBuf> {
+    use winreg::RegKey;
+    use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+
+    for key_str in keys {
+        let Some((hive_str, subkey)) = key_str.split_once('\\') else {
+            continue;
+        };
+        let hive = match hive_str {
+            "HKEY_CURRENT_USER" => RegKey::predef(HKEY_CURRENT_USER),
+            "HKEY_LOCAL_MACHINE" => RegKey::predef(HKEY_LOCAL_MACHINE),
+            _ => continue,
+        };
+        if let Ok(key) = hive.open_subkey(subkey) {
+            // Try common value names used by different installers.
+            let path_val: Option<String> = key
+                .get_value("InstallLocation")
+                .or_else(|_| key.get_value("InstallDir"))
+                .or_else(|_| key.get_value("Install Dir"))
+                .or_else(|_| key.get_value("Path"))
+                .ok();
+            if let Some(path_str) = path_val {
+                let p = PathBuf::from(path_str);
+                if p.exists() {
+                    return Some(p);
+                }
+            }
+        }
+    }
+    None
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use tempfile::TempDir;
+
+    async fn make_game_service() -> anyhow::Result<Arc<GameService>> {
+        Ok(Arc::new(GameService::new().await?))
+    }
+
+    /// First detection of a game should auto-configure it and persist the marker.
+    #[tokio::test]
+    async fn test_first_detection_triggers_configure() -> anyhow::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let install_dir = temp_dir.path().join("game_install");
+        std::fs::create_dir_all(&install_dir)?;
+        let state_path = temp_dir.path().join("configured_games.json");
+
+        let configurer =
+            GameAutoConfigurer::with_state_path(make_game_service().await?, state_path.clone())
+                .with_install_path_override(install_dir);
+
+        configurer.on_game_detected("iracing").await;
+
+        // The state file must exist and record "iracing" as configured.
+        let content = std::fs::read_to_string(&state_path)?;
+        let store: ConfiguredGamesStore = serde_json::from_str(&content)?;
+        assert!(
+            store.configured.contains("iracing"),
+            "iracing should be marked as configured after first detection"
+        );
+        Ok(())
+    }
+
+    /// A game that is already configured must not be re-configured.
+    #[tokio::test]
+    async fn test_already_configured_skips_reconfigure() -> anyhow::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let state_path = temp_dir.path().join("configured_games.json");
+
+        // Pre-populate the configured store.
+        let pre_store = ConfiguredGamesStore {
+            configured: ["iracing".to_string()].into_iter().collect(),
+        };
+        std::fs::write(&state_path, serde_json::to_string_pretty(&pre_store)?)?;
+
+        // The install dir does NOT exist – if the configurer tries to write it
+        // will succeed anyway (iRacing writer creates missing dirs), but we
+        // verify the skip path is taken by ensuring state file is untouched.
+        let no_path = temp_dir.path().join("nonexistent_game_dir");
+        let configurer =
+            GameAutoConfigurer::with_state_path(make_game_service().await?, state_path.clone())
+                .with_install_path_override(no_path);
+
+        configurer.on_game_detected("iracing").await;
+
+        // State file should still contain exactly one entry.
+        let content = std::fs::read_to_string(&state_path)?;
+        let store: ConfiguredGamesStore = serde_json::from_str(&content)?;
+        assert!(store.configured.contains("iracing"));
+        assert_eq!(store.configured.len(), 1);
+        Ok(())
+    }
+
+    /// When no install path is found the function must return gracefully
+    /// without panicking and must NOT mark the game as configured.
+    #[tokio::test]
+    async fn test_path_not_found_is_graceful() -> anyhow::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let state_path = temp_dir.path().join("configured_games.json");
+
+        // No install_path_override; standard paths won't exist in test env.
+        let configurer =
+            GameAutoConfigurer::with_state_path(make_game_service().await?, state_path.clone());
+
+        // Must not panic.
+        configurer.on_game_detected("iracing").await;
+
+        // Game must not be in the configured store.
+        let not_configured = if state_path.exists() {
+            let content = std::fs::read_to_string(&state_path)?;
+            let store: ConfiguredGamesStore = serde_json::from_str(&content)?;
+            !store.configured.contains("iracing")
+        } else {
+            true
+        };
+        assert!(
+            not_configured,
+            "iracing must not be marked configured when path was not found"
+        );
+        Ok(())
+    }
+}
