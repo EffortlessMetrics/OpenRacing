@@ -190,3 +190,98 @@ fn get_vendor_protocol_returns_handler_for_bbi32() {
     let handler = get_vendor_protocol(LEO_BODNAR_VENDOR_ID, LEO_BODNAR_PID_BBI32);
     assert!(handler.is_some(), "must return a handler for BBI-32 button box");
 }
+
+// ── Insta snapshot tests ──────────────────────────────────────────────────────
+
+#[test]
+fn snapshot_ffb_config_wheel_pid() {
+    let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, LEO_BODNAR_PID_WHEEL);
+    insta::assert_debug_snapshot!(handler.get_ffb_config());
+}
+
+#[test]
+fn snapshot_ffb_config_bbi32_pid() {
+    let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, LEO_BODNAR_PID_BBI32);
+    insta::assert_debug_snapshot!(handler.get_ffb_config());
+}
+
+#[test]
+fn snapshot_ffb_config_slim_pid() {
+    let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, LEO_BODNAR_PID_SLIM);
+    insta::assert_debug_snapshot!(handler.get_ffb_config());
+}
+
+#[test]
+fn snapshot_ffb_config_joystick_pid() {
+    let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, LEO_BODNAR_PID_JOYSTICK);
+    insta::assert_debug_snapshot!(handler.get_ffb_config());
+}
+
+#[cfg(windows)]
+#[test]
+fn snapshot_device_caps_wheel_pid() {
+    let caps = super::super::windows::determine_device_capabilities(
+        LEO_BODNAR_VENDOR_ID,
+        LEO_BODNAR_PID_WHEEL,
+    );
+    insta::assert_debug_snapshot!(caps);
+}
+
+#[cfg(windows)]
+#[test]
+fn snapshot_device_caps_bbi32_pid() {
+    let caps = super::super::windows::determine_device_capabilities(
+        LEO_BODNAR_VENDOR_ID,
+        LEO_BODNAR_PID_BBI32,
+    );
+    insta::assert_debug_snapshot!(caps);
+}
+
+// ── Proptest property tests ───────────────────────────────────────────────────
+
+use proptest::prelude::*;
+
+proptest! {
+    #![proptest_config(proptest::test_runner::Config::with_cases(256))]
+
+    /// is_leo_bodnar_ffb_product must be true if and only if the PID is the
+    /// USB Sim Racing Wheel Interface (0x000E).
+    #[test]
+    fn prop_is_leo_bodnar_ffb_product_exact_pid(pid in any::<u16>()) {
+        prop_assert_eq!(
+            is_leo_bodnar_ffb_product(pid),
+            pid == LEO_BODNAR_PID_WHEEL,
+            "is_leo_bodnar_ffb_product must match only PID 0x{:04X}", LEO_BODNAR_PID_WHEEL
+        );
+    }
+
+    /// max_torque_nm is positive iff the PID is the FFB wheel interface;
+    /// all other Leo Bodnar PIDs are input-only and must report zero torque.
+    #[test]
+    fn prop_torque_positive_iff_ffb_product(pid in any::<u16>()) {
+        let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, pid);
+        let config = handler.get_ffb_config();
+        if is_leo_bodnar_ffb_product(pid) {
+            prop_assert!(
+                config.max_torque_nm > 0.0,
+                "FFB wheel PID 0x{:04X} must have positive torque", pid
+            );
+        } else {
+            prop_assert_eq!(
+                config.max_torque_nm, 0.0,
+                "Input-only PID 0x{:04X} must report zero torque", pid
+            );
+        }
+    }
+
+    /// max_torque_nm is always within the physically safe range [0, 100] Nm.
+    #[test]
+    fn prop_ffb_config_torque_in_safe_range(pid in any::<u16>()) {
+        let handler = LeoBodnarHandler::new(LEO_BODNAR_VENDOR_ID, pid);
+        let config = handler.get_ffb_config();
+        prop_assert!(
+            config.max_torque_nm >= 0.0 && config.max_torque_nm <= 100.0,
+            "max_torque_nm {} is outside safe range [0, 100]", config.max_torque_nm
+        );
+    }
+}

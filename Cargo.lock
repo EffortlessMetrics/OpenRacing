@@ -5487,6 +5487,7 @@ dependencies = [
  "hid-heusinkveld-protocol",
  "hid-simucube-protocol",
  "hidapi",
+ "insta",
  "jsonschema",
  "libc",
  "libudev",

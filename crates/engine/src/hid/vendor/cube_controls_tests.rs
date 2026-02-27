@@ -174,3 +174,113 @@ fn test_all_models_are_provisional() {
     assert!(CubeControlsModel::Csx3.is_provisional());
     assert!(CubeControlsModel::Unknown.is_provisional());
 }
+
+// ── Insta snapshot tests ──────────────────────────────────────────────────────
+
+#[test]
+fn snapshot_ffb_config_gt_pro() {
+    let handler =
+        CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_GT_PRO_PID);
+    insta::assert_debug_snapshot!(handler.get_ffb_config());
+}
+
+#[test]
+fn snapshot_ffb_config_formula_pro() {
+    let handler =
+        CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_FORMULA_PRO_PID);
+    insta::assert_debug_snapshot!(handler.get_ffb_config());
+}
+
+#[test]
+fn snapshot_ffb_config_csx3() {
+    let handler =
+        CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_CSX3_PID);
+    insta::assert_debug_snapshot!(handler.get_ffb_config());
+}
+
+#[cfg(windows)]
+#[test]
+fn snapshot_device_caps_gt_pro() {
+    let caps = super::super::windows::determine_device_capabilities(
+        CUBE_CONTROLS_VENDOR_ID,
+        CUBE_CONTROLS_GT_PRO_PID,
+    );
+    insta::assert_debug_snapshot!(caps);
+}
+
+#[cfg(windows)]
+#[test]
+fn snapshot_device_caps_formula_pro() {
+    let caps = super::super::windows::determine_device_capabilities(
+        CUBE_CONTROLS_VENDOR_ID,
+        CUBE_CONTROLS_FORMULA_PRO_PID,
+    );
+    insta::assert_debug_snapshot!(caps);
+}
+
+#[cfg(windows)]
+#[test]
+fn snapshot_device_caps_csx3() {
+    let caps = super::super::windows::determine_device_capabilities(
+        CUBE_CONTROLS_VENDOR_ID,
+        CUBE_CONTROLS_CSX3_PID,
+    );
+    insta::assert_debug_snapshot!(caps);
+}
+
+// ── Proptest property tests ───────────────────────────────────────────────────
+
+use proptest::prelude::*;
+
+proptest! {
+    #![proptest_config(proptest::test_runner::Config::with_cases(256))]
+
+    /// is_cube_controls_product must be true if and only if the PID is one of the
+    /// three provisional Cube Controls product IDs.
+    #[test]
+    fn prop_is_cube_controls_product_matches_known_pids(pid in any::<u16>()) {
+        let known = matches!(
+            pid,
+            CUBE_CONTROLS_GT_PRO_PID | CUBE_CONTROLS_FORMULA_PRO_PID | CUBE_CONTROLS_CSX3_PID
+        );
+        prop_assert_eq!(
+            is_cube_controls_product(pid),
+            known,
+            "is_cube_controls_product mismatch for PID 0x{:04X}", pid
+        );
+    }
+
+    /// max_torque_nm is always positive for any Cube Controls PID: all known
+    /// models and the Unknown fallback report 20 Nm.
+    #[test]
+    fn prop_cube_controls_torque_always_positive(pid in any::<u16>()) {
+        let handler = CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, pid);
+        let config = handler.get_ffb_config();
+        prop_assert!(
+            config.max_torque_nm > 0.0,
+            "Cube Controls PID 0x{:04X} must always report positive torque", pid
+        );
+    }
+
+    /// max_torque_nm is within the physically safe range (0, 100] Nm for any PID.
+    #[test]
+    fn prop_ffb_config_torque_in_safe_range(pid in any::<u16>()) {
+        let handler = CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, pid);
+        let config = handler.get_ffb_config();
+        prop_assert!(
+            config.max_torque_nm > 0.0 && config.max_torque_nm <= 100.0,
+            "max_torque_nm {} is outside safe range (0, 100]", config.max_torque_nm
+        );
+    }
+
+    /// CubeControlsModel::from_product_id must be deterministic for any PID.
+    #[test]
+    fn prop_model_from_pid_deterministic(pid in any::<u16>()) {
+        let m1 = CubeControlsModel::from_product_id(pid);
+        let m2 = CubeControlsModel::from_product_id(pid);
+        prop_assert_eq!(
+            m1, m2,
+            "model resolution must be deterministic for PID 0x{:04X}", pid
+        );
+    }
+}
