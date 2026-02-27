@@ -207,8 +207,10 @@ impl TracingProvider for LinuxTracepointsProvider {
     }
 
     fn shutdown(&mut self) {
-        if let Some(mut file) = self.trace_file.take() {
-            let _ = writeln!(file, "openracing: tracing shutdown");
+        if let Some(file) = self.trace_file.take() {
+            if let Ok(mut f) = file.into_inner() {
+                let _ = writeln!(f, "openracing: tracing shutdown");
+            }
         }
         tracing::info!("Linux tracepoints provider shutdown");
     }
