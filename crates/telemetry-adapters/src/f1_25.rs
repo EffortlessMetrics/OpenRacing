@@ -53,7 +53,7 @@ const PACKET_ID_CAR_TELEMETRY: u8 = 6;
 const PACKET_ID_CAR_STATUS: u8 = 7;
 
 /// EA F1 25 spec: battery stores up to 4 MJ.
-const ERS_MAX_STORE_ENERGY_J: f32 = 4_000_000.0;
+pub const ERS_MAX_STORE_ENERGY_J: f32 = 4_000_000.0;
 
 const ENV_PORT: &str = "OPENRACING_F1_25_UDP_PORT";
 const ENV_HEARTBEAT_MS: &str = "OPENRACING_F1_25_HEARTBEAT_TIMEOUT_MS";

@@ -206,17 +206,22 @@ mod tests {
         for (id, game) in &matrix.games {
             assert!(!game.name.is_empty(), "game {} empty name", id);
             assert!(!game.versions.is_empty(), "game {} no versions", id);
-            assert!(!game.config_writer.is_empty(), "game {} no config_writer", id);
+            assert!(
+                !game.config_writer.is_empty(),
+                "game {} no config_writer",
+                id
+            );
         }
         Ok(())
     }
     #[test]
     fn expected_games_are_present_in_matrix_config() -> Result<(), Box<dyn std::error::Error>> {
         let game_ids = matrix_game_ids()?;
-        for game in ["iracing","acc","f1_25","eawrc","ams2","rfactor2","dirt5"] {
+        for game in [
+            "iracing", "acc", "f1_25", "eawrc", "ams2", "rfactor2", "dirt5",
+        ] {
             assert!(game_ids.contains(&game.to_string()), "missing: {}", game);
         }
         Ok(())
     }
-
 }

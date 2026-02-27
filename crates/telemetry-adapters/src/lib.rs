@@ -26,6 +26,7 @@ pub mod assetto_corsa;
 pub mod automobilista;
 pub mod beamng;
 pub mod codemasters_udp;
+pub mod dakar;
 pub mod dirt4;
 pub mod dirt5;
 pub mod dirt_rally_2;
@@ -33,6 +34,8 @@ pub mod eawrc;
 pub mod ets2;
 pub mod f1;
 pub mod f1_25;
+pub mod f1_native;
+pub mod flatout;
 pub mod forza;
 pub mod gran_turismo_7;
 pub mod grid_2019;
@@ -47,7 +50,9 @@ pub mod pcars2;
 pub mod raceroom;
 pub mod rbr;
 pub mod rennsport;
+pub mod mudrunner;
 pub mod rfactor2;
+pub mod simhub;
 pub mod trackmania;
 pub mod wrc_generations;
 pub mod wreckfest;
@@ -225,12 +230,28 @@ fn new_trackmania_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(TrackmaniaAdapter::new())
 }
 
+fn new_simhub_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(SimHubAdapter::new())
+}
+
+fn new_mudrunner_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(mudrunner::MudRunnerAdapter::with_variant(
+        mudrunner::MudRunnerVariant::MudRunner,
+    ))
+}
+
+fn new_snowrunner_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(mudrunner::MudRunnerAdapter::with_variant(
+        mudrunner::MudRunnerVariant::SnowRunner,
+    ))
+}
+
 fn new_dakar_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(DakarDesertRallyAdapter::new())
 }
 
 fn new_flatout_adapter() -> Box<dyn TelemetryAdapter> {
-    Box::new(FlatOutAdapter::new())
+    Box::new(flatout::FlatOutAdapter::new())
 }
 
 /// Returns the canonical adapter factory registry for all supported native adapters.
@@ -271,7 +292,10 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("trackmania", new_trackmania_adapter),
         ("dakar_desert_rally", new_dakar_adapter),
         ("flatout", new_flatout_adapter),
-    ]
+
+        ("simhub", new_simhub_adapter),
+        ("mudrunner", new_mudrunner_adapter),
+        ("snowrunner", new_snowrunner_adapter),    ]
 }
 
 pub use ac_rally::ACRallyAdapter;
@@ -281,6 +305,7 @@ pub use assetto_corsa::AssettoCorsaAdapter;
 pub use automobilista::Automobilista1Adapter;
 pub use beamng::BeamNGAdapter;
 pub use codemasters_udp::{CustomUdpSpec, DecodedCodemastersPacket, FieldSpec};
+pub use dakar::DakarDesertRallyAdapter;
 pub use dirt_rally_2::DirtRally2Adapter;
 pub use dirt4::Dirt4Adapter;
 pub use dirt5::Dirt5Adapter;
@@ -288,6 +313,8 @@ pub use eawrc::EAWRCAdapter;
 pub use ets2::Ets2Adapter;
 pub use f1::F1Adapter;
 pub use f1_25::F1_25Adapter;
+pub use f1_native::F1NativeAdapter;
+pub use flatout::FlatOutAdapter;
 pub use forza::ForzaAdapter;
 pub use gran_turismo_7::GranTurismo7Adapter;
 pub use grid_2019::Grid2019Adapter;
@@ -303,6 +330,8 @@ pub use raceroom::RaceRoomAdapter;
 pub use rbr::RBRAdapter;
 pub use rennsport::RennsportAdapter;
 pub use rfactor2::RFactor2Adapter;
+pub use mudrunner::MudRunnerAdapter;
+pub use simhub::SimHubAdapter;
 pub use trackmania::TrackmaniaAdapter;
 pub use wrc_generations::WrcGenerationsAdapter;
 pub use wreckfest::WreckfestAdapter;

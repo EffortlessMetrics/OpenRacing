@@ -62,6 +62,7 @@ members = [
     "crates/telemetry-adapters",
     "crates/telemetry-lfs",
     "crates/telemetry-ams2",
+    "crates/telemetry-f1",
     "crates/telemetry-forza",
     "crates/telemetry-rennsport",
     "crates/telemetry-wrc-generations",

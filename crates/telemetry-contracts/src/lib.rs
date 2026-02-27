@@ -277,3 +277,109 @@ impl TelemetryFrame {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{NormalizedTelemetry, TelemetryFlags, TelemetryFrame, TelemetryValue};
+
+    #[test]
+    fn normalized_telemetry_new_returns_default() {
+        let t = NormalizedTelemetry::new();
+        assert!(t.ffb_scalar.is_none());
+        assert!(t.rpm.is_none());
+        assert!(t.speed_ms.is_none());
+        assert!(t.extended.is_empty());
+    }
+    #[test]
+    fn with_ffb_scalar_clamps_above_one() {
+        let t = NormalizedTelemetry::new().with_ffb_scalar(2.5);
+        assert_eq!(t.ffb_scalar, Some(1.0));
+    }
+    #[test]
+    fn with_ffb_scalar_clamps_below_negative_one() {
+        let t = NormalizedTelemetry::new().with_ffb_scalar(-3.0);
+        assert_eq!(t.ffb_scalar, Some(-1.0));
+    }
+    #[test]
+    fn with_ffb_scalar_preserves_valid_value() {
+        let t = NormalizedTelemetry::new().with_ffb_scalar(0.5);
+        assert_eq!(t.ffb_scalar, Some(0.5));
+    }
+    #[test]
+    fn with_rpm_rejects_negative_value() {
+        let t = NormalizedTelemetry::new().with_rpm(-100.0);
+        assert!(t.rpm.is_none());
+    }
+    #[test]
+    fn with_rpm_accepts_valid_value() {
+        let t = NormalizedTelemetry::new().with_rpm(7000.0);
+        assert_eq!(t.rpm, Some(7000.0));
+    }
+    #[test]
+    fn with_speed_ms_rejects_negative() {
+        let t = NormalizedTelemetry::new().with_speed_ms(-10.0);
+        assert!(t.speed_ms.is_none());
+    }
+    #[test]
+    fn speed_kmh_and_mph_conversions() {
+        let t = NormalizedTelemetry::new().with_speed_ms(10.0);
+        let kmh = t.speed_kmh().expect("kmh should be Some");
+        let mph = t.speed_mph().expect("mph should be Some");
+        assert!((kmh - 36.0).abs() < 0.01, "expected 36 km/h, got {}", kmh);
+        assert!(
+            (mph - 22.37).abs() < 0.01,
+            "expected ~22.37 mph, got {}",
+            mph
+        );
+    }
+    #[test]
+    fn telemetry_flags_default_has_green_flag_true() {
+        let flags = TelemetryFlags::default();
+        assert!(flags.green_flag);
+        assert!(!flags.yellow_flag);
+        assert!(!flags.checkered_flag);
+    }
+    #[test]
+    fn has_active_flags_returns_false_for_default() {
+        let t = NormalizedTelemetry::new();
+        assert!(!t.has_active_flags());
+    }
+    #[test]
+    fn has_active_flags_returns_true_for_yellow() {
+        let mut flags = TelemetryFlags::default();
+        flags.yellow_flag = true;
+        let t = NormalizedTelemetry::new().with_flags(flags);
+        assert!(t.has_active_flags());
+    }
+    #[test]
+    fn telemetry_frame_new_stores_fields() {
+        let data = NormalizedTelemetry::new().with_rpm(5000.0);
+        let frame = TelemetryFrame::new(data.clone(), 123_456_789, 42, 64);
+        assert_eq!(frame.timestamp_ns, 123_456_789);
+        assert_eq!(frame.sequence, 42);
+        assert_eq!(frame.raw_size, 64);
+        assert_eq!(frame.data.rpm, Some(5000.0));
+    }
+    #[test]
+    fn telemetry_value_variants_are_distinct() {
+        let f = TelemetryValue::Float(1.0);
+        let i = TelemetryValue::Integer(1);
+        let b = TelemetryValue::Boolean(true);
+        let s = TelemetryValue::String("x".to_string());
+        assert_ne!(f, i);
+        assert_ne!(b, s);
+    }
+    #[test]
+    fn normalized_telemetry_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let t = NormalizedTelemetry::new()
+            .with_ffb_scalar(0.75)
+            .with_rpm(6500.0)
+            .with_speed_ms(50.0)
+            .with_gear(3);
+        let json = serde_json::to_string(&t)?;
+        let decoded: NormalizedTelemetry = serde_json::from_str(&json)?;
+        assert_eq!(decoded.ffb_scalar, t.ffb_scalar);
+        assert_eq!(decoded.rpm, t.rpm);
+        Ok(())
+    }
+}

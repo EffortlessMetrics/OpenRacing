@@ -1,0 +1,25 @@
+[package]
+name = "racing-wheel-telemetry-forza"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-telemetry-forza"
+publish = true
+description = "Forza Motorsport / Forza Horizon UDP telemetry adapter (Sled + CarDash formats)"
+readme = "README.md"
+keywords = ["telemetry", "forza", "udp", "motorsport", "racing"]
+
+[dependencies]
+racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
+racing-wheel-telemetry-core = { path = "../telemetry-core" }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }

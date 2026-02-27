@@ -1,0 +1,24 @@
+[package]
+name = "racing-wheel-telemetry-f1"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-telemetry-f1"
+publish = true
+description = "F1 2023/2024 native UDP telemetry adapter (Codemasters/EA packet formats 2023 and 2024)"
+readme = "README.md"
+keywords = ["telemetry", "f1", "formula1", "codemasters", "racing"]
+
+[dependencies]
+racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
+racing-wheel-telemetry-core = { path = "../telemetry-core" }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }

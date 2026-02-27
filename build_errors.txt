@@ -1,0 +1,16 @@
+warning: constant `OFF_ENGINE_IDLE_RPM` is never used
+  --> crates\telemetry-adapters\src\forza.rs:42:7
+   |
+42 | const OFF_ENGINE_IDLE_RPM: usize = 12; // f32 (unused but documented)
+   |       ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `OFF_ACCEL_Y` is never used
+  --> crates\telemetry-adapters\src\forza.rs:46:7
+   |
+46 | const OFF_ACCEL_Y: usize = 24; // f32 ΓÇô vertical (up = positive)
+   |       ^^^^^^^^^^^
+
+warning: `racing-wheel-telemetry-adapters` (lib) generated 2 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.06s

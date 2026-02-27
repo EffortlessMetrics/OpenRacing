@@ -69,13 +69,15 @@ pub fn parse_dakar_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     let rpm = read_f32_le(data, OFF_RPM).unwrap_or(0.0).max(0.0);
     // 255 encodes reverse; map to -1 for the normalised schema.
     let gear_raw = data[OFF_GEAR];
-    let gear: i8 = if gear_raw == 255 { -1 } else { gear_raw.min(12) as i8 };
+    let gear: i8 = if gear_raw == 255 {
+        -1
+    } else {
+        gear_raw.min(12) as i8
+    };
     let throttle = read_f32_le(data, OFF_THROTTLE)
         .unwrap_or(0.0)
         .clamp(0.0, 1.0);
-    let brake = read_f32_le(data, OFF_BRAKE)
-        .unwrap_or(0.0)
-        .clamp(0.0, 1.0);
+    let brake = read_f32_le(data, OFF_BRAKE).unwrap_or(0.0).clamp(0.0, 1.0);
     let steering_angle = read_f32_le(data, OFF_STEERING).unwrap_or(0.0);
     let lateral_g = read_f32_le(data, OFF_LATERAL_G).unwrap_or(0.0);
     let longitudinal_g = read_f32_le(data, OFF_LONGITUDINAL_G).unwrap_or(0.0);

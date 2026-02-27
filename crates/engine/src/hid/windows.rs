@@ -577,6 +577,7 @@ impl SupportedDevices {
             vendor_ids::FFBEAST => "FFBeast",
             vendor_ids::GRANITE_DEVICES => "Granite Devices",
             vendor_ids::LEO_BODNAR => "Leo Bodnar",
+            vendor_ids::SIMEXPERIENCE => "SimExperience",
             _ => "Unknown",
         }
     }

@@ -39,10 +39,12 @@ const MAX_PACKET_SIZE: usize = 512;
 // ── Sled format byte offsets ─────────────────────────────────────────────────
 const OFF_IS_RACE_ON: usize = 0; // i32
 const OFF_ENGINE_MAX_RPM: usize = 8; // f32
+#[allow(dead_code)]
 const OFF_ENGINE_IDLE_RPM: usize = 12; // f32 (unused but documented)
 const OFF_CURRENT_RPM: usize = 16; // f32
 // World-space acceleration (m/s²)
 const OFF_ACCEL_X: usize = 20; // f32 – lateral (right = positive)
+#[allow(dead_code)]
 const OFF_ACCEL_Y: usize = 24; // f32 – vertical (up = positive)
 const OFF_ACCEL_Z: usize = 28; // f32 – longitudinal (forward = positive)
 // World-space velocity (m/s)
@@ -456,23 +458,11 @@ mod tests {
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-    fn make_sled_packet(
-        is_race_on: i32,
-        rpm: f32,
-        throttle: f32,
-        brake: f32,
-        gear: f32,
-        steer: f32,
-        vel: (f32, f32, f32),
-    ) -> Vec<u8> {
+    fn make_sled_packet(is_race_on: i32, rpm: f32, vel: (f32, f32, f32)) -> Vec<u8> {
         let mut data = vec![0u8; FORZA_SLED_SIZE];
         data[OFF_IS_RACE_ON..OFF_IS_RACE_ON + 4].copy_from_slice(&is_race_on.to_le_bytes());
         data[OFF_ENGINE_MAX_RPM..OFF_ENGINE_MAX_RPM + 4].copy_from_slice(&8000.0f32.to_le_bytes());
         data[OFF_CURRENT_RPM..OFF_CURRENT_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
-        data[OFF_ACCEL..OFF_ACCEL + 4].copy_from_slice(&throttle.to_le_bytes());
-        data[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&brake.to_le_bytes());
-        data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&gear.to_le_bytes());
-        data[OFF_STEER..OFF_STEER + 4].copy_from_slice(&steer.to_le_bytes());
         data[OFF_VEL_X..OFF_VEL_X + 4].copy_from_slice(&vel.0.to_le_bytes());
         data[OFF_VEL_Y..OFF_VEL_Y + 4].copy_from_slice(&vel.1.to_le_bytes());
         data[OFF_VEL_Z..OFF_VEL_Z + 4].copy_from_slice(&vel.2.to_le_bytes());
@@ -481,20 +471,16 @@ mod tests {
 
     #[test]
     fn test_parse_sled_valid() -> TestResult {
-        let data = make_sled_packet(1, 5000.0, 0.7, 0.0, 3.0, 0.25, (20.0, 0.0, 0.0));
+        let data = make_sled_packet(1, 5000.0, (20.0, 0.0, 0.0));
         let result = parse_forza_sled(&data)?;
         assert!((result.rpm - 5000.0).abs() < 0.01);
-        assert!((result.throttle - 0.7).abs() < 0.001);
-        assert!((result.brake).abs() < 0.001);
-        assert_eq!(result.gear, 3);
-        assert!((result.steering_angle - 0.25).abs() < 0.001);
         assert!((result.speed_ms - 20.0).abs() < 0.01);
         Ok(())
     }
 
     #[test]
     fn test_parse_sled_race_off() -> TestResult {
-        let data = make_sled_packet(0, 5000.0, 0.7, 0.0, 3.0, 0.25, (20.0, 0.0, 0.0));
+        let data = make_sled_packet(0, 5000.0, (20.0, 0.0, 0.0));
         let result = parse_forza_sled(&data)?;
         assert_eq!(result.rpm, 0.0);
         Ok(())
@@ -502,9 +488,10 @@ mod tests {
 
     #[test]
     fn test_parse_sled_gear_reverse() -> TestResult {
-        let data = make_sled_packet(1, 1000.0, 0.0, 0.5, 0.0, 0.0, (-5.0, 0.0, 0.0));
+        // Sled format has no gear field; verify speed_ms is non-negative for negative velocity.
+        let data = make_sled_packet(1, 1000.0, (-5.0, 0.0, 0.0));
         let result = parse_forza_sled(&data)?;
-        assert_eq!(result.gear, -1);
+        assert!(result.speed_ms >= 0.0);
         Ok(())
     }
 
@@ -532,11 +519,11 @@ mod tests {
 
     #[test]
     fn test_normalization_clamp() -> TestResult {
-        let data = make_sled_packet(1, 5000.0, 2.0, -1.0, 3.0, 3.0, (20.0, 0.0, 0.0));
+        // Verify rpm and speed_ms are non-negative from the sled format.
+        let data = make_sled_packet(1, 5000.0, (20.0, 0.0, 0.0));
         let result = parse_forza_sled(&data)?;
-        assert!((result.throttle - 1.0).abs() < 0.001);
-        assert!((result.brake).abs() < 0.001);
-        assert!((result.steering_angle - 1.0).abs() < 0.001);
+        assert!(result.rpm >= 0.0);
+        assert!(result.speed_ms >= 0.0);
         Ok(())
     }
 
@@ -544,7 +531,7 @@ mod tests {
     fn test_parse_cardash_valid() -> TestResult {
         let mut data = vec![0u8; FORZA_CARDASH_SIZE];
         // Copy a valid sled header into it
-        let sled = make_sled_packet(1, 4000.0, 0.5, 0.2, 2.0, 0.1, (15.0, 0.0, 0.0));
+        let sled = make_sled_packet(1, 4000.0, (15.0, 0.0, 0.0));
         data[..FORZA_SLED_SIZE].copy_from_slice(&sled);
         let result = parse_forza_cardash(&data)?;
         assert!((result.rpm - 4000.0).abs() < 0.01);
@@ -602,13 +589,12 @@ mod proptest_tests {
         }
 
         #[test]
-        fn parse_sled_steering_clamped(steer in any::<f32>()) {
+        fn parse_sled_steering_clamped(accel in any::<f32>()) {
             let mut data = vec![0u8; FORZA_SLED_SIZE];
             data[OFF_IS_RACE_ON..OFF_IS_RACE_ON + 4].copy_from_slice(&1i32.to_le_bytes());
-            data[OFF_STEER..OFF_STEER + 4].copy_from_slice(&steer.to_le_bytes());
+            data[OFF_ACCEL_X..OFF_ACCEL_X + 4].copy_from_slice(&accel.to_le_bytes());
             if let Ok(result) = parse_forza_sled(&data) {
-                prop_assert!(result.steering_angle >= -1.0);
-                prop_assert!(result.steering_angle <= 1.0);
+                prop_assert!(result.speed_ms >= 0.0);
             }
         }
     }

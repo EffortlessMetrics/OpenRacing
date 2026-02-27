@@ -1,0 +1,649 @@
+    Checking racing-wheel-telemetry-core v0.1.0 (H:\Code\Rust\OpenRacing\crates\telemetry-core)
+    Checking racing-wheel-telemetry-adapters v0.1.0 (H:\Code\Rust\OpenRacing\crates\telemetry-adapters)
+error[E0425]: cannot find value `OFF_ACCEL` in this scope
+   --> crates\telemetry-adapters\src\forza.rs:472:14
+    |
+ 45 | const OFF_ACCEL_X: usize = 20; // f32 ΓÇô lateral (right = positive)
+    | ------------------------------ similarly named constant `OFF_ACCEL_X` defined here
+...
+472 |         data[OFF_ACCEL..OFF_ACCEL + 4].copy_from_slice(&throttle.to_le_bytes());
+    |              ^^^^^^^^^
+    |
+help: a constant with a similar name exists
+    |
+472 |         data[OFF_ACCEL_X..OFF_ACCEL + 4].copy_from_slice(&throttle.to_le_bytes());
+    |                       ++
+
+error[E0425]: cannot find value `OFF_ACCEL` in this scope
+   --> crates\telemetry-adapters\src\forza.rs:472:25
+    |
+ 45 | const OFF_ACCEL_X: usize = 20; // f32 ΓÇô lateral (right = positive)
+    | ------------------------------ similarly named constant `OFF_ACCEL_X` defined here
+...
+472 |         data[OFF_ACCEL..OFF_ACCEL + 4].copy_from_slice(&throttle.to_le_bytes());
+    |                         ^^^^^^^^^
+    |
+help: a constant with a similar name exists
+    |
+472 |         data[OFF_ACCEL..OFF_ACCEL_X + 4].copy_from_slice(&throttle.to_le_bytes());
+    |                                  ++
+help: you might have meant to write `.` instead of `..`
+    |
+472 -         data[OFF_ACCEL..OFF_ACCEL + 4].copy_from_slice(&throttle.to_le_bytes());
+472 +         data[OFF_ACCEL.OFF_ACCEL + 4].copy_from_slice(&throttle.to_le_bytes());
+    |
+
+error[E0425]: cannot find value `OFF_BRAKE` in this scope
+   --> crates\telemetry-adapters\src\forza.rs:473:14
+    |
+473 |         data[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&brake.to_le_bytes());
+    |              ^^^^^^^^^ not found in this scope
+    |
+note: these constants exist but are inaccessible
+   --> crates\telemetry-adapters\src\assetto_corsa.rs:30:1
+    |
+ 30 | const OFF_BRAKE: usize = 72;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::assetto_corsa::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\beamng.rs:27:1
+    |
+ 27 | const OFF_BRAKE: usize = 52; // f32
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::beamng::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt4.rs:42:1
+    |
+ 42 | const OFF_BRAKE: usize = 116;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt4::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt_rally_2.rs:42:1
+    |
+ 42 | const OFF_BRAKE: usize = 116;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt_rally_2::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\gran_turismo_7.rs:56:1
+    |
+ 56 | const OFF_BRAKE: usize = 142;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::gran_turismo_7::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_2019.rs:43:1
+    |
+ 43 | const OFF_BRAKE: usize = 116;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_2019::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_autosport.rs:43:1
+    |
+ 43 | const OFF_BRAKE: usize = 116;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_autosport::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_legends.rs:43:1
+    |
+ 43 | const OFF_BRAKE: usize = 116;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_legends::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\le_mans_ultimate.rs:40:1
+    |
+ 40 | const OFF_BRAKE: usize = 16;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::le_mans_ultimate::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\lfs.rs:29:1
+    |
+ 29 | const OFF_BRAKE: usize = 52; // f32, 0 to 1
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::lfs::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\nascar.rs:62:1
+    |
+ 62 | const OFF_BRAKE: usize = 84;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::nascar::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\pcars2.rs:39:1
+    |
+ 39 | const OFF_BRAKE: usize = 48;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::pcars2::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\raceroom.rs:41:1
+    |
+ 41 | const OFF_BRAKE: usize = 712;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::raceroom::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\rbr.rs:30:1
+    |
+ 30 | const OFF_BRAKE: usize = 56;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::rbr::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wrc_generations.rs:43:1
+    |
+ 43 | const OFF_BRAKE: usize = 116;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wrc_generations::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wtcr.rs:43:1
+    |
+ 43 | const OFF_BRAKE: usize = 116;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wtcr::OFF_BRAKE`: not accessible
+
+error[E0425]: cannot find value `OFF_BRAKE` in this scope
+   --> crates\telemetry-adapters\src\forza.rs:473:25
+    |
+473 |         data[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&brake.to_le_bytes());
+    |                         ^^^^^^^^^ not found in this scope
+    |
+note: these constants exist but are inaccessible
+   --> crates\telemetry-adapters\src\assetto_corsa.rs:30:1
+    |
+ 30 | const OFF_BRAKE: usize = 72;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::assetto_corsa::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\beamng.rs:27:1
+    |
+ 27 | const OFF_BRAKE: usize = 52; // f32
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::beamng::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt4.rs:42:1
+    |
+ 42 | const OFF_BRAKE: usize = 116;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt4::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt_rally_2.rs:42:1
+    |
+ 42 | const OFF_BRAKE: usize = 116;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt_rally_2::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\gran_turismo_7.rs:56:1
+    |
+ 56 | const OFF_BRAKE: usize = 142;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::gran_turismo_7::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_2019.rs:43:1
+    |
+ 43 | const OFF_BRAKE: usize = 116;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_2019::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_autosport.rs:43:1
+    |
+ 43 | const OFF_BRAKE: usize = 116;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_autosport::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_legends.rs:43:1
+    |
+ 43 | const OFF_BRAKE: usize = 116;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_legends::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\le_mans_ultimate.rs:40:1
+    |
+ 40 | const OFF_BRAKE: usize = 16;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::le_mans_ultimate::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\lfs.rs:29:1
+    |
+ 29 | const OFF_BRAKE: usize = 52; // f32, 0 to 1
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::lfs::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\nascar.rs:62:1
+    |
+ 62 | const OFF_BRAKE: usize = 84;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::nascar::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\pcars2.rs:39:1
+    |
+ 39 | const OFF_BRAKE: usize = 48;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::pcars2::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\raceroom.rs:41:1
+    |
+ 41 | const OFF_BRAKE: usize = 712;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::raceroom::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\rbr.rs:30:1
+    |
+ 30 | const OFF_BRAKE: usize = 56;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::rbr::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wrc_generations.rs:43:1
+    |
+ 43 | const OFF_BRAKE: usize = 116;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wrc_generations::OFF_BRAKE`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wtcr.rs:43:1
+    |
+ 43 | const OFF_BRAKE: usize = 116;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wtcr::OFF_BRAKE`: not accessible
+
+error[E0425]: cannot find value `OFF_GEAR` in this scope
+   --> crates\telemetry-adapters\src\forza.rs:474:14
+    |
+474 |         data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&gear.to_le_bytes());
+    |              ^^^^^^^^ not found in this scope
+    |
+note: these constants exist but are inaccessible
+   --> crates\telemetry-adapters\src\assetto_corsa.rs:24:1
+    |
+ 24 | const OFF_GEAR: usize = 16;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::assetto_corsa::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\automobilista.rs:59:1
+    |
+ 59 | const OFF_GEAR: usize = 360; // i32 (-1=reverse, 0=neutral, 1+=fwd)
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::automobilista::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\beamng.rs:25:1
+    |
+ 25 | const OFF_GEAR: usize = 10; // i8 (char in C): 0=R, 1=N, 2=1st, 3=2nd, ΓÇª
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::beamng::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt4.rs:43:1
+    |
+ 43 | const OFF_GEAR: usize = 124;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt4::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt_rally_2.rs:43:1
+    |
+ 43 | const OFF_GEAR: usize = 124;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt_rally_2::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\ets2.rs:33:1
+    |
+ 33 | const OFF_GEAR: usize = 12; // i32  >0=forward, <0=reverse, 0=neutral
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::ets2::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_2019.rs:44:1
+    |
+ 44 | const OFF_GEAR: usize = 124;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_2019::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_autosport.rs:44:1
+    |
+ 44 | const OFF_GEAR: usize = 124;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_autosport::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_legends.rs:44:1
+    |
+ 44 | const OFF_GEAR: usize = 124;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_legends::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\le_mans_ultimate.rs:38:1
+    |
+ 38 | const OFF_GEAR: usize = 8;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::le_mans_ultimate::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\lfs.rs:24:1
+    |
+ 24 | const OFF_GEAR: usize = 10; // u8: 0=Reverse, 1=Neutral, 2=1st, 3=2nd, ΓÇª
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::lfs::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\nascar.rs:59:1
+    |
+ 59 | const OFF_GEAR: usize = 68;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::nascar::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\pcars2.rs:43:1
+    |
+ 43 | const OFF_GEAR: usize = 80;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::pcars2::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\raceroom.rs:43:1
+    |
+ 43 | const OFF_GEAR: usize = 730;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::raceroom::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\rbr.rs:32:1
+    |
+ 32 | const OFF_GEAR: usize = 64;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::rbr::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\rennsport.rs:43:1
+    |
+ 43 | const OFF_GEAR: usize = 12;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::rennsport::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wrc_generations.rs:44:1
+    |
+ 44 | const OFF_GEAR: usize = 124;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wrc_generations::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wreckfest.rs:43:1
+    |
+ 43 | const OFF_GEAR: usize = 16;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wreckfest::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wtcr.rs:44:1
+    |
+ 44 | const OFF_GEAR: usize = 124;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wtcr::OFF_GEAR`: not accessible
+
+error[E0425]: cannot find value `OFF_GEAR` in this scope
+   --> crates\telemetry-adapters\src\forza.rs:474:24
+    |
+474 |         data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&gear.to_le_bytes());
+    |                        ^^^^^^^^ not found in this scope
+    |
+note: these constants exist but are inaccessible
+   --> crates\telemetry-adapters\src\assetto_corsa.rs:24:1
+    |
+ 24 | const OFF_GEAR: usize = 16;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::assetto_corsa::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\automobilista.rs:59:1
+    |
+ 59 | const OFF_GEAR: usize = 360; // i32 (-1=reverse, 0=neutral, 1+=fwd)
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::automobilista::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\beamng.rs:25:1
+    |
+ 25 | const OFF_GEAR: usize = 10; // i8 (char in C): 0=R, 1=N, 2=1st, 3=2nd, ΓÇª
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::beamng::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt4.rs:43:1
+    |
+ 43 | const OFF_GEAR: usize = 124;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt4::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt_rally_2.rs:43:1
+    |
+ 43 | const OFF_GEAR: usize = 124;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt_rally_2::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\ets2.rs:33:1
+    |
+ 33 | const OFF_GEAR: usize = 12; // i32  >0=forward, <0=reverse, 0=neutral
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::ets2::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_2019.rs:44:1
+    |
+ 44 | const OFF_GEAR: usize = 124;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_2019::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_autosport.rs:44:1
+    |
+ 44 | const OFF_GEAR: usize = 124;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_autosport::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_legends.rs:44:1
+    |
+ 44 | const OFF_GEAR: usize = 124;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_legends::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\le_mans_ultimate.rs:38:1
+    |
+ 38 | const OFF_GEAR: usize = 8;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::le_mans_ultimate::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\lfs.rs:24:1
+    |
+ 24 | const OFF_GEAR: usize = 10; // u8: 0=Reverse, 1=Neutral, 2=1st, 3=2nd, ΓÇª
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::lfs::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\nascar.rs:59:1
+    |
+ 59 | const OFF_GEAR: usize = 68;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::nascar::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\pcars2.rs:43:1
+    |
+ 43 | const OFF_GEAR: usize = 80;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::pcars2::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\raceroom.rs:43:1
+    |
+ 43 | const OFF_GEAR: usize = 730;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::raceroom::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\rbr.rs:32:1
+    |
+ 32 | const OFF_GEAR: usize = 64;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::rbr::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\rennsport.rs:43:1
+    |
+ 43 | const OFF_GEAR: usize = 12;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::rennsport::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wrc_generations.rs:44:1
+    |
+ 44 | const OFF_GEAR: usize = 124;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wrc_generations::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wreckfest.rs:43:1
+    |
+ 43 | const OFF_GEAR: usize = 16;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wreckfest::OFF_GEAR`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wtcr.rs:44:1
+    |
+ 44 | const OFF_GEAR: usize = 124;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wtcr::OFF_GEAR`: not accessible
+
+error[E0425]: cannot find value `OFF_STEER` in this scope
+   --> crates\telemetry-adapters\src\forza.rs:475:14
+    |
+475 |         data[OFF_STEER..OFF_STEER + 4].copy_from_slice(&steer.to_le_bytes());
+    |              ^^^^^^^^^ not found in this scope
+    |
+note: these constants exist but are inaccessible
+   --> crates\telemetry-adapters\src\assetto_corsa.rs:28:1
+    |
+ 28 | const OFF_STEER: usize = 64;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::assetto_corsa::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt4.rs:41:1
+    |
+ 41 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt4::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt_rally_2.rs:41:1
+    |
+ 41 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt_rally_2::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_2019.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_2019::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_autosport.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_autosport::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_legends.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_legends::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\nascar.rs:63:1
+    |
+ 63 | const OFF_STEER: usize = 88;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::nascar::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wrc_generations.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wrc_generations::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wtcr.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wtcr::OFF_STEER`: not accessible
+
+error[E0425]: cannot find value `OFF_STEER` in this scope
+   --> crates\telemetry-adapters\src\forza.rs:475:25
+    |
+475 |         data[OFF_STEER..OFF_STEER + 4].copy_from_slice(&steer.to_le_bytes());
+    |                         ^^^^^^^^^ not found in this scope
+    |
+note: these constants exist but are inaccessible
+   --> crates\telemetry-adapters\src\assetto_corsa.rs:28:1
+    |
+ 28 | const OFF_STEER: usize = 64;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::assetto_corsa::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt4.rs:41:1
+    |
+ 41 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt4::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt_rally_2.rs:41:1
+    |
+ 41 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt_rally_2::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_2019.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_2019::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_autosport.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_autosport::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_legends.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_legends::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\nascar.rs:63:1
+    |
+ 63 | const OFF_STEER: usize = 88;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::nascar::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wrc_generations.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wrc_generations::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wtcr.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wtcr::OFF_STEER`: not accessible
+
+error[E0425]: cannot find value `OFF_STEER` in this scope
+   --> crates\telemetry-adapters\src\forza.rs:608:18
+    |
+608 |             data[OFF_STEER..OFF_STEER + 4].copy_from_slice(&steer.to_le_bytes());
+    |                  ^^^^^^^^^ not found in this scope
+    |
+note: these constants exist but are inaccessible
+   --> crates\telemetry-adapters\src\assetto_corsa.rs:28:1
+    |
+ 28 | const OFF_STEER: usize = 64;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::assetto_corsa::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt4.rs:41:1
+    |
+ 41 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt4::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt_rally_2.rs:41:1
+    |
+ 41 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt_rally_2::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_2019.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_2019::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_autosport.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_autosport::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_legends.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_legends::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\nascar.rs:63:1
+    |
+ 63 | const OFF_STEER: usize = 88;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::nascar::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wrc_generations.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wrc_generations::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wtcr.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wtcr::OFF_STEER`: not accessible
+
+error[E0425]: cannot find value `OFF_STEER` in this scope
+   --> crates\telemetry-adapters\src\forza.rs:608:29
+    |
+608 |             data[OFF_STEER..OFF_STEER + 4].copy_from_slice(&steer.to_le_bytes());
+    |                             ^^^^^^^^^ not found in this scope
+    |
+note: these constants exist but are inaccessible
+   --> crates\telemetry-adapters\src\assetto_corsa.rs:28:1
+    |
+ 28 | const OFF_STEER: usize = 64;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::assetto_corsa::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt4.rs:41:1
+    |
+ 41 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt4::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\dirt_rally_2.rs:41:1
+    |
+ 41 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::dirt_rally_2::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_2019.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_2019::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_autosport.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_autosport::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\grid_legends.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::grid_legends::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\nascar.rs:63:1
+    |
+ 63 | const OFF_STEER: usize = 88;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::nascar::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wrc_generations.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wrc_generations::OFF_STEER`: not accessible
+    |
+   ::: crates\telemetry-adapters\src\wtcr.rs:42:1
+    |
+ 42 | const OFF_STEER: usize = 112;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::wtcr::OFF_STEER`: not accessible
+
+warning: constant `OFF_ENGINE_IDLE_RPM` is never used
+  --> crates\telemetry-adapters\src\forza.rs:42:7
+   |
+42 | const OFF_ENGINE_IDLE_RPM: usize = 12; // f32 (unused but documented)
+   |       ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `OFF_ACCEL_Y` is never used
+  --> crates\telemetry-adapters\src\forza.rs:46:7
+   |
+46 | const OFF_ACCEL_Y: usize = 24; // f32 ΓÇô vertical (up = positive)
+   |       ^^^^^^^^^^^
+
+warning: `racing-wheel-telemetry-adapters` (lib) generated 2 warnings
+error[E0432]: unresolved imports `racing_wheel_telemetry_adapters::DakarDesertRallyAdapter`, `racing_wheel_telemetry_adapters::FlatOutAdapter`
+  --> crates\telemetry-adapters\tests\new_games_integration_tests.rs:11:5
+   |
+11 |     DakarDesertRallyAdapter, Dirt4Adapter, Ets2Adapter, FlatOutAdapter, LFSAdapter, PCars2Adapter,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^                             ^^^^^^^^^^^^^^ no `FlatOutAdapter` in the root
+   |     |
+   |     no `DakarDesertRallyAdapter` in the root
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `racing-wheel-telemetry-adapters` (test "new_games_integration_tests") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `racing-wheel-telemetry-adapters` (lib test) due to 10 previous errors
