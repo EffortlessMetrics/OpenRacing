@@ -1,0 +1,6 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_tests.rs
+assertion_line: 45
+expression: "format!(\"hat={:?}\", report.hat_direction())"
+---
+"hat=Right"

@@ -1,0 +1,6 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_tests.rs
+assertion_line: 127
+expression: "format!(\"{:?}\", types)"
+---
+"[(\"simple\", Simple), (\"standard\", Standard), (\"extended\", Extended)]"

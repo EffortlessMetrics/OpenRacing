@@ -1,0 +1,6 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_tests.rs
+assertion_line: 56
+expression: "format!(\"buttons={:#010x}, axis_x={}, axis_y={}, axis_z={}, axis_rz={}, hat={:?}\",\nreport.buttons, report.axis_x, report.axis_y, report.axis_z, report.axis_rz,\nreport.hat_direction())"
+---
+"buttons=0x00000000, axis_x=0, axis_y=0, axis_z=0, axis_rz=0, hat=Up"
