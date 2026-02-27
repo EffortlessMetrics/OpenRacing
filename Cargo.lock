@@ -5513,6 +5513,7 @@ dependencies = [
  "racing-wheel-hid-cammus-protocol",
  "racing-wheel-hid-fanatec-protocol",
  "racing-wheel-hid-ffbeast-protocol",
+ "racing-wheel-hid-leo-bodnar-protocol",
  "racing-wheel-hid-logitech-protocol",
  "racing-wheel-hid-moza-protocol",
  "racing-wheel-hid-openffboard-protocol",

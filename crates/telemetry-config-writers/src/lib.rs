@@ -133,6 +133,10 @@ fn new_rennsport_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(RennsportConfigWriter)
 }
 
+fn new_raceroom_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(RaceRoomConfigWriter)
+}
+
 /// Returns the canonical config writer registry for all supported integrations.
 pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory)] {
     &[
@@ -155,6 +159,7 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("ats", new_ats_config_writer),
         ("wreckfest", new_wreckfest_config_writer),
         ("rennsport", new_rennsport_config_writer),
+        ("raceroom", new_raceroom_config_writer),
     ]
 }
 
@@ -209,6 +214,9 @@ const WRECKFEST_DEFAULT_PORT: u16 = 5606;
 const RENNSPORT_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/rennsport_bridge_contract.json";
 const RENNSPORT_BRIDGE_PROTOCOL: &str = "udp_rennsport";
 const RENNSPORT_DEFAULT_PORT: u16 = 9000;
+
+const RACEROOM_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/raceroom_bridge_contract.json";
+const RACEROOM_BRIDGE_PROTOCOL: &str = "r3e_shared_memory";
 
 /// iRacing configuration writer
 pub struct IRacingConfigWriter;
@@ -2091,6 +2099,66 @@ impl ConfigWriter for RennsportConfigWriter {
         });
         Ok(vec![ConfigDiff {
             file_path: RENNSPORT_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// RaceRoom Racing Experience configuration writer (R3E shared memory)
+pub struct RaceRoomConfigWriter;
+
+impl Default for RaceRoomConfigWriter {
+    fn default() -> Self { Self }
+}
+
+impl ConfigWriter for RaceRoomConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing RaceRoom bridge contract configuration");
+        let contract_path = game_path.join(RACEROOM_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before { Some(fs::read_to_string(&contract_path)?) } else { None };
+        let contract = serde_json::json!({
+            "game_id": "raceroom",
+            "telemetry_protocol": RACEROOM_BRIDGE_PROTOCOL,
+            "shared_memory_name": "Local\\$R3E",
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "R3E shared memory is Windows-only. RaceRoom writes to Local\\$R3E automatically when running. No in-game settings required. Supported SDK version: 2.x",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() { fs::create_dir_all(parent)?; }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before { DiffOperation::Modify } else { DiffOperation::Add },
+        }])
+    }
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(RACEROOM_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() { return Ok(false); }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value.get("game_id").and_then(Value::as_str).map(|v| v == "raceroom").unwrap_or(false))
+    }
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let contract = serde_json::json!({
+            "game_id": "raceroom",
+            "telemetry_protocol": RACEROOM_BRIDGE_PROTOCOL,
+            "shared_memory_name": "Local\\$R3E",
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "R3E shared memory is Windows-only. RaceRoom writes to Local\\$R3E automatically when running. No in-game settings required. Supported SDK version: 2.x",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: RACEROOM_BRIDGE_RELATIVE_PATH.to_string(),
             section: None,
             key: "entire_file".to_string(),
             old_value: None,
