@@ -22,11 +22,23 @@ Every time a game is added, both files must be updated manually. When they diver
 
 **Update (CI check):** `.github/workflows/yaml-sync-check.yml` + `scripts/check_yaml_sync.py` confirmed present. The workflow runs on every push/PR and fails with a clear diff message if the files diverge.
 
-**Current state:** The files still differ by 6 lines — `dirt_rally_2` in the telemetry-config YAML has additional `supported_fields` entries (`flags`, `steering_angle`, `tire_temps_c`, `tire_pressures_psi`, `fuel_percent`) not present in the telemetry-support YAML. Additionally, `raceroom` was missing from both files (now fixed in this commit via `game_coverage_tests.rs`). The single-source-of-truth refactor remains pending.
+**Update (sync script):** `scripts/sync_yaml.py` added — run `python scripts/sync_yaml.py --fix` after editing the canonical file to keep both files in sync. See F-013 (Resolved). The single-source-of-truth refactor remains a long-term goal.
+
+**Current state:** Files are now identical. The `dirt_rally_2` content divergence (6 lines of `supported_fields`) and `raceroom` omission were resolved. See F-013.
 
 ---
 
-### F-002 · Duplicate config writer registration (High · Open)
+### F-013 · No developer-facing sync tool for game support matrix (Medium · Resolved)
+
+**Encountered:** RC sprint / feat/r5-test-coverage-and-integration — F-001 kept recurring because developers had no easy command to sync the two YAML files after editing the canonical one.
+
+The CI check (`check_yaml_sync.py`) would catch divergence at PR time, but offered no fix path — developers had to manually copy the file or hunt down the right diff. This caused repeated F-001/F-013 CI failures.
+
+**Fix applied:** `scripts/sync_yaml.py` added. Run `python scripts/sync_yaml.py --fix` after editing `crates/telemetry-config/src/game_support_matrix.yaml` to copy it to the mirror. Use `--check` in CI or pre-commit hooks to verify without writing. Documented in `docs/DEVELOPMENT.md` under "Keeping game support matrix files in sync". Requires Python 3.8+, no external dependencies.
+
+---
+
+
 
 **Encountered:** RC sprint
 
@@ -173,7 +185,7 @@ No compile-time help distinguishes "this is a renamed constant" from "this const
 | F-009 | static_mut_refs missing | commit cdd69f0 |
 | F-010 | Stale integration test name | agent-30 |
 | F-011 | Linux emit_rt_event borrow error | commit 1c3fea5 |
-| F-012 | Manual telemetry config per game | game_auto_configure + game_telemetry_bridge |
+| F-013 | No developer sync tool for game support matrix | scripts/sync_yaml.py |
 
 ---
 

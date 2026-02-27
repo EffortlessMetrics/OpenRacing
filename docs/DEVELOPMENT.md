@@ -203,10 +203,32 @@ All safety-critical code must follow these guidelines:
 - `scripts/validate_performance.py`: Performance gate validation
 - `scripts/validate_adr.py`: ADR format and reference validation
 - `scripts/generate_docs_index.py`: Documentation index generation
+- `scripts/sync_yaml.py`: Game support matrix YAML sync tool (see below)
 - `benches/rt_timing.rs`: Real-time performance benchmarks
 - `deny.toml`: Dependency and license configuration
 - `clippy.toml`: Linting configuration
 - `rustfmt.toml`: Code formatting configuration
+
+### Keeping game support matrix files in sync
+
+Two YAML files must always be identical:
+
+- `crates/telemetry-config/src/game_support_matrix.yaml` (canonical — runtime)
+- `crates/telemetry-support/src/game_support_matrix.yaml` (mirror — tests)
+
+**Whenever you edit `crates/telemetry-config/src/game_support_matrix.yaml`, run:**
+
+```bash
+python scripts/sync_yaml.py --fix
+```
+
+This copies the canonical file to the mirror. To check without writing:
+
+```bash
+python scripts/sync_yaml.py --check   # exits 1 if files differ
+```
+
+The CI workflow (`.github/workflows/yaml-sync-check.yml`) enforces this on every push and PR.
 
 ## WSL + Nix CI Runner (Windows)
 
