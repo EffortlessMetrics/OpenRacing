@@ -1,0 +1,93 @@
+name: Mutation Tests (Safety-Critical Engine)
+
+# Triggered manually or on a weekly schedule.
+# NOT on every push — mutation testing is too slow for that.
+on:
+  workflow_dispatch:
+    inputs:
+      jobs:
+        description: "Parallel mutation-test jobs"
+        required: false
+        default: "4"
+      test_timeout:
+        description: "Per-mutant test timeout (seconds)"
+        required: false
+        default: "60"
+  schedule:
+    # Every Monday at 03:00 UTC
+    - cron: "0 3 * * 1"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  mutation-tests:
+    name: Mutation Tests — racing-wheel-engine
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-mutants-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-mutants-
+
+      - name: Install cargo-mutants
+        # Pin to a known-good version; bump intentionally.
+        run: cargo install cargo-mutants --version "^24" --locked
+
+      # Focus on safety-critical engine modules:
+      #   - safety.rs          (SafetyService, clamp_torque_nm, report_fault, state machine)
+      #   - safety/hardware_watchdog.rs  (SoftwareWatchdog, SafetyInterlockSystem)
+      #   - safety/fault_injection.rs   (FaultInjectionSystem)
+      #   - policies.rs        (SafetyPolicy, torque limits)
+      - name: Run mutation tests
+        run: |
+          cargo mutants \
+            --package racing-wheel-engine \
+            --test-timeout ${{ inputs.test_timeout || '60' }} \
+            --jobs ${{ inputs.jobs || '4' }} \
+            --output /tmp/mutants-out
+        # Remove the `# ` prefix above and below once cargo-mutants is confirmed
+        # available in the CI image, or keep the install step above.
+
+      - name: Upload mutation test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-test-results
+          path: /tmp/mutants-out/
+          retention-days: 30
+
+      - name: Summarise results
+        if: always()
+        run: |
+          OUTCOMES=/tmp/mutants-out/mutants.out/outcomes.json
+          if [ -f "$OUTCOMES" ]; then
+            echo "## Mutation Test Results" >> "$GITHUB_STEP_SUMMARY"
+            CAUGHT=$(jq   '[.[] | select(.summary=="caught")]   | length' "$OUTCOMES")
+            SURVIVED=$(jq '[.[] | select(.summary=="survived")] | length' "$OUTCOMES")
+            TIMEOUT=$(jq  '[.[] | select(.summary=="timeout")]  | length' "$OUTCOMES")
+            echo "| Status   | Count |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|----------|-------|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| ✅ Caught   | $CAUGHT   |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| ❌ Survived | $SURVIVED |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| ⏱ Timeout  | $TIMEOUT  |" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$SURVIVED" -gt 0 ]; then
+              echo ""
+              echo "::error::$SURVIVED mutant(s) survived — add tests to kill them."
+              exit 1
+            fi
+          fi

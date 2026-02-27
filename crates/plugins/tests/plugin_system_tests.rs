@@ -350,6 +350,224 @@ fn test_plugin_context() {
     assert_eq!(context.budget_us, 5000);
 }
 
+// ============================================================
+// Additional Plugin System Tests
+// ============================================================
+
+/// WAT for a minimal valid plugin (passthrough process).
+const PASSTHROUGH_WAT: &str = r#"
+(module
+    (memory (export "memory") 1)
+    (func (export "process") (param f32 f32) (result f32)
+        local.get 0
+    )
+)
+"#;
+
+/// WAT for a plugin whose process function hits an unreachable trap.
+const TRAP_WAT: &str = r#"
+(module
+    (memory (export "memory") 1)
+    (func (export "process") (param f32 f32) (result f32)
+        unreachable
+    )
+)
+"#;
+
+/// WASM sandbox isolation: a plugin granted only ReadTelemetry cannot use DSP or LED.
+#[test]
+fn test_wasm_sandbox_capability_isolation_read_only() {
+    use racing_wheel_plugins::capability::CapabilityChecker;
+    use racing_wheel_plugins::manifest::Capability;
+
+    let checker = CapabilityChecker::new(vec![Capability::ReadTelemetry]);
+
+    assert!(checker.check_telemetry_read().is_ok());
+    assert!(checker.check_telemetry_modify().is_err());
+    assert!(checker.check_dsp_processing().is_err());
+    assert!(checker.check_led_control().is_err());
+}
+
+/// WASM sandbox: filesystem capability limits access to declared paths only.
+#[test]
+fn test_wasm_sandbox_filesystem_path_enforcement() {
+    use racing_wheel_plugins::capability::CapabilityChecker;
+    use racing_wheel_plugins::manifest::Capability;
+
+    let checker = CapabilityChecker::new(vec![Capability::FileSystem {
+        paths: vec!["/tmp/plugins".to_string()],
+    }]);
+
+    assert!(
+        checker
+            .check_file_access(std::path::Path::new("/tmp/plugins/data.bin"))
+            .is_ok()
+    );
+    assert!(
+        checker
+            .check_file_access(std::path::Path::new("/etc/shadow"))
+            .is_err()
+    );
+    assert!(
+        checker
+            .check_file_access(std::path::Path::new("/tmp/other/file.txt"))
+            .is_err()
+    );
+}
+
+/// WASM sandbox: network capability is denied when not granted.
+#[test]
+fn test_wasm_sandbox_network_capability_enforcement() {
+    use racing_wheel_plugins::capability::CapabilityChecker;
+    use racing_wheel_plugins::manifest::Capability;
+
+    // No Network capability granted
+    let checker = CapabilityChecker::new(vec![Capability::ReadTelemetry]);
+    assert!(checker.check_network_access("telemetry.example.com").is_err());
+
+    // With specific host granted
+    let checker_with_net = CapabilityChecker::new(vec![Capability::Network {
+        hosts: vec!["telemetry.example.com".to_string()],
+    }]);
+    assert!(
+        checker_with_net
+            .check_network_access("telemetry.example.com")
+            .is_ok()
+    );
+    assert!(
+        checker_with_net
+            .check_network_access("malicious.example.com")
+            .is_err()
+    );
+}
+
+/// Native plugin signature verification: strict config rejects unsigned plugins.
+#[test]
+fn test_native_plugin_signature_config_strict_rejects_unsigned() {
+    use racing_wheel_plugins::native::NativePluginConfig;
+
+    let strict = NativePluginConfig::strict();
+    assert!(
+        !strict.allow_unsigned,
+        "Strict mode must not allow unsigned plugins"
+    );
+    assert!(
+        strict.require_signatures,
+        "Strict mode must require signatures"
+    );
+
+    let dev = NativePluginConfig::development();
+    assert!(
+        dev.allow_unsigned,
+        "Development mode should allow unsigned plugins"
+    );
+    assert!(
+        !dev.require_signatures,
+        "Development mode should not require signatures"
+    );
+}
+
+/// Native plugin load rejects an unsigned library file under strict (default) config.
+#[tokio::test]
+async fn test_native_plugin_load_rejects_unsigned_library() {
+    use racing_wheel_plugins::native::NativePluginHost;
+
+    let temp_dir = must(tempdir());
+    let plugin_subdir = temp_dir.path().join("unsigned-native-plugin");
+    must(fs::create_dir_all(&plugin_subdir).await);
+
+    let lib_name = if cfg!(windows) {
+        "plugin.dll"
+    } else if cfg!(target_os = "macos") {
+        "plugin.dylib"
+    } else {
+        "plugin.so"
+    };
+
+    // Write a fake (non-signed) library file — no companion .sig file
+    must(fs::write(plugin_subdir.join(lib_name), b"not a real library").await);
+
+    // new_with_defaults uses strict config (allow_unsigned = false)
+    let host = NativePluginHost::new_with_defaults();
+
+    let fake_path = plugin_subdir.join(lib_name);
+    let result = host
+        .load_plugin(uuid::Uuid::new_v4(), "unsigned-test".to_string(), &fake_path, 1000)
+        .await;
+
+    assert!(
+        result.is_err(),
+        "Should reject an unsigned native plugin under strict config"
+    );
+}
+
+/// Crash isolation: a trapping WASM plugin does not affect other loaded plugins.
+#[test]
+fn test_plugin_crash_isolation_does_not_affect_sibling() -> Result<(), Box<dyn std::error::Error>>
+{
+    use racing_wheel_plugins::wasm::{PluginId, WasmRuntime};
+
+    let crash_bytes = wat::parse_str(TRAP_WAT)?;
+    let good_bytes = wat::parse_str(PASSTHROUGH_WAT)?;
+
+    let mut runtime = WasmRuntime::new()?;
+
+    let crash_id = PluginId::new_v4();
+    let good_id = PluginId::new_v4();
+
+    runtime.load_plugin_from_bytes(crash_id, &crash_bytes, vec![])?;
+    runtime.load_plugin_from_bytes(good_id, &good_bytes, vec![])?;
+
+    // Execute the crashing plugin — expect an error (trap)
+    let crash_result = runtime.process(&crash_id, 0.5, 0.001);
+    assert!(
+        crash_result.is_err(),
+        "Trapping plugin must return an error"
+    );
+
+    // The sibling plugin must still be executable
+    let good_result = runtime.process(&good_id, 0.5, 0.001)?;
+    assert!(
+        good_result.is_finite(),
+        "Sibling plugin must still produce a finite output"
+    );
+
+    Ok(())
+}
+
+/// Plugin lifecycle: load → process → unload without leaving orphaned state.
+#[test]
+fn test_plugin_lifecycle_load_process_unload() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_plugins::wasm::{PluginId, WasmRuntime};
+
+    let wasm_bytes = wat::parse_str(PASSTHROUGH_WAT)?;
+    let mut runtime = WasmRuntime::new()?;
+    let plugin_id = PluginId::new_v4();
+
+    // Load
+    runtime.load_plugin_from_bytes(plugin_id, &wasm_bytes, vec![])?;
+    assert!(
+        runtime.has_plugin(&plugin_id),
+        "Plugin should be present after load"
+    );
+
+    // Process
+    let output = runtime.process(&plugin_id, 0.75, 0.001)?;
+    assert!(
+        (output - 0.75).abs() < f32::EPSILON,
+        "Passthrough plugin should return the input unchanged"
+    );
+
+    // Unload
+    runtime.unload_plugin(&plugin_id)?;
+    assert!(
+        !runtime.has_plugin(&plugin_id),
+        "Plugin should be absent after unload"
+    );
+
+    Ok(())
+}
+
 /// Integration test for complete plugin workflow
 #[tokio::test]
 async fn test_plugin_workflow_integration() {
