@@ -34,6 +34,7 @@ members = [
     "crates/openracing-watchdog",
     "crates/openracing-hardware-watchdog",
     "crates/openracing-profile-repository",
+    "crates/openracing-profile",
     "crates/openracing-firmware-update",
     "crates/openracing-ipc",
     "crates/openracing-diagnostic",

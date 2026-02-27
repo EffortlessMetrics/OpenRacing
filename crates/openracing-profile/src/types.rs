@@ -7,7 +7,12 @@ pub struct WheelProfile {
     pub id: String,
     pub name: String,
     pub device_id: String,
+    /// User-facing revision counter (incremented on each save).
     pub version: u32,
+    /// Schema format version for migration tracking.
+    /// Old profiles without this field deserialize as 0.
+    #[serde(default)]
+    pub schema_version: u32,
     pub settings: WheelSettings,
     pub created_at: u64,
     pub modified_at: u64,
@@ -25,6 +30,7 @@ impl WheelProfile {
             name: name.into(),
             device_id: device_id.into(),
             version: 1,
+            schema_version: crate::CURRENT_SCHEMA_VERSION,
             settings: WheelSettings::default(),
             created_at: now,
             modified_at: now,
