@@ -179,7 +179,9 @@ proptest! {
             || (vid == vendor_ids::SIMAGIC_MODERN
                 && matches!(pid, 0x1001 | 0x1002 | 0x1003 | 0x2001 | 0x2002 | 0x3001))
             // Simucube ActivePedal and Wireless Wheel
-            || (vid == vendor_ids::SIMUCUBE && matches!(pid, 0x0201 | 0x0301));
+            || (vid == vendor_ids::SIMUCUBE && matches!(pid, 0x0201 | 0x0301))
+            // Generic HID button boxes (input-only)
+            || vid == vendor_ids::GENERIC_HID;
         if is_non_ffb_peripheral {
             prop_assert_eq!(
                 caps.max_torque.value(),

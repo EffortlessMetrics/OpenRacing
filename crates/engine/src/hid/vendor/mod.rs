@@ -5,6 +5,7 @@
 #![deny(static_mut_refs)]
 
 pub mod asetek;
+pub mod button_box;
 pub mod fanatec;
 pub mod heusinkveld;
 pub mod logitech;
@@ -12,11 +13,14 @@ pub mod moza;
 pub mod moza_direct;
 pub mod simagic;
 pub mod simucube;
+pub mod simplemotion;
 pub mod thrustmaster;
 pub mod vrs;
 
 #[cfg(test)]
 mod asetek_tests;
+#[cfg(test)]
+mod button_box_tests;
 #[cfg(test)]
 mod fanatec_tests;
 #[cfg(test)]
@@ -29,6 +33,8 @@ mod moza_tests;
 mod simagic_tests;
 #[cfg(test)]
 mod simucube_tests;
+#[cfg(test)]
+mod simplemotion_tests;
 #[cfg(test)]
 mod thrustmaster_tests;
 #[cfg(test)]
@@ -79,6 +85,20 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
         0x2E5A => Some(Box::new(asetek::AsetekProtocolHandler::new(
             vendor_id, product_id,
         ))),
+        // Granite Devices SimpleMotion V2 (IONI, ARGON, OSW)
+        0x1D50 => Some(Box::new(simplemotion::SimpleMotionProtocolHandler::new(
+            vendor_id, product_id,
+        ))),
+        // Generic HID button boxes (pid.codes VID)
+        0x1209 => {
+            if button_box::is_button_box_product(product_id) {
+                Some(Box::new(button_box::ButtonBoxProtocolHandler::new(
+                    vendor_id, product_id,
+                )))
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

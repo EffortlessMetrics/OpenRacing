@@ -307,6 +307,10 @@ pub mod vendor_ids {
     pub const SIMUCUBE: u16 = 0x2D6A;
     /// Asetek SimSports
     pub const ASETEK: u16 = 0x2E5A;
+    /// Granite Devices SimpleMotion V2 (IONI, ARGON, OSW)
+    pub const GRANITE_DEVICES: u16 = 0x1D50;
+    /// Generic HID (pid.codes shared VID — button boxes etc.)
+    pub const GENERIC_HID: u16 = 0x1209;
 }
 
 /// Known racing wheel product IDs organized by vendor
@@ -437,6 +441,28 @@ impl SupportedDevices {
             (vendor_ids::ASETEK, 0x0001, "Asetek Forte"),
             (vendor_ids::ASETEK, 0x0002, "Asetek Invicta"),
             (vendor_ids::ASETEK, 0x0003, "Asetek LaPrima"),
+            // Granite Devices SimpleMotion V2 (IONI, ARGON, OSW)
+            (
+                vendor_ids::GRANITE_DEVICES,
+                0x6050,
+                "Granite Devices IONI / Simucube 1 / OSW",
+            ),
+            (
+                vendor_ids::GRANITE_DEVICES,
+                0x6051,
+                "Granite Devices IONI Premium / Simucube 2",
+            ),
+            (
+                vendor_ids::GRANITE_DEVICES,
+                0x6052,
+                "Granite Devices ARGON / Simucube Sport",
+            ),
+            // Generic HID button boxes
+            (
+                vendor_ids::GENERIC_HID,
+                0x1BBD,
+                "Generic HID Button Box",
+            ),
         ]
     }
 
@@ -453,6 +479,8 @@ impl SupportedDevices {
             vendor_ids::SIMAGIC_MODERN,
             vendor_ids::SIMUCUBE,
             vendor_ids::ASETEK,
+            vendor_ids::GRANITE_DEVICES,
+            vendor_ids::GENERIC_HID,
         ]
     }
 
@@ -487,6 +515,8 @@ impl SupportedDevices {
             vendor_ids::SIMAGIC_MODERN => "Simagic",
             vendor_ids::SIMUCUBE => "Granite Devices",
             vendor_ids::ASETEK => "Asetek SimSports",
+            vendor_ids::GRANITE_DEVICES => "Granite Devices",
+            vendor_ids::GENERIC_HID => "Generic HID",
             _ => "Unknown",
         }
     }
@@ -659,7 +689,9 @@ fn enumerate_hid_devices(
         let vendor_id = device_info.vendor_id();
         let product_id = device_info.product_id();
 
-        if !SupportedDevices::is_supported_vendor(vendor_id) {
+        if !SupportedDevices::is_supported_vendor(vendor_id)
+            && !SupportedDevices::is_supported(vendor_id, product_id)
+        {
             continue;
         }
 
@@ -880,8 +912,10 @@ impl WindowsHidPort {
                 let vendor_id = device_info.vendor_id();
                 let product_id = device_info.product_id();
 
-                // Check if this is a supported racing wheel vendor
-                if !SupportedDevices::is_supported_vendor(vendor_id) {
+                // Check if this is a supported racing wheel vendor or a specifically supported device
+                if !SupportedDevices::is_supported_vendor(vendor_id)
+                    && !SupportedDevices::is_supported(vendor_id, product_id)
+                {
                     continue;
                 }
 
@@ -1429,6 +1463,35 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                 0x0003 => { capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque); } // LaPrima
                 _ => { capabilities.max_torque = TorqueNm::new(20.0).unwrap_or(capabilities.max_torque); }
             }
+        }
+        vendor_ids::GRANITE_DEVICES => {
+            capabilities.supports_raw_torque_1khz = true;
+            capabilities.encoder_cpr = u16::MAX; // 17-bit actual (131072 CPR), capped
+            capabilities.min_report_period_us = 1000; // 1kHz
+            match product_id {
+                0x6050 => {
+                    // IONI / Simucube 1 / OSW
+                    capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
+                }
+                0x6051 => {
+                    // IONI Premium / Simucube 2
+                    capabilities.max_torque = TorqueNm::new(35.0).unwrap_or(capabilities.max_torque);
+                }
+                0x6052 => {
+                    // ARGON / Simucube Sport
+                    capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
+                }
+                _ => {
+                    capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
+                }
+            }
+        }
+        vendor_ids::GENERIC_HID => {
+            // Generic HID devices (button boxes, DIY hardware) — input-only
+            capabilities.supports_pid = false;
+            capabilities.supports_raw_torque_1khz = false;
+            capabilities.max_torque = TorqueNm::ZERO;
+            // Keep default encoder_cpr (900) — must remain non-zero
         }
         _ => {
             // Unknown vendor - use conservative defaults
