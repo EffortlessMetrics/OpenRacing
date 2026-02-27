@@ -19,6 +19,7 @@ members = [
     "crates/hid-button-box-protocol",
     "crates/hid-openffboard-protocol",
     "crates/hid-ffbeast-protocol",
+    "crates/hid-cammus-protocol",
     "crates/simplemotion-v2",
     "crates/openracing-atomic",
     "crates/openracing-tracing",
@@ -58,6 +59,7 @@ members = [
     "crates/telemetry-config",
     "crates/telemetry-adapters",
     "crates/telemetry-recorder",
+    "crates/telemetry-config-writers",
     "workspace-hack",
   ]
 exclude = ["third_party/shared_memory", "fuzz"]

@@ -5488,6 +5488,7 @@ dependencies = [
  "quickcheck",
  "quickcheck_macros",
  "racing-wheel-engine",
+ "racing-wheel-hid-cammus-protocol",
  "racing-wheel-hid-fanatec-protocol",
  "racing-wheel-hid-ffbeast-protocol",
  "racing-wheel-hid-logitech-protocol",
@@ -5519,6 +5520,10 @@ dependencies = [
 
 [[package]]
 name = "racing-wheel-hbp"
+version = "0.1.0"
+
+[[package]]
+name = "racing-wheel-hid-cammus-protocol"
 version = "0.1.0"
 
 [[package]]
@@ -5816,6 +5821,17 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "tempfile",
+ "tracing",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-config-writers"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
  "tempfile",
  "tracing",
 ]

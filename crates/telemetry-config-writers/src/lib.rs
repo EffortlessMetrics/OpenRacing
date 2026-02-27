@@ -83,6 +83,14 @@ fn new_dirt5_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(Dirt5ConfigWriter)
 }
 
+fn new_dirt_rally_2_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(DirtRally2ConfigWriter)
+}
+
+fn new_rbr_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(RBRConfigWriter)
+}
+
 fn new_f1_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(F1ConfigWriter)
 }
@@ -103,6 +111,8 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("f1", new_f1_config_writer),
         ("f1_25", new_f1_25_config_writer),
         ("dirt5", new_dirt5_config_writer),
+        ("dirt_rally_2", new_dirt_rally_2_config_writer),
+        ("rbr", new_rbr_config_writer),
     ]
 }
 
@@ -117,6 +127,14 @@ const DIRT5_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/dirt5_bridge_cont
 const DIRT5_BRIDGE_PROTOCOL: &str = "codemasters_udp";
 const DIRT5_DEFAULT_PORT: u16 = 20777;
 const DIRT5_DEFAULT_MODE: u8 = 1;
+const DIRT_RALLY_2_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/dirt_rally_2_bridge_contract.json";
+const DIRT_RALLY_2_BRIDGE_PROTOCOL: &str = "codemasters_udp";
+const DIRT_RALLY_2_DEFAULT_PORT: u16 = 20777;
+const DIRT_RALLY_2_DEFAULT_MODE: u8 = 1;
+const RBR_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/rbr_bridge_contract.json";
+const RBR_BRIDGE_PROTOCOL: &str = "rbr_livedata_udp";
+const RBR_DEFAULT_PORT: u16 = 6776;
 const F1_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/f1_bridge_contract.json";
 const F1_BRIDGE_PROTOCOL: &str = "codemasters_udp";
 const F1_DEFAULT_PORT: u16 = 20777;
@@ -897,6 +915,210 @@ impl ConfigWriter for Dirt5ConfigWriter {
 
         Ok(vec![ConfigDiff {
             file_path: DIRT5_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// DiRT Rally 2.0 configuration writer.
+///
+/// DiRT Rally 2.0 uses the same Codemasters UDP Mode 1 format as DiRT 5.
+/// This writer creates a bridge contract file for the OpenRacing telemetry pipeline.
+pub struct DirtRally2ConfigWriter;
+
+impl Default for DirtRally2ConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for DirtRally2ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing DiRT Rally 2.0 bridge contract configuration");
+
+        let contract_path = game_path.join(DIRT_RALLY_2_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port =
+            parse_target_port(&config.output_target).unwrap_or(DIRT_RALLY_2_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "dirt_rally_2",
+            "telemetry_protocol": DIRT_RALLY_2_BRIDGE_PROTOCOL,
+            "mode": DIRT_RALLY_2_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "DiRT Rally 2.0 telemetry uses Codemasters UDP Mode 1. Enable UDP telemetry in the game's hardware settings.",
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(DIRT_RALLY_2_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == DIRT_RALLY_2_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "dirt_rally_2")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port =
+            parse_target_port(&config.output_target).unwrap_or(DIRT_RALLY_2_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "dirt_rally_2",
+            "telemetry_protocol": DIRT_RALLY_2_BRIDGE_PROTOCOL,
+            "mode": DIRT_RALLY_2_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "DiRT Rally 2.0 telemetry uses Codemasters UDP Mode 1. Enable UDP telemetry in the game's hardware settings.",
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: DIRT_RALLY_2_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Richard Burns Rally configuration writer.
+///
+/// RBR does not have native UDP telemetry output; it requires the RSF Rallysimfans plugin.
+/// This writer creates a bridge contract file documenting the expected UDP connection.
+pub struct RBRConfigWriter;
+
+impl Default for RBRConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for RBRConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing RBR bridge contract configuration");
+
+        let contract_path = game_path.join(RBR_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(RBR_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "rbr",
+            "telemetry_protocol": RBR_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "RBR requires the RSF Rallysimfans plugin for UDP telemetry. Configure the plugin to send LiveData to the OpenRacing port.",
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(RBR_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == RBR_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "rbr")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(RBR_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "rbr",
+            "telemetry_protocol": RBR_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "RBR requires the RSF Rallysimfans plugin for UDP telemetry. Configure the plugin to send LiveData to the OpenRacing port.",
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: RBR_BRIDGE_RELATIVE_PATH.to_string(),
             section: None,
             key: "entire_file".to_string(),
             old_value: None,

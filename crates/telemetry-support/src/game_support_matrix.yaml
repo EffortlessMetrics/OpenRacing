@@ -379,3 +379,128 @@ games:
         - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1238860"
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/Dirt 5"
+
+  gran_turismo_7:
+    name: "Gran Turismo 7"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "udp_salsa20_encrypted"
+        supported_fields:
+          - "rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "fuel_percent"
+          - "engine_temp_c"
+          - "tire_temps_c"
+    telemetry:
+      method: "udp_salsa20_encrypted"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "0.0.0.0:33740"
+      fields:
+        ffb_scalar: null
+        rpm: "engine_rpm"
+        speed_ms: "speed_ms"
+        slip_ratio: null
+        gear: "gear_byte_low_nibble"
+        flags: "flags_u32"
+        car_id: "car_code"
+        track_id: null
+    status: "experimental"
+    config_writer: null
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+
+  dirt_rally_2:
+    name: "DiRT Rally 2.0"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "dirtrally2.exe"
+          - "DiRTRally2.0.exe"
+        telemetry_method: "udp_codemasters_mode1"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "lateral_g"
+          - "longitudinal_g"
+    telemetry:
+      method: "udp_codemasters_mode1"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:20777"
+      fields:
+        ffb_scalar: "gforce_lat"
+        rpm: "rpm"
+        speed_ms: "wheel_speed_avg"
+        slip_ratio: null
+        gear: "gear"
+        flags: "in_pit"
+        car_id: null
+        track_id: null
+    status: "stable"
+    config_writer: "dirt_rally_2"
+    auto_detect:
+      process_names:
+        - "dirtrally2.exe"
+        - "DiRTRally2.0.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 690790"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/DiRT Rally 2.0"
+
+  rbr:
+    name: "Richard Burns Rally"
+    versions:
+      - version: "1.02 (community RSF)"
+        config_paths: []
+        executable_patterns:
+          - "RichardBurnsRally_SSE.exe"
+          - "RBR.exe"
+        telemetry_method: "udp_livedata"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "clutch"
+          - "steering_angle"
+          - "ffb_scalar"
+    telemetry:
+      method: "udp_livedata"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:6776"
+      fields:
+        ffb_scalar: "throttle_brake_diff"
+        rpm: "rpm"
+        speed_ms: "speed_ms"
+        slip_ratio: null
+        gear: "gear"
+        flags: "handbrake"
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "rbr"
+    auto_detect:
+      process_names:
+        - "RichardBurnsRally_SSE.exe"
+        - "RBR.exe"
+      install_registry_keys: []
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Richard Burns Rally"
+        - "Richard Burns Rally"

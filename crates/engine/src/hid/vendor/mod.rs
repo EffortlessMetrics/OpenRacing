@@ -6,6 +6,7 @@
 
 pub mod asetek;
 pub mod button_box;
+pub mod cammus;
 pub mod fanatec;
 pub mod heusinkveld;
 pub mod logitech;
@@ -23,6 +24,8 @@ pub mod vrs;
 mod asetek_tests;
 #[cfg(test)]
 mod button_box_tests;
+#[cfg(test)]
+mod cammus_tests;
 #[cfg(test)]
 mod fanatec_tests;
 #[cfg(test)]
@@ -113,6 +116,16 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
         0x045B => {
             if ffbeast::is_ffbeast_product(product_id) {
                 Some(Box::new(ffbeast::FFBeastHandler::new(vendor_id, product_id)))
+            } else {
+                None
+            }
+        }
+        // Cammus C5/C12 direct drive wheels
+        0x3285 => {
+            if cammus::is_cammus(vendor_id, product_id) {
+                Some(Box::new(cammus::CammusProtocolHandler::new(
+                    vendor_id, product_id,
+                )))
             } else {
                 None
             }
