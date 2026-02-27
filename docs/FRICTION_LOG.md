@@ -61,7 +61,7 @@ The Windows linker hits its PDB symbol table size limit when the integration tes
 
 ---
 
-### F-005 · Wrong protocol values in initial implementations (Medium · Open)
+### F-005 · Wrong protocol values in initial implementations (Medium · Resolved)
 
 **Encountered:** RC sprint — multiple vendor protocol crates had wrong VIDs/PIDs on creation, requiring a full web-verification pass (agent-26) to fix:
 - Cammus VID `0x3285 → 0x3416`
@@ -74,6 +74,8 @@ The Windows linker hits its PDB symbol table size limit when the integration tes
 Protocol values sourced from memory/guesses rather than verified sources.
 
 **Remedy:** Add a `docs/protocols/SOURCES.md` that records the authoritative source (USB descriptor dump, community wiki URL, official SDK) for every VID/PID. Require a source citation when adding a new device. Add a unit test that cross-references the IDs against a checked-in golden file so a stale value causes a test failure.
+
+**Fix applied:** `docs/protocols/SOURCES.md` added — tables every VID/PID for all 12 vendor protocol crates, with per-entry status (Verified / Community / Estimated) and source URLs. Unit tests added at `crates/hid-moza-protocol/tests/id_verification.rs` that assert all Moza VID/PID constants against the golden values in SOURCES.md, so any future stale constant causes a test failure.
 
 ---
 
@@ -146,6 +148,7 @@ No compile-time help distinguishes "this is a renamed constant" from "this const
 
 | ID | Title | Resolved In |
 |----|-------|-------------|
+| F-005 | Wrong protocol VID/PID values | SOURCES.md + id_verification.rs |
 | F-008 | BeamNG gear overflow | commit cdd69f0 |
 | F-009 | static_mut_refs missing | commit cdd69f0 |
 | F-010 | Stale integration test name | agent-30 |
