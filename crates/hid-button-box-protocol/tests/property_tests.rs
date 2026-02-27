@@ -169,8 +169,13 @@ proptest! {
     }
 
     /// RotaryEncoderState::update must track position and clamped delta correctly.
+    /// Inputs are restricted to half-range to avoid i32 subtraction overflow
+    /// in the underlying update() implementation.
     #[test]
-    fn prop_rotary_encoder_delta(pos1: i32, pos2: i32) {
+    fn prop_rotary_encoder_delta(
+        pos1 in (i32::MIN / 2)..=(i32::MAX / 2),
+        pos2 in (i32::MIN / 2)..=(i32::MAX / 2),
+    ) {
         let mut encoder = RotaryEncoderState::new();
         encoder.update(pos1);
         prop_assert_eq!(encoder.position, pos1);

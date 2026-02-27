@@ -2582,6 +2582,7 @@ dependencies = [
 name = "hid-button-box-protocol"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "openracing-hid-common",
  "proptest",
  "quickcheck",
