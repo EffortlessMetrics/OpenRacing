@@ -1,0 +1,6 @@
+---
+source: crates/hid-cammus-protocol/tests/snapshot_tests.rs
+assertion_line: 131
+expression: "format!(\"VID={:#06X}, C5_PID={:#06X}, C12_PID={:#06X}, \\\n         REPORT_LEN={}, FFB_REPORT_LEN={}, STEERING_RANGE={:.1}deg\",\ncammus::VENDOR_ID, cammus::PRODUCT_C5, cammus::PRODUCT_C12,\ncammus::REPORT_LEN, cammus::FFB_REPORT_LEN, cammus::STEERING_RANGE_DEG,)"
+---
+"VID=0x3416, C5_PID=0x0301, C12_PID=0x0302, REPORT_LEN=64, FFB_REPORT_LEN=8, STEERING_RANGE=1080.0deg"

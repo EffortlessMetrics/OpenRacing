@@ -1,0 +1,6 @@
+---
+source: crates/hid-cammus-protocol/tests/snapshot_tests.rs
+assertion_line: 146
+expression: "format!(\"{err}\")"
+---
+"report too short: got 3 bytes, need 12"
