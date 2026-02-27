@@ -18,9 +18,10 @@ exclude_globs = [
     "benches/**",
     "**/target/**",
     "**/build.rs",
+    "fuzz/**",
 ]
 
-# Timeout per test run (seconds)
+# 3x test timeout for mutation test runs
 timeout_multiplier = 3.0
 
 # Skip mutants in test-only code

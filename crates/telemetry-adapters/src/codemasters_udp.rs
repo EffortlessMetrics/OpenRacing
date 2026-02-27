@@ -423,6 +423,7 @@ fn field(name: &str, field_type: FieldType) -> FieldSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn parse_and_decode_builtin_mode_fields() -> Result<()> {
@@ -474,5 +475,27 @@ mod tests {
         assert_eq!(decoded.values.get("speed"), Some(&20.0));
         assert_eq!(decoded.values.get("enginerate"), Some(&90.0));
         Ok(())
+    }
+
+    proptest! {
+        #[test]
+        fn prop_decode_errors_on_short_input(data: Vec<u8>) {
+            let spec = CustomUdpSpec::from_mode(0);
+            let expected = spec.expected_bytes();
+            if data.len() < expected {
+                prop_assert!(spec.decode(&data).is_err());
+            } else {
+                prop_assert!(spec.decode(&data).is_ok());
+            }
+        }
+
+        #[test]
+        fn prop_decode_value_count_matches_non_fourcc_fields(data: Vec<u8>) {
+            let spec = CustomUdpSpec::from_mode(0);
+            let non_fourcc_count = spec.fields.iter().filter(|f| !matches!(f.field_type, FieldType::FourCC)).count();
+            if let Ok(decoded) = spec.decode(&data) {
+                prop_assert_eq!(decoded.values.len(), non_fourcc_count);
+            }
+        }
     }
 }

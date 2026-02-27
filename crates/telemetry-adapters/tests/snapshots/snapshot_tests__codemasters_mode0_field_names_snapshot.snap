@@ -1,0 +1,11 @@
+---
+source: crates/telemetry-adapters/tests/snapshot_tests.rs
+expression: names
+---
+- speed
+- enginerate
+- gear
+- steeringinput
+- throttleinput
+- brakeinput
+- clutchinput

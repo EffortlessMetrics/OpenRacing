@@ -1434,7 +1434,7 @@ mod tests {
         // Second: CarStatus — should now emit
         let status_pkt = build_car_status_packet(0, 20.0, 3_000_000.0, 1, 0, 18, 15000);
         let result2 = F1_25Adapter::process_packet(&mut state, &status_pkt)?;
-        let nt = result2.expect("should emit after both packets");
+        let nt = result2.ok_or("should emit after both packets")?;
 
         let speed_ms = nt.speed_ms;
         assert!((speed_ms - 150.0 / 3.6).abs() < 0.01);
@@ -1466,7 +1466,8 @@ mod tests {
 
         // Car status → triggers emission
         let status_pkt = build_car_status_packet(0, 15.0, 2_000_000.0, 0, 0, 13, 14000);
-        let nt = F1_25Adapter::process_packet(&mut state, &status_pkt)?.expect("should emit");
+        let nt = F1_25Adapter::process_packet(&mut state, &status_pkt)?
+            .ok_or("should emit")?;
 
         assert_eq!(nt.track_id, Some("Monza".to_string()));
         Ok(())

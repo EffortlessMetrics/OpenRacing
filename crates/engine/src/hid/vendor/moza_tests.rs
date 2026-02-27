@@ -192,7 +192,7 @@ fn test_moza_parse_aggregated_pedal_axes_rejects_wrong_report_id() {
 }
 
 #[test]
-fn test_moza_parse_input_state_populates_ks_snapshot() {
+fn test_moza_parse_input_state_populates_ks_snapshot() -> Result<(), Box<dyn std::error::Error>> {
     let protocol = MozaProtocol::new(product_ids::R5_V1);
 
     let report = [
@@ -233,13 +233,14 @@ fn test_moza_parse_input_state_populates_ks_snapshot() {
 
     let state = protocol
         .parse_input_state(&report)
-        .expect("expected wheelbase state parse");
+        .ok_or("expected wheelbase state parse")?;
 
     let expected_buttons = [0x01u8, 0x02, 0x03, 0x04];
     assert_eq!(&state.ks_snapshot.buttons[..4], &expected_buttons[..]);
     assert_eq!(state.ks_snapshot.hat, 0x11);
     assert_eq!(state.ks_snapshot.clutch_mode, KsClutchMode::Unknown);
     assert_eq!(state.ks_snapshot.clutch_left, None);
+    Ok(())
 }
 
 #[test]

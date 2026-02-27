@@ -1,0 +1,18 @@
+---
+source: crates/telemetry-adapters/tests/snapshot_tests.rs
+expression: sorted_values
+---
+- - brakeinput
+  - 0
+- - clutchinput
+  - 0
+- - enginerate
+  - 8500
+- - gear
+  - 5
+- - speed
+  - 45
+- - steeringinput
+  - 0.3
+- - throttleinput
+  - 0.8
