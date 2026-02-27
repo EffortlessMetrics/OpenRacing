@@ -110,6 +110,17 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2e5a", ATTRS{idProduct}=="0001", GROUP="i
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2e5a", ATTRS{idProduct}=="0002", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2e5a", ATTRS{idProduct}=="0003", GROUP="input", MODE="0664", TAG+="uaccess"
 
+# ─── OpenFFBoard (0x1209, pid.codes open hardware) ────────────────────────
+# Open-source direct drive wheel controller — https://github.com/Ultrawipf/OpenFFBoard
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ffb0", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ffb1", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── Granite Devices SimpleMotion V2 (0x1D50) ────────────────────────────
+# IONI servo drive / Simucube 1, IONI Premium / Simucube 2, ARGON / OSW builds
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6050", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6051", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6052", GROUP="input", MODE="0664", TAG+="uaccess"
+
 # ─── Service restart on device connect ────────────────────────────────────
 ACTION=="add", SUBSYSTEM=="hidraw", TAG=="uaccess", RUN+="/bin/systemctl --user try-restart racing-wheel-suite.service"
 
@@ -142,3 +153,8 @@ ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2d5c", ATTR{power/autosuspend
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2d6a", ATTR{power/autosuspend}="-1"
 # Asetek SimSports
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2e5a", ATTR{power/autosuspend}="-1"
+# OpenFFBoard (pid.codes shared VID — only disable for our PIDs)
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ffb0", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ffb1", ATTR{power/autosuspend}="-1"
+# Granite Devices SimpleMotion V2 / Simucube 1
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTR{power/autosuspend}="-1"

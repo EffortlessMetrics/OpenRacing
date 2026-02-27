@@ -307,6 +307,10 @@ pub mod vendor_ids {
     pub const SIMUCUBE: u16 = 0x2D6A;
     /// Asetek SimSports
     pub const ASETEK: u16 = 0x2E5A;
+    /// OpenFFBoard open-source direct drive controller (pid.codes VID)
+    pub const OPENFFBOARD: u16 = 0x1209;
+    /// Granite Devices SimpleMotion V2 (IONI / ARGON / SimuCube 1)
+    pub const GRANITE_DEVICES: u16 = 0x1D50;
 }
 
 /// Known racing wheel product IDs organized by vendor
@@ -437,6 +441,13 @@ impl SupportedDevices {
             (vendor_ids::ASETEK, 0x0001, "Asetek Forte"),
             (vendor_ids::ASETEK, 0x0002, "Asetek Invicta"),
             (vendor_ids::ASETEK, 0x0003, "Asetek LaPrima"),
+            // OpenFFBoard (open-source direct drive controller)
+            (vendor_ids::OPENFFBOARD, 0xFFB0, "OpenFFBoard"),
+            (vendor_ids::OPENFFBOARD, 0xFFB1, "OpenFFBoard (alt firmware)"),
+            // Granite Devices SimpleMotion V2 (Simucube 1, IONI, ARGON, OSW)
+            (vendor_ids::GRANITE_DEVICES, 0x6050, "Simucube 1 / IONI Servo Drive"),
+            (vendor_ids::GRANITE_DEVICES, 0x6051, "Simucube 2 / IONI Premium Servo Drive"),
+            (vendor_ids::GRANITE_DEVICES, 0x6052, "Simucube Sport / ARGON Servo Drive"),
         ]
     }
 
@@ -453,6 +464,8 @@ impl SupportedDevices {
             vendor_ids::SIMAGIC_MODERN,
             vendor_ids::SIMUCUBE,
             vendor_ids::ASETEK,
+            vendor_ids::OPENFFBOARD,
+            vendor_ids::GRANITE_DEVICES,
         ]
     }
 
@@ -487,6 +500,8 @@ impl SupportedDevices {
             vendor_ids::SIMAGIC_MODERN => "Simagic",
             vendor_ids::SIMUCUBE => "Granite Devices",
             vendor_ids::ASETEK => "Asetek SimSports",
+            vendor_ids::OPENFFBOARD => "OpenFFBoard",
+            vendor_ids::GRANITE_DEVICES => "Granite Devices",
             _ => "Unknown",
         }
     }
@@ -1428,6 +1443,28 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                 0x0002 => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); } // Invicta
                 0x0003 => { capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque); } // LaPrima
                 _ => { capabilities.max_torque = TorqueNm::new(20.0).unwrap_or(capabilities.max_torque); }
+            }
+        }
+        vendor_ids::OPENFFBOARD => {
+            // OpenFFBoard uses standard HID PID. Torque capacity depends on the
+            // motor and PSU configuration; 20 Nm is a reasonable default.
+            capabilities.supports_pid = true;
+            capabilities.supports_raw_torque_1khz = true;
+            capabilities.encoder_cpr = u16::MAX; // 65535 typical (16-bit)
+            capabilities.min_report_period_us = 1000; // 1 kHz
+            capabilities.max_torque = TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
+        }
+        vendor_ids::GRANITE_DEVICES => {
+            // Granite Devices SimpleMotion V2: IONI, IONI Premium, ARGON
+            capabilities.supports_pid = true;
+            capabilities.supports_raw_torque_1khz = true;
+            capabilities.encoder_cpr = u16::MAX; // high resolution
+            capabilities.min_report_period_us = 1000;
+            match product_id {
+                0x6050 => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); } // IONI / Simucube 1
+                0x6051 => { capabilities.max_torque = TorqueNm::new(35.0).unwrap_or(capabilities.max_torque); } // IONI Premium
+                0x6052 => { capabilities.max_torque = TorqueNm::new(10.0).unwrap_or(capabilities.max_torque); } // ARGON
+                _ => { capabilities.max_torque = TorqueNm::new(15.0).unwrap_or(capabilities.max_torque); }
             }
         }
         _ => {

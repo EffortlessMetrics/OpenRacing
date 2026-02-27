@@ -5479,6 +5479,7 @@ dependencies = [
  "racing-wheel-hid-fanatec-protocol",
  "racing-wheel-hid-logitech-protocol",
  "racing-wheel-hid-moza-protocol",
+ "racing-wheel-hid-openffboard-protocol",
  "racing-wheel-hid-simagic-protocol",
  "racing-wheel-hid-thrustmaster-protocol",
  "racing-wheel-hid-vrs-protocol",
@@ -5531,6 +5532,10 @@ dependencies = [
  "racing-wheel-srp",
  "tracing",
 ]
+
+[[package]]
+name = "racing-wheel-hid-openffboard-protocol"
+version = "0.1.0"
 
 [[package]]
 name = "racing-wheel-hid-simagic-protocol"

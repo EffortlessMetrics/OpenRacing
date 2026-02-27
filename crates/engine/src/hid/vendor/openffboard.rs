@@ -1,0 +1,131 @@
+//! OpenFFBoard vendor protocol handler.
+//!
+//! [OpenFFBoard](https://github.com/Ultrawipf/OpenFFBoard) is an open-source
+//! direct-drive wheel controller that uses standard USB HID PID force effects
+//! with an optional custom command layer.
+//!
+//! ## Device IDs
+//! - Vendor ID: `0x1209` (pid.codes open-hardware VID)
+//! - Product ID `0xFFB0`: main firmware
+//! - Product ID `0xFFB1`: alternate/experimental firmware
+//!
+//! ## Protocol
+//! Uses standard HID PID constant-force reports for real-time torque output.
+//! Global gain and FFB enable are controlled through vendor-defined HID feature
+//! reports on the same interface.
+
+#![deny(static_mut_refs)]
+
+use super::{DeviceWriter, FfbConfig, VendorProtocol};
+use tracing::{debug, info};
+
+pub use racing_wheel_hid_openffboard_protocol::{
+    CONSTANT_FORCE_REPORT_LEN, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_VENDOR_ID,
+    OpenFFBoardTorqueEncoder, build_enable_ffb, build_set_gain, is_openffboard_product,
+};
+
+/// Default maximum torque for OpenFFBoard in Newton-metres.
+///
+/// OpenFFBoard torque capacity depends on the motor and PSU configuration.
+/// 20 Nm is a reasonable default for popular high-end builds; the user can
+/// tune this in their profile.
+const DEFAULT_MAX_TORQUE_NM: f32 = 20.0;
+
+/// Default encoder CPR.
+///
+/// OpenFFBoard supports various encoders; 65536 CPR (16-bit) is common.
+const DEFAULT_ENCODER_CPR: u32 = 65_536;
+
+/// OpenFFBoard vendor protocol handler.
+pub struct OpenFFBoardHandler {
+    vendor_id: u16,
+    product_id: u16,
+    encoder: OpenFFBoardTorqueEncoder,
+}
+
+impl OpenFFBoardHandler {
+    /// Create a handler from a USB identity pair.
+    pub fn new(vendor_id: u16, product_id: u16) -> Self {
+        debug!(
+            "Created OpenFFBoardHandler VID=0x{:04X} PID=0x{:04X}",
+            vendor_id, product_id
+        );
+        Self {
+            vendor_id,
+            product_id,
+            encoder: OpenFFBoardTorqueEncoder,
+        }
+    }
+}
+
+impl VendorProtocol for OpenFFBoardHandler {
+    fn initialize_device(
+        &self,
+        writer: &mut dyn DeviceWriter,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        info!(
+            "Initialising OpenFFBoard VID=0x{:04X} PID=0x{:04X}",
+            self.vendor_id, self.product_id
+        );
+        // Enable FFB output at full gain.
+        writer.write_feature_report(&build_enable_ffb(true))?;
+        writer.write_feature_report(&build_set_gain(0xFF))?;
+        Ok(())
+    }
+
+    fn send_feature_report(
+        &self,
+        writer: &mut dyn DeviceWriter,
+        report_id: u8,
+        data: &[u8],
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        const MAX: usize = 64;
+        if data.len() + 1 > MAX {
+            return Err(format!(
+                "Feature report too large for OpenFFBoard transport: {} bytes",
+                data.len() + 1
+            )
+            .into());
+        }
+        let mut buf = [0u8; MAX];
+        buf[0] = report_id;
+        buf[1..(data.len() + 1)].copy_from_slice(data);
+        writer.write_feature_report(&buf[..(data.len() + 1)])?;
+        Ok(())
+    }
+
+    fn shutdown_device(
+        &self,
+        writer: &mut dyn DeviceWriter,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        debug!(
+            "Shutting down OpenFFBoard VID=0x{:04X} PID=0x{:04X}",
+            self.vendor_id, self.product_id
+        );
+        writer.write_feature_report(&build_enable_ffb(false))?;
+        Ok(())
+    }
+
+    fn get_ffb_config(&self) -> FfbConfig {
+        FfbConfig {
+            fix_conditional_direction: false,
+            uses_vendor_usage_page: false,
+            required_b_interval: Some(1),
+            max_torque_nm: DEFAULT_MAX_TORQUE_NM,
+            encoder_cpr: DEFAULT_ENCODER_CPR,
+        }
+    }
+
+    fn is_v2_hardware(&self) -> bool {
+        false
+    }
+
+    fn output_report_id(&self) -> Option<u8> {
+        use racing_wheel_hid_openffboard_protocol::CONSTANT_FORCE_REPORT_ID;
+        Some(CONSTANT_FORCE_REPORT_ID)
+    }
+
+    fn output_report_len(&self) -> Option<usize> {
+        Some(CONSTANT_FORCE_REPORT_LEN)
+    }
+}

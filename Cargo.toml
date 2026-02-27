@@ -17,6 +17,7 @@ members = [
     "crates/hid-heusinkveld-protocol",
     "crates/hid-asetek-protocol",
     "crates/hid-button-box-protocol",
+    "crates/hid-openffboard-protocol",
     "crates/simplemotion-v2",
     "crates/openracing-atomic",
     "crates/openracing-tracing",

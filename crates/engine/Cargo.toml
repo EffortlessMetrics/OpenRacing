@@ -19,6 +19,7 @@ hid-asetek-protocol = { path = "../hid-asetek-protocol" }
 racing-wheel-hid-simagic-protocol = { path = "../hid-simagic-protocol" }
 racing-wheel-hid-vrs-protocol = { path = "../hid-vrs-protocol" }
 hid-heusinkveld-protocol = { path = "../hid-heusinkveld-protocol" }
+racing-wheel-hid-openffboard-protocol = { path = "../hid-openffboard-protocol" }
 openracing-atomic = { workspace = true }
 openracing-tracing = { workspace = true }
 openracing-curves = { workspace = true }

@@ -10,6 +10,7 @@ pub mod heusinkveld;
 pub mod logitech;
 pub mod moza;
 pub mod moza_direct;
+pub mod openffboard;
 pub mod simagic;
 pub mod simucube;
 pub mod thrustmaster;
@@ -25,6 +26,8 @@ mod heusinkveld_tests;
 mod logitech_tests;
 #[cfg(test)]
 mod moza_tests;
+#[cfg(test)]
+mod openffboard_tests;
 #[cfg(test)]
 mod simagic_tests;
 #[cfg(test)]
@@ -79,6 +82,16 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
         0x2E5A => Some(Box::new(asetek::AsetekProtocolHandler::new(
             vendor_id, product_id,
         ))),
+        // OpenFFBoard (pid.codes open hardware VID)
+        0x1209 => {
+            if openffboard::is_openffboard_product(product_id) {
+                Some(Box::new(openffboard::OpenFFBoardHandler::new(
+                    vendor_id, product_id,
+                )))
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }
