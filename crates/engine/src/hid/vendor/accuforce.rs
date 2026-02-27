@@ -1,47 +1,39 @@
-//! Cammus protocol handler.
+//! AccuForce Pro (SimExperience) protocol handler.
 //!
-//! Cammus C5 and C12 direct drive wheelbases are Chinese DD wheels that expose
-//! a standard USB HID PID (force feedback) interface. They do NOT implement a
-//! proprietary 1 kHz torque protocol; all FFB is dispatched through the standard
-//! HID PID effect pipeline.
+//! The SimExperience AccuForce Pro is a brushless direct drive wheelbase that
+//! exposes a standard USB HID PID (force feedback) interface. No proprietary
+//! torque protocol is used at the USB level.
 //!
 //! Confirmed VID/PID values (source: community USB device captures and
 //! RetroBat emulator launcher Wheels.cs, commit 0a54752):
-//!   VID 0x3416 (Cammus Technology Co., Ltd.)
-//!   C5  PID 0x0301
-//!   C12 PID 0x0302
+//!   VID 0x1FC9 (NXP Semiconductors — USB chip used internally)
+//!   AccuForce Pro  PID 0x804C
 
 #![deny(static_mut_refs)]
 
 use super::{DeviceWriter, FfbConfig, VendorProtocol};
 use tracing::{debug, info};
 
-/// Cammus vendor ID (Cammus Technology Co., Ltd.)
-pub const CAMMUS_VENDOR_ID: u16 = 0x3416;
+/// AccuForce Pro vendor ID (NXP Semiconductors USB chip, used by SimExperience)
+pub const ACCUFORCE_VENDOR_ID: u16 = 0x1FC9;
 
-/// Cammus C5 product ID (5 Nm direct drive, confirmed)
-pub const CAMMUS_C5_PID: u16 = 0x0301;
+/// SimExperience AccuForce Pro product ID (confirmed)
+pub const ACCUFORCE_PRO_PID: u16 = 0x804C;
 
-/// Cammus C12 product ID (12 Nm direct drive, confirmed)
-pub const CAMMUS_C12_PID: u16 = 0x0302;
-
-/// Cammus model classification.
+/// AccuForce model classification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CammusModel {
-    /// Cammus C5 ΓÇö 5 Nm
-    C5,
-    /// Cammus C12 ΓÇö 12 Nm
-    C12,
-    /// Future or unrecognised Cammus product
+pub enum AccuForceModel {
+    /// SimExperience AccuForce Pro (~7 Nm, 100–200 Hz USB update rate)
+    Pro,
+    /// Future or unrecognised AccuForce product
     Unknown,
 }
 
-impl CammusModel {
+impl AccuForceModel {
     /// Resolve model from a product ID.
     pub fn from_product_id(pid: u16) -> Self {
         match pid {
-            CAMMUS_C5_PID => Self::C5,
-            CAMMUS_C12_PID => Self::C12,
+            ACCUFORCE_PRO_PID => Self::Pro,
             _ => Self::Unknown,
         }
     }
@@ -49,44 +41,42 @@ impl CammusModel {
     /// Human-readable name.
     pub fn display_name(self) -> &'static str {
         match self {
-            Self::C5 => "Cammus C5",
-            Self::C12 => "Cammus C12",
-            Self::Unknown => "Cammus (unknown model)",
+            Self::Pro => "SimExperience AccuForce Pro",
+            Self::Unknown => "SimExperience AccuForce (unknown model)",
         }
     }
 
     /// Rated peak torque in Nm.
     pub fn max_torque_nm(self) -> f32 {
         match self {
-            Self::C5 => 5.0,
-            Self::C12 => 12.0,
-            Self::Unknown => 5.0, // conservative default
+            Self::Pro => 7.0,
+            Self::Unknown => 7.0,
         }
     }
 }
 
-/// Return true when `product_id` is a known Cammus product.
-pub fn is_cammus_product(product_id: u16) -> bool {
-    matches!(product_id, CAMMUS_C5_PID | CAMMUS_C12_PID)
+/// Return true when `product_id` is a known AccuForce product.
+pub fn is_accuforce_product(product_id: u16) -> bool {
+    matches!(product_id, ACCUFORCE_PRO_PID)
 }
 
-/// Protocol handler for Cammus direct drive wheelbases.
+/// Protocol handler for SimExperience AccuForce Pro wheelbases.
 ///
-/// Cammus wheels present a standard HID PID interface; no vendor-specific
+/// AccuForce Pro presents a standard HID PID interface; no vendor-specific
 /// initialisation sequence is required. The handler reports correct capabilities
 /// (max torque, brand) and delegates all FFB to the generic HID PID path.
-pub struct CammusProtocolHandler {
+pub struct AccuForceProtocolHandler {
     vendor_id: u16,
     product_id: u16,
-    model: CammusModel,
+    model: AccuForceModel,
 }
 
-impl CammusProtocolHandler {
+impl AccuForceProtocolHandler {
     /// Create a protocol handler from a USB identity pair.
     pub fn new(vendor_id: u16, product_id: u16) -> Self {
-        let model = CammusModel::from_product_id(product_id);
+        let model = AccuForceModel::from_product_id(product_id);
         debug!(
-            "Created CammusProtocolHandler VID=0x{:04X} PID=0x{:04X} model={:?}",
+            "Created AccuForceProtocolHandler VID=0x{:04X} PID=0x{:04X} model={:?}",
             vendor_id, product_id, model
         );
         Self {
@@ -97,19 +87,19 @@ impl CammusProtocolHandler {
     }
 
     /// Model classification used by tests and diagnostics.
-    pub fn model(&self) -> CammusModel {
+    pub fn model(&self) -> AccuForceModel {
         self.model
     }
 }
 
-impl VendorProtocol for CammusProtocolHandler {
+impl VendorProtocol for AccuForceProtocolHandler {
     fn initialize_device(
         &self,
         _writer: &mut dyn DeviceWriter,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // Cammus wheels are plug-and-play over standard HID PID.
+        // AccuForce Pro is plug-and-play over standard HID PID.
         info!(
-            "Cammus device ready VID=0x{:04X} PID=0x{:04X} model={} \
+            "AccuForce device ready VID=0x{:04X} PID=0x{:04X} model={} \
              max_torque={} Nm (standard HID PID, no proprietary init needed)",
             self.vendor_id,
             self.product_id,
@@ -128,7 +118,7 @@ impl VendorProtocol for CammusProtocolHandler {
         const MAX_REPORT_BYTES: usize = 64;
         if data.len() + 1 > MAX_REPORT_BYTES {
             return Err(format!(
-                "Feature report too large for Cammus transport: {} bytes",
+                "Feature report too large for AccuForce transport: {} bytes",
                 data.len() + 1
             )
             .into());
@@ -144,16 +134,15 @@ impl VendorProtocol for CammusProtocolHandler {
         FfbConfig {
             fix_conditional_direction: false,
             uses_vendor_usage_page: false,
-            // Standard HID PID ΓÇö 1 ms bInterval is typical for these devices
-            required_b_interval: Some(1),
+            // AccuForce Pro USB update rate is ~100–200 Hz; 8 ms is a safe interval
+            required_b_interval: Some(8),
             max_torque_nm: self.model.max_torque_nm(),
             encoder_cpr: 0, // encoder resolution not publicly documented
         }
     }
 
     fn is_v2_hardware(&self) -> bool {
-        // C12 uses a higher-performance motor; treat as V2 for feature gating
-        matches!(self.model, CammusModel::C12)
+        false
     }
 
     fn output_report_id(&self) -> Option<u8> {
