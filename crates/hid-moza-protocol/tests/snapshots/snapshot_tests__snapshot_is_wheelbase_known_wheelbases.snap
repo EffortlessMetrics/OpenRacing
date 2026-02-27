@@ -1,0 +1,5 @@
+---
+source: crates/hid-moza-protocol/tests/snapshot_tests.rs
+expression: "format!(\"{results:?}\")"
+---
+[(5, true), (21, true), (4, true), (20, true), (2, true), (18, true), (6, true), (22, true), (0, true), (16, true)]

@@ -366,4 +366,103 @@ mod tests {
     fn test_parse_empty_packet() {
         assert!(parse_pcars2_packet(&[]).is_err());
     }
+
+    #[cfg(test)]
+    mod proptest_tests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #[test]
+            fn parse_pcars2_no_panic_on_arbitrary_bytes(
+                data in proptest::collection::vec(any::<u8>(), 0..256)
+            ) {
+                // Must never panic on arbitrary input.
+                let _ = parse_pcars2_packet(&data);
+            }
+
+            #[test]
+            fn short_packet_always_errors(
+                data in proptest::collection::vec(any::<u8>(), 0..PCARS2_UDP_MIN_SIZE)
+            ) {
+                prop_assert!(parse_pcars2_packet(&data).is_err());
+            }
+
+            #[test]
+            fn valid_packet_speed_nonnegative(
+                steering in -1.0f32..=1.0f32,
+                throttle in 0.0f32..1.0f32,
+                brake in 0.0f32..1.0f32,
+                speed in 0.0f32..200.0f32,
+                rpm in 0.0f32..12000.0f32,
+                max_rpm in 5000.0f32..12000.0f32,
+                gear in 0u32..8u32,
+            ) {
+                let data = make_pcars2_packet(steering, throttle, brake, speed, rpm, max_rpm, gear);
+                let result = parse_pcars2_packet(&data).unwrap();
+                prop_assert!(result.speed_ms >= 0.0, "speed_ms must be non-negative");
+            }
+
+            #[test]
+            fn valid_packet_steering_clamped(
+                steering in -5.0f32..=5.0f32,
+                throttle in 0.0f32..1.0f32,
+                brake in 0.0f32..1.0f32,
+                speed in 0.0f32..200.0f32,
+                rpm in 0.0f32..12000.0f32,
+                max_rpm in 5000.0f32..12000.0f32,
+                gear in 0u32..8u32,
+            ) {
+                let data = make_pcars2_packet(steering, throttle, brake, speed, rpm, max_rpm, gear);
+                let result = parse_pcars2_packet(&data).unwrap();
+                prop_assert!(
+                    result.steering_angle >= -1.0 && result.steering_angle <= 1.0,
+                    "steering_angle {} must be in [-1, 1]",
+                    result.steering_angle
+                );
+            }
+
+            #[test]
+            fn valid_packet_rpm_nonnegative(
+                steering in -1.0f32..=1.0f32,
+                throttle in 0.0f32..1.0f32,
+                brake in 0.0f32..1.0f32,
+                speed in 0.0f32..200.0f32,
+                rpm in 0.0f32..12000.0f32,
+                max_rpm in 5000.0f32..12000.0f32,
+                gear in 0u32..8u32,
+            ) {
+                let data = make_pcars2_packet(steering, throttle, brake, speed, rpm, max_rpm, gear);
+                let result = parse_pcars2_packet(&data).unwrap();
+                prop_assert!(result.rpm >= 0.0, "rpm {} must be non-negative", result.rpm);
+            }
+
+            #[test]
+            fn valid_packet_throttle_in_range(
+                steering in -1.0f32..=1.0f32,
+                throttle in 0.0f32..1.0f32,
+                brake in 0.0f32..1.0f32,
+                speed in 0.0f32..200.0f32,
+                rpm in 0.0f32..12000.0f32,
+                max_rpm in 5000.0f32..12000.0f32,
+                gear in 0u32..8u32,
+            ) {
+                let data = make_pcars2_packet(steering, throttle, brake, speed, rpm, max_rpm, gear);
+                let result = parse_pcars2_packet(&data).unwrap();
+                prop_assert!(
+                    result.throttle >= 0.0 && result.throttle <= 1.0,
+                    "throttle {} must be in [0, 1]",
+                    result.throttle
+                );
+            }
+
+            #[test]
+            fn full_size_packet_no_panic(
+                data in proptest::collection::vec(any::<u8>(), PCARS2_UDP_MIN_SIZE..=256)
+            ) {
+                // Must never panic on any full-size input.
+                let _ = parse_pcars2_packet(&data);
+            }
+        }
+    }
 }

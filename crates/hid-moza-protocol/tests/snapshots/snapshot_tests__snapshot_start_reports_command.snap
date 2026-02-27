@@ -1,0 +1,5 @@
+---
+source: crates/hid-moza-protocol/tests/snapshot_tests.rs
+expression: "format!(\"{:?}\", writer.last)"
+---
+[3, 0, 0, 0]
