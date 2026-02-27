@@ -630,3 +630,97 @@ games:
         - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 284160"
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/BeamNG.drive"
+
+  wrc_generations:
+    name: "WRC Generations"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "WRCGenerations.exe"
+          - "WRC23.exe"
+        telemetry_method: "udp_codemasters_mode1"
+        supported_fields:
+          - "rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+          - "lateral_g"
+          - "longitudinal_g"
+          - "fuel_percent"
+          - "tire_temps_c"
+          - "tire_pressures_psi"
+    telemetry:
+      method: "udp_codemasters_mode1"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:6777"
+      fields:
+        ffb_scalar: "gforce_lat"
+        rpm: "rpm"
+        speed_ms: "wheel_speed_avg"
+        slip_ratio: null
+        gear: "gear"
+        flags: "in_pit"
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "wrc_generations"
+    auto_detect:
+      process_names:
+        - "WRCGenerations.exe"
+        - "WRC23.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1504530"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/WRC Generations"
+
+  dirt4:
+    name: "Dirt 4"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "dirt4.exe"
+          - "Dirt4.exe"
+        telemetry_method: "udp_codemasters_mode1"
+        supported_fields:
+          - "rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+          - "lateral_g"
+          - "longitudinal_g"
+          - "fuel_percent"
+          - "tire_temps_c"
+          - "tire_pressures_psi"
+    telemetry:
+      method: "udp_codemasters_mode1"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:20777"
+      fields:
+        ffb_scalar: "gforce_lat"
+        rpm: "rpm"
+        speed_ms: "wheel_speed_avg"
+        slip_ratio: null
+        gear: "gear"
+        flags: "in_pit"
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "dirt4"
+    auto_detect:
+      process_names:
+        - "dirt4.exe"
+        - "Dirt4.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 421020"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/DiRT 4"

@@ -17,7 +17,8 @@ pub use support::{
 pub use writers::{
     ACCConfigWriter, ACRallyConfigWriter, AMS2ConfigWriter, AssettoCorsaConfigWriter,
     BeamNGDriveConfigWriter, ConfigDiff, ConfigWriter, ConfigWriterFactory, DiffOperation,
-    Dirt5ConfigWriter, DirtRally2ConfigWriter, EAWRCConfigWriter, F1_25ConfigWriter,
-    F1ConfigWriter, ForzaMotorsportConfigWriter, GranTurismo7ConfigWriter, IRacingConfigWriter,
-    RBRConfigWriter, RFactor2ConfigWriter, TelemetryConfig, config_writer_factories,
+    Dirt4ConfigWriter, Dirt5ConfigWriter, DirtRally2ConfigWriter, EAWRCConfigWriter,
+    F1_25ConfigWriter, F1ConfigWriter, ForzaMotorsportConfigWriter, GranTurismo7ConfigWriter,
+    IRacingConfigWriter, RBRConfigWriter, RFactor2ConfigWriter, TelemetryConfig,
+    WrcGenerationsConfigWriter, config_writer_factories,
 };
