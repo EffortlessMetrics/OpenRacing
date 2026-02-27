@@ -14,6 +14,13 @@ libfuzzer-sys = "0.4"
 racing-wheel-telemetry-adapters = { path = "../crates/telemetry-adapters" }
 racing-wheel-telemetry-core = { path = "../crates/telemetry-core" }
 racing-wheel-hid-moza-protocol = { path = "../crates/hid-moza-protocol" }
+racing-wheel-hid-thrustmaster-protocol = { path = "../crates/hid-thrustmaster-protocol" }
+racing-wheel-hid-simucube-protocol = { path = "../crates/hid-simucube-protocol", package = "hid-simucube-protocol" }
+racing-wheel-hid-asetek-protocol = { path = "../crates/hid-asetek-protocol", package = "hid-asetek-protocol" }
+racing-wheel-hid-vrs-protocol = { path = "../crates/hid-vrs-protocol" }
+racing-wheel-hid-simagic-protocol = { path = "../crates/hid-simagic-protocol" }
+racing-wheel-hid-heusinkveld-protocol = { path = "../crates/hid-heusinkveld-protocol", package = "hid-heusinkveld-protocol" }
+racing-wheel-simplemotion-v2 = { path = "../crates/simplemotion-v2" }
 racing-wheel-ks = { path = "../crates/ks" }
 racing-wheel-srp = { path = "../crates/srp" }
 racing-wheel-hbp = { path = "../crates/hbp" }
@@ -77,6 +84,60 @@ doc = false
 [[bin]]
 name = "fuzz_srp_report"
 path = "fuzz_targets/fuzz_srp_report.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_thrustmaster_input"
+path = "fuzz_targets/fuzz_thrustmaster_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_simucube_input"
+path = "fuzz_targets/fuzz_simucube_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_asetek_input"
+path = "fuzz_targets/fuzz_asetek_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_vrs_input"
+path = "fuzz_targets/fuzz_vrs_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_simagic_input"
+path = "fuzz_targets/fuzz_simagic_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_heusinkveld_input"
+path = "fuzz_targets/fuzz_heusinkveld_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_simplemotion"
+path = "fuzz_targets/fuzz_simplemotion.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_codemasters_udp"
+path = "fuzz_targets/fuzz_codemasters_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_acc_udp"
+path = "fuzz_targets/fuzz_acc_udp.rs"
 test = false
 doc = false
 

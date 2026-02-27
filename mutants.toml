@@ -12,6 +12,19 @@ include = [
 
 # Skip trivial and auto-generated code
 exclude_globs = [
+    "crates/integration-tests/**",
+    "crates/schemas/**",
+    "workspace-hack/**",
+    "benches/**",
     "**/target/**",
     "**/build.rs",
+]
+
+# Timeout per test run (seconds)
+timeout_multiplier = 3.0
+
+# Skip mutants in test-only code
+exclude_re = [
+    "#\\[test\\]",
+    "#\\[cfg\\(test\\)\\]",
 ]
