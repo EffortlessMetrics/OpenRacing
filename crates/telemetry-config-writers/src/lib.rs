@@ -169,6 +169,14 @@ fn new_grid_legends_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(GridLegendsConfigWriter)
 }
 
+fn new_dirt3_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(Dirt3ConfigWriter)
+}
+
+fn new_race_driver_grid_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(RaceDriverGridConfigWriter)
+}
+
 fn new_automobilista_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(AutomobilistaConfigWriter)
 }
@@ -242,6 +250,8 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("grid_autosport", new_grid_autosport_config_writer),
         ("grid_2019", new_grid_2019_config_writer),
         ("grid_legends", new_grid_legends_config_writer),
+        ("dirt3", new_dirt3_config_writer),
+        ("race_driver_grid", new_race_driver_grid_config_writer),
         ("automobilista", new_automobilista_config_writer),
         ("nascar", new_nascar_config_writer),
         ("le_mans_ultimate", new_le_mans_ultimate_config_writer),
@@ -330,6 +340,17 @@ const GRID_LEGENDS_BRIDGE_PROTOCOL: &str = "codemasters_udp";
 const GRID_LEGENDS_DEFAULT_PORT: u16 = 20777;
 const GRID_LEGENDS_DEFAULT_MODE: u8 = 1;
 
+const DIRT3_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/dirt3_bridge_contract.json";
+const DIRT3_BRIDGE_PROTOCOL: &str = "codemasters_udp";
+const DIRT3_DEFAULT_PORT: u16 = 20777;
+const DIRT3_DEFAULT_MODE: u8 = 1;
+
+const RACE_DRIVER_GRID_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/race_driver_grid_bridge_contract.json";
+const RACE_DRIVER_GRID_BRIDGE_PROTOCOL: &str = "codemasters_udp";
+const RACE_DRIVER_GRID_DEFAULT_PORT: u16 = 20777;
+const RACE_DRIVER_GRID_DEFAULT_MODE: u8 = 1;
+
 const AUTOMOBILISTA_BRIDGE_RELATIVE_PATH: &str =
     "Documents/OpenRacing/automobilista_bridge_contract.json";
 const AUTOMOBILISTA_BRIDGE_PROTOCOL: &str = "isi_rf1_shared_memory";
@@ -372,13 +393,11 @@ const SNOWRUNNER_BRIDGE_RELATIVE_PATH: &str =
 const SNOWRUNNER_BRIDGE_PROTOCOL: &str = "simhub_udp_json";
 const SNOWRUNNER_DEFAULT_PORT: u16 = 8877;
 
-const MOTOGP_BRIDGE_RELATIVE_PATH: &str =
-    "Documents/OpenRacing/motogp_bridge_contract.json";
+const MOTOGP_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/motogp_bridge_contract.json";
 const MOTOGP_BRIDGE_PROTOCOL: &str = "motogp_udp";
 const MOTOGP_DEFAULT_PORT: u16 = 20777;
 
-const RIDE5_BRIDGE_RELATIVE_PATH: &str =
-    "Documents/OpenRacing/ride5_bridge_contract.json";
+const RIDE5_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/ride5_bridge_contract.json";
 const RIDE5_BRIDGE_PROTOCOL: &str = "ride5_udp";
 const RIDE5_DEFAULT_PORT: u16 = 20777;
 
@@ -3233,6 +3252,188 @@ impl ConfigWriter for GridLegendsConfigWriter {
     }
 }
 
+/// DiRT 3 configuration writer (Codemasters UDP Mode 1, port 20777).
+pub struct Dirt3ConfigWriter;
+
+impl Default for Dirt3ConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for Dirt3ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing DiRT 3 bridge contract configuration");
+        let contract_path = game_path.join(DIRT3_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(DIRT3_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "dirt3",
+            "telemetry_protocol": DIRT3_BRIDGE_PROTOCOL,
+            "mode": DIRT3_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "DiRT 3 uses Codemasters UDP Mode 1 on port 20777.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(DIRT3_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == DIRT3_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "dirt3")
+            .unwrap_or(false);
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(DIRT3_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "dirt3",
+            "telemetry_protocol": DIRT3_BRIDGE_PROTOCOL,
+            "mode": DIRT3_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "DiRT 3 uses Codemasters UDP Mode 1 on port 20777.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: DIRT3_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Race Driver: GRID configuration writer (Codemasters UDP Mode 1, port 20777).
+pub struct RaceDriverGridConfigWriter;
+
+impl Default for RaceDriverGridConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for RaceDriverGridConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Race Driver: GRID bridge contract configuration");
+        let contract_path = game_path.join(RACE_DRIVER_GRID_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+        let udp_port =
+            parse_target_port(&config.output_target).unwrap_or(RACE_DRIVER_GRID_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "race_driver_grid",
+            "telemetry_protocol": RACE_DRIVER_GRID_BRIDGE_PROTOCOL,
+            "mode": RACE_DRIVER_GRID_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Race Driver: GRID uses Codemasters UDP Mode 1 on port 20777.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(RACE_DRIVER_GRID_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == RACE_DRIVER_GRID_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "race_driver_grid")
+            .unwrap_or(false);
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port =
+            parse_target_port(&config.output_target).unwrap_or(RACE_DRIVER_GRID_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "race_driver_grid",
+            "telemetry_protocol": RACE_DRIVER_GRID_BRIDGE_PROTOCOL,
+            "mode": RACE_DRIVER_GRID_DEFAULT_MODE,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "Race Driver: GRID uses Codemasters UDP Mode 1 on port 20777.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: RACE_DRIVER_GRID_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
 /// Automobilista 1 configuration writer.
 ///
 /// Automobilista 1 uses the ISI rFactor 1 shared memory (`$rFactor$`).
@@ -4909,26 +5110,39 @@ mod tests {
     }
 
     #[test]
-    fn config_writer_factories_is_non_empty() { assert!(!config_writer_factories().is_empty()); }
+    fn config_writer_factories_is_non_empty() {
+        assert!(!config_writer_factories().is_empty());
+    }
     #[test]
     fn config_writer_factories_contains_known_game_ids() {
-        let ids: Vec<&str> = config_writer_factories().iter().map(|(id,_)| *id).collect();
-        for expected in ["iracing","acc","ams2","rfactor2","eawrc"] {
+        let ids: Vec<&str> = config_writer_factories()
+            .iter()
+            .map(|(id, _)| *id)
+            .collect();
+        for expected in ["iracing", "acc", "ams2", "rfactor2", "eawrc"] {
             assert!(ids.contains(&expected), "missing: {}", expected);
         }
     }
     #[test]
     fn config_writer_factories_does_not_contain_unknown() {
-        let ids: Vec<&str> = config_writer_factories().iter().map(|(id,_)| *id).collect();
+        let ids: Vec<&str> = config_writer_factories()
+            .iter()
+            .map(|(id, _)| *id)
+            .collect();
         assert!(!ids.contains(&"__no_such_game__"));
     }
     #[test]
     fn f1_25_writer_produces_valid_contract_content() -> TestResult {
         let writer = F1_25ConfigWriter;
         let temp_dir = tempdir()?;
-        let config = TelemetryConfig { enabled: true, update_rate_hz: 60,
-            output_method: "f1_25_native_udp".to_string(), output_target: "127.0.0.1:20777".to_string(),
-            fields: vec!["rpm".to_string()], enable_high_rate_iracing_360hz: false };
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 60,
+            output_method: "f1_25_native_udp".to_string(),
+            output_target: "127.0.0.1:20777".to_string(),
+            fields: vec!["rpm".to_string()],
+            enable_high_rate_iracing_360hz: false,
+        };
         let diffs = writer.write_config(temp_dir.path(), &config)?;
         assert_eq!(diffs.len(), 1);
         assert!(writer.validate_config(temp_dir.path())?);
@@ -4940,15 +5154,23 @@ mod tests {
     #[test]
     fn config_writer_factory_instantiates_writer_for_acc() -> TestResult {
         let factories = config_writer_factories();
-        let acc_factory = factories.iter().find(|(id,_)| *id == "acc").map(|(_,f)| f).ok_or("acc factory not found")?;
+        let acc_factory = factories
+            .iter()
+            .find(|(id, _)| *id == "acc")
+            .map(|(_, f)| f)
+            .ok_or("acc factory not found")?;
         let writer = acc_factory();
         let temp_dir = tempdir()?;
-        let config = TelemetryConfig { enabled: true, update_rate_hz: 100,
-            output_method: "udp_broadcast".to_string(), output_target: "127.0.0.1:9000".to_string(),
-            fields: vec!["speed_ms".to_string()], enable_high_rate_iracing_360hz: false };
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 100,
+            output_method: "udp_broadcast".to_string(),
+            output_target: "127.0.0.1:9000".to_string(),
+            fields: vec!["speed_ms".to_string()],
+            enable_high_rate_iracing_360hz: false,
+        };
         let diffs = writer.write_config(temp_dir.path(), &config)?;
         assert!(!diffs.is_empty());
         Ok(())
     }
-
 }

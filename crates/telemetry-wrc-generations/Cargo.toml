@@ -1,0 +1,25 @@
+[package]
+name = "racing-wheel-telemetry-wrc-generations"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-telemetry-wrc-generations"
+publish = true
+description = "WRC Generations telemetry adapter (Codemasters Mode 1 UDP)"
+readme = "README.md"
+keywords = ["telemetry", "wrc", "codemasters", "racing", "simracing"]
+
+[dependencies]
+racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
+racing-wheel-telemetry-core = { path = "../telemetry-core" }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }
