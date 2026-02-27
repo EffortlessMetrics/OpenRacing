@@ -16,7 +16,8 @@ This directory contains detailed protocol documentation for all racing wheel man
 | [Heusinkveld](HEUSINKVELD_PROTOCOL.md) | ✅ Supported | HID Input (no FFB) | Pedal sets only |
 | [Asetek SimSports](ASETEK_PROTOCOL.md) | ✅ Supported | HID PIDFF (plug-and-play) | Forte/Invicta/LaPrima |
 | [OpenFFBoard](OPENFFBOARD_PROTOCOL.md) | ✅ Supported | HID PIDFF + feature init | Open-source DD controller |
-| Granite Devices IONI/ARGON | ✅ Supported | HID PIDFF (SimpleMotion V2) | Simucube 1 / OSW builds |
+| [FFBeast](FFBEAST_PROTOCOL.md) | ✅ Supported | HID PIDFF + feature reports | Open-source DD controller |
+| [Granite Devices IONI/ARGON (SimpleMotion V2)](SIMPLEMOTION_PROTOCOL.md) | ✅ Supported | SimpleMotion V2 over USB HID | Simucube 1 / OSW builds |
 
 ## Protocol Overview
 
@@ -34,7 +35,8 @@ All racing wheel protocols share these fundamental concepts:
 
 | Standard | Description | Supported By |
 |----------|-------------|--------------|
-| USB HID PID | Physical Interface Device standard | Logitech, Thrustmaster, Moza, VRS, Simucube, Asetek, Simagic modern, OpenFFBoard, Granite IONI/ARGON |
+| USB HID PID | Physical Interface Device standard | Logitech, Thrustmaster, Moza, VRS, Simucube, Asetek, Simagic modern, OpenFFBoard, FFBeast |
+| SimpleMotion V2 | Granite Devices binary protocol over USB HID | IONI, IONI Premium, ARGON (Simucube 1 / OSW) |
 | Custom HID | Vendor-specific FFB protocol | Fanatec, Simagic (legacy) |
 | TrueForce | High-frequency audio-based haptics | Logitech G923+ |
 
@@ -174,3 +176,4 @@ When implementing device protocols:
 | 2024-12 | Comprehensive update for v1.0.0 release |
 | 2026-02 | Added Simucube 2, VRS, Heusinkveld, Asetek; corrected Thrustmaster PIDs; upgraded Simagic to cover modern VID 0x2D5C |
 | 2026-03 | Added OpenFFBoard (VID 0x1209) and Granite Devices IONI/ARGON (VID 0x1D50/SimpleMotion V2) |
+| 2026-Q3 | Added FFBeast (VID 0x045B) and SimpleMotion V2 dedicated protocol docs (1.0 RC) |

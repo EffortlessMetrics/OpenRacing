@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **FFBeast open-source FF controller support** (VID `0x045B`):
+  - PIDs `0x58F9` (joystick), `0x5968` (rudder), `0x59D7` (wheel)
+  - `hid-ffbeast-protocol` microcrate: `FFBeastTorqueEncoder`, `build_enable_ffb`, `build_set_gain` feature reports
+  - `FFBeastHandler` vendor handler: 2-step init (enable FFB + set full gain), 20 Nm default, 65535 CPR encoder
+  - HID report ID `0x60` (enable/disable), `0x61` (gain), `0x01` (constant force output)
+  - udev rules + Windows device registry + capabilities block added
+
+- **Generic HID button boxes** (VID `0x1209`, PID `0x1BBD`):
+  - `hid-button-box-protocol` microcrate: `ButtonBoxInputReport` parser (up to 32 buttons)
+  - `ButtonBoxProtocolHandler`: input-only, no initialization required
+  - Compatible with DIY Arduino button boxes, BangButtons, SimRacingInputs, and similar HID gamepad devices
+
+- **Game Telemetry Adapters** — 12 new adapters added to `telemetry-adapters` crate:
+  - **Assetto Corsa** — OutGauge UDP, port 9996
+  - **Forza Motorsport / Horizon** — Sled 232B + CarDash 311B UDP, port 5300
+  - **BeamNG.drive** — LFS OutGauge UDP, port 4444
+  - **Project CARS 2 / 3** — Windows shared memory `$pcars2$` + UDP port 5606
+  - **RaceRoom Experience** — R3E shared memory `$R3E`
+  - **iRacing** — shared memory `IRSDKMemMapFileName`
+  - **rFactor 2** — shared memory
+  - **AMS2 / Automobilista 2** — PCARS2-compatible shared memory protocol
+  - **AC Rally** — ACC shared memory protocol
+  - **Dirt 5** — Codemasters UDP
+  - **EA WRC** — Codemasters UDP
+  - **F1 2024** — Codemasters bridge adapter (alias `f1`)
+  - All adapters registered in `adapter_factories()` and tested via BDD parity validation
+
+- **Expanded test infrastructure**:
+  - 9 cargo-fuzz targets for protocol parsers (FFBeast, SimpleMotion V2, Moza, F1 25, Codemasters UDP, and more)
+  - Snapshot tests via `insta` crate for all telemetry adapter normalizers
+  - End-to-end user journey tests covering device connect → profile apply → FFB output
+  - Hardware watchdog FMEA fault scenario tests (missed tick, write failure, thermal warning)
+  - Profile migration idempotency tests
+  - Expanded property-based tests with `proptest` (500 cases each for torque encoders, protocol parsers, feedback parsing)
+  - Total workspace test count: **600+**
+
+- **Safety improvements**:
+  - Hardware watchdog acceptance tests: "no feed within 100ms ⇒ SafeMode + zero torque"
+  - FMEA fault injection scenario tests (`crates/openracing-fmea`)
+  - Safety challenge-response validation integrated into watchdog state machine tests
+
 - **OpenFFBoard open-source direct drive support** (VID `0x1209`):
   - PIDs `0xFFB0` (main) and `0xFFB1` (alt) — covers all production OpenFFBoard firmware releases
   - `racing-wheel-hid-openffboard-protocol` microcrate: `OpenFFBoardTorqueEncoder`, FFB enable/gain feature reports
