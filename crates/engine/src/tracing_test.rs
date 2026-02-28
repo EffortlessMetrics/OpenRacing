@@ -1,7 +1,6 @@
 //! Simple test for tracing functionality
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use crate::tracing::*;
     use openracing_tracing::platform::FallbackProvider;
@@ -37,7 +36,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rt_trace_events() {
+    fn test_rt_trace_events() -> Result<(), Box<dyn std::error::Error>> {
         let events = [
             RTTraceEvent::TickStart {
                 tick_count: 1,
@@ -67,15 +66,16 @@ mod tests {
         ];
 
         let mut provider = FallbackProvider::new();
-        provider.initialize().unwrap();
+        provider.initialize()?;
 
         for event in events {
             provider.emit_rt_event(event);
         }
+        Ok(())
     }
 
     #[test]
-    fn test_app_trace_events() {
+    fn test_app_trace_events() -> Result<(), Box<dyn std::error::Error>> {
         let events = [
             AppTraceEvent::DeviceConnected {
                 device_id: "dev1".to_string(),
@@ -104,19 +104,20 @@ mod tests {
         ];
 
         let mut provider = FallbackProvider::new();
-        provider.initialize().unwrap();
+        provider.initialize()?;
 
         for event in events {
             provider.emit_app_event(event);
         }
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_tracing_manager_lifecycle() {
-        let mut manager = TracingManager::new().unwrap();
+    async fn test_tracing_manager_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
+        let mut manager = TracingManager::new()?;
 
         // Initialize
-        manager.initialize().unwrap();
+        manager.initialize()?;
 
         // Test enabling/disabling
         manager.set_enabled(false);
@@ -144,5 +145,6 @@ mod tests {
 
         // Shutdown
         manager.shutdown();
+        Ok(())
     }
 }

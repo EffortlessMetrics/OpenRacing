@@ -18,7 +18,7 @@ fn test_snapshot_t818_encoder() {
 }
 
 #[test]
-fn test_snapshot_input_report_center() {
+fn test_snapshot_input_report_center() -> Result<(), Box<dyn std::error::Error>> {
     let data = vec![
         0x01, 0x00, 0x80, // steering center
         0x00, 0x00, 0x00, // pedals
@@ -26,7 +26,7 @@ fn test_snapshot_input_report_center() {
         0x08, // hat center
         0x00, // paddles
     ];
-    let state = tm::parse_input_report(&data).expect("parse should succeed");
+    let state = tm::parse_input_report(&data).ok_or("parse_input_report returned None")?;
     assert_snapshot!(format!(
         "steering={}, throttle={}, brake={}, clutch={}, buttons={}, hat={}, paddles={}/{}",
         state.steering,
@@ -38,10 +38,11 @@ fn test_snapshot_input_report_center() {
         state.paddle_right as u8,
         state.paddle_left as u8
     ));
+    Ok(())
 }
 
 #[test]
-fn test_snapshot_input_report_full_throttle() {
+fn test_snapshot_input_report_full_throttle() -> Result<(), Box<dyn std::error::Error>> {
     let data = vec![
         0x01, 0x00, 0x80, // steering center
         0xFF, 0x00, 0x00, // throttle full, others zero
@@ -49,7 +50,7 @@ fn test_snapshot_input_report_full_throttle() {
         0x00, // hat up
         0x03, // both paddles
     ];
-    let state = tm::parse_input_report(&data).expect("parse should succeed");
+    let state = tm::parse_input_report(&data).ok_or("parse_input_report returned None")?;
     assert_snapshot!(format!(
         "steering={}, throttle={}, brake={}, clutch={}, buttons={}, hat={}, paddles={}/{}",
         state.steering,
@@ -61,6 +62,7 @@ fn test_snapshot_input_report_full_throttle() {
         state.paddle_right as u8,
         state.paddle_left as u8
     ));
+    Ok(())
 }
 
 #[test]

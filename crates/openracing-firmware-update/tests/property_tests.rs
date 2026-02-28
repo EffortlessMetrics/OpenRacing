@@ -303,9 +303,9 @@ proptest! {
         use openracing_firmware_update::delta::{create_simple_patch, apply_simple_patch};
 
         let patch = create_simple_patch(&old_data, &new_data)
-            .expect("Patch creation failed");
+            .map_err(|e| TestCaseError::fail(format!("Patch creation failed: {e}")))?;
         let result = apply_simple_patch(&old_data, &patch)
-            .expect("Patch application failed");
+            .map_err(|e| TestCaseError::fail(format!("Patch application failed: {e}")))?;
 
         prop_assert_eq!(result, new_data, "Patched data should match new data");
     }
@@ -314,8 +314,8 @@ proptest! {
     fn prop_compression_roundtrip(data in prop::collection::vec(any::<u8>(), 100..10000)) {
         use openracing_firmware_update::delta::{compress_data, decompress_data};
 
-        let compressed = compress_data(&data).expect("Compression failed");
-        let decompressed = decompress_data(&compressed).expect("Decompression failed");
+        let compressed = compress_data(&data).map_err(|e| TestCaseError::fail(format!("Compression failed: {e}")))?;
+        let decompressed = decompress_data(&compressed).map_err(|e| TestCaseError::fail(format!("Decompression failed: {e}")))?;
 
         prop_assert_eq!(decompressed, data, "Decompressed data should match original");
     }

@@ -6,6 +6,7 @@
 
 use hid_button_box_protocol::ButtonBoxInputReport;
 use proptest::prelude::*;
+use proptest::test_runner::TestCaseError;
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(500))]
@@ -18,8 +19,9 @@ proptest! {
         data[0] = bytes[0];
         data[1] = bytes[1];
         let result = ButtonBoxInputReport::parse_gamepad(&data);
-        prop_assert!(result.is_ok(), "10-byte report must parse");
-        let report = result.expect("already checked is_ok");
+        let report = result.map_err(|e| {
+            TestCaseError::fail(format!("10-byte report must parse: {e:?}"))
+        })?;
         prop_assert_eq!(
             report.buttons as u16, buttons,
             "buttons low 16 bits must match bytes 0–1"
@@ -34,8 +36,9 @@ proptest! {
         data[2] = bytes[0];
         data[3] = bytes[1];
         let result = ButtonBoxInputReport::parse_gamepad(&data);
-        prop_assert!(result.is_ok(), "10-byte report must parse");
-        let report = result.expect("already checked is_ok");
+        let report = result.map_err(|e| {
+            TestCaseError::fail(format!("10-byte report must parse: {e:?}"))
+        })?;
         prop_assert_eq!(report.axis_x, raw, "axis_x must match bytes 2–3");
     }
 
@@ -47,8 +50,9 @@ proptest! {
         data[4] = bytes[0];
         data[5] = bytes[1];
         let result = ButtonBoxInputReport::parse_gamepad(&data);
-        prop_assert!(result.is_ok(), "10-byte report must parse");
-        let report = result.expect("already checked is_ok");
+        let report = result.map_err(|e| {
+            TestCaseError::fail(format!("10-byte report must parse: {e:?}"))
+        })?;
         prop_assert_eq!(report.axis_y, raw, "axis_y must match bytes 4–5");
     }
 
@@ -60,8 +64,9 @@ proptest! {
         data[6] = bytes[0];
         data[7] = bytes[1];
         let result = ButtonBoxInputReport::parse_gamepad(&data);
-        prop_assert!(result.is_ok(), "10-byte report must parse");
-        let report = result.expect("already checked is_ok");
+        let report = result.map_err(|e| {
+            TestCaseError::fail(format!("10-byte report must parse: {e:?}"))
+        })?;
         prop_assert_eq!(report.axis_z, raw, "axis_z must match bytes 6–7");
     }
 
@@ -71,8 +76,9 @@ proptest! {
         let mut data = [0u8; 10];
         data[8] = hat;
         let result = ButtonBoxInputReport::parse_gamepad(&data);
-        prop_assert!(result.is_ok(), "10-byte report must parse");
-        let report = result.expect("already checked is_ok");
+        let report = result.map_err(|e| {
+            TestCaseError::fail(format!("10-byte report must parse: {e:?}"))
+        })?;
         prop_assert_eq!(report.hat, hat, "hat must match byte 8");
     }
 
@@ -108,8 +114,9 @@ proptest! {
         data[2] = bytes[2];
         data[3] = bytes[3];
         let result = ButtonBoxInputReport::parse_extended(&data);
-        prop_assert!(result.is_ok(), "13-byte extended report must parse");
-        let report = result.expect("already checked is_ok");
+        let report = result.map_err(|e| {
+            TestCaseError::fail(format!("13-byte extended report must parse: {e:?}"))
+        })?;
         prop_assert_eq!(report.buttons, buttons, "buttons must match bytes 0–3");
     }
 
@@ -121,8 +128,9 @@ proptest! {
         data[4] = bytes[0];
         data[5] = bytes[1];
         let result = ButtonBoxInputReport::parse_extended(&data);
-        prop_assert!(result.is_ok(), "13-byte extended report must parse");
-        let report = result.expect("already checked is_ok");
+        let report = result.map_err(|e| {
+            TestCaseError::fail(format!("13-byte extended report must parse: {e:?}"))
+        })?;
         prop_assert_eq!(report.axis_x, raw, "axis_x must match bytes 4–5 in extended");
     }
 
@@ -134,8 +142,9 @@ proptest! {
         data[10] = bytes[0];
         data[11] = bytes[1];
         let result = ButtonBoxInputReport::parse_extended(&data);
-        prop_assert!(result.is_ok(), "13-byte extended report must parse");
-        let report = result.expect("already checked is_ok");
+        let report = result.map_err(|e| {
+            TestCaseError::fail(format!("13-byte extended report must parse: {e:?}"))
+        })?;
         prop_assert_eq!(report.axis_rz, raw, "axis_rz must match bytes 10–11");
     }
 

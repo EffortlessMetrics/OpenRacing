@@ -3,7 +3,7 @@
 use openracing_wasm_runtime::{ResourceLimits, WasmRuntime};
 use uuid::Uuid;
 
-fn create_process_wasm() -> Vec<u8> {
+fn create_process_wasm() -> Result<Vec<u8>, wat::Error> {
     wat::parse_str(
         r#"
         (module
@@ -16,14 +16,13 @@ fn create_process_wasm() -> Vec<u8> {
         )
         "#,
     )
-    .expect("Failed to parse WAT")
 }
 
 #[test]
 fn test_long_running_plugin_stability() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
     let plugin_id = Uuid::new_v4();
-    let wasm = create_process_wasm();
+    let wasm = create_process_wasm()?;
 
     runtime.load_plugin_from_bytes(plugin_id, &wasm, vec![])?;
 
@@ -53,7 +52,7 @@ fn test_long_running_plugin_stability() -> Result<(), Box<dyn std::error::Error>
 #[test]
 fn test_concurrent_plugin_operations() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
-    let wasm = create_process_wasm();
+    let wasm = create_process_wasm()?;
 
     // Load multiple plugins
     let plugin_ids: Vec<Uuid> = (0..10).map(|_| Uuid::new_v4()).collect();
@@ -83,7 +82,7 @@ fn test_concurrent_plugin_operations() -> Result<(), Box<dyn std::error::Error>>
 fn test_plugin_reload_stress() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
     let plugin_id = Uuid::new_v4();
-    let wasm = create_process_wasm();
+    let wasm = create_process_wasm()?;
 
     runtime.load_plugin_from_bytes(plugin_id, &wasm, vec![])?;
 
@@ -106,7 +105,7 @@ fn test_memory_stability() -> Result<(), Box<dyn std::error::Error>> {
     let limits = ResourceLimits::default().with_memory(1024 * 1024);
     let mut runtime = WasmRuntime::with_limits(limits)?;
     let plugin_id = Uuid::new_v4();
-    let wasm = create_process_wasm();
+    let wasm = create_process_wasm()?;
 
     runtime.load_plugin_from_bytes(plugin_id, &wasm, vec![])?;
 
@@ -123,7 +122,7 @@ fn test_memory_stability() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_plugin_lifecycle_stress() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
-    let wasm = create_process_wasm();
+    let wasm = create_process_wasm()?;
 
     // Load/unload cycle many times
     for i in 0..50 {

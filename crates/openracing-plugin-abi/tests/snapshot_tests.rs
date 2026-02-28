@@ -224,21 +224,23 @@ mod serde_snapshots {
     use super::*;
 
     #[test]
-    fn test_telemetry_frame_json() {
+    fn test_telemetry_frame_json() -> Result<(), Box<dyn std::error::Error>> {
         let frame = TelemetryFrame::with_values(12345, 90.0, 1.57, 45.5, 0xFF);
-        let json = serde_json::to_string_pretty(&frame).unwrap();
+        let json = serde_json::to_string_pretty(&frame)?;
         assert_snapshot!(json);
+        Ok(())
     }
 
     #[test]
-    fn test_init_status_json() {
+    fn test_init_status_json() -> Result<(), Box<dyn std::error::Error>> {
         let status = PluginInitStatus::Initialized;
-        let json = serde_json::to_string_pretty(&status).unwrap();
+        let json = serde_json::to_string_pretty(&status)?;
         assert_snapshot!(json);
+        Ok(())
     }
 
     #[test]
-    fn test_plugin_info_json() {
+    fn test_plugin_info_json() -> Result<(), Box<dyn std::error::Error>> {
         let info = WasmPluginInfo {
             name: "test".to_string(),
             version: "1.0.0".to_string(),
@@ -246,7 +248,8 @@ mod serde_snapshots {
             description: "test".to_string(),
             abi_version: 1,
         };
-        let json = serde_json::to_string_pretty(&info).unwrap();
+        let json = serde_json::to_string_pretty(&info)?;
         assert_snapshot!(json);
+        Ok(())
     }
 }

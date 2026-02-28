@@ -200,8 +200,8 @@ mod serde_property_tests {
                 _pad: 0,
             };
 
-            let json = serde_json::to_string(&frame).unwrap();
-            let restored: TelemetryFrame = serde_json::from_str(&json).unwrap();
+            let json = serde_json::to_string(&frame).map_err(|e| TestCaseError::fail(format!("{e}")))?;
+            let restored: TelemetryFrame = serde_json::from_str(&json).map_err(|e| TestCaseError::fail(format!("{e}")))?;
 
             prop_assert_eq!(frame.timestamp_us, restored.timestamp_us);
             prop_assert_eq!(frame.wheel_angle_deg.to_bits(), restored.wheel_angle_deg.to_bits());
@@ -220,8 +220,8 @@ mod serde_property_tests {
                 _ => PluginInitStatus::ShutDown,
             };
 
-            let json = serde_json::to_string(&status).unwrap();
-            let restored: PluginInitStatus = serde_json::from_str(&json).unwrap();
+            let json = serde_json::to_string(&status).map_err(|e| TestCaseError::fail(format!("{e}")))?;
+            let restored: PluginInitStatus = serde_json::from_str(&json).map_err(|e| TestCaseError::fail(format!("{e}")))?;
 
             prop_assert_eq!(status, restored);
         }

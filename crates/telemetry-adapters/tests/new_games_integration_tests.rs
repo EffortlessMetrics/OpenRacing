@@ -886,7 +886,7 @@ mod proptest_tests {
             let pkt = make_lfs_packet(speed, rpm, gear, throttle, brake);
             let result = LFSAdapter::new().normalize(&pkt);
             prop_assert!(result.is_ok(), "expected normalize to succeed: {:?}", result.err());
-            let t = result.unwrap();
+            let t = result.map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.throttle >= 0.0 && t.throttle <= 1.0,
                 "throttle {} must be in [0, 1]",

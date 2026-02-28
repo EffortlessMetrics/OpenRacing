@@ -52,7 +52,7 @@ fn test_snapshot_friction_effect() {
 }
 
 #[test]
-fn test_snapshot_input_report_center() {
+fn test_snapshot_input_report_center() -> Result<(), Box<dyn std::error::Error>> {
     let data = vec![
         0x00, 0x80, // steering center
         0x00, 0x00, 0x00, 0x00, // pedals released
@@ -63,7 +63,7 @@ fn test_snapshot_input_report_center() {
         0x00, // flags
         0x00, 0x00, 0x00, // quick release
     ];
-    let state = simagic::parse_input_report(&data).expect("parse should succeed");
+    let state = simagic::parse_input_report(&data).ok_or("parse_input_report returned None")?;
     assert_snapshot!(format!(
         "steering={:.4}, throttle={:.4}, brake={:.4}, clutch={:.4}, handbrake={:.4}, buttons={}, hat={}, rotary1={}, rotary2={}, gear={:?}",
         state.steering,
@@ -77,10 +77,11 @@ fn test_snapshot_input_report_center() {
         state.rotary2,
         state.shifter.gear
     ));
+    Ok(())
 }
 
 #[test]
-fn test_snapshot_input_report_full_throttle() {
+fn test_snapshot_input_report_full_throttle() -> Result<(), Box<dyn std::error::Error>> {
     let data = vec![
         0x00, 0x80, // steering center
         0xFF, 0xFF, // throttle full
@@ -94,7 +95,7 @@ fn test_snapshot_input_report_full_throttle() {
         0x01, // clutch in range
         0x00, 0x00, 0x00, // quick release attached
     ];
-    let state = simagic::parse_input_report(&data).expect("parse should succeed");
+    let state = simagic::parse_input_report(&data).ok_or("parse_input_report returned None")?;
     assert_snapshot!(format!(
         "steering={:.4}, throttle={:.4}, brake={:.4}, clutch={:.4}, gear={:?}, clutch_in_range={}",
         state.steering,
@@ -104,10 +105,11 @@ fn test_snapshot_input_report_full_throttle() {
         state.shifter.gear,
         state.shifter.clutch_in_range
     ));
+    Ok(())
 }
 
 #[test]
-fn test_snapshot_input_report_full_right() {
+fn test_snapshot_input_report_full_right() -> Result<(), Box<dyn std::error::Error>> {
     let data = vec![
         0xFF, 0xFF, // steering full right
         0x00, 0x00, 0x00, 0x00, // pedals
@@ -118,11 +120,12 @@ fn test_snapshot_input_report_full_right() {
         0x00, // flags
         0x00, 0x00, 0x01, // quick release detached
     ];
-    let state = simagic::parse_input_report(&data).expect("parse should succeed");
+    let state = simagic::parse_input_report(&data).ok_or("parse_input_report returned None")?;
     assert_snapshot!(format!(
         "steering={:.4}, hat={}, quick_release={:?}",
         state.steering, state.hat, state.quick_release
     ));
+    Ok(())
 }
 
 #[test]

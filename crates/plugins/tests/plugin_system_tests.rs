@@ -148,8 +148,8 @@ async fn test_quarantine_system() {
 
 /// Test WASM plugin host
 #[tokio::test]
-async fn test_wasm_plugin_host() {
-    let host = wasm::WasmPluginHost::new().expect("Failed to create WASM host");
+async fn test_wasm_plugin_host() -> Result<(), Box<dyn std::error::Error>> {
+    let host = wasm::WasmPluginHost::new()?;
 
     // Test with a mock manifest (no actual WASM file)
     let manifest = manifest::PluginManifest {
@@ -185,12 +185,13 @@ async fn test_wasm_plugin_host() {
         .load_plugin(manifest, std::path::Path::new("nonexistent.wasm"))
         .await;
     assert!(result.is_err());
+    Ok(())
 }
 
 /// Test plugin host system
 #[tokio::test]
-async fn test_plugin_host_system() {
-    let temp_dir = tempdir().expect("Failed to create temp directory");
+async fn test_plugin_host_system() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = tempdir()?;
     let plugin_dir = temp_dir.path().to_path_buf();
 
     // Create a mock plugin directory structure
@@ -234,9 +235,7 @@ async fn test_plugin_host_system() {
     must(fs::write(plugin_subdir.join("plugin.wasm"), b"mock wasm content").await);
 
     // Create plugin host
-    let host = host::PluginHost::new(plugin_dir)
-        .await
-        .expect("Failed to create plugin host");
+    let host = host::PluginHost::new(plugin_dir).await?;
 
     // Check that plugin was discovered
     let registry = host.get_registry().await;
@@ -246,6 +245,7 @@ async fn test_plugin_host_system() {
     assert_eq!(entry.manifest.name, "Test Plugin");
     assert!(!entry.is_loaded);
     assert!(entry.is_enabled);
+    Ok(())
 }
 
 /// Test budget violation detection
@@ -578,14 +578,12 @@ fn test_plugin_lifecycle_load_process_unload() -> Result<(), Box<dyn std::error:
 
 /// Integration test for complete plugin workflow
 #[tokio::test]
-async fn test_plugin_workflow_integration() {
-    let temp_dir = tempdir().expect("Failed to create temp directory");
+async fn test_plugin_workflow_integration() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = tempdir()?;
     let plugin_dir = temp_dir.path().to_path_buf();
 
     // Create plugin host
-    let host = host::PluginHost::new(plugin_dir)
-        .await
-        .expect("Failed to create plugin host");
+    let host = host::PluginHost::new(plugin_dir).await?;
 
     // Test that empty directory works
     let registry = host.get_registry().await;
@@ -596,12 +594,9 @@ async fn test_plugin_workflow_integration() {
     assert_eq!(quarantine_stats.len(), 0);
 
     // Test loading all plugins (should be no-op)
-    host.load_all_plugins()
-        .await
-        .expect("Failed to load all plugins");
+    host.load_all_plugins().await?;
 
     // Test unloading all plugins (should be no-op)
-    host.unload_all_plugins()
-        .await
-        .expect("Failed to unload all plugins");
+    host.unload_all_plugins().await?;
+    Ok(())
 }

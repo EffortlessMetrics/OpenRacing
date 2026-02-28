@@ -64,8 +64,14 @@ proptest! {
         prop_assert!(avg >= 0.0);
 
         // Average should be within range of input times
-        let min_time = *times.iter().min().unwrap() as f64;
-        let max_time = *times.iter().max().unwrap() as f64;
+        let Some(&min_time_raw) = times.iter().min() else {
+            return Err(proptest::test_runner::TestCaseError::fail("empty times"));
+        };
+        let Some(&max_time_raw) = times.iter().max() else {
+            return Err(proptest::test_runner::TestCaseError::fail("empty times"));
+        };
+        let min_time = min_time_raw as f64;
+        let max_time = max_time_raw as f64;
         prop_assert!(avg >= min_time - 0.1);
         prop_assert!(avg <= max_time + 0.1);
     }
@@ -104,7 +110,9 @@ proptest! {
         let remaining = stats.quarantine_remaining();
         prop_assert!(remaining.is_some());
 
-        let remaining = remaining.unwrap();
+        let Some(remaining) = remaining else {
+            return Err(proptest::test_runner::TestCaseError::fail("quarantine_remaining returned None"));
+        };
         prop_assert!(remaining <= duration);
         prop_assert!(remaining > Duration::ZERO);
     }

@@ -26,15 +26,16 @@ mod codec_tests {
     }
 
     #[test]
-    fn test_message_header_encode_decode() {
+    fn test_message_header_encode_decode() -> Result<(), Box<dyn std::error::Error>> {
         let header = MessageHeader::new(message_types::DEVICE, 1024, 42);
         let encoded = header.encode();
-        let decoded = MessageHeader::decode(&encoded).expect("decode should succeed");
+        let decoded = MessageHeader::decode(&encoded)?;
 
         assert_eq!(decoded.message_type, message_types::DEVICE);
         assert_eq!(decoded.payload_len, 1024);
         assert_eq!(decoded.sequence, 42);
         assert_eq!(decoded.flags, 0);
+        Ok(())
     }
 
     #[test]
@@ -165,27 +166,29 @@ mod server_tests {
     }
 
     #[tokio::test]
-    async fn test_server_start_stop() {
+    async fn test_server_start_stop() -> Result<(), Box<dyn std::error::Error>> {
         let config = IpcConfig::default();
         let server = IpcServer::new(config);
 
-        server.start().await.expect("start should succeed");
+        server.start().await?;
         assert_eq!(server.state().await, ServerState::Running);
 
-        server.stop().await.expect("stop should succeed");
+        server.stop().await?;
         assert_eq!(server.state().await, ServerState::Stopped);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_server_double_start() {
+    async fn test_server_double_start() -> Result<(), Box<dyn std::error::Error>> {
         let config = IpcConfig::default();
         let server = IpcServer::new(config);
 
-        server.start().await.expect("first start should succeed");
+        server.start().await?;
         let result = server.start().await;
         assert!(result.is_err());
 
-        server.stop().await.expect("stop should succeed");
+        server.stop().await?;
+        Ok(())
     }
 }
 

@@ -197,7 +197,7 @@ Source: `crates/hid-asetek-protocol`; status: **Verified** (Invicta, Forte) / **
 |-------|-----|-------------|--------------|---------------|----------|
 | La Prima | `0xF303` | 12.0 | N/A | N/A | Asetek Proprietary |
 | Forte | `0xF301` | 18.0 | N/A | N/A | Asetek Proprietary |
-| Tony Kanaan Edition | `0xF306` | 18.0 | N/A | N/A | Asetek Proprietary |
+| Tony Kanaan Edition | `0xF306` | 27.0 | N/A | N/A | Asetek Proprietary |
 | Invicta | `0xF300` | 27.0 | N/A | N/A | Asetek Proprietary |
 
 **FFB effects:** Constant, Spring, Damper. Quick-release system on all models. Torque output in centi-Newton-meters (cNm), 16-bit. Requires continuous HID polling (devices reboot without it).
@@ -441,15 +441,15 @@ Devices are assigned one of three status levels based on available evidence.
 | Moza Racing (R3–R21 V1/V2) | Verified | All 12 PIDs web-verified (universal-pidff, mozaracing.com) |
 | Simagic EVO series | Verified (accessories Estimated) | EVO torques verified (9/12/18 Nm); legacy PID `0x0522` confirmed |
 | Simucube 1/2 Sport/Pro/Ultimate | Verified | SC2 Sport 17 Nm, Pro 25 Nm, Ultimate 32 Nm; SC1 PID `0x0D5A` |
-| Asetek Invicta / Forte | Verified (La Prima, TK: Community) | Torques from crate: 12/18/27 Nm |
+| Asetek Invicta / Forte | Verified (La Prima, TK: Community) | Torques from crate: 12/18/27 Nm; TK corrected 18→27 Nm (F-042) |
 | Cammus C5 / C12 | Verified | Confirmed against hid-ids.h |
-| VRS DirectForce Pro | Verified (V2 Community) | VID collision with Simagic documented |
-| OpenFFBoard | Verified | Main PID `0xFFB0` confirmed (pid.codes); alt `0xFFB1` unverified |
+| VRS DirectForce Pro | Verified | PID `0xA355` confirmed via linux-steering-wheels; VID collision with Simagic documented |
+| OpenFFBoard | Verified | Main PID `0xFFB0` confirmed (pid.codes); alt `0xFFB1` **unverified — absent from all sources** (F-037) |
 | FFBeast | Verified | PIDs confirmed via hid-ids.h |
-| Leo Bodnar | Community-reported | VID confirmed; SLI-M PID `0xBEEF` flagged as placeholder |
+| Leo Bodnar | Community-reported | VID confirmed; SLI-M PID `0xBEEF` **placeholder — no hardware match** (F-036) |
 | AccuForce Pro | Community-reported | PID `0x804C` confirmed from USB captures |
 | Heusinkveld (Sprint, Ultimate+, Pro) | Community-reported | VID `0x16D0` collision with Simucube documented |
-| Cube Controls | Estimated (**Provisional — PIDs unconfirmed; input-only, not wheelbases**) | Button boxes (non-FFB) |
+| Cube Controls | Estimated (**Provisional — PIDs unconfirmed, product pages 404; input-only, not wheelbases**) | Button boxes (non-FFB); see F-038 |
 | PXN | Community-reported | PIDs from linux-steering-wheels |
 | Granite Devices / OSW (SimpleMotion V2) | Community-reported | Legacy OSW generation |
 

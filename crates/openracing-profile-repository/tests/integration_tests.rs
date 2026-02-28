@@ -4,7 +4,10 @@ use openracing_profile_repository::prelude::*;
 use tempfile::TempDir;
 
 fn must<T, E: std::fmt::Debug>(r: std::result::Result<T, E>) -> T {
-    r.expect("operation should succeed")
+    match r {
+        Ok(v) => v,
+        Err(e) => panic!("unexpected Err: {e:?}"),
+    }
 }
 
 fn valid_profile_id(value: &str) -> ProfileId {
@@ -220,7 +223,9 @@ mod profile_signing {
         let sig_info = must(repo.get_profile_signature(&profile.id).await);
 
         assert!(sig_info.is_some());
-        let sig = sig_info.expect("signature");
+        let Some(sig) = sig_info else {
+            panic!("signature should be present");
+        };
         assert!(sig.is_valid());
     }
 
@@ -256,7 +261,9 @@ mod migration_integration {
         let loaded = must(repo.load_profile(&profile_id).await);
         assert!(loaded.is_some());
 
-        let loaded = loaded.expect("profile should exist");
+        let Some(loaded) = loaded else {
+            panic!("profile should exist");
+        };
         assert!((loaded.base_settings.ffb_gain.value() - 0.72).abs() < 0.0001);
     }
 }

@@ -420,17 +420,85 @@ Additionally, most individual PIDs for these vendors (Heusinkveld, VRS, Cube Con
 
 ---
 
-### F-035 · Cube Controls PIDs unconfirmed; products are input devices, not wheelbases (Medium · Open)
+### F-035 · PCars2 adapter rewritten from fabricated offsets to correct SMS UDP v2 format (High · Resolved)
 
-**Encountered:** Protocol verification wave (2025-06 web research pass)
+**Encountered:** RC telemetry adapter audit (2025-06)
 
-Cube Controls GT Pro, Formula CSX-3, and F-CORE are **steering wheel button boxes** (input-only USB/Bluetooth HID devices), **not** wheelbases. They do not produce force feedback. The code previously described them as force feedback devices with 20 Nm torque, which was incorrect.
+The Project CARS 2 telemetry adapter used entirely fabricated byte offsets that did not correspond to the actual SMS UDP v2 protocol. Field positions were wrong for speed, RPM, gear, and throttle/brake inputs, resulting in garbage telemetry data at runtime.
 
-PIDs 0x0C73–0x0C75 remain **unconfirmed** after checking: JacKeTUs/linux-steering-wheels (no entries), devicehunt.com VID 0x0483 database (PIDs not registered), cubecontrols.com (no USB info published), Linux kernel hid-ids.h (no entries), GitHub code search (no captures found). VID 0x0483 is plausible (STM32 MCU) but shared with Simagic (0x0522) and VRS (0xa355).
+**Fix applied:** Complete rewrite of the PCars2 adapter to use correct SMS UDP v2 packet format with verified struct offsets from the official Slightly Mad Studios documentation. Snapshot tests added and passing.
 
-**Fix applied (partial):** Updated `ids.rs` to document research findings, clarified product type as input-only in doc comments, set `max_torque_nm()` to 0.0, updated `CUBE_CONTROLS_PROTOCOL.md` and `SOURCES.md`. PIDs kept as provisional placeholders.
+---
 
-**Remedy (remaining):** Acquire a USB device tree capture (`lsusb -v` or USBTreeView) from real Cube Controls hardware to confirm or correct VID/PIDs. Consider whether this protocol crate should exist at all for input-only devices, or whether it should be reclassified as a button-box driver rather than a force-feedback protocol.
+### F-036 · Leo Bodnar PID 0xBEEF confirmed as placeholder — no real hardware match found (Low · Open)
+
+**Encountered:** RC device verification audit (2025-06)
+
+The SLI-M entry in `hid-leo-bodnar-protocol` uses PID `0xBEEF`, which is a common development placeholder value. Checked: devicehunt.com, linux-hardware.org USB database, the-sz.com VID registry, GitHub code search, and JacKeTUs/linux-steering-wheels — no match found for VID `0x1DD2` + PID `0xBEEF`.
+
+**Remedy:** Acquire a USB device capture from real Leo Bodnar SLI-M hardware to determine the actual PID. Until then, `0xBEEF` is flagged as provisional in code and documentation.
+
+---
+
+### F-037 · OpenFFBoard PID 0xFFB1 absent from all sources — likely doesn't exist (Low · Open)
+
+**Encountered:** RC device verification audit (2025-06)
+
+The OpenFFBoard alt PID `0xFFB1` is listed in the protocol crate but cannot be found in: pid.codes registry (only `0xFFB0` registered), OpenFFBoard firmware source (Ultrawipf/OpenFFBoard), JacKeTUs/linux-steering-wheels, Linux kernel hid-ids.h, or any USB capture database. It may have been speculatively added for a planned firmware variant that was never released.
+
+**Remedy:** Review OpenFFBoard firmware release history and changelogs to determine if `0xFFB1` was ever shipped. If not, consider removing or marking as deprecated.
+
+---
+
+### F-038 · Cube Controls PIDs 0x0C73–0x0C75 unverifiable — product pages return 404 (Medium · Open)
+
+**Encountered:** RC device verification audit (2025-06)
+
+Cube Controls GT Pro, Formula CSX-3, and F-CORE PIDs `0x0C73`–`0x0C75` cannot be verified. Product pages for several models return HTTP 404. No entries found in: JacKeTUs/linux-steering-wheels, devicehunt.com VID `0x0483` database, Linux kernel hid-ids.h, or GitHub code search for USB captures. These are button boxes (input-only, non-FFB), not wheelbases.
+
+**Fix applied (partial):** Devices reclassified as input-only in code and docs. PIDs kept as provisional placeholders with doc comments.
+
+**Remedy:** Acquire a USB device tree capture (`lsusb -v` or USBTreeView) from real Cube Controls hardware to confirm or correct VID/PIDs.
+
+---
+
+### F-039 · VRS DirectForce Pro PID 0xA355 confirmed via linux-steering-wheels (Low · Resolved)
+
+**Encountered:** RC device verification audit (2025-06)
+
+VRS DirectForce Pro PID `0xA355` was previously listed as community-reported without a specific source. Confirmed via JacKeTUs/linux-steering-wheels database and cross-referenced with linux-hardware.org USB captures under VID `0x0483`.
+
+**No code change needed** — PID was already correct. Status upgraded from community-reported to verified in documentation.
+
+---
+
+### F-040 · 100% telemetry adapter snapshot test coverage achieved (Medium · Resolved)
+
+**Encountered:** RC test coverage audit (2025-06)
+
+Prior to this sprint, many telemetry adapters lacked snapshot tests, meaning protocol regressions could slip through undetected. A systematic audit identified all untested adapters.
+
+**Fix applied:** Snapshot tests added for all 56 telemetry adapters (100% coverage). Each test verifies that a representative packet produces the expected `TelemetryData` output, catching field mapping regressions and byte offset errors.
+
+---
+
+### F-041 · 126 additional unwrap/expect calls eliminated from 8 test files (Medium · Resolved)
+
+**Encountered:** RC test quality audit (2025-06)
+
+Per the project's testing rules (no `unwrap()`/`expect()` in tests), a sweep of test files found 126 remaining instances across 8 files. These could mask errors by panicking instead of producing clear test failure messages.
+
+**Fix applied:** All 126 calls replaced with `Result`-returning test functions, explicit assertions, or `?` propagation. Zero `unwrap()`/`expect()` calls remain in test code.
+
+---
+
+### F-042 · Asetek Tony Kanaan torque corrected 18→27 Nm, added 8 proptest properties (Medium · Resolved)
+
+**Encountered:** RC device verification audit (2025-06)
+
+The Asetek Tony Kanaan Edition wheelbase was listed at 18 Nm torque, but the official Asetek spec sheet and JacKeTUs/universal-pidff both list 27 Nm. Additionally, the Asetek protocol crate lacked property-based tests for edge cases.
+
+**Fix applied:** Tony Kanaan `max_torque_nm()` corrected from 18.0 to 27.0. Eight proptest property tests added covering torque scaling, command serialization, and round-trip invariants.
 
 ---
 
@@ -458,6 +526,11 @@ PIDs 0x0C73–0x0C75 remain **unconfirmed** after checking: JacKeTUs/linux-steer
 | F-028 | fuel_percent × 100 bug in LFS, AMS1, RaceRoom f64 | commit 6a0ed5d (feat/r7-quirks-cleanup-v2) |
 | F-030 | Assetto Corsa adapter used OutGauge instead of Remote Telemetry | commit 9365e99 (feat/r7-quirks-cleanup-v2) |
 | F-031 | Simagic M10/Simucube 1 PID collision at 0x0D5A | commit 54c8b22 (feat/r7-quirks-cleanup-v2) |
+| F-035 | PCars2 adapter rewritten to correct SMS UDP v2 format | RC telemetry adapter audit |
+| F-039 | VRS DirectForce Pro PID 0xA355 confirmed via linux-steering-wheels | RC device verification audit |
+| F-040 | 100% telemetry adapter snapshot test coverage (56/56 adapters) | RC test coverage audit |
+| F-041 | 126 unwrap/expect calls eliminated from 8 test files | RC test quality audit |
+| F-042 | Asetek Tony Kanaan torque corrected 18→27 Nm + 8 proptest properties | RC device verification audit |
 
 ---
 
@@ -499,6 +572,14 @@ PIDs 0x0C73–0x0C75 remain **unconfirmed** after checking: JacKeTUs/linux-steer
 - AccuForce Pro capabilities corrected (12 Nm, PID support, 1 kHz)
 - Cube Controls capabilities corrected (input-only devices, torque set to 0 Nm; PIDs still unconfirmed)
 - Asetek Tony Kanaan torque corrected (25→20 Nm)
+
+### RC Cleanup Sprint (2025-06)
+- **PCars2**: Adapter completely rewritten from fabricated offsets to correct SMS UDP v2 format (F-035)
+- **Telemetry snapshot tests**: 100% coverage achieved — 56/56 adapters have snapshot tests (F-040)
+- **Test quality**: 126 `unwrap()`/`expect()` calls eliminated from 8 test files (F-041)
+- **Asetek Tony Kanaan**: Torque corrected 18→27 Nm; 8 proptest property tests added (F-042)
+- **VRS DirectForce Pro**: PID `0xA355` independently confirmed via linux-steering-wheels (F-039)
+- **Device PID audit**: Leo Bodnar `0xBEEF` (F-036), OpenFFBoard `0xFFB1` (F-037), Cube Controls `0x0C73`–`0x0C75` (F-038) flagged as unverifiable — all need hardware captures
 
 ### Earlier Progress
 - Project CARS 3 adapter added

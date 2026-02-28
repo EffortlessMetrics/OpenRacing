@@ -64,7 +64,9 @@ proptest! {
         let bytes = raw.to_le_bytes();
         data[0] = bytes[0];
         data[1] = bytes[1];
-        let report = cammus::parse(&data).expect("parse must succeed for 64-byte slice");
+        let report = cammus::parse(&data).map_err(|e| {
+            TestCaseError::fail(format!("parse must succeed: {e:?}"))
+        })?;
         prop_assert!(
             report.steering >= -1.0 && report.steering <= 1.0,
             "steering {} out of [-1, 1] for raw {raw}", report.steering
@@ -78,7 +80,9 @@ proptest! {
         let bytes = raw.to_le_bytes();
         data[2] = bytes[0];
         data[3] = bytes[1];
-        let report = cammus::parse(&data).expect("parse must succeed for 64-byte slice");
+        let report = cammus::parse(&data).map_err(|e| {
+            TestCaseError::fail(format!("parse must succeed: {e:?}"))
+        })?;
         prop_assert!(
             report.throttle >= 0.0 && report.throttle <= 1.0,
             "throttle {} out of [0, 1] for raw {raw}", report.throttle
@@ -92,7 +96,9 @@ proptest! {
         let bytes = raw.to_le_bytes();
         data[4] = bytes[0];
         data[5] = bytes[1];
-        let report = cammus::parse(&data).expect("parse must succeed for 64-byte slice");
+        let report = cammus::parse(&data).map_err(|e| {
+            TestCaseError::fail(format!("parse must succeed: {e:?}"))
+        })?;
         prop_assert!(
             report.brake >= 0.0 && report.brake <= 1.0,
             "brake {} out of [0, 1] for raw {raw}", report.brake
@@ -106,7 +112,9 @@ proptest! {
         let bytes = raw.to_le_bytes();
         data[8] = bytes[0];
         data[9] = bytes[1];
-        let report = cammus::parse(&data).expect("parse must succeed for 64-byte slice");
+        let report = cammus::parse(&data).map_err(|e| {
+            TestCaseError::fail(format!("parse must succeed: {e:?}"))
+        })?;
         prop_assert!(
             report.clutch >= 0.0 && report.clutch <= 1.0,
             "clutch {} out of [0, 1] for raw {raw}", report.clutch
@@ -120,7 +128,9 @@ proptest! {
         let bytes = raw.to_le_bytes();
         data[10] = bytes[0];
         data[11] = bytes[1];
-        let report = cammus::parse(&data).expect("parse must succeed for 64-byte slice");
+        let report = cammus::parse(&data).map_err(|e| {
+            TestCaseError::fail(format!("parse must succeed: {e:?}"))
+        })?;
         prop_assert!(
             report.handbrake >= 0.0 && report.handbrake <= 1.0,
             "handbrake {} out of [0, 1] for raw {raw}", report.handbrake
@@ -133,7 +143,9 @@ proptest! {
         let mut data = [0u8; 64];
         data[6] = (buttons & 0xFF) as u8;
         data[7] = (buttons >> 8) as u8;
-        let report = cammus::parse(&data).expect("parse must succeed for 64-byte slice");
+        let report = cammus::parse(&data).map_err(|e| {
+            TestCaseError::fail(format!("parse must succeed: {e:?}"))
+        })?;
         prop_assert_eq!(report.buttons, buttons);
     }
 
@@ -160,7 +172,9 @@ proptest! {
         Just(cammus::PRODUCT_C5),
         Just(cammus::PRODUCT_C12),
     ]) {
-        let model = cammus::CammusModel::from_pid(pid).expect("known PID must yield a model");
+        let model = cammus::CammusModel::from_pid(pid).ok_or_else(|| {
+            TestCaseError::fail(format!("known PID {pid:#06X} must yield a model"))
+        })?;
         prop_assert!(model.max_torque_nm() > 0.0);
     }
 
@@ -170,7 +184,9 @@ proptest! {
         Just(cammus::PRODUCT_C5),
         Just(cammus::PRODUCT_C12),
     ]) {
-        let model = cammus::CammusModel::from_pid(pid).expect("known PID must yield a model");
+        let model = cammus::CammusModel::from_pid(pid).ok_or_else(|| {
+            TestCaseError::fail(format!("known PID {pid:#06X} must yield a model"))
+        })?;
         prop_assert!(!model.name().is_empty());
     }
 

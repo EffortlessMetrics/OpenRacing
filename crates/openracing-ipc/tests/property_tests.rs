@@ -16,7 +16,9 @@ proptest! {
         header.flags = flags;
 
         let encoded = header.encode();
-        let decoded = MessageHeader::decode(&encoded).expect("decode should succeed");
+        let decoded = MessageHeader::decode(&encoded).map_err(|e| {
+            TestCaseError::fail(format!("decode should succeed: {e:?}"))
+        })?;
 
         prop_assert_eq!(decoded.message_type, message_type);
         prop_assert_eq!(decoded.payload_len, payload_len);

@@ -48,7 +48,9 @@ proptest! {
     fn prop_report_structure(seq in 0u16..=u16::MAX) {
         use hid_simucube_protocol::REPORT_SIZE_OUTPUT;
         let report = SimucubeOutputReport::new(seq);
-        let data = report.build().expect("build should succeed");
+        let data = report.build().map_err(|e| {
+            TestCaseError::fail(format!("build should succeed: {e:?}"))
+        })?;
         prop_assert_eq!(data.len(), REPORT_SIZE_OUTPUT,
             "data.len()={} != REPORT_SIZE_OUTPUT={}", data.len(), REPORT_SIZE_OUTPUT);
         prop_assert_eq!(data[0], 0x01, "first byte must be report ID 0x01");

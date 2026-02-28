@@ -62,7 +62,9 @@ fn jitter_max_is_upper_bound(samples: Vec<u64>) {
 
     let mut metrics = JitterMetrics::new();
     let samples: Vec<u64> = samples.into_iter().map(|s| s.min(10_000_000_000)).collect();
-    let expected_max = *samples.iter().max().unwrap();
+    let Some(&expected_max) = samples.iter().max() else {
+        return;
+    };
 
     for &sample in &samples {
         metrics.record_tick(sample, false);

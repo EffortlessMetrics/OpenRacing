@@ -25,7 +25,7 @@ fn test_concurrent_increment_single_counter() {
         .collect();
 
     for handle in handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "thread panicked unexpectedly");
     }
 
     let expected = num_threads * increments_per_thread;
@@ -58,7 +58,7 @@ fn test_concurrent_increment_all_counters() {
         .collect();
 
     for handle in handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "thread panicked unexpectedly");
     }
 
     let snapshot = counters.snapshot();
@@ -115,11 +115,11 @@ fn test_concurrent_snapshot_and_increment() {
         .collect();
 
     for handle in writer_handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "thread panicked unexpectedly");
     }
 
     for handle in reader_handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "thread panicked unexpectedly");
     }
 
     let final_snapshot = counters.snapshot();
@@ -161,12 +161,15 @@ fn test_concurrent_snapshot_and_reset() {
         .collect();
 
     for handle in writer_handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "thread panicked unexpectedly");
     }
 
     let collected: u64 = collector_handles
         .into_iter()
-        .map(|h| h.join().unwrap())
+        .map(|h| match h.join() {
+            Ok(val) => val,
+            Err(_) => panic!("collector thread panicked"),
+        })
         .sum();
 
     let remaining = counters.total_ticks();
@@ -194,7 +197,7 @@ fn test_concurrent_torque_saturation() {
         .collect();
 
     for handle in handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "thread panicked unexpectedly");
     }
 
     let snapshot = counters.snapshot();
@@ -231,7 +234,7 @@ fn test_concurrent_telemetry_tracking() {
         .collect();
 
     for handle in handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "thread panicked unexpectedly");
     }
 
     let pct = counters.telemetry_loss_percent();
@@ -262,7 +265,7 @@ fn test_stress_counter_overflow() {
         .collect();
 
     for handle in handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "thread panicked unexpectedly");
     }
 
     let _ = counters.total_ticks();
@@ -292,7 +295,7 @@ fn test_concurrent_independent_counters() {
         .collect();
 
     for handle in handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "thread panicked unexpectedly");
     }
 
     let snapshot = counters.snapshot();
@@ -344,12 +347,15 @@ mod queue_tests {
             .collect();
 
         for handle in producer_handles {
-            handle.join().unwrap();
+            assert!(handle.join().is_ok(), "thread panicked unexpectedly");
         }
 
         let consumed: u64 = consumer_handles
             .into_iter()
-            .map(|h| h.join().unwrap())
+            .map(|h| match h.join() {
+                Ok(val) => val,
+                Err(_) => panic!("consumer thread panicked"),
+            })
             .sum();
 
         let remaining = queues.jitter_len() as u64;
@@ -376,7 +382,7 @@ mod queue_tests {
             .collect();
 
         for handle in handles {
-            handle.join().unwrap();
+            assert!(handle.join().is_ok(), "thread panicked unexpectedly");
         }
 
         let queue_len = queues.jitter_len();

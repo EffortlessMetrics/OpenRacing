@@ -295,7 +295,7 @@ mod serde_fuzz {
     use super::*;
 
     #[test]
-    fn fuzz_telemetry_serde_edge_cases() {
+    fn fuzz_telemetry_serde_edge_cases() -> Result<(), Box<dyn std::error::Error>> {
         let edge_cases = [
             TelemetryFrame::with_values(0, 0.0, 0.0, 0.0, 0),
             TelemetryFrame::with_values(u64::MAX, f32::MAX, f32::MIN, f32::MAX, u32::MAX),
@@ -304,24 +304,26 @@ mod serde_fuzz {
         ];
 
         for frame in edge_cases {
-            let json = serde_json::to_string(&frame).unwrap();
-            let restored: TelemetryFrame = serde_json::from_str(&json).unwrap();
+            let json = serde_json::to_string(&frame)?;
+            let restored: TelemetryFrame = serde_json::from_str(&json)?;
 
             assert_eq!(frame.timestamp_us, restored.timestamp_us);
             assert_eq!(frame.fault_flags, restored.fault_flags);
         }
+        Ok(())
     }
 
     #[test]
-    fn fuzz_telemetry_serde_roundtrip_finite() {
+    fn fuzz_telemetry_serde_roundtrip_finite() -> Result<(), Box<dyn std::error::Error>> {
         for temp in [20.0, 45.0, 80.0, f32::MAX, f32::MIN] {
             for angle in [-1800.0, -90.0, 0.0, 90.0, 1800.0] {
                 let frame = TelemetryFrame::with_values(12345, angle, 1.57, temp, 0xFF);
-                let json = serde_json::to_string(&frame).unwrap();
-                let restored: TelemetryFrame = serde_json::from_str(&json).unwrap();
+                let json = serde_json::to_string(&frame)?;
+                let restored: TelemetryFrame = serde_json::from_str(&json)?;
 
                 assert_eq!(frame.timestamp_us, restored.timestamp_us);
             }
         }
+        Ok(())
     }
 }

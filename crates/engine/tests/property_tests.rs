@@ -89,7 +89,9 @@ fn prop_safety_policy_torque_validation_never_exceeds_device_limit(
     device_max_torque: ArbitraryTorqueNm,
     is_high_torque: bool,
 ) -> TestResult {
-    let policy = SafetyPolicy::new().expect("Failed to create policy");
+    let Ok(policy) = SafetyPolicy::new() else {
+        return TestResult::error("Failed to create policy");
+    };
     let capabilities =
         DeviceCapabilities::new(false, true, true, true, device_max_torque.0, 10000, 1000);
 
@@ -161,7 +163,9 @@ fn prop_safety_policy_temperature_limit_enforced(temperature: u8) -> TestResult 
 
 #[quickcheck]
 fn prop_safety_policy_hands_off_limit_enforced(hands_off_seconds: u16) -> TestResult {
-    let mut policy = SafetyPolicy::new().expect("Failed to create policy");
+    let Ok(mut policy) = SafetyPolicy::new() else {
+        return TestResult::error("Failed to create policy");
+    };
     let device = create_arbitrary_device(must(TorqueNm::new(25.0)));
 
     let result = policy.can_enable_high_torque(
@@ -371,7 +375,9 @@ fn prop_safety_and_profile_integration(
         return TestResult::discard();
     }
 
-    let policy = SafetyPolicy::new().expect("Failed to create policy");
+    let Ok(policy) = SafetyPolicy::new() else {
+        return TestResult::error("Failed to create policy");
+    };
     let capabilities =
         DeviceCapabilities::new(false, true, true, true, device_max_torque.0, 10000, 1000);
 
@@ -395,8 +401,8 @@ fn prop_safety_and_profile_integration(
 
 // Edge case tests
 #[test]
-fn test_safety_policy_edge_cases() {
-    let mut policy = SafetyPolicy::new().expect("Failed to create policy");
+fn test_safety_policy_edge_cases() -> Result<(), Box<dyn std::error::Error>> {
+    let mut policy = SafetyPolicy::new()?;
     let device = create_arbitrary_device(must(TorqueNm::new(25.0)));
 
     // Test exactly at temperature limit
@@ -421,10 +427,11 @@ fn test_safety_policy_edge_cases() {
         result,
         Err(SafetyViolation::HandsOffTooLong { .. })
     ));
+    Ok(())
 }
 
 #[test]
-fn test_profile_hierarchy_edge_cases() {
+fn test_profile_hierarchy_edge_cases() -> Result<(), Box<dyn std::error::Error>> {
     // Test with empty profile list
     let profiles: Vec<Profile> = vec![];
     let result = ProfileHierarchyPolicy::find_most_specific_profile(
@@ -452,7 +459,9 @@ fn test_profile_hierarchy_edge_cases() {
         None,
     );
     assert!(result.is_some());
-    assert_eq!(result.expect("Should match global").id.as_str(), "global");
+    let matched = result.ok_or("Should match global")?;
+    assert_eq!(matched.id.as_str(), "global");
+    Ok(())
 }
 
 // Property tests with deterministic seed configuration
