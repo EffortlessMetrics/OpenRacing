@@ -132,6 +132,19 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="beef", GROUP="i
 # USB Joystick (input-only)
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="0001", GROUP="input", MODE="0664", TAG+="uaccess"
 
+# ─── PXN / Shenzhen Jinyu Technology (0x11FF) ─────────────────────────────
+# Source: JacKeTUs/linux-steering-wheels compatibility table
+# V10 direct drive (entry-level)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="3245", GROUP="input", MODE="0664", TAG+="uaccess"
+# V12 direct drive (mid-range)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="1212", GROUP="input", MODE="0664", TAG+="uaccess"
+# V12 Lite direct drive (compact)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="1112", GROUP="input", MODE="0664", TAG+="uaccess"
+# V12 Lite SE direct drive (special edition compact)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="1211", GROUP="input", MODE="0664", TAG+="uaccess"
+# GT987 FF / Lite Star OEM
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="2141", GROUP="input", MODE="0664", TAG+="uaccess"
+
 
 # ─── Service restart on device connect ────────────────────────────────────
 ACTION=="add", SUBSYSTEM=="hidraw", TAG=="uaccess", RUN+="/bin/systemctl --user try-restart racing-wheel-suite.service"
@@ -185,3 +198,9 @@ ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="605
 # Leo Bodnar
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="000e", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="000c", ATTR{power/autosuspend}="-1"
+# PXN (Shenzhen Jinyu Technology) — V10, V12, V12 Lite, V12 Lite SE, GT987 FF
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="3245", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="1212", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="1112", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="1211", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="2141", ATTR{power/autosuspend}="-1"
