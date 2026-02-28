@@ -17,7 +17,7 @@ pub enum LogitechModel {
     G920,
     /// G923 racing wheel with TrueForce (2.2 Nm, 900°).
     G923,
-    /// G PRO racing wheel (11 Nm, 1080°; PS and Xbox/PC variants, direct drive).
+    /// G PRO direct-drive racing wheel (11 Nm, 1080°; PS and Xbox/PC variants).
     GPro,
     /// Unknown or future Logitech wheel.
     Unknown,
