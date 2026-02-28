@@ -1,0 +1,114 @@
+---
+source: crates/telemetry-adapters/tests/snapshots_games_v2.rs
+expression: normalized
+---
+speed_ms: 32
+steering_angle: -0.3
+throttle: 0.75
+brake: 0
+clutch: 0
+rpm: 5200
+max_rpm: 8000
+gear: 3
+num_gears: 0
+lateral_g: 0
+longitudinal_g: 0
+vertical_g: 0
+slip_ratio: 0
+slip_angle_fl: 0
+slip_angle_fr: 0
+slip_angle_rl: 0
+slip_angle_rr: 0
+tire_temps_c:
+  - 0
+  - 0
+  - 0
+  - 0
+tire_pressures_psi:
+  - 0
+  - 0
+  - 0
+  - 0
+ffb_scalar: 0
+ffb_torque_nm: 0
+flags:
+  yellow_flag: false
+  red_flag: false
+  blue_flag: false
+  checkered_flag: false
+  green_flag: true
+  pit_limiter: false
+  in_pits: false
+  drs_available: false
+  drs_active: false
+  ers_available: false
+  ers_active: false
+  launch_control: false
+  traction_control: false
+  abs_active: false
+  engine_limiter: false
+  safety_car: false
+  formation_lap: false
+  session_paused: false
+position: 0
+lap: 0
+current_lap_time_s: 0
+best_lap_time_s: 0
+last_lap_time_s: 0
+delta_ahead_s: 0
+delta_behind_s: 0
+fuel_percent: 0
+engine_temp_c: 0
+extended:
+  hand_brake:
+    type: Float
+    value: 0
+  pitch:
+    type: Float
+    value: 0
+  pos_x:
+    type: Float
+    value: 0
+  pos_y:
+    type: Float
+    value: 0
+  pos_z:
+    type: Float
+    value: 0
+  roll:
+    type: Float
+    value: 0
+  rpm_fraction:
+    type: Float
+    value: 0.65
+  stage_progress:
+    type: Float
+    value: 0.45
+  suspension_fl:
+    type: Float
+    value: 0
+  suspension_fr:
+    type: Float
+    value: 0
+  suspension_rl:
+    type: Float
+    value: 0
+  suspension_rr:
+    type: Float
+    value: 0
+  wheel_speed_fl:
+    type: Float
+    value: 0
+  wheel_speed_fr:
+    type: Float
+    value: 0
+  wheel_speed_rl:
+    type: Float
+    value: 0
+  wheel_speed_rr:
+    type: Float
+    value: 0
+  yaw:
+    type: Float
+    value: 0
+sequence: 0

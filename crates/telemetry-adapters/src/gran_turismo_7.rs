@@ -302,7 +302,7 @@ fn qr(s: &mut [u32; 16], a: usize, b: usize, c: usize, d: usize) {
 // ---------------------------------------------------------------------------
 
 /// Parse fields from an already-decrypted, magic-verified GT7 packet.
-pub(crate) fn parse_decrypted(buf: &[u8; PACKET_SIZE]) -> Result<NormalizedTelemetry> {
+pub fn parse_decrypted(buf: &[u8; PACKET_SIZE]) -> Result<NormalizedTelemetry> {
     let rpm = read_f32_le(buf, OFF_ENGINE_RPM);
     let max_rpm = read_f32_le(buf, OFF_RPM_ALERT_END).max(0.0);
     let speed_ms = read_f32_le(buf, OFF_SPEED_MS).max(0.0);
