@@ -1325,7 +1325,10 @@ mod tests {
             }
         })
         .await;
-        assert!(result.is_ok(), "engine did not process frames within 2000ms");
+        assert!(
+            result.is_ok(),
+            "engine did not process frames within 2000ms"
+        );
 
         engine.stop().await.unwrap();
     }
