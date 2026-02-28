@@ -16,7 +16,7 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 - **Safety System**: Hardware watchdog, FMEA fault injection, fault quarantine, safe mode transitions, black box recording
 - **Multi-vendor Device Support**: 15 vendors supported — Logitech, Fanatec, Thrustmaster, Moza, Simagic, Simucube 2, VRS, Heusinkveld, Asetek, OpenFFBoard, FFBeast, Granite Devices IONI/ARGON, AccuForce, Leo Bodnar, PXN (PR #18), Cammus
 - **Protocol Documentation**: All supported devices documented in `docs/protocols/`; VID/PID constants locked to `docs/protocols/SOURCES.md` via `id_verification.rs` test suites in all 15 HID vendor crates
-- **Test Infrastructure**: 3,600+ tests, 70 fuzz targets, 50 snapshot tests, property-based tests (proptest), E2E journey tests; all HID crates have cross-reference id_verification suites
+- **Test Infrastructure**: 5,749 tests, 70 fuzz targets, 50 snapshot tests, property-based tests (proptest), E2E journey tests; all HID crates have cross-reference id_verification suites
 
 **Architecture**: Established via ADRs 0001-0006 (FFB Mode Matrix, IPC Transport, OWP-1 Protocol, RT Scheduling, Plugin Architecture, Safety Interlocks)
 
@@ -184,7 +184,7 @@ The following TODOs exist in the codebase and should be addressed before v1.0.0:
 | v0.1.0  | 2025-01-01 | ✅ Released | Core Engine & Linux Support |
 | v0.2.0  | 2026-02-01 | ✅ Released | Windows Support & Tauri UI |
 | v0.3.0  | 2026-02-01 | ✅ Released | WASM Plugins, Game Telemetry, Curve FFB |
-| v1.0 RC | 2026-Q3   | ✅ Feature complete | Multi-vendor devices, 58 game adapters, safety hardening, 700+ tests |
+| v1.0 RC | 2026-Q3   | ✅ Feature complete | Multi-vendor devices, 58 game adapters, safety hardening, 5,749 tests |
 | v1.0.0  | 2026-10-15 | Planned | Production Release with Security Audit |
 
 ## Contributing
