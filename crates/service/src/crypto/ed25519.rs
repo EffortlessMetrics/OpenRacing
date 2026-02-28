@@ -360,9 +360,7 @@ impl super::SignatureVerifier for Ed25519Verifier {
 
         // Check content type appropriateness
         match metadata.content_type {
-            ContentType::Binary | ContentType::Firmware
-                if trust_level != TrustLevel::Trusted =>
-            {
+            ContentType::Binary | ContentType::Firmware if trust_level != TrustLevel::Trusted => {
                 warnings.push("Critical component signed by untrusted key".to_string());
             }
             ContentType::Plugin if trust_level == TrustLevel::Distrusted => {
