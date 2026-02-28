@@ -82,6 +82,18 @@ fn test_fanatec_ffb_config_csl_dd() {
 }
 
 #[test]
+fn test_fanatec_ffb_config_clubsport_dd() {
+    let protocol = FanatecProtocol::new(FANATEC_VENDOR_ID, product_ids::CLUBSPORT_DD);
+    let config = protocol.get_ffb_config();
+
+    assert_eq!(config.required_b_interval, Some(1));
+    assert!((config.max_torque_nm - 20.0).abs() < 0.01);
+    assert_eq!(config.encoder_cpr, 16_384);
+    assert!(protocol.is_v2_hardware());
+    assert!(protocol.model().supports_1000hz());
+}
+
+#[test]
 fn test_initialize_wheelbase_sends_mode_switch() -> Result<(), Box<dyn std::error::Error>> {
     let protocol = FanatecProtocol::new(FANATEC_VENDOR_ID, product_ids::CSL_DD);
     let mut writer = MockDeviceWriter::new();
