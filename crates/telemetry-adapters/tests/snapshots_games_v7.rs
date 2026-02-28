@@ -119,50 +119,48 @@ fn ams2_normalized_snapshot() -> TestResult {
 // ─── rFactor2 ─────────────────────────────────────────────────────────────────
 
 fn make_rf2_vehicle() -> RF2VehicleTelemetry {
-    let mut vehicle = RF2VehicleTelemetry::default();
-
-    vehicle.id = 1;
-    vehicle.lap_number = 5;
-    vehicle.local_vel = [55.0, 0.0, 0.0]; // 55 m/s ≈ 198 km/h forward
-    vehicle.gear = 5;
-    vehicle.engine_rpm = 9500.0;
-    vehicle.engine_max_rpm = 11_000.0;
-    vehicle.engine_water_temp = 92.0;
-    vehicle.engine_oil_temp = 105.0;
-    vehicle.fuel = 28.0;
-
-    // Input controls
-    vehicle.unfiltered_throttle = 0.85;
-    vehicle.unfiltered_brake = 0.0;
-    vehicle.unfiltered_steering = 0.1;
-    vehicle.unfiltered_clutch = 0.0;
-
-    // FFB via steering shaft torque (≤ 1.5 → clamped directly)
-    vehicle.steering_shaft_torque = 0.75;
-
     // Wheel lateral patch velocity (used for slip ratio; speed ≥ 1.0)
     let base_wheel = RF2WheelTelemetry {
         lateral_patch_vel: 3.3,
         ..RF2WheelTelemetry::default()
     };
-    vehicle.wheels = [
-        RF2WheelTelemetry {
-            lateral_patch_vel: 2.2,
-            ..base_wheel
-        },
-        RF2WheelTelemetry {
-            lateral_patch_vel: 2.75,
-            ..base_wheel
-        },
-        RF2WheelTelemetry {
-            lateral_patch_vel: 4.4,
-            ..base_wheel
-        },
-        RF2WheelTelemetry {
-            lateral_patch_vel: 3.85,
-            ..base_wheel
-        },
-    ];
+
+    let mut vehicle = RF2VehicleTelemetry {
+        id: 1,
+        lap_number: 5,
+        local_vel: [55.0, 0.0, 0.0], // 55 m/s ≈ 198 km/h forward
+        gear: 5,
+        engine_rpm: 9500.0,
+        engine_max_rpm: 11_000.0,
+        engine_water_temp: 92.0,
+        engine_oil_temp: 105.0,
+        fuel: 28.0,
+        unfiltered_throttle: 0.85,
+        unfiltered_brake: 0.0,
+        unfiltered_steering: 0.1,
+        unfiltered_clutch: 0.0,
+        // FFB via steering shaft torque (≤ 1.5 → clamped directly)
+        steering_shaft_torque: 0.75,
+        wheels: [
+            RF2WheelTelemetry {
+                lateral_patch_vel: 2.2,
+                ..base_wheel
+            },
+            RF2WheelTelemetry {
+                lateral_patch_vel: 2.75,
+                ..base_wheel
+            },
+            RF2WheelTelemetry {
+                lateral_patch_vel: 4.4,
+                ..base_wheel
+            },
+            RF2WheelTelemetry {
+                lateral_patch_vel: 3.85,
+                ..base_wheel
+            },
+        ],
+        ..Default::default()
+    };
 
     // Car / track names
     write_string(&mut vehicle.vehicle_name, "Dallara_IR18");
