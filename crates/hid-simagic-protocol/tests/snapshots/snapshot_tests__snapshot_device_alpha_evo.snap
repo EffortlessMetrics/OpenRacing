@@ -2,4 +2,4 @@
 source: crates/hid-simagic-protocol/tests/snapshot_tests.rs
 expression: "format!(\"name={}, category={:?}, supports_ffb={}, max_torque={:?}\",\nidentity.name, identity.category, identity.supports_ffb,\nidentity.max_torque_nm)"
 ---
-name=Simagic EVO Pro, category=Wheelbase, supports_ffb=true, max_torque=Some(30.0)
+name=Simagic EVO Pro, category=Wheelbase, supports_ffb=true, max_torque=Some(18.0)
