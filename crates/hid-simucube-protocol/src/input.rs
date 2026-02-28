@@ -218,8 +218,8 @@ mod tests {
         let mut data = [0u8; 17];
         // Minimal valid header (16 core bytes + 1 wireless)
         data[14] = 0b0000_0101; // buttons lo: button 0 and 2 pressed
-        data[15] = 0x00;        // buttons hi
-        data[16] = 85;          // battery 85%
+        data[15] = 0x00; // buttons hi
+        data[16] = 85; // battery 85%
         let result = SimucubeInputReport::parse(&data);
         assert!(result.is_ok());
         if let Ok(report) = result {
@@ -246,7 +246,7 @@ mod tests {
         let mut data = [0u8; 17];
         data[14] = 0xFF;
         data[15] = 0xFF; // all 16 buttons pressed
-        data[16] = 100;  // full battery
+        data[16] = 100; // full battery
         let result = SimucubeInputReport::parse(&data);
         assert!(result.is_ok());
         if let Ok(report) = result {

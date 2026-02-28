@@ -334,7 +334,10 @@ mod tests {
     fn test_rim_id_podium_apm() -> Result<(), Box<dyn std::error::Error>> {
         let rim = FanatecRimId::from_byte(rim_ids::PODIUM_APM);
         assert_eq!(rim, FanatecRimId::PodiumApm);
-        assert!(rim.has_dual_clutch(), "APM has dual-clutch bite-point paddles");
+        assert!(
+            rim.has_dual_clutch(),
+            "APM has dual-clutch bite-point paddles"
+        );
         assert!(rim.has_rotary_encoders(), "APM has rotary encoders");
         assert!(!rim.has_funky_switch());
         Ok(())
