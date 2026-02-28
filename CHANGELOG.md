@@ -227,6 +227,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 10 new insta snapshot tests: dakar, flatout, nascar, wrc_kylotonn, v_rally_4, rfactor1, gravel (SimHub JSON), trackmania, gran_turismo_sport, grid_autosport
   - Total snapshot files: 23
 
+- **New snapshot tests** (`crates/telemetry-adapters/tests/snapshots_games_v3.rs`):
+  - 16 insta snapshot tests: assetto_corsa, automobilista, dirt3, dirt4, dirt5, dirt_rally_2, dirt_showdown, eawrc, f1, gran_turismo_7, grid_2019, grid_legends, kartkraft, le_mans_ultimate, nascar_21, race_driver_grid
+  - Codemasters Mode-1 family tests share a single 252-byte packet fixture helper
+  - GT7 tests via `parse_decrypted()` directly (public API), bypasses Salsa20 encryption
+  - EAWRC tests use `tempfile::TempDir` with minimal schema fixtures + `with_telemetry_dir()`
+  - Total snapshot test files: 5 (23 existing + 11 v4 + 16 v3 = 50 unique adapter snapshots)
+
 - **New snapshot tests** (`crates/telemetry-adapters/tests/snapshots_games_v4.rs`):
   - 11 insta snapshot tests: raceroom, rbr, rennsport, wtcr, wrc_generations, wreckfest, motogp_simhub, mudrunner_simhub, snowrunner_simhub, ride5_simhub, ac_rally
   - Total snapshot files: 34+
