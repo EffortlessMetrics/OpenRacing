@@ -327,6 +327,29 @@ Several vendors share a VID. Always disambiguate using the PID (and `iProduct` s
 
 ---
 
+## Verification Sources
+
+The following external references were used during the verification waves documented in `docs/FRICTION_LOG.md`:
+
+| Source | URL / Reference | Used For |
+|--------|----------------|----------|
+| JacKeTUs/universal-pidff | [github.com/JacKeTUs/universal-pidff](https://github.com/JacKeTUs/universal-pidff) | Linux kernel 6.15 PIDFF driver; authoritative VID/PID + quirk flags for Moza, Cammus, FFBeast, PXN, Simagic, and others |
+| Linux kernel hid-ids.h | [torvalds/linux hid-ids.h](https://github.com/torvalds/linux/blob/master/drivers/hid/hid-ids.h) | Canonical USB VID/PID constants (`USB_VENDOR_ID_*`, `USB_DEVICE_ID_*`) for kernel-supported devices |
+| pid.codes registry | [pid.codes](https://pid.codes/) | Open-hardware PID allocations; used for OpenFFBoard (`1209:FFB0`) |
+| RetroBat Wheels.cs | [github.com/RetroBat/retrobat](https://github.com/RetroBat/retrobat) | AccuForce PID `0x804C`, Fanatec and Thrustmaster PID cross-reference |
+| simracingcockpit.gg | [simracingcockpit.gg](https://simracingcockpit.gg/) | Torque spec cross-reference for Simagic EVO, Asetek, and Simucube 2 product lines |
+| rF2SharedMemoryMap (rF2State.h) | [github.com/TheIronWolf/rF2SharedMemoryMapPlugin](https://github.com/TheIronWolf/rF2SharedMemoryMapPlugin) | Authoritative struct definitions for rFactor 2 shared memory telemetry adapter rewrite |
+| berarma/oversteer | [github.com/berarma/oversteer](https://github.com/berarma/oversteer) | Linux steering wheel tool; Logitech, Fanatec, Thrustmaster PID cross-reference |
+| devicehunt.com | [devicehunt.com](https://devicehunt.com/) | USB device database; Thrustmaster T500 RS PID correction |
+| the-sz.com USB ID database | [the-sz.com/products/usbid](https://www.the-sz.com/products/usbid/) | USB VID lookups for Leo Bodnar, Asetek, Cammus, PXN, VRS, Fanatec |
+| Kimplul/hid-tmff2 | [github.com/Kimplul/hid-tmff2](https://github.com/Kimplul/hid-tmff2) | Thrustmaster community FFB driver; T-GT II PID reuse confirmation, TS-XW correction |
+| linux-hardware.org | [linux-hardware.org](https://linux-hardware.org/) | Hardware probe database; Thrustmaster PID `0xB677` correction (T500 RS → T150) |
+| JacKeTUs/simagic-ff | [github.com/JacKeTUs/simagic-ff](https://github.com/JacKeTUs/simagic-ff) | Simagic kernel driver; legacy PID `0x0483:0x0522` verification |
+| FFBeast project | [ffbeast.github.io](https://ffbeast.github.io/) | FFBeast VID/PID and torque scale documentation |
+| Ultrawipf/OpenFFBoard | [github.com/Ultrawipf/OpenFFBoard](https://github.com/Ultrawipf/OpenFFBoard) | OpenFFBoard firmware source; PID `0xFFB0` confirmation |
+
+---
+
 ## Adding a New Device
 
 1. Obtain the VID from the USB-IF registry or an official vendor SDK.

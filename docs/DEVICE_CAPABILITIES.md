@@ -264,24 +264,24 @@ Devices are assigned one of three status levels based on available evidence.
 
 ### Current status summary
 
-| Vendor | Status |
-|---|---|
-| Moza Racing (wheelbases V1/V2) | Verified |
-| Fanatec (DD1, DD2, CSL DD, GT DD Pro) | Verified (others Community) |
-| Logitech (G25–G PRO) | Verified |
-| Thrustmaster (T300, TMX) | Verified (others Community) |
-| Simagic EVO series | Verified (accessories Estimated) |
-| Simucube 2 Sport/Pro/Ultimate | Verified |
-| VRS DirectForce Pro | Verified (V2 Community) |
-| Cammus C5 / C12 | Verified |
-| Asetek Invicta / Forte | Verified (LaPrima Community) |
-| Heusinkveld (Sprint, Ultimate+, Pro) | Community-reported |
-| FFBeast | Verified |
-| OpenFFBoard | Verified |
-| AccuForce Pro | Community-reported |
-| Leo Bodnar Wheel Interface / FFB Joystick | Community-reported |
-| Granite Devices / OSW (SimpleMotion V2) | Community-reported |
-| Cube Controls | Estimated (**Provisional — PIDs unconfirmed; input-only devices, not wheelbases**) |
+| Vendor | Status | Verification Detail |
+|---|---|---|
+| Moza Racing (wheelbases V1/V2) | Verified | All 11 PIDs web-verified (universal-pidff, mozaracing.com) |
+| Fanatec (DD1, DD2, CSL DD, GT DD Pro) | Verified (others Community) | Wheelbase PIDs verified; pedal PIDs community |
+| Logitech (G25–G PRO) | Verified | All PIDs from Linux kernel hid-ids.h + oversteer |
+| Thrustmaster (T300, TMX) | Verified (others Community) | T500 RS PID corrected; T-GT/T-GT II PIDs unknown |
+| Simagic EVO series | Verified (accessories Estimated) | EVO torques corrected (9/12/18 Nm); PID collision resolved |
+| Simucube 2 Sport/Pro/Ultimate | Verified | SC2 Sport 17 Nm, Ultimate 32 Nm corrected; SC1 PID added |
+| VRS DirectForce Pro | Verified (V2 Community) | VID collision with Simagic documented |
+| Cammus C5 / C12 | Verified | All confirmed against hid-ids.h |
+| Asetek Invicta / Forte | Verified (LaPrima Community) | Torques corrected (12/18/27 Nm) |
+| Heusinkveld (Sprint, Ultimate+, Pro) | Community-reported | VID `0x16D0` confirmed; VID collision with Simucube documented |
+| FFBeast | Verified | Dead links replaced; PIDs confirmed via hid-ids.h |
+| OpenFFBoard | Verified | Main PID `0xFFB0` confirmed (pid.codes); alt `0xFFB1` unverified |
+| AccuForce Pro | Community-reported | PID `0x804C` confirmed; V1 vs V2 torque documented |
+| Leo Bodnar Wheel Interface / FFB Joystick | Community-reported | VID confirmed; SLI-M PID `0xBEEF` flagged as placeholder |
+| Granite Devices / OSW (SimpleMotion V2) | Community-reported | — |
+| Cube Controls | Estimated (**Provisional — PIDs unconfirmed; input-only devices, not wheelbases**) | Reclassified as button boxes (non-FFB) |
 
 ---
 

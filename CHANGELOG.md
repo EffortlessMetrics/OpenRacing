@@ -254,6 +254,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Fix: `unwrap()`/`expect()` in 12 telemetry adapter test files** (`assetto_corsa.rs`, `ets2.rs`, `f1_native.rs`, `lfs.rs`, `pcars2.rs`, `dirt_rally_2.rs`, `gran_turismo_7.rs`, `kartkraft.rs`, `le_mans_ultimate.rs`, `nascar.rs`, `rbr.rs`, `trackmania.rs`): replaced all `unwrap()`/`expect()` in test closures with `.map_err(|e| TestCaseError::fail(format!("{e:?}")))?` and equivalent `?`-propagating patterns; no remaining unwrap/expect in proptest closures or `#[test]` fns
 
+### Documentation
+
+- **Full vendor VID/PID verification sweep**: Web-verified USB identifiers and torque specs for 15+ vendors against authoritative sources (Linux kernel `hid-ids.h`, JacKeTUs/universal-pidff, pid.codes, vendor websites). Key corrections: Asetek torques (12/18/27 Nm), Simucube SC2 Sport/Ultimate torques, Simagic EVO torques, Thrustmaster T500 RS PID relabeled. See friction log "Protocol Verification Wave 3".
+- **`docs/protocols/SOURCES.md`**: Added "Verification Sources" reference table listing all 14 external sources used during verification (universal-pidff, hid-ids.h, pid.codes, RetroBat, simracingcockpit.gg, rF2SharedMemoryMap, oversteer, devicehunt.com, the-sz.com, hid-tmff2, linux-hardware.org, simagic-ff, FFBeast, OpenFFBoard).
+- **`docs/DEVICE_CAPABILITIES.md`**: Added "Verification Detail" column to the status summary table showing per-vendor web-verification status and key corrections made.
+- **`docs/FRICTION_LOG.md`**: Added "Protocol Verification Wave 3 — Full Vendor Sweep" section documenting all device-by-device verification results.
+
 ## [1.0.0-rc.1] - 2026-11-01
 
 ### Added

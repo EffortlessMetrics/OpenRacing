@@ -476,6 +476,24 @@ PIDs 0x0C73–0x0C75 remain **unconfirmed** after checking: JacKeTUs/linux-steer
 - **FFBeast**: VID `0x045B`, Joystick PID `0x58F9`, Rudder PID `0x5968`, Wheel PID `0x59D7` — all confirmed against Linux kernel `hid-ids.h` (`USB_VENDOR_ID_FFBEAST`), `hid-universal-pidff.c`, FFBeast C/C++ API reference (`USB_VID=1115`, `WHEEL_PID_FS=22999`), and JacKeTUs/linux-steering-wheels. Protocol uses ±10000 signed 16-bit torque scale. Dead links fixed: `HF-Robotics/FFBeast` repo (404) and `ffbeast.com` (domain for sale) replaced with `ffbeast.github.io`.
 - **PXN**: No `hid-pxn-protocol` crate exists in this branch (was on `feat/r6-pxn-v2`). Linux kernel confirms VID `0x11FF` (`USB_VENDOR_ID_LITE_STAR`), PIDs: V10=`0x3245`, V12=`0x1212`, V12 Lite=`0x1112`/`0x1211`. No V9 PID found in kernel or community sources. PXN uses `HID_PIDFF_QUIRK_PERIODIC_SINE_ONLY` quirk in `hid-universal-pidff`. Torque specs not verified — PXN official site does not publish peak Nm values.
 
+### Protocol Verification Wave 3 — Full Vendor Sweep (Web-Verified)
+- **Asetek**: Invicta torque corrected 18→12 Nm, Forte corrected 25→18 Nm, Tony Kanaan corrected 25→27 Nm (from asetek.com spec sheets and JacKeTUs/universal-pidff).
+- **rFactor 2**: Adapter completely rewritten from `rF2State.h` (rF2SharedMemoryMap SDK). All shared memory struct offsets verified against the authoritative header. Field mapping corrected for vehicle telemetry, scoring, and extended data.
+- **Simucube**: SC2 Sport torque corrected 15→17 Nm, SC2 Ultimate torque corrected 35→32 Nm (Granite Devices official specs). Simucube 1 PID `0x0D5A` added and verified.
+- **Simagic**: EVO Sport 15→9 Nm, EVO 20→12 Nm, EVO Pro 30→18 Nm (simagic.com). PID collision with Simucube at `0x0483:0x0522` resolved via `iProduct` string disambiguation.
+- **Thrustmaster**: T500 RS PID `0xB677` corrected — was mislabeled as T150 Pro per linux-hardware.org and devicehunt.com. T-GT and T-GT II PIDs confirmed unknown (T-GT II reuses T300 PIDs per hid-tmff2 README).
+- **Moza Racing**: All 11 wheelbase PIDs re-confirmed correct against JacKeTUs/universal-pidff and mozaracing.com. No changes needed.
+- **Cammus**: VID `0x3416`, C5 `0x0301`, C12 `0x0302` — all confirmed correct against Linux kernel `hid-ids.h`. No changes needed.
+- **FFBeast**: Dead links (`HF-Robotics/FFBeast` repo 404, `ffbeast.com` domain for sale) replaced with `ffbeast.github.io`. PIDs confirmed against Linux kernel `hid-ids.h`.
+- **Cube Controls**: Reclassified as button boxes (input-only, non-FFB). PIDs remain provisional/unconfirmed pending hardware capture.
+- **Leo Bodnar**: VID `0x1DD2` confirmed via USB VID registry (the-sz.com). SLI-M PID `0xBEEF` flagged as placeholder — not found in any public USB database.
+- **AccuForce**: PID `0x804C` confirmed (NXP VID `0x1FC9`). V1 vs V2 torque differences documented (V1=7 Nm, V2=12 Nm).
+- **OpenFFBoard**: Main PID `0xFFB0` confirmed via pid.codes registry. Alt PID `0xFFB1` remains unverified (no independent source).
+- **Heusinkveld**: VID `0x16D0` confirmed (shared with Simucube — disambiguated by PID range `0x115x`).
+- **VRS DirectForce**: VID `0x0483` confirmed (STMicroelectronics generic). VID collision with Simagic legacy documented and resolved via `iProduct` string.
+- **Assetto Corsa**: Complete rewrite from OutGauge (76 bytes) to Remote Telemetry UDP (328 bytes) with 3-step handshake.
+- **ACC**: Fixed `isReadonly` field inversion (byte==0 means readonly in Kunos SDK).
+
 ### Engine Device Table Sync
 - 50+ missing devices added to linux.rs (VRS, Heusinkveld, Cammus, OpenFFBoard, FFBeast, etc.)
 - AccuForce Pro capabilities corrected (12 Nm, PID support, 1 kHz)
