@@ -28,7 +28,7 @@
 //! ```
 
 #![deny(unsafe_op_in_unsafe_fn)]
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::panic)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod assertions;

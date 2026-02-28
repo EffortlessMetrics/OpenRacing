@@ -761,11 +761,7 @@ impl WasmRuntime {
     }
 }
 
-impl Default for WasmRuntime {
-    fn default() -> Self {
-        Self::new().expect("Failed to create default WasmRuntime")
-    }
-}
+
 
 #[cfg(test)]
 mod tests {
