@@ -151,4 +151,33 @@ mod tests {
         let a = Ride5Adapter::default();
         assert_eq!(a.game_id(), "ride5");
     }
+
+    #[test]
+    fn test_port_constants() {
+        assert_eq!(RIDE5_PORT, 5558);
+    }
+
+    #[test]
+    fn test_empty_input_returns_err() {
+        let adapter = Ride5Adapter::new();
+        assert!(adapter.normalize(&[]).is_err());
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        #[test]
+        fn prop_arbitrary_bytes_no_panic(
+            data in proptest::collection::vec(any::<u8>(), 0..4096)
+        ) {
+            let adapter = Ride5Adapter::new();
+            let _ = adapter.normalize(&data);
+        }
+    }
 }

@@ -131,3 +131,105 @@ impl TelemetryAdapter for MudRunnerAdapter {
         Ok(false)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    const VALID_JSON: &[u8] = br#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}"#;
+
+    #[test]
+    fn test_port_constants() {
+        assert_eq!(MUDRUNNER_PORT, 8877);
+    }
+
+    #[test]
+    fn test_game_id_mudrunner() {
+        let adapter = MudRunnerAdapter::new();
+        assert_eq!(adapter.game_id(), "mudrunner");
+    }
+
+    #[test]
+    fn test_game_id_snowrunner() {
+        let adapter = MudRunnerAdapter::with_variant(MudRunnerVariant::SnowRunner);
+        assert_eq!(adapter.game_id(), "snowrunner");
+    }
+
+    #[test]
+    fn test_variant_game_ids() {
+        assert_eq!(MudRunnerVariant::MudRunner.game_id(), "mudrunner");
+        assert_eq!(MudRunnerVariant::SnowRunner.game_id(), "snowrunner");
+    }
+
+    #[test]
+    fn test_update_rate() {
+        let adapter = MudRunnerAdapter::new();
+        assert_eq!(adapter.expected_update_rate(), Duration::from_millis(50));
+    }
+
+    #[test]
+    fn test_default() {
+        let adapter = MudRunnerAdapter::default();
+        assert_eq!(adapter.game_id(), "mudrunner");
+    }
+
+    #[test]
+    fn test_empty_input_returns_err() {
+        let adapter = MudRunnerAdapter::new();
+        assert!(adapter.normalize(&[]).is_err());
+    }
+
+    #[test]
+    fn test_valid_packet_parses() -> TestResult {
+        let adapter = MudRunnerAdapter::new();
+        let t = adapter.normalize(VALID_JSON)?;
+        assert_eq!(t.speed_ms, 0.0);
+        assert_eq!(t.rpm, 0.0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_valid_packet_with_values() -> TestResult {
+        let adapter = MudRunnerAdapter::new();
+        let json = br#"{"SpeedMs":8.5,"Rpms":2500.0,"MaxRpms":4500.0,"Gear":"2","Throttle":60.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":-90.0,"FuelPercent":70.0,"LateralGForce":0.3,"LongitudinalGForce":0.5,"FFBValue":0.2,"IsRunning":true,"IsInPit":false}"#;
+        let t = adapter.normalize(json)?;
+        assert!((t.speed_ms - 8.5).abs() < 0.01);
+        assert!((t.rpm - 2500.0).abs() < 0.1);
+        assert_eq!(t.gear, 2);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_is_game_running() -> TestResult {
+        let adapter = MudRunnerAdapter::new();
+        assert!(!adapter.is_game_running().await?);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_stop_monitoring() -> TestResult {
+        let adapter = MudRunnerAdapter::new();
+        adapter.stop_monitoring().await?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        #[test]
+        fn prop_arbitrary_bytes_no_panic(
+            data in proptest::collection::vec(any::<u8>(), 0..2048)
+        ) {
+            let adapter = MudRunnerAdapter::new();
+            let _ = adapter.normalize(&data);
+        }
+    }
+}
