@@ -236,6 +236,24 @@ See friction log entry **F-005** for the history of why this document was create
 
 ---
 
+## PXN
+
+**VID:** `0x11FF`  
+**Source:** [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table.  
+**Status:** Community-verified. FFB output report ID `0x05` is estimated — requires USB capture to confirm.
+
+| PID      | Device Name                  | Status    |
+|----------|------------------------------|-----------|
+| `0x3245` | PXN V10 (10 Nm)              | Community |
+| `0x1212` | PXN V12 (12 Nm)              | Community |
+| `0x1112` | PXN V12 Lite (12 Nm compact) | Community |
+| `0x1211` | PXN V12 Lite SE              | Community |
+| `0x2141` | GT987 FF (Lite Star OEM)     | Community |
+
+> **Note:** VD4, VD6, VD10+ PIDs are unknown — excluded until USB captures confirm.
+
+---
+
 ## VRS DirectForce
 
 **VID:** `0x0483`  
