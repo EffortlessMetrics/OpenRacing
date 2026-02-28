@@ -141,6 +141,11 @@ fn new_project_cars_2_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(PCars2ConfigWriter)
 }
 
+fn new_project_cars_3_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    // PCARS3 uses the same UDP telemetry format as PCARS2
+    Box::new(PCars2ConfigWriter)
+}
+
 fn new_live_for_speed_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(LFSConfigWriter)
 }
@@ -319,6 +324,7 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("forza_horizon_5", new_forza_horizon_5_config_writer),
         ("beamng_drive", new_beamng_drive_config_writer),
         ("project_cars_2", new_project_cars_2_config_writer),
+        ("project_cars_3", new_project_cars_3_config_writer),
         ("live_for_speed", new_live_for_speed_config_writer),
         ("wrc_generations", new_wrc_generations_config_writer),
         ("wrc_9", new_wrc_9_config_writer),

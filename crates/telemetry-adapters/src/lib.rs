@@ -394,7 +394,7 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("kartkraft", new_kartkraft_adapter),
         ("live_for_speed", new_lfs_adapter),
         ("project_cars_2", new_pcars2_adapter),
-        ("pcars3", new_pcars3_adapter),
+        ("project_cars_3", new_pcars3_adapter),
         ("raceroom", new_raceroom_adapter),
         ("rbr", new_rbr_adapter),
         ("automobilista", new_automobilista_adapter),

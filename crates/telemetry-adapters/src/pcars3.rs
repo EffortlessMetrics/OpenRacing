@@ -47,7 +47,7 @@ impl PCars3Adapter {
 #[async_trait]
 impl TelemetryAdapter for PCars3Adapter {
     fn game_id(&self) -> &str {
-        "pcars3"
+        "project_cars_3"
     }
 
     async fn start_monitoring(&self) -> Result<TelemetryReceiver> {
@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn test_pcars3_game_id() {
         let adapter = PCars3Adapter::new();
-        assert_eq!(adapter.game_id(), "pcars3");
+        assert_eq!(adapter.game_id(), "project_cars_3");
     }
 
     #[test]
