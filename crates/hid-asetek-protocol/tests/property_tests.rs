@@ -42,7 +42,7 @@ proptest! {
         Just(asetek::ASETEK_FORTE_PID),
         Just(asetek::ASETEK_INVICTA_PID),
         Just(asetek::ASETEK_LAPRIMA_PID),
-        Just(asetek::ASETEK_TONY_KANNAN_PID),
+        Just(asetek::ASETEK_TONY_KANAAN_PID),
     ]) {
         let model = asetek::asetek_model_from_info(asetek::ASETEK_VENDOR_ID, pid);
         prop_assert_ne!(
@@ -60,7 +60,7 @@ proptest! {
             asetek::ASETEK_FORTE_PID,
             asetek::ASETEK_INVICTA_PID,
             asetek::ASETEK_LAPRIMA_PID,
-            asetek::ASETEK_TONY_KANNAN_PID,
+            asetek::ASETEK_TONY_KANAAN_PID,
         ];
         if !known.contains(&pid) {
             let model = asetek::asetek_model_from_info(asetek::ASETEK_VENDOR_ID, pid);
@@ -180,7 +180,7 @@ proptest! {
         Just(asetek::ASETEK_FORTE_PID),
         Just(asetek::ASETEK_INVICTA_PID),
         Just(asetek::ASETEK_LAPRIMA_PID),
-        Just(asetek::ASETEK_TONY_KANNAN_PID),
+        Just(asetek::ASETEK_TONY_KANAAN_PID),
     ]) {
         let model = asetek::AsetekModel::from_product_id(pid);
         prop_assert!(
@@ -195,7 +195,7 @@ proptest! {
         Just(asetek::ASETEK_FORTE_PID),
         Just(asetek::ASETEK_INVICTA_PID),
         Just(asetek::ASETEK_LAPRIMA_PID),
-        Just(asetek::ASETEK_TONY_KANNAN_PID),
+        Just(asetek::ASETEK_TONY_KANAAN_PID),
     ]) {
         let model = asetek::AsetekModel::from_product_id(pid);
         prop_assert!(!model.display_name().is_empty());

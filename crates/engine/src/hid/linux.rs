@@ -395,7 +395,7 @@ impl LinuxHidPort {
             (0x0EB7, 0x6205), // Fanatec CSL Pedals with Load Cell Kit
             (0x0EB7, 0x6206), // Fanatec CSL Pedals V2
             (0x044F, 0xB65D), // Thrustmaster FFB Wheel (pre-init)
-            (0x044F, 0xB65E), // Thrustmaster T150 Pro
+            (0x044F, 0xB65E), // Thrustmaster T500 RS
             (0x044F, 0xB66D), // Thrustmaster T300RS (PS4 mode)
             (0x044F, 0xB67F), // Thrustmaster TMX
             (0x044F, 0xB66E), // Thrustmaster T300RS

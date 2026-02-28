@@ -382,7 +382,7 @@ impl SupportedDevices {
                 0xB65D,
                 "Thrustmaster FFB Wheel (pre-init)",
             ),
-            (vendor_ids::THRUSTMASTER, 0xB65E, "Thrustmaster T150 Pro"),
+            (vendor_ids::THRUSTMASTER, 0xB65E, "Thrustmaster T500 RS"),
             (
                 vendor_ids::THRUSTMASTER,
                 0xB66D,
@@ -1243,10 +1243,15 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = 1080;
 
             match product_id {
-                0xB65D | 0xB65E | 0xB677 => {
-                    // T150/T150 Pro (0xB65D = generic pre-init PID, 0xB677 = post-init)
+                0xB65D | 0xB677 => {
+                    // T150 (0xB65D = generic pre-init PID, 0xB677 = post-init)
                     capabilities.max_torque = TorqueNm::new(2.5).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 4000; // 250Hz
+                }
+                0xB65E => {
+                    // T500 RS (belt-drive, ~4.0 Nm)
+                    capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
+                    capabilities.min_report_period_us = 2000; // 500Hz
                 }
                 0xB66D => {
                     // TMX
@@ -1549,23 +1554,23 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             match product_id {
                 0xF301 => {
                     capabilities.max_torque =
-                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
-                } // Forte
+                        TorqueNm::new(18.0).unwrap_or(capabilities.max_torque);
+                } // Forte (18 Nm per simracingcockpit.gg)
                 0xF300 => {
                     capabilities.max_torque =
-                        TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
-                } // Invicta
+                        TorqueNm::new(27.0).unwrap_or(capabilities.max_torque);
+                } // Invicta (27 Nm premium)
                 0xF303 => {
                     capabilities.max_torque =
-                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
-                } // LaPrima
+                        TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
+                } // LaPrima (12 Nm entry)
                 0xF306 => {
                     capabilities.max_torque =
-                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
-                } // Tony Kanaan Edition
+                        TorqueNm::new(18.0).unwrap_or(capabilities.max_torque);
+                } // Tony Kanaan Edition (Forte-based)
                 _ => {
                     capabilities.max_torque =
-                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
+                        TorqueNm::new(18.0).unwrap_or(capabilities.max_torque);
                 }
             }
         }

@@ -5,7 +5,7 @@
 //! Do not change only one of the two — they must stay in sync.
 
 use hid_asetek_protocol::{
-    ASETEK_FORTE_PID, ASETEK_INVICTA_PID, ASETEK_LAPRIMA_PID, ASETEK_TONY_KANNAN_PID,
+    ASETEK_FORTE_PID, ASETEK_INVICTA_PID, ASETEK_LAPRIMA_PID, ASETEK_TONY_KANAAN_PID,
     ASETEK_VENDOR_ID,
 };
 
@@ -20,7 +20,7 @@ fn vendor_id_is_2433() {
     );
 }
 
-/// Asetek Invicta (15 Nm) PID must be 0xF300.
+/// Asetek Invicta (27 Nm) PID must be 0xF300.
 ///
 /// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
 #[test]
@@ -28,7 +28,7 @@ fn invicta_pid_is_f300() {
     assert_eq!(ASETEK_INVICTA_PID, 0xF300);
 }
 
-/// Asetek Forte (20 Nm) PID must be 0xF301.
+/// Asetek Forte (18 Nm) PID must be 0xF301.
 ///
 /// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
 #[test]
@@ -36,7 +36,7 @@ fn forte_pid_is_f301() {
     assert_eq!(ASETEK_FORTE_PID, 0xF301);
 }
 
-/// Asetek La Prima (10 Nm) PID must be 0xF303.
+/// Asetek La Prima (12 Nm) PID must be 0xF303.
 ///
 /// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
 #[test]
@@ -49,5 +49,5 @@ fn laprima_pid_is_f303() {
 /// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
 #[test]
 fn tony_kanaan_pid_is_f306() {
-    assert_eq!(ASETEK_TONY_KANNAN_PID, 0xF306);
+    assert_eq!(ASETEK_TONY_KANAAN_PID, 0xF306);
 }

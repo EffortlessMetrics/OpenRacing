@@ -123,8 +123,8 @@ fn test_snapshot_is_asetek_device() {
 }
 
 #[test]
-fn test_snapshot_model_tony_kannan() {
-    let model = asetek::AsetekModel::TonyKannan;
+fn test_snapshot_model_tony_kanaan() {
+    let model = asetek::AsetekModel::TonyKanaan;
     assert_debug_snapshot!(format!(
         "name={}, max_torque={:.1}",
         model.display_name(),
@@ -151,12 +151,12 @@ fn test_snapshot_input_report_zero() -> Result<(), String> {
 fn test_snapshot_protocol_constants() {
     assert_debug_snapshot!(format!(
         "VID={:#06X}, FORTE_PID={:#06X}, INVICTA_PID={:#06X}, LAPRIMA_PID={:#06X}, \
-         TONY_KANNAN_PID={:#06X}, INPUT_SIZE={}, OUTPUT_SIZE={}, MAX_TORQUE={}",
+         TONY_KANAAN_PID={:#06X}, INPUT_SIZE={}, OUTPUT_SIZE={}, MAX_TORQUE={}",
         asetek::ASETEK_VENDOR_ID,
         asetek::ASETEK_FORTE_PID,
         asetek::ASETEK_INVICTA_PID,
         asetek::ASETEK_LAPRIMA_PID,
-        asetek::ASETEK_TONY_KANNAN_PID,
+        asetek::ASETEK_TONY_KANAAN_PID,
         asetek::REPORT_SIZE_INPUT,
         asetek::REPORT_SIZE_OUTPUT,
         asetek::MAX_TORQUE_NM,
