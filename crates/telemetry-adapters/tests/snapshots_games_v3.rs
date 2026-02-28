@@ -88,21 +88,21 @@ fn automobilista_snapshot() -> TestResult {
 //          GRID Legends, Race Driver GRID
 
 fn make_codemasters_mode1_packet() -> Vec<u8> {
-    let mut data = vec![0u8; 252];
-    write_f32(&mut data, 92, 25.0); // wheel speed FL (m/s)
-    write_f32(&mut data, 96, 25.0); // wheel speed FR
-    write_f32(&mut data, 100, 25.0); // wheel speed RL
+    let mut data = vec![0u8; 264];
+    write_f32(&mut data, 100, 25.0); // wheel speed RL (m/s)
     write_f32(&mut data, 104, 25.0); // wheel speed RR
-    write_f32(&mut data, 108, 0.85); // throttle
-    write_f32(&mut data, 112, 0.10); // steer
-    write_f32(&mut data, 116, 0.0); // brake
-    write_f32(&mut data, 124, 3.0); // gear (f32: 3 = 3rd)
-    write_f32(&mut data, 128, 0.25); // gforce_lat
-    write_f32(&mut data, 132, 0.50); // gforce_lon
-    write_f32(&mut data, 140, 4800.0); // rpm
-    write_f32(&mut data, 172, 35.0); // fuel_in_tank
-    write_f32(&mut data, 176, 55.0); // fuel_capacity
-    write_f32(&mut data, 240, 7200.0); // max_rpm
+    write_f32(&mut data, 108, 25.0); // wheel speed FL
+    write_f32(&mut data, 112, 25.0); // wheel speed FR
+    write_f32(&mut data, 116, 0.85); // throttle
+    write_f32(&mut data, 120, 0.10); // steer
+    write_f32(&mut data, 124, 0.0);  // brake
+    write_f32(&mut data, 132, 3.0);  // gear (f32: 3 = 3rd)
+    write_f32(&mut data, 136, 0.25); // gforce_lat
+    write_f32(&mut data, 140, 0.50); // gforce_lon
+    write_f32(&mut data, 148, 4800.0); // rpm
+    write_f32(&mut data, 180, 35.0); // fuel_in_tank
+    write_f32(&mut data, 184, 55.0); // fuel_capacity
+    write_f32(&mut data, 252, 7200.0); // max_rpm
     data
 }
 

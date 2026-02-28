@@ -296,6 +296,20 @@ All new PowerShell sessions created via the agent tooling die immediately after 
 
 ---
 
+### F-026 · Codemasters Mode 1 UDP adapters had systematically wrong byte offsets (High · Resolved)
+
+**Encountered:** RC sprint — telemetry adapter review / byte-offset audit
+
+Seven adapters sharing the Codemasters legacy 66-float UDP packet (DiRT Rally 2, DiRT 3, DiRT 4, Dirt Showdown, GRID 2019, GRID Legends, Race Driver GRID) all had incorrect byte offsets. The offsets were shifted — e.g., throttle was read at offset 108 (actually `wheel_speed_fl`), RPM at 140 (actually `g_force_lon`), gear at offset 124 (actually `brakes`). The `fuel_percent` calculation also multiplied by 100, but the `NormalizedTelemetry` builder clamps to `[0, 1]`, causing fuel to always show 100%. `MIN_PACKET_SIZE` was 252 instead of the correct 264 bytes (66 × f32 LE = 264 bytes).
+
+**Root cause:** The original offsets were likely transcribed from an unverified or mislabelled source and then copy-pasted across all seven files. No golden-packet test existed to catch the mismatch.
+
+**Fix applied:** All seven adapter files corrected to match the community-verified layout documented in community tools like `dr2_logger`. `MIN_PACKET_SIZE` updated to 264. Fuel calculation changed to pass the raw `[0, 1]` value. Affected files: `dirt_rally_2.rs`, `dirt3.rs`, `dirt4.rs`, `dirt_showdown.rs`, `grid_2019.rs`, `grid_legends.rs`, `race_driver_grid.rs`.
+
+**Lesson:** Adapters that share a common packet format should extract the shared parsing logic into a single helper (e.g., `codemasters_mode1_parse()`) so offset definitions exist in exactly one place. Any adapter sharing a format via copy-paste should be flagged in code review.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
@@ -315,6 +329,7 @@ All new PowerShell sessions created via the agent tooling die immediately after 
 | F-017 | `cargo tree --duplicates` CI check too strict | CI change b9ed332 (feat/r7-quirks-cleanup-v2) |
 | F-018 | `fuzz_simplemotion` missing dep in fuzz/Cargo.toml | commit 4a250f3 (feat/r7-quirks-cleanup-v2) |
 | F-019 | 6 SimHub adapters returned empty stub telemetry | simhub.rs rewrite e8d9a20 (feat/r7-quirks-cleanup-v2) |
+| F-026 | Codemasters Mode 1 UDP adapters wrong byte offsets | 7 adapter files corrected to community-verified layout |
 
 ---
 

@@ -322,9 +322,9 @@ fn wrc_generations_in_pits_flag_set() -> TestResult {
 
 // ─── Dirt 4 ──────────────────────────────────────────────────────────────────
 //
-// UDP port 20777, Codemasters extradata v0 layout (≥252 bytes, identical offsets to WRC Generations).
+// UDP port 20777, Codemasters extradata v0 layout (≥264 bytes, identical offsets to WRC Generations).
 
-const DIRT4_MIN: usize = 252;
+const DIRT4_MIN: usize = 264;
 
 fn make_dirt4_packet() -> Vec<u8> {
     vec![0u8; DIRT4_MIN]
@@ -333,14 +333,14 @@ fn make_dirt4_packet() -> Vec<u8> {
 #[test]
 fn dirt4_happy_path_parses_fields() -> TestResult {
     let mut pkt = make_dirt4_packet();
-    write_f32_le(&mut pkt, 92, 20.0);
-    write_f32_le(&mut pkt, 96, 20.0);
-    write_f32_le(&mut pkt, 100, 20.0);
-    write_f32_le(&mut pkt, 104, 20.0);
-    write_f32_le(&mut pkt, 140, 4500.0); // rpm
-    write_f32_le(&mut pkt, 240, 7000.0); // max_rpm
-    write_f32_le(&mut pkt, 124, 2.0); // gear = 2nd
-    write_f32_le(&mut pkt, 108, 0.6); // throttle
+    write_f32_le(&mut pkt, 108, 20.0); // wheel speed FL
+    write_f32_le(&mut pkt, 112, 20.0); // wheel speed FR
+    write_f32_le(&mut pkt, 100, 20.0); // wheel speed RL
+    write_f32_le(&mut pkt, 104, 20.0); // wheel speed RR
+    write_f32_le(&mut pkt, 148, 4500.0); // rpm
+    write_f32_le(&mut pkt, 252, 7000.0); // max_rpm
+    write_f32_le(&mut pkt, 132, 2.0); // gear = 2nd
+    write_f32_le(&mut pkt, 116, 0.6); // throttle
 
     let t = Dirt4Adapter::new().normalize(&pkt)?;
     assert!((t.speed_ms - 20.0).abs() < 0.01, "speed_ms={}", t.speed_ms);
@@ -373,7 +373,7 @@ fn dirt4_gear_zero_maps_to_reverse() -> TestResult {
 #[test]
 fn dirt4_in_pits_flag_set() -> TestResult {
     let mut pkt = make_dirt4_packet();
-    write_f32_le(&mut pkt, 180, 1.0); // in_pit = 1.0
+    write_f32_le(&mut pkt, 188, 1.0); // in_pit = 1.0
     let t = Dirt4Adapter::new().normalize(&pkt)?;
     assert!(t.flags.in_pits, "in_pits must be true when in_pit=1.0");
     Ok(())
@@ -809,8 +809,8 @@ mod proptest_tests {
 
         #[test]
         fn dirt4_short_packet_always_errors(
-            // MIN_PACKET_SIZE = 252
-            data in proptest::collection::vec(any::<u8>(), 0..252usize)
+            // MIN_PACKET_SIZE = 264
+            data in proptest::collection::vec(any::<u8>(), 0..264usize)
         ) {
             prop_assert!(Dirt4Adapter::new().normalize(&data).is_err());
         }
