@@ -33,6 +33,7 @@ racing-wheel-moza-wheelbase-report = { path = "../crates/moza-wheelbase-report" 
 racing-wheel-hid-button-box-protocol = { path = "../crates/hid-button-box-protocol", package = "hid-button-box-protocol" }
 racing-wheel-hid-leo-bodnar-protocol = { path = "../crates/hid-leo-bodnar-protocol" }
 racing-wheel-hid-accuforce-protocol = { path = "../crates/hid-accuforce-protocol" }
+racing-wheel-hid-pxn-protocol = { path = "../crates/hid-pxn-protocol", package = "hid-pxn-protocol" }
 
 # Fuzzing requires nightly and release-like optimizations.
 [[bin]]
@@ -272,6 +273,12 @@ doc = false
 [[bin]]
 name = "fuzz_accuforce_input"
 path = "fuzz_targets/fuzz_accuforce_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_pxn_input"
+path = "fuzz_targets/fuzz_pxn_input.rs"
 test = false
 doc = false
 
