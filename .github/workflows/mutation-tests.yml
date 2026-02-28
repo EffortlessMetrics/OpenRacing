@@ -1,4 +1,4 @@
-name: Mutation Tests (Safety-Critical Engine)
+name: Mutation Tests (Safety-Critical)
 
 # Triggered manually or on a weekly schedule.
 # NOT on every push — mutation testing is too slow for that.
@@ -23,9 +23,9 @@ env:
 
 jobs:
   mutation-tests:
-    name: Mutation Tests — racing-wheel-engine
+    name: Mutation Tests — safety-critical crates
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
 
     steps:
       - uses: actions/checkout@v4
@@ -48,15 +48,11 @@ jobs:
         # Pin to a known-good version; bump intentionally.
         run: cargo install cargo-mutants --version "^24" --locked
 
-      # Focus on safety-critical engine modules:
-      #   - safety.rs          (SafetyService, clamp_torque_nm, report_fault, state machine)
-      #   - safety/hardware_watchdog.rs  (SoftwareWatchdog, SafetyInterlockSystem)
-      #   - safety/fault_injection.rs   (FaultInjectionSystem)
-      #   - policies.rs        (SafetyPolicy, torque limits)
+      # Uses mutants.toml for package selection (safety-critical crates:
+      #   engine, ffb, filters, fmea, pipeline, all HID protocol encoders)
       - name: Run mutation tests
         run: |
           cargo mutants \
-            --package racing-wheel-engine \
             --test-timeout ${{ inputs.test_timeout || '60' }} \
             --jobs ${{ inputs.jobs || '4' }} \
             --output /tmp/mutants-out
