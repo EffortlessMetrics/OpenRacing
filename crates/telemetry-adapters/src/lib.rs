@@ -36,11 +36,13 @@ pub mod eawrc;
 pub mod ets2;
 pub mod f1;
 pub mod f1_25;
+pub mod f1_manager;
 pub mod f1_native;
 pub mod flatout;
 pub mod forza;
 pub mod forza_horizon;
 pub mod gran_turismo_7;
+pub mod gran_turismo_sport;
 pub mod gravel;
 pub mod grid_2019;
 pub mod grid_autosport;
@@ -52,6 +54,7 @@ pub mod lfs;
 pub mod motogp;
 pub mod mudrunner;
 pub mod nascar;
+pub mod nascar_21;
 pub mod pcars2;
 pub mod race_driver_grid;
 pub mod raceroom;
@@ -135,6 +138,10 @@ fn new_forza_adapter() -> Box<dyn TelemetryAdapter> {
 
 fn new_gran_turismo_7_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(GranTurismo7Adapter::new())
+}
+
+fn new_gran_turismo_sport_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(gran_turismo_sport::GranTurismo7SportsAdapter::new())
 }
 
 fn new_iracing_adapter() -> Box<dyn TelemetryAdapter> {
@@ -261,6 +268,14 @@ fn new_nascar_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(NascarAdapter::new())
 }
 
+fn new_nascar_21_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(nascar_21::Nascar21Adapter::new())
+}
+
+fn new_f1_manager_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(f1_manager::F1ManagerAdapter::new())
+}
+
 fn new_le_mans_ultimate_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(LeMansUltimateAdapter::new())
 }
@@ -367,6 +382,8 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("forza_horizon_4", new_forza_horizon_4_adapter),
         ("forza_horizon_5", new_forza_horizon_5_adapter),
         ("gran_turismo_7", new_gran_turismo_7_adapter),
+        ("gran_turismo_sport", new_gran_turismo_sport_adapter),
+        ("f1_manager", new_f1_manager_adapter),
         ("iracing", new_iracing_adapter),
         ("kartkraft", new_kartkraft_adapter),
         ("live_for_speed", new_lfs_adapter),
@@ -392,6 +409,7 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("seb_loeb_rally", new_seb_loeb_rally_adapter),
         ("wreckfest", new_wreckfest_adapter),
         ("nascar", new_nascar_adapter),
+        ("nascar_21", new_nascar_21_adapter),
         ("le_mans_ultimate", new_le_mans_ultimate_adapter),
         ("wtcr", new_wtcr_adapter),
         ("trackmania", new_trackmania_adapter),
@@ -423,11 +441,13 @@ pub use eawrc::EAWRCAdapter;
 pub use ets2::Ets2Adapter;
 pub use f1::F1Adapter;
 pub use f1_25::F1_25Adapter;
+pub use f1_manager::F1ManagerAdapter;
 pub use f1_native::F1NativeAdapter;
 pub use flatout::FlatOutAdapter;
 pub use forza::ForzaAdapter;
 pub use forza_horizon::{ForzaHorizon4Adapter, ForzaHorizon5Adapter};
 pub use gran_turismo_7::GranTurismo7Adapter;
+pub use gran_turismo_sport::GranTurismo7SportsAdapter;
 pub use gravel::GravelAdapter;
 pub use grid_2019::Grid2019Adapter;
 pub use grid_autosport::GridAutosportAdapter;
@@ -439,6 +459,7 @@ pub use lfs::LFSAdapter;
 pub use motogp::MotoGPAdapter;
 pub use mudrunner::MudRunnerAdapter;
 pub use nascar::NascarAdapter;
+pub use nascar_21::Nascar21Adapter;
 pub use pcars2::PCars2Adapter;
 pub use race_driver_grid::RaceDriverGridAdapter;
 pub use raceroom::RaceRoomAdapter;
