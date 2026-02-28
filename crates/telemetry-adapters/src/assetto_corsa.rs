@@ -200,10 +200,10 @@ fn is_process_running_linux(process_name: &str) -> bool {
     if let Ok(entries) = fs::read_dir("/proc") {
         for entry in entries.flatten() {
             let comm_path = entry.path().join("comm");
-            if let Ok(name) = fs::read_to_string(&comm_path) {
-                if name.trim() == process_name {
-                    return true;
-                }
+            if let Ok(name) = fs::read_to_string(&comm_path)
+                && name.trim() == process_name
+            {
+                return true;
             }
         }
     }
