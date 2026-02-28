@@ -7,304 +7,159 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- **16 HID vendor protocol SRP microcrates**: Moza, Fanatec, Logitech, Thrustmaster, Simagic, Simucube, Asetek, VRS DirectForce, Heusinkveld, OpenFFBoard, FFBeast, AccuForce, Leo Bodnar, Cammus, Button Box, Cube Controls — pure protocol logic with zero engine coupling, each independently testable and fuzzable
-
-- **`hid-cube-controls-protocol` microcrate** — extracts Cube Controls VID/PID constants and model classification (`CubeControlsModel`) from the inline engine implementation into an SRP microcrate. Engine's `cube_controls.rs` now delegates to this crate via `pub use`. VID/PIDs remain provisional pending hardware capture; see `docs/protocols/SOURCES.md`.
-
-- **FFBeast open-source FF controller support** (VID `0x045B`):
-  - PIDs `0x58F9` (joystick), `0x5968` (rudder), `0x59D7` (wheel)
-  - `hid-ffbeast-protocol` microcrate: `FFBeastTorqueEncoder`, `build_enable_ffb`, `build_set_gain` feature reports
-  - `FFBeastHandler` vendor handler: 2-step init (enable FFB + set full gain), 20 Nm default, 65535 CPR encoder
-  - HID report ID `0x60` (enable/disable), `0x61` (gain), `0x01` (constant force output)
-  - udev rules + Windows device registry + capabilities block added
-
-- **Generic HID button boxes** (VID `0x1209`, PID `0x1BBD`):
-  - `hid-button-box-protocol` microcrate: `ButtonBoxInputReport` parser (up to 32 buttons)
-  - `ButtonBoxProtocolHandler`: input-only, no initialization required
-  - Compatible with DIY Arduino button boxes, BangButtons, SimRacingInputs, and similar HID gamepad devices
-  - 10 insta snapshot tests + 500-case proptest property tests added
-  - `RotaryEncoderState::update` overflow fix: delta computation restricted to half-range to prevent `i32` subtraction overflow
-
-- **Leo Bodnar USB interfaces** (VID `0x1DD2`):
-  - `racing-wheel-hid-leo-bodnar-protocol` microcrate: `LeoBodnarDevice` enum covering BBI-32, BU0836A, BU0836X, BU0836 16-bit, USB Joystick, Wheel Interface, FFB Joystick, SLI-M Shift Light
-  - Protocol constants: HID PID usage page, max torque, encoder CPR, and report size bounds
-  - `LeoBodnarHandler` engine vendor handler integrated in the multi-vendor HID pipeline; HID PID constant-force path used for FFB-capable products (`0x000E`, `0x000F`)
-  - 14 insta snapshot tests + 4 proptest property tests (512 cases each)
-
-- **Game Telemetry Adapters** — 33+ game adapters now in `telemetry-adapters` crate + game support matrix:
-  - **Assetto Corsa** — OutGauge UDP, port 9996
-  - **Forza Motorsport / Horizon** — Forza Data Out UDP, port 5300
-  - **BeamNG.drive** — OutGauge UDP, port 4444
-  - **Project CARS 2 / 3** — shared memory `$pcars2$` + UDP port 5606
-  - **RaceRoom Racing Experience** — R3E shared memory `$R3E`; full YAML config entry + `raceroom` config writer
-  - **iRacing** — shared memory `IRSDKMemMapFileName`
-  - **rFactor 2** — shared memory
-  - **AMS2 / Automobilista 2** — PCARS2-compatible shared memory protocol
-  - **AC Rally** — ACC shared memory protocol
-  - **Dirt 5** — Codemasters UDP
-  - **EA WRC** — Codemasters UDP
-  - **F1 2024** — Codemasters bridge adapter (alias `f1`)
-  - **WRC Generations** — Codemasters Mode 1 UDP, port 6777
-  - **DiRT 4** — Codemasters Mode 1 UDP, port 20777
-  - **Live For Speed** — OutGauge UDP, port 30000
-  - **Euro Truck Simulator 2** — SCS shared memory
-  - **American Truck Simulator** — SCS shared memory
-  - **Wreckfest** — UDP, port 5606
-  - **Rennsport** — UDP, port 9000
-  - **GRID Autosport** — Codemasters Mode 1 UDP, port 20777
-  - **GRID 2019** — Codemasters Mode 1 UDP, port 20777
-  - **GRID Legends** — Codemasters UDP
-  - **Automobilista 1** — ISI/reiza UDP (OutGauge-compatible), port 4444
-  - **KartKraft** — FlatBuffers UDP, port 5678
-  - **NASCAR Heat 5 / NASCAR 21 Ignition** — Papyrus UDP, port 7777
-  - **Le Mans Ultimate** — rFactor2 UDP bridge, port 6789
-  - **WTCR** — Codemasters Mode 1 UDP, port 6778
-  - **Trackmania** — OpenPlanet JSON-over-UDP, port 5004
-  - All adapters registered in `adapter_factories()` and tested via BDD parity validation
-
-- **AccuForce SRP protocol** (`crates/hid-accuforce-protocol` microcrate):
-  - VID `0x1FC9`, AccuForce Pro PID `0x804C`
-  - Pure protocol logic: torque encoder, HID report layout constants, enable/gain feature reports
-  - Integrated into the multi-vendor HID pipeline and `SupportedDevices` registry
-
-- **Game-to-Telemetry Bridge** (`crates/service/src/game_telemetry_bridge.rs`):
-  - Monitors running processes and auto-starts the matching telemetry adapter when a supported game is detected
-  - Stops the adapter automatically when the game process exits
-  - Zero user configuration required for supported titles
-
-- **Game Auto-Configure** (`crates/service/src/game_auto_configure.rs`):
-  - Writes per-game telemetry config files (UDP port, format) on first detection of a new game
-  - Idempotent: no-ops on subsequent runs once the config file exists
-  - Enables fully plug-and-play telemetry for all 29 supported games without manual in-game setup steps
-
-- **Expanded test infrastructure**:
-  - 40+ fuzz targets covering all HID protocols and game adapters (FFBeast, SimpleMotion V2, Moza, F1 25, Codemasters UDP, ETS2, Wreckfest, Rennsport, WRC, DiRT4, PCARS2, LFS, RaceRoom, KartKraft, Automobilista, Leo Bodnar, AccuForce, and more)
-  - Snapshot tests via `insta` crate for all telemetry adapter normalizers and all 15 HID protocol crates
-  - End-to-end user journey tests covering device connect → profile apply → FFB output
-  - Hardware watchdog FMEA fault scenario tests (missed tick, write failure, thermal warning)
-  - Profile migration idempotency tests
-  - Property-based tests (`proptest`) for all 15 HID protocol crates and expanded coverage (500 cases each for torque encoders, protocol parsers, feedback parsing)
-  - Total workspace test count: **3,600+**
-
-- **Safety improvements**:
-  - Hardware watchdog acceptance tests: "no feed within 100ms ⇒ SafeMode + zero torque"
-  - FMEA fault injection scenario tests (`crates/openracing-fmea`)
-  - Safety challenge-response validation integrated into watchdog state machine tests
-
-- **OpenFFBoard open-source direct drive support** (VID `0x1209`):
-  - PIDs `0xFFB0` (main) and `0xFFB1` (alt) — covers all production OpenFFBoard firmware releases
-  - `racing-wheel-hid-openffboard-protocol` microcrate: `OpenFFBoardTorqueEncoder`, FFB enable/gain feature reports
-  - `OpenFFBoardHandler` vendor handler: initializes via feature reports (enable FFB + set max gain), 20 Nm default
-  - 8 tests in `openffboard_tests.rs` (all `Result`-returning, no unwrap)
-  - udev rules + Windows device registry + capabilities block added
-
-- **Granite Devices SimpleMotion V2 / Simucube 1** (VID `0x1D50`):
-  - PIDs: `0x6050` (IONI / Simucube 1, 15 Nm), `0x6051` (IONI Premium, 35 Nm), `0x6052` (ARGON / OSW, 10 Nm)
-  - Added to `SupportedDevices::all()`, `determine_device_capabilities()`, `supported_vendor_ids()`, `get_manufacturer_name()`
-  - udev rules entry with autosuspend disabled
-
-- **Multi-vendor plug-and-play device support** — 7 vendors now fully handled:
-  - **Thrustmaster** (VID `0x044F`): T150, T150 Pro, TMX, T300RS/GT, TX Racing, T500RS, T248/T248X, T-GT/T-GT II, TS-PC Racer, TS-XW, T818 (direct drive), T3PA/T3PA Pro, T-LCM/T-LCM Pro pedals
-    - 4-step FFB init: reset gain → set full gain → enable actuators → set rotation range
-    - Per-model rotation limits (T818/T-GT/T500RS: 1080°; TS-PC/TS-XW: 1070°; others: 900°)
-    - `racing-wheel-hid-thrustmaster-protocol` microcrate
-  - **Simucube 2 / Granite Devices** (VID `0x2D6A`): Sport (15 Nm), Pro (25 Nm), Ultimate (35 Nm), ActivePedal, Wireless Wheel
-    - Plug-and-play — no initialization sequence required
-    - 22-bit angle sensor (4,194,304 CPR), ~360 Hz, 64-byte HID reports
-    - `hid-simucube-protocol` microcrate
-  - **Asetek SimSports** (VID `0x2E5A`): Forte (20 Nm), Invicta (15 Nm), LaPrima (10 Nm)
-    - Plug-and-play — no initialization sequence required
-    - `hid-asetek-protocol` microcrate
-  - **VRS DirectForce Pro** (VID `0x0483`, PIDs `0xA3xx`): DirectForce Pro (20 Nm), DirectForce Pro V2 (25 Nm), Pedals V1/V2, Handbrake, Shifter
-    - 3-step init: enable FFB → set device gain → set 1080° rotation range
-    - `racing-wheel-hid-vrs-protocol` microcrate
-  - **Heusinkveld** (VID `0x16D0`, PIDs `0x115x`): Sprint (2-pedal), Ultimate+ (3-pedal, 140 kg), Pro (3-pedal, 200 kg)
-    - Input-only; no force feedback — pure HID input device
-    - `hid-heusinkveld-protocol` microcrate
-  - **Simagic modern** (VID `0x2D5C`): Alpha (15 Nm), Alpha Mini (10 Nm), Alpha EVO (15 Nm), M10 (10 Nm), Neo (10 Nm), Neo Mini (7 Nm), P1000/P2000/P1000A pedals, H/Seq shifters, handbrake
-    - Active FFB initialization (gain + rotation range) for modern firmware
-    - `racing-wheel-hid-simagic-protocol` microcrate (upgraded from passive capture)
-  - **VID disambiguation**: `0x0483` (STM) → VRS if PID in `0xA3xx`, else Simagic legacy; `0x16D0` (OpenMoko) → Heusinkveld if PID in `0x115x`, else Simagic legacy
-- **Linux udev rules** (`packaging/linux/99-racing-wheel-suite.rules`): Complete rewrite covering all vendors, correct VIDs for Simucube (now `0x2D6A`), VRS, Heusinkveld, Simagic modern, power autosuspend disabled for all racing peripherals
-- **Windows device registry** (`crates/engine/src/hid/windows.rs`): All new vendors added to `SupportedDevices` with correct VIDs/PIDs, capability blocks, and manufacturer names; Thrustmaster PID table corrected (T248=`0xB696`, T-LCM Pro=`0xB69A`)
-- **GitHub issue templates** (`.github/ISSUE_TEMPLATE/`): Three structured templates added — `device_capture_request.md` (USB capture submissions with device info checklist), `bug_report.md`, and `feature_request.md`
-
-- **`id_verification` test files** for all 15 HID vendor protocol crates: constants locked as test invariants — vendor IDs, product IDs, and model-specific values. Each crate now has a `tests/id_verification.rs` ensuring protocol constants can never silently drift (Moza, Simagic, Cammus, VRS, Asetek, AccuForce, Fanatec, Heusinkveld, Leo Bodnar, Logitech, Simucube, Thrustmaster, OpenFFBoard, FFBeast, Button Box, PXN)
-
-- **`proptest_output` suites** for Fanatec, FFBeast, Simucube, Asetek, and additional vendor crates: tests sign preservation, report length, header bytes, round-trip accuracy, monotonicity, and reserved-byte invariants across 1000+ randomized inputs per property
-
-- **Protocol documentation**: Added `SIMUCUBE_PROTOCOL.md`, `VRS_PROTOCOL.md`, `HEUSINKVELD_PROTOCOL.md`, `ASETEK_PROTOCOL.md`; fixed wrong PIDs in `THRUSTMASTER_PROTOCOL.md` (T150, T150 Pro, TMX)
-- **VID/PID sources documentation** (`docs/protocols/SOURCES.md`): New reference document recording the authoritative source (verified, community, or estimated) for every USB Vendor ID and Product ID across all protocol crates; required citation policy enforced for new device additions
-
-- **Service IPC capabilities** now properly populated: `DeviceCapabilities` block is read from the device during `initialize_device()` and stored on `ManagedDevice`; IPC `GetDeviceStatus` responses now carry correct capability data instead of `None`
-
-- **Firmware rollback detection** improved: `FirmwareBundleMetadata` gains a `rollback_version` field; `is_upgrade_allowed()` rejects downgrades below the minimum version; corresponding unit test `test_rollback_protection` validates both allow and deny paths
-
-- **YAML sync CI check** added (`ci/yaml-sync-check.yml`): New GitHub Actions workflow runs on every push and pull request; uses `scripts/check_yaml_sync.py` to assert that `crates/telemetry-config/src/game_support_matrix.yaml` and `crates/telemetry-support/src/game_support_matrix.yaml` are byte-for-byte identical, preventing silent divergence
-
-- **Moza Racing hardware support** (wheelbase + peripherals, hardware-ready):
-  - `racing-wheel-hid-moza-protocol` microcrate: pure protocol logic (report IDs/offsets, product IDs, handshake frame generator, wheelbase input parser, direct torque encoder, standalone HBP parser, signature verification)
-  - `racing-wheel-srp` microcrate: standalone SR-P pedal USB report parser + normalization primitives
-  - `racing-wheel-ks` microcrate: map-driven KS wheel controls parser (`KsReportMap`, `KsReportSnapshot`)
-  - `racing-wheel-input-maps` microcrate: `DeviceInputMap` schema + `compile_ks_map()` helper
-  - Supported wheelbases: R3, R5 V1/V2, R9 V1/V2, R12 V1/V2, R16, R21
-  - SR-P Lite embedded pedals (throttle/brake/clutch) via wheelbase aggregated report
-  - HBP handbrake: embedded path (wheelbase offset 9–10) + standalone USB (best-effort + capture-driven)
-  - KS wheel controls via capture-derived `device_map.json` (never hard-coded)
-  - High torque mode is opt-in only (`OPENRACING_MOZA_HIGH_TORQUE=1` or explicit config); default handshake skips HIGH_TORQUE report
-  - Handshake state machine with bounded retry (`MozaRetryPolicy`, default 3 retries, exponential backoff), `PermanentFailure` terminal state, and `reset_to_uninitialized()` for reconnect
-  - `DeviceSignature` + `verify_signature()` for identity gating (known PIDs → handshake allowed; unknown/peripheral → gated)
-  - `VirtualMozaDevice` in `racing-wheel-integration-tests` for deterministic e2e testing without hardware
-  - 10 BDD e2e scenarios covering handshake, high-torque gate, retry, disconnect/reconnect, FFB mode, peripherals
-  - 4 cargo-fuzz targets: `fuzz_moza_wheelbase_report`, `fuzz_moza_hbp_report`, `fuzz_moza_handshake_frames`, `fuzz_moza_direct_torque_encode`
-  - `mutants.toml` scoping cargo-mutants to `hid-moza-protocol`, `ks`, and `input-maps` crates
-  - Engine re-exports all Moza types via thin wrappers — no downstream churn
-
-- **EA F1 25 Native UDP Adapter** (`game_id = "f1_25"`): Native binary protocol support
-  - Parses EA F1 25 UDP packets (format 2025) directly — no bridge required
-  - Decodes PacketCarTelemetryData (ID=6): speed, gear, RPM, DRS, throttle, brake, tyre pressures/temps
-  - Decodes PacketCarStatusData (ID=7): fuel mass, ERS energy, pit limiter, tyre compound, engine power
-  - Decodes PacketSessionData (ID=1): track ID, ambient/track temperature
-  - All F1-specific fields exposed as typed extended telemetry (`drs_active`, `fuel_remaining_kg`, `ers_store_j`, `tyre_pressure_*`, etc.)
-  - Config writer generates `Documents/OpenRacing/f1_25_contract.json` with game setup instructions
-  - In-game setup: Settings → Telemetry → UDP Telemetry: On, Port: 20777, Format: 2025
-  - `f1_25` registered in game support matrix, adapter factory, and config writer factory
-  - BDD parity validation automatically covers `f1_25` (adapter + writer both registered)
-  - 40+ unit tests, property tests (100 cases, <1ms budget), golden tests, binary fixture codec tests
-  - cargo-fuzz targets for header, CarTelemetry, CarStatus, and end-to-end normalize() parsing
-  - `f1_2025` is now an alias for `f1_25`; legacy `f1` (Codemasters bridge) adapter unchanged
-
-- **ADR-0008**: Game auto-configure and telemetry bridge architecture — documents the design, rationale, and operational model for automatic game detection, per-game config generation, and telemetry adapter lifecycle management
-
-- **Device capability matrix** (`docs/DEVICE_CAPABILITIES.md`): Reference table of all supported devices with maximum torque, encoder resolution, protocol, FFB support, and connection notes
-
-- **YAML sync enforcement script** (`scripts/sync_yaml.py`): Asserts byte-for-byte identity between the two `game_support_matrix.yaml` copies; integrated into CI to prevent silent divergence
-
-- **Mutation testing infrastructure** for safety-critical engine code via `cargo-mutants`, scoped to `hid-moza-protocol`, `ks`, and `input-maps` crates; `mutants.toml` configuration added
-
-- **HID device capture tool** (`racing-wheel-hid-capture`): CLI binary for capturing raw HID reports from connected devices and writing binary test fixtures for use in fuzz and snapshot tests
-
-- **Plug-and-play auto-detection and configuration** for all supported games: zero user configuration required — telemetry config files are written automatically on first game launch and adapter lifecycle is managed transparently
-
-### Fixed
-
-- **`ReportBuilder::with_capacity` bug fix**: All output report `build()` functions in `hid-simucube-protocol` and `hid-asetek-protocol` now use `ReportBuilder::with_capacity(N)` instead of `ReportBuilder::new(N)`. `new(N)` pre-fills N zero bytes before `write_*` appends, causing report-ID byte to always be `0x00`. Discovered via proptest (`data[0] == 0x01` invariant). Output snapshots updated.
-
-- **CRLF in udev rules**: `packaging/linux/99-racing-wheel-suite.rules` and `packaging/linux/90-racing-wheel-quirks.conf` had Windows CRLF line endings, which could cause udev to mis-parse rules. Normalized to LF. Added `*.rules` and `*.conf` patterns to `.gitattributes` with `eol=lf`.
-
-- **Deprecated TelemetryData field migration**: `wheel_angle_mdeg` → `wheel_angle_deg`, `wheel_speed_mrad_s` → `wheel_speed_rad_s`; all downstream call sites updated to use the non-deprecated field names
-
-- **CI: YAML sync check enforcement** — `scripts/sync_yaml.py` integrated into CI prevents `crates/telemetry-config/src/game_support_matrix.yaml` and `crates/telemetry-support/src/game_support_matrix.yaml` from diverging silently
-
-- **CI: Regression prevention false positives** resolved — HID protocol crates and `schemas` crate excluded from deprecated-field detection, eliminating spurious CI failures on non-engine code
-
-- **`doc_suspicious_footnotes` clippy lints** in `hid-vrs-protocol` and `hid-asetek-protocol`: footnote references `[^12]`/`[^13]` changed to plain text to satisfy `--deny warnings`
-
-- **SimHub JSON UDP bridge — full parser implementation** (6 adapters: Gravel, MotoGP, MudRunner, SnowRunner, RIDE 5, and the shared `SimHubAdapter`):
-  - `crates/telemetry-adapters/src/simhub.rs` rewritten from stub to functional: `SimHubRaw` serde struct with field aliases, `parse_gear()` helper (string "R"/"N"/"1"–"9"), `parse_simhub_packet()` public entry point
-  - Throttle/Brake/Clutch (0–100) divided by 100; SteeringAngle (±450°) divided by 450 and clamped to [-1, 1]; FuelPercent divided by 100; `FFBValue` (0–1) used directly as `ffb_scalar`
-  - `Steer` alias field (pre-normalized -1..1) used directly when non-zero, bypassing the degree conversion
-  - `is_simhub_running()` detects `SimHubWPF.exe` on Windows; returns `false` on Linux/macOS
-  - 8 unit tests covering gear parsing edge cases, field normalization, and empty-packet handling
-
-- **Property-based tests (`proptest`) for remaining HID vendor crates**:
-  - `hid-heusinkveld-protocol`: 12 input property tests (pedal axis normalization, CRC stability, resolution invariants)
-  - `hid-accuforce-protocol`: 11 ID/constants property tests
-  - `hid-leo-bodnar-protocol`: 11 ID/constants property tests
-  - `hid-simagic-protocol`: 7 output property tests
-  - `hid-cammus-protocol`: 5 output property tests
-  - `hid-vrs-protocol`: 7 output property tests
-  - `hid-button-box-protocol`: 11 encoding property tests (button bitmask round-trip, overflow, rotary delta)
-  - All use 500+ cases per property covering sign preservation, header-byte invariants, overflow prevention, and monotonicity
-
-- **New fuzz targets**:
-  - `fuzz_simhub_udp.rs`: fuzzes `parse_simhub_packet()` — must never panic on arbitrary bytes (covers all 6 SimHub-based adapters)
-  - `fuzz_trackmania_udp.rs`: fuzzes `parse_trackmania_packet()` — covers OpenPlanet JSON-over-UDP parsing
-  - 23 additional fuzz targets for adapters previously lacking coverage: `fuzz_dakar_udp`, `fuzz_flatout_udp`, `fuzz_nascar_udp`, `fuzz_nascar21_udp`, `fuzz_rfactor1_udp`, `fuzz_v_rally_4_udp`, `fuzz_wrc_kylotonn_udp`, `fuzz_grid_2019`, `fuzz_grid_autosport`, `fuzz_grid_legends`, `fuzz_le_mans_ultimate`, `fuzz_forza_horizon`, `fuzz_f1_udp`, `fuzz_dirt3_udp`, `fuzz_dirt5_udp`, `fuzz_dirt_showdown`, `fuzz_eawrc_udp`, `fuzz_ac_rally`, `fuzz_assetto_corsa`, `fuzz_gran_turismo_sport`, and more; total fuzz target count: **65**
-  - 5 further fuzz targets: `fuzz_beamng_udp` (OutGauge), `fuzz_wtcr_udp` (Codemasters Mode-1), `fuzz_forza_motorsport` (Sled/CarDash), `fuzz_iracing` (struct-cast normalizer), `fuzz_rfactor2` (struct-cast normalizer); total fuzz target count: **70**
-
-- **New snapshot tests** (`crates/telemetry-adapters/tests/snapshots_games_v2.rs`):
-  - 10 new insta snapshot tests: dakar, flatout, nascar, wrc_kylotonn, v_rally_4, rfactor1, gravel (SimHub JSON), trackmania, gran_turismo_sport, grid_autosport
-  - Total snapshot files: 23
-
-- **New snapshot tests** (`crates/telemetry-adapters/tests/snapshots_games_v3.rs`):
-  - 16 insta snapshot tests: assetto_corsa, automobilista, dirt3, dirt4, dirt5, dirt_rally_2, dirt_showdown, eawrc, f1, gran_turismo_7, grid_2019, grid_legends, kartkraft, le_mans_ultimate, nascar_21, race_driver_grid
-  - Codemasters Mode-1 family tests share a single 252-byte packet fixture helper
-  - GT7 tests via `parse_decrypted()` directly (public API), bypasses Salsa20 encryption
-  - EAWRC tests use `tempfile::TempDir` with minimal schema fixtures + `with_telemetry_dir()`
-  - Total snapshot test files: 5 (23 existing + 11 v4 + 16 v3 = 50 unique adapter snapshots)
-
-- **New snapshot tests** (`crates/telemetry-adapters/tests/snapshots_games_v4.rs`):
-  - 11 insta snapshot tests: raceroom, rbr, rennsport, wtcr, wrc_generations, wreckfest, motogp_simhub, mudrunner_simhub, snowrunner_simhub, ride5_simhub, ac_rally
-  - Total snapshot coverage: **50 unique adapter snapshots** across 5 test files
-
-- **`gran_turismo_sport` and `forza_horizon` test improvements**: 4 new tests for GTS (empty-packet err, port constants, minimum valid decrypted packet, proptest panic freedom); 10 new tests for Forza Horizon FH4/FH5 (Sled/CarDash packet acceptance, RPM/speed field accuracy, insta snapshot, arbitrary-bytes proptest); no `unwrap()`/`expect()` anywhere
-
-- **Test coverage for sparse adapters** (`mudrunner.rs`, `gravel.rs`, `ride5.rs`, `motogp.rs`): added 10 unit tests + 1 proptest to mudrunner (was 0 tests); 9 unit + 1 proptest to gravel (was 2); 2 unit + 1 proptest to ride5 and motogp; all use `TestResult = Result<(), Box<dyn Error>>` with no panics
-
-- **CI fix**: `dependency-governance` job changed from hard `exit 1` on any `cargo tree --duplicates` output to a GitHub Actions `::warning::` annotation; actual ban policy is governed by `deny.toml` (`multiple-versions = "warn"`) via `cargo deny check` in the lint-gates job
-
-- **Fix: `fuzz_simplemotion`** was unable to compile because `racing-wheel-simplemotion-v2` was missing from `fuzz/Cargo.toml` dependencies; dependency added and Cargo.lock updated
-
-- **Fix: PXN input report ID offset bug** (`crates/hid-pxn-protocol/src/input.rs`): `parse()` was reading steering from `data[0..2]`, treating the raw HID buffer as if byte 0 were the first data field. Per the repository convention (consistent with Logitech, Fanatec, and Moza parsers), byte 0 is the HID report ID `0x01`. All field offsets shifted +1; `ParseError::WrongReportId` variant added; `NEED` increased from 10 → 11 bytes. All unit tests, property tests, and snapshot tests updated. See friction log F-023.
-
-- **Fix: test `panic!()` violations in 8 telemetry adapter files** (`dirt4.rs`, `dirt_rally_2.rs`, `wrc_generations.rs`, `wrc_kylotonn.rs`, `f1_manager.rs`, `f1_25.rs`, `eawrc.rs`, `f1_native.rs`): replaced all `panic!("msg")` calls in test code with `return Err("msg".into())` per the no-panic-in-tests rule; removed `must<T,E>()` helper from `eawrc.rs` and replaced 6 call sites with `?`; added consistent message to bare `unreachable!()` in `f1_native.rs`
-
-- **Fix: `unwrap()`/`expect()` in 12 telemetry adapter test files** (`assetto_corsa.rs`, `ets2.rs`, `f1_native.rs`, `lfs.rs`, `pcars2.rs`, `dirt_rally_2.rs`, `gran_turismo_7.rs`, `kartkraft.rs`, `le_mans_ultimate.rs`, `nascar.rs`, `rbr.rs`, `trackmania.rs`): replaced all `unwrap()`/`expect()` in test closures with `.map_err(|e| TestCaseError::fail(format!("{e:?}")))?` and equivalent `?`-propagating patterns; no remaining unwrap/expect in proptest closures or `#[test]` fns
-
-### Documentation
-
-- **Full vendor VID/PID verification sweep**: Web-verified USB identifiers and torque specs for 15+ vendors against authoritative sources (Linux kernel `hid-ids.h`, JacKeTUs/universal-pidff, pid.codes, vendor websites). Key corrections: Asetek torques (12/18/27 Nm), Simucube SC2 Sport/Ultimate torques, Simagic EVO torques, Thrustmaster T500 RS PID relabeled. See friction log "Protocol Verification Wave 3".
-- **`docs/protocols/SOURCES.md`**: Added "Verification Sources" reference table listing all 14 external sources used during verification (universal-pidff, hid-ids.h, pid.codes, RetroBat, simracingcockpit.gg, rF2SharedMemoryMap, oversteer, devicehunt.com, the-sz.com, hid-tmff2, linux-hardware.org, simagic-ff, FFBeast, OpenFFBoard).
-- **`docs/DEVICE_CAPABILITIES.md`**: Added "Verification Detail" column to the status summary table showing per-vendor web-verification status and key corrections made.
-- **`docs/FRICTION_LOG.md`**: Added "Protocol Verification Wave 3 — Full Vendor Sweep" section documenting all device-by-device verification results.
-
 ## [1.0.0-rc.1] - 2026-11-01
 
 ### Added
 
-- **Cammus C5/C12 direct drive support**:
-  - New `racing-wheel-hid-cammus-protocol` SRP microcrate with `CammusInputReport` parser
-  - 64-byte HID report ID `0x01`: steering (±540°), throttle/brake/clutch/handbrake axes, 16-button bitmask
-  - `CammusTorqueEncoder` for constant-force output, `build_enable_ffb` / `build_set_gain` feature reports
-  - Covers C5 (8 Nm, PID `0x0C5x`) and C12 (12 Nm, PID `0x0C12`)
-  - udev rules + Windows device registry + capabilities block added
+- **16 HID vendor protocol SRP microcrates** — pure protocol logic with zero engine coupling, each independently testable and fuzzable:
+  - **Thrustmaster** (VID `0x044F`): T150, T150 Pro, TMX, T300RS/GT, TX Racing, T500RS, T248/T248X, T-GT/T-GT II, TS-PC Racer, TS-XW, T818 (direct drive), T3PA/T3PA Pro, T-LCM/T-LCM Pro pedals
+  - **Fanatec**: CSL DD, ClubSport DD/DD+, Podium DD1/DD2, CSL Elite, CSR Elite, ClubSport pedals/shifter/handbrake
+  - **Logitech**: G923 (PID `0xC266`), G PRO (PIDs `0xC268`/`0xC272`), G29, G920, GHUB
+  - **Simagic** (VID `0x2D5C`): Alpha (15 Nm), Alpha Mini (10 Nm), Alpha EVO (15 Nm), M10 (10 Nm), Neo (10 Nm), Neo Mini (7 Nm), P1000/P2000/P1000A pedals, H/Seq shifters, handbrake
+  - **Simucube 2** (VID `0x2D6A`): Sport (15 Nm), Pro (25 Nm), Ultimate (35 Nm), ActivePedal, Wireless Wheel
+  - **Simucube 1 / Granite Devices SimpleMotion V2** (VID `0x1D50`): IONI (15 Nm), IONI Premium (35 Nm), ARGON/OSW (10 Nm)
+  - **Asetek SimSports** (VID `0x2E5A`): Forte (20 Nm), Invicta (15 Nm), LaPrima (10 Nm)
+  - **VRS DirectForce** (VID `0x0483`): DirectForce Pro (20 Nm), V2 (25 Nm), Pedals V1/V2, Handbrake, Shifter
+  - **Heusinkveld** (VID `0x16D0`): Sprint (2-pedal), Ultimate+ (3-pedal, 140 kg), Pro (3-pedal, 200 kg)
+  - **Moza Racing**: R3, R5 V1/V2, R9 V1/V2, R12 V1/V2, R16, R21 wheelbases + SR-P pedals, HBP handbrake, KS wheel controls
+  - **OpenFFBoard** (VID `0x1209`): PIDs `0xFFB0` (main), `0xFFB1` (alt)
+  - **FFBeast** (VID `0x045B`): joystick (`0x58F9`), rudder (`0x5968`), wheel (`0x59D7`)
+  - **Leo Bodnar** (VID `0x1DD2`): BBI-32, BU0836A, BU0836X, BU0836 16-bit, USB Joystick, Wheel Interface, FFB Joystick, SLI-M Shift Light
+  - **AccuForce** (VID `0x1FC9`): AccuForce Pro (PID `0x804C`)
+  - **Cammus**: C5 (8 Nm), C12 (12 Nm)
+  - **Cube Controls**: reclassified as button boxes (see Changed)
+  - **Generic HID button boxes** (VID `0x1209`, PID `0x1BBD`): DIY Arduino, BangButtons, SimRacingInputs
 
-- **DiRT Rally 2.0 telemetry adapter** (`game_id = "dirt_rally_2"`):
-  - Codemasters UDP Mode 1 protocol, port 20777
-  - Decodes all motion channels: speed, RPM, gear, throttle, brake, steering angle, lateral/longitudinal G, fuel %, tyre temps/pressures
-  - Config writer generates instructions for enabling UDP output in-game
-  - Registered in `adapter_factories()`, game support matrix, and config writer factory
+- **33+ game telemetry adapters** in `telemetry-adapters` crate with game support matrix:
+  - **Assetto Corsa** — Remote Telemetry UDP, port 9996
+  - **Assetto Corsa Competizione** — ACC shared memory
+  - **AC Rally** — ACC shared memory protocol
+  - **Automobilista 1** — ISI/reiza UDP (OutGauge-compatible), port 4444
+  - **AMS2 / Automobilista 2** — PCARS2-compatible shared memory protocol
+  - **BeamNG.drive** — OutGauge UDP, port 4444
+  - **Dakar** — Codemasters UDP
+  - **DiRT 3** — Codemasters Mode 1 UDP
+  - **DiRT 4** — Codemasters Mode 1 UDP, port 20777
+  - **DiRT 5** — Codemasters UDP
+  - **DiRT Rally 2.0** — Codemasters Mode 1 UDP, port 20777
+  - **DiRT Showdown** — Codemasters Mode 1 UDP
+  - **EA WRC** — Codemasters UDP
+  - **Euro Truck Simulator 2** — SCS shared memory
+  - **American Truck Simulator** — SCS shared memory
+  - **F1 2024** — Codemasters bridge adapter (alias `f1`)
+  - **F1 25** — native binary UDP protocol (format 2025), port 20777
+  - **F1 Manager** — Codemasters UDP
+  - **FlatOut** — UDP
+  - **Forza Motorsport / Horizon** — Forza Data Out UDP, port 5300 (FH4 324-byte + FH5 CarDash)
+  - **Gran Turismo 7** — Salsa20-encrypted UDP, port 33740
+  - **Gran Turismo Sport** — encrypted UDP
+  - **GRID Autosport** — Codemasters Mode 1 UDP, port 20777
+  - **GRID 2019** — Codemasters Mode 1 UDP, port 20777
+  - **GRID Legends** — Codemasters UDP
+  - **iRacing** — shared memory `IRSDKMemMapFileName`
+  - **KartKraft** — FlatBuffers UDP, port 5678
+  - **Le Mans Ultimate** — rFactor2 UDP bridge, port 6789
+  - **Live For Speed** — OutGauge UDP, port 30000
+  - **NASCAR Heat 5 / NASCAR 21 Ignition** — Papyrus UDP, port 7777
+  - **Project CARS 2 / 3** — shared memory `$pcars2$` + UDP port 5606
+  - **Race Driver: GRID** — Codemasters Mode 1 UDP
+  - **RaceRoom Racing Experience** — R3E shared memory `$R3E`
+  - **Rennsport** — UDP, port 9000
+  - **rFactor 1** — ISI UDP
+  - **rFactor 2** — shared memory (rewritten from official rF2State.h)
+  - **Richard Burns Rally** — RSF LiveData UDP, port 6776
+  - **Seb Loeb Rally** — Codemasters Mode 1 UDP
+  - **SimHub bridge** (MotoGP, MudRunner, SnowRunner, Gravel, RIDE 5) — JSON-over-UDP
+  - **Trackmania** — OpenPlanet JSON-over-UDP, port 5004
+  - **V-Rally 4** — Codemasters UDP
+  - **WRC Generations** — Codemasters Mode 1 UDP, port 6777
+  - **WRC (Kylotonn)** — Codemasters Mode 1 UDP
+  - **WTCR** — Codemasters Mode 1 UDP, port 6778
+  - **Wreckfest** — UDP, port 5606
 
-- **Gran Turismo 7 telemetry adapter** (`game_id = "gran_turismo_7"`):
-  - Salsa20-encrypted UDP on port 33740 (PS4/PS5 console broadcast)
-  - Pure-Rust Salsa20 keystream implementation using the embedded 32-byte key and 8-byte nonce at offset `0x40`
-  - Decodes: RPM, speed, gear, throttle, brake, fuel %, engine temp, per-corner tyre temps, flags, car code
-  - Config writer documents PS4/PS5 network setup to direct packets to the host PC
-  - Registered in `adapter_factories()`, game support matrix, and config writer factory
+- **RC-level integration test coverage**: device dispatch integration tests for vendor dispatch table, BDD e2e scenarios, end-to-end user journey tests (device connect → profile apply → FFB output), hardware watchdog FMEA fault scenario tests
 
-- **Richard Burns Rally telemetry adapter** (`game_id = "rbr"`):
-  - RSF LiveData UDP protocol, port 6776
-  - Decodes: speed, RPM, gear, throttle, brake, clutch, steering angle, FFB scalar, handbrake flag
-  - Config writer generates RSF plugin configuration (`RBRPlugin.ini` path and UDP target)
-  - Registered in `adapter_factories()`, game support matrix, and config writer factory
+- **70+ fuzz targets** covering all HID protocols and all game adapters — including Moza, F1 25, Codemasters UDP, ETS2, Wreckfest, Rennsport, WRC, DiRT, PCARS2, LFS, RaceRoom, KartKraft, SimHub, BeamNG, iRacing, rFactor2, Forza, Gran Turismo, and more
 
-- **Config writers for `dirt_rally_2`, `rbr`, and `gran_turismo_7`** games added to the config-writers crate
+- **50+ insta snapshot tests** across 8 test files (v1–v8) covering all telemetry adapter normalizers and all 15 HID protocol crates
 
-- **Game support matrix synchronization**: `crates/telemetry-config` and `crates/telemetry-support` both now carry the full 12-game matrix (iracing, acc, ac_rally, ams2, rfactor2, eawrc, f1, f1_25, dirt5, dirt_rally_2, rbr, gran_turismo_7) with consistent `config_writer` entries
+- **Property-based testing** (`proptest`) for all 16 HID vendor protocol crates and 27+ game adapters — 500+ cases per property covering sign preservation, header-byte invariants, overflow prevention, monotonicity, and round-trip accuracy; `proptest_ids.rs` lock files for Fanatec, Logitech, Thrustmaster, Simagic, and Simucube
+
+- **`id_verification` test files** for all 16 HID vendor protocol crates: protocol constants locked as test invariants to prevent silent drift
+
+- **Game-to-Telemetry Bridge** and **Game Auto-Configure**: zero-config plug-and-play — monitors running processes, auto-starts matching telemetry adapter, writes per-game config files on first detection
+
+- **Service IPC capabilities** properly populated: `DeviceCapabilities` read during `initialize_device()` and returned in `GetDeviceStatus` IPC responses
+
+- **Firmware rollback detection**: `rollback_version` field on `FirmwareBundleMetadata`; `is_upgrade_allowed()` rejects downgrades below minimum version
+
+- **YAML sync CI check**: GitHub Actions workflow enforcing byte-for-byte identity between `game_support_matrix.yaml` copies
+
+- **Protocol documentation**: `SIMUCUBE_PROTOCOL.md`, `VRS_PROTOCOL.md`, `HEUSINKVELD_PROTOCOL.md`, `ASETEK_PROTOCOL.md`, `CUBE_CONTROLS_PROTOCOL.md`; VID/PID sources in `docs/protocols/SOURCES.md`
+
+- **Device capability matrix** (`docs/DEVICE_CAPABILITIES.md`): reference table with max torque, encoder CPR, FFB support, and verification status per vendor
+
+- **ADR-0008**: Game auto-configure and telemetry bridge architecture
+
+- **Mutation testing** via `cargo-mutants` scoped to `hid-moza-protocol`, `ks`, and `input-maps` crates
+
+- **HID device capture tool** (`racing-wheel-hid-capture`): CLI binary for capturing raw HID reports for test fixture generation
 
 ### Changed
 
-- **`NormalizedTelemetry` snapshot serialization**: switched internal `extended` map from `HashMap` to `BTreeMap` for deterministic key ordering in JSON/YAML snapshots and golden tests
-- **`has_rpm_data()` semantics fixed**: now returns `true` only when a valid RPM value is present (non-zero, non-NaN); new companion `has_rpm_display_data()` returns `true` when RPM is available for gauge/LED display even if not used for FFB
-- **`is_game_running()` semantics fixed**: returns `Ok(false)` (not an error) when the game ID is known but has no active adapter registered, eliminating spurious error log noise during normal operation
+- **Thrustmaster PIDs corrected**: T248X PID `0xB697` → `0xB69A`; T150_PRO relabeled to T500_RS; 4 HOTAS PIDs removed from racing device table
+- **Fanatec torques corrected**: ClubSport DD+ `20 Nm` → `12 Nm` (web-verified); PIDs verified against `gotzl/hid-fanatecff`
+- **Logitech G PRO corrected**: torque `8 Nm` → `11 Nm`, rotation `900°` → `1080°`; G923 PID confirmed `0xC266`, G PRO PIDs `0xC268`/`0xC272`
+- **Simagic corrections**: Alpha U/Ultimate PIDs corrected in protocol doc; EVO torque specs web-verified from simagic.com
+- **Simucube corrections**: VID sharing comment corrected; Ultimate torque spec corrected; PIDs web-verified from official docs
+- **Asetek corrections**: torque hierarchy corrected (Forte 20 Nm, Invicta 15 Nm, LaPrima 10 Nm); TonyKanaan spelling fixed
+- **Cube Controls reclassified** from wheel bases to button boxes after web research — devices are input-only, no force feedback
+- **Engine device tables synced** with verified protocol crate corrections across all vendors
+- **Assetto Corsa adapter rewritten** to use Remote Telemetry UDP protocol (was OutGauge)
+- **rFactor 2 protocol rewritten** from official `rF2State.h` headers
+- **Codemasters Mode 1 parsing** extracted into shared module (`refactor(telemetry)`, F-026) — eliminates duplication across 10+ adapters
+- **`NormalizedTelemetry` snapshot serialization**: `extended` map switched from `HashMap` to `BTreeMap` for deterministic ordering
+- **Safety interlock improvements**: `unwrap()` denial enforced across all HID protocol crates; `ReportBuilder::with_capacity` bug fixed (report-ID byte was always `0x00`)
+- **`has_rpm_data()` semantics**: returns `true` only for valid RPM (non-zero, non-NaN); new `has_rpm_display_data()` companion
+- **`is_game_running()` semantics**: returns `Ok(false)` instead of error for known games with no active adapter
 
 ### Fixed
 
-- **Test stability — soft-stop multiplier**: clamped the configurable soft-stop torque multiplier to `[0.0, 1.0]` to prevent oscillation in tests that use boundary values
-- **Test stability — zero-alloc stderr capture**: replaced heap-allocating stderr capture helper with a fixed-size ring buffer, eliminating spurious allocation warnings in RT path tests
+- **Thrustmaster T248X PID**: `0xB697` → `0xB69A` (verified against community sources)
+- **Thrustmaster T150_PRO → T500_RS**: PID was mislabeled in the device table
+- **Thrustmaster HOTAS PIDs removed**: 4 non-racing HOTAS PIDs removed from racing device table
+- **Fanatec ClubSport DD+ torque**: `20 Nm` → `12 Nm` (web-verified)
+- **Fanatec PIDs**: corrected against `gotzl/hid-fanatecff` reference implementation
+- **Logitech G923 PID**: corrected to `0xC266`
+- **Logitech G PRO PIDs**: corrected to `0xC268` (Xbox) / `0xC272` (PS)
+- **Logitech G PRO torque**: `8 Nm` → `11 Nm`; rotation `900°` → `1080°`
+- **Simagic Alpha U/Ultimate PIDs**: corrected in protocol doc
+- **Simagic EVO torque specs**: web-verified from simagic.com
+- **Simucube Ultimate torque spec**: corrected
+- **Asetek torque hierarchy**: corrected (Forte/Invicta/LaPrima); TonyKanaan spelling
+- **Leo Bodnar, AccuForce, OpenFFBoard PIDs**: web-verified against authoritative sources
+- **Heusinkveld & VRS USB IDs**: web-verified; VID collision documentation added
+- **GT7 Salsa20 nonce construction**: corrected nonce extraction and packet field offsets
+- **ACC `isReadonly` field**: inverted boolean corrected
+- **iRacing `FuelLevel` binding**: corrected field mapping (verified against IRSDK docs)
+- **Forza tire temperature**: conversion from Fahrenheit (was incorrectly treating as Kelvin)
+- **Fuel percent scaling**: corrected in LFS, AMS1, and RaceRoom (f64 fuel reads)
+- **Codemasters Mode 1 byte offsets**: corrected in 10 adapters (7 initial + 3 follow-up)
+- **PXN input report ID offset**: all field offsets shifted +1; byte 0 is report ID `0x01`, not data (see F-023)
+- **`ReportBuilder::with_capacity` bug**: Simucube and Asetek output reports used `new(N)` which pre-filled zeros, causing report-ID byte to always be `0x00`
+- **CRLF in udev rules**: normalized `99-racing-wheel-suite.rules` and `90-racing-wheel-quirks.conf` to LF; added `.gitattributes` entries
+- **FFBeast dead links**: replaced HF-Robotics/FFBeast URLs; VID/PIDs verified
+- **Shell script shebangs**: converted to portable `#!/usr/bin/env bash`
+- **`unwrap()`/`expect()` removed from tests**: replaced across 20+ test files with `Result`-returning patterns and `?` propagation per AGENTS.md policy
+- **`panic!()` removed from tests**: replaced in 8 telemetry adapter test files with `return Err("msg".into())`
+- **Bare `unreachable!()` fixed**: added descriptive message in `f1_native.rs`
+- **CI `dependency-governance`**: changed from hard `exit 1` to `::warning::` annotation; policy governed by `deny.toml`
+- **CI regression prevention false positives**: HID protocol and schemas crates excluded from deprecated-field detection
+- **`fuzz_simplemotion` compilation**: added missing `racing-wheel-simplemotion-v2` dependency to `fuzz/Cargo.toml`
+- **Clippy `doc_suspicious_footnotes`**: footnote refs in VRS and Asetek protocol crates changed to plain text
+- **Deprecated field migration**: `wheel_angle_mdeg` → `wheel_angle_deg`, `wheel_speed_mrad_s` → `wheel_speed_rad_s`
+- **Test stability — soft-stop multiplier**: clamped to `[0.0, 1.0]` to prevent oscillation
+- **Test stability — zero-alloc stderr capture**: replaced heap-allocating capture with fixed-size ring buffer
 
 ## [1.0.0] - 2026-10-15
 
