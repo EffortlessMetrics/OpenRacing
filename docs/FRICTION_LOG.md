@@ -135,13 +135,13 @@ Multiple agents running concurrently on the same branch can cause YAML divergenc
 
 ---
 
-### F-015 · Workspace-hack requires manual regeneration (Low · Open)
+### F-015 · Workspace-hack requires manual regeneration (Low · **Resolved**)
 
 **Encountered:** R5 test coverage sprint — adding new crates caused `workspace-hack` drift detected by CI
 
 After adding new crates or changing feature flags, `cargo hakari generate` must be re-run manually to keep `workspace-hack/` in sync. CI catches the drift but the fix always requires a manual step.
 
-**Remedy:** Add a pre-commit hook (`scripts/pre-commit/check-hakari.sh`) that runs `cargo hakari verify` and fails if `workspace-hack/` is out of date. Alternatively, add `cargo hakari generate` as a mandatory step in the contributor setup docs.
+**Fix applied:** Created `.githooks/pre-commit` — a versioned hook that runs `cargo hakari verify` and diffs the two `game_support_matrix.yaml` files before every commit. Also added `scripts/pre-commit/check-hakari.sh` as a standalone helper. `AGENTS.md` updated with hook setup instructions (`git config core.hooksPath .githooks`) and reminder to run `cargo hakari generate` when adding crates. (feat/r7-quirks-cleanup-v2)
 
 ---
 
@@ -220,6 +220,7 @@ No compile-time help distinguishes "this is a renamed constant" from "this const
 |----|-------|-------------|
 | F-003 | Agent file-edit race during compilation | AGENTS.md worktree rules (feat/r7) |
 | F-014 | Agent race conditions on shared branch | AGENTS.md worktree rules (feat/r7) |
+| F-015 | Workspace-hack requires manual regeneration | .githooks/pre-commit + AGENTS.md (feat/r7) |
 | F-008 | BeamNG gear overflow | commit cdd69f0 |
 | F-009 | static_mut_refs missing | commit cdd69f0 |
 | F-010 | Stale integration test name | agent-30 |

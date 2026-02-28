@@ -63,6 +63,12 @@ When multiple agents operate on the same repository concurrently:
 
 5. **Workspace-hack drift:** After adding a new crate or changing feature flags, run `cargo hakari generate` and commit the result before pushing.
 
+6. **Pre-commit hook:** Install the local pre-commit hook to catch workspace-hack drift and YAML sync issues before they reach CI:
+   ```
+   git config core.hooksPath .githooks
+   ```
+   The hook runs `cargo hakari verify` (if `cargo-hakari` is installed) and diffs the two `game_support_matrix.yaml` files.
+
 ## Dependency and config hygiene
 - Use workspace dependencies where possible (see root `Cargo.toml`).
 - If you add or update dependencies, update `Cargo.lock`.
