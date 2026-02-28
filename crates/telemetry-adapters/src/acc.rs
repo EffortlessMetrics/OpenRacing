@@ -491,7 +491,8 @@ fn parse_registration_result(reader: &mut PacketReader<'_>) -> Result<Registrati
     Ok(RegistrationResult {
         connection_id: reader.read_i32_le()?,
         success: reader.read_bool_u8()?,
-        readonly: reader.read_bool_u8()?,
+        // ACC SDK: byte == 0 means read-only (inverted from bool convention).
+        readonly: reader.read_u8()? == 0,
         error: read_acc_string(reader)?,
     })
 }
@@ -806,8 +807,8 @@ mod tests {
     fn test_parse_registration_result() -> TestResult {
         let mut packet = vec![MSG_REGISTRATION_RESULT];
         packet.extend_from_slice(&42i32.to_le_bytes());
-        packet.push(1);
-        packet.push(0);
+        packet.push(1); // success
+        packet.push(1); // writable (not readonly)
         push_acc_string(&mut packet, "")?;
 
         let message = parse_inbound_message(&packet)?;
@@ -831,7 +832,8 @@ mod tests {
             ACCInboundMessage::RegistrationResult(result) => {
                 assert_eq!(result.connection_id, 1337);
                 assert!(result.success);
-                assert!(!result.readonly);
+                // Fixture byte is 0x00 → readonly per ACC SDK (byte==0 means readonly).
+                assert!(result.readonly);
                 assert!(result.error.is_empty());
             }
             _ => return Err("expected fixture registration result".into()),
