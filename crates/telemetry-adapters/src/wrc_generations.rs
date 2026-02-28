@@ -50,8 +50,14 @@ const OFF_CAR_POSITION: usize = 156;
 const OFF_FUEL_IN_TANK: usize = 180;
 const OFF_FUEL_CAPACITY: usize = 184;
 const OFF_IN_PIT: usize = 188;
+const OFF_BRAKES_TEMP_RL: usize = 204;
+const OFF_BRAKES_TEMP_RR: usize = 208;
 const OFF_BRAKES_TEMP_FL: usize = 212;
+const OFF_BRAKES_TEMP_FR: usize = 216;
+const OFF_TYRES_PRESSURE_RL: usize = 220;
+const OFF_TYRES_PRESSURE_RR: usize = 224;
 const OFF_TYRES_PRESSURE_FL: usize = 228;
+const OFF_TYRES_PRESSURE_FR: usize = 232;
 const OFF_LAST_LAP_TIME: usize = 248;
 const OFF_MAX_RPM: usize = 252;
 const OFF_MAX_GEARS: usize = 260;
@@ -179,22 +185,22 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         read_f32(data, OFF_BRAKES_TEMP_FL)
             .unwrap_or(0.0)
             .clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 4)
+        read_f32(data, OFF_BRAKES_TEMP_FR)
             .unwrap_or(0.0)
             .clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 8)
+        read_f32(data, OFF_BRAKES_TEMP_RL)
             .unwrap_or(0.0)
             .clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 12)
+        read_f32(data, OFF_BRAKES_TEMP_RR)
             .unwrap_or(0.0)
             .clamp(0.0, 255.0) as u8,
     ];
 
     let tire_pressures_psi = [
         read_f32(data, OFF_TYRES_PRESSURE_FL).unwrap_or(0.0),
-        read_f32(data, OFF_TYRES_PRESSURE_FL + 4).unwrap_or(0.0),
-        read_f32(data, OFF_TYRES_PRESSURE_FL + 8).unwrap_or(0.0),
-        read_f32(data, OFF_TYRES_PRESSURE_FL + 12).unwrap_or(0.0),
+        read_f32(data, OFF_TYRES_PRESSURE_FR).unwrap_or(0.0),
+        read_f32(data, OFF_TYRES_PRESSURE_RL).unwrap_or(0.0),
+        read_f32(data, OFF_TYRES_PRESSURE_RR).unwrap_or(0.0),
     ];
 
     let num_gears = read_f32(data, OFF_MAX_GEARS)
