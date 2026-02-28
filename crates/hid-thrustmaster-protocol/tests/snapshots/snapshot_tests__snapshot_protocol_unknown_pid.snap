@@ -1,0 +1,5 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_tests.rs
+expression: "format!(\"model={:?}, max_torque={}, pedals={}, wheelbase={}\", proto.model(),\nproto.max_torque_nm(), proto.is_pedals(), proto.is_wheelbase())"
+---
+model=Unknown, max_torque=4, pedals=false, wheelbase=false

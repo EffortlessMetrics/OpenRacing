@@ -143,7 +143,7 @@ mod tests {
         let proto = ThrustmasterProtocol::new(product_ids::TS_XW);
         assert_eq!(proto.model(), Model::TSXW);
         assert!((proto.max_torque_nm() - 6.0).abs() < 0.01);
-        assert_eq!(proto.rotation_range(), 1070);
+        assert_eq!(proto.rotation_range(), 1080);
         assert!(proto.supports_ffb());
     }
 
@@ -155,9 +155,9 @@ mod tests {
     }
 
     #[test]
-    fn test_new_pedals() {
-        let proto = ThrustmasterProtocol::new(product_ids::T_LCM);
-        assert!(proto.is_pedals());
+    fn test_new_unknown_pid_is_not_wheelbase() {
+        // Pedal PIDs removed; unknown PID falls through to Unknown model.
+        let proto = ThrustmasterProtocol::new(0xFFFF);
         assert!(!proto.is_wheelbase());
     }
 

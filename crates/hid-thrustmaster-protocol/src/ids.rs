@@ -13,6 +13,7 @@ pub const THRUSTMASTER_VENDOR_ID: u16 = 0x044F;
 /// - Linux kernel `hid-thrustmaster.c` (upstream init driver)
 /// - Kimplul/hid-tmff2 (community FFB driver)
 /// - berarma/oversteer (steering wheel manager)
+/// - JacKeTUs/linux-steering-wheels (compatibility table)
 /// - linux-hardware.org USB device database
 /// - devicehunt.com USB ID repository
 ///
@@ -22,6 +23,15 @@ pub const THRUSTMASTER_VENDOR_ID: u16 = 0x044F;
 ///   Bulk" (flight sim rudder pedals). Real T-GT PID is unknown.
 /// - **T-GT II** — was 0xB692, but hid-tmff2 confirms that as `TSXW_ACTIVE`
 ///   (TS-XW Racer). Per hid-tmff2 README, the T-GT II reuses T300 USB PIDs.
+/// - **T-LCM** — was 0xB68D, but linux-hardware.org identifies that as
+///   "T.Flight Hotas One" (flight controller). Real T-LCM PID is unverified.
+/// - **T-LCM Pro** — was 0xB69A, but linux-hardware.org identifies that as
+///   "T248X GIP Racing Wheel". Real T-LCM Pro PID is unverified.
+/// - **T3PA** — was 0xB678, but devicehunt.com identifies that as "T.Flight
+///   Rudder Pedals" (flight sim). T3PA typically connects via RJ12 to the
+///   wheelbase; its standalone USB PID (if any) is unverified.
+/// - **T3PA Pro** — was 0xB679, but devicehunt.com identifies that as
+///   "T-Rudder" (flight sim). Same RJ12 caveat as T3PA.
 pub mod product_ids {
     /// Generic pre-init "FFB Wheel" PID used by all Thrustmaster wheels before
     /// mode switching. After init, the wheel re-enumerates with a model-specific PID.
@@ -54,9 +64,9 @@ pub mod product_ids {
     /// T248 (hybrid drive).
     /// Verified: hid-tmff2 TMT248_PC_ID.
     pub const T248: u16 = 0xB696;
-    /// T248X (Xbox variant).
-    /// Unverified: not found in community driver sources.
-    pub const T248X: u16 = 0xB697;
+    /// T248X (Xbox variant, GIP protocol).
+    /// Verified: linux-hardware.org (044f:b69a = "T248X GIP Racing Wheel").
+    pub const T248X: u16 = 0xB69A;
     /// TS-PC Racer (PC-only belt drive).
     /// Verified: hid-tmff2 TMTS_PC_RACER_ID.
     pub const TS_PC_RACER: u16 = 0xB689;
@@ -69,26 +79,15 @@ pub mod product_ids {
     /// T818 (direct drive).
     /// Unverified: listed as open request in hid-tmff2 issue #58.
     pub const T818: u16 = 0xB69B;
-
-    /// T3PA pedal set.
-    /// Note: devicehunt.com lists 0xB678 as "T.Flight Rudder Pedals". PID may be
-    /// shared or incorrectly attributed; T3PA typically connects via RJ12 to the wheel base.
-    pub const T3PA: u16 = 0xB678;
-    /// T3PA Pro (with inverted option).
-    /// Note: devicehunt.com lists 0xB679 as "T-Rudder". See T3PA note above.
-    pub const T3PA_PRO: u16 = 0xB679;
-    /// T-LCM (load cell brake).
-    pub const T_LCM: u16 = 0xB68D;
-    /// T-LCM Pro (updated load cell).
-    pub const T_LCM_PRO: u16 = 0xB69A;
 }
 
 /// Model identification shorthand.
 ///
-/// Note: `TGT` and `TGTII` are real products but their USB PIDs
-/// could not be verified against community driver sources. They are retained
-/// in the enum for metadata (torque, rotation) but cannot be returned by
-/// [`Model::from_product_id`]. See `product_ids` docs for details.
+/// Note: `TGT`, `TGTII`, `T3PA`, `T3PAPro`, `TLCM`, and `TLCMPro` are real
+/// products but their USB PIDs could not be verified against community driver
+/// sources (the previously-assigned PIDs belonged to other devices). They are
+/// retained in the enum for metadata (torque, rotation) but cannot be returned
+/// by [`Model::from_product_id`]. See `product_ids` docs for details.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Model {
     T150,
@@ -127,10 +126,6 @@ impl Model {
             product_ids::TS_PC_RACER => Self::TSPCRacer,
             product_ids::TS_XW | product_ids::TS_XW_GIP => Self::TSXW,
             product_ids::T818 => Self::T818,
-            product_ids::T3PA => Self::T3PA,
-            product_ids::T3PA_PRO => Self::T3PAPro,
-            product_ids::T_LCM => Self::TLCM,
-            product_ids::T_LCM_PRO => Self::TLCMPro,
             _ => Self::Unknown,
         }
     }
@@ -156,7 +151,12 @@ impl Model {
         match self {
             Self::T500RS => 1080,
             Self::TGT | Self::TGTII | Self::T818 => 1080,
-            Self::TSPCRacer | Self::TSXW => 1070,
+            Self::T150
+            | Self::T300RS
+            | Self::T300RSPS4
+            | Self::T300RSGT
+            | Self::TSPCRacer
+            | Self::TSXW => 1080,
             _ => 900,
         }
     }

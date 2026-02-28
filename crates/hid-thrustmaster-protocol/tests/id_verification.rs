@@ -55,6 +55,36 @@ fn ts_xw_gip_pid_is_b691() {
 }
 
 #[test]
+fn t248x_pid_is_b69a() {
+    assert_eq!(product_ids::T248X, 0xB69A);
+}
+
+#[test]
+fn t500_rs_pid_is_b65e() {
+    assert_eq!(product_ids::T500_RS, 0xB65E);
+}
+
+#[test]
+fn t300_rs_gt_pid_is_b66f() {
+    assert_eq!(product_ids::T300_RS_GT, 0xB66F);
+}
+
+#[test]
+fn tx_racing_pid_is_b669() {
+    assert_eq!(product_ids::TX_RACING, 0xB669);
+}
+
+#[test]
+fn ts_pc_racer_pid_is_b689() {
+    assert_eq!(product_ids::TS_PC_RACER, 0xB689);
+}
+
+#[test]
+fn t818_pid_is_b69b() {
+    assert_eq!(product_ids::T818, 0xB69B);
+}
+
+#[test]
 fn ffb_wheel_generic_pid_is_b65d() {
     assert_eq!(product_ids::FFB_WHEEL_GENERIC, 0xB65D);
 }

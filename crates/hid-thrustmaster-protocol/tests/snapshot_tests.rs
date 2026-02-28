@@ -130,8 +130,8 @@ fn test_snapshot_protocol_t818() {
 }
 
 #[test]
-fn test_snapshot_protocol_t_lcm() {
-    let proto = tm::ThrustmasterProtocol::new(tm::product_ids::T_LCM);
+fn test_snapshot_protocol_unknown_pid() {
+    let proto = tm::ThrustmasterProtocol::new(0xFFFF);
     assert_snapshot!(format!(
         "model={:?}, max_torque={}, pedals={}, wheelbase={}",
         proto.model(),

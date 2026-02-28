@@ -70,18 +70,6 @@ pub fn identify_device(product_id: u16) -> ThrustmasterDeviceIdentity {
             category: ThrustmasterDeviceCategory::Wheelbase,
             supports_ffb: true,
         },
-        product_ids::T3PA | product_ids::T3PA_PRO => ThrustmasterDeviceIdentity {
-            product_id,
-            name: "Thrustmaster T3PA",
-            category: ThrustmasterDeviceCategory::Pedals,
-            supports_ffb: false,
-        },
-        product_ids::T_LCM | product_ids::T_LCM_PRO => ThrustmasterDeviceIdentity {
-            product_id,
-            name: "Thrustmaster T-LCM",
-            category: ThrustmasterDeviceCategory::Pedals,
-            supports_ffb: false,
-        },
         _ => ThrustmasterDeviceIdentity {
             product_id,
             name: "Thrustmaster Unknown",
@@ -150,9 +138,11 @@ mod tests {
     }
 
     #[test]
-    fn test_identify_t_lcm() {
-        let identity = identify_device(product_ids::T_LCM);
-        assert_eq!(identity.category, ThrustmasterDeviceCategory::Pedals);
+    fn test_identify_unknown_pid_is_not_pedals() {
+        // Pedal PIDs were removed (incorrectly attributed to flight peripherals).
+        // Unknown PIDs now fall through to Unknown category.
+        let identity = identify_device(0xFFFF);
+        assert_eq!(identity.category, ThrustmasterDeviceCategory::Unknown);
         assert!(!identity.supports_ffb);
     }
 
@@ -161,13 +151,14 @@ mod tests {
         assert!(is_wheel_product(product_ids::TS_XW));
         assert!(is_wheel_product(product_ids::T300_RS));
         assert!(is_wheel_product(product_ids::T818));
-        assert!(!is_wheel_product(product_ids::T_LCM));
+        assert!(!is_wheel_product(0xFFFF)); // unknown PID is not a wheel
     }
 
     #[test]
     fn test_is_pedal_product() {
-        assert!(is_pedal_product(product_ids::T_LCM));
-        assert!(is_pedal_product(product_ids::T3PA));
+        // Pedal PIDs removed (were misattributed flight peripherals).
+        // is_pedal_product now only returns true for PIDs explicitly matched.
+        assert!(!is_pedal_product(0xFFFF));
         assert!(!is_pedal_product(product_ids::TS_XW));
     }
 
@@ -175,7 +166,7 @@ mod tests {
     fn test_model_from_pid() {
         assert_eq!(Model::from_product_id(product_ids::TS_XW), Model::TSXW);
         assert_eq!(Model::from_product_id(product_ids::T818), Model::T818);
-        assert_eq!(Model::from_product_id(product_ids::T_LCM), Model::TLCM);
+        assert_eq!(Model::from_product_id(product_ids::T248X), Model::T248X);
     }
 
     #[test]
@@ -188,7 +179,7 @@ mod tests {
     #[test]
     fn test_model_max_rotation() {
         assert_eq!(Model::TGT.max_rotation_deg(), 1080);
-        assert_eq!(Model::T150.max_rotation_deg(), 900);
+        assert_eq!(Model::T150.max_rotation_deg(), 1080);
     }
 
     #[test]
