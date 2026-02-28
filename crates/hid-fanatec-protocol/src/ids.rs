@@ -79,7 +79,7 @@ pub mod product_ids {
     /// CSL Elite Wheel Base — PC mode (6 Nm belt-drive).
     /// Verified: `CSL_ELITE_WHEELBASE_DEVICE_ID 0x0E03`.
     pub const CSL_ELITE: u16 = 0x0E03;
-    /// ClubSport DD (20 Nm direct-drive, 2022 premium base).
+    /// ClubSport DD+ (12 Nm direct-drive, 2022 premium base).
     /// Not yet present in the community Linux driver; believed correct from USB captures.
     pub const CLUBSPORT_DD: u16 = 0x01E9;
 

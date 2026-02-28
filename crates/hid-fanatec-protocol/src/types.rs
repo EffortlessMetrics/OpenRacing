@@ -17,7 +17,7 @@ pub enum FanatecModel {
     CslDd,
     /// Gran Turismo DD Pro — direct drive, 5/8 Nm.
     GtDdPro,
-    /// ClubSport DD — premium direct drive, 20 Nm (2022).
+    /// ClubSport DD+ — premium direct drive, 12 Nm (2022).
     ClubSportDd,
     /// ClubSport V2 (8 Nm belt-drive).
     ClubSportV2,
@@ -49,7 +49,8 @@ impl FanatecModel {
     /// Maximum continuous torque in Newton-meters for this model.
     pub fn max_torque_nm(self) -> f32 {
         match self {
-            Self::Dd1 | Self::ClubSportDd => 20.0,
+            Self::Dd1 => 20.0,
+            Self::ClubSportDd => 12.0,
             Self::Dd2 => 25.0,
             Self::CslElite => 6.0,
             Self::CslDd | Self::GtDdPro => 8.0,
@@ -218,7 +219,7 @@ mod tests {
     fn test_model_clubsport_dd() -> Result<(), Box<dyn std::error::Error>> {
         let model = FanatecModel::from_product_id(product_ids::CLUBSPORT_DD);
         assert_eq!(model, FanatecModel::ClubSportDd);
-        assert!((model.max_torque_nm() - 20.0).abs() < 0.1);
+        assert!((model.max_torque_nm() - 12.0).abs() < 0.1);
         assert_eq!(model.encoder_cpr(), 16_384);
         assert!(model.supports_1000hz());
         Ok(())
