@@ -209,7 +209,12 @@ impl F1NativeAdapter {
                 let status = match header.packet_format {
                     PACKET_FORMAT_2023 => parse_car_status_2023(raw, player)?,
                     PACKET_FORMAT_2024 => parse_car_status_2024(raw, player)?,
-                    _ => unreachable!("packet_format already validated above"),
+                    other => {
+                        return Err(anyhow!(
+                            "F1 native: unsupported packet format {} for CarStatus",
+                            other
+                        ));
+                    }
                 };
                 state.latest_status = Some(status);
                 Ok(Self::maybe_emit(state))
@@ -338,7 +343,12 @@ impl TelemetryAdapter for F1NativeAdapter {
                     PACKET_FORMAT_2024 => {
                         let _ = parse_car_status_2024(raw, player)?;
                     }
-                    _ => unreachable!("packet_format already validated above"),
+                    other => {
+                        return Err(anyhow!(
+                            "F1 native normalize(): unsupported packet format {} for CarStatus",
+                            other
+                        ));
+                    }
                 }
                 Err(anyhow!(
                     "F1 native normalize() received CarStatus (ID 7) without preceding \
