@@ -378,9 +378,11 @@ impl LinuxHidPort {
             (0x046D, 0xC29B), // Logitech G27
             (0x046D, 0xC24F), // Logitech G29
             (0x046D, 0xC262), // Logitech G920
-            (0x046D, 0xC26D), // Logitech G923 Xbox
-            (0x046D, 0xC26E), // Logitech G923 PS
-            (0x046D, 0xC266), // Logitech G PRO
+            (0x046D, 0xC266), // Logitech G923
+            (0x046D, 0xC267), // Logitech G923 PS
+            (0x046D, 0xC26E), // Logitech G923 Xbox
+            (0x046D, 0xC268), // Logitech G PRO
+            (0x046D, 0xC272), // Logitech G PRO Xbox
             (0x0EB7, 0x0001), // Fanatec ClubSport Wheel Base V2
             (0x0EB7, 0x0004), // Fanatec ClubSport Wheel Base V2.5
             (0x0EB7, 0x0005), // Fanatec CSL Elite Wheel Base (PS4)

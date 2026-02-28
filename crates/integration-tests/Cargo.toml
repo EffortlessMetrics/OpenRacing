@@ -18,6 +18,7 @@ print_stdout = "deny"
 
 [dependencies]
 racing-wheel-engine = { path = "../engine" }
+racing-wheel-plugins = { path = "../plugins" }
 racing-wheel-service = { path = "../service" }
 racing-wheel-schemas = { path = "../schemas" }
 racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
