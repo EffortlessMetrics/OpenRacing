@@ -3,6 +3,13 @@
 //! This crate is intentionally I/O-free and allocation-free on hot paths.
 //! It provides pure functions and types that can be tested and fuzzed without
 //! hardware or OS-level HID plumbing.
+//!
+//! ## Verification sources
+//!
+//! VID, PIDs, and report structures have been cross-referenced against:
+//! - [`gotzl/hid-fanatecff`](https://github.com/gotzl/hid-fanatecff) — Linux
+//!   kernel driver for Fanatec devices (`hid-ftec.h`, `hid-ftec.c`,
+//!   `hid-ftecff.c`).
 
 #![deny(static_mut_refs)]
 

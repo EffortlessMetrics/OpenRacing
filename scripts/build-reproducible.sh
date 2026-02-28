@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Reproducible Build Script for Racing Wheel Suite
 # This script ensures deterministic, reproducible builds across environments
 

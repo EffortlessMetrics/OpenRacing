@@ -59,7 +59,7 @@ pub struct PluginInfo {
 
 /// List available plugins from registry
 async fn list_plugins(category: Option<&str>, json: bool) -> Result<()> {
-    // Mock implementation - in real version this would fetch from registry
+    // Placeholder: replaced with registry fetch via service IPC when wheeld integration is complete
     let plugins = get_mock_registry_plugins();
 
     // Filter by category if provided
@@ -554,7 +554,10 @@ fn get_plugin_directory() -> PathBuf {
     plugin_dir
 }
 
-/// Get mock registry plugins for demonstration
+/// Returns placeholder plugin registry data until service IPC is implemented.
+///
+/// In production, the wheeld service queries the plugin registry and returns
+/// available plugins over IPC.
 fn get_mock_registry_plugins() -> Vec<PluginInfo> {
     vec![
         PluginInfo {

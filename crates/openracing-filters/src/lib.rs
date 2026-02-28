@@ -80,6 +80,24 @@ pub use state::*;
 ///
 /// This is a minimal frame type for filter processing.
 /// The full frame type is defined in the engine crate.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_filters::Frame;
+///
+/// let frame = Frame {
+///     ffb_in: 0.5,
+///     torque_out: 0.5,
+///     wheel_speed: 0.0,
+///     hands_off: false,
+///     ts_mono_ns: 0,
+///     seq: 1,
+/// };
+///
+/// assert!((frame.ffb_in - 0.5).abs() < f32::EPSILON);
+/// assert!(!frame.hands_off);
+/// ```
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Frame {
@@ -109,6 +127,24 @@ pub struct Frame {
 ///
 /// * `frame` - The frame to process
 /// * `max_torque` - Maximum allowed torque magnitude (must be positive)
+///
+/// # Examples
+///
+/// ```
+/// use openracing_filters::{Frame, torque_cap_filter};
+///
+/// let mut frame = Frame::default();
+/// frame.torque_out = 1.0;
+///
+/// // Cap torque at 0.8
+/// torque_cap_filter(&mut frame, 0.8);
+/// assert!((frame.torque_out - 0.8).abs() < 0.001);
+///
+/// // Values within the cap pass through unchanged
+/// frame.torque_out = 0.5;
+/// torque_cap_filter(&mut frame, 0.8);
+/// assert!((frame.torque_out - 0.5).abs() < 0.001);
+/// ```
 #[inline]
 pub fn torque_cap_filter(frame: &mut Frame, max_torque: f32) {
     if frame.torque_out.is_finite() {

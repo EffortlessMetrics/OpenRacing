@@ -73,22 +73,22 @@ fn test_snapshot_led_report_all_on() {
     assert_snapshot!(format!("{:?}", report));
 }
 
-/// ClubSport DD (20 Nm) at full positive torque — pin wire format for regression detection.
+/// ClubSport DD+ (12 Nm) at full positive torque — pin wire format for regression detection.
 #[test]
 fn test_snapshot_clubsport_dd_full_positive_torque() {
-    assert_snapshot!(encode_bytes_with_max(20.0, 20.0));
+    assert_snapshot!(encode_bytes_with_max(12.0, 12.0));
 }
 
-/// ClubSport DD (20 Nm) at full negative torque.
+/// ClubSport DD+ (12 Nm) at full negative torque.
 #[test]
 fn test_snapshot_clubsport_dd_full_negative_torque() {
-    assert_snapshot!(encode_bytes_with_max(-20.0, 20.0));
+    assert_snapshot!(encode_bytes_with_max(-12.0, 12.0));
 }
 
-/// ClubSport DD (20 Nm) at half torque.
+/// ClubSport DD+ (12 Nm) at half torque.
 #[test]
 fn test_snapshot_clubsport_dd_half_torque() {
-    assert_snapshot!(encode_bytes_with_max(10.0, 20.0));
+    assert_snapshot!(encode_bytes_with_max(6.0, 12.0));
 }
 
 /// Rotation range report for 540 degrees (common full-lock for GT car).

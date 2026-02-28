@@ -129,7 +129,7 @@ impl ThrustmasterProtocol {
 
 impl Default for ThrustmasterProtocol {
     fn default() -> Self {
-        Self::new(product_ids::T_GT)
+        Self::new(product_ids::T300_RS)
     }
 }
 
@@ -140,8 +140,8 @@ mod tests {
 
     #[test]
     fn test_new_tgt() {
-        let proto = ThrustmasterProtocol::new(product_ids::T_GT);
-        assert_eq!(proto.model(), Model::TGT);
+        let proto = ThrustmasterProtocol::new(product_ids::TS_XW);
+        assert_eq!(proto.model(), Model::TSXW);
         assert!((proto.max_torque_nm() - 6.0).abs() < 0.01);
         assert_eq!(proto.rotation_range(), 1080);
         assert!(proto.supports_ffb());
@@ -155,36 +155,36 @@ mod tests {
     }
 
     #[test]
-    fn test_new_pedals() {
-        let proto = ThrustmasterProtocol::new(product_ids::T_LCM);
-        assert!(proto.is_pedals());
+    fn test_new_unknown_pid_is_not_wheelbase() {
+        // Pedal PIDs removed; unknown PID falls through to Unknown model.
+        let proto = ThrustmasterProtocol::new(0xFFFF);
         assert!(!proto.is_wheelbase());
     }
 
     #[test]
     fn test_set_gain() {
-        let mut proto = ThrustmasterProtocol::new(product_ids::T_GT);
+        let mut proto = ThrustmasterProtocol::new(product_ids::T300_RS);
         proto.set_gain(128);
         assert_eq!(proto.gain(), 128);
     }
 
     #[test]
     fn test_set_rotation_range() {
-        let mut proto = ThrustmasterProtocol::new(product_ids::T_GT);
+        let mut proto = ThrustmasterProtocol::new(product_ids::T300_RS);
         proto.set_rotation_range(900);
         assert_eq!(proto.rotation_range(), 900);
     }
 
     #[test]
     fn test_init_sequence() {
-        let proto = ThrustmasterProtocol::new(product_ids::T_GT);
+        let proto = ThrustmasterProtocol::new(product_ids::T300_RS);
         let seq = proto.build_init_sequence();
         assert_eq!(seq.len(), 4);
     }
 
     #[test]
     fn test_encoder() {
-        let proto = ThrustmasterProtocol::new(product_ids::T_GT);
+        let proto = ThrustmasterProtocol::new(product_ids::T300_RS);
         let enc = proto.create_encoder();
         let mut out = [0u8; EFFECT_REPORT_LEN];
         enc.encode(3.0, &mut out);

@@ -33,21 +33,21 @@ pub fn identify_device(product_id: u16) -> SimagicDeviceIdentity {
             name: "Simagic EVO Sport",
             category: SimagicDeviceCategory::Wheelbase,
             supports_ffb: true,
-            max_torque_nm: Some(15.0),
+            max_torque_nm: Some(9.0),
         },
         product_ids::EVO => SimagicDeviceIdentity {
             product_id,
             name: "Simagic EVO",
             category: SimagicDeviceCategory::Wheelbase,
             supports_ffb: true,
-            max_torque_nm: Some(20.0),
+            max_torque_nm: Some(12.0),
         },
         product_ids::EVO_PRO => SimagicDeviceIdentity {
             product_id,
             name: "Simagic EVO Pro",
             category: SimagicDeviceCategory::Wheelbase,
             supports_ffb: true,
-            max_torque_nm: Some(30.0),
+            max_torque_nm: Some(18.0),
         },
         product_ids::ALPHA_EVO => SimagicDeviceIdentity {
             product_id,
@@ -170,12 +170,13 @@ impl SimagicModel {
 
     pub fn max_torque_nm(&self) -> f32 {
         match self {
-            Self::EvoPro => 30.0,
-            Self::Evo | Self::AlphaEvo => 20.0,
-            Self::EvoSport | Self::Neo => 15.0,
-            Self::NeoMini => 10.0,
+            Self::EvoPro => 18.0,
+            Self::Evo | Self::AlphaEvo => 12.0,
+            Self::EvoSport => 9.0,
+            Self::Neo => 10.0,
+            Self::NeoMini => 7.0,
             Self::P1000 | Self::P2000 | Self::ShifterH | Self::ShifterSeq | Self::Handbrake => 0.0,
-            Self::Unknown => 15.0,
+            Self::Unknown => 9.0,
         }
     }
 }
@@ -337,18 +338,18 @@ mod tests {
     #[test]
     fn test_simagic_model_max_torque() {
         let models_and_torques = [
-            (SimagicModel::EvoSport, 15.0),
-            (SimagicModel::Evo, 20.0),
-            (SimagicModel::EvoPro, 30.0),
-            (SimagicModel::AlphaEvo, 20.0),
-            (SimagicModel::Neo, 15.0),
-            (SimagicModel::NeoMini, 10.0),
+            (SimagicModel::EvoSport, 9.0),
+            (SimagicModel::Evo, 12.0),
+            (SimagicModel::EvoPro, 18.0),
+            (SimagicModel::AlphaEvo, 12.0),
+            (SimagicModel::Neo, 10.0),
+            (SimagicModel::NeoMini, 7.0),
             (SimagicModel::P1000, 0.0),
             (SimagicModel::P2000, 0.0),
             (SimagicModel::ShifterH, 0.0),
             (SimagicModel::ShifterSeq, 0.0),
             (SimagicModel::Handbrake, 0.0),
-            (SimagicModel::Unknown, 15.0),
+            (SimagicModel::Unknown, 9.0),
         ];
 
         for (model, expected_torque) in models_and_torques {

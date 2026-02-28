@@ -6,21 +6,21 @@
 
 pub const ASETEK_VENDOR_ID: u16 = 0x2433;
 
-/// Asetek Invicta (15 Nm entry direct drive).
+/// Asetek Invicta (27 Nm premium direct drive).
 pub const ASETEK_INVICTA_PID: u16 = 0xF300;
-/// Asetek Forte (20 Nm mid-range direct drive).
+/// Asetek Forte (18 Nm mid-range direct drive).
 pub const ASETEK_FORTE_PID: u16 = 0xF301;
-/// Asetek La Prima (10 Nm compact direct drive).
+/// Asetek La Prima (12 Nm entry direct drive).
 pub const ASETEK_LAPRIMA_PID: u16 = 0xF303;
-/// Asetek Tony Kanaan Edition.
-pub const ASETEK_TONY_KANNAN_PID: u16 = 0xF306;
+/// Asetek Tony Kanaan Edition (27 Nm, Invicta-based special edition).
+pub const ASETEK_TONY_KANAAN_PID: u16 = 0xF306;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AsetekModel {
     Forte,
     Invicta,
     LaPrima,
-    TonyKannan,
+    TonyKanaan,
     Unknown,
 }
 
@@ -30,7 +30,7 @@ impl AsetekModel {
             ASETEK_FORTE_PID => Self::Forte,
             ASETEK_INVICTA_PID => Self::Invicta,
             ASETEK_LAPRIMA_PID => Self::LaPrima,
-            ASETEK_TONY_KANNAN_PID => Self::TonyKannan,
+            ASETEK_TONY_KANAAN_PID => Self::TonyKanaan,
             _ => Self::Unknown,
         }
     }
@@ -40,18 +40,18 @@ impl AsetekModel {
             Self::Forte => "Asetek Forte",
             Self::Invicta => "Asetek Invicta",
             Self::LaPrima => "Asetek La Prima",
-            Self::TonyKannan => "Asetek Tony Kanaan Edition",
+            Self::TonyKanaan => "Asetek Tony Kanaan Edition",
             Self::Unknown => "Unknown Asetek Device",
         }
     }
 
     pub fn max_torque_nm(&self) -> f32 {
         match self {
-            Self::Forte => 20.0,
-            Self::Invicta => 15.0,
-            Self::LaPrima => 10.0,
-            Self::TonyKannan => 20.0,
-            Self::Unknown => 20.0,
+            Self::Forte => 18.0,
+            Self::Invicta => 27.0,
+            Self::LaPrima => 12.0,
+            Self::TonyKanaan => 27.0,
+            Self::Unknown => 18.0,
         }
     }
 }
@@ -86,9 +86,9 @@ mod tests {
 
     #[test]
     fn test_max_torque() {
-        assert_eq!(AsetekModel::Forte.max_torque_nm(), 20.0);
-        assert_eq!(AsetekModel::Invicta.max_torque_nm(), 15.0);
-        assert_eq!(AsetekModel::LaPrima.max_torque_nm(), 10.0);
+        assert_eq!(AsetekModel::Forte.max_torque_nm(), 18.0);
+        assert_eq!(AsetekModel::Invicta.max_torque_nm(), 27.0);
+        assert_eq!(AsetekModel::LaPrima.max_torque_nm(), 12.0);
     }
 
     #[test]

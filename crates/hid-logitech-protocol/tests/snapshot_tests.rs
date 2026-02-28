@@ -40,7 +40,7 @@ fn test_snapshot_constant_force_half() {
 /// Known raw G920/G923-style input report: steering center, full throttle,
 /// brake half, no buttons, hat neutral (0x8), both paddles set.
 #[test]
-fn test_snapshot_input_report_known_sequence() {
+fn test_snapshot_input_report_known_sequence() -> Result<(), Box<dyn std::error::Error>> {
     let data = [
         0x01u8, // report ID
         0x00,
@@ -54,7 +54,7 @@ fn test_snapshot_input_report_known_sequence() {
         0x03,        // both paddles
         0x00,        // padding
     ];
-    let state = lg::parse_input_report(&data).expect("parse should succeed");
+    let state = lg::parse_input_report(&data).ok_or("parse_input_report returned None")?;
     assert_snapshot!(format!(
         "steering={:.4}, throttle={:.4}, brake={:.4}, clutch={:.4}, \
          buttons=0x{:04X}, hat=0x{:X}, paddles={}",
@@ -66,6 +66,7 @@ fn test_snapshot_input_report_known_sequence() {
         state.hat,
         state.paddles,
     ));
+    Ok(())
 }
 
 // ── Vendor command snapshots ──────────────────────────────────────────────────

@@ -3,14 +3,15 @@
 use openracing_watchdog::prelude::*;
 use std::time::Duration;
 
+type TestResult = Result<(), Box<dyn std::error::Error>>;
+
 #[test]
-fn test_full_plugin_lifecycle() {
+fn test_full_plugin_lifecycle() -> TestResult {
     let config = WatchdogConfig::builder()
         .plugin_timeout_us(100)
         .plugin_max_timeouts(3)
         .plugin_quarantine_duration(Duration::from_secs(60))
-        .build()
-        .unwrap();
+        .build()?;
 
     let watchdog = WatchdogSystem::new(config);
 
@@ -24,7 +25,9 @@ fn test_full_plugin_lifecycle() {
         assert!(fault.is_none());
     }
 
-    let stats = watchdog.get_plugin_stats("test_plugin").unwrap();
+    let stats = watchdog.get_plugin_stats("test_plugin");
+    assert!(stats.is_some());
+    let stats = stats.ok_or("Expected plugin stats")?;
     assert_eq!(stats.total_executions, 10);
     assert_eq!(stats.timeout_count, 0);
     assert!(!watchdog.is_plugin_quarantined("test_plugin"));
@@ -40,50 +43,52 @@ fn test_full_plugin_lifecycle() {
     assert!(watchdog.is_plugin_quarantined("test_plugin"));
 
     // 4. Release from quarantine
-    watchdog.release_plugin_quarantine("test_plugin").unwrap();
+    watchdog.release_plugin_quarantine("test_plugin")?;
     assert!(!watchdog.is_plugin_quarantined("test_plugin"));
 
     // 5. Unregister plugin
-    watchdog.unregister_plugin("test_plugin").unwrap();
+    watchdog.unregister_plugin("test_plugin")?;
     assert_eq!(watchdog.plugin_count(), 0);
+    Ok(())
 }
 
 #[test]
-fn test_component_health_lifecycle() {
+fn test_component_health_lifecycle() -> TestResult {
     let watchdog = WatchdogSystem::default();
 
     // Initial state - all components unknown
     let health = watchdog
         .get_component_health(SystemComponent::RtThread)
-        .unwrap();
+        .ok_or("Expected component health")?;
     assert_eq!(health.status, HealthStatus::Unknown);
 
     // Send heartbeat - becomes healthy
     watchdog.heartbeat(SystemComponent::RtThread);
     let health = watchdog
         .get_component_health(SystemComponent::RtThread)
-        .unwrap();
+        .ok_or("Expected component health")?;
     assert_eq!(health.status, HealthStatus::Healthy);
 
     // Report failures - progression through statuses
     watchdog.report_component_failure(SystemComponent::RtThread, Some("Error 1".to_string()));
     let health = watchdog
         .get_component_health(SystemComponent::RtThread)
-        .unwrap();
+        .ok_or("Expected component health")?;
     assert_eq!(health.status, HealthStatus::Healthy); // First failure still healthy
 
     watchdog.report_component_failure(SystemComponent::RtThread, Some("Error 2".to_string()));
     let health = watchdog
         .get_component_health(SystemComponent::RtThread)
-        .unwrap();
+        .ok_or("Expected component health")?;
     assert_eq!(health.status, HealthStatus::Degraded);
 
     // Heartbeat restores health
     watchdog.heartbeat(SystemComponent::RtThread);
     let health = watchdog
         .get_component_health(SystemComponent::RtThread)
-        .unwrap();
+        .ok_or("Expected component health")?;
     assert_eq!(health.status, HealthStatus::Healthy);
+    Ok(())
 }
 
 #[test]
@@ -123,12 +128,11 @@ fn test_multiple_plugins_interaction() {
 }
 
 #[test]
-fn test_health_check_interval() {
+fn test_health_check_interval() -> TestResult {
     let config = WatchdogConfig::builder()
         .health_check_interval(Duration::from_millis(10))
         .rt_thread_timeout_ms(100) // Set higher timeout to avoid race
-        .build()
-        .unwrap();
+        .build()?;
 
     let watchdog = WatchdogSystem::new(config);
 
@@ -151,6 +155,7 @@ fn test_health_check_interval() {
     let faults = watchdog.perform_health_checks();
     // No faults since we have a recent heartbeat
     assert!(faults.is_empty());
+    Ok(())
 }
 
 #[test]
@@ -175,7 +180,7 @@ fn test_fault_callback_invocation() {
 }
 
 #[test]
-fn test_quarantine_policy_affects_behavior() {
+fn test_quarantine_policy_affects_behavior() -> TestResult {
     let watchdog = WatchdogSystem::default();
 
     // Disable quarantine policy
@@ -190,7 +195,9 @@ fn test_quarantine_policy_affects_behavior() {
     assert!(!watchdog.is_plugin_quarantined("test_plugin"));
 
     // Stats should still track timeouts
-    let stats = watchdog.get_plugin_stats("test_plugin").unwrap();
+    let stats = watchdog
+        .get_plugin_stats("test_plugin")
+        .ok_or("Expected plugin stats")?;
     assert_eq!(stats.timeout_count, 20);
 
     // Re-enable and verify quarantine works
@@ -206,10 +213,11 @@ fn test_quarantine_policy_affects_behavior() {
             assert_eq!(fault, Some(FaultType::PluginOverrun));
         }
     }
+    Ok(())
 }
 
 #[test]
-fn test_reset_statistics() {
+fn test_reset_statistics() -> TestResult {
     let watchdog = WatchdogSystem::default();
 
     // Record various executions
@@ -220,14 +228,19 @@ fn test_reset_statistics() {
         watchdog.record_plugin_execution("test_plugin", 200);
     }
 
-    let stats = watchdog.get_plugin_stats("test_plugin").unwrap();
+    let stats = watchdog
+        .get_plugin_stats("test_plugin")
+        .ok_or("Expected plugin stats")?;
     assert_eq!(stats.total_executions, 13);
     assert_eq!(stats.timeout_count, 3);
 
     // Reset stats
-    watchdog.reset_plugin_stats("test_plugin").unwrap();
+    watchdog.reset_plugin_stats("test_plugin")?;
 
-    let stats = watchdog.get_plugin_stats("test_plugin").unwrap();
+    let stats = watchdog
+        .get_plugin_stats("test_plugin")
+        .ok_or("Expected plugin stats")?;
     assert_eq!(stats.total_executions, 0);
     assert_eq!(stats.timeout_count, 0);
+    Ok(())
 }

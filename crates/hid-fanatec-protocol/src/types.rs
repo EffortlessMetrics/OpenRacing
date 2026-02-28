@@ -11,18 +11,20 @@ pub enum FanatecModel {
     Dd1,
     /// DD2 / Podium DD2 — 25 Nm direct drive.
     Dd2,
-    /// CSL Elite (belt-driven, 6 Nm). Covers both standard and PS4 variants.
+    /// CSL Elite (belt-driven, 6 Nm). Covers both PC (0x0E03) and PS4 (0x0005) variants.
     CslElite,
     /// CSL DD — direct drive, 5/8 Nm (boost kit dependent).
     CslDd,
     /// Gran Turismo DD Pro — direct drive, 5/8 Nm.
     GtDdPro,
-    /// ClubSport DD — premium direct drive, 20 Nm (2022).
+    /// ClubSport DD+ — premium direct drive, 12 Nm (2022).
     ClubSportDd,
-    /// ClubSport V2 (legacy USB stack, 8 Nm).
+    /// ClubSport V2 (8 Nm belt-drive).
     ClubSportV2,
     /// ClubSport V2.5 (belt-driven, 8 Nm).
     ClubSportV25,
+    /// CSR Elite / Forza Motorsport Wheel Base (legacy belt-drive).
+    CsrElite,
     /// Unknown or future Fanatec wheelbase.
     Unknown,
 }
@@ -31,14 +33,15 @@ impl FanatecModel {
     /// Classify a device by its product ID.
     pub fn from_product_id(product_id: u16) -> Self {
         match product_id {
-            product_ids::CLUBSPORT_V2 | product_ids::CLUBSPORT_V2_LEGACY => Self::ClubSportV2,
-            product_ids::CSL_ELITE_BASE | product_ids::CSL_ELITE => Self::CslElite,
+            product_ids::CLUBSPORT_V2 => Self::ClubSportV2,
+            product_ids::CSL_ELITE_PS4 | product_ids::CSL_ELITE => Self::CslElite,
             product_ids::CLUBSPORT_V2_5 => Self::ClubSportV25,
             product_ids::DD1 => Self::Dd1,
             product_ids::DD2 => Self::Dd2,
-            product_ids::CSL_DD | product_ids::CSL_DD_LEGACY => Self::CslDd,
+            product_ids::CSL_DD => Self::CslDd,
             product_ids::GT_DD_PRO => Self::GtDdPro,
             product_ids::CLUBSPORT_DD => Self::ClubSportDd,
+            product_ids::CSR_ELITE => Self::CsrElite,
             _ => Self::Unknown,
         }
     }
@@ -46,11 +49,13 @@ impl FanatecModel {
     /// Maximum continuous torque in Newton-meters for this model.
     pub fn max_torque_nm(self) -> f32 {
         match self {
-            Self::Dd1 | Self::ClubSportDd => 20.0,
+            Self::Dd1 => 20.0,
+            Self::ClubSportDd => 12.0,
             Self::Dd2 => 25.0,
             Self::CslElite => 6.0,
             Self::CslDd | Self::GtDdPro => 8.0,
             Self::ClubSportV2 | Self::ClubSportV25 => 8.0,
+            Self::CsrElite => 5.0,
             Self::Unknown => 5.0,
         }
     }
@@ -80,16 +85,15 @@ pub fn is_wheelbase_product(product_id: u16) -> bool {
     matches!(
         product_id,
         product_ids::CLUBSPORT_V2
-            | product_ids::CSL_ELITE_BASE
             | product_ids::CLUBSPORT_V2_5
+            | product_ids::CSL_ELITE_PS4
             | product_ids::DD1
             | product_ids::DD2
-            | product_ids::CSL_DD_LEGACY
+            | product_ids::CSR_ELITE
             | product_ids::CSL_DD
             | product_ids::GT_DD_PRO
             | product_ids::CLUBSPORT_DD
             | product_ids::CSL_ELITE
-            | product_ids::CLUBSPORT_V2_LEGACY
     )
 }
 
@@ -99,6 +103,7 @@ pub fn is_pedal_product(product_id: u16) -> bool {
         product_id,
         product_ids::CLUBSPORT_PEDALS_V1_V2
             | product_ids::CLUBSPORT_PEDALS_V3
+            | product_ids::CSL_ELITE_PEDALS
             | product_ids::CSL_PEDALS_LC
             | product_ids::CSL_PEDALS_V2
     )
@@ -111,6 +116,8 @@ pub enum FanatecPedalModel {
     ClubSportV1V2,
     /// ClubSport Pedals V3 with load cell brake.
     ClubSportV3,
+    /// CSL Elite Pedals (USB, 2-axis).
+    CslElitePedals,
     /// CSL Pedals with Load Cell Kit.
     CslPedalsLc,
     /// CSL Pedals V2.
@@ -125,6 +132,7 @@ impl FanatecPedalModel {
         match product_id {
             product_ids::CLUBSPORT_PEDALS_V1_V2 => Self::ClubSportV1V2,
             product_ids::CLUBSPORT_PEDALS_V3 => Self::ClubSportV3,
+            product_ids::CSL_ELITE_PEDALS => Self::CslElitePedals,
             product_ids::CSL_PEDALS_LC => Self::CslPedalsLc,
             product_ids::CSL_PEDALS_V2 => Self::CslPedalsV2,
             _ => Self::Unknown,
@@ -135,7 +143,7 @@ impl FanatecPedalModel {
     pub fn axis_count(self) -> u8 {
         match self {
             Self::ClubSportV3 | Self::CslPedalsLc | Self::CslPedalsV2 => 3,
-            Self::ClubSportV1V2 => 2,
+            Self::ClubSportV1V2 | Self::CslElitePedals => 2,
             Self::Unknown => 2,
         }
     }
@@ -211,7 +219,7 @@ mod tests {
     fn test_model_clubsport_dd() -> Result<(), Box<dyn std::error::Error>> {
         let model = FanatecModel::from_product_id(product_ids::CLUBSPORT_DD);
         assert_eq!(model, FanatecModel::ClubSportDd);
-        assert!((model.max_torque_nm() - 20.0).abs() < 0.1);
+        assert!((model.max_torque_nm() - 12.0).abs() < 0.1);
         assert_eq!(model.encoder_cpr(), 16_384);
         assert!(model.supports_1000hz());
         Ok(())
@@ -226,6 +234,7 @@ mod tests {
         assert!(FanatecModel::Dd2.supports_1000hz());
         assert!(!FanatecModel::CslElite.supports_1000hz());
         assert!(!FanatecModel::ClubSportV2.supports_1000hz());
+        assert!(!FanatecModel::CsrElite.supports_1000hz());
         assert!(!FanatecModel::Unknown.supports_1000hz());
         Ok(())
     }
@@ -239,14 +248,14 @@ mod tests {
     #[test]
     fn test_is_wheelbase_product_known() -> Result<(), Box<dyn std::error::Error>> {
         assert!(is_wheelbase_product(product_ids::CLUBSPORT_V2));
-        assert!(is_wheelbase_product(product_ids::CSL_ELITE_BASE));
         assert!(is_wheelbase_product(product_ids::CLUBSPORT_V2_5));
+        assert!(is_wheelbase_product(product_ids::CSL_ELITE_PS4));
         assert!(is_wheelbase_product(product_ids::DD1));
         assert!(is_wheelbase_product(product_ids::DD2));
         assert!(is_wheelbase_product(product_ids::CSL_DD));
         assert!(is_wheelbase_product(product_ids::GT_DD_PRO));
         assert!(is_wheelbase_product(product_ids::CSL_ELITE));
-        assert!(is_wheelbase_product(product_ids::CLUBSPORT_V2_LEGACY));
+        assert!(is_wheelbase_product(product_ids::CSR_ELITE));
         Ok(())
     }
 
@@ -286,6 +295,7 @@ mod tests {
     fn test_is_pedal_product() -> Result<(), Box<dyn std::error::Error>> {
         assert!(is_pedal_product(product_ids::CLUBSPORT_PEDALS_V3));
         assert!(is_pedal_product(product_ids::CLUBSPORT_PEDALS_V1_V2));
+        assert!(is_pedal_product(product_ids::CSL_ELITE_PEDALS));
         assert!(is_pedal_product(product_ids::CSL_PEDALS_LC));
         assert!(is_pedal_product(product_ids::CSL_PEDALS_V2));
         assert!(!is_pedal_product(product_ids::CSL_DD));
@@ -305,6 +315,10 @@ mod tests {
             FanatecPedalModel::ClubSportV1V2
         );
         assert_eq!(
+            FanatecPedalModel::from_product_id(product_ids::CSL_ELITE_PEDALS),
+            FanatecPedalModel::CslElitePedals
+        );
+        assert_eq!(
             FanatecPedalModel::from_product_id(product_ids::CSL_PEDALS_LC),
             FanatecPedalModel::CslPedalsLc
         );
@@ -319,7 +333,25 @@ mod tests {
     fn test_pedal_model_axis_count() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(FanatecPedalModel::ClubSportV3.axis_count(), 3);
         assert_eq!(FanatecPedalModel::ClubSportV1V2.axis_count(), 2);
+        assert_eq!(FanatecPedalModel::CslElitePedals.axis_count(), 2);
         assert_eq!(FanatecPedalModel::CslPedalsLc.axis_count(), 3);
+        Ok(())
+    }
+
+    #[test]
+    fn test_model_csr_elite() -> Result<(), Box<dyn std::error::Error>> {
+        let model = FanatecModel::from_product_id(product_ids::CSR_ELITE);
+        assert_eq!(model, FanatecModel::CsrElite);
+        assert!((model.max_torque_nm() - 5.0).abs() < 0.1);
+        assert_eq!(model.encoder_cpr(), 4_096);
+        assert!(!model.supports_1000hz());
+        Ok(())
+    }
+
+    #[test]
+    fn test_csl_elite_pedals_is_pedal() -> Result<(), Box<dyn std::error::Error>> {
+        assert!(is_pedal_product(product_ids::CSL_ELITE_PEDALS));
+        assert!(!is_wheelbase_product(product_ids::CSL_ELITE_PEDALS));
         Ok(())
     }
 

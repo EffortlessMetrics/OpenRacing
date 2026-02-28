@@ -12,7 +12,7 @@ USB connection — no proprietary handshake or initialization sequence is needed
 Simucube devices run at approximately 360 Hz (`bInterval = 3`) and use 64-byte HID reports.
 
 **Vendor ID note:** Simucube 2 devices use VID `0x16D0` (registered to MCS Electronics /
-OpenMoko), which is shared with Heusinkveld pedals and legacy Simagic products. Devices are
+OpenMoko), which is shared with Heusinkveld pedals. Devices are
 distinguished by their product ID. Sources: Linux kernel `hid-ids.h` (`USB_VENDOR_ID_MCS =
 0x16d0`), JacKeTUs/linux-steering-wheels compatibility table.
 
@@ -22,15 +22,16 @@ distinguished by their product ID. Sources: Linux kernel `hid-ids.h` (`USB_VENDO
 
 | Model | Vendor ID | Product ID | Max Torque | Encoder | Notes |
 |-------|-----------|------------|------------|---------|-------|
-| Simucube 2 Sport | `0x16D0` | `0x0D61` | 15 Nm | 22-bit | Entry direct drive |
+| Simucube 1 | `0x16D0` | `0x0D5A` | varies | varies | IONI-based servo drive |
+| Simucube 2 Sport | `0x16D0` | `0x0D61` | 17 Nm | 22-bit | Entry direct drive |
 | Simucube 2 Pro | `0x16D0` | `0x0D60` | 25 Nm | 22-bit | Mid-tier |
-| Simucube 2 Ultimate | `0x16D0` | `0x0D5F` | 35 Nm | 22-bit | Top-tier |
+| Simucube 2 Ultimate | `0x16D0` | `0x0D5F` | 32 Nm | 22-bit | Top-tier |
 
 ### Accessories
 
 | Model | Vendor ID | Product ID | Notes |
 |-------|-----------|------------|-------|
-| Simucube ActivePedal | `0x16D0` | `0x0D62` | Load-cell force feedback pedal (PID estimated) |
+| Simucube SC-Link Hub (ActivePedal) | `0x16D0` | `0x0D66` | Load-cell force feedback pedal hub |
 | SimuCube Wireless Wheel | `0x16D0` | `0x0D63` | Wireless steering wheel (PID estimated) |
 
 ## Initialization
@@ -83,13 +84,13 @@ Full rotation = 4,194,304 counts
 
 | Model | Max Torque | Peak Power | Report Rate |
 |-------|-----------|------------|-------------|
-| Sport | 15 Nm | ~1000 W | ~360 Hz |
+| Sport | 17 Nm | ~1000 W | ~360 Hz |
 | Pro | 25 Nm | ~2000 W | ~360 Hz |
-| Ultimate | 35 Nm | ~3000 W | ~360 Hz |
+| Ultimate | 32 Nm | ~3000 W | ~360 Hz |
 
 ### ActivePedal
 
-The Simucube ActivePedal (PID `0x0201`) is an active force-feedback pedal. It is **not**
+The Simucube ActivePedal (PID `0x0D66`, via SC-Link Hub) is an active force-feedback pedal. It is **not**
 a wheelbase and does not support motor torque FFB commands. Input-only on the force
 feedback channel; it uses its own dedicated HID protocol for pedal feedback.
 

@@ -64,9 +64,9 @@ pub trait TracingProvider: Send + Sync {
 /// Create a platform-specific tracing provider
 ///
 /// Returns the appropriate provider for the current platform:
-/// - Windows: [`WindowsETWProvider`](crate::platform::WindowsETWProvider)
-/// - Linux: [`LinuxTracepointsProvider`](crate::platform::LinuxTracepointsProvider)
-/// - Other: [`FallbackProvider`](crate::platform::FallbackProvider)
+/// - Windows: `WindowsETWProvider`
+/// - Linux: `LinuxTracepointsProvider`
+/// - Other: `FallbackProvider`
 ///
 /// # Errors
 ///

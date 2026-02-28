@@ -24,6 +24,8 @@ impl<T: Copy> SnapshotMailbox<T> {
 
     pub fn write(&self, value: T) {
         self.seq.fetch_add(1, Ordering::Release);
+        // SAFETY: Single-writer guarantee; the odd sequence number prevents readers
+        // from observing a torn write.
         unsafe {
             *self.data.get() = value;
         }
@@ -37,6 +39,7 @@ impl<T: Copy> SnapshotMailbox<T> {
                 continue;
             }
 
+            // SAFETY: T is Copy; the seqlock retry loop discards torn reads.
             let value = unsafe { *self.data.get() };
             let end = self.seq.load(Ordering::Acquire);
             if start == end {

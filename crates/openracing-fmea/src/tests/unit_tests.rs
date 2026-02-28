@@ -202,11 +202,12 @@ fn test_fmea_fault_handling() {
 }
 
 #[test]
-fn test_fmea_clear_fault() {
+fn test_fmea_clear_fault() -> Result<(), Box<dyn std::error::Error>> {
     let mut fmea = FmeaSystem::new();
-    fmea.handle_fault(FaultType::UsbStall, 10.0).unwrap();
+    fmea.handle_fault(FaultType::UsbStall, 10.0)?;
 
     let result = fmea.clear_fault();
     assert!(result.is_ok());
     assert!(!fmea.has_active_fault());
+    Ok(())
 }

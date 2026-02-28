@@ -42,7 +42,7 @@ proptest! {
         Just(asetek::ASETEK_FORTE_PID),
         Just(asetek::ASETEK_INVICTA_PID),
         Just(asetek::ASETEK_LAPRIMA_PID),
-        Just(asetek::ASETEK_TONY_KANNAN_PID),
+        Just(asetek::ASETEK_TONY_KANAAN_PID),
     ]) {
         let model = asetek::asetek_model_from_info(asetek::ASETEK_VENDOR_ID, pid);
         prop_assert_ne!(
@@ -60,7 +60,7 @@ proptest! {
             asetek::ASETEK_FORTE_PID,
             asetek::ASETEK_INVICTA_PID,
             asetek::ASETEK_LAPRIMA_PID,
-            asetek::ASETEK_TONY_KANNAN_PID,
+            asetek::ASETEK_TONY_KANAAN_PID,
         ];
         if !known.contains(&pid) {
             let model = asetek::asetek_model_from_info(asetek::ASETEK_VENDOR_ID, pid);
@@ -71,21 +71,23 @@ proptest! {
     /// Output report build always returns at least REPORT_SIZE_OUTPUT bytes.
     #[test]
     fn prop_output_report_length(seq in 0u16..=u16::MAX, torque in -100.0f32..=100.0f32) {
-        let data = asetek::AsetekOutputReport::new(seq)
+        let result = asetek::AsetekOutputReport::new(seq)
             .with_torque(torque)
-            .build()
-            .expect("build must not fail");
-        prop_assert!(
-            data.len() >= asetek::REPORT_SIZE_OUTPUT,
-            "output len {} < REPORT_SIZE_OUTPUT {}",
-            data.len(),
-            asetek::REPORT_SIZE_OUTPUT
-        );
+            .build();
+        prop_assert!(result.is_ok(), "build must not fail");
+        if let Ok(data) = result {
+            prop_assert!(
+                data.len() >= asetek::REPORT_SIZE_OUTPUT,
+                "output len {} < REPORT_SIZE_OUTPUT {}",
+                data.len(),
+                asetek::REPORT_SIZE_OUTPUT
+            );
+        }
     }
 
     /// Torque above MAX_TORQUE_NM saturates to the same cNm as MAX_TORQUE_NM.
     #[test]
-    fn prop_torque_clamped_above_max(torque in 20.0f32..=100.0f32) {
+    fn prop_torque_clamped_above_max(torque in 27.0f32..=100.0f32) {
         let clamped = asetek::AsetekOutputReport::new(0).with_torque(torque);
         let at_max = asetek::AsetekOutputReport::new(0).with_torque(asetek::MAX_TORQUE_NM);
         prop_assert_eq!(
@@ -98,7 +100,7 @@ proptest! {
 
     /// Torque below -MAX_TORQUE_NM saturates to the same cNm as -MAX_TORQUE_NM.
     #[test]
-    fn prop_torque_clamped_below_min(torque in -100.0f32..=-20.0f32) {
+    fn prop_torque_clamped_below_min(torque in -100.0f32..=-27.0f32) {
         let clamped = asetek::AsetekOutputReport::new(0).with_torque(torque);
         let at_min = asetek::AsetekOutputReport::new(0).with_torque(-asetek::MAX_TORQUE_NM);
         prop_assert_eq!(
@@ -180,7 +182,7 @@ proptest! {
         Just(asetek::ASETEK_FORTE_PID),
         Just(asetek::ASETEK_INVICTA_PID),
         Just(asetek::ASETEK_LAPRIMA_PID),
-        Just(asetek::ASETEK_TONY_KANNAN_PID),
+        Just(asetek::ASETEK_TONY_KANAAN_PID),
     ]) {
         let model = asetek::AsetekModel::from_product_id(pid);
         prop_assert!(
@@ -195,7 +197,7 @@ proptest! {
         Just(asetek::ASETEK_FORTE_PID),
         Just(asetek::ASETEK_INVICTA_PID),
         Just(asetek::ASETEK_LAPRIMA_PID),
-        Just(asetek::ASETEK_TONY_KANNAN_PID),
+        Just(asetek::ASETEK_TONY_KANAAN_PID),
     ]) {
         let model = asetek::AsetekModel::from_product_id(pid);
         prop_assert!(!model.display_name().is_empty());

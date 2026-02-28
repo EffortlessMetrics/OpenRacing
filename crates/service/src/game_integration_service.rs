@@ -648,10 +648,7 @@ mod tests {
     async fn test_supported_games() -> TestResult {
         let service = create_test_service().await?;
         let games = service.get_supported_games().await;
-        let expected: HashSet<String> = matrix_game_ids()
-            .expect("matrix should load")
-            .into_iter()
-            .collect();
+        let expected: HashSet<String> = matrix_game_ids()?.into_iter().collect();
         let actual: HashSet<String> = games.into_iter().collect();
         assert_eq!(actual, expected);
         Ok(())

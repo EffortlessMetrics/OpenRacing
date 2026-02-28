@@ -29,8 +29,7 @@ standard HID PID handled by the `simagic-ff` kernel module.
 | M10 | `0x0483` | `0x0522` | 10 Nm | Legacy | Shared PID with Alpha/Alpha Mini |
 | Alpha Mini | `0x0483` | `0x0522` | 10 Nm | Legacy | Same PID as M10 |
 | Alpha | `0x0483` | `0x0522` | 15 Nm | Legacy | Same PID |
-| Alpha U | `0x0483` | `0x0523` | 15 Nm | Legacy | Updated Alpha |
-| Alpha Ultimate | `0x0483` | `0x0524` | 23 Nm | Legacy | Flagship |
+| Alpha U (Ultimate) | `0x0483` | `0x0522` | 23 Nm | Legacy | Same PID as Alpha/Mini/M10 |
 | EVO Sport | `0x3670` | `0x0500` | — | EVO | Verified: linux-steering-wheels |
 | EVO | `0x3670` | `0x0501` | — | EVO | Verified: linux-steering-wheels |
 | EVO Pro | `0x3670` | `0x0502` | — | EVO | Verified: linux-steering-wheels |

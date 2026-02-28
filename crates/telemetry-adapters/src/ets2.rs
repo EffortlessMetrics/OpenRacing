@@ -23,10 +23,17 @@ use winapi::um::{
 
 /// SCS Telemetry SDK shared memory name (same for both ETS2 and ATS).
 const SCS_SHARED_MEMORY_NAME: &str = "Local\\SCSTelemetry";
-/// Total mapped size; community-documented SDK v1.14 layout is 512 bytes.
+/// Total mapped size for the OpenRacing SCS telemetry companion plugin.
 const SCS_SHARED_MEMORY_SIZE: usize = 512;
 
-// Byte offsets in the SCS Telemetry SDK v1.14 memory layout.
+// Byte offsets in the OpenRacing SCS telemetry plugin shared memory layout.
+//
+// NOTE (2025-07): The official SCS Telemetry SDK does not define a standard
+// shared memory format — each community plugin chooses its own layout. This
+// layout does NOT match the nlhans/ets2-sdk-plugin example or Funbit's
+// ets2-telemetry-server. It is specific to the OpenRacing companion plugin
+// (or must be documented separately). The "SDK v1.14" label below refers to
+// the companion plugin version, not the SCS SDK version.
 const OFF_VERSION: usize = 0; // u32
 const OFF_SPEED_MS: usize = 4; // f32  m/s
 const OFF_ENGINE_RPM: usize = 8; // f32  rev/min
@@ -275,6 +282,7 @@ fn read_f32_le(data: &[u8], offset: usize) -> Option<f32> {
     data.get(offset..offset + 4)
         .and_then(|b| b.try_into().ok())
         .map(f32::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 fn read_i32_le(data: &[u8], offset: usize) -> Option<i32> {
@@ -445,21 +453,21 @@ mod proptest_tests {
         #[test]
         fn scs_valid_speed_nonneg(speed in 0.0f32..200.0f32) {
             let data = build_scs_packet(speed, 1500.0, 3, 0.7, 0.5);
-            let result = parse_scs_packet(&data).unwrap();
+            let result = parse_scs_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(result.speed_ms >= 0.0);
         }
 
         #[test]
         fn scs_valid_rpm_nonneg(rpm in 0.0f32..3000.0f32) {
             let data = build_scs_packet(20.0, rpm, 3, 0.7, 0.5);
-            let result = parse_scs_packet(&data).unwrap();
+            let result = parse_scs_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(result.rpm >= 0.0);
         }
 
         #[test]
         fn scs_valid_gear_in_range(gear in -1i32..=12) {
             let data = build_scs_packet(20.0, 1500.0, gear, 0.7, 0.5);
-            let result = parse_scs_packet(&data).unwrap();
+            let result = parse_scs_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(result.gear >= -1 && result.gear <= 12);
         }
     }

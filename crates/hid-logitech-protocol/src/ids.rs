@@ -31,38 +31,51 @@ pub mod commands {
 
 /// Known Logitech wheel product IDs.
 ///
-/// VID/PID values verified against the Linux kernel hid-ids.h and the
-/// oversteer project (berarma/oversteer).
+/// VID/PID values verified against the Linux kernel hid-ids.h, the
+/// new-lg4ff driver (berarma/new-lg4ff), and the oversteer project
+/// (berarma/oversteer).
 pub mod product_ids {
     /// G25 racing wheel (900°, 2.5 Nm belt-drive).
+    ///
+    /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G25_WHEEL = 0xc299`.
     pub const G25: u16 = 0xC299;
     /// Driving Force / Formula EX wheel; also appears when a G27 is in
     /// compatibility (emulation) mode.
+    ///
+    /// Verified: kernel `USB_DEVICE_ID_LOGITECH_WHEEL = 0xc294`.
     pub const G27_A: u16 = 0xC294;
     /// G27 racing wheel (900°, 2.5 Nm belt-drive).
+    ///
+    /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G27_WHEEL = 0xc29b`.
     pub const G27: u16 = 0xC29B;
     /// G29 racing wheel (PlayStation/PC, 900°, 2.2 Nm).
-    pub const G29_PS: u16 = 0xC24F;
-    /// G29 racing wheel (pre-production / limited Xbox variant, 900°, 2.2 Nm).
-    pub const G29_XBOX: u16 = 0xC260;
-    /// G920 racing wheel — revision 1 (pre-production variant).
-    pub const G920_V1: u16 = 0xC261;
-    /// G920 racing wheel (Xbox/PC, 900°, 2.2 Nm).
-    pub const G920: u16 = 0xC262;
-    /// G923 racing wheel (PlayStation/PC, 900°, 2.2 Nm, TrueForce).
     ///
-    /// Verified: linux-steering-wheels compatibility table (046d:c267).
+    /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G29_WHEEL = 0xc24f`.
+    pub const G29_PS: u16 = 0xC24F;
+    /// G920 racing wheel (Xbox/PC, 900°, 2.2 Nm).
+    ///
+    /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G920_WHEEL = 0xc262`.
+    pub const G920: u16 = 0xC262;
+    /// G923 racing wheel — native/HID mode (after mode switch from PS compat).
+    ///
+    /// Verified: new-lg4ff `USB_DEVICE_ID_LOGITECH_G923_WHEEL = 0xc266`,
+    /// oversteer `LG_G923P = '046d:c266'`.
+    pub const G923: u16 = 0xC266;
+    /// G923 racing wheel — PlayStation compatibility mode (initial enumeration).
+    ///
+    /// Verified: new-lg4ff `USB_DEVICE_ID_LOGITECH_G923_PS_WHEEL = 0xc267`.
     pub const G923_PS: u16 = 0xC267;
     /// G923 racing wheel (Xbox/PC, 900°, 2.2 Nm, TrueForce).
     ///
-    /// Verified: Linux kernel hid-ids.h `USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL = 0xc26e`.
+    /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL = 0xc26e`,
+    /// new-lg4ff `USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL = 0xc26e`.
     pub const G923_XBOX: u16 = 0xC26E;
-    /// G PRO racing wheel (PlayStation/PC, 900°, 2.2 Nm).
+    /// G PRO racing wheel (PlayStation/PC, direct drive, 11 Nm, 1080°).
     ///
-    /// Verified: oversteer project `LG_GPRO_PS = '046d:c268'`.
+    /// Verified: oversteer `LG_GPRO_PS = '046d:c268'`.
     pub const G_PRO: u16 = 0xC268;
-    /// G PRO racing wheel (Xbox/PC, 900°, 2.2 Nm).
+    /// G PRO racing wheel (Xbox/PC, direct drive, 11 Nm, 1080°).
     ///
-    /// Verified: oversteer project `LG_GPRO_XBOX = '046d:c272'`.
+    /// Verified: oversteer `LG_GPRO_XBOX = '046d:c272'`.
     pub const G_PRO_XBOX: u16 = 0xC272;
 }

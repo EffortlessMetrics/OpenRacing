@@ -1,0 +1,184 @@
+---
+source: crates/telemetry-adapters/tests/snapshots_games_v5.rs
+expression: normalized
+---
+speed_ms: 70
+steering_angle: 0
+throttle: 0
+brake: 0
+clutch: 0
+rpm: 12000
+max_rpm: 0
+gear: 4
+num_gears: 0
+lateral_g: 0
+longitudinal_g: 0
+vertical_g: 0
+slip_ratio: 0
+slip_angle_fl: 0
+slip_angle_fr: 0
+slip_angle_rl: 0
+slip_angle_rr: 0
+tire_temps_c:
+  - 0
+  - 0
+  - 0
+  - 0
+tire_pressures_psi:
+  - 0
+  - 0
+  - 0
+  - 0
+ffb_scalar: 0
+ffb_torque_nm: 0
+flags:
+  yellow_flag: false
+  red_flag: false
+  blue_flag: false
+  checkered_flag: false
+  green_flag: true
+  pit_limiter: false
+  in_pits: false
+  drs_available: false
+  drs_active: false
+  ers_available: false
+  ers_active: false
+  launch_control: false
+  traction_control: false
+  abs_active: false
+  engine_limiter: false
+  safety_car: false
+  formation_lap: false
+  session_paused: false
+track_id: Melbourne
+position: 0
+lap: 0
+current_lap_time_s: 0
+best_lap_time_s: 0
+last_lap_time_s: 0
+delta_ahead_s: 0
+delta_behind_s: 0
+fuel_percent: 0
+engine_temp_c: 0
+extended:
+  air_temperature_c:
+    type: Integer
+    value: 0
+  brake:
+    type: Float
+    value: 0
+  brake_temp_fl_c:
+    type: Integer
+    value: 0
+  brake_temp_fr_c:
+    type: Integer
+    value: 0
+  brake_temp_rl_c:
+    type: Integer
+    value: 0
+  brake_temp_rr_c:
+    type: Integer
+    value: 0
+  decoder_type:
+    type: String
+    value: f1_native_udp
+  drs_active:
+    type: Boolean
+    value: false
+  drs_available:
+    type: Boolean
+    value: false
+  engine_power_ice_w:
+    type: Float
+    value: 0
+  engine_power_mguk_w:
+    type: Float
+    value: 0
+  engine_temperature_c:
+    type: Integer
+    value: 0
+  ers_deploy_mode:
+    type: Integer
+    value: 0
+  ers_deployed_j:
+    type: Float
+    value: 0
+  ers_harvested_mguh_j:
+    type: Float
+    value: 0
+  ers_harvested_mguk_j:
+    type: Float
+    value: 0
+  ers_store_energy_j:
+    type: Float
+    value: 0
+  ers_store_fraction:
+    type: Float
+    value: 0
+  fuel_remaining_kg:
+    type: Float
+    value: 0
+  fuel_remaining_laps:
+    type: Float
+    value: 0
+  rpm_fraction:
+    type: Float
+    value: 0
+  session_type:
+    type: Integer
+    value: 0
+  steer:
+    type: Float
+    value: -0.15
+  throttle:
+    type: Float
+    value: 0.85
+  track_temperature_c:
+    type: Integer
+    value: 0
+  tyre_age_laps:
+    type: Integer
+    value: 0
+  tyre_compound:
+    type: Integer
+    value: 0
+  tyre_compound_name:
+    type: String
+    value: Unknown
+  tyre_inner_temp_fl_c:
+    type: Integer
+    value: 0
+  tyre_inner_temp_fr_c:
+    type: Integer
+    value: 0
+  tyre_inner_temp_rl_c:
+    type: Integer
+    value: 0
+  tyre_inner_temp_rr_c:
+    type: Integer
+    value: 0
+  tyre_pressure_fl_psi:
+    type: Float
+    value: 26.5
+  tyre_pressure_fr_psi:
+    type: Float
+    value: 26.5
+  tyre_pressure_rl_psi:
+    type: Float
+    value: 26
+  tyre_pressure_rr_psi:
+    type: Float
+    value: 26
+  tyre_surface_temp_fl_c:
+    type: Integer
+    value: 0
+  tyre_surface_temp_fr_c:
+    type: Integer
+    value: 0
+  tyre_surface_temp_rl_c:
+    type: Integer
+    value: 0
+  tyre_surface_temp_rr_c:
+    type: Integer
+    value: 0
+sequence: 0

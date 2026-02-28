@@ -243,6 +243,29 @@ The configuration in `mutants.toml` already excludes test-only code, serde boile
 4. **Document Changes**: Update relevant documentation and ADRs
 5. **Performance Impact**: Validate that changes don't regress performance gates
 
+### Renaming public constants or symbols (F-007)
+
+When renaming a public constant, variant, or function in a protocol crate:
+
+1. Add the `#[deprecated]` attribute to the old name **one release cycle before removal**:
+   ```rust
+   #[deprecated(since = "1.1.0", note = "use `frame_seq` instead")]
+   pub const sequence: u64 = frame_seq;
+   ```
+2. Update all call sites in the same PR where possible.
+3. Remove the deprecated alias in the following release.
+
+This converts silent breakage into a clear compiler warning for downstream crates.
+
+### Snapshot tests and cross-validation (F-006)
+
+Snapshot tests (`insta`) confirm output stability but cannot detect "wrong but consistent" values — the first `--force-update-snapshots` bakes in whatever the code produces.
+
+Mitigation:
+- For device ID constants, add assertions in a separate `*_id_verification.rs` test file (see `crates/hid-moza-protocol/tests/id_verification.rs`) that cross-check against the golden values in `docs/protocols/SOURCES.md`.
+- Add `// source: <URL>` comments inside snapshot files so reviewers can verify values against community documentation.
+- When adding a new device crate, add at least one "known-good byte string" unit test (e.g. a hard-coded raw HID report and the expected decoded struct) in addition to snapshots.
+
 ## Tools and Scripts
 
 - `scripts/validate_performance.py`: Performance gate validation

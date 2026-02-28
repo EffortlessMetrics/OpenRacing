@@ -89,7 +89,8 @@ pub struct BlackboxReplay {
 
     // Replay state
     pipeline: Pipeline,
-    /// TODO: Used for future safety validation during replay
+    /// Reserved for safety validation during replay (not yet active; replay
+    /// currently preserves the original recorded safety state for comparison).
     #[allow(dead_code)]
     safety_service: SafetyService,
     current_frame: u64,
@@ -101,10 +102,12 @@ pub struct BlackboxReplay {
 
     // Data streams
     stream_a_data: Vec<StreamARecord>,
-    /// TODO: Used for future multi-stream replay implementation
+    /// Stored for future multi-stream replay; currently only Stream A
+    /// (per-frame data) is replayed.
     #[allow(dead_code)]
     stream_b_data: Vec<StreamBRecord>,
-    /// TODO: Used for future multi-stream replay implementation
+    /// Stored for future multi-stream replay; currently only Stream A
+    /// (per-frame data) is replayed.
     #[allow(dead_code)]
     stream_c_data: Vec<StreamCRecord>,
 }

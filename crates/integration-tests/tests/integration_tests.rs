@@ -398,7 +398,7 @@ async fn test_fault_injection_stress() -> Result<()> {
 }
 
 #[tokio::test]
-#[ignore] // Long-running test, run with --ignored
+#[ignore = "Long-running soak test, run explicitly with --include-ignored"]
 async fn test_ci_soak_test() -> Result<()> {
     init_test_environment()?;
 

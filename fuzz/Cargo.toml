@@ -31,8 +31,10 @@ racing-wheel-hbp = { path = "../crates/hbp" }
 racing-wheel-moza-wheelbase-report = { path = "../crates/moza-wheelbase-report" }
 
 racing-wheel-hid-button-box-protocol = { path = "../crates/hid-button-box-protocol", package = "hid-button-box-protocol" }
+racing-wheel-hid-cube-controls-protocol = { path = "../crates/hid-cube-controls-protocol", package = "hid-cube-controls-protocol" }
 racing-wheel-hid-leo-bodnar-protocol = { path = "../crates/hid-leo-bodnar-protocol" }
 racing-wheel-hid-accuforce-protocol = { path = "../crates/hid-accuforce-protocol" }
+racing-wheel-simplemotion-v2 = { path = "../crates/simplemotion-v2" }
 
 # Fuzzing requires nightly and release-like optimizations.
 [[bin]]
@@ -204,6 +206,12 @@ test = false
 doc = false
 
 [[bin]]
+name = "fuzz_cube_controls_input"
+path = "fuzz_targets/fuzz_cube_controls_input.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "fuzz_ets2_udp"
 path = "fuzz_targets/fuzz_ets2_udp.rs"
 test = false
@@ -272,6 +280,210 @@ doc = false
 [[bin]]
 name = "fuzz_accuforce_input"
 path = "fuzz_targets/fuzz_accuforce_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_simhub_udp"
+path = "fuzz_targets/fuzz_simhub_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_trackmania_udp"
+path = "fuzz_targets/fuzz_trackmania_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_dakar_udp"
+path = "fuzz_targets/fuzz_dakar_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_flatout_udp"
+path = "fuzz_targets/fuzz_flatout_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_nascar_udp"
+path = "fuzz_targets/fuzz_nascar_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_nascar21_udp"
+path = "fuzz_targets/fuzz_nascar21_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_wrc_kylotonn_udp"
+path = "fuzz_targets/fuzz_wrc_kylotonn_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_v_rally_4_udp"
+path = "fuzz_targets/fuzz_v_rally_4_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_rfactor1_udp"
+path = "fuzz_targets/fuzz_rfactor1_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_gran_turismo_sport"
+path = "fuzz_targets/fuzz_gran_turismo_sport.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_grid_autosport"
+path = "fuzz_targets/fuzz_grid_autosport.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_grid_2019"
+path = "fuzz_targets/fuzz_grid_2019.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_grid_legends"
+path = "fuzz_targets/fuzz_grid_legends.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_le_mans_ultimate"
+path = "fuzz_targets/fuzz_le_mans_ultimate.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_race_driver_grid"
+path = "fuzz_targets/fuzz_race_driver_grid.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_forza_horizon"
+path = "fuzz_targets/fuzz_forza_horizon.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_f1_udp"
+path = "fuzz_targets/fuzz_f1_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_dirt3_udp"
+path = "fuzz_targets/fuzz_dirt3_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_dirt5_udp"
+path = "fuzz_targets/fuzz_dirt5_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_dirt_showdown"
+path = "fuzz_targets/fuzz_dirt_showdown.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_eawrc_udp"
+path = "fuzz_targets/fuzz_eawrc_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_f1_native"
+path = "fuzz_targets/fuzz_f1_native.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ac_rally"
+path = "fuzz_targets/fuzz_ac_rally.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_assetto_corsa"
+path = "fuzz_targets/fuzz_assetto_corsa.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_beamng_udp"
+path = "fuzz_targets/fuzz_beamng_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_wtcr_udp"
+path = "fuzz_targets/fuzz_wtcr_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_forza_motorsport"
+path = "fuzz_targets/fuzz_forza_motorsport.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_iracing"
+path = "fuzz_targets/fuzz_iracing.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_rfactor2"
+path = "fuzz_targets/fuzz_rfactor2.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_motogp_simhub"
+path = "fuzz_targets/fuzz_motogp_simhub.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_mudrunner_simhub"
+path = "fuzz_targets/fuzz_mudrunner_simhub.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_snowrunner_simhub"
+path = "fuzz_targets/fuzz_snowrunner_simhub.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_gravel_simhub"
+path = "fuzz_targets/fuzz_gravel_simhub.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ride5_simhub"
+path = "fuzz_targets/fuzz_ride5_simhub.rs"
 test = false
 doc = false
 

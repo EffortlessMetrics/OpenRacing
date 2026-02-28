@@ -1,0 +1,5 @@
+---
+source: crates/hid-cube-controls-protocol/tests/snapshot_tests.rs
+expression: CUBE_CONTROLS_CSX3_PID
+---
+3189

@@ -169,19 +169,23 @@ proptest! {
         let is_non_ffb_peripheral =
             // Moza peripherals (pedals, hub, handbrake, shifter)
             (vid == vendor_ids::MOZA && matches!(pid, 0x0003 | 0x0020 | 0x0021 | 0x0022))
-            // Thrustmaster pedals (T3PA, T3PA Pro, T-LCM, T-LCM Pro)
-            || (vid == vendor_ids::THRUSTMASTER && matches!(pid, 0xB678 | 0xB679 | 0xB68D | 0xB69A))
+            // Thrustmaster TPR Rudder (flight sim, not racing)
+            || (vid == vendor_ids::THRUSTMASTER && pid == 0xB68E)
             // Heusinkveld pedals (Sprint / Ultimate+ / Pro) — share VID with Simagic legacy
             || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x1156..=0x1158))
             // VRS accessories (pedals, handbrake, shifter) — share VID with Simagic
             || (vid == vendor_ids::SIMAGIC && matches!(pid, 0xA357..=0xA35A))
             // Simagic modern pedals, shifters, handbrake — VID 0x2D5C removed; EVO has no such peripherals yet
-            // Simucube ActivePedal and Wireless Wheel — PIDs 0x0D62/0x0D63 (estimated, not yet in SupportedDevices)
-            || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x0D62 | 0x0D63))
+            // Simucube SC-Link Hub (0x0D66) and Wireless Wheel (0x0D63) — non-FFB peripherals
+            || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x0D66 | 0x0D63))
             // Generic HID button box (pid.codes VID, PID 0x1BBD — input-only)
             || (vid == vendor_ids::OPENFFBOARD && pid == 0x1BBD)
-            // Leo Bodnar input-only peripherals (BBI-32 button box, SLI-M, USB joystick)
-            || (vid == vendor_ids::LEO_BODNAR && matches!(pid, 0x000C | 0xBEEF | 0x0001));
+            // Leo Bodnar input-only peripherals (BBI-32 button box, SLI-M, USB joystick, BU0836 boards)
+            || (vid == vendor_ids::LEO_BODNAR && matches!(pid, 0x0001 | 0x000B | 0x000C | 0x0030 | 0x0031 | 0xBEEF))
+            // Simagic EVO peripherals (pedals, shifters, handbrake)
+            || (vid == vendor_ids::SIMAGIC_EVO && matches!(pid, 0x1001..=0x1003 | 0x2001..=0x2002 | 0x3001))
+            // Cube Controls button boxes (provisional PIDs, share VID 0x0483 with Simagic)
+            || (vid == vendor_ids::SIMAGIC && matches!(pid, 0x0C73..=0x0C75));
         if is_non_ffb_peripheral {
             prop_assert_eq!(
                 caps.max_torque.value(),
@@ -208,12 +212,14 @@ proptest! {
             );
         }
 
-        // Property: Encoder CPR must be positive
-        prop_assert!(
-            caps.encoder_cpr > 0,
-            "Device {} ({:04X}:{:04X}) should have positive encoder CPR",
-            name, vid, pid
-        );
+        // Property: Encoder CPR must be positive for FFB devices
+        if !is_non_ffb_peripheral {
+            prop_assert!(
+                caps.encoder_cpr > 0,
+                "Device {} ({:04X}:{:04X}) should have positive encoder CPR",
+                name, vid, pid
+            );
+        }
 
         // Property: Min report period must be positive
         prop_assert!(
@@ -605,7 +611,7 @@ mod unit_tests {
         // Belt-driven wheels should have lower torque
         let belt_devices = [
             (vendor_ids::LOGITECH, 0xC24F, 5.0),     // G29 - less than 5Nm
-            (vendor_ids::THRUSTMASTER, 0xB65D, 5.0), // T150 - less than 5Nm
+            (vendor_ids::THRUSTMASTER, 0xB677, 5.0), // T150 - less than 5Nm
         ];
 
         for (vid, pid, max_torque) in belt_devices {

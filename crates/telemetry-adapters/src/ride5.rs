@@ -66,16 +66,18 @@ impl TelemetryAdapter for Ride5Adapter {
 
             loop {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
-                    Ok(Ok(len)) => {
-                        let normalized = NormalizedTelemetry::builder().build();
-                        let frame =
-                            TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
-                        if tx.send(frame).await.is_err() {
-                            debug!("Receiver dropped, stopping RIDE 5 monitoring");
-                            break;
+                    Ok(Ok(len)) => match crate::simhub::parse_simhub_packet(&buf[..len]) {
+                        Ok(normalized) => {
+                            let frame =
+                                TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
+                            if tx.send(frame).await.is_err() {
+                                debug!("Receiver dropped, stopping RIDE 5 monitoring");
+                                break;
+                            }
+                            frame_idx = frame_idx.saturating_add(1);
                         }
-                        frame_idx = frame_idx.saturating_add(1);
-                    }
+                        Err(e) => debug!("Failed to parse RIDE 5 SimHub packet: {e}"),
+                    },
                     Ok(Err(e)) => warn!("RIDE 5 UDP receive error: {e}"),
                     Err(_) => debug!("No RIDE 5 telemetry data received (timeout)"),
                 }
@@ -90,8 +92,8 @@ impl TelemetryAdapter for Ride5Adapter {
         Ok(())
     }
 
-    fn normalize(&self, _raw: &[u8]) -> Result<NormalizedTelemetry> {
-        Ok(NormalizedTelemetry::builder().build())
+    fn normalize(&self, raw: &[u8]) -> Result<NormalizedTelemetry> {
+        crate::simhub::parse_simhub_packet(raw)
     }
 
     fn expected_update_rate(&self) -> Duration {
@@ -124,7 +126,8 @@ mod tests {
     #[test]
     fn test_normalize_returns_ok() -> TestResult {
         let adapter = Ride5Adapter::new();
-        let result = adapter.normalize(&[])?;
+        let json = br#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}"#;
+        let result = adapter.normalize(json)?;
         assert!(result.rpm >= 0.0);
         Ok(())
     }
@@ -147,5 +150,34 @@ mod tests {
     fn test_default() {
         let a = Ride5Adapter::default();
         assert_eq!(a.game_id(), "ride5");
+    }
+
+    #[test]
+    fn test_port_constants() {
+        assert_eq!(RIDE5_PORT, 5558);
+    }
+
+    #[test]
+    fn test_empty_input_returns_err() {
+        let adapter = Ride5Adapter::new();
+        assert!(adapter.normalize(&[]).is_err());
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        #[test]
+        fn prop_arbitrary_bytes_no_panic(
+            data in proptest::collection::vec(any::<u8>(), 0..4096)
+        ) {
+            let adapter = Ride5Adapter::new();
+            let _ = adapter.normalize(&data);
+        }
     }
 }

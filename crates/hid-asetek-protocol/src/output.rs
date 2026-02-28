@@ -34,7 +34,7 @@ impl AsetekOutputReport {
     }
 
     pub fn build(&self) -> AsetekResult<Vec<u8>> {
-        let mut builder = ReportBuilder::new(REPORT_SIZE_OUTPUT);
+        let mut builder = ReportBuilder::with_capacity(REPORT_SIZE_OUTPUT);
 
         builder.write_u16_le(self.sequence);
         builder.write_i16_le(self.torque_cNm);
@@ -81,7 +81,7 @@ mod tests {
         let result = report.build();
         assert!(result.is_ok());
         if let Ok(data) = result {
-            assert!(data.len() >= REPORT_SIZE_OUTPUT);
+            assert_eq!(data.len(), REPORT_SIZE_OUTPUT);
         }
     }
 }

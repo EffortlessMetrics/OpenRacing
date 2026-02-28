@@ -30,9 +30,8 @@ fn test_all_known_pids_detected() -> Result<(), Box<dyn std::error::Error>> {
         product_ids::G27_A,
         product_ids::G27,
         product_ids::G29_PS,
-        product_ids::G29_XBOX,
-        product_ids::G920_V1,
         product_ids::G920,
+        product_ids::G923,
         product_ids::G923_PS,
         product_ids::G923_XBOX,
         product_ids::G_PRO,
@@ -52,16 +51,15 @@ fn test_all_known_pids_detected() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Exact numeric values verified against kernel `hid-ids.h` and oversteer.
+/// Exact numeric values verified against kernel `hid-ids.h`, new-lg4ff, and oversteer.
 #[test]
 fn test_pid_constant_values() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(product_ids::G25, 0xC299);
     assert_eq!(product_ids::G27_A, 0xC294);
     assert_eq!(product_ids::G27, 0xC29B);
     assert_eq!(product_ids::G29_PS, 0xC24F);
-    assert_eq!(product_ids::G29_XBOX, 0xC260);
-    assert_eq!(product_ids::G920_V1, 0xC261);
     assert_eq!(product_ids::G920, 0xC262);
+    assert_eq!(product_ids::G923, 0xC266);
     assert_eq!(product_ids::G923_PS, 0xC267);
     assert_eq!(product_ids::G923_XBOX, 0xC26E);
     assert_eq!(product_ids::G_PRO, 0xC268);

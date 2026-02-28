@@ -197,7 +197,7 @@ impl FirmwareDevice for MockFirmwareDevice {
     }
 }
 
-fn create_test_firmware(version: &str, device_model: &str) -> FirmwareImage {
+fn create_test_firmware(version: &str, device_model: &str) -> Result<FirmwareImage> {
     let data = format!("test firmware data for {} v{}", device_model, version).into_bytes();
     let size_bytes = data.len() as u64;
     let hash = {
@@ -207,9 +207,9 @@ fn create_test_firmware(version: &str, device_model: &str) -> FirmwareImage {
         hex::encode(hasher.finalize())
     };
 
-    FirmwareImage {
+    Ok(FirmwareImage {
         device_model: device_model.to_string(),
-        version: version.parse().expect("Invalid version"),
+        version: version.parse()?,
         min_hardware_version: Some("1.0".to_string()),
         max_hardware_version: None,
         data,
@@ -218,7 +218,7 @@ fn create_test_firmware(version: &str, device_model: &str) -> FirmwareImage {
         build_timestamp: chrono::Utc::now(),
         release_notes: Some(format!("Test firmware {}", version)),
         signature: None,
-    }
+    })
 }
 
 fn create_test_manager() -> FirmwareUpdateManager {
@@ -227,15 +227,12 @@ fn create_test_manager() -> FirmwareUpdateManager {
 }
 
 #[tokio::test]
-async fn test_successful_firmware_update() {
+async fn test_successful_firmware_update() -> Result<()> {
     let device = Box::new(MockFirmwareDevice::new("test_device_001".to_string()));
-    let firmware = create_test_firmware("2.0.0", "test_wheel_v1");
+    let firmware = create_test_firmware("2.0.0", "test_wheel_v1")?;
     let manager = create_test_manager();
 
-    let result = manager
-        .update_device_firmware(device, &firmware)
-        .await
-        .expect("Update failed");
+    let result = manager.update_device_firmware(device, &firmware).await?;
 
     assert!(result.success, "Update should succeed");
     assert_eq!(result.device_id, "test_device_001");
@@ -243,12 +240,13 @@ async fn test_successful_firmware_update() {
     assert_eq!(result.updated_partition, Some(Partition::B));
     assert!(!result.rollback_performed);
     assert!(result.error.is_none());
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_firmware_update_progress_reporting() {
+async fn test_firmware_update_progress_reporting() -> Result<()> {
     let device = Box::new(MockFirmwareDevice::new("test_device_008".to_string()));
-    let firmware = create_test_firmware("2.0.0", "test_wheel_v1");
+    let firmware = create_test_firmware("2.0.0", "test_wheel_v1")?;
     let manager = create_test_manager();
 
     let mut progress_rx = manager.subscribe_progress();
@@ -275,7 +273,7 @@ async fn test_firmware_update_progress_reporting() {
             }
             result = &mut update_task => {
                 update_completed = true;
-                let result = result.expect("Task panicked").expect("Update failed");
+                let result = result??;
                 assert!(result.success, "Update should succeed");
             }
         }
@@ -297,22 +295,21 @@ async fn test_firmware_update_progress_reporting() {
             .iter()
             .any(|p| matches!(p, UpdatePhase::Transferring))
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_firmware_compatibility_check() {
+async fn test_firmware_compatibility_check() -> Result<()> {
     let device = Box::new(MockFirmwareDevice::new("test_device_007".to_string()));
-    let mut firmware = create_test_firmware("2.0.0", "test_wheel_v1");
+    let mut firmware = create_test_firmware("2.0.0", "test_wheel_v1")?;
     firmware.min_hardware_version = Some("2.0".to_string());
     let manager = create_test_manager();
 
-    let result = manager
-        .update_device_firmware(device, &firmware)
-        .await
-        .expect("Update should complete");
+    let result = manager.update_device_firmware(device, &firmware).await?;
 
     assert!(!result.success, "Update should fail due to compatibility");
     assert!(result.error.is_some());
+    Ok(())
 }
 
 #[tokio::test]
@@ -355,7 +352,7 @@ async fn test_firmware_cache_basic() -> Result<()> {
     let cached = cache.get(&firmware.device_model, &firmware.version).await?;
     assert!(cached.is_some());
 
-    let cached_fw = cached.expect("Expected cached firmware");
+    let cached_fw = cached.ok_or_else(|| anyhow::anyhow!("Expected cached firmware"))?;
     assert_eq!(cached_fw.device_model, firmware.device_model);
     assert_eq!(cached_fw.version, firmware.version);
     assert_eq!(cached_fw.data, firmware.data);
@@ -398,7 +395,7 @@ async fn test_ffb_blocker_mutual_exclusion() -> Result<()> {
 
 #[tokio::test]
 async fn test_bundle_roundtrip() -> Result<()> {
-    let image = create_test_firmware("1.2.3", "test-wheel");
+    let image = create_test_firmware("1.2.3", "test-wheel")?;
     let metadata = BundleMetadata {
         title: Some("Test Bundle".to_string()),
         changelog: Some("Initial release".to_string()),

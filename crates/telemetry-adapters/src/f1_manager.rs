@@ -165,7 +165,7 @@ mod tests {
         let frame = tokio::time::timeout(Duration::from_millis(50), rx.recv()).await;
         // Either a timeout or None is acceptable — no frames expected.
         if let Ok(Some(_)) = frame {
-            panic!("F1Manager stub must not emit telemetry frames");
+            return Err("F1Manager stub must not emit telemetry frames".into());
         }
         Ok(())
     }
@@ -181,5 +181,23 @@ mod tests {
     fn test_default_impl() {
         let adapter = F1ManagerAdapter;
         assert_eq!(adapter.game_id(), "f1_manager");
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        #[test]
+        fn parse_no_panic_on_arbitrary(
+            data in proptest::collection::vec(any::<u8>(), 0..1024)
+        ) {
+            let adapter = F1ManagerAdapter::new();
+            let _ = adapter.normalize(&data);
+        }
     }
 }

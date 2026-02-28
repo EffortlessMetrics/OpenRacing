@@ -7,6 +7,7 @@
 //! Supports Simagic wheelbases: Alpha, Alpha Mini, Alpha EVO, M10, Neo series.
 
 #![deny(static_mut_refs)]
+#![deny(clippy::unwrap_used)]
 
 pub mod ids;
 pub mod input;

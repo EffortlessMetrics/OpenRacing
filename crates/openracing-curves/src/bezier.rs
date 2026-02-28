@@ -11,7 +11,7 @@ use crate::lut::CurveLut;
 /// For FFB response mapping, P0 is typically (0,0) and P3 is (1,1),
 /// with P1 and P2 controlling the curve shape.
 ///
-/// The curve maps input values in [0,1] to output values in [0,1].
+/// The curve maps input values in `[0,1]` to output values in `[0,1]`.
 ///
 /// # RT Safety
 ///
@@ -53,7 +53,7 @@ impl BezierCurve {
     /// # Returns
     ///
     /// * `Ok(BezierCurve)` if all control points are valid
-    /// * `Err(CurveError)` if any control point is outside [0,1]² or non-finite
+    /// * `Err(CurveError)` if any control point is outside `[0,1]`² or non-finite
     ///
     /// # Example
     ///
@@ -119,7 +119,7 @@ impl BezierCurve {
         }
     }
 
-    /// Check if a coordinate value is valid (finite and in [0,1] range).
+    /// Check if a coordinate value is valid (finite and in `[0,1]` range).
     #[inline]
     fn is_valid_coordinate(value: f32) -> bool {
         value.is_finite() && (0.0..=1.0).contains(&value)
@@ -131,7 +131,7 @@ impl BezierCurve {
     ///
     /// # Arguments
     ///
-    /// * `t` - Parameter value in [0,1] (will be clamped)
+    /// * `t` - Parameter value in `[0,1]` (will be clamped)
     ///
     /// # Returns
     ///
@@ -160,7 +160,7 @@ impl BezierCurve {
     ///
     /// # Arguments
     ///
-    /// * `target_x` - The x value to find (in [0,1])
+    /// * `target_x` - The x value to find (in `[0,1]`)
     ///
     /// # Returns
     ///
@@ -228,11 +228,11 @@ impl BezierCurve {
     ///
     /// # Arguments
     ///
-    /// * `input` - Input value in [0,1] (will be clamped)
+    /// * `input` - Input value in `[0,1]` (will be clamped)
     ///
     /// # Returns
     ///
-    /// Output value in [0,1].
+    /// Output value in `[0,1]`.
     pub fn map(&self, input: f32) -> f32 {
         let t = self.find_t_for_x(input);
         let (_, y) = self.evaluate(t);

@@ -7,7 +7,8 @@
 //! GT7 broadcasts 296-byte encrypted UDP packets from the PlayStation to any
 //! host that has recently sent a heartbeat. Decryption uses Salsa20 with:
 //! - Key: first 32 bytes of `"Simulator Interface Packet GT7 ver 0.0"`
-//! - Nonce: bytes `[0x40..0x48]` of the **raw** (encrypted) packet
+//! - Nonce: derived from `[0x40..0x44]` of the raw packet — `iv1 = LE_u32`,
+//!   `iv2 = iv1 ^ 0xDEAD_BEAF`, nonce = `[iv2_le, iv1_le]`
 //!
 //! A single-byte heartbeat (`b"A"`) must be sent to the PlayStation on port
 //! 33739 every ~100 ms to keep the stream active.
@@ -38,32 +39,33 @@ const SALSA_KEY: &[u8; 32] = b"Simulator Interface Packet GT7 v";
 
 // ---------------------------------------------------------------------------
 // Packet field offsets (all values are little-endian)
+// Authoritative reference: Nenkai/PDTools SimulatorPacket.cs
 // ---------------------------------------------------------------------------
-pub const OFF_MAGIC: usize = 0;
-const OFF_ENGINE_RPM: usize = 60;
-const OFF_FUEL_LEVEL: usize = 68;
-const OFF_FUEL_CAPACITY: usize = 72;
-const OFF_SPEED_MS: usize = 76;
-const OFF_WATER_TEMP: usize = 88;
-const OFF_TIRE_TEMP_FL: usize = 96;
-const OFF_TIRE_TEMP_FR: usize = 100;
-const OFF_TIRE_TEMP_RL: usize = 104;
-const OFF_TIRE_TEMP_RR: usize = 108;
-const OFF_LAP_COUNT: usize = 114;
-const OFF_BEST_LAP_MS: usize = 118;
-const OFF_LAST_LAP_MS: usize = 122;
-const OFF_THROTTLE: usize = 141;
-const OFF_BRAKE: usize = 142;
-const OFF_RPM_ALERT_END: usize = 148;
-const OFF_FLAGS: usize = 156;
-const OFF_GEAR_BYTE: usize = 160;
-const OFF_CAR_CODE: usize = 280;
+pub const OFF_MAGIC: usize = 0x00;
+const OFF_ENGINE_RPM: usize = 0x3C; // 60 — f32
+const OFF_FUEL_LEVEL: usize = 0x44; // 68 — f32
+const OFF_FUEL_CAPACITY: usize = 0x48; // 72 — f32
+const OFF_SPEED_MS: usize = 0x4C; // 76 — f32
+const OFF_WATER_TEMP: usize = 0x58; // 88 — f32
+const OFF_TIRE_TEMP_FL: usize = 0x60; // 96 — f32
+const OFF_TIRE_TEMP_FR: usize = 0x64; // 100 — f32
+const OFF_TIRE_TEMP_RL: usize = 0x68; // 104 — f32
+const OFF_TIRE_TEMP_RR: usize = 0x6C; // 108 — f32
+const OFF_LAP_COUNT: usize = 0x74; // 116 — i16
+const OFF_BEST_LAP_MS: usize = 0x78; // 120 — i32
+const OFF_LAST_LAP_MS: usize = 0x7C; // 124 — i32
+const OFF_MAX_ALERT_RPM: usize = 0x8A; // 138 — i16 (rev-limiter alert ceiling)
+const OFF_FLAGS: usize = 0x8E; // 142 — i16 (SimulatorFlags)
+const OFF_GEAR_BYTE: usize = 0x90; // 144 — u8 (low nibble = gear, high = suggested)
+const OFF_THROTTLE: usize = 0x91; // 145 — u8
+const OFF_BRAKE: usize = 0x92; // 146 — u8
+const OFF_CAR_CODE: usize = 0x124; // 292 — i32
 
-// GT7 flags bitmask (offset 156, u32 little-endian)
-const FLAG_PAUSED: u32 = 1 << 1;
-const FLAG_REV_LIMIT: u32 = 1 << 5;
-const FLAG_ASM_ACTIVE: u32 = 1 << 9;
-const FLAG_TCS_ACTIVE: u32 = 1 << 10;
+// GT7 flags bitmask (offset 0x8E, u16 little-endian — SimulatorFlags enum)
+const FLAG_PAUSED: u16 = 1 << 1;
+const FLAG_REV_LIMIT: u16 = 1 << 5;
+const FLAG_ASM_ACTIVE: u16 = 1 << 10;
+const FLAG_TCS_ACTIVE: u16 = 1 << 11;
 
 // ---------------------------------------------------------------------------
 // Adapter
@@ -216,12 +218,17 @@ pub(crate) fn decrypt_and_parse(data: &[u8]) -> Result<NormalizedTelemetry> {
 
 /// XOR the buffer in-place with the Salsa20 keystream.
 ///
-/// The 8-byte nonce is read from bytes `[0x40..0x48]` of the **raw**
-/// (pre-decryption) packet, as specified by the GT7 protocol.
+/// The nonce is derived from 4 bytes at `[0x40..0x44]` of the **raw**
+/// (pre-decryption) packet: `iv1 = LE_u32(buf[0x40..0x44])`, then
+/// `iv2 = iv1 ^ 0xDEAD_BEAF`, and the 8-byte nonce is `[iv2_le, iv1_le]`.
 pub(crate) fn salsa20_xor(buf: &mut [u8; PACKET_SIZE]) {
-    let nonce: [u8; 8] = [
-        buf[0x40], buf[0x41], buf[0x42], buf[0x43], buf[0x44], buf[0x45], buf[0x46], buf[0x47],
-    ];
+    // Read the 4-byte IV seed from the raw packet.
+    let iv1 = u32::from_le_bytes([buf[0x40], buf[0x41], buf[0x42], buf[0x43]]);
+    let iv2 = iv1 ^ 0xDEAD_BEAF;
+
+    let mut nonce = [0u8; 8];
+    nonce[..4].copy_from_slice(&iv2.to_le_bytes());
+    nonce[4..].copy_from_slice(&iv1.to_le_bytes());
 
     let blocks_needed = PACKET_SIZE.div_ceil(64); // 5 full 64-byte blocks
     for block_idx in 0..blocks_needed {
@@ -302,14 +309,15 @@ fn qr(s: &mut [u32; 16], a: usize, b: usize, c: usize, d: usize) {
 // ---------------------------------------------------------------------------
 
 /// Parse fields from an already-decrypted, magic-verified GT7 packet.
-pub(crate) fn parse_decrypted(buf: &[u8; PACKET_SIZE]) -> Result<NormalizedTelemetry> {
+pub fn parse_decrypted(buf: &[u8; PACKET_SIZE]) -> Result<NormalizedTelemetry> {
     let rpm = read_f32_le(buf, OFF_ENGINE_RPM);
-    let max_rpm = read_f32_le(buf, OFF_RPM_ALERT_END).max(0.0);
+    let max_alert_rpm = read_u16_le(buf, OFF_MAX_ALERT_RPM) as f32;
+    let max_rpm = max_alert_rpm.max(0.0);
     let speed_ms = read_f32_le(buf, OFF_SPEED_MS).max(0.0);
     let fuel_level = read_f32_le(buf, OFF_FUEL_LEVEL);
     let fuel_capacity = read_f32_le(buf, OFF_FUEL_CAPACITY);
     let water_temp = read_f32_le(buf, OFF_WATER_TEMP);
-    let flags_raw = read_u32_le(buf, OFF_FLAGS);
+    let flags_raw = read_u16_le(buf, OFF_FLAGS);
     let lap_count = read_u16_le(buf, OFF_LAP_COUNT);
     let best_lap_ms = read_i32_le(buf, OFF_BEST_LAP_MS);
     let last_lap_ms = read_i32_le(buf, OFF_LAST_LAP_MS);
@@ -386,23 +394,33 @@ pub(crate) fn parse_decrypted(buf: &[u8; PACKET_SIZE]) -> Result<NormalizedTelem
 // ---------------------------------------------------------------------------
 
 fn read_f32_le(data: &[u8], offset: usize) -> f32 {
-    let bytes: [u8; 4] = data[offset..offset + 4].try_into().unwrap_or([0; 4]);
-    f32::from_le_bytes(bytes)
+    let val = data
+        .get(offset..offset + 4)
+        .and_then(|b| b.try_into().ok())
+        .map(f32::from_le_bytes)
+        .unwrap_or(0.0);
+    if val.is_finite() { val } else { 0.0 }
 }
 
 fn read_u32_le(data: &[u8], offset: usize) -> u32 {
-    let bytes: [u8; 4] = data[offset..offset + 4].try_into().unwrap_or([0; 4]);
-    u32::from_le_bytes(bytes)
+    data.get(offset..offset + 4)
+        .and_then(|b| b.try_into().ok())
+        .map(u32::from_le_bytes)
+        .unwrap_or(0)
 }
 
 fn read_u16_le(data: &[u8], offset: usize) -> u16 {
-    let bytes: [u8; 2] = data[offset..offset + 2].try_into().unwrap_or([0; 2]);
-    u16::from_le_bytes(bytes)
+    data.get(offset..offset + 2)
+        .and_then(|b| b.try_into().ok())
+        .map(u16::from_le_bytes)
+        .unwrap_or(0)
 }
 
 fn read_i32_le(data: &[u8], offset: usize) -> i32 {
-    let bytes: [u8; 4] = data[offset..offset + 4].try_into().unwrap_or([0; 4]);
-    i32::from_le_bytes(bytes)
+    data.get(offset..offset + 4)
+        .and_then(|b| b.try_into().ok())
+        .map(i32::from_le_bytes)
+        .unwrap_or(0)
 }
 
 // ---------------------------------------------------------------------------
@@ -443,7 +461,7 @@ mod property_tests {
         fn prop_speed_non_negative(speed in 0.0f32..=300.0f32) {
             let mut buf = buf_with_magic();
             buf[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&speed.to_le_bytes());
-            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            let t = parse_decrypted(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.speed_ms >= 0.0 && t.speed_ms.is_finite(),
                 "speed_ms {} must be finite and non-negative",
@@ -456,7 +474,7 @@ mod property_tests {
         fn prop_throttle_normalized(throttle_byte in 0u8..=255u8) {
             let mut buf = buf_with_magic();
             buf[OFF_THROTTLE] = throttle_byte;
-            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            let t = parse_decrypted(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.throttle >= 0.0 && t.throttle <= 1.0,
                 "throttle {} must be in [0, 1]",
@@ -469,7 +487,7 @@ mod property_tests {
         fn prop_brake_normalized(brake_byte in 0u8..=255u8) {
             let mut buf = buf_with_magic();
             buf[OFF_BRAKE] = brake_byte;
-            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            let t = parse_decrypted(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.brake >= 0.0 && t.brake <= 1.0,
                 "brake {} must be in [0, 1]",
@@ -482,7 +500,7 @@ mod property_tests {
         fn prop_gear_in_range(gear_byte in 0u8..=255u8) {
             let mut buf = buf_with_magic();
             buf[OFF_GEAR_BYTE] = gear_byte;
-            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            let t = parse_decrypted(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.gear >= 0 && t.gear <= 8,
                 "gear {} must be in [0, 8]",
@@ -499,7 +517,7 @@ mod property_tests {
             let mut buf = buf_with_magic();
             buf[OFF_FUEL_LEVEL..OFF_FUEL_LEVEL + 4].copy_from_slice(&fuel.to_le_bytes());
             buf[OFF_FUEL_CAPACITY..OFF_FUEL_CAPACITY + 4].copy_from_slice(&cap.to_le_bytes());
-            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            let t = parse_decrypted(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.fuel_percent >= 0.0 && t.fuel_percent <= 1.0,
                 "fuel_percent {} must be in [0, 1]",
@@ -512,7 +530,7 @@ mod property_tests {
         fn prop_rpm_finite(rpm in 0.0f32..=20000.0f32) {
             let mut buf = buf_with_magic();
             buf[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
-            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            let t = parse_decrypted(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(t.rpm.is_finite(), "rpm must be finite");
         }
 
@@ -692,8 +710,8 @@ mod tests {
     #[test]
     fn test_tcs_flag_mapped() -> TestResult {
         let mut buf = make_decrypted_buf();
-        let flags: u32 = FLAG_TCS_ACTIVE;
-        buf[OFF_FLAGS..OFF_FLAGS + 4].copy_from_slice(&flags.to_le_bytes());
+        let flags: u16 = FLAG_TCS_ACTIVE;
+        buf[OFF_FLAGS..OFF_FLAGS + 2].copy_from_slice(&flags.to_le_bytes());
 
         let telemetry = parse_decrypted(&buf)?;
         assert!(telemetry.flags.traction_control, "TCS flag should be set");
@@ -703,8 +721,8 @@ mod tests {
     #[test]
     fn test_asm_flag_mapped() -> TestResult {
         let mut buf = make_decrypted_buf();
-        let flags: u32 = FLAG_ASM_ACTIVE;
-        buf[OFF_FLAGS..OFF_FLAGS + 4].copy_from_slice(&flags.to_le_bytes());
+        let flags: u16 = FLAG_ASM_ACTIVE;
+        buf[OFF_FLAGS..OFF_FLAGS + 2].copy_from_slice(&flags.to_le_bytes());
 
         let telemetry = parse_decrypted(&buf)?;
         assert!(

@@ -267,7 +267,10 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(debug_assertions, ignore)]
+    #[cfg_attr(
+        debug_assertions,
+        ignore = "only valid in release mode where debug_assert is absent"
+    )]
     fn test_pll_zero_target_handled() {
         // Should not panic in release mode (debug_assertions disabled)
         let pll = PLL::new(0);

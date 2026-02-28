@@ -218,6 +218,7 @@ fn read_f32(data: &[u8], offset: usize) -> Option<f32> {
     data.get(offset..offset + 4)
         .and_then(|b| b.try_into().ok())
         .map(f32::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 #[cfg(test)]
@@ -310,7 +311,7 @@ mod property_tests {
         fn prop_speed_nonnegative(speed in 0.0f32..=300.0f32) {
             let mut buf = vec![0u8; MIN_PACKET_SIZE];
             buf[OFF_SPEED..OFF_SPEED + 4].copy_from_slice(&speed.to_le_bytes());
-            let t = parse_le_mans_ultimate_packet(&buf).expect("valid packet");
+            let t = parse_le_mans_ultimate_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(t.speed_ms >= 0.0);
         }
 
@@ -326,6 +327,24 @@ mod property_tests {
                 prop_assert!(t.throttle >= 0.0 && t.throttle <= 1.0);
                 prop_assert!(t.brake >= 0.0 && t.brake <= 1.0);
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        #[test]
+        fn parse_no_panic_on_arbitrary(
+            data in proptest::collection::vec(any::<u8>(), 0..1024)
+        ) {
+            let adapter = LeMansUltimateAdapter::new();
+            let _ = adapter.normalize(&data);
         }
     }
 }

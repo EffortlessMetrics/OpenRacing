@@ -81,10 +81,10 @@ impl SimagicModel {
             Self::AlphaUltimate => 23.0,
             Self::M10 => 10.0,
             Self::Fx => 6.0,
-            Self::EvoSport => 15.0,
-            Self::Evo => 20.0,
-            Self::EvoPro => 30.0,
-            Self::EvoUnknown => 15.0,
+            Self::EvoSport => 9.0,
+            Self::Evo => 12.0,
+            Self::EvoPro => 18.0,
+            Self::EvoUnknown => 9.0,
             Self::Unknown => 5.0,
         }
     }

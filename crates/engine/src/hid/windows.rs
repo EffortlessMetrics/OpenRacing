@@ -330,36 +330,47 @@ impl SupportedDevices {
     pub fn all() -> &'static [(u16, u16, &'static str)] {
         &[
             // Logitech wheels
+            (vendor_ids::LOGITECH, 0xC299, "Logitech G25"),
             (vendor_ids::LOGITECH, 0xC294, "Logitech G27"),
             (vendor_ids::LOGITECH, 0xC29B, "Logitech G27 (alt)"),
             (vendor_ids::LOGITECH, 0xC24F, "Logitech G29"),
-            (vendor_ids::LOGITECH, 0xC260, "Logitech G29 (alt)"),
-            (vendor_ids::LOGITECH, 0xC261, "Logitech G920"),
-            (vendor_ids::LOGITECH, 0xC262, "Logitech G920 (alt)"),
-            (vendor_ids::LOGITECH, 0xC26D, "Logitech G923 Xbox"),
+            (vendor_ids::LOGITECH, 0xC262, "Logitech G920"),
+            (vendor_ids::LOGITECH, 0xC266, "Logitech G923"),
             (vendor_ids::LOGITECH, 0xC267, "Logitech G923 PS"),
-            (vendor_ids::LOGITECH, 0xC266, "Logitech G PRO"),
-            // Fanatec wheels
+            (vendor_ids::LOGITECH, 0xC26E, "Logitech G923 Xbox"),
+            (vendor_ids::LOGITECH, 0xC268, "Logitech G PRO"),
+            (vendor_ids::LOGITECH, 0xC272, "Logitech G PRO Xbox"),
+            // Fanatec wheels (VID 0x0EB7 — Endor AG)
+            // Verified: gotzl/hid-fanatecff, JacKeTUs/linux-steering-wheels,
+            //           berarma/oversteer, linux-hardware.org
             (
                 vendor_ids::FANATEC,
                 0x0001,
                 "Fanatec ClubSport Wheel Base V2",
             ),
-            (vendor_ids::FANATEC, 0x0004, "Fanatec CSL Elite Wheel Base"),
+            (
+                vendor_ids::FANATEC,
+                0x0004,
+                "Fanatec ClubSport Wheel Base V2.5",
+            ),
             (
                 vendor_ids::FANATEC,
                 0x0005,
-                "Fanatec ClubSport Wheel Base V2.5",
+                "Fanatec CSL Elite Wheel Base (PS4)",
             ),
             (vendor_ids::FANATEC, 0x0006, "Fanatec Podium Wheel Base DD1"),
             (vendor_ids::FANATEC, 0x0007, "Fanatec Podium Wheel Base DD2"),
-            (vendor_ids::FANATEC, 0x0011, "Fanatec CSL DD (legacy)"),
+            (vendor_ids::FANATEC, 0x0011, "Fanatec CSR Elite"),
             (vendor_ids::FANATEC, 0x0020, "Fanatec CSL DD"),
+            // 0x0024: PS-mode PID from USB captures; not yet in community drivers.
+            // In PC mode the GT DD Pro enumerates as 0x0020 (same as CSL DD).
             (vendor_ids::FANATEC, 0x0024, "Fanatec Gran Turismo DD Pro"),
+            // 0x01E9: from USB captures; not yet in community drivers.
+            (vendor_ids::FANATEC, 0x01E9, "Fanatec ClubSport DD+"),
             (
                 vendor_ids::FANATEC,
                 0x0E03,
-                "Fanatec ClubSport Wheel Base V1",
+                "Fanatec CSL Elite Wheel Base",
             ),
             // Fanatec standalone pedal sets
             (
@@ -368,15 +379,23 @@ impl SupportedDevices {
                 "Fanatec ClubSport Pedals V1/V2",
             ),
             (vendor_ids::FANATEC, 0x183B, "Fanatec ClubSport Pedals V3"),
+            (vendor_ids::FANATEC, 0x6204, "Fanatec CSL Elite Pedals"),
             (
                 vendor_ids::FANATEC,
                 0x6205,
                 "Fanatec CSL Pedals with Load Cell Kit",
             ),
             (vendor_ids::FANATEC, 0x6206, "Fanatec CSL Pedals V2"),
-            // Thrustmaster wheels
-            (vendor_ids::THRUSTMASTER, 0xB65D, "Thrustmaster T150"),
-            (vendor_ids::THRUSTMASTER, 0xB65E, "Thrustmaster T150 Pro"),
+            // Thrustmaster wheels (VID 0x044F)
+            // Verified: Kimplul/hid-tmff2, Linux kernel hid-thrustmaster.c,
+            //           berarma/oversteer, JacKeTUs/linux-steering-wheels,
+            //           linux-hardware.org, devicehunt.com
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB65D,
+                "Thrustmaster FFB Wheel (pre-init)",
+            ),
+            (vendor_ids::THRUSTMASTER, 0xB65E, "Thrustmaster T500 RS"),
             (
                 vendor_ids::THRUSTMASTER,
                 0xB66D,
@@ -386,18 +405,21 @@ impl SupportedDevices {
             (vendor_ids::THRUSTMASTER, 0xB66E, "Thrustmaster T300RS"),
             (vendor_ids::THRUSTMASTER, 0xB66F, "Thrustmaster T300RS GT"),
             (vendor_ids::THRUSTMASTER, 0xB669, "Thrustmaster TX Racing"),
-            (vendor_ids::THRUSTMASTER, 0xB677, "Thrustmaster T500RS"),
+            (vendor_ids::THRUSTMASTER, 0xB677, "Thrustmaster T150"),
             (vendor_ids::THRUSTMASTER, 0xB696, "Thrustmaster T248"),
-            (vendor_ids::THRUSTMASTER, 0xB697, "Thrustmaster T248X"),
-            (vendor_ids::THRUSTMASTER, 0xB68E, "Thrustmaster T-GT"),
-            (vendor_ids::THRUSTMASTER, 0xB692, "Thrustmaster T-GT II"),
             (vendor_ids::THRUSTMASTER, 0xB689, "Thrustmaster TS-PC Racer"),
-            (vendor_ids::THRUSTMASTER, 0xB691, "Thrustmaster TS-XW"),
-            (vendor_ids::THRUSTMASTER, 0xB69A, "Thrustmaster T-LCM Pro"),
+            (vendor_ids::THRUSTMASTER, 0xB692, "Thrustmaster TS-XW"),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB691,
+                "Thrustmaster TS-XW (GIP mode)",
+            ),
+            (vendor_ids::THRUSTMASTER, 0xB69A, "Thrustmaster T248X"),
+            // 0xB69B: unverified — from hid-tmff2 issue #58.
             (vendor_ids::THRUSTMASTER, 0xB69B, "Thrustmaster T818"),
-            (vendor_ids::THRUSTMASTER, 0xB678, "Thrustmaster T3PA"),
-            (vendor_ids::THRUSTMASTER, 0xB679, "Thrustmaster T3PA Pro"),
-            (vendor_ids::THRUSTMASTER, 0xB68D, "Thrustmaster T-LCM"),
+            // NOTE: Thrustmaster pedal PIDs 0xB678/0xB679/0xB68D removed —
+            // web research confirmed these are HOTAS peripherals, not pedals.
+            // Actual Thrustmaster pedal PIDs remain unconfirmed.
             // Moza Racing wheelbases - V1
             (vendor_ids::MOZA, 0x0005, "Moza R3"),
             (vendor_ids::MOZA, 0x0004, "Moza R5"),
@@ -419,8 +441,6 @@ impl SupportedDevices {
             (vendor_ids::SIMAGIC, 0x0522, "Simagic Alpha"),
             (vendor_ids::SIMAGIC, 0x0523, "Simagic Alpha Mini"),
             (vendor_ids::SIMAGIC, 0x0524, "Simagic Alpha Ultimate"),
-            (vendor_ids::SIMAGIC_ALT, 0x0D5A, "Simagic M10"),
-            (vendor_ids::SIMAGIC_ALT, 0x0D5B, "Simagic FX"),
             // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
             (vendor_ids::SIMAGIC, 0xA355, "VRS DirectForce Pro"),
             (vendor_ids::SIMAGIC, 0xA356, "VRS DirectForce Pro V2"),
@@ -436,10 +456,47 @@ impl SupportedDevices {
             (vendor_ids::SIMAGIC_EVO, 0x0500, "Simagic EVO Sport"),
             (vendor_ids::SIMAGIC_EVO, 0x0501, "Simagic EVO"),
             (vendor_ids::SIMAGIC_EVO, 0x0502, "Simagic EVO Pro"),
+            (
+                vendor_ids::SIMAGIC_EVO,
+                0x0600,
+                "Simagic Alpha EVO (estimated PID)",
+            ),
+            (
+                vendor_ids::SIMAGIC_EVO,
+                0x0700,
+                "Simagic Neo (estimated PID)",
+            ),
+            (
+                vendor_ids::SIMAGIC_EVO,
+                0x0701,
+                "Simagic Neo Mini (estimated PID)",
+            ),
+            // Simagic EVO peripherals
+            (vendor_ids::SIMAGIC_EVO, 0x1001, "Simagic P1000 Pedals"),
+            (vendor_ids::SIMAGIC_EVO, 0x1002, "Simagic P2000 Pedals"),
+            (vendor_ids::SIMAGIC_EVO, 0x1003, "Simagic P1000A Pedals"),
+            (vendor_ids::SIMAGIC_EVO, 0x2001, "Simagic H-Pattern Shifter"),
+            (
+                vendor_ids::SIMAGIC_EVO,
+                0x2002,
+                "Simagic Sequential Shifter",
+            ),
+            (vendor_ids::SIMAGIC_EVO, 0x3001, "Simagic Handbrake"),
             // Simucube 2 (VID 0x16D0 = SIMAGIC_ALT, dispatched by product ID)
+            (vendor_ids::SIMAGIC_ALT, 0x0D5A, "Simucube 1"),
             (vendor_ids::SIMAGIC_ALT, 0x0D5F, "Simucube 2 Ultimate"),
             (vendor_ids::SIMAGIC_ALT, 0x0D60, "Simucube 2 Pro"),
             (vendor_ids::SIMAGIC_ALT, 0x0D61, "Simucube 2 Sport"),
+            (
+                vendor_ids::SIMAGIC_ALT,
+                0x0D66,
+                "Simucube SC-Link Hub (ActivePedal)",
+            ),
+            (
+                vendor_ids::SIMAGIC_ALT,
+                0x0D63,
+                "Simucube Wireless Wheel (estimated PID)",
+            ),
             // Asetek SimSports (VID 0x2433)
             (vendor_ids::ASETEK, 0xF300, "Asetek Invicta"),
             (vendor_ids::ASETEK, 0xF301, "Asetek Forte"),
@@ -494,6 +551,22 @@ impl SupportedDevices {
                 "Leo Bodnar SLI-M Shift Light Indicator",
             ),
             (vendor_ids::LEO_BODNAR, 0x0001, "Leo Bodnar USB Joystick"),
+            (
+                vendor_ids::LEO_BODNAR,
+                0x000B,
+                "Leo Bodnar BU0836A Joystick",
+            ),
+            (vendor_ids::LEO_BODNAR, 0x000F, "Leo Bodnar FFB Joystick"),
+            (
+                vendor_ids::LEO_BODNAR,
+                0x0030,
+                "Leo Bodnar BU0836X Joystick",
+            ),
+            (
+                vendor_ids::LEO_BODNAR,
+                0x0031,
+                "Leo Bodnar BU0836 16-bit Joystick",
+            ),
             // SimExperience AccuForce Pro (NXP USB chip VID 0x1FC9)
             // Source: community USB captures, RetroBat Wheels.cs
             (
@@ -1120,24 +1193,24 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = 900;
 
             match product_id {
-                0xC294 | 0xC29B => {
-                    // G27 - older wheel, lower torque
+                0xC294 | 0xC299 | 0xC29B => {
+                    // G25 (0xC299) / G27 (0xC294, 0xC29B) - older wheels, lower torque
                     capabilities.max_torque = TorqueNm::new(2.5).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 4000; // 250Hz
                 }
-                0xC24F | 0xC260 | 0xC261 | 0xC262 => {
-                    // G29/G920
+                0xC24F | 0xC262 => {
+                    // G29 (0xC24F) / G920 (0xC262)
                     capabilities.max_torque = TorqueNm::new(2.8).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 2000; // 500Hz
                 }
-                0xC26D | 0xC267 => {
-                    // G923 (Xbox: 0xC26D, PS: 0xC267)
+                0xC266 | 0xC267 | 0xC26E => {
+                    // G923: 0xC266 native, 0xC267 PS compat, 0xC26E Xbox
                     capabilities.max_torque = TorqueNm::new(3.0).unwrap_or(capabilities.max_torque);
                     capabilities.supports_raw_torque_1khz = true;
                     capabilities.min_report_period_us = 1000; // 1kHz
                 }
-                0xC266 => {
-                    // G PRO - direct drive
+                0xC268 | 0xC272 => {
+                    // G PRO: 0xC268 PS, 0xC272 Xbox — direct drive
                     capabilities.max_torque =
                         TorqueNm::new(11.0).unwrap_or(capabilities.max_torque);
                     capabilities.supports_raw_torque_1khz = true;
@@ -1169,12 +1242,12 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.min_report_period_us = 1000; // 1kHz
 
             match product_id {
-                0x0001 | 0x0005 => {
-                    // ClubSport V2/V2.5
+                0x0001 | 0x0004 => {
+                    // ClubSport V2 (0x0001) / V2.5 (0x0004)
                     capabilities.max_torque = TorqueNm::new(8.0).unwrap_or(capabilities.max_torque);
                 }
-                0x0004 => {
-                    // CSL Elite
+                0x0005 => {
+                    // CSL Elite PS4 (belt-driven, 6 Nm)
                     capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
                 }
                 0x0006 => {
@@ -1188,8 +1261,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                         TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
                 }
                 0x0011 => {
-                    // CSL DD
-                    capabilities.max_torque = TorqueNm::new(8.0).unwrap_or(capabilities.max_torque);
+                    // CSR Elite (belt-driven, ~3.9 Nm)
+                    capabilities.max_torque = TorqueNm::new(3.9).unwrap_or(capabilities.max_torque);
                 }
                 0x0020 => {
                     // CSL DD (main PID for current hardware)
@@ -1210,10 +1283,15 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = 1080;
 
             match product_id {
-                0xB65D | 0xB65E => {
-                    // T150/T150 Pro
+                0xB65D | 0xB677 => {
+                    // T150 (0xB65D = generic pre-init PID, 0xB677 = post-init)
                     capabilities.max_torque = TorqueNm::new(2.5).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 4000; // 250Hz
+                }
+                0xB65E => {
+                    // T500 RS (belt-drive, ~4.0 Nm)
+                    capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
+                    capabilities.min_report_period_us = 2000; // 500Hz
                 }
                 0xB66D => {
                     // TMX
@@ -1225,38 +1303,20 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 2000; // 500Hz
                 }
-                0xB677 => {
-                    // T500RS
-                    capabilities.max_torque = TorqueNm::new(5.5).unwrap_or(capabilities.max_torque);
-                    capabilities.min_report_period_us = 2000; // 500Hz
-                }
                 0xB696 => {
                     // T248
                     capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 2000;
                 }
                 0xB69A => {
-                    // T-LCM Pro (pedal, not wheel)
-                    capabilities.supports_pid = false;
-                    capabilities.supports_raw_torque_1khz = false;
-                    capabilities.max_torque = TorqueNm::ZERO;
+                    // T248X (GIP/Xbox, 4.0 Nm — verified via linux-hardware.org)
+                    capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
+                    capabilities.min_report_period_us = 2000;
                 }
                 0xB669 => {
                     // TX Racing (Xbox, 4.0 Nm belt drive)
                     capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 2000;
-                }
-                0xB68E => {
-                    // T-GT (Gran Turismo, 6.0 Nm)
-                    capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
-                    capabilities.supports_raw_torque_1khz = true;
-                    capabilities.min_report_period_us = 1000;
-                }
-                0xB692 => {
-                    // T-GT II (6.0 Nm)
-                    capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
-                    capabilities.supports_raw_torque_1khz = true;
-                    capabilities.min_report_period_us = 1000;
                 }
                 0xB689 => {
                     // TS-PC Racer (6.0 Nm PC-only)
@@ -1264,8 +1324,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.supports_raw_torque_1khz = true;
                     capabilities.min_report_period_us = 1000;
                 }
-                0xB691 => {
-                    // TS-XW (6.0 Nm Xbox)
+                0xB691 | 0xB692 => {
+                    // TS-XW (6.0 Nm; 0xB692 = USB/HID mode, 0xB691 = GIP mode)
                     capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
                     capabilities.supports_raw_torque_1khz = true;
                     capabilities.min_report_period_us = 1000;
@@ -1277,17 +1337,13 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.supports_raw_torque_1khz = true;
                     capabilities.min_report_period_us = 1000;
                 }
-                0xB697 => {
-                    // T248X (Xbox, 4.0 Nm)
-                    capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
-                    capabilities.min_report_period_us = 2000;
-                }
-                0xB678 | 0xB679 | 0xB68D => {
-                    // T3PA, T3PA Pro, T-LCM (pedals)
+                0xB68E => {
+                    // TPR Rudder (flight sim pedals, not a racing wheel)
                     capabilities.supports_pid = false;
                     capabilities.supports_raw_torque_1khz = false;
                     capabilities.max_torque = TorqueNm::ZERO;
                 }
+                // NOTE: 0xB678/0xB679/0xB68D removed — were HOTAS PIDs, not pedals
                 _ => {
                     capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
                 }
@@ -1411,21 +1467,18 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque =
                         TorqueNm::new(23.0).unwrap_or(capabilities.max_torque);
                 }
+                // Simucube PIDs (share VID 0x16D0 with Simagic legacy and Heusinkveld)
                 0x0D5A => {
-                    // M10
-                    capabilities.max_torque =
-                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
-                }
-                0x0D5B => {
-                    // FX
-                    capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
-                }
-                // Simucube 2 PIDs (share VID 0x16D0 with Simagic legacy and Heusinkveld)
-                0x0D5F => {
-                    // Simucube 2 Ultimate
+                    // Simucube 1
                     capabilities.min_report_period_us = 3000;
                     capabilities.max_torque =
-                        TorqueNm::new(35.0).unwrap_or(capabilities.max_torque);
+                        TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
+                }
+                0x0D5F => {
+                    // Simucube 2 Ultimate (32 Nm per official Simucube Safety.md)
+                    capabilities.min_report_period_us = 3000;
+                    capabilities.max_torque =
+                        TorqueNm::new(32.0).unwrap_or(capabilities.max_torque);
                 }
                 0x0D60 => {
                     // Simucube 2 Pro
@@ -1434,10 +1487,30 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                         TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
                 }
                 0x0D61 => {
-                    // Simucube 2 Sport
+                    // Simucube 2 Sport (17 Nm per simucube.com)
                     capabilities.min_report_period_us = 3000;
                     capabilities.max_torque =
-                        TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
+                        TorqueNm::new(17.0).unwrap_or(capabilities.max_torque);
+                }
+                0x0D66 => {
+                    // Simucube SC-Link Hub / ActivePedal (no FFB torque)
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                }
+                0x0D63 => {
+                    // Simucube Wireless Wheel adapter (no FFB torque — rim, not base)
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                }
+                // Cube Controls PIDs (share VID 0x0483 with Simagic — PROVISIONAL)
+                // Input-only devices (steering wheel button boxes), not wheelbases.
+                0x0C73..=0x0C75 => {
+                    capabilities.max_torque = TorqueNm::ZERO;
+                    capabilities.encoder_cpr = 0;
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
                 }
                 // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
                 0xA355 => {
@@ -1477,20 +1550,38 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.min_report_period_us = 1000;
             match product_id {
                 0x0500 => {
-                    capabilities.max_torque =
-                        TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
-                } // EVO Sport
+                    capabilities.max_torque = TorqueNm::new(9.0).unwrap_or(capabilities.max_torque);
+                } // EVO Sport (9 Nm per simagic.com)
                 0x0501 => {
                     capabilities.max_torque =
-                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
-                } // EVO
+                        TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
+                } // EVO (12 Nm per simagic.com)
                 0x0502 => {
                     capabilities.max_torque =
-                        TorqueNm::new(30.0).unwrap_or(capabilities.max_torque);
-                } // EVO Pro
-                _ => {
+                        TorqueNm::new(18.0).unwrap_or(capabilities.max_torque);
+                } // EVO Pro (18 Nm per simagic.com)
+                0x0600 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
+                } // Alpha EVO (estimated PID)
+                0x0700 => {
                     capabilities.max_torque =
                         TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
+                } // Neo (estimated PID)
+                0x0701 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
+                } // Neo Mini (estimated PID)
+                // Peripherals (pedals, shifters, handbrake) — input-only, no FFB
+                0x1001..=0x1003 | 0x2001..=0x2002 | 0x3001 => {
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.supports_health_stream = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                    capabilities.encoder_cpr = 0;
+                }
+                _ => {
+                    capabilities.max_torque = TorqueNm::new(9.0).unwrap_or(capabilities.max_torque);
                 }
             }
         }
@@ -1502,23 +1593,23 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             match product_id {
                 0xF301 => {
                     capabilities.max_torque =
-                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
-                } // Forte
+                        TorqueNm::new(18.0).unwrap_or(capabilities.max_torque);
+                } // Forte (18 Nm per simracingcockpit.gg)
                 0xF300 => {
                     capabilities.max_torque =
-                        TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
-                } // Invicta
+                        TorqueNm::new(27.0).unwrap_or(capabilities.max_torque);
+                } // Invicta (27 Nm premium)
                 0xF303 => {
                     capabilities.max_torque =
-                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
-                } // LaPrima
+                        TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
+                } // LaPrima (12 Nm entry)
                 0xF306 => {
                     capabilities.max_torque =
-                        TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
-                } // Tony Kanaan Edition
+                        TorqueNm::new(18.0).unwrap_or(capabilities.max_torque);
+                } // Tony Kanaan Edition (Forte-based)
                 _ => {
                     capabilities.max_torque =
-                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
+                        TorqueNm::new(18.0).unwrap_or(capabilities.max_torque);
                 }
             }
         }
@@ -1592,7 +1683,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
         vendor_ids::LEO_BODNAR => {
             match product_id {
                 // USB Sim Racing Wheel Interface — standard HID PID, motor-dependent torque.
-                0x000E => {
+                0x000E | 0x000F => {
+                    // 0x000E: Wheel Interface, 0x000F: FFB Joystick
                     capabilities.supports_pid = true;
                     capabilities.supports_raw_torque_1khz = false; // standard HID PID @ 100-500 Hz
                     capabilities.encoder_cpr = u16::MAX; // 16-bit via HID PID
@@ -1607,6 +1699,14 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque = TorqueNm::ZERO;
                 }
             }
+        }
+        vendor_ids::SIMEXPERIENCE => {
+            // SimExperience AccuForce Pro (~12 Nm direct drive)
+            capabilities.supports_pid = true;
+            capabilities.supports_raw_torque_1khz = true;
+            capabilities.encoder_cpr = u16::MAX;
+            capabilities.min_report_period_us = 1000;
+            capabilities.max_torque = TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
         }
         _ => {
             // Unknown vendor - use conservative defaults
@@ -2686,7 +2786,7 @@ mod tests {
     fn test_supported_devices_logitech() {
         assert!(SupportedDevices::is_supported_vendor(vendor_ids::LOGITECH));
         assert!(SupportedDevices::is_supported(vendor_ids::LOGITECH, 0xC24F)); // G29
-        assert!(SupportedDevices::is_supported(vendor_ids::LOGITECH, 0xC261)); // G920
+        assert!(SupportedDevices::is_supported(vendor_ids::LOGITECH, 0xC262)); // G920
         assert!(SupportedDevices::is_supported(vendor_ids::LOGITECH, 0xC267)); // G923 PS
         assert!(!SupportedDevices::is_supported(
             vendor_ids::LOGITECH,
@@ -2699,9 +2799,9 @@ mod tests {
         assert!(SupportedDevices::is_supported_vendor(vendor_ids::FANATEC));
         assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0006)); // DD1
         assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0007)); // DD2
-        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0011)); // CSL DD
-        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0020)); // GT DD Pro
-        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0024)); // GT DD Pro (alt PID)
+        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0011)); // CSR Elite
+        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0020)); // CSL DD
+        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0024)); // GT DD Pro
     }
 
     #[test]
@@ -2716,7 +2816,7 @@ mod tests {
         assert!(SupportedDevices::is_supported(
             vendor_ids::THRUSTMASTER,
             0xB69A
-        )); // T-LCM Pro
+        )); // T248X
         assert!(SupportedDevices::is_supported(
             vendor_ids::THRUSTMASTER,
             0xB69B
@@ -3003,7 +3103,7 @@ mod tests {
         let caps = determine_device_capabilities(vendor_ids::SIMAGIC_EVO, 0x7FFF);
         assert!(caps.supports_raw_torque_1khz);
         assert!(caps.supports_health_stream);
-        assert!((caps.max_torque.value() - 15.0).abs() < 0.1);
+        assert!((caps.max_torque.value() - 9.0).abs() < 0.1);
     }
 
     #[test]

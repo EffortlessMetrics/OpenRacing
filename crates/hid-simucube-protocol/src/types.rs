@@ -37,7 +37,7 @@ impl WheelCapabilities {
     pub fn for_model(model: WheelModel) -> Self {
         match model {
             WheelModel::Simucube2Sport => Self {
-                max_torque_nm: 15.0,
+                max_torque_nm: 17.0,
                 ..Default::default()
             },
             WheelModel::Simucube2Pro => Self {
@@ -45,7 +45,7 @@ impl WheelCapabilities {
                 ..Default::default()
             },
             WheelModel::Simucube2Ultimate => Self {
-                max_torque_nm: 35.0,
+                max_torque_nm: 32.0,
                 ..Default::default()
             },
             WheelModel::SimucubeActivePedal => Self {
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn test_wheel_capabilities_sport() {
         let caps = WheelCapabilities::for_model(WheelModel::Simucube2Sport);
-        assert_eq!(caps.max_torque_nm, 15.0);
+        assert_eq!(caps.max_torque_nm, 17.0);
         assert!(caps.supports_wireless);
     }
 
@@ -108,7 +108,7 @@ mod tests {
     #[test]
     fn test_wheel_capabilities_ultimate() {
         let caps = WheelCapabilities::for_model(WheelModel::Simucube2Ultimate);
-        assert_eq!(caps.max_torque_nm, 35.0);
+        assert_eq!(caps.max_torque_nm, 32.0);
     }
 
     #[test]

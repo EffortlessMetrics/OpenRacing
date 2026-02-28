@@ -208,4 +208,49 @@ mod tests {
         let adapter = GranTurismo7SportsAdapter::default();
         assert_eq!(adapter.recv_port, GTS_RECV_PORT);
     }
+
+    #[test]
+    fn test_empty_packet_returns_err() -> TestResult {
+        let adapter = GranTurismo7SportsAdapter::new();
+        let result = adapter.normalize(&[]);
+        assert!(result.is_err(), "empty packet must return an error");
+        Ok(())
+    }
+
+    #[test]
+    fn test_port_constants() {
+        assert_eq!(GTS_RECV_PORT, 33739, "GT Sport receive port must be 33739");
+        assert_eq!(GTS_SEND_PORT, 33740, "GT Sport send port must be 33740");
+    }
+
+    #[test]
+    fn test_minimum_valid_decrypted_packet() -> TestResult {
+        let mut buf = [0u8; PACKET_SIZE];
+        buf[OFF_MAGIC..OFF_MAGIC + 4].copy_from_slice(&MAGIC.to_le_bytes());
+        let result = crate::gran_turismo_7::parse_decrypted(&buf);
+        assert!(
+            result.is_ok(),
+            "minimum decrypted packet with magic set must parse successfully"
+        );
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Arbitrary byte sequences fed through the GT Sport adapter must never panic.
+        #[test]
+        fn prop_arbitrary_bytes_no_panic(
+            data in proptest::collection::vec(any::<u8>(), 0..512)
+        ) {
+            let adapter = GranTurismo7SportsAdapter::new();
+            let _ = adapter.normalize(&data);
+        }
+    }
 }

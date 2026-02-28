@@ -18,7 +18,7 @@ fn test_snapshot_t818_encoder() {
 }
 
 #[test]
-fn test_snapshot_input_report_center() {
+fn test_snapshot_input_report_center() -> Result<(), Box<dyn std::error::Error>> {
     let data = vec![
         0x01, 0x00, 0x80, // steering center
         0x00, 0x00, 0x00, // pedals
@@ -26,7 +26,7 @@ fn test_snapshot_input_report_center() {
         0x08, // hat center
         0x00, // paddles
     ];
-    let state = tm::parse_input_report(&data).expect("parse should succeed");
+    let state = tm::parse_input_report(&data).ok_or("parse_input_report returned None")?;
     assert_snapshot!(format!(
         "steering={}, throttle={}, brake={}, clutch={}, buttons={}, hat={}, paddles={}/{}",
         state.steering,
@@ -38,10 +38,11 @@ fn test_snapshot_input_report_center() {
         state.paddle_right as u8,
         state.paddle_left as u8
     ));
+    Ok(())
 }
 
 #[test]
-fn test_snapshot_input_report_full_throttle() {
+fn test_snapshot_input_report_full_throttle() -> Result<(), Box<dyn std::error::Error>> {
     let data = vec![
         0x01, 0x00, 0x80, // steering center
         0xFF, 0x00, 0x00, // throttle full, others zero
@@ -49,7 +50,7 @@ fn test_snapshot_input_report_full_throttle() {
         0x00, // hat up
         0x03, // both paddles
     ];
-    let state = tm::parse_input_report(&data).expect("parse should succeed");
+    let state = tm::parse_input_report(&data).ok_or("parse_input_report returned None")?;
     assert_snapshot!(format!(
         "steering={}, throttle={}, brake={}, clutch={}, buttons={}, hat={}, paddles={}/{}",
         state.steering,
@@ -61,6 +62,7 @@ fn test_snapshot_input_report_full_throttle() {
         state.paddle_right as u8,
         state.paddle_left as u8
     ));
+    Ok(())
 }
 
 #[test]
@@ -107,7 +109,7 @@ fn test_snapshot_friction_effect() {
 
 #[test]
 fn test_snapshot_protocol_tgt() {
-    let proto = tm::ThrustmasterProtocol::new(tm::product_ids::T_GT);
+    let proto = tm::ThrustmasterProtocol::new(tm::product_ids::TS_XW);
     assert_snapshot!(format!(
         "model={:?}, max_torque={}, range={}, ffb={}",
         proto.model(),
@@ -130,8 +132,8 @@ fn test_snapshot_protocol_t818() {
 }
 
 #[test]
-fn test_snapshot_protocol_t_lcm() {
-    let proto = tm::ThrustmasterProtocol::new(tm::product_ids::T_LCM);
+fn test_snapshot_protocol_unknown_pid() {
+    let proto = tm::ThrustmasterProtocol::new(0xFFFF);
     assert_snapshot!(format!(
         "model={:?}, max_torque={}, pedals={}, wheelbase={}",
         proto.model(),
@@ -169,7 +171,7 @@ fn test_snapshot_model_t300rs_ps4() {
 
 #[test]
 fn test_snapshot_model_t500rs() {
-    let proto = tm::ThrustmasterProtocol::new(tm::product_ids::T500_RS);
+    let proto = tm::ThrustmasterProtocol::new(tm::product_ids::T150);
     assert_snapshot!(format!(
         "model={:?}, max_torque={}, range={}, ffb={}",
         proto.model(),
@@ -229,7 +231,7 @@ fn test_snapshot_model_ts_pc_racer() {
 
 #[test]
 fn test_snapshot_model_tgt2() {
-    let proto = tm::ThrustmasterProtocol::new(tm::product_ids::T_GT_II);
+    let proto = tm::ThrustmasterProtocol::new(tm::product_ids::T300_RS_PS4);
     assert_snapshot!(format!(
         "model={:?}, max_torque={}, range={}, ffb={}",
         proto.model(),
@@ -252,7 +254,7 @@ fn test_snapshot_capability_t300rs() {
 
 #[test]
 fn test_snapshot_capability_t500rs() {
-    let ident = tm::identify_device(tm::product_ids::T500_RS);
+    let ident = tm::identify_device(tm::product_ids::T150);
     assert_snapshot!(format!(
         "pid=0x{:04X}, name={}, category={:?}, ffb={}",
         ident.product_id, ident.name, ident.category, ident.supports_ffb
@@ -273,16 +275,17 @@ fn test_snapshot_capability_ts_xw() {
 #[test]
 fn test_snapshot_is_wheelbase_known_pids() {
     let wheelbase_pids = [
+        tm::product_ids::T150,
         tm::product_ids::T300_RS,
         tm::product_ids::T300_RS_PS4,
-        tm::product_ids::T500_RS,
-        tm::product_ids::T_GT,
-        tm::product_ids::T_GT_II,
+        tm::product_ids::T300_RS_GT,
         tm::product_ids::TMX,
         tm::product_ids::TX_RACING,
         tm::product_ids::TS_XW,
+        tm::product_ids::TS_XW_GIP,
         tm::product_ids::TS_PC_RACER,
         tm::product_ids::T818,
+        tm::product_ids::T248,
     ];
     let results: Vec<String> = wheelbase_pids
         .iter()

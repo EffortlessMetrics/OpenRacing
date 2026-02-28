@@ -6,16 +6,17 @@ use openracing_hardware_watchdog::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+type TestResult = Result<(), Box<dyn std::error::Error>>;
+
 mod full_lifecycle {
     use super::*;
 
     #[test]
-    fn test_complete_lifecycle() {
+    fn test_complete_lifecycle() -> TestResult {
         let config = WatchdogConfig::builder()
             .timeout_ms(200)
             .max_response_time_us(500)
-            .build()
-            .expect("Valid config");
+            .build()?;
 
         let mut watchdog = SoftwareWatchdog::new(config);
 
@@ -23,49 +24,49 @@ mod full_lifecycle {
         assert!(!watchdog.is_armed());
         assert!(watchdog.is_healthy());
 
-        watchdog.arm().expect("Arm should succeed");
+        watchdog.arm()?;
         assert!(watchdog.is_armed());
         assert_eq!(watchdog.status(), WatchdogStatus::Armed);
 
         for _ in 0..10 {
-            watchdog.feed().expect("Feed should succeed");
+            watchdog.feed()?;
         }
 
         let metrics = watchdog.metrics();
         assert_eq!(metrics.feed_count, 10);
         assert_eq!(metrics.arm_count, 1);
 
-        watchdog.disarm().expect("Disarm should succeed");
+        watchdog.disarm()?;
         assert!(!watchdog.is_armed());
 
         watchdog.reset();
         let metrics = watchdog.metrics();
         assert_eq!(metrics.feed_count, 0);
+        Ok(())
     }
 
     #[test]
-    fn test_timeout_lifecycle() {
+    fn test_timeout_lifecycle() -> TestResult {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
 
-        watchdog.arm().expect("Arm should succeed");
-        watchdog.feed().expect("Feed should succeed");
+        watchdog.arm()?;
+        watchdog.feed()?;
 
-        watchdog.trigger_timeout().expect("Timeout should succeed");
+        watchdog.trigger_timeout()?;
         assert!(watchdog.has_timed_out());
 
         watchdog.reset();
-        watchdog.arm().expect("Arm after reset should succeed");
+        watchdog.arm()?;
         assert!(watchdog.is_armed());
+        Ok(())
     }
 
     #[test]
-    fn test_safe_state_lifecycle() {
+    fn test_safe_state_lifecycle() -> TestResult {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
 
-        watchdog.arm().expect("Arm should succeed");
-        watchdog
-            .trigger_safe_state()
-            .expect("Safe state should succeed");
+        watchdog.arm()?;
+        watchdog.trigger_safe_state()?;
 
         assert!(watchdog.is_safe_state_triggered());
         assert_eq!(watchdog.status(), WatchdogStatus::SafeState);
@@ -73,29 +74,27 @@ mod full_lifecycle {
 
         watchdog.reset();
 
-        watchdog.arm().expect("Arm after reset should succeed");
+        watchdog.arm()?;
         assert!(watchdog.is_healthy());
+        Ok(())
     }
 
     #[test]
-    fn test_multiple_arm_disarm_cycles() {
+    fn test_multiple_arm_disarm_cycles() -> TestResult {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
 
-        for cycle in 0..5 {
-            watchdog
-                .arm()
-                .unwrap_or_else(|_| panic!("Arm cycle {cycle} should succeed"));
+        for _ in 0..5 {
+            watchdog.arm()?;
             for _ in 0..3 {
-                watchdog.feed().expect("Feed should succeed");
+                watchdog.feed()?;
             }
-            watchdog
-                .disarm()
-                .unwrap_or_else(|_| panic!("Disarm cycle {cycle} should succeed"));
+            watchdog.disarm()?;
         }
 
         let metrics = watchdog.metrics();
         assert_eq!(metrics.arm_count, 5);
         assert_eq!(metrics.feed_count, 15);
+        Ok(())
     }
 }
 
@@ -103,42 +102,37 @@ mod concurrent_access {
     use super::*;
 
     #[test]
-    fn test_concurrent_status_checks() {
+    fn test_concurrent_status_checks() -> TestResult {
         let watchdog = Arc::new(Mutex::new(SoftwareWatchdog::with_default_timeout()));
-        watchdog
-            .lock()
-            .expect("Lock should succeed")
-            .arm()
-            .expect("Arm should succeed");
+        watchdog.lock().map_err(|e| e.to_string())?.arm()?;
 
         let handles: Vec<_> = (0..4)
             .map(|_| {
                 let w = Arc::clone(&watchdog);
                 thread::spawn(move || {
                     for _ in 0..100 {
-                        let status = w.lock().expect("Lock should succeed").status();
-                        assert!(matches!(
-                            status,
-                            WatchdogStatus::Armed | WatchdogStatus::TimedOut
-                        ));
+                        if let Ok(guard) = w.lock() {
+                            let status = guard.status();
+                            assert!(matches!(
+                                status,
+                                WatchdogStatus::Armed | WatchdogStatus::TimedOut
+                            ));
+                        }
                     }
                 })
             })
             .collect();
 
         for handle in handles {
-            handle.join().expect("Thread should not panic");
+            assert!(handle.join().is_ok(), "Thread should not panic");
         }
+        Ok(())
     }
 
     #[test]
-    fn test_concurrent_feed_operations() {
+    fn test_concurrent_feed_operations() -> TestResult {
         let watchdog = Arc::new(Mutex::new(SoftwareWatchdog::with_default_timeout()));
-        watchdog
-            .lock()
-            .expect("Lock should succeed")
-            .arm()
-            .expect("Arm should succeed");
+        watchdog.lock().map_err(|e| e.to_string())?.arm()?;
 
         let handles: Vec<_> = (0..4)
             .map(|_| {
@@ -154,11 +148,12 @@ mod concurrent_access {
             .collect();
 
         for handle in handles {
-            handle.join().expect("Thread should not panic");
+            assert!(handle.join().is_ok(), "Thread should not panic");
         }
 
-        let metrics = watchdog.lock().expect("Lock should succeed").metrics();
+        let metrics = watchdog.lock().map_err(|e| e.to_string())?.metrics();
         assert!(metrics.feed_count > 0);
+        Ok(())
     }
 }
 
@@ -202,27 +197,29 @@ mod time_tracking {
     use super::*;
 
     #[test]
-    fn test_time_since_last_feed() {
+    fn test_time_since_last_feed() -> TestResult {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
 
         assert!(watchdog.time_since_last_feed_us().is_none());
 
-        watchdog.arm().expect("Arm should succeed");
-        watchdog.feed().expect("Feed should succeed");
+        watchdog.arm()?;
+        watchdog.feed()?;
 
         assert!(watchdog.time_since_last_feed_us().is_some());
+        Ok(())
     }
 
     #[test]
-    fn test_external_time_source() {
+    fn test_external_time_source() -> TestResult {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
 
-        watchdog.arm().expect("Arm should succeed");
+        watchdog.arm()?;
         watchdog.set_elapsed_us(100_000);
-        watchdog.feed().expect("Feed should succeed");
+        watchdog.feed()?;
 
         watchdog.set_elapsed_us(150_000);
         let elapsed = watchdog.time_since_last_feed_us();
         assert!(elapsed.is_some());
+        Ok(())
     }
 }

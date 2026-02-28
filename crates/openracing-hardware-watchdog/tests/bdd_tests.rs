@@ -7,6 +7,8 @@
 use openracing_hardware_watchdog::prelude::*;
 use std::time::Instant;
 
+type TestResult = Result<(), Box<dyn std::error::Error>>;
+
 mod watchdog_safety_scenarios {
     use super::*;
 
@@ -22,13 +24,14 @@ mod watchdog_safety_scenarios {
 
     /// Scenario: Watchdog feeds successfully when armed
     #[test]
-    fn scenario_watchdog_feeds_successfully_when_armed() {
+    fn scenario_watchdog_feeds_successfully_when_armed() -> TestResult {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
-        watchdog.arm().expect("Arm should succeed");
+        watchdog.arm()?;
         let result = watchdog.feed();
         assert!(result.is_ok());
         let metrics = watchdog.metrics();
         assert_eq!(metrics.feed_count, 1);
+        Ok(())
     }
 
     /// Scenario: Watchdog refuses feed when disarmed
@@ -52,82 +55,84 @@ mod watchdog_safety_scenarios {
 
     /// Scenario: Watchdog cannot be armed twice
     #[test]
-    fn scenario_watchdog_cannot_be_armed_twice() {
+    fn scenario_watchdog_cannot_be_armed_twice() -> TestResult {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
-        watchdog.arm().expect("Arm should succeed");
+        watchdog.arm()?;
         let result = watchdog.arm();
         assert!(result.is_err());
         assert!(matches!(
             result,
             Err(HardwareWatchdogError::InvalidTransition { .. })
         ));
+        Ok(())
     }
 
     /// Scenario: Watchdog reset clears all state
     #[test]
-    fn scenario_watchdog_reset_clears_all_state() {
+    fn scenario_watchdog_reset_clears_all_state() -> TestResult {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
-        watchdog
-            .trigger_safe_state()
-            .expect("Safe state should succeed");
+        watchdog.trigger_safe_state()?;
         watchdog.reset();
         assert_eq!(watchdog.status(), WatchdogStatus::Disarmed);
         assert!(!watchdog.is_safe_state_triggered());
+        Ok(())
     }
 
     /// Scenario: Metrics are tracked correctly
     #[test]
-    fn scenario_metrics_are_tracked_correctly() {
+    fn scenario_metrics_are_tracked_correctly() -> TestResult {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
-        watchdog.arm().expect("Arm should succeed");
+        watchdog.arm()?;
         for _ in 0..5 {
-            watchdog.feed().expect("Feed should succeed");
+            watchdog.feed()?;
         }
-        watchdog.disarm().expect("Disarm should succeed");
-        watchdog.arm().expect("Arm should succeed");
-        watchdog.feed().expect("Feed should succeed");
+        watchdog.disarm()?;
+        watchdog.arm()?;
+        watchdog.feed()?;
 
         let metrics = watchdog.metrics();
         assert_eq!(metrics.arm_count, 2);
         assert_eq!(metrics.feed_count, 6);
+        Ok(())
     }
 
     /// Scenario: Timeout state prevents feeding
     #[test]
-    fn scenario_timeout_state_prevents_feeding() {
+    fn scenario_timeout_state_prevents_feeding() -> TestResult {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
-        watchdog.arm().expect("Arm should succeed");
-        watchdog.trigger_timeout().expect("Timeout should succeed");
+        watchdog.arm()?;
+        watchdog.trigger_timeout()?;
         let result = watchdog.feed();
         assert!(result.is_err());
         assert!(matches!(result, Err(HardwareWatchdogError::TimedOut)));
+        Ok(())
     }
 
     /// Scenario: Safe state is terminal
     #[test]
-    fn scenario_safe_state_is_terminal() {
+    fn scenario_safe_state_is_terminal() -> TestResult {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
-        watchdog
-            .trigger_safe_state()
-            .expect("Safe state should succeed");
+        watchdog.trigger_safe_state()?;
 
         let arm_result = watchdog.arm();
         let feed_result = watchdog.feed();
 
         assert!(arm_result.is_err());
         assert!(feed_result.is_err());
+        Ok(())
     }
 
     /// Scenario: Health check works correctly
     #[test]
-    fn scenario_health_check_works_correctly() {
+    fn scenario_health_check_works_correctly() -> TestResult {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
         assert!(watchdog.is_healthy());
 
-        watchdog.arm().expect("Arm should succeed");
-        watchdog.trigger_timeout().expect("Timeout should succeed");
+        watchdog.arm()?;
+        watchdog.trigger_timeout()?;
 
         assert!(!watchdog.is_healthy());
+        Ok(())
     }
 }
 
@@ -135,9 +140,9 @@ mod wcet_requirements {
     use super::*;
 
     #[test]
-    fn scenario_feed_wcet_under_1us() {
+    fn scenario_feed_wcet_under_1us() -> TestResult {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
-        watchdog.arm().expect("Arm should succeed");
+        watchdog.arm()?;
 
         let start = Instant::now();
         for _ in 0..1000 {
@@ -151,6 +156,7 @@ mod wcet_requirements {
             "Average feed time {}ns exceeded 1μs WCET budget",
             avg_ns
         );
+        Ok(())
     }
 
     #[test]

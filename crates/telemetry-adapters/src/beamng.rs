@@ -19,10 +19,16 @@ const DEFAULT_BEAMNG_PORT: u16 = 4444;
 const OUTGAUGE_PACKET_SIZE: usize = 96;
 const MAX_PACKET_SIZE: usize = 256;
 
-// OutGauge byte offsets
+// OutGauge byte offsets — verified 2025-07 against LFS InSim.txt OutGauge struct
+// (en.lfsmanual.net/wiki/OutGauge) and jlinnosa/arduino-lfs-outgauge-monitor.
+// Layout: time(u32@0), car([4]u8@4), flags(u16@8), gear(u8@10), plid(u8@11),
+//   speed(f32@12), rpm(f32@16), turbo(f32@20), engTemp(f32@24), fuel(f32@28),
+//   oilPressure(f32@32), oilTemp(f32@36), dashLights(u32@40), showLights(u32@44),
+//   throttle(f32@48), brake(f32@52), clutch(f32@56), display1([16]u8@60),
+//   display2([16]u8@76), id(i32@92 optional). Total: 92–96 bytes.
 const OFF_SPEED: usize = 12; // f32, m/s
 const OFF_RPM: usize = 16; // f32
-const OFF_GEAR: usize = 10; // i8 (char in C): 0=R, 1=N, 2=1st, 3=2nd, …
+const OFF_GEAR: usize = 10; // u8: 0=R, 1=N, 2=1st, 3=2nd, …
 const OFF_THROTTLE: usize = 48; // f32
 const OFF_BRAKE: usize = 52; // f32
 const OFF_CLUTCH: usize = 56; // f32
@@ -203,6 +209,7 @@ fn read_f32_le(data: &[u8], offset: usize) -> Option<f32> {
     data.get(offset..offset + 4)
         .and_then(|b| b.try_into().ok())
         .map(f32::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 #[cfg(test)]

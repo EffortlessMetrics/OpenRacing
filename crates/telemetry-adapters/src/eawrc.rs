@@ -678,13 +678,14 @@ impl DecodedValue {
     }
 
     fn as_f32(&self) -> Option<f32> {
-        match self {
+        let val = match self {
             Self::Bool(value) => Some(if *value { 1.0 } else { 0.0 }),
             Self::U64(value) => Some(*value as f32),
             Self::I64(value) => Some(*value as f32),
             Self::F64(value) => Some(*value as f32),
             Self::String(_) => None,
-        }
+        };
+        val.filter(|v| v.is_finite())
     }
 
     fn as_i8(&self) -> Option<i8> {
@@ -944,13 +945,6 @@ mod tests {
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-    fn must<T, E: std::fmt::Debug>(result: Result<T, E>) -> T {
-        match result {
-            Ok(value) => value,
-            Err(error) => panic!("unexpected Err: {error:?}"),
-        }
-    }
-
     fn channels_json() -> serde_json::Value {
         serde_json::json!({
             "versions": { "schema": 1, "data": 7 },
@@ -1132,27 +1126,27 @@ mod tests {
 
     #[test]
     fn test_adapter_normalize_uses_runtime_schema_files() -> TestResult {
-        let temp_dir = must(tempfile::tempdir());
+        let temp_dir = tempfile::tempdir()?;
         let telemetry_root = temp_dir.path().join("telemetry");
         let readme_dir = telemetry_root.join("readme");
         let udp_dir = telemetry_root.join("udp");
 
-        must(fs::create_dir_all(&readme_dir));
-        must(fs::create_dir_all(&udp_dir));
+        fs::create_dir_all(&readme_dir)?;
+        fs::create_dir_all(&udp_dir)?;
 
-        must(fs::write(
+        fs::write(
             readme_dir.join("channels.json"),
             serde_json::to_vec_pretty(&channels_json())?,
-        ));
-        must(fs::write(
+        )?;
+        fs::write(
             readme_dir.join("packets.json"),
             serde_json::to_vec_pretty(&packets_json())?,
-        ));
-        must(fs::write(
+        )?;
+        fs::write(
             udp_dir.join("openracing.json"),
             serde_json::to_vec_pretty(&structure_json())?,
-        ));
-        must(fs::write(
+        )?;
+        fs::write(
             telemetry_root.join("config.json"),
             serde_json::to_vec_pretty(&serde_json::json!({
                 "udp": {
@@ -1166,7 +1160,7 @@ mod tests {
                     ]
                 }
             }))?,
-        ));
+        )?;
 
         let adapter = EAWRCAdapter::with_telemetry_dir(telemetry_root);
 
@@ -1183,5 +1177,23 @@ mod tests {
         assert_eq!(telemetry.speed_ms, 33.0);
         assert_eq!(telemetry.gear, 3);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        #[test]
+        fn parse_no_panic_on_arbitrary(
+            data in proptest::collection::vec(any::<u8>(), 0..1024)
+        ) {
+            let adapter = EAWRCAdapter::new();
+            let _ = adapter.normalize(&data);
+        }
     }
 }

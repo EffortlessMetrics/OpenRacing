@@ -353,7 +353,7 @@ impl TelemetryAdapter for F1_25Adapter {
             info!(port = bind_port, "F1 25 UDP adapter bound");
 
             let mut state = F125State::default();
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
             let mut buf = vec![0u8; MAX_PACKET_BYTES];
             let timeout = update_rate * 4;
 
@@ -376,11 +376,11 @@ impl TelemetryAdapter for F1_25Adapter {
                 match Self::process_packet(&mut state, &buf[..len]) {
                     Ok(Some(normalized)) => {
                         let ts = telemetry_now_ns();
-                        let frame = TelemetryFrame::new(normalized, ts, sequence, len);
+                        let frame = TelemetryFrame::new(normalized, ts, frame_seq, len);
                         if tx.send(frame).await.is_err() {
                             break;
                         }
-                        sequence = sequence.saturating_add(1);
+                        frame_seq = frame_seq.saturating_add(1);
                     }
                     Ok(None) => {}
                     Err(err) => {
@@ -509,7 +509,9 @@ impl<'a> ByteReader<'a> {
 
     #[inline]
     pub fn f32_le(&mut self) -> Result<f32> {
-        self.read_n4().map(f32::from_le_bytes)
+        self.read_n4()
+            .map(f32::from_le_bytes)
+            .map(|v| if v.is_finite() { v } else { 0.0 })
     }
 
     fn read_n4(&mut self) -> Result<[u8; 4]> {
@@ -1364,7 +1366,9 @@ mod tests {
                     "ers_store_fraction out of [0,1]: {f}"
                 );
             }
-            other => panic!("unexpected value for ers_store_fraction: {other:?}"),
+            other => {
+                return Err(format!("unexpected value for ers_store_fraction: {other:?}").into());
+            }
         }
         Ok(())
     }
@@ -1659,7 +1663,7 @@ mod tests {
                     "ers_fraction={f} expected={expected}"
                 );
             }
-            other => panic!("unexpected ers_store_fraction: {other:?}"),
+            other => return Err(format!("unexpected ers_store_fraction: {other:?}").into()),
         }
         assert_eq!(
             nt.extended.get("session_type"),
@@ -1737,7 +1741,7 @@ mod tests {
     }
 
     #[test]
-    fn fuel_remaining_present_and_non_negative() {
+    fn fuel_remaining_present_and_non_negative() -> TestResult {
         let telem = CarTelemetryData {
             speed_kmh: 0,
             throttle: 0.0,
@@ -1758,9 +1762,10 @@ mod tests {
             let nt = normalize(&telem, &status, &SessionData::default());
             match nt.extended.get("fuel_remaining_kg") {
                 Some(TelemetryValue::Float(f)) => assert!(*f >= 0.0 && (*f - fuel).abs() < 1e-4),
-                other => panic!("unexpected fuel value: {other:?}"),
+                other => return Err(format!("unexpected fuel value: {other:?}").into()),
             }
         }
+        Ok(())
     }
 
     // ── Parsing performance (< 1ms) ─────────────────────────────────────────
@@ -1805,5 +1810,23 @@ mod tests {
             elapsed
         );
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        #[test]
+        fn parse_no_panic_on_arbitrary(
+            data in proptest::collection::vec(any::<u8>(), 0..1024)
+        ) {
+            let adapter = F1_25Adapter::new();
+            let _ = adapter.normalize(&data);
+        }
     }
 }

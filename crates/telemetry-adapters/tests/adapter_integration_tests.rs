@@ -26,11 +26,7 @@ fn write_i32_le(buf: &mut [u8], offset: usize, value: i32) {
     buf[offset..offset + 4].copy_from_slice(&bytes);
 }
 
-fn write_u16_le(buf: &mut [u8], offset: usize, value: u16) {
-    let bytes = value.to_le_bytes();
-    buf[offset..offset + 2].copy_from_slice(&bytes);
-}
-
+#[allow(dead_code)]
 fn write_u32_le(buf: &mut [u8], offset: usize, value: u32) {
     let bytes = value.to_le_bytes();
     buf[offset..offset + 4].copy_from_slice(&bytes);
@@ -215,14 +211,13 @@ fn assetto_corsa_short_packet_returns_error() -> TestResult {
 
 #[test]
 fn assetto_corsa_valid_packet_parses_fields() -> TestResult {
-    let mut pkt = vec![0u8; 76];
-    pkt[16] = 3; // gear
-    write_u16_le(&mut pkt, 18, 108); // speed_kmh = 108 → 30 m/s
-    write_f32_le(&mut pkt, 20, 5500.0); // rpm
-    write_f32_le(&mut pkt, 24, 7500.0); // max_rpm
-    write_f32_le(&mut pkt, 64, 0.3); // steer
-    write_f32_le(&mut pkt, 68, 0.8); // gas/throttle
-    write_f32_le(&mut pkt, 72, 0.0); // brake
+    let mut pkt = vec![0u8; 328]; // RTCarInfo struct size
+    write_f32_le(&mut pkt, 16, 30.0); // speed_Ms at offset 16
+    write_f32_le(&mut pkt, 56, 0.8); // gas at offset 56
+    write_f32_le(&mut pkt, 60, 0.0); // brake at offset 60
+    write_f32_le(&mut pkt, 68, 5500.0); // engineRPM at offset 68
+    write_f32_le(&mut pkt, 72, 0.3); // steer at offset 72
+    write_i32_le(&mut pkt, 76, 3); // gear at offset 76 (AC: 3 = 2nd)
 
     let adapter = AssettoCorsaAdapter::new();
     let t = adapter.normalize(&pkt)?;
@@ -237,7 +232,7 @@ fn assetto_corsa_valid_packet_parses_fields() -> TestResult {
         "speed must be ~30 m/s, got {}",
         t.speed_ms
     );
-    assert_eq!(t.gear, 3, "gear must be 3");
+    assert_eq!(t.gear, 2, "gear must be 2 (AC raw 3 → normalized 2)");
     assert!((t.throttle - 0.8).abs() < 0.01, "throttle must be ~0.8");
     Ok(())
 }
@@ -255,7 +250,7 @@ fn pcars2_empty_packet_returns_error() -> TestResult {
 fn pcars2_short_packet_returns_error() -> TestResult {
     let adapter = PCars2Adapter::new();
     assert!(
-        adapter.normalize(&[0u8; 50]).is_err(),
+        adapter.normalize(&[0u8; 30]).is_err(),
         "short packet must return Err"
     );
     Ok(())
@@ -263,14 +258,14 @@ fn pcars2_short_packet_returns_error() -> TestResult {
 
 #[test]
 fn pcars2_valid_packet_parses_fields() -> TestResult {
-    let mut pkt = vec![0u8; 84];
-    write_f32_le(&mut pkt, 40, -0.15); // steering
-    write_f32_le(&mut pkt, 44, 0.9); // throttle
-    write_f32_le(&mut pkt, 48, 0.0); // brake
-    write_f32_le(&mut pkt, 52, 45.0); // speed m/s
-    write_f32_le(&mut pkt, 56, 7000.0); // rpm
-    write_f32_le(&mut pkt, 60, 9000.0); // max_rpm
-    write_u32_le(&mut pkt, 80, 4); // gear
+    let mut pkt = vec![0u8; 46];
+    pkt[44] = (-0.15f32 * 127.0) as i8 as u8; // steering i8
+    pkt[30] = (0.9f32 * 255.0) as u8; // throttle u8
+    pkt[29] = 0; // brake u8
+    write_f32_le(&mut pkt, 36, 45.0); // speed f32 m/s
+    pkt[40..42].copy_from_slice(&7000u16.to_le_bytes()); // rpm u16
+    pkt[42..44].copy_from_slice(&9000u16.to_le_bytes()); // max_rpm u16
+    pkt[45] = 4; // gear=4
 
     let adapter = PCars2Adapter::new();
     let t = adapter.normalize(&pkt)?;
@@ -282,7 +277,11 @@ fn pcars2_valid_packet_parses_fields() -> TestResult {
     );
     assert!((t.speed_ms - 45.0).abs() < 0.01, "speed must be ~45 m/s");
     assert_eq!(t.gear, 4, "gear must be 4");
-    assert!((t.throttle - 0.9).abs() < 0.01, "throttle must be ~0.9");
+    // u8 round-trip: (0.9 * 255) as u8 = 229, 229/255 ≈ 0.898
+    assert!(
+        (t.throttle - 229.0 / 255.0).abs() < 0.01,
+        "throttle must be ~0.9"
+    );
     Ok(())
 }
 
@@ -321,8 +320,8 @@ fn raceroom_wrong_version_returns_error() -> TestResult {
 #[test]
 fn raceroom_game_paused_returns_empty_telemetry() -> TestResult {
     let mut pkt = vec![0u8; 4096];
-    write_i32_le(&mut pkt, 0, 2); // version_major = 2 (correct)
-    write_i32_le(&mut pkt, 100, 1); // game_paused = 1
+    write_i32_le(&mut pkt, 0, 3); // version_major = 3 (R3E SDK v3)
+    write_i32_le(&mut pkt, 20, 1); // game_paused = 1
 
     let adapter = RaceRoomAdapter::new();
     let t = adapter.normalize(&pkt)?;
@@ -333,9 +332,9 @@ fn raceroom_game_paused_returns_empty_telemetry() -> TestResult {
 #[test]
 fn raceroom_game_in_menus_returns_empty_telemetry() -> TestResult {
     let mut pkt = vec![0u8; 4096];
-    write_i32_le(&mut pkt, 0, 2); // version_major = 2
-    write_i32_le(&mut pkt, 100, 0); // game_paused = 0
-    write_i32_le(&mut pkt, 104, 1); // game_in_menus = 1
+    write_i32_le(&mut pkt, 0, 3); // version_major = 3
+    write_i32_le(&mut pkt, 20, 0); // game_paused = 0
+    write_i32_le(&mut pkt, 24, 1); // game_in_menus = 1
 
     let adapter = RaceRoomAdapter::new();
     let t = adapter.normalize(&pkt)?;
@@ -346,15 +345,18 @@ fn raceroom_game_in_menus_returns_empty_telemetry() -> TestResult {
 #[test]
 fn raceroom_valid_packet_parses_fields() -> TestResult {
     let mut pkt = vec![0u8; 4096];
-    write_i32_le(&mut pkt, 0, 2); // version_major = 2
-    write_i32_le(&mut pkt, 100, 0); // game_paused = 0
-    write_i32_le(&mut pkt, 104, 0); // game_in_menus = 0
-    write_f32_le(&mut pkt, 600, 5000.0); // rpm
-    write_f32_le(&mut pkt, 604, 8000.0); // max_rpm
-    write_f32_le(&mut pkt, 700, 50.0); // speed m/s
-    write_f32_le(&mut pkt, 704, 0.1); // steer
-    write_f32_le(&mut pkt, 708, 0.6); // throttle
-    write_i32_le(&mut pkt, 730, 3); // gear
+    write_i32_le(&mut pkt, 0, 3); // version_major = 3
+    write_i32_le(&mut pkt, 20, 0); // game_paused = 0
+    write_i32_le(&mut pkt, 24, 0); // game_in_menus = 0
+    // engine_rps in rad/s: 5000 RPM = 5000 * π / 30 ≈ 523.6 rad/s
+    let rps_5000 = 5000.0f32 * std::f32::consts::PI / 30.0;
+    let rps_8000 = 8000.0f32 * std::f32::consts::PI / 30.0;
+    write_f32_le(&mut pkt, 1396, rps_5000); // engine_rps
+    write_f32_le(&mut pkt, 1400, rps_8000); // max_engine_rps
+    write_f32_le(&mut pkt, 1392, 50.0); // car_speed m/s
+    write_f32_le(&mut pkt, 1524, 0.1); // steer_input_raw
+    write_f32_le(&mut pkt, 1500, 0.6); // throttle
+    write_i32_le(&mut pkt, 1408, 3); // gear
 
     let adapter = RaceRoomAdapter::new();
     let t = adapter.normalize(&pkt)?;

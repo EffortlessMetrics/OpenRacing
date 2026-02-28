@@ -30,7 +30,7 @@ jobs:
         components: rustfmt, clippy
     
     - name: Cache dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/registry
@@ -39,13 +39,13 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Run smoke test
-      run: cargo test test_smoke_test --package racing-wheel-integration-tests
+      run: cargo test test_smoke_test --package racing-wheel-integration-tests --locked
     
     - name: Run unit tests
       run: |
         # Keep smoke bounded/deterministic: exclude long-running perf/atomicity tests here.
         # These behaviors are covered by dedicated performance and soak CI lanes.
-        cargo test --workspace \
+        cargo test --workspace --locked \
           --exclude racing-wheel-integration-tests \
           --exclude racing-wheel-ui \
           -- \
@@ -74,7 +74,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     
     - name: Cache dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/registry
@@ -83,10 +83,10 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Build integration tests
-      run: cargo build --package racing-wheel-integration-tests --features ci-gates --release
+      run: cargo build --package racing-wheel-integration-tests --features ci-gates --release --locked
 
     - name: Run performance gates
-      run: cargo run --package racing-wheel-integration-tests --bin performance-gate --features ci-gates --release
+      run: cargo run --package racing-wheel-integration-tests --bin performance-gate --features ci-gates --release --locked
     
     - name: Upload performance results
       uses: actions/upload-artifact@v4
@@ -112,7 +112,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     
     - name: Cache dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/registry
@@ -122,10 +122,10 @@ jobs:
     
     - name: Run user journey tests
       run: |
-        cargo test test_user_journey_uj01_first_run --package racing-wheel-integration-tests --features ci-gates
-        cargo test test_user_journey_uj02_profile_switching --package racing-wheel-integration-tests --features ci-gates
-        cargo test test_user_journey_uj03_fault_recovery --package racing-wheel-integration-tests --features ci-gates
-        cargo test test_user_journey_uj04_debug_workflow --package racing-wheel-integration-tests --features ci-gates
+        cargo test test_user_journey_uj01_first_run --package racing-wheel-integration-tests --features ci-gates --locked
+        cargo test test_user_journey_uj02_profile_switching --package racing-wheel-integration-tests --features ci-gates --locked
+        cargo test test_user_journey_uj03_fault_recovery --package racing-wheel-integration-tests --features ci-gates --locked
+        cargo test test_user_journey_uj04_debug_workflow --package racing-wheel-integration-tests --features ci-gates --locked
 
   # Stress tests
   stress-tests:
@@ -144,7 +144,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     
     - name: Cache dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/registry
@@ -155,7 +155,7 @@ jobs:
     - name: Run CI-bounded hot-plug stress test
       # Full stress/fault suites are exercised via soak and extended stress lanes;
       # this PR gate keeps only a deterministic bounded stress signal.
-      run: cargo test -p racing-wheel-integration-tests test_hotplug_stress_basic -- --exact
+      run: cargo test -p racing-wheel-integration-tests test_hotplug_stress_basic --locked -- --exact
     
     - name: Upload stress test results
       uses: actions/upload-artifact@v4
@@ -181,7 +181,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     
     - name: Cache dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/registry
@@ -190,7 +190,7 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Run CI soak test
-      run: cargo run --package racing-wheel-integration-tests --bin soak-test --release -- --mode ci
+      run: cargo run --package racing-wheel-integration-tests --bin soak-test --release --locked -- --mode ci
     
     - name: Upload soak test results
       uses: actions/upload-artifact@v4
@@ -216,7 +216,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     
     - name: Cache dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/registry
@@ -225,7 +225,7 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Run acceptance tests
-      run: cargo test test_acceptance_tests_subset --package racing-wheel-integration-tests --features ci-gates
+      run: cargo test test_acceptance_tests_subset --package racing-wheel-integration-tests --features ci-gates --locked
     
     - name: Upload acceptance test report
       uses: actions/upload-artifact@v4
@@ -254,7 +254,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     
     - name: Cache dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/registry
@@ -263,62 +263,4 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Run platform-specific tests
-      run: cargo test test_performance_gates_ffb_jitter --package racing-wheel-integration-tests --features ci-gates
-
-# Nightly full soak test (48 hours) - separate workflow
----
-name: Nightly Soak Test
-
-on:
-  schedule:
-    - cron: '0 2 * * *'  # Run at 2 AM UTC daily
-  workflow_dispatch:     # Allow manual trigger
-
-jobs:
-  full-soak-test:
-    name: 48-Hour Soak Test
-    runs-on: ubuntu-latest
-    timeout-minutes: 2920  # 48 hours + 40 minutes buffer
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install system dependencies
-      if: runner.os == 'Linux'
-      run: sudo apt-get update -qq && sudo apt-get install -y libudev-dev pkg-config
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-    
-    - name: Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    
-    - name: Run full 48-hour soak test
-      run: cargo run --package racing-wheel-integration-tests --bin soak-test --release -- --mode full
-    
-    - name: Upload soak test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: full-soak-test-results
-        path: target/soak-*.json
-        retention-days: 30
-    
-    - name: Notify on failure
-      if: failure()
-      uses: actions/github-script@v6
-      with:
-        script: |
-          github.rest.issues.create({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            title: '48-Hour Soak Test Failed',
-            body: 'The nightly 48-hour soak test has failed. Please investigate.',
-            labels: ['bug', 'soak-test', 'high-priority']
-          });
+      run: cargo test test_performance_gates_ffb_jitter --package racing-wheel-integration-tests --features ci-gates --locked

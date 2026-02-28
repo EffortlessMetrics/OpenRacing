@@ -18,6 +18,7 @@ print_stdout = "deny"
 
 [dependencies]
 racing-wheel-engine = { path = "../engine" }
+racing-wheel-plugins = { path = "../plugins" }
 racing-wheel-service = { path = "../service" }
 racing-wheel-schemas = { path = "../schemas" }
 racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
@@ -58,6 +59,7 @@ uuid = { workspace = true }
 rand = "0.9.2"
 chrono = { workspace = true }
 openracing-test-helpers = { workspace = true }
+openracing-profile = { path = "../openracing-profile" }
 
 # Mock and test doubles
 async-trait = { workspace = true }

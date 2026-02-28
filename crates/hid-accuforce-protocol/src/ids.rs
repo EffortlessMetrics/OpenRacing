@@ -11,7 +11,10 @@ pub const VENDOR_ID: u16 = 0x1FC9;
 
 // ── Confirmed product IDs ────────────────────────────────────────────────────
 
-/// SimExperience AccuForce Pro product ID (confirmed via community USB captures).
+/// SimExperience AccuForce Pro product ID.
+///
+/// Confirmed via community USB captures and the RetroBat Wheels.cs
+/// compatibility table (commit 0a54752: `VID_1FC9&PID_804C`).
 pub const PID_ACCUFORCE_PRO: u16 = 0x804C;
 
 /// Returns `true` if the VID/PID pair identifies an AccuForce device.

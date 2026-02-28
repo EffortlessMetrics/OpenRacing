@@ -2,7 +2,9 @@
 //!
 //! Sources:
 //! - Linux kernel `hid-ids.h` (`USB_VENDOR_ID_FFBEAST = 0x045b`)
-//! - <https://github.com/HF-Robotics/FFBeast>
+//! - <https://ffbeast.github.io/ffbeast.github.io/> (official site; ffbeast.com is defunct)
+//! - FFBeast wheel C/C++ API reference (VID=0x045B, wheel PID=0x59D7)
+//! - JacKeTUs/linux-steering-wheels compatibility table
 
 /// FFBeast USB Vendor ID (`USB_VENDOR_ID_FFBEAST` in the Linux kernel).
 pub const FFBEAST_VENDOR_ID: u16 = 0x045B;

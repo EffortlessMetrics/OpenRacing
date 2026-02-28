@@ -14,7 +14,7 @@ use tracing::{debug, info};
 /// Protocol handler for SimExperience AccuForce Pro wheelbases.
 ///
 /// AccuForce Pro presents a standard HID PID interface; no vendor-specific
-/// initialisation sequence is required. The handler reports correct capabilities
+/// initialisation procedure is required. The handler reports correct capabilities
 /// (max torque, brand) and delegates all FFB to the generic HID PID path.
 pub struct AccuForceProtocolHandler {
     vendor_id: u16,

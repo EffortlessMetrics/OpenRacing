@@ -89,6 +89,7 @@ fn read_f32_le(buf: &[u8], pos: usize) -> Option<f32> {
     buf.get(pos..pos + 4)
         .and_then(|b| b.try_into().ok())
         .map(f32::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 /// Return the buffer position of a field's data inside a FlatBuffers table.
@@ -313,7 +314,7 @@ impl TelemetryAdapter for KartKraftAdapter {
             info!(port = bind_port, "KartKraft UDP adapter bound");
 
             let mut buf = vec![0u8; MAX_PACKET_SIZE];
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
             let timeout = (update_rate * 4).max(Duration::from_millis(25));
 
             loop {
@@ -340,11 +341,11 @@ impl TelemetryAdapter for KartKraftAdapter {
 
                 last_packet_ns.store(telemetry_now_ns(), Ordering::Relaxed);
 
-                let frame = TelemetryFrame::new(normalized, telemetry_now_ns(), sequence, len);
+                let frame = TelemetryFrame::new(normalized, telemetry_now_ns(), frame_seq, len);
                 if tx.send(frame).await.is_err() {
                     break;
                 }
-                sequence = sequence.saturating_add(1);
+                frame_seq = frame_seq.saturating_add(1);
             }
 
             info!("KartKraft telemetry monitoring stopped");
@@ -658,7 +659,7 @@ mod tests {
                 gear  in -1i8..=8i8,
             ) {
                 let data = make_test_packet(speed, rpm, steer, thr, brk, gear);
-                let t = parse_packet(&data).expect("valid packet must parse");
+                let t = parse_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
                 prop_assert!(t.speed_ms >= 0.0);
                 prop_assert!(t.rpm >= 0.0);
                 prop_assert!(t.steering_angle >= -1.0 && t.steering_angle <= 1.0);

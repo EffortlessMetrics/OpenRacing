@@ -5,6 +5,8 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+type TestResult = Result<(), Box<dyn std::error::Error>>;
+
 #[test]
 fn test_concurrent_plugin_registration() {
     let watchdog = Arc::new(WatchdogSystem::default());
@@ -22,7 +24,7 @@ fn test_concurrent_plugin_registration() {
     }
 
     for handle in handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "Thread should not panic");
     }
 
     // All plugins should be registered
@@ -49,7 +51,7 @@ fn test_concurrent_heartbeats() {
     }
 
     for handle in handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "Thread should not panic");
     }
 
     // All components should be healthy
@@ -60,7 +62,7 @@ fn test_concurrent_heartbeats() {
 }
 
 #[test]
-fn test_concurrent_execution_recording() {
+fn test_concurrent_execution_recording() -> TestResult {
     let watchdog = Arc::new(WatchdogSystem::default());
     let mut handles = vec![];
 
@@ -77,14 +79,17 @@ fn test_concurrent_execution_recording() {
     }
 
     for handle in handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "Thread should not panic");
     }
 
     // Should have recorded all executions
-    let stats = watchdog.get_plugin_stats("shared_plugin").unwrap();
+    let stats = watchdog
+        .get_plugin_stats("shared_plugin")
+        .ok_or("Expected plugin stats")?;
     assert_eq!(stats.total_executions, 400);
     // ~40 timeouts (10% from each thread)
     assert!(stats.timeout_count >= 35 && stats.timeout_count <= 45);
+    Ok(())
 }
 
 #[test]
@@ -116,7 +121,7 @@ fn test_concurrent_quarantine_release() {
     }
 
     for handle in handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "Thread should not panic");
     }
 
     // Only one thread should succeed
@@ -125,7 +130,7 @@ fn test_concurrent_quarantine_release() {
 }
 
 #[test]
-fn test_concurrent_health_checks() {
+fn test_concurrent_health_checks() -> TestResult {
     let watchdog = Arc::new(WatchdogSystem::default());
     let mut handles = vec![];
 
@@ -153,18 +158,19 @@ fn test_concurrent_health_checks() {
     }
 
     for handle in handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "Thread should not panic");
     }
 
     // Component should remain healthy
     let health = watchdog
         .get_component_health(SystemComponent::RtThread)
-        .unwrap();
+        .ok_or("Expected component health")?;
     assert_eq!(health.status, HealthStatus::Healthy);
+    Ok(())
 }
 
 #[test]
-fn test_concurrent_stats_access() {
+fn test_concurrent_stats_access() -> TestResult {
     let watchdog = Arc::new(WatchdogSystem::default());
 
     // Record initial stats
@@ -197,16 +203,19 @@ fn test_concurrent_stats_access() {
     }
 
     for handle in handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "Thread should not panic");
     }
 
     // Final count should be consistent
-    let stats = watchdog.get_plugin_stats("test_plugin").unwrap();
+    let stats = watchdog
+        .get_plugin_stats("test_plugin")
+        .ok_or("Expected plugin stats")?;
     assert_eq!(stats.total_executions, 210); // 10 initial + 200 from threads
+    Ok(())
 }
 
 #[test]
-fn test_concurrent_policy_toggle() {
+fn test_concurrent_policy_toggle() -> TestResult {
     let watchdog = Arc::new(WatchdogSystem::default());
     let mut handles = vec![];
 
@@ -235,13 +244,16 @@ fn test_concurrent_policy_toggle() {
     }
 
     for handle in handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "Thread should not panic");
     }
 
     // Stats should still be valid
-    let stats = watchdog.get_plugin_stats("test_plugin").unwrap();
+    let stats = watchdog
+        .get_plugin_stats("test_plugin")
+        .ok_or("Expected plugin stats")?;
     assert!(stats.total_executions > 0);
     assert!(stats.timeout_count > 0);
+    Ok(())
 }
 
 #[test]
@@ -264,7 +276,7 @@ fn test_stress_many_plugins() {
     }
 
     for handle in handles {
-        handle.join().unwrap();
+        assert!(handle.join().is_ok(), "Thread should not panic");
     }
 
     assert_eq!(watchdog.plugin_count(), 100);

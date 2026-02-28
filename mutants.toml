@@ -1,25 +1,50 @@
 ﻿# cargo-mutants configuration
 #
-# Two scopes:
-#   1. Moza protocol microcrates  - focused, fast (original scope)
-#   2. Safety-critical engine code - torque limits, fault detection, emergency stop
+# Three scopes:
+#   1. Safety-critical engine code - torque limits, fault detection, emergency stop
+#   2. FFB / filter / pipeline crates - force feedback calculations, torque filtering
+#   3. HID protocol encoding - all crates with encode functions (wrong encoding = wrong torque)
 #
 # Run all: cargo mutants
 # Run engine only: cargo mutants --package racing-wheel-engine --test-timeout 60
 
 [packages]
 include = [
+    # --- Safety-critical core ---
+    # Torque clamping, fault detection, emergency stop, safety interlocks
+    "racing-wheel-engine",
+    # Force feedback effect calculations
+    "openracing-ffb",
+    # Torque filter pipeline (damper, friction, inertia, slew-rate limiting)
+    "openracing-filters",
+    # Failure-mode and effects analysis, fault recovery
+    "openracing-fmea",
+    # RT pipeline compilation and execution
+    "openracing-pipeline",
+
+    # --- HID protocol encoding (wrong bytes = wrong torque on hardware) ---
     "racing-wheel-hid-moza-protocol",
+    "racing-wheel-hid-cammus-protocol",
+    "racing-wheel-hid-fanatec-protocol",
+    "racing-wheel-hid-ffbeast-protocol",
+    "racing-wheel-hid-logitech-protocol",
+    "racing-wheel-hid-openffboard-protocol",
+    "racing-wheel-hid-simagic-protocol",
+    "racing-wheel-hid-thrustmaster-protocol",
+    "racing-wheel-hid-vrs-protocol",
+    "racing-wheel-hid-leo-bodnar-protocol",
+
+    # --- Supporting crates ---
     "racing-wheel-ks",
     "racing-wheel-input-maps",
-    # Safety-critical engine: torque clamping, fault detection, emergency stop
-    "racing-wheel-engine",
 ]
 
 # Skip trivial and auto-generated code
 exclude_globs = [
     "crates/integration-tests/**",
     "crates/schemas/**",
+    "crates/telemetry-*/**",
+    "crates/service/**",
     "workspace-hack/**",
     "benches/**",
     "**/target/**",

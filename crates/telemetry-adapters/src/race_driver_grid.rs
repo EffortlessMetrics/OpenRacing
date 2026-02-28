@@ -3,7 +3,7 @@
 //! Enable UDP telemetry in-game: Options → Accessibility → UDP Telemetry, port 20777.
 //!
 //! The packet layout is the fixed-layout Codemasters Mode 1 legacy binary stream
-//! (252+ bytes, little-endian `f32` at known byte offsets), shared with DiRT Rally 2.0,
+//! (264 bytes, little-endian `f32` at known byte offsets), shared with DiRT Rally 2.0,
 //! GRID Autosport, GRID 2019, and the broader Codemasters series.
 
 use crate::{
@@ -23,7 +23,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 const DEFAULT_PORT: u16 = 20777;
-const MIN_PACKET_SIZE: usize = 252;
+const MIN_PACKET_SIZE: usize = 264;
 const MAX_PACKET_SIZE: usize = 2048;
 const DEFAULT_HEARTBEAT_TIMEOUT_MS: u64 = 1_500;
 
@@ -31,30 +31,30 @@ const ENV_PORT: &str = "OPENRACING_RACE_DRIVER_GRID_UDP_PORT";
 const ENV_HEARTBEAT_TIMEOUT_MS: &str = "OPENRACING_RACE_DRIVER_GRID_HEARTBEAT_TIMEOUT_MS";
 
 // Byte offsets for Codemasters Mode 1 packet fields (all f32, little-endian).
-const OFF_VEL_X: usize = 28;
-const OFF_VEL_Y: usize = 32;
-const OFF_VEL_Z: usize = 36;
-const OFF_WHEEL_SPEED_FL: usize = 92;
-const OFF_WHEEL_SPEED_FR: usize = 96;
+const OFF_VEL_X: usize = 32;
+const OFF_VEL_Y: usize = 36;
+const OFF_VEL_Z: usize = 40;
+const OFF_WHEEL_SPEED_FL: usize = 108;
+const OFF_WHEEL_SPEED_FR: usize = 112;
 const OFF_WHEEL_SPEED_RL: usize = 100;
 const OFF_WHEEL_SPEED_RR: usize = 104;
-const OFF_THROTTLE: usize = 108;
-const OFF_STEER: usize = 112;
-const OFF_BRAKE: usize = 116;
-const OFF_GEAR: usize = 124;
-const OFF_GFORCE_LAT: usize = 128;
-const OFF_GFORCE_LON: usize = 132;
-const OFF_CURRENT_LAP: usize = 136;
-const OFF_RPM: usize = 140;
-const OFF_CAR_POSITION: usize = 148;
-const OFF_FUEL_IN_TANK: usize = 172;
-const OFF_FUEL_CAPACITY: usize = 176;
-const OFF_IN_PIT: usize = 180;
-const OFF_BRAKES_TEMP_FL: usize = 196;
-const OFF_TYRES_PRESSURE_FL: usize = 212;
-const OFF_LAST_LAP_TIME: usize = 236;
-const OFF_MAX_RPM: usize = 240;
-const OFF_MAX_GEARS: usize = 248;
+const OFF_THROTTLE: usize = 116;
+const OFF_STEER: usize = 120;
+const OFF_BRAKE: usize = 124;
+const OFF_GEAR: usize = 132;
+const OFF_GFORCE_LAT: usize = 136;
+const OFF_GFORCE_LON: usize = 140;
+const OFF_CURRENT_LAP: usize = 144;
+const OFF_RPM: usize = 148;
+const OFF_CAR_POSITION: usize = 156;
+const OFF_FUEL_IN_TANK: usize = 180;
+const OFF_FUEL_CAPACITY: usize = 184;
+const OFF_IN_PIT: usize = 188;
+const OFF_BRAKES_TEMP_FL: usize = 212;
+const OFF_TYRES_PRESSURE_FL: usize = 228;
+const OFF_LAST_LAP_TIME: usize = 248;
+const OFF_MAX_RPM: usize = 252;
+const OFF_MAX_GEARS: usize = 260;
 
 /// Lateral G normalisation range for FFB scalar.
 const FFB_LAT_G_MAX: f32 = 3.0;
@@ -116,6 +116,7 @@ fn read_f32(data: &[u8], offset: usize) -> Option<f32> {
     data.get(offset..offset + 4)
         .and_then(|b| b.try_into().ok())
         .map(f32::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
@@ -167,7 +168,7 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
 
     let fuel_in_tank = read_f32(data, OFF_FUEL_IN_TANK).unwrap_or(0.0).max(0.0);
     let fuel_capacity = read_f32(data, OFF_FUEL_CAPACITY).unwrap_or(1.0).max(1.0);
-    let fuel_percent = (fuel_in_tank / fuel_capacity).clamp(0.0, 1.0) * 100.0;
+    let fuel_percent = (fuel_in_tank / fuel_capacity).clamp(0.0, 1.0);
 
     let in_pits = read_f32(data, OFF_IN_PIT)
         .map(|v| v >= 0.5)
@@ -268,7 +269,7 @@ impl TelemetryAdapter for RaceDriverGridAdapter {
 
             info!(port = bind_port, "Race Driver: GRID UDP adapter bound");
 
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
             let mut buf = vec![0u8; MAX_PACKET_SIZE];
             let timeout = (update_rate * 4).max(Duration::from_millis(25));
 
@@ -297,12 +298,12 @@ impl TelemetryAdapter for RaceDriverGridAdapter {
 
                 last_packet_ns.store(telemetry_now_ns(), Ordering::Relaxed);
 
-                let frame = TelemetryFrame::new(normalized, telemetry_now_ns(), sequence, len);
+                let frame = TelemetryFrame::new(normalized, telemetry_now_ns(), frame_seq, len);
                 if tx.send(frame).await.is_err() {
                     break;
                 }
 
-                sequence = sequence.saturating_add(1);
+                frame_seq = frame_seq.saturating_add(1);
             }
         });
 
@@ -364,5 +365,50 @@ mod tests {
     #[test]
     fn game_id_is_race_driver_grid() {
         assert_eq!(RaceDriverGridAdapter::new().game_id(), "race_driver_grid");
+    }
+
+    #[test]
+    fn known_values_parsed_correctly() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = RaceDriverGridAdapter::new();
+        let mut buf = make_packet(MIN_PACKET_SIZE);
+
+        buf[OFF_WHEEL_SPEED_FL..OFF_WHEEL_SPEED_FL + 4].copy_from_slice(&20.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_FR..OFF_WHEEL_SPEED_FR + 4].copy_from_slice(&20.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_RL..OFF_WHEEL_SPEED_RL + 4].copy_from_slice(&20.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_RR..OFF_WHEEL_SPEED_RR + 4].copy_from_slice(&20.0_f32.to_le_bytes());
+
+        buf[OFF_RPM..OFF_RPM + 4].copy_from_slice(&6000.0_f32.to_le_bytes());
+        buf[OFF_MAX_RPM..OFF_MAX_RPM + 4].copy_from_slice(&8500.0_f32.to_le_bytes());
+        buf[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&5.0_f32.to_le_bytes());
+        buf[OFF_THROTTLE..OFF_THROTTLE + 4].copy_from_slice(&0.8_f32.to_le_bytes());
+        buf[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&0.2_f32.to_le_bytes());
+        buf[OFF_STEER..OFF_STEER + 4].copy_from_slice(&0.4_f32.to_le_bytes());
+
+        let t = adapter.normalize(&buf)?;
+        assert_eq!(t.speed_ms, 20.0);
+        assert_eq!(t.rpm, 6000.0);
+        assert_eq!(t.gear, 5);
+        assert_eq!(t.throttle, 0.8);
+        assert_eq!(t.brake, 0.2);
+        assert_eq!(t.steering_angle, 0.4);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        #[test]
+        fn parse_no_panic_on_arbitrary(
+            data in proptest::collection::vec(any::<u8>(), 0..1024)
+        ) {
+            let adapter = RaceDriverGridAdapter::new();
+            let _ = adapter.normalize(&data);
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿//! Integration tests for newer game telemetry adapters added during the RC sprint.
+//! Integration tests for newer game telemetry adapters added during the RC sprint.
 //!
 //! Covers: ETS2/ATS, Wreckfest, Rennsport, WRC Generations, Dirt 4, Project CARS 2, LFS.
 //!
@@ -263,7 +263,7 @@ fn rennsport_ffb_scalar_clamped() -> TestResult {
 //   offset 140 rpm        offset 180 in_pit
 //   offset 240 max_rpm
 
-const WRC_GEN_MIN: usize = 252;
+const WRC_GEN_MIN: usize = 264;
 
 fn make_wrc_gen_packet() -> Vec<u8> {
     vec![0u8; WRC_GEN_MIN]
@@ -273,14 +273,14 @@ fn make_wrc_gen_packet() -> Vec<u8> {
 fn wrc_generations_happy_path_parses_fields() -> TestResult {
     let mut pkt = make_wrc_gen_packet();
     // wheel speeds → speed_ms = 25.0
-    write_f32_le(&mut pkt, 92, 25.0);
-    write_f32_le(&mut pkt, 96, 25.0);
+    write_f32_le(&mut pkt, 108, 25.0);
+    write_f32_le(&mut pkt, 112, 25.0);
     write_f32_le(&mut pkt, 100, 25.0);
     write_f32_le(&mut pkt, 104, 25.0);
-    write_f32_le(&mut pkt, 140, 5000.0); // rpm
-    write_f32_le(&mut pkt, 240, 8000.0); // max_rpm
-    write_f32_le(&mut pkt, 124, 3.0); // gear = 3rd
-    write_f32_le(&mut pkt, 108, 0.8); // throttle
+    write_f32_le(&mut pkt, 148, 5000.0); // rpm
+    write_f32_le(&mut pkt, 252, 8000.0); // max_rpm
+    write_f32_le(&mut pkt, 132, 3.0); // gear = 3rd
+    write_f32_le(&mut pkt, 116, 0.8); // throttle
 
     let t = WrcGenerationsAdapter::new().normalize(&pkt)?;
     assert!((t.speed_ms - 25.0).abs() < 0.01, "speed_ms={}", t.speed_ms);
@@ -314,7 +314,7 @@ fn wrc_generations_gear_zero_maps_to_reverse() -> TestResult {
 #[test]
 fn wrc_generations_in_pits_flag_set() -> TestResult {
     let mut pkt = make_wrc_gen_packet();
-    write_f32_le(&mut pkt, 180, 1.0); // in_pit = 1.0
+    write_f32_le(&mut pkt, 188, 1.0); // in_pit = 1.0
     let t = WrcGenerationsAdapter::new().normalize(&pkt)?;
     assert!(t.flags.in_pits, "in_pits must be true when in_pit=1.0");
     Ok(())
@@ -322,9 +322,9 @@ fn wrc_generations_in_pits_flag_set() -> TestResult {
 
 // ─── Dirt 4 ──────────────────────────────────────────────────────────────────
 //
-// UDP port 20777, Codemasters extradata v0 layout (≥252 bytes, identical offsets to WRC Generations).
+// UDP port 20777, Codemasters extradata v0 layout (≥264 bytes, identical offsets to WRC Generations).
 
-const DIRT4_MIN: usize = 252;
+const DIRT4_MIN: usize = 264;
 
 fn make_dirt4_packet() -> Vec<u8> {
     vec![0u8; DIRT4_MIN]
@@ -333,14 +333,14 @@ fn make_dirt4_packet() -> Vec<u8> {
 #[test]
 fn dirt4_happy_path_parses_fields() -> TestResult {
     let mut pkt = make_dirt4_packet();
-    write_f32_le(&mut pkt, 92, 20.0);
-    write_f32_le(&mut pkt, 96, 20.0);
-    write_f32_le(&mut pkt, 100, 20.0);
-    write_f32_le(&mut pkt, 104, 20.0);
-    write_f32_le(&mut pkt, 140, 4500.0); // rpm
-    write_f32_le(&mut pkt, 240, 7000.0); // max_rpm
-    write_f32_le(&mut pkt, 124, 2.0); // gear = 2nd
-    write_f32_le(&mut pkt, 108, 0.6); // throttle
+    write_f32_le(&mut pkt, 108, 20.0); // wheel speed FL
+    write_f32_le(&mut pkt, 112, 20.0); // wheel speed FR
+    write_f32_le(&mut pkt, 100, 20.0); // wheel speed RL
+    write_f32_le(&mut pkt, 104, 20.0); // wheel speed RR
+    write_f32_le(&mut pkt, 148, 4500.0); // rpm
+    write_f32_le(&mut pkt, 252, 7000.0); // max_rpm
+    write_f32_le(&mut pkt, 132, 2.0); // gear = 2nd
+    write_f32_le(&mut pkt, 116, 0.6); // throttle
 
     let t = Dirt4Adapter::new().normalize(&pkt)?;
     assert!((t.speed_ms - 20.0).abs() < 0.01, "speed_ms={}", t.speed_ms);
@@ -373,7 +373,7 @@ fn dirt4_gear_zero_maps_to_reverse() -> TestResult {
 #[test]
 fn dirt4_in_pits_flag_set() -> TestResult {
     let mut pkt = make_dirt4_packet();
-    write_f32_le(&mut pkt, 180, 1.0); // in_pit = 1.0
+    write_f32_le(&mut pkt, 188, 1.0); // in_pit = 1.0
     let t = Dirt4Adapter::new().normalize(&pkt)?;
     assert!(t.flags.in_pits, "in_pits must be true when in_pit=1.0");
     Ok(())
@@ -395,14 +395,15 @@ fn make_pcars2_packet(
     max_rpm: f32,
     gear: u32,
 ) -> Vec<u8> {
-    let mut data = vec![0u8; 84];
-    write_f32_le(&mut data, 40, steering);
-    write_f32_le(&mut data, 44, throttle);
-    write_f32_le(&mut data, 48, brake);
-    write_f32_le(&mut data, 52, speed);
-    write_f32_le(&mut data, 56, rpm);
-    write_f32_le(&mut data, 60, max_rpm);
-    write_u32_le(&mut data, 80, gear);
+    let mut data = vec![0u8; 46];
+    data[44] = (steering.clamp(-1.0, 1.0) * 127.0) as i8 as u8; // steering i8
+    data[30] = (throttle.clamp(0.0, 1.0) * 255.0) as u8; // throttle u8
+    data[29] = (brake.clamp(0.0, 1.0) * 255.0) as u8; // brake u8
+    write_f32_le(&mut data, 36, speed); // speed f32 m/s
+    data[40..42].copy_from_slice(&(rpm as u16).to_le_bytes()); // rpm u16
+    data[42..44].copy_from_slice(&(max_rpm as u16).to_le_bytes()); // max_rpm u16
+    let gear_val: u8 = if gear > 14 { 15 } else { gear as u8 };
+    data[45] = gear_val; // gear low nibble
     data
 }
 
@@ -413,7 +414,12 @@ fn pcars2_happy_path_parses_fields() -> TestResult {
     assert!((t.rpm - 7000.0).abs() < 1.0, "rpm={}", t.rpm);
     assert!((t.speed_ms - 45.0).abs() < 0.01, "speed_ms={}", t.speed_ms);
     assert_eq!(t.gear, 4, "gear={}", t.gear);
-    assert!((t.throttle - 0.9).abs() < 0.01, "throttle={}", t.throttle);
+    // u8 round-trip: (0.9 * 255) as u8 = 229, 229/255 ≈ 0.898
+    assert!(
+        (t.throttle - 229.0 / 255.0).abs() < 0.01,
+        "throttle={}",
+        t.throttle
+    );
     Ok(())
 }
 
@@ -790,8 +796,8 @@ mod proptest_tests {
 
         #[test]
         fn wrc_generations_short_packet_always_errors(
-            // MIN_PACKET_SIZE = 252
-            data in proptest::collection::vec(any::<u8>(), 0..252usize)
+            // MIN_PACKET_SIZE = 264
+            data in proptest::collection::vec(any::<u8>(), 0..264usize)
         ) {
             prop_assert!(WrcGenerationsAdapter::new().normalize(&data).is_err());
         }
@@ -809,8 +815,8 @@ mod proptest_tests {
 
         #[test]
         fn dirt4_short_packet_always_errors(
-            // MIN_PACKET_SIZE = 252
-            data in proptest::collection::vec(any::<u8>(), 0..252usize)
+            // MIN_PACKET_SIZE = 264
+            data in proptest::collection::vec(any::<u8>(), 0..264usize)
         ) {
             prop_assert!(Dirt4Adapter::new().normalize(&data).is_err());
         }
@@ -828,8 +834,8 @@ mod proptest_tests {
 
         #[test]
         fn pcars2_short_packet_always_errors(
-            // PCARS2_UDP_MIN_SIZE = 84
-            data in proptest::collection::vec(any::<u8>(), 0..84usize)
+            // PCARS2_UDP_MIN_SIZE = 46
+            data in proptest::collection::vec(any::<u8>(), 0..46usize)
         ) {
             prop_assert!(PCars2Adapter::new().normalize(&data).is_err());
         }
@@ -845,7 +851,8 @@ mod proptest_tests {
             gear    in 0u32..8u32,
         ) {
             let pkt = make_pcars2_packet(steering, throttle, brake, speed, rpm, max_rpm, gear);
-            let t = PCars2Adapter::new().normalize(&pkt).unwrap();
+            let result = PCars2Adapter::new().normalize(&pkt);
+            let t = result.map_err(|e| TestCaseError::fail(format!("normalize failed: {e:?}")))?;
             prop_assert!(t.speed_ms >= 0.0, "speed_ms {} must be non-negative", t.speed_ms);
         }
     }
@@ -877,7 +884,9 @@ mod proptest_tests {
             brake    in 0.0f32..1.0f32,
         ) {
             let pkt = make_lfs_packet(speed, rpm, gear, throttle, brake);
-            let t = LFSAdapter::new().normalize(&pkt).unwrap();
+            let result = LFSAdapter::new().normalize(&pkt);
+            prop_assert!(result.is_ok(), "expected normalize to succeed: {:?}", result.err());
+            let t = result.map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.throttle >= 0.0 && t.throttle <= 1.0,
                 "throttle {} must be in [0, 1]",

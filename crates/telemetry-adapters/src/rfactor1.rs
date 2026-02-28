@@ -263,6 +263,7 @@ fn read_f64_le(data: &[u8], offset: usize) -> Option<f64> {
     data.get(offset..offset + 8)
         .and_then(|b| b.try_into().ok())
         .map(f64::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 /// Read an f64 at `offset` only when the slice is long enough; returns `None` otherwise.
@@ -496,5 +497,23 @@ mod tests {
             result.steering_angle
         );
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        #[test]
+        fn parse_no_panic_on_arbitrary(
+            data in proptest::collection::vec(any::<u8>(), 0..1024)
+        ) {
+            let adapter = RFactor1Adapter::new();
+            let _ = adapter.normalize(&data);
+        }
     }
 }

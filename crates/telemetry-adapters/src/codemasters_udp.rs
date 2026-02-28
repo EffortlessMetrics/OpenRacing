@@ -117,7 +117,10 @@ impl CustomUdpSpec {
             let value = match field.field_type {
                 FieldType::U32 => Some((u32::from_le_bytes(bytes) as f32) * field.scale),
                 FieldType::I32 => Some((i32::from_le_bytes(bytes) as f32) * field.scale),
-                FieldType::F32 => Some(f32::from_le_bytes(bytes) * field.scale),
+                FieldType::F32 => {
+                    let v = f32::from_le_bytes(bytes) * field.scale;
+                    Some(if v.is_finite() { v } else { 0.0 })
+                }
                 FieldType::FourCC => {
                     let text = String::from_utf8_lossy(&bytes)
                         .trim_end_matches('\0')

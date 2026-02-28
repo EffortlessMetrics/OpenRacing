@@ -127,19 +127,19 @@ jobs:
         sudo apt-get install -y libudev-dev pkg-config
     
     - name: Cache cargo registry
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cargo/registry
         key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Cache cargo index
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cargo/git
         key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Cache cargo build
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
@@ -147,7 +147,7 @@ jobs:
     - name: Run trybuild compile-fail tests
       run: |
         echo "Running trybuild compile-fail tests..."
-        cargo test -p racing-wheel-schemas trybuild_tests --verbose
+        cargo test -p racing-wheel-schemas trybuild_tests --verbose --locked
     
     - name: Verify compile-fail tests are comprehensive
       run: |
@@ -193,7 +193,7 @@ jobs:
       run: npm install -g ajv-cli
     
     - name: Cache cargo registry
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cargo/registry
         key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
@@ -211,7 +211,7 @@ jobs:
     - name: Run JSON Schema round-trip tests
       run: |
         echo "Running JSON Schema validation tests..."
-        cargo test -p racing-wheel-schemas json_schema_validation --verbose
+        cargo test -p racing-wheel-schemas json_schema_validation --verbose --locked
     
     - name: Test schema required field validation
       run: |
@@ -324,19 +324,19 @@ jobs:
         tool: cargo-udeps
     
     - name: Cache cargo registry
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cargo/registry
         key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Cache cargo index
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cargo/git
         key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Cache cargo build
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
@@ -351,7 +351,7 @@ jobs:
         RUSTFLAGS: "-D warnings -D unused_must_use"
       run: |
         echo "Running clippy with strict lints for non-test code..."
-        cargo clippy --workspace --all-features --lib --bins -- \
+        cargo clippy --workspace --all-features --lib --bins --locked -- \
           -D warnings \
           -D clippy::unwrap_used \
           -D unused_must_use \
@@ -363,7 +363,7 @@ jobs:
         RUSTFLAGS: "-D warnings -D unused_must_use"
       run: |
         echo "Running clippy for tests with relaxed unwrap rules..."
-        cargo clippy --workspace --all-features --tests -- \
+        cargo clippy --workspace --all-features --tests --locked -- \
           -D warnings \
           -A clippy::unwrap_used \
           -A clippy::panic \
@@ -476,7 +476,7 @@ jobs:
         sudo apt-get install -y libudev-dev pkg-config
     
     - name: Cache cargo registry
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cargo/registry
         key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
@@ -486,14 +486,14 @@ jobs:
         RUSTFLAGS: "-D warnings -D unused_must_use"
       run: |
         echo "Verifying complete compilation with strict flags..."
-        cargo check --workspace --all-features --all-targets \
+        cargo check --workspace --all-features --all-targets --locked \
           --exclude racing-wheel-ui
         echo "✅ All crates compile successfully with strict warnings"
     
     - name: Run all schema-related tests
       run: |
         echo "Running all schema-related tests..."
-        cargo test -p racing-wheel-schemas --verbose
+        cargo test -p racing-wheel-schemas --verbose --locked
         echo "✅ All schema tests pass"
     
     - name: Generate regression prevention report

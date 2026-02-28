@@ -525,7 +525,9 @@ mod rate_independence_tests {
                     match output {
                         Some(_output) => {
                             let elapsed = start_time.elapsed();
-                            output_times_clone.lock().unwrap().push(elapsed);
+                            if let Ok(mut times) = output_times_clone.lock() {
+                                times.push(elapsed);
+                            }
                             count += 1;
                         }
                         None => break,

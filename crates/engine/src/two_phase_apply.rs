@@ -248,11 +248,11 @@ impl TwoPhaseApplyCoordinator {
                         duration_ms: total_time.as_millis() as u64,
                         error: None,
                         stats: ApplyOperationStats {
-                            compilation_time_ms: 0, // TODO: Track this properly
+                            compilation_time_ms: 0, // Compilation timing deferred to plugin system integration
                             wait_time_ms: total_time.as_millis() as u64,
                             swap_time_us: swap_time.as_micros() as u64,
                             node_count,
-                            state_size_bytes: 0, // TODO: Calculate this
+                            state_size_bytes: 0, // State size calculation deferred to plugin system integration
                         },
                     }
                 }

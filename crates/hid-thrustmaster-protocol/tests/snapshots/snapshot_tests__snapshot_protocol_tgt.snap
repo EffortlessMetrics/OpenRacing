@@ -1,6 +1,5 @@
 ---
 source: crates/hid-thrustmaster-protocol/tests/snapshot_tests.rs
-assertion_line: 111
 expression: "format!(\"model={:?}, max_torque={}, range={}, ffb={}\", proto.model(),\nproto.max_torque_nm(), proto.rotation_range(), proto.supports_ffb())"
 ---
-model=TGT, max_torque=6, range=1080, ffb=true
+model=TSXW, max_torque=6, range=1080, ffb=true

@@ -96,8 +96,12 @@ fn prop_streaming_stats_min_max(samples: Vec<u64>) -> bool {
     }
 
     let mut stats = StreamingStats::new();
-    let expected_min = *samples.iter().min().unwrap();
-    let expected_max = *samples.iter().max().unwrap();
+    let Some(&expected_min) = samples.iter().min() else {
+        return true;
+    };
+    let Some(&expected_max) = samples.iter().max() else {
+        return true;
+    };
 
     for &s in &samples {
         stats.record(s);

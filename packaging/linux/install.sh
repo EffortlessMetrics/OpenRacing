@@ -131,19 +131,24 @@ install_udev_rules() {
     log_info "Installing udev rules..."
     
     local udev_rules_file="/etc/udev/rules.d/99-racing-wheel-suite.rules"
+    local modprobe_conf="/etc/modprobe.d/90-racing-wheel-quirks.conf"
     
     if [ "$EUID" -eq 0 ]; then
         # Running as root
         cp packaging/linux/99-racing-wheel-suite.rules "$udev_rules_file"
+        cp packaging/linux/90-racing-wheel-quirks.conf "$modprobe_conf"
         udevadm control --reload-rules
         udevadm trigger
         log_info "udev rules installed system-wide"
+        log_info "HID quirks (modprobe.d) installed — reboot or reload usbhid for Asetek wheels"
     else
         # Not running as root - provide instructions
         log_warn "Not running as root. udev rules need to be installed manually:"
         log_warn "sudo cp packaging/linux/99-racing-wheel-suite.rules $udev_rules_file"
+        log_warn "sudo cp packaging/linux/90-racing-wheel-quirks.conf $modprobe_conf"
         log_warn "sudo udevadm control --reload-rules"
         log_warn "sudo udevadm trigger"
+        log_warn "Reboot (or reload usbhid) for Asetek wheel quirks to take effect"
     fi
 }
 
@@ -195,10 +200,12 @@ print_post_install_instructions() {
     echo "1. Add $INSTALL_PREFIX/bin to your PATH if not already done"
     echo "2. Install udev rules (if not done automatically):"
     echo "   sudo cp packaging/linux/99-racing-wheel-suite.rules /etc/udev/rules.d/"
+    echo "   sudo cp packaging/linux/90-racing-wheel-quirks.conf /etc/modprobe.d/"
     echo "   sudo udevadm control --reload-rules && sudo udevadm trigger"
     echo "3. Add your user to required groups:"
     echo "   sudo usermod -a -G input,plugdev $USER"
     echo "4. Log out and back in for group changes to take effect"
+    echo "   (Reboot if using Asetek wheels — the modprobe.d conf needs a reload)"
     echo "5. Start the service:"
     echo "   systemctl --user start racing-wheel-suite.service"
     echo "6. Launch the UI:"

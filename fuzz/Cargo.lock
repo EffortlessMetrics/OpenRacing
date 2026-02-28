@@ -501,6 +501,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "console"
+version = "0.15.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "054ccb5b10f9f2cbf51eb355ca1d05c2d279ce1804688d0db74b4733a5aeafd8"
+dependencies = [
+ "encode_unicode",
+ "libc",
+ "once_cell",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -589,6 +601,15 @@ checksum = "d8d80a2f4f5b554395e47b5d8305bc3d27813bacb73493eb1001e8f76dae29ea"
 dependencies = [
  "cast",
  "itertools 0.13.0",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.5.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82b8f8f868b36967f9606790d1903570de9ceaf870a7bf9fbbd3016d636a2cb2"
+dependencies = [
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -867,6 +888,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "encode_unicode"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
+
+[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1004,6 +1031,21 @@ checksum = "df420e2e84819663797d1ec6544b13c5be84629e7bb00dc960d6917db2987843"
 dependencies = [
  "mac",
  "new_debug_unreachable",
+]
+
+[[package]]
+name = "futures"
+version = "0.3.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b147ee9d1f6d097cef9ce628cd2ee62288d963e16fb287bd9286455b241382d"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
 ]
 
 [[package]]
@@ -1231,6 +1273,25 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tracing",
+ "workspace-hack",
+]
+
+[[package]]
+name = "hid-button-box-protocol"
+version = "0.1.0"
+dependencies = [
+ "openracing-hid-common",
+ "serde",
+ "thiserror 2.0.18",
+ "tracing",
+ "workspace-hack",
+]
+
+[[package]]
+name = "hid-cube-controls-protocol"
+version = "0.1.0"
+dependencies = [
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1241,6 +1302,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1251,6 +1313,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1567,6 +1630,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a588916bfdfd92e71cacef98a63d9b1f0d74d6599980d11894290e7ddefffcf7"
 dependencies = [
  "cfb",
+]
+
+[[package]]
+name = "insta"
+version = "1.46.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e82db8c87c7f1ccecb34ce0c24399b8a73081427f3c7c50a5d597925356115e4"
+dependencies = [
+ "console",
+ "once_cell",
+ "serde",
+ "similar",
+ "tempfile",
 ]
 
 [[package]]
@@ -2019,6 +2095,7 @@ name = "openracing-errors"
 version = "0.1.0"
 dependencies = [
  "thiserror 2.0.18",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -2026,11 +2103,20 @@ name = "openracing-fuzz"
 version = "0.0.0"
 dependencies = [
  "hid-asetek-protocol",
+ "hid-button-box-protocol",
+ "hid-cube-controls-protocol",
  "hid-heusinkveld-protocol",
  "hid-simucube-protocol",
  "libfuzzer-sys",
  "racing-wheel-hbp",
+ "racing-wheel-hid-accuforce-protocol",
+ "racing-wheel-hid-cammus-protocol",
+ "racing-wheel-hid-fanatec-protocol",
+ "racing-wheel-hid-ffbeast-protocol",
+ "racing-wheel-hid-leo-bodnar-protocol",
+ "racing-wheel-hid-logitech-protocol",
  "racing-wheel-hid-moza-protocol",
+ "racing-wheel-hid-openffboard-protocol",
  "racing-wheel-hid-simagic-protocol",
  "racing-wheel-hid-thrustmaster-protocol",
  "racing-wheel-hid-vrs-protocol",
@@ -2052,6 +2138,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -2588,6 +2675,53 @@ checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 [[package]]
 name = "racing-wheel-hbp"
 version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-hid-accuforce-protocol"
+version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-hid-cammus-protocol"
+version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-hid-fanatec-protocol"
+version = "0.1.0"
+dependencies = [
+ "tracing",
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-hid-ffbeast-protocol"
+version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-hid-leo-bodnar-protocol"
+version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-hid-logitech-protocol"
+version = "0.1.0"
+dependencies = [
+ "tracing",
+ "workspace-hack",
+]
 
 [[package]]
 name = "racing-wheel-hid-moza-protocol"
@@ -2598,6 +2732,14 @@ dependencies = [
  "racing-wheel-moza-wheelbase-report",
  "racing-wheel-srp",
  "tracing",
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-hid-openffboard-protocol"
+version = "0.1.0"
+dependencies = [
+ "workspace-hack",
 ]
 
 [[package]]
@@ -2605,6 +2747,7 @@ name = "racing-wheel-hid-simagic-protocol"
 version = "0.1.0"
 dependencies = [
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -2612,6 +2755,7 @@ name = "racing-wheel-hid-thrustmaster-protocol"
 version = "0.1.0"
 dependencies = [
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -2619,15 +2763,22 @@ name = "racing-wheel-hid-vrs-protocol"
 version = "0.1.0"
 dependencies = [
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
 name = "racing-wheel-ks"
 version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
 
 [[package]]
 name = "racing-wheel-moza-wheelbase-report"
 version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
 
 [[package]]
 name = "racing-wheel-schemas"
@@ -2656,11 +2807,15 @@ version = "0.1.0"
 dependencies = [
  "thiserror 2.0.18",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
 name = "racing-wheel-srp"
 version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
 
 [[package]]
 name = "racing-wheel-telemetry-adapters"
@@ -2676,6 +2831,7 @@ dependencies = [
  "tokio",
  "tracing",
  "winapi",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -2688,6 +2844,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tokio",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -3389,6 +3546,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
 
 [[package]]
+name = "similar"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
+
+[[package]]
 name = "siphasher"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3576,7 +3739,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82a72c767771b47409d2345987fda8628641887d5466101319899796367354a0"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.1",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -4377,6 +4540,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
+name = "windows"
+version = "0.62.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "527fadee13e0c05939a6a05d5bd6eec6cd2e3dbd648b9f8e447c6518133d8580"
+dependencies = [
+ "windows-collections",
+ "windows-core",
+ "windows-future",
+ "windows-numerics",
+]
+
+[[package]]
+name = "windows-collections"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23b2d95af1a8a14a3c7367e1ed4fc9c20e0a26e79551b1454d72583c97cc6610"
+dependencies = [
+ "windows-core",
+]
+
+[[package]]
 name = "windows-core"
 version = "0.62.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4387,6 +4571,17 @@ dependencies = [
  "windows-link",
  "windows-result",
  "windows-strings",
+]
+
+[[package]]
+name = "windows-future"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1d6f90251fe18a279739e78025bd6ddc52a7e22f921070ccdc67dde84c605cb"
+dependencies = [
+ "windows-core",
+ "windows-link",
+ "windows-threading",
 ]
 
 [[package]]
@@ -4416,6 +4611,16 @@ name = "windows-link"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
+
+[[package]]
+name = "windows-numerics"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e2e40844ac143cdb44aead537bbf727de9b044e107a0f1220392177d15b0f26"
+dependencies = [
+ "windows-core",
+ "windows-link",
+]
 
 [[package]]
 name = "windows-result"
@@ -4550,6 +4755,15 @@ dependencies = [
  "windows_x86_64_gnu 0.53.1",
  "windows_x86_64_gnullvm 0.53.1",
  "windows_x86_64_msvc 0.53.1",
+]
+
+[[package]]
+name = "windows-threading"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3949bd5b99cafdf1c7ca86b43ca564028dfe27d66958f2470940f73d86d75b37"
+dependencies = [
+ "windows-link",
 ]
 
 [[package]]
@@ -4836,12 +5050,15 @@ dependencies = [
  "bit-vec",
  "bitflags 2.11.0",
  "bumpalo",
+ "byteorder",
  "bytes",
  "cc",
  "clap",
  "clap_builder",
  "cranelift-bitset",
+ "crc32fast",
  "criterion",
+ "crossbeam-channel",
  "crossbeam-deque",
  "crossbeam-utils",
  "digest",
@@ -4849,9 +5066,12 @@ dependencies = [
  "ed25519-dalek",
  "flate2",
  "form_urlencoded",
+ "futures",
  "futures-channel",
+ "futures-core",
  "futures-executor",
  "futures-io",
+ "futures-sink",
  "futures-task",
  "futures-util",
  "getrandom 0.2.17",
@@ -4862,8 +5082,10 @@ dependencies = [
  "hyper",
  "hyper-rustls",
  "hyper-util",
+ "iana-time-zone",
  "idna",
  "indexmap 2.13.0",
+ "insta",
  "libc",
  "log",
  "memchr",
@@ -4893,8 +5115,10 @@ dependencies = [
  "serde_json",
  "sha2",
  "simd-adler32",
+ "slab",
  "smallvec",
  "stable_deref_trait",
+ "subtle",
  "syn 2.0.117",
  "sync_wrapper",
  "tauri-utils",
@@ -4910,6 +5134,7 @@ dependencies = [
  "uuid",
  "wasmparser 0.243.0",
  "winapi",
+ "windows",
  "windows-core",
  "windows-sys 0.48.0",
  "windows-sys 0.59.0",

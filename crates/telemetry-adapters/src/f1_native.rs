@@ -209,7 +209,12 @@ impl F1NativeAdapter {
                 let status = match header.packet_format {
                     PACKET_FORMAT_2023 => parse_car_status_2023(raw, player)?,
                     PACKET_FORMAT_2024 => parse_car_status_2024(raw, player)?,
-                    _ => unreachable!("packet_format already validated above"),
+                    other => {
+                        return Err(anyhow!(
+                            "F1 native: unsupported packet format {} for CarStatus",
+                            other
+                        ));
+                    }
                 };
                 state.latest_status = Some(status);
                 Ok(Self::maybe_emit(state))
@@ -261,7 +266,7 @@ impl TelemetryAdapter for F1NativeAdapter {
             );
 
             let mut state = F1NativeState::default();
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
             let mut buf = vec![0u8; MAX_PACKET_BYTES];
             let timeout = update_rate * 4;
 
@@ -284,11 +289,11 @@ impl TelemetryAdapter for F1NativeAdapter {
                 match Self::process_packet(&mut state, &buf[..len]) {
                     Ok(Some(normalized)) => {
                         let ts = telemetry_now_ns();
-                        let frame = TelemetryFrame::new(normalized, ts, sequence, len);
+                        let frame = TelemetryFrame::new(normalized, ts, frame_seq, len);
                         if tx.send(frame).await.is_err() {
                             break;
                         }
-                        sequence = sequence.saturating_add(1);
+                        frame_seq = frame_seq.saturating_add(1);
                     }
                     Ok(None) => {}
                     Err(err) => {
@@ -338,7 +343,12 @@ impl TelemetryAdapter for F1NativeAdapter {
                     PACKET_FORMAT_2024 => {
                         let _ = parse_car_status_2024(raw, player)?;
                     }
-                    _ => unreachable!(),
+                    other => {
+                        return Err(anyhow!(
+                            "F1 native normalize(): unsupported packet format {} for CarStatus",
+                            other
+                        ));
+                    }
                 }
                 Err(anyhow!(
                     "F1 native normalize() received CarStatus (ID 7) without preceding \
@@ -1137,7 +1147,7 @@ mod tests {
             "should emit after both telem and status"
         );
 
-        let norm = normalized.unwrap();
+        let norm = normalized.ok_or("should emit after both telem and status")?;
         let expected_speed = 180.0 / 3.6;
         assert!(
             (norm.speed_ms - expected_speed).abs() < 0.01,
@@ -1176,7 +1186,7 @@ mod tests {
             "should emit after both telem and status"
         );
 
-        let norm = normalized.unwrap();
+        let norm = normalized.ok_or("should emit after both telem and status")?;
         assert!(
             (norm.speed_ms - 300.0 / 3.6).abs() < 0.01,
             "speed_ms mismatch"
@@ -1379,5 +1389,23 @@ mod tests {
             Some(&TelemetryValue::Float(0.0))
         );
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        #[test]
+        fn parse_no_panic_on_arbitrary(
+            data in proptest::collection::vec(any::<u8>(), 0..1024)
+        ) {
+            let adapter = F1NativeAdapter::new();
+            let _ = adapter.normalize(&data);
+        }
     }
 }

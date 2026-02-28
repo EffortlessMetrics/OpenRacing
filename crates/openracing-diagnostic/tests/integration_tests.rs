@@ -2,8 +2,6 @@
 //!
 //! Tests the complete lifecycle of recording, replay, and support bundle generation.
 
-#![allow(clippy::unwrap_used)]
-
 use openracing_diagnostic::{
     BlackboxConfig, BlackboxRecorder, BlackboxReplay, FrameData, HealthEventData, ReplayConfig,
     SafetyStateSimple, SupportBundle, SupportBundleConfig, TelemetryData,
@@ -54,8 +52,8 @@ fn create_test_health_event(i: usize) -> HealthEventData {
 }
 
 #[test]
-fn test_complete_recording_workflow() {
-    let temp_dir = TempDir::new().unwrap();
+fn test_complete_recording_workflow() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
     let config = BlackboxConfig {
         enable_stream_a: true,
         enable_stream_b: true,
@@ -64,42 +62,41 @@ fn test_complete_recording_workflow() {
         ..BlackboxConfig::new("test-device", temp_dir.path())
     };
 
-    let mut recorder = BlackboxRecorder::new(config).unwrap();
+    let mut recorder = BlackboxRecorder::new(config)?;
 
     // Record frames
     for i in 0..100 {
         let frame = create_test_frame(i);
-        recorder
-            .record_frame(frame, &[0.1, 0.2, 0.3], SafetyStateSimple::SafeTorque, 100)
-            .unwrap();
+        recorder.record_frame(frame, &[0.1, 0.2, 0.3], SafetyStateSimple::SafeTorque, 100)?;
     }
 
     // Record telemetry
     for i in 0..60 {
         let telemetry = create_test_telemetry(i);
-        recorder.record_telemetry(telemetry).unwrap();
+        recorder.record_telemetry(telemetry)?;
     }
 
     // Record health events
     for i in 0..10 {
         let event = create_test_health_event(i);
-        recorder.record_health_event(event).unwrap();
+        recorder.record_health_event(event)?;
     }
 
     let stats = recorder.get_stats();
     assert_eq!(stats.frames_recorded, 100);
 
-    let output_path = recorder.finalize().unwrap();
+    let output_path = recorder.finalize()?;
     assert!(output_path.exists());
-    assert!(output_path.extension().unwrap() == "wbb");
+    assert!(output_path.extension().ok_or("no extension")? == "wbb");
 
-    let metadata = fs::metadata(&output_path).unwrap();
+    let metadata = fs::metadata(&output_path)?;
     assert!(metadata.len() > 0);
+    Ok(())
 }
 
 #[test]
-fn test_recording_and_replay_consistency() {
-    let temp_dir = TempDir::new().unwrap();
+fn test_recording_and_replay_consistency() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
     let config = BlackboxConfig {
         enable_stream_a: true,
         enable_stream_b: false,
@@ -108,18 +105,16 @@ fn test_recording_and_replay_consistency() {
         ..BlackboxConfig::new("test-device", temp_dir.path())
     };
 
-    let mut recorder = BlackboxRecorder::new(config).unwrap();
+    let mut recorder = BlackboxRecorder::new(config)?;
 
     let mut recorded_frames = Vec::new();
     for i in 0..50 {
         let frame = create_test_frame(i);
         recorded_frames.push(frame.clone());
-        recorder
-            .record_frame(frame, &[0.1, 0.2], SafetyStateSimple::SafeTorque, 100)
-            .unwrap();
+        recorder.record_frame(frame, &[0.1, 0.2], SafetyStateSimple::SafeTorque, 100)?;
     }
 
-    let output_path = recorder.finalize().unwrap();
+    let output_path = recorder.finalize()?;
 
     let replay_config = ReplayConfig {
         deterministic_seed: 12345,
@@ -128,27 +123,26 @@ fn test_recording_and_replay_consistency() {
         ..Default::default()
     };
 
-    let mut replay = BlackboxReplay::load_from_file(&output_path, replay_config).unwrap();
-    let result = replay.execute_replay().unwrap();
+    let mut replay = BlackboxReplay::load_from_file(&output_path, replay_config)?;
+    let result = replay.execute_replay()?;
 
     assert_eq!(result.frames_replayed, 50);
     assert!(result.success);
+    Ok(())
 }
 
 #[test]
-fn test_deterministic_replay() {
-    let temp_dir = TempDir::new().unwrap();
+fn test_deterministic_replay() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
     let config = BlackboxConfig::new("test-device", temp_dir.path());
-    let mut recorder = BlackboxRecorder::new(config).unwrap();
+    let mut recorder = BlackboxRecorder::new(config)?;
 
     for i in 0..30 {
         let frame = create_test_frame(i);
-        recorder
-            .record_frame(frame, &[0.1], SafetyStateSimple::SafeTorque, 100)
-            .unwrap();
+        recorder.record_frame(frame, &[0.1], SafetyStateSimple::SafeTorque, 100)?;
     }
 
-    let output_path = recorder.finalize().unwrap();
+    let output_path = recorder.finalize()?;
 
     let replay_config = ReplayConfig {
         deterministic_seed: 42,
@@ -157,50 +151,49 @@ fn test_deterministic_replay() {
     };
 
     // First replay
-    let mut replay1 = BlackboxReplay::load_from_file(&output_path, replay_config.clone()).unwrap();
-    let result1 = replay1.execute_replay().unwrap();
+    let mut replay1 = BlackboxReplay::load_from_file(&output_path, replay_config.clone())?;
+    let result1 = replay1.execute_replay()?;
 
     // Second replay
-    let mut replay2 = BlackboxReplay::load_from_file(&output_path, replay_config).unwrap();
-    let result2 = replay2.execute_replay().unwrap();
+    let mut replay2 = BlackboxReplay::load_from_file(&output_path, replay_config)?;
+    let result2 = replay2.execute_replay()?;
 
     // Results should be identical
     assert_eq!(result1.frames_replayed, result2.frames_replayed);
     assert_eq!(result1.frames_matched, result2.frames_matched);
     assert_eq!(result1.max_deviation, result2.max_deviation);
+    Ok(())
 }
 
 #[test]
-fn test_support_bundle_generation() {
-    let temp_dir = TempDir::new().unwrap();
+fn test_support_bundle_generation() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
 
     // Create test directories
     let log_dir = temp_dir.path().join("logs");
     let profile_dir = temp_dir.path().join("profiles");
     let recording_dir = temp_dir.path().join("recordings");
 
-    fs::create_dir_all(&log_dir).unwrap();
-    fs::create_dir_all(&profile_dir).unwrap();
-    fs::create_dir_all(&recording_dir).unwrap();
+    fs::create_dir_all(&log_dir)?;
+    fs::create_dir_all(&profile_dir)?;
+    fs::create_dir_all(&recording_dir)?;
 
     // Create test log files
-    fs::write(log_dir.join("app.log"), "Test log content\n").unwrap();
-    fs::write(log_dir.join("error.log"), "Error log content\n").unwrap();
+    fs::write(log_dir.join("app.log"), "Test log content\n")?;
+    fs::write(log_dir.join("error.log"), "Error log content\n")?;
 
     // Create test profile files
-    fs::write(profile_dir.join("global.json"), r#"{"gain": 0.8}"#).unwrap();
+    fs::write(profile_dir.join("global.json"), r#"{"gain": 0.8}"#)?;
 
     // Create test recording
     let blackbox_config = BlackboxConfig::new("test-device", &recording_dir);
-    let mut recorder = BlackboxRecorder::new(blackbox_config).unwrap();
+    let mut recorder = BlackboxRecorder::new(blackbox_config)?;
 
     for i in 0..20 {
         let frame = create_test_frame(i);
-        recorder
-            .record_frame(frame, &[], SafetyStateSimple::SafeTorque, 100)
-            .unwrap();
+        recorder.record_frame(frame, &[], SafetyStateSimple::SafeTorque, 100)?;
     }
-    recorder.finalize().unwrap();
+    recorder.finalize()?;
 
     // Create support bundle
     let bundle_config = SupportBundleConfig {
@@ -215,34 +208,35 @@ fn test_support_bundle_generation() {
 
     // Add health events
     let events: Vec<_> = (0..5).map(create_test_health_event).collect();
-    bundle.add_health_events(&events).unwrap();
+    bundle.add_health_events(&events)?;
 
     // Add system info
-    bundle.add_system_info().unwrap();
+    bundle.add_system_info()?;
 
     // Add log files
-    bundle.add_log_files(&log_dir).unwrap();
+    bundle.add_log_files(&log_dir)?;
 
     // Add profile files
-    bundle.add_profile_files(&profile_dir).unwrap();
+    bundle.add_profile_files(&profile_dir)?;
 
     // Add recordings
-    bundle.add_recent_recordings(&recording_dir).unwrap();
+    bundle.add_recent_recordings(&recording_dir)?;
 
     // Generate bundle
     let bundle_path = temp_dir.path().join("support_bundle.zip");
-    bundle.generate(&bundle_path).unwrap();
+    bundle.generate(&bundle_path)?;
 
     assert!(bundle_path.exists());
 
-    let metadata = fs::metadata(&bundle_path).unwrap();
+    let metadata = fs::metadata(&bundle_path)?;
     assert!(metadata.len() > 0);
     assert!(metadata.len() < 10 * 1024 * 1024);
+    Ok(())
 }
 
 #[test]
-fn test_compression_effectiveness() {
-    let temp_dir = TempDir::new().unwrap();
+fn test_compression_effectiveness() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
 
     // Test with compression
     let config_compressed = BlackboxConfig {
@@ -250,8 +244,8 @@ fn test_compression_effectiveness() {
         ..BlackboxConfig::new("test-device", temp_dir.path().join("compressed"))
     };
 
-    fs::create_dir_all(temp_dir.path().join("compressed")).unwrap();
-    let mut recorder_compressed = BlackboxRecorder::new(config_compressed).unwrap();
+    fs::create_dir_all(temp_dir.path().join("compressed"))?;
+    let mut recorder_compressed = BlackboxRecorder::new(config_compressed)?;
 
     // Test without compression
     let config_uncompressed = BlackboxConfig {
@@ -259,47 +253,49 @@ fn test_compression_effectiveness() {
         ..BlackboxConfig::new("test-device", temp_dir.path().join("uncompressed"))
     };
 
-    fs::create_dir_all(temp_dir.path().join("uncompressed")).unwrap();
-    let mut recorder_uncompressed = BlackboxRecorder::new(config_uncompressed).unwrap();
+    fs::create_dir_all(temp_dir.path().join("uncompressed"))?;
+    let mut recorder_uncompressed = BlackboxRecorder::new(config_uncompressed)?;
 
     // Record identical data
     for i in 0..200 {
         let frame = create_test_frame(i);
         let node_outputs = vec![0.1, 0.2, 0.3];
 
-        recorder_compressed
-            .record_frame(
-                frame.clone(),
-                &node_outputs,
-                SafetyStateSimple::SafeTorque,
-                100,
-            )
-            .unwrap();
-        recorder_uncompressed
-            .record_frame(frame, &node_outputs, SafetyStateSimple::SafeTorque, 100)
-            .unwrap();
+        recorder_compressed.record_frame(
+            frame.clone(),
+            &node_outputs,
+            SafetyStateSimple::SafeTorque,
+            100,
+        )?;
+        recorder_uncompressed.record_frame(
+            frame,
+            &node_outputs,
+            SafetyStateSimple::SafeTorque,
+            100,
+        )?;
     }
 
-    let compressed_path = recorder_compressed.finalize().unwrap();
-    let uncompressed_path = recorder_uncompressed.finalize().unwrap();
+    let compressed_path = recorder_compressed.finalize()?;
+    let uncompressed_path = recorder_uncompressed.finalize()?;
 
-    let compressed_size = fs::metadata(&compressed_path).unwrap().len();
-    let uncompressed_size = fs::metadata(&uncompressed_path).unwrap().len();
+    let compressed_size = fs::metadata(&compressed_path)?.len();
+    let uncompressed_size = fs::metadata(&uncompressed_path)?.len();
 
     // Compressed should be smaller
     assert!(compressed_size < uncompressed_size);
+    Ok(())
 }
 
 #[test]
-fn test_size_limits() {
-    let temp_dir = TempDir::new().unwrap();
+fn test_size_limits() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
     let config = BlackboxConfig {
         max_file_size_bytes: 1024, // Very small limit
         max_duration_s: 1,         // Also limit duration
         ..BlackboxConfig::new("test-device", temp_dir.path())
     };
 
-    let mut recorder = BlackboxRecorder::new(config).unwrap();
+    let mut recorder = BlackboxRecorder::new(config)?;
 
     // Record frames - duration limit should trigger before size in this case
     for i in 0..100 {
@@ -309,25 +305,24 @@ fn test_size_limits() {
 
     // Finalize should work even with size limits configured
     let _ = recorder.finalize();
+    Ok(())
 }
 
 #[test]
-fn test_format_validation() {
-    let temp_dir = TempDir::new().unwrap();
+fn test_format_validation() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
     let config = BlackboxConfig::new("test-device", temp_dir.path());
-    let mut recorder = BlackboxRecorder::new(config).unwrap();
+    let mut recorder = BlackboxRecorder::new(config)?;
 
     for i in 0..20 {
         let frame = create_test_frame(i);
-        recorder
-            .record_frame(frame, &[], SafetyStateSimple::SafeTorque, 100)
-            .unwrap();
+        recorder.record_frame(frame, &[], SafetyStateSimple::SafeTorque, 100)?;
     }
 
-    let output_path = recorder.finalize().unwrap();
+    let output_path = recorder.finalize()?;
 
     let replay_config = ReplayConfig::default();
-    let replay = BlackboxReplay::load_from_file(&output_path, replay_config).unwrap();
+    let replay = BlackboxReplay::load_from_file(&output_path, replay_config)?;
 
     // Verify header
     assert_eq!(replay.header().magic, *b"WBB1");
@@ -337,22 +332,24 @@ fn test_format_validation() {
     // Verify footer
     assert_eq!(replay.footer().footer_magic, *b"1BBW");
     assert!(replay.footer().total_frames > 0);
+    Ok(())
 }
 
 #[test]
-fn test_empty_recording() {
-    let temp_dir = TempDir::new().unwrap();
+fn test_empty_recording() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
     let config = BlackboxConfig::new("test-device", temp_dir.path());
 
-    let recorder = BlackboxRecorder::new(config).unwrap();
-    let output_path = recorder.finalize().unwrap();
+    let recorder = BlackboxRecorder::new(config)?;
+    let output_path = recorder.finalize()?;
 
     assert!(output_path.exists());
 
     let replay_config = ReplayConfig::default();
-    let mut replay = BlackboxReplay::load_from_file(&output_path, replay_config).unwrap();
-    let result = replay.execute_replay().unwrap();
+    let mut replay = BlackboxReplay::load_from_file(&output_path, replay_config)?;
+    let result = replay.execute_replay()?;
 
     assert_eq!(result.frames_replayed, 0);
     assert!(result.success);
+    Ok(())
 }

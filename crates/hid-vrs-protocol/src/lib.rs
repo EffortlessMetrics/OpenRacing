@@ -8,10 +8,12 @@
 
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(static_mut_refs)]
+#![deny(clippy::unwrap_used)]
 
 pub mod ids;
 pub mod input;
 pub mod output;
+pub mod quirks;
 pub mod types;
 
 pub use ids::{VRS_PRODUCT_ID, VRS_VENDOR_ID, product_ids};

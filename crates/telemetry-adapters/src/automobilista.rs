@@ -205,6 +205,7 @@ fn read_f32(data: &[u8], offset: usize) -> Option<f32> {
     data.get(offset..offset + 4)
         .and_then(|b| b.try_into().ok())
         .map(f32::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 /// Read a little-endian `f64` from `data` at `offset`.
@@ -212,6 +213,7 @@ fn read_f64(data: &[u8], offset: usize) -> Option<f64> {
     data.get(offset..offset + 8)
         .and_then(|b| b.try_into().ok())
         .map(f64::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 /// Read a little-endian `i32` from `data` at `offset`.
@@ -260,7 +262,7 @@ pub(crate) fn parse_snapshot(data: &[u8]) -> Result<NormalizedTelemetry> {
     let fuel_capacity_raw = data.get(OFF_FUEL_CAPACITY).copied().unwrap_or(0);
     let fuel_in_tank = read_f32(data, OFF_FUEL).unwrap_or(0.0).max(0.0);
     let fuel_percent = if fuel_capacity_raw > 0 {
-        (fuel_in_tank / f32::from(fuel_capacity_raw)).clamp(0.0, 1.0) * 100.0
+        (fuel_in_tank / f32::from(fuel_capacity_raw)).clamp(0.0, 1.0)
     } else {
         0.0
     };
@@ -344,7 +346,7 @@ impl TelemetryAdapter for Automobilista1Adapter {
             let mut adapter = Self::new();
             tokio::spawn(async move {
                 let mut connected = false;
-                let mut sequence = 0u64;
+                let mut frame_seq = 0u64;
 
                 loop {
                     if !connected {
@@ -363,13 +365,13 @@ impl TelemetryAdapter for Automobilista1Adapter {
                                 let frame = TelemetryFrame::new(
                                     normalized,
                                     telemetry_now_ns(),
-                                    sequence,
+                                    frame_seq,
                                     snapshot.len(),
                                 );
                                 if tx.send(frame).await.is_err() {
                                     break;
                                 }
-                                sequence = sequence.saturating_add(1);
+                                frame_seq = frame_seq.saturating_add(1);
                             }
                             Err(error) => {
                                 warn!(error = %error, "Failed to parse Automobilista 1 snapshot");
@@ -512,5 +514,23 @@ mod tests {
     #[test]
     fn game_id_is_automobilista() {
         assert_eq!(Automobilista1Adapter::new().game_id(), "automobilista");
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        #[test]
+        fn parse_no_panic_on_arbitrary(
+            data in proptest::collection::vec(any::<u8>(), 0..1024)
+        ) {
+            let adapter = Automobilista1Adapter::new();
+            let _ = adapter.normalize(&data);
+        }
     }
 }

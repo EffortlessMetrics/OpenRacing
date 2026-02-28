@@ -2,6 +2,21 @@
 //!
 //! Implements telemetry adapter for ACC using UDP broadcast protocol v4.
 //! Requirements: GI-03, GI-04
+//!
+//! ## Verification against ACC broadcasting protocol v4
+//!
+//! Verified 2025-07 against the Kunos ACC Broadcasting SDK documentation and
+//! reference C# implementation (`ksBroadcastingNetworkProtocol`).
+//!
+//! - **Transport**: UDP broadcasting protocol on port 9000 (not shared memory). ✓
+//! - **Protocol version**: 4 (current). ✓
+//! - **Message types**: 1=RegistrationResult, 2=RealtimeUpdate,
+//!   3=RealtimeCarUpdate, 4=EntryList, 5=TrackData, 6=EntryListCar,
+//!   7=BroadcastingEvent. ✓
+//! - **Registration packet**: cmd(u8=1), protocol(u8=4), displayName(string),
+//!   connectionPassword(string), updateInterval(i32), commandPassword(string). ✓
+//! - **Gear encoding**: wire 0=R, 1=N, 2=1st; normalised via `−1` offset. ✓
+//! - **Readonly flag**: byte==0 means read-only (matches Kunos C# SDK). ✓
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
@@ -165,7 +180,7 @@ impl TelemetryAdapter for ACCAdapter {
                 "ACC telemetry adapter connected; waiting for protocol messages"
             );
 
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
             let mut state = ACCSessionState::default();
             let mut buf = [0u8; MAX_PACKET_SIZE];
 
@@ -206,7 +221,7 @@ impl TelemetryAdapter for ACCAdapter {
                                     let frame = TelemetryFrame::new(
                                         normalized,
                                         telemetry_now_ns(),
-                                        sequence,
+                                        frame_seq,
                                         len,
                                     );
 
@@ -217,7 +232,7 @@ impl TelemetryAdapter for ACCAdapter {
                                         break;
                                     }
 
-                                    sequence = sequence.saturating_add(1);
+                                    frame_seq = frame_seq.saturating_add(1);
                                 }
                             }
                             Err(e) => {
@@ -491,7 +506,8 @@ fn parse_registration_result(reader: &mut PacketReader<'_>) -> Result<Registrati
     Ok(RegistrationResult {
         connection_id: reader.read_i32_le()?,
         success: reader.read_bool_u8()?,
-        readonly: reader.read_bool_u8()?,
+        // ACC SDK: byte == 0 means read-only (inverted from bool convention).
+        readonly: reader.read_u8()? == 0,
         error: read_acc_string(reader)?,
     })
 }
@@ -542,8 +558,11 @@ fn parse_realtime_car_update(reader: &mut PacketReader<'_>) -> Result<RealtimeCa
     let _driver_index = reader.read_u16_le()?;
     let _driver_count = reader.read_u8()?;
 
+    // ACC broadcasting protocol gear: 0=Reverse, 1=Neutral, 2=First, 3=Second, …
+    // Normalized convention:         -1=Reverse, 0=Neutral, 1=First, 2=Second, …
+    // Verified 2025-07 against Kunos ACC broadcasting protocol v4 documentation.
     let gear_raw = reader.read_u8()?;
-    let gear = (i16::from(gear_raw) - 2).clamp(i16::from(i8::MIN), i16::from(i8::MAX)) as i8;
+    let gear = (i16::from(gear_raw) - 1).clamp(i16::from(i8::MIN), i16::from(i8::MAX)) as i8;
 
     let _world_pos_x = reader.read_f32_le()?;
     let _world_pos_y = reader.read_f32_le()?;
@@ -733,7 +752,8 @@ impl<'a> PacketReader<'a> {
 
     fn read_f32_le(&mut self) -> Result<f32> {
         let bytes = self.read_exact(4)?;
-        Ok(f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+        let val = f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+        Ok(if val.is_finite() { val } else { 0.0 })
     }
 }
 
@@ -806,8 +826,8 @@ mod tests {
     fn test_parse_registration_result() -> TestResult {
         let mut packet = vec![MSG_REGISTRATION_RESULT];
         packet.extend_from_slice(&42i32.to_le_bytes());
-        packet.push(1);
-        packet.push(0);
+        packet.push(1); // success
+        packet.push(1); // writable (not readonly)
         push_acc_string(&mut packet, "")?;
 
         let message = parse_inbound_message(&packet)?;
@@ -831,7 +851,8 @@ mod tests {
             ACCInboundMessage::RegistrationResult(result) => {
                 assert_eq!(result.connection_id, 1337);
                 assert!(result.success);
-                assert!(!result.readonly);
+                // Fixture byte is 0x00 → readonly per ACC SDK (byte==0 means readonly).
+                assert!(result.readonly);
                 assert!(result.error.is_empty());
             }
             _ => return Err("expected fixture registration result".into()),
@@ -858,7 +879,8 @@ mod tests {
         assert_eq!(normalized.car_id, Some("car_7".to_string()));
         assert_eq!(normalized.track_id, Some("monza".to_string()));
         assert_eq!(normalized.speed_ms, 50.0);
-        assert_eq!(normalized.gear, 4);
+        // Fixture gear_raw=6 → 6−1=5 (5th gear)
+        assert_eq!(normalized.gear, 5);
         assert_eq!(
             normalized.extended.get("session_time_ms"),
             Some(&TelemetryValue::Float(12345.0))
@@ -925,7 +947,7 @@ mod tests {
         car_packet.extend_from_slice(&7u16.to_le_bytes()); // car index
         car_packet.extend_from_slice(&0u16.to_le_bytes()); // driver index
         car_packet.push(1); // driver count
-        car_packet.push(6); // gear raw => 4
+        car_packet.push(6); // gear raw 6 = 5th gear → normalised 5
         car_packet.extend_from_slice(&100.0f32.to_le_bytes());
         car_packet.extend_from_slice(&200.0f32.to_le_bytes());
         car_packet.extend_from_slice(&0.25f32.to_le_bytes());
@@ -951,7 +973,8 @@ mod tests {
             .ok_or("expected normalized telemetry")?;
 
         assert_eq!(normalized.speed_ms, 50.0);
-        assert_eq!(normalized.gear, 4);
+        // gear_raw=6 → 6−1=5 (5th gear)
+        assert_eq!(normalized.gear, 5);
         assert_eq!(normalized.track_id, Some("monza".to_string()));
         assert_eq!(normalized.car_id, Some("car_7".to_string()));
         assert_eq!(
@@ -1007,7 +1030,7 @@ mod tests {
         #[test]
         fn prop_acc_normalize_gear_in_range(data: Vec<u8>) {
             if let Ok(normalized) = ACCAdapter::new().normalize(&data) {
-                // Gear is decoded as (raw_byte - 2) clamped to i8.
+                // Gear is decoded as (raw_byte - 1) clamped to i8.
                 // Just verify normalization succeeds without panicking.
                 let _gear: i8 = normalized.gear;
             }

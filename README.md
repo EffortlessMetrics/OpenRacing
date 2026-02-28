@@ -7,7 +7,7 @@
 [![Platform: Windows](https://img.shields.io/badge/platform-Windows%2010%2B-blue.svg)](https://www.microsoft.com/windows)
 [![Platform: Linux](https://img.shields.io/badge/platform-Linux%20Kernel%204.0%2B-blue.svg)](https://www.kernel.org)
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos)
-[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-nightly-orange.svg)](https://www.rust-lang.org)
 
 OpenRacing is a high-performance, safety-critical racing wheel and force feedback simulation software built in Rust. Designed for sim-racing enthusiasts and professionals, it delivers real-time force feedback processing at 1kHz with deterministic latency and comprehensive safety interlocks.
 
@@ -30,11 +30,11 @@ OpenRacing is a high-performance, safety-critical racing wheel and force feedbac
 | **Fanatec** | `0x0EB7` | CSL DD, GT DD Pro, Podium DD1/DD2, CSW v2.5 | ✅ Custom HID |
 | **Thrustmaster** | `0x044F` | T150/Pro, TMX, T300RS/GT, TX, T500RS, T248/X, T-GT/II, TS-PC, TS-XW, T818 | ✅ HID PIDFF |
 | **Moza Racing** | `0x346E` | R3, R5 V1/V2, R9 V1/V2, R12 V1/V2, R16, R21 | ✅ Serial/HID PIDFF |
-| **Simagic** | `0x2D5C` / legacy | Alpha, Alpha Mini/EVO, M10, Neo/Mini, pedals | ✅ HID PIDFF |
-| **Simucube 2** | `0x2D6A` | Sport (15 Nm), Pro (25 Nm), Ultimate (35 Nm) | ✅ HID PIDFF |
+| **Simagic** | `0x3670` / `0x0483` | Alpha, Alpha Mini/EVO, M10, Neo/Mini, pedals | ✅ HID PIDFF |
+| **Simucube 2** | `0x16D0` | Sport (17 Nm), Pro (25 Nm), Ultimate (32 Nm) | ✅ HID PIDFF |
 | **VRS DirectForce Pro** | `0x0483` | DirectForce Pro V1/V2 (20/25 Nm) | ✅ HID PIDFF |
 | **Heusinkveld** | `0x16D0` | Sprint, Ultimate+, Pro pedals | Input only |
-| **Asetek SimSports** | `0x2E5A` | Forte (20 Nm), Invicta (15 Nm), LaPrima (10 Nm) | ✅ HID PIDFF |
+| **Asetek SimSports** | `0x2433` | Forte (18 Nm), Invicta (27 Nm), La Prima (12 Nm) | ✅ HID PIDFF |
 | **OpenFFBoard** | `0x1209` | All production firmware variants | ✅ HID PIDFF |
 | **FFBeast** | `0x045B` | Joystick, rudder, wheel builds | ✅ HID PIDFF |
 | **Granite Devices IONI/ARGON** | `0x1D50` | IONI / Simucube 1 (15 Nm), IONI Premium (35 Nm), ARGON (10 Nm) | ✅ SimpleMotion V2 |
@@ -61,7 +61,7 @@ OpenRacing is a high-performance, safety-critical racing wheel and force feedbac
 
 ### Prerequisites
 
-- **Rust 1.89 or later** - Install from [rustup.rs](https://rustup.rs/)
+- **Rust nightly** - Install from [rustup.rs](https://rustup.rs/) (see `rust-toolchain.toml`)
 - **Cargo** - Included with Rust installation
 - **Platform-specific requirements**:
   - **Windows**: Windows 10 or later, Visual C++ Redistributable

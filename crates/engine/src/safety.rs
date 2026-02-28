@@ -155,7 +155,6 @@ impl SafetyService {
     }
 
     /// Get the current maximum allowed torque as TorqueNm
-    #[allow(clippy::expect_used)]
     pub fn get_max_torque(&self, is_high_torque_enabled: bool) -> TorqueNm {
         let torque_nm = match &self.state {
             SafetyState::Faulted { .. } => 0.0,
@@ -164,7 +163,8 @@ impl SafetyService {
             }
             _ => self.max_safe_torque_nm,
         };
-        TorqueNm::new(torque_nm).expect("torque_nm should be valid")
+        // Safety-critical: fall back to zero torque (safe state) on invalid value
+        TorqueNm::new(torque_nm).unwrap_or(TorqueNm::ZERO)
     }
 
     /// Clamp requested output torque against the current safety state.
@@ -660,6 +660,8 @@ pub mod watchdog {
 pub mod comprehensive_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod property_tests;
 
 pub use fault_injection::{FaultInjectionScenario, FaultInjectionSystem, TriggerCondition};
 pub use hardware_watchdog::{

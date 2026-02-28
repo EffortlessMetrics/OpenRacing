@@ -304,7 +304,7 @@ impl TelemetryAdapter for F1Adapter {
 
             info!(port = bind_port, "F1 UDP adapter bound");
 
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
             let mut buf = vec![0u8; MAX_PACKET_SIZE.max(expected_bytes.max(1))];
             let mut timeout = update_rate * 4;
             if timeout == Duration::ZERO {
@@ -340,12 +340,12 @@ impl TelemetryAdapter for F1Adapter {
                 last_packet_ns.store(telemetry_now_ns(), Ordering::Relaxed);
 
                 let normalized = F1Adapter::normalize_decoded(&decoded);
-                let frame = TelemetryFrame::new(normalized, telemetry_now_ns(), sequence, len);
+                let frame = TelemetryFrame::new(normalized, telemetry_now_ns(), frame_seq, len);
                 if tx.send(frame).await.is_err() {
                     break;
                 }
 
-                sequence = sequence.saturating_add(1);
+                frame_seq = frame_seq.saturating_add(1);
             }
         });
 
@@ -458,5 +458,28 @@ mod tests {
 
         let result = adapter.normalize(&raw);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_game_id_is_f1() {
+        assert_eq!(F1Adapter::new().game_id(), "f1");
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        #[test]
+        fn parse_no_panic_on_arbitrary(
+            data in proptest::collection::vec(any::<u8>(), 0..1024)
+        ) {
+            let adapter = F1Adapter::new();
+            let _ = adapter.normalize(&data);
+        }
     }
 }

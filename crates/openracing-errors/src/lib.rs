@@ -55,4 +55,20 @@ pub use validation::ValidationError;
 pub type Result<T> = std::result::Result<T, OpenRacingError>;
 
 /// A specialized `Result` type for real-time operations.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_errors::{RTResult, RTError};
+///
+/// fn check_timing(jitter_us: u32) -> RTResult {
+///     if jitter_us > 250 {
+///         return Err(RTError::TimingViolation);
+///     }
+///     Ok(())
+/// }
+///
+/// assert!(check_timing(100).is_ok());
+/// assert!(check_timing(300).is_err());
+/// ```
 pub type RTResult<T = ()> = std::result::Result<T, RTError>;

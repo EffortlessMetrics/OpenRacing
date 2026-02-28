@@ -545,22 +545,20 @@ async fn test_unsupported_game_handling() {
     // Test unsupported game returns error
     let result = service.get_game_support("unsupported_game").await;
     assert!(result.is_err());
+    let err = result.err();
+    assert!(err.is_some());
     assert!(
-        result
-            .err()
-            .unwrap()
-            .to_string()
-            .contains("Unsupported game")
+        err.as_ref()
+            .is_some_and(|e| e.to_string().contains("Unsupported game"))
     );
 
     let mapping_result = service.get_telemetry_mapping("unsupported_game").await;
     assert!(mapping_result.is_err());
+    let err = mapping_result.err();
+    assert!(err.is_some());
     assert!(
-        mapping_result
-            .err()
-            .unwrap()
-            .to_string()
-            .contains("Unsupported game")
+        err.as_ref()
+            .is_some_and(|e| e.to_string().contains("Unsupported game"))
     );
 
     let config_result = service
@@ -577,12 +575,11 @@ async fn test_unsupported_game_handling() {
         )
         .await;
     assert!(config_result.is_err());
+    let err = config_result.err();
+    assert!(err.is_some());
     assert!(
-        config_result
-            .err()
-            .unwrap()
-            .to_string()
-            .contains("No config writer for game")
+        err.as_ref()
+            .is_some_and(|e| { e.to_string().contains("No config writer for game") })
     );
 }
 

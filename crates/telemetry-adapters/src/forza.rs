@@ -1,14 +1,18 @@
 //! Forza Motorsport / Forza Horizon telemetry adapter using UDP.
 //!
-//! Supports two packet formats defined by Forza's "Data Out" feature:
+//! Supports three packet formats defined by Forza's "Data Out" feature:
 //!
 //! - **Sled** (232 bytes): FM7 and earlier. Contains physics data (velocity,
 //!   wheel speeds, suspension travel, G-forces, tire slip). No user-input
 //!   fields (throttle/brake/steer are absent in this format).
-//! - **CarDash** (311 bytes): FM8, FH5, FH4+. Sled data plus dashboard
+//! - **CarDash** (311 bytes): FM8, FH5. Sled data plus dashboard
 //!   fields: speed, throttle, brake, clutch, gear, steer, lap times, fuel.
+//! - **FH4 CarDash** (324 bytes): Forza Horizon 4. Same as CarDash but with a
+//!   12-byte HorizonPlaceholder inserted after the Sled section, shifting all
+//!   dashboard field offsets by +12.
 //!
-//! Both formats use little-endian encoding. Wheel telemetry (rotation speeds
+//! All formats use little-endian encoding. Tire temperatures are in Fahrenheit
+//! and are converted to Celsius. Wheel telemetry (rotation speeds
 //! and suspension travel) is stored in the `extended` map of
 //! [`NormalizedTelemetry`] using keys `wheel_speed_fl/fr/rl/rr` and
 //! `suspension_travel_fl/fr/rl/rr`.
@@ -34,6 +38,9 @@ const DEFAULT_FORZA_PORT: u16 = 5300;
 const FORZA_SLED_SIZE: usize = 232;
 /// CarDash packet: Sled (232) + 17×f32 + u16 + 9×u8/i8 = 311 bytes.
 const FORZA_CARDASH_SIZE: usize = 311;
+/// FH4 CarDash: same as CarDash but with a 12-byte HorizonPlaceholder
+/// inserted after NumCylinders (byte 232), shifting all dash offsets by +12.
+const FORZA_FH4_CARDASH_SIZE: usize = 324;
 const MAX_PACKET_SIZE: usize = 512;
 
 // ── Sled format byte offsets ─────────────────────────────────────────────────
@@ -69,10 +76,10 @@ const OFF_SUSP_TRAVEL_RR: usize = 208; // f32
 
 // ── CarDash extension offsets (bytes 232+) ───────────────────────────────────
 const OFF_DASH_SPEED: usize = 244; // f32 m/s
-const OFF_DASH_TIRE_TEMP_FL: usize = 256; // f32 Kelvin
-const OFF_DASH_TIRE_TEMP_FR: usize = 260; // f32 Kelvin
-const OFF_DASH_TIRE_TEMP_RL: usize = 264; // f32 Kelvin
-const OFF_DASH_TIRE_TEMP_RR: usize = 268; // f32 Kelvin
+const OFF_DASH_TIRE_TEMP_FL: usize = 256; // f32 Fahrenheit
+const OFF_DASH_TIRE_TEMP_FR: usize = 260; // f32 Fahrenheit
+const OFF_DASH_TIRE_TEMP_RL: usize = 264; // f32 Fahrenheit
+const OFF_DASH_TIRE_TEMP_RR: usize = 268; // f32 Fahrenheit
 const OFF_DASH_FUEL: usize = 276; // f32 (0-1)
 const OFF_DASH_BEST_LAP: usize = 284; // f32 seconds
 const OFF_DASH_LAST_LAP: usize = 288; // f32 seconds
@@ -100,6 +107,8 @@ const FORZA_PROCESS_NAMES: &[&str] = &[
 enum ForzaPacketFormat {
     Sled,
     CarDash,
+    /// FH4 variant: 12-byte HorizonPlaceholder shifts all dash offsets by +12.
+    Fh4CarDash,
     Unknown,
 }
 
@@ -107,6 +116,7 @@ fn detect_format(len: usize) -> ForzaPacketFormat {
     match len {
         FORZA_SLED_SIZE => ForzaPacketFormat::Sled,
         FORZA_CARDASH_SIZE => ForzaPacketFormat::CarDash,
+        FORZA_FH4_CARDASH_SIZE => ForzaPacketFormat::Fh4CarDash,
         _ => ForzaPacketFormat::Unknown,
     }
 }
@@ -188,9 +198,23 @@ fn parse_forza_sled(data: &[u8]) -> Result<NormalizedTelemetry> {
 
 /// CarDash format: Sled physics data plus dashboard / user-input fields.
 fn parse_forza_cardash(data: &[u8]) -> Result<NormalizedTelemetry> {
-    if data.len() < FORZA_CARDASH_SIZE {
+    parse_forza_cardash_with_offset(data, 0)
+}
+
+fn parse_forza_fh4_cardash(data: &[u8]) -> Result<NormalizedTelemetry> {
+    parse_forza_cardash_with_offset(data, 12)
+}
+
+/// Parse a CarDash packet. `horizon_offset` is 0 for FM7/FM8/FH5 (311 bytes)
+/// or 12 for FH4 (324 bytes, 12-byte HorizonPlaceholder after Sled section).
+fn parse_forza_cardash_with_offset(
+    data: &[u8],
+    horizon_offset: usize,
+) -> Result<NormalizedTelemetry> {
+    let expected = FORZA_CARDASH_SIZE + horizon_offset;
+    if data.len() < expected {
         return Err(anyhow!(
-            "Forza CarDash packet too short: expected {FORZA_CARDASH_SIZE}, got {}",
+            "Forza CarDash packet too short: expected {expected}, got {}",
             data.len()
         ));
     }
@@ -203,38 +227,41 @@ fn parse_forza_cardash(data: &[u8]) -> Result<NormalizedTelemetry> {
     // Start with the common Sled fields
     let sled = parse_sled_common(data);
 
+    // All CarDash offsets shift by horizon_offset for FH4
+    let ho = horizon_offset;
+
     // CarDash extension: direct speed measurement (more accurate than velocity)
-    let speed_mps = read_f32_le(data, OFF_DASH_SPEED).unwrap_or(sled.speed_ms);
+    let speed_mps = read_f32_le(data, OFF_DASH_SPEED + ho).unwrap_or(sled.speed_ms);
 
     // User inputs (u8 0-255 → f32 0.0-1.0)
     let throttle = data
-        .get(OFF_DASH_ACCEL)
+        .get(OFF_DASH_ACCEL + ho)
         .map(|&b| b as f32 / 255.0)
         .unwrap_or(0.0);
     let brake = data
-        .get(OFF_DASH_BRAKE)
+        .get(OFF_DASH_BRAKE + ho)
         .map(|&b| b as f32 / 255.0)
         .unwrap_or(0.0);
     let clutch = data
-        .get(OFF_DASH_CLUTCH)
+        .get(OFF_DASH_CLUTCH + ho)
         .map(|&b| b as f32 / 255.0)
         .unwrap_or(0.0);
 
     // Gear: 0=Reverse → -1, 1=Neutral → 0, 2..=9 = 1st..=8th
-    let gear: i8 = match data.get(OFF_DASH_GEAR).copied().unwrap_or(1) {
+    let gear: i8 = match data.get(OFF_DASH_GEAR + ho).copied().unwrap_or(1) {
         0 => -1,
         1 => 0,
         g => (g - 1) as i8,
     };
 
     // Steer: i8 −127 to 127 → −1.0 to 1.0
-    let steer_raw = data.get(OFF_DASH_STEER).map(|&b| b as i8).unwrap_or(0);
+    let steer_raw = data.get(OFF_DASH_STEER + ho).map(|&b| b as i8).unwrap_or(0);
     let steer = (steer_raw as f32 / 127.0).clamp(-1.0, 1.0);
 
-    // Tire temperatures: Kelvin → Celsius, clamped to u8
+    // Tire temperatures: Fahrenheit → Celsius, clamped to u8
     let temp = |off: usize| -> u8 {
-        let kelvin = read_f32_le(data, off).unwrap_or(293.15);
-        let celsius = (kelvin - 273.15).clamp(0.0, 255.0);
+        let fahrenheit = read_f32_le(data, off + ho).unwrap_or(68.0);
+        let celsius = ((fahrenheit - 32.0) * 5.0 / 9.0).clamp(0.0, 255.0);
         celsius as u8
     };
     let tire_temps = [
@@ -244,16 +271,16 @@ fn parse_forza_cardash(data: &[u8]) -> Result<NormalizedTelemetry> {
         temp(OFF_DASH_TIRE_TEMP_RR),
     ];
 
-    let fuel = read_f32_le(data, OFF_DASH_FUEL).unwrap_or(0.0);
-    let best_lap = read_f32_le(data, OFF_DASH_BEST_LAP).unwrap_or(0.0);
-    let last_lap = read_f32_le(data, OFF_DASH_LAST_LAP).unwrap_or(0.0);
-    let cur_lap = read_f32_le(data, OFF_DASH_CUR_LAP).unwrap_or(0.0);
+    let fuel = read_f32_le(data, OFF_DASH_FUEL + ho).unwrap_or(0.0);
+    let best_lap = read_f32_le(data, OFF_DASH_BEST_LAP + ho).unwrap_or(0.0);
+    let last_lap = read_f32_le(data, OFF_DASH_LAST_LAP + ho).unwrap_or(0.0);
+    let cur_lap = read_f32_le(data, OFF_DASH_CUR_LAP + ho).unwrap_or(0.0);
     let lap_number = data
-        .get(OFF_DASH_LAP_NUMBER..OFF_DASH_LAP_NUMBER + 2)
+        .get(OFF_DASH_LAP_NUMBER + ho..OFF_DASH_LAP_NUMBER + ho + 2)
         .and_then(|b| b.try_into().ok())
         .map(u16::from_le_bytes)
         .unwrap_or(0);
-    let race_pos = data.get(OFF_DASH_RACE_POS).copied().unwrap_or(0);
+    let race_pos = data.get(OFF_DASH_RACE_POS + ho).copied().unwrap_or(0);
 
     // Overlay CarDash fields onto the Sled base, preserving extended map entries.
     let mut telemetry = NormalizedTelemetry::builder()
@@ -292,19 +319,22 @@ pub(crate) fn parse_forza_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     match detect_format(data.len()) {
         ForzaPacketFormat::Sled => parse_forza_sled(data),
         ForzaPacketFormat::CarDash => parse_forza_cardash(data),
+        ForzaPacketFormat::Fh4CarDash => parse_forza_fh4_cardash(data),
         ForzaPacketFormat::Unknown => Err(anyhow!(
-            "Unknown Forza packet length: {}. Expected {} (Sled) or {} (CarDash)",
+            "Unknown Forza packet length: {}. Expected {} (Sled), {} (CarDash), or {} (FH4 CarDash)",
             data.len(),
             FORZA_SLED_SIZE,
             FORZA_CARDASH_SIZE,
+            FORZA_FH4_CARDASH_SIZE,
         )),
     }
 }
 
 /// Forza Motorsport / Forza Horizon telemetry adapter.
 ///
-/// Listens for UDP packets on the configured port and decodes both the
-/// 232-byte Sled and 311-byte CarDash formats automatically.
+/// Listens for UDP packets on the configured port and decodes the
+/// 232-byte Sled, 311-byte CarDash, and 324-byte FH4 CarDash formats
+/// automatically.
 pub struct ForzaAdapter {
     bind_port: u16,
     update_rate: Duration,
@@ -444,6 +474,7 @@ fn read_f32_le(data: &[u8], offset: usize) -> Option<f32> {
     data.get(offset..offset + 4)
         .and_then(|b| b.try_into().ok())
         .map(f32::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 fn read_i32_le(data: &[u8], offset: usize) -> Option<i32> {
@@ -508,6 +539,10 @@ mod tests {
             detect_format(FORZA_CARDASH_SIZE),
             ForzaPacketFormat::CarDash
         );
+        assert_eq!(
+            detect_format(FORZA_FH4_CARDASH_SIZE),
+            ForzaPacketFormat::Fh4CarDash
+        );
         assert_eq!(detect_format(100), ForzaPacketFormat::Unknown);
     }
 
@@ -535,6 +570,32 @@ mod tests {
         data[..FORZA_SLED_SIZE].copy_from_slice(&sled);
         let result = parse_forza_cardash(&data)?;
         assert!((result.rpm - 4000.0).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_fh4_cardash_valid() -> TestResult {
+        let mut data = vec![0u8; FORZA_FH4_CARDASH_SIZE];
+        let sled = make_sled_packet(1, 6000.0, (25.0, 0.0, 0.0));
+        data[..FORZA_SLED_SIZE].copy_from_slice(&sled);
+        // Write throttle at FH4-shifted offset (303 + 12 = 315)
+        data[OFF_DASH_ACCEL + 12] = 200;
+        // Write gear at FH4-shifted offset (307 + 12 = 319)
+        data[OFF_DASH_GEAR + 12] = 4; // 4 → gear 3
+        let result = parse_forza_fh4_cardash(&data)?;
+        assert!((result.rpm - 6000.0).abs() < 0.01);
+        assert!((result.throttle - 200.0 / 255.0).abs() < 0.01);
+        assert_eq!(result.gear, 3);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_fh4_via_dispatch() -> TestResult {
+        let mut data = vec![0u8; FORZA_FH4_CARDASH_SIZE];
+        let sled = make_sled_packet(1, 3500.0, (10.0, 0.0, 0.0));
+        data[..FORZA_SLED_SIZE].copy_from_slice(&sled);
+        let result = parse_forza_packet(&data)?;
+        assert!((result.rpm - 3500.0).abs() < 0.01);
         Ok(())
     }
 

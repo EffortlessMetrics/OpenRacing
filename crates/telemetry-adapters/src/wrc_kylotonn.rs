@@ -96,6 +96,7 @@ fn read_f32_le(data: &[u8], offset: usize) -> Option<f32> {
     data.get(offset..offset + 4)
         .and_then(|b| b.try_into().ok())
         .map(f32::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 fn read_u32_le(data: &[u8], offset: usize) -> Option<u32> {
@@ -391,7 +392,7 @@ mod tests {
         if let Some(TelemetryValue::Float(frac)) = t.extended.get("rpm_fraction") {
             assert!((*frac - 0.5).abs() < 0.001, "rpm_fraction={frac}");
         } else {
-            panic!("rpm_fraction not found");
+            return Err("rpm_fraction not found".into());
         }
         Ok(())
     }

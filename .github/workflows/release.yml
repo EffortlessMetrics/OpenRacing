@@ -127,8 +127,8 @@ jobs:
 
       - name: Build release binaries
         run: |
-          cargo build --release --target ${{ matrix.target }} -p wheelctl
-          cargo build --release --target ${{ matrix.target }} -p racing-wheel-service
+          cargo build --release --target ${{ matrix.target }} -p wheelctl --locked
+          cargo build --release --target ${{ matrix.target }} -p racing-wheel-service --locked
 
       - name: Build Linux packages
         run: |
@@ -177,8 +177,8 @@ jobs:
 
       - name: Build release binaries
         run: |
-          cargo build --release --target ${{ matrix.target }} -p wheelctl
-          cargo build --release --target ${{ matrix.target }} -p racing-wheel-service
+          cargo build --release --target ${{ matrix.target }} -p wheelctl --locked
+          cargo build --release --target ${{ matrix.target }} -p racing-wheel-service --locked
 
       - name: Build portable ZIP
         shell: pwsh

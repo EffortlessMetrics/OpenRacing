@@ -16,6 +16,26 @@ use crate::common::ErrorSeverity;
 /// - `Copy` semantics ensure no heap allocations
 /// - Fixed `#[repr(u8)]` representation
 /// - Pre-defined error codes for fast classification
+///
+/// # Examples
+///
+/// ```
+/// use openracing_errors::{RTError, ErrorSeverity};
+///
+/// let err = RTError::TimingViolation;
+///
+/// // RT errors have numeric codes for efficient logging
+/// assert_eq!(err.code(), 4);
+///
+/// // Check severity for escalation decisions
+/// assert_eq!(err.severity(), ErrorSeverity::Warning);
+///
+/// // Check if immediate safety action is needed
+/// assert!(!err.requires_safety_action());
+///
+/// // Recoverable errors can be retried
+/// assert!(err.is_recoverable());
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum RTError {
@@ -43,6 +63,15 @@ pub enum RTError {
 
 impl RTError {
     /// Get the numeric error code.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_errors::RTError;
+    ///
+    /// assert_eq!(RTError::DeviceDisconnected.code(), 1);
+    /// assert_eq!(RTError::TorqueLimit.code(), 2);
+    /// ```
     pub fn code(self) -> u8 {
         self as u8
     }
@@ -83,6 +112,17 @@ impl RTError {
     }
 
     /// Create an error from a code.
+    ///
+    /// Returns `None` if the code does not correspond to a known error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_errors::RTError;
+    ///
+    /// assert_eq!(RTError::from_code(1), Some(RTError::DeviceDisconnected));
+    /// assert_eq!(RTError::from_code(255), None);
+    /// ```
     pub fn from_code(code: u8) -> Option<Self> {
         match code {
             1 => Some(RTError::DeviceDisconnected),

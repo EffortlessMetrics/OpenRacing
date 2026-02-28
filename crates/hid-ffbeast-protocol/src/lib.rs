@@ -1,7 +1,9 @@
 //! FFBeast USB HID protocol constants and command encoders.
 //!
 //! FFBeast is an open-source direct-drive force feedback controller from
-//! <https://github.com/HF-Robotics/FFBeast>. It uses standard HID PID
+//! <https://ffbeast.github.io/ffbeast.github.io/> (note: the original
+//! GitHub repo `HF-Robotics/FFBeast` and `ffbeast.com` are defunct).
+//! It uses standard HID PID
 //! (Physical Interface Device) force effects compatible with DirectInput.
 //!
 //! # VID / PID
@@ -19,11 +21,14 @@
 //! in the range [-10000, 10000], where ±10000 corresponds to full scale.
 //!
 //! # Sources
-//! - <https://github.com/HF-Robotics/FFBeast>
+//! - <https://ffbeast.github.io/ffbeast.github.io/> (official project site)
+//! - FFBeast wheel WebHID API reference: <https://github.com/shubham0x13/ffbeast-wheel-webhid-api>
 //! - Linux kernel `hid-ids.h` (`USB_VENDOR_ID_FFBEAST`)
+//! - JacKeTUs/linux-steering-wheels compatibility table
 
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(static_mut_refs)]
+#![deny(clippy::unwrap_used)]
 
 pub mod ids;
 pub mod output;

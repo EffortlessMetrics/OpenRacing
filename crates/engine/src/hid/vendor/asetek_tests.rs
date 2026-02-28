@@ -37,7 +37,7 @@ fn test_new_forte() {
     let handler = AsetekProtocolHandler::new(ASETEK_VENDOR_ID, ASETEK_FORTE_PID);
     assert_eq!(handler.model(), AsetekModel::Forte);
     let config = handler.get_ffb_config();
-    assert!((config.max_torque_nm - 20.0).abs() < 0.01);
+    assert!((config.max_torque_nm - 18.0).abs() < 0.01);
     assert!(handler.is_v2_hardware());
 }
 
@@ -46,7 +46,7 @@ fn test_new_invicta() {
     let handler = AsetekProtocolHandler::new(ASETEK_VENDOR_ID, ASETEK_INVICTA_PID);
     assert_eq!(handler.model(), AsetekModel::Invicta);
     let config = handler.get_ffb_config();
-    assert!((config.max_torque_nm - 15.0).abs() < 0.01);
+    assert!((config.max_torque_nm - 27.0).abs() < 0.01);
     assert!(!handler.is_v2_hardware());
 }
 
@@ -55,7 +55,7 @@ fn test_new_laprima() {
     let handler = AsetekProtocolHandler::new(ASETEK_VENDOR_ID, ASETEK_LAPRIMA_PID);
     assert_eq!(handler.model(), AsetekModel::LaPrima);
     let config = handler.get_ffb_config();
-    assert!((config.max_torque_nm - 10.0).abs() < 0.01);
+    assert!((config.max_torque_nm - 12.0).abs() < 0.01);
     assert!(!handler.is_v2_hardware());
 }
 

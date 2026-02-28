@@ -275,7 +275,7 @@ async fn export_profile(
 
     // Handle signing if requested
     if signed && profile.signature.is_none() {
-        // In real implementation, this would sign the profile
+        // Placeholder: replaced with actual Ed25519 signing when wheeld integration is complete
         profile.signature = Some("mock-signature".to_string());
     }
 

@@ -70,36 +70,38 @@ fn test_snapshot_device_disable() {
 }
 
 #[test]
-fn test_snapshot_feedback_report_center() {
+fn test_snapshot_feedback_report_center() -> Result<(), Box<dyn std::error::Error>> {
     let mut data = vec![0u8; 64];
     data[0] = 0x02;
     data[1] = 0x05;
     data[2] = 0x00;
-    let state = sm::parse_feedback_report(&data).expect("parse should succeed");
+    let state = sm::parse_feedback_report(&data)?;
     assert_snapshot!(format!(
         "seq={}, status={:?}, pos={}, vel={}, torque={}",
         state.seq, state.status, state.motor.position, state.motor.velocity, state.motor.torque
     ));
+    Ok(())
 }
 
 #[test]
-fn test_snapshot_feedback_report_full_torque() {
+fn test_snapshot_feedback_report_full_torque() -> Result<(), Box<dyn std::error::Error>> {
     let mut data = vec![0u8; 64];
     data[0] = 0x02;
     data[1] = 0x10;
     data[2] = 0x00;
     data[12] = 0x00;
     data[13] = 0x80;
-    let state = sm::parse_feedback_report(&data).expect("parse should succeed");
+    let state = sm::parse_feedback_report(&data)?;
     assert_snapshot!(format!(
         "torque={:.4}, torque_nm={:.4}",
         state.motor.torque as f32,
         state.torque_nm(0.1)
     ));
+    Ok(())
 }
 
 #[test]
-fn test_snapshot_feedback_report_position() {
+fn test_snapshot_feedback_report_position() -> Result<(), Box<dyn std::error::Error>> {
     let mut data = vec![0u8; 64];
     data[0] = 0x02;
     data[1] = 0x01;
@@ -108,16 +110,17 @@ fn test_snapshot_feedback_report_position() {
     data[5] = 0x10;
     data[6] = 0x00;
     data[7] = 0x00;
-    let state = sm::parse_feedback_report(&data).expect("parse should succeed");
+    let state = sm::parse_feedback_report(&data)?;
     assert_snapshot!(format!(
         "position={}, position_degrees={:.4}",
         state.motor.position,
         state.position_degrees(4)
     ));
+    Ok(())
 }
 
 #[test]
-fn test_snapshot_feedback_report_velocity() {
+fn test_snapshot_feedback_report_velocity() -> Result<(), Box<dyn std::error::Error>> {
     let mut data = vec![0u8; 64];
     data[0] = 0x02;
     data[1] = 0x01;
@@ -126,12 +129,13 @@ fn test_snapshot_feedback_report_velocity() {
     data[9] = 0x20;
     data[10] = 0x00;
     data[11] = 0x00;
-    let state = sm::parse_feedback_report(&data).expect("parse should succeed");
+    let state = sm::parse_feedback_report(&data)?;
     assert_snapshot!(format!(
         "velocity={}, velocity_rpm={:.4}",
         state.motor.velocity,
         state.velocity_rpm(4)
     ));
+    Ok(())
 }
 
 #[test]

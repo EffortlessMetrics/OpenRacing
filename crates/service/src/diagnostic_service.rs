@@ -145,7 +145,7 @@ impl DiagnosticService {
     }
 
     async fn get_kernel_version() -> Option<String> {
-        #[cfg(target_os = "linux")]
+        #[cfg(unix)]
         {
             if let Ok(output) = tokio::process::Command::new("uname")
                 .arg("-r")

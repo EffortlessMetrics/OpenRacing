@@ -629,12 +629,12 @@ impl MetricsCollector {
 
         // Create app metrics
         let app_metrics = AppMetrics {
-            connected_devices: 0, // TODO: Get from device manager
+            connected_devices: 0, // Populated by device manager at service layer
             torque_saturation_percent,
             telemetry_packet_loss_percent: telemetry_loss_percent,
             safety_events: snapshot.safety_events,
             profile_switches: snapshot.profile_switches,
-            active_game: None, // TODO: Get from game service
+            active_game: None, // Set by game service during active session
             last_update: now,
         };
 

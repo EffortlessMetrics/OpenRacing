@@ -6,6 +6,25 @@
 use crate::common::ErrorSeverity;
 
 /// Profile and configuration errors.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_errors::{ProfileError, ErrorSeverity};
+///
+/// // Profile not found
+/// let err = ProfileError::not_found("iracing-gt3");
+/// assert_eq!(err.severity(), ErrorSeverity::Error);
+/// assert!(!err.is_inheritance_error());
+///
+/// // Circular inheritance detection
+/// let err = ProfileError::circular_inheritance("a -> b -> a");
+/// assert!(err.is_inheritance_error());
+///
+/// // Version mismatch
+/// let err = ProfileError::version_mismatch("2.0", "1.0");
+/// assert_eq!(err.severity(), ErrorSeverity::Warning);
+/// ```
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum ProfileError {
     /// Profile not found

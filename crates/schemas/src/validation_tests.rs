@@ -275,8 +275,8 @@ mod tests {
     }
 
     #[test]
-    fn test_non_monotonic_curve_points() {
-        let validator = ProfileValidator::new().expect("Failed to create validator");
+    fn test_non_monotonic_curve_points() -> Result<(), Box<dyn std::error::Error>> {
+        let validator = ProfileValidator::new()?;
 
         // Non-monotonic curve points
         let invalid_profile = json!({
@@ -315,6 +315,7 @@ mod tests {
         } else {
             panic!("Expected NonMonotonicCurve error, got: {:?}", result.err());
         }
+        Ok(())
     }
 
     #[test]

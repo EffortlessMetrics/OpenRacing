@@ -6,6 +6,22 @@
 use crate::common::ErrorSeverity;
 
 /// Device and hardware errors.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_errors::{DeviceError, ErrorSeverity};
+///
+/// // Create common device errors using convenience constructors
+/// let err = DeviceError::not_found("moza-r9");
+/// assert!(err.is_device_unavailable());
+/// assert!(!err.is_retryable());
+///
+/// // Timeouts are retryable
+/// let timeout = DeviceError::timeout("moza-r9", 500);
+/// assert!(timeout.is_retryable());
+/// assert_eq!(timeout.severity(), ErrorSeverity::Warning);
+/// ```
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum DeviceError {
     /// Device not found

@@ -27,7 +27,8 @@ proptest! {
         feed_count in 0u32..100,
     ) {
         let mut watchdog = SoftwareWatchdog::with_default_timeout();
-        watchdog.arm().expect("Arm should succeed");
+        let result = watchdog.arm();
+        prop_assert!(result.is_ok(), "Arm should succeed");
 
         for _ in 0..feed_count {
             let _ = watchdog.feed();
@@ -65,7 +66,8 @@ proptest! {
         timeouts in 0u32..10,
     ) {
         let state = WatchdogState::new();
-        state.arm().expect("Arm should succeed");
+        let arm_result = state.arm();
+        prop_assert!(arm_result.is_ok(), "Arm should succeed");
 
         let mut expected = 0u32;
         for i in 0..timeouts {
@@ -89,7 +91,9 @@ proptest! {
         let config = WatchdogConfig::new(timeout_ms);
         prop_assert!(config.is_ok());
 
-        let config = config.expect("Valid config");
+        let Ok(config) = config else {
+            return Err(proptest::test_runner::TestCaseError::fail("Config creation failed"));
+        };
         prop_assert_eq!(config.timeout_ms, timeout_ms);
         prop_assert_eq!(config.timeout_us(), u64::from(timeout_ms) * 1000);
     }
@@ -130,11 +134,9 @@ fn prop_cannot_feed_when_disarmed() {
 }
 
 #[test]
-fn prop_safe_state_is_terminal() {
+fn prop_safe_state_is_terminal() -> Result<(), Box<dyn std::error::Error>> {
     let mut watchdog = SoftwareWatchdog::with_default_timeout();
-    watchdog
-        .trigger_safe_state()
-        .expect("Safe state should succeed");
+    watchdog.trigger_safe_state()?;
 
     let actions = [true, false, true, false, true];
     for &action in &actions {
@@ -145,4 +147,5 @@ fn prop_safe_state_is_terminal() {
         }
     }
     assert_eq!(watchdog.status(), WatchdogStatus::SafeState);
+    Ok(())
 }

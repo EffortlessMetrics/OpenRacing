@@ -1,9 +1,9 @@
 //! Integration tests for WASM runtime.
 
-use openracing_wasm_runtime::{ResourceLimits, WasmError, WasmRuntime};
+use openracing_wasm_runtime::{ResourceLimits, WasmRuntime};
 use uuid::Uuid;
 
-fn create_minimal_wasm() -> Vec<u8> {
+fn create_minimal_wasm() -> Result<Vec<u8>, wat::Error> {
     wat::parse_str(
         r#"
         (module
@@ -14,10 +14,9 @@ fn create_minimal_wasm() -> Vec<u8> {
         )
         "#,
     )
-    .expect("Failed to parse minimal WAT")
 }
 
-fn create_adding_wasm() -> Vec<u8> {
+fn create_adding_wasm() -> Result<Vec<u8>, wat::Error> {
     wat::parse_str(
         r#"
         (module
@@ -30,10 +29,9 @@ fn create_adding_wasm() -> Vec<u8> {
         )
         "#,
     )
-    .expect("Failed to parse adding WAT")
 }
 
-fn create_trap_wasm() -> Vec<u8> {
+fn create_trap_wasm() -> Result<Vec<u8>, wat::Error> {
     wat::parse_str(
         r#"
         (module
@@ -44,10 +42,9 @@ fn create_trap_wasm() -> Vec<u8> {
         )
         "#,
     )
-    .expect("Failed to parse trap WAT")
 }
 
-fn create_init_wasm() -> Vec<u8> {
+fn create_init_wasm() -> Result<Vec<u8>, wat::Error> {
     wat::parse_str(
         r#"
         (module
@@ -68,14 +65,13 @@ fn create_init_wasm() -> Vec<u8> {
         )
         "#,
     )
-    .expect("Failed to parse init WAT")
 }
 
 #[test]
-fn test_plugin_lifecycle() -> Result<(), WasmError> {
+fn test_plugin_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
     let plugin_id = Uuid::new_v4();
-    let wasm = create_minimal_wasm();
+    let wasm = create_minimal_wasm()?;
 
     // Load plugin
     runtime.load_plugin_from_bytes(plugin_id, &wasm, vec![])?;
@@ -94,14 +90,14 @@ fn test_plugin_lifecycle() -> Result<(), WasmError> {
 }
 
 #[test]
-fn test_multiple_plugins() -> Result<(), WasmError> {
+fn test_multiple_plugins() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
 
     let plugin1_id = Uuid::new_v4();
     let plugin2_id = Uuid::new_v4();
 
-    let wasm1 = create_minimal_wasm();
-    let wasm2 = create_adding_wasm();
+    let wasm1 = create_minimal_wasm()?;
+    let wasm2 = create_adding_wasm()?;
 
     runtime.load_plugin_from_bytes(plugin1_id, &wasm1, vec![])?;
     runtime.load_plugin_from_bytes(plugin2_id, &wasm2, vec![])?;
@@ -124,17 +120,18 @@ fn test_multiple_plugins() -> Result<(), WasmError> {
 }
 
 #[test]
-fn test_plugin_trap_handling() -> Result<(), WasmError> {
+fn test_plugin_trap_handling() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
     let plugin_id = Uuid::new_v4();
-    let wasm = create_trap_wasm();
+    let wasm = create_trap_wasm()?;
 
     runtime.load_plugin_from_bytes(plugin_id, &wasm, vec![])?;
 
     // First call should trap
     let result = runtime.process(&plugin_id, 0.5, 0.001);
     assert!(result.is_err());
-    assert!(result.unwrap_err().is_crash());
+    let err = result.err().ok_or("expected error")?;
+    assert!(err.is_crash());
 
     // Plugin should be disabled
     assert!(runtime.is_plugin_disabled(&plugin_id)?);
@@ -147,10 +144,10 @@ fn test_plugin_trap_handling() -> Result<(), WasmError> {
 }
 
 #[test]
-fn test_plugin_re_enable() -> Result<(), WasmError> {
+fn test_plugin_re_enable() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
     let plugin_id = Uuid::new_v4();
-    let wasm = create_trap_wasm();
+    let wasm = create_trap_wasm()?;
 
     runtime.load_plugin_from_bytes(plugin_id, &wasm, vec![])?;
 
@@ -171,10 +168,10 @@ fn test_plugin_re_enable() -> Result<(), WasmError> {
 }
 
 #[test]
-fn test_plugin_statistics() -> Result<(), WasmError> {
+fn test_plugin_statistics() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
     let plugin_id = Uuid::new_v4();
-    let wasm = create_minimal_wasm();
+    let wasm = create_minimal_wasm()?;
 
     runtime.load_plugin_from_bytes(plugin_id, &wasm, vec![])?;
 
@@ -194,10 +191,10 @@ fn test_plugin_statistics() -> Result<(), WasmError> {
 }
 
 #[test]
-fn test_plugin_with_init() -> Result<(), WasmError> {
+fn test_plugin_with_init() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
     let plugin_id = Uuid::new_v4();
-    let wasm = create_init_wasm();
+    let wasm = create_init_wasm()?;
 
     runtime.load_plugin_from_bytes(plugin_id, &wasm, vec![])?;
     assert!(runtime.is_plugin_initialized(&plugin_id)?);
@@ -211,11 +208,11 @@ fn test_plugin_with_init() -> Result<(), WasmError> {
 }
 
 #[test]
-fn test_max_instances_limit() -> Result<(), WasmError> {
+fn test_max_instances_limit() -> Result<(), Box<dyn std::error::Error>> {
     let limits = ResourceLimits::default().with_max_instances(2);
     let mut runtime = WasmRuntime::with_limits(limits)?;
 
-    let wasm = create_minimal_wasm();
+    let wasm = create_minimal_wasm()?;
 
     // Load first two plugins
     runtime.load_plugin_from_bytes(Uuid::new_v4(), &wasm, vec![])?;
@@ -229,12 +226,12 @@ fn test_max_instances_limit() -> Result<(), WasmError> {
 }
 
 #[test]
-fn test_hot_reload() -> Result<(), WasmError> {
+fn test_hot_reload() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
     let plugin_id = Uuid::new_v4();
 
-    let wasm1 = create_minimal_wasm();
-    let wasm2 = create_adding_wasm();
+    let wasm1 = create_minimal_wasm()?;
+    let wasm2 = create_adding_wasm()?;
 
     // Load initial plugin
     runtime.load_plugin_from_bytes(plugin_id, &wasm1, vec![])?;
@@ -253,11 +250,11 @@ fn test_hot_reload() -> Result<(), WasmError> {
 }
 
 #[test]
-fn test_hot_reload_preserves_statistics() -> Result<(), WasmError> {
+fn test_hot_reload_preserves_statistics() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
     let plugin_id = Uuid::new_v4();
 
-    let wasm = create_minimal_wasm();
+    let wasm = create_minimal_wasm()?;
 
     runtime.load_plugin_from_bytes(plugin_id, &wasm, vec![])?;
 
@@ -280,10 +277,10 @@ fn test_hot_reload_preserves_statistics() -> Result<(), WasmError> {
 }
 
 #[test]
-fn test_capabilities() -> Result<(), WasmError> {
+fn test_capabilities() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
     let plugin_id = Uuid::new_v4();
-    let wasm = create_minimal_wasm();
+    let wasm = create_minimal_wasm()?;
 
     runtime.load_plugin_from_bytes(
         plugin_id,
@@ -306,10 +303,10 @@ fn test_resource_limits_validation() {
 }
 
 #[test]
-fn test_process_returns_identity() -> Result<(), WasmError> {
+fn test_process_returns_identity() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
     let plugin_id = Uuid::new_v4();
-    let wasm = create_minimal_wasm();
+    let wasm = create_minimal_wasm()?;
 
     runtime.load_plugin_from_bytes(plugin_id, &wasm, vec![])?;
 
@@ -323,10 +320,10 @@ fn test_process_returns_identity() -> Result<(), WasmError> {
 }
 
 #[test]
-fn test_process_adds_inputs() -> Result<(), WasmError> {
+fn test_process_adds_inputs() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
     let plugin_id = Uuid::new_v4();
-    let wasm = create_adding_wasm();
+    let wasm = create_adding_wasm()?;
 
     runtime.load_plugin_from_bytes(plugin_id, &wasm, vec![])?;
 

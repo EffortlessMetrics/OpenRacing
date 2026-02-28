@@ -51,13 +51,13 @@ impl TracingProvider for MockProvider {
 }
 
 #[test]
-fn test_tracing_manager_full_lifecycle() {
+fn test_tracing_manager_full_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     let provider = MockProvider::new();
     let rt_events = provider.rt_events.clone();
 
     let mut manager = TracingManager::with_provider(Box::new(provider));
 
-    manager.initialize().expect("initialization failed");
+    manager.initialize()?;
     assert!(manager.is_enabled());
 
     trace_rt_tick_start!(manager, 1, 1_000_000);
@@ -66,15 +66,16 @@ fn test_tracing_manager_full_lifecycle() {
     trace_rt_deadline_miss!(manager, 2, 2_000_000, 250_000);
     trace_rt_pipeline_fault!(manager, 3, 3_000_000, 5);
 
-    let guard = rt_events.lock().expect("lock");
+    let guard = rt_events.lock().map_err(|e| format!("lock: {e}"))?;
     assert_eq!(guard.len(), 5);
     drop(guard);
 
     manager.shutdown();
+    Ok(())
 }
 
 #[test]
-fn test_tracing_manager_disabled_drops_events() {
+fn test_tracing_manager_disabled_drops_events() -> Result<(), Box<dyn std::error::Error>> {
     let provider = MockProvider::new();
     let rt_events = provider.rt_events.clone();
 
@@ -96,10 +97,11 @@ fn test_tracing_manager_disabled_drops_events() {
     });
 
     assert_eq!(rt_events.lock().map(|e| e.len()).unwrap_or(0), 1);
+    Ok(())
 }
 
 #[test]
-fn test_all_rt_event_types() {
+fn test_all_rt_event_types() -> Result<(), Box<dyn std::error::Error>> {
     let provider = MockProvider::new();
     let rt_events = provider.rt_events.clone();
 
@@ -137,12 +139,13 @@ fn test_all_rt_event_types() {
         manager.emit_rt_event(event);
     }
 
-    let guard = rt_events.lock().expect("lock");
+    let guard = rt_events.lock().map_err(|e| format!("lock: {e}"))?;
     assert_eq!(guard.len(), 5);
+    Ok(())
 }
 
 #[test]
-fn test_all_app_event_types() {
+fn test_all_app_event_types() -> Result<(), Box<dyn std::error::Error>> {
     let provider = MockProvider::new();
     let app_events = provider.app_events.clone();
 
@@ -179,8 +182,9 @@ fn test_all_app_event_types() {
         manager.emit_app_event(event);
     }
 
-    let guard = app_events.lock().expect("lock");
+    let guard = app_events.lock().map_err(|e| format!("lock: {e}"))?;
     assert_eq!(guard.len(), 5);
+    Ok(())
 }
 
 #[test]

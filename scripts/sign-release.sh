@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # OpenRacing Release Signing Script
 #
 # Signs release artifacts and generates SHA256 checksums

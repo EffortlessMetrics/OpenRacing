@@ -1,3 +1,4 @@
+//! Rennsport telemetry adapter.
 #![deny(static_mut_refs)]
 pub use racing_wheel_telemetry_adapters::RennsportAdapter;
 pub use racing_wheel_telemetry_adapters::TelemetryAdapter;

@@ -3,7 +3,7 @@
 //! Enable UDP telemetry in-game (Accessibility → UDP Telemetry), port 6777.
 //!
 //! The packet layout is identical to the Codemasters Mode 1 legacy format used by
-//! DiRT Rally 2.0 — a fixed-layout binary stream of 252+ bytes where every field
+//! DiRT Rally 2.0 — a fixed-layout binary stream of 264+ bytes where every field
 //! is a little-endian `f32` at a known byte offset.
 
 use crate::{
@@ -23,7 +23,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 const DEFAULT_PORT: u16 = 6777;
-const MIN_PACKET_SIZE: usize = 252;
+const MIN_PACKET_SIZE: usize = 264;
 const MAX_PACKET_SIZE: usize = 2048;
 const DEFAULT_HEARTBEAT_TIMEOUT_MS: u64 = 1_500;
 
@@ -31,30 +31,36 @@ const ENV_PORT: &str = "OPENRACING_WRC_GENERATIONS_UDP_PORT";
 const ENV_HEARTBEAT_TIMEOUT_MS: &str = "OPENRACING_WRC_GENERATIONS_HEARTBEAT_TIMEOUT_MS";
 
 // Byte offsets for Codemasters Mode 1 / RallyEngine packet fields (all f32, little-endian).
-const OFF_VEL_X: usize = 28;
-const OFF_VEL_Y: usize = 32;
-const OFF_VEL_Z: usize = 36;
-const OFF_WHEEL_SPEED_FL: usize = 92;
-const OFF_WHEEL_SPEED_FR: usize = 96;
+const OFF_VEL_X: usize = 32;
+const OFF_VEL_Y: usize = 36;
+const OFF_VEL_Z: usize = 40;
+const OFF_WHEEL_SPEED_FL: usize = 108;
+const OFF_WHEEL_SPEED_FR: usize = 112;
 const OFF_WHEEL_SPEED_RL: usize = 100;
 const OFF_WHEEL_SPEED_RR: usize = 104;
-const OFF_THROTTLE: usize = 108;
-const OFF_STEER: usize = 112;
-const OFF_BRAKE: usize = 116;
-const OFF_GEAR: usize = 124;
-const OFF_GFORCE_LAT: usize = 128;
-const OFF_GFORCE_LON: usize = 132;
-const OFF_CURRENT_LAP: usize = 136;
-const OFF_RPM: usize = 140;
-const OFF_CAR_POSITION: usize = 148;
-const OFF_FUEL_IN_TANK: usize = 172;
-const OFF_FUEL_CAPACITY: usize = 176;
-const OFF_IN_PIT: usize = 180;
-const OFF_BRAKES_TEMP_FL: usize = 196;
-const OFF_TYRES_PRESSURE_FL: usize = 212;
-const OFF_LAST_LAP_TIME: usize = 236;
-const OFF_MAX_RPM: usize = 240;
-const OFF_MAX_GEARS: usize = 248;
+const OFF_THROTTLE: usize = 116;
+const OFF_STEER: usize = 120;
+const OFF_BRAKE: usize = 124;
+const OFF_GEAR: usize = 132;
+const OFF_GFORCE_LAT: usize = 136;
+const OFF_GFORCE_LON: usize = 140;
+const OFF_CURRENT_LAP: usize = 144;
+const OFF_RPM: usize = 148;
+const OFF_CAR_POSITION: usize = 156;
+const OFF_FUEL_IN_TANK: usize = 180;
+const OFF_FUEL_CAPACITY: usize = 184;
+const OFF_IN_PIT: usize = 188;
+const OFF_BRAKES_TEMP_RL: usize = 204;
+const OFF_BRAKES_TEMP_RR: usize = 208;
+const OFF_BRAKES_TEMP_FL: usize = 212;
+const OFF_BRAKES_TEMP_FR: usize = 216;
+const OFF_TYRES_PRESSURE_RL: usize = 220;
+const OFF_TYRES_PRESSURE_RR: usize = 224;
+const OFF_TYRES_PRESSURE_FL: usize = 228;
+const OFF_TYRES_PRESSURE_FR: usize = 232;
+const OFF_LAST_LAP_TIME: usize = 248;
+const OFF_MAX_RPM: usize = 252;
+const OFF_MAX_GEARS: usize = 260;
 
 /// Lateral G normalisation range for the FFB scalar.
 const FFB_LAT_G_MAX: f32 = 3.0;
@@ -117,6 +123,7 @@ fn read_f32(data: &[u8], offset: usize) -> Option<f32> {
     data.get(offset..offset + 4)
         .and_then(|b| b.try_into().ok())
         .map(f32::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
@@ -169,7 +176,7 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
 
     let fuel_in_tank = read_f32(data, OFF_FUEL_IN_TANK).unwrap_or(0.0).max(0.0);
     let fuel_capacity = read_f32(data, OFF_FUEL_CAPACITY).unwrap_or(1.0).max(1.0);
-    let fuel_percent = (fuel_in_tank / fuel_capacity).clamp(0.0, 1.0) * 100.0;
+    let fuel_percent = (fuel_in_tank / fuel_capacity).clamp(0.0, 1.0);
 
     let in_pits = read_f32(data, OFF_IN_PIT)
         .map(|v| v >= 0.5)
@@ -179,22 +186,22 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         read_f32(data, OFF_BRAKES_TEMP_FL)
             .unwrap_or(0.0)
             .clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 4)
+        read_f32(data, OFF_BRAKES_TEMP_FR)
             .unwrap_or(0.0)
             .clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 8)
+        read_f32(data, OFF_BRAKES_TEMP_RL)
             .unwrap_or(0.0)
             .clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 12)
+        read_f32(data, OFF_BRAKES_TEMP_RR)
             .unwrap_or(0.0)
             .clamp(0.0, 255.0) as u8,
     ];
 
     let tire_pressures_psi = [
         read_f32(data, OFF_TYRES_PRESSURE_FL).unwrap_or(0.0),
-        read_f32(data, OFF_TYRES_PRESSURE_FL + 4).unwrap_or(0.0),
-        read_f32(data, OFF_TYRES_PRESSURE_FL + 8).unwrap_or(0.0),
-        read_f32(data, OFF_TYRES_PRESSURE_FL + 12).unwrap_or(0.0),
+        read_f32(data, OFF_TYRES_PRESSURE_FR).unwrap_or(0.0),
+        read_f32(data, OFF_TYRES_PRESSURE_RL).unwrap_or(0.0),
+        read_f32(data, OFF_TYRES_PRESSURE_RR).unwrap_or(0.0),
     ];
 
     let num_gears = read_f32(data, OFF_MAX_GEARS)
@@ -416,7 +423,7 @@ mod tests {
                 "rpm_fraction should be 0.625, got {fraction}"
             );
         } else {
-            panic!("rpm_fraction not found in extended telemetry");
+            return Err("rpm_fraction not found in extended telemetry".into());
         }
         Ok(())
     }
@@ -509,5 +516,23 @@ mod tests {
             );
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        #[test]
+        fn parse_no_panic_on_arbitrary(
+            data in proptest::collection::vec(any::<u8>(), 0..1024)
+        ) {
+            let adapter = WrcGenerationsAdapter::new();
+            let _ = adapter.normalize(&data);
+        }
     }
 }

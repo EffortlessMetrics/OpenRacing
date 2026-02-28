@@ -4,12 +4,12 @@ expression: caps
 ---
 DeviceCapabilities {
     supports_pid: false,
-    supports_raw_torque_1khz: true,
+    supports_raw_torque_1khz: false,
     supports_health_stream: true,
     supports_led_bus: false,
     max_torque: TorqueNm(
-        10.0,
+        0.0,
     ),
-    encoder_cpr: 65535,
+    encoder_cpr: 0,
     min_report_period_us: 1000,
 }

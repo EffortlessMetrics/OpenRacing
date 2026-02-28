@@ -1,0 +1,79 @@
+---
+source: crates/telemetry-adapters/tests/snapshots_games_v9.rs
+assertion_line: 61
+expression: normalized
+---
+speed_ms: 50.5
+steering_angle: -0.15
+throttle: 0.8
+brake: 0.1
+clutch: 0
+rpm: 8000
+max_rpm: 9500
+gear: 4
+num_gears: 6
+lateral_g: 0.95
+longitudinal_g: 0.25
+vertical_g: 0
+slip_ratio: 0
+slip_angle_fl: 0
+slip_angle_fr: 0
+slip_angle_rl: 0
+slip_angle_rr: 0
+tire_temps_c:
+  - 0
+  - 0
+  - 0
+  - 0
+tire_pressures_psi:
+  - 0
+  - 0
+  - 0
+  - 0
+ffb_scalar: 0.31666666
+ffb_torque_nm: 0
+flags:
+  yellow_flag: false
+  red_flag: false
+  blue_flag: false
+  checkered_flag: false
+  green_flag: true
+  pit_limiter: false
+  in_pits: false
+  drs_available: false
+  drs_active: false
+  ers_available: false
+  ers_active: false
+  launch_control: false
+  traction_control: false
+  abs_active: false
+  engine_limiter: false
+  safety_car: false
+  formation_lap: false
+  session_paused: false
+position: 0
+lap: 1
+current_lap_time_s: 0
+best_lap_time_s: 0
+last_lap_time_s: 0
+delta_ahead_s: 0
+delta_behind_s: 0
+fuel_percent: 0.6
+engine_temp_c: 0
+extended:
+  rpm_fraction:
+    type: Float
+    value: 0.84210527
+  wheel_speed_fl:
+    type: Float
+    value: 51
+  wheel_speed_fr:
+    type: Float
+    value: 51
+  wheel_speed_rl:
+    type: Float
+    value: 50
+  wheel_speed_rr:
+    type: Float
+    value: 50
+sequence: 0

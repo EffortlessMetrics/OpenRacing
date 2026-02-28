@@ -116,14 +116,14 @@ fn scenario_moza_r9_wheel_plugged_in_protocol_selected_and_ffb_available()
 ///
 /// ```text
 /// Given  no wheel is connected
-/// When   the user plugs in a Fanatec ClubSport wheel (VID 0x0EB7, PID 0x0005)
+/// When   the user plugs in a Fanatec ClubSport wheel (VID 0x0EB7, PID 0x0004)
 /// Then   the device is automatically detected
 /// And    the Fanatec protocol is selected
 /// ```
 #[test]
 fn scenario_fanatec_clubsport_wheel_plugged_in_protocol_selected()
 -> Result<(), Box<dyn std::error::Error>> {
-    // Given: no Fanatec wheel is connected (ClubSport V2.5 – PID 0x0005)
+    // Given: no Fanatec wheel is connected (ClubSport V2.5 – PID 0x0004)
     let mut scenario = FanatecScenario::wheelbase(fanatec_product_ids::CLUBSPORT_V2_5);
     assert!(
         scenario.device.feature_reports().is_empty(),

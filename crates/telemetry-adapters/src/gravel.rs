@@ -1,9 +1,8 @@
-//! Gravel (Milestone, 2018) telemetry adapter — SimHub bridge stub.
+//! Gravel (Milestone, 2018) telemetry adapter — SimHub JSON bridge.
 //!
-//! Gravel does not expose a native UDP telemetry API. Telemetry is available
-//! only through SimHub's generic JSON UDP bridge (port 5555). This adapter
-//! is a stub that accepts incoming SimHub-forwarded datagrams and returns
-//! a default telemetry frame until a full SimHub JSON parser is wired in.
+//! Gravel does not expose a native UDP telemetry API. Telemetry is received
+//! through SimHub's generic JSON UDP bridge (port 5555). Packets are parsed
+//! using the shared SimHub JSON parser from [`crate::simhub`].
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, telemetry_now_ns,
@@ -66,16 +65,18 @@ impl TelemetryAdapter for GravelAdapter {
 
             loop {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
-                    Ok(Ok(len)) => {
-                        let normalized = NormalizedTelemetry::builder().build();
-                        let frame =
-                            TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
-                        if tx.send(frame).await.is_err() {
-                            debug!("Receiver dropped, stopping Gravel monitoring");
-                            break;
+                    Ok(Ok(len)) => match crate::simhub::parse_simhub_packet(&buf[..len]) {
+                        Ok(normalized) => {
+                            let frame =
+                                TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
+                            if tx.send(frame).await.is_err() {
+                                debug!("Receiver dropped, stopping Gravel monitoring");
+                                break;
+                            }
+                            frame_idx = frame_idx.saturating_add(1);
                         }
-                        frame_idx = frame_idx.saturating_add(1);
-                    }
+                        Err(e) => debug!("Failed to parse Gravel SimHub packet: {e}"),
+                    },
                     Ok(Err(e)) => warn!("Gravel UDP receive error: {e}"),
                     Err(_) => debug!("No Gravel telemetry data received (timeout)"),
                 }
@@ -90,8 +91,8 @@ impl TelemetryAdapter for GravelAdapter {
         Ok(())
     }
 
-    fn normalize(&self, _raw: &[u8]) -> Result<NormalizedTelemetry> {
-        Ok(NormalizedTelemetry::builder().build())
+    fn normalize(&self, raw: &[u8]) -> Result<NormalizedTelemetry> {
+        crate::simhub::parse_simhub_packet(raw)
     }
 
     fn expected_update_rate(&self) -> Duration {
@@ -107,17 +108,87 @@ impl TelemetryAdapter for GravelAdapter {
 mod tests {
     use super::*;
 
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    const VALID_JSON: &[u8] = br#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}"#;
+
     #[test]
     fn game_id_is_correct() {
         assert_eq!(GravelAdapter::new().game_id(), "gravel");
     }
 
     #[test]
-    fn normalize_returns_default() -> Result<(), Box<dyn std::error::Error>> {
+    fn normalize_returns_default() -> TestResult {
         let adapter = GravelAdapter::new();
-        let t = adapter.normalize(&[])?;
+        let t = adapter.normalize(VALID_JSON)?;
         assert_eq!(t.speed_ms, 0.0);
         assert_eq!(t.rpm, 0.0);
         Ok(())
+    }
+
+    #[test]
+    fn test_port_constants() {
+        assert_eq!(SIMHUB_PORT, 5555);
+    }
+
+    #[test]
+    fn test_empty_input_returns_err() {
+        let adapter = GravelAdapter::new();
+        assert!(adapter.normalize(&[]).is_err());
+    }
+
+    #[test]
+    fn test_valid_packet_parses() -> TestResult {
+        let adapter = GravelAdapter::new();
+        let json = br#"{"SpeedMs":25.0,"Rpms":5500.0,"MaxRpms":8000.0,"Gear":"3","Throttle":80.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":45.0,"FuelPercent":60.0,"LateralGForce":0.8,"LongitudinalGForce":0.2,"FFBValue":0.3,"IsRunning":true,"IsInPit":false}"#;
+        let t = adapter.normalize(json)?;
+        assert!((t.speed_ms - 25.0).abs() < 0.01);
+        assert!((t.rpm - 5500.0).abs() < 0.1);
+        assert_eq!(t.gear, 3);
+        Ok(())
+    }
+
+    #[test]
+    fn test_update_rate() {
+        let adapter = GravelAdapter::new();
+        assert_eq!(adapter.expected_update_rate(), Duration::from_millis(16));
+    }
+
+    #[test]
+    fn test_default() {
+        let a = GravelAdapter::default();
+        assert_eq!(a.game_id(), "gravel");
+    }
+
+    #[tokio::test]
+    async fn test_is_game_running() -> TestResult {
+        let adapter = GravelAdapter::new();
+        assert!(!adapter.is_game_running().await?);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_stop_monitoring() -> TestResult {
+        let adapter = GravelAdapter::new();
+        adapter.stop_monitoring().await?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        #[test]
+        fn prop_arbitrary_bytes_no_panic(
+            data in proptest::collection::vec(any::<u8>(), 0..4096)
+        ) {
+            let adapter = GravelAdapter::new();
+            let _ = adapter.normalize(&data);
+        }
     }
 }

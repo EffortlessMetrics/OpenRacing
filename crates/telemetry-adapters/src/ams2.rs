@@ -237,7 +237,7 @@ impl TelemetryAdapter for AMS2Adapter {
 
         tokio::spawn(async move {
             let mut adapter = AMS2Adapter::new();
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
             let mut last_update_index = 0u32;
 
             // Try to initialize shared memory
@@ -261,7 +261,7 @@ impl TelemetryAdapter for AMS2Adapter {
                             let frame = TelemetryFrame::new(
                                 normalized,
                                 telemetry_now_ns(),
-                                sequence,
+                                frame_seq,
                                 mem::size_of::<AMS2SharedMemory>(),
                             );
 
@@ -270,7 +270,7 @@ impl TelemetryAdapter for AMS2Adapter {
                                 break;
                             }
 
-                            sequence += 1;
+                            frame_seq += 1;
                         }
                     }
                     Err(e) => {
@@ -1029,6 +1029,11 @@ mod tests {
         assert_eq!(data.throttle, 0.0);
         assert_eq!(data.brake, 0.0);
         Ok(())
+    }
+
+    #[test]
+    fn test_game_id_is_ams2() {
+        assert_eq!(AMS2Adapter::new().game_id(), "ams2");
     }
 }
 

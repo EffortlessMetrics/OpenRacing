@@ -4,6 +4,7 @@
 //! It provides pure functions and types that can be tested without hardware.
 
 #![deny(static_mut_refs)]
+#![deny(clippy::unwrap_used)]
 
 pub mod ids;
 pub mod input;
