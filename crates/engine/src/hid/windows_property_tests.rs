@@ -181,7 +181,9 @@ proptest! {
             // Generic HID button box (pid.codes VID, PID 0x1BBD — input-only)
             || (vid == vendor_ids::OPENFFBOARD && pid == 0x1BBD)
             // Leo Bodnar input-only peripherals (BBI-32 button box, SLI-M, USB joystick)
-            || (vid == vendor_ids::LEO_BODNAR && matches!(pid, 0x000C | 0xBEEF | 0x0001));
+            || (vid == vendor_ids::LEO_BODNAR && matches!(pid, 0x000C | 0xBEEF | 0x0001))
+            // Cube Controls button boxes (provisional PIDs, share VID 0x0483 with Simagic)
+            || (vid == vendor_ids::SIMAGIC && matches!(pid, 0x0C73..=0x0C75));
         if is_non_ffb_peripheral {
             prop_assert_eq!(
                 caps.max_torque.value(),
@@ -208,12 +210,14 @@ proptest! {
             );
         }
 
-        // Property: Encoder CPR must be positive
-        prop_assert!(
-            caps.encoder_cpr > 0,
-            "Device {} ({:04X}:{:04X}) should have positive encoder CPR",
-            name, vid, pid
-        );
+        // Property: Encoder CPR must be positive for FFB devices
+        if !is_non_ffb_peripheral {
+            prop_assert!(
+                caps.encoder_cpr > 0,
+                "Device {} ({:04X}:{:04X}) should have positive encoder CPR",
+                name, vid, pid
+            );
+        }
 
         // Property: Min report period must be positive
         prop_assert!(
