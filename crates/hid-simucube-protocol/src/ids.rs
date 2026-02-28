@@ -1,8 +1,8 @@
 //! Device IDs for Simucube products
 //!
 //! Simucube 2 wheelbases (by Granite Devices) use VID `0x16D0` (MCS Electronics /
-//! OpenMoko), the same VID used by the Simucube 1 IONI servo drives and legacy
-//! Simagic devices. Products are distinguished by product ID.
+//! OpenMoko), the same VID used by the Simucube 1 IONI servo drives and
+//! Heusinkveld pedals. Products are distinguished by product ID.
 //!
 //! Sources: Official Simucube developer documentation
 //! (Simucube/simucube-docs.github.io Developers.md), JacKeTUs/linux-steering-wheels

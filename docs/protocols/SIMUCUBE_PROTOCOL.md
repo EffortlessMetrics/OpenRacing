@@ -12,7 +12,7 @@ USB connection — no proprietary handshake or initialization sequence is needed
 Simucube devices run at approximately 360 Hz (`bInterval = 3`) and use 64-byte HID reports.
 
 **Vendor ID note:** Simucube 2 devices use VID `0x16D0` (registered to MCS Electronics /
-OpenMoko), which is shared with Heusinkveld pedals and legacy Simagic products. Devices are
+OpenMoko), which is shared with Heusinkveld pedals. Devices are
 distinguished by their product ID. Sources: Linux kernel `hid-ids.h` (`USB_VENDOR_ID_MCS =
 0x16d0`), JacKeTUs/linux-steering-wheels compatibility table.
 

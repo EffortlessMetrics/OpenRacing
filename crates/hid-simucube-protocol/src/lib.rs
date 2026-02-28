@@ -8,7 +8,7 @@
 //!
 //! ## Features
 //! - 22-bit angle sensor resolution
-//! - Up to 25Nm torque (Pro/Ultimate)
+//! - Up to 32Nm torque (Ultimate)
 //! - 360Hz force feedback
 //! - Wireless wheel support (SimuCube Wireless Wheel)
 //! - Active pedal support
