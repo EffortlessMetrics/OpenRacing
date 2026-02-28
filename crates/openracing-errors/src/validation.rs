@@ -8,6 +8,24 @@ use core::fmt;
 use crate::common::ErrorSeverity;
 
 /// Validation error types.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_errors::ValidationError;
+///
+/// // Range validation
+/// let err = ValidationError::out_of_range("torque", 1.5_f32, -1.0_f32, 1.0_f32);
+/// assert!(err.to_string().contains("torque"));
+///
+/// // Required field validation
+/// let err = ValidationError::required("profile_id");
+/// assert_eq!(err.to_string(), "Required field 'profile_id' is missing");
+///
+/// // Format validation
+/// let err = ValidationError::invalid_format("email", "missing @ symbol");
+/// assert!(err.to_string().contains("email"));
+/// ```
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum ValidationError {
     /// Value out of range

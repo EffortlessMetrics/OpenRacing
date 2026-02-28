@@ -11,6 +11,21 @@ use crate::{DeviceError, ProfileError, RTError, ValidationError};
 ///
 /// This enum provides a unified error type for the entire OpenRacing project,
 /// allowing easy error propagation and classification.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_errors::{OpenRacingError, RTError, ErrorCategory};
+///
+/// // Create errors from sub-error types
+/// let rt_err: OpenRacingError = RTError::TimingViolation.into();
+/// assert_eq!(rt_err.category(), ErrorCategory::RT);
+///
+/// // Create config and generic errors directly
+/// let cfg_err = OpenRacingError::config("missing wheel section");
+/// assert_eq!(cfg_err.category(), ErrorCategory::Config);
+/// assert!(cfg_err.is_recoverable());
+/// ```
 #[derive(Debug, thiserror::Error)]
 pub enum OpenRacingError {
     /// Real-time operation errors
@@ -44,6 +59,15 @@ pub enum OpenRacingError {
 
 impl OpenRacingError {
     /// Get the error category for classification.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_errors::{OpenRacingError, RTError, ErrorCategory};
+    ///
+    /// let err: OpenRacingError = RTError::PipelineFault.into();
+    /// assert_eq!(err.category(), ErrorCategory::RT);
+    /// ```
     pub fn category(&self) -> ErrorCategory {
         match self {
             OpenRacingError::RT(_) => ErrorCategory::RT,
@@ -57,6 +81,18 @@ impl OpenRacingError {
     }
 
     /// Get the error severity level.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_errors::{OpenRacingError, RTError, ErrorSeverity};
+    ///
+    /// let err: OpenRacingError = RTError::DeviceDisconnected.into();
+    /// assert_eq!(err.severity(), ErrorSeverity::Critical);
+    ///
+    /// let cfg_err = OpenRacingError::config("bad value");
+    /// assert_eq!(cfg_err.severity(), ErrorSeverity::Error);
+    /// ```
     pub fn severity(&self) -> ErrorSeverity {
         match self {
             OpenRacingError::RT(e) => e.severity(),
@@ -70,6 +106,20 @@ impl OpenRacingError {
     }
 
     /// Check if this error is recoverable.
+    ///
+    /// Errors with severity below [`ErrorSeverity::Critical`] are considered recoverable.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_errors::{OpenRacingError, RTError};
+    ///
+    /// let critical: OpenRacingError = RTError::DeviceDisconnected.into();
+    /// assert!(!critical.is_recoverable());
+    ///
+    /// let recoverable = OpenRacingError::config("missing field");
+    /// assert!(recoverable.is_recoverable());
+    /// ```
     pub fn is_recoverable(&self) -> bool {
         self.severity() < ErrorSeverity::Critical
     }
@@ -92,6 +142,15 @@ impl From<std::io::Error> for OpenRacingError {
 }
 
 /// Error category for classification.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_errors::ErrorCategory;
+///
+/// let category = ErrorCategory::Device;
+/// assert_eq!(category.to_string(), "Device");
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum ErrorCategory {
@@ -132,6 +191,18 @@ impl fmt::Display for ErrorCategory {
 }
 
 /// Error severity level.
+///
+/// Severity levels are ordered, enabling comparison:
+///
+/// # Examples
+///
+/// ```
+/// use openracing_errors::ErrorSeverity;
+///
+/// assert!(ErrorSeverity::Critical > ErrorSeverity::Error);
+/// assert!(ErrorSeverity::Error > ErrorSeverity::Warning);
+/// assert!(ErrorSeverity::Warning > ErrorSeverity::Info);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
 pub enum ErrorSeverity {
@@ -160,6 +231,22 @@ impl fmt::Display for ErrorSeverity {
 ///
 /// Provides additional context for error messages, useful for debugging
 /// and error reporting.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_errors::ErrorContext;
+///
+/// let ctx = ErrorContext::new("load_profile")
+///     .with("profile_id", "iracing-gt3")
+///     .with("device", "moza-r9")
+///     .at("profiles.rs", 42);
+///
+/// let display = ctx.to_string();
+/// assert!(display.contains("load_profile"));
+/// assert!(display.contains("profile_id"));
+/// assert!(display.contains("profiles.rs:42"));
+/// ```
 #[derive(Debug, Clone)]
 pub struct ErrorContext {
     /// The operation that was being performed
@@ -207,6 +294,16 @@ impl fmt::Display for ErrorContext {
 }
 
 /// Extension trait for adding context to errors.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_errors::{OpenRacingError, RTError, ResultExt};
+///
+/// let result: Result<(), RTError> = Err(RTError::TimingViolation);
+/// let with_ctx = result.with_context("processing_frame");
+/// assert!(with_ctx.is_err());
+/// ```
 pub trait ResultExt<T> {
     /// Add context to an error.
     fn context(self, ctx: ErrorContext) -> Result<T, OpenRacingError>;

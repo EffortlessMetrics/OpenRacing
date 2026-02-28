@@ -15,6 +15,21 @@ pub use effects::*;
 use serde::{Deserialize, Serialize};
 
 /// Overall FFB gain (0.0 to 1.0)
+///
+/// # Examples
+///
+/// ```
+/// use openracing_ffb::FfbGain;
+///
+/// // Create gain with overall level, then customize sub-gains
+/// let gain = FfbGain::new(0.8)
+///     .with_torque(0.9)
+///     .with_effects(0.5);
+///
+/// // Combined gain multiplies all three factors
+/// let combined = gain.combined();
+/// assert!((combined - 0.8 * 0.9 * 0.5).abs() < 0.001);
+/// ```
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct FfbGain {
     pub overall: f32,
@@ -47,6 +62,24 @@ impl FfbGain {
 }
 
 /// FFB direction in degrees (0-360)
+///
+/// # Examples
+///
+/// ```
+/// use openracing_ffb::FfbDirection;
+///
+/// // Create direction, values wrap around 360°
+/// let dir = FfbDirection::new(450.0);
+/// assert!((dir.degrees - 90.0).abs() < f32::EPSILON);
+///
+/// // Negative angles also wrap correctly
+/// let neg = FfbDirection::new(-90.0);
+/// assert!((neg.degrees - 270.0).abs() < f32::EPSILON);
+///
+/// // Convert to/from radians
+/// let dir = FfbDirection::from_radians(std::f32::consts::PI);
+/// assert!((dir.degrees - 180.0).abs() < 0.001);
+/// ```
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct FfbDirection {
     pub degrees: f32,

@@ -76,6 +76,15 @@ pub struct CompiledPipeline {
 }
 
 /// Pipeline compilation and execution errors
+///
+/// # Examples
+///
+/// ```
+/// use openracing_pipeline::PipelineError;
+///
+/// let err = PipelineError::InvalidConfig("reconstruction must be 0-8".to_string());
+/// assert!(err.to_string().contains("reconstruction"));
+/// ```
 #[derive(Debug, Error)]
 pub enum PipelineError {
     /// Invalid filter configuration
@@ -129,6 +138,16 @@ impl Pipeline {
     /// Create pipeline with specific configuration hash
     ///
     /// Used internally during compilation to set the deterministic hash.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_pipeline::Pipeline;
+    ///
+    /// let pipeline = Pipeline::with_hash(0xDEADBEEF);
+    /// assert_eq!(pipeline.config_hash(), 0xDEADBEEF);
+    /// assert!(pipeline.is_empty());
+    /// ```
     #[must_use]
     pub fn with_hash(config_hash: u64) -> Self {
         Self {

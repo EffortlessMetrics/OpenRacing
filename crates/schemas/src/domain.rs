@@ -116,6 +116,27 @@ impl From<DomainError> for ProfileError {
 }
 
 /// Torque value in Newton-meters with validation
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), racing_wheel_schemas::domain::DomainError> {
+/// use racing_wheel_schemas::domain::TorqueNm;
+///
+/// // Create a valid torque value
+/// let torque = TorqueNm::new(12.5)?;
+/// assert!((torque.value() - 12.5).abs() < f32::EPSILON);
+///
+/// // Convert to/from centi-Newton-meters (HID reports)
+/// let cnm = torque.to_cnm();
+/// assert_eq!(cnm, 1250);
+///
+/// // Invalid values are rejected
+/// assert!(TorqueNm::new(-1.0).is_err());
+/// assert!(TorqueNm::new(51.0).is_err());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct TorqueNm(f32);
 
@@ -210,6 +231,27 @@ impl TorqueNm {
 }
 
 /// Angle value in degrees with validation
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), racing_wheel_schemas::domain::DomainError> {
+/// use racing_wheel_schemas::domain::Degrees;
+///
+/// // Create a Degrees of Rotation (DOR) value (180°–2160°)
+/// let dor = Degrees::new_dor(900.0)?;
+/// assert!((dor.value() - 900.0).abs() < f32::EPSILON);
+///
+/// // Create an unrestricted angle
+/// let angle = Degrees::new_angle(45.0)?;
+/// assert!((angle.to_radians() - std::f32::consts::FRAC_PI_4).abs() < 0.001);
+///
+/// // Normalize angles to [-180, 180]
+/// let wide = Degrees::new_angle(270.0)?;
+/// assert!((wide.normalize().value() - (-90.0)).abs() < f32::EPSILON);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Degrees(f32);
 
@@ -311,6 +353,27 @@ impl std::ops::Sub for Degrees {
 /// DeviceId enforces safe construction through validation only.
 /// All construction must go through FromStr or TryFrom to ensure
 /// proper normalization (trim, lowercase) and validation.
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), racing_wheel_schemas::domain::DomainError> {
+/// use racing_wheel_schemas::domain::DeviceId;
+///
+/// // Parse and normalize a device ID
+/// let id: DeviceId = "Moza-R9".parse()?;
+/// assert_eq!(id.as_str(), "moza-r9");
+///
+/// // Also available via constructor
+/// let id2 = DeviceId::new("SimuCube-2".to_string())?;
+/// assert_eq!(id2.as_str(), "simucube-2");
+///
+/// // Invalid IDs are rejected
+/// assert!("".parse::<DeviceId>().is_err());
+/// assert!("has spaces".parse::<DeviceId>().is_err());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DeviceId(String);
 
@@ -388,6 +451,26 @@ impl From<DeviceId> for String {
 /// ProfileId enforces safe construction through validation only.
 /// All construction must go through FromStr or TryFrom to ensure
 /// proper normalization (trim, lowercase) and validation.
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), racing_wheel_schemas::domain::DomainError> {
+/// use racing_wheel_schemas::domain::ProfileId;
+///
+/// // Parse and normalize a profile ID
+/// let id: ProfileId = "iRacing.GT3".parse()?;
+/// assert_eq!(id.as_str(), "iracing.gt3");
+///
+/// // Dots, hyphens, and underscores are allowed
+/// let id2: ProfileId = "profile-v2_test".parse()?;
+/// assert_eq!(id2.as_str(), "profile-v2_test");
+///
+/// // Invalid IDs are rejected
+/// assert!("".parse::<ProfileId>().is_err());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProfileId(String);
 
@@ -461,6 +544,26 @@ impl From<ProfileId> for String {
 }
 
 /// Gain value (0.0 to 1.0) with validation
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), racing_wheel_schemas::domain::DomainError> {
+/// use racing_wheel_schemas::domain::Gain;
+///
+/// let gain = Gain::new(0.8)?;
+/// assert!((gain.value() - 0.8).abs() < f32::EPSILON);
+///
+/// // Gain can scale values via multiplication
+/// let scaled = gain * 100.0;
+/// assert!((scaled - 80.0).abs() < f32::EPSILON);
+///
+/// // Out-of-range values are rejected
+/// assert!(Gain::new(1.5).is_err());
+/// assert!(Gain::new(-0.1).is_err());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Gain(f32);
 
@@ -508,6 +611,23 @@ impl std::ops::Mul<Gain> for f32 {
 }
 
 /// Frequency value in Hz with validation
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), racing_wheel_schemas::domain::DomainError> {
+/// use racing_wheel_schemas::domain::FrequencyHz;
+///
+/// let freq = FrequencyHz::new(1000.0)?;
+/// assert!((freq.value() - 1000.0).abs() < f32::EPSILON);
+/// assert_eq!(freq.to_string(), "1000.0 Hz");
+///
+/// // Zero and negative frequencies are rejected
+/// assert!(FrequencyHz::new(0.0).is_err());
+/// assert!(FrequencyHz::new(-50.0).is_err());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct FrequencyHz(f32);
 
@@ -533,6 +653,24 @@ impl fmt::Display for FrequencyHz {
 }
 
 /// Curve point for force feedback curves
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), racing_wheel_schemas::domain::DomainError> {
+/// use racing_wheel_schemas::domain::CurvePoint;
+///
+/// // Both input and output must be in [0.0, 1.0]
+/// let point = CurvePoint::new(0.5, 0.7)?;
+/// assert!((point.input - 0.5).abs() < f32::EPSILON);
+/// assert!((point.output - 0.7).abs() < f32::EPSILON);
+///
+/// // Out-of-range values are rejected
+/// assert!(CurvePoint::new(-0.1, 0.5).is_err());
+/// assert!(CurvePoint::new(0.5, 1.1).is_err());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CurvePoint {
     pub input: f32,
@@ -568,6 +706,33 @@ impl CurvePoint {
 }
 
 /// Validate that curve points are monotonic
+///
+/// Ensures that the input values of successive curve points are strictly
+/// increasing.
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), racing_wheel_schemas::domain::DomainError> {
+/// use racing_wheel_schemas::domain::{CurvePoint, validate_curve_monotonic};
+///
+/// let points = vec![
+///     CurvePoint::new(0.0, 0.0)?,
+///     CurvePoint::new(0.5, 0.6)?,
+///     CurvePoint::new(1.0, 1.0)?,
+/// ];
+/// assert!(validate_curve_monotonic(&points).is_ok());
+///
+/// // Non-monotonic points are rejected
+/// let bad = vec![
+///     CurvePoint::new(0.0, 0.0)?,
+///     CurvePoint::new(0.7, 0.6)?,
+///     CurvePoint::new(0.5, 1.0)?,
+/// ];
+/// assert!(validate_curve_monotonic(&bad).is_err());
+/// # Ok(())
+/// # }
+/// ```
 pub fn validate_curve_monotonic(points: &[CurvePoint]) -> Result<(), DomainError> {
     if points.is_empty() {
         return Err(DomainError::InvalidCurvePoints("Empty curve".to_string()));
