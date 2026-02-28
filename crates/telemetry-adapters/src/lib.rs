@@ -46,6 +46,7 @@ pub mod iracing;
 pub mod kartkraft;
 pub mod le_mans_ultimate;
 pub mod lfs;
+pub mod motogp;
 pub mod mudrunner;
 pub mod nascar;
 pub mod pcars2;
@@ -54,13 +55,12 @@ pub mod raceroom;
 pub mod rbr;
 pub mod rennsport;
 pub mod rfactor2;
+pub mod ride5;
 pub mod simhub;
 pub mod trackmania;
 pub mod wrc_generations;
 pub mod wreckfest;
 pub mod wtcr;
-pub mod motogp;
-pub mod ride5;
 
 /// Shared type alias for outbound telemetry streams.
 pub type TelemetryReceiver = mpsc::Receiver<TelemetryFrame>;
@@ -349,6 +349,7 @@ pub use iracing::IRacingAdapter;
 pub use kartkraft::KartKraftAdapter;
 pub use le_mans_ultimate::LeMansUltimateAdapter;
 pub use lfs::LFSAdapter;
+pub use motogp::MotoGPAdapter;
 pub use mudrunner::MudRunnerAdapter;
 pub use nascar::NascarAdapter;
 pub use pcars2::PCars2Adapter;
@@ -357,13 +358,12 @@ pub use raceroom::RaceRoomAdapter;
 pub use rbr::RBRAdapter;
 pub use rennsport::RennsportAdapter;
 pub use rfactor2::RFactor2Adapter;
+pub use ride5::Ride5Adapter;
 pub use simhub::SimHubAdapter;
 pub use trackmania::TrackmaniaAdapter;
 pub use wrc_generations::WrcGenerationsAdapter;
 pub use wreckfest::WreckfestAdapter;
 pub use wtcr::WtcrAdapter;
-pub use motogp::MotoGPAdapter;
-pub use ride5::Ride5Adapter;
 
 /// Mock adapter for testing and deterministic fixture generation.
 pub struct MockAdapter {
