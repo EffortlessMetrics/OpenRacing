@@ -761,8 +761,6 @@ impl WasmRuntime {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
