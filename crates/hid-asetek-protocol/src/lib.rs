@@ -1,9 +1,10 @@
 //! HID protocol implementation for Asetek wheelbases
 //!
 //! This crate provides protocol implementation for Asetek wheelbases:
-//! - Asetek Forte
-//! - Asetek Invicta
-//! - Asetek LaPrima
+//! - Asetek Forte (18 Nm)
+//! - Asetek Invicta (27 Nm)
+//! - Asetek La Prima (12 Nm)
+//! - Asetek Tony Kanaan Edition (27 Nm, Invicta-based)
 //!
 //! ## Features
 //! - Direct drive force feedback
@@ -55,7 +56,7 @@ pub const PRODUCT_ID_LAPRIMA: u16 = 0xF303;
 pub const REPORT_SIZE_INPUT: usize = 32;
 pub const REPORT_SIZE_OUTPUT: usize = 32;
 
-pub const MAX_TORQUE_NM: f32 = 20.0;
+pub const MAX_TORQUE_NM: f32 = 27.0;
 
 #[cfg(test)]
 mod tests {

@@ -66,10 +66,10 @@ See friction log entry **F-005** for the history of why this document was create
 
 | PID      | Device Name                  | Status    |
 |----------|------------------------------|-----------|
-| `0xF300` | Asetek Invicta (15 Nm)       | Verified  |
-| `0xF301` | Asetek Forte (20 Nm)         | Verified  |
-| `0xF303` | Asetek La Prima (10 Nm)      | Community |
-| `0xF306` | Asetek Tony Kanaan Edition   | Community |
+| `0xF300` | Asetek Invicta (27 Nm)       | Verified  |
+| `0xF301` | Asetek Forte (18 Nm)         | Verified  |
+| `0xF303` | Asetek La Prima (12 Nm)      | Community |
+| `0xF306` | Asetek Tony Kanaan Edition (27 Nm) | Community |
 
 ---
 
@@ -175,7 +175,7 @@ See friction log entry **F-005** for the history of why this document was create
 | `0x1018` | Cammus CP5 Pedals     | Community |
 | `0x1019` | Cammus LC100 Pedals   | Community |
 
-> **Note:** A C15 (15 Nm) model has been announced; PID unknown — excluded pending USB capture.
+> **Note:** A C15 / DDMAX (15 Nm) model has been announced; PID unknown — excluded pending USB capture.
 
 ---
 
@@ -242,8 +242,12 @@ See friction log entry **F-005** for the history of why this document was create
 
 | PID      | Device Name                       | Status   |
 |----------|-----------------------------------|----------|
-| `0xFFB0` | OpenFFBoard (main firmware)       | Verified |
-| `0xFFB1` | OpenFFBoard (alternate firmware)  | Verified |
+| `0xFFB0` | OpenFFBoard (main firmware)       | Verified   |
+| `0xFFB1` | OpenFFBoard (alternate firmware)  | Unverified |
+
+> **Note:** PID `0xFFB1` is not registered at pid.codes (returns 404) and does not appear in
+> the OpenFFBoard firmware source (`usb_descriptors.cpp` uses only `0xFFB0`). Retained as
+> a placeholder for possible community builds.
 
 ---
 
@@ -281,7 +285,7 @@ See friction log entry **F-005** for the history of why this document was create
 | `0x000F` | FFB Joystick (direct drive FF)        | Community |
 | `0x0030` | BU0836X 12-bit joystick interface     | Estimated |
 | `0x0031` | BU0836 16-bit joystick interface      | Estimated |
-| `0xBEEF` | SLI-M Shift Light Indicator           | Verified  |
+| `0xBEEF` | SLI-M Shift Light Indicator           | Unverified |
 
 ---
 
@@ -368,7 +372,7 @@ The following devices are known to exist but lack confirmed USB VID/PID values. 
 |--------|--------|-------|
 | Turtle Beach VelocityOne Race | VID unknown | Not in linux-steering-wheels or hwdb; audio VID 0x1C59 does not apply |
 | Cube Controls GT Pro / Formula CSX-3 / F-CORE | PIDs unverified | Input-only steering wheels (button boxes), NOT wheelbases. VID 0x0483 (STMicro shared) plausible; PIDs 0x0C73–0x0C75 are internal estimates not found in devicehunt.com or any USB database. JacKeTUs/linux-steering-wheels checked 2025-06 — no entries. These devices do not produce force feedback. |
-| Cammus C15 (15 Nm) | PID unknown | Announced; not yet in community tables |
+| Cammus C15 / DDMAX (15 Nm) | PID unknown | Announced; not yet in community tables |
 | Simucube 3 | Not yet released | No public USB descriptor at time of writing |
 | Gomez Racer devices | Unknown | No public VID/PID found in any community source |
 | SIMTAG pedals | Unknown | No public VID/PID found in any community source |

@@ -13,10 +13,10 @@ sequence is needed. The device is FFB-ready immediately after USB connection.
 
 | Model | Vendor ID | Product ID | Max Torque | Notes |
 |-------|-----------|------------|------------|-------|
-| Invicta | `0x2433` | `0xF300` | 15 Nm | Entry direct drive |
-| Forte | `0x2433` | `0xF301` | 20 Nm | Mid-range direct drive |
-| La Prima | `0x2433` | `0xF303` | 10 Nm | Compact direct drive |
-| Tony Kanaan Edition | `0x2433` | `0xF306` | 20 Nm | Limited edition |
+| Invicta | `0x2433` | `0xF300` | 27 Nm | Premium direct drive |
+| Forte | `0x2433` | `0xF301` | 18 Nm | Mid-range direct drive |
+| La Prima | `0x2433` | `0xF303` | 12 Nm | Entry direct drive |
+| Tony Kanaan Edition | `0x2433` | `0xF306` | 27 Nm | Limited edition (Invicta-based) |
 
 **Vendor ID note:** VID `0x2433` is registered to Asetek A/S (USB VID registry).
 Source: JacKeTUs/linux-steering-wheels compatibility table.
@@ -56,9 +56,10 @@ at up to 1 kHz.
 
 | Model | Max Torque | Bearing | Notes |
 |-------|-----------|---------|-------|
-| Forte | 20 Nm | Ball bearing | Premium model, 20 Nm peak |
-| Invicta | 15 Nm | Ball bearing | Mid-range |
-| LaPrima | 10 Nm | Ball bearing | Compact/entry |
+| Invicta | 27 Nm | Ball bearing | Premium model, 27 Nm peak |
+| Forte | 18 Nm | Ball bearing | Mid-range |
+| LaPrima | 12 Nm | Ball bearing | Entry |
+| Tony Kanaan Edition | 27 Nm | Ball bearing | Invicta-based limited edition |
 
 ## Implementation Notes
 

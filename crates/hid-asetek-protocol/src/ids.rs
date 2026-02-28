@@ -12,7 +12,7 @@ pub const ASETEK_INVICTA_PID: u16 = 0xF300;
 pub const ASETEK_FORTE_PID: u16 = 0xF301;
 /// Asetek La Prima (12 Nm entry direct drive).
 pub const ASETEK_LAPRIMA_PID: u16 = 0xF303;
-/// Asetek Tony Kanaan Edition (18 Nm, Forte-based special edition).
+/// Asetek Tony Kanaan Edition (27 Nm, Invicta-based special edition).
 pub const ASETEK_TONY_KANAAN_PID: u16 = 0xF306;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,7 +50,7 @@ impl AsetekModel {
             Self::Forte => 18.0,
             Self::Invicta => 27.0,
             Self::LaPrima => 12.0,
-            Self::TonyKanaan => 18.0,
+            Self::TonyKanaan => 27.0,
             Self::Unknown => 18.0,
         }
     }

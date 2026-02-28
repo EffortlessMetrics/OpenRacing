@@ -85,7 +85,7 @@ proptest! {
 
     /// Torque above MAX_TORQUE_NM saturates to the same cNm as MAX_TORQUE_NM.
     #[test]
-    fn prop_torque_clamped_above_max(torque in 20.0f32..=100.0f32) {
+    fn prop_torque_clamped_above_max(torque in 27.0f32..=100.0f32) {
         let clamped = asetek::AsetekOutputReport::new(0).with_torque(torque);
         let at_max = asetek::AsetekOutputReport::new(0).with_torque(asetek::MAX_TORQUE_NM);
         prop_assert_eq!(
@@ -98,7 +98,7 @@ proptest! {
 
     /// Torque below -MAX_TORQUE_NM saturates to the same cNm as -MAX_TORQUE_NM.
     #[test]
-    fn prop_torque_clamped_below_min(torque in -100.0f32..=-20.0f32) {
+    fn prop_torque_clamped_below_min(torque in -100.0f32..=-27.0f32) {
         let clamped = asetek::AsetekOutputReport::new(0).with_torque(torque);
         let at_min = asetek::AsetekOutputReport::new(0).with_torque(-asetek::MAX_TORQUE_NM);
         prop_assert_eq!(
