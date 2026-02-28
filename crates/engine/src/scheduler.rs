@@ -475,6 +475,11 @@ impl AbsoluteScheduler {
             self.apply_linux_rt_setup(setup)?;
         }
 
+        #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+        {
+            let _ = setup;
+        }
+
         self.rt_setup_applied = true;
         Ok(())
     }
