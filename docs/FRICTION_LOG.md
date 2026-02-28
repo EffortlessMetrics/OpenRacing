@@ -60,15 +60,13 @@ Missing one silently causes tests to pass while runtime silently skips the write
 
 ---
 
-### F-003 · Race condition: agents editing files during compilation (High · Open)
+### F-003 · Race condition: agents editing files during compilation (High · **Resolved**)
 
 **Encountered:** RC sprint — agent-26 modifying `windows.rs` while `cargo check` was running
 
 Concurrent file edits during active builds cause cascading compilation errors (references to constants that briefly exist/don't exist). This is especially bad for agents that progressively refine a large file.
 
-**Current state:** No worktree-per-agent pattern or build-lock mechanism has been added to `AGENTS.md` or the agent orchestration layer. The issue remains fully open.
-
-**Remedy:** Agent orchestration should acquire a build-lock or use a worktree-per-agent pattern so edits are isolated until the agent commits. Document the worktree-per-agent rule in `AGENTS.md`.
+**Fix applied:** `AGENTS.md` updated with a "Multi-agent / worktree rules" section that mandates `git worktree add` per agent, isolation to the agent's own worktree, and the cherry-pick rebase pattern after squash merges. See feat/r7-quirks-cleanup-v2.
 
 ---
 
@@ -127,13 +125,13 @@ Both `crates/telemetry-config/src/game_support_matrix.yaml` and `crates/telemetr
 
 ---
 
-### F-014 · Agent race conditions on shared branch (High · Open)
+### F-014 · Agent race conditions on shared branch (High · **Resolved**)
 
 **Encountered:** R5 test coverage sprint — multiple agents operating on `feat/r5-test-coverage-and-integration`
 
 Multiple agents running concurrently on the same branch can cause YAML divergence, merge conflicts, and `workspace-hack` drift. The risk compounds when agents edit overlapping files without coordination.
 
-**Remedy:** Use `git worktree` per agent so each agent works in an isolated directory. Alternatively, use separate feature branches per agent and merge via PR. Document the worktree-per-agent rule in `AGENTS.md`. See also F-003.
+**Fix applied:** `AGENTS.md` updated with a "Multi-agent / worktree rules" section (same fix as F-003): `git worktree` per agent, isolated directories, cherry-pick rebase pattern, and `cargo hakari generate` reminder. See feat/r7-quirks-cleanup-v2.
 
 ---
 
@@ -220,7 +218,8 @@ No compile-time help distinguishes "this is a renamed constant" from "this const
 
 | ID | Title | Resolved In |
 |----|-------|-------------|
-| F-005 | Wrong protocol VID/PID values | SOURCES.md + id_verification.rs |
+| F-003 | Agent file-edit race during compilation | AGENTS.md worktree rules (feat/r7) |
+| F-014 | Agent race conditions on shared branch | AGENTS.md worktree rules (feat/r7) |
 | F-008 | BeamNG gear overflow | commit cdd69f0 |
 | F-009 | static_mut_refs missing | commit cdd69f0 |
 | F-010 | Stale integration test name | agent-30 |

@@ -33,12 +33,35 @@ This file guides automated agents working in this repository. Follow it alongsid
 ## Testing and validation
 - Unit + integration tests: `cargo test --all-features --workspace`
 - RT performance profile: `cargo build --profile rt --bin wheeld`
-- Benchmarks: `cargo bench --bench rt_timing`
+- Benchmarks: `BENCHMARK_JSON_OUTPUT=1 BENCHMARK_JSON_PATH=bench_results.json cargo bench --bench rt_timing`
 - Performance gates: `python scripts/validate_performance.py bench_results.json --strict`
 - ADR validation: `python scripts/validate_adr.py --verbose`
 - Docs index: `python scripts/generate_docs_index.py`
 - Docs build: `cargo doc --all-features --workspace`
  - **No `unwrap()`/`expect()` in tests**: avoid panics in test code; prefer `Result`-returning tests (e.g. `#[test] fn foo() -> Result<(), Error>`), explicit assertions, or test helper macros.
+
+## Multi-agent / worktree rules (F-003, F-014)
+
+When multiple agents operate on the same repository concurrently:
+
+1. **Each agent MUST use its own git worktree.** Never have two agents editing files in the same worktree directory — concurrent file edits during active builds cause cascading compilation errors and merge conflicts.
+
+2. **Create a worktree per feature branch:**
+   ```
+   git worktree add ../OpenRacing-<feature> -b feat/<feature>
+   ```
+   Work entirely inside `../OpenRacing-<feature>`. Do not touch the parent worktree.
+
+3. **Push and open a PR from the feature worktree.** Do not commit directly to `main` or to another agent's branch.
+
+4. **After the parent PR merges**, rebase by cherry-picking your commits onto a fresh branch from `main` rather than rebasing the full history (avoids conflicts from squash merges):
+   ```
+   git checkout -b feat/<feature>-v2 origin/main
+   git cherry-pick <commit1> <commit2> ...
+   git push origin feat/<feature>-v2
+   ```
+
+5. **Workspace-hack drift:** After adding a new crate or changing feature flags, run `cargo hakari generate` and commit the result before pushing.
 
 ## Dependency and config hygiene
 - Use workspace dependencies where possible (see root `Cargo.toml`).
