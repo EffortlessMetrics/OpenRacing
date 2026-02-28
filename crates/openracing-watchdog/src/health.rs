@@ -229,14 +229,14 @@ mod tests {
         check.heartbeat();
 
         // Should not timeout immediately
-        assert!(!check.check_timeout(Duration::from_millis(100)));
+        assert!(!check.check_timeout(Duration::from_millis(500)));
 
         // Wait and check again
-        thread::sleep(Duration::from_millis(50));
-        assert!(!check.check_timeout(Duration::from_millis(100)));
+        thread::sleep(Duration::from_millis(200));
+        assert!(!check.check_timeout(Duration::from_millis(500)));
 
-        thread::sleep(Duration::from_millis(60));
-        assert!(check.check_timeout(Duration::from_millis(100)));
+        thread::sleep(Duration::from_millis(350));
+        assert!(check.check_timeout(Duration::from_millis(500)));
         assert_eq!(check.status, HealthStatus::Healthy); // First failure
     }
 

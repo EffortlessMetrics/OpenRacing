@@ -280,10 +280,8 @@ fn parse_field_tag(element: &BytesStart<'_>) -> Result<PendingField> {
                     .ok()
                     .filter(|value| value.is_finite() && *value > 0.0);
             }
-            b"fourcc" => {
-                if !value.is_empty() {
-                    fourcc_text = Some(value);
-                }
+            b"fourcc" if !value.is_empty() => {
+                fourcc_text = Some(value);
             }
             _ => {}
         }

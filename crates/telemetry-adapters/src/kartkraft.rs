@@ -165,7 +165,11 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     }
 
     // Root table offset is a u32 LE at bytes [0..4].
-    let root_offset = u32::from_le_bytes(data[0..4].try_into().unwrap()) as usize;
+    let root_offset = u32::from_le_bytes(
+        data[0..4]
+            .try_into()
+            .map_err(|_| anyhow!("KartKraft: invalid root offset bytes"))?,
+    ) as usize;
     if root_offset >= data.len() {
         return Err(anyhow!(
             "KartKraft: root offset {root_offset} out of bounds"
