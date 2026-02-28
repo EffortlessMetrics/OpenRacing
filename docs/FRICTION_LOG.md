@@ -353,6 +353,46 @@ Three adapters had fuel bugs found during the systematic audit triggered by F-02
 
 ---
 
+### F-030 · Assetto Corsa adapter used wrong protocol entirely (High · Resolved)
+
+**Encountered:** Protocol verification wave — web research against vpicon/acudp, lmirel/mfc, Kunos C# SDK
+
+AC adapter was parsing 76-byte OutGauge packets (used by LFS, BeamNG) but Assetto Corsa actually uses its own Remote Telemetry UDP protocol with a 3-step handshake and 328-byte RTCarInfo packets. Every field offset was wrong. All AC telemetry was garbage data.
+
+**Fix applied:** Complete rewrite to Remote Telemetry UDP — sends handshake, subscribes to updates, parses RTCarInfo. Integration test updated to mock AC server. Committed as `9365e99`.
+
+---
+
+### F-031 · Simagic M10 PID collision with Simucube 1 (High · Resolved)
+
+**Encountered:** Engine device sync — both Simagic M10 and Simucube SC1 listed at VID 0x16D0, PID 0x0D5A
+
+Agent-20's device sync added "Simagic M10" at PID 0x0D5A, but that PID on VID 0x16D0 belongs to Simucube 1 (confirmed via official Simucube developer docs, gro-ove/actools). The Simagic M10 actually uses VID 0x0483 PID 0x0522 (shared with Alpha family via STM32 bootloader). Also had "Simagic FX" at 0x0D5B — also wrong.
+
+**Fix applied:** Removed ghost M10/FX entries from windows.rs and linux.rs. Added correct Simucube 1 entry. Committed in `54c8b22`.
+
+---
+
+### F-032 · Estimated PIDs for unreleased Simagic devices (Low · Open)
+
+**Encountered:** Protocol verification wave
+
+Simagic Alpha EVO (0x0600), Neo (0x0700), and Neo Mini (0x0701) PIDs are estimates based on sequential numbering convention. No community source confirms these values. These devices may not have shipped yet.
+
+**Impact:** If wrong, these devices won't be detected. Low risk — devices will still get some FFB from the Simagic family fallback.
+
+**Remedy:** Acquire hardware captures or wait for community reverse engineering (JacKeTUs/simagic-ff driver updates).
+
+---
+
+### F-033 · Simucube Wireless Wheel PID unconfirmed (Low · Open)
+
+**Encountered:** Protocol verification wave
+
+Simucube Wireless Wheel (PID 0x0D63) is listed in engine tables but not confirmed in any public source. It's a receiver, not a force feedback device, so we set torque to 0 Nm. If the PID is wrong it won't cause harm (no FFB commands sent to it).
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
@@ -375,11 +415,28 @@ Three adapters had fuel bugs found during the systematic audit triggered by F-02
 | F-026 | Codemasters Mode 1 UDP adapters wrong byte offsets | 7 adapters corrected + shared parsing extracted (codemasters_shared.rs) |
 | F-027 | Forza tire temp assumed Kelvin, actually Fahrenheit | commit 7d8582e (feat/r7-quirks-cleanup-v2) |
 | F-028 | fuel_percent × 100 bug in LFS, AMS1, RaceRoom f64 | commit 6a0ed5d (feat/r7-quirks-cleanup-v2) |
+| F-030 | Assetto Corsa adapter used OutGauge instead of Remote Telemetry | commit 9365e99 (feat/r7-quirks-cleanup-v2) |
+| F-031 | Simagic M10/Simucube 1 PID collision at 0x0D5A | commit 54c8b22 (feat/r7-quirks-cleanup-v2) |
 
 ---
 
 ## Recent Progress
 
+### Protocol Verification Wave (Web-Verified)
+- **Moza Racing**: All 11 wheelbase PIDs verified against JacKeTUs/universal-pidff (Linux kernel 6.15). All torque specs confirmed from mozaracing.com. FFB quirks correct. No changes needed.
+- **Simucube**: SC2 Sport torque corrected 15→17 Nm, SC2 Ultimate 35→32 Nm (from official docs). Added Simucube 1 PID 0x0D5A. SC-Link Hub PID corrected 0x0D62→0x0D66.
+- **Simagic**: EVO Sport 15→9 Nm, EVO 20→12 Nm, EVO Pro 30→18 Nm (from simagic.com). Removed ghost M10/FX entries.
+- **Assetto Corsa**: Complete rewrite from OutGauge (76 bytes) to Remote Telemetry UDP (328 bytes) with 3-step handshake. All field offsets corrected.
+- **ACC**: Fixed isReadonly field inversion (byte==0 means readonly in Kunos SDK).
+- **BeamNG**: Verified correct (OutGauge protocol matches InSim.txt).
+
+### Engine Device Table Sync
+- 50+ missing devices added to linux.rs (VRS, Heusinkveld, Cammus, OpenFFBoard, FFBeast, etc.)
+- AccuForce Pro capabilities corrected (12 Nm, PID support, 1 kHz)
+- Cube Controls capabilities corrected (20 Nm)
+- Asetek Tony Kanaan torque corrected (25→20 Nm)
+
+### Earlier Progress
 - Project CARS 3 adapter added
 - Codemasters shared parsing extracted into `codemasters_shared.rs` (~890 lines of duplicated offset logic removed)
 - Forza Horizon 4 324-byte packet support added
