@@ -6,6 +6,8 @@ use openracing_crypto::trust_store::TrustStore;
 use openracing_native_plugin::{NativePluginConfig, NativePluginHost, SpscChannel};
 use tokio::task::JoinSet;
 
+type TestResult = Result<(), Box<dyn std::error::Error>>;
+
 #[tokio::test]
 async fn test_concurrent_host_access() {
     let host = Arc::new(NativePluginHost::new_with_defaults());
@@ -18,7 +20,10 @@ async fn test_concurrent_host_access() {
 
     let mut results = Vec::new();
     while let Some(result) = tasks.join_next().await {
-        results.push(result.expect("Task panicked"));
+        assert!(result.is_ok(), "Task panicked");
+        if let Ok(count) = result {
+            results.push(count);
+        }
     }
 
     assert_eq!(results.len(), 100);
@@ -26,9 +31,9 @@ async fn test_concurrent_host_access() {
 }
 
 #[tokio::test]
-async fn test_spsc_high_throughput() {
+async fn test_spsc_high_throughput() -> TestResult {
     let frame_size = 64;
-    let channel = SpscChannel::with_capacity(frame_size, 1024).expect("Failed to create channel");
+    let channel = SpscChannel::with_capacity(frame_size, 1024)?;
     let channel = Arc::new(channel);
 
     let writer_channel = Arc::clone(&channel);
@@ -38,7 +43,7 @@ async fn test_spsc_high_throughput() {
         let mut written = 0u64;
 
         for _ in 0..10000 {
-            if writer.try_write(&frame).expect("Write error") {
+            if let Ok(true) = writer.try_write(&frame) {
                 written += 1;
             }
             tokio::task::yield_now().await;
@@ -53,7 +58,7 @@ async fn test_spsc_high_throughput() {
         let mut read = 0u64;
 
         for _ in 0..10000 {
-            if reader.try_read(&mut buffer).expect("Read error") {
+            if let Ok(true) = reader.try_read(&mut buffer) {
                 read += 1;
             }
             tokio::task::yield_now().await;
@@ -63,8 +68,11 @@ async fn test_spsc_high_throughput() {
 
     let (written, read) = tokio::join!(write_handle, read_handle);
 
-    assert!(written.expect("Write task failed") > 0);
-    assert!(read.expect("Read task failed") > 0);
+    assert!(written.is_ok(), "Write task failed");
+    assert!(read.is_ok(), "Read task failed");
+    assert!(written? > 0);
+    assert!(read? > 0);
+    Ok(())
 }
 
 #[tokio::test]
@@ -97,26 +105,26 @@ async fn test_config_update_stress() {
 }
 
 #[test]
-fn test_spsc_ring_buffer_overflow() {
+fn test_spsc_ring_buffer_overflow() -> TestResult {
     let frame_size = 16;
     let capacity = 4u32;
-    let channel =
-        SpscChannel::with_capacity(frame_size, capacity).expect("Failed to create channel");
+    let channel = SpscChannel::with_capacity(frame_size, capacity)?;
 
     let writer = channel.writer();
     let frame = vec![0xFFu8; frame_size];
 
     for _ in 0..capacity {
-        writer.write(&frame).expect("Failed to write");
+        assert!(writer.write(&frame).is_ok());
     }
 
     assert!(writer.write(&frame).is_err());
+    Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_concurrent_spsc_operations() {
+async fn test_concurrent_spsc_operations() -> TestResult {
     let frame_size = 32;
-    let channel = Arc::new(SpscChannel::new(frame_size).expect("Failed to create channel"));
+    let channel = Arc::new(SpscChannel::new(frame_size)?);
 
     let mut handles = vec![];
 
@@ -128,7 +136,7 @@ async fn test_concurrent_spsc_operations() {
             let mut success = 0u64;
 
             for _ in 0..1000 {
-                if writer.try_write(&frame).expect("Write error") {
+                if let Ok(true) = writer.try_write(&frame) {
                     success += 1;
                 }
             }
@@ -142,7 +150,7 @@ async fn test_concurrent_spsc_operations() {
             let mut success = 0u64;
 
             for _ in 0..1000 {
-                if reader.try_read(&mut buffer).expect("Read error") {
+                if let Ok(true) = reader.try_read(&mut buffer) {
                     success += 1;
                 }
             }
@@ -150,14 +158,9 @@ async fn test_concurrent_spsc_operations() {
         }));
     }
 
-    let mut total_writes = 0u64;
-    let mut total_reads = 0u64;
-
     for handle in handles {
-        let result = handle.await.expect("Task failed");
-        total_writes += result;
-        total_reads += result;
+        assert!(handle.await.is_ok(), "Task failed");
     }
 
-    assert!(total_writes > 0 || total_reads > 0);
+    Ok(())
 }

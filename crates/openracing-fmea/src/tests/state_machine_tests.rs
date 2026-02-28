@@ -35,21 +35,22 @@ fn test_state_machine_initial_state() {
 }
 
 #[test]
-fn test_state_machine_fault_transition() {
+fn test_state_machine_fault_transition() -> Result<(), Box<FmeaError>> {
     let mut fmea = FmeaSystem::new();
     assert_eq!(fmea.state(), FmeaState::Normal);
 
     // Trigger a fault
-    fmea.handle_fault(FaultType::UsbStall, 10.0).unwrap();
+    fmea.handle_fault(FaultType::UsbStall, 10.0)?;
 
     // Should be in soft-stopping state
     assert_eq!(fmea.state(), FmeaState::SoftStopping);
+    Ok(())
 }
 
 #[test]
-fn test_state_machine_soft_stop_completion() {
+fn test_state_machine_soft_stop_completion() -> Result<(), Box<FmeaError>> {
     let mut fmea = FmeaSystem::new();
-    fmea.handle_fault(FaultType::UsbStall, 10.0).unwrap();
+    fmea.handle_fault(FaultType::UsbStall, 10.0)?;
     assert_eq!(fmea.state(), FmeaState::SoftStopping);
 
     // Complete soft-stop
@@ -58,74 +59,80 @@ fn test_state_machine_soft_stop_completion() {
 
     // USBStall is recoverable, so should be in Recovering state
     assert_eq!(fmea.state(), FmeaState::Recovering);
+    Ok(())
 }
 
 #[test]
-fn test_state_machine_clear_fault() {
+fn test_state_machine_clear_fault() -> Result<(), Box<FmeaError>> {
     let mut fmea = FmeaSystem::new();
-    fmea.handle_fault(FaultType::UsbStall, 10.0).unwrap();
+    fmea.handle_fault(FaultType::UsbStall, 10.0)?;
     fmea.update_soft_stop(Duration::from_millis(100));
 
     // USBStall is recoverable
     assert_eq!(fmea.state(), FmeaState::Recovering);
 
     // Clear fault
-    fmea.clear_fault().unwrap();
+    fmea.clear_fault()?;
     assert_eq!(fmea.state(), FmeaState::Normal);
+    Ok(())
 }
 
 #[test]
-fn test_state_machine_multiple_faults() {
+fn test_state_machine_multiple_faults() -> Result<(), Box<FmeaError>> {
     let mut fmea = FmeaSystem::new();
 
     // First fault
-    fmea.handle_fault(FaultType::UsbStall, 10.0).unwrap();
+    fmea.handle_fault(FaultType::UsbStall, 10.0)?;
     assert!(fmea.has_active_fault());
 
     // Second fault (should not change active fault)
     let result = fmea.handle_fault(FaultType::ThermalLimit, 5.0);
     assert!(result.is_ok());
     assert_eq!(fmea.active_fault(), Some(FaultType::ThermalLimit));
+    Ok(())
 }
 
 #[test]
-fn test_state_machine_recoverable_vs_non_recoverable() {
+fn test_state_machine_recoverable_vs_non_recoverable() -> Result<(), Box<FmeaError>> {
     let mut fmea1 = FmeaSystem::new();
-    fmea1.handle_fault(FaultType::UsbStall, 10.0).unwrap();
+    fmea1.handle_fault(FaultType::UsbStall, 10.0)?;
     fmea1.update_soft_stop(Duration::from_millis(100));
     assert!(fmea1.can_recover());
 
     let mut fmea2 = FmeaSystem::new();
-    fmea2.handle_fault(FaultType::EncoderNaN, 10.0).unwrap();
+    fmea2.handle_fault(FaultType::EncoderNaN, 10.0)?;
     fmea2.update_soft_stop(Duration::from_millis(100));
     assert!(!fmea2.can_recover());
+    Ok(())
 }
 
 #[test]
-fn test_state_machine_audio_alerts() {
+fn test_state_machine_audio_alerts() -> Result<(), Box<FmeaError>> {
     let mut fmea = FmeaSystem::new();
-    fmea.handle_fault(FaultType::Overcurrent, 10.0).unwrap();
+    fmea.handle_fault(FaultType::Overcurrent, 10.0)?;
 
     // Urgent alert should be triggered
     let alert = fmea.audio_alerts().current_alert();
     assert_eq!(alert, Some(AudioAlert::Urgent));
+    Ok(())
 }
 
 #[test]
-fn test_state_machine_detection_reset_on_clear() {
+fn test_state_machine_detection_reset_on_clear() -> Result<(), Box<FmeaError>> {
     let mut fmea = FmeaSystem::new();
 
     // Trigger detection (but not full fault)
     fmea.detect_usb_fault(2, Some(Duration::ZERO));
 
     // Clear fault should reset detection state
-    fmea.handle_fault(FaultType::UsbStall, 10.0).unwrap();
-    fmea.clear_fault().unwrap();
+    fmea.handle_fault(FaultType::UsbStall, 10.0)?;
+    fmea.clear_fault()?;
 
     // Detection state should be reset
     let stats: Vec<_> = fmea.fault_statistics().collect();
     let usb = stats.iter().find(|(ft, _, _)| *ft == FaultType::UsbStall);
-    assert_eq!(usb.unwrap().1, 0);
+    assert_eq!(usb.map(|entry| entry.1), Some(0));
+    Ok(())
 }
 
 #[test]
@@ -145,9 +152,9 @@ fn test_state_machine_timing_violation_accumulation() {
 }
 
 #[test]
-fn test_state_machine_soft_stop_cancellation() {
+fn test_state_machine_soft_stop_cancellation() -> Result<(), Box<FmeaError>> {
     let mut fmea = FmeaSystem::new();
-    fmea.handle_fault(FaultType::UsbStall, 10.0).unwrap();
+    fmea.handle_fault(FaultType::UsbStall, 10.0)?;
     assert!(fmea.is_soft_stop_active());
 
     // Force stop soft-stop
@@ -156,6 +163,7 @@ fn test_state_machine_soft_stop_cancellation() {
 
     // Fault should still be active
     assert!(fmea.has_active_fault());
+    Ok(())
 }
 
 #[test]
@@ -221,11 +229,12 @@ fn test_state_machine_all_fault_types() {
 }
 
 #[test]
-fn test_state_machine_recovery_procedure_availability() {
+fn test_state_machine_recovery_procedure_availability() -> Result<(), Box<FmeaError>> {
     let mut fmea = FmeaSystem::new();
-    fmea.handle_fault(FaultType::UsbStall, 10.0).unwrap();
+    fmea.handle_fault(FaultType::UsbStall, 10.0)?;
 
     let procedure = fmea.recovery_procedure();
     assert!(procedure.is_some());
-    assert_eq!(procedure.unwrap().fault_type, FaultType::UsbStall);
+    assert_eq!(procedure.map(|p| p.fault_type), Some(FaultType::UsbStall));
+    Ok(())
 }

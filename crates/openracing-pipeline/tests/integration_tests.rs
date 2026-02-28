@@ -7,54 +7,42 @@ use openracing_filters::Frame;
 use openracing_pipeline::prelude::*;
 use racing_wheel_schemas::prelude::{CurvePoint, FrequencyHz, Gain, NotchFilter};
 
-fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-    match r {
-        Ok(v) => v,
-        Err(e) => panic!("must() failed: {:?}", e),
-    }
-}
+type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-fn create_test_config() -> racing_wheel_schemas::entities::FilterConfig {
-    racing_wheel_schemas::entities::FilterConfig::new_complete(
+fn create_test_config()
+-> Result<racing_wheel_schemas::entities::FilterConfig, Box<dyn std::error::Error>> {
+    Ok(racing_wheel_schemas::entities::FilterConfig::new_complete(
         4,
-        must(Gain::new(0.1)),
-        must(Gain::new(0.15)),
-        must(Gain::new(0.05)),
-        vec![must(NotchFilter::new(
-            must(FrequencyHz::new(60.0)),
-            2.0,
-            -12.0,
-        ))],
-        must(Gain::new(0.8)),
+        Gain::new(0.1)?,
+        Gain::new(0.15)?,
+        Gain::new(0.05)?,
+        vec![NotchFilter::new(FrequencyHz::new(60.0)?, 2.0, -12.0)?],
+        Gain::new(0.8)?,
         vec![
-            must(CurvePoint::new(0.0, 0.0)),
-            must(CurvePoint::new(0.5, 0.6)),
-            must(CurvePoint::new(1.0, 1.0)),
+            CurvePoint::new(0.0, 0.0)?,
+            CurvePoint::new(0.5, 0.6)?,
+            CurvePoint::new(1.0, 1.0)?,
         ],
-        must(Gain::new(0.9)),
+        Gain::new(0.9)?,
         racing_wheel_schemas::entities::BumpstopConfig::default(),
         racing_wheel_schemas::entities::HandsOffConfig::default(),
-    )
-    .unwrap()
+    )?)
 }
 
-fn create_linear_config() -> racing_wheel_schemas::entities::FilterConfig {
-    racing_wheel_schemas::entities::FilterConfig::new_complete(
+fn create_linear_config()
+-> Result<racing_wheel_schemas::entities::FilterConfig, Box<dyn std::error::Error>> {
+    Ok(racing_wheel_schemas::entities::FilterConfig::new_complete(
         0,
-        must(Gain::new(0.0)),
-        must(Gain::new(0.0)),
-        must(Gain::new(0.0)),
+        Gain::new(0.0)?,
+        Gain::new(0.0)?,
+        Gain::new(0.0)?,
         vec![],
-        must(Gain::new(1.0)),
-        vec![
-            must(CurvePoint::new(0.0, 0.0)),
-            must(CurvePoint::new(1.0, 1.0)),
-        ],
-        must(Gain::new(1.0)),
+        Gain::new(1.0)?,
+        vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
+        Gain::new(1.0)?,
         racing_wheel_schemas::entities::BumpstopConfig::default(),
         racing_wheel_schemas::entities::HandsOffConfig::default(),
-    )
-    .unwrap()
+    )?)
 }
 
 fn create_test_frame(torque: f32) -> Frame {
@@ -72,55 +60,58 @@ mod compilation_tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_full_compilation_lifecycle() {
+    async fn test_full_compilation_lifecycle() -> TestResult {
         let compiler = PipelineCompiler::new();
-        let config = create_test_config();
+        let config = create_test_config()?;
 
-        let compiled = compiler.compile_pipeline(config).await.unwrap();
+        let compiled = compiler.compile_pipeline(config).await?;
         assert!(compiled.pipeline.node_count() > 0);
         assert!(compiled.config_hash != 0);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_compilation_with_response_curve() {
+    async fn test_compilation_with_response_curve() -> TestResult {
         let compiler = PipelineCompiler::new();
-        let config = create_linear_config();
-        let curve = CurveType::exponential(2.0).unwrap();
+        let config = create_linear_config()?;
+        let curve = CurveType::exponential(2.0)?;
 
         let compiled = compiler
             .compile_pipeline_with_response_curve(config, Some(&curve))
-            .await
-            .unwrap();
+            .await?;
 
         assert!(compiled.pipeline.response_curve().is_some());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_compilation_determinism() {
+    async fn test_compilation_determinism() -> TestResult {
         let compiler = PipelineCompiler::new();
-        let config = create_test_config();
+        let config = create_test_config()?;
 
-        let compiled1 = compiler.compile_pipeline(config.clone()).await.unwrap();
-        let compiled2 = compiler.compile_pipeline(config).await.unwrap();
+        let compiled1 = compiler.compile_pipeline(config.clone()).await?;
+        let compiled2 = compiler.compile_pipeline(config).await?;
 
         assert_eq!(compiled1.config_hash, compiled2.config_hash);
         assert_eq!(
             compiled1.pipeline.node_count(),
             compiled2.pipeline.node_count()
         );
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_async_compilation() {
+    async fn test_async_compilation() -> TestResult {
         let compiler = PipelineCompiler::new();
-        let config = create_test_config();
+        let config = create_test_config()?;
 
-        let rx = compiler.compile_pipeline_async(config).await.unwrap();
-        let result = rx.await.unwrap();
+        let rx = compiler.compile_pipeline_async(config).await?;
+        let result = rx.await?;
 
         assert!(result.is_ok());
-        let compiled = result.unwrap();
+        let compiled = result?;
         assert!(compiled.pipeline.node_count() > 0);
+        Ok(())
     }
 }
 
@@ -175,11 +166,11 @@ mod execution_tests {
         pipeline.set_response_curve(curve.to_lut());
 
         let mut frame_pos = create_test_frame(0.5);
-        pipeline.process(&mut frame_pos).unwrap();
+        assert!(pipeline.process(&mut frame_pos).is_ok());
         assert!(frame_pos.torque_out > 0.0);
 
         let mut frame_neg = create_test_frame(-0.5);
-        pipeline.process(&mut frame_neg).unwrap();
+        assert!(pipeline.process(&mut frame_neg).is_ok());
         assert!(frame_neg.torque_out < 0.0);
 
         assert!(
@@ -222,20 +213,22 @@ mod validation_tests {
     use super::*;
 
     #[test]
-    fn test_valid_config_passes() {
+    fn test_valid_config_passes() -> TestResult {
         let validator = PipelineValidator::new();
-        let config = create_test_config();
+        let config = create_test_config()?;
 
         assert!(validator.validate_config(&config).is_ok());
+        Ok(())
     }
 
     #[test]
-    fn test_invalid_reconstruction_fails() {
+    fn test_invalid_reconstruction_fails() -> TestResult {
         let validator = PipelineValidator::new();
-        let mut config = create_test_config();
+        let mut config = create_test_config()?;
         config.reconstruction = 10;
 
         assert!(validator.validate_config(&config).is_err());
+        Ok(())
     }
 }
 
@@ -243,35 +236,38 @@ mod hash_tests {
     use super::*;
 
     #[test]
-    fn test_hash_determinism() {
-        let config = create_test_config();
+    fn test_hash_determinism() -> TestResult {
+        let config = create_test_config()?;
 
         let hash1 = calculate_config_hash(&config);
         let hash2 = calculate_config_hash(&config);
 
         assert_eq!(hash1, hash2);
+        Ok(())
     }
 
     #[test]
-    fn test_different_configs_different_hashes() {
-        let config1 = create_test_config();
-        let config2 = create_linear_config();
+    fn test_different_configs_different_hashes() -> TestResult {
+        let config1 = create_test_config()?;
+        let config2 = create_linear_config()?;
 
         let hash1 = calculate_config_hash(&config1);
         let hash2 = calculate_config_hash(&config2);
 
         assert_ne!(hash1, hash2);
+        Ok(())
     }
 
     #[test]
-    fn test_hash_with_curve_different() {
-        let config = create_linear_config();
-        let curve = CurveType::exponential(2.0).unwrap();
+    fn test_hash_with_curve_different() -> TestResult {
+        let config = create_linear_config()?;
+        let curve = CurveType::exponential(2.0)?;
 
         let hash_no_curve = calculate_config_hash_with_curve(&config, None);
         let hash_with_curve = calculate_config_hash_with_curve(&config, Some(&curve));
 
         assert_ne!(hash_no_curve, hash_with_curve);
+        Ok(())
     }
 }
 
@@ -301,7 +297,9 @@ mod property_tests {
 
     #[quickcheck]
     fn prop_hash_stability(_config_seed: u64) -> bool {
-        let config = create_test_config();
+        let Ok(config) = create_test_config() else {
+            return false;
+        };
         let hash1 = calculate_config_hash(&config);
         let hash2 = calculate_config_hash(&config);
         hash1 == hash2
