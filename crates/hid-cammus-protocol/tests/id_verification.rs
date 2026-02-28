@@ -4,7 +4,7 @@
 //! If any assertion fails, update `ids.rs` AND the SOURCES.md table together.
 //! Do not change only one of the two — they must stay in sync.
 
-use racing_wheel_hid_cammus_protocol::{PRODUCT_C12, PRODUCT_C5, VENDOR_ID};
+use racing_wheel_hid_cammus_protocol::{PRODUCT_C5, PRODUCT_C12, VENDOR_ID};
 
 /// Cammus VID must be 0x3416 (Shenzhen Cammus Electronic Technology Co., Ltd.).
 ///
