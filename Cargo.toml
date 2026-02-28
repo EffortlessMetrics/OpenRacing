@@ -22,6 +22,7 @@ members = [
     "crates/hid-openffboard-protocol",
     "crates/hid-ffbeast-protocol",
     "crates/hid-cammus-protocol",
+    "crates/hid-pxn-protocol",
     "crates/simplemotion-v2",
     "crates/openracing-atomic",
     "crates/openracing-tracing",
