@@ -2594,6 +2594,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "hid-cube-controls-protocol"
+version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
+
+[[package]]
 name = "hid-heusinkveld-protocol"
 version = "0.1.0"
 dependencies = [
@@ -5516,6 +5523,7 @@ dependencies = [
  "hdrhistogram",
  "hid-asetek-protocol",
  "hid-button-box-protocol",
+ "hid-cube-controls-protocol",
  "hid-heusinkveld-protocol",
  "hid-simucube-protocol",
  "hidapi",

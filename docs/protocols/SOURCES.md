@@ -337,7 +337,7 @@ The following devices are known to exist but lack confirmed USB VID/PID values. 
 | Device | Status | Notes |
 |--------|--------|-------|
 | Turtle Beach VelocityOne Race | VID unknown | Not in linux-steering-wheels or hwdb; audio VID 0x1C59 does not apply |
-| Cube Controls SimSport / Formula Pro / GT X | PIDs unverified | Likely use VID 0x0483 (STMicro) with estimated PIDs 0x0C73–0x0C75; **cannot add until USB capture confirms** |
+| Cube Controls SimSport / Formula Pro / GT X / CSX3 | PIDs unverified | VID 0x0483 (STMicro shared) reported by community; PIDs 0x0C73–0x0C75 are internal estimates. JacKeTUs/linux-steering-wheels table checked — no Cube Controls entries found. Cannot add until USB capture confirms. |
 | Cammus C15 (15 Nm) | PID unknown | Announced; not yet in community tables |
 | Simucube 3 | Not yet released | No public USB descriptor at time of writing |
 | Gomez Racer devices | Unknown | No public VID/PID found in any community source |

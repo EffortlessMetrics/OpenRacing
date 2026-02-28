@@ -1,0 +1,18 @@
+[package]
+name = "hid-cube-controls-protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Cube Controls steering wheel USB HID protocol constants (provisional VID/PIDs)"
+
+[lints.rust]
+warnings = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+
+[dependencies]
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }

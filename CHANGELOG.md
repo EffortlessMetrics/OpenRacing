@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **15 HID vendor protocol SRP microcrates**: Moza, Fanatec, Logitech, Thrustmaster, Simagic, Simucube, Asetek, VRS DirectForce, Heusinkveld, OpenFFBoard, FFBeast, AccuForce, Leo Bodnar, Cammus, Button Box — pure protocol logic with zero engine coupling, each independently testable and fuzzable
+- **16 HID vendor protocol SRP microcrates**: Moza, Fanatec, Logitech, Thrustmaster, Simagic, Simucube, Asetek, VRS DirectForce, Heusinkveld, OpenFFBoard, FFBeast, AccuForce, Leo Bodnar, Cammus, Button Box, Cube Controls — pure protocol logic with zero engine coupling, each independently testable and fuzzable
+
+- **`hid-cube-controls-protocol` microcrate** — extracts Cube Controls VID/PID constants and model classification (`CubeControlsModel`) from the inline engine implementation into an SRP microcrate. Engine's `cube_controls.rs` now delegates to this crate via `pub use`. VID/PIDs remain provisional pending hardware capture; see `docs/protocols/SOURCES.md`.
 
 - **FFBeast open-source FF controller support** (VID `0x045B`):
   - PIDs `0x58F9` (joystick), `0x5968` (rudder), `0x59D7` (wheel)
