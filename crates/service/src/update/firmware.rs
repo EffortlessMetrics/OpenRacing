@@ -543,11 +543,11 @@ impl FirmwareUpdateManager {
                 error!("Firmware update failed for device {}: {}", device_id, e);
                 // A rollback is performed when the health check fails after the new
                 // firmware is activated; the error type distinguishes this case.
-                let rollback_performed = e
-                    .downcast_ref::<FirmwareUpdateError>()
-                    .is_some_and(|fw_err| {
-                        matches!(fw_err, FirmwareUpdateError::HealthCheckFailed(_))
-                    });
+                let rollback_performed =
+                    e.downcast_ref::<FirmwareUpdateError>()
+                        .is_some_and(|fw_err| {
+                            matches!(fw_err, FirmwareUpdateError::HealthCheckFailed(_))
+                        });
                 Ok(UpdateResult {
                     device_id,
                     success: false,

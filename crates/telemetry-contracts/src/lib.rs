@@ -346,7 +346,10 @@ mod tests {
     }
     #[test]
     fn has_active_flags_returns_true_for_yellow() {
-        let flags = TelemetryFlags { yellow_flag: true, ..TelemetryFlags::default() };
+        let flags = TelemetryFlags {
+            yellow_flag: true,
+            ..TelemetryFlags::default()
+        };
         let t = NormalizedTelemetry::new().with_flags(flags);
         assert!(t.has_active_flags());
     }
