@@ -25,20 +25,24 @@ pub struct ThrustmasterDeviceIdentity {
 
 pub fn identify_device(product_id: u16) -> ThrustmasterDeviceIdentity {
     match product_id {
-        product_ids::T150 | product_ids::T150_PRO | product_ids::TMX => {
-            ThrustmasterDeviceIdentity {
-                product_id,
-                name: "Thrustmaster T150",
-                category: ThrustmasterDeviceCategory::Wheelbase,
-                supports_ffb: true,
-            }
-        }
+        product_ids::T150 | product_ids::TMX => ThrustmasterDeviceIdentity {
+            product_id,
+            name: "Thrustmaster T150",
+            category: ThrustmasterDeviceCategory::Wheelbase,
+            supports_ffb: true,
+        },
         product_ids::T300_RS
         | product_ids::T300_RS_PS4
         | product_ids::T300_RS_GT
         | product_ids::TX_RACING => ThrustmasterDeviceIdentity {
             product_id,
             name: "Thrustmaster T300 RS",
+            category: ThrustmasterDeviceCategory::Wheelbase,
+            supports_ffb: true,
+        },
+        product_ids::T500_RS => ThrustmasterDeviceIdentity {
+            product_id,
+            name: "Thrustmaster T500 RS",
             category: ThrustmasterDeviceCategory::Wheelbase,
             supports_ffb: true,
         },

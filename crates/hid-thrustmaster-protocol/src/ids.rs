@@ -12,13 +12,12 @@ pub const THRUSTMASTER_VENDOR_ID: u16 = 0x044F;
 /// PIDs are cross-referenced against:
 /// - Linux kernel `hid-thrustmaster.c` (upstream init driver)
 /// - Kimplul/hid-tmff2 (community FFB driver)
+/// - berarma/oversteer (steering wheel manager)
 /// - linux-hardware.org USB device database
 /// - devicehunt.com USB ID repository
 ///
 /// # Removed PIDs (previously incorrect)
 ///
-/// - **T500 RS** — was 0xB677, but that PID is confirmed as the T150 post-init
-///   PID by linux-hardware.org and devicehunt.com. Real T500 RS PID is unknown.
 /// - **T-GT** — was 0xB68E, but linux-hardware.org identifies that as "TPR Rudder
 ///   Bulk" (flight sim rudder pedals). Real T-GT PID is unknown.
 /// - **T-GT II** — was 0xB692, but hid-tmff2 confirms that as `TSXW_ACTIVE`
@@ -31,9 +30,11 @@ pub mod product_ids {
     /// T150 (entry-level belt drive, post-init PID).
     /// Verified: devicehunt.com + linux-hardware.org (044f:b677 = "T150 Racing Wheel").
     pub const T150: u16 = 0xB677;
-    /// T150 Pro (with T3PA pedals).
-    /// Unverified: not found in community driver sources.
-    pub const T150_PRO: u16 = 0xB65E;
+    /// T500 RS (high-end belt-drive, post-init PID).
+    /// Verified: oversteer `TM_T500RS = '044f:b65e'`.
+    /// Previously misidentified as T150 Pro; the T150 Pro shares the T150
+    /// PID (0xB677) since it is the same wheelbase bundled with T3PA pedals.
+    pub const T500_RS: u16 = 0xB65E;
     /// T300 RS in PlayStation 4 compatibility mode (same hardware as T300_RS,
     /// different PID reported when the PS4-mode switch is active).
     /// Verified: hid-tmff2 TMT300RS_PS4_NORM_ID; linux-steering-wheels table.
@@ -84,14 +85,13 @@ pub mod product_ids {
 
 /// Model identification shorthand.
 ///
-/// Note: `T500RS`, `TGT`, and `TGTII` are real products but their USB PIDs
+/// Note: `TGT` and `TGTII` are real products but their USB PIDs
 /// could not be verified against community driver sources. They are retained
 /// in the enum for metadata (torque, rotation) but cannot be returned by
 /// [`Model::from_product_id`]. See `product_ids` docs for details.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Model {
     T150,
-    T150Pro,
     TMX,
     T300RS,
     T300RSPS4,
@@ -116,12 +116,12 @@ impl Model {
     pub fn from_product_id(product_id: u16) -> Self {
         match product_id {
             product_ids::T150 => Self::T150,
-            product_ids::T150_PRO => Self::T150Pro,
             product_ids::TMX => Self::TMX,
             product_ids::T300_RS => Self::T300RS,
             product_ids::T300_RS_PS4 => Self::T300RSPS4,
             product_ids::T300_RS_GT => Self::T300RSGT,
             product_ids::TX_RACING => Self::TXRacing,
+            product_ids::T500_RS => Self::T500RS,
             product_ids::T248 => Self::T248,
             product_ids::T248X => Self::T248X,
             product_ids::TS_PC_RACER => Self::TSPCRacer,
@@ -137,13 +137,14 @@ impl Model {
 
     pub fn max_torque_nm(self) -> f32 {
         match self {
-            Self::T150 | Self::T150Pro | Self::TMX | Self::T500RS => 2.5,
+            Self::T150 | Self::TMX => 2.5,
             Self::T300RS
             | Self::T300RSPS4
             | Self::T300RSGT
             | Self::TXRacing
             | Self::T248
-            | Self::T248X => 4.0,
+            | Self::T248X
+            | Self::T500RS => 4.0,
             Self::TGT | Self::TGTII | Self::TSPCRacer | Self::TSXW => 6.0,
             Self::T818 => 10.0,
             Self::T3PA | Self::T3PAPro | Self::TLCM | Self::TLCMPro => 0.0,
@@ -170,7 +171,6 @@ impl Model {
     pub fn name(self) -> &'static str {
         match self {
             Self::T150 => "Thrustmaster T150",
-            Self::T150Pro => "Thrustmaster T150 Pro",
             Self::TMX => "Thrustmaster TMX",
             Self::T300RS => "Thrustmaster T300 RS",
             Self::T300RSPS4 => "Thrustmaster T300 RS (PS4 mode)",
