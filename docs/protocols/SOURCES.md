@@ -159,12 +159,16 @@ See friction log entry **F-005** for the history of why this document was create
 
 **VID:** `0x3416`  
 **Source:** [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table; [USB VID registry](https://www.the-sz.com/products/usbid/index.php?v=3416) (assigned to Shenzhen Cammus Electronic Technology Co., Ltd.).  
-**Status:** Verified
+**Status:** Wheelbases verified; pedal PIDs community-sourced.
 
-| PID      | Device Name        | Status   |
-|----------|--------------------|----------|
-| `0x0301` | Cammus C5 (5 Nm)   | Verified |
-| `0x0302` | Cammus C12 (12 Nm) | Verified |
+| PID      | Device Name           | Status    |
+|----------|-----------------------|-----------|
+| `0x0301` | Cammus C5 (5 Nm)      | Verified  |
+| `0x0302` | Cammus C12 (12 Nm)    | Verified  |
+| `0x1018` | Cammus CP5 Pedals     | Community |
+| `0x1019` | Cammus LC100 Pedals   | Community |
+
+> **Note:** A C15 (15 Nm) model has been announced; PID unknown — excluded pending USB capture.
 
 ---
 
@@ -323,3 +327,21 @@ Several vendors share a VID. Always disambiguate using the PID (and `iProduct` s
 3. Add a row to the appropriate vendor table above with the correct **Status** tag.
 4. Update the constants in the relevant `crates/hid-*-protocol/src/ids.rs` file.
 5. If the test in `crates/hid-moza-protocol/tests/id_verification.rs` needs updating (new Moza device), add the assertion there.
+
+---
+
+## Devices Under Investigation
+
+The following devices are known to exist but lack confirmed USB VID/PID values. Community USB captures are needed.
+
+| Device | Status | Notes |
+|--------|--------|-------|
+| Turtle Beach VelocityOne Race | VID unknown | Not in linux-steering-wheels or hwdb; audio VID 0x1C59 does not apply |
+| Cube Controls SimSport / Formula Pro / GT X | PIDs unverified | Likely use VID 0x0483 (STMicro) with estimated PIDs 0x0C73–0x0C75; **cannot add until USB capture confirms** |
+| Cammus C15 (15 Nm) | PID unknown | Announced; not yet in community tables |
+| Simucube 3 | Not yet released | No public USB descriptor at time of writing |
+| Gomez Racer devices | Unknown | No public VID/PID found in any community source |
+| SIMTAG pedals | Unknown | No public VID/PID found in any community source |
+| PXN VD4 / VD6 / VD10 | PIDs unknown | Not in JacKeTUs table or any other public source |
+
+To contribute a USB capture, follow the guide in `docs/CONTRIBUTING_CAPTURES.md` (to be created).
