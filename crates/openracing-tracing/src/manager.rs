@@ -129,7 +129,10 @@ impl core::fmt::Debug for TracingManager {
 
 impl Default for TracingManager {
     fn default() -> Self {
-        Self::new().expect("failed to create default TracingManager")
+        Self::new().unwrap_or_else(|_| Self {
+            provider: Box::new(crate::platform::FallbackProvider::new()),
+            enabled: false,
+        })
     }
 }
 

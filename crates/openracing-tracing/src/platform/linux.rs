@@ -207,10 +207,10 @@ impl TracingProvider for LinuxTracepointsProvider {
     }
 
     fn shutdown(&mut self) {
-        if let Some(file) = self.trace_file.take() {
-            if let Ok(mut f) = file.into_inner() {
-                let _ = writeln!(f, "openracing: tracing shutdown");
-            }
+        if let Some(file) = self.trace_file.take()
+            && let Ok(mut f) = file.into_inner()
+        {
+            let _ = writeln!(f, "openracing: tracing shutdown");
         }
         tracing::info!("Linux tracepoints provider shutdown");
     }
@@ -234,7 +234,13 @@ impl core::fmt::Debug for LinuxTracepointsProvider {
 
 impl Default for LinuxTracepointsProvider {
     fn default() -> Self {
-        Self::new().expect("failed to create LinuxTracepointsProvider")
+        // LinuxTracepointsProvider::new() is infallible in practice
+        Self::new().unwrap_or_else(|_| Self {
+            trace_file: None,
+            rt_events_count: AtomicU64::new(0),
+            app_events_count: AtomicU64::new(0),
+            events_dropped: AtomicU64::new(0),
+        })
     }
 }
 
