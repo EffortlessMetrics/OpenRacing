@@ -368,15 +368,11 @@ impl SignatureVerifier for Ed25519Verifier {
         }
 
         match metadata.content_type {
-            ContentType::Binary | ContentType::Firmware => {
-                if trust_level != TrustLevel::Trusted {
-                    warnings.push("Critical component signed by untrusted key".to_string());
-                }
+            ContentType::Binary | ContentType::Firmware if trust_level != TrustLevel::Trusted => {
+                warnings.push("Critical component signed by untrusted key".to_string());
             }
-            ContentType::Plugin => {
-                if trust_level == TrustLevel::Distrusted {
-                    warnings.push("Plugin signed by distrusted key".to_string());
-                }
+            ContentType::Plugin if trust_level == TrustLevel::Distrusted => {
+                warnings.push("Plugin signed by distrusted key".to_string());
             }
             _ => {}
         }
