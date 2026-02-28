@@ -265,7 +265,7 @@ mod property_tests {
         fn prop_gear_is_reverse_or_forward(gear_val in 0.0f32..=10.0f32) {
             let mut buf = make_min_packet();
             write_f32_le(&mut buf, OFF_GEAR, gear_val);
-            let t = parse_rbr_packet(&buf).expect("parse must succeed for valid-size packet");
+            let t = parse_rbr_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.gear == -1 || t.gear >= 1,
                 "gear {} must be -1 (reverse) or >= 1 (forward)",
@@ -282,7 +282,7 @@ mod property_tests {
             let mut buf = make_min_packet();
             write_f32_le(&mut buf, OFF_THROTTLE, throttle);
             write_f32_le(&mut buf, OFF_BRAKE, brake);
-            let t = parse_rbr_packet(&buf).expect("parse must succeed for valid-size packet");
+            let t = parse_rbr_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             let expected = throttle - brake;
             prop_assert!(
                 (t.ffb_scalar - expected).abs() < 1e-5,
@@ -298,7 +298,7 @@ mod property_tests {
         fn prop_handbrake_flag_threshold(handbrake in 0.0f32..=2.0f32) {
             let mut buf = make_min_packet();
             write_f32_le(&mut buf, OFF_HANDBRAKE, handbrake);
-            let t = parse_rbr_packet(&buf).expect("parse must succeed for valid-size packet");
+            let t = parse_rbr_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             let expected = handbrake > 0.5;
             prop_assert_eq!(
                 t.flags.session_paused,
@@ -314,7 +314,7 @@ mod property_tests {
         fn prop_speed_is_finite(speed in 0.0f32..=300.0f32) {
             let mut buf = make_min_packet();
             write_f32_le(&mut buf, OFF_SPEED_MS, speed);
-            let t = parse_rbr_packet(&buf).expect("parse must succeed for valid-size packet");
+            let t = parse_rbr_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(t.speed_ms.is_finite(), "speed_ms {} must be finite", t.speed_ms);
         }
 
@@ -323,7 +323,7 @@ mod property_tests {
         fn prop_rpm_is_finite(rpm in 0.0f32..=20000.0f32) {
             let mut buf = make_min_packet();
             write_f32_le(&mut buf, OFF_RPM, rpm);
-            let t = parse_rbr_packet(&buf).expect("parse must succeed for valid-size packet");
+            let t = parse_rbr_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(t.rpm.is_finite(), "rpm {} must be finite", t.rpm);
         }
     }

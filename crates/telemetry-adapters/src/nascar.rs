@@ -384,7 +384,7 @@ mod property_tests {
         fn prop_speed_nonnegative(speed in 0.0f32..=200.0f32) {
             let mut buf = vec![0u8; MIN_PACKET_SIZE];
             buf[OFF_SPEED..OFF_SPEED + 4].copy_from_slice(&speed.to_le_bytes());
-            let t = parse_nascar_packet(&buf).expect("valid packet");
+            let t = parse_nascar_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(t.speed_ms >= 0.0);
         }
 

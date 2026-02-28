@@ -391,7 +391,7 @@ mod tests {
                 fuel in 0.0f32..1.0f32,
             ) {
                 let data = make_lfs_packet(speed, rpm, gear, throttle, brake, 0.0, fuel);
-                let result = parse_lfs_packet(&data).unwrap();
+                let result = parse_lfs_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
                 prop_assert!(result.speed_ms >= 0.0, "speed_ms {} must be non-negative", result.speed_ms);
             }
 
@@ -405,7 +405,7 @@ mod tests {
                 fuel in 0.0f32..1.0f32,
             ) {
                 let data = make_lfs_packet(speed, rpm, gear, throttle, brake, 0.0, fuel);
-                let result = parse_lfs_packet(&data).unwrap();
+                let result = parse_lfs_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
                 prop_assert!(result.throttle >= 0.0 && result.throttle <= 1.0,
                     "throttle {} must be in [0, 1]", result.throttle);
             }
@@ -420,7 +420,7 @@ mod tests {
                 fuel in 0.0f32..1.0f32,
             ) {
                 let data = make_lfs_packet(speed, rpm, gear, throttle, brake, 0.0, fuel);
-                let result = parse_lfs_packet(&data).unwrap();
+                let result = parse_lfs_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
                 prop_assert!(result.brake >= 0.0 && result.brake <= 1.0,
                     "brake {} must be in [0, 1]", result.brake);
             }
@@ -435,7 +435,7 @@ mod tests {
                 fuel in 0.0f32..1.0f32,
             ) {
                 let data = make_lfs_packet(speed, rpm, gear, throttle, brake, 0.0, fuel);
-                let result = parse_lfs_packet(&data).unwrap();
+                let result = parse_lfs_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
                 prop_assert!(result.rpm >= 0.0, "rpm {} must be non-negative", result.rpm);
             }
 

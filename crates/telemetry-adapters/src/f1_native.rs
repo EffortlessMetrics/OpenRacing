@@ -1137,7 +1137,7 @@ mod tests {
             "should emit after both telem and status"
         );
 
-        let norm = normalized.unwrap();
+        let norm = normalized.ok_or("should emit after both telem and status")?;
         let expected_speed = 180.0 / 3.6;
         assert!(
             (norm.speed_ms - expected_speed).abs() < 0.01,
@@ -1176,7 +1176,7 @@ mod tests {
             "should emit after both telem and status"
         );
 
-        let norm = normalized.unwrap();
+        let norm = normalized.ok_or("should emit after both telem and status")?;
         assert!(
             (norm.speed_ms - 300.0 / 3.6).abs() < 0.01,
             "speed_ms mismatch"

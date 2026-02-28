@@ -332,9 +332,8 @@ mod proptest_tests {
         fn parse_ac_packet_speed_always_nonneg(speed in 0u16..=300u16) {
             let mut data = vec![0u8; AC_PACKET_MIN_SIZE];
             data[OFF_SPEED_KMH..OFF_SPEED_KMH + 2].copy_from_slice(&speed.to_le_bytes());
-            let result = parse_ac_packet(&data);
-            prop_assert!(result.is_ok());
-            prop_assert!(result.unwrap().speed_ms >= 0.0);
+            let t = parse_ac_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+            prop_assert!(t.speed_ms >= 0.0);
         }
 
         #[test]
@@ -353,7 +352,8 @@ mod proptest_tests {
             data[OFF_RPM..OFF_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
             let result = parse_ac_packet(&data);
             prop_assert!(result.is_ok());
-            prop_assert!(result.unwrap().rpm >= 0.0);
+            let t = result.map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+            prop_assert!(t.rpm >= 0.0);
         }
     }
 }

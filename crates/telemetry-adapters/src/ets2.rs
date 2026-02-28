@@ -445,21 +445,21 @@ mod proptest_tests {
         #[test]
         fn scs_valid_speed_nonneg(speed in 0.0f32..200.0f32) {
             let data = build_scs_packet(speed, 1500.0, 3, 0.7, 0.5);
-            let result = parse_scs_packet(&data).unwrap();
+            let result = parse_scs_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(result.speed_ms >= 0.0);
         }
 
         #[test]
         fn scs_valid_rpm_nonneg(rpm in 0.0f32..3000.0f32) {
             let data = build_scs_packet(20.0, rpm, 3, 0.7, 0.5);
-            let result = parse_scs_packet(&data).unwrap();
+            let result = parse_scs_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(result.rpm >= 0.0);
         }
 
         #[test]
         fn scs_valid_gear_in_range(gear in -1i32..=12) {
             let data = build_scs_packet(20.0, 1500.0, gear, 0.7, 0.5);
-            let result = parse_scs_packet(&data).unwrap();
+            let result = parse_scs_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(result.gear >= -1 && result.gear <= 12);
         }
     }

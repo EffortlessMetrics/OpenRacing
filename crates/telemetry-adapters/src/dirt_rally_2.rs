@@ -368,7 +368,7 @@ mod property_tests {
         fn prop_ffb_scalar_in_range(lat_g in -10.0f32..=10.0f32) {
             let mut buf = make_min_packet();
             write_f32_le(&mut buf, OFF_GFORCE_LAT, lat_g);
-            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            let t = parse_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.ffb_scalar >= -1.0 && t.ffb_scalar <= 1.0,
                 "ffb_scalar {} must be in [-1, 1]",
@@ -381,7 +381,7 @@ mod property_tests {
         fn prop_throttle_clamped(throttle in -5.0f32..=5.0f32) {
             let mut buf = make_min_packet();
             write_f32_le(&mut buf, OFF_THROTTLE, throttle);
-            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            let t = parse_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.throttle >= 0.0 && t.throttle <= 1.0,
                 "throttle {} must be in [0, 1]",
@@ -394,7 +394,7 @@ mod property_tests {
         fn prop_brake_clamped(brake in -5.0f32..=5.0f32) {
             let mut buf = make_min_packet();
             write_f32_le(&mut buf, OFF_BRAKE, brake);
-            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            let t = parse_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.brake >= 0.0 && t.brake <= 1.0,
                 "brake {} must be in [0, 1]",
@@ -407,7 +407,7 @@ mod property_tests {
         fn prop_steering_clamped(steer in -5.0f32..=5.0f32) {
             let mut buf = make_min_packet();
             write_f32_le(&mut buf, OFF_STEER, steer);
-            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            let t = parse_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.steering_angle >= -1.0 && t.steering_angle <= 1.0,
                 "steering_angle {} must be in [-1, 1]",
@@ -420,7 +420,7 @@ mod property_tests {
         fn prop_gear_in_valid_range(gear_val in 0.0f32..=10.0f32) {
             let mut buf = make_min_packet();
             write_f32_le(&mut buf, OFF_GEAR, gear_val);
-            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            let t = parse_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.gear >= -1 && t.gear <= 8,
                 "gear {} must be in [-1, 8]",
@@ -436,7 +436,7 @@ mod property_tests {
             write_f32_le(&mut buf, OFF_WHEEL_SPEED_FR, ws);
             write_f32_le(&mut buf, OFF_WHEEL_SPEED_RL, ws);
             write_f32_le(&mut buf, OFF_WHEEL_SPEED_RR, ws);
-            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            let t = parse_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.speed_ms >= 0.0 && t.speed_ms.is_finite(),
                 "speed_ms {} must be finite and non-negative",
@@ -449,7 +449,7 @@ mod property_tests {
         fn prop_rpm_non_negative(rpm in -1000.0f32..=20000.0f32) {
             let mut buf = make_min_packet();
             write_f32_le(&mut buf, OFF_RPM, rpm);
-            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            let t = parse_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(t.rpm >= 0.0, "rpm {} must be non-negative", t.rpm);
         }
 
@@ -462,7 +462,7 @@ mod property_tests {
             let mut buf = make_min_packet();
             write_f32_le(&mut buf, OFF_FUEL_IN_TANK, fuel_in);
             write_f32_le(&mut buf, OFF_FUEL_CAPACITY, fuel_cap);
-            let t = parse_packet(&buf).expect("parse must succeed for valid-size packet");
+            let t = parse_packet(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.fuel_percent >= 0.0 && t.fuel_percent <= 100.0,
                 "fuel_percent {} must be in [0, 100]",

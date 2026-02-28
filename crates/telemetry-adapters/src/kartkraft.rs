@@ -658,7 +658,7 @@ mod tests {
                 gear  in -1i8..=8i8,
             ) {
                 let data = make_test_packet(speed, rpm, steer, thr, brk, gear);
-                let t = parse_packet(&data).expect("valid packet must parse");
+                let t = parse_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
                 prop_assert!(t.speed_ms >= 0.0);
                 prop_assert!(t.rpm >= 0.0);
                 prop_assert!(t.steering_angle >= -1.0 && t.steering_angle <= 1.0);

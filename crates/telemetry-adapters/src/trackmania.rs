@@ -358,7 +358,7 @@ mod property_tests {
             let s = format!(
                 r#"{{"speed":{speed},"gear":{gear},"rpm":5000.0,"throttle":{throttle},"brake":{brake},"steerAngle":{steer},"engineRunning":true}}"#
             );
-            let t = parse_trackmania_packet(s.as_bytes()).expect("valid JSON");
+            let t = parse_trackmania_packet(s.as_bytes()).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(t.speed_ms >= 0.0);
             prop_assert!(t.throttle >= 0.0 && t.throttle <= 1.0);
             prop_assert!(t.brake >= 0.0 && t.brake <= 1.0);

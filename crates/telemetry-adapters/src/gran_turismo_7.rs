@@ -443,7 +443,7 @@ mod property_tests {
         fn prop_speed_non_negative(speed in 0.0f32..=300.0f32) {
             let mut buf = buf_with_magic();
             buf[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&speed.to_le_bytes());
-            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            let t = parse_decrypted(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.speed_ms >= 0.0 && t.speed_ms.is_finite(),
                 "speed_ms {} must be finite and non-negative",
@@ -456,7 +456,7 @@ mod property_tests {
         fn prop_throttle_normalized(throttle_byte in 0u8..=255u8) {
             let mut buf = buf_with_magic();
             buf[OFF_THROTTLE] = throttle_byte;
-            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            let t = parse_decrypted(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.throttle >= 0.0 && t.throttle <= 1.0,
                 "throttle {} must be in [0, 1]",
@@ -469,7 +469,7 @@ mod property_tests {
         fn prop_brake_normalized(brake_byte in 0u8..=255u8) {
             let mut buf = buf_with_magic();
             buf[OFF_BRAKE] = brake_byte;
-            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            let t = parse_decrypted(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.brake >= 0.0 && t.brake <= 1.0,
                 "brake {} must be in [0, 1]",
@@ -482,7 +482,7 @@ mod property_tests {
         fn prop_gear_in_range(gear_byte in 0u8..=255u8) {
             let mut buf = buf_with_magic();
             buf[OFF_GEAR_BYTE] = gear_byte;
-            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            let t = parse_decrypted(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.gear >= 0 && t.gear <= 8,
                 "gear {} must be in [0, 8]",
@@ -499,7 +499,7 @@ mod property_tests {
             let mut buf = buf_with_magic();
             buf[OFF_FUEL_LEVEL..OFF_FUEL_LEVEL + 4].copy_from_slice(&fuel.to_le_bytes());
             buf[OFF_FUEL_CAPACITY..OFF_FUEL_CAPACITY + 4].copy_from_slice(&cap.to_le_bytes());
-            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            let t = parse_decrypted(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(
                 t.fuel_percent >= 0.0 && t.fuel_percent <= 1.0,
                 "fuel_percent {} must be in [0, 1]",
@@ -512,7 +512,7 @@ mod property_tests {
         fn prop_rpm_finite(rpm in 0.0f32..=20000.0f32) {
             let mut buf = buf_with_magic();
             buf[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
-            let t = parse_decrypted(&buf).expect("parse must succeed with magic set");
+            let t = parse_decrypted(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(t.rpm.is_finite(), "rpm must be finite");
         }
 

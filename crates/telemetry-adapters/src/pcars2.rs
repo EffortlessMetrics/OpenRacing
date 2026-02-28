@@ -396,7 +396,7 @@ mod tests {
                 gear in 0u32..8u32,
             ) {
                 let data = make_pcars2_packet(steering, throttle, brake, speed, rpm, max_rpm, gear);
-                let result = parse_pcars2_packet(&data).unwrap();
+                let result = parse_pcars2_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
                 prop_assert!(result.speed_ms >= 0.0, "speed_ms must be non-negative");
             }
 
@@ -411,7 +411,7 @@ mod tests {
                 gear in 0u32..8u32,
             ) {
                 let data = make_pcars2_packet(steering, throttle, brake, speed, rpm, max_rpm, gear);
-                let result = parse_pcars2_packet(&data).unwrap();
+                let result = parse_pcars2_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
                 prop_assert!(
                     result.steering_angle >= -1.0 && result.steering_angle <= 1.0,
                     "steering_angle {} must be in [-1, 1]",
@@ -430,7 +430,7 @@ mod tests {
                 gear in 0u32..8u32,
             ) {
                 let data = make_pcars2_packet(steering, throttle, brake, speed, rpm, max_rpm, gear);
-                let result = parse_pcars2_packet(&data).unwrap();
+                let result = parse_pcars2_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
                 prop_assert!(result.rpm >= 0.0, "rpm {} must be non-negative", result.rpm);
             }
 
@@ -445,7 +445,7 @@ mod tests {
                 gear in 0u32..8u32,
             ) {
                 let data = make_pcars2_packet(steering, throttle, brake, speed, rpm, max_rpm, gear);
-                let result = parse_pcars2_packet(&data).unwrap();
+                let result = parse_pcars2_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
                 prop_assert!(
                     result.throttle >= 0.0 && result.throttle <= 1.0,
                     "throttle {} must be in [0, 1]",
