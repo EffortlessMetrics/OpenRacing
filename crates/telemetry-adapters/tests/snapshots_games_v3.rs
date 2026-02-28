@@ -281,24 +281,24 @@ fn f1_snapshot() -> TestResult {
 fn make_gt7_decrypted_packet() -> [u8; gran_turismo_7::PACKET_SIZE] {
     let mut buf = [0u8; gran_turismo_7::PACKET_SIZE];
     write_u32(&mut buf, gran_turismo_7::OFF_MAGIC, gran_turismo_7::MAGIC);
-    write_f32(&mut buf, 60, 8500.0); // engine_rpm
-    write_f32(&mut buf, 68, 35.0); // fuel_level
-    write_f32(&mut buf, 72, 50.0); // fuel_capacity
-    write_f32(&mut buf, 76, 80.0); // speed_ms
-    write_f32(&mut buf, 88, 92.0); // water_temp_c
-    write_f32(&mut buf, 96, 85.0); // tire_temp_fl
-    write_f32(&mut buf, 100, 87.0); // tire_temp_fr
-    write_f32(&mut buf, 104, 83.0); // tire_temp_rl
-    write_f32(&mut buf, 108, 84.0); // tire_temp_rr
-    buf[114..116].copy_from_slice(&7u16.to_le_bytes()); // lap_count
-    buf[118..122].copy_from_slice(&85_000i32.to_le_bytes()); // best_lap_ms
-    buf[122..126].copy_from_slice(&87_500i32.to_le_bytes()); // last_lap_ms
-    buf[141] = (0.70f32 * 255.0) as u8; // throttle
-    buf[142] = 0u8; // brake
-    write_f32(&mut buf, 148, 9200.0); // rpm_alert_end
-    write_u32(&mut buf, 156, 0); // flags
-    buf[160] = 5u8; // gear_byte (5th gear, low nibble)
-    buf[280..284].copy_from_slice(&4444i32.to_le_bytes()); // car_code
+    write_f32(&mut buf, 0x3C, 8500.0); // engine_rpm
+    write_f32(&mut buf, 0x44, 35.0); // fuel_level
+    write_f32(&mut buf, 0x48, 50.0); // fuel_capacity
+    write_f32(&mut buf, 0x4C, 80.0); // speed_ms
+    write_f32(&mut buf, 0x58, 92.0); // water_temp_c
+    write_f32(&mut buf, 0x60, 85.0); // tire_temp_fl
+    write_f32(&mut buf, 0x64, 87.0); // tire_temp_fr
+    write_f32(&mut buf, 0x68, 83.0); // tire_temp_rl
+    write_f32(&mut buf, 0x6C, 84.0); // tire_temp_rr
+    write_u16(&mut buf, 0x74, 7); // lap_count (i16)
+    write_i32(&mut buf, 0x78, 85_000); // best_lap_ms
+    write_i32(&mut buf, 0x7C, 87_500); // last_lap_ms
+    write_u16(&mut buf, 0x8A, 9200); // max_alert_rpm (i16)
+    write_u16(&mut buf, 0x8E, 0); // flags (i16)
+    buf[0x90] = 5u8; // gear_byte (5th gear, low nibble)
+    buf[0x91] = (0.70f32 * 255.0) as u8; // throttle
+    buf[0x92] = 0u8; // brake
+    write_i32(&mut buf, 0x124, 4444); // car_code
     buf
 }
 
