@@ -69,10 +69,10 @@ const OFF_SUSP_TRAVEL_RR: usize = 208; // f32
 
 // ── CarDash extension offsets (bytes 232+) ───────────────────────────────────
 const OFF_DASH_SPEED: usize = 244; // f32 m/s
-const OFF_DASH_TIRE_TEMP_FL: usize = 256; // f32 Kelvin
-const OFF_DASH_TIRE_TEMP_FR: usize = 260; // f32 Kelvin
-const OFF_DASH_TIRE_TEMP_RL: usize = 264; // f32 Kelvin
-const OFF_DASH_TIRE_TEMP_RR: usize = 268; // f32 Kelvin
+const OFF_DASH_TIRE_TEMP_FL: usize = 256; // f32 Fahrenheit
+const OFF_DASH_TIRE_TEMP_FR: usize = 260; // f32 Fahrenheit
+const OFF_DASH_TIRE_TEMP_RL: usize = 264; // f32 Fahrenheit
+const OFF_DASH_TIRE_TEMP_RR: usize = 268; // f32 Fahrenheit
 const OFF_DASH_FUEL: usize = 276; // f32 (0-1)
 const OFF_DASH_BEST_LAP: usize = 284; // f32 seconds
 const OFF_DASH_LAST_LAP: usize = 288; // f32 seconds
@@ -231,10 +231,10 @@ fn parse_forza_cardash(data: &[u8]) -> Result<NormalizedTelemetry> {
     let steer_raw = data.get(OFF_DASH_STEER).map(|&b| b as i8).unwrap_or(0);
     let steer = (steer_raw as f32 / 127.0).clamp(-1.0, 1.0);
 
-    // Tire temperatures: Kelvin → Celsius, clamped to u8
+    // Tire temperatures: Fahrenheit → Celsius, clamped to u8
     let temp = |off: usize| -> u8 {
-        let kelvin = read_f32_le(data, off).unwrap_or(293.15);
-        let celsius = (kelvin - 273.15).clamp(0.0, 255.0);
+        let fahrenheit = read_f32_le(data, off).unwrap_or(68.0);
+        let celsius = ((fahrenheit - 32.0) * 5.0 / 9.0).clamp(0.0, 255.0);
         celsius as u8
     };
     let tire_temps = [
