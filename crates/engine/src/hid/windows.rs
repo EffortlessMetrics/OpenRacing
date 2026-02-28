@@ -1514,8 +1514,7 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.min_report_period_us = 1000;
             match product_id {
                 0x0500 => {
-                    capabilities.max_torque =
-                        TorqueNm::new(9.0).unwrap_or(capabilities.max_torque);
+                    capabilities.max_torque = TorqueNm::new(9.0).unwrap_or(capabilities.max_torque);
                 } // EVO Sport (9 Nm per simagic.com)
                 0x0501 => {
                     capabilities.max_torque =
@@ -1538,8 +1537,7 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                         TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
                 } // Neo Mini (estimated PID)
                 _ => {
-                    capabilities.max_torque =
-                        TorqueNm::new(9.0).unwrap_or(capabilities.max_torque);
+                    capabilities.max_torque = TorqueNm::new(9.0).unwrap_or(capabilities.max_torque);
                 }
             }
         }

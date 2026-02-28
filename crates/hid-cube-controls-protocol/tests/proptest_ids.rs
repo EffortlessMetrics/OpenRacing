@@ -5,11 +5,11 @@
 //! - CubeControlsModel classification determinism and metadata consistency
 //! - is_cube_controls_product correctness for arbitrary PIDs
 
-use proptest::prelude::*;
 use hid_cube_controls_protocol::{
     CUBE_CONTROLS_CSX3_PID, CUBE_CONTROLS_FORMULA_PRO_PID, CUBE_CONTROLS_GT_PRO_PID,
     CUBE_CONTROLS_VENDOR_ID, CubeControlsModel, is_cube_controls_product,
 };
+use proptest::prelude::*;
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(500))]

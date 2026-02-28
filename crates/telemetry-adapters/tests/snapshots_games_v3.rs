@@ -95,8 +95,8 @@ fn make_codemasters_mode1_packet() -> Vec<u8> {
     write_f32(&mut data, 112, 25.0); // wheel speed FR
     write_f32(&mut data, 116, 0.85); // throttle
     write_f32(&mut data, 120, 0.10); // steer
-    write_f32(&mut data, 124, 0.0);  // brake
-    write_f32(&mut data, 132, 3.0);  // gear (f32: 3 = 3rd)
+    write_f32(&mut data, 124, 0.0); // brake
+    write_f32(&mut data, 132, 3.0); // gear (f32: 3 = 3rd)
     write_f32(&mut data, 136, 0.25); // gforce_lat
     write_f32(&mut data, 140, 0.50); // gforce_lon
     write_f32(&mut data, 148, 4800.0); // rpm

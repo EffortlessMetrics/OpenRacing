@@ -4,7 +4,9 @@
 //! This adapter delegates parsing to the shared [`crate::pcars2`] implementation
 //! while exposing a distinct game identity.
 
-use crate::{NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, telemetry_now_ns};
+use crate::{
+    NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, telemetry_now_ns,
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
@@ -70,24 +72,18 @@ impl TelemetryAdapter for PCars3Adapter {
 
             loop {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
-                    Ok(Ok(len)) => {
-                        match crate::pcars2::parse_pcars2_packet(&buf[..len]) {
-                            Ok(normalized) => {
-                                let frame = TelemetryFrame::new(
-                                    normalized,
-                                    telemetry_now_ns(),
-                                    frame_idx,
-                                    len,
-                                );
-                                if tx.send(frame).await.is_err() {
-                                    debug!("Receiver dropped, stopping PCARS3 UDP monitoring");
-                                    break;
-                                }
-                                frame_idx = frame_idx.saturating_add(1);
+                    Ok(Ok(len)) => match crate::pcars2::parse_pcars2_packet(&buf[..len]) {
+                        Ok(normalized) => {
+                            let frame =
+                                TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
+                            if tx.send(frame).await.is_err() {
+                                debug!("Receiver dropped, stopping PCARS3 UDP monitoring");
+                                break;
                             }
-                            Err(e) => debug!("Failed to parse PCARS3 UDP packet: {e}"),
+                            frame_idx = frame_idx.saturating_add(1);
                         }
-                    }
+                        Err(e) => debug!("Failed to parse PCARS3 UDP packet: {e}"),
+                    },
                     Ok(Err(e)) => warn!("PCARS3 UDP receive error: {e}"),
                     Err(_) => debug!("No PCARS3 telemetry data received (timeout)"),
                 }

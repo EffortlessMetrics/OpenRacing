@@ -9,8 +9,7 @@
 
 use crate::codemasters_shared;
 use crate::{
-    NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver,
-    telemetry_now_ns,
+    NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, telemetry_now_ns,
 };
 use anyhow::Result;
 use async_trait::async_trait;

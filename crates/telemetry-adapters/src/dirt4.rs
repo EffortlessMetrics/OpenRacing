@@ -8,8 +8,7 @@
 
 use crate::codemasters_shared;
 use crate::{
-    NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver,
-    telemetry_now_ns,
+    NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, telemetry_now_ns,
 };
 use anyhow::Result;
 use async_trait::async_trait;
@@ -178,8 +177,8 @@ impl TelemetryAdapter for Dirt4Adapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::codemasters_shared::*;
     use crate::TelemetryValue;
+    use crate::codemasters_shared::*;
 
     fn make_packet(size: usize) -> Vec<u8> {
         vec![0u8; size]

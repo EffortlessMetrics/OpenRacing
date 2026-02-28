@@ -3,8 +3,7 @@
 //! Covers: F1 25 (EA Sports F1 2025) and WRC 10 (Kylotonn).
 
 use racing_wheel_telemetry_adapters::{
-    F1_25Adapter, TelemetryAdapter, WrcKylotonnAdapter,
-    f1_25::build_car_telemetry_packet,
+    F1_25Adapter, TelemetryAdapter, WrcKylotonnAdapter, f1_25::build_car_telemetry_packet,
     wrc_kylotonn::WrcKylotonnVariant,
 };
 
@@ -45,14 +44,14 @@ fn f1_25_snapshot() -> TestResult {
 
 fn make_wrc10_packet() -> Vec<u8> {
     let mut data = vec![0u8; 96];
-    write_f32(&mut data, 0, 0.5);    // stage_progress (exact 1/2)
-    write_f32(&mut data, 4, 28.0);   // road_speed_ms
-    write_f32(&mut data, 8, 0.25);   // steering (exact 1/4)
-    write_f32(&mut data, 12, 0.75);  // throttle (exact 3/4)
-    write_f32(&mut data, 16, 0.0);   // brake
-    write_f32(&mut data, 20, 0.0);   // hand_brake
-    write_f32(&mut data, 24, 0.0);   // clutch
-    write_u32(&mut data, 28, 4);     // gear (0=reverse, 1..7=forward)
+    write_f32(&mut data, 0, 0.5); // stage_progress (exact 1/2)
+    write_f32(&mut data, 4, 28.0); // road_speed_ms
+    write_f32(&mut data, 8, 0.25); // steering (exact 1/4)
+    write_f32(&mut data, 12, 0.75); // throttle (exact 3/4)
+    write_f32(&mut data, 16, 0.0); // brake
+    write_f32(&mut data, 20, 0.0); // hand_brake
+    write_f32(&mut data, 24, 0.0); // clutch
+    write_u32(&mut data, 28, 4); // gear (0=reverse, 1..7=forward)
     write_f32(&mut data, 32, 6000.0); // rpm (exact)
     write_f32(&mut data, 36, 8000.0); // max_rpm → rpm_fraction = 0.75 (exact 3/4)
     data

@@ -7,8 +7,7 @@
 use racing_wheel_telemetry_adapters::{
     F1ManagerAdapter, F1NativeAdapter, ForzaHorizon4Adapter, ForzaHorizon5Adapter, RFactor1Adapter,
     SebLoebRallyAdapter, SimHubAdapter, TelemetryAdapter,
-    f1_native::build_car_telemetry_packet_native,
-    rfactor1::RFactor1Variant,
+    f1_native::build_car_telemetry_packet_native, rfactor1::RFactor1Variant,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -89,14 +88,14 @@ fn seb_loeb_rally_snapshot() -> TestResult {
 /// Build a full-size rFactor 1 UDP telemetry packet (1025 bytes).
 fn make_rfactor1_variant_packet() -> Vec<u8> {
     let mut data = vec![0u8; 1025];
-    write_f64(&mut data, 24, 0.0);    // vel_x
-    write_f64(&mut data, 32, 0.0);    // vel_y
-    write_f64(&mut data, 40, 45.0);   // vel_z → speed = 45.0 m/s
+    write_f64(&mut data, 24, 0.0); // vel_x
+    write_f64(&mut data, 32, 0.0); // vel_y
+    write_f64(&mut data, 40, 45.0); // vel_z → speed = 45.0 m/s
     write_f64(&mut data, 312, 6800.0); // engine_rpm
-    write_f64(&mut data, 992, 0.1);   // steer_input
-    write_f64(&mut data, 1000, 0.7);  // throttle
-    write_f64(&mut data, 1008, 0.0);  // brake
-    data[1024] = 4u8;                 // gear = 4
+    write_f64(&mut data, 992, 0.1); // steer_input
+    write_f64(&mut data, 1000, 0.7); // throttle
+    write_f64(&mut data, 1008, 0.0); // brake
+    data[1024] = 4u8; // gear = 4
     data
 }
 
@@ -129,10 +128,10 @@ fn gsc_snapshot() -> TestResult {
 /// Build a minimum valid Forza Sled packet (232 bytes, is_race_on=1).
 fn make_forza_sled_packet() -> Vec<u8> {
     let mut data = vec![0u8; 232];
-    data[0..4].copy_from_slice(&1i32.to_le_bytes());      // is_race_on = 1
+    data[0..4].copy_from_slice(&1i32.to_le_bytes()); // is_race_on = 1
     data[8..12].copy_from_slice(&8000.0f32.to_le_bytes()); // engine_max_rpm
     data[16..20].copy_from_slice(&5000.0f32.to_le_bytes()); // current_rpm
-    data[32..36].copy_from_slice(&20.0f32.to_le_bytes());  // vel_x → speed 20 m/s
+    data[32..36].copy_from_slice(&20.0f32.to_le_bytes()); // vel_x → speed 20 m/s
     data
 }
 

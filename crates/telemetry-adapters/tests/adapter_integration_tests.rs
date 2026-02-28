@@ -26,7 +26,6 @@ fn write_i32_le(buf: &mut [u8], offset: usize, value: i32) {
     buf[offset..offset + 4].copy_from_slice(&bytes);
 }
 
-
 fn write_u32_le(buf: &mut [u8], offset: usize, value: u32) {
     let bytes = value.to_le_bytes();
     buf[offset..offset + 4].copy_from_slice(&bytes);

@@ -212,8 +212,8 @@ mod tests {
     }
 
     #[test]
-    fn codemasters_shared_zero_packet_yields_zero_speed_and_rpm(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn codemasters_shared_zero_packet_yields_zero_speed_and_rpm()
+    -> Result<(), Box<dyn std::error::Error>> {
         let raw = make_packet(MIN_PACKET_SIZE);
         let t = parse_codemasters_mode1_common(&raw, "Test")?;
         assert_eq!(t.speed_ms, 0.0);
@@ -257,8 +257,8 @@ mod tests {
     }
 
     #[test]
-    fn codemasters_shared_speed_falls_back_to_velocity_magnitude(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn codemasters_shared_speed_falls_back_to_velocity_magnitude()
+    -> Result<(), Box<dyn std::error::Error>> {
         let mut raw = make_packet(MIN_PACKET_SIZE);
         write_f32_le(&mut raw, OFF_VEL_X, 3.0);
         write_f32_le(&mut raw, OFF_VEL_Y, 0.0);

@@ -207,7 +207,10 @@ fn parse_forza_fh4_cardash(data: &[u8]) -> Result<NormalizedTelemetry> {
 
 /// Parse a CarDash packet. `horizon_offset` is 0 for FM7/FM8/FH5 (311 bytes)
 /// or 12 for FH4 (324 bytes, 12-byte HorizonPlaceholder after Sled section).
-fn parse_forza_cardash_with_offset(data: &[u8], horizon_offset: usize) -> Result<NormalizedTelemetry> {
+fn parse_forza_cardash_with_offset(
+    data: &[u8],
+    horizon_offset: usize,
+) -> Result<NormalizedTelemetry> {
     let expected = FORZA_CARDASH_SIZE + horizon_offset;
     if data.len() < expected {
         return Err(anyhow!(
