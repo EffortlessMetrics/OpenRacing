@@ -23,6 +23,8 @@ pub mod report_ids {
 pub mod ffb_commands {
     /// Constant force effect.
     pub const CONSTANT_FORCE: u8 = 0x01;
+    /// Set steering rotation range (degrees, u16 LE in bytes 2–3).
+    pub const SET_ROTATION_RANGE: u8 = 0x12;
     /// Set overall device gain (0–100 %).
     pub const SET_GAIN: u8 = 0x10;
     /// Stop all active effects.
@@ -90,4 +92,8 @@ pub mod rim_ids {
     pub const WRC: u8 = 0x07;
     pub const CSL_ELITE_P1: u8 = 0x08;
     pub const PODIUM_HUB: u8 = 0x09;
+    /// Podium Advanced Paddle Module — dual-clutch bite-point paddles + rotary encoders.
+    pub const PODIUM_APM: u8 = 0x0A;
+    /// Podium Button Module Endurance — extra button panel for endurance racing.
+    pub const ENDURANCE_MODULE: u8 = 0x0B;
 }

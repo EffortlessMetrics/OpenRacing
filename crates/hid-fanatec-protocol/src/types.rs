@@ -154,6 +154,10 @@ pub enum FanatecRimId {
     Wrc,
     CslEliteP1,
     PodiumHub,
+    /// Podium Advanced Paddle Module — bite-point dual-clutch paddles + rotary encoders.
+    PodiumApm,
+    /// Podium Button Module Endurance — extended button panel for endurance racing.
+    EnduranceModule,
     /// Rim is not attached or ID is unrecognised.
     Unknown,
 }
@@ -171,6 +175,8 @@ impl FanatecRimId {
             rim_ids::WRC => Self::Wrc,
             rim_ids::CSL_ELITE_P1 => Self::CslEliteP1,
             rim_ids::PODIUM_HUB => Self::PodiumHub,
+            rim_ids::PODIUM_APM => Self::PodiumApm,
+            rim_ids::ENDURANCE_MODULE => Self::EnduranceModule,
             _ => Self::Unknown,
         }
     }
@@ -184,13 +190,13 @@ impl FanatecRimId {
     pub fn has_dual_clutch(self) -> bool {
         matches!(
             self,
-            Self::FormulaV2 | Self::FormulaV25 | Self::McLarenGt3V2
+            Self::FormulaV2 | Self::FormulaV25 | Self::McLarenGt3V2 | Self::PodiumApm
         )
     }
 
     /// Return `true` if this rim has rotary encoders (beyond the standard hat switch).
     pub fn has_rotary_encoders(self) -> bool {
-        matches!(self, Self::McLarenGt3V2 | Self::FormulaV25)
+        matches!(self, Self::McLarenGt3V2 | Self::FormulaV25 | Self::PodiumApm)
     }
 }
 
@@ -321,6 +327,26 @@ mod tests {
         assert!(rim.has_funky_switch());
         assert!(rim.has_dual_clutch());
         assert!(rim.has_rotary_encoders());
+        Ok(())
+    }
+
+    #[test]
+    fn test_rim_id_podium_apm() -> Result<(), Box<dyn std::error::Error>> {
+        let rim = FanatecRimId::from_byte(rim_ids::PODIUM_APM);
+        assert_eq!(rim, FanatecRimId::PodiumApm);
+        assert!(rim.has_dual_clutch(), "APM has dual-clutch bite-point paddles");
+        assert!(rim.has_rotary_encoders(), "APM has rotary encoders");
+        assert!(!rim.has_funky_switch());
+        Ok(())
+    }
+
+    #[test]
+    fn test_rim_id_endurance_module() -> Result<(), Box<dyn std::error::Error>> {
+        let rim = FanatecRimId::from_byte(rim_ids::ENDURANCE_MODULE);
+        assert_eq!(rim, FanatecRimId::EnduranceModule);
+        assert!(!rim.has_dual_clutch());
+        assert!(!rim.has_rotary_encoders());
+        assert!(!rim.has_funky_switch());
         Ok(())
     }
 

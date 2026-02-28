@@ -12,6 +12,10 @@ pub struct SimucubeInputReport {
     pub temperature_c: u8,
     pub fault_flags: u8,
     pub status_flags: u8,
+    /// Button bitmask from an attached SimuCube Wireless Wheel (0 if not present).
+    pub wireless_buttons: u16,
+    /// Battery level of the wireless wheel in percent (0–100; 0 if no wireless wheel).
+    pub wireless_battery_pct: u8,
 }
 
 impl SimucubeInputReport {
@@ -34,6 +38,15 @@ impl SimucubeInputReport {
         let _reserved = parser.read_u8()?;
         let status_flags = parser.read_u8()?;
 
+        // Optional wireless wheel extension (bytes 14–16, present on longer reports).
+        let (wireless_buttons, wireless_battery_pct) = if data.len() >= 17 {
+            let buttons = u16::from_le_bytes([data[14], data[15]]);
+            let battery = data[16];
+            (buttons, battery)
+        } else {
+            (0, 0)
+        };
+
         Ok(Self {
             sequence,
             wheel_angle_raw,
@@ -42,6 +55,8 @@ impl SimucubeInputReport {
             temperature_c,
             fault_flags,
             status_flags,
+            wireless_buttons,
+            wireless_battery_pct,
         })
     }
 
@@ -73,6 +88,11 @@ impl SimucubeInputReport {
     pub fn is_enabled(&self) -> bool {
         (self.status_flags & 0x02) != 0
     }
+
+    /// Return `true` if a SimuCube Wireless Wheel is present (any button or battery data).
+    pub fn has_wireless_wheel(&self) -> bool {
+        self.wireless_battery_pct > 0 || self.wireless_buttons != 0
+    }
 }
 
 impl Default for SimucubeInputReport {
@@ -85,6 +105,8 @@ impl Default for SimucubeInputReport {
             temperature_c: 25,
             fault_flags: 0,
             status_flags: 0x03,
+            wireless_buttons: 0,
+            wireless_battery_pct: 0,
         }
     }
 }
@@ -189,5 +211,48 @@ mod tests {
         report.status_flags = 0x00;
         assert!(!report.is_connected());
         assert!(!report.is_enabled());
+    }
+
+    #[test]
+    fn test_wireless_buttons_in_extended_report() {
+        let mut data = [0u8; 17];
+        // Minimal valid header (16 core bytes + 1 wireless)
+        data[14] = 0b0000_0101; // buttons lo: button 0 and 2 pressed
+        data[15] = 0x00;        // buttons hi
+        data[16] = 85;          // battery 85%
+        let result = SimucubeInputReport::parse(&data);
+        assert!(result.is_ok());
+        if let Ok(report) = result {
+            assert_eq!(report.wireless_buttons, 0b0000_0101);
+            assert_eq!(report.wireless_battery_pct, 85);
+            assert!(report.has_wireless_wheel());
+        }
+    }
+
+    #[test]
+    fn test_short_report_has_no_wireless_fields() {
+        let data = [0u8; 16];
+        let result = SimucubeInputReport::parse(&data);
+        assert!(result.is_ok());
+        if let Ok(report) = result {
+            assert_eq!(report.wireless_buttons, 0);
+            assert_eq!(report.wireless_battery_pct, 0);
+            assert!(!report.has_wireless_wheel());
+        }
+    }
+
+    #[test]
+    fn test_wireless_buttons_all_set() {
+        let mut data = [0u8; 17];
+        data[14] = 0xFF;
+        data[15] = 0xFF; // all 16 buttons pressed
+        data[16] = 100;  // full battery
+        let result = SimucubeInputReport::parse(&data);
+        assert!(result.is_ok());
+        if let Ok(report) = result {
+            assert_eq!(report.wireless_buttons, 0xFFFF);
+            assert_eq!(report.wireless_battery_pct, 100);
+            assert!(report.has_wireless_wheel());
+        }
     }
 }

@@ -1,0 +1,6 @@
+---
+source: crates/hid-fanatec-protocol/tests/snapshot_tests.rs
+assertion_line: 99
+expression: "format!(\"{:?}\", report)"
+---
+[1, 18, 28, 2, 0, 0, 0, 0]

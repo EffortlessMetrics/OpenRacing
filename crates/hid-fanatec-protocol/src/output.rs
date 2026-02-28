@@ -172,6 +172,35 @@ pub fn build_rumble_report(left: u8, right: u8, duration_10ms: u8) -> [u8; LED_R
     ]
 }
 
+/// Minimum supported steering rotation range in degrees.
+pub const MIN_ROTATION_DEGREES: u16 = 90;
+/// Maximum supported steering rotation range in degrees (applies to all current bases).
+pub const MAX_ROTATION_DEGREES: u16 = 1080;
+
+/// Build the 8-byte output report that configures the steering wheel rotation range.
+///
+/// Layout (8 bytes, report ID 0x01):
+/// - Byte 0: `0x01` (report ID / FFB output)
+/// - Byte 1: `0x12` (SET_ROTATION_RANGE command)
+/// - Bytes 2–3: rotation range in degrees, little-endian
+/// - Bytes 4–7: reserved (zero)
+///
+/// `degrees` is clamped to [`MIN_ROTATION_DEGREES`]–[`MAX_ROTATION_DEGREES`].
+pub fn build_rotation_range_report(degrees: u16) -> [u8; 8] {
+    let clamped = degrees.clamp(MIN_ROTATION_DEGREES, MAX_ROTATION_DEGREES);
+    let bytes = clamped.to_le_bytes();
+    [
+        report_ids::FFB_OUTPUT,
+        ffb_commands::SET_ROTATION_RANGE,
+        bytes[0],
+        bytes[1],
+        0,
+        0,
+        0,
+        0,
+    ]
+}
+
 /// Convert torque (Nm) to a signed 16-bit raw value proportional to max_torque_nm.
 fn torque_to_raw(torque_nm: f32, max_torque_nm: f32) -> i16 {
     if max_torque_nm <= f32::EPSILON {
@@ -329,6 +358,42 @@ mod tests {
         assert_eq!(report[2], 0);
         assert_eq!(report[3], 0);
         assert_eq!(report[4], 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_rotation_range_report_nominal() -> Result<(), Box<dyn std::error::Error>> {
+        let report = build_rotation_range_report(900);
+        assert_eq!(report[0], 0x01, "report ID must be 0x01");
+        assert_eq!(report[1], 0x12, "command must be SET_ROTATION_RANGE (0x12)");
+        // 900 = 0x0384: lo=0x84, hi=0x03
+        assert_eq!(report[2], 0x84, "low byte of 900 must be 0x84");
+        assert_eq!(report[3], 0x03, "high byte of 900 must be 0x03");
+        assert_eq!(&report[4..], &[0u8; 4], "reserved bytes must be zero");
+        Ok(())
+    }
+
+    #[test]
+    fn test_rotation_range_report_clamp_min() -> Result<(), Box<dyn std::error::Error>> {
+        let report = build_rotation_range_report(0);
+        let range = u16::from_le_bytes([report[2], report[3]]);
+        assert_eq!(range, MIN_ROTATION_DEGREES, "must clamp to MIN_ROTATION_DEGREES");
+        Ok(())
+    }
+
+    #[test]
+    fn test_rotation_range_report_clamp_max() -> Result<(), Box<dyn std::error::Error>> {
+        let report = build_rotation_range_report(u16::MAX);
+        let range = u16::from_le_bytes([report[2], report[3]]);
+        assert_eq!(range, MAX_ROTATION_DEGREES, "must clamp to MAX_ROTATION_DEGREES");
+        Ok(())
+    }
+
+    #[test]
+    fn test_rotation_range_report_360() -> Result<(), Box<dyn std::error::Error>> {
+        let report = build_rotation_range_report(360);
+        let range = u16::from_le_bytes([report[2], report[3]]);
+        assert_eq!(range, 360);
         Ok(())
     }
 

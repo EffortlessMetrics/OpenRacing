@@ -5,8 +5,9 @@
 
 use proptest::prelude::*;
 use racing_wheel_hid_fanatec_protocol::{
-    CONSTANT_FORCE_REPORT_LEN, FanatecConstantForceEncoder, build_display_report, build_led_report,
-    build_mode_switch_report, build_rumble_report, build_set_gain_report, build_stop_all_report,
+    CONSTANT_FORCE_REPORT_LEN, FanatecConstantForceEncoder, MAX_ROTATION_DEGREES,
+    MIN_ROTATION_DEGREES, build_display_report, build_led_report, build_mode_switch_report,
+    build_rotation_range_report, build_rumble_report, build_set_gain_report, build_stop_all_report,
 };
 
 proptest! {
@@ -194,4 +195,39 @@ fn test_stop_all_command_byte() -> Result<(), Box<dyn std::error::Error>> {
         "stop-all reserved bytes must be zero"
     );
     Ok(())
+}
+
+proptest! {
+    #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+    /// Rotation range report must always have correct report ID and command byte.
+    #[test]
+    fn prop_rotation_range_report_ids(degrees: u16) {
+        let report = build_rotation_range_report(degrees);
+        prop_assert_eq!(report[0], 0x01, "rotation range report ID must be 0x01");
+        prop_assert_eq!(report[1], 0x12, "SET_ROTATION_RANGE command must be 0x12");
+        prop_assert_eq!(&report[4..], &[0u8; 4], "reserved bytes must be zero");
+    }
+
+    /// The encoded degrees must be clamped to [MIN, MAX].
+    #[test]
+    fn prop_rotation_range_clamped(degrees: u16) {
+        let report = build_rotation_range_report(degrees);
+        let encoded = u16::from_le_bytes([report[2], report[3]]);
+        prop_assert!(
+            (MIN_ROTATION_DEGREES..=MAX_ROTATION_DEGREES).contains(&encoded),
+            "encoded {} must be within [{}, {}]",
+            encoded, MIN_ROTATION_DEGREES, MAX_ROTATION_DEGREES
+        );
+    }
+
+    /// In-range values must pass through unchanged.
+    #[test]
+    fn prop_rotation_range_in_range_passthrough(
+        degrees in MIN_ROTATION_DEGREES..=MAX_ROTATION_DEGREES
+    ) {
+        let report = build_rotation_range_report(degrees);
+        let encoded = u16::from_le_bytes([report[2], report[3]]);
+        prop_assert_eq!(encoded, degrees, "in-range value must not be altered");
+    }
 }

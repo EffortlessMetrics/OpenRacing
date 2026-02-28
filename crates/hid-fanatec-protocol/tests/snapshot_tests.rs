@@ -90,3 +90,27 @@ fn test_snapshot_clubsport_dd_full_negative_torque() {
 fn test_snapshot_clubsport_dd_half_torque() {
     assert_snapshot!(encode_bytes_with_max(10.0, 20.0));
 }
+
+/// Rotation range report for 540 degrees (common full-lock for GT car).
+#[test]
+fn test_snapshot_rotation_range_540() {
+    use racing_wheel_hid_fanatec_protocol::build_rotation_range_report;
+    let report = build_rotation_range_report(540);
+    assert_snapshot!(format!("{:?}", report));
+}
+
+/// Rotation range report clamped to minimum (90 degrees).
+#[test]
+fn test_snapshot_rotation_range_clamp_min() {
+    use racing_wheel_hid_fanatec_protocol::build_rotation_range_report;
+    let report = build_rotation_range_report(0);
+    assert_snapshot!(format!("{:?}", report));
+}
+
+/// Rotation range report clamped to maximum (1080 degrees).
+#[test]
+fn test_snapshot_rotation_range_clamp_max() {
+    use racing_wheel_hid_fanatec_protocol::build_rotation_range_report;
+    let report = build_rotation_range_report(u16::MAX);
+    assert_snapshot!(format!("{:?}", report));
+}
