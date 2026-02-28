@@ -217,6 +217,12 @@ inherits = "release"
 debug = false
 overflow-checks = false
 
+# Windows linker workaround: integration tests pull in every workspace crate
+# which exceeds MSVC's PDB symbol-table limit (LNK1180/LNK1318) in debug mode.
+# See docs/FRICTION_LOG.md F-004.
+[profile.test.package.racing-wheel-integration-tests]
+debug = false
+
 # Build configuration
 [workspace.metadata.docs.rs]
 all-features = true
