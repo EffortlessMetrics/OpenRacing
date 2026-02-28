@@ -1,0 +1,9 @@
+# Cargo configuration for OpenRacing project
+# Windows PATH length fix: use shorter target directory to avoid MAX_PATH (260 char) limit
+# This resolves "The system cannot find the path specified. (os error 3)" errors
+
+[build]
+target-dir = "H:/tmp/or-target"
+
+# Enable incremental compilation for faster rebuilds
+incremental = true

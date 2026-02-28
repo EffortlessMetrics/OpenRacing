@@ -274,6 +274,10 @@ fn new_ride5_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(ride5::Ride5Adapter::new())
 }
 
+fn new_f1_native_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(F1NativeAdapter::new())
+}
+
 /// Returns the canonical adapter factory registry for all supported native adapters.
 pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
     &[
@@ -319,6 +323,7 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("snowrunner", new_snowrunner_adapter),
         ("motogp", new_motogp_adapter),
         ("ride5", new_ride5_adapter),
+        ("f1_native", new_f1_native_adapter),
     ]
 }
 
