@@ -127,6 +127,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **VID disambiguation**: `0x0483` (STM) → VRS if PID in `0xA3xx`, else Simagic legacy; `0x16D0` (OpenMoko) → Heusinkveld if PID in `0x115x`, else Simagic legacy
 - **Linux udev rules** (`packaging/linux/99-racing-wheel-suite.rules`): Complete rewrite covering all vendors, correct VIDs for Simucube (now `0x2D6A`), VRS, Heusinkveld, Simagic modern, power autosuspend disabled for all racing peripherals
 - **Windows device registry** (`crates/engine/src/hid/windows.rs`): All new vendors added to `SupportedDevices` with correct VIDs/PIDs, capability blocks, and manufacturer names; Thrustmaster PID table corrected (T248=`0xB696`, T-LCM Pro=`0xB69A`)
+- **GitHub issue templates** (`.github/ISSUE_TEMPLATE/`): Three structured templates added — `device_capture_request.md` (USB capture submissions with device info checklist), `bug_report.md`, and `feature_request.md`
+
+- **`id_verification` test files** for all 15 HID vendor protocol crates: constants locked as test invariants — vendor IDs, product IDs, and model-specific values. Each crate now has a `tests/id_verification.rs` ensuring protocol constants can never silently drift (Moza, Simagic, Cammus, VRS, Asetek, AccuForce, Fanatec, Heusinkveld, Leo Bodnar, Logitech, Simucube, Thrustmaster, OpenFFBoard, FFBeast, Button Box, PXN)
+
+- **`proptest_output` suites** for Fanatec, FFBeast, Simucube, Asetek, and additional vendor crates: tests sign preservation, report length, header bytes, round-trip accuracy, monotonicity, and reserved-byte invariants across 1000+ randomized inputs per property
+
 - **Protocol documentation**: Added `SIMUCUBE_PROTOCOL.md`, `VRS_PROTOCOL.md`, `HEUSINKVELD_PROTOCOL.md`, `ASETEK_PROTOCOL.md`; fixed wrong PIDs in `THRUSTMASTER_PROTOCOL.md` (T150, T150 Pro, TMX)
 - **VID/PID sources documentation** (`docs/protocols/SOURCES.md`): New reference document recording the authoritative source (verified, community, or estimated) for every USB Vendor ID and Product ID across all protocol crates; required citation policy enforced for new device additions
 
@@ -182,11 +188,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`ReportBuilder::with_capacity` bug fix**: All output report `build()` functions in `hid-simucube-protocol` and `hid-asetek-protocol` now use `ReportBuilder::with_capacity(N)` instead of `ReportBuilder::new(N)`. `new(N)` pre-fills N zero bytes before `write_*` appends, causing report-ID byte to always be `0x00`. Discovered via proptest (`data[0] == 0x01` invariant). Output snapshots updated.
+
+- **CRLF in udev rules**: `packaging/linux/99-racing-wheel-suite.rules` and `packaging/linux/90-racing-wheel-quirks.conf` had Windows CRLF line endings, which could cause udev to mis-parse rules. Normalized to LF. Added `*.rules` and `*.conf` patterns to `.gitattributes` with `eol=lf`.
+
 - **Deprecated TelemetryData field migration**: `wheel_angle_mdeg` → `wheel_angle_deg`, `wheel_speed_mrad_s` → `wheel_speed_rad_s`; all downstream call sites updated to use the non-deprecated field names
 
 - **CI: YAML sync check enforcement** — `scripts/sync_yaml.py` integrated into CI prevents `crates/telemetry-config/src/game_support_matrix.yaml` and `crates/telemetry-support/src/game_support_matrix.yaml` from diverging silently
 
 - **CI: Regression prevention false positives** resolved — HID protocol crates and `schemas` crate excluded from deprecated-field detection, eliminating spurious CI failures on non-engine code
+
+- **`doc_suspicious_footnotes` clippy lints** in `hid-vrs-protocol` and `hid-asetek-protocol`: footnote references `[^12]`/`[^13]` changed to plain text to satisfy `--deny warnings`
 
 ## [1.0.0-rc.1] - 2026-11-01
 
