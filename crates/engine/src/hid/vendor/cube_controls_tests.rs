@@ -48,7 +48,8 @@ fn test_new_gt_pro() {
         CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_GT_PRO_PID);
     assert_eq!(handler.model(), CubeControlsModel::GtPro);
     let config = handler.get_ffb_config();
-    assert!((config.max_torque_nm - 20.0).abs() < 0.01);
+    // Input-only device — torque should be 0.0
+    assert!((config.max_torque_nm - 0.0).abs() < 0.01);
 }
 
 #[test]
@@ -63,7 +64,8 @@ fn test_new_csx3() {
     let handler = CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_CSX3_PID);
     assert_eq!(handler.model(), CubeControlsModel::Csx3);
     let config = handler.get_ffb_config();
-    assert!((config.max_torque_nm - 20.0).abs() < 0.01);
+    // Input-only device — torque should be 0.0
+    assert!((config.max_torque_nm - 0.0).abs() < 0.01);
 }
 
 #[test]
@@ -255,26 +257,25 @@ proptest! {
         );
     }
 
-    /// max_torque_nm is always positive for any Cube Controls PID: all known
-    /// models and the Unknown fallback report 20 Nm.
+    /// max_torque_nm is always 0.0 for Cube Controls (input-only devices).
     #[test]
-    fn prop_cube_controls_torque_always_positive(pid in any::<u16>()) {
+    fn prop_cube_controls_torque_always_zero(pid in any::<u16>()) {
         let handler = CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, pid);
         let config = handler.get_ffb_config();
         prop_assert!(
-            config.max_torque_nm > 0.0,
-            "Cube Controls PID 0x{:04X} must always report positive torque", pid
+            (config.max_torque_nm - 0.0).abs() < f32::EPSILON,
+            "Cube Controls PID 0x{:04X} must report 0.0 torque (input device)", pid
         );
     }
 
-    /// max_torque_nm is within the physically safe range (0, 100] Nm for any PID.
+    /// max_torque_nm is within the safe range [0, 100] Nm for any PID.
     #[test]
     fn prop_ffb_config_torque_in_safe_range(pid in any::<u16>()) {
         let handler = CubeControlsProtocolHandler::new(CUBE_CONTROLS_VENDOR_ID, pid);
         let config = handler.get_ffb_config();
         prop_assert!(
-            config.max_torque_nm > 0.0 && config.max_torque_nm <= 100.0,
-            "max_torque_nm {} is outside safe range (0, 100]", config.max_torque_nm
+            config.max_torque_nm >= 0.0 && config.max_torque_nm <= 100.0,
+            "max_torque_nm {} is outside safe range [0, 100]", config.max_torque_nm
         );
     }
 

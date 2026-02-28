@@ -2,4 +2,4 @@
 source: crates/hid-cube-controls-protocol/tests/snapshot_tests.rs
 expression: "CubeControlsModel::FormulaPro.max_torque_nm()"
 ---
-20.0
+0.0

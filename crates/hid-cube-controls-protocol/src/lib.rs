@@ -1,8 +1,10 @@
 //! Cube Controls steering wheel USB HID protocol constants.
 //!
-//! Cube Controls S.r.l. (Italy) makes premium sim-racing steering wheels
-//! including the GT Pro, Formula Pro, and CSX3. These present a standard
-//! USB HID PID (force feedback) interface.
+//! Cube Controls S.r.l. (Italy) produces premium sim-racing **steering wheels**
+//! (button boxes / rims) including the GT Pro, Formula CSX-3, and F-CORE. These
+//! are **input-only** USB/Bluetooth HID devices (buttons, rotary encoders,
+//! paddles). They do **not** produce force feedback — FFB comes from the
+//! wheelbase (a separate device by another vendor such as Simucube).
 //!
 //! # VID/PID status — PROVISIONAL
 //!

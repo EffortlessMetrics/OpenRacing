@@ -2,9 +2,11 @@
 
 ## Overview
 
-Cube Controls S.r.l. (Italy) produces premium sim-racing steering wheels:
-**GT Pro**, **Formula Pro**, and **CSX3**. These devices likely implement the
-**standard USB HID PID (Physical Interface Device — Force Feedback)** protocol.
+Cube Controls S.r.l. (Italy) produces premium sim-racing **steering wheels**
+(button boxes / rims): **GT Pro**, **Formula CSX-3**, **F-CORE**, and others.
+These are **input-only** USB/Bluetooth HID devices with buttons, rotary
+encoders, and paddles. They do **not** produce force feedback — FFB comes
+from the wheelbase (a separate device by another vendor such as Simucube).
 
 > ⚠️ **PROVISIONAL DATA** — The VID/PID values for Cube Controls devices have
 > **not** been confirmed from official documentation or independent USB captures.
@@ -12,20 +14,24 @@ Cube Controls S.r.l. (Italy) produces premium sim-racing steering wheels:
 
 **VID:** `0x0483` (STMicroelectronics shared VID — PROVISIONAL)
 
-| Model              | PID (est.) | Peak Torque  | Notes                          |
-|--------------------|------------|--------------|--------------------------------|
-| GT Pro             | `0x0C73`   | ~20 Nm       | F1-style wheel                 |
-| Formula Pro        | `0x0C74`   | ~20 Nm       | Formula racing wheel           |
-| CSX3               | `0x0C75`   | ~20 Nm       | High-end customizable wheel    |
+| Model              | PID (est.) | Torque | Notes                                       |
+|--------------------|------------|--------|---------------------------------------------|
+| GT Pro             | `0x0C73`   | N/A    | F1-style wireless steering wheel            |
+| Formula Pro        | `0x0C74`   | N/A    | Formula racing steering wheel               |
+| CSX3               | `0x0C75`   | N/A    | Steering wheel with 4" touchscreen          |
 
-## Force Feedback
+> **Note:** Torque is not applicable — these are input devices, not wheelbases.
 
-Community reports indicate Cube Controls wheels present a standard HID PID
-force feedback interface (Usage Page `0x000F`), similar to Simucube 2 and VRS
-DirectForce which share the same STM VID.
+## Device Type
 
-No proprietary vendor-specific command extensions have been documented. All FFB
-effects are expected to go through the standard HID PID effect pipeline.
+Cube Controls products are **steering wheel button boxes**, not wheelbases:
+
+- They connect to the PC via USB (for configuration/charging) and Bluetooth
+  (for wireless input during racing)
+- They present standard USB HID game controller interfaces (buttons, axes)
+- They do **not** implement HID PID (force feedback) descriptors
+- Force feedback is handled by the wheelbase (Simucube, VRS, etc.)
+- The SP-01 is a pedal set, also an input-only device
 
 ## VID Collision
 
@@ -44,10 +50,19 @@ The OpenRacing engine disambiguates these using `is_cube_controls_product()`,
 
 | Item | Status |
 |------|--------|
-| VID `0x0483` | ⚠️ Community reports, not confirmed |
-| PIDs `0x0C73`–`0x0C75` | ❌ Internal estimates |
-| FFB protocol (HID PID) | ⚠️ Assumed standard, not captured |
+| VID `0x0483` | ⚠️ Plausible (STM32 MCU), not confirmed from hardware |
+| PIDs `0x0C73`–`0x0C75` | ❌ Internal estimates, not found in any database |
+| Device type | ℹ️ Input-only (buttons/encoders), not force feedback |
 | Input report format | ❌ Unknown |
+
+**Research pass (2025-06):** The following sources were checked with no
+Cube Controls VID/PID found:
+
+- JacKeTUs/linux-steering-wheels: no Cube Controls entries
+- devicehunt.com (VID 0x0483): PIDs 0x0C73–0x0C75 not registered
+- cubecontrols.com: no USB VID/PID information published
+- Linux kernel hid-ids.h: no entries
+- GitHub code search: no independent USB captures
 
 **Action required:** A volunteer with Cube Controls hardware should run:
 
@@ -74,6 +89,7 @@ remove the PROVISIONAL annotations.
 ## Protocol Sources
 
 - **No official SDK** — Cube Controls does not publish USB protocol documentation.
-- **JacKeTUs/linux-steering-wheels** — no Cube Controls entries as of 2025-01.
+- **JacKeTUs/linux-steering-wheels** — no Cube Controls entries (checked 2025-06).
+- **devicehunt.com** — PIDs 0x0C73–0x0C75 not in STMicroelectronics database.
 - **Community forum reports** — suggest STM VID, PIDs unverified.
 - **This documentation** — best-effort based on the above; requires hardware capture.

@@ -1,16 +1,27 @@
 //! Cube Controls USB vendor and product ID constants.
 //!
-//! # Status: PROVISIONAL
+//! # Status: PROVISIONAL — UNVERIFIED
 //!
-//! VID `0x0483` is the STMicroelectronics shared VID used by a large number of
-//! STM32-based USB HID devices. Multiple community sources report Cube Controls
-//! wheels on this VID, but no official USB descriptor capture or SDK confirms
-//! it. The PIDs below are internal estimates — they are **not** from a USB
-//! device tree capture and may be incorrect.
+//! **Important:** Cube Controls S.r.l. (Italy) manufactures premium sim-racing
+//! **steering wheels** (button boxes / rims), **not** wheelbases. Their products
+//! (GT Pro, Formula CSX-3, F-CORE, etc.) are USB/Bluetooth input devices with
+//! buttons, rotary encoders, and paddles. They do **not** produce force feedback.
+//! Force feedback comes from the wheelbase (a separate device by another vendor).
 //!
-//! The JacKeTUs/linux-steering-wheels compatibility table (the primary community
-//! reference used by this project) contains no Cube Controls entries as of the
-//! last research pass (2025-01). See `docs/protocols/SOURCES.md` for policy.
+//! VID `0x0483` is the STMicroelectronics shared VID used by thousands of
+//! STM32-based USB devices. Community reports suggest Cube Controls steering
+//! wheels enumerate on this VID, but no official USB descriptor capture or SDK
+//! confirms it. The PIDs below are internal estimates — they are **not** from a
+//! USB device tree capture and may be incorrect.
+//!
+//! **Research pass (2025-06):** The following sources were checked:
+//! - JacKeTUs/linux-steering-wheels: **no** Cube Controls entries
+//! - devicehunt.com (VID 0x0483): PIDs 0x0C73–0x0C75 **not registered**
+//! - cubecontrols.com: no USB VID/PID information published
+//! - Linux kernel hid-ids.h: no Cube Controls entries
+//! - GitHub code search: no independent USB captures found
+//!
+//! See `docs/protocols/SOURCES.md` for policy.
 //!
 //! ACTION REQUIRED: Once confirmed from real hardware (e.g. `lsusb -v` or
 //! USBTreeView capture), update the constants below and remove the PROVISIONAL
@@ -19,8 +30,9 @@
 /// Cube Controls USB Vendor ID.
 ///
 /// **PROVISIONAL** — VID 0x0483 is the STMicroelectronics shared VID used by
-/// many STM32-based devices. Community reports suggest Cube Controls devices
-/// use this VID, but it has not been confirmed from hardware captures.
+/// many STM32-based devices (including Simagic 0x0522 and VRS 0xa355 in
+/// sim-racing). Cube Controls steering wheels use STM32 MCUs, so this VID is
+/// plausible but has not been confirmed from hardware captures.
 pub const CUBE_CONTROLS_VENDOR_ID: u16 = 0x0483;
 
 /// Cube Controls GT Pro product ID (provisional — not confirmed from hardware).
@@ -33,13 +45,17 @@ pub const CUBE_CONTROLS_FORMULA_PRO_PID: u16 = 0x0C74;
 pub const CUBE_CONTROLS_CSX3_PID: u16 = 0x0C75;
 
 /// Cube Controls model classification.
+///
+/// Note: Cube Controls products are steering wheel button boxes (input devices),
+/// not wheelbases. They do not produce force feedback. The `max_torque_nm()`
+/// method returns a placeholder value for API compatibility.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CubeControlsModel {
-    /// GT Pro — F1-style wheel, up to ~20 Nm (provisional PID)
+    /// GT Pro — F1-style wireless steering wheel / button box (provisional PID)
     GtPro,
-    /// Formula Pro — Formula racing wheel, up to ~20 Nm (provisional PID)
+    /// Formula Pro — Formula racing steering wheel / button box (provisional PID)
     FormulaPro,
-    /// CSX3 — High-end customizable wheel, up to ~20 Nm (provisional PID)
+    /// CSX3 — High-end steering wheel with 4" touchscreen (provisional PID)
     Csx3,
     /// Future or unrecognised Cube Controls product
     Unknown,
@@ -66,15 +82,16 @@ impl CubeControlsModel {
         }
     }
 
-    /// Rated peak torque in Nm.
+    /// Placeholder torque value in Nm (for API compatibility).
     ///
-    /// All current Cube Controls models are rated at approximately 20 Nm.
-    /// The exact value per model is not publicly documented.
+    /// Cube Controls products are steering wheels (input devices), not
+    /// wheelbases. They do not produce force feedback torque. This value
+    /// exists only to satisfy the `VendorProtocol` interface and should
+    /// not be used for FFB force scaling. Returns 0.0 for safety.
     pub fn max_torque_nm(self) -> f32 {
-        match self {
-            Self::GtPro | Self::FormulaPro | Self::Csx3 => 20.0,
-            Self::Unknown => 20.0, // conservative default
-        }
+        // These are input-only devices — torque is not applicable.
+        // Return 0.0 to prevent accidentally scaling FFB output.
+        0.0
     }
 
     /// Returns `true` for all models while VID/PIDs remain unconfirmed.
@@ -148,11 +165,13 @@ mod tests {
     }
 
     #[test]
-    fn torque_always_positive() {
-        assert!(CubeControlsModel::GtPro.max_torque_nm() > 0.0);
-        assert!(CubeControlsModel::FormulaPro.max_torque_nm() > 0.0);
-        assert!(CubeControlsModel::Csx3.max_torque_nm() > 0.0);
-        assert!(CubeControlsModel::Unknown.max_torque_nm() > 0.0);
+    fn torque_is_zero_for_input_devices() {
+        // Cube Controls products are steering wheels (input-only), not force
+        // feedback devices — torque should be 0.0.
+        assert!((CubeControlsModel::GtPro.max_torque_nm() - 0.0).abs() < f32::EPSILON);
+        assert!((CubeControlsModel::FormulaPro.max_torque_nm() - 0.0).abs() < f32::EPSILON);
+        assert!((CubeControlsModel::Csx3.max_torque_nm() - 0.0).abs() < f32::EPSILON);
+        assert!((CubeControlsModel::Unknown.max_torque_nm() - 0.0).abs() < f32::EPSILON);
     }
 
     #[test]

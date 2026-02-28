@@ -420,6 +420,20 @@ Additionally, most individual PIDs for these vendors (Heusinkveld, VRS, Cube Con
 
 ---
 
+### F-035 · Cube Controls PIDs unconfirmed; products are input devices, not wheelbases (Medium · Open)
+
+**Encountered:** Protocol verification wave (2025-06 web research pass)
+
+Cube Controls GT Pro, Formula CSX-3, and F-CORE are **steering wheel button boxes** (input-only USB/Bluetooth HID devices), **not** wheelbases. They do not produce force feedback. The code previously described them as force feedback devices with 20 Nm torque, which was incorrect.
+
+PIDs 0x0C73–0x0C75 remain **unconfirmed** after checking: JacKeTUs/linux-steering-wheels (no entries), devicehunt.com VID 0x0483 database (PIDs not registered), cubecontrols.com (no USB info published), Linux kernel hid-ids.h (no entries), GitHub code search (no captures found). VID 0x0483 is plausible (STM32 MCU) but shared with Simagic (0x0522) and VRS (0xa355).
+
+**Fix applied (partial):** Updated `ids.rs` to document research findings, clarified product type as input-only in doc comments, set `max_torque_nm()` to 0.0, updated `CUBE_CONTROLS_PROTOCOL.md` and `SOURCES.md`. PIDs kept as provisional placeholders.
+
+**Remedy (remaining):** Acquire a USB device tree capture (`lsusb -v` or USBTreeView) from real Cube Controls hardware to confirm or correct VID/PIDs. Consider whether this protocol crate should exist at all for input-only devices, or whether it should be reclassified as a button-box driver rather than a force-feedback protocol.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
@@ -465,7 +479,7 @@ Additionally, most individual PIDs for these vendors (Heusinkveld, VRS, Cube Con
 ### Engine Device Table Sync
 - 50+ missing devices added to linux.rs (VRS, Heusinkveld, Cammus, OpenFFBoard, FFBeast, etc.)
 - AccuForce Pro capabilities corrected (12 Nm, PID support, 1 kHz)
-- Cube Controls capabilities corrected (20 Nm)
+- Cube Controls capabilities corrected (input-only devices, torque set to 0 Nm; PIDs still unconfirmed)
 - Asetek Tony Kanaan torque corrected (25→20 Nm)
 
 ### Earlier Progress

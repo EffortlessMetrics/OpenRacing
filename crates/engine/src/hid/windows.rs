@@ -1476,10 +1476,10 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque = TorqueNm::ZERO;
                 }
                 // Cube Controls PIDs (share VID 0x0483 with Simagic — PROVISIONAL)
+                // Input-only devices (steering wheel button boxes), not wheelbases.
                 0x0C73..=0x0C75 => {
-                    capabilities.max_torque =
-                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
-                    capabilities.encoder_cpr = u16::MAX;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                    capabilities.encoder_cpr = 0;
                 }
                 // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
                 0xA355 => {

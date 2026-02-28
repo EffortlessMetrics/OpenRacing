@@ -8,7 +8,7 @@ DeviceCapabilities {
     supports_health_stream: true,
     supports_led_bus: false,
     max_torque: TorqueNm(
-        20.0,
+        0.0,
     ),
     encoder_cpr: 65535,
     min_report_period_us: 1000,

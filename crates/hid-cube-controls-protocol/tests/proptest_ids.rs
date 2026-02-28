@@ -86,13 +86,14 @@ proptest! {
         );
     }
 
-    /// CubeControlsModel::max_torque_nm must always be strictly positive and finite.
+    /// CubeControlsModel::max_torque_nm must always be non-negative and finite.
+    /// Returns 0.0 because these are input-only devices (not wheelbases).
     #[test]
-    fn prop_max_torque_positive_and_finite(pid: u16) {
+    fn prop_max_torque_non_negative_and_finite(pid: u16) {
         let model = CubeControlsModel::from_product_id(pid);
         let torque = model.max_torque_nm();
-        prop_assert!(torque > 0.0,
-            "{model:?} must have positive max_torque_nm, got {torque}");
+        prop_assert!(torque >= 0.0,
+            "{model:?} must have non-negative max_torque_nm, got {torque}");
         prop_assert!(torque.is_finite(),
             "{model:?} must have finite max_torque_nm, got {torque}");
     }
@@ -122,9 +123,9 @@ proptest! {
             model.display_name());
     }
 
-    /// max_torque_nm for known models must be exactly 20.0 Nm (current rating).
+    /// max_torque_nm for known models must be 0.0 Nm (input devices, not wheelbases).
     #[test]
-    fn prop_known_models_rated_at_20nm(idx in 0usize..3usize) {
+    fn prop_known_models_rated_at_0nm(idx in 0usize..3usize) {
         let pids = [
             CUBE_CONTROLS_GT_PRO_PID,
             CUBE_CONTROLS_FORMULA_PRO_PID,
@@ -133,8 +134,8 @@ proptest! {
         let model = CubeControlsModel::from_product_id(pids[idx]);
         let torque = model.max_torque_nm();
         prop_assert!(
-            (torque - 20.0).abs() < f32::EPSILON,
-            "{model:?} must be rated at 20.0 Nm, got {torque}"
+            (torque - 0.0).abs() < f32::EPSILON,
+            "{model:?} must be rated at 0.0 Nm (input device, not wheelbase), got {torque}"
         );
     }
 }

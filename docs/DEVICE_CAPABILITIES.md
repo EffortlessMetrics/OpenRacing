@@ -177,17 +177,17 @@ Source: `crates/engine/src/hid/vendor/openffboard.rs`; VID/PID status: **Verifie
 |---|---|---|---|---|---|---|---|---|
 | OpenFFBoard | Ultrawipf (open-source) | `0x1209` | HID PIDFF + vendor feature reports | ~20.0 (user-configurable) | 1 | Constant (PIDFF) | 16-bit (65 536 CPR typical) | PIDs `0xFFB0`, `0xFFB1`; motor/PSU dependent |
 
-### Cube Controls — VID `0x0483` *(provisional)*
+### Cube Controls — VID `0x0483` *(provisional — input devices only)*
 
 Source: `crates/engine/src/hid/vendor/cube_controls.rs`.
 
-> ⚠️ **PROVISIONAL**: The USB VID/PIDs listed here are **unconfirmed**. Cube Controls devices may use a different VID. Update this table once USB descriptor captures from real hardware are available.
+> ⚠️ **PROVISIONAL**: The USB VID/PIDs listed here are **unconfirmed**. Cube Controls products are **steering wheel button boxes** (input-only devices), not wheelbases. They do not produce force feedback. Update this table once USB descriptor captures from real hardware are available.
 
 | Device | Vendor | USB VID | Protocol Type | Max Torque (Nm) | FFB Axes | Force Feedback Types | Encoder Resolution | Notes |
 |---|---|---|---|---|---|---|---|---|
-| Cube Controls GT Pro | Cube Controls | `0x0483` *(prov.)* | HID PIDFF | ~20.0 | 1 | Constant, Spring, Damper (PIDFF) | Unknown | PID `0x0C73` (provisional) |
-| Cube Controls Formula Pro | Cube Controls | `0x0483` *(prov.)* | HID PIDFF | ~20.0 | 1 | Constant, Spring, Damper (PIDFF) | Unknown | PID `0x0C74` (provisional) |
-| Cube Controls CSX3 | Cube Controls | `0x0483` *(prov.)* | HID PIDFF | ~20.0 | 1 | Constant, Spring, Damper (PIDFF) | Unknown | PID `0x0C75` (provisional) |
+| Cube Controls GT Pro | Cube Controls | `0x0483` *(prov.)* | Input-only (HID gamepad) | N/A | 0 | None (input device) | N/A | PID `0x0C73` (provisional); steering wheel button box |
+| Cube Controls Formula Pro | Cube Controls | `0x0483` *(prov.)* | Input-only (HID gamepad) | N/A | 0 | None (input device) | N/A | PID `0x0C74` (provisional); steering wheel button box |
+| Cube Controls CSX3 | Cube Controls | `0x0483` *(prov.)* | Input-only (HID gamepad) | N/A | 0 | None (input device) | N/A | PID `0x0C75` (provisional); steering wheel with touchscreen |
 
 ### PXN — VID `0x11FF`
 
@@ -238,7 +238,7 @@ The table below summarises each wire protocol referenced in the capability table
 
 | Protocol Type | Description | Devices Using This Protocol |
 |---|---|---|
-| **HID PIDFF** | Standard USB HID Physical Interface Device (PID) force feedback, Usage Page `0x000F`. Effects are managed through the OS HID driver via effect create/update/destroy reports. Supports a wide set of effect types defined by the USB HID spec. | VRS DirectForce Pro, AccuForce Pro, FFBeast, OpenFFBoard, Cube Controls, Leo Bodnar Wheel Interface/FFB Joystick |
+| **HID PIDFF** | Standard USB HID Physical Interface Device (PID) force feedback, Usage Page `0x000F`. Effects are managed through the OS HID driver via effect create/update/destroy reports. Supports a wide set of effect types defined by the USB HID spec. | VRS DirectForce Pro, AccuForce Pro, FFBeast, OpenFFBoard, Leo Bodnar Wheel Interface/FFB Joystick |
 | **Moza Proprietary** | Custom HID vendor usage page. Torque output uses report `0x20` (direct torque, signed `i16`, percent-of-max). Handshake sequence required at connect. Rim identity, pedal axes, and KS control-surface snapshots multiplexed through the same USB endpoint. | Moza R3–R21 |
 | **Fanatec Proprietary** | Endor AG / Fanatec vendor HID protocol. Supports constant-force, gain, LED, display, and mode-switch feature reports. | Fanatec CSL DD, Podium DD1/DD2, ClubSport, CSL Elite |
 | **Logitech Native / HID PID** | Logitech wheels start in compatibility mode and must be switched to native mode via a vendor command before exposing the full effect set. HID PID reports are used after mode switch. | Logitech G25–G920 |
@@ -281,7 +281,7 @@ Devices are assigned one of three status levels based on available evidence.
 | AccuForce Pro | Community-reported |
 | Leo Bodnar Wheel Interface / FFB Joystick | Community-reported |
 | Granite Devices / OSW (SimpleMotion V2) | Community-reported |
-| Cube Controls | Estimated (**Provisional — PIDs unconfirmed**) |
+| Cube Controls | Estimated (**Provisional — PIDs unconfirmed; input-only devices, not wheelbases**) |
 
 ---
 
