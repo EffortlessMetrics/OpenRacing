@@ -215,6 +215,42 @@ mod tests {
     fn game_id_is_grid_legends() {
         assert_eq!(GridLegendsAdapter::new().game_id(), "grid_legends");
     }
+
+    #[test]
+    fn known_values_parsed_correctly() -> Result<(), Box<dyn std::error::Error>> {
+        use crate::codemasters_shared::{
+            OFF_BRAKE, OFF_GEAR, OFF_MAX_RPM, OFF_RPM, OFF_STEER, OFF_THROTTLE,
+            OFF_WHEEL_SPEED_FL, OFF_WHEEL_SPEED_FR, OFF_WHEEL_SPEED_RL, OFF_WHEEL_SPEED_RR,
+        };
+
+        let adapter = GridLegendsAdapter::new();
+        let mut buf = make_packet(MIN_PACKET_SIZE);
+
+        buf[OFF_WHEEL_SPEED_FL..OFF_WHEEL_SPEED_FL + 4]
+            .copy_from_slice(&30.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_FR..OFF_WHEEL_SPEED_FR + 4]
+            .copy_from_slice(&30.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_RL..OFF_WHEEL_SPEED_RL + 4]
+            .copy_from_slice(&30.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_RR..OFF_WHEEL_SPEED_RR + 4]
+            .copy_from_slice(&30.0_f32.to_le_bytes());
+
+        buf[OFF_RPM..OFF_RPM + 4].copy_from_slice(&7000.0_f32.to_le_bytes());
+        buf[OFF_MAX_RPM..OFF_MAX_RPM + 4].copy_from_slice(&9000.0_f32.to_le_bytes());
+        buf[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&4.0_f32.to_le_bytes());
+        buf[OFF_THROTTLE..OFF_THROTTLE + 4].copy_from_slice(&0.9_f32.to_le_bytes());
+        buf[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&0.1_f32.to_le_bytes());
+        buf[OFF_STEER..OFF_STEER + 4].copy_from_slice(&(-0.3_f32).to_le_bytes());
+
+        let t = adapter.normalize(&buf)?;
+        assert_eq!(t.speed_ms, 30.0);
+        assert_eq!(t.rpm, 7000.0);
+        assert_eq!(t.gear, 4);
+        assert_eq!(t.throttle, 0.9);
+        assert_eq!(t.brake, 0.1);
+        assert_eq!(t.steering_angle, -0.3);
+        Ok(())
+    }
 }
 
 #[cfg(test)]

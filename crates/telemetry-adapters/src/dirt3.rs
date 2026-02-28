@@ -215,6 +215,43 @@ mod tests {
     fn game_id_is_dirt3() {
         assert_eq!(Dirt3Adapter::new().game_id(), "dirt3");
     }
+
+    #[test]
+    fn known_values_parsed_correctly() -> Result<(), Box<dyn std::error::Error>> {
+        use crate::codemasters_shared::{
+            OFF_BRAKE, OFF_GEAR, OFF_MAX_RPM, OFF_RPM, OFF_STEER, OFF_THROTTLE,
+            OFF_WHEEL_SPEED_FL, OFF_WHEEL_SPEED_FR, OFF_WHEEL_SPEED_RL, OFF_WHEEL_SPEED_RR,
+        };
+
+        let adapter = Dirt3Adapter::new();
+        let mut buf = make_packet(MIN_PACKET_SIZE);
+
+        // Set wheel speeds to 25.0 m/s each → average = 25.0
+        buf[OFF_WHEEL_SPEED_FL..OFF_WHEEL_SPEED_FL + 4]
+            .copy_from_slice(&25.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_FR..OFF_WHEEL_SPEED_FR + 4]
+            .copy_from_slice(&25.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_RL..OFF_WHEEL_SPEED_RL + 4]
+            .copy_from_slice(&25.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_RR..OFF_WHEEL_SPEED_RR + 4]
+            .copy_from_slice(&25.0_f32.to_le_bytes());
+
+        buf[OFF_RPM..OFF_RPM + 4].copy_from_slice(&5000.0_f32.to_le_bytes());
+        buf[OFF_MAX_RPM..OFF_MAX_RPM + 4].copy_from_slice(&8000.0_f32.to_le_bytes());
+        buf[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&3.0_f32.to_le_bytes());
+        buf[OFF_THROTTLE..OFF_THROTTLE + 4].copy_from_slice(&0.75_f32.to_le_bytes());
+        buf[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&0.25_f32.to_le_bytes());
+        buf[OFF_STEER..OFF_STEER + 4].copy_from_slice(&0.5_f32.to_le_bytes());
+
+        let t = adapter.normalize(&buf)?;
+        assert_eq!(t.speed_ms, 25.0);
+        assert_eq!(t.rpm, 5000.0);
+        assert_eq!(t.gear, 3);
+        assert_eq!(t.throttle, 0.75);
+        assert_eq!(t.brake, 0.25);
+        assert_eq!(t.steering_angle, 0.5);
+        Ok(())
+    }
 }
 
 #[cfg(test)]

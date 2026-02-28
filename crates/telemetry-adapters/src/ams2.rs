@@ -1030,6 +1030,11 @@ mod tests {
         assert_eq!(data.brake, 0.0);
         Ok(())
     }
+
+    #[test]
+    fn test_game_id_is_ams2() {
+        assert_eq!(AMS2Adapter::new().game_id(), "ams2");
+    }
 }
 
 #[cfg(test)]

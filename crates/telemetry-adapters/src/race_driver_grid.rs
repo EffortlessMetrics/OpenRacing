@@ -365,6 +365,37 @@ mod tests {
     fn game_id_is_race_driver_grid() {
         assert_eq!(RaceDriverGridAdapter::new().game_id(), "race_driver_grid");
     }
+
+    #[test]
+    fn known_values_parsed_correctly() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = RaceDriverGridAdapter::new();
+        let mut buf = make_packet(MIN_PACKET_SIZE);
+
+        buf[OFF_WHEEL_SPEED_FL..OFF_WHEEL_SPEED_FL + 4]
+            .copy_from_slice(&20.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_FR..OFF_WHEEL_SPEED_FR + 4]
+            .copy_from_slice(&20.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_RL..OFF_WHEEL_SPEED_RL + 4]
+            .copy_from_slice(&20.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_RR..OFF_WHEEL_SPEED_RR + 4]
+            .copy_from_slice(&20.0_f32.to_le_bytes());
+
+        buf[OFF_RPM..OFF_RPM + 4].copy_from_slice(&6000.0_f32.to_le_bytes());
+        buf[OFF_MAX_RPM..OFF_MAX_RPM + 4].copy_from_slice(&8500.0_f32.to_le_bytes());
+        buf[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&5.0_f32.to_le_bytes());
+        buf[OFF_THROTTLE..OFF_THROTTLE + 4].copy_from_slice(&0.8_f32.to_le_bytes());
+        buf[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&0.2_f32.to_le_bytes());
+        buf[OFF_STEER..OFF_STEER + 4].copy_from_slice(&0.4_f32.to_le_bytes());
+
+        let t = adapter.normalize(&buf)?;
+        assert_eq!(t.speed_ms, 20.0);
+        assert_eq!(t.rpm, 6000.0);
+        assert_eq!(t.gear, 5);
+        assert_eq!(t.throttle, 0.8);
+        assert_eq!(t.brake, 0.2);
+        assert_eq!(t.steering_angle, 0.4);
+        Ok(())
+    }
 }
 
 #[cfg(test)]

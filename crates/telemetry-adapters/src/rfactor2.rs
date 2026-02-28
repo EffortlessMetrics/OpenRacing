@@ -1387,6 +1387,11 @@ mod tests {
         assert_eq!(header.bytes_updated_hint, 0);
         Ok(())
     }
+
+    #[test]
+    fn test_game_id_is_rfactor2() {
+        assert_eq!(RFactor2Adapter::new().game_id(), "rfactor2");
+    }
 }
 
 #[cfg(test)]

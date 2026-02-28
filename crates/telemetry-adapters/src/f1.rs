@@ -459,6 +459,11 @@ mod tests {
         let result = adapter.normalize(&raw);
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_game_id_is_f1() {
+        assert_eq!(F1Adapter::new().game_id(), "f1");
+    }
 }
 
 #[cfg(test)]
