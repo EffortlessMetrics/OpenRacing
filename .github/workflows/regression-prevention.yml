@@ -69,6 +69,7 @@ jobs:
             --exclude-dir="compile-fail" \
             --exclude-dir="generated" \
             --exclude-dir="schemas" \
+            --exclude-dir="telemetry-contracts" \
             --exclude="*test*" \
             --exclude="*compat*" \
             --exclude="protocol.rs" \
