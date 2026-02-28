@@ -4,7 +4,7 @@
 //! This stub adapter returns a default `NormalizedTelemetry` frame until a
 //! concrete protocol implementation is contributed.
 
-use crate::{NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver};
+use crate::{NormalizedTelemetry, TelemetryAdapter, TelemetryReceiver};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::time::Duration;

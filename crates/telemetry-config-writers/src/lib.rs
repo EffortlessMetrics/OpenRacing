@@ -6018,6 +6018,7 @@ impl ConfigWriter for DirtShowdownConfigWriter {
         }])
     }
 }
+#[cfg(test)]
 mod tests {
     use super::*;
     use tempfile::tempdir;
