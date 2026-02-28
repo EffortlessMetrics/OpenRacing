@@ -136,7 +136,8 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="beef", GROUP="i
 # USB Joystick (input-only)
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="0001", GROUP="input", MODE="0664", TAG+="uaccess"
 
-# ─── PXN (0x11FF, Shenzhen Jinyu Technology) ──────────────────────────────
+
+# ─── PXN (0x11FF, Shenzhen Jinyu Technology) ──────────────────────────────
 # V10, V12, V12 Lite, V12 Lite SE, GT987 FF direct-drive wheelbases
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="3245", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="1212", GROUP="input", MODE="0664", TAG+="uaccess"
