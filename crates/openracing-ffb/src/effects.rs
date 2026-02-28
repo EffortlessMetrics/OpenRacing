@@ -327,3 +327,218 @@ mod tests {
         assert!(sample1 != 0);
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        // --- SpringEffect ---
+
+        #[test]
+        fn prop_spring_output_bounded(
+            coefficient in i16::MIN..=i16::MAX,
+            position in i16::MIN..=i16::MAX,
+        ) {
+            let spring = SpringEffect::new(coefficient);
+            let output = spring.calculate(position) as i32;
+            prop_assert!(
+                output >= i16::MIN as i32 && output <= i16::MAX as i32,
+                "spring output {} out of i16 range", output
+            );
+        }
+
+        #[test]
+        fn prop_spring_zero_at_center(coefficient in i16::MIN..=i16::MAX) {
+            let spring = SpringEffect::new(coefficient);
+            prop_assert_eq!(spring.calculate(0), 0, "spring must be zero at center");
+        }
+
+        #[test]
+        fn prop_spring_monotonic_near_center(coefficient in 1i16..=i16::MAX) {
+            let spring = SpringEffect::new(coefficient);
+            let out_neg = spring.calculate(-1);
+            let out_zero = spring.calculate(0);
+            let out_pos = spring.calculate(1);
+            // For positive coefficient: output(-1) <= output(0) <= output(1)
+            prop_assert!(
+                out_neg <= out_zero && out_zero <= out_pos,
+                "spring not monotonic near center: f(-1)={}, f(0)={}, f(1)={}",
+                out_neg, out_zero, out_pos
+            );
+        }
+
+        // --- DamperEffect ---
+
+        #[test]
+        fn prop_damper_output_bounded(
+            coefficient in i16::MIN..=i16::MAX,
+            velocity in i16::MIN..=i16::MAX,
+        ) {
+            let damper = DamperEffect::new(coefficient);
+            let output = damper.calculate(velocity) as i32;
+            prop_assert!(
+                output >= i16::MIN as i32 && output <= i16::MAX as i32,
+                "damper output {} out of i16 range", output
+            );
+        }
+
+        #[test]
+        fn prop_damper_proportional_to_velocity(coefficient in 1i16..=1000i16) {
+            let damper = DamperEffect::new(coefficient);
+            let out_low = damper.calculate(100);
+            let out_high = damper.calculate(200);
+            // For positive coefficient: higher velocity → higher magnitude output
+            prop_assert!(
+                out_high.abs() >= out_low.abs(),
+                "damper not proportional: f(100)={}, f(200)={}", out_low, out_high
+            );
+        }
+
+        // --- FrictionEffect ---
+
+        #[test]
+        fn prop_friction_output_bounded(
+            coefficient in i16::MIN..=i16::MAX,
+            velocity in i16::MIN..=i16::MAX,
+        ) {
+            let friction = FrictionEffect::new(coefficient);
+            let output = friction.calculate(velocity) as i32;
+            prop_assert!(
+                output >= i16::MIN as i32 && output <= i16::MAX as i32,
+                "friction output {} out of i16 range", output
+            );
+        }
+
+        #[test]
+        fn prop_friction_opposes_velocity(coefficient in 0i16..=i16::MAX) {
+            let friction = FrictionEffect::new(coefficient);
+            let out_pos = friction.calculate(100);
+            let out_neg = friction.calculate(-100);
+            // Friction opposes movement direction
+            prop_assert!(out_pos <= 0, "friction should oppose positive velocity, got {}", out_pos);
+            prop_assert!(out_neg >= 0, "friction should oppose negative velocity, got {}", out_neg);
+        }
+
+        #[test]
+        fn prop_friction_zero_at_rest(coefficient in i16::MIN..=i16::MAX) {
+            let friction = FrictionEffect::new(coefficient);
+            prop_assert_eq!(friction.calculate(0), 0, "friction must be zero at rest");
+        }
+
+        // --- ConstantForceEffect ---
+
+        #[test]
+        fn prop_constant_effect_apply_gain_bounded(
+            magnitude in i16::MIN..=i16::MAX,
+            gain in 0.0f32..=1.0,
+        ) {
+            let effect = ConstantEffect::new(magnitude);
+            let output = effect.apply_gain(gain) as i32;
+            prop_assert!(
+                output >= i16::MIN as i32 && output <= i16::MAX as i32,
+                "constant effect output {} out of i16 range", output
+            );
+        }
+
+        #[test]
+        fn prop_constant_effect_unity_gain(magnitude in i16::MIN..=i16::MAX) {
+            let effect = ConstantEffect::new(magnitude);
+            let output = effect.apply_gain(1.0);
+            prop_assert_eq!(
+                output, magnitude,
+                "constant effect with gain=1.0 should equal magnitude"
+            );
+        }
+
+        #[test]
+        fn prop_constant_effect_zero_gain(magnitude in i16::MIN..=i16::MAX) {
+            let effect = ConstantEffect::new(magnitude);
+            let output = effect.apply_gain(0.0);
+            prop_assert_eq!(output, 0, "constant effect with gain=0.0 should be zero");
+        }
+
+        // --- SineEffect ---
+
+        #[test]
+        fn prop_sine_output_bounded(
+            freq in 0.1f32..=1000.0,
+            time_ms in 0u32..=10_000,
+        ) {
+            let sine = SineEffect::new(freq, 10_000);
+            let output = sine.calculate(time_ms) as i32;
+            prop_assert!(
+                output >= i16::MIN as i32 && output <= i16::MAX as i32,
+                "sine output {} out of i16 range", output
+            );
+        }
+
+        #[test]
+        fn prop_sine_periodic(
+            // Use integer frequencies so period_ms is exact
+            freq_int in 1u32..=100,
+        ) {
+            let freq = freq_int as f32;
+            let sine = SineEffect::new(freq, 10_000);
+            // Only test when 1000 is exactly divisible by freq (exact integer period)
+            if 1000 % freq_int == 0 {
+                let period_ms = 1000 / freq_int;
+                let s1 = sine.calculate(0);
+                let s2 = sine.calculate(period_ms);
+                let diff = (s1 as i32 - s2 as i32).abs();
+                prop_assert!(
+                    diff <= 1,
+                    "sine not periodic: f(0)={}, f({})={}, diff={}", s1, period_ms, s2, diff
+                );
+            }
+        }
+
+        // --- Extreme inputs: all effects must not panic ---
+
+        #[test]
+        fn prop_spring_extreme_inputs(coefficient in i16::MIN..=i16::MAX) {
+            let spring = SpringEffect::new(coefficient);
+            // These must not panic
+            let _ = spring.calculate(i16::MIN);
+            let _ = spring.calculate(i16::MAX);
+            let _ = spring.calculate(0);
+        }
+
+        #[test]
+        fn prop_damper_extreme_inputs(coefficient in i16::MIN..=i16::MAX) {
+            let damper = DamperEffect::new(coefficient);
+            let _ = damper.calculate(i16::MIN);
+            let _ = damper.calculate(i16::MAX);
+            let _ = damper.calculate(0);
+        }
+
+        #[test]
+        fn prop_friction_extreme_inputs(coefficient in i16::MIN..=i16::MAX) {
+            let friction = FrictionEffect::new(coefficient);
+            let _ = friction.calculate(i16::MIN);
+            let _ = friction.calculate(i16::MAX);
+            let _ = friction.calculate(0);
+        }
+
+        #[test]
+        fn prop_constant_extreme_inputs(gain in -10.0f32..=10.0) {
+            let effect_min = ConstantEffect::new(i16::MIN);
+            let effect_max = ConstantEffect::new(i16::MAX);
+            let effect_zero = ConstantEffect::new(0);
+            // Must not panic
+            let _ = effect_min.apply_gain(gain);
+            let _ = effect_max.apply_gain(gain);
+            let _ = effect_zero.apply_gain(gain);
+        }
+
+        #[test]
+        fn prop_sine_extreme_inputs(freq in 0.001f32..=100_000.0) {
+            let sine = SineEffect::new(freq, u32::MAX);
+            let _ = sine.calculate(0);
+            let _ = sine.calculate(u32::MAX);
+        }
+    }
+}

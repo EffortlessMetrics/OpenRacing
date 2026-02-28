@@ -258,3 +258,110 @@ mod tests {
         assert!((frame.torque_out - 0.8).abs() < 0.001);
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn create_test_frame(ffb_in: f32, wheel_speed: f32) -> Frame {
+        Frame {
+            ffb_in,
+            torque_out: ffb_in,
+            wheel_speed,
+            hands_off: false,
+            ts_mono_ns: 0,
+            seq: 0,
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        // --- torque_cap_filter ---
+
+        #[test]
+        fn prop_torque_cap_nan_yields_zero(max_torque in 0.0f32..=100.0) {
+            let mut frame = create_test_frame(0.0, 0.0);
+            frame.torque_out = f32::NAN;
+            torque_cap_filter(&mut frame, &max_torque as *const _ as *mut u8);
+            prop_assert_eq!(
+                frame.torque_out, 0.0,
+                "NaN input must map to 0.0 (safe state)"
+            );
+        }
+
+        #[test]
+        fn prop_torque_cap_pos_inf_yields_zero(max_torque in 0.0f32..=100.0) {
+            let mut frame = create_test_frame(0.0, 0.0);
+            frame.torque_out = f32::INFINITY;
+            torque_cap_filter(&mut frame, &max_torque as *const _ as *mut u8);
+            prop_assert_eq!(
+                frame.torque_out, 0.0,
+                "positive infinity must map to 0.0 (safe state)"
+            );
+        }
+
+        #[test]
+        fn prop_torque_cap_neg_inf_yields_zero(max_torque in 0.0f32..=100.0) {
+            let mut frame = create_test_frame(0.0, 0.0);
+            frame.torque_out = f32::NEG_INFINITY;
+            torque_cap_filter(&mut frame, &max_torque as *const _ as *mut u8);
+            prop_assert_eq!(
+                frame.torque_out, 0.0,
+                "negative infinity must map to 0.0 (safe state)"
+            );
+        }
+
+        #[test]
+        fn prop_torque_cap_output_bounded(
+            torque in -100.0f32..=100.0,
+            max_torque in 0.0f32..=50.0,
+        ) {
+            let mut frame = create_test_frame(0.0, 0.0);
+            frame.torque_out = torque;
+            torque_cap_filter(&mut frame, &max_torque as *const _ as *mut u8);
+            prop_assert!(
+                frame.torque_out >= -max_torque && frame.torque_out <= max_torque,
+                "output {} not in [-{}, {}]", frame.torque_out, max_torque, max_torque
+            );
+        }
+
+        #[test]
+        fn prop_torque_cap_preserves_sign(
+            torque in -100.0f32..=100.0,
+            max_torque in 0.01f32..=50.0,
+        ) {
+            let mut frame = create_test_frame(0.0, 0.0);
+            frame.torque_out = torque;
+            torque_cap_filter(&mut frame, &max_torque as *const _ as *mut u8);
+            if torque > 0.0 {
+                prop_assert!(
+                    frame.torque_out >= 0.0,
+                    "positive torque {} became negative {}", torque, frame.torque_out
+                );
+            } else if torque < 0.0 {
+                prop_assert!(
+                    frame.torque_out <= 0.0,
+                    "negative torque {} became positive {}", torque, frame.torque_out
+                );
+            }
+        }
+
+        #[test]
+        fn prop_torque_cap_within_limit_unchanged(
+            max_torque in 1.0f32..=50.0,
+            fraction in -1.0f32..=1.0,
+        ) {
+            let torque = fraction * max_torque * 0.99;
+            let mut frame = create_test_frame(0.0, 0.0);
+            frame.torque_out = torque;
+            torque_cap_filter(&mut frame, &max_torque as *const _ as *mut u8);
+            let diff = (frame.torque_out - torque).abs();
+            prop_assert!(
+                diff < 0.001,
+                "torque within limit should pass through unchanged: in={}, out={}", torque, frame.torque_out
+            );
+        }
+    }
+}
