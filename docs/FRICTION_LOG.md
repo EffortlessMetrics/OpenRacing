@@ -308,6 +308,8 @@ Seven adapters sharing the Codemasters legacy 66-float UDP packet (DiRT Rally 2,
 
 **Lesson:** Adapters that share a common packet format should extract the shared parsing logic into a single helper (e.g., `codemasters_mode1_parse()`) so offset definitions exist in exactly one place. Any adapter sharing a format via copy-paste should be flagged in code review.
 
+**Update (shared parsing extracted):** `codemasters_shared.rs` now contains the single shared Mode 1 parsing implementation. All seven adapters delegate to it, removing ~890 lines of duplicated offset logic. This friction point is fully resolved.
+
 ---
 
 ### F-027 · Forza tire temperatures assumed Kelvin, actually Fahrenheit (Medium · Resolved)
@@ -336,6 +338,21 @@ Three adapters had fuel bugs found during the systematic audit triggered by F-02
 
 ---
 
+### F-029 · cargo-udeps false positives in CI Dependency Governance job (Medium · Investigating)
+
+**Encountered:** Cleanup sprint — CI `dependency-governance` job
+
+`cargo-udeps` flags many workspace dependencies as unused when they are actually consumed transitively, in doc-tests, or in build scripts. Examples include shared utility crates pulled in via `workspace-hack`, `cfg`-gated platform dependencies, and crates used only in `#[doc = include_str!(...)]` or `build.rs`. The false-positive rate is high enough that the job output is noisy and real unused deps are easy to miss.
+
+**Impact:** Developers ignore the CI output because most flagged crates are legitimate. Genuinely unused dependencies accumulate without notice.
+
+**Proposed remedy:**
+1. Pin a known-good `cargo-udeps` version and re-evaluate after upstream fixes for transitive/doctest detection.
+2. Add an allow-list (`udeps.toml` or inline `#[cfg_attr]` annotations) for confirmed false positives so the CI signal is actionable.
+3. Consider supplementing with `cargo machete` which uses a different heuristic and may have fewer false positives for workspace setups.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
@@ -355,9 +372,20 @@ Three adapters had fuel bugs found during the systematic audit triggered by F-02
 | F-017 | `cargo tree --duplicates` CI check too strict | CI change b9ed332 (feat/r7-quirks-cleanup-v2) |
 | F-018 | `fuzz_simplemotion` missing dep in fuzz/Cargo.toml | commit 4a250f3 (feat/r7-quirks-cleanup-v2) |
 | F-019 | 6 SimHub adapters returned empty stub telemetry | simhub.rs rewrite e8d9a20 (feat/r7-quirks-cleanup-v2) |
-| F-026 | Codemasters Mode 1 UDP adapters wrong byte offsets | 7 adapter files corrected to community-verified layout |
+| F-026 | Codemasters Mode 1 UDP adapters wrong byte offsets | 7 adapters corrected + shared parsing extracted (codemasters_shared.rs) |
 | F-027 | Forza tire temp assumed Kelvin, actually Fahrenheit | commit 7d8582e (feat/r7-quirks-cleanup-v2) |
 | F-028 | fuel_percent × 100 bug in LFS, AMS1, RaceRoom f64 | commit 6a0ed5d (feat/r7-quirks-cleanup-v2) |
+
+---
+
+## Recent Progress
+
+- Project CARS 3 adapter added
+- Codemasters shared parsing extracted into `codemasters_shared.rs` (~890 lines of duplicated offset logic removed)
+- Forza Horizon 4 324-byte packet support added
+- Cube Controls protocol tests added (46 tests)
+- TODO comments cleaned up across engine, CLI, and diagnostics crates
+- Portable shebangs (`#!/usr/bin/env bash`) applied to shell scripts
 
 ---
 
