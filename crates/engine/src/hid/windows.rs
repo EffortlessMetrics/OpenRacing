@@ -330,6 +330,7 @@ impl SupportedDevices {
     pub fn all() -> &'static [(u16, u16, &'static str)] {
         &[
             // Logitech wheels
+            (vendor_ids::LOGITECH, 0xC299, "Logitech G25"),
             (vendor_ids::LOGITECH, 0xC294, "Logitech G27"),
             (vendor_ids::LOGITECH, 0xC29B, "Logitech G27 (alt)"),
             (vendor_ids::LOGITECH, 0xC24F, "Logitech G29"),
@@ -360,6 +361,7 @@ impl SupportedDevices {
             (vendor_ids::FANATEC, 0x0011, "Fanatec CSR Elite"),
             (vendor_ids::FANATEC, 0x0020, "Fanatec CSL DD"),
             (vendor_ids::FANATEC, 0x0024, "Fanatec Gran Turismo DD Pro"),
+            (vendor_ids::FANATEC, 0x01E9, "Fanatec ClubSport DD+"),
             (
                 vendor_ids::FANATEC,
                 0x0E03,
@@ -372,6 +374,7 @@ impl SupportedDevices {
                 "Fanatec ClubSport Pedals V1/V2",
             ),
             (vendor_ids::FANATEC, 0x183B, "Fanatec ClubSport Pedals V3"),
+            (vendor_ids::FANATEC, 0x6204, "Fanatec CSL Elite Pedals"),
             (
                 vendor_ids::FANATEC,
                 0x6205,
@@ -459,6 +462,17 @@ impl SupportedDevices {
                 0x0701,
                 "Simagic Neo Mini (estimated PID)",
             ),
+            // Simagic EVO peripherals
+            (vendor_ids::SIMAGIC_EVO, 0x1001, "Simagic P1000 Pedals"),
+            (vendor_ids::SIMAGIC_EVO, 0x1002, "Simagic P2000 Pedals"),
+            (vendor_ids::SIMAGIC_EVO, 0x1003, "Simagic P1000A Pedals"),
+            (vendor_ids::SIMAGIC_EVO, 0x2001, "Simagic H-Pattern Shifter"),
+            (
+                vendor_ids::SIMAGIC_EVO,
+                0x2002,
+                "Simagic Sequential Shifter",
+            ),
+            (vendor_ids::SIMAGIC_EVO, 0x3001, "Simagic Handbrake"),
             // Simucube 2 (VID 0x16D0 = SIMAGIC_ALT, dispatched by product ID)
             (vendor_ids::SIMAGIC_ALT, 0x0D5A, "Simucube 1"),
             (vendor_ids::SIMAGIC_ALT, 0x0D5F, "Simucube 2 Ultimate"),
@@ -528,6 +542,22 @@ impl SupportedDevices {
                 "Leo Bodnar SLI-M Shift Light Indicator",
             ),
             (vendor_ids::LEO_BODNAR, 0x0001, "Leo Bodnar USB Joystick"),
+            (
+                vendor_ids::LEO_BODNAR,
+                0x000B,
+                "Leo Bodnar BU0836A Joystick",
+            ),
+            (vendor_ids::LEO_BODNAR, 0x000F, "Leo Bodnar FFB Joystick"),
+            (
+                vendor_ids::LEO_BODNAR,
+                0x0030,
+                "Leo Bodnar BU0836X Joystick",
+            ),
+            (
+                vendor_ids::LEO_BODNAR,
+                0x0031,
+                "Leo Bodnar BU0836 16-bit Joystick",
+            ),
             // SimExperience AccuForce Pro (NXP USB chip VID 0x1FC9)
             // Source: community USB captures, RetroBat Wheels.cs
             (
@@ -1154,8 +1184,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = 900;
 
             match product_id {
-                0xC294 | 0xC29B => {
-                    // G27 - older wheel, lower torque
+                0xC294 | 0xC299 | 0xC29B => {
+                    // G25 (0xC299) / G27 (0xC294, 0xC29B) - older wheels, lower torque
                     capabilities.max_torque = TorqueNm::new(2.5).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 4000; // 250Hz
                 }
@@ -1533,6 +1563,14 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque =
                         TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
                 } // Neo Mini (estimated PID)
+                // Peripherals (pedals, shifters, handbrake) — input-only, no FFB
+                0x1001..=0x1003 | 0x2001..=0x2002 | 0x3001 => {
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.supports_health_stream = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                    capabilities.encoder_cpr = 0;
+                }
                 _ => {
                     capabilities.max_torque = TorqueNm::new(9.0).unwrap_or(capabilities.max_torque);
                 }
@@ -1636,7 +1674,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
         vendor_ids::LEO_BODNAR => {
             match product_id {
                 // USB Sim Racing Wheel Interface — standard HID PID, motor-dependent torque.
-                0x000E => {
+                0x000E | 0x000F => {
+                    // 0x000E: Wheel Interface, 0x000F: FFB Joystick
                     capabilities.supports_pid = true;
                     capabilities.supports_raw_torque_1khz = false; // standard HID PID @ 100-500 Hz
                     capabilities.encoder_cpr = u16::MAX; // 16-bit via HID PID

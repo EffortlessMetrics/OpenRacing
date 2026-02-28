@@ -180,8 +180,10 @@ proptest! {
             || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x0D66 | 0x0D63))
             // Generic HID button box (pid.codes VID, PID 0x1BBD — input-only)
             || (vid == vendor_ids::OPENFFBOARD && pid == 0x1BBD)
-            // Leo Bodnar input-only peripherals (BBI-32 button box, SLI-M, USB joystick)
-            || (vid == vendor_ids::LEO_BODNAR && matches!(pid, 0x000C | 0xBEEF | 0x0001))
+            // Leo Bodnar input-only peripherals (BBI-32 button box, SLI-M, USB joystick, BU0836 boards)
+            || (vid == vendor_ids::LEO_BODNAR && matches!(pid, 0x0001 | 0x000B | 0x000C | 0x0030 | 0x0031 | 0xBEEF))
+            // Simagic EVO peripherals (pedals, shifters, handbrake)
+            || (vid == vendor_ids::SIMAGIC_EVO && matches!(pid, 0x1001..=0x1003 | 0x2001..=0x2002 | 0x3001))
             // Cube Controls button boxes (provisional PIDs, share VID 0x0483 with Simagic)
             || (vid == vendor_ids::SIMAGIC && matches!(pid, 0x0C73..=0x0C75));
         if is_non_ffb_peripheral {

@@ -16,3 +16,5 @@ cc ee812f345022924241c6399df157c74889bbb6f0403d371aa6f9b6419172e65e # shrinks to
 cc 6d15406675afde6dcf8eb95fc20dfd3f9e9c2f4d27ee93e9236eee0684ebe2cc # shrinks to torque = 1.394886e-18
 cc f6c811dc9c07ead200c6484ca03e1b0b873627f7bae5ac38d8a62d781071f3fe # shrinks to device = (5840, 3427, "SimuCube Wireless Wheel (estimated PID)")
 cc fa2dd68e0cef7d6345206e0dc8280a722ecd9655a01223d8ca7368683ec5f57d # shrinks to device = (5840, 3418, "Simucube 1")
+cc 5607448cd55b7e265b9d9f294947964a8d90c0ba251d04b3b6dc77334b2c7a8c # shrinks to device = (7634, 11, "Leo Bodnar BU0836A Joystick")
+cc 5ce28c6cedadb6e8d62be2cf435e48f4ef1eb7649574f27eea43b07a49687e0d # shrinks to device = (13936, 4097, "Simagic P1000 Pedals")

@@ -156,6 +156,13 @@ fn manufacturer_for_vendor(vendor_id: u16) -> Option<String> {
         0x044F => "Thrustmaster",
         0x346E => "Moza Racing",
         0x0483 | 0x16D0 | 0x3670 => "Simagic",
+        0x2433 => "Asetek SimSports",
+        0x3416 => "Cammus",
+        0x1209 => "OpenFFBoard / Generic HID",
+        0x045B => "FFBeast",
+        0x1D50 => "Granite Devices",
+        0x1DD2 => "Leo Bodnar",
+        0x1FC9 => "SimExperience",
         _ => return None,
     };
     Some(name.to_string())
@@ -374,6 +381,7 @@ impl LinuxHidPort {
 
         // Known racing wheel vendor/product IDs
         let racing_wheel_ids = [
+            (0x046D, 0xC299), // Logitech G25
             (0x046D, 0xC294), // Logitech G27
             (0x046D, 0xC29B), // Logitech G27
             (0x046D, 0xC24F), // Logitech G29
@@ -391,9 +399,11 @@ impl LinuxHidPort {
             (0x0EB7, 0x0011), // Fanatec CSR Elite
             (0x0EB7, 0x0020), // Fanatec CSL DD
             (0x0EB7, 0x0024), // Fanatec Gran Turismo DD Pro
+            (0x0EB7, 0x01E9), // Fanatec ClubSport DD+
             (0x0EB7, 0x0E03), // Fanatec ClubSport Wheel Base V1
             (0x0EB7, 0x1839), // Fanatec ClubSport Pedals V1/V2
             (0x0EB7, 0x183B), // Fanatec ClubSport Pedals V3
+            (0x0EB7, 0x6204), // Fanatec CSL Elite Pedals
             (0x0EB7, 0x6205), // Fanatec CSL Pedals with Load Cell Kit
             (0x0EB7, 0x6206), // Fanatec CSL Pedals V2
             (0x044F, 0xB65D), // Thrustmaster FFB Wheel (pre-init)
@@ -439,6 +449,13 @@ impl LinuxHidPort {
             (0x3670, 0x0600), // Simagic Alpha EVO (estimated PID)
             (0x3670, 0x0700), // Simagic Neo (estimated PID)
             (0x3670, 0x0701), // Simagic Neo Mini (estimated PID)
+            // Simagic EVO peripherals
+            (0x3670, 0x1001), // Simagic P1000 Pedals
+            (0x3670, 0x1002), // Simagic P2000 Pedals
+            (0x3670, 0x1003), // Simagic P1000A Pedals
+            (0x3670, 0x2001), // Simagic H-Pattern Shifter
+            (0x3670, 0x2002), // Simagic Sequential Shifter
+            (0x3670, 0x3001), // Simagic Handbrake
             // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
             (0x0483, 0xA355), // VRS DirectForce Pro
             (0x0483, 0xA356), // VRS DirectForce Pro V2
@@ -468,6 +485,7 @@ impl LinuxHidPort {
             // OpenFFBoard (VID 0x1209, pid.codes shared VID)
             (0x1209, 0xFFB0), // OpenFFBoard
             (0x1209, 0xFFB1), // OpenFFBoard (alt firmware)
+            (0x1209, 0x1BBD), // Generic HID Button Box
             // FFBeast (VID 0x045B)
             (0x045B, 0x58F9), // FFBeast Joystick
             (0x045B, 0x5968), // FFBeast Rudder
@@ -481,6 +499,10 @@ impl LinuxHidPort {
             (0x1DD2, 0x000C), // Leo Bodnar BBI-32 Button Box
             (0x1DD2, 0xBEEF), // Leo Bodnar SLI-M Shift Light Indicator
             (0x1DD2, 0x0001), // Leo Bodnar USB Joystick
+            (0x1DD2, 0x000B), // Leo Bodnar BU0836A Joystick
+            (0x1DD2, 0x000F), // Leo Bodnar FFB Joystick
+            (0x1DD2, 0x0030), // Leo Bodnar BU0836X Joystick
+            (0x1DD2, 0x0031), // Leo Bodnar BU0836 16-bit Joystick
             // SimExperience AccuForce Pro (NXP USB chip VID 0x1FC9)
             (0x1FC9, 0x804C), // SimExperience AccuForce Pro
             // Cube Controls (PROVISIONAL — STM shared VID 0x0483)
@@ -551,6 +573,13 @@ impl LinuxHidPort {
                         0x044F => "Thrustmaster".to_string(),
                         0x346E => "Moza Racing".to_string(),
                         0x0483 | 0x16D0 | 0x3670 => "Simagic".to_string(),
+                        0x2433 => "Asetek SimSports".to_string(),
+                        0x3416 => "Cammus".to_string(),
+                        0x1209 => "OpenFFBoard / Generic HID".to_string(),
+                        0x045B => "FFBeast".to_string(),
+                        0x1D50 => "Granite Devices".to_string(),
+                        0x1DD2 => "Leo Bodnar".to_string(),
+                        0x1FC9 => "SimExperience".to_string(),
                         _ => "Unknown".to_string(),
                     }),
                     product_name: Some(format!("Racing Wheel {:04X}:{:04X}", vid, pid)),
