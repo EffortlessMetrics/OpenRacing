@@ -93,7 +93,7 @@ jobs:
         run: cargo build -p wheelctl --locked
 
       - name: Test CLI help (smoke test)
-        run: cargo run -p wheelctl -- --help
+        run: cargo run -p wheelctl --locked -- --help
 
   isolation-service:
     name: Service Isolation Build
@@ -125,7 +125,7 @@ jobs:
         run: cargo build -p racing-wheel-service --locked
 
       - name: Test Service help (smoke test)
-        run: cargo run -p racing-wheel-service --bin wheeld -- --help
+        run: cargo run -p racing-wheel-service --bin wheeld --locked -- --help
 
   isolation-plugins:
     name: Plugins Isolation Build
@@ -157,7 +157,7 @@ jobs:
         run: cargo build -p racing-wheel-plugins --locked
 
       - name: Build sample plugin (feature gated)
-        run: cargo build -p racing-wheel-plugins --features sample-plugins
+        run: cargo build -p racing-wheel-plugins --features sample-plugins --locked
 
   # UI crate build verification on Ubuntu 22.04 and 24.04
   # Tests webkit2gtk-4.1 compatibility across supported Ubuntu LTS versions
@@ -250,7 +250,7 @@ jobs:
         run: cargo build -p racing-wheel-schemas --locked
 
       - name: Run trybuild compile-fail guards
-        run: cargo test -p racing-wheel-schemas --test trybuild_guards
+        run: cargo test -p racing-wheel-schemas --test trybuild_guards --locked
 
       - name: Run buf breaking change detection
         run: |
@@ -262,7 +262,7 @@ jobs:
           fi
 
       - name: Run JSON schema round-trip tests
-        run: cargo test -p racing-wheel-schemas schema_roundtrip
+        run: cargo test -p racing-wheel-schemas schema_roundtrip --locked
 
       - name: Verify buf workspace builds
         run: |
@@ -310,7 +310,7 @@ jobs:
         run: cargo build --workspace --locked
 
       - name: Test workspace compilation
-        run: cargo test --workspace --no-run
+        run: cargo test --workspace --no-run --locked
 
   # Phase 4: Feature combinations
   feature-combinations:
@@ -349,7 +349,7 @@ jobs:
         run: cargo build --workspace --no-default-features --locked
 
       - name: Test all feature combinations compile
-        run: cargo test --workspace --all-features --no-run
+        run: cargo test --workspace --all-features --no-run --locked
 
   # Phase 5: Dependency governance and minimal versions (nightly)
   dependency-governance:
@@ -585,7 +585,7 @@ jobs:
           echo "  - Processing Time P99: ≤ 200μs"
           echo ""
           # Run the benchmark - it will output JSON to BENCHMARK_JSON_PATH
-          cargo bench --bench rt_timing
+          cargo bench --bench rt_timing --locked
           echo ""
           echo "Benchmark results written to bench_results.json"
 
@@ -605,7 +605,7 @@ jobs:
       - name: Check for RT heap allocations
         run: |
           # Additional check for zero allocations in RT path
-          RUST_LOG=debug cargo test --release test_zero_alloc_rt_path 2>/dev/null || echo "RT heap allocation test not found, skipping"
+          RUST_LOG=debug cargo test --release --locked test_zero_alloc_rt_path 2>/dev/null || echo "RT heap allocation test not found, skipping"
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
@@ -710,7 +710,7 @@ jobs:
           BENCHMARK_JSON_OUTPUT: "1"
           BENCHMARK_JSON_PATH: "bench_results_${{ matrix.os }}.json"
         run: |
-          cargo bench --bench rt_timing
+          cargo bench --bench rt_timing --locked
 
       - name: Validate performance (Linux)
         if: runner.os == 'Linux'
@@ -762,7 +762,7 @@ jobs:
         run: cargo install cargo-llvm-cov
 
       - name: Generate coverage report
-        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+        run: cargo llvm-cov --all-features --workspace --locked --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3

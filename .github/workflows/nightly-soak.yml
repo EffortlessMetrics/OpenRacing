@@ -1,0 +1,58 @@
+name: Nightly Soak Test
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Run at 2 AM UTC daily
+  workflow_dispatch:     # Allow manual trigger
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  full-soak-test:
+    name: 48-Hour Soak Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 2920  # 48 hours + 40 minutes buffer
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install system dependencies
+      run: sudo apt-get update -qq && sudo apt-get install -y libudev-dev pkg-config
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Run full 48-hour soak test
+      run: cargo run --package racing-wheel-integration-tests --bin soak-test --release --locked -- --mode full
+
+    - name: Upload soak test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: full-soak-test-results
+        path: target/soak-*.json
+        retention-days: 30
+
+    - name: Notify on failure
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '48-Hour Soak Test Failed',
+            body: 'The nightly 48-hour soak test has failed. Please investigate.',
+            labels: ['bug', 'soak-test', 'high-priority']
+          });

@@ -28,10 +28,8 @@ jobs:
       run: git fetch --no-tags --prune --depth=1 origin +refs/heads/main:refs/remotes/origin/main
     
     - name: Setup Rust
-      uses: actions-rs/toolchain@v1
+      uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: stable
-        override: true
         components: rustfmt, clippy
     
     - name: Install buf
@@ -46,19 +44,19 @@ jobs:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Cache cargo registry
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cargo/registry
         key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Cache cargo index
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cargo/git
         key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Cache cargo build
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
@@ -70,16 +68,16 @@ jobs:
         ./scripts/check-compatibility.sh
     
     - name: Build schemas crate
-      run: cargo build -p racing-wheel-schemas
+      run: cargo build -p racing-wheel-schemas --locked
     
     - name: Run schema validation tests
-      run: cargo test -p racing-wheel-schemas --lib validation_tests
+      run: cargo test -p racing-wheel-schemas --lib validation_tests --locked
     
     - name: Run all schema tests
-      run: cargo test -p racing-wheel-schemas -- --skip deprecated_tokens_compile_fail_tests
+      run: cargo test -p racing-wheel-schemas --locked -- --skip deprecated_tokens_compile_fail_tests
 
     - name: Run trybuild compile-fail guards
-      run: cargo test -p racing-wheel-schemas --test trybuild_guards
+      run: cargo test -p racing-wheel-schemas --test trybuild_guards --locked
 
     - name: Upload trybuild WIP outputs
       if: failure()
@@ -93,7 +91,7 @@ jobs:
       run: cargo fmt -p racing-wheel-schemas -- --check
     
     - name: Run clippy
-      run: cargo clippy -p racing-wheel-schemas -- -D warnings
+      run: cargo clippy -p racing-wheel-schemas --locked -- -D warnings
     
     - name: Verify buf workspace builds
       run: |
