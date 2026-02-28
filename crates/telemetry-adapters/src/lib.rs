@@ -31,6 +31,7 @@ pub mod dirt3;
 pub mod dirt4;
 pub mod dirt5;
 pub mod dirt_rally_2;
+pub mod dirt_showdown;
 pub mod eawrc;
 pub mod ets2;
 pub mod f1;
@@ -38,7 +39,9 @@ pub mod f1_25;
 pub mod f1_native;
 pub mod flatout;
 pub mod forza;
+pub mod forza_horizon;
 pub mod gran_turismo_7;
+pub mod gravel;
 pub mod grid_2019;
 pub mod grid_autosport;
 pub mod grid_legends;
@@ -54,11 +57,15 @@ pub mod race_driver_grid;
 pub mod raceroom;
 pub mod rbr;
 pub mod rennsport;
+pub mod rfactor1;
 pub mod rfactor2;
 pub mod ride5;
+pub mod seb_loeb_rally;
 pub mod simhub;
 pub mod trackmania;
+pub mod v_rally_4;
 pub mod wrc_generations;
+pub mod wrc_kylotonn;
 pub mod wreckfest;
 pub mod wtcr;
 
@@ -152,6 +159,30 @@ fn new_raceroom_adapter() -> Box<dyn TelemetryAdapter> {
 
 fn new_rbr_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(RBRAdapter::new())
+}
+
+fn new_rfactor1_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(RFactor1Adapter::with_variant(
+        rfactor1::RFactor1Variant::RFactor1,
+    ))
+}
+
+fn new_gtr2_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(RFactor1Adapter::with_variant(
+        rfactor1::RFactor1Variant::Gtr2,
+    ))
+}
+
+fn new_race07_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(RFactor1Adapter::with_variant(
+        rfactor1::RFactor1Variant::Race07,
+    ))
+}
+
+fn new_gsc_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(RFactor1Adapter::with_variant(
+        rfactor1::RFactor1Variant::GameStockCar,
+    ))
 }
 
 fn new_rfactor2_adapter() -> Box<dyn TelemetryAdapter> {
@@ -278,6 +309,42 @@ fn new_f1_native_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(F1NativeAdapter::new())
 }
 
+fn new_forza_horizon_4_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(forza_horizon::ForzaHorizon4Adapter::new())
+}
+
+fn new_forza_horizon_5_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(forza_horizon::ForzaHorizon5Adapter::new())
+}
+
+fn new_v_rally_4_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(v_rally_4::VRally4Adapter::new())
+}
+
+fn new_gravel_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(gravel::GravelAdapter::new())
+}
+
+fn new_seb_loeb_rally_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(seb_loeb_rally::SebLoebRallyAdapter::new())
+}
+
+fn new_dirt_showdown_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(dirt_showdown::DirtShowdownAdapter::new())
+}
+
+fn new_wrc_9_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(wrc_kylotonn::WrcKylotonnAdapter::new(
+        wrc_kylotonn::WrcKylotonnVariant::Wrc9,
+    ))
+}
+
+fn new_wrc_10_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(wrc_kylotonn::WrcKylotonnAdapter::new(
+        wrc_kylotonn::WrcKylotonnVariant::Wrc10,
+    ))
+}
+
 /// Returns the canonical adapter factory registry for all supported native adapters.
 pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
     &[
@@ -291,11 +358,14 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("dirt_rally_2", new_dirt_rally_2_adapter),
         ("dirt4", new_dirt4_adapter),
         ("dirt3", new_dirt3_adapter),
+        ("dirt_showdown", new_dirt_showdown_adapter),
         ("eawrc", new_eawrc_adapter),
         ("ets2", new_ets2_adapter),
         ("f1", new_f1_adapter),
         ("f1_25", new_f1_25_adapter),
         ("forza_motorsport", new_forza_adapter),
+        ("forza_horizon_4", new_forza_horizon_4_adapter),
+        ("forza_horizon_5", new_forza_horizon_5_adapter),
         ("gran_turismo_7", new_gran_turismo_7_adapter),
         ("iracing", new_iracing_adapter),
         ("kartkraft", new_kartkraft_adapter),
@@ -309,8 +379,17 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("grid_legends", new_grid_legends_adapter),
         ("race_driver_grid", new_race_driver_grid_adapter),
         ("rennsport", new_rennsport_adapter),
+        ("rfactor1", new_rfactor1_adapter),
+        ("gtr2", new_gtr2_adapter),
+        ("race_07", new_race07_adapter),
+        ("gsc", new_gsc_adapter),
         ("rfactor2", new_rfactor2_adapter),
         ("wrc_generations", new_wrc_generations_adapter),
+        ("wrc_9", new_wrc_9_adapter),
+        ("wrc_10", new_wrc_10_adapter),
+        ("v_rally_4", new_v_rally_4_adapter),
+        ("gravel", new_gravel_adapter),
+        ("seb_loeb_rally", new_seb_loeb_rally_adapter),
         ("wreckfest", new_wreckfest_adapter),
         ("nascar", new_nascar_adapter),
         ("le_mans_ultimate", new_le_mans_ultimate_adapter),
@@ -336,6 +415,7 @@ pub use beamng::BeamNGAdapter;
 pub use codemasters_udp::{CustomUdpSpec, DecodedCodemastersPacket, FieldSpec};
 pub use dakar::DakarDesertRallyAdapter;
 pub use dirt_rally_2::DirtRally2Adapter;
+pub use dirt_showdown::DirtShowdownAdapter;
 pub use dirt3::Dirt3Adapter;
 pub use dirt4::Dirt4Adapter;
 pub use dirt5::Dirt5Adapter;
@@ -346,7 +426,9 @@ pub use f1_25::F1_25Adapter;
 pub use f1_native::F1NativeAdapter;
 pub use flatout::FlatOutAdapter;
 pub use forza::ForzaAdapter;
+pub use forza_horizon::{ForzaHorizon4Adapter, ForzaHorizon5Adapter};
 pub use gran_turismo_7::GranTurismo7Adapter;
+pub use gravel::GravelAdapter;
 pub use grid_2019::Grid2019Adapter;
 pub use grid_autosport::GridAutosportAdapter;
 pub use grid_legends::GridLegendsAdapter;
@@ -362,11 +444,15 @@ pub use race_driver_grid::RaceDriverGridAdapter;
 pub use raceroom::RaceRoomAdapter;
 pub use rbr::RBRAdapter;
 pub use rennsport::RennsportAdapter;
+pub use rfactor1::RFactor1Adapter;
 pub use rfactor2::RFactor2Adapter;
 pub use ride5::Ride5Adapter;
+pub use seb_loeb_rally::SebLoebRallyAdapter;
 pub use simhub::SimHubAdapter;
 pub use trackmania::TrackmaniaAdapter;
+pub use v_rally_4::VRally4Adapter;
 pub use wrc_generations::WrcGenerationsAdapter;
+pub use wrc_kylotonn::WrcKylotonnAdapter;
 pub use wreckfest::WreckfestAdapter;
 pub use wtcr::WtcrAdapter;
 

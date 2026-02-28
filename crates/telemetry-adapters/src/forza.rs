@@ -288,7 +288,7 @@ fn parse_forza_cardash(data: &[u8]) -> Result<NormalizedTelemetry> {
     Ok(telemetry)
 }
 
-fn parse_forza_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
+pub(crate) fn parse_forza_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     match detect_format(data.len()) {
         ForzaPacketFormat::Sled => parse_forza_sled(data),
         ForzaPacketFormat::CarDash => parse_forza_cardash(data),

@@ -392,6 +392,42 @@ games:
         - "Program Files (x86)/Steam/steamapps/common/F1 23"
         - "Program Files (x86)/Steam/steamapps/common/F1 24"
 
+  f1_manager:
+    name: "F1 Manager"
+    versions:
+      - version: "2022+"
+        config_paths: []
+        executable_patterns:
+          - "F1Manager2022.exe"
+          - "F1Manager2023.exe"
+          - "F1Manager2024.exe"
+        telemetry_method: "none"
+        supported_fields: []
+    telemetry:
+      method: "none"
+      update_rate_hz: 0
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: null
+      fields:
+        ffb_scalar: null
+        rpm: null
+        speed_ms: null
+        slip_ratio: null
+        gear: null
+        flags: null
+        car_id: null
+        track_id: null
+    status: "stable"
+    config_writer: "f1_manager"
+    auto_detect:
+      process_names:
+        - "F1Manager2022.exe"
+        - "F1Manager2023.exe"
+        - "F1Manager2024.exe"
+      install_registry_keys: []
+      install_paths: []
+
   dirt5:
     name: "Dirt 5"
     versions:
@@ -568,6 +604,41 @@ games:
       install_registry_keys: []
       install_paths: []
 
+  gran_turismo_sport:
+    name: "Gran Turismo Sport"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "udp_salsa20_encrypted"
+        supported_fields:
+          - "rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+    telemetry:
+      method: "udp_salsa20_encrypted"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "0.0.0.0:33739"
+      fields:
+        ffb_scalar: null
+        rpm: "engine_rpm"
+        speed_ms: "speed_ms"
+        slip_ratio: null
+        gear: "gear_byte_low_nibble"
+        flags: "flags_u32"
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "gran_turismo_sport"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+
   assetto_corsa:
     name: "Assetto Corsa"
     versions:
@@ -650,6 +721,86 @@ games:
       install_registry_keys: []
       install_paths:
         - "Program Files/WindowsApps/Microsoft.ForzaMotorsport"
+        - "Program Files/WindowsApps/Microsoft.ForzaHorizon5"
+
+  forza_horizon_4:
+    name: "Forza Horizon 4"
+    versions:
+      - version: "FH4"
+        config_paths: []
+        executable_patterns:
+          - "forzahorizon4.exe"
+        telemetry_method: "udp_forza_data_out"
+        supported_fields:
+          - "rpm"
+          - "max_rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+    telemetry:
+      method: "udp_forza_data_out"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:12350"
+      fields:
+        ffb_scalar: null
+        rpm: "current_engine_rpm"
+        speed_ms: "velocity_magnitude"
+        slip_ratio: null
+        gear: "gear"
+        flags: "is_race_on"
+        car_id: null
+        track_id: null
+    status: "stable"
+    config_writer: "forza_horizon_4"
+    auto_detect:
+      process_names:
+        - "forzahorizon4.exe"
+      install_registry_keys: []
+      install_paths:
+        - "Program Files/WindowsApps/Microsoft.ForzaHorizon4"
+
+  forza_horizon_5:
+    name: "Forza Horizon 5"
+    versions:
+      - version: "FH5"
+        config_paths: []
+        executable_patterns:
+          - "forzahorizon5.exe"
+        telemetry_method: "udp_forza_data_out"
+        supported_fields:
+          - "rpm"
+          - "max_rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+    telemetry:
+      method: "udp_forza_data_out"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:5300"
+      fields:
+        ffb_scalar: null
+        rpm: "current_engine_rpm"
+        speed_ms: "velocity_magnitude"
+        slip_ratio: null
+        gear: "gear"
+        flags: "is_race_on"
+        car_id: null
+        track_id: null
+    status: "stable"
+    config_writer: "forza_horizon_5"
+    auto_detect:
+      process_names:
+        - "forzahorizon5.exe"
+      install_registry_keys: []
+      install_paths:
         - "Program Files/WindowsApps/Microsoft.ForzaHorizon5"
 
   beamng_drive:
@@ -740,6 +891,94 @@ games:
         - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1504530"
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/WRC Generations"
+
+  wrc_9:
+    name: "WRC 9 FIA World Rally Championship"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "WRC9.exe"
+          - "WRC9FIA.exe"
+        telemetry_method: "udp_wrc_kylotonn"
+        supported_fields:
+          - "rpm"
+          - "max_rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "clutch"
+          - "steering_angle"
+    telemetry:
+      method: "udp_wrc_kylotonn"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:64000"
+      fields:
+        ffb_scalar: null
+        rpm: "rpm"
+        speed_ms: "road_speed_ms"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "wrc_9"
+    auto_detect:
+      process_names:
+        - "WRC9.exe"
+        - "WRC9FIA.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1259960"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/WRC 9 FIA World Rally Championship"
+
+  wrc_10:
+    name: "WRC 10 FIA World Rally Championship"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "WRC10.exe"
+          - "WRC10FIA.exe"
+        telemetry_method: "udp_wrc_kylotonn"
+        supported_fields:
+          - "rpm"
+          - "max_rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "clutch"
+          - "steering_angle"
+    telemetry:
+      method: "udp_wrc_kylotonn"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:64000"
+      fields:
+        ffb_scalar: null
+        rpm: "rpm"
+        speed_ms: "road_speed_ms"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "wrc_10"
+    auto_detect:
+      process_names:
+        - "WRC10.exe"
+        - "WRC10FIA.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 1478140"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/WRC 10 FIA World Rally Championship"
 
   dirt4:
     name: "Dirt 4"
@@ -1556,6 +1795,45 @@ games:
       install_registry_keys: []
       install_paths: []
 
+  nascar_21:
+    name: "NASCAR 21: Ignition"
+    versions:
+      - version: "2021.x"
+        config_paths: []
+        executable_patterns:
+          - "NASCAR21.exe"
+          - "Nascar21.exe"
+        telemetry_method: "papyrus_udp"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+    telemetry:
+      method: "papyrus_udp"
+      update_rate_hz: 36
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:5606"
+      fields:
+        ffb_scalar: null
+        rpm: null
+        speed_ms: null
+        slip_ratio: null
+        gear: null
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "nascar_21"
+    auto_detect:
+      process_names:
+        - "NASCAR21.exe"
+        - "Nascar21.exe"
+      install_registry_keys: []
+      install_paths: []
+
   le_mans_ultimate:
     name: "Le Mans Ultimate"
     versions:
@@ -2034,3 +2312,166 @@ games:
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/Stock Car Extreme"
         - "Program Files (x86)/Reiza Studios/Game Stock Car"
+
+  dirt_showdown:
+    name: "DiRT Showdown"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "dirtshowdown.exe"
+          - "DiRTShowdown.exe"
+        telemetry_method: "udp_codemasters_mode1"
+        supported_fields:
+          - "rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+          - "lateral_g"
+          - "longitudinal_g"
+    telemetry:
+      method: "udp_codemasters_mode1"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:20777"
+      fields:
+        ffb_scalar: "gforce_lat"
+        rpm: "rpm"
+        speed_ms: "wheel_speed_avg"
+        slip_ratio: null
+        gear: "gear"
+        flags: "in_pit"
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "dirt_showdown"
+    auto_detect:
+      process_names:
+        - "dirtshowdown.exe"
+        - "DiRTShowdown.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 202100"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/DiRT Showdown"
+
+  gravel:
+    name: "Gravel"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "Gravel.exe"
+          - "gravel.exe"
+        telemetry_method: "simhub_json_udp"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+    telemetry:
+      method: "simhub_json_udp"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:5555"
+      fields:
+        ffb_scalar: null
+        rpm: null
+        speed_ms: null
+        slip_ratio: null
+        gear: null
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "gravel"
+    auto_detect:
+      process_names:
+        - "Gravel.exe"
+        - "gravel.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 492940"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Gravel"
+
+  seb_loeb_rally:
+    name: "Sébastien Loeb Rally EVO"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "SebLoebRallyEvo.exe"
+          - "SebLoeb.exe"
+        telemetry_method: "none"
+        supported_fields: []
+    telemetry:
+      method: "none"
+      update_rate_hz: 0
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: null
+      fields:
+        ffb_scalar: null
+        rpm: null
+        speed_ms: null
+        slip_ratio: null
+        gear: null
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "seb_loeb_rally"
+    auto_detect:
+      process_names:
+        - "SebLoebRallyEvo.exe"
+        - "SebLoeb.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 377090"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Sebastien Loeb Rally EVO"
+
+  v_rally_4:
+    name: "V-Rally 4"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "VRally4.exe"
+          - "vrally4.exe"
+        telemetry_method: "udp_wrc_kylotonn"
+        supported_fields:
+          - "rpm"
+          - "max_rpm"
+          - "speed_ms"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "clutch"
+          - "steering_angle"
+    telemetry:
+      method: "udp_wrc_kylotonn"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:64000"
+      fields:
+        ffb_scalar: null
+        rpm: "rpm"
+        speed_ms: "speed_ms"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: null
+        track_id: null
+    status: "experimental"
+    config_writer: "v_rally_4"
+    auto_detect:
+      process_names:
+        - "VRally4.exe"
+        - "vrally4.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 765000"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/V-Rally 4"

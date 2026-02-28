@@ -112,21 +112,15 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         ));
     }
 
-    let road_speed_ms = read_f32_le(data, OFF_ROAD_SPEED_MS)
-        .unwrap_or(0.0)
-        .max(0.0);
+    let road_speed_ms = read_f32_le(data, OFF_ROAD_SPEED_MS).unwrap_or(0.0).max(0.0);
     let steering = read_f32_le(data, OFF_STEERING)
         .unwrap_or(0.0)
         .clamp(-1.0, 1.0);
     let throttle = read_f32_le(data, OFF_THROTTLE)
         .unwrap_or(0.0)
         .clamp(0.0, 1.0);
-    let brake = read_f32_le(data, OFF_BRAKE)
-        .unwrap_or(0.0)
-        .clamp(0.0, 1.0);
-    let clutch = read_f32_le(data, OFF_CLUTCH)
-        .unwrap_or(0.0)
-        .clamp(0.0, 1.0);
+    let brake = read_f32_le(data, OFF_BRAKE).unwrap_or(0.0).clamp(0.0, 1.0);
+    let clutch = read_f32_le(data, OFF_CLUTCH).unwrap_or(0.0).clamp(0.0, 1.0);
     let hand_brake = read_f32_le(data, OFF_HAND_BRAKE)
         .unwrap_or(0.0)
         .clamp(0.0, 1.0);
@@ -169,10 +163,7 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         .brake(brake)
         .clutch(clutch)
         .steering_angle(steering)
-        .extended(
-            "stage_progress",
-            TelemetryValue::Float(stage_progress),
-        )
+        .extended("stage_progress", TelemetryValue::Float(stage_progress))
         .extended("hand_brake", TelemetryValue::Float(hand_brake))
         .extended("suspension_fl", TelemetryValue::Float(susp_fl))
         .extended("suspension_fr", TelemetryValue::Float(susp_fr))

@@ -114,7 +114,10 @@ pub struct ForzaHorizon4Adapter(ForzaHorizonAdapter);
 
 impl ForzaHorizon4Adapter {
     pub fn new() -> Self {
-        Self(ForzaHorizonAdapter::new("forza_horizon_4", DEFAULT_FH4_PORT))
+        Self(ForzaHorizonAdapter::new(
+            "forza_horizon_4",
+            DEFAULT_FH4_PORT,
+        ))
     }
 }
 
@@ -156,7 +159,10 @@ pub struct ForzaHorizon5Adapter(ForzaHorizonAdapter);
 
 impl ForzaHorizon5Adapter {
     pub fn new() -> Self {
-        Self(ForzaHorizonAdapter::new("forza_horizon_5", DEFAULT_FH5_PORT))
+        Self(ForzaHorizonAdapter::new(
+            "forza_horizon_5",
+            DEFAULT_FH5_PORT,
+        ))
     }
 }
 
