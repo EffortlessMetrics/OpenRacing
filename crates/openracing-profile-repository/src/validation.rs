@@ -169,7 +169,7 @@ impl ProfileValidator {
 
 impl Default for ProfileValidator {
     fn default() -> Self {
-        Self::new().expect("validator creation should succeed")
+        Self::new().unwrap_or_else(|err| panic!("failed to create ProfileValidator: {err}"))
     }
 }
 

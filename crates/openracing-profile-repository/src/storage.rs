@@ -151,7 +151,7 @@ impl FileStorage {
 
         let backup_dir = backup_path
             .parent()
-            .expect("backup path should have parent");
+            .ok_or_else(|| anyhow::anyhow!("backup path has no parent: {:?}", backup_path))?;
         async_fs::create_dir_all(backup_dir)
             .await
             .with_context(|| format!("Failed to create backup directory: {:?}", backup_dir))?;
