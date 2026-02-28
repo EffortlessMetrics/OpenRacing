@@ -1364,7 +1364,7 @@ mod tests {
                     "ers_store_fraction out of [0,1]: {f}"
                 );
             }
-            other => panic!("unexpected value for ers_store_fraction: {other:?}"),
+            other => return Err(format!("unexpected value for ers_store_fraction: {other:?}").into()),
         }
         Ok(())
     }
@@ -1659,7 +1659,7 @@ mod tests {
                     "ers_fraction={f} expected={expected}"
                 );
             }
-            other => panic!("unexpected ers_store_fraction: {other:?}"),
+            other => return Err(format!("unexpected ers_store_fraction: {other:?}").into()),
         }
         assert_eq!(
             nt.extended.get("session_type"),
@@ -1737,7 +1737,7 @@ mod tests {
     }
 
     #[test]
-    fn fuel_remaining_present_and_non_negative() {
+    fn fuel_remaining_present_and_non_negative() -> TestResult {
         let telem = CarTelemetryData {
             speed_kmh: 0,
             throttle: 0.0,
@@ -1758,9 +1758,10 @@ mod tests {
             let nt = normalize(&telem, &status, &SessionData::default());
             match nt.extended.get("fuel_remaining_kg") {
                 Some(TelemetryValue::Float(f)) => assert!(*f >= 0.0 && (*f - fuel).abs() < 1e-4),
-                other => panic!("unexpected fuel value: {other:?}"),
+                other => return Err(format!("unexpected fuel value: {other:?}").into()),
             }
         }
+        Ok(())
     }
 
     // ── Parsing performance (< 1ms) ─────────────────────────────────────────

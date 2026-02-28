@@ -415,7 +415,7 @@ mod tests {
                 "rpm_fraction should be 0.625, got {fraction}"
             );
         } else {
-            panic!("rpm_fraction not found in extended telemetry");
+            return Err("rpm_fraction not found in extended telemetry".into());
         }
         Ok(())
     }

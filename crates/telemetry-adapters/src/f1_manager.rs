@@ -165,7 +165,7 @@ mod tests {
         let frame = tokio::time::timeout(Duration::from_millis(50), rx.recv()).await;
         // Either a timeout or None is acceptable — no frames expected.
         if let Ok(Some(_)) = frame {
-            panic!("F1Manager stub must not emit telemetry frames");
+            return Err("F1Manager stub must not emit telemetry frames".into());
         }
         Ok(())
     }

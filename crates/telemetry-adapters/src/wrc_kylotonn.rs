@@ -391,7 +391,7 @@ mod tests {
         if let Some(TelemetryValue::Float(frac)) = t.extended.get("rpm_fraction") {
             assert!((*frac - 0.5).abs() < 0.001, "rpm_fraction={frac}");
         } else {
-            panic!("rpm_fraction not found");
+            return Err("rpm_fraction not found".into());
         }
         Ok(())
     }

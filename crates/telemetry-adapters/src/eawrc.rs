@@ -944,13 +944,6 @@ mod tests {
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-    fn must<T, E: std::fmt::Debug>(result: Result<T, E>) -> T {
-        match result {
-            Ok(value) => value,
-            Err(error) => panic!("unexpected Err: {error:?}"),
-        }
-    }
-
     fn channels_json() -> serde_json::Value {
         serde_json::json!({
             "versions": { "schema": 1, "data": 7 },
@@ -1132,27 +1125,27 @@ mod tests {
 
     #[test]
     fn test_adapter_normalize_uses_runtime_schema_files() -> TestResult {
-        let temp_dir = must(tempfile::tempdir());
+        let temp_dir = tempfile::tempdir()?;
         let telemetry_root = temp_dir.path().join("telemetry");
         let readme_dir = telemetry_root.join("readme");
         let udp_dir = telemetry_root.join("udp");
 
-        must(fs::create_dir_all(&readme_dir));
-        must(fs::create_dir_all(&udp_dir));
+        fs::create_dir_all(&readme_dir)?;
+        fs::create_dir_all(&udp_dir)?;
 
-        must(fs::write(
+        fs::write(
             readme_dir.join("channels.json"),
             serde_json::to_vec_pretty(&channels_json())?,
-        ));
-        must(fs::write(
+        )?;
+        fs::write(
             readme_dir.join("packets.json"),
             serde_json::to_vec_pretty(&packets_json())?,
-        ));
-        must(fs::write(
+        )?;
+        fs::write(
             udp_dir.join("openracing.json"),
             serde_json::to_vec_pretty(&structure_json())?,
-        ));
-        must(fs::write(
+        )?;
+        fs::write(
             telemetry_root.join("config.json"),
             serde_json::to_vec_pretty(&serde_json::json!({
                 "udp": {
@@ -1166,7 +1159,7 @@ mod tests {
                     ]
                 }
             }))?,
-        ));
+        )?;
 
         let adapter = EAWRCAdapter::with_telemetry_dir(telemetry_root);
 
