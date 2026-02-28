@@ -240,6 +240,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`gran_turismo_sport` and `forza_horizon` test improvements**: 4 new tests for GTS (empty-packet err, port constants, minimum valid decrypted packet, proptest panic freedom); 10 new tests for Forza Horizon FH4/FH5 (Sled/CarDash packet acceptance, RPM/speed field accuracy, insta snapshot, arbitrary-bytes proptest); no `unwrap()`/`expect()` anywhere
 
+- **Test coverage for sparse adapters** (`mudrunner.rs`, `gravel.rs`, `ride5.rs`, `motogp.rs`): added 10 unit tests + 1 proptest to mudrunner (was 0 tests); 9 unit + 1 proptest to gravel (was 2); 2 unit + 1 proptest to ride5 and motogp; all use `TestResult = Result<(), Box<dyn Error>>` with no panics
+
 - **CI fix**: `dependency-governance` job changed from hard `exit 1` on any `cargo tree --duplicates` output to a GitHub Actions `::warning::` annotation; actual ban policy is governed by `deny.toml` (`multiple-versions = "warn"`) via `cargo deny check` in the lint-gates job
 
 - **Fix: `fuzz_simplemotion`** was unable to compile because `racing-wheel-simplemotion-v2` was missing from `fuzz/Cargo.toml` dependencies; dependency added and Cargo.lock updated
