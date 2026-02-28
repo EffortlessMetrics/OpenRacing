@@ -2114,6 +2114,7 @@ dependencies = [
  "racing-wheel-hid-vrs-protocol",
  "racing-wheel-ks",
  "racing-wheel-moza-wheelbase-report",
+ "racing-wheel-simplemotion-v2",
  "racing-wheel-srp",
  "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-core",
@@ -2789,6 +2790,15 @@ dependencies = [
  "tonic",
  "tonic-prost",
  "tonic-prost-build",
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-simplemotion-v2"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.18",
+ "tracing",
  "workspace-hack",
 ]
 
