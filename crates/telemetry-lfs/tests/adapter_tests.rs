@@ -95,7 +95,7 @@ fn test_throttle_brake_clutch() -> TestResult {
 fn test_truncated_packet_returns_error() {
     let adapter = LFSAdapter::new();
     assert!(
-        adapter.normalize(&vec![0u8; 50]).is_err(),
+        adapter.normalize(&[0u8; 50]).is_err(),
         "truncated packet must return error"
     );
 }

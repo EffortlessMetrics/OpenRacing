@@ -545,7 +545,7 @@ impl FirmwareUpdateManager {
                 // firmware is activated; the error type distinguishes this case.
                 let rollback_performed = e
                     .downcast_ref::<FirmwareUpdateError>()
-                    .map_or(false, |fw_err| {
+                    .is_some_and(|fw_err| {
                         matches!(fw_err, FirmwareUpdateError::HealthCheckFailed(_))
                     });
                 Ok(UpdateResult {

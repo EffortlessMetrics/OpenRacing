@@ -110,7 +110,7 @@ impl GameAutoConfigurer {
         // Persist the configured marker.
         let mut store = self.store.lock().await;
         store.configured.insert(game_id.to_string());
-        if let Err(e) = save_store(&self.state_path, &*store) {
+        if let Err(e) = save_store(&self.state_path, &store) {
             warn!(error = %e, "Failed to save auto-configure state");
         }
     }
