@@ -84,7 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Hardware watchdog FMEA fault scenario tests (missed tick, write failure, thermal warning)
   - Profile migration idempotency tests
   - Property-based tests (`proptest`) for all 15 HID protocol crates and expanded coverage (500 cases each for torque encoders, protocol parsers, feedback parsing)
-  - Total workspace test count: **600+**
+  - Total workspace test count: **3,600+**
 
 - **Safety improvements**:
   - Hardware watchdog acceptance tests: "no feed within 100ms ⇒ SafeMode + zero torque"
@@ -199,6 +199,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CI: Regression prevention false positives** resolved — HID protocol crates and `schemas` crate excluded from deprecated-field detection, eliminating spurious CI failures on non-engine code
 
 - **`doc_suspicious_footnotes` clippy lints** in `hid-vrs-protocol` and `hid-asetek-protocol`: footnote references `[^12]`/`[^13]` changed to plain text to satisfy `--deny warnings`
+
+- **SimHub JSON UDP bridge — full parser implementation** (6 adapters: Gravel, MotoGP, MudRunner, SnowRunner, RIDE 5, and the shared `SimHubAdapter`):
+  - `crates/telemetry-adapters/src/simhub.rs` rewritten from stub to functional: `SimHubRaw` serde struct with field aliases, `parse_gear()` helper (string "R"/"N"/"1"–"9"), `parse_simhub_packet()` public entry point
+  - Throttle/Brake/Clutch (0–100) divided by 100; SteeringAngle (±450°) divided by 450 and clamped to [-1, 1]; FuelPercent divided by 100; `FFBValue` (0–1) used directly as `ffb_scalar`
+  - `Steer` alias field (pre-normalized -1..1) used directly when non-zero, bypassing the degree conversion
+  - `is_simhub_running()` detects `SimHubWPF.exe` on Windows; returns `false` on Linux/macOS
+  - 8 unit tests covering gear parsing edge cases, field normalization, and empty-packet handling
+
+- **Property-based tests (`proptest`) for remaining HID vendor crates**:
+  - `hid-heusinkveld-protocol`: 12 input property tests (pedal axis normalization, CRC stability, resolution invariants)
+  - `hid-accuforce-protocol`: 11 ID/constants property tests
+  - `hid-leo-bodnar-protocol`: 11 ID/constants property tests
+  - `hid-simagic-protocol`: 7 output property tests
+  - `hid-cammus-protocol`: 5 output property tests
+  - `hid-vrs-protocol`: 7 output property tests
+  - `hid-button-box-protocol`: 11 encoding property tests (button bitmask round-trip, overflow, rotary delta)
+  - All use 500+ cases per property covering sign preservation, header-byte invariants, overflow prevention, and monotonicity
+
+- **New fuzz targets**:
+  - `fuzz_simhub_udp.rs`: fuzzes `parse_simhub_packet()` — must never panic on arbitrary bytes (covers all 6 SimHub-based adapters)
+  - `fuzz_trackmania_udp.rs`: fuzzes `parse_trackmania_packet()` — covers OpenPlanet JSON-over-UDP parsing
+
+- **CI fix**: `dependency-governance` job changed from hard `exit 1` on any `cargo tree --duplicates` output to a GitHub Actions `::warning::` annotation; actual ban policy is governed by `deny.toml` (`multiple-versions = "warn"`) via `cargo deny check` in the lint-gates job
+
+- **Fix: `fuzz_simplemotion`** was unable to compile because `racing-wheel-simplemotion-v2` was missing from `fuzz/Cargo.toml` dependencies; dependency added and Cargo.lock updated
 
 ## [1.0.0-rc.1] - 2026-11-01
 
