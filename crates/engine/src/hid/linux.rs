@@ -394,12 +394,13 @@ impl LinuxHidPort {
             (0x0EB7, 0x183B), // Fanatec ClubSport Pedals V3
             (0x0EB7, 0x6205), // Fanatec CSL Pedals with Load Cell Kit
             (0x0EB7, 0x6206), // Fanatec CSL Pedals V2
-            (0x044F, 0xB65D), // Thrustmaster T150
+            (0x044F, 0xB65D), // Thrustmaster FFB Wheel (pre-init)
             (0x044F, 0xB66D), // Thrustmaster TMX
             (0x044F, 0xB66E), // Thrustmaster T300RS
-            (0x044F, 0xB677), // Thrustmaster T500RS
-            (0x044F, 0xB696), // Thrustmaster TS-XW
-            (0x044F, 0xB69A), // Thrustmaster T-GT
+            (0x044F, 0xB677), // Thrustmaster T150
+            (0x044F, 0xB692), // Thrustmaster TS-XW
+            (0x044F, 0xB691), // Thrustmaster TS-XW (GIP mode)
+            (0x044F, 0xB696), // Thrustmaster T248
             // Moza Racing - V1
             (0x346E, 0x0005), // Moza R3
             (0x346E, 0x0004), // Moza R5

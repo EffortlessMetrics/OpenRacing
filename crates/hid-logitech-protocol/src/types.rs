@@ -29,9 +29,9 @@ impl LogitechModel {
         match product_id {
             product_ids::G25 => Self::G25,
             product_ids::G27_A | product_ids::G27 => Self::G27,
-            product_ids::G29_PS | product_ids::G29_XBOX => Self::G29,
-            product_ids::G920_V1 | product_ids::G920 => Self::G920,
-            product_ids::G923_XBOX | product_ids::G923_PS => Self::G923,
+            product_ids::G29_PS => Self::G29,
+            product_ids::G920 => Self::G920,
+            product_ids::G923 | product_ids::G923_XBOX | product_ids::G923_PS => Self::G923,
             product_ids::G_PRO | product_ids::G_PRO_XBOX => Self::GPro,
             _ => Self::Unknown,
         }
@@ -41,14 +41,18 @@ impl LogitechModel {
     pub fn max_torque_nm(self) -> f32 {
         match self {
             Self::G25 | Self::G27 => 2.5,
-            Self::G29 | Self::G920 | Self::G923 | Self::GPro => 2.2,
+            Self::G29 | Self::G920 | Self::G923 => 2.2,
+            Self::GPro => 11.0,
             Self::Unknown => 2.0,
         }
     }
 
     /// Maximum wheel rotation in degrees.
     pub fn max_rotation_deg(self) -> u16 {
-        900
+        match self {
+            Self::GPro => 1080,
+            _ => 900,
+        }
     }
 
     /// Whether this model supports TrueForce haptics.
@@ -65,9 +69,8 @@ pub fn is_wheel_product(product_id: u16) -> bool {
             | product_ids::G27_A
             | product_ids::G27
             | product_ids::G29_PS
-            | product_ids::G29_XBOX
-            | product_ids::G920_V1
             | product_ids::G920
+            | product_ids::G923
             | product_ids::G923_XBOX
             | product_ids::G923_PS
             | product_ids::G_PRO
@@ -111,8 +114,8 @@ mod tests {
         let model_xbox = LogitechModel::from_product_id(product_ids::G_PRO_XBOX);
         assert_eq!(model_ps, LogitechModel::GPro);
         assert_eq!(model_xbox, LogitechModel::GPro);
-        assert!((model_ps.max_torque_nm() - 2.2).abs() < 0.05);
-        assert_eq!(model_ps.max_rotation_deg(), 900);
+        assert!((model_ps.max_torque_nm() - 11.0).abs() < 0.05);
+        assert_eq!(model_ps.max_rotation_deg(), 1080);
         Ok(())
     }
 
@@ -152,9 +155,8 @@ mod tests {
             product_ids::G27_A,
             product_ids::G27,
             product_ids::G29_PS,
-            product_ids::G29_XBOX,
-            product_ids::G920_V1,
             product_ids::G920,
+            product_ids::G923,
             product_ids::G923_PS,
             product_ids::G923_XBOX,
             product_ids::G_PRO,
@@ -178,7 +180,7 @@ mod tests {
     }
 
     /// Verify specific VID/PID constant values against authoritative sources
-    /// (Linux kernel hid-ids.h; oversteer project wheel_ids.py).
+    /// (Linux kernel hid-ids.h; new-lg4ff driver; oversteer project).
     #[test]
     fn test_pid_constant_values() -> Result<(), Box<dyn std::error::Error>> {
         use crate::ids::{LOGITECH_VENDOR_ID, product_ids};
@@ -204,9 +206,14 @@ mod tests {
             "G920 PID (kernel: USB_DEVICE_ID_LOGITECH_G920_WHEEL)"
         );
         assert_eq!(
+            product_ids::G923,
+            0xC266,
+            "G923 native PID (new-lg4ff: USB_DEVICE_ID_LOGITECH_G923_WHEEL)"
+        );
+        assert_eq!(
             product_ids::G923_PS,
             0xC267,
-            "G923 PS PID (oversteer: LG_G923P)"
+            "G923 PS compat PID (new-lg4ff: USB_DEVICE_ID_LOGITECH_G923_PS_WHEEL)"
         );
         assert_eq!(
             product_ids::G923_XBOX,

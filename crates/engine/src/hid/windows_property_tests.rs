@@ -605,7 +605,7 @@ mod unit_tests {
         // Belt-driven wheels should have lower torque
         let belt_devices = [
             (vendor_ids::LOGITECH, 0xC24F, 5.0),     // G29 - less than 5Nm
-            (vendor_ids::THRUSTMASTER, 0xB65D, 5.0), // T150 - less than 5Nm
+            (vendor_ids::THRUSTMASTER, 0xB677, 5.0), // T150 - less than 5Nm
         ];
 
         for (vid, pid, max_torque) in belt_devices {

@@ -128,30 +128,36 @@ See friction log entry **F-005** for the history of why this document was create
 ## Thrustmaster
 
 **VID:** `0x044F`  
-**Source:** [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table; [Linux kernel `hid-ids.h`](https://github.com/torvalds/linux/blob/master/drivers/hid/hid-ids.h).  
-**Status:** Verified (T300/TMX confirmed); others community-sourced.
+**Source:** [Linux kernel `hid-thrustmaster.c`](https://github.com/torvalds/linux/blob/master/drivers/hid/hid-thrustmaster.c); [Kimplul/hid-tmff2](https://github.com/Kimplul/hid-tmff2) (community FFB driver); [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table; [linux-hardware.org](https://linux-hardware.org); [devicehunt.com](https://devicehunt.com).  
+**Status:** Verified (T300/TMX/T150/T248/TS-XW/TS-PC confirmed via hid-tmff2); others community-sourced.
 
 | PID      | Device Name                        | Status    |
 |----------|------------------------------------|-----------|
-| `0xB65D` | T150                               | Community |
-| `0xB65E` | T150 Pro                           | Community |
+| `0xB65D` | FFB Wheel (generic pre-init PID)   | Verified  |
+| `0xB65E` | T150 Pro                           | Unverified|
 | `0xB66D` | T300 RS (PS4 mode)                 | Verified  |
 | `0xB66E` | T300 RS                            | Verified  |
-| `0xB66F` | T300 RS GT                         | Community |
-| `0xB669` | TX Racing (Xbox)                   | Community |
-| `0xB677` | T500 RS                            | Community |
+| `0xB66F` | T300 RS GT                         | Verified  |
+| `0xB669` | TX Racing (Xbox)                   | Verified  |
+| `0xB677` | T150                               | Verified  |
 | `0xB67F` | TMX (Xbox)                         | Verified  |
-| `0xB689` | TS-PC Racer                        | Community |
+| `0xB689` | TS-PC Racer                        | Verified  |
 | `0xB68D` | T-LCM (load cell brake)            | Community |
-| `0xB68E` | T-GT                               | Community |
-| `0xB691` | TS-XW (Xbox)                       | Community |
-| `0xB692` | T-GT II                            | Community |
-| `0xB696` | T248                               | Community |
-| `0xB697` | T248X (Xbox)                       | Community |
+| `0xB691` | TS-XW (GIP/Xbox mode)              | Verified  |
+| `0xB692` | TS-XW (USB/HID mode)               | Verified  |
+| `0xB696` | T248                               | Verified  |
+| `0xB697` | T248X (Xbox)                       | Unverified|
 | `0xB69A` | T-LCM Pro                          | Community |
-| `0xB69B` | T818 (direct drive)                | Community |
+| `0xB69B` | T818 (direct drive)                | Unverified|
 | `0xB678` | T3PA Pedal Set                     | Community |
 | `0xB679` | T3PA Pro Pedal Set                 | Community |
+
+> **Removed PIDs (previously incorrect):**
+> - `0xB68E` was listed as T-GT but is actually "TPR Rudder Bulk" (flight sim pedals) per linux-hardware.org.
+> - `0xB692` was listed as T-GT II but is actually TS-XW per hid-tmff2 (`TSXW_ACTIVE`).
+> - `0xB677` was listed as T500 RS but is actually T150 per linux-hardware.org and devicehunt.com.
+> - T-GT and T-GT II PIDs are unknown. Per hid-tmff2 README, T-GT II reuses T300 USB PIDs.
+> - T500 RS PID is unknown; not found in any community driver source.
 
 ---
 

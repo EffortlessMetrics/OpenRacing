@@ -375,7 +375,11 @@ impl SupportedDevices {
             ),
             (vendor_ids::FANATEC, 0x6206, "Fanatec CSL Pedals V2"),
             // Thrustmaster wheels
-            (vendor_ids::THRUSTMASTER, 0xB65D, "Thrustmaster T150"),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB65D,
+                "Thrustmaster FFB Wheel (pre-init)",
+            ),
             (vendor_ids::THRUSTMASTER, 0xB65E, "Thrustmaster T150 Pro"),
             (
                 vendor_ids::THRUSTMASTER,
@@ -386,13 +390,16 @@ impl SupportedDevices {
             (vendor_ids::THRUSTMASTER, 0xB66E, "Thrustmaster T300RS"),
             (vendor_ids::THRUSTMASTER, 0xB66F, "Thrustmaster T300RS GT"),
             (vendor_ids::THRUSTMASTER, 0xB669, "Thrustmaster TX Racing"),
-            (vendor_ids::THRUSTMASTER, 0xB677, "Thrustmaster T500RS"),
+            (vendor_ids::THRUSTMASTER, 0xB677, "Thrustmaster T150"),
             (vendor_ids::THRUSTMASTER, 0xB696, "Thrustmaster T248"),
             (vendor_ids::THRUSTMASTER, 0xB697, "Thrustmaster T248X"),
-            (vendor_ids::THRUSTMASTER, 0xB68E, "Thrustmaster T-GT"),
-            (vendor_ids::THRUSTMASTER, 0xB692, "Thrustmaster T-GT II"),
             (vendor_ids::THRUSTMASTER, 0xB689, "Thrustmaster TS-PC Racer"),
-            (vendor_ids::THRUSTMASTER, 0xB691, "Thrustmaster TS-XW"),
+            (vendor_ids::THRUSTMASTER, 0xB692, "Thrustmaster TS-XW"),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB691,
+                "Thrustmaster TS-XW (GIP mode)",
+            ),
             (vendor_ids::THRUSTMASTER, 0xB69A, "Thrustmaster T-LCM Pro"),
             (vendor_ids::THRUSTMASTER, 0xB69B, "Thrustmaster T818"),
             (vendor_ids::THRUSTMASTER, 0xB678, "Thrustmaster T3PA"),
@@ -1210,8 +1217,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = 1080;
 
             match product_id {
-                0xB65D | 0xB65E => {
-                    // T150/T150 Pro
+                0xB65D | 0xB65E | 0xB677 => {
+                    // T150/T150 Pro (0xB65D = generic pre-init PID, 0xB677 = post-init)
                     capabilities.max_torque = TorqueNm::new(2.5).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 4000; // 250Hz
                 }
@@ -1223,11 +1230,6 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                 0xB66E | 0xB66F => {
                     // T300RS
                     capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
-                    capabilities.min_report_period_us = 2000; // 500Hz
-                }
-                0xB677 => {
-                    // T500RS
-                    capabilities.max_torque = TorqueNm::new(5.5).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 2000; // 500Hz
                 }
                 0xB696 => {
@@ -1246,26 +1248,14 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 2000;
                 }
-                0xB68E => {
-                    // T-GT (Gran Turismo, 6.0 Nm)
-                    capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
-                    capabilities.supports_raw_torque_1khz = true;
-                    capabilities.min_report_period_us = 1000;
-                }
-                0xB692 => {
-                    // T-GT II (6.0 Nm)
-                    capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
-                    capabilities.supports_raw_torque_1khz = true;
-                    capabilities.min_report_period_us = 1000;
-                }
                 0xB689 => {
                     // TS-PC Racer (6.0 Nm PC-only)
                     capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
                     capabilities.supports_raw_torque_1khz = true;
                     capabilities.min_report_period_us = 1000;
                 }
-                0xB691 => {
-                    // TS-XW (6.0 Nm Xbox)
+                0xB691 | 0xB692 => {
+                    // TS-XW (6.0 Nm; 0xB692 = USB/HID mode, 0xB691 = GIP mode)
                     capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
                     capabilities.supports_raw_torque_1khz = true;
                     capabilities.min_report_period_us = 1000;
@@ -1281,6 +1271,12 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     // T248X (Xbox, 4.0 Nm)
                     capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 2000;
+                }
+                0xB68E => {
+                    // TPR Rudder (flight sim pedals, not a racing wheel)
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
                 }
                 0xB678 | 0xB679 | 0xB68D => {
                     // T3PA, T3PA Pro, T-LCM (pedals)

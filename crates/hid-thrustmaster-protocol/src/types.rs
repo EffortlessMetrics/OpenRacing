@@ -33,17 +33,12 @@ pub fn identify_device(product_id: u16) -> ThrustmasterDeviceIdentity {
                 supports_ffb: true,
             }
         }
-        product_ids::T300_RS | product_ids::T300_RS_GT | product_ids::TX_RACING => {
-            ThrustmasterDeviceIdentity {
-                product_id,
-                name: "Thrustmaster T300 RS",
-                category: ThrustmasterDeviceCategory::Wheelbase,
-                supports_ffb: true,
-            }
-        }
-        product_ids::T500_RS => ThrustmasterDeviceIdentity {
+        product_ids::T300_RS
+        | product_ids::T300_RS_PS4
+        | product_ids::T300_RS_GT
+        | product_ids::TX_RACING => ThrustmasterDeviceIdentity {
             product_id,
-            name: "Thrustmaster T500 RS",
+            name: "Thrustmaster T300 RS",
             category: ThrustmasterDeviceCategory::Wheelbase,
             supports_ffb: true,
         },
@@ -53,15 +48,15 @@ pub fn identify_device(product_id: u16) -> ThrustmasterDeviceIdentity {
             category: ThrustmasterDeviceCategory::Wheelbase,
             supports_ffb: true,
         },
-        product_ids::T_GT | product_ids::T_GT_II => ThrustmasterDeviceIdentity {
+        product_ids::TS_PC_RACER => ThrustmasterDeviceIdentity {
             product_id,
-            name: "Thrustmaster T-GT",
+            name: "Thrustmaster TS-PC Racer",
             category: ThrustmasterDeviceCategory::Wheelbase,
             supports_ffb: true,
         },
-        product_ids::TS_PC_RACER | product_ids::TS_XW => ThrustmasterDeviceIdentity {
+        product_ids::TS_XW | product_ids::TS_XW_GIP => ThrustmasterDeviceIdentity {
             product_id,
-            name: "Thrustmaster TS-PC Racer",
+            name: "Thrustmaster TS-XW",
             category: ThrustmasterDeviceCategory::Wheelbase,
             supports_ffb: true,
         },
@@ -159,7 +154,7 @@ mod tests {
 
     #[test]
     fn test_is_wheel_product() {
-        assert!(is_wheel_product(product_ids::T_GT));
+        assert!(is_wheel_product(product_ids::TS_XW));
         assert!(is_wheel_product(product_ids::T300_RS));
         assert!(is_wheel_product(product_ids::T818));
         assert!(!is_wheel_product(product_ids::T_LCM));
@@ -169,12 +164,12 @@ mod tests {
     fn test_is_pedal_product() {
         assert!(is_pedal_product(product_ids::T_LCM));
         assert!(is_pedal_product(product_ids::T3PA));
-        assert!(!is_pedal_product(product_ids::T_GT));
+        assert!(!is_pedal_product(product_ids::TS_XW));
     }
 
     #[test]
     fn test_model_from_pid() {
-        assert_eq!(Model::from_product_id(product_ids::T_GT), Model::TGT);
+        assert_eq!(Model::from_product_id(product_ids::TS_XW), Model::TSXW);
         assert_eq!(Model::from_product_id(product_ids::T818), Model::T818);
         assert_eq!(Model::from_product_id(product_ids::T_LCM), Model::TLCM);
     }

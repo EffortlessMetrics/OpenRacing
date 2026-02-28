@@ -194,17 +194,18 @@ proptest! {
         );
     }
 
-    // ── Model: max_rotation_deg is always 900 ────────────────────────────────
+    // ── Model: max_rotation_deg is valid ─────────────────────────────────────
 
-    /// Every Logitech model uses a 900° rotation range.
+    /// Every Logitech model reports a valid rotation range (900° or 1080°).
     #[test]
-    fn prop_model_rotation_is_900(pid in 0u16..=65535u16) {
+    fn prop_model_rotation_is_valid(pid in 0u16..=65535u16) {
         let model = LogitechModel::from_product_id(pid);
-        prop_assert_eq!(
-            model.max_rotation_deg(),
-            900u16,
-            "model {:?} must report 900° rotation range",
-            model
+        let deg = model.max_rotation_deg();
+        prop_assert!(
+            deg == 900 || deg == 1080,
+            "model {:?} must report 900° or 1080° rotation, got {}°",
+            model,
+            deg
         );
     }
 }

@@ -20,8 +20,8 @@ fn vendor_id_is_044f() {
 // ── Product IDs — verified against linux-steering-wheels + Linux kernel ──────
 
 #[test]
-fn t150_pid_is_b65d() {
-    assert_eq!(product_ids::T150, 0xB65D);
+fn t150_pid_is_b677() {
+    assert_eq!(product_ids::T150, 0xB677);
 }
 
 #[test]
@@ -35,11 +35,6 @@ fn t300_rs_ps4_pid_is_b66d() {
 }
 
 #[test]
-fn t500_rs_pid_is_b677() {
-    assert_eq!(product_ids::T500_RS, 0xB677);
-}
-
-#[test]
 fn tmx_pid_is_b67f() {
     assert_eq!(product_ids::TMX, 0xB67F);
 }
@@ -47,4 +42,19 @@ fn tmx_pid_is_b67f() {
 #[test]
 fn t248_pid_is_b696() {
     assert_eq!(product_ids::T248, 0xB696);
+}
+
+#[test]
+fn ts_xw_pid_is_b692() {
+    assert_eq!(product_ids::TS_XW, 0xB692);
+}
+
+#[test]
+fn ts_xw_gip_pid_is_b691() {
+    assert_eq!(product_ids::TS_XW_GIP, 0xB691);
+}
+
+#[test]
+fn ffb_wheel_generic_pid_is_b65d() {
+    assert_eq!(product_ids::FFB_WHEEL_GENERIC, 0xB65D);
 }

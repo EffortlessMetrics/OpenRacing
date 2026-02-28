@@ -45,6 +45,16 @@ fn g923_ps_pid_is_c267() {
 }
 
 #[test]
+fn g923_native_pid_is_c266() {
+    assert_eq!(product_ids::G923, 0xC266);
+}
+
+#[test]
+fn g923_xbox_pid_is_c26e() {
+    assert_eq!(product_ids::G923_XBOX, 0xC26E);
+}
+
+#[test]
 fn g_pro_pid_is_c268() {
     assert_eq!(product_ids::G_PRO, 0xC268);
 }

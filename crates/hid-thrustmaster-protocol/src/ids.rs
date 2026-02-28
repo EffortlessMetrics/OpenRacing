@@ -6,44 +6,75 @@
 pub const THRUSTMASTER_VENDOR_ID: u16 = 0x044F;
 
 /// Known Thrustmaster product IDs.
+///
+/// # Verification sources
+///
+/// PIDs are cross-referenced against:
+/// - Linux kernel `hid-thrustmaster.c` (upstream init driver)
+/// - Kimplul/hid-tmff2 (community FFB driver)
+/// - linux-hardware.org USB device database
+/// - devicehunt.com USB ID repository
+///
+/// # Removed PIDs (previously incorrect)
+///
+/// - **T500 RS** — was 0xB677, but that PID is confirmed as the T150 post-init
+///   PID by linux-hardware.org and devicehunt.com. Real T500 RS PID is unknown.
+/// - **T-GT** — was 0xB68E, but linux-hardware.org identifies that as "TPR Rudder
+///   Bulk" (flight sim rudder pedals). Real T-GT PID is unknown.
+/// - **T-GT II** — was 0xB692, but hid-tmff2 confirms that as `TSXW_ACTIVE`
+///   (TS-XW Racer). Per hid-tmff2 README, the T-GT II reuses T300 USB PIDs.
 pub mod product_ids {
-    /// T150 (entry-level belt drive).
-    pub const T150: u16 = 0xB65D;
+    /// Generic pre-init "FFB Wheel" PID used by all Thrustmaster wheels before
+    /// mode switching. After init, the wheel re-enumerates with a model-specific PID.
+    /// Verified: Linux kernel hid-thrustmaster.c device table (044f:b65d).
+    pub const FFB_WHEEL_GENERIC: u16 = 0xB65D;
+    /// T150 (entry-level belt drive, post-init PID).
+    /// Verified: devicehunt.com + linux-hardware.org (044f:b677 = "T150 Racing Wheel").
+    pub const T150: u16 = 0xB677;
     /// T150 Pro (with T3PA pedals).
+    /// Unverified: not found in community driver sources.
     pub const T150_PRO: u16 = 0xB65E;
     /// T300 RS in PlayStation 4 compatibility mode (same hardware as T300_RS,
     /// different PID reported when the PS4-mode switch is active).
-    /// Verified: linux-steering-wheels table (044f:b66d = "T300RS (PS4 mode)").
+    /// Verified: hid-tmff2 TMT300RS_PS4_NORM_ID; linux-steering-wheels table.
     pub const T300_RS_PS4: u16 = 0xB66D;
     /// TMX (Xbox One variant of the T150/T300 family).
     /// Verified: linux-steering-wheels table (044f:b67f = "TMX", uses hid-tminit).
     pub const TMX: u16 = 0xB67F;
-    /// T300 RS (belt-driven).
+    /// T300 RS (belt-driven, PS3 normal mode).
+    /// Verified: hid-tmff2 TMT300RS_PS3_NORM_ID.
     pub const T300_RS: u16 = 0xB66E;
-    /// T300 RS GT (GT Edition).
+    /// T300 RS GT (GT Edition / PS3 advanced mode).
+    /// Verified: hid-tmff2 TMT300RS_PS3_ADV_ID.
     pub const T300_RS_GT: u16 = 0xB66F;
     /// TX Racing (Xbox variant).
+    /// Verified: hid-tmff2 TX_ACTIVE.
     pub const TX_RACING: u16 = 0xB669;
-    /// T500 RS (older belt drive).
-    pub const T500_RS: u16 = 0xB677;
     /// T248 (hybrid drive).
+    /// Verified: hid-tmff2 TMT248_PC_ID.
     pub const T248: u16 = 0xB696;
     /// T248X (Xbox variant).
+    /// Unverified: not found in community driver sources.
     pub const T248X: u16 = 0xB697;
-    /// T-GT (Gran Turismo, 6 Nm).
-    pub const T_GT: u16 = 0xB68E;
-    /// T-GT II (updated T-GT).
-    pub const T_GT_II: u16 = 0xB692;
     /// TS-PC Racer (PC-only belt drive).
+    /// Verified: hid-tmff2 TMTS_PC_RACER_ID.
     pub const TS_PC_RACER: u16 = 0xB689;
-    /// TS-XW (Xbox variant).
-    pub const TS_XW: u16 = 0xB691;
+    /// TS-XW Racer (USB/HID mode, post-init).
+    /// Verified: hid-tmff2 TSXW_ACTIVE (0xb692); linux-hardware.org.
+    pub const TS_XW: u16 = 0xB692;
+    /// TS-XW Racer in GIP/Xbox protocol mode.
+    /// Verified: linux-hardware.org (044f:b691 = "TS-XW Racer GIP Wheel").
+    pub const TS_XW_GIP: u16 = 0xB691;
     /// T818 (direct drive).
+    /// Unverified: listed as open request in hid-tmff2 issue #58.
     pub const T818: u16 = 0xB69B;
 
     /// T3PA pedal set.
+    /// Note: devicehunt.com lists 0xB678 as "T.Flight Rudder Pedals". PID may be
+    /// shared or incorrectly attributed; T3PA typically connects via RJ12 to the wheel base.
     pub const T3PA: u16 = 0xB678;
     /// T3PA Pro (with inverted option).
+    /// Note: devicehunt.com lists 0xB679 as "T-Rudder". See T3PA note above.
     pub const T3PA_PRO: u16 = 0xB679;
     /// T-LCM (load cell brake).
     pub const T_LCM: u16 = 0xB68D;
@@ -52,6 +83,11 @@ pub mod product_ids {
 }
 
 /// Model identification shorthand.
+///
+/// Note: `T500RS`, `TGT`, and `TGTII` are real products but their USB PIDs
+/// could not be verified against community driver sources. They are retained
+/// in the enum for metadata (torque, rotation) but cannot be returned by
+/// [`Model::from_product_id`]. See `product_ids` docs for details.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Model {
     T150,
@@ -86,13 +122,10 @@ impl Model {
             product_ids::T300_RS_PS4 => Self::T300RSPS4,
             product_ids::T300_RS_GT => Self::T300RSGT,
             product_ids::TX_RACING => Self::TXRacing,
-            product_ids::T500_RS => Self::T500RS,
             product_ids::T248 => Self::T248,
             product_ids::T248X => Self::T248X,
-            product_ids::T_GT => Self::TGT,
-            product_ids::T_GT_II => Self::TGTII,
             product_ids::TS_PC_RACER => Self::TSPCRacer,
-            product_ids::TS_XW => Self::TSXW,
+            product_ids::TS_XW | product_ids::TS_XW_GIP => Self::TSXW,
             product_ids::T818 => Self::T818,
             product_ids::T3PA => Self::T3PA,
             product_ids::T3PA_PRO => Self::T3PAPro,
