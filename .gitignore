@@ -34,3 +34,10 @@ build_output*.log
 check_*.py
 fix_*.py
 
+# Temporary files and scripts
+run_steps.ps1
+test_output.txt
+
+# Machine-specific cargo config
+.cargo/
+
