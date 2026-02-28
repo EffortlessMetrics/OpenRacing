@@ -367,11 +367,7 @@ impl SupportedDevices {
             (vendor_ids::FANATEC, 0x0024, "Fanatec Gran Turismo DD Pro"),
             // 0x01E9: from USB captures; not yet in community drivers.
             (vendor_ids::FANATEC, 0x01E9, "Fanatec ClubSport DD+"),
-            (
-                vendor_ids::FANATEC,
-                0x0E03,
-                "Fanatec CSL Elite Wheel Base",
-            ),
+            (vendor_ids::FANATEC, 0x0E03, "Fanatec CSL Elite Wheel Base"),
             // Fanatec standalone pedal sets
             (
                 vendor_ids::FANATEC,
