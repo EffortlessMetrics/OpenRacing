@@ -430,6 +430,11 @@ Simucube Wireless Wheel (PID 0x0D63) is listed in engine tables but not confirme
 - **ACC**: Fixed isReadonly field inversion (byte==0 means readonly in Kunos SDK).
 - **BeamNG**: Verified correct (OutGauge protocol matches InSim.txt).
 
+### Protocol Verification Wave 2 — Cammus / FFBeast / PXN (Web-Verified)
+- **Cammus**: VID `0x3416`, C5 PID `0x0301`, C12 PID `0x0302` — all confirmed against Linux kernel `hid-ids.h` (`USB_VENDOR_ID_CAMMUS`), `hid-universal-pidff.c`, and JacKeTUs/linux-steering-wheels (Platinum support). Torque values C5=5 Nm, C12=12 Nm unchanged. No code changes needed.
+- **FFBeast**: VID `0x045B`, Joystick PID `0x58F9`, Rudder PID `0x5968`, Wheel PID `0x59D7` — all confirmed against Linux kernel `hid-ids.h` (`USB_VENDOR_ID_FFBEAST`), `hid-universal-pidff.c`, FFBeast C/C++ API reference (`USB_VID=1115`, `WHEEL_PID_FS=22999`), and JacKeTUs/linux-steering-wheels. Protocol uses ±10000 signed 16-bit torque scale. Dead links fixed: `HF-Robotics/FFBeast` repo (404) and `ffbeast.com` (domain for sale) replaced with `ffbeast.github.io`.
+- **PXN**: No `hid-pxn-protocol` crate exists in this branch (was on `feat/r6-pxn-v2`). Linux kernel confirms VID `0x11FF` (`USB_VENDOR_ID_LITE_STAR`), PIDs: V10=`0x3245`, V12=`0x1212`, V12 Lite=`0x1112`/`0x1211`. No V9 PID found in kernel or community sources. PXN uses `HID_PIDFF_QUIRK_PERIODIC_SINE_ONLY` quirk in `hid-universal-pidff`. Torque specs not verified — PXN official site does not publish peak Nm values.
+
 ### Engine Device Table Sync
 - 50+ missing devices added to linux.rs (VRS, Heusinkveld, Cammus, OpenFFBoard, FFBeast, etc.)
 - AccuForce Pro capabilities corrected (12 Nm, PID support, 1 kHz)

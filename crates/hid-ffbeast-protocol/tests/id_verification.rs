@@ -11,7 +11,7 @@ use racing_wheel_hid_ffbeast_protocol::ids::{
 
 /// FFBeast VID must be 0x045B (`USB_VENDOR_ID_FFBEAST` in the Linux kernel).
 ///
-/// Source: Linux kernel `hid-ids.h`; <https://github.com/HF-Robotics/FFBeast>.
+/// Source: Linux kernel `hid-ids.h`; <https://ffbeast.github.io/ffbeast.github.io/>.
 #[test]
 fn vendor_id_is_045b() {
     assert_eq!(
