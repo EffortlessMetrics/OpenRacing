@@ -7,12 +7,12 @@
 use anyhow::Result;
 use std::time::{Duration, Instant};
 
+use racing_wheel_engine::ports::HidPort;
+use racing_wheel_engine::safety::{FaultType, SafetyService, SafetyState};
 use racing_wheel_engine::{
     CapabilityNegotiator, DeviceInfo, FFBMode, Frame, GameCompatibility, ModeSelectionPolicy,
     NegotiationResult, Pipeline, VirtualDevice, VirtualHidPort,
 };
-use racing_wheel_engine::ports::HidPort;
-use racing_wheel_engine::safety::{FaultType, SafetyService, SafetyState};
 use racing_wheel_schemas::prelude::*;
 use racing_wheel_telemetry_adapters::adapter_factories;
 
@@ -30,9 +30,13 @@ async fn test_device_enumeration_identifies_supported_device() -> Result<()> {
     let id: DeviceId = "virtual-wheel-001".parse()?;
     let device = VirtualDevice::new(id.clone(), "Moza R16 Virtual".to_string());
     let mut port = VirtualHidPort::new();
-    port.add_device(device).map_err(|e| anyhow::anyhow!("{}", e))?;
+    port.add_device(device)
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-    let devices = port.list_devices().await.map_err(|e| anyhow::anyhow!("{}", e))?;
+    let devices = port
+        .list_devices()
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     assert_eq!(devices.len(), 1, "Expected exactly one device listed");
     let info: &DeviceInfo = &devices[0];
@@ -56,7 +60,10 @@ async fn test_device_enumeration_multiple_devices() -> Result<()> {
     port.add_device(VirtualDevice::new(id_b.clone(), "Beta Wheel".to_string()))
         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-    let devices = port.list_devices().await.map_err(|e| anyhow::anyhow!("{}", e))?;
+    let devices = port
+        .list_devices()
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     assert_eq!(devices.len(), 2, "Expected two devices");
 
     let ids: Vec<&DeviceId> = devices.iter().map(|d| &d.id).collect();
@@ -68,7 +75,10 @@ async fn test_device_enumeration_multiple_devices() -> Result<()> {
 #[tokio::test]
 async fn test_device_enumeration_empty_port() -> Result<()> {
     let port = VirtualHidPort::new();
-    let devices = port.list_devices().await.map_err(|e| anyhow::anyhow!("{}", e))?;
+    let devices = port
+        .list_devices()
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     assert!(devices.is_empty(), "No devices expected on empty port");
     Ok(())
 }
@@ -78,9 +88,13 @@ async fn test_device_open_and_read_telemetry() -> Result<()> {
     let id: DeviceId = "telem-device-001".parse()?;
     let device = VirtualDevice::new(id.clone(), "Telemetry Wheel".to_string());
     let mut port = VirtualHidPort::new();
-    port.add_device(device).map_err(|e| anyhow::anyhow!("{}", e))?;
+    port.add_device(device)
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-    let mut opened = port.open_device(&id).await.map_err(|e| anyhow::anyhow!("{}", e))?;
+    let mut opened = port
+        .open_device(&id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     assert!(opened.is_connected(), "Opened device should be connected");
 
     let telemetry = opened.read_telemetry();
@@ -88,7 +102,9 @@ async fn test_device_open_and_read_telemetry() -> Result<()> {
         telemetry.is_some(),
         "Connected device should return telemetry"
     );
-    let telem = telemetry.as_ref().ok_or_else(|| anyhow::anyhow!("telemetry missing"))?;
+    let telem = telemetry
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("telemetry missing"))?;
     assert!(
         telem.temperature_c >= 20 && telem.temperature_c <= 100,
         "Temperature should be in valid range"
@@ -217,10 +233,10 @@ fn test_ffb_mode_selection_raw_torque_preferred() -> Result<()> {
 #[test]
 fn test_ffb_capability_negotiation_with_game() -> Result<()> {
     let caps = DeviceCapabilities::new(
-        true,  // supports_pid
-        true,  // supports_raw_torque_1khz
-        true,  // supports_health_stream
-        true,  // supports_led_bus
+        true, // supports_pid
+        true, // supports_raw_torque_1khz
+        true, // supports_health_stream
+        true, // supports_led_bus
         TorqueNm::new(25.0)?,
         65535,
         1000,
@@ -298,11 +314,7 @@ fn test_telemetry_adapter_unique_game_ids() -> Result<()> {
     let factories = adapter_factories();
     let mut seen = std::collections::HashSet::new();
     for (id, factory) in factories {
-        assert!(
-            seen.insert(*id),
-            "Duplicate adapter factory ID: {}",
-            id
-        );
+        assert!(seen.insert(*id), "Duplicate adapter factory ID: {}", id);
         let adapter = factory();
         assert_eq!(
             adapter.game_id(),
@@ -327,10 +339,7 @@ fn test_telemetry_forza_normalize_rejects_short_packet() -> Result<()> {
     // A packet that is too short should be rejected
     let short_packet = [0u8; 4];
     let result = adapter.normalize(&short_packet);
-    assert!(
-        result.is_err(),
-        "Short packet should fail normalization"
-    );
+    assert!(result.is_err(), "Short packet should fail normalization");
     Ok(())
 }
 
@@ -405,10 +414,7 @@ fn test_plugin_manifest_validation_safe_class() -> Result<()> {
     let manifest = make_test_manifest(PluginClass::Safe, "safe-test-plugin");
 
     let result = validator.validate(&manifest);
-    assert!(
-        result.is_ok(),
-        "Valid Safe manifest should pass validation"
-    );
+    assert!(result.is_ok(), "Valid Safe manifest should pass validation");
     Ok(())
 }
 
@@ -418,10 +424,7 @@ fn test_plugin_manifest_validation_fast_class() -> Result<()> {
     let manifest = make_test_manifest(PluginClass::Fast, "fast-test-plugin");
 
     let result = validator.validate(&manifest);
-    assert!(
-        result.is_ok(),
-        "Valid Fast manifest should pass validation"
-    );
+    assert!(result.is_ok(), "Valid Fast manifest should pass validation");
     Ok(())
 }
 
@@ -600,11 +603,7 @@ fn test_safety_all_fault_types_transition_to_faulted() -> Result<()> {
                     fault
                 );
             }
-            other => anyhow::bail!(
-                "Expected Faulted state for {:?}, got {:?}",
-                fault,
-                other
-            ),
+            other => anyhow::bail!("Expected Faulted state for {:?}, got {:?}", fault, other),
         }
 
         // Verify torque is zero for every fault type

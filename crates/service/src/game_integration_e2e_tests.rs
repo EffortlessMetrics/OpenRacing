@@ -708,9 +708,7 @@ mod tests {
     async fn test_e2e_suite_creation() -> Result<(), Box<dyn std::error::Error>> {
         let suite = must(GameIntegrationE2ETestSuite::new().await);
         let supported_games = suite.get_supported_games().await;
-        let expected: std::collections::HashSet<String> = matrix_game_ids()?
-            .into_iter()
-            .collect();
+        let expected: std::collections::HashSet<String> = matrix_game_ids()?.into_iter().collect();
         let actual: std::collections::HashSet<String> = supported_games.into_iter().collect();
 
         assert_eq!(actual, expected);

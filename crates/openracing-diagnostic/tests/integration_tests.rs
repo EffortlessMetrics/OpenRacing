@@ -67,8 +67,7 @@ fn test_complete_recording_workflow() -> Result<(), Box<dyn std::error::Error>> 
     // Record frames
     for i in 0..100 {
         let frame = create_test_frame(i);
-        recorder
-            .record_frame(frame, &[0.1, 0.2, 0.3], SafetyStateSimple::SafeTorque, 100)?;
+        recorder.record_frame(frame, &[0.1, 0.2, 0.3], SafetyStateSimple::SafeTorque, 100)?;
     }
 
     // Record telemetry
@@ -112,8 +111,7 @@ fn test_recording_and_replay_consistency() -> Result<(), Box<dyn std::error::Err
     for i in 0..50 {
         let frame = create_test_frame(i);
         recorded_frames.push(frame.clone());
-        recorder
-            .record_frame(frame, &[0.1, 0.2], SafetyStateSimple::SafeTorque, 100)?;
+        recorder.record_frame(frame, &[0.1, 0.2], SafetyStateSimple::SafeTorque, 100)?;
     }
 
     let output_path = recorder.finalize()?;
@@ -141,8 +139,7 @@ fn test_deterministic_replay() -> Result<(), Box<dyn std::error::Error>> {
 
     for i in 0..30 {
         let frame = create_test_frame(i);
-        recorder
-            .record_frame(frame, &[0.1], SafetyStateSimple::SafeTorque, 100)?;
+        recorder.record_frame(frame, &[0.1], SafetyStateSimple::SafeTorque, 100)?;
     }
 
     let output_path = recorder.finalize()?;
@@ -194,8 +191,7 @@ fn test_support_bundle_generation() -> Result<(), Box<dyn std::error::Error>> {
 
     for i in 0..20 {
         let frame = create_test_frame(i);
-        recorder
-            .record_frame(frame, &[], SafetyStateSimple::SafeTorque, 100)?;
+        recorder.record_frame(frame, &[], SafetyStateSimple::SafeTorque, 100)?;
     }
     recorder.finalize()?;
 
@@ -265,15 +261,18 @@ fn test_compression_effectiveness() -> Result<(), Box<dyn std::error::Error>> {
         let frame = create_test_frame(i);
         let node_outputs = vec![0.1, 0.2, 0.3];
 
-        recorder_compressed
-            .record_frame(
-                frame.clone(),
-                &node_outputs,
-                SafetyStateSimple::SafeTorque,
-                100,
-            )?;
-        recorder_uncompressed
-            .record_frame(frame, &node_outputs, SafetyStateSimple::SafeTorque, 100)?;
+        recorder_compressed.record_frame(
+            frame.clone(),
+            &node_outputs,
+            SafetyStateSimple::SafeTorque,
+            100,
+        )?;
+        recorder_uncompressed.record_frame(
+            frame,
+            &node_outputs,
+            SafetyStateSimple::SafeTorque,
+            100,
+        )?;
     }
 
     let compressed_path = recorder_compressed.finalize()?;
@@ -317,8 +316,7 @@ fn test_format_validation() -> Result<(), Box<dyn std::error::Error>> {
 
     for i in 0..20 {
         let frame = create_test_frame(i);
-        recorder
-            .record_frame(frame, &[], SafetyStateSimple::SafeTorque, 100)?;
+        recorder.record_frame(frame, &[], SafetyStateSimple::SafeTorque, 100)?;
     }
 
     let output_path = recorder.finalize()?;

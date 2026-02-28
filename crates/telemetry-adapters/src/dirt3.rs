@@ -219,22 +219,18 @@ mod tests {
     #[test]
     fn known_values_parsed_correctly() -> Result<(), Box<dyn std::error::Error>> {
         use crate::codemasters_shared::{
-            OFF_BRAKE, OFF_GEAR, OFF_MAX_RPM, OFF_RPM, OFF_STEER, OFF_THROTTLE,
-            OFF_WHEEL_SPEED_FL, OFF_WHEEL_SPEED_FR, OFF_WHEEL_SPEED_RL, OFF_WHEEL_SPEED_RR,
+            OFF_BRAKE, OFF_GEAR, OFF_MAX_RPM, OFF_RPM, OFF_STEER, OFF_THROTTLE, OFF_WHEEL_SPEED_FL,
+            OFF_WHEEL_SPEED_FR, OFF_WHEEL_SPEED_RL, OFF_WHEEL_SPEED_RR,
         };
 
         let adapter = Dirt3Adapter::new();
         let mut buf = make_packet(MIN_PACKET_SIZE);
 
         // Set wheel speeds to 25.0 m/s each → average = 25.0
-        buf[OFF_WHEEL_SPEED_FL..OFF_WHEEL_SPEED_FL + 4]
-            .copy_from_slice(&25.0_f32.to_le_bytes());
-        buf[OFF_WHEEL_SPEED_FR..OFF_WHEEL_SPEED_FR + 4]
-            .copy_from_slice(&25.0_f32.to_le_bytes());
-        buf[OFF_WHEEL_SPEED_RL..OFF_WHEEL_SPEED_RL + 4]
-            .copy_from_slice(&25.0_f32.to_le_bytes());
-        buf[OFF_WHEEL_SPEED_RR..OFF_WHEEL_SPEED_RR + 4]
-            .copy_from_slice(&25.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_FL..OFF_WHEEL_SPEED_FL + 4].copy_from_slice(&25.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_FR..OFF_WHEEL_SPEED_FR + 4].copy_from_slice(&25.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_RL..OFF_WHEEL_SPEED_RL + 4].copy_from_slice(&25.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_RR..OFF_WHEEL_SPEED_RR + 4].copy_from_slice(&25.0_f32.to_le_bytes());
 
         buf[OFF_RPM..OFF_RPM + 4].copy_from_slice(&5000.0_f32.to_le_bytes());
         buf[OFF_MAX_RPM..OFF_MAX_RPM + 4].copy_from_slice(&8000.0_f32.to_le_bytes());

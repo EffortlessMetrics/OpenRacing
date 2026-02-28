@@ -307,8 +307,7 @@ mod tests {
         let rps = rpm * (std::f32::consts::PI / 30.0);
         let max_rps = 8000.0f32 * (std::f32::consts::PI / 30.0);
         data[OFF_ENGINE_RPS..OFF_ENGINE_RPS + 4].copy_from_slice(&rps.to_le_bytes());
-        data[OFF_MAX_ENGINE_RPS..OFF_MAX_ENGINE_RPS + 4]
-            .copy_from_slice(&max_rps.to_le_bytes());
+        data[OFF_MAX_ENGINE_RPS..OFF_MAX_ENGINE_RPS + 4].copy_from_slice(&max_rps.to_le_bytes());
         data[OFF_FUEL_LEFT..OFF_FUEL_LEFT + 4].copy_from_slice(&30.0f32.to_le_bytes());
         data[OFF_FUEL_CAPACITY..OFF_FUEL_CAPACITY + 4].copy_from_slice(&60.0f32.to_le_bytes());
         data[OFF_SPEED..OFF_SPEED + 4].copy_from_slice(&speed.to_le_bytes());

@@ -40,7 +40,11 @@ fn create_comprehensive_filter_config() -> Result<FilterConfig, Box<dyn std::err
     })
 }
 
-fn create_test_profile(id: &str, scope: ProfileScope, filter_config: FilterConfig) -> Result<Profile, Box<dyn std::error::Error>> {
+fn create_test_profile(
+    id: &str,
+    scope: ProfileScope,
+    filter_config: FilterConfig,
+) -> Result<Profile, Box<dyn std::error::Error>> {
     let profile_id = ProfileId::new(id.to_string())?;
     let base_settings = BaseSettings::new(
         Gain::new(0.75)?,
@@ -240,7 +244,8 @@ async fn test_two_phase_apply_complete_integration() -> Result<(), Box<dyn std::
 }
 
 #[tokio::test]
-async fn test_deterministic_profile_resolution_comprehensive() -> Result<(), Box<dyn std::error::Error>> {
+async fn test_deterministic_profile_resolution_comprehensive()
+-> Result<(), Box<dyn std::error::Error>> {
     // Test that profile resolution is completely deterministic
 
     let merge_engine = ProfileMergeEngine;
@@ -568,8 +573,7 @@ async fn test_end_to_end_performance_requirements() -> Result<(), Box<dyn std::e
     let compile_start = std::time::Instant::now();
     let compiled_pipeline = compiler
         .compile_pipeline(merge_result.profile.base_settings.filters)
-        .await
-        ?;
+        .await?;
     let compile_duration = compile_start.elapsed();
 
     // RT execution benchmark

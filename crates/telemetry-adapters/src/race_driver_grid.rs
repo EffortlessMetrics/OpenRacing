@@ -371,14 +371,10 @@ mod tests {
         let adapter = RaceDriverGridAdapter::new();
         let mut buf = make_packet(MIN_PACKET_SIZE);
 
-        buf[OFF_WHEEL_SPEED_FL..OFF_WHEEL_SPEED_FL + 4]
-            .copy_from_slice(&20.0_f32.to_le_bytes());
-        buf[OFF_WHEEL_SPEED_FR..OFF_WHEEL_SPEED_FR + 4]
-            .copy_from_slice(&20.0_f32.to_le_bytes());
-        buf[OFF_WHEEL_SPEED_RL..OFF_WHEEL_SPEED_RL + 4]
-            .copy_from_slice(&20.0_f32.to_le_bytes());
-        buf[OFF_WHEEL_SPEED_RR..OFF_WHEEL_SPEED_RR + 4]
-            .copy_from_slice(&20.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_FL..OFF_WHEEL_SPEED_FL + 4].copy_from_slice(&20.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_FR..OFF_WHEEL_SPEED_FR + 4].copy_from_slice(&20.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_RL..OFF_WHEEL_SPEED_RL + 4].copy_from_slice(&20.0_f32.to_le_bytes());
+        buf[OFF_WHEEL_SPEED_RR..OFF_WHEEL_SPEED_RR + 4].copy_from_slice(&20.0_f32.to_le_bytes());
 
         buf[OFF_RPM..OFF_RPM + 4].copy_from_slice(&6000.0_f32.to_le_bytes());
         buf[OFF_MAX_RPM..OFF_MAX_RPM + 4].copy_from_slice(&8500.0_f32.to_le_bytes());

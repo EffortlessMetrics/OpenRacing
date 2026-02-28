@@ -44,13 +44,10 @@ async fn test_device_enumeration_and_refresh() -> Result<(), Box<dyn std::error:
     let devices1 = port.list_devices().await?;
 
     // Refresh devices
-    port.refresh_devices()
-        .await?;
+    port.refresh_devices().await?;
 
     // Second enumeration should work
-    let devices2 = port
-        .list_devices()
-        .await?;
+    let devices2 = port.list_devices().await?;
 
     // Should have same number of devices (assuming no hot-plug during test)
     assert_eq!(devices1.len(), devices2.len());
@@ -79,9 +76,7 @@ async fn test_device_opening_and_operations() -> Result<(), Box<dyn std::error::
     println!("Testing with device: {}", device_info.name);
 
     // Open device
-    let mut device = port
-        .open_device(&device_info.id)
-        .await?;
+    let mut device = port.open_device(&device_info.id).await?;
 
     // Device should be connected
     assert!(device.is_connected());
@@ -121,9 +116,7 @@ async fn test_device_monitoring() -> Result<(), Box<dyn std::error::Error>> {
     let port = create_hid_port()?;
 
     // Start monitoring
-    let mut event_rx = port
-        .monitor_devices()
-        .await?;
+    let mut event_rx = port.monitor_devices().await?;
 
     // Wait for initial events or timeout
     let timeout_duration = Duration::from_millis(1000);
@@ -163,9 +156,7 @@ async fn test_rt_safe_ffb_writing() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let device_info = &devices[0];
-    let mut device = port
-        .open_device(&device_info.id)
-        .await?;
+    let mut device = port.open_device(&device_info.id).await?;
 
     // Test rapid FFB writes (simulating 1kHz operation)
     let write_count = Arc::new(AtomicU32::new(0));
@@ -223,9 +214,7 @@ async fn test_telemetry_reading_consistency() -> Result<(), Box<dyn std::error::
     }
 
     let device_info = &devices[0];
-    let mut device = port
-        .open_device(&device_info.id)
-        .await?;
+    let mut device = port.open_device(&device_info.id).await?;
 
     // Read telemetry multiple times
     let mut telemetry_readings = Vec::new();
@@ -395,9 +384,7 @@ async fn test_ffb_write_latency_benchmark() -> Result<(), Box<dyn std::error::Er
     }
 
     let device_info = &devices[0];
-    let mut device = port
-        .open_device(&device_info.id)
-        .await?;
+    let mut device = port.open_device(&device_info.id).await?;
 
     // Warm up
     for i in 0..10 {

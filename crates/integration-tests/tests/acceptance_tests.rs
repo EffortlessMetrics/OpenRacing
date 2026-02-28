@@ -24,9 +24,7 @@ use std::time::{Duration, Instant};
 use racing_wheel_engine::policies::SafetyPolicy;
 use racing_wheel_engine::protocol::{TorqueCommand, fault_flags};
 use racing_wheel_engine::safety::{FaultType, SafetyState};
-use racing_wheel_engine::{
-    CapabilityNegotiator, FFBMode, GameCompatibility, ModeSelectionPolicy,
-};
+use racing_wheel_engine::{CapabilityNegotiator, FFBMode, GameCompatibility, ModeSelectionPolicy};
 use racing_wheel_schemas::prelude::*;
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -42,8 +40,8 @@ use racing_wheel_schemas::prelude::*;
 /// And    reports correct capabilities (2.8 Nm, 900°, PID support)
 /// ```
 #[test]
-fn scenario_plug_and_play_logitech_g29_detected_with_correct_capabilities(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_plug_and_play_logitech_g29_detected_with_correct_capabilities()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a Logitech G29 (2.8 Nm max torque, PID-only, no raw torque at 1 kHz)
     let g29_caps = DeviceCapabilities::new(
         true,  // supports_pid
@@ -51,8 +49,8 @@ fn scenario_plug_and_play_logitech_g29_detected_with_correct_capabilities(
         false, // supports_health_stream
         false, // supports_led_bus
         TorqueNm::new(2.8)?,
-        4096,  // encoder CPR
-        2000,  // min report period (500 Hz max)
+        4096, // encoder CPR
+        2000, // min report period (500 Hz max)
     );
 
     // Simulate the capabilities report round-trip (device → host)
@@ -63,10 +61,7 @@ fn scenario_plug_and_play_logitech_g29_detected_with_correct_capabilities(
         .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
 
     // Then: the device is identified with PID support
-    assert!(
-        parsed.supports_pid,
-        "Logitech G29 must report PID support"
-    );
+    assert!(parsed.supports_pid, "Logitech G29 must report PID support");
     assert!(
         !parsed.supports_raw_torque_1khz,
         "Logitech G29 must NOT report raw-torque 1 kHz support"
@@ -108,33 +103,21 @@ fn scenario_plug_and_play_logitech_g29_detected_with_correct_capabilities(
 /// Then   all are identified with correct capabilities
 /// ```
 #[test]
-fn scenario_multi_device_enumeration_identifies_all_vendors(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_multi_device_enumeration_identifies_all_vendors()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: three devices from different vendors
     let devices: Vec<(&str, DeviceCapabilities)> = vec![
         (
             "Logitech G29 (PID-only, 2.8 Nm)",
-            DeviceCapabilities::new(
-                true, false, false, false,
-                TorqueNm::new(2.8)?,
-                4096, 2000,
-            ),
+            DeviceCapabilities::new(true, false, false, false, TorqueNm::new(2.8)?, 4096, 2000),
         ),
         (
             "Fanatec CSL DD (raw torque, 8 Nm)",
-            DeviceCapabilities::new(
-                true, true, true, true,
-                TorqueNm::new(8.0)?,
-                65535, 1000,
-            ),
+            DeviceCapabilities::new(true, true, true, true, TorqueNm::new(8.0)?, 65535, 1000),
         ),
         (
             "Simucube 2 Pro (raw torque, 25 Nm)",
-            DeviceCapabilities::new(
-                true, true, true, true,
-                TorqueNm::new(25.0)?,
-                65535, 500,
-            ),
+            DeviceCapabilities::new(true, true, true, true, TorqueNm::new(25.0)?, 65535, 500),
         ),
     ];
 
@@ -157,7 +140,10 @@ fn scenario_multi_device_enumeration_identifies_all_vendors(
     // And: the Logitech G29 capabilities are correct
     let (_, ref g29) = parsed_devices[0];
     assert!(g29.supports_pid, "G29 must support PID");
-    assert!(!g29.supports_raw_torque_1khz, "G29 must not support raw torque");
+    assert!(
+        !g29.supports_raw_torque_1khz,
+        "G29 must not support raw torque"
+    );
     assert!(
         (g29.max_torque.value() - 2.8).abs() < 0.1,
         "G29 max torque must be ~2.8 Nm"
@@ -165,7 +151,10 @@ fn scenario_multi_device_enumeration_identifies_all_vendors(
 
     // And: the Fanatec CSL DD capabilities are correct
     let (_, ref csl_dd) = parsed_devices[1];
-    assert!(csl_dd.supports_raw_torque_1khz, "CSL DD must support raw torque");
+    assert!(
+        csl_dd.supports_raw_torque_1khz,
+        "CSL DD must support raw torque"
+    );
     assert!(
         (csl_dd.max_torque.value() - 8.0).abs() < 0.1,
         "CSL DD max torque must be ~8 Nm"
@@ -173,7 +162,10 @@ fn scenario_multi_device_enumeration_identifies_all_vendors(
 
     // And: the Simucube 2 Pro capabilities are correct
     let (_, ref sc2) = parsed_devices[2];
-    assert!(sc2.supports_raw_torque_1khz, "SC2 Pro must support raw torque");
+    assert!(
+        sc2.supports_raw_torque_1khz,
+        "SC2 Pro must support raw torque"
+    );
     assert!(
         (sc2.max_torque.value() - 25.0).abs() < 0.1,
         "SC2 Pro max torque must be ~25 Nm"
@@ -247,8 +239,8 @@ fn make_acc_car_update_packet(gear_raw: u8, speed_kmh: u16) -> Vec<u8> {
 /// And    all fields have valid ranges
 /// ```
 #[test]
-fn scenario_telemetry_reception_acc_packet_parsed_with_valid_ranges(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_telemetry_reception_acc_packet_parsed_with_valid_ranges()
+-> Result<(), Box<dyn std::error::Error>> {
     use racing_wheel_telemetry_adapters::{ACCAdapter, TelemetryAdapter};
 
     // Given: an ACC session sending a RealtimeCarUpdate packet
@@ -306,8 +298,8 @@ fn scenario_telemetry_reception_acc_packet_parsed_with_valid_ranges(
 /// Then   normalize() returns Err (no panic, no undefined behaviour)
 /// ```
 #[test]
-fn scenario_telemetry_reception_truncated_packet_returns_error(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_telemetry_reception_truncated_packet_returns_error()
+-> Result<(), Box<dyn std::error::Error>> {
     use racing_wheel_telemetry_adapters::{ACCAdapter, TelemetryAdapter};
 
     let adapter = ACCAdapter::new();
@@ -337,14 +329,11 @@ fn scenario_telemetry_reception_truncated_packet_returns_error(
 /// And    the command is formatted for the device's protocol
 /// ```
 #[test]
-fn scenario_ffb_pipeline_3nm_command_on_5nm_device_within_limits(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_ffb_pipeline_3nm_command_on_5nm_device_within_limits()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a device with 5 Nm max torque
-    let device_caps = DeviceCapabilities::new(
-        true, true, true, false,
-        TorqueNm::new(5.0)?,
-        65535, 1000,
-    );
+    let device_caps =
+        DeviceCapabilities::new(true, true, true, false, TorqueNm::new(5.0)?, 65535, 1000);
 
     // And: a safety policy (default: 5 Nm safe limit, 25 Nm high limit)
     let policy = SafetyPolicy::new()?;
@@ -372,10 +361,7 @@ fn scenario_ffb_pipeline_3nm_command_on_5nm_device_within_limits(
 
     // And: the command is formatted for the OWP-1 wire protocol
     let cmd = TorqueCommand::new(validated.value(), 0x00, 1);
-    assert!(
-        cmd.validate_crc(),
-        "torque command CRC must be valid"
-    );
+    assert!(cmd.validate_crc(), "torque command CRC must be valid");
     assert!(
         (cmd.torque_nm() - 3.0).abs() < 0.01,
         "wire-format torque must be ~3 Nm, got {}",
@@ -383,10 +369,7 @@ fn scenario_ffb_pipeline_3nm_command_on_5nm_device_within_limits(
     );
 
     // And: the report ID is correct (0x20 = torque command)
-    assert_eq!(
-        cmd.report_id, 0x20,
-        "torque command report ID must be 0x20"
-    );
+    assert_eq!(cmd.report_id, 0x20, "torque command report ID must be 0x20");
 
     Ok(())
 }
@@ -399,22 +382,15 @@ fn scenario_ffb_pipeline_3nm_command_on_5nm_device_within_limits(
 /// Then   the safety policy rejects it as exceeding the limit
 /// ```
 #[test]
-fn scenario_ffb_pipeline_command_exceeding_device_limit_rejected(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_ffb_pipeline_command_exceeding_device_limit_rejected()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a device with 5 Nm max torque in safe mode (5 Nm safe limit)
-    let device_caps = DeviceCapabilities::new(
-        true, true, true, false,
-        TorqueNm::new(5.0)?,
-        65535, 1000,
-    );
+    let device_caps =
+        DeviceCapabilities::new(true, true, true, false, TorqueNm::new(5.0)?, 65535, 1000);
     let policy = SafetyPolicy::new()?;
 
     // When: a 10 Nm command is requested (exceeds both device and safe-mode limits)
-    let result = policy.validate_torque_limits(
-        TorqueNm::new(10.0)?,
-        false,
-        &device_caps,
-    );
+    let result = policy.validate_torque_limits(TorqueNm::new(10.0)?, false, &device_caps);
 
     // Then: the policy rejects the request
     assert!(
@@ -438,8 +414,8 @@ fn scenario_ffb_pipeline_command_exceeding_device_limit_rejected(
 /// And    torque output goes to zero
 /// ```
 #[test]
-fn scenario_safety_interlock_comm_loss_activates_within_50ms(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_safety_interlock_comm_loss_activates_within_50ms()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: the engine is running normally (SafeTorque state, 5 Nm safe, 25 Nm high)
     let mut safety = racing_wheel_engine::safety::SafetyService::new(5.0, 25.0);
     assert_eq!(
@@ -495,13 +471,25 @@ fn scenario_safety_interlock_comm_loss_activates_within_50ms(
 /// Then   the safety interlock activates and torque goes to zero
 /// ```
 #[test]
-fn scenario_safety_interlock_all_critical_faults_trigger_shutdown(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_safety_interlock_all_critical_faults_trigger_shutdown()
+-> Result<(), Box<dyn std::error::Error>> {
     let critical_faults: &[(FaultType, u8, &str)] = &[
         (FaultType::UsbStall, fault_flags::USB_FAULT, "USB stall"),
-        (FaultType::EncoderNaN, fault_flags::ENCODER_FAULT, "encoder NaN"),
-        (FaultType::ThermalLimit, fault_flags::THERMAL_FAULT, "thermal limit"),
-        (FaultType::Overcurrent, fault_flags::OVERCURRENT_FAULT, "overcurrent"),
+        (
+            FaultType::EncoderNaN,
+            fault_flags::ENCODER_FAULT,
+            "encoder NaN",
+        ),
+        (
+            FaultType::ThermalLimit,
+            fault_flags::THERMAL_FAULT,
+            "thermal limit",
+        ),
+        (
+            FaultType::Overcurrent,
+            fault_flags::OVERCURRENT_FAULT,
+            "overcurrent",
+        ),
     ];
 
     let policy = SafetyPolicy::new()?;
@@ -543,8 +531,8 @@ fn scenario_safety_interlock_all_critical_faults_trigger_shutdown(
 /// Then   the result is always 0 Nm
 /// ```
 #[test]
-fn scenario_safety_interlock_clamping_in_faulted_state_returns_zero(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_safety_interlock_clamping_in_faulted_state_returns_zero()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut safety = racing_wheel_engine::safety::SafetyService::new(5.0, 25.0);
     safety.report_fault(FaultType::UsbStall);
 
@@ -573,8 +561,8 @@ fn scenario_safety_interlock_clamping_in_faulted_state_returns_zero(
 /// And    device settings are reconfigured
 /// ```
 #[test]
-fn scenario_game_profile_switch_acc_to_iracing_applies_correct_settings(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_game_profile_switch_acc_to_iracing_applies_correct_settings()
+-> Result<(), Box<dyn std::error::Error>> {
     use openracing_profile::{WheelProfile, WheelSettings, validation};
 
     // Given: an ACC profile with ACC-specific settings
@@ -635,8 +623,7 @@ fn scenario_game_profile_switch_acc_to_iracing_applies_correct_settings(
 
     // And: steering range is reconfigured (540° ACC → 900° iRacing)
     assert_ne!(
-        acc_profile.settings.input.steering_range,
-        iracing_profile.settings.input.steering_range,
+        acc_profile.settings.input.steering_range, iracing_profile.settings.input.steering_range,
         "steering range must differ between ACC and iRacing profiles"
     );
     assert_eq!(
@@ -668,8 +655,7 @@ fn scenario_game_profile_switch_acc_to_iracing_applies_correct_settings(
 /// And    the invalid profile is never applied
 /// ```
 #[test]
-fn scenario_game_profile_invalid_settings_rejected(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_game_profile_invalid_settings_rejected() -> Result<(), Box<dyn std::error::Error>> {
     use openracing_profile::{WheelProfile, WheelSettings, validation};
 
     // Given: a profile with an FFB gain > 1.0 (invalid)
@@ -680,8 +666,7 @@ fn scenario_game_profile_invalid_settings_rejected(
         },
         ..Default::default()
     };
-    let bad_profile =
-        WheelProfile::new("Bad Profile", "test-device").with_settings(bad_settings);
+    let bad_profile = WheelProfile::new("Bad Profile", "test-device").with_settings(bad_settings);
 
     // When: the profile is validated
     let result = validation::validate_profile(&bad_profile);
@@ -703,14 +688,11 @@ fn scenario_game_profile_invalid_settings_rejected(
 /// Then   the negotiated FFB mode adapts accordingly
 /// ```
 #[test]
-fn scenario_game_profile_mode_negotiation_adapts_to_game(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_game_profile_mode_negotiation_adapts_to_game() -> Result<(), Box<dyn std::error::Error>>
+{
     // Given: a direct-drive device
-    let dd_caps = DeviceCapabilities::new(
-        true, true, true, true,
-        TorqueNm::new(25.0)?,
-        65535, 1000,
-    );
+    let dd_caps =
+        DeviceCapabilities::new(true, true, true, true, TorqueNm::new(25.0)?, 65535, 1000);
 
     // ACC supports robust FFB → should get RawTorque
     let acc_compat = GameCompatibility {
