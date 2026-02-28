@@ -116,31 +116,31 @@ crossbeam = "0.8.4"
 mimalloc = "0.1.48"
 
 # Workspace-local microcrates
-openracing-atomic = { path = "crates/openracing-atomic" }
-openracing-tracing = { path = "crates/openracing-tracing" }
-openracing-scheduler = { path = "crates/openracing-scheduler" }
-openracing-curves = { path = "crates/openracing-curves" }
-openracing-errors = { path = "crates/openracing-errors" }
-openracing-filters = { path = "crates/openracing-filters" }
-openracing-pipeline = { path = "crates/openracing-pipeline" }
-openracing-crypto = { path = "crates/openracing-crypto" }
-openracing-plugin-abi = { path = "crates/openracing-plugin-abi" }
-openracing-native-plugin = { path = "crates/openracing-native-plugin" }
-openracing-wasm-runtime = { path = "crates/openracing-wasm-runtime" }
-openracing-test-helpers = { path = "crates/openracing-test-helpers" }
-openracing-fmea = { path = "crates/openracing-fmea" }
-openracing-watchdog = { path = "crates/openracing-watchdog" }
-openracing-hardware-watchdog = { path = "crates/openracing-hardware-watchdog" }
-openracing-profile-repository = { path = "crates/openracing-profile-repository" }
-openracing-firmware-update = { path = "crates/openracing-firmware-update" }
-openracing-ipc = { path = "crates/openracing-ipc" }
-openracing-diagnostic = { path = "crates/openracing-diagnostic" }
-openracing-device-types = { path = "crates/openracing-device-types" }
-openracing-hid-common = { path = "crates/openracing-hid-common" }
-openracing-shifter = { path = "crates/openracing-shifter" }
-openracing-handbrake = { path = "crates/openracing-handbrake" }
-openracing-ffb = { path = "crates/openracing-ffb" }
-openracing-calibration = { path = "crates/openracing-calibration" }
+openracing-atomic = { path = "crates/openracing-atomic", version = "0.1.0" }
+openracing-tracing = { path = "crates/openracing-tracing", version = "0.1.0" }
+openracing-scheduler = { path = "crates/openracing-scheduler", version = "0.1.0" }
+openracing-curves = { path = "crates/openracing-curves", version = "0.1.0" }
+openracing-errors = { path = "crates/openracing-errors", version = "0.1.0" }
+openracing-filters = { path = "crates/openracing-filters", version = "0.1.0" }
+openracing-pipeline = { path = "crates/openracing-pipeline", version = "0.1.0" }
+openracing-crypto = { path = "crates/openracing-crypto", version = "0.1.0" }
+openracing-plugin-abi = { path = "crates/openracing-plugin-abi", version = "0.1.0" }
+openracing-native-plugin = { path = "crates/openracing-native-plugin", version = "0.1.0" }
+openracing-wasm-runtime = { path = "crates/openracing-wasm-runtime", version = "0.1.0" }
+openracing-test-helpers = { path = "crates/openracing-test-helpers", version = "0.1.0" }
+openracing-fmea = { path = "crates/openracing-fmea", version = "0.1.0" }
+openracing-watchdog = { path = "crates/openracing-watchdog", version = "0.1.0" }
+openracing-hardware-watchdog = { path = "crates/openracing-hardware-watchdog", version = "0.1.0" }
+openracing-profile-repository = { path = "crates/openracing-profile-repository", version = "0.1.0" }
+openracing-firmware-update = { path = "crates/openracing-firmware-update", version = "0.1.0" }
+openracing-ipc = { path = "crates/openracing-ipc", version = "0.1.0" }
+openracing-diagnostic = { path = "crates/openracing-diagnostic", version = "0.1.0" }
+openracing-device-types = { path = "crates/openracing-device-types", version = "0.1.0" }
+openracing-hid-common = { path = "crates/openracing-hid-common", version = "0.1.0" }
+openracing-shifter = { path = "crates/openracing-shifter", version = "0.1.0" }
+openracing-handbrake = { path = "crates/openracing-handbrake", version = "0.1.0" }
+openracing-ffb = { path = "crates/openracing-ffb", version = "0.1.0" }
+openracing-calibration = { path = "crates/openracing-calibration", version = "0.1.0" }
 
 # HID and hardware
 hidapi = "2.6.4"
@@ -185,23 +185,23 @@ os_info = "3.14.0"
 chrono = { version = "0.4.43", features = ["serde"] }
 
 # Workspace-local crates (prefer workspace deps over per-crate path deps)
-racing-wheel-telemetry-config-writers = { path = "crates/telemetry-config-writers" }
-racing-wheel-hbp = { path = "crates/hbp" }
-racing-wheel-hid-fanatec-protocol = { path = "crates/hid-fanatec-protocol" }
-racing-wheel-hid-logitech-protocol = { path = "crates/hid-logitech-protocol" }
-racing-wheel-hid-simagic-protocol = { path = "crates/hid-simagic-protocol" }
-racing-wheel-hid-vrs-protocol = { path = "crates/hid-vrs-protocol" }
-racing-wheel-hid-simucube-protocol = { path = "crates/hid-simucube-protocol" }
-racing-wheel-hid-heusinkveld-protocol = { path = "crates/hid-heusinkveld-protocol" }
-racing-wheel-hid-asetek-protocol = { path = "crates/hid-asetek-protocol" }
-racing-wheel-hid-button-box-protocol = { path = "crates/hid-button-box-protocol" }
-racing-wheel-hid-leo-bodnar-protocol = { path = "crates/hid-leo-bodnar-protocol" }
+racing-wheel-telemetry-config-writers = { path = "crates/telemetry-config-writers", version = "0.1.0" }
+racing-wheel-hbp = { path = "crates/hbp", version = "0.1.0" }
+racing-wheel-hid-fanatec-protocol = { path = "crates/hid-fanatec-protocol", version = "0.1.0" }
+racing-wheel-hid-logitech-protocol = { path = "crates/hid-logitech-protocol", version = "0.1.0" }
+racing-wheel-hid-simagic-protocol = { path = "crates/hid-simagic-protocol", version = "0.1.0" }
+racing-wheel-hid-vrs-protocol = { path = "crates/hid-vrs-protocol", version = "0.1.0" }
+racing-wheel-hid-simucube-protocol = { path = "crates/hid-simucube-protocol", version = "0.1.0" }
+racing-wheel-hid-heusinkveld-protocol = { path = "crates/hid-heusinkveld-protocol", version = "0.1.0" }
+racing-wheel-hid-asetek-protocol = { path = "crates/hid-asetek-protocol", version = "0.1.0" }
+racing-wheel-hid-button-box-protocol = { path = "crates/hid-button-box-protocol", version = "0.1.0" }
+racing-wheel-hid-leo-bodnar-protocol = { path = "crates/hid-leo-bodnar-protocol", version = "0.1.0" }
 racing-wheel-hid-accuforce-protocol = { path = "crates/hid-accuforce-protocol", version = "0.1.0" }
-racing-wheel-simplemotion-v2 = { path = "crates/simplemotion-v2" }
-racing-wheel-ks = { path = "crates/ks" }
-racing-wheel-moza-wheelbase-report = { path = "crates/moza-wheelbase-report" }
-racing-wheel-changelog = { path = "crates/changelog" }
-racing-wheel-srp = { path = "crates/srp" }
+racing-wheel-simplemotion-v2 = { path = "crates/simplemotion-v2", version = "0.1.0" }
+racing-wheel-ks = { path = "crates/ks", version = "0.1.0" }
+racing-wheel-moza-wheelbase-report = { path = "crates/moza-wheelbase-report", version = "0.1.0" }
+racing-wheel-changelog = { path = "crates/changelog", version = "0.1.0" }
+racing-wheel-srp = { path = "crates/srp", version = "0.1.0" }
 
 [profile.release]
 lto = true

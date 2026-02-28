@@ -13,8 +13,8 @@ readme = "README.md"
 keywords = ["telemetry", "lfs", "live-for-speed", "outgauge", "racing"]
 
 [dependencies]
-racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
-racing-wheel-telemetry-core = { path = "../telemetry-core" }
+racing-wheel-telemetry-adapters = { path = "../telemetry-adapters", version = "0.1.0" }
+racing-wheel-telemetry-core = { path = "../telemetry-core", version = "0.1.0" }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true }

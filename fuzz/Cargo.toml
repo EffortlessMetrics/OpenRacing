@@ -11,28 +11,28 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-racing-wheel-telemetry-adapters = { path = "../crates/telemetry-adapters" }
-racing-wheel-telemetry-core = { path = "../crates/telemetry-core" }
-racing-wheel-hid-ffbeast-protocol = { path = "../crates/hid-ffbeast-protocol" }
-racing-wheel-hid-moza-protocol = { path = "../crates/hid-moza-protocol" }
-racing-wheel-hid-thrustmaster-protocol = { path = "../crates/hid-thrustmaster-protocol" }
-racing-wheel-hid-simucube-protocol = { path = "../crates/hid-simucube-protocol", package = "hid-simucube-protocol" }
-racing-wheel-hid-asetek-protocol = { path = "../crates/hid-asetek-protocol", package = "hid-asetek-protocol" }
-racing-wheel-hid-vrs-protocol = { path = "../crates/hid-vrs-protocol" }
-racing-wheel-hid-simagic-protocol = { path = "../crates/hid-simagic-protocol" }
-racing-wheel-hid-heusinkveld-protocol = { path = "../crates/hid-heusinkveld-protocol", package = "hid-heusinkveld-protocol" }
-racing-wheel-hid-cammus-protocol = { path = "../crates/hid-cammus-protocol" }
-racing-wheel-hid-fanatec-protocol = { path = "../crates/hid-fanatec-protocol" }
-racing-wheel-hid-openffboard-protocol = { path = "../crates/hid-openffboard-protocol" }
-racing-wheel-hid-logitech-protocol = { path = "../crates/hid-logitech-protocol" }
-racing-wheel-ks = { path = "../crates/ks" }
-racing-wheel-srp = { path = "../crates/srp" }
-racing-wheel-hbp = { path = "../crates/hbp" }
-racing-wheel-moza-wheelbase-report = { path = "../crates/moza-wheelbase-report" }
+racing-wheel-telemetry-adapters = { path = "../crates/telemetry-adapters", version = "0.1.0" }
+racing-wheel-telemetry-core = { path = "../crates/telemetry-core", version = "0.1.0" }
+racing-wheel-hid-ffbeast-protocol = { path = "../crates/hid-ffbeast-protocol", version = "0.1.0" }
+racing-wheel-hid-moza-protocol = { path = "../crates/hid-moza-protocol", version = "0.1.0" }
+racing-wheel-hid-thrustmaster-protocol = { path = "../crates/hid-thrustmaster-protocol", version = "0.1.0" }
+racing-wheel-hid-simucube-protocol = { path = "../crates/hid-simucube-protocol", version = "0.1.0", package = "hid-simucube-protocol" }
+racing-wheel-hid-asetek-protocol = { path = "../crates/hid-asetek-protocol", version = "0.1.0", package = "hid-asetek-protocol" }
+racing-wheel-hid-vrs-protocol = { path = "../crates/hid-vrs-protocol", version = "0.1.0" }
+racing-wheel-hid-simagic-protocol = { path = "../crates/hid-simagic-protocol", version = "0.1.0" }
+racing-wheel-hid-heusinkveld-protocol = { path = "../crates/hid-heusinkveld-protocol", version = "0.1.0", package = "hid-heusinkveld-protocol" }
+racing-wheel-hid-cammus-protocol = { path = "../crates/hid-cammus-protocol", version = "0.1.0" }
+racing-wheel-hid-fanatec-protocol = { path = "../crates/hid-fanatec-protocol", version = "0.1.0" }
+racing-wheel-hid-openffboard-protocol = { path = "../crates/hid-openffboard-protocol", version = "0.1.0" }
+racing-wheel-hid-logitech-protocol = { path = "../crates/hid-logitech-protocol", version = "0.1.0" }
+racing-wheel-ks = { path = "../crates/ks", version = "0.1.0" }
+racing-wheel-srp = { path = "../crates/srp", version = "0.1.0" }
+racing-wheel-hbp = { path = "../crates/hbp", version = "0.1.0" }
+racing-wheel-moza-wheelbase-report = { path = "../crates/moza-wheelbase-report", version = "0.1.0" }
 
-racing-wheel-hid-button-box-protocol = { path = "../crates/hid-button-box-protocol", package = "hid-button-box-protocol" }
-racing-wheel-hid-leo-bodnar-protocol = { path = "../crates/hid-leo-bodnar-protocol" }
-racing-wheel-hid-accuforce-protocol = { path = "../crates/hid-accuforce-protocol" }
+racing-wheel-hid-button-box-protocol = { path = "../crates/hid-button-box-protocol", version = "0.1.0", package = "hid-button-box-protocol" }
+racing-wheel-hid-leo-bodnar-protocol = { path = "../crates/hid-leo-bodnar-protocol", version = "0.1.0" }
+racing-wheel-hid-accuforce-protocol = { path = "../crates/hid-accuforce-protocol", version = "0.1.0" }
 
 # Fuzzing requires nightly and release-like optimizations.
 [[bin]]

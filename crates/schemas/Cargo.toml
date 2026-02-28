@@ -1,4 +1,5 @@
 [package]
+description = "racing-wheel-schemas - part of OpenRacing"
 name = "racing-wheel-schemas"
 version.workspace = true
 edition.workspace = true

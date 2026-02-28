@@ -1,4 +1,5 @@
 [package]
+description = "racing-wheel-srp - part of OpenRacing"
 name = "racing-wheel-srp"
 version.workspace = true
 edition.workspace = true

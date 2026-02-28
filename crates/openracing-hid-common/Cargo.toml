@@ -1,4 +1,5 @@
 [package]
+description = "openracing-hid-common - part of OpenRacing"
 name = "openracing-hid-common"
 version.workspace = true
 edition.workspace = true
@@ -8,7 +9,7 @@ repository.workspace = true
 
 [dependencies]
 hidapi = { workspace = true }
-racing-wheel-schemas = { path = "../schemas" }
+racing-wheel-schemas = { path = "../schemas", version = "0.1.0" }
 serde = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

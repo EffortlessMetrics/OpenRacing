@@ -1,4 +1,5 @@
 [package]
+description = "openracing-shifter - part of OpenRacing"
 name = "openracing-shifter"
 version.workspace = true
 edition.workspace = true

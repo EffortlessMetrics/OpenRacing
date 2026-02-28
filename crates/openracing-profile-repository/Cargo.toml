@@ -10,7 +10,7 @@ keywords = ["profile", "storage", "repository", "persistence", "openracing"]
 categories = ["config", "filesystem"]
 
 [dependencies]
-racing-wheel-schemas = { path = "../schemas" }
+racing-wheel-schemas = { path = "../schemas", version = "0.1.0" }
 openracing-errors = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }

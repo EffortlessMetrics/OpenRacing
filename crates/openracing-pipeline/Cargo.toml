@@ -17,7 +17,7 @@ categories = ["embedded", "game-development", "algorithms"]
 openracing-curves = { workspace = true }
 openracing-errors = { workspace = true }
 openracing-filters = { workspace = true }
-racing-wheel-schemas = { path = "../schemas" }
+racing-wheel-schemas = { path = "../schemas", version = "0.1.0" }
 tokio = { workspace = true, features = ["sync"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }

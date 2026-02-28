@@ -1,4 +1,5 @@
 [package]
+description = "racing-wheel-moza-wheelbase-report - part of OpenRacing"
 name = "racing-wheel-moza-wheelbase-report"
 version.workspace = true
 edition.workspace = true
