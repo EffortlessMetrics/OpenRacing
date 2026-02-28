@@ -274,7 +274,7 @@ impl TelemetryAdapter for DirtRally2Adapter {
 
             info!(port = bind_port, "DiRT Rally 2.0 UDP adapter bound");
 
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
             let mut buf = vec![0u8; MAX_PACKET_SIZE];
             let timeout = (update_rate * 4).max(Duration::from_millis(25));
 
@@ -303,12 +303,12 @@ impl TelemetryAdapter for DirtRally2Adapter {
 
                 last_packet_ns.store(telemetry_now_ns(), Ordering::Relaxed);
 
-                let frame = TelemetryFrame::new(normalized, telemetry_now_ns(), sequence, len);
+                let frame = TelemetryFrame::new(normalized, telemetry_now_ns(), frame_seq, len);
                 if tx.send(frame).await.is_err() {
                     break;
                 }
 
-                sequence = sequence.saturating_add(1);
+                frame_seq = frame_seq.saturating_add(1);
             }
         });
 

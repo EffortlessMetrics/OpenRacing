@@ -255,6 +255,25 @@ See friction log entry **F-005** for the history of why this document was create
 
 ---
 
+## PXN (Shenzhen Jinyu Technology Co., Ltd.)
+
+**VID:** `0x11FF`  
+**Source:** [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table; USB VID registry ([the-sz.com](https://www.the-sz.com/products/usbid/index.php?v=11FF)) lists VID `0x11FF` as assigned to Shenzhen Jinyu Technology, which produces PXN brand sim-racing hardware.  
+**Status:** VIDs verified; V10/V12 PIDs community-sourced; VD-series PIDs unknown.
+
+| PID      | Device Name            | Status    |
+|----------|------------------------|-----------|
+| `0x3245` | PXN V10 (direct drive) | Community |
+| `0x1212` | PXN V12                | Community |
+| `0x1112` | PXN V12 Lite           | Community |
+| `0x1211` | PXN V12 Lite SE        | Community |
+| `0x2141` | PXN GT987 FF           | Community |
+
+> **Note:** PXN VD4, VD6, and VD10 PIDs are unknown — they are not listed in the JacKeTUs compatibility table or any other public source at the time of writing.  
+> `FFB_REPORT_ID = 0x05` is an estimate; standard PIDFF uses `0x01`. Verify against a USB capture when hardware is available.
+
+---
+
 ## VID Collision Map
 
 Several vendors share a VID. Always disambiguate using the PID (and `iProduct` string if necessary).

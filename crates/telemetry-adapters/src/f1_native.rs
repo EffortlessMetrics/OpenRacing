@@ -261,7 +261,7 @@ impl TelemetryAdapter for F1NativeAdapter {
             );
 
             let mut state = F1NativeState::default();
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
             let mut buf = vec![0u8; MAX_PACKET_BYTES];
             let timeout = update_rate * 4;
 
@@ -284,11 +284,11 @@ impl TelemetryAdapter for F1NativeAdapter {
                 match Self::process_packet(&mut state, &buf[..len]) {
                     Ok(Some(normalized)) => {
                         let ts = telemetry_now_ns();
-                        let frame = TelemetryFrame::new(normalized, ts, sequence, len);
+                        let frame = TelemetryFrame::new(normalized, ts, frame_seq, len);
                         if tx.send(frame).await.is_err() {
                             break;
                         }
-                        sequence = sequence.saturating_add(1);
+                        frame_seq = frame_seq.saturating_add(1);
                     }
                     Ok(None) => {}
                     Err(err) => {

@@ -12,6 +12,7 @@
 pub mod ids;
 pub mod input;
 pub mod output;
+pub mod quirks;
 pub mod types;
 
 pub use ids::{VRS_PRODUCT_ID, VRS_VENDOR_ID, product_ids};

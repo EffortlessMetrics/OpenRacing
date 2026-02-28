@@ -344,7 +344,7 @@ impl TelemetryAdapter for Automobilista1Adapter {
             let mut adapter = Self::new();
             tokio::spawn(async move {
                 let mut connected = false;
-                let mut sequence = 0u64;
+                let mut frame_seq = 0u64;
 
                 loop {
                     if !connected {
@@ -363,13 +363,13 @@ impl TelemetryAdapter for Automobilista1Adapter {
                                 let frame = TelemetryFrame::new(
                                     normalized,
                                     telemetry_now_ns(),
-                                    sequence,
+                                    frame_seq,
                                     snapshot.len(),
                                 );
                                 if tx.send(frame).await.is_err() {
                                     break;
                                 }
-                                sequence = sequence.saturating_add(1);
+                                frame_seq = frame_seq.saturating_add(1);
                             }
                             Err(error) => {
                                 warn!(error = %error, "Failed to parse Automobilista 1 snapshot");
