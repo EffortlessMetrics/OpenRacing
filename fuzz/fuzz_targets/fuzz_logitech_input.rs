@@ -1,11 +1,12 @@
-//! Fuzzes the Logitech HID input report parser and constant-force encoder.
+//! Fuzzes the Logitech HID input report parser, constant-force encoder, and device identification.
 //!
 //! Run with:
 //!   cargo +nightly fuzz run fuzz_logitech_input
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 use racing_wheel_hid_logitech_protocol::{
-    LogitechConstantForceEncoder, CONSTANT_FORCE_REPORT_LEN, parse_input_report,
+    CONSTANT_FORCE_REPORT_LEN, LogitechConstantForceEncoder, LogitechModel, is_wheel_product,
+    parse_input_report,
 };
 
 fuzz_target!(|data: &[u8]| {
@@ -20,5 +21,12 @@ fuzz_target!(|data: &[u8]| {
         let enc = LogitechConstantForceEncoder::new(2.2);
         let mut out = [0u8; CONSTANT_FORCE_REPORT_LEN];
         enc.encode(torque, &mut out);
+    }
+
+    // Device identification with arbitrary PID.
+    if data.len() >= 2 {
+        let pid = u16::from_le_bytes([data[0], data[1]]);
+        let _ = is_wheel_product(pid);
+        let _ = LogitechModel::from_product_id(pid);
     }
 });
