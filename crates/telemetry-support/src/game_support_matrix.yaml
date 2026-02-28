@@ -343,7 +343,7 @@ games:
           - "Documents/OpenRacing/f1_native_contract.json"
         executable_patterns:
           - "F1_23.exe"
-        telemetry_method: "udp_native_f1_23"
+        telemetry_method: "udp_native_f1_native"
         supported_fields:
           - "rpm"
           - "speed_ms"
@@ -356,7 +356,7 @@ games:
           - "Documents/OpenRacing/f1_native_contract.json"
         executable_patterns:
           - "F1_24.exe"
-        telemetry_method: "udp_native_f1_24"
+        telemetry_method: "udp_native_f1_native"
         supported_fields:
           - "rpm"
           - "speed_ms"

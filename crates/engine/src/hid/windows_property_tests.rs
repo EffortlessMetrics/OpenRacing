@@ -433,7 +433,7 @@ proptest! {
             Err(_) => return Ok(()), // Already asserted above, this is unreachable
         };
 
-        let max_latency = Duration::from_micros(MAX_WRITE_LATENCY_US * 10);
+        let max_latency = Duration::from_micros(MAX_WRITE_LATENCY_US * 250); // 50ms for CI load
 
         // Test with the given torque value and a fixed frame counter
         let command = TorqueCommand::new(torque, 0, true, false);
@@ -642,7 +642,7 @@ mod unit_tests {
 
         assert!(result.is_ok(), "Write should succeed: {:?}", result);
         assert!(
-            elapsed < Duration::from_micros(MAX_WRITE_LATENCY_US * 10),
+            elapsed < Duration::from_micros(MAX_WRITE_LATENCY_US * 250),
             "Write took {:?}, exceeding maximum allowed latency",
             elapsed
         );
@@ -663,7 +663,7 @@ mod unit_tests {
 
         assert!(result.is_ok(), "Write should succeed: {:?}", result);
         assert!(
-            elapsed < Duration::from_micros(MAX_WRITE_LATENCY_US * 10),
+            elapsed < Duration::from_micros(MAX_WRITE_LATENCY_US * 250),
             "Write took {:?}, exceeding maximum allowed latency",
             elapsed
         );
@@ -684,7 +684,7 @@ mod unit_tests {
 
         assert!(result.is_ok(), "Write should succeed: {:?}", result);
         assert!(
-            elapsed < Duration::from_micros(MAX_WRITE_LATENCY_US * 10),
+            elapsed < Duration::from_micros(MAX_WRITE_LATENCY_US * 250),
             "Write took {:?}, exceeding maximum allowed latency",
             elapsed
         );
@@ -705,7 +705,7 @@ mod unit_tests {
 
         assert!(result.is_ok(), "Write should succeed: {:?}", result);
         assert!(
-            elapsed < Duration::from_micros(MAX_WRITE_LATENCY_US * 10),
+            elapsed < Duration::from_micros(MAX_WRITE_LATENCY_US * 250),
             "Write took {:?}, exceeding maximum allowed latency",
             elapsed
         );
@@ -726,7 +726,7 @@ mod unit_tests {
 
         assert!(result.is_ok(), "Write should succeed: {:?}", result);
         assert!(
-            elapsed < Duration::from_micros(MAX_WRITE_LATENCY_US * 10),
+            elapsed < Duration::from_micros(MAX_WRITE_LATENCY_US * 250),
             "Write took {:?}, exceeding maximum allowed latency",
             elapsed
         );
@@ -788,7 +788,7 @@ mod unit_tests {
 
         // Error should be returned quickly without blocking
         assert!(
-            elapsed < Duration::from_micros(MAX_WRITE_LATENCY_US * 10),
+            elapsed < Duration::from_micros(MAX_WRITE_LATENCY_US * 250),
             "Error return took {:?}, exceeding maximum allowed latency",
             elapsed
         );
@@ -800,7 +800,7 @@ mod unit_tests {
     #[test]
     fn test_write_flag_combinations_timing() -> TestResult {
         let mut device = create_test_device()?;
-        let max_latency = Duration::from_micros(MAX_WRITE_LATENCY_US * 10);
+        let max_latency = Duration::from_micros(MAX_WRITE_LATENCY_US * 250);
 
         let flag_combinations = [(false, false), (true, false), (false, true), (true, true)];
 

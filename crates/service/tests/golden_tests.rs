@@ -416,7 +416,6 @@ async fn test_game_support_matrix_structure() {
 #[tokio::test]
 async fn test_game_service_matrix_configured_games_roundtrip() {
     let service = must(GameService::new().await);
-    let temp_dir = must(TempDir::new());
     let expected: Vec<String> = must(matrix_game_ids());
 
     let mut supported_games = service.get_supported_games().await;
@@ -424,6 +423,7 @@ async fn test_game_service_matrix_configured_games_roundtrip() {
     assert_eq!(supported_games.len(), expected.len());
 
     for game_id in supported_games {
+        let temp_dir = must(TempDir::new());
         let support = must(service.get_game_support(&game_id).await);
         let config = matrix_config_from_support(&game_id, &support);
 

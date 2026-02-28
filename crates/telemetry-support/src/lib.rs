@@ -210,7 +210,10 @@ mod tests {
         let matrix = load_default_matrix()?;
         for (id, game) in &matrix.games {
             assert!(!game.name.is_empty(), "game {} has empty name", id);
-            assert!(game.telemetry.update_rate_hz > 0, "game {} zero hz", id);
+            // Only check update_rate_hz for games that actually support telemetry
+            if game.telemetry.method != "none" {
+                assert!(game.telemetry.update_rate_hz > 0, "game {} zero hz", id);
+            }
         }
         Ok(())
     }

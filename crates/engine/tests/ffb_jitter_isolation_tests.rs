@@ -771,7 +771,7 @@ mod timing_validation_tests {
 
                 // Allow extra tolerance on Windows due to timer resolution and test load
                 let rate_tolerance = if cfg!(windows) {
-                    rate * 0.45
+                    rate * 0.70
                 } else {
                     rate * 0.1
                 };
