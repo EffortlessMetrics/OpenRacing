@@ -394,7 +394,6 @@ impl SupportedDevices {
             (vendor_ids::THRUSTMASTER, 0xB669, "Thrustmaster TX Racing"),
             (vendor_ids::THRUSTMASTER, 0xB677, "Thrustmaster T150"),
             (vendor_ids::THRUSTMASTER, 0xB696, "Thrustmaster T248"),
-            (vendor_ids::THRUSTMASTER, 0xB697, "Thrustmaster T248X"),
             (vendor_ids::THRUSTMASTER, 0xB689, "Thrustmaster TS-PC Racer"),
             (vendor_ids::THRUSTMASTER, 0xB692, "Thrustmaster TS-XW"),
             (
@@ -402,11 +401,11 @@ impl SupportedDevices {
                 0xB691,
                 "Thrustmaster TS-XW (GIP mode)",
             ),
-            (vendor_ids::THRUSTMASTER, 0xB69A, "Thrustmaster T-LCM Pro"),
+            (vendor_ids::THRUSTMASTER, 0xB69A, "Thrustmaster T248X"),
             (vendor_ids::THRUSTMASTER, 0xB69B, "Thrustmaster T818"),
-            (vendor_ids::THRUSTMASTER, 0xB678, "Thrustmaster T3PA"),
-            (vendor_ids::THRUSTMASTER, 0xB679, "Thrustmaster T3PA Pro"),
-            (vendor_ids::THRUSTMASTER, 0xB68D, "Thrustmaster T-LCM"),
+            // NOTE: Thrustmaster pedal PIDs 0xB678/0xB679/0xB68D removed —
+            // web research confirmed these are HOTAS peripherals, not pedals.
+            // Actual Thrustmaster pedal PIDs remain unconfirmed.
             // Moza Racing wheelbases - V1
             (vendor_ids::MOZA, 0x0005, "Moza R3"),
             (vendor_ids::MOZA, 0x0004, "Moza R5"),
@@ -1269,10 +1268,9 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.min_report_period_us = 2000;
                 }
                 0xB69A => {
-                    // T-LCM Pro (pedal, not wheel)
-                    capabilities.supports_pid = false;
-                    capabilities.supports_raw_torque_1khz = false;
-                    capabilities.max_torque = TorqueNm::ZERO;
+                    // T248X (GIP/Xbox, 4.0 Nm — verified via linux-hardware.org)
+                    capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
+                    capabilities.min_report_period_us = 2000;
                 }
                 0xB669 => {
                     // TX Racing (Xbox, 4.0 Nm belt drive)
@@ -1298,23 +1296,13 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.supports_raw_torque_1khz = true;
                     capabilities.min_report_period_us = 1000;
                 }
-                0xB697 => {
-                    // T248X (Xbox, 4.0 Nm)
-                    capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
-                    capabilities.min_report_period_us = 2000;
-                }
                 0xB68E => {
                     // TPR Rudder (flight sim pedals, not a racing wheel)
                     capabilities.supports_pid = false;
                     capabilities.supports_raw_torque_1khz = false;
                     capabilities.max_torque = TorqueNm::ZERO;
                 }
-                0xB678 | 0xB679 | 0xB68D => {
-                    // T3PA, T3PA Pro, T-LCM (pedals)
-                    capabilities.supports_pid = false;
-                    capabilities.supports_raw_torque_1khz = false;
-                    capabilities.max_torque = TorqueNm::ZERO;
-                }
+                // NOTE: 0xB678/0xB679/0xB68D removed — were HOTAS PIDs, not pedals
                 _ => {
                     capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
                 }
@@ -2778,7 +2766,7 @@ mod tests {
         assert!(SupportedDevices::is_supported(
             vendor_ids::THRUSTMASTER,
             0xB69A
-        )); // T-LCM Pro
+        )); // T248X
         assert!(SupportedDevices::is_supported(
             vendor_ids::THRUSTMASTER,
             0xB69B

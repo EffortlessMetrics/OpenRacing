@@ -403,15 +403,12 @@ impl LinuxHidPort {
             (0x044F, 0xB669), // Thrustmaster TX Racing
             (0x044F, 0xB677), // Thrustmaster T150
             (0x044F, 0xB696), // Thrustmaster T248
-            (0x044F, 0xB697), // Thrustmaster T248X
             (0x044F, 0xB689), // Thrustmaster TS-PC Racer
             (0x044F, 0xB692), // Thrustmaster TS-XW
             (0x044F, 0xB691), // Thrustmaster TS-XW (GIP mode)
-            (0x044F, 0xB69A), // Thrustmaster T-LCM Pro
+            (0x044F, 0xB69A), // Thrustmaster T248X
             (0x044F, 0xB69B), // Thrustmaster T818
-            (0x044F, 0xB678), // Thrustmaster T3PA
-            (0x044F, 0xB679), // Thrustmaster T3PA Pro
-            (0x044F, 0xB68D), // Thrustmaster T-LCM
+            // NOTE: 0xB678/0xB679/0xB68D removed — HOTAS peripherals, not pedals
             // Moza Racing - V1
             (0x346E, 0x0005), // Moza R3
             (0x346E, 0x0004), // Moza R5

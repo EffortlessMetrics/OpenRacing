@@ -61,11 +61,14 @@ fn test_new_t150() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_pedal_handler() -> Result<(), Box<dyn std::error::Error>> {
-    let handler = ThrustmasterProtocolHandler::new(THRUSTMASTER_VENDOR_ID, product_ids::T3PA);
-    assert_eq!(handler.model(), Model::T3PA);
+    // Use an unrecognized PID to test unknown/non-FFB device behavior
+    // (Thrustmaster pedal PIDs were removed as unverified)
+    let handler = ThrustmasterProtocolHandler::new(THRUSTMASTER_VENDOR_ID, 0xFFFF);
+    assert_eq!(handler.model(), Model::Unknown);
     assert!(!handler.model().supports_ffb());
     let config = handler.get_ffb_config();
-    assert!((config.max_torque_nm - 0.0).abs() < 0.01);
+    // Unknown Thrustmaster PID gets a default 4.0 Nm fallback
+    assert!((config.max_torque_nm - 4.0).abs() < 0.01);
     Ok(())
 }
 
@@ -97,14 +100,15 @@ fn test_initialize_wheel() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_initialize_pedal() -> Result<(), Box<dyn std::error::Error>> {
-    let handler = ThrustmasterProtocolHandler::new(THRUSTMASTER_VENDOR_ID, product_ids::T3PA);
+    // Use unknown PID to test non-FFB device init (pedal PIDs removed as unverified)
+    let handler = ThrustmasterProtocolHandler::new(THRUSTMASTER_VENDOR_ID, 0xFFFF);
     let mut writer = MockDeviceWriter::new();
     handler.initialize_device(&mut writer)?;
 
     assert_eq!(
         writer.feature_reports.len(),
         0,
-        "pedal init must send no reports"
+        "non-FFB device init must send no reports"
     );
     Ok(())
 }
@@ -144,7 +148,8 @@ fn test_output_report_id() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_output_report_id_pedal() -> Result<(), Box<dyn std::error::Error>> {
-    let handler = ThrustmasterProtocolHandler::new(THRUSTMASTER_VENDOR_ID, product_ids::T_LCM);
+    // Use unknown PID to test non-FFB device (pedal PIDs removed as unverified)
+    let handler = ThrustmasterProtocolHandler::new(THRUSTMASTER_VENDOR_ID, 0xFFFF);
     assert_eq!(handler.output_report_id(), None);
     Ok(())
 }
@@ -200,13 +205,13 @@ fn test_is_wheel_product_known_ids() {
     assert!(is_wheel_product(product_ids::TS_XW));
     assert!(is_wheel_product(product_ids::T300_RS));
     assert!(is_wheel_product(product_ids::T818));
-    assert!(!is_wheel_product(product_ids::T_LCM));
     assert!(!is_wheel_product(0xFFFF));
 }
 
 #[test]
 fn test_is_pedal_product_known_ids() {
-    assert!(is_pedal_product(product_ids::T_LCM));
-    assert!(is_pedal_product(product_ids::T3PA));
+    // No verified Thrustmaster pedal PIDs currently exist
+    // (0xB678/0xB679/0xB68D/0xB69A were incorrectly assigned HOTAS PIDs)
+    assert!(!is_pedal_product(0xFFFF));
     assert!(!is_pedal_product(product_ids::TS_XW));
 }
