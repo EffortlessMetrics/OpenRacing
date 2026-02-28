@@ -207,6 +207,38 @@ No compile-time help distinguishes "this is a renamed constant" from "this const
 
 ---
 
+### F-020 · `cargo tree --duplicates` CI gate overly strict (Medium · Resolved)
+
+**Encountered:** RC sprint (feat/r7-quirks-cleanup-v2) — the `dependency-governance` CI job ran `cargo tree --duplicates` and exited with code 1 on any output. Large workspaces using Tauri, tokio, and wasmtime inevitably have parallel major versions (`syn v1/v2`, `windows-sys`, `zip v2/v7`, etc.).
+
+**Impact:** CI blocked on every PR, including branches that introduced zero new duplicate deps.
+
+**Fix applied:** Changed `exit 1` to `::warning::` GitHub Actions annotation in `.github/workflows/ci.yml`. Duplicate version policy remains enforced by `cargo deny check` (in the `lint-gates` job) which respects `multiple-versions = "warn"` in `deny.toml`. Commit `b9ed332`.
+
+---
+
+### F-021 · Fuzz targets silently unlinked from crate dependencies (Low · Resolved)
+
+**Encountered:** `fuzz_simplemotion.rs` imported `racing_wheel_simplemotion_v2::parse_feedback_report` but `racing-wheel-simplemotion-v2` was absent from `fuzz/Cargo.toml`. The file compiled with a broken import and was never caught by a workspace-level `cargo check`.
+
+**Root cause:** The `fuzz/` directory is an isolated workspace (`[workspace]` in `fuzz/Cargo.toml`). It does not inherit workspace deps and is not checked by the main `cargo check --workspace`.
+
+**Fix applied:** Added `racing-wheel-simplemotion-v2 = { path = "../crates/simplemotion-v2" }` to `fuzz/Cargo.toml`. Commit `4a250f3`.
+
+**Lesson:** When adding a new fuzz target, always add its crate dep to `fuzz/Cargo.toml` and verify with `cargo check --bin fuzz_<name>` from the `fuzz/` directory.
+
+---
+
+### F-022 · ACC2 / AC EVO telemetry — no public protocol docs (Low · Open)
+
+**Encountered:** RC sprint — checked for ACC2 (2025) and AC EVO (2026) telemetry protocols. Neither game has published UDP telemetry documentation.
+
+**Impact:** Cannot implement adapters without community reverse-engineering. These are high-demand titles as they gain adoption.
+
+**Proposed remedy:** Monitor Kunos community forums and GitHub issues; implement once protocol is documented. `seb_loeb_rally.rs` and `f1_manager.rs` are maintained as intentional stubs (no telemetry protocol) for similar reasons.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
@@ -222,6 +254,9 @@ No compile-time help distinguishes "this is a renamed constant" from "this const
 | F-011 | Linux emit_rt_event borrow error | commit 1c3fea5 |
 | F-013 | No developer sync tool for game support matrix | scripts/sync_yaml.py |
 | F-016 | bench_results.json generation undocumented | CLAUDE.md update (feat/r7) |
+| F-017 | `cargo tree --duplicates` CI check too strict | CI change b9ed332 (feat/r7-quirks-cleanup-v2) |
+| F-018 | `fuzz_simplemotion` missing dep in fuzz/Cargo.toml | commit 4a250f3 (feat/r7-quirks-cleanup-v2) |
+| F-019 | 6 SimHub adapters returned empty stub telemetry | simhub.rs rewrite e8d9a20 (feat/r7-quirks-cleanup-v2) |
 
 ---
 
