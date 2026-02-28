@@ -31,6 +31,7 @@ pub const WHEEL_ENCODER_CPR: u32 = 65_535;
 pub const WHEEL_DEFAULT_MAX_TORQUE_NM: f32 = 10.0;
 
 #[cfg(test)]
+#[allow(clippy::assertions_on_constants)]
 mod tests {
     use super::*;
 

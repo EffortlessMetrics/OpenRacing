@@ -59,6 +59,8 @@ pub mod trackmania;
 pub mod wrc_generations;
 pub mod wreckfest;
 pub mod wtcr;
+pub mod motogp;
+pub mod ride5;
 
 /// Shared type alias for outbound telemetry streams.
 pub type TelemetryReceiver = mpsc::Receiver<TelemetryFrame>;
@@ -264,6 +266,14 @@ fn new_flatout_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(flatout::FlatOutAdapter::new())
 }
 
+fn new_motogp_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(motogp::MotoGPAdapter::new())
+}
+
+fn new_ride5_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(ride5::Ride5Adapter::new())
+}
+
 /// Returns the canonical adapter factory registry for all supported native adapters.
 pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
     &[
@@ -307,6 +317,8 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("simhub", new_simhub_adapter),
         ("mudrunner", new_mudrunner_adapter),
         ("snowrunner", new_snowrunner_adapter),
+        ("motogp", new_motogp_adapter),
+        ("ride5", new_ride5_adapter),
     ]
 }
 
@@ -350,6 +362,8 @@ pub use trackmania::TrackmaniaAdapter;
 pub use wrc_generations::WrcGenerationsAdapter;
 pub use wreckfest::WreckfestAdapter;
 pub use wtcr::WtcrAdapter;
+pub use motogp::MotoGPAdapter;
+pub use ride5::Ride5Adapter;
 
 /// Mock adapter for testing and deterministic fixture generation.
 pub struct MockAdapter {

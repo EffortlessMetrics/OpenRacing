@@ -21,6 +21,7 @@ pub const HID_PID_USAGE_PAGE: u16 = 0x000F;
 pub const RECOMMENDED_B_INTERVAL_MS: u8 = 8;
 
 #[cfg(test)]
+#[allow(clippy::assertions_on_constants)]
 mod tests {
     use super::*;
 
