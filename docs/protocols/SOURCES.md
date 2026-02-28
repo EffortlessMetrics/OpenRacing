@@ -255,6 +255,37 @@ See friction log entry **F-005** for the history of why this document was create
 
 ---
 
+## Leo Bodnar Electronics
+
+**VID:** `0x1DD2`  
+**Source:** [USB VID registry (the-sz.com)](https://www.the-sz.com/products/usbid/index.php?v=1DD2) (assigned to Leo Bodnar Electronics Ltd, UK); community USB descriptor captures and [linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels).  
+**Status:** Wheel Interface / BBI-32 / SLI-M confirmed; BU0836 series estimated.
+
+| PID      | Device Name                           | Status    |
+|----------|---------------------------------------|-----------|
+| `0x0001` | USB Joystick (generic input)          | Verified  |
+| `0x000B` | BU0836A 12-bit joystick interface     | Estimated |
+| `0x000C` | BBI-32 Button Box Interface (32 btn)  | Verified  |
+| `0x000E` | USB Sim Racing Wheel Interface (PIDFF)| Verified  |
+| `0x000F` | FFB Joystick (direct drive FF)        | Community |
+| `0x0030` | BU0836X 12-bit joystick interface     | Estimated |
+| `0x0031` | BU0836 16-bit joystick interface      | Estimated |
+| `0xBEEF` | SLI-M Shift Light Indicator           | Verified  |
+
+---
+
+## SimXperience AccuForce
+
+**VID:** `0x1FC9`  
+**Source:** Community USB device captures; [RetroBat Wheels.cs](https://github.com/RetroBat/retrobat) (commit 0a54752); VID `0x1FC9` is assigned to NXP Semiconductors and is used by the NXP USB microcontrollers inside AccuForce wheelbases.  
+**Status:** Community-sourced.
+
+| PID      | Device Name               | Status    |
+|----------|---------------------------|-----------|
+| `0x804C` | AccuForce Pro direct drive| Community |
+
+---
+
 ## PXN (Shenzhen Jinyu Technology Co., Ltd.)
 
 **VID:** `0x11FF`  
