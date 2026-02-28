@@ -1,8 +1,8 @@
 [package]
+license = "MIT OR Apache-2.0"
 name = "racing-wheel-hid-ffbeast-protocol"
 version = "0.1.0"
 edition = "2021"
-license = "MIT OR Apache-2.0"
 description = "FFBeast USB HID protocol constants and encoders (I/O-free, allocation-free)"
 repository = "https://github.com/openracing/openracing"
 

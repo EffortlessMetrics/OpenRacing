@@ -1,4 +1,5 @@
 [package]
+description = "openracing-handbrake - part of OpenRacing"
 name = "openracing-handbrake"
 version.workspace = true
 edition.workspace = true

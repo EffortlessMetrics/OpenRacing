@@ -1,4 +1,5 @@
 [package]
+description = "wheelctl - part of OpenRacing"
 name = "wheelctl"
 version.workspace = true
 edition.workspace = true
@@ -11,8 +12,8 @@ name = "wheelctl"
 path = "src/main.rs"
 
 [dependencies]
-racing-wheel-telemetry-config = { path = "../telemetry-config" }
-racing-wheel-schemas = { path = "../schemas" }
+racing-wheel-telemetry-config = { path = "../telemetry-config", version = "0.1.0" }
+racing-wheel-schemas = { path = "../schemas", version = "0.1.0" }
 tokio = { workspace = true }
 tonic = { workspace = true }
 clap = { version = "4.5.54", features = ["derive", "env", "color"] }

@@ -1,4 +1,5 @@
 [package]
+description = "racing-wheel-input-maps - part of OpenRacing"
 name = "racing-wheel-input-maps"
 version.workspace = true
 edition.workspace = true
@@ -15,7 +16,7 @@ unwrap_used = "deny"
 
 [dependencies]
 serde = { workspace = true }
-racing-wheel-ks = { path = "../ks" }
+racing-wheel-ks = { path = "../ks", version = "0.1.0" }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]

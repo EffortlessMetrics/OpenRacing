@@ -1,4 +1,5 @@
 [package]
+description = "openracing-calibration - part of OpenRacing"
 name = "openracing-calibration"
 version.workspace = true
 edition.workspace = true

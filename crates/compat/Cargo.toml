@@ -1,4 +1,6 @@
 [package]
+license = "MIT OR Apache-2.0"
+description = "compat - part of OpenRacing"
 name = "compat"
 version = "0.1.0"
 edition = "2024"
@@ -8,4 +10,4 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 # Only used in test builds - no runtime dependencies
 
 [dev-dependencies]
-racing-wheel-engine = { path = "../engine" }
+racing-wheel-engine = { path = "../engine", version = "0.1.0" }

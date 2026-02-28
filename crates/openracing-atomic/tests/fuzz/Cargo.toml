@@ -1,4 +1,6 @@
 [package]
+license = "MIT OR Apache-2.0"
+description = "openracing-atomic-fuzz - part of OpenRacing"
 name = "openracing-atomic-fuzz"
 version = "0.1.0"
 edition.workspace = true
@@ -9,7 +11,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-openracing-atomic = { path = ".." }
+openracing-atomic = { path = "..", version = "0.1.0" }
 
 [[bin]]
 name = "fuzz_counter_overflow"

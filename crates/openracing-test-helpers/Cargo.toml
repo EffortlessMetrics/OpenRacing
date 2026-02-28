@@ -6,7 +6,7 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 description = "Shared test utilities for OpenRacing"
-publish = false
+# # publish = false
 
 [lib]
 name = "openracing_test_helpers"
