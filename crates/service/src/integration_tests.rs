@@ -239,10 +239,9 @@ mod tests {
     }
 
     /// Test game integration and telemetry
-    /// TODO: Re-enable when game_service is implemented
     #[tokio::test]
     #[traced_test]
-    #[ignore]
+    #[ignore = "game_service API not yet implemented"]
     async fn test_game_integration() {
         let _service = create_test_service().await;
 
@@ -275,10 +274,9 @@ mod tests {
     }
 
     /// Test force feedback pipeline
-    /// TODO: Re-enable when send_ffb_frame and get_device_statistics are implemented
     #[tokio::test]
     #[traced_test]
-    #[ignore]
+    #[ignore = "send_ffb_frame and get_device_statistics APIs not yet implemented"]
     async fn test_force_feedback_pipeline() -> Result<()> {
         let (service, _temp_dir) = create_test_service().await?;
 
@@ -364,10 +362,9 @@ mod tests {
     }
 
     /// Test plugin system
-    /// TODO: Re-enable when plugin_service is implemented
     #[tokio::test]
     #[traced_test]
-    #[ignore]
+    #[ignore = "plugin_service API not yet implemented"]
     async fn test_plugin_system() {
         let _service = create_test_service().await;
 
@@ -406,10 +403,9 @@ mod tests {
     }
 
     /// Test performance under load
-    /// TODO: Re-enable when FFB pipeline methods are implemented
     #[tokio::test]
     #[traced_test]
-    #[ignore]
+    #[ignore = "FFB pipeline methods (send_ffb_frame, get_device_statistics) not yet implemented"]
     async fn test_performance_under_load() -> Result<()> {
         let (service, _temp_dir) = create_test_service().await?;
 

@@ -38,7 +38,10 @@ mod tests {
 
     #[tokio::test]
     #[traced_test]
-    #[cfg_attr(target_os = "windows", ignore)]
+    #[cfg_attr(
+        target_os = "windows",
+        ignore = "set_var is not thread-safe on Windows"
+    )]
     async fn test_service_config_save_load() -> Result<()> {
         let temp_dir = TempDir::new()?;
 
