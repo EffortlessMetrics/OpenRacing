@@ -203,6 +203,27 @@ impl TelemetryAdapter for ForzaHorizon5Adapter {
 mod tests {
     use super::*;
 
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    /// Build a minimum valid Forza Sled packet (232 bytes, is_race_on=1).
+    fn make_sled_fixture() -> Vec<u8> {
+        let mut data = vec![0u8; 232];
+        data[0..4].copy_from_slice(&1i32.to_le_bytes()); // is_race_on = 1
+        data[8..12].copy_from_slice(&8000.0f32.to_le_bytes()); // engine_max_rpm
+        data[16..20].copy_from_slice(&5000.0f32.to_le_bytes()); // current_rpm
+        data[32..36].copy_from_slice(&20.0f32.to_le_bytes()); // vel_x → speed 20 m/s
+        data
+    }
+
+    /// Build a minimum valid Forza CarDash packet (311 bytes, is_race_on=1).
+    fn make_cardash_fixture() -> Vec<u8> {
+        let mut data = vec![0u8; 311];
+        let sled = make_sled_fixture();
+        data[..232].copy_from_slice(&sled);
+        data[244..248].copy_from_slice(&20.0f32.to_le_bytes()); // dash_speed
+        data
+    }
+
     #[test]
     fn fh4_game_id() {
         assert_eq!(ForzaHorizon4Adapter::new().game_id(), "forza_horizon_4");
@@ -239,5 +260,123 @@ mod tests {
             ForzaHorizon5Adapter::new().expected_update_rate(),
             Duration::from_millis(16)
         );
+    }
+
+    #[test]
+    fn fh4_rejects_empty_input() -> TestResult {
+        let adapter = ForzaHorizon4Adapter::new();
+        let result = adapter.normalize(&[]);
+        assert!(result.is_err(), "empty input must return an error for FH4");
+        Ok(())
+    }
+
+    #[test]
+    fn fh5_rejects_empty_input() -> TestResult {
+        let adapter = ForzaHorizon5Adapter::new();
+        let result = adapter.normalize(&[]);
+        assert!(result.is_err(), "empty input must return an error for FH5");
+        Ok(())
+    }
+
+    #[test]
+    fn fh4_accepts_sled_packet() -> TestResult {
+        let adapter = ForzaHorizon4Adapter::new();
+        let normalized = adapter.normalize(&make_sled_fixture())?;
+        assert!(
+            (normalized.rpm - 5000.0).abs() < 0.01,
+            "RPM mismatch: got {}",
+            normalized.rpm
+        );
+        assert!(
+            (normalized.speed_ms - 20.0).abs() < 0.01,
+            "speed_ms mismatch: got {}",
+            normalized.speed_ms
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn fh5_accepts_sled_packet() -> TestResult {
+        let adapter = ForzaHorizon5Adapter::new();
+        let normalized = adapter.normalize(&make_sled_fixture())?;
+        assert!(
+            (normalized.rpm - 5000.0).abs() < 0.01,
+            "RPM mismatch: got {}",
+            normalized.rpm
+        );
+        assert!(
+            (normalized.speed_ms - 20.0).abs() < 0.01,
+            "speed_ms mismatch: got {}",
+            normalized.speed_ms
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn fh4_accepts_cardash_packet() -> TestResult {
+        let adapter = ForzaHorizon4Adapter::new();
+        let normalized = adapter.normalize(&make_cardash_fixture())?;
+        assert!(
+            (normalized.rpm - 5000.0).abs() < 0.01,
+            "RPM mismatch: got {}",
+            normalized.rpm
+        );
+        assert!(
+            (normalized.speed_ms - 20.0).abs() < 0.01,
+            "speed_ms mismatch: got {}",
+            normalized.speed_ms
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn fh5_accepts_cardash_packet() -> TestResult {
+        let adapter = ForzaHorizon5Adapter::new();
+        let normalized = adapter.normalize(&make_cardash_fixture())?;
+        assert!(
+            (normalized.rpm - 5000.0).abs() < 0.01,
+            "RPM mismatch: got {}",
+            normalized.rpm
+        );
+        assert!(
+            (normalized.speed_ms - 20.0).abs() < 0.01,
+            "speed_ms mismatch: got {}",
+            normalized.speed_ms
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn fh4_sled_snapshot() -> TestResult {
+        let adapter = ForzaHorizon4Adapter::new();
+        let normalized = adapter.normalize(&make_sled_fixture())?;
+        insta::assert_yaml_snapshot!("fh4_sled", normalized);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        /// Arbitrary byte sequences fed to ForzaHorizon4Adapter must never panic.
+        #[test]
+        fn prop_fh4_no_panic_on_arbitrary_bytes(
+            data in proptest::collection::vec(any::<u8>(), 0..512)
+        ) {
+            let adapter = ForzaHorizon4Adapter::new();
+            let _ = adapter.normalize(&data);
+        }
+
+        /// Arbitrary byte sequences fed to ForzaHorizon5Adapter must never panic.
+        #[test]
+        fn prop_fh5_no_panic_on_arbitrary_bytes(
+            data in proptest::collection::vec(any::<u8>(), 0..512)
+        ) {
+            let adapter = ForzaHorizon5Adapter::new();
+            let _ = adapter.normalize(&data);
+        }
     }
 }
