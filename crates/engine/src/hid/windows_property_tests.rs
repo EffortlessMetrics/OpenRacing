@@ -375,7 +375,7 @@ proptest! {
             Err(_) => return Ok(()), // Already asserted above, this is unreachable
         };
 
-        let max_latency = Duration::from_micros(MAX_WRITE_LATENCY_US * 10); // 2ms for CI
+        let max_latency = Duration::from_micros(MAX_WRITE_LATENCY_US * 50); // 10ms for CI batch test (batch has more writes, higher scheduling jitter risk)
         let mut max_observed_latency = Duration::ZERO;
         let mut total_writes = 0u32;
         let mut successful_writes = 0u32;

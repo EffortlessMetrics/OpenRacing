@@ -1382,8 +1382,8 @@ mod tests {
         let device = create_test_device();
         engine.start(device).await.unwrap();
 
-        // Give engine time to process some frames
-        sleep(TokioDuration::from_millis(50)).await;
+        // Give engine time to process some frames (generous timeout for loaded CI)
+        sleep(TokioDuration::from_millis(500)).await;
 
         // Get stats
         let stats = engine.get_stats().await;
