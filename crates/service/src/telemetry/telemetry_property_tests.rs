@@ -348,7 +348,7 @@ fn ams2_data_strategy() -> impl Strategy<Value = AMS2SharedMemory> {
 /// Maximum number of wheels per vehicle
 const RF2_MAX_WHEELS: usize = 4;
 
-/// rFactor 2 wheel telemetry data
+/// rFactor 2 wheel telemetry data (matches adapter's RF2WheelTelemetry)
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 struct RF2WheelTelemetry {
@@ -370,11 +370,9 @@ struct RF2WheelTelemetry {
     pressure: f64,
     temperature: [f64; 3],
     wear: f64,
-    lateral_patch_slip: f32,
-    longitudinal_patch_slip: f32,
 }
 
-/// rFactor 2 vehicle telemetry data
+/// rFactor 2 vehicle telemetry data (matches adapter's RF2VehicleTelemetry)
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 struct RF2VehicleTelemetry {
@@ -388,23 +386,21 @@ struct RF2VehicleTelemetry {
     pos: [f64; 3],
     local_vel: [f64; 3],
     local_accel: [f64; 3],
-    ori: [f64; 3],
+    ori: [[f64; 3]; 3],
     local_rot: [f64; 3],
     local_rot_accel: [f64; 3],
-    speed: f32,
-    gear: i8,
-    _pad1: [u8; 3],
-    engine_rpm: f32,
-    engine_water_temp: f32,
-    engine_oil_temp: f32,
-    clutch_rpm: f32,
-    unfiltered_throttle: f32,
-    unfiltered_brake: f32,
-    unfiltered_steering: f32,
-    unfiltered_clutch: f32,
-    steering_shaft_torque: f32,
-    fuel: f32,
-    engine_max_rpm: f32,
+    gear: i32,
+    engine_rpm: f64,
+    engine_water_temp: f64,
+    engine_oil_temp: f64,
+    clutch_rpm: f64,
+    unfiltered_throttle: f64,
+    unfiltered_brake: f64,
+    unfiltered_steering: f64,
+    unfiltered_clutch: f64,
+    steering_shaft_torque: f64,
+    fuel: f64,
+    engine_max_rpm: f64,
     wheels: [RF2WheelTelemetry; RF2_MAX_WHEELS],
 }
 
@@ -421,12 +417,10 @@ impl Default for RF2VehicleTelemetry {
             pos: [0.0; 3],
             local_vel: [0.0; 3],
             local_accel: [0.0; 3],
-            ori: [0.0; 3],
+            ori: [[0.0; 3]; 3],
             local_rot: [0.0; 3],
             local_rot_accel: [0.0; 3],
-            speed: 0.0,
             gear: 0,
-            _pad1: [0; 3],
             engine_rpm: 0.0,
             engine_water_temp: 0.0,
             engine_oil_temp: 0.0,
@@ -447,29 +441,29 @@ impl Default for RF2VehicleTelemetry {
 fn rfactor2_data_strategy() -> impl Strategy<Value = RF2VehicleTelemetry> {
     // Group 1: Core dynamics (8 elements)
     let dynamics = (
-        0.0f32..100.0,    // speed (m/s)
-        0.0f32..18000.0,  // engine_rpm
-        -1i8..8,          // gear
-        0.0f32..1.0,      // unfiltered_throttle
-        0.0f32..1.0,      // unfiltered_brake
-        -1.0f32..1.0,     // unfiltered_steering
-        0.0f32..1.0,      // unfiltered_clutch
-        -100.0f32..100.0, // steering_shaft_torque (Nm)
+        0.0f64..100.0,    // local_vel magnitude → speed (m/s)
+        0.0f64..18000.0,  // engine_rpm
+        -1i32..8,         // gear (i32 in official rF2 format)
+        0.0f64..1.0,      // unfiltered_throttle
+        0.0f64..1.0,      // unfiltered_brake
+        -1.0f64..1.0,     // unfiltered_steering
+        0.0f64..1.0,      // unfiltered_clutch
+        -100.0f64..100.0, // steering_shaft_torque (Nm)
     );
 
     // Group 2: Additional data (6 elements)
     let additional = (
-        0.0f32..120.0,                       // fuel
-        0.0f32..20000.0,                     // engine_max_rpm
-        0.0f32..120.0,                       // engine_water_temp
-        0.0f32..150.0,                       // engine_oil_temp
+        0.0f64..120.0,                       // fuel
+        0.0f64..20000.0,                     // engine_max_rpm
+        0.0f64..120.0,                       // engine_water_temp
+        0.0f64..150.0,                       // engine_oil_temp
         0i32..100,                           // lap_number
-        prop::array::uniform4(-1.0f32..1.0), // wheel lateral_patch_slip
+        prop::array::uniform4(-1.0f64..1.0), // wheel lateral_patch_vel
     );
 
     (dynamics, additional).prop_map(|(d, a)| {
         let mut data = RF2VehicleTelemetry {
-            speed: d.0,
+            local_vel: [d.0, 0.0, 0.0], // speed in x direction
             engine_rpm: d.1,
             gear: d.2,
             unfiltered_throttle: d.3,
@@ -484,9 +478,9 @@ fn rfactor2_data_strategy() -> impl Strategy<Value = RF2VehicleTelemetry> {
             lap_number: a.4,
             ..Default::default()
         };
-        // Set wheel slip values
-        for (i, slip) in a.5.iter().enumerate() {
-            data.wheels[i].lateral_patch_slip = *slip;
+        // Set wheel lateral_patch_vel values
+        for (i, vel) in a.5.iter().enumerate() {
+            data.wheels[i].lateral_patch_vel = *vel;
         }
         // Add vehicle and track names
         let vehicle_name = b"formula_renault\0";
