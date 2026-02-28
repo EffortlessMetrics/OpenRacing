@@ -271,14 +271,14 @@ mod tests {
 
         manager.quarantine(
             "plugin_a",
-            Some(Duration::from_millis(10)),
+            Some(Duration::from_millis(500)),
             QuarantineReason::TimingViolation,
             &mut stats,
         );
 
         assert!(manager.is_quarantined("plugin_a"));
 
-        thread::sleep(Duration::from_millis(20));
+        thread::sleep(Duration::from_millis(600));
 
         let cleaned = manager.cleanup_expired();
         assert_eq!(cleaned, 1);

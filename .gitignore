@@ -37,6 +37,8 @@ fix_*.py
 # Temporary files and scripts
 run_steps.ps1
 test_output.txt
+*_out.txt
+*_output.txt
 
 # Machine-specific cargo config
 .cargo/

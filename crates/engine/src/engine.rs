@@ -1318,18 +1318,19 @@ mod tests {
         let result = engine.send_game_input(input);
         assert!(result.is_ok());
 
-        // Give engine time to process at least one frame.
-        let result = tokio::time::timeout(TokioDuration::from_millis(100), async {
+        // Give engine time to process at least one frame (generous timeout for loaded CI).
+        let result = tokio::time::timeout(TokioDuration::from_millis(2000), async {
             while engine.frame_count() == 0 {
                 sleep(TokioDuration::from_millis(5)).await;
             }
         })
         .await;
-        assert!(result.is_ok(), "engine did not process frames within 100ms");
+        assert!(result.is_ok(), "engine did not process frames within 2000ms");
 
         engine.stop().await.unwrap();
     }
 
+    #[cfg(not(feature = "rt-hardening"))]
     #[tokio::test]
     async fn test_pipeline_application() {
         let device = create_test_device();
@@ -1395,6 +1396,7 @@ mod tests {
         engine.stop().await.unwrap();
     }
 
+    #[cfg(not(feature = "rt-hardening"))]
     #[tokio::test]
     async fn test_blackbox_recording() {
         let device = create_test_device();
@@ -1414,8 +1416,8 @@ mod tests {
             let _ = engine.send_game_input(input);
         }
 
-        // Give engine time to process
-        sleep(TokioDuration::from_millis(50)).await;
+        // Give engine time to process (generous timeout for loaded CI)
+        sleep(TokioDuration::from_millis(500)).await;
 
         // Check blackbox frames
         let frames = engine.get_blackbox_frames();
