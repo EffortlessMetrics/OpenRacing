@@ -148,18 +148,16 @@ After adding new crates or changing feature flags, `cargo hakari generate` must 
 
 ---
 
-### F-007 · Symbol renames cascade across many test files (Medium · **Partially Resolved**)
+### F-007 · Symbol renames cascade across many test files (Medium · **Resolved**)
 
 **Encountered:** RC sprint — `ProRacing → GPro`, `PRO_RACING → G_PRO` renames required manual fixes across:
 - `logitech_e2e.rs`, `logitech_tests.rs`, `windows_property_tests.rs`, `windows.rs` (tests), etc.
 
 No compile-time help distinguishes "this is a renamed constant" from "this constant was removed."
 
-**Partial fix applied (feat/r7-quirks-cleanup-f007):** The `sequence → frame_seq` rename in the telemetry adapter crates is now complete — all 20 remaining adapter files (`acc.rs`, `ac_rally.rs`, `ams2.rs`, `automobilista.rs`, `dirt_rally_2.rs`, `dirt_showdown.rs`, `dirt3.rs`, `dirt5.rs`, `f1_25.rs`, `f1_native.rs`, `f1.rs`, `grid_2019.rs`, `grid_autosport.rs`, `grid_legends.rs`, `iracing.rs`, `kartkraft.rs`, `lib.rs`, `race_driver_grid.rs`, `rfactor2.rs`, `wtcr.rs`) updated. Function names (`test_parse_realtime_sequence_from_fixtures`) were preserved.
+**Fix applied (feat/r7-quirks-cleanup-v2):** The `sequence → frame_seq` rename in the telemetry adapter crates is now complete — all 20 remaining adapter files (`acc.rs`, `ac_rally.rs`, `ams2.rs`, `automobilista.rs`, `dirt_rally_2.rs`, `dirt_showdown.rs`, `dirt3.rs`, `dirt5.rs`, `f1_25.rs`, `f1_native.rs`, `f1.rs`, `grid_2019.rs`, `grid_autosport.rs`, `grid_legends.rs`, `iracing.rs`, `kartkraft.rs`, `lib.rs`, `race_driver_grid.rs`, `rfactor2.rs`, `wtcr.rs`) updated.
 
-**Remaining:** The structural problem — that renames cascade silently rather than with a deprecation warning — is still open.
-
-**Remedy:** Use the `#[deprecated(since = "...", note = "use X instead")]` attribute on renamed constants/variants for at least one release cycle before removal. This turns silent breakage into a clear deprecation warning.
+**Remaining (structural):** The process issue — that renames cascade silently rather than with a deprecation warning — is still open. Use the `#[deprecated(since = "...", note = "use X instead")]` attribute on renamed constants/variants for at least one release cycle before removal.
 
 ---
 
@@ -268,10 +266,41 @@ normalised values. A golden-frame test would have caught this immediately.
 
 ---
 
+### F-024 · `insta` snapshot tests cannot auto-create files in non-interactive CI (Medium · Open)
+
+**Encountered:** RC sprint (feat/r7-quirks-cleanup-v2) — adding new telemetry adapter snapshot tests for `f1_25` and `wrc_10`
+
+When a new snapshot test is added and no `.snap` file exists, `insta` in non-interactive CI mode (`INSTA_UPDATE=no`, the default) fails with "snapshot assertion failed" instead of creating the file. `INSTA_UPDATE=new` is only useful in local interactive runs; CI environments exit without writing the new snapshot to disk.
+
+**Impact:** Every new snapshot test requires manual pre-computation of the expected YAML output and committing a `.snap` file before the test can pass in CI. This is error-prone and time-consuming for complex normalisation output.
+
+**Remedy:**
+1. Add a CI job that runs with `INSTA_UPDATE=always` and uploads the generated `.snap` files as artifacts, allowing developers to download and commit them.
+2. Alternatively, add a developer script (`scripts/update_snapshots.sh`) that runs `INSTA_UPDATE=always cargo test` and commits the result.
+3. Long term: use `insta`'s `force-update-snapshots` feature combined with a dedicated "snapshot refresh" CI workflow that opens a PR with the updated files.
+
+---
+
+### F-025 · Windows PowerShell shell sessions die immediately in agent environment (High · Open)
+
+**Encountered:** RC sprint (feat/r7-quirks-cleanup-v2) — all new PowerShell sessions (sync and async modes) exited with no output
+
+All new PowerShell sessions created via the agent tooling die immediately after creation — `list_powershell` returns "invalid shell ID" for any session created in the current agent turn, even for simple one-liners like `echo test`. Pre-existing sessions from prior turns complete but cannot be re-used. The root cause is unknown (possible Windows credential/profile issue, terminal initialisation error, or environmental state).
+
+**Impact:** Cannot run any shell commands locally — `cargo build`, `git status`, `cargo fmt`, etc. are all unavailable. Must work around by using task sub-agents (which have working shells in a subprocess), or by using file-reading tools only. Significantly degrades agent productivity.
+
+**Remedy:**
+1. Investigate Windows PowerShell profile or credential issue — check `$PROFILE` and Windows Event Log.
+2. Try resetting the agent environment or restarting VS Code.
+3. As a process improvement: document that task sub-agents provide a working shell fallback when the main session shell is broken.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
 |----|-------|-------------|
+| F-007 | Symbol renames cascade (sequence→frame_seq complete) | feat/r7-quirks-cleanup-v2 |
 | F-003 | Agent file-edit race during compilation | AGENTS.md worktree rules (feat/r7) |
 | F-004 | Windows linker PDB limit in integration tests | Cargo.toml profile.test override (feat/r7) |
 | F-006 | Snapshot tests silently encoding wrong values | id_verification tests for all 15 HID crates (feat/r7) |
