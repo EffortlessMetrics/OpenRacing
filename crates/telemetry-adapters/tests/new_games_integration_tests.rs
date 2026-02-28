@@ -845,7 +845,9 @@ mod proptest_tests {
             gear    in 0u32..8u32,
         ) {
             let pkt = make_pcars2_packet(steering, throttle, brake, speed, rpm, max_rpm, gear);
-            let t = PCars2Adapter::new().normalize(&pkt).unwrap();
+            let result = PCars2Adapter::new().normalize(&pkt);
+            prop_assert!(result.is_ok(), "expected normalize to succeed: {:?}", result.err());
+            let t = result.unwrap();
             prop_assert!(t.speed_ms >= 0.0, "speed_ms {} must be non-negative", t.speed_ms);
         }
     }
@@ -877,7 +879,9 @@ mod proptest_tests {
             brake    in 0.0f32..1.0f32,
         ) {
             let pkt = make_lfs_packet(speed, rpm, gear, throttle, brake);
-            let t = LFSAdapter::new().normalize(&pkt).unwrap();
+            let result = LFSAdapter::new().normalize(&pkt);
+            prop_assert!(result.is_ok(), "expected normalize to succeed: {:?}", result.err());
+            let t = result.unwrap();
             prop_assert!(
                 t.throttle >= 0.0 && t.throttle <= 1.0,
                 "throttle {} must be in [0, 1]",
