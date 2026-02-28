@@ -34,8 +34,8 @@ impl PedalCalibrator {
             return Err(crate::CalibrationError::NotComplete);
         }
 
-        let min = *samples.iter().min().expect("samples not empty");
-        let max = *samples.iter().max().expect("samples not empty");
+        let min = *samples.iter().min().ok_or(crate::CalibrationError::NotComplete)?;
+        let max = *samples.iter().max().ok_or(crate::CalibrationError::NotComplete)?;
 
         Ok(AxisCalibration::new(min, max))
     }

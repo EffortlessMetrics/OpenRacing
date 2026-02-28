@@ -167,12 +167,6 @@ impl ProfileValidator {
     }
 }
 
-impl Default for ProfileValidator {
-    fn default() -> Self {
-        Self::new().unwrap_or_else(|err| panic!("failed to create ProfileValidator: {err}"))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
