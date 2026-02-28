@@ -511,7 +511,7 @@ fn scenario_safety_interlock_all_critical_faults_trigger_shutdown(
         let mut safety = racing_wheel_engine::safety::SafetyService::new(5.0, 25.0);
 
         // When: the fault is reported
-        safety.report_fault(fault_type.clone());
+        safety.report_fault(*fault_type);
 
         // Then: the state is Faulted
         assert!(

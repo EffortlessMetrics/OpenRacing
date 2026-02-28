@@ -1,0 +1,84 @@
+   Compiling racing-wheel-ui v0.1.0 (H:\Code\Rust\OpenRacing-cleanup\crates\ui)
+   Compiling racing-wheel-engine v0.1.0 (H:\Code\Rust\OpenRacing-cleanup\crates\engine)
+error[E0425]: cannot find value `T3PA` in module `product_ids`
+  --> crates\engine\src\hid\vendor\thrustmaster_tests.rs:64:89
+   |
+64 |     let handler = ThrustmasterProtocolHandler::new(THRUSTMASTER_VENDOR_ID, product_ids::T3PA);
+   |                                                                                         ^^^^ not found in `product_ids`
+   |
+help: consider importing one of these unit variants
+   |
+ 3 + use crate::hid::vendor::thrustmaster_tests::Model::T3PA;
+   |
+ 3 + use racing_wheel_engine::hid::vendor::thrustmaster::Model::T3PA;
+   |
+ 3 + use racing_wheel_hid_thrustmaster_protocol::Model::T3PA;
+   |
+help: if you import `T3PA`, refer to it directly
+   |
+64 -     let handler = ThrustmasterProtocolHandler::new(THRUSTMASTER_VENDOR_ID, product_ids::T3PA);
+64 +     let handler = ThrustmasterProtocolHandler::new(THRUSTMASTER_VENDOR_ID, T3PA);
+   |
+
+error[E0425]: cannot find value `T3PA` in module `product_ids`
+   --> crates\engine\src\hid\vendor\thrustmaster_tests.rs:100:89
+    |
+100 |     let handler = ThrustmasterProtocolHandler::new(THRUSTMASTER_VENDOR_ID, product_ids::T3PA);
+    |                                                                                         ^^^^ not found in `product_ids`
+    |
+help: consider importing one of these unit variants
+    |
+  3 + use crate::hid::vendor::thrustmaster_tests::Model::T3PA;
+    |
+  3 + use racing_wheel_engine::hid::vendor::thrustmaster::Model::T3PA;
+    |
+  3 + use racing_wheel_hid_thrustmaster_protocol::Model::T3PA;
+    |
+help: if you import `T3PA`, refer to it directly
+    |
+100 -     let handler = ThrustmasterProtocolHandler::new(THRUSTMASTER_VENDOR_ID, product_ids::T3PA);
+100 +     let handler = ThrustmasterProtocolHandler::new(THRUSTMASTER_VENDOR_ID, T3PA);
+    |
+
+error[E0425]: cannot find value `T_LCM` in module `product_ids`
+   --> crates\engine\src\hid\vendor\thrustmaster_tests.rs:147:89
+    |
+147 |     let handler = ThrustmasterProtocolHandler::new(THRUSTMASTER_VENDOR_ID, product_ids::T_LCM);
+    |                                                                                         ^^^^^ not found in `product_ids`
+
+error[E0425]: cannot find value `T_LCM` in module `product_ids`
+   --> crates\engine\src\hid\vendor\thrustmaster_tests.rs:203:44
+    |
+203 |     assert!(!is_wheel_product(product_ids::T_LCM));
+    |                                            ^^^^^ not found in `product_ids`
+
+error[E0425]: cannot find value `T_LCM` in module `product_ids`
+   --> crates\engine\src\hid\vendor\thrustmaster_tests.rs:209:43
+    |
+209 |     assert!(is_pedal_product(product_ids::T_LCM));
+    |                                           ^^^^^ not found in `product_ids`
+
+error[E0425]: cannot find value `T3PA` in module `product_ids`
+   --> crates\engine\src\hid\vendor\thrustmaster_tests.rs:210:43
+    |
+210 |     assert!(is_pedal_product(product_ids::T3PA));
+    |                                           ^^^^ not found in `product_ids`
+    |
+help: consider importing one of these unit variants
+    |
+  3 + use crate::hid::vendor::thrustmaster_tests::Model::T3PA;
+    |
+  3 + use racing_wheel_engine::hid::vendor::thrustmaster::Model::T3PA;
+    |
+  3 + use racing_wheel_hid_thrustmaster_protocol::Model::T3PA;
+    |
+help: if you import `T3PA`, refer to it directly
+    |
+210 -     assert!(is_pedal_product(product_ids::T3PA));
+210 +     assert!(is_pedal_product(T3PA));
+    |
+
+error: the `#[global_allocator]` in this crate conflicts with global allocator in: racing_wheel_engine
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `racing-wheel-engine` (lib test) due to 7 previous errors

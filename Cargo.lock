@@ -5735,6 +5735,7 @@ dependencies = [
  "libc",
  "mockall",
  "num_cpus",
+ "openracing-profile",
  "openracing-test-helpers",
  "parking_lot",
  "proptest",

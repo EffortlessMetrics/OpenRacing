@@ -34,6 +34,13 @@ const PCARS2_SHARED_MEMORY_SIZE: usize = 4096;
 const PCARS2_PROCESS_NAMES: &[&str] = &["pcars2.exe", "pcars3.exe", "projectcars2.exe"];
 
 // Simplified PCARS2 UDP/shared-memory field offsets
+//
+// TODO(telemetry): These offsets do NOT match the official PCars2 UDP telemetry packet
+// (sTelemetryData, 538 bytes) which uses u8/u16/i8 types for throttle, brake, steering,
+// rpm, gear, etc. — not f32. The official packet also has a 12-byte header and entirely
+// different field layout. These offsets also do not match the PCars2 shared memory struct
+// (pCars2APIStruct). This adapter will not produce correct data from the actual game.
+// See: CrewChiefV4/PCars2/PCars2UDPTelemetryDataStruct.cs for the real format.
 const OFF_STEERING: usize = 40;
 const OFF_THROTTLE: usize = 44;
 const OFF_BRAKE: usize = 48;
