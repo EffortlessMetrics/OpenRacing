@@ -24,7 +24,8 @@ cargo fmt --all                            # Format code
 cargo clippy --all-targets --all-features -- -D warnings  # Lint
 
 # Benchmarks and performance
-cargo bench --bench rt_timing              # Run RT benchmarks
+# Generate bench_results.json first, then validate:
+BENCHMARK_JSON_OUTPUT=1 BENCHMARK_JSON_PATH=bench_results.json cargo bench --bench rt_timing
 python scripts/validate_performance.py bench_results.json --strict  # Performance gates
 
 # Documentation

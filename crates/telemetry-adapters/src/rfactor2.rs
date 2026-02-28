@@ -462,7 +462,7 @@ impl TelemetryAdapter for RFactor2Adapter {
 
         tokio::spawn(async move {
             let mut adapter = RFactor2Adapter::new();
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
             let mut last_update_index = 0u32;
 
             // Try to initialize shared memory
@@ -515,7 +515,7 @@ impl TelemetryAdapter for RFactor2Adapter {
                             let frame = TelemetryFrame::new(
                                 normalized,
                                 telemetry_now_ns(),
-                                sequence,
+                                frame_seq,
                                 raw_size,
                             );
 
@@ -524,7 +524,7 @@ impl TelemetryAdapter for RFactor2Adapter {
                                 break;
                             }
 
-                            sequence += 1;
+                            frame_seq += 1;
                         }
                     }
                     Err(e) => {

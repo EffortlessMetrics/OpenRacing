@@ -510,7 +510,7 @@ impl TelemetryAdapter for MockAdapter {
         let update_rate = self.update_rate;
 
         tokio::spawn(async move {
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
 
             loop {
                 let timestamp_ns = telemetry_now_ns();
@@ -518,12 +518,12 @@ impl TelemetryAdapter for MockAdapter {
                 let progress = (elapsed.as_secs_f32() % 10.0) / 10.0;
                 let telemetry = generate_mock_telemetry(progress);
 
-                let frame = TelemetryFrame::new(telemetry, timestamp_ns, sequence, 64);
+                let frame = TelemetryFrame::new(telemetry, timestamp_ns, frame_seq, 64);
                 if tx.send(frame).await.is_err() {
                     break;
                 }
 
-                sequence += 1;
+                frame_seq += 1;
                 tokio::time::sleep(update_rate).await;
             }
         });

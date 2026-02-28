@@ -331,7 +331,7 @@ impl TelemetryAdapter for IRacingAdapter {
 
         tokio::spawn(async move {
             let mut adapter = IRacingAdapter::new();
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
             let mut last_tick_count: Option<i32> = None;
             let mut last_session_info_update: Option<i32> = None;
             let mut last_layout_signature: Option<(i32, i32, i32, i32)> = None;
@@ -450,7 +450,7 @@ impl TelemetryAdapter for IRacingAdapter {
                                 &mut warned_unscaled_ffb,
                             ),
                             telemetry_now_ns(),
-                            sequence,
+                            frame_seq,
                             mem::size_of::<IRacingData>(),
                         );
 
@@ -459,7 +459,7 @@ impl TelemetryAdapter for IRacingAdapter {
                             break;
                         }
 
-                        sequence = sequence.saturating_add(1);
+                        frame_seq = frame_seq.saturating_add(1);
                     }
                     Err(e) => {
                         warn!("Failed to read iRacing telemetry: {}", e);

@@ -165,7 +165,7 @@ impl TelemetryAdapter for ACCAdapter {
                 "ACC telemetry adapter connected; waiting for protocol messages"
             );
 
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
             let mut state = ACCSessionState::default();
             let mut buf = [0u8; MAX_PACKET_SIZE];
 
@@ -206,7 +206,7 @@ impl TelemetryAdapter for ACCAdapter {
                                     let frame = TelemetryFrame::new(
                                         normalized,
                                         telemetry_now_ns(),
-                                        sequence,
+                                        frame_seq,
                                         len,
                                     );
 
@@ -217,7 +217,7 @@ impl TelemetryAdapter for ACCAdapter {
                                         break;
                                     }
 
-                                    sequence = sequence.saturating_add(1);
+                                    frame_seq = frame_seq.saturating_add(1);
                                 }
                             }
                             Err(e) => {

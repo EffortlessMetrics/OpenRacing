@@ -16,6 +16,7 @@
 pub mod ids;
 pub mod input;
 pub mod output;
+pub mod quirks;
 pub mod types;
 
 pub use ids::*;

@@ -101,7 +101,7 @@ impl TelemetryAdapter for ACRallyAdapter {
         let adapter = self.clone();
 
         tokio::spawn(async move {
-            let mut sequence = 0u64;
+            let mut frame_seq = 0u64;
 
             let handshake = probe_udp_handshake(
                 adapter.handshake_endpoint,
@@ -114,7 +114,7 @@ impl TelemetryAdapter for ACRallyAdapter {
                 telemetry_from_handshake(&handshake, adapter.handshake_endpoint);
             if !send_probe_frame(
                 &tx,
-                &mut sequence,
+                &mut frame_seq,
                 handshake_telemetry,
                 handshake.raw_size(),
             )
@@ -160,7 +160,7 @@ impl TelemetryAdapter for ACRallyAdapter {
 
             run_passive_udp_probe(
                 &tx,
-                &mut sequence,
+                &mut frame_seq,
                 adapter.passive_bind_address,
                 adapter.passive_probe_window,
                 adapter.update_rate,
@@ -287,7 +287,7 @@ async fn probe_udp_handshake(
 
 async fn run_passive_udp_probe(
     tx: &mpsc::Sender<TelemetryFrame>,
-    sequence: &mut u64,
+    frame_seq: &mut u64,
     bind_address: SocketAddr,
     probe_window: Duration,
     update_rate: Duration,
@@ -313,7 +313,7 @@ async fn run_passive_udp_probe(
                     TelemetryValue::String(bind_address.to_string()),
                 )
                 .build();
-            let _ = send_probe_frame(tx, sequence, telemetry, 0).await;
+            let _ = send_probe_frame(tx, frame_seq, telemetry, 0).await;
             return;
         }
     };
@@ -362,7 +362,7 @@ async fn run_passive_udp_probe(
                         TelemetryValue::String(bind_address.to_string()),
                     );
 
-                if !send_probe_frame(tx, sequence, telemetry, len).await {
+                if !send_probe_frame(tx, frame_seq, telemetry, len).await {
                     return;
                 }
             }
@@ -385,7 +385,7 @@ async fn run_passive_udp_probe(
                         TelemetryValue::String(bind_address.to_string()),
                     )
                     .build();
-                if !send_probe_frame(tx, sequence, telemetry, 0).await {
+                if !send_probe_frame(tx, frame_seq, telemetry, 0).await {
                     return;
                 }
             }
@@ -410,7 +410,7 @@ async fn run_passive_udp_probe(
                 TelemetryValue::String(bind_address.to_string()),
             )
             .build();
-        let _ = send_probe_frame(tx, sequence, telemetry, 0).await;
+        let _ = send_probe_frame(tx, frame_seq, telemetry, 0).await;
     }
 }
 
@@ -494,17 +494,17 @@ fn telemetry_from_handshake(
 
 async fn send_probe_frame(
     tx: &mpsc::Sender<TelemetryFrame>,
-    sequence: &mut u64,
+    frame_seq: &mut u64,
     telemetry: NormalizedTelemetry,
     raw_size: usize,
 ) -> bool {
-    let frame = TelemetryFrame::new(telemetry, telemetry_now_ns(), *sequence, raw_size);
+    let frame = TelemetryFrame::new(telemetry, telemetry_now_ns(), *frame_seq, raw_size);
 
     if tx.send(frame).await.is_err() {
         return false;
     }
 
-    *sequence = sequence.saturating_add(1);
+    *frame_seq = frame_seq.saturating_add(1);
     true
 }
 
