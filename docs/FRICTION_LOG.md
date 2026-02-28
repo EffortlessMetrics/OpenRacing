@@ -502,6 +502,86 @@ The Asetek Tony Kanaan Edition wheelbase was listed at 18 Nm torque, but the off
 
 ---
 
+### F-043 · ACC gear offset was wrong (-2 instead of -1) (Medium · Resolved)
+
+**Encountered:** Wave 12–13 cleanup (2026-02)
+
+The Assetto Corsa Competizione telemetry adapter applied a gear offset of -2, but the ACC broadcasting protocol v4 uses a 0-indexed gear value where 0=reverse, 1=neutral, 2+=forward gears — requiring an offset of -1, not -2. This caused all gear values to be off by one.
+
+**Fix applied:** Gear offset corrected from -2 to -1. Web-verified against ACC broadcasting protocol v4 documentation.
+
+---
+
+### F-044 · SafetyService::get_max_torque() could panic on NaN (High · Resolved)
+
+**Encountered:** Wave 12–13 cleanup (2026-02)
+
+`SafetyService::get_max_torque()` could panic when encountering NaN values in torque calculations. In a safety-critical force feedback system, a panic in the torque limiter could leave the device in an unsafe state.
+
+**Fix applied:** NaN check added — falls back to zero torque instead of panicking. This ensures the safety interlock always drives toward a safe state on invalid input.
+
+---
+
+### F-045 · F1 native UDP parser used unreachable!() on untrusted input (High · Resolved)
+
+**Encountered:** Wave 12–13 cleanup (2026-02)
+
+The F1 native UDP telemetry parser used `unreachable!()` on an unknown packet type code path. Since UDP packets come from untrusted network input, a malformed or future-version packet would cause a panic, crashing the telemetry bridge.
+
+**Fix applied:** Replaced `unreachable!()` with proper `Err()` return, allowing unknown packet types to be gracefully rejected.
+
+---
+
+### F-046 · 33 CI cargo commands missing --locked flag (Medium · Resolved)
+
+**Encountered:** Wave 12–13 cleanup (2026-02)
+
+Across 7 GitHub Actions workflow files, 33 `cargo` invocations (build, test, clippy, etc.) were missing the `--locked` flag. Without `--locked`, CI builds could silently resolve different dependency versions than what `Cargo.lock` specifies, causing non-reproducible builds.
+
+**Fix applied:** Added `--locked` to all 33 cargo commands across 7 workflow files.
+
+---
+
+### F-047 · Nightly soak test was silently ignored due to YAML document separator (Medium · Resolved)
+
+**Encountered:** Wave 12–13 cleanup (2026-02)
+
+The nightly soak test job was embedded in a workflow file with a YAML document separator (`---`), which caused GitHub Actions to silently ignore the second document. The soak test was never actually running in CI.
+
+**Fix applied:** Extracted the soak test into a standalone workflow file so it runs reliably on its nightly schedule.
+
+---
+
+### F-048 · Fanatec PID 0x0E03 was mislabeled ClubSport V1 → CSL Elite (Low · Resolved)
+
+**Encountered:** Wave 12–13 cleanup (2026-02)
+
+Fanatec PID `0x0E03` was incorrectly labeled as "ClubSport V1" in the device table. Cross-referencing with Fanatec's USB device IDs and community hardware captures confirms this PID corresponds to the CSL Elite wheelbase.
+
+**Fix applied:** Device name corrected from "ClubSport V1" to "CSL Elite" for PID `0x0E03`.
+
+---
+
+### F-049 · CI used deprecated actions-rs/toolchain@v1 (Low · Resolved)
+
+**Encountered:** Wave 12–13 cleanup (2026-02)
+
+Multiple CI workflows used `actions-rs/toolchain@v1`, which is archived and no longer maintained. This action uses deprecated Node.js 12 runtime and may stop working when GitHub removes legacy runner support.
+
+**Fix applied:** Replaced all `actions-rs/toolchain@v1` usages with `dtolnay/rust-toolchain@stable`, the community-standard actively-maintained alternative.
+
+---
+
+### F-050 · actions/cache@v3 still used in 3 workflows (Low · Resolved)
+
+**Encountered:** Wave 12–13 cleanup (2026-02)
+
+Three CI workflow files still used `actions/cache@v3` instead of the current `actions/cache@v4`. v3 uses the deprecated Node.js 16 runtime.
+
+**Fix applied:** Upgraded all 3 workflows from `actions/cache@v3` to `actions/cache@v4`.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
@@ -531,6 +611,14 @@ The Asetek Tony Kanaan Edition wheelbase was listed at 18 Nm torque, but the off
 | F-040 | 100% telemetry adapter snapshot test coverage (56/56 adapters) | RC test coverage audit |
 | F-041 | 126 unwrap/expect calls eliminated from 8 test files | RC test quality audit |
 | F-042 | Asetek Tony Kanaan torque corrected 18→27 Nm + 8 proptest properties | RC device verification audit |
+| F-043 | ACC gear offset corrected (-2 → -1), verified against broadcasting protocol v4 | Wave 12–13 cleanup (feat/r7-quirks-cleanup-v2) |
+| F-044 | SafetyService::get_max_torque() NaN panic fixed — falls back to zero torque | Wave 12–13 cleanup (feat/r7-quirks-cleanup-v2) |
+| F-045 | F1 native UDP parser unreachable!() on untrusted input replaced with Err() | Wave 12–13 cleanup (feat/r7-quirks-cleanup-v2) |
+| F-046 | 33 CI cargo commands missing --locked flag, fixed across 7 workflows | Wave 12–13 cleanup (feat/r7-quirks-cleanup-v2) |
+| F-047 | Nightly soak test silently ignored (YAML document separator) — extracted to standalone workflow | Wave 12–13 cleanup (feat/r7-quirks-cleanup-v2) |
+| F-048 | Fanatec PID 0x0E03 mislabeled ClubSport V1 → CSL Elite corrected | Wave 12–13 cleanup (feat/r7-quirks-cleanup-v2) |
+| F-049 | Deprecated actions-rs/toolchain@v1 replaced with dtolnay/rust-toolchain@stable | Wave 12–13 cleanup (feat/r7-quirks-cleanup-v2) |
+| F-050 | actions/cache@v3 upgraded to v4 in 3 workflows | Wave 12–13 cleanup (feat/r7-quirks-cleanup-v2) |
 
 ---
 
@@ -574,6 +662,13 @@ The Asetek Tony Kanaan Edition wheelbase was listed at 18 Nm torque, but the off
 - Asetek Tony Kanaan torque corrected (25→20 Nm)
 
 ### RC Cleanup Sprint (2025-06)
+- **ACC gear offset**: Corrected -2 → -1, web-verified against ACC broadcasting protocol v4 (F-043)
+- **Safety panic fix**: `SafetyService::get_max_torque()` NaN panic replaced with zero-torque fallback (F-044)
+- **F1 UDP parser**: `unreachable!()` on untrusted input replaced with proper `Err()` (F-045)
+- **CI reproducibility**: 33 cargo commands across 7 workflows now use `--locked` (F-046)
+- **Nightly soak test**: Extracted from silently-ignored YAML document to standalone workflow (F-047)
+- **Fanatec PID fix**: `0x0E03` corrected from ClubSport V1 to CSL Elite (F-048)
+- **CI modernization**: `actions-rs/toolchain@v1` → `dtolnay/rust-toolchain@stable` (F-049), `actions/cache@v3` → v4 (F-050)
 - **PCars2**: Adapter completely rewritten from fabricated offsets to correct SMS UDP v2 format (F-035)
 - **Telemetry snapshot tests**: 100% coverage achieved — 56/56 adapters have snapshot tests (F-040)
 - **Test quality**: 126 `unwrap()`/`expect()` calls eliminated from 8 test files (F-041)
