@@ -72,7 +72,10 @@ mod tests {
         assert_eq!(product_name(PRODUCT_V12), Some("PXN V12"));
         assert_eq!(product_name(PRODUCT_V12_LITE), Some("PXN V12 Lite"));
         assert_eq!(product_name(PRODUCT_V12_LITE_SE), Some("PXN V12 Lite SE"));
-        assert_eq!(product_name(PRODUCT_GT987_FF), Some("GT987 FF (Lite Star OEM)"));
+        assert_eq!(
+            product_name(PRODUCT_GT987_FF),
+            Some("GT987 FF (Lite Star OEM)")
+        );
         assert_eq!(product_name(0xFFFF), None);
     }
 }

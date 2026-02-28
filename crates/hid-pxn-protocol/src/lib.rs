@@ -13,9 +13,9 @@ pub mod output;
 pub mod types;
 
 pub use ids::{
-    is_pxn_device, product_name, PRODUCT_GT987_FF, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE,
-    PRODUCT_V12_LITE_SE, VENDOR_ID,
+    PRODUCT_GT987_FF, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE, PRODUCT_V12_LITE_SE, VENDOR_ID,
+    is_pxn_device, product_name,
 };
-pub use input::{parse, ParseError, PxnInputReport, REPORT_ID, REPORT_LEN, STEERING_RANGE_DEG};
-pub use output::{encode_stop, encode_torque, FFB_REPORT_ID, FFB_REPORT_LEN};
+pub use input::{ParseError, PxnInputReport, REPORT_ID, REPORT_LEN, STEERING_RANGE_DEG, parse};
+pub use output::{FFB_REPORT_ID, FFB_REPORT_LEN, encode_stop, encode_torque};
 pub use types::PxnModel;

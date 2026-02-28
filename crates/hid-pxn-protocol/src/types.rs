@@ -55,15 +55,26 @@ impl PxnModel {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ids::{PRODUCT_GT987_FF, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE, PRODUCT_V12_LITE_SE};
+    use crate::ids::{
+        PRODUCT_GT987_FF, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE, PRODUCT_V12_LITE_SE,
+    };
 
     #[test]
     fn from_pid_known() {
         assert_eq!(PxnModel::from_pid(PRODUCT_V10), Some(PxnModel::V10));
         assert_eq!(PxnModel::from_pid(PRODUCT_V12), Some(PxnModel::V12));
-        assert_eq!(PxnModel::from_pid(PRODUCT_V12_LITE), Some(PxnModel::V12Lite));
-        assert_eq!(PxnModel::from_pid(PRODUCT_V12_LITE_SE), Some(PxnModel::V12LiteSe));
-        assert_eq!(PxnModel::from_pid(PRODUCT_GT987_FF), Some(PxnModel::Gt987Ff));
+        assert_eq!(
+            PxnModel::from_pid(PRODUCT_V12_LITE),
+            Some(PxnModel::V12Lite)
+        );
+        assert_eq!(
+            PxnModel::from_pid(PRODUCT_V12_LITE_SE),
+            Some(PxnModel::V12LiteSe)
+        );
+        assert_eq!(
+            PxnModel::from_pid(PRODUCT_GT987_FF),
+            Some(PxnModel::Gt987Ff)
+        );
     }
 
     #[test]
