@@ -27,23 +27,25 @@ const R3E_VIEW_SIZE: usize = 4096;
 
 const RACEROOM_PROCESS_NAMES: &[&str] = &["rrre.exe", "raceroom.exe"];
 
-// R3E field byte offsets (Sector3 SDK, version 2)
+// R3E field byte offsets derived from the official Sector3 SDK r3e.h (version 3.4).
+// Struct is #pragma pack(push, 1), so all offsets assume no padding.
 const OFF_VERSION_MAJOR: usize = 0;
-const OFF_GAME_PAUSED: usize = 100;
-const OFF_GAME_IN_MENUS: usize = 104;
-const OFF_ENGINE_RPM: usize = 600;
-const OFF_ENGINE_RPM_MAX: usize = 604;
-const OFF_FUEL_LEFT: usize = 620;
-const OFF_FUEL_CAPACITY: usize = 628;
-const OFF_SPEED: usize = 700;
-const OFF_STEER_INPUT: usize = 704;
-const OFF_THROTTLE: usize = 708;
-const OFF_BRAKE: usize = 712;
-const OFF_CLUTCH: usize = 716;
-const OFF_GEAR: usize = 730;
+const OFF_GAME_PAUSED: usize = 20;
+const OFF_GAME_IN_MENUS: usize = 24;
+// Vehicle state fields (within r3e_shared, after playerdata + event + pit + scoring + vehicle_info).
+const OFF_SPEED: usize = 1392; // car_speed, f32, m/s
+const OFF_ENGINE_RPS: usize = 1396; // engine_rps, f32, rad/s
+const OFF_MAX_ENGINE_RPS: usize = 1400; // max_engine_rps, f32, rad/s
+const OFF_GEAR: usize = 1408; // gear, i32 (-2=N/A, -1=R, 0=N, 1+=fwd)
+const OFF_FUEL_LEFT: usize = 1456; // fuel_left, f32, litres
+const OFF_FUEL_CAPACITY: usize = 1460; // fuel_capacity, f32, litres
+const OFF_THROTTLE: usize = 1500; // throttle, f32, 0.0–1.0
+const OFF_BRAKE: usize = 1508; // brake, f32, 0.0–1.0
+const OFF_CLUTCH: usize = 1516; // clutch, f32, 0.0–1.0
+const OFF_STEER_INPUT: usize = 1524; // steer_input_raw, f32, -1.0–1.0
 
-/// Expected R3E shared memory major version.
-const R3E_VERSION_MAJOR: i32 = 2;
+/// Expected R3E shared memory major version (v3.x SDK).
+const R3E_VERSION_MAJOR: i32 = 3;
 
 fn parse_r3e_memory(data: &[u8]) -> Result<NormalizedTelemetry> {
     if data.len() < R3E_VIEW_SIZE {
@@ -66,10 +68,16 @@ fn parse_r3e_memory(data: &[u8]) -> Result<NormalizedTelemetry> {
         return Ok(NormalizedTelemetry::builder().build());
     }
 
-    let rpm = read_f32_le(data, OFF_ENGINE_RPM).unwrap_or(0.0);
-    let max_rpm = read_f32_le(data, OFF_ENGINE_RPM_MAX).unwrap_or(0.0);
-    let fuel_left = read_f64_le(data, OFF_FUEL_LEFT).unwrap_or(0.0) as f32;
-    let fuel_capacity = read_f64_le(data, OFF_FUEL_CAPACITY).unwrap_or(0.0) as f32;
+    let rpm = {
+        let rps = read_f32_le(data, OFF_ENGINE_RPS).unwrap_or(0.0);
+        rps * (30.0 / std::f32::consts::PI) // rad/s → RPM
+    };
+    let max_rpm = {
+        let rps = read_f32_le(data, OFF_MAX_ENGINE_RPS).unwrap_or(0.0);
+        rps * (30.0 / std::f32::consts::PI)
+    };
+    let fuel_left = read_f32_le(data, OFF_FUEL_LEFT).unwrap_or(0.0);
+    let fuel_capacity = read_f32_le(data, OFF_FUEL_CAPACITY).unwrap_or(0.0);
     let speed_mps = read_f32_le(data, OFF_SPEED).unwrap_or(0.0).abs();
     let steering = read_f32_le(data, OFF_STEER_INPUT)
         .unwrap_or(0.0)
@@ -270,12 +278,6 @@ fn read_f32_le(data: &[u8], offset: usize) -> Option<f32> {
         .map(f32::from_le_bytes)
 }
 
-fn read_f64_le(data: &[u8], offset: usize) -> Option<f64> {
-    data.get(offset..offset + 8)
-        .and_then(|b| b.try_into().ok())
-        .map(f64::from_le_bytes)
-}
-
 fn read_i32_le(data: &[u8], offset: usize) -> Option<i32> {
     data.get(offset..offset + 4)
         .and_then(|b| b.try_into().ok())
@@ -301,10 +303,14 @@ mod tests {
             .copy_from_slice(&R3E_VERSION_MAJOR.to_le_bytes());
         data[OFF_GAME_PAUSED..OFF_GAME_PAUSED + 4].copy_from_slice(&0i32.to_le_bytes());
         data[OFF_GAME_IN_MENUS..OFF_GAME_IN_MENUS + 4].copy_from_slice(&0i32.to_le_bytes());
-        data[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
-        data[OFF_ENGINE_RPM_MAX..OFF_ENGINE_RPM_MAX + 4].copy_from_slice(&8000.0f32.to_le_bytes());
-        data[OFF_FUEL_LEFT..OFF_FUEL_LEFT + 8].copy_from_slice(&30.0f64.to_le_bytes());
-        data[OFF_FUEL_CAPACITY..OFF_FUEL_CAPACITY + 8].copy_from_slice(&60.0f64.to_le_bytes());
+        // engine_rps in rad/s: RPM = rps * 30/π → rps = RPM * π/30
+        let rps = rpm * (std::f32::consts::PI / 30.0);
+        let max_rps = 8000.0f32 * (std::f32::consts::PI / 30.0);
+        data[OFF_ENGINE_RPS..OFF_ENGINE_RPS + 4].copy_from_slice(&rps.to_le_bytes());
+        data[OFF_MAX_ENGINE_RPS..OFF_MAX_ENGINE_RPS + 4]
+            .copy_from_slice(&max_rps.to_le_bytes());
+        data[OFF_FUEL_LEFT..OFF_FUEL_LEFT + 4].copy_from_slice(&30.0f32.to_le_bytes());
+        data[OFF_FUEL_CAPACITY..OFF_FUEL_CAPACITY + 4].copy_from_slice(&60.0f32.to_le_bytes());
         data[OFF_SPEED..OFF_SPEED + 4].copy_from_slice(&speed.to_le_bytes());
         data[OFF_STEER_INPUT..OFF_STEER_INPUT + 4].copy_from_slice(&steering.to_le_bytes());
         data[OFF_THROTTLE..OFF_THROTTLE + 4].copy_from_slice(&throttle.to_le_bytes());

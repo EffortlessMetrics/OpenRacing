@@ -315,8 +315,8 @@ fn raceroom_wrong_version_returns_error() -> TestResult {
 #[test]
 fn raceroom_game_paused_returns_empty_telemetry() -> TestResult {
     let mut pkt = vec![0u8; 4096];
-    write_i32_le(&mut pkt, 0, 2); // version_major = 2 (correct)
-    write_i32_le(&mut pkt, 100, 1); // game_paused = 1
+    write_i32_le(&mut pkt, 0, 3); // version_major = 3 (R3E SDK v3)
+    write_i32_le(&mut pkt, 20, 1); // game_paused = 1
 
     let adapter = RaceRoomAdapter::new();
     let t = adapter.normalize(&pkt)?;
@@ -327,9 +327,9 @@ fn raceroom_game_paused_returns_empty_telemetry() -> TestResult {
 #[test]
 fn raceroom_game_in_menus_returns_empty_telemetry() -> TestResult {
     let mut pkt = vec![0u8; 4096];
-    write_i32_le(&mut pkt, 0, 2); // version_major = 2
-    write_i32_le(&mut pkt, 100, 0); // game_paused = 0
-    write_i32_le(&mut pkt, 104, 1); // game_in_menus = 1
+    write_i32_le(&mut pkt, 0, 3); // version_major = 3
+    write_i32_le(&mut pkt, 20, 0); // game_paused = 0
+    write_i32_le(&mut pkt, 24, 1); // game_in_menus = 1
 
     let adapter = RaceRoomAdapter::new();
     let t = adapter.normalize(&pkt)?;
@@ -340,15 +340,18 @@ fn raceroom_game_in_menus_returns_empty_telemetry() -> TestResult {
 #[test]
 fn raceroom_valid_packet_parses_fields() -> TestResult {
     let mut pkt = vec![0u8; 4096];
-    write_i32_le(&mut pkt, 0, 2); // version_major = 2
-    write_i32_le(&mut pkt, 100, 0); // game_paused = 0
-    write_i32_le(&mut pkt, 104, 0); // game_in_menus = 0
-    write_f32_le(&mut pkt, 600, 5000.0); // rpm
-    write_f32_le(&mut pkt, 604, 8000.0); // max_rpm
-    write_f32_le(&mut pkt, 700, 50.0); // speed m/s
-    write_f32_le(&mut pkt, 704, 0.1); // steer
-    write_f32_le(&mut pkt, 708, 0.6); // throttle
-    write_i32_le(&mut pkt, 730, 3); // gear
+    write_i32_le(&mut pkt, 0, 3); // version_major = 3
+    write_i32_le(&mut pkt, 20, 0); // game_paused = 0
+    write_i32_le(&mut pkt, 24, 0); // game_in_menus = 0
+    // engine_rps in rad/s: 5000 RPM = 5000 * π / 30 ≈ 523.6 rad/s
+    let rps_5000 = 5000.0f32 * std::f32::consts::PI / 30.0;
+    let rps_8000 = 8000.0f32 * std::f32::consts::PI / 30.0;
+    write_f32_le(&mut pkt, 1396, rps_5000); // engine_rps
+    write_f32_le(&mut pkt, 1400, rps_8000); // max_engine_rps
+    write_f32_le(&mut pkt, 1392, 50.0); // car_speed m/s
+    write_f32_le(&mut pkt, 1524, 0.1); // steer_input_raw
+    write_f32_le(&mut pkt, 1500, 0.6); // throttle
+    write_i32_le(&mut pkt, 1408, 3); // gear
 
     let adapter = RaceRoomAdapter::new();
     let t = adapter.normalize(&pkt)?;

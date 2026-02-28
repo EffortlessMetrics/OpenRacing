@@ -17,10 +17,6 @@ fn write_f32(buf: &mut [u8], offset: usize, val: f32) {
     buf[offset..offset + 4].copy_from_slice(&val.to_le_bytes());
 }
 
-fn write_f64(buf: &mut [u8], offset: usize, val: f64) {
-    buf[offset..offset + 8].copy_from_slice(&val.to_le_bytes());
-}
-
 fn write_i32(buf: &mut [u8], offset: usize, val: i32) {
     buf[offset..offset + 4].copy_from_slice(&val.to_le_bytes());
 }
@@ -28,21 +24,24 @@ fn write_i32(buf: &mut [u8], offset: usize, val: i32) {
 // ─── RaceRoom ─────────────────────────────────────────────────────────────────
 
 fn make_raceroom_packet() -> Vec<u8> {
-    // R3E_VIEW_SIZE = 4096; must include version_major = 2 at offset 0.
+    // R3E_VIEW_SIZE = 4096; R3E SDK v3 offsets (pack(push, 1)).
     let mut buf = vec![0u8; 4096];
-    write_i32(&mut buf, 0, 2); // version_major = 2
-    write_i32(&mut buf, 100, 0); // game_paused = 0
-    write_i32(&mut buf, 104, 0); // game_in_menus = 0
-    write_f32(&mut buf, 600, 5500.0); // engine_rpm
-    write_f32(&mut buf, 604, 8500.0); // engine_rpm_max
-    write_f64(&mut buf, 620, 40.0); // fuel_left
-    write_f64(&mut buf, 628, 80.0); // fuel_capacity
-    write_f32(&mut buf, 700, 44.0); // speed_ms
-    write_f32(&mut buf, 704, 0.3); // steer_input
-    write_f32(&mut buf, 708, 0.75); // throttle
-    write_f32(&mut buf, 712, 0.0); // brake
-    write_f32(&mut buf, 716, 0.0); // clutch
-    write_i32(&mut buf, 730, 4); // gear
+    write_i32(&mut buf, 0, 3); // version_major = 3
+    write_i32(&mut buf, 20, 0); // game_paused = 0
+    write_i32(&mut buf, 24, 0); // game_in_menus = 0
+    // engine_rps in rad/s: 5500 RPM * π/30 ≈ 575.96 rad/s
+    let rps_5500 = 5500.0f32 * std::f32::consts::PI / 30.0;
+    let rps_8500 = 8500.0f32 * std::f32::consts::PI / 30.0;
+    write_f32(&mut buf, 1396, rps_5500); // engine_rps
+    write_f32(&mut buf, 1400, rps_8500); // max_engine_rps
+    write_f32(&mut buf, 1456, 40.0); // fuel_left (f32, litres)
+    write_f32(&mut buf, 1460, 80.0); // fuel_capacity (f32, litres)
+    write_f32(&mut buf, 1392, 44.0); // car_speed m/s
+    write_f32(&mut buf, 1524, 0.3); // steer_input_raw
+    write_f32(&mut buf, 1500, 0.75); // throttle
+    write_f32(&mut buf, 1508, 0.0); // brake
+    write_f32(&mut buf, 1516, 0.0); // clutch
+    write_i32(&mut buf, 1408, 4); // gear
     buf
 }
 
