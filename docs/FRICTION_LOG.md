@@ -239,6 +239,35 @@ No compile-time help distinguishes "this is a renamed constant" from "this const
 
 ---
 
+### F-023 · PXN HID report ID byte skipped — all input field offsets off by 1 (High · Resolved)
+
+**Encountered:** PR #18 review (Qodo comment) — `feat/r6-pxn-v2`
+
+`crates/hid-pxn-protocol/src/input.rs` `parse()` was reading steering from `data[0..2]`,
+throttle from `data[2..4]`, etc. — treating the raw HID buffer as if byte 0 were the first
+data field. But by convention (consistent with every other vendor protocol crate in the
+repo), byte 0 of the HID buffer is the HID report ID (`0x01`). All fields were shifted
+by one, so the steering angle was actually reading the throttle, the throttle was reading
+the brake, etc. Zero-byte buffers appeared to parse to "center/all-zeros" because the
+report ID and all data happened to be 0 in most tests.
+
+**Root cause:** New crate authored without cross-checking the Logitech/Fanatec/Moza parsers
+for offset convention. No integration test compared parsed steering against an actual
+captured HID frame, so the bug was invisible.
+
+**Fix applied:** commit `f8f46a4` on `feat/r6-pxn-v2`:
+- `NEED` constant: 10 → 11 (report ID byte + 10 data bytes)
+- Added `ParseError::WrongReportId { got: u8 }` variant
+- `parse()` validates `data[0] == REPORT_ID` before extracting fields
+- All field reads shifted +1 (steering: `data[1..3]`, throttle: `data[3..5]`, etc.)
+- All inline tests, property tests, and snapshot tests updated to prepend `REPORT_ID`
+
+**Lesson:** Every HID protocol crate must have at least one test that constructs a minimal
+known-good frame (with report ID byte) and asserts the parsed result against expected
+normalised values. A golden-frame test would have caught this immediately.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
