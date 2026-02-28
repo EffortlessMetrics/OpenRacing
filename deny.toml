@@ -4,27 +4,18 @@
 # List of explicitly allowed licenses
 allow = [
     "MIT",
+    "MIT-0",
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",
+    "Zlib",
     "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "MPL-2.0",
+    "CC0-1.0",
 ]
-
-# List of explicitly disallowed licenses
-deny = [
-    "GPL-2.0",
-    "GPL-3.0",
-    "AGPL-1.0",
-    "AGPL-3.0",
-    "LGPL-2.0",
-    "LGPL-2.1",
-    "LGPL-3.0",
-]
-
-# Lint level for when multiple versions of the same license are detected
-multiple-versions = "warn"
 
 # Confidence threshold for detecting a license from a license text.
 # 0.8 means we need to be 80% confident that the detected license is correct
@@ -33,8 +24,13 @@ confidence-threshold = 0.8
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses
 # aren't accepted for every possible crate as with the normal allow list
 exceptions = [
-    # Each entry is the crate and version constraint, and its the license
+    # ring uses OpenSSL license for some components
     { allow = ["OpenSSL"], name = "ring", version = "*" },
+    # bzip2 compression library uses its own permissive license
+    { allow = ["bzip2-1.0.6"], name = "libbz2-rs-sys", version = "*" },
+    # Mozilla root certificate data uses CDLA-Permissive-2.0
+    { allow = ["CDLA-Permissive-2.0"], name = "webpki-root-certs", version = "*" },
+    { allow = ["CDLA-Permissive-2.0"], name = "webpki-roots", version = "*" },
 ]
 
 [bans]
@@ -66,29 +62,36 @@ skip = []
 skip-tree = []
 
 [advisories]
-# The path where the advisory database is cloned/fetched into
-db-path = "~/.cargo/advisory-db"
-
 # The url(s) of the advisory databases to use
 db-urls = ["https://github.com/rustsec/advisory-db"]
 
-# The lint level for security vulnerabilities
-vulnerability = "deny"
-
-# The lint level for unmaintained crates
-unmaintained = "warn"
-
-# The lint level for crates that have been yanked from their source registry
-yanked = "warn"
-
-# The lint level for crates with security notices. Note that as of
-# 2019-12-17 there are no security notice advisories in
-# https://github.com/rustsec/advisory-db
-notice = "warn"
-
 # A list of advisory IDs to ignore. Note that ignored advisories will still
 # output a note when they are encountered.
-ignore = []
+ignore = [
+    # gtk-rs GTK3 bindings are unmaintained (migrate to GTK4 tracked separately)
+    "RUSTSEC-2024-0411",
+    "RUSTSEC-2024-0412",
+    "RUSTSEC-2024-0413",
+    "RUSTSEC-2024-0414",
+    "RUSTSEC-2024-0415",
+    "RUSTSEC-2024-0416",
+    "RUSTSEC-2024-0417",
+    "RUSTSEC-2024-0418",
+    "RUSTSEC-2024-0419",
+    "RUSTSEC-2024-0420",
+    # fxhash is unmaintained; consider migrating to foldhash or rustc-hash
+    "RUSTSEC-2025-0057",
+    # proc-macro-error is unmaintained; transitive dependency
+    "RUSTSEC-2024-0370",
+    # rand_os is unmaintained; transitive dependency from older rand versions
+    "RUSTSEC-2025-0075",
+    # unic-* crates are unmaintained; transitive dependencies
+    "RUSTSEC-2025-0080",
+    "RUSTSEC-2025-0081",
+    "RUSTSEC-2025-0098",
+    "RUSTSEC-2025-0100",
+    "RUSTSEC-2025-0124",
+]
 
 [sources]
 # Lint level for what to happen when a crate from a crate registry that is
