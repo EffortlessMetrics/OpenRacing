@@ -273,6 +273,8 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("simhub", new_simhub_config_writer),
         ("mudrunner", new_mudrunner_config_writer),
         ("snowrunner", new_snowrunner_config_writer),
+        ("motogp", new_motogp_config_writer),
+        ("ride5", new_ride5_config_writer),
     ]
 }
 
