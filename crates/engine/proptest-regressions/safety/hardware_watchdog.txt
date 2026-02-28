@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 666003aa9784c9011c7b419dee0b0140c796ee2c705a6b1f2c30e597a5892a50 # shrinks to current_torque = 40.0, comm_timeout_ms = 40
+cc 659c9de8877f7f9dc0051ddf0f113a52f573fa254e8990fe7d174096011e0fd6 # shrinks to current_torque = 4.2195065e-21, comm_timeout_ms = 18

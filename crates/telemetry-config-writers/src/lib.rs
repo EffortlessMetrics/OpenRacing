@@ -1798,11 +1798,11 @@ impl ConfigWriter for F1NativeConfigWriter {
         let valid_protocol = value
             .get("telemetry_protocol")
             .and_then(|v| v.as_str())
-            .map_or(false, |p| p == F1_NATIVE_PROTOCOL);
+            .is_some_and(|p| p == F1_NATIVE_PROTOCOL);
         let valid_game = value
             .get("game_id")
             .and_then(|v| v.as_str())
-            .map_or(false, |g| g == "f1_native");
+            .is_some_and(|g| g == "f1_native");
         Ok(valid_protocol && valid_game)
     }
 
