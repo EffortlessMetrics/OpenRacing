@@ -5,8 +5,8 @@
 
 use racing_wheel_telemetry_adapters::{
     AMS2Adapter, BeamNGAdapter, Ets2Adapter, ForzaAdapter, IRacingAdapter, LFSAdapter,
-    PCars2Adapter, RFactor2Adapter, TelemetryAdapter, ams2::AMS2SharedMemory, ets2::Ets2Variant,
-    rfactor2::RF2VehicleTelemetry,
+    PCars2Adapter, PCars3Adapter, RFactor2Adapter, TelemetryAdapter, ams2::AMS2SharedMemory,
+    ets2::Ets2Variant, rfactor2::RF2VehicleTelemetry,
 };
 use std::mem;
 
@@ -155,6 +155,28 @@ fn make_pcars2_packet() -> Vec<u8> {
 fn pcars2_udp_normalized_snapshot() -> TestResult {
     let adapter = PCars2Adapter::new();
     let normalized = adapter.normalize(&make_pcars2_packet())?;
+    insta::assert_yaml_snapshot!(normalized);
+    Ok(())
+}
+
+// ─── PCars3 ──────────────────────────────────────────────────────────────────
+
+fn make_pcars3_packet() -> Vec<u8> {
+    let mut data = vec![0u8; 84];
+    write_f32(&mut data, 40, 0.15); // steering
+    write_f32(&mut data, 44, 0.75); // throttle
+    write_f32(&mut data, 48, 0.0); // brake
+    write_f32(&mut data, 52, 45.0); // speed_ms (≈162 km/h)
+    write_f32(&mut data, 56, 7200.0); // rpm
+    write_f32(&mut data, 60, 8500.0); // max_rpm
+    write_u32(&mut data, 80, 4); // gear = 4
+    data
+}
+
+#[test]
+fn project_cars_3_snapshot() -> TestResult {
+    let adapter = PCars3Adapter::new();
+    let normalized = adapter.normalize(&make_pcars3_packet())?;
     insta::assert_yaml_snapshot!(normalized);
     Ok(())
 }
