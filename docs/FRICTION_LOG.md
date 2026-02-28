@@ -70,18 +70,13 @@ Concurrent file edits during active builds cause cascading compilation errors (r
 
 ---
 
-### F-004 · Windows linker PDB limit in integration tests (Medium · Open)
+### F-004 · Windows linker PDB limit in integration tests (Medium · **Resolved**)
 
 **Encountered:** RC sprint — `racing-wheel-integration-tests` fails with LNK1318 / LNK1180 on Windows
 
 The Windows linker hits its PDB symbol table size limit when the integration test crate is built in debug mode with all features, because it transitively pulls in every crate in the workspace.
 
-**Current state:** The CI integration-tests workflow runs integration tests on Windows only for a narrow subset (`test_performance_gates_ffb_jitter`). No `.cargo/config.toml` with `split-debuginfo` override has been added. The underlying linker limit is not mitigated for full `--all-features` builds.
-
-**Remedy:** Options:
-1. Build integration tests in release mode for CI on Windows.
-2. Split `racing-wheel-integration-tests` into smaller crates.
-3. Add `.cargo/config.toml` override to use `split-debuginfo = "packed"` on Windows.
+**Fix applied:** Added `[profile.test.package.racing-wheel-integration-tests] debug = false` to workspace `Cargo.toml`. Disabling debug info for this specific package avoids generating a PDB file that exceeds the linker's symbol table limit, while leaving debug symbols enabled for all other packages. Note: `.cargo/config.toml` cannot be used because `.cargo/` is gitignored (machine-specific). (feat/r7-quirks-cleanup-v2)
 
 ---
 
@@ -103,25 +98,23 @@ Protocol values sourced from memory/guesses rather than verified sources.
 
 ---
 
-### F-006 · Snapshot tests silently encoding wrong values (Medium · Open)
+### F-006 · Snapshot tests silently encoding wrong values (Medium · **Resolved**)
 
 **Encountered:** RC sprint — Simagic snapshot tests were accepted with wrong legacy PIDs (`0x0101–0x0301`) and had to be regenerated after web-verification corrected the PIDs to `0x0500–0x0502`.
 
 Snapshot tests provide no protection against "wrong but consistent" values: the first `--force-update-snapshots` run permanently bakes in whatever the code produces, even if the code is wrong.
 
-**Current state:** Snapshot files in `crates/hid-button-box-protocol/tests/snapshots/` contain plausible values (e.g. `buttons=0x00000000, axis_x=0, axis_y=0, hat=Up` for zero-byte input). No cross-validation against the golden-source file from F-005 has been added; the structural problem — that snapshot tests cannot distinguish "correct" from "consistently wrong" — remains.
-
-**Remedy:** For device ID snapshots, cross-validate against the golden-source file from F-005. Add `// source: <URL>` annotations inside snapshot files for reviewers to verify. Consider a separate "verified constants" test that asserts specific known-good numeric values independently of snapshot infrastructure.
+**Fix applied (full):** Every HID vendor crate now has a `tests/id_verification.rs` test suite (15 crates total: Moza, Simagic, Cammus, VRS, Asetek, AccuForce, Fanatec, Heusinkveld, Leo Bodnar, Logitech, Simucube, Thrustmaster, OpenFFBoard, FFBeast, button-box) that asserts each VID/PID constant against the golden values in `docs/protocols/SOURCES.md`. Guidance for annotating snapshot files added to `docs/DEVELOPMENT.md` under "Snapshot tests and cross-validation". (feat/r7-quirks-cleanup-v2)
 
 ---
 
-### F-013 · YAML sync requires manual update of two identical files (Medium · Open)
+### F-013 · YAML sync requires manual update of two identical files (Medium · **Resolved**)
 
 **Encountered:** R5 test coverage sprint
 
 Both `crates/telemetry-config/src/game_support_matrix.yaml` and `crates/telemetry-support/src/game_support_matrix.yaml` must be kept identical. Every game addition requires two manual edits. The files have already diverged (see F-001); the CI diff check is the only safety net.
 
-**Remedy:** Make one file a symlink of the other, or auto-generate one from the other in a `build.rs` build script. Long-term: merge into a single source of truth consumed by both crates (tracked in F-001).
+**Fix applied:** `scripts/sync_yaml.py` added — run `python scripts/sync_yaml.py --fix` after editing the canonical file to copy it to the mirror. The long-term single-source-of-truth refactor remains tracked under F-001. (feat/r5-test-coverage-and-integration)
 
 ---
 
@@ -219,6 +212,8 @@ No compile-time help distinguishes "this is a renamed constant" from "this const
 | ID | Title | Resolved In |
 |----|-------|-------------|
 | F-003 | Agent file-edit race during compilation | AGENTS.md worktree rules (feat/r7) |
+| F-004 | Windows linker PDB limit in integration tests | Cargo.toml profile.test override (feat/r7) |
+| F-006 | Snapshot tests silently encoding wrong values | id_verification tests for all 15 HID crates (feat/r7) |
 | F-014 | Agent race conditions on shared branch | AGENTS.md worktree rules (feat/r7) |
 | F-015 | Workspace-hack requires manual regeneration | .githooks/pre-commit + AGENTS.md (feat/r7) |
 | F-008 | BeamNG gear overflow | commit cdd69f0 |
