@@ -236,11 +236,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **New snapshot tests** (`crates/telemetry-adapters/tests/snapshots_games_v4.rs`):
   - 11 insta snapshot tests: raceroom, rbr, rennsport, wtcr, wrc_generations, wreckfest, motogp_simhub, mudrunner_simhub, snowrunner_simhub, ride5_simhub, ac_rally
-  - Total snapshot files: 34+
+  - Total snapshot coverage: **50 unique adapter snapshots** across 5 test files
+
+- **`gran_turismo_sport` and `forza_horizon` test improvements**: 4 new tests for GTS (empty-packet err, port constants, minimum valid decrypted packet, proptest panic freedom); 10 new tests for Forza Horizon FH4/FH5 (Sled/CarDash packet acceptance, RPM/speed field accuracy, insta snapshot, arbitrary-bytes proptest); no `unwrap()`/`expect()` anywhere
 
 - **CI fix**: `dependency-governance` job changed from hard `exit 1` on any `cargo tree --duplicates` output to a GitHub Actions `::warning::` annotation; actual ban policy is governed by `deny.toml` (`multiple-versions = "warn"`) via `cargo deny check` in the lint-gates job
 
 - **Fix: `fuzz_simplemotion`** was unable to compile because `racing-wheel-simplemotion-v2` was missing from `fuzz/Cargo.toml` dependencies; dependency added and Cargo.lock updated
+
+- **Fix: PXN input report ID offset bug** (`crates/hid-pxn-protocol/src/input.rs`): `parse()` was reading steering from `data[0..2]`, treating the raw HID buffer as if byte 0 were the first data field. Per the repository convention (consistent with Logitech, Fanatec, and Moza parsers), byte 0 is the HID report ID `0x01`. All field offsets shifted +1; `ParseError::WrongReportId` variant added; `NEED` increased from 10 → 11 bytes. All unit tests, property tests, and snapshot tests updated. See friction log F-023.
+
+- **Fix: test `panic!()` violations in 8 telemetry adapter files** (`dirt4.rs`, `dirt_rally_2.rs`, `wrc_generations.rs`, `wrc_kylotonn.rs`, `f1_manager.rs`, `f1_25.rs`, `eawrc.rs`, `f1_native.rs`): replaced all `panic!("msg")` calls in test code with `return Err("msg".into())` per the no-panic-in-tests rule; removed `must<T,E>()` helper from `eawrc.rs` and replaced 6 call sites with `?`; added consistent message to bare `unreachable!()` in `f1_native.rs`
+
+- **Fix: `unwrap()`/`expect()` in 12 telemetry adapter test files** (`assetto_corsa.rs`, `ets2.rs`, `f1_native.rs`, `lfs.rs`, `pcars2.rs`, `dirt_rally_2.rs`, `gran_turismo_7.rs`, `kartkraft.rs`, `le_mans_ultimate.rs`, `nascar.rs`, `rbr.rs`, `trackmania.rs`): replaced all `unwrap()`/`expect()` in test closures with `.map_err(|e| TestCaseError::fail(format!("{e:?}")))?` and equivalent `?`-propagating patterns; no remaining unwrap/expect in proptest closures or `#[test]` fns
 
 ## [1.0.0-rc.1] - 2026-11-01
 
