@@ -2597,6 +2597,8 @@ dependencies = [
 name = "hid-cube-controls-protocol"
 version = "0.1.0"
 dependencies = [
+ "insta",
+ "proptest",
  "workspace-hack",
 ]
 
