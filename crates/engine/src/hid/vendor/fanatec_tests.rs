@@ -53,6 +53,9 @@ fn test_fanatec_model_classification() {
     let gt_pro = FanatecProtocol::new(FANATEC_VENDOR_ID, product_ids::GT_DD_PRO);
     assert_eq!(gt_pro.model(), FanatecModel::GtDdPro);
 
+    let clubsport_dd = FanatecProtocol::new(FANATEC_VENDOR_ID, product_ids::CLUBSPORT_DD);
+    assert_eq!(clubsport_dd.model(), FanatecModel::ClubSportDd);
+
     let unknown = FanatecProtocol::new(FANATEC_VENDOR_ID, 0xBEEF);
     assert_eq!(unknown.model(), FanatecModel::Unknown);
 }

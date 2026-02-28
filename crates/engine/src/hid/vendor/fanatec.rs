@@ -106,7 +106,10 @@ impl VendorProtocol for FanatecProtocol {
     }
 
     fn is_v2_hardware(&self) -> bool {
-        matches!(self.model, FanatecModel::Dd1 | FanatecModel::Dd2)
+        matches!(
+            self.model,
+            FanatecModel::Dd1 | FanatecModel::Dd2 | FanatecModel::ClubSportDd
+        )
     }
 
     fn output_report_id(&self) -> Option<u8> {

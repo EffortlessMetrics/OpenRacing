@@ -199,6 +199,35 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_model_clubsport_dd() -> Result<(), Box<dyn std::error::Error>> {
+        let model = FanatecModel::from_product_id(product_ids::CLUBSPORT_DD);
+        assert_eq!(model, FanatecModel::ClubSportDd);
+        assert!((model.max_torque_nm() - 20.0).abs() < 0.1);
+        assert_eq!(model.encoder_cpr(), 16_384);
+        assert!(model.supports_1000hz());
+        Ok(())
+    }
+
+    #[test]
+    fn test_supports_1000hz() -> Result<(), Box<dyn std::error::Error>> {
+        assert!(FanatecModel::CslDd.supports_1000hz());
+        assert!(FanatecModel::GtDdPro.supports_1000hz());
+        assert!(FanatecModel::ClubSportDd.supports_1000hz());
+        assert!(FanatecModel::Dd1.supports_1000hz());
+        assert!(FanatecModel::Dd2.supports_1000hz());
+        assert!(!FanatecModel::CslElite.supports_1000hz());
+        assert!(!FanatecModel::ClubSportV2.supports_1000hz());
+        assert!(!FanatecModel::Unknown.supports_1000hz());
+        Ok(())
+    }
+
+    #[test]
+    fn test_is_wheelbase_product_clubsport_dd() -> Result<(), Box<dyn std::error::Error>> {
+        assert!(is_wheelbase_product(product_ids::CLUBSPORT_DD));
+        Ok(())
+    }
+
+    #[test]
     fn test_is_wheelbase_product_known() -> Result<(), Box<dyn std::error::Error>> {
         assert!(is_wheelbase_product(product_ids::CLUBSPORT_V2));
         assert!(is_wheelbase_product(product_ids::CSL_ELITE_BASE));
