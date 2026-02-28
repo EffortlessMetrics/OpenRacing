@@ -8,15 +8,15 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 - **Core FFB Engine**: Real-time force feedback processing at 1kHz with zero-allocation RT path
 - **Cross-Platform HID**: Full support for Linux (hidraw/udev) and Windows (overlapped I/O, MMCSS)
 - **Plugin System**: WASM sandboxed runtime + Native plugins with Ed25519 signature verification
-- **Game Telemetry**: 14 adapters — iRacing, ACC, AMS2, rFactor 2, Assetto Corsa, Forza Motorsport/Horizon, BeamNG.drive, Project CARS 2/3, RaceRoom, AC Rally, Dirt 5, EA WRC, F1 2024, F1 25
+- **Game Telemetry**: 58 game adapters — iRacing, ACC, AMS2, rFactor 2, Assetto Corsa, Forza Motorsport/Horizon, BeamNG.drive, Project CARS 2/3, RaceRoom, AC Rally, Dirt 5, EA WRC, F1 series (4 editions), Gran Turismo 7, and 40+ more titles
 - **Curve-Based FFB**: Customizable response curves (linear, exponential, logarithmic, Bezier)
 - **Profile Inheritance**: Hierarchical profiles with up to 5 levels of inheritance
 - **Tauri UI**: Device management, real-time telemetry display, profile application
 - **CLI Tools**: `wheelctl` for device management, diagnostics, and profile operations
 - **Safety System**: Hardware watchdog, FMEA fault injection, fault quarantine, safe mode transitions, black box recording
-- **Multi-vendor Device Support**: 10 vendors fully supported — Logitech, Fanatec, Thrustmaster, Moza, Simagic, Simucube 2, VRS, Heusinkveld, Asetek, OpenFFBoard, FFBeast, Granite Devices IONI/ARGON
-- **Protocol Documentation**: All supported devices documented in `docs/protocols/`
-- **Test Infrastructure**: 600+ tests, 9 fuzz targets, snapshot tests, property-based tests, E2E journey tests
+- **Multi-vendor Device Support**: 15 vendors supported — Logitech, Fanatec, Thrustmaster, Moza, Simagic, Simucube 2, VRS, Heusinkveld, Asetek, OpenFFBoard, FFBeast, Granite Devices IONI/ARGON, AccuForce, Leo Bodnar, PXN (PR #18), Cammus
+- **Protocol Documentation**: All supported devices documented in `docs/protocols/`; VID/PID constants locked to `docs/protocols/SOURCES.md` via `id_verification.rs` test suites in all 15 HID vendor crates
+- **Test Infrastructure**: 700+ tests, 9 fuzz targets, snapshot tests, property-based tests (proptest), E2E journey tests; all HID crates have cross-reference id_verification suites
 
 **Architecture**: Established via ADRs 0001-0006 (FFB Mode Matrix, IPC Transport, OWP-1 Protocol, RT Scheduling, Plugin Architecture, Safety Interlocks)
 
@@ -172,6 +172,10 @@ The following TODOs exist in the codebase and should be addressed before v1.0.0:
 | `crates/service/src/crypto/mod.rs:204-205` | Implement PE/ELF embedded signature checking |
 | `crates/engine/src/diagnostic/blackbox.rs:152` | Index optimization for large recordings |
 | `crates/service/src/integration_tests.rs` | Re-enable disabled integration tests |
+| `crates/hid-pxn-protocol/src/output.rs` | PXN FFB_REPORT_ID 0x05 is estimated; verify with USB capture |
+| `docs/DEVICE_CAPABILITIES.md` | Cube Controls VID/PIDs provisional (0x0483:0x0C73–0x0C75); community capture needed |
+| `docs/protocols/SOURCES.md` | Devices Under Investigation table (Turtle Beach, Cube Controls, Cammus C15, Simucube 3, Gomez, SIMTAG, PXN VD-series) |
+| `F-007 (FRICTION_LOG)` | Symbol rename pattern — `#[deprecated]` guidance added to DEVELOPMENT.md; no code changes yet |
 
 ## Release Schedule
 
@@ -180,7 +184,7 @@ The following TODOs exist in the codebase and should be addressed before v1.0.0:
 | v0.1.0  | 2025-01-01 | ✅ Released | Core Engine & Linux Support |
 | v0.2.0  | 2026-02-01 | ✅ Released | Windows Support & Tauri UI |
 | v0.3.0  | 2026-02-01 | ✅ Released | WASM Plugins, Game Telemetry, Curve FFB |
-| v1.0 RC | 2026-Q3   | ✅ Feature complete | Multi-vendor devices, 14 game adapters, safety hardening, 600+ tests |
+| v1.0 RC | 2026-Q3   | ✅ Feature complete | Multi-vendor devices, 58 game adapters, safety hardening, 700+ tests |
 | v1.0.0  | 2026-10-15 | Planned | Production Release with Security Audit |
 
 ## Contributing
