@@ -63,7 +63,7 @@ fn test_logitech_ffb_config_g920() {
 fn test_logitech_ffb_config_g_pro() {
     let protocol = LogitechProtocol::new(LOGITECH_VENDOR_ID, product_ids::G_PRO);
     let config = protocol.get_ffb_config();
-    assert!((config.max_torque_nm - 2.2).abs() < 0.05);
+    assert!((config.max_torque_nm - 11.0).abs() < 0.05);
 }
 
 #[test]
@@ -99,16 +99,16 @@ fn test_logitech_unknown_product_skips_init() -> Result<(), Box<dyn std::error::
 }
 
 #[test]
-fn test_logitech_initialize_g_pro_900deg() -> Result<(), Box<dyn std::error::Error>> {
+fn test_logitech_initialize_g_pro_1080deg() -> Result<(), Box<dyn std::error::Error>> {
     let protocol = LogitechProtocol::new(LOGITECH_VENDOR_ID, product_ids::G_PRO);
     let mut writer = MockDeviceWriter::new();
     protocol.initialize_device(&mut writer)?;
 
     let reports = writer.feature_reports();
     assert_eq!(reports.len(), 2);
-    // Range = 900° = 0x0384; little-endian [0x84, 0x03]
-    assert_eq!(reports[1][2], 0x84, "LSB of 900°");
-    assert_eq!(reports[1][3], 0x03, "MSB of 900°");
+    // Range = 1080° = 0x0438; little-endian [0x38, 0x04]
+    assert_eq!(reports[1][2], 0x38, "LSB of 1080°");
+    assert_eq!(reports[1][3], 0x04, "MSB of 1080°");
     Ok(())
 }
 

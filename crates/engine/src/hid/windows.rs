@@ -333,9 +333,7 @@ impl SupportedDevices {
             (vendor_ids::LOGITECH, 0xC294, "Logitech G27"),
             (vendor_ids::LOGITECH, 0xC29B, "Logitech G27 (alt)"),
             (vendor_ids::LOGITECH, 0xC24F, "Logitech G29"),
-            (vendor_ids::LOGITECH, 0xC260, "Logitech G29 (alt)"),
-            (vendor_ids::LOGITECH, 0xC261, "Logitech G920"),
-            (vendor_ids::LOGITECH, 0xC262, "Logitech G920 (alt)"),
+            (vendor_ids::LOGITECH, 0xC262, "Logitech G920"),
             (vendor_ids::LOGITECH, 0xC26D, "Logitech G923 Xbox"),
             (vendor_ids::LOGITECH, 0xC267, "Logitech G923 PS"),
             (vendor_ids::LOGITECH, 0xC266, "Logitech G PRO"),
@@ -345,15 +343,19 @@ impl SupportedDevices {
                 0x0001,
                 "Fanatec ClubSport Wheel Base V2",
             ),
-            (vendor_ids::FANATEC, 0x0004, "Fanatec CSL Elite Wheel Base"),
+            (
+                vendor_ids::FANATEC,
+                0x0004,
+                "Fanatec ClubSport Wheel Base V2.5",
+            ),
             (
                 vendor_ids::FANATEC,
                 0x0005,
-                "Fanatec ClubSport Wheel Base V2.5",
+                "Fanatec CSL Elite Wheel Base (PS4)",
             ),
             (vendor_ids::FANATEC, 0x0006, "Fanatec Podium Wheel Base DD1"),
             (vendor_ids::FANATEC, 0x0007, "Fanatec Podium Wheel Base DD2"),
-            (vendor_ids::FANATEC, 0x0011, "Fanatec CSL DD (legacy)"),
+            (vendor_ids::FANATEC, 0x0011, "Fanatec CSR Elite"),
             (vendor_ids::FANATEC, 0x0020, "Fanatec CSL DD"),
             (vendor_ids::FANATEC, 0x0024, "Fanatec Gran Turismo DD Pro"),
             (
@@ -1132,8 +1134,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque = TorqueNm::new(2.5).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 4000; // 250Hz
                 }
-                0xC24F | 0xC260 | 0xC261 | 0xC262 => {
-                    // G29/G920
+                0xC24F | 0xC262 => {
+                    // G29 (0xC24F) / G920 (0xC262)
                     capabilities.max_torque = TorqueNm::new(2.8).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 2000; // 500Hz
                 }
@@ -1176,12 +1178,12 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.min_report_period_us = 1000; // 1kHz
 
             match product_id {
-                0x0001 | 0x0005 => {
-                    // ClubSport V2/V2.5
+                0x0001 | 0x0004 => {
+                    // ClubSport V2 (0x0001) / V2.5 (0x0004)
                     capabilities.max_torque = TorqueNm::new(8.0).unwrap_or(capabilities.max_torque);
                 }
-                0x0004 => {
-                    // CSL Elite
+                0x0005 => {
+                    // CSL Elite PS4 (belt-driven, 6 Nm)
                     capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
                 }
                 0x0006 => {
@@ -1195,8 +1197,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                         TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
                 }
                 0x0011 => {
-                    // CSL DD
-                    capabilities.max_torque = TorqueNm::new(8.0).unwrap_or(capabilities.max_torque);
+                    // CSR Elite (belt-driven, ~3.9 Nm)
+                    capabilities.max_torque = TorqueNm::new(3.9).unwrap_or(capabilities.max_torque);
                 }
                 0x0020 => {
                     // CSL DD (main PID for current hardware)
@@ -2682,7 +2684,7 @@ mod tests {
     fn test_supported_devices_logitech() {
         assert!(SupportedDevices::is_supported_vendor(vendor_ids::LOGITECH));
         assert!(SupportedDevices::is_supported(vendor_ids::LOGITECH, 0xC24F)); // G29
-        assert!(SupportedDevices::is_supported(vendor_ids::LOGITECH, 0xC261)); // G920
+        assert!(SupportedDevices::is_supported(vendor_ids::LOGITECH, 0xC262)); // G920
         assert!(SupportedDevices::is_supported(vendor_ids::LOGITECH, 0xC267)); // G923 PS
         assert!(!SupportedDevices::is_supported(
             vendor_ids::LOGITECH,
@@ -2695,7 +2697,7 @@ mod tests {
         assert!(SupportedDevices::is_supported_vendor(vendor_ids::FANATEC));
         assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0006)); // DD1
         assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0007)); // DD2
-        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0011)); // CSL DD
+        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0011)); // CSR Elite
         assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0020)); // GT DD Pro
         assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0024)); // GT DD Pro (alt PID)
     }
