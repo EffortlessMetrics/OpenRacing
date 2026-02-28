@@ -338,7 +338,7 @@ impl TelemetryAdapter for F1NativeAdapter {
                     PACKET_FORMAT_2024 => {
                         let _ = parse_car_status_2024(raw, player)?;
                     }
-                    _ => unreachable!(),
+                    _ => unreachable!("packet_format already validated above"),
                 }
                 Err(anyhow!(
                     "F1 native normalize() received CarStatus (ID 7) without preceding \
