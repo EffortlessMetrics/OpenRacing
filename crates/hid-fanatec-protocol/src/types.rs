@@ -196,7 +196,10 @@ impl FanatecRimId {
 
     /// Return `true` if this rim has rotary encoders (beyond the standard hat switch).
     pub fn has_rotary_encoders(self) -> bool {
-        matches!(self, Self::McLarenGt3V2 | Self::FormulaV25 | Self::PodiumApm)
+        matches!(
+            self,
+            Self::McLarenGt3V2 | Self::FormulaV25 | Self::PodiumApm
+        )
     }
 }
 

@@ -63,7 +63,13 @@ async fn find_free_udp_port() -> anyhow::Result<u16> {
 /// * 24 → `max_rpm` (f32)
 /// * 68 → `gas` / throttle (f32 0.0–1.0)
 /// * 72 → `brake` (f32 0.0–1.0)
-fn make_ac_outgauge_packet(gear: i8, speed_kmh: u16, rpm: f32, throttle: f32, brake: f32) -> Vec<u8> {
+fn make_ac_outgauge_packet(
+    gear: i8,
+    speed_kmh: u16,
+    rpm: f32,
+    throttle: f32,
+    brake: f32,
+) -> Vec<u8> {
     let mut pkt = vec![0u8; 76];
     pkt[16] = gear as u8;
     write_u16_le(&mut pkt, 18, speed_kmh);
@@ -92,13 +98,13 @@ fn make_forza_cardash_packet(
     gear_raw: u8,
 ) -> Vec<u8> {
     let mut pkt = vec![0u8; 311];
-    write_i32_le(&mut pkt, 0, 1);          // is_race_on = 1
-    write_f32_le(&mut pkt, 8, max_rpm);    // engine_max_rpm
-    write_f32_le(&mut pkt, 16, rpm);       // current_rpm
-    write_f32_le(&mut pkt, 32, speed_ms);  // vel_x → Sled speed magnitude
+    write_i32_le(&mut pkt, 0, 1); // is_race_on = 1
+    write_f32_le(&mut pkt, 8, max_rpm); // engine_max_rpm
+    write_f32_le(&mut pkt, 16, rpm); // current_rpm
+    write_f32_le(&mut pkt, 32, speed_ms); // vel_x → Sled speed magnitude
     write_f32_le(&mut pkt, 244, speed_ms); // dash_speed (authoritative)
-    pkt[303] = throttle_u8;                // dash_accel
-    pkt[307] = gear_raw;                   // dash_gear
+    pkt[303] = throttle_u8; // dash_accel
+    pkt[307] = gear_raw; // dash_gear
     pkt
 }
 
@@ -167,8 +173,8 @@ fn make_acc_car_update_packet(gear_raw: u8, speed_kmh: u16) -> Vec<u8> {
 /// And    speed, RPM, and gear are correctly parsed from the packet
 /// ```
 #[tokio::test]
-async fn scenario_assetto_corsa_game_sends_udp_telemetry_adapter_normalises_within_100ms(
-) -> anyhow::Result<()> {
+async fn scenario_assetto_corsa_game_sends_udp_telemetry_adapter_normalises_within_100ms()
+-> anyhow::Result<()> {
     // Given: AC adapter is monitoring a free UDP port
     let port = find_free_udp_port().await?;
     let adapter = AssettoCorsaAdapter::new().with_port(port);
@@ -229,8 +235,8 @@ async fn scenario_assetto_corsa_game_sends_udp_telemetry_adapter_normalises_with
 /// And    speed, RPM, throttle, and gear are correctly decoded
 /// ```
 #[tokio::test]
-async fn scenario_forza_motorsport_game_sends_cardash_udp_adapter_normalises_within_100ms(
-) -> anyhow::Result<()> {
+async fn scenario_forza_motorsport_game_sends_cardash_udp_adapter_normalises_within_100ms()
+-> anyhow::Result<()> {
     // Given: Forza adapter is monitoring a free UDP port
     let port = find_free_udp_port().await?;
     let adapter = ForzaAdapter::new().with_port(port);
@@ -295,8 +301,8 @@ async fn scenario_forza_motorsport_game_sends_cardash_udp_adapter_normalises_wit
 /// And    the adapter correctly identifies itself as "acc"
 /// ```
 #[test]
-fn scenario_acc_realtime_car_update_correctly_normalises_speed_and_gear(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_acc_realtime_car_update_correctly_normalises_speed_and_gear()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: ACC adapter (no hardware required – normalize() is pure)
     let adapter = ACCAdapter::new();
 
@@ -334,8 +340,7 @@ fn scenario_acc_realtime_car_update_correctly_normalises_speed_and_gear(
 /// Then   the in_pits flag is set to true
 /// ```
 #[test]
-fn scenario_acc_car_in_pit_lane_sets_in_pits_flag(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_acc_car_in_pit_lane_sets_in_pits_flag() -> Result<(), Box<dyn std::error::Error>> {
     let adapter = ACCAdapter::new();
 
     // car_location byte is at packet offset 19:
@@ -361,8 +366,8 @@ fn scenario_acc_car_in_pit_lane_sets_in_pits_flag(
 /// Then   normalize() returns an Err (no panic)
 /// ```
 #[test]
-fn scenario_acc_truncated_packet_returns_error_not_panic(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_acc_truncated_packet_returns_error_not_panic() -> Result<(), Box<dyn std::error::Error>>
+{
     let adapter = ACCAdapter::new();
 
     // An empty or one-byte packet must produce Err, not panic.
@@ -391,8 +396,8 @@ fn scenario_acc_truncated_packet_returns_error_not_panic(
 /// And    the 100ms first-frame budget is comfortably satisfied
 /// ```
 #[test]
-fn scenario_iracing_normalize_completes_within_1ms_latency_budget(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_iracing_normalize_completes_within_1ms_latency_budget()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: an iRacing adapter and a representative shared-memory snapshot.
     //        A zero-filled 8 KiB buffer is large enough to cover both the
     //        legacy and modern IRSDK memory layouts.
@@ -428,8 +433,8 @@ fn scenario_iracing_normalize_completes_within_1ms_latency_budget(
 ///        additional configuration
 /// ```
 #[test]
-fn scenario_all_tier1_game_adapters_registered_at_startup(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_all_tier1_game_adapters_registered_at_startup() -> Result<(), Box<dyn std::error::Error>>
+{
     // Given: the adapter factory registry
     let factories = adapter_factories();
     let registered: Vec<&str> = factories.iter().map(|(id, _)| *id).collect();
@@ -476,8 +481,8 @@ fn scenario_all_tier1_game_adapters_registered_at_startup(
 /// Then   adapter.game_id() matches the key it was registered under
 /// ```
 #[test]
-fn scenario_every_registered_adapter_game_id_matches_its_registry_key(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_every_registered_adapter_game_id_matches_its_registry_key()
+-> Result<(), Box<dyn std::error::Error>> {
     for (key, factory) in adapter_factories() {
         let adapter = factory();
         assert_eq!(

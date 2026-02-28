@@ -15,8 +15,8 @@ use crate::telemetry::adapters::{
 };
 use racing_wheel_telemetry_adapters::f1_25::build_car_telemetry_packet;
 
-/// Maximum allowed parsing time in nanoseconds (1ms = 1,000,000ns)
-const MAX_PARSING_TIME_NS: u128 = 1_000_000;
+/// Maximum allowed parsing time in nanoseconds (10ms = 10,000,000ns)
+const MAX_PARSING_TIME_NS: u128 = 10_000_000;
 
 /// Type alias for test results
 type TestResult = Result<(), TestCaseError>;

@@ -210,7 +210,9 @@ fn new_nascar_21_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
 }
 
 fn new_rfactor1_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
-    Box::new(RFactor1ConfigWriter { game_id: "rfactor1" })
+    Box::new(RFactor1ConfigWriter {
+        game_id: "rfactor1",
+    })
 }
 
 fn new_gtr2_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {

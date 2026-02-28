@@ -377,7 +377,10 @@ mod tests {
     fn test_rotation_range_report_clamp_min() -> Result<(), Box<dyn std::error::Error>> {
         let report = build_rotation_range_report(0);
         let range = u16::from_le_bytes([report[2], report[3]]);
-        assert_eq!(range, MIN_ROTATION_DEGREES, "must clamp to MIN_ROTATION_DEGREES");
+        assert_eq!(
+            range, MIN_ROTATION_DEGREES,
+            "must clamp to MIN_ROTATION_DEGREES"
+        );
         Ok(())
     }
 
@@ -385,7 +388,10 @@ mod tests {
     fn test_rotation_range_report_clamp_max() -> Result<(), Box<dyn std::error::Error>> {
         let report = build_rotation_range_report(u16::MAX);
         let range = u16::from_le_bytes([report[2], report[3]]);
-        assert_eq!(range, MAX_ROTATION_DEGREES, "must clamp to MAX_ROTATION_DEGREES");
+        assert_eq!(
+            range, MAX_ROTATION_DEGREES,
+            "must clamp to MAX_ROTATION_DEGREES"
+        );
         Ok(())
     }
 
