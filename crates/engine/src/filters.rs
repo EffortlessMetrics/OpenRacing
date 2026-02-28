@@ -151,10 +151,11 @@ pub fn response_curve_filter(frame: &mut Frame, state: *mut u8) {
 pub fn torque_cap_filter(frame: &mut Frame, state: *mut u8) {
     unsafe {
         let max_torque = *(state as *const f32);
+        // SAFETY-CRITICAL: NaN/Inf must map to 0.0 (safe state), never to max_torque.
         frame.torque_out = if frame.torque_out.is_finite() {
             frame.torque_out.clamp(-max_torque, max_torque)
         } else {
-            max_torque
+            0.0
         };
     }
 }
