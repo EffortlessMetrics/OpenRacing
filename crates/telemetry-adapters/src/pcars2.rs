@@ -42,7 +42,7 @@ const OFF_RPM: usize = 56;
 const OFF_MAX_RPM: usize = 60;
 const OFF_GEAR: usize = 80;
 
-fn parse_pcars2_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
+pub fn parse_pcars2_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     if data.len() < PCARS2_UDP_MIN_SIZE {
         return Err(anyhow!(
             "PCARS2 packet too short: expected at least {PCARS2_UDP_MIN_SIZE}, got {}",
