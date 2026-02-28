@@ -4,9 +4,9 @@
 //! torque encoding/clamping, and output report construction.
 
 use hid_simucube_protocol::{
-    MAX_TORQUE_NM, SIMUCUBE_2_PRO_PID, SIMUCUBE_2_SPORT_PID, SIMUCUBE_2_ULTIMATE_PID,
-    SIMUCUBE_VENDOR_ID, SimucubeModel, SimucubeOutputReport, WheelCapabilities, WheelModel,
-    is_simucube_device, simucube_model_from_info,
+    MAX_TORQUE_NM, SIMUCUBE_1_PID, SIMUCUBE_2_PRO_PID, SIMUCUBE_2_SPORT_PID,
+    SIMUCUBE_2_ULTIMATE_PID, SIMUCUBE_VENDOR_ID, SimucubeModel, SimucubeOutputReport,
+    WheelCapabilities, WheelModel, is_simucube_device, simucube_model_from_info,
 };
 use proptest::prelude::*;
 
@@ -51,10 +51,11 @@ proptest! {
 
     // -- Model detection: Sport / Pro / Ultimate PIDs -------------------------
 
-    /// Known Simucube 2 PIDs must map to the correct model variant.
+    /// Known Simucube PIDs must map to the correct model variant.
     #[test]
-    fn prop_known_pids_return_correct_model(idx in 0usize..3usize) {
+    fn prop_known_pids_return_correct_model(idx in 0usize..4usize) {
         let pairs = [
+            (SIMUCUBE_1_PID,          SimucubeModel::Simucube1),
             (SIMUCUBE_2_SPORT_PID,    SimucubeModel::Sport),
             (SIMUCUBE_2_PRO_PID,      SimucubeModel::Pro),
             (SIMUCUBE_2_ULTIMATE_PID, SimucubeModel::Ultimate),

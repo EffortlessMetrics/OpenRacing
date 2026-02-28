@@ -2,4 +2,4 @@
 source: crates/hid-simucube-protocol/tests/snapshot_tests.rs
 expression: "format!(\"name={}, max_torque={:.1}\", model.display_name(),\nmodel.max_torque_nm())"
 ---
-"name=Simucube 2 Sport, max_torque=15.0"
+"name=Simucube 2 Sport, max_torque=17.0"

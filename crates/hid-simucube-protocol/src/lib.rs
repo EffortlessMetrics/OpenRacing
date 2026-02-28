@@ -61,9 +61,9 @@ pub const REPORT_SIZE_INPUT: usize = 64;
 pub const REPORT_SIZE_OUTPUT: usize = 64;
 
 pub const MAX_TORQUE_NM: f32 = 25.0;
-pub const MAX_TORQUE_SPORT: f32 = 15.0;
+pub const MAX_TORQUE_SPORT: f32 = 17.0;
 pub const MAX_TORQUE_PRO: f32 = 25.0;
-pub const MAX_TORQUE_ULTIMATE: f32 = 35.0;
+pub const MAX_TORQUE_ULTIMATE: f32 = 32.0;
 
 pub const ANGLE_SENSOR_BITS: u32 = 22;
 pub const ANGLE_SENSOR_MAX: u32 = (1 << ANGLE_SENSOR_BITS) - 1;
