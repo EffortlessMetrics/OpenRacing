@@ -221,10 +221,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `fuzz_simhub_udp.rs`: fuzzes `parse_simhub_packet()` — must never panic on arbitrary bytes (covers all 6 SimHub-based adapters)
   - `fuzz_trackmania_udp.rs`: fuzzes `parse_trackmania_packet()` — covers OpenPlanet JSON-over-UDP parsing
   - 23 additional fuzz targets for adapters previously lacking coverage: `fuzz_dakar_udp`, `fuzz_flatout_udp`, `fuzz_nascar_udp`, `fuzz_nascar21_udp`, `fuzz_rfactor1_udp`, `fuzz_v_rally_4_udp`, `fuzz_wrc_kylotonn_udp`, `fuzz_grid_2019`, `fuzz_grid_autosport`, `fuzz_grid_legends`, `fuzz_le_mans_ultimate`, `fuzz_forza_horizon`, `fuzz_f1_udp`, `fuzz_dirt3_udp`, `fuzz_dirt5_udp`, `fuzz_dirt_showdown`, `fuzz_eawrc_udp`, `fuzz_ac_rally`, `fuzz_assetto_corsa`, `fuzz_gran_turismo_sport`, and more; total fuzz target count: **65**
+  - 5 further fuzz targets: `fuzz_beamng_udp` (OutGauge), `fuzz_wtcr_udp` (Codemasters Mode-1), `fuzz_forza_motorsport` (Sled/CarDash), `fuzz_iracing` (struct-cast normalizer), `fuzz_rfactor2` (struct-cast normalizer); total fuzz target count: **70**
 
 - **New snapshot tests** (`crates/telemetry-adapters/tests/snapshots_games_v2.rs`):
   - 10 new insta snapshot tests: dakar, flatout, nascar, wrc_kylotonn, v_rally_4, rfactor1, gravel (SimHub JSON), trackmania, gran_turismo_sport, grid_autosport
   - Total snapshot files: 23
+
+- **New snapshot tests** (`crates/telemetry-adapters/tests/snapshots_games_v4.rs`):
+  - 11 insta snapshot tests: raceroom, rbr, rennsport, wtcr, wrc_generations, wreckfest, motogp_simhub, mudrunner_simhub, snowrunner_simhub, ride5_simhub, ac_rally
+  - Total snapshot files: 34+
 
 - **CI fix**: `dependency-governance` job changed from hard `exit 1` on any `cargo tree --duplicates` output to a GitHub Actions `::warning::` annotation; actual ban policy is governed by `deny.toml` (`multiple-versions = "warn"`) via `cargo deny check` in the lint-gates job
 
