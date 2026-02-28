@@ -2,6 +2,25 @@
 //!
 //! This adapter opens `Local\\IRSDKMemMapFileName` with `FILE_MAP_READ`,
 //! reads the IRSDK header, and selects the newest rotating telemetry buffer.
+//!
+//! ## Verification against community IRSDK documentation
+//!
+//! Verified 2025-07 against [`kutu/pyirsdk`](https://github.com/kutu/pyirsdk) (v1.3.5)
+//! and the canonical iRacing variable list (`vars.txt`).
+//!
+//! - **Transport**: shared memory (`Local\IRSDKMemMapFileName`), not UDP. ✓
+//! - **Data-valid event**: `Local\IRSDKDataValidEvent` for blocking reads. ✓
+//! - **Header layout**: matches pyirsdk offsets (ver@0, status@4, tick_rate@8,
+//!   session_info_update@12, session_info_len@16, session_info_offset@20,
+//!   num_vars@24, var_header_offset@28, num_buf@32, buf_len@36, pad[2]@40,
+//!   var_buf@48). Each `VarBuffer` is 16 bytes; each `VarHeader` is 144 bytes. ✓
+//! - **Variable type IDs**: char=0, bool=1, int=2, bitfield=3, float=4, double=5. ✓
+//! - **Session flags**: checkered=0x1, green=0x4, yellow=0x8, red=0x10, blue=0x20. ✓
+//! - **Field names & units**: `Speed` (m/s), `RPM` (revs/min), `Gear` (−1=R, 0=N,
+//!   1‥n=forward), `Throttle`/`Brake` (0‥1), `SteeringWheelAngle` (rad),
+//!   `SteeringWheelTorque` (N·m), `FuelLevel` (litres), `SessionTime` (s, double). ✓
+//! - **Update rate**: default ~60 Hz (16 ms); actual rate read from `tick_rate` header. ✓
+//! - **Buffer selection**: newest rotating buffer with pre/post tick-count stability check. ✓
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
@@ -1018,7 +1037,10 @@ fn assign_var_binding(layout: &mut IRacingLayout, name: &str, binding: VarBindin
         layout.lap_current = Some(binding);
     } else if matches_irsdk_name(name, &["LapBestLapTime"]) {
         layout.lap_best_time = Some(binding);
-    } else if matches_irsdk_name(name, &["FuelLevel", "FuelLevelPct"]) {
+    } else if matches_irsdk_name(name, &["FuelLevel"]) {
+        layout.fuel_level = Some(binding);
+    } else if matches_irsdk_name(name, &["FuelLevelPct"]) && layout.fuel_level.is_none() {
+        // Fall back to percentage only when absolute litres are unavailable.
         layout.fuel_level = Some(binding);
     } else if matches_irsdk_name(name, &["OnPitRoad"]) {
         layout.on_pit_road = Some(binding);
