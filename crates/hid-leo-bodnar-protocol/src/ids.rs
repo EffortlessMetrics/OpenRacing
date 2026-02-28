@@ -27,9 +27,16 @@ pub const PID_FFB_JOYSTICK: u16 = 0x000F;
 ///
 /// **WARNING**: PID `0xBEEF` is a well-known hex magic number and is almost
 /// certainly a placeholder rather than a real USB product ID.  Leo Bodnar's
-/// product catalogue (leobodnar.com, checked 2025-02) lists an "SLI-Pro"
-/// shift light but no device called "SLI-M".  Treat this value as
-/// **unverified** until confirmed by a real USB device capture.
+/// product catalogue (leobodnar.com, checked 2025-06) lists "SLI-Pro" and
+/// "SLI-F1" shift light indicators but **no** product called "SLI-M".
+/// The SLI-F1 product page states it enumerates as "SLI-Pro" on USB.
+/// devicehunt.com lists zero product IDs for VID `0x1DD2`.
+/// Treat this value as **unverified** until confirmed by a real USB device
+/// capture.
+///
+/// TODO(web-verify): Replace PID 0xBEEF with the real PID once a USB
+/// capture from an SLI-Pro or SLI-F1 device is obtained. Consider
+/// renaming the constant and enum variant to match the actual product.
 pub const PID_SLI_M: u16 = 0xBEEF;
 
 // ── Estimated product IDs (from community USB captures) ─────────────────────

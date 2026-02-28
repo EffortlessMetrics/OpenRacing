@@ -17,9 +17,14 @@
 //! **Research pass (2025-06):** The following sources were checked:
 //! - JacKeTUs/linux-steering-wheels: **no** Cube Controls entries
 //! - devicehunt.com (VID 0x0483): PIDs 0x0C73–0x0C75 **not registered**
-//! - cubecontrols.com: no USB VID/PID information published
+//! - cubecontrols.com: no USB VID/PID information published; product pages
+//!   return 404 for direct links (checked 2025-06)
 //! - Linux kernel hid-ids.h: no Cube Controls entries
 //! - GitHub code search: no independent USB captures found
+//!
+//! TODO(web-verify): Obtain a USB descriptor capture (`lsusb -v` or
+//! USBTreeView) from real Cube Controls hardware to confirm or replace
+//! the provisional VID/PIDs below.
 //!
 //! See `docs/protocols/SOURCES.md` for policy.
 //!

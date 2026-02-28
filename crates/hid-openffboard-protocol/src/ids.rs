@@ -9,18 +9,25 @@ pub const OPENFFBOARD_VENDOR_ID: u16 = 0x1209;
 
 /// OpenFFBoard main product ID.
 ///
-/// Confirmed via the pid.codes registry, the OpenFFBoard-configurator
-/// (`serial_ui.py`, `OFFICIAL_VID_PID`), and the Windows CDC driver
-/// (`cdc.inf`: `VID_1209&PID_FFB0`).
+/// ✅ Confirmed via multiple independent sources:
+/// - pid.codes registry: <https://pid.codes/1209/FFB0/>
+/// - OpenFFBoard firmware `usb_descriptors.cpp`: `#define USBD_PID 0xFFB0`
+/// - OpenFFBoard-configurator `serial_ui.py`: `OFFICIAL_VID_PID = [(0x1209, 0xFFB0)]`
+/// - JacKeTUs/linux-steering-wheels compatibility table (VID `1209`, PID `ffb0`, Platinum)
 pub const OPENFFBOARD_PRODUCT_ID: u16 = 0xFFB0;
 
 /// OpenFFBoard alternate product ID.
 ///
 /// **Unverified**: PID `0xFFB1` is *not* registered on pid.codes (returns 404
-/// as of 2025-02) and does not appear in the official OpenFFBoard-configurator
-/// (`serial_ui.py` only lists `0xFFB0`) or the Windows CDC driver (`cdc.inf`).
+/// as of 2025-06), does not appear in the official OpenFFBoard firmware
+/// (`usb_descriptors.cpp` only defines `USBD_PID 0xFFB0`), is absent from
+/// the configurator (`serial_ui.py` only lists `0xFFB0`), and is not in the
+/// JacKeTUs/linux-steering-wheels compatibility table.
 /// Retained for possible future / community firmware builds, but should not be
 /// treated as confirmed.
+///
+/// TODO(web-verify): Remove or gate behind a feature flag if no evidence of
+/// 0xFFB1 usage surfaces. Check OpenFFBoard community forums/issues.
 pub const OPENFFBOARD_PRODUCT_ID_ALT: u16 = 0xFFB1;
 
 /// Returns `true` if `product_id` is a known OpenFFBoard product.

@@ -19,7 +19,7 @@
 //! | Field | Status | Source |
 //! |-------|--------|--------|
 //! | VID 0x0483 | ✅ Confirmed | STMicroelectronics (usb.org), devicehunt.com |
-//! | DFP PID 0xA355 | ⚠ Unverified externally | Not in USB-IF DB or linux-hardware.org |
+//! | DFP PID 0xA355 | ✅ Confirmed (community) | JacKeTUs/linux-steering-wheels table, udev example `v0483pA355` |
 //! | DFP V2 PID 0xA356 | ⚠ Unverified externally | Provisionally estimated (sequential) |
 //! | Pedals V1 PID 0xA357 | ⚠ Unverified externally | Provisionally estimated (sequential) |
 //! | Pedals V2 PID 0xA358 | ⚠ Unverified externally | Provisionally estimated (sequential) |
@@ -34,7 +34,12 @@
 /// Dispatch by PID is required at runtime.
 pub const VRS_VENDOR_ID: u16 = 0x0483;
 
-/// VRS DirectForce Pro Product ID. ⚠ Unverified in external USB databases.
+/// VRS DirectForce Pro Product ID.
+///
+/// ✅ Confirmed (community): listed in the JacKeTUs/linux-steering-wheels
+/// compatibility table (VID `0483`, PID `a355`, Gold rating) and its udev
+/// rules example (`v0483pA355`). Not registered in the USB-IF database
+/// (which is expected for STM32-VID sub-assignments).
 pub const VRS_PRODUCT_ID: u16 = 0xA355;
 
 /// HID Report IDs used in the VRS DirectForce Pro HID protocol (PIDFF).
@@ -84,6 +89,7 @@ pub mod report_ids {
 /// on the confirmed DFP PID (`0xA355`).
 pub mod product_ids {
     /// VRS DirectForce Pro wheelbase (20 Nm, ✅ torque confirmed).
+    /// ✅ PID confirmed via JacKeTUs/linux-steering-wheels (Gold rating).
     pub const DIRECTFORCE_PRO: u16 = 0xA355;
     /// VRS DirectForce Pro V2 wheelbase (25 Nm, ⚠ torque unverified).
     pub const DIRECTFORCE_PRO_V2: u16 = 0xA356;

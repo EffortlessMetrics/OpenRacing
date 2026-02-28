@@ -71,16 +71,18 @@ proptest! {
     /// Output report build always returns at least REPORT_SIZE_OUTPUT bytes.
     #[test]
     fn prop_output_report_length(seq in 0u16..=u16::MAX, torque in -100.0f32..=100.0f32) {
-        let data = asetek::AsetekOutputReport::new(seq)
+        let result = asetek::AsetekOutputReport::new(seq)
             .with_torque(torque)
-            .build()
-            .expect("build must not fail");
-        prop_assert!(
-            data.len() >= asetek::REPORT_SIZE_OUTPUT,
-            "output len {} < REPORT_SIZE_OUTPUT {}",
-            data.len(),
-            asetek::REPORT_SIZE_OUTPUT
-        );
+            .build();
+        prop_assert!(result.is_ok(), "build must not fail");
+        if let Ok(data) = result {
+            prop_assert!(
+                data.len() >= asetek::REPORT_SIZE_OUTPUT,
+                "output len {} < REPORT_SIZE_OUTPUT {}",
+                data.len(),
+                asetek::REPORT_SIZE_OUTPUT
+            );
+        }
     }
 
     /// Torque above MAX_TORQUE_NM saturates to the same cNm as MAX_TORQUE_NM.
