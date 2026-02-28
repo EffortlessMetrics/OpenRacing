@@ -8,7 +8,7 @@
 //!
 //! Note: In production, these commands communicate with the wheeld service
 //! via IPC to perform firmware operations. The current implementation uses
-//! placeholder service calls marked with TODO comments.
+//! placeholder service calls that will be replaced with service IPC.
 
 use anyhow::Result;
 use colored::*;
@@ -172,12 +172,10 @@ async fn update_firmware(
         .into());
     }
 
-    // TODO: Load bundle via service IPC
-    // For now, use mock bundle metadata
+    // Placeholder: replaced with service IPC when wheeld integration is complete
     let bundle_info = get_mock_bundle_info(bundle_path)?;
 
-    // TODO: Check device connectivity via service IPC
-    // For now, verify device exists using mock check
+    // Placeholder: replaced with service IPC when wheeld integration is complete
     let device_info = get_mock_device_firmware_info(device)?;
 
     if json {
@@ -262,13 +260,13 @@ async fn update_firmware(
 
     // Check 1: Device connectivity
     print!("  Checking device connectivity... ");
-    // TODO: Actual connectivity check via service
+    // Placeholder: connectivity check replaced with service IPC when wheeld integration is complete
     tokio::time::sleep(Duration::from_millis(200)).await;
     println!("{} Connected", "✓".green());
 
     // Check 2: Hardware compatibility
     print!("  Checking hardware compatibility... ");
-    // TODO: Actual compatibility check via service
+    // Placeholder: compatibility check replaced with service IPC when wheeld integration is complete
     tokio::time::sleep(Duration::from_millis(200)).await;
     let compatible = check_hardware_compatibility(&bundle_info, &device_info);
     if compatible {
@@ -351,7 +349,7 @@ async fn update_firmware(
     for stage in &stages {
         pb.set_message(stage.description().to_string());
 
-        // TODO: Replace with actual service calls for each stage
+        // Placeholder: replaced with actual service calls for each stage when wheeld integration is complete
         // Simulate stage progress
         let target = stage.progress_percent();
         let current = pb.position();
@@ -388,7 +386,7 @@ async fn update_firmware(
 
 /// Show current firmware information for a device
 async fn show_firmware_info(device: &str, json: bool) -> Result<()> {
-    // TODO: Get actual firmware info via service IPC
+    // Placeholder: replaced with service IPC when wheeld integration is complete
     let info = get_mock_device_firmware_info(device)?;
 
     if json {
@@ -466,7 +464,7 @@ async fn show_firmware_info(device: &str, json: bool) -> Result<()> {
 
 /// List available firmware versions
 async fn list_available_versions(device: Option<&str>, json: bool) -> Result<()> {
-    // TODO: Fetch available versions from firmware registry via service IPC
+    // Placeholder: replaced with registry query via service IPC when wheeld integration is complete
     let versions = get_mock_available_versions(device)?;
 
     if json {
@@ -582,7 +580,7 @@ fn print_version_entry(v: &FirmwareVersionInfo) {
 
 /// Rollback firmware to previous version
 async fn rollback_firmware(device: &str, json: bool, skip_confirmation: bool) -> Result<()> {
-    // TODO: Get device info and check rollback availability via service IPC
+    // Placeholder: replaced with service IPC when wheeld integration is complete
     let device_info = get_mock_device_firmware_info(device)?;
 
     let previous_version = match &device_info.previous_version {
@@ -660,7 +658,7 @@ async fn rollback_firmware(device: &str, json: bool, skip_confirmation: bool) ->
     pb.set_style(style);
     pb.enable_steady_tick(Duration::from_millis(100));
 
-    // TODO: Replace with actual service calls
+    // Placeholder: replaced with actual service calls when wheeld integration is complete
     pb.set_message("Activating previous firmware partition...");
     tokio::time::sleep(Duration::from_secs(1)).await;
 
@@ -687,8 +685,7 @@ async fn rollback_firmware(device: &str, json: bool, skip_confirmation: bool) ->
 
 /// Check hardware compatibility between bundle and device
 fn check_hardware_compatibility(bundle: &BundleDisplayInfo, _device: &DeviceFirmwareInfo) -> bool {
-    // TODO: Implement actual hardware version comparison
-    // For now, mock compatibility check
+    // Placeholder: hardware version comparison replaced with service IPC when wheeld integration is complete
     if let Some(ref _min_hw) = bundle.min_hw_version {
         // In real implementation, parse and compare hardware versions
         // using the HardwareVersion module from the service crate
@@ -698,10 +695,12 @@ fn check_hardware_compatibility(bundle: &BundleDisplayInfo, _device: &DeviceFirm
     }
 }
 
-/// Get mock bundle information (placeholder for service IPC)
+/// Returns placeholder bundle metadata until service IPC is implemented.
+///
+/// In production, the wheeld service loads the bundle, verifies its signature,
+/// and returns metadata over IPC.
 fn get_mock_bundle_info(_bundle_path: &PathBuf) -> Result<BundleDisplayInfo> {
-    // TODO: Replace with actual bundle loading via service IPC
-    // The service should load the bundle, verify signature, and return metadata
+    // Placeholder: replaced with actual bundle loading via service IPC when wheeld integration is complete
     Ok(BundleDisplayInfo {
         device_model: "Fanatec DD Pro".to_string(),
         version: "2.1.0".to_string(),
@@ -722,9 +721,12 @@ fn get_mock_bundle_info(_bundle_path: &PathBuf) -> Result<BundleDisplayInfo> {
     })
 }
 
-/// Get mock device firmware info (placeholder for service IPC)
+/// Returns placeholder device firmware info until service IPC is implemented.
+///
+/// In production, the wheeld service queries the connected device and returns
+/// firmware metadata over IPC.
 fn get_mock_device_firmware_info(device: &str) -> Result<DeviceFirmwareInfo> {
-    // TODO: Replace with actual device query via service IPC
+    // Placeholder: replaced with actual device query via service IPC when wheeld integration is complete
     // Simulate device not found for unknown devices
     if !["wheel-001", "pedals-001", "fanatec-dd-pro"].contains(&device) {
         return Err(CliError::DeviceNotFound(device.to_string()).into());
@@ -743,9 +745,12 @@ fn get_mock_device_firmware_info(device: &str) -> Result<DeviceFirmwareInfo> {
     })
 }
 
-/// Get mock available versions (placeholder for service IPC)
+/// Returns placeholder firmware version list until service IPC is implemented.
+///
+/// In production, the wheeld service queries the firmware registry and returns
+/// available versions over IPC.
 fn get_mock_available_versions(device: Option<&str>) -> Result<Vec<FirmwareVersionInfo>> {
-    // TODO: Replace with actual registry query via service IPC
+    // Placeholder: replaced with actual registry query via service IPC when wheeld integration is complete
     Ok(vec![
         FirmwareVersionInfo {
             version: "2.1.0".to_string(),

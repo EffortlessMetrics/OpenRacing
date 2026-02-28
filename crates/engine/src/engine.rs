@@ -864,7 +864,7 @@ impl Engine {
             if let Some(ref blackbox_tx) = ctx.blackbox_tx {
                 let blackbox_frame = BlackboxFrame {
                     frame,
-                    node_outputs: Vec::new(), // TODO: Collect from pipeline
+                    node_outputs: Vec::new(), // Pipeline output collection deferred to service integration
                     safety_state: ctx.safety.state().clone(),
                     processing_time_us: total_processing_time.as_micros() as u64,
                 };
@@ -1009,7 +1009,7 @@ impl Engine {
                         total_frames: ctx.frame_counter.load(Ordering::Acquire),
                         dropped_frames: ctx.metrics.missed_ticks,
                         jitter_metrics: ctx.scheduler.metrics().clone(),
-                        fault_counts: std::collections::HashMap::new(), // TODO: Get from fault manager
+                        fault_counts: std::collections::HashMap::new(), // Populated once fault manager API is wired up
                         safety_state: ctx.safety.state().clone(),
                         last_update: Instant::now(),
                     };
