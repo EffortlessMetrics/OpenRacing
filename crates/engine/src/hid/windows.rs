@@ -320,6 +320,9 @@ pub mod vendor_ids {
     /// Cube Controls S.r.l. — PROVISIONAL (unconfirmed VID, uses STM shared VID)
     /// ACTION REQUIRED: confirm VID from real hardware capture and update if needed.
     pub const CUBE_CONTROLS: u16 = 0x0483; // same as SIMAGIC; see cube_controls.rs
+    /// PXN (Shenzhen Jinyu Technology Co., Ltd.) direct drive wheels
+    /// Source: JacKeTUs/linux-steering-wheels compatibility table
+    pub const PXN: u16 = 0x11FF;
 }
 
 /// Known racing wheel product IDs organized by vendor
@@ -519,6 +522,13 @@ impl SupportedDevices {
                 0x0C75,
                 "Cube Controls CSX3 (provisional)",
             ),
+            // PXN direct drive wheels (Shenzhen Jinyu Technology Co., Ltd.)
+            // Source: JacKeTUs/linux-steering-wheels compatibility table
+            (vendor_ids::PXN, 0x3245, "PXN V10"),
+            (vendor_ids::PXN, 0x1212, "PXN V12"),
+            (vendor_ids::PXN, 0x1112, "PXN V12 Lite"),
+            (vendor_ids::PXN, 0x1211, "PXN V12 Lite SE"),
+            (vendor_ids::PXN, 0x2141, "GT987 FF (Lite Star OEM)"),
         ]
     }
 
@@ -539,6 +549,7 @@ impl SupportedDevices {
             vendor_ids::GRANITE_DEVICES,
             vendor_ids::LEO_BODNAR,
             vendor_ids::SIMEXPERIENCE,
+            vendor_ids::PXN,
         ]
     }
 
