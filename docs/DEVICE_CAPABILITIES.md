@@ -189,6 +189,18 @@ Source: `crates/engine/src/hid/vendor/cube_controls.rs`.
 | Cube Controls Formula Pro | Cube Controls | `0x0483` *(prov.)* | HID PIDFF | ~20.0 | 1 | Constant, Spring, Damper (PIDFF) | Unknown | PID `0x0C74` (provisional) |
 | Cube Controls CSX3 | Cube Controls | `0x0483` *(prov.)* | HID PIDFF | ~20.0 | 1 | Constant, Spring, Damper (PIDFF) | Unknown | PID `0x0C75` (provisional) |
 
+### PXN — VID `0x11FF`
+
+Source: `crates/hid-pxn-protocol`; VID/PID status: **Community** (JacKeTUs/linux-steering-wheels) (see `docs/protocols/SOURCES.md#pxn`).
+
+| Device | Vendor | USB VID | Protocol Type | Max Torque (Nm) | FFB Axes | Force Feedback Types | Encoder Resolution | Notes |
+|---|---|---|---|---|---|---|---|---|
+| PXN V10 | PXN | `0x11FF` | HID PIDFF | ~5.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A (PIDFF standard) | PID `0x3245`; community-sourced |
+| PXN V12 | PXN | `0x11FF` | HID PIDFF | ~8.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x1212`; community-sourced |
+| PXN V12 Lite | PXN | `0x11FF` | HID PIDFF | ~5.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x1112`; community-sourced |
+| PXN V12 Lite SE | PXN | `0x11FF` | HID PIDFF | ~5.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x1211`; community-sourced |
+| PXN GT987 FF | PXN | `0x11FF` | HID PIDFF | ~3.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x2141`; community-sourced |
+
 ---
 
 ## Non-Wheelbase Peripherals
@@ -215,6 +227,8 @@ The following devices are supported for pedal, shifter, or handbrake input. They
 | VRS Pedals V1 / V2 | VRS | `0x0483` | USB HID | 3 | PIDs `0xA357`, `0xA358` |
 | VRS Handbrake | VRS | `0x0483` | USB HID | 1 | PID `0xA359` |
 | VRS Shifter | VRS | `0x0483` | USB HID | — | PID `0xA35A` |
+| Cammus CP5 Pedals | Cammus | `0x3416` | USB HID | 3 | PID `0x1018`; community-sourced |
+| Cammus LC100 Pedals | Cammus | `0x3416` | USB HID | 3 | PID `0x1019`; community-sourced |
 
 ---
 
