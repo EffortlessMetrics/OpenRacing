@@ -410,3 +410,57 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn build_scs_packet(speed: f32, rpm: f32, gear: i32, fuel: f32, load: f32) -> Vec<u8> {
+        let mut data = vec![0u8; SCS_SHARED_MEMORY_SIZE];
+        data[OFF_VERSION..OFF_VERSION + 4].copy_from_slice(&1u32.to_le_bytes());
+        data[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&speed.to_le_bytes());
+        data[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
+        data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&gear.to_le_bytes());
+        data[OFF_FUEL_RATIO..OFF_FUEL_RATIO + 4].copy_from_slice(&fuel.to_le_bytes());
+        data[OFF_ENGINE_LOAD..OFF_ENGINE_LOAD + 4].copy_from_slice(&load.to_le_bytes());
+        data
+    }
+
+    proptest! {
+        #[test]
+        fn scs_no_panic_on_arbitrary_bytes(
+            data in proptest::collection::vec(any::<u8>(), 0..512usize)
+        ) {
+            let _ = parse_scs_packet(&data);
+        }
+
+        #[test]
+        fn scs_short_packet_always_errors(
+            data in proptest::collection::vec(any::<u8>(), 0..(OFF_ENGINE_LOAD + 4))
+        ) {
+            prop_assert!(parse_scs_packet(&data).is_err());
+        }
+
+        #[test]
+        fn scs_valid_speed_nonneg(speed in 0.0f32..200.0f32) {
+            let data = build_scs_packet(speed, 1500.0, 3, 0.7, 0.5);
+            let result = parse_scs_packet(&data).unwrap();
+            prop_assert!(result.speed_ms >= 0.0);
+        }
+
+        #[test]
+        fn scs_valid_rpm_nonneg(rpm in 0.0f32..3000.0f32) {
+            let data = build_scs_packet(20.0, rpm, 3, 0.7, 0.5);
+            let result = parse_scs_packet(&data).unwrap();
+            prop_assert!(result.rpm >= 0.0);
+        }
+
+        #[test]
+        fn scs_valid_gear_in_range(gear in -1i32..=12) {
+            let data = build_scs_packet(20.0, 1500.0, gear, 0.7, 0.5);
+            let result = parse_scs_packet(&data).unwrap();
+            prop_assert!(result.gear >= -1 && result.gear <= 12);
+        }
+    }
+}

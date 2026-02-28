@@ -1,4 +1,4 @@
-# Game Support Matrix Configuration
+﻿# Game Support Matrix Configuration
 # Defines per-sim capabilities and configuration paths
 
 games:
@@ -1862,3 +1862,175 @@ games:
         - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 2177030"
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/RIDE 5"
+  rfactor1:
+    name: "rFactor 1"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "rFactor.exe"
+          - "rfactor.exe"
+        telemetry_method: "rfactor1_udp"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+    telemetry:
+      method: "rfactor1_udp"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:6776"
+      fields:
+        ffb_scalar: "steer_speed_derived"
+        rpm: "engine_rpm"
+        speed_ms: "vel_magnitude"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: "vehicle_name"
+        track_id: "track_name"
+    status: "experimental"
+    config_writer: "rfactor1"
+    auto_detect:
+      process_names:
+        - "rFactor.exe"
+        - "rfactor.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\rFactor"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/rFactor"
+        - "Program Files (x86)/rFactor"
+  gtr2:
+    name: "GTR2: FIA GT Racing Game"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "GTR2.exe"
+          - "gtr2.exe"
+        telemetry_method: "rfactor1_udp"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+    telemetry:
+      method: "rfactor1_udp"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:6776"
+      fields:
+        ffb_scalar: "steer_speed_derived"
+        rpm: "engine_rpm"
+        speed_ms: "vel_magnitude"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: "vehicle_name"
+        track_id: "track_name"
+    status: "experimental"
+    config_writer: "gtr2"
+    auto_detect:
+      process_names:
+        - "GTR2.exe"
+        - "gtr2.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 4750"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/GTR2"
+        - "Program Files (x86)/GTR2"
+  race_07:
+    name: "Race 07 / RACE: The WTCC Game"
+    versions:
+      - version: "1.x"
+        config_paths: []
+        executable_patterns:
+          - "RACE07.exe"
+          - "Race07.exe"
+          - "RACE.exe"
+        telemetry_method: "rfactor1_udp"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+    telemetry:
+      method: "rfactor1_udp"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:6776"
+      fields:
+        ffb_scalar: "steer_speed_derived"
+        rpm: "engine_rpm"
+        speed_ms: "vel_magnitude"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: "vehicle_name"
+        track_id: "track_name"
+    status: "experimental"
+    config_writer: "race_07"
+    auto_detect:
+      process_names:
+        - "RACE07.exe"
+        - "Race07.exe"
+        - "RACE.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 6020"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/RACE 07"
+        - "Program Files (x86)/RACE 07"
+  gsc:
+    name: "Game Stock Car / Stock Car Extreme"
+    versions:
+      - version: "2013+"
+        config_paths: []
+        executable_patterns:
+          - "GSC.exe"
+          - "StockCarExtreme.exe"
+          - "GameStockCar2013.exe"
+        telemetry_method: "rfactor1_udp"
+        supported_fields:
+          - "speed_ms"
+          - "rpm"
+          - "gear"
+          - "throttle"
+          - "brake"
+          - "steering_angle"
+    telemetry:
+      method: "rfactor1_udp"
+      update_rate_hz: 60
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: "127.0.0.1:6776"
+      fields:
+        ffb_scalar: "steer_speed_derived"
+        rpm: "engine_rpm"
+        speed_ms: "vel_magnitude"
+        slip_ratio: null
+        gear: "gear"
+        flags: null
+        car_id: "vehicle_name"
+        track_id: "track_name"
+    status: "experimental"
+    config_writer: "gsc"
+    auto_detect:
+      process_names:
+        - "GSC.exe"
+        - "StockCarExtreme.exe"
+        - "GameStockCar2013.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 273350"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Stock Car Extreme"
+        - "Program Files (x86)/Reiza Studios/Game Stock Car"

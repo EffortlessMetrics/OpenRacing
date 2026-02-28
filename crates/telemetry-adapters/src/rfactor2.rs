@@ -1316,3 +1316,59 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn rf2_no_panic_on_arbitrary_bytes(
+            data in proptest::collection::vec(any::<u8>(), 0..4096usize)
+        ) {
+            let adapter = RFactor2Adapter::new();
+            let _ = adapter.normalize(&data);
+        }
+
+        #[test]
+        fn rf2_short_buffer_always_errors(
+            data in proptest::collection::vec(any::<u8>(), 0..256usize)
+        ) {
+            // RF2VehicleTelemetry is larger than 256 bytes, so these must all error.
+            let adapter = RFactor2Adapter::new();
+            prop_assert!(adapter.normalize(&data).is_err());
+        }
+
+        #[test]
+        fn rf2_speed_nonneg(speed in 0.0f32..200.0f32) {
+            let adapter = RFactor2Adapter::new();
+            let vehicle = RF2VehicleTelemetry { speed, ..RF2VehicleTelemetry::default() };
+            let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
+            prop_assert!(normalized.speed_ms >= 0.0);
+        }
+
+        #[test]
+        fn rf2_rpm_nonneg(rpm in 0.0f32..20000.0f32) {
+            let adapter = RFactor2Adapter::new();
+            let vehicle = RF2VehicleTelemetry { engine_rpm: rpm, ..RF2VehicleTelemetry::default() };
+            let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
+            prop_assert!(normalized.rpm >= 0.0);
+        }
+
+        #[test]
+        fn rf2_ffb_scalar_clamped(torque in -200.0f32..=200.0f32) {
+            let adapter = RFactor2Adapter::new();
+            let vehicle = RF2VehicleTelemetry {
+                steering_shaft_torque: torque,
+                ..RF2VehicleTelemetry::default()
+            };
+            let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
+            prop_assert!(
+                normalized.ffb_scalar >= -1.0 && normalized.ffb_scalar <= 1.0,
+                "ffb_scalar {} must be in [-1, 1]",
+                normalized.ffb_scalar
+            );
+        }
+    }
+}

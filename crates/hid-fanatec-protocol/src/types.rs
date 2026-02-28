@@ -17,6 +17,8 @@ pub enum FanatecModel {
     CslDd,
     /// Gran Turismo DD Pro — direct drive, 5/8 Nm.
     GtDdPro,
+    /// ClubSport DD — premium direct drive, 20 Nm (2022).
+    ClubSportDd,
     /// ClubSport V2 (legacy USB stack, 8 Nm).
     ClubSportV2,
     /// ClubSport V2.5 (belt-driven, 8 Nm).
@@ -36,6 +38,7 @@ impl FanatecModel {
             product_ids::DD2 => Self::Dd2,
             product_ids::CSL_DD | product_ids::CSL_DD_LEGACY => Self::CslDd,
             product_ids::GT_DD_PRO => Self::GtDdPro,
+            product_ids::CLUBSPORT_DD => Self::ClubSportDd,
             _ => Self::Unknown,
         }
     }
@@ -43,7 +46,7 @@ impl FanatecModel {
     /// Maximum continuous torque in Newton-meters for this model.
     pub fn max_torque_nm(self) -> f32 {
         match self {
-            Self::Dd1 => 20.0,
+            Self::Dd1 | Self::ClubSportDd => 20.0,
             Self::Dd2 => 25.0,
             Self::CslElite => 6.0,
             Self::CslDd | Self::GtDdPro => 8.0,
@@ -55,10 +58,20 @@ impl FanatecModel {
     /// Encoder counts per revolution.
     pub fn encoder_cpr(self) -> u32 {
         match self {
-            Self::Dd1 | Self::Dd2 => 16_384,
+            Self::Dd1 | Self::Dd2 | Self::ClubSportDd => 16_384,
             Self::CslDd | Self::GtDdPro => 16_384,
             _ => 4_096,
         }
+    }
+
+    /// Return `true` if this model is capable of 1000 Hz force-feedback output.
+    ///
+    /// These devices support 1 ms USB bInterval and are validated for the RT path.
+    pub fn supports_1000hz(self) -> bool {
+        matches!(
+            self,
+            Self::CslDd | Self::GtDdPro | Self::ClubSportDd | Self::Dd1 | Self::Dd2
+        )
     }
 }
 
@@ -74,6 +87,7 @@ pub fn is_wheelbase_product(product_id: u16) -> bool {
             | product_ids::CSL_DD_LEGACY
             | product_ids::CSL_DD
             | product_ids::GT_DD_PRO
+            | product_ids::CLUBSPORT_DD
             | product_ids::CSL_ELITE
             | product_ids::CLUBSPORT_V2_LEGACY
     )

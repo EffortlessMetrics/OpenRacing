@@ -74,7 +74,7 @@ fn torque_to_q8_8(torque_nm: f32, max_torque_nm: f32) -> i16 {
 pub fn build_set_zero_position(seq: u8) -> [u8; TORQUE_COMMAND_LEN] {
     let cmd = SmCommand::new(seq, SmCommandType::SetZero).with_data(0);
     let mut out = [0u8; TORQUE_COMMAND_LEN];
-    encode_command(&cmd, &mut out).expect("set zero position command should never fail");
+    let _ = encode_command(&cmd, &mut out);
     out
 }
 
@@ -82,28 +82,28 @@ pub fn build_device_enable(enable: bool, seq: u8) -> [u8; TORQUE_COMMAND_LEN] {
     let value = if enable { 1 } else { 0 };
     let cmd = SmCommand::new(seq, SmCommandType::SetParameter).with_param(0x1001, value);
     let mut out = [0u8; TORQUE_COMMAND_LEN];
-    encode_command(&cmd, &mut out).expect("device enable command should never fail");
+    let _ = encode_command(&cmd, &mut out);
     out
 }
 
 pub fn build_get_parameter(param_addr: u16, seq: u8) -> [u8; TORQUE_COMMAND_LEN] {
     let cmd = SmCommand::new(seq, SmCommandType::GetParameter).with_param(param_addr, 0);
     let mut out = [0u8; TORQUE_COMMAND_LEN];
-    encode_command(&cmd, &mut out).expect("get parameter command should never fail");
+    let _ = encode_command(&cmd, &mut out);
     out
 }
 
 pub fn build_set_parameter(param_addr: u16, value: i32, seq: u8) -> [u8; TORQUE_COMMAND_LEN] {
     let cmd = SmCommand::new(seq, SmCommandType::SetParameter).with_param(param_addr, value);
     let mut out = [0u8; TORQUE_COMMAND_LEN];
-    encode_command(&cmd, &mut out).expect("set parameter command should never fail");
+    let _ = encode_command(&cmd, &mut out);
     out
 }
 
 pub fn build_get_status(seq: u8) -> [u8; TORQUE_COMMAND_LEN] {
     let cmd = SmCommand::new(seq, SmCommandType::GetStatus);
     let mut out = [0u8; TORQUE_COMMAND_LEN];
-    encode_command(&cmd, &mut out).expect("get status command should never fail");
+    let _ = encode_command(&cmd, &mut out);
     out
 }
 

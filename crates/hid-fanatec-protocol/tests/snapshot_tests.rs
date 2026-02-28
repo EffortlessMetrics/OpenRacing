@@ -14,6 +14,14 @@ fn encode_bytes(torque_nm: f32) -> String {
     format!("{:?}", out)
 }
 
+/// Helper: encode for a specific max torque.
+fn encode_bytes_with_max(torque_nm: f32, max_torque_nm: f32) -> String {
+    let encoder = FanatecConstantForceEncoder::new(max_torque_nm);
+    let mut out = [0u8; CONSTANT_FORCE_REPORT_LEN];
+    encoder.encode(torque_nm, 0, &mut out);
+    format!("{:?}", out)
+}
+
 #[test]
 fn test_snapshot_encode_constant_force_neg_one() {
     assert_snapshot!(encode_bytes(-1.0));
@@ -63,4 +71,22 @@ fn test_snapshot_led_report_all_on() {
     use racing_wheel_hid_fanatec_protocol::build_led_report;
     let report = build_led_report(0xFFFF, 255);
     assert_snapshot!(format!("{:?}", report));
+}
+
+/// ClubSport DD (20 Nm) at full positive torque — pin wire format for regression detection.
+#[test]
+fn test_snapshot_clubsport_dd_full_positive_torque() {
+    assert_snapshot!(encode_bytes_with_max(20.0, 20.0));
+}
+
+/// ClubSport DD (20 Nm) at full negative torque.
+#[test]
+fn test_snapshot_clubsport_dd_full_negative_torque() {
+    assert_snapshot!(encode_bytes_with_max(-20.0, 20.0));
+}
+
+/// ClubSport DD (20 Nm) at half torque.
+#[test]
+fn test_snapshot_clubsport_dd_half_torque() {
+    assert_snapshot!(encode_bytes_with_max(10.0, 20.0));
 }

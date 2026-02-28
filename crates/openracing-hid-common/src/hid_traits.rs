@@ -52,22 +52,22 @@ pub mod mock {
         }
 
         pub fn queue_read(&self, data: Vec<u8>) {
-            let mut queue = self.read_queue.lock().expect("lock poisoned");
+            let mut queue = self.read_queue.lock().unwrap_or_else(|e| e.into_inner());
             queue.push_back(data);
         }
 
         pub fn get_write_history(&self) -> Vec<Vec<u8>> {
-            let history = self.write_history.lock().expect("lock poisoned");
+            let history = self.write_history.lock().unwrap_or_else(|e| e.into_inner());
             history.clone()
         }
 
         pub fn disconnect(&self) {
-            let mut connected = self.connected.lock().expect("lock poisoned");
+            let mut connected = self.connected.lock().unwrap_or_else(|e| e.into_inner());
             *connected = false;
         }
 
         pub fn reconnect(&self) {
-            let mut connected = self.connected.lock().expect("lock poisoned");
+            let mut connected = self.connected.lock().unwrap_or_else(|e| e.into_inner());
             *connected = true;
         }
     }
@@ -82,23 +82,23 @@ pub mod mock {
         }
 
         fn write_report(&mut self, data: &[u8]) -> HidCommonResult<usize> {
-            let connected = *self.connected.lock().expect("lock poisoned");
+            let connected = *self.connected.lock().unwrap_or_else(|e| e.into_inner());
             if !connected {
                 return Err(HidCommonError::Disconnected);
             }
 
-            let mut history = self.write_history.lock().expect("lock poisoned");
+            let mut history = self.write_history.lock().unwrap_or_else(|e| e.into_inner());
             history.push(data.to_vec());
             Ok(data.len())
         }
 
         fn read_report(&mut self, _timeout_ms: u32) -> HidCommonResult<Vec<u8>> {
-            let connected = *self.connected.lock().expect("lock poisoned");
+            let connected = *self.connected.lock().unwrap_or_else(|e| e.into_inner());
             if !connected {
                 return Err(HidCommonError::Disconnected);
             }
 
-            let mut queue = self.read_queue.lock().expect("lock poisoned");
+            let mut queue = self.read_queue.lock().unwrap_or_else(|e| e.into_inner());
             queue
                 .pop_front()
                 .ok_or_else(|| HidCommonError::ReadError("No data available".to_string()))
@@ -109,7 +109,7 @@ pub mod mock {
         }
 
         fn is_connected(&self) -> bool {
-            *self.connected.lock().expect("lock poisoned")
+            *self.connected.lock().unwrap_or_else(|e| e.into_inner())
         }
 
         fn close(&mut self) -> HidCommonResult<()> {

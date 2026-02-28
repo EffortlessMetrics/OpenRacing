@@ -97,6 +97,14 @@ fn new_gran_turismo_7_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(GranTurismo7ConfigWriter)
 }
 
+fn new_gran_turismo_sport_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(GranTurismo7SportsConfigWriter)
+}
+
+fn new_f1_manager_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(F1ManagerConfigWriter)
+}
+
 fn new_assetto_corsa_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(AssettoCorsaConfigWriter)
 }
@@ -197,6 +205,10 @@ fn new_nascar_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(NascarConfigWriter)
 }
 
+fn new_nascar_21_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(Nascar21ConfigWriter)
+}
+
 fn new_le_mans_ultimate_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(LeMansUltimateConfigWriter)
 }
@@ -245,6 +257,8 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("dirt_rally_2", new_dirt_rally_2_config_writer),
         ("rbr", new_rbr_config_writer),
         ("gran_turismo_7", new_gran_turismo_7_config_writer),
+        ("gran_turismo_sport", new_gran_turismo_sport_config_writer),
+        ("f1_manager", new_f1_manager_config_writer),
         ("assetto_corsa", new_assetto_corsa_config_writer),
         ("forza_motorsport", new_forza_motorsport_config_writer),
         ("beamng_drive", new_beamng_drive_config_writer),
@@ -267,6 +281,7 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("race_driver_grid", new_race_driver_grid_config_writer),
         ("automobilista", new_automobilista_config_writer),
         ("nascar", new_nascar_config_writer),
+        ("nascar_21", new_nascar_21_config_writer),
         ("le_mans_ultimate", new_le_mans_ultimate_config_writer),
         ("wtcr", new_wtcr_config_writer),
         ("trackmania", new_trackmania_config_writer),
@@ -307,6 +322,8 @@ const F1_25_DEFAULT_PORT: u16 = 20777;
 const F1_NATIVE_CONTRACT_RELATIVE_PATH: &str = "Documents/OpenRacing/f1_native_contract.json";
 const F1_NATIVE_PROTOCOL: &str = "udp_native_f1_native";
 const F1_NATIVE_DEFAULT_PORT: u16 = 20777;
+const F1_MANAGER_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/f1_manager_bridge_contract.json";
 const WRC_GENERATIONS_BRIDGE_RELATIVE_PATH: &str =
     "Documents/OpenRacing/wrc_generations_bridge_contract.json";
 const WRC_GENERATIONS_BRIDGE_PROTOCOL: &str = "codemasters_udp";
@@ -383,6 +400,10 @@ const RACEROOM_BRIDGE_PROTOCOL: &str = "r3e_shared_memory";
 const NASCAR_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/nascar_bridge_contract.json";
 const NASCAR_BRIDGE_PROTOCOL: &str = "papyrus_udp";
 const NASCAR_DEFAULT_PORT: u16 = 5606;
+
+const NASCAR_21_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/nascar_21_bridge_contract.json";
+const NASCAR_21_BRIDGE_PROTOCOL: &str = "papyrus_udp";
+const NASCAR_21_DEFAULT_PORT: u16 = 5606;
 
 const LMU_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/lmu_bridge_contract.json";
 const LMU_BRIDGE_PROTOCOL: &str = "rf2_udp";
@@ -1420,6 +1441,11 @@ const GT7_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/gran_turismo_7_brid
 const GT7_BRIDGE_PROTOCOL: &str = "gt7_salsa20_udp";
 const GT7_DEFAULT_PORT: u16 = 33740;
 
+const GTS_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/gran_turismo_sport_bridge_contract.json";
+const GTS_BRIDGE_PROTOCOL: &str = "gt7_salsa20_udp";
+const GTS_DEFAULT_PORT: u16 = 33739;
+
 impl ConfigWriter for GranTurismo7ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Gran Turismo 7 bridge contract configuration");
@@ -1499,6 +1525,106 @@ impl ConfigWriter for GranTurismo7ConfigWriter {
 
         Ok(vec![ConfigDiff {
             file_path: GT7_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Gran Turismo Sport configuration writer.
+///
+/// GT Sport is a PlayStation-exclusive title using the same Salsa20 UDP format
+/// as GT7 but with receive port 33739.
+pub struct GranTurismo7SportsConfigWriter;
+
+impl Default for GranTurismo7SportsConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for GranTurismo7SportsConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Gran Turismo Sport bridge contract configuration");
+
+        let contract_path = game_path.join(GTS_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(GTS_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "gran_turismo_sport",
+            "telemetry_protocol": GTS_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "GT Sport sends Salsa20-encrypted UDP packets from the PS4 to this port. Enable telemetry in GT Sport Settings > Options > Machine/Car Settings > Vehicle Data Output.",
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(GTS_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == GTS_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "gran_turismo_sport")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(GTS_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "gran_turismo_sport",
+            "telemetry_protocol": GTS_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "GT Sport sends Salsa20-encrypted UDP packets from the PS4 to this port. Enable telemetry in GT Sport Settings > Options > Machine/Car Settings > Vehicle Data Output.",
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: GTS_BRIDGE_RELATIVE_PATH.to_string(),
             section: None,
             key: "entire_file".to_string(),
             old_value: None,
@@ -1840,6 +1966,85 @@ impl ConfigWriter for F1NativeConfigWriter {
             key: "entire_file".to_string(),
             old_value: None,
             new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// F1 Manager series configuration writer (stub).
+///
+/// F1 Manager is a management game without driving simulation or UDP telemetry.
+/// This writer creates a minimal bridge contract so users see the game as registered.
+pub struct F1ManagerConfigWriter;
+
+impl Default for F1ManagerConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for F1ManagerConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing F1 Manager bridge contract (stub — no telemetry applicable)");
+        let contract_path = game_path.join(F1_MANAGER_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+        let contract = serde_json::json!({
+            "game_id": "f1_manager",
+            "telemetry_protocol": "none",
+            "enabled": config.enabled,
+            "bridge_notes": "F1 Manager is a strategy/management game. No UDP telemetry or force-feedback applies.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(F1_MANAGER_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "f1_manager")
+            .unwrap_or(false))
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let contract = serde_json::json!({
+            "game_id": "f1_manager",
+            "telemetry_protocol": "none",
+            "enabled": config.enabled,
+            "bridge_notes": "F1 Manager is a strategy/management game. No UDP telemetry or force-feedback applies.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: F1_MANAGER_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
             operation: DiffOperation::Add,
         }])
     }
@@ -4231,6 +4436,88 @@ impl ConfigWriter for NascarConfigWriter {
     }
 }
 
+/// NASCAR 21: Ignition configuration writer (Papyrus UDP telemetry on port 5606).
+pub struct Nascar21ConfigWriter;
+
+impl Default for Nascar21ConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for Nascar21ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing NASCAR 21: Ignition bridge contract configuration");
+        let contract_path = game_path.join(NASCAR_21_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(NASCAR_21_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "nascar_21",
+            "telemetry_protocol": NASCAR_21_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "NASCAR 21: Ignition uses the Papyrus UDP telemetry format on port 5606.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(NASCAR_21_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "nascar_21")
+            .unwrap_or(false))
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(NASCAR_21_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "nascar_21",
+            "telemetry_protocol": NASCAR_21_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "NASCAR 21: Ignition uses the Papyrus UDP telemetry format on port 5606.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: NASCAR_21_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
 /// Le Mans Ultimate configuration writer (rF2 UDP telemetry on port 6789)
 pub struct LeMansUltimateConfigWriter;
 
@@ -4884,6 +5171,105 @@ impl ConfigWriter for Ride5ConfigWriter {
             new_value: serde_json::to_string_pretty(&contract)?,
             operation: DiffOperation::Add,
         }])
+    }
+}
+
+const RF1_PROTOCOL: &str = "rfactor1_udp";
+const RF1_DEFAULT_PORT: u16 = 6776;
+const RFACTOR1_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/rfactor1_bridge_contract.json";
+const GTR2_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/gtr2_bridge_contract.json";
+const RACE07_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/race07_bridge_contract.json";
+const GSC_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/gsc_bridge_contract.json";
+
+/// rFactor 1 engine UDP bridge configuration writer.
+///
+/// Shared implementation for rFactor1, GTR2, Race 07, and Game Stock Car, which
+/// all use the same `TelemInfoV2` UDP protocol on port 6776.
+pub struct RFactor1ConfigWriter {
+    /// Game identifier, e.g. `"rfactor1"`, `"gtr2"`, `"race_07"`, `"gsc"`.
+    pub game_id: &'static str,
+}
+
+impl ConfigWriter for RFactor1ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing {} bridge contract configuration", self.game_id);
+        let relative_path = rf1_bridge_path(self.game_id);
+        let contract_path = game_path.join(relative_path);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(RF1_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": self.game_id,
+            "telemetry_protocol": RF1_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "rFactor 1 engine UDP telemetry on port 6776 (TelemInfoV2 format).",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(rf1_bridge_path(self.game_id));
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == self.game_id)
+            .unwrap_or(false))
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(RF1_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": self.game_id,
+            "telemetry_protocol": RF1_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "bridge_notes": "rFactor 1 engine UDP telemetry on port 6776 (TelemInfoV2 format).",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: rf1_bridge_path(self.game_id).to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+fn rf1_bridge_path(game_id: &str) -> &'static str {
+    match game_id {
+        "rfactor1" => RFACTOR1_BRIDGE_RELATIVE_PATH,
+        "gtr2" => GTR2_BRIDGE_RELATIVE_PATH,
+        "race_07" => RACE07_BRIDGE_RELATIVE_PATH,
+        _ => GSC_BRIDGE_RELATIVE_PATH,
     }
 }
 

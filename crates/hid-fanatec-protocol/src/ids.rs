@@ -59,6 +59,8 @@ pub mod product_ids {
     pub const GT_DD_PRO: u16 = 0x0024;
     /// CSL Elite V1 / alternate SKU (6 Nm).
     pub const CSL_ELITE: u16 = 0x0E03;
+    /// ClubSport DD (20 Nm direct-drive, 2022 premium base).
+    pub const CLUBSPORT_DD: u16 = 0x01E9;
     /// ClubSport V2 — legacy USB HID stack (8 Nm).
     pub const CLUBSPORT_V2_LEGACY: u16 = 0x6204;
 

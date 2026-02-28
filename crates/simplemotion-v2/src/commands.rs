@@ -208,7 +208,7 @@ pub fn decode_command(data: &[u8]) -> SmResult<SmCommand> {
 pub fn build_set_torque_command(torque_q8_8: i16, seq: u8) -> [u8; 15] {
     let cmd = SmCommand::new(seq, SmCommandType::SetTorque).with_data(torque_q8_8 as i32);
     let mut out = [0u8; 15];
-    encode_command(&cmd, &mut out).expect("set torque command should never fail");
+    let _ = encode_command(&cmd, &mut out);
     out
 }
 
@@ -220,28 +220,28 @@ pub fn build_set_torque_command_with_velocity(
     let torque = (torque_q8_8 as i32) << 16 | (velocity_q8_8 as i32 & 0xFFFF);
     let cmd = SmCommand::new(seq, SmCommandType::SetTorque).with_data(torque);
     let mut out = [0u8; 15];
-    encode_command(&cmd, &mut out).expect("set torque command with velocity should never fail");
+    let _ = encode_command(&cmd, &mut out);
     out
 }
 
 pub fn build_get_parameter(param_addr: u16, seq: u8) -> [u8; 15] {
     let cmd = SmCommand::new(seq, SmCommandType::GetParameter).with_param(param_addr, 0);
     let mut out = [0u8; 15];
-    encode_command(&cmd, &mut out).expect("get parameter command should never fail");
+    let _ = encode_command(&cmd, &mut out);
     out
 }
 
 pub fn build_set_parameter(param_addr: u16, value: i32, seq: u8) -> [u8; 15] {
     let cmd = SmCommand::new(seq, SmCommandType::SetParameter).with_param(param_addr, value);
     let mut out = [0u8; 15];
-    encode_command(&cmd, &mut out).expect("set parameter command should never fail");
+    let _ = encode_command(&cmd, &mut out);
     out
 }
 
 pub fn build_get_status(seq: u8) -> [u8; 15] {
     let cmd = SmCommand::new(seq, SmCommandType::GetStatus);
     let mut out = [0u8; 15];
-    encode_command(&cmd, &mut out).expect("get status command should never fail");
+    let _ = encode_command(&cmd, &mut out);
     out
 }
 
