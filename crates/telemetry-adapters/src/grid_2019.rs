@@ -4,13 +4,15 @@
 //!
 //! The packet layout is the fixed-layout Codemasters Mode 1 legacy binary stream
 //! (264 bytes, little-endian `f32` at known byte offsets), shared with DiRT Rally 2.0,
-//! GRID Autosport, GRID Legends, and the broader Codemasters series.
+//! GRID Autosport, GRID Legends, and the broader Codemasters series.  Parsing is
+//! delegated to [`crate::codemasters_shared`].
 
+use crate::codemasters_shared;
 use crate::{
-    NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
-    TelemetryValue, telemetry_now_ns,
+    NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver,
+    telemetry_now_ns,
 };
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use async_trait::async_trait;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::{
@@ -23,41 +25,13 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 const DEFAULT_PORT: u16 = 20777;
-const MIN_PACKET_SIZE: usize = 264;
 const MAX_PACKET_SIZE: usize = 2048;
 const DEFAULT_HEARTBEAT_TIMEOUT_MS: u64 = 1_500;
 
 const ENV_PORT: &str = "OPENRACING_GRID_2019_UDP_PORT";
 const ENV_HEARTBEAT_TIMEOUT_MS: &str = "OPENRACING_GRID_2019_HEARTBEAT_TIMEOUT_MS";
 
-// Byte offsets for Codemasters Mode 1 packet fields (all f32, little-endian).
-const OFF_VEL_X: usize = 32;
-const OFF_VEL_Y: usize = 36;
-const OFF_VEL_Z: usize = 40;
-const OFF_WHEEL_SPEED_FL: usize = 108;
-const OFF_WHEEL_SPEED_FR: usize = 112;
-const OFF_WHEEL_SPEED_RL: usize = 100;
-const OFF_WHEEL_SPEED_RR: usize = 104;
-const OFF_THROTTLE: usize = 116;
-const OFF_STEER: usize = 120;
-const OFF_BRAKE: usize = 124;
-const OFF_GEAR: usize = 132;
-const OFF_GFORCE_LAT: usize = 136;
-const OFF_GFORCE_LON: usize = 140;
-const OFF_CURRENT_LAP: usize = 144;
-const OFF_RPM: usize = 148;
-const OFF_CAR_POSITION: usize = 156;
-const OFF_FUEL_IN_TANK: usize = 180;
-const OFF_FUEL_CAPACITY: usize = 184;
-const OFF_IN_PIT: usize = 188;
-const OFF_BRAKES_TEMP_FL: usize = 212;
-const OFF_TYRES_PRESSURE_FL: usize = 228;
-const OFF_LAST_LAP_TIME: usize = 248;
-const OFF_MAX_RPM: usize = 252;
-const OFF_MAX_GEARS: usize = 260;
-
-/// Lateral G normalisation range for FFB scalar.
-const FFB_LAT_G_MAX: f32 = 3.0;
+const GAME_LABEL: &str = "GRID 2019";
 
 /// GRID 2019 adapter for Codemasters Mode 1 UDP telemetry.
 #[derive(Clone)]
@@ -112,132 +86,8 @@ impl Grid2019Adapter {
     }
 }
 
-fn read_f32(data: &[u8], offset: usize) -> Option<f32> {
-    data.get(offset..offset + 4)
-        .and_then(|b| b.try_into().ok())
-        .map(f32::from_le_bytes)
-}
-
 fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
-    if data.len() < MIN_PACKET_SIZE {
-        return Err(anyhow!(
-            "GRID 2019 packet too short: need at least {} bytes, got {}",
-            MIN_PACKET_SIZE,
-            data.len()
-        ));
-    }
-
-    let ws_fl = read_f32(data, OFF_WHEEL_SPEED_FL).unwrap_or(0.0).abs();
-    let ws_fr = read_f32(data, OFF_WHEEL_SPEED_FR).unwrap_or(0.0).abs();
-    let ws_rl = read_f32(data, OFF_WHEEL_SPEED_RL).unwrap_or(0.0).abs();
-    let ws_rr = read_f32(data, OFF_WHEEL_SPEED_RR).unwrap_or(0.0).abs();
-    let speed_ms = if ws_fl + ws_fr + ws_rl + ws_rr > 0.0 {
-        (ws_fl + ws_fr + ws_rl + ws_rr) / 4.0
-    } else {
-        let vx = read_f32(data, OFF_VEL_X).unwrap_or(0.0);
-        let vy = read_f32(data, OFF_VEL_Y).unwrap_or(0.0);
-        let vz = read_f32(data, OFF_VEL_Z).unwrap_or(0.0);
-        (vx * vx + vy * vy + vz * vz).sqrt()
-    };
-
-    let rpm_raw = read_f32(data, OFF_RPM).unwrap_or(0.0).max(0.0);
-    let max_rpm = read_f32(data, OFF_MAX_RPM).unwrap_or(0.0).max(0.0);
-
-    let gear_raw = read_f32(data, OFF_GEAR).unwrap_or(0.0);
-    let gear: i8 = if gear_raw < 0.5 {
-        -1
-    } else {
-        (gear_raw.round() as i8).clamp(-1, 8)
-    };
-
-    let throttle = read_f32(data, OFF_THROTTLE).unwrap_or(0.0).clamp(0.0, 1.0);
-    let steering_angle = read_f32(data, OFF_STEER).unwrap_or(0.0).clamp(-1.0, 1.0);
-    let brake = read_f32(data, OFF_BRAKE).unwrap_or(0.0).clamp(0.0, 1.0);
-
-    let lat_g = read_f32(data, OFF_GFORCE_LAT).unwrap_or(0.0);
-    let lon_g = read_f32(data, OFF_GFORCE_LON).unwrap_or(0.0);
-    let ffb_scalar = (lat_g / FFB_LAT_G_MAX).clamp(-1.0, 1.0);
-
-    let lap_raw = read_f32(data, OFF_CURRENT_LAP).unwrap_or(0.0).max(0.0);
-    let lap = (lap_raw.round() as u16).saturating_add(1);
-
-    let position = read_f32(data, OFF_CAR_POSITION)
-        .map(|p| p.round().clamp(0.0, 255.0) as u8)
-        .unwrap_or(0);
-
-    let fuel_in_tank = read_f32(data, OFF_FUEL_IN_TANK).unwrap_or(0.0).max(0.0);
-    let fuel_capacity = read_f32(data, OFF_FUEL_CAPACITY).unwrap_or(1.0).max(1.0);
-    let fuel_percent = (fuel_in_tank / fuel_capacity).clamp(0.0, 1.0);
-
-    let in_pits = read_f32(data, OFF_IN_PIT)
-        .map(|v| v >= 0.5)
-        .unwrap_or(false);
-
-    let tire_temps_c = [
-        read_f32(data, OFF_BRAKES_TEMP_FL)
-            .unwrap_or(0.0)
-            .clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 4)
-            .unwrap_or(0.0)
-            .clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 8)
-            .unwrap_or(0.0)
-            .clamp(0.0, 255.0) as u8,
-        read_f32(data, OFF_BRAKES_TEMP_FL + 12)
-            .unwrap_or(0.0)
-            .clamp(0.0, 255.0) as u8,
-    ];
-
-    let tire_pressures_psi = [
-        read_f32(data, OFF_TYRES_PRESSURE_FL).unwrap_or(0.0),
-        read_f32(data, OFF_TYRES_PRESSURE_FL + 4).unwrap_or(0.0),
-        read_f32(data, OFF_TYRES_PRESSURE_FL + 8).unwrap_or(0.0),
-        read_f32(data, OFF_TYRES_PRESSURE_FL + 12).unwrap_or(0.0),
-    ];
-
-    let num_gears = read_f32(data, OFF_MAX_GEARS)
-        .map(|g| g.round().clamp(0.0, 255.0) as u8)
-        .unwrap_or(0);
-
-    let last_lap_time_s = read_f32(data, OFF_LAST_LAP_TIME).unwrap_or(0.0).max(0.0);
-
-    let flags = TelemetryFlags {
-        in_pits,
-        ..Default::default()
-    };
-
-    let mut builder = NormalizedTelemetry::builder()
-        .speed_ms(speed_ms)
-        .rpm(rpm_raw)
-        .gear(gear)
-        .throttle(throttle)
-        .steering_angle(steering_angle)
-        .brake(brake)
-        .lateral_g(lat_g)
-        .longitudinal_g(lon_g)
-        .ffb_scalar(ffb_scalar)
-        .lap(lap)
-        .position(position)
-        .fuel_percent(fuel_percent)
-        .tire_temps_c(tire_temps_c)
-        .tire_pressures_psi(tire_pressures_psi)
-        .num_gears(num_gears)
-        .last_lap_time_s(last_lap_time_s)
-        .flags(flags)
-        .extended("wheel_speed_fl".to_string(), TelemetryValue::Float(ws_fl))
-        .extended("wheel_speed_fr".to_string(), TelemetryValue::Float(ws_fr))
-        .extended("wheel_speed_rl".to_string(), TelemetryValue::Float(ws_rl))
-        .extended("wheel_speed_rr".to_string(), TelemetryValue::Float(ws_rr));
-
-    if max_rpm > 0.0 {
-        let rpm_fraction = (rpm_raw / max_rpm).clamp(0.0, 1.0);
-        builder = builder.max_rpm(max_rpm).extended(
-            "rpm_fraction".to_string(),
-            TelemetryValue::Float(rpm_fraction),
-        );
-    }
-
-    Ok(builder.build())
+    codemasters_shared::parse_codemasters_mode1_common(data, GAME_LABEL)
 }
 
 #[async_trait]
@@ -329,6 +179,7 @@ impl TelemetryAdapter for Grid2019Adapter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::codemasters_shared::*;
 
     fn make_packet(size: usize) -> Vec<u8> {
         vec![0u8; size]

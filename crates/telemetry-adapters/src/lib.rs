@@ -25,6 +25,7 @@ pub mod ams2;
 pub mod assetto_corsa;
 pub mod automobilista;
 pub mod beamng;
+pub mod codemasters_shared;
 pub mod codemasters_udp;
 pub mod dakar;
 pub mod dirt3;
@@ -56,6 +57,7 @@ pub mod mudrunner;
 pub mod nascar;
 pub mod nascar_21;
 pub mod pcars2;
+pub mod pcars3;
 pub mod race_driver_grid;
 pub mod raceroom;
 pub mod rbr;
@@ -158,6 +160,10 @@ fn new_lfs_adapter() -> Box<dyn TelemetryAdapter> {
 
 fn new_pcars2_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(PCars2Adapter::new())
+}
+
+fn new_pcars3_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(PCars3Adapter::new())
 }
 
 fn new_raceroom_adapter() -> Box<dyn TelemetryAdapter> {
@@ -388,6 +394,7 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
         ("kartkraft", new_kartkraft_adapter),
         ("live_for_speed", new_lfs_adapter),
         ("project_cars_2", new_pcars2_adapter),
+        ("pcars3", new_pcars3_adapter),
         ("raceroom", new_raceroom_adapter),
         ("rbr", new_rbr_adapter),
         ("automobilista", new_automobilista_adapter),
@@ -461,6 +468,7 @@ pub use mudrunner::MudRunnerAdapter;
 pub use nascar::NascarAdapter;
 pub use nascar_21::Nascar21Adapter;
 pub use pcars2::PCars2Adapter;
+pub use pcars3::PCars3Adapter;
 pub use race_driver_grid::RaceDriverGridAdapter;
 pub use raceroom::RaceRoomAdapter;
 pub use rbr::RBRAdapter;
