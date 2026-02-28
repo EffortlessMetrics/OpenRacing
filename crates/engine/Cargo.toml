@@ -24,6 +24,7 @@ racing-wheel-hid-ffbeast-protocol = { path = "../hid-ffbeast-protocol" }
 racing-wheel-hid-cammus-protocol = { path = "../hid-cammus-protocol" }
 racing-wheel-hid-leo-bodnar-protocol = { workspace = true }
 racing-wheel-hid-accuforce-protocol = { workspace = true }
+racing-wheel-hid-pxn-protocol = { workspace = true }
 racing-wheel-simplemotion-v2 = { path = "../simplemotion-v2" }
 hid-button-box-protocol = { path = "../hid-button-box-protocol" }
 openracing-atomic = { workspace = true }
