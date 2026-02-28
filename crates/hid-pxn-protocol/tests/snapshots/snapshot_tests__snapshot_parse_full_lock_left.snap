@@ -1,0 +1,5 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshot_tests.rs
+expression: "format!(\"steering={:.4}, throttle={:.4}, brake={:.4}, clutch={:.4}, buttons={}\",\nreport.steering, report.throttle, report.brake, report.clutch, report.buttons)"
+---
+"steering=-1.0000, throttle=0.0000, brake=0.0000, clutch=0.0000, buttons=0"
