@@ -450,6 +450,36 @@ path = "fuzz_targets/fuzz_rfactor2.rs"
 test = false
 doc = false
 
+[[bin]]
+name = "fuzz_motogp_simhub"
+path = "fuzz_targets/fuzz_motogp_simhub.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_mudrunner_simhub"
+path = "fuzz_targets/fuzz_mudrunner_simhub.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_snowrunner_simhub"
+path = "fuzz_targets/fuzz_snowrunner_simhub.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_gravel_simhub"
+path = "fuzz_targets/fuzz_gravel_simhub.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ride5_simhub"
+path = "fuzz_targets/fuzz_ride5_simhub.rs"
+test = false
+doc = false
+
 [profile.release]
 opt-level = 3
 debug = true
