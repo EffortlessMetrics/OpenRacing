@@ -8,6 +8,7 @@
 
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(static_mut_refs)]
+#![deny(clippy::unwrap_used)]
 
 pub mod ids;
 pub mod input;
