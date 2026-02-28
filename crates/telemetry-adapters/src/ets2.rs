@@ -23,10 +23,17 @@ use winapi::um::{
 
 /// SCS Telemetry SDK shared memory name (same for both ETS2 and ATS).
 const SCS_SHARED_MEMORY_NAME: &str = "Local\\SCSTelemetry";
-/// Total mapped size; community-documented SDK v1.14 layout is 512 bytes.
+/// Total mapped size for the OpenRacing SCS telemetry companion plugin.
 const SCS_SHARED_MEMORY_SIZE: usize = 512;
 
-// Byte offsets in the SCS Telemetry SDK v1.14 memory layout.
+// Byte offsets in the OpenRacing SCS telemetry plugin shared memory layout.
+//
+// NOTE (2025-07): The official SCS Telemetry SDK does not define a standard
+// shared memory format — each community plugin chooses its own layout. This
+// layout does NOT match the nlhans/ets2-sdk-plugin example or Funbit's
+// ets2-telemetry-server. It is specific to the OpenRacing companion plugin
+// (or must be documented separately). The "SDK v1.14" label below refers to
+// the companion plugin version, not the SCS SDK version.
 const OFF_VERSION: usize = 0; // u32
 const OFF_SPEED_MS: usize = 4; // f32  m/s
 const OFF_ENGINE_RPM: usize = 8; // f32  rev/min

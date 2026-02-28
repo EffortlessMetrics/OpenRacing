@@ -3,6 +3,27 @@
 //! Implements telemetry adapter for rFactor 2 using shared memory.
 //! rFactor 2 exposes telemetry data through memory-mapped files.
 //! Requirements: 12.4
+//!
+//! ## Verification against rF2 Shared Memory Map Plugin
+//!
+//! Verified 2025-07 against [`rF2State.h`](https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin)
+//! (plugin v3.7.15.1) and
+//! [`rFactor2SharedMemoryMap.hpp`](https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin).
+//!
+//! - **Shared memory names**: `$rFactor2SMMP_Telemetry$`, `$rFactor2SMMP_Scoring$`,
+//!   `$rFactor2SMMP_ForceFeedback$`. ✓
+//! - **rF2VehicleTelemetry field order** (up to `mSteeringShaftTorque`): matches
+//!   `rF2State.h` identically (id, deltaTime, elapsedTime, lapNumber, lapStartET,
+//!   vehicleName[64], trackName[64], pos[3], localVel[3], localAccel[3], ori[3×3],
+//!   localRot[3], localRotAccel[3], gear(long), engineRPM, waterTemp, oilTemp,
+//!   clutchRPM, unfilteredThrottle/Brake/Steering/Clutch, steeringShaftTorque). ✓
+//! - **rF2GamePhase enum**: 0–8 match rF2State.h; value 9 = paused (tag.2015.09.14). ✓
+//! - **rF2Wheel fields**: all f64 fields up to `wear` match rF2State.h order. ✓
+//! - **Gear convention**: −1=reverse, 0=neutral, 1+=forward (same as rF2 native). ✓
+//! - **Speed**: no discrete speed field in `rF2VehicleTelemetry`; derived from
+//!   `mLocalVel` magnitude (consistent with ISI documentation). ✓
+//! - **Known limitation**: struct omits ~25 fields between `mSteeringShaftTorque`
+//!   and `mFuel`; not a valid memory overlay for direct reads. See struct doc.
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
