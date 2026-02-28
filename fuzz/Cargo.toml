@@ -288,6 +288,138 @@ path = "fuzz_targets/fuzz_trackmania_udp.rs"
 test = false
 doc = false
 
+[[bin]]
+name = "fuzz_dakar_udp"
+path = "fuzz_targets/fuzz_dakar_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_flatout_udp"
+path = "fuzz_targets/fuzz_flatout_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_nascar_udp"
+path = "fuzz_targets/fuzz_nascar_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_nascar21_udp"
+path = "fuzz_targets/fuzz_nascar21_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_wrc_kylotonn_udp"
+path = "fuzz_targets/fuzz_wrc_kylotonn_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_v_rally_4_udp"
+path = "fuzz_targets/fuzz_v_rally_4_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_rfactor1_udp"
+path = "fuzz_targets/fuzz_rfactor1_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_gran_turismo_sport"
+path = "fuzz_targets/fuzz_gran_turismo_sport.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_grid_autosport"
+path = "fuzz_targets/fuzz_grid_autosport.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_grid_2019"
+path = "fuzz_targets/fuzz_grid_2019.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_grid_legends"
+path = "fuzz_targets/fuzz_grid_legends.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_le_mans_ultimate"
+path = "fuzz_targets/fuzz_le_mans_ultimate.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_race_driver_grid"
+path = "fuzz_targets/fuzz_race_driver_grid.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_forza_horizon"
+path = "fuzz_targets/fuzz_forza_horizon.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_f1_udp"
+path = "fuzz_targets/fuzz_f1_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_dirt3_udp"
+path = "fuzz_targets/fuzz_dirt3_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_dirt5_udp"
+path = "fuzz_targets/fuzz_dirt5_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_dirt_showdown"
+path = "fuzz_targets/fuzz_dirt_showdown.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_eawrc_udp"
+path = "fuzz_targets/fuzz_eawrc_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_f1_native"
+path = "fuzz_targets/fuzz_f1_native.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ac_rally"
+path = "fuzz_targets/fuzz_ac_rally.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_assetto_corsa"
+path = "fuzz_targets/fuzz_assetto_corsa.rs"
+test = false
+doc = false
+
 [profile.release]
 opt-level = 3
 debug = true
