@@ -409,7 +409,7 @@ jobs:
           fi
 
       - name: Check unused dependencies
-        run: cargo +nightly udeps --all-targets
+        run: cargo +nightly udeps --workspace --all-targets --exclude workspace-hack
 
       - name: Test minimal versions (nightly)
         run: |

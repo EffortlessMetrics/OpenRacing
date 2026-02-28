@@ -182,9 +182,10 @@ class LintGates:
                 print("To install: cargo install cargo-udeps --locked")
                 return True  # Don't fail if tool is not available
             
-            # Run udeps check
+            # Run udeps check (exclude workspace-hack: it's a cargo-hakari feature
+            # unification crate whose deps are intentionally not used in its own code)
             result = subprocess.run(
-                ["cargo", "+nightly", "udeps", "--all-targets"],
+                ["cargo", "+nightly", "udeps", "--workspace", "--all-targets", "--exclude", "workspace-hack"],
                 cwd=self.root_dir,
                 capture_output=True,
                 text=True

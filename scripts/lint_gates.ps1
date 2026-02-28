@@ -122,8 +122,8 @@ function Test-UnusedDependencies {
             return $true  # Don't fail if tool is not available
         }
         
-        # Run udeps check
-        $result = & cargo +nightly udeps --all-targets 2>&1
+        # Run udeps check (exclude workspace-hack: cargo-hakari feature unification crate)
+        $result = & cargo +nightly udeps --workspace --all-targets --exclude workspace-hack 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-Status "Unused dependencies found (expected during development)" "Warning"
             return $true  # Don't fail during development
