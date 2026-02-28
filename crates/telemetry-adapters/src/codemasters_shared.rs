@@ -51,6 +51,7 @@ pub fn read_f32(data: &[u8], offset: usize) -> Option<f32> {
     data.get(offset..offset + 4)
         .and_then(|b| b.try_into().ok())
         .map(f32::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 // ── Shared Mode 1 parser ─────────────────────────────────────────────────────

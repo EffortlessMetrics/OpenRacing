@@ -734,7 +734,8 @@ impl<'a> PacketReader<'a> {
 
     fn read_f32_le(&mut self) -> Result<f32> {
         let bytes = self.read_exact(4)?;
-        Ok(f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+        let val = f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+        Ok(if val.is_finite() { val } else { 0.0 })
     }
 }
 

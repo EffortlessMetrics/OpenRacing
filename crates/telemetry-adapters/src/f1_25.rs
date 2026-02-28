@@ -509,7 +509,9 @@ impl<'a> ByteReader<'a> {
 
     #[inline]
     pub fn f32_le(&mut self) -> Result<f32> {
-        self.read_n4().map(f32::from_le_bytes)
+        self.read_n4()
+            .map(f32::from_le_bytes)
+            .map(|v| if v.is_finite() { v } else { 0.0 })
     }
 
     fn read_n4(&mut self) -> Result<[u8; 4]> {

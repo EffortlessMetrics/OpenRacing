@@ -824,7 +824,7 @@ fn read_f32_var(
 ) -> Option<f32> {
     let binding = binding?;
     let byte_offset = base_offset.checked_add(binding.offset)?;
-    Some(match binding.var_type {
+    let val = match binding.var_type {
         IRSDK_VAR_TYPE_FLOAT => unsafe_read_unaligned::<f32>(base_ptr, byte_offset),
         IRSDK_VAR_TYPE_DOUBLE => unsafe_read_unaligned::<f64>(base_ptr, byte_offset) as f32,
         IRSDK_VAR_TYPE_INT | IRSDK_VAR_TYPE_BITFIELD => {
@@ -838,7 +838,12 @@ fn read_f32_var(
             }
         }
         _ => return None,
-    })
+    };
+    if val.is_finite() {
+        Some(val)
+    } else {
+        Some(0.0)
+    }
 }
 
 #[cfg(windows)]

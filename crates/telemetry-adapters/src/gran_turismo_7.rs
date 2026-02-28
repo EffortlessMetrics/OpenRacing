@@ -394,23 +394,33 @@ pub fn parse_decrypted(buf: &[u8; PACKET_SIZE]) -> Result<NormalizedTelemetry> {
 // ---------------------------------------------------------------------------
 
 fn read_f32_le(data: &[u8], offset: usize) -> f32 {
-    let bytes: [u8; 4] = data[offset..offset + 4].try_into().unwrap_or([0; 4]);
-    f32::from_le_bytes(bytes)
+    let val = data
+        .get(offset..offset + 4)
+        .and_then(|b| b.try_into().ok())
+        .map(f32::from_le_bytes)
+        .unwrap_or(0.0);
+    if val.is_finite() { val } else { 0.0 }
 }
 
 fn read_u32_le(data: &[u8], offset: usize) -> u32 {
-    let bytes: [u8; 4] = data[offset..offset + 4].try_into().unwrap_or([0; 4]);
-    u32::from_le_bytes(bytes)
+    data.get(offset..offset + 4)
+        .and_then(|b| b.try_into().ok())
+        .map(u32::from_le_bytes)
+        .unwrap_or(0)
 }
 
 fn read_u16_le(data: &[u8], offset: usize) -> u16 {
-    let bytes: [u8; 2] = data[offset..offset + 2].try_into().unwrap_or([0; 2]);
-    u16::from_le_bytes(bytes)
+    data.get(offset..offset + 2)
+        .and_then(|b| b.try_into().ok())
+        .map(u16::from_le_bytes)
+        .unwrap_or(0)
 }
 
 fn read_i32_le(data: &[u8], offset: usize) -> i32 {
-    let bytes: [u8; 4] = data[offset..offset + 4].try_into().unwrap_or([0; 4]);
-    i32::from_le_bytes(bytes)
+    data.get(offset..offset + 4)
+        .and_then(|b| b.try_into().ok())
+        .map(i32::from_le_bytes)
+        .unwrap_or(0)
 }
 
 // ---------------------------------------------------------------------------

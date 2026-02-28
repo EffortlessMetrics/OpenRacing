@@ -89,6 +89,7 @@ fn read_f32_le(buf: &[u8], pos: usize) -> Option<f32> {
     buf.get(pos..pos + 4)
         .and_then(|b| b.try_into().ok())
         .map(f32::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 /// Return the buffer position of a field's data inside a FlatBuffers table.

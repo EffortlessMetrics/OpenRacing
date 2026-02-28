@@ -678,13 +678,14 @@ impl DecodedValue {
     }
 
     fn as_f32(&self) -> Option<f32> {
-        match self {
+        let val = match self {
             Self::Bool(value) => Some(if *value { 1.0 } else { 0.0 }),
             Self::U64(value) => Some(*value as f32),
             Self::I64(value) => Some(*value as f32),
             Self::F64(value) => Some(*value as f32),
             Self::String(_) => None,
-        }
+        };
+        val.filter(|v| v.is_finite())
     }
 
     fn as_i8(&self) -> Option<i8> {

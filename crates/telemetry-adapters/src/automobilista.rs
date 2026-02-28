@@ -205,6 +205,7 @@ fn read_f32(data: &[u8], offset: usize) -> Option<f32> {
     data.get(offset..offset + 4)
         .and_then(|b| b.try_into().ok())
         .map(f32::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 /// Read a little-endian `f64` from `data` at `offset`.
@@ -212,6 +213,7 @@ fn read_f64(data: &[u8], offset: usize) -> Option<f64> {
     data.get(offset..offset + 8)
         .and_then(|b| b.try_into().ok())
         .map(f64::from_le_bytes)
+        .filter(|v| v.is_finite())
 }
 
 /// Read a little-endian `i32` from `data` at `offset`.

@@ -38,12 +38,13 @@ fn read_f32(data: &[u8], offset: usize) -> f32 {
     if offset + 4 > data.len() {
         return 0.0;
     }
-    f32::from_le_bytes([
+    let val = f32::from_le_bytes([
         data[offset],
         data[offset + 1],
         data[offset + 2],
         data[offset + 3],
-    ])
+    ]);
+    if val.is_finite() { val } else { 0.0 }
 }
 
 fn parse_rbr_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
