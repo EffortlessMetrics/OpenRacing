@@ -1810,3 +1810,21 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        #[test]
+        fn parse_no_panic_on_arbitrary(
+            data in proptest::collection::vec(any::<u8>(), 0..1024)
+        ) {
+            let adapter = F1_25Adapter::new();
+            let _ = adapter.normalize(&data);
+        }
+    }
+}

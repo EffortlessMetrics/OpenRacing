@@ -310,6 +310,32 @@ Seven adapters sharing the Codemasters legacy 66-float UDP packet (DiRT Rally 2,
 
 ---
 
+### F-027 · Forza tire temperatures assumed Kelvin, actually Fahrenheit (Medium · Resolved)
+
+**Encountered:** RC sprint — telemetry adapter protocol verification audit
+
+The Forza adapter comments said "Kelvin" and converted with `k - 273.15`, but Forza Motorsport/Horizon actually sends tire temps in Fahrenheit. The correct conversion is `(f - 32) * 5/9`.
+
+**Evidence:** The `stelmanjones/fmtel` Go library explicitly documents `// Tire temperatures in fahrenheit.` and converts with `(temp - 32) * 5 / 9`. The `mplutka/tm-bt-led` JS implementation does the same. The official Forza "Data Out" format documentation does not annotate units.
+
+**Fix applied:** Updated `forza.rs` comments and conversion. Default fallback changed from `293.15` (20°C in Kelvin) to `68.0` (20°C in Fahrenheit).
+
+---
+
+### F-028 · fuel_percent × 100 bug in LFS, AMS1; f32/f64 mismatch in RaceRoom (Medium · Resolved)
+
+**Encountered:** RC sprint — full adapter fuel_percent audit
+
+Three adapters had fuel bugs found during the systematic audit triggered by F-026:
+
+1. **LFS** (`lfs.rs`): `fuel * 100.0` passed to `.fuel_percent()`, but the builder clamps to [0,1] — fuel always showed 100%.
+2. **Automobilista** (`automobilista.rs`): Same `* 100.0` pattern.
+3. **RaceRoom** (`raceroom.rs`): FuelLeft/FuelCapacity read as `f32` (4 bytes), but R3E SDK uses `f64` (8 bytes). Reading 4 bytes of a double produces garbage. Added `read_f64_le()` helper.
+
+**Fix applied:** Removed `* 100.0` from LFS/AMS1. Changed RaceRoom to read f64 and cast to f32. Updated snapshot files.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
@@ -330,6 +356,8 @@ Seven adapters sharing the Codemasters legacy 66-float UDP packet (DiRT Rally 2,
 | F-018 | `fuzz_simplemotion` missing dep in fuzz/Cargo.toml | commit 4a250f3 (feat/r7-quirks-cleanup-v2) |
 | F-019 | 6 SimHub adapters returned empty stub telemetry | simhub.rs rewrite e8d9a20 (feat/r7-quirks-cleanup-v2) |
 | F-026 | Codemasters Mode 1 UDP adapters wrong byte offsets | 7 adapter files corrected to community-verified layout |
+| F-027 | Forza tire temp assumed Kelvin, actually Fahrenheit | commit 7d8582e (feat/r7-quirks-cleanup-v2) |
+| F-028 | fuel_percent × 100 bug in LFS, AMS1, RaceRoom f64 | commit 6a0ed5d (feat/r7-quirks-cleanup-v2) |
 
 ---
 
