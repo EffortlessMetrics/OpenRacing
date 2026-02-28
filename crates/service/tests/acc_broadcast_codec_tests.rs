@@ -14,7 +14,7 @@ fn test_acc_normalize_realtime_car_update_fixture() -> TestResult {
 
     assert_eq!(normalized.car_id.as_deref(), Some("car_7"));
     assert!((normalized.speed_ms - 50.0).abs() < 0.01);
-    assert_eq!(normalized.gear, 4);
+    assert_eq!(normalized.gear, 5);
     Ok(())
 }
 

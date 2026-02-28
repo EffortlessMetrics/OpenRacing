@@ -244,7 +244,7 @@ fn scenario_telemetry_reception_acc_packet_parsed_with_valid_ranges()
     use racing_wheel_telemetry_adapters::{ACCAdapter, TelemetryAdapter};
 
     // Given: an ACC session sending a RealtimeCarUpdate packet
-    //   gear_raw = 5 → normalised gear = 5 − 2 = 3
+    //   gear_raw = 5 → normalised gear = 5 − 1 = 4
     //   speed_kmh = 180 → speed_ms = 180 / 3.6 = 50.0 m/s
     let adapter = ACCAdapter::new();
     let pkt = make_acc_car_update_packet(5, 180);
@@ -260,10 +260,10 @@ fn scenario_telemetry_reception_acc_packet_parsed_with_valid_ranges()
         telemetry.speed_ms
     );
 
-    // And: gear is correctly decoded (gear_raw 5 − 2 = 3)
+    // And: gear is correctly decoded (gear_raw 5 − 1 = 4)
     assert_eq!(
-        telemetry.gear, 3,
-        "gear must be 3 (gear_raw=5, ACC offset=2)"
+        telemetry.gear, 4,
+        "gear must be 4 (gear_raw=5, ACC offset=1)"
     );
 
     // And: speed is within a physically valid range (0–500 m/s)

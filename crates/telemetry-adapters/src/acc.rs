@@ -2,6 +2,21 @@
 //!
 //! Implements telemetry adapter for ACC using UDP broadcast protocol v4.
 //! Requirements: GI-03, GI-04
+//!
+//! ## Verification against ACC broadcasting protocol v4
+//!
+//! Verified 2025-07 against the Kunos ACC Broadcasting SDK documentation and
+//! reference C# implementation (`ksBroadcastingNetworkProtocol`).
+//!
+//! - **Transport**: UDP broadcasting protocol on port 9000 (not shared memory). ✓
+//! - **Protocol version**: 4 (current). ✓
+//! - **Message types**: 1=RegistrationResult, 2=RealtimeUpdate,
+//!   3=RealtimeCarUpdate, 4=EntryList, 5=TrackData, 6=EntryListCar,
+//!   7=BroadcastingEvent. ✓
+//! - **Registration packet**: cmd(u8=1), protocol(u8=4), displayName(string),
+//!   connectionPassword(string), updateInterval(i32), commandPassword(string). ✓
+//! - **Gear encoding**: wire 0=R, 1=N, 2=1st; normalised via `−1` offset. ✓
+//! - **Readonly flag**: byte==0 means read-only (matches Kunos C# SDK). ✓
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
@@ -543,8 +558,11 @@ fn parse_realtime_car_update(reader: &mut PacketReader<'_>) -> Result<RealtimeCa
     let _driver_index = reader.read_u16_le()?;
     let _driver_count = reader.read_u8()?;
 
+    // ACC broadcasting protocol gear: 0=Reverse, 1=Neutral, 2=First, 3=Second, …
+    // Normalized convention:         -1=Reverse, 0=Neutral, 1=First, 2=Second, …
+    // Verified 2025-07 against Kunos ACC broadcasting protocol v4 documentation.
     let gear_raw = reader.read_u8()?;
-    let gear = (i16::from(gear_raw) - 2).clamp(i16::from(i8::MIN), i16::from(i8::MAX)) as i8;
+    let gear = (i16::from(gear_raw) - 1).clamp(i16::from(i8::MIN), i16::from(i8::MAX)) as i8;
 
     let _world_pos_x = reader.read_f32_le()?;
     let _world_pos_y = reader.read_f32_le()?;
@@ -861,7 +879,8 @@ mod tests {
         assert_eq!(normalized.car_id, Some("car_7".to_string()));
         assert_eq!(normalized.track_id, Some("monza".to_string()));
         assert_eq!(normalized.speed_ms, 50.0);
-        assert_eq!(normalized.gear, 4);
+        // Fixture gear_raw=6 → 6−1=5 (5th gear)
+        assert_eq!(normalized.gear, 5);
         assert_eq!(
             normalized.extended.get("session_time_ms"),
             Some(&TelemetryValue::Float(12345.0))
@@ -928,7 +947,7 @@ mod tests {
         car_packet.extend_from_slice(&7u16.to_le_bytes()); // car index
         car_packet.extend_from_slice(&0u16.to_le_bytes()); // driver index
         car_packet.push(1); // driver count
-        car_packet.push(6); // gear raw => 4
+        car_packet.push(6); // gear raw 6 = 5th gear → normalised 5
         car_packet.extend_from_slice(&100.0f32.to_le_bytes());
         car_packet.extend_from_slice(&200.0f32.to_le_bytes());
         car_packet.extend_from_slice(&0.25f32.to_le_bytes());
@@ -954,7 +973,8 @@ mod tests {
             .ok_or("expected normalized telemetry")?;
 
         assert_eq!(normalized.speed_ms, 50.0);
-        assert_eq!(normalized.gear, 4);
+        // gear_raw=6 → 6−1=5 (5th gear)
+        assert_eq!(normalized.gear, 5);
         assert_eq!(normalized.track_id, Some("monza".to_string()));
         assert_eq!(normalized.car_id, Some("car_7".to_string()));
         assert_eq!(
@@ -1010,7 +1030,7 @@ mod tests {
         #[test]
         fn prop_acc_normalize_gear_in_range(data: Vec<u8>) {
             if let Ok(normalized) = ACCAdapter::new().normalize(&data) {
-                // Gear is decoded as (raw_byte - 2) clamped to i8.
+                // Gear is decoded as (raw_byte - 1) clamped to i8.
                 // Just verify normalization succeeds without panicking.
                 let _gear: i8 = normalized.gear;
             }

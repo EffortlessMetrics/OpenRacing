@@ -10,7 +10,7 @@ brake: 0
 clutch: 0
 rpm: 0
 max_rpm: 0
-gear: 4
+gear: 5
 num_gears: 0
 lateral_g: 0
 longitudinal_g: 0

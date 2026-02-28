@@ -332,7 +332,7 @@ fn scenario_acc_realtime_car_update_correctly_normalises_speed_and_gear()
     let adapter = ACCAdapter::new();
 
     // When: a RealtimeCarUpdate packet arrives
-    //   gear_raw = 5 → normalised gear = 5 − 2 = 3
+    //   gear_raw = 5 → normalised gear = 5 − 1 = 4
     //   speed_kmh = 108 → speed_ms = 108 / 3.6 = 30.0 m/s
     let pkt = make_acc_car_update_packet(5, 108);
     let t = adapter.normalize(&pkt)?;
@@ -344,8 +344,8 @@ fn scenario_acc_realtime_car_update_correctly_normalises_speed_and_gear()
         t.speed_ms
     );
 
-    // And: gear = 5 − 2 = 3
-    assert_eq!(t.gear, 3, "gear must be 3 (gear_raw=5)");
+    // And: gear = 5 − 1 = 4
+    assert_eq!(t.gear, 4, "gear must be 4 (gear_raw=5)");
 
     // And: the adapter correctly identifies the game
     assert_eq!(
