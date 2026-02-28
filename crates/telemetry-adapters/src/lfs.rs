@@ -63,7 +63,7 @@ fn parse_lfs_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         .throttle(throttle)
         .brake(brake)
         .clutch(clutch)
-        .fuel_percent(fuel * 100.0)
+        .fuel_percent(fuel)
         .build())
 }
 

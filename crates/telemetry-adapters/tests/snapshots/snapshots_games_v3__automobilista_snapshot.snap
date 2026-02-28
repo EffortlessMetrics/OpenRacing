@@ -57,7 +57,7 @@ best_lap_time_s: 0
 last_lap_time_s: 0
 delta_ahead_s: 0
 delta_behind_s: 0
-fuel_percent: 1
+fuel_percent: 0.7
 engine_temp_c: 0
 extended:
   rpm_fraction:

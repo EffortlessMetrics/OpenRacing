@@ -17,6 +17,10 @@ fn write_f32(buf: &mut [u8], offset: usize, val: f32) {
     buf[offset..offset + 4].copy_from_slice(&val.to_le_bytes());
 }
 
+fn write_f64(buf: &mut [u8], offset: usize, val: f64) {
+    buf[offset..offset + 8].copy_from_slice(&val.to_le_bytes());
+}
+
 fn write_i32(buf: &mut [u8], offset: usize, val: i32) {
     buf[offset..offset + 4].copy_from_slice(&val.to_le_bytes());
 }
@@ -31,8 +35,8 @@ fn make_raceroom_packet() -> Vec<u8> {
     write_i32(&mut buf, 104, 0); // game_in_menus = 0
     write_f32(&mut buf, 600, 5500.0); // engine_rpm
     write_f32(&mut buf, 604, 8500.0); // engine_rpm_max
-    write_f32(&mut buf, 620, 40.0); // fuel_left
-    write_f32(&mut buf, 628, 80.0); // fuel_capacity
+    write_f64(&mut buf, 620, 40.0); // fuel_left
+    write_f64(&mut buf, 628, 80.0); // fuel_capacity
     write_f32(&mut buf, 700, 44.0); // speed_ms
     write_f32(&mut buf, 704, 0.3); // steer_input
     write_f32(&mut buf, 708, 0.75); // throttle

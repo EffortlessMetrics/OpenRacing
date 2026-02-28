@@ -260,7 +260,7 @@ pub(crate) fn parse_snapshot(data: &[u8]) -> Result<NormalizedTelemetry> {
     let fuel_capacity_raw = data.get(OFF_FUEL_CAPACITY).copied().unwrap_or(0);
     let fuel_in_tank = read_f32(data, OFF_FUEL).unwrap_or(0.0).max(0.0);
     let fuel_percent = if fuel_capacity_raw > 0 {
-        (fuel_in_tank / f32::from(fuel_capacity_raw)).clamp(0.0, 1.0) * 100.0
+        (fuel_in_tank / f32::from(fuel_capacity_raw)).clamp(0.0, 1.0)
     } else {
         0.0
     };

@@ -68,8 +68,8 @@ fn parse_r3e_memory(data: &[u8]) -> Result<NormalizedTelemetry> {
 
     let rpm = read_f32_le(data, OFF_ENGINE_RPM).unwrap_or(0.0);
     let max_rpm = read_f32_le(data, OFF_ENGINE_RPM_MAX).unwrap_or(0.0);
-    let fuel_left = read_f32_le(data, OFF_FUEL_LEFT).unwrap_or(0.0);
-    let fuel_capacity = read_f32_le(data, OFF_FUEL_CAPACITY).unwrap_or(0.0);
+    let fuel_left = read_f64_le(data, OFF_FUEL_LEFT).unwrap_or(0.0) as f32;
+    let fuel_capacity = read_f64_le(data, OFF_FUEL_CAPACITY).unwrap_or(0.0) as f32;
     let speed_mps = read_f32_le(data, OFF_SPEED).unwrap_or(0.0).abs();
     let steering = read_f32_le(data, OFF_STEER_INPUT)
         .unwrap_or(0.0)
@@ -270,6 +270,12 @@ fn read_f32_le(data: &[u8], offset: usize) -> Option<f32> {
         .map(f32::from_le_bytes)
 }
 
+fn read_f64_le(data: &[u8], offset: usize) -> Option<f64> {
+    data.get(offset..offset + 8)
+        .and_then(|b| b.try_into().ok())
+        .map(f64::from_le_bytes)
+}
+
 fn read_i32_le(data: &[u8], offset: usize) -> Option<i32> {
     data.get(offset..offset + 4)
         .and_then(|b| b.try_into().ok())
@@ -297,8 +303,8 @@ mod tests {
         data[OFF_GAME_IN_MENUS..OFF_GAME_IN_MENUS + 4].copy_from_slice(&0i32.to_le_bytes());
         data[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
         data[OFF_ENGINE_RPM_MAX..OFF_ENGINE_RPM_MAX + 4].copy_from_slice(&8000.0f32.to_le_bytes());
-        data[OFF_FUEL_LEFT..OFF_FUEL_LEFT + 4].copy_from_slice(&30.0f32.to_le_bytes());
-        data[OFF_FUEL_CAPACITY..OFF_FUEL_CAPACITY + 4].copy_from_slice(&60.0f32.to_le_bytes());
+        data[OFF_FUEL_LEFT..OFF_FUEL_LEFT + 8].copy_from_slice(&30.0f64.to_le_bytes());
+        data[OFF_FUEL_CAPACITY..OFF_FUEL_CAPACITY + 8].copy_from_slice(&60.0f64.to_le_bytes());
         data[OFF_SPEED..OFF_SPEED + 4].copy_from_slice(&speed.to_le_bytes());
         data[OFF_STEER_INPUT..OFF_STEER_INPUT + 4].copy_from_slice(&steering.to_le_bytes());
         data[OFF_THROTTLE..OFF_THROTTLE + 4].copy_from_slice(&throttle.to_le_bytes());
