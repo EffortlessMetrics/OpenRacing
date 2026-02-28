@@ -275,6 +275,18 @@ path = "fuzz_targets/fuzz_accuforce_input.rs"
 test = false
 doc = false
 
+[[bin]]
+name = "fuzz_simhub_udp"
+path = "fuzz_targets/fuzz_simhub_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_trackmania_udp"
+path = "fuzz_targets/fuzz_trackmania_udp.rs"
+test = false
+doc = false
+
 [profile.release]
 opt-level = 3
 debug = true
