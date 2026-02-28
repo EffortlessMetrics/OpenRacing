@@ -391,6 +391,9 @@ impl LinuxHidPort {
             (0x046D, 0xC26E), // Logitech G923 Xbox
             (0x046D, 0xC268), // Logitech G PRO
             (0x046D, 0xC272), // Logitech G PRO Xbox
+            // Fanatec (VID 0x0EB7 — Endor AG)
+            // Verified: gotzl/hid-fanatecff, JacKeTUs/linux-steering-wheels,
+            //           berarma/oversteer, linux-hardware.org
             (0x0EB7, 0x0001), // Fanatec ClubSport Wheel Base V2
             (0x0EB7, 0x0004), // Fanatec ClubSport Wheel Base V2.5
             (0x0EB7, 0x0005), // Fanatec CSL Elite Wheel Base (PS4)
@@ -398,14 +401,18 @@ impl LinuxHidPort {
             (0x0EB7, 0x0007), // Fanatec Podium Wheel Base DD2
             (0x0EB7, 0x0011), // Fanatec CSR Elite
             (0x0EB7, 0x0020), // Fanatec CSL DD
-            (0x0EB7, 0x0024), // Fanatec Gran Turismo DD Pro
-            (0x0EB7, 0x01E9), // Fanatec ClubSport DD+
-            (0x0EB7, 0x0E03), // Fanatec ClubSport Wheel Base V1
+            (0x0EB7, 0x0024), // Fanatec Gran Turismo DD Pro (PS-mode PID; unconfirmed in community drivers)
+            (0x0EB7, 0x01E9), // Fanatec ClubSport DD+ (unconfirmed in community drivers)
+            (0x0EB7, 0x0E03), // Fanatec CSL Elite Wheel Base
             (0x0EB7, 0x1839), // Fanatec ClubSport Pedals V1/V2
             (0x0EB7, 0x183B), // Fanatec ClubSport Pedals V3
             (0x0EB7, 0x6204), // Fanatec CSL Elite Pedals
             (0x0EB7, 0x6205), // Fanatec CSL Pedals with Load Cell Kit
             (0x0EB7, 0x6206), // Fanatec CSL Pedals V2
+            // Thrustmaster (VID 0x044F)
+            // Verified: Kimplul/hid-tmff2, Linux kernel hid-thrustmaster.c,
+            //           berarma/oversteer, JacKeTUs/linux-steering-wheels,
+            //           linux-hardware.org, devicehunt.com
             (0x044F, 0xB65D), // Thrustmaster FFB Wheel (pre-init)
             (0x044F, 0xB65E), // Thrustmaster T500 RS
             (0x044F, 0xB66D), // Thrustmaster T300RS (PS4 mode)
@@ -419,7 +426,7 @@ impl LinuxHidPort {
             (0x044F, 0xB692), // Thrustmaster TS-XW
             (0x044F, 0xB691), // Thrustmaster TS-XW (GIP mode)
             (0x044F, 0xB69A), // Thrustmaster T248X
-            (0x044F, 0xB69B), // Thrustmaster T818
+            (0x044F, 0xB69B), // Thrustmaster T818 (unverified — hid-tmff2 issue #58)
             // NOTE: 0xB678/0xB679/0xB68D removed — HOTAS peripherals, not pedals
             // Moza Racing - V1
             (0x346E, 0x0005), // Moza R3

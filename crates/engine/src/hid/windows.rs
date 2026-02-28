@@ -340,7 +340,9 @@ impl SupportedDevices {
             (vendor_ids::LOGITECH, 0xC26E, "Logitech G923 Xbox"),
             (vendor_ids::LOGITECH, 0xC268, "Logitech G PRO"),
             (vendor_ids::LOGITECH, 0xC272, "Logitech G PRO Xbox"),
-            // Fanatec wheels
+            // Fanatec wheels (VID 0x0EB7 — Endor AG)
+            // Verified: gotzl/hid-fanatecff, JacKeTUs/linux-steering-wheels,
+            //           berarma/oversteer, linux-hardware.org
             (
                 vendor_ids::FANATEC,
                 0x0001,
@@ -360,12 +362,15 @@ impl SupportedDevices {
             (vendor_ids::FANATEC, 0x0007, "Fanatec Podium Wheel Base DD2"),
             (vendor_ids::FANATEC, 0x0011, "Fanatec CSR Elite"),
             (vendor_ids::FANATEC, 0x0020, "Fanatec CSL DD"),
+            // 0x0024: PS-mode PID from USB captures; not yet in community drivers.
+            // In PC mode the GT DD Pro enumerates as 0x0020 (same as CSL DD).
             (vendor_ids::FANATEC, 0x0024, "Fanatec Gran Turismo DD Pro"),
+            // 0x01E9: from USB captures; not yet in community drivers.
             (vendor_ids::FANATEC, 0x01E9, "Fanatec ClubSport DD+"),
             (
                 vendor_ids::FANATEC,
                 0x0E03,
-                "Fanatec ClubSport Wheel Base V1",
+                "Fanatec CSL Elite Wheel Base",
             ),
             // Fanatec standalone pedal sets
             (
@@ -381,7 +386,10 @@ impl SupportedDevices {
                 "Fanatec CSL Pedals with Load Cell Kit",
             ),
             (vendor_ids::FANATEC, 0x6206, "Fanatec CSL Pedals V2"),
-            // Thrustmaster wheels
+            // Thrustmaster wheels (VID 0x044F)
+            // Verified: Kimplul/hid-tmff2, Linux kernel hid-thrustmaster.c,
+            //           berarma/oversteer, JacKeTUs/linux-steering-wheels,
+            //           linux-hardware.org, devicehunt.com
             (
                 vendor_ids::THRUSTMASTER,
                 0xB65D,
@@ -407,6 +415,7 @@ impl SupportedDevices {
                 "Thrustmaster TS-XW (GIP mode)",
             ),
             (vendor_ids::THRUSTMASTER, 0xB69A, "Thrustmaster T248X"),
+            // 0xB69B: unverified — from hid-tmff2 issue #58.
             (vendor_ids::THRUSTMASTER, 0xB69B, "Thrustmaster T818"),
             // NOTE: Thrustmaster pedal PIDs 0xB678/0xB679/0xB68D removed —
             // web research confirmed these are HOTAS peripherals, not pedals.
@@ -2791,8 +2800,8 @@ mod tests {
         assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0006)); // DD1
         assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0007)); // DD2
         assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0011)); // CSR Elite
-        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0020)); // GT DD Pro
-        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0024)); // GT DD Pro (alt PID)
+        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0020)); // CSL DD
+        assert!(SupportedDevices::is_supported(vendor_ids::FANATEC, 0x0024)); // GT DD Pro
     }
 
     #[test]
