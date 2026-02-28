@@ -6,9 +6,10 @@
 //!
 //! # Features covered
 //!
-//! * **Assetto Corsa UDP** – AC adapter binds to a free port, a mock game
-//!   server sends an OutGauge packet, and the first normalised frame arrives
-//!   within 100ms with correct speed / RPM / gear.
+//! * **Assetto Corsa Remote Telemetry UDP** – AC adapter connects to a mock
+//!   server, performs a 3-step handshake (connect→response→subscribe), and
+//!   receives an RTCarInfo packet; the first normalised frame arrives
+//!   within 500ms with correct speed / RPM / gear.
 //! * **Forza Motorsport CarDash UDP** – Forza adapter receives a CarDash
 //!   packet via a mock UDP server; throttle / gear / speed are verified.
 //! * **ACC broadcasting** – A hand-crafted `RealtimeCarUpdate` binary
@@ -33,10 +34,6 @@ fn write_f32_le(buf: &mut [u8], offset: usize, value: f32) {
     buf[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
 }
 
-fn write_u16_le(buf: &mut [u8], offset: usize, value: u16) {
-    buf[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
-}
-
 fn write_i32_le(buf: &mut [u8], offset: usize, value: i32) {
     buf[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
 }
@@ -54,29 +51,36 @@ async fn find_free_udp_port() -> anyhow::Result<u16> {
 
 // ─── Packet builders ──────────────────────────────────────────────────────────
 
-/// Build a 76-byte Assetto Corsa OutGauge UDP packet.
+/// Build a 328-byte Assetto Corsa RTCarInfo UDP packet.
 ///
-/// Byte offsets (AC SDK):
-/// * 16 → `gear` (i8)
-/// * 18 → `speed_kmh` (u16)
-/// * 20 → `rpm` (f32)
-/// * 24 → `max_rpm` (f32)
-/// * 68 → `gas` / throttle (f32 0.0–1.0)
-/// * 72 → `brake` (f32 0.0–1.0)
-fn make_ac_outgauge_packet(
-    gear: i8,
-    speed_kmh: u16,
+/// Byte offsets (AC Remote Telemetry UDP protocol):
+/// * 16 → `speed_Ms` (f32, m/s)
+/// * 56 → `gas` / throttle (f32 0.0–1.0)
+/// * 60 → `brake` (f32 0.0–1.0)
+/// * 68 → `rpm` (f32)
+/// * 76 → `gear` (i32: 0=R, 1=N, 2=1st, 3=2nd, 4=3rd, ...)
+fn make_ac_rtcarinfo_packet(
+    gear_ac: i32,
+    speed_ms: f32,
     rpm: f32,
     throttle: f32,
     brake: f32,
 ) -> Vec<u8> {
-    let mut pkt = vec![0u8; 76];
-    pkt[16] = gear as u8;
-    write_u16_le(&mut pkt, 18, speed_kmh);
-    write_f32_le(&mut pkt, 20, rpm);
-    write_f32_le(&mut pkt, 24, 8000.0); // max_rpm
-    write_f32_le(&mut pkt, 68, throttle);
-    write_f32_le(&mut pkt, 72, brake);
+    let mut pkt = vec![0u8; 328];
+    // identifier
+    pkt[0..4].copy_from_slice(&(b'a' as i32).to_le_bytes());
+    // size
+    write_i32_le(&mut pkt, 4, 328);
+    // speed_Ms at offset 16
+    write_f32_le(&mut pkt, 16, speed_ms);
+    // gas at offset 56
+    write_f32_le(&mut pkt, 56, throttle);
+    // brake at offset 60
+    write_f32_le(&mut pkt, 60, brake);
+    // rpm at offset 68
+    write_f32_le(&mut pkt, 68, rpm);
+    // gear at offset 76
+    write_i32_le(&mut pkt, 76, gear_ac);
     pkt
 }
 
@@ -167,38 +171,59 @@ fn make_acc_car_update_packet(gear_raw: u8, speed_kmh: u16) -> Vec<u8> {
 /// Scenario: User starts Assetto Corsa with a connected wheel
 ///
 /// ```text
-/// Given  a wheel is connected and the AC adapter is monitoring UDP port N
-/// When   Assetto Corsa sends an OutGauge packet on port N
-/// Then   a normalised telemetry frame arrives within 100ms
+/// Given  a mock AC Remote Telemetry server is running on UDP port N
+/// When   the AC adapter connects, handshakes, and subscribes
+/// And    the server sends an RTCarInfo update packet
+/// Then   a normalised telemetry frame arrives within 500ms
 /// And    speed, RPM, and gear are correctly parsed from the packet
 /// ```
 #[tokio::test]
 async fn scenario_assetto_corsa_game_sends_udp_telemetry_adapter_normalises_within_100ms()
 -> anyhow::Result<()> {
-    // Given: AC adapter is monitoring a free UDP port
-    let port = find_free_udp_port().await?;
+    // Given: A mock AC Remote Telemetry server on a free UDP port
+    let server = tokio::net::UdpSocket::bind("127.0.0.1:0").await?;
+    let port = server.local_addr()?.port();
+
+    // Start the AC adapter pointing at our mock server
     let adapter = AssettoCorsaAdapter::new().with_port(port);
     let mut rx = adapter.start_monitoring().await?;
 
-    // Give the spawned task time to bind the socket before we send data.
-    tokio::time::sleep(Duration::from_millis(50)).await;
+    // Mock server: receive handshake, respond, receive subscribe, send data
+    let server_task = tokio::spawn(async move {
+        let mut buf = [0u8; 512];
+        // 1. Receive handshake (12 bytes)
+        let (len, client_addr) = server.recv_from(&mut buf).await?;
+        assert!(len >= 12, "expected handshake packet, got {len} bytes");
 
-    // When: Assetto Corsa sends an OutGauge packet
-    //       gear=4, 144 km/h (= 40 m/s), 6 500 RPM, 75% throttle, no brake
-    let pkt = make_ac_outgauge_packet(4, 144, 6500.0, 0.75, 0.0);
-    let sender = tokio::net::UdpSocket::bind("127.0.0.1:0").await?;
-    sender.send_to(&pkt, format!("127.0.0.1:{port}")).await?;
+        // 2. Send handshake response (any non-empty reply)
+        let response = [0u8; 50]; // AC sends a HandshakerResponse struct
+        server.send_to(&response, client_addr).await?;
 
-    // Then: a normalised telemetry frame arrives within 100ms
-    let frame = timeout(Duration::from_millis(100), rx.recv())
+        // 3. Receive subscribe request (12 bytes)
+        let (len, _) = server.recv_from(&mut buf).await?;
+        assert!(len >= 12, "expected subscribe packet, got {len} bytes");
+
+        // 4. Send RTCarInfo update packet
+        //    gear=5 (AC: 0=R,1=N,2=1st,...,5=4th), 40 m/s, 6500 RPM, 75% throttle
+        let pkt = make_ac_rtcarinfo_packet(5, 40.0, 6500.0, 0.75, 0.0);
+        server.send_to(&pkt, client_addr).await?;
+
+        Ok::<(), anyhow::Error>(())
+    });
+
+    // Then: a normalised telemetry frame arrives within 500ms
+    let frame = timeout(Duration::from_millis(500), rx.recv())
         .await
-        .map_err(|_| anyhow::anyhow!("no AC telemetry frame received within 100ms"))?
+        .map_err(|_| anyhow::anyhow!("no AC telemetry frame received within 500ms"))?
         .ok_or_else(|| anyhow::anyhow!("AC telemetry channel closed unexpectedly"))?;
 
-    // And: speed_ms ≈ 144 km/h ÷ 3.6 = 40 m/s
+    // Verify server task completed successfully
+    server_task.await??;
+
+    // And: speed_ms ≈ 40 m/s
     assert!(
         (frame.data.speed_ms - 40.0).abs() < 0.5,
-        "speed_ms must be ~40 m/s (144 km/h), got {}",
+        "speed_ms must be ~40 m/s, got {}",
         frame.data.speed_ms
     );
 
@@ -209,8 +234,8 @@ async fn scenario_assetto_corsa_game_sends_udp_telemetry_adapter_normalises_with
         frame.data.rpm
     );
 
-    // And: gear is correctly parsed
-    assert_eq!(frame.data.gear, 4, "gear must be 4");
+    // And: gear is correctly parsed (AC gear 5 = 4th → normalized 4)
+    assert_eq!(frame.data.gear, 4, "gear must be 4 (AC gear 5 - 1)");
 
     // And: throttle is correctly normalised (0.75 ± 0.01)
     assert!(

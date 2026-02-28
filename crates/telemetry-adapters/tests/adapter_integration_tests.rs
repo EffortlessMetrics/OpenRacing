@@ -26,10 +26,6 @@ fn write_i32_le(buf: &mut [u8], offset: usize, value: i32) {
     buf[offset..offset + 4].copy_from_slice(&bytes);
 }
 
-fn write_u16_le(buf: &mut [u8], offset: usize, value: u16) {
-    let bytes = value.to_le_bytes();
-    buf[offset..offset + 2].copy_from_slice(&bytes);
-}
 
 fn write_u32_le(buf: &mut [u8], offset: usize, value: u32) {
     let bytes = value.to_le_bytes();
@@ -215,14 +211,13 @@ fn assetto_corsa_short_packet_returns_error() -> TestResult {
 
 #[test]
 fn assetto_corsa_valid_packet_parses_fields() -> TestResult {
-    let mut pkt = vec![0u8; 76];
-    pkt[16] = 3; // gear
-    write_u16_le(&mut pkt, 18, 108); // speed_kmh = 108 → 30 m/s
-    write_f32_le(&mut pkt, 20, 5500.0); // rpm
-    write_f32_le(&mut pkt, 24, 7500.0); // max_rpm
-    write_f32_le(&mut pkt, 64, 0.3); // steer
-    write_f32_le(&mut pkt, 68, 0.8); // gas/throttle
-    write_f32_le(&mut pkt, 72, 0.0); // brake
+    let mut pkt = vec![0u8; 328]; // RTCarInfo struct size
+    write_f32_le(&mut pkt, 16, 30.0); // speed_Ms at offset 16
+    write_f32_le(&mut pkt, 56, 0.8); // gas at offset 56
+    write_f32_le(&mut pkt, 60, 0.0); // brake at offset 60
+    write_f32_le(&mut pkt, 68, 5500.0); // engineRPM at offset 68
+    write_f32_le(&mut pkt, 72, 0.3); // steer at offset 72
+    write_i32_le(&mut pkt, 76, 3); // gear at offset 76 (AC: 3 = 2nd)
 
     let adapter = AssettoCorsaAdapter::new();
     let t = adapter.normalize(&pkt)?;
@@ -237,7 +232,7 @@ fn assetto_corsa_valid_packet_parses_fields() -> TestResult {
         "speed must be ~30 m/s, got {}",
         t.speed_ms
     );
-    assert_eq!(t.gear, 3, "gear must be 3");
+    assert_eq!(t.gear, 2, "gear must be 2 (AC raw 3 → normalized 2)");
     assert!((t.throttle - 0.8).abs() < 0.01, "throttle must be ~0.8");
     Ok(())
 }

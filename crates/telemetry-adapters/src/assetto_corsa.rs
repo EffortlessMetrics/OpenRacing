@@ -1,7 +1,10 @@
-//! Assetto Corsa (original) telemetry adapter using OutGauge-compatible UDP.
+//! Assetto Corsa (original) telemetry adapter using Remote Telemetry UDP.
 //!
-//! Implements telemetry via AC's UDP OutGauge protocol (port 9996).
-//! Struct layout is little-endian, total 76 bytes.
+//! Implements telemetry via AC's Remote Telemetry UDP protocol (port 9996).
+//! Requires a 3-step handshake: connect → response → subscribe.
+//! Update packets use the RTCarInfo struct (328 bytes, little-endian).
+//!
+//! Reference: <https://github.com/vpicon/acudp/blob/master/UDP.md>
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
@@ -16,20 +19,27 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 const DEFAULT_AC_PORT: u16 = 9996;
-/// Minimum byte length of the AC OutGauge UDP packet.
-const AC_PACKET_MIN_SIZE: usize = 76;
+/// RTCarInfo struct size (AC Remote Telemetry UDP update packet).
+const AC_RTCARINFO_SIZE: usize = 328;
 const MAX_PACKET_SIZE: usize = 512;
 
-// Byte offsets in the AC OutGauge UDP packet
-const OFF_GEAR: usize = 16;
-const OFF_SPEED_KMH: usize = 18;
-const OFF_RPM: usize = 20;
-const OFF_MAX_RPM: usize = 24;
-const OFF_STEER: usize = 64;
-const OFF_GAS: usize = 68;
-const OFF_BRAKE: usize = 72;
+// Handshake operation IDs for AC Remote Telemetry UDP protocol.
+const OP_HANDSHAKE: i32 = 0;
+const OP_SUBSCRIBE_UPDATE: i32 = 1;
 
-/// Assetto Corsa (original) telemetry adapter using OutGauge UDP protocol.
+// Byte offsets in the AC RTCarInfo struct (little-endian, naturally aligned).
+// Reference: https://github.com/vpicon/acudp/blob/master/UDP.md
+#[cfg(test)]
+const OFF_SPEED_KMH: usize = 8; // f32 (used in tests only; parse uses speed_Ms)
+const OFF_SPEED_MS: usize = 16; // f32
+const OFF_GAS: usize = 56; // f32
+const OFF_BRAKE: usize = 60; // f32
+const OFF_CLUTCH: usize = 64; // f32
+const OFF_RPM: usize = 68; // f32
+const OFF_STEER: usize = 72; // f32
+const OFF_GEAR: usize = 76; // i32 (0=R, 1=N, 2=1st, ...)
+
+/// Assetto Corsa (original) telemetry adapter using Remote Telemetry UDP.
 pub struct AssettoCorsaAdapter {
     bind_port: u16,
     update_rate: Duration,
@@ -56,30 +66,36 @@ impl AssettoCorsaAdapter {
 }
 
 fn parse_ac_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
-    if data.len() < AC_PACKET_MIN_SIZE {
+    if data.len() < AC_RTCARINFO_SIZE {
         return Err(anyhow!(
-            "AC packet too short: expected {AC_PACKET_MIN_SIZE}, got {}",
+            "AC RTCarInfo packet too short: expected {AC_RTCARINFO_SIZE}, got {}",
             data.len()
         ));
     }
 
-    let gear = data[OFF_GEAR] as i8;
-    let speed_kmh = read_u16_le(data, OFF_SPEED_KMH).unwrap_or(0);
+    let speed_ms = read_f32_le(data, OFF_SPEED_MS).unwrap_or(0.0);
     let rpm = read_f32_le(data, OFF_RPM).unwrap_or(0.0);
-    let max_rpm = read_f32_le(data, OFF_MAX_RPM).unwrap_or(0.0);
     let steer = read_f32_le(data, OFF_STEER).unwrap_or(0.0).clamp(-1.0, 1.0);
     let gas = read_f32_le(data, OFF_GAS).unwrap_or(0.0);
     let brake = read_f32_le(data, OFF_BRAKE).unwrap_or(0.0);
+    let clutch = read_f32_le(data, OFF_CLUTCH).unwrap_or(0.0);
 
-    let speed_mps = f32::from(speed_kmh) / 3.6;
+    let gear_raw = read_i32_le(data, OFF_GEAR).unwrap_or(1); // default neutral
+    // AC gear: 0=Reverse, 1=Neutral, 2=1st gear, ...
+    // Normalized: -1=Reverse, 0=Neutral, 1=1st gear, ...
+    let gear: i8 = match gear_raw {
+        0 => -1,
+        1 => 0,
+        g => (g - 1).clamp(i32::from(i8::MIN), i32::from(i8::MAX)) as i8,
+    };
 
     Ok(NormalizedTelemetry::builder()
         .steering_angle(steer)
         .throttle(gas)
         .brake(brake)
-        .speed_ms(speed_mps)
+        .clutch(clutch)
+        .speed_ms(speed_ms)
         .rpm(rpm)
-        .max_rpm(max_rpm)
         .gear(gear)
         .build())
 }
@@ -92,20 +108,53 @@ impl TelemetryAdapter for AssettoCorsaAdapter {
 
     async fn start_monitoring(&self) -> Result<TelemetryReceiver> {
         let (tx, rx) = mpsc::channel(100);
-        let bind_port = self.bind_port;
+        let ac_port = self.bind_port;
         let update_rate = self.update_rate;
 
         tokio::spawn(async move {
-            let bind_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, bind_port));
+            // Bind to any available local port (AC listens on ac_port).
+            let bind_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0));
             let socket = match TokioUdpSocket::bind(bind_addr).await {
                 Ok(s) => s,
                 Err(e) => {
-                    warn!("Failed to bind AC UDP socket on port {bind_port}: {e}");
+                    warn!("Failed to bind AC UDP socket: {e}");
                     return;
                 }
             };
-            info!("AC adapter listening on UDP port {bind_port}");
+
+            let ac_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, ac_port));
+            if let Err(e) = socket.connect(ac_addr).await {
+                warn!("Failed to connect to AC at {ac_addr}: {e}");
+                return;
+            }
+
+            // AC Remote Telemetry handshake: send HANDSHAKE, receive response, send SUBSCRIBE.
+            let handshake = build_handshake_packet(OP_HANDSHAKE);
+            if let Err(e) = socket.send(&handshake).await {
+                warn!("Failed to send AC handshake: {e}");
+                return;
+            }
+
             let mut buf = [0u8; MAX_PACKET_SIZE];
+            match tokio::time::timeout(Duration::from_secs(2), socket.recv(&mut buf)).await {
+                Ok(Ok(_)) => info!("AC handshake response received"),
+                Ok(Err(e)) => {
+                    warn!("Failed to receive AC handshake response: {e}");
+                    return;
+                }
+                Err(_) => {
+                    warn!("AC handshake response timeout — is Assetto Corsa running?");
+                    return;
+                }
+            }
+
+            let subscribe = build_handshake_packet(OP_SUBSCRIBE_UPDATE);
+            if let Err(e) = socket.send(&subscribe).await {
+                warn!("Failed to send AC subscribe request: {e}");
+                return;
+            }
+
+            info!("AC adapter connected and subscribed via port {ac_port}");
             let mut frame_seq = 0u64;
 
             loop {
@@ -216,10 +265,18 @@ fn read_f32_le(data: &[u8], offset: usize) -> Option<f32> {
         .map(f32::from_le_bytes)
 }
 
-fn read_u16_le(data: &[u8], offset: usize) -> Option<u16> {
-    data.get(offset..offset + 2)
+fn read_i32_le(data: &[u8], offset: usize) -> Option<i32> {
+    data.get(offset..offset + 4)
         .and_then(|b| b.try_into().ok())
-        .map(u16::from_le_bytes)
+        .map(i32::from_le_bytes)
+}
+
+fn build_handshake_packet(operation_id: i32) -> [u8; 12] {
+    let mut packet = [0u8; 12];
+    packet[0..4].copy_from_slice(&1i32.to_le_bytes()); // identifier
+    packet[4..8].copy_from_slice(&1i32.to_le_bytes()); // version
+    packet[8..12].copy_from_slice(&operation_id.to_le_bytes());
+    packet
 }
 
 #[cfg(test)]
@@ -229,14 +286,26 @@ mod tests {
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
     fn make_valid_ac_packet() -> Vec<u8> {
-        let mut data = vec![0u8; AC_PACKET_MIN_SIZE];
-        data[OFF_GEAR] = 3;
-        data[OFF_SPEED_KMH..OFF_SPEED_KMH + 2].copy_from_slice(&120u16.to_le_bytes());
-        data[OFF_RPM..OFF_RPM + 4].copy_from_slice(&6000.0f32.to_le_bytes());
-        data[OFF_MAX_RPM..OFF_MAX_RPM + 4].copy_from_slice(&8000.0f32.to_le_bytes());
-        data[OFF_STEER..OFF_STEER + 4].copy_from_slice(&0.3f32.to_le_bytes());
+        let mut data = vec![0u8; AC_RTCARINFO_SIZE];
+        // identifier = 'a'
+        data[0..4].copy_from_slice(&(b'a' as i32).to_le_bytes());
+        // size
+        data[4..8].copy_from_slice(&(AC_RTCARINFO_SIZE as i32).to_le_bytes());
+        // speed_Kmh (float) at offset 8
+        data[OFF_SPEED_KMH..OFF_SPEED_KMH + 4].copy_from_slice(&120.0f32.to_le_bytes());
+        // speed_Ms (float) at offset 16
+        let speed_ms = 120.0f32 / 3.6;
+        data[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&speed_ms.to_le_bytes());
+        // gas at offset 56
         data[OFF_GAS..OFF_GAS + 4].copy_from_slice(&0.8f32.to_le_bytes());
+        // brake at offset 60
         data[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&0.1f32.to_le_bytes());
+        // rpm at offset 68
+        data[OFF_RPM..OFF_RPM + 4].copy_from_slice(&6000.0f32.to_le_bytes());
+        // steer at offset 72
+        data[OFF_STEER..OFF_STEER + 4].copy_from_slice(&0.3f32.to_le_bytes());
+        // gear at offset 76 (AC: 3 = 2nd gear; 0=R, 1=N, 2=1st, 3=2nd)
+        data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&3i32.to_le_bytes());
         data
     }
 
@@ -245,9 +314,8 @@ mod tests {
         let data = make_valid_ac_packet();
         let result = parse_ac_packet(&data)?;
         assert!((result.rpm - 6000.0).abs() < 0.01);
-        assert!((result.max_rpm - 8000.0).abs() < 0.01);
-        assert_eq!(result.gear, 3);
-        assert!((result.speed_ms - 120.0 / 3.6).abs() < 0.01);
+        assert_eq!(result.gear, 2); // AC gear 3 → normalized 2
+        assert!((result.speed_ms - 120.0 / 3.6).abs() < 0.1);
         assert!((result.steering_angle - 0.3).abs() < 0.001);
         assert!((result.throttle - 0.8).abs() < 0.001);
         assert!((result.brake - 0.1).abs() < 0.001);
@@ -300,7 +368,7 @@ mod tests {
 
     #[test]
     fn test_parse_exact_min_size() -> TestResult {
-        let data = vec![0u8; AC_PACKET_MIN_SIZE];
+        let data = vec![0u8; AC_RTCARINFO_SIZE];
         let result = parse_ac_packet(&data)?;
         assert_eq!(result.rpm, 0.0);
         assert_eq!(result.speed_ms, 0.0);
@@ -323,22 +391,22 @@ mod proptest_tests {
         }
 
         #[test]
-        fn parse_ac_packet_too_short_always_errors(size in 0usize..AC_PACKET_MIN_SIZE) {
+        fn parse_ac_packet_too_short_always_errors(size in 0usize..AC_RTCARINFO_SIZE) {
             let data = vec![0u8; size];
             prop_assert!(parse_ac_packet(&data).is_err());
         }
 
         #[test]
-        fn parse_ac_packet_speed_always_nonneg(speed in 0u16..=300u16) {
-            let mut data = vec![0u8; AC_PACKET_MIN_SIZE];
-            data[OFF_SPEED_KMH..OFF_SPEED_KMH + 2].copy_from_slice(&speed.to_le_bytes());
+        fn parse_ac_packet_speed_always_nonneg(speed_ms in 0.0f32..=100.0f32) {
+            let mut data = vec![0u8; AC_RTCARINFO_SIZE];
+            data[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&speed_ms.to_le_bytes());
             let t = parse_ac_packet(&data).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
             prop_assert!(t.speed_ms >= 0.0);
         }
 
         #[test]
         fn parse_ac_packet_steering_clamped(steer in any::<f32>()) {
-            let mut data = vec![0u8; AC_PACKET_MIN_SIZE];
+            let mut data = vec![0u8; AC_RTCARINFO_SIZE];
             data[OFF_STEER..OFF_STEER + 4].copy_from_slice(&steer.to_le_bytes());
             if let Ok(result) = parse_ac_packet(&data) {
                 prop_assert!(result.steering_angle >= -1.0);
@@ -348,7 +416,7 @@ mod proptest_tests {
 
         #[test]
         fn parse_ac_packet_rpm_nonneg_on_valid_input(rpm in 0.0f32..=20000.0f32) {
-            let mut data = vec![0u8; AC_PACKET_MIN_SIZE];
+            let mut data = vec![0u8; AC_RTCARINFO_SIZE];
             data[OFF_RPM..OFF_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
             let result = parse_ac_packet(&data);
             prop_assert!(result.is_ok());

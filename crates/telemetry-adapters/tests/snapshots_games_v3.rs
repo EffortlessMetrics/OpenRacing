@@ -38,14 +38,14 @@ fn write_u16(buf: &mut [u8], offset: usize, val: u16) {
 // ─── Assetto Corsa ───────────────────────────────────────────────────────────
 
 fn make_assetto_corsa_packet() -> Vec<u8> {
-    let mut data = vec![0u8; 76];
-    data[16] = 3u8; // gear (u8 interpreted as i8)
-    write_u16(&mut data, 18, 3600u16); // speed_kmh = 100 km/h → ~27.8 m/s
-    write_f32(&mut data, 20, 5500.0); // rpm
-    write_f32(&mut data, 24, 7500.0); // max_rpm
-    write_f32(&mut data, 64, 0.30); // steer
-    write_f32(&mut data, 68, 0.75); // gas (throttle)
-    write_f32(&mut data, 72, 0.0); // brake
+    let mut data = vec![0u8; 328]; // RTCarInfo struct size
+    write_f32(&mut data, 8, 100.0); // speed_Kmh at offset 8
+    write_f32(&mut data, 16, 100.0 / 3.6); // speed_Ms at offset 16 (~27.78)
+    write_f32(&mut data, 56, 0.75); // gas at offset 56
+    write_f32(&mut data, 60, 0.0); // brake at offset 60
+    write_f32(&mut data, 68, 5500.0); // engineRPM at offset 68
+    write_f32(&mut data, 72, 0.30); // steer at offset 72
+    write_i32(&mut data, 76, 3); // gear at offset 76 (AC: 3 = 2nd)
     data
 }
 
