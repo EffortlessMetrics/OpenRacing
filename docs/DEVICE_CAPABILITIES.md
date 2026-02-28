@@ -179,7 +179,7 @@ Source: `crates/engine/src/hid/vendor/openffboard.rs`; VID/PID status: **Verifie
 
 ### Cube Controls — VID `0x0483` *(provisional)*
 
-Source: `crates/engine/src/hid/vendor/cube_controls.rs`.
+Source: `crates/hid-cube-controls-protocol`; `crates/engine/src/hid/vendor/cube_controls.rs`.
 
 > ⚠️ **PROVISIONAL**: The USB VID/PIDs listed here are **unconfirmed**. Cube Controls devices may use a different VID. Update this table once USB descriptor captures from real hardware are available.
 
@@ -188,6 +188,18 @@ Source: `crates/engine/src/hid/vendor/cube_controls.rs`.
 | Cube Controls GT Pro | Cube Controls | `0x0483` *(prov.)* | HID PIDFF | ~20.0 | 1 | Constant, Spring, Damper (PIDFF) | Unknown | PID `0x0C73` (provisional) |
 | Cube Controls Formula Pro | Cube Controls | `0x0483` *(prov.)* | HID PIDFF | ~20.0 | 1 | Constant, Spring, Damper (PIDFF) | Unknown | PID `0x0C74` (provisional) |
 | Cube Controls CSX3 | Cube Controls | `0x0483` *(prov.)* | HID PIDFF | ~20.0 | 1 | Constant, Spring, Damper (PIDFF) | Unknown | PID `0x0C75` (provisional) |
+
+### PXN — VID `0x11FF`
+
+Source: `crates/hid-pxn-protocol`; VID/PID status: **Community** (JacKeTUs/linux-steering-wheels) (see `docs/protocols/SOURCES.md`).
+
+| Device | Vendor | USB VID | Protocol Type | Max Torque (Nm) | FFB Axes | Force Feedback Types | Encoder Resolution | Notes |
+|---|---|---|---|---|---|---|---|---|
+| PXN V10 | PXN | `0x11FF` | HID PIDFF | ~10.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A (PIDFF standard) | PID `0x3245`; community-sourced |
+| PXN V12 | PXN | `0x11FF` | HID PIDFF | ~12.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x1212`; community-sourced |
+| PXN V12 Lite | PXN | `0x11FF` | HID PIDFF | ~12.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x1112`; community-sourced |
+| PXN V12 Lite SE | PXN | `0x11FF` | HID PIDFF | ~12.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x1211`; community-sourced |
+| PXN GT987 FF | PXN | `0x11FF` | HID PIDFF | ~5.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x2141`; community-sourced; Lite Star OEM |
 
 ---
 

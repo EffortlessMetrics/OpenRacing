@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `hid-pxn-protocol`: PXN V10/V12/V12 Lite direct drive wheel HID PIDFF protocol support (VID 0x11FF)
+
 - **15 HID vendor protocol SRP microcrates**: Moza, Fanatec, Logitech, Thrustmaster, Simagic, Simucube, Asetek, VRS DirectForce, Heusinkveld, OpenFFBoard, FFBeast, AccuForce, Leo Bodnar, Cammus, Button Box — pure protocol logic with zero engine coupling, each independently testable and fuzzable
 
 - **FFBeast open-source FF controller support** (VID `0x045B`):
