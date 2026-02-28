@@ -99,27 +99,27 @@ fn rennsport_snapshot() -> TestResult {
 // ─── WTCR ─────────────────────────────────────────────────────────────────────
 
 fn make_wtcr_packet() -> Vec<u8> {
-    // Codemasters Mode 1, MIN_PACKET_SIZE = 252
-    let mut buf = vec![0u8; 252];
-    write_f32(&mut buf, 92, 33.0); // wheel_speed_fl
-    write_f32(&mut buf, 96, 33.0); // wheel_speed_fr
+    // Codemasters Mode 1, MIN_PACKET_SIZE = 264
+    let mut buf = vec![0u8; 264];
+    write_f32(&mut buf, 108, 33.0); // wheel_speed_fl
+    write_f32(&mut buf, 112, 33.0); // wheel_speed_fr
     write_f32(&mut buf, 100, 33.0); // wheel_speed_rl
     write_f32(&mut buf, 104, 33.0); // wheel_speed_rr → speed = 33.0 m/s
-    write_f32(&mut buf, 108, 0.9); // throttle
-    write_f32(&mut buf, 112, 0.1); // steer
-    write_f32(&mut buf, 116, 0.0); // brake
-    write_f32(&mut buf, 124, 4.0); // gear (4th)
-    write_f32(&mut buf, 128, 1.5); // gforce_lat
-    write_f32(&mut buf, 132, 0.4); // gforce_lon
-    write_f32(&mut buf, 136, 2.0); // current_lap
-    write_f32(&mut buf, 140, 6800.0); // rpm
-    write_f32(&mut buf, 148, 3.0); // car_position
-    write_f32(&mut buf, 172, 35.0); // fuel_in_tank
-    write_f32(&mut buf, 176, 60.0); // fuel_capacity
-    write_f32(&mut buf, 180, 0.0); // in_pit
-    write_f32(&mut buf, 236, 92.5); // last_lap_time_s
-    write_f32(&mut buf, 240, 8500.0); // max_rpm
-    write_f32(&mut buf, 248, 6.0); // max_gears
+    write_f32(&mut buf, 116, 0.9); // throttle
+    write_f32(&mut buf, 120, 0.1); // steer
+    write_f32(&mut buf, 124, 0.0); // brake
+    write_f32(&mut buf, 132, 4.0); // gear (4th)
+    write_f32(&mut buf, 136, 1.5); // gforce_lat
+    write_f32(&mut buf, 140, 0.4); // gforce_lon
+    write_f32(&mut buf, 144, 2.0); // current_lap
+    write_f32(&mut buf, 148, 6800.0); // rpm
+    write_f32(&mut buf, 156, 3.0); // car_position
+    write_f32(&mut buf, 180, 35.0); // fuel_in_tank
+    write_f32(&mut buf, 184, 60.0); // fuel_capacity
+    write_f32(&mut buf, 188, 0.0); // in_pit
+    write_f32(&mut buf, 248, 92.5); // last_lap_time_s
+    write_f32(&mut buf, 252, 8500.0); // max_rpm
+    write_f32(&mut buf, 260, 6.0); // max_gears
     buf
 }
 
@@ -135,26 +135,26 @@ fn wtcr_snapshot() -> TestResult {
 
 fn make_wrc_generations_packet() -> Vec<u8> {
     // Same Codemasters Mode 1 layout as WTCR
-    let mut buf = vec![0u8; 252];
-    write_f32(&mut buf, 92, 25.0); // wheel_speed_fl
-    write_f32(&mut buf, 96, 25.0); // wheel_speed_fr
+    let mut buf = vec![0u8; 264];
+    write_f32(&mut buf, 108, 25.0); // wheel_speed_fl
+    write_f32(&mut buf, 112, 25.0); // wheel_speed_fr
     write_f32(&mut buf, 100, 25.0); // wheel_speed_rl
     write_f32(&mut buf, 104, 25.0); // wheel_speed_rr → speed = 25.0 m/s
-    write_f32(&mut buf, 108, 0.6); // throttle
-    write_f32(&mut buf, 112, -0.2); // steer
-    write_f32(&mut buf, 116, 0.15); // brake
-    write_f32(&mut buf, 124, 3.0); // gear (3rd)
-    write_f32(&mut buf, 128, 0.9); // gforce_lat
-    write_f32(&mut buf, 132, 0.3); // gforce_lon
-    write_f32(&mut buf, 136, 1.0); // current_lap
-    write_f32(&mut buf, 140, 5500.0); // rpm
-    write_f32(&mut buf, 148, 5.0); // car_position
-    write_f32(&mut buf, 172, 45.0); // fuel_in_tank
-    write_f32(&mut buf, 176, 70.0); // fuel_capacity
-    write_f32(&mut buf, 180, 0.0); // in_pit
-    write_f32(&mut buf, 236, 78.3); // last_lap_time_s
-    write_f32(&mut buf, 240, 7500.0); // max_rpm
-    write_f32(&mut buf, 248, 5.0); // max_gears
+    write_f32(&mut buf, 116, 0.6); // throttle
+    write_f32(&mut buf, 120, -0.2); // steer
+    write_f32(&mut buf, 124, 0.15); // brake
+    write_f32(&mut buf, 132, 3.0); // gear (3rd)
+    write_f32(&mut buf, 136, 0.9); // gforce_lat
+    write_f32(&mut buf, 140, 0.3); // gforce_lon
+    write_f32(&mut buf, 144, 1.0); // current_lap
+    write_f32(&mut buf, 148, 5500.0); // rpm
+    write_f32(&mut buf, 156, 5.0); // car_position
+    write_f32(&mut buf, 180, 45.0); // fuel_in_tank
+    write_f32(&mut buf, 184, 70.0); // fuel_capacity
+    write_f32(&mut buf, 188, 0.0); // in_pit
+    write_f32(&mut buf, 248, 78.3); // last_lap_time_s
+    write_f32(&mut buf, 252, 7500.0); // max_rpm
+    write_f32(&mut buf, 260, 5.0); // max_gears
     buf
 }
 

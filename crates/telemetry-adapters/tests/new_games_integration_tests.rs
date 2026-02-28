@@ -263,7 +263,7 @@ fn rennsport_ffb_scalar_clamped() -> TestResult {
 //   offset 140 rpm        offset 180 in_pit
 //   offset 240 max_rpm
 
-const WRC_GEN_MIN: usize = 252;
+const WRC_GEN_MIN: usize = 264;
 
 fn make_wrc_gen_packet() -> Vec<u8> {
     vec![0u8; WRC_GEN_MIN]
@@ -273,14 +273,14 @@ fn make_wrc_gen_packet() -> Vec<u8> {
 fn wrc_generations_happy_path_parses_fields() -> TestResult {
     let mut pkt = make_wrc_gen_packet();
     // wheel speeds → speed_ms = 25.0
-    write_f32_le(&mut pkt, 92, 25.0);
-    write_f32_le(&mut pkt, 96, 25.0);
+    write_f32_le(&mut pkt, 108, 25.0);
+    write_f32_le(&mut pkt, 112, 25.0);
     write_f32_le(&mut pkt, 100, 25.0);
     write_f32_le(&mut pkt, 104, 25.0);
-    write_f32_le(&mut pkt, 140, 5000.0); // rpm
-    write_f32_le(&mut pkt, 240, 8000.0); // max_rpm
-    write_f32_le(&mut pkt, 124, 3.0); // gear = 3rd
-    write_f32_le(&mut pkt, 108, 0.8); // throttle
+    write_f32_le(&mut pkt, 148, 5000.0); // rpm
+    write_f32_le(&mut pkt, 252, 8000.0); // max_rpm
+    write_f32_le(&mut pkt, 132, 3.0); // gear = 3rd
+    write_f32_le(&mut pkt, 116, 0.8); // throttle
 
     let t = WrcGenerationsAdapter::new().normalize(&pkt)?;
     assert!((t.speed_ms - 25.0).abs() < 0.01, "speed_ms={}", t.speed_ms);
@@ -314,7 +314,7 @@ fn wrc_generations_gear_zero_maps_to_reverse() -> TestResult {
 #[test]
 fn wrc_generations_in_pits_flag_set() -> TestResult {
     let mut pkt = make_wrc_gen_packet();
-    write_f32_le(&mut pkt, 180, 1.0); // in_pit = 1.0
+    write_f32_le(&mut pkt, 188, 1.0); // in_pit = 1.0
     let t = WrcGenerationsAdapter::new().normalize(&pkt)?;
     assert!(t.flags.in_pits, "in_pits must be true when in_pit=1.0");
     Ok(())
@@ -790,8 +790,8 @@ mod proptest_tests {
 
         #[test]
         fn wrc_generations_short_packet_always_errors(
-            // MIN_PACKET_SIZE = 252
-            data in proptest::collection::vec(any::<u8>(), 0..252usize)
+            // MIN_PACKET_SIZE = 264
+            data in proptest::collection::vec(any::<u8>(), 0..264usize)
         ) {
             prop_assert!(WrcGenerationsAdapter::new().normalize(&data).is_err());
         }

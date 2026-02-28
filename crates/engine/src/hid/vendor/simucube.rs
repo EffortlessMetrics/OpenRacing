@@ -48,7 +48,7 @@ impl VendorProtocol for SimucubeProtocolHandler {
     ) -> Result<(), Box<dyn std::error::Error>> {
         // Simucube 2 devices are FFB-ready on USB plug-in; no handshake required.
         info!(
-            "Simucube device ready VID=0x{:04X} PID=0x{:04X} model={} (no init sequence needed)",
+            "Simucube device ready VID=0x{:04X} PID=0x{:04X} model={} (no initialization steps needed)",
             self.vendor_id,
             self.product_id,
             self.model.display_name()

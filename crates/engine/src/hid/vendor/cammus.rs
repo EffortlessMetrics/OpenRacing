@@ -73,7 +73,7 @@ pub fn is_cammus_product(product_id: u16) -> bool {
 /// Protocol handler for Cammus direct drive wheelbases.
 ///
 /// Cammus wheels present a standard HID PID interface; no vendor-specific
-/// initialisation sequence is required. The handler reports correct capabilities
+/// initialisation procedure is required. The handler reports correct capabilities
 /// (max torque, brand) and delegates all FFB to the generic HID PID path.
 pub struct CammusProtocolHandler {
     vendor_id: u16,

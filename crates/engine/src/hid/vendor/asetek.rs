@@ -46,9 +46,9 @@ impl VendorProtocol for AsetekProtocolHandler {
         &self,
         _writer: &mut dyn DeviceWriter,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // Asetek direct drive wheels are plug-and-play; no init sequence needed.
+        // Asetek direct drive wheels are plug-and-play; no initialization steps needed.
         info!(
-            "Asetek device ready VID=0x{:04X} PID=0x{:04X} model={} (no init sequence needed)",
+            "Asetek device ready VID=0x{:04X} PID=0x{:04X} model={} (no initialization steps needed)",
             self.vendor_id,
             self.product_id,
             self.model.display_name()

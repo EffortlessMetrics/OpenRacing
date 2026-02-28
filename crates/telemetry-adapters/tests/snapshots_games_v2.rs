@@ -197,19 +197,19 @@ fn gran_turismo_sport_snapshot() -> TestResult {
 // ─── GRID Autosport ──────────────────────────────────────────────────────────
 
 fn make_grid_autosport_packet() -> Vec<u8> {
-    let mut data = vec![0u8; 252];
-    write_f32(&mut data, 92, 28.0); // wheel_speed_fl
-    write_f32(&mut data, 96, 28.0); // wheel_speed_fr
+    let mut data = vec![0u8; 264];
+    write_f32(&mut data, 108, 28.0); // wheel_speed_fl
+    write_f32(&mut data, 112, 28.0); // wheel_speed_fr
     write_f32(&mut data, 100, 28.0); // wheel_speed_rl
     write_f32(&mut data, 104, 28.0); // wheel_speed_rr → speed = 28.0 m/s
-    write_f32(&mut data, 108, 0.85); // throttle
-    write_f32(&mut data, 112, 0.1); // steer
-    write_f32(&mut data, 116, 0.0); // brake
-    write_f32(&mut data, 124, 4.0); // gear (float: 4.0 → 4th gear)
-    write_f32(&mut data, 128, 0.5); // gforce_lat
-    write_f32(&mut data, 132, 0.3); // gforce_lon
-    write_f32(&mut data, 140, 6200.0); // rpm
-    write_f32(&mut data, 240, 8500.0); // max_rpm
+    write_f32(&mut data, 116, 0.85); // throttle
+    write_f32(&mut data, 120, 0.1); // steer
+    write_f32(&mut data, 124, 0.0); // brake
+    write_f32(&mut data, 132, 4.0); // gear (float: 4.0 → 4th gear)
+    write_f32(&mut data, 136, 0.5); // gforce_lat
+    write_f32(&mut data, 140, 0.3); // gforce_lon
+    write_f32(&mut data, 148, 6200.0); // rpm
+    write_f32(&mut data, 252, 8500.0); // max_rpm
     data
 }
 

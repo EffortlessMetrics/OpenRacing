@@ -21,7 +21,7 @@ pub use hid_cube_controls_protocol::{
 /// Protocol handler for Cube Controls steering wheel products.
 ///
 /// Cube Controls wheels are assumed to present a standard HID PID interface.
-/// No vendor-specific initialisation sequence has been identified. The handler
+/// No vendor-specific initialisation procedure has been identified. The handler
 /// reports correct capabilities (max torque, brand) and delegates all FFB to
 /// the generic HID PID path.
 ///
