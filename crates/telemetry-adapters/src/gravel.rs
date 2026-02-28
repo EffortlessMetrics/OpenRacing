@@ -1,9 +1,8 @@
-//! Gravel (Milestone, 2018) telemetry adapter — SimHub bridge stub.
+//! Gravel (Milestone, 2018) telemetry adapter — SimHub JSON bridge.
 //!
-//! Gravel does not expose a native UDP telemetry API. Telemetry is available
-//! only through SimHub's generic JSON UDP bridge (port 5555). This adapter
-//! is a stub that accepts incoming SimHub-forwarded datagrams and returns
-//! a default telemetry frame until a full SimHub JSON parser is wired in.
+//! Gravel does not expose a native UDP telemetry API. Telemetry is received
+//! through SimHub's generic JSON UDP bridge (port 5555). Packets are parsed
+//! using the shared SimHub JSON parser from [`crate::simhub`].
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, telemetry_now_ns,
@@ -66,16 +65,18 @@ impl TelemetryAdapter for GravelAdapter {
 
             loop {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
-                    Ok(Ok(len)) => {
-                        let normalized = NormalizedTelemetry::builder().build();
-                        let frame =
-                            TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
-                        if tx.send(frame).await.is_err() {
-                            debug!("Receiver dropped, stopping Gravel monitoring");
-                            break;
+                    Ok(Ok(len)) => match crate::simhub::parse_simhub_packet(&buf[..len]) {
+                        Ok(normalized) => {
+                            let frame =
+                                TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
+                            if tx.send(frame).await.is_err() {
+                                debug!("Receiver dropped, stopping Gravel monitoring");
+                                break;
+                            }
+                            frame_idx = frame_idx.saturating_add(1);
                         }
-                        frame_idx = frame_idx.saturating_add(1);
-                    }
+                        Err(e) => debug!("Failed to parse Gravel SimHub packet: {e}"),
+                    },
                     Ok(Err(e)) => warn!("Gravel UDP receive error: {e}"),
                     Err(_) => debug!("No Gravel telemetry data received (timeout)"),
                 }
@@ -90,8 +91,8 @@ impl TelemetryAdapter for GravelAdapter {
         Ok(())
     }
 
-    fn normalize(&self, _raw: &[u8]) -> Result<NormalizedTelemetry> {
-        Ok(NormalizedTelemetry::builder().build())
+    fn normalize(&self, raw: &[u8]) -> Result<NormalizedTelemetry> {
+        crate::simhub::parse_simhub_packet(raw)
     }
 
     fn expected_update_rate(&self) -> Duration {
@@ -115,7 +116,9 @@ mod tests {
     #[test]
     fn normalize_returns_default() -> Result<(), Box<dyn std::error::Error>> {
         let adapter = GravelAdapter::new();
-        let t = adapter.normalize(&[])?;
+        // Gravel uses the SimHub JSON bridge — provide a minimal zero-value packet.
+        let json = br#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}"#;
+        let t = adapter.normalize(json)?;
         assert_eq!(t.speed_ms, 0.0);
         assert_eq!(t.rpm, 0.0);
         Ok(())

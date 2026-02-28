@@ -93,16 +93,18 @@ impl TelemetryAdapter for MudRunnerAdapter {
 
             loop {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
-                    Ok(Ok(len)) => {
-                        let normalized = NormalizedTelemetry::builder().build();
-                        let frame =
-                            TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
-                        if tx.send(frame).await.is_err() {
-                            debug!("Receiver dropped, stopping {game_id} monitoring");
-                            break;
+                    Ok(Ok(len)) => match crate::simhub::parse_simhub_packet(&buf[..len]) {
+                        Ok(normalized) => {
+                            let frame =
+                                TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
+                            if tx.send(frame).await.is_err() {
+                                debug!("Receiver dropped, stopping {game_id} monitoring");
+                                break;
+                            }
+                            frame_idx = frame_idx.saturating_add(1);
                         }
-                        frame_idx = frame_idx.saturating_add(1);
-                    }
+                        Err(e) => debug!("Failed to parse {game_id} SimHub packet: {e}"),
+                    },
                     Ok(Err(e)) => warn!("{game_id} UDP receive error: {e}"),
                     Err(_) => debug!("No {game_id} telemetry data received (timeout)"),
                 }
@@ -117,8 +119,8 @@ impl TelemetryAdapter for MudRunnerAdapter {
         Ok(())
     }
 
-    fn normalize(&self, _raw: &[u8]) -> Result<NormalizedTelemetry> {
-        Ok(NormalizedTelemetry::builder().build())
+    fn normalize(&self, raw: &[u8]) -> Result<NormalizedTelemetry> {
+        crate::simhub::parse_simhub_packet(raw)
     }
 
     fn expected_update_rate(&self) -> Duration {
