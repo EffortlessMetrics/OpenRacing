@@ -25,7 +25,8 @@ fn test_snapshot_encode_stop() {
 
 #[test]
 fn test_snapshot_parse_center() -> Result<(), String> {
-    let data = [0u8; 64];
+    let mut data = [0u8; 64];
+    data[0] = pxn::REPORT_ID;
     let report = pxn::parse(&data).map_err(|e| e.to_string())?;
     assert_yaml_snapshot!(format!(
         "steering={:.4}, throttle={:.4}, brake={:.4}, clutch={:.4}, buttons={}",

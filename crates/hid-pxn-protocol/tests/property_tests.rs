@@ -47,9 +47,9 @@ proptest! {
         }
     }
 
-    /// parse fails for any slice shorter than 10 bytes.
+    /// parse fails for any slice shorter than 11 bytes.
     #[test]
-    fn prop_parse_too_short(len in 0usize..10) {
+    fn prop_parse_too_short(len in 0usize..11) {
         let data = vec![0u8; len];
         prop_assert!(
             pxn::parse(&data).is_err(),
@@ -57,10 +57,11 @@ proptest! {
         );
     }
 
-    /// parse succeeds for any slice >= 10 bytes.
+    /// parse succeeds for any slice >= 11 bytes with the correct report ID.
     #[test]
-    fn prop_parse_sufficient_length(extra in 0usize..=54) {
-        let data = vec![0u8; 10 + extra];
+    fn prop_parse_sufficient_length(extra in 0usize..=53) {
+        let mut data = vec![0u8; 11 + extra];
+        data[0] = pxn::REPORT_ID;
         prop_assert!(
             pxn::parse(&data).is_ok(),
             "parse of {}-byte slice must succeed",
@@ -72,10 +73,13 @@ proptest! {
     #[test]
     fn prop_steering_in_bounds(raw in i16::MIN..=i16::MAX) {
         let mut data = [0u8; 64];
+        data[0] = pxn::REPORT_ID;
         let bytes = raw.to_le_bytes();
-        data[0] = bytes[0];
-        data[1] = bytes[1];
-        let report = pxn::parse(&data).expect("parse must succeed for 64-byte slice");
+        data[1] = bytes[0];
+        data[2] = bytes[1];
+        let result = pxn::parse(&data);
+        prop_assert!(result.is_ok(), "parse must succeed for 64-byte slice: {:?}", result.err());
+        let report = result.unwrap();
         prop_assert!(
             report.steering >= -1.0 && report.steering <= 1.0,
             "steering {} out of [-1, 1] for raw {raw}", report.steering
@@ -86,10 +90,13 @@ proptest! {
     #[test]
     fn prop_throttle_in_bounds(raw in u16::MIN..=u16::MAX) {
         let mut data = [0u8; 64];
+        data[0] = pxn::REPORT_ID;
         let bytes = raw.to_le_bytes();
-        data[2] = bytes[0];
-        data[3] = bytes[1];
-        let report = pxn::parse(&data).expect("parse must succeed for 64-byte slice");
+        data[3] = bytes[0];
+        data[4] = bytes[1];
+        let result = pxn::parse(&data);
+        prop_assert!(result.is_ok(), "parse must succeed for 64-byte slice: {:?}", result.err());
+        let report = result.unwrap();
         prop_assert!(
             report.throttle >= 0.0 && report.throttle <= 1.0,
             "throttle {} out of [0, 1] for raw {raw}", report.throttle
@@ -100,10 +107,13 @@ proptest! {
     #[test]
     fn prop_brake_in_bounds(raw in u16::MIN..=u16::MAX) {
         let mut data = [0u8; 64];
+        data[0] = pxn::REPORT_ID;
         let bytes = raw.to_le_bytes();
-        data[4] = bytes[0];
-        data[5] = bytes[1];
-        let report = pxn::parse(&data).expect("parse must succeed for 64-byte slice");
+        data[5] = bytes[0];
+        data[6] = bytes[1];
+        let result = pxn::parse(&data);
+        prop_assert!(result.is_ok(), "parse must succeed for 64-byte slice: {:?}", result.err());
+        let report = result.unwrap();
         prop_assert!(
             report.brake >= 0.0 && report.brake <= 1.0,
             "brake {} out of [0, 1] for raw {raw}", report.brake
@@ -114,23 +124,29 @@ proptest! {
     #[test]
     fn prop_clutch_in_bounds(raw in u16::MIN..=u16::MAX) {
         let mut data = [0u8; 64];
+        data[0] = pxn::REPORT_ID;
         let bytes = raw.to_le_bytes();
-        data[8] = bytes[0];
-        data[9] = bytes[1];
-        let report = pxn::parse(&data).expect("parse must succeed for 64-byte slice");
+        data[9] = bytes[0];
+        data[10] = bytes[1];
+        let result = pxn::parse(&data);
+        prop_assert!(result.is_ok(), "parse must succeed for 64-byte slice: {:?}", result.err());
+        let report = result.unwrap();
         prop_assert!(
             report.clutch >= 0.0 && report.clutch <= 1.0,
             "clutch {} out of [0, 1] for raw {raw}", report.clutch
         );
     }
 
-    /// Button state is round-tripped exactly from bytes 6–7.
+    /// Button state is round-tripped exactly from bytes 7–8 (after report ID).
     #[test]
     fn prop_buttons_round_trip(buttons in 0u16..=u16::MAX) {
         let mut data = [0u8; 64];
-        data[6] = (buttons & 0xFF) as u8;
-        data[7] = (buttons >> 8) as u8;
-        let report = pxn::parse(&data).expect("parse must succeed for 64-byte slice");
+        data[0] = pxn::REPORT_ID;
+        data[7] = (buttons & 0xFF) as u8;
+        data[8] = (buttons >> 8) as u8;
+        let result = pxn::parse(&data);
+        prop_assert!(result.is_ok(), "parse must succeed for 64-byte slice: {:?}", result.err());
+        let report = result.unwrap();
         prop_assert_eq!(report.buttons, buttons);
     }
 

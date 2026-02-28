@@ -1,13 +1,14 @@
 //! PXN input report parsing (64-byte USB HID report, report ID 0x01).
 //!
-//! # Report layout
+//! # Report layout (raw HID buffer, report ID at byte 0)
 //! | Offset | Size | Field    | Encoding                          |
 //! |--------|------|----------|-----------------------------------|
-//! | 0–1    | i16  | steering | LE, ±32767 → ±900°                |
-//! | 2–3    | u16  | throttle | LE, 0–65535                       |
-//! | 4–5    | u16  | brake    | LE, 0–65535                       |
-//! | 6–7    | u16  | buttons  | packed bits                       |
-//! | 8–9    | u16  | clutch   | LE, 0–65535                       |
+//! | 0      | u8   | report_id| Always 0x01                       |
+//! | 1–2    | i16  | steering | LE, ±32767 → ±900°                |
+//! | 3–4    | u16  | throttle | LE, 0–65535                       |
+//! | 5–6    | u16  | brake    | LE, 0–65535                       |
+//! | 7–8    | u16  | buttons  | packed bits                       |
+//! | 9–10   | u16  | clutch   | LE, 0–65535                       |
 
 /// Full PXN input report length in bytes.
 pub const REPORT_LEN: usize = 64;
@@ -38,6 +39,8 @@ pub struct PxnInputReport {
 pub enum ParseError {
     /// The byte slice was too short to contain all required fields.
     TooShort { got: usize, need: usize },
+    /// The first byte was not the expected report ID `0x01`.
+    WrongReportId { got: u8 },
 }
 
 impl core::fmt::Display for ParseError {
@@ -46,28 +49,35 @@ impl core::fmt::Display for ParseError {
             ParseError::TooShort { got, need } => {
                 write!(f, "report too short: got {got} bytes, need {need}")
             }
+            ParseError::WrongReportId { got } => {
+                write!(f, "wrong report ID: got {got:#04X}, expected {REPORT_ID:#04X}")
+            }
         }
     }
 }
 
 /// Parse a raw PXN input report byte slice into a [`PxnInputReport`].
 ///
-/// The slice must be at least 10 bytes long; bytes beyond the first 10 are
-/// ignored (the device sends 64-byte reports but only the first 10 carry data).
+/// The slice must start with the HID report ID (`0x01`) and be at least
+/// 11 bytes long; bytes beyond the first 11 are ignored (the device sends
+/// 64-byte reports but only the first 11 carry the report ID + data fields).
 pub fn parse(data: &[u8]) -> Result<PxnInputReport, ParseError> {
-    const NEED: usize = 10;
+    const NEED: usize = 11;
     if data.len() < NEED {
         return Err(ParseError::TooShort {
             got: data.len(),
             need: NEED,
         });
     }
+    if data[0] != REPORT_ID {
+        return Err(ParseError::WrongReportId { got: data[0] });
+    }
 
-    let raw_steering = i16::from_le_bytes([data[0], data[1]]);
-    let raw_throttle = u16::from_le_bytes([data[2], data[3]]);
-    let raw_brake = u16::from_le_bytes([data[4], data[5]]);
-    let buttons = (data[6] as u16) | ((data[7] as u16) << 8);
-    let raw_clutch = u16::from_le_bytes([data[8], data[9]]);
+    let raw_steering = i16::from_le_bytes([data[1], data[2]]);
+    let raw_throttle = u16::from_le_bytes([data[3], data[4]]);
+    let raw_brake = u16::from_le_bytes([data[5], data[6]]);
+    let buttons = (data[7] as u16) | ((data[8] as u16) << 8);
+    let raw_clutch = u16::from_le_bytes([data[9], data[10]]);
 
     Ok(PxnInputReport {
         steering: (raw_steering as f32 / i16::MAX as f32).clamp(-1.0, 1.0),
@@ -83,16 +93,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_too_short() -> Result<(), ParseError> {
-        assert!(parse(&[0u8; 5]).is_err());
-        let err = parse(&[0u8; 3]).expect_err("expected TooShort error");
-        assert_eq!(err, ParseError::TooShort { got: 3, need: 10 });
-        Ok(())
+    fn parse_too_short() {
+        assert!(matches!(parse(&[0u8; 5]), Err(ParseError::TooShort { .. })));
+        assert_eq!(
+            parse(&[0u8; 3]),
+            Err(ParseError::TooShort { got: 3, need: 11 })
+        );
+    }
+
+    #[test]
+    fn parse_wrong_report_id() {
+        let mut data = [0u8; 64];
+        data[0] = 0x02; // wrong report ID
+        assert_eq!(parse(&data), Err(ParseError::WrongReportId { got: 0x02 }));
     }
 
     #[test]
     fn parse_center() -> Result<(), ParseError> {
-        let data = [0u8; 64];
+        let mut data = [0u8; 64];
+        data[0] = REPORT_ID;
         let report = parse(&data)?;
         assert!(report.steering.abs() < 0.01);
         assert!(report.throttle.abs() < 0.01);
@@ -103,8 +122,9 @@ mod tests {
     #[test]
     fn parse_full_throttle() -> Result<(), ParseError> {
         let mut data = [0u8; 64];
-        data[2] = 0xFF;
+        data[0] = REPORT_ID;
         data[3] = 0xFF;
+        data[4] = 0xFF;
         let report = parse(&data)?;
         assert!((report.throttle - 1.0).abs() < 0.01);
         Ok(())
@@ -113,8 +133,9 @@ mod tests {
     #[test]
     fn parse_full_brake() -> Result<(), ParseError> {
         let mut data = [0u8; 64];
-        data[4] = 0xFF;
+        data[0] = REPORT_ID;
         data[5] = 0xFF;
+        data[6] = 0xFF;
         let report = parse(&data)?;
         assert!((report.brake - 1.0).abs() < 0.01);
         Ok(())
@@ -123,9 +144,10 @@ mod tests {
     #[test]
     fn parse_steering_positive() -> Result<(), ParseError> {
         let mut data = [0u8; 64];
+        data[0] = REPORT_ID;
         let bytes = i16::MAX.to_le_bytes();
-        data[0] = bytes[0];
-        data[1] = bytes[1];
+        data[1] = bytes[0];
+        data[2] = bytes[1];
         let report = parse(&data)?;
         assert!((report.steering - 1.0).abs() < 0.01);
         Ok(())
@@ -134,10 +156,11 @@ mod tests {
     #[test]
     fn parse_steering_negative() -> Result<(), ParseError> {
         let mut data = [0u8; 64];
+        data[0] = REPORT_ID;
         let val: i16 = -i16::MAX;
         let bytes = val.to_le_bytes();
-        data[0] = bytes[0];
-        data[1] = bytes[1];
+        data[1] = bytes[0];
+        data[2] = bytes[1];
         let report = parse(&data)?;
         assert!((report.steering + 1.0).abs() < 0.01);
         Ok(())
@@ -146,8 +169,9 @@ mod tests {
     #[test]
     fn parse_buttons() -> Result<(), ParseError> {
         let mut data = [0u8; 64];
-        data[6] = 0xAB;
-        data[7] = 0xCD;
+        data[0] = REPORT_ID;
+        data[7] = 0xAB;
+        data[8] = 0xCD;
         let report = parse(&data)?;
         assert_eq!(report.buttons, 0xCDAB);
         Ok(())
@@ -155,10 +179,12 @@ mod tests {
 
     #[test]
     fn parse_minimum_length() {
-        // Exactly 10 bytes should succeed.
-        assert!(parse(&[0u8; 10]).is_ok());
-        // 9 bytes should fail.
-        assert!(parse(&[0u8; 9]).is_err());
+        // Exactly 11 bytes with report ID should succeed.
+        let mut data = [0u8; 11];
+        data[0] = REPORT_ID;
+        assert!(parse(&data).is_ok());
+        // 10 bytes should fail.
+        assert!(parse(&[0u8; 10]).is_err());
     }
 }
 
@@ -185,7 +211,8 @@ mod property_tests {
             steer_msb in proptest::num::u8::ANY,
             rest in proptest::collection::vec(proptest::num::u8::ANY, 8usize),
         ) {
-            let mut data = vec![steer_lsb, steer_msb];
+            // Build a valid report: report ID at byte 0, steering at bytes 1-2
+            let mut data = vec![REPORT_ID, steer_lsb, steer_msb];
             data.extend_from_slice(&rest);
             if let Ok(report) = parse(&data) {
                 prop_assert!(
@@ -201,7 +228,10 @@ mod property_tests {
         fn prop_axes_always_finite(
             data in proptest::collection::vec(proptest::num::u8::ANY, 10usize..=16usize),
         ) {
-            if let Ok(report) = parse(&data) {
+            // Prepend the valid report ID so parsing can succeed
+            let mut buf = vec![REPORT_ID];
+            buf.extend_from_slice(&data);
+            if let Ok(report) = parse(&buf) {
                 prop_assert!(report.steering.is_finite(), "steering must be finite");
                 prop_assert!(report.throttle.is_finite(), "throttle must be finite");
                 prop_assert!(report.brake.is_finite(), "brake must be finite");
@@ -215,18 +245,20 @@ mod property_tests {
             }
         }
 
-        /// Exact 10-byte slice always parses successfully.
+        /// Exact 11-byte slice with valid report ID always parses successfully.
         #[test]
-        fn prop_10_bytes_always_ok(
+        fn prop_11_bytes_always_ok(
             data in proptest::collection::vec(proptest::num::u8::ANY, 10usize),
         ) {
-            prop_assert!(parse(&data).is_ok(), "10-byte slice must always parse OK");
+            let mut buf = vec![REPORT_ID];
+            buf.extend_from_slice(&data);
+            prop_assert!(parse(&buf).is_ok(), "11-byte slice with report ID must always parse OK");
         }
 
-        /// Fewer than 10 bytes always fails with TooShort.
+        /// Fewer than 11 bytes always fails with TooShort.
         #[test]
         fn prop_short_slice_always_fails(
-            data in proptest::collection::vec(proptest::num::u8::ANY, 0..9usize),
+            data in proptest::collection::vec(proptest::num::u8::ANY, 0..10usize),
         ) {
             let result = parse(&data);
             prop_assert!(
