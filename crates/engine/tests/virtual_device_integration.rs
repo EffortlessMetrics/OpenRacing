@@ -16,19 +16,19 @@ use tracing_test::traced_test;
 /// Test device enumeration performance (DM-01)
 #[tokio::test]
 #[traced_test]
-async fn test_device_enumeration_performance() {
+async fn test_device_enumeration_performance() -> Result<(), Box<dyn std::error::Error>> {
     let mut port = VirtualHidPort::new();
 
     // Add multiple virtual devices
     for i in 0..5 {
-        let device_id = format!("test-device-{}", i).parse::<DeviceId>().unwrap();
+        let device_id = format!("test-device-{}", i).parse::<DeviceId>()?;
         let device = VirtualDevice::new(device_id, format!("Test Device {}", i));
-        port.add_device(device).unwrap();
+        port.add_device(device)?;
     }
 
     // Measure enumeration time
     let start = Instant::now();
-    let devices = port.list_devices().await.unwrap();
+    let devices = port.list_devices().await?;
     let enumeration_time = start.elapsed();
 
     // Verify requirements
@@ -45,21 +45,22 @@ async fn test_device_enumeration_performance() {
         assert_eq!(device_info.name, format!("Test Device {}", i));
         // assert_eq!(device_info.device_type, DeviceType::WheelBase as i32);
     }
+    Ok(())
 }
 
 /// Test device disconnect detection (DM-02)
 #[tokio::test]
 #[traced_test]
-async fn test_disconnect_detection() {
+async fn test_disconnect_detection() -> Result<(), Box<dyn std::error::Error>> {
     let mut port = VirtualHidPort::new();
 
     // Add a virtual device
-    let device_id = "disconnect-test".parse::<DeviceId>().unwrap();
+    let device_id = "disconnect-test".parse::<DeviceId>()?;
     let device = VirtualDevice::new(device_id.clone(), "Disconnect Test Device".to_string());
-    port.add_device(device).unwrap();
+    port.add_device(device)?;
 
     // Open the device
-    let mut opened_device: Box<dyn HidDevice> = port.open_device(&device_id).await.unwrap();
+    let mut opened_device: Box<dyn HidDevice> = port.open_device(&device_id).await?;
 
     // Verify device is connected
     assert!(opened_device.is_connected());
@@ -75,7 +76,7 @@ async fn test_disconnect_detection() {
     // Test that disconnected device returns appropriate error
     // We'll simulate this by creating a disconnected device
     let mut disconnected_device = VirtualDevice::new(
-        "disconnected-test".parse::<DeviceId>().unwrap(),
+        "disconnected-test".parse::<DeviceId>()?,
         "Disconnected Device".to_string(),
     );
     disconnected_device.disconnect();
@@ -86,14 +87,15 @@ async fn test_disconnect_detection() {
     // Test that operations fail on disconnected device
     let write_result = disconnected_device.write_ffb_report(10.0, 2);
     assert!(write_result.is_err());
-    assert_eq!(
-        write_result.unwrap_err(),
-        racing_wheel_engine::RTError::DeviceDisconnected
-    );
+    assert!(matches!(
+        write_result,
+        Err(racing_wheel_engine::RTError::DeviceDisconnected)
+    ));
 
     // Test that telemetry returns None for disconnected device
     let telemetry = disconnected_device.read_telemetry();
     assert!(telemetry.is_none());
+    Ok(())
 }
 
 /// Test torque limit enforcement
@@ -103,8 +105,8 @@ async fn test_disconnect_detection() {
 )]
 #[tokio::test]
 #[traced_test]
-async fn test_torque_limit_enforcement() {
-    let device_id = "torque-limit-test".parse::<DeviceId>().unwrap();
+async fn test_torque_limit_enforcement() -> Result<(), Box<dyn std::error::Error>> {
+    let device_id = "torque-limit-test".parse::<DeviceId>()?;
     let mut device = VirtualDevice::new(device_id, "Torque Limit Test Device".to_string());
 
     // Test normal torque values
@@ -116,17 +118,17 @@ async fn test_torque_limit_enforcement() {
     // Test torque values exceeding limits
     let result = device.write_ffb_report(30.0, 5);
     assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        racing_wheel_engine::RTError::TorqueLimit
-    );
+    assert!(matches!(
+        result,
+        Err(racing_wheel_engine::RTError::TorqueLimit)
+    ));
 
     let result = device.write_ffb_report(-30.0, 6);
     assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        racing_wheel_engine::RTError::TorqueLimit
-    );
+    assert!(matches!(
+        result,
+        Err(racing_wheel_engine::RTError::TorqueLimit)
+    ));
 
     // Test NaN and infinite values
     let result = device.write_ffb_report(f32::NAN, 7);
@@ -134,20 +136,21 @@ async fn test_torque_limit_enforcement() {
 
     let result = device.write_ffb_report(f32::INFINITY, 8);
     assert!(result.is_err());
+    Ok(())
 }
 
 /// Test virtual device physics simulation
 #[tokio::test]
 #[traced_test]
-async fn test_physics_simulation() {
-    let device_id = "physics-test".parse::<DeviceId>().unwrap();
+async fn test_physics_simulation() -> Result<(), Box<dyn std::error::Error>> {
+    let device_id = "physics-test".parse::<DeviceId>()?;
     let mut device = VirtualDevice::new(device_id, "Physics Test Device".to_string());
 
     // Apply constant torque
-    device.write_ffb_report(15.0, 1).unwrap();
+    device.write_ffb_report(15.0, 1)?;
 
     // Get initial state
-    let initial_telemetry = device.read_telemetry().unwrap();
+    let initial_telemetry = device.read_telemetry().ok_or("no telemetry")?;
     let initial_angle = (initial_telemetry.wheel_angle_deg * 1000.0) as i32; // Convert to mdeg for comparison
     let initial_speed = (initial_telemetry.wheel_speed_rad_s * 1000.0) as i32; // Convert to mrad/s for comparison
 
@@ -157,7 +160,7 @@ async fn test_physics_simulation() {
     }
 
     // Check that physics simulation is working
-    let final_telemetry = device.read_telemetry().unwrap();
+    let final_telemetry = device.read_telemetry().ok_or("no telemetry")?;
     let final_angle = (final_telemetry.wheel_angle_deg * 1000.0) as i32; // Convert to mdeg for comparison
     let final_speed = (final_telemetry.wheel_speed_rad_s * 1000.0) as i32; // Convert to mrad/s for comparison
 
@@ -183,70 +186,73 @@ async fn test_physics_simulation() {
         initial_telemetry.temperature_c,
         final_telemetry.temperature_c
     );
+    Ok(())
 }
 
 /// Test fault injection and handling
 #[tokio::test]
 #[traced_test]
-async fn test_fault_injection() {
-    let device_id = "fault-test".parse::<DeviceId>().unwrap();
+async fn test_fault_injection() -> Result<(), Box<dyn std::error::Error>> {
+    let device_id = "fault-test".parse::<DeviceId>()?;
     let mut device = VirtualDevice::new(device_id, "Fault Test Device".to_string());
 
     // Initially no faults
-    let telemetry = device.read_telemetry().unwrap();
+    let telemetry = device.read_telemetry().ok_or("no telemetry")?;
     assert_eq!(telemetry.fault_flags, 0);
 
     // Inject thermal fault
     device.inject_fault(0x04);
 
-    let telemetry = device.read_telemetry().unwrap();
+    let telemetry = device.read_telemetry().ok_or("no telemetry")?;
     assert_eq!(telemetry.fault_flags, 0x04);
 
     // Inject multiple faults
     device.inject_fault(0x02); // Encoder fault
 
-    let telemetry = device.read_telemetry().unwrap();
+    let telemetry = device.read_telemetry().ok_or("no telemetry")?;
     assert_eq!(telemetry.fault_flags, 0x04 | 0x02);
 
     // Clear faults
     device.clear_faults();
 
-    let telemetry = device.read_telemetry().unwrap();
+    let telemetry = device.read_telemetry().ok_or("no telemetry")?;
     assert_eq!(telemetry.fault_flags, 0);
+    Ok(())
 }
 
 /// Test hands-on detection simulation
 #[tokio::test]
 #[traced_test]
-async fn test_hands_on_detection() {
-    let device_id = "hands-on-test".parse::<DeviceId>().unwrap();
+async fn test_hands_on_detection() -> Result<(), Box<dyn std::error::Error>> {
+    let device_id = "hands-on-test".parse::<DeviceId>()?;
     let mut device = VirtualDevice::new(device_id, "Hands-On Test Device".to_string());
 
     // Initially hands should be detected (default state)
-    let telemetry = device.read_telemetry().unwrap();
+    let telemetry = device.read_telemetry().ok_or("no telemetry")?;
     assert!(telemetry.hands_on);
 
     // Apply varying torque to simulate hands-on activity
     for i in 0..20 {
         let torque = 5.0 * (i as f32 * 0.1).sin(); // Varying torque
-        device.write_ffb_report(torque, i as u16).unwrap();
+        device.write_ffb_report(torque, i as u16)?;
         device.simulate_physics(Duration::from_millis(50));
     }
 
     // Should still detect hands-on due to torque variations
-    let telemetry = device.read_telemetry().unwrap();
+    let telemetry = device.read_telemetry().ok_or("no telemetry")?;
     assert!(telemetry.hands_on);
 
     // Apply constant torque for extended period (simulating hands-off)
     for i in 0..30 {
-        device.write_ffb_report(0.0, (i + 100) as u16).unwrap();
+        device.write_ffb_report(0.0, (i + 100) as u16)?;
         device.simulate_physics(Duration::from_millis(50));
     }
 
     // Should detect hands-off due to lack of torque variation
-    let _telemetry = device.read_telemetry().unwrap();
+    let _telemetry = device.read_telemetry().ok_or("no telemetry")?;
     // Note: The current implementation may not perfectly simulate this,
     // but the structure is in place for more sophisticated detection
+    Ok(())
 }
 
 /// Test RT loop with virtual device
@@ -256,7 +262,7 @@ async fn test_hands_on_detection() {
 )]
 #[tokio::test]
 #[traced_test]
-async fn test_rt_loop_with_virtual_device() {
+async fn test_rt_loop_with_virtual_device() -> Result<(), Box<dyn std::error::Error>> {
     let config = TestHarnessConfig {
         update_rate_hz: 100.0, // Lower rate for faster testing
         test_duration: Duration::from_millis(500),
@@ -270,7 +276,7 @@ async fn test_rt_loop_with_virtual_device() {
 
     // Add test device
     let device = harness.create_test_device("rt-loop-test", "RT Loop Test Device");
-    harness.add_virtual_device(device.unwrap()).unwrap();
+    harness.add_virtual_device(device?)?;
 
     // Create test scenario
     let scenario = TestScenario {
@@ -291,7 +297,7 @@ async fn test_rt_loop_with_virtual_device() {
     };
 
     // Run the test
-    let result = harness.run_scenario(scenario).await.unwrap();
+    let result = harness.run_scenario(scenario).await?;
 
     // Verify results
     assert!(result.performance.total_ticks > 0);
@@ -317,6 +323,7 @@ async fn test_rt_loop_with_virtual_device() {
     // Basic sanity checks
     assert!(result.performance.missed_tick_rate() < 0.1); // Less than 10% missed ticks
     assert!(result.timing_validation.max_jitter_us < 10000.0); // Less than 10ms jitter
+    Ok(())
 }
 
 /// Test comprehensive test suite
@@ -326,7 +333,7 @@ async fn test_rt_loop_with_virtual_device() {
 )]
 #[tokio::test]
 #[traced_test]
-async fn test_comprehensive_suite() {
+async fn test_comprehensive_suite() -> Result<(), Box<dyn std::error::Error>> {
     let config = TestHarnessConfig {
         update_rate_hz: 100.0,                     // Lower rate for faster testing
         test_duration: Duration::from_millis(200), // Shorter duration
@@ -339,7 +346,7 @@ async fn test_comprehensive_suite() {
     let mut harness = RTLoopTestHarness::new(config);
 
     // Run the comprehensive test suite
-    let results = harness.run_test_suite().await.unwrap();
+    let results = harness.run_test_suite().await?;
 
     // Verify we got results for all test scenarios
     assert!(!results.is_empty());
@@ -364,13 +371,14 @@ async fn test_comprehensive_suite() {
         "Pass rate {:.1}% is too low",
         pass_rate * 100.0
     );
+    Ok(())
 }
 
 /// Test device capabilities reporting
 #[tokio::test]
 #[traced_test]
-async fn test_device_capabilities() {
-    let device_id = "capabilities-test".parse::<DeviceId>().unwrap();
+async fn test_device_capabilities() -> Result<(), Box<dyn std::error::Error>> {
+    let device_id = "capabilities-test".parse::<DeviceId>()?;
     let device = VirtualDevice::new(device_id, "Capabilities Test Device".to_string());
 
     let capabilities = device.capabilities();
@@ -387,12 +395,13 @@ async fn test_device_capabilities() {
     // Verify derived properties
     assert!(capabilities.supports_ffb());
     assert_eq!(capabilities.max_update_rate_hz(), 1000.0);
+    Ok(())
 }
 
 /// Test multiple devices simultaneously
 #[tokio::test]
 #[traced_test]
-async fn test_multiple_devices() {
+async fn test_multiple_devices() -> Result<(), Box<dyn std::error::Error>> {
     let mut port = VirtualHidPort::new();
 
     // Add multiple devices with different configurations
@@ -403,23 +412,23 @@ async fn test_multiple_devices() {
     ];
 
     for (id, name, _device_type) in devices_config {
-        let device_id = id.parse::<DeviceId>().unwrap();
+        let device_id = id.parse::<DeviceId>()?;
         let device = VirtualDevice::new(device_id, name.to_string());
 
         // Customize device based on type (in a real implementation)
         // For now, all devices use the same virtual implementation
 
-        port.add_device(device).unwrap();
+        port.add_device(device)?;
     }
 
     // List all devices
-    let devices = port.list_devices().await.unwrap();
+    let devices = port.list_devices().await?;
     assert_eq!(devices.len(), 3);
 
     // Open and test each device
     for device_info in &devices {
         let device_id = device_info.id.clone(); // Already a DeviceId
-        let mut device: Box<dyn HidDevice> = port.open_device(&device_id).await.unwrap();
+        let mut device: Box<dyn HidDevice> = port.open_device(&device_id).await?;
 
         // Test basic operations
         assert!(device.is_connected());
@@ -433,47 +442,49 @@ async fn test_multiple_devices() {
         let telemetry = device.read_telemetry();
         assert!(telemetry.is_some());
     }
+    Ok(())
 }
 
 /// Test device hot-plug simulation
 #[tokio::test]
 #[traced_test]
-async fn test_device_hotplug() {
+async fn test_device_hotplug() -> Result<(), Box<dyn std::error::Error>> {
     let mut port = VirtualHidPort::new();
 
     // Initially no devices
-    let devices = port.list_devices().await.unwrap();
+    let devices = port.list_devices().await?;
     assert_eq!(devices.len(), 0);
 
     // Add a device (simulate plug-in)
-    let device_id = "hotplug-test".parse::<DeviceId>().unwrap();
+    let device_id = "hotplug-test".parse::<DeviceId>()?;
     let device = VirtualDevice::new(device_id.clone(), "Hotplug Test Device".to_string());
-    port.add_device(device).unwrap();
+    port.add_device(device)?;
 
     // Verify device appears
-    let devices = port.list_devices().await.unwrap();
+    let devices = port.list_devices().await?;
     assert_eq!(devices.len(), 1);
     assert_eq!(devices[0].id.to_string(), "hotplug-test");
 
     // Open the device
-    let opened_device: Box<dyn HidDevice> = port.open_device(&device_id).await.unwrap();
+    let opened_device: Box<dyn HidDevice> = port.open_device(&device_id).await?;
     assert!(opened_device.is_connected());
 
     // Remove the device (simulate unplug)
-    port.remove_device(&device_id).unwrap();
+    port.remove_device(&device_id)?;
 
     // Verify device is gone from enumeration
-    let devices = port.list_devices().await.unwrap();
+    let devices = port.list_devices().await?;
     assert_eq!(devices.len(), 0);
 
     // Note: The opened device handle would still exist but operations would fail
     // In a real implementation, this would be handled by the device monitoring system
+    Ok(())
 }
 
 /// Benchmark device enumeration performance
 #[tokio::test]
 #[traced_test]
-async fn benchmark_device_enumeration() {
+async fn benchmark_device_enumeration() -> Result<(), Box<dyn std::error::Error>> {
     let mut port = VirtualHidPort::new();
 
     // Add many devices
@@ -481,9 +492,9 @@ async fn benchmark_device_enumeration() {
     for i in 0..DEVICE_COUNT {
         let device_id = format!("benchmark-device-{:03}", i)
             .parse::<DeviceId>()
-            .unwrap();
+            ?;
         let device = VirtualDevice::new(device_id, format!("Benchmark Device {}", i));
-        port.add_device(device).unwrap();
+        port.add_device(device)?;
     }
 
     // Benchmark enumeration
@@ -492,7 +503,7 @@ async fn benchmark_device_enumeration() {
 
     for _ in 0..ITERATIONS {
         let start = Instant::now();
-        let devices = port.list_devices().await.unwrap();
+        let devices = port.list_devices().await?;
         let elapsed = start.elapsed();
 
         assert_eq!(devices.len(), DEVICE_COUNT);
@@ -512,23 +523,24 @@ async fn benchmark_device_enumeration() {
         DEVICE_COUNT,
         avg_time
     );
+    Ok(())
 }
 
 /// Test telemetry data consistency
 #[tokio::test]
 #[traced_test]
-async fn test_telemetry_consistency() {
-    let device_id = "telemetry-test".parse::<DeviceId>().unwrap();
+async fn test_telemetry_consistency() -> Result<(), Box<dyn std::error::Error>> {
+    let device_id = "telemetry-test".parse::<DeviceId>()?;
     let mut device = VirtualDevice::new(device_id, "Telemetry Test Device".to_string());
 
     // Apply known torque sequence
     let torque_sequence = vec![0.0, 5.0, 10.0, 15.0, 10.0, 5.0, 0.0, -5.0, -10.0, 0.0];
 
     for (i, &torque) in torque_sequence.iter().enumerate() {
-        device.write_ffb_report(torque, i as u16).unwrap();
+        device.write_ffb_report(torque, i as u16)?;
         device.simulate_physics(Duration::from_millis(10));
 
-        let telemetry = device.read_telemetry().unwrap();
+        let telemetry = device.read_telemetry().ok_or("no telemetry")?;
 
         // Note: sequence field was removed from TelemetryData
 
@@ -543,4 +555,5 @@ async fn test_telemetry_consistency() {
             assert_eq!(telemetry.fault_flags, 0);
         }
     }
+    Ok(())
 }

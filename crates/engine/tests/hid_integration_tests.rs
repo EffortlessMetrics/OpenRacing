@@ -13,21 +13,13 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use tokio::time::{Duration, timeout};
 
-#[track_caller]
-fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-    match r {
-        Ok(v) => v,
-        Err(e) => panic!("unexpected Err: {e:?}"),
-    }
-}
-
 /// Test HID port creation for current platform
 #[tokio::test]
-async fn test_hid_port_creation() {
-    let port = create_hid_port().expect("Failed to create HID port");
+async fn test_hid_port_creation() -> Result<(), Box<dyn std::error::Error>> {
+    let port = create_hid_port()?;
 
     // Should be able to list devices (even if empty)
-    let devices = port.list_devices().await.expect("Failed to list devices");
+    let devices = port.list_devices().await?;
     println!("Found {} devices", devices.len());
 
     // Devices should have valid information
@@ -40,26 +32,25 @@ async fn test_hid_port_creation() {
         assert!(device.capabilities.encoder_cpr > 0);
         assert!(device.capabilities.min_report_period_us > 0);
     }
+    Ok(())
 }
 
 /// Test device enumeration and refresh
 #[tokio::test]
-async fn test_device_enumeration_and_refresh() {
-    let port = create_hid_port().expect("Failed to create HID port");
+async fn test_device_enumeration_and_refresh() -> Result<(), Box<dyn std::error::Error>> {
+    let port = create_hid_port()?;
 
     // Initial enumeration
-    let devices1 = port.list_devices().await.expect("Failed to list devices");
+    let devices1 = port.list_devices().await?;
 
     // Refresh devices
     port.refresh_devices()
-        .await
-        .expect("Failed to refresh devices");
+        .await?;
 
     // Second enumeration should work
     let devices2 = port
         .list_devices()
-        .await
-        .expect("Failed to list devices after refresh");
+        .await?;
 
     // Should have same number of devices (assuming no hot-plug during test)
     assert_eq!(devices1.len(), devices2.len());
@@ -70,17 +61,18 @@ async fn test_device_enumeration_and_refresh() {
         assert_eq!(d1.vendor_id, d2.vendor_id);
         assert_eq!(d1.product_id, d2.product_id);
     }
+    Ok(())
 }
 
 /// Test device opening and basic operations
 #[tokio::test]
-async fn test_device_opening_and_operations() {
-    let port = create_hid_port().expect("Failed to create HID port");
-    let devices = port.list_devices().await.expect("Failed to list devices");
+async fn test_device_opening_and_operations() -> Result<(), Box<dyn std::error::Error>> {
+    let port = create_hid_port()?;
+    let devices = port.list_devices().await?;
 
     if devices.is_empty() {
         println!("No devices found, skipping device opening test");
-        return;
+        return Ok(());
     }
 
     let device_info = &devices[0];
@@ -89,8 +81,7 @@ async fn test_device_opening_and_operations() {
     // Open device
     let mut device = port
         .open_device(&device_info.id)
-        .await
-        .expect("Failed to open device");
+        .await?;
 
     // Device should be connected
     assert!(device.is_connected());
@@ -121,18 +112,18 @@ async fn test_device_opening_and_operations() {
     // Test health status
     let health = device.health_status();
     assert!(health.temperature_c >= 20 && health.temperature_c <= 100);
+    Ok(())
 }
 
 /// Test device monitoring for connect/disconnect events
 #[tokio::test]
-async fn test_device_monitoring() {
-    let port = create_hid_port().expect("Failed to create HID port");
+async fn test_device_monitoring() -> Result<(), Box<dyn std::error::Error>> {
+    let port = create_hid_port()?;
 
     // Start monitoring
     let mut event_rx = port
         .monitor_devices()
-        .await
-        .expect("Failed to start device monitoring");
+        .await?;
 
     // Wait for initial events or timeout
     let timeout_duration = Duration::from_millis(1000);
@@ -157,24 +148,24 @@ async fn test_device_monitoring() {
             println!("No device events received within timeout (expected for static test)");
         }
     }
+    Ok(())
 }
 
 /// Test RT-safe FFB writing under load
 #[tokio::test]
-async fn test_rt_safe_ffb_writing() {
-    let port = create_hid_port().expect("Failed to create HID port");
-    let devices = port.list_devices().await.expect("Failed to list devices");
+async fn test_rt_safe_ffb_writing() -> Result<(), Box<dyn std::error::Error>> {
+    let port = create_hid_port()?;
+    let devices = port.list_devices().await?;
 
     if devices.is_empty() {
         println!("No devices found, skipping RT FFB test");
-        return;
+        return Ok(());
     }
 
     let device_info = &devices[0];
     let mut device = port
         .open_device(&device_info.id)
-        .await
-        .expect("Failed to open device");
+        .await?;
 
     // Test rapid FFB writes (simulating 1kHz operation)
     let write_count = Arc::new(AtomicU32::new(0));
@@ -217,24 +208,24 @@ async fn test_rt_safe_ffb_writing() {
         "Error rate too high: {:.2}%",
         error_rate * 100.0
     );
+    Ok(())
 }
 
 /// Test telemetry reading consistency
 #[tokio::test]
-async fn test_telemetry_reading_consistency() {
-    let port = create_hid_port().expect("Failed to create HID port");
-    let devices = port.list_devices().await.expect("Failed to list devices");
+async fn test_telemetry_reading_consistency() -> Result<(), Box<dyn std::error::Error>> {
+    let port = create_hid_port()?;
+    let devices = port.list_devices().await?;
 
     if devices.is_empty() {
         println!("No devices found, skipping telemetry test");
-        return;
+        return Ok(());
     }
 
     let device_info = &devices[0];
     let mut device = port
         .open_device(&device_info.id)
-        .await
-        .expect("Failed to open device");
+        .await?;
 
     // Read telemetry multiple times
     let mut telemetry_readings = Vec::new();
@@ -248,7 +239,7 @@ async fn test_telemetry_reading_consistency() {
 
     if telemetry_readings.is_empty() {
         println!("No telemetry data received (expected for some mock devices)");
-        return;
+        return Ok(());
     }
 
     println!("Received {} telemetry readings", telemetry_readings.len());
@@ -288,11 +279,12 @@ async fn test_telemetry_reading_consistency() {
         //     telemetry.fault_flags
         // );
     }
+    Ok(())
 }
 
 /// Test RT setup and cleanup
 #[test]
-fn test_rt_setup_and_cleanup() {
+fn test_rt_setup_and_cleanup() -> Result<(), Box<dyn std::error::Error>> {
     // Apply RT optimizations
     let setup_result = RTSetup::apply_rt_optimizations();
 
@@ -310,13 +302,14 @@ fn test_rt_setup_and_cleanup() {
         Ok(()) => println!("RT optimizations reverted successfully"),
         Err(e) => println!("RT optimizations revert failed: {}", e),
     }
+    Ok(())
 }
 
 /// Test device capabilities validation
 #[tokio::test]
-async fn test_device_capabilities_validation() {
-    let port = create_hid_port().expect("Failed to create HID port");
-    let devices = port.list_devices().await.expect("Failed to list devices");
+async fn test_device_capabilities_validation() -> Result<(), Box<dyn std::error::Error>> {
+    let port = create_hid_port()?;
+    let devices = port.list_devices().await?;
 
     for device_info in &devices {
         let caps = &device_info.capabilities;
@@ -357,23 +350,21 @@ async fn test_device_capabilities_validation() {
             "Device supports no FFB modes"
         );
     }
+    Ok(())
 }
 
 /// Test error handling and recovery
 #[tokio::test]
-async fn test_error_handling_and_recovery() {
-    let port = create_hid_port().expect("Failed to create HID port");
+async fn test_error_handling_and_recovery() -> Result<(), Box<dyn std::error::Error>> {
+    let port = create_hid_port()?;
 
     // Try to open non-existent device
-    let fake_id = must(DeviceId::new("non-existent-device".to_string()));
+    let fake_id = DeviceId::new("non-existent-device".to_string())?;
     let result = port.open_device(&fake_id).await;
     assert!(result.is_err(), "Opening non-existent device should fail");
 
     // List devices should still work after error
-    let devices = port
-        .list_devices()
-        .await
-        .expect("List devices should work after error");
+    let devices = port.list_devices().await?;
     println!(
         "Device enumeration recovered, found {} devices",
         devices.len()
@@ -382,34 +373,31 @@ async fn test_error_handling_and_recovery() {
     // If we have real devices, test with them
     if !devices.is_empty() {
         let device_info = &devices[0];
-        let mut device = port
-            .open_device(&device_info.id)
-            .await
-            .expect("Failed to open device after error recovery");
+        let mut device = port.open_device(&device_info.id).await?;
 
         // Device operations should work normally
         assert!(device.is_connected());
         let result = device.write_ffb_report(1.0, 1);
         assert!(result.is_ok(), "FFB write should work after error recovery");
     }
+    Ok(())
 }
 
 /// Benchmark FFB write latency
 #[tokio::test]
-async fn test_ffb_write_latency_benchmark() {
-    let port = create_hid_port().expect("Failed to create HID port");
-    let devices = port.list_devices().await.expect("Failed to list devices");
+async fn test_ffb_write_latency_benchmark() -> Result<(), Box<dyn std::error::Error>> {
+    let port = create_hid_port()?;
+    let devices = port.list_devices().await?;
 
     if devices.is_empty() {
         println!("No devices found, skipping latency benchmark");
-        return;
+        return Ok(());
     }
 
     let device_info = &devices[0];
     let mut device = port
         .open_device(&device_info.id)
-        .await
-        .expect("Failed to open device");
+        .await?;
 
     // Warm up
     for i in 0..10 {
@@ -432,7 +420,7 @@ async fn test_ffb_write_latency_benchmark() {
 
     if latencies.is_empty() {
         println!("No successful FFB writes for latency measurement");
-        return;
+        return Ok(());
     }
 
     // Calculate statistics
@@ -462,4 +450,5 @@ async fn test_ffb_write_latency_benchmark() {
         "Average latency too high: {:?}",
         avg
     );
+    Ok(())
 }

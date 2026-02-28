@@ -20,66 +20,45 @@ use racing_wheel_schemas::prelude::{
 };
 use std::sync::Arc;
 
-// Test helper functions to replace unwrap
-#[track_caller]
-fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-    match r {
-        Ok(v) => v,
-        Err(e) => panic!("unexpected Err: {e:?}"),
-    }
-}
-
-#[track_caller]
-#[allow(dead_code)]
-fn must_parse<T: std::str::FromStr>(s: &str) -> T
-where
-    <T as std::str::FromStr>::Err: std::fmt::Debug,
-{
-    match s.parse::<T>() {
-        Ok(v) => v,
-        Err(e) => panic!("parse failed for {s:?}: {e:?}"),
-    }
-}
-
-fn create_comprehensive_filter_config() -> FilterConfig {
-    FilterConfig {
+fn create_comprehensive_filter_config() -> Result<FilterConfig, Box<dyn std::error::Error>> {
+    Ok(FilterConfig {
         reconstruction: 4, // Valid level
-        friction: Gain::new(0.12).unwrap(),
-        damper: Gain::new(0.18).unwrap(),
-        inertia: Gain::new(0.08).unwrap(),
-        notch_filters: vec![NotchFilter::new(FrequencyHz::new(60.0).unwrap(), 2.0, -12.0).unwrap()],
-        slew_rate: Gain::new(0.75).unwrap(),
+        friction: Gain::new(0.12)?,
+        damper: Gain::new(0.18)?,
+        inertia: Gain::new(0.08)?,
+        notch_filters: vec![NotchFilter::new(FrequencyHz::new(60.0)?, 2.0, -12.0)?],
+        slew_rate: Gain::new(0.75)?,
         curve_points: vec![
-            CurvePoint::new(0.0, 0.0).unwrap(),
-            CurvePoint::new(0.2, 0.15).unwrap(),
-            CurvePoint::new(0.4, 0.35).unwrap(),
-            CurvePoint::new(0.6, 0.58).unwrap(),
-            CurvePoint::new(0.8, 0.82).unwrap(),
-            CurvePoint::new(1.0, 1.0).unwrap(),
+            CurvePoint::new(0.0, 0.0)?,
+            CurvePoint::new(0.2, 0.15)?,
+            CurvePoint::new(0.4, 0.35)?,
+            CurvePoint::new(0.6, 0.58)?,
+            CurvePoint::new(0.8, 0.82)?,
+            CurvePoint::new(1.0, 1.0)?,
         ],
         ..FilterConfig::default()
-    }
+    })
 }
 
-fn create_test_profile(id: &str, scope: ProfileScope, filter_config: FilterConfig) -> Profile {
-    let profile_id = must(ProfileId::new(id.to_string()));
+fn create_test_profile(id: &str, scope: ProfileScope, filter_config: FilterConfig) -> Result<Profile, Box<dyn std::error::Error>> {
+    let profile_id = ProfileId::new(id.to_string())?;
     let base_settings = BaseSettings::new(
-        must(Gain::new(0.75)),
-        must(Degrees::new_dor(900.0)),
-        must(TorqueNm::new(18.0)),
+        Gain::new(0.75)?,
+        Degrees::new_dor(900.0)?,
+        TorqueNm::new(18.0)?,
         filter_config,
     );
 
-    Profile::new(
+    Ok(Profile::new(
         profile_id,
         scope,
         base_settings,
         format!("Test Profile {}", id),
-    )
+    ))
 }
 
 #[tokio::test]
-async fn test_complete_zero_alloc_pipeline_flow() {
+async fn test_complete_zero_alloc_pipeline_flow() -> Result<(), Box<dyn std::error::Error>> {
     // Test the complete flow from profile merge → pipeline compilation → RT execution
 
     let merge_engine = ProfileMergeEngine;
@@ -87,13 +66,13 @@ async fn test_complete_zero_alloc_pipeline_flow() {
 
     // Create test profiles
     let global_profile =
-        create_test_profile("global", ProfileScope::global(), FilterConfig::default());
+        create_test_profile("global", ProfileScope::global(), FilterConfig::default())?;
 
     let game_profile = create_test_profile(
         "iracing",
         ProfileScope::for_game("iracing".to_string()),
         FilterConfig::default(),
-    );
+    )?;
 
     // Phase 1: Profile merge (should be deterministic)
     let merge_result =
@@ -112,7 +91,7 @@ async fn test_complete_zero_alloc_pipeline_flow() {
         panic!("Pipeline compilation failed: {:?}", e);
     }
 
-    let compiled_pipeline = must(result);
+    let compiled_pipeline = result?;
 
     assert!(compiled_pipeline.pipeline.node_count() > 0);
     assert!(compiled_pipeline.config_hash != 0);
@@ -166,10 +145,11 @@ async fn test_complete_zero_alloc_pipeline_flow() {
     }
     report.assert_zero_alloc(); // Critical assertion for CI
     report.print_summary();
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_two_phase_apply_complete_integration() {
+async fn test_two_phase_apply_complete_integration() -> Result<(), Box<dyn std::error::Error>> {
     // Test the complete two-phase apply system with real profiles
 
     let initial_pipeline = Pipeline::new();
@@ -178,39 +158,37 @@ async fn test_two_phase_apply_complete_integration() {
 
     // Create a hierarchy of profiles
     let global_profile =
-        create_test_profile("global", ProfileScope::global(), FilterConfig::default());
+        create_test_profile("global", ProfileScope::global(), FilterConfig::default())?;
 
     let game_profile = create_test_profile(
         "iracing",
         ProfileScope::for_game("iracing".to_string()),
-        create_comprehensive_filter_config(),
-    );
+        create_comprehensive_filter_config()?,
+    )?;
 
     let car_profile = create_test_profile(
         "gt3",
         ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
         FilterConfig::default(),
-    );
+    )?;
 
     // Session overrides
     let session_overrides = BaseSettings::new(
-        must(Gain::new(0.9)),
-        must(Degrees::new_dor(540.0)),
-        must(TorqueNm::new(25.0)),
+        Gain::new(0.9)?,
+        Degrees::new_dor(540.0)?,
+        TorqueNm::new(25.0)?,
         FilterConfig::default(),
     );
 
     // Phase 1: Start async apply
-    let result_rx = must(
-        coordinator
-            .apply_profile_async(
-                &global_profile,
-                Some(&game_profile),
-                Some(&car_profile),
-                Some(&session_overrides),
-            )
-            .await,
-    );
+    let result_rx = coordinator
+        .apply_profile_async(
+            &global_profile,
+            Some(&game_profile),
+            Some(&car_profile),
+            Some(&session_overrides),
+        )
+        .await?;
 
     // Verify pipeline hasn't changed yet (no partial application)
     {
@@ -223,7 +201,7 @@ async fn test_two_phase_apply_complete_integration() {
     coordinator.process_pending_applies_at_tick_boundary().await;
 
     // Phase 3: Verify result
-    let apply_result = must(result_rx.await);
+    let apply_result = result_rx.await?;
     assert!(apply_result.success);
     assert!(apply_result.config_hash != 0);
     assert!(apply_result.merge_hash != 0);
@@ -258,38 +236,39 @@ async fn test_two_phase_apply_complete_integration() {
 
     let report = benchmark.finish();
     report.assert_zero_alloc();
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_deterministic_profile_resolution_comprehensive() {
+async fn test_deterministic_profile_resolution_comprehensive() -> Result<(), Box<dyn std::error::Error>> {
     // Test that profile resolution is completely deterministic
 
     let merge_engine = ProfileMergeEngine;
 
     // Create complex profiles with all possible settings
     let mut global_profile =
-        create_test_profile("global", ProfileScope::global(), FilterConfig::default());
+        create_test_profile("global", ProfileScope::global(), FilterConfig::default())?;
     global_profile.led_config = Some(LedConfig::default());
     global_profile.haptics_config = Some(HapticsConfig::default());
 
     let mut game_profile = create_test_profile(
         "iracing",
         ProfileScope::for_game("iracing".to_string()),
-        create_comprehensive_filter_config(),
-    );
-    game_profile.base_settings.ffb_gain = must(Gain::new(0.85));
+        create_comprehensive_filter_config()?,
+    )?;
+    game_profile.base_settings.ffb_gain = Gain::new(0.85)?;
 
     let mut car_profile = create_test_profile(
         "gt3",
         ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
         FilterConfig::default(),
-    );
-    car_profile.base_settings.degrees_of_rotation = must(Degrees::new_dor(540.0));
+    )?;
+    car_profile.base_settings.degrees_of_rotation = Degrees::new_dor(540.0)?;
 
     let session_overrides = BaseSettings::new(
-        must(Gain::new(0.95)),
-        must(Degrees::new_dor(720.0)),
-        must(TorqueNm::new(22.0)),
+        Gain::new(0.95)?,
+        Degrees::new_dor(720.0)?,
+        TorqueNm::new(22.0)?,
         FilterConfig::default(),
     );
 
@@ -344,10 +323,11 @@ async fn test_deterministic_profile_resolution_comprehensive() {
         720.0
     );
     assert_eq!(first_result.profile.base_settings.torque_cap.value(), 22.0);
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_monotonic_curve_validation_comprehensive() {
+async fn test_monotonic_curve_validation_comprehensive() -> Result<(), Box<dyn std::error::Error>> {
     // Test comprehensive monotonic curve validation
 
     let compiler = PipelineCompiler::new();
@@ -355,59 +335,59 @@ async fn test_monotonic_curve_validation_comprehensive() {
     // Test valid monotonic curve
     let valid_config = FilterConfig::new(
         4,
-        Gain::new(0.1).unwrap(),
-        Gain::new(0.15).unwrap(),
-        Gain::new(0.05).unwrap(),
+        Gain::new(0.1)?,
+        Gain::new(0.15)?,
+        Gain::new(0.05)?,
         vec![],
-        Gain::new(0.8).unwrap(),
+        Gain::new(0.8)?,
         vec![
-            CurvePoint::new(0.0, 0.0).unwrap(),
-            CurvePoint::new(0.1, 0.05).unwrap(),
-            CurvePoint::new(0.3, 0.2).unwrap(),
-            CurvePoint::new(0.5, 0.4).unwrap(),
-            CurvePoint::new(0.7, 0.65).unwrap(),
-            CurvePoint::new(0.9, 0.85).unwrap(),
-            CurvePoint::new(1.0, 1.0).unwrap(),
+            CurvePoint::new(0.0, 0.0)?,
+            CurvePoint::new(0.1, 0.05)?,
+            CurvePoint::new(0.3, 0.2)?,
+            CurvePoint::new(0.5, 0.4)?,
+            CurvePoint::new(0.7, 0.65)?,
+            CurvePoint::new(0.9, 0.85)?,
+            CurvePoint::new(1.0, 1.0)?,
         ],
     );
 
-    let result = compiler.compile_pipeline(valid_config.unwrap()).await;
+    let result = compiler.compile_pipeline(valid_config?).await;
     assert!(result.is_ok());
 
     // Test various invalid non-monotonic curves
     let invalid_curves = vec![
         // Decreasing input
         vec![
-            must(CurvePoint::new(0.0, 0.0)),
-            must(CurvePoint::new(0.5, 0.4)),
-            must(CurvePoint::new(0.3, 0.6)), // Goes backwards
-            must(CurvePoint::new(1.0, 1.0)),
+            CurvePoint::new(0.0, 0.0)?,
+            CurvePoint::new(0.5, 0.4)?,
+            CurvePoint::new(0.3, 0.6)?, // Goes backwards
+            CurvePoint::new(1.0, 1.0)?,
         ],
         // Equal inputs
         vec![
-            must(CurvePoint::new(0.0, 0.0)),
-            must(CurvePoint::new(0.5, 0.4)),
-            must(CurvePoint::new(0.5, 0.6)), // Same input
-            must(CurvePoint::new(1.0, 1.0)),
+            CurvePoint::new(0.0, 0.0)?,
+            CurvePoint::new(0.5, 0.4)?,
+            CurvePoint::new(0.5, 0.6)?, // Same input
+            CurvePoint::new(1.0, 1.0)?,
         ],
         // Multiple violations
         vec![
-            must(CurvePoint::new(0.0, 0.0)),
-            must(CurvePoint::new(0.8, 0.4)),
-            must(CurvePoint::new(0.6, 0.6)), // Goes backwards
-            must(CurvePoint::new(0.7, 0.8)), // Still backwards
-            must(CurvePoint::new(1.0, 1.0)),
+            CurvePoint::new(0.0, 0.0)?,
+            CurvePoint::new(0.8, 0.4)?,
+            CurvePoint::new(0.6, 0.6)?, // Goes backwards
+            CurvePoint::new(0.7, 0.8)?, // Still backwards
+            CurvePoint::new(1.0, 1.0)?,
         ],
     ];
 
     for (i, invalid_curve) in invalid_curves.into_iter().enumerate() {
         let invalid_config = FilterConfig {
             reconstruction: 4,
-            friction: must(Gain::new(0.1)),
-            damper: must(Gain::new(0.15)),
-            inertia: must(Gain::new(0.05)),
+            friction: Gain::new(0.1)?,
+            damper: Gain::new(0.15)?,
+            inertia: Gain::new(0.05)?,
             notch_filters: vec![],
-            slew_rate: must(Gain::new(0.8)),
+            slew_rate: Gain::new(0.8)?,
             curve_points: invalid_curve,
             ..FilterConfig::default()
         };
@@ -419,14 +399,14 @@ async fn test_monotonic_curve_validation_comprehensive() {
             i
         );
 
-        match result.err().unwrap() {
-            PipelineError::NonMonotonicCurve => {} // Expected
-            other => panic!(
-                "Expected NonMonotonicCurve error for curve {}, got {:?}",
-                i, other
-            ),
-        }
+        assert!(
+            matches!(result, Err(PipelineError::NonMonotonicCurve)),
+            "Expected NonMonotonicCurve error for curve {}, got {:?}",
+            i,
+            result.err()
+        );
     }
+    Ok(())
 }
 
 #[cfg_attr(
@@ -434,7 +414,7 @@ async fn test_monotonic_curve_validation_comprehensive() {
     ignore = "Performance timing is unstable on Windows CI/dev machines"
 )]
 #[tokio::test]
-async fn test_pipeline_swap_atomicity_under_load() {
+async fn test_pipeline_swap_atomicity_under_load() -> Result<(), Box<dyn std::error::Error>> {
     // Test that pipeline swaps remain atomic even under concurrent load
 
     let initial_pipeline = Pipeline::new();
@@ -443,9 +423,9 @@ async fn test_pipeline_swap_atomicity_under_load() {
 
     // Create different profiles for concurrent applies
     let profiles: Vec<Profile> = (0..5)
-        .map(|i| {
-            let mut config = create_comprehensive_filter_config();
-            config.friction = must(Gain::new(0.1 + (i as f32 * 0.02)));
+        .map(|i| -> Result<Profile, Box<dyn std::error::Error>> {
+            let mut config = create_comprehensive_filter_config()?;
+            config.friction = Gain::new(0.1 + (i as f32 * 0.02))?;
 
             create_test_profile(
                 &format!("profile_{}", i),
@@ -453,7 +433,7 @@ async fn test_pipeline_swap_atomicity_under_load() {
                 config,
             )
         })
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
 
     // Spawn concurrent apply operations
     let mut handles = Vec::new();
@@ -473,7 +453,7 @@ async fn test_pipeline_swap_atomicity_under_load() {
     // Collect all result receivers
     let mut result_rxs = Vec::new();
     for handle in handles {
-        let (i, rx) = must(handle.await);
+        let (i, rx) = handle.await?;
         result_rxs.push((i, rx));
     }
 
@@ -489,7 +469,7 @@ async fn test_pipeline_swap_atomicity_under_load() {
     // Verify all applies succeeded
     let mut final_hash = None;
     for (i, rx) in result_rxs {
-        let result = must(must(rx).await);
+        let result = rx?.await?;
         assert!(result.success, "Apply {} should succeed", i);
 
         if final_hash.is_none() {
@@ -526,10 +506,11 @@ async fn test_pipeline_swap_atomicity_under_load() {
 
     let report = benchmark.finish();
     report.assert_zero_alloc();
+    Ok(())
 }
 
 #[test]
-fn test_ci_allocation_assertion() {
+fn test_ci_allocation_assertion() -> Result<(), Box<dyn std::error::Error>> {
     // Test the CI-specific allocation assertion
     // This test demonstrates how CI will catch allocation violations
 
@@ -550,6 +531,7 @@ fn test_ci_allocation_assertion() {
     // ci_assert_zero_alloc!(report, "CI Test Context");
 
     println!("CI test passed with sum: {}", sum);
+    Ok(())
 }
 
 #[cfg_attr(
@@ -557,7 +539,7 @@ fn test_ci_allocation_assertion() {
     ignore = "Performance timing is unstable on Windows CI/dev machines"
 )]
 #[tokio::test]
-async fn test_end_to_end_performance_requirements() {
+async fn test_end_to_end_performance_requirements() -> Result<(), Box<dyn std::error::Error>> {
     // Test that the complete system meets performance requirements
 
     let merge_engine = ProfileMergeEngine;
@@ -565,13 +547,13 @@ async fn test_end_to_end_performance_requirements() {
 
     // Create realistic profiles
     let global_profile =
-        create_test_profile("global", ProfileScope::global(), FilterConfig::default());
+        create_test_profile("global", ProfileScope::global(), FilterConfig::default())?;
 
     let game_profile = create_test_profile(
         "iracing",
         ProfileScope::for_game("iracing".to_string()),
-        create_comprehensive_filter_config(),
-    );
+        create_comprehensive_filter_config()?,
+    )?;
 
     // Measure complete flow performance
     let start = std::time::Instant::now();
@@ -587,7 +569,7 @@ async fn test_end_to_end_performance_requirements() {
     let compiled_pipeline = compiler
         .compile_pipeline(merge_result.profile.base_settings.filters)
         .await
-        .expect("Compilation failed");
+        ?;
     let compile_duration = compile_start.elapsed();
 
     // RT execution benchmark
@@ -646,4 +628,5 @@ async fn test_end_to_end_performance_requirements() {
     println!("  RT processing (1000 frames): {:?}", rt_duration);
     println!("  Average per frame: {:?}", rt_duration / 1000);
     println!("  Total end-to-end: {:?}", total_duration);
+    Ok(())
 }
