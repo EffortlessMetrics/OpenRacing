@@ -70,18 +70,18 @@ Concurrent file edits during active builds cause cascading compilation errors (r
 
 ---
 
-### F-004 · Windows linker PDB limit in integration tests (Medium · Open)
+### F-004 · Windows linker PDB limit in integration tests (Medium · **Resolved**)
 
 **Encountered:** RC sprint — `racing-wheel-integration-tests` fails with LNK1318 / LNK1180 on Windows
 
 The Windows linker hits its PDB symbol table size limit when the integration test crate is built in debug mode with all features, because it transitively pulls in every crate in the workspace.
 
-**Current state:** The CI integration-tests workflow runs integration tests on Windows only for a narrow subset (`test_performance_gates_ffb_jitter`). No `.cargo/config.toml` with `split-debuginfo` override has been added. The underlying linker limit is not mitigated for full `--all-features` builds.
-
-**Remedy:** Options:
-1. Build integration tests in release mode for CI on Windows.
-2. Split `racing-wheel-integration-tests` into smaller crates.
-3. Add `.cargo/config.toml` override to use `split-debuginfo = "packed"` on Windows.
+**Fix applied:** Added `.cargo/config.toml` with:
+```toml
+[profile.test.package.racing-wheel-integration-tests]
+debug = false
+```
+This disables debug info for the integration test binary on all platforms, avoiding the MSVC symbol limit. Stack traces via `RUST_BACKTRACE=1` still show file:line because Rust embeds panic location by default. (feat/r7-quirks-cleanup-v2)
 
 ---
 
@@ -219,6 +219,7 @@ No compile-time help distinguishes "this is a renamed constant" from "this const
 | ID | Title | Resolved In |
 |----|-------|-------------|
 | F-003 | Agent file-edit race during compilation | AGENTS.md worktree rules (feat/r7) |
+| F-004 | Windows linker PDB limit in integration tests | .cargo/config.toml debug=false (feat/r7) |
 | F-014 | Agent race conditions on shared branch | AGENTS.md worktree rules (feat/r7) |
 | F-015 | Workspace-hack requires manual regeneration | .githooks/pre-commit + AGENTS.md (feat/r7) |
 | F-008 | BeamNG gear overflow | commit cdd69f0 |
