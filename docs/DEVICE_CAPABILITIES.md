@@ -195,11 +195,11 @@ Source: `crates/hid-pxn-protocol`; VID/PID status: **Community** (JacKeTUs/linux
 
 | Device | Vendor | USB VID | Protocol Type | Max Torque (Nm) | FFB Axes | Force Feedback Types | Encoder Resolution | Notes |
 |---|---|---|---|---|---|---|---|---|
-| PXN V10 | PXN | `0x11FF` | HID PIDFF | ~5.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A (PIDFF standard) | PID `0x3245`; community-sourced |
-| PXN V12 | PXN | `0x11FF` | HID PIDFF | ~8.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x1212`; community-sourced |
-| PXN V12 Lite | PXN | `0x11FF` | HID PIDFF | ~5.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x1112`; community-sourced |
-| PXN V12 Lite SE | PXN | `0x11FF` | HID PIDFF | ~5.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x1211`; community-sourced |
-| PXN GT987 FF | PXN | `0x11FF` | HID PIDFF | ~3.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x2141`; community-sourced |
+| PXN V10 | PXN | `0x11FF` | HID PIDFF | ~10.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A (PIDFF standard) | PID `0x3245`; community-sourced |
+| PXN V12 | PXN | `0x11FF` | HID PIDFF | ~12.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x1212`; community-sourced |
+| PXN V12 Lite | PXN | `0x11FF` | HID PIDFF | ~12.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x1112`; community-sourced |
+| PXN V12 Lite SE | PXN | `0x11FF` | HID PIDFF | ~12.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x1211`; community-sourced |
+| PXN GT987 FF | PXN | `0x11FF` | HID PIDFF | ~5.0 | 1 | Constant, Spring, Damper (PIDFF standard) | N/A | PID `0x2141`; community-sourced; Lite Star OEM |
 
 ---
 
