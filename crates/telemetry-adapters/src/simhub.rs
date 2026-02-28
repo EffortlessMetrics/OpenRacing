@@ -126,8 +126,8 @@ pub fn parse_simhub_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         return Err(anyhow!("SimHub packet is empty"));
     }
 
-    let text = std::str::from_utf8(data)
-        .map_err(|e| anyhow!("SimHub packet is not valid UTF-8: {e}"))?;
+    let text =
+        std::str::from_utf8(data).map_err(|e| anyhow!("SimHub packet is not valid UTF-8: {e}"))?;
 
     let raw: SimHubRaw =
         serde_json::from_str(text).map_err(|e| anyhow!("Failed to parse SimHub JSON: {e}"))?;

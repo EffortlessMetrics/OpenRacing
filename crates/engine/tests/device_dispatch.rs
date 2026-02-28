@@ -186,8 +186,8 @@ fn dispatch_accuforce_vid_unknown_pid_returns_none() -> Result<(), Box<dyn std::
 /// An unrecognised VID with `has_hid_pid_capability = true` must produce a
 /// `GenericHidPidHandler` so the device can still operate with standard FFB.
 #[test]
-fn fallback_unknown_vid_with_hid_pid_capability_returns_handler(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn fallback_unknown_vid_with_hid_pid_capability_returns_handler()
+-> Result<(), Box<dyn std::error::Error>> {
     let handler = get_vendor_protocol_with_hid_pid_fallback(0xDEAD, 0xBEEF, true);
     assert!(
         handler.is_some(),
@@ -198,8 +198,8 @@ fn fallback_unknown_vid_with_hid_pid_capability_returns_handler(
 
 /// An unrecognised VID with `has_hid_pid_capability = false` must return `None`.
 #[test]
-fn fallback_unknown_vid_without_hid_pid_capability_returns_none(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn fallback_unknown_vid_without_hid_pid_capability_returns_none()
+-> Result<(), Box<dyn std::error::Error>> {
     let handler = get_vendor_protocol_with_hid_pid_fallback(0xDEAD, 0xBEEF, false);
     assert!(
         handler.is_none(),

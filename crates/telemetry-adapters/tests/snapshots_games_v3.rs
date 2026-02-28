@@ -39,13 +39,13 @@ fn write_u16(buf: &mut [u8], offset: usize, val: u16) {
 
 fn make_assetto_corsa_packet() -> Vec<u8> {
     let mut data = vec![0u8; 76];
-    data[16] = 3u8;                    // gear (u8 interpreted as i8)
+    data[16] = 3u8; // gear (u8 interpreted as i8)
     write_u16(&mut data, 18, 3600u16); // speed_kmh = 100 km/h → ~27.8 m/s
-    write_f32(&mut data, 20, 5500.0);  // rpm
-    write_f32(&mut data, 24, 7500.0);  // max_rpm
-    write_f32(&mut data, 64, 0.30);    // steer
-    write_f32(&mut data, 68, 0.75);    // gas (throttle)
-    write_f32(&mut data, 72, 0.0);     // brake
+    write_f32(&mut data, 20, 5500.0); // rpm
+    write_f32(&mut data, 24, 7500.0); // max_rpm
+    write_f32(&mut data, 64, 0.30); // steer
+    write_f32(&mut data, 68, 0.75); // gas (throttle)
+    write_f32(&mut data, 72, 0.0); // brake
     data
 }
 
@@ -63,15 +63,15 @@ fn make_automobilista_packet() -> Vec<u8> {
     let mut data = vec![0u8; 532];
     write_f64(&mut data, 216, 9.81 * 0.4); // lateral accel (0.4 G in m/s²)
     write_f64(&mut data, 232, 9.81 * 0.2); // longitudinal accel (0.2 G)
-    write_i32(&mut data, 360, 3);           // gear (3rd)
-    write_f64(&mut data, 368, 5800.0);      // engine_rpm
-    write_f64(&mut data, 384, 8000.0);      // engine_max_rpm
-    data[457] = 60u8;                       // fuel_capacity (litres, u8)
-    write_f32(&mut data, 460, 42.0);        // fuel_in_tank
-    write_f32(&mut data, 492, 0.70);        // throttle
-    write_f32(&mut data, 496, 0.0);         // brake
-    write_f32(&mut data, 500, -0.15);       // steering
-    write_f32(&mut data, 528, 32.0);        // speed_ms
+    write_i32(&mut data, 360, 3); // gear (3rd)
+    write_f64(&mut data, 368, 5800.0); // engine_rpm
+    write_f64(&mut data, 384, 8000.0); // engine_max_rpm
+    data[457] = 60u8; // fuel_capacity (litres, u8)
+    write_f32(&mut data, 460, 42.0); // fuel_in_tank
+    write_f32(&mut data, 492, 0.70); // throttle
+    write_f32(&mut data, 496, 0.0); // brake
+    write_f32(&mut data, 500, -0.15); // steering
+    write_f32(&mut data, 528, 32.0); // speed_ms
     data
 }
 
@@ -89,19 +89,19 @@ fn automobilista_snapshot() -> TestResult {
 
 fn make_codemasters_mode1_packet() -> Vec<u8> {
     let mut data = vec![0u8; 252];
-    write_f32(&mut data, 92, 25.0);   // wheel speed FL (m/s)
-    write_f32(&mut data, 96, 25.0);   // wheel speed FR
-    write_f32(&mut data, 100, 25.0);  // wheel speed RL
-    write_f32(&mut data, 104, 25.0);  // wheel speed RR
-    write_f32(&mut data, 108, 0.85);  // throttle
-    write_f32(&mut data, 112, 0.10);  // steer
-    write_f32(&mut data, 116, 0.0);   // brake
-    write_f32(&mut data, 124, 3.0);   // gear (f32: 3 = 3rd)
-    write_f32(&mut data, 128, 0.25);  // gforce_lat
-    write_f32(&mut data, 132, 0.50);  // gforce_lon
+    write_f32(&mut data, 92, 25.0); // wheel speed FL (m/s)
+    write_f32(&mut data, 96, 25.0); // wheel speed FR
+    write_f32(&mut data, 100, 25.0); // wheel speed RL
+    write_f32(&mut data, 104, 25.0); // wheel speed RR
+    write_f32(&mut data, 108, 0.85); // throttle
+    write_f32(&mut data, 112, 0.10); // steer
+    write_f32(&mut data, 116, 0.0); // brake
+    write_f32(&mut data, 124, 3.0); // gear (f32: 3 = 3rd)
+    write_f32(&mut data, 128, 0.25); // gforce_lat
+    write_f32(&mut data, 132, 0.50); // gforce_lon
     write_f32(&mut data, 140, 4800.0); // rpm
-    write_f32(&mut data, 172, 35.0);  // fuel_in_tank
-    write_f32(&mut data, 176, 55.0);  // fuel_capacity
+    write_f32(&mut data, 172, 35.0); // fuel_in_tank
+    write_f32(&mut data, 176, 55.0); // fuel_capacity
     write_f32(&mut data, 240, 7200.0); // max_rpm
     data
 }
@@ -133,21 +133,21 @@ fn dirt4_snapshot() -> TestResult {
 
 fn make_dirt5_packet() -> Vec<u8> {
     let mut data = Vec::with_capacity(60);
-    data.extend_from_slice(&30.0f32.to_le_bytes());    // speed (m/s)
-    data.extend_from_slice(&419.0f32.to_le_bytes());   // engine_rate (rad/s ≈ 4000 RPM)
-    data.extend_from_slice(&3i32.to_le_bytes());       // gear
-    data.extend_from_slice(&0.10f32.to_le_bytes());    // steering_input
-    data.extend_from_slice(&0.80f32.to_le_bytes());    // throttle_input
-    data.extend_from_slice(&0.0f32.to_le_bytes());     // brake_input
-    data.extend_from_slice(&0.0f32.to_le_bytes());     // clutch_input
-    data.extend_from_slice(&29.0f32.to_le_bytes());    // wheel_patch_speed_fl
-    data.extend_from_slice(&29.0f32.to_le_bytes());    // wheel_patch_speed_fr
-    data.extend_from_slice(&28.5f32.to_le_bytes());    // wheel_patch_speed_rl
-    data.extend_from_slice(&28.5f32.to_le_bytes());    // wheel_patch_speed_rr
-    data.extend_from_slice(&0.01f32.to_le_bytes());    // suspension_position_fl
-    data.extend_from_slice(&0.01f32.to_le_bytes());    // suspension_position_fr
-    data.extend_from_slice(&0.01f32.to_le_bytes());    // suspension_position_rl
-    data.extend_from_slice(&0.01f32.to_le_bytes());    // suspension_position_rr
+    data.extend_from_slice(&30.0f32.to_le_bytes()); // speed (m/s)
+    data.extend_from_slice(&419.0f32.to_le_bytes()); // engine_rate (rad/s ≈ 4000 RPM)
+    data.extend_from_slice(&3i32.to_le_bytes()); // gear
+    data.extend_from_slice(&0.10f32.to_le_bytes()); // steering_input
+    data.extend_from_slice(&0.80f32.to_le_bytes()); // throttle_input
+    data.extend_from_slice(&0.0f32.to_le_bytes()); // brake_input
+    data.extend_from_slice(&0.0f32.to_le_bytes()); // clutch_input
+    data.extend_from_slice(&29.0f32.to_le_bytes()); // wheel_patch_speed_fl
+    data.extend_from_slice(&29.0f32.to_le_bytes()); // wheel_patch_speed_fr
+    data.extend_from_slice(&28.5f32.to_le_bytes()); // wheel_patch_speed_rl
+    data.extend_from_slice(&28.5f32.to_le_bytes()); // wheel_patch_speed_rr
+    data.extend_from_slice(&0.01f32.to_le_bytes()); // suspension_position_fl
+    data.extend_from_slice(&0.01f32.to_le_bytes()); // suspension_position_fr
+    data.extend_from_slice(&0.01f32.to_le_bytes()); // suspension_position_rl
+    data.extend_from_slice(&0.01f32.to_le_bytes()); // suspension_position_rr
     data
 }
 
@@ -221,11 +221,11 @@ fn eawrc_snapshot() -> TestResult {
 
     // Packet layout (matches session_update): fourCC + f32 + f32 + f32 + i8
     let mut packet = Vec::new();
-    packet.extend_from_slice(b"SU01");              // packet_uid (fourCC, 4 bytes)
+    packet.extend_from_slice(b"SU01"); // packet_uid (fourCC, 4 bytes)
     packet.extend_from_slice(&0.60f32.to_le_bytes()); // ffb_scalar
     packet.extend_from_slice(&6400.0f32.to_le_bytes()); // engine_rpm
-    packet.extend_from_slice(&51.0f32.to_le_bytes());   // vehicle_speed (m/s)
-    packet.push(4i8.to_le_bytes()[0]);              // gear
+    packet.extend_from_slice(&51.0f32.to_le_bytes()); // vehicle_speed (m/s)
+    packet.push(4i8.to_le_bytes()[0]); // gear
 
     let adapter = EAWRCAdapter::with_telemetry_dir(dir.path().to_owned());
     let normalized = adapter.normalize(&packet)?;
@@ -241,13 +241,13 @@ fn eawrc_snapshot() -> TestResult {
 fn make_f1_packet() -> Vec<u8> {
     let mut data = Vec::with_capacity(88);
     // base fields
-    data.extend_from_slice(&55.0f32.to_le_bytes());   // speed (m/s)
-    data.extend_from_slice(&700.0f32.to_le_bytes());  // engine_rate (rad/s ≈ 6685 RPM)
-    data.extend_from_slice(&5i32.to_le_bytes());      // gear
+    data.extend_from_slice(&55.0f32.to_le_bytes()); // speed (m/s)
+    data.extend_from_slice(&700.0f32.to_le_bytes()); // engine_rate (rad/s ≈ 6685 RPM)
+    data.extend_from_slice(&5i32.to_le_bytes()); // gear
     data.extend_from_slice(&(-0.05f32).to_le_bytes()); // steering_input
-    data.extend_from_slice(&0.90f32.to_le_bytes());   // throttle_input
-    data.extend_from_slice(&0.0f32.to_le_bytes());    // brake_input
-    data.extend_from_slice(&0.0f32.to_le_bytes());    // clutch_input
+    data.extend_from_slice(&0.90f32.to_le_bytes()); // throttle_input
+    data.extend_from_slice(&0.0f32.to_le_bytes()); // brake_input
+    data.extend_from_slice(&0.0f32.to_le_bytes()); // clutch_input
     // mode 3 extra: wheel_patch_speed fl/fr/rl/rr
     for _ in 0..4 {
         data.extend_from_slice(&55.0f32.to_le_bytes());
@@ -260,9 +260,9 @@ fn make_f1_packet() -> Vec<u8> {
     for _ in 0..4 {
         data.extend_from_slice(&0.0f32.to_le_bytes());
     }
-    data.extend_from_slice(&0.50f32.to_le_bytes());   // long_accel
+    data.extend_from_slice(&0.50f32.to_le_bytes()); // long_accel
     data.extend_from_slice(&(-0.30f32).to_le_bytes()); // lat_accel
-    data.extend_from_slice(&0.0f32.to_le_bytes());    // vert_accel
+    data.extend_from_slice(&0.0f32.to_le_bytes()); // vert_accel
     data
 }
 
@@ -281,23 +281,23 @@ fn f1_snapshot() -> TestResult {
 fn make_gt7_decrypted_packet() -> [u8; gran_turismo_7::PACKET_SIZE] {
     let mut buf = [0u8; gran_turismo_7::PACKET_SIZE];
     write_u32(&mut buf, gran_turismo_7::OFF_MAGIC, gran_turismo_7::MAGIC);
-    write_f32(&mut buf, 60, 8500.0);        // engine_rpm
-    write_f32(&mut buf, 68, 35.0);          // fuel_level
-    write_f32(&mut buf, 72, 50.0);          // fuel_capacity
-    write_f32(&mut buf, 76, 80.0);          // speed_ms
-    write_f32(&mut buf, 88, 92.0);          // water_temp_c
-    write_f32(&mut buf, 96, 85.0);          // tire_temp_fl
-    write_f32(&mut buf, 100, 87.0);         // tire_temp_fr
-    write_f32(&mut buf, 104, 83.0);         // tire_temp_rl
-    write_f32(&mut buf, 108, 84.0);         // tire_temp_rr
+    write_f32(&mut buf, 60, 8500.0); // engine_rpm
+    write_f32(&mut buf, 68, 35.0); // fuel_level
+    write_f32(&mut buf, 72, 50.0); // fuel_capacity
+    write_f32(&mut buf, 76, 80.0); // speed_ms
+    write_f32(&mut buf, 88, 92.0); // water_temp_c
+    write_f32(&mut buf, 96, 85.0); // tire_temp_fl
+    write_f32(&mut buf, 100, 87.0); // tire_temp_fr
+    write_f32(&mut buf, 104, 83.0); // tire_temp_rl
+    write_f32(&mut buf, 108, 84.0); // tire_temp_rr
     buf[114..116].copy_from_slice(&7u16.to_le_bytes()); // lap_count
     buf[118..122].copy_from_slice(&85_000i32.to_le_bytes()); // best_lap_ms
     buf[122..126].copy_from_slice(&87_500i32.to_le_bytes()); // last_lap_ms
-    buf[141] = (0.70f32 * 255.0) as u8;    // throttle
-    buf[142] = 0u8;                          // brake
-    write_f32(&mut buf, 148, 9200.0);       // rpm_alert_end
-    write_u32(&mut buf, 156, 0);            // flags
-    buf[160] = 5u8;                          // gear_byte (5th gear, low nibble)
+    buf[141] = (0.70f32 * 255.0) as u8; // throttle
+    buf[142] = 0u8; // brake
+    write_f32(&mut buf, 148, 9200.0); // rpm_alert_end
+    write_u32(&mut buf, 156, 0); // flags
+    buf[160] = 5u8; // gear_byte (5th gear, low nibble)
     buf[280..284].copy_from_slice(&4444i32.to_le_bytes()); // car_code
     buf
 }
@@ -358,9 +358,9 @@ fn make_kartkraft_packet(
     let vt_frame_start = buf.len();
     push_u16(&mut buf, 10); // vtable_size
     push_u16(&mut buf, 12); // object_size
-    push_u16(&mut buf, 0);  // field 0 (timestamp) absent
-    push_u16(&mut buf, 0);  // field 1 (motion) absent
-    push_u16(&mut buf, 4);  // field 2 (dash) at byte offset 4 from frame_table
+    push_u16(&mut buf, 0); // field 0 (timestamp) absent
+    push_u16(&mut buf, 0); // field 1 (motion) absent
+    push_u16(&mut buf, 4); // field 2 (dash) at byte offset 4 from frame_table
 
     // Frame table.
     let frame_table_pos = buf.len();
@@ -376,8 +376,8 @@ fn make_kartkraft_packet(
     let vt_dash_start = buf.len();
     push_u16(&mut buf, 16); // vtable_size = 4 + 6*2
     push_u16(&mut buf, 28); // object_size = 4 + 6*4
-    push_u16(&mut buf, 4);  // speed
-    push_u16(&mut buf, 8);  // rpm
+    push_u16(&mut buf, 4); // speed
+    push_u16(&mut buf, 8); // rpm
     push_u16(&mut buf, 12); // steer
     push_u16(&mut buf, 16); // throttle
     push_u16(&mut buf, 20); // brake
@@ -416,11 +416,11 @@ fn kartkraft_snapshot() -> TestResult {
 
 fn make_le_mans_ultimate_packet() -> Vec<u8> {
     let mut data = vec![0u8; 20];
-    write_f32(&mut data, 0, 45.0);    // speed_ms
-    write_f32(&mut data, 4, 7200.0);  // rpm
-    write_f32(&mut data, 8, 4.0);     // gear (4th)
-    write_f32(&mut data, 12, 0.60);   // throttle
-    write_f32(&mut data, 16, 0.0);    // brake
+    write_f32(&mut data, 0, 45.0); // speed_ms
+    write_f32(&mut data, 4, 7200.0); // rpm
+    write_f32(&mut data, 8, 4.0); // gear (4th)
+    write_f32(&mut data, 12, 0.60); // throttle
+    write_f32(&mut data, 16, 0.0); // brake
     data
 }
 
@@ -437,14 +437,14 @@ fn le_mans_ultimate_snapshot() -> TestResult {
 
 fn make_nascar21_packet() -> Vec<u8> {
     let mut data = vec![0u8; 92];
-    write_f32(&mut data, 16, 60.0);   // speed_ms
-    write_f32(&mut data, 32, 4.9);    // acc_x  (longitudinal, m/s²)
-    write_f32(&mut data, 36, 9.8);    // acc_y  (lateral, m/s²)
-    write_f32(&mut data, 68, 3.0);    // gear   (f32, 3 = 3rd)
+    write_f32(&mut data, 16, 60.0); // speed_ms
+    write_f32(&mut data, 32, 4.9); // acc_x  (longitudinal, m/s²)
+    write_f32(&mut data, 36, 9.8); // acc_y  (lateral, m/s²)
+    write_f32(&mut data, 68, 3.0); // gear   (f32, 3 = 3rd)
     write_f32(&mut data, 72, 5500.0); // rpm
-    write_f32(&mut data, 80, 0.90);   // throttle
-    write_f32(&mut data, 84, 0.0);    // brake
-    write_f32(&mut data, 88, 0.20);   // steer
+    write_f32(&mut data, 80, 0.90); // throttle
+    write_f32(&mut data, 84, 0.0); // brake
+    write_f32(&mut data, 88, 0.20); // steer
     data
 }
 

@@ -1364,7 +1364,9 @@ mod tests {
                     "ers_store_fraction out of [0,1]: {f}"
                 );
             }
-            other => return Err(format!("unexpected value for ers_store_fraction: {other:?}").into()),
+            other => {
+                return Err(format!("unexpected value for ers_store_fraction: {other:?}").into());
+            }
         }
         Ok(())
     }

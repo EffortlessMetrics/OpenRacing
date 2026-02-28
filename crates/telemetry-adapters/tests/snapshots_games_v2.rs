@@ -7,8 +7,7 @@
 use racing_wheel_telemetry_adapters::{
     DakarDesertRallyAdapter, FlatOutAdapter, GravelAdapter, GridAutosportAdapter, NascarAdapter,
     RFactor1Adapter, TelemetryAdapter, TrackmaniaAdapter, VRally4Adapter, WrcKylotonnAdapter,
-    gran_turismo_7,
-    wrc_kylotonn::WrcKylotonnVariant,
+    gran_turismo_7, wrc_kylotonn::WrcKylotonnVariant,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -37,14 +36,14 @@ fn write_u32(buf: &mut [u8], offset: usize, val: u32) {
 fn make_dakar_packet() -> Vec<u8> {
     let mut data = vec![0u8; 40];
     data[0..4].copy_from_slice(b"DAKR"); // magic
-    write_f32(&mut data, 8, 30.0);       // speed_ms
-    write_f32(&mut data, 12, 4000.0);    // rpm
-    data[16] = 3;                        // gear
-    write_f32(&mut data, 20, 0.2);       // lateral_g
-    write_f32(&mut data, 24, 0.4);       // longitudinal_g
-    write_f32(&mut data, 28, 0.8);       // throttle
-    write_f32(&mut data, 32, 0.0);       // brake
-    write_f32(&mut data, 36, 0.1);       // steering_angle
+    write_f32(&mut data, 8, 30.0); // speed_ms
+    write_f32(&mut data, 12, 4000.0); // rpm
+    data[16] = 3; // gear
+    write_f32(&mut data, 20, 0.2); // lateral_g
+    write_f32(&mut data, 24, 0.4); // longitudinal_g
+    write_f32(&mut data, 28, 0.8); // throttle
+    write_f32(&mut data, 32, 0.0); // brake
+    write_f32(&mut data, 36, 0.1); // steering_angle
     data
 }
 
@@ -61,13 +60,13 @@ fn dakar_desert_rally_snapshot() -> TestResult {
 fn make_flatout_packet() -> Vec<u8> {
     let mut data = vec![0u8; 36];
     data[0..4].copy_from_slice(b"FOTC"); // magic
-    write_f32(&mut data, 8, 25.0);       // speed_ms
-    write_f32(&mut data, 12, 5500.0);    // rpm
-    data[16] = 4;                        // gear
-    write_f32(&mut data, 20, 0.0);       // lateral_g
-    write_f32(&mut data, 24, 0.0);       // longitudinal_g
-    write_f32(&mut data, 28, 0.7);       // throttle
-    write_f32(&mut data, 32, 0.1);       // brake
+    write_f32(&mut data, 8, 25.0); // speed_ms
+    write_f32(&mut data, 12, 5500.0); // rpm
+    data[16] = 4; // gear
+    write_f32(&mut data, 20, 0.0); // lateral_g
+    write_f32(&mut data, 24, 0.0); // longitudinal_g
+    write_f32(&mut data, 28, 0.7); // throttle
+    write_f32(&mut data, 32, 0.1); // brake
     data
 }
 
@@ -83,14 +82,14 @@ fn flatout_snapshot() -> TestResult {
 
 fn make_nascar_packet() -> Vec<u8> {
     let mut data = vec![0u8; 92];
-    write_f32(&mut data, 16, 50.0);   // speed_ms
-    write_f32(&mut data, 32, 0.0);    // acc_x (longitudinal, m/s²)
-    write_f32(&mut data, 36, 0.0);    // acc_y (lateral, m/s²)
-    write_f32(&mut data, 68, 3.0);    // gear (float: 3 = third gear)
+    write_f32(&mut data, 16, 50.0); // speed_ms
+    write_f32(&mut data, 32, 0.0); // acc_x (longitudinal, m/s²)
+    write_f32(&mut data, 36, 0.0); // acc_y (lateral, m/s²)
+    write_f32(&mut data, 68, 3.0); // gear (float: 3 = third gear)
     write_f32(&mut data, 72, 7000.0); // rpm
-    write_f32(&mut data, 80, 0.9);    // throttle
-    write_f32(&mut data, 84, 0.0);    // brake
-    write_f32(&mut data, 88, -0.2);   // steer
+    write_f32(&mut data, 80, 0.9); // throttle
+    write_f32(&mut data, 84, 0.0); // brake
+    write_f32(&mut data, 88, -0.2); // steer
     data
 }
 
@@ -106,14 +105,14 @@ fn nascar_snapshot() -> TestResult {
 
 fn make_kylotonn_packet() -> Vec<u8> {
     let mut data = vec![0u8; 96];
-    write_f32(&mut data, 0, 0.45);    // stage_progress
-    write_f32(&mut data, 4, 32.0);    // road_speed_ms
-    write_f32(&mut data, 8, -0.3);    // steering
-    write_f32(&mut data, 12, 0.75);   // throttle
-    write_f32(&mut data, 16, 0.0);    // brake
-    write_f32(&mut data, 20, 0.0);    // hand_brake
-    write_f32(&mut data, 24, 0.0);    // clutch
-    write_u32(&mut data, 28, 3);      // gear (0=reverse, 1..7=forward)
+    write_f32(&mut data, 0, 0.45); // stage_progress
+    write_f32(&mut data, 4, 32.0); // road_speed_ms
+    write_f32(&mut data, 8, -0.3); // steering
+    write_f32(&mut data, 12, 0.75); // throttle
+    write_f32(&mut data, 16, 0.0); // brake
+    write_f32(&mut data, 20, 0.0); // hand_brake
+    write_f32(&mut data, 24, 0.0); // clutch
+    write_u32(&mut data, 28, 3); // gear (0=reverse, 1..7=forward)
     write_f32(&mut data, 32, 5200.0); // rpm
     write_f32(&mut data, 36, 8000.0); // max_rpm
     data
@@ -131,12 +130,12 @@ fn wrc_kylotonn_wrc9_snapshot() -> TestResult {
 
 fn make_vrally4_packet() -> Vec<u8> {
     let mut data = vec![0u8; 96];
-    write_f32(&mut data, 4, 22.0);    // speed_ms
-    write_f32(&mut data, 8, 0.15);    // steering
-    write_f32(&mut data, 12, 0.6);    // throttle
-    write_f32(&mut data, 16, 0.0);    // brake
-    write_f32(&mut data, 24, 0.0);    // clutch
-    write_u32(&mut data, 28, 2);      // gear (2nd)
+    write_f32(&mut data, 4, 22.0); // speed_ms
+    write_f32(&mut data, 8, 0.15); // steering
+    write_f32(&mut data, 12, 0.6); // throttle
+    write_f32(&mut data, 16, 0.0); // brake
+    write_f32(&mut data, 24, 0.0); // clutch
+    write_u32(&mut data, 28, 2); // gear (2nd)
     write_f32(&mut data, 32, 4800.0); // rpm
     write_f32(&mut data, 36, 7500.0); // max_rpm
     data
@@ -155,14 +154,14 @@ fn v_rally_4_snapshot() -> TestResult {
 fn make_rfactor1_packet() -> Vec<u8> {
     // OFF_GEAR = 1024; allocate 1025 bytes to cover all fields.
     let mut data = vec![0u8; 1025];
-    write_f64(&mut data, 24, 0.0);     // vel_x
-    write_f64(&mut data, 32, 0.0);     // vel_y
-    write_f64(&mut data, 40, 50.0);    // vel_z → speed = 50.0 m/s
+    write_f64(&mut data, 24, 0.0); // vel_x
+    write_f64(&mut data, 32, 0.0); // vel_y
+    write_f64(&mut data, 40, 50.0); // vel_z → speed = 50.0 m/s
     write_f64(&mut data, 312, 7000.0); // engine_rpm
-    write_f64(&mut data, 992, -0.2);   // steer_input
-    write_f64(&mut data, 1000, 0.9);   // throttle
-    write_f64(&mut data, 1008, 0.0);   // brake
-    data[1024] = 3u8;                  // gear = 3
+    write_f64(&mut data, 992, -0.2); // steer_input
+    write_f64(&mut data, 1000, 0.9); // throttle
+    write_f64(&mut data, 1008, 0.0); // brake
+    data[1024] = 3u8; // gear = 3
     data
 }
 
@@ -199,16 +198,16 @@ fn gran_turismo_sport_snapshot() -> TestResult {
 
 fn make_grid_autosport_packet() -> Vec<u8> {
     let mut data = vec![0u8; 252];
-    write_f32(&mut data, 92, 28.0);    // wheel_speed_fl
-    write_f32(&mut data, 96, 28.0);    // wheel_speed_fr
-    write_f32(&mut data, 100, 28.0);   // wheel_speed_rl
-    write_f32(&mut data, 104, 28.0);   // wheel_speed_rr → speed = 28.0 m/s
-    write_f32(&mut data, 108, 0.85);   // throttle
-    write_f32(&mut data, 112, 0.1);    // steer
-    write_f32(&mut data, 116, 0.0);    // brake
-    write_f32(&mut data, 124, 4.0);    // gear (float: 4.0 → 4th gear)
-    write_f32(&mut data, 128, 0.5);    // gforce_lat
-    write_f32(&mut data, 132, 0.3);    // gforce_lon
+    write_f32(&mut data, 92, 28.0); // wheel_speed_fl
+    write_f32(&mut data, 96, 28.0); // wheel_speed_fr
+    write_f32(&mut data, 100, 28.0); // wheel_speed_rl
+    write_f32(&mut data, 104, 28.0); // wheel_speed_rr → speed = 28.0 m/s
+    write_f32(&mut data, 108, 0.85); // throttle
+    write_f32(&mut data, 112, 0.1); // steer
+    write_f32(&mut data, 116, 0.0); // brake
+    write_f32(&mut data, 124, 4.0); // gear (float: 4.0 → 4th gear)
+    write_f32(&mut data, 128, 0.5); // gforce_lat
+    write_f32(&mut data, 132, 0.3); // gforce_lon
     write_f32(&mut data, 140, 6200.0); // rpm
     write_f32(&mut data, 240, 8500.0); // max_rpm
     data

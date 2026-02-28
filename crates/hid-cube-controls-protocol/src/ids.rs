@@ -135,7 +135,10 @@ mod tests {
 
     #[test]
     fn display_names_non_empty() {
-        assert_eq!(CubeControlsModel::GtPro.display_name(), "Cube Controls GT Pro");
+        assert_eq!(
+            CubeControlsModel::GtPro.display_name(),
+            "Cube Controls GT Pro"
+        );
         assert_eq!(
             CubeControlsModel::FormulaPro.display_name(),
             "Cube Controls Formula Pro"
