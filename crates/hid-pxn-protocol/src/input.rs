@@ -161,3 +161,79 @@ mod tests {
         assert!(parse(&[0u8; 9]).is_err());
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Parsing any arbitrary byte sequence must never panic.
+        #[test]
+        fn prop_parse_never_panics(
+            data in proptest::collection::vec(proptest::num::u8::ANY, 0..=64usize),
+        ) {
+            let _ = parse(&data);
+        }
+
+        /// When parse succeeds, steering must always be in [-1.0, 1.0].
+        #[test]
+        fn prop_steering_in_valid_range(
+            steer_lsb in proptest::num::u8::ANY,
+            steer_msb in proptest::num::u8::ANY,
+            rest in proptest::collection::vec(proptest::num::u8::ANY, 8usize),
+        ) {
+            let mut data = vec![steer_lsb, steer_msb];
+            data.extend_from_slice(&rest);
+            if let Ok(report) = parse(&data) {
+                prop_assert!(
+                    report.steering >= -1.0 && report.steering <= 1.0,
+                    "steering {} out of [-1.0, 1.0]",
+                    report.steering
+                );
+            }
+        }
+
+        /// When parse succeeds, all axis values must be finite and in expected range.
+        #[test]
+        fn prop_axes_always_finite(
+            data in proptest::collection::vec(proptest::num::u8::ANY, 10usize..=16usize),
+        ) {
+            if let Ok(report) = parse(&data) {
+                prop_assert!(report.steering.is_finite(), "steering must be finite");
+                prop_assert!(report.throttle.is_finite(), "throttle must be finite");
+                prop_assert!(report.brake.is_finite(), "brake must be finite");
+                prop_assert!(report.clutch.is_finite(), "clutch must be finite");
+                prop_assert!(report.throttle >= 0.0 && report.throttle <= 1.0,
+                    "throttle {} out of [0, 1]", report.throttle);
+                prop_assert!(report.brake >= 0.0 && report.brake <= 1.0,
+                    "brake {} out of [0, 1]", report.brake);
+                prop_assert!(report.clutch >= 0.0 && report.clutch <= 1.0,
+                    "clutch {} out of [0, 1]", report.clutch);
+            }
+        }
+
+        /// Exact 10-byte slice always parses successfully.
+        #[test]
+        fn prop_10_bytes_always_ok(
+            data in proptest::collection::vec(proptest::num::u8::ANY, 10usize),
+        ) {
+            prop_assert!(parse(&data).is_ok(), "10-byte slice must always parse OK");
+        }
+
+        /// Fewer than 10 bytes always fails with TooShort.
+        #[test]
+        fn prop_short_slice_always_fails(
+            data in proptest::collection::vec(proptest::num::u8::ANY, 0..9usize),
+        ) {
+            let result = parse(&data);
+            prop_assert!(
+                matches!(result, Err(ParseError::TooShort { .. })),
+                "short slice should return TooShort, got {:?}",
+                result
+            );
+        }
+    }
+}
