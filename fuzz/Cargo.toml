@@ -420,6 +420,36 @@ path = "fuzz_targets/fuzz_assetto_corsa.rs"
 test = false
 doc = false
 
+[[bin]]
+name = "fuzz_beamng_udp"
+path = "fuzz_targets/fuzz_beamng_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_wtcr_udp"
+path = "fuzz_targets/fuzz_wtcr_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_forza_motorsport"
+path = "fuzz_targets/fuzz_forza_motorsport.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_iracing"
+path = "fuzz_targets/fuzz_iracing.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_rfactor2"
+path = "fuzz_targets/fuzz_rfactor2.rs"
+test = false
+doc = false
+
 [profile.release]
 opt-level = 3
 debug = true
