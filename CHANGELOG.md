@@ -105,6 +105,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **HID device capture tool** (`racing-wheel-hid-capture`): CLI binary for capturing raw HID reports for test fixture generation
 
+- **22 edge-case integration tests**: zero-length, truncated, max-value, NaN, and concurrent scenarios
+
+- **29 doc tests** across errors, schemas, ffb, filters, and pipeline crates
+
+- **4 new snapshot tests** (Dirt 3/4/5, GRID 2019) — 100% adapter coverage
+
+- **8 Asetek proptest property tests**
+
+- **12 BDD-style acceptance tests**
+
+- **13 missing devices** added to engine tables (G25, ClubSport DD+, Simagic peripherals, Leo Bodnar)
+
 ### Changed
 
 - **Thrustmaster PIDs corrected**: T248X PID `0xB697` → `0xB69A`; T150_PRO relabeled to T500_RS; 4 HOTAS PIDs removed from racing device table
@@ -122,6 +134,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Safety interlock improvements**: `unwrap()` denial enforced across all HID protocol crates; `ReportBuilder::with_capacity` bug fixed (report-ID byte was always `0x00`)
 - **`has_rpm_data()` semantics**: returns `true` only for valid RPM (non-zero, non-NaN); new `has_rpm_display_data()` companion
 - **`is_game_running()` semantics**: returns `Ok(false)` instead of error for known games with no active adapter
+- **~300 `unwrap()`/`expect()` calls eliminated** from test code
+- **Game support matrix verified**: 59/59 games complete
 
 ### Fixed
 
@@ -160,6 +174,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Deprecated field migration**: `wheel_angle_mdeg` → `wheel_angle_deg`, `wheel_speed_mrad_s` → `wheel_speed_rad_s`
 - **Test stability — soft-stop multiplier**: clamped to `[0.0, 1.0]` to prevent oscillation
 - **Test stability — zero-alloc stderr capture**: replaced heap-allocating capture with fixed-size ring buffer
+- **CRITICAL SAFETY**: NaN/Inf in `torque_cap_filter` now maps to `0.0`, not `max_torque`
+- **SAFETY**: Integer overflow protection in FFB `SpringEffect`, `FrictionEffect`
+- **SAFETY**: Explicit f32→i16 clamping in all FFB effect calculations
+- **PCars2/PCars3 adapters** rewritten with correct SMS UDP v2 offsets
+- **RaceRoom adapter** updated from SDK v2 to v3 offsets
+- **WRC Generations** brake temp/tyre pressure offset corrections
+- **Asetek Tony Kanaan** torque corrected 18→27 Nm
+- **VRS DirectForce Pro** PID `0xA355` confirmed via linux-steering-wheels
+- **OpenFFBoard** PID `0xFFB0` confirmed via pid.codes + firmware source
+- **Engine device tables** synced between Windows and Linux
 
 ## [1.0.0] - 2026-10-15
 
