@@ -1060,9 +1060,10 @@ fn calculate_tick_interval(tick_rate: i32) -> Duration {
         return IRSDK_DEFAULT_TICK_RATE;
     }
 
-    match (1.0_f64 / tick_rate as f64).is_finite() {
-        true => Duration::from_secs_f64(1.0 / tick_rate as f64),
-        false => IRSDK_DEFAULT_TICK_RATE,
+    if (1.0_f64 / tick_rate as f64).is_finite() {
+        Duration::from_secs_f64(1.0 / tick_rate as f64)
+    } else {
+        IRSDK_DEFAULT_TICK_RATE
     }
 }
 
