@@ -1,0 +1,12 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshot_tests.rs
+expression: report
+---
+- 5
+- 255
+- 127
+- 0
+- 0
+- 0
+- 0
+- 0
