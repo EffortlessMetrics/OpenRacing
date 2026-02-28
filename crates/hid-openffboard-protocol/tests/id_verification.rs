@@ -29,7 +29,9 @@ fn main_pid_is_ffb0() {
 
 /// OpenFFBoard alternate firmware PID must be 0xFFB1.
 ///
-/// Source: OpenFFBoard GitHub project; community reports.
+/// NOTE: 0xFFB1 is **not** registered on pid.codes and is absent from the
+/// official configurator and driver.  Pinned here to track the current value;
+/// update if an authoritative source confirms or replaces it.
 #[test]
 fn alt_pid_is_ffb1() {
     assert_eq!(OPENFFBOARD_PRODUCT_ID_ALT, 0xFFB1);

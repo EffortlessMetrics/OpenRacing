@@ -9,12 +9,18 @@ pub const OPENFFBOARD_VENDOR_ID: u16 = 0x1209;
 
 /// OpenFFBoard main product ID.
 ///
-/// Used by the primary firmware build for the main board.
+/// Confirmed via the pid.codes registry, the OpenFFBoard-configurator
+/// (`serial_ui.py`, `OFFICIAL_VID_PID`), and the Windows CDC driver
+/// (`cdc.inf`: `VID_1209&PID_FFB0`).
 pub const OPENFFBOARD_PRODUCT_ID: u16 = 0xFFB0;
 
 /// OpenFFBoard alternate product ID.
 ///
-/// Used by secondary/experimental firmware builds.
+/// **Unverified**: PID `0xFFB1` is *not* registered on pid.codes (returns 404
+/// as of 2025-02) and does not appear in the official OpenFFBoard-configurator
+/// (`serial_ui.py` only lists `0xFFB0`) or the Windows CDC driver (`cdc.inf`).
+/// Retained for possible future / community firmware builds, but should not be
+/// treated as confirmed.
 pub const OPENFFBOARD_PRODUCT_ID_ALT: u16 = 0xFFB1;
 
 /// Returns `true` if `product_id` is a known OpenFFBoard product.

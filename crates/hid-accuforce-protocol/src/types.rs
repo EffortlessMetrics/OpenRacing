@@ -29,6 +29,12 @@ impl AccuForceModel {
     }
 
     /// Rated peak torque in Newton-metres.
+    ///
+    /// The AccuForce Pro V1 motor is rated at ~7 Nm peak.  The V2 revision
+    /// uses a larger motor commonly cited at ~13 Nm peak by community
+    /// sources; however SimXperience's product page is no longer available
+    /// to confirm the exact figure.  Using the conservative V1 value here
+    /// until an authoritative V2 datasheet is found.
     pub fn max_torque_nm(self) -> f32 {
         match self {
             Self::Pro => 7.0,
