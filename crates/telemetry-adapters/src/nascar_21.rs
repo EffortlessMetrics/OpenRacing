@@ -7,8 +7,7 @@
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver,
-    nascar::parse_nascar_packet,
-    telemetry_now_ns,
+    nascar::parse_nascar_packet, telemetry_now_ns,
 };
 use anyhow::Result;
 use async_trait::async_trait;
@@ -224,7 +223,8 @@ mod tests {
     #[test]
     fn test_default_port() {
         // Clear env var if set, then check default
-        std::env::remove_var("OPENRACING_NASCAR21_UDP_PORT");
+        // SAFETY: test-only, single-threaded context
+        unsafe { std::env::remove_var("OPENRACING_NASCAR21_UDP_PORT") };
         let adapter = Nascar21Adapter::new();
         assert_eq!(adapter.bind_port, DEFAULT_PORT);
     }
