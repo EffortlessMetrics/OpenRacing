@@ -244,7 +244,12 @@ impl core::fmt::Debug for WindowsETWProvider {
 
 impl Default for WindowsETWProvider {
     fn default() -> Self {
-        Self::new().expect("failed to create WindowsETWProvider")
+        // WindowsETWProvider::new() is infallible in practice
+        Self::new().unwrap_or_else(|_| Self {
+            provider_handle: None,
+            rt_events_count: AtomicU64::new(0),
+            app_events_count: AtomicU64::new(0),
+        })
     }
 }
 
