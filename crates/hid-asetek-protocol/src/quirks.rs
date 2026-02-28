@@ -20,5 +20,5 @@
 ///
 /// On Windows the OS polls all HID devices by default; no workaround is needed.
 ///
-/// Source: JacKeTUs/linux-steering-wheels compatibility table, footnote [^13].
+/// Source: JacKeTUs/linux-steering-wheels compatibility table (footnote 13).
 pub const REQUIRES_ALWAYS_POLL_LINUX: bool = true;

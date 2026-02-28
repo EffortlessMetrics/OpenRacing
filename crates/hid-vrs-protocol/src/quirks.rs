@@ -8,7 +8,7 @@
 /// wheel is physically rotated at least a few degrees.  No software workaround
 /// is required — FFB will activate automatically once the wheel moves.
 ///
-/// Source: JacKeTUs/linux-steering-wheels compatibility table, footnote [^12].
+/// Source: JacKeTUs/linux-steering-wheels compatibility table (footnote 12).
 pub const POWER_SAVE_ON_FIRST_CONNECT: bool = true;
 
 /// VRS devices use standard PIDFF and do **not** require `HID_QUIRK_ALWAYS_POLL`
