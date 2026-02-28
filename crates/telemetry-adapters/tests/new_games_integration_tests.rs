@@ -1,4 +1,4 @@
-﻿//! Integration tests for newer game telemetry adapters added during the RC sprint.
+//! Integration tests for newer game telemetry adapters added during the RC sprint.
 //!
 //! Covers: ETS2/ATS, Wreckfest, Rennsport, WRC Generations, Dirt 4, Project CARS 2, LFS.
 //!
@@ -395,14 +395,15 @@ fn make_pcars2_packet(
     max_rpm: f32,
     gear: u32,
 ) -> Vec<u8> {
-    let mut data = vec![0u8; 84];
-    write_f32_le(&mut data, 40, steering);
-    write_f32_le(&mut data, 44, throttle);
-    write_f32_le(&mut data, 48, brake);
-    write_f32_le(&mut data, 52, speed);
-    write_f32_le(&mut data, 56, rpm);
-    write_f32_le(&mut data, 60, max_rpm);
-    write_u32_le(&mut data, 80, gear);
+    let mut data = vec![0u8; 46];
+    data[44] = (steering.clamp(-1.0, 1.0) * 127.0) as i8 as u8; // steering i8
+    data[30] = (throttle.clamp(0.0, 1.0) * 255.0) as u8; // throttle u8
+    data[29] = (brake.clamp(0.0, 1.0) * 255.0) as u8; // brake u8
+    write_f32_le(&mut data, 36, speed); // speed f32 m/s
+    data[40..42].copy_from_slice(&(rpm as u16).to_le_bytes()); // rpm u16
+    data[42..44].copy_from_slice(&(max_rpm as u16).to_le_bytes()); // max_rpm u16
+    let gear_val: u8 = if gear > 14 { 15 } else { gear as u8 };
+    data[45] = gear_val; // gear low nibble
     data
 }
 
@@ -413,7 +414,12 @@ fn pcars2_happy_path_parses_fields() -> TestResult {
     assert!((t.rpm - 7000.0).abs() < 1.0, "rpm={}", t.rpm);
     assert!((t.speed_ms - 45.0).abs() < 0.01, "speed_ms={}", t.speed_ms);
     assert_eq!(t.gear, 4, "gear={}", t.gear);
-    assert!((t.throttle - 0.9).abs() < 0.01, "throttle={}", t.throttle);
+    // u8 round-trip: (0.9 * 255) as u8 = 229, 229/255 ≈ 0.898
+    assert!(
+        (t.throttle - 229.0 / 255.0).abs() < 0.01,
+        "throttle={}",
+        t.throttle
+    );
     Ok(())
 }
 
@@ -828,8 +834,8 @@ mod proptest_tests {
 
         #[test]
         fn pcars2_short_packet_always_errors(
-            // PCARS2_UDP_MIN_SIZE = 84
-            data in proptest::collection::vec(any::<u8>(), 0..84usize)
+            // PCARS2_UDP_MIN_SIZE = 46
+            data in proptest::collection::vec(any::<u8>(), 0..46usize)
         ) {
             prop_assert!(PCars2Adapter::new().normalize(&data).is_err());
         }
@@ -846,8 +852,7 @@ mod proptest_tests {
         ) {
             let pkt = make_pcars2_packet(steering, throttle, brake, speed, rpm, max_rpm, gear);
             let result = PCars2Adapter::new().normalize(&pkt);
-            prop_assert!(result.is_ok(), "expected normalize to succeed: {:?}", result.err());
-            let t = result.unwrap();
+            let t = result.map_err(|e| TestCaseError::fail(format!("normalize failed: {e:?}")))?;
             prop_assert!(t.speed_ms >= 0.0, "speed_ms {} must be non-negative", t.speed_ms);
         }
     }

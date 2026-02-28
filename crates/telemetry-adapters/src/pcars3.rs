@@ -165,16 +165,16 @@ mod tests {
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
     /// Minimum packet size matching the PCARS2 format.
-    const PCARS2_UDP_MIN_SIZE: usize = 84;
+    const PCARS2_UDP_MIN_SIZE: usize = 46;
 
-    // Field offsets (same as PCARS2)
-    const OFF_STEERING: usize = 40;
-    const OFF_THROTTLE: usize = 44;
-    const OFF_BRAKE: usize = 48;
-    const OFF_SPEED: usize = 52;
-    const OFF_RPM: usize = 56;
-    const OFF_MAX_RPM: usize = 60;
-    const OFF_GEAR: usize = 80;
+    // Field offsets (same as PCARS2 - SMS UDP sTelemetryData)
+    const OFF_BRAKE: usize = 29;
+    const OFF_THROTTLE: usize = 30;
+    const OFF_SPEED: usize = 36;
+    const OFF_RPM: usize = 40;
+    const OFF_MAX_RPM: usize = 42;
+    const OFF_STEERING: usize = 44;
+    const OFF_GEAR_NUM_GEARS: usize = 45;
 
     fn make_pcars3_packet(
         steering: f32,
@@ -186,13 +186,14 @@ mod tests {
         gear: u32,
     ) -> Vec<u8> {
         let mut data = vec![0u8; PCARS2_UDP_MIN_SIZE];
-        data[OFF_STEERING..OFF_STEERING + 4].copy_from_slice(&steering.to_le_bytes());
-        data[OFF_THROTTLE..OFF_THROTTLE + 4].copy_from_slice(&throttle.to_le_bytes());
-        data[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&brake.to_le_bytes());
+        data[OFF_STEERING] = (steering.clamp(-1.0, 1.0) * 127.0) as i8 as u8;
+        data[OFF_THROTTLE] = (throttle.clamp(0.0, 1.0) * 255.0) as u8;
+        data[OFF_BRAKE] = (brake.clamp(0.0, 1.0) * 255.0) as u8;
         data[OFF_SPEED..OFF_SPEED + 4].copy_from_slice(&speed.to_le_bytes());
-        data[OFF_RPM..OFF_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
-        data[OFF_MAX_RPM..OFF_MAX_RPM + 4].copy_from_slice(&max_rpm.to_le_bytes());
-        data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&gear.to_le_bytes());
+        data[OFF_RPM..OFF_RPM + 2].copy_from_slice(&(rpm as u16).to_le_bytes());
+        data[OFF_MAX_RPM..OFF_MAX_RPM + 2].copy_from_slice(&(max_rpm as u16).to_le_bytes());
+        let gear_val: u8 = if gear > 14 { 15 } else { gear as u8 };
+        data[OFF_GEAR_NUM_GEARS] = gear_val;
         data
     }
 
@@ -207,12 +208,15 @@ mod tests {
         let adapter = PCars3Adapter::new();
         let data = make_pcars3_packet(0.25, 0.9, 0.1, 45.0, 6000.0, 9000.0, 4);
         let result = adapter.normalize(&data)?;
-        assert!((result.steering_angle - 0.25).abs() < 0.001);
-        assert!((result.throttle - 0.9).abs() < 0.001);
-        assert!((result.brake - 0.1).abs() < 0.001);
+        // i8 round-trip: (0.25 * 127) as i8 = 31, 31/127 ≈ 0.24409
+        assert!((result.steering_angle - 31.0 / 127.0).abs() < 0.001);
+        // u8 round-trip: (0.9 * 255) as u8 = 229, 229/255 ≈ 0.898
+        assert!((result.throttle - 229.0 / 255.0).abs() < 0.001);
+        // u8 round-trip: (0.1 * 255) as u8 = 25, 25/255 ≈ 0.098
+        assert!((result.brake - 25.0 / 255.0).abs() < 0.001);
         assert!((result.speed_ms - 45.0).abs() < 0.01);
-        assert!((result.rpm - 6000.0).abs() < 0.01);
-        assert!((result.max_rpm - 9000.0).abs() < 0.01);
+        assert!((result.rpm - 6000.0).abs() < 1.0);
+        assert!((result.max_rpm - 9000.0).abs() < 1.0);
         assert_eq!(result.gear, 4);
         Ok(())
     }
@@ -232,7 +236,7 @@ mod tests {
     #[test]
     fn test_pcars3_truncated_packet() {
         let adapter = PCars3Adapter::new();
-        let data = vec![0u8; 50];
+        let data = vec![0u8; 30];
         assert!(adapter.normalize(&data).is_err());
     }
 

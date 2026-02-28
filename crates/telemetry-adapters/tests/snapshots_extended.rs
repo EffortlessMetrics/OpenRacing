@@ -140,14 +140,14 @@ fn ats_scs_normalized_snapshot() -> TestResult {
 // ─── PCars2 ──────────────────────────────────────────────────────────────────
 
 fn make_pcars2_packet() -> Vec<u8> {
-    let mut data = vec![0u8; 84];
-    write_f32(&mut data, 40, 0.1); // steering
-    write_f32(&mut data, 44, 0.85); // throttle
-    write_f32(&mut data, 48, 0.0); // brake
-    write_f32(&mut data, 52, 50.0); // speed_ms
-    write_f32(&mut data, 56, 6500.0); // rpm
-    write_f32(&mut data, 60, 8500.0); // max_rpm
-    write_u32(&mut data, 80, 4); // gear = 4
+    let mut data = vec![0u8; 46];
+    data[44] = (0.1f32 * 127.0) as i8 as u8; // steering i8
+    data[30] = (0.85f32 * 255.0) as u8; // throttle u8
+    data[29] = 0; // brake u8
+    write_f32(&mut data, 36, 50.0); // speed f32 m/s
+    data[40..42].copy_from_slice(&6500u16.to_le_bytes()); // rpm u16
+    data[42..44].copy_from_slice(&8500u16.to_le_bytes()); // max_rpm u16
+    data[45] = 4 | (6 << 4); // gear=4, num_gears=6
     data
 }
 
@@ -162,14 +162,14 @@ fn pcars2_udp_normalized_snapshot() -> TestResult {
 // ─── PCars3 ──────────────────────────────────────────────────────────────────
 
 fn make_pcars3_packet() -> Vec<u8> {
-    let mut data = vec![0u8; 84];
-    write_f32(&mut data, 40, 0.15); // steering
-    write_f32(&mut data, 44, 0.75); // throttle
-    write_f32(&mut data, 48, 0.0); // brake
-    write_f32(&mut data, 52, 45.0); // speed_ms (≈162 km/h)
-    write_f32(&mut data, 56, 7200.0); // rpm
-    write_f32(&mut data, 60, 8500.0); // max_rpm
-    write_u32(&mut data, 80, 4); // gear = 4
+    let mut data = vec![0u8; 46];
+    data[44] = (0.15f32 * 127.0) as i8 as u8; // steering i8
+    data[30] = (0.75f32 * 255.0) as u8; // throttle u8
+    data[29] = 0; // brake u8
+    write_f32(&mut data, 36, 45.0); // speed f32 m/s (≈162 km/h)
+    data[40..42].copy_from_slice(&7200u16.to_le_bytes()); // rpm u16
+    data[42..44].copy_from_slice(&8500u16.to_le_bytes()); // max_rpm u16
+    data[45] = 4 | (6 << 4); // gear=4, num_gears=6
     data
 }
 

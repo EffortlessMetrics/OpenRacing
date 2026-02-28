@@ -26,6 +26,7 @@ fn write_i32_le(buf: &mut [u8], offset: usize, value: i32) {
     buf[offset..offset + 4].copy_from_slice(&bytes);
 }
 
+#[allow(dead_code)]
 fn write_u32_le(buf: &mut [u8], offset: usize, value: u32) {
     let bytes = value.to_le_bytes();
     buf[offset..offset + 4].copy_from_slice(&bytes);
@@ -249,7 +250,7 @@ fn pcars2_empty_packet_returns_error() -> TestResult {
 fn pcars2_short_packet_returns_error() -> TestResult {
     let adapter = PCars2Adapter::new();
     assert!(
-        adapter.normalize(&[0u8; 50]).is_err(),
+        adapter.normalize(&[0u8; 30]).is_err(),
         "short packet must return Err"
     );
     Ok(())
@@ -257,14 +258,14 @@ fn pcars2_short_packet_returns_error() -> TestResult {
 
 #[test]
 fn pcars2_valid_packet_parses_fields() -> TestResult {
-    let mut pkt = vec![0u8; 84];
-    write_f32_le(&mut pkt, 40, -0.15); // steering
-    write_f32_le(&mut pkt, 44, 0.9); // throttle
-    write_f32_le(&mut pkt, 48, 0.0); // brake
-    write_f32_le(&mut pkt, 52, 45.0); // speed m/s
-    write_f32_le(&mut pkt, 56, 7000.0); // rpm
-    write_f32_le(&mut pkt, 60, 9000.0); // max_rpm
-    write_u32_le(&mut pkt, 80, 4); // gear
+    let mut pkt = vec![0u8; 46];
+    pkt[44] = (-0.15f32 * 127.0) as i8 as u8; // steering i8
+    pkt[30] = (0.9f32 * 255.0) as u8; // throttle u8
+    pkt[29] = 0; // brake u8
+    write_f32_le(&mut pkt, 36, 45.0); // speed f32 m/s
+    pkt[40..42].copy_from_slice(&7000u16.to_le_bytes()); // rpm u16
+    pkt[42..44].copy_from_slice(&9000u16.to_le_bytes()); // max_rpm u16
+    pkt[45] = 4; // gear=4
 
     let adapter = PCars2Adapter::new();
     let t = adapter.normalize(&pkt)?;
@@ -276,7 +277,11 @@ fn pcars2_valid_packet_parses_fields() -> TestResult {
     );
     assert!((t.speed_ms - 45.0).abs() < 0.01, "speed must be ~45 m/s");
     assert_eq!(t.gear, 4, "gear must be 4");
-    assert!((t.throttle - 0.9).abs() < 0.01, "throttle must be ~0.9");
+    // u8 round-trip: (0.9 * 255) as u8 = 229, 229/255 ≈ 0.898
+    assert!(
+        (t.throttle - 229.0 / 255.0).abs() < 0.01,
+        "throttle must be ~0.9"
+    );
     Ok(())
 }
 

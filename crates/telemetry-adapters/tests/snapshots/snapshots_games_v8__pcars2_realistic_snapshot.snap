@@ -1,17 +1,16 @@
 ---
 source: crates/telemetry-adapters/tests/snapshots_games_v8.rs
-assertion_line: 281
 expression: normalized
 ---
 speed_ms: 50
-steering_angle: 0.12
+steering_angle: 0.11811024
 throttle: 0.8
-brake: 0.1
+brake: 0.09803922
 clutch: 0
 rpm: 8000
 max_rpm: 9500
 gear: 4
-num_gears: 0
+num_gears: 6
 lateral_g: 0
 longitudinal_g: 0
 vertical_g: 0

@@ -252,14 +252,14 @@ fn wrc_generations_realistic_snapshot() -> TestResult {
 // steering@40, throttle@44, brake@48, speed@52, rpm@56, max_rpm@60, gear@80(u32).
 
 fn make_pcars2_data() -> Vec<u8> {
-    let mut buf = vec![0u8; 84];
-    write_f32_le(&mut buf, 40, 0.12); // steering (slight right)
-    write_f32_le(&mut buf, 44, 0.80); // throttle
-    write_f32_le(&mut buf, 48, 0.10); // brake
-    write_f32_le(&mut buf, 52, 50.0); // speed m/s ≈ 180 km/h
-    write_f32_le(&mut buf, 56, 8000.0); // rpm
-    write_f32_le(&mut buf, 60, 9500.0); // max_rpm
-    buf[80..84].copy_from_slice(&4u32.to_le_bytes()); // gear = 4
+    let mut buf = vec![0u8; 46];
+    buf[44] = (0.12f32 * 127.0) as i8 as u8; // steering i8 [-127,+127]
+    buf[30] = (0.80f32 * 255.0) as u8; // throttle u8 [0-255]
+    buf[29] = (0.10f32 * 255.0) as u8; // brake u8 [0-255]
+    write_f32_le(&mut buf, 36, 50.0); // speed f32 m/s
+    buf[40..42].copy_from_slice(&8000u16.to_le_bytes()); // rpm u16
+    buf[42..44].copy_from_slice(&9500u16.to_le_bytes()); // max_rpm u16
+    buf[45] = 4 | (6 << 4); // gear=4, num_gears=6
     buf
 }
 
