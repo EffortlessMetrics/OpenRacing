@@ -1,6 +1,6 @@
 //! NASCAR Heat 5 / NASCAR 21 Ignition telemetry adapter (Papyrus UDP format).
 //!
-//! Enable UDP telemetry in-game: Options → Gameplay → Telemetry Output, port 7777.
+//! Enable UDP telemetry in-game: Options → Gameplay → Telemetry Output, port 5606.
 //!
 //! The packet is a fixed-layout binary stream (little-endian f32 at known offsets).
 //! Packet structure based on community reverse-engineering of the Papyrus UDP format:
@@ -46,7 +46,7 @@ use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
-const DEFAULT_PORT: u16 = 7777;
+const DEFAULT_PORT: u16 = 5606;
 const MIN_PACKET_SIZE: usize = 92;
 const MAX_PACKET_SIZE: usize = 512;
 

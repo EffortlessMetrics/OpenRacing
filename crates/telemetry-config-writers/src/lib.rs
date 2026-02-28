@@ -221,6 +221,14 @@ fn new_snowrunner_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(SnowRunnerConfigWriter)
 }
 
+fn new_motogp_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(MotoGPConfigWriter)
+}
+
+fn new_ride5_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(Ride5ConfigWriter)
+}
+
 /// Returns the canonical config writer registry for all supported integrations.
 pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory)] {
     &[
@@ -402,12 +410,12 @@ const SNOWRUNNER_BRIDGE_PROTOCOL: &str = "simhub_udp_json";
 const SNOWRUNNER_DEFAULT_PORT: u16 = 8877;
 
 const MOTOGP_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/motogp_bridge_contract.json";
-const MOTOGP_BRIDGE_PROTOCOL: &str = "motogp_udp";
-const MOTOGP_DEFAULT_PORT: u16 = 20777;
+const MOTOGP_BRIDGE_PROTOCOL: &str = "simhub_udp_json";
+const MOTOGP_DEFAULT_PORT: u16 = 5556;
 
 const RIDE5_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/ride5_bridge_contract.json";
-const RIDE5_BRIDGE_PROTOCOL: &str = "ride5_udp";
-const RIDE5_DEFAULT_PORT: u16 = 20777;
+const RIDE5_BRIDGE_PROTOCOL: &str = "simhub_udp_json";
+const RIDE5_DEFAULT_PORT: u16 = 5558;
 
 /// iRacing configuration writer
 pub struct IRacingConfigWriter;
