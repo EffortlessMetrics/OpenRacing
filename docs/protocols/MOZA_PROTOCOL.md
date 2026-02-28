@@ -19,7 +19,7 @@ Moza Racing hardware generally follows a unified HID-over-USB protocol. However,
 | **SR-P Lite** | Pedals | **Wheelbase Port** | N/A (Embedded) | **Supported** |
 | **SR-P (Standard)** | Pedals | USB | `0x0003` (Typical) | *Partial* |
 | **CRP Pedals** | Pedals | USB | `0x0001` (Typical) | *Partial* |
-| **HBP Handbrake** | Handbrake | USB | `0x0022` (standalone) | *Partial* |
+| **HBP Handbrake** | Handbrake | USB | `0x0022` (standalone) | **Supported (Best-Effort)** |
 
 ## Moza KS support model (wheel + controls)
 
@@ -40,6 +40,15 @@ The KS is **not** treated as a normal wheel peripheral. OpenRacing uses a topolo
 - Treat all mode decisions as potentially changing with firmware and Pit House profile settings unless validated in artifact checks.
 
 ### Open items from current implementation
+
+**Implemented:**
+- KS rim detection via `funky` byte (`rim_ids::KS = 0x05`) in wheelbase input report.
+- Button and hat parsing for KS rim via `default_wheelbase_ks_map()` (uses `input_report::BUTTONS_START` and `input_report::HAT_START`).
+- Rotary encoder bytes at `ROTARY_START` / `ROTARY_START + 1` are preserved in `ks_snapshot.encoders[0..1]` for both KS and non-KS rims.
+- Fallback snapshot for non-KS rims provides common controls (buttons, hat, rotary[0..1]).
+- Clutch, joystick mode, and encoder[2..7] remain `None`/`Unknown` pending capture-validated offsets.
+
+**Pending capture data:**
 
 - Confirm exact report IDs / descriptor signatures for:
   - KS over wheelbase path (including whether rim ID bytes expose “KS attached”),
@@ -142,6 +151,18 @@ Moza handbrake input appears in two supported runtime paths:
    - Axis is expected in the wheelbase report handbrake field (`report_id=0x01`, offset 9..10), when present.
 
 Only topology-level behavior and timing has been implemented in-engine; exact payload layouts and optional button semantics are marked **capture-validated only** until USB traces are added in the capture utility.
+
+### HBP implementation status
+
+Three report layouts are supported via best-effort inference in `racing-wheel-hbp::parse_hbp_usb_report_best_effort`:
+
+1. `[report_id, axis_lo, axis_hi, button_byte]` — report-ID-prefixed (takes priority when first byte ≠ 0).
+2. `[axis_lo, axis_hi]` — raw two-byte (no button information).
+3. `[axis_lo, axis_hi, button_byte]` — raw with button.
+
+When a `button_byte` is present it is placed in `MozaInputState::buttons[0]`. The axis value is always in `MozaInputState::handbrake_u16` (raw `u16`, full range 0–65535).
+
+Digital (on/off) mode: games wishing to treat the HBP as a binary switch should check `buttons[0] != 0` rather than the axis value; the axis value reflects the physical position regardless of Pit House mode setting.
 
 ## HBP Capture and Validation Notes
 

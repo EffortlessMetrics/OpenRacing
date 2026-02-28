@@ -1,0 +1,6 @@
+---
+source: crates/hid-logitech-protocol/tests/snapshot_tests.rs
+assertion_line: 57
+expression: "format!(\"steering={:.4}, throttle={:.4}, brake={:.4}, clutch={:.4}, \\\n         buttons=0x{:04X}, hat=0x{:X}, paddles={}\",\nstate.steering, state.throttle, state.brake, state.clutch, state.buttons,\nstate.hat, state.paddles,)"
+---
+steering=0.0000, throttle=1.0000, brake=0.5020, clutch=0.0000, buttons=0x0005, hat=0x8, paddles=3

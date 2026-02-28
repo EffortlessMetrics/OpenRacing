@@ -1,0 +1,5 @@
+---
+source: crates/hid-leo-bodnar-protocol/tests/snapshot_tests.rs
+expression: "summary.join(\"\\n\")"
+---
+"USB_JOYSTICK: max_channels=32\nBU0836A: max_channels=32\nBBI32: max_channels=32\nWHEEL_INTERFACE: max_channels=32\nFFB_JOYSTICK: max_channels=32\nBU0836X: max_channels=32\nBU0836_16BIT: max_channels=32\nSLI_M: max_channels=0"

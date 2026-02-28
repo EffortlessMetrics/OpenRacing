@@ -1,0 +1,5 @@
+---
+source: crates/openracing-tracing/tests/snapshot_tests.rs
+expression: "format!(\"{}\", event)"
+---
+ProfileApplied(device=wheel-001, profile=GT3_Dominant, hash=sha256:abc123)

@@ -1,0 +1,6 @@
+---
+source: crates/hid-openffboard-protocol/tests/snapshot_tests.rs
+assertion_line: 92
+expression: "format!(\"VID={:#06X}, PID={:#06X}, PID_ALT={:#06X}, REPORT_ID={:#04X}, REPORT_LEN={}, GAIN_ID={:#04X}\",\nOPENFFBOARD_VENDOR_ID, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT,\nCONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, GAIN_REPORT_ID,)"
+---
+VID=0x1209, PID=0xFFB0, PID_ALT=0xFFB1, REPORT_ID=0x01, REPORT_LEN=5, GAIN_ID=0x61

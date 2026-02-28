@@ -1,0 +1,5 @@
+---
+source: crates/hid-asetek-protocol/tests/snapshot_tests.rs
+expression: "format!(\"{:?}\", results)"
+---
+"[(\"forte\", Forte), (\"invicta\", Invicta), (\"laprima\", LaPrima), (\"wrong_vid\", Unknown)]"

@@ -1,36 +1,41 @@
 //! Simagic protocol handler.
 //!
-//! The Alpha EVO transport is intentionally capture-first in this codebase.
-//! We identify candidate hardware and apply conservative configuration, but
-//! do not send unverified arming/output sequences.
+//! Legacy devices (VIDs 0x0483, 0x16D0) use passive/capture mode.
+//! EVO-generation devices (VID 0x3670) use active FFB initialization.
 
 #![deny(static_mut_refs)]
 
 use super::{DeviceWriter, FfbConfig, VendorProtocol};
 use tracing::{debug, info, warn};
 
+use racing_wheel_hid_simagic_protocol::ids::report_ids;
+pub use racing_wheel_hid_simagic_protocol::{
+    CONSTANT_FORCE_REPORT_LEN, SIMAGIC_VENDOR_ID, build_device_gain, build_rotation_range,
+};
+
 /// Simagic vendor IDs observed across hardware generations.
 pub mod vendor_ids {
     /// Legacy Simagic VID (STMicroelectronics-based USB stack).
     pub const SIMAGIC_STM: u16 = 0x0483;
-    /// Legacy Simagic alternate VID.
+    /// Legacy Simagic alternate VID (MCS/OpenMoko, shared with Heusinkveld).
     pub const SIMAGIC_ALT: u16 = 0x16D0;
-    /// Simagic-owned VID used by newer devices.
+    /// Simagic EVO VID (Shen Zhen Simagic Technology Co., Ltd.).
     pub const SIMAGIC_EVO: u16 = 0x3670;
 }
 
-/// Known and candidate Simagic product IDs.
+/// Known Simagic product IDs.
 pub mod product_ids {
+    // Legacy PIDs (VIDs 0x0483, 0x16D0)
     pub const ALPHA: u16 = 0x0522;
     pub const ALPHA_MINI: u16 = 0x0523;
     pub const ALPHA_ULTIMATE: u16 = 0x0524;
     pub const M10: u16 = 0x0D5A;
     pub const FX: u16 = 0x0D5B;
 
-    // Capture-candidate IDs for Alpha EVO generation.
-    pub const ALPHA_EVO_SPORT_CANDIDATE: u16 = 0x0001;
-    pub const ALPHA_EVO_CANDIDATE: u16 = 0x0002;
-    pub const ALPHA_EVO_PRO_CANDIDATE: u16 = 0x0003;
+    // EVO generation PIDs (VID 0x3670) — verified via linux-steering-wheels
+    pub const EVO_SPORT: u16 = 0x0500;
+    pub const EVO: u16 = 0x0501;
+    pub const EVO_PRO: u16 = 0x0502;
 }
 
 /// Simagic model classification used for conservative defaults.
@@ -41,10 +46,10 @@ pub enum SimagicModel {
     AlphaUltimate,
     M10,
     Fx,
-    AlphaEvoSportCandidate,
-    AlphaEvoCandidate,
-    AlphaEvoProCandidate,
-    AlphaEvoUnknown,
+    EvoSport,
+    Evo,
+    EvoPro,
+    EvoUnknown,
     Unknown,
 }
 
@@ -52,10 +57,10 @@ impl SimagicModel {
     fn from_ids(vendor_id: u16, product_id: u16) -> Self {
         if vendor_id == vendor_ids::SIMAGIC_EVO {
             return match product_id {
-                product_ids::ALPHA_EVO_SPORT_CANDIDATE => Self::AlphaEvoSportCandidate,
-                product_ids::ALPHA_EVO_CANDIDATE => Self::AlphaEvoCandidate,
-                product_ids::ALPHA_EVO_PRO_CANDIDATE => Self::AlphaEvoProCandidate,
-                _ => Self::AlphaEvoUnknown,
+                product_ids::EVO_SPORT => Self::EvoSport,
+                product_ids::EVO => Self::Evo,
+                product_ids::EVO_PRO => Self::EvoPro,
+                _ => Self::EvoUnknown,
             };
         }
 
@@ -76,21 +81,17 @@ impl SimagicModel {
             Self::AlphaUltimate => 23.0,
             Self::M10 => 10.0,
             Self::Fx => 6.0,
-            Self::AlphaEvoSportCandidate => 9.0,
-            Self::AlphaEvoCandidate => 12.0,
-            Self::AlphaEvoProCandidate => 18.0,
-            // Conservative default until capture confirms exact hardware tier.
-            Self::AlphaEvoUnknown => 9.0,
+            Self::EvoSport => 15.0,
+            Self::Evo => 20.0,
+            Self::EvoPro => 30.0,
+            Self::EvoUnknown => 15.0,
             Self::Unknown => 5.0,
         }
     }
 
     fn encoder_cpr(self) -> u32 {
         match self {
-            Self::AlphaEvoSportCandidate
-            | Self::AlphaEvoCandidate
-            | Self::AlphaEvoProCandidate
-            | Self::AlphaEvoUnknown => 2_097_152,
+            Self::EvoSport | Self::Evo | Self::EvoPro | Self::EvoUnknown => 2_097_152,
             _ => 262_144,
         }
     }
@@ -98,10 +99,7 @@ impl SimagicModel {
     fn is_evo_generation(self) -> bool {
         matches!(
             self,
-            Self::AlphaEvoSportCandidate
-                | Self::AlphaEvoCandidate
-                | Self::AlphaEvoProCandidate
-                | Self::AlphaEvoUnknown
+            Self::EvoSport | Self::Evo | Self::EvoPro | Self::EvoUnknown
         )
     }
 }
@@ -132,25 +130,36 @@ impl SimagicProtocol {
     pub fn model(&self) -> SimagicModel {
         self.model
     }
+
+    fn is_evo_device(&self) -> bool {
+        self.vendor_id == vendor_ids::SIMAGIC_EVO
+    }
 }
 
 impl VendorProtocol for SimagicProtocol {
     fn initialize_device(
         &self,
-        _writer: &mut dyn DeviceWriter,
+        writer: &mut dyn DeviceWriter,
     ) -> Result<(), Box<dyn std::error::Error>> {
         info!(
             "Initializing Simagic device VID=0x{:04X} PID=0x{:04X} model={:?}",
             self.vendor_id, self.product_id, self.model
         );
 
-        if self.model.is_evo_generation() {
-            warn!(
-                "Alpha EVO initialization handshake is capture-pending; skipping unverified arming sequence"
-            );
+        if self.is_evo_device() {
+            if matches!(self.model, SimagicModel::EvoUnknown) {
+                warn!(
+                    "Unknown EVO device PID=0x{:04X}; sending conservative gain and rotation range",
+                    self.product_id
+                );
+            } else {
+                debug!("Simagic EVO device (0x3670): sending gain and rotation range");
+            }
+            writer.write_feature_report(&build_device_gain(0xFF))?;
+            writer.write_feature_report(&build_rotation_range(900))?;
         } else {
             debug!(
-                "No vendor handshake applied for Simagic model {:?}; continuing in passive mode",
+                "No vendor handshake applied for legacy Simagic model {:?}; continuing in passive mode",
                 self.model
             );
         }
@@ -192,5 +201,21 @@ impl VendorProtocol for SimagicProtocol {
 
     fn is_v2_hardware(&self) -> bool {
         self.model.is_evo_generation()
+    }
+
+    fn output_report_id(&self) -> Option<u8> {
+        if self.is_evo_device() {
+            Some(report_ids::CONSTANT_FORCE)
+        } else {
+            None
+        }
+    }
+
+    fn output_report_len(&self) -> Option<usize> {
+        if self.is_evo_device() {
+            Some(CONSTANT_FORCE_REPORT_LEN)
+        } else {
+            None
+        }
     }
 }

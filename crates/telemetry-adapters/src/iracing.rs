@@ -541,22 +541,14 @@ impl IRacingAdapter {
         layout: &IRacingLayout,
         warned_unscaled_ffb: &mut bool,
     ) -> NormalizedTelemetry {
-        let mut telemetry = NormalizedTelemetry::default();
         let (ffb_scalar_source, ffb_scalar) = resolve_ffb_scalar_with_source(data, layout);
 
-        if let Some(ffb_scalar) = ffb_scalar {
-            telemetry = telemetry.with_ffb_scalar(ffb_scalar);
-        } else if !*warned_unscaled_ffb {
+        if ffb_scalar.is_none() && !*warned_unscaled_ffb {
             warn!(
                 "iRacing FFB scalar missing. Data source may not expose steering torque metadata yet."
             );
             *warned_unscaled_ffb = true;
         }
-
-        telemetry = telemetry.with_extended(
-            "ffb_scalar_source".to_string(),
-            TelemetryValue::String(ffb_scalar_source.as_str().to_string()),
-        );
 
         let flags = TelemetryFlags {
             yellow_flag: (data.session_flags & IRSDK_SESSION_FLAG_YELLOW) != 0,
@@ -570,20 +562,29 @@ impl IRacingAdapter {
 
         let car_id = extract_string(&data.car_path);
         let track_id = extract_string(&data.track_name);
-        telemetry = telemetry.with_rpm(data.rpm);
-        telemetry = telemetry.with_speed_ms(data.speed);
-        telemetry = telemetry.with_gear(data.gear);
-        telemetry = telemetry.with_car_id(car_id);
-        telemetry = telemetry.with_track_id(track_id);
-        telemetry = telemetry.with_flags(flags);
-        telemetry = telemetry.with_extended(
-            "session_flags_raw".to_string(),
-            TelemetryValue::Integer(data.session_flags as i32),
-        );
+
+        let mut builder = NormalizedTelemetry::builder()
+            .rpm(data.rpm)
+            .speed_ms(data.speed)
+            .gear(data.gear)
+            .car_id(car_id)
+            .track_id(track_id)
+            .flags(flags)
+            .extended(
+                "ffb_scalar_source".to_string(),
+                TelemetryValue::String(ffb_scalar_source.as_str().to_string()),
+            )
+            .extended(
+                "session_flags_raw".to_string(),
+                TelemetryValue::Integer(data.session_flags as i32),
+            );
+
+        if let Some(ffb) = ffb_scalar {
+            builder = builder.ffb_scalar(ffb);
+        }
 
         if let Some((slip_ratio, slip_ratio_source)) = resolve_slip_ratio(data, layout) {
-            telemetry = telemetry.with_slip_ratio(slip_ratio);
-            telemetry = telemetry.with_extended(
+            builder = builder.slip_ratio(slip_ratio).extended(
                 "slip_ratio_source".to_string(),
                 TelemetryValue::String(match slip_ratio_source {
                     SlipRatioSource::Explicit => "explicit".to_string(),
@@ -593,35 +594,36 @@ impl IRacingAdapter {
         }
 
         if layout.steering_wheel_limiter.is_some() && data.steering_wheel_limiter.is_finite() {
-            telemetry = telemetry.with_extended(
+            builder = builder.extended(
                 "ffb_limiter_pct".to_string(),
                 TelemetryValue::Float(data.steering_wheel_limiter),
             );
         }
 
-        telemetry
-            .with_extended(
+        builder
+            .extended(
                 "fuel_level".to_string(),
                 TelemetryValue::Float(data.fuel_level),
             )
-            .with_extended(
+            .extended(
                 "lap_current".to_string(),
                 TelemetryValue::Integer(data.lap_current),
             )
-            .with_extended(
+            .extended(
                 "lap_best_time".to_string(),
                 TelemetryValue::Float(data.lap_best_time),
             )
-            .with_extended(
+            .extended(
                 "session_time".to_string(),
                 TelemetryValue::Float(data.session_time),
             )
-            .with_extended("throttle".to_string(), TelemetryValue::Float(data.throttle))
-            .with_extended("brake".to_string(), TelemetryValue::Float(data.brake))
-            .with_extended(
+            .extended("throttle".to_string(), TelemetryValue::Float(data.throttle))
+            .extended("brake".to_string(), TelemetryValue::Float(data.brake))
+            .extended(
                 "steering_wheel_angle".to_string(),
                 TelemetryValue::Float(data.steering_wheel_angle),
             )
+            .build()
     }
 }
 
@@ -1058,9 +1060,10 @@ fn calculate_tick_interval(tick_rate: i32) -> Duration {
         return IRSDK_DEFAULT_TICK_RATE;
     }
 
-    match (1.0_f64 / tick_rate as f64).is_finite() {
-        true => Duration::from_secs_f64(1.0 / tick_rate as f64),
-        false => IRSDK_DEFAULT_TICK_RATE,
+    if (1.0_f64 / tick_rate as f64).is_finite() {
+        Duration::from_secs_f64(1.0 / tick_rate as f64)
+    } else {
+        IRSDK_DEFAULT_TICK_RATE
     }
 }
 
@@ -1545,10 +1548,10 @@ mod tests {
         let mut warned_unscaled_ffb = false;
         let normalized = adapter.normalize_iracing_data(&data, &layout, &mut warned_unscaled_ffb);
 
-        assert_eq!(normalized.rpm, Some(6000.0));
-        assert_eq!(normalized.speed_ms, Some(50.0));
-        assert_eq!(normalized.gear, Some(4));
-        assert_eq!(normalized.ffb_scalar, Some(0.25));
+        assert_eq!(normalized.rpm, 6000.0);
+        assert_eq!(normalized.speed_ms, 50.0);
+        assert_eq!(normalized.gear, 4);
+        assert_eq!(normalized.ffb_scalar, 0.25);
         assert_eq!(normalized.car_id, Some("gt3_bmw".to_string()));
         assert_eq!(normalized.track_id, Some("spa".to_string()));
         assert!(!normalized.flags.yellow_flag);
@@ -1613,9 +1616,9 @@ mod tests {
         let minimum_raw = to_raw_bytes(&legacy);
         let normalized = adapter.normalize(&minimum_raw)?;
 
-        assert_eq!(normalized.rpm, Some(5200.0));
-        assert_eq!(normalized.speed_ms, Some(33.0));
-        assert_eq!(normalized.gear, Some(5));
+        assert_eq!(normalized.rpm, 5200.0);
+        assert_eq!(normalized.speed_ms, 33.0);
+        assert_eq!(normalized.gear, 5);
         assert_eq!(normalized.car_id, Some("gt4_test".to_string()));
         Ok(())
     }
@@ -1635,12 +1638,12 @@ mod tests {
 
         let normalized = adapter.normalize(&to_raw_bytes(&legacy))?;
 
-        assert_eq!(normalized.rpm, Some(6200.0));
-        assert_eq!(normalized.speed_ms, Some(45.0));
-        assert_eq!(normalized.gear, Some(4));
+        assert_eq!(normalized.rpm, 6200.0);
+        assert_eq!(normalized.speed_ms, 45.0);
+        assert_eq!(normalized.gear, 4);
         assert_eq!(normalized.car_id, Some("legacy_gt3".to_string()));
         assert_eq!(normalized.track_id, Some("legacy_track".to_string()));
-        assert_eq!(normalized.ffb_scalar, None);
+        assert_eq!(normalized.ffb_scalar, 0.0);
 
         Ok(())
     }
@@ -1659,7 +1662,11 @@ mod tests {
         let normalized = adapter.normalize(&raw)?;
         let normalized_base = adapter.normalize(&to_raw_bytes(&data))?;
 
-        assert_eq!(normalized, normalized_base);
+        assert_eq!(normalized.rpm, normalized_base.rpm);
+        assert_eq!(normalized.speed_ms, normalized_base.speed_ms);
+        assert_eq!(normalized.gear, normalized_base.gear);
+        assert_eq!(normalized.ffb_scalar, normalized_base.ffb_scalar);
+        assert_eq!(normalized.flags, normalized_base.flags);
         Ok(())
     }
 
@@ -1898,5 +1905,55 @@ mod tests {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn iracing_no_panic_on_arbitrary_bytes(
+            data in proptest::collection::vec(any::<u8>(), 0..8192usize)
+        ) {
+            let adapter = IRacingAdapter::new();
+            let _ = adapter.normalize(&data);
+        }
+
+        #[test]
+        fn iracing_short_buffer_always_errors(
+            data in proptest::collection::vec(any::<u8>(), 0..mem::size_of::<IRacingLegacyData>())
+        ) {
+            let adapter = IRacingAdapter::new();
+            prop_assert!(adapter.normalize(&data).is_err());
+        }
+
+        #[test]
+        fn iracing_speed_nonneg(speed in 0.0f32..200.0f32) {
+            let adapter = IRacingAdapter::new();
+            let data = IRacingData { speed, ..IRacingData::default() };
+            let mut warned = false;
+            let normalized = adapter.normalize_iracing_data(
+                &data,
+                &IRacingLayout::default(),
+                &mut warned,
+            );
+            prop_assert!(normalized.speed_ms >= 0.0);
+        }
+
+        #[test]
+        fn iracing_rpm_nonneg(rpm in 0.0f32..20000.0f32) {
+            let adapter = IRacingAdapter::new();
+            let data = IRacingData { rpm, ..IRacingData::default() };
+            let mut warned = false;
+            let normalized = adapter.normalize_iracing_data(
+                &data,
+                &IRacingLayout::default(),
+                &mut warned,
+            );
+            prop_assert!(normalized.rpm >= 0.0);
+        }
     }
 }

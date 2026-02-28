@@ -1,0 +1,5 @@
+---
+source: crates/simplemotion-v2/tests/snapshot_tests.rs
+expression: "format!(\"velocity={}, velocity_rpm={:.4}\", state.motor.velocity,\nstate.velocity_rpm(4))"
+---
+velocity=8192, velocity_rpm=122880.0000

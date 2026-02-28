@@ -1,0 +1,6 @@
+---
+source: crates/hid-ffbeast-protocol/tests/snapshot_tests.rs
+assertion_line: 96
+expression: "format!(\"{:?}\", results)"
+---
+"[(\"joystick\", true), (\"rudder\", true), (\"wheel\", true), (\"wrong_pid_zero\", false), (\"wrong_pid_ffff\", false)]"

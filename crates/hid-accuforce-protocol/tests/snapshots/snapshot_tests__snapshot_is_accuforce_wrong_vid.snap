@@ -1,0 +1,5 @@
+---
+source: crates/hid-accuforce-protocol/tests/snapshot_tests.rs
+expression: "is_accuforce(0x16D0, PID_ACCUFORCE_PRO)"
+---
+false

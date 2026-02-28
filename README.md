@@ -14,13 +14,48 @@ OpenRacing is a high-performance, safety-critical racing wheel and force feedbac
 ## Features
 
 - **Real-time Force Feedback at 1kHz** - Deterministic processing pipeline with sub-millisecond latency for authentic racing feel
-- **Multi-Game Integration** - Native support for iRacing, Assetto Corsa Competizione (ACC), Automobilista 2 (AMS2), and rFactor 2
-- **Safety-Critical Design** - Comprehensive fault injection testing, FMEA analysis, and hardware watchdog integration
+- **Multi-Game Integration** - Native support for 14 simulators: iRacing, ACC, AMS2, rFactor 2, Assetto Corsa, Forza Motorsport/Horizon, BeamNG.drive, Project CARS 2/3, RaceRoom Experience, AC Rally, Dirt 5, EA WRC, F1 2024, F1 25
+- **Safety-Critical Design** - Comprehensive fault injection testing, FMEA analysis, hardware watchdog integration, and 600+ tests
 - **Plugin Architecture** - Extensible plugin system supporting both WASM and native plugins for custom DSP, telemetry, and LED effects
 - **Cross-Platform Support** - Runs on Windows 10+, Linux kernel 4.0+, and macOS with consistent behavior
 - **Zero-Allocation Real-Time Path** - Memory-safe real-time processing without heap allocations
 - **Comprehensive Diagnostics** - Black box recording, replay analysis, and support bundle generation
 - **Profile Management** - JSON-based force feedback profiles with schema validation and backward compatibility
+
+## Supported Hardware
+
+| Vendor | VID | Models | FFB |
+|--------|-----|--------|-----|
+| **Logitech** | `0x046D` | G27, G29, G923, G Pro | ✅ HID PIDFF + TrueForce |
+| **Fanatec** | `0x0EB7` | CSL DD, GT DD Pro, Podium DD1/DD2, CSW v2.5 | ✅ Custom HID |
+| **Thrustmaster** | `0x044F` | T150/Pro, TMX, T300RS/GT, TX, T500RS, T248/X, T-GT/II, TS-PC, TS-XW, T818 | ✅ HID PIDFF |
+| **Moza Racing** | `0x346E` | R3, R5 V1/V2, R9 V1/V2, R12 V1/V2, R16, R21 | ✅ Serial/HID PIDFF |
+| **Simagic** | `0x2D5C` / legacy | Alpha, Alpha Mini/EVO, M10, Neo/Mini, pedals | ✅ HID PIDFF |
+| **Simucube 2** | `0x2D6A` | Sport (15 Nm), Pro (25 Nm), Ultimate (35 Nm) | ✅ HID PIDFF |
+| **VRS DirectForce Pro** | `0x0483` | DirectForce Pro V1/V2 (20/25 Nm) | ✅ HID PIDFF |
+| **Heusinkveld** | `0x16D0` | Sprint, Ultimate+, Pro pedals | Input only |
+| **Asetek SimSports** | `0x2E5A` | Forte (20 Nm), Invicta (15 Nm), LaPrima (10 Nm) | ✅ HID PIDFF |
+| **OpenFFBoard** | `0x1209` | All production firmware variants | ✅ HID PIDFF |
+| **FFBeast** | `0x045B` | Joystick, rudder, wheel builds | ✅ HID PIDFF |
+| **Granite Devices IONI/ARGON** | `0x1D50` | IONI / Simucube 1 (15 Nm), IONI Premium (35 Nm), ARGON (10 Nm) | ✅ SimpleMotion V2 |
+| **Generic HID button box** | `0x1209` | Arduino DIY, BangButtons, SimRacingInputs | Input only |
+
+## Supported Games
+
+| Game | Method | Port/Key |
+|------|--------|----------|
+| iRacing | Shared memory | `IRSDKMemMapFileName` |
+| Assetto Corsa | OutGauge UDP | 9996 |
+| AC Competizione (ACC) / AC Rally | Shared memory | — |
+| Automobilista 2 / Project CARS 2/3 | Shared memory + UDP | 5606 |
+| rFactor 2 | Shared memory | — |
+| RaceRoom Experience | R3E shared memory | `$R3E` |
+| Forza Motorsport / Horizon | Sled/CarDash UDP | 5300 |
+| BeamNG.drive | LFS OutGauge UDP | 4444 |
+| Dirt 5 | Codemasters UDP | — |
+| EA WRC | Codemasters UDP | — |
+| F1 2024 | Codemasters bridge | — |
+| F1 25 | Native UDP (format 2025) | 20777 |
 
 ## Quick Start
 

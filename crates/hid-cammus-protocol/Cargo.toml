@@ -1,0 +1,20 @@
+[package]
+name = "racing-wheel-hid-cammus-protocol"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Cammus C5/C12 direct drive wheel HID protocol implementation"
+
+[lints.rust]
+warnings = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+
+[dependencies]
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[dev-dependencies]
+proptest = { workspace = true }
+insta = { version = "1.44.1", features = ["yaml"] }

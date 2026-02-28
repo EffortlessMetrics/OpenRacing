@@ -5,16 +5,28 @@
 //! - Counters for missed ticks, torque saturation, telemetry packet loss
 //! - Health event streaming for real-time monitoring
 //! - Prometheus export support
+//!
+//! # Re-exports
+//!
+//! This module re-exports RT-safe types from [`openracing_atomic`] for convenience:
+//! - [`AtomicCounters`] - RT-safe atomic counters
+//! - [`JitterStats`] - Jitter statistics
+//! - [`LatencyStats`] - Latency statistics
+//!
+//! See the [`openracing_atomic`] crate for full documentation.
 
-use crossbeam::queue::ArrayQueue;
 use parking_lot::Mutex;
 use prometheus::{Gauge, Histogram, IntCounter, IntGauge, Registry};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
+
+pub use openracing_atomic::{
+    AppMetricsSnapshot, AppThresholds, AtomicCounters, CounterSnapshot, JitterStats, LatencyStats,
+    RTMetricsSnapshot, RTThresholds, StreamingStats,
+};
 
 /// Real-time performance metrics
 #[derive(Debug, Clone)]
@@ -37,20 +49,18 @@ pub struct RTMetrics {
     pub last_update: Instant,
 }
 
-/// Jitter statistics
-#[derive(Debug, Clone)]
-pub struct JitterStats {
-    pub p50_ns: u64,
-    pub p99_ns: u64,
-    pub max_ns: u64,
-}
-
-/// Latency statistics
-#[derive(Debug, Clone)]
-pub struct LatencyStats {
-    pub p50_us: u64,
-    pub p99_us: u64,
-    pub max_us: u64,
+impl From<RTMetrics> for RTMetricsSnapshot {
+    fn from(metrics: RTMetrics) -> Self {
+        RTMetricsSnapshot {
+            total_ticks: metrics.total_ticks,
+            missed_ticks: metrics.missed_ticks,
+            jitter: metrics.jitter_ns,
+            hid_latency: metrics.hid_latency_us,
+            processing_time: metrics.processing_time_us,
+            cpu_usage_percent: metrics.cpu_usage_percent,
+            memory_usage_bytes: metrics.memory_usage_bytes,
+        }
+    }
 }
 
 /// Application-level metrics
@@ -70,6 +80,18 @@ pub struct AppMetrics {
     pub active_game: Option<String>,
     /// Last update timestamp
     pub last_update: Instant,
+}
+
+impl From<AppMetrics> for AppMetricsSnapshot {
+    fn from(metrics: AppMetrics) -> Self {
+        AppMetricsSnapshot {
+            connected_devices: metrics.connected_devices,
+            torque_saturation_percent: metrics.torque_saturation_percent,
+            telemetry_packet_loss_percent: metrics.telemetry_packet_loss_percent,
+            safety_events: metrics.safety_events,
+            profile_switches: metrics.profile_switches,
+        }
+    }
 }
 
 /// Health event for streaming
@@ -321,160 +343,6 @@ impl PrometheusMetrics {
     }
 }
 
-/// Atomic counters for RT-safe metrics collection
-pub struct AtomicCounters {
-    pub total_ticks: AtomicU64,
-    pub missed_ticks: AtomicU64,
-    pub safety_events: AtomicU64,
-    pub profile_switches: AtomicU64,
-    pub telemetry_packets_received: AtomicU64,
-    pub telemetry_packets_lost: AtomicU64,
-    pub torque_saturation_samples: AtomicU64,
-    pub torque_saturation_count: AtomicU64,
-    pub hid_write_errors: AtomicU64,
-}
-
-impl Default for AtomicCounters {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl AtomicCounters {
-    pub fn new() -> Self {
-        Self {
-            total_ticks: AtomicU64::new(0),
-            missed_ticks: AtomicU64::new(0),
-            safety_events: AtomicU64::new(0),
-            profile_switches: AtomicU64::new(0),
-            telemetry_packets_received: AtomicU64::new(0),
-            telemetry_packets_lost: AtomicU64::new(0),
-            torque_saturation_samples: AtomicU64::new(0),
-            torque_saturation_count: AtomicU64::new(0),
-            hid_write_errors: AtomicU64::new(0),
-        }
-    }
-
-    /// Increment tick counter (RT-safe)
-    #[inline]
-    pub fn inc_tick(&self) {
-        self.total_ticks.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Increment missed tick counter (RT-safe)
-    #[inline]
-    pub fn inc_missed_tick(&self) {
-        self.missed_ticks.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Record torque saturation sample (RT-safe)
-    #[inline]
-    pub fn record_torque_saturation(&self, is_saturated: bool) {
-        self.torque_saturation_samples
-            .fetch_add(1, Ordering::Relaxed);
-        if is_saturated {
-            self.torque_saturation_count.fetch_add(1, Ordering::Relaxed);
-        }
-    }
-
-    /// Increment safety event counter
-    pub fn inc_safety_event(&self) {
-        self.safety_events.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Increment profile switch counter
-    pub fn inc_profile_switch(&self) {
-        self.profile_switches.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Record telemetry packet received
-    pub fn inc_telemetry_received(&self) {
-        self.telemetry_packets_received
-            .fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Record telemetry packet lost
-    pub fn inc_telemetry_lost(&self) {
-        self.telemetry_packets_lost.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Increment HID write error counter (RT-safe)
-    #[inline]
-    pub fn inc_hid_write_error(&self) {
-        self.hid_write_errors.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Get current values and reset counters
-    pub fn get_and_reset(&self) -> (u64, u64, u64, u64, u64, u64, u64, u64, u64) {
-        (
-            self.total_ticks.swap(0, Ordering::Relaxed),
-            self.missed_ticks.swap(0, Ordering::Relaxed),
-            self.safety_events.swap(0, Ordering::Relaxed),
-            self.profile_switches.swap(0, Ordering::Relaxed),
-            self.telemetry_packets_received.swap(0, Ordering::Relaxed),
-            self.telemetry_packets_lost.swap(0, Ordering::Relaxed),
-            self.torque_saturation_samples.swap(0, Ordering::Relaxed),
-            self.torque_saturation_count.swap(0, Ordering::Relaxed),
-            self.hid_write_errors.swap(0, Ordering::Relaxed),
-        )
-    }
-}
-
-/// RT-safe sample queues for histogram recording
-///
-/// Uses lock-free bounded queues to allow the RT path to push samples
-/// without blocking. Samples are drained by the collector and recorded
-/// into hdrhistogram for percentile calculation.
-///
-/// Note: The push methods are infrastructure for RT loop integration.
-/// They will be wired up in a follow-up PR.
-#[allow(dead_code)]
-pub(crate) struct RTSampleQueues {
-    /// Jitter samples in nanoseconds (capacity: 10000 samples between collections)
-    pub jitter_ns: ArrayQueue<u64>,
-    /// Processing time samples in nanoseconds (capacity: 10000)
-    pub processing_time_ns: ArrayQueue<u64>,
-    /// HID latency samples in nanoseconds (capacity: 10000)
-    pub hid_latency_ns: ArrayQueue<u64>,
-}
-
-#[allow(dead_code)] // Methods will be wired up when RT loop integration is completed
-impl RTSampleQueues {
-    /// Create new sample queues with default capacity
-    pub fn new() -> Self {
-        Self {
-            jitter_ns: ArrayQueue::new(10000),
-            processing_time_ns: ArrayQueue::new(10000),
-            hid_latency_ns: ArrayQueue::new(10000),
-        }
-    }
-
-    /// Push a jitter sample (RT-safe, drops on overflow)
-    #[inline]
-    pub fn push_jitter(&self, ns: u64) {
-        // Drop sample on overflow - this is acceptable for metrics
-        let _ = self.jitter_ns.push(ns);
-    }
-
-    /// Push a processing time sample (RT-safe, drops on overflow)
-    #[inline]
-    pub fn push_processing_time(&self, ns: u64) {
-        let _ = self.processing_time_ns.push(ns);
-    }
-
-    /// Push a HID latency sample (RT-safe, drops on overflow)
-    #[inline]
-    pub fn push_hid_latency(&self, ns: u64) {
-        let _ = self.hid_latency_ns.push(ns);
-    }
-}
-
-impl Default for RTSampleQueues {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Health event streaming service
 pub struct HealthEventStreamer {
     sender: broadcast::Sender<HealthEvent>,
@@ -521,6 +389,76 @@ impl HealthEventStreamer {
     }
 }
 
+/// RT-safe sample queues for histogram recording (internal wrapper)
+///
+/// Uses lock-free bounded queues to allow the RT path to push samples
+/// without blocking. Samples are drained by the collector and recorded
+/// into hdrhistogram for percentile calculation.
+pub(crate) struct InternalSampleQueues {
+    /// Jitter samples in nanoseconds
+    jitter_ns: crossbeam::queue::ArrayQueue<u64>,
+    /// Processing time samples in nanoseconds
+    processing_time_ns: crossbeam::queue::ArrayQueue<u64>,
+    /// HID latency samples in nanoseconds
+    hid_latency_ns: crossbeam::queue::ArrayQueue<u64>,
+}
+
+impl Default for InternalSampleQueues {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl InternalSampleQueues {
+    /// Create new sample queues with default capacity
+    pub fn new() -> Self {
+        Self {
+            jitter_ns: crossbeam::queue::ArrayQueue::new(10000),
+            processing_time_ns: crossbeam::queue::ArrayQueue::new(10000),
+            hid_latency_ns: crossbeam::queue::ArrayQueue::new(10000),
+        }
+    }
+
+    /// Push a jitter sample (RT-safe, drops on overflow)
+    #[inline]
+    #[allow(dead_code)]
+    pub fn push_jitter(&self, ns: u64) {
+        let _ = self.jitter_ns.push(ns);
+    }
+
+    /// Push a processing time sample (RT-safe, drops on overflow)
+    #[inline]
+    #[allow(dead_code)]
+    pub fn push_processing_time(&self, ns: u64) {
+        let _ = self.processing_time_ns.push(ns);
+    }
+
+    /// Push a HID latency sample (RT-safe, drops on overflow)
+    #[inline]
+    #[allow(dead_code)]
+    pub fn push_hid_latency(&self, ns: u64) {
+        let _ = self.hid_latency_ns.push(ns);
+    }
+
+    /// Pop a jitter sample
+    #[inline]
+    pub fn pop_jitter(&self) -> Option<u64> {
+        self.jitter_ns.pop()
+    }
+
+    /// Pop a processing time sample
+    #[inline]
+    pub fn pop_processing_time(&self) -> Option<u64> {
+        self.processing_time_ns.pop()
+    }
+
+    /// Pop a HID latency sample
+    #[inline]
+    pub fn pop_hid_latency(&self) -> Option<u64> {
+        self.hid_latency_ns.pop()
+    }
+}
+
 /// Metrics collector that aggregates data from various sources
 pub struct MetricsCollector {
     prometheus_metrics: Arc<PrometheusMetrics>,
@@ -529,7 +467,7 @@ pub struct MetricsCollector {
     system_monitor: SystemMonitor,
     last_collection: Instant,
     /// RT-safe sample queues for histogram data
-    sample_queues: Arc<RTSampleQueues>,
+    sample_queues: Arc<InternalSampleQueues>,
     /// HDR histograms for percentile calculations (non-RT access only)
     jitter_histogram: Mutex<hdrhistogram::Histogram<u64>>,
     processing_histogram: Mutex<hdrhistogram::Histogram<u64>>,
@@ -543,7 +481,7 @@ impl MetricsCollector {
         let atomic_counters = Arc::new(AtomicCounters::new());
         let health_streamer = Arc::new(HealthEventStreamer::new(1000)); // Buffer 1000 events
         let system_monitor = SystemMonitor::new();
-        let sample_queues = Arc::new(RTSampleQueues::new());
+        let sample_queues = Arc::new(InternalSampleQueues::new());
 
         // Initialize HDR histograms (1ns to 1s range, 3 significant figures)
         // These provide accurate percentile calculations
@@ -587,9 +525,8 @@ impl MetricsCollector {
     }
 
     /// Get sample queues for RT use.
-    /// Note: Infrastructure for RT loop integration, will be wired up in follow-up PR.
     #[allow(dead_code)]
-    pub(crate) fn sample_queues(&self) -> Arc<RTSampleQueues> {
+    pub(crate) fn sample_queues(&self) -> Arc<InternalSampleQueues> {
         self.sample_queues.clone()
     }
 
@@ -603,7 +540,7 @@ impl MetricsCollector {
         // Drain jitter samples
         {
             let mut hist = self.jitter_histogram.lock();
-            while let Some(sample) = self.sample_queues.jitter_ns.pop() {
+            while let Some(sample) = self.sample_queues.pop_jitter() {
                 let _ = hist.record(sample);
             }
         }
@@ -611,7 +548,7 @@ impl MetricsCollector {
         // Drain processing time samples
         {
             let mut hist = self.processing_histogram.lock();
-            while let Some(sample) = self.sample_queues.processing_time_ns.pop() {
+            while let Some(sample) = self.sample_queues.pop_processing_time() {
                 let _ = hist.record(sample);
             }
         }
@@ -619,7 +556,7 @@ impl MetricsCollector {
         // Drain HID latency samples
         {
             let mut hist = self.latency_histogram.lock();
-            while let Some(sample) = self.sample_queues.hid_latency_ns.pop() {
+            while let Some(sample) = self.sample_queues.pop_hid_latency() {
                 let _ = hist.record(sample);
             }
         }
@@ -628,31 +565,31 @@ impl MetricsCollector {
     /// Get jitter statistics from histogram
     fn get_jitter_stats(&self) -> JitterStats {
         let hist = self.jitter_histogram.lock();
-        JitterStats {
-            p50_ns: hist.value_at_quantile(0.5),
-            p99_ns: hist.value_at_quantile(0.99),
-            max_ns: hist.max(),
-        }
+        JitterStats::from_values(
+            hist.value_at_quantile(0.5),
+            hist.value_at_quantile(0.99),
+            hist.max(),
+        )
     }
 
     /// Get processing time statistics from histogram (in microseconds)
     fn get_processing_stats(&self) -> LatencyStats {
         let hist = self.processing_histogram.lock();
-        LatencyStats {
-            p50_us: hist.value_at_quantile(0.5) / 1000,
-            p99_us: hist.value_at_quantile(0.99) / 1000,
-            max_us: hist.max() / 1000,
-        }
+        LatencyStats::from_values(
+            hist.value_at_quantile(0.5) / 1000,
+            hist.value_at_quantile(0.99) / 1000,
+            hist.max() / 1000,
+        )
     }
 
     /// Get HID latency statistics from histogram (in microseconds)
     fn get_latency_stats(&self) -> LatencyStats {
         let hist = self.latency_histogram.lock();
-        LatencyStats {
-            p50_us: hist.value_at_quantile(0.5) / 1000,
-            p99_us: hist.value_at_quantile(0.99) / 1000,
-            max_us: hist.max() / 1000,
-        }
+        LatencyStats::from_values(
+            hist.value_at_quantile(0.5) / 1000,
+            hist.value_at_quantile(0.99) / 1000,
+            hist.max() / 1000,
+        )
     }
 
     /// Collect and update all metrics
@@ -663,30 +600,11 @@ impl MetricsCollector {
         let collection_interval = now.duration_since(self.last_collection);
 
         // Get atomic counter values
-        let (
-            total_ticks,
-            missed_ticks,
-            safety_events,
-            profile_switches,
-            telemetry_received,
-            telemetry_lost,
-            torque_samples,
-            torque_saturated,
-            hid_write_errors,
-        ) = self.atomic_counters.get_and_reset();
+        let snapshot = self.atomic_counters.snapshot_and_reset();
 
         // Calculate derived metrics
-        let telemetry_loss_percent = if telemetry_received > 0 {
-            (telemetry_lost as f32 / (telemetry_received + telemetry_lost) as f32) * 100.0
-        } else {
-            0.0
-        };
-
-        let torque_saturation_percent = if torque_samples > 0 {
-            (torque_saturated as f32 / torque_samples as f32) * 100.0
-        } else {
-            0.0
-        };
+        let telemetry_loss_percent = snapshot.telemetry_loss_percent();
+        let torque_saturation_percent = snapshot.torque_saturation_percent();
 
         // Get system metrics
         let (cpu_usage, memory_usage) = self.system_monitor.get_system_metrics().await;
@@ -699,8 +617,8 @@ impl MetricsCollector {
 
         // Create RT metrics
         let rt_metrics = RTMetrics {
-            total_ticks,
-            missed_ticks,
+            total_ticks: snapshot.total_ticks,
+            missed_ticks: snapshot.missed_ticks,
             jitter_ns: jitter_stats,
             hid_latency_us: latency_stats,
             processing_time_us: processing_stats,
@@ -714,8 +632,8 @@ impl MetricsCollector {
             connected_devices: 0, // TODO: Get from device manager
             torque_saturation_percent,
             telemetry_packet_loss_percent: telemetry_loss_percent,
-            safety_events,
-            profile_switches,
+            safety_events: snapshot.safety_events,
+            profile_switches: snapshot.profile_switches,
             active_game: None, // TODO: Get from game service
             last_update: now,
         };
@@ -724,22 +642,22 @@ impl MetricsCollector {
         self.prometheus_metrics.update_rt_metrics(&rt_metrics);
         self.prometheus_metrics.update_app_metrics(&app_metrics);
         self.prometheus_metrics
-            .update_device_metrics(hid_write_errors);
+            .update_device_metrics(snapshot.hid_write_errors);
 
         // Emit health events for critical conditions
-        if missed_ticks > 0 {
+        if snapshot.missed_ticks > 0 {
             let event = HealthEventStreamer::create_event(
                 HealthEventType::PerformanceDegradation,
                 HealthSeverity::Warning,
                 format!(
                     "Missed {} RT ticks in {}ms",
-                    missed_ticks,
+                    snapshot.missed_ticks,
                     collection_interval.as_millis()
                 ),
                 None,
                 serde_json::json!({
-                    "missed_ticks": missed_ticks,
-                    "total_ticks": total_ticks,
+                    "missed_ticks": snapshot.missed_ticks,
+                    "total_ticks": snapshot.total_ticks,
                     "collection_interval_ms": collection_interval.as_millis()
                 }),
             );
@@ -759,8 +677,8 @@ impl MetricsCollector {
                 None,
                 serde_json::json!({
                     "torque_saturation_percent": torque_saturation_percent,
-                    "samples": torque_samples,
-                    "saturated": torque_saturated
+                    "samples": snapshot.torque_saturation_samples,
+                    "saturated": snapshot.torque_saturation_count
                 }),
             );
 
@@ -771,18 +689,18 @@ impl MetricsCollector {
             }
         }
 
-        if hid_write_errors > 0 {
+        if snapshot.hid_write_errors > 0 {
             let event = HealthEventStreamer::create_event(
                 HealthEventType::Error,
                 HealthSeverity::Warning,
                 format!(
                     "HID write errors: {} in {}ms",
-                    hid_write_errors,
+                    snapshot.hid_write_errors,
                     collection_interval.as_millis()
                 ),
                 None,
                 serde_json::json!({
-                    "hid_write_errors": hid_write_errors,
+                    "hid_write_errors": snapshot.hid_write_errors,
                     "collection_interval_ms": collection_interval.as_millis()
                 }),
             );
@@ -991,19 +909,18 @@ mod tests {
         counters.inc_hid_write_error();
         counters.inc_hid_write_error();
 
-        let (total_ticks, missed_ticks, _, _, _, _, torque_samples, torque_saturated, hid_errors) =
-            counters.get_and_reset();
+        let snapshot = counters.snapshot_and_reset();
 
-        assert_eq!(total_ticks, 2);
-        assert_eq!(missed_ticks, 1);
-        assert_eq!(torque_samples, 3);
-        assert_eq!(torque_saturated, 2);
-        assert_eq!(hid_errors, 3);
+        assert_eq!(snapshot.total_ticks, 2);
+        assert_eq!(snapshot.missed_ticks, 1);
+        assert_eq!(snapshot.torque_saturation_samples, 3);
+        assert_eq!(snapshot.torque_saturation_count, 2);
+        assert_eq!(snapshot.hid_write_errors, 3);
 
         // Verify reset
-        let (total_ticks, _, _, _, _, _, _, _, hid_errors) = counters.get_and_reset();
-        assert_eq!(total_ticks, 0);
-        assert_eq!(hid_errors, 0);
+        let after = counters.snapshot();
+        assert_eq!(after.total_ticks, 0);
+        assert_eq!(after.hid_write_errors, 0);
     }
 
     #[tokio::test]
@@ -1064,23 +981,11 @@ mod tests {
         let rt_metrics = RTMetrics {
             total_ticks: 1000,
             missed_ticks: 0,
-            jitter_ns: JitterStats {
-                p50_ns: 100_000,
-                p99_ns: 300_000, // Exceeds 250μs threshold
-                max_ns: 500_000,
-            },
-            hid_latency_us: LatencyStats {
-                p50_us: 100,
-                p99_us: 200, // Within 300μs threshold
-                max_us: 400,
-            },
-            processing_time_us: LatencyStats {
-                p50_us: 50,
-                p99_us: 150, // Within 200μs threshold
-                max_us: 300,
-            },
-            cpu_usage_percent: 2.5,                // Within 3% threshold
-            memory_usage_bytes: 100 * 1024 * 1024, // Within 150MB threshold
+            jitter_ns: JitterStats::from_values(100_000, 300_000, 500_000),
+            hid_latency_us: LatencyStats::from_values(100, 200, 400),
+            processing_time_us: LatencyStats::from_values(50, 150, 300),
+            cpu_usage_percent: 2.5,
+            memory_usage_bytes: 100 * 1024 * 1024,
             last_update: Instant::now(),
         };
 
@@ -1091,8 +996,8 @@ mod tests {
         // Test app metrics validation
         let app_metrics = AppMetrics {
             connected_devices: 2,
-            torque_saturation_percent: 96.0, // Exceeds 95% threshold
-            telemetry_packet_loss_percent: 3.0, // Within 5% threshold
+            torque_saturation_percent: 96.0,
+            telemetry_packet_loss_percent: 3.0,
             safety_events: 0,
             profile_switches: 5,
             active_game: Some("iracing".to_string()),
@@ -1112,5 +1017,56 @@ mod tests {
         // Basic sanity checks
         assert!(cpu_usage >= 0.0);
         assert!(memory_usage > 0);
+    }
+
+    #[test]
+    fn test_jitter_stats_from_openracing_atomic() {
+        let stats = JitterStats::from_values(100, 200, 500);
+        assert_eq!(stats.p50_ns, 100);
+        assert_eq!(stats.p99_ns, 200);
+        assert_eq!(stats.max_ns, 500);
+    }
+
+    #[test]
+    fn test_latency_stats_from_openracing_atomic() {
+        let stats = LatencyStats::from_values(50, 150, 300);
+        assert_eq!(stats.p50_us, 50);
+        assert_eq!(stats.p99_us, 150);
+        assert_eq!(stats.max_us, 300);
+    }
+
+    #[test]
+    fn test_rt_metrics_to_snapshot() {
+        let rt_metrics = RTMetrics {
+            total_ticks: 1000,
+            missed_ticks: 5,
+            jitter_ns: JitterStats::from_values(100, 200, 500),
+            hid_latency_us: LatencyStats::from_values(50, 100, 200),
+            processing_time_us: LatencyStats::from_values(30, 80, 150),
+            cpu_usage_percent: 2.5,
+            memory_usage_bytes: 50_000_000,
+            last_update: Instant::now(),
+        };
+
+        let snapshot: RTMetricsSnapshot = rt_metrics.into();
+        assert_eq!(snapshot.total_ticks, 1000);
+        assert_eq!(snapshot.missed_ticks, 5);
+    }
+
+    #[test]
+    fn test_app_metrics_to_snapshot() {
+        let app_metrics = AppMetrics {
+            connected_devices: 2,
+            torque_saturation_percent: 25.0,
+            telemetry_packet_loss_percent: 1.0,
+            safety_events: 5,
+            profile_switches: 10,
+            active_game: None,
+            last_update: Instant::now(),
+        };
+
+        let snapshot: AppMetricsSnapshot = app_metrics.into();
+        assert_eq!(snapshot.connected_devices, 2);
+        assert_eq!(snapshot.torque_saturation_percent, 25.0);
     }
 }

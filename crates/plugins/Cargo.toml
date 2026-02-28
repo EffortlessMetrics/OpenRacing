@@ -10,6 +10,9 @@ repository.workspace = true
 racing-wheel-schemas = { path = "../schemas" }
 racing-wheel-engine = { path = "../engine" }
 racing-wheel-service = { path = "../service" }
+openracing-plugin-abi = { workspace = true }
+openracing-native-plugin = { workspace = true }
+openracing-crypto = { workspace = true }
 tokio = { workspace = true, features = [
     "process",
     "sync",

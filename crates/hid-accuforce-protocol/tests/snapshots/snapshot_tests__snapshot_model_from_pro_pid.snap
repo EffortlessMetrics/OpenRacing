@@ -1,0 +1,5 @@
+---
+source: crates/hid-accuforce-protocol/tests/snapshot_tests.rs
+expression: "AccuForceModel::from_product_id(PID_ACCUFORCE_PRO)"
+---
+Pro

@@ -11,4 +11,11 @@ crc32fast = { workspace = true }
 hidapi = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+clap = { workspace = true }
+chrono = { workspace = true }
+anyhow = { workspace = true }
+ctrlc = "3"
+racing-wheel-moza-wheelbase-report = { workspace = true }
+racing-wheel-hid-logitech-protocol = { workspace = true }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 

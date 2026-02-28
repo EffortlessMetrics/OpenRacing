@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ValidationError::too_short(\"password\", 4, 8).to_string()"
+---
+Field 'password' value is too short: 4 characters (min: 8)

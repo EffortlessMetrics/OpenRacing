@@ -135,6 +135,7 @@ pub const MAX_TORQUE_REPORT_SIZE: usize = 8;
 
 /// Encode a torque report for the target device.
 ///
+/// - Fanatec wheelbases: vendor-native constant-force report (`0x01`, 8 bytes)
 /// - Moza wheelbases: vendor-native direct torque report (`0x20`, 8 bytes)
 /// - Other devices: legacy OWP-1 torque command layout
 pub fn encode_torque_report_for_device(
@@ -145,6 +146,11 @@ pub fn encode_torque_report_for_device(
     seq: u16,
     out: &mut [u8; MAX_TORQUE_REPORT_SIZE],
 ) -> usize {
+    if vendor_id == 0x0EB7 && vendor::fanatec::is_wheelbase_product(product_id) {
+        let encoder = vendor::fanatec::FanatecConstantForceEncoder::new(max_torque_nm);
+        return encoder.encode(torque_nm, seq, out);
+    }
+
     if vendor_id == 0x346E && vendor::moza::is_wheelbase_product(product_id) {
         let encoder = vendor::moza_direct::MozaDirectTorqueEncoder::new(max_torque_nm);
         return encoder.encode(torque_nm, seq, out);
@@ -372,5 +378,29 @@ mod tests {
         assert_eq!(len, MAX_TORQUE_REPORT_SIZE);
         assert_eq!(out[0], vendor::moza::report_ids::DIRECT_TORQUE);
         assert_eq!(i16::from_le_bytes([out[1], out[2]]), i16::MAX);
+    }
+
+    #[test]
+    fn test_encode_torque_report_fanatec_uses_constant_force_layout() {
+        let mut out = [0u8; MAX_TORQUE_REPORT_SIZE];
+        // GT DD Pro at 0x0024 (8 Nm), full positive torque
+        let len = encode_torque_report_for_device(0x0EB7, 0x0024, 8.0, 8.0, 0, &mut out);
+
+        assert_eq!(len, vendor::fanatec::CONSTANT_FORCE_REPORT_LEN);
+        assert_eq!(out[0], 0x01); // FFB output report ID
+        assert_eq!(out[1], 0x01); // constant force command
+        assert_eq!(i16::from_le_bytes([out[2], out[3]]), i16::MAX);
+    }
+
+    #[test]
+    fn test_encode_torque_report_fanatec_zero_torque() {
+        let mut out = [0u8; MAX_TORQUE_REPORT_SIZE];
+        let len = encode_torque_report_for_device(0x0EB7, 0x0020, 8.0, 0.0, 0, &mut out);
+
+        assert_eq!(len, vendor::fanatec::CONSTANT_FORCE_REPORT_LEN);
+        assert_eq!(out[0], 0x01);
+        assert_eq!(out[1], 0x01);
+        assert_eq!(out[2], 0x00);
+        assert_eq!(out[3], 0x00);
     }
 }

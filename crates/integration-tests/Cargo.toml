@@ -20,7 +20,16 @@ print_stdout = "deny"
 racing-wheel-engine = { path = "../engine" }
 racing-wheel-service = { path = "../service" }
 racing-wheel-schemas = { path = "../schemas" }
+racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
+racing-wheel-telemetry-config = { path = "../telemetry-config" }
+racing-wheel-telemetry-config-writers = { path = "../telemetry-config-writers" }
+racing-wheel-telemetry-support = { path = "../telemetry-support" }
 racing-wheel-hid-moza-protocol = { path = "../hid-moza-protocol" }
+racing-wheel-hid-fanatec-protocol = { path = "../hid-fanatec-protocol" }
+racing-wheel-hid-logitech-protocol = { path = "../hid-logitech-protocol" }
+racing-wheel-hid-openffboard-protocol = { path = "../hid-openffboard-protocol" }
+racing-wheel-hid-ffbeast-protocol = { path = "../hid-ffbeast-protocol" }
+racing-wheel-simplemotion-v2 = { path = "../simplemotion-v2" }
 tokio = { workspace = true, features = ["full"] }
 tokio-test = "0.4.5"
 serde = { workspace = true }
@@ -48,8 +57,10 @@ tempfile = "3.24.0"
 uuid = { workspace = true }
 rand = "0.9.2"
 chrono = { workspace = true }
+openracing-test-helpers = { workspace = true }
 
 # Mock and test doubles
+async-trait = { workspace = true }
 mockall = { workspace = true }
 wiremock = { workspace = true }
 

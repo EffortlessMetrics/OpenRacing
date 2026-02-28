@@ -731,6 +731,104 @@ fn test_complete_profile_workflow() {
         .success();
 }
 
+// ============================================================
+// Additional CLI Integration Tests
+// ============================================================
+
+/// --help output lists all major subcommand categories
+#[test]
+fn test_help_lists_all_subcommands() {
+    wheelctl()
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("device"))
+        .stdout(predicate::str::contains("profile"))
+        .stdout(predicate::str::contains("plugin"))
+        .stdout(predicate::str::contains("diag"));
+}
+
+/// `device --help` prints device subcommand help and lists its operations
+#[test]
+fn test_device_subcommand_help() {
+    wheelctl()
+        .args(["device", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("list"))
+        .stdout(predicate::str::contains("status"));
+}
+
+/// `profile --help` prints profile subcommand help and lists its operations
+#[test]
+fn test_profile_subcommand_help() {
+    wheelctl()
+        .args(["profile", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("list"))
+        .stdout(predicate::str::contains("show"));
+}
+
+/// `device list` smoke test: succeeds without physical hardware (mock IPC)
+#[test]
+fn test_device_list_smoke_no_hardware() {
+    // The CLI uses a mock IPC client — no actual device hardware is required
+    wheelctl().args(["device", "list"]).assert().success();
+}
+
+/// `health` command smoke test acts as a system status check
+#[test]
+fn test_health_status_smoke() {
+    wheelctl()
+        .args(["health"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Status"));
+}
+
+/// `profile list` exits with code 5 and some output when the service is unavailable
+#[test]
+fn test_profiles_list_graceful_on_service_error() {
+    wheelctl()
+        .env("WHEELCTL_ENDPOINT", "http://invalid:99999")
+        .args(["profile", "list"])
+        .assert()
+        .failure()
+        .code(5); // ServiceUnavailable exit code
+}
+
+/// An unknown top-level command produces a non-zero exit and non-empty stderr
+#[test]
+fn test_invalid_command_produces_stderr() {
+    let output = must(wheelctl().args(["unknowncommand"]).output());
+    assert!(
+        !output.status.success(),
+        "Expected non-zero exit for unknown command"
+    );
+    let stderr = std::str::from_utf8(&output.stderr).unwrap_or("");
+    assert!(
+        !stderr.is_empty(),
+        "Expected non-empty stderr with error info"
+    );
+}
+
+/// An unknown subcommand under a known command exits with error code 2
+#[test]
+fn test_invalid_device_subcommand_exits_nonzero() {
+    wheelctl()
+        .args(["device", "unknownaction"])
+        .assert()
+        .failure()
+        .code(2);
+}
+
+/// `plugin list` smoke test: works without a service running
+#[test]
+fn test_plugin_list_smoke() {
+    wheelctl().args(["plugin", "list"]).assert().success();
+}
+
 #[test]
 fn test_complete_diagnostic_workflow() {
     let temp_dir = must(TempDir::new());

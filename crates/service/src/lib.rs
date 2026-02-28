@@ -19,6 +19,7 @@ pub mod daemon_tests;
 pub mod device;
 pub mod device_service;
 pub mod diagnostic_service;
+pub mod game_auto_configure;
 pub mod game_integration;
 #[cfg(test)]
 pub mod game_integration_e2e_tests;
@@ -27,6 +28,7 @@ pub mod game_integration_service;
 pub mod game_integration_tests;
 pub mod game_service;
 pub mod game_support_matrix;
+pub mod game_telemetry_bridge;
 #[cfg(test)]
 pub mod integration_tests;
 pub mod ipc_service;
@@ -53,6 +55,7 @@ pub use ipc_service::WheelServiceImpl;
 pub use ipc_simple::{
     HealthEventInternal, IpcClient, IpcClientConfig, IpcConfig, IpcServer, TransportType,
 };
+pub use openracing_errors;
 pub use profile_service::*;
 pub use safety_service::*;
 pub use service::*;

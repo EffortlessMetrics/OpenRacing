@@ -1,0 +1,11 @@
+---
+source: crates/openracing-plugin-abi/tests/snapshot_tests.rs
+expression: "format!(\"{:#?}\", validation)"
+---
+WasmExportValidation {
+    has_process: true,
+    has_memory: true,
+    has_init: false,
+    has_shutdown: false,
+    has_get_info: false,
+}

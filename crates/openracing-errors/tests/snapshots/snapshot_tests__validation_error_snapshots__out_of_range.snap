@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ValidationError::out_of_range(\"torque\", 1.5_f32, -1.0_f32,\n1.0_f32).to_string()"
+---
+torque value 1.5 is out of range [-1.0, 1.0]

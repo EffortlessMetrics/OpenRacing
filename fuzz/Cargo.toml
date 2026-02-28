@@ -12,14 +12,35 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 racing-wheel-telemetry-adapters = { path = "../crates/telemetry-adapters" }
-racing-wheel-telemetry-contracts = { path = "../crates/telemetry-contracts" }
+racing-wheel-telemetry-core = { path = "../crates/telemetry-core" }
+racing-wheel-hid-ffbeast-protocol = { path = "../crates/hid-ffbeast-protocol" }
 racing-wheel-hid-moza-protocol = { path = "../crates/hid-moza-protocol" }
+racing-wheel-hid-thrustmaster-protocol = { path = "../crates/hid-thrustmaster-protocol" }
+racing-wheel-hid-simucube-protocol = { path = "../crates/hid-simucube-protocol", package = "hid-simucube-protocol" }
+racing-wheel-hid-asetek-protocol = { path = "../crates/hid-asetek-protocol", package = "hid-asetek-protocol" }
+racing-wheel-hid-vrs-protocol = { path = "../crates/hid-vrs-protocol" }
+racing-wheel-hid-simagic-protocol = { path = "../crates/hid-simagic-protocol" }
+racing-wheel-hid-heusinkveld-protocol = { path = "../crates/hid-heusinkveld-protocol", package = "hid-heusinkveld-protocol" }
+racing-wheel-hid-cammus-protocol = { path = "../crates/hid-cammus-protocol" }
+racing-wheel-hid-fanatec-protocol = { path = "../crates/hid-fanatec-protocol" }
+racing-wheel-hid-openffboard-protocol = { path = "../crates/hid-openffboard-protocol" }
+racing-wheel-hid-logitech-protocol = { path = "../crates/hid-logitech-protocol" }
 racing-wheel-ks = { path = "../crates/ks" }
 racing-wheel-srp = { path = "../crates/srp" }
 racing-wheel-hbp = { path = "../crates/hbp" }
 racing-wheel-moza-wheelbase-report = { path = "../crates/moza-wheelbase-report" }
 
+racing-wheel-hid-button-box-protocol = { path = "../crates/hid-button-box-protocol", package = "hid-button-box-protocol" }
+racing-wheel-hid-leo-bodnar-protocol = { path = "../crates/hid-leo-bodnar-protocol" }
+racing-wheel-hid-accuforce-protocol = { path = "../crates/hid-accuforce-protocol" }
+
 # Fuzzing requires nightly and release-like optimizations.
+[[bin]]
+name = "fuzz_ffbeast_input"
+path = "fuzz_targets/fuzz_ffbeast_input.rs"
+test = false
+doc = false
+
 [[bin]]
 name = "fuzz_f1_25_header"
 path = "fuzz_targets/fuzz_f1_25_header.rs"
@@ -77,6 +98,180 @@ doc = false
 [[bin]]
 name = "fuzz_srp_report"
 path = "fuzz_targets/fuzz_srp_report.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_thrustmaster_input"
+path = "fuzz_targets/fuzz_thrustmaster_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_simucube_input"
+path = "fuzz_targets/fuzz_simucube_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_asetek_input"
+path = "fuzz_targets/fuzz_asetek_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_vrs_input"
+path = "fuzz_targets/fuzz_vrs_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_simagic_input"
+path = "fuzz_targets/fuzz_simagic_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_heusinkveld_input"
+path = "fuzz_targets/fuzz_heusinkveld_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_logitech_input"
+path = "fuzz_targets/fuzz_logitech_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_simplemotion"
+path = "fuzz_targets/fuzz_simplemotion.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_codemasters_udp"
+path = "fuzz_targets/fuzz_codemasters_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_acc_udp"
+path = "fuzz_targets/fuzz_acc_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_dirt_rally_2"
+path = "fuzz_targets/fuzz_dirt_rally_2.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_gran_turismo_7"
+path = "fuzz_targets/fuzz_gran_turismo_7.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_rbr"
+path = "fuzz_targets/fuzz_rbr.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_cammus_direct"
+path = "fuzz_targets/fuzz_cammus_direct.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_fanatec_input"
+path = "fuzz_targets/fuzz_fanatec_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_openffboard_input"
+path = "fuzz_targets/fuzz_openffboard_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_button_box_input"
+path = "fuzz_targets/fuzz_button_box_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ets2_udp"
+path = "fuzz_targets/fuzz_ets2_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_wreckfest_udp"
+path = "fuzz_targets/fuzz_wreckfest_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_rennsport_udp"
+path = "fuzz_targets/fuzz_rennsport_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_wrc_generations_udp"
+path = "fuzz_targets/fuzz_wrc_generations_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_dirt4_udp"
+path = "fuzz_targets/fuzz_dirt4_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_pcars2_udp"
+path = "fuzz_targets/fuzz_pcars2_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_lfs_udp"
+path = "fuzz_targets/fuzz_lfs_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_raceroom"
+path = "fuzz_targets/fuzz_raceroom.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_kartkraft_udp"
+path = "fuzz_targets/fuzz_kartkraft_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_automobilista"
+path = "fuzz_targets/fuzz_automobilista.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_leo_bodnar_input"
+path = "fuzz_targets/fuzz_leo_bodnar_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_accuforce_input"
+path = "fuzz_targets/fuzz_accuforce_input.rs"
 test = false
 doc = false
 

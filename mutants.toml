@@ -1,17 +1,44 @@
-# cargo-mutants configuration
+﻿# cargo-mutants configuration
 #
-# Scoped to the Moza protocol microcrates for focused, fast mutation testing.
-# Run with: cargo mutants -p racing-wheel-hid-moza-protocol -p racing-wheel-ks -p racing-wheel-input-maps
+# Two scopes:
+#   1. Moza protocol microcrates  - focused, fast (original scope)
+#   2. Safety-critical engine code - torque limits, fault detection, emergency stop
+#
+# Run all: cargo mutants
+# Run engine only: cargo mutants --package racing-wheel-engine --test-timeout 60
 
 [packages]
 include = [
     "racing-wheel-hid-moza-protocol",
     "racing-wheel-ks",
     "racing-wheel-input-maps",
+    # Safety-critical engine: torque clamping, fault detection, emergency stop
+    "racing-wheel-engine",
 ]
 
 # Skip trivial and auto-generated code
 exclude_globs = [
+    "crates/integration-tests/**",
+    "crates/schemas/**",
+    "workspace-hack/**",
+    "benches/**",
     "**/target/**",
     "**/build.rs",
+    "fuzz/**",
+]
+
+# 3x test timeout for mutation test runs
+timeout_multiplier = 3.0
+
+# Skip mutants in test-only code and pure boilerplate
+exclude_re = [
+    "#\\[test\\]",
+    "#\\[cfg\\(test\\)\\]",
+    # Debug / Display fmt - not safety-relevant
+    "fn fmt\\(&self",
+    # Derived serde boilerplate
+    "fn serialize<",
+    "fn deserialize<",
+    # Clone boilerplate
+    "fn clone\\(&self\\)",
 ]

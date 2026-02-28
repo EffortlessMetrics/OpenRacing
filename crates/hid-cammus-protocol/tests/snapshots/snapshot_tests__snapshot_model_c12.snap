@@ -1,0 +1,5 @@
+---
+source: crates/hid-cammus-protocol/tests/snapshot_tests.rs
+expression: "format!(\"name={}, max_torque={:.1}\", model.name(), model.max_torque_nm())"
+---
+"name=Cammus C12, max_torque=12.0"

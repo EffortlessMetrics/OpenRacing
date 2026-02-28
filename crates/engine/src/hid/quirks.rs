@@ -59,12 +59,14 @@ impl DeviceQuirks {
     }
 
     /// Fanatec-specific quirks
-    fn fanatec_quirks(_product_id: u16) -> Self {
+    fn fanatec_quirks(product_id: u16) -> Self {
         Self {
             fix_conditional_direction: false,
             uses_vendor_usage_page: false,
             required_b_interval: Some(1),
-            requires_init_handshake: false,
+            requires_init_handshake: racing_wheel_hid_fanatec_protocol::is_wheelbase_product(
+                product_id,
+            ),
             aggregates_peripherals: false,
         }
     }

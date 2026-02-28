@@ -1,0 +1,6 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_tests.rs
+assertion_line: 53
+expression: "format!(\"steering={}, throttle={}, brake={}, clutch={}, buttons={}, hat={}, paddles={}/{}\",\nstate.steering, state.throttle, state.brake, state.clutch, state.buttons,\nstate.hat, state.paddle_right as u8, state.paddle_left as u8)"
+---
+steering=0, throttle=1, brake=0, clutch=0, buttons=0, hat=0, paddles=1/1

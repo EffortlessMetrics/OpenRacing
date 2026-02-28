@@ -1,0 +1,5 @@
+---
+source: crates/hid-leo-bodnar-protocol/tests/snapshot_tests.rs
+expression: "device_summary(leo_bodnar::PID_BBI32)"
+---
+"pid=0x000c, name=Leo Bodnar BBI-32, channels=32, ffb=false"

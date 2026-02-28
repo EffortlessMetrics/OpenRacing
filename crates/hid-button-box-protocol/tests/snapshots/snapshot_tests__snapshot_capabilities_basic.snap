@@ -1,0 +1,6 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_tests.rs
+assertion_line: 97
+expression: "format!(\"buttons={}, axes={}, pov={}, rotary={}, rotary_count={}\",\ncaps.button_count, caps.analog_axis_count, caps.has_pov_hat,\ncaps.has_rotary_encoders, caps.rotary_encoder_count)"
+---
+"buttons=16, axes=0, pov=true, rotary=false, rotary_count=0"

@@ -367,48 +367,49 @@ impl RFactor2Adapter {
         };
         let ffb_scalar = derive_ffb_scalar(ffb_raw);
 
-        NormalizedTelemetry::default()
-            .with_ffb_scalar(ffb_scalar)
-            .with_rpm(vehicle.engine_rpm)
-            .with_speed_ms(vehicle.speed)
-            .with_slip_ratio(slip_ratio)
-            .with_gear(vehicle.gear)
-            .with_car_id(car_id)
-            .with_track_id(track_id)
-            .with_flags(flags)
-            .with_extended(
+        NormalizedTelemetry::builder()
+            .ffb_scalar(ffb_scalar)
+            .rpm(vehicle.engine_rpm)
+            .speed_ms(vehicle.speed)
+            .slip_ratio(slip_ratio)
+            .gear(vehicle.gear)
+            .car_id(car_id)
+            .track_id(track_id)
+            .flags(flags)
+            .extended(
                 "fuel_level".to_string(),
                 TelemetryValue::Float(vehicle.fuel),
             )
-            .with_extended(
+            .extended(
                 "throttle".to_string(),
                 TelemetryValue::Float(vehicle.unfiltered_throttle),
             )
-            .with_extended(
+            .extended(
                 "brake".to_string(),
                 TelemetryValue::Float(vehicle.unfiltered_brake),
             )
-            .with_extended(
+            .extended(
                 "clutch".to_string(),
                 TelemetryValue::Float(vehicle.unfiltered_clutch),
             )
-            .with_extended(
+            .extended(
                 "steering".to_string(),
                 TelemetryValue::Float(vehicle.unfiltered_steering),
             )
-            .with_extended(
+            .extended(
                 "water_temp".to_string(),
                 TelemetryValue::Float(vehicle.engine_water_temp),
             )
-            .with_extended(
+            .extended(
                 "oil_temp".to_string(),
                 TelemetryValue::Float(vehicle.engine_oil_temp),
             )
-            .with_extended("ffb_raw".to_string(), TelemetryValue::Float(ffb_raw))
-            .with_extended(
+            .extended("ffb_raw".to_string(), TelemetryValue::Float(ffb_raw))
+            .extended(
                 "ffb_source".to_string(),
                 TelemetryValue::String(ffb_source.to_string()),
             )
+            .build()
     }
 
     /// Extract flags from scoring data
@@ -416,17 +417,22 @@ impl RFactor2Adapter {
         TelemetryFlags {
             yellow_flag: scoring.yellow_flag_state != 0,
             red_flag: scoring.game_phase == GamePhase::RedFlag as i32,
-            blue_flag: false, // Blue flag is per-vehicle in rF2
+            blue_flag: false,
             checkered_flag: scoring.game_phase == GamePhase::Checkered as i32,
             green_flag: scoring.game_phase == GamePhase::GreenFlag as i32,
-            pit_limiter: false, // Per-vehicle data
+            pit_limiter: false,
             in_pits: scoring.in_pits != 0,
             drs_available: false,
             drs_active: false,
             ers_available: false,
+            ers_active: false,
             launch_control: false,
             traction_control: false,
             abs_active: false,
+            engine_limiter: false,
+            safety_car: false,
+            formation_lap: false,
+            session_paused: false,
         }
     }
 
@@ -984,10 +990,10 @@ mod tests {
 
         let normalized = adapter.normalize_rf2_data(&vehicle, Some(&scoring), None);
 
-        assert_eq!(normalized.rpm, Some(8500.0));
-        assert_eq!(normalized.speed_ms, Some(65.0));
-        assert_eq!(normalized.gear, Some(4));
-        assert!(normalized.ffb_scalar.is_some());
+        assert_eq!(normalized.rpm, 8500.0);
+        assert_eq!(normalized.speed_ms, 65.0);
+        assert_eq!(normalized.gear, 4);
+        assert!(normalized.ffb_scalar != 0.0);
         assert_eq!(normalized.car_id, Some("formula_renault".to_string()));
         assert_eq!(normalized.track_id, Some("spa_francorchamps".to_string()));
         assert!(normalized.flags.green_flag);
@@ -1063,8 +1069,7 @@ mod tests {
 
         // Average: (0.1 + 0.15 + 0.08 + 0.12) / 4 = 0.1125
         let expected_slip = 0.1125;
-        let slip = normalized.slip_ratio.ok_or("expected slip_ratio")?;
-        assert!((slip - expected_slip).abs() < 0.001);
+        assert!((normalized.slip_ratio - expected_slip).abs() < 0.001);
 
         // Test with low speed (should be 0)
         let mut vehicle_low_speed = RF2VehicleTelemetry {
@@ -1074,7 +1079,7 @@ mod tests {
         vehicle_low_speed.wheels[0].lateral_patch_slip = 0.5;
 
         let normalized = adapter.normalize_rf2_data(&vehicle_low_speed, None, None);
-        assert_eq!(normalized.slip_ratio, Some(0.0));
+        assert_eq!(normalized.slip_ratio, 0.0);
 
         Ok(())
     }
@@ -1093,7 +1098,7 @@ mod tests {
         vehicle.wheels[3].lateral_patch_slip = 2.0;
 
         let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
-        assert_eq!(normalized.slip_ratio, Some(1.0));
+        assert_eq!(normalized.slip_ratio, 1.0);
 
         Ok(())
     }
@@ -1122,18 +1127,17 @@ mod tests {
 
         let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
         // 25.0 / 50.0 = 0.5
-        let ffb = normalized.ffb_scalar.ok_or("expected ffb_scalar")?;
-        assert!((ffb - 0.5).abs() < 0.01);
+        assert!((normalized.ffb_scalar - 0.5).abs() < 0.01);
 
         // Test high steering torque (should be clamped)
         vehicle.steering_shaft_torque = 100.0;
         let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
-        assert_eq!(normalized.ffb_scalar, Some(1.0));
+        assert_eq!(normalized.ffb_scalar, 1.0);
 
         // Test negative steering torque
         vehicle.steering_shaft_torque = -75.0;
         let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
-        assert_eq!(normalized.ffb_scalar, Some(-1.0));
+        assert_eq!(normalized.ffb_scalar, -1.0);
 
         Ok(())
     }
@@ -1188,7 +1192,7 @@ mod tests {
         };
 
         let normalized = adapter.normalize_rf2_data(&vehicle, None, Some(&force_feedback));
-        assert_eq!(normalized.ffb_scalar, Some(0.35));
+        assert_eq!(normalized.ffb_scalar, 0.35);
         assert_eq!(
             normalized.extended.get("ffb_source"),
             Some(&TelemetryValue::String("force_feedback_map".to_string()))
@@ -1210,8 +1214,7 @@ mod tests {
         };
 
         let normalized = adapter.normalize_rf2_data(&vehicle, None, Some(&force_feedback));
-        let ffb_scalar = normalized.ffb_scalar.ok_or("expected ffb scalar")?;
-        assert!((ffb_scalar - 0.5).abs() < 0.01);
+        assert!((normalized.ffb_scalar - 0.5).abs() < 0.01);
         assert_eq!(
             normalized.extended.get("ffb_source"),
             Some(&TelemetryValue::String(
@@ -1234,9 +1237,9 @@ mod tests {
 
         let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
 
-        assert_eq!(normalized.rpm, Some(6000.0));
-        assert_eq!(normalized.speed_ms, Some(40.0));
-        assert_eq!(normalized.gear, Some(3));
+        assert_eq!(normalized.rpm, 6000.0);
+        assert_eq!(normalized.speed_ms, 40.0);
+        assert_eq!(normalized.gear, 3);
         assert!(normalized.flags.green_flag); // Default is green
         Ok(())
     }
@@ -1311,5 +1314,61 @@ mod tests {
         assert_eq!(header.num_vehicles, 0);
         assert_eq!(header.update_index, 0);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn rf2_no_panic_on_arbitrary_bytes(
+            data in proptest::collection::vec(any::<u8>(), 0..4096usize)
+        ) {
+            let adapter = RFactor2Adapter::new();
+            let _ = adapter.normalize(&data);
+        }
+
+        #[test]
+        fn rf2_short_buffer_always_errors(
+            data in proptest::collection::vec(any::<u8>(), 0..256usize)
+        ) {
+            // RF2VehicleTelemetry is larger than 256 bytes, so these must all error.
+            let adapter = RFactor2Adapter::new();
+            prop_assert!(adapter.normalize(&data).is_err());
+        }
+
+        #[test]
+        fn rf2_speed_nonneg(speed in 0.0f32..200.0f32) {
+            let adapter = RFactor2Adapter::new();
+            let vehicle = RF2VehicleTelemetry { speed, ..RF2VehicleTelemetry::default() };
+            let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
+            prop_assert!(normalized.speed_ms >= 0.0);
+        }
+
+        #[test]
+        fn rf2_rpm_nonneg(rpm in 0.0f32..20000.0f32) {
+            let adapter = RFactor2Adapter::new();
+            let vehicle = RF2VehicleTelemetry { engine_rpm: rpm, ..RF2VehicleTelemetry::default() };
+            let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
+            prop_assert!(normalized.rpm >= 0.0);
+        }
+
+        #[test]
+        fn rf2_ffb_scalar_clamped(torque in -200.0f32..=200.0f32) {
+            let adapter = RFactor2Adapter::new();
+            let vehicle = RF2VehicleTelemetry {
+                steering_shaft_torque: torque,
+                ..RF2VehicleTelemetry::default()
+            };
+            let normalized = adapter.normalize_rf2_data(&vehicle, None, None);
+            prop_assert!(
+                normalized.ffb_scalar >= -1.0 && normalized.ffb_scalar <= 1.0,
+                "ffb_scalar {} must be in [-1, 1]",
+                normalized.ffb_scalar
+            );
+        }
     }
 }

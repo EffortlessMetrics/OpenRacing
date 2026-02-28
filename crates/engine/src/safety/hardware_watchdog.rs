@@ -1525,7 +1525,10 @@ mod property_tests {
             current_torque in torque_strategy(),
             comm_timeout_ms in 10u64..50u64,
         ) {
-            let watchdog = Box::new(SoftwareWatchdog::new(100));
+            // Use a large watchdog timeout so it cannot interfere with the
+            // communication-loss detection test, even under heavy CI load where
+            // thread::sleep may significantly overshoot the requested duration.
+            let watchdog = Box::new(SoftwareWatchdog::new(30_000));
             let torque_limit = TorqueLimit::new(25.0, 5.0);
             let mut system = SafetyInterlockSystem::with_config(
                 watchdog,

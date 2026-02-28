@@ -1,0 +1,6 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_tests.rs
+assertion_line: 135
+expression: "format!(\"model={:?}, max_torque={}, pedals={}, wheelbase={}\", proto.model(),\nproto.max_torque_nm(), proto.is_pedals(), proto.is_wheelbase())"
+---
+model=TLCM, max_torque=0, pedals=true, wheelbase=false

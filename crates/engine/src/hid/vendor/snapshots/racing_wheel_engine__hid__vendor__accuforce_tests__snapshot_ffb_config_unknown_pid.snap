@@ -1,0 +1,13 @@
+---
+source: crates/engine/src/hid/vendor/accuforce_tests.rs
+expression: handler.get_ffb_config()
+---
+FfbConfig {
+    fix_conditional_direction: false,
+    uses_vendor_usage_page: false,
+    required_b_interval: Some(
+        8,
+    ),
+    max_torque_nm: 7.0,
+    encoder_cpr: 0,
+}

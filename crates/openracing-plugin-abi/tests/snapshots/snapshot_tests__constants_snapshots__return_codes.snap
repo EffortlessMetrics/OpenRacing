@@ -1,0 +1,5 @@
+---
+source: crates/openracing-plugin-abi/tests/snapshot_tests.rs
+expression: codes
+---
+SUCCESS=0 ERROR=-1 INVALID_ARG=-2 PERMISSION_DENIED=-3 BUFFER_TOO_SMALL=-4 NOT_INITIALIZED=-5

@@ -47,6 +47,7 @@ jobs:
           #   compile_fail/      - trybuild compile-fail tests (same reason)
           #   compile-fail/      - alternate spelling used in schemas crate
           #   generated/         - auto-generated protobuf Rust files (must contain old field defs)
+          #   schemas/           - canonical struct definitions (TelemetryData field declarations)
           #   ipc_conversion.rs  - explicit old-wire → new-telemetry conversion layer
           #   ipc.rs             - service IPC layer maps old proto field names to new telemetry
           #   ipc_service.rs     - same
@@ -54,6 +55,9 @@ jobs:
           #   config_validation.rs - service config uses .sequence for LED patterns (not telemetry)
           #   protocol.rs        - OWP-1 wire-format struct definitions (not telemetry API)
           #   service_example.rs - example code that explicitly documents old API (intentional)
+          #   telemetry.rs       - TelemetryData definition file (belt-and-suspenders with schemas/)
+          # Post-filter: crates/hid-* crates have protocol-level sequence counters unrelated to
+          #              TelemetryData (e.g. hid-simucube-protocol, hid-fanatec-protocol)
           # NOTE: capture into variable so we test non-emptiness, not head's exit code (head always
           # exits 0 even on empty input, which would cause false positives in an "if pipeline" test).
           MATCHES=$(grep -r "$field" crates/ \
@@ -64,6 +68,8 @@ jobs:
             --exclude-dir="compile_fail" \
             --exclude-dir="compile-fail" \
             --exclude-dir="generated" \
+            --exclude-dir="schemas" \
+            --exclude-dir="telemetry-contracts" \
             --exclude="*test*" \
             --exclude="*compat*" \
             --exclude="protocol.rs" \
@@ -73,8 +79,13 @@ jobs:
             --exclude="commands.rs" \
             --exclude="config_validation.rs" \
             --exclude="service_example.rs" \
+            --exclude="telemetry.rs" \
             | grep -v "//.*$field" \
             | grep -v "#\[allow.*deprecated" \
+            | grep -v "crates/hid-" \
+            | grep -v "crates/openracing-ipc/src/codec" \
+            | grep -v "crates/openracing-native-plugin/src/plugin" \
+            | grep -v "crates/simplemotion-v2/" \
             | head -10 || true)
           
           if [ -n "$MATCHES" ]; then

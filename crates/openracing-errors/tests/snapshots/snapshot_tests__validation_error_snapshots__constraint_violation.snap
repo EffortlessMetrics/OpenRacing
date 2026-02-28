@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ValidationError::constraint(\"gain must be positive\").to_string()"
+---
+Constraint violation: gain must be positive

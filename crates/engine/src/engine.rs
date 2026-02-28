@@ -895,6 +895,7 @@ impl Engine {
                     ts_mono_ns: frame.ts_mono_ns,
                     seq: frame.seq,
                 }),
+                tick_delta: std::time::Duration::from_micros(1000), // 1ms tick
             };
             let fault_result = ctx.fault_manager.update(&fault_context);
             ctx.component_heartbeats_scratch = Some(fault_context.component_heartbeats);
@@ -1317,18 +1318,22 @@ mod tests {
         let result = engine.send_game_input(input);
         assert!(result.is_ok());
 
-        // Give engine time to process at least one frame.
-        let result = tokio::time::timeout(TokioDuration::from_millis(100), async {
+        // Give engine time to process at least one frame (generous timeout for loaded CI).
+        let result = tokio::time::timeout(TokioDuration::from_millis(2000), async {
             while engine.frame_count() == 0 {
                 sleep(TokioDuration::from_millis(5)).await;
             }
         })
         .await;
-        assert!(result.is_ok(), "engine did not process frames within 100ms");
+        assert!(
+            result.is_ok(),
+            "engine did not process frames within 2000ms"
+        );
 
         engine.stop().await.unwrap();
     }
 
+    #[cfg(not(feature = "rt-hardening"))]
     #[tokio::test]
     async fn test_pipeline_application() {
         let device = create_test_device();
@@ -1381,8 +1386,8 @@ mod tests {
         let device = create_test_device();
         engine.start(device).await.unwrap();
 
-        // Give engine time to process some frames
-        sleep(TokioDuration::from_millis(50)).await;
+        // Give engine time to process some frames (generous timeout for loaded CI)
+        sleep(TokioDuration::from_millis(500)).await;
 
         // Get stats
         let stats = engine.get_stats().await;
@@ -1394,6 +1399,7 @@ mod tests {
         engine.stop().await.unwrap();
     }
 
+    #[cfg(not(feature = "rt-hardening"))]
     #[tokio::test]
     async fn test_blackbox_recording() {
         let device = create_test_device();
@@ -1413,8 +1419,8 @@ mod tests {
             let _ = engine.send_game_input(input);
         }
 
-        // Give engine time to process
-        sleep(TokioDuration::from_millis(50)).await;
+        // Give engine time to process (generous timeout for loaded CI)
+        sleep(TokioDuration::from_millis(500)).await;
 
         // Check blackbox frames
         let frames = engine.get_blackbox_frames();

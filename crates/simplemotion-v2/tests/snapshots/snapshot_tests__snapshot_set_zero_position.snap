@@ -1,0 +1,5 @@
+---
+source: crates/simplemotion-v2/tests/snapshot_tests.rs
+expression: "format!(\"{:?}\", out)"
+---
+[1, 0, 19, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 201]

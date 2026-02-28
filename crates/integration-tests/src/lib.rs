@@ -15,10 +15,15 @@
 
 pub mod acceptance;
 pub mod common;
+pub mod fanatec_virtual;
+pub mod ffbeast_virtual;
 pub mod fixtures;
 pub mod gates;
+pub mod logitech_virtual;
 pub mod moza_virtual;
+pub mod openffboard_virtual;
 pub mod performance;
+pub mod simplemotion_virtual;
 pub mod soak;
 pub mod stress;
 pub mod user_journeys;

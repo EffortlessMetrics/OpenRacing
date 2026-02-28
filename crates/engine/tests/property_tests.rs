@@ -3,6 +3,7 @@
 //! These tests use property-based testing to verify that the domain policies
 //! behave correctly across a wide range of inputs and edge cases.
 
+use openracing_test_helpers::prelude::*;
 use racing_wheel_engine::{ProfileHierarchyPolicy, SafetyPolicy, SafetyViolation};
 use racing_wheel_schemas::prelude::{
     BaseSettings, Degrees, Device, DeviceCapabilities, DeviceId, DeviceState, DeviceType,
@@ -13,15 +14,6 @@ use std::time::Duration;
 // Property-based testing using quickcheck
 use quickcheck::{Arbitrary, Gen, TestResult};
 use quickcheck_macros::quickcheck;
-
-/// Test helper to unwrap results with panic on error
-#[track_caller]
-fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-    match r {
-        Ok(v) => v,
-        Err(e) => panic!("unexpected Err: {e:?}"),
-    }
-}
 
 /// Arbitrary implementation for TorqueNm for property testing
 #[derive(Debug, Clone)]

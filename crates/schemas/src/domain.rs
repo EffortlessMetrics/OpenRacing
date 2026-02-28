@@ -3,6 +3,7 @@
 //! This module contains the pure domain types that form the core of the racing wheel
 //! software. These types enforce unit safety and business rules at the type level.
 
+use openracing_errors::{ProfileError, ValidationError};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use thiserror::Error;
@@ -52,6 +53,66 @@ pub enum DomainError {
         /// The profile ID that was not found
         profile_id: String,
     },
+}
+
+impl From<DomainError> for ValidationError {
+    fn from(err: DomainError) -> Self {
+        match err {
+            DomainError::InvalidTorque(v, max) => {
+                ValidationError::out_of_range("torque", v, 0.0_f32, max)
+            }
+            DomainError::InvalidDegrees(v, min, max) => {
+                ValidationError::out_of_range("degrees", v, min, max)
+            }
+            DomainError::InvalidDeviceId(id) => ValidationError::invalid_format(
+                "device_id",
+                format!(
+                    "must be non-empty and alphanumeric with hyphens, got: {}",
+                    id
+                ),
+            ),
+            DomainError::InvalidProfileId(id) => ValidationError::invalid_format(
+                "profile_id",
+                format!("must be non-empty and valid identifier, got: {}", id),
+            ),
+            DomainError::InvalidGain(v) => {
+                ValidationError::out_of_range("gain", v, 0.0_f32, 1.0_f32)
+            }
+            DomainError::InvalidFrequency(v) => {
+                ValidationError::out_of_range("frequency", v, 0.0_f32, f32::MAX)
+            }
+            DomainError::InvalidCurvePoints(msg) => {
+                ValidationError::invalid_format("curve_points", msg)
+            }
+            DomainError::InheritanceDepthExceeded { depth, max_depth } => ValidationError::custom(
+                format!("inheritance depth exceeded: {} > {}", depth, max_depth),
+            ),
+            DomainError::CircularInheritance { profile_id } => {
+                ValidationError::custom(format!("circular inheritance: {}", profile_id))
+            }
+            DomainError::ParentProfileNotFound { profile_id } => {
+                ValidationError::custom(format!("parent not found: {}", profile_id))
+            }
+        }
+    }
+}
+
+impl From<DomainError> for ProfileError {
+    fn from(err: DomainError) -> Self {
+        match err {
+            DomainError::InheritanceDepthExceeded { depth, max_depth } => {
+                ProfileError::InheritanceDepthExceeded { depth, max_depth }
+            }
+            DomainError::CircularInheritance { profile_id } => {
+                ProfileError::circular_inheritance(&profile_id)
+            }
+            DomainError::ParentProfileNotFound { profile_id } => ProfileError::ParentNotFound {
+                parent_id: profile_id,
+            },
+            DomainError::InvalidProfileId(id) => ProfileError::InvalidId(id),
+            other => ProfileError::ValidationFailed(other.to_string()),
+        }
+    }
 }
 
 /// Torque value in Newton-meters with validation

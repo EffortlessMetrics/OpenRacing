@@ -13,19 +13,23 @@ Thrustmaster racing wheels use standard USB HID PID (Physical Interface Device) 
 
 | Model | Vendor ID | Product ID | Max Torque | Notes |
 |-------|-----------|------------|------------|-------|
-| T150 | `0x044F` | `0xB677` | 2.5 Nm | Entry-level, belt |
-| T150 Pro | `0x044F` | `0xB67F` | 2.5 Nm | With T3PA pedals |
-| TMX | `0x044F` | `0xB67E` | 2.5 Nm | Xbox variant of T150 |
+| T150 | `0x044F` | `0xB65D` | 2.5 Nm | Entry-level, belt |
+| T150 Pro | `0x044F` | `0xB65E` | 2.5 Nm | With T3PA pedals |
+| T300 RS (PS4 mode) | `0x044F` | `0xB66D` | 4.0 Nm | T300RS with PS4-mode switch active |
+| T300 RS | `0x044F` | `0xB66E` | 4.0 Nm | Belt-driven (PS3/PC mode) |
+| T300 RS GT | `0x044F` | `0xB66F` | 4.0 Nm | GT Edition (PS3 advanced mode) |
+| TX Racing | `0x044F` | `0xB669` | 4.0 Nm | Xbox variant |
+| T500 RS | `0x044F` | `0xB677` | 2.5 Nm | Legacy belt drive |
+| TMX | `0x044F` | `0xB67F` | 2.5 Nm | Xbox One variant; uses hid-tminit driver |
 | T248 | `0x044F` | `0xB696` | 4.0 Nm | Hybrid drive |
 | T248X | `0x044F` | `0xB697` | 4.0 Nm | Xbox variant |
-| T300 RS | `0x044F` | `0xB66E` | 4.0 Nm | Belt-driven |
-| T300 RS GT | `0x044F` | `0xB66F` | 4.0 Nm | GT Edition |
-| TX Racing | `0x044F` | `0xB669` | 4.0 Nm | Xbox variant |
 | T-GT | `0x044F` | `0xB68E` | 6.0 Nm | Gran Turismo |
 | T-GT II | `0x044F` | `0xB692` | 6.0 Nm | Updated T-GT |
 | TS-PC Racer | `0x044F` | `0xB689` | 6.0 Nm | PC-only, belt |
 | TS-XW | `0x044F` | `0xB691` | 6.0 Nm | Xbox variant |
 | T818 | `0x044F` | `0xB69B` | 10.0 Nm | Direct Drive |
+
+Source: JacKeTUs/linux-steering-wheels compatibility table.
 
 ### Pedals
 

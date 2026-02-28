@@ -21,29 +21,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 1. Demonstrate normalized telemetry creation and validation
     println!("\n1. 📊 Normalized Telemetry Creation");
-    let telemetry = NormalizedTelemetry::default()
-        .with_ffb_scalar(0.75)
-        .with_rpm(6500.0)
-        .with_speed_ms(45.0)
-        .with_slip_ratio(0.15)
-        .with_gear(4)
-        .with_car_id("gt3_bmw".to_string())
-        .with_track_id("spa".to_string());
+    let telemetry = NormalizedTelemetry::builder()
+        .ffb_scalar(0.75)
+        .rpm(6500.0)
+        .speed_ms(45.0)
+        .slip_ratio(0.15)
+        .gear(4)
+        .car_id("gt3_bmw")
+        .track_id("spa")
+        .build();
 
     println!(
         "   ✓ Created telemetry: FFB={:.2}, RPM={:.0}, Speed={:.1} m/s, Gear={}",
-        telemetry.ffb_scalar.unwrap_or(0.0),
-        telemetry.rpm.unwrap_or(0.0),
-        telemetry.speed_ms.unwrap_or(0.0),
-        telemetry.gear.unwrap_or(0)
+        telemetry.ffb_scalar, telemetry.rpm, telemetry.speed_ms, telemetry.gear
     );
 
     // Test value clamping
-    let clamped = NormalizedTelemetry::default().with_ffb_scalar(1.5);
-    println!(
-        "   ✓ FFB scalar clamping: 1.5 → {:.1}",
-        clamped.ffb_scalar.unwrap()
-    );
+    let clamped = NormalizedTelemetry::builder().ffb_scalar(1.5).build();
+    println!("   ✓ FFB scalar clamping: 1.5 → {:.1}", clamped.ffb_scalar);
 
     // 2. Demonstrate rate limiter functionality
     println!("\n2. ⚡ Rate Limiter Protection");
@@ -104,9 +99,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!(
                 "   📊 Frame {}: RPM={:.0}, Speed={:.1} m/s, FFB={:.2}",
                 i + 1,
-                frame.data.rpm.unwrap_or(0.0),
-                frame.data.speed_ms.unwrap_or(0.0),
-                frame.data.ffb_scalar.unwrap_or(0.0)
+                frame.data.rpm,
+                frame.data.speed_ms,
+                frame.data.ffb_scalar
             );
         }
     }
@@ -122,10 +117,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Record some frames
     for i in 0..10 {
-        let telemetry = NormalizedTelemetry::default()
-            .with_rpm(5000.0 + i as f32 * 100.0)
-            .with_speed_ms(30.0 + i as f32 * 2.0)
-            .with_gear(3);
+        let telemetry = NormalizedTelemetry::builder()
+            .rpm(5000.0 + i as f32 * 100.0)
+            .speed_ms(30.0 + i as f32 * 2.0)
+            .gear(3)
+            .build();
 
         let frame = TelemetryFrame::new(telemetry, i * 16_000_000, i, 64);
         recorder.record_frame(frame);
@@ -150,9 +146,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if replayed_count <= 3 {
             println!(
                 "   📊 Replay {}: RPM={:.0}, Speed={:.1} m/s",
-                replayed_count,
-                frame.data.rpm.unwrap_or(0.0),
-                frame.data.speed_ms.unwrap_or(0.0)
+                replayed_count, frame.data.rpm, frame.data.speed_ms
             );
         }
         if replayed_count >= recording.frames.len() {
@@ -204,14 +198,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     };
 
-    let extended_telemetry = NormalizedTelemetry::default()
-        .with_flags(flags)
-        .with_extended("fuel_level".to_string(), TelemetryValue::Float(45.5))
-        .with_extended("lap_count".to_string(), TelemetryValue::Integer(12))
-        .with_extended(
-            "session_type".to_string(),
-            TelemetryValue::String("Race".to_string()),
-        );
+    let extended_telemetry = NormalizedTelemetry::builder()
+        .flags(flags)
+        .extended("fuel_level", TelemetryValue::Float(45.5))
+        .extended("lap_count", TelemetryValue::Integer(12))
+        .extended("session_type", TelemetryValue::String("Race".to_string()))
+        .build();
 
     println!(
         "   ✓ Flags active: {}",

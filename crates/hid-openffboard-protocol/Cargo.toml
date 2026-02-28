@@ -1,0 +1,21 @@
+[package]
+name = "racing-wheel-hid-openffboard-protocol"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "OpenFFBoard USB HID protocol constants and encoders (I/O-free, allocation-free)"
+repository = "https://github.com/openracing/openracing"
+
+[lints.rust]
+warnings = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+
+[dev-dependencies]
+proptest = "1.9.0"
+insta = { version = "1.44.1", features = ["yaml"] }
+
+[dependencies]
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }

@@ -197,4 +197,47 @@ mod tests {
         // legacy Codemasters bridge adapter
         assert_eq!(normalize_game_id("f1"), "f1");
     }
+
+    #[test]
+    fn game_count_meets_minimum_regression_threshold() -> Result<(), Box<dyn std::error::Error>> {
+        let game_ids = matrix_game_ids()?;
+        assert!(game_ids.len() >= 15, "got {}", game_ids.len());
+        Ok(())
+    }
+    #[test]
+    fn each_game_has_valid_telemetry_rate_and_non_empty_name()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        for (id, game) in &matrix.games {
+            assert!(!game.name.is_empty(), "game {} has empty name", id);
+            // Only check update_rate_hz for games that actually support telemetry
+            if game.telemetry.method != "none" {
+                assert!(game.telemetry.update_rate_hz > 0, "game {} zero hz", id);
+            }
+        }
+        Ok(())
+    }
+    #[test]
+    fn most_games_have_auto_detect_identifiers() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        let count = matrix
+            .games
+            .values()
+            .filter(|g| {
+                !g.auto_detect.process_names.is_empty() || !g.auto_detect.install_paths.is_empty()
+            })
+            .count();
+        assert!(count >= 10, "expected >= 10, got {}", count);
+        Ok(())
+    }
+    #[test]
+    fn expected_games_are_present_in_matrix() -> Result<(), Box<dyn std::error::Error>> {
+        let game_ids = matrix_game_ids()?;
+        for game in [
+            "iracing", "acc", "f1_25", "eawrc", "ams2", "rfactor2", "dirt5",
+        ] {
+            assert!(game_ids.contains(&game.to_string()), "missing: {}", game);
+        }
+        Ok(())
+    }
 }

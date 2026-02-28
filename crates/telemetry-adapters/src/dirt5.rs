@@ -110,30 +110,25 @@ impl Dirt5Adapter {
     }
 
     fn normalize_decoded(packet: &DecodedCodemastersPacket) -> NormalizedTelemetry {
-        let mut telemetry = NormalizedTelemetry::default();
         let lookup = |aliases: &[&str]| -> Option<f32> { packet_f32(&packet.values, aliases) };
 
-        if let Some(speed_ms) = lookup(&["speed"]) {
-            telemetry = telemetry.with_speed_ms(speed_ms);
-        }
-
-        if let Some(engine_rate_rad_s) = lookup(&["engine_rate", "engine rate", "enginerate"]) {
-            let rpm = engine_rate_rad_s * 60.0 / (2.0 * PI);
-            telemetry = telemetry.with_rpm(rpm);
-        }
-
-        if let Some(gear_raw) = lookup(&["gear"])
-            && gear_raw.is_finite()
-        {
-            let gear = gear_raw.trunc();
-            if (-127.0..=127.0).contains(&gear) {
-                telemetry = telemetry.with_gear(gear as i8);
+        let speed_ms = lookup(&["speed"]);
+        let rpm = lookup(&["engine_rate", "engine rate", "enginerate"])
+            .map(|engine_rate_rad_s| engine_rate_rad_s * 60.0 / (2.0 * PI))
+            .or_else(|| lookup(&["rpm"]));
+        let gear = lookup(&["gear"]).and_then(|gear_raw| {
+            if gear_raw.is_finite() {
+                let gear = gear_raw.trunc();
+                if (-127.0..=127.0).contains(&gear) {
+                    Some(gear as i8)
+                } else {
+                    None
+                }
+            } else {
+                None
             }
-        }
-
-        if let Some(slip_ratio) = lookup(&["slip_ratio"]) {
-            telemetry = telemetry.with_slip_ratio(slip_ratio);
-        } else {
+        });
+        let slip_ratio = lookup(&["slip_ratio"]).or_else(|| {
             let patch_channels = [
                 "wheel_patch_speed_fl",
                 "wheel_patch_speed_fr",
@@ -147,25 +142,44 @@ impl Dirt5Adapter {
                 .map(|speed| speed.abs())
                 .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-            if let (Some(speed_ms), Some(patch_speed)) = (telemetry.speed_ms, patch_speed_max) {
-                let denominator = speed_ms.max(1.0);
-                telemetry = telemetry.with_slip_ratio((patch_speed - speed_ms).abs() / denominator);
-            }
+            patch_speed_max.and_then(|patch_speed| {
+                speed_ms.filter(|&s| s > 0.0).map(|s| {
+                    let denominator = s.max(1.0);
+                    (patch_speed - s).abs() / denominator
+                })
+            })
+        });
+
+        let mut builder = NormalizedTelemetry::builder();
+
+        if let Some(speed) = speed_ms {
+            builder = builder.speed_ms(speed);
+        }
+        if let Some(r) = rpm {
+            builder = builder.rpm(r);
+        }
+        if let Some(g) = gear {
+            builder = builder.gear(g);
+        }
+        if let Some(slip) = slip_ratio {
+            builder = builder.slip_ratio(slip);
         }
 
         for (channel, value) in &packet.values {
-            telemetry = telemetry.with_extended(channel.clone(), TelemetryValue::Float(*value));
+            builder = builder.extended(channel.clone(), TelemetryValue::Float(*value));
         }
 
         if let Some(fourcc) = &packet.fourcc {
-            telemetry = telemetry
-                .with_extended("fourcc".to_string(), TelemetryValue::String(fourcc.clone()));
+            builder =
+                builder.extended("fourcc".to_string(), TelemetryValue::String(fourcc.clone()));
         }
 
-        telemetry.with_extended(
-            "decoder_type".to_string(),
-            TelemetryValue::String("codemasters_custom_udp".to_string()),
-        )
+        builder
+            .extended(
+                "decoder_type".to_string(),
+                TelemetryValue::String("codemasters_custom_udp".to_string()),
+            )
+            .build()
     }
 
     fn is_recent_packet(&self) -> bool {
@@ -345,10 +359,9 @@ mod tests {
         let decoded = spec.decode(&packet)?;
         let normalized = Dirt5Adapter::normalize_decoded(&decoded);
 
-        assert_eq!(normalized.speed_ms, Some(20.0));
-        assert_eq!(normalized.gear, Some(3));
-        assert_eq!(normalized.rpm, Some(60000.0));
-        assert!(normalized.slip_ratio.is_some());
+        assert_eq!(normalized.speed_ms, 20.0);
+        assert_eq!(normalized.gear, 3);
+        assert_eq!(normalized.rpm, 60000.0);
         assert_eq!(
             normalized.extended.get("wheelpatchspeedfl"),
             Some(&TelemetryValue::Float(18.0))

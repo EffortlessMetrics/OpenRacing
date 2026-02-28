@@ -455,17 +455,10 @@ pub struct ProfileStatistics {
 mod tests {
     use super::*;
     use crate::{ProfileRepoError, RepositoryStatus};
+    use openracing_test_helpers::prelude::*;
 
     use async_trait::async_trait;
     use std::path::Path;
-
-    #[track_caller]
-    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-        match r {
-            Ok(v) => v,
-            Err(e) => panic!("unexpected Err: {e:?}"),
-        }
-    }
 
     // Mock profile repository for testing
     struct MockProfileRepo {

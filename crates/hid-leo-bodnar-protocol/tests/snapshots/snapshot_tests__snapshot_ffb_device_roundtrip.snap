@@ -1,0 +1,5 @@
+---
+source: crates/hid-leo-bodnar-protocol/tests/snapshot_tests.rs
+expression: "summary.join(\"\\n\")"
+---
+"pid=0x000e, name=Leo Bodnar USB Sim Racing Wheel Interface, ffb=true, vid_match=true\npid=0x000f, name=Leo Bodnar FFB Joystick, ffb=true, vid_match=true"

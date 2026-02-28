@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ValidationError::required(\"profile_id\").to_string()"
+---
+Required field 'profile_id' is missing

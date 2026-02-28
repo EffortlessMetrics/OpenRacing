@@ -190,6 +190,51 @@ All safety-critical code must follow these guidelines:
 3. Review fault detection thresholds
 4. Test physical interlock mechanisms
 
+## Mutation Testing
+
+Mutation testing verifies that the test suite actually catches logic errors — not just that code runs, but that tests *fail* when the code is wrong. This is especially important for safety-critical paths where an undetected mutation could allow unsafe torque or miss a fault.
+
+### Install
+
+```bash
+cargo install cargo-mutants
+```
+
+### Run (engine safety code)
+
+```bash
+# Full mutation run for the safety-critical engine crate (slow — allow 30–60 min)
+cargo mutants --package racing-wheel-engine --test-timeout 60 --jobs 4
+
+# Convenience scripts (also exit 1 if any mutants survive)
+./scripts/run_mutation_tests.sh                          # Linux / macOS
+.\scripts\run_mutation_tests.ps1                         # Windows PowerShell
+
+# Narrower run — only the safety module
+cargo mutants --package racing-wheel-engine --file 'crates/engine/src/safety.rs'
+```
+
+### What to focus on
+
+| File | Why it matters |
+|------|---------------|
+| `crates/engine/src/safety.rs` | `clamp_torque_nm`, `report_fault`, `max_torque_nm`, state machine transitions |
+| `crates/engine/src/safety/hardware_watchdog.rs` | Watchdog feed/timeout, `SafetyInterlockSystem` |
+| `crates/engine/src/safety/fault_injection.rs` | Fault trigger conditions and recovery logic |
+| `crates/engine/src/policies.rs` | `SafetyPolicy` torque limits and hands-off timeout |
+
+### CI integration
+
+A scheduled workflow (`.github/workflows/mutation-tests.yml`) runs mutation tests weekly (Monday 03:00 UTC) and on manual dispatch. It is intentionally **not** triggered on every push because mutation tests are too slow for that.
+
+### Interpreting results
+
+- **Caught**: good — the test suite detected the mutation.
+- **Survived**: bad — a mutation was not caught; add a test that would fail for that change.
+- **Timeout**: usually means a test hung; investigate or increase `--test-timeout`.
+
+The configuration in `mutants.toml` already excludes test-only code, serde boilerplate, and Debug/Display impls so results focus on production logic.
+
 ## Contributing
 
 1. **Create ADR**: For architectural changes, create an ADR first
@@ -203,10 +248,34 @@ All safety-critical code must follow these guidelines:
 - `scripts/validate_performance.py`: Performance gate validation
 - `scripts/validate_adr.py`: ADR format and reference validation
 - `scripts/generate_docs_index.py`: Documentation index generation
+- `scripts/sync_yaml.py`: Game support matrix YAML sync tool (see below)
+- `scripts/run_mutation_tests.sh`: Mutation testing runner (Linux/macOS)
+- `scripts/run_mutation_tests.ps1`: Mutation testing runner (Windows)
 - `benches/rt_timing.rs`: Real-time performance benchmarks
 - `deny.toml`: Dependency and license configuration
 - `clippy.toml`: Linting configuration
 - `rustfmt.toml`: Code formatting configuration
+
+### Keeping game support matrix files in sync
+
+Two YAML files must always be identical:
+
+- `crates/telemetry-config/src/game_support_matrix.yaml` (canonical — runtime)
+- `crates/telemetry-support/src/game_support_matrix.yaml` (mirror — tests)
+
+**Whenever you edit `crates/telemetry-config/src/game_support_matrix.yaml`, run:**
+
+```bash
+python scripts/sync_yaml.py --fix
+```
+
+This copies the canonical file to the mirror. To check without writing:
+
+```bash
+python scripts/sync_yaml.py --check   # exits 1 if files differ
+```
+
+The CI workflow (`.github/workflows/yaml-sync-check.yml`) enforces this on every push and PR.
 
 ## WSL + Nix CI Runner (Windows)
 

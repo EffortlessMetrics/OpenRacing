@@ -1,0 +1,5 @@
+---
+source: crates/hid-simucube-protocol/tests/snapshot_tests.rs
+expression: "format!(\"{:?}\", results)"
+---
+"[(\"sport\", Sport), (\"pro\", Pro), (\"ultimate\", Ultimate), (\"wrong_vid\", Unknown)]"

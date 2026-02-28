@@ -1,0 +1,11 @@
+---
+source: crates/engine/src/hid/vendor/leo_bodnar_tests.rs
+expression: handler.get_ffb_config()
+---
+FfbConfig {
+    fix_conditional_direction: false,
+    uses_vendor_usage_page: false,
+    required_b_interval: None,
+    max_torque_nm: 10.0,
+    encoder_cpr: 65535,
+}

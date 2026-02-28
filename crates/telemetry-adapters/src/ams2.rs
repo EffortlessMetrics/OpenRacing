@@ -200,25 +200,26 @@ impl AMS2Adapter {
         // AMS2 provides steering force in the range of approximately -1.0 to 1.0
         let ffb_scalar = data.steering.clamp(-1.0, 1.0);
 
-        NormalizedTelemetry::default()
-            .with_ffb_scalar(ffb_scalar)
-            .with_rpm(data.rpm)
-            .with_speed_ms(data.speed)
-            .with_slip_ratio(slip_ratio)
-            .with_gear(data.gear)
-            .with_car_id(car_id)
-            .with_track_id(track_id)
-            .with_flags(flags)
-            .with_extended(
+        NormalizedTelemetry::builder()
+            .ffb_scalar(ffb_scalar)
+            .rpm(data.rpm)
+            .speed_ms(data.speed)
+            .slip_ratio(slip_ratio)
+            .gear(data.gear)
+            .car_id(car_id)
+            .track_id(track_id)
+            .flags(flags)
+            .extended(
                 "fuel_level".to_string(),
                 TelemetryValue::Float(data.fuel_level),
             )
-            .with_extended(
+            .extended(
                 "lap_count".to_string(),
                 TelemetryValue::Integer(data.laps_completed as i32),
             )
-            .with_extended("throttle".to_string(), TelemetryValue::Float(data.throttle))
-            .with_extended("brake".to_string(), TelemetryValue::Float(data.brake))
+            .extended("throttle".to_string(), TelemetryValue::Float(data.throttle))
+            .extended("brake".to_string(), TelemetryValue::Float(data.brake))
+            .build()
     }
 }
 
@@ -685,10 +686,10 @@ mod tests {
 
         let normalized = adapter.normalize_ams2_data(&data);
 
-        assert_eq!(normalized.rpm, Some(12000.0));
-        assert_eq!(normalized.speed_ms, Some(80.0));
-        assert_eq!(normalized.gear, Some(5));
-        assert_eq!(normalized.ffb_scalar, Some(0.35));
+        assert_eq!(normalized.rpm, 12000.0);
+        assert_eq!(normalized.speed_ms, 80.0);
+        assert_eq!(normalized.gear, 5);
+        assert_eq!(normalized.ffb_scalar, 0.35);
         assert_eq!(normalized.car_id, Some("formula_ultimate".to_string()));
         assert_eq!(normalized.track_id, Some("interlagos".to_string()));
         assert!(normalized.flags.green_flag);
@@ -804,8 +805,7 @@ mod tests {
 
         // Average: (0.1 + 0.15 + 0.08 + 0.12) / 4 = 0.1125
         let expected_slip = 0.1125;
-        let slip = normalized.slip_ratio.ok_or("expected slip_ratio")?;
-        assert!((slip - expected_slip).abs() < 0.001);
+        assert!((normalized.slip_ratio - expected_slip).abs() < 0.001);
 
         // Test with low speed (should be 0)
         let data_low_speed = AMS2SharedMemory {
@@ -814,7 +814,7 @@ mod tests {
             ..Default::default()
         };
         let normalized = adapter.normalize_ams2_data(&data_low_speed);
-        assert_eq!(normalized.slip_ratio, Some(0.0));
+        assert_eq!(normalized.slip_ratio, 0.0);
 
         Ok(())
     }
@@ -830,7 +830,7 @@ mod tests {
             ..Default::default()
         };
         let normalized = adapter.normalize_ams2_data(&data);
-        assert_eq!(normalized.slip_ratio, Some(1.0));
+        assert_eq!(normalized.slip_ratio, 1.0);
 
         Ok(())
     }
@@ -884,7 +884,7 @@ mod tests {
             ..Default::default()
         };
         let normalized = adapter.normalize_ams2_data(&data_high);
-        assert_eq!(normalized.ffb_scalar, Some(1.0));
+        assert_eq!(normalized.ffb_scalar, 1.0);
 
         // Test steering value < -1.0 (should be clamped)
         let data_low = AMS2SharedMemory {
@@ -892,7 +892,7 @@ mod tests {
             ..Default::default()
         };
         let normalized = adapter.normalize_ams2_data(&data_low);
-        assert_eq!(normalized.ffb_scalar, Some(-1.0));
+        assert_eq!(normalized.ffb_scalar, -1.0);
 
         Ok(())
     }
@@ -1029,5 +1029,58 @@ mod tests {
         assert_eq!(data.throttle, 0.0);
         assert_eq!(data.brake, 0.0);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn ams2_no_panic_on_arbitrary_bytes(
+            data in proptest::collection::vec(any::<u8>(), 0..4096usize)
+        ) {
+            let adapter = AMS2Adapter::new();
+            let _ = adapter.normalize(&data);
+        }
+
+        #[test]
+        fn ams2_short_buffer_always_errors(
+            data in proptest::collection::vec(any::<u8>(), 0..256usize)
+        ) {
+            // AMS2SharedMemory is larger than 256 bytes, so these must all error.
+            let adapter = AMS2Adapter::new();
+            prop_assert!(adapter.normalize(&data).is_err());
+        }
+
+        #[test]
+        fn ams2_speed_nonneg(speed in 0.0f32..200.0f32) {
+            let adapter = AMS2Adapter::new();
+            let data = AMS2SharedMemory { speed, ..AMS2SharedMemory::default() };
+            let normalized = adapter.normalize_ams2_data(&data);
+            prop_assert!(normalized.speed_ms >= 0.0);
+        }
+
+        #[test]
+        fn ams2_rpm_nonneg(rpm in 0.0f32..20000.0f32) {
+            let adapter = AMS2Adapter::new();
+            let data = AMS2SharedMemory { rpm, ..AMS2SharedMemory::default() };
+            let normalized = adapter.normalize_ams2_data(&data);
+            prop_assert!(normalized.rpm >= 0.0);
+        }
+
+        #[test]
+        fn ams2_ffb_scalar_clamped(steering in -5.0f32..=5.0f32) {
+            let adapter = AMS2Adapter::new();
+            let data = AMS2SharedMemory { steering, ..AMS2SharedMemory::default() };
+            let normalized = adapter.normalize_ams2_data(&data);
+            prop_assert!(
+                normalized.ffb_scalar >= -1.0 && normalized.ffb_scalar <= 1.0,
+                "ffb_scalar {} must be in [-1, 1]",
+                normalized.ffb_scalar
+            );
+        }
     }
 }

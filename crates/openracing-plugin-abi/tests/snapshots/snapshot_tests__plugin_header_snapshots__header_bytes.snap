@@ -1,0 +1,5 @@
+---
+source: crates/openracing-plugin-abi/tests/snapshot_tests.rs
+expression: "format!(\"{:02X?}\", bytes)"
+---
+[31, 4C, 57, 57, 00, 00, 01, 00, 03, 00, 00, 00, 00, 00, 00, 00]

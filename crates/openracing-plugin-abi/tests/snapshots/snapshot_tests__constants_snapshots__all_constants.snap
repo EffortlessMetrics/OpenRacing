@@ -1,0 +1,8 @@
+---
+source: crates/openracing-plugin-abi/tests/snapshot_tests.rs
+expression: constants
+---
+PLUG_ABI_VERSION=0x00010000
+PLUG_ABI_MAGIC=0x57574C31
+WASM_ABI_VERSION=1
+HOST_MODULE=env

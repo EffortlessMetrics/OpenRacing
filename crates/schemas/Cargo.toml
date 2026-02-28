@@ -17,6 +17,7 @@ thiserror = { workspace = true }
 async-trait = { workspace = true }
 jsonschema = { workspace = true }
 chrono = { workspace = true }
+openracing-errors = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [build-dependencies]

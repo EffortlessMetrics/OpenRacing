@@ -1,0 +1,11 @@
+---
+source: crates/openracing-plugin-abi/tests/snapshot_tests.rs
+expression: "format!(\"{:#?}\", info)"
+---
+WasmPluginInfo {
+    name: "",
+    version: "",
+    author: "",
+    description: "",
+    abi_version: 1,
+}

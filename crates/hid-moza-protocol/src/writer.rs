@@ -27,6 +27,18 @@ pub trait VendorProtocol: Send + Sync {
         data: &[u8],
     ) -> Result<(), Box<dyn std::error::Error>>;
 
+    /// Gracefully shut down the device before disconnecting (e.g. stop active effects).
+    ///
+    /// The default implementation is a no-op; vendors that need to silence hardware
+    /// on clean shutdown override this method.  Write failures are expected when the
+    /// device was already removed (abrupt unplug) and must be handled by callers.
+    fn shutdown_device(
+        &self,
+        _writer: &mut dyn DeviceWriter,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        Ok(())
+    }
+
     /// Get FFB configuration including quirks.
     fn get_ffb_config(&self) -> FfbConfig;
 

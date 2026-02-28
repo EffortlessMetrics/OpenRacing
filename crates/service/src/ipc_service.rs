@@ -142,7 +142,7 @@ impl WheelService for WheelServiceImpl {
                             name: device.name,
                             r#type: 1, // Default to WheelBase type
                             state: if device.is_connected { 1 } else { 0 },
-                            capabilities: None, // TODO: Convert capabilities if needed
+                            capabilities: Some(device.capabilities.into()),
                         };
                         yield Ok(device_info);
                     }
@@ -181,7 +181,7 @@ impl WheelService for WheelServiceImpl {
                     name: device.name,
                     r#type: 1, // Default to WheelBase type
                     state: if device.is_connected { 1 } else { 0 },
-                    capabilities: None, // TODO: Convert capabilities if needed
+                    capabilities: Some(device.capabilities.into()),
                 };
                 let telemetry_data: Option<
                     racing_wheel_schemas::generated::wheel::v1::TelemetryData,

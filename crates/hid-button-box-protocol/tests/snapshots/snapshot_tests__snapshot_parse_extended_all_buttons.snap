@@ -1,0 +1,6 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_tests.rs
+assertion_line: 74
+expression: "format!(\"buttons={:#010x}, button_count={}\", report.buttons,\nreport.button_count())"
+---
+"buttons=0xffffffff, button_count=32"

@@ -12,12 +12,21 @@ description = "Telemetry domain models and disconnection state for OpenRacing"
 readme = "README.md"
 keywords = ["telemetry", "racing", "ffb", "connection", "normalization"]
 
+[features]
+default = []
+orchestrator = ["dep:racing-wheel-telemetry-recorder", "dep:racing-wheel-telemetry-config", "dep:tracing"]
+
 [dependencies]
 serde = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true }
 async-trait = { workspace = true }
+racing-wheel-schemas = { path = "../schemas" }
+racing-wheel-telemetry-recorder = { path = "../telemetry-recorder", optional = true }
+racing-wheel-telemetry-config = { path = "../telemetry-config", optional = true }
+tracing = { workspace = true, optional = true }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 serde_json = { workspace = true }

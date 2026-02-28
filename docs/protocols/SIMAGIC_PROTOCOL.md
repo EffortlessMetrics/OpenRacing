@@ -11,17 +11,29 @@ Simagic protocols changed significantly between firmware versions. Legacy firmwa
 
 ## Device Identification
 
+Simagic has used three distinct USB VID/PID ranges across product generations:
+
+| Generation | Vendor ID | Notes |
+|------------|-----------|-------|
+| Legacy (Alpha/M10/Alpha Mini/Alpha Ultimate) | `0x0483` | STMicroelectronics generic VID |
+| EVO generation (Alpha EVO/EVO Sport/EVO Pro) | `0x3670` | Shen Zhen Simagic Technology Co., Ltd. |
+
+VID `0x3670` is registered to Simagic directly (USB VID registry). The `hid-simagic-protocol`
+crate targets EVO-generation devices (VID `0x3670`). Legacy devices (VID `0x0483`) use
+standard HID PID handled by the `simagic-ff` kernel module.
+
 ### Wheel Bases
 
-| Model | Vendor ID | Product ID | Max Torque | Firmware | Notes |
-|-------|-----------|------------|------------|----------|-------|
-| M10 | `0x0483` | `0x0522` | 10 Nm | Legacy/Modern | Direct Drive |
-| Alpha Mini | `0x0483` | `0x0522` | 10 Nm | Modern | Same PID as M10 |
-| Alpha | `0x0483` | `0x0522` | 15 Nm | Modern | Same PID |
-| Alpha U | `0x0483` | `0x0523` | 15 Nm | Modern | Updated Alpha |
-| Alpha Ultimate | `0x0483` | `0x0524` | 23 Nm | Modern | Flagship |
-
-*Note: Vendor ID `0x0483` is STMicroelectronics generic VID, used by many devices.*
+| Model | Vendor ID | Product ID | Max Torque | Generation | Notes |
+|-------|-----------|------------|------------|------------|-------|
+| M10 | `0x0483` | `0x0522` | 10 Nm | Legacy | Shared PID with Alpha/Alpha Mini |
+| Alpha Mini | `0x0483` | `0x0522` | 10 Nm | Legacy | Same PID as M10 |
+| Alpha | `0x0483` | `0x0522` | 15 Nm | Legacy | Same PID |
+| Alpha U | `0x0483` | `0x0523` | 15 Nm | Legacy | Updated Alpha |
+| Alpha Ultimate | `0x0483` | `0x0524` | 23 Nm | Legacy | Flagship |
+| EVO Sport | `0x3670` | `0x0500` | — | EVO | Verified: linux-steering-wheels |
+| EVO | `0x3670` | `0x0501` | — | EVO | Verified: linux-steering-wheels |
+| EVO Pro | `0x3670` | `0x0502` | — | EVO | Verified: linux-steering-wheels |
 
 ### Steering Wheels (Rims)
 

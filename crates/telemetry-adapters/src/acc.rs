@@ -356,61 +356,65 @@ impl ACCSessionState {
             ..TelemetryFlags::default()
         };
 
-        let mut telemetry = NormalizedTelemetry::default()
-            .with_speed_ms(f32::from(car.speed_kmh) / 3.6)
-            .with_gear(car.gear)
-            .with_flags(flags)
-            .with_car_id(format!("car_{}", car.car_index))
-            .with_extended(
+        let track_id = self.track_name.clone();
+        let speed_ms = f32::from(car.speed_kmh) / 3.6;
+        let car_id = format!("car_{}", car.car_index);
+
+        let mut builder = NormalizedTelemetry::builder()
+            .speed_ms(speed_ms)
+            .gear(car.gear)
+            .flags(flags)
+            .car_id(car_id)
+            .extended(
                 "position".to_string(),
                 TelemetryValue::Integer(i32::from(car.position)),
             )
-            .with_extended(
+            .extended(
                 "cup_position".to_string(),
                 TelemetryValue::Integer(i32::from(car.cup_position)),
             )
-            .with_extended(
+            .extended(
                 "track_position".to_string(),
                 TelemetryValue::Integer(i32::from(car.track_position)),
             )
-            .with_extended(
+            .extended(
                 "laps".to_string(),
                 TelemetryValue::Integer(i32::from(car.laps)),
             )
-            .with_extended(
+            .extended(
                 "delta_ms".to_string(),
                 TelemetryValue::Integer(car.delta_ms),
             );
 
-        if let Some(track_name) = &self.track_name {
-            telemetry = telemetry.with_track_id(track_name.clone());
+        if let Some(track_name) = track_id {
+            builder = builder.track_id(track_name);
         }
 
         if let Some(realtime) = &self.latest_realtime {
-            telemetry = telemetry
-                .with_extended(
+            builder = builder
+                .extended(
                     "session_time_ms".to_string(),
                     TelemetryValue::Float(realtime.session_time_ms),
                 )
-                .with_extended(
+                .extended(
                     "ambient_temp_c".to_string(),
                     TelemetryValue::Integer(i32::from(realtime.ambient_temp_c)),
                 )
-                .with_extended(
+                .extended(
                     "track_temp_c".to_string(),
                     TelemetryValue::Integer(i32::from(realtime.track_temp_c)),
                 )
-                .with_extended(
+                .extended(
                     "rain_level".to_string(),
                     TelemetryValue::Float(realtime.rain_level),
                 )
-                .with_extended(
+                .extended(
                     "wetness".to_string(),
                     TelemetryValue::Float(realtime.wetness),
                 );
         }
 
-        telemetry
+        builder.build()
     }
 }
 
@@ -853,8 +857,8 @@ mod tests {
 
         assert_eq!(normalized.car_id, Some("car_7".to_string()));
         assert_eq!(normalized.track_id, Some("monza".to_string()));
-        assert_eq!(normalized.speed_ms, Some(50.0));
-        assert_eq!(normalized.gear, Some(4));
+        assert_eq!(normalized.speed_ms, 50.0);
+        assert_eq!(normalized.gear, 4);
         assert_eq!(
             normalized.extended.get("session_time_ms"),
             Some(&TelemetryValue::Float(12345.0))
@@ -946,8 +950,8 @@ mod tests {
             .update_and_normalize(&car_message)
             .ok_or("expected normalized telemetry")?;
 
-        assert_eq!(normalized.speed_ms, Some(50.0));
-        assert_eq!(normalized.gear, Some(4));
+        assert_eq!(normalized.speed_ms, 50.0);
+        assert_eq!(normalized.gear, 4);
         assert_eq!(normalized.track_id, Some("monza".to_string()));
         assert_eq!(normalized.car_id, Some("car_7".to_string()));
         assert_eq!(
@@ -990,6 +994,23 @@ mod tests {
             let mut reader = PacketReader::new(&bytes);
             let decoded = read_acc_string(&mut reader);
             prop_assert_eq!(decoded.ok(), Some(value));
+        }
+
+        #[test]
+        fn prop_acc_normalize_speed_non_negative(data: Vec<u8>) {
+            if let Ok(normalized) = ACCAdapter::new().normalize(&data) {
+                prop_assert!(normalized.speed_ms >= 0.0);
+                prop_assert!(normalized.speed_ms.is_finite());
+            }
+        }
+
+        #[test]
+        fn prop_acc_normalize_gear_in_range(data: Vec<u8>) {
+            if let Ok(normalized) = ACCAdapter::new().normalize(&data) {
+                // Gear is decoded as (raw_byte - 2) clamped to i8.
+                // Just verify normalization succeeds without panicking.
+                let _gear: i8 = normalized.gear;
+            }
         }
     }
 

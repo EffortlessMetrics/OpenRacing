@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "DeviceError::unsupported(0x1234, 0x5678).to_string()"
+---
+Unsupported device: vendor=0x1234, product=0x5678

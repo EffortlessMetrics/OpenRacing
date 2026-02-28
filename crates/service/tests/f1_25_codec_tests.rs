@@ -19,15 +19,15 @@ fn test_f1_25_car_telemetry_fixture_normalizes() -> TestResult {
     let normalized = adapter.normalize(FIXTURE_CAR_TELEMETRY)?;
 
     // 216 km/h ÷ 3.6 = 60.0 m/s
-    let speed = normalized.speed_ms.expect("speed_ms must be present");
+    let speed = normalized.speed_ms;
     assert!(
         (speed - 60.0).abs() < 0.1,
         "expected speed ~60.0 m/s, got {speed}"
     );
 
-    assert_eq!(normalized.gear, Some(7), "gear must be 7");
+    assert_eq!(normalized.gear, 7, "gear must be 7");
 
-    let rpm = normalized.rpm.expect("rpm must be present");
+    let rpm = normalized.rpm;
     assert!(
         (rpm - 14500.0).abs() < 1.0,
         "expected rpm ~14500, got {rpm}"
@@ -39,7 +39,7 @@ fn test_f1_25_car_telemetry_fixture_normalizes() -> TestResult {
 /// CarTelemetry fixture must have DRS active flag set in extended fields.
 #[test]
 fn test_f1_25_car_telemetry_fixture_drs_active() -> TestResult {
-    use racing_wheel_telemetry_contracts::TelemetryValue;
+    use racing_wheel_telemetry_core::TelemetryValue;
     let adapter = F1_25Adapter::new();
     let normalized = adapter.normalize(FIXTURE_CAR_TELEMETRY)?;
 
@@ -59,7 +59,7 @@ fn test_f1_25_car_telemetry_fixture_drs_active() -> TestResult {
 /// CarTelemetry fixture must include tyre pressure extended fields (in PSI).
 #[test]
 fn test_f1_25_car_telemetry_fixture_tyre_pressures() -> TestResult {
-    use racing_wheel_telemetry_contracts::TelemetryValue;
+    use racing_wheel_telemetry_core::TelemetryValue;
     let adapter = F1_25Adapter::new();
     let normalized = adapter.normalize(FIXTURE_CAR_TELEMETRY)?;
 
@@ -90,7 +90,7 @@ fn test_f1_25_car_telemetry_fixture_tyre_pressures() -> TestResult {
 /// CarTelemetry fixture must report throttle and brake in extended fields.
 #[test]
 fn test_f1_25_car_telemetry_fixture_throttle_brake() -> TestResult {
-    use racing_wheel_telemetry_contracts::TelemetryValue;
+    use racing_wheel_telemetry_core::TelemetryValue;
     let adapter = F1_25Adapter::new();
     let normalized = adapter.normalize(FIXTURE_CAR_TELEMETRY)?;
 

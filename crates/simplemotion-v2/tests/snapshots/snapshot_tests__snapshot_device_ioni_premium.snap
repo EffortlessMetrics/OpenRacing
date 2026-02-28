@@ -1,0 +1,5 @@
+---
+source: crates/simplemotion-v2/tests/snapshot_tests.rs
+expression: "format!(\"name={}, category={:?}, supports_ffb={}, max_torque={:?}\",\nidentity.name, identity.category, identity.supports_ffb,\nidentity.max_torque_nm)"
+---
+name=Simucube 2 / IONI Premium Servo Drive, category=Wheelbase, supports_ffb=true, max_torque=Some(35.0)

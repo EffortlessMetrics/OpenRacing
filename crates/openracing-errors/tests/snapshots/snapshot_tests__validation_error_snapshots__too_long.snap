@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ValidationError::too_long(\"name\", 150, 100).to_string()"
+---
+Field 'name' value is too long: 150 characters (max: 100)

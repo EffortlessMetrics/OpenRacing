@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: err.to_string()
+---
+Device error: Device not found: test-device

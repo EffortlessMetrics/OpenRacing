@@ -1,0 +1,5 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshot_tests.rs
+expression: "format!(\"throttle={:.4}\", report.throttle_normalized())"
+---
+"throttle=1.0000"

@@ -1,0 +1,5 @@
+---
+source: crates/simplemotion-v2/tests/snapshot_tests.rs
+expression: "format!(\"{:?}\", results)"
+---
+[("IONI", true), ("IONI_PREMIUM", true), ("ARGON", true), ("UNKNOWN", false)]

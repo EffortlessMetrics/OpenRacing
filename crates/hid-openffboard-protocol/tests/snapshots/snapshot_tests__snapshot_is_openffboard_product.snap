@@ -1,0 +1,6 @@
+---
+source: crates/hid-openffboard-protocol/tests/snapshot_tests.rs
+assertion_line: 114
+expression: "format!(\"{:?}\", results)"
+---
+[("main", true), ("alt", true), ("wrong_pid_zero", false), ("wrong_pid_ffff", false)]

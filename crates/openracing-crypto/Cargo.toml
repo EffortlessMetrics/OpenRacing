@@ -1,0 +1,44 @@
+[package]
+name = "openracing-crypto"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Cryptographic utilities for OpenRacing signature verification"
+keywords = ["cryptography", "ed25519", "signatures", "security", "verification"]
+categories = ["cryptography", "authentication"]
+
+[dependencies]
+ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
+sha2 = "0.10.9"
+rand = "0.8.5"
+base64 = { workspace = true }
+hex = "0.4.3"
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+goblin = "0.9"
+walkdir = "2.5.0"
+subtle = "2.6.1"
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[dev-dependencies]
+proptest = { workspace = true }
+tempfile = "3.24.0"
+criterion = { workspace = true }
+
+[features]
+default = ["std"]
+std = []
+
+[[bench]]
+name = "crypto_bench"
+harness = false
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

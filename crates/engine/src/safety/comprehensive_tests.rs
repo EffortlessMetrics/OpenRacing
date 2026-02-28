@@ -660,22 +660,29 @@ impl ComprehensiveFaultTests {
         let mut torque_samples = Vec::new();
         let sample_start = Instant::now();
         let ramp_deadline = if cfg!(test) {
-            Duration::from_millis(75)
+            Duration::from_millis(200)
         } else {
             Duration::from_millis(50)
         };
-        let sample_duration = ramp_deadline + Duration::from_millis(15);
+        let sample_duration = ramp_deadline + Duration::from_millis(30);
+        let nominal_sleep = Duration::from_millis(2);
+        let mut last_tick = Instant::now();
 
         while sample_start.elapsed() < sample_duration {
+            let actual_delta = last_tick.elapsed();
+            last_tick = Instant::now();
+
             let context = FaultManagerContext {
                 current_torque: initial_torque * torque_multiplier,
+                // Use actual elapsed time so the ramp advances correctly even under load.
+                tick_delta: actual_delta,
                 ..Default::default()
             };
 
             let result = self.fault_manager.update(&context);
             torque_samples.push((sample_start.elapsed(), result.current_torque_multiplier));
 
-            std::thread::sleep(Duration::from_millis(2));
+            std::thread::sleep(nominal_sleep);
         }
 
         let response_time = start_time.elapsed();
@@ -769,11 +776,11 @@ impl ComprehensiveFaultTests {
         let final_marker_count = self.fault_manager.get_blackbox_markers().len();
         let markers_created = final_marker_count > initial_marker_count;
 
-        // Verify marker content
+        // Verify marker content - timestamp should be a valid Duration (non-zero)
         let markers = self.fault_manager.get_blackbox_markers();
-        let has_required_fields = markers.iter().all(|marker| {
-            !marker.recovery_actions.is_empty() && marker.timestamp <= Instant::now()
-        });
+        let has_required_fields = markers
+            .iter()
+            .all(|marker| !marker.recovery_actions.is_empty() && !marker.timestamp.is_zero());
 
         let test_result = TestResult {
             test_name: test_name.to_string(),

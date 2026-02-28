@@ -300,4 +300,82 @@ mod tests {
         assert_eq!(parsed.rotary, [0x19, 0x64]);
         Ok(())
     }
+
+    #[test]
+    fn parse_axis_returns_none_when_exactly_at_boundary() {
+        // A 1-byte slice can't hold a u16 starting at offset 0
+        let report = [0x01u8];
+        assert_eq!(parse_axis(&report, 0), None);
+    }
+
+    #[test]
+    fn parse_axis_returns_none_for_empty_slice() {
+        assert_eq!(parse_axis(&[], 0), None);
+    }
+
+    #[test]
+    fn parse_axis_boundary_values() {
+        let min_report = [input_report::REPORT_ID, 0x00, 0x00];
+        assert_eq!(parse_axis(&min_report, 1), Some(0u16));
+
+        let max_report = [input_report::REPORT_ID, 0xFF, 0xFF];
+        assert_eq!(parse_axis(&max_report, 1), Some(u16::MAX));
+    }
+
+    #[test]
+    fn parse_wheelbase_report_accepts_minimal_valid_report() {
+        let mut report = [0u8; MIN_REPORT_LEN];
+        report[0] = input_report::REPORT_ID;
+        let parsed = parse_wheelbase_report(&report);
+        assert!(parsed.is_some());
+        assert_eq!(parsed.map(|r| r.report_id()), Some(input_report::REPORT_ID));
+    }
+
+    #[test]
+    fn axis_u16_or_zero_returns_zero_on_missing_bytes() {
+        let report = [input_report::REPORT_ID, 0xAB];
+        let view = RawWheelbaseReport::new(&report);
+        // offset 5 is beyond the 2-byte slice
+        assert_eq!(view.axis_u16_or_zero(5), 0);
+    }
+
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(256))]
+
+        #[test]
+        fn prop_parse_axis_round_trips_any_le_u16(lo in 0u8..=255u8, hi in 0u8..=255u8) {
+            let expected = u16::from_le_bytes([lo, hi]);
+            let buf = [lo, hi];
+            prop_assert_eq!(parse_axis(&buf, 0), Some(expected));
+        }
+
+        #[test]
+        fn prop_parse_axis_offset_oob_returns_none(
+            len in 0usize..=8usize,
+            start in 0usize..=8usize,
+        ) {
+            let buf = vec![0u8; len];
+            if start + 2 > len {
+                prop_assert_eq!(parse_axis(&buf, start), None);
+            }
+        }
+
+        #[test]
+        fn prop_full_report_steering_round_trips(
+            steering_lo in 0u8..=255u8,
+            steering_hi in 0u8..=255u8,
+        ) {
+            let steering = u16::from_le_bytes([steering_lo, steering_hi]);
+            let mut report = [0u8; MIN_REPORT_LEN + 4];
+            report[0] = input_report::REPORT_ID;
+            report[input_report::STEERING_START] = steering_lo;
+            report[input_report::STEERING_START + 1] = steering_hi;
+
+            if let Some(parsed) = parse_wheelbase_input_report(&report) {
+                prop_assert_eq!(parsed.steering, steering);
+            }
+        }
+    }
 }

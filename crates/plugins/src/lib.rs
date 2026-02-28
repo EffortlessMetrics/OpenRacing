@@ -63,11 +63,26 @@ pub enum PluginError {
     #[error("Native plugin error: {0}")]
     NativePlugin(#[from] libloading::Error),
 
+    #[error("Native plugin load error: {0}")]
+    NativePluginLoad(String),
+
     #[error("IPC error: {0}")]
     Ipc(String),
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+}
+
+impl From<openracing_native_plugin::NativePluginError> for PluginError {
+    fn from(err: openracing_native_plugin::NativePluginError) -> Self {
+        PluginError::NativePluginLoad(err.to_string())
+    }
+}
+
+impl From<openracing_native_plugin::NativePluginLoadError> for PluginError {
+    fn from(err: openracing_native_plugin::NativePluginLoadError) -> Self {
+        PluginError::NativePluginLoad(err.to_string())
+    }
 }
 
 /// Plugin execution class

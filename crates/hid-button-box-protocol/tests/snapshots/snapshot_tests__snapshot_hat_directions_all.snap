@@ -1,0 +1,6 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_tests.rs
+assertion_line: 91
+expression: "directions.join(\"\\n\")"
+---
+"hat_byte=0 -> Up\nhat_byte=1 -> UpRight\nhat_byte=2 -> Right\nhat_byte=3 -> DownRight\nhat_byte=4 -> Down\nhat_byte=5 -> DownLeft\nhat_byte=6 -> Left\nhat_byte=7 -> UpLeft\nhat_byte=8 -> Neutral"

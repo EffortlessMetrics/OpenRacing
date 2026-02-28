@@ -1,0 +1,5 @@
+---
+source: crates/simplemotion-v2/tests/snapshot_tests.rs
+expression: "format!(\"position={}, position_degrees={:.4}\", state.motor.position,\nstate.position_degrees(4))"
+---
+position=4096, position_degrees=368640.0000

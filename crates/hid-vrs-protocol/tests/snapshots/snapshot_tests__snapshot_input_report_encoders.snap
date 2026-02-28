@@ -1,0 +1,5 @@
+---
+source: crates/hid-vrs-protocol/tests/snapshot_tests.rs
+expression: "format!(\"encoder1={}, encoder2={}\", state.encoder1, state.encoder2)"
+---
+encoder1=42, encoder2=-128

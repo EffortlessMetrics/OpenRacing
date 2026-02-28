@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ProfileError::version_mismatch(\"2.0.0\", \"1.0.0\").to_string()"
+---
+Profile version mismatch: expected 2.0.0, found 1.0.0

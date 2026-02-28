@@ -1,0 +1,5 @@
+---
+source: crates/openracing-tracing/tests/snapshot_tests.rs
+expression: "format!(\"{}\", event)"
+---
+HidWrite(tick=42, ts=1000000250ns, torque=50, seq=123)

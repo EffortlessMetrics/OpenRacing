@@ -1,0 +1,5 @@
+---
+source: crates/hid-asetek-protocol/tests/snapshot_tests.rs
+expression: "format!(\"name={}, max_torque={:.1}\", model.display_name(),\nmodel.max_torque_nm())"
+---
+"name=Asetek Invicta, max_torque=15.0"

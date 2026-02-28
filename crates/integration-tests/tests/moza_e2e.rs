@@ -431,7 +431,306 @@ fn scenario_ks_attached_wheelbase_buttons_and_hat() -> Result<(), Box<dyn std::e
     Ok(())
 }
 
-// ─── Scenario 17: double-disconnect does not panic ────────────────────────────
+// ─── Scenario 17: HBP button-mode byte lands in buttons[0] ──────────────────
+
+#[test]
+fn scenario_hbp_button_mode_byte_in_buttons() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_moza_protocol::MozaProtocol;
+
+    // Given: HBP standalone protocol
+    let protocol = MozaProtocol::new(product_ids::HBP_HANDBRAKE);
+
+    // When: report-id-prefixed layout with button byte set (button pressed)
+    // Layout: [report_id=0x01, axis_lo, axis_hi, button_byte]
+    let report = [0x01u8, 0x00, 0x80, 0x01]; // 0x8000 axis, button=0x01
+
+    let state = protocol
+        .parse_input_state(&report)
+        .ok_or("expected HBP parse with button byte")?;
+
+    // Then: handbrake axis at expected raw value (0x8000)
+    assert_eq!(
+        state.handbrake_u16, 0x8000,
+        "handbrake axis should be 0x8000"
+    );
+
+    // Then: button byte propagated to buttons[0]
+    assert_eq!(
+        state.buttons[0], 0x01,
+        "button byte must land in buttons[0]"
+    );
+
+    Ok(())
+}
+
+// ─── Scenario 17.1: HBP button released clears buttons[0] ────────────────────
+
+#[test]
+fn scenario_hbp_button_released_has_zero_button_byte() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_moza_protocol::MozaProtocol;
+
+    // Given: HBP standalone protocol
+    let protocol = MozaProtocol::new(product_ids::HBP_HANDBRAKE);
+
+    // When: raw two-byte layout (no button byte, handbrake fully released)
+    let report = [0x00u8, 0x00]; // 0x0000 = fully released
+
+    let state = protocol
+        .parse_input_state(&report)
+        .ok_or("expected HBP raw two-byte parse")?;
+
+    // Then: handbrake axis is zero (released)
+    assert_eq!(state.handbrake_u16, 0x0000, "released HBP should be 0x0000");
+
+    // Then: buttons[0] is clear (no button byte in this layout)
+    assert_eq!(
+        state.buttons[0], 0x00,
+        "buttons[0] must be clear without button byte"
+    );
+
+    Ok(())
+}
+
+// ─── Scenario 17.2: HBP raw-with-button layout full-pull ─────────────────────
+
+#[test]
+fn scenario_hbp_raw_with_button_full_pull() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_moza_protocol::MozaProtocol;
+
+    // Given: HBP standalone protocol
+    let protocol = MozaProtocol::new(product_ids::HBP_HANDBRAKE);
+
+    // When: raw layout with button: [axis_lo, axis_hi, button_byte]
+    let report = [0xFF, 0xFF, 0x01u8]; // 0xFFFF = full pull, button pressed
+
+    let state = protocol
+        .parse_input_state(&report)
+        .ok_or("expected HBP raw-with-button parse")?;
+
+    // Then: handbrake at maximum raw value
+    assert_eq!(
+        state.handbrake_u16, 0xFFFF,
+        "full-pull should decode to 0xFFFF"
+    );
+
+    // Then: button byte present
+    assert_eq!(state.buttons[0], 0x01, "button byte must be 0x01");
+
+    Ok(())
+}
+
+// ─── Scenario 17.3: HBP wrong product ID returns None ────────────────────────
+
+#[test]
+fn scenario_hbp_wrong_product_id_returns_none() {
+    use racing_wheel_hid_moza_protocol::MozaProtocol;
+
+    // Given: protocol initialized with a wheelbase PID (not HBP)
+    let protocol = MozaProtocol::new(product_ids::R5_V1);
+
+    // When: same bytes that would parse as HBP are fed to a wheelbase protocol
+    // (short report, no report ID 0x01)
+    let report = [0xAAu8, 0x55];
+
+    // Then: does not parse as HBP (would parse as wheelbase if it were a valid wheelbase report,
+    // but this is too short so it returns None)
+    let state = protocol.parse_input_state(&report);
+    assert!(
+        state.is_none(),
+        "wheelbase protocol must not misparse short reports as HBP"
+    );
+}
+
+// ─── Scenario 18: KS rim detection via funky byte ────────────────────────────
+
+#[test]
+fn scenario_ks_rim_detected_via_funky_byte() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_moza_protocol::{KsClutchMode, MozaProtocol, input_report, rim_ids};
+
+    // Given: R9 V2 wheelbase protocol
+    let protocol = MozaProtocol::new(product_ids::R9_V2);
+
+    // When: report with funky byte = KS rim ID (0x05) and buttons set
+    let mut report = [0u8; 31];
+    report[0] = input_report::REPORT_ID;
+    report[2] = 0x80; // steering center
+    report[input_report::FUNKY_START] = rim_ids::KS; // KS rim marker
+    report[input_report::BUTTONS_START] = 0b0000_1010; // buttons 1 and 3
+
+    let state = protocol
+        .parse_input_state(&report)
+        .ok_or("expected R9 V2 + KS parse")?;
+
+    // Then: button byte correctly parsed via KS map
+    assert_eq!(
+        state.ks_snapshot.buttons[0], 0b0000_1010,
+        "buttons[0] must reflect report byte"
+    );
+
+    // Then: clutch mode is Unknown (no clutch axes defined in default map)
+    assert_eq!(
+        state.ks_snapshot.clutch_mode,
+        KsClutchMode::Unknown,
+        "clutch mode must be Unknown without a capture-validated map"
+    );
+
+    Ok(())
+}
+
+// ─── Scenario 18.1: non-KS rim uses fallback snapshot ────────────────────────
+
+#[test]
+fn scenario_non_ks_rim_uses_fallback_snapshot() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_moza_protocol::{
+        KsClutchMode, KsJoystickMode, KsRotaryMode, MozaProtocol, input_report, rim_ids,
+    };
+
+    // Given: R5 V2 wheelbase, no KS rim attached
+    let protocol = MozaProtocol::new(product_ids::R5_V2);
+
+    // When: report with funky byte = CS V2 rim (0x01)
+    let mut report = [0u8; 31];
+    report[0] = input_report::REPORT_ID;
+    report[2] = 0x80;
+    report[input_report::FUNKY_START] = rim_ids::CS_V2;
+    report[input_report::BUTTONS_START] = 0xAB;
+    report[input_report::HAT_START] = 0x02;
+    report[input_report::ROTARY_START] = 0x10;
+    report[input_report::ROTARY_START + 1] = 0x20;
+
+    let state = protocol
+        .parse_input_state(&report)
+        .ok_or("expected R5 V2 parse")?;
+
+    // Then: fallback snapshot is used (common controls)
+    assert_eq!(
+        state.ks_snapshot.buttons[0], 0xAB,
+        "buttons must come from the common fallback snapshot"
+    );
+    assert_eq!(state.ks_snapshot.hat, 0x02, "hat must be from report byte");
+
+    // Then: fallback provides rotary bytes in encoders[0..1]
+    assert_eq!(state.ks_snapshot.encoders[0], 0x10, "rotary 0 via fallback");
+    assert_eq!(state.ks_snapshot.encoders[1], 0x20, "rotary 1 via fallback");
+
+    // Then: higher encoders are zero (not in fallback map)
+    assert!(
+        state.ks_snapshot.encoders[2..].iter().all(|&e| e == 0),
+        "higher encoder slots must be zero in fallback path"
+    );
+
+    // Then: modes all Unknown in fallback
+    assert_eq!(state.ks_snapshot.clutch_mode, KsClutchMode::Unknown);
+    assert_eq!(state.ks_snapshot.rotary_mode, KsRotaryMode::Unknown);
+    assert_eq!(state.ks_snapshot.joystick_mode, KsJoystickMode::Unknown);
+
+    Ok(())
+}
+
+// ─── Scenario 18.2: KS rim rotary bytes preserved through parse ──────────────
+
+#[test]
+fn scenario_ks_rim_rotary_bytes_preserved() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_moza_protocol::{MozaProtocol, input_report, rim_ids};
+
+    // Given: R9 V2 wheelbase with KS rim
+    let protocol = MozaProtocol::new(product_ids::R9_V2);
+
+    // When: report with KS rim and specific rotary bytes
+    let mut report = [0u8; 31];
+    report[0] = input_report::REPORT_ID;
+    report[2] = 0x80;
+    report[input_report::FUNKY_START] = rim_ids::KS;
+    report[input_report::ROTARY_START] = 0x42; // rotary 0
+    report[input_report::ROTARY_START + 1] = 0x7E; // rotary 1
+
+    let state = protocol
+        .parse_input_state(&report)
+        .ok_or("expected KS parse")?;
+
+    // Then: rotary bytes end up in encoders[0] and encoders[1]
+    // (base wheelbase rotary bytes are authoritative even with KS rim)
+    assert_eq!(
+        state.ks_snapshot.encoders[0], 0x42,
+        "rotary 0 must be preserved in encoder[0]"
+    );
+    assert_eq!(
+        state.ks_snapshot.encoders[1], 0x7E,
+        "rotary 1 must be preserved in encoder[1]"
+    );
+
+    Ok(())
+}
+
+// ─── Scenario 18.3: KS rim hat byte round-trip ────────────────────────────────
+
+#[test]
+fn scenario_ks_hat_byte_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_moza_protocol::{MozaProtocol, input_report, rim_ids};
+
+    // Given: R12 V2 wheelbase with KS rim
+    let protocol = MozaProtocol::new(product_ids::R12_V2);
+
+    // Hat encoding (Moza): 0=center, 1=up, 2=right, 3=down, 4=left
+    for (hat_value, description) in [
+        (0x00u8, "center"),
+        (0x01, "up"),
+        (0x03, "down"),
+        (0x04, "left"),
+    ] {
+        let mut report = [0u8; 31];
+        report[0] = input_report::REPORT_ID;
+        report[2] = 0x80;
+        report[input_report::FUNKY_START] = rim_ids::KS;
+        report[input_report::HAT_START] = hat_value;
+
+        let state = protocol.parse_input_state(&report).ok_or(format!(
+            "expected parse for hat={hat_value} ({description})"
+        ))?;
+
+        assert_eq!(
+            state.ks_snapshot.hat, hat_value,
+            "hat value {description} ({hat_value}) must round-trip correctly"
+        );
+    }
+
+    Ok(())
+}
+
+// ─── Scenario 18.4: non-wheelbase product has empty KS snapshot ───────────────
+
+#[test]
+fn scenario_non_wheelbase_has_empty_ks_snapshot() -> Result<(), Box<dyn std::error::Error>> {
+    use racing_wheel_hid_moza_protocol::{
+        KS_ENCODER_COUNT, KsClutchMode, KsJoystickMode, KsRotaryMode, MozaProtocol, input_report,
+    };
+
+    // Given: HBP handbrake (non-wheelbase peripheral)
+    let protocol = MozaProtocol::new(product_ids::HBP_HANDBRAKE);
+
+    // When: a valid 2-byte raw HBP report
+    let report = [0xFFu8, 0xFF];
+    let state = protocol.parse_input_state(&report);
+
+    // Then: parses successfully
+    assert!(state.is_some(), "HBP report must parse");
+    let state = state.ok_or("expected parse result")?;
+
+    // Then: KS snapshot is default-empty (HBP is not a wheelbase)
+    assert_eq!(state.ks_snapshot.clutch_mode, KsClutchMode::Unknown);
+    assert_eq!(state.ks_snapshot.rotary_mode, KsRotaryMode::Unknown);
+    assert_eq!(state.ks_snapshot.joystick_mode, KsJoystickMode::Unknown);
+    assert!(state.ks_snapshot.clutch_combined.is_none());
+    assert_eq!(state.ks_snapshot.encoders, [0i16; KS_ENCODER_COUNT]);
+
+    // Also: there's no REPORT_ID prefix for HBP raw layout, so the input_report constant
+    // is not mentioned here, but we confirm non-wheelbase handling is separate.
+    let _ = input_report::REPORT_ID; // just ensure it's reachable
+
+    Ok(())
+}
+
+// ─── Scenario 19: double-disconnect does not panic ────────────────────────────
 
 #[test]
 fn scenario_double_disconnect_is_safe() -> Result<(), Box<dyn std::error::Error>> {

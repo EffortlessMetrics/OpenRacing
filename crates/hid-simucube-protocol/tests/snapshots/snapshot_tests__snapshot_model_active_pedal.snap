@@ -1,0 +1,5 @@
+---
+source: crates/hid-simucube-protocol/tests/snapshot_tests.rs
+expression: "format!(\"name={}, max_torque={:.1}\", model.display_name(),\nmodel.max_torque_nm())"
+---
+"name=Simucube ActivePedal, max_torque=0.0"

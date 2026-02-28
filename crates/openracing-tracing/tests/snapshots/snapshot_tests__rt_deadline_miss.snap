@@ -1,0 +1,5 @@
+---
+source: crates/openracing-tracing/tests/snapshot_tests.rs
+expression: "format!(\"{}\", event)"
+---
+DeadlineMiss(tick=42, ts=1000001000ns, jitter=250000ns)

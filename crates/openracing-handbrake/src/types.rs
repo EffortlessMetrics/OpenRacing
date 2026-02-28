@@ -1,0 +1,85 @@
+//! Handbrake type definitions
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum HandbrakeType {
+    #[default]
+    Analog,
+    Digital,
+    LoadCell,
+    HallEffect,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct HandbrakeCapabilities {
+    pub handbrake_type: HandbrakeType,
+    pub max_load_kg: Option<f32>,
+    pub has_hall_effect_sensor: bool,
+    pub supports_calibration: bool,
+}
+
+impl Default for HandbrakeCapabilities {
+    fn default() -> Self {
+        Self {
+            handbrake_type: HandbrakeType::Analog,
+            max_load_kg: None,
+            has_hall_effect_sensor: false,
+            supports_calibration: true,
+        }
+    }
+}
+
+impl HandbrakeCapabilities {
+    pub fn analog() -> Self {
+        Self {
+            handbrake_type: HandbrakeType::Analog,
+            max_load_kg: None,
+            has_hall_effect_sensor: false,
+            supports_calibration: true,
+        }
+    }
+
+    pub fn load_cell(max_load_kg: f32) -> Self {
+        Self {
+            handbrake_type: HandbrakeType::LoadCell,
+            max_load_kg: Some(max_load_kg),
+            has_hall_effect_sensor: false,
+            supports_calibration: true,
+        }
+    }
+
+    pub fn hall_effect() -> Self {
+        Self {
+            handbrake_type: HandbrakeType::HallEffect,
+            max_load_kg: None,
+            has_hall_effect_sensor: true,
+            supports_calibration: true,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_handbrake_capabilities_analog() {
+        let caps = HandbrakeCapabilities::analog();
+        assert_eq!(caps.handbrake_type, HandbrakeType::Analog);
+    }
+
+    #[test]
+    fn test_handbrake_capabilities_load_cell() {
+        let caps = HandbrakeCapabilities::load_cell(100.0);
+        assert_eq!(caps.handbrake_type, HandbrakeType::LoadCell);
+        assert_eq!(caps.max_load_kg, Some(100.0));
+    }
+
+    #[test]
+    fn test_handbrake_capabilities_hall_effect() {
+        let caps = HandbrakeCapabilities::hall_effect();
+        assert_eq!(caps.handbrake_type, HandbrakeType::HallEffect);
+        assert!(caps.has_hall_effect_sensor);
+    }
+}

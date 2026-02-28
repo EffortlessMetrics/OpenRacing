@@ -1,0 +1,30 @@
+[package]
+name = "openracing-hardware-watchdog"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Hardware watchdog management for safety-critical torque control in OpenRacing"
+keywords = ["watchdog", "hardware", "safety", "real-time", "embedded"]
+categories = ["embedded", "no-std", "hardware-support"]
+
+[dependencies]
+ portable-atomic = "1.10.0"
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[dev-dependencies]
+proptest = { workspace = true }
+criterion = { workspace = true }
+
+[features]
+default = ["std"]
+std = []
+
+[[bench]]
+name = "wcet_benchmark"
+harness = false
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -10,6 +10,8 @@ This directory contains Architecture Decision Records for the Racing Wheel Softw
 - [ADR-0004: Real-Time Scheduling Architecture](0004-rt-scheduling-architecture.md) - 1kHz timing and RT guarantees
 - [ADR-0005: Plugin Architecture](0005-plugin-architecture.md) - Safe and fast plugin system design
 - [ADR-0006: Safety Interlocks and Fault Management](0006-safety-interlocks.md) - Comprehensive safety system design
+- [ADR-0007: Multi-Vendor HID Protocol Architecture](0007-multi-vendor-hid-protocol-architecture.md) - SRP microcrates for vendor-specific HID protocols
+- [ADR-0008: Game Auto-Configure and Telemetry Bridge](0008-game-auto-configure-telemetry-bridge.md) - Automatic game telemetry config and adapter lifecycle management
 
 ## Creating New ADRs
 

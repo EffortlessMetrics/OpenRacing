@@ -1,0 +1,6 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_tests.rs
+assertion_line: 132
+expression: "format!(\"VENDOR_ID={:#06x}, PRODUCT_ID={:#06x}, REPORT_SIZE={}, MAX_BUTTONS={}, MAX_AXES={}\",\nbutton_box::VENDOR_ID_GENERIC, button_box::PRODUCT_ID_BUTTON_BOX,\nbutton_box::REPORT_SIZE_GAMEPAD, button_box::MAX_BUTTONS,\nbutton_box::MAX_AXES,)"
+---
+"VENDOR_ID=0x1209, PRODUCT_ID=0x1bbd, REPORT_SIZE=8, MAX_BUTTONS=32, MAX_AXES=4"

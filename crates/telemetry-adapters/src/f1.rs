@@ -105,52 +105,49 @@ impl F1Adapter {
     }
 
     fn normalize_decoded(packet: &DecodedCodemastersPacket) -> NormalizedTelemetry {
-        let mut telemetry = NormalizedTelemetry::default();
         let lookup = |aliases: &[&str]| -> Option<f32> { packet_f32(&packet.values, aliases) };
         let lookup_bool =
             |aliases: &[&str]| -> Option<bool> { packet_bool(&packet.values, aliases) };
 
-        if let Some(speed_ms) = lookup(&["speed", "vehicle_speed", "speed_ms", "speed_mps"]) {
-            telemetry = telemetry.with_speed_ms(speed_ms);
-        }
-
-        if let Some(rpm) = lookup(&["rpm", "engine_rpm"]) {
-            telemetry = telemetry.with_rpm(rpm);
-        } else if let Some(engine_rate_rad_s) = lookup(&["engine_rate", "engine_rate_rad_s"]) {
-            let rpm = engine_rate_rad_s * 60.0 / (2.0 * PI);
-            telemetry = telemetry.with_rpm(rpm);
-        }
-
-        if let Some(gear_raw) = lookup(&["gear", "current_gear"])
-            && gear_raw.is_finite()
-        {
-            let gear = gear_raw.trunc();
-            if (-127.0..=127.0).contains(&gear) {
-                telemetry = telemetry.with_gear(gear as i8);
+        let speed_ms = lookup(&["speed", "vehicle_speed", "speed_ms", "speed_mps"]);
+        let rpm = lookup(&["rpm", "engine_rpm"]).or_else(|| {
+            lookup(&["engine_rate", "engine_rate_rad_s"])
+                .map(|engine_rate_rad_s| engine_rate_rad_s * 60.0 / (2.0 * PI))
+        });
+        let gear = lookup(&["gear", "current_gear"]).and_then(|gear_raw| {
+            if gear_raw.is_finite() {
+                let gear = gear_raw.trunc();
+                if (-127.0..=127.0).contains(&gear) {
+                    Some(gear as i8)
+                } else {
+                    None
+                }
+            } else {
+                None
             }
-        }
+        });
+        let slip_ratio =
+            lookup(&["slip_ratio", "tyre_slip_ratio", "wheel_slip_ratio"]).or_else(|| {
+                let patch_channels = [
+                    "wheel_patch_speed_fl",
+                    "wheel_patch_speed_fr",
+                    "wheel_patch_speed_rl",
+                    "wheel_patch_speed_rr",
+                ];
+                let patch_speed_max = patch_channels
+                    .iter()
+                    .filter_map(|channel| lookup(&[*channel]))
+                    .filter(|speed| speed.is_finite())
+                    .map(|speed| speed.abs())
+                    .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-        if let Some(slip_ratio) = lookup(&["slip_ratio", "tyre_slip_ratio", "wheel_slip_ratio"]) {
-            telemetry = telemetry.with_slip_ratio(slip_ratio);
-        } else {
-            let patch_channels = [
-                "wheel_patch_speed_fl",
-                "wheel_patch_speed_fr",
-                "wheel_patch_speed_rl",
-                "wheel_patch_speed_rr",
-            ];
-            let patch_speed_max = patch_channels
-                .iter()
-                .filter_map(|channel| lookup(&[*channel]))
-                .filter(|speed| speed.is_finite())
-                .map(|speed| speed.abs())
-                .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
-            if let (Some(speed_ms), Some(patch_speed)) = (telemetry.speed_ms, patch_speed_max) {
-                let denominator = speed_ms.max(1.0);
-                telemetry = telemetry.with_slip_ratio((patch_speed - speed_ms).abs() / denominator);
-            }
-        }
+                patch_speed_max.and_then(|patch_speed| {
+                    speed_ms.filter(|&s| s > 0.0).map(|s| {
+                        let denominator = s.max(1.0);
+                        (patch_speed - s).abs() / denominator
+                    })
+                })
+            });
 
         let pit_limiter = lookup_bool(&["pit_limiter", "pit_limiter_on"]).unwrap_or(false);
         let in_pits = lookup_bool(&["in_pits", "in_pit_lane", "pit_lane"]).unwrap_or(false);
@@ -173,19 +170,35 @@ impl F1Adapter {
             abs_active,
             ..TelemetryFlags::default()
         };
-        telemetry = telemetry.with_flags(flags);
+
+        let mut builder = NormalizedTelemetry::builder();
+
+        if let Some(speed) = speed_ms {
+            builder = builder.speed_ms(speed);
+        }
+        if let Some(r) = rpm {
+            builder = builder.rpm(r);
+        }
+        if let Some(g) = gear {
+            builder = builder.gear(g);
+        }
+        if let Some(slip) = slip_ratio {
+            builder = builder.slip_ratio(slip);
+        }
+
+        builder = builder.flags(flags);
 
         for (channel, value) in &packet.values {
-            telemetry = telemetry.with_extended(channel.clone(), TelemetryValue::Float(*value));
+            builder = builder.extended(channel.clone(), TelemetryValue::Float(*value));
         }
 
         if let Some(fourcc) = &packet.fourcc {
-            telemetry = telemetry
-                .with_extended("fourcc".to_string(), TelemetryValue::String(fourcc.clone()));
+            builder =
+                builder.extended("fourcc".to_string(), TelemetryValue::String(fourcc.clone()));
         }
 
         if let Some(fuel_remaining_kg) = lookup(&["fuel_remaining_kg", "fuel_remaining", "fuel"]) {
-            telemetry = telemetry.with_extended(
+            builder = builder.extended(
                 "fuel_remaining_kg".to_string(),
                 TelemetryValue::Float(fuel_remaining_kg),
             );
@@ -193,43 +206,42 @@ impl F1Adapter {
         if let Some(ers_store_energy_j) =
             lookup(&["ers_store_energy", "ers_store_energy_j", "ers_energy"])
         {
-            telemetry = telemetry.with_extended(
+            builder = builder.extended(
                 "ers_store_energy_j".to_string(),
                 TelemetryValue::Float(ers_store_energy_j),
             );
         }
         if let Some(ers_deploy_mode) = lookup(&["ers_deploy_mode"]) {
-            telemetry = telemetry.with_extended(
+            builder = builder.extended(
                 "ers_deploy_mode".to_string(),
                 TelemetryValue::Integer(ers_deploy_mode as i32),
             );
         }
         if let Some(session_type) = lookup(&["session_type", "session", "session_mode"]) {
-            telemetry = telemetry.with_extended(
+            builder = builder.extended(
                 "session_type".to_string(),
                 TelemetryValue::Integer(session_type as i32),
             );
         }
 
-        telemetry = telemetry
-            .with_extended(
+        builder
+            .extended(
                 "drs_available".to_string(),
                 TelemetryValue::Boolean(drs_available),
             )
-            .with_extended(
+            .extended(
                 "drs_active".to_string(),
                 TelemetryValue::Boolean(drs_active),
             )
-            .with_extended(
+            .extended(
                 "ers_available".to_string(),
                 TelemetryValue::Boolean(ers_available),
             )
-            .with_extended(
+            .extended(
                 "decoder_type".to_string(),
                 TelemetryValue::String("f1_codemasters_udp_bridge".to_string()),
-            );
-
-        telemetry
+            )
+            .build()
     }
 
     fn is_recent_packet(&self) -> bool {
@@ -417,10 +429,10 @@ mod tests {
 
         let normalized = F1Adapter::normalize_decoded(&packet);
 
-        assert_eq!(normalized.speed_ms, Some(72.0));
-        assert_eq!(normalized.rpm, Some(11000.0));
-        assert_eq!(normalized.gear, Some(7));
-        assert_eq!(normalized.slip_ratio, Some(0.2));
+        assert_eq!(normalized.speed_ms, 72.0);
+        assert_eq!(normalized.rpm, 11000.0);
+        assert_eq!(normalized.gear, 7);
+        assert_eq!(normalized.slip_ratio, 0.2);
         assert!(normalized.flags.drs_available);
         assert!(normalized.flags.drs_active);
         assert!(normalized.flags.ers_available);
