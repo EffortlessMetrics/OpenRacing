@@ -393,6 +393,33 @@ Simucube Wireless Wheel (PID 0x0D63) is listed in engine tables but not confirme
 
 ---
 
+### F-034 · Shared USB VIDs require PID-based runtime disambiguation (Medium · Open)
+
+**Encountered:** Protocol verification wave (Heusinkveld + VRS)
+
+Two USB Vendor IDs are each shared by **three or more** sim racing hardware vendors:
+
+**VID `0x16D0` (MCS Electronics / OpenMoko):**
+- Heusinkveld pedals — PIDs `0x1156`–`0x1158`
+- Simucube 2 wheelbases (Granite Devices) — PIDs `0x0D5A`–`0x0D66`
+- Legacy Simagic — PID `0x0D5A`
+
+**VID `0x0483` (STMicroelectronics):**
+- VRS DirectForce Pro — PIDs `0xA355`–`0xA35A`
+- Legacy Simagic (Alpha family) — PIDs `0x0522`–`0x0524`
+- Cube Controls (PROVISIONAL) — PIDs `0x0C73`–`0x0C75`
+- Hundreds of non-sim STM32 devices
+
+None of these vendors own their VID; they sub-license or reuse a chip vendor's default. VID-only matching will mis-identify devices. The engine's `get_vendor_protocol()` already dispatches by PID within each shared VID, but this is fragile: any new vendor shipping on `0x0483` or `0x16D0` with a PID inside an existing range would collide silently.
+
+Additionally, most individual PIDs for these vendors (Heusinkveld, VRS, Cube Controls) are **unverified** in external USB databases (USB-IF, linux-hardware.org, devicehunt.com). They were likely derived from hardware captures or firmware dumps rather than public registries.
+
+**Impact:** Medium — mis-routing a wheelbase as pedals (or vice versa) could send FFB torque commands to a non-actuated device or fail to initialize FFB. Existing PID-range dispatch in `crates/engine/src/hid/vendor/mod.rs` mitigates this today.
+
+**Remedy:** (1) Acquire USB captures from actual hardware for all unverified PIDs. (2) Consider adding a secondary check (e.g. HID usage page, product string) when VID is `0x0483` or `0x16D0` to reduce the risk of PID-only mismatches. (3) Document vendor-specific PID ranges as reserved in a shared constants file so new vendors don't accidentally overlap.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |

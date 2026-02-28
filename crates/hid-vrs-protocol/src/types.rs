@@ -34,6 +34,7 @@ pub fn identify_device(product_id: u16) -> VrsDeviceIdentity {
             name: "VRS DirectForce Pro",
             category: VrsDeviceCategory::Wheelbase,
             supports_ffb: true,
+            // ✅ Confirmed: simracinggarage.com review ("20nm Mige motors").
             max_torque_nm: Some(20.0),
         },
         product_ids::DIRECTFORCE_PRO_V2 => VrsDeviceIdentity {
@@ -41,6 +42,7 @@ pub fn identify_device(product_id: u16) -> VrsDeviceIdentity {
             name: "VRS DirectForce Pro V2",
             category: VrsDeviceCategory::Wheelbase,
             supports_ffb: true,
+            // ⚠ Unverified: no authoritative source found for V2 torque.
             max_torque_nm: Some(25.0),
         },
         product_ids::PEDALS_V1 => VrsDeviceIdentity {
