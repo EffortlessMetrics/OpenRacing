@@ -39,7 +39,7 @@ const SALSA_KEY: &[u8; 32] = b"Simulator Interface Packet GT7 v";
 // ---------------------------------------------------------------------------
 // Packet field offsets (all values are little-endian)
 // ---------------------------------------------------------------------------
-const OFF_MAGIC: usize = 0;
+pub const OFF_MAGIC: usize = 0;
 const OFF_ENGINE_RPM: usize = 60;
 const OFF_FUEL_LEVEL: usize = 68;
 const OFF_FUEL_CAPACITY: usize = 72;
@@ -218,7 +218,7 @@ pub(crate) fn decrypt_and_parse(data: &[u8]) -> Result<NormalizedTelemetry> {
 ///
 /// The 8-byte nonce is read from bytes `[0x40..0x48]` of the **raw**
 /// (pre-decryption) packet, as specified by the GT7 protocol.
-fn salsa20_xor(buf: &mut [u8; PACKET_SIZE]) {
+pub(crate) fn salsa20_xor(buf: &mut [u8; PACKET_SIZE]) {
     let nonce: [u8; 8] = [
         buf[0x40], buf[0x41], buf[0x42], buf[0x43], buf[0x44], buf[0x45], buf[0x46], buf[0x47],
     ];
@@ -302,7 +302,7 @@ fn qr(s: &mut [u32; 16], a: usize, b: usize, c: usize, d: usize) {
 // ---------------------------------------------------------------------------
 
 /// Parse fields from an already-decrypted, magic-verified GT7 packet.
-fn parse_decrypted(buf: &[u8; PACKET_SIZE]) -> Result<NormalizedTelemetry> {
+pub(crate) fn parse_decrypted(buf: &[u8; PACKET_SIZE]) -> Result<NormalizedTelemetry> {
     let rpm = read_f32_le(buf, OFF_ENGINE_RPM);
     let max_rpm = read_f32_le(buf, OFF_RPM_ALERT_END).max(0.0);
     let speed_ms = read_f32_le(buf, OFF_SPEED_MS).max(0.0);

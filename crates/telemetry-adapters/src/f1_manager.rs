@@ -164,9 +164,8 @@ mod tests {
         // Sender is immediately dropped; recv should return None promptly.
         let frame = tokio::time::timeout(Duration::from_millis(50), rx.recv()).await;
         // Either a timeout or None is acceptable — no frames expected.
-        match frame {
-            Ok(Some(_)) => panic!("F1Manager stub must not emit telemetry frames"),
-            Ok(None) | Err(_) => {}
+        if let Ok(Some(_)) = frame {
+            panic!("F1Manager stub must not emit telemetry frames");
         }
         Ok(())
     }
@@ -180,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_default_impl() {
-        let adapter = F1ManagerAdapter::default();
+        let adapter = F1ManagerAdapter;
         assert_eq!(adapter.game_id(), "f1_manager");
     }
 }

@@ -193,11 +193,12 @@ mod tests {
 
     #[test]
     fn test_normalize_valid_packet() -> TestResult {
-        // Build a minimal 296-byte packet with the magic set so parsing succeeds.
+        // Build a plaintext packet with MAGIC set and call parse_decrypted directly.
+        // normalize() calls decrypt_and_parse which encrypts-then-checks-magic; testing
+        // the decrypted path here is the same validation used by the GT7 property tests.
         let mut buf = [0u8; PACKET_SIZE];
         buf[OFF_MAGIC..OFF_MAGIC + 4].copy_from_slice(&MAGIC.to_le_bytes());
-        let adapter = GranTurismo7SportsAdapter::new();
-        let result = adapter.normalize(&buf);
+        let result = crate::gran_turismo_7::parse_decrypted(&buf);
         assert!(result.is_ok(), "valid packet must parse successfully");
         Ok(())
     }

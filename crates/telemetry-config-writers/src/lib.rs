@@ -209,6 +209,22 @@ fn new_nascar_21_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(Nascar21ConfigWriter)
 }
 
+fn new_rfactor1_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(RFactor1ConfigWriter { game_id: "rfactor1" })
+}
+
+fn new_gtr2_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(RFactor1ConfigWriter { game_id: "gtr2" })
+}
+
+fn new_race_07_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(RFactor1ConfigWriter { game_id: "race_07" })
+}
+
+fn new_gsc_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(RFactor1ConfigWriter { game_id: "gsc" })
+}
+
 fn new_le_mans_ultimate_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(LeMansUltimateConfigWriter)
 }
@@ -334,6 +350,10 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
         ("snowrunner", new_snowrunner_config_writer),
         ("motogp", new_motogp_config_writer),
         ("ride5", new_ride5_config_writer),
+        ("rfactor1", new_rfactor1_config_writer),
+        ("gtr2", new_gtr2_config_writer),
+        ("race_07", new_race_07_config_writer),
+        ("gsc", new_gsc_config_writer),
     ]
 }
 
