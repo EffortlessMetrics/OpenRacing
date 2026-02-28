@@ -13,6 +13,7 @@ use crate::rt::Frame;
 
 /// Reconstruction filter (anti-aliasing) - smooths high-frequency content
 pub fn reconstruction_filter(frame: &mut Frame, state: *mut u8) {
+    // SAFETY: Caller guarantees `state` points to a valid, aligned `ReconstructionState`.
     unsafe {
         let state = &mut *(state as *mut ReconstructionState);
         let mut filter_frame = openracing_filters::Frame {
@@ -30,6 +31,7 @@ pub fn reconstruction_filter(frame: &mut Frame, state: *mut u8) {
 
 /// Friction filter with speed adaptation - simulates tire/road friction
 pub fn friction_filter(frame: &mut Frame, state: *mut u8) {
+    // SAFETY: Caller guarantees `state` points to a valid, aligned `FrictionState`.
     unsafe {
         let state = &*(state as *const FrictionState);
         let mut filter_frame = openracing_filters::Frame {
@@ -47,6 +49,7 @@ pub fn friction_filter(frame: &mut Frame, state: *mut u8) {
 
 /// Damper filter with speed adaptation - velocity-proportional resistance
 pub fn damper_filter(frame: &mut Frame, state: *mut u8) {
+    // SAFETY: Caller guarantees `state` points to a valid, aligned `DamperState`.
     unsafe {
         let state = &*(state as *const DamperState);
         let mut filter_frame = openracing_filters::Frame {
@@ -64,6 +67,7 @@ pub fn damper_filter(frame: &mut Frame, state: *mut u8) {
 
 /// Inertia filter - simulates rotational inertia
 pub fn inertia_filter(frame: &mut Frame, state: *mut u8) {
+    // SAFETY: Caller guarantees `state` points to a valid, aligned `InertiaState`.
     unsafe {
         let state = &mut *(state as *mut InertiaState);
         let mut filter_frame = openracing_filters::Frame {
@@ -81,6 +85,7 @@ pub fn inertia_filter(frame: &mut Frame, state: *mut u8) {
 
 /// Notch filter (biquad implementation) - eliminates specific frequencies
 pub fn notch_filter(frame: &mut Frame, state: *mut u8) {
+    // SAFETY: Caller guarantees `state` points to a valid, aligned `NotchState`.
     unsafe {
         let state = &mut *(state as *mut NotchState);
         let mut filter_frame = openracing_filters::Frame {
@@ -98,6 +103,7 @@ pub fn notch_filter(frame: &mut Frame, state: *mut u8) {
 
 /// Slew rate limiter - limits rate of change
 pub fn slew_rate_filter(frame: &mut Frame, state: *mut u8) {
+    // SAFETY: Caller guarantees `state` points to a valid, aligned `SlewRateState`.
     unsafe {
         let state = &mut *(state as *mut SlewRateState);
         let mut filter_frame = openracing_filters::Frame {
@@ -115,6 +121,7 @@ pub fn slew_rate_filter(frame: &mut Frame, state: *mut u8) {
 
 /// Curve mapping filter using lookup table - applies force curve
 pub fn curve_filter(frame: &mut Frame, state: *mut u8) {
+    // SAFETY: Caller guarantees `state` points to a valid, aligned `CurveState`.
     unsafe {
         let state = &*(state as *const CurveState);
         let mut filter_frame = openracing_filters::Frame {
@@ -132,6 +139,7 @@ pub fn curve_filter(frame: &mut Frame, state: *mut u8) {
 
 /// Response curve filter using CurveLut - applies response curve transformation
 pub fn response_curve_filter(frame: &mut Frame, state: *mut u8) {
+    // SAFETY: Caller guarantees `state` points to a valid, aligned `ResponseCurveState`.
     unsafe {
         let state = &*(state as *const ResponseCurveState);
         let mut filter_frame = openracing_filters::Frame {
@@ -149,6 +157,7 @@ pub fn response_curve_filter(frame: &mut Frame, state: *mut u8) {
 
 /// Torque cap filter (safety) - limits maximum torque
 pub fn torque_cap_filter(frame: &mut Frame, state: *mut u8) {
+    // SAFETY: Caller guarantees `state` points to a valid, aligned `f32` (max torque value).
     unsafe {
         let max_torque = *(state as *const f32);
         // SAFETY-CRITICAL: NaN/Inf must map to 0.0 (safe state), never to max_torque.
@@ -162,6 +171,7 @@ pub fn torque_cap_filter(frame: &mut Frame, state: *mut u8) {
 
 /// Bumpstop model filter - simulates physical steering stops
 pub fn bumpstop_filter(frame: &mut Frame, state: *mut u8) {
+    // SAFETY: Caller guarantees `state` points to a valid, aligned `BumpstopState`.
     unsafe {
         let state = &mut *(state as *mut BumpstopState);
         let mut filter_frame = openracing_filters::Frame {
@@ -179,6 +189,7 @@ pub fn bumpstop_filter(frame: &mut Frame, state: *mut u8) {
 
 /// Hands-off detector - detects when user is not holding the wheel
 pub fn hands_off_detector(frame: &mut Frame, state: *mut u8) {
+    // SAFETY: Caller guarantees `state` points to a valid, aligned `HandsOffState`.
     unsafe {
         let state = &mut *(state as *mut HandsOffState);
         let mut filter_frame = openracing_filters::Frame {

@@ -8,10 +8,10 @@ use std::fmt;
 /// that can occur when creating or validating curves.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CurveError {
-    /// Control point is outside the valid [0,1] range.
+    /// Control point is outside the valid `[0,1]` range.
     ///
     /// All Bezier control points must have x and y coordinates
-    /// in the range [0.0, 1.0] inclusive.
+    /// in the range `[0.0, 1.0]` inclusive.
     ControlPointOutOfRange {
         /// Index of the control point (0-3 for cubic Bezier).
         point_index: usize,

@@ -8,7 +8,7 @@ use crate::lut::CurveLut;
 
 /// Supported curve types for FFB response mapping.
 ///
-/// All curve types map input values in [0,1] to output values in [0,1].
+/// All curve types map input values in `[0,1]` to output values in `[0,1]`.
 /// Each type supports LUT pre-computation for RT-safe evaluation.
 ///
 /// # RT Safety
@@ -53,7 +53,7 @@ pub enum CurveType {
 
     /// Logarithmic curve: f(x) = log_base(1 + x*(base-1)) / log_base(base).
     ///
-    /// Normalized to map [0,1] → [0,1].
+    /// Normalized to map `[0,1]` → `[0,1]`.
     /// Provides compressed response for fine control.
     Logarithmic {
         /// The logarithm base (must be > 1 and finite).
@@ -148,11 +148,11 @@ impl CurveType {
     ///
     /// # Arguments
     ///
-    /// * `input` - Input value (will be clamped to [0,1])
+    /// * `input` - Input value (will be clamped to `[0,1]`)
     ///
     /// # Returns
     ///
-    /// Output value in [0,1].
+    /// Output value in `[0,1]`.
     pub fn evaluate(&self, input: f32) -> f32 {
         let input = input.clamp(0.0, 1.0);
 

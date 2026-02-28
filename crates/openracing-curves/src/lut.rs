@@ -81,7 +81,7 @@ impl CurveLut {
     ///
     /// # Arguments
     ///
-    /// * `f` - Function that maps input [0,1] to output [0,1]
+    /// * `f` - Function that maps input `[0,1]` to output `[0,1]`
     ///
     /// # Returns
     ///
@@ -109,11 +109,11 @@ impl CurveLut {
     ///
     /// # Arguments
     ///
-    /// * `input` - Input value (will be clamped to [0,1])
+    /// * `input` - Input value (will be clamped to `[0,1]`)
     ///
     /// # Returns
     ///
-    /// Interpolated output value in [0,1].
+    /// Interpolated output value in `[0,1]`.
     #[inline]
     pub fn lookup(&self, input: f32) -> f32 {
         let input = input.clamp(0.0, 1.0);

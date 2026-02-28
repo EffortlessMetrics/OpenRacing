@@ -29,6 +29,7 @@ pub use types::*;
 use openracing_hid_common::HidCommonError;
 use thiserror::Error;
 
+/// Errors returned by Simucube protocol operations.
 #[derive(Error, Debug)]
 pub enum SimucubeError {
     #[error("Invalid report size: expected {expected}, got {actual}")]
@@ -44,6 +45,7 @@ pub enum SimucubeError {
     Communication(String),
 }
 
+/// Convenience result alias for Simucube operations.
 pub type SimucubeResult<T> = Result<T, SimucubeError>;
 
 impl From<HidCommonError> for SimucubeError {
@@ -52,20 +54,32 @@ impl From<HidCommonError> for SimucubeError {
     }
 }
 
+/// Simucube / Granite Devices USB Vendor ID (`0x16D0`).
 pub const VENDOR_ID: u16 = 0x16D0;
+/// Product ID for Simucube 2 Sport.
 pub const PRODUCT_ID_SPORT: u16 = 0x0D61;
+/// Product ID for Simucube 2 Pro.
 pub const PRODUCT_ID_PRO: u16 = 0x0D60;
+/// Product ID for Simucube 2 Ultimate.
 pub const PRODUCT_ID_ULTIMATE: u16 = 0x0D5F;
 
+/// HID input report size in bytes.
 pub const REPORT_SIZE_INPUT: usize = 64;
+/// HID output report size in bytes.
 pub const REPORT_SIZE_OUTPUT: usize = 64;
 
+/// Default maximum torque (Nm) used when model is unknown.
 pub const MAX_TORQUE_NM: f32 = 25.0;
+/// Maximum torque (Nm) for Simucube 2 Sport.
 pub const MAX_TORQUE_SPORT: f32 = 17.0;
+/// Maximum torque (Nm) for Simucube 2 Pro.
 pub const MAX_TORQUE_PRO: f32 = 25.0;
+/// Maximum torque (Nm) for Simucube 2 Ultimate.
 pub const MAX_TORQUE_ULTIMATE: f32 = 32.0;
 
+/// Angle sensor resolution in bits.
 pub const ANGLE_SENSOR_BITS: u32 = 22;
+/// Maximum angle sensor value (`2^22 - 1`).
 pub const ANGLE_SENSOR_MAX: u32 = (1 << ANGLE_SENSOR_BITS) - 1;
 
 #[cfg(test)]
