@@ -42,16 +42,17 @@ See friction log entry **F-005** for the history of why this document was create
 ## Simucube (Granite Devices)
 
 **VID:** `0x16D0`  
-**Source:** [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table; [Granite Devices support portal](https://granitedevices.com/wiki/Simucube_2_USB_HID_protocol); USB VID registry (MCS Electronics / OpenMoko VID shared for open hardware).  
+**Source:** [Official Simucube developer documentation](https://github.com/Simucube/simucube-docs.github.io) (Developers.md — authoritative PID table); [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table; [Granite Devices support portal](https://granitedevices.com/wiki/Simucube_2_USB_HID_protocol); USB VID registry (MCS Electronics / OpenMoko VID shared for open hardware).  
 **Status:** Verified
 
 | PID      | Device Name                  | Status    |
 |----------|------------------------------|-----------|
-| `0x0D5F` | Simucube 2 Ultimate (35 Nm)  | Verified  |
+| `0x0D5A` | Simucube 1                   | Verified  |
+| `0x0D5F` | Simucube 2 Ultimate (32 Nm)  | Verified  |
 | `0x0D60` | Simucube 2 Pro (25 Nm)       | Verified  |
-| `0x0D61` | Simucube 2 Sport (15 Nm)     | Verified  |
-| `0x0D62` | Simucube ActivePedal         | Estimated |
+| `0x0D61` | Simucube 2 Sport (17 Nm)     | Verified  |
 | `0x0D63` | SimuCUBE Wireless Wheel      | Estimated |
+| `0x0D66` | Simucube SC-Link Hub (ActivePedal) | Verified  |
 
 > **Note:** VID `0x16D0` is also used by Heusinkveld — disambiguation is by PID.
 

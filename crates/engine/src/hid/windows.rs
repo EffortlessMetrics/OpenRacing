@@ -428,8 +428,6 @@ impl SupportedDevices {
             (vendor_ids::SIMAGIC, 0x0522, "Simagic Alpha"),
             (vendor_ids::SIMAGIC, 0x0523, "Simagic Alpha Mini"),
             (vendor_ids::SIMAGIC, 0x0524, "Simagic Alpha Ultimate"),
-            (vendor_ids::SIMAGIC_ALT, 0x0D5A, "Simagic M10"),
-            (vendor_ids::SIMAGIC_ALT, 0x0D5B, "Simagic FX"),
             // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
             (vendor_ids::SIMAGIC, 0xA355, "VRS DirectForce Pro"),
             (vendor_ids::SIMAGIC, 0xA356, "VRS DirectForce Pro V2"),
@@ -445,10 +443,36 @@ impl SupportedDevices {
             (vendor_ids::SIMAGIC_EVO, 0x0500, "Simagic EVO Sport"),
             (vendor_ids::SIMAGIC_EVO, 0x0501, "Simagic EVO"),
             (vendor_ids::SIMAGIC_EVO, 0x0502, "Simagic EVO Pro"),
+            (
+                vendor_ids::SIMAGIC_EVO,
+                0x0600,
+                "Simagic Alpha EVO (estimated PID)",
+            ),
+            (
+                vendor_ids::SIMAGIC_EVO,
+                0x0700,
+                "Simagic Neo (estimated PID)",
+            ),
+            (
+                vendor_ids::SIMAGIC_EVO,
+                0x0701,
+                "Simagic Neo Mini (estimated PID)",
+            ),
             // Simucube 2 (VID 0x16D0 = SIMAGIC_ALT, dispatched by product ID)
+            (vendor_ids::SIMAGIC_ALT, 0x0D5A, "Simucube 1"),
             (vendor_ids::SIMAGIC_ALT, 0x0D5F, "Simucube 2 Ultimate"),
             (vendor_ids::SIMAGIC_ALT, 0x0D60, "Simucube 2 Pro"),
             (vendor_ids::SIMAGIC_ALT, 0x0D61, "Simucube 2 Sport"),
+            (
+                vendor_ids::SIMAGIC_ALT,
+                0x0D66,
+                "Simucube SC-Link Hub (ActivePedal)",
+            ),
+            (
+                vendor_ids::SIMAGIC_ALT,
+                0x0D63,
+                "Simucube Wireless Wheel (estimated PID)",
+            ),
             // Asetek SimSports (VID 0x2433)
             (vendor_ids::ASETEK, 0xF300, "Asetek Invicta"),
             (vendor_ids::ASETEK, 0xF301, "Asetek Forte"),
@@ -1409,21 +1433,18 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque =
                         TorqueNm::new(23.0).unwrap_or(capabilities.max_torque);
                 }
+                // Simucube PIDs (share VID 0x16D0 with Simagic legacy and Heusinkveld)
                 0x0D5A => {
-                    // M10
-                    capabilities.max_torque =
-                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
-                }
-                0x0D5B => {
-                    // FX
-                    capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
-                }
-                // Simucube 2 PIDs (share VID 0x16D0 with Simagic legacy and Heusinkveld)
-                0x0D5F => {
-                    // Simucube 2 Ultimate
+                    // Simucube 1
                     capabilities.min_report_period_us = 3000;
                     capabilities.max_torque =
-                        TorqueNm::new(35.0).unwrap_or(capabilities.max_torque);
+                        TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
+                }
+                0x0D5F => {
+                    // Simucube 2 Ultimate (32 Nm per official Simucube Safety.md)
+                    capabilities.min_report_period_us = 3000;
+                    capabilities.max_torque =
+                        TorqueNm::new(32.0).unwrap_or(capabilities.max_torque);
                 }
                 0x0D60 => {
                     // Simucube 2 Pro
@@ -1432,10 +1453,28 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                         TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
                 }
                 0x0D61 => {
-                    // Simucube 2 Sport
+                    // Simucube 2 Sport (17 Nm per simucube.com)
                     capabilities.min_report_period_us = 3000;
                     capabilities.max_torque =
-                        TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
+                        TorqueNm::new(17.0).unwrap_or(capabilities.max_torque);
+                }
+                0x0D66 => {
+                    // Simucube SC-Link Hub / ActivePedal (no FFB torque)
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                }
+                0x0D63 => {
+                    // Simucube Wireless Wheel adapter (no FFB torque — rim, not base)
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                }
+                // Cube Controls PIDs (share VID 0x0483 with Simagic — PROVISIONAL)
+                0x0C73..=0x0C75 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
+                    capabilities.encoder_cpr = u16::MAX;
                 }
                 // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
                 0xA355 => {
@@ -1476,19 +1515,31 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             match product_id {
                 0x0500 => {
                     capabilities.max_torque =
-                        TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
-                } // EVO Sport
+                        TorqueNm::new(9.0).unwrap_or(capabilities.max_torque);
+                } // EVO Sport (9 Nm per simagic.com)
                 0x0501 => {
                     capabilities.max_torque =
-                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
-                } // EVO
+                        TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
+                } // EVO (12 Nm per simagic.com)
                 0x0502 => {
                     capabilities.max_torque =
-                        TorqueNm::new(30.0).unwrap_or(capabilities.max_torque);
-                } // EVO Pro
-                _ => {
+                        TorqueNm::new(18.0).unwrap_or(capabilities.max_torque);
+                } // EVO Pro (18 Nm per simagic.com)
+                0x0600 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
+                } // Alpha EVO (estimated PID)
+                0x0700 => {
                     capabilities.max_torque =
                         TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
+                } // Neo (estimated PID)
+                0x0701 => {
+                    capabilities.max_torque =
+                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
+                } // Neo Mini (estimated PID)
+                _ => {
+                    capabilities.max_torque =
+                        TorqueNm::new(9.0).unwrap_or(capabilities.max_torque);
                 }
             }
         }
@@ -1512,7 +1563,7 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                 } // LaPrima
                 0xF306 => {
                     capabilities.max_torque =
-                        TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
+                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
                 } // Tony Kanaan Edition
                 _ => {
                     capabilities.max_torque =
@@ -1605,6 +1656,14 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque = TorqueNm::ZERO;
                 }
             }
+        }
+        vendor_ids::SIMEXPERIENCE => {
+            // SimExperience AccuForce Pro (~12 Nm direct drive)
+            capabilities.supports_pid = true;
+            capabilities.supports_raw_torque_1khz = true;
+            capabilities.encoder_cpr = u16::MAX;
+            capabilities.min_report_period_us = 1000;
+            capabilities.max_torque = TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
         }
         _ => {
             // Unknown vendor - use conservative defaults
@@ -3001,7 +3060,7 @@ mod tests {
         let caps = determine_device_capabilities(vendor_ids::SIMAGIC_EVO, 0x7FFF);
         assert!(caps.supports_raw_torque_1khz);
         assert!(caps.supports_health_stream);
-        assert!((caps.max_torque.value() - 15.0).abs() < 0.1);
+        assert!((caps.max_torque.value() - 9.0).abs() < 0.1);
     }
 
     #[test]

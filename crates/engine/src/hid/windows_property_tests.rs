@@ -176,8 +176,8 @@ proptest! {
             // VRS accessories (pedals, handbrake, shifter) — share VID with Simagic
             || (vid == vendor_ids::SIMAGIC && matches!(pid, 0xA357..=0xA35A))
             // Simagic modern pedals, shifters, handbrake — VID 0x2D5C removed; EVO has no such peripherals yet
-            // Simucube ActivePedal and Wireless Wheel — PIDs 0x0D62/0x0D63 (estimated, not yet in SupportedDevices)
-            || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x0D62 | 0x0D63))
+            // Simucube SC-Link Hub (0x0D66) and Wireless Wheel (0x0D63) — non-FFB peripherals
+            || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x0D66 | 0x0D63))
             // Generic HID button box (pid.codes VID, PID 0x1BBD — input-only)
             || (vid == vendor_ids::OPENFFBOARD && pid == 0x1BBD)
             // Leo Bodnar input-only peripherals (BBI-32 button box, SLI-M, USB joystick)

@@ -37,7 +37,7 @@ fn test_new_sport() {
     let handler = SimucubeProtocolHandler::new(SIMUCUBE_VENDOR_ID, SIMUCUBE_2_SPORT_PID);
     assert_eq!(handler.model(), SimucubeModel::Sport);
     let config = handler.get_ffb_config();
-    assert!((config.max_torque_nm - 15.0).abs() < 0.01);
+    assert!((config.max_torque_nm - 17.0).abs() < 0.01);
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn test_new_ultimate() {
     let handler = SimucubeProtocolHandler::new(SIMUCUBE_VENDOR_ID, SIMUCUBE_2_ULTIMATE_PID);
     assert_eq!(handler.model(), SimucubeModel::Ultimate);
     let config = handler.get_ffb_config();
-    assert!((config.max_torque_nm - 35.0).abs() < 0.01);
+    assert!((config.max_torque_nm - 32.0).abs() < 0.01);
     assert!(handler.is_v2_hardware());
 }
 

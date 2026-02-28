@@ -3,13 +3,13 @@ source: crates/engine/src/hid/vendor/accuforce_tests.rs
 expression: caps
 ---
 DeviceCapabilities {
-    supports_pid: false,
-    supports_raw_torque_1khz: false,
+    supports_pid: true,
+    supports_raw_torque_1khz: true,
     supports_health_stream: false,
     supports_led_bus: false,
     max_torque: TorqueNm(
-        5.0,
+        12.0,
     ),
-    encoder_cpr: 900,
-    min_report_period_us: 4000,
+    encoder_cpr: 65535,
+    min_report_period_us: 1000,
 }

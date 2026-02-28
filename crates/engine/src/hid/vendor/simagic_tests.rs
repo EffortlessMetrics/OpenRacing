@@ -64,8 +64,8 @@ fn test_simagic_ffb_config_evo_unknown_is_conservative() {
 
     assert_eq!(config.required_b_interval, Some(1));
     assert!(
-        (config.max_torque_nm - 15.0).abs() < 0.01,
-        "EVO unknown should use conservative 15 Nm default"
+        (config.max_torque_nm - 9.0).abs() < 0.01,
+        "EVO unknown should use conservative 9 Nm default"
     );
     assert_eq!(config.encoder_cpr, 2_097_152);
     assert!(protocol.is_v2_hardware());
@@ -176,7 +176,7 @@ fn test_evo_device_is_v2_hardware() {
 fn test_evo_pro_ffb_config() {
     let protocol = SimagicProtocol::new(vendor_ids::SIMAGIC_EVO, product_ids::EVO_PRO);
     let config = protocol.get_ffb_config();
-    assert!((config.max_torque_nm - 30.0).abs() < 0.01);
+    assert!((config.max_torque_nm - 18.0).abs() < 0.01);
     assert_eq!(config.encoder_cpr, 2_097_152);
 }
 

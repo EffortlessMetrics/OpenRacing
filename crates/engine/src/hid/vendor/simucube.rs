@@ -9,8 +9,9 @@ use super::{DeviceWriter, FfbConfig, VendorProtocol};
 use tracing::{debug, info};
 
 pub use hid_simucube_protocol::{
-    REPORT_SIZE_OUTPUT, SIMUCUBE_2_PRO_PID, SIMUCUBE_2_SPORT_PID, SIMUCUBE_2_ULTIMATE_PID,
-    SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID, SIMUCUBE_WIRELESS_WHEEL_PID, SimucubeModel,
+    REPORT_SIZE_OUTPUT, SIMUCUBE_1_PID, SIMUCUBE_2_PRO_PID, SIMUCUBE_2_SPORT_PID,
+    SIMUCUBE_2_ULTIMATE_PID, SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID,
+    SIMUCUBE_WIRELESS_WHEEL_PID, SimucubeModel,
 };
 
 /// Simucube 2 protocol state.
@@ -102,11 +103,12 @@ impl VendorProtocol for SimucubeProtocolHandler {
     }
 }
 
-/// Return `true` when `product_id` belongs to a known Simucube 2 wheelbase.
+/// Return `true` when `product_id` belongs to a known Simucube wheelbase.
 pub fn is_simucube_product(product_id: u16) -> bool {
     matches!(
         product_id,
-        SIMUCUBE_2_SPORT_PID
+        SIMUCUBE_1_PID
+            | SIMUCUBE_2_SPORT_PID
             | SIMUCUBE_2_PRO_PID
             | SIMUCUBE_2_ULTIMATE_PID
             | SIMUCUBE_ACTIVE_PEDAL_PID

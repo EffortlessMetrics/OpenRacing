@@ -389,17 +389,29 @@ impl LinuxHidPort {
             (0x0EB7, 0x0011), // Fanatec CSR Elite
             (0x0EB7, 0x0020), // Fanatec CSL DD
             (0x0EB7, 0x0024), // Fanatec Gran Turismo DD Pro
+            (0x0EB7, 0x0E03), // Fanatec ClubSport Wheel Base V1
             (0x0EB7, 0x1839), // Fanatec ClubSport Pedals V1/V2
             (0x0EB7, 0x183B), // Fanatec ClubSport Pedals V3
             (0x0EB7, 0x6205), // Fanatec CSL Pedals with Load Cell Kit
             (0x0EB7, 0x6206), // Fanatec CSL Pedals V2
             (0x044F, 0xB65D), // Thrustmaster FFB Wheel (pre-init)
-            (0x044F, 0xB66D), // Thrustmaster TMX
+            (0x044F, 0xB65E), // Thrustmaster T150 Pro
+            (0x044F, 0xB66D), // Thrustmaster T300RS (PS4 mode)
+            (0x044F, 0xB67F), // Thrustmaster TMX
             (0x044F, 0xB66E), // Thrustmaster T300RS
+            (0x044F, 0xB66F), // Thrustmaster T300RS GT
+            (0x044F, 0xB669), // Thrustmaster TX Racing
             (0x044F, 0xB677), // Thrustmaster T150
+            (0x044F, 0xB696), // Thrustmaster T248
+            (0x044F, 0xB697), // Thrustmaster T248X
+            (0x044F, 0xB689), // Thrustmaster TS-PC Racer
             (0x044F, 0xB692), // Thrustmaster TS-XW
             (0x044F, 0xB691), // Thrustmaster TS-XW (GIP mode)
-            (0x044F, 0xB696), // Thrustmaster T248
+            (0x044F, 0xB69A), // Thrustmaster T-LCM Pro
+            (0x044F, 0xB69B), // Thrustmaster T818
+            (0x044F, 0xB678), // Thrustmaster T3PA
+            (0x044F, 0xB679), // Thrustmaster T3PA Pro
+            (0x044F, 0xB68D), // Thrustmaster T-LCM
             // Moza Racing - V1
             (0x346E, 0x0005), // Moza R3
             (0x346E, 0x0004), // Moza R5
@@ -421,12 +433,61 @@ impl LinuxHidPort {
             (0x0483, 0x0522), // Simagic Alpha
             (0x0483, 0x0523), // Simagic Alpha Mini
             (0x0483, 0x0524), // Simagic Alpha Ultimate
-            (0x16D0, 0x0D5A), // Simagic M10
-            (0x16D0, 0x0D5B), // Simagic FX
-            // Simagic Alpha EVO candidate identities
-            (0x3670, 0x0001), // Alpha EVO Sport (capture-candidate PID)
-            (0x3670, 0x0002), // Alpha EVO (capture-candidate PID)
-            (0x3670, 0x0003), // Alpha EVO Pro (capture-candidate PID)
+            // Simagic EVO generation (VID 0x3670)
+            (0x3670, 0x0500), // Simagic EVO Sport
+            (0x3670, 0x0501), // Simagic EVO
+            (0x3670, 0x0502), // Simagic EVO Pro
+            (0x3670, 0x0600), // Simagic Alpha EVO (estimated PID)
+            (0x3670, 0x0700), // Simagic Neo (estimated PID)
+            (0x3670, 0x0701), // Simagic Neo Mini (estimated PID)
+            // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
+            (0x0483, 0xA355), // VRS DirectForce Pro
+            (0x0483, 0xA356), // VRS DirectForce Pro V2
+            (0x0483, 0xA357), // VRS Pedals V1
+            (0x0483, 0xA358), // VRS Pedals V2
+            (0x0483, 0xA359), // VRS Handbrake
+            (0x0483, 0xA35A), // VRS Shifter
+            // Heusinkveld pedals (share VID 0x16D0 with Simagic)
+            (0x16D0, 0x1156), // Heusinkveld Sprint
+            (0x16D0, 0x1157), // Heusinkveld Ultimate+
+            (0x16D0, 0x1158), // Heusinkveld Pro
+            // Simucube (VID 0x16D0, dispatched by product ID)
+            (0x16D0, 0x0D5A), // Simucube 1
+            (0x16D0, 0x0D5F), // Simucube 2 Ultimate
+            (0x16D0, 0x0D60), // Simucube 2 Pro
+            (0x16D0, 0x0D61), // Simucube 2 Sport
+            (0x16D0, 0x0D66), // Simucube SC-Link Hub (ActivePedal)
+            (0x16D0, 0x0D63), // Simucube Wireless Wheel (estimated PID)
+            // Asetek SimSports (VID 0x2433)
+            (0x2433, 0xF300), // Asetek Invicta
+            (0x2433, 0xF301), // Asetek Forte
+            (0x2433, 0xF303), // Asetek La Prima
+            (0x2433, 0xF306), // Asetek Tony Kanaan Edition
+            // Cammus (VID 0x3416)
+            (0x3416, 0x0301), // Cammus C5
+            (0x3416, 0x0302), // Cammus C12
+            // OpenFFBoard (VID 0x1209, pid.codes shared VID)
+            (0x1209, 0xFFB0), // OpenFFBoard
+            (0x1209, 0xFFB1), // OpenFFBoard (alt firmware)
+            // FFBeast (VID 0x045B)
+            (0x045B, 0x58F9), // FFBeast Joystick
+            (0x045B, 0x5968), // FFBeast Rudder
+            (0x045B, 0x59D7), // FFBeast Wheel
+            // Granite Devices SimpleMotion V2 (Simucube 1, IONI, ARGON, OSW)
+            (0x1D50, 0x6050), // Simucube 1 / IONI Servo Drive
+            (0x1D50, 0x6051), // Simucube 2 / IONI Premium Servo Drive
+            (0x1D50, 0x6052), // Simucube Sport / ARGON Servo Drive
+            // Leo Bodnar sim racing interfaces
+            (0x1DD2, 0x000E), // Leo Bodnar USB Sim Racing Wheel Interface
+            (0x1DD2, 0x000C), // Leo Bodnar BBI-32 Button Box
+            (0x1DD2, 0xBEEF), // Leo Bodnar SLI-M Shift Light Indicator
+            (0x1DD2, 0x0001), // Leo Bodnar USB Joystick
+            // SimExperience AccuForce Pro (NXP USB chip VID 0x1FC9)
+            (0x1FC9, 0x804C), // SimExperience AccuForce Pro
+            // Cube Controls (PROVISIONAL — STM shared VID 0x0483)
+            (0x0483, 0x0C73), // Cube Controls GT Pro (provisional)
+            (0x0483, 0x0C74), // Cube Controls Formula Pro (provisional)
+            (0x0483, 0x0C75), // Cube Controls CSX3 (provisional)
         ];
 
         // Scan /dev/hidraw* devices

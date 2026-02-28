@@ -80,9 +80,9 @@ Source: `crates/hid-simagic-protocol`; VID/PID status: **Verified (EVO, legacy `
 
 | Device | Vendor | USB VID | Protocol Type | Max Torque (Nm) | FFB Axes | Force Feedback Types | Encoder Resolution | Notes |
 |---|---|---|---|---|---|---|---|---|
-| Simagic EVO Sport | Simagic | `0x3670` | Simagic Proprietary | 15.0 | 1 | Constant, Spring, Damper, Friction, Sine, Square, Triangle | N/A (proprietary) | PID `0x0500`; verified |
-| Simagic EVO | Simagic | `0x3670` | Simagic Proprietary | 20.0 | 1 | Constant, Spring, Damper, Friction, Sine, Square, Triangle | N/A | PID `0x0501`; verified |
-| Simagic EVO Pro | Simagic | `0x3670` | Simagic Proprietary | 30.0 | 1 | Constant, Spring, Damper, Friction, Sine, Square, Triangle | N/A | PID `0x0502`; verified |
+| Simagic EVO Sport | Simagic | `0x3670` | Simagic Proprietary | 9.0 | 1 | Constant, Spring, Damper, Friction, Sine, Square, Triangle | N/A (proprietary) | PID `0x0500`; verified |
+| Simagic EVO | Simagic | `0x3670` | Simagic Proprietary | 12.0 | 1 | Constant, Spring, Damper, Friction, Sine, Square, Triangle | N/A | PID `0x0501`; verified |
+| Simagic EVO Pro | Simagic | `0x3670` | Simagic Proprietary | 18.0 | 1 | Constant, Spring, Damper, Friction, Sine, Square, Triangle | N/A | PID `0x0502`; verified |
 | Simagic Alpha EVO | Simagic | `0x3670` | Simagic Proprietary | 15.0 | 1 | Constant, Spring, Damper, Friction, Sine, Square, Triangle | N/A | PID `0x0600`; estimated |
 | Simagic Neo | Simagic | `0x3670` | Simagic Proprietary | 10.0 | 1 | Constant, Spring, Damper, Friction, Sine, Square, Triangle | N/A | PID `0x0700`; estimated |
 | Simagic Neo Mini | Simagic | `0x3670` | Simagic Proprietary | 7.0 | 1 | Constant, Spring, Damper, Friction, Sine, Square, Triangle | N/A | PID `0x0701`; estimated |
@@ -94,10 +94,10 @@ Source: `crates/hid-simucube-protocol`; VID/PID status: **Verified** (see `docs/
 
 | Device | Vendor | USB VID | Protocol Type | Max Torque (Nm) | FFB Axes | Force Feedback Types | Encoder Resolution | Notes |
 |---|---|---|---|---|---|---|---|---|
-| Simucube 2 Sport | Granite Devices | `0x16D0` | Simucube Proprietary | 15.0 | 1 | Constant, Spring, Damper, Friction | 22-bit (4 194 303 steps) | PID `0x0D61`; 360 Hz FFB update rate |
+| Simucube 2 Sport | Granite Devices | `0x16D0` | Simucube Proprietary | 17.0 | 1 | Constant, Spring, Damper, Friction | 22-bit (4 194 303 steps) | PID `0x0D61`; 360 Hz FFB update rate |
 | Simucube 2 Pro | Granite Devices | `0x16D0` | Simucube Proprietary | 25.0 | 1 | Constant, Spring, Damper, Friction | 22-bit | PID `0x0D60`; wireless wheel support |
-| Simucube 2 Ultimate | Granite Devices | `0x16D0` | Simucube Proprietary | 35.0 | 1 | Constant, Spring, Damper, Friction | 22-bit | PID `0x0D5F`; wireless wheel support |
-| Simucube ActivePedal | Granite Devices | `0x16D0` | Simucube Proprietary | — | 0 | n/a (pedal actuator) | 16-bit | PID `0x0D62` (estimated); active pedal only |
+| Simucube 2 Ultimate | Granite Devices | `0x16D0` | Simucube Proprietary | 32.0 | 1 | Constant, Spring, Damper, Friction | 22-bit | PID `0x0D5F`; wireless wheel support |
+| Simucube ActivePedal | Granite Devices | `0x16D0` | Simucube Proprietary | — | 0 | n/a (pedal actuator) | 16-bit | PID `0x0D66` (SC-Link Hub); active pedal only |
 
 ### VRS DirectForce — VID `0x0483`
 
