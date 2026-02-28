@@ -1,21 +1,20 @@
 ---
 source: crates/telemetry-adapters/tests/snapshots_games_v7.rs
-assertion_line: 179
 expression: normalized
 ---
-speed_ms: 55
-steering_angle: 0
-throttle: 0
+speed_ms: 40.5
+steering_angle: 0.05
+throttle: 0.95
 brake: 0
 clutch: 0
-rpm: 9500
-max_rpm: 0
+rpm: 7500
+max_rpm: 9000
 gear: 5
 num_gears: 0
-lateral_g: 0
-longitudinal_g: 0
+lateral_g: 1.8
+longitudinal_g: 0.45
 vertical_g: 0
-slip_ratio: 0.06
+slip_ratio: 0
 slip_angle_fl: 0
 slip_angle_fr: 0
 slip_angle_rl: 0
@@ -30,7 +29,7 @@ tire_pressures_psi:
   - 0
   - 0
   - 0
-ffb_scalar: 0.75
+ffb_scalar: 0.59999996
 ffb_torque_nm: 0
 flags:
   yellow_flag: false
@@ -51,43 +50,29 @@ flags:
   safety_car: false
   formation_lap: false
   session_paused: false
-car_id: Dallara_IR18
-track_id: Spa-Francorchamps
 position: 0
-lap: 0
+lap: 1
 current_lap_time_s: 0
 best_lap_time_s: 0
 last_lap_time_s: 0
 delta_ahead_s: 0
 delta_behind_s: 0
-fuel_percent: 0
+fuel_percent: 0.61538464
 engine_temp_c: 0
 extended:
-  brake:
+  rpm_fraction:
     type: Float
-    value: 0
-  clutch:
+    value: 0.8333333
+  wheel_speed_fl:
     type: Float
-    value: 0
-  ffb_raw:
+    value: 41
+  wheel_speed_fr:
     type: Float
-    value: 0.75
-  ffb_source:
-    type: String
-    value: telemetry_steering_shaft_torque
-  fuel_level:
+    value: 41
+  wheel_speed_rl:
     type: Float
-    value: 28
-  oil_temp:
+    value: 40
+  wheel_speed_rr:
     type: Float
-    value: 105
-  steering:
-    type: Float
-    value: 0.1
-  throttle:
-    type: Float
-    value: 0.85
-  water_temp:
-    type: Float
-    value: 92
+    value: 40
 sequence: 0
