@@ -142,7 +142,7 @@ fn fallback_returns_none_when_hid_pid_not_advertised() {
 }
 
 #[test]
-fn fallback_prefers_specific_vendor_handler_over_generic() {
+fn fallback_prefers_specific_vendor_handler_over_generic() -> Result<(), Box<dyn std::error::Error>> {
     // 0x346E is the Moza VID — must get the Moza handler, not the generic one.
     let handler = get_vendor_protocol_with_hid_pid_fallback(0x346E, 0x0002, true);
     assert!(
@@ -152,9 +152,10 @@ fn fallback_prefers_specific_vendor_handler_over_generic() {
     // Verify the config resembles a Moza handler (high torque, not 8 Nm generic default).
     let config = handler
         .map(|h| h.get_ffb_config())
-        .expect("handler should be some");
+        .ok_or("handler should be some")?;
     assert!(
         config.max_torque_nm > 8.0,
         "Moza handler torque must exceed the 8 Nm generic default"
     );
+    Ok(())
 }

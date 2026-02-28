@@ -307,7 +307,7 @@ mod tests {
     }
 
     #[test]
-    fn test_device_telemetry_deserialization() {
+    fn test_device_telemetry_deserialization() -> Result<(), Box<dyn std::error::Error>> {
         let mut data = vec![0u8; std::mem::size_of::<DeviceTelemetryReport>()];
         data[0] = DeviceTelemetryReport::REPORT_ID;
 
@@ -315,7 +315,8 @@ mod tests {
         let angle_bytes = 90000i32.to_le_bytes();
         data[1..5].copy_from_slice(&angle_bytes);
 
-        let report = DeviceTelemetryReport::from_bytes(&data).unwrap();
+        let report = DeviceTelemetryReport::from_bytes(&data)
+            .ok_or("telemetry report deserialization failed")?;
         assert_eq!(report.report_id, DeviceTelemetryReport::REPORT_ID);
 
         // Copy packed field to avoid alignment issues
@@ -324,10 +325,11 @@ mod tests {
 
         let telemetry = report.to_telemetry_data();
         assert!((telemetry.wheel_angle_deg - 90.0).abs() < 0.001);
+        Ok(())
     }
 
     #[test]
-    fn test_device_capabilities_deserialization() {
+    fn test_device_capabilities_deserialization() -> Result<(), Box<dyn std::error::Error>> {
         let mut data = vec![0u8; std::mem::size_of::<DeviceCapabilitiesReport>()];
         data[0] = DeviceCapabilitiesReport::REPORT_ID;
         data[1] = 0x01; // supports_pid
@@ -345,7 +347,8 @@ mod tests {
 
         data[9] = 100; // min_report_period_us = 100us (10kHz max)
 
-        let report = DeviceCapabilitiesReport::from_bytes(&data).unwrap();
+        let report = DeviceCapabilitiesReport::from_bytes(&data)
+            .ok_or("capabilities report deserialization failed")?;
         let caps = report.to_device_capabilities();
 
         assert!(caps.supports_pid);
@@ -355,6 +358,7 @@ mod tests {
         assert!((caps.max_torque.value() - 25.0).abs() < 0.001);
         assert_eq!(caps.encoder_cpr, 4096);
         assert_eq!(caps.min_report_period_us, 100);
+        Ok(())
     }
 
     #[test]

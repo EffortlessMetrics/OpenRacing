@@ -46,7 +46,7 @@ fn test_f1_25_car_telemetry_fixture_drs_active() -> TestResult {
     let drs = normalized
         .extended
         .get("drs_active")
-        .expect("drs_active must be in extended map");
+        .ok_or("drs_active must be in extended map")?;
     assert_eq!(
         drs,
         &TelemetryValue::Boolean(true),
