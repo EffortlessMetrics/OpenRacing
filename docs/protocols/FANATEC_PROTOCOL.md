@@ -45,16 +45,38 @@ Rim IDs are reported in feature report `0x02`, byte 2. See `ids::rim_ids` for co
 ### Standalone Pedal Devices
 
 Fanatec pedal sets connect via USB and use a separate VID/PID from the wheelbase.
+Pedals can **also** connect to the wheelbase via an RJ12 cable, but when connected
+via USB they enumerate as independent HID devices and require **no initialization**.
 
 | Model | Vendor ID | Product ID | Axes | Notes |
 |-------|-----------|------------|------|-------|
 | ClubSport Pedals V1/V2 | `0x0EB7` | `0x1839` | 2–3 | Hall sensors |
 | ClubSport Pedals V3 | `0x0EB7` | `0x183B` | 3 | Load cell brake |
+| CSL Elite Pedals | `0x0EB7` | `0x6204` | 2 | Hall sensors |
 | CSL Pedals with LC Kit | `0x0EB7` | `0x6205` | 3 | Load cell add-on |
 | CSL Pedals V2 | `0x0EB7` | `0x6206` | 3 | Updated Hall sensors |
 
 Use `is_pedal_product(pid)` to distinguish pedal devices from wheelbases. Use
 `FanatecPedalModel::from_product_id(pid)` to get the axis count and model variant.
+
+### Pedal Connection Topology
+
+Fanatec pedals support **dual-mode connectivity**:
+
+1. **USB (standalone):** Pedals enumerate as an independent USB HID device with their
+   own VID/PID. Each pedal set reports axes via its own input report (see Pedal Input
+   Report below). No wheelbase is needed. No initialization sequence is required.
+
+2. **Wheelbase (aggregated via RJ12):** Pedals connect to the wheelbase's pedal port.
+   Pedal axes are then embedded in the wheelbase's standard input report (bytes 3–6).
+   In this mode, the pedals do NOT appear as a separate USB device — they are
+   aggregated into the wheelbase report. Pedal axes in the wheelbase report are
+   **8-bit inverted** (0xFF = released, 0x00 = fully pressed).
+
+**Important:** When pedals are connected via USB (standalone), they report 12-bit
+resolution axes. When connected through the wheelbase, they are downsampled to
+8-bit axes in the wheelbase report. Users seeking maximum precision should use
+USB mode.
 
 ## Initialization Sequence
 
@@ -194,6 +216,30 @@ Note: opposite of wheelbase pedal axes which are inverted (0xFF = released).
 
 Use `parse_pedal_report(data)` to parse; returns a `FanatecPedalState` with `throttle_raw`,
 `brake_raw`, `clutch_raw` (12-bit, 0=released), and `axis_count` (2 or 3).
+
+### Pedal Axis Resolution
+
+| Connection Mode | Resolution | Range | Notes |
+|----------------|-----------|-------|-------|
+| USB (standalone) | 12-bit | 0x000–0x0FFF | Full sensor resolution |
+| Wheelbase (RJ12) | 8-bit | 0x00–0xFF (inverted) | Downsampled by wheelbase |
+
+### Pedal Calibration Protocol
+
+Fanatec pedals support **on-device calibration** via the Fanatec Driver software
+(Windows) or FanaLab. The calibration procedure:
+
+1. Open Fanatec Control Panel or FanaLab.
+2. Navigate to pedal calibration section.
+3. Press each pedal fully and release — the software captures min/max values.
+4. Calibration values are stored in the pedal controller's non-volatile memory.
+
+**Wheelbase-connected pedals** inherit the wheelbase's tuning menu calibration. The
+wheelbase firmware normalizes pedal axes before including them in its input report.
+
+**Host-side fallback:** OpenRacing `PedalCalibrator` can perform software-side min/max
+calibration when device-level calibration is insufficient. For USB standalone pedals,
+feed raw 12-bit values; for wheelbase-aggregated pedals, feed 8-bit inverted values.
 
 ### Set Constant Force (ID: 0x01)
 

@@ -85,3 +85,65 @@ hot-swappable when the wheelbase is powered.
 
 - **Asetek SimSports**: [https://asetek.com/simsports](https://asetek.com/simsports)
 - **Asetek GitHub**: [https://github.com/asetek](https://github.com/asetek)
+
+## Pedal Protocol Details
+
+### Asetek Pedal Product Line
+
+Asetek SimSports sells the **Invicta**, **Forte**, and **La Prima** as **wheelbase-only
+products**. They do **not** include pedals. Asetek sells pedal sets as separate
+accessories.
+
+> 🔶 **Verification note (2025-07):** Asetek pedal USB VID/PIDs have not been
+> confirmed from hardware captures. The pedals are assumed to share VID `0x2433`
+> with the wheelbases (since all Asetek SimSports products use the Asetek
+> registered VID), but the pedal Product IDs are unknown. No Asetek pedals appear
+> in JacKeTUs/linux-steering-wheels, the Linux kernel `hid-ids.h`, or any public
+> USB ID database.
+
+### Known Asetek USB PIDs (Wheelbases Only)
+
+| Model | VID | PID | Type | Confirmed |
+|-------|-----|-----|------|-----------|
+| Invicta (wheelbase) | `0x2433` | `0xF300` | Wheelbase | ✅ |
+| Forte (wheelbase) | `0x2433` | `0xF301` | Wheelbase | ✅ |
+| La Prima (wheelbase) | `0x2433` | `0xF303` | Wheelbase | ✅ |
+| Tony Kanaan (wheelbase) | `0x2433` | `0xF306` | Wheelbase | ✅ |
+| La Prima Steering Wheel | `0x2433` | `0xF203` | Wheel rim | ✅ (udev rules) |
+| Pedals | `0x2433` | Unknown | Pedals | ⚠ Not confirmed |
+
+### Pedal Connection Topology
+
+Based on available information, Asetek pedals connect as **standalone USB HID
+devices**. They do not aggregate through the wheelbase. Each pedal set has its own
+USB connection and enumerates independently.
+
+### Axis Reporting (Estimated)
+
+Asetek pedals likely report axes via standard HID input reports, consistent with
+their wheelbase approach (standard USB HID PID). Expected format:
+
+- **Resolution:** 16-bit unsigned per axis (consistent with Asetek wheelbase HID approach).
+- **Axes:** Throttle, Brake, Clutch (3-pedal sets).
+- **Report rate:** Up to 1000 Hz (estimated, matching wheelbase poll rate).
+
+**This section requires hardware capture validation.** No USB descriptor dumps
+from Asetek pedals are publicly available.
+
+### Calibration
+
+Asetek pedals are configured through the **RaceHub** software (Windows only). RaceHub
+communicates with devices over USB HID feature reports using a proprietary binary
+protocol (see `moonrail/asetek_wheelbase_cli` for partial reverse-engineering of the
+wheelbase configuration protocol).
+
+No USB-level calibration protocol has been documented for pedals. Host-side
+calibration via `PedalCalibrator` is recommended as a fallback.
+
+### Capture Artifacts Required
+
+Before finalizing Asetek pedal support:
+- [ ] USB descriptor dump from at least one Asetek pedal set.
+- [ ] Confirmed VID/PID pair for pedals.
+- [ ] Report structure (report ID, axis offsets, byte order).
+- [ ] Calibration protocol (if different from wheelbase config protocol).

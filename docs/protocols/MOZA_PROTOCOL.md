@@ -21,6 +21,76 @@ Moza Racing hardware generally follows a unified HID-over-USB protocol. However,
 | **CRP Pedals** | Pedals | USB | `0x0001` (Typical) | *Partial* |
 | **HBP Handbrake** | Handbrake | USB | `0x0022` (standalone) | **Supported (Best-Effort)** |
 
+## Pedal Protocol Details
+
+### Pedal Connection Topology
+
+Moza pedals fall into two distinct classes:
+
+1. **Wheelbase-aggregated (SR-P Lite):** Pedals connect to the wheelbase via an
+   RJ11/RJ45 cable. They do **not** appear on the USB bus. The wheelbase firmware
+   reads the pedal sensors and embeds their values in the wheelbase's primary input
+   report. The OS sees only the wheelbase.
+
+2. **Standalone USB (SR-P, CRP):** High-end pedals enumerate as independent USB HID
+   devices with their own VID/PID. They require no wheelbase and no initialization
+   handshake.
+
+| Pedal Model | Connection | USB VID/PID | Axis Resolution | Notes |
+|-------------|-----------|-------------|-----------------|-------|
+| SR-P Lite | Wheelbase port (RJ11) | N/A (embedded) | 16-bit (Hall sensor, via wheelbase ADC) | No separate USB identity |
+| SR-P (Standard) | USB | `0x346E`:`0x0003` | 16-bit | Standalone USB HID device |
+| CRP Pedals | USB | `0x346E`:`0x0001` | 16-bit | High-end, standalone USB HID |
+
+### Pedal Axis Reporting
+
+#### SR-P Lite (Wheelbase-Aggregated)
+
+Axes are embedded in the wheelbase's standard input report at fixed offsets:
+
+| Offset (Byte) | Field | Type | Range |
+| :--- | :--- | :--- | :--- |
+| 3-4 | Throttle | `u16` LE | 0–65535 (0 = released) |
+| 5-6 | Brake | `u16` LE | 0–65535 (0 = released) |
+| 7-8 | Clutch | `u16` LE | 0–65535 (optional) |
+
+The wheelbase reports raw 16-bit values from Hall sensors (approximately 0.9V–1.9V
+scaled to the full 16-bit range). The Pit House software may or may not burn
+calibration into the firmware output.
+
+#### SR-P / CRP (Standalone USB)
+
+These pedals enumerate as standard USB HID joystick devices. Axes are reported as
+unsigned 16-bit values in the standard HID axis format.
+
+- **Report rate:** Up to 1000 Hz.
+- **Resolution:** 16-bit per axis (0–65535).
+- **Sensor type:** Hall effect (SR-P), strain gauge load cell (CRP brake).
+
+Parsing for standalone SR-P is isolated in `crates/srp` (crate name
+`racing-wheel-srp`).
+
+### Pedal Calibration
+
+**SR-P Lite (wheelbase-aggregated):**
+- Calibration is performed through **Moza Pit House** software.
+- Pit House may burn calibration values into the wheelbase firmware, or the
+  wheelbase may report raw sensor values requiring host-side normalization.
+- OpenRacing normalizes all axes: `value_f32 = raw_u16 / 65535.0`.
+
+**SR-P / CRP (USB):**
+- Calibration is performed through **Moza Pit House**.
+- Calibration values are stored in the pedal controller's non-volatile memory.
+- No USB-level calibration protocol is exposed to host software.
+
+**Host-side fallback:** OpenRacing `PedalCalibrator` can apply software min/max
+calibration. Feed 16-bit raw values for both aggregated and standalone pedals.
+
+### SR-P Lite Conflict Note
+
+Connecting a USB pedal set (SR-P) **and** SR-P Lite simultaneously may cause the
+wheelbase to mute the Lite channels. Only one pedal input path should be active.
+
 ## Moza KS support model (wheel + controls)
 
 The KS is **not** treated as a normal wheel peripheral. OpenRacing uses a topology-first model:
