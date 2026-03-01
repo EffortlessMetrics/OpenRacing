@@ -1,0 +1,5 @@
+---
+source: crates/hid-openffboard-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{:#06X}\", OPENFFBOARD_PRODUCT_ID_ALT)"
+---
+0xFFB1
