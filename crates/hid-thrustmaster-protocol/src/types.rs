@@ -70,6 +70,22 @@ pub fn identify_device(product_id: u16) -> ThrustmasterDeviceIdentity {
             category: ThrustmasterDeviceCategory::Wheelbase,
             supports_ffb: true,
         },
+        product_ids::T80 => ThrustmasterDeviceIdentity {
+            product_id,
+            name: "Thrustmaster T80 Racing Wheel",
+            category: ThrustmasterDeviceCategory::Wheelbase,
+            supports_ffb: false,
+        },
+        product_ids::NASCAR_PRO_FF2
+        | product_ids::FGT_RUMBLE_FORCE
+        | product_ids::RGT_FF_CLUTCH
+        | product_ids::FGT_FORCE_FEEDBACK
+        | product_ids::F430_FORCE_FEEDBACK => ThrustmasterDeviceIdentity {
+            product_id,
+            name: "Thrustmaster Legacy Wheel",
+            category: ThrustmasterDeviceCategory::Wheelbase,
+            supports_ffb: true,
+        },
         _ => ThrustmasterDeviceIdentity {
             product_id,
             name: "Thrustmaster Unknown",

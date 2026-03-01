@@ -133,6 +133,28 @@ pub mod commands {
 /// G PRO and G PRO 2 are direct-drive wheels. G PRO 2 PIDs are not yet
 /// present in any community driver source as of this writing.
 pub mod product_ids {
+    // ── Legacy / classic wheels ──────────────────────────────────────────
+
+    /// MOMO Racing wheel (900°, 2.2 Nm gear-driven).
+    ///
+    /// Verified: linux-steering-wheels (Platinum, hid-logitech),
+    /// oversteer `LG_MOMO = '046d:c295'`.
+    pub const MOMO: u16 = 0xC295;
+    /// Driving Force Pro (900°, belt-driven, first wheel with native mode switching).
+    ///
+    /// Verified: linux-steering-wheels (Platinum, hid-logitech),
+    /// oversteer `LG_DFP = '046d:c298'`.
+    pub const DRIVING_FORCE_PRO: u16 = 0xC298;
+    /// Driving Force GT (900°, belt-driven, with shift LEDs).
+    ///
+    /// Verified: linux-steering-wheels (Platinum, hid-logitech),
+    /// oversteer `LG_DFGT = '046d:c29a'`.
+    pub const DRIVING_FORCE_GT: u16 = 0xC29A;
+    /// Speed Force Wireless (Wii racing wheel).
+    ///
+    /// Verified: oversteer `LG_SFW = '046d:c29c'`.
+    pub const SPEED_FORCE_WIRELESS: u16 = 0xC29C;
+
     /// G25 racing wheel (900°, 2.5 Nm belt-drive).
     ///
     /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G25_WHEEL = 0xc299`,

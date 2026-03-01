@@ -106,6 +106,27 @@ pub mod product_ids {
     /// linux-steering-wheels). Retained for backward compatibility; callers
     /// should also check `T248` PID when detecting T818 hardware.
     pub const T818: u16 = 0xB69B;
+
+    // ── Legacy hid-tmff wheels ───────────────────────────────────────────
+
+    /// T80 Racing Wheel (entry-level, no FFB — only rumble).
+    /// Verified: oversteer `TM_T80 = '044f:b668'`.
+    pub const T80: u16 = 0xB668;
+    /// NASCAR Pro Force Feedback 2 (legacy gear-driven wheel).
+    /// Verified: linux-steering-wheels (hid-tmff), PID 0xb605.
+    pub const NASCAR_PRO_FF2: u16 = 0xB605;
+    /// Ferrari GT Rumble Force (legacy entry-level wheel).
+    /// Verified: linux-steering-wheels (hid-tmff), PID 0xb651.
+    pub const FGT_RUMBLE_FORCE: u16 = 0xB651;
+    /// Rally GT Force Feedback Clutch Edition (legacy wheel).
+    /// Verified: linux-steering-wheels (hid-tmff), PID 0xb653.
+    pub const RGT_FF_CLUTCH: u16 = 0xB653;
+    /// Ferrari GT Force Feedback (legacy wheel).
+    /// Verified: linux-steering-wheels (hid-tmff), PID 0xb654.
+    pub const FGT_FORCE_FEEDBACK: u16 = 0xB654;
+    /// Ferrari 430 Force Feedback (legacy belt-driven wheel).
+    /// Verified: linux-steering-wheels (hid-tmff), PID 0xb65a.
+    pub const F430_FORCE_FEEDBACK: u16 = 0xB65A;
 }
 
 /// Model identification shorthand.
@@ -131,6 +152,12 @@ pub enum Model {
     TSPCRacer,
     TSXW,
     T818,
+    T80,
+    NascarProFF2,
+    FGTRumbleForce,
+    RGTFF,
+    FGTForceFeedback,
+    F430ForceFeedback,
     T3PA,
     T3PAPro,
     TLCM,
@@ -153,6 +180,12 @@ impl Model {
             product_ids::TS_PC_RACER => Self::TSPCRacer,
             product_ids::TS_XW | product_ids::TS_XW_GIP => Self::TSXW,
             product_ids::T818 => Self::T818,
+            product_ids::T80 => Self::T80,
+            product_ids::NASCAR_PRO_FF2 => Self::NascarProFF2,
+            product_ids::FGT_RUMBLE_FORCE => Self::FGTRumbleForce,
+            product_ids::RGT_FF_CLUTCH => Self::RGTFF,
+            product_ids::FGT_FORCE_FEEDBACK => Self::FGTForceFeedback,
+            product_ids::F430_FORCE_FEEDBACK => Self::F430ForceFeedback,
             _ => Self::Unknown,
         }
     }
@@ -184,6 +217,12 @@ impl Model {
             | Self::T500RS => 4.0,
             Self::TGT | Self::TGTII | Self::TSPCRacer | Self::TSXW => 6.0,
             Self::T818 => 10.0,
+            Self::T80 => 0.0,
+            Self::NascarProFF2
+            | Self::FGTRumbleForce
+            | Self::RGTFF
+            | Self::FGTForceFeedback
+            | Self::F430ForceFeedback => 1.5,
             Self::T3PA | Self::T3PAPro | Self::TLCM | Self::TLCMPro => 0.0,
             Self::Unknown => 4.0,
         }
@@ -199,6 +238,12 @@ impl Model {
             | Self::T300RSGT
             | Self::TSPCRacer
             | Self::TSXW => 1080,
+            Self::T80
+            | Self::NascarProFF2
+            | Self::FGTRumbleForce
+            | Self::RGTFF
+            | Self::FGTForceFeedback
+            | Self::F430ForceFeedback => 270,
             _ => 900,
         }
     }
@@ -206,7 +251,7 @@ impl Model {
     pub fn supports_ffb(self) -> bool {
         !matches!(
             self,
-            Self::T3PA | Self::T3PAPro | Self::TLCM | Self::TLCMPro | Self::Unknown
+            Self::T80 | Self::T3PA | Self::T3PAPro | Self::TLCM | Self::TLCMPro | Self::Unknown
         )
     }
 
@@ -276,6 +321,12 @@ impl Model {
             Self::TSPCRacer => "Thrustmaster TS-PC Racer",
             Self::TSXW => "Thrustmaster TS-XW",
             Self::T818 => "Thrustmaster T818",
+            Self::T80 => "Thrustmaster T80 Racing Wheel",
+            Self::NascarProFF2 => "Thrustmaster NASCAR Pro FF2",
+            Self::FGTRumbleForce => "Thrustmaster FGT Rumble Force",
+            Self::RGTFF => "Thrustmaster Rally GT FF Clutch",
+            Self::FGTForceFeedback => "Thrustmaster FGT Force Feedback",
+            Self::F430ForceFeedback => "Thrustmaster Ferrari 430 FF",
             Self::T3PA => "Thrustmaster T3PA",
             Self::T3PAPro => "Thrustmaster T3PA Pro",
             Self::TLCM => "Thrustmaster T-LCM",

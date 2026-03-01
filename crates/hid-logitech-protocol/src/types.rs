@@ -7,6 +7,14 @@ use crate::ids::product_ids;
 /// Logitech wheel model classification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LogitechModel {
+    /// MOMO Racing wheel (2.2 Nm, 900°, gear-driven).
+    MOMO,
+    /// Driving Force Pro (900°, belt-driven).
+    DrivingForcePro,
+    /// Driving Force GT (900°, belt-driven, shift LEDs).
+    DrivingForceGT,
+    /// Speed Force Wireless (Wii racing wheel).
+    SpeedForceWireless,
     /// G25 racing wheel (2.5 Nm, 900°).
     G25,
     /// G27 racing wheel (2.5 Nm, 900°).
@@ -27,6 +35,10 @@ impl LogitechModel {
     /// Classify a device by its product ID.
     pub fn from_product_id(product_id: u16) -> Self {
         match product_id {
+            product_ids::MOMO => Self::MOMO,
+            product_ids::DRIVING_FORCE_PRO => Self::DrivingForcePro,
+            product_ids::DRIVING_FORCE_GT => Self::DrivingForceGT,
+            product_ids::SPEED_FORCE_WIRELESS => Self::SpeedForceWireless,
             product_ids::G25 => Self::G25,
             product_ids::G27_A | product_ids::G27 => Self::G27,
             product_ids::G29_PS => Self::G29,
@@ -46,6 +58,10 @@ impl LogitechModel {
     /// ±10000 magnitude range.
     pub fn max_torque_nm(self) -> f32 {
         match self {
+            Self::MOMO
+            | Self::DrivingForcePro
+            | Self::DrivingForceGT
+            | Self::SpeedForceWireless => 2.0,
             Self::G25 | Self::G27 => 2.5,
             Self::G29 | Self::G920 | Self::G923 => 2.2,
             Self::GPro => 11.0,
@@ -80,7 +96,11 @@ impl LogitechModel {
 pub fn is_wheel_product(product_id: u16) -> bool {
     matches!(
         product_id,
-        product_ids::G25
+        product_ids::MOMO
+            | product_ids::DRIVING_FORCE_PRO
+            | product_ids::DRIVING_FORCE_GT
+            | product_ids::SPEED_FORCE_WIRELESS
+            | product_ids::G25
             | product_ids::G27_A
             | product_ids::G27
             | product_ids::G29_PS
@@ -166,6 +186,10 @@ mod tests {
     #[test]
     fn test_all_known_pids_are_wheels() -> Result<(), Box<dyn std::error::Error>> {
         let known_pids = [
+            product_ids::MOMO,
+            product_ids::DRIVING_FORCE_PRO,
+            product_ids::DRIVING_FORCE_GT,
+            product_ids::SPEED_FORCE_WIRELESS,
             product_ids::G25,
             product_ids::G27_A,
             product_ids::G27,
