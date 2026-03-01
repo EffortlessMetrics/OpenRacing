@@ -168,4 +168,147 @@ mod tests {
         assert_eq!(stops.as_slice(), ["iracing"]);
         Ok(())
     }
+
+    /// Starting adapters for multiple games records all game IDs in order.
+    #[tokio::test]
+    async fn multi_game_start_records_all() -> anyhow::Result<()> {
+        let mock = MockControl::new();
+        mock.start_for_game("iracing").await?;
+        mock.start_for_game("acc").await?;
+        mock.start_for_game("f1_24").await?;
+
+        let starts = mock.starts.lock().await;
+        assert_eq!(starts.as_slice(), ["iracing", "acc", "f1_24"]);
+        Ok(())
+    }
+
+    /// Stopping adapters for multiple games records all game IDs in order.
+    #[tokio::test]
+    async fn multi_game_stop_records_all() -> anyhow::Result<()> {
+        let mock = MockControl::new();
+        mock.start_for_game("iracing").await?;
+        mock.start_for_game("acc").await?;
+        mock.stop_for_game("acc").await?;
+        mock.stop_for_game("iracing").await?;
+
+        let stops = mock.stops.lock().await;
+        assert_eq!(stops.as_slice(), ["acc", "iracing"]);
+        Ok(())
+    }
+
+    /// Starting the same game twice records two calls (bridge is stateless).
+    #[tokio::test]
+    async fn duplicate_start_is_recorded_twice() -> anyhow::Result<()> {
+        let mock = MockControl::new();
+        mock.start_for_game("iracing").await?;
+        mock.start_for_game("iracing").await?;
+
+        let starts = mock.starts.lock().await;
+        assert_eq!(starts.len(), 2, "duplicate start_for_game should be recorded");
+        assert_eq!(starts.as_slice(), ["iracing", "iracing"]);
+        Ok(())
+    }
+
+    /// Stopping a game that was never started still records the call.
+    #[tokio::test]
+    async fn stop_without_start_is_recorded() -> anyhow::Result<()> {
+        let mock = MockControl::new();
+        mock.stop_for_game("acc").await?;
+
+        let starts = mock.starts.lock().await;
+        let stops = mock.stops.lock().await;
+        assert!(starts.is_empty(), "no starts should have been recorded");
+        assert_eq!(stops.as_slice(), ["acc"]);
+        Ok(())
+    }
+
+    /// A full lifecycle: start → stop → start → stop for the same game.
+    #[tokio::test]
+    async fn full_lifecycle_restart() -> anyhow::Result<()> {
+        let mock = MockControl::new();
+        mock.start_for_game("iracing").await?;
+        mock.stop_for_game("iracing").await?;
+        mock.start_for_game("iracing").await?;
+        mock.stop_for_game("iracing").await?;
+
+        let starts = mock.starts.lock().await;
+        let stops = mock.stops.lock().await;
+        assert_eq!(starts.len(), 2);
+        assert_eq!(stops.len(), 2);
+        Ok(())
+    }
+
+    /// MockControl that returns an error on start, verifying error propagation.
+    struct FailingStartControl;
+
+    #[async_trait]
+    impl TelemetryAdapterControl for FailingStartControl {
+        async fn start_for_game(&self, _game_id: &str) -> Result<()> {
+            Err(anyhow::anyhow!("adapter not found"))
+        }
+
+        async fn stop_for_game(&self, _game_id: &str) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn failing_start_propagates_error() {
+        let control = FailingStartControl;
+        let result = control.start_for_game("nonexistent_game").await;
+        assert!(result.is_err(), "start_for_game should propagate the error");
+    }
+
+    /// MockControl that returns an error on stop, verifying error propagation.
+    struct FailingStopControl;
+
+    #[async_trait]
+    impl TelemetryAdapterControl for FailingStopControl {
+        async fn start_for_game(&self, _game_id: &str) -> Result<()> {
+            Ok(())
+        }
+
+        async fn stop_for_game(&self, _game_id: &str) -> Result<()> {
+            Err(anyhow::anyhow!("stop failed"))
+        }
+    }
+
+    #[tokio::test]
+    async fn failing_stop_propagates_error() {
+        let control = FailingStopControl;
+        let result = control.stop_for_game("iracing").await;
+        assert!(result.is_err(), "stop_for_game should propagate the error");
+    }
+
+    /// Interleaved multi-game operations maintain correct ordering.
+    #[tokio::test]
+    async fn interleaved_multi_game_lifecycle() -> anyhow::Result<()> {
+        let mock = MockControl::new();
+        // Game A starts, then Game B starts, then A stops, then B stops.
+        mock.start_for_game("iracing").await?;
+        mock.start_for_game("acc").await?;
+        mock.stop_for_game("iracing").await?;
+        mock.stop_for_game("acc").await?;
+
+        let starts = mock.starts.lock().await;
+        let stops = mock.stops.lock().await;
+        assert_eq!(starts.as_slice(), ["iracing", "acc"]);
+        assert_eq!(stops.as_slice(), ["iracing", "acc"]);
+        Ok(())
+    }
+
+    /// Verify the trait is object-safe by using it as `dyn TelemetryAdapterControl`.
+    #[tokio::test]
+    async fn trait_is_object_safe() -> anyhow::Result<()> {
+        let mock = MockControl::new();
+        let control: &dyn TelemetryAdapterControl = &mock;
+        control.start_for_game("iracing").await?;
+        control.stop_for_game("iracing").await?;
+
+        let starts = mock.starts.lock().await;
+        let stops = mock.stops.lock().await;
+        assert_eq!(starts.as_slice(), ["iracing"]);
+        assert_eq!(stops.as_slice(), ["iracing"]);
+        Ok(())
+    }
 }

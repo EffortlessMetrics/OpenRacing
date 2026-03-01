@@ -82,7 +82,7 @@
 //! - Negative: `value * -10000 / -0x8000`
 //! - Zero: 0
 //!
-//! Our [`torque_to_magnitude()`] function uses the same ±10000 range, which
+//! Our `torque_to_magnitude()` function uses the same ±10000 range, which
 //! is consistent with the real protocol scaling.
 //!
 //! ## Settings (Feature Reports)

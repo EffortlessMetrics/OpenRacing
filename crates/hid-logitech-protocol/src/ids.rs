@@ -130,7 +130,7 @@ pub mod commands {
 ///
 /// Result: **No discrepancies found.** All PIDs match across all sources.
 /// Note: usb-ids.gowdy.us and the-sz.com list 046d:c260 as "G29 Driving
-/// Force Racing Wheel [PS4]" — this PID is not in our codebase, nor in any
+/// Force Racing Wheel \[PS4\]" — this PID is not in our codebase, nor in any
 /// community driver (kernel hid-lg4ff, new-lg4ff, oversteer). It may be a
 /// PS4-connected-only enumeration PID that doesn't use the HID FFB protocol.
 ///
@@ -228,7 +228,7 @@ pub mod product_ids {
     /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G29_WHEEL = 0xc24f`,
     /// new-lg4ff `0xc24f`, oversteer `LG_G29 = '046d:c24f'`.
     /// Web-verified: the-sz.com (046d:c24f = "G29 Driving Force Racing Wheel"),
-    /// usb-ids.gowdy.us (c24f = "G29 Driving Force Racing Wheel [PS3]").
+    /// usb-ids.gowdy.us (c24f = "G29 Driving Force Racing Wheel \[PS3\]").
     pub const G29_PS: u16 = 0xC24F;
     /// G920 racing wheel (Xbox/PC, 900°, 2.2 Nm).
     ///

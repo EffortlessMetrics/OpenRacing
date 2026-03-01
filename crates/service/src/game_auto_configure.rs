@@ -354,4 +354,197 @@ mod tests {
         );
         Ok(())
     }
+
+    /// Detecting the same game twice is idempotent: the state file should
+    /// contain exactly one entry and not grow.
+    #[tokio::test]
+    async fn test_idempotent_double_detection() -> anyhow::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let install_dir = temp_dir.path().join("game_install");
+        std::fs::create_dir_all(&install_dir)?;
+        let state_path = temp_dir.path().join("configured_games.json");
+
+        let configurer =
+            GameAutoConfigurer::with_state_path(make_game_service().await?, state_path.clone())
+                .with_install_path_override(install_dir);
+
+        configurer.on_game_detected("iracing").await;
+        configurer.on_game_detected("iracing").await;
+
+        let content = std::fs::read_to_string(&state_path)?;
+        let store: ConfiguredGamesStore = serde_json::from_str(&content)?;
+        assert_eq!(
+            store.configured.len(),
+            1,
+            "double detection must not create duplicate entries"
+        );
+        assert!(store.configured.contains("iracing"));
+        Ok(())
+    }
+
+    /// Multiple different games can be auto-configured independently.
+    #[tokio::test]
+    async fn test_multi_game_auto_configure() -> anyhow::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let install_dir = temp_dir.path().join("game_install");
+        std::fs::create_dir_all(&install_dir)?;
+        let state_path = temp_dir.path().join("configured_games.json");
+
+        let configurer =
+            GameAutoConfigurer::with_state_path(make_game_service().await?, state_path.clone())
+                .with_install_path_override(install_dir);
+
+        configurer.on_game_detected("iracing").await;
+        configurer.on_game_detected("acc").await;
+
+        let content = std::fs::read_to_string(&state_path)?;
+        let store: ConfiguredGamesStore = serde_json::from_str(&content)?;
+        assert!(
+            store.configured.contains("iracing"),
+            "iracing should be configured"
+        );
+        assert!(
+            store.configured.contains("acc"),
+            "acc should be configured"
+        );
+        assert_eq!(store.configured.len(), 2);
+        Ok(())
+    }
+
+    /// An unknown game should not panic and must not be persisted.
+    #[tokio::test]
+    async fn test_unknown_game_id_is_graceful() -> anyhow::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let install_dir = temp_dir.path().join("game_install");
+        std::fs::create_dir_all(&install_dir)?;
+        let state_path = temp_dir.path().join("configured_games.json");
+
+        let configurer =
+            GameAutoConfigurer::with_state_path(make_game_service().await?, state_path.clone())
+                .with_install_path_override(install_dir);
+
+        // Must not panic for a completely unknown game.
+        configurer
+            .on_game_detected("totally_unknown_game_xyz")
+            .await;
+
+        let not_persisted = if state_path.exists() {
+            let content = std::fs::read_to_string(&state_path)?;
+            let store: ConfiguredGamesStore = serde_json::from_str(&content)?;
+            !store.configured.contains("totally_unknown_game_xyz")
+        } else {
+            true
+        };
+        assert!(
+            not_persisted,
+            "unknown game must not be marked as configured"
+        );
+        Ok(())
+    }
+
+    /// The state file is created even when the parent directory doesn't exist yet.
+    #[tokio::test]
+    async fn test_state_path_parent_dirs_created() -> anyhow::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let install_dir = temp_dir.path().join("game_install");
+        std::fs::create_dir_all(&install_dir)?;
+        // Nest the state file several levels deep.
+        let state_path = temp_dir
+            .path()
+            .join("a")
+            .join("b")
+            .join("configured_games.json");
+
+        let configurer =
+            GameAutoConfigurer::with_state_path(make_game_service().await?, state_path.clone())
+                .with_install_path_override(install_dir);
+
+        configurer.on_game_detected("iracing").await;
+
+        assert!(
+            state_path.exists(),
+            "state file should be created with intermediate directories"
+        );
+        let content = std::fs::read_to_string(&state_path)?;
+        let store: ConfiguredGamesStore = serde_json::from_str(&content)?;
+        assert!(store.configured.contains("iracing"));
+        Ok(())
+    }
+
+    /// Loading a pre-existing state file restores previously configured games.
+    #[tokio::test]
+    async fn test_load_existing_state_on_construction() -> anyhow::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let state_path = temp_dir.path().join("configured_games.json");
+
+        // Write a store with "acc" already configured.
+        let pre_store = ConfiguredGamesStore {
+            configured: ["acc".to_string()].into_iter().collect(),
+        };
+        std::fs::write(&state_path, serde_json::to_string_pretty(&pre_store)?)?;
+
+        let install_dir = temp_dir.path().join("game_install");
+        std::fs::create_dir_all(&install_dir)?;
+
+        let configurer =
+            GameAutoConfigurer::with_state_path(make_game_service().await?, state_path.clone())
+                .with_install_path_override(install_dir);
+
+        // Now detect iracing — acc should still be present from the pre-existing state.
+        configurer.on_game_detected("iracing").await;
+
+        let content = std::fs::read_to_string(&state_path)?;
+        let store: ConfiguredGamesStore = serde_json::from_str(&content)?;
+        assert!(store.configured.contains("acc"), "pre-existing acc entry must survive");
+        assert!(store.configured.contains("iracing"), "newly detected iracing must be added");
+        assert_eq!(store.configured.len(), 2);
+        Ok(())
+    }
+
+    /// `save_store` / `load_store` round-trip produces identical data.
+    #[test]
+    fn test_store_round_trip() -> anyhow::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let state_path = temp_dir.path().join("configured_games.json");
+
+        let original = ConfiguredGamesStore {
+            configured: ["iracing", "acc", "f1_24"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        };
+        save_store(&state_path, &original)?;
+
+        let loaded = load_store(&state_path);
+        assert!(loaded.is_some(), "load_store must succeed for a valid file");
+        let loaded = loaded.ok_or_else(|| anyhow::anyhow!("expected Some"))?;
+        assert_eq!(loaded.configured, original.configured);
+        Ok(())
+    }
+
+    /// `load_store` returns `None` for a missing file (no panic).
+    #[test]
+    fn test_load_store_missing_file_returns_none() {
+        let result = load_store(Path::new("/nonexistent/path/store.json"));
+        assert!(result.is_none(), "load_store for missing file must return None");
+    }
+
+    /// `load_store` returns `None` for invalid JSON (no panic).
+    #[test]
+    fn test_load_store_invalid_json_returns_none() -> anyhow::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let state_path = temp_dir.path().join("configured_games.json");
+        std::fs::write(&state_path, "NOT VALID JSON {")?;
+
+        let result = load_store(&state_path);
+        assert!(result.is_none(), "load_store for invalid JSON must return None");
+        Ok(())
+    }
+
+    /// `ConfiguredGamesStore` default is empty.
+    #[test]
+    fn test_configured_games_store_default_is_empty() {
+        let store = ConfiguredGamesStore::default();
+        assert!(store.configured.is_empty(), "default store must be empty");
+    }
 }

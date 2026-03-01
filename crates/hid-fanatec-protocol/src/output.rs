@@ -213,7 +213,7 @@ pub const MIN_ROTATION_DEGREES: u16 = 90;
 /// - CSL Elite, CSL Elite PS4: 1080° (technically 1090 as "auto" sentinel)
 /// - DD1, DD2, CSL DD, ClubSport DD+: 2520° (technically 2530 as "auto" sentinel)
 ///
-/// Use [`FanatecModel::max_rotation_degrees`] for model-specific limits.
+/// Use [`crate::FanatecModel::max_rotation_degrees`] for model-specific limits.
 /// This constant reflects the DD maximum for the protocol layer.
 pub const MAX_ROTATION_DEGREES: u16 = 2520;
 

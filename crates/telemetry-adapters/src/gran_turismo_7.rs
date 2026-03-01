@@ -15,7 +15,7 @@
 //!
 //! ## Verification against Nenkai/PDTools (2025-07)
 //!
-//! Verified against [`SimulatorPacket.cs`] and [`SimulatorInterfaceCryptorGT7.cs`]
+//! Verified against `SimulatorPacket.cs` and `SimulatorInterfaceCryptorGT7.cs`
 //! from [Nenkai/PDTools](https://github.com/Nenkai/PDTools) (commit 5bb714c).
 //!
 //! - **Ports**: recv=33740, send(heartbeat)=33739 — matches `BindPortGT7`/`ReceivePortGT7`. ✓
