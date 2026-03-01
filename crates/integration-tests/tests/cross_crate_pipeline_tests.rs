@@ -531,7 +531,7 @@ fn all_fault_types_zero_torque_through_engine_pipeline() -> Result<(), Box<dyn s
         );
 
         // Trigger fault
-        safety.report_fault(fault.clone());
+        safety.report_fault(*fault);
 
         // After fault: torque must be zero
         let post_fault = safety.clamp_torque_nm(frame.torque_out * 5.0);
