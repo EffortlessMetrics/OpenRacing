@@ -7,7 +7,7 @@ use crate::ids::product_ids;
 /// Logitech wheel model classification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LogitechModel {
-    /// MOMO Racing wheel (2.2 Nm, 900°, gear-driven).
+    /// MOMO Racing / MOMO Force wheel (2.2 Nm, 270°, gear-driven).
     MOMO,
     /// Driving Force / Formula EX (2.0 Nm, 270°, gear-driven).
     ///
@@ -19,7 +19,7 @@ pub enum LogitechModel {
     DrivingForcePro,
     /// Driving Force GT (900°, belt-driven, shift LEDs).
     DrivingForceGT,
-    /// Speed Force Wireless (Wii racing wheel).
+    /// Speed Force Wireless (Wii racing wheel, 270°).
     SpeedForceWireless,
     /// G25 racing wheel (2.5 Nm, 900°).
     G25,
@@ -82,12 +82,14 @@ impl LogitechModel {
 
     /// Maximum wheel rotation in degrees.
     ///
-    /// Source: `lg4ff_devices[]` in kernel and new-lg4ff define `max_range`
-    /// as 900 for G25/G27/DFGT/G29/G923. The G PRO supports 1080° per
-    /// Logitech product specifications (not yet in any open-source driver).
+    /// Source: `lg4ff_devices[]` in kernel `hid-lg4ff.c`:
+    /// - WingMan FFG/WFF: 40-180° (very old gear-driven)
+    /// - MOMO/MOMO2, DF-EX, SFW, Vibration Wheel: 40-270°
+    /// - DFP, G25, DFGT, G27, G29, G920, G923: 40-900°
+    /// - G PRO: 1080° (Logitech product specifications)
     pub fn max_rotation_deg(self) -> u16 {
         match self {
-            Self::DrivingForceEX | Self::SpeedForceWireless => 270,
+            Self::MOMO | Self::DrivingForceEX | Self::SpeedForceWireless => 270,
             Self::GPro => 1080,
             _ => 900,
         }
