@@ -8,7 +8,7 @@ use tokio::task::JoinSet;
 use openracing_ipc::prelude::*;
 
 #[tokio::test]
-async fn concurrent_client_negotiations() -> IpcResult<()> {
+async fn concurrent_client_negotiations() -> Result<(), Box<dyn std::error::Error>> {
     let config = IpcConfig::default().max_connections(1000);
     let server = Arc::new(IpcServer::new(config));
     server.start().await?;
@@ -26,7 +26,7 @@ async fn concurrent_client_negotiations() -> IpcResult<()> {
 
     let mut successes = 0;
     while let Some(result) = tasks.join_next().await {
-        if result.expect("task should complete").is_ok() {
+        if result?.is_ok() {
             successes += 1;
         }
     }
@@ -166,7 +166,7 @@ async fn health_event_throughput() {
 }
 
 #[tokio::test]
-async fn message_header_throughput() {
+async fn message_header_throughput() -> Result<(), Box<dyn std::error::Error>> {
     use openracing_ipc::codec::MessageHeader;
 
     let num_headers = 100000;
@@ -175,7 +175,7 @@ async fn message_header_throughput() {
     for i in 0..num_headers {
         let header = MessageHeader::new(message_types::DEVICE, 100, i as u32);
         let encoded = header.encode();
-        let decoded = MessageHeader::decode(&encoded).expect("decode");
+        let decoded = MessageHeader::decode(&encoded)?;
         std::hint::black_box(decoded);
     }
 
@@ -191,4 +191,6 @@ async fn message_header_throughput() {
         headers_per_sec > 100000.0,
         "Should handle > 100k headers/sec"
     );
+
+    Ok(())
 }

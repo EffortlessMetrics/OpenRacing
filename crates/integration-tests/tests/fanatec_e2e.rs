@@ -205,7 +205,7 @@ fn scenario_shutdown_sends_stop_all_output_report() -> Result<(), Box<dyn std::e
     let report = s
         .device
         .last_output_report()
-        .expect("report must be present");
+        .ok_or("report must be present")?;
     // stop-all layout: [FFB_OUTPUT=0x01, STOP_ALL=0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
     assert_eq!(
         report[0],
