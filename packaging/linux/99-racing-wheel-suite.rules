@@ -150,7 +150,7 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="2141", GROUP="i
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1fc9", ATTRS{idProduct}=="804c", GROUP="input", MODE="0664", TAG+="uaccess"
 
 # ─── Service restart on device connect ────────────────────────────────────
-ACTION=="add", SUBSYSTEM=="hidraw", TAG=="uaccess", RUN+="/bin/systemctl --user try-restart racing-wheel-suite.service"
+ACTION=="add", SUBSYSTEM=="hidraw", TAG=="uaccess", RUN+="/bin/systemctl --user try-restart openracing.service"
 
 # ─── Power management — disable USB autosuspend for racing wheels ──────────
 # Logitech

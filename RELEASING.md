@@ -219,6 +219,9 @@ The following release features are planned for future milestones:
 - **v0.2.0**: Windows MSI installer with service registration
 - **v1.0.0**: 
   - Signed release artifacts (Ed25519)
-  - Linux .deb and .rpm packages
   - macOS .dmg installer
   - Plugin registry integration
+
+> **Note:** Linux .deb and .rpm packaging scripts already exist in `packaging/linux/build-packages.sh` and can be used for local builds.
+> The GitHub Actions release workflow (`.github/workflows/release.yml`) does not yet exist
+> and must be created before automated releases can be triggered by pushing a tag.
