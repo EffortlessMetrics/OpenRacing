@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **PXN protocol crate** (`hid-pxn-protocol`): V10/V12/GT987 support with VID/PIDs web-verified against Linux kernel `hid-ids.h` (VID `0x11FF`), full proptest/snapshot coverage
+- **GT7 extended packet support** (316/344 bytes): PacketType2 and PacketType3 implemented in `gran_turismo_7.rs` — adds wheel rotation, sway/heave/surge, energy recovery, and filtered throttle/brake fields (resolves F-064)
+- **266+ new tests** across compat, F1, RaceRoom, WRC, Rennsport, KartKraft, MudRunner, and SimHub adapters — total test count now 7,813
 - **15 vendor HID protocol crates with full proptest/snapshot coverage** — Thrustmaster, Logitech, Fanatec, Simucube (1 & 2), Simagic, Moza, Asetek, VRS, Heusinkveld, AccuForce, OpenFFBoard, FFBeast, Leo Bodnar, Cube Controls, and Cammus; kernel-verified wire-format encoding for T300RS, T150/TMX, DFP range, Fanatec range/sign-fix, and Logitech mode-switch
 - **59 game telemetry adapters verified against official documentation** — port numbers, protocol formats, and field mappings cross-checked; web-verified protocol comments added to GT7 (Salsa20), F1 25 (format 2025), F1 2024, and lesser-documented adapters
 - **7,400+ tests** (unit, integration, proptest, snapshot, e2e) across the workspace:

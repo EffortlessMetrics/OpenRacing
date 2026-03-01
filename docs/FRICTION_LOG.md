@@ -4,7 +4,7 @@ Running record of pain points, blockers, and technical debt encountered during d
 
 Each entry has: **date**, **severity** (Low/Medium/High), **status** (Open/Resolved/Won't Fix), and a description + proposed remedy.
 
-**Summary (61 items):** 15 Open · 45 Resolved · 1 Investigating · 0 Won't Fix
+**Summary (62 items):** 14 Open · 47 Resolved · 1 Investigating · 0 Won't Fix
 
 ---
 
@@ -699,7 +699,7 @@ Our `build_rotation_range_report()` uses `[0x01, 0x12, range_lo, range_hi, ...]`
 
 ---
 
-### F-064 · GT7 extended packet types (316/344 bytes) not supported (Low · Open)
+### F-064 · GT7 extended packet types (316/344 bytes) not supported (Low · **Resolved**)
 
 **Encountered:** Wave 18 telemetry protocol verification (2025-07)
 
@@ -712,6 +712,8 @@ GT7 v1.42+ (2023) added two new heartbeat types that return larger packets with 
 **Remedy:** Add `PacketType` configuration to `GranTurismo7Adapter` (default to PacketType3 for maximum data). Requires parameterising the heartbeat byte, XOR key, and expected packet size. Low priority — all core telemetry fields (RPM, speed, gear, throttle, brake, tyre temps) are available in PacketType1.
 
 **Update (Wave 15 RC, 2025-07):** Still not implemented. Remains low priority — core telemetry works with PacketType1.
+
+**Resolved (Wave 31-32):** Extended packet support (316/344 bytes) implemented in `gran_turismo_7.rs`. All three packet types now supported with configurable heartbeat byte, XOR key, and expected packet size.
 
 ---
 
@@ -785,6 +787,16 @@ Multiple CI workflow jobs had no `timeout-minutes` set, meaning a hung build or 
 
 ---
 
+### F-072 · PXN V10/V12/GT987 protocol crate added (Low · **Resolved**)
+
+**Encountered:** Wave 31-32 (2025-07)
+
+PXN racing wheel support was previously only on `feat/r6-pxn-v2` and not merged into the main RC hardening branch. A dedicated `hid-pxn-protocol` crate has been added with VID/PIDs web-verified against the Linux kernel `hid-ids.h` (VID `0x11FF` / Lite Star), covering V10 (`0x3245`), V12 (`0x1212`), and GT987 models.
+
+**Resolved:** Protocol crate created with full proptest/snapshot coverage and web-verified VID/PIDs.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
@@ -825,11 +837,19 @@ Multiple CI workflow jobs had no `timeout-minutes` set, meaning a hung build or 
 | F-065 | GT Sport ports were swapped (33739→33340, 33740→33339) | Wave 15 RC hardening |
 | F-069 | deny.toml broken with cargo-deny 0.19+ | Wave 15 RC hardening |
 | F-070 | TelemetryBuffer mutex unwrap panics | Wave 15 RC hardening |
+| F-064 | GT7 extended packet types (316/344 bytes) | Wave 31-32 |
 | F-071 | CI workflows lacked timeout-minutes | Wave 15 RC hardening |
+| F-072 | PXN V10/V12/GT987 protocol crate added | Wave 31-32 |
 
 ---
 
 ## Recent Progress
+
+### Waves 31-32 — PXN Protocol & GT7 Extended Packets (2025-07)
+- **PXN protocol crate added (F-072):** `hid-pxn-protocol` crate created with VID/PIDs web-verified against Linux kernel `hid-ids.h` (VID `0x11FF`, V10 `0x3245`, V12 `0x1212`, GT987). Full proptest/snapshot coverage.
+- **GT7 extended packets resolved (F-064):** 316-byte and 344-byte extended packet support implemented in `gran_turismo_7.rs`. All three packet types (PacketType1/2/3) now supported.
+- **266+ new tests:** Coverage expanded across compat, F1, RaceRoom, WRC, Rennsport, KartKraft, MudRunner, and SimHub adapters.
+- **Test count:** 7,813 tests passing.
 
 ### Wave 15 RC Hardening — Verification & Fixes (2025-07)
 Comprehensive hardening pass covering telemetry ports, PID evidence gaps, CI reliability, and runtime safety.
@@ -840,7 +860,7 @@ Comprehensive hardening pass covering telemetry ports, PID evidence gaps, CI rel
 - **deny.toml fixed (F-069):** Configuration updated for cargo-deny 0.19+ compatibility.
 - **TelemetryBuffer safety (F-070):** Mutex unwrap panics replaced with proper error handling.
 - **CI timeouts (F-071):** All workflow jobs now have explicit `timeout-minutes` values to prevent runaway builds.
-- **Existing items re-verified:** F-052 (OpenFFBoard 0xFFB1), F-057 (VRS DFP V2 0xA356), F-059 (Cube Controls PIDs), F-064 (GT7 extended packets) — all confirmed unchanged, no new evidence found.
+- **Existing items re-verified:** F-052 (OpenFFBoard 0xFFB1), F-057 (VRS DFP V2 0xA356), F-059 (Cube Controls PIDs) — all confirmed unchanged, no new evidence found. F-064 (GT7 extended packets) now resolved.
 
 ### Wave 18 — Telemetry Protocol Verification (2025-07)
 Web-sourced verification of 5 game telemetry adapter protocols against authoritative references.

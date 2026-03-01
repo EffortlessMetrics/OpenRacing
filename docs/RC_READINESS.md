@@ -8,8 +8,8 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **7,592** |
-| Unit tests | 5,572 |
+| **Total tests** | **7,813** |
+| Unit tests | 5,793 |
 | Snapshot tests | 816 |
 | Property tests (proptest) | 742 |
 | End-to-end (E2E) tests | 435 |
@@ -62,6 +62,6 @@
 | No line-level code coverage (e.g., `llvm-cov`) | Medium | Test count is high but uncovered branches are unknown |
 | UI crate excluded from test run | Low | `racing-wheel-ui` excluded via `--exclude`; needs separate GUI test strategy |
 | Benchmark suite is minimal | Low | Single bench file; RT timing validation relies on CI perf gates |
-| `compat` crate has 0 unit tests | Medium | Legacy compatibility layer has no dedicated tests |
+| `compat` crate has 0 unit tests | ~~Medium~~ Low | Compat crate now has tests added in waves 31-32 |
 | Doc-tests not counted | Low | `cargo test` doc-tests run but are not enumerated in `--list` output |
 | No mutation testing in CI | Low | `mutants.toml` exists but results are stale (`mutants.out.old/`) |
