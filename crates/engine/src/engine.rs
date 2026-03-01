@@ -1097,6 +1097,7 @@ mod tests {
     use crate::device::VirtualDevice;
     use crate::{DeviceHealthStatus, DeviceInfo, TelemetryData};
     use std::sync::{Arc, Mutex};
+    use std::time::Duration;
     use tokio::time::{Duration as TokioDuration, sleep};
 
     #[track_caller]
@@ -1263,6 +1264,131 @@ mod tests {
     fn test_torque_safety_controls_sanitizes_non_finite_inputs() {
         let safety = SafetyService::new(5.0, 25.0);
         let result = apply_torque_safety_controls(f32::NAN, f32::INFINITY, -5.0, &safety, false);
+        assert_eq!(result.torque_out_nm, 0.0);
+    }
+
+    // -----------------------------------------------------------------------
+    // sanitize_unit_interval
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_sanitize_unit_interval_clamps_high() {
+        assert!((sanitize_unit_interval(1.5) - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_sanitize_unit_interval_clamps_low() {
+        assert!(sanitize_unit_interval(-0.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_sanitize_unit_interval_nan_yields_zero() {
+        assert_eq!(sanitize_unit_interval(f32::NAN), 0.0);
+    }
+
+    #[test]
+    fn test_sanitize_unit_interval_inf_yields_safe_value() {
+        assert_eq!(sanitize_unit_interval(f32::INFINITY), 0.0);
+        assert_eq!(sanitize_unit_interval(f32::NEG_INFINITY), 0.0);
+    }
+
+    #[test]
+    fn test_sanitize_unit_interval_passthrough_in_range() {
+        assert!((sanitize_unit_interval(0.5) - 0.5).abs() < f32::EPSILON);
+        assert!(sanitize_unit_interval(0.0).abs() < f32::EPSILON);
+        assert!((sanitize_unit_interval(1.0) - 1.0).abs() < f32::EPSILON);
+    }
+
+    // -----------------------------------------------------------------------
+    // sanitize_signed_unit
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_sanitize_signed_unit_clamps_high() {
+        assert!((sanitize_signed_unit(2.0) - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_sanitize_signed_unit_clamps_low() {
+        assert!((sanitize_signed_unit(-2.0) + 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_sanitize_signed_unit_nan_yields_zero() {
+        assert_eq!(sanitize_signed_unit(f32::NAN), 0.0);
+    }
+
+    #[test]
+    fn test_sanitize_signed_unit_inf_yields_safe_value() {
+        assert_eq!(sanitize_signed_unit(f32::INFINITY), 0.0);
+        assert_eq!(sanitize_signed_unit(f32::NEG_INFINITY), 0.0);
+    }
+
+    #[test]
+    fn test_sanitize_signed_unit_passthrough_in_range() {
+        assert!((sanitize_signed_unit(0.5) - 0.5).abs() < f32::EPSILON);
+        assert!((sanitize_signed_unit(-0.5) + 0.5).abs() < f32::EPSILON);
+        assert!(sanitize_signed_unit(0.0).abs() < f32::EPSILON);
+    }
+
+    // -----------------------------------------------------------------------
+    // monotonic_ns_since
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_monotonic_ns_since_same_instant_is_zero() {
+        let epoch = Instant::now();
+        assert_eq!(monotonic_ns_since(epoch, epoch), 0);
+    }
+
+    #[test]
+    fn test_monotonic_ns_since_later_instant_is_positive() {
+        let epoch = Instant::now();
+        std::thread::sleep(Duration::from_millis(1));
+        let now = Instant::now();
+        let ns = monotonic_ns_since(epoch, now);
+        assert!(ns > 0, "Expected positive ns, got {ns}");
+    }
+
+    #[test]
+    fn test_monotonic_ns_since_earlier_instant_returns_zero() {
+        // If `now` is before `epoch` (shouldn't normally happen but test the guard)
+        let now = Instant::now();
+        std::thread::sleep(Duration::from_millis(1));
+        let epoch = Instant::now();
+        let ns = monotonic_ns_since(epoch, now);
+        assert_eq!(ns, 0);
+    }
+
+    // -----------------------------------------------------------------------
+    // apply_torque_safety_controls: additional edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_torque_safety_controls_zero_multiplier_yields_zero() {
+        let safety = SafetyService::new(5.0, 25.0);
+        let result = apply_torque_safety_controls(0.5, 25.0, 0.0, &safety, false);
+        assert_eq!(result.torque_out_nm, 0.0);
+    }
+
+    #[test]
+    fn test_torque_safety_controls_negative_multiplier_clamped_to_zero() {
+        let safety = SafetyService::new(5.0, 25.0);
+        let result = apply_torque_safety_controls(0.5, 25.0, -1.0, &safety, false);
+        assert_eq!(result.torque_out_nm, 0.0);
+    }
+
+    #[test]
+    fn test_torque_safety_controls_zero_max_torque_yields_zero() {
+        let safety = SafetyService::new(5.0, 25.0);
+        let result = apply_torque_safety_controls(0.5, 0.0, 1.0, &safety, false);
+        assert_eq!(result.torque_out_nm, 0.0);
+    }
+
+    #[test]
+    fn test_torque_safety_controls_negative_max_torque_treated_as_zero() {
+        let safety = SafetyService::new(5.0, 25.0);
+        let result = apply_torque_safety_controls(0.5, -10.0, 1.0, &safety, false);
         assert_eq!(result.torque_out_nm, 0.0);
     }
 
