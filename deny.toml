@@ -1,107 +1,119 @@
-# cargo-deny configuration for license and dependency auditing
+# cargo-deny configuration for OpenRacing dependency auditing.
+# Covers license compliance, security advisories, crate bans, and source provenance.
+# See: https://embarkstudios.github.io/cargo-deny/
 
+# =============================================================================
+# License checks
+# =============================================================================
 [licenses]
-# List of explicitly allowed licenses
+# Permissive and weak-copyleft licenses only.
+# Any license not listed here is automatically rejected.
+# GPL/LGPL/AGPL are denied by omission — do NOT add them.
 allow = [
     "MIT",
+    "MIT-0",
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",
+    "CC0-1.0",
+    "Zlib",
+    "Unicode-3.0",
     "Unicode-DFS-2016",
+    # MPL-2.0 is a weak (file-level) copyleft compatible with permissive
+    # licenses (Section 3.3). Used by: colored, bitmaps, im-rc, etc.
+    "MPL-2.0",
+    # CDLA-Permissive-2.0 is a permissive data license.
+    # Used by: foldhash, webpki-roots.
+    "CDLA-Permissive-2.0",
 ]
 
-# List of explicitly disallowed licenses
-deny = [
-    "GPL-2.0",
-    "GPL-3.0",
-    "AGPL-1.0",
-    "AGPL-3.0",
-    "LGPL-2.0",
-    "LGPL-2.1",
-    "LGPL-3.0",
-]
-
-# Lint level for when multiple versions of the same license are detected
-multiple-versions = "warn"
-
-# Confidence threshold for detecting a license from a license text.
-# 0.8 means we need to be 80% confident that the detected license is correct
+# Confidence threshold for license text detection (0.0–1.0).
+# 0.8 = require 80% confidence before accepting a detected license.
 confidence-threshold = 0.8
 
-# Allow 1 or more licenses on a per-crate basis, so that particular licenses
-# aren't accepted for every possible crate as with the normal allow list
+# Per-crate license exceptions — keeps the global allowlist tight.
+# Only grant unusual licenses to the specific crates that need them.
 exceptions = [
-    # Each entry is the crate and version constraint, and its the license
+    # ring uses "MIT AND ISC AND OpenSSL"; MIT and ISC are allowed globally.
     { allow = ["OpenSSL"], name = "ring", version = "*" },
+    # ppmd-rust uses the bzip2 license (permissive, BSD-like).
+    { allow = ["bzip2-1.0.6"], name = "ppmd-rust", version = "*" },
 ]
 
+# =============================================================================
+# Crate bans — block specific crates or versions
+# =============================================================================
 [bans]
-# Lint level for when multiple versions of the same crate are detected
+# Warn (not deny) on duplicate crate versions to avoid blocking builds while
+# still surfacing technical debt.
 multiple-versions = "warn"
 
-# Lint level for when a crate version requirement is `*`
-wildcards = "allow"
+# Wildcard version requirements ("*") are a supply-chain risk; warn on them.
+# Workspace path dependencies commonly use wildcards, which is expected.
+wildcards = "warn"
+allow-wildcard-paths = true
 
-# The graph highlighting used when creating dotgraphs for crates
-# with multiple versions
+# Graph highlighting for dotgraph output when duplicate versions are found.
 highlight = "all"
 
-# List of crates that are allowed. Use with care!
+# List of crates that are allowed. Use with care — an empty list means all
+# crates are allowed (subject to the deny list below).
 allow = []
 
-# List of crates to deny
+# Deny old versions of crates with known security vulnerabilities.
 deny = [
-    # Deny old versions of crates with known security vulnerabilities
     { name = "openssl", version = "<0.10.55" },
     { name = "openssl-sys", version = "<0.9.87" },
 ]
 
-# Certain crates/versions that will be skipped when doing duplicate detection.
+# Crate versions skipped during duplicate detection.
 skip = []
 
-# Similarly to `skip` allows you to skip certain crates from being checked. Unlike `skip`,
-# `skip-tree` skips the crate and all of its dependencies entirely.
+# Like `skip`, but also skips the crate's entire dependency subtree.
 skip-tree = []
 
+# =============================================================================
+# Security advisories (RustSec)
+# =============================================================================
 [advisories]
-# The path where the advisory database is cloned/fetched into
+# Advisory database location and source.
 db-path = "~/.cargo/advisory-db"
-
-# The url(s) of the advisory databases to use
 db-urls = ["https://github.com/rustsec/advisory-db"]
 
-# The lint level for security vulnerabilities
-vulnerability = "deny"
+# NOTE: As of cargo-deny 0.14+, `vulnerability`, `unsound`, and `notice`
+# fields are removed — all matching advisories now always produce errors.
+# Only `unmaintained` and `yanked` remain configurable.
 
-# The lint level for unmaintained crates
-unmaintained = "warn"
+# Unmaintained crate handling:
+#   "all"       — error on any unmaintained crate
+#   "workspace" — error only for direct workspace dependencies
+#   "none"      — ignore unmaintained advisories entirely
+# We use "workspace" to flag direct dependencies we control while avoiding
+# noise from deep transitive crates we cannot easily replace.
+unmaintained = "workspace"
 
-# The lint level for crates that have been yanked from their source registry
+# Yanked crate versions: warn so CI doesn't hard-fail, but developers see it.
 yanked = "warn"
 
-# The lint level for crates with security notices. Note that as of
-# 2019-12-17 there are no security notice advisories in
-# https://github.com/rustsec/advisory-db
-notice = "warn"
-
-# A list of advisory IDs to ignore. Note that ignored advisories will still
-# output a note when they are encountered.
+# Advisory IDs to ignore. Each entry should include a reason comment above it.
+# Example:
+#   # RUSTSEC-2024-XXXX — does not affect our usage (no TLS client code)
+#   "RUSTSEC-2024-XXXX",
 ignore = []
 
+# =============================================================================
+# Source provenance — restrict where crates may come from
+# =============================================================================
 [sources]
-# Lint level for what to happen when a crate from a crate registry that is
-# not in the allow list is encountered
+# Crates from unknown registries or git repos should produce warnings so we
+# catch unexpected sources without hard-failing builds.
 unknown-registry = "warn"
-
-# Lint level for what to happen when a crate from a git repository that is not
-# in the allow list is encountered
 unknown-git = "warn"
 
-# List of URLs for allowed crate registries. Defaults to the crates.io index
-# if not specified. If it is specified but empty, no registries are allowed.
+# Only crates.io is allowed as a registry source.
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 
-# List of URLs for allowed Git repositories
+# No git sources are pre-approved; add URLs here if needed.
 allow-git = []
