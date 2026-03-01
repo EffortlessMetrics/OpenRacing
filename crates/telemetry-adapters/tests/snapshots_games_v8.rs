@@ -8,13 +8,12 @@ use racing_wheel_telemetry_adapters::{
     SimHubAdapter, TelemetryAdapter, WrcGenerationsAdapter,
 };
 
+mod helpers;
+use helpers::write_f32_le;
+
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-fn write_f32_le(buf: &mut [u8], offset: usize, val: f32) {
-    buf[offset..offset + 4].copy_from_slice(&val.to_le_bytes());
-}
 
 fn write_i32_le(buf: &mut [u8], offset: usize, val: i32) {
     buf[offset..offset + 4].copy_from_slice(&val.to_le_bytes());

@@ -45,17 +45,6 @@ fn create_linear_config()
     )?)
 }
 
-fn create_test_frame(torque: f32) -> Frame {
-    Frame {
-        ffb_in: torque,
-        torque_out: torque,
-        wheel_speed: 0.0,
-        hands_off: false,
-        ts_mono_ns: 0,
-        seq: 1,
-    }
-}
-
 mod compilation_tests {
     use super::*;
 
@@ -121,7 +110,7 @@ mod execution_tests {
     #[test]
     fn test_empty_pipeline_execution() {
         let mut pipeline = Pipeline::new();
-        let mut frame = create_test_frame(0.5);
+        let mut frame = Frame::from_torque(0.5);
 
         let result = pipeline.process(&mut frame);
         assert!(result.is_ok());
@@ -133,7 +122,7 @@ mod execution_tests {
         let mut pipeline = Pipeline::new();
         pipeline.set_response_curve(CurveType::Linear.to_lut());
 
-        let mut frame = create_test_frame(0.5);
+        let mut frame = Frame::from_torque(0.5);
         let result = pipeline.process(&mut frame);
 
         assert!(result.is_ok());
@@ -147,7 +136,7 @@ mod execution_tests {
         let curve = CurveType::exponential(2.0)?;
         pipeline.set_response_curve(curve.to_lut());
 
-        let mut frame = create_test_frame(0.5);
+        let mut frame = Frame::from_torque(0.5);
         let result = pipeline.process(&mut frame);
 
         assert!(result.is_ok());
@@ -165,11 +154,11 @@ mod execution_tests {
         let curve = CurveType::exponential(2.0)?;
         pipeline.set_response_curve(curve.to_lut());
 
-        let mut frame_pos = create_test_frame(0.5);
+        let mut frame_pos = Frame::from_torque(0.5);
         assert!(pipeline.process(&mut frame_pos).is_ok());
         assert!(frame_pos.torque_out > 0.0);
 
-        let mut frame_neg = create_test_frame(-0.5);
+        let mut frame_neg = Frame::from_torque(-0.5);
         assert!(pipeline.process(&mut frame_neg).is_ok());
         assert!(frame_neg.torque_out < 0.0);
 
@@ -186,13 +175,13 @@ mod execution_tests {
 
         // Empty pipeline doesn't validate - it just passes through
         // Validation happens at filter node boundaries
-        let mut frame_nan = create_test_frame(f32::NAN);
+        let mut frame_nan = Frame::from_torque(f32::NAN);
         assert!(pipeline.process(&mut frame_nan).is_ok());
 
-        let mut frame_inf = create_test_frame(f32::INFINITY);
+        let mut frame_inf = Frame::from_torque(f32::INFINITY);
         assert!(pipeline.process(&mut frame_inf).is_ok());
 
-        let mut frame_out_of_bounds = create_test_frame(2.0);
+        let mut frame_out_of_bounds = Frame::from_torque(2.0);
         assert!(pipeline.process(&mut frame_out_of_bounds).is_ok());
     }
 
@@ -313,8 +302,8 @@ mod property_tests {
 
         let mut pipeline = Pipeline::new();
 
-        let mut frame1 = create_test_frame(torque);
-        let mut frame2 = create_test_frame(torque);
+        let mut frame1 = Frame::from_torque(torque);
+        let mut frame2 = Frame::from_torque(torque);
 
         let result1 = pipeline.process(&mut frame1);
         let result2 = pipeline.process(&mut frame2);
@@ -337,7 +326,7 @@ mod rt_safety_tests {
 
         for i in 0..10000 {
             let torque = (i as f32 / 10000.0).sin();
-            let mut frame = create_test_frame(torque);
+            let mut frame = Frame::from_torque(torque);
 
             let result = pipeline.process(&mut frame);
             assert!(result.is_ok());

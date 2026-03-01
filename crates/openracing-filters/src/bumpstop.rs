@@ -168,21 +168,10 @@ pub fn bumpstop_filter(frame: &mut Frame, state: &mut BumpstopState) {
 mod tests {
     use super::*;
 
-    fn create_test_frame(wheel_speed: f32) -> Frame {
-        Frame {
-            ffb_in: 0.0,
-            torque_out: 0.0,
-            wheel_speed,
-            hands_off: false,
-            ts_mono_ns: 0,
-            seq: 0,
-        }
-    }
-
     #[test]
     fn test_bumpstop_disabled() {
         let mut state = BumpstopState::disabled();
-        let mut frame = create_test_frame(1.0);
+        let mut frame = Frame::from_ffb(0.0, 1.0);
         bumpstop_filter(&mut frame, &mut state);
 
         assert!((frame.torque_out).abs() < 0.001);
@@ -194,7 +183,7 @@ mod tests {
 
         // Slow wheel speed won't reach bumpstop in a few iterations
         for _ in 0..100 {
-            let mut frame = create_test_frame(1.0);
+            let mut frame = Frame::from_ffb(0.0, 1.0);
             bumpstop_filter(&mut frame, &mut state);
         }
 
@@ -207,7 +196,7 @@ mod tests {
         let mut state = BumpstopState::new(true, 450.0, 540.0, 0.8, 0.3);
 
         // Simulate reaching bumpstop by using a large wheel speed
-        let mut frame = create_test_frame(500_000.0);
+        let mut frame = Frame::from_ffb(0.0, 500_000.0);
         bumpstop_filter(&mut frame, &mut state);
 
         // Should have some torque output
@@ -219,14 +208,14 @@ mod tests {
         let mut state_pos = BumpstopState::new(true, 450.0, 540.0, 0.8, 0.3);
         state_pos.current_angle = 500.0; // Past start_angle
 
-        let mut frame_pos = create_test_frame(1.0);
+        let mut frame_pos = Frame::from_ffb(0.0, 1.0);
         bumpstop_filter(&mut frame_pos, &mut state_pos);
         assert!(frame_pos.torque_out < 0.0); // Opposes positive rotation
 
         let mut state_neg = BumpstopState::new(true, 450.0, 540.0, 0.8, 0.3);
         state_neg.current_angle = -500.0; // Past start_angle (negative side)
 
-        let mut frame_neg = create_test_frame(-1.0);
+        let mut frame_neg = Frame::from_ffb(0.0, -1.0);
         bumpstop_filter(&mut frame_neg, &mut state_neg);
         assert!(frame_neg.torque_out > 0.0); // Opposes negative rotation
     }
@@ -239,10 +228,10 @@ mod tests {
         let mut state_heavy = BumpstopState::new(true, 450.0, 540.0, 0.8, 0.3);
         state_heavy.current_angle = 520.0; // Heavy penetration
 
-        let mut frame_light = create_test_frame(0.0);
+        let mut frame_light = Frame::from_ffb(0.0, 0.0);
         bumpstop_filter(&mut frame_light, &mut state_light);
 
-        let mut frame_heavy = create_test_frame(0.0);
+        let mut frame_heavy = Frame::from_ffb(0.0, 0.0);
         bumpstop_filter(&mut frame_heavy, &mut state_heavy);
 
         // Heavier penetration should produce more torque
@@ -265,7 +254,7 @@ mod tests {
 
         for i in 0..1000 {
             let speed = ((i as f32) * 0.01).sin() * 100.0;
-            let mut frame = create_test_frame(speed);
+            let mut frame = Frame::from_ffb(0.0, speed);
             bumpstop_filter(&mut frame, &mut state);
 
             assert!(frame.torque_out.is_finite());
@@ -316,7 +305,7 @@ mod tests {
     fn test_bumpstop_angle_integration_direction() {
         // Positive wheel speed must increase current_angle
         let mut state = BumpstopState::new(true, 450.0, 540.0, 0.8, 0.3);
-        let mut frame = create_test_frame(100.0); // positive speed
+        let mut frame = Frame::from_ffb(0.0, 100.0); // positive speed
         bumpstop_filter(&mut frame, &mut state);
         assert!(
             state.current_angle > 0.0,
@@ -326,7 +315,7 @@ mod tests {
 
         // Negative wheel speed must decrease current_angle from zero
         let mut state_neg = BumpstopState::new(true, 450.0, 540.0, 0.8, 0.3);
-        let mut frame_neg = create_test_frame(-100.0);
+        let mut frame_neg = Frame::from_ffb(0.0, -100.0);
         bumpstop_filter(&mut frame_neg, &mut state_neg);
         assert!(
             state_neg.current_angle < 0.0,
@@ -342,7 +331,7 @@ mod tests {
         let mut state = BumpstopState::new(true, 450.0, 540.0, 0.8, 0.3);
         state.current_angle = 450.0; // exactly at start_angle
 
-        let mut frame = create_test_frame(0.0); // zero speed → no damping
+        let mut frame = Frame::from_ffb(0.0, 0.0); // zero speed → no damping
         bumpstop_filter(&mut frame, &mut state);
 
         // At exactly start_angle, abs_angle (450.0) is NOT > start_angle (450.0),
@@ -367,13 +356,13 @@ mod tests {
         // Light penetration: 10% into bumpstop zone
         let mut state_light = BumpstopState::new(true, start, max, stiffness, 0.0);
         state_light.current_angle = start + range * 0.1; // 410°
-        let mut frame_light = create_test_frame(0.0);
+        let mut frame_light = Frame::from_ffb(0.0, 0.0);
         bumpstop_filter(&mut frame_light, &mut state_light);
 
         // Heavy penetration: 50% into bumpstop zone
         let mut state_heavy = BumpstopState::new(true, start, max, stiffness, 0.0);
         state_heavy.current_angle = start + range * 0.5; // 450°
-        let mut frame_heavy = create_test_frame(0.0);
+        let mut frame_heavy = Frame::from_ffb(0.0, 0.0);
         bumpstop_filter(&mut frame_heavy, &mut state_heavy);
 
         // For quadratic: ratio should be (0.5^2)/(0.1^2) = 25.0
@@ -398,13 +387,13 @@ mod tests {
         // With damping=0: only spring force
         let mut state_no_damp = BumpstopState::new(true, start, max, stiffness, 0.0);
         state_no_damp.current_angle = 450.0;
-        let mut frame_no_damp = create_test_frame(1000.0); // positive speed into the stop
+        let mut frame_no_damp = Frame::from_ffb(0.0, 1000.0); // positive speed into the stop
         bumpstop_filter(&mut frame_no_damp, &mut state_no_damp);
 
         // With damping > 0: spring + damping
         let mut state_damp = BumpstopState::new(true, start, max, stiffness, 0.5);
         state_damp.current_angle = 450.0;
-        let mut frame_damp = create_test_frame(1000.0);
+        let mut frame_damp = Frame::from_ffb(0.0, 1000.0);
         bumpstop_filter(&mut frame_damp, &mut state_damp);
 
         // Both should oppose positive rotation (negative torque)

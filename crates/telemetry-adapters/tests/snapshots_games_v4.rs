@@ -9,13 +9,12 @@ use racing_wheel_telemetry_adapters::{
     mudrunner::MudRunnerVariant,
 };
 
+mod helpers;
+use helpers::write_f32_le;
+
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-fn write_f32(buf: &mut [u8], offset: usize, val: f32) {
-    buf[offset..offset + 4].copy_from_slice(&val.to_le_bytes());
-}
 
 fn write_i32(buf: &mut [u8], offset: usize, val: i32) {
     buf[offset..offset + 4].copy_from_slice(&val.to_le_bytes());
@@ -32,15 +31,15 @@ fn make_raceroom_packet() -> Vec<u8> {
     // engine_rps in rad/s: 5500 RPM * π/30 ≈ 575.96 rad/s
     let rps_5500 = 5500.0f32 * std::f32::consts::PI / 30.0;
     let rps_8500 = 8500.0f32 * std::f32::consts::PI / 30.0;
-    write_f32(&mut buf, 1396, rps_5500); // engine_rps
-    write_f32(&mut buf, 1400, rps_8500); // max_engine_rps
-    write_f32(&mut buf, 1456, 40.0); // fuel_left (f32, litres)
-    write_f32(&mut buf, 1460, 80.0); // fuel_capacity (f32, litres)
-    write_f32(&mut buf, 1392, 44.0); // car_speed m/s
-    write_f32(&mut buf, 1524, 0.3); // steer_input_raw
-    write_f32(&mut buf, 1500, 0.75); // throttle
-    write_f32(&mut buf, 1508, 0.0); // brake
-    write_f32(&mut buf, 1516, 0.0); // clutch
+    write_f32_le(&mut buf, 1396, rps_5500); // engine_rps
+    write_f32_le(&mut buf, 1400, rps_8500); // max_engine_rps
+    write_f32_le(&mut buf, 1456, 40.0); // fuel_left (f32, litres)
+    write_f32_le(&mut buf, 1460, 80.0); // fuel_capacity (f32, litres)
+    write_f32_le(&mut buf, 1392, 44.0); // car_speed m/s
+    write_f32_le(&mut buf, 1524, 0.3); // steer_input_raw
+    write_f32_le(&mut buf, 1500, 0.75); // throttle
+    write_f32_le(&mut buf, 1508, 0.0); // brake
+    write_f32_le(&mut buf, 1516, 0.0); // clutch
     write_i32(&mut buf, 1408, 4); // gear
     buf
 }
@@ -58,14 +57,14 @@ fn raceroom_snapshot() -> TestResult {
 fn make_rbr_packet() -> Vec<u8> {
     // MIN_PACKET_SIZE = 128
     let mut buf = vec![0u8; 184];
-    write_f32(&mut buf, 12, 28.5); // speed_ms
-    write_f32(&mut buf, 52, 0.8); // throttle
-    write_f32(&mut buf, 56, 0.0); // brake
-    write_f32(&mut buf, 60, 0.0); // clutch
-    write_f32(&mut buf, 64, 3.0); // gear (3 = 3rd)
-    write_f32(&mut buf, 68, -0.25); // steering
-    write_f32(&mut buf, 112, 0.0); // handbrake
-    write_f32(&mut buf, 116, 6200.0); // rpm
+    write_f32_le(&mut buf, 12, 28.5); // speed_ms
+    write_f32_le(&mut buf, 52, 0.8); // throttle
+    write_f32_le(&mut buf, 56, 0.0); // brake
+    write_f32_le(&mut buf, 60, 0.0); // clutch
+    write_f32_le(&mut buf, 64, 3.0); // gear (3 = 3rd)
+    write_f32_le(&mut buf, 68, -0.25); // steering
+    write_f32_le(&mut buf, 112, 0.0); // handbrake
+    write_f32_le(&mut buf, 116, 6200.0); // rpm
     buf
 }
 
@@ -83,11 +82,11 @@ fn make_rennsport_packet() -> Vec<u8> {
     // MIN_PACKET_SIZE = 24; identifier byte = 0x52 ('R')
     let mut buf = vec![0u8; 24];
     buf[0] = 0x52; // identifier 'R'
-    write_f32(&mut buf, 4, 180.0); // speed_kmh → 50.0 m/s
-    write_f32(&mut buf, 8, 7200.0); // rpm
+    write_f32_le(&mut buf, 4, 180.0); // speed_kmh → 50.0 m/s
+    write_f32_le(&mut buf, 8, 7200.0); // rpm
     buf[12] = 5u8; // gear (5th)
-    write_f32(&mut buf, 16, 0.65); // ffb_scalar
-    write_f32(&mut buf, 20, 0.08); // slip_ratio
+    write_f32_le(&mut buf, 16, 0.65); // ffb_scalar
+    write_f32_le(&mut buf, 20, 0.08); // slip_ratio
     buf
 }
 
@@ -104,25 +103,25 @@ fn rennsport_snapshot() -> TestResult {
 fn make_wtcr_packet() -> Vec<u8> {
     // Codemasters Mode 1, MIN_PACKET_SIZE = 264
     let mut buf = vec![0u8; 264];
-    write_f32(&mut buf, 108, 33.0); // wheel_speed_fl
-    write_f32(&mut buf, 112, 33.0); // wheel_speed_fr
-    write_f32(&mut buf, 100, 33.0); // wheel_speed_rl
-    write_f32(&mut buf, 104, 33.0); // wheel_speed_rr → speed = 33.0 m/s
-    write_f32(&mut buf, 116, 0.9); // throttle
-    write_f32(&mut buf, 120, 0.1); // steer
-    write_f32(&mut buf, 124, 0.0); // brake
-    write_f32(&mut buf, 132, 4.0); // gear (4th)
-    write_f32(&mut buf, 136, 1.5); // gforce_lat
-    write_f32(&mut buf, 140, 0.4); // gforce_lon
-    write_f32(&mut buf, 144, 2.0); // current_lap
-    write_f32(&mut buf, 148, 6800.0); // rpm
-    write_f32(&mut buf, 156, 3.0); // car_position
-    write_f32(&mut buf, 180, 35.0); // fuel_in_tank
-    write_f32(&mut buf, 184, 60.0); // fuel_capacity
-    write_f32(&mut buf, 188, 0.0); // in_pit
-    write_f32(&mut buf, 248, 92.5); // last_lap_time_s
-    write_f32(&mut buf, 252, 8500.0); // max_rpm
-    write_f32(&mut buf, 260, 6.0); // max_gears
+    write_f32_le(&mut buf, 108, 33.0); // wheel_speed_fl
+    write_f32_le(&mut buf, 112, 33.0); // wheel_speed_fr
+    write_f32_le(&mut buf, 100, 33.0); // wheel_speed_rl
+    write_f32_le(&mut buf, 104, 33.0); // wheel_speed_rr → speed = 33.0 m/s
+    write_f32_le(&mut buf, 116, 0.9); // throttle
+    write_f32_le(&mut buf, 120, 0.1); // steer
+    write_f32_le(&mut buf, 124, 0.0); // brake
+    write_f32_le(&mut buf, 132, 4.0); // gear (4th)
+    write_f32_le(&mut buf, 136, 1.5); // gforce_lat
+    write_f32_le(&mut buf, 140, 0.4); // gforce_lon
+    write_f32_le(&mut buf, 144, 2.0); // current_lap
+    write_f32_le(&mut buf, 148, 6800.0); // rpm
+    write_f32_le(&mut buf, 156, 3.0); // car_position
+    write_f32_le(&mut buf, 180, 35.0); // fuel_in_tank
+    write_f32_le(&mut buf, 184, 60.0); // fuel_capacity
+    write_f32_le(&mut buf, 188, 0.0); // in_pit
+    write_f32_le(&mut buf, 248, 92.5); // last_lap_time_s
+    write_f32_le(&mut buf, 252, 8500.0); // max_rpm
+    write_f32_le(&mut buf, 260, 6.0); // max_gears
     buf
 }
 
@@ -139,25 +138,25 @@ fn wtcr_snapshot() -> TestResult {
 fn make_wrc_generations_packet() -> Vec<u8> {
     // Same Codemasters Mode 1 layout as WTCR
     let mut buf = vec![0u8; 264];
-    write_f32(&mut buf, 108, 25.0); // wheel_speed_fl
-    write_f32(&mut buf, 112, 25.0); // wheel_speed_fr
-    write_f32(&mut buf, 100, 25.0); // wheel_speed_rl
-    write_f32(&mut buf, 104, 25.0); // wheel_speed_rr → speed = 25.0 m/s
-    write_f32(&mut buf, 116, 0.6); // throttle
-    write_f32(&mut buf, 120, -0.2); // steer
-    write_f32(&mut buf, 124, 0.15); // brake
-    write_f32(&mut buf, 132, 3.0); // gear (3rd)
-    write_f32(&mut buf, 136, 0.9); // gforce_lat
-    write_f32(&mut buf, 140, 0.3); // gforce_lon
-    write_f32(&mut buf, 144, 1.0); // current_lap
-    write_f32(&mut buf, 148, 5500.0); // rpm
-    write_f32(&mut buf, 156, 5.0); // car_position
-    write_f32(&mut buf, 180, 45.0); // fuel_in_tank
-    write_f32(&mut buf, 184, 70.0); // fuel_capacity
-    write_f32(&mut buf, 188, 0.0); // in_pit
-    write_f32(&mut buf, 248, 78.3); // last_lap_time_s
-    write_f32(&mut buf, 252, 7500.0); // max_rpm
-    write_f32(&mut buf, 260, 5.0); // max_gears
+    write_f32_le(&mut buf, 108, 25.0); // wheel_speed_fl
+    write_f32_le(&mut buf, 112, 25.0); // wheel_speed_fr
+    write_f32_le(&mut buf, 100, 25.0); // wheel_speed_rl
+    write_f32_le(&mut buf, 104, 25.0); // wheel_speed_rr → speed = 25.0 m/s
+    write_f32_le(&mut buf, 116, 0.6); // throttle
+    write_f32_le(&mut buf, 120, -0.2); // steer
+    write_f32_le(&mut buf, 124, 0.15); // brake
+    write_f32_le(&mut buf, 132, 3.0); // gear (3rd)
+    write_f32_le(&mut buf, 136, 0.9); // gforce_lat
+    write_f32_le(&mut buf, 140, 0.3); // gforce_lon
+    write_f32_le(&mut buf, 144, 1.0); // current_lap
+    write_f32_le(&mut buf, 148, 5500.0); // rpm
+    write_f32_le(&mut buf, 156, 5.0); // car_position
+    write_f32_le(&mut buf, 180, 45.0); // fuel_in_tank
+    write_f32_le(&mut buf, 184, 70.0); // fuel_capacity
+    write_f32_le(&mut buf, 188, 0.0); // in_pit
+    write_f32_le(&mut buf, 248, 78.3); // last_lap_time_s
+    write_f32_le(&mut buf, 252, 7500.0); // max_rpm
+    write_f32_le(&mut buf, 260, 5.0); // max_gears
     buf
 }
 
@@ -175,11 +174,11 @@ fn make_wreckfest_packet() -> Vec<u8> {
     // MIN_PACKET_SIZE = 28; magic "WRKF" at offset 0
     let mut buf = vec![0u8; 28];
     buf[0..4].copy_from_slice(b"WRKF"); // magic
-    write_f32(&mut buf, 8, 35.0); // speed_ms
-    write_f32(&mut buf, 12, 4500.0); // rpm
+    write_f32_le(&mut buf, 8, 35.0); // speed_ms
+    write_f32_le(&mut buf, 12, 4500.0); // rpm
     buf[16] = 3u8; // gear (3rd)
-    write_f32(&mut buf, 20, 0.8); // lateral_g
-    write_f32(&mut buf, 24, 0.3); // longitudinal_g
+    write_f32_le(&mut buf, 20, 0.8); // lateral_g
+    write_f32_le(&mut buf, 24, 0.3); // longitudinal_g
     buf
 }
 

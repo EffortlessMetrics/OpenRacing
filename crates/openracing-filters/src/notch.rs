@@ -192,21 +192,10 @@ pub fn notch_filter(frame: &mut Frame, state: &mut NotchState) {
 mod tests {
     use super::*;
 
-    fn create_test_frame(ffb_in: f32) -> Frame {
-        Frame {
-            ffb_in,
-            torque_out: ffb_in,
-            wheel_speed: 0.0,
-            hands_off: false,
-            ts_mono_ns: 0,
-            seq: 0,
-        }
-    }
-
     #[test]
     fn test_notch_filter_bypass() {
         let mut state = NotchState::bypass();
-        let mut frame = create_test_frame(0.5);
+        let mut frame = Frame::from_torque(0.5);
         notch_filter(&mut frame, &mut state);
 
         assert!((frame.torque_out - 0.5).abs() < 0.001);
@@ -216,7 +205,7 @@ mod tests {
     fn test_notch_filter_dc() {
         let mut state = NotchState::new(50.0, 2.0, -6.0, 1000.0);
 
-        let mut frame = create_test_frame(1.0);
+        let mut frame = Frame::from_torque(1.0);
 
         for _ in 0..50 {
             notch_filter(&mut frame, &mut state);
@@ -242,7 +231,7 @@ mod tests {
         let mut state = NotchState::lowpass(100.0, 0.707, 1000.0);
 
         for _ in 0..100 {
-            let mut frame = create_test_frame(1.0);
+            let mut frame = Frame::from_torque(1.0);
             notch_filter(&mut frame, &mut state);
 
             assert!(frame.torque_out.is_finite());
@@ -252,7 +241,7 @@ mod tests {
     #[test]
     fn test_notch_filter_zero_input() {
         let mut state = NotchState::new(50.0, 2.0, -6.0, 1000.0);
-        let mut frame = create_test_frame(0.0);
+        let mut frame = Frame::from_torque(0.0);
 
         for _ in 0..10 {
             notch_filter(&mut frame, &mut state);
@@ -267,7 +256,7 @@ mod tests {
 
         for i in 0..1000 {
             let input = ((i as f32) * 0.01).sin();
-            let mut frame = create_test_frame(input);
+            let mut frame = Frame::from_torque(input);
             notch_filter(&mut frame, &mut state);
 
             assert!(frame.torque_out.is_finite());
@@ -278,7 +267,7 @@ mod tests {
     fn test_notch_filter_extreme_input() {
         let mut state = NotchState::new(50.0, 2.0, -6.0, 1000.0);
 
-        let mut frame = create_test_frame(100.0);
+        let mut frame = Frame::from_torque(100.0);
         notch_filter(&mut frame, &mut state);
 
         // Filter should handle extreme input gracefully

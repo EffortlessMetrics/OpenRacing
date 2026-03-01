@@ -115,6 +115,27 @@ pub struct Frame {
     pub seq: u16,
 }
 
+impl Frame {
+    /// Create a frame from FFB input and wheel speed (`torque_out` = `ffb_in`).
+    pub fn from_ffb(ffb_in: f32, wheel_speed: f32) -> Self {
+        Self {
+            ffb_in,
+            torque_out: ffb_in,
+            wheel_speed,
+            ..Self::default()
+        }
+    }
+
+    /// Create a frame from torque output (`ffb_in` = `torque_out`, `wheel_speed` = 0).
+    pub fn from_torque(torque_out: f32) -> Self {
+        Self {
+            ffb_in: torque_out,
+            torque_out,
+            ..Self::default()
+        }
+    }
+}
+
 /// Torque cap filter (safety) - limits maximum torque
 ///
 /// # RT Safety
@@ -159,32 +180,21 @@ pub fn torque_cap_filter(frame: &mut Frame, max_torque: f32) {
 mod tests {
     use super::*;
 
-    fn create_test_frame(ffb_in: f32, wheel_speed: f32) -> Frame {
-        Frame {
-            ffb_in,
-            torque_out: ffb_in,
-            wheel_speed,
-            hands_off: false,
-            ts_mono_ns: 0,
-            seq: 0,
-        }
-    }
-
     #[test]
     fn test_torque_cap_filter() {
         let max_torque = 0.8f32;
 
-        let mut frame_ok = create_test_frame(0.5, 0.0);
+        let mut frame_ok = Frame::from_ffb(0.5, 0.0);
         frame_ok.torque_out = 0.5;
         torque_cap_filter(&mut frame_ok, max_torque);
         assert!((frame_ok.torque_out - 0.5).abs() < 0.001);
 
-        let mut frame_over = create_test_frame(1.0, 0.0);
+        let mut frame_over = Frame::from_ffb(1.0, 0.0);
         frame_over.torque_out = 1.0;
         torque_cap_filter(&mut frame_over, max_torque);
         assert!((frame_over.torque_out - 0.8).abs() < 0.001);
 
-        let mut frame_neg = create_test_frame(-1.0, 0.0);
+        let mut frame_neg = Frame::from_ffb(-1.0, 0.0);
         frame_neg.torque_out = -1.0;
         torque_cap_filter(&mut frame_neg, max_torque);
         assert!((frame_neg.torque_out - (-0.8)).abs() < 0.001);

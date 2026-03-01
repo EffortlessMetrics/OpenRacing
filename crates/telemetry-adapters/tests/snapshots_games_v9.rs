@@ -6,13 +6,12 @@ use racing_wheel_telemetry_adapters::{
     Dirt3Adapter, Dirt4Adapter, Dirt5Adapter, Grid2019Adapter, TelemetryAdapter,
 };
 
+mod helpers;
+use helpers::write_f32_le;
+
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-fn write_f32_le(buf: &mut [u8], offset: usize, val: f32) {
-    buf[offset..offset + 4].copy_from_slice(&val.to_le_bytes());
-}
 
 // ─── Codemasters Mode 1 shared builder ───────────────────────────────────────
 // DiRT 3, Dirt 4, and GRID 2019 all share the 264-byte Codemasters Mode 1 layout.

@@ -5,17 +5,6 @@
 
 use openracing_filters::prelude::*;
 
-fn create_test_frame(ffb_in: f32, wheel_speed: f32) -> Frame {
-    Frame {
-        ffb_in,
-        torque_out: ffb_in,
-        wheel_speed,
-        hands_off: false,
-        ts_mono_ns: 0,
-        seq: 0,
-    }
-}
-
 #[cfg(test)]
 mod fuzz_tests {
     use super::*;
@@ -50,7 +39,7 @@ mod fuzz_tests {
         let inputs = [f32::NAN, -f32::NAN];
 
         for input in inputs {
-            let mut frame = create_test_frame(input, input);
+            let mut frame = Frame::from_ffb(input, input);
             run_all_filters(&mut frame);
             // After all filters, output should be bounded
             // Some filters may propagate NaN, torque_cap will handle it
@@ -63,7 +52,7 @@ mod fuzz_tests {
         let inputs = [f32::INFINITY, f32::NEG_INFINITY];
 
         for input in inputs {
-            let mut frame = create_test_frame(input, input);
+            let mut frame = Frame::from_ffb(input, input);
             run_all_filters(&mut frame);
             // Output should be bounded after torque cap
             assert!(frame.torque_out.is_finite());
@@ -76,7 +65,7 @@ mod fuzz_tests {
         let extreme_values = [f32::MAX, f32::MIN_POSITIVE, 1e10f32, 1e20f32, 1e30f32];
 
         for value in extreme_values {
-            let mut frame = create_test_frame(value, value);
+            let mut frame = Frame::from_ffb(value, value);
             run_all_filters(&mut frame);
             assert!(frame.torque_out.is_finite());
         }
@@ -87,7 +76,7 @@ mod fuzz_tests {
         let extreme_values = [f32::MIN, -f32::MIN_POSITIVE, -1e10f32, -1e20f32, -1e30f32];
 
         for value in extreme_values {
-            let mut frame = create_test_frame(value, value);
+            let mut frame = Frame::from_ffb(value, value);
             run_all_filters(&mut frame);
             assert!(frame.torque_out.is_finite());
         }
@@ -102,7 +91,7 @@ mod fuzz_tests {
         ];
 
         for value in subnormal_values {
-            let mut frame = create_test_frame(value, value);
+            let mut frame = Frame::from_ffb(value, value);
             run_all_filters(&mut frame);
             assert!(frame.torque_out.is_finite());
         }
@@ -113,7 +102,7 @@ mod fuzz_tests {
         let zero_values = [0.0f32, -0.0f32];
 
         for value in zero_values {
-            let mut frame = create_test_frame(value, value);
+            let mut frame = Frame::from_ffb(value, value);
             run_all_filters(&mut frame);
             assert!(frame.torque_out.is_finite());
         }
@@ -135,7 +124,7 @@ mod fuzz_tests {
             if !value.is_finite() {
                 continue;
             }
-            let mut frame = create_test_frame(value, value * 0.1);
+            let mut frame = Frame::from_ffb(value, value * 0.1);
             run_all_filters(&mut frame);
             assert!(frame.torque_out.is_finite());
         }
@@ -143,7 +132,7 @@ mod fuzz_tests {
 
     #[test]
     fn fuzz_rapid_changes() {
-        let mut frame = create_test_frame(0.0, 0.0);
+        let mut frame = Frame::from_ffb(0.0, 0.0);
 
         for i in 0..1000 {
             // Rapid sign changes
@@ -162,7 +151,7 @@ mod fuzz_tests {
     #[test]
     fn fuzz_constant_nan_propagation() {
         let mut recon_state = ReconstructionState::new(4);
-        let mut frame = create_test_frame(f32::NAN, 0.0);
+        let mut frame = Frame::from_ffb(f32::NAN, 0.0);
 
         // Run multiple iterations to check NaN propagation
         for _ in 0..10 {
@@ -179,7 +168,7 @@ mod fuzz_tests {
         let mut recon_state = ReconstructionState::new(4);
         recon_state.prev_output = f32::NAN;
 
-        let mut frame = create_test_frame(0.5, 0.0);
+        let mut frame = Frame::from_ffb(0.5, 0.0);
         reconstruction_filter(&mut frame, &mut recon_state);
 
         // Should handle NaN in state gracefully
@@ -191,7 +180,7 @@ mod fuzz_tests {
         let mut state = InertiaState::new(0.1);
         state.prev_wheel_speed = f32::NAN;
 
-        let mut frame = create_test_frame(0.0, 1.0);
+        let mut frame = Frame::from_ffb(0.0, 1.0);
         inertia_filter(&mut frame, &mut state);
 
         assert!(frame.torque_out.is_nan() || frame.torque_out.is_finite());
@@ -202,7 +191,7 @@ mod fuzz_tests {
         let mut state = SlewRateState::new(0.5);
         state.prev_output = f32::NAN;
 
-        let mut frame = create_test_frame(0.5, 0.0);
+        let mut frame = Frame::from_ffb(0.5, 0.0);
         slew_rate_filter(&mut frame, &mut state);
 
         assert!(frame.torque_out.is_nan() || frame.torque_out.is_finite());
@@ -213,7 +202,7 @@ mod fuzz_tests {
         let mut state = NotchState::new(50.0, 2.0, -6.0, 1000.0);
         state.y1 = f32::NAN;
 
-        let mut frame = create_test_frame(0.5, 0.0);
+        let mut frame = Frame::from_ffb(0.5, 0.0);
         notch_filter(&mut frame, &mut state);
 
         assert!(frame.torque_out.is_nan() || frame.torque_out.is_finite());
@@ -226,7 +215,7 @@ mod fuzz_tests {
         let nan_inputs = [f32::NAN, f32::INFINITY, f32::NEG_INFINITY];
 
         for input in nan_inputs {
-            let mut frame = create_test_frame(input, 0.0);
+            let mut frame = Frame::from_ffb(input, 0.0);
             curve_filter(&mut frame, &state);
 
             // Should handle gracefully
@@ -241,7 +230,7 @@ mod fuzz_tests {
         let nan_inputs = [f32::NAN, f32::INFINITY, f32::NEG_INFINITY];
 
         for input in nan_inputs {
-            let mut frame = create_test_frame(input, 0.0);
+            let mut frame = Frame::from_ffb(input, 0.0);
             response_curve_filter(&mut frame, &state);
 
             assert!(frame.torque_out.is_nan() || frame.torque_out.is_finite());
@@ -253,7 +242,7 @@ mod fuzz_tests {
         let mut state = BumpstopState::standard();
         state.current_angle = f32::MAX;
 
-        let mut frame = create_test_frame(0.0, 0.0);
+        let mut frame = Frame::from_ffb(0.0, 0.0);
         bumpstop_filter(&mut frame, &mut state);
 
         assert!(frame.torque_out.is_finite() || frame.torque_out.is_nan());
@@ -264,7 +253,7 @@ mod fuzz_tests {
         let mut state = HandsOffState::new(true, 0.05, 1.0);
         state.counter = u32::MAX;
 
-        let mut frame = create_test_frame(0.01, 0.0);
+        let mut frame = Frame::from_ffb(0.01, 0.0);
         hands_off_detector(&mut frame, &mut state);
 
         // Should handle counter overflow gracefully

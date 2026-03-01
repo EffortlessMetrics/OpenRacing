@@ -206,17 +206,6 @@ pub fn curve_filter(frame: &mut Frame, state: &CurveState) {
 mod tests {
     use super::*;
 
-    fn create_test_frame(torque_out: f32) -> Frame {
-        Frame {
-            ffb_in: torque_out,
-            torque_out,
-            wheel_speed: 0.0,
-            hands_off: false,
-            ts_mono_ns: 0,
-            seq: 0,
-        }
-    }
-
     #[test]
     fn test_curve_state_linear() {
         let state = CurveState::linear();
@@ -248,7 +237,7 @@ mod tests {
         let points = [(0.0f32, 0.0f32), (0.5f32, 0.25f32), (1.0f32, 1.0f32)];
         let state = CurveState::new(&points);
 
-        let mut frame = create_test_frame(0.5);
+        let mut frame = Frame::from_torque(0.5);
         curve_filter(&mut frame, &state);
 
         // Should map 0.5 to approximately 0.25 (quadratic curve)
@@ -259,11 +248,11 @@ mod tests {
     fn test_curve_filter_preserves_sign() {
         let state = CurveState::linear();
 
-        let mut frame_pos = create_test_frame(0.5);
+        let mut frame_pos = Frame::from_torque(0.5);
         curve_filter(&mut frame_pos, &state);
         assert!(frame_pos.torque_out > 0.0);
 
-        let mut frame_neg = create_test_frame(-0.5);
+        let mut frame_neg = Frame::from_torque(-0.5);
         curve_filter(&mut frame_neg, &state);
         assert!(frame_neg.torque_out < 0.0);
     }
@@ -272,15 +261,15 @@ mod tests {
     fn test_curve_filter_endpoints() {
         let state = CurveState::linear();
 
-        let mut frame_0 = create_test_frame(0.0);
+        let mut frame_0 = Frame::from_torque(0.0);
         curve_filter(&mut frame_0, &state);
         assert!((frame_0.torque_out).abs() < 0.01);
 
-        let mut frame_1 = create_test_frame(1.0);
+        let mut frame_1 = Frame::from_torque(1.0);
         curve_filter(&mut frame_1, &state);
         assert!((frame_1.torque_out - 1.0).abs() < 0.01);
 
-        let mut frame_neg1 = create_test_frame(-1.0);
+        let mut frame_neg1 = Frame::from_torque(-1.0);
         curve_filter(&mut frame_neg1, &state);
         assert!((frame_neg1.torque_out - (-1.0)).abs() < 0.01);
     }
@@ -291,7 +280,7 @@ mod tests {
 
         for i in 0..1000 {
             let input = ((i as f32) * 0.001 - 0.5) * 2.0; // -1 to 1
-            let mut frame = create_test_frame(input);
+            let mut frame = Frame::from_torque(input);
             curve_filter(&mut frame, &state);
 
             assert!(frame.torque_out.is_finite());
@@ -303,11 +292,11 @@ mod tests {
     fn test_curve_filter_extreme_input() {
         let state = CurveState::linear();
 
-        let mut frame_high = create_test_frame(100.0);
+        let mut frame_high = Frame::from_torque(100.0);
         curve_filter(&mut frame_high, &state);
         assert!(frame_high.torque_out.is_finite());
 
-        let mut frame_low = create_test_frame(-100.0);
+        let mut frame_low = Frame::from_torque(-100.0);
         curve_filter(&mut frame_low, &state);
         assert!(frame_low.torque_out.is_finite());
     }
