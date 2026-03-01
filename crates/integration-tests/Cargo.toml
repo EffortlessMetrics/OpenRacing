@@ -75,6 +75,8 @@ rand = "0.9.2"
 chrono = { workspace = true }
 openracing-test-helpers = { workspace = true }
 openracing-profile = { path = "../openracing-profile" }
+openracing-filters = { workspace = true }
+openracing-pipeline = { workspace = true }
 
 # Mock and test doubles
 async-trait = { workspace = true }
