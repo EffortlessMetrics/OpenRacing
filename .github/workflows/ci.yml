@@ -34,6 +34,26 @@ jobs:
           chmod +x scripts/validate_changelog.py
           python3 scripts/validate_changelog.py --verbose
 
+  # Phase 0b: MSRV (Minimum Supported Rust Version) check
+  msrv-check:
+    name: MSRV Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Install MSRV toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - name: Verify MSRV compilation
+        run: cargo check --workspace --all-features --exclude racing-wheel-ui --locked
+
   # Phase 1: Fast isolation builds (run in parallel for quick feedback)
   isolation-cli:
     name: CLI Isolation Build
