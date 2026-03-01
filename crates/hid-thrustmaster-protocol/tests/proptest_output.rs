@@ -358,3 +358,78 @@ proptest! {
         prop_assert_eq!(decoded, Some(ty), "effect type must round-trip");
     }
 }
+
+// ── Torque encode/decode round-trip ──────────────────────────────────────
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(500))]
+
+    /// Torque within ±max_torque must round-trip through the ±10000 encoding
+    /// with at most (max_torque / 10000) Nm of error (1-LSB tolerance).
+    #[test]
+    fn prop_torque_round_trip_accuracy(
+        torque in -50.0f32..=50.0f32,
+        max_torque in 0.1f32..=50.0f32,
+    ) {
+        let clamped = torque.clamp(-max_torque, max_torque);
+        let enc = tm::ThrustmasterConstantForceEncoder::new(max_torque);
+        let mut out = [0u8; tm::EFFECT_REPORT_LEN];
+        enc.encode(clamped, &mut out);
+        let raw = i16::from_le_bytes([out[2], out[3]]);
+        let decoded = raw as f32 / 10_000.0 * max_torque;
+        let tolerance = max_torque / 10_000.0 + 1e-4;
+        let error = (clamped - decoded).abs();
+        prop_assert!(
+            error <= tolerance,
+            "torque {clamped} round-trips as {decoded} (error {error} > tolerance {tolerance})"
+        );
+    }
+
+    /// Boundary: full-scale positive and negative torques must decode back
+    /// within 0.01 Nm of ±max_torque.
+    #[test]
+    fn prop_torque_round_trip_boundary(max_torque in 0.1f32..=50.0f32) {
+        let enc = tm::ThrustmasterConstantForceEncoder::new(max_torque);
+        let mut out = [0u8; tm::EFFECT_REPORT_LEN];
+
+        enc.encode(max_torque, &mut out);
+        let raw_pos = i16::from_le_bytes([out[2], out[3]]);
+        let decoded_pos = raw_pos as f32 / 10_000.0 * max_torque;
+        prop_assert!(
+            (decoded_pos - max_torque).abs() < 0.01,
+            "+max round-trip: decoded {decoded_pos} vs expected {max_torque}"
+        );
+
+        enc.encode(-max_torque, &mut out);
+        let raw_neg = i16::from_le_bytes([out[2], out[3]]);
+        let decoded_neg = raw_neg as f32 / 10_000.0 * max_torque;
+        prop_assert!(
+            (decoded_neg + max_torque).abs() < 0.01,
+            "-max round-trip: decoded {decoded_neg} vs expected -{max_torque}"
+        );
+    }
+}
+
+// ── Input report parse round-trip ────────────────────────────────────────
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(500))]
+
+    /// Steering encoded as u16 LE in a constructed input report must round-trip
+    /// through parse_input_report to a normalised value matching the formula.
+    #[test]
+    fn prop_input_steering_round_trip(steering_raw: u16) {
+        let mut data = vec![0x01u8];
+        data.extend_from_slice(&steering_raw.to_le_bytes());
+        data.resize(12, 0);
+        if let Some(state) = tm::parse_input_report(&data) {
+            let expected = (steering_raw as f32 - 32768.0) / 32768.0;
+            prop_assert!(
+                (state.steering - expected).abs() < 1e-4,
+                "steering 0x{:04X} → expected {expected}, got {}",
+                steering_raw,
+                state.steering
+            );
+        }
+    }
+}

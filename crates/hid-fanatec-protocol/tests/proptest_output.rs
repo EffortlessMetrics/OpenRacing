@@ -296,3 +296,60 @@ proptest! {
             "is_highres for {:?} should be {}, got {}", model, expected, hr);
     }
 }
+
+// ── Input report parse round-trip ────────────────────────────────────────
+
+use racing_wheel_hid_fanatec_protocol::{parse_pedal_report, parse_standard_report};
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(500))]
+
+    /// Buttons encoded in a constructed input report must round-trip through
+    /// parse_standard_report exactly.
+    #[test]
+    fn prop_input_button_round_trip(buttons: u16) {
+        let mut data = [0u8; 64];
+        data[0] = 0x01; // standard report ID
+        data[1] = 0x00;
+        data[2] = 0x80; // center steering
+        data[3] = 0xFF; // throttle released
+        data[4] = 0xFF; // brake released
+        data[5] = 0xFF; // clutch released
+        data[7] = (buttons & 0xFF) as u8;
+        data[8] = (buttons >> 8) as u8;
+        let state = parse_standard_report(&data);
+        prop_assert!(state.is_some(), "valid 64-byte report must parse");
+        if let Some(s) = state {
+            prop_assert_eq!(s.buttons, buttons, "buttons must round-trip exactly");
+        }
+    }
+
+    /// Pedal raw values encoded in a pedal report must round-trip through
+    /// parse_pedal_report with the 12-bit mask applied.
+    #[test]
+    fn prop_input_pedal_round_trip(
+        throttle in 0u16..=0x0FFFu16,
+        brake in 0u16..=0x0FFFu16,
+        clutch in 0u16..=0x0FFFu16,
+    ) {
+        let mut data = [0u8; 7];
+        data[0] = 0x01;
+        let t_bytes = throttle.to_le_bytes();
+        data[1] = t_bytes[0];
+        data[2] = t_bytes[1];
+        let b_bytes = brake.to_le_bytes();
+        data[3] = b_bytes[0];
+        data[4] = b_bytes[1];
+        let c_bytes = clutch.to_le_bytes();
+        data[5] = c_bytes[0];
+        data[6] = c_bytes[1];
+        let state = parse_pedal_report(&data);
+        prop_assert!(state.is_some(), "valid 7-byte pedal report must parse");
+        if let Some(s) = state {
+            prop_assert_eq!(s.throttle_raw, throttle, "throttle must round-trip");
+            prop_assert_eq!(s.brake_raw, brake, "brake must round-trip");
+            prop_assert_eq!(s.clutch_raw, clutch, "clutch must round-trip");
+            prop_assert_eq!(s.axis_count, 3, "3-axis report must report 3 axes");
+        }
+    }
+}

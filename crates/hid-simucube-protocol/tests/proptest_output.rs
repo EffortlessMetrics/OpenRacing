@@ -70,4 +70,42 @@ proptest! {
                 "t1={t1} -> {} should be <= t2={t2} -> {}", r1.torque_cNm, r2.torque_cNm);
         }
     }
+
+    /// Effect type and parameter must round-trip through build: the bytes
+    /// at positions 8 (effect_type) and 9–10 (parameter LE) must match.
+    #[test]
+    fn prop_effect_build_round_trip(
+        effect_idx in 0u8..=10u8,
+        parameter: u16,
+        seq: u16,
+    ) {
+        let effect_type = match effect_idx {
+            0 => hid_simucube_protocol::EffectType::None,
+            1 => hid_simucube_protocol::EffectType::Constant,
+            2 => hid_simucube_protocol::EffectType::Ramp,
+            3 => hid_simucube_protocol::EffectType::Square,
+            4 => hid_simucube_protocol::EffectType::Sine,
+            5 => hid_simucube_protocol::EffectType::Triangle,
+            6 => hid_simucube_protocol::EffectType::SawtoothUp,
+            7 => hid_simucube_protocol::EffectType::SawtoothDown,
+            8 => hid_simucube_protocol::EffectType::Spring,
+            9 => hid_simucube_protocol::EffectType::Damper,
+            _ => hid_simucube_protocol::EffectType::Friction,
+        };
+        let report = SimucubeOutputReport::new(seq)
+            .with_effect(effect_type, parameter);
+        let data = report.build().map_err(|e| {
+            TestCaseError::fail(format!("build must succeed: {e:?}"))
+        })?;
+        // Layout: [0]=report_id, [1-2]=seq, [3-4]=torque, [5]=r, [6]=g, [7]=b,
+        //         [8]=effect_type, [9-10]=parameter
+        prop_assert_eq!(data[8], effect_idx.min(10),
+            "effect_type byte must match");
+        let recovered_param = u16::from_le_bytes([data[9], data[10]]);
+        prop_assert_eq!(recovered_param, parameter,
+            "effect parameter must round-trip via LE bytes");
+        let recovered_seq = u16::from_le_bytes([data[1], data[2]]);
+        prop_assert_eq!(recovered_seq, seq,
+            "sequence must round-trip via LE bytes");
+    }
 }

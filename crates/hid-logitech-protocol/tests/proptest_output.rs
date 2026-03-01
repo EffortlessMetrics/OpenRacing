@@ -332,3 +332,111 @@ proptest! {
         }
     }
 }
+
+// ── Torque encode/decode round-trip ──────────────────────────────────────
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(500))]
+
+    /// Torque within ±max_torque must round-trip through the ±10000 encoding
+    /// with at most (max_torque / 10000) Nm of error (1-LSB tolerance).
+    #[test]
+    fn prop_torque_round_trip_accuracy(
+        torque in -50.0f32..=50.0f32,
+        max_torque in 0.1f32..=50.0f32,
+    ) {
+        let clamped = torque.clamp(-max_torque, max_torque);
+        let enc = LogitechConstantForceEncoder::new(max_torque);
+        let mut out = [0u8; CONSTANT_FORCE_REPORT_LEN];
+        enc.encode(clamped, &mut out);
+        let raw = i16::from_le_bytes([out[2], out[3]]);
+        let decoded = raw as f32 / 10_000.0 * max_torque;
+        let tolerance = max_torque / 10_000.0 + 1e-4;
+        let error = (clamped - decoded).abs();
+        prop_assert!(
+            error <= tolerance,
+            "torque {clamped} round-trips as {decoded} (error {error} > tolerance {tolerance})"
+        );
+    }
+
+    /// Boundary: i16::MIN and i16::MAX magnitudes must map to ±max_torque.
+    #[test]
+    fn prop_torque_round_trip_boundary(max_torque in 0.1f32..=50.0f32) {
+        let enc = LogitechConstantForceEncoder::new(max_torque);
+        let mut out = [0u8; CONSTANT_FORCE_REPORT_LEN];
+
+        enc.encode(max_torque, &mut out);
+        let raw_pos = i16::from_le_bytes([out[2], out[3]]);
+        let decoded_pos = raw_pos as f32 / 10_000.0 * max_torque;
+        prop_assert!(
+            (decoded_pos - max_torque).abs() < 0.01,
+            "+max round-trip: decoded {decoded_pos} vs expected {max_torque}"
+        );
+
+        enc.encode(-max_torque, &mut out);
+        let raw_neg = i16::from_le_bytes([out[2], out[3]]);
+        let decoded_neg = raw_neg as f32 / 10_000.0 * max_torque;
+        prop_assert!(
+            (decoded_neg + max_torque).abs() < 0.01,
+            "-max round-trip: decoded {decoded_neg} vs expected -{max_torque}"
+        );
+    }
+}
+
+// ── Input report parse round-trip ────────────────────────────────────────
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(500))]
+
+    /// Buttons encoded in a constructed input report must round-trip through
+    /// parse_input_report exactly.
+    #[test]
+    fn prop_input_button_round_trip(buttons: u16) {
+        let mut data = [0u8; 12];
+        data[0] = 0x01; // report ID
+        data[1] = 0x00;
+        data[2] = 0x80; // center steering
+        data[6] = (buttons & 0xFF) as u8;
+        data[7] = (buttons >> 8) as u8;
+        let state = parse_input_report(&data);
+        prop_assert!(state.is_some(), "valid 12-byte report must parse");
+        if let Some(s) = state {
+            prop_assert_eq!(s.buttons, buttons, "buttons must round-trip exactly");
+        }
+    }
+
+    /// Pedal axes encoded as raw bytes must round-trip through parse and
+    /// normalize to the correct [0.0, 1.0] range.
+    #[test]
+    fn prop_input_pedal_axis_round_trip(throttle: u8, brake: u8, clutch: u8) {
+        let mut data = [0u8; 12];
+        data[0] = 0x01;
+        data[1] = 0x00;
+        data[2] = 0x80;
+        data[3] = throttle;
+        data[4] = brake;
+        data[5] = clutch;
+        let state = parse_input_report(&data);
+        prop_assert!(state.is_some(), "valid 12-byte report must parse");
+        if let Some(s) = state {
+            let expected_throttle = throttle as f32 / 255.0;
+            let expected_brake = brake as f32 / 255.0;
+            let expected_clutch = clutch as f32 / 255.0;
+            prop_assert!(
+                (s.throttle - expected_throttle).abs() < 1e-5,
+                "throttle {throttle} → {expected_throttle}, got {}",
+                s.throttle
+            );
+            prop_assert!(
+                (s.brake - expected_brake).abs() < 1e-5,
+                "brake {brake} → {expected_brake}, got {}",
+                s.brake
+            );
+            prop_assert!(
+                (s.clutch - expected_clutch).abs() < 1e-5,
+                "clutch {clutch} → {expected_clutch}, got {}",
+                s.clutch
+            );
+        }
+    }
+}
