@@ -7,6 +7,11 @@ use crate::ids::product_ids;
 /// Logitech wheel model classification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LogitechModel {
+    /// WingMan Formula Force / Formula Force GP (~0.5 Nm, 180°, gear-driven).
+    ///
+    /// Kernel `lg4ff_devices[]`: WINGMAN_FFG (0xC293) max_range=180.
+    /// WFF (0xC291, from oversteer) is the same hardware generation.
+    WingManFormulaForce,
     /// MOMO Racing / MOMO Force wheel (2.2 Nm, 270°, gear-driven).
     MOMO,
     /// Driving Force / Formula EX (2.0 Nm, 270°, gear-driven).
@@ -21,6 +26,8 @@ pub enum LogitechModel {
     DrivingForceGT,
     /// Speed Force Wireless (Wii racing wheel, 270°).
     SpeedForceWireless,
+    /// Vibration Wheel (basic rumble, uses `lgff` not `lg4ff`, no range control).
+    VibrationWheel,
     /// G25 racing wheel (2.5 Nm, 900°).
     G25,
     /// G27 racing wheel (2.5 Nm, 900°).
@@ -45,10 +52,10 @@ impl LogitechModel {
             product_ids::DRIVING_FORCE_EX => Self::DrivingForceEX,
             product_ids::DRIVING_FORCE_PRO => Self::DrivingForcePro,
             product_ids::DRIVING_FORCE_GT => Self::DrivingForceGT,
-            product_ids::SPEED_FORCE_WIRELESS
-            | product_ids::WINGMAN_FORMULA_FORCE_GP
-            | product_ids::WINGMAN_FORMULA_FORCE
-            | product_ids::VIBRATION_WHEEL => Self::SpeedForceWireless,
+            product_ids::SPEED_FORCE_WIRELESS => Self::SpeedForceWireless,
+            product_ids::WINGMAN_FORMULA_FORCE_GP
+            | product_ids::WINGMAN_FORMULA_FORCE => Self::WingManFormulaForce,
+            product_ids::VIBRATION_WHEEL => Self::VibrationWheel,
             product_ids::G25 => Self::G25,
             product_ids::G27 => Self::G27,
             product_ids::G29_PS => Self::G29,
@@ -68,11 +75,13 @@ impl LogitechModel {
     /// ±10000 magnitude range.
     pub fn max_torque_nm(self) -> f32 {
         match self {
+            Self::WingManFormulaForce => 0.5,
             Self::MOMO
             | Self::DrivingForceEX
             | Self::DrivingForcePro
             | Self::DrivingForceGT
             | Self::SpeedForceWireless => 2.0,
+            Self::VibrationWheel => 0.5,
             Self::G25 | Self::G27 => 2.5,
             Self::G29 | Self::G920 | Self::G923 => 2.2,
             Self::GPro => 11.0,
@@ -83,13 +92,19 @@ impl LogitechModel {
     /// Maximum wheel rotation in degrees.
     ///
     /// Source: `lg4ff_devices[]` in kernel `hid-lg4ff.c`:
-    /// - WingMan FFG/WFF: 40-180° (very old gear-driven)
-    /// - MOMO/MOMO2, DF-EX, SFW, Vibration Wheel: 40-270°
+    /// - WingMan FFG (0xC293): 40-180° (gear-driven, ~year 2000)
+    /// - WingMan FG (0xC20E): 40-180° (no FFB — not in our enum)
+    /// - MOMO (0xC295), MOMO2 (0xCA03): 40-270°
+    /// - DF/EX (0xC294): 40-270° ("WHEEL" in kernel)
+    /// - SFW/WiiWheel (0xC29C): 40-270°
+    /// - Vibration Wheel (0xCA04): ~270° (uses `lgff`, NOT `lg4ff`)
     /// - DFP, G25, DFGT, G27, G29, G920, G923: 40-900°
     /// - G PRO: 1080° (Logitech product specifications)
     pub fn max_rotation_deg(self) -> u16 {
         match self {
-            Self::MOMO | Self::DrivingForceEX | Self::SpeedForceWireless => 270,
+            Self::WingManFormulaForce => 180,
+            Self::MOMO | Self::DrivingForceEX | Self::SpeedForceWireless
+            | Self::VibrationWheel => 270,
             Self::GPro => 1080,
             _ => 900,
         }
@@ -103,6 +118,39 @@ impl LogitechModel {
     /// supports G923 standard FFB but does not implement TrueForce.
     pub fn supports_trueforce(self) -> bool {
         matches!(self, Self::G923)
+    }
+
+    /// Whether this model has hardware-level friction effect support.
+    ///
+    /// Source: `berarma/new-lg4ff` `LG4FF_CAP_FRICTION` flag.
+    /// Only DFP, G25, DFGT, and G27 have native hardware friction.
+    /// G29, G920, G923, G PRO need software-emulated friction.
+    pub fn supports_hardware_friction(self) -> bool {
+        matches!(
+            self,
+            Self::DrivingForcePro | Self::G25 | Self::DrivingForceGT | Self::G27
+        )
+    }
+
+    /// Whether this model supports adjustable rotation range via HID commands.
+    ///
+    /// Source: `lg4ff_devices[]` in kernel `hid-lg4ff.c` — only devices with a
+    /// non-NULL `set_range` function pointer can adjust range at runtime.
+    /// DFP uses `lg4ff_set_range_dfp`, G25/G27/DFGT/G29 use `lg4ff_set_range_g25`.
+    /// Older wheels (WingMan, MOMO, DF-EX, SFW, Vibration Wheel) have NULL
+    /// and must be physically set.
+    pub fn supports_range_command(self) -> bool {
+        matches!(
+            self,
+            Self::DrivingForcePro
+                | Self::G25
+                | Self::DrivingForceGT
+                | Self::G27
+                | Self::G29
+                | Self::G920
+                | Self::G923
+                | Self::GPro
+        )
     }
 }
 
@@ -207,6 +255,7 @@ mod tests {
             product_ids::MOMO,
             product_ids::MOMO_2,
             product_ids::WINGMAN_FORMULA_FORCE_GP,
+            product_ids::WINGMAN_FORMULA_FORCE,
             product_ids::VIBRATION_WHEEL,
             product_ids::DRIVING_FORCE_EX,
             product_ids::DRIVING_FORCE_PRO,

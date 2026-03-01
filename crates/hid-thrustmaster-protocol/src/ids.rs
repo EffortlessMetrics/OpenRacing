@@ -234,6 +234,19 @@ impl Model {
         }
     }
 
+    /// Maximum wheel rotation in degrees.
+    ///
+    /// Sources:
+    /// - `Kimplul/hid-tmff2` per-model `*_set_range()`: T300RS clamps to 1080°,
+    ///   T248 clamps to 900°, TX clamps to 900° (same as T300RS API, different limit).
+    /// - T500RS: 1080° (official Thrustmaster spec).
+    /// - TS-PC, TS-XW: 1080° (official Thrustmaster spec, T300RS FFB API family).
+    /// - T-GT, T-GT II, T818: 1080° (official Thrustmaster spec).
+    /// - T80, NASCAR Pro FF2, older FFB wheels: 270° (physical lock).
+    /// - Default 900°: T248, TX Racing, TMX, T150 (via protocol clamp or official spec).
+    ///
+    /// Note: T150 uses a separate protocol (not T300RS family in hid-tmff2) and
+    /// official spec lists 1080°, so we keep it at 1080° per manufacturer data.
     pub fn max_rotation_deg(self) -> u16 {
         match self {
             Self::T500RS => 1080,
@@ -250,6 +263,7 @@ impl Model {
             | Self::RGTFF
             | Self::FGTForceFeedback
             | Self::F430ForceFeedback => 270,
+            // T248, TX, TMX, T248X, T80Ferrari488, TXRacingOrig: 900° per hid-tmff2/spec
             _ => 900,
         }
     }

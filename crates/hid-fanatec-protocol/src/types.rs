@@ -109,6 +109,14 @@ impl FanatecModel {
             Self::Dd1 | Self::Dd2 | Self::CslDd | Self::GtDdPro | Self::ClubSportDd
         )
     }
+
+    /// Whether this model needs sign-fix for force values ≥ 0x80.
+    ///
+    /// Source: `hid-ftecff.c` — CSR Elite requires a quirk where force
+    /// values ≥ 0x80 are interpreted as signed (subtract 256).
+    pub fn needs_sign_fix(self) -> bool {
+        matches!(self, Self::CsrElite)
+    }
 }
 
 /// Return `true` if the product ID corresponds to a wheelbase (not pedals or rim accessories).
