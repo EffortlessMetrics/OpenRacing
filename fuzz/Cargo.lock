@@ -2108,6 +2108,7 @@ dependencies = [
  "hid-heusinkveld-protocol",
  "hid-simucube-protocol",
  "libfuzzer-sys",
+ "openracing-hid-common",
  "racing-wheel-hbp",
  "racing-wheel-hid-accuforce-protocol",
  "racing-wheel-hid-cammus-protocol",
@@ -2117,6 +2118,7 @@ dependencies = [
  "racing-wheel-hid-logitech-protocol",
  "racing-wheel-hid-moza-protocol",
  "racing-wheel-hid-openffboard-protocol",
+ "racing-wheel-hid-pxn-protocol",
  "racing-wheel-hid-simagic-protocol",
  "racing-wheel-hid-thrustmaster-protocol",
  "racing-wheel-hid-vrs-protocol",
@@ -2737,6 +2739,13 @@ dependencies = [
 
 [[package]]
 name = "racing-wheel-hid-openffboard-protocol"
+version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-hid-pxn-protocol"
 version = "0.1.0"
 dependencies = [
  "workspace-hack",
