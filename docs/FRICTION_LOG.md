@@ -4,6 +4,8 @@ Running record of pain points, blockers, and technical debt encountered during d
 
 Each entry has: **date**, **severity** (Low/Medium/High), **status** (Open/Resolved/Won't Fix), and a description + proposed remedy.
 
+**Summary (61 items):** 15 Open · 45 Resolved · 1 Investigating · 0 Won't Fix
+
 ---
 
 ## Active Issues
@@ -541,6 +543,8 @@ The OpenFFBoard alt PID `0xFFB1` is listed in the protocol crate but cannot be f
 
 **Remedy:** Review OpenFFBoard firmware release history. If `0xFFB1` was never shipped, remove or deprecate the entry.
 
+**Update (Wave 15 RC, 2025-07):** Re-verified — still zero external evidence across all 5 sources. No status change.
+
 ---
 
 ### F-053 · macOS not in CI matrix (Medium · Open)
@@ -605,6 +609,8 @@ VRS is now branded "Turtle Beach VRS" in linux-steering-wheels (Turtle Beach acq
 
 **Remedy:** Confirm PID via hardware capture or VRS/Turtle Beach support. Flag as provisional in protocol crate until verified.
 
+**Update (Wave 15 RC, 2025-07):** Re-verified — still no independent confirmation across 4 sources. No status change.
+
 ---
 
 ### F-058 · Heusinkveld PIDs updated to VID 0x04D8 (Microchip) (Low · Resolved)
@@ -635,6 +641,8 @@ Cube Controls PIDs `0x0C73`, `0x0C74`, `0x0C75` remain provisional with no exter
 The OpenFlight discrepancy suggests multiple projects have independently guessed different VID/PIDs for Cube Controls with no authoritative source.
 
 **Remedy:** Obtain USB captures from Cube Controls hardware. Until confirmed, mark PIDs as provisional in protocol crate and device tables. See also F-038.
+
+**Update (Wave 15 RC, 2025-07):** Re-verified — still zero external evidence across 8 sources. OpenFlight discrepancy persists. No status change.
 
 ---
 
@@ -703,6 +711,78 @@ GT7 v1.42+ (2023) added two new heartbeat types that return larger packets with 
 
 **Remedy:** Add `PacketType` configuration to `GranTurismo7Adapter` (default to PacketType3 for maximum data). Requires parameterising the heartbeat byte, XOR key, and expected packet size. Low priority — all core telemetry fields (RPM, speed, gear, throttle, brake, tyre temps) are available in PacketType1.
 
+**Update (Wave 15 RC, 2025-07):** Still not implemented. Remains low priority — core telemetry works with PacketType1.
+
+---
+
+### F-065 · GT Sport ports were swapped (recv 33739→33340, send 33740→33339) (High · **Resolved**)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+GT Sport telemetry adapter had receive and send ports swapped: recv was `33739` (should be `33340`) and send was `33740` (should be `33339`). GT7 uses recv `33740` / send `33739`; GT Sport uses the lower pair (`33340` / `33339`). Cross-referenced against Nenkai/PDTools `SimulatorInterfaceClient.cs` (`BindPortDefault=33340`, `ReceivePortDefault=33339`) and SimHub wiki (GT Sport: UDP ports 33339 and 33340).
+
+**Fix applied:** `gran_turismo_sport.rs` corrected: `GTS_RECV_PORT = 33340`, `GTS_SEND_PORT = 33339`. `telemetry-config-writers/src/lib.rs` updated with `GTS_DEFAULT_PORT = 33340`. Port verification tests added.
+
+---
+
+### F-066 · Heusinkveld Pro PID 0xF6D3 has zero external evidence (Low · Open)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+Heusinkveld Pro PID `0xF6D3` is estimated from the sequential pattern after Sprint (`0xF6D0`) and Ultimate+ (`0xF6D2`). The Pro pedal set is discontinued. No USB capture, vendor documentation, or community database confirms this PID. The only source is the sequential-numbering assumption from the OpenFlight cross-reference.
+
+**Remedy:** Obtain a USB capture from Heusinkveld Pro hardware. If unavailable (discontinued product), mark as estimated/provisional in protocol crate with a comment. See also F-058.
+
+---
+
+### F-067 · Heusinkveld Sprint/Ultimate+ PIDs have single-source evidence only (Low · Open)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+Heusinkveld Sprint PID `0xF6D0` and Ultimate+ PID `0xF6D2` (VID `0x04D8`, Microchip Technology) come from a single source: the OpenFlight project (`EffortlessMetrics/OpenFlight`). No independent confirmation from USB captures, Linux kernel `hid-ids.h`, JacKeTUs/linux-steering-wheels, or Heusinkveld official documentation. Single-source PIDs carry higher risk of being incorrect.
+
+**Remedy:** Seek independent USB captures. Until a second source confirms, flag as single-source in protocol crate comments.
+
+---
+
+### F-068 · Fanatec GT DD Pro (0x0024) and ClubSport DD (0x01E9) have zero external evidence (Low · Open)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+Fanatec GT DD Pro PID `0x0024` and ClubSport DD PID `0x01E9` (VID `0x0EB7`) are present in engine dispatch tables and protocol crate but have no external confirmation. Comments in `windows.rs` and `linux.rs` note "from USB captures; not yet in community drivers." The `hid-fanatec-protocol/src/ids.rs` module header explicitly states PIDs `0x0024`, `0x01E9`, and `0x1839` have "no external confirmation in any source checked." The Linux kernel `hid-fanatec.c` driver does not include these PIDs.
+
+**Remedy:** Cross-reference against Fanatec FanaLab driver strings, community USB capture databases, or the `gotzl/hid-fanatecff` Linux driver. Flag as unconfirmed in protocol crate until verified.
+
+---
+
+### F-069 · deny.toml broken with cargo-deny 0.19+ (Medium · **Resolved**)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+`deny.toml` used configuration syntax incompatible with `cargo-deny` 0.19+, causing CI failures in the dependency governance job. The schema version and field names needed updating for the newer cargo-deny release.
+
+**Fix applied:** Updated `deny.toml` to cargo-deny 0.19-compatible syntax. CI dependency governance job passes cleanly.
+
+---
+
+### F-070 · TelemetryBuffer mutex unwrap panics (Medium · **Resolved**)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+`TelemetryBuffer` in `openracing-telemetry-streams` used `mutex.lock().unwrap()` which panics on poisoned mutexes. In a real-time context, a panic in the telemetry path could crash the entire service. This violates the project convention against `unwrap()`/`expect()`.
+
+**Fix applied:** Replaced `unwrap()` calls with proper error handling. `TelemetryBuffer` now handles poisoned mutexes gracefully without panicking.
+
+---
+
+### F-071 · CI workflows lacked timeout-minutes (Medium · **Resolved**)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+Multiple CI workflow jobs had no `timeout-minutes` set, meaning a hung build or test could consume GitHub Actions runner minutes indefinitely. This is a CI cost and reliability risk.
+
+**Fix applied:** All CI workflow jobs now have explicit `timeout-minutes` values (5–180 min depending on job type). Covers `ci.yml`, `docs.yml`, `compat-tracking.yml`, `governance-automation.yml`, `integration-tests.yml`, `mutation-tests.yml`, `nightly-soak.yml`, `regression-prevention.yml`, `release.yml`, `yaml-sync-check.yml`, and `schema-validation.yml`.
+
 ---
 
 ## Resolved (archive)
@@ -742,10 +822,25 @@ GT7 v1.42+ (2023) added two new heartbeat types that return larger packets with 
 | F-042 | Asetek Tony Kanaan torque corrected 18→27 Nm + 8 proptest properties | PR #19 merge (d6fba74) |
 | F-051 | Leo Bodnar PID 0xBEEF placeholder replaced with 0x1301 | Wave 15 RC hardening |
 | F-055 | 0 unwrap/expect remaining in test files | Wave 16 |
+| F-065 | GT Sport ports were swapped (33739→33340, 33740→33339) | Wave 15 RC hardening |
+| F-069 | deny.toml broken with cargo-deny 0.19+ | Wave 15 RC hardening |
+| F-070 | TelemetryBuffer mutex unwrap panics | Wave 15 RC hardening |
+| F-071 | CI workflows lacked timeout-minutes | Wave 15 RC hardening |
 
 ---
 
 ## Recent Progress
+
+### Wave 15 RC Hardening — Verification & Fixes (2025-07)
+Comprehensive hardening pass covering telemetry ports, PID evidence gaps, CI reliability, and runtime safety.
+
+- **GT Sport ports fixed (F-065):** Receive and send ports were swapped (33739↔33340). Corrected to recv=33340, send=33339 per Nenkai/PDTools and SimHub wiki.
+- **Heusinkveld PID evidence gaps (F-066, F-067):** Pro PID 0xF6D3 has zero external evidence (estimated from sequential pattern). Sprint/Ultimate+ PIDs have only single-source evidence (OpenFlight). All flagged as provisional.
+- **Fanatec PID evidence gaps (F-068):** GT DD Pro (0x0024) and ClubSport DD (0x01E9) have zero external confirmation outside internal USB captures. Linux kernel `hid-fanatec.c` does not include these PIDs.
+- **deny.toml fixed (F-069):** Configuration updated for cargo-deny 0.19+ compatibility.
+- **TelemetryBuffer safety (F-070):** Mutex unwrap panics replaced with proper error handling.
+- **CI timeouts (F-071):** All workflow jobs now have explicit `timeout-minutes` values to prevent runaway builds.
+- **Existing items re-verified:** F-052 (OpenFFBoard 0xFFB1), F-057 (VRS DFP V2 0xA356), F-059 (Cube Controls PIDs), F-064 (GT7 extended packets) — all confirmed unchanged, no new evidence found.
 
 ### Wave 18 — Telemetry Protocol Verification (2025-07)
 Web-sourced verification of 5 game telemetry adapter protocols against authoritative references.
