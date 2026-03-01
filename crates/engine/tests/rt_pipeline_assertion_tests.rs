@@ -458,9 +458,9 @@ fn test_atomic_u64_is_lock_free() {
     // native hardware atomic instructions (not a mutex-based fallback) by
     // confirming the platform supports 64-bit atomics and the atomic type
     // has the same size as the underlying integer (no hidden lock overhead).
-    assert!(
+    const _: () = assert!(
         cfg!(target_has_atomic = "64"),
-        "Platform does not support native 64-bit atomics — RT safety violated"
+        "Platform does not support native 64-bit atomics"
     );
     assert_eq!(
         std::mem::size_of::<std::sync::atomic::AtomicU64>(),
