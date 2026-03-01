@@ -772,6 +772,17 @@ Our `build_rotation_range_report()` uses `[0x01, 0x12, range_lo, range_hi, ...]`
 - **VRS DirectForce Pro**: PID `0xA355` independently confirmed via linux-steering-wheels (F-039)
 - **Device PID audit**: Leo Bodnar `0xBEEF` (F-036), OpenFFBoard `0xFFB1` (F-037), Cube Controls `0x0C73`–`0x0C75` (F-038) flagged as unverifiable — all need hardware captures
 
+### RC Hardening Wave 15+ (2026-03)
+- **DFP Range Encoding**: Critical bug fixed — old code produced identical output for ALL degree values. Rewritten to match kernel `lg4ff_set_range_dfp()` two-command sequence (coarse + fine limit). Source: `linux/drivers/hid/hid-lg4ff.c`.
+- **Simucube Protocol**: HID joystick report parser implemented (u16 steering, 6 axes, 128 buttons). Bootloader PIDs added (0x0D5E, 0x0D5B). Source: official Simucube developer docs + Granite Devices wiki. Resolves F-061.
+- **Heusinkveld VID/PID Correction**: VID updated `0x16D0` → `0x04D8` (Microchip Technology); PIDs corrected to `0xF6Dx` range. Source: OpenFlight cross-reference.
+- **VID Collisions**: Full documentation created (`docs/protocols/VID_COLLISIONS.md`) + 14 dispatch verification tests. No VID+PID duplicates across 130+ entries.
+- **Mutation Testing**: Targeted mutation-killing tests added for Fanatec, Logitech, Thrustmaster, and filters crates.
+- **Snapshot Encoding Tests**: Added for FFBeast (12 tests) and Leo Bodnar (8 tests) — all protocol crates now have snapshot coverage.
+- **Protocol Verification**: All VID/PIDs re-verified against web sources (kernel hid-ids.h, linux-steering-wheels, pid.codes, devicehunt). No corrections needed beyond Heusinkveld.
+- **CI Fixes**: cargo-udeps false positives resolved for 8 crates; deprecated field detection false positive fixed (TelemetryFrame.sequence ≠ TelemetryData.sequence).
+- **Test Count**: 7,216 tests passing, 0 failures across 82 workspace crates.
+
 ### Earlier Progress
 - Project CARS 3 adapter added
 - Codemasters shared parsing extracted into `codemasters_shared.rs` (~890 lines of duplicated offset logic removed)
