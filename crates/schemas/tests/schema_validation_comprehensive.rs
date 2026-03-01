@@ -193,7 +193,7 @@ fn telemetry_snapshot_json_roundtrip() -> TestResult {
 #[test]
 fn telemetry_value_all_variants_roundtrip() -> TestResult {
     let variants = vec![
-        TelemetryValue::Float(3.14),
+        TelemetryValue::Float(3.125),
         TelemetryValue::Integer(-42),
         TelemetryValue::Boolean(true),
         TelemetryValue::String("hello".to_string()),

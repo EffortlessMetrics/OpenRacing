@@ -25,6 +25,7 @@
 //! ### Community PIDs not yet tracked
 //! - PID `0x100C`: Leo Bodnar pedals controller (simracing-hwdb)
 //! - PID `0x22D0`: Leo Bodnar LC pedals controller (simracing-hwdb)
+//!
 //! TODO: Add PID `0x100C` and `0x22D0` after confirming with a second source.
 //!
 //! Sources: USB ID databases (devicehunt.com, the-sz.com), USB device captures,
