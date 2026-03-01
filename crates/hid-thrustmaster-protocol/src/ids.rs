@@ -10,12 +10,14 @@ pub const THRUSTMASTER_VENDOR_ID: u16 = 0x044F;
 /// # Verification sources
 ///
 /// PIDs are cross-referenced against:
-/// - Linux kernel `hid-thrustmaster.c` (upstream init driver)
-/// - Kimplul/hid-tmff2 (community FFB driver)
-/// - berarma/oversteer (steering wheel manager)
+/// - Linux kernel `hid-thrustmaster.c` / scarburato/hid-tminit (upstream init driver)
+/// - Kimplul/hid-tmff2 `src/hid-tmff2.h` (community FFB driver, PID defines)
+/// - berarma/oversteer `oversteer/wheel_ids.py` (steering wheel manager)
 /// - JacKeTUs/linux-steering-wheels (compatibility table)
 /// - linux-hardware.org USB device database
 /// - devicehunt.com USB ID repository
+///
+/// Last verified: 2025-07 against hid-tmff2 commit f004195, oversteer commit 74c7484.
 ///
 /// # Removed PIDs (previously incorrect)
 ///
@@ -35,49 +37,62 @@ pub const THRUSTMASTER_VENDOR_ID: u16 = 0x044F;
 pub mod product_ids {
     /// Generic pre-init "FFB Wheel" PID used by all Thrustmaster wheels before
     /// mode switching. After init, the wheel re-enumerates with a model-specific PID.
-    /// Verified: Linux kernel hid-thrustmaster.c device table (044f:b65d).
+    /// Verified: scarburato/hid-tminit `thrustmaster_devices[]` (044f:b65d).
     pub const FFB_WHEEL_GENERIC: u16 = 0xB65D;
     /// T150 (entry-level belt drive, post-init PID).
-    /// Verified: devicehunt.com + linux-hardware.org (044f:b677 = "T150 Racing Wheel").
+    /// Verified: oversteer `TM_T150 = '044f:b677'`; devicehunt.com (044f:b677 = "T150 Racing Wheel").
     pub const T150: u16 = 0xB677;
     /// T500 RS (high-end belt-drive, post-init PID).
-    /// Verified: oversteer `TM_T500RS = '044f:b65e'`.
+    /// Verified: oversteer `TM_T500RS = '044f:b65e'`; hid-tminit model 0x00 switch_value 0x0002.
     /// Previously misidentified as T150 Pro; the T150 Pro shares the T150
     /// PID (0xB677) since it is the same wheelbase bundled with T3PA pedals.
     pub const T500_RS: u16 = 0xB65E;
     /// T300 RS in PlayStation 4 compatibility mode (same hardware as T300_RS,
     /// different PID reported when the PS4-mode switch is active).
-    /// Verified: hid-tmff2 TMT300RS_PS4_NORM_ID; linux-steering-wheels table.
+    /// Verified: hid-tmff2 `TMT300RS_PS4_NORM_ID = 0xb66d`;
+    /// oversteer `TM_T300RS_GT = '044f:b66d'`; linux-steering-wheels table.
     pub const T300_RS_PS4: u16 = 0xB66D;
     /// TMX (Xbox One variant of the T150/T300 family).
-    /// Verified: linux-steering-wheels table (044f:b67f = "TMX", uses hid-tminit).
+    /// Verified: oversteer `TM_TMX = '044f:b67f'`; linux-steering-wheels table (uses hid-tminit).
     pub const TMX: u16 = 0xB67F;
     /// T300 RS (belt-driven, PS3 normal mode).
-    /// Verified: hid-tmff2 TMT300RS_PS3_NORM_ID.
+    /// Verified: hid-tmff2 `TMT300RS_PS3_NORM_ID = 0xb66e`;
+    /// oversteer `TM_T300RS = '044f:b66e'`; linux-steering-wheels table.
     pub const T300_RS: u16 = 0xB66E;
-    /// T300 RS GT (GT Edition / PS3 advanced mode).
-    /// Verified: hid-tmff2 TMT300RS_PS3_ADV_ID.
+    /// T300 RS in PS3 advanced mode (activated with F1 wheel attachment).
+    /// Verified: hid-tmff2 `TMT300RS_PS3_ADV_ID = 0xb66f`;
+    /// oversteer `TM_T300RS_FF1 = '044f:b66f'`; linux-steering-wheels "PS3 advanced mode".
+    /// Note: The GT Edition shares the normal PS3 PID (0xB66E), not this one.
     pub const T300_RS_GT: u16 = 0xB66F;
-    /// TX Racing (Xbox variant).
-    /// Verified: hid-tmff2 TX_ACTIVE.
+    /// TX Racing (Xbox variant, post-init active PID).
+    /// Verified: hid-tmff2 `TX_ACTIVE = 0xb669`;
+    /// oversteer `TM_TX458 = '044f:b669'`; linux-steering-wheels table.
     pub const TX_RACING: u16 = 0xB669;
-    /// T248 (hybrid drive).
-    /// Verified: hid-tmff2 TMT248_PC_ID.
+    /// T248 (hybrid drive, PC mode).
+    /// Verified: hid-tmff2 `TMT248_PC_ID = 0xb696`;
+    /// oversteer `TM_T248 = '044f:b696'`; linux-steering-wheels table.
+    /// Note: Per hid-tmff2 issue #58, the T818 also reports this PID.
     pub const T248: u16 = 0xB696;
     /// T248X (Xbox variant, GIP protocol).
     /// Verified: linux-hardware.org (044f:b69a = "T248X GIP Racing Wheel").
     pub const T248X: u16 = 0xB69A;
     /// TS-PC Racer (PC-only belt drive).
-    /// Verified: hid-tmff2 TMTS_PC_RACER_ID.
+    /// Verified: hid-tmff2 `TMTS_PC_RACER_ID = 0xb689`;
+    /// oversteer `TS_PC = '044f:b689'`.
     pub const TS_PC_RACER: u16 = 0xB689;
     /// TS-XW Racer (USB/HID mode, post-init).
-    /// Verified: hid-tmff2 TSXW_ACTIVE (0xb692); linux-hardware.org.
+    /// Verified: hid-tmff2 `TSXW_ACTIVE = 0xb692`;
+    /// oversteer `TM_TSXW = '044f:b692'`; linux-hardware.org.
     pub const TS_XW: u16 = 0xB692;
     /// TS-XW Racer in GIP/Xbox protocol mode.
     /// Verified: linux-hardware.org (044f:b691 = "TS-XW Racer GIP Wheel").
     pub const TS_XW_GIP: u16 = 0xB691;
     /// T818 (direct drive).
-    /// Unverified: listed as open request in hid-tmff2 issue #58.
+    /// Caution: hid-tmff2 issue #58 reports the T818 enumerates with PID 0xB696
+    /// (same as T248). This 0xB69B value is unverified and may be incorrect;
+    /// it does not appear in any community driver source (hid-tmff2, oversteer,
+    /// linux-steering-wheels). Retained for backward compatibility; callers
+    /// should also check `T248` PID when detecting T818 hardware.
     pub const T818: u16 = 0xB69B;
 }
 

@@ -1,6 +1,20 @@
 //! Thrustmaster HID output report encoding for Force Feedback.
 //!
 //! All functions are pure and allocation-free.
+//!
+//! # Wire protocol reference (hid-tmff2)
+//!
+//! The Thrustmaster T300RS-family wire protocol (observed in Kimplul/hid-tmff2)
+//! uses a vendor-specific HID output report (ID 0x60) with 63-byte payloads:
+//!
+//! - **Constant force**: signed i16, little-endian, range approx. [-16384, 16384]
+//!   (Linux FF level / 2), with direction applied via sin(direction).
+//! - **Gain**: setup header `cmd=0x02, code=gain>>8` (16-bit gain scaled to high byte).
+//! - **Range**: setup header `cmd=0x08, sub=0x11`, value = `degrees * 0x3C` as LE16.
+//!
+//! This crate's encoding is an **application-level abstraction**, not the raw USB
+//! wire format. Report IDs and field layouts here are internal to OpenRacing.
+//! The transport layer is responsible for mapping these to actual USB HID reports.
 
 #![deny(static_mut_refs)]
 
@@ -58,6 +72,14 @@ impl ThrustmasterConstantForceEncoder {
     }
 }
 
+/// Convert a torque in Nm to a signed magnitude value.
+///
+/// Returns a signed i16 in range [-10000, 10000], encoded as little-endian
+/// in the output buffer. The sign indicates direction (positive = clockwise).
+///
+/// Note: The hid-tmff2 wire protocol uses a different scale (approx.
+/// [-16384, 16384]) with direction via sin(). Our scale normalizes
+/// torque_nm/max_torque_nm to [-1.0, 1.0] then maps to ±10000.
 fn torque_to_magnitude(torque_nm: f32, max_torque_nm: f32) -> i16 {
     let normalized = (torque_nm / max_torque_nm).clamp(-1.0, 1.0);
     (normalized * 10000.0) as i16
