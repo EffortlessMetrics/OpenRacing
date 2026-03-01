@@ -491,3 +491,233 @@ fn edit_profile_field(profile: &mut ProfileSchema, field: &str, value: &str) -> 
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    // --- create_default_profile ---
+
+    #[test]
+    fn default_profile_no_scope() {
+        let profile = create_default_profile(None, None);
+        assert_eq!(profile.schema, "wheel.profile/1");
+        assert!(profile.scope.game.is_none());
+        assert!(profile.scope.car.is_none());
+        assert!(profile.scope.track.is_none());
+        assert_eq!(profile.base.dor_deg, 900);
+        assert!((profile.base.ffb_gain - 0.75).abs() < f32::EPSILON);
+        assert!((profile.base.torque_cap_nm - 8.0).abs() < f32::EPSILON);
+        assert!(profile.signature.is_none());
+    }
+
+    #[test]
+    fn default_profile_with_game_and_car() {
+        let profile = create_default_profile(Some("iracing"), Some("gt3"));
+        assert_eq!(profile.scope.game.as_deref(), Some("iracing"));
+        assert_eq!(profile.scope.car.as_deref(), Some("gt3"));
+    }
+
+    #[test]
+    fn default_profile_with_game_only() {
+        let profile = create_default_profile(Some("acc"), None);
+        assert_eq!(profile.scope.game.as_deref(), Some("acc"));
+        assert!(profile.scope.car.is_none());
+    }
+
+    // --- edit_profile_field ---
+
+    #[test]
+    fn edit_ffb_gain() -> TestResult {
+        let mut profile = create_default_profile(None, None);
+        edit_profile_field(&mut profile, "base.ffbGain", "0.9")?;
+        assert!((profile.base.ffb_gain - 0.9).abs() < f32::EPSILON);
+        Ok(())
+    }
+
+    #[test]
+    fn edit_dor_deg() -> TestResult {
+        let mut profile = create_default_profile(None, None);
+        edit_profile_field(&mut profile, "base.dorDeg", "540")?;
+        assert_eq!(profile.base.dor_deg, 540);
+        Ok(())
+    }
+
+    #[test]
+    fn edit_torque_cap() -> TestResult {
+        let mut profile = create_default_profile(None, None);
+        edit_profile_field(&mut profile, "base.torqueCapNm", "12.5")?;
+        assert!((profile.base.torque_cap_nm - 12.5).abs() < f32::EPSILON);
+        Ok(())
+    }
+
+    #[test]
+    fn edit_scope_game() -> TestResult {
+        let mut profile = create_default_profile(None, None);
+        edit_profile_field(&mut profile, "scope.game", "acc")?;
+        assert_eq!(profile.scope.game.as_deref(), Some("acc"));
+        Ok(())
+    }
+
+    #[test]
+    fn edit_scope_game_empty_clears() -> TestResult {
+        let mut profile = create_default_profile(Some("iracing"), None);
+        edit_profile_field(&mut profile, "scope.game", "")?;
+        assert!(profile.scope.game.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn edit_scope_car() -> TestResult {
+        let mut profile = create_default_profile(None, None);
+        edit_profile_field(&mut profile, "scope.car", "lmp2")?;
+        assert_eq!(profile.scope.car.as_deref(), Some("lmp2"));
+        Ok(())
+    }
+
+    #[test]
+    fn edit_unknown_field_errors() {
+        let mut profile = create_default_profile(None, None);
+        let result = edit_profile_field(&mut profile, "unknown.field", "value");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn edit_ffb_gain_non_numeric_errors() {
+        let mut profile = create_default_profile(None, None);
+        let result = edit_profile_field(&mut profile, "base.ffbGain", "not_a_number");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn edit_dor_deg_non_numeric_errors() {
+        let mut profile = create_default_profile(None, None);
+        let result = edit_profile_field(&mut profile, "base.dorDeg", "abc");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn edit_torque_cap_non_numeric_errors() {
+        let mut profile = create_default_profile(None, None);
+        let result = edit_profile_field(&mut profile, "base.torqueCapNm", "xyz");
+        assert!(result.is_err());
+    }
+
+    // --- scan_profiles ---
+
+    #[test]
+    fn scan_nonexistent_directory_returns_empty() -> TestResult {
+        let profiles = scan_profiles(Path::new("/nonexistent/path"), None, None)?;
+        assert!(profiles.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn scan_empty_directory_returns_empty() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let profiles = scan_profiles(dir.path(), None, None)?;
+        assert!(profiles.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn scan_directory_with_profile() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let profile = create_default_profile(Some("iracing"), Some("gt3"));
+        let content = serde_json::to_string_pretty(&profile)?;
+        std::fs::write(dir.path().join("test.json"), content)?;
+
+        let profiles = scan_profiles(dir.path(), None, None)?;
+        assert_eq!(profiles.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn scan_filters_by_game() -> TestResult {
+        let dir = tempfile::tempdir()?;
+
+        let p1 = create_default_profile(Some("iracing"), None);
+        std::fs::write(
+            dir.path().join("iracing.json"),
+            serde_json::to_string_pretty(&p1)?,
+        )?;
+
+        let p2 = create_default_profile(Some("acc"), None);
+        std::fs::write(
+            dir.path().join("acc.json"),
+            serde_json::to_string_pretty(&p2)?,
+        )?;
+
+        let profiles = scan_profiles(dir.path(), Some("iracing"), None)?;
+        assert_eq!(profiles.len(), 1);
+
+        let all = scan_profiles(dir.path(), None, None)?;
+        assert_eq!(all.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn scan_filters_by_car() -> TestResult {
+        let dir = tempfile::tempdir()?;
+
+        let p1 = create_default_profile(Some("iracing"), Some("gt3"));
+        std::fs::write(
+            dir.path().join("gt3.json"),
+            serde_json::to_string_pretty(&p1)?,
+        )?;
+
+        let p2 = create_default_profile(Some("iracing"), Some("lmp2"));
+        std::fs::write(
+            dir.path().join("lmp2.json"),
+            serde_json::to_string_pretty(&p2)?,
+        )?;
+
+        let profiles = scan_profiles(dir.path(), None, Some("gt3"))?;
+        assert_eq!(profiles.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn scan_filters_by_game_and_car() -> TestResult {
+        let dir = tempfile::tempdir()?;
+
+        let p1 = create_default_profile(Some("iracing"), Some("gt3"));
+        std::fs::write(
+            dir.path().join("ir_gt3.json"),
+            serde_json::to_string_pretty(&p1)?,
+        )?;
+
+        let p2 = create_default_profile(Some("acc"), Some("gt3"));
+        std::fs::write(
+            dir.path().join("acc_gt3.json"),
+            serde_json::to_string_pretty(&p2)?,
+        )?;
+
+        let profiles = scan_profiles(dir.path(), Some("iracing"), Some("gt3"))?;
+        assert_eq!(profiles.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn scan_ignores_non_json_files() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        std::fs::write(dir.path().join("readme.txt"), "not a profile")?;
+        std::fs::write(dir.path().join("data.yaml"), "also: not json")?;
+
+        let profiles = scan_profiles(dir.path(), None, None)?;
+        assert!(profiles.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn scan_ignores_invalid_json() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        std::fs::write(dir.path().join("bad.json"), "{ not valid json")?;
+
+        let profiles = scan_profiles(dir.path(), None, None)?;
+        assert!(profiles.is_empty());
+        Ok(())
+    }
+}

@@ -389,3 +389,107 @@ fn print_device_safety_status(status: &DeviceStatus, safety: &SafetyStatus) {
         println!("    {}", "⚠ Cannot enable high torque".yellow());
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::{DeviceCapabilities, DeviceInfo, DeviceState, DeviceType, TelemetryData};
+
+    fn make_status(temp: u8, hands_on: bool, faults: Vec<String>) -> DeviceStatus {
+        DeviceStatus {
+            device: DeviceInfo {
+                id: "wheel-001".to_string(),
+                name: "Test Wheel".to_string(),
+                device_type: DeviceType::WheelBase,
+                state: DeviceState::Connected,
+                capabilities: DeviceCapabilities {
+                    max_torque_nm: 8.0,
+                    ..DeviceCapabilities::default()
+                },
+            },
+            last_seen: chrono::Utc::now(),
+            active_faults: faults,
+            telemetry: TelemetryData {
+                wheel_angle_deg: 0.0,
+                wheel_speed_rad_s: 0.0,
+                temperature_c: temp,
+                fault_flags: 0,
+                hands_on,
+            },
+        }
+    }
+
+    #[test]
+    fn healthy_device_can_enable_high_torque() {
+        let status = make_status(45, true, vec![]);
+        let safety = analyze_device_safety(&status);
+        assert!(safety.can_enable_high_torque);
+        assert!(safety.temperature_ok);
+        assert!(safety.hands_on);
+        assert!(safety.no_faults);
+        assert!(safety.blocked_reasons.is_empty());
+    }
+
+    #[test]
+    fn high_temp_blocks_high_torque() {
+        let status = make_status(85, true, vec![]);
+        let safety = analyze_device_safety(&status);
+        assert!(!safety.can_enable_high_torque);
+        assert!(!safety.temperature_ok);
+        assert!(!safety.blocked_reasons.is_empty());
+    }
+
+    #[test]
+    fn temp_at_boundary_80_blocks() {
+        let status = make_status(80, true, vec![]);
+        let safety = analyze_device_safety(&status);
+        assert!(!safety.temperature_ok);
+        assert!(!safety.can_enable_high_torque);
+    }
+
+    #[test]
+    fn temp_just_below_80_ok() {
+        let status = make_status(79, true, vec![]);
+        let safety = analyze_device_safety(&status);
+        assert!(safety.temperature_ok);
+    }
+
+    #[test]
+    fn hands_off_blocks_high_torque() {
+        let status = make_status(45, false, vec![]);
+        let safety = analyze_device_safety(&status);
+        assert!(!safety.can_enable_high_torque);
+        assert!(!safety.hands_on);
+        assert!(!safety.blocked_reasons.is_empty());
+    }
+
+    #[test]
+    fn active_faults_block_high_torque() {
+        let status = make_status(45, true, vec!["overcurrent".to_string()]);
+        let safety = analyze_device_safety(&status);
+        assert!(!safety.can_enable_high_torque);
+        assert!(!safety.no_faults);
+    }
+
+    #[test]
+    fn multiple_blocks_accumulate_reasons() {
+        let status = make_status(90, false, vec!["fault1".to_string()]);
+        let reasons = get_safety_block_reasons(&status);
+        // Should have reasons for: faults, temperature, hands_off
+        assert!(reasons.len() >= 3);
+    }
+
+    #[test]
+    fn no_blocks_for_healthy_device() {
+        let status = make_status(45, true, vec![]);
+        let reasons = get_safety_block_reasons(&status);
+        assert!(reasons.is_empty());
+    }
+
+    #[test]
+    fn safety_torque_limit_matches_device() {
+        let status = make_status(45, true, vec![]);
+        let safety = analyze_device_safety(&status);
+        assert!((safety.torque_limit_nm - 8.0).abs() < f32::EPSILON);
+    }
+}
