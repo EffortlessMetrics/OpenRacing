@@ -4420,7 +4420,9 @@ dependencies = [
  "quickcheck",
  "racing-wheel-schemas",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
+ "tokio",
  "tracing",
  "workspace-hack",
 ]
@@ -6165,6 +6167,8 @@ dependencies = [
  "racing-wheel-telemetry-rate-limiter",
  "racing-wheel-telemetry-recorder",
  "racing-wheel-telemetry-support",
+ "tempfile",
+ "tokio",
  "tracing",
  "workspace-hack",
 ]

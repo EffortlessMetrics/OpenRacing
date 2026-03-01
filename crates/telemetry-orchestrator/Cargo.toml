@@ -27,3 +27,7 @@ racing-wheel-telemetry-recorder = { path = "../telemetry-recorder" }
 racing-wheel-telemetry-support = { path = "../telemetry-support" }
 tracing = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[dev-dependencies]
+tempfile = "3.25.0"
+tokio = { workspace = true }

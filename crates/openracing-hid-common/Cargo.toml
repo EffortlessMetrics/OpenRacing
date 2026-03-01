@@ -24,6 +24,8 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 proptest = { workspace = true }
 quickcheck = { workspace = true }
 criterion = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }
+serde_json = { workspace = true }
 
 [[bench]]
 name = "hid_benches"

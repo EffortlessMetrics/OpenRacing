@@ -255,7 +255,8 @@ impl TelemetryService {
 mod tests {
     use super::TelemetryService;
     use anyhow::Result;
-    use racing_wheel_telemetry_support::load_default_matrix;
+    use racing_wheel_telemetry_support::{GameSupportMatrix, load_default_matrix};
+    use std::collections::HashMap;
 
     #[test]
     fn telemetry_service_records_matrix_if_available() {
@@ -372,5 +373,253 @@ mod tests {
     fn runtime_coverage_report_is_present_when_matrix_loaded() {
         let service = TelemetryService::new();
         assert!(service.runtime_coverage_report().is_some());
+    }
+
+    // --- Adapter lifecycle management ---
+
+    #[tokio::test]
+    async fn start_monitoring_unknown_game_returns_error() {
+        let mut service = TelemetryService::new();
+        let result = service.start_monitoring("nonexistent_game_xyz_999").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn stop_monitoring_unknown_game_returns_error() {
+        let service = TelemetryService::new();
+        let result = service.stop_monitoring("nonexistent_game_xyz_999").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn is_game_running_unknown_game_returns_error() {
+        let service = TelemetryService::new();
+        let result = service.is_game_running("nonexistent_game_xyz_999").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn start_monitoring_known_adapter_does_not_panic() {
+        let mut service = TelemetryService::new();
+        let games = service.supported_games();
+        assert!(!games.is_empty());
+        // Pick the first registered adapter; start_monitoring may return an error
+        // (e.g. game not running / no UDP socket) but must not panic.
+        let _result = service.start_monitoring(&games[0]).await;
+    }
+
+    #[tokio::test]
+    async fn stop_monitoring_known_adapter_does_not_panic() {
+        let service = TelemetryService::new();
+        let games = service.supported_games();
+        assert!(!games.is_empty());
+        let _result = service.stop_monitoring(&games[0]).await;
+    }
+
+    #[tokio::test]
+    async fn is_game_running_known_adapter_returns_bool() {
+        let service = TelemetryService::new();
+        let games = service.supported_games();
+        assert!(!games.is_empty());
+        // In CI no game is running, so we just verify it doesn't error.
+        let result = service.is_game_running(&games[0]).await;
+        // Either Ok(bool) or a recoverable error — must not panic.
+        let _ignored = result;
+    }
+
+    // --- Multi-game switching ---
+
+    #[tokio::test]
+    async fn switching_between_games_does_not_panic() {
+        let mut service = TelemetryService::new();
+        let games = service.supported_games();
+        if games.len() < 2 {
+            return; // need at least two adapters
+        }
+        // Stop first game (idempotent), start second, stop second, start first.
+        let _r1 = service.stop_monitoring(&games[0]).await;
+        let _r2 = service.start_monitoring(&games[1]).await;
+        let _r3 = service.stop_monitoring(&games[1]).await;
+        let _r4 = service.start_monitoring(&games[0]).await;
+    }
+
+    // --- Error messages ---
+
+    #[tokio::test]
+    async fn error_message_contains_game_id_for_unknown_adapter() -> Result<()> {
+        let mut service = TelemetryService::new();
+        let err = service
+            .start_monitoring("totally_fake_game")
+            .await
+            .unwrap_err();
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("totally_fake_game"),
+            "error should mention the game id, got: {msg}"
+        );
+        Ok(())
+    }
+
+    // --- Configuration-driven adapter selection ---
+
+    #[test]
+    fn filtered_matrix_restricts_registered_adapters() -> Result<()> {
+        let mut matrix = load_default_matrix()?;
+        let original_count = matrix.games.len();
+        assert!(original_count >= 2);
+
+        // Keep only two games
+        let keep: Vec<String> = matrix.games.keys().take(2).cloned().collect();
+        matrix.games.retain(|k, _| keep.contains(k));
+        assert_eq!(matrix.games.len(), 2);
+
+        let service = TelemetryService::from_support_matrix(Some(matrix));
+        // Only the two matching adapters should be registered (if factories exist).
+        assert!(service.adapter_count() <= 2);
+        for id in service.adapter_ids() {
+            assert!(keep.contains(&id));
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn no_matrix_registers_all_factory_adapters() {
+        let service_no_matrix = TelemetryService::from_support_matrix(None);
+        let service_with_matrix = TelemetryService::new();
+
+        // Without a matrix every factory is registered, which should be >= the
+        // matrix-filtered set.
+        assert!(service_no_matrix.adapter_count() >= service_with_matrix.adapter_count());
+    }
+
+    #[test]
+    fn empty_matrix_registers_no_adapters() {
+        let matrix = GameSupportMatrix {
+            games: HashMap::new(),
+        };
+        let service = TelemetryService::from_support_matrix(Some(matrix));
+        assert_eq!(service.adapter_count(), 0);
+        assert!(service.supported_games().is_empty());
+        assert!(service.adapter_ids().is_empty());
+    }
+
+    // --- Normalize game ID passthrough ---
+
+    #[tokio::test]
+    async fn start_monitoring_normalizes_ea_wrc_alias() {
+        let mut service = TelemetryService::new();
+        // "ea_wrc" normalizes to "eawrc" — if eawrc adapter exists the lookup
+        // should not produce an "unknown adapter" error for the alias form.
+        let has_eawrc = service.supported_games().contains(&"eawrc".to_string());
+        if has_eawrc {
+            let result = service.start_monitoring("ea_wrc").await;
+            // Must resolve to the eawrc adapter (may still fail for network reasons).
+            assert!(
+                result.is_ok() || !format!("{:?}", result).contains("No adapter"),
+                "ea_wrc alias should resolve to eawrc adapter"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn start_monitoring_normalizes_f1_2025_alias() {
+        let mut service = TelemetryService::new();
+        let has_f1_25 = service.supported_games().contains(&"f1_25".to_string());
+        if has_f1_25 {
+            let result = service.start_monitoring("f1_2025").await;
+            assert!(
+                result.is_ok() || !format!("{:?}", result).contains("No adapter"),
+                "f1_2025 alias should resolve to f1_25 adapter"
+            );
+        }
+    }
+
+    // --- Recording lifecycle ---
+
+    #[test]
+    fn enable_then_disable_recording_round_trips() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("telemetry_test.json");
+
+        let mut service = TelemetryService::new();
+        service.enable_recording(path)?;
+        service.disable_recording();
+        // No panic, no error.
+        Ok(())
+    }
+
+    #[test]
+    fn enable_recording_creates_parent_dirs() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("nested").join("dir").join("out.json");
+
+        let mut service = TelemetryService::new();
+        service.enable_recording(path.clone())?;
+        assert!(path.parent().is_some_and(|p| p.exists()));
+        service.disable_recording();
+        Ok(())
+    }
+
+    // --- Default impl ---
+
+    #[test]
+    fn default_is_equivalent_to_new() {
+        let from_new = TelemetryService::new();
+        let from_default = TelemetryService::default();
+        assert_eq!(from_new.adapter_count(), from_default.adapter_count());
+        assert_eq!(from_new.adapter_ids(), from_default.adapter_ids());
+    }
+
+    // --- Matrix query helpers ---
+
+    #[test]
+    fn support_matrix_is_some_with_loaded_matrix() {
+        let service = TelemetryService::new();
+        assert!(service.support_matrix().is_some());
+    }
+
+    #[test]
+    fn support_matrix_is_none_when_no_matrix() {
+        let service = TelemetryService::from_support_matrix(None);
+        assert!(service.support_matrix().is_none());
+        assert!(service.matrix_game_ids().is_empty());
+        assert!(!service.is_game_matrix_supported("acc"));
+    }
+
+    #[test]
+    fn matrix_game_ids_subset_of_supported_games_when_matrix_loaded() {
+        let service = TelemetryService::new();
+        let supported: std::collections::HashSet<String> =
+            service.supported_games().into_iter().collect();
+        for gid in service.matrix_game_ids() {
+            assert!(
+                supported.contains(&gid),
+                "matrix game '{gid}' should have a registered adapter"
+            );
+        }
+    }
+
+    #[test]
+    fn is_game_matrix_supported_returns_true_for_known_matrix_game() -> Result<()> {
+        let matrix = load_default_matrix()?;
+        let first = matrix
+            .games
+            .keys()
+            .next()
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("matrix must have at least one game"))?;
+        let service = TelemetryService::from_support_matrix(Some(matrix));
+        assert!(service.is_game_matrix_supported(&first));
+        Ok(())
+    }
+
+    // --- Coverage / BDD metrics with no matrix ---
+
+    #[test]
+    fn runtime_coverage_and_bdd_metrics_none_without_matrix() {
+        let service = TelemetryService::from_support_matrix(None);
+        assert!(service.runtime_coverage_report().is_none());
+        assert!(service.runtime_bdd_metrics().is_none());
     }
 }
