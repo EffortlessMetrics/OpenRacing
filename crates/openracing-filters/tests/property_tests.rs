@@ -143,6 +143,111 @@ mod proptest_tests {
             prop_assert!(frame.torque_out.is_finite());
             prop_assert!(frame.torque_out.abs() < 100.0);
         }
+
+        // --- Bumpstop: output is always bounded ---
+
+        #[test]
+        fn bumpstop_output_always_bounded(
+            wheel_speed in -500.0f32..500.0f32,
+            stiffness in 0.0f32..2.0f32,
+            damping in 0.0f32..1.0f32,
+            iterations in 1usize..50,
+        ) {
+            let mut state = BumpstopState::new(true, 400.0, 500.0, stiffness, damping);
+            for _ in 0..iterations {
+                let mut frame = create_test_frame(0.0, wheel_speed);
+                bumpstop_filter(&mut frame, &mut state);
+                prop_assert!(frame.torque_out.is_finite(),
+                    "bumpstop output must be finite, got {}", frame.torque_out);
+                // Stiffness ≤ 2.0 and penetration ≤ 1.0 ⇒ spring ≤ 2.0;
+                // damping contribution bounded by speed * damping * 0.001 * to_degrees.
+                // Use a generous bound.
+                prop_assert!(frame.torque_out.abs() < 500.0,
+                    "bumpstop output {} exceeds generous bound", frame.torque_out);
+            }
+        }
+
+        // --- Bumpstop: damping coefficient increases resistance ---
+
+        #[test]
+        fn bumpstop_damping_increases_resistance(
+            stiffness in 0.1f32..1.0f32,
+        ) {
+            // Place the wheel well into the bumpstop zone with positive speed
+            let mut state_no_damp = BumpstopState::new(true, 400.0, 500.0, stiffness, 0.0);
+            state_no_damp.current_angle = 450.0;
+            let mut frame_no_damp = create_test_frame(0.0, 100.0);
+            bumpstop_filter(&mut frame_no_damp, &mut state_no_damp);
+
+            let mut state_damp = BumpstopState::new(true, 400.0, 500.0, stiffness, 0.5);
+            state_damp.current_angle = 450.0;
+            let mut frame_damp = create_test_frame(0.0, 100.0);
+            bumpstop_filter(&mut frame_damp, &mut state_damp);
+
+            // Damped version should have greater magnitude opposing force
+            prop_assert!(frame_damp.torque_out.abs() >= frame_no_damp.torque_out.abs(),
+                "damping must add resistance: no_damp={}, damp={}",
+                frame_no_damp.torque_out.abs(), frame_damp.torque_out.abs());
+        }
+
+        // --- Damper: linearity (fixed mode) ---
+
+        #[test]
+        fn damper_linearity_fixed(
+            coefficient in 0.01f32..1.0f32,
+            speed1 in -10.0f32..10.0f32,
+            speed2 in -10.0f32..10.0f32,
+        ) {
+            let state = DamperState::fixed(coefficient);
+            let combined_speed = speed1 + speed2;
+
+            let mut frame1 = create_test_frame(0.0, speed1);
+            damper_filter(&mut frame1, &state);
+            let out1 = frame1.torque_out;
+
+            let mut frame2 = create_test_frame(0.0, speed2);
+            damper_filter(&mut frame2, &state);
+            let out2 = frame2.torque_out;
+
+            let mut frame_combined = create_test_frame(0.0, combined_speed);
+            damper_filter(&mut frame_combined, &state);
+            let out_combined = frame_combined.torque_out;
+
+            // For a linear filter: f(a+b) ≈ f(a) + f(b) (additivity)
+            // damper_torque = -speed * coefficient, which is linear
+            prop_assert!((out_combined - (out1 + out2)).abs() < 1e-4,
+                "damper not linear: f({})={}, f({})={}, f({})={}",
+                speed1, out1, speed2, out2, combined_speed, out_combined);
+        }
+
+        // --- Friction: sign-reversal behavior ---
+
+        #[test]
+        fn friction_opposes_motion_direction(
+            speed in 0.001f32..20.0f32,
+            coefficient in 0.01f32..1.0f32,
+        ) {
+            let state = FrictionState::fixed(coefficient);
+
+            // Positive speed → negative friction torque
+            let mut frame_pos = create_test_frame(0.0, speed);
+            friction_filter(&mut frame_pos, &state);
+            prop_assert!(frame_pos.torque_out <= 0.0,
+                "friction must oppose positive speed {}, got torque {}",
+                speed, frame_pos.torque_out);
+
+            // Negative speed → positive friction torque
+            let mut frame_neg = create_test_frame(0.0, -speed);
+            friction_filter(&mut frame_neg, &state);
+            prop_assert!(frame_neg.torque_out >= 0.0,
+                "friction must oppose negative speed {}, got torque {}",
+                -speed, frame_neg.torque_out);
+
+            // Magnitudes should be equal (symmetric) for fixed mode
+            prop_assert!((frame_pos.torque_out.abs() - frame_neg.torque_out.abs()).abs() < 1e-6,
+                "friction asymmetric: pos={}, neg={}",
+                frame_pos.torque_out.abs(), frame_neg.torque_out.abs());
+        }
     }
 }
 
