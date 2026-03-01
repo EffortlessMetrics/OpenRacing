@@ -5620,6 +5620,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "racing-wheel-hid-capture"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hidapi",
+ "serde",
+ "serde_json",
+ "workspace-hack",
+]
+
+[[package]]
 name = "racing-wheel-hid-fanatec-protocol"
 version = "0.1.0"
 dependencies = [

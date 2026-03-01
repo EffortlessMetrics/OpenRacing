@@ -577,7 +577,7 @@ fn pedal_axis_counts_are_valid() -> Result<(), Box<dyn std::error::Error>> {
         let model = FanatecPedalModel::from_product_id(pid);
         let axes = model.axis_count();
         assert!(
-            axes >= 2 && axes <= 3,
+            (2..=3).contains(&axes),
             "Pedal {model:?} (PID {pid:#06x}) axis count {axes} out of range [2, 3]"
         );
     }
@@ -694,7 +694,7 @@ proptest! {
         let model = FanatecPedalModel::from_product_id(pid);
         let axes = model.axis_count();
         prop_assert!(
-            axes >= 2 && axes <= 3,
+            (2..=3).contains(&axes),
             "Pedal {model:?} axis count {axes} must be 2 or 3"
         );
     }

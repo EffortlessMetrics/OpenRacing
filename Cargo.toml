@@ -57,6 +57,7 @@ members = [
     "crates/plugins",
     "crates/integration-tests",
     "crates/compat",
+    "crates/hid-capture",
     "crates/openracing-capture-ids",
     "crates/telemetry-core",
     "crates/telemetry-config",
