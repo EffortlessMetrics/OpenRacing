@@ -1,0 +1,5 @@
+---
+source: crates/hid-leo-bodnar-protocol/tests/snapshot_encoding.rs
+expression: "summary.join(\"\\n\")"
+---
+"USB_JOYSTICK: is_device=true\nBU0836A: is_device=true\nBBI32: is_device=true\nWHEEL_INTERFACE: is_device=true\nFFB_JOYSTICK: is_device=true\nBU0836X: is_device=true\nBU0836_16BIT: is_device=true\nSLI_M: is_device=true"

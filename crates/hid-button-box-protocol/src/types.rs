@@ -81,6 +81,9 @@ mod tests {
         let caps = ButtonBoxCapabilities::basic();
         assert_eq!(caps.button_count, 16);
         assert!(!caps.has_rotary_encoders);
+        assert_eq!(caps.rotary_encoder_count, 0);
+        assert_eq!(caps.analog_axis_count, 0);
+        assert!(caps.has_pov_hat);
     }
 
     #[test]
@@ -88,6 +91,24 @@ mod tests {
         let caps = ButtonBoxCapabilities::extended();
         assert_eq!(caps.button_count, 32);
         assert_eq!(caps.rotary_encoder_count, 8);
+        assert!(caps.has_rotary_encoders);
+        assert_eq!(caps.analog_axis_count, 4);
+    }
+
+    #[test]
+    fn test_button_box_capabilities_default() {
+        let caps = ButtonBoxCapabilities::default();
+        assert_eq!(caps.button_count, 32);
+        assert_eq!(caps.analog_axis_count, 4);
+        assert!(caps.has_pov_hat);
+        assert!(caps.has_rotary_encoders);
+        assert_eq!(caps.rotary_encoder_count, 8);
+    }
+
+    #[test]
+    fn test_button_box_type_default() {
+        let bt = ButtonBoxType::default();
+        assert_eq!(bt, ButtonBoxType::Standard);
     }
 
     #[test]
@@ -104,5 +125,32 @@ mod tests {
 
         encoder.update(0);
         assert_eq!(encoder.delta, -12);
+    }
+
+    #[test]
+    fn test_rotary_encoder_default() {
+        let encoder = RotaryEncoderState::default();
+        assert_eq!(encoder.position, 0);
+        assert_eq!(encoder.delta, 0);
+        assert!(!encoder.button_pressed);
+    }
+
+    #[test]
+    fn test_rotary_encoder_delta_clamping() {
+        let mut encoder = RotaryEncoderState::new();
+        encoder.update(0);
+        // Large positive jump
+        encoder.update(500);
+        assert_eq!(encoder.delta, 127);
+        // Large negative jump
+        encoder.update(-500);
+        assert_eq!(encoder.delta, -127);
+    }
+
+    #[test]
+    fn test_rotary_encoder_button_pressed() {
+        let mut encoder = RotaryEncoderState::new();
+        encoder.button_pressed = true;
+        assert!(encoder.button_pressed);
     }
 }

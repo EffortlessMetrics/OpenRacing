@@ -131,17 +131,6 @@ pub fn reconstruction_filter(frame: &mut Frame, state: &mut ReconstructionState)
 mod tests {
     use super::*;
 
-    fn create_test_frame(ffb_in: f32) -> Frame {
-        Frame {
-            ffb_in,
-            torque_out: ffb_in,
-            wheel_speed: 0.0,
-            hands_off: false,
-            ts_mono_ns: 0,
-            seq: 0,
-        }
-    }
-
     #[test]
     fn test_reconstruction_filter_levels() {
         for level in 0..=8 {
@@ -155,7 +144,7 @@ mod tests {
     #[test]
     fn test_reconstruction_filter_bypass() {
         let mut state = ReconstructionState::bypass();
-        let mut frame = create_test_frame(0.5);
+        let mut frame = Frame::from_torque(0.5);
         reconstruction_filter(&mut frame, &mut state);
         assert!((frame.torque_out - 0.5).abs() < 0.001);
     }
@@ -163,7 +152,7 @@ mod tests {
     #[test]
     fn test_reconstruction_filter_step_response() {
         let mut state = ReconstructionState::new(4);
-        let mut frame = create_test_frame(1.0);
+        let mut frame = Frame::from_torque(1.0);
 
         reconstruction_filter(&mut frame, &mut state);
 
@@ -177,7 +166,7 @@ mod tests {
         let mut state = ReconstructionState::new(4);
 
         for _ in 0..100 {
-            let mut frame = create_test_frame(1.0);
+            let mut frame = Frame::from_torque(1.0);
             reconstruction_filter(&mut frame, &mut state);
         }
 
@@ -188,12 +177,12 @@ mod tests {
     #[test]
     fn test_reconstruction_filter_preserves_sign() {
         let mut state_pos = ReconstructionState::new(4);
-        let mut frame_pos = create_test_frame(0.5);
+        let mut frame_pos = Frame::from_torque(0.5);
         reconstruction_filter(&mut frame_pos, &mut state_pos);
         assert!(frame_pos.torque_out > 0.0);
 
         let mut state_neg = ReconstructionState::new(4);
-        let mut frame_neg = create_test_frame(-0.5);
+        let mut frame_neg = Frame::from_torque(-0.5);
         reconstruction_filter(&mut frame_neg, &mut state_neg);
         assert!(frame_neg.torque_out < 0.0);
     }
@@ -204,7 +193,7 @@ mod tests {
 
         for i in 0..10000 {
             let input = ((i as f32) * 0.001).sin();
-            let mut frame = create_test_frame(input);
+            let mut frame = Frame::from_torque(input);
             reconstruction_filter(&mut frame, &mut state);
             assert!(frame.torque_out.is_finite());
             assert!(frame.torque_out.abs() <= 1.0);
@@ -219,8 +208,8 @@ mod tests {
         let inputs = [0.0, 0.5, 1.0, -0.5, -1.0];
 
         for &input in &inputs {
-            let mut frame1 = create_test_frame(input);
-            let mut frame2 = create_test_frame(input);
+            let mut frame1 = Frame::from_torque(input);
+            let mut frame2 = Frame::from_torque(input);
 
             reconstruction_filter(&mut frame1, &mut state1);
             reconstruction_filter(&mut frame2, &mut state2);
@@ -244,7 +233,7 @@ mod tests {
             f32::INFINITY,
             f32::NEG_INFINITY,
         ] {
-            let mut frame = create_test_frame(input);
+            let mut frame = Frame::from_torque(input);
             reconstruction_filter(&mut frame, &mut state);
 
             if input.is_finite() {

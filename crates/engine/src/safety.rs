@@ -659,9 +659,11 @@ pub mod watchdog {
 #[cfg(test)]
 pub mod comprehensive_tests;
 #[cfg(test)]
-mod tests;
+mod interlock_behavior_tests;
 #[cfg(test)]
 mod property_tests;
+#[cfg(test)]
+mod tests;
 
 pub use fault_injection::{FaultInjectionScenario, FaultInjectionSystem, TriggerCondition};
 pub use hardware_watchdog::{

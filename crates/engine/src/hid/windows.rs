@@ -317,9 +317,26 @@ pub mod vendor_ids {
     /// SimExperience (AccuForce Pro) — NXP Semiconductors USB chip VID
     /// Source: community USB captures, RetroBat Wheels.cs commit 0a54752
     pub const SIMEXPERIENCE: u16 = 0x1FC9;
+    /// PXN (Lite Star) — budget racing wheels with FFB.
+    /// Verified: kernel hid-ids.h `USB_VENDOR_ID_LITE_STAR = 0x11ff`,
+    /// linux-steering-wheels PXN entry.
+    pub const PXN: u16 = 0x11FF;
+    /// Heusinkveld pedals — Microchip Technology VID (PIC microcontroller firmware).
+    /// Source: OpenFlight device manifests (community); usb-ids.gowdy.us confirms
+    /// 0x04D8 = Microchip Technology, Inc.
+    pub const HEUSINKVELD: u16 = 0x04D8;
     /// Cube Controls S.r.l. — PROVISIONAL (unconfirmed VID, uses STM shared VID)
     /// ACTION REQUIRED: confirm VID from real hardware capture and update if needed.
     pub const CUBE_CONTROLS: u16 = 0x0483; // same as SIMAGIC; see cube_controls.rs
+    /// FlashFire (VID 0x2F24) — budget FFB wheels
+    /// Source: oversteer wheel_ids.py
+    pub const FLASHFIRE: u16 = 0x2F24;
+    /// Guillemot (VID 0x06F8) — legacy Thrustmaster parent company
+    /// Source: oversteer wheel_ids.py, Linux hid-tmff.c
+    pub const GUILLEMOT: u16 = 0x06F8;
+    /// Thrustmaster Xbox controller division (VID 0x24C6)
+    /// Source: devicehunt.com, oversteer wheel_ids.py
+    pub const THRUSTMASTER_XBOX: u16 = 0x24C6;
 }
 
 /// Known racing wheel product IDs organized by vendor
@@ -331,8 +348,12 @@ impl SupportedDevices {
         &[
             // Logitech wheels
             (vendor_ids::LOGITECH, 0xC299, "Logitech G25"),
-            (vendor_ids::LOGITECH, 0xC294, "Logitech G27"),
-            (vendor_ids::LOGITECH, 0xC29B, "Logitech G27 (alt)"),
+            (
+                vendor_ids::LOGITECH,
+                0xC294,
+                "Logitech Driving Force / Formula EX",
+            ),
+            (vendor_ids::LOGITECH, 0xC29B, "Logitech G27"),
             (vendor_ids::LOGITECH, 0xC24F, "Logitech G29"),
             (vendor_ids::LOGITECH, 0xC262, "Logitech G920"),
             (vendor_ids::LOGITECH, 0xC266, "Logitech G923"),
@@ -340,6 +361,28 @@ impl SupportedDevices {
             (vendor_ids::LOGITECH, 0xC26E, "Logitech G923 Xbox"),
             (vendor_ids::LOGITECH, 0xC268, "Logitech G PRO"),
             (vendor_ids::LOGITECH, 0xC272, "Logitech G PRO Xbox"),
+            // Logitech legacy wheels (oversteer, linux-steering-wheels)
+            (vendor_ids::LOGITECH, 0xC295, "Logitech MOMO Racing"),
+            (vendor_ids::LOGITECH, 0xC298, "Logitech Driving Force Pro"),
+            (vendor_ids::LOGITECH, 0xC29A, "Logitech Driving Force GT"),
+            (
+                vendor_ids::LOGITECH,
+                0xC29C,
+                "Logitech Speed Force Wireless",
+            ),
+            // Logitech additional legacy (kernel hid-ids.h, oversteer)
+            (vendor_ids::LOGITECH, 0xCA03, "Logitech MOMO Racing 2"),
+            (
+                vendor_ids::LOGITECH,
+                0xC293,
+                "Logitech WingMan Formula Force GP",
+            ),
+            (vendor_ids::LOGITECH, 0xCA04, "Logitech Vibration Wheel"),
+            (
+                vendor_ids::LOGITECH,
+                0xC291,
+                "Logitech WingMan Formula Force",
+            ),
             // Fanatec wheels (VID 0x0EB7 — Endor AG)
             // Verified: gotzl/hid-fanatecff, JacKeTUs/linux-steering-wheels,
             //           berarma/oversteer, linux-hardware.org
@@ -367,11 +410,7 @@ impl SupportedDevices {
             (vendor_ids::FANATEC, 0x0024, "Fanatec Gran Turismo DD Pro"),
             // 0x01E9: from USB captures; not yet in community drivers.
             (vendor_ids::FANATEC, 0x01E9, "Fanatec ClubSport DD+"),
-            (
-                vendor_ids::FANATEC,
-                0x0E03,
-                "Fanatec CSL Elite Wheel Base",
-            ),
+            (vendor_ids::FANATEC, 0x0E03, "Fanatec CSL Elite Wheel Base"),
             // Fanatec standalone pedal sets
             (
                 vendor_ids::FANATEC,
@@ -417,6 +456,47 @@ impl SupportedDevices {
             (vendor_ids::THRUSTMASTER, 0xB69A, "Thrustmaster T248X"),
             // 0xB69B: unverified — from hid-tmff2 issue #58.
             (vendor_ids::THRUSTMASTER, 0xB69B, "Thrustmaster T818"),
+            // Thrustmaster legacy wheels (oversteer, linux-steering-wheels, hid-tmff)
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB605,
+                "Thrustmaster NASCAR Pro FF2",
+            ),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB651,
+                "Thrustmaster FGT Rumble Force",
+            ),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB653,
+                "Thrustmaster RGT FF Clutch",
+            ),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB654,
+                "Thrustmaster FGT Force Feedback",
+            ),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB65A,
+                "Thrustmaster F430 Force Feedback",
+            ),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB668,
+                "Thrustmaster T80 (no FFB)",
+            ),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB66A,
+                "Thrustmaster T80 Ferrari 488 GTB (no FFB)",
+            ),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB664,
+                "Thrustmaster TX Racing Wheel",
+            ),
             // NOTE: Thrustmaster pedal PIDs 0xB678/0xB679/0xB68D removed —
             // web research confirmed these are HOTAS peripherals, not pedals.
             // Actual Thrustmaster pedal PIDs remain unconfirmed.
@@ -448,10 +528,12 @@ impl SupportedDevices {
             (vendor_ids::SIMAGIC, 0xA358, "VRS Pedals V2"),
             (vendor_ids::SIMAGIC, 0xA359, "VRS Handbrake"),
             (vendor_ids::SIMAGIC, 0xA35A, "VRS Shifter"),
-            // Heusinkveld pedals (share VID 0x16D0 with Simagic)
-            (vendor_ids::SIMAGIC_ALT, 0x1156, "Heusinkveld Sprint"),
-            (vendor_ids::SIMAGIC_ALT, 0x1157, "Heusinkveld Ultimate+"),
-            (vendor_ids::SIMAGIC_ALT, 0x1158, "Heusinkveld Pro"),
+            (vendor_ids::SIMAGIC, 0xA3BE, "VRS Pedals (corrected)"),
+            (vendor_ids::SIMAGIC, 0xA44C, "VRS R295"),
+            // Heusinkveld pedals (VID 0x04D8 — Microchip)
+            (vendor_ids::HEUSINKVELD, 0xF6D0, "Heusinkveld Sprint"),
+            (vendor_ids::HEUSINKVELD, 0xF6D2, "Heusinkveld Ultimate+"),
+            (vendor_ids::HEUSINKVELD, 0xF6D3, "Heusinkveld Pro"),
             // Simagic EVO generation (VID 0x3670 — verified via linux-steering-wheels)
             (vendor_ids::SIMAGIC_EVO, 0x0500, "Simagic EVO Sport"),
             (vendor_ids::SIMAGIC_EVO, 0x0501, "Simagic EVO"),
@@ -505,6 +587,8 @@ impl SupportedDevices {
             // Cammus (VID 0x3416)
             (vendor_ids::CAMMUS, 0x0301, "Cammus C5"),
             (vendor_ids::CAMMUS, 0x0302, "Cammus C12"),
+            (vendor_ids::CAMMUS, 0x1018, "Cammus CP5 Pedals"),
+            (vendor_ids::CAMMUS, 0x1019, "Cammus LC100 Pedals"),
             // OpenFFBoard (open-source direct drive controller)
             (vendor_ids::OPENFFBOARD, 0xFFB0, "OpenFFBoard"),
             (
@@ -547,8 +631,8 @@ impl SupportedDevices {
             ),
             (
                 vendor_ids::LEO_BODNAR,
-                0xBEEF,
-                "Leo Bodnar SLI-M Shift Light Indicator",
+                0x1301,
+                "Leo Bodnar SLI-Pro Shift Light Indicator",
             ),
             (vendor_ids::LEO_BODNAR, 0x0001, "Leo Bodnar USB Joystick"),
             (
@@ -592,6 +676,31 @@ impl SupportedDevices {
                 0x0C75,
                 "Cube Controls CSX3 (provisional)",
             ),
+            // PXN (Lite Star) — budget racing wheels with FFB
+            // Verified: kernel hid-ids.h USB_VENDOR_ID_LITE_STAR + PIDs,
+            //           linux-steering-wheels PXN entries
+            (vendor_ids::PXN, 0x3245, "PXN V10"),
+            (vendor_ids::PXN, 0x1212, "PXN V12"),
+            (vendor_ids::PXN, 0x1112, "PXN V12 Lite"),
+            (vendor_ids::PXN, 0x1211, "PXN V12 Lite 2"),
+            (vendor_ids::PXN, 0x2141, "PXN GT987"),
+            // FlashFire (VID 0x2F24) — budget FFB wheels
+            // Source: oversteer wheel_ids.py
+            (vendor_ids::FLASHFIRE, 0x010D, "FlashFire 900R"),
+            // Guillemot (legacy Thrustmaster parent company, VID 0x06F8)
+            // Source: oversteer wheel_ids.py, Linux hid-tmff.c
+            (
+                vendor_ids::GUILLEMOT,
+                0x0004,
+                "Guillemot Force Feedback Racing Wheel",
+            ),
+            // Thrustmaster Xbox controller division (VID 0x24C6)
+            // Source: oversteer TM_F458 = '24c6:5b00'; devicehunt.com
+            (
+                vendor_ids::THRUSTMASTER_XBOX,
+                0x5B00,
+                "Thrustmaster Ferrari 458 Italia (Xbox 360)",
+            ),
         ]
     }
 
@@ -612,6 +721,11 @@ impl SupportedDevices {
             vendor_ids::GRANITE_DEVICES,
             vendor_ids::LEO_BODNAR,
             vendor_ids::SIMEXPERIENCE,
+            vendor_ids::PXN,
+            vendor_ids::HEUSINKVELD,
+            vendor_ids::FLASHFIRE,
+            vendor_ids::GUILLEMOT,
+            vendor_ids::THRUSTMASTER_XBOX,
         ]
     }
 
@@ -643,7 +757,8 @@ impl SupportedDevices {
             vendor_ids::THRUSTMASTER => "Thrustmaster",
             vendor_ids::MOZA => "Moza Racing",
             vendor_ids::SIMAGIC | vendor_ids::SIMAGIC_ALT | vendor_ids::SIMAGIC_EVO => "Simagic",
-            // Note: SIMAGIC_ALT (0x16D0) is shared with Simucube 2 and Heusinkveld; dispatch by PID
+            // Note: SIMAGIC_ALT (0x16D0) is shared with Simucube 2; dispatch by PID
+            vendor_ids::HEUSINKVELD => "Heusinkveld",
             vendor_ids::ASETEK => "Asetek SimSports",
             vendor_ids::CAMMUS => "Cammus",
             vendor_ids::OPENFFBOARD => "OpenFFBoard / Generic HID",
@@ -651,6 +766,10 @@ impl SupportedDevices {
             vendor_ids::GRANITE_DEVICES => "Granite Devices",
             vendor_ids::LEO_BODNAR => "Leo Bodnar",
             vendor_ids::SIMEXPERIENCE => "SimExperience",
+            vendor_ids::PXN => "PXN",
+            vendor_ids::FLASHFIRE => "FlashFire",
+            vendor_ids::GUILLEMOT => "Guillemot / Thrustmaster",
+            vendor_ids::THRUSTMASTER_XBOX => "Thrustmaster",
             _ => "Unknown",
         }
     }
@@ -1193,8 +1312,14 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = 900;
 
             match product_id {
-                0xC294 | 0xC299 | 0xC29B => {
-                    // G25 (0xC299) / G27 (0xC294, 0xC29B) - older wheels, lower torque
+                0xC294 | 0xC295 | 0xC293 | 0xCA03 | 0xCA04 | 0xC29C | 0xC298 | 0xC29A => {
+                    // DF/EX (0xC294), MOMO (0xC295/0xCA03), WingMan FFG (0xC293),
+                    // Vibration (0xCA04), SFW (0xC29C), DFP (0xC298), DFGT (0xC29A)
+                    capabilities.max_torque = TorqueNm::new(2.0).unwrap_or(capabilities.max_torque);
+                    capabilities.min_report_period_us = 4000; // 250Hz
+                }
+                0xC299 | 0xC29B => {
+                    // G25 (0xC299) / G27 (0xC29B) - belt-driven, higher torque
                     capabilities.max_torque = TorqueNm::new(2.5).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 4000; // 250Hz
                 }
@@ -1284,7 +1409,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
 
             match product_id {
                 0xB65D | 0xB677 => {
-                    // T150 (0xB65D = generic pre-init PID, 0xB677 = post-init)
+                    // T150 (0xB65D = generic pre-init PID shared by all TM wheels,
+                    // 0xB677 = T150 post-init). Default to T150 caps for 0xB65D.
                     capabilities.max_torque = TorqueNm::new(2.5).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 4000; // 250Hz
                 }
@@ -1294,9 +1420,20 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.min_report_period_us = 2000; // 500Hz
                 }
                 0xB66D => {
-                    // TMX
+                    // TMX (2.5 Nm, belt)
                     capabilities.max_torque = TorqueNm::new(2.5).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 4000; // 250Hz
+                }
+                0xB664 => {
+                    // TX Racing Wheel (4.0 Nm belt drive, Xbox)
+                    capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
+                    capabilities.min_report_period_us = 2000;
+                }
+                0xB668 | 0xB66A => {
+                    // T80 / T80 Ferrari 488 (no FFB, gamepad only)
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
                 }
                 0xB66E | 0xB66F => {
                     // T300RS
@@ -1445,7 +1582,7 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             }
         }
         vendor_ids::SIMAGIC | vendor_ids::SIMAGIC_ALT => {
-            // Simagic legacy direct drive wheels + Simucube 2 + Heusinkveld (share VID 0x16D0)
+            // Simagic legacy direct drive wheels + Simucube 2 (share VID 0x16D0)
             capabilities.supports_raw_torque_1khz = true;
             capabilities.supports_health_stream = true;
             capabilities.encoder_cpr = 65535; // High resolution (max u16)
@@ -1467,7 +1604,7 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque =
                         TorqueNm::new(23.0).unwrap_or(capabilities.max_torque);
                 }
-                // Simucube PIDs (share VID 0x16D0 with Simagic legacy and Heusinkveld)
+                // Simucube PIDs (share VID 0x16D0 with Simagic legacy)
                 0x0D5A => {
                     // Simucube 1
                     capabilities.min_report_period_us = 3000;
@@ -1523,15 +1660,14 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                         TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
                     capabilities.encoder_cpr = u16::MAX;
                 }
-                0xA357..=0xA35A => {
-                    // VRS pedals, handbrake, shifter (non-FFB)
-                    capabilities.supports_pid = false;
-                    capabilities.supports_raw_torque_1khz = false;
-                    capabilities.max_torque = TorqueNm::ZERO;
+                0xA44C => {
+                    // VRS R295 wheelbase
+                    capabilities.max_torque =
+                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
+                    capabilities.encoder_cpr = u16::MAX;
                 }
-                // Heusinkveld pedals (share VID 0x16D0 with Simagic)
-                0x1156..=0x1158 => {
-                    // Sprint / Ultimate+ / Pro pedals (input-only)
+                0xA357..=0xA35A | 0xA3BE => {
+                    // VRS pedals, handbrake, shifter (non-FFB)
                     capabilities.supports_pid = false;
                     capabilities.supports_raw_torque_1khz = false;
                     capabilities.max_torque = TorqueNm::ZERO;
@@ -1541,6 +1677,12 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                         TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
                 }
             }
+        }
+        vendor_ids::HEUSINKVELD => {
+            // Heusinkveld pedals (VID 0x04D8 — Microchip), input-only load-cell devices
+            capabilities.supports_pid = false;
+            capabilities.supports_raw_torque_1khz = false;
+            capabilities.max_torque = TorqueNm::ZERO;
         }
         vendor_ids::SIMAGIC_EVO => {
             capabilities.supports_pid = true;
@@ -1626,6 +1768,12 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque =
                         TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
                 } // C12
+                0x1018 | 0x1019 => {
+                    // CP5 Pedals / LC100 Pedals (input-only, non-FFB)
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                    capabilities.encoder_cpr = 0;
+                }
                 _ => {
                     capabilities.max_torque = TorqueNm::new(5.0).unwrap_or(capabilities.max_torque);
                 }
@@ -1707,6 +1855,53 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = u16::MAX;
             capabilities.min_report_period_us = 1000;
             capabilities.max_torque = TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
+        }
+        vendor_ids::PXN => {
+            // PXN budget racing wheels — gear/belt-driven FFB, HID PID compliant
+            capabilities.supports_pid = true;
+            capabilities.encoder_cpr = 900;
+            capabilities.min_report_period_us = 4000; // 250Hz typical
+            match product_id {
+                0x3245 => {
+                    // V10 (belt-driven, ~5 Nm)
+                    capabilities.max_torque = TorqueNm::new(5.0).unwrap_or(capabilities.max_torque);
+                }
+                0x1212 => {
+                    // V12 (direct-drive, ~6 Nm)
+                    capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
+                    capabilities.min_report_period_us = 2000; // 500Hz
+                }
+                0x1112 | 0x1211 => {
+                    // V12 Lite / V12 Lite 2 (budget DD, ~4 Nm)
+                    capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
+                    capabilities.min_report_period_us = 2000; // 500Hz
+                }
+                _ => {
+                    capabilities.max_torque = TorqueNm::new(3.0).unwrap_or(capabilities.max_torque);
+                }
+            }
+        }
+        vendor_ids::FLASHFIRE => {
+            // FlashFire 900R — budget belt-driven FFB wheel (~2 Nm)
+            capabilities.supports_pid = true;
+            capabilities.encoder_cpr = 900;
+            capabilities.min_report_period_us = 4000; // 250Hz
+            capabilities.max_torque = TorqueNm::new(2.0).unwrap_or(capabilities.max_torque);
+        }
+        vendor_ids::GUILLEMOT => {
+            // Guillemot Force Feedback Racing Wheel — legacy Thrustmaster (Guillemot brand)
+            capabilities.supports_pid = true;
+            capabilities.encoder_cpr = 270;
+            capabilities.min_report_period_us = 8000; // 125Hz legacy
+            capabilities.max_torque = TorqueNm::new(1.5).unwrap_or(capabilities.max_torque);
+        }
+        vendor_ids::THRUSTMASTER_XBOX => {
+            // Thrustmaster Ferrari 458 Italia (Xbox 360) — rumble motors only, no FFB
+            capabilities.supports_pid = false;
+            capabilities.supports_raw_torque_1khz = false;
+            capabilities.max_torque = TorqueNm::ZERO;
+            capabilities.encoder_cpr = 240;
+            capabilities.min_report_period_us = 8000; // 125Hz
         }
         _ => {
             // Unknown vendor - use conservative defaults
@@ -2886,14 +3081,14 @@ mod tests {
 
     #[test]
     fn test_supported_devices_heusinkveld() {
-        // Heusinkveld uses SIMAGIC_ALT VID
+        // Heusinkveld uses HEUSINKVELD VID (0x04D8 — Microchip)
         assert!(SupportedDevices::is_supported(
-            vendor_ids::SIMAGIC_ALT,
-            0x1156
+            vendor_ids::HEUSINKVELD,
+            0xF6D0
         )); // Sprint
         assert!(SupportedDevices::is_supported(
-            vendor_ids::SIMAGIC_ALT,
-            0x1157
+            vendor_ids::HEUSINKVELD,
+            0xF6D2
         )); // Ultimate+
     }
 

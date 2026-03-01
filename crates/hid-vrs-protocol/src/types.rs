@@ -46,6 +46,21 @@ pub fn identify_device(product_id: u16) -> VrsDeviceIdentity {
             // ⚠ Unverified: no authoritative source found for V2 torque.
             max_torque_nm: Some(25.0),
         },
+        product_ids::R295 => VrsDeviceIdentity {
+            product_id,
+            name: "VRS R295",
+            category: VrsDeviceCategory::Wheelbase,
+            supports_ffb: true,
+            // ⚠ Unverified: no authoritative source found for R295 torque.
+            max_torque_nm: Some(25.0),
+        },
+        product_ids::PEDALS => VrsDeviceIdentity {
+            product_id,
+            name: "VRS DirectForce Pro Pedals",
+            category: VrsDeviceCategory::Pedals,
+            supports_ffb: false,
+            max_torque_nm: None,
+        },
         product_ids::PEDALS_V1 => VrsDeviceIdentity {
             product_id,
             name: "VRS Pedals V1",
@@ -161,7 +176,9 @@ mod tests {
 
     #[test]
     fn test_identify_device_known_pids() {
-        let known_pids = [0xA355u16, 0xA356, 0xA357, 0xA358, 0xA359, 0xA35A];
+        let known_pids = [
+            0xA355u16, 0xA356, 0xA44C, 0xA3BE, 0xA357, 0xA358, 0xA359, 0xA35A,
+        ];
 
         for &pid in &known_pids {
             let identity = identify_device(pid);
@@ -183,7 +200,7 @@ mod tests {
 
     #[test]
     fn test_is_wheelbase_product_known_wheelbases() {
-        let wheelbase_pids = [0xA355u16, 0xA356];
+        let wheelbase_pids = [0xA355u16, 0xA356, 0xA44C];
 
         for &pid in &wheelbase_pids {
             assert!(is_wheelbase_product(pid));
@@ -192,7 +209,7 @@ mod tests {
 
     #[test]
     fn test_is_wheelbase_product_non_wheelbases() {
-        let non_wheelbase_pids = [0xA357u16, 0xA358, 0xA359, 0xA35A];
+        let non_wheelbase_pids = [0xA3BEu16, 0xA357, 0xA358, 0xA359, 0xA35A];
 
         for &pid in &non_wheelbase_pids {
             assert!(!is_wheelbase_product(pid));

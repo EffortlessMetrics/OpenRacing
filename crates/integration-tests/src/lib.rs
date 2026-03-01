@@ -23,9 +23,11 @@ pub mod logitech_virtual;
 pub mod moza_virtual;
 pub mod openffboard_virtual;
 pub mod performance;
+pub mod simagic_virtual;
 pub mod simplemotion_virtual;
 pub mod soak;
 pub mod stress;
+pub mod thrustmaster_virtual;
 pub mod user_journeys;
 
 use anyhow::Result;

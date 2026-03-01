@@ -34,14 +34,13 @@ fn schema_path() -> PathBuf {
 }
 
 #[test]
-fn test_profile_schema_validation() {
+fn test_profile_schema_validation() -> Result<(), Box<dyn std::error::Error>> {
     // Load the JSON schema
     let schema_path = schema_path();
-    let schema_content =
-        std::fs::read_to_string(schema_path).expect("Failed to read profile schema");
-    let schema: Value = serde_json::from_str(&schema_content).expect("Failed to parse schema JSON");
+    let schema_content = std::fs::read_to_string(schema_path)?;
+    let schema: Value = serde_json::from_str(&schema_content)?;
 
-    let compiled_schema = Validator::new(&schema).expect("Failed to compile JSON schema");
+    let compiled_schema = Validator::new(&schema)?;
 
     // Test valid profile
     let valid_profile = json!({
@@ -76,17 +75,17 @@ fn test_profile_schema_validation() {
         validation_result.is_ok(),
         "Valid profile should pass validation"
     );
+    Ok(())
 }
 
 #[test]
-fn test_profile_schema_required_fields() {
+fn test_profile_schema_required_fields() -> Result<(), Box<dyn std::error::Error>> {
     // Load the JSON schema
     let schema_path = schema_path();
-    let schema_content =
-        std::fs::read_to_string(schema_path).expect("Failed to read profile schema");
-    let schema: Value = serde_json::from_str(&schema_content).expect("Failed to parse schema JSON");
+    let schema_content = std::fs::read_to_string(schema_path)?;
+    let schema: Value = serde_json::from_str(&schema_content)?;
 
-    let compiled_schema = Validator::new(&schema).expect("Failed to compile JSON schema");
+    let compiled_schema = Validator::new(&schema)?;
 
     // Test profile missing required schema field
     let invalid_profile = json!({
@@ -128,10 +127,11 @@ fn test_profile_schema_required_fields() {
         "Error should mention missing required 'schema' field. Error: {}",
         error_message
     );
+    Ok(())
 }
 
 #[test]
-fn test_profile_round_trip_serialization() {
+fn test_profile_round_trip_serialization() -> Result<(), Box<dyn std::error::Error>> {
     // Create a profile using Rust structs
     let profile = Profile {
         schema: "wheel.profile/1".to_string(),
@@ -152,11 +152,10 @@ fn test_profile_round_trip_serialization() {
     };
 
     // Serialize to JSON
-    let json_value = serde_json::to_value(&profile).expect("Failed to serialize profile to JSON");
+    let json_value = serde_json::to_value(&profile)?;
 
     // Deserialize back to struct
-    let deserialized_profile: Profile = serde_json::from_value(json_value.clone())
-        .expect("Failed to deserialize profile from JSON");
+    let deserialized_profile: Profile = serde_json::from_value(json_value.clone())?;
 
     // Verify round-trip consistency
     assert_eq!(profile.schema, deserialized_profile.schema);
@@ -169,11 +168,10 @@ fn test_profile_round_trip_serialization() {
 
     // Validate against schema
     let schema_path = schema_path();
-    let schema_content =
-        std::fs::read_to_string(schema_path).expect("Failed to read profile schema");
-    let schema: Value = serde_json::from_str(&schema_content).expect("Failed to parse schema JSON");
+    let schema_content = std::fs::read_to_string(schema_path)?;
+    let schema: Value = serde_json::from_str(&schema_content)?;
 
-    let compiled_schema = Validator::new(&schema).expect("Failed to compile JSON schema");
+    let compiled_schema = Validator::new(&schema)?;
 
     let validation_result = compiled_schema.validate(&json_value);
     if let Err(error) = validation_result {
@@ -181,25 +179,26 @@ fn test_profile_round_trip_serialization() {
             Ok(s) => s,
             Err(e) => format!("<failed to serialize: {}>", e),
         };
-        panic!(
+        return Err(format!(
             "Round-trip serialized profile should pass schema validation. Error: {}\nJSON: {}",
             error, json_str
-        );
+        )
+        .into());
     }
+    Ok(())
 }
 
 #[test]
-fn test_filter_config_required_fields() {
+fn test_filter_config_required_fields() -> Result<(), Box<dyn std::error::Error>> {
     // Test that FilterConfig requires all new fields
     let filter_config = FilterConfig::default();
 
     // Serialize and verify all fields are present
-    let json_value =
-        serde_json::to_value(&filter_config).expect("Failed to serialize FilterConfig");
+    let json_value = serde_json::to_value(&filter_config)?;
 
     let json_obj = json_value
         .as_object()
-        .expect("FilterConfig should serialize to JSON object");
+        .ok_or("FilterConfig should serialize to JSON object")?;
 
     // Verify new required fields are present
     assert!(
@@ -214,10 +213,11 @@ fn test_filter_config_required_fields() {
         json_obj.contains_key("torqueCap"),
         "FilterConfig should contain torqueCap field"
     );
+    Ok(())
 }
 
 #[test]
-fn test_deprecated_field_detection() {
+fn test_deprecated_field_detection() -> Result<(), Box<dyn std::error::Error>> {
     // This test ensures we can detect usage of deprecated field names in JSON
     let deprecated_json = json!({
         "wheel_angle_mdeg": 45000,  // Old field name
@@ -227,7 +227,7 @@ fn test_deprecated_field_detection() {
     });
 
     // Convert to string and check for deprecated field names
-    let json_string = serde_json::to_string(&deprecated_json).expect("Failed to serialize JSON");
+    let json_string = serde_json::to_string(&deprecated_json)?;
 
     let deprecated_fields = ["wheel_angle_mdeg", "wheel_speed_mrad_s", "temp_c", "faults"];
 
@@ -241,4 +241,5 @@ fn test_deprecated_field_detection() {
 
     // In a real scenario, we would want to ensure these fields are NOT present
     // This test documents what we're looking for in CI checks
+    Ok(())
 }

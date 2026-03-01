@@ -1,6 +1,64 @@
 //! Thrustmaster HID output report encoding for Force Feedback.
 //!
 //! All functions are pure and allocation-free.
+//!
+//! # Wire protocol reference (hid-tmff2)
+//!
+//! The Thrustmaster T300RS-family wire protocol (observed in Kimplul/hid-tmff2)
+//! uses a vendor-specific HID output report (ID 0x60) with 63-byte payloads
+//! (31 bytes in PS4 mode):
+//!
+//! - **Constant force**: signed i16, little-endian, range approx. [-16384, 16384]
+//!   (Linux FF level / 2), with direction applied via sin(direction).
+//!   Source: `t300rs_calculate_constant_level()` in `src/tmt300rs/hid-tmt300rs.c`.
+//! - **Gain**: setup header `cmd=0x02, code=gain>>8` (16-bit gain scaled to high byte).
+//!   Source: `t300rs_set_gain()` in `src/tmt300rs/hid-tmt300rs.c`.
+//! - **Range**: setup header `cmd=0x08, sub=0x11`, value = `degrees * 0x3C` as LE16.
+//!   Source: `t300rs_set_range()` in `src/tmt300rs/hid-tmt300rs.c`.
+//! - **Autocenter**: setup headers `cmd=0x08, code=0x04, value=0x01` then
+//!   `cmd=0x08, code=0x03, value=autocenter_level` (LE16).
+//!   Source: `t300rs_set_autocenter()` in `src/tmt300rs/hid-tmt300rs.c`.
+//! - **Open/Close**: `cmd=0x01, code=0x05` (open) / `cmd=0x01, code=0x00` (close).
+//!   T248/TX/TS-XW/TS-PC use a two-step open: `{0x01,0x04}` then `{0x01,0x05}`.
+//!
+//! # Protocol families (verified from hid-tmff2 source)
+//!
+//! All of the following wheels share the **T300RS FFB protocol** — they use
+//! identical `t300rs_play_effect`, `t300rs_upload_effect`, `t300rs_update_effect`,
+//! `t300rs_stop_effect`, `t300rs_set_gain`, and `t300rs_set_autocenter` functions:
+//!
+//! - T300 RS (PS3 normal 0xb66e, PS3 advanced 0xb66f, PS4 normal 0xb66d)
+//! - T248 (0xb696) — uses T300RS protocol with 900° max range (vs 1080°)
+//! - TX Racing (0xb669) — uses T300RS protocol with 900° max range
+//! - TS-XW Racer (0xb692) — uses T300RS protocol, 1080° max range
+//! - TS-PC Racer (0xb689) — uses T300RS protocol, 1080° max range
+//!
+//! **Not** in the T300RS family (separate or unknown protocols):
+//! - T500 RS — uses a different, older protocol (hid-tmff2 issue #18, unsupported)
+//! - T150 / TMX — not supported in hid-tmff2; separate protocol
+//! - T818 — not supported in hid-tmff2 (reports T248 PID per issue #58)
+//! - T-GT II — reuses T300 USB PIDs per hid-tmff2 README
+//!
+//! Source: Kimplul/hid-tmff2 commit f004195, `src/hid-tmff2.c` probe function
+//! and `*_populate_api()` functions in each wheel subdirectory.
+//!
+//! # USB vs Bluetooth
+//!
+//! All Thrustmaster racing wheels are **USB-only**. No Bluetooth mode exists.
+//! The community drivers (hid-tmff2, oversteer) exclusively use USB HID
+//! interrupt transfers. There is no BLE or Bluetooth Classic profile for
+//! any Thrustmaster wheel product.
+//!
+//! # Pedal calibration data
+//!
+//! No standard pedal calibration data format was found in community drivers.
+//! Pedals connected via RJ12 to the wheelbase are reported as additional HID
+//! axes (10-bit, 0–1023 in PS3 mode) within the wheel's input report.
+//! Standalone USB pedal products (T-LCM, T3PA) have unverified protocols.
+//!
+//! This crate's encoding is an **application-level abstraction**, not the raw USB
+//! wire format. Report IDs and field layouts here are internal to OpenRacing.
+//! The transport layer is responsible for mapping these to actual USB HID reports.
 
 #![deny(static_mut_refs)]
 
@@ -58,6 +116,14 @@ impl ThrustmasterConstantForceEncoder {
     }
 }
 
+/// Convert a torque in Nm to a signed magnitude value.
+///
+/// Returns a signed i16 in range [-10000, 10000], encoded as little-endian
+/// in the output buffer. The sign indicates direction (positive = clockwise).
+///
+/// Note: The hid-tmff2 wire protocol uses a different scale (approx.
+/// [-16384, 16384]) with direction via sin(). Our scale normalizes
+/// torque_nm/max_torque_nm to [-1.0, 1.0] then maps to ±10000.
 fn torque_to_magnitude(torque_nm: f32, max_torque_nm: f32) -> i16 {
     let normalized = (torque_nm / max_torque_nm).clamp(-1.0, 1.0);
     (normalized * 10000.0) as i16
@@ -148,6 +214,50 @@ pub fn build_friction_effect(minimum: u16, maximum: u16) -> [u8; EFFECT_REPORT_L
         max_bytes[1],
         0x00,
     ]
+}
+
+/// Build a T300RS-family range command matching the kernel driver wire format.
+///
+/// Source: `t300rs_set_range()` in `Kimplul/hid-tmff2/src/tmt300rs/hid-tmt300rs.c`.
+///
+/// This produces the 4-byte payload that goes at the start of the 63-byte
+/// output report buffer (Report ID 0x60):
+/// - Byte 0: 0x08 (setup command)
+/// - Byte 1: 0x11 (range sub-command)
+/// - Bytes 2-3: `degrees * 0x3C` as LE16
+///
+/// `degrees` is clamped to 40..=1080 per the kernel driver's bounds check.
+pub fn build_kernel_range_command(degrees: u16) -> [u8; 4] {
+    let clamped = degrees.clamp(40, 1080);
+    let scaled = (clamped as u32) * 0x3C;
+    let bytes = (scaled as u16).to_le_bytes();
+    [0x08, 0x11, bytes[0], bytes[1]]
+}
+
+/// Build a T300RS-family gain command matching the kernel wire format.
+///
+/// Source: `t300rs_set_gain()` — `{0x02, gain >> 8}`
+pub fn build_kernel_gain_command(gain: u16) -> [u8; 2] {
+    [0x02, (gain >> 8) as u8]
+}
+
+/// Build the T300RS open/init command.
+/// Source: `t300rs_send_open()` — `{0x01, 0x05}`
+pub fn build_kernel_open_command() -> [u8; 2] {
+    [0x01, 0x05]
+}
+
+/// Build the T300RS close command.
+/// Source: `t300rs_send_close()` — `{0x01, 0x00}`
+pub fn build_kernel_close_command() -> [u8; 2] {
+    [0x01, 0x00]
+}
+
+/// Build the T300RS-family autocenter command sequence.
+/// Source: `t300rs_set_autocenter()` — two-step: `{0x08,0x04,0x01,0x00}` then `{0x08,0x03,value_lo,value_hi}`
+pub fn build_kernel_autocenter_commands(value: u16) -> [[u8; 4]; 2] {
+    let bytes = value.to_le_bytes();
+    [[0x08, 0x04, 0x01, 0x00], [0x08, 0x03, bytes[0], bytes[1]]]
 }
 
 #[cfg(test)]
@@ -258,6 +368,72 @@ mod tests {
         let r = build_friction_effect(100, 800);
         assert_eq!(r[0], report_ids::EFFECT_OP);
         assert_eq!(r[1], EFFECT_TYPE_FRICTION);
+    }
+
+    #[test]
+    fn test_kernel_range_900() {
+        // 900 * 0x3C = 900 * 60 = 54000 = 0xD2F0
+        let r = build_kernel_range_command(900);
+        assert_eq!(r, [0x08, 0x11, 0xF0, 0xD2]);
+    }
+
+    #[test]
+    fn test_kernel_range_1080() {
+        // 1080 * 60 = 64800 = 0xFD20
+        let r = build_kernel_range_command(1080);
+        assert_eq!(r, [0x08, 0x11, 0x20, 0xFD]);
+    }
+
+    #[test]
+    fn test_kernel_range_40() {
+        // 40 * 60 = 2400 = 0x0960
+        let r = build_kernel_range_command(40);
+        assert_eq!(r, [0x08, 0x11, 0x60, 0x09]);
+    }
+
+    #[test]
+    fn test_kernel_range_clamps_zero_to_min() {
+        // 0 clamps to 40; 40 * 60 = 2400 = 0x0960
+        let r = build_kernel_range_command(0);
+        assert_eq!(r, build_kernel_range_command(40));
+    }
+
+    #[test]
+    fn test_kernel_range_clamps_above_max() {
+        // 2000 clamps to 1080
+        let r = build_kernel_range_command(2000);
+        assert_eq!(r, build_kernel_range_command(1080));
+    }
+
+    #[test]
+    fn test_kernel_gain_full() {
+        let r = build_kernel_gain_command(0xFFFF);
+        assert_eq!(r, [0x02, 0xFF]);
+    }
+
+    #[test]
+    fn test_kernel_gain_zero() {
+        let r = build_kernel_gain_command(0);
+        assert_eq!(r, [0x02, 0x00]);
+    }
+
+    #[test]
+    fn test_kernel_open_command() {
+        let r = build_kernel_open_command();
+        assert_eq!(r, [0x01, 0x05]);
+    }
+
+    #[test]
+    fn test_kernel_close_command() {
+        let r = build_kernel_close_command();
+        assert_eq!(r, [0x01, 0x00]);
+    }
+
+    #[test]
+    fn test_kernel_autocenter_commands() {
+        let cmds = build_kernel_autocenter_commands(0x1234);
+        assert_eq!(cmds[0], [0x08, 0x04, 0x01, 0x00]);
+        assert_eq!(cmds[1], [0x08, 0x03, 0x34, 0x12]);
     }
 }
 

@@ -1,7 +1,7 @@
 //! Bridge between game process detection and telemetry adapter activation.
 //!
-//! When a [`ProcessEvent::GameStarted`] event arrives, this bridge starts the
-//! appropriate telemetry adapter.  When a [`ProcessEvent::GameStopped`] event
+//! When a [`crate::process_detection::ProcessEvent::GameStarted`] event arrives, this bridge starts the
+//! appropriate telemetry adapter.  When a [`crate::process_detection::ProcessEvent::GameStopped`] event
 //! arrives, the adapter is stopped.
 //!
 //! The [`TelemetryAdapterControl`] trait is the seam that allows unit-testing

@@ -12,13 +12,12 @@ use racing_wheel_telemetry_adapters::{
     RennsportAdapter, TelemetryAdapter, WrcGenerationsAdapter, WreckfestAdapter, ets2::Ets2Variant,
 };
 
+mod helpers;
+use helpers::write_f32_le;
+
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 // ─── Byte-write helpers ───────────────────────────────────────────────────────
-
-fn write_f32_le(buf: &mut [u8], offset: usize, value: f32) {
-    buf[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
-}
 
 fn write_i32_le(buf: &mut [u8], offset: usize, value: i32) {
     buf[offset..offset + 4].copy_from_slice(&value.to_le_bytes());

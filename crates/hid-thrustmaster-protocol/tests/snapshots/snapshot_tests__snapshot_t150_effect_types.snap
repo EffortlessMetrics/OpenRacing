@@ -1,0 +1,5 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_tests.rs
+expression: "results.join(\", \")"
+---
+Constant=0x4000, Sine=0x4022, SawtoothUp=0x4023, SawtoothDown=0x4024, Spring=0x4040, Damper=0x4041

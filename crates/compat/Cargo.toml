@@ -3,6 +3,10 @@ name = "compat"
 version = "0.1.0"
 edition = "2024"
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 # Only used in test builds - no runtime dependencies

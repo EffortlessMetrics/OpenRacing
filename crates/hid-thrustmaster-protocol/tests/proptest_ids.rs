@@ -13,13 +13,14 @@ use racing_wheel_hid_thrustmaster_protocol::{
 };
 
 /// All known Thrustmaster wheelbase product IDs (those reachable via from_product_id).
-const WHEELBASE_PIDS: [u16; 13] = [
+const WHEELBASE_PIDS: [u16; 14] = [
     product_ids::T150,
     product_ids::TMX,
     product_ids::T300_RS,
     product_ids::T300_RS_PS4,
     product_ids::T300_RS_GT,
     product_ids::TX_RACING,
+    product_ids::TX_RACING_ORIG,
     product_ids::T500_RS,
     product_ids::T248,
     product_ids::T248X,
@@ -41,7 +42,7 @@ proptest! {
 
     /// Every known wheelbase PID must be non-zero.
     #[test]
-    fn prop_known_pids_nonzero(idx in 0usize..13usize) {
+    fn prop_known_pids_nonzero(idx in 0usize..14usize) {
         let pid = WHEELBASE_PIDS[idx];
         prop_assert!(pid != 0,
             "wheelbase PID at index {idx} must not be zero");
@@ -60,7 +61,7 @@ proptest! {
 
     /// Known wheelbase models must have strictly positive torque.
     #[test]
-    fn prop_known_model_torque_positive(idx in 0usize..13usize) {
+    fn prop_known_model_torque_positive(idx in 0usize..14usize) {
         let pid = WHEELBASE_PIDS[idx];
         let model = Model::from_product_id(pid);
         let torque = model.max_torque_nm();
@@ -95,7 +96,7 @@ proptest! {
 
     /// A recognised wheelbase PID must not resolve to Model::Unknown.
     #[test]
-    fn prop_recognised_pid_not_unknown(idx in 0usize..13usize) {
+    fn prop_recognised_pid_not_unknown(idx in 0usize..14usize) {
         let pid = WHEELBASE_PIDS[idx];
         let model = Model::from_product_id(pid);
         prop_assert_ne!(model, Model::Unknown,

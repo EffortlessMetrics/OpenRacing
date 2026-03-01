@@ -12,17 +12,24 @@ pub mod ids;
 pub mod input;
 pub mod output;
 pub mod protocol;
+pub mod t150;
 pub mod types;
 
 pub use ids::THRUSTMASTER_VENDOR_ID;
-pub use ids::{Model, product_ids};
+pub use ids::{Model, ProtocolFamily, init_protocol, product_ids};
 pub use input::{ThrustmasterInputState, parse_input_report};
 pub use output::{
     EFFECT_REPORT_LEN, ThrustmasterConstantForceEncoder, ThrustmasterEffectEncoder,
     build_actuator_enable, build_damper_effect, build_device_gain, build_friction_effect,
-    build_set_range_report, build_spring_effect,
+    build_kernel_autocenter_commands, build_kernel_close_command, build_kernel_gain_command,
+    build_kernel_open_command, build_kernel_range_command, build_set_range_report,
+    build_spring_effect,
 };
 pub use protocol::{ThrustmasterInitState, ThrustmasterProtocol};
+pub use t150::{
+    T150EffectType, encode_gain_t150, encode_play_effect_t150, encode_range_t150,
+    encode_stop_effect_t150,
+};
 pub use types::{
     ThrustmasterDeviceCategory, ThrustmasterDeviceIdentity, ThrustmasterPedalAxes,
     ThrustmasterPedalAxesRaw, identify_device, is_pedal_product, is_wheel_product,

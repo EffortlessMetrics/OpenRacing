@@ -1,6 +1,38 @@
 //! Fanatec HID output report encoding.
 //!
 //! All functions are pure and allocation-free.
+//!
+//! ## FFB encoding note
+//!
+//! The community Linux driver (`gotzl/hid-fanatecff`) uses a **slot-based**
+//! FFB protocol with 5 effect slots (constant, spring, damper, inertia,
+//! friction). Each slot command is 7 bytes:
+//! - Byte 0: `(slot_id << 4) | flags` (bit 0 = active, bit 1 = disable)
+//! - Byte 1: slot command (0x08 = constant, 0x0b = spring, 0x0c = others)
+//! - Bytes 2–6: effect-specific parameters
+//!
+//! For constant force (slot 0, highres):
+//! - `[0x01, 0x08, force_lo, force_hi, 0x00, 0x00, 0x01]`
+//! - The `TRANSLATE_FORCE` macro (`hid-ftecff.c`) encodes as:
+//!   `(CLAMP_VALUE_S16(x) + 0x8000) >> (16 - bits)`
+//!   producing an **unsigned** 16-bit value where 0x0000 = full negative,
+//!   0x8000 = zero, 0xFFFF = full positive.
+//!
+//! Devices with the `FTEC_HIGHRES` quirk flag (DD1, DD2, CSL DD) use
+//! 16-bit force encoding with byte 6 = 0x01 as a highres marker.
+//! Older bases (ClubSport V2/V2.5, CSR Elite, CSL Elite) use 8-bit.
+//!
+//! Our encoder uses a **signed** i16 representation (`0` = zero,
+//! `+32767` = full positive, `-32768` = full negative). Both encodings
+//! are bit-equivalent on the wire when interpreted correctly by the
+//! device firmware.
+//!
+//! Stop all effects (`ftecff_stop_effects`): `[0xf3, 0, 0, 0, 0, 0, 0]`.
+//!
+//! Range setting (`ftec_set_range`): three-report sequence —
+//! 1. `[0xf5, 0, 0, 0, 0, 0, 0]`
+//! 2. `[0xf8, 0x09, 0x01, 0x06, 0x01, 0, 0]`
+//! 3. `[0xf8, 0x81, range_lo, range_hi, 0, 0, 0]`
 
 #![deny(static_mut_refs)]
 
@@ -175,7 +207,15 @@ pub fn build_rumble_report(left: u8, right: u8, duration_10ms: u8) -> [u8; LED_R
 /// Minimum supported steering rotation range in degrees.
 pub const MIN_ROTATION_DEGREES: u16 = 90;
 /// Maximum supported steering rotation range in degrees (applies to all current bases).
-pub const MAX_ROTATION_DEGREES: u16 = 1080;
+///
+/// Note: The Linux driver (`hid-ftecff.c:ftec_probe`) sets per-device max ranges:
+/// - ClubSport V2/V2.5, CSR Elite: 900°
+/// - CSL Elite, CSL Elite PS4: 1080° (technically 1090 as "auto" sentinel)
+/// - DD1, DD2, CSL DD, ClubSport DD+: 2520° (technically 2530 as "auto" sentinel)
+///
+/// Use [`FanatecModel::max_rotation_degrees`] for model-specific limits.
+/// This constant reflects the DD maximum for the protocol layer.
+pub const MAX_ROTATION_DEGREES: u16 = 2520;
 
 /// Build the 8-byte output report that configures the steering wheel rotation range.
 ///
@@ -199,6 +239,48 @@ pub fn build_rotation_range_report(degrees: u16) -> [u8; 8] {
         0,
         0,
     ]
+}
+
+/// Build the 3-step rotation range command sequence per the kernel driver.
+///
+/// Source: `ftec_set_range()` in `gotzl/hid-fanatecff/hid-ftecff.c`.
+///
+/// Returns three 7-byte arrays that must be sent in order to the HID output report.
+/// `degrees` is clamped to [`MIN_ROTATION_DEGREES`]–[`MAX_ROTATION_DEGREES`].
+pub fn build_kernel_range_sequence(degrees: u16) -> [[u8; 7]; 3] {
+    let clamped = degrees.clamp(MIN_ROTATION_DEGREES, MAX_ROTATION_DEGREES);
+    [
+        // Step 1: reset
+        [0xF5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+        // Step 2: prepare
+        [0xF8, 0x09, 0x01, 0x06, 0x01, 0x00, 0x00],
+        // Step 3: set range (little-endian u16)
+        [
+            0xF8,
+            0x81,
+            (clamped & 0xFF) as u8,
+            ((clamped >> 8) & 0xFF) as u8,
+            0x00,
+            0x00,
+            0x00,
+        ],
+    ]
+}
+
+/// Apply the kernel driver's sign correction for HID report field values.
+///
+/// Source: `fix_values()` in `hid-ftecff.c`. The HID report descriptor uses
+/// a signed range (-127..128), so byte values ≥ 0x80 must be converted to
+/// negative form. This applies to ALL wheelbases EXCEPT CSR Elite.
+///
+/// Each byte in `values` that is ≥ 0x80 is replaced with `value - 0x100`
+/// (interpreted as i8).
+pub fn fix_report_values(values: &mut [i16; 7]) {
+    for v in values.iter_mut() {
+        if *v >= 0x80 {
+            *v -= 0x100;
+        }
+    }
 }
 
 /// Convert torque (Nm) to a signed 16-bit raw value proportional to max_torque_nm.
@@ -390,7 +472,7 @@ mod tests {
         let range = u16::from_le_bytes([report[2], report[3]]);
         assert_eq!(
             range, MAX_ROTATION_DEGREES,
-            "must clamp to MAX_ROTATION_DEGREES"
+            "must clamp to MAX_ROTATION_DEGREES (2520)"
         );
         Ok(())
     }
@@ -409,6 +491,57 @@ mod tests {
         assert_eq!(report[0], 0x01); // report ID
         assert_eq!(report[1], 0x01); // Set Mode command
         assert_eq!(report[2], 0x03); // Advanced/PC mode
+        Ok(())
+    }
+
+    #[test]
+    fn test_kernel_range_sequence_900() -> Result<(), Box<dyn std::error::Error>> {
+        let seq = build_kernel_range_sequence(900);
+        // Step 1: reset
+        assert_eq!(seq[0], [0xF5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+        // Step 2: prepare
+        assert_eq!(seq[1], [0xF8, 0x09, 0x01, 0x06, 0x01, 0x00, 0x00]);
+        // Step 3: 900 = 0x0384 → lo=0x84, hi=0x03
+        assert_eq!(seq[2], [0xF8, 0x81, 0x84, 0x03, 0x00, 0x00, 0x00]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_kernel_range_sequence_max_dd() -> Result<(), Box<dyn std::error::Error>> {
+        let seq = build_kernel_range_sequence(2520);
+        // 2520 = 0x09D8 → lo=0xD8, hi=0x09
+        assert_eq!(seq[2], [0xF8, 0x81, 0xD8, 0x09, 0x00, 0x00, 0x00]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_kernel_range_sequence_clamp_min() -> Result<(), Box<dyn std::error::Error>> {
+        let seq = build_kernel_range_sequence(40);
+        // Clamped to MIN_ROTATION_DEGREES (90) = 0x005A → lo=0x5A, hi=0x00
+        assert_eq!(seq[2], [0xF8, 0x81, 0x5A, 0x00, 0x00, 0x00, 0x00]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_fix_report_values_above_threshold() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values: [i16; 7] = [0x00, 0x7F, 0x80, 0xFF, 0xA0, 0x01, 0xFE];
+        fix_report_values(&mut values);
+        assert_eq!(values[0], 0x00, "0x00 unchanged");
+        assert_eq!(values[1], 0x7F, "0x7F unchanged");
+        assert_eq!(values[2], -0x80, "0x80 → -128");
+        assert_eq!(values[3], -0x01, "0xFF → -1");
+        assert_eq!(values[4], -0x60, "0xA0 → -96");
+        assert_eq!(values[5], 0x01, "0x01 unchanged");
+        assert_eq!(values[6], -0x02, "0xFE → -2");
+        Ok(())
+    }
+
+    #[test]
+    fn test_fix_report_values_all_below() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values: [i16; 7] = [0x00, 0x01, 0x10, 0x7F, 0x50, 0x3C, 0x00];
+        let original = values;
+        fix_report_values(&mut values);
+        assert_eq!(values, original, "no value should change when all < 0x80");
         Ok(())
     }
 }

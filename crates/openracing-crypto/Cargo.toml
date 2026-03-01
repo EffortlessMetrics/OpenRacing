@@ -9,6 +9,10 @@ description = "Cryptographic utilities for OpenRacing signature verification"
 keywords = ["cryptography", "ed25519", "signatures", "security", "verification"]
 categories = ["cryptography", "authentication"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
 sha2 = "0.10.9"

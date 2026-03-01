@@ -144,7 +144,7 @@ impl GameSupportMatrix {
 
 #[cfg(test)]
 mod tests {
-    use super::{load_default_matrix, matrix_game_ids, normalize_game_id};
+    use super::{GameSupportStatus, load_default_matrix, matrix_game_ids, normalize_game_id};
 
     #[test]
     fn matrix_metadata_game_ids_is_sorted_and_non_empty() -> Result<(), Box<dyn std::error::Error>>
@@ -237,6 +237,117 @@ mod tests {
             "iracing", "acc", "f1_25", "eawrc", "ams2", "rfactor2", "dirt5",
         ] {
             assert!(game_ids.contains(&game.to_string()), "missing: {}", game);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn normalize_game_id_case_insensitive_ea_wrc() {
+        assert_eq!(normalize_game_id("EA_WRC"), "eawrc");
+        assert_eq!(normalize_game_id("Ea_Wrc"), "eawrc");
+    }
+
+    #[test]
+    fn normalize_game_id_case_insensitive_f1_2025() {
+        assert_eq!(normalize_game_id("F1_2025"), "f1_25");
+        assert_eq!(normalize_game_id("f1_2025"), "f1_25");
+    }
+
+    #[test]
+    fn normalize_game_id_passthrough_unknown() {
+        assert_eq!(normalize_game_id("unknown_game"), "unknown_game");
+        assert_eq!(normalize_game_id(""), "");
+    }
+
+    #[test]
+    fn matrix_game_ids_returns_sorted() -> Result<(), Box<dyn std::error::Error>> {
+        let ids = matrix_game_ids()?;
+        for pair in ids.windows(2) {
+            assert!(
+                pair[0] <= pair[1],
+                "{} should come before {}",
+                pair[0],
+                pair[1]
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn matrix_game_id_set_contains_same_ids() -> Result<(), Box<dyn std::error::Error>> {
+        let ids = matrix_game_ids()?;
+        let id_set = super::matrix_game_id_set()?;
+        assert_eq!(ids.len(), id_set.len());
+        for id in &ids {
+            assert!(id_set.contains(id), "set missing {}", id);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn matrix_has_game_id_check() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        assert!(matrix.has_game_id("iracing"));
+        assert!(!matrix.has_game_id("nonexistent_game_xyz"));
+        Ok(())
+    }
+
+    #[test]
+    fn matrix_game_ids_method_matches_free_fn() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        let method_ids = matrix.game_ids();
+        let fn_ids = matrix_game_ids()?;
+        assert_eq!(method_ids, fn_ids);
+        Ok(())
+    }
+
+    #[test]
+    fn each_game_has_at_least_one_version() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        for (id, game) in &matrix.games {
+            assert!(!game.versions.is_empty(), "game {} has no versions", id);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn each_game_has_config_writer() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        for (id, game) in &matrix.games {
+            assert!(
+                !game.config_writer.is_empty(),
+                "game {} has empty config_writer",
+                id
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn game_support_status_default() {
+        let status = GameSupportStatus::default();
+        assert_eq!(status, GameSupportStatus::Stable);
+    }
+
+    #[test]
+    fn telemetry_support_matrix_yaml_is_non_empty() {
+        assert!(
+            !super::TELEMETRY_SUPPORT_MATRIX_YAML.is_empty(),
+            "embedded YAML must not be empty"
+        );
+    }
+
+    #[test]
+    fn stable_and_experimental_are_disjoint() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        let stable = matrix.stable_games();
+        let experimental = matrix.experimental_games();
+        for game in &stable {
+            assert!(
+                !experimental.contains(game),
+                "game {} appears in both stable and experimental",
+                game
+            );
         }
         Ok(())
     }

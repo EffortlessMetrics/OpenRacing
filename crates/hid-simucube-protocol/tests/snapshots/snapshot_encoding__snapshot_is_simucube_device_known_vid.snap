@@ -1,0 +1,5 @@
+---
+source: crates/hid-simucube-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"known_vid={}, wrong_vid={}\",\nsc::is_simucube_device(sc::SIMUCUBE_VENDOR_ID),\nsc::is_simucube_device(0x0000),)"
+---
+known_vid=true, wrong_vid=false

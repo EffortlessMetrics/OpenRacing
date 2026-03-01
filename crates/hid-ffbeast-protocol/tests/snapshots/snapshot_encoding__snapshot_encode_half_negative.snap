@@ -1,0 +1,5 @@
+---
+source: crates/hid-ffbeast-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{:?}\", report)"
+---
+[1, 120, 236, 0, 0]

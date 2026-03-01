@@ -1,0 +1,5 @@
+---
+source: crates/hid-moza-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{id:?}\")"
+---
+MozaDeviceIdentity { product_id: 22, name: "Moza R12", category: Wheelbase, topology_hint: WheelbaseAggregated, supports_ffb: true }

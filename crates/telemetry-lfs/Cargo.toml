@@ -12,6 +12,10 @@ description = "Live for Speed (LFS) OutGauge/OutSim telemetry adapter"
 readme = "README.md"
 keywords = ["telemetry", "lfs", "live-for-speed", "outgauge", "racing"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
 racing-wheel-telemetry-core = { path = "../telemetry-core" }

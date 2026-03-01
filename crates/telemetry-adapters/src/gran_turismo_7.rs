@@ -12,6 +12,37 @@
 //!
 //! A single-byte heartbeat (`b"A"`) must be sent to the PlayStation on port
 //! 33739 every ~100 ms to keep the stream active.
+//!
+//! ## Verification against Nenkai/PDTools (2025-07)
+//!
+//! Verified against [`SimulatorPacket.cs`] and [`SimulatorInterfaceCryptorGT7.cs`]
+//! from [Nenkai/PDTools](https://github.com/Nenkai/PDTools) (commit 5bb714c).
+//!
+//! - **Ports**: recv=33740, send(heartbeat)=33739 — matches `BindPortGT7`/`ReceivePortGT7`. ✓
+//! - **Packet size**: 0x128 = 296 bytes (heartbeat type `"A"`, PacketType1). ✓
+//! - **Salsa20 key**: `"Simulator Interface Packet GT7 v"` (first 32 bytes of full string). ✓
+//! - **XOR key**: `0xDEADBEAF` — matches PDTools default `XorKey` for PacketType1. ✓
+//! - **Nonce**: `[iv2_le, iv1_le]` where `iv2 = iv1 ^ XorKey` and iv1 from `[0x40..0x44]`. ✓
+//! - **Magic**: `0x47375330` ("0S7G" LE) — matches PDTools `"G7S0"` check. ✓
+//! - **Field offsets**: All verified against `SimulatorPacket.Read()` sequential layout:
+//!   EngineRPM@0x3C, GasLevel@0x44, GasCapacity@0x48, MetersPerSecond@0x4C,
+//!   WaterTemp@0x58, TireFL–RR@0x60–0x6C, LapCount@0x74, BestLap@0x78,
+//!   LastLap@0x7C, MaxAlertRPM@0x8A, Flags@0x8E, Gear@0x90, Throttle@0x91,
+//!   Brake@0x92, CarCode@0x124. ✓
+//! - **Flags bitmask**: Paused(1<<1), RevLimit(1<<5), ASM(1<<10), TCS(1<<11) — matches
+//!   PDTools `SimulatorFlags` enum. ✓
+//! - **Gear encoding**: low nibble = current gear, high nibble = suggested gear. ✓
+//!
+//! ### Enhancement opportunity (GT7 ≥ 1.42 extended packets)
+//!
+//! PDTools documents two additional heartbeat types added in GT7 v1.42:
+//! - PacketType2 (heartbeat `"B"`, XOR `0xDEADBEEF`): 0x13C = **316 bytes** — adds
+//!   WheelRotation (rad), Sway, Heave, Surge fields.
+//! - PacketType3 (heartbeat `"~"`, XOR `0x55FABB4F`): 0x158 = **344 bytes** — adds
+//!   energy recovery, filtered throttle/brake, and car-type indicator.
+//!
+//! Our adapter currently supports only PacketType1 (296 bytes). Supporting
+//! PacketType3 would enable steering-wheel rotation and motion platform data.
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
@@ -26,8 +57,10 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 /// UDP port on which GT7 broadcasts telemetry.
+/// Verified: Nenkai/PDTools BindPortGT7=33740; Bornhall/gt7telemetry ReceivePort=33740.
 pub const GT7_RECV_PORT: u16 = 33740;
 /// UDP port to which heartbeat packets must be sent to keep the stream alive.
+/// Verified: Nenkai/PDTools ReceivePortGT7=33739; Bornhall/gt7telemetry SendPort=33739.
 pub const GT7_SEND_PORT: u16 = 33739;
 /// Expected size of every GT7 telemetry packet (bytes).
 pub const PACKET_SIZE: usize = 296;

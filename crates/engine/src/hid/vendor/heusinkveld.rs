@@ -45,7 +45,7 @@ impl HeusinkveldProtocolHandler {
 
 /// Return true when the product ID is a known Heusinkveld product.
 pub fn is_heusinkveld_product(product_id: u16) -> bool {
-    matches!(product_id, 0x1156..=0x1158)
+    matches!(product_id, 0xF6D0..=0xF6D3)
 }
 
 impl VendorProtocol for HeusinkveldProtocolHandler {

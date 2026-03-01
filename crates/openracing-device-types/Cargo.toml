@@ -9,6 +9,10 @@ repository.workspace = true
 [features]
 proptest = ["dep:proptest"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 racing-wheel-schemas = { path = "../schemas" }
 proptest = { workspace = true, optional = true }

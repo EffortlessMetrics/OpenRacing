@@ -1539,7 +1539,7 @@ const GT7_DEFAULT_PORT: u16 = 33740;
 const GTS_BRIDGE_RELATIVE_PATH: &str =
     "Documents/OpenRacing/gran_turismo_sport_bridge_contract.json";
 const GTS_BRIDGE_PROTOCOL: &str = "gt7_salsa20_udp";
-const GTS_DEFAULT_PORT: u16 = 33739;
+const GTS_DEFAULT_PORT: u16 = 33340;
 
 impl ConfigWriter for GranTurismo7ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
@@ -1632,7 +1632,7 @@ impl ConfigWriter for GranTurismo7ConfigWriter {
 /// Gran Turismo Sport configuration writer.
 ///
 /// GT Sport is a PlayStation-exclusive title using the same Salsa20 UDP format
-/// as GT7 but with receive port 33739.
+/// as GT7 but with receive port 33340.
 pub struct GranTurismo7SportsConfigWriter;
 
 impl Default for GranTurismo7SportsConfigWriter {

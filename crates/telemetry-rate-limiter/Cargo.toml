@@ -12,6 +12,10 @@ description = "Rate limiting helpers for telemetry processing in OpenRacing"
 readme = "README.md"
 keywords = ["telemetry", "realtime", "rate-limiting", "performance"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 tokio = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }

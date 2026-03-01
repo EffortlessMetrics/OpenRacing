@@ -339,6 +339,92 @@ mod tests {
         assert_eq!(view.axis_u16_or_zero(5), 0);
     }
 
+    #[test]
+    fn raw_report_byte_accessor() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0x01, 0xAA, 0xBB, 0xCC];
+        let view = RawWheelbaseReport::new(&data);
+        assert_eq!(view.byte(0), Some(0x01));
+        assert_eq!(view.byte(1), Some(0xAA));
+        assert_eq!(view.byte(4), None);
+        Ok(())
+    }
+
+    #[test]
+    fn raw_report_report_bytes_returns_full_slice() {
+        let data = [0x01, 0x02, 0x03];
+        let view = RawWheelbaseReport::new(&data);
+        assert_eq!(view.report_bytes(), &[0x01, 0x02, 0x03]);
+    }
+
+    #[test]
+    fn raw_report_id_defaults_to_zero_on_empty() {
+        let view = RawWheelbaseReport::new(&[]);
+        assert_eq!(view.report_id(), 0);
+    }
+
+    #[test]
+    fn parse_wheelbase_report_rejects_empty_input() {
+        assert!(parse_wheelbase_report(&[]).is_none());
+    }
+
+    #[test]
+    fn parse_wheelbase_pedal_axes_returns_none_for_wrong_id() {
+        let report = [0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+        assert!(parse_wheelbase_pedal_axes(&report).is_none());
+    }
+
+    #[test]
+    fn wheelbase_pedal_axes_raw_eq() {
+        let a = WheelbasePedalAxesRaw {
+            throttle: 100,
+            brake: 200,
+            clutch: Some(300),
+            handbrake: None,
+        };
+        let b = a;
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn wheelbase_input_raw_eq() {
+        let a = WheelbaseInputRaw {
+            steering: 0x1234,
+            pedals: WheelbasePedalAxesRaw {
+                throttle: 100,
+                brake: 200,
+                clutch: None,
+                handbrake: None,
+            },
+            buttons: [0u8; input_report::BUTTONS_LEN],
+            hat: 0,
+            funky: 0,
+            rotary: [0u8; input_report::ROTARY_LEN],
+        };
+        let b = a;
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn input_report_constants_are_consistent() {
+        // Use const assertions for compile-time-known values
+        const _: () = assert!(input_report::STEERING_START < input_report::THROTTLE_START);
+        const _: () = assert!(input_report::THROTTLE_START < input_report::BRAKE_START);
+        const _: () = assert!(input_report::BRAKE_START < input_report::CLUTCH_START);
+        const _: () = assert!(input_report::CLUTCH_START < input_report::HANDBRAKE_START);
+        const _: () = assert!(input_report::HANDBRAKE_START < input_report::BUTTONS_START);
+        assert_eq!(
+            input_report::HAT_START,
+            input_report::BUTTONS_START + input_report::BUTTONS_LEN
+        );
+        assert_eq!(input_report::FUNKY_START, input_report::HAT_START + 1);
+        assert_eq!(input_report::ROTARY_START, input_report::FUNKY_START + 1);
+    }
+
+    #[test]
+    fn min_report_len_matches_brake_end() {
+        assert_eq!(MIN_REPORT_LEN, input_report::BRAKE_START + 2);
+    }
+
     use proptest::prelude::*;
 
     proptest! {
@@ -376,6 +462,57 @@ mod tests {
             if let Some(parsed) = parse_wheelbase_input_report(&report) {
                 prop_assert_eq!(parsed.steering, steering);
             }
+        }
+
+        #[test]
+        fn prop_pedal_axes_throttle_round_trips(
+            throttle_lo in 0u8..=255u8,
+            throttle_hi in 0u8..=255u8,
+        ) {
+            let throttle = u16::from_le_bytes([throttle_lo, throttle_hi]);
+            let mut report = [0u8; MIN_REPORT_LEN + 4];
+            report[0] = input_report::REPORT_ID;
+            report[input_report::THROTTLE_START] = throttle_lo;
+            report[input_report::THROTTLE_START + 1] = throttle_hi;
+
+            if let Some(parsed) = parse_wheelbase_pedal_axes(&report) {
+                prop_assert_eq!(parsed.throttle, throttle);
+            }
+        }
+
+        #[test]
+        fn prop_pedal_axes_brake_round_trips(
+            brake_lo in 0u8..=255u8,
+            brake_hi in 0u8..=255u8,
+        ) {
+            let brake = u16::from_le_bytes([brake_lo, brake_hi]);
+            let mut report = [0u8; MIN_REPORT_LEN + 4];
+            report[0] = input_report::REPORT_ID;
+            report[input_report::BRAKE_START] = brake_lo;
+            report[input_report::BRAKE_START + 1] = brake_hi;
+
+            if let Some(parsed) = parse_wheelbase_pedal_axes(&report) {
+                prop_assert_eq!(parsed.brake, brake);
+            }
+        }
+
+        #[test]
+        fn prop_wrong_report_id_always_rejected(id in 2u8..=255u8) {
+            let mut report = [0u8; MIN_REPORT_LEN + 4];
+            report[0] = id;
+            prop_assert!(parse_wheelbase_report(&report).is_none());
+        }
+
+        #[test]
+        fn prop_axis_u16_or_zero_matches_option(
+            lo in 0u8..=255u8,
+            hi in 0u8..=255u8,
+        ) {
+            let data = [0x01, lo, hi];
+            let view = RawWheelbaseReport::new(&data);
+            let opt = view.axis_u16_le(1);
+            let or_zero = view.axis_u16_or_zero(1);
+            prop_assert_eq!(opt.unwrap_or(0), or_zero);
         }
     }
 }

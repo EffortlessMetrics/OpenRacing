@@ -12,6 +12,10 @@ description = "WRC Generations telemetry adapter (Codemasters Mode 1 UDP)"
 readme = "README.md"
 keywords = ["telemetry", "wrc", "codemasters", "racing", "simracing"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
 racing-wheel-telemetry-core = { path = "../telemetry-core" }

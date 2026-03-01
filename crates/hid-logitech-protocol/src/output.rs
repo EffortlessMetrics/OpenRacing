@@ -1,6 +1,45 @@
 //! Logitech HID output report encoding.
 //!
 //! All functions are pure and allocation-free.
+//!
+//! # Protocol notes
+//!
+//! The kernel `hid-lg4ff.c` driver and `berarma/new-lg4ff` out-of-tree driver
+//! both use a **4-slot** system for force feedback commands. Each slot command
+//! is a 7-byte payload sent via `HID_REQ_SET_REPORT`:
+//!
+//! ```text
+//! Byte 0: (slot_id << 4) | operation
+//!   Slot IDs: 0 = constant, 1–3 = conditional effects
+//!   Operations: 0x01 = start, 0x03 = stop, 0x0c = update
+//! Bytes 1–6: effect-specific data
+//! ```
+//!
+//! ## Effect type bytes (new-lg4ff `lg4ff_update_slot`)
+//!
+//! | Effect   | Byte 1 | Encoding summary |
+//! |----------|--------|------------------|
+//! | Constant | `0x00` | Force in byte `2 + slot_id` (unsigned 8-bit, 0x80 = center) |
+//! | Spring   | `0x0b` | 11-bit deadband positions, 4-bit coefficients, sign bits, 8-bit clip |
+//! | Damper   | `0x0c` | 4-bit coefficients, sign bytes, 8-bit clip |
+//! | Friction | `0x0e` | 8-bit coefficients, 8-bit clip, sign nibble |
+//!
+//! The kernel's in-tree driver (`lg4ff_play`) uses a simpler encoding
+//! (`{0x11, 0x08, force, 0x80, 0, 0, 0}` for constant force in slot 1,
+//! where `force` is unsigned 0x00–0xFF with 0x80 = no force).
+//!
+//! ## G923 TrueForce
+//!
+//! TrueForce is a proprietary Logitech haptic feedback feature on the G923.
+//! No public protocol documentation exists in any open-source driver project
+//! as of this writing. The `new-lg4ff` driver supports G923 standard FFB
+//! but does not implement TrueForce.
+//!
+//! ## Encoder CPR (counts per revolution)
+//!
+//! Encoder resolution values are hardware specifications from Logitech
+//! product data, not present in any driver source code. They are not
+//! verified by the open-source drivers.
 
 #![deny(static_mut_refs)]
 
@@ -61,10 +100,23 @@ fn torque_to_magnitude(torque_nm: f32, max_torque_nm: f32) -> i16 {
     (normalized * 10_000.0) as i16
 }
 
-/// Build the 7-byte native mode feature report (0xF8, cmd 0x0A).
+/// Build the 7-byte "revert mode upon USB reset" feature report (0xF8, cmd 0x0A).
 ///
-/// Send as a HID feature report to switch the wheel from compatibility mode
-/// (200°) to native mode (full rotation + FFB).
+/// In the Linux kernel and new-lg4ff drivers, this command is documented as
+/// "Revert mode upon USB reset". It is the **first step** of a two-command
+/// native-mode switch sequence for G27+ wheels:
+///
+/// 1. `{0xF8, 0x0A, 0, 0, 0, 0, 0}` — revert mode upon USB reset (this fn)
+/// 2. `{0xF8, 0x09, mode, 0x01, detach, 0, 0}` — switch to target mode
+///
+/// For simpler wheels (DFP, G25), a single command suffices
+/// (DFP: `{0xF8, 0x01, ...}`, G25: `{0xF8, 0x10, ...}`).
+///
+/// For G923 PS (PID 0xC267 → 0xC266), the mode-switch command must be
+/// sent with HID report ID `0x30` instead of the default output report ID.
+///
+/// Source: `lg4ff_mode_switch_ext09_*` in kernel `hid-lg4ff.c` and
+/// `berarma/new-lg4ff hid-lg4ff.c`.
 ///
 /// After sending, wait at least 100 ms before issuing further commands.
 pub fn build_native_mode_report() -> [u8; VENDOR_REPORT_LEN] {
@@ -82,7 +134,11 @@ pub fn build_native_mode_report() -> [u8; VENDOR_REPORT_LEN] {
 /// Build the 7-byte set-range feature report (0xF8, cmd 0x81).
 ///
 /// `degrees` is the desired full rotation range (e.g. 900 for G920/G923,
-/// 1080 for Pro Racing Wheel).
+/// 1080 for Pro Racing Wheel). Valid range per driver: 40–900 for
+/// G25/G27/DFGT/G29/G923 (see `lg4ff_devices[]` in kernel and new-lg4ff).
+///
+/// Source: `lg4ff_set_range_g25()` in kernel `hid-lg4ff.c` and
+/// `berarma/new-lg4ff` — `{0xf8, 0x81, range & 0xff, range >> 8, 0, 0, 0}`.
 pub fn build_set_range_report(degrees: u16) -> [u8; VENDOR_REPORT_LEN] {
     let [lsb, msb] = degrees.to_le_bytes();
     [
@@ -100,6 +156,17 @@ pub fn build_set_range_report(degrees: u16) -> [u8; VENDOR_REPORT_LEN] {
 ///
 /// `strength` is the centering force (0x00–0xFF).
 /// `rate` is the centering speed (0x00–0xFF).
+///
+/// This command activates the device's built-in autocenter spring. The full
+/// autocenter protocol (from `lg4ff_set_autocenter_default` in both the
+/// kernel and new-lg4ff) is a two-step sequence:
+///
+/// 1. `{0xFE, 0x0D, k, k, strength, 0, 0}` — configure spring parameters
+/// 2. `{0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}` — activate
+///
+/// To deactivate autocenter: `{0xF5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}`.
+///
+/// This function builds a simplified single-command activation.
 pub fn build_set_autocenter_report(strength: u8, rate: u8) -> [u8; VENDOR_REPORT_LEN] {
     [
         report_ids::VENDOR,
@@ -132,6 +199,88 @@ pub fn build_set_leds_report(led_mask: u8) -> [u8; VENDOR_REPORT_LEN] {
 /// `gain` is the overall FFB gain (0x00–0xFF, 0 = 0%, 0xFF = 100%).
 pub fn build_gain_report(gain: u8) -> [u8; 2] {
     [report_ids::DEVICE_GAIN, gain]
+}
+
+/// Build the DFP-specific set-range commands (two reports in sequence).
+///
+/// The DFP uses a different range encoding than G25+. The kernel sends
+/// two HID reports in sequence:
+///   1. **Coarse limit**: `[0xf8, 0x03, 0,0,0,0,0]` for >200° or `[0xf8, 0x02, ...]` for ≤200°.
+///   2. **Fine limit**:  `[0x81, 0x0b, start_left>>4, start_right>>4, 0xff, (right&0xe)<<4|(left&0xe), 0xff]`.
+///      If range is exactly 200 or 900, the fine limit is a no-op (`[0x81, 0x0b, 0,0,0,0,0]`).
+///
+/// `start_left  = (full_range - range + 1) * 2047 / full_range`
+/// `start_right = 0xFFF - start_left`
+///
+/// Source: `lg4ff_set_range_dfp()` in kernel `hid-lg4ff.c`.
+pub fn build_set_range_dfp_reports(degrees: u16) -> [[u8; VENDOR_REPORT_LEN]; 2] {
+    let range = degrees.clamp(40, 900) as u32;
+
+    // Coarse limit command
+    let coarse_cmd = if range > 200 { 0x03u8 } else { 0x02u8 };
+    let coarse = [report_ids::VENDOR, coarse_cmd, 0x00, 0x00, 0x00, 0x00, 0x00];
+
+    // Fine limit command
+    let full_range: u32 = if range > 200 { 900 } else { 200 };
+
+    if range == 200 || range == 900 {
+        // No fine limit needed — send zeroed fine command
+        let fine = [0x81u8, 0x0b, 0x00, 0x00, 0x00, 0x00, 0x00];
+        return [coarse, fine];
+    }
+
+    let start_left = ((full_range - range + 1) * 2047) / full_range;
+    let start_right = 0xFFF - start_left;
+
+    let fine = [
+        0x81u8,
+        0x0b,
+        (start_left >> 4) as u8,
+        (start_right >> 4) as u8,
+        0xff,
+        (((start_right & 0xe) << 4) | (start_left & 0xe)) as u8,
+        0xff,
+    ];
+
+    [coarse, fine]
+}
+
+/// Build a single DFP set-range report (legacy API, returns only the fine limit).
+///
+/// **Deprecated**: prefer [`build_set_range_dfp_reports`] which returns both
+/// coarse and fine limit commands as the kernel expects.
+pub fn build_set_range_dfp_report(degrees: u16) -> [u8; VENDOR_REPORT_LEN] {
+    let reports = build_set_range_dfp_reports(degrees);
+    reports[1] // Return the fine limit command
+}
+
+/// Build the mode-switch command to transition to native mode (G27+).
+///
+/// `mode_id` selects the target mode (from kernel `lg4ff_mode_switch_ext09_*`):
+///   - `0x00`: DF-EX (Driving Force / Formula EX compatibility)
+///   - `0x01`: DFP (Driving Force Pro compatibility)
+///   - `0x02`: G25
+///   - `0x03`: DFGT (Driving Force GT)
+///   - `0x04`: G27
+///   - `0x05`: G29
+///   - `0x07`: G923 PS (from `berarma/new-lg4ff` — **note**: the G923 PS
+///     uses HID report ID `0x30` instead of the default vendor report ID;
+///     see `lg4ff_mode_switch_30_g923` in new-lg4ff)
+///
+/// `detach`: if `true`, byte 4 = `0x01` (detach from current HID device);
+///           if `false`, byte 4 = `0x00`.
+///
+/// Source: `lg4ff_mode_switch_ext09_*` arrays in kernel `hid-lg4ff.c`.
+pub fn build_mode_switch_report(mode_id: u8, detach: bool) -> [u8; VENDOR_REPORT_LEN] {
+    [
+        report_ids::VENDOR,
+        commands::MODE_SWITCH,
+        mode_id,
+        0x01,
+        if detach { 0x01 } else { 0x00 },
+        0x00,
+        0x00,
+    ]
 }
 
 #[cfg(test)]
@@ -364,5 +513,117 @@ mod tests {
             let mag = i16::from_le_bytes([out[2], out[3]]);
             prop_assert_eq!(mag, 0i16, "zero torque must encode to zero");
         }
+    }
+
+    /// Verify the DFP two-report range sequence matches kernel lg4ff_set_range_dfp().
+    ///
+    /// The kernel sends:
+    ///   1. Coarse: [0xf8, 0x03, 0,0,0,0,0] for >200° or [0xf8, 0x02, ...] for ≤200°
+    ///   2. Fine:   [0x81, 0x0b, left>>4, right>>4, 0xff, nibbles, 0xff]
+    ///      Exact 200 and 900 → fine is all-zero (no fine limit applied)
+    #[test]
+    fn test_dfp_range_reports_known_values() -> Result<(), Box<dyn std::error::Error>> {
+        // 200° → coarse 0x02 (short), fine is no-op
+        let [coarse, fine] = build_set_range_dfp_reports(200);
+        assert_eq!(coarse[0], report_ids::VENDOR);
+        assert_eq!(coarse[1], 0x02, "200° coarse must be 0x02");
+        assert_eq!(fine[0], 0x81);
+        assert_eq!(fine[1], 0x0b);
+        assert_eq!(
+            &fine[2..7],
+            &[0, 0, 0, 0, 0],
+            "200° fine must be zeroed (no-op)"
+        );
+
+        // 900° → coarse 0x03 (long), fine is no-op
+        let [coarse, fine] = build_set_range_dfp_reports(900);
+        assert_eq!(coarse[1], 0x03, "900° coarse must be 0x03");
+        assert_eq!(
+            &fine[2..7],
+            &[0, 0, 0, 0, 0],
+            "900° fine must be zeroed (no-op)"
+        );
+
+        // 540° → coarse 0x03 (>200), fine has non-trivial values
+        // full_range=900, start_left = (900-540+1)*2047/900 = 361*2047/900 = 820
+        // start_right = 0xFFF - 820 = 3275
+        let [coarse, fine] = build_set_range_dfp_reports(540);
+        assert_eq!(coarse[1], 0x03);
+        let start_left = (900u32 - 540 + 1) * 2047 / 900; // 820 = 0x334
+        let start_right = 0xFFF - start_left; // 3275 = 0xCCB
+        assert_eq!(fine[2], (start_left >> 4) as u8, "540° fine left>>4");
+        assert_eq!(fine[3], (start_right >> 4) as u8, "540° fine right>>4");
+        assert_eq!(fine[4], 0xff);
+        assert_eq!(
+            fine[5],
+            (((start_right & 0xe) << 4) | (start_left & 0xe)) as u8,
+            "540° fine nibble byte"
+        );
+        assert_eq!(fine[6], 0xff);
+
+        Ok(())
+    }
+
+    /// Legacy single-report API returns the fine limit command
+    #[test]
+    fn test_dfp_range_report_known_values() -> Result<(), Box<dyn std::error::Error>> {
+        let r200 = build_set_range_dfp_report(200);
+        assert_eq!(r200[0], 0x81, "report byte 0 must be 0x81");
+        assert_eq!(r200[1], 0x0b, "report byte 1 must be 0x0b");
+
+        // Verify clamping: 0° should clamp to 40°
+        let r40 = build_set_range_dfp_report(40);
+        let r0 = build_set_range_dfp_report(0);
+        assert_eq!(r40, r0, "0° should clamp to 40°");
+
+        // Verify clamping: above 900° should clamp to 900
+        let r900 = build_set_range_dfp_report(900);
+        let r_over = build_set_range_dfp_report(1500);
+        assert_eq!(r900, r_over, "1500° should clamp to 900°");
+
+        Ok(())
+    }
+
+    /// Verify the DFP range report produces different fine-limit encoded
+    /// values as degrees increase (monotonicity of start_left).
+    #[test]
+    fn test_dfp_range_report_monotone() -> Result<(), Box<dyn std::error::Error>> {
+        // start_left = (full_range - range + 1) * 2047 / full_range
+        // As range increases, start_left DECREASES (fine limit narrows)
+        // For ranges > 200, full_range = 900
+        let mut prev_left = u32::MAX;
+        for deg in (250..=900).step_by(50) {
+            let [_, fine] = build_set_range_dfp_reports(deg as u16);
+            // Extract start_left from fine[2] (upper nibble) and fine[5] (lower nibble)
+            let left_upper = (fine[2] as u32) << 4;
+            let left_lower = (fine[5] as u32) & 0x0F; // actually & 0xe per kernel
+            let approx_left = left_upper | left_lower;
+            if deg < 900 {
+                assert!(
+                    approx_left < prev_left,
+                    "DFP fine start_left must decrease as range {}° increases: prev={}, cur={}",
+                    deg,
+                    prev_left,
+                    approx_left
+                );
+            }
+            prev_left = approx_left;
+        }
+        Ok(())
+    }
+
+    /// Verify the DFP arithmetic matches the kernel formula exactly.
+    #[test]
+    fn test_dfp_range_report_arithmetic_detail() -> Result<(), Box<dyn std::error::Error>> {
+        // For 100° (≤200): full_range=200, start_left=(200-100+1)*2047/200 = 101*2047/200 = 1033
+        // start_right = 0xFFF - 1033 = 3062
+        let [coarse, fine] = build_set_range_dfp_reports(100);
+        assert_eq!(coarse[1], 0x02, "100° coarse cmd must be 0x02");
+        let start_left = (200u32 - 100 + 1) * 2047 / 200;
+        let start_right = 0xFFF - start_left;
+        assert_eq!(fine[2], (start_left >> 4) as u8);
+        assert_eq!(fine[3], (start_right >> 4) as u8);
+
+        Ok(())
     }
 }

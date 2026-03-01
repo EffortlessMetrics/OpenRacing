@@ -585,6 +585,7 @@ fn generate_mock_telemetry(progress: f32) -> NormalizedTelemetry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -616,5 +617,157 @@ mod tests {
         assert!(telemetry.ffb_scalar > 0.0);
         assert!(telemetry.slip_ratio >= 0.0);
         Ok(())
+    }
+
+    #[test]
+    fn test_mock_telemetry_at_zero_progress() -> TestResult {
+        let telemetry = generate_mock_telemetry(0.0);
+        assert!(telemetry.rpm >= 0.0);
+        assert!(telemetry.speed_ms >= 0.0);
+        assert!(telemetry.slip_ratio >= 0.0 && telemetry.slip_ratio <= 1.0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_mock_telemetry_at_full_progress() -> TestResult {
+        let telemetry = generate_mock_telemetry(1.0);
+        assert!(telemetry.rpm >= 0.0);
+        assert!(telemetry.speed_ms >= 0.0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_mock_adapter_set_running() -> TestResult {
+        let mut adapter = MockAdapter::new("test".to_string());
+        assert!(!adapter.is_running);
+
+        adapter.set_running(true);
+        assert!(adapter.is_running);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_mock_adapter_is_game_running_when_set() -> TestResult {
+        let mut adapter = MockAdapter::new("test".to_string());
+        adapter.set_running(true);
+        let running = adapter.is_game_running().await?;
+        assert!(running);
+        Ok(())
+    }
+
+    #[test]
+    fn test_mock_adapter_normalize() -> TestResult {
+        let adapter = MockAdapter::new("test".to_string());
+        let result = adapter.normalize(&[])?;
+        assert!((result.rpm - 5000.0).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_mock_adapter_update_rate() {
+        let adapter = MockAdapter::new("test".to_string());
+        assert_eq!(adapter.expected_update_rate(), Duration::from_millis(16));
+    }
+
+    #[tokio::test]
+    async fn test_mock_adapter_stop_monitoring() -> TestResult {
+        let adapter = MockAdapter::new("test".to_string());
+        adapter.stop_monitoring().await?;
+        Ok(())
+    }
+
+    // ── Adapter registry tests ────────────────────────────────────────────
+
+    #[test]
+    fn test_adapter_factories_non_empty() {
+        let factories = adapter_factories();
+        assert!(
+            factories.len() >= 50,
+            "Expected at least 50 adapters, got {}",
+            factories.len()
+        );
+    }
+
+    #[test]
+    fn test_adapter_factories_unique_game_ids() -> TestResult {
+        let factories = adapter_factories();
+        let mut seen = HashSet::new();
+        for (id, _) in factories {
+            assert!(
+                seen.insert(*id),
+                "Duplicate game_id in adapter_factories: {id}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_adapter_factories_all_constructible() -> TestResult {
+        let factories = adapter_factories();
+        for (id, factory) in factories {
+            let adapter = factory();
+            assert_eq!(
+                adapter.game_id(),
+                *id,
+                "Factory for '{id}' produced adapter with game_id '{}'",
+                adapter.game_id()
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_adapter_factories_known_games_present() -> TestResult {
+        let factories = adapter_factories();
+        let ids: HashSet<&str> = factories.iter().map(|(id, _)| *id).collect();
+
+        let expected = [
+            "acc",
+            "forza_motorsport",
+            "iracing",
+            "f1",
+            "eawrc",
+            "rfactor2",
+            "raceroom",
+            "beamng_drive",
+        ];
+
+        for game in &expected {
+            assert!(
+                ids.contains(game),
+                "Expected game '{game}' not found in adapter_factories"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_adapter_factories_forza_horizon_variants() -> TestResult {
+        let factories = adapter_factories();
+        let ids: HashSet<&str> = factories.iter().map(|(id, _)| *id).collect();
+        assert!(ids.contains("forza_horizon_4"));
+        assert!(ids.contains("forza_horizon_5"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_adapter_factories_update_rates_valid() -> TestResult {
+        let factories = adapter_factories();
+        for (id, factory) in factories {
+            let adapter = factory();
+            let rate = adapter.expected_update_rate();
+            assert!(
+                rate.as_millis() > 0 && rate.as_millis() <= 1000,
+                "Adapter '{id}' has suspicious update rate: {rate:?}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_telemetry_now_ns_returns_value() {
+        let ts = telemetry_now_ns();
+        // Should be a small value since epoch was just initialized
+        assert!(ts < 60_000_000_000); // less than 60 seconds
     }
 }

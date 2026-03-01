@@ -1,0 +1,5 @@
+---
+source: crates/hid-fanatec-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"unknown={}\", fan::is_wheelbase_product(0xFFFF))"
+---
+unknown=false

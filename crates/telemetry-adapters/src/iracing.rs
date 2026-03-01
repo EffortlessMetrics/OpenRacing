@@ -3,24 +3,86 @@
 //! This adapter opens `Local\\IRSDKMemMapFileName` with `FILE_MAP_READ`,
 //! reads the IRSDK header, and selects the newest rotating telemetry buffer.
 //!
-//! ## Verification against community IRSDK documentation
+//! ## Verification against IRSDK documentation
 //!
-//! Verified 2025-07 against [`kutu/pyirsdk`](https://github.com/kutu/pyirsdk) (v1.3.5)
-//! and the canonical iRacing variable list (`vars.txt`).
+//! Verified 2025-07 against three authoritative sources:
+//!   1. [`kutu/pyirsdk`](https://github.com/kutu/pyirsdk) v1.3.5 (`irsdk.py`, `vars.txt`)
+//!   2. Official iRacing SDK C header (`irsdk_defines.h`), via [`cadfan/ira`](https://github.com/cadfan/ira)
+//!   3. Community variable reference from pyirsdk `vars.txt` (300+ telemetry variables)
 //!
-//! - **Transport**: shared memory (`Local\IRSDKMemMapFileName`), not UDP. ✓
-//! - **Data-valid event**: `Local\IRSDKDataValidEvent` for blocking reads. ✓
-//! - **Header layout**: matches pyirsdk offsets (ver@0, status@4, tick_rate@8,
+//! ### Transport & connection
+//! - **Shared memory name**: `Local\IRSDKMemMapFileName` — confirmed in both
+//!   `irsdk_defines.h` (`IRSDK_MEMMAPFILENAME`) and pyirsdk (`MEMMAPFILE`). ✓
+//! - **Data-valid event**: `Local\IRSDKDataValidEvent` — confirmed in C header
+//!   (`IRSDK_DATAVALIDEVENTNAME`) and pyirsdk (`DATAVALIDEVENTNAME`). ✓
+//! - **Shared memory size**: pyirsdk maps `1164 * 1024` bytes (~1.16 MB);
+//!   we use `MapViewOfFile(..., 0)` to map the full extent, which is equivalent. ✓
+//! - **Status field**: `irsdk_Header.status` == 1 means connected
+//!   (`IRSDK_ST_CONNECTED` in C header, `StatusField.status_connected` in pyirsdk). ✓
+//! - **SDK version**: C header defines `IRSDK_VER = 2`. ✓
+//!
+//! ### Header & struct layout
+//! - **`irsdk_Header`** (112 bytes total): ver@0, status@4, tick_rate@8,
 //!   session_info_update@12, session_info_len@16, session_info_offset@20,
-//!   num_vars@24, var_header_offset@28, num_buf@32, buf_len@36, pad[2]@40,
-//!   var_buf@48). Each `VarBuffer` is 16 bytes; each `VarHeader` is 144 bytes. ✓
-//! - **Variable type IDs**: char=0, bool=1, int=2, bitfield=3, float=4, double=5. ✓
-//! - **Session flags**: checkered=0x1, green=0x4, yellow=0x8, red=0x10, blue=0x20. ✓
-//! - **Field names & units**: `Speed` (m/s), `RPM` (revs/min), `Gear` (−1=R, 0=N,
-//!   1‥n=forward), `Throttle`/`Brake` (0‥1), `SteeringWheelAngle` (rad),
-//!   `SteeringWheelTorque` (N·m), `FuelLevel` (litres), `SessionTime` (s, double). ✓
-//! - **Update rate**: default ~60 Hz (16 ms); actual rate read from `tick_rate` header. ✓
-//! - **Buffer selection**: newest rotating buffer with pre/post tick-count stability check. ✓
+//!   num_vars@24, var_header_offset@28, num_buf@32, buf_len@36, pad\[2\]@40,
+//!   var_buf\[4\]@48. Confirmed byte-for-byte identical in C header and pyirsdk. ✓
+//! - **`irsdk_VarBuf`** (16 bytes): tick_count@0, buf_offset@4, pad\[2\]@8.
+//!   `IRSDK_MAX_BUFS = 4` confirmed in C header. ✓
+//! - **`irsdk_VarHeader`** (144 bytes): type@0, offset@4, count@8,
+//!   count_as_time@12 (bool, 1 byte), pad\[3\]@13, name@16 (32 bytes),
+//!   desc@48 (64 bytes), unit@112 (32 bytes). Confirmed in C header. ✓
+//!
+//! ### Variable types & sizes
+//! - **Type IDs**: char=0, bool=1, int=2, bitfield=3, float=4, double=5.
+//!   Confirmed in C header (`irsdk_VarType` enum) and pyirsdk
+//!   (`VAR_TYPE_MAP = ['c', '?', 'i', 'I', 'f', 'd']`). ✓
+//! - **Type sizes**: char=1, bool=1, int=4, bitfield=4, float=4, double=8.
+//!   Confirmed in C header (`irsdk_var_type_bytes` array). ✓
+//!
+//! ### Session flags (bitfield)
+//! - checkered=0x1, white=0x2, green=0x4, yellow=0x8, red=0x10, blue=0x20,
+//!   debris=0x40, crossed=0x80, caution=0x4000, caution_waving=0x8000,
+//!   black=0x010000, disqualify=0x020000, start_go=0x80000000.
+//!   Confirmed in C header (`irsdk_Flags` enum) and pyirsdk (`Flags` class). ✓
+//!
+//! ### Telemetry variable names & units (from `vars.txt`)
+//! - `Speed`: GPS vehicle speed, m/s (float). ✓
+//! - `RPM`: Engine rpm, revs/min (float). ✓
+//! - `Gear`: −1=reverse, 0=neutral, 1‥n=forward (int). ✓
+//! - `Throttle`: 0=off to 1=full (float, %). ✓
+//! - `Brake`: 0=released to 1=max pedal force (float, %). ✓
+//! - `SteeringWheelAngle`: Steering wheel angle, rad (float). ✓
+//! - `SteeringWheelTorque`: Output torque on steering shaft, N·m (float). ✓
+//! - `SteeringWheelPctTorqueSign`: FFB % max torque signed, % (float). ✓
+//! - `SteeringWheelMaxForceNm`: Max force slider in Nm for FFB, N·m (float). ✓
+//! - `SteeringWheelLimiter`: FFB limiter strength, % (float). ✓
+//! - `FuelLevel`: Litres of fuel remaining, l (float). ✓
+//! - `SessionTime`: Seconds since session start, s (double). ✓
+//! - `SessionFlags`: Session flags, irsdk_Flags (bitfield/int). ✓
+//! - `OnPitRoad`: Player on pit road between cones (bool). ✓
+//! - `Lap`: Laps started count (int). ✓
+//! - `LapBestLapTime`: Player best lap time, s (float). ✓
+//! - `LFspeed`/`RFspeed`/`LRspeed`/`RRspeed`: Tire speed, m/s (float). ✓
+//!
+//! ### Update rate & timing
+//! - **Default tick rate**: ~60 Hz (16.67 ms); C header comment says
+//!   "Ticks per second (60 or 360)". 360 Hz is for `_ST` suffix high-rate
+//!   variables (e.g. `SteeringWheelTorque_ST`). Our `IRSDK_DEFAULT_TICK_RATE`
+//!   of 16 ms is correct for standard telemetry. ✓
+//!
+//! ### Buffer selection strategy
+//! - pyirsdk uses the 2nd-newest buffer to avoid partially-written data.
+//!   Our implementation reads the newest buffer with a pre/post tick-count
+//!   stability check (up to 3 attempts), which is an alternative approach
+//!   used by many C/C++ IRSDK consumers for consistency. ✓
+//!
+//! ### Session info format
+//! - Session info is a YAML string at `session_info_offset` for
+//!   `session_info_len` bytes, null-terminated. Changes are tracked by
+//!   `session_info_update` counter. Encoding is Windows cp1252; pyirsdk
+//!   translates problematic bytes 0x81/0x8D/0x8F/0x90/0x9D to spaces.
+//!   Our ISO-8859-1 decoding covers the common range and is compatible
+//!   for standard driver/track names. ✓
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{

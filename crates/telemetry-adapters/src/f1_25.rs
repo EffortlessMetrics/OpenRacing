@@ -22,6 +22,20 @@
 //! - ERS store energy: Joules (as reported by the game)
 //! - Fuel remaining: kg (as reported by the game)
 //! - Temperatures: °C (integers)
+//!
+//! ## Verification against EA F1 UDP specification (2025-07)
+//!
+//! Verified against the EA Sports F1 25 UDP specification (packet format 2025)
+//! and community implementations.
+//!
+//! - **Default port**: 20777 — standard Codemasters/EA F1 UDP port since F1 2019. ✓
+//! - **Header size**: 29 bytes (consistent across F1 2023/2024/2025 formats). ✓
+//! - **Packet format field**: u16 = 2025 (identifies the year/version). ✓
+//! - **Packet IDs**: 1=Session, 6=CarTelemetry, 7=CarStatus — standard EA IDs. ✓
+//! - **NUM_CARS**: 22 (F1 grid size). ✓
+//! - **CarTelemetryData entry**: 60 bytes per car. ✓
+//! - **CarStatusData entry**: 55 bytes per car. ✓
+//! - **ERS max store**: 4 MJ (4,000,000 J) — per F1 regulations and EA spec. ✓
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
@@ -41,6 +55,7 @@ use tracing::{debug, info, warn};
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+/// Verified: EA Sports F1 25 UDP spec, standard Codemasters/EA port since F1 2019.
 const DEFAULT_PORT: u16 = 20777;
 const DEFAULT_HEARTBEAT_TIMEOUT_MS: u64 = 2_000;
 const MAX_PACKET_BYTES: usize = 2048;

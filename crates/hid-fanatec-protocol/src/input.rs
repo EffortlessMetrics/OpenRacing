@@ -1,6 +1,21 @@
 //! Fanatec HID input report parsing.
 //!
 //! All functions are pure and allocation-free.
+//!
+//! ## Rim detection (Quick Release adapter)
+//!
+//! The attached steering wheel rim is identified by byte `0x1F` of the standard
+//! input report (ID 0x01). Verified in `gotzl/hid-fanatecff` `hid-ftec.c`:
+//! ```c
+//! // ftecff_raw_event()
+//! } else if (data[0] == 0x01) {
+//!     bool changed = drv_data->wheel_id != data[0x1f];
+//!     drv_data->wheel_id = data[0x1f];
+//!     if (changed) kobject_uevent(&hdev->dev.kobj, KOBJ_CHANGE);
+//! }
+//! ```
+//! When a rim is detached or swapped via the Fanatec Quick Release, the base
+//! updates this byte and the driver detects the change on the next input report.
 
 #![deny(static_mut_refs)]
 
@@ -402,6 +417,175 @@ mod tests {
     fn test_parse_pedal_report_rejects_short_data() -> Result<(), Box<dyn std::error::Error>> {
         let data = [0x01u8; 4]; // too short
         assert!(parse_pedal_report(&data).is_none());
+        Ok(())
+    }
+
+    /// Kill mutant: `& 0x0F` → `| 0x0F` in hat parsing (line 89).
+    /// If & is replaced with |, hat would always have upper bits set.
+    #[test]
+    fn test_hat_mask_isolates_lower_nibble() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 64];
+        data[0] = 0x01;
+        data[9] = 0xF2; // upper nibble set, lower = 2 (right)
+        let state = parse_standard_report(&data).ok_or("parse failed")?;
+        assert_eq!(state.hat, 0x02, "hat must mask to lower nibble only");
+
+        // Also test with all zeros in lower nibble
+        data[9] = 0xF0;
+        let state2 = parse_standard_report(&data).ok_or("parse failed")?;
+        assert_eq!(state2.hat, 0x00, "hat must be 0 when lower nibble is 0");
+        Ok(())
+    }
+
+    /// Kill mutants: `> 12` → `>= 12`, `> 14` → `>= 14`, `> 10` → `>= 10`
+    /// Test exact boundary lengths for optional fields.
+    #[test]
+    fn test_optional_fields_exact_boundary_lengths() -> Result<(), Box<dyn std::error::Error>> {
+        // 11 bytes: funky_dir at data[10] is present (len > 10 → true)
+        let mut data11 = [0u8; 11];
+        data11[0] = 0x01;
+        data11[10] = 0x03; // funky direction
+        let state11 = parse_standard_report(&data11).ok_or("parse failed")?;
+        assert_eq!(
+            state11.funky_dir, 0x03,
+            "funky_dir should be present at len=11"
+        );
+        assert_eq!(state11.rotary1, 0, "rotary1 should be 0 at len=11");
+
+        // 13 bytes: rotary1 at data[11..12] present (len > 12 → true)
+        let mut data13 = [0u8; 13];
+        data13[0] = 0x01;
+        data13[11] = 0x10;
+        data13[12] = 0x00; // rotary1 = 16
+        let state13 = parse_standard_report(&data13).ok_or("parse failed")?;
+        assert_eq!(state13.rotary1, 16, "rotary1 should be present at len=13");
+        assert_eq!(state13.rotary2, 0, "rotary2 should be 0 at len=13");
+
+        // 12 bytes: rotary1 NOT present (len > 12 → false)
+        let mut data12 = [0u8; 12];
+        data12[0] = 0x01;
+        data12[11] = 0xFF; // this should NOT be read as rotary1
+        let state12 = parse_standard_report(&data12).ok_or("parse failed")?;
+        assert_eq!(state12.rotary1, 0, "rotary1 should be 0 at len=12");
+
+        // 15 bytes: rotary2 present (len > 14 → true)
+        let mut data15 = [0u8; 15];
+        data15[0] = 0x01;
+        data15[13] = 0x20;
+        data15[14] = 0x00; // rotary2 = 32
+        let state15 = parse_standard_report(&data15).ok_or("parse failed")?;
+        assert_eq!(state15.rotary2, 32, "rotary2 should be present at len=15");
+
+        // 14 bytes: rotary2 NOT present (len > 14 → false)
+        let mut data14 = [0u8; 14];
+        data14[0] = 0x01;
+        data14[13] = 0xFF;
+        let state14 = parse_standard_report(&data14).ok_or("parse failed")?;
+        assert_eq!(state14.rotary2, 0, "rotary2 should be 0 at len=14");
+
+        Ok(())
+    }
+
+    /// Kill mutant: `< 11` → `<= 11` or `== 11` in parse_extended_report.
+    /// 11 bytes is the exact minimum; verify it parses successfully.
+    #[test]
+    fn test_extended_report_exact_minimum_length() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 11];
+        data[0] = 0x02;
+        data[5] = 42; // motor temp
+        data[6] = 30; // board temp
+        let state = parse_extended_report(&data).ok_or("11-byte extended report must parse")?;
+        assert_eq!(state.motor_temp_c, 42);
+        assert_eq!(state.board_temp_c, 30);
+        Ok(())
+    }
+
+    /// Kill mutant: `< 11` → `<= 11` — 10 bytes must be rejected.
+    #[test]
+    fn test_extended_report_rejects_10_bytes() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 10];
+        data[0] = 0x02;
+        assert!(
+            parse_extended_report(&data).is_none(),
+            "10-byte extended report must be rejected"
+        );
+        Ok(())
+    }
+
+    /// Kill mutant: `& 0x0FFF` → `| 0x0FFF` in parse_pedal_report (line 178).
+    /// If & is replaced with |, all pedal values would have lower 12 bits fully set.
+    #[test]
+    fn test_pedal_report_mask_12bit() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 7];
+        data[0] = 0x01;
+        // Set throttle to 0x0000 — with & 0x0FFF → 0, with | 0x0FFF → 0x0FFF
+        data[1] = 0x00;
+        data[2] = 0x00;
+        // Set brake to 0xF000 — with & 0x0FFF → 0, with | 0x0FFF → 0xFFFF (as u16)
+        data[3] = 0x00;
+        data[4] = 0xF0;
+        let state = parse_pedal_report(&data).ok_or("parse failed")?;
+        assert_eq!(
+            state.throttle_raw, 0x0000,
+            "zero input must produce zero with AND mask"
+        );
+        assert_eq!(
+            state.brake_raw, 0x0000,
+            "upper bits must be masked off by & 0x0FFF"
+        );
+        Ok(())
+    }
+
+    /// Kill mutant: normalize_steering `/` → `%` or `*`.
+    /// Center (0x8000) must normalize to 0.0, extremes to ±1.0.
+    #[test]
+    fn test_normalize_steering_values() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 64];
+        data[0] = 0x01;
+        data[3] = 0xFF; // throttle released
+        data[4] = 0xFF; // brake released
+        data[5] = 0xFF; // clutch released
+
+        // Center: 0x8000
+        data[1] = 0x00;
+        data[2] = 0x80;
+        let center = parse_standard_report(&data).ok_or("parse failed")?;
+        assert!(
+            center.steering.abs() < 1e-4,
+            "center must be ~0.0, got {}",
+            center.steering
+        );
+
+        // Full left: 0x0000
+        data[1] = 0x00;
+        data[2] = 0x00;
+        let left = parse_standard_report(&data).ok_or("parse failed")?;
+        assert!(
+            (left.steering + 1.0).abs() < 1e-4,
+            "left must be ~-1.0, got {}",
+            left.steering
+        );
+
+        // Full right: 0xFFFF
+        data[1] = 0xFF;
+        data[2] = 0xFF;
+        let right = parse_standard_report(&data).ok_or("parse failed")?;
+        assert!(
+            right.steering > 0.99,
+            "right must be ~+1.0, got {}",
+            right.steering
+        );
+
+        // Quarter left: 0x4000
+        data[1] = 0x00;
+        data[2] = 0x40;
+        let quarter = parse_standard_report(&data).ok_or("parse failed")?;
+        assert!(
+            (quarter.steering + 0.5).abs() < 0.01,
+            "quarter left must be ~-0.5, got {}",
+            quarter.steering
+        );
+
         Ok(())
     }
 }

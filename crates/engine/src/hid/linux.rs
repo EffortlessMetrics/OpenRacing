@@ -156,6 +156,7 @@ fn manufacturer_for_vendor(vendor_id: u16) -> Option<String> {
         0x044F => "Thrustmaster",
         0x346E => "Moza Racing",
         0x0483 | 0x16D0 | 0x3670 => "Simagic",
+        0x04D8 => "Heusinkveld",
         0x2433 => "Asetek SimSports",
         0x3416 => "Cammus",
         0x1209 => "OpenFFBoard / Generic HID",
@@ -382,7 +383,7 @@ impl LinuxHidPort {
         // Known racing wheel vendor/product IDs
         let racing_wheel_ids = [
             (0x046D, 0xC299), // Logitech G25
-            (0x046D, 0xC294), // Logitech G27
+            (0x046D, 0xC294), // Logitech Driving Force / Formula EX
             (0x046D, 0xC29B), // Logitech G27
             (0x046D, 0xC24F), // Logitech G29
             (0x046D, 0xC262), // Logitech G920
@@ -391,6 +392,16 @@ impl LinuxHidPort {
             (0x046D, 0xC26E), // Logitech G923 Xbox
             (0x046D, 0xC268), // Logitech G PRO
             (0x046D, 0xC272), // Logitech G PRO Xbox
+            // Logitech legacy wheels (oversteer, linux-steering-wheels)
+            (0x046D, 0xC295), // Logitech MOMO Racing
+            (0x046D, 0xC298), // Logitech Driving Force Pro
+            (0x046D, 0xC29A), // Logitech Driving Force GT
+            (0x046D, 0xC29C), // Logitech Speed Force Wireless
+            // Logitech additional legacy (kernel hid-ids.h, oversteer)
+            (0x046D, 0xCA03), // Logitech MOMO Racing 2
+            (0x046D, 0xC293), // Logitech WingMan Formula Force GP
+            (0x046D, 0xCA04), // Logitech Vibration Wheel
+            (0x046D, 0xC291), // Logitech WingMan Formula Force
             // Fanatec (VID 0x0EB7 — Endor AG)
             // Verified: gotzl/hid-fanatecff, JacKeTUs/linux-steering-wheels,
             //           berarma/oversteer, linux-hardware.org
@@ -427,6 +438,15 @@ impl LinuxHidPort {
             (0x044F, 0xB691), // Thrustmaster TS-XW (GIP mode)
             (0x044F, 0xB69A), // Thrustmaster T248X
             (0x044F, 0xB69B), // Thrustmaster T818 (unverified — hid-tmff2 issue #58)
+            // Thrustmaster legacy wheels (oversteer, linux-steering-wheels, hid-tmff)
+            (0x044F, 0xB605), // Thrustmaster NASCAR Pro FF2
+            (0x044F, 0xB651), // Thrustmaster FGT Rumble Force
+            (0x044F, 0xB653), // Thrustmaster RGT FF Clutch
+            (0x044F, 0xB654), // Thrustmaster FGT Force Feedback
+            (0x044F, 0xB65A), // Thrustmaster F430 Force Feedback
+            (0x044F, 0xB668), // Thrustmaster T80 (no FFB)
+            (0x044F, 0xB66A), // Thrustmaster T80 Ferrari 488 GTB (no FFB)
+            (0x044F, 0xB664), // Thrustmaster TX Racing Wheel
             // NOTE: 0xB678/0xB679/0xB68D removed — HOTAS peripherals, not pedals
             // Moza Racing - V1
             (0x346E, 0x0005), // Moza R3
@@ -470,10 +490,12 @@ impl LinuxHidPort {
             (0x0483, 0xA358), // VRS Pedals V2
             (0x0483, 0xA359), // VRS Handbrake
             (0x0483, 0xA35A), // VRS Shifter
-            // Heusinkveld pedals (share VID 0x16D0 with Simagic)
-            (0x16D0, 0x1156), // Heusinkveld Sprint
-            (0x16D0, 0x1157), // Heusinkveld Ultimate+
-            (0x16D0, 0x1158), // Heusinkveld Pro
+            (0x0483, 0xA3BE), // VRS Pedals (corrected)
+            (0x0483, 0xA44C), // VRS R295
+            // Heusinkveld pedals (VID 0x04D8 — Microchip)
+            (0x04D8, 0xF6D0), // Heusinkveld Sprint
+            (0x04D8, 0xF6D2), // Heusinkveld Ultimate+
+            (0x04D8, 0xF6D3), // Heusinkveld Pro
             // Simucube (VID 0x16D0, dispatched by product ID)
             (0x16D0, 0x0D5A), // Simucube 1
             (0x16D0, 0x0D5F), // Simucube 2 Ultimate
@@ -489,6 +511,8 @@ impl LinuxHidPort {
             // Cammus (VID 0x3416)
             (0x3416, 0x0301), // Cammus C5
             (0x3416, 0x0302), // Cammus C12
+            (0x3416, 0x1018), // Cammus CP5 Pedals
+            (0x3416, 0x1019), // Cammus LC100 Pedals
             // OpenFFBoard (VID 0x1209, pid.codes shared VID)
             (0x1209, 0xFFB0), // OpenFFBoard
             (0x1209, 0xFFB1), // OpenFFBoard (alt firmware)
@@ -504,7 +528,7 @@ impl LinuxHidPort {
             // Leo Bodnar sim racing interfaces
             (0x1DD2, 0x000E), // Leo Bodnar USB Sim Racing Wheel Interface
             (0x1DD2, 0x000C), // Leo Bodnar BBI-32 Button Box
-            (0x1DD2, 0xBEEF), // Leo Bodnar SLI-M Shift Light Indicator
+            (0x1DD2, 0x1301), // Leo Bodnar SLI-Pro Shift Light Indicator
             (0x1DD2, 0x0001), // Leo Bodnar USB Joystick
             (0x1DD2, 0x000B), // Leo Bodnar BU0836A Joystick
             (0x1DD2, 0x000F), // Leo Bodnar FFB Joystick
@@ -516,6 +540,19 @@ impl LinuxHidPort {
             (0x0483, 0x0C73), // Cube Controls GT Pro (provisional)
             (0x0483, 0x0C74), // Cube Controls Formula Pro (provisional)
             (0x0483, 0x0C75), // Cube Controls CSX3 (provisional)
+            // PXN (Lite Star) — budget racing wheels with FFB
+            // Verified: kernel hid-ids.h USB_VENDOR_ID_LITE_STAR + PIDs
+            (0x11FF, 0x3245), // PXN V10
+            (0x11FF, 0x1212), // PXN V12
+            (0x11FF, 0x1112), // PXN V12 Lite
+            (0x11FF, 0x1211), // PXN V12 Lite 2
+            (0x11FF, 0x2141), // PXN GT987
+            // FlashFire (VID 0x2F24) — budget FFB wheels (oversteer)
+            (0x2F24, 0x010D), // FlashFire 900R
+            // Guillemot (VID 0x06F8) — legacy Thrustmaster parent (oversteer, hid-tmff.c)
+            (0x06F8, 0x0004), // Guillemot Force Feedback Racing Wheel
+            // Thrustmaster Xbox controller division (VID 0x24C6)
+            (0x24C6, 0x5B00), // Thrustmaster Ferrari 458 Italia (Xbox 360)
         ];
 
         // Scan /dev/hidraw* devices
@@ -580,6 +617,7 @@ impl LinuxHidPort {
                         0x044F => "Thrustmaster".to_string(),
                         0x346E => "Moza Racing".to_string(),
                         0x0483 | 0x16D0 | 0x3670 => "Simagic".to_string(),
+                        0x04D8 => "Heusinkveld".to_string(),
                         0x2433 => "Asetek SimSports".to_string(),
                         0x3416 => "Cammus".to_string(),
                         0x1209 => "OpenFFBoard / Generic HID".to_string(),

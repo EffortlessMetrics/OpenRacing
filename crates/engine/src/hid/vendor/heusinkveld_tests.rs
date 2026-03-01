@@ -90,17 +90,17 @@ fn test_no_output_report() {
 
 #[test]
 fn test_is_heusinkveld_product() {
-    assert!(is_heusinkveld_product(0x1156));
-    assert!(is_heusinkveld_product(0x1157));
-    assert!(is_heusinkveld_product(0x1158));
+    assert!(is_heusinkveld_product(0xF6D0));
+    assert!(is_heusinkveld_product(0xF6D2));
+    assert!(is_heusinkveld_product(0xF6D3));
     assert!(!is_heusinkveld_product(0x1234));
     assert!(!is_heusinkveld_product(0x0522));
 }
 
 #[test]
 fn test_get_vendor_protocol_heusinkveld_pids() {
-    // Heusinkveld PIDs (0x115x) on VID 0x16D0 must route to Heusinkveld, not Simagic
-    assert!(get_vendor_protocol(0x16D0, 0x1156).is_some());
-    assert!(get_vendor_protocol(0x16D0, 0x1157).is_some());
-    assert!(get_vendor_protocol(0x16D0, 0x1158).is_some());
+    // Heusinkveld PIDs (0xF6Dx) on VID 0x04D8 must route to Heusinkveld
+    assert!(get_vendor_protocol(0x04D8, 0xF6D0).is_some());
+    assert!(get_vendor_protocol(0x04D8, 0xF6D2).is_some());
+    assert!(get_vendor_protocol(0x04D8, 0xF6D3).is_some());
 }

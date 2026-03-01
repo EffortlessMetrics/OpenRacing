@@ -67,6 +67,9 @@ mod tests {
     fn test_handbrake_capabilities_analog() {
         let caps = HandbrakeCapabilities::analog();
         assert_eq!(caps.handbrake_type, HandbrakeType::Analog);
+        assert!(!caps.has_hall_effect_sensor);
+        assert!(caps.supports_calibration);
+        assert_eq!(caps.max_load_kg, None);
     }
 
     #[test]
@@ -81,5 +84,37 @@ mod tests {
         let caps = HandbrakeCapabilities::hall_effect();
         assert_eq!(caps.handbrake_type, HandbrakeType::HallEffect);
         assert!(caps.has_hall_effect_sensor);
+    }
+
+    #[test]
+    fn test_handbrake_capabilities_default() {
+        let caps = HandbrakeCapabilities::default();
+        assert_eq!(caps.handbrake_type, HandbrakeType::Analog);
+        assert_eq!(caps.max_load_kg, None);
+        assert!(!caps.has_hall_effect_sensor);
+        assert!(caps.supports_calibration);
+    }
+
+    #[test]
+    fn test_handbrake_type_default() {
+        let ht = HandbrakeType::default();
+        assert_eq!(ht, HandbrakeType::Analog);
+    }
+
+    #[test]
+    fn test_handbrake_type_variants_distinct() {
+        assert_ne!(HandbrakeType::Analog, HandbrakeType::Digital);
+        assert_ne!(HandbrakeType::Analog, HandbrakeType::LoadCell);
+        assert_ne!(HandbrakeType::Analog, HandbrakeType::HallEffect);
+        assert_ne!(HandbrakeType::Digital, HandbrakeType::LoadCell);
+        assert_ne!(HandbrakeType::Digital, HandbrakeType::HallEffect);
+        assert_ne!(HandbrakeType::LoadCell, HandbrakeType::HallEffect);
+    }
+
+    #[test]
+    fn test_load_cell_capabilities_has_load() {
+        let caps = HandbrakeCapabilities::load_cell(50.0);
+        assert_eq!(caps.max_load_kg, Some(50.0));
+        assert!(!caps.has_hall_effect_sensor);
     }
 }

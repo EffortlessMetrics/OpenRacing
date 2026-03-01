@@ -1,0 +1,5 @@
+---
+source: crates/hid-simucube-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"default={:.1}, sport={:.1}, pro={:.1}, ultimate={:.1}\",\nsc::MAX_TORQUE_NM, sc::MAX_TORQUE_SPORT, sc::MAX_TORQUE_PRO,\nsc::MAX_TORQUE_ULTIMATE,)"
+---
+default=25.0, sport=17.0, pro=25.0, ultimate=32.0

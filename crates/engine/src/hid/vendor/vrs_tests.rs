@@ -116,6 +116,8 @@ fn test_is_vrs_product() {
     assert!(is_vrs_product(0xA356));
     assert!(is_vrs_product(0xA357));
     assert!(is_vrs_product(0xA358));
+    assert!(is_vrs_product(0xA3BE)); // Pedals (corrected)
+    assert!(is_vrs_product(0xA44C)); // R295
     assert!(!is_vrs_product(0x0522));
     assert!(!is_vrs_product(0x1234));
 }

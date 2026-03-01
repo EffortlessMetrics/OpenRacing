@@ -57,6 +57,7 @@ members = [
     "crates/plugins",
     "crates/integration-tests",
     "crates/compat",
+    "crates/hid-capture",
     "crates/openracing-capture-ids",
     "crates/telemetry-core",
     "crates/telemetry-config",
@@ -157,6 +158,7 @@ proptest = "1.9.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.1.0"
 hdrhistogram = "7.5.4"
+insta = "1.42.2"
 mockall = "0.14.0"
 wiremock = "0.6.5"
 statistical = "1.0.0"

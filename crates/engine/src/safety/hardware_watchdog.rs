@@ -1247,6 +1247,186 @@ mod safety_interlock_tests {
 
         Ok(())
     }
+
+    // -----------------------------------------------------------------------
+    // Hardening tests: successive timeouts, recovery, NaN/Inf torque, e-stop
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_successive_watchdog_timeouts_stay_in_safe_mode() -> Result<(), WatchdogError> {
+        let watchdog = Box::new(SoftwareWatchdog::new(10));
+        let mut system = SafetyInterlockSystem::new(watchdog, 25.0);
+        system.arm()?;
+
+        let _ = system.process_tick(10.0);
+        std::thread::sleep(Duration::from_millis(15));
+
+        // Multiple ticks after timeout should all yield zero torque
+        for _ in 0..5 {
+            let result = system.process_tick(20.0);
+            assert_eq!(result.torque_command, 0.0);
+            assert!(matches!(
+                result.state,
+                SafetyInterlockState::SafeMode { .. }
+            ));
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_reset_after_timeout_restores_normal_operation() -> Result<(), WatchdogError> {
+        let watchdog = Box::new(SoftwareWatchdog::new(10));
+        let mut system = SafetyInterlockSystem::new(watchdog, 25.0);
+        system.arm()?;
+
+        let _ = system.process_tick(10.0);
+        std::thread::sleep(Duration::from_millis(15));
+
+        let result = system.process_tick(10.0);
+        assert_eq!(result.torque_command, 0.0);
+
+        // Reset fully restores normal state
+        system.reset()?;
+        assert_eq!(*system.state(), SafetyInterlockState::Normal);
+
+        // Re-arm and normal ticks work again
+        system.arm()?;
+        let result = system.process_tick(8.0);
+        assert_eq!(result.torque_command, 8.0);
+        assert!(!result.fault_occurred);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_emergency_stop_from_safe_mode() -> Result<(), WatchdogError> {
+        let mut system = create_test_system();
+        system.arm()?;
+
+        // Enter safe mode via fault
+        system.report_fault(FaultType::ThermalLimit);
+        assert!(matches!(
+            system.state(),
+            SafetyInterlockState::SafeMode { .. }
+        ));
+
+        // Emergency stop from safe mode
+        let result = system.emergency_stop();
+        assert_eq!(result.torque_command, 0.0);
+        assert!(matches!(
+            result.state,
+            SafetyInterlockState::EmergencyStop { .. }
+        ));
+
+        // Cannot clear emergency stop
+        assert!(system.clear_fault().is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_emergency_stop_always_zero_torque() -> Result<(), WatchdogError> {
+        let mut system = create_test_system();
+        system.arm()?;
+
+        system.emergency_stop();
+
+        // Even large torque requests yield zero
+        let result = system.process_tick(100.0);
+        assert_eq!(result.torque_command, 0.0);
+
+        let result = system.process_tick(-100.0);
+        assert_eq!(result.torque_command, 0.0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_nan_torque_passes_through_interlock() -> Result<(), WatchdogError> {
+        let mut system = create_test_system();
+        system.arm()?;
+
+        let result = system.process_tick(f32::NAN);
+        // TorqueLimit::clamp uses f32::clamp which propagates NaN.
+        // The higher-level SafetyService handles NaN → 0.0 conversion.
+        assert!(
+            result.torque_command.is_nan(),
+            "NaN should propagate through TorqueLimit (sanitized at SafetyService layer)"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_inf_torque_clamped_in_normal_mode() -> Result<(), WatchdogError> {
+        let mut system = create_test_system();
+        system.arm()?;
+
+        let result = system.process_tick(f32::INFINITY);
+        assert!(result.torque_command.is_finite());
+        assert!(result.torque_command.abs() <= 25.0);
+
+        let result = system.process_tick(f32::NEG_INFINITY);
+        assert!(result.torque_command.is_finite());
+        assert!(result.torque_command.abs() <= 25.0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_torque_limit_violation_count_increments() -> Result<(), WatchdogError> {
+        let mut system = create_test_system();
+        system.arm()?;
+
+        let initial_count = system.torque_limit().violation_count;
+        system.process_tick(30.0); // Above 25Nm limit
+        assert!(system.torque_limit().violation_count > initial_count);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_communication_loss_followed_by_recovery() -> Result<(), WatchdogError> {
+        let watchdog = Box::new(SoftwareWatchdog::new(30_000));
+        let torque_limit = TorqueLimit::new(25.0, 5.0);
+        let mut system =
+            SafetyInterlockSystem::with_config(watchdog, torque_limit, Duration::from_millis(20));
+        system.arm()?;
+
+        system.report_communication();
+        std::thread::sleep(Duration::from_millis(25));
+
+        let result = system.process_tick(10.0);
+        assert_eq!(result.torque_command, 0.0);
+        assert!(result.fault_occurred);
+
+        // Wait minimum safe-mode duration, then clear
+        std::thread::sleep(Duration::from_millis(110));
+        assert!(system.clear_fault().is_ok());
+        assert_eq!(*system.state(), SafetyInterlockState::Normal);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_safe_mode_limits_torque_to_safe_mode_limit() -> Result<(), WatchdogError> {
+        let mut system = create_test_system();
+        system.arm()?;
+
+        system.report_fault(FaultType::Overcurrent);
+        let safe_limit = system.torque_limit().safe_mode_limit();
+
+        let result = system.process_tick(100.0);
+        assert!(
+            result.torque_command <= safe_limit,
+            "Safe mode torque {} > safe limit {}",
+            result.torque_command,
+            safe_limit
+        );
+
+        Ok(())
+    }
 }
 
 /// Property-based tests for safety interlocks

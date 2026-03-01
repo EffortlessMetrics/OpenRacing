@@ -10,6 +10,10 @@ repository.workspace = true
 name = "wheelctl"
 path = "src/main.rs"
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 racing-wheel-telemetry-config = { path = "../telemetry-config" }
 racing-wheel-schemas = { path = "../schemas" }
@@ -28,7 +32,6 @@ colored = "3.1.1"
 indicatif = "0.18.3"
 dialoguer = "0.12.0"
 dirs = "6.0.0"
-uuid = { version = "1.19.0", features = ["v4"] }
 chrono = { version = "0.4.43", features = ["serde"] }
 rand = "0.9.2"
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }

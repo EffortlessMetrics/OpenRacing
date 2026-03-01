@@ -136,21 +136,10 @@ pub fn slew_rate_filter(frame: &mut Frame, state: &mut SlewRateState) {
 mod tests {
     use super::*;
 
-    fn create_test_frame(torque_out: f32) -> Frame {
-        Frame {
-            ffb_in: torque_out,
-            torque_out,
-            wheel_speed: 0.0,
-            hands_off: false,
-            ts_mono_ns: 0,
-            seq: 0,
-        }
-    }
-
     #[test]
     fn test_slew_rate_filter_step_response() {
         let mut state = SlewRateState::new(0.5);
-        let mut frame = create_test_frame(1.0);
+        let mut frame = Frame::from_torque(1.0);
 
         slew_rate_filter(&mut frame, &mut state);
 
@@ -165,7 +154,7 @@ mod tests {
         let mut state = SlewRateState::new(0.5);
 
         for _ in 0..1000 {
-            let mut frame = create_test_frame(1.0);
+            let mut frame = Frame::from_torque(1.0);
             slew_rate_filter(&mut frame, &mut state);
         }
 
@@ -176,7 +165,7 @@ mod tests {
     #[test]
     fn test_slew_rate_filter_negative() {
         let mut state = SlewRateState::new(0.5);
-        let mut frame = create_test_frame(-1.0);
+        let mut frame = Frame::from_torque(-1.0);
 
         slew_rate_filter(&mut frame, &mut state);
 
@@ -190,7 +179,7 @@ mod tests {
         let mut state = SlewRateState::new(0.5);
         state.prev_output = 0.5;
 
-        let mut frame = create_test_frame(0.5);
+        let mut frame = Frame::from_torque(0.5);
         slew_rate_filter(&mut frame, &mut state);
 
         assert!((frame.torque_out - 0.5).abs() < 0.001);
@@ -199,7 +188,7 @@ mod tests {
     #[test]
     fn test_slew_rate_filter_unlimited() {
         let mut state = SlewRateState::unlimited();
-        let mut frame = create_test_frame(1.0);
+        let mut frame = Frame::from_torque(1.0);
 
         slew_rate_filter(&mut frame, &mut state);
 
@@ -212,7 +201,7 @@ mod tests {
         state.prev_output = 0.5;
 
         // Step down
-        let mut frame = create_test_frame(-0.5);
+        let mut frame = Frame::from_torque(-0.5);
         slew_rate_filter(&mut frame, &mut state);
 
         // Should be limited in the negative direction
@@ -226,7 +215,7 @@ mod tests {
 
         for i in 0..1000 {
             let target = ((i as f32) * 0.01).sin();
-            let mut frame = create_test_frame(target);
+            let mut frame = Frame::from_torque(target);
             slew_rate_filter(&mut frame, &mut state);
 
             assert!(frame.torque_out.is_finite());
@@ -239,8 +228,8 @@ mod tests {
         let mut state_pos = SlewRateState::new(0.5);
         let mut state_neg = SlewRateState::new(0.5);
 
-        let mut frame_pos = create_test_frame(1.0);
-        let mut frame_neg = create_test_frame(-1.0);
+        let mut frame_pos = Frame::from_torque(1.0);
+        let mut frame_neg = Frame::from_torque(-1.0);
 
         slew_rate_filter(&mut frame_pos, &mut state_pos);
         slew_rate_filter(&mut frame_neg, &mut state_neg);
@@ -254,7 +243,7 @@ mod tests {
         let mut state = SlewRateState::new(0.0);
         state.prev_output = 0.5;
 
-        let mut frame = create_test_frame(1.0);
+        let mut frame = Frame::from_torque(1.0);
         slew_rate_filter(&mut frame, &mut state);
 
         // Zero rate means output should not change

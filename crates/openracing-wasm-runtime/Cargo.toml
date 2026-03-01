@@ -7,6 +7,10 @@ authors.workspace = true
 repository.workspace = true
 description = "WASM plugin runtime with capability-based sandboxing for OpenRacing"
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 openracing-plugin-abi = { workspace = true }
 wasmtime = "41.0.0"

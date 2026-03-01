@@ -9,17 +9,6 @@ use openracing_pipeline::prelude::*;
 use racing_wheel_schemas::prelude::{CurvePoint, FrequencyHz, Gain, NotchFilter};
 use std::hint::black_box;
 
-fn create_test_frame(ffb_in: f32, wheel_speed: f32) -> Frame {
-    Frame {
-        ffb_in,
-        torque_out: ffb_in,
-        wheel_speed,
-        hands_off: false,
-        ts_mono_ns: 0,
-        seq: 0,
-    }
-}
-
 fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
     match r {
         Ok(v) => v,
@@ -53,7 +42,7 @@ fn create_test_config() -> racing_wheel_schemas::entities::FilterConfig {
 
 fn bench_empty_pipeline_process(c: &mut Criterion) {
     let mut pipeline = Pipeline::new();
-    let mut frame = create_test_frame(0.5, 5.0);
+    let mut frame = Frame::from_ffb(0.5, 5.0);
 
     c.bench_function("empty_pipeline_process", |b| {
         b.iter(|| {
@@ -93,7 +82,7 @@ fn bench_pipeline_validation(c: &mut Criterion) {
 fn bench_rt_simulation_1khz(c: &mut Criterion) {
     let mut pipeline = Pipeline::new();
     let mut frames: Vec<Frame> = (0..1000)
-        .map(|i| create_test_frame((i as f32 / 1000.0).sin(), 5.0))
+        .map(|i| Frame::from_ffb((i as f32 / 1000.0).sin(), 5.0))
         .collect();
 
     let mut group = c.benchmark_group("rt_simulation");
@@ -113,7 +102,7 @@ fn bench_rt_simulation_1khz(c: &mut Criterion) {
 fn bench_pipeline_with_response_curve(c: &mut Criterion) {
     let mut pipeline = Pipeline::new();
     pipeline.set_response_curve(openracing_curves::CurveType::Linear.to_lut());
-    let mut frame = create_test_frame(0.5, 5.0);
+    let mut frame = Frame::from_ffb(0.5, 5.0);
 
     c.bench_function("pipeline_with_response_curve", |b| {
         b.iter(|| {

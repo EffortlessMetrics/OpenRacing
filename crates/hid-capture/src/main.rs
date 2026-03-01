@@ -9,7 +9,10 @@ use serde::{Deserialize, Serialize};
 
 /// Capture raw HID reports from connected racing wheel devices.
 #[derive(Parser)]
-#[command(name = "hid-capture", about = "HID device report capture tool for test fixture generation")]
+#[command(
+    name = "hid-capture",
+    about = "HID device report capture tool for test fixture generation"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -61,7 +64,10 @@ fn list_devices(api: &HidApi) -> Result<()> {
         println!("No HID devices found.");
         return Ok(());
     }
-    println!("{:<8} {:<8} {:<12} {:<20} {}", "VID", "PID", "Usage Page", "Manufacturer", "Product");
+    println!(
+        "{:<8} {:<8} {:<12} {:<20} Product",
+        "VID", "PID", "Usage Page", "Manufacturer"
+    );
     println!("{}", "-".repeat(80));
     for dev in devices {
         println!(
@@ -88,7 +94,9 @@ fn capture_device(
         .with_context(|| format!("Failed to open device VID=0x{vid:04X} PID=0x{pid:04X}"))?;
 
     // Non-blocking read: returns immediately if no data available
-    device.set_blocking_mode(false).context("Failed to set non-blocking mode")?;
+    device
+        .set_blocking_mode(false)
+        .context("Failed to set non-blocking mode")?;
 
     let start = Instant::now();
     let epoch_start = SystemTime::now()
@@ -144,8 +152,10 @@ fn capture_device(
             product_id: format!("0x{pid:04X}"),
             captures,
         };
-        let json = serde_json::to_string_pretty(&capture_file).context("Failed to serialize captures")?;
-        std::fs::write(path, json).with_context(|| format!("Failed to write output file '{path}'"))?;
+        let json =
+            serde_json::to_string_pretty(&capture_file).context("Failed to serialize captures")?;
+        std::fs::write(path, json)
+            .with_context(|| format!("Failed to write output file '{path}'"))?;
         println!("Captures saved to '{path}'.");
     }
 
@@ -158,8 +168,121 @@ fn main() -> Result<()> {
 
     match &cli.command {
         Commands::List => list_devices(&api),
-        Commands::Capture { vid, pid, duration, output } => {
-            capture_device(&api, *vid, *pid, *duration, output.as_deref())
-        }
+        Commands::Capture {
+            vid,
+            pid,
+            duration,
+            output,
+        } => capture_device(&api, *vid, *pid, *duration, output.as_deref()),
+    }
+}
+
+// ── BDD-style scenario tests ────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ═══ Scenario: VID/PID Hex Parsing ══════════════════════════════════════
+
+    /// GIVEN a valid hex string with 0x prefix
+    /// WHEN parse_hex_u16 is called
+    /// THEN it returns the correct u16 value
+    #[test]
+    fn given_hex_with_0x_prefix_when_parsed_then_correct_u16_returned() {
+        assert_eq!(parse_hex_u16("0x0EB7"), Ok(0x0EB7));
+        assert_eq!(parse_hex_u16("0x0001"), Ok(0x0001));
+        assert_eq!(parse_hex_u16("0X046D"), Ok(0x046D));
+    }
+
+    /// GIVEN a valid hex string without the 0x prefix
+    /// WHEN parse_hex_u16 is called
+    /// THEN it returns the correct u16 value
+    #[test]
+    fn given_hex_without_prefix_when_parsed_then_correct_u16_returned() {
+        assert_eq!(parse_hex_u16("346E"), Ok(0x346E));
+        assert_eq!(parse_hex_u16("FFFF"), Ok(0xFFFF));
+        assert_eq!(parse_hex_u16("0000"), Ok(0x0000));
+    }
+
+    /// GIVEN an invalid hex string
+    /// WHEN parse_hex_u16 is called
+    /// THEN it returns a descriptive error
+    #[test]
+    fn given_invalid_hex_string_when_parsed_then_error_returned() {
+        assert!(parse_hex_u16("ZZZZ").is_err());
+        assert!(parse_hex_u16("xyz").is_err());
+    }
+
+    // ═══ Scenario: Capture Report Serialization ═════════════════════════════
+
+    /// GIVEN a CaptureReport with valid fields
+    /// WHEN serialized to JSON and deserialized back
+    /// THEN all fields are preserved in the roundtrip
+    #[test]
+    fn given_capture_report_when_roundtripped_via_json_then_fields_preserved()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let report = CaptureReport {
+            timestamp_us: 1_000_000,
+            report_id: 0x01,
+            data: "0x01 0x02 0x03".to_string(),
+        };
+        let json = serde_json::to_string(&report)?;
+        let restored: CaptureReport = serde_json::from_str(&json)?;
+        assert_eq!(restored.timestamp_us, 1_000_000);
+        assert_eq!(restored.report_id, 0x01);
+        assert_eq!(restored.data, "0x01 0x02 0x03");
+        Ok(())
+    }
+
+    /// GIVEN a CaptureFile with vendor/product IDs and multiple captures
+    /// WHEN serialized to pretty JSON and deserialized
+    /// THEN the full structure including all reports is preserved
+    #[test]
+    fn given_capture_file_with_reports_when_roundtripped_then_structure_preserved()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let file = CaptureFile {
+            vendor_id: "0x046D".to_string(),
+            product_id: "0x0002".to_string(),
+            captures: vec![
+                CaptureReport {
+                    timestamp_us: 100,
+                    report_id: 0x01,
+                    data: "0x01 0x80 0x00".to_string(),
+                },
+                CaptureReport {
+                    timestamp_us: 200,
+                    report_id: 0x02,
+                    data: "0x02 0x90 0xFF".to_string(),
+                },
+            ],
+        };
+        let json = serde_json::to_string_pretty(&file)?;
+        let restored: CaptureFile = serde_json::from_str(&json)?;
+        assert_eq!(restored.vendor_id, "0x046D");
+        assert_eq!(restored.product_id, "0x0002");
+        assert_eq!(restored.captures.len(), 2);
+        assert_eq!(restored.captures[0].timestamp_us, 100);
+        assert_eq!(restored.captures[0].report_id, 0x01);
+        assert_eq!(restored.captures[1].timestamp_us, 200);
+        assert_eq!(restored.captures[1].report_id, 0x02);
+        Ok(())
+    }
+
+    /// GIVEN an empty captures list
+    /// WHEN serialized as a CaptureFile
+    /// THEN the file deserializes with zero captures
+    #[test]
+    fn given_empty_captures_when_serialized_then_zero_captures_in_output()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let file = CaptureFile {
+            vendor_id: "0x0000".to_string(),
+            product_id: "0x0000".to_string(),
+            captures: vec![],
+        };
+        let json = serde_json::to_string(&file)?;
+        let restored: CaptureFile = serde_json::from_str(&json)?;
+        assert!(restored.captures.is_empty());
+        Ok(())
     }
 }

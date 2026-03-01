@@ -286,10 +286,30 @@ fn test_snapshot_device_unknown() {
 }
 
 #[test]
+fn test_snapshot_device_r295() {
+    let identity = vrs::identify_device(0xA44C);
+    assert_snapshot!(format!(
+        "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
+        identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
+    ));
+}
+
+#[test]
+fn test_snapshot_device_pedals() {
+    let identity = vrs::identify_device(0xA3BE);
+    assert_snapshot!(format!(
+        "name={}, category={:?}, supports_ffb={}",
+        identity.name, identity.category, identity.supports_ffb
+    ));
+}
+
+#[test]
 fn test_snapshot_is_wheelbase_product() {
     let results = [
         ("DIRECTFORCE_PRO", vrs::is_wheelbase_product(0xA355)),
         ("DIRECTFORCE_PRO_V2", vrs::is_wheelbase_product(0xA356)),
+        ("R295", vrs::is_wheelbase_product(0xA44C)),
+        ("PEDALS", vrs::is_wheelbase_product(0xA3BE)),
         ("PEDALS_V1", vrs::is_wheelbase_product(0xA357)),
         ("PEDALS_V2", vrs::is_wheelbase_product(0xA358)),
         ("HANDBRAKE", vrs::is_wheelbase_product(0xA359)),

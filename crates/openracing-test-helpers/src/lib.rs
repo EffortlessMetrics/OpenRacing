@@ -5,7 +5,7 @@
 //!
 //! # Modules
 //!
-//! - [`must`] - Unwrap helpers with good error messages and `#[track_caller]`
+//! - [`mod@must`] - Unwrap helpers with good error messages and `#[track_caller]`
 //! - [`assertions`] - Custom assertion macros for testing
 //! - [`tracking`] - Allocation tracking for RT safety tests
 //! - [`mock`] - Mock implementations for testing

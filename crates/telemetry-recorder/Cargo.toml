@@ -12,6 +12,10 @@ description = "Telemetry recording, playback, and synthetic fixture generation f
 readme = "README.md"
 keywords = ["telemetry", "recording", "replay", "fixtures", "racing"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 racing-wheel-schemas = { path = "../schemas" }
 anyhow = { workspace = true }

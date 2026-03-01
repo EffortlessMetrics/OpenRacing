@@ -1,0 +1,5 @@
+---
+source: crates/hid-fanatec-protocol/tests/snapshot_tests.rs
+expression: "format!(\"{:?}\", values)"
+---
+[0, 127, -128, -1, -96, 1, -2]

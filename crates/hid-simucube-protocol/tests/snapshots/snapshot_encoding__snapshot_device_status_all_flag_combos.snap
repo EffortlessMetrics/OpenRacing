@@ -1,0 +1,10 @@
+---
+source: crates/hid-simucube-protocol/tests/snapshot_encoding.rs
+expression: "summary.join(\"\\n\")"
+---
+0x00(disconnected): Disconnected
+0x01(connected_only): Ready
+0x03(connected+enabled): Enabled
+0x05(connected+calibrating): Calibrating
+0x09(connected+error_no_enable): Ready
+0x0B(connected+enabled+error): Error

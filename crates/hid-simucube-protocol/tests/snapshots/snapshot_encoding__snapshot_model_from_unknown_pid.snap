@@ -1,0 +1,5 @@
+---
+source: crates/hid-simucube-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"model={:?}, torque={:.1}, name={}\", model, model.max_torque_nm(),\nmodel.display_name(),)"
+---
+model=Unknown, torque=25.0, name=Unknown Simucube Device

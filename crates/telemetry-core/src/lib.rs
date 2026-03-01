@@ -522,6 +522,30 @@ mod tests {
         assert_eq!(telemetry.speed_mps, 0.0);
         assert_eq!(telemetry.rpm, 0.0);
         assert_eq!(telemetry.gear, 0);
+        assert_eq!(telemetry.throttle, 0.0);
+        assert_eq!(telemetry.brake, 0.0);
+        assert_eq!(telemetry.steering_angle, 0.0);
+        assert_eq!(telemetry.lateral_g, 0.0);
+        assert_eq!(telemetry.longitudinal_g, 0.0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_game_telemetry_new_equals_default() -> TestResult {
+        let a = GameTelemetry::new();
+        let b = GameTelemetry::default();
+        assert_eq!(a.speed_mps, b.speed_mps);
+        assert_eq!(a.rpm, b.rpm);
+        assert_eq!(a.gear, b.gear);
+        Ok(())
+    }
+
+    #[test]
+    fn test_game_telemetry_with_timestamp() -> TestResult {
+        let ts = Instant::now();
+        let telemetry = GameTelemetry::with_timestamp(ts);
+        assert_eq!(telemetry.speed_mps, 0.0);
+        assert_eq!(telemetry.rpm, 0.0);
         Ok(())
     }
 
@@ -538,11 +562,24 @@ mod tests {
     }
 
     #[test]
+    fn test_game_telemetry_zero_speed_conversions() -> TestResult {
+        let telemetry = GameTelemetry::default();
+        assert_eq!(telemetry.speed_kmh(), 0.0);
+        assert_eq!(telemetry.speed_mph(), 0.0);
+        Ok(())
+    }
+
+    #[test]
     fn test_game_telemetry_to_normalized() -> TestResult {
         let telemetry = GameTelemetry {
             speed_mps: 50.0,
             rpm: 6000.0,
             gear: 4,
+            throttle: 0.8,
+            brake: 0.1,
+            steering_angle: 0.15,
+            lateral_g: 1.5,
+            longitudinal_g: 0.5,
             ..Default::default()
         };
 
@@ -551,8 +588,158 @@ mod tests {
         assert_eq!(normalized.rpm, 6000.0);
         assert_eq!(normalized.speed_ms, 50.0);
         assert_eq!(normalized.gear, 4);
+        assert_eq!(normalized.throttle, 0.8);
+        assert_eq!(normalized.brake, 0.1);
+        assert_eq!(normalized.steering_angle, 0.15);
+        assert_eq!(normalized.lateral_g, 1.5);
+        assert_eq!(normalized.longitudinal_g, 0.5);
         Ok(())
     }
+
+    #[test]
+    fn test_game_telemetry_to_normalized_slip_ratio() -> TestResult {
+        let telemetry = GameTelemetry {
+            slip_angle_fl: 0.1,
+            slip_angle_fr: 0.2,
+            slip_angle_rl: 0.3,
+            slip_angle_rr: 0.4,
+            ..Default::default()
+        };
+
+        let normalized = telemetry.to_normalized();
+        let expected_avg: f32 = (0.1 + 0.2 + 0.3 + 0.4) / 4.0;
+        assert!((normalized.slip_ratio - expected_avg.abs().min(1.0)).abs() < 0.001);
+        assert_eq!(normalized.slip_angle_fl, 0.1);
+        assert_eq!(normalized.slip_angle_fr, 0.2);
+        assert_eq!(normalized.slip_angle_rl, 0.3);
+        assert_eq!(normalized.slip_angle_rr, 0.4);
+        Ok(())
+    }
+
+    #[test]
+    fn test_game_telemetry_from_into_normalized() -> TestResult {
+        let telemetry = GameTelemetry {
+            speed_mps: 30.0,
+            rpm: 4000.0,
+            gear: 3,
+            ..Default::default()
+        };
+
+        let normalized: NormalizedTelemetry = telemetry.into();
+        assert_eq!(normalized.speed_ms, 30.0);
+        assert_eq!(normalized.rpm, 4000.0);
+        assert_eq!(normalized.gear, 3);
+        Ok(())
+    }
+
+    #[test]
+    fn test_game_telemetry_slip_angles() -> TestResult {
+        let telemetry = GameTelemetry {
+            slip_angle_fl: 0.02,
+            slip_angle_fr: 0.04,
+            slip_angle_rl: 0.06,
+            slip_angle_rr: 0.08,
+            ..Default::default()
+        };
+
+        assert!((telemetry.average_slip_angle() - 0.05).abs() < 0.001);
+        assert!((telemetry.front_slip_angle() - 0.03).abs() < 0.001);
+        assert!((telemetry.rear_slip_angle() - 0.07).abs() < 0.001);
+        Ok(())
+    }
+
+    #[test]
+    fn test_game_telemetry_is_stationary() -> TestResult {
+        let stationary = GameTelemetry {
+            speed_mps: 0.3,
+            ..Default::default()
+        };
+        assert!(stationary.is_stationary());
+
+        let moving = GameTelemetry {
+            speed_mps: 10.0,
+            ..Default::default()
+        };
+        assert!(!moving.is_stationary());
+
+        let threshold = GameTelemetry {
+            speed_mps: 0.5,
+            ..Default::default()
+        };
+        assert!(!threshold.is_stationary());
+        Ok(())
+    }
+
+    #[test]
+    fn test_game_telemetry_total_g() -> TestResult {
+        let telemetry = GameTelemetry {
+            lateral_g: 3.0,
+            longitudinal_g: 4.0,
+            ..Default::default()
+        };
+        assert!((telemetry.total_g() - 5.0).abs() < 0.001);
+        Ok(())
+    }
+
+    #[test]
+    fn test_game_telemetry_total_g_zero() -> TestResult {
+        let telemetry = GameTelemetry::default();
+        assert_eq!(telemetry.total_g(), 0.0);
+        Ok(())
+    }
+
+    // ── GameTelemetrySnapshot tests ───────────────────────────────────────
+
+    #[test]
+    fn test_game_telemetry_snapshot_from_telemetry() -> TestResult {
+        let epoch = Instant::now();
+        let telemetry = GameTelemetry {
+            speed_mps: 50.0,
+            rpm: 6000.0,
+            gear: 4,
+            throttle: 0.8,
+            brake: 0.1,
+            lateral_g: 1.5,
+            longitudinal_g: 0.5,
+            slip_angle_fl: 0.01,
+            slip_angle_fr: 0.02,
+            slip_angle_rl: 0.03,
+            slip_angle_rr: 0.04,
+            ..Default::default()
+        };
+
+        let snapshot = GameTelemetrySnapshot::from_telemetry(&telemetry, epoch);
+        assert_eq!(snapshot.speed_mps, 50.0);
+        assert_eq!(snapshot.rpm, 6000.0);
+        assert_eq!(snapshot.gear, 4);
+        assert_eq!(snapshot.throttle, 0.8);
+        assert_eq!(snapshot.brake, 0.1);
+        assert_eq!(snapshot.lateral_g, 1.5);
+        assert_eq!(snapshot.longitudinal_g, 0.5);
+        assert_eq!(snapshot.slip_angle_fl, 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_game_telemetry_snapshot_serializable() -> TestResult {
+        let epoch = Instant::now();
+        let telemetry = GameTelemetry {
+            speed_mps: 30.0,
+            rpm: 4000.0,
+            gear: 3,
+            ..Default::default()
+        };
+
+        let snapshot = GameTelemetrySnapshot::from_telemetry(&telemetry, epoch);
+        let json = serde_json::to_string(&snapshot)?;
+        let deserialized: GameTelemetrySnapshot = serde_json::from_str(&json)?;
+        assert_eq!(deserialized.speed_mps, 30.0);
+        assert_eq!(deserialized.rpm, 4000.0);
+        assert_eq!(deserialized.gear, 3);
+        Ok(())
+    }
+
+    // ── ConnectionState tests ─────────────────────────────────────────────
 
     #[test]
     fn test_connection_state() -> TestResult {
@@ -561,6 +748,133 @@ mod tests {
         assert!(ConnectionState::Disconnected.is_disconnected());
         Ok(())
     }
+
+    #[test]
+    fn test_connection_state_error_is_disconnected() -> TestResult {
+        assert!(ConnectionState::Error.is_disconnected());
+        assert!(!ConnectionState::Error.is_connected());
+        Ok(())
+    }
+
+    #[test]
+    fn test_connection_state_transitioning() -> TestResult {
+        assert!(ConnectionState::Connecting.is_transitioning());
+        assert!(ConnectionState::Reconnecting.is_transitioning());
+        assert!(!ConnectionState::Connected.is_transitioning());
+        assert!(!ConnectionState::Disconnected.is_transitioning());
+        assert!(!ConnectionState::Error.is_transitioning());
+        Ok(())
+    }
+
+    #[test]
+    fn test_connection_state_default() -> TestResult {
+        let state = ConnectionState::default();
+        assert_eq!(state, ConnectionState::Disconnected);
+        Ok(())
+    }
+
+    // ── ConnectionStateEvent tests ────────────────────────────────────────
+
+    #[test]
+    fn test_connection_state_event_new() -> TestResult {
+        let event = ConnectionStateEvent::new(
+            "forza",
+            ConnectionState::Disconnected,
+            ConnectionState::Connected,
+            Some("Data received".to_string()),
+        );
+        assert_eq!(event.game_id, "forza");
+        assert_eq!(event.previous_state, ConnectionState::Disconnected);
+        assert_eq!(event.new_state, ConnectionState::Connected);
+        assert!(event.timestamp_ns > 0);
+        assert_eq!(event.reason, Some("Data received".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn test_connection_state_event_is_disconnection() -> TestResult {
+        let event = ConnectionStateEvent::new(
+            "test",
+            ConnectionState::Connected,
+            ConnectionState::Disconnected,
+            None,
+        );
+        assert!(event.is_disconnection());
+        assert!(!event.is_connection());
+        Ok(())
+    }
+
+    #[test]
+    fn test_connection_state_event_is_connection() -> TestResult {
+        let event = ConnectionStateEvent::new(
+            "test",
+            ConnectionState::Disconnected,
+            ConnectionState::Connected,
+            None,
+        );
+        assert!(event.is_connection());
+        assert!(!event.is_disconnection());
+        Ok(())
+    }
+
+    #[test]
+    fn test_connection_state_event_error_to_connected() -> TestResult {
+        let event = ConnectionStateEvent::new(
+            "test",
+            ConnectionState::Error,
+            ConnectionState::Connected,
+            None,
+        );
+        assert!(event.is_connection());
+        assert!(!event.is_disconnection());
+        Ok(())
+    }
+
+    #[test]
+    fn test_connection_state_event_connected_to_error() -> TestResult {
+        let event = ConnectionStateEvent::new(
+            "test",
+            ConnectionState::Connected,
+            ConnectionState::Error,
+            None,
+        );
+        assert!(event.is_disconnection());
+        Ok(())
+    }
+
+    // ── DisconnectionConfig tests ─────────────────────────────────────────
+
+    #[test]
+    fn test_disconnection_config() -> TestResult {
+        let config = DisconnectionConfig::with_timeout(5000);
+        assert_eq!(config.timeout_ms, 5000);
+        assert_eq!(config.timeout(), Duration::from_millis(5000));
+        assert!(config.auto_reconnect);
+        assert_eq!(config.max_reconnect_attempts, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_config_default() -> TestResult {
+        let config = DisconnectionConfig::default();
+        assert_eq!(config.timeout_ms, DEFAULT_DISCONNECTION_TIMEOUT_MS);
+        assert!(config.auto_reconnect);
+        assert_eq!(config.max_reconnect_attempts, 0);
+        assert_eq!(config.reconnect_delay_ms, 1000);
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_config_reconnect_delay() -> TestResult {
+        let config = DisconnectionConfig {
+            reconnect_delay_ms: 2500,
+            ..Default::default()
+        };
+        assert_eq!(config.reconnect_delay(), Duration::from_millis(2500));
+        Ok(())
+    }
+
+    // ── DisconnectionTracker tests ────────────────────────────────────────
 
     #[test]
     fn test_disconnection_tracker() -> TestResult {
@@ -573,10 +887,213 @@ mod tests {
     }
 
     #[test]
-    fn test_disconnection_config() -> TestResult {
-        let config = DisconnectionConfig::with_timeout(5000);
-        assert_eq!(config.timeout_ms, 5000);
-        assert_eq!(config.timeout(), Duration::from_millis(5000));
+    fn test_disconnection_tracker_mark_connecting() -> TestResult {
+        let mut tracker = DisconnectionTracker::with_defaults("test_game");
+        tracker.mark_connecting();
+        assert_eq!(tracker.state(), ConnectionState::Connecting);
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_mark_reconnecting() -> TestResult {
+        let mut tracker = DisconnectionTracker::with_defaults("test_game");
+        tracker.mark_reconnecting();
+        assert_eq!(tracker.state(), ConnectionState::Reconnecting);
+        assert_eq!(tracker.reconnect_attempts(), 1);
+
+        tracker.mark_reconnecting();
+        assert_eq!(tracker.reconnect_attempts(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_mark_error() -> TestResult {
+        let mut tracker = DisconnectionTracker::with_defaults("test_game");
+        tracker.mark_error("socket failed".to_string());
+        assert_eq!(tracker.state(), ConnectionState::Error);
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_reset_reconnect_attempts() -> TestResult {
+        let mut tracker = DisconnectionTracker::with_defaults("test_game");
+        tracker.mark_reconnecting();
+        tracker.mark_reconnecting();
+        assert_eq!(tracker.reconnect_attempts(), 2);
+
+        tracker.reset_reconnect_attempts();
+        assert_eq!(tracker.reconnect_attempts(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_should_reconnect_default() -> TestResult {
+        let tracker = DisconnectionTracker::with_defaults("test_game");
+        // Disconnected + auto_reconnect=true + no max attempts → should reconnect
+        assert!(tracker.should_reconnect());
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_should_not_reconnect_when_connected() -> TestResult {
+        let mut tracker = DisconnectionTracker::with_defaults("test_game");
+        tracker.record_data_received();
+        assert!(!tracker.should_reconnect());
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_should_not_reconnect_max_attempts() -> TestResult {
+        let config = DisconnectionConfig {
+            max_reconnect_attempts: 2,
+            ..Default::default()
+        };
+        let mut tracker = DisconnectionTracker::new("test_game", config);
+        tracker.mark_reconnecting(); // attempt 1
+        tracker.mark_reconnecting(); // attempt 2
+        // Now at max, should not reconnect even though state is Reconnecting
+        // Need to transition to disconnected first
+        tracker.set_state(ConnectionState::Disconnected, None);
+        assert!(!tracker.should_reconnect());
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_should_not_reconnect_disabled() -> TestResult {
+        let config = DisconnectionConfig {
+            auto_reconnect: false,
+            ..Default::default()
+        };
+        let tracker = DisconnectionTracker::new("test_game", config);
+        assert!(!tracker.should_reconnect());
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_data_received_resets_reconnects() -> TestResult {
+        let mut tracker = DisconnectionTracker::with_defaults("test_game");
+        tracker.mark_reconnecting();
+        tracker.mark_reconnecting();
+        assert_eq!(tracker.reconnect_attempts(), 2);
+
+        tracker.record_data_received();
+        assert_eq!(tracker.state(), ConnectionState::Connected);
+        assert_eq!(tracker.reconnect_attempts(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_repeated_data_received_stays_connected() -> TestResult {
+        let mut tracker = DisconnectionTracker::with_defaults("test_game");
+        tracker.record_data_received();
+        assert_eq!(tracker.state(), ConnectionState::Connected);
+
+        tracker.record_data_received();
+        assert_eq!(tracker.state(), ConnectionState::Connected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_is_timed_out_no_data() -> TestResult {
+        let tracker = DisconnectionTracker::with_defaults("test_game");
+        // No data ever received → not timed out
+        assert!(!tracker.is_timed_out());
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_time_since_last_data_none() -> TestResult {
+        let tracker = DisconnectionTracker::with_defaults("test_game");
+        assert!(tracker.time_since_last_data().is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_time_since_last_data_some() -> TestResult {
+        let mut tracker = DisconnectionTracker::with_defaults("test_game");
+        tracker.record_data_received();
+        let elapsed = tracker.time_since_last_data();
+        assert!(elapsed.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_subscribe() -> TestResult {
+        let mut tracker = DisconnectionTracker::with_defaults("test_game");
+        let mut rx = tracker.subscribe();
+
+        tracker.mark_connecting();
+        let event = rx.try_recv();
+        assert!(event.is_ok());
+        let event = event.map_err(|e| format!("{e}"))?;
+        assert_eq!(event.game_id, "test_game");
+        assert_eq!(event.new_state, ConnectionState::Connecting);
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_no_event_on_same_state() -> TestResult {
+        let mut tracker = DisconnectionTracker::with_defaults("test_game");
+        let mut rx = tracker.subscribe();
+
+        // First transition emits event
+        tracker.mark_connecting();
+        assert!(rx.try_recv().is_ok());
+
+        // Same state transition does not emit
+        tracker.set_state(ConnectionState::Connecting, None);
+        assert!(rx.try_recv().is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_disconnection_tracker_check_disconnection_not_connected() -> TestResult {
+        let mut tracker = DisconnectionTracker::with_defaults("test_game");
+        // Not connected, should stay disconnected
+        let state = tracker.check_disconnection();
+        assert_eq!(state, ConnectionState::Disconnected);
+        Ok(())
+    }
+
+    // ── TelemetryError tests ──────────────────────────────────────────────
+
+    #[test]
+    fn test_telemetry_error_display() -> TestResult {
+        let err = TelemetryError::ConnectionFailed("port in use".to_string());
+        assert!(format!("{err}").contains("port in use"));
+
+        let err = TelemetryError::GameNotRunning {
+            game_id: "forza".to_string(),
+        };
+        assert!(format!("{err}").contains("forza"));
+
+        let err = TelemetryError::ParseError("bad packet".to_string());
+        assert!(format!("{err}").contains("bad packet"));
+
+        let err = TelemetryError::Timeout { timeout_ms: 5000 };
+        assert!(format!("{err}").contains("5000"));
+
+        let err = TelemetryError::AlreadyConnected;
+        assert!(format!("{err}").contains("already"));
+
+        let err = TelemetryError::NotConnected;
+        assert!(format!("{err}").contains("not connected"));
+
+        let err = TelemetryError::InvalidData {
+            reason: "truncated".to_string(),
+        };
+        assert!(format!("{err}").contains("truncated"));
+        Ok(())
+    }
+
+    // ── telemetry_now_ns tests ────────────────────────────────────────────
+
+    #[test]
+    fn test_telemetry_now_ns_monotonic() -> TestResult {
+        let a = telemetry_now_ns();
+        std::thread::sleep(Duration::from_millis(1));
+        let b = telemetry_now_ns();
+        assert!(b >= a);
         Ok(())
     }
 }

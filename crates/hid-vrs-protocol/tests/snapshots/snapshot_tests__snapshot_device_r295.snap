@@ -1,0 +1,5 @@
+---
+source: crates/hid-vrs-protocol/tests/snapshot_tests.rs
+expression: "format!(\"name={}, category={:?}, supports_ffb={}, max_torque={:?}\",\n    identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm)"
+---
+name=VRS R295, category=Wheelbase, supports_ffb=true, max_torque=Some(25.0)

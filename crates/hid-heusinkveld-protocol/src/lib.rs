@@ -45,10 +45,10 @@ impl From<HidCommonError> for HeusinkveldError {
     }
 }
 
-pub const VENDOR_ID: u16 = 0x16D0;
-pub const PRODUCT_ID_SPRINT: u16 = 0x1156;
-pub const PRODUCT_ID_ULTIMATE: u16 = 0x1157;
-pub const PRODUCT_ID_PRO: u16 = 0x1158;
+pub const VENDOR_ID: u16 = 0x04D8;
+pub const PRODUCT_ID_SPRINT: u16 = 0xF6D0;
+pub const PRODUCT_ID_ULTIMATE: u16 = 0xF6D2;
+pub const PRODUCT_ID_PRO: u16 = 0xF6D3;
 
 pub const REPORT_SIZE_INPUT: usize = 8;
 
@@ -60,7 +60,7 @@ mod tests {
 
     #[test]
     fn test_constants() {
-        assert_eq!(VENDOR_ID, 0x16D0);
+        assert_eq!(VENDOR_ID, 0x04D8);
         assert_eq!(MAX_LOAD_CELL_VALUE, 0xFFFF);
     }
 }

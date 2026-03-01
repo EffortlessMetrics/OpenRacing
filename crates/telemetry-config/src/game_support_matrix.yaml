@@ -1,5 +1,25 @@
 ﻿# Game Support Matrix Configuration
 # Defines per-sim capabilities and configuration paths
+#
+# Telemetry protocol documentation sources:
+#   iRacing:        https://forums.iracing.com/discussion/63/iracing-sdk (shared memory API)
+#   ACC:            https://www.assettocorsa.net/forum/index.php?threads/acc-broadcasting-client.56498/ (UDP broadcast)
+#   Assetto Corsa:  https://docs.google.com/document/d/1KfkZiIluXTBIVZOKwYI6FEJXpMjvCU4n-tByql2nQZA (shared memory + UDP)
+#   AMS2/pCARS2:    https://www.projectcarsgame.com/project-cars-2-api/ (SMS shared memory protocol)
+#   Gran Turismo 7: https://github.com/Bornhall/gt7telemetry (Salsa20-encrypted UDP, port 33740)
+#   rFactor 2:      https://github.com/TheIronWolf/rF2SharedMemoryMapPlugin (shared memory plugin API)
+#   DiRT Rally 2.0: Codemasters UDP telemetry, port 20777 (binary struct, same as F1/GRID)
+#   EA WRC:         https://answers.ea.com/t5/General-Discussion/EA-WRC-UDP-Telemetry/td-p/13172498 (UDP, port 20778)
+#   F1 2025/24:     https://answers.ea.com/t5/General-Discussion/F1-24-UDP-Specification/td-p/13745220 (Codemasters UDP, port 20777)
+#   BeamNG.drive:   https://documentation.beamng.com/modding/protocols/outgauge/ (OutGauge UDP, port 4444)
+#   RBR:            Community plugin (RSF/NGP), UDP LiveData on port 6776
+#   Forza:          https://support.forzamotorsport.net/hc/en-us/articles/21742934024211 (Data Out UDP, port 5300)
+#   Live for Speed: https://www.lfs.net/programmer (InSim/OutGauge/OutSim protocols)
+#   ETS2/ATS:       https://modding.scssoft.com/wiki/Documentation/Engine/SDK/Telemetry (SCS SDK shared memory)
+#   RaceRoom:       https://github.com/sector3studios/r3e-api (shared memory API)
+#   KartKraft:      UDP telemetry (OutGauge-compatible, port 5601)
+#   Rennsport:      https://www.rennsport.gg/ (in-development, UDP telemetry)
+#   Le Mans Ult.:   rFactor 2 shared memory plugin (same API as rF2)
 
 games:
   iracing:
@@ -622,7 +642,7 @@ games:
       update_rate_hz: 60
       supports_360hz_option: false
       high_rate_update_rate_hz: null
-      output_target: "0.0.0.0:33739"
+      output_target: "0.0.0.0:33340"
       fields:
         ffb_scalar: null
         rpm: "engine_rpm"

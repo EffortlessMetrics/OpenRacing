@@ -121,6 +121,47 @@ mod tests {
     }
 
     #[test]
+    fn test_gear_position_from_raw_all_valid_gears() {
+        for gear in 1..=7u8 {
+            let pos = GearPosition::from_raw(gear);
+            assert_eq!(pos.gear, gear as i32);
+            assert!(!pos.is_neutral);
+            assert!(!pos.is_reverse);
+        }
+    }
+
+    #[test]
+    fn test_gear_position_from_raw_out_of_range() {
+        for raw in [8u8, 10, 100, 200, 254] {
+            let pos = GearPosition::from_raw(raw);
+            assert!(pos.is_neutral, "raw {} should map to neutral", raw);
+        }
+    }
+
+    #[test]
+    fn test_gear_position_default() {
+        let pos = GearPosition::default();
+        assert!(pos.is_neutral);
+        assert_eq!(pos.gear, 0);
+    }
+
+    #[test]
+    fn test_gear_position_new_positive() {
+        let pos = GearPosition::new(5);
+        assert_eq!(pos.gear, 5);
+        assert!(!pos.is_neutral);
+        assert!(!pos.is_reverse);
+    }
+
+    #[test]
+    fn test_gear_position_new_negative() {
+        let pos = GearPosition::new(-2);
+        assert_eq!(pos.gear, -2);
+        assert!(!pos.is_neutral);
+        assert!(pos.is_reverse);
+    }
+
+    #[test]
     fn test_shifter_capabilities_sequential() {
         let caps = ShifterCapabilities::sequential();
         assert_eq!(caps.shifter_type, ShifterType::Sequential);
@@ -132,5 +173,31 @@ mod tests {
         let caps = ShifterCapabilities::h_pattern();
         assert_eq!(caps.shifter_type, ShifterType::HPattern);
         assert!(caps.has_clutch);
+    }
+
+    #[test]
+    fn test_shifter_capabilities_default() {
+        let caps = ShifterCapabilities::default();
+        assert_eq!(caps.shifter_type, ShifterType::Sequential);
+        assert_eq!(caps.max_gears, MAX_GEARS);
+    }
+
+    #[test]
+    fn test_shifter_type_default() {
+        let st = ShifterType::default();
+        assert_eq!(st, ShifterType::Sequential);
+    }
+
+    #[test]
+    fn test_shifter_type_variants_distinct() {
+        assert_ne!(ShifterType::Sequential, ShifterType::HPattern);
+        assert_ne!(ShifterType::Sequential, ShifterType::SequentialWithReverse);
+        assert_ne!(ShifterType::HPattern, ShifterType::SequentialWithReverse);
+    }
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(MAX_GEARS, 8);
+        assert_eq!(NEUTRAL_GEAR, 0);
     }
 }

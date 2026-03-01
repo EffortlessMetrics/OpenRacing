@@ -37,4 +37,24 @@ mod tests {
         assert_eq!(MAX_GEARS, 8);
         assert_eq!(NEUTRAL_GEAR, 0);
     }
+
+    #[test]
+    fn test_error_display_invalid_gear() {
+        let err = ShifterError::InvalidGear(99);
+        assert!(err.to_string().contains("99"));
+    }
+
+    #[test]
+    fn test_error_display_invalid_report() {
+        let err = ShifterError::InvalidReport;
+        assert!(!err.to_string().is_empty());
+    }
+
+    #[test]
+    fn test_error_display_disconnected() {
+        let err = ShifterError::Disconnected;
+        assert!(
+            err.to_string().contains("disconnected") || err.to_string().contains("Disconnected")
+        );
+    }
 }

@@ -601,3 +601,207 @@ impl AntiCheatReport {
         Some("systemd".to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::Result;
+
+    fn sample_report() -> AntiCheatReport {
+        AntiCheatReport {
+            generated_at: "2025-01-01T00:00:00Z".to_string(),
+            version: "0.1.0".to_string(),
+            platform: PlatformInfo {
+                os: "Windows".to_string(),
+                os_version: "10.0".to_string(),
+                arch: "x86_64".to_string(),
+                kernel_version: None,
+            },
+            process_info: ProcessInfo {
+                name: "wheeld".to_string(),
+                arch: "x86_64".to_string(),
+                privilege_level: "User".to_string(),
+                parent_process: Some("explorer.exe".to_string()),
+                child_processes: vec!["wheel-plugin-helper".to_string()],
+                dll_injection: false,
+                kernel_drivers: vec![],
+            },
+            telemetry_methods: vec![TelemetryMethod {
+                game: "iRacing".to_string(),
+                method_type: "Shared Memory".to_string(),
+                description: "Reads telemetry".to_string(),
+                implementation: "Official SDK".to_string(),
+                memory_access: "Read-only".to_string(),
+                file_access: Some("app.ini".to_string()),
+                network_protocol: None,
+                anticheat_compatible: true,
+                compatibility_notes: "Official methods".to_string(),
+            }],
+            file_access: vec![FileAccess {
+                path_pattern: "%LOCALAPPDATA%/wheel/*".to_string(),
+                access_type: "Read/Write".to_string(),
+                purpose: "Config storage".to_string(),
+                frequency: "On startup".to_string(),
+                user_consent: false,
+            }],
+            network_access: vec![NetworkAccess {
+                protocol: "UDP".to_string(),
+                direction: "Inbound".to_string(),
+                purpose: "Telemetry".to_string(),
+                endpoints: vec!["localhost:9000".to_string()],
+                data_transmitted: "Telemetry data".to_string(),
+                user_consent: false,
+            }],
+            system_apis: vec![SystemApi {
+                api_name: "HID API".to_string(),
+                purpose: "Hardware communication".to_string(),
+                privilege_level: "User".to_string(),
+                frequency: "Continuous".to_string(),
+                anticheat_impact: "None".to_string(),
+            }],
+            security_measures: vec![SecurityMeasure {
+                name: "Code Signing".to_string(),
+                description: "Signed binaries".to_string(),
+                implementation: "Authenticode".to_string(),
+                effectiveness: "Prevents tampering".to_string(),
+            }],
+        }
+    }
+
+    #[test]
+    fn test_report_to_markdown_contains_header() -> Result<()> {
+        let report = sample_report();
+        let md = report.to_markdown();
+        assert!(
+            md.contains("# Racing Wheel Software - Anti-Cheat Compatibility Report"),
+            "Markdown should contain the report header"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_report_to_markdown_contains_version() -> Result<()> {
+        let report = sample_report();
+        let md = report.to_markdown();
+        assert!(
+            md.contains("**Version:** 0.1.0"),
+            "Markdown should contain the version"
+        );
+        assert!(
+            md.contains("**Generated:** 2025-01-01T00:00:00Z"),
+            "Markdown should contain the timestamp"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_report_no_dll_injection_marker() -> Result<()> {
+        let report = sample_report();
+        let md = report.to_markdown();
+        assert!(md.contains("✅ No"), "Report should show no DLL injection");
+        assert!(
+            md.contains("✅ None"),
+            "Report should show no kernel drivers"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_report_dll_injection_true() -> Result<()> {
+        let mut report = sample_report();
+        report.process_info.dll_injection = true;
+        let md = report.to_markdown();
+        assert!(md.contains("❌ Yes"), "Report should flag DLL injection");
+        Ok(())
+    }
+
+    #[test]
+    fn test_report_includes_telemetry_methods() -> Result<()> {
+        let report = sample_report();
+        let md = report.to_markdown();
+        assert!(
+            md.contains("iRacing - Shared Memory"),
+            "Markdown should contain telemetry method heading"
+        );
+        assert!(
+            md.contains("✅ Yes"),
+            "Compatible method should show checkmark"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_report_includes_network_section() -> Result<()> {
+        let report = sample_report();
+        let md = report.to_markdown();
+        assert!(
+            md.contains("## Network Access"),
+            "Markdown should include network access section"
+        );
+        assert!(
+            md.contains("localhost:9000"),
+            "Markdown should list network endpoints"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_report_empty_network_omits_section() -> Result<()> {
+        let mut report = sample_report();
+        report.network_access.clear();
+        let md = report.to_markdown();
+        assert!(
+            !md.contains("## Network Access"),
+            "Empty network access should omit the section"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_report_serialization_roundtrip() -> Result<()> {
+        let report = sample_report();
+        let json = serde_json::to_string(&report)?;
+        let deserialized: AntiCheatReport = serde_json::from_str(&json)?;
+        assert_eq!(deserialized.version, report.version);
+        assert_eq!(deserialized.platform.os, report.platform.os);
+        assert_eq!(
+            deserialized.process_info.dll_injection,
+            report.process_info.dll_injection
+        );
+        assert_eq!(
+            deserialized.telemetry_methods.len(),
+            report.telemetry_methods.len()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_process_info_defaults_safe() -> Result<()> {
+        let report = sample_report();
+        assert!(
+            !report.process_info.dll_injection,
+            "Default process info should not use DLL injection"
+        );
+        assert!(
+            report.process_info.kernel_drivers.is_empty(),
+            "Default process info should have no kernel drivers"
+        );
+        assert_eq!(report.process_info.privilege_level, "User");
+        Ok(())
+    }
+
+    #[test]
+    fn test_report_includes_security_measures() -> Result<()> {
+        let report = sample_report();
+        let md = report.to_markdown();
+        assert!(
+            md.contains("## Security Measures"),
+            "Markdown should contain security measures section"
+        );
+        assert!(
+            md.contains("### Code Signing"),
+            "Should list code signing measure"
+        );
+        Ok(())
+    }
+}

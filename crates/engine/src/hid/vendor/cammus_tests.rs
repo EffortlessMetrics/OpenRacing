@@ -1,8 +1,8 @@
 //! Tests for Cammus C5/C12 protocol handler.
 
 use super::cammus::{
-    CAMMUS_C5_PID, CAMMUS_C12_PID, CAMMUS_VENDOR_ID, CammusModel, CammusProtocolHandler,
-    is_cammus_product,
+    CAMMUS_C5_PID, CAMMUS_C12_PID, CAMMUS_CP5_PEDALS_PID, CAMMUS_LC100_PEDALS_PID,
+    CAMMUS_VENDOR_ID, CammusModel, CammusProtocolHandler, is_cammus_product,
 };
 use super::{DeviceWriter, VendorProtocol, get_vendor_protocol};
 use std::cell::RefCell;
@@ -132,6 +132,8 @@ fn test_send_feature_report_too_large() {
 fn test_is_cammus_product() {
     assert!(is_cammus_product(CAMMUS_C5_PID));
     assert!(is_cammus_product(CAMMUS_C12_PID));
+    assert!(is_cammus_product(CAMMUS_CP5_PEDALS_PID));
+    assert!(is_cammus_product(CAMMUS_LC100_PEDALS_PID));
     assert!(!is_cammus_product(0x1234));
     assert!(!is_cammus_product(0x0522)); // Simagic
 }

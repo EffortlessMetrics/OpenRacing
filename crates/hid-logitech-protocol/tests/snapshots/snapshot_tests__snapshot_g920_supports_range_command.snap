@@ -1,0 +1,5 @@
+---
+source: crates/hid-logitech-protocol/tests/snapshot_tests.rs
+expression: "format!(\"G920.supports_range_command() = {}\",\nlg::LogitechModel::G920.supports_range_command())"
+---
+G920.supports_range_command() = true

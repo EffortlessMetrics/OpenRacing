@@ -1,0 +1,5 @@
+---
+source: crates/hid-simucube-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{:#06X}\", sc::PRODUCT_ID_ULTIMATE)"
+---
+0x0D5F

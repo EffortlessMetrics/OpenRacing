@@ -1,4 +1,14 @@
-//! Input report parsing for Asetek wheelbases
+//! Input report parsing for Asetek wheelbases.
+//!
+//! ## Wire-format verification status
+//!
+//! ⚠ **Unverified.** The input report layout (sequence u16 LE, wheel_angle i32 LE,
+//! wheel_speed i16 LE, torque i16 LE, temperature u8, status u8) is an internal
+//! estimate. No community USB descriptor dump or open-source driver documents this
+//! byte layout. The Linux kernel `hid-universal-pidff` driver uses standard HID PID
+//! descriptors and does not define a vendor-specific input report structure.
+//!
+//! Do not change field offsets or scaling without a confirmed USB capture.
 
 use super::{AsetekError, AsetekResult};
 use openracing_hid_common::ReportParser;

@@ -12,6 +12,10 @@ description = "MudRunner / SnowRunner SimHub UDP bridge telemetry adapter"
 readme = "README.md"
 keywords = ["telemetry", "mudrunner", "snowrunner", "udp", "racing"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
 racing-wheel-telemetry-core = { path = "../telemetry-core" }

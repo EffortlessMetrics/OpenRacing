@@ -52,6 +52,7 @@ use tracing::{debug, info, warn};
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+/// Verified: standard Codemasters/EA F1 UDP port since F1 2019 (EA forums, SimHub).
 const DEFAULT_PORT: u16 = 20777;
 const DEFAULT_HEARTBEAT_TIMEOUT_MS: u64 = 2_000;
 const MAX_PACKET_BYTES: usize = 2048;

@@ -6,20 +6,9 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use openracing_filters::prelude::*;
 
-fn create_test_frame(ffb_in: f32, wheel_speed: f32) -> Frame {
-    Frame {
-        ffb_in,
-        torque_out: ffb_in,
-        wheel_speed,
-        hands_off: false,
-        ts_mono_ns: 0,
-        seq: 0,
-    }
-}
-
 fn bench_reconstruction_filter(c: &mut Criterion) {
     let mut state = ReconstructionState::new(4);
-    let mut frame = create_test_frame(0.5, 0.0);
+    let mut frame = Frame::from_ffb(0.5, 0.0);
 
     c.bench_function("reconstruction_filter", |b| {
         b.iter(|| {
@@ -33,7 +22,7 @@ fn bench_reconstruction_filter(c: &mut Criterion) {
 
 fn bench_friction_filter(c: &mut Criterion) {
     let state = FrictionState::new(0.1, true);
-    let mut frame = create_test_frame(0.5, 5.0);
+    let mut frame = Frame::from_ffb(0.5, 5.0);
 
     c.bench_function("friction_filter", |b| {
         b.iter(|| {
@@ -47,7 +36,7 @@ fn bench_friction_filter(c: &mut Criterion) {
 
 fn bench_damper_filter(c: &mut Criterion) {
     let state = DamperState::new(0.1, true);
-    let mut frame = create_test_frame(0.5, 5.0);
+    let mut frame = Frame::from_ffb(0.5, 5.0);
 
     c.bench_function("damper_filter", |b| {
         b.iter(|| {
@@ -61,7 +50,7 @@ fn bench_damper_filter(c: &mut Criterion) {
 
 fn bench_inertia_filter(c: &mut Criterion) {
     let mut state = InertiaState::new(0.1);
-    let mut frame = create_test_frame(0.5, 5.0);
+    let mut frame = Frame::from_ffb(0.5, 5.0);
 
     c.bench_function("inertia_filter", |b| {
         b.iter(|| {
@@ -75,7 +64,7 @@ fn bench_inertia_filter(c: &mut Criterion) {
 
 fn bench_notch_filter(c: &mut Criterion) {
     let mut state = NotchState::new(50.0, 2.0, -6.0, 1000.0);
-    let mut frame = create_test_frame(0.5, 0.0);
+    let mut frame = Frame::from_ffb(0.5, 0.0);
 
     c.bench_function("notch_filter", |b| {
         b.iter(|| {
@@ -89,7 +78,7 @@ fn bench_notch_filter(c: &mut Criterion) {
 
 fn bench_slew_rate_filter(c: &mut Criterion) {
     let mut state = SlewRateState::new(0.5);
-    let mut frame = create_test_frame(0.5, 0.0);
+    let mut frame = Frame::from_ffb(0.5, 0.0);
 
     c.bench_function("slew_rate_filter", |b| {
         b.iter(|| {
@@ -104,7 +93,7 @@ fn bench_slew_rate_filter(c: &mut Criterion) {
 fn bench_curve_filter(c: &mut Criterion) {
     let points = [(0.0f32, 0.0f32), (0.5f32, 0.25f32), (1.0f32, 1.0f32)];
     let state = CurveState::new(&points);
-    let mut frame = create_test_frame(0.5, 0.0);
+    let mut frame = Frame::from_ffb(0.5, 0.0);
 
     c.bench_function("curve_filter", |b| {
         b.iter(|| {
@@ -118,7 +107,7 @@ fn bench_curve_filter(c: &mut Criterion) {
 
 fn bench_response_curve_filter(c: &mut Criterion) {
     let state = ResponseCurveState::linear();
-    let mut frame = create_test_frame(0.5, 0.0);
+    let mut frame = Frame::from_ffb(0.5, 0.0);
 
     c.bench_function("response_curve_filter", |b| {
         b.iter(|| {
@@ -132,7 +121,7 @@ fn bench_response_curve_filter(c: &mut Criterion) {
 
 fn bench_bumpstop_filter(c: &mut Criterion) {
     let mut state = BumpstopState::new(true, 450.0, 540.0, 0.8, 0.3);
-    let mut frame = create_test_frame(0.5, 100.0);
+    let mut frame = Frame::from_ffb(0.5, 100.0);
 
     c.bench_function("bumpstop_filter", |b| {
         b.iter(|| {
@@ -146,7 +135,7 @@ fn bench_bumpstop_filter(c: &mut Criterion) {
 
 fn bench_hands_off_detector(c: &mut Criterion) {
     let mut state = HandsOffState::new(true, 0.05, 2.0);
-    let mut frame = create_test_frame(0.01, 0.0);
+    let mut frame = Frame::from_ffb(0.01, 0.0);
 
     c.bench_function("hands_off_detector", |b| {
         b.iter(|| {
@@ -159,7 +148,7 @@ fn bench_hands_off_detector(c: &mut Criterion) {
 }
 
 fn bench_torque_cap_filter(c: &mut Criterion) {
-    let mut frame = create_test_frame(0.5, 0.0);
+    let mut frame = Frame::from_ffb(0.5, 0.0);
 
     c.bench_function("torque_cap_filter", |b| {
         b.iter(|| {
@@ -176,7 +165,7 @@ fn bench_combined_filters(c: &mut Criterion) {
     let mut slew_state = SlewRateState::new(0.5);
     let response_state = ResponseCurveState::linear();
 
-    let mut frame = create_test_frame(0.5, 5.0);
+    let mut frame = Frame::from_ffb(0.5, 5.0);
 
     c.bench_function("combined_filters", |b| {
         b.iter(|| {

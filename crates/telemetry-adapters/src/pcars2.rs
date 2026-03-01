@@ -21,6 +21,7 @@ use winapi::um::{
     memoryapi::{FILE_MAP_READ, MapViewOfFile, OpenFileMappingW, UnmapViewOfFile},
 };
 
+/// Verified: SMS sTelemetryData UDP fallback port (CrewChiefV4 PCars2 docs).
 const DEFAULT_PCARS2_PORT: u16 = 5606;
 /// Minimum packet size to read all key UDP fields (through sGearNumGears at offset 45).
 const PCARS2_UDP_MIN_SIZE: usize = 46;

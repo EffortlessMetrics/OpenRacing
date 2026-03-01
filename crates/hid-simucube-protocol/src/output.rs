@@ -1,8 +1,45 @@
-//! Output report generation for Simucube force feedback
+//! Output report generation for Simucube force feedback.
+//!
+//! ## Protocol reality
+//!
+//! Simucube wheelbases use the **standard USB HID PID (Physical Interface
+//! Device)** protocol for force feedback. Applications upload structured PID
+//! effect descriptors (Constant, Spring, Damper, Sine, etc.) which the device
+//! firmware executes autonomously. There is no direct torque-streaming API.
+//!
+//! The builder in this module produces a **placeholder** wire format that is
+//! convenient for internal testing but does **not** match the real HID PID
+//! output report. A conforming implementation would need to generate PID
+//! Set Effect, Effect Operation, and Device Control reports per the
+//! [USB HID PID 1.01 specification](https://www.usb.org/sites/default/files/documents/pid1_01.pdf).
+//!
+//! ## Effect types
+//!
+//! The [`EffectType`] enum covers the standard PID effect categories. On
+//! Linux, the `hid-pidff` kernel driver (Silver support since Linux 6.15)
+//! handles these for Simucube devices.
+//!
+//! **Linux note:** Early Simucube firmware omitted the `0xa7` (effect delay)
+//! HID descriptor, which is required by the Linux `hid-pidff` driver but
+//! optional on Windows. This was fixed in Simucube firmware 1.0.49. Linux
+//! 6.15 also relaxed this requirement. See
+//! <https://github.com/JacKeTUs/linux-steering-wheels> for compatibility
+//! details.
+//!
+//! Source: `JacKeTUs/linux-steering-wheels` README.md
 
 use super::{MAX_TORQUE_NM, REPORT_SIZE_OUTPUT, SimucubeError, SimucubeResult};
 use openracing_hid_common::ReportBuilder;
 
+/// Placeholder output report for Simucube force feedback.
+///
+/// **Warning:** The wire format produced by [`build()`](Self::build) is a
+/// placeholder and does **not** match the real USB HID PID output report
+/// structure. It is useful for internal testing and effect bookkeeping.
+///
+/// Real Simucube FFB uses the USB HID PID protocol. Applications upload PID
+/// effect descriptors; the device firmware executes them. Direct torque
+/// streaming is not available.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[allow(non_snake_case)]
 pub struct SimucubeOutputReport {
@@ -15,6 +52,11 @@ pub struct SimucubeOutputReport {
     pub effect_parameter: u16,
 }
 
+/// USB HID PID effect type categories.
+///
+/// These match the standard PID effect types defined in the USB HID PID 1.01
+/// specification. On Simucube devices, these are handled by the device
+/// firmware (on Windows via DirectInput, on Linux via `hid-pidff`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EffectType {
     #[default]

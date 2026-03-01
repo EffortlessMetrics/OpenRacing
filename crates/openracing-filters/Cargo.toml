@@ -13,6 +13,11 @@ readme = "README.md"
 keywords = ["filter", "real-time", "ffb", "dsp", "biquad"]
 categories = ["embedded", "game-development", "algorithms"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+development = ["approx", "quickcheck_macros"]
+
 [dependencies]
 openracing-curves = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
@@ -23,6 +28,7 @@ quickcheck_macros = { workspace = true }
 proptest = { workspace = true }
 criterion = { workspace = true }
 approx = "0.5.1"
+insta = { workspace = true }
 fastrand = "2.3.0"
 
 [[bench]]

@@ -36,9 +36,9 @@ pub struct VirtualTelemetry {
 }
 
 impl VirtualDevice {
-    pub fn new(name: &str) -> Self {
-        Self {
-            id: Uuid::new_v4().to_string().parse().expect("valid device id"),
+    pub fn new(name: &str) -> Result<Self> {
+        Ok(Self {
+            id: Uuid::new_v4().to_string().parse()?,
             name: name.to_string(),
             capabilities: DeviceCapabilities {
                 supports_pid: true,
@@ -52,7 +52,7 @@ impl VirtualDevice {
             connected: true,
             last_torque_command: 0.0,
             telemetry_data: VirtualTelemetry::default(),
-        }
+        })
     }
 
     pub fn disconnect(&mut self) {
@@ -122,7 +122,7 @@ impl TestHarness {
     }
 
     pub async fn add_virtual_device(&mut self, name: &str) -> Result<DeviceId> {
-        let device = Arc::new(RwLock::new(VirtualDevice::new(name)));
+        let device = Arc::new(RwLock::new(VirtualDevice::new(name)?));
         let device_id = device.read().await.id.clone();
 
         self.virtual_devices.push(device);

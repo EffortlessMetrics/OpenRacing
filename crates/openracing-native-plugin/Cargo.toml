@@ -9,6 +9,11 @@ description = "Native plugin loading with signature verification and RT communic
 keywords = ["plugin", "native", "ffi", "signature", "real-time"]
 categories = ["api-bindings", "os", "development-tools::ffi"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack", "crossbeam"]
+development = ["quickcheck", "quickcheck_macros", "tokio-test", "tracing-test"]
+
 [dependencies]
 libloading = "0.9.0"
 shared_memory = "0.12.4"

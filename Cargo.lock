@@ -3010,6 +3010,7 @@ checksum = "e82db8c87c7f1ccecb34ce0c24399b8a73081427f3c7c50a5d597925356115e4"
 dependencies = [
  "console 0.15.11",
  "once_cell",
+ "regex",
  "serde",
  "similar",
  "tempfile",
@@ -4337,6 +4338,7 @@ dependencies = [
  "approx",
  "criterion",
  "fastrand",
+ "insta",
  "openracing-curves",
  "proptest",
  "quickcheck",
@@ -5598,6 +5600,7 @@ dependencies = [
 name = "racing-wheel-hbp"
 version = "0.1.0"
 dependencies = [
+ "proptest",
  "workspace-hack",
 ]
 
@@ -5616,6 +5619,18 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "proptest",
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-hid-capture"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hidapi",
+ "serde",
+ "serde_json",
  "workspace-hack",
 ]
 
@@ -5732,9 +5747,17 @@ dependencies = [
  "criterion",
  "crossbeam",
  "hdrhistogram",
+ "hid-asetek-protocol",
+ "hid-button-box-protocol",
+ "hid-cube-controls-protocol",
+ "hid-heusinkveld-protocol",
+ "hid-simucube-protocol",
  "libc",
  "mockall",
  "num_cpus",
+ "openracing-calibration",
+ "openracing-filters",
+ "openracing-pipeline",
  "openracing-profile",
  "openracing-test-helpers",
  "parking_lot",
@@ -5742,11 +5765,17 @@ dependencies = [
  "quickcheck",
  "quickcheck_macros",
  "racing-wheel-engine",
+ "racing-wheel-hid-accuforce-protocol",
+ "racing-wheel-hid-cammus-protocol",
  "racing-wheel-hid-fanatec-protocol",
  "racing-wheel-hid-ffbeast-protocol",
+ "racing-wheel-hid-leo-bodnar-protocol",
  "racing-wheel-hid-logitech-protocol",
  "racing-wheel-hid-moza-protocol",
  "racing-wheel-hid-openffboard-protocol",
+ "racing-wheel-hid-simagic-protocol",
+ "racing-wheel-hid-thrustmaster-protocol",
+ "racing-wheel-hid-vrs-protocol",
  "racing-wheel-plugins",
  "racing-wheel-schemas",
  "racing-wheel-service",
@@ -5777,6 +5806,7 @@ dependencies = [
 name = "racing-wheel-ks"
 version = "0.1.0"
 dependencies = [
+ "proptest",
  "workspace-hack",
 ]
 
@@ -5784,6 +5814,7 @@ dependencies = [
 name = "racing-wheel-moza-wheelbase-report"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "proptest",
  "workspace-hack",
 ]
@@ -5847,6 +5878,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "insta",
  "jsonschema",
  "openracing-errors",
  "proptest",
@@ -9508,7 +9540,6 @@ dependencies = [
  "tonic",
  "tracing",
  "tracing-subscriber",
- "uuid",
  "workspace-hack",
 ]
 

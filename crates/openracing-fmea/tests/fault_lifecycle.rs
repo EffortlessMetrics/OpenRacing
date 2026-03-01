@@ -48,7 +48,7 @@ fn test_full_usb_fault_lifecycle() -> Result<(), FmeaError> {
 }
 
 #[test]
-fn test_thermal_fault_with_hysteresis() {
+fn test_thermal_fault_with_hysteresis() -> Result<(), Box<dyn std::error::Error>> {
     let mut fmea = FmeaSystem::new();
 
     // 1. Normal temperature
@@ -59,7 +59,7 @@ fn test_thermal_fault_with_hysteresis() {
     assert_eq!(result, Some(FaultType::ThermalLimit));
 
     // 3. Handle fault
-    fmea.handle_fault(FaultType::ThermalLimit, 10.0).unwrap();
+    fmea.handle_fault(FaultType::ThermalLimit, 10.0)?;
 
     // 4. Temperature drops below limit but above hysteresis
     // (fault is still active, so hysteresis applies)
@@ -71,21 +71,25 @@ fn test_thermal_fault_with_hysteresis() {
     assert!(result.is_none()); // Now can clear
 
     // 6. Clear fault
-    fmea.clear_fault().unwrap();
+    fmea.clear_fault()?;
     assert!(!fmea.has_active_fault());
+
+    Ok(())
 }
 
 #[test]
-fn test_multiple_fault_priority() {
+fn test_multiple_fault_priority() -> Result<(), Box<dyn std::error::Error>> {
     let mut fmea = FmeaSystem::new();
 
     // Handle a lower priority fault first
-    fmea.handle_fault(FaultType::TimingViolation, 10.0).unwrap();
+    fmea.handle_fault(FaultType::TimingViolation, 10.0)?;
     assert_eq!(fmea.active_fault(), Some(FaultType::TimingViolation));
 
     // Higher priority fault should replace
-    fmea.handle_fault(FaultType::Overcurrent, 10.0).unwrap();
+    fmea.handle_fault(FaultType::Overcurrent, 10.0)?;
     assert_eq!(fmea.active_fault(), Some(FaultType::Overcurrent));
+
+    Ok(())
 }
 
 #[test]
@@ -104,7 +108,7 @@ fn test_encoder_nan_windowing() {
 }
 
 #[test]
-fn test_plugin_quarantine_sequence() {
+fn test_plugin_quarantine_sequence() -> Result<(), Box<dyn std::error::Error>> {
     let mut fmea = FmeaSystem::new();
 
     // Accumulate overruns
@@ -118,14 +122,16 @@ fn test_plugin_quarantine_sequence() {
     assert_eq!(result, Some(FaultType::PluginOverrun));
 
     // Handle quarantine fault
-    fmea.handle_fault(FaultType::PluginOverrun, 10.0).unwrap();
+    fmea.handle_fault(FaultType::PluginOverrun, 10.0)?;
 
     // Quarantine fault doesn't require soft-stop
     assert!(!fmea.is_soft_stop_active());
+
+    Ok(())
 }
 
 #[test]
-fn test_fault_statistics_tracking() {
+fn test_fault_statistics_tracking() -> Result<(), Box<dyn std::error::Error>> {
     let mut fmea = FmeaSystem::new();
 
     // Generate some detections
@@ -139,18 +145,20 @@ fn test_fault_statistics_tracking() {
     let usb_stat = stats
         .iter()
         .find(|(ft, _, _)| *ft == FaultType::UsbStall)
-        .unwrap();
+        .ok_or("USB stall stat not found")?;
     assert_eq!(usb_stat.1, 2);
 
     let timing_stat = stats
         .iter()
         .find(|(ft, _, _)| *ft == FaultType::TimingViolation)
-        .unwrap();
+        .ok_or("timing violation stat not found")?;
     assert_eq!(timing_stat.1, 2);
+
+    Ok(())
 }
 
 #[test]
-fn test_fault_detection_reset() {
+fn test_fault_detection_reset() -> Result<(), Box<dyn std::error::Error>> {
     let mut fmea = FmeaSystem::new();
 
     // Accumulate detections
@@ -164,22 +172,24 @@ fn test_fault_detection_reset() {
     let usb_stat = stats
         .iter()
         .find(|(ft, _, _)| *ft == FaultType::UsbStall)
-        .unwrap();
+        .ok_or("USB stall stat not found")?;
     assert_eq!(usb_stat.1, 0);
 
     let timing_stat = stats
         .iter()
         .find(|(ft, _, _)| *ft == FaultType::TimingViolation)
-        .unwrap();
+        .ok_or("timing violation stat not found")?;
     assert_eq!(timing_stat.1, 1);
+
+    Ok(())
 }
 
 #[test]
-fn test_audio_alert_integration() {
+fn test_audio_alert_integration() -> Result<(), Box<dyn std::error::Error>> {
     let mut fmea = FmeaSystem::new();
 
     // Handle critical fault
-    fmea.handle_fault(FaultType::Overcurrent, 10.0).unwrap();
+    fmea.handle_fault(FaultType::Overcurrent, 10.0)?;
 
     // Urgent alert should be active
     let alert = fmea.audio_alerts().current_alert();
@@ -188,4 +198,6 @@ fn test_audio_alert_integration() {
     // Stop alert
     fmea.audio_alerts_mut().stop();
     assert!(fmea.audio_alerts().current_alert().is_none());
+
+    Ok(())
 }

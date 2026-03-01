@@ -1,0 +1,5 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"unknown_pid={}\", tm::is_pedal_product(0xFFFF))"
+---
+unknown_pid=false

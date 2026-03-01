@@ -221,3 +221,215 @@ proptest! {
         );
     }
 }
+
+// ── Kernel-verified protocol property tests ──────────────────────────────
+
+use racing_wheel_hid_thrustmaster_protocol::{
+    build_kernel_autocenter_commands, build_kernel_gain_command, build_kernel_range_command,
+};
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(512))]
+
+    // ── build_kernel_range_command: bytes [2,3] decode to degrees * 0x3C ──
+
+    /// The output bytes [2,3] must decode (LE u16) to `clamped_degrees * 0x3C`.
+    #[test]
+    fn prop_kernel_range_encodes_scaled_degrees(degrees in 0u16..=2000u16) {
+        let cmd = build_kernel_range_command(degrees);
+        let clamped = degrees.clamp(40, 1080);
+        let expected = ((clamped as u32) * 0x3C) as u16;
+        let decoded = u16::from_le_bytes([cmd[2], cmd[3]]);
+        prop_assert_eq!(decoded, expected,
+            "bytes [2,3] must encode clamped degrees * 0x3C");
+    }
+
+    /// build_kernel_range_command must always clamp to 40..=1080°.
+    #[test]
+    fn prop_kernel_range_clamps(degrees in 0u16..=65535u16) {
+        let cmd = build_kernel_range_command(degrees);
+        let cmd_at_40 = build_kernel_range_command(40);
+        let cmd_at_1080 = build_kernel_range_command(1080);
+        if degrees < 40 {
+            prop_assert_eq!(cmd, cmd_at_40,
+                "degrees below 40 must clamp to 40");
+        } else if degrees > 1080 {
+            prop_assert_eq!(cmd, cmd_at_1080,
+                "degrees above 1080 must clamp to 1080");
+        }
+        // Header bytes are always the same
+        prop_assert_eq!(cmd[0], 0x08, "byte 0 must be 0x08");
+        prop_assert_eq!(cmd[1], 0x11, "byte 1 must be 0x11");
+    }
+
+    // ── build_kernel_gain_command: byte[1] is gain >> 8 ──────────────────
+
+    /// Byte[1] of the gain command must equal gain >> 8.
+    #[test]
+    fn prop_kernel_gain_byte1(gain in 0u16..=65535u16) {
+        let cmd = build_kernel_gain_command(gain);
+        prop_assert_eq!(cmd[0], 0x02, "byte 0 must be 0x02");
+        prop_assert_eq!(cmd[1], (gain >> 8) as u8,
+            "byte 1 must be gain >> 8 = {}", (gain >> 8) as u8);
+    }
+
+    // ── build_kernel_autocenter_commands: exactly 2 commands ─────────────
+
+    /// build_kernel_autocenter_commands must return exactly 2 commands of
+    /// 4 bytes each, with the value encoded as LE u16 in the 2nd command.
+    #[test]
+    fn prop_kernel_autocenter_structure(value in 0u16..=65535u16) {
+        let cmds = build_kernel_autocenter_commands(value);
+        prop_assert_eq!(cmds.len(), 2, "must return exactly 2 commands");
+
+        // First command is always the same setup preamble
+        prop_assert_eq!(cmds[0], [0x08, 0x04, 0x01, 0x00],
+            "first command must be the autocenter setup preamble");
+
+        // Second command encodes the value as LE u16 at bytes [2,3]
+        prop_assert_eq!(cmds[1][0], 0x08, "cmd 2 byte 0 must be 0x08");
+        prop_assert_eq!(cmds[1][1], 0x03, "cmd 2 byte 1 must be 0x03");
+        let decoded = u16::from_le_bytes([cmds[1][2], cmds[1][3]]);
+        prop_assert_eq!(decoded, value,
+            "cmd 2 bytes [2,3] must encode the autocenter value");
+    }
+}
+
+// ── T150/TMX wire-format property tests ──────────────────────────────────
+
+use racing_wheel_hid_thrustmaster_protocol::{
+    T150EffectType, encode_gain_t150, encode_play_effect_t150, encode_range_t150,
+    encode_stop_effect_t150,
+};
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(512))]
+
+    /// encode_range_t150 must always start with [0x40, 0x11] and round-trip
+    /// the range value via LE u16 at bytes [2,3].
+    #[test]
+    fn prop_t150_range_header_and_roundtrip(value: u16) {
+        let cmd = encode_range_t150(value);
+        prop_assert_eq!(cmd[0], 0x40, "byte 0 must be 0x40 (CMD_RANGE)");
+        prop_assert_eq!(cmd[1], 0x11, "byte 1 must be 0x11 (SUBCMD_RANGE)");
+        let decoded = u16::from_le_bytes([cmd[2], cmd[3]]);
+        prop_assert_eq!(decoded, value, "range value must round-trip via LE bytes");
+    }
+
+    /// encode_gain_t150 must preserve the gain byte at position 1.
+    #[test]
+    fn prop_t150_gain_preserves_value(gain: u8) {
+        let cmd = encode_gain_t150(gain);
+        prop_assert_eq!(cmd[0], 0x43, "byte 0 must be 0x43 (CMD_GAIN)");
+        prop_assert_eq!(cmd[1], gain, "byte 1 must be the gain value");
+    }
+
+    /// encode_play_effect_t150 must preserve all parameters in the correct positions.
+    #[test]
+    fn prop_t150_play_preserves_params(effect_id: u8, mode: u8, times: u8) {
+        let cmd = encode_play_effect_t150(effect_id, mode, times);
+        prop_assert_eq!(cmd[0], 0x41, "byte 0 must be 0x41 (CMD_EFFECT)");
+        prop_assert_eq!(cmd[1], effect_id, "byte 1 must be effect_id");
+        prop_assert_eq!(cmd[2], mode, "byte 2 must be mode");
+        prop_assert_eq!(cmd[3], times, "byte 3 must be times");
+    }
+
+    /// encode_stop_effect_t150 must be identical to play with mode=0, times=0.
+    #[test]
+    fn prop_t150_stop_equals_play_zero(effect_id: u8) {
+        let stop = encode_stop_effect_t150(effect_id);
+        let play = encode_play_effect_t150(effect_id, 0x00, 0x00);
+        prop_assert_eq!(stop, play, "stop must equal play(id, 0, 0)");
+    }
+
+    /// T150EffectType round-trips through as_u16 → from_u16 for all known types.
+    #[test]
+    fn prop_t150_effect_type_roundtrip(idx in 0usize..6usize) {
+        let types = [
+            T150EffectType::Constant,
+            T150EffectType::Sine,
+            T150EffectType::SawtoothUp,
+            T150EffectType::SawtoothDown,
+            T150EffectType::Spring,
+            T150EffectType::Damper,
+        ];
+        let ty = types[idx];
+        let decoded = T150EffectType::from_u16(ty.as_u16());
+        prop_assert_eq!(decoded, Some(ty), "effect type must round-trip");
+    }
+}
+
+// ── Torque encode/decode round-trip ──────────────────────────────────────
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(500))]
+
+    /// Torque within ±max_torque must round-trip through the ±10000 encoding
+    /// with at most (max_torque / 10000) Nm of error (1-LSB tolerance).
+    #[test]
+    fn prop_torque_round_trip_accuracy(
+        torque in -50.0f32..=50.0f32,
+        max_torque in 0.1f32..=50.0f32,
+    ) {
+        let clamped = torque.clamp(-max_torque, max_torque);
+        let enc = tm::ThrustmasterConstantForceEncoder::new(max_torque);
+        let mut out = [0u8; tm::EFFECT_REPORT_LEN];
+        enc.encode(clamped, &mut out);
+        let raw = i16::from_le_bytes([out[2], out[3]]);
+        let decoded = raw as f32 / 10_000.0 * max_torque;
+        let tolerance = max_torque / 10_000.0 + 1e-4;
+        let error = (clamped - decoded).abs();
+        prop_assert!(
+            error <= tolerance,
+            "torque {clamped} round-trips as {decoded} (error {error} > tolerance {tolerance})"
+        );
+    }
+
+    /// Boundary: full-scale positive and negative torques must decode back
+    /// within 0.01 Nm of ±max_torque.
+    #[test]
+    fn prop_torque_round_trip_boundary(max_torque in 0.1f32..=50.0f32) {
+        let enc = tm::ThrustmasterConstantForceEncoder::new(max_torque);
+        let mut out = [0u8; tm::EFFECT_REPORT_LEN];
+
+        enc.encode(max_torque, &mut out);
+        let raw_pos = i16::from_le_bytes([out[2], out[3]]);
+        let decoded_pos = raw_pos as f32 / 10_000.0 * max_torque;
+        prop_assert!(
+            (decoded_pos - max_torque).abs() < 0.01,
+            "+max round-trip: decoded {decoded_pos} vs expected {max_torque}"
+        );
+
+        enc.encode(-max_torque, &mut out);
+        let raw_neg = i16::from_le_bytes([out[2], out[3]]);
+        let decoded_neg = raw_neg as f32 / 10_000.0 * max_torque;
+        prop_assert!(
+            (decoded_neg + max_torque).abs() < 0.01,
+            "-max round-trip: decoded {decoded_neg} vs expected -{max_torque}"
+        );
+    }
+}
+
+// ── Input report parse round-trip ────────────────────────────────────────
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(500))]
+
+    /// Steering encoded as u16 LE in a constructed input report must round-trip
+    /// through parse_input_report to a normalised value matching the formula.
+    #[test]
+    fn prop_input_steering_round_trip(steering_raw: u16) {
+        let mut data = vec![0x01u8];
+        data.extend_from_slice(&steering_raw.to_le_bytes());
+        data.resize(12, 0);
+        if let Some(state) = tm::parse_input_report(&data) {
+            let expected = (steering_raw as f32 - 32768.0) / 32768.0;
+            prop_assert!(
+                (state.steering - expected).abs() < 1e-4,
+                "steering 0x{:04X} → expected {expected}, got {}",
+                steering_raw,
+                state.steering
+            );
+        }
+    }
+}

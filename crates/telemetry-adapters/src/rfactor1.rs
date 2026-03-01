@@ -39,6 +39,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 /// Default UDP port for the rFactor 1 telemetry interface.
+/// Verified: ISI rFactor community UDP plugin standard port.
 const DEFAULT_RF1_PORT: u16 = 6776;
 
 /// Minimum packet size required to read the world-velocity vector (speed).
@@ -96,7 +97,7 @@ impl RFactor1Variant {
 
 /// Parse a raw rFactor 1 UDP telemetry packet into [`NormalizedTelemetry`].
 ///
-/// Returns an error if the packet is shorter than [`RF1_MIN_PACKET_SIZE`].
+/// Returns an error if the packet is shorter than `RF1_MIN_PACKET_SIZE`.
 /// Deeper fields (RPM, gear, inputs) are silently defaulted to zero when the
 /// packet does not extend far enough.
 pub fn parse_rfactor1_packet(data: &[u8]) -> Result<NormalizedTelemetry> {

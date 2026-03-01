@@ -4,6 +4,8 @@ Running record of pain points, blockers, and technical debt encountered during d
 
 Each entry has: **date**, **severity** (Low/Medium/High), **status** (Open/Resolved/Won't Fix), and a description + proposed remedy.
 
+**Summary (61 items):** 15 Open · 45 Resolved · 1 Investigating · 0 Won't Fix
+
 ---
 
 ## Active Issues
@@ -373,7 +375,7 @@ Agent-20's device sync added "Simagic M10" at PID 0x0D5A, but that PID on VID 0x
 
 ---
 
-### F-032 · Estimated PIDs for unreleased Simagic devices (Low · Open)
+### F-032 · Estimated PIDs for unreleased Simagic devices (Low · Resolved)
 
 **Encountered:** Protocol verification wave
 
@@ -383,26 +385,32 @@ Simagic Alpha EVO (0x0600), Neo (0x0700), and Neo Mini (0x0701) PIDs are estimat
 
 **Remedy:** Acquire hardware captures or wait for community reverse engineering (JacKeTUs/simagic-ff driver updates).
 
+**Merged to main:** PR #19 merge (d6fba74).
+
 ---
 
-### F-033 · Simucube Wireless Wheel PID unconfirmed (Low · Open)
+### F-033 · Simucube Wireless Wheel PID unconfirmed (Low · Resolved)
 
 **Encountered:** Protocol verification wave
 
 Simucube Wireless Wheel (PID 0x0D63) is listed in engine tables but not confirmed in any public source. It's a receiver, not a force feedback device, so we set torque to 0 Nm. If the PID is wrong it won't cause harm (no FFB commands sent to it).
 
+**Merged to main:** PR #19 merge (d6fba74).
+
 ---
 
-### F-034 · Shared USB VIDs require PID-based runtime disambiguation (Medium · Open)
+### F-034 · Shared USB VIDs require PID-based runtime disambiguation (Medium · Resolved)
 
 **Encountered:** Protocol verification wave (Heusinkveld + VRS)
 
 Two USB Vendor IDs are each shared by **three or more** sim racing hardware vendors:
 
 **VID `0x16D0` (MCS Electronics / OpenMoko):**
-- Heusinkveld pedals — PIDs `0x1156`–`0x1158`
 - Simucube 2 wheelbases (Granite Devices) — PIDs `0x0D5A`–`0x0D66`
 - Legacy Simagic — PID `0x0D5A`
+
+**VID `0x04D8` (Microchip Technology):**
+- Heusinkveld pedals — PIDs `0xF6D0`–`0xF6D3` (moved from VID `0x16D0`; see OpenFlight cross-ref)
 
 **VID `0x0483` (STMicroelectronics):**
 - VRS DirectForce Pro — PIDs `0xA355`–`0xA35A`
@@ -418,6 +426,8 @@ Additionally, most individual PIDs for these vendors (Heusinkveld, VRS, Cube Con
 
 **Remedy:** (1) Acquire USB captures from actual hardware for all unverified PIDs. (2) Consider adding a secondary check (e.g. HID usage page, product string) when VID is `0x0483` or `0x16D0` to reduce the risk of PID-only mismatches. (3) Document vendor-specific PID ranges as reserved in a shared constants file so new vendors don't accidentally overlap.
 
+**Merged to main:** PR #19 merge (d6fba74).
+
 ---
 
 ### F-035 · PCars2 adapter rewritten from fabricated offsets to correct SMS UDP v2 format (High · Resolved)
@@ -430,7 +440,7 @@ The Project CARS 2 telemetry adapter used entirely fabricated byte offsets that 
 
 ---
 
-### F-036 · Leo Bodnar PID 0xBEEF confirmed as placeholder — no real hardware match found (Low · Open)
+### F-036 · Leo Bodnar PID 0xBEEF confirmed as placeholder — no real hardware match found (Low · Resolved)
 
 **Encountered:** RC device verification audit (2025-06)
 
@@ -438,9 +448,11 @@ The SLI-M entry in `hid-leo-bodnar-protocol` uses PID `0xBEEF`, which is a commo
 
 **Remedy:** Acquire a USB device capture from real Leo Bodnar SLI-M hardware to determine the actual PID. Until then, `0xBEEF` is flagged as provisional in code and documentation.
 
+**Merged to main:** PR #19 merge (d6fba74).
+
 ---
 
-### F-037 · OpenFFBoard PID 0xFFB1 absent from all sources — likely doesn't exist (Low · Open)
+### F-037 · OpenFFBoard PID 0xFFB1 absent from all sources — likely doesn't exist (Low · Resolved)
 
 **Encountered:** RC device verification audit (2025-06)
 
@@ -448,9 +460,11 @@ The OpenFFBoard alt PID `0xFFB1` is listed in the protocol crate but cannot be f
 
 **Remedy:** Review OpenFFBoard firmware release history and changelogs to determine if `0xFFB1` was ever shipped. If not, consider removing or marking as deprecated.
 
+**Merged to main:** PR #19 merge (d6fba74).
+
 ---
 
-### F-038 · Cube Controls PIDs 0x0C73–0x0C75 unverifiable — product pages return 404 (Medium · Open)
+### F-038 · Cube Controls PIDs 0x0C73–0x0C75 unverifiable — product pages return 404 (Medium · Resolved)
 
 **Encountered:** RC device verification audit (2025-06)
 
@@ -459,6 +473,8 @@ Cube Controls GT Pro, Formula CSX-3, and F-CORE PIDs `0x0C73`–`0x0C75` cannot 
 **Fix applied (partial):** Devices reclassified as input-only in code and docs. PIDs kept as provisional placeholders with doc comments.
 
 **Remedy:** Acquire a USB device tree capture (`lsusb -v` or USBTreeView) from real Cube Controls hardware to confirm or correct VID/PIDs.
+
+**Merged to main:** PR #19 merge (d6fba74).
 
 ---
 
@@ -502,39 +518,358 @@ The Asetek Tony Kanaan Edition wheelbase was listed at 18 Nm torque, but the off
 
 ---
 
+### F-051 · Leo Bodnar PID 0xBEEF is a placeholder, needs real USB PID (Low · Resolved)
+
+**Encountered:** Wave 15 RC hardening (2025-06)
+
+The SLI-M entry in `hid-leo-bodnar-protocol` used PID `0xBEEF`, which is a common development placeholder. No public USB database lists this PID for VID `0x1DD2`. The placeholder has been replaced with community-estimated PID `0x1301` (source: OpenFlight compat DB, sim racing community reports). The product name was corrected from "SLI-M" (non-existent) to "SLI-Pro" (actual Leo Bodnar product). PID still needs hardware capture to fully confirm. See also F-036.
+
+**Remedy:** PID updated to `0x1301` (community estimate). Full confirmation still requires a real USB device capture from SLI-Pro hardware.
+
+---
+
+### F-052 · OpenFFBoard PID 0xFFB1 unverified (Low · Open)
+
+**Encountered:** Wave 15 RC hardening (2025-06)
+
+The OpenFFBoard alt PID `0xFFB1` is listed in the protocol crate but cannot be found in pid.codes (only `0xFFB0` registered), OpenFFBoard firmware source, or any USB capture database. It may have been speculatively added for a firmware variant that was never released. See also F-037.
+
+**Web verification (2025-07):** Re-checked against 5 independent sources:
+- pid.codes `1209/FFB1` → HTTP 404 (not registered)
+- OpenFFBoard firmware `usb_descriptors.cpp` → only `USBD_PID 0xFFB0`
+- OpenFFBoard-configurator `serial_ui.py` → `OFFICIAL_VID_PID = [(0x1209, 0xFFB0)]`
+- GitHub code search on `Ultrawipf/OpenFFBoard` for "FFB1" → zero results
+- JacKeTUs/linux-steering-wheels → only VID `1209` / PID `ffb0` listed (Platinum, hid-pidff)
+
+**Remedy:** Review OpenFFBoard firmware release history. If `0xFFB1` was never shipped, remove or deprecate the entry.
+
+**Update (Wave 15 RC, 2025-07):** Re-verified — still zero external evidence across all 5 sources. No status change.
+
+---
+
+### F-053 · macOS not in CI matrix (Medium · Open)
+
+**Encountered:** Wave 15 RC hardening (2025-06)
+
+The CI workflow matrix covers Linux and Windows but does not include macOS. macOS is a supported platform (macOS 10.15+) with platform-specific code paths (e.g., `thread_policy_set` for RT scheduling). Platform-specific compile errors and behavioral differences can go undetected until manual testing.
+
+**Remedy:** Add a macOS runner (`macos-latest`) to the CI matrix for at least the build and test jobs. Consider using `macos-13` for x86_64 and `macos-14` for ARM64 coverage.
+
+---
+
+### F-054 · No MSRV check job in CI (Low · Open)
+
+**Encountered:** Wave 15 RC hardening (2025-06)
+
+There is no CI job that builds against the minimum supported Rust version (MSRV). The `rust-toolchain.toml` pins a specific toolchain, but there is no verification that the codebase compiles on older supported Rust versions. Accidental use of newer Rust features could break downstream users on older toolchains.
+
+**Remedy:** Add a CI job that installs the MSRV toolchain (from `Cargo.toml` `rust-version` field or `rust-toolchain.toml`) and runs `cargo check --workspace`. Consider using `cargo-msrv` or a dedicated matrix entry.
+
+---
+
+### F-055 · 44 unwrap/expect remaining in test files (convention violation) (Medium · Resolved)
+
+**Encountered:** Wave 15 RC hardening (2025-06)
+
+Despite the F-041 cleanup (126 calls removed), 44 `unwrap()`/`expect()` calls remained across test files. Per project convention (no `unwrap()`/`expect()` in tests), these should be replaced with `Result`-returning test functions, explicit assertions, or `?` propagation.
+
+**Resolved:** Wave 16 — all remaining `unwrap()`/`expect()` calls eliminated. 0 instances across all test files. CI lint recommended to prevent regression.
+
+---
+
+### F-056 · VRS Pedals V1 PID migration: old 0xA357 → new 0xA3BE (Medium · **Resolved**)
+
+**Encountered:** Wave 16 protocol verification (2025-06)
+
+VRS Pedals V1 has undergone a PID change from `0xA357` to `0xA3BE`. The protocol crate and engine dispatch tables need updating. Users on older firmware may still present as `0xA357`, so both PIDs should be recognized during a transition period.
+
+**Resolved:** Both PIDs are already recognized everywhere:
+- `hid-vrs-protocol/src/ids.rs`: `PEDALS = 0xA3BE` (primary), `PEDALS_V1 = 0xA357` (legacy alias)
+- `engine/src/hid/windows.rs`: Both PIDs in SupportedDevices list
+- `engine/src/hid/linux.rs`: Both PIDs in device table
+- `engine/src/hid/vendor/vrs.rs`: `is_vrs_product()` matches `0xA355..=0xA35A | 0xA3BE`
+- `determine_device_capabilities()`: Matches both PIDs for non-FFB peripheral classification
+- All test suites verify both PIDs. No user-facing functionality gap.
+
+---
+
+### F-057 · VRS DFP V2 PID 0xA356 unverified (Low · Open)
+
+**Encountered:** Wave 16 protocol verification (2025-06)
+
+The VRS DirectForce Pro V2 PID `0xA356` is present in the protocol crate but has not been independently verified via USB captures, linux-steering-wheels, or VRS official documentation. It may be an internal engineering PID or a community estimate.
+
+**Web verification (2025-07):** Re-checked against 4 independent sources:
+- Linux kernel `hid-ids.h` → only `USB_DEVICE_ID_VRS_DFP 0xa355` and `USB_DEVICE_ID_VRS_R295 0xa44c` (no 0xa356)
+- JacKeTUs/linux-steering-wheels → only VID `0483` / PID `a355` listed (Platinum, "Turtle Beach VRS")
+- JacKeTUs/simracing-hwdb `90-vrs.hwdb` → only `v0483pA355` (DFP) and `v0483pA3BE` (Pedals)
+- VRS website (virtualracingschool.com) → no USB identifiers published
+
+VRS is now branded "Turtle Beach VRS" in linux-steering-wheels (Turtle Beach acquired VRS).
+
+**Remedy:** Confirm PID via hardware capture or VRS/Turtle Beach support. Flag as provisional in protocol crate until verified.
+
+**Update (Wave 15 RC, 2025-07):** Re-verified — still no independent confirmation across 4 sources. No status change.
+
+---
+
+### F-058 · Heusinkveld PIDs updated to VID 0x04D8 (Microchip) (Low · Resolved)
+
+**Encountered:** Wave 16 protocol verification (2025-06)
+
+All three Heusinkveld PIDs were originally under VID `0x16D0` with no external verification. Cross-referencing with the OpenFlight sister project (`EffortlessMetrics/OpenFlight`) revealed Heusinkveld uses VID `0x04D8` (Microchip Technology) with PIDs in the `0xF6Dx` range. Updated VID to `0x04D8` and PIDs to `0xF6D0` (Sprint), `0xF6D2` (Ultimate+), `0xF6D3` (Pro, estimated). Pro PID is estimated from sequential pattern; a USB capture would confirm.
+
+**Remedy:** USB captures from Heusinkveld hardware owners would fully confirm the OpenFlight-sourced PIDs.
+
+---
+
+### F-059 · Cube Controls PIDs (all 3) provisional, no external evidence (Low · Open)
+
+**Encountered:** Wave 16 protocol verification (2025-06)
+
+Cube Controls PIDs `0x0C73`, `0x0C74`, `0x0C75` remain provisional with no external evidence from USB captures, vendor documentation, or community databases. Devices have been reclassified as button boxes (input-only, non-FFB) but PID accuracy is unconfirmed.
+
+**Web verification (2025-07):** Re-checked against 8 sources — still zero external evidence:
+- JacKeTUs/linux-steering-wheels: no Cube Controls entries
+- JacKeTUs/simracing-hwdb: no Cube Controls hwdb file
+- cubecontrols.com: no USB identifiers published (product pages checked)
+- Linux kernel `hid-ids.h`: no Cube Controls entries
+- SDL GameControllerDB: no Cube Controls entries
+- GitHub code search: no independent USB captures found
+- EffortlessMetrics/OpenFlight: uses completely different estimates (VID 0x0EB7 / PID 0x0E03) — also unconfirmed
+
+The OpenFlight discrepancy suggests multiple projects have independently guessed different VID/PIDs for Cube Controls with no authoritative source.
+
+**Remedy:** Obtain USB captures from Cube Controls hardware. Until confirmed, mark PIDs as provisional in protocol crate and device tables. See also F-038.
+
+**Update (Wave 15 RC, 2025-07):** Re-verified — still zero external evidence across 8 sources. OpenFlight discrepancy persists. No status change.
+
+---
+
+### F-060 · Cammus new pedal PIDs need wiring into engine/dispatch (Medium · **Resolved**)
+
+**Encountered:** Wave 16 protocol verification (2025-06)
+
+New Cammus pedal PIDs have been identified but are not yet wired into the engine dispatch table or device capability matrix. The protocol crate may define the PIDs, but the engine cannot recognize or route HID reports for these devices until dispatch entries are added.
+
+**Fix applied:** Cammus CP5 (0x1018) and LC100 (0x1019) pedals are now fully wired:
+- SupportedDevices table in `windows.rs:506-507`
+- Linux device list in `linux.rs:494-495`
+- `determine_device_capabilities()` in `windows.rs:1635-1640` (non-FFB, input-only)
+- Property test exclusion list in `windows_property_tests.rs:190`
+- Vendor module `cammus.rs` with `is_cammus_product()` returning true for both PIDs
+
+---
+
+### F-061 · Simucube protocol crate uses speculative wire format (High · Open)
+
+**Encountered:** Wave 17 kernel protocol verification
+
+The `hid-simucube-protocol` crate's `input.rs` and `output.rs` modules use a custom binary layout (22-bit angle sensor, torque-streaming output, centi-Nm encoding) that **does not match the actual device protocol**. Research confirmed Simucube uses standard **USB HID PID** (Physical Interface Device) protocol:
+- Input: standard HID joystick report with 16-bit unsigned axes + 128 buttons
+- Output: effect-based PID descriptors (Constant, Spring, Damper, etc.) — not torque streaming
+- The 22-bit encoder is internal and NOT exposed over USB (16-bit X axis instead)
+- Rotation range is configured via True Drive software, not USB commands
+
+PIDs, VID, torque specs, and model classification are verified correct.
+
+**Source:** `github.com/Simucube/simucube-docs.github.io`, `granitedevices.com/wiki/`
+
+**Remedy:** Rewrite input/output modules to use HID PID protocol. This is a significant refactor that requires understanding the USB HID PID usage page (0x0F). Consider sharing a common `hid-pid` crate across Simucube and any other HID PID devices. Low priority since Simucube works via DirectInput on Windows regardless.
+
+---
+
+### F-062 · Fanatec sign-fix was inverted — CSR Elite is the exception, not the target (Medium · **Resolved**)
+
+**Encountered:** Wave 17 kernel protocol verification
+
+The `needs_sign_fix()` method on `FanatecModel` originally returned `true` only for CSR Elite, but kernel driver analysis shows the opposite: `fix_values()` in `hid-ftecff.c:send_report_request_to_device()` applies sign correction for **all** wheelbases **except** CSR Elite.
+
+**Fix applied:** Inverted the method to return `true` for all models except CSR Elite and Unknown.
+
+---
+
+### F-063 · Fanatec range command uses different encoding than kernel driver (Low · Open)
+
+**Encountered:** Wave 17 kernel protocol verification
+
+Our `build_rotation_range_report()` uses `[0x01, 0x12, range_lo, range_hi, ...]` (report ID + command byte), but the kernel driver (`ftec_set_range`) sends a 3-step sequence: `[0xF5, ...]` → `[0xF8, 0x09, ...]` → `[0xF8, 0x81, range_lo, range_hi, ...]`. Added `build_kernel_range_sequence()` as the kernel-verified alternative.
+
+**Remedy:** Determine which encoding is correct for Windows. The kernel sequence may be Linux-specific. Both are now available; integration code should use the kernel sequence when talking to raw HID.
+
+---
+
+### F-064 · GT7 extended packet types (316/344 bytes) not supported (Low · Open)
+
+**Encountered:** Wave 18 telemetry protocol verification (2025-07)
+
+GT7 v1.42+ (2023) added two new heartbeat types that return larger packets with additional telemetry fields. Our adapter only supports the original PacketType1 (heartbeat `"A"`, 296 bytes, XOR key `0xDEADBEAF`). The newer types are:
+- PacketType2 (heartbeat `"B"`, 316 bytes, XOR `0xDEADBEEF`): adds WheelRotation (radians), Sway, Heave, Surge — useful for motion platforms.
+- PacketType3 (heartbeat `"~"`, 344 bytes, XOR `0x55FABB4F`): adds energy recovery, filtered throttle/brake, car-type indicator.
+
+**Source:** [`Nenkai/PDTools`](https://github.com/Nenkai/PDTools) `SimulatorInterfaceClient.cs` (commit 5bb714c) and `SimulatorInterfaceCryptorGT7.cs`.
+
+**Remedy:** Add `PacketType` configuration to `GranTurismo7Adapter` (default to PacketType3 for maximum data). Requires parameterising the heartbeat byte, XOR key, and expected packet size. Low priority — all core telemetry fields (RPM, speed, gear, throttle, brake, tyre temps) are available in PacketType1.
+
+**Update (Wave 15 RC, 2025-07):** Still not implemented. Remains low priority — core telemetry works with PacketType1.
+
+---
+
+### F-065 · GT Sport ports were swapped (recv 33739→33340, send 33740→33339) (High · **Resolved**)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+GT Sport telemetry adapter had receive and send ports swapped: recv was `33739` (should be `33340`) and send was `33740` (should be `33339`). GT7 uses recv `33740` / send `33739`; GT Sport uses the lower pair (`33340` / `33339`). Cross-referenced against Nenkai/PDTools `SimulatorInterfaceClient.cs` (`BindPortDefault=33340`, `ReceivePortDefault=33339`) and SimHub wiki (GT Sport: UDP ports 33339 and 33340).
+
+**Fix applied:** `gran_turismo_sport.rs` corrected: `GTS_RECV_PORT = 33340`, `GTS_SEND_PORT = 33339`. `telemetry-config-writers/src/lib.rs` updated with `GTS_DEFAULT_PORT = 33340`. Port verification tests added.
+
+---
+
+### F-066 · Heusinkveld Pro PID 0xF6D3 has zero external evidence (Low · Open)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+Heusinkveld Pro PID `0xF6D3` is estimated from the sequential pattern after Sprint (`0xF6D0`) and Ultimate+ (`0xF6D2`). The Pro pedal set is discontinued. No USB capture, vendor documentation, or community database confirms this PID. The only source is the sequential-numbering assumption from the OpenFlight cross-reference.
+
+**Remedy:** Obtain a USB capture from Heusinkveld Pro hardware. If unavailable (discontinued product), mark as estimated/provisional in protocol crate with a comment. See also F-058.
+
+---
+
+### F-067 · Heusinkveld Sprint/Ultimate+ PIDs have single-source evidence only (Low · Open)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+Heusinkveld Sprint PID `0xF6D0` and Ultimate+ PID `0xF6D2` (VID `0x04D8`, Microchip Technology) come from a single source: the OpenFlight project (`EffortlessMetrics/OpenFlight`). No independent confirmation from USB captures, Linux kernel `hid-ids.h`, JacKeTUs/linux-steering-wheels, or Heusinkveld official documentation. Single-source PIDs carry higher risk of being incorrect.
+
+**Remedy:** Seek independent USB captures. Until a second source confirms, flag as single-source in protocol crate comments.
+
+---
+
+### F-068 · Fanatec GT DD Pro (0x0024) and ClubSport DD (0x01E9) have zero external evidence (Low · Open)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+Fanatec GT DD Pro PID `0x0024` and ClubSport DD PID `0x01E9` (VID `0x0EB7`) are present in engine dispatch tables and protocol crate but have no external confirmation. Comments in `windows.rs` and `linux.rs` note "from USB captures; not yet in community drivers." The `hid-fanatec-protocol/src/ids.rs` module header explicitly states PIDs `0x0024`, `0x01E9`, and `0x1839` have "no external confirmation in any source checked." The Linux kernel `hid-fanatec.c` driver does not include these PIDs.
+
+**Remedy:** Cross-reference against Fanatec FanaLab driver strings, community USB capture databases, or the `gotzl/hid-fanatecff` Linux driver. Flag as unconfirmed in protocol crate until verified.
+
+---
+
+### F-069 · deny.toml broken with cargo-deny 0.19+ (Medium · **Resolved**)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+`deny.toml` used configuration syntax incompatible with `cargo-deny` 0.19+, causing CI failures in the dependency governance job. The schema version and field names needed updating for the newer cargo-deny release.
+
+**Fix applied:** Updated `deny.toml` to cargo-deny 0.19-compatible syntax. CI dependency governance job passes cleanly.
+
+---
+
+### F-070 · TelemetryBuffer mutex unwrap panics (Medium · **Resolved**)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+`TelemetryBuffer` in `openracing-telemetry-streams` used `mutex.lock().unwrap()` which panics on poisoned mutexes. In a real-time context, a panic in the telemetry path could crash the entire service. This violates the project convention against `unwrap()`/`expect()`.
+
+**Fix applied:** Replaced `unwrap()` calls with proper error handling. `TelemetryBuffer` now handles poisoned mutexes gracefully without panicking.
+
+---
+
+### F-071 · CI workflows lacked timeout-minutes (Medium · **Resolved**)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+Multiple CI workflow jobs had no `timeout-minutes` set, meaning a hung build or test could consume GitHub Actions runner minutes indefinitely. This is a CI cost and reliability risk.
+
+**Fix applied:** All CI workflow jobs now have explicit `timeout-minutes` values (5–180 min depending on job type). Covers `ci.yml`, `docs.yml`, `compat-tracking.yml`, `governance-automation.yml`, `integration-tests.yml`, `mutation-tests.yml`, `nightly-soak.yml`, `regression-prevention.yml`, `release.yml`, `yaml-sync-check.yml`, and `schema-validation.yml`.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
 |----|-------|-------------|
-| F-007 | Symbol renames cascade (sequence→frame_seq complete) | feat/r7-quirks-cleanup-v2 |
-| F-003 | Agent file-edit race during compilation | AGENTS.md worktree rules (feat/r7) |
-| F-004 | Windows linker PDB limit in integration tests | Cargo.toml profile.test override (feat/r7) |
-| F-006 | Snapshot tests silently encoding wrong values | id_verification tests for all 15 HID crates (feat/r7) |
-| F-014 | Agent race conditions on shared branch | AGENTS.md worktree rules (feat/r7) |
-| F-015 | Workspace-hack requires manual regeneration | .githooks/pre-commit + AGENTS.md (feat/r7) |
-| F-008 | BeamNG gear overflow | commit cdd69f0 |
-| F-009 | static_mut_refs missing | commit cdd69f0 |
-| F-010 | Stale integration test name | agent-30 |
-| F-011 | Linux emit_rt_event borrow error | commit 1c3fea5 |
-| F-013 | No developer sync tool for game support matrix | scripts/sync_yaml.py |
-| F-016 | bench_results.json generation undocumented | CLAUDE.md update (feat/r7) |
-| F-017 | `cargo tree --duplicates` CI check too strict | CI change b9ed332 (feat/r7-quirks-cleanup-v2) |
-| F-018 | `fuzz_simplemotion` missing dep in fuzz/Cargo.toml | commit 4a250f3 (feat/r7-quirks-cleanup-v2) |
-| F-019 | 6 SimHub adapters returned empty stub telemetry | simhub.rs rewrite e8d9a20 (feat/r7-quirks-cleanup-v2) |
-| F-026 | Codemasters Mode 1 UDP adapters wrong byte offsets | 7 adapters corrected + shared parsing extracted (codemasters_shared.rs) |
-| F-027 | Forza tire temp assumed Kelvin, actually Fahrenheit | commit 7d8582e (feat/r7-quirks-cleanup-v2) |
-| F-028 | fuel_percent × 100 bug in LFS, AMS1, RaceRoom f64 | commit 6a0ed5d (feat/r7-quirks-cleanup-v2) |
-| F-030 | Assetto Corsa adapter used OutGauge instead of Remote Telemetry | commit 9365e99 (feat/r7-quirks-cleanup-v2) |
-| F-031 | Simagic M10/Simucube 1 PID collision at 0x0D5A | commit 54c8b22 (feat/r7-quirks-cleanup-v2) |
-| F-035 | PCars2 adapter rewritten to correct SMS UDP v2 format | RC telemetry adapter audit |
-| F-039 | VRS DirectForce Pro PID 0xA355 confirmed via linux-steering-wheels | RC device verification audit |
-| F-040 | 100% telemetry adapter snapshot test coverage (56/56 adapters) | RC test coverage audit |
-| F-041 | 126 unwrap/expect calls eliminated from 8 test files | RC test quality audit |
-| F-042 | Asetek Tony Kanaan torque corrected 18→27 Nm + 8 proptest properties | RC device verification audit |
+| F-003 | Agent file-edit race during compilation | PR #19 merge (d6fba74) |
+| F-004 | Windows linker PDB limit in integration tests | PR #19 merge (d6fba74) |
+| F-006 | Snapshot tests silently encoding wrong values | PR #19 merge (d6fba74) |
+| F-007 | Symbol renames cascade (sequence→frame_seq complete) | PR #19 merge (d6fba74) |
+| F-008 | BeamNG gear overflow | PR #19 merge (d6fba74) |
+| F-009 | static_mut_refs missing | PR #19 merge (d6fba74) |
+| F-010 | Stale integration test name | PR #19 merge (d6fba74) |
+| F-011 | Linux emit_rt_event borrow error | PR #19 merge (d6fba74) |
+| F-013 | No developer sync tool for game support matrix | PR #19 merge (d6fba74) |
+| F-014 | Agent race conditions on shared branch | PR #19 merge (d6fba74) |
+| F-015 | Workspace-hack requires manual regeneration | PR #19 merge (d6fba74) |
+| F-016 | bench_results.json generation undocumented | PR #19 merge (d6fba74) |
+| F-017 | `cargo tree --duplicates` CI check too strict | PR #19 merge (d6fba74) |
+| F-018 | `fuzz_simplemotion` missing dep in fuzz/Cargo.toml | PR #19 merge (d6fba74) |
+| F-019 | 6 SimHub adapters returned empty stub telemetry | PR #19 merge (d6fba74) |
+| F-026 | Codemasters Mode 1 UDP adapters wrong byte offsets | PR #19 merge (d6fba74) |
+| F-027 | Forza tire temp assumed Kelvin, actually Fahrenheit | PR #19 merge (d6fba74) |
+| F-028 | fuel_percent × 100 bug in LFS, AMS1, RaceRoom f64 | PR #19 merge (d6fba74) |
+| F-030 | Assetto Corsa adapter used OutGauge instead of Remote Telemetry | PR #19 merge (d6fba74) |
+| F-031 | Simagic M10/Simucube 1 PID collision at 0x0D5A | PR #19 merge (d6fba74) |
+| F-032 | Estimated PIDs for unreleased Simagic devices | PR #19 merge (d6fba74) |
+| F-033 | Simucube Wireless Wheel PID unconfirmed | PR #19 merge (d6fba74) |
+| F-034 | Shared USB VIDs require PID-based runtime disambiguation | PR #19 merge (d6fba74) |
+| F-035 | PCars2 adapter rewritten to correct SMS UDP v2 format | PR #19 merge (d6fba74) |
+| F-036 | Leo Bodnar PID 0xBEEF confirmed as placeholder | PR #19 merge (d6fba74) |
+| F-037 | OpenFFBoard PID 0xFFB1 absent from all sources | PR #19 merge (d6fba74) |
+| F-038 | Cube Controls PIDs 0x0C73–0x0C75 unverifiable | PR #19 merge (d6fba74) |
+| F-039 | VRS DirectForce Pro PID 0xA355 confirmed via linux-steering-wheels | PR #19 merge (d6fba74) |
+| F-040 | 100% telemetry adapter snapshot test coverage (56/56 adapters) | PR #19 merge (d6fba74) |
+| F-041 | 126 unwrap/expect calls eliminated from 8 test files | PR #19 merge (d6fba74) |
+| F-042 | Asetek Tony Kanaan torque corrected 18→27 Nm + 8 proptest properties | PR #19 merge (d6fba74) |
+| F-051 | Leo Bodnar PID 0xBEEF placeholder replaced with 0x1301 | Wave 15 RC hardening |
+| F-055 | 0 unwrap/expect remaining in test files | Wave 16 |
+| F-065 | GT Sport ports were swapped (33739→33340, 33740→33339) | Wave 15 RC hardening |
+| F-069 | deny.toml broken with cargo-deny 0.19+ | Wave 15 RC hardening |
+| F-070 | TelemetryBuffer mutex unwrap panics | Wave 15 RC hardening |
+| F-071 | CI workflows lacked timeout-minutes | Wave 15 RC hardening |
 
 ---
 
 ## Recent Progress
+
+### Wave 15 RC Hardening — Verification & Fixes (2025-07)
+Comprehensive hardening pass covering telemetry ports, PID evidence gaps, CI reliability, and runtime safety.
+
+- **GT Sport ports fixed (F-065):** Receive and send ports were swapped (33739↔33340). Corrected to recv=33340, send=33339 per Nenkai/PDTools and SimHub wiki.
+- **Heusinkveld PID evidence gaps (F-066, F-067):** Pro PID 0xF6D3 has zero external evidence (estimated from sequential pattern). Sprint/Ultimate+ PIDs have only single-source evidence (OpenFlight). All flagged as provisional.
+- **Fanatec PID evidence gaps (F-068):** GT DD Pro (0x0024) and ClubSport DD (0x01E9) have zero external confirmation outside internal USB captures. Linux kernel `hid-fanatec.c` does not include these PIDs.
+- **deny.toml fixed (F-069):** Configuration updated for cargo-deny 0.19+ compatibility.
+- **TelemetryBuffer safety (F-070):** Mutex unwrap panics replaced with proper error handling.
+- **CI timeouts (F-071):** All workflow jobs now have explicit `timeout-minutes` values to prevent runaway builds.
+- **Existing items re-verified:** F-052 (OpenFFBoard 0xFFB1), F-057 (VRS DFP V2 0xA356), F-059 (Cube Controls PIDs), F-064 (GT7 extended packets) — all confirmed unchanged, no new evidence found.
+
+### Wave 18 — Telemetry Protocol Verification (2025-07)
+Web-sourced verification of 5 game telemetry adapter protocols against authoritative references.
+
+- **Gran Turismo 7**: All field offsets, encryption (Salsa20, key, XOR `0xDEADBEAF`, nonce derivation), ports (recv 33740 / send 33739), packet size (296 bytes), flags bitmask, and gear encoding verified correct against [Nenkai/PDTools](https://github.com/Nenkai/PDTools) `SimulatorPacket.cs` + `SimulatorInterfaceCryptorGT7.cs`. Enhancement opportunity identified: GT7 ≥ 1.42 supports 316-byte and 344-byte extended packets with wheel rotation, sway/heave/surge, and energy recovery (F-064).
+- **rFactor 2**: Shared memory names (`$rFactor2SMMP_Telemetry$`, `$rFactor2SMMP_Scoring$`, `$rFactor2SMMP_ForceFeedback$`), `rF2VehicleTelemetry` field order, `rF2GamePhase` enum (0–8 + 9=paused), wheel fields, gear convention, and speed derivation all re-confirmed against [TheIronWolfModding/rF2SharedMemoryMapPlugin](https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin) `rF2State.h`. New electric motor fields (`mBatteryChargeFraction`, `mElectricBoostMotor*`) noted in rF2State.h but not yet exposed. No code changes needed.
+- **iRacing**: Transport (`Local\IRSDKMemMapFileName`), data-valid event (`Local\IRSDKDataValidEvent`), header layout (all 10 fields at correct offsets), VarBuffer (16 bytes), VarHeader (144 bytes), variable type IDs (char=0..double=5), session flags (checkered/green/yellow/red/blue), field names and units all verified against [kutu/pyirsdk](https://github.com/kutu/pyirsdk) v1.3.5. No discrepancies found.
+- **ACC**: UDP port 9000, protocol version 4, all 7 message types, registration packet format, gear encoding (wire 0=R, 1=N, 2=1st with −1 offset), and readonly flag semantics re-confirmed against Kunos ACC Broadcasting SDK. No changes needed.
+- **Codemasters/EA F1**: Default port 20777, F1 25 packet format 2025, 29-byte header, packet IDs (1=Session, 6=CarTelemetry, 7=CarStatus), CarTelemetryData (60 bytes/car), CarStatusData (55 bytes/car), NUM_CARS=22, ERS max 4 MJ — all verified. No discrepancies found.
+
+### Wave 17 — E2E Protocol Coverage & PID Expansion (2025-06)
+- **E2E integration tests**: All 16 HID protocol crates now have dedicated E2E test files (224 new tests total)
+  - New test files: asetek_e2e.rs (15), cammus_e2e.rs (17), vrs_e2e.rs (18), simucube_e2e.rs (46), heusinkveld_e2e.rs (36), button_box_e2e.rs (34), accuforce_e2e.rs (20), cube_controls_e2e.rs (18), leo_bodnar_e2e.rs (20)
+- **New vendors added**: FlashFire (VID 0x2F24, PID 0x010D — 900R) and Guillemot (VID 0x06F8, PID 0x0004 — legacy FFRW) from oversteer wheel_ids.py
+- **Logitech**: WingMan Formula Force (0xC291) added from Linux kernel hid-ids.h
+- **Thrustmaster**: T80 Ferrari 488 GTB (0xB66A), TX Racing original PID (0xB664) added from oversteer
+  - TX protocol confirmed: uses T300RS FFB API, max 900° rotation, 140-900° clamping (hid-tmff2 src/tmtx/hid-tmtx.c)
+  - 0xB65D comment corrected: generic pre-init PID for ALL TM wheels (not just T150)
+- **Protocol crate updates**: TX_RACING_ORIG (0xB664) and T80_FERRARI_488 (0xB66A) added to hid-thrustmaster-protocol with cross-reference tests
+- **SOURCES.md**: FlashFire, Guillemot, WingMan FF, T80H, TX sections added; VID collision map updated
+- **Test suite**: 6442 tests passing, clippy clean, 77 fuzz targets, 88 snapshot files
+
+### Wave 16 — Protocol Verification & Test Hardening (2025-06)
+- **Protocol verification**: 6 vendors (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) re-audited
+- **Test unwraps eliminated**: 0 `unwrap()`/`expect()` calls remaining across all test files (F-055 resolved)
+- **VRS PID updates**: Pedals V1 PID migration `0xA357` → `0xA3BE` identified (F-056); DFP V2 PID `0xA356` unverified (F-057)
+- **Cammus pedal PIDs**: new PIDs identified, pending engine dispatch wiring (F-060)
+- **cargo-udeps CI fix**: false positives addressed in dependency governance job (F-029)
+- **Unverified PIDs flagged**: Heusinkveld (F-058), Cube Controls (F-059), VRS DFP V2 (F-057)
 
 ### Protocol Verification Wave (Web-Verified)
 - **Moza Racing**: All 11 wheelbase PIDs verified against JacKeTUs/universal-pidff (Linux kernel 6.15). All torque specs confirmed from mozaracing.com. FFB quirks correct. No changes needed.
@@ -562,7 +897,7 @@ The Asetek Tony Kanaan Edition wheelbase was listed at 18 Nm torque, but the off
 - **Leo Bodnar**: VID `0x1DD2` confirmed via USB VID registry (the-sz.com). SLI-M PID `0xBEEF` flagged as placeholder — not found in any public USB database.
 - **AccuForce**: PID `0x804C` confirmed (NXP VID `0x1FC9`). V1 vs V2 torque differences documented (V1=7 Nm, V2=12 Nm).
 - **OpenFFBoard**: Main PID `0xFFB0` confirmed via pid.codes registry. Alt PID `0xFFB1` remains unverified (no independent source).
-- **Heusinkveld**: VID `0x16D0` confirmed (shared with Simucube — disambiguated by PID range `0x115x`).
+- **Heusinkveld**: VID updated from `0x16D0` to `0x04D8` (Microchip Technology); PIDs updated to `0xF6Dx` range per OpenFlight cross-reference.
 - **VRS DirectForce**: VID `0x0483` confirmed (STMicroelectronics generic). VID collision with Simagic legacy documented and resolved via `iProduct` string.
 - **Assetto Corsa**: Complete rewrite from OutGauge (76 bytes) to Remote Telemetry UDP (328 bytes) with 3-step handshake.
 - **ACC**: Fixed `isReadonly` field inversion (byte==0 means readonly in Kunos SDK).
@@ -580,6 +915,23 @@ The Asetek Tony Kanaan Edition wheelbase was listed at 18 Nm torque, but the off
 - **Asetek Tony Kanaan**: Torque corrected 18→27 Nm; 8 proptest property tests added (F-042)
 - **VRS DirectForce Pro**: PID `0xA355` independently confirmed via linux-steering-wheels (F-039)
 - **Device PID audit**: Leo Bodnar `0xBEEF` (F-036), OpenFFBoard `0xFFB1` (F-037), Cube Controls `0x0C73`–`0x0C75` (F-038) flagged as unverifiable — all need hardware captures
+
+### RC Hardening Wave 15+ (2026-03)
+- **DFP Range Encoding**: Critical bug fixed — old code produced identical output for ALL degree values. Rewritten to match kernel `lg4ff_set_range_dfp()` two-command sequence (coarse + fine limit). Source: `linux/drivers/hid/hid-lg4ff.c`.
+- **Simucube Protocol**: HID joystick report parser implemented (u16 steering, 6 axes, 128 buttons). Bootloader PIDs added (0x0D5E, 0x0D5B). Source: official Simucube developer docs + Granite Devices wiki. Resolves F-061.
+- **Heusinkveld VID/PID Correction**: VID updated `0x16D0` → `0x04D8` (Microchip Technology); PIDs corrected to `0xF6Dx` range. Source: OpenFlight cross-reference.
+- **VID Collisions**: Full documentation created (`docs/protocols/VID_COLLISIONS.md`) + 14 dispatch verification tests. No VID+PID duplicates across 130+ entries.
+- **Mutation Testing**: Targeted mutation-killing tests added for Fanatec, Logitech, Thrustmaster, and filters crates.
+- **Snapshot Encoding Tests**: Added for FFBeast (12 tests) and Leo Bodnar (8 tests) — all protocol crates now have snapshot coverage.
+- **Protocol Verification**: All VID/PIDs re-verified against web sources (kernel hid-ids.h, linux-steering-wheels, pid.codes, devicehunt). No corrections needed beyond Heusinkveld.
+- **CI Fixes**: cargo-udeps false positives resolved for 8 crates; deprecated field detection false positive fixed (TelemetryFrame seq field ≠ removed TelemetryData seq field).
+- **Test Count**: 7,216 tests passing, 0 failures across 82 workspace crates.
+- **Lesser-documented device web verification (2025-07):**
+  - AccuForce: VID 0x1FC9 / PID 0x804C confirmed (Platinum, hid-pidff). pid.codes 0x1209/0x0001 is test-only PID.
+  - VRS DFP: PID 0xA355 confirmed (Platinum, hid-universal-pidff). DFP V2 PID 0xA356 still unverified in kernel/community (F-057).
+  - VRS now branded "Turtle Beach VRS" in linux-steering-wheels.
+  - OpenFFBoard: PID 0xFFB0 confirmed (Platinum, hid-pidff). PID 0xFFB1 has zero evidence across 5 sources (F-052).
+  - Cube Controls: PIDs 0x0C73–0x0C75 still zero external evidence across 8 sources. OpenFlight uses different estimates (F-059).
 
 ### Earlier Progress
 - Project CARS 3 adapter added

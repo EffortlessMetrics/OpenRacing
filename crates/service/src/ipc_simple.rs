@@ -342,3 +342,129 @@ impl Default for IpcClientConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::Result;
+
+    #[test]
+    fn test_ipc_config_defaults() -> Result<()> {
+        let config = IpcConfig::default();
+        assert_eq!(config.bind_address, Some("127.0.0.1".to_string()));
+        assert_eq!(config.max_connections, 10);
+        assert_eq!(config.connection_timeout, Duration::from_secs(30));
+        assert!(!config.enable_acl);
+        Ok(())
+    }
+
+    #[test]
+    fn test_transport_type_default() -> Result<()> {
+        let transport = TransportType::default();
+        #[cfg(windows)]
+        {
+            assert!(
+                matches!(transport, TransportType::NamedPipe(ref name) if name.contains("wheel")),
+                "Windows default transport should be a named pipe containing 'wheel'"
+            );
+        }
+        #[cfg(unix)]
+        {
+            assert!(
+                matches!(transport, TransportType::UnixDomainSocket(ref path) if path.contains("wheel.sock")),
+                "Unix default transport should be a UDS path containing 'wheel.sock'"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_ipc_client_config_defaults() -> Result<()> {
+        let config = IpcClientConfig::default();
+        assert_eq!(config.connect_timeout, Duration::from_secs(10));
+        assert_eq!(config.server_address, "127.0.0.1:50051");
+        Ok(())
+    }
+
+    #[test]
+    fn test_ipc_client_construction() -> Result<()> {
+        let config = IpcClientConfig {
+            connect_timeout: Duration::from_secs(5),
+            server_address: "192.168.1.1:9999".to_string(),
+        };
+        let client = IpcClient::new(config);
+        assert_eq!(client.config.server_address, "192.168.1.1:9999");
+        assert_eq!(client.config.connect_timeout, Duration::from_secs(5));
+        Ok(())
+    }
+
+    #[test]
+    fn test_health_event_internal_construction() -> Result<()> {
+        let event = HealthEventInternal {
+            device_id: "dev-1".to_string(),
+            event_type: "connected".to_string(),
+            message: "Device connected".to_string(),
+            timestamp: std::time::SystemTime::now(),
+        };
+        assert_eq!(event.device_id, "dev-1");
+        assert_eq!(event.event_type, "connected");
+        assert!(!event.message.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_ipc_config_serialization_roundtrip() -> Result<()> {
+        let config = IpcConfig::default();
+        let json = serde_json::to_string(&config)?;
+        let deserialized: IpcConfig = serde_json::from_str(&json)?;
+        assert_eq!(deserialized.max_connections, config.max_connections);
+        assert_eq!(deserialized.connection_timeout, config.connection_timeout);
+        assert_eq!(deserialized.enable_acl, config.enable_acl);
+        assert_eq!(deserialized.bind_address, config.bind_address);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_ipc_server_creation() -> Result<()> {
+        let config = IpcConfig {
+            bind_address: Some("127.0.0.1".to_string()),
+            transport: TransportType::default(),
+            max_connections: 5,
+            connection_timeout: Duration::from_secs(10),
+            enable_acl: false,
+        };
+        let server = IpcServer::new(config).await?;
+        // Verify the health broadcast channel works
+        let mut receiver = server.get_health_receiver();
+        server.broadcast_health_event(HealthEventInternal {
+            device_id: "test".to_string(),
+            event_type: "test".to_string(),
+            message: "test event".to_string(),
+            timestamp: std::time::SystemTime::now(),
+        });
+        let event = receiver.recv().await?;
+        assert_eq!(event.device_id, "test");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_ipc_server_health_broadcast_multiple() -> Result<()> {
+        let config = IpcConfig::default();
+        let server = IpcServer::new(config).await?;
+        let mut rx1 = server.get_health_receiver();
+        let mut rx2 = server.get_health_receiver();
+
+        server.broadcast_health_event(HealthEventInternal {
+            device_id: "d1".to_string(),
+            event_type: "info".to_string(),
+            message: "msg".to_string(),
+            timestamp: std::time::SystemTime::now(),
+        });
+
+        let e1 = rx1.recv().await?;
+        let e2 = rx2.recv().await?;
+        assert_eq!(e1.device_id, "d1");
+        assert_eq!(e2.device_id, "d1");
+        Ok(())
+    }
+}

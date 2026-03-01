@@ -12,6 +12,11 @@ description = "Game support matrix, utilities, and config writers for OpenRacing
 readme = "README.md"
 keywords = ["telemetry", "racing", "simulator", "ffb", "config"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+development = ["tempfile"]
+
 [dependencies]
 anyhow = { workspace = true }
 racing-wheel-telemetry-config-writers = { workspace = true }

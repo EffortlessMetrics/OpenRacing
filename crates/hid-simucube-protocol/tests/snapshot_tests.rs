@@ -160,3 +160,60 @@ fn test_snapshot_effect_type_values() {
     ];
     assert_debug_snapshot!(format!("{:?}", effects));
 }
+
+// ─── HID joystick report snapshots ──────────────────────────────────────────
+
+fn build_hid_bytes(steering: u16, y: u16, axes: [u16; 6], buttons: [u8; 16]) -> Vec<u8> {
+    let mut buf = Vec::with_capacity(32);
+    buf.extend_from_slice(&steering.to_le_bytes());
+    buf.extend_from_slice(&y.to_le_bytes());
+    for ax in &axes {
+        buf.extend_from_slice(&ax.to_le_bytes());
+    }
+    buf.extend_from_slice(&buttons);
+    buf
+}
+
+#[test]
+fn test_snapshot_hid_report_center() -> Result<(), String> {
+    let data = build_hid_bytes(0x8000, 0x8000, [0; 6], [0; 16]);
+    let report = simucube::SimucubeHidReport::parse(&data).map_err(|e| e.to_string())?;
+    assert_debug_snapshot!(report);
+    Ok(())
+}
+
+#[test]
+fn test_snapshot_hid_report_full_left() -> Result<(), String> {
+    let data = build_hid_bytes(0x0000, 0x8000, [0; 6], [0; 16]);
+    let report = simucube::SimucubeHidReport::parse(&data).map_err(|e| e.to_string())?;
+    assert_debug_snapshot!(report);
+    Ok(())
+}
+
+#[test]
+fn test_snapshot_hid_report_full_right() -> Result<(), String> {
+    let data = build_hid_bytes(0xFFFF, 0x8000, [0; 6], [0; 16]);
+    let report = simucube::SimucubeHidReport::parse(&data).map_err(|e| e.to_string())?;
+    assert_debug_snapshot!(report);
+    Ok(())
+}
+
+#[test]
+fn test_snapshot_hid_report_with_buttons() -> Result<(), String> {
+    let mut buttons = [0u8; 16];
+    buttons[0] = 0b0000_0101; // buttons 0, 2
+    buttons[15] = 0b1000_0000; // button 127
+    let data = build_hid_bytes(0x8000, 0x8000, [0; 6], buttons);
+    let report = simucube::SimucubeHidReport::parse(&data).map_err(|e| e.to_string())?;
+    assert_debug_snapshot!(report);
+    Ok(())
+}
+
+#[test]
+fn test_snapshot_hid_report_with_axes() -> Result<(), String> {
+    let axes = [1000, 2000, 3000, 4000, 5000, 6000];
+    let data = build_hid_bytes(0x8000, 0x4000, axes, [0; 16]);
+    let report = simucube::SimucubeHidReport::parse(&data).map_err(|e| e.to_string())?;
+    assert_debug_snapshot!(report);
+    Ok(())
+}

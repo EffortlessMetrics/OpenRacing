@@ -1,0 +1,5 @@
+---
+source: crates/hid-simucube-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"sc1_boot={:#06X}, sc2_boot={:#06X}\", sc::SIMUCUBE_1_BOOTLOADER_PID,\nsc::SIMUCUBE_2_BOOTLOADER_PID,)"
+---
+sc1_boot=0x0D5B, sc2_boot=0x0D5E

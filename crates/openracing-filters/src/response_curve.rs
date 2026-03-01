@@ -172,17 +172,6 @@ pub fn response_curve_filter(frame: &mut Frame, state: &ResponseCurveState) {
 mod tests {
     use super::*;
 
-    fn create_test_frame(torque_out: f32) -> Frame {
-        Frame {
-            ffb_in: torque_out,
-            torque_out,
-            wheel_speed: 0.0,
-            hands_off: false,
-            ts_mono_ns: 0,
-            seq: 0,
-        }
-    }
-
     #[test]
     fn test_response_curve_state_linear() {
         let state = ResponseCurveState::linear();
@@ -230,7 +219,7 @@ mod tests {
         ];
 
         for (input, expected) in test_cases {
-            let mut frame = create_test_frame(input);
+            let mut frame = Frame::from_torque(input);
             response_curve_filter(&mut frame, &state);
 
             assert!(
@@ -247,15 +236,15 @@ mod tests {
     fn test_response_curve_filter_preserves_sign() {
         let state = ResponseCurveState::linear();
 
-        let mut frame_pos = create_test_frame(0.5);
+        let mut frame_pos = Frame::from_torque(0.5);
         response_curve_filter(&mut frame_pos, &state);
         assert!(frame_pos.torque_out > 0.0);
 
-        let mut frame_neg = create_test_frame(-0.5);
+        let mut frame_neg = Frame::from_torque(-0.5);
         response_curve_filter(&mut frame_neg, &state);
         assert!(frame_neg.torque_out < 0.0);
 
-        let mut frame_zero = create_test_frame(0.0);
+        let mut frame_zero = Frame::from_torque(0.0);
         response_curve_filter(&mut frame_zero, &state);
         assert!((frame_zero.torque_out - 0.0).abs() < 0.01);
     }
@@ -267,7 +256,7 @@ mod tests {
         let extreme_inputs = [-2.0, -1.0, 0.0, 1.0, 2.0];
 
         for input in extreme_inputs {
-            let mut frame = create_test_frame(input);
+            let mut frame = Frame::from_torque(input);
             response_curve_filter(&mut frame, &state);
 
             assert!(
@@ -289,7 +278,7 @@ mod tests {
         let state = ResponseCurveState::linear();
 
         for _ in 0..10000 {
-            let mut frame = create_test_frame(0.5);
+            let mut frame = Frame::from_torque(0.5);
             response_curve_filter(&mut frame, &state);
             assert!(frame.torque_out.is_finite());
         }

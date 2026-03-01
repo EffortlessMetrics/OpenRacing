@@ -16,6 +16,10 @@ rust_2018_idioms = "deny"
 unwrap_used = "deny"
 print_stdout = "deny"
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack", "criterion", "mockall", "proptest", "quickcheck", "quickcheck_macros", "statistical", "tokio-test", "tracing-test", "wiremock"]
+
 [dependencies]
 racing-wheel-engine = { path = "../engine" }
 racing-wheel-plugins = { path = "../plugins" }
@@ -31,6 +35,17 @@ racing-wheel-hid-logitech-protocol = { path = "../hid-logitech-protocol" }
 racing-wheel-hid-openffboard-protocol = { path = "../hid-openffboard-protocol" }
 racing-wheel-hid-ffbeast-protocol = { path = "../hid-ffbeast-protocol" }
 racing-wheel-simplemotion-v2 = { path = "../simplemotion-v2" }
+racing-wheel-hid-thrustmaster-protocol = { path = "../hid-thrustmaster-protocol" }
+racing-wheel-hid-simagic-protocol = { path = "../hid-simagic-protocol" }
+racing-wheel-hid-vrs-protocol = { path = "../hid-vrs-protocol" }
+hid-asetek-protocol = { path = "../hid-asetek-protocol" }
+hid-heusinkveld-protocol = { path = "../hid-heusinkveld-protocol" }
+racing-wheel-hid-leo-bodnar-protocol = { path = "../hid-leo-bodnar-protocol" }
+racing-wheel-hid-accuforce-protocol = { path = "../hid-accuforce-protocol" }
+hid-cube-controls-protocol = { path = "../hid-cube-controls-protocol" }
+racing-wheel-hid-cammus-protocol = { path = "../hid-cammus-protocol" }
+hid-button-box-protocol = { path = "../hid-button-box-protocol" }
+hid-simucube-protocol = { path = "../hid-simucube-protocol" }
 tokio = { workspace = true, features = ["full"] }
 tokio-test = "0.4.5"
 serde = { workspace = true }
@@ -60,6 +75,9 @@ rand = "0.9.2"
 chrono = { workspace = true }
 openracing-test-helpers = { workspace = true }
 openracing-profile = { path = "../openracing-profile" }
+openracing-filters = { workspace = true }
+openracing-pipeline = { workspace = true }
+openracing-calibration = { workspace = true }
 
 # Mock and test doubles
 async-trait = { workspace = true }

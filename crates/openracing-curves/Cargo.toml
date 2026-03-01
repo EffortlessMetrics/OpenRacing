@@ -13,6 +13,10 @@ readme = "README.md"
 keywords = ["curve", "bezier", "ffb", "lut", "real-time"]
 categories = ["embedded", "game-development", "mathematics"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 serde = { workspace = true }
 thiserror = { workspace = true }

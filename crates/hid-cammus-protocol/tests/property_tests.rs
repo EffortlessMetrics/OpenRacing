@@ -13,6 +13,8 @@ proptest! {
     fn prop_is_cammus_correct(pid in prop_oneof![
         Just(cammus::PRODUCT_C5),
         Just(cammus::PRODUCT_C12),
+        Just(cammus::PRODUCT_CP5_PEDALS),
+        Just(cammus::PRODUCT_LC100_PEDALS),
     ]) {
         prop_assert!(cammus::is_cammus(cammus::VENDOR_ID, pid));
     }
@@ -31,7 +33,11 @@ proptest! {
     /// is_cammus returns false for unknown PIDs even with the correct VID.
     #[test]
     fn prop_is_cammus_unknown_pid(pid in 0u16..=u16::MAX) {
-        if pid != cammus::PRODUCT_C5 && pid != cammus::PRODUCT_C12 {
+        if pid != cammus::PRODUCT_C5
+            && pid != cammus::PRODUCT_C12
+            && pid != cammus::PRODUCT_CP5_PEDALS
+            && pid != cammus::PRODUCT_LC100_PEDALS
+        {
             prop_assert!(!cammus::is_cammus(cammus::VENDOR_ID, pid));
         }
     }
@@ -154,6 +160,8 @@ proptest! {
     fn prop_model_from_known_pid(pid in prop_oneof![
         Just(cammus::PRODUCT_C5),
         Just(cammus::PRODUCT_C12),
+        Just(cammus::PRODUCT_CP5_PEDALS),
+        Just(cammus::PRODUCT_LC100_PEDALS),
     ]) {
         prop_assert!(cammus::CammusModel::from_pid(pid).is_some());
     }
@@ -161,21 +169,27 @@ proptest! {
     /// CammusModel::from_pid returns None for unknown PIDs.
     #[test]
     fn prop_model_from_unknown_pid(pid in 0u16..=u16::MAX) {
-        if pid != cammus::PRODUCT_C5 && pid != cammus::PRODUCT_C12 {
+        if pid != cammus::PRODUCT_C5
+            && pid != cammus::PRODUCT_C12
+            && pid != cammus::PRODUCT_CP5_PEDALS
+            && pid != cammus::PRODUCT_LC100_PEDALS
+        {
             prop_assert!(cammus::CammusModel::from_pid(pid).is_none());
         }
     }
 
-    /// max_torque_nm is strictly positive for all known models.
+    /// max_torque_nm is non-negative for all known models.
     #[test]
     fn prop_model_max_torque_positive(pid in prop_oneof![
         Just(cammus::PRODUCT_C5),
         Just(cammus::PRODUCT_C12),
+        Just(cammus::PRODUCT_CP5_PEDALS),
+        Just(cammus::PRODUCT_LC100_PEDALS),
     ]) {
         let model = cammus::CammusModel::from_pid(pid).ok_or_else(|| {
             TestCaseError::fail(format!("known PID {pid:#06X} must yield a model"))
         })?;
-        prop_assert!(model.max_torque_nm() > 0.0);
+        prop_assert!(model.max_torque_nm() >= 0.0);
     }
 
     /// name() is non-empty for all known models.
@@ -183,6 +197,8 @@ proptest! {
     fn prop_model_name_non_empty(pid in prop_oneof![
         Just(cammus::PRODUCT_C5),
         Just(cammus::PRODUCT_C12),
+        Just(cammus::PRODUCT_CP5_PEDALS),
+        Just(cammus::PRODUCT_LC100_PEDALS),
     ]) {
         let model = cammus::CammusModel::from_pid(pid).ok_or_else(|| {
             TestCaseError::fail(format!("known PID {pid:#06X} must yield a model"))
