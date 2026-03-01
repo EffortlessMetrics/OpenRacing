@@ -19,6 +19,16 @@ pub const THRUSTMASTER_VENDOR_ID: u16 = 0x044F;
 ///
 /// Last verified: 2025-07 against hid-tmff2 commit f004195, oversteer commit 74c7484.
 ///
+/// Web-verified 2025-07 against:
+/// - the-sz.com USB ID database (VID 0x044F product listing)
+/// - usb-ids.gowdy.us/read/UD/044F
+/// - linux-hardware.org device database (per-PID lookup)
+/// - Linux kernel `hid-thrustmaster.c` (torvalds/linux master)
+///
+/// Result: **No discrepancies found.** All PIDs with external web sources
+/// match our constants. T818 (0xB69B) and F430 FF (0xB65A) remain without
+/// web database confirmation (see per-PID notes).
+///
 /// # Protocol families (from hid-tmff2 probe function)
 ///
 /// The following wheels all share the **T300RS FFB wire protocol** (Report ID
@@ -50,9 +60,11 @@ pub mod product_ids {
     /// Generic pre-init "FFB Wheel" PID used by all Thrustmaster wheels before
     /// mode switching. After init, the wheel re-enumerates with a model-specific PID.
     /// Verified: scarburato/hid-tminit `thrustmaster_devices[]` (044f:b65d).
+    /// Web-verified: kernel `hid-thrustmaster.c` `thrustmaster_devices[] = {0x044f, 0xb65d}`.
     pub const FFB_WHEEL_GENERIC: u16 = 0xB65D;
     /// T150 (entry-level belt drive, post-init PID).
     /// Verified: oversteer `TM_T150 = '044f:b677'`; devicehunt.com (044f:b677 = "T150 Racing Wheel").
+    /// Web-verified: the-sz.com (044f:b677 = "T150 Racing Wheel").
     pub const T150: u16 = 0xB677;
     /// T500 RS (high-end belt-drive, post-init PID).
     /// Verified: oversteer `TM_T500RS = '044f:b65e'`; hid-tminit model 0x00 switch_value 0x0002.
@@ -90,6 +102,7 @@ pub mod product_ids {
     pub const T248: u16 = 0xB696;
     /// T248X (Xbox variant, GIP protocol).
     /// Verified: linux-hardware.org (044f:b69a = "T248X GIP Racing Wheel").
+    /// Web-verified: linux-hardware.org confirms 044f:b69a = "T248X GIP Racing Wheel".
     pub const T248X: u16 = 0xB69A;
     /// TS-PC Racer (PC-only belt drive).
     /// Verified: hid-tmff2 `TMTS_PC_RACER_ID = 0xb689`;
@@ -101,6 +114,7 @@ pub mod product_ids {
     pub const TS_XW: u16 = 0xB692;
     /// TS-XW Racer in GIP/Xbox protocol mode.
     /// Verified: linux-hardware.org (044f:b691 = "TS-XW Racer GIP Wheel").
+    /// Web-verified: linux-hardware.org confirms 044f:b691 = "TS-XW Racer GIP Wheel".
     pub const TS_XW_GIP: u16 = 0xB691;
     /// T818 (direct drive).
     /// Caution: hid-tmff2 issue #58 reports the T818 enumerates with PID 0xB696
@@ -114,24 +128,30 @@ pub mod product_ids {
 
     /// T80 Racing Wheel (entry-level, no FFB — only rumble).
     /// Verified: oversteer `TM_T80 = '044f:b668'`.
+    /// Web-verified: the-sz.com (044f:b668 = "Thrustmaster T80").
     pub const T80: u16 = 0xB668;
     /// T80 Ferrari 488 GTB Edition (entry-level, no FFB — only rumble).
     /// Source: oversteer `TM_T80H = '044f:b66a'`.
     pub const T80_FERRARI_488: u16 = 0xB66A;
     /// NASCAR Pro Force Feedback 2 (legacy gear-driven wheel).
     /// Verified: linux-steering-wheels (hid-tmff), PID 0xb605.
+    /// Web-verified: the-sz.com (044f:b605 = "force feedback Racing Wheel").
     pub const NASCAR_PRO_FF2: u16 = 0xB605;
     /// Ferrari GT Rumble Force (legacy entry-level wheel).
     /// Verified: linux-steering-wheels (hid-tmff), PID 0xb651.
+    /// Web-verified: the-sz.com (044f:b651 = "Ferrari GT Rumble Force Wheel").
     pub const FGT_RUMBLE_FORCE: u16 = 0xB651;
     /// Rally GT Force Feedback Clutch Edition (legacy wheel).
     /// Verified: linux-steering-wheels (hid-tmff), PID 0xb653.
+    /// Web-verified: the-sz.com (044f:b653 = "RGT Force Feedback Clutch Racing Wheel").
     pub const RGT_FF_CLUTCH: u16 = 0xB653;
     /// Ferrari GT Force Feedback (legacy wheel).
     /// Verified: linux-steering-wheels (hid-tmff), PID 0xb654.
+    /// Web-verified: the-sz.com (044f:b654 = "Ferrari GT Force Feedback Wheel").
     pub const FGT_FORCE_FEEDBACK: u16 = 0xB654;
     /// Ferrari 430 Force Feedback (legacy belt-driven wheel).
     /// Verified: linux-steering-wheels (hid-tmff), PID 0xb65a.
+    /// Web-unverified: not found in the-sz.com, usb-ids.gowdy.us, or linux-hardware.org.
     pub const F430_FORCE_FEEDBACK: u16 = 0xB65A;
 }
 

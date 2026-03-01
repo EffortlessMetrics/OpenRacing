@@ -121,6 +121,19 @@ pub mod commands {
 /// - **oversteer `wheel_ids.py`** (berarma/oversteer — Linux GUI for racing
 ///   wheels, includes G PRO IDs)
 ///
+/// Web-verified 2025-07 against:
+/// - the-sz.com USB ID database (VID 0x046D, name "racing wheel")
+/// - usb-ids.gowdy.us/read/UD/046D
+/// - Linux kernel `hid-ids.h` and `hid-lg4ff.c` (torvalds/linux master)
+/// - berarma/new-lg4ff `hid-ids.h` (out-of-tree, G923 support)
+/// - berarma/oversteer `wheel_ids.py`
+///
+/// Result: **No discrepancies found.** All PIDs match across all sources.
+/// Note: usb-ids.gowdy.us and the-sz.com list 046d:c260 as "G29 Driving
+/// Force Racing Wheel [PS4]" — this PID is not in our codebase, nor in any
+/// community driver (kernel hid-lg4ff, new-lg4ff, oversteer). It may be a
+/// PS4-connected-only enumeration PID that doesn't use the HID FFB protocol.
+///
 /// # G923 dual-PID behaviour
 ///
 /// The G923 PS/PC model has **two PIDs**: 0xC267 enumerates first in
@@ -186,6 +199,7 @@ pub mod product_ids {
     ///
     /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G25_WHEEL = 0xc299`,
     /// new-lg4ff `0xc299`, oversteer `LG_G25 = '046d:c299'`.
+    /// Web-verified: the-sz.com + usb-ids.gowdy.us (046d:c299 = "G25 Racing Wheel").
     pub const G25: u16 = 0xC299;
     /// Driving Force / Formula EX wheel (270°, gear-driven, ~2.0 Nm).
     ///
@@ -207,16 +221,20 @@ pub mod product_ids {
     ///
     /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G27_WHEEL = 0xc29b`,
     /// new-lg4ff `0xc29b`, oversteer `LG_G27 = '046d:c29b'`.
+    /// Web-verified: the-sz.com + usb-ids.gowdy.us (046d:c29b = "G27 Racing Wheel").
     pub const G27: u16 = 0xC29B;
     /// G29 racing wheel (PlayStation/PC, 900°, 2.2 Nm).
     ///
     /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G29_WHEEL = 0xc24f`,
     /// new-lg4ff `0xc24f`, oversteer `LG_G29 = '046d:c24f'`.
+    /// Web-verified: the-sz.com (046d:c24f = "G29 Driving Force Racing Wheel"),
+    /// usb-ids.gowdy.us (c24f = "G29 Driving Force Racing Wheel [PS3]").
     pub const G29_PS: u16 = 0xC24F;
     /// G920 racing wheel (Xbox/PC, 900°, 2.2 Nm).
     ///
     /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G920_WHEEL = 0xc262`,
     /// new-lg4ff `0xc262`, oversteer `LG_G920 = '046d:c262'`.
+    /// Web-verified: the-sz.com + usb-ids.gowdy.us (046d:c262 = "G920 Driving Force Racing Wheel").
     pub const G920: u16 = 0xC262;
     /// G923 racing wheel — native/HID mode (after mode switch from PS compat).
     ///
