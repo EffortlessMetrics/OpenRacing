@@ -375,10 +375,7 @@ fn dispatch_routes_pxn_gt987() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn dispatch_skips_non_pxn_pid() -> Result<(), Box<dyn std::error::Error>> {
     let proto = get_vendor_protocol(racing_wheel_hid_pxn_protocol::VENDOR_ID, 0x0001);
-    assert!(
-        proto.is_none(),
-        "non-PXN PID on PXN VID must return None"
-    );
+    assert!(proto.is_none(), "non-PXN PID on PXN VID must return None");
     Ok(())
 }
 

@@ -3,8 +3,8 @@
 //! Ensures the parser never panics on arbitrary or random input.
 
 use proptest::prelude::*;
-use racing_wheel_telemetry_ams2::{AMS2Adapter, TelemetryAdapter};
 use racing_wheel_telemetry_adapters::ams2::AMS2SharedMemory;
+use racing_wheel_telemetry_ams2::{AMS2Adapter, TelemetryAdapter};
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(500))]

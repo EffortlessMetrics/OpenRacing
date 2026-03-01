@@ -90,15 +90,12 @@ fn given_pxn_vid_pid_when_dispatched_then_handler_returned()
 // ─── Scenario 5: unknown PID on PXN VID returns None ─────────────────────────
 
 #[test]
-fn given_unknown_pid_on_pxn_vid_when_dispatched_then_none()
--> Result<(), Box<dyn std::error::Error>> {
+fn given_unknown_pid_on_pxn_vid_when_dispatched_then_none() -> Result<(), Box<dyn std::error::Error>>
+{
     use racing_wheel_engine::hid::vendor::get_vendor_protocol;
 
     let proto = get_vendor_protocol(VENDOR_ID, 0x0001);
-    assert!(
-        proto.is_none(),
-        "unknown PID on PXN VID must return None"
-    );
+    assert!(proto.is_none(), "unknown PID on PXN VID must return None");
 
     Ok(())
 }

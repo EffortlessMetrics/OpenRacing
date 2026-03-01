@@ -77,15 +77,15 @@ fn make_r3e_memory(
 fn snapshot_raceroom_typical_driving() -> TestResult {
     let adapter = RaceRoomAdapter::new();
     let data = make_r3e_memory(
-        6200.0,  // rpm
-        42.5,    // speed m/s (~153 km/h)
-        -0.18,   // steering (slight left)
-        0.82,    // throttle
-        0.0,     // brake
-        0.0,     // clutch
-        4,       // gear
-        35.0,    // fuel left
-        65.0,    // fuel capacity
+        6200.0, // rpm
+        42.5,   // speed m/s (~153 km/h)
+        -0.18,  // steering (slight left)
+        0.82,   // throttle
+        0.0,    // brake
+        0.0,    // clutch
+        4,      // gear
+        35.0,   // fuel left
+        65.0,   // fuel capacity
     );
     let norm = adapter.normalize(&data)?;
     insta::assert_yaml_snapshot!("raceroom_typical_driving", norm);
@@ -97,15 +97,15 @@ fn snapshot_raceroom_typical_driving() -> TestResult {
 fn snapshot_raceroom_heavy_braking() -> TestResult {
     let adapter = RaceRoomAdapter::new();
     let data = make_r3e_memory(
-        3800.0,  // rpm (downshifting)
-        28.0,    // speed m/s (~100 km/h)
-        0.35,    // steering (right turn entry)
-        0.0,     // throttle
-        0.95,    // brake
-        0.0,     // clutch
-        2,       // gear
-        32.0,    // fuel left
-        65.0,    // fuel capacity
+        3800.0, // rpm (downshifting)
+        28.0,   // speed m/s (~100 km/h)
+        0.35,   // steering (right turn entry)
+        0.0,    // throttle
+        0.95,   // brake
+        0.0,    // clutch
+        2,      // gear
+        32.0,   // fuel left
+        65.0,   // fuel capacity
     );
     let norm = adapter.normalize(&data)?;
     insta::assert_yaml_snapshot!("raceroom_heavy_braking", norm);
@@ -117,15 +117,15 @@ fn snapshot_raceroom_heavy_braking() -> TestResult {
 fn snapshot_raceroom_standing_start() -> TestResult {
     let adapter = RaceRoomAdapter::new();
     let data = make_r3e_memory(
-        4500.0,  // rpm (revving on grid)
-        0.0,     // speed
-        0.0,     // steering
-        0.6,     // throttle
-        0.0,     // brake
-        0.85,    // clutch (holding)
-        1,       // gear
-        65.0,    // fuel left (full tank)
-        65.0,    // fuel capacity
+        4500.0, // rpm (revving on grid)
+        0.0,    // speed
+        0.0,    // steering
+        0.6,    // throttle
+        0.0,    // brake
+        0.85,   // clutch (holding)
+        1,      // gear
+        65.0,   // fuel left (full tank)
+        65.0,   // fuel capacity
     );
     let norm = adapter.normalize(&data)?;
     insta::assert_yaml_snapshot!("raceroom_standing_start", norm);

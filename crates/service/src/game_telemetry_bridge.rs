@@ -204,7 +204,11 @@ mod tests {
         mock.start_for_game("iracing").await?;
 
         let starts = mock.starts.lock().await;
-        assert_eq!(starts.len(), 2, "duplicate start_for_game should be recorded");
+        assert_eq!(
+            starts.len(),
+            2,
+            "duplicate start_for_game should be recorded"
+        );
         assert_eq!(starts.as_slice(), ["iracing", "iracing"]);
         Ok(())
     }

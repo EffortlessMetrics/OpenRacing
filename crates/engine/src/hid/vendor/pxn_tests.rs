@@ -1,7 +1,7 @@
 //! Tests for PXN / Lite Star protocol handler.
 
 use super::pxn::{
-    PXN_VENDOR_ID, PRODUCT_GT987, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE, PRODUCT_V12_LITE_2,
+    PRODUCT_GT987, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE, PRODUCT_V12_LITE_2, PXN_VENDOR_ID,
     PxnModel, PxnProtocolHandler, is_pxn_product,
 };
 use super::{DeviceWriter, VendorProtocol, get_vendor_protocol};

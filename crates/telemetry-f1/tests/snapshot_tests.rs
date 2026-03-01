@@ -5,8 +5,8 @@
 
 use racing_wheel_telemetry_adapters::f1_25::{CarTelemetryData, SessionData};
 use racing_wheel_telemetry_adapters::f1_native::{
-    F1NativeCarStatusData, normalize, F1NativeAdapter,
-    build_car_telemetry_packet_native, PACKET_FORMAT_2024,
+    F1NativeAdapter, F1NativeCarStatusData, PACKET_FORMAT_2024, build_car_telemetry_packet_native,
+    normalize,
 };
 use racing_wheel_telemetry_f1::TelemetryAdapter;
 

@@ -308,7 +308,10 @@ fn test_neg_infinity_throttle_defaults_to_zero() -> TestResult {
 #[test]
 fn test_default_update_rate_is_60hz() {
     let adapter = LFSAdapter::new();
-    assert_eq!(adapter.expected_update_rate(), std::time::Duration::from_millis(16));
+    assert_eq!(
+        adapter.expected_update_rate(),
+        std::time::Duration::from_millis(16)
+    );
 }
 
 /// LFSAdapter implements Default.

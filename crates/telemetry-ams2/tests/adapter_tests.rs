@@ -3,10 +3,8 @@
 //! AMS2 uses Windows shared memory, so most behavioral tests are adapter-level
 //! (game_id, update_rate, etc.). Shared memory tests require a running AMS2 instance.
 
-use racing_wheel_telemetry_adapters::ams2::{
-    AMS2SharedMemory, DrsState, HighestFlag, PitMode,
-};
 use racing_wheel_telemetry_adapters::TelemetryValue;
+use racing_wheel_telemetry_adapters::ams2::{AMS2SharedMemory, DrsState, HighestFlag, PitMode};
 use racing_wheel_telemetry_ams2::{AMS2Adapter, TelemetryAdapter};
 use std::time::Duration;
 
@@ -195,10 +193,7 @@ fn test_normalize_checkered_flag() -> TestResult {
     let mut data = default_shared_memory();
     data.highest_flag = HighestFlag::Chequered as u32;
     let result = adapter.normalize(&shared_memory_to_bytes(&data))?;
-    assert!(
-        result.flags.checkered_flag,
-        "checkered_flag should be set"
-    );
+    assert!(result.flags.checkered_flag, "checkered_flag should be set");
     Ok(())
 }
 
@@ -364,7 +359,10 @@ fn test_normalize_tc_and_abs_flags() -> TestResult {
     data.tc_setting = 3;
     data.abs_setting = 2;
     let result = adapter.normalize(&shared_memory_to_bytes(&data))?;
-    assert!(result.flags.traction_control, "traction_control should be set");
+    assert!(
+        result.flags.traction_control,
+        "traction_control should be set"
+    );
     assert!(result.flags.abs_active, "abs_active should be set");
     Ok(())
 }
@@ -375,7 +373,10 @@ fn test_normalize_tc_and_abs_off() -> TestResult {
     let adapter = AMS2Adapter::new();
     let data = AMS2SharedMemory::default();
     let result = adapter.normalize(&shared_memory_to_bytes(&data))?;
-    assert!(!result.flags.traction_control, "traction_control should be off");
+    assert!(
+        !result.flags.traction_control,
+        "traction_control should be off"
+    );
     assert!(!result.flags.abs_active, "abs_active should be off");
     Ok(())
 }

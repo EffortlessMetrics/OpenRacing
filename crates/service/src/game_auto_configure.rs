@@ -403,10 +403,7 @@ mod tests {
             store.configured.contains("iracing"),
             "iracing should be configured"
         );
-        assert!(
-            store.configured.contains("acc"),
-            "acc should be configured"
-        );
+        assert!(store.configured.contains("acc"), "acc should be configured");
         assert_eq!(store.configured.len(), 2);
         Ok(())
     }
@@ -495,8 +492,14 @@ mod tests {
 
         let content = std::fs::read_to_string(&state_path)?;
         let store: ConfiguredGamesStore = serde_json::from_str(&content)?;
-        assert!(store.configured.contains("acc"), "pre-existing acc entry must survive");
-        assert!(store.configured.contains("iracing"), "newly detected iracing must be added");
+        assert!(
+            store.configured.contains("acc"),
+            "pre-existing acc entry must survive"
+        );
+        assert!(
+            store.configured.contains("iracing"),
+            "newly detected iracing must be added"
+        );
         assert_eq!(store.configured.len(), 2);
         Ok(())
     }
@@ -526,7 +529,10 @@ mod tests {
     #[test]
     fn test_load_store_missing_file_returns_none() {
         let result = load_store(Path::new("/nonexistent/path/store.json"));
-        assert!(result.is_none(), "load_store for missing file must return None");
+        assert!(
+            result.is_none(),
+            "load_store for missing file must return None"
+        );
     }
 
     /// `load_store` returns `None` for invalid JSON (no panic).
@@ -537,7 +543,10 @@ mod tests {
         std::fs::write(&state_path, "NOT VALID JSON {")?;
 
         let result = load_store(&state_path);
-        assert!(result.is_none(), "load_store for invalid JSON must return None");
+        assert!(
+            result.is_none(),
+            "load_store for invalid JSON must return None"
+        );
         Ok(())
     }
 
