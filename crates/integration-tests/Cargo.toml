@@ -18,7 +18,7 @@ print_stdout = "deny"
 
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["workspace-hack"]
+normal = ["workspace-hack", "criterion", "mockall", "proptest", "quickcheck", "quickcheck_macros", "statistical", "tokio-test", "tracing-test", "wiremock"]
 
 [dependencies]
 racing-wheel-engine = { path = "../engine" }

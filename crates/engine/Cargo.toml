@@ -8,7 +8,8 @@ repository.workspace = true
 
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["workspace-hack"]
+normal = ["workspace-hack", "libudev", "mimalloc", "openracing-hardware-watchdog", "racing-wheel-hid-cammus-protocol"]
+development = ["tokio-test"]
 
 [dependencies]
 racing-wheel-schemas = { path = "../schemas" }
