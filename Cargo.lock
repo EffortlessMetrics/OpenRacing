@@ -5598,6 +5598,7 @@ dependencies = [
 name = "racing-wheel-hbp"
 version = "0.1.0"
 dependencies = [
+ "proptest",
  "workspace-hack",
 ]
 
@@ -5800,6 +5801,7 @@ dependencies = [
 name = "racing-wheel-ks"
 version = "0.1.0"
 dependencies = [
+ "proptest",
  "workspace-hack",
 ]
 
@@ -5807,6 +5809,7 @@ dependencies = [
 name = "racing-wheel-moza-wheelbase-report"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "proptest",
  "workspace-hack",
 ]

@@ -35,4 +35,16 @@ mod tests {
     fn test_constants() {
         assert_eq!(MAX_ANALOG_VALUE, 0xFFFF);
     }
+
+    #[test]
+    fn test_error_display_invalid_position() {
+        let err = HandbrakeError::InvalidPosition(1234);
+        assert!(err.to_string().contains("1234"));
+    }
+
+    #[test]
+    fn test_error_display_disconnected() {
+        let err = HandbrakeError::Disconnected;
+        assert!(err.to_string().contains("disconnected") || err.to_string().contains("Disconnected"));
+    }
 }

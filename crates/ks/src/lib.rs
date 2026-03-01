@@ -421,4 +421,301 @@ mod tests {
         assert_eq!(snapshot.buttons[3], 0x01);
         Ok(())
     }
+
+    #[test]
+    fn ks_report_map_rejects_wrong_report_id() {
+        let mut map = KsReportMap::empty();
+        map.report_id = Some(0x01);
+        let report = [0x02, 0x00, 0x00, 0x00, 0x00];
+        assert!(map.parse(0, &report).is_none());
+    }
+
+    #[test]
+    fn ks_report_map_no_report_id_accepts_any() -> Result<(), Box<dyn std::error::Error>> {
+        let map = KsReportMap::empty();
+        let report = [0xFF, 0x00, 0x00, 0x00, 0x00];
+        let snapshot = map
+            .parse(1, &report)
+            .ok_or("map with no report_id should accept any")?;
+        assert_eq!(snapshot.tick, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn ks_axis_source_parse_u16() -> Result<(), Box<dyn std::error::Error>> {
+        let src = KsAxisSource::new(1, false);
+        let data = [0x00, 0x34, 0x12];
+        let val = src.parse_u16(&data).ok_or("expected u16 parse")?;
+        assert_eq!(val, 0x1234);
+        Ok(())
+    }
+
+    #[test]
+    fn ks_axis_source_parse_i16() -> Result<(), Box<dyn std::error::Error>> {
+        let src = KsAxisSource::new(0, true);
+        let data = (-32768i16).to_le_bytes();
+        let val = src.parse_i16(&data).ok_or("expected i16 parse")?;
+        assert_eq!(val, -32768);
+        Ok(())
+    }
+
+    #[test]
+    fn ks_axis_source_returns_none_for_short_data() {
+        let src = KsAxisSource::new(5, false);
+        let data = [0x00, 0x01];
+        assert!(src.parse_u16(&data).is_none());
+        assert!(src.parse_i16(&data).is_none());
+    }
+
+    #[test]
+    fn ks_bit_source_parse_active() -> Result<(), Box<dyn std::error::Error>> {
+        let src = KsBitSource::new(0, 0x04);
+        let data = [0x07];
+        let val = src.parse(&data).ok_or("expected bit parse")?;
+        assert!(val);
+        Ok(())
+    }
+
+    #[test]
+    fn ks_bit_source_parse_inactive() -> Result<(), Box<dyn std::error::Error>> {
+        let src = KsBitSource::new(0, 0x04);
+        let data = [0x03];
+        let val = src.parse(&data).ok_or("expected bit parse")?;
+        assert!(!val);
+        Ok(())
+    }
+
+    #[test]
+    fn ks_bit_source_inverted() -> Result<(), Box<dyn std::error::Error>> {
+        let src = KsBitSource::inverted(0, 0x04);
+        let data = [0x04];
+        let val = src.parse(&data).ok_or("expected bit parse")?;
+        assert!(!val, "inverted source should return false when bit is set");
+        Ok(())
+    }
+
+    #[test]
+    fn ks_bit_source_inverted_inactive() -> Result<(), Box<dyn std::error::Error>> {
+        let src = KsBitSource::with_invert(0, 0x04);
+        let data = [0x00];
+        let val = src.parse(&data).ok_or("expected bit parse")?;
+        assert!(val, "inverted source should return true when bit is clear");
+        Ok(())
+    }
+
+    #[test]
+    fn ks_bit_source_returns_none_for_short_data() {
+        let src = KsBitSource::new(5, 0x01);
+        let data = [0x00];
+        assert!(src.parse(&data).is_none());
+    }
+
+    #[test]
+    fn ks_byte_source_parse() -> Result<(), Box<dyn std::error::Error>> {
+        let src = KsByteSource::new(2);
+        let data = [0x00, 0x11, 0xAB, 0x00];
+        let val = src.parse(&data).ok_or("expected byte parse")?;
+        assert_eq!(val, 0xAB);
+        Ok(())
+    }
+
+    #[test]
+    fn ks_byte_source_returns_none_for_short_data() {
+        let src = KsByteSource::new(5);
+        let data = [0x00, 0x01];
+        assert!(src.parse(&data).is_none());
+    }
+
+    #[test]
+    fn ks_report_map_empty_has_no_bindings() {
+        let map = KsReportMap::empty();
+        assert_eq!(map.report_id, None);
+        assert_eq!(map.buttons_offset, None);
+        assert_eq!(map.hat_offset, None);
+        assert_eq!(map.clutch_mode_hint, KsClutchMode::Unknown);
+        assert_eq!(map.rotary_mode_hint, KsRotaryMode::Unknown);
+        assert_eq!(map.joystick_mode_hint, KsJoystickMode::Unknown);
+    }
+
+    #[test]
+    fn ks_report_snapshot_default_is_zeroed() {
+        let snapshot = KsReportSnapshot::default();
+        assert_eq!(snapshot.tick, 0);
+        assert_eq!(snapshot.buttons, [0u8; KS_BUTTON_BYTES]);
+        assert_eq!(snapshot.hat, 0);
+        assert_eq!(snapshot.encoders, [0i16; KS_ENCODER_COUNT]);
+        assert_eq!(snapshot.clutch_combined, None);
+        assert_eq!(snapshot.clutch_left, None);
+        assert_eq!(snapshot.clutch_right, None);
+    }
+
+    #[test]
+    fn ks_report_map_parses_encoders() -> Result<(), Box<dyn std::error::Error>> {
+        let mut map = KsReportMap::empty();
+        map.encoders[0] = Some(KsAxisSource::new(0, true));
+        map.encoders[1] = Some(KsAxisSource::new(2, true));
+
+        let mut data = [0u8; 8];
+        data[0..2].copy_from_slice(&500i16.to_le_bytes());
+        data[2..4].copy_from_slice(&(-300i16).to_le_bytes());
+
+        let snapshot = map
+            .parse(1, &data)
+            .ok_or("expected encoder parse")?;
+        assert_eq!(snapshot.encoders[0], 500);
+        assert_eq!(snapshot.encoders[1], -300);
+        Ok(())
+    }
+
+    #[test]
+    fn ks_report_map_parses_rotary_axes() -> Result<(), Box<dyn std::error::Error>> {
+        let mut map = KsReportMap::empty();
+        map.left_rotary_axis = Some(KsAxisSource::new(0, true));
+        map.right_rotary_axis = Some(KsAxisSource::new(2, true));
+
+        let mut data = [0u8; 8];
+        data[0..2].copy_from_slice(&100i16.to_le_bytes());
+        data[2..4].copy_from_slice(&(-50i16).to_le_bytes());
+
+        let snapshot = map
+            .parse(2, &data)
+            .ok_or("expected rotary parse")?;
+        assert_eq!(snapshot.encoders[0], 100);
+        assert_eq!(snapshot.encoders[1], -50);
+        Ok(())
+    }
+
+    #[test]
+    fn ks_report_map_parses_clutch_buttons() -> Result<(), Box<dyn std::error::Error>> {
+        let mut map = KsReportMap::empty();
+        map.clutch_mode_hint = KsClutchMode::Button;
+        map.clutch_left_button = Some(KsBitSource::new(0, 0x01));
+        map.clutch_right_button = Some(KsBitSource::new(0, 0x02));
+
+        let data = [0x03u8]; // both bits set
+        let snapshot = map.parse(0, &data).ok_or("expected clutch button parse")?;
+        assert_eq!(snapshot.clutch_left_button, Some(true));
+        assert_eq!(snapshot.clutch_right_button, Some(true));
+        assert_eq!(snapshot.clutch_mode, KsClutchMode::Button);
+        Ok(())
+    }
+
+    #[test]
+    fn ks_report_map_parses_hat_from_joystick_hat_source() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let mut map = KsReportMap::empty();
+        map.joystick_hat = Some(KsByteSource::new(0));
+        let data = [0x42];
+        let snapshot = map.parse(0, &data).ok_or("expected hat parse")?;
+        assert_eq!(snapshot.hat, 0x42);
+        Ok(())
+    }
+
+    #[test]
+    fn ks_report_map_partial_buttons_fill() -> Result<(), Box<dyn std::error::Error>> {
+        let mut map = KsReportMap::empty();
+        map.buttons_offset = Some(0);
+        // Report has only 3 bytes, but buttons needs KS_BUTTON_BYTES (16)
+        let data = [0xAA, 0xBB, 0xCC];
+        let snapshot = map.parse(0, &data).ok_or("expected partial button parse")?;
+        assert_eq!(snapshot.buttons[0], 0xAA);
+        assert_eq!(snapshot.buttons[1], 0xBB);
+        assert_eq!(snapshot.buttons[2], 0xCC);
+        assert_eq!(snapshot.buttons[3..], [0u8; KS_BUTTON_BYTES - 3]);
+        Ok(())
+    }
+
+    #[test]
+    fn ks_clutch_mode_default_is_unknown() {
+        assert_eq!(KsClutchMode::default(), KsClutchMode::Unknown);
+    }
+
+    #[test]
+    fn ks_rotary_mode_default_is_unknown() {
+        assert_eq!(KsRotaryMode::default(), KsRotaryMode::Unknown);
+    }
+
+    #[test]
+    fn ks_joystick_mode_default_is_unknown() {
+        assert_eq!(KsJoystickMode::default(), KsJoystickMode::Unknown);
+    }
+
+    #[test]
+    fn ks_independent_axis_one_missing_returns_none() {
+        let snapshot = KsReportSnapshot {
+            clutch_mode: KsClutchMode::IndependentAxis,
+            clutch_left: Some(31_000),
+            clutch_right: None,
+            ..Default::default()
+        };
+        assert_eq!(snapshot.both_clutches_pressed(30_000), None);
+    }
+
+    #[test]
+    fn ks_button_mode_one_missing_returns_none() {
+        let snapshot = KsReportSnapshot {
+            clutch_mode: KsClutchMode::Button,
+            clutch_left_button: Some(true),
+            clutch_right_button: None,
+            ..Default::default()
+        };
+        assert_eq!(snapshot.both_clutches_pressed(30_000), None);
+    }
+
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(256))]
+
+        #[test]
+        fn prop_axis_source_u16_round_trips(lo in 0u8..=255u8, hi in 0u8..=255u8) {
+            let src = KsAxisSource::new(0, false);
+            let data = [lo, hi];
+            let expected = u16::from_le_bytes([lo, hi]);
+            prop_assert_eq!(src.parse_u16(&data), Some(expected));
+        }
+
+        #[test]
+        fn prop_axis_source_i16_round_trips(lo in 0u8..=255u8, hi in 0u8..=255u8) {
+            let src = KsAxisSource::new(0, true);
+            let data = [lo, hi];
+            let expected = i16::from_le_bytes([lo, hi]);
+            prop_assert_eq!(src.parse_i16(&data), Some(expected));
+        }
+
+        #[test]
+        fn prop_bit_source_non_inverted_matches_mask(byte: u8, bit in 0u8..8u8) {
+            let mask = 1u8 << bit;
+            let src = KsBitSource::new(0, mask);
+            let expected = byte & mask != 0;
+            prop_assert_eq!(src.parse(&[byte]), Some(expected));
+        }
+
+        #[test]
+        fn prop_bit_source_inverted_is_opposite(byte: u8, bit in 0u8..8u8) {
+            let mask = 1u8 << bit;
+            let normal = KsBitSource::new(0, mask);
+            let inverted = KsBitSource::inverted(0, mask);
+            let n = normal.parse(&[byte]);
+            let i = inverted.parse(&[byte]);
+            prop_assert_eq!(n.map(|v| !v), i);
+        }
+
+        #[test]
+        fn prop_byte_source_matches_index(data in proptest::collection::vec(any::<u8>(), 1..=16)) {
+            for (i, &expected) in data.iter().enumerate() {
+                let src = KsByteSource::new(i);
+                prop_assert_eq!(src.parse(&data), Some(expected));
+            }
+        }
+
+        #[test]
+        fn prop_empty_map_always_parses_non_empty_report(
+            data in proptest::collection::vec(any::<u8>(), 1..=64),
+            tick: u32,
+        ) {
+            let map = KsReportMap::empty();
+            prop_assert!(map.parse(tick, &data).is_some());
+        }
+    }
 }

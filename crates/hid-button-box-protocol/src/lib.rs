@@ -61,5 +61,41 @@ mod tests {
     fn test_constants() {
         assert_eq!(REPORT_SIZE_GAMEPAD, 8);
         assert_eq!(MAX_BUTTONS, 32);
+        assert_eq!(MAX_AXES, 4);
+    }
+
+    #[test]
+    fn test_error_display_invalid_report_size() {
+        let err = ButtonBoxError::InvalidReportSize {
+            expected: 8,
+            actual: 4,
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("8"), "should mention expected size");
+        assert!(msg.contains("4"), "should mention actual size");
+    }
+
+    #[test]
+    fn test_error_display_invalid_button_index() {
+        let err = ButtonBoxError::InvalidButtonIndex(42);
+        assert!(err.to_string().contains("42"));
+    }
+
+    #[test]
+    fn test_error_display_invalid_axis_index() {
+        let err = ButtonBoxError::InvalidAxisIndex(5);
+        assert!(err.to_string().contains("5"));
+    }
+
+    #[test]
+    fn test_error_display_hid_error() {
+        let err = ButtonBoxError::HidError("test error".into());
+        assert!(err.to_string().contains("test error"));
+    }
+
+    #[test]
+    fn test_vendor_product_ids() {
+        assert_eq!(VENDOR_ID_GENERIC, 0x1209);
+        assert_eq!(PRODUCT_ID_BUTTON_BOX, 0x1BBD);
     }
 }

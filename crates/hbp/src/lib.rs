@@ -155,4 +155,159 @@ mod tests {
         assert!((normalized.handbrake - (32768.0 / 65535.0)).abs() < 0.00002);
         assert_eq!(normalized.button_byte, Some(0x01));
     }
+
+    #[test]
+    fn normalize_zero_maps_to_zero() {
+        let normalized = HbpHandbrakeSampleRaw {
+            handbrake: 0,
+            button_byte: None,
+        }
+        .normalize();
+        assert!((normalized.handbrake).abs() < f32::EPSILON);
+        assert_eq!(normalized.button_byte, None);
+    }
+
+    #[test]
+    fn normalize_max_maps_to_one() {
+        let normalized = HbpHandbrakeSampleRaw {
+            handbrake: u16::MAX,
+            button_byte: None,
+        }
+        .normalize();
+        assert!((normalized.handbrake - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn parse_axis_returns_none_for_empty_slice() {
+        assert_eq!(parse_axis(&[], 0), None);
+    }
+
+    #[test]
+    fn parse_axis_returns_none_for_single_byte() {
+        assert_eq!(parse_axis(&[0xFF], 0), None);
+    }
+
+    #[test]
+    fn parse_axis_returns_none_for_oob_offset() {
+        assert_eq!(parse_axis(&[0x00, 0x00], 1), None);
+    }
+
+    #[test]
+    fn parse_axis_round_trips_le_u16() -> Result<(), Box<dyn std::error::Error>> {
+        let value = 0xABCDu16;
+        let bytes = value.to_le_bytes();
+        let parsed = parse_axis(&bytes, 0).ok_or("expected axis parse")?;
+        assert_eq!(parsed, value);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_axis_boundary_values() -> Result<(), Box<dyn std::error::Error>> {
+        let zero = parse_axis(&[0x00, 0x00], 0).ok_or("expected zero parse")?;
+        assert_eq!(zero, 0u16);
+        let max = parse_axis(&[0xFF, 0xFF], 0).ok_or("expected max parse")?;
+        assert_eq!(max, u16::MAX);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_hbp_zero_report_id_falls_through_to_raw() -> Result<(), Box<dyn std::error::Error>> {
+        // 4-byte report with report_id=0x00 should use raw layout (3+ bytes with button)
+        let report = [0x00u8, 0x34, 0x12, 0x80];
+        let parsed = parse_hbp_usb_report_best_effort(&report)
+            .ok_or("expected raw parse for zero report-id")?;
+        assert_eq!(parsed.handbrake, u16::from_le_bytes([0x00, 0x34]));
+        assert_eq!(parsed.button_byte, Some(0x12));
+        Ok(())
+    }
+
+    #[test]
+    fn parse_hbp_preserves_button_byte_on_all_layouts() -> Result<(), Box<dyn std::error::Error>> {
+        // report-id-prefixed layout
+        let r1 = parse_hbp_usb_report_best_effort(&[0x01, 0x00, 0x00, 0xFF])
+            .ok_or("layout 1")?;
+        assert_eq!(r1.button_byte, Some(0xFF));
+
+        // raw 3-byte layout
+        let r2 = parse_hbp_usb_report_best_effort(&[0x00, 0x00, 0xAA])
+            .ok_or("layout 2")?;
+        assert_eq!(r2.button_byte, Some(0xAA));
+
+        // raw 2-byte layout has no button
+        let r3 = parse_hbp_usb_report_best_effort(&[0x00, 0x00])
+            .ok_or("layout 3")?;
+        assert_eq!(r3.button_byte, None);
+        Ok(())
+    }
+
+    #[test]
+    fn hbp_sample_raw_debug_and_clone() {
+        let sample = HbpHandbrakeSampleRaw {
+            handbrake: 1234,
+            button_byte: Some(0x01),
+        };
+        let cloned = sample;
+        assert_eq!(sample, cloned);
+        let _ = format!("{:?}", sample);
+    }
+
+    #[test]
+    fn hbp_sample_normalized_debug_and_clone() {
+        let sample = HbpHandbrakeSample {
+            handbrake: 0.5,
+            button_byte: None,
+        };
+        let cloned = sample;
+        assert_eq!(cloned.button_byte, None);
+        let _ = format!("{:?}", sample);
+    }
+
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(256))]
+
+        #[test]
+        fn prop_parse_axis_round_trips(lo in 0u8..=255u8, hi in 0u8..=255u8) {
+            let expected = u16::from_le_bytes([lo, hi]);
+            let buf = [lo, hi];
+            prop_assert_eq!(parse_axis(&buf, 0), Some(expected));
+        }
+
+        #[test]
+        fn prop_normalize_within_unit_range(value: u16) {
+            let sample = HbpHandbrakeSampleRaw {
+                handbrake: value,
+                button_byte: None,
+            };
+            let normalized = sample.normalize();
+            prop_assert!(normalized.handbrake >= 0.0);
+            prop_assert!(normalized.handbrake <= 1.0);
+        }
+
+        #[test]
+        fn prop_two_byte_report_always_parses(lo in 0u8..=255u8, hi in 0u8..=255u8) {
+            let report = [lo, hi];
+            let parsed = parse_hbp_usb_report_best_effort(&report);
+            prop_assert!(parsed.is_some());
+            let sample = parsed.expect("just checked is_some");
+            prop_assert_eq!(sample.handbrake, u16::from_le_bytes([lo, hi]));
+            prop_assert_eq!(sample.button_byte, None);
+        }
+
+        #[test]
+        fn prop_four_byte_nonzero_id_uses_prefixed_layout(
+            id in 1u8..=255u8,
+            lo in 0u8..=255u8,
+            hi in 0u8..=255u8,
+            btn in 0u8..=255u8,
+        ) {
+            let report = [id, lo, hi, btn];
+            let parsed = parse_hbp_usb_report_best_effort(&report);
+            prop_assert!(parsed.is_some());
+            let sample = parsed.expect("just checked is_some");
+            prop_assert_eq!(sample.handbrake, u16::from_le_bytes([lo, hi]));
+            prop_assert_eq!(sample.button_byte, Some(btn));
+        }
+    }
 }
