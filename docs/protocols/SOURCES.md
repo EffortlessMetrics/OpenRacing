@@ -118,6 +118,7 @@ See friction log entry **F-005** for the history of why this document was create
 |----------|-------------------------------------|----------|
 | `0xC294` | Driving Force / Formula EX          | Verified |
 | `0xC293` | WingMan Formula Force GP            | Verified |
+| `0xC291` | WingMan Formula Force               | Verified |
 | `0xC295` | MOMO Racing                         | Verified |
 | `0xCA03` | MOMO Racing 2                       | Verified |
 | `0xCA04` | Vibration Wheel                     | Verified |
@@ -166,6 +167,8 @@ See friction log entry **F-005** for the history of why this document was create
 | `0xB654` | FGT Force Feedback (legacy)          | Community |
 | `0xB65A` | F430 Force Feedback (legacy)         | Community |
 | `0xB668` | T80 Racing Wheel (rumble only)       | Verified  |
+| `0xB66A` | T80 Ferrari 488 GTB (no FFB)         | Verified  |
+| `0xB664` | TX Racing Wheel (original PID)       | Verified  |
 | `0xB678` | ~~T3PA~~ → T.Flight Rudder Pedals   | Removed   |
 | `0xB679` | ~~T3PA Pro~~ → T-Rudder             | Removed   |
 
@@ -352,14 +355,41 @@ See friction log entry **F-005** for the history of why this document was create
 
 ---
 
+## FlashFire
+
+**VID:** `0x2F24`  
+**Source:** [berarma/oversteer](https://github.com/berarma/oversteer) wheel_ids.py (`FF_FLASHFIRE_900R = '2f24:010d'`).  
+**Status:** Community
+
+| PID      | Device Name         | Status    |
+|----------|---------------------|-----------|
+| `0x010D` | FlashFire 900R      | Community |
+
+---
+
+## Guillemot (legacy Thrustmaster)
+
+**VID:** `0x06F8`  
+**Source:** [berarma/oversteer](https://github.com/berarma/oversteer) wheel_ids.py (`TM_FFRW = '06f8:0004'`); Linux kernel `hid-tmff.c`.  
+**Status:** Community
+
+| PID      | Device Name                       | Status    |
+|----------|-----------------------------------|-----------|
+| `0x0004` | Guillemot Force Feedback Racing Wheel | Community |
+
+> **Note:** Guillemot was the parent company of Thrustmaster. Some older TM-branded wheels use this VID.
+
+---
+
 ## VID Collision Map
 
 Several vendors share a VID. Always disambiguate using the PID (and `iProduct` string if necessary).
 
 | VID      | Users                              |
 |----------|------------------------------------|
-| `0x0483` | STMicroelectronics (generic): VRS DirectForce, legacy Simagic |
+| `0x0483` | STMicroelectronics (generic): VRS DirectForce, legacy Simagic, Cube Controls |
 | `0x16D0` | MCS Electronics / OpenMoko (open HW): Simucube 2, Heusinkveld |
+| `0x044F` / `0x06F8` | Thrustmaster / Guillemot (parent company) |
 
 ---
 
