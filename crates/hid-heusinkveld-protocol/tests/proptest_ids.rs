@@ -81,7 +81,7 @@ proptest! {
         let pid = ALL_PIDS[idx];
         let model = HeusinkveldModel::from_product_id(pid);
         let count = model.pedal_count();
-        prop_assert!(count >= 2 && count <= 3,
+        prop_assert!((2..=3).contains(&count),
             "{model:?} must have pedal_count in [2, 3], got {count}");
     }
 

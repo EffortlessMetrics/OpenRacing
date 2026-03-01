@@ -19,6 +19,18 @@ pub const THRUSTMASTER_VENDOR_ID: u16 = 0x044F;
 ///
 /// Last verified: 2025-07 against hid-tmff2 commit f004195, oversteer commit 74c7484.
 ///
+/// # Protocol families (from hid-tmff2 probe function)
+///
+/// The following wheels all share the **T300RS FFB wire protocol** (Report ID
+/// 0x60, 63-byte payloads, common gain/range/effect commands):
+///   T300 RS (all modes), T248, TX Racing, TS-XW Racer, TS-PC Racer.
+///
+/// **Not** in the T300RS family:
+///   - T500 RS — uses a different, older protocol (hid-tmff2 issue #18)
+///   - T150 / TMX — separate protocol, not supported by hid-tmff2
+///   - T818 — not in hid-tmff2; reports T248 PID per issue #58
+///   - T-GT II — reuses T300 USB PIDs per hid-tmff2 README
+///
 /// # Removed PIDs (previously incorrect)
 ///
 /// - **T-GT** — was 0xB68E, but linux-hardware.org identifies that as "TPR Rudder
@@ -145,6 +157,21 @@ impl Model {
         }
     }
 
+    /// Peak torque output in Newton-metres for this model.
+    ///
+    /// These are **approximate marketing/community-consensus values**. Thrustmaster
+    /// does not publish official Nm specs for most products. Values are sourced
+    /// from community dynamometer measurements and retail spec sheets.
+    ///
+    /// Note: The hid-tmff2 driver does not contain torque specifications — it
+    /// operates in digital force units (signed i16, ≈ [-16384, 16384]). Physical
+    /// torque conversion is the caller's responsibility.
+    ///
+    /// # Protocol note (from hid-tmff2)
+    ///
+    /// T300RS, T248, TX, TS-XW, and TS-PC share the same digital force range
+    /// despite having different physical torque outputs (different motors/gearing).
+    /// The T500RS uses a separate, older protocol (not yet in hid-tmff2).
     pub fn max_torque_nm(self) -> f32 {
         match self {
             Self::T150 | Self::TMX => 2.5,

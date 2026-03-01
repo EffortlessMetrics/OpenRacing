@@ -5,12 +5,56 @@
 //! # Wire protocol reference (hid-tmff2)
 //!
 //! The Thrustmaster T300RS-family wire protocol (observed in Kimplul/hid-tmff2)
-//! uses a vendor-specific HID output report (ID 0x60) with 63-byte payloads:
+//! uses a vendor-specific HID output report (ID 0x60) with 63-byte payloads
+//! (31 bytes in PS4 mode):
 //!
 //! - **Constant force**: signed i16, little-endian, range approx. [-16384, 16384]
 //!   (Linux FF level / 2), with direction applied via sin(direction).
+//!   Source: `t300rs_calculate_constant_level()` in `src/tmt300rs/hid-tmt300rs.c`.
 //! - **Gain**: setup header `cmd=0x02, code=gain>>8` (16-bit gain scaled to high byte).
+//!   Source: `t300rs_set_gain()` in `src/tmt300rs/hid-tmt300rs.c`.
 //! - **Range**: setup header `cmd=0x08, sub=0x11`, value = `degrees * 0x3C` as LE16.
+//!   Source: `t300rs_set_range()` in `src/tmt300rs/hid-tmt300rs.c`.
+//! - **Autocenter**: setup headers `cmd=0x08, code=0x04, value=0x01` then
+//!   `cmd=0x08, code=0x03, value=autocenter_level` (LE16).
+//!   Source: `t300rs_set_autocenter()` in `src/tmt300rs/hid-tmt300rs.c`.
+//! - **Open/Close**: `cmd=0x01, code=0x05` (open) / `cmd=0x01, code=0x00` (close).
+//!   T248/TX/TS-XW/TS-PC use a two-step open: `{0x01,0x04}` then `{0x01,0x05}`.
+//!
+//! # Protocol families (verified from hid-tmff2 source)
+//!
+//! All of the following wheels share the **T300RS FFB protocol** — they use
+//! identical `t300rs_play_effect`, `t300rs_upload_effect`, `t300rs_update_effect`,
+//! `t300rs_stop_effect`, `t300rs_set_gain`, and `t300rs_set_autocenter` functions:
+//!
+//! - T300 RS (PS3 normal 0xb66e, PS3 advanced 0xb66f, PS4 normal 0xb66d)
+//! - T248 (0xb696) — uses T300RS protocol with 900° max range (vs 1080°)
+//! - TX Racing (0xb669) — uses T300RS protocol with 900° max range
+//! - TS-XW Racer (0xb692) — uses T300RS protocol, 1080° max range
+//! - TS-PC Racer (0xb689) — uses T300RS protocol, 1080° max range
+//!
+//! **Not** in the T300RS family (separate or unknown protocols):
+//! - T500 RS — uses a different, older protocol (hid-tmff2 issue #18, unsupported)
+//! - T150 / TMX — not supported in hid-tmff2; separate protocol
+//! - T818 — not supported in hid-tmff2 (reports T248 PID per issue #58)
+//! - T-GT II — reuses T300 USB PIDs per hid-tmff2 README
+//!
+//! Source: Kimplul/hid-tmff2 commit f004195, `src/hid-tmff2.c` probe function
+//! and `*_populate_api()` functions in each wheel subdirectory.
+//!
+//! # USB vs Bluetooth
+//!
+//! All Thrustmaster racing wheels are **USB-only**. No Bluetooth mode exists.
+//! The community drivers (hid-tmff2, oversteer) exclusively use USB HID
+//! interrupt transfers. There is no BLE or Bluetooth Classic profile for
+//! any Thrustmaster wheel product.
+//!
+//! # Pedal calibration data
+//!
+//! No standard pedal calibration data format was found in community drivers.
+//! Pedals connected via RJ12 to the wheelbase are reported as additional HID
+//! axes (10-bit, 0–1023 in PS3 mode) within the wheel's input report.
+//! Standalone USB pedal products (T-LCM, T3PA) have unverified protocols.
 //!
 //! This crate's encoding is an **application-level abstraction**, not the raw USB
 //! wire format. Report IDs and field layouts here are internal to OpenRacing.
