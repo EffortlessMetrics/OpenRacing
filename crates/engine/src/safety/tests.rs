@@ -684,3 +684,249 @@ fn test_moza_process_ks_button_mode_clutch_for_interlock() {
     let active = must_some(service.get_active_challenge(), "expected active challenge");
     assert!(active.combo_start.is_some());
 }
+
+// ---------------------------------------------------------------------------
+// Safety-hardening tests: fault detection timing, multi-fault, edge cases
+// ---------------------------------------------------------------------------
+
+/// Helper: drive a SafetyService through the full high-torque activation flow.
+fn activate_high_torque(service: &mut SafetyService, device: &str) {
+    let challenge = must(service.request_high_torque(device));
+    must(service.provide_ui_consent(challenge.challenge_token));
+    must(service.report_combo_start(challenge.challenge_token));
+    std::thread::sleep(Duration::from_millis(2100));
+    let ack = InterlockAck {
+        challenge_token: challenge.challenge_token,
+        device_token: 42,
+        combo_completed: ButtonCombo::BothClutchPaddles,
+        timestamp: Instant::now(),
+    };
+    must(service.confirm_high_torque(device, ack));
+}
+
+#[test]
+fn test_fault_detection_transitions_within_10ms() {
+    // ADR-0006: Fault detection time ≤ 10ms
+    let mut service = create_test_service();
+    let before = Instant::now();
+    service.report_fault(FaultType::Overcurrent);
+    let elapsed = before.elapsed();
+
+    assert!(
+        elapsed < Duration::from_millis(10),
+        "Fault detection took {elapsed:?}, exceeds 10ms budget"
+    );
+    assert!(matches!(service.state(), SafetyState::Faulted { .. }));
+    assert_eq!(service.max_torque_nm(), 0.0);
+}
+
+#[test]
+fn test_fault_to_safe_state_torque_zero_within_50ms() {
+    // ADR-0006: Fault → safe-state (zero torque) within 50ms
+    let mut service = create_test_service();
+    activate_high_torque(&mut service, "dev");
+
+    assert_eq!(service.max_torque_nm(), 25.0);
+
+    let before = Instant::now();
+    service.report_fault(FaultType::UsbStall);
+    let clamped = service.clamp_torque_nm(25.0);
+    let elapsed = before.elapsed();
+
+    assert_eq!(clamped, 0.0, "Torque must be zero after fault");
+    assert!(
+        elapsed < Duration::from_millis(50),
+        "Fault-to-safe-state took {elapsed:?}, exceeds 50ms budget"
+    );
+}
+
+#[test]
+fn test_multi_fault_all_reported_and_last_wins() {
+    let mut service = create_test_service();
+
+    service.report_fault(FaultType::UsbStall);
+    assert!(matches!(
+        service.state(),
+        SafetyState::Faulted {
+            fault: FaultType::UsbStall,
+            ..
+        }
+    ));
+
+    // Second fault overwrites the first (both recorded, last active)
+    service.report_fault(FaultType::ThermalLimit);
+    match service.state() {
+        SafetyState::Faulted { fault, .. } => {
+            assert_eq!(*fault, FaultType::ThermalLimit);
+        }
+        other => panic!("Expected Faulted, got {other:?}"),
+    }
+    // Torque remains zero regardless of which fault is active
+    assert_eq!(service.max_torque_nm(), 0.0);
+}
+
+#[test]
+fn test_rapid_fault_clear_cycling() {
+    // Rapidly fault → wait → clear → fault should always keep safety invariants
+    let mut service = create_test_service();
+
+    for _ in 0..10 {
+        service.report_fault(FaultType::EncoderNaN);
+        assert_eq!(service.clamp_torque_nm(10.0), 0.0);
+
+        std::thread::sleep(Duration::from_millis(110));
+        must(service.clear_fault());
+        assert_eq!(service.state(), &SafetyState::SafeTorque);
+        assert!(service.clamp_torque_nm(3.0).abs() <= 5.0);
+    }
+}
+
+#[test]
+fn test_cannot_escalate_to_high_torque_with_any_active_fault_count() {
+    let mut service = create_test_service();
+
+    // Report and clear a fault so the count is non-zero
+    service.report_fault(FaultType::TimingViolation);
+    std::thread::sleep(Duration::from_millis(110));
+    must(service.clear_fault());
+
+    // Attempting high torque should fail because fault_count > 0
+    let result = service.request_high_torque("dev");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_all_fault_types_transition_to_faulted_state() {
+    let all_faults = [
+        FaultType::UsbStall,
+        FaultType::EncoderNaN,
+        FaultType::ThermalLimit,
+        FaultType::Overcurrent,
+        FaultType::PluginOverrun,
+        FaultType::TimingViolation,
+        FaultType::SafetyInterlockViolation,
+        FaultType::HandsOffTimeout,
+        FaultType::PipelineFault,
+    ];
+
+    for fault in all_faults {
+        let mut service = create_test_service();
+        service.report_fault(fault);
+
+        assert!(
+            matches!(service.state(), SafetyState::Faulted { .. }),
+            "Fault {fault:?} did not transition to Faulted"
+        );
+        assert_eq!(
+            service.clamp_torque_nm(100.0),
+            0.0,
+            "Fault {fault:?} did not zero torque"
+        );
+    }
+}
+
+#[test]
+fn test_challenge_response_wrong_token_at_every_step() {
+    let mut service = create_test_service();
+    let challenge = must(service.request_high_torque("dev"));
+
+    // Wrong token for UI consent
+    assert!(service
+        .provide_ui_consent(challenge.challenge_token.wrapping_add(1))
+        .is_err());
+
+    // Correct UI consent to proceed
+    must(service.provide_ui_consent(challenge.challenge_token));
+
+    // Wrong token for combo start
+    assert!(service
+        .report_combo_start(challenge.challenge_token.wrapping_add(1))
+        .is_err());
+
+    // Correct combo start
+    must(service.report_combo_start(challenge.challenge_token));
+    std::thread::sleep(Duration::from_millis(2100));
+
+    // Wrong token for confirmation
+    let bad_ack = InterlockAck {
+        challenge_token: challenge.challenge_token.wrapping_add(1),
+        device_token: 1,
+        combo_completed: ButtonCombo::BothClutchPaddles,
+        timestamp: Instant::now(),
+    };
+    assert!(service.confirm_high_torque("dev", bad_ack).is_err());
+
+    // Should still be in AwaitingPhysicalAck – not promoted
+    assert!(matches!(
+        service.state(),
+        SafetyState::AwaitingPhysicalAck { .. }
+    ));
+}
+
+#[test]
+fn test_interlock_passthrough_safe_torque_during_challenge() {
+    // During the challenge flow, torque must remain at safe limit
+    let mut service = create_test_service();
+    let challenge = must(service.request_high_torque("dev"));
+
+    // In HighTorqueChallenge
+    assert_eq!(service.max_torque_nm(), 5.0);
+    assert_eq!(service.clamp_torque_nm(20.0), 5.0);
+
+    must(service.provide_ui_consent(challenge.challenge_token));
+
+    // In AwaitingPhysicalAck
+    assert_eq!(service.max_torque_nm(), 5.0);
+    assert_eq!(service.clamp_torque_nm(20.0), 5.0);
+}
+
+#[test]
+fn test_clear_fault_before_minimum_duration_rejected() {
+    let mut service = create_test_service();
+    service.report_fault(FaultType::Overcurrent);
+
+    // Immediate clear should fail (< 100ms)
+    let result = service.clear_fault();
+    assert!(result.is_err());
+    assert!(matches!(service.state(), SafetyState::Faulted { .. }));
+}
+
+#[test]
+fn test_hands_off_timeout_only_in_high_torque_active() {
+    let mut service = create_test_service();
+
+    // In SafeTorque, hands-off update should be a no-op (Ok)
+    must(service.update_hands_on_status(false));
+    assert_eq!(service.state(), &SafetyState::SafeTorque);
+}
+
+#[test]
+fn test_high_torque_flag_ignored_outside_active_state() {
+    let service = create_test_service();
+
+    // Even with is_high_torque_enabled=true, SafeTorque returns safe limit
+    assert_eq!(service.get_max_torque(true).value(), 5.0);
+}
+
+#[test]
+fn test_cancel_challenge_from_high_torque_challenge_state() {
+    let mut service = create_test_service();
+    must(service.request_high_torque("dev"));
+
+    // Cancel before providing UI consent
+    must(service.cancel_challenge());
+    assert_eq!(service.state(), &SafetyState::SafeTorque);
+    assert!(service.get_active_challenge().is_none());
+}
+
+#[test]
+fn test_cancel_from_non_challenge_state_returns_error() {
+    let mut service = create_test_service();
+    assert!(service.cancel_challenge().is_err());
+}
+
+#[test]
+fn test_disable_high_torque_from_non_active_state_returns_error() {
+    let mut service = create_test_service();
+    assert!(service.disable_high_torque("dev").is_err());
+}

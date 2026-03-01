@@ -910,4 +910,262 @@ mod tests {
         assert!(usb_stat.is_some());
         assert_eq!(usb_stat.expect("usb_stat is some").1, 2);
     }
+
+    // -----------------------------------------------------------------------
+    // FMEA hardening: full fault enumeration, risk scoring, detection, NaN
+    // -----------------------------------------------------------------------
+
+    /// All 9 fault types must have a default FMEA entry in the matrix.
+    #[test]
+    fn test_fmea_matrix_covers_all_fault_types() {
+        let matrix = FmeaMatrix::with_defaults();
+        let all_faults = [
+            FaultType::UsbStall,
+            FaultType::EncoderNaN,
+            FaultType::ThermalLimit,
+            FaultType::Overcurrent,
+            FaultType::PluginOverrun,
+            FaultType::TimingViolation,
+            FaultType::SafetyInterlockViolation,
+            FaultType::HandsOffTimeout,
+            FaultType::PipelineFault,
+        ];
+        for ft in all_faults {
+            assert!(
+                matrix.contains(ft),
+                "FMEA matrix missing entry for {ft:?}"
+            );
+            let entry = matrix.get(ft);
+            assert!(entry.is_some());
+            let entry = entry.expect("just checked");
+            assert!(entry.enabled, "Default entry for {ft:?} should be enabled");
+            assert!(
+                !entry.detection_method.is_empty(),
+                "Detection method for {ft:?} must not be empty"
+            );
+            assert!(
+                !entry.recovery_procedure.is_empty(),
+                "Recovery procedure for {ft:?} must not be empty"
+            );
+        }
+    }
+
+    /// Every fault type that requires immediate response must have max_response_time ≤ 50ms.
+    #[test]
+    fn test_fmea_response_time_for_immediate_faults() {
+        let matrix = FmeaMatrix::with_defaults();
+        let all_faults = [
+            FaultType::UsbStall,
+            FaultType::EncoderNaN,
+            FaultType::ThermalLimit,
+            FaultType::Overcurrent,
+            FaultType::PluginOverrun,
+            FaultType::TimingViolation,
+            FaultType::SafetyInterlockViolation,
+            FaultType::HandsOffTimeout,
+            FaultType::PipelineFault,
+        ];
+        for ft in all_faults {
+            if ft.requires_immediate_response() {
+                let entry = matrix.get(ft).expect("entry must exist");
+                assert!(
+                    entry.max_response_time_ms <= 50,
+                    "{ft:?} requires immediate response but max_response_time_ms = {}",
+                    entry.max_response_time_ms
+                );
+            }
+        }
+    }
+
+    /// Severity ordering: critical faults have lower severity numbers.
+    #[test]
+    fn test_fmea_severity_ordering() {
+        assert!(FaultType::Overcurrent.severity() <= FaultType::PluginOverrun.severity());
+        assert!(FaultType::ThermalLimit.severity() <= FaultType::TimingViolation.severity());
+    }
+
+    /// Actions that affect torque must be assigned to faults requiring immediate response.
+    #[test]
+    fn test_fmea_action_consistency_with_severity() {
+        let matrix = FmeaMatrix::with_defaults();
+        let critical_faults = [
+            FaultType::Overcurrent,
+            FaultType::ThermalLimit,
+            FaultType::UsbStall,
+            FaultType::EncoderNaN,
+        ];
+        for ft in critical_faults {
+            let entry = matrix.get(ft).expect("entry must exist");
+            assert!(
+                entry.action.affects_torque(),
+                "{ft:?} is critical but action {:?} does not affect torque",
+                entry.action
+            );
+        }
+    }
+
+    /// Encoder fault detection with Infinity should also trigger (non-finite).
+    #[test]
+    fn test_fmea_encoder_detects_infinity() {
+        let mut fmea = FmeaSystem::new();
+        let threshold = fmea.thresholds().encoder_max_nan_count;
+
+        let mut detected = false;
+        for _ in 0..threshold {
+            if fmea.detect_encoder_fault(f32::INFINITY).is_some() {
+                detected = true;
+                break;
+            }
+        }
+        assert!(
+            detected,
+            "INFINITY should trigger encoder fault after {threshold} occurrences"
+        );
+    }
+
+    /// Encoder fault detection with NEG_INFINITY.
+    #[test]
+    fn test_fmea_encoder_detects_neg_infinity() {
+        let mut fmea = FmeaSystem::new();
+        let threshold = fmea.thresholds().encoder_max_nan_count;
+
+        let mut detected = false;
+        for _ in 0..threshold {
+            if fmea.detect_encoder_fault(f32::NEG_INFINITY).is_some() {
+                detected = true;
+                break;
+            }
+        }
+        assert!(
+            detected,
+            "NEG_INFINITY should trigger encoder fault after {threshold} occurrences"
+        );
+    }
+
+    /// Handle fault for every fault type succeeds.
+    #[test]
+    fn test_handle_fault_for_all_types() {
+        let all_faults = [
+            FaultType::UsbStall,
+            FaultType::EncoderNaN,
+            FaultType::ThermalLimit,
+            FaultType::Overcurrent,
+            FaultType::PluginOverrun,
+            FaultType::TimingViolation,
+            FaultType::SafetyInterlockViolation,
+            FaultType::HandsOffTimeout,
+            FaultType::PipelineFault,
+        ];
+        for ft in all_faults {
+            let mut fmea = FmeaSystem::new();
+            let result = fmea.handle_fault(ft, 10.0);
+            assert!(result.is_ok(), "handle_fault failed for {ft:?}");
+            assert_eq!(fmea.active_fault(), Some(ft));
+        }
+    }
+
+    /// Disabled entry: handle_fault should succeed but not activate soft-stop.
+    #[test]
+    fn test_disabled_entry_no_soft_stop() {
+        let mut fmea = FmeaSystem::new();
+        if let Some(entry) = fmea.fmea_matrix_mut().get_mut(FaultType::TimingViolation) {
+            entry.enabled = false;
+        }
+        let result = fmea.handle_fault(FaultType::TimingViolation, 10.0);
+        assert!(result.is_ok());
+        // Active fault is still set, but soft-stop not triggered for LogAndContinue
+        // The key invariant: disabled entry does not activate soft-stop
+        // (TimingViolation default action is LogAndContinue, which doesn't start soft-stop)
+        assert!(!fmea.is_soft_stop_active());
+    }
+
+    /// Soft-stop from zero torque should complete without issues.
+    #[test]
+    fn test_soft_stop_from_zero_torque() {
+        let mut fmea = FmeaSystem::new();
+        let result = fmea.handle_fault(FaultType::UsbStall, 0.0);
+        assert!(result.is_ok());
+        assert!(fmea.is_soft_stop_active());
+        let torque = fmea.update_soft_stop(Duration::from_millis(100));
+        assert_eq!(torque, 0.0);
+    }
+
+    /// Soft-stop from negative torque ramps toward zero.
+    #[test]
+    fn test_soft_stop_from_negative_torque() {
+        let mut fmea = FmeaSystem::new();
+        let result = fmea.handle_fault(FaultType::Overcurrent, -15.0);
+        assert!(result.is_ok());
+
+        let torque = fmea.update_soft_stop(Duration::from_millis(25));
+        // Should be between -15 and 0 (ramping toward zero)
+        assert!((-15.0..=0.0).contains(&torque));
+    }
+
+    /// Reset detection state clears consecutive count.
+    #[test]
+    fn test_reset_detection_state() {
+        let mut fmea = FmeaSystem::new();
+        // Accumulate some USB failures
+        fmea.detect_usb_fault(2, Some(Duration::ZERO));
+
+        fmea.reset_detection_state(FaultType::UsbStall);
+
+        // After reset, 2 failures should not trigger (threshold is 3)
+        let result = fmea.detect_usb_fault(2, Some(Duration::ZERO));
+        assert!(result.is_none());
+    }
+
+    /// Recovery procedure is available for recoverable faults.
+    #[test]
+    fn test_recovery_procedure_for_recoverable_faults() {
+        let recoverable = [
+            FaultType::UsbStall,
+            FaultType::ThermalLimit,
+            FaultType::PluginOverrun,
+            FaultType::TimingViolation,
+            FaultType::PipelineFault,
+        ];
+        for ft in recoverable {
+            let mut fmea = FmeaSystem::new();
+            let result = fmea.handle_fault(ft, 5.0);
+            assert!(result.is_ok());
+            assert!(
+                fmea.can_recover(),
+                "{ft:?} should be recoverable"
+            );
+            assert!(fmea.recovery_procedure().is_some());
+        }
+    }
+
+    /// Non-recoverable faults have can_recover() == false.
+    #[test]
+    fn test_non_recoverable_faults() {
+        let non_recoverable = [
+            FaultType::EncoderNaN,
+            FaultType::Overcurrent,
+            FaultType::SafetyInterlockViolation,
+            FaultType::HandsOffTimeout,
+        ];
+        for ft in non_recoverable {
+            let mut fmea = FmeaSystem::new();
+            let result = fmea.handle_fault(ft, 5.0);
+            assert!(result.is_ok());
+            assert!(
+                !fmea.can_recover(),
+                "{ft:?} should NOT be recoverable"
+            );
+        }
+    }
+
+    /// Matrix update (insert over existing) replaces the entry.
+    #[test]
+    fn test_fmea_matrix_update_replaces() {
+        let mut matrix = FmeaMatrix::with_defaults();
+        let custom = FmeaEntry::new(FaultType::UsbStall).with_response_time(999);
+        assert!(matrix.insert(custom));
+
+        let entry = matrix.get(FaultType::UsbStall).expect("entry must exist");
+        assert_eq!(entry.max_response_time_ms, 999);
+    }
 }

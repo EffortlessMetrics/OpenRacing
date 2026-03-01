@@ -873,7 +873,7 @@ mod tests {
 
     #[test]
     fn test_cardash_race_off_returns_defaults() -> TestResult {
-        let mut data = vec![0u8; FORZA_CARDASH_SIZE];
+        let data = vec![0u8; FORZA_CARDASH_SIZE];
         // is_race_on = 0
         let result = parse_forza_cardash(&data)?;
         assert_eq!(result.rpm, 0.0);

@@ -244,3 +244,144 @@ fn test_reset_statistics() -> TestResult {
     assert_eq!(stats.timeout_count, 0);
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// Watchdog crate hardening: successive timeouts, rapid cycling, health checks
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_multiple_successive_quarantines() -> TestResult {
+    let config = WatchdogConfig::builder()
+        .plugin_timeout_us(100)
+        .plugin_max_timeouts(3)
+        .plugin_quarantine_duration(Duration::from_secs(60))
+        .build()?;
+    let watchdog = WatchdogSystem::new(config);
+
+    // First quarantine cycle
+    for _ in 0..3 {
+        watchdog.record_plugin_execution("plugin", 200);
+    }
+    assert!(watchdog.is_plugin_quarantined("plugin"));
+
+    // Release and trigger again
+    watchdog.release_plugin_quarantine("plugin")?;
+    assert!(!watchdog.is_plugin_quarantined("plugin"));
+
+    // Second quarantine cycle
+    for _ in 0..3 {
+        watchdog.record_plugin_execution("plugin", 200);
+    }
+    assert!(watchdog.is_plugin_quarantined("plugin"));
+
+    // Stats should reflect both cycles
+    let stats = watchdog
+        .get_plugin_stats("plugin")
+        .ok_or("Expected stats")?;
+    assert!(stats.quarantine_count >= 2);
+    Ok(())
+}
+
+#[test]
+fn test_timeout_count_resets_on_success() -> TestResult {
+    let config = WatchdogConfig::builder()
+        .plugin_timeout_us(100)
+        .plugin_max_timeouts(5)
+        .plugin_quarantine_duration(Duration::from_secs(60))
+        .build()?;
+    let watchdog = WatchdogSystem::new(config);
+
+    // 4 timeouts (below threshold of 5)
+    for _ in 0..4 {
+        let fault = watchdog.record_plugin_execution("plugin", 200);
+        assert!(fault.is_none());
+    }
+
+    // One success resets consecutive count
+    watchdog.record_plugin_execution("plugin", 50);
+
+    // 4 more timeouts — still below threshold because consecutive was reset
+    for _ in 0..4 {
+        let fault = watchdog.record_plugin_execution("plugin", 200);
+        assert!(fault.is_none());
+    }
+
+    assert!(!watchdog.is_plugin_quarantined("plugin"));
+    Ok(())
+}
+
+#[test]
+fn test_health_check_timeout_detection() -> TestResult {
+    let config = WatchdogConfig::builder()
+        .health_check_interval(Duration::from_millis(1))
+        .rt_thread_timeout_ms(10)
+        .build()?;
+    let watchdog = WatchdogSystem::new(config);
+
+    // Send heartbeat then let it expire
+    watchdog.heartbeat(SystemComponent::RtThread);
+    std::thread::sleep(Duration::from_millis(15));
+
+    let faults = watchdog.perform_health_checks();
+    assert!(
+        faults.contains(&FaultType::TimingViolation),
+        "Expected TimingViolation fault after RT thread heartbeat timeout"
+    );
+    Ok(())
+}
+
+#[test]
+fn test_component_failure_progression_to_faulted() {
+    let watchdog = WatchdogSystem::default();
+    watchdog.heartbeat(SystemComponent::HidCommunication);
+
+    // 5+ failures needed: Healthy → Degraded → Faulted
+    for _ in 0..5 {
+        watchdog.report_component_failure(SystemComponent::HidCommunication, None);
+    }
+
+    let health = watchdog
+        .get_component_health(SystemComponent::HidCommunication);
+    assert!(health.is_some());
+    let health = health.expect("checked");
+    assert_eq!(health.status, HealthStatus::Faulted);
+}
+
+#[test]
+fn test_release_non_quarantined_plugin_errors() {
+    let watchdog = WatchdogSystem::default();
+    watchdog.register_plugin("plugin");
+
+    // Not quarantined — release should fail
+    let result = watchdog.release_plugin_quarantine("plugin");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_unregister_unknown_plugin_errors() {
+    let watchdog = WatchdogSystem::default();
+    let result = watchdog.unregister_plugin("ghost");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_faulted_component_recovers_on_heartbeat() {
+    let watchdog = WatchdogSystem::default();
+    watchdog.heartbeat(SystemComponent::RtThread);
+
+    // Drive to faulted (5+ failures)
+    for _ in 0..5 {
+        watchdog.report_component_failure(SystemComponent::RtThread, None);
+    }
+    let health = watchdog
+        .get_component_health(SystemComponent::RtThread)
+        .expect("component exists");
+    assert_eq!(health.status, HealthStatus::Faulted);
+
+    // Heartbeat restores
+    watchdog.heartbeat(SystemComponent::RtThread);
+    let health = watchdog
+        .get_component_health(SystemComponent::RtThread)
+        .expect("component exists");
+    assert_eq!(health.status, HealthStatus::Healthy);
+}
