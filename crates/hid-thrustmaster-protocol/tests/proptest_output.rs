@@ -221,3 +221,76 @@ proptest! {
         );
     }
 }
+
+// ── Kernel-verified protocol property tests ──────────────────────────────
+
+use racing_wheel_hid_thrustmaster_protocol::{
+    build_kernel_autocenter_commands, build_kernel_gain_command, build_kernel_range_command,
+};
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(512))]
+
+    // ── build_kernel_range_command: bytes [2,3] decode to degrees * 0x3C ──
+
+    /// The output bytes [2,3] must decode (LE u16) to `clamped_degrees * 0x3C`.
+    #[test]
+    fn prop_kernel_range_encodes_scaled_degrees(degrees in 0u16..=2000u16) {
+        let cmd = build_kernel_range_command(degrees);
+        let clamped = degrees.clamp(40, 1080);
+        let expected = ((clamped as u32) * 0x3C) as u16;
+        let decoded = u16::from_le_bytes([cmd[2], cmd[3]]);
+        prop_assert_eq!(decoded, expected,
+            "bytes [2,3] must encode clamped degrees * 0x3C");
+    }
+
+    /// build_kernel_range_command must always clamp to 40..=1080°.
+    #[test]
+    fn prop_kernel_range_clamps(degrees in 0u16..=65535u16) {
+        let cmd = build_kernel_range_command(degrees);
+        let cmd_at_40 = build_kernel_range_command(40);
+        let cmd_at_1080 = build_kernel_range_command(1080);
+        if degrees < 40 {
+            prop_assert_eq!(cmd, cmd_at_40,
+                "degrees below 40 must clamp to 40");
+        } else if degrees > 1080 {
+            prop_assert_eq!(cmd, cmd_at_1080,
+                "degrees above 1080 must clamp to 1080");
+        }
+        // Header bytes are always the same
+        prop_assert_eq!(cmd[0], 0x08, "byte 0 must be 0x08");
+        prop_assert_eq!(cmd[1], 0x11, "byte 1 must be 0x11");
+    }
+
+    // ── build_kernel_gain_command: byte[1] is gain >> 8 ──────────────────
+
+    /// Byte[1] of the gain command must equal gain >> 8.
+    #[test]
+    fn prop_kernel_gain_byte1(gain in 0u16..=65535u16) {
+        let cmd = build_kernel_gain_command(gain);
+        prop_assert_eq!(cmd[0], 0x02, "byte 0 must be 0x02");
+        prop_assert_eq!(cmd[1], (gain >> 8) as u8,
+            "byte 1 must be gain >> 8 = {}", (gain >> 8) as u8);
+    }
+
+    // ── build_kernel_autocenter_commands: exactly 2 commands ─────────────
+
+    /// build_kernel_autocenter_commands must return exactly 2 commands of
+    /// 4 bytes each, with the value encoded as LE u16 in the 2nd command.
+    #[test]
+    fn prop_kernel_autocenter_structure(value in 0u16..=65535u16) {
+        let cmds = build_kernel_autocenter_commands(value);
+        prop_assert_eq!(cmds.len(), 2, "must return exactly 2 commands");
+
+        // First command is always the same setup preamble
+        prop_assert_eq!(cmds[0], [0x08, 0x04, 0x01, 0x00],
+            "first command must be the autocenter setup preamble");
+
+        // Second command encodes the value as LE u16 at bytes [2,3]
+        prop_assert_eq!(cmds[1][0], 0x08, "cmd 2 byte 0 must be 0x08");
+        prop_assert_eq!(cmds[1][1], 0x03, "cmd 2 byte 1 must be 0x03");
+        let decoded = u16::from_le_bytes([cmds[1][2], cmds[1][3]]);
+        prop_assert_eq!(decoded, value,
+            "cmd 2 bytes [2,3] must encode the autocenter value");
+    }
+}

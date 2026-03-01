@@ -209,3 +209,124 @@ proptest! {
         );
     }
 }
+
+// ── Kernel-verified protocol property tests ──────────────────────────────
+
+use racing_wheel_hid_logitech_protocol::{
+    VENDOR_REPORT_LEN, build_mode_switch_report, build_set_range_dfp_report,
+};
+
+/// Strategy that produces every `LogitechModel` variant uniformly.
+fn arb_logitech_model() -> impl Strategy<Value = LogitechModel> {
+    prop_oneof![
+        Just(LogitechModel::WingManFormulaForce),
+        Just(LogitechModel::MOMO),
+        Just(LogitechModel::DrivingForceEX),
+        Just(LogitechModel::DrivingForcePro),
+        Just(LogitechModel::DrivingForceGT),
+        Just(LogitechModel::SpeedForceWireless),
+        Just(LogitechModel::VibrationWheel),
+        Just(LogitechModel::G25),
+        Just(LogitechModel::G27),
+        Just(LogitechModel::G29),
+        Just(LogitechModel::G920),
+        Just(LogitechModel::G923),
+        Just(LogitechModel::GPro),
+        Just(LogitechModel::Unknown),
+    ]
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(512))]
+
+    // ── build_set_range_dfp_report: correct command byte ─────────────────
+
+    /// DFP range report must start with VENDOR report ID (0xF8) and
+    /// SET_RANGE command (0x81), and be exactly VENDOR_REPORT_LEN bytes.
+    #[test]
+    fn prop_dfp_range_report_header(degrees in 0u16..=2000u16) {
+        let r = build_set_range_dfp_report(degrees);
+        prop_assert_eq!(r.len(), VENDOR_REPORT_LEN,
+            "DFP range report must be 7 bytes");
+        prop_assert_eq!(r[0], 0xF8, "byte 0 must be VENDOR report ID (0xF8)");
+        prop_assert_eq!(r[1], 0x81, "byte 1 must be SET_RANGE command (0x81)");
+        prop_assert_eq!(&r[4..], &[0x00, 0x00, 0x00],
+            "bytes 4-6 must be zero padding");
+    }
+
+    // ── build_mode_switch_report: returns correct structure ──────────────
+
+    /// Mode-switch report must start with VENDOR report ID and MODE_SWITCH
+    /// command, be 7 bytes, and encode mode_id and detach correctly.
+    #[test]
+    fn prop_mode_switch_report_structure(mode_id: u8, detach: bool) {
+        let r = build_mode_switch_report(mode_id, detach);
+        prop_assert_eq!(r.len(), VENDOR_REPORT_LEN,
+            "mode-switch report must be 7 bytes");
+        prop_assert_eq!(r[0], 0xF8, "byte 0 must be VENDOR report ID (0xF8)");
+        prop_assert_eq!(r[1], 0x09, "byte 1 must be MODE_SWITCH command (0x09)");
+        prop_assert_eq!(r[2], mode_id, "byte 2 must be mode_id");
+        prop_assert_eq!(r[3], 0x01, "byte 3 must be 0x01");
+        let expected_detach = if detach { 0x01u8 } else { 0x00u8 };
+        prop_assert_eq!(r[4], expected_detach,
+            "byte 4 must be 0x01 if detach, 0x00 otherwise");
+        prop_assert_eq!(&r[5..], &[0x00, 0x00],
+            "bytes 5-6 must be zero");
+    }
+
+    // ── supports_hardware_friction: correct models ───────────────────────
+
+    /// supports_hardware_friction must return true only for DFP, G25, DFGT, G27.
+    #[test]
+    fn prop_supports_hardware_friction(model in arb_logitech_model()) {
+        let expected = matches!(
+            model,
+            LogitechModel::DrivingForcePro
+                | LogitechModel::G25
+                | LogitechModel::DrivingForceGT
+                | LogitechModel::G27
+        );
+        prop_assert_eq!(model.supports_hardware_friction(), expected,
+            "supports_hardware_friction for {:?} should be {}", model, expected);
+    }
+
+    // ── supports_range_command: correct models ───────────────────────────
+
+    /// supports_range_command must return true for DFP and above (DFP, G25,
+    /// DFGT, G27, G29, G920, G923, GPro) and false for older models.
+    #[test]
+    fn prop_supports_range_command(model in arb_logitech_model()) {
+        let expected = matches!(
+            model,
+            LogitechModel::DrivingForcePro
+                | LogitechModel::G25
+                | LogitechModel::DrivingForceGT
+                | LogitechModel::G27
+                | LogitechModel::G29
+                | LogitechModel::G920
+                | LogitechModel::G923
+                | LogitechModel::GPro
+        );
+        prop_assert_eq!(model.supports_range_command(), expected,
+            "supports_range_command for {:?} should be {}", model, expected);
+    }
+
+    /// Models without range command support: WingMan, MOMO, DrivingForceEX,
+    /// SpeedForceWireless, VibrationWheel, Unknown must return false.
+    #[test]
+    fn prop_no_range_for_legacy_models(model in arb_logitech_model()) {
+        let is_legacy = matches!(
+            model,
+            LogitechModel::WingManFormulaForce
+                | LogitechModel::MOMO
+                | LogitechModel::DrivingForceEX
+                | LogitechModel::SpeedForceWireless
+                | LogitechModel::VibrationWheel
+                | LogitechModel::Unknown
+        );
+        if is_legacy {
+            prop_assert!(!model.supports_range_command(),
+                "legacy model {:?} must not support range command", model);
+        }
+    }
+}

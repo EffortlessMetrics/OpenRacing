@@ -142,3 +142,157 @@ proptest! {
         prop_assert_eq!(out[7], 0x00, "reserved byte 7 must be zero");
     }
 }
+
+// ── Kernel-verified protocol property tests ──────────────────────────────
+
+use racing_wheel_hid_fanatec_protocol::{
+    FanatecModel, build_kernel_range_sequence, fix_report_values, MIN_ROTATION_DEGREES,
+    MAX_ROTATION_DEGREES,
+};
+
+/// Strategy that produces every `FanatecModel` variant uniformly.
+fn arb_fanatec_model() -> impl Strategy<Value = FanatecModel> {
+    prop_oneof![
+        Just(FanatecModel::Dd1),
+        Just(FanatecModel::Dd2),
+        Just(FanatecModel::CslElite),
+        Just(FanatecModel::CslDd),
+        Just(FanatecModel::GtDdPro),
+        Just(FanatecModel::ClubSportDd),
+        Just(FanatecModel::ClubSportV2),
+        Just(FanatecModel::ClubSportV25),
+        Just(FanatecModel::CsrElite),
+        Just(FanatecModel::Unknown),
+    ]
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(512))]
+
+    // ── build_kernel_range_sequence: always 3 reports of 7 bytes ─────────
+
+    /// The kernel range sequence must always produce exactly 3 reports,
+    /// each 7 bytes long.
+    #[test]
+    fn prop_kernel_range_sequence_shape(degrees in 0u16..=4000u16) {
+        let seq = build_kernel_range_sequence(degrees);
+        prop_assert_eq!(seq.len(), 3, "must produce exactly 3 reports");
+        for report in &seq {
+            prop_assert_eq!(report.len(), 7, "each report must be 7 bytes");
+        }
+    }
+
+    /// The 3rd report of the kernel range sequence must encode the
+    /// clamped degree value as a little-endian u16 at bytes [2,3].
+    #[test]
+    fn prop_kernel_range_sequence_encodes_degrees(degrees in 0u16..=4000u16) {
+        let seq = build_kernel_range_sequence(degrees);
+        let clamped = degrees.clamp(MIN_ROTATION_DEGREES, MAX_ROTATION_DEGREES);
+        let decoded = u16::from_le_bytes([seq[2][2], seq[2][3]]);
+        prop_assert_eq!(decoded, clamped,
+            "3rd report bytes [2,3] must encode clamped degrees");
+    }
+
+    /// Step 1 must always be the reset command, step 2 the prepare command.
+    #[test]
+    fn prop_kernel_range_sequence_fixed_steps(degrees in 0u16..=4000u16) {
+        let seq = build_kernel_range_sequence(degrees);
+        prop_assert_eq!(seq[0], [0xF5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+            "step 1 must be the reset command");
+        prop_assert_eq!(seq[1], [0xF8, 0x09, 0x01, 0x06, 0x01, 0x00, 0x00],
+            "step 2 must be the prepare command");
+        prop_assert_eq!(seq[2][0], 0xF8, "step 3 byte 0 must be 0xF8");
+        prop_assert_eq!(seq[2][1], 0x81, "step 3 byte 1 must be 0x81");
+    }
+
+    // ── fix_report_values: idempotence ───────────────────────────────────
+
+    /// Applying fix_report_values twice must give the same result as once.
+    #[test]
+    fn prop_fix_report_values_idempotent(
+        v0 in 0i16..=255i16,
+        v1 in 0i16..=255i16,
+        v2 in 0i16..=255i16,
+        v3 in 0i16..=255i16,
+        v4 in 0i16..=255i16,
+        v5 in 0i16..=255i16,
+        v6 in 0i16..=255i16,
+    ) {
+        let mut once = [v0, v1, v2, v3, v4, v5, v6];
+        fix_report_values(&mut once);
+        let mut twice = once;
+        fix_report_values(&mut twice);
+        prop_assert_eq!(once, twice,
+            "fix_report_values must be idempotent");
+    }
+
+    /// fix_report_values must only modify values >= 0x80 by subtracting 0x100.
+    #[test]
+    fn prop_fix_report_values_only_modifies_high(
+        v0 in 0i16..=255i16,
+        v1 in 0i16..=255i16,
+        v2 in 0i16..=255i16,
+        v3 in 0i16..=255i16,
+        v4 in 0i16..=255i16,
+        v5 in 0i16..=255i16,
+        v6 in 0i16..=255i16,
+    ) {
+        let original = [v0, v1, v2, v3, v4, v5, v6];
+        let mut fixed = original;
+        fix_report_values(&mut fixed);
+        for (i, (&orig, &fix)) in original.iter().zip(fixed.iter()).enumerate() {
+            if orig < 0x80 {
+                prop_assert!(fix == orig,
+                    "value 0x{:04X} at index {} is < 0x80 and must be unchanged, got 0x{:04X}",
+                    orig, i, fix);
+            } else {
+                prop_assert!(fix == orig - 0x100,
+                    "value 0x{:04X} at index {} is >= 0x80 and must become {}, got {}",
+                    orig, i, orig - 0x100, fix);
+            }
+        }
+    }
+
+    // ── FanatecModel: max_rotation_degrees bounds ────────────────────────
+
+    /// max_rotation_degrees must always be > 0 and <= 2520 for any model.
+    #[test]
+    fn prop_max_rotation_degrees_bounds(model in arb_fanatec_model()) {
+        let deg = model.max_rotation_degrees();
+        prop_assert!(deg > 0, "max_rotation_degrees must be > 0, got {deg}");
+        prop_assert!(deg <= 2520, "max_rotation_degrees must be <= 2520, got {deg}");
+    }
+
+    // ── FanatecModel: needs_sign_fix ─────────────────────────────────────
+
+    /// needs_sign_fix must return false only for CsrElite and Unknown.
+    #[test]
+    fn prop_needs_sign_fix_csr_elite_is_false(model in arb_fanatec_model()) {
+        let needs = model.needs_sign_fix();
+        if model == FanatecModel::CsrElite || model == FanatecModel::Unknown {
+            prop_assert!(!needs,
+                "needs_sign_fix must be false for {:?}", model);
+        } else {
+            prop_assert!(needs,
+                "needs_sign_fix must be true for {:?}", model);
+        }
+    }
+
+    // ── FanatecModel: is_highres ─────────────────────────────────────────
+
+    /// is_highres must be true only for DD1, DD2, CslDd, GtDdPro, ClubSportDd.
+    #[test]
+    fn prop_is_highres_dd_only(model in arb_fanatec_model()) {
+        let hr = model.is_highres();
+        let expected = matches!(
+            model,
+            FanatecModel::Dd1
+                | FanatecModel::Dd2
+                | FanatecModel::CslDd
+                | FanatecModel::GtDdPro
+                | FanatecModel::ClubSportDd
+        );
+        prop_assert_eq!(hr, expected,
+            "is_highres for {:?} should be {}, got {}", model, expected, hr);
+    }
+}
