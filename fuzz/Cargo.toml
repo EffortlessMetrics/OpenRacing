@@ -487,6 +487,48 @@ path = "fuzz_targets/fuzz_ride5_simhub.rs"
 test = false
 doc = false
 
+[[bin]]
+name = "fuzz_moza_input"
+path = "fuzz_targets/fuzz_moza_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_fanatec_output"
+path = "fuzz_targets/fuzz_fanatec_output.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_logitech_output"
+path = "fuzz_targets/fuzz_logitech_output.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_thrustmaster_output"
+path = "fuzz_targets/fuzz_thrustmaster_output.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_moza_report_parsing"
+path = "fuzz_targets/fuzz_moza_report_parsing.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_simagic_output"
+path = "fuzz_targets/fuzz_simagic_output.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_openffboard_encode"
+path = "fuzz_targets/fuzz_openffboard_encode.rs"
+test = false
+doc = false
+
 [profile.release]
 opt-level = 3
 debug = true
