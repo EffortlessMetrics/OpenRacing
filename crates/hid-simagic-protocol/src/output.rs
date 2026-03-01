@@ -1,6 +1,31 @@
 //! Simagic HID output report encoding (FFB commands).
 //!
 //! All functions are pure and allocation-free.
+//!
+//! # Protocol notes
+//!
+//! This module encodes reports for this crate's own FFB abstraction layer
+//! using custom report IDs (see [`crate::ids::report_ids`]).
+//!
+//! The Simagic kernel driver (`simagic-ff` by JacKeTUs) uses the HID PID
+//! (Physical Interface Device) protocol with different report IDs. Key
+//! protocol details from `hid-simagic.c` (commit 52e73e7):
+//!
+//! - **Constant force** (`SM_SET_CONSTANT_REPORT=0x05`): field\[0\]=report ID,
+//!   field\[1\]=effect block ID, field\[2\]=magnitude scaled to ±10000.
+//! - **Condition effects** (`SM_SET_CONDITION_REPORT=0x03`): used for spring
+//!   (block ID 0x06), damper (0x05), friction (0x07), inertia (0x09).
+//!   Fields encode positive/negative coefficients, center, deadband.
+//! - **Periodic effects** (`SM_SET_PERIODIC_REPORT=0x04`): used for sine
+//!   (block ID 0x02). Fields encode magnitude, offset, phase, period.
+//! - **Gain** (`SM_SET_GAIN=0x40`): field\[0\]=report ID, field\[1\]=gain>>8.
+//! - **Effect operation** (`SM_EFFECT_OPERATION_REPORT=0x0a`): play/stop.
+//! - Magnitude scaling: `sm_rescale_signed_to_10k()` maps ±0x7fff → ±10000.
+//!
+//! Reports are 64-byte HID output reports sent via `hid_hw_request`.
+//! Settings use Feature Reports: 0x80 (set) and 0x81 (get status).
+//!
+//! Source: JacKeTUs/simagic-ff `hid-simagic.c`, `hid-simagic-settings.h`
 
 #![deny(static_mut_refs)]
 

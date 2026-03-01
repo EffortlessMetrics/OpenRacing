@@ -1,6 +1,12 @@
 //! Simagic HID input report parsing.
 //!
 //! All functions are pure and allocation-free.
+//!
+//! The input report layout below is this crate's own abstraction. The kernel
+//! `simagic-ff` driver receives input through the standard HID subsystem
+//! (axes, buttons parsed from the HID descriptor), not via raw byte offsets.
+//! The byte layout documented here is based on observed HID descriptor fields
+//! and may vary between firmware versions.
 
 #![deny(static_mut_refs)]
 

@@ -1,4 +1,28 @@
 //! Simagic device types: models, categories, pedal axes, and device identity.
+//!
+//! # Torque values
+//!
+//! Max torque values for wheelbases are from Simagic product marketing
+//! specifications (peak torque, not sustained). The kernel driver does not
+//! contain torque information. Values for estimated/unverified models are
+//! best-effort approximations.
+//!
+//! | Model          | Peak torque | Source / confidence         |
+//! |----------------|-------------|-----------------------------|
+//! | EVO Sport      | ~9 Nm       | Simagic product spec        |
+//! | EVO            | ~12 Nm      | Simagic product spec        |
+//! | EVO Pro        | ~18 Nm      | Simagic product spec        |
+//! | Alpha EVO      | ~15 Nm      | Estimated (unverified PID)  |
+//! | Neo            | ~10 Nm      | Estimated (unverified PID)  |
+//! | Neo Mini       | ~7 Nm       | Estimated (unverified PID)  |
+//!
+//! Legacy devices (VID `0x0483`, PID `0x0522`) are not enumerated here because
+//! they all share a single PID and cannot be distinguished by PID alone.
+//! For reference, their peak torque values are approximately:
+//! - M10: ~10 Nm
+//! - Alpha Mini: ~13 Nm
+//! - Alpha: ~23 Nm
+//! - Alpha Ultimate: ~25 Nm
 
 #![deny(static_mut_refs)]
 
@@ -25,7 +49,11 @@ pub struct SimagicDeviceIdentity {
     pub max_torque_nm: Option<f32>,
 }
 
-/// Identify a Simagic product.
+/// Identify a Simagic product from its PID (VID `0x3670` products).
+///
+/// Only EVO Sport (`0x0500`), EVO (`0x0501`), and EVO Pro (`0x0502`) are
+/// verified PIDs from the JacKeTUs/simagic-ff driver. All other matches
+/// use estimated/unverified PIDs.
 pub fn identify_device(product_id: u16) -> SimagicDeviceIdentity {
     match product_id {
         product_ids::EVO_SPORT => SimagicDeviceIdentity {
