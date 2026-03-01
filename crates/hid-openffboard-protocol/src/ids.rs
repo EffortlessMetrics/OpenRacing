@@ -3,28 +3,37 @@
 //! Sources:
 //! - <https://pid.codes/1209/FFB0/> (official pid.codes entry)
 //! - <https://github.com/Ultrawipf/OpenFFBoard>
+//!
+//! Last verified: 2025-07 against OpenFFBoard firmware commit `cbd64db` and
+//! OpenFFBoard-configurator commit `9eee2b5`.
 
 /// OpenFFBoard USB Vendor ID (pid.codes open hardware VID).
+///
+/// Source: `Firmware/FFBoard/UserExtensions/Src/usb_descriptors.cpp`
+/// `#define USBD_VID 0x1209`
 pub const OPENFFBOARD_VENDOR_ID: u16 = 0x1209;
 
 /// OpenFFBoard main product ID.
 ///
-/// ✅ Confirmed via multiple independent sources:
+/// ✅ Confirmed via multiple independent sources (2025-07):
 /// - pid.codes registry: <https://pid.codes/1209/FFB0/>
-/// - OpenFFBoard firmware `usb_descriptors.cpp`: `#define USBD_PID 0xFFB0`
-/// - OpenFFBoard-configurator `serial_ui.py`: `OFFICIAL_VID_PID = [(0x1209, 0xFFB0)]`
-/// - JacKeTUs/linux-steering-wheels compatibility table (VID `1209`, PID `ffb0`, Platinum)
+/// - OpenFFBoard firmware `Firmware/FFBoard/UserExtensions/Src/usb_descriptors.cpp`:
+///   `#define USBD_PID 0xFFB0`
+/// - OpenFFBoard-configurator `serial_ui.py`:
+///   `OFFICIAL_VID_PID = [(0x1209, 0xFFB0)]`
+/// - JacKeTUs/linux-steering-wheels compatibility table (VID `1209`, PID `ffb0`)
 pub const OPENFFBOARD_PRODUCT_ID: u16 = 0xFFB0;
 
 /// OpenFFBoard alternate product ID.
 ///
-/// **Unverified**: PID `0xFFB1` is *not* registered on pid.codes (returns 404
-/// as of 2025-06), does not appear in the official OpenFFBoard firmware
+/// **Unverified** (2025-07): PID `0xFFB1` is *not* registered on pid.codes
+/// (returns 404), does not appear in the official OpenFFBoard firmware
 /// (`usb_descriptors.cpp` only defines `USBD_PID 0xFFB0`), is absent from
-/// the configurator (`serial_ui.py` only lists `0xFFB0`), and is not in the
-/// JacKeTUs/linux-steering-wheels compatibility table.
-/// Retained for possible future / community firmware builds, but should not be
-/// treated as confirmed.
+/// the configurator (`serial_ui.py` only lists `0xFFB0`), and is not found
+/// anywhere in the `Ultrawipf/OpenFFBoard` repository (GitHub code search
+/// returns zero results for "FFB1").
+/// Retained for possible future / community firmware builds, but should not
+/// be treated as confirmed.
 ///
 /// TODO(web-verify): Remove or gate behind a feature flag if no evidence of
 /// 0xFFB1 usage surfaces. Check OpenFFBoard community forums/issues.
