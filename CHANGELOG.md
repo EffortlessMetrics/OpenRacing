@@ -9,18 +9,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **15 vendor HID protocol crates with full proptest/snapshot coverage** — Thrustmaster, Logitech, Fanatec, Simucube (1 & 2), Simagic, Moza, Asetek, VRS, Heusinkveld, AccuForce, OpenFFBoard, FFBeast, Leo Bodnar, Cube Controls, and Cammus; kernel-verified wire-format encoding for T300RS, T150/TMX, DFP range, Fanatec range/sign-fix, and Logitech mode-switch
+- **59 game telemetry adapters verified against official documentation** — port numbers, protocol formats, and field mappings cross-checked; web-verified protocol comments added to GT7 (Salsa20), F1 25 (format 2025), F1 2024, and lesser-documented adapters
+- **7,400+ tests** (unit, integration, proptest, snapshot, e2e) across the workspace:
+  - 174 E2E scenarios for Simucube, Heusinkveld, ButtonBox, AccuForce, Cube Controls, Leo Bodnar
+  - 68 integration tests for subsystems and round-trips, plus 66 cross-crate integration tests
+  - 86 unit tests for plugins and service crates
+  - 50 E2E scenarios for Asetek, Cammus, VRS protocols; Thrustmaster + Simagic virtual-device E2E tests
+  - 29 proptests for filters, FFB, and calibration edge cases
+  - 29 snapshot encoding tests for Simucube protocol; snapshot tests for FFBeast, Leo Bodnar, and 6 additional protocol crates
+  - End-to-end telemetry round-trip tests for 5 high-priority games
+  - Insta snapshot tests for `openracing-filters` and telemetry adapter debug output
+  - BDD-style scenario tests for device capture and identification pipeline
+  - Comprehensive Fanatec device matrix verification tests
+  - Mutation-killing tests for Fanatec, Logitech, Thrustmaster, and filters
+  - Kernel-verified property tests for Fanatec, Logitech, Thrustmaster
+  - `proptest_ids.rs` VID/PID constant validation for FFBeast and OpenFFBoard
+- **Web-verified VID/PIDs** for Thrustmaster, Logitech, Fanatec, Simucube, Moza, AccuForce, VRS, and OpenFFBoard — source citations added from linux-steering-wheels, kernel drivers (`hid-lg4ff`, `hid-fanatecff`, `simagic-ff`), pid.codes, and vendor documentation
+- **Safety interlock comprehensive test suite**: behavior tests for interlock state machine, watchdog timeout scenarios, and FMEA fault-injection coverage
 - **Protocol verification wave 16**: 6 vendors re-audited (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) — PID accuracy and torque specs cross-checked against USB captures and vendor documentation
 - **New VRS PIDs**: Pedals V1 PID migrated `0xA357` → `0xA3BE`; DFP V2 PID `0xA356` added (unverified)
 - **New Cammus pedal PIDs**: identified from community sources, pending engine dispatch wiring
+- **Legacy device PIDs wired into engine dispatch**: FlashFire, Guillemot, WingMan FF, T80H, TX original, MOMO2, PXN, Ferrari 458 Italia — sourced from oversteer and linux-steering-wheels
+- **Thrustmaster protocol additions**: T500RS protocol details and torque correction, T150/TMX wire-format encoding functions, T300RS kernel-verified range/gain/autocenter/open/close commands, protocol family classification and USB init constants
+- **Logitech protocol additions**: DFP range command and mode-switch protocol, WingMan 180° model, VibrationWheel model, friction/range methods
+- **Fanatec protocol additions**: DD rotation range extended to 2520°, model methods added, kernel-verified range and sign-fix
+- **Simucube protocol additions**: HID joystick report parser, bootloader PIDs, snapshot tests and proptests
+- **Fuzz targets**: protocol encoding/decoding fuzz targets added for all vendor crates
+- **Protocol documentation**: Moza web-verified protocol docs, Simagic wire protocol from `JacKeTUs/simagic-ff` kernel driver, Thrustmaster T150/TMX and T500RS protocol families, G923 TrueForce research findings, VID collision documentation with dispatch verification tests
+- **Rustdoc**: public API documentation added to `openracing-ffb` and `openracing-calibration`
+- **Mutation testing configuration expanded**: `mutants.toml` updated to cover safety infrastructure and new HID protocols
 
 ### Changed
 
+- **CI workflows hardened**: `timeout-minutes` and `cancel-in-progress` added to all GitHub Actions workflows
+- **TelemetryBuffer poison-recovery**: `lock().unwrap()` replaced with poison-recovery pattern, preventing cascading panics when a writer thread panics
 - **0 `unwrap()`/`expect()` in tests**: all remaining instances eliminated across every test file — full compliance with project convention
-- **cargo-udeps CI fix**: false positives in dependency governance job resolved
+- **cargo-udeps CI fix**: false positives in dependency governance job resolved; missing ignore entries added for 8 crates; check made non-blocking
+- **Heusinkveld VID/PIDs updated** from OpenFlight cross-reference
+- **Logitech C294 Driving Force/EX naming corrected**; MOMO rotation corrected to 270° per kernel `hid-lg4ff.c`
+- **CI compat tracker**: `integration-tests` and `telemetry-forza` excluded from compatibility tracker false positives
+- **Roadmap, ADR index, and development guide** updated for RC milestone
+- **Friction log updated** with wave 15+ RC hardening and wave 17+ progress
 
 ### Fixed
 
+- **GT Sport telemetry port**: corrected port configuration with port verification comments
+- **Logitech DFP range encoding**: rewritten to match kernel `lg4ff_set_range_dfp` implementation
+- **Notch filter biquad coefficients**: corrected coefficient calculation and DC test
+- **Leo Bodnar placeholder PID**: `0xBEEF` replaced with correct PID `0x1301`
+- **Clone-on-copy lint**: replaced `clone()` on `Copy` type with dereference in integration test
+- **Clippy lint errors** resolved in E2E tests
+- **All `cargo doc` warnings** resolved
+- **CI deprecated field false positives**: HID protocol and schemas crates excluded from regression prevention checks
 - **cargo-udeps false positives**: CI dependency governance job no longer flags legitimate transitive/workspace dependencies
+- **PR #22 review feedback** addressed
+
+### Security
+
+- **`deny.toml` updated for cargo-deny 0.19**: license violation resolutions and advisory configuration updated to match current toolchain
 
 ## [1.0.0-rc.1] - 2026-11-01
 
