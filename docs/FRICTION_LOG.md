@@ -780,7 +780,7 @@ Our `build_rotation_range_report()` uses `[0x01, 0x12, range_lo, range_hi, ...]`
 - **Mutation Testing**: Targeted mutation-killing tests added for Fanatec, Logitech, Thrustmaster, and filters crates.
 - **Snapshot Encoding Tests**: Added for FFBeast (12 tests) and Leo Bodnar (8 tests) — all protocol crates now have snapshot coverage.
 - **Protocol Verification**: All VID/PIDs re-verified against web sources (kernel hid-ids.h, linux-steering-wheels, pid.codes, devicehunt). No corrections needed beyond Heusinkveld.
-- **CI Fixes**: cargo-udeps false positives resolved for 8 crates; deprecated field detection false positive fixed (TelemetryFrame.sequence ≠ TelemetryData.sequence).
+- **CI Fixes**: cargo-udeps false positives resolved for 8 crates; deprecated field detection false positive fixed (TelemetryFrame seq field ≠ removed TelemetryData seq field).
 - **Test Count**: 7,216 tests passing, 0 failures across 82 workspace crates.
 
 ### Earlier Progress

@@ -136,6 +136,8 @@ class CompatUsageTracker:
             "crates/compat/",  # defines deprecated APIs
             "crates/schemas/tests/compile-fail/",  # tests that deprecated APIs fail
             "crates/schemas/tests/compile_fail/",  # same
+            "crates/integration-tests/",  # test crate exercises all device protocol APIs
+            "crates/telemetry-forza/",  # uses TelemetryFrame.sequence (not deprecated TelemetryData.sequence)
         ]
         
         # File extensions to search
