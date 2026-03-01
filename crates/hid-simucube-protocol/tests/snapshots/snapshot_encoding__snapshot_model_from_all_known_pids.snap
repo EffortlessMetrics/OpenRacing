@@ -1,0 +1,10 @@
+---
+source: crates/hid-simucube-protocol/tests/snapshot_encoding.rs
+expression: "summary.join(\"\\n\")"
+---
+SC1: model=Simucube1, torque=25.0, name=Simucube 1
+Sport: model=Sport, torque=17.0, name=Simucube 2 Sport
+Pro: model=Pro, torque=25.0, name=Simucube 2 Pro
+Ultimate: model=Ultimate, torque=32.0, name=Simucube 2 Ultimate
+ActivePedal: model=ActivePedal, torque=0.0, name=Simucube ActivePedal
+WirelessWheel: model=WirelessWheel, torque=0.0, name=SimuCube Wireless Wheel
