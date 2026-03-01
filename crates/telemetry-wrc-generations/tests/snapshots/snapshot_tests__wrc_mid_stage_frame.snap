@@ -1,0 +1,78 @@
+---
+source: crates/telemetry-wrc-generations/tests/snapshot_tests.rs
+expression: norm
+---
+speed_ms: 25.525002
+steering_angle: -0.22
+throttle: 0.78
+brake: 0
+clutch: 0
+rpm: 6200
+max_rpm: 7800
+gear: 5
+num_gears: 6
+lateral_g: 1.1
+longitudinal_g: 0.4
+vertical_g: 0
+slip_ratio: 0
+slip_angle_fl: 0
+slip_angle_fr: 0
+slip_angle_rl: 0
+slip_angle_rr: 0
+tire_temps_c:
+  - 135
+  - 132
+  - 105
+  - 108
+tire_pressures_psi:
+  - 30.5
+  - 30.2
+  - 28.8
+  - 29
+ffb_scalar: 0.36666667
+ffb_torque_nm: 0
+flags:
+  yellow_flag: false
+  red_flag: false
+  blue_flag: false
+  checkered_flag: false
+  green_flag: true
+  pit_limiter: false
+  in_pits: false
+  drs_available: false
+  drs_active: false
+  ers_available: false
+  ers_active: false
+  launch_control: false
+  traction_control: false
+  abs_active: false
+  engine_limiter: false
+  safety_car: false
+  formation_lap: false
+  session_paused: false
+position: 1
+lap: 4
+current_lap_time_s: 0
+best_lap_time_s: 0
+last_lap_time_s: 210.4
+delta_ahead_s: 0
+delta_behind_s: 0
+fuel_percent: 0.525
+engine_temp_c: 0
+extended:
+  rpm_fraction:
+    type: Float
+    value: 0.7948718
+  wheel_speed_fl:
+    type: Float
+    value: 25.2
+  wheel_speed_fr:
+    type: Float
+    value: 25
+  wheel_speed_rl:
+    type: Float
+    value: 26.1
+  wheel_speed_rr:
+    type: Float
+    value: 25.8
+sequence: 0
