@@ -37,6 +37,9 @@ racing-wheel-hid-ffbeast-protocol = { path = "../hid-ffbeast-protocol" }
 racing-wheel-simplemotion-v2 = { path = "../simplemotion-v2" }
 racing-wheel-hid-thrustmaster-protocol = { path = "../hid-thrustmaster-protocol" }
 racing-wheel-hid-simagic-protocol = { path = "../hid-simagic-protocol" }
+racing-wheel-hid-vrs-protocol = { path = "../hid-vrs-protocol" }
+hid-asetek-protocol = { path = "../hid-asetek-protocol" }
+racing-wheel-hid-cammus-protocol = { path = "../hid-cammus-protocol" }
 tokio = { workspace = true, features = ["full"] }
 tokio-test = "0.4.5"
 serde = { workspace = true }
