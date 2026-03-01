@@ -1157,8 +1157,7 @@ mod tests {
     fn test_type3_energy_recovery() -> TestResult {
         let mut buf = make_type3_buf();
         let energy: f32 = 42.5;
-        buf[OFF_ENERGY_RECOVERY..OFF_ENERGY_RECOVERY + 4]
-            .copy_from_slice(&energy.to_le_bytes());
+        buf[OFF_ENERGY_RECOVERY..OFF_ENERGY_RECOVERY + 4].copy_from_slice(&energy.to_le_bytes());
 
         let t = parse_decrypted_ext(&buf)?;
         assert_eq!(
@@ -1263,6 +1262,9 @@ mod tests {
         let mut buf2 = buf1.clone();
         salsa20_decrypt(&mut buf1, XOR_KEY_TYPE1);
         salsa20_decrypt(&mut buf2, XOR_KEY_TYPE2);
-        assert_ne!(buf1, buf2, "Different XOR keys must produce different decrypted output");
+        assert_ne!(
+            buf1, buf2,
+            "Different XOR keys must produce different decrypted output"
+        );
     }
 }

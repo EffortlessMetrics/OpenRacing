@@ -60,11 +60,7 @@ fn test_parse_packet_with_values() -> TestResult {
     assert!((t.rpm - 2500.0).abs() < 0.1, "rpm={}", t.rpm);
     assert_eq!(t.gear, 2);
     // Throttle: 60/100 = 0.6
-    assert!(
-        (t.throttle - 0.6).abs() < 0.001,
-        "throttle={}",
-        t.throttle
-    );
+    assert!((t.throttle - 0.6).abs() < 0.001, "throttle={}", t.throttle);
     // Brake: 20/100 = 0.2
     assert!((t.brake - 0.2).abs() < 0.001, "brake={}", t.brake);
     Ok(())

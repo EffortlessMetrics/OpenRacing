@@ -66,7 +66,8 @@ fn evo_pro_pid_is_0502() {
 #[test]
 fn handbrake_pid_is_0a04() {
     assert_eq!(
-        product_ids::HANDBRAKE, 0x0A04,
+        product_ids::HANDBRAKE,
+        0x0A04,
         "Simagic Handbrake PID changed — update ids.rs and SOURCES.md"
     );
 }

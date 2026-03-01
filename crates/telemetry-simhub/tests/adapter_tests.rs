@@ -54,10 +54,7 @@ fn test_parse_full_packet() -> TestResult {
     );
     assert!((t.fuel_percent - 0.823).abs() < 0.001, "fuel_percent");
     assert!((t.lateral_g - 1.2).abs() < 0.001, "lateral_g");
-    assert!(
-        (t.longitudinal_g - (-0.5)).abs() < 0.001,
-        "longitudinal_g"
-    );
+    assert!((t.longitudinal_g - (-0.5)).abs() < 0.001, "longitudinal_g");
     assert!((t.ffb_scalar - 0.35).abs() < 0.001, "ffb_scalar");
     Ok(())
 }

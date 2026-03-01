@@ -310,11 +310,7 @@ fn gear_above_eight_clamped() -> Result<(), Box<dyn std::error::Error>> {
     let mut buf = make_packet(MIN_PACKET_SIZE);
     write_f32(&mut buf, OFF_GEAR, 12.0);
     let t = parse(&buf)?;
-    assert!(
-        t.gear <= 8,
-        "gear must be <=8, got {}",
-        t.gear
-    );
+    assert!(t.gear <= 8, "gear must be <=8, got {}", t.gear);
     Ok(())
 }
 
@@ -450,11 +446,7 @@ fn rpm_negative_treated_as_zero() -> Result<(), Box<dyn std::error::Error>> {
     let mut buf = make_packet(MIN_PACKET_SIZE);
     write_f32(&mut buf, OFF_RPM, -500.0);
     let t = parse(&buf)?;
-    assert!(
-        t.rpm >= 0.0,
-        "rpm must be >=0, got {}",
-        t.rpm
-    );
+    assert!(t.rpm >= 0.0, "rpm must be >=0, got {}", t.rpm);
     Ok(())
 }
 
@@ -464,12 +456,7 @@ fn rpm_negative_treated_as_zero() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn lap_is_raw_plus_one() -> Result<(), Box<dyn std::error::Error>> {
-    let cases: &[(f32, u16)] = &[
-        (0.0, 1),
-        (1.0, 2),
-        (5.0, 6),
-        (99.0, 100),
-    ];
+    let cases: &[(f32, u16)] = &[(0.0, 1), (1.0, 2), (5.0, 6), (99.0, 100)];
     for &(raw_val, expected_lap) in cases {
         let mut buf = make_packet(MIN_PACKET_SIZE);
         write_f32(&mut buf, OFF_CURRENT_LAP, raw_val);
@@ -737,7 +724,10 @@ fn all_output_fields_are_finite() -> Result<(), Box<dyn std::error::Error>> {
         assert!(val.is_finite(), "{name} must be finite, got {val}");
     }
     for (i, p) in t.tire_pressures_psi.iter().enumerate() {
-        assert!(p.is_finite(), "tire_pressures_psi[{i}] must be finite, got {p}");
+        assert!(
+            p.is_finite(),
+            "tire_pressures_psi[{i}] must be finite, got {p}"
+        );
     }
     Ok(())
 }

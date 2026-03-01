@@ -3,20 +3,20 @@
 //! Covers F1 2023/2024 packet parsing, struct layout verification,
 //! normalization, process_packet state machine, and edge cases.
 
-use racing_wheel_telemetry_adapters::f1_native::{
-    build_car_status_packet_f23, build_car_status_packet_f24,
-    build_car_telemetry_packet_native, build_f1_native_header_bytes, normalize,
-    parse_car_status_2023, parse_car_status_2024, F1NativeAdapter, F1NativeCarStatusData,
-    F1NativeState, CAR_STATUS_2023_ENTRY_SIZE, CAR_STATUS_2024_ENTRY_SIZE,
-    MIN_CAR_STATUS_2023_PACKET_SIZE, MIN_CAR_STATUS_2024_PACKET_SIZE, PACKET_FORMAT_2023,
-    PACKET_FORMAT_2024,
-};
 use racing_wheel_telemetry_adapters::f1_25::{
-    parse_car_telemetry, parse_header, parse_session_data, CarTelemetryData,
-    CAR_TELEMETRY_ENTRY_SIZE, ERS_MAX_STORE_ENERGY_J, MIN_CAR_TELEMETRY_PACKET_SIZE, SessionData,
+    CAR_TELEMETRY_ENTRY_SIZE, CarTelemetryData, ERS_MAX_STORE_ENERGY_J,
+    MIN_CAR_TELEMETRY_PACKET_SIZE, SessionData, parse_car_telemetry, parse_header,
+    parse_session_data,
 };
-use racing_wheel_telemetry_f1::TelemetryAdapter;
+use racing_wheel_telemetry_adapters::f1_native::{
+    CAR_STATUS_2023_ENTRY_SIZE, CAR_STATUS_2024_ENTRY_SIZE, F1NativeAdapter, F1NativeCarStatusData,
+    F1NativeState, MIN_CAR_STATUS_2023_PACKET_SIZE, MIN_CAR_STATUS_2024_PACKET_SIZE,
+    PACKET_FORMAT_2023, PACKET_FORMAT_2024, build_car_status_packet_f23,
+    build_car_status_packet_f24, build_car_telemetry_packet_native, build_f1_native_header_bytes,
+    normalize, parse_car_status_2023, parse_car_status_2024,
+};
 use racing_wheel_telemetry_core::TelemetryValue;
+use racing_wheel_telemetry_f1::TelemetryAdapter;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -66,7 +66,10 @@ fn min_car_status_2024_packet_size_matches_formula() {
 #[test]
 fn min_car_telemetry_packet_size_includes_trailer() {
     // 29 header + 22*60 car data + 3 trailer
-    assert_eq!(MIN_CAR_TELEMETRY_PACKET_SIZE, HEADER_SIZE + NUM_CARS * 60 + 3);
+    assert_eq!(
+        MIN_CAR_TELEMETRY_PACKET_SIZE,
+        HEADER_SIZE + NUM_CARS * 60 + 3
+    );
 }
 
 #[test]
@@ -243,7 +246,15 @@ fn car_status_2024_non_zero_player_index() -> TestResult {
 #[test]
 fn car_telemetry_2023_round_trip() -> TestResult {
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 180, 5, 12000, 0.75, 0.0, -0.1, 0,
+        PACKET_FORMAT_2023,
+        0,
+        180,
+        5,
+        12000,
+        0.75,
+        0.0,
+        -0.1,
+        0,
         [23.0, 23.0, 22.5, 22.5],
     );
     let telem = parse_car_telemetry(&raw, 0)?;
@@ -262,7 +273,16 @@ fn car_telemetry_2023_round_trip() -> TestResult {
 #[test]
 fn car_telemetry_2024_drs_active() -> TestResult {
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2024, 0, 250, 8, 14500, 0.95, 0.0, 0.05, 1, [24.0; 4],
+        PACKET_FORMAT_2024,
+        0,
+        250,
+        8,
+        14500,
+        0.95,
+        0.0,
+        0.05,
+        1,
+        [24.0; 4],
     );
     let telem = parse_car_telemetry(&raw, 0)?;
     assert_eq!(telem.drs, 1);
@@ -274,7 +294,16 @@ fn car_telemetry_2024_drs_active() -> TestResult {
 #[test]
 fn car_telemetry_reverse_gear() -> TestResult {
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 5, -1, 2000, 0.0, 0.0, 0.0, 0, [20.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        5,
+        -1,
+        2000,
+        0.0,
+        0.0,
+        0.0,
+        0,
+        [20.0; 4],
     );
     let telem = parse_car_telemetry(&raw, 0)?;
     assert_eq!(telem.gear, -1);
@@ -284,7 +313,16 @@ fn car_telemetry_reverse_gear() -> TestResult {
 #[test]
 fn car_telemetry_neutral_gear() -> TestResult {
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 0, 0, 800, 0.0, 0.0, 0.0, 0, [20.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        0,
+        0,
+        800,
+        0.0,
+        0.0,
+        0.0,
+        0,
+        [20.0; 4],
     );
     let telem = parse_car_telemetry(&raw, 0)?;
     assert_eq!(telem.gear, 0);
@@ -295,7 +333,16 @@ fn car_telemetry_neutral_gear() -> TestResult {
 #[test]
 fn car_telemetry_full_brake_full_throttle() -> TestResult {
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2024, 0, 100, 3, 8000, 1.0, 1.0, 0.0, 0, [22.0; 4],
+        PACKET_FORMAT_2024,
+        0,
+        100,
+        3,
+        8000,
+        1.0,
+        1.0,
+        0.0,
+        0,
+        [22.0; 4],
     );
     let telem = parse_car_telemetry(&raw, 0)?;
     assert!((telem.throttle - 1.0).abs() < 1e-5);
@@ -306,7 +353,16 @@ fn car_telemetry_full_brake_full_throttle() -> TestResult {
 #[test]
 fn car_telemetry_full_left_steer() -> TestResult {
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 80, 2, 6000, 0.3, 0.0, -1.0, 0, [21.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        80,
+        2,
+        6000,
+        0.3,
+        0.0,
+        -1.0,
+        0,
+        [21.0; 4],
     );
     let telem = parse_car_telemetry(&raw, 0)?;
     assert!((telem.steer - (-1.0)).abs() < 1e-5);
@@ -316,7 +372,16 @@ fn car_telemetry_full_left_steer() -> TestResult {
 #[test]
 fn car_telemetry_non_zero_player_index() -> TestResult {
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 15, 200, 6, 11000, 0.8, 0.1, 0.0, 0, [23.5; 4],
+        PACKET_FORMAT_2023,
+        15,
+        200,
+        6,
+        11000,
+        0.8,
+        0.1,
+        0.0,
+        0,
+        [23.5; 4],
     );
     let telem = parse_car_telemetry(&raw, 15)?;
     assert_eq!(telem.speed_kmh, 200);
@@ -333,7 +398,16 @@ fn car_telemetry_truncated_packet_errors() {
 #[test]
 fn car_telemetry_rejects_player_index_22() -> TestResult {
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 100, 3, 8000, 0.5, 0.0, 0.0, 0, [22.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        100,
+        3,
+        8000,
+        0.5,
+        0.0,
+        0.0,
+        0,
+        [22.0; 4],
     );
     let result = parse_car_telemetry(&raw, 22);
     assert!(result.is_err());
@@ -342,15 +416,21 @@ fn car_telemetry_rejects_player_index_22() -> TestResult {
 
 // ── Session data parsing ─────────────────────────────────────────────────────
 
-fn build_session_packet(format: u16, track_temp: i8, air_temp: i8, session_type: u8, track_id: i8) -> Vec<u8> {
+fn build_session_packet(
+    format: u16,
+    track_temp: i8,
+    air_temp: i8,
+    session_type: u8,
+    track_id: i8,
+) -> Vec<u8> {
     let mut buf = build_f1_native_header_bytes(format, 1, 0);
-    buf.push(0);                            // weather
-    buf.push(track_temp as u8);             // trackTemperature
-    buf.push(air_temp as u8);               // airTemperature
-    buf.push(50);                           // totalLaps
+    buf.push(0); // weather
+    buf.push(track_temp as u8); // trackTemperature
+    buf.push(air_temp as u8); // airTemperature
+    buf.push(50); // totalLaps
     buf.extend_from_slice(&5326u16.to_le_bytes()); // trackLength
-    buf.push(session_type);                 // sessionType
-    buf.push(track_id as u8);              // trackId
+    buf.push(session_type); // sessionType
+    buf.push(track_id as u8); // trackId
     buf
 }
 
@@ -428,7 +508,16 @@ fn process_packet_needs_both_telem_and_status_to_emit_f23() -> TestResult {
 
     // Telemetry alone → None
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 180, 5, 12000, 0.7, 0.0, 0.0, 0, [23.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        180,
+        5,
+        12000,
+        0.7,
+        0.0,
+        0.0,
+        0,
+        [23.0; 4],
     );
     let result = F1NativeAdapter::process_packet(&mut state, &telem)?;
     assert!(result.is_none(), "telemetry alone must not emit");
@@ -454,7 +543,16 @@ fn process_packet_needs_both_telem_and_status_to_emit_f24() -> TestResult {
     let mut state = F1NativeState::default();
 
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2024, 0, 300, 8, 14000, 1.0, 0.0, 0.0, 1, [24.0; 4],
+        PACKET_FORMAT_2024,
+        0,
+        300,
+        8,
+        14000,
+        1.0,
+        0.0,
+        0.0,
+        1,
+        [24.0; 4],
     );
     F1NativeAdapter::process_packet(&mut state, &telem)?;
 
@@ -481,7 +579,16 @@ fn process_packet_status_first_then_telemetry_emits() -> TestResult {
 
     // Telemetry completes the pair → Some
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 120, 4, 9000, 0.6, 0.1, 0.0, 0, [21.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        120,
+        4,
+        9000,
+        0.6,
+        0.1,
+        0.0,
+        0,
+        [21.0; 4],
     );
     let result = F1NativeAdapter::process_packet(&mut state, &telem)?;
     assert!(result.is_some(), "telemetry after status must emit");
@@ -525,19 +632,37 @@ fn process_packet_subsequent_updates_overwrite_state() -> TestResult {
 
     // First pair: 100 km/h
     let telem1 = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 100, 3, 8000, 0.5, 0.0, 0.0, 0, [22.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        100,
+        3,
+        8000,
+        0.5,
+        0.0,
+        0.0,
+        0,
+        [22.0; 4],
     );
     let status1 = build_car_status_packet_f23(0, 20.0, 1_000_000.0, 0, 0, 13, 12000);
     F1NativeAdapter::process_packet(&mut state, &telem1)?;
-    let norm1 = F1NativeAdapter::process_packet(&mut state, &status1)?
-        .ok_or("expected first emission")?;
+    let norm1 =
+        F1NativeAdapter::process_packet(&mut state, &status1)?.ok_or("expected first emission")?;
 
     // Second telemetry: 200 km/h — should emit immediately with old status
     let telem2 = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 200, 6, 11000, 0.9, 0.0, 0.0, 0, [23.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        200,
+        6,
+        11000,
+        0.9,
+        0.0,
+        0.0,
+        0,
+        [23.0; 4],
     );
-    let norm2 = F1NativeAdapter::process_packet(&mut state, &telem2)?
-        .ok_or("expected second emission")?;
+    let norm2 =
+        F1NativeAdapter::process_packet(&mut state, &telem2)?.ok_or("expected second emission")?;
 
     assert!((norm1.speed_ms - 100.0 / 3.6).abs() < 0.01);
     assert!((norm2.speed_ms - 200.0 / 3.6).abs() < 0.01);
@@ -551,7 +676,16 @@ fn process_packet_subsequent_updates_overwrite_state() -> TestResult {
 fn adapter_normalize_car_telemetry_works() -> TestResult {
     let adapter = F1NativeAdapter::new();
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 144, 4, 9500, 0.5, 0.2, 0.0, 0, [21.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        144,
+        4,
+        9500,
+        0.5,
+        0.2,
+        0.0,
+        0,
+        [21.0; 4],
     );
     let norm = adapter.normalize(&raw)?;
     assert!((norm.speed_ms - 144.0 / 3.6).abs() < 0.01);
@@ -594,7 +728,16 @@ fn adapter_normalize_rejects_unknown_packet_id() {
 fn adapter_normalize_includes_decoder_type() -> TestResult {
     let adapter = F1NativeAdapter::new();
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2024, 0, 100, 3, 8000, 0.5, 0.0, 0.0, 0, [22.0; 4],
+        PACKET_FORMAT_2024,
+        0,
+        100,
+        3,
+        8000,
+        0.5,
+        0.0,
+        0.0,
+        0,
+        [22.0; 4],
     );
     let norm = adapter.normalize(&raw)?;
     assert_eq!(
@@ -928,48 +1071,114 @@ fn normalize_extended_fields_present() -> TestResult {
     let norm = normalize(&telem, &status, &session);
 
     // Throttle/brake/steer
-    assert_eq!(norm.extended.get("throttle"), Some(&TelemetryValue::Float(0.8)));
-    assert_eq!(norm.extended.get("brake"), Some(&TelemetryValue::Float(0.1)));
-    assert_eq!(norm.extended.get("steer"), Some(&TelemetryValue::Float(-0.3)));
+    assert_eq!(
+        norm.extended.get("throttle"),
+        Some(&TelemetryValue::Float(0.8))
+    );
+    assert_eq!(
+        norm.extended.get("brake"),
+        Some(&TelemetryValue::Float(0.1))
+    );
+    assert_eq!(
+        norm.extended.get("steer"),
+        Some(&TelemetryValue::Float(-0.3))
+    );
 
     // Fuel
-    assert_eq!(norm.extended.get("fuel_remaining_kg"), Some(&TelemetryValue::Float(25.0)));
-    assert_eq!(norm.extended.get("fuel_remaining_laps"), Some(&TelemetryValue::Float(8.5)));
+    assert_eq!(
+        norm.extended.get("fuel_remaining_kg"),
+        Some(&TelemetryValue::Float(25.0))
+    );
+    assert_eq!(
+        norm.extended.get("fuel_remaining_laps"),
+        Some(&TelemetryValue::Float(8.5))
+    );
 
     // Tyres
-    assert_eq!(norm.extended.get("tyre_compound"), Some(&TelemetryValue::Integer(12)));
+    assert_eq!(
+        norm.extended.get("tyre_compound"),
+        Some(&TelemetryValue::Integer(12))
+    );
     assert_eq!(
         norm.extended.get("tyre_compound_name"),
         Some(&TelemetryValue::String("Soft".to_string()))
     );
-    assert_eq!(norm.extended.get("tyre_age_laps"), Some(&TelemetryValue::Integer(15)));
+    assert_eq!(
+        norm.extended.get("tyre_age_laps"),
+        Some(&TelemetryValue::Integer(15))
+    );
 
     // Tyre pressures
-    assert_eq!(norm.extended.get("tyre_pressure_rl_psi"), Some(&TelemetryValue::Float(23.0)));
-    assert_eq!(norm.extended.get("tyre_pressure_fr_psi"), Some(&TelemetryValue::Float(22.5)));
+    assert_eq!(
+        norm.extended.get("tyre_pressure_rl_psi"),
+        Some(&TelemetryValue::Float(23.0))
+    );
+    assert_eq!(
+        norm.extended.get("tyre_pressure_fr_psi"),
+        Some(&TelemetryValue::Float(22.5))
+    );
 
     // Engine power
-    assert_eq!(norm.extended.get("engine_power_ice_w"), Some(&TelemetryValue::Float(550_000.0)));
-    assert_eq!(norm.extended.get("engine_power_mguk_w"), Some(&TelemetryValue::Float(120_000.0)));
+    assert_eq!(
+        norm.extended.get("engine_power_ice_w"),
+        Some(&TelemetryValue::Float(550_000.0))
+    );
+    assert_eq!(
+        norm.extended.get("engine_power_mguk_w"),
+        Some(&TelemetryValue::Float(120_000.0))
+    );
 
     // ERS
-    assert_eq!(norm.extended.get("ers_store_energy_j"), Some(&TelemetryValue::Float(2_000_000.0)));
-    assert_eq!(norm.extended.get("ers_deploy_mode"), Some(&TelemetryValue::Integer(2)));
-    assert_eq!(norm.extended.get("ers_harvested_mguk_j"), Some(&TelemetryValue::Float(500_000.0)));
-    assert_eq!(norm.extended.get("ers_deployed_j"), Some(&TelemetryValue::Float(1_000_000.0)));
+    assert_eq!(
+        norm.extended.get("ers_store_energy_j"),
+        Some(&TelemetryValue::Float(2_000_000.0))
+    );
+    assert_eq!(
+        norm.extended.get("ers_deploy_mode"),
+        Some(&TelemetryValue::Integer(2))
+    );
+    assert_eq!(
+        norm.extended.get("ers_harvested_mguk_j"),
+        Some(&TelemetryValue::Float(500_000.0))
+    );
+    assert_eq!(
+        norm.extended.get("ers_deployed_j"),
+        Some(&TelemetryValue::Float(1_000_000.0))
+    );
 
     // Engine temperature
-    assert_eq!(norm.extended.get("engine_temperature_c"), Some(&TelemetryValue::Integer(105)));
+    assert_eq!(
+        norm.extended.get("engine_temperature_c"),
+        Some(&TelemetryValue::Integer(105))
+    );
 
     // Session
-    assert_eq!(norm.extended.get("session_type"), Some(&TelemetryValue::Integer(6)));
-    assert_eq!(norm.extended.get("track_temperature_c"), Some(&TelemetryValue::Integer(32)));
-    assert_eq!(norm.extended.get("air_temperature_c"), Some(&TelemetryValue::Integer(26)));
+    assert_eq!(
+        norm.extended.get("session_type"),
+        Some(&TelemetryValue::Integer(6))
+    );
+    assert_eq!(
+        norm.extended.get("track_temperature_c"),
+        Some(&TelemetryValue::Integer(32))
+    );
+    assert_eq!(
+        norm.extended.get("air_temperature_c"),
+        Some(&TelemetryValue::Integer(26))
+    );
 
     // Brake/tyre temps
-    assert_eq!(norm.extended.get("brake_temp_rl_c"), Some(&TelemetryValue::Integer(400)));
-    assert_eq!(norm.extended.get("tyre_surface_temp_fl_c"), Some(&TelemetryValue::Integer(87)));
-    assert_eq!(norm.extended.get("tyre_inner_temp_rr_c"), Some(&TelemetryValue::Integer(96)));
+    assert_eq!(
+        norm.extended.get("brake_temp_rl_c"),
+        Some(&TelemetryValue::Integer(400))
+    );
+    assert_eq!(
+        norm.extended.get("tyre_surface_temp_fl_c"),
+        Some(&TelemetryValue::Integer(87))
+    );
+    assert_eq!(
+        norm.extended.get("tyre_inner_temp_rr_c"),
+        Some(&TelemetryValue::Integer(96))
+    );
 
     // Track name
     assert_eq!(norm.track_id, Some("Monza".to_string()));
@@ -1082,7 +1291,16 @@ fn car_status_2024_last_player_index() -> TestResult {
 #[test]
 fn car_telemetry_last_player_index() -> TestResult {
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2024, 21, 280, 7, 13500, 0.9, 0.0, 0.1, 1, [24.5; 4],
+        PACKET_FORMAT_2024,
+        21,
+        280,
+        7,
+        13500,
+        0.9,
+        0.0,
+        0.1,
+        1,
+        [24.5; 4],
     );
     let telem = parse_car_telemetry(&raw, 21)?;
     assert_eq!(telem.speed_kmh, 280);
@@ -1095,15 +1313,41 @@ fn car_telemetry_last_player_index() -> TestResult {
 #[test]
 fn telemetry_format_2023_and_2024_identical_layout() -> TestResult {
     // Car Telemetry packets should produce the same data for both formats
-    let params = (0u8, 200u16, 6i8, 12000u16, 0.8f32, 0.1f32, -0.2f32, 1u8, [23.0f32; 4]);
+    let params = (
+        0u8,
+        200u16,
+        6i8,
+        12000u16,
+        0.8f32,
+        0.1f32,
+        -0.2f32,
+        1u8,
+        [23.0f32; 4],
+    );
 
     let raw_23 = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, params.0, params.1, params.2, params.3,
-        params.4, params.5, params.6, params.7, params.8,
+        PACKET_FORMAT_2023,
+        params.0,
+        params.1,
+        params.2,
+        params.3,
+        params.4,
+        params.5,
+        params.6,
+        params.7,
+        params.8,
     );
     let raw_24 = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2024, params.0, params.1, params.2, params.3,
-        params.4, params.5, params.6, params.7, params.8,
+        PACKET_FORMAT_2024,
+        params.0,
+        params.1,
+        params.2,
+        params.3,
+        params.4,
+        params.5,
+        params.6,
+        params.7,
+        params.8,
     );
 
     let telem_23 = parse_car_telemetry(&raw_23, 0)?;
@@ -1241,14 +1485,23 @@ fn full_round_trip_f23_telem_and_status() -> TestResult {
 
     // Car telemetry
     let telem_raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 3, 220, 6, 12500, 0.85, 0.05, -0.15, 0, [23.0, 23.5, 22.0, 22.5],
+        PACKET_FORMAT_2023,
+        3,
+        220,
+        6,
+        12500,
+        0.85,
+        0.05,
+        -0.15,
+        0,
+        [23.0, 23.5, 22.0, 22.5],
     );
     F1NativeAdapter::process_packet(&mut state, &telem_raw)?;
 
     // Car status
     let status_raw = build_car_status_packet_f23(3, 35.0, 2_800_000.0, 1, 0, 13, 14000);
-    let norm = F1NativeAdapter::process_packet(&mut state, &status_raw)?
-        .ok_or("expected emission")?;
+    let norm =
+        F1NativeAdapter::process_packet(&mut state, &status_raw)?.ok_or("expected emission")?;
 
     // Verify speed conversion
     assert!((norm.speed_ms - 220.0 / 3.6).abs() < 0.01);
@@ -1262,8 +1515,14 @@ fn full_round_trip_f23_telem_and_status() -> TestResult {
     assert_eq!(norm.track_id, Some("Monaco".to_string()));
 
     // Session temps
-    assert_eq!(norm.extended.get("track_temperature_c"), Some(&TelemetryValue::Integer(35)));
-    assert_eq!(norm.extended.get("air_temperature_c"), Some(&TelemetryValue::Integer(28)));
+    assert_eq!(
+        norm.extended.get("track_temperature_c"),
+        Some(&TelemetryValue::Integer(35))
+    );
+    assert_eq!(
+        norm.extended.get("air_temperature_c"),
+        Some(&TelemetryValue::Integer(28))
+    );
     Ok(())
 }
 
@@ -1275,13 +1534,22 @@ fn full_round_trip_f24_telem_and_status() -> TestResult {
     F1NativeAdapter::process_packet(&mut state, &session_raw)?;
 
     let telem_raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2024, 0, 310, 8, 14500, 1.0, 0.0, 0.0, 1, [25.0; 4],
+        PACKET_FORMAT_2024,
+        0,
+        310,
+        8,
+        14500,
+        1.0,
+        0.0,
+        0.0,
+        1,
+        [25.0; 4],
     );
     F1NativeAdapter::process_packet(&mut state, &telem_raw)?;
 
     let status_raw = build_car_status_packet_f24(0, 8.0, 3_900_000.0, 1, 0, 16, 15000);
-    let norm = F1NativeAdapter::process_packet(&mut state, &status_raw)?
-        .ok_or("expected emission")?;
+    let norm =
+        F1NativeAdapter::process_packet(&mut state, &status_raw)?.ok_or("expected emission")?;
 
     assert!((norm.speed_ms - 310.0 / 3.6).abs() < 0.01);
     assert_eq!(norm.gear, 8);

@@ -41,6 +41,7 @@ fn write_f32(buf: &mut [u8], offset: usize, value: f32) {
 }
 
 /// Build a valid R3E shared memory buffer with the given telemetry values.
+#[allow(clippy::too_many_arguments)]
 fn make_r3e_memory(
     rpm: f32,
     speed: f32,
@@ -398,10 +399,7 @@ fn brake_clamped() -> TestResult {
     let adapter = RaceRoomAdapter::new();
     let data = make_default_memory(3000.0, 30.0, 0.0, 0.0, -0.5, 2);
     let t = adapter.normalize(&data)?;
-    assert!(
-        t.brake.abs() < 0.001,
-        "negative brake should clamp to 0.0"
-    );
+    assert!(t.brake.abs() < 0.001, "negative brake should clamp to 0.0");
     Ok(())
 }
 
@@ -503,10 +501,7 @@ fn wrong_version_returns_error() {
 fn version_zero_returns_error() {
     let adapter = RaceRoomAdapter::new();
     let data = vec![0u8; R3E_VIEW_SIZE];
-    assert!(
-        adapter.normalize(&data).is_err(),
-        "version 0 must error"
-    );
+    assert!(adapter.normalize(&data).is_err(), "version 0 must error");
 }
 
 #[test]
@@ -546,10 +541,7 @@ fn nan_speed_defaults_to_zero() -> TestResult {
     let mut data = make_default_memory(3000.0, 0.0, 0.0, 0.5, 0.0, 2);
     write_f32(&mut data, OFF_SPEED, f32::NAN);
     let t = adapter.normalize(&data)?;
-    assert!(
-        t.speed_ms.abs() < 0.001,
-        "NaN speed should default to 0.0"
-    );
+    assert!(t.speed_ms.abs() < 0.001, "NaN speed should default to 0.0");
     Ok(())
 }
 
@@ -559,10 +551,7 @@ fn infinity_rpm_defaults_to_zero() -> TestResult {
     let mut data = make_default_memory(0.0, 20.0, 0.0, 0.5, 0.0, 2);
     write_f32(&mut data, OFF_ENGINE_RPS, f32::INFINITY);
     let t = adapter.normalize(&data)?;
-    assert!(
-        t.rpm.abs() < 0.001,
-        "infinity RPM should default to 0.0"
-    );
+    assert!(t.rpm.abs() < 0.001, "infinity RPM should default to 0.0");
     Ok(())
 }
 

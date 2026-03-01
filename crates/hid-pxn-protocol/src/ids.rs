@@ -89,11 +89,7 @@ pub fn is_pxn(vid: u16, pid: u16) -> bool {
     vid == VENDOR_ID
         && matches!(
             pid,
-            PRODUCT_V10
-                | PRODUCT_V12
-                | PRODUCT_V12_LITE
-                | PRODUCT_V12_LITE_2
-                | PRODUCT_GT987
+            PRODUCT_V10 | PRODUCT_V12 | PRODUCT_V12_LITE | PRODUCT_V12_LITE_2 | PRODUCT_GT987
         )
 }
 
