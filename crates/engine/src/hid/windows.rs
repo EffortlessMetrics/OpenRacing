@@ -321,6 +321,10 @@ pub mod vendor_ids {
     /// Verified: kernel hid-ids.h `USB_VENDOR_ID_LITE_STAR = 0x11ff`,
     /// linux-steering-wheels PXN entry.
     pub const PXN: u16 = 0x11FF;
+    /// Heusinkveld pedals — Microchip Technology VID (PIC microcontroller firmware).
+    /// Source: OpenFlight device manifests (community); usb-ids.gowdy.us confirms
+    /// 0x04D8 = Microchip Technology, Inc.
+    pub const HEUSINKVELD: u16 = 0x04D8;
     /// Cube Controls S.r.l. — PROVISIONAL (unconfirmed VID, uses STM shared VID)
     /// ACTION REQUIRED: confirm VID from real hardware capture and update if needed.
     pub const CUBE_CONTROLS: u16 = 0x0483; // same as SIMAGIC; see cube_controls.rs
@@ -518,10 +522,10 @@ impl SupportedDevices {
             (vendor_ids::SIMAGIC, 0xA35A, "VRS Shifter"),
             (vendor_ids::SIMAGIC, 0xA3BE, "VRS Pedals (corrected)"),
             (vendor_ids::SIMAGIC, 0xA44C, "VRS R295"),
-            // Heusinkveld pedals (share VID 0x16D0 with Simagic)
-            (vendor_ids::SIMAGIC_ALT, 0x1156, "Heusinkveld Sprint"),
-            (vendor_ids::SIMAGIC_ALT, 0x1157, "Heusinkveld Ultimate+"),
-            (vendor_ids::SIMAGIC_ALT, 0x1158, "Heusinkveld Pro"),
+            // Heusinkveld pedals (VID 0x04D8 — Microchip)
+            (vendor_ids::HEUSINKVELD, 0xF6D0, "Heusinkveld Sprint"),
+            (vendor_ids::HEUSINKVELD, 0xF6D2, "Heusinkveld Ultimate+"),
+            (vendor_ids::HEUSINKVELD, 0xF6D3, "Heusinkveld Pro"),
             // Simagic EVO generation (VID 0x3670 — verified via linux-steering-wheels)
             (vendor_ids::SIMAGIC_EVO, 0x0500, "Simagic EVO Sport"),
             (vendor_ids::SIMAGIC_EVO, 0x0501, "Simagic EVO"),
@@ -710,6 +714,7 @@ impl SupportedDevices {
             vendor_ids::LEO_BODNAR,
             vendor_ids::SIMEXPERIENCE,
             vendor_ids::PXN,
+            vendor_ids::HEUSINKVELD,
             vendor_ids::FLASHFIRE,
             vendor_ids::GUILLEMOT,
             vendor_ids::THRUSTMASTER_XBOX,
@@ -744,7 +749,8 @@ impl SupportedDevices {
             vendor_ids::THRUSTMASTER => "Thrustmaster",
             vendor_ids::MOZA => "Moza Racing",
             vendor_ids::SIMAGIC | vendor_ids::SIMAGIC_ALT | vendor_ids::SIMAGIC_EVO => "Simagic",
-            // Note: SIMAGIC_ALT (0x16D0) is shared with Simucube 2 and Heusinkveld; dispatch by PID
+            // Note: SIMAGIC_ALT (0x16D0) is shared with Simucube 2; dispatch by PID
+            vendor_ids::HEUSINKVELD => "Heusinkveld",
             vendor_ids::ASETEK => "Asetek SimSports",
             vendor_ids::CAMMUS => "Cammus",
             vendor_ids::OPENFFBOARD => "OpenFFBoard / Generic HID",
@@ -1568,7 +1574,7 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             }
         }
         vendor_ids::SIMAGIC | vendor_ids::SIMAGIC_ALT => {
-            // Simagic legacy direct drive wheels + Simucube 2 + Heusinkveld (share VID 0x16D0)
+            // Simagic legacy direct drive wheels + Simucube 2 (share VID 0x16D0)
             capabilities.supports_raw_torque_1khz = true;
             capabilities.supports_health_stream = true;
             capabilities.encoder_cpr = 65535; // High resolution (max u16)
@@ -1590,7 +1596,7 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque =
                         TorqueNm::new(23.0).unwrap_or(capabilities.max_torque);
                 }
-                // Simucube PIDs (share VID 0x16D0 with Simagic legacy and Heusinkveld)
+                // Simucube PIDs (share VID 0x16D0 with Simagic legacy)
                 0x0D5A => {
                     // Simucube 1
                     capabilities.min_report_period_us = 3000;
@@ -1658,18 +1664,17 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.supports_raw_torque_1khz = false;
                     capabilities.max_torque = TorqueNm::ZERO;
                 }
-                // Heusinkveld pedals (share VID 0x16D0 with Simagic)
-                0x1156..=0x1158 => {
-                    // Sprint / Ultimate+ / Pro pedals (input-only)
-                    capabilities.supports_pid = false;
-                    capabilities.supports_raw_torque_1khz = false;
-                    capabilities.max_torque = TorqueNm::ZERO;
-                }
                 _ => {
                     capabilities.max_torque =
                         TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
                 }
             }
+        }
+        vendor_ids::HEUSINKVELD => {
+            // Heusinkveld pedals (VID 0x04D8 — Microchip), input-only load-cell devices
+            capabilities.supports_pid = false;
+            capabilities.supports_raw_torque_1khz = false;
+            capabilities.max_torque = TorqueNm::ZERO;
         }
         vendor_ids::SIMAGIC_EVO => {
             capabilities.supports_pid = true;
@@ -3072,14 +3077,14 @@ mod tests {
 
     #[test]
     fn test_supported_devices_heusinkveld() {
-        // Heusinkveld uses SIMAGIC_ALT VID
+        // Heusinkveld uses HEUSINKVELD VID (0x04D8 — Microchip)
         assert!(SupportedDevices::is_supported(
-            vendor_ids::SIMAGIC_ALT,
-            0x1156
+            vendor_ids::HEUSINKVELD,
+            0xF6D0
         )); // Sprint
         assert!(SupportedDevices::is_supported(
-            vendor_ids::SIMAGIC_ALT,
-            0x1157
+            vendor_ids::HEUSINKVELD,
+            0xF6D2
         )); // Ultimate+
     }
 

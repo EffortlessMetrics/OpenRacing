@@ -156,6 +156,7 @@ fn manufacturer_for_vendor(vendor_id: u16) -> Option<String> {
         0x044F => "Thrustmaster",
         0x346E => "Moza Racing",
         0x0483 | 0x16D0 | 0x3670 => "Simagic",
+        0x04D8 => "Heusinkveld",
         0x2433 => "Asetek SimSports",
         0x3416 => "Cammus",
         0x1209 => "OpenFFBoard / Generic HID",
@@ -491,10 +492,10 @@ impl LinuxHidPort {
             (0x0483, 0xA35A), // VRS Shifter
             (0x0483, 0xA3BE), // VRS Pedals (corrected)
             (0x0483, 0xA44C), // VRS R295
-            // Heusinkveld pedals (share VID 0x16D0 with Simagic)
-            (0x16D0, 0x1156), // Heusinkveld Sprint
-            (0x16D0, 0x1157), // Heusinkveld Ultimate+
-            (0x16D0, 0x1158), // Heusinkveld Pro
+            // Heusinkveld pedals (VID 0x04D8 — Microchip)
+            (0x04D8, 0xF6D0), // Heusinkveld Sprint
+            (0x04D8, 0xF6D2), // Heusinkveld Ultimate+
+            (0x04D8, 0xF6D3), // Heusinkveld Pro
             // Simucube (VID 0x16D0, dispatched by product ID)
             (0x16D0, 0x0D5A), // Simucube 1
             (0x16D0, 0x0D5F), // Simucube 2 Ultimate
@@ -616,6 +617,7 @@ impl LinuxHidPort {
                         0x044F => "Thrustmaster".to_string(),
                         0x346E => "Moza Racing".to_string(),
                         0x0483 | 0x16D0 | 0x3670 => "Simagic".to_string(),
+                        0x04D8 => "Heusinkveld".to_string(),
                         0x2433 => "Asetek SimSports".to_string(),
                         0x3416 => "Cammus".to_string(),
                         0x1209 => "OpenFFBoard / Generic HID".to_string(),

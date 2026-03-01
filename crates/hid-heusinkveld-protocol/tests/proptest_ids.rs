@@ -47,11 +47,11 @@ proptest! {
         }
     }
 
-    /// HEUSINKVELD_VENDOR_ID must match expected value (0x16D0).
+    /// HEUSINKVELD_VENDOR_ID must match expected value (0x04D8).
     #[test]
     fn prop_vendor_id_value(_unused: u8) {
-        prop_assert_eq!(HEUSINKVELD_VENDOR_ID, 0x16D0,
-            "HEUSINKVELD_VENDOR_ID must be 0x16D0");
+        prop_assert_eq!(HEUSINKVELD_VENDOR_ID, 0x04D8,
+            "HEUSINKVELD_VENDOR_ID must be 0x04D8");
     }
 
     /// HeusinkveldModel::from_product_id must return a known variant for all known PIDs.

@@ -1,10 +1,16 @@
 //! FFBeast USB vendor and product ID constants.
 //!
+//! ## Verification status: ✅ Fully verified
+//!
+//! All three PIDs are confirmed by multiple independent sources:
+//!
 //! Sources:
-//! - Linux kernel `hid-ids.h` (`USB_VENDOR_ID_FFBEAST = 0x045b`)
+//! - Linux kernel `hid-ids.h` (`USB_VENDOR_ID_FFBEAST = 0x045b`,
+//!   `USB_DEVICE_ID_FFBEAST_JOYSTICK = 0x58f9`, `_RUDDER = 0x5968`,
+//!   `_WHEEL = 0x59d7`)
 //! - <https://ffbeast.github.io/ffbeast.github.io/> (official site; ffbeast.com is defunct)
 //! - FFBeast wheel C/C++ API reference (VID=0x045B, wheel PID=0x59D7)
-//! - JacKeTUs/linux-steering-wheels compatibility table
+//! - JacKeTUs/linux-steering-wheels compatibility table (Platinum rating for wheel)
 
 /// FFBeast USB Vendor ID (`USB_VENDOR_ID_FFBEAST` in the Linux kernel).
 pub const FFBEAST_VENDOR_ID: u16 = 0x045B;

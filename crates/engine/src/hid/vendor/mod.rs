@@ -93,14 +93,17 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
                 )))
             }
         }
-        // OpenMoko/MCS VID (0x16D0): shared by Heusinkveld (0x115x), Simucube 2 (0x0D5x),
+        // Microchip VID (0x04D8): used by Heusinkveld pedals (PIDs 0xF6D0–0xF6D3).
+        // VID is shared by many Microchip PIC-based devices; disambiguate by PID.
+        0x04D8 if heusinkveld::is_heusinkveld_product(product_id) => {
+            Some(Box::new(heusinkveld::HeusinkveldProtocolHandler::new(
+                vendor_id, product_id,
+            )))
+        }
+        // OpenMoko/MCS VID (0x16D0): Simucube 2 (0x0D5x),
         // and legacy Simagic/Simucube 1 (0x0D5A/0x0D5B). Disambiguate by product_id.
         0x16D0 => {
-            if heusinkveld::is_heusinkveld_product(product_id) {
-                Some(Box::new(heusinkveld::HeusinkveldProtocolHandler::new(
-                    vendor_id, product_id,
-                )))
-            } else if simucube::is_simucube_product(product_id) {
+            if simucube::is_simucube_product(product_id) {
                 Some(Box::new(simucube::SimucubeProtocolHandler::new(
                     vendor_id, product_id,
                 )))

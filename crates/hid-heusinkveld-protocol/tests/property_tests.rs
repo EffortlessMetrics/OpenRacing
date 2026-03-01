@@ -16,12 +16,12 @@ use proptest::prelude::*;
 
 // ── VID / PID invariants ──────────────────────────────────────────────────────
 
-/// VID constant must equal the authoritative Heusinkveld USB vendor ID (0x16D0).
+/// VID constant must equal the Heusinkveld USB vendor ID (0x04D8, Microchip Technology).
 #[test]
 fn test_vendor_id_value() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(
-        HEUSINKVELD_VENDOR_ID, 0x16D0,
-        "Heusinkveld VID must be 0x16D0"
+        HEUSINKVELD_VENDOR_ID, 0x04D8,
+        "Heusinkveld VID must be 0x04D8"
     );
     Ok(())
 }
@@ -49,12 +49,12 @@ fn test_all_known_pids_detected() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Exact numeric values verified against Heusinkveld USB descriptors.
+/// Exact numeric values verified against OpenFlight device manifests.
 #[test]
 fn test_pid_constant_values() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(HEUSINKVELD_SPRINT_PID, 0x1156);
-    assert_eq!(HEUSINKVELD_ULTIMATE_PID, 0x1157);
-    assert_eq!(HEUSINKVELD_PRO_PID, 0x1158);
+    assert_eq!(HEUSINKVELD_SPRINT_PID, 0xF6D0);
+    assert_eq!(HEUSINKVELD_ULTIMATE_PID, 0xF6D2);
+    assert_eq!(HEUSINKVELD_PRO_PID, 0xF6D3);
     Ok(())
 }
 

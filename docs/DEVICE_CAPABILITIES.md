@@ -290,19 +290,19 @@ Source: `crates/hid-accuforce-protocol`; status: **Community** (USB captures).
 
 ---
 
-## 14. Heusinkveld — VID `0x16D0` *(non-FFB pedals)*
+## 14. Heusinkveld — VID `0x04D8` *(non-FFB pedals)*
 
-Source: `crates/hid-heusinkveld-protocol`; status: **Community**.
+Source: `crates/hid-heusinkveld-protocol`; status: **Community** (OpenFlight cross-reference).
 
 > ⚠️ Heusinkveld products are **load-cell pedals** (input-only). They do **not** produce force feedback.
 
 | Model | PID | Max Load (kg) | Pedal Axes | Protocol |
 |-------|-----|---------------|------------|----------|
-| Sim Pedals Sprint | `0x1156` | 55 | 2 | USB HID (load cell) |
-| Sim Pedals Ultimate+ | `0x1157` | 140 | 3 | USB HID (load cell) |
-| Sim Pedals Pro (discontinued) | `0x1158` | 200 | 3 | USB HID (load cell) |
+| Sim Pedals Sprint | `0xF6D0` | 55 | 2 | USB HID (load cell) |
+| Sim Pedals Ultimate+ | `0xF6D2` | 140 | 3 | USB HID (load cell) |
+| Sim Pedals Pro (discontinued) | `0xF6D3` | 200 | 3 | USB HID (load cell) |
 
-**VID note:** Heusinkveld shares VID `0x16D0` (MCS Electronics) with Simucube/Granite Devices — see [VID Collision Map](#vid-collision-map).
+**VID note:** Heusinkveld uses VID `0x04D8` (Microchip Technology) — a generic chip vendor VID. Disambiguation is by PID range `0xF6D0`–`0xF6D3`.
 
 ---
 
@@ -362,12 +362,17 @@ Several vendors share the same USB Vendor ID. The engine resolves collisions usi
 | **VRS DirectForce** | `0xA355`–`0xA35A` | Wheelbase + peripherals | PID range `0xA3xx` |
 | **Cube Controls** | `0x0C73`–`0x0C75` (prov.) | Button boxes (input-only) | PID range `0x0Cxx` |
 
+### `0x04D8` — Microchip Technology (shared)
+
+| Vendor | PID(s) | Device Type | Disambiguation |
+|--------|--------|-------------|----------------|
+| **Heusinkveld** | `0xF6D0`–`0xF6D3` | Pedals (non-FFB) | PID range `0xF6Dx` |
+
 ### `0x16D0` — MCS Electronics (shared)
 
 | Vendor | PID(s) | Device Type | Disambiguation |
 |--------|--------|-------------|----------------|
 | **Simucube** (Granite Devices) | `0x0D5A`–`0x0D66` | Wheelbases + pedals | PID range `0x0Dxx` |
-| **Heusinkveld** | `0x1156`–`0x1158` | Pedals (non-FFB) | PID range `0x11xx` |
 
 > When adding a device under a shared VID, update the disambiguation logic in `crates/engine/src/hid/vendor/mod.rs` → `get_vendor_protocol()`.
 
@@ -397,9 +402,9 @@ The following devices are supported for pedal, shifter, or handbrake input. They
 | Cammus CP5 Pedals | Cammus | `0x3416` | USB HID | 3 | PID `0x1018`; community-sourced |
 | Cammus LC100 Pedals | Cammus | `0x3416` | USB HID | 3 | PID `0x1019`; community-sourced |
 | Simucube ActivePedal | Granite Devices | `0x16D0` | Simucube Proprietary | — | PID `0x0D66` (SC-Link Hub) |
-| Heusinkveld Sprint | Heusinkveld | `0x16D0` | USB HID (load cell) | 2 | PID `0x1156`; 55 kg max |
-| Heusinkveld Ultimate+ | Heusinkveld | `0x16D0` | USB HID (load cell) | 3 | PID `0x1157`; 140 kg max |
-| Heusinkveld Pro | Heusinkveld | `0x16D0` | USB HID (load cell) | 3 | PID `0x1158`; 200 kg max (discontinued) |
+| Heusinkveld Sprint | Heusinkveld | `0x04D8` | USB HID (load cell) | 2 | PID `0xF6D0`; 55 kg max |
+| Heusinkveld Ultimate+ | Heusinkveld | `0x04D8` | USB HID (load cell) | 3 | PID `0xF6D2`; 140 kg max |
+| Heusinkveld Pro | Heusinkveld | `0x04D8` | USB HID (load cell) | 3 | PID `0xF6D3`; 200 kg max (discontinued) |
 
 ---
 
@@ -448,7 +453,7 @@ Devices are assigned one of three status levels based on available evidence.
 | FFBeast | Verified | PIDs confirmed via hid-ids.h |
 | Leo Bodnar | Community-reported | VID confirmed; SLI-Pro PID `0x1301` **estimated** — community reports, not hardware-verified (F-036) |
 | AccuForce Pro | Community-reported | PID `0x804C` confirmed from USB captures |
-| Heusinkveld (Sprint, Ultimate+, Pro) | Community-reported | VID `0x16D0` collision with Simucube documented |
+| Heusinkveld (Sprint, Ultimate+, Pro) | Community (OpenFlight) | VID `0x04D8` (Microchip); PIDs from OpenFlight device manifests |
 | Cube Controls | Estimated (**Provisional — PIDs unconfirmed, product pages 404; input-only, not wheelbases**) | Button boxes (non-FFB); see F-038 |
 | PXN | Community-reported | PIDs from linux-steering-wheels |
 | Granite Devices / OSW (SimpleMotion V2) | Community-reported | Legacy OSW generation |

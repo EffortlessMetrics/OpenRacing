@@ -10,30 +10,30 @@ USB HID input devices. They do **not** support force feedback and require no ini
 All three models (Sprint, Ultimate+, Pro) enumerate and report pedal positions immediately
 on USB connection.
 
-Heusinkveld products use VID `0x16D0` (OpenMoko), shared with legacy Simagic devices.
-They are distinguished by Product IDs in the `0x115x` range.
+Heusinkveld products use VID `0x04D8` (Microchip Technology), reflecting their
+PIC-based USB firmware. They are distinguished by Product IDs in the `0xF6Dx` range.
 
 ## Device Identification
 
-> ⚠ **Verification note:** The PIDs listed below are **not confirmed** by any external
-> USB database (USB-IF, usb-ids.gowdy.us, Linux kernel, etc.). They originate from
-> this project's internal documentation. See `crates/hid-heusinkveld-protocol/src/ids.rs`
-> for a full source audit.
+> 🔶 **Verification note:** The PIDs listed below are sourced from the OpenFlight
+> sister project (`EffortlessMetrics/OpenFlight`) community device manifests.
+> The Pro PID (`0xF6D3`) is estimated from the sequential pattern. See
+> `crates/hid-heusinkveld-protocol/src/ids.rs` for a full source audit.
 
 | Model | Vendor ID | Product ID | Pedals | Max Load |
 |-------|-----------|------------|--------|----------|
-| Sprint | `0x16D0` | `0x1156` | 2 (throttle + brake) | 55 kg brake |
-| Ultimate+ | `0x16D0` | `0x1157` | 3 (throttle + brake + clutch) | 140 kg brake |
-| Pro | `0x16D0` | `0x1158` | 3 (throttle + brake + clutch) | 200 kg brake |
+| Sprint | `0x04D8` | `0xF6D0` | 2 (throttle + brake) | 55 kg brake |
+| Ultimate+ | `0x04D8` | `0xF6D2` | 3 (throttle + brake + clutch) | 140 kg brake |
+| Pro | `0x04D8` | `0xF6D3` | 3 (throttle + brake + clutch) | 200 kg brake |
 
 ## VID Disambiguation
 
-VID `0x16D0` is shared with legacy Simagic devices (PIDs `0x0D5A`, `0x0D5B`).
-Heusinkveld products are identified by PIDs in the `0x115x` range.
+VID `0x04D8` is the generic Microchip Technology vendor ID, used by many PIC-based
+devices. Heusinkveld products are identified by PIDs in the `0xF6D0`–`0xF6D3` range.
 
 ```
-VID 0x16D0 + PID 0x1156..=0x1158 → Heusinkveld
-VID 0x16D0 + other PIDs          → Simagic legacy
+VID 0x04D8 + PID 0xF6D0..=0xF6D3 → Heusinkveld
+VID 0x04D8 + other PIDs           → unknown (not dispatched)
 ```
 
 ## Initialization

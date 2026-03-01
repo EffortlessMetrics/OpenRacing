@@ -54,7 +54,7 @@ See friction log entry **F-005** for the history of why this document was create
 | `0x0D63` | SimuCUBE Wireless Wheel      | Estimated |
 | `0x0D66` | Simucube SC-Link Hub (ActivePedal) | Verified  |
 
-> **Note:** VID `0x16D0` is also used by Heusinkveld — disambiguation is by PID.
+> **Note:** VID `0x16D0` is shared with legacy Simagic — disambiguation is by PID.
 >
 > **Bootloader PIDs** (firmware flashing only, not for HID protocol enumeration):
 > `0x0D5E` — SC2 firmware-upgrade mode; `0x0D5B` — SC1 firmware-upgrade mode.
@@ -232,25 +232,30 @@ See friction log entry **F-005** for the history of why this document was create
 
 ## Heusinkveld
 
-**VID:** `0x16D0`  
-**Source:** Attributed to community USB descriptor captures; however, no specific external source has been independently verified (see audit note below).  
-**Status:** ⚠ Unverified
+**VID:** `0x04D8` (Microchip Technology, Inc.)  
+**Source:** [OpenFlight device manifests](https://github.com/EffortlessMetrics/OpenFlight/tree/main/compat/devices/heusinkveld) (community); VID confirmed via [usb-ids.gowdy.us](http://www.linux-usb.org/usb.ids).  
+**Status:** 🔶 Community (OpenFlight cross-reference)
 
 | PID      | Device Name              | Status       |
 |----------|--------------------------|--------------|
-| `0x1156` | Heusinkveld Sprint       | ⚠ Unverified |
-| `0x1157` | Heusinkveld Ultimate+    | ⚠ Unverified |
-| `0x1158` | Heusinkveld Pro          | ⚠ Unverified |
+| `0xF6D0` | Heusinkveld Sprint       | 🔶 Community |
+| `0xF6D2` | Heusinkveld Ultimate+    | 🔶 Community |
+| `0xF6D3` | Heusinkveld Pro          | ⚠ Estimated  |
 
-> **Note:** VID `0x16D0` is also used by Simucube — disambiguation is by PID.
+> **Note:** VID `0x04D8` is the generic Microchip Technology VID, widely used by
+> PIC-based firmware. Heusinkveld devices use Microchip microcontrollers.
+> Disambiguation is by PID range (`0xF6D0`–`0xF6D3`).
 
-> **Audit (2026-03):** A prior version of this file cited
-> [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels)
-> as a source. That repository covers FFB steering wheels only and contains **zero**
-> Heusinkveld entries. The citation has been removed. These PIDs are not present in
-> usb-ids.gowdy.us, devicehunt.com, linux-hardware.org, the Linux kernel `hid-ids.h`,
-> systemd hwdb, or any other public USB database examined. A USB descriptor dump from
-> real Heusinkveld hardware is needed to confirm them.
+> **Audit (2025-07):** PIDs sourced from the OpenFlight sister project
+> (`EffortlessMetrics/OpenFlight`), which maintains per-device YAML manifests
+> with community-captured USB descriptors. The Pro PID (`0xF6D3`) is estimated
+> from the sequential pattern (Sprint=`0xF6D0`, Ultimate=`0xF6D2`,
+> Endurance=`0xF6D4`); the Pro model is discontinued.
+>
+> A prior version of this file used VID `0x16D0` (MCS Electronics / OpenMoko)
+> with PIDs `0x1156`–`0x1158`. That set was never confirmed by any external USB
+> database (usb-ids.gowdy.us, devicehunt.com, Linux kernel hid-ids.h, systemd
+> hwdb, SDL controller database, or JacKeTUs/linux-steering-wheels).
 
 ---
 
@@ -399,7 +404,8 @@ Several vendors share a VID. Always disambiguate using the PID (and `iProduct` s
 | VID      | Users                              |
 |----------|------------------------------------|
 | `0x0483` | STMicroelectronics (generic): VRS DirectForce, legacy Simagic, Cube Controls |
-| `0x16D0` | MCS Electronics / OpenMoko (open HW): Simucube 2, Heusinkveld |
+| `0x04D8` | Microchip Technology (generic): Heusinkveld pedals |
+| `0x16D0` | MCS Electronics / OpenMoko (open HW): Simucube 2 |
 | `0x044F` / `0x06F8` | Thrustmaster / Guillemot (parent company) |
 
 ---

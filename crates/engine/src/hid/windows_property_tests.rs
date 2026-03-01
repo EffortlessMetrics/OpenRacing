@@ -171,8 +171,8 @@ proptest! {
             (vid == vendor_ids::MOZA && matches!(pid, 0x0003 | 0x0020 | 0x0021 | 0x0022))
             // Thrustmaster TPR Rudder (flight sim), T80/T80H (no FFB)
             || (vid == vendor_ids::THRUSTMASTER && matches!(pid, 0xB68E | 0xB668 | 0xB66A))
-            // Heusinkveld pedals (Sprint / Ultimate+ / Pro) — share VID with Simagic legacy
-            || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x1156..=0x1158))
+            // Heusinkveld pedals (Sprint / Ultimate+ / Pro) — VID 0x04D8 (Microchip)
+            || (vid == vendor_ids::HEUSINKVELD && matches!(pid, 0xF6D0..=0xF6D3))
             // VRS accessories (pedals, handbrake, shifter) — share VID with Simagic
             || (vid == vendor_ids::SIMAGIC && matches!(pid, 0xA357..=0xA35A | 0xA3BE))
             // Simagic modern pedals, shifters, handbrake — VID 0x2D5C removed; EVO has no such peripherals yet

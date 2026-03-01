@@ -404,9 +404,11 @@ Simucube Wireless Wheel (PID 0x0D63) is listed in engine tables but not confirme
 Two USB Vendor IDs are each shared by **three or more** sim racing hardware vendors:
 
 **VID `0x16D0` (MCS Electronics / OpenMoko):**
-- Heusinkveld pedals — PIDs `0x1156`–`0x1158`
 - Simucube 2 wheelbases (Granite Devices) — PIDs `0x0D5A`–`0x0D66`
 - Legacy Simagic — PID `0x0D5A`
+
+**VID `0x04D8` (Microchip Technology):**
+- Heusinkveld pedals — PIDs `0xF6D0`–`0xF6D3` (moved from VID `0x16D0`; see OpenFlight cross-ref)
 
 **VID `0x0483` (STMicroelectronics):**
 - VRS DirectForce Pro — PIDs `0xA355`–`0xA35A`
@@ -590,13 +592,13 @@ The VRS DirectForce Pro V2 PID `0xA356` is present in the protocol crate but has
 
 ---
 
-### F-058 · Heusinkveld PIDs (all 3) unverified externally (Low · Open)
+### F-058 · Heusinkveld PIDs updated to VID 0x04D8 (Microchip) (Low · Resolved)
 
 **Encountered:** Wave 16 protocol verification (2025-06)
 
-All three Heusinkveld PIDs (Sprint, Ultimate+, Pro) under VID `0x16D0` are present in the protocol crate but have not been externally verified via USB captures, linux-steering-wheels, or Heusinkveld official documentation. The VID is shared with Simucube, adding disambiguation risk.
+All three Heusinkveld PIDs were originally under VID `0x16D0` with no external verification. Cross-referencing with the OpenFlight sister project (`EffortlessMetrics/OpenFlight`) revealed Heusinkveld uses VID `0x04D8` (Microchip Technology) with PIDs in the `0xF6Dx` range. Updated VID to `0x04D8` and PIDs to `0xF6D0` (Sprint), `0xF6D2` (Ultimate+), `0xF6D3` (Pro, estimated). Pro PID is estimated from sequential pattern; a USB capture would confirm.
 
-**Remedy:** Obtain USB captures from Heusinkveld hardware owners. Cross-check against any future linux-steering-wheels entries for VID `0x16D0`.
+**Remedy:** USB captures from Heusinkveld hardware owners would fully confirm the OpenFlight-sourced PIDs.
 
 ---
 
@@ -751,7 +753,7 @@ Our `build_rotation_range_report()` uses `[0x01, 0x12, range_lo, range_hi, ...]`
 - **Leo Bodnar**: VID `0x1DD2` confirmed via USB VID registry (the-sz.com). SLI-M PID `0xBEEF` flagged as placeholder — not found in any public USB database.
 - **AccuForce**: PID `0x804C` confirmed (NXP VID `0x1FC9`). V1 vs V2 torque differences documented (V1=7 Nm, V2=12 Nm).
 - **OpenFFBoard**: Main PID `0xFFB0` confirmed via pid.codes registry. Alt PID `0xFFB1` remains unverified (no independent source).
-- **Heusinkveld**: VID `0x16D0` confirmed (shared with Simucube — disambiguated by PID range `0x115x`).
+- **Heusinkveld**: VID updated from `0x16D0` to `0x04D8` (Microchip Technology); PIDs updated to `0xF6Dx` range per OpenFlight cross-reference.
 - **VRS DirectForce**: VID `0x0483` confirmed (STMicroelectronics generic). VID collision with Simagic legacy documented and resolved via `iProduct` string.
 - **Assetto Corsa**: Complete rewrite from OutGauge (76 bytes) to Remote Telemetry UDP (328 bytes) with 3-step handshake.
 - **ACC**: Fixed `isReadonly` field inversion (byte==0 means readonly in Kunos SDK).

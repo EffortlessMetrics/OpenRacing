@@ -45,8 +45,9 @@ mod device_dispatch_completeness {
             vendor_ids::THRUSTMASTER,
             vendor_ids::MOZA,
             vendor_ids::SIMAGIC,      // 0x0483 — Simagic / VRS / Cube Controls
-            vendor_ids::SIMAGIC_ALT,  // 0x16D0 — Simucube / Heusinkveld / Simagic
+            vendor_ids::SIMAGIC_ALT,  // 0x16D0 — Simucube / Simagic
             vendor_ids::SIMAGIC_EVO,
+            vendor_ids::HEUSINKVELD,  // 0x04D8 — Heusinkveld pedals (Microchip VID)
             vendor_ids::ASETEK,
             vendor_ids::CAMMUS,
             vendor_ids::GRANITE_DEVICES,

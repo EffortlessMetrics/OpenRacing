@@ -278,13 +278,13 @@ fn scenario_load_cell_given_independent_axes_when_parsed_then_no_crosstalk(
 #[test]
 fn scenario_product_ids_given_constants_when_checked_then_match_spec() {
     // Then: vendor ID constants match
-    assert_eq!(VENDOR_ID, 0x16D0);
-    assert_eq!(HEUSINKVELD_VENDOR_ID, 0x16D0);
+    assert_eq!(VENDOR_ID, 0x04D8);
+    assert_eq!(HEUSINKVELD_VENDOR_ID, 0x04D8);
 
     // Then: product ID constants have expected values
-    assert_eq!(PRODUCT_ID_SPRINT, 0x1156);
-    assert_eq!(PRODUCT_ID_ULTIMATE, 0x1157);
-    assert_eq!(PRODUCT_ID_PRO, 0x1158);
+    assert_eq!(PRODUCT_ID_SPRINT, 0xF6D0);
+    assert_eq!(PRODUCT_ID_ULTIMATE, 0xF6D2);
+    assert_eq!(PRODUCT_ID_PRO, 0xF6D3);
 
     // Then: named constants match positional constants
     assert_eq!(HEUSINKVELD_SPRINT_PID, PRODUCT_ID_SPRINT);

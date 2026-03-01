@@ -50,11 +50,10 @@ an additional guard.
 ## Shared VID: `0x16D0` — MCS Electronics / OpenMoko
 
 VID `0x16D0` is resold by MCS Electronics (formerly OpenMoko) for
-low-volume USB projects. Three vendors share it:
+low-volume USB projects. Two vendors share it:
 
 | Vendor | PID range | Known PIDs | Notes |
 |--------|-----------|------------|-------|
-| **Heusinkveld** | `0x1156`–`0x1158` | Sprint (`0x1156`), Ultimate+ (`0x1157`), Pro (`0x1158`) | Pedal devices (no FFB) — PIDs not externally verified |
 | **Simucube** | `0x0D5A`–`0x0D66` | SC1 (`0x0D5A`), Ultimate (`0x0D5F`), Pro (`0x0D60`), Sport (`0x0D61`), Wireless Wheel (`0x0D63`), ActivePedal (`0x0D66`) | Confirmed from Granite Devices documentation |
 | **Simagic / Simucube 1 (fallback)** | unspecified | Any PID not matched above | Legacy catch-all |
 
@@ -62,21 +61,45 @@ low-volume USB projects. Three vendors share it:
 
 ```text
 0x16D0 + PID
-  ├─ is_heusinkveld_product(pid)?  → HeusinkveldProtocolHandler
   ├─ is_simucube_product(pid)?     → SimucubeProtocolHandler
   └─ (default)                     → SimagicProtocol (legacy fallback)
 ```
 
-Heusinkveld is checked first (pedal devices), then Simucube (wheelbases).
-Any remaining PID falls through to the Simagic legacy handler.
+Simucube is checked first (wheelbases). Any remaining PID falls through to
+the Simagic legacy handler.
+
+> **Note:** Heusinkveld pedals previously used VID `0x16D0` in this project.
+> They have been moved to VID `0x04D8` (Microchip Technology) based on
+> OpenFlight device manifest cross-referencing. See the `0x04D8` section below.
 
 ### Conflict risk
 
-The Heusinkveld PIDs (`0x115x`) and Simucube PIDs (`0x0D5x`–`0x0D6x`)
-are well-separated. A future Simucube peripheral in the `0x0D6x`–`0x0D7x`
-range is safe. However, a new MCS-based vendor whose PID falls outside
-both known ranges would silently route to the Simagic legacy handler, which
-may produce incorrect behaviour.
+A future Simucube peripheral in the `0x0D6x`–`0x0D7x` range is safe.
+However, a new MCS-based vendor whose PID falls outside the known Simucube
+range would silently route to the Simagic legacy handler.
+
+---
+
+## Shared VID: `0x04D8` — Microchip Technology
+
+VID `0x04D8` is the default Microchip Technology vendor ID, used by countless
+PIC-based devices. In the sim racing context, only Heusinkveld pedals are known:
+
+| Vendor | PID range | Known PIDs | Notes |
+|--------|-----------|------------|-------|
+| **Heusinkveld** | `0xF6D0`–`0xF6D3` | Sprint (`0xF6D0`), Ultimate+ (`0xF6D2`), Pro (`0xF6D3`) | 🔶 Community (OpenFlight); Pro PID estimated |
+
+### Dispatch order
+
+```text
+0x04D8 + PID
+  ├─ is_heusinkveld_product(pid)?  → HeusinkveldProtocolHandler
+  └─ (default)                     → None (no handler)
+```
+
+Unlike other shared VIDs, unknown PIDs on `0x04D8` return `None` because
+the Microchip VID is used by far too many unrelated devices for a catch-all
+to be safe.
 
 ---
 

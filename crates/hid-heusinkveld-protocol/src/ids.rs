@@ -1,64 +1,83 @@
 //! Device IDs for Heusinkveld products.
 //!
-//! ## VID collision: 0x16D0 (MCS Electronics / OpenMoko)
+//! ## VID: 0x04D8 (Microchip Technology)
 //!
 //! Heusinkveld does **not** own a USB-IF Vendor ID. Their pedals use VID
-//! `0x16D0`, which belongs to MCS Electronics and is shared by many
-//! unrelated products (it is available for sub-licensing). In the sim
-//! racing world, at least two other vendors also ship on this VID:
+//! `0x04D8`, which belongs to Microchip Technology Inc. and is shared by
+//! many products built on Microchip PIC microcontrollers. Heusinkveld
+//! firmware runs on a Microchip USB HID controller, hence this VID.
 //!
-//! * **Granite Devices (Simucube 2)** — PIDs `0x0D5A`–`0x0D66`
-//! * **Simagic (legacy)** — PID `0x0D5A` (M10, collides with Simucube 1)
-//!
-//! Runtime disambiguation **must** be done by product ID, not by vendor ID
-//! alone. See `crates/engine/src/hid/vendor/mod.rs` for the dispatch logic
-//! and `docs/FRICTION_LOG.md` (F-034) for details.
+//! Because VID `0x04D8` is extremely common (programming tools, serial
+//! bridges, custom HID devices), runtime disambiguation **must** be done
+//! by product ID. See `crates/engine/src/hid/vendor/mod.rs` for dispatch
+//! logic and `docs/FRICTION_LOG.md` (F-034) for details.
 //!
 //! ## Verification status
 //!
 //! | Field | Status | Source |
 //! |-------|--------|--------|
-//! | VID 0x16D0 | ✅ Confirmed | usb-ids.gowdy.us, devicehunt.com, Linux kernel hid-ids.h (via Simucube) |
-//! | Sprint PID 0x1156 | ⚠ Unverified externally | Not in USB-IF DB, usb-ids.gowdy.us, linux-hardware.org, or Linux kernel hid-ids.h |
-//! | Ultimate PID 0x1157 | ⚠ Unverified externally | Not in USB-IF DB, usb-ids.gowdy.us, linux-hardware.org, or Linux kernel hid-ids.h |
-//! | Pro PID 0x1158 | ⚠ Unverified externally | Discontinued; not in any public USB database |
+//! | VID 0x04D8 | ✅ Confirmed | usb-ids.gowdy.us (Microchip Technology, Inc.); OpenFlight device YAML manifests |
+//! | Sprint PID 0xF6D0 | 🔶 Community | OpenFlight `compat/devices/heusinkveld/sprint-pedals.yaml` (community estimate) |
+//! | Ultimate PID 0xF6D2 | 🔶 Community | OpenFlight `compat/devices/heusinkveld/ultimate-pedals-0241.yaml` (cross-ref) |
+//! | Pro PID 0xF6D3 | ⚠ Estimated | Sequential after 0xF6D2; Pro is discontinued; not independently confirmed |
 //! | Sprint load 55 kg | ⚠ Plausible | heusinkveld.com (no kg listed for Sprint) |
 //! | Ultimate+ load 140 kg | ✅ Confirmed | heusinkveld.com ("up to 140kg of force") |
 //! | Pro load 200 kg | ⚠ Plausible | Discontinued; no current product page |
 //!
-//! ## Source audit (2026-03)
+//! ## Source audit (2026-07)
 //!
 //! The following external databases were searched and returned **no** Heusinkveld entries:
-//! - USB-IF / usb-ids.gowdy.us (VID 0x16D0 listed; PIDs 0x1156–0x1158 absent)
-//! - devicehunt.com (VID 0x16D0 listed; no Heusinkveld PIDs)
-//! - linux-hardware.org (search "heusinkveld" VID=16D0 → 0 results)
+//! - USB-IF / usb-ids.gowdy.us (VID 0x04D8 listed as Microchip; PIDs 0xF6D0–0xF6D3 absent)
+//! - devicehunt.com (VID 0x04D8 listed; no Heusinkveld PIDs)
+//! - linux-hardware.org (search "heusinkveld" → 0 results)
 //! - Linux kernel `hid-ids.h` (no Heusinkveld defines)
 //! - systemd hwdb `70-joystick.hwdb` (no Heusinkveld entries)
+//! - SDL `usb_ids.h` / `controller_list.h` (no Heusinkveld entries)
 //! - JacKeTUs/linux-steering-wheels (covers FFB wheels only; 0 Heusinkveld entries)
 //!
-//! The PIDs originate from this project's internal documentation (`docs/protocols/SOURCES.md`)
-//! which cites "community USB descriptor captures". A USB descriptor dump from real hardware
-//! is needed to confirm these values. See `docs/protocols/SOURCES.md` for details.
+//! The PIDs originate from the OpenFlight sister project
+//! (`EffortlessMetrics/OpenFlight`, `compat/devices/heusinkveld/` YAML manifests)
+//! which cites community USB descriptor captures. PIDs follow a sequential
+//! 0xF6Dx pattern: Sprint=0xF6D0, Sprint+=0xF6D1, Ultimate=0xF6D2,
+//! Endurance=0xF6D4. A USB descriptor dump from real hardware is still
+//! needed to fully confirm. See `docs/protocols/SOURCES.md` for details.
+//!
+//! ### Prior VID note
+//!
+//! An earlier version of this file used VID `0x16D0` (MCS Electronics /
+//! OpenMoko) with PIDs `0x1156`–`0x1158`. That set was never confirmed by
+//! any external database. The OpenFlight community data (VID `0x04D8`,
+//! PIDs `0xF6Dx`) is more consistent with Heusinkveld's Microchip-based
+//! firmware and provides broader device coverage.
 //!
 //! ## Known Heusinkveld USB products not yet covered
 //!
 //! Heusinkveld also sells a Handbrake, MagShift sequential shifter, MagShift Mini,
 //! and "One" steering wheel. These are separate USB devices whose PIDs are unknown.
+//! Some may enumerate under VID `0x0EB7` (Fanatec) per OpenFlight alt-manifests.
 //!
 //! **Note:** These are **pedal** devices — no torque/Nm values apply.
 
-/// Heusinkveld USB Vendor ID (MCS Electronics sub-licensed VID).
+/// Heusinkveld USB Vendor ID (Microchip Technology licensed VID).
 ///
-/// **Shared VID** — also used by Simucube 2 and legacy Simagic.
+/// VID `0x04D8` is shared by many Microchip PIC-based devices.
 /// Dispatch by PID is required at runtime.
-pub const HEUSINKVELD_VENDOR_ID: u16 = 0x16D0;
+///
+/// Source: OpenFlight `compat/devices/heusinkveld/*.yaml` (community).
+pub const HEUSINKVELD_VENDOR_ID: u16 = 0x04D8;
 
-/// Heusinkveld Sprint pedals. ⚠ PID unverified in external USB databases.
-pub const HEUSINKVELD_SPRINT_PID: u16 = 0x1156;
-/// Heusinkveld Ultimate+ pedals. ⚠ PID unverified in external USB databases.
-pub const HEUSINKVELD_ULTIMATE_PID: u16 = 0x1157;
-/// Heusinkveld Sim Pedals Pro (discontinued). ⚠ PID unverified in external USB databases.
-pub const HEUSINKVELD_PRO_PID: u16 = 0x1158;
+/// Heusinkveld Sprint pedals (PID community-sourced from OpenFlight).
+///
+/// Source: `EffortlessMetrics/OpenFlight` `sprint-pedals.yaml` — VID 0x04D8, PID 0xF6D0.
+pub const HEUSINKVELD_SPRINT_PID: u16 = 0xF6D0;
+/// Heusinkveld Ultimate+ pedals (PID community-sourced from OpenFlight).
+///
+/// Source: `EffortlessMetrics/OpenFlight` `ultimate-pedals-0241.yaml` cross-ref — VID 0x04D8, PID 0xF6D2.
+pub const HEUSINKVELD_ULTIMATE_PID: u16 = 0xF6D2;
+/// Heusinkveld Sim Pedals Pro (discontinued). ⚠ PID estimated (sequential after 0xF6D2).
+///
+/// Not independently confirmed. Pro is discontinued; no current product page.
+pub const HEUSINKVELD_PRO_PID: u16 = 0xF6D3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HeusinkveldModel {

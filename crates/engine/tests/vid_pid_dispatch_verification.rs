@@ -2,7 +2,7 @@
 //!
 //! These tests complement `device_dispatch.rs` by:
 //!
-//! 1. Exhaustively testing every known PID on shared VIDs (0x0483, 0x16D0,
+//! 1. Exhaustively testing every known PID on shared VIDs (0x0483, 0x04D8, 0x16D0,
 //!    0x1209) dispatches to the correct handler.
 //! 2. Verifying unknown PIDs on shared VIDs fall through appropriately.
 //! 3. Asserting that the full device registry contains no VID+PID duplicates
@@ -25,6 +25,7 @@ type VendorVidPids = (&'static str, u16, &'static [PidEntry]);
 
 const VID_STM: u16 = 0x0483;
 const VID_MCS: u16 = 0x16D0;
+const VID_HEUSINKVELD: u16 = 0x04D8;
 const VID_PID_CODES: u16 = 0x1209;
 const VID_GRANITE: u16 = 0x1D50;
 
@@ -53,12 +54,12 @@ const CUBE_CONTROLS_PIDS: &[(u16, &str)] = &[
 
 const SIMAGIC_LEGACY_PIDS: &[(u16, &str)] = &[(0x0522, "Alpha / M10 legacy")];
 
-// ── Heusinkveld PIDs on VID 0x16D0 ─────────────────────────────────────────
+// ── Heusinkveld PIDs on VID 0x04D8 (Microchip) ────────────────────────────
 
 const HEUSINKVELD_PIDS: &[(u16, &str)] = &[
-    (0x1156, "Sprint"),
-    (0x1157, "Ultimate+"),
-    (0x1158, "Pro"),
+    (0xF6D0, "Sprint"),
+    (0xF6D2, "Ultimate+"),
+    (0xF6D3, "Pro"),
 ];
 
 // ── Simucube PIDs on VID 0x16D0 ────────────────────────────────────────────
@@ -141,19 +142,35 @@ fn vid_0x0483_unknown_pid_falls_through_to_simagic() -> Result<(), Box<dyn std::
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 2. VID 0x16D0 (MCS): every known PID dispatches correctly
+// 2. VID 0x04D8 (Microchip / Heusinkveld): every known PID dispatches
 // ══════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn vid_0x16d0_all_heusinkveld_pids_dispatch() -> Result<(), Box<dyn std::error::Error>> {
+fn vid_0x04d8_all_heusinkveld_pids_dispatch() -> Result<(), Box<dyn std::error::Error>> {
     for &(pid, name) in HEUSINKVELD_PIDS {
         assert!(
-            get_vendor_protocol(VID_MCS, pid).is_some(),
-            "Heusinkveld {name} (PID 0x{pid:04X}) on VID 0x16D0 must dispatch to a handler"
+            get_vendor_protocol(VID_HEUSINKVELD, pid).is_some(),
+            "Heusinkveld {name} (PID 0x{pid:04X}) on VID 0x04D8 must dispatch to a handler"
         );
     }
     Ok(())
 }
+
+/// Unknown PIDs on VID 0x04D8 do NOT fall through (Microchip is a generic
+/// chip VID; only known Heusinkveld PIDs dispatch).
+#[test]
+fn vid_0x04d8_unknown_pid_returns_none() -> Result<(), Box<dyn std::error::Error>> {
+    let handler = get_vendor_protocol(VID_HEUSINKVELD, 0xFFFF);
+    assert!(
+        handler.is_none(),
+        "unknown PID on VID 0x04D8 should return None (not a known Heusinkveld PID)"
+    );
+    Ok(())
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 3. VID 0x16D0 (MCS): Simucube PIDs dispatch, unknown falls to Simagic
+// ══════════════════════════════════════════════════════════════════════════════
 
 #[test]
 fn vid_0x16d0_all_simucube_pids_dispatch() -> Result<(), Box<dyn std::error::Error>> {
@@ -241,7 +258,7 @@ fn shared_vid_known_pid_ignores_fallback() -> Result<(), Box<dyn std::error::Err
         (VID_STM, 0xA355, "VRS DFP"),
         (VID_STM, 0x0C73, "Cube Controls GT Pro"),
         (VID_STM, 0x0522, "Simagic Alpha legacy"),
-        (VID_MCS, 0x1156, "Heusinkveld Sprint"),
+        (VID_HEUSINKVELD, 0xF6D0, "Heusinkveld Sprint"),
         (VID_MCS, 0x0D61, "Simucube 2 Sport"),
         (VID_PID_CODES, 0xFFB0, "OpenFFBoard"),
         (VID_PID_CODES, 0x1BBD, "Button Box"),
@@ -274,8 +291,9 @@ fn vid_pid_registry_has_no_duplicates() -> Result<(), Box<dyn std::error::Error>
         ("VRS", VID_STM, VRS_PIDS),
         ("Cube Controls", VID_STM, CUBE_CONTROLS_PIDS),
         ("Simagic (legacy 0x0483)", VID_STM, SIMAGIC_LEGACY_PIDS),
+        // VID 0x04D8 Heusinkveld
+        ("Heusinkveld", VID_HEUSINKVELD, HEUSINKVELD_PIDS),
         // VID 0x16D0 vendors
-        ("Heusinkveld", VID_MCS, HEUSINKVELD_PIDS),
         ("Simucube", VID_MCS, SIMUCUBE_PIDS),
         // VID 0x1209 vendors
         ("OpenFFBoard", VID_PID_CODES, OPENFFBOARD_PIDS),

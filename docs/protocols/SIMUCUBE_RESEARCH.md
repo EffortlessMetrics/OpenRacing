@@ -83,7 +83,7 @@ Example: Simucube 2 Pro → `{0D6016D0-0000-0000-0000-504944564944}`
 ### VID Note
 
 VID `0x16D0` is registered to **MCS Electronics / OpenMoko** (not Granite Devices).
-Multiple sim racing vendors share this VID (e.g. Heusinkveld pedals also use `0x16D0`).
+Legacy Simagic devices also share this VID.
 Source: Linux kernel `hid-ids.h` (`USB_VENDOR_ID_MCS = 0x16d0`).
 
 ---
