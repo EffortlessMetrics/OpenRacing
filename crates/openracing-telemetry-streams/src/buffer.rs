@@ -18,7 +18,9 @@ impl<T> TelemetryBuffer<T> {
     }
 
     pub fn push(&self, item: T) {
-        let mut buffer = self.buffer.lock().unwrap();
+        // Recover from mutex poisoning: telemetry data loss is acceptable,
+        // panicking is not.
+        let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
 
         if buffer.len() >= self.max_size {
             buffer.pop_front();
@@ -28,22 +30,22 @@ impl<T> TelemetryBuffer<T> {
     }
 
     pub fn pop(&self) -> Option<T> {
-        let mut buffer = self.buffer.lock().unwrap();
+        let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
         buffer.pop_front()
     }
 
     pub fn len(&self) -> usize {
-        let buffer = self.buffer.lock().unwrap();
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
         buffer.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        let buffer = self.buffer.lock().unwrap();
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
         buffer.is_empty()
     }
 
     pub fn clear(&self) {
-        let mut buffer = self.buffer.lock().unwrap();
+        let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
         buffer.clear();
     }
 
@@ -51,7 +53,7 @@ impl<T> TelemetryBuffer<T> {
     where
         T: Clone,
     {
-        let buffer = self.buffer.lock().unwrap();
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
         buffer.iter().cloned().collect::<Vec<_>>().into_iter()
     }
 
@@ -59,7 +61,7 @@ impl<T> TelemetryBuffer<T> {
     where
         T: Clone,
     {
-        let buffer = self.buffer.lock().unwrap();
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
         buffer.back().cloned()
     }
 
@@ -67,7 +69,7 @@ impl<T> TelemetryBuffer<T> {
     where
         T: Clone,
     {
-        let buffer = self.buffer.lock().unwrap();
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
         buffer.front().cloned()
     }
 }
