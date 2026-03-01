@@ -202,4 +202,52 @@ mod tests {
         let proto = ThrustmasterProtocol::new(0xFFFF);
         assert_eq!(proto.model(), Model::Unknown);
     }
+
+    /// Kill mutant: replace product_id() → 0 or 1.
+    #[test]
+    fn test_product_id_preserves_value() {
+        let pid = product_ids::T300_RS;
+        let proto = ThrustmasterProtocol::new(pid);
+        assert_eq!(proto.product_id(), pid, "product_id must return the original PID");
+
+        let pid2 = product_ids::T818;
+        let proto2 = ThrustmasterProtocol::new(pid2);
+        assert_eq!(proto2.product_id(), pid2, "product_id must return T818 PID");
+
+        // Ensure it's not a constant 0 or 1
+        assert_ne!(proto.product_id(), 0);
+        assert_ne!(proto.product_id(), 1);
+    }
+
+    /// Kill mutant: replace supports_ffb with true (T80 must NOT support FFB).
+    #[test]
+    fn test_protocol_supports_ffb_false() {
+        let proto = ThrustmasterProtocol::new(product_ids::T80);
+        assert!(
+            !proto.supports_ffb(),
+            "T80 protocol must NOT support FFB"
+        );
+    }
+
+    /// Kill mutants: replace init/reset with ().
+    /// Init must transition state to Ready; reset must transition back to Uninitialized.
+    #[test]
+    fn test_protocol_init_and_reset_state_transitions() {
+        let mut proto = ThrustmasterProtocol::new(product_ids::T300_RS);
+        assert_eq!(proto.init_state(), ThrustmasterInitState::Uninitialized);
+
+        proto.init();
+        assert_eq!(
+            proto.init_state(),
+            ThrustmasterInitState::Ready,
+            "init() must set state to Ready"
+        );
+
+        proto.reset();
+        assert_eq!(
+            proto.init_state(),
+            ThrustmasterInitState::Uninitialized,
+            "reset() must set state to Uninitialized"
+        );
+    }
 }

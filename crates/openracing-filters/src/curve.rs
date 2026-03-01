@@ -327,4 +327,125 @@ mod tests {
         // Should return the single point's output
         assert!((state.lookup(0.5) - 0.75).abs() < 0.01);
     }
+
+    /// Kill mutant: replace `-` with `+` or `/` in CurveState::linear (line 67).
+    /// The formula `i / (LUT_SIZE - 1)` produces 0.0 at i=0 and 1.0 at i=LUT_SIZE-1.
+    /// If `-` becomes `+`, it would be `i / (LUT_SIZE + 1)` → 0.9990 instead of 1.0.
+    /// If `-` becomes `/`, it would be `i / (LUT_SIZE / 1)` = `i / LUT_SIZE` → 0.999 instead of 1.0.
+    #[test]
+    fn test_linear_curve_exact_endpoints() {
+        let state = CurveState::linear();
+        // First entry must be exactly 0.0
+        assert!(
+            state.lut[0].abs() < 1e-6,
+            "linear LUT[0] must be 0.0, got {}",
+            state.lut[0]
+        );
+        // Last entry must be exactly 1.0
+        assert!(
+            (state.lut[CurveState::LUT_SIZE - 1] - 1.0).abs() < 1e-6,
+            "linear LUT[last] must be 1.0, got {}",
+            state.lut[CurveState::LUT_SIZE - 1]
+        );
+        // Midpoint must be ~0.5
+        let mid = CurveState::LUT_SIZE / 2;
+        assert!(
+            (state.lut[mid] - 0.5).abs() < 0.01,
+            "linear LUT[mid] must be ~0.5, got {}",
+            state.lut[mid]
+        );
+    }
+
+    /// Kill mutant: replace cubic() with Default::default().
+    /// Cubic curve must differ from linear (default) — specifically at midpoint.
+    #[test]
+    fn test_cubic_differs_from_linear() {
+        let cubic = CurveState::cubic();
+        let linear = CurveState::linear();
+
+        // At midpoint, cubic should be significantly less than linear
+        let cubic_mid = cubic.lookup(0.5);
+        let linear_mid = linear.lookup(0.5);
+        assert!(
+            (cubic_mid - linear_mid).abs() > 0.05,
+            "cubic midpoint {} must differ from linear midpoint {}",
+            cubic_mid,
+            linear_mid
+        );
+        // Cubic at 0.5 should be less than 0.5 (softer near center)
+        assert!(
+            cubic_mid < 0.45,
+            "cubic at 0.5 should be < 0.45 (softer), got {}",
+            cubic_mid
+        );
+    }
+
+    /// Kill mutant: replace scurve() with Default::default().
+    /// S-curve must differ from linear at quarter points.
+    #[test]
+    fn test_scurve_differs_from_linear() {
+        let scurve = CurveState::scurve();
+        let linear = CurveState::linear();
+
+        // At 0.25, scurve should output ~0.1 (below linear's 0.25)
+        let s_quarter = scurve.lookup(0.25);
+        let l_quarter = linear.lookup(0.25);
+        assert!(
+            s_quarter < l_quarter,
+            "scurve at 0.25 ({}) must be less than linear ({})",
+            s_quarter,
+            l_quarter
+        );
+        // At 0.75, scurve should output ~0.9 (above linear's 0.75)
+        let s_three_q = scurve.lookup(0.75);
+        let l_three_q = linear.lookup(0.75);
+        assert!(
+            s_three_q > l_three_q,
+            "scurve at 0.75 ({}) must be greater than linear ({})",
+            s_three_q,
+            l_three_q
+        );
+    }
+
+    /// Verify that curve constructors produce valid LUT data.
+    #[test]
+    fn test_curve_constructors_valid_lut() {
+        for (name, state) in [
+            ("linear", CurveState::linear()),
+            ("quadratic", CurveState::quadratic()),
+            ("cubic", CurveState::cubic()),
+            ("scurve", CurveState::scurve()),
+        ] {
+            assert_eq!(state.lut_size, CurveState::LUT_SIZE, "{} lut_size", name);
+            for (i, &val) in state.lut.iter().enumerate() {
+                assert!(
+                    val.is_finite(),
+                    "{} LUT[{}] must be finite, got {}",
+                    name,
+                    i,
+                    val
+                );
+                assert!(
+                    (-0.01..=1.01).contains(&val),
+                    "{} LUT[{}] must be in [0, 1], got {}",
+                    name,
+                    i,
+                    val
+                );
+            }
+            // Endpoints: LUT[0] should be ~0.0, LUT[last] should be ~1.0
+            assert!(
+                state.lut[0].abs() < 0.01,
+                "{} LUT[0] must be ~0.0, got {}",
+                name,
+                state.lut[0]
+            );
+            assert!(
+                (state.lut[CurveState::LUT_SIZE - 1] - 1.0).abs() < 0.01,
+                "{} LUT[last] must be ~1.0, got {}",
+                name,
+                state.lut[CurveState::LUT_SIZE - 1]
+            );
+        }
+    }
 }

@@ -433,4 +433,39 @@ mod tests {
         assert!(!rim.has_funky_switch());
         Ok(())
     }
+
+    /// Kill mutants: delete match arms for BMW_GT2, FORMULA_V2_5, PORSCHE_918_RSR,
+    /// CLUBSPORT_RS, and PODIUM_HUB in FanatecRimId::from_byte.
+    /// Each rim ID must decode to its specific variant, not fall through to Unknown.
+    #[test]
+    fn test_all_rim_ids_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let expected = [
+            (rim_ids::BMW_GT2, FanatecRimId::BmwGt2),
+            (rim_ids::FORMULA_V2, FanatecRimId::FormulaV2),
+            (rim_ids::FORMULA_V2_5, FanatecRimId::FormulaV25),
+            (rim_ids::MCLAREN_GT3_V2, FanatecRimId::McLarenGt3V2),
+            (rim_ids::PORSCHE_911_GT3_R, FanatecRimId::Porsche911Gt3R),
+            (rim_ids::PORSCHE_918_RSR, FanatecRimId::Porsche918Rsr),
+            (rim_ids::CLUBSPORT_RS, FanatecRimId::ClubSportRs),
+            (rim_ids::WRC, FanatecRimId::Wrc),
+            (rim_ids::CSL_ELITE_P1, FanatecRimId::CslEliteP1),
+            (rim_ids::PODIUM_HUB, FanatecRimId::PodiumHub),
+        ];
+        for (byte, expected_variant) in expected {
+            let actual = FanatecRimId::from_byte(byte);
+            assert_eq!(
+                actual, expected_variant,
+                "rim ID byte 0x{:02X} must decode to {:?}, got {:?}",
+                byte, expected_variant, actual
+            );
+            // Also verify it's not Unknown
+            assert_ne!(
+                actual,
+                FanatecRimId::Unknown,
+                "rim ID byte 0x{:02X} must not be Unknown",
+                byte
+            );
+        }
+        Ok(())
+    }
 }

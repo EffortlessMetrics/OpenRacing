@@ -284,4 +284,125 @@ mod tests {
                 .any(|(model, switch, _)| *model == 0x0002 && *switch == 0x0002)
         );
     }
+
+    /// Kill mutants: delete match arm T500_RS, T80, and legacy wheels in identify_device.
+    #[test]
+    fn test_identify_device_all_categories() {
+        // T500RS must be a wheelbase with FFB
+        let t500 = identify_device(product_ids::T500_RS);
+        assert_eq!(t500.category, ThrustmasterDeviceCategory::Wheelbase);
+        assert!(t500.supports_ffb, "T500RS must support FFB");
+        assert_eq!(t500.product_id, product_ids::T500_RS);
+
+        // T80 must be a wheelbase WITHOUT FFB
+        let t80 = identify_device(product_ids::T80);
+        assert_eq!(t80.category, ThrustmasterDeviceCategory::Wheelbase);
+        assert!(!t80.supports_ffb, "T80 must NOT support FFB");
+
+        let t80_ferrari = identify_device(product_ids::T80_FERRARI_488);
+        assert_eq!(t80_ferrari.category, ThrustmasterDeviceCategory::Wheelbase);
+        assert!(!t80_ferrari.supports_ffb, "T80 Ferrari must NOT support FFB");
+
+        // Legacy FFB wheels must be wheelbases WITH FFB
+        let legacy_pids = [
+            product_ids::NASCAR_PRO_FF2,
+            product_ids::FGT_RUMBLE_FORCE,
+            product_ids::RGT_FF_CLUTCH,
+            product_ids::FGT_FORCE_FEEDBACK,
+            product_ids::F430_FORCE_FEEDBACK,
+        ];
+        for pid in legacy_pids {
+            let identity = identify_device(pid);
+            assert_eq!(
+                identity.category,
+                ThrustmasterDeviceCategory::Wheelbase,
+                "PID 0x{:04X} must be Wheelbase",
+                pid
+            );
+            assert!(
+                identity.supports_ffb,
+                "PID 0x{:04X} must support FFB",
+                pid
+            );
+        }
+    }
+
+    /// Kill mutants: delete match arms T80/NASCAR/FGT/RGT/F430 in from_product_id.
+    #[test]
+    fn test_model_from_product_id_legacy_wheels() {
+        assert_eq!(
+            Model::from_product_id(product_ids::T80),
+            Model::T80,
+            "T80 PID must map to T80 model"
+        );
+        assert_eq!(
+            Model::from_product_id(product_ids::T80_FERRARI_488),
+            Model::T80,
+            "T80 Ferrari PID must map to T80 model"
+        );
+        assert_eq!(
+            Model::from_product_id(product_ids::NASCAR_PRO_FF2),
+            Model::NascarProFF2,
+        );
+        assert_eq!(
+            Model::from_product_id(product_ids::FGT_RUMBLE_FORCE),
+            Model::FGTRumbleForce,
+        );
+        assert_eq!(
+            Model::from_product_id(product_ids::RGT_FF_CLUTCH),
+            Model::RGTFF,
+        );
+        assert_eq!(
+            Model::from_product_id(product_ids::FGT_FORCE_FEEDBACK),
+            Model::FGTForceFeedback,
+        );
+        assert_eq!(
+            Model::from_product_id(product_ids::F430_FORCE_FEEDBACK),
+            Model::F430ForceFeedback,
+        );
+    }
+
+    /// Kill mutant: delete match arm T500RS → 1080 in max_rotation_deg.
+    #[test]
+    fn test_model_max_rotation_t500rs() {
+        assert_eq!(
+            Model::T500RS.max_rotation_deg(),
+            1080,
+            "T500RS must have 1080° rotation"
+        );
+    }
+
+    /// Kill mutant: delete match arm T80|legacy → 270 in max_rotation_deg.
+    #[test]
+    fn test_model_max_rotation_270_degree_models() {
+        let models_270 = [
+            Model::T80,
+            Model::NascarProFF2,
+            Model::FGTRumbleForce,
+            Model::RGTFF,
+            Model::FGTForceFeedback,
+            Model::F430ForceFeedback,
+        ];
+        for model in models_270 {
+            assert_eq!(
+                model.max_rotation_deg(),
+                270,
+                "{:?} must have 270° rotation",
+                model
+            );
+        }
+    }
+
+    /// Kill mutant: supports_ffb → true (T80 and Unknown must NOT support FFB).
+    #[test]
+    fn test_model_supports_ffb_false_cases() {
+        assert!(
+            !Model::T80.supports_ffb(),
+            "T80 must NOT support FFB"
+        );
+        assert!(
+            !Model::Unknown.supports_ffb(),
+            "Unknown must NOT support FFB"
+        );
+    }
 }

@@ -346,4 +346,64 @@ mod tests {
         );
         Ok(())
     }
+
+    /// Kill mutants: delete match arm WingManFormulaForce → 180 in max_rotation_deg.
+    #[test]
+    fn test_wingman_max_rotation_180() -> Result<(), Box<dyn std::error::Error>> {
+        let model = LogitechModel::from_product_id(product_ids::WINGMAN_FORMULA_FORCE_GP);
+        assert_eq!(model, LogitechModel::WingManFormulaForce);
+        assert_eq!(
+            model.max_rotation_deg(),
+            180,
+            "WingMan FFG must have 180° rotation"
+        );
+        Ok(())
+    }
+
+    /// Kill mutants: delete match arm MOMO|DrivingForceEX|SFW|VibrationWheel → 270.
+    #[test]
+    fn test_legacy_270_degree_models() -> Result<(), Box<dyn std::error::Error>> {
+        let momo = LogitechModel::from_product_id(product_ids::MOMO);
+        assert_eq!(
+            momo.max_rotation_deg(),
+            270,
+            "MOMO must have 270° rotation"
+        );
+
+        let dfex = LogitechModel::from_product_id(product_ids::DRIVING_FORCE_EX);
+        assert_eq!(
+            dfex.max_rotation_deg(),
+            270,
+            "DrivingForceEX must have 270° rotation"
+        );
+
+        let sfw = LogitechModel::from_product_id(product_ids::SPEED_FORCE_WIRELESS);
+        assert_eq!(
+            sfw.max_rotation_deg(),
+            270,
+            "SpeedForceWireless must have 270° rotation"
+        );
+
+        let vw = LogitechModel::from_product_id(product_ids::VIBRATION_WHEEL);
+        assert_eq!(
+            vw.max_rotation_deg(),
+            270,
+            "VibrationWheel must have 270° rotation"
+        );
+
+        Ok(())
+    }
+
+    /// Verify 270° models differ from the default 900° wildcard.
+    #[test]
+    fn test_270_differs_from_default_900() -> Result<(), Box<dyn std::error::Error>> {
+        let momo = LogitechModel::MOMO;
+        let g29 = LogitechModel::G29;
+        assert_ne!(
+            momo.max_rotation_deg(),
+            g29.max_rotation_deg(),
+            "270° models must differ from 900° default"
+        );
+        Ok(())
+    }
 }
