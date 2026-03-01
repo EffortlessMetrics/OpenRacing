@@ -547,8 +547,8 @@ impl SupportedDevices {
             ),
             (
                 vendor_ids::LEO_BODNAR,
-                0xBEEF,
-                "Leo Bodnar SLI-M Shift Light Indicator",
+                0x1301,
+                "Leo Bodnar SLI-Pro Shift Light Indicator",
             ),
             (vendor_ids::LEO_BODNAR, 0x0001, "Leo Bodnar USB Joystick"),
             (

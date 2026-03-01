@@ -43,11 +43,11 @@ fn ffb_joystick_pid_is_000f() {
     assert_eq!(PID_FFB_JOYSTICK, 0x000F);
 }
 
-/// SLI-M Shift Light Indicator PID must be 0xBEEF.
+/// SLI-Pro Shift Light Indicator PID must be 0x1301.
 ///
-/// NOTE: 0xBEEF is suspected to be a placeholder (see ids.rs doc comment).
+/// NOTE: 0x1301 is a community estimate (see ids.rs doc comment).
 /// This test pins the current value; update if a real PID is discovered.
 #[test]
 fn sli_m_pid_is_beef() {
-    assert_eq!(PID_SLI_M, 0xBEEF);
+    assert_eq!(PID_SLI_M, 0x1301);
 }

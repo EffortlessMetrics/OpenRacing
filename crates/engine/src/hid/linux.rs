@@ -504,7 +504,7 @@ impl LinuxHidPort {
             // Leo Bodnar sim racing interfaces
             (0x1DD2, 0x000E), // Leo Bodnar USB Sim Racing Wheel Interface
             (0x1DD2, 0x000C), // Leo Bodnar BBI-32 Button Box
-            (0x1DD2, 0xBEEF), // Leo Bodnar SLI-M Shift Light Indicator
+            (0x1DD2, 0x1301), // Leo Bodnar SLI-Pro Shift Light Indicator
             (0x1DD2, 0x0001), // Leo Bodnar USB Joystick
             (0x1DD2, 0x000B), // Leo Bodnar BU0836A Joystick
             (0x1DD2, 0x000F), // Leo Bodnar FFB Joystick

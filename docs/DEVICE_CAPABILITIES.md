@@ -272,7 +272,7 @@ Source: `crates/hid-leo-bodnar-protocol`; status: **Community**.
 | FFB Joystick | `0x000F` | ~10.0 (configurable) | dynamic | 16-bit (65 535) | HID PIDFF |
 | BU0836X | `0x0030` | — | — | 16-bit ADC | Input only |
 | BU0836 16-bit | `0x0031` | — | — | 16-bit ADC | Input only |
-| SLI-M | `0xBEEF` | — | — | — | Output only (RPM/gear display) |
+| SLI-Pro | `0x1301` | — | — | — | Output/display + button inputs (estimated PID) |
 
 **FFB effects (Wheel Interface / FFB Joystick):** Constant, Spring, Damper (PIDFF standard). Actual torque depends on motor/PSU.
 
@@ -446,7 +446,7 @@ Devices are assigned one of three status levels based on available evidence.
 | VRS DirectForce Pro | Verified | PID `0xA355` confirmed via linux-steering-wheels; VID collision with Simagic documented |
 | OpenFFBoard | Verified | Main PID `0xFFB0` confirmed (pid.codes); alt `0xFFB1` **unverified — absent from all sources** (F-037) |
 | FFBeast | Verified | PIDs confirmed via hid-ids.h |
-| Leo Bodnar | Community-reported | VID confirmed; SLI-M PID `0xBEEF` **placeholder — no hardware match** (F-036) |
+| Leo Bodnar | Community-reported | VID confirmed; SLI-Pro PID `0x1301` **estimated** — community reports, not hardware-verified (F-036) |
 | AccuForce Pro | Community-reported | PID `0x804C` confirmed from USB captures |
 | Heusinkveld (Sprint, Ultimate+, Pro) | Community-reported | VID `0x16D0` collision with Simucube documented |
 | Cube Controls | Estimated (**Provisional — PIDs unconfirmed, product pages 404; input-only, not wheelbases**) | Button boxes (non-FFB); see F-038 |

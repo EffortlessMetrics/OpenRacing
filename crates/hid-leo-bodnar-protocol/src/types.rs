@@ -25,8 +25,8 @@ pub enum LeoBodnarDevice {
     /// BU0836 16-bit – 16-bit ADC joystick interface, 8 axes + 32 buttons
     /// (PID `0x0031`, estimated from community reports).
     Bu0836_16bit,
-    /// SLI-M Shift Light Indicator – RPM/gear display device (PID `0xBEEF`,
-    /// **unverified placeholder**; see `ids::PID_SLI_M` doc comment).
+    /// SLI-Pro Shift Light Indicator – RPM/gear display device (PID `0x1301`,
+    /// **community estimate**; see `ids::PID_SLI_M` doc comment).
     SlimShiftLight,
 }
 
@@ -80,7 +80,7 @@ impl LeoBodnarDevice {
             Self::FfbJoystick => "Leo Bodnar FFB Joystick",
             Self::Bu0836x => "Leo Bodnar BU0836X",
             Self::Bu0836_16bit => "Leo Bodnar BU0836 16-bit",
-            Self::SlimShiftLight => "Leo Bodnar SLI-M",
+            Self::SlimShiftLight => "Leo Bodnar SLI-Pro",
         }
     }
 }
