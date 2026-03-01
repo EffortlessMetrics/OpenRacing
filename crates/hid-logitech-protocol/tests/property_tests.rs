@@ -29,6 +29,7 @@ fn test_all_known_pids_detected() -> Result<(), Box<dyn std::error::Error>> {
         product_ids::MOMO,
         product_ids::MOMO_2,
         product_ids::WINGMAN_FORMULA_FORCE_GP,
+        product_ids::WINGMAN_FORMULA_FORCE,
         product_ids::VIBRATION_WHEEL,
         product_ids::DRIVING_FORCE_EX,
         product_ids::DRIVING_FORCE_PRO,
@@ -74,6 +75,7 @@ fn test_pid_constant_values() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(product_ids::MOMO, 0xC295);
     assert_eq!(product_ids::MOMO_2, 0xCA03);
     assert_eq!(product_ids::WINGMAN_FORMULA_FORCE_GP, 0xC293);
+    assert_eq!(product_ids::WINGMAN_FORMULA_FORCE, 0xC291);
     assert_eq!(product_ids::VIBRATION_WHEEL, 0xCA04);
     Ok(())
 }

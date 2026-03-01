@@ -47,6 +47,7 @@ impl LogitechModel {
             product_ids::DRIVING_FORCE_GT => Self::DrivingForceGT,
             product_ids::SPEED_FORCE_WIRELESS
             | product_ids::WINGMAN_FORMULA_FORCE_GP
+            | product_ids::WINGMAN_FORMULA_FORCE
             | product_ids::VIBRATION_WHEEL => Self::SpeedForceWireless,
             product_ids::G25 => Self::G25,
             product_ids::G27 => Self::G27,
@@ -110,6 +111,7 @@ pub fn is_wheel_product(product_id: u16) -> bool {
         product_ids::MOMO
             | product_ids::MOMO_2
             | product_ids::WINGMAN_FORMULA_FORCE_GP
+            | product_ids::WINGMAN_FORMULA_FORCE
             | product_ids::VIBRATION_WHEEL
             | product_ids::DRIVING_FORCE_EX
             | product_ids::DRIVING_FORCE_PRO

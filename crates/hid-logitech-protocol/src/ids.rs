@@ -165,6 +165,11 @@ pub mod product_ids {
     /// Verified: kernel `USB_DEVICE_ID_LOGITECH_WINGMAN_FFG = 0xc293`,
     /// oversteer `LG_WFFG = '046d:c293'`.
     pub const WINGMAN_FORMULA_FORCE_GP: u16 = 0xC293;
+    /// WingMan Formula Force (original, non-GP version).
+    ///
+    /// Verified: kernel `USB_DEVICE_ID_LOGITECH_WINGMAN_FF = 0xc291`,
+    /// oversteer `LG_WFF = '046d:c291'`.
+    pub const WINGMAN_FORMULA_FORCE: u16 = 0xC291;
     /// Vibration Wheel (basic rumble-only wheel).
     ///
     /// Verified: kernel `USB_DEVICE_ID_LOGITECH_VIBRATION_WHEEL = 0xca04`.

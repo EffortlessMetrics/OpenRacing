@@ -169,8 +169,8 @@ proptest! {
         let is_non_ffb_peripheral =
             // Moza peripherals (pedals, hub, handbrake, shifter)
             (vid == vendor_ids::MOZA && matches!(pid, 0x0003 | 0x0020 | 0x0021 | 0x0022))
-            // Thrustmaster TPR Rudder (flight sim, not racing)
-            || (vid == vendor_ids::THRUSTMASTER && pid == 0xB68E)
+            // Thrustmaster TPR Rudder (flight sim), T80/T80H (no FFB)
+            || (vid == vendor_ids::THRUSTMASTER && matches!(pid, 0xB68E | 0xB668 | 0xB66A))
             // Heusinkveld pedals (Sprint / Ultimate+ / Pro) — share VID with Simagic legacy
             || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x1156..=0x1158))
             // VRS accessories (pedals, handbrake, shifter) — share VID with Simagic

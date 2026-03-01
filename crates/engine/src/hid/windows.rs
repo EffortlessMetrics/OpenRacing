@@ -324,6 +324,12 @@ pub mod vendor_ids {
     /// Cube Controls S.r.l. — PROVISIONAL (unconfirmed VID, uses STM shared VID)
     /// ACTION REQUIRED: confirm VID from real hardware capture and update if needed.
     pub const CUBE_CONTROLS: u16 = 0x0483; // same as SIMAGIC; see cube_controls.rs
+    /// FlashFire (VID 0x2F24) — budget FFB wheels
+    /// Source: oversteer wheel_ids.py
+    pub const FLASHFIRE: u16 = 0x2F24;
+    /// Guillemot (VID 0x06F8) — legacy Thrustmaster parent company
+    /// Source: oversteer wheel_ids.py, Linux hid-tmff.c
+    pub const GUILLEMOT: u16 = 0x06F8;
 }
 
 /// Known racing wheel product IDs organized by vendor
@@ -361,6 +367,11 @@ impl SupportedDevices {
                 "Logitech WingMan Formula Force GP",
             ),
             (vendor_ids::LOGITECH, 0xCA04, "Logitech Vibration Wheel"),
+            (
+                vendor_ids::LOGITECH,
+                0xC291,
+                "Logitech WingMan Formula Force",
+            ),
             // Fanatec wheels (VID 0x0EB7 — Endor AG)
             // Verified: gotzl/hid-fanatecff, JacKeTUs/linux-steering-wheels,
             //           berarma/oversteer, linux-hardware.org
@@ -460,6 +471,16 @@ impl SupportedDevices {
                 vendor_ids::THRUSTMASTER,
                 0xB668,
                 "Thrustmaster T80 (no FFB)",
+            ),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB66A,
+                "Thrustmaster T80 Ferrari 488 GTB (no FFB)",
+            ),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB664,
+                "Thrustmaster TX Racing Wheel",
             ),
             // NOTE: Thrustmaster pedal PIDs 0xB678/0xB679/0xB68D removed —
             // web research confirmed these are HOTAS peripherals, not pedals.
@@ -648,6 +669,16 @@ impl SupportedDevices {
             (vendor_ids::PXN, 0x1112, "PXN V12 Lite"),
             (vendor_ids::PXN, 0x1211, "PXN V12 Lite 2"),
             (vendor_ids::PXN, 0x2141, "PXN GT987"),
+            // FlashFire (VID 0x2F24) — budget FFB wheels
+            // Source: oversteer wheel_ids.py
+            (vendor_ids::FLASHFIRE, 0x010D, "FlashFire 900R"),
+            // Guillemot (legacy Thrustmaster parent company, VID 0x06F8)
+            // Source: oversteer wheel_ids.py, Linux hid-tmff.c
+            (
+                vendor_ids::GUILLEMOT,
+                0x0004,
+                "Guillemot Force Feedback Racing Wheel",
+            ),
         ]
     }
 
@@ -669,6 +700,8 @@ impl SupportedDevices {
             vendor_ids::LEO_BODNAR,
             vendor_ids::SIMEXPERIENCE,
             vendor_ids::PXN,
+            vendor_ids::FLASHFIRE,
+            vendor_ids::GUILLEMOT,
         ]
     }
 
@@ -709,6 +742,8 @@ impl SupportedDevices {
             vendor_ids::LEO_BODNAR => "Leo Bodnar",
             vendor_ids::SIMEXPERIENCE => "SimExperience",
             vendor_ids::PXN => "PXN",
+            vendor_ids::FLASHFIRE => "FlashFire",
+            vendor_ids::GUILLEMOT => "Guillemot / Thrustmaster",
             _ => "Unknown",
         }
     }
@@ -1348,7 +1383,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
 
             match product_id {
                 0xB65D | 0xB677 => {
-                    // T150 (0xB65D = generic pre-init PID, 0xB677 = post-init)
+                    // T150 (0xB65D = generic pre-init PID shared by all TM wheels,
+                    // 0xB677 = T150 post-init). Default to T150 caps for 0xB65D.
                     capabilities.max_torque = TorqueNm::new(2.5).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 4000; // 250Hz
                 }
@@ -1358,9 +1394,20 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.min_report_period_us = 2000; // 500Hz
                 }
                 0xB66D => {
-                    // TMX
+                    // TMX (2.5 Nm, belt)
                     capabilities.max_torque = TorqueNm::new(2.5).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 4000; // 250Hz
+                }
+                0xB664 => {
+                    // TX Racing Wheel (4.0 Nm belt drive, Xbox)
+                    capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
+                    capabilities.min_report_period_us = 2000;
+                }
+                0xB668 | 0xB66A => {
+                    // T80 / T80 Ferrari 488 (no FFB, gamepad only)
+                    capabilities.supports_pid = false;
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
                 }
                 0xB66E | 0xB66F => {
                     // T300RS
@@ -1812,6 +1859,20 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                         TorqueNm::new(3.0).unwrap_or(capabilities.max_torque);
                 }
             }
+        }
+        vendor_ids::FLASHFIRE => {
+            // FlashFire 900R — budget belt-driven FFB wheel (~2 Nm)
+            capabilities.supports_pid = true;
+            capabilities.encoder_cpr = 900;
+            capabilities.min_report_period_us = 4000; // 250Hz
+            capabilities.max_torque = TorqueNm::new(2.0).unwrap_or(capabilities.max_torque);
+        }
+        vendor_ids::GUILLEMOT => {
+            // Guillemot Force Feedback Racing Wheel — legacy Thrustmaster (Guillemot brand)
+            capabilities.supports_pid = true;
+            capabilities.encoder_cpr = 270;
+            capabilities.min_report_period_us = 8000; // 125Hz legacy
+            capabilities.max_torque = TorqueNm::new(1.5).unwrap_or(capabilities.max_torque);
         }
         _ => {
             // Unknown vendor - use conservative defaults

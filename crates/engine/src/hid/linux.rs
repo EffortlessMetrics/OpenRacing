@@ -400,6 +400,7 @@ impl LinuxHidPort {
             (0x046D, 0xCA03), // Logitech MOMO Racing 2
             (0x046D, 0xC293), // Logitech WingMan Formula Force GP
             (0x046D, 0xCA04), // Logitech Vibration Wheel
+            (0x046D, 0xC291), // Logitech WingMan Formula Force
             // Fanatec (VID 0x0EB7 — Endor AG)
             // Verified: gotzl/hid-fanatecff, JacKeTUs/linux-steering-wheels,
             //           berarma/oversteer, linux-hardware.org
@@ -443,6 +444,8 @@ impl LinuxHidPort {
             (0x044F, 0xB654), // Thrustmaster FGT Force Feedback
             (0x044F, 0xB65A), // Thrustmaster F430 Force Feedback
             (0x044F, 0xB668), // Thrustmaster T80 (no FFB)
+            (0x044F, 0xB66A), // Thrustmaster T80 Ferrari 488 GTB (no FFB)
+            (0x044F, 0xB664), // Thrustmaster TX Racing Wheel
             // NOTE: 0xB678/0xB679/0xB68D removed — HOTAS peripherals, not pedals
             // Moza Racing - V1
             (0x346E, 0x0005), // Moza R3
@@ -543,6 +546,10 @@ impl LinuxHidPort {
             (0x11FF, 0x1112), // PXN V12 Lite
             (0x11FF, 0x1211), // PXN V12 Lite 2
             (0x11FF, 0x2141), // PXN GT987
+            // FlashFire (VID 0x2F24) — budget FFB wheels (oversteer)
+            (0x2F24, 0x010D), // FlashFire 900R
+            // Guillemot (VID 0x06F8) — legacy Thrustmaster parent (oversteer, hid-tmff.c)
+            (0x06F8, 0x0004), // Guillemot Force Feedback Racing Wheel
         ];
 
         // Scan /dev/hidraw* devices
