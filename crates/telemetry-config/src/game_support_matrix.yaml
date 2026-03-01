@@ -132,7 +132,7 @@ games:
         flags: null
         car_id: null
         track_id: null
-    status: "stub"
+    status: "experimental"
     config_writer: "acc2"
     auto_detect:
       process_names: []
@@ -164,7 +164,7 @@ games:
         flags: null
         car_id: null
         track_id: null
-    status: "stub"
+    status: "experimental"
     config_writer: "ac_evo"
     auto_detect:
       process_names:
