@@ -15,9 +15,12 @@
 //! | 5 | `linux-hardware.org/?id=usb:0eb7` | VID confirmed "Endor"; hardware probes exist |
 //! | 6 | `libsdl-org/SDL` `src/joystick/SDL_joystick.c` | VID 0x0EB7 recognized as Fanatec wheel vendor |
 //! | 7 | Linux kernel `drivers/hid/hid-ids.h` | No Fanatec entries (driver is out-of-tree) |
+//! | 8 | `wine-mirror/wine` `dlls/winebus.sys/main.c` HIDRAW whitelist | PID 0x1839 confirmed as "Fanatec ClubSport Pedals v1/v2" |
+//! | 9 | `linux-hardware.org/?id=usb:0eb7-1839` | PID 0x1839 = "Clubsport Pedals" by Endor/Fanatec (real hardware probe) |
 //!
-//! PIDs 0x0024, 0x01E9, and 0x1839 have **no external confirmation** in any
+//! PIDs 0x0024 and 0x01E9 have **no external confirmation** in any
 //! public database or open-source driver. See per-constant docs for details.
+//! PID 0x1839 was upgraded to verified in 2025-07 via Wine and linux-hardware.org.
 
 #![deny(static_mut_refs)]
 
@@ -183,10 +186,12 @@ pub mod product_ids {
 
     /// ClubSport Pedals V1 / V2 (USB, 2-axis or 3-axis set).
     ///
-    /// **Unverified (2025-07):** Not present in any external source consulted:
-    /// - Not in `gotzl/hid-fanatecff` (`hid-ftec.h`, `hid-ftec.c`, or README)
-    /// - Not in `the-sz.com`, `linux-hardware.org`, or `libsdl-org/SDL`
-    /// - Not in Linux kernel `hid-ids.h`
+    /// Web-verified (2025-07):
+    /// - `wine-mirror/wine` `dlls/winebus.sys/main.c`: HIDRAW whitelist entry
+    ///   `pid == 0x1839` with comment "Fanatec ClubSport Pedals v1/v2"
+    /// - `linux-hardware.org/?id=usb:0eb7-1839`: hardware probe confirms
+    ///   VID 0x0EB7 PID 0x1839 = "Clubsport Pedals" by Endor/Fanatec
+    /// - Not in `gotzl/hid-fanatecff` (driver only lists V3 pedals as 0x183B)
     pub const CLUBSPORT_PEDALS_V1_V2: u16 = 0x1839;
     /// ClubSport Pedals V3 (USB, 3-axis with load cell brake).
     ///
