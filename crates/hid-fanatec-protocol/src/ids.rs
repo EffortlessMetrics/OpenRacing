@@ -74,18 +74,21 @@ pub mod product_ids {
     /// Verified: `CSL_DD_WHEELBASE_DEVICE_ID 0x0020`.
     pub const CSL_DD: u16 = 0x0020;
     /// Gran Turismo DD Pro (8 Nm direct-drive, PlayStation-specific PID).
-    /// Not yet present in the community Linux driver; believed correct from USB captures.
+    /// **Unverified** — not present in community Linux driver (`gotzl/hid-fanatecff`).
+    /// Believed correct from USB captures.
     pub const GT_DD_PRO: u16 = 0x0024;
     /// CSL Elite Wheel Base — PC mode (6 Nm belt-drive).
     /// Verified: `CSL_ELITE_WHEELBASE_DEVICE_ID 0x0E03`.
     pub const CSL_ELITE: u16 = 0x0E03;
     /// ClubSport DD+ (12 Nm direct-drive, 2022 premium base).
-    /// Not yet present in the community Linux driver; believed correct from USB captures.
+    /// **Unverified** — not present in community Linux driver (`gotzl/hid-fanatecff`).
+    /// Believed correct from USB captures.
     pub const CLUBSPORT_DD: u16 = 0x01E9;
 
     // ── Standalone pedal devices ───────────────────────────────────────────
 
     /// ClubSport Pedals V1 / V2 (USB, 2-axis or 3-axis set).
+    /// **Unverified** — not present in community Linux driver (`gotzl/hid-fanatecff`).
     pub const CLUBSPORT_PEDALS_V1_V2: u16 = 0x1839;
     /// ClubSport Pedals V3 (USB, 3-axis with load cell brake).
     /// Verified: `CLUBSPORT_PEDALS_V3_DEVICE_ID 0x183b`.
@@ -101,22 +104,38 @@ pub mod product_ids {
     pub const CSL_PEDALS_V2: u16 = 0x6206;
 }
 
-/// Rim IDs reported in feature report 0x02, byte 2.
+/// Rim IDs reported in byte 0x1F of the standard input report (report ID 0x01).
 ///
 /// These identify which steering wheel rim is attached to the wheelbase.
+/// The community Linux driver reads this field via `data[0x1f]` in `ftecff_raw_event`.
+///
+/// Verified IDs are cross-referenced against `gotzl/hid-fanatecff` `hid-ftec.h`.
 pub mod rim_ids {
+    /// BMW GT2 steering wheel rim. **Unverified** — not present in community driver.
     pub const BMW_GT2: u8 = 0x01;
-    pub const FORMULA_V2: u8 = 0x02;
+    /// ClubSport Steering Wheel Formula V2 — dual-clutch paddles, funky switch.
+    /// Verified: `CLUBSPORT_STEERING_WHEEL_FORMULA_V2_ID 0x0a` in `hid-ftec.h`.
+    pub const FORMULA_V2: u8 = 0x0A;
+    /// ClubSport Steering Wheel Formula V2.5 / V2.5 X.
+    /// **Unverified** — not present in community driver.
     pub const FORMULA_V2_5: u8 = 0x03;
-    /// McLaren GT3 V2 — has funky switch, rotary encoders, dual clutch paddles.
-    pub const MCLAREN_GT3_V2: u8 = 0x04;
-    pub const PORSCHE_918_RSR: u8 = 0x05;
-    pub const CLUBSPORT_RS: u8 = 0x06;
-    pub const WRC: u8 = 0x07;
+    /// CSL Elite P1 V2 steering wheel rim.
+    /// Verified: `CSL_STEERING_WHEEL_P1_V2 0x08` in `hid-ftec.h`.
     pub const CSL_ELITE_P1: u8 = 0x08;
+    /// McLaren GT3 V2 — has funky switch, rotary encoders, dual clutch paddles.
+    /// Verified: `CSL_ELITE_STEERING_WHEEL_MCLAREN_GT3_V2_ID 0x0b` in `hid-ftec.h`.
+    pub const MCLAREN_GT3_V2: u8 = 0x0B;
+    /// Podium Steering Wheel Porsche 911 GT3 R.
+    /// Verified: `PODIUM_STEERING_WHEEL_PORSCHE_911_GT3_R_ID 0x0c` in `hid-ftec.h`.
+    pub const PORSCHE_911_GT3_R: u8 = 0x0C;
+    /// Porsche 918 RSR steering wheel rim.
+    /// **Unverified** — not present in community driver; may overlap with a different rim.
+    pub const PORSCHE_918_RSR: u8 = 0x05;
+    /// ClubSport RS steering wheel rim. **Unverified** — not present in community driver.
+    pub const CLUBSPORT_RS: u8 = 0x06;
+    /// CSL Elite Steering Wheel WRC.
+    /// Verified: `CSL_ELITE_STEERING_WHEEL_WRC_ID 0x12` in `hid-ftec.h`.
+    pub const WRC: u8 = 0x12;
+    /// Podium Hub. **Unverified** — not present in community driver.
     pub const PODIUM_HUB: u8 = 0x09;
-    /// Podium Advanced Paddle Module — dual-clutch bite-point paddles + rotary encoders.
-    pub const PODIUM_APM: u8 = 0x0A;
-    /// Podium Button Module Endurance — extra button panel for endurance racing.
-    pub const ENDURANCE_MODULE: u8 = 0x0B;
 }

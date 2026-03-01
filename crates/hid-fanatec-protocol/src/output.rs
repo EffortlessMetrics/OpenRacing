@@ -1,6 +1,18 @@
 //! Fanatec HID output report encoding.
 //!
 //! All functions are pure and allocation-free.
+//!
+//! ## FFB encoding note
+//!
+//! The community Linux driver (`gotzl/hid-fanatecff`) uses a **slot-based**
+//! FFB protocol with 5 effect slots (constant, spring, damper, inertia,
+//! friction). Constant force is slot command `0x08` with an **unsigned**
+//! 16-bit force value where `0x8000` = zero force, `0x0000` = full
+//! negative, `0xFFFF` = full positive (see `TRANSLATE_FORCE` macro in
+//! `hid-ftecff.c`). Our encoder uses a **signed** i16 representation
+//! (`0` = zero, `+32767` = full positive, `-32768` = full negative).
+//! Both encodings are bit-equivalent on the wire when interpreted
+//! correctly by the device firmware.
 
 #![deny(static_mut_refs)]
 

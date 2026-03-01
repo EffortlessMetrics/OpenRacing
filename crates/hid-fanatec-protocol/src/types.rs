@@ -149,7 +149,10 @@ impl FanatecPedalModel {
     }
 }
 
-/// Steering wheel rim IDs as reported in feature report 0x02, byte 2.
+/// Steering wheel rim IDs as reported in byte 0x1F of the standard input report.
+///
+/// The community Linux driver (`gotzl/hid-fanatecff`) reads this from `data[0x1f]`
+/// in `ftecff_raw_event`. See `hid-ftec.h` for verified constants.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FanatecRimId {
     BmwGt2,
@@ -157,34 +160,31 @@ pub enum FanatecRimId {
     FormulaV25,
     /// McLaren GT3 V2 — funky switch + rotary encoders + dual clutch paddles.
     McLarenGt3V2,
+    /// Podium Steering Wheel Porsche 911 GT3 R.
+    Porsche911Gt3R,
     Porsche918Rsr,
     ClubSportRs,
     Wrc,
     CslEliteP1,
     PodiumHub,
-    /// Podium Advanced Paddle Module — bite-point dual-clutch paddles + rotary encoders.
-    PodiumApm,
-    /// Podium Button Module Endurance — extended button panel for endurance racing.
-    EnduranceModule,
     /// Rim is not attached or ID is unrecognised.
     Unknown,
 }
 
 impl FanatecRimId {
-    /// Decode a rim ID byte from the device-info feature report.
+    /// Decode a rim ID byte from byte 0x1F of the standard input report.
     pub fn from_byte(byte: u8) -> Self {
         match byte {
             rim_ids::BMW_GT2 => Self::BmwGt2,
             rim_ids::FORMULA_V2 => Self::FormulaV2,
             rim_ids::FORMULA_V2_5 => Self::FormulaV25,
             rim_ids::MCLAREN_GT3_V2 => Self::McLarenGt3V2,
+            rim_ids::PORSCHE_911_GT3_R => Self::Porsche911Gt3R,
             rim_ids::PORSCHE_918_RSR => Self::Porsche918Rsr,
             rim_ids::CLUBSPORT_RS => Self::ClubSportRs,
             rim_ids::WRC => Self::Wrc,
             rim_ids::CSL_ELITE_P1 => Self::CslEliteP1,
             rim_ids::PODIUM_HUB => Self::PodiumHub,
-            rim_ids::PODIUM_APM => Self::PodiumApm,
-            rim_ids::ENDURANCE_MODULE => Self::EnduranceModule,
             _ => Self::Unknown,
         }
     }
@@ -198,7 +198,7 @@ impl FanatecRimId {
     pub fn has_dual_clutch(self) -> bool {
         matches!(
             self,
-            Self::FormulaV2 | Self::FormulaV25 | Self::McLarenGt3V2 | Self::PodiumApm
+            Self::FormulaV2 | Self::FormulaV25 | Self::McLarenGt3V2
         )
     }
 
@@ -206,7 +206,7 @@ impl FanatecRimId {
     pub fn has_rotary_encoders(self) -> bool {
         matches!(
             self,
-            Self::McLarenGt3V2 | Self::FormulaV25 | Self::PodiumApm
+            Self::McLarenGt3V2 | Self::FormulaV25
         )
     }
 }
@@ -366,25 +366,12 @@ mod tests {
     }
 
     #[test]
-    fn test_rim_id_podium_apm() -> Result<(), Box<dyn std::error::Error>> {
-        let rim = FanatecRimId::from_byte(rim_ids::PODIUM_APM);
-        assert_eq!(rim, FanatecRimId::PodiumApm);
-        assert!(
-            rim.has_dual_clutch(),
-            "APM has dual-clutch bite-point paddles"
-        );
-        assert!(rim.has_rotary_encoders(), "APM has rotary encoders");
+    fn test_rim_id_porsche_911_gt3_r() -> Result<(), Box<dyn std::error::Error>> {
+        let rim = FanatecRimId::from_byte(rim_ids::PORSCHE_911_GT3_R);
+        assert_eq!(rim, FanatecRimId::Porsche911Gt3R);
         assert!(!rim.has_funky_switch());
-        Ok(())
-    }
-
-    #[test]
-    fn test_rim_id_endurance_module() -> Result<(), Box<dyn std::error::Error>> {
-        let rim = FanatecRimId::from_byte(rim_ids::ENDURANCE_MODULE);
-        assert_eq!(rim, FanatecRimId::EnduranceModule);
         assert!(!rim.has_dual_clutch());
         assert!(!rim.has_rotary_encoders());
-        assert!(!rim.has_funky_switch());
         Ok(())
     }
 
