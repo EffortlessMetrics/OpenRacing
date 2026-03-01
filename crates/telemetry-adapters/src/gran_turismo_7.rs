@@ -33,20 +33,22 @@
 //!   PDTools `SimulatorFlags` enum. ✓
 //! - **Gear encoding**: low nibble = current gear, high nibble = suggested gear. ✓
 //!
-//! ### Enhancement opportunity (GT7 ≥ 1.42 extended packets)
+//! ### Extended packet support (GT7 ≥ 1.42)
 //!
 //! PDTools documents two additional heartbeat types added in GT7 v1.42:
 //! - PacketType2 (heartbeat `"B"`, XOR `0xDEADBEEF`): 0x13C = **316 bytes** — adds
-//!   WheelRotation (rad), Sway, Heave, Surge fields.
+//!   WheelRotation (rad), FillerFloatFB, Sway, Heave, Surge fields.
 //! - PacketType3 (heartbeat `"~"`, XOR `0x55FABB4F`): 0x158 = **344 bytes** — adds
-//!   energy recovery, filtered throttle/brake, and car-type indicator.
+//!   car-type indicator, energy recovery, and unknown fields.
 //!
-//! Our adapter currently supports only PacketType1 (296 bytes). Supporting
-//! PacketType3 would enable steering-wheel rotation and motion platform data.
+//! Our adapter sends a PacketType3 heartbeat (`"~"`) by default to request the
+//! maximum data. Decryption auto-detects the packet type from its length and
+//! applies the correct XOR key. Backward compatibility is maintained: 296-byte
+//! packets from older GT7 versions are still parsed correctly.
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
-    telemetry_now_ns,
+    TelemetryValue, telemetry_now_ns,
 };
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
@@ -62,13 +64,29 @@ pub const GT7_RECV_PORT: u16 = 33740;
 /// UDP port to which heartbeat packets must be sent to keep the stream alive.
 /// Verified: Nenkai/PDTools ReceivePortGT7=33739; Bornhall/gt7telemetry SendPort=33739.
 pub const GT7_SEND_PORT: u16 = 33739;
-/// Expected size of every GT7 telemetry packet (bytes).
+
+/// PacketType1 size: 0x128 = 296 bytes (heartbeat `"A"`, standard).
 pub const PACKET_SIZE: usize = 296;
+/// PacketType2 size: 0x13C = 316 bytes (heartbeat `"B"`, GT7 ≥ 1.42).
+/// Adds WheelRotation, FillerFloatFB, Sway, Heave, Surge.
+pub const PACKET_SIZE_TYPE2: usize = 0x13C; // 316
+/// PacketType3 size: 0x158 = 344 bytes (heartbeat `"~"`, GT7 ≥ 1.42).
+/// Adds car-type indicator, energy recovery, and additional unknowns.
+pub const PACKET_SIZE_TYPE3: usize = 0x158; // 344
+/// Maximum packet size across all known types (used for receive buffer).
+pub const MAX_PACKET_SIZE: usize = PACKET_SIZE_TYPE3;
+
 /// Magic number present in bytes 0–3 of a correctly decrypted packet.
 pub const MAGIC: u32 = 0x4737_5330; // "0S7G" little-endian
 
 /// Salsa20 decryption key: first 32 bytes of the GT7 protocol string.
 const SALSA_KEY: &[u8; 32] = b"Simulator Interface Packet GT7 v";
+
+// XOR keys used in Salsa20 nonce derivation, per packet type.
+// Ref: Nenkai/PDTools SimulatorInterfaceCryptorGT7.cs + SimulatorInterfaceClient.cs
+const XOR_KEY_TYPE1: u32 = 0xDEAD_BEAF;
+const XOR_KEY_TYPE2: u32 = 0xDEAD_BEEF;
+const XOR_KEY_TYPE3: u32 = 0x55FA_BB4F;
 
 // ---------------------------------------------------------------------------
 // Packet field offsets (all values are little-endian)
@@ -94,6 +112,30 @@ const OFF_THROTTLE: usize = 0x91; // 145 — u8
 const OFF_BRAKE: usize = 0x92; // 146 — u8
 const OFF_CAR_CODE: usize = 0x124; // 292 — i32
 
+// --- Extended field offsets (PacketType2: ≥ 316 bytes) ---
+// Ref: Nenkai/PDTools SimulatorPacket.cs `if (data.Length >= 0x13C)` block
+const OFF_WHEEL_ROTATION: usize = 0x128; // 296 — f32 (radians)
+#[allow(dead_code)] // Documented offset from PDTools; not yet consumed.
+const OFF_FILLER_FLOAT_FB: usize = 0x12C; // 300 — f32 (purpose unknown)
+const OFF_SWAY: usize = 0x130; // 304 — f32 (lateral motion)
+const OFF_HEAVE: usize = 0x134; // 308 — f32 (vertical motion)
+const OFF_SURGE: usize = 0x138; // 312 — f32 (longitudinal motion)
+
+// --- Extended field offsets (PacketType3: ≥ 344 bytes) ---
+// Ref: Nenkai/PDTools SimulatorPacket.cs `if (data.Length >= 0x158)` block
+#[allow(dead_code)] // Documented offset from PDTools; unknown purpose.
+const OFF_CAR_TYPE_BYTE1: usize = 0x13C; // 316 — u8 (unknown)
+#[allow(dead_code)] // Documented offset from PDTools; unknown purpose.
+const OFF_CAR_TYPE_BYTE2: usize = 0x13D; // 317 — u8 (unknown)
+const OFF_CAR_TYPE_BYTE3: usize = 0x13E; // 318 — u8 (4 = electric)
+#[allow(dead_code)] // Documented offset from PDTools; not yet consumed.
+const OFF_NO_GAS_CONSUMPTION: usize = 0x13F; // 319 — u8
+#[allow(dead_code)] // Documented offset from PDTools; unknown purpose (Vector4).
+const OFF_UNK5_VEC4: usize = 0x140; // 320 — 4× f32 (Vector4)
+const OFF_ENERGY_RECOVERY: usize = 0x150; // 336 — f32
+#[allow(dead_code)] // Documented offset from PDTools; unknown purpose.
+const OFF_UNK7: usize = 0x154; // 340 — f32
+
 // GT7 flags bitmask (offset 0x8E, u16 little-endian — SimulatorFlags enum)
 const FLAG_PAUSED: u16 = 1 << 1;
 const FLAG_REV_LIMIT: u16 = 1 << 5;
@@ -104,6 +146,62 @@ const FLAG_TCS_ACTIVE: u16 = 1 << 11;
 // Adapter
 // ---------------------------------------------------------------------------
 
+/// GT7 packet type, determining heartbeat byte, XOR key, and packet size.
+///
+/// Ref: Nenkai/PDTools `SimInterfacePacketType` enum and
+/// `SimulatorInterfaceClient.GetExpectedPacketSize()`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Gt7PacketType {
+    /// Standard 296-byte packet. Heartbeat `"A"`, XOR `0xDEADBEAF`.
+    Type1,
+    /// Extended 316-byte packet (GT7 ≥ 1.42). Heartbeat `"B"`, XOR `0xDEADBEEF`.
+    /// Adds WheelRotation, Sway, Heave, Surge.
+    Type2,
+    /// Full 344-byte packet (GT7 ≥ 1.42). Heartbeat `"~"`, XOR `0x55FABB4F`.
+    /// Adds energy recovery and car-type indicator atop Type2 fields.
+    Type3,
+}
+
+impl Gt7PacketType {
+    /// Heartbeat byte to send to the PlayStation to request this packet type.
+    pub const fn heartbeat(self) -> &'static [u8] {
+        match self {
+            Self::Type1 => b"A",
+            Self::Type2 => b"B",
+            Self::Type3 => b"~",
+        }
+    }
+
+    /// Expected packet size in bytes.
+    pub const fn expected_size(self) -> usize {
+        match self {
+            Self::Type1 => PACKET_SIZE,
+            Self::Type2 => PACKET_SIZE_TYPE2,
+            Self::Type3 => PACKET_SIZE_TYPE3,
+        }
+    }
+
+    /// XOR key used in Salsa20 nonce derivation.
+    pub const fn xor_key(self) -> u32 {
+        match self {
+            Self::Type1 => XOR_KEY_TYPE1,
+            Self::Type2 => XOR_KEY_TYPE2,
+            Self::Type3 => XOR_KEY_TYPE3,
+        }
+    }
+}
+
+/// Detect the packet type from the received packet length.
+/// Returns `None` for unrecognised sizes.
+fn detect_packet_type(len: usize) -> Option<Gt7PacketType> {
+    match len {
+        PACKET_SIZE_TYPE3 => Some(Gt7PacketType::Type3),
+        PACKET_SIZE_TYPE2 => Some(Gt7PacketType::Type2),
+        PACKET_SIZE => Some(Gt7PacketType::Type1),
+        _ => None,
+    }
+}
+
 /// Gran Turismo 7 telemetry adapter.
 ///
 /// Listens for UDP packets on [`GT7_RECV_PORT`] and sends heartbeats back to
@@ -111,6 +209,7 @@ const FLAG_TCS_ACTIVE: u16 = 1 << 11;
 pub struct GranTurismo7Adapter {
     recv_port: u16,
     update_rate: Duration,
+    packet_type: Gt7PacketType,
 }
 
 impl Default for GranTurismo7Adapter {
@@ -124,12 +223,19 @@ impl GranTurismo7Adapter {
         Self {
             recv_port: GT7_RECV_PORT,
             update_rate: Duration::from_millis(17), // ~60 Hz
+            packet_type: Gt7PacketType::Type3,      // request maximum data by default
         }
     }
 
     /// Override the receive port (useful for testing with ephemeral ports).
     pub fn with_port(mut self, port: u16) -> Self {
         self.recv_port = port;
+        self
+    }
+
+    /// Override the packet type (determines heartbeat byte and expected size).
+    pub fn with_packet_type(mut self, packet_type: Gt7PacketType) -> Self {
+        self.packet_type = packet_type;
         self
     }
 }
@@ -143,6 +249,7 @@ impl TelemetryAdapter for GranTurismo7Adapter {
     async fn start_monitoring(&self) -> Result<TelemetryReceiver> {
         let (tx, rx) = mpsc::channel(100);
         let recv_port = self.recv_port;
+        let heartbeat_payload: &'static [u8] = self.packet_type.heartbeat();
 
         tokio::spawn(async move {
             let bind_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, recv_port));
@@ -155,8 +262,7 @@ impl TelemetryAdapter for GranTurismo7Adapter {
             };
             info!("GT7 adapter listening on UDP port {recv_port}");
 
-            let heartbeat_payload = b"A";
-            let mut buf = [0u8; PACKET_SIZE + 16];
+            let mut buf = [0u8; MAX_PACKET_SIZE + 16];
             let mut frame_seq = 0u64;
             let mut last_heartbeat = tokio::time::Instant::now();
             // Track the source address so heartbeats go to the right host.
@@ -227,17 +333,24 @@ impl TelemetryAdapter for GranTurismo7Adapter {
 // ---------------------------------------------------------------------------
 
 /// Decrypt a raw GT7 packet and parse it into normalised telemetry.
+///
+/// Accepts packets of any recognised size (296, 316, or 344 bytes).
+/// The XOR key for Salsa20 nonce derivation is selected automatically
+/// based on the packet length.
 pub(crate) fn decrypt_and_parse(data: &[u8]) -> Result<NormalizedTelemetry> {
     if data.len() < PACKET_SIZE {
         return Err(anyhow!(
-            "GT7 packet too short: expected {PACKET_SIZE}, got {}",
+            "GT7 packet too short: expected at least {PACKET_SIZE}, got {}",
             data.len()
         ));
     }
 
-    let mut buf = [0u8; PACKET_SIZE];
-    buf.copy_from_slice(&data[..PACKET_SIZE]);
-    salsa20_xor(&mut buf);
+    let pkt_type = detect_packet_type(data.len()).unwrap_or(Gt7PacketType::Type1);
+    let pkt_len = pkt_type.expected_size().min(data.len());
+
+    let mut buf = vec![0u8; pkt_len];
+    buf.copy_from_slice(&data[..pkt_len]);
+    salsa20_decrypt(&mut buf, pkt_type.xor_key());
 
     let magic = read_u32_le(&buf, OFF_MAGIC);
     if magic != MAGIC {
@@ -246,32 +359,44 @@ pub(crate) fn decrypt_and_parse(data: &[u8]) -> Result<NormalizedTelemetry> {
         ));
     }
 
-    parse_decrypted(&buf)
+    parse_decrypted_ext(&buf)
 }
 
 /// XOR the buffer in-place with the Salsa20 keystream.
 ///
 /// The nonce is derived from 4 bytes at `[0x40..0x44]` of the **raw**
 /// (pre-decryption) packet: `iv1 = LE_u32(buf[0x40..0x44])`, then
-/// `iv2 = iv1 ^ 0xDEAD_BEAF`, and the 8-byte nonce is `[iv2_le, iv1_le]`.
-pub(crate) fn salsa20_xor(buf: &mut [u8; PACKET_SIZE]) {
+/// `iv2 = iv1 ^ xor_key`, and the 8-byte nonce is `[iv2_le, iv1_le]`.
+///
+/// `xor_key` differs per packet type:
+/// - PacketType1: `0xDEADBEAF`
+/// - PacketType2: `0xDEADBEEF`
+/// - PacketType3: `0x55FABB4F`
+pub(crate) fn salsa20_decrypt(buf: &mut [u8], xor_key: u32) {
     // Read the 4-byte IV seed from the raw packet.
     let iv1 = u32::from_le_bytes([buf[0x40], buf[0x41], buf[0x42], buf[0x43]]);
-    let iv2 = iv1 ^ 0xDEAD_BEAF;
+    let iv2 = iv1 ^ xor_key;
 
     let mut nonce = [0u8; 8];
     nonce[..4].copy_from_slice(&iv2.to_le_bytes());
     nonce[4..].copy_from_slice(&iv1.to_le_bytes());
 
-    let blocks_needed = PACKET_SIZE.div_ceil(64); // 5 full 64-byte blocks
+    let pkt_len = buf.len();
+    let blocks_needed = pkt_len.div_ceil(64);
     for block_idx in 0..blocks_needed {
         let ks = salsa20_block(SALSA_KEY, &nonce, block_idx as u64);
         let start = block_idx * 64;
-        let end = (start + 64).min(PACKET_SIZE);
+        let end = (start + 64).min(pkt_len);
         for (b, k) in buf[start..end].iter_mut().zip(ks.iter()) {
             *b ^= k;
         }
     }
+}
+
+/// Backward-compatible wrapper using the Type1 XOR key on a fixed-size buffer.
+#[cfg(test)]
+pub(crate) fn salsa20_xor(buf: &mut [u8; PACKET_SIZE]) {
+    salsa20_decrypt(buf, XOR_KEY_TYPE1);
 }
 
 /// Generate one 64-byte Salsa20 keystream block for the given counter value.
@@ -342,7 +467,22 @@ fn qr(s: &mut [u32; 16], a: usize, b: usize, c: usize, d: usize) {
 // ---------------------------------------------------------------------------
 
 /// Parse fields from an already-decrypted, magic-verified GT7 packet.
+///
+/// Works with standard (296-byte) and extended (316/344-byte) packets.
+/// Extended fields (wheel rotation, motion data, energy recovery) are
+/// populated when the buffer is large enough.
 pub fn parse_decrypted(buf: &[u8; PACKET_SIZE]) -> Result<NormalizedTelemetry> {
+    parse_decrypted_ext(buf)
+}
+
+/// Parse fields from an already-decrypted GT7 packet of any supported size.
+pub fn parse_decrypted_ext(buf: &[u8]) -> Result<NormalizedTelemetry> {
+    if buf.len() < PACKET_SIZE {
+        return Err(anyhow!(
+            "GT7 decrypted buffer too short: expected at least {PACKET_SIZE}, got {}",
+            buf.len()
+        ));
+    }
     let rpm = read_f32_le(buf, OFF_ENGINE_RPM);
     let max_alert_rpm = read_u16_le(buf, OFF_MAX_ALERT_RPM) as f32;
     let max_rpm = max_alert_rpm.max(0.0);
@@ -417,6 +557,44 @@ pub fn parse_decrypted(buf: &[u8; PACKET_SIZE]) -> Result<NormalizedTelemetry> {
 
     if car_code != 0 {
         builder = builder.car_id(format!("gt7_{car_code}"));
+    }
+
+    // --- PacketType2 extended fields (≥ 316 bytes) ---
+    // Ref: Nenkai/PDTools SimulatorPacket.cs `if (data.Length >= 0x13C)`
+    if buf.len() >= PACKET_SIZE_TYPE2 {
+        let wheel_rotation = read_f32_le(buf, OFF_WHEEL_ROTATION);
+        builder = builder.steering_angle(wheel_rotation);
+
+        let sway = read_f32_le(buf, OFF_SWAY);
+        let heave = read_f32_le(buf, OFF_HEAVE);
+        let surge = read_f32_le(buf, OFF_SURGE);
+
+        // Map motion data to g-force fields: sway = lateral, surge = longitudinal, heave = vertical.
+        builder = builder
+            .lateral_g(sway)
+            .longitudinal_g(surge)
+            .vertical_g(heave);
+
+        // Store raw motion values in extended data for consumers that need them.
+        builder = builder.extended("gt7_sway".to_owned(), TelemetryValue::Float(sway));
+        builder = builder.extended("gt7_heave".to_owned(), TelemetryValue::Float(heave));
+        builder = builder.extended("gt7_surge".to_owned(), TelemetryValue::Float(surge));
+    }
+
+    // --- PacketType3 extended fields (≥ 344 bytes) ---
+    // Ref: Nenkai/PDTools SimulatorPacket.cs `if (data.Length >= 0x158)`
+    if buf.len() >= PACKET_SIZE_TYPE3 {
+        let car_type_byte = buf[OFF_CAR_TYPE_BYTE3]; // 4 = electric
+        let energy_recovery = read_f32_le(buf, OFF_ENERGY_RECOVERY);
+
+        builder = builder.extended(
+            "gt7_car_type".to_owned(),
+            TelemetryValue::Integer(car_type_byte as i32),
+        );
+        builder = builder.extended(
+            "gt7_energy_recovery".to_owned(),
+            TelemetryValue::Float(energy_recovery),
+        );
     }
 
     Ok(builder.build())
@@ -886,5 +1064,205 @@ mod tests {
     fn test_with_port_override() {
         let adapter = GranTurismo7Adapter::new().with_port(12345);
         assert_eq!(adapter.recv_port, 12345);
+    }
+
+    // -----------------------------------------------------------------------
+    // Extended packet tests (PacketType2 / PacketType3)
+    // -----------------------------------------------------------------------
+
+    /// Build a 316-byte (PacketType2) decrypted buffer with the GT7 magic set.
+    fn make_type2_buf() -> Vec<u8> {
+        let mut buf = vec![0u8; PACKET_SIZE_TYPE2];
+        buf[OFF_MAGIC..OFF_MAGIC + 4].copy_from_slice(&MAGIC.to_le_bytes());
+        buf
+    }
+
+    /// Build a 344-byte (PacketType3) decrypted buffer with the GT7 magic set.
+    fn make_type3_buf() -> Vec<u8> {
+        let mut buf = vec![0u8; PACKET_SIZE_TYPE3];
+        buf[OFF_MAGIC..OFF_MAGIC + 4].copy_from_slice(&MAGIC.to_le_bytes());
+        buf
+    }
+
+    #[test]
+    fn test_type2_wheel_rotation() -> TestResult {
+        let mut buf = make_type2_buf();
+        let rotation_rad: f32 = 1.5;
+        buf[OFF_WHEEL_ROTATION..OFF_WHEEL_ROTATION + 4]
+            .copy_from_slice(&rotation_rad.to_le_bytes());
+
+        let t = parse_decrypted_ext(&buf)?;
+        assert!(
+            (t.steering_angle - rotation_rad).abs() < 0.001,
+            "steering_angle should be wheel rotation in radians: got {}",
+            t.steering_angle
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_type2_motion_fields() -> TestResult {
+        let mut buf = make_type2_buf();
+        let sway: f32 = 0.3;
+        let heave: f32 = -0.1;
+        let surge: f32 = 0.8;
+        buf[OFF_SWAY..OFF_SWAY + 4].copy_from_slice(&sway.to_le_bytes());
+        buf[OFF_HEAVE..OFF_HEAVE + 4].copy_from_slice(&heave.to_le_bytes());
+        buf[OFF_SURGE..OFF_SURGE + 4].copy_from_slice(&surge.to_le_bytes());
+
+        let t = parse_decrypted_ext(&buf)?;
+        assert!(
+            (t.lateral_g - sway).abs() < 0.001,
+            "lateral_g should map from sway"
+        );
+        assert!(
+            (t.vertical_g - heave).abs() < 0.001,
+            "vertical_g should map from heave"
+        );
+        assert!(
+            (t.longitudinal_g - surge).abs() < 0.001,
+            "longitudinal_g should map from surge"
+        );
+        // Also check extended data keys
+        assert_eq!(
+            t.get_extended("gt7_sway"),
+            Some(&TelemetryValue::Float(sway))
+        );
+        assert_eq!(
+            t.get_extended("gt7_heave"),
+            Some(&TelemetryValue::Float(heave))
+        );
+        assert_eq!(
+            t.get_extended("gt7_surge"),
+            Some(&TelemetryValue::Float(surge))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_type2_standard_fields_still_parsed() -> TestResult {
+        let mut buf = make_type2_buf();
+        let rpm: f32 = 7000.0;
+        buf[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
+
+        let t = parse_decrypted_ext(&buf)?;
+        assert!(
+            (t.rpm - rpm).abs() < 0.01,
+            "Standard RPM field should still work in Type2 packet"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_type3_energy_recovery() -> TestResult {
+        let mut buf = make_type3_buf();
+        let energy: f32 = 42.5;
+        buf[OFF_ENERGY_RECOVERY..OFF_ENERGY_RECOVERY + 4]
+            .copy_from_slice(&energy.to_le_bytes());
+
+        let t = parse_decrypted_ext(&buf)?;
+        assert_eq!(
+            t.get_extended("gt7_energy_recovery"),
+            Some(&TelemetryValue::Float(energy))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_type3_car_type_electric() -> TestResult {
+        let mut buf = make_type3_buf();
+        buf[OFF_CAR_TYPE_BYTE3] = 4; // 4 = electric (per PDTools)
+
+        let t = parse_decrypted_ext(&buf)?;
+        assert_eq!(
+            t.get_extended("gt7_car_type"),
+            Some(&TelemetryValue::Integer(4))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_type3_includes_type2_fields() -> TestResult {
+        let mut buf = make_type3_buf();
+        let rotation_rad: f32 = -0.5;
+        let surge: f32 = 1.2;
+        buf[OFF_WHEEL_ROTATION..OFF_WHEEL_ROTATION + 4]
+            .copy_from_slice(&rotation_rad.to_le_bytes());
+        buf[OFF_SURGE..OFF_SURGE + 4].copy_from_slice(&surge.to_le_bytes());
+
+        let t = parse_decrypted_ext(&buf)?;
+        assert!(
+            (t.steering_angle - rotation_rad).abs() < 0.001,
+            "Type3 should also parse Type2 wheel rotation"
+        );
+        assert!(
+            (t.longitudinal_g - surge).abs() < 0.001,
+            "Type3 should also parse Type2 surge"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_standard_packet_has_no_extended_fields() -> TestResult {
+        let buf = make_decrypted_buf(); // 296-byte standard packet
+        let t = parse_decrypted(&buf)?;
+        assert_eq!(
+            t.steering_angle, 0.0,
+            "Standard packet should have default steering_angle"
+        );
+        assert!(
+            t.extended.is_empty(),
+            "Standard packet should have no extended data"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_detect_packet_type_values() {
+        assert_eq!(detect_packet_type(296), Some(Gt7PacketType::Type1));
+        assert_eq!(detect_packet_type(316), Some(Gt7PacketType::Type2));
+        assert_eq!(detect_packet_type(344), Some(Gt7PacketType::Type3));
+        assert_eq!(detect_packet_type(100), None);
+        assert_eq!(detect_packet_type(300), None);
+    }
+
+    #[test]
+    fn test_packet_type_constants() {
+        assert_eq!(Gt7PacketType::Type1.heartbeat(), b"A");
+        assert_eq!(Gt7PacketType::Type2.heartbeat(), b"B");
+        assert_eq!(Gt7PacketType::Type3.heartbeat(), b"~");
+
+        assert_eq!(Gt7PacketType::Type1.expected_size(), 296);
+        assert_eq!(Gt7PacketType::Type2.expected_size(), 316);
+        assert_eq!(Gt7PacketType::Type3.expected_size(), 344);
+
+        assert_eq!(Gt7PacketType::Type1.xor_key(), 0xDEAD_BEAF);
+        assert_eq!(Gt7PacketType::Type2.xor_key(), 0xDEAD_BEEF);
+        assert_eq!(Gt7PacketType::Type3.xor_key(), 0x55FA_BB4F);
+    }
+
+    #[test]
+    fn test_adapter_default_packet_type() {
+        let adapter = GranTurismo7Adapter::new();
+        assert_eq!(adapter.packet_type, Gt7PacketType::Type3);
+    }
+
+    #[test]
+    fn test_adapter_with_packet_type_override() {
+        let adapter = GranTurismo7Adapter::new().with_packet_type(Gt7PacketType::Type1);
+        assert_eq!(adapter.packet_type, Gt7PacketType::Type1);
+    }
+
+    #[test]
+    fn test_salsa20_decrypt_different_xor_keys_differ() {
+        // Same data decrypted with different XOR keys should produce different results.
+        let mut buf1 = vec![0u8; PACKET_SIZE_TYPE2];
+        for (i, b) in buf1.iter_mut().enumerate() {
+            *b = (i & 0xFF) as u8;
+        }
+        let mut buf2 = buf1.clone();
+        salsa20_decrypt(&mut buf1, XOR_KEY_TYPE1);
+        salsa20_decrypt(&mut buf2, XOR_KEY_TYPE2);
+        assert_ne!(buf1, buf2, "Different XOR keys must produce different decrypted output");
     }
 }
