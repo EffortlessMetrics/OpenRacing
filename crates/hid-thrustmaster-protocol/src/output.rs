@@ -216,6 +216,53 @@ pub fn build_friction_effect(minimum: u16, maximum: u16) -> [u8; EFFECT_REPORT_L
     ]
 }
 
+/// Build a T300RS-family range command matching the kernel driver wire format.
+///
+/// Source: `t300rs_set_range()` in `Kimplul/hid-tmff2/src/tmt300rs/hid-tmt300rs.c`.
+///
+/// This produces the 4-byte payload that goes at the start of the 63-byte
+/// output report buffer (Report ID 0x60):
+/// - Byte 0: 0x08 (setup command)
+/// - Byte 1: 0x11 (range sub-command)
+/// - Bytes 2-3: `degrees * 0x3C` as LE16
+///
+/// `degrees` is clamped to 40..=1080 per the kernel driver's bounds check.
+pub fn build_kernel_range_command(degrees: u16) -> [u8; 4] {
+    let clamped = degrees.clamp(40, 1080);
+    let scaled = (clamped as u32) * 0x3C;
+    let bytes = (scaled as u16).to_le_bytes();
+    [0x08, 0x11, bytes[0], bytes[1]]
+}
+
+/// Build a T300RS-family gain command matching the kernel wire format.
+///
+/// Source: `t300rs_set_gain()` — `{0x02, gain >> 8}`
+pub fn build_kernel_gain_command(gain: u16) -> [u8; 2] {
+    [0x02, (gain >> 8) as u8]
+}
+
+/// Build the T300RS open/init command.
+/// Source: `t300rs_send_open()` — `{0x01, 0x05}`
+pub fn build_kernel_open_command() -> [u8; 2] {
+    [0x01, 0x05]
+}
+
+/// Build the T300RS close command.
+/// Source: `t300rs_send_close()` — `{0x01, 0x00}`
+pub fn build_kernel_close_command() -> [u8; 2] {
+    [0x01, 0x00]
+}
+
+/// Build the T300RS-family autocenter command sequence.
+/// Source: `t300rs_set_autocenter()` — two-step: `{0x08,0x04,0x01,0x00}` then `{0x08,0x03,value_lo,value_hi}`
+pub fn build_kernel_autocenter_commands(value: u16) -> [[u8; 4]; 2] {
+    let bytes = value.to_le_bytes();
+    [
+        [0x08, 0x04, 0x01, 0x00],
+        [0x08, 0x03, bytes[0], bytes[1]],
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -324,6 +371,72 @@ mod tests {
         let r = build_friction_effect(100, 800);
         assert_eq!(r[0], report_ids::EFFECT_OP);
         assert_eq!(r[1], EFFECT_TYPE_FRICTION);
+    }
+
+    #[test]
+    fn test_kernel_range_900() {
+        // 900 * 0x3C = 900 * 60 = 54000 = 0xD2F0
+        let r = build_kernel_range_command(900);
+        assert_eq!(r, [0x08, 0x11, 0xF0, 0xD2]);
+    }
+
+    #[test]
+    fn test_kernel_range_1080() {
+        // 1080 * 60 = 64800 = 0xFD20
+        let r = build_kernel_range_command(1080);
+        assert_eq!(r, [0x08, 0x11, 0x20, 0xFD]);
+    }
+
+    #[test]
+    fn test_kernel_range_40() {
+        // 40 * 60 = 2400 = 0x0960
+        let r = build_kernel_range_command(40);
+        assert_eq!(r, [0x08, 0x11, 0x60, 0x09]);
+    }
+
+    #[test]
+    fn test_kernel_range_clamps_zero_to_min() {
+        // 0 clamps to 40; 40 * 60 = 2400 = 0x0960
+        let r = build_kernel_range_command(0);
+        assert_eq!(r, build_kernel_range_command(40));
+    }
+
+    #[test]
+    fn test_kernel_range_clamps_above_max() {
+        // 2000 clamps to 1080
+        let r = build_kernel_range_command(2000);
+        assert_eq!(r, build_kernel_range_command(1080));
+    }
+
+    #[test]
+    fn test_kernel_gain_full() {
+        let r = build_kernel_gain_command(0xFFFF);
+        assert_eq!(r, [0x02, 0xFF]);
+    }
+
+    #[test]
+    fn test_kernel_gain_zero() {
+        let r = build_kernel_gain_command(0);
+        assert_eq!(r, [0x02, 0x00]);
+    }
+
+    #[test]
+    fn test_kernel_open_command() {
+        let r = build_kernel_open_command();
+        assert_eq!(r, [0x01, 0x05]);
+    }
+
+    #[test]
+    fn test_kernel_close_command() {
+        let r = build_kernel_close_command();
+        assert_eq!(r, [0x01, 0x00]);
+    }
+
+    #[test]
+    fn test_kernel_autocenter_commands() {
+        let cmds = build_kernel_autocenter_commands(0x1234);
+        assert_eq!(cmds[0], [0x08, 0x04, 0x01, 0x00]);
+        assert_eq!(cmds[1], [0x08, 0x03, 0x34, 0x12]);
     }
 }
 

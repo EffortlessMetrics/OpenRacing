@@ -20,7 +20,9 @@ pub use input::{ThrustmasterInputState, parse_input_report};
 pub use output::{
     EFFECT_REPORT_LEN, ThrustmasterConstantForceEncoder, ThrustmasterEffectEncoder,
     build_actuator_enable, build_damper_effect, build_device_gain, build_friction_effect,
-    build_set_range_report, build_spring_effect,
+    build_kernel_autocenter_commands, build_kernel_close_command, build_kernel_gain_command,
+    build_kernel_open_command, build_kernel_range_command, build_set_range_report,
+    build_spring_effect,
 };
 pub use protocol::{ThrustmasterInitState, ThrustmasterProtocol};
 pub use types::{
