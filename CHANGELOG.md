@@ -9,10 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **PXN protocol crate** (`hid-pxn-protocol`): V10/V12/GT987 support with VID/PIDs web-verified against Linux kernel `hid-ids.h` (VID `0x11FF`), full proptest/snapshot coverage
+- **PXN protocol crate** (`hid-pxn-protocol`): V10/V12/GT987 support with VID/PIDs web-verified against Linux kernel `hid-ids.h` (VID `0x11FF`, 5 devices), full proptest/snapshot coverage
 - **GT7 extended packet support** (316/344 bytes): PacketType2 and PacketType3 implemented in `gran_turismo_7.rs` — adds wheel rotation, sway/heave/surge, energy recovery, and filtered throttle/brake fields (resolves F-064)
-- **266+ new tests** across compat, F1, RaceRoom, WRC, Rennsport, KartKraft, MudRunner, and SimHub adapters — total test count now 7,813
-- **15 vendor HID protocol crates with full proptest/snapshot coverage** — Thrustmaster, Logitech, Fanatec, Simucube (1 & 2), Simagic, Moza, Asetek, VRS, Heusinkveld, AccuForce, OpenFFBoard, FFBeast, Leo Bodnar, Cube Controls, and Cammus; kernel-verified wire-format encoding for T300RS, T150/TMX, DFP range, Fanatec range/sign-fix, and Logitech mode-switch
+- **All 17 vendor protocol crates wired into engine dispatch** — Thrustmaster, Logitech, Fanatec, Simucube (1 & 2), Simagic, Moza, Asetek, VRS, Heusinkveld, AccuForce, OpenFFBoard, FFBeast, Leo Bodnar, Cube Controls, Cammus, and PXN; comprehensive proptest/snapshot coverage; kernel-verified wire-format encoding for T300RS, T150/TMX, DFP range, Fanatec range/sign-fix, and Logitech mode-switch
+- **8,344+ tests** across the workspace (unit, integration, proptest, snapshot, E2E) — total test count growing
+- **~85+ fuzz targets** covering all HID protocols and game telemetry adapters
+- **Fanatec GT DD Pro/ClubSport DD PID findings**: GT DD Pro and ClubSport DD confirmed to share PID `0x0020` with CSL DD in PC mode
+- **OpenFFBoard PID 0xFFB1 confirmed SPECULATIVE**: zero evidence across 5 independent sources (pid.codes, firmware, configurator, GitHub, linux-steering-wheels)
+- **Cube Controls PIDs remain unverified**: PIDs `0x0C73`–`0x0C75` have zero external evidence; OpenFlight uses different estimates
+- **VRS DFP V2 PID 0xA356 unverified**: DFP uses `0xA355` (kernel mainline), Pedals use `0xA3BE`; no source confirms V2 PID
 - **59 game telemetry adapters verified against official documentation** — port numbers, protocol formats, and field mappings cross-checked; web-verified protocol comments added to GT7 (Salsa20), F1 25 (format 2025), F1 2024, and lesser-documented adapters
 - **7,400+ tests** (unit, integration, proptest, snapshot, e2e) across the workspace:
   - 174 E2E scenarios for Simucube, Heusinkveld, ButtonBox, AccuForce, Cube Controls, Leo Bodnar

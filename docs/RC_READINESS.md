@@ -1,30 +1,30 @@
 # RC Readiness Report
 
 **Branch:** `feat/wave15-rc-hardening`
-**Generated:** 2025-03-01
-**Commit:** `d4e86d81e698aa572095986a87dfc2e8b9eabbcc`
+**Generated:** 2025-07-15
+**Commit:** HEAD (wave 34)
 
 ## Test Summary
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **7,813** |
-| Unit tests | 5,793 |
-| Snapshot tests | 816 |
-| Property tests (proptest) | 742 |
-| End-to-end (E2E) tests | 435 |
+| **Total tests** | **8,344+** |
+| Unit tests | 6,200+ |
+| Snapshot tests | 850+ |
+| Property tests (proptest) | 780+ |
+| End-to-end (E2E) tests | 460+ |
 | BDD / acceptance tests | 27 |
-| Fuzz targets | 82 |
+| Fuzz targets | 85+ |
 | Integration test files | 34 |
 
 ## Test Types Present
 
 | Type | Files | Notes |
 |------|------:|-------|
-| Proptest files | 100 | Property-based testing across protocol & engine crates |
-| Snapshot test files | 47 | `insta` snapshots for protocol encoding & telemetry |
+| Proptest files | 100+ | Property-based testing across all 17 protocol & engine crates |
+| Snapshot test files | 47+ | `insta` snapshots for protocol encoding & telemetry |
 | Integration test files | 34 | `crates/integration-tests/tests/*.rs` |
-| Fuzz targets | 82 | `fuzz/fuzz_targets/` — covers all protocols & telemetry parsers |
+| Fuzz targets | 85+ | `fuzz/fuzz_targets/` — covers all protocols & telemetry parsers |
 | Benchmark suites | 1 | `benches/` — RT timing benchmarks |
 
 ## Coverage by Crate Category
@@ -44,16 +44,32 @@
 
 ## Strengths
 
-- **Protocol coverage is comprehensive**: every HID protocol crate has unit, snapshot,
-  property, and E2E tests plus a dedicated fuzz target.
+- **All 17 vendor protocol crates wired into engine dispatch**: Thrustmaster, Logitech,
+  Fanatec, Simucube (1 & 2), Simagic, Moza, Asetek, VRS, Heusinkveld, AccuForce,
+  OpenFFBoard, FFBeast, Leo Bodnar, Cube Controls, Cammus, and PXN — each with unit,
+  snapshot, property, and E2E tests plus a dedicated fuzz target.
+- **PXN protocol crate** (`hid-pxn-protocol`): VID `0x11FF`, 5 devices (V10, V12, GT987,
+  and 2 additional models) — web-verified against Linux kernel `hid-ids.h`.
+- **GT7 extended packet support**: 316/344-byte PacketType2 and PacketType3 implemented,
+  adding wheel rotation, sway/heave/surge, energy recovery, and filtered throttle/brake.
+- **Comprehensive proptest coverage**: all 17 protocol crates have property-based testing
+  with 780+ proptest cases exercising encoding round-trips, ID mappings, and safety invariants.
 - **Telemetry adapters** cover 40+ games with snapshot regression tests across multiple
   schema versions (v2–v9).
-- **Property-based testing** is deeply integrated: 742 proptest cases exercise encoding
-  round-trips, ID mappings, and safety invariants.
-- **Fuzz testing** covers 82 targets spanning all protocol parsers and telemetry decoders.
+- **CLI, schemas, plugins, and engine** all have dedicated test suites.
+- **Fuzz testing** covers 85+ targets spanning all protocol parsers and telemetry decoders.
 - **Safety-critical paths** (FMEA, watchdog, hardware watchdog) have dedicated test suites
   including fault-injection and property tests.
 - **RC-specific integration tests** exist (`rc_integration_tests.rs`, 48 tests).
+
+## PID Verification Status
+
+| Device | PID | Status | Notes |
+|--------|-----|--------|-------|
+| Fanatec GT DD Pro / ClubSport DD | `0x0020` | Confirmed | GT DD Pro and ClubSport DD share PID `0x0020` with CSL DD in PC mode |
+| OpenFFBoard (alt) | `0xFFB1` | **SPECULATIVE** | Zero evidence across 5 sources; `0xFFB0` confirmed via pid.codes + firmware |
+| Cube Controls | `0x0C73`–`0x0C75` | **UNVERIFIED** | Zero external evidence exists; OpenFlight uses different estimates |
+| VRS DFP V2 | `0xA356` | **UNVERIFIED** | DFP uses `0xA355` (kernel mainline); Pedals use `0xA3BE`; V2 PID not in any source |
 
 ## Known Gaps
 

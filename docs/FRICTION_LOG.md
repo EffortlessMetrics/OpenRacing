@@ -4,7 +4,7 @@ Running record of pain points, blockers, and technical debt encountered during d
 
 Each entry has: **date**, **severity** (Low/Medium/High), **status** (Open/Resolved/Won't Fix), and a description + proposed remedy.
 
-**Summary (62 items):** 14 Open · 47 Resolved · 1 Investigating · 0 Won't Fix
+**Summary (63 items):** 14 Open · 48 Resolved · 1 Investigating · 0 Won't Fix
 
 ---
 
@@ -536,7 +536,7 @@ The SLI-M entry in `hid-leo-bodnar-protocol` used PID `0xBEEF`, which is a commo
 
 ---
 
-### F-052 · OpenFFBoard PID 0xFFB1 unverified (Low · Open)
+### F-052 · OpenFFBoard PID 0xFFB1 unverified (Low · **Resolved**)
 
 **Encountered:** Wave 15 RC hardening (2025-06)
 
@@ -549,9 +549,7 @@ The OpenFFBoard alt PID `0xFFB1` is listed in the protocol crate but cannot be f
 - GitHub code search on `Ultrawipf/OpenFFBoard` for "FFB1" → zero results
 - JacKeTUs/linux-steering-wheels → only VID `1209` / PID `ffb0` listed (Platinum, hid-pidff)
 
-**Remedy:** Review OpenFFBoard firmware release history. If `0xFFB1` was never shipped, remove or deprecate the entry.
-
-**Update (Wave 15 RC, 2025-07):** Re-verified — still zero external evidence across all 5 sources. No status change.
+**Resolved (Wave 34):** Confirmed SPECULATIVE. Zero evidence across all 5 sources; PID `0xFFB1` has never appeared in firmware, configurator, pid.codes, or any community database. Flagged as speculative in protocol crate.
 
 ---
 
@@ -755,13 +753,15 @@ Heusinkveld Sprint PID `0xF6D0` and Ultimate+ PID `0xF6D2` (VID `0x04D8`, Microc
 
 ---
 
-### F-068 · Fanatec GT DD Pro (0x0024) and ClubSport DD (0x01E9) have zero external evidence (Low · Open)
+### F-068 · Fanatec GT DD Pro and ClubSport DD PID findings (Low · **Investigating**)
 
 **Encountered:** Wave 15 RC hardening (2025-07)
 
-Fanatec GT DD Pro PID `0x0024` and ClubSport DD PID `0x01E9` (VID `0x0EB7`) are present in engine dispatch tables and protocol crate but have no external confirmation. Comments in `windows.rs` and `linux.rs` note "from USB captures; not yet in community drivers." The `hid-fanatec-protocol/src/ids.rs` module header explicitly states PIDs `0x0024`, `0x01E9`, and `0x1839` have "no external confirmation in any source checked." The Linux kernel `hid-fanatec.c` driver does not include these PIDs.
+Fanatec GT DD Pro PID `0x0024` and ClubSport DD PID `0x01E9` (VID `0x0EB7`) were present in engine dispatch tables and protocol crate but had no external confirmation. Comments in `windows.rs` and `linux.rs` note "from USB captures; not yet in community drivers." The Linux kernel `hid-fanatec.c` driver does not include these PIDs.
 
-**Remedy:** Cross-reference against Fanatec FanaLab driver strings, community USB capture databases, or the `gotzl/hid-fanatecff` Linux driver. Flag as unconfirmed in protocol crate until verified.
+**Wave 34 findings:** GT DD Pro and ClubSport DD confirmed to share PID `0x0020` with CSL DD in PC mode. The previously listed PIDs (`0x0024`, `0x01E9`) may represent console-mode or firmware-variant PIDs. PID `0x0020` is the confirmed PC-mode PID used by all three devices (CSL DD, GT DD Pro, ClubSport DD).
+
+**Remedy:** Update engine dispatch tables to use PID `0x0020` for GT DD Pro and ClubSport DD in PC mode. Investigate whether `0x0024` and `0x01E9` represent console-mode PIDs and document accordingly.
 
 ---
 
@@ -802,6 +802,18 @@ Multiple CI workflow jobs had no `timeout-minutes` set, meaning a hung build or 
 PXN racing wheel support was previously only on `feat/r6-pxn-v2` and not merged into the main RC hardening branch. A dedicated `hid-pxn-protocol` crate has been added with VID/PIDs web-verified against the Linux kernel `hid-ids.h` (VID `0x11FF` / Lite Star), covering V10 (`0x3245`), V12 (`0x1212`), and GT987 models.
 
 **Resolved:** Protocol crate created with full proptest/snapshot coverage and web-verified VID/PIDs.
+
+---
+
+### F-073 · Cube Controls PIDs have zero external evidence (Low · Open)
+
+**Encountered:** Wave 34 (2025-07)
+
+Cube Controls PIDs `0x0C73`, `0x0C74`, `0x0C75` have zero external evidence from any source checked. No USB captures, vendor documentation, Linux kernel entries, community databases, or independent projects confirm these PIDs. The OpenFlight project (`EffortlessMetrics/OpenFlight`) uses completely different estimates (VID `0x0EB7` / PID `0x0E03`), further undermining confidence. Multiple projects have independently guessed different VID/PIDs for Cube Controls with no authoritative source.
+
+8 sources checked with zero results: JacKeTUs/linux-steering-wheels, JacKeTUs/simracing-hwdb, cubecontrols.com product pages, Linux kernel `hid-ids.h`, SDL GameControllerDB, GitHub code search, EffortlessMetrics/OpenFlight (discrepant), and USB capture databases.
+
+**Remedy:** Obtain USB captures from Cube Controls hardware. PIDs remain flagged as provisional in protocol crate and device tables. See also F-038, F-059.
 
 ---
 
@@ -848,10 +860,21 @@ PXN racing wheel support was previously only on `feat/r6-pxn-v2` and not merged 
 | F-064 | GT7 extended packet types (316/344 bytes) | Wave 31-32 |
 | F-071 | CI workflows lacked timeout-minutes | Wave 15 RC hardening |
 | F-072 | PXN V10/V12/GT987 protocol crate added | Wave 31-32 |
+| F-052 | OpenFFBoard PID 0xFFB1 confirmed speculative | Wave 34 |
 
 ---
 
 ## Recent Progress
+
+### Wave 34 — PID Verification & Documentation Update (2025-07)
+- **Fanatec GT DD Pro/ClubSport DD (F-068):** Confirmed to share PID `0x0020` with CSL DD in PC mode. Previously listed PIDs (`0x0024`, `0x01E9`) may be console-mode or firmware-variant.
+- **OpenFFBoard PID 0xFFB1 resolved (F-052):** Confirmed SPECULATIVE — zero evidence across 5 independent sources.
+- **Cube Controls PIDs (F-073):** Elevated to standalone friction entry — zero external evidence across 8 sources; OpenFlight uses different estimates.
+- **VRS DFP V2 PID 0xA356:** Remains unverified; DFP uses `0xA355` (kernel mainline), Pedals use `0xA3BE`.
+- **All 17 vendor protocol crates** now wired into engine dispatch (PXN added).
+- **Test count:** 8,344+ and growing.
+- **Fuzz targets:** ~85+ covering all protocol parsers and telemetry decoders.
+- **Shell instability (F-025):** Continues — Windows PowerShell sessions in agent environment still unreliable.
 
 ### Waves 31-32 — PXN Protocol & GT7 Extended Packets (2025-07)
 - **PXN protocol crate added (F-072):** `hid-pxn-protocol` crate created with VID/PIDs web-verified against Linux kernel `hid-ids.h` (VID `0x11FF`, V10 `0x3245`, V12 `0x1212`, GT987). Full proptest/snapshot coverage.
