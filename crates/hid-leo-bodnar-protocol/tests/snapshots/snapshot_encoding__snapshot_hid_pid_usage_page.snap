@@ -1,0 +1,5 @@
+---
+source: crates/hid-leo-bodnar-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{:#06x}\", leo_bodnar::HID_PID_USAGE_PAGE)"
+---
+"0x000f"
