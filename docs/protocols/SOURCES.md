@@ -211,16 +211,24 @@ See friction log entry **F-005** for the history of why this document was create
 ## Heusinkveld
 
 **VID:** `0x16D0`  
-**Source:** [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table; community USB descriptor captures via [SimHub](https://github.com/SHWotever/SimHub).  
-**Status:** Community-sourced
+**Source:** Attributed to community USB descriptor captures; however, no specific external source has been independently verified (see audit note below).  
+**Status:** ⚠ Unverified
 
-| PID      | Device Name              | Status    |
-|----------|--------------------------|-----------|
-| `0x1156` | Heusinkveld Sprint       | Community |
-| `0x1157` | Heusinkveld Ultimate+    | Community |
-| `0x1158` | Heusinkveld Pro          | Community |
+| PID      | Device Name              | Status       |
+|----------|--------------------------|--------------|
+| `0x1156` | Heusinkveld Sprint       | ⚠ Unverified |
+| `0x1157` | Heusinkveld Ultimate+    | ⚠ Unverified |
+| `0x1158` | Heusinkveld Pro          | ⚠ Unverified |
 
 > **Note:** VID `0x16D0` is also used by Simucube — disambiguation is by PID.
+
+> **Audit (2026-03):** A prior version of this file cited
+> [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels)
+> as a source. That repository covers FFB steering wheels only and contains **zero**
+> Heusinkveld entries. The citation has been removed. These PIDs are not present in
+> usb-ids.gowdy.us, devicehunt.com, linux-hardware.org, the Linux kernel `hid-ids.h`,
+> systemd hwdb, or any other public USB database examined. A USB descriptor dump from
+> real Heusinkveld hardware is needed to confirm them.
 
 ---
 
@@ -296,12 +304,19 @@ See friction log entry **F-005** for the history of why this document was create
 ## SimXperience AccuForce
 
 **VID:** `0x1FC9`  
-**Source:** Community USB device captures; [RetroBat Wheels.cs](https://github.com/RetroBat/retrobat) (commit 0a54752); VID `0x1FC9` is assigned to NXP Semiconductors and is used by the NXP USB microcontrollers inside AccuForce wheelbases.  
-**Status:** Community-sourced.
+**Source:** VID `0x1FC9` is assigned to NXP Semiconductors and is used by the NXP USB microcontrollers inside AccuForce wheelbases. Three independent sources confirm PID `0x804C`:
+- [RetroBat Wheels.cs](https://github.com/RetroBat-Official/emulatorlauncher/blob/master/emulatorLauncher/Common/Wheels.cs) (commit 0a54752: `VID_1FC9&PID_804C`)
+- [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table (VID `1fc9`, PID `804c`, **Platinum** with `hid-pidff`)
+- [Apkallu-Industries/Pitwall](https://github.com/Apkallu-Industries/Pitwall) `SimXAccuforce.xml` (`productId="804C" vendorId="1FC9"`)
 
-| PID      | Device Name               | Status    |
-|----------|---------------------------|-----------|
-| `0x804C` | AccuForce Pro direct drive| Community |
+**Status:** Community-sourced (multiple independent confirmations).
+
+| PID      | Device Name                       | Status    |
+|----------|-----------------------------------|-----------|
+| `0x804C` | AccuForce Pro (V1 and V2)         | Community |
+
+> **Note:** The AccuForce Pro V1 and V2 share the same VID/PID — no V2-specific
+> PID has been observed in any public source.
 
 ---
 
@@ -375,7 +390,7 @@ The following devices are known to exist but lack confirmed USB VID/PID values. 
 | Device | Status | Notes |
 |--------|--------|-------|
 | Turtle Beach VelocityOne Race | VID unknown | Not in linux-steering-wheels or hwdb; audio VID 0x1C59 does not apply |
-| Cube Controls GT Pro / Formula CSX-3 / F-CORE | PIDs unverified | Input-only steering wheels (button boxes), NOT wheelbases. VID 0x0483 (STMicro shared) plausible; PIDs 0x0C73–0x0C75 are internal estimates not found in devicehunt.com or any USB database. JacKeTUs/linux-steering-wheels checked 2025-06 — no entries. These devices do not produce force feedback. |
+| Cube Controls GT Pro V2 / Formula CSX-3 / GT-X2 / F-CORE | PIDs unverified | Input-only steering wheels (button boxes), NOT wheelbases. VID 0x0483 (STMicro shared) plausible; PIDs 0x0C73–0x0C75 are internal estimates not found in devicehunt.com, RetroBat Wheels.cs, SDL GameControllerDB, or any USB database. JacKeTUs/linux-steering-wheels, Reddit, and RaceDepartment checked 2025-07 — no entries. These devices do not produce force feedback. |
 | Cammus C15 / DDMAX (15 Nm) | PID unknown | Announced; not yet in community tables |
 | Simucube 3 | Not yet released | No public USB descriptor at time of writing |
 | Gomez Racer devices | Unknown | No public VID/PID found in any community source |

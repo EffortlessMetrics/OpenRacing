@@ -18,13 +18,32 @@
 //!
 //! | Field | Status | Source |
 //! |-------|--------|--------|
-//! | VID 0x16D0 | ✅ Confirmed | linux-hardware.org, codebase-wide consistency |
-//! | Sprint PID 0x1156 | ⚠ Unverified externally | Not in USB-IF DB or linux-hardware.org |
-//! | Ultimate PID 0x1157 | ⚠ Unverified externally | Not in USB-IF DB or linux-hardware.org |
-//! | Pro PID 0x1158 | ⚠ Unverified externally | Sim Pedals Pro (discontinued) |
+//! | VID 0x16D0 | ✅ Confirmed | usb-ids.gowdy.us, devicehunt.com, Linux kernel hid-ids.h (via Simucube) |
+//! | Sprint PID 0x1156 | ⚠ Unverified externally | Not in USB-IF DB, usb-ids.gowdy.us, linux-hardware.org, or Linux kernel hid-ids.h |
+//! | Ultimate PID 0x1157 | ⚠ Unverified externally | Not in USB-IF DB, usb-ids.gowdy.us, linux-hardware.org, or Linux kernel hid-ids.h |
+//! | Pro PID 0x1158 | ⚠ Unverified externally | Discontinued; not in any public USB database |
 //! | Sprint load 55 kg | ⚠ Plausible | heusinkveld.com (no kg listed for Sprint) |
 //! | Ultimate+ load 140 kg | ✅ Confirmed | heusinkveld.com ("up to 140kg of force") |
 //! | Pro load 200 kg | ⚠ Plausible | Discontinued; no current product page |
+//!
+//! ## Source audit (2026-03)
+//!
+//! The following external databases were searched and returned **no** Heusinkveld entries:
+//! - USB-IF / usb-ids.gowdy.us (VID 0x16D0 listed; PIDs 0x1156–0x1158 absent)
+//! - devicehunt.com (VID 0x16D0 listed; no Heusinkveld PIDs)
+//! - linux-hardware.org (search "heusinkveld" VID=16D0 → 0 results)
+//! - Linux kernel `hid-ids.h` (no Heusinkveld defines)
+//! - systemd hwdb `70-joystick.hwdb` (no Heusinkveld entries)
+//! - JacKeTUs/linux-steering-wheels (covers FFB wheels only; 0 Heusinkveld entries)
+//!
+//! The PIDs originate from this project's internal documentation (`docs/protocols/SOURCES.md`)
+//! which cites "community USB descriptor captures". A USB descriptor dump from real hardware
+//! is needed to confirm these values. See `docs/protocols/SOURCES.md` for details.
+//!
+//! ## Known Heusinkveld USB products not yet covered
+//!
+//! Heusinkveld also sells a Handbrake, MagShift sequential shifter, MagShift Mini,
+//! and "One" steering wheel. These are separate USB devices whose PIDs are unknown.
 //!
 //! **Note:** These are **pedal** devices — no torque/Nm values apply.
 

@@ -17,8 +17,14 @@ fn main() {
     let config = FilterConfig::default();
     
     // Correct DeviceId usage - must use fallible construction
-    let device_id: DeviceId = "test-device".parse().unwrap();
-    let device_id2 = DeviceId::try_from("another-device".to_string()).unwrap();
+    let device_id: DeviceId = match "test-device".parse() {
+        Ok(id) => id,
+        Err(e) => panic!("Failed to parse device_id: {}", e),
+    };
+    let device_id2 = match DeviceId::try_from("another-device".to_string()) {
+        Ok(id) => id,
+        Err(e) => panic!("Failed to create device_id2: {}", e),
+    };
     
     println!("All schema usage is correct!");
     println!("Telemetry angle: {}", telemetry.wheel_angle_deg);

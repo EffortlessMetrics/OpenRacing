@@ -1,18 +1,40 @@
 //! Device IDs for Asetek SimSports products
 //!
 //! VID `0x2433` is the official USB vendor ID registered to Asetek A/S.
-//! Sources: USB VID registry (the-sz.com), JacKeTUs/linux-steering-wheels
-//! compatibility table.
+//!
+//! ## Sources (all cross-referenced, verified 2025)
+//!
+//! - **Linux kernel upstream** (`torvalds/linux`, `drivers/hid/hid-ids.h:201-205`):
+//!   `USB_VENDOR_ID_ASETEK 0x2433`, `USB_DEVICE_ID_ASETEK_{INVICTA,FORTE,LA_PRIMA,TONY_KANAAN}`.
+//! - **Linux kernel upstream** (`torvalds/linux`, `drivers/hid/hid-universal-pidff.c`):
+//!   driver table lists all four PIDs; no device-specific quirk flags applied.
+//! - **JacKeTUs/linux-steering-wheels** compatibility table:
+//!   Invicta `f300`, Forte `f301`, La Prima `f303`, Tony Kanaan `f306` — all Gold support.
+//! - **USB VID registries** (the-sz.com, usb-ids.gowdy.us, devicehunt.com):
+//!   VID `0x2433` → Asetek A/S.
+//!
+//! ## Protocol notes
+//!
+//! All four wheelbases present a standard **USB HID PID** (Physical Interface
+//! Device) force-feedback descriptor, allowing the Linux `hid-pidff` /
+//! `hid-universal-pidff` driver to handle FFB effects without vendor-specific
+//! protocol logic.
 
+/// Asetek A/S USB Vendor ID.
+/// Source: USB-IF VID registry; Linux `drivers/hid/hid-ids.h`.
 pub const ASETEK_VENDOR_ID: u16 = 0x2433;
 
 /// Asetek Invicta (27 Nm premium direct drive).
+/// Source: Linux `USB_DEVICE_ID_ASETEK_INVICTA` (`hid-ids.h`).
 pub const ASETEK_INVICTA_PID: u16 = 0xF300;
 /// Asetek Forte (18 Nm mid-range direct drive).
+/// Source: Linux `USB_DEVICE_ID_ASETEK_FORTE` (`hid-ids.h`).
 pub const ASETEK_FORTE_PID: u16 = 0xF301;
 /// Asetek La Prima (12 Nm entry direct drive).
+/// Source: Linux `USB_DEVICE_ID_ASETEK_LA_PRIMA` (`hid-ids.h`).
 pub const ASETEK_LAPRIMA_PID: u16 = 0xF303;
 /// Asetek Tony Kanaan Edition (27 Nm, Invicta-based special edition).
+/// Source: Linux `USB_DEVICE_ID_ASETEK_TONY_KANAAN` (`hid-ids.h`).
 pub const ASETEK_TONY_KANAAN_PID: u16 = 0xF306;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,20 +1,32 @@
 //! AccuForce USB vendor and product ID constants.
 //!
-//! VID `0x1FC9` is the NXP Semiconductors USB Vendor ID. SimExperience uses
+//! VID `0x1FC9` is the NXP Semiconductors USB Vendor ID. SimXperience uses
 //! NXP USB chips internally for the AccuForce Pro wheelbase.
 //!
-//! Sources: community USB device captures, RetroBat Wheels.cs (commit 0a54752),
-//! and the existing OpenRacing engine vendor list.
+//! Sources (verified 2025-06):
+//! - RetroBat Wheels.cs (commit 0a54752): `VID_1FC9&PID_804C`
+//!   <https://github.com/RetroBat-Official/emulatorlauncher/blob/master/emulatorLauncher/Common/Wheels.cs>
+//! - JacKeTUs/linux-steering-wheels compatibility table: VID `1fc9`,
+//!   PID `804c`, rated **Platinum** with `hid-pidff` driver
+//!   <https://github.com/JacKeTUs/linux-steering-wheels>
+//! - Apkallu-Industries/Pitwall `SimXAccuforce.xml`:
+//!   `productId="804C" vendorId="1FC9"`, category "wheel"
+//!   <https://github.com/Apkallu-Industries/Pitwall>
+//!
+//! The AccuForce Pro V1 and V2 share the same VID/PID — no V2-specific PID
+//! has been observed in any public source.
 
-/// NXP Semiconductors USB Vendor ID (used internally by SimExperience AccuForce).
+/// NXP Semiconductors USB Vendor ID (used internally by SimXperience AccuForce).
 pub const VENDOR_ID: u16 = 0x1FC9;
 
 // ── Confirmed product IDs ────────────────────────────────────────────────────
 
-/// SimExperience AccuForce Pro product ID.
+/// SimXperience AccuForce Pro product ID (covers both V1 and V2 hardware).
 ///
-/// Confirmed via community USB captures and the RetroBat Wheels.cs
-/// compatibility table (commit 0a54752: `VID_1FC9&PID_804C`).
+/// Confirmed via three independent sources:
+/// - RetroBat Wheels.cs (commit 0a54752: `VID_1FC9&PID_804C`)
+/// - JacKeTUs/linux-steering-wheels (Platinum, hid-pidff)
+/// - Apkallu-Industries/Pitwall SimXAccuforce.xml (`productId="804C"`)
 pub const PID_ACCUFORCE_PRO: u16 = 0x804C;
 
 /// Returns `true` if the VID/PID pair identifies an AccuForce device.

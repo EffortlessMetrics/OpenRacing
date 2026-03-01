@@ -4,9 +4,10 @@
 //!
 //! **Important:** Cube Controls S.r.l. (Italy) manufactures premium sim-racing
 //! **steering wheels** (button boxes / rims), **not** wheelbases. Their products
-//! (GT Pro, Formula CSX-3, F-CORE, etc.) are USB/Bluetooth input devices with
-//! buttons, rotary encoders, and paddles. They do **not** produce force feedback.
-//! Force feedback comes from the wheelbase (a separate device by another vendor).
+//! (GT Pro V2, Formula CSX-3, GT-X2, F-CORE, etc.) are USB/Bluetooth input
+//! devices with buttons, rotary encoders, and paddles. They do **not** produce
+//! force feedback. Force feedback comes from the wheelbase (a separate device
+//! by another vendor).
 //!
 //! VID `0x0483` is the STMicroelectronics shared VID used by thousands of
 //! STM32-based USB devices. Community reports suggest Cube Controls steering
@@ -14,13 +15,26 @@
 //! confirms it. The PIDs below are internal estimates — they are **not** from a
 //! USB device tree capture and may be incorrect.
 //!
-//! **Research pass (2025-06):** The following sources were checked:
+//! **Research pass (2025-06 / 2025-07):** The following sources were checked:
 //! - JacKeTUs/linux-steering-wheels: **no** Cube Controls entries
+//!   <https://github.com/JacKeTUs/linux-steering-wheels>
+//! - RetroBat Wheels.cs: **no** Cube Controls entries
+//!   <https://github.com/RetroBat-Official/emulatorlauncher/blob/master/emulatorLauncher/Common/Wheels.cs>
 //! - devicehunt.com (VID 0x0483): PIDs 0x0C73–0x0C75 **not registered**
 //! - cubecontrols.com: no USB VID/PID information published; product pages
-//!   return 404 for direct links (checked 2025-06)
+//!   provide specs but omit USB identifiers (checked GT Pro V2, Formula CSX-3,
+//!   GT-X2)
 //! - Linux kernel hid-ids.h: no Cube Controls entries
+//! - SDL GameControllerDB: no Cube Controls entries
 //! - GitHub code search: no independent USB captures found
+//! - Reddit/RaceDepartment forums: no USB descriptor reports found
+//!
+//! **Known products not yet represented:**
+//! - GT-X2 (round wheel with 5" touchscreen, USB Q-CONN)
+//! - F-CORE (flagship formula-style wheel)
+//! - SP-01 (pedal set, input-only)
+//!
+//! These will be added when real USB captures provide VID/PID data.
 //!
 //! TODO(web-verify): Obtain a USB descriptor capture (`lsusb -v` or
 //! USBTreeView) from real Cube Controls hardware to confirm or replace

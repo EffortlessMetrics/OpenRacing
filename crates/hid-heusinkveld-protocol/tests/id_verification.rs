@@ -10,7 +10,8 @@ use hid_heusinkveld_protocol::{
 
 /// Heusinkveld VID must be 0x16D0 (MCS Electronics / OpenMoko).
 ///
-/// Source: USB VID registry; JacKeTUs/linux-steering-wheels.
+/// Source: USB VID registry (usb-ids.gowdy.us, devicehunt.com).
+/// VID confirmed; shared with Simucube and other MCS sub-licensees.
 #[test]
 fn vendor_id_is_16d0() {
     assert_eq!(
@@ -21,7 +22,8 @@ fn vendor_id_is_16d0() {
 
 /// Heusinkveld Sprint PID must be 0x1156.
 ///
-/// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
+/// ⚠ Unverified externally — not found in any public USB database or community driver.
+/// See `crates/hid-heusinkveld-protocol/src/ids.rs` source audit for details.
 #[test]
 fn sprint_pid_is_1156() {
     assert_eq!(HEUSINKVELD_SPRINT_PID, 0x1156);
@@ -29,7 +31,8 @@ fn sprint_pid_is_1156() {
 
 /// Heusinkveld Ultimate+ PID must be 0x1157.
 ///
-/// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
+/// ⚠ Unverified externally — not found in any public USB database or community driver.
+/// See `crates/hid-heusinkveld-protocol/src/ids.rs` source audit for details.
 #[test]
 fn ultimate_pid_is_1157() {
     assert_eq!(HEUSINKVELD_ULTIMATE_PID, 0x1157);
@@ -37,7 +40,8 @@ fn ultimate_pid_is_1157() {
 
 /// Heusinkveld Pro PID must be 0x1158.
 ///
-/// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
+/// ⚠ Unverified externally — not found in any public USB database or community driver.
+/// Sim Pedals Pro is discontinued.
 #[test]
 fn pro_pid_is_1158() {
     assert_eq!(HEUSINKVELD_PRO_PID, 0x1158);

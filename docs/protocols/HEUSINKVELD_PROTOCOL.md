@@ -15,6 +15,11 @@ They are distinguished by Product IDs in the `0x115x` range.
 
 ## Device Identification
 
+> ⚠ **Verification note:** The PIDs listed below are **not confirmed** by any external
+> USB database (USB-IF, usb-ids.gowdy.us, Linux kernel, etc.). They originate from
+> this project's internal documentation. See `crates/hid-heusinkveld-protocol/src/ids.rs`
+> for a full source audit.
+
 | Model | Vendor ID | Product ID | Pedals | Max Load |
 |-------|-----------|------------|--------|----------|
 | Sprint | `0x16D0` | `0x1156` | 2 (throttle + brake) | 55 kg brake |
