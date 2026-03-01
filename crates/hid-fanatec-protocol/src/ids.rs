@@ -3,12 +3,30 @@
 //! Verified against the community Linux kernel driver
 //! [`gotzl/hid-fanatecff`](https://github.com/gotzl/hid-fanatecff) (`hid-ftec.h`)
 //! and the USB device table in `hid-ftec.c`.
+//!
+//! ## Web-verification sources (2025-07)
+//!
+//! | # | Source | Result |
+//! |---|--------|--------|
+//! | 1 | `gotzl/hid-fanatecff` `hid-ftec.h` + `hid-ftec.c` device table | Primary: all driver-supported PIDs confirmed |
+//! | 2 | `gotzl/hid-fanatecff` README known-devices list | Confirms PIDs + product names |
+//! | 3 | `the-sz.com` USB ID DB (`?v=0x0EB7`) | VID confirmed as "Endor AG" / "Corsair Memory Inc. (Fanatec)"; only PID 0x038E listed |
+//! | 4 | `usb-ids.gowdy.us/read/UD/0EB7` | VID entry present, no PIDs listed (incomplete) |
+//! | 5 | `linux-hardware.org/?id=usb:0eb7` | VID confirmed "Endor"; hardware probes exist |
+//! | 6 | `libsdl-org/SDL` `src/joystick/SDL_joystick.c` | VID 0x0EB7 recognized as Fanatec wheel vendor |
+//! | 7 | Linux kernel `drivers/hid/hid-ids.h` | No Fanatec entries (driver is out-of-tree) |
+//!
+//! PIDs 0x0024, 0x01E9, and 0x1839 have **no external confirmation** in any
+//! public database or open-source driver. See per-constant docs for details.
 
 #![deny(static_mut_refs)]
 
 /// Fanatec USB vendor ID (Endor AG).
 ///
-/// Verified: `gotzl/hid-fanatecff` `hid-ftec.h` — `FANATEC_VENDOR_ID 0x0eb7`.
+/// Web-verified (2025-07):
+/// - `gotzl/hid-fanatecff` `hid-ftec.h`: `FANATEC_VENDOR_ID 0x0eb7`
+/// - `the-sz.com` USB ID DB: VID 0x0EB7 = "Endor AG" / "Corsair Memory Inc. (Fanatec)"
+/// - `linux-hardware.org`: VID 0x0EB7 = "Endor"
 pub const FANATEC_VENDOR_ID: u16 = 0x0EB7;
 
 /// Report IDs used in the Fanatec HID protocol.
@@ -71,60 +89,132 @@ pub mod led_commands {
 
 /// Known Fanatec wheelbase product IDs.
 ///
-/// Verified against `gotzl/hid-fanatecff` `hid-ftec.h` device ID defines
-/// and the `hid_device_id` table in `hid-ftec.c`.
+/// Web-verified (2025-07) against `gotzl/hid-fanatecff` `hid-ftec.h` defines,
+/// the `hid_device_id` table in `hid-ftec.c`, and the driver README known-devices
+/// list. Cross-referenced with `the-sz.com`, `linux-hardware.org`, and
+/// `libsdl-org/SDL`.
 pub mod product_ids {
     /// ClubSport Wheel Base V2 (8 Nm belt-drive).
-    /// Verified: `CLUBSPORT_V2_WHEELBASE_DEVICE_ID 0x0001`.
+    ///
+    /// Web-verified (2025-07):
+    /// - `hid-ftec.h`: `CLUBSPORT_V2_WHEELBASE_DEVICE_ID 0x0001`
+    /// - `hid-ftec.c`: device table entry with `FTEC_FF` quirk
+    /// - Driver README: "0EB7:0001 FANATEC ClubSport Wheel Base V2" (experimental)
     pub const CLUBSPORT_V2: u16 = 0x0001;
     /// ClubSport Wheel Base V2.5 (8 Nm belt-drive).
-    /// Verified: `CLUBSPORT_V25_WHEELBASE_DEVICE_ID 0x0004`.
+    ///
+    /// Web-verified (2025-07):
+    /// - `hid-ftec.h`: `CLUBSPORT_V25_WHEELBASE_DEVICE_ID 0x0004`
+    /// - `hid-ftec.c`: device table entry with `FTEC_FF` quirk
+    /// - Driver README: "0EB7:0004 FANATEC ClubSport Wheel Base V2.5" (experimental)
     pub const CLUBSPORT_V2_5: u16 = 0x0004;
     /// CSL Elite Wheel Base PS4 (6 Nm belt-drive, PlayStation variant).
-    /// Verified: `CSL_ELITE_PS4_WHEELBASE_DEVICE_ID 0x0005`.
+    ///
+    /// Web-verified (2025-07):
+    /// - `hid-ftec.h`: `CSL_ELITE_PS4_WHEELBASE_DEVICE_ID 0x0005`
+    /// - `hid-ftec.c`: device table entry with `FTEC_FF | FTEC_TUNING_MENU | FTEC_WHEELBASE_LEDS`
+    /// - Driver README: "0EB7:0005 FANATEC CSL Elite Wheel Base PS4"
     pub const CSL_ELITE_PS4: u16 = 0x0005;
     /// Podium Wheel Base DD1 (20 Nm direct-drive).
-    /// Verified: `PODIUM_WHEELBASE_DD1_DEVICE_ID 0x0006`.
+    ///
+    /// Web-verified (2025-07):
+    /// - `hid-ftec.h`: `PODIUM_WHEELBASE_DD1_DEVICE_ID 0x0006`
+    /// - `hid-ftec.c`: device table entry with `FTEC_FF | FTEC_TUNING_MENU | FTEC_HIGHRES`
+    /// - Driver README: "0EB7:0006 Podium Wheel Base DD1" (experimental)
     pub const DD1: u16 = 0x0006;
     /// Podium Wheel Base DD2 (25 Nm direct-drive).
-    /// Verified: `PODIUM_WHEELBASE_DD2_DEVICE_ID 0x0007`.
+    ///
+    /// Web-verified (2025-07):
+    /// - `hid-ftec.h`: `PODIUM_WHEELBASE_DD2_DEVICE_ID 0x0007`
+    /// - `hid-ftec.c`: device table entry with `FTEC_FF | FTEC_TUNING_MENU | FTEC_HIGHRES`
+    /// - Driver README: "0EB7:0007 Podium Wheel Base DD2" (experimental)
     pub const DD2: u16 = 0x0007;
     /// CSR Elite / Forza Motorsport Wheel Base (legacy belt-drive).
-    /// Verified: `CSR_ELITE_WHEELBASE_DEVICE_ID 0x0011`.
+    ///
+    /// Web-verified (2025-07):
+    /// - `hid-ftec.h`: `CSR_ELITE_WHEELBASE_DEVICE_ID 0x0011`
+    /// - `hid-ftec.c`: device table entry with `FTEC_FF` quirk
+    /// - Driver README: "0EB7:0011 CSR Elite/Forza Motorsport Wheel Base" (experimental)
     pub const CSR_ELITE: u16 = 0x0011;
     /// CSL DD (8 Nm direct-drive). Also covers DD Pro and ClubSport DD in PC mode.
-    /// Verified: `CSL_DD_WHEELBASE_DEVICE_ID 0x0020`.
-    /// The Linux driver README confirms: "0EB7:0020 FANATEC CSL DD / DD Pro /
-    /// ClubSport DD Wheel Base". Uses `FTEC_HIGHRES` quirk for 16-bit force.
+    ///
+    /// Web-verified (2025-07):
+    /// - `hid-ftec.h`: `CSL_DD_WHEELBASE_DEVICE_ID 0x0020`
+    /// - `hid-ftec.c`: device table entry with `FTEC_FF | FTEC_TUNING_MENU | FTEC_HIGHRES`
+    /// - Driver README: "0EB7:0020 FANATEC CSL DD / DD Pro / ClubSport DD Wheel Base"
+    ///
+    /// **Note:** The community driver confirms DD Pro and ClubSport DD share this
+    /// PID in PC mode. See `GT_DD_PRO` (0x0024) and `CLUBSPORT_DD` (0x01E9)
+    /// for possible console/alternate-mode PIDs that lack external confirmation.
     pub const CSL_DD: u16 = 0x0020;
     /// Gran Turismo DD Pro (8 Nm direct-drive, PlayStation-specific PID).
-    /// **Unverified** — not present in community Linux driver (`gotzl/hid-fanatecff`).
-    /// Believed correct from USB captures.
+    ///
+    /// **Unverified (2025-07):** Not present in any external source consulted:
+    /// - Not in `gotzl/hid-fanatecff` (`hid-ftec.h`, `hid-ftec.c`, or README)
+    /// - Not in `the-sz.com`, `linux-hardware.org`, or `libsdl-org/SDL`
+    /// - Not in Linux kernel `hid-ids.h`
+    ///
+    /// The community driver README states the DD Pro uses PID 0x0020 (same as
+    /// CSL DD) in PC mode. This PID may be a PlayStation/GT-mode-specific
+    /// enumeration. Believed correct from USB captures but requires hardware
+    /// confirmation.
     pub const GT_DD_PRO: u16 = 0x0024;
     /// CSL Elite Wheel Base — PC mode (6 Nm belt-drive).
-    /// Verified: `CSL_ELITE_WHEELBASE_DEVICE_ID 0x0E03`.
+    ///
+    /// Web-verified (2025-07):
+    /// - `hid-ftec.h`: `CSL_ELITE_WHEELBASE_DEVICE_ID 0x0E03`
+    /// - `hid-ftec.c`: device table entry with `FTEC_FF | FTEC_TUNING_MENU | FTEC_WHEELBASE_LEDS`
+    /// - Driver README: "0EB7:0E03 FANATEC CSL Elite Wheel Base"
     pub const CSL_ELITE: u16 = 0x0E03;
     /// ClubSport DD+ (12 Nm direct-drive, 2022 premium base).
-    /// **Unverified** — not present in community Linux driver (`gotzl/hid-fanatecff`).
-    /// Believed correct from USB captures.
+    ///
+    /// **Unverified (2025-07):** Not present in any external source consulted:
+    /// - Not in `gotzl/hid-fanatecff` (`hid-ftec.h`, `hid-ftec.c`, or README)
+    /// - Not in `the-sz.com`, `linux-hardware.org`, or `libsdl-org/SDL`
+    /// - Not in Linux kernel `hid-ids.h`
+    ///
+    /// The community driver README lists "ClubSport DD" under PID 0x0020
+    /// alongside CSL DD and DD Pro (in PC mode). This PID may represent a
+    /// firmware variant or alternate enumeration. Believed correct from USB
+    /// captures but requires hardware confirmation.
     pub const CLUBSPORT_DD: u16 = 0x01E9;
 
     // ── Standalone pedal devices ───────────────────────────────────────────
 
     /// ClubSport Pedals V1 / V2 (USB, 2-axis or 3-axis set).
-    /// **Unverified** — not present in community Linux driver (`gotzl/hid-fanatecff`).
+    ///
+    /// **Unverified (2025-07):** Not present in any external source consulted:
+    /// - Not in `gotzl/hid-fanatecff` (`hid-ftec.h`, `hid-ftec.c`, or README)
+    /// - Not in `the-sz.com`, `linux-hardware.org`, or `libsdl-org/SDL`
+    /// - Not in Linux kernel `hid-ids.h`
     pub const CLUBSPORT_PEDALS_V1_V2: u16 = 0x1839;
     /// ClubSport Pedals V3 (USB, 3-axis with load cell brake).
-    /// Verified: `CLUBSPORT_PEDALS_V3_DEVICE_ID 0x183b`.
+    ///
+    /// Web-verified (2025-07):
+    /// - `hid-ftec.h`: `CLUBSPORT_PEDALS_V3_DEVICE_ID 0x183b`
+    /// - `hid-ftec.c`: device table entry with `FTEC_PEDALS` quirk
+    /// - Driver README: "0EB7:183b FANATEC ClubSport Pedals V3" (experimental)
     pub const CLUBSPORT_PEDALS_V3: u16 = 0x183B;
     /// CSL Elite Pedals (USB).
-    /// Verified: `CSL_ELITE_PEDALS_DEVICE_ID 0x6204`.
+    ///
+    /// Web-verified (2025-07):
+    /// - `hid-ftec.h`: `CSL_ELITE_PEDALS_DEVICE_ID 0x6204`
+    /// - `hid-ftec.c`: device table entry with `FTEC_PEDALS` quirk
+    /// - Driver README: "0EB7:6204 FANATEC CSL Elite Pedals"
     pub const CSL_ELITE_PEDALS: u16 = 0x6204;
     /// CSL Pedals with Load Cell Kit (USB adapter).
-    /// Verified: `CSL_LC_PEDALS_DEVICE_ID 0x6205`.
+    ///
+    /// Web-verified (2025-07):
+    /// - `hid-ftec.h`: `CSL_LC_PEDALS_DEVICE_ID 0x6205`
+    /// - `hid-ftec.c`: device table entry with `FTEC_PEDALS` quirk
+    /// - Driver README: "0EB7:6205 FANATEC CSL Pedals Loadcell" (experimental)
     pub const CSL_PEDALS_LC: u16 = 0x6205;
     /// CSL Pedals V2 (USB adapter, updated Hall sensors).
-    /// Verified: `CSL_LC_V2_PEDALS_DEVICE_ID 0x6206`.
+    ///
+    /// Web-verified (2025-07):
+    /// - `hid-ftec.h`: `CSL_LC_V2_PEDALS_DEVICE_ID 0x6206`
+    /// - `hid-ftec.c`: device table entry with `FTEC_PEDALS` quirk
+    /// - Driver README: "0EB7:6206 FANATEC CSL Pedals LC V2 Loadcell" (experimental)
     pub const CSL_PEDALS_V2: u16 = 0x6206;
 }
 
