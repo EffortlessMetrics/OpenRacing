@@ -1,0 +1,5 @@
+---
+source: crates/hid-fanatec-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{out:02X?}\")"
+---
+[01, 01, FF, 7F, 00, 00, 00, 00]

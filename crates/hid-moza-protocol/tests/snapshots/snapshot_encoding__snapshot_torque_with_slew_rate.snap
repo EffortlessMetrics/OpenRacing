@@ -1,0 +1,5 @@
+---
+source: crates/hid-moza-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{out:02X?}\")"
+---
+[20, 00, 40, 03, F4, 01, 00, 00]

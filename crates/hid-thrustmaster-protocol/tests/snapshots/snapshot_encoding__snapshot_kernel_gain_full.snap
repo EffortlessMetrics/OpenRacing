@@ -1,0 +1,5 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{cmd:02X?}\")"
+---
+[02, FF]

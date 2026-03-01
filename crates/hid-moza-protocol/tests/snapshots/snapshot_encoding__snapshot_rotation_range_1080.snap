@@ -1,0 +1,5 @@
+---
+source: crates/hid-moza-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{:02X?}\", writer.last)"
+---
+[10, 01, 38, 04]

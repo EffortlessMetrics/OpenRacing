@@ -1,0 +1,5 @@
+---
+source: crates/hid-fanatec-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"steering={:.4}, throttle={:.4}, brake={:.4}, clutch={:.4}, buttons=0x{:04X}, hat=0x{:X}\",\nstate.steering, state.throttle, state.brake, state.clutch, state.buttons,\nstate.hat,)"
+---
+steering=0.0000, throttle=1.0000, brake=1.0000, clutch=1.0000, buttons=0x0000, hat=0xF
