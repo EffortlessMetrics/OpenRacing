@@ -7,8 +7,10 @@
 //! STMicroelectronics generic VID `0x0483` with PID `0x0522` and are handled by
 //! the `simagic-ff` / `hid-pidff` kernel drivers, not this proprietary crate.
 //!
-//! Sources: USB VID registry (the-sz.com), JacKeTUs/linux-steering-wheels
-//! compatibility table, JacKeTUs/simagic-ff driver.
+//! Sources:
+//! - USB VID registry (the-sz.com) — VID `0x3670` confirmed
+//! - JacKeTUs/simagic-ff kernel driver `hid-simagic.h` header (VID/PID defines)
+//! - JacKeTUs/linux-steering-wheels compatibility table (README.md, accessed 2025-07)
 
 #![deny(static_mut_refs)]
 
@@ -56,7 +58,8 @@ pub mod report_ids {
 
 /// Known Simagic product IDs (VID `0x3670` EVO generation unless otherwise noted).
 pub mod product_ids {
-    // ── EVO generation wheelbases (VID 0x3670, verified) ────────────────────
+    // ── EVO generation wheelbases (VID 0x3670) ─────────────────────────────
+    // Verified via JacKeTUs/simagic-ff hid-simagic.h and linux-steering-wheels.
     /// Simagic EVO Sport wheelbase.
     pub const EVO_SPORT: u16 = 0x0500;
     /// Simagic EVO wheelbase.

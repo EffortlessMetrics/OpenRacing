@@ -4,25 +4,43 @@
 //! OpenMoko), the same VID used by the Simucube 1 IONI servo drives and
 //! Heusinkveld pedals. Products are distinguished by product ID.
 //!
-//! Sources: Official Simucube developer documentation
-//! (Simucube/simucube-docs.github.io Developers.md), JacKeTUs/linux-steering-wheels
-//! compatibility table, USB VID registry.
+//! Sources:
+//! - Official Simucube developer docs — `Simucube/simucube-docs.github.io`
+//!   `docs/Simucube 2/Developers.md` (authoritative PID table, accessed 2025-07)
+//! - Granite Devices wiki udev rules — `granitedevices.com/wiki/Using_Simucube_wheel_base_in_Linux`
+//! - JacKeTUs/linux-steering-wheels compatibility table (README.md)
+//! - USB VID registry (the-sz.com)
 
 pub const SIMUCUBE_VENDOR_ID: u16 = 0x16D0;
 
-/// Simucube 1 (IONI-based servo drive). PID verified via official Simucube docs.
+/// Simucube 1 (IONI-based servo drive). PID verified via official Simucube docs
+/// and Granite Devices wiki udev rules.
 pub const SIMUCUBE_1_PID: u16 = 0x0D5A;
-/// Simucube 2 Sport (17 Nm direct drive).
+/// Simucube 2 Sport (17 Nm direct drive). PID verified via official Simucube docs,
+/// linux-steering-wheels, and Granite Devices wiki udev rules.
 pub const SIMUCUBE_2_SPORT_PID: u16 = 0x0D61;
-/// Simucube 2 Pro (25 Nm direct drive).
+/// Simucube 2 Pro (25 Nm direct drive). PID verified via official Simucube docs,
+/// linux-steering-wheels, and Granite Devices wiki udev rules.
 pub const SIMUCUBE_2_PRO_PID: u16 = 0x0D60;
-/// Simucube 2 Ultimate (32 Nm direct drive).
+/// Simucube 2 Ultimate (32 Nm direct drive). PID verified via official Simucube docs,
+/// linux-steering-wheels, and Granite Devices wiki udev rules.
 pub const SIMUCUBE_2_ULTIMATE_PID: u16 = 0x0D5F;
 /// Simucube SC-Link Hub (used by ActivePedal / ActivePedal Pro).
-/// PID verified via official Simucube developer documentation.
+/// PID verified via official Simucube developer documentation
+/// (`Simucube/simucube-docs.github.io` → `docs/Simucube 2/Developers.md`).
 pub const SIMUCUBE_ACTIVE_PEDAL_PID: u16 = 0x0D66;
-/// SimuCUBE Wireless Wheel. PID estimated — not independently verified.
+/// SimuCUBE Wireless Wheel. PID estimated — **not present** in the official Simucube
+/// developer PID table (accessed 2025-07). Do not rely on this value without
+/// independent confirmation.
 pub const SIMUCUBE_WIRELESS_WHEEL_PID: u16 = 0x0D63;
+
+// ── Bootloader / firmware-upgrade PIDs (not used for HID protocol) ─────────
+// These PIDs appear in the Granite Devices wiki udev rules for firmware
+// flashing. They are documented here for reference only — do not match on
+// these in normal device enumeration.
+//
+// Simucube 2 firmware-upgrade mode: 0x0D5E
+// Simucube 1 firmware-upgrade mode: 0x0D5B
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SimucubeModel {

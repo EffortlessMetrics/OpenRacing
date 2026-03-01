@@ -42,7 +42,7 @@ See friction log entry **F-005** for the history of why this document was create
 ## Simucube (Granite Devices)
 
 **VID:** `0x16D0`  
-**Source:** [Official Simucube developer documentation](https://github.com/Simucube/simucube-docs.github.io) (Developers.md — authoritative PID table); [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table; [Granite Devices support portal](https://granitedevices.com/wiki/Simucube_2_USB_HID_protocol); USB VID registry (MCS Electronics / OpenMoko VID shared for open hardware).  
+**Source:** [Official Simucube developer documentation](https://github.com/Simucube/simucube-docs.github.io) (`docs/Simucube 2/Developers.md` — authoritative PID table); [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table; [Granite Devices wiki udev rules](https://granitedevices.com/wiki/Using_Simucube_wheel_base_in_Linux); USB VID registry (MCS Electronics / OpenMoko VID shared for open hardware).  
 **Status:** Verified
 
 | PID      | Device Name                  | Status    |
@@ -55,6 +55,10 @@ See friction log entry **F-005** for the history of why this document was create
 | `0x0D66` | Simucube SC-Link Hub (ActivePedal) | Verified  |
 
 > **Note:** VID `0x16D0` is also used by Heusinkveld — disambiguation is by PID.
+>
+> **Bootloader PIDs** (firmware flashing only, not for HID protocol enumeration):
+> `0x0D5E` — SC2 firmware-upgrade mode; `0x0D5B` — SC1 firmware-upgrade mode.
+> (Source: Granite Devices wiki udev rules.)
 
 ---
 
@@ -77,7 +81,7 @@ See friction log entry **F-005** for the history of why this document was create
 
 **VID (EVO generation):** `0x3670`  
 **VID (Legacy / STM generic):** `0x0483`  
-**Source:** [USB VID registry (the-sz.com)](https://www.the-sz.com/products/usbid/index.php?v=3670) for `0x3670`; [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels); [JacKeTUs/simagic-ff](https://github.com/JacKeTUs/simagic-ff) kernel driver source for `0x0483:0x0522`.  
+**Source:** [USB VID registry (the-sz.com)](https://www.the-sz.com/products/usbid/index.php?v=3670) for `0x3670`; [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels); [JacKeTUs/simagic-ff](https://github.com/JacKeTUs/simagic-ff) kernel driver `hid-simagic.h` header for `0x0483:0x0522` and EVO PIDs.  
 **Status:** EVO PIDs verified; legacy PID verified; accessory PIDs estimated.
 
 | VID      | PID      | Device Name                          | Status    |
@@ -285,7 +289,7 @@ See friction log entry **F-005** for the history of why this document was create
 | `0x000F` | FFB Joystick (direct drive FF)        | Community |
 | `0x0030` | BU0836X 12-bit joystick interface     | Estimated |
 | `0x0031` | BU0836 16-bit joystick interface      | Estimated |
-| `0xBEEF` | SLI-M Shift Light Indicator           | Unverified |
+| `0x1301` | SLI-Pro Shift Light Indicator          | Estimated |
 
 ---
 
