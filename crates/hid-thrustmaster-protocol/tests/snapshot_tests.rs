@@ -293,3 +293,82 @@ fn test_snapshot_is_wheelbase_known_pids() {
         .collect();
     assert_snapshot!(results.join(", "));
 }
+
+// ── T150/TMX wire-format snapshot tests ──────────────────────────────────────
+
+#[test]
+fn test_snapshot_t150_range_max() {
+    let report = tm::encode_range_t150(0xFFFF);
+    assert_snapshot!(format!("{:02X?}", report));
+}
+
+#[test]
+fn test_snapshot_t150_range_zero() {
+    let report = tm::encode_range_t150(0x0000);
+    assert_snapshot!(format!("{:02X?}", report));
+}
+
+#[test]
+fn test_snapshot_t150_range_midpoint() {
+    let report = tm::encode_range_t150(0x8000);
+    assert_snapshot!(format!("{:02X?}", report));
+}
+
+#[test]
+fn test_snapshot_t150_gain_full() {
+    let report = tm::encode_gain_t150(0xFF);
+    assert_snapshot!(format!("{:02X?}", report));
+}
+
+#[test]
+fn test_snapshot_t150_gain_zero() {
+    let report = tm::encode_gain_t150(0x00);
+    assert_snapshot!(format!("{:02X?}", report));
+}
+
+#[test]
+fn test_snapshot_t150_gain_half() {
+    let report = tm::encode_gain_t150(0x80);
+    assert_snapshot!(format!("{:02X?}", report));
+}
+
+#[test]
+fn test_snapshot_t150_play_effect() {
+    let report = tm::encode_play_effect_t150(0, 0x01, 1);
+    assert_snapshot!(format!("{:02X?}", report));
+}
+
+#[test]
+fn test_snapshot_t150_play_effect_infinite() {
+    let report = tm::encode_play_effect_t150(3, 0x01, 0);
+    assert_snapshot!(format!("{:02X?}", report));
+}
+
+#[test]
+fn test_snapshot_t150_stop_effect() {
+    let report = tm::encode_stop_effect_t150(0);
+    assert_snapshot!(format!("{:02X?}", report));
+}
+
+#[test]
+fn test_snapshot_t150_stop_effect_id5() {
+    let report = tm::encode_stop_effect_t150(5);
+    assert_snapshot!(format!("{:02X?}", report));
+}
+
+#[test]
+fn test_snapshot_t150_effect_types() {
+    let types = [
+        tm::T150EffectType::Constant,
+        tm::T150EffectType::Sine,
+        tm::T150EffectType::SawtoothUp,
+        tm::T150EffectType::SawtoothDown,
+        tm::T150EffectType::Spring,
+        tm::T150EffectType::Damper,
+    ];
+    let results: Vec<String> = types
+        .iter()
+        .map(|ty| format!("{:?}=0x{:04X}", ty, ty.as_u16()))
+        .collect();
+    assert_snapshot!(results.join(", "));
+}

@@ -294,3 +294,67 @@ proptest! {
             "cmd 2 bytes [2,3] must encode the autocenter value");
     }
 }
+
+// ── T150/TMX wire-format property tests ──────────────────────────────────
+
+use racing_wheel_hid_thrustmaster_protocol::{
+    T150EffectType, encode_gain_t150, encode_play_effect_t150, encode_range_t150,
+    encode_stop_effect_t150,
+};
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(512))]
+
+    /// encode_range_t150 must always start with [0x40, 0x11] and round-trip
+    /// the range value via LE u16 at bytes [2,3].
+    #[test]
+    fn prop_t150_range_header_and_roundtrip(value: u16) {
+        let cmd = encode_range_t150(value);
+        prop_assert_eq!(cmd[0], 0x40, "byte 0 must be 0x40 (CMD_RANGE)");
+        prop_assert_eq!(cmd[1], 0x11, "byte 1 must be 0x11 (SUBCMD_RANGE)");
+        let decoded = u16::from_le_bytes([cmd[2], cmd[3]]);
+        prop_assert_eq!(decoded, value, "range value must round-trip via LE bytes");
+    }
+
+    /// encode_gain_t150 must preserve the gain byte at position 1.
+    #[test]
+    fn prop_t150_gain_preserves_value(gain: u8) {
+        let cmd = encode_gain_t150(gain);
+        prop_assert_eq!(cmd[0], 0x43, "byte 0 must be 0x43 (CMD_GAIN)");
+        prop_assert_eq!(cmd[1], gain, "byte 1 must be the gain value");
+    }
+
+    /// encode_play_effect_t150 must preserve all parameters in the correct positions.
+    #[test]
+    fn prop_t150_play_preserves_params(effect_id: u8, mode: u8, times: u8) {
+        let cmd = encode_play_effect_t150(effect_id, mode, times);
+        prop_assert_eq!(cmd[0], 0x41, "byte 0 must be 0x41 (CMD_EFFECT)");
+        prop_assert_eq!(cmd[1], effect_id, "byte 1 must be effect_id");
+        prop_assert_eq!(cmd[2], mode, "byte 2 must be mode");
+        prop_assert_eq!(cmd[3], times, "byte 3 must be times");
+    }
+
+    /// encode_stop_effect_t150 must be identical to play with mode=0, times=0.
+    #[test]
+    fn prop_t150_stop_equals_play_zero(effect_id: u8) {
+        let stop = encode_stop_effect_t150(effect_id);
+        let play = encode_play_effect_t150(effect_id, 0x00, 0x00);
+        prop_assert_eq!(stop, play, "stop must equal play(id, 0, 0)");
+    }
+
+    /// T150EffectType round-trips through as_u16 → from_u16 for all known types.
+    #[test]
+    fn prop_t150_effect_type_roundtrip(idx in 0usize..6usize) {
+        let types = [
+            T150EffectType::Constant,
+            T150EffectType::Sine,
+            T150EffectType::SawtoothUp,
+            T150EffectType::SawtoothDown,
+            T150EffectType::Spring,
+            T150EffectType::Damper,
+        ];
+        let ty = types[idx];
+        let decoded = T150EffectType::from_u16(ty.as_u16());
+        prop_assert_eq!(decoded, Some(ty), "effect type must round-trip");
+    }
+}
