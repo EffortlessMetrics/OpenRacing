@@ -30,7 +30,7 @@ pub const OPENFFBOARD_PRODUCT_ID: u16 = 0xFFB0;
 
 /// OpenFFBoard alternate product ID.
 ///
-/// **Unverified** (re-checked 2025-07): PID `0xFFB1` is *not* registered on
+/// **SPECULATIVE — no external evidence found** (re-checked 2025-07): PID `0xFFB1` is *not* registered on
 /// pid.codes (returns HTTP 404), does not appear in the official OpenFFBoard
 /// firmware (`usb_descriptors.cpp` only defines `USBD_PID 0xFFB0`), is absent
 /// from the configurator (`serial_ui.py`: `OFFICIAL_VID_PID = [(0x1209, 0xFFB0)]`),
