@@ -134,9 +134,10 @@ See friction log entry **F-005** for the history of why this document was create
 | `0xC24F` | G29 PlayStation/PC                  | Verified |
 | `0xC260` | G29 Xbox (pre-production variant)   | Verified |
 | `0xC261` | G920 V1 (pre-production)            | Verified |
-| `0xC262` | G920 Xbox/PC                        | Verified |
-| `0xC267` | G923 PlayStation/PC (TrueForce)     | Verified |
-| `0xC26E` | G923 Xbox/PC (TrueForce)            | Verified |
+| `0xC262` | G920 Xbox/PC (HID++ protocol)       | Verified |
+| `0xC266` | G923 PS/PC native mode (TrueForce, lg4ff protocol) | Verified |
+| `0xC267` | G923 PS/PC compat mode (TrueForce, switches → 0xC266) | Verified |
+| `0xC26E` | G923 Xbox/PC (TrueForce, HID++ protocol) | Verified |
 | `0xC268` | G PRO PlayStation/PC                | Verified |
 | `0xC272` | G PRO Xbox/PC                       | Verified |
 
@@ -416,6 +417,8 @@ The following external references were used during the verification waves docume
 | simracingcockpit.gg | [simracingcockpit.gg](https://simracingcockpit.gg/) | Torque spec cross-reference for Simagic EVO, Asetek, and Simucube 2 product lines |
 | rF2SharedMemoryMap (rF2State.h) | [github.com/TheIronWolf/rF2SharedMemoryMapPlugin](https://github.com/TheIronWolf/rF2SharedMemoryMapPlugin) | Authoritative struct definitions for rFactor 2 shared memory telemetry adapter rewrite |
 | berarma/oversteer | [github.com/berarma/oversteer](https://github.com/berarma/oversteer) | Linux steering wheel tool; Logitech, Fanatec, Thrustmaster PID cross-reference |
+| berarma/new-lg4ff | [github.com/berarma/new-lg4ff](https://github.com/berarma/new-lg4ff) | Out-of-tree Linux driver for Logitech wheels (G25–G923 PS); G923 PS mode-switch (report ID `0x30`, mode byte `0x07`, ident mask `0xff00`/`0x3800`); G923 FFB via classic lg4ff slot protocol; explicitly documents Xbox PIDs (`0xC26D`, `0xC26E`) as incompatible; **no TrueForce implementation** |
+| Linux kernel hid-logitech-hidpp.c | [torvalds/linux hid-logitech-hidpp.c](https://github.com/torvalds/linux/blob/master/drivers/hid/hid-logitech-hidpp.c) | Logitech HID++ protocol driver; G920 (`0xC262`) and G923 Xbox (`0xC26E`) use `HIDPP_QUIRK_CLASS_G920 \| HIDPP_QUIRK_FORCE_OUTPUT_REPORTS`; HID++ report IDs `0x10`/`0x11`/`0x12`; **no TrueForce code**; G923 Xbox since kernel ~6.3 |
 | devicehunt.com | [devicehunt.com](https://devicehunt.com/) | USB device database; Thrustmaster T500 RS PID correction |
 | the-sz.com USB ID database | [the-sz.com/products/usbid](https://www.the-sz.com/products/usbid/) | USB VID lookups for Leo Bodnar, Asetek, Cammus, PXN, VRS, Fanatec |
 | Kimplul/hid-tmff2 | [github.com/Kimplul/hid-tmff2](https://github.com/Kimplul/hid-tmff2) | Thrustmaster community FFB driver; T-GT II PID reuse confirmation, TS-XW correction; confirms T300RS family protocol (Report ID 0x60, 63-byte payloads) shared by T248/TX/TS-XW/TS-PC; T500RS **not** supported (issue #18); T150/TMX **not** supported |

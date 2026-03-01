@@ -237,6 +237,9 @@ pub fn build_set_range_dfp_report(degrees: u16) -> [u8; VENDOR_REPORT_LEN] {
 ///   - `0x03`: DFGT (Driving Force GT)
 ///   - `0x04`: G27
 ///   - `0x05`: G29
+///   - `0x07`: G923 PS (from `berarma/new-lg4ff` — **note**: the G923 PS
+///     uses HID report ID `0x30` instead of the default vendor report ID;
+///     see `lg4ff_mode_switch_30_g923` in new-lg4ff)
 ///
 /// `detach`: if `true`, byte 4 = `0x01` (detach from current HID device);
 ///           if `false`, byte 4 = `0x00`.

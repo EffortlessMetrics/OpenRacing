@@ -112,10 +112,15 @@ impl LogitechModel {
 
     /// Whether this model supports TrueForce haptics.
     ///
-    /// TrueForce is a proprietary Logitech haptic feedback feature
-    /// exclusive to the G923. No public protocol specification exists in
-    /// any open-source driver as of this writing; `berarma/new-lg4ff`
-    /// supports G923 standard FFB but does not implement TrueForce.
+    /// TrueForce is a proprietary Logitech high-frequency haptic feedback
+    /// feature exclusive to the G923 (both PS and Xbox variants). No public
+    /// protocol specification exists in any open-source driver as of this
+    /// writing: `berarma/new-lg4ff` supports G923 PS standard FFB but does
+    /// not implement TrueForce; the Linux kernel `hid-logitech-hidpp`
+    /// driver supports G923 Xbox standard FFB (as `QUIRK_CLASS_G920`) but
+    /// likewise has no TrueForce code; `cvuchener/libhidpp` and SDL have
+    /// no G923/TrueForce support at all. TrueForce requires the proprietary
+    /// Logitech G HUB software on Windows.
     pub fn supports_trueforce(self) -> bool {
         matches!(self, Self::G923)
     }

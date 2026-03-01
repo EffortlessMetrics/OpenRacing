@@ -220,6 +220,25 @@ pub mod product_ids {
     /// Not in mainline kernel. Oversteer labels this `LG_G923P` ("P" =
     /// PlayStation hardware variant; the PID itself is the *native* mode).
     ///
+    /// # Protocol
+    ///
+    /// In native mode (0xC266), the G923 PS uses the **classic lg4ff slot
+    /// protocol** (same 7-byte HID output reports as G25–G29). Standard FFB
+    /// effects (constant, spring, damper, friction, periodic) are fully
+    /// supported by `berarma/new-lg4ff`. The set-range command
+    /// (`{0xf8, 0x81, ...}`) uses `lg4ff_set_range_g25()` (same as G29).
+    ///
+    /// # TrueForce
+    ///
+    /// TrueForce is a proprietary Logitech high-frequency haptic feedback
+    /// system available on the G923. It provides vibrations beyond standard
+    /// FFB effects, reportedly synchronized with game audio. **No public
+    /// protocol documentation exists** — the TrueForce wire format is not
+    /// present in any open-source driver (kernel hid-lg4ff, new-lg4ff,
+    /// hid-logitech-hidpp, libhidpp, SDL, or libratbag) as of this
+    /// writing. TrueForce is only accessible through the proprietary
+    /// Logitech G HUB software on Windows. The G HUB SDK requires an NDA.
+    ///
     /// Verified: new-lg4ff `USB_DEVICE_ID_LOGITECH_G923_WHEEL = 0xc266`,
     /// oversteer `LG_G923P = '046d:c266'`.
     pub const G923: u16 = 0xC266;
@@ -229,9 +248,41 @@ pub mod product_ids {
     /// command to switch to [`G923`] (0xC266). Not in mainline kernel or
     /// oversteer (oversteer only sees native-mode devices).
     ///
+    /// # Mode switching
+    ///
+    /// The mode-switch command must be sent with **HID report ID `0x30`**
+    /// (not the default output report ID). The payload is:
+    /// `{0xf8, 0x09, 0x07, 0x01, 0x01, 0x00, 0x00}` (mode byte `0x07`).
+    /// Source: `lg4ff_mode_switch_30_g923` in `berarma/new-lg4ff`.
+    ///
+    /// The G923 PS mode identification mask is `0xff00` with result `0x3800`
+    /// (from `lg4ff_g923_ident_info` in new-lg4ff), used to detect whether
+    /// the wheel is in PS compat mode or has already been switched.
+    ///
     /// Verified: new-lg4ff `USB_DEVICE_ID_LOGITECH_G923_PS_WHEEL = 0xc267`.
     pub const G923_PS: u16 = 0xC267;
     /// G923 racing wheel (Xbox/PC, 900°, 2.2 Nm, TrueForce).
+    ///
+    /// # Protocol
+    ///
+    /// The Xbox/PC G923 uses the **HID++ protocol** (NOT the classic lg4ff
+    /// slot protocol). In the Linux kernel (`hid-logitech-hidpp.c`, since
+    /// v6.3), it is registered with the same quirks as the G920:
+    /// `HIDPP_QUIRK_CLASS_G920 | HIDPP_QUIRK_FORCE_OUTPUT_REPORTS`.
+    /// HID++ communication uses three report IDs:
+    ///   - `0x10`: short reports (7 bytes)
+    ///   - `0x11`: long reports (20 bytes)
+    ///   - `0x12`: very long reports (up to 64 bytes)
+    ///
+    /// The Xbox variant is **incompatible with new-lg4ff** (which uses the
+    /// classic lg4ff slot protocol). The new-lg4ff README explicitly notes
+    /// PIDs 0xC26D and 0xC26E as incompatible. (Note: 0xC26D does not appear
+    /// in any kernel or driver PID table; it may be a pre-production PID or
+    /// documentation error.)
+    ///
+    /// TrueForce hardware is present but, as with the PS variant, no public
+    /// protocol documentation exists and no open-source driver implements
+    /// TrueForce. See [`G923`] (0xC266) for detailed TrueForce notes.
     ///
     /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL = 0xc26e`,
     /// new-lg4ff `0xc26e`, oversteer `LG_G923X = '046d:c26e'`.
