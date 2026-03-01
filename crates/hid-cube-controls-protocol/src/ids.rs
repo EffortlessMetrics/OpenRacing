@@ -18,6 +18,8 @@
 //! **Research pass (2025-06 / 2025-07):** The following sources were checked:
 //! - JacKeTUs/linux-steering-wheels: **no** Cube Controls entries
 //!   <https://github.com/JacKeTUs/linux-steering-wheels>
+//! - JacKeTUs/simracing-hwdb: **no** Cube Controls hwdb file
+//!   <https://github.com/JacKeTUs/simracing-hwdb>
 //! - RetroBat Wheels.cs: **no** Cube Controls entries
 //!   <https://github.com/RetroBat-Official/emulatorlauncher/blob/master/emulatorLauncher/Common/Wheels.cs>
 //! - devicehunt.com (VID 0x0483): PIDs 0x0C73–0x0C75 **not registered**
@@ -28,6 +30,8 @@
 //! - SDL GameControllerDB: no Cube Controls entries
 //! - GitHub code search: no independent USB captures found
 //! - Reddit/RaceDepartment forums: no USB descriptor reports found
+//! - EffortlessMetrics/OpenFlight: uses **different** VID/PID estimates
+//!   (VID 0x0EB7 / PID 0x0E03) — also unconfirmed, likely incorrect
 //!
 //! **Known products not yet represented:**
 //! - GT-X2 (round wheel with 5" touchscreen, USB Q-CONN)

@@ -3,7 +3,11 @@
 //! VID `0x1FC9` is the NXP Semiconductors USB Vendor ID. SimXperience uses
 //! NXP USB chips internally for the AccuForce Pro wheelbase.
 //!
-//! Sources (verified 2025-06):
+//! **Note:** VID `0x1209` / PID `0x0001` (pid.codes) is a **test-only PID**
+//! reserved for private testing — it is NOT the AccuForce production VID/PID.
+//! See <https://pid.codes/1209/0001/>.
+//!
+//! Sources (verified 2025-07):
 //! - RetroBat Wheels.cs (commit 0a54752): `VID_1FC9&PID_804C`
 //!   <https://github.com/RetroBat-Official/emulatorlauncher/blob/master/emulatorLauncher/Common/Wheels.cs>
 //! - JacKeTUs/linux-steering-wheels compatibility table: VID `1fc9`,
@@ -12,6 +16,9 @@
 //! - Apkallu-Industries/Pitwall `SimXAccuforce.xml`:
 //!   `productId="804C" vendorId="1FC9"`, category "wheel"
 //!   <https://github.com/Apkallu-Industries/Pitwall>
+//!
+//! FFB protocol: standard HID PID (PIDFF). Linux driver is the generic
+//! `hid-pidff` kernel module — no vendor-specific driver required.
 //!
 //! The AccuForce Pro V1 and V2 share the same VID/PID — no V2-specific PID
 //! has been observed in any public source.

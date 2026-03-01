@@ -532,6 +532,13 @@ The SLI-M entry in `hid-leo-bodnar-protocol` used PID `0xBEEF`, which is a commo
 
 The OpenFFBoard alt PID `0xFFB1` is listed in the protocol crate but cannot be found in pid.codes (only `0xFFB0` registered), OpenFFBoard firmware source, or any USB capture database. It may have been speculatively added for a firmware variant that was never released. See also F-037.
 
+**Web verification (2025-07):** Re-checked against 5 independent sources:
+- pid.codes `1209/FFB1` → HTTP 404 (not registered)
+- OpenFFBoard firmware `usb_descriptors.cpp` → only `USBD_PID 0xFFB0`
+- OpenFFBoard-configurator `serial_ui.py` → `OFFICIAL_VID_PID = [(0x1209, 0xFFB0)]`
+- GitHub code search on `Ultrawipf/OpenFFBoard` for "FFB1" → zero results
+- JacKeTUs/linux-steering-wheels → only VID `1209` / PID `ffb0` listed (Platinum, hid-pidff)
+
 **Remedy:** Review OpenFFBoard firmware release history. If `0xFFB1` was never shipped, remove or deprecate the entry.
 
 ---
@@ -588,7 +595,15 @@ VRS Pedals V1 has undergone a PID change from `0xA357` to `0xA3BE`. The protocol
 
 The VRS DirectForce Pro V2 PID `0xA356` is present in the protocol crate but has not been independently verified via USB captures, linux-steering-wheels, or VRS official documentation. It may be an internal engineering PID or a community estimate.
 
-**Remedy:** Confirm PID via hardware capture or VRS support. Flag as provisional in protocol crate until verified.
+**Web verification (2025-07):** Re-checked against 4 independent sources:
+- Linux kernel `hid-ids.h` → only `USB_DEVICE_ID_VRS_DFP 0xa355` and `USB_DEVICE_ID_VRS_R295 0xa44c` (no 0xa356)
+- JacKeTUs/linux-steering-wheels → only VID `0483` / PID `a355` listed (Platinum, "Turtle Beach VRS")
+- JacKeTUs/simracing-hwdb `90-vrs.hwdb` → only `v0483pA355` (DFP) and `v0483pA3BE` (Pedals)
+- VRS website (virtualracingschool.com) → no USB identifiers published
+
+VRS is now branded "Turtle Beach VRS" in linux-steering-wheels (Turtle Beach acquired VRS).
+
+**Remedy:** Confirm PID via hardware capture or VRS/Turtle Beach support. Flag as provisional in protocol crate until verified.
 
 ---
 
@@ -607,6 +622,17 @@ All three Heusinkveld PIDs were originally under VID `0x16D0` with no external v
 **Encountered:** Wave 16 protocol verification (2025-06)
 
 Cube Controls PIDs `0x0C73`, `0x0C74`, `0x0C75` remain provisional with no external evidence from USB captures, vendor documentation, or community databases. Devices have been reclassified as button boxes (input-only, non-FFB) but PID accuracy is unconfirmed.
+
+**Web verification (2025-07):** Re-checked against 8 sources — still zero external evidence:
+- JacKeTUs/linux-steering-wheels: no Cube Controls entries
+- JacKeTUs/simracing-hwdb: no Cube Controls hwdb file
+- cubecontrols.com: no USB identifiers published (product pages checked)
+- Linux kernel `hid-ids.h`: no Cube Controls entries
+- SDL GameControllerDB: no Cube Controls entries
+- GitHub code search: no independent USB captures found
+- EffortlessMetrics/OpenFlight: uses completely different estimates (VID 0x0EB7 / PID 0x0E03) — also unconfirmed
+
+The OpenFlight discrepancy suggests multiple projects have independently guessed different VID/PIDs for Cube Controls with no authoritative source.
 
 **Remedy:** Obtain USB captures from Cube Controls hardware. Until confirmed, mark PIDs as provisional in protocol crate and device tables. See also F-038.
 
@@ -665,6 +691,20 @@ Our `build_rotation_range_report()` uses `[0x01, 0x12, range_lo, range_hi, ...]`
 
 ---
 
+### F-064 · GT7 extended packet types (316/344 bytes) not supported (Low · Open)
+
+**Encountered:** Wave 18 telemetry protocol verification (2025-07)
+
+GT7 v1.42+ (2023) added two new heartbeat types that return larger packets with additional telemetry fields. Our adapter only supports the original PacketType1 (heartbeat `"A"`, 296 bytes, XOR key `0xDEADBEAF`). The newer types are:
+- PacketType2 (heartbeat `"B"`, 316 bytes, XOR `0xDEADBEEF`): adds WheelRotation (radians), Sway, Heave, Surge — useful for motion platforms.
+- PacketType3 (heartbeat `"~"`, 344 bytes, XOR `0x55FABB4F`): adds energy recovery, filtered throttle/brake, car-type indicator.
+
+**Source:** [`Nenkai/PDTools`](https://github.com/Nenkai/PDTools) `SimulatorInterfaceClient.cs` (commit 5bb714c) and `SimulatorInterfaceCryptorGT7.cs`.
+
+**Remedy:** Add `PacketType` configuration to `GranTurismo7Adapter` (default to PacketType3 for maximum data). Requires parameterising the heartbeat byte, XOR key, and expected packet size. Low priority — all core telemetry fields (RPM, speed, gear, throttle, brake, tyre temps) are available in PacketType1.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
@@ -706,6 +746,15 @@ Our `build_rotation_range_report()` uses `[0x01, 0x12, range_lo, range_hi, ...]`
 ---
 
 ## Recent Progress
+
+### Wave 18 — Telemetry Protocol Verification (2025-07)
+Web-sourced verification of 5 game telemetry adapter protocols against authoritative references.
+
+- **Gran Turismo 7**: All field offsets, encryption (Salsa20, key, XOR `0xDEADBEAF`, nonce derivation), ports (recv 33740 / send 33739), packet size (296 bytes), flags bitmask, and gear encoding verified correct against [Nenkai/PDTools](https://github.com/Nenkai/PDTools) `SimulatorPacket.cs` + `SimulatorInterfaceCryptorGT7.cs`. Enhancement opportunity identified: GT7 ≥ 1.42 supports 316-byte and 344-byte extended packets with wheel rotation, sway/heave/surge, and energy recovery (F-064).
+- **rFactor 2**: Shared memory names (`$rFactor2SMMP_Telemetry$`, `$rFactor2SMMP_Scoring$`, `$rFactor2SMMP_ForceFeedback$`), `rF2VehicleTelemetry` field order, `rF2GamePhase` enum (0–8 + 9=paused), wheel fields, gear convention, and speed derivation all re-confirmed against [TheIronWolfModding/rF2SharedMemoryMapPlugin](https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin) `rF2State.h`. New electric motor fields (`mBatteryChargeFraction`, `mElectricBoostMotor*`) noted in rF2State.h but not yet exposed. No code changes needed.
+- **iRacing**: Transport (`Local\IRSDKMemMapFileName`), data-valid event (`Local\IRSDKDataValidEvent`), header layout (all 10 fields at correct offsets), VarBuffer (16 bytes), VarHeader (144 bytes), variable type IDs (char=0..double=5), session flags (checkered/green/yellow/red/blue), field names and units all verified against [kutu/pyirsdk](https://github.com/kutu/pyirsdk) v1.3.5. No discrepancies found.
+- **ACC**: UDP port 9000, protocol version 4, all 7 message types, registration packet format, gear encoding (wire 0=R, 1=N, 2=1st with −1 offset), and readonly flag semantics re-confirmed against Kunos ACC Broadcasting SDK. No changes needed.
+- **Codemasters/EA F1**: Default port 20777, F1 25 packet format 2025, 29-byte header, packet IDs (1=Session, 6=CarTelemetry, 7=CarStatus), CarTelemetryData (60 bytes/car), CarStatusData (55 bytes/car), NUM_CARS=22, ERS max 4 MJ — all verified. No discrepancies found.
 
 ### Wave 17 — E2E Protocol Coverage & PID Expansion (2025-06)
 - **E2E integration tests**: All 16 HID protocol crates now have dedicated E2E test files (224 new tests total)
@@ -782,6 +831,12 @@ Our `build_rotation_range_report()` uses `[0x01, 0x12, range_lo, range_hi, ...]`
 - **Protocol Verification**: All VID/PIDs re-verified against web sources (kernel hid-ids.h, linux-steering-wheels, pid.codes, devicehunt). No corrections needed beyond Heusinkveld.
 - **CI Fixes**: cargo-udeps false positives resolved for 8 crates; deprecated field detection false positive fixed (TelemetryFrame seq field ≠ removed TelemetryData seq field).
 - **Test Count**: 7,216 tests passing, 0 failures across 82 workspace crates.
+- **Lesser-documented device web verification (2025-07):**
+  - AccuForce: VID 0x1FC9 / PID 0x804C confirmed (Platinum, hid-pidff). pid.codes 0x1209/0x0001 is test-only PID.
+  - VRS DFP: PID 0xA355 confirmed (Platinum, hid-universal-pidff). DFP V2 PID 0xA356 still unverified in kernel/community (F-057).
+  - VRS now branded "Turtle Beach VRS" in linux-steering-wheels.
+  - OpenFFBoard: PID 0xFFB0 confirmed (Platinum, hid-pidff). PID 0xFFB1 has zero evidence across 5 sources (F-052).
+  - Cube Controls: PIDs 0x0C73–0x0C75 still zero external evidence across 8 sources. OpenFlight uses different estimates (F-059).
 
 ### Earlier Progress
 - Project CARS 3 adapter added

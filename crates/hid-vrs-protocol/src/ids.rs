@@ -16,13 +16,19 @@
 //!
 //! ## Verification status
 //!
+//! Last web-verified: 2025-07 against Linux kernel `hid-ids.h`, JacKeTUs/linux-steering-wheels,
+//! and JacKeTUs/simracing-hwdb.
+//!
+//! **Branding note:** VRS is now listed as "Turtle Beach VRS" in linux-steering-wheels
+//! (Turtle Beach acquired VRS). The USB VID/PID remains unchanged.
+//!
 //! | Field | Status | Source |
 //! |-------|--------|--------|
 //! | VID 0x0483 | ✅ Confirmed | STMicroelectronics (usb.org), devicehunt.com, Linux kernel `hid-ids.h` |
 //! | DFP PID 0xA355 | ✅ Confirmed | Linux kernel `hid-ids.h` (`USB_DEVICE_ID_VRS_DFP`), linux-steering-wheels (Platinum), simracing-hwdb |
 //! | R295 PID 0xA44C | ✅ Confirmed | Linux kernel `hid-ids.h` (`USB_DEVICE_ID_VRS_R295`), `hid-quirks.c` |
 //! | Pedals PID 0xA3BE | ✅ Confirmed (community) | JacKeTUs/simracing-hwdb `90-vrs.hwdb` (`v0483pA3BE`, "VRS DirectForce Pro Pedals") |
-//! | DFP V2 PID 0xA356 | ⚠ Unverified externally | Provisionally estimated; sequential assumption weakened by Pedals at 0xA3BE |
+//! | DFP V2 PID 0xA356 | ⚠ Unverified externally | Not in kernel `hid-ids.h`, not in linux-steering-wheels, not in simracing-hwdb (2025-07). Sequential assumption only. |
 //! | Pedals V2 PID 0xA358 | ⚠ Unverified externally | Provisionally estimated (sequential) |
 //! | Handbrake PID 0xA359 | ⚠ Unverified externally | Provisionally estimated (sequential) |
 //! | Shifter PID 0xA35A | ⚠ Unverified externally | Provisionally estimated (sequential) |
@@ -100,9 +106,10 @@ pub mod product_ids {
 
     /// VRS DirectForce Pro V2 wheelbase (25 Nm, ⚠ torque unverified).
     ///
-    /// ⚠ PID unverified externally. Originally estimated by sequential
-    /// numbering, but the Pedals PID (`0xA3BE`) breaking the sequence
-    /// weakens this assumption.
+    /// ⚠ PID unverified externally (re-checked 2025-07). Not present in Linux
+    /// kernel `hid-ids.h`, JacKeTUs/linux-steering-wheels, or simracing-hwdb.
+    /// Originally estimated by sequential numbering, but the Pedals PID
+    /// (`0xA3BE`) breaking the sequence weakens this assumption.
     pub const DIRECTFORCE_PRO_V2: u16 = 0xA356;
 
     /// VRS R295 wheelbase.
