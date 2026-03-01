@@ -1,14 +1,23 @@
 //! Cammus USB vendor and product ID constants.
 //!
-//! ## Verification status
+//! ## Verification status (web-verified 2025-07)
 //!
 //! | Field | Status | Source |
 //! |-------|--------|--------|
-//! | VID 0x3416 | ✅ Confirmed | Linux kernel `hid-ids.h` (`USB_VENDOR_ID_CAMMUS`), linux-steering-wheels |
-//! | C5 PID 0x0301 | ✅ Confirmed | Linux kernel `hid-ids.h` (`USB_DEVICE_ID_CAMMUS_C5`), linux-steering-wheels (Platinum), simracing-hwdb |
-//! | C12 PID 0x0302 | ✅ Confirmed | Linux kernel `hid-ids.h` (`USB_DEVICE_ID_CAMMUS_C12`), linux-steering-wheels (Platinum), simracing-hwdb |
-//! | CP5 Pedals PID 0x1018 | ✅ Confirmed (community) | JacKeTUs/simracing-hwdb `90-cammus.hwdb` |
-//! | LC100 Pedals PID 0x1019 | ✅ Confirmed (community) | JacKeTUs/simracing-hwdb `90-cammus.hwdb` |
+//! | VID 0x3416 | ✅ Confirmed | Linux kernel `hid-ids.h` (mainline ≥6.15, `USB_VENDOR_ID_CAMMUS`), the-sz.com ("Shenzhen Cammus Electronic Technology Com. Ltd."), linux-steering-wheels |
+//! | C5 PID 0x0301 | ✅ Confirmed | Linux kernel `hid-ids.h` (`USB_DEVICE_ID_CAMMUS_C5`), `hid-universal-pidff.c` device table, linux-steering-wheels (Platinum), simracing-hwdb |
+//! | C12 PID 0x0302 | ✅ Confirmed | Linux kernel `hid-ids.h` (`USB_DEVICE_ID_CAMMUS_C12`), `hid-universal-pidff.c` device table, linux-steering-wheels (Platinum), simracing-hwdb |
+//! | CP5 Pedals PID 0x1018 | ✅ Confirmed (community) | JacKeTUs/simracing-hwdb `90-cammus.hwdb` (`v3416p1018`) |
+//! | LC100 Pedals PID 0x1019 | ✅ Confirmed (community) | JacKeTUs/simracing-hwdb `90-cammus.hwdb` (`v3416p1019`) |
+//!
+//! ### USB-ID database cross-check (2025-07)
+//!
+//! - the-sz.com: VID `0x3416` = "Shenzhen Cammus Electronic Technology Com. Ltd."
+//!   (no product IDs listed in public databases)
+//! - usb-ids.gowdy.us: not found (404) — VID too new for this database
+//!
+//! Confidence: **High** — kernel mainline defines + `hid-universal-pidff.c` device
+//! table + community Platinum rating + simracing-hwdb confirms pedal PIDs.
 //!
 //! ## HID protocol notes
 //!
@@ -19,20 +28,23 @@
 
 /// Cammus USB Vendor ID (Shenzhen Cammus Electronic Technology Co., Ltd.).
 ///
-/// ✅ Confirmed: Linux kernel `hid-ids.h` (`USB_VENDOR_ID_CAMMUS = 0x3416`),
+/// ✅ Confirmed: Linux kernel `hid-ids.h` (mainline ≥6.15, `USB_VENDOR_ID_CAMMUS = 0x3416`),
+/// the-sz.com ("Shenzhen Cammus Electronic Technology Com. Ltd."),
 /// JacKeTUs/linux-steering-wheels compatibility table.
 pub const VENDOR_ID: u16 = 0x3416;
 
 /// Cammus C5 (5 Nm desktop direct drive wheel) product ID.
 ///
-/// ✅ Confirmed: Linux kernel `hid-ids.h` (`USB_DEVICE_ID_CAMMUS_C5 = 0x0301`),
-/// linux-steering-wheels (Platinum rating), simracing-hwdb.
+/// ✅ Confirmed: Linux kernel `hid-ids.h` (mainline ≥6.15, `USB_DEVICE_ID_CAMMUS_C5 = 0x0301`),
+/// `hid-universal-pidff.c` device table, linux-steering-wheels (Platinum rating),
+/// simracing-hwdb (`v3416p0301`).
 pub const PRODUCT_C5: u16 = 0x0301;
 
 /// Cammus C12 (12 Nm desktop direct drive wheel) product ID.
 ///
-/// ✅ Confirmed: Linux kernel `hid-ids.h` (`USB_DEVICE_ID_CAMMUS_C12 = 0x0302`),
-/// linux-steering-wheels (Platinum rating), simracing-hwdb.
+/// ✅ Confirmed: Linux kernel `hid-ids.h` (mainline ≥6.15, `USB_DEVICE_ID_CAMMUS_C12 = 0x0302`),
+/// `hid-universal-pidff.c` device table, linux-steering-wheels (Platinum rating),
+/// simracing-hwdb (`v3416p0302`).
 pub const PRODUCT_C12: u16 = 0x0302;
 
 /// Cammus CP5 Pedals product ID.

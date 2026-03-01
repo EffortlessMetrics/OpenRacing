@@ -14,18 +14,18 @@
 //! alone. See `crates/engine/src/hid/vendor/mod.rs` for the dispatch logic
 //! and `docs/FRICTION_LOG.md` (F-034) for details.
 //!
-//! ## Verification status
+//! ## Verification status (web-verified 2025-07)
 //!
-//! Last web-verified: 2025-07 against Linux kernel `hid-ids.h`, JacKeTUs/linux-steering-wheels,
-//! and JacKeTUs/simracing-hwdb.
+//! Checked against: Linux kernel `hid-ids.h` (mainline), `hid-universal-pidff.c` (mainline),
+//! JacKeTUs/linux-steering-wheels, JacKeTUs/simracing-hwdb, the-sz.com, usb-ids.gowdy.us.
 //!
 //! **Branding note:** VRS is now listed as "Turtle Beach VRS" in linux-steering-wheels
 //! (Turtle Beach acquired VRS). The USB VID/PID remains unchanged.
 //!
 //! | Field | Status | Source |
 //! |-------|--------|--------|
-//! | VID 0x0483 | ✅ Confirmed | STMicroelectronics (usb.org), devicehunt.com, Linux kernel `hid-ids.h` |
-//! | DFP PID 0xA355 | ✅ Confirmed | Linux kernel `hid-ids.h` (`USB_DEVICE_ID_VRS_DFP`), linux-steering-wheels (Platinum), simracing-hwdb |
+//! | VID 0x0483 | ✅ Confirmed | STMicroelectronics (usb.org), the-sz.com, usb-ids.gowdy.us, Linux kernel `hid-ids.h` (mainline) |
+//! | DFP PID 0xA355 | ✅ Confirmed | Linux kernel `hid-ids.h` (`USB_DEVICE_ID_VRS_DFP`), `hid-universal-pidff.c` device table (with `HID_PIDFF_QUIRK_PERMISSIVE_CONTROL`), linux-steering-wheels (Platinum), simracing-hwdb |
 //! | R295 PID 0xA44C | ✅ Confirmed | Linux kernel `hid-ids.h` (`USB_DEVICE_ID_VRS_R295`), `hid-quirks.c` |
 //! | Pedals PID 0xA3BE | ✅ Confirmed (community) | JacKeTUs/simracing-hwdb `90-vrs.hwdb` (`v0483pA3BE`, "VRS DirectForce Pro Pedals") |
 //! | DFP V2 PID 0xA356 | ⚠ Unverified externally | Not in kernel `hid-ids.h`, not in linux-steering-wheels, not in simracing-hwdb (2025-07). Sequential assumption only. |
@@ -34,21 +34,32 @@
 //! | Shifter PID 0xA35A | ⚠ Unverified externally | Provisionally estimated (sequential) |
 //! | DFP torque 20 Nm | ✅ Confirmed | simracinggarage.com review ("20nm Mige motors") |
 //! | DFP V2 torque 25 Nm | ⚠ Unverified | No authoritative source found |
+//!
+//! ### USB-ID database cross-check (2025-07)
+//!
+//! - the-sz.com: VID `0x0483` = "STMicroelectronics" (no VRS products listed — expected,
+//!   as VRS uses the generic STM VID and these databases don't track STM32 end-products)
+//! - usb-ids.gowdy.us: same — only generic STM devices listed under `0x0483`
+//!
+//! Confidence: DFP + R295 = **High** (kernel mainline). Pedals = **High** (simracing-hwdb).
+//! V2/Handbrake/Shifter = **Low** (sequential estimates only).
 
 /// VRS DirectForce Pro USB Vendor ID (STMicroelectronics generic VID).
 ///
 /// **Shared VID** — also used by legacy Simagic (PID `0x0522`) and Cube Controls.
 /// Dispatch by PID is required at runtime.
 ///
-/// Source: Linux kernel `hid-ids.h` (`USB_VENDOR_ID_VRS`), usb.org, devicehunt.com.
+/// Source: Linux kernel `hid-ids.h` (`USB_VENDOR_ID_VRS`), usb.org,
+/// the-sz.com ("STMicroelectronics"), usb-ids.gowdy.us ("STMicroelectronics").
 pub const VRS_VENDOR_ID: u16 = 0x0483;
 
 /// VRS DirectForce Pro Product ID.
 ///
-/// ✅ Confirmed: Linux kernel `hid-ids.h` (`USB_DEVICE_ID_VRS_DFP = 0xa355`),
-/// `hid-universal-pidff.c` driver (Platinum rating), JacKeTUs/linux-steering-wheels
-/// compatibility table, and JacKeTUs/simracing-hwdb `90-vrs.hwdb`.
-/// Covers all DFP variants: uDFP20, DFP15, DFP20 (same PID per linux-steering-wheels).
+/// ✅ Confirmed: Linux kernel `hid-ids.h` (mainline, `USB_DEVICE_ID_VRS_DFP = 0xa355`),
+/// `hid-universal-pidff.c` device table (with `HID_PIDFF_QUIRK_PERMISSIVE_CONTROL`),
+/// JacKeTUs/linux-steering-wheels (Platinum rating), and JacKeTUs/simracing-hwdb
+/// `90-vrs.hwdb`. Covers all DFP variants: uDFP20, DFP15, DFP20 (same PID per
+/// linux-steering-wheels).
 pub const VRS_PRODUCT_ID: u16 = 0xA355;
 
 /// HID Report IDs used in the VRS DirectForce Pro HID protocol (PIDFF).

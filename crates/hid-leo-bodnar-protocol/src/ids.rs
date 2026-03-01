@@ -2,11 +2,39 @@
 //!
 //! VID `0x1DD2` is assigned to Leo Bodnar Electronics Ltd (UK).
 //!
-//! Sources: USB ID databases (devicehunt.com, the-sz.com, linux-hardware.org),
-//! USB device captures, linux-steering-wheels compatibility table,
-//! community reports, and the existing OpenRacing engine vendor list.
+//! ## Web-verification status (2025-07)
+//!
+//! ### VID confirmation
+//! - the-sz.com/products/usbid: VID `0x1DD2` = "LEO BODNAR" ✅
+//! - devicehunt.com: VID `0x1DD2` = "Leo Bodnar Electronics Ltd" (no PIDs listed) ✅
+//! - usb-ids.gowdy.us: VID listed, minimal content (no product IDs)
+//!
+//! ### PID confirmation
+//! - **Not in mainline Linux kernel `hid-ids.h`** — Leo Bodnar has no
+//!   dedicated HID driver in the kernel (devices use generic `hid-pidff`).
+//! - **Not in JacKeTUs/linux-steering-wheels** compatibility table.
+//! - JacKeTUs/simracing-hwdb `90-leo-bodnar.hwdb`:
+//!   - Pedals controller: `v1DD2p100C` (PID `0x100C`) — **not in our code**
+//!   - LC Pedals controller: `v1DD2p22D0` (PID `0x22D0`) — **not in our code**
+//! - No public USB-IF product ID database lists Leo Bodnar PIDs.
+//!
+//! Confidence: VID = **High** (USB-IF registered). Confirmed PIDs (`0x0001`,
+//! `0x000C`, `0x000E`, `0x000F`) = **Medium** (community captures, no official
+//! registry). Estimated PIDs (`0x000B`, `0x0030`, `0x0031`, `0x1301`) = **Low**.
+//!
+//! ### Community PIDs not yet tracked
+//! - PID `0x100C`: Leo Bodnar pedals controller (simracing-hwdb)
+//! - PID `0x22D0`: Leo Bodnar LC pedals controller (simracing-hwdb)
+//! TODO: Add PID `0x100C` and `0x22D0` after confirming with a second source.
+//!
+//! Sources: USB ID databases (devicehunt.com, the-sz.com), USB device captures,
+//! JacKeTUs/simracing-hwdb, community reports, and the existing OpenRacing
+//! engine vendor list.
 
 /// Leo Bodnar USB Vendor ID.
+///
+/// ✅ Confirmed: the-sz.com ("LEO BODNAR"), devicehunt.com ("Leo Bodnar Electronics Ltd").
+/// Web-verified 2025-07.
 pub const VENDOR_ID: u16 = 0x1DD2;
 
 // ── Confirmed product IDs ────────────────────────────────────────────────────

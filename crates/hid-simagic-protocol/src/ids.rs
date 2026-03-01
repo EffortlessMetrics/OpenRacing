@@ -17,17 +17,25 @@
 //! or `0x368E`; these are **not confirmed** by the `simagic-ff` kernel driver
 //! source or the `linux-steering-wheels` compatibility table.
 //!
-//! # Sources (verified 2025-07)
+//! # Sources (web-verified 2025-07)
 //!
+//! - the-sz.com/products/usbid: VID `0x3670` = "Shen Zhen Simagic Technology Co., Limited" ✅
+//! - the-sz.com/products/usbid: VID `0x0483` = "STMicroelectronics" ✅
+//! - usb-ids.gowdy.us: VID `0x0483` = "STMicroelectronics" (no Simagic products listed) ✅
+//! - usb-ids.gowdy.us: VID `0x3670` not found (404) — too new for this database
 //! - JacKeTUs/simagic-ff `hid-simagic.h` (commit 52e73e7):
 //!   `USB_VENDOR_ID_SIMAGIC_ALPHA=0x0483`, `USB_VENDOR_ID_SIMAGIC=0x3670`,
 //!   `USB_DEVICE_ID_SIMAGIC_ALPHA=0x0522`, `USB_DEVICE_ID_SIMAGIC_EVO=0x0500`,
 //!   `USB_DEVICE_ID_SIMAGIC_EVO_1=0x0501`, `USB_DEVICE_ID_SIMAGIC_EVO_2=0x0502`
 //! - JacKeTUs/linux-steering-wheels README.md compatibility table:
-//!   M10=0x0483:0x0522 (hid-pidff), Alpha Mini/Alpha/Alpha Ultimate=0x0483:0x0522
-//!   (simagic-ff), EVO Sport=0x3670:0x0500, EVO=0x3670:0x0501, EVO Pro=0x3670:0x0502
+//!   M10=0x0483:0x0522 (hid-pidff, Silver), Alpha Mini/Alpha/Alpha Ultimate=0x0483:0x0522
+//!   (simagic-ff, Silver), EVO Sport=0x3670:0x0500, EVO=0x3670:0x0501, EVO Pro=0x3670:0x0502
 //! - JacKeTUs/simagic-ff README.md udev rules: VID `0x3670` for GT Neo + EVO,
 //!   VID `0x0483` for older wheelbases
+//! - JacKeTUs/simracing-hwdb `90-simagic.hwdb`: TB-RS Handbrake = `v3670p0A04` (PID `0x0A04`)
+//!
+//! **Note**: Simagic is NOT in mainline Linux kernel `hid-ids.h` — all PIDs are
+//! confirmed only via the out-of-tree JacKeTUs/simagic-ff driver and community tables.
 
 #![deny(static_mut_refs)]
 
@@ -35,11 +43,13 @@
 ///
 /// Verified: `USB_VENDOR_ID_SIMAGIC=0x3670` in JacKeTUs/simagic-ff `hid-simagic.h`.
 /// Also confirmed by udev rules for "GT Neo, Evo wheelbases" in the same repo.
+/// the-sz.com: "Shen Zhen Simagic Technology Co., Limited" (web-verified 2025-07).
 pub const SIMAGIC_VENDOR_ID: u16 = 0x3670;
 
 /// Legacy Simagic VID (STMicroelectronics generic, shared with VRS DirectForce Pro).
 ///
 /// Verified: `USB_VENDOR_ID_SIMAGIC_ALPHA=0x0483` in JacKeTUs/simagic-ff `hid-simagic.h`.
+/// the-sz.com: "STMicroelectronics"; usb-ids.gowdy.us: "STMicroelectronics" (web-verified 2025-07).
 /// Used by: Alpha Mini, Alpha, Alpha Ultimate, and M10 (all share PID `0x0522`).
 /// On old firmware (pre-v159), these devices expose a HID PID descriptor and work
 /// with the kernel `hid-pidff` driver. On new firmware (post-v159 / SimPro v2),
@@ -203,7 +213,13 @@ pub mod product_ids {
     pub const SHIFTER_H: u16 = 0x2001;
     /// Simagic Sequential shifter (**estimated PID**).
     pub const SHIFTER_SEQ: u16 = 0x2002;
-    /// Simagic Handbrake (**estimated PID**).
+    /// Simagic Handbrake (**estimated PID — likely wrong**).
+    ///
+    /// ⚠ simracing-hwdb `90-simagic.hwdb` lists the **TB-RS Handbrake** as
+    /// VID `0x3670`, PID `0x0A04` (`v3670p0A04`), which contradicts this
+    /// placeholder value. However, since we have only one source, the value
+    /// is left unchanged pending a second independent confirmation.
+    /// TODO: verify PID `0x0A04` from a USB descriptor dump or second source.
     pub const HANDBRAKE: u16 = 0x3001;
     /// Simagic WR1 steering wheel rim (**estimated PID**).
     pub const RIM_WR1: u16 = 0x4001;
