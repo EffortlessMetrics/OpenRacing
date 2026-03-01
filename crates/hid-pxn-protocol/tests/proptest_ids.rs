@@ -42,17 +42,14 @@ proptest! {
     #[test]
     fn prop_known_pids_nonzero(idx in 0usize..5usize) {
         let pid = ALL_PIDS[idx];
-        prop_assert!(pid != 0,
-            "PID at index {idx} must not be zero");
+        prop_assert!(pid != 0);
     }
 
     /// All known PIDs must be unique (no duplicates).
     #[test]
     fn prop_pids_unique(idx_a in 0usize..5usize, idx_b in 0usize..5usize) {
         if idx_a != idx_b {
-            prop_assert!(ALL_PIDS[idx_a] != ALL_PIDS[idx_b],
-                "PIDs at index {idx_a} and {idx_b} must differ, both are {:#06x}",
-                ALL_PIDS[idx_a]);
+            prop_assert!(ALL_PIDS[idx_a] != ALL_PIDS[idx_b]);
         }
     }
 
@@ -77,9 +74,8 @@ proptest! {
     /// is_pxn with the correct VID must return false for unknown PIDs.
     #[test]
     fn prop_is_pxn_unknown_pid(pid: u16) {
-        let is_known = ALL_PIDS.contains(&pid);
-        prop_assert_eq!(is_pxn(VENDOR_ID, pid), is_known,
-            "is_pxn(VENDOR_ID, {pid:#06x}) must be {is_known}");
+        let known = ALL_PIDS.contains(&pid);
+        prop_assert_eq!(is_pxn(VENDOR_ID, pid), known);
     }
 
     /// product_name must return Some for all known PIDs.
@@ -105,8 +101,7 @@ proptest! {
     fn prop_product_name_contains_brand(idx in 0usize..5usize) {
         let pid = ALL_PIDS[idx];
         if let Some(name) = product_name(pid) {
-            prop_assert!(name.contains("PXN") || name.contains("Lite Star"),
-                "product_name({pid:#06x}) must contain 'PXN' or 'Lite Star', got '{name}'");
+            prop_assert!(name.contains("PXN") || name.contains("Lite Star"));
         }
     }
 
@@ -139,9 +134,7 @@ proptest! {
     #[test]
     fn prop_product_name_consistent_with_is_pxn(pid: u16) {
         let has_name = product_name(pid).is_some();
-        let is_known = is_pxn(VENDOR_ID, pid);
-        prop_assert_eq!(has_name, is_known,
-            "product_name and is_pxn must agree for PID {pid:#06x}: \
-             has_name={has_name}, is_known={is_known}");
+        let known = is_pxn(VENDOR_ID, pid);
+        prop_assert_eq!(has_name, known);
     }
 }
