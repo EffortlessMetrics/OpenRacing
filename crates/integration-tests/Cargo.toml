@@ -44,6 +44,7 @@ racing-wheel-hid-leo-bodnar-protocol = { path = "../hid-leo-bodnar-protocol" }
 racing-wheel-hid-accuforce-protocol = { path = "../hid-accuforce-protocol" }
 hid-cube-controls-protocol = { path = "../hid-cube-controls-protocol" }
 racing-wheel-hid-cammus-protocol = { path = "../hid-cammus-protocol" }
+racing-wheel-hid-pxn-protocol = { path = "../hid-pxn-protocol" }
 hid-button-box-protocol = { path = "../hid-button-box-protocol" }
 hid-simucube-protocol = { path = "../hid-simucube-protocol" }
 tokio = { workspace = true, features = ["full"] }

@@ -330,6 +330,58 @@ fn dispatch_returns_none_for_unknown_vid() -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
+// ─── PXN / Lite Star (VID 0x11FF) ──────────────────────────────────────────
+
+#[test]
+fn dispatch_routes_pxn_v10() -> Result<(), Box<dyn std::error::Error>> {
+    let proto = get_vendor_protocol(
+        racing_wheel_hid_pxn_protocol::VENDOR_ID,
+        racing_wheel_hid_pxn_protocol::PRODUCT_V10,
+    );
+    assert!(proto.is_some(), "PXN V10 must be dispatched");
+    Ok(())
+}
+
+#[test]
+fn dispatch_routes_pxn_v12() -> Result<(), Box<dyn std::error::Error>> {
+    let proto = get_vendor_protocol(
+        racing_wheel_hid_pxn_protocol::VENDOR_ID,
+        racing_wheel_hid_pxn_protocol::PRODUCT_V12,
+    );
+    assert!(proto.is_some(), "PXN V12 must be dispatched");
+    Ok(())
+}
+
+#[test]
+fn dispatch_routes_pxn_v12_lite() -> Result<(), Box<dyn std::error::Error>> {
+    let proto = get_vendor_protocol(
+        racing_wheel_hid_pxn_protocol::VENDOR_ID,
+        racing_wheel_hid_pxn_protocol::PRODUCT_V12_LITE,
+    );
+    assert!(proto.is_some(), "PXN V12 Lite must be dispatched");
+    Ok(())
+}
+
+#[test]
+fn dispatch_routes_pxn_gt987() -> Result<(), Box<dyn std::error::Error>> {
+    let proto = get_vendor_protocol(
+        racing_wheel_hid_pxn_protocol::VENDOR_ID,
+        racing_wheel_hid_pxn_protocol::PRODUCT_GT987,
+    );
+    assert!(proto.is_some(), "Lite Star GT987 must be dispatched");
+    Ok(())
+}
+
+#[test]
+fn dispatch_skips_non_pxn_pid() -> Result<(), Box<dyn std::error::Error>> {
+    let proto = get_vendor_protocol(racing_wheel_hid_pxn_protocol::VENDOR_ID, 0x0001);
+    assert!(
+        proto.is_none(),
+        "non-PXN PID on PXN VID must return None"
+    );
+    Ok(())
+}
+
 // ─── Comprehensive: all vendor VIDs produce Some for representative PIDs ────
 
 #[test]
@@ -367,6 +419,11 @@ fn all_vendor_vids_dispatch_for_representative_pids() -> Result<(), Box<dyn std:
         (0x1FC9, 0x804C, "AccuForce"),
         (0x1DD2, 0x000E, "Leo Bodnar"),
         (0x1209, 0xFFB0, "OpenFFBoard"),
+        (
+            racing_wheel_hid_pxn_protocol::VENDOR_ID,
+            racing_wheel_hid_pxn_protocol::PRODUCT_V10,
+            "PXN",
+        ),
     ];
 
     for (vid, pid, label) in cases {

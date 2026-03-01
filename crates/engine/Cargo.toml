@@ -27,6 +27,7 @@ hid-heusinkveld-protocol = { path = "../hid-heusinkveld-protocol" }
 racing-wheel-hid-openffboard-protocol = { path = "../hid-openffboard-protocol" }
 racing-wheel-hid-ffbeast-protocol = { path = "../hid-ffbeast-protocol" }
 racing-wheel-hid-cammus-protocol = { path = "../hid-cammus-protocol" }
+racing-wheel-hid-pxn-protocol = { path = "../hid-pxn-protocol" }
 hid-cube-controls-protocol = { path = "../hid-cube-controls-protocol" }
 racing-wheel-hid-leo-bodnar-protocol = { workspace = true }
 racing-wheel-hid-accuforce-protocol = { workspace = true }
