@@ -211,11 +211,11 @@ pub const MIN_ROTATION_DEGREES: u16 = 90;
 /// Note: The Linux driver (`hid-ftecff.c:ftec_probe`) sets per-device max ranges:
 /// - ClubSport V2/V2.5, CSR Elite: 900°
 /// - CSL Elite, CSL Elite PS4: 1080° (technically 1090 as "auto" sentinel)
-/// - DD1, DD2, CSL DD: 2520° (technically 2530 as "auto" sentinel)
+/// - DD1, DD2, CSL DD, ClubSport DD+: 2520° (technically 2530 as "auto" sentinel)
 ///
-/// This constant reflects the legacy / CSL Elite maximum. Direct-drive bases
-/// accept higher values (up to 2520°) via the same protocol command.
-pub const MAX_ROTATION_DEGREES: u16 = 1080;
+/// Use [`FanatecModel::max_rotation_degrees`] for model-specific limits.
+/// This constant reflects the DD maximum for the protocol layer.
+pub const MAX_ROTATION_DEGREES: u16 = 2520;
 
 /// Build the 8-byte output report that configures the steering wheel rotation range.
 ///
@@ -430,7 +430,7 @@ mod tests {
         let range = u16::from_le_bytes([report[2], report[3]]);
         assert_eq!(
             range, MAX_ROTATION_DEGREES,
-            "must clamp to MAX_ROTATION_DEGREES"
+            "must clamp to MAX_ROTATION_DEGREES (2520)"
         );
         Ok(())
     }

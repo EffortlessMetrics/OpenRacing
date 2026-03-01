@@ -85,6 +85,30 @@ impl FanatecModel {
             Self::CslDd | Self::GtDdPro | Self::ClubSportDd | Self::Dd1 | Self::Dd2
         )
     }
+
+    /// Maximum supported steering rotation in degrees.
+    ///
+    /// Direct-drive bases support up to 2520° (sentinel 2530 in Linux driver).
+    /// Belt-driven bases support up to 900° (ClubSport/CSR) or 1080° (CSL Elite).
+    /// Source: `hid-ftecff.c:ftec_probe` per-device max_range assignments.
+    pub fn max_rotation_degrees(self) -> u16 {
+        match self {
+            Self::Dd1 | Self::Dd2 | Self::CslDd | Self::GtDdPro | Self::ClubSportDd => 2520,
+            Self::CslElite => 1080,
+            Self::ClubSportV2 | Self::ClubSportV25 | Self::CsrElite => 900,
+            Self::Unknown => 900,
+        }
+    }
+
+    /// Whether this model uses high-resolution (16-bit) force encoding.
+    ///
+    /// Source: `FTEC_HIGHRES` quirk flag in `hid-ftec.c` device table.
+    pub fn is_highres(self) -> bool {
+        matches!(
+            self,
+            Self::Dd1 | Self::Dd2 | Self::CslDd | Self::GtDdPro | Self::ClubSportDd
+        )
+    }
 }
 
 /// Return `true` if the product ID corresponds to a wheelbase (not pedals or rim accessories).
