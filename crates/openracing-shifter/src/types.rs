@@ -200,4 +200,69 @@ mod tests {
         assert_eq!(MAX_GEARS, 8);
         assert_eq!(NEUTRAL_GEAR, 0);
     }
+
+    #[test]
+    fn test_gear_position_clone_copy() {
+        let a = GearPosition::new(3);
+        let b = a;
+        #[allow(clippy::clone_on_copy)]
+        let c = a.clone();
+        assert_eq!(a, b);
+        assert_eq!(a, c);
+    }
+
+    #[test]
+    fn test_shifter_type_clone_copy() {
+        let a = ShifterType::HPattern;
+        let b = a;
+        #[allow(clippy::clone_on_copy)]
+        let c = a.clone();
+        assert_eq!(a, b);
+        assert_eq!(a, c);
+    }
+
+    #[test]
+    fn test_shifter_capabilities_clone_copy() {
+        let a = ShifterCapabilities::h_pattern();
+        let b = a;
+        #[allow(clippy::clone_on_copy)]
+        let c = a.clone();
+        assert_eq!(a, b);
+        assert_eq!(a, c);
+    }
+
+    #[test]
+    fn test_gear_position_eq() {
+        assert_eq!(GearPosition::new(3), GearPosition::new(3));
+        assert_ne!(GearPosition::new(3), GearPosition::new(4));
+        assert_ne!(GearPosition::neutral(), GearPosition::reverse());
+    }
+
+    #[test]
+    fn test_shifter_capabilities_h_pattern_details() {
+        let caps = ShifterCapabilities::h_pattern();
+        assert_eq!(caps.max_gears, 6);
+        assert!(caps.has_clutch);
+        assert!(!caps.has_paddle_shifters);
+    }
+
+    #[test]
+    fn test_shifter_capabilities_sequential_details() {
+        let caps = ShifterCapabilities::sequential();
+        assert_eq!(caps.max_gears, MAX_GEARS);
+        assert!(!caps.has_clutch);
+        assert!(caps.has_paddle_shifters);
+    }
+
+    #[test]
+    fn test_gear_position_from_raw_boundary() {
+        // 0 → neutral
+        assert!(GearPosition::from_raw(0).is_neutral);
+        assert_eq!(GearPosition::from_raw(0).gear, 0);
+
+        // 7 → highest valid gear
+        assert_eq!(GearPosition::from_raw(7).gear, 7);
+        assert!(!GearPosition::from_raw(7).is_neutral);
+        assert!(!GearPosition::from_raw(7).is_reverse);
+    }
 }

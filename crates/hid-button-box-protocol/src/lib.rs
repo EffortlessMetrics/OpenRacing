@@ -98,4 +98,63 @@ mod tests {
         assert_eq!(VENDOR_ID_GENERIC, 0x1209);
         assert_eq!(PRODUCT_ID_BUTTON_BOX, 0x1BBD);
     }
+
+    #[test]
+    fn test_error_debug_format() {
+        let err = ButtonBoxError::InvalidReportSize {
+            expected: 8,
+            actual: 2,
+        };
+        let debug = format!("{:?}", err);
+        assert!(!debug.is_empty());
+
+        let err2 = ButtonBoxError::InvalidButtonIndex(10);
+        let debug2 = format!("{:?}", err2);
+        assert!(!debug2.is_empty());
+
+        let err3 = ButtonBoxError::InvalidAxisIndex(5);
+        let debug3 = format!("{:?}", err3);
+        assert!(!debug3.is_empty());
+
+        let err4 = ButtonBoxError::HidError("device lost".into());
+        let debug4 = format!("{:?}", err4);
+        assert!(!debug4.is_empty());
+    }
+
+    #[test]
+    fn test_error_from_hid_common() {
+        let hid_err = openracing_hid_common::HidCommonError::InvalidReport("bad format".into());
+        let bb_err: ButtonBoxError = hid_err.into();
+        assert!(matches!(bb_err, ButtonBoxError::HidError(_)));
+        assert!(bb_err.to_string().contains("bad format"));
+    }
+
+    #[test]
+    fn test_buttonbox_result_ok() -> ButtonBoxResult<()> {
+        let val: ButtonBoxResult<u32> = Ok(42);
+        assert!(val.is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn test_buttonbox_result_err() {
+        let val: ButtonBoxResult<u32> = Err(ButtonBoxError::InvalidButtonIndex(33));
+        assert!(val.is_err());
+        assert!(matches!(val, Err(ButtonBoxError::InvalidButtonIndex(33))));
+    }
+
+    #[test]
+    fn test_error_report_size_pattern_match() {
+        let err = ButtonBoxError::InvalidReportSize {
+            expected: 12,
+            actual: 3,
+        };
+        assert!(matches!(
+            err,
+            ButtonBoxError::InvalidReportSize {
+                expected: 12,
+                actual: 3
+            }
+        ));
+    }
 }

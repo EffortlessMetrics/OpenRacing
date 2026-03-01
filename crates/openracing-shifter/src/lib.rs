@@ -57,4 +57,39 @@ mod tests {
             err.to_string().contains("disconnected") || err.to_string().contains("Disconnected")
         );
     }
+
+    #[test]
+    fn test_error_debug_format() {
+        let err = ShifterError::InvalidGear(7);
+        let debug = format!("{:?}", err);
+        assert!(!debug.is_empty());
+
+        let err2 = ShifterError::InvalidReport;
+        let debug2 = format!("{:?}", err2);
+        assert!(!debug2.is_empty());
+
+        let err3 = ShifterError::Disconnected;
+        let debug3 = format!("{:?}", err3);
+        assert!(!debug3.is_empty());
+    }
+
+    #[test]
+    fn test_shifter_result_ok() -> ShifterResult<()> {
+        let val: ShifterResult<i32> = Ok(3);
+        assert!(val.is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn test_shifter_result_err() {
+        let val: ShifterResult<i32> = Err(ShifterError::InvalidGear(-1));
+        assert!(val.is_err());
+        assert!(matches!(val, Err(ShifterError::InvalidGear(-1))));
+    }
+
+    #[test]
+    fn test_error_invalid_report_matches() {
+        let result: ShifterResult<()> = Err(ShifterError::InvalidReport);
+        assert!(matches!(result, Err(ShifterError::InvalidReport)));
+    }
 }

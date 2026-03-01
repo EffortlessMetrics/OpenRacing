@@ -49,4 +49,29 @@ mod tests {
             err.to_string().contains("disconnected") || err.to_string().contains("Disconnected")
         );
     }
+
+    #[test]
+    fn test_error_debug_format() {
+        let err = HandbrakeError::InvalidPosition(42);
+        let debug = format!("{:?}", err);
+        assert!(!debug.is_empty());
+
+        let err2 = HandbrakeError::Disconnected;
+        let debug2 = format!("{:?}", err2);
+        assert!(!debug2.is_empty());
+    }
+
+    #[test]
+    fn test_handbrake_result_ok() -> HandbrakeResult<()> {
+        let val: HandbrakeResult<u32> = Ok(42);
+        assert!(val.is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn test_handbrake_result_err() {
+        let val: HandbrakeResult<u32> = Err(HandbrakeError::InvalidPosition(999));
+        assert!(val.is_err());
+        assert!(matches!(val, Err(HandbrakeError::InvalidPosition(999))));
+    }
 }

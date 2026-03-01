@@ -117,4 +117,46 @@ mod tests {
         assert_eq!(caps.max_load_kg, Some(50.0));
         assert!(!caps.has_hall_effect_sensor);
     }
+
+    #[test]
+    fn test_handbrake_type_clone_copy() {
+        let a = HandbrakeType::HallEffect;
+        let b = a;
+        #[allow(clippy::clone_on_copy)]
+        let c = a.clone();
+        assert_eq!(a, b);
+        assert_eq!(a, c);
+    }
+
+    #[test]
+    fn test_handbrake_capabilities_clone() {
+        let caps = HandbrakeCapabilities::load_cell(75.0);
+        #[allow(clippy::clone_on_copy)]
+        let cloned = caps.clone();
+        assert_eq!(caps, cloned);
+        assert_eq!(cloned.max_load_kg, Some(75.0));
+    }
+
+    #[test]
+    fn test_handbrake_capabilities_load_cell_zero_load() {
+        let caps = HandbrakeCapabilities::load_cell(0.0);
+        assert_eq!(caps.max_load_kg, Some(0.0));
+        assert_eq!(caps.handbrake_type, HandbrakeType::LoadCell);
+    }
+
+    #[test]
+    fn test_handbrake_capabilities_analog_no_load() {
+        let caps = HandbrakeCapabilities::analog();
+        assert_eq!(caps.max_load_kg, None);
+        assert!(!caps.has_hall_effect_sensor);
+        assert!(caps.supports_calibration);
+    }
+
+    #[test]
+    fn test_handbrake_capabilities_eq() {
+        let a = HandbrakeCapabilities::analog();
+        let b = HandbrakeCapabilities::analog();
+        assert_eq!(a, b);
+        assert_ne!(a, HandbrakeCapabilities::hall_effect());
+    }
 }

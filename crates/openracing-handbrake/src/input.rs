@@ -242,6 +242,113 @@ mod tests {
         assert_eq!(input.calibration_max, 8000);
     }
 
+    #[test]
+    fn test_parse_gamepad_mid_value() -> Result<(), Box<dyn std::error::Error>> {
+        // raw_value = 0x0180 (384 in decimal)
+        let data = vec![0x00, 0x00, 0x80, 0x01];
+        let input = HandbrakeInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.raw_value, 0x0180);
+        assert!(input.is_engaged);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_gamepad_exactly_4_bytes() -> Result<(), Box<dyn std::error::Error>> {
+        let data = vec![0xAA, 0xBB, 0x10, 0x00];
+        let input = HandbrakeInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.raw_value, 0x0010);
+        assert!(!input.is_engaged);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_gamepad_large_data() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = vec![0u8; 64];
+        data[2] = 0xFF;
+        data[3] = 0x7F;
+        let input = HandbrakeInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.raw_value, 0x7FFF);
+        assert!(input.is_engaged);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_gamepad_empty_data() {
+        let data: Vec<u8> = vec![];
+        let result = HandbrakeInput::parse_gamepad(&data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_gamepad_3_bytes() {
+        let data = vec![0x00, 0x00, 0xFF];
+        let result = HandbrakeInput::parse_gamepad(&data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_normalized_with_custom_calibration() {
+        let input = HandbrakeInput {
+            raw_value: 5000,
+            is_engaged: true,
+            calibration_min: 2000,
+            calibration_max: 8000,
+        };
+        // (5000-2000)/(8000-2000) = 3000/6000 = 0.5
+        assert!((input.normalized() - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_normalized_at_calibration_min() {
+        let input = HandbrakeInput {
+            raw_value: 1000,
+            is_engaged: false,
+            calibration_min: 1000,
+            calibration_max: 5000,
+        };
+        assert!((input.normalized()).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_normalized_at_calibration_max() {
+        let input = HandbrakeInput {
+            raw_value: 5000,
+            is_engaged: true,
+            calibration_min: 1000,
+            calibration_max: 5000,
+        };
+        assert!((input.normalized() - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_calibration_single_sample() {
+        let mut cal = HandbrakeCalibration::new();
+        cal.sample(500);
+        assert_eq!(cal.min, 500);
+        assert_eq!(cal.max, 500);
+    }
+
+    #[test]
+    fn test_calibration_center_stays_none() {
+        let mut cal = HandbrakeCalibration::new();
+        cal.sample(100);
+        cal.sample(200);
+        assert_eq!(cal.center, None);
+    }
+
+    #[test]
+    fn test_with_calibration_chain() -> Result<(), Box<dyn std::error::Error>> {
+        let data = vec![0x00, 0x00, 0xE8, 0x03]; // raw_value = 1000
+        let input = HandbrakeInput::parse_gamepad(&data)
+            .map_err(|e| e.to_string())?
+            .with_calibration(500, 2000);
+        assert_eq!(input.calibration_min, 500);
+        assert_eq!(input.calibration_max, 2000);
+        // (1000-500)/(2000-500) = 500/1500 ≈ 0.333
+        assert!((input.normalized() - 0.333).abs() < 0.01);
+        Ok(())
+    }
+
     use proptest::prelude::*;
 
     proptest! {
