@@ -340,6 +340,11 @@ impl SupportedDevices {
             (vendor_ids::LOGITECH, 0xC26E, "Logitech G923 Xbox"),
             (vendor_ids::LOGITECH, 0xC268, "Logitech G PRO"),
             (vendor_ids::LOGITECH, 0xC272, "Logitech G PRO Xbox"),
+            // Logitech legacy wheels (oversteer, linux-steering-wheels)
+            (vendor_ids::LOGITECH, 0xC295, "Logitech MOMO Racing"),
+            (vendor_ids::LOGITECH, 0xC298, "Logitech Driving Force Pro"),
+            (vendor_ids::LOGITECH, 0xC29A, "Logitech Driving Force GT"),
+            (vendor_ids::LOGITECH, 0xC29C, "Logitech Speed Force Wireless"),
             // Fanatec wheels (VID 0x0EB7 — Endor AG)
             // Verified: gotzl/hid-fanatecff, JacKeTUs/linux-steering-wheels,
             //           berarma/oversteer, linux-hardware.org
@@ -413,6 +418,33 @@ impl SupportedDevices {
             (vendor_ids::THRUSTMASTER, 0xB69A, "Thrustmaster T248X"),
             // 0xB69B: unverified — from hid-tmff2 issue #58.
             (vendor_ids::THRUSTMASTER, 0xB69B, "Thrustmaster T818"),
+            // Thrustmaster legacy wheels (oversteer, linux-steering-wheels, hid-tmff)
+            (vendor_ids::THRUSTMASTER, 0xB605, "Thrustmaster NASCAR Pro FF2"),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB651,
+                "Thrustmaster FGT Rumble Force",
+            ),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB653,
+                "Thrustmaster RGT FF Clutch",
+            ),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB654,
+                "Thrustmaster FGT Force Feedback",
+            ),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB65A,
+                "Thrustmaster F430 Force Feedback",
+            ),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB668,
+                "Thrustmaster T80 (no FFB)",
+            ),
             // NOTE: Thrustmaster pedal PIDs 0xB678/0xB679/0xB68D removed —
             // web research confirmed these are HOTAS peripherals, not pedals.
             // Actual Thrustmaster pedal PIDs remain unconfirmed.

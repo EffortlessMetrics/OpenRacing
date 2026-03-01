@@ -391,6 +391,11 @@ impl LinuxHidPort {
             (0x046D, 0xC26E), // Logitech G923 Xbox
             (0x046D, 0xC268), // Logitech G PRO
             (0x046D, 0xC272), // Logitech G PRO Xbox
+            // Logitech legacy wheels (oversteer, linux-steering-wheels)
+            (0x046D, 0xC295), // Logitech MOMO Racing
+            (0x046D, 0xC298), // Logitech Driving Force Pro
+            (0x046D, 0xC29A), // Logitech Driving Force GT
+            (0x046D, 0xC29C), // Logitech Speed Force Wireless
             // Fanatec (VID 0x0EB7 — Endor AG)
             // Verified: gotzl/hid-fanatecff, JacKeTUs/linux-steering-wheels,
             //           berarma/oversteer, linux-hardware.org
@@ -427,6 +432,13 @@ impl LinuxHidPort {
             (0x044F, 0xB691), // Thrustmaster TS-XW (GIP mode)
             (0x044F, 0xB69A), // Thrustmaster T248X
             (0x044F, 0xB69B), // Thrustmaster T818 (unverified — hid-tmff2 issue #58)
+            // Thrustmaster legacy wheels (oversteer, linux-steering-wheels, hid-tmff)
+            (0x044F, 0xB605), // Thrustmaster NASCAR Pro FF2
+            (0x044F, 0xB651), // Thrustmaster FGT Rumble Force
+            (0x044F, 0xB653), // Thrustmaster RGT FF Clutch
+            (0x044F, 0xB654), // Thrustmaster FGT Force Feedback
+            (0x044F, 0xB65A), // Thrustmaster F430 Force Feedback
+            (0x044F, 0xB668), // Thrustmaster T80 (no FFB)
             // NOTE: 0xB678/0xB679/0xB68D removed — HOTAS peripherals, not pedals
             // Moza Racing - V1
             (0x346E, 0x0005), // Moza R3
