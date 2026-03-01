@@ -4,7 +4,7 @@
 //! If any assertion fails, update `ids.rs` AND the SOURCES.md table together.
 //! Do not change only one of the two — they must stay in sync.
 
-use racing_wheel_hid_cammus_protocol::{PRODUCT_C5, PRODUCT_C12, VENDOR_ID};
+use racing_wheel_hid_cammus_protocol::{PRODUCT_C5, PRODUCT_C12, PRODUCT_CP5_PEDALS, PRODUCT_LC100_PEDALS, VENDOR_ID};
 
 /// Cammus VID must be 0x3416 (Shenzhen Cammus Electronic Technology Co., Ltd.).
 ///
@@ -31,4 +31,20 @@ fn c5_pid_is_0301() {
 #[test]
 fn c12_pid_is_0302() {
     assert_eq!(PRODUCT_C12, 0x0302);
+}
+
+/// Cammus CP5 Pedals PID must be 0x1018.
+///
+/// Source: JacKeTUs/simracing-hwdb `90-cammus.hwdb`.
+#[test]
+fn cp5_pedals_pid_is_1018() {
+    assert_eq!(PRODUCT_CP5_PEDALS, 0x1018);
+}
+
+/// Cammus LC100 Pedals PID must be 0x1019.
+///
+/// Source: JacKeTUs/simracing-hwdb `90-cammus.hwdb`.
+#[test]
+fn lc100_pedals_pid_is_1019() {
+    assert_eq!(PRODUCT_LC100_PEDALS, 0x1019);
 }

@@ -448,6 +448,8 @@ impl SupportedDevices {
             (vendor_ids::SIMAGIC, 0xA358, "VRS Pedals V2"),
             (vendor_ids::SIMAGIC, 0xA359, "VRS Handbrake"),
             (vendor_ids::SIMAGIC, 0xA35A, "VRS Shifter"),
+            (vendor_ids::SIMAGIC, 0xA3BE, "VRS Pedals (corrected)"),
+            (vendor_ids::SIMAGIC, 0xA44C, "VRS R295"),
             // Heusinkveld pedals (share VID 0x16D0 with Simagic)
             (vendor_ids::SIMAGIC_ALT, 0x1156, "Heusinkveld Sprint"),
             (vendor_ids::SIMAGIC_ALT, 0x1157, "Heusinkveld Ultimate+"),
@@ -505,6 +507,8 @@ impl SupportedDevices {
             // Cammus (VID 0x3416)
             (vendor_ids::CAMMUS, 0x0301, "Cammus C5"),
             (vendor_ids::CAMMUS, 0x0302, "Cammus C12"),
+            (vendor_ids::CAMMUS, 0x1018, "Cammus CP5 Pedals"),
+            (vendor_ids::CAMMUS, 0x1019, "Cammus LC100 Pedals"),
             // OpenFFBoard (open-source direct drive controller)
             (vendor_ids::OPENFFBOARD, 0xFFB0, "OpenFFBoard"),
             (
@@ -1523,7 +1527,13 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                         TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
                     capabilities.encoder_cpr = u16::MAX;
                 }
-                0xA357..=0xA35A => {
+                0xA44C => {
+                    // VRS R295 wheelbase
+                    capabilities.max_torque =
+                        TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
+                    capabilities.encoder_cpr = u16::MAX;
+                }
+                0xA357..=0xA35A | 0xA3BE => {
                     // VRS pedals, handbrake, shifter (non-FFB)
                     capabilities.supports_pid = false;
                     capabilities.supports_raw_torque_1khz = false;
@@ -1626,6 +1636,12 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque =
                         TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
                 } // C12
+                0x1018 | 0x1019 => {
+                    // CP5 Pedals / LC100 Pedals (input-only, non-FFB)
+                    capabilities.supports_raw_torque_1khz = false;
+                    capabilities.max_torque = TorqueNm::ZERO;
+                    capabilities.encoder_cpr = 0;
+                }
                 _ => {
                     capabilities.max_torque = TorqueNm::new(5.0).unwrap_or(capabilities.max_torque);
                 }

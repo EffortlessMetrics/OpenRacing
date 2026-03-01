@@ -470,6 +470,8 @@ impl LinuxHidPort {
             (0x0483, 0xA358), // VRS Pedals V2
             (0x0483, 0xA359), // VRS Handbrake
             (0x0483, 0xA35A), // VRS Shifter
+            (0x0483, 0xA3BE), // VRS Pedals (corrected)
+            (0x0483, 0xA44C), // VRS R295
             // Heusinkveld pedals (share VID 0x16D0 with Simagic)
             (0x16D0, 0x1156), // Heusinkveld Sprint
             (0x16D0, 0x1157), // Heusinkveld Ultimate+
@@ -489,6 +491,8 @@ impl LinuxHidPort {
             // Cammus (VID 0x3416)
             (0x3416, 0x0301), // Cammus C5
             (0x3416, 0x0302), // Cammus C12
+            (0x3416, 0x1018), // Cammus CP5 Pedals
+            (0x3416, 0x1019), // Cammus LC100 Pedals
             // OpenFFBoard (VID 0x1209, pid.codes shared VID)
             (0x1209, 0xFFB0), // OpenFFBoard
             (0x1209, 0xFFB1), // OpenFFBoard (alt firmware)

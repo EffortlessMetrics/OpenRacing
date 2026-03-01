@@ -174,7 +174,7 @@ proptest! {
             // Heusinkveld pedals (Sprint / Ultimate+ / Pro) — share VID with Simagic legacy
             || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x1156..=0x1158))
             // VRS accessories (pedals, handbrake, shifter) — share VID with Simagic
-            || (vid == vendor_ids::SIMAGIC && matches!(pid, 0xA357..=0xA35A))
+            || (vid == vendor_ids::SIMAGIC && matches!(pid, 0xA357..=0xA35A | 0xA3BE))
             // Simagic modern pedals, shifters, handbrake — VID 0x2D5C removed; EVO has no such peripherals yet
             // Simucube SC-Link Hub (0x0D66) and Wireless Wheel (0x0D63) — non-FFB peripherals
             || (vid == vendor_ids::SIMAGIC_ALT && matches!(pid, 0x0D66 | 0x0D63))
@@ -185,7 +185,9 @@ proptest! {
             // Simagic EVO peripherals (pedals, shifters, handbrake)
             || (vid == vendor_ids::SIMAGIC_EVO && matches!(pid, 0x1001..=0x1003 | 0x2001..=0x2002 | 0x3001))
             // Cube Controls button boxes (provisional PIDs, share VID 0x0483 with Simagic)
-            || (vid == vendor_ids::SIMAGIC && matches!(pid, 0x0C73..=0x0C75));
+            || (vid == vendor_ids::SIMAGIC && matches!(pid, 0x0C73..=0x0C75))
+            // Cammus pedals (CP5 and LC100 — input-only, non-FFB)
+            || (vid == vendor_ids::CAMMUS && matches!(pid, 0x1018 | 0x1019));
         if is_non_ffb_peripheral {
             prop_assert_eq!(
                 caps.max_torque.value(),

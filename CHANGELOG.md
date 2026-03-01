@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Protocol verification wave 16**: 6 vendors re-audited (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) — PID accuracy and torque specs cross-checked against USB captures and vendor documentation
+- **New VRS PIDs**: Pedals V1 PID migrated `0xA357` → `0xA3BE`; DFP V2 PID `0xA356` added (unverified)
+- **New Cammus pedal PIDs**: identified from community sources, pending engine dispatch wiring
+
+### Changed
+
+- **0 `unwrap()`/`expect()` in tests**: all remaining instances eliminated across every test file — full compliance with project convention
+- **cargo-udeps CI fix**: false positives in dependency governance job resolved
+
+### Fixed
+
+- **cargo-udeps false positives**: CI dependency governance job no longer flags legitimate transitive/workspace dependencies
+
 ## [1.0.0-rc.1] - 2026-11-01
 
 ### Added

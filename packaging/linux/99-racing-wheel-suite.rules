@@ -68,6 +68,9 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a357", GROUP="i
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a358", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a359", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a35a", GROUP="input", MODE="0664", TAG+="uaccess"
+# VRS Pedals (corrected PID), R295
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a3be", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a44c", GROUP="input", MODE="0664", TAG+="uaccess"
 
 # ─── OpenMoko / MCS VID (0x16D0) — Simagic legacy, Heusinkveld, Simucube 2 ─
 # Simagic M10, FX (OpenMoko VID variant)
@@ -93,6 +96,9 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3670", GROUP="input", MODE="0664", TAG+="
 # C5 (5 Nm), C12 (12 Nm) desktop direct drive wheelbases
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3416", ATTRS{idProduct}=="0301", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3416", ATTRS{idProduct}=="0302", GROUP="input", MODE="0664", TAG+="uaccess"
+# CP5 Pedals, LC100 Pedals
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3416", ATTRS{idProduct}=="1018", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3416", ATTRS{idProduct}=="1019", GROUP="input", MODE="0664", TAG+="uaccess"
 
 # ─── Asetek SimSports (0x2433) ────────────────────────────────────────────
 # Invicta, Forte, La Prima wheelbases, Tony Kanaan Edition
@@ -167,6 +173,8 @@ ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="052
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="0524", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a355", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a356", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a3be", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a44c", ATTR{power/autosuspend}="-1"
 # Simagic legacy / Heusinkveld / Simucube 2 (MCS/OpenMoko VID)
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5a", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5b", ATTR{power/autosuspend}="-1"
@@ -181,6 +189,8 @@ ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="3670", ATTR{power/autosuspend
 # Cammus
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="3416", ATTRS{idProduct}=="0301", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="3416", ATTRS{idProduct}=="0302", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="3416", ATTRS{idProduct}=="1018", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="3416", ATTRS{idProduct}=="1019", ATTR{power/autosuspend}="-1"
 # Asetek SimSports
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f300", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f301", ATTR{power/autosuspend}="-1"

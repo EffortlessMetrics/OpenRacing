@@ -554,13 +554,63 @@ There is no CI job that builds against the minimum supported Rust version (MSRV)
 
 ---
 
-### F-055 · 44 unwrap/expect remaining in test files (convention violation) (Medium · Open)
+### F-055 · 44 unwrap/expect remaining in test files (convention violation) (Medium · Resolved)
 
 **Encountered:** Wave 15 RC hardening (2025-06)
 
-Despite the F-041 cleanup (126 calls removed), 44 `unwrap()`/`expect()` calls remain across test files. Per project convention (no `unwrap()`/`expect()` in tests), these should be replaced with `Result`-returning test functions, explicit assertions, or `?` propagation.
+Despite the F-041 cleanup (126 calls removed), 44 `unwrap()`/`expect()` calls remained across test files. Per project convention (no `unwrap()`/`expect()` in tests), these should be replaced with `Result`-returning test functions, explicit assertions, or `?` propagation.
 
-**Remedy:** Sweep remaining test files and replace all `unwrap()`/`expect()` calls. Add a CI lint or clippy configuration to prevent new instances.
+**Resolved:** Wave 16 — all remaining `unwrap()`/`expect()` calls eliminated. 0 instances across all test files. CI lint recommended to prevent regression.
+
+---
+
+### F-056 · VRS Pedals V1 PID migration: old 0xA357 → new 0xA3BE (Medium · Open)
+
+**Encountered:** Wave 16 protocol verification (2025-06)
+
+VRS Pedals V1 has undergone a PID change from `0xA357` to `0xA3BE`. The protocol crate and engine dispatch tables need updating. Users on older firmware may still present as `0xA357`, so both PIDs should be recognized during a transition period.
+
+**Remedy:** Update `hid-vrs-protocol` to use `0xA3BE` as the primary PID; keep `0xA357` as a legacy alias in the engine dispatch table. Add a deprecation comment and a timeline for dropping the old PID.
+
+---
+
+### F-057 · VRS DFP V2 PID 0xA356 unverified (Low · Open)
+
+**Encountered:** Wave 16 protocol verification (2025-06)
+
+The VRS DirectForce Pro V2 PID `0xA356` is present in the protocol crate but has not been independently verified via USB captures, linux-steering-wheels, or VRS official documentation. It may be an internal engineering PID or a community estimate.
+
+**Remedy:** Confirm PID via hardware capture or VRS support. Flag as provisional in protocol crate until verified.
+
+---
+
+### F-058 · Heusinkveld PIDs (all 3) unverified externally (Low · Open)
+
+**Encountered:** Wave 16 protocol verification (2025-06)
+
+All three Heusinkveld PIDs (Sprint, Ultimate+, Pro) under VID `0x16D0` are present in the protocol crate but have not been externally verified via USB captures, linux-steering-wheels, or Heusinkveld official documentation. The VID is shared with Simucube, adding disambiguation risk.
+
+**Remedy:** Obtain USB captures from Heusinkveld hardware owners. Cross-check against any future linux-steering-wheels entries for VID `0x16D0`.
+
+---
+
+### F-059 · Cube Controls PIDs (all 3) provisional, no external evidence (Low · Open)
+
+**Encountered:** Wave 16 protocol verification (2025-06)
+
+Cube Controls PIDs `0x0C73`, `0x0C74`, `0x0C75` remain provisional with no external evidence from USB captures, vendor documentation, or community databases. Devices have been reclassified as button boxes (input-only, non-FFB) but PID accuracy is unconfirmed.
+
+**Remedy:** Obtain USB captures from Cube Controls hardware. Until confirmed, mark PIDs as provisional in protocol crate and device tables. See also F-038.
+
+---
+
+### F-060 · Cammus new pedal PIDs need wiring into engine/dispatch (Medium · Open)
+
+**Encountered:** Wave 16 protocol verification (2025-06)
+
+New Cammus pedal PIDs have been identified but are not yet wired into the engine dispatch table or device capability matrix. The protocol crate may define the PIDs, but the engine cannot recognize or route HID reports for these devices until dispatch entries are added.
+
+**Remedy:** Add Cammus pedal PID entries to the engine dispatch table (`device_dispatch.rs` / platform device tables) and update `DEVICE_CAPABILITIES.md` with pedal specs.
 
 ---
 
@@ -599,10 +649,20 @@ Despite the F-041 cleanup (126 calls removed), 44 `unwrap()`/`expect()` calls re
 | F-040 | 100% telemetry adapter snapshot test coverage (56/56 adapters) | PR #19 merge (d6fba74) |
 | F-041 | 126 unwrap/expect calls eliminated from 8 test files | PR #19 merge (d6fba74) |
 | F-042 | Asetek Tony Kanaan torque corrected 18→27 Nm + 8 proptest properties | PR #19 merge (d6fba74) |
+| F-051 | Leo Bodnar PID 0xBEEF placeholder replaced with 0x1301 | Wave 15 RC hardening |
+| F-055 | 0 unwrap/expect remaining in test files | Wave 16 |
 
 ---
 
 ## Recent Progress
+
+### Wave 16 — Protocol Verification & Test Hardening (2025-06)
+- **Protocol verification**: 6 vendors (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) re-audited
+- **Test unwraps eliminated**: 0 `unwrap()`/`expect()` calls remaining across all test files (F-055 resolved)
+- **VRS PID updates**: Pedals V1 PID migration `0xA357` → `0xA3BE` identified (F-056); DFP V2 PID `0xA356` unverified (F-057)
+- **Cammus pedal PIDs**: new PIDs identified, pending engine dispatch wiring (F-060)
+- **cargo-udeps CI fix**: false positives addressed in dependency governance job (F-029)
+- **Unverified PIDs flagged**: Heusinkveld (F-058), Cube Controls (F-059), VRS DFP V2 (F-057)
 
 ### Protocol Verification Wave (Web-Verified)
 - **Moza Racing**: All 11 wheelbase PIDs verified against JacKeTUs/universal-pidff (Linux kernel 6.15). All torque specs confirmed from mozaracing.com. FFB quirks correct. No changes needed.
