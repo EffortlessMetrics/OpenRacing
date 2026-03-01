@@ -19,7 +19,10 @@
 //! | 9 | `linux-hardware.org/?id=usb:0eb7-1839` | PID 0x1839 = "Clubsport Pedals" by Endor/Fanatec (real hardware probe) |
 //!
 //! PIDs 0x0024 and 0x01E9 have **no external confirmation** in any
-//! public database or open-source driver. See per-constant docs for details.
+//! public database or open-source driver. The community driver confirms
+//! that GT DD Pro, CSL DD, and ClubSport DD all share PID 0x0020 in PC mode
+//! (`gotzl/hid-fanatecff` README + issue #21). The unverified PIDs may be
+//! console-mode or firmware-variant enumerations.
 //! PID 0x1839 was upgraded to verified in 2025-07 via Wine and linux-hardware.org.
 
 #![deny(static_mut_refs)]
@@ -150,17 +153,21 @@ pub mod product_ids {
     /// PID in PC mode. See `GT_DD_PRO` (0x0024) and `CLUBSPORT_DD` (0x01E9)
     /// for possible console/alternate-mode PIDs that lack external confirmation.
     pub const CSL_DD: u16 = 0x0020;
-    /// Gran Turismo DD Pro (8 Nm direct-drive, PlayStation-specific PID).
+    /// Gran Turismo DD Pro (8 Nm direct-drive, possible PlayStation/GT-mode PID).
     ///
     /// **Unverified (2025-07):** Not present in any external source consulted:
     /// - Not in `gotzl/hid-fanatecff` (`hid-ftec.h`, `hid-ftec.c`, or README)
     /// - Not in `the-sz.com`, `linux-hardware.org`, or `libsdl-org/SDL`
     /// - Not in Linux kernel `hid-ids.h`
+    /// - Not found via GitHub-wide code search for `fanatec` + `0x0024`
     ///
-    /// The community driver README states the DD Pro uses PID 0x0020 (same as
-    /// CSL DD) in PC mode. This PID may be a PlayStation/GT-mode-specific
-    /// enumeration. Believed correct from USB captures but requires hardware
-    /// confirmation.
+    /// **Key finding (2025-07):** `gotzl/hid-fanatecff` README and issue #21
+    /// confirm the GT DD Pro enumerates as PID **0x0020** (same as CSL DD) in
+    /// PC mode (red LED). In PS-compatibility mode (yellow LED), it reports as
+    /// PID 0x0004 (ClubSport V2.5 ID, backwards-compat). PID 0x0024 has zero
+    /// corroboration in any public source and may not be a real enumeration.
+    /// Retained for completeness but callers should match `CSL_DD` (0x0020)
+    /// as the primary PID for this device.
     pub const GT_DD_PRO: u16 = 0x0024;
     /// CSL Elite Wheel Base — PC mode (6 Nm belt-drive).
     ///
@@ -175,11 +182,15 @@ pub mod product_ids {
     /// - Not in `gotzl/hid-fanatecff` (`hid-ftec.h`, `hid-ftec.c`, or README)
     /// - Not in `the-sz.com`, `linux-hardware.org`, or `libsdl-org/SDL`
     /// - Not in Linux kernel `hid-ids.h`
+    /// - Not found via GitHub-wide code search for `fanatec` + `0x01E9`
+    /// - `linux-hardware.org/?id=usb:0eb7-01e9` returns no hardware probes
     ///
-    /// The community driver README lists "ClubSport DD" under PID 0x0020
-    /// alongside CSL DD and DD Pro (in PC mode). This PID may represent a
-    /// firmware variant or alternate enumeration. Believed correct from USB
-    /// captures but requires hardware confirmation.
+    /// **Key finding (2025-07):** `gotzl/hid-fanatecff` README explicitly lists
+    /// "0EB7:0020 FANATEC CSL DD / DD Pro / **ClubSport DD** Wheel Base",
+    /// confirming the ClubSport DD shares PID 0x0020 in PC mode. PID 0x01E9
+    /// has zero corroboration and may not be a real enumeration. Retained for
+    /// completeness but callers should match `CSL_DD` (0x0020) as the primary
+    /// PID for this device.
     pub const CLUBSPORT_DD: u16 = 0x01E9;
 
     // ── Standalone pedal devices ───────────────────────────────────────────

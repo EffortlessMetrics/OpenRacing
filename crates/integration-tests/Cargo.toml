@@ -79,6 +79,7 @@ openracing-profile = { path = "../openracing-profile" }
 openracing-filters = { workspace = true }
 openracing-pipeline = { workspace = true }
 openracing-calibration = { workspace = true }
+semver = { workspace = true }
 
 # Mock and test doubles
 async-trait = { workspace = true }

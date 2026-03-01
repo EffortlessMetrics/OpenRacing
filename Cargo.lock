@@ -5795,6 +5795,7 @@ dependencies = [
  "racing-wheel-telemetry-config-writers",
  "racing-wheel-telemetry-support",
  "rand 0.9.2",
+ "semver",
  "serde",
  "serde_json",
  "statistical",
