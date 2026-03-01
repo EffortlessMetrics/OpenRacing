@@ -22,4 +22,5 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 insta = { version = "1.44.1", features = ["yaml"] }
+proptest = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros"] }
