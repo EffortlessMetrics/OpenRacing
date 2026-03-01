@@ -109,6 +109,72 @@ games:
       install_paths:
         - "Program Files (x86)/Steam/steamapps/common/Assetto Corsa Competizione"
 
+  acc2:
+    name: "Assetto Corsa Competizione 2"
+    versions:
+      - version: "TBD"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "none"
+        supported_fields: []
+    telemetry:
+      method: "none"
+      update_rate_hz: 0
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: null
+      fields:
+        ffb_scalar: null
+        rpm: null
+        speed_ms: null
+        slip_ratio: null
+        gear: null
+        flags: null
+        car_id: null
+        track_id: null
+    status: "stub"
+    config_writer: "acc2"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+
+  ac_evo:
+    name: "Assetto Corsa EVO"
+    versions:
+      - version: "Early Access 0.5.x"
+        config_paths: []
+        executable_patterns:
+          - "AC_EVO.exe"
+          - "AssettoCorsa_EVO.exe"
+        telemetry_method: "none"
+        supported_fields: []
+    telemetry:
+      method: "none"
+      update_rate_hz: 0
+      supports_360hz_option: false
+      high_rate_update_rate_hz: null
+      output_target: null
+      fields:
+        ffb_scalar: null
+        rpm: null
+        speed_ms: null
+        slip_ratio: null
+        gear: null
+        flags: null
+        car_id: null
+        track_id: null
+    status: "stub"
+    config_writer: "ac_evo"
+    auto_detect:
+      process_names:
+        - "AC_EVO.exe"
+        - "AssettoCorsa_EVO.exe"
+      install_registry_keys:
+        - "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App 2492500"
+      install_paths:
+        - "Program Files (x86)/Steam/steamapps/common/Assetto Corsa EVO"
+
   ac_rally:
     name: "Assetto Corsa Rally"
     versions:

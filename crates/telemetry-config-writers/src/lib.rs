@@ -296,6 +296,14 @@ fn new_seb_loeb_rally_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(SebLoebRallyConfigWriter)
 }
 
+fn new_acc2_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(ACC2ConfigWriter)
+}
+
+fn new_ac_evo_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
+    Box::new(ACEvoConfigWriter)
+}
+
 fn new_dirt_showdown_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
     Box::new(DirtShowdownConfigWriter)
 }
@@ -305,6 +313,8 @@ pub fn config_writer_factories() -> &'static [(&'static str, ConfigWriterFactory
     &[
         ("iracing", new_iracing_config_writer),
         ("acc", new_acc_config_writer),
+        ("acc2", new_acc2_config_writer),
+        ("ac_evo", new_ac_evo_config_writer),
         ("ac_rally", new_ac_rally_config_writer),
         ("ams2", new_ams2_config_writer),
         ("rfactor2", new_rfactor2_config_writer),
@@ -528,6 +538,12 @@ const GRAVEL_DEFAULT_PORT: u16 = 5555;
 const SEB_LOEB_RALLY_BRIDGE_RELATIVE_PATH: &str =
     "Documents/OpenRacing/seb_loeb_rally_bridge_contract.json";
 const SEB_LOEB_RALLY_BRIDGE_PROTOCOL: &str = "stub";
+
+const ACC2_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/acc2_bridge_contract.json";
+const ACC2_BRIDGE_PROTOCOL: &str = "stub";
+
+const AC_EVO_BRIDGE_RELATIVE_PATH: &str = "Documents/OpenRacing/ac_evo_bridge_contract.json";
+const AC_EVO_BRIDGE_PROTOCOL: &str = "stub";
 
 const DIRT_SHOWDOWN_BRIDGE_RELATIVE_PATH: &str =
     "Documents/OpenRacing/dirt_showdown_bridge_contract.json";
@@ -5952,6 +5968,158 @@ impl ConfigWriter for SebLoebRallyConfigWriter {
         });
         Ok(vec![ConfigDiff {
             file_path: SEB_LOEB_RALLY_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// ACC2 (Assetto Corsa Competizione 2) configuration writer — stub.
+pub struct ACC2ConfigWriter;
+
+impl Default for ACC2ConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for ACC2ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing ACC2 bridge contract (stub — no telemetry protocol published)");
+        let contract_path = game_path.join(ACC2_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+        let contract = serde_json::json!({
+            "game_id": "acc2",
+            "telemetry_protocol": ACC2_BRIDGE_PROTOCOL,
+            "enabled": config.enabled,
+            "bridge_notes": "ACC2 has not been announced. No telemetry protocol documented. See F-022.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(ACC2_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "acc2")
+            .unwrap_or(false))
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let contract = serde_json::json!({
+            "game_id": "acc2",
+            "telemetry_protocol": ACC2_BRIDGE_PROTOCOL,
+            "enabled": config.enabled,
+            "bridge_notes": "ACC2 has not been announced. No telemetry protocol documented. See F-022.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: ACC2_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: serde_json::to_string_pretty(&contract)?,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// AC EVO (Assetto Corsa EVO) configuration writer — stub.
+pub struct ACEvoConfigWriter;
+
+impl Default for ACEvoConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for ACEvoConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing AC EVO bridge contract (stub — no telemetry protocol published)");
+        let contract_path = game_path.join(AC_EVO_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+        let contract = serde_json::json!({
+            "game_id": "ac_evo",
+            "telemetry_protocol": AC_EVO_BRIDGE_PROTOCOL,
+            "enabled": config.enabled,
+            "bridge_notes": "AC EVO is in Early Access with no public telemetry API. See F-022.",
+        });
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = game_path.join(AC_EVO_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+        Ok(value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "ac_evo")
+            .unwrap_or(false))
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let contract = serde_json::json!({
+            "game_id": "ac_evo",
+            "telemetry_protocol": AC_EVO_BRIDGE_PROTOCOL,
+            "enabled": config.enabled,
+            "bridge_notes": "AC EVO is in Early Access with no public telemetry API. See F-022.",
+        });
+        Ok(vec![ConfigDiff {
+            file_path: AC_EVO_BRIDGE_RELATIVE_PATH.to_string(),
             section: None,
             key: "entire_file".to_string(),
             old_value: None,

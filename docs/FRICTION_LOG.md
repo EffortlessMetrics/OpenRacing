@@ -237,6 +237,14 @@ No compile-time help distinguishes "this is a renamed constant" from "this const
 
 **Proposed remedy:** Monitor Kunos community forums and GitHub issues; implement once protocol is documented. `seb_loeb_rally.rs` and `f1_manager.rs` are maintained as intentional stubs (no telemetry protocol) for similar reasons.
 
+**Research update (2026-03):** Thorough web and GitHub research confirmed no public telemetry protocols exist:
+
+- **ACC2:** Kunos Simulazioni has not announced a game called "ACC2." The existing ACC (1.x) uses the UDP broadcasting protocol v4 (port 9000). There is no separate ACC2 product, SDK, or shared-memory struct layout.
+- **AC EVO:** In Early Access (v0.5.2 as of Feb 2026) on Steam (app ID 2492500). Built on a new engine, distinct from AC1 and ACC. No telemetry API, shared-memory interface, or UDP protocol documentation has been published. The Kunos official forum has no SDK/telemetry subforum for AC EVO. SimHub does not list AC EVO support. Zero GitHub repositories exist for AC EVO telemetry integration.
+- **Historical context:** AC1 used Windows shared memory (`acpmf_physics`, `acpmf_graphics`, `acpmf_static`) and ACC uses UDP broadcast v4. AC EVO may adopt a similar approach once it exits Early Access, but nothing is documented yet.
+
+**Action taken:** Added stub adapters (`acc2.rs`, `ac_evo.rs`) and game support matrix entries following the `f1_manager`/`seb_loeb_rally` stub pattern. These register the games for auto-detection visibility without claiming telemetry support. Adapters return `NormalizedTelemetry::default()` and emit no frames.
+
 ---
 
 ### F-023 · PXN HID report ID byte skipped — all input field offsets off by 1 (High · Resolved)

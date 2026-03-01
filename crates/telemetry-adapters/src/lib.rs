@@ -19,8 +19,10 @@ pub use racing_wheel_telemetry_core::{
 
 // Keep these protocol modules first so dependent implementations can import helpers
 // via `crate::` paths unchanged from their service-side origins.
+pub mod ac_evo;
 pub mod ac_rally;
 pub mod acc;
+pub mod acc2;
 pub mod ams2;
 pub mod assetto_corsa;
 pub mod automobilista;
@@ -330,6 +332,14 @@ fn new_f1_native_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(F1NativeAdapter::new())
 }
 
+fn new_acc2_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(acc2::ACC2Adapter::new())
+}
+
+fn new_ac_evo_adapter() -> Box<dyn TelemetryAdapter> {
+    Box::new(ac_evo::ACEvoAdapter::new())
+}
+
 fn new_forza_horizon_4_adapter() -> Box<dyn TelemetryAdapter> {
     Box::new(forza_horizon::ForzaHorizon4Adapter::new())
 }
@@ -370,6 +380,8 @@ fn new_wrc_10_adapter() -> Box<dyn TelemetryAdapter> {
 pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
     &[
         ("acc", new_acc_adapter),
+        ("acc2", new_acc2_adapter),
+        ("ac_evo", new_ac_evo_adapter),
         ("ac_rally", new_ac_rally_adapter),
         ("ams2", new_ams2_adapter),
         ("assetto_corsa", new_assetto_corsa_adapter),
@@ -431,8 +443,10 @@ pub fn adapter_factories() -> &'static [(&'static str, AdapterFactory)] {
     ]
 }
 
+pub use ac_evo::ACEvoAdapter;
 pub use ac_rally::ACRallyAdapter;
 pub use acc::ACCAdapter;
+pub use acc2::ACC2Adapter;
 pub use ams2::AMS2Adapter;
 pub use assetto_corsa::AssettoCorsaAdapter;
 pub use automobilista::Automobilista1Adapter;
