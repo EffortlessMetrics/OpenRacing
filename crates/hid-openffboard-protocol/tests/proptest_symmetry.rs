@@ -54,7 +54,7 @@ proptest! {
     /// The Default encoder must produce the same results as a manually constructed one.
     #[test]
     fn prop_default_encoder_consistent(torque in -2.0f32..=2.0f32) {
-        let default_enc = OpenFFBoardTorqueEncoder::default();
+        let default_enc = OpenFFBoardTorqueEncoder;
         let manual_enc = OpenFFBoardTorqueEncoder;
         prop_assert_eq!(
             default_enc.encode(torque),

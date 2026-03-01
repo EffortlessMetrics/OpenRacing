@@ -68,3 +68,87 @@ impl PluginHelper {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_plugin_id_is_unique() {
+        let id1 = PluginHelper::generate_plugin_id();
+        let id2 = PluginHelper::generate_plugin_id();
+        assert_ne!(id1, id2);
+    }
+
+    #[test]
+    fn test_validate_valid_plugin_name() -> Result<(), PluginError> {
+        PluginHelper::validate_plugin_name("My Plugin")?;
+        PluginHelper::validate_plugin_name("FFB-Filter-Pro")?;
+        PluginHelper::validate_plugin_name("a")?;
+        PluginHelper::validate_plugin_name("plugin_v2.1")
+    }
+
+    #[test]
+    fn test_validate_empty_name_rejected() {
+        let result = PluginHelper::validate_plugin_name("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_name_too_long() {
+        let long_name = "a".repeat(101);
+        let result = PluginHelper::validate_plugin_name(&long_name);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_name_exactly_100_chars() -> Result<(), PluginError> {
+        let name = "a".repeat(100);
+        PluginHelper::validate_plugin_name(&name)
+    }
+
+    #[test]
+    fn test_validate_name_with_forward_slash_rejected() {
+        let result = PluginHelper::validate_plugin_name("path/to/plugin");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_name_with_backslash_rejected() {
+        let result = PluginHelper::validate_plugin_name("path\\to\\plugin");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_name_with_control_chars_rejected() {
+        let result = PluginHelper::validate_plugin_name("plugin\0name");
+        assert!(result.is_err());
+        let result = PluginHelper::validate_plugin_name("plugin\nnewline");
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_validate_nonexistent_file() {
+        let result =
+            PluginHelper::validate_plugin_file(std::path::Path::new("/nonexistent/path/plugin.wasm"))
+                .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_validate_directory_rejected() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let result = PluginHelper::validate_plugin_file(dir.path()).await;
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_validate_existing_file_accepted() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let file_path = dir.path().join("test_plugin.wasm");
+        tokio::fs::write(&file_path, b"fake wasm content").await?;
+        PluginHelper::validate_plugin_file(&file_path).await?;
+        Ok(())
+    }
+}

@@ -206,7 +206,7 @@ pub fn build_gain_report(gain: u8) -> [u8; 2] {
 /// The DFP uses a different range encoding than G25+:
 /// - Short range (≤200°): `{0xf8, 0x81, x1, x2_end, 0x00, 0x00, 0x00}`
 /// - Long range (>200°):  `{0xf8, 0x81, x1, x2_start, 0x00, 0x00, 0x00}`
-///                       then `{0xf8, 0x81, x1, x2_end, 0x00, 0x00, 0x00}`
+///   then `{0xf8, 0x81, x1, x2_end, 0x00, 0x00, 0x00}`
 ///
 /// Source: `lg4ff_set_range_dfp()` in kernel `hid-lg4ff.c`.
 ///
