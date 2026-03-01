@@ -105,26 +105,26 @@ fn test_snapshot_gain_full() {
 
 #[test]
 fn test_snapshot_dfp_range_270() {
-    let r = lg::build_set_range_dfp_report(270);
-    assert_snapshot!(format!("{:02X?}", r));
+    let [coarse, fine] = lg::build_set_range_dfp_reports(270);
+    assert_snapshot!(format!("coarse: {:02X?}\nfine:   {:02X?}", coarse, fine));
 }
 
 #[test]
 fn test_snapshot_dfp_range_900() {
-    let r = lg::build_set_range_dfp_report(900);
-    assert_snapshot!(format!("{:02X?}", r));
+    let [coarse, fine] = lg::build_set_range_dfp_reports(900);
+    assert_snapshot!(format!("coarse: {:02X?}\nfine:   {:02X?}", coarse, fine));
 }
 
 #[test]
 fn test_snapshot_dfp_range_40_min_clamp() {
-    let r = lg::build_set_range_dfp_report(40);
-    assert_snapshot!(format!("{:02X?}", r));
+    let [coarse, fine] = lg::build_set_range_dfp_reports(40);
+    assert_snapshot!(format!("coarse: {:02X?}\nfine:   {:02X?}", coarse, fine));
 }
 
 #[test]
 fn test_snapshot_dfp_range_1080_clamps_to_900() {
-    let r = lg::build_set_range_dfp_report(1080);
-    assert_snapshot!(format!("{:02X?}", r));
+    let [coarse, fine] = lg::build_set_range_dfp_reports(1080);
+    assert_snapshot!(format!("coarse: {:02X?}\nfine:   {:02X?}", coarse, fine));
 }
 
 // ── Mode-switch command snapshots ────────────────────────────────────────────

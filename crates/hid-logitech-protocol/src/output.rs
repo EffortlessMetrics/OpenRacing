@@ -201,31 +201,57 @@ pub fn build_gain_report(gain: u8) -> [u8; 2] {
     [report_ids::DEVICE_GAIN, gain]
 }
 
-/// Build the 7-byte DFP-specific set-range report (0xF8, cmd 0x81 with DFP encoding).
+/// Build the DFP-specific set-range commands (two reports in sequence).
 ///
-/// The DFP uses a different range encoding than G25+:
-/// - Short range (≤200°): `{0xf8, 0x81, x1, x2_end, 0x00, 0x00, 0x00}`
-/// - Long range (>200°):  `{0xf8, 0x81, x1, x2_start, 0x00, 0x00, 0x00}`
-///   then `{0xf8, 0x81, x1, x2_end, 0x00, 0x00, 0x00}`
+/// The DFP uses a different range encoding than G25+. The kernel sends
+/// two HID reports in sequence:
+///   1. **Coarse limit**: `[0xf8, 0x03, 0,0,0,0,0]` for >200° or `[0xf8, 0x02, ...]` for ≤200°.
+///   2. **Fine limit**:  `[0x81, 0x0b, start_left>>4, start_right>>4, 0xff, (right&0xe)<<4|(left&0xe), 0xff]`.
+///      If range is exactly 200 or 900, the fine limit is a no-op (`[0x81, 0x0b, 0,0,0,0,0]`).
+///
+/// `start_left  = (full_range - range + 1) * 2047 / full_range`
+/// `start_right = 0xFFF - start_left`
 ///
 /// Source: `lg4ff_set_range_dfp()` in kernel `hid-lg4ff.c`.
+pub fn build_set_range_dfp_reports(degrees: u16) -> [[u8; VENDOR_REPORT_LEN]; 2] {
+    let range = degrees.clamp(40, 900) as u32;
+
+    // Coarse limit command
+    let coarse_cmd = if range > 200 { 0x03u8 } else { 0x02u8 };
+    let coarse = [report_ids::VENDOR, coarse_cmd, 0x00, 0x00, 0x00, 0x00, 0x00];
+
+    // Fine limit command
+    let full_range: u32 = if range > 200 { 900 } else { 200 };
+
+    if range == 200 || range == 900 {
+        // No fine limit needed — send zeroed fine command
+        let fine = [0x81u8, 0x0b, 0x00, 0x00, 0x00, 0x00, 0x00];
+        return [coarse, fine];
+    }
+
+    let start_left = ((full_range - range + 1) * 2047) / full_range;
+    let start_right = 0xFFF - start_left;
+
+    let fine = [
+        0x81u8,
+        0x0b,
+        (start_left >> 4) as u8,
+        (start_right >> 4) as u8,
+        0xff,
+        (((start_right & 0xe) << 4) | (start_left & 0xe)) as u8,
+        0xff,
+    ];
+
+    [coarse, fine]
+}
+
+/// Build a single DFP set-range report (legacy API, returns only the fine limit).
 ///
-/// For simplicity, this function returns a single report sufficient for
-/// ranges ≤200°. For ranges >200°, two reports must be sent in sequence.
+/// **Deprecated**: prefer [`build_set_range_dfp_reports`] which returns both
+/// coarse and fine limit commands as the kernel expects.
 pub fn build_set_range_dfp_report(degrees: u16) -> [u8; VENDOR_REPORT_LEN] {
-    let degrees = degrees.clamp(40, 900) as u32;
-    let start = ((degrees * 2).saturating_sub(200) * 0x10000 / 1637) | 0x8000_0000;
-    let msb = ((start >> 24) & 0xFF) as u8;
-    let lsb = ((start >> 16) & 0xFF) as u8;
-    [
-        report_ids::VENDOR,
-        commands::SET_RANGE,
-        lsb,
-        msb,
-        0x00,
-        0x00,
-        0x00,
-    ]
+    let reports = build_set_range_dfp_reports(degrees);
+    reports[1] // Return the fine limit command
 }
 
 /// Build the mode-switch command to transition to native mode (G27+).
@@ -487,5 +513,107 @@ mod tests {
             let mag = i16::from_le_bytes([out[2], out[3]]);
             prop_assert_eq!(mag, 0i16, "zero torque must encode to zero");
         }
+    }
+
+    /// Verify the DFP two-report range sequence matches kernel lg4ff_set_range_dfp().
+    ///
+    /// The kernel sends:
+    ///   1. Coarse: [0xf8, 0x03, 0,0,0,0,0] for >200° or [0xf8, 0x02, ...] for ≤200°
+    ///   2. Fine:   [0x81, 0x0b, left>>4, right>>4, 0xff, nibbles, 0xff]
+    ///      Exact 200 and 900 → fine is all-zero (no fine limit applied)
+    #[test]
+    fn test_dfp_range_reports_known_values() -> Result<(), Box<dyn std::error::Error>> {
+        // 200° → coarse 0x02 (short), fine is no-op
+        let [coarse, fine] = build_set_range_dfp_reports(200);
+        assert_eq!(coarse[0], report_ids::VENDOR);
+        assert_eq!(coarse[1], 0x02, "200° coarse must be 0x02");
+        assert_eq!(fine[0], 0x81);
+        assert_eq!(fine[1], 0x0b);
+        assert_eq!(&fine[2..7], &[0, 0, 0, 0, 0], "200° fine must be zeroed (no-op)");
+
+        // 900° → coarse 0x03 (long), fine is no-op
+        let [coarse, fine] = build_set_range_dfp_reports(900);
+        assert_eq!(coarse[1], 0x03, "900° coarse must be 0x03");
+        assert_eq!(&fine[2..7], &[0, 0, 0, 0, 0], "900° fine must be zeroed (no-op)");
+
+        // 540° → coarse 0x03 (>200), fine has non-trivial values
+        // full_range=900, start_left = (900-540+1)*2047/900 = 361*2047/900 = 820
+        // start_right = 0xFFF - 820 = 3275
+        let [coarse, fine] = build_set_range_dfp_reports(540);
+        assert_eq!(coarse[1], 0x03);
+        let start_left = (900u32 - 540 + 1) * 2047 / 900; // 820 = 0x334
+        let start_right = 0xFFF - start_left;               // 3275 = 0xCCB
+        assert_eq!(fine[2], (start_left >> 4) as u8, "540° fine left>>4");
+        assert_eq!(fine[3], (start_right >> 4) as u8, "540° fine right>>4");
+        assert_eq!(fine[4], 0xff);
+        assert_eq!(
+            fine[5],
+            (((start_right & 0xe) << 4) | (start_left & 0xe)) as u8,
+            "540° fine nibble byte"
+        );
+        assert_eq!(fine[6], 0xff);
+
+        Ok(())
+    }
+
+    /// Legacy single-report API returns the fine limit command
+    #[test]
+    fn test_dfp_range_report_known_values() -> Result<(), Box<dyn std::error::Error>> {
+        let r200 = build_set_range_dfp_report(200);
+        assert_eq!(r200[0], 0x81, "report byte 0 must be 0x81");
+        assert_eq!(r200[1], 0x0b, "report byte 1 must be 0x0b");
+
+        // Verify clamping: 0° should clamp to 40°
+        let r40 = build_set_range_dfp_report(40);
+        let r0 = build_set_range_dfp_report(0);
+        assert_eq!(r40, r0, "0° should clamp to 40°");
+
+        // Verify clamping: above 900° should clamp to 900
+        let r900 = build_set_range_dfp_report(900);
+        let r_over = build_set_range_dfp_report(1500);
+        assert_eq!(r900, r_over, "1500° should clamp to 900°");
+
+        Ok(())
+    }
+
+    /// Verify the DFP range report produces different fine-limit encoded
+    /// values as degrees increase (monotonicity of start_left).
+    #[test]
+    fn test_dfp_range_report_monotone() -> Result<(), Box<dyn std::error::Error>> {
+        // start_left = (full_range - range + 1) * 2047 / full_range
+        // As range increases, start_left DECREASES (fine limit narrows)
+        // For ranges > 200, full_range = 900
+        let mut prev_left = u32::MAX;
+        for deg in (250..=900).step_by(50) {
+            let [_, fine] = build_set_range_dfp_reports(deg as u16);
+            // Extract start_left from fine[2] (upper nibble) and fine[5] (lower nibble)
+            let left_upper = (fine[2] as u32) << 4;
+            let left_lower = (fine[5] as u32) & 0x0F; // actually & 0xe per kernel
+            let approx_left = left_upper | left_lower;
+            if deg < 900 {
+                assert!(
+                    approx_left < prev_left,
+                    "DFP fine start_left must decrease as range {}° increases: prev={}, cur={}",
+                    deg, prev_left, approx_left
+                );
+            }
+            prev_left = approx_left;
+        }
+        Ok(())
+    }
+
+    /// Verify the DFP arithmetic matches the kernel formula exactly.
+    #[test]
+    fn test_dfp_range_report_arithmetic_detail() -> Result<(), Box<dyn std::error::Error>> {
+        // For 100° (≤200): full_range=200, start_left=(200-100+1)*2047/200 = 101*2047/200 = 1033
+        // start_right = 0xFFF - 1033 = 3062
+        let [coarse, fine] = build_set_range_dfp_reports(100);
+        assert_eq!(coarse[1], 0x02, "100° coarse cmd must be 0x02");
+        let start_left = (200u32 - 100 + 1) * 2047 / 200;
+        let start_right = 0xFFF - start_left;
+        assert_eq!(fine[2], (start_left >> 4) as u8);
+        assert_eq!(fine[3], (start_right >> 4) as u8);
+
+        Ok(())
     }
 }

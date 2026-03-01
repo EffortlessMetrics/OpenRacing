@@ -1,5 +1,6 @@
 ---
 source: crates/hid-logitech-protocol/tests/snapshot_tests.rs
-expression: "format!(\"{:02X?}\", r)"
+expression: "format!(\"coarse: {:02X?}\\nfine:   {:02X?}\", coarse, fine)"
 ---
-[F8, 81, 00, 80, 00, 00, 00]
+coarse: [F8, 02, 00, 00, 00, 00, 00]
+fine:   [81, 0B, 66, 99, FF, 0E, FF]

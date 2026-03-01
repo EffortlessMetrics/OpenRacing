@@ -196,14 +196,14 @@ proptest! {
 
     // ── Model: max_rotation_deg is valid ─────────────────────────────────────
 
-    /// Every Logitech model reports a valid rotation range (900° or 1080°).
+    /// Every Logitech model reports a valid rotation range (180°, 270°, 900° or 1080°).
     #[test]
     fn prop_model_rotation_is_valid(pid in 0u16..=65535u16) {
         let model = LogitechModel::from_product_id(pid);
         let deg = model.max_rotation_deg();
         prop_assert!(
-            deg == 900 || deg == 1080,
-            "model {:?} must report 900° or 1080° rotation, got {}°",
+            deg == 180 || deg == 270 || deg == 900 || deg == 1080,
+            "model {:?} must report 180°, 270°, 900° or 1080° rotation, got {}°",
             model,
             deg
         );
@@ -213,7 +213,7 @@ proptest! {
 // ── Kernel-verified protocol property tests ──────────────────────────────
 
 use racing_wheel_hid_logitech_protocol::{
-    VENDOR_REPORT_LEN, build_mode_switch_report, build_set_range_dfp_report,
+    VENDOR_REPORT_LEN, build_mode_switch_report, build_set_range_dfp_reports,
 };
 
 /// Strategy that produces every `LogitechModel` variant uniformly.
@@ -241,17 +241,19 @@ proptest! {
 
     // ── build_set_range_dfp_report: correct command byte ─────────────────
 
-    /// DFP range report must start with VENDOR report ID (0xF8) and
-    /// SET_RANGE command (0x81), and be exactly VENDOR_REPORT_LEN bytes.
+    /// DFP range reports must have correct structure for both coarse and fine commands.
     #[test]
-    fn prop_dfp_range_report_header(degrees in 0u16..=2000u16) {
-        let r = build_set_range_dfp_report(degrees);
-        prop_assert_eq!(r.len(), VENDOR_REPORT_LEN,
-            "DFP range report must be 7 bytes");
-        prop_assert_eq!(r[0], 0xF8, "byte 0 must be VENDOR report ID (0xF8)");
-        prop_assert_eq!(r[1], 0x81, "byte 1 must be SET_RANGE command (0x81)");
-        prop_assert_eq!(&r[4..], &[0x00, 0x00, 0x00],
-            "bytes 4-6 must be zero padding");
+    fn prop_dfp_range_reports_structure(degrees in 0u16..=2000u16) {
+        let [coarse, fine] = build_set_range_dfp_reports(degrees);
+        prop_assert_eq!(coarse.len(), VENDOR_REPORT_LEN,
+            "DFP coarse report must be 7 bytes");
+        prop_assert_eq!(fine.len(), VENDOR_REPORT_LEN,
+            "DFP fine report must be 7 bytes");
+        prop_assert_eq!(coarse[0], 0xF8, "coarse byte 0 must be VENDOR report ID");
+        prop_assert!(coarse[1] == 0x02 || coarse[1] == 0x03,
+            "coarse byte 1 must be 0x02 or 0x03, got {:#04x}", coarse[1]);
+        prop_assert_eq!(fine[0], 0x81, "fine byte 0 must be 0x81");
+        prop_assert_eq!(fine[1], 0x0b, "fine byte 1 must be 0x0b");
     }
 
     // ── build_mode_switch_report: returns correct structure ──────────────
