@@ -1,6 +1,21 @@
 //! Fanatec HID input report parsing.
 //!
 //! All functions are pure and allocation-free.
+//!
+//! ## Rim detection (Quick Release adapter)
+//!
+//! The attached steering wheel rim is identified by byte `0x1F` of the standard
+//! input report (ID 0x01). Verified in `gotzl/hid-fanatecff` `hid-ftec.c`:
+//! ```c
+//! // ftecff_raw_event()
+//! } else if (data[0] == 0x01) {
+//!     bool changed = drv_data->wheel_id != data[0x1f];
+//!     drv_data->wheel_id = data[0x1f];
+//!     if (changed) kobject_uevent(&hdev->dev.kobj, KOBJ_CHANGE);
+//! }
+//! ```
+//! When a rim is detached or swapped via the Fanatec Quick Release, the base
+//! updates this byte and the driver detects the change on the next input report.
 
 #![deny(static_mut_refs)]
 

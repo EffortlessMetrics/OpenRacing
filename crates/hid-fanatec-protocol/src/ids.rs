@@ -12,6 +12,13 @@
 pub const FANATEC_VENDOR_ID: u16 = 0x0EB7;
 
 /// Report IDs used in the Fanatec HID protocol.
+///
+/// Note: The Linux driver (`gotzl/hid-fanatecff`) accesses HID output reports
+/// via the kernel `hid_report` API (filling `field[0]->value[0..6]`), so the
+/// report ID is implicit. Commands prefixed with `0xf8` (LED, display, range,
+/// tuning) and slot-based FFB commands (`(slot_id<<4)|flags`) are all sent
+/// over the same HID output report. Our crate prepends an explicit report ID
+/// byte for raw HID write compatibility.
 pub mod report_ids {
     /// Standard input report (steering, pedals, buttons).
     pub const STANDARD_INPUT: u8 = 0x01;
@@ -26,6 +33,11 @@ pub mod report_ids {
 }
 
 /// FFB command bytes carried in output report 0x01.
+///
+/// The Linux driver (`hid-ftecff.c`) uses a slot-based protocol where byte 0
+/// is `(slot_id << 4) | flags` and byte 1 is the slot command (0x08 for
+/// constant force, 0x0b for spring, 0x0c for damper/inertia/friction).
+/// The constants below are used in our higher-level report encoding.
 pub mod ffb_commands {
     /// Constant force effect.
     pub const CONSTANT_FORCE: u8 = 0x01;
@@ -38,6 +50,16 @@ pub mod ffb_commands {
 }
 
 /// LED / display / rumble command bytes carried in output report 0x08.
+///
+/// The Linux driver (`hid-ftecff.c`) sends these via `0xf8`-prefixed commands:
+/// - Wheel LEDs: `[0xf8, 0x09, 0x08, leds_hi, leds_lo, 0, 0]`
+///   (LED bit order is reversed: first LED = highest bit).
+/// - Wheelbase LEDs (CSL Elite, `FTEC_WHEELBASE_LEDS` quirk):
+///   `[0xf8, 0x13, leds_lo, 0, 0, 0, 0]`.
+/// - Display: `[0xf8, 0x09, 0x01, 0x02, seg1, seg2, seg3]`
+///   with 7-segment encoding per character.
+/// - Rumble (wheelbase): `[0xf8, 0x09, 0x01, 0x03, val_hi, val_mid, val_lo]`.
+/// - Rumble (pedals): `[0xf8, 0x09, 0x01, 0x04, val_hi, val_mid, val_lo]`.
 pub mod led_commands {
     /// Set rev-light LEDs on the attached steering-wheel rim.
     pub const REV_LIGHTS: u8 = 0x80;
@@ -72,6 +94,8 @@ pub mod product_ids {
     pub const CSR_ELITE: u16 = 0x0011;
     /// CSL DD (8 Nm direct-drive). Also covers DD Pro and ClubSport DD in PC mode.
     /// Verified: `CSL_DD_WHEELBASE_DEVICE_ID 0x0020`.
+    /// The Linux driver README confirms: "0EB7:0020 FANATEC CSL DD / DD Pro /
+    /// ClubSport DD Wheel Base". Uses `FTEC_HIGHRES` quirk for 16-bit force.
     pub const CSL_DD: u16 = 0x0020;
     /// Gran Turismo DD Pro (8 Nm direct-drive, PlayStation-specific PID).
     /// **Unverified** — not present in community Linux driver (`gotzl/hid-fanatecff`).
@@ -135,6 +159,8 @@ pub mod rim_ids {
     pub const CLUBSPORT_RS: u8 = 0x06;
     /// CSL Elite Steering Wheel WRC.
     /// Verified: `CSL_ELITE_STEERING_WHEEL_WRC_ID 0x12` in `hid-ftec.h`.
+    /// Note: shares value 0x12 with `CLUBSPORT_STEERING_WHEEL_F1_IS_ID` in the
+    /// Linux driver header; the driver does not distinguish between these rims.
     pub const WRC: u8 = 0x12;
     /// Podium Hub. **Unverified** — not present in community driver.
     pub const PODIUM_HUB: u8 = 0x09;

@@ -38,6 +38,12 @@ impl LogitechModel {
     }
 
     /// Maximum continuous torque in Newton-meters for this model.
+    ///
+    /// These are manufacturer-specified peak torque values from Logitech
+    /// product data sheets. They are **not** present in any open-source
+    /// driver (drivers operate in dimensionless force units). Values are
+    /// used here to normalize physical torque requests to the device's
+    /// ±10000 magnitude range.
     pub fn max_torque_nm(self) -> f32 {
         match self {
             Self::G25 | Self::G27 => 2.5,
@@ -48,6 +54,10 @@ impl LogitechModel {
     }
 
     /// Maximum wheel rotation in degrees.
+    ///
+    /// Source: `lg4ff_devices[]` in kernel and new-lg4ff define `max_range`
+    /// as 900 for G25/G27/DFGT/G29/G923. The G PRO supports 1080° per
+    /// Logitech product specifications (not yet in any open-source driver).
     pub fn max_rotation_deg(self) -> u16 {
         match self {
             Self::GPro => 1080,
@@ -56,6 +66,11 @@ impl LogitechModel {
     }
 
     /// Whether this model supports TrueForce haptics.
+    ///
+    /// TrueForce is a proprietary Logitech haptic feedback feature
+    /// exclusive to the G923. No public protocol specification exists in
+    /// any open-source driver as of this writing; `berarma/new-lg4ff`
+    /// supports G923 standard FFB but does not implement TrueForce.
     pub fn supports_trueforce(self) -> bool {
         matches!(self, Self::G923)
     }

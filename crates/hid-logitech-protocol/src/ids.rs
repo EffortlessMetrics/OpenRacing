@@ -1,4 +1,23 @@
 //! Logitech USB vendor and product ID constants.
+//!
+//! # Sources
+//!
+//! Protocol details in this module were cross-referenced against these
+//! open-source Linux driver projects:
+//!
+//! - **Linux kernel `hid-lg4ff.c`** — `torvalds/linux drivers/hid/hid-lg4ff.c`
+//!   (in-tree driver; supports G25 through G29 via the classic Logitech FFB
+//!   slot protocol).
+//! - **new-lg4ff** — `berarma/new-lg4ff` (out-of-tree driver; extends the
+//!   kernel driver with full FF_SPRING / FF_DAMPER / FF_FRICTION support,
+//!   high-resolution timer, and G923 PS mode switching).
+//! - **oversteer** — `berarma/oversteer` (Linux GUI for Logitech / Thrustmaster
+//!   / Fanatec wheels; provides the most complete PID list including G PRO).
+//!
+//! The G920 and G923 Xbox/PC variant (0xC26E) use the **HID++** protocol
+//! rather than the classic lg4ff slot protocol. They are driven by the
+//! `hid-logitech-hidpp` kernel module since kernel 6.3. See the new-lg4ff
+//! README for details.
 
 #![deny(static_mut_refs)]
 
@@ -6,10 +25,24 @@
 pub const LOGITECH_VENDOR_ID: u16 = 0x046D;
 
 /// Report IDs used in the Logitech HID protocol.
+///
+/// The vendor report ID 0xF8 carries all extended commands (mode switch,
+/// range, autocenter, LEDs). The constant-force and device-gain report IDs
+/// are from the higher-level HID PID (Physical Interface Device) layer.
+///
+/// Note: the kernel `hid-lg4ff.c` and `new-lg4ff` drivers send FFB data
+/// through a 7-byte HID output report whose report ID is implicit in the
+/// HID descriptor, with the first data byte encoding the slot and operation
+/// (e.g. `0x11` = slot 1 start). The report IDs below are from a
+/// complementary abstraction layer.
 pub mod report_ids {
     /// Standard input report (steering, pedals, buttons).
     pub const STANDARD_INPUT: u8 = 0x01;
     /// Vendor-specific feature/output report (init, range, LEDs, autocenter).
+    ///
+    /// Source: kernel `hid-lg4ff.c` — all extended commands use `0xf8` as the
+    /// first byte of the 7-byte output report payload (e.g.
+    /// `{0xf8, 0x0a, ...}` for mode reset, `{0xf8, 0x81, ...}` for set-range).
     pub const VENDOR: u8 = 0xF8;
     /// Set Constant Force effect output report.
     pub const CONSTANT_FORCE: u8 = 0x12;
@@ -18,12 +51,54 @@ pub mod report_ids {
 }
 
 /// Command bytes carried in vendor report 0xF8.
+///
+/// # Mode-switch protocol (from kernel and new-lg4ff)
+///
+/// Logitech wheels support multiple compatibility modes. Newer wheels
+/// (G27+) can emulate older models (DF-EX, DFP, G25, etc.). Mode
+/// switching uses `0xf8`-prefixed 7-byte commands:
+///
+/// | Command | Byte 1 | Meaning |
+/// |---------|--------|---------|
+/// | EXT_CMD1  | `0x01` | Switch DFP to native mode |
+/// | EXT_CMD9  | `0x09` | Extended mode switch (G27+) — byte 2 selects target |
+/// | EXT_CMD10 | `0x0a` | Revert mode upon USB reset (sent before `0x09`) |
+/// | EXT_CMD16 | `0x10` | Switch G25 to native mode |
+///
+/// For G27/DFGT/G29, mode switching is a two-step sequence:
+/// 1. `{0xf8, 0x0a, 0, 0, 0, 0, 0}` — set revert-on-reset mode
+/// 2. `{0xf8, 0x09, mode, 0x01, detach, 0, 0}` — switch with USB detach
+///
+/// For G923 PS (PID 0xC267 → 0xC266), the switch command must be sent
+/// with HID report ID `0x30` instead of the default report ID
+/// (see `lg4ff_switch_from_ps_mode` in `berarma/new-lg4ff`).
 pub mod commands {
-    /// Enter native mode (full rotation + FFB).
+    /// "Revert mode upon USB reset" — tells the device which mode to
+    /// return to after a USB bus reset.
+    ///
+    /// In practice this is the first step of a native-mode switch for
+    /// G27+ wheels: send `{0xf8, 0x0a, 0, 0, 0, 0, 0}` followed by the
+    /// appropriate `0x09` command.
+    ///
+    /// Source: kernel `lg4ff_mode_switch_ext09_*` arrays — every mode
+    /// switch begins with `{0xf8, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}`
+    /// ("Revert mode upon USB reset").
     pub const NATIVE_MODE: u8 = 0x0A;
-    /// Set wheel rotation range.
+    /// Set wheel rotation range (G25/G27/DFGT/G29/G923).
+    ///
+    /// Payload: `{0xf8, 0x81, range_lo, range_hi, 0, 0, 0}`.
+    ///
+    /// Source: `lg4ff_set_range_g25()` in both kernel and new-lg4ff.
     pub const SET_RANGE: u8 = 0x81;
-    /// Set autocenter force.
+    /// Activate autocenter spring effect.
+    ///
+    /// The full autocenter sequence is:
+    /// 1. `{0xfe, 0x0d, k, k, strength, 0, 0}` — set spring parameters
+    /// 2. `{0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}` — activate
+    ///
+    /// To deactivate: `{0xf5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}`.
+    ///
+    /// Source: `lg4ff_set_autocenter_default()` in both kernel and new-lg4ff.
     pub const SET_AUTOCENTER: u8 = 0x14;
     /// Set rev-light LEDs.
     pub const SET_LEDS: u8 = 0x12;
@@ -39,10 +114,21 @@ pub mod commands {
 /// - **oversteer `wheel_ids.py`** (berarma/oversteer — Linux GUI for racing
 ///   wheels, includes G PRO IDs)
 ///
+/// # G923 dual-PID behaviour
+///
 /// The G923 PS/PC model has **two PIDs**: 0xC267 enumerates first in
-/// PlayStation compatibility mode; a mode-switch command re-enumerates the
-/// device as 0xC266 (native HID mode with full FFB). The Xbox/PC variant
-/// always enumerates as 0xC26E.
+/// PlayStation compatibility mode; a mode-switch command (sent via HID
+/// report ID `0x30` — see `lg4ff_switch_from_ps_mode` in new-lg4ff)
+/// re-enumerates the device as 0xC266 (native HID mode with full FFB).
+/// The Xbox/PC variant always enumerates as 0xC26E.
+///
+/// # HID++ vs. classic lg4ff protocol
+///
+/// The G920 (0xC262) and G923 Xbox/PC (0xC26E) use the **HID++**
+/// protocol, not the classic Logitech FFB slot protocol. They are
+/// supported by the `hid-logitech-hidpp` kernel module (since kernel
+/// 6.3). The new-lg4ff README explicitly states it is "not compatible
+/// with the Logitech G920 … and XBOX/PC version of the Logitech G923".
 ///
 /// G PRO and G PRO 2 are direct-drive wheels. G PRO 2 PIDs are not yet
 /// present in any community driver source as of this writing.

@@ -47,6 +47,13 @@ impl FanatecModel {
     }
 
     /// Maximum continuous torque in Newton-meters for this model.
+    ///
+    /// These values are from Fanatec's official product specifications, not from
+    /// the Linux driver (which does not contain torque constants). The Linux driver
+    /// assigns device quirk flags (`hid-ftec.c` device table):
+    /// - `FTEC_HIGHRES`: DD1, DD2, CSL DD — 16-bit force encoding
+    /// - `FTEC_WHEELBASE_LEDS`: CSL Elite, CSL Elite PS4 — has base LEDs
+    /// - `FTEC_TUNING_MENU`: CSL Elite (both), DD1, DD2, CSL DD
     pub fn max_torque_nm(self) -> f32 {
         match self {
             Self::Dd1 => 20.0,
@@ -152,7 +159,9 @@ impl FanatecPedalModel {
 /// Steering wheel rim IDs as reported in byte 0x1F of the standard input report.
 ///
 /// The community Linux driver (`gotzl/hid-fanatecff`) reads this from `data[0x1f]`
-/// in `ftecff_raw_event`. See `hid-ftec.h` for verified constants.
+/// in `ftecff_raw_event` (`hid-ftec.c`). When the rim ID changes (e.g., quick-release
+/// swap), the driver fires a `kobject_uevent(KOBJ_CHANGE)` to notify userspace.
+/// See `hid-ftec.h` for verified constants.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FanatecRimId {
     BmwGt2,

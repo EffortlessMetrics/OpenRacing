@@ -1,6 +1,45 @@
 //! Logitech HID output report encoding.
 //!
 //! All functions are pure and allocation-free.
+//!
+//! # Protocol notes
+//!
+//! The kernel `hid-lg4ff.c` driver and `berarma/new-lg4ff` out-of-tree driver
+//! both use a **4-slot** system for force feedback commands. Each slot command
+//! is a 7-byte payload sent via `HID_REQ_SET_REPORT`:
+//!
+//! ```text
+//! Byte 0: (slot_id << 4) | operation
+//!   Slot IDs: 0 = constant, 1–3 = conditional effects
+//!   Operations: 0x01 = start, 0x03 = stop, 0x0c = update
+//! Bytes 1–6: effect-specific data
+//! ```
+//!
+//! ## Effect type bytes (new-lg4ff `lg4ff_update_slot`)
+//!
+//! | Effect   | Byte 1 | Encoding summary |
+//! |----------|--------|------------------|
+//! | Constant | `0x00` | Force in byte `2 + slot_id` (unsigned 8-bit, 0x80 = center) |
+//! | Spring   | `0x0b` | 11-bit deadband positions, 4-bit coefficients, sign bits, 8-bit clip |
+//! | Damper   | `0x0c` | 4-bit coefficients, sign bytes, 8-bit clip |
+//! | Friction | `0x0e` | 8-bit coefficients, 8-bit clip, sign nibble |
+//!
+//! The kernel's in-tree driver (`lg4ff_play`) uses a simpler encoding
+//! (`{0x11, 0x08, force, 0x80, 0, 0, 0}` for constant force in slot 1,
+//! where `force` is unsigned 0x00–0xFF with 0x80 = no force).
+//!
+//! ## G923 TrueForce
+//!
+//! TrueForce is a proprietary Logitech haptic feedback feature on the G923.
+//! No public protocol documentation exists in any open-source driver project
+//! as of this writing. The `new-lg4ff` driver supports G923 standard FFB
+//! but does not implement TrueForce.
+//!
+//! ## Encoder CPR (counts per revolution)
+//!
+//! Encoder resolution values are hardware specifications from Logitech
+//! product data, not present in any driver source code. They are not
+//! verified by the open-source drivers.
 
 #![deny(static_mut_refs)]
 
@@ -61,10 +100,23 @@ fn torque_to_magnitude(torque_nm: f32, max_torque_nm: f32) -> i16 {
     (normalized * 10_000.0) as i16
 }
 
-/// Build the 7-byte native mode feature report (0xF8, cmd 0x0A).
+/// Build the 7-byte "revert mode upon USB reset" feature report (0xF8, cmd 0x0A).
 ///
-/// Send as a HID feature report to switch the wheel from compatibility mode
-/// (200°) to native mode (full rotation + FFB).
+/// In the Linux kernel and new-lg4ff drivers, this command is documented as
+/// "Revert mode upon USB reset". It is the **first step** of a two-command
+/// native-mode switch sequence for G27+ wheels:
+///
+/// 1. `{0xF8, 0x0A, 0, 0, 0, 0, 0}` — revert mode upon USB reset (this fn)
+/// 2. `{0xF8, 0x09, mode, 0x01, detach, 0, 0}` — switch to target mode
+///
+/// For simpler wheels (DFP, G25), a single command suffices
+/// (DFP: `{0xF8, 0x01, ...}`, G25: `{0xF8, 0x10, ...}`).
+///
+/// For G923 PS (PID 0xC267 → 0xC266), the mode-switch command must be
+/// sent with HID report ID `0x30` instead of the default output report ID.
+///
+/// Source: `lg4ff_mode_switch_ext09_*` in kernel `hid-lg4ff.c` and
+/// `berarma/new-lg4ff hid-lg4ff.c`.
 ///
 /// After sending, wait at least 100 ms before issuing further commands.
 pub fn build_native_mode_report() -> [u8; VENDOR_REPORT_LEN] {
@@ -82,7 +134,11 @@ pub fn build_native_mode_report() -> [u8; VENDOR_REPORT_LEN] {
 /// Build the 7-byte set-range feature report (0xF8, cmd 0x81).
 ///
 /// `degrees` is the desired full rotation range (e.g. 900 for G920/G923,
-/// 1080 for Pro Racing Wheel).
+/// 1080 for Pro Racing Wheel). Valid range per driver: 40–900 for
+/// G25/G27/DFGT/G29/G923 (see `lg4ff_devices[]` in kernel and new-lg4ff).
+///
+/// Source: `lg4ff_set_range_g25()` in kernel `hid-lg4ff.c` and
+/// `berarma/new-lg4ff` — `{0xf8, 0x81, range & 0xff, range >> 8, 0, 0, 0}`.
 pub fn build_set_range_report(degrees: u16) -> [u8; VENDOR_REPORT_LEN] {
     let [lsb, msb] = degrees.to_le_bytes();
     [
@@ -100,6 +156,17 @@ pub fn build_set_range_report(degrees: u16) -> [u8; VENDOR_REPORT_LEN] {
 ///
 /// `strength` is the centering force (0x00–0xFF).
 /// `rate` is the centering speed (0x00–0xFF).
+///
+/// This command activates the device's built-in autocenter spring. The full
+/// autocenter protocol (from `lg4ff_set_autocenter_default` in both the
+/// kernel and new-lg4ff) is a two-step sequence:
+///
+/// 1. `{0xFE, 0x0D, k, k, strength, 0, 0}` — configure spring parameters
+/// 2. `{0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}` — activate
+///
+/// To deactivate autocenter: `{0xF5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}`.
+///
+/// This function builds a simplified single-command activation.
 pub fn build_set_autocenter_report(strength: u8, rate: u8) -> [u8; VENDOR_REPORT_LEN] {
     [
         report_ids::VENDOR,

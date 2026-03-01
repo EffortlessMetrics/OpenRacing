@@ -6,13 +6,33 @@
 //!
 //! The community Linux driver (`gotzl/hid-fanatecff`) uses a **slot-based**
 //! FFB protocol with 5 effect slots (constant, spring, damper, inertia,
-//! friction). Constant force is slot command `0x08` with an **unsigned**
-//! 16-bit force value where `0x8000` = zero force, `0x0000` = full
-//! negative, `0xFFFF` = full positive (see `TRANSLATE_FORCE` macro in
-//! `hid-ftecff.c`). Our encoder uses a **signed** i16 representation
-//! (`0` = zero, `+32767` = full positive, `-32768` = full negative).
-//! Both encodings are bit-equivalent on the wire when interpreted
-//! correctly by the device firmware.
+//! friction). Each slot command is 7 bytes:
+//! - Byte 0: `(slot_id << 4) | flags` (bit 0 = active, bit 1 = disable)
+//! - Byte 1: slot command (0x08 = constant, 0x0b = spring, 0x0c = others)
+//! - Bytes 2–6: effect-specific parameters
+//!
+//! For constant force (slot 0, highres):
+//! - `[0x01, 0x08, force_lo, force_hi, 0x00, 0x00, 0x01]`
+//! - The `TRANSLATE_FORCE` macro (`hid-ftecff.c`) encodes as:
+//!   `(CLAMP_VALUE_S16(x) + 0x8000) >> (16 - bits)`
+//!   producing an **unsigned** 16-bit value where 0x0000 = full negative,
+//!   0x8000 = zero, 0xFFFF = full positive.
+//!
+//! Devices with the `FTEC_HIGHRES` quirk flag (DD1, DD2, CSL DD) use
+//! 16-bit force encoding with byte 6 = 0x01 as a highres marker.
+//! Older bases (ClubSport V2/V2.5, CSR Elite, CSL Elite) use 8-bit.
+//!
+//! Our encoder uses a **signed** i16 representation (`0` = zero,
+//! `+32767` = full positive, `-32768` = full negative). Both encodings
+//! are bit-equivalent on the wire when interpreted correctly by the
+//! device firmware.
+//!
+//! Stop all effects (`ftecff_stop_effects`): `[0xf3, 0, 0, 0, 0, 0, 0]`.
+//!
+//! Range setting (`ftec_set_range`): three-report sequence —
+//! 1. `[0xf5, 0, 0, 0, 0, 0, 0]`
+//! 2. `[0xf8, 0x09, 0x01, 0x06, 0x01, 0, 0]`
+//! 3. `[0xf8, 0x81, range_lo, range_hi, 0, 0, 0]`
 
 #![deny(static_mut_refs)]
 
@@ -187,6 +207,14 @@ pub fn build_rumble_report(left: u8, right: u8, duration_10ms: u8) -> [u8; LED_R
 /// Minimum supported steering rotation range in degrees.
 pub const MIN_ROTATION_DEGREES: u16 = 90;
 /// Maximum supported steering rotation range in degrees (applies to all current bases).
+///
+/// Note: The Linux driver (`hid-ftecff.c:ftec_probe`) sets per-device max ranges:
+/// - ClubSport V2/V2.5, CSR Elite: 900°
+/// - CSL Elite, CSL Elite PS4: 1080° (technically 1090 as "auto" sentinel)
+/// - DD1, DD2, CSL DD: 2520° (technically 2530 as "auto" sentinel)
+///
+/// This constant reflects the legacy / CSL Elite maximum. Direct-drive bases
+/// accept higher values (up to 2520°) via the same protocol command.
 pub const MAX_ROTATION_DEGREES: u16 = 1080;
 
 /// Build the 8-byte output report that configures the steering wheel rotation range.
