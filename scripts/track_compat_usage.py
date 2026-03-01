@@ -138,6 +138,13 @@ class CompatUsageTracker:
             "crates/schemas/tests/compile_fail/",  # same
             "crates/integration-tests/",  # test crate exercises all device protocol APIs
             "crates/telemetry-forza/",  # uses TelemetryFrame.sequence (not deprecated TelemetryData.sequence)
+            "crates/openracing-ipc/",  # IPC codec has its own sequence field (packet sequencing)
+            "crates/simplemotion-v2/",  # SimpleMotion protocol has its own sequence counter
+            "crates/hid-simucube-protocol/",  # HID PID protocol sequence numbers
+            "crates/hid-asetek-protocol/",  # HID PID protocol sequence numbers
+            "crates/openracing-native-plugin/",  # plugin frame sequence counter
+            "crates/telemetry-contracts/",  # TelemetryFrame.sequence (non-deprecated)
+            "crates/schemas/tests/",  # schema validation tests reference TelemetryFrame.sequence
         ]
         
         # File extensions to search

@@ -43,3 +43,4 @@ test_output.txt
 # Machine-specific cargo config
 .cargo/
 
+compat_current.json
