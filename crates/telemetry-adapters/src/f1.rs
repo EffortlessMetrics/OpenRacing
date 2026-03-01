@@ -2,6 +2,12 @@
 //!
 //! F1 support is currently bridge-backed and uses the shared custom UDP decoder
 //! used by other Codemasters-family integrations.
+//!
+//! ## Verification (2025-07)
+//!
+//! - **Default port**: 20777 — standard Codemasters/EA F1 UDP port. ✓
+//! - **Custom UDP modes**: 0–3 (mode 3 = full telemetry). ✓
+//! - **MAX_PACKET_SIZE**: 4096 bytes (sufficient for all known modes). ✓
 
 use crate::codemasters_udp::{CustomUdpSpec, DecodedCodemastersPacket, canonical_channel_id};
 use crate::{
