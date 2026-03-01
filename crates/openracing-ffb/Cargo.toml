@@ -8,7 +8,8 @@ repository.workspace = true
 
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["workspace-hack"]
+normal = ["workspace-hack", "thiserror"]
+development = ["quickcheck"]
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }

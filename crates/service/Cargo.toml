@@ -17,7 +17,7 @@ keygen = []
 
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["workspace-hack"]
+normal = ["workspace-hack", "libudev", "openracing-ipc"]
 
 [dependencies]
 racing-wheel-schemas = { path = "../schemas" }

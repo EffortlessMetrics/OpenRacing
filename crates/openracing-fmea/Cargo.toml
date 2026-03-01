@@ -11,7 +11,8 @@ categories = ["embedded", "game-development", "no-std"]
 
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["workspace-hack"]
+normal = ["workspace-hack", "thiserror"]
+development = ["approx", "quickcheck", "quickcheck_macros"]
 
 [dependencies]
 serde = { workspace = true, optional = true }

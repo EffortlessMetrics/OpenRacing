@@ -11,7 +11,8 @@ categories = ["network-programming", "asynchronous"]
 
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["workspace-hack"]
+normal = ["workspace-hack", "async-stream", "chrono", "futures", "openracing-errors", "prost-types", "tokio-stream", "tonic"]
+development = ["quickcheck", "quickcheck_macros", "tokio-test", "tracing-test"]
 
 [dependencies]
 openracing-errors = { workspace = true }

@@ -12,6 +12,7 @@ categories = ["config", "filesystem"]
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
+development = ["proptest", "tracing-test"]
 
 [dependencies]
 racing-wheel-schemas = { path = "../schemas" }

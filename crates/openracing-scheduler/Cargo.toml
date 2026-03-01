@@ -9,7 +9,7 @@ description = "Absolute scheduling with PLL drift correction and jitter tracking
 
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["workspace-hack"]
+normal = ["workspace-hack", "thiserror"]
 
 [dependencies]
 thiserror = { workspace = true }

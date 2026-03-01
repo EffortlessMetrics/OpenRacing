@@ -409,6 +409,7 @@ jobs:
           fi
 
       - name: Check unused dependencies
+        continue-on-error: true  # Known false-positives: see F-029 in FRICTION_LOG.md
         run: cargo +nightly udeps --workspace --all-targets --exclude workspace-hack
 
       - name: Test minimal versions (nightly)

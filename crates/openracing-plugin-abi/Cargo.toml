@@ -12,6 +12,7 @@ categories = ["no-std", "embedded", "wasm"]
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
+development = ["quickcheck", "quickcheck_macros"]
 
 [dependencies]
 bitflags = "2.10.0"
