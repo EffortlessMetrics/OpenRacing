@@ -5696,6 +5696,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "racing-wheel-hid-pxn-protocol"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "workspace-hack",
+]
+
+[[package]]
 name = "racing-wheel-hid-simagic-protocol"
 version = "0.1.0"
 dependencies = [
