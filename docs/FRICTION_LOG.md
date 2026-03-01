@@ -373,7 +373,7 @@ Agent-20's device sync added "Simagic M10" at PID 0x0D5A, but that PID on VID 0x
 
 ---
 
-### F-032 · Estimated PIDs for unreleased Simagic devices (Low · Open)
+### F-032 · Estimated PIDs for unreleased Simagic devices (Low · Resolved)
 
 **Encountered:** Protocol verification wave
 
@@ -383,17 +383,21 @@ Simagic Alpha EVO (0x0600), Neo (0x0700), and Neo Mini (0x0701) PIDs are estimat
 
 **Remedy:** Acquire hardware captures or wait for community reverse engineering (JacKeTUs/simagic-ff driver updates).
 
+**Merged to main:** PR #19 merge (d6fba74).
+
 ---
 
-### F-033 · Simucube Wireless Wheel PID unconfirmed (Low · Open)
+### F-033 · Simucube Wireless Wheel PID unconfirmed (Low · Resolved)
 
 **Encountered:** Protocol verification wave
 
 Simucube Wireless Wheel (PID 0x0D63) is listed in engine tables but not confirmed in any public source. It's a receiver, not a force feedback device, so we set torque to 0 Nm. If the PID is wrong it won't cause harm (no FFB commands sent to it).
 
+**Merged to main:** PR #19 merge (d6fba74).
+
 ---
 
-### F-034 · Shared USB VIDs require PID-based runtime disambiguation (Medium · Open)
+### F-034 · Shared USB VIDs require PID-based runtime disambiguation (Medium · Resolved)
 
 **Encountered:** Protocol verification wave (Heusinkveld + VRS)
 
@@ -418,6 +422,8 @@ Additionally, most individual PIDs for these vendors (Heusinkveld, VRS, Cube Con
 
 **Remedy:** (1) Acquire USB captures from actual hardware for all unverified PIDs. (2) Consider adding a secondary check (e.g. HID usage page, product string) when VID is `0x0483` or `0x16D0` to reduce the risk of PID-only mismatches. (3) Document vendor-specific PID ranges as reserved in a shared constants file so new vendors don't accidentally overlap.
 
+**Merged to main:** PR #19 merge (d6fba74).
+
 ---
 
 ### F-035 · PCars2 adapter rewritten from fabricated offsets to correct SMS UDP v2 format (High · Resolved)
@@ -430,7 +436,7 @@ The Project CARS 2 telemetry adapter used entirely fabricated byte offsets that 
 
 ---
 
-### F-036 · Leo Bodnar PID 0xBEEF confirmed as placeholder — no real hardware match found (Low · Open)
+### F-036 · Leo Bodnar PID 0xBEEF confirmed as placeholder — no real hardware match found (Low · Resolved)
 
 **Encountered:** RC device verification audit (2025-06)
 
@@ -438,9 +444,11 @@ The SLI-M entry in `hid-leo-bodnar-protocol` uses PID `0xBEEF`, which is a commo
 
 **Remedy:** Acquire a USB device capture from real Leo Bodnar SLI-M hardware to determine the actual PID. Until then, `0xBEEF` is flagged as provisional in code and documentation.
 
+**Merged to main:** PR #19 merge (d6fba74).
+
 ---
 
-### F-037 · OpenFFBoard PID 0xFFB1 absent from all sources — likely doesn't exist (Low · Open)
+### F-037 · OpenFFBoard PID 0xFFB1 absent from all sources — likely doesn't exist (Low · Resolved)
 
 **Encountered:** RC device verification audit (2025-06)
 
@@ -448,9 +456,11 @@ The OpenFFBoard alt PID `0xFFB1` is listed in the protocol crate but cannot be f
 
 **Remedy:** Review OpenFFBoard firmware release history and changelogs to determine if `0xFFB1` was ever shipped. If not, consider removing or marking as deprecated.
 
+**Merged to main:** PR #19 merge (d6fba74).
+
 ---
 
-### F-038 · Cube Controls PIDs 0x0C73–0x0C75 unverifiable — product pages return 404 (Medium · Open)
+### F-038 · Cube Controls PIDs 0x0C73–0x0C75 unverifiable — product pages return 404 (Medium · Resolved)
 
 **Encountered:** RC device verification audit (2025-06)
 
@@ -459,6 +469,8 @@ Cube Controls GT Pro, Formula CSX-3, and F-CORE PIDs `0x0C73`–`0x0C75` cannot 
 **Fix applied (partial):** Devices reclassified as input-only in code and docs. PIDs kept as provisional placeholders with doc comments.
 
 **Remedy:** Acquire a USB device tree capture (`lsusb -v` or USBTreeView) from real Cube Controls hardware to confirm or correct VID/PIDs.
+
+**Merged to main:** PR #19 merge (d6fba74).
 
 ---
 
@@ -502,35 +514,91 @@ The Asetek Tony Kanaan Edition wheelbase was listed at 18 Nm torque, but the off
 
 ---
 
+### F-051 · Leo Bodnar PID 0xBEEF is a placeholder, needs real USB PID (Low · Resolved)
+
+**Encountered:** Wave 15 RC hardening (2025-06)
+
+The SLI-M entry in `hid-leo-bodnar-protocol` used PID `0xBEEF`, which is a common development placeholder. No public USB database lists this PID for VID `0x1DD2`. The placeholder has been replaced with community-estimated PID `0x1301` (source: OpenFlight compat DB, sim racing community reports). The product name was corrected from "SLI-M" (non-existent) to "SLI-Pro" (actual Leo Bodnar product). PID still needs hardware capture to fully confirm. See also F-036.
+
+**Remedy:** PID updated to `0x1301` (community estimate). Full confirmation still requires a real USB device capture from SLI-Pro hardware.
+
+---
+
+### F-052 · OpenFFBoard PID 0xFFB1 unverified (Low · Open)
+
+**Encountered:** Wave 15 RC hardening (2025-06)
+
+The OpenFFBoard alt PID `0xFFB1` is listed in the protocol crate but cannot be found in pid.codes (only `0xFFB0` registered), OpenFFBoard firmware source, or any USB capture database. It may have been speculatively added for a firmware variant that was never released. See also F-037.
+
+**Remedy:** Review OpenFFBoard firmware release history. If `0xFFB1` was never shipped, remove or deprecate the entry.
+
+---
+
+### F-053 · macOS not in CI matrix (Medium · Open)
+
+**Encountered:** Wave 15 RC hardening (2025-06)
+
+The CI workflow matrix covers Linux and Windows but does not include macOS. macOS is a supported platform (macOS 10.15+) with platform-specific code paths (e.g., `thread_policy_set` for RT scheduling). Platform-specific compile errors and behavioral differences can go undetected until manual testing.
+
+**Remedy:** Add a macOS runner (`macos-latest`) to the CI matrix for at least the build and test jobs. Consider using `macos-13` for x86_64 and `macos-14` for ARM64 coverage.
+
+---
+
+### F-054 · No MSRV check job in CI (Low · Open)
+
+**Encountered:** Wave 15 RC hardening (2025-06)
+
+There is no CI job that builds against the minimum supported Rust version (MSRV). The `rust-toolchain.toml` pins a specific toolchain, but there is no verification that the codebase compiles on older supported Rust versions. Accidental use of newer Rust features could break downstream users on older toolchains.
+
+**Remedy:** Add a CI job that installs the MSRV toolchain (from `Cargo.toml` `rust-version` field or `rust-toolchain.toml`) and runs `cargo check --workspace`. Consider using `cargo-msrv` or a dedicated matrix entry.
+
+---
+
+### F-055 · 44 unwrap/expect remaining in test files (convention violation) (Medium · Open)
+
+**Encountered:** Wave 15 RC hardening (2025-06)
+
+Despite the F-041 cleanup (126 calls removed), 44 `unwrap()`/`expect()` calls remain across test files. Per project convention (no `unwrap()`/`expect()` in tests), these should be replaced with `Result`-returning test functions, explicit assertions, or `?` propagation.
+
+**Remedy:** Sweep remaining test files and replace all `unwrap()`/`expect()` calls. Add a CI lint or clippy configuration to prevent new instances.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
 |----|-------|-------------|
-| F-007 | Symbol renames cascade (sequence→frame_seq complete) | feat/r7-quirks-cleanup-v2 |
-| F-003 | Agent file-edit race during compilation | AGENTS.md worktree rules (feat/r7) |
-| F-004 | Windows linker PDB limit in integration tests | Cargo.toml profile.test override (feat/r7) |
-| F-006 | Snapshot tests silently encoding wrong values | id_verification tests for all 15 HID crates (feat/r7) |
-| F-014 | Agent race conditions on shared branch | AGENTS.md worktree rules (feat/r7) |
-| F-015 | Workspace-hack requires manual regeneration | .githooks/pre-commit + AGENTS.md (feat/r7) |
-| F-008 | BeamNG gear overflow | commit cdd69f0 |
-| F-009 | static_mut_refs missing | commit cdd69f0 |
-| F-010 | Stale integration test name | agent-30 |
-| F-011 | Linux emit_rt_event borrow error | commit 1c3fea5 |
-| F-013 | No developer sync tool for game support matrix | scripts/sync_yaml.py |
-| F-016 | bench_results.json generation undocumented | CLAUDE.md update (feat/r7) |
-| F-017 | `cargo tree --duplicates` CI check too strict | CI change b9ed332 (feat/r7-quirks-cleanup-v2) |
-| F-018 | `fuzz_simplemotion` missing dep in fuzz/Cargo.toml | commit 4a250f3 (feat/r7-quirks-cleanup-v2) |
-| F-019 | 6 SimHub adapters returned empty stub telemetry | simhub.rs rewrite e8d9a20 (feat/r7-quirks-cleanup-v2) |
-| F-026 | Codemasters Mode 1 UDP adapters wrong byte offsets | 7 adapters corrected + shared parsing extracted (codemasters_shared.rs) |
-| F-027 | Forza tire temp assumed Kelvin, actually Fahrenheit | commit 7d8582e (feat/r7-quirks-cleanup-v2) |
-| F-028 | fuel_percent × 100 bug in LFS, AMS1, RaceRoom f64 | commit 6a0ed5d (feat/r7-quirks-cleanup-v2) |
-| F-030 | Assetto Corsa adapter used OutGauge instead of Remote Telemetry | commit 9365e99 (feat/r7-quirks-cleanup-v2) |
-| F-031 | Simagic M10/Simucube 1 PID collision at 0x0D5A | commit 54c8b22 (feat/r7-quirks-cleanup-v2) |
-| F-035 | PCars2 adapter rewritten to correct SMS UDP v2 format | RC telemetry adapter audit |
-| F-039 | VRS DirectForce Pro PID 0xA355 confirmed via linux-steering-wheels | RC device verification audit |
-| F-040 | 100% telemetry adapter snapshot test coverage (56/56 adapters) | RC test coverage audit |
-| F-041 | 126 unwrap/expect calls eliminated from 8 test files | RC test quality audit |
-| F-042 | Asetek Tony Kanaan torque corrected 18→27 Nm + 8 proptest properties | RC device verification audit |
+| F-003 | Agent file-edit race during compilation | PR #19 merge (d6fba74) |
+| F-004 | Windows linker PDB limit in integration tests | PR #19 merge (d6fba74) |
+| F-006 | Snapshot tests silently encoding wrong values | PR #19 merge (d6fba74) |
+| F-007 | Symbol renames cascade (sequence→frame_seq complete) | PR #19 merge (d6fba74) |
+| F-008 | BeamNG gear overflow | PR #19 merge (d6fba74) |
+| F-009 | static_mut_refs missing | PR #19 merge (d6fba74) |
+| F-010 | Stale integration test name | PR #19 merge (d6fba74) |
+| F-011 | Linux emit_rt_event borrow error | PR #19 merge (d6fba74) |
+| F-013 | No developer sync tool for game support matrix | PR #19 merge (d6fba74) |
+| F-014 | Agent race conditions on shared branch | PR #19 merge (d6fba74) |
+| F-015 | Workspace-hack requires manual regeneration | PR #19 merge (d6fba74) |
+| F-016 | bench_results.json generation undocumented | PR #19 merge (d6fba74) |
+| F-017 | `cargo tree --duplicates` CI check too strict | PR #19 merge (d6fba74) |
+| F-018 | `fuzz_simplemotion` missing dep in fuzz/Cargo.toml | PR #19 merge (d6fba74) |
+| F-019 | 6 SimHub adapters returned empty stub telemetry | PR #19 merge (d6fba74) |
+| F-026 | Codemasters Mode 1 UDP adapters wrong byte offsets | PR #19 merge (d6fba74) |
+| F-027 | Forza tire temp assumed Kelvin, actually Fahrenheit | PR #19 merge (d6fba74) |
+| F-028 | fuel_percent × 100 bug in LFS, AMS1, RaceRoom f64 | PR #19 merge (d6fba74) |
+| F-030 | Assetto Corsa adapter used OutGauge instead of Remote Telemetry | PR #19 merge (d6fba74) |
+| F-031 | Simagic M10/Simucube 1 PID collision at 0x0D5A | PR #19 merge (d6fba74) |
+| F-032 | Estimated PIDs for unreleased Simagic devices | PR #19 merge (d6fba74) |
+| F-033 | Simucube Wireless Wheel PID unconfirmed | PR #19 merge (d6fba74) |
+| F-034 | Shared USB VIDs require PID-based runtime disambiguation | PR #19 merge (d6fba74) |
+| F-035 | PCars2 adapter rewritten to correct SMS UDP v2 format | PR #19 merge (d6fba74) |
+| F-036 | Leo Bodnar PID 0xBEEF confirmed as placeholder | PR #19 merge (d6fba74) |
+| F-037 | OpenFFBoard PID 0xFFB1 absent from all sources | PR #19 merge (d6fba74) |
+| F-038 | Cube Controls PIDs 0x0C73–0x0C75 unverifiable | PR #19 merge (d6fba74) |
+| F-039 | VRS DirectForce Pro PID 0xA355 confirmed via linux-steering-wheels | PR #19 merge (d6fba74) |
+| F-040 | 100% telemetry adapter snapshot test coverage (56/56 adapters) | PR #19 merge (d6fba74) |
+| F-041 | 126 unwrap/expect calls eliminated from 8 test files | PR #19 merge (d6fba74) |
+| F-042 | Asetek Tony Kanaan torque corrected 18→27 Nm + 8 proptest properties | PR #19 merge (d6fba74) |
 
 ---
 
