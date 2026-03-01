@@ -753,6 +753,232 @@ mod property_tests {
             let block_b = salsa20_block(SALSA_KEY, &nonce, counter);
             prop_assert_eq!(block_a, block_b, "salsa20_block must be deterministic");
         }
+
+        // ---------------------------------------------------------------
+        // Extended packet (316 / 344 byte) property tests
+        // ---------------------------------------------------------------
+
+        /// Arbitrary 316-byte packets must never panic in decrypt_and_parse.
+        #[test]
+        fn prop_arbitrary_type2_packet_no_panic(
+            data in proptest::collection::vec(any::<u8>(), PACKET_SIZE_TYPE2..=PACKET_SIZE_TYPE2)
+        ) {
+            let _ = decrypt_and_parse(&data);
+        }
+
+        /// Arbitrary 344-byte packets must never panic in decrypt_and_parse.
+        #[test]
+        fn prop_arbitrary_type3_packet_no_panic(
+            data in proptest::collection::vec(any::<u8>(), PACKET_SIZE_TYPE3..=PACKET_SIZE_TYPE3)
+        ) {
+            let _ = decrypt_and_parse(&data);
+        }
+
+        /// detect_packet_type returns the correct variant for all three sizes.
+        #[test]
+        fn prop_detect_packet_type_unknown_sizes(len in 0usize..2048) {
+            let result = detect_packet_type(len);
+            match len {
+                PACKET_SIZE => prop_assert_eq!(result, Some(Gt7PacketType::Type1)),
+                PACKET_SIZE_TYPE2 => prop_assert_eq!(result, Some(Gt7PacketType::Type2)),
+                PACKET_SIZE_TYPE3 => prop_assert_eq!(result, Some(Gt7PacketType::Type3)),
+                _ => prop_assert_eq!(result, None),
+            }
+        }
+
+        /// 296-byte packets still parse correctly (backward compatibility).
+        #[test]
+        fn prop_type1_backward_compat(
+            rpm in 0.0f32..=20000.0f32,
+            throttle_byte in 0u8..=255u8,
+            brake_byte in 0u8..=255u8,
+            gear_byte in 0u8..=255u8,
+        ) {
+            let mut buf = buf_with_magic();
+            buf[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
+            buf[OFF_THROTTLE] = throttle_byte;
+            buf[OFF_BRAKE] = brake_byte;
+            buf[OFF_GEAR_BYTE] = gear_byte;
+
+            let t = parse_decrypted(&buf).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+            prop_assert!(t.rpm.is_finite(), "rpm must be finite");
+            prop_assert!(t.throttle >= 0.0 && t.throttle <= 1.0);
+            prop_assert!(t.brake >= 0.0 && t.brake <= 1.0);
+            prop_assert!(t.gear >= 0 && t.gear <= 8);
+            prop_assert!(t.extended.is_empty(), "Type1 must have no extended data");
+        }
+
+        /// Type2 extended fields: wheel rotation is stored as steering_angle.
+        #[test]
+        fn prop_type2_wheel_rotation(rotation in proptest::num::f32::ANY) {
+            let mut buf = vec![0u8; PACKET_SIZE_TYPE2];
+            buf[OFF_MAGIC..OFF_MAGIC + 4].copy_from_slice(&MAGIC.to_le_bytes());
+            buf[OFF_WHEEL_ROTATION..OFF_WHEEL_ROTATION + 4]
+                .copy_from_slice(&rotation.to_le_bytes());
+
+            let t = parse_decrypted_ext(&buf)
+                .map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+            // Non-finite floats are replaced with 0.0 by read_f32_le.
+            if rotation.is_finite() {
+                prop_assert!(
+                    (t.steering_angle - rotation).abs() < f32::EPSILON,
+                    "steering_angle {} should equal rotation {}",
+                    t.steering_angle, rotation
+                );
+            } else {
+                prop_assert_eq!(t.steering_angle, 0.0,
+                    "non-finite rotation should yield 0.0");
+            }
+        }
+
+        /// Type2 motion fields: sway/heave/surge map to lateral/vertical/longitudinal g.
+        #[test]
+        fn prop_type2_motion_fields(
+            sway in proptest::num::f32::ANY,
+            heave in proptest::num::f32::ANY,
+            surge in proptest::num::f32::ANY,
+        ) {
+            let mut buf = vec![0u8; PACKET_SIZE_TYPE2];
+            buf[OFF_MAGIC..OFF_MAGIC + 4].copy_from_slice(&MAGIC.to_le_bytes());
+            buf[OFF_SWAY..OFF_SWAY + 4].copy_from_slice(&sway.to_le_bytes());
+            buf[OFF_HEAVE..OFF_HEAVE + 4].copy_from_slice(&heave.to_le_bytes());
+            buf[OFF_SURGE..OFF_SURGE + 4].copy_from_slice(&surge.to_le_bytes());
+
+            let t = parse_decrypted_ext(&buf)
+                .map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+
+            let expected_sway = if sway.is_finite() { sway } else { 0.0 };
+            let expected_heave = if heave.is_finite() { heave } else { 0.0 };
+            let expected_surge = if surge.is_finite() { surge } else { 0.0 };
+
+            prop_assert!(
+                (t.lateral_g - expected_sway).abs() < f32::EPSILON,
+                "lateral_g {} should equal sway {}", t.lateral_g, expected_sway
+            );
+            prop_assert!(
+                (t.vertical_g - expected_heave).abs() < f32::EPSILON,
+                "vertical_g {} should equal heave {}", t.vertical_g, expected_heave
+            );
+            prop_assert!(
+                (t.longitudinal_g - expected_surge).abs() < f32::EPSILON,
+                "longitudinal_g {} should equal surge {}", t.longitudinal_g, expected_surge
+            );
+
+            // Extended data must also contain the raw motion values.
+            prop_assert_eq!(
+                t.get_extended("gt7_sway"),
+                Some(&TelemetryValue::Float(expected_sway))
+            );
+            prop_assert_eq!(
+                t.get_extended("gt7_heave"),
+                Some(&TelemetryValue::Float(expected_heave))
+            );
+            prop_assert_eq!(
+                t.get_extended("gt7_surge"),
+                Some(&TelemetryValue::Float(expected_surge))
+            );
+        }
+
+        /// Type3 car_type byte is stored as an integer in extended data.
+        #[test]
+        fn prop_type3_car_type_byte(car_type in 0u8..=255u8) {
+            let mut buf = vec![0u8; PACKET_SIZE_TYPE3];
+            buf[OFF_MAGIC..OFF_MAGIC + 4].copy_from_slice(&MAGIC.to_le_bytes());
+            buf[OFF_CAR_TYPE_BYTE3] = car_type;
+
+            let t = parse_decrypted_ext(&buf)
+                .map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+            prop_assert_eq!(
+                t.get_extended("gt7_car_type"),
+                Some(&TelemetryValue::Integer(car_type as i32))
+            );
+        }
+
+        /// Type3 energy recovery is stored as a float in extended data.
+        #[test]
+        fn prop_type3_energy_recovery(energy in proptest::num::f32::ANY) {
+            let mut buf = vec![0u8; PACKET_SIZE_TYPE3];
+            buf[OFF_MAGIC..OFF_MAGIC + 4].copy_from_slice(&MAGIC.to_le_bytes());
+            buf[OFF_ENERGY_RECOVERY..OFF_ENERGY_RECOVERY + 4]
+                .copy_from_slice(&energy.to_le_bytes());
+
+            let t = parse_decrypted_ext(&buf)
+                .map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+            let expected = if energy.is_finite() { energy } else { 0.0 };
+            prop_assert_eq!(
+                t.get_extended("gt7_energy_recovery"),
+                Some(&TelemetryValue::Float(expected))
+            );
+        }
+
+        /// Type3 packets also parse all Type2 extended fields.
+        #[test]
+        fn prop_type3_includes_type2_fields(
+            rotation in -10.0f32..=10.0f32,
+            sway in -5.0f32..=5.0f32,
+        ) {
+            let mut buf = vec![0u8; PACKET_SIZE_TYPE3];
+            buf[OFF_MAGIC..OFF_MAGIC + 4].copy_from_slice(&MAGIC.to_le_bytes());
+            buf[OFF_WHEEL_ROTATION..OFF_WHEEL_ROTATION + 4]
+                .copy_from_slice(&rotation.to_le_bytes());
+            buf[OFF_SWAY..OFF_SWAY + 4].copy_from_slice(&sway.to_le_bytes());
+
+            let t = parse_decrypted_ext(&buf)
+                .map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+            prop_assert!(
+                (t.steering_angle - rotation).abs() < f32::EPSILON,
+                "Type3 should parse Type2 wheel rotation"
+            );
+            prop_assert_eq!(
+                t.get_extended("gt7_sway"),
+                Some(&TelemetryValue::Float(sway)),
+                "Type3 should parse Type2 sway"
+            );
+            // Type3-only fields must also be present.
+            prop_assert!(
+                t.get_extended("gt7_car_type").is_some(),
+                "Type3 must have car_type extended field"
+            );
+            prop_assert!(
+                t.get_extended("gt7_energy_recovery").is_some(),
+                "Type3 must have energy_recovery extended field"
+            );
+        }
+
+        /// Standard fields are parsed identically regardless of packet size.
+        #[test]
+        fn prop_standard_fields_consistent_across_sizes(
+            rpm in 0.0f32..=20000.0f32,
+            throttle_byte in 0u8..=255u8,
+        ) {
+            // Build buffers of each size with identical base fields.
+            let mut buf1 = vec![0u8; PACKET_SIZE];
+            let mut buf2 = vec![0u8; PACKET_SIZE_TYPE2];
+            let mut buf3 = vec![0u8; PACKET_SIZE_TYPE3];
+            for b in [&mut buf1, &mut buf2, &mut buf3] {
+                b[OFF_MAGIC..OFF_MAGIC + 4].copy_from_slice(&MAGIC.to_le_bytes());
+                b[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
+                b[OFF_THROTTLE] = throttle_byte;
+            }
+
+            let t1 = parse_decrypted_ext(&buf1)
+                .map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+            let t2 = parse_decrypted_ext(&buf2)
+                .map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+            let t3 = parse_decrypted_ext(&buf3)
+                .map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+
+            prop_assert!(
+                (t1.rpm - t2.rpm).abs() < f32::EPSILON
+                    && (t2.rpm - t3.rpm).abs() < f32::EPSILON,
+                "RPM must be identical across all packet sizes"
+            );
+            prop_assert!(
+                (t1.throttle - t2.throttle).abs() < f32::EPSILON
+                    && (t2.throttle - t3.throttle).abs() < f32::EPSILON,
+                "Throttle must be identical across all packet sizes"
+            );
+        }
     }
 }
 
