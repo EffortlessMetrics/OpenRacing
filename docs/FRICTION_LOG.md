@@ -667,6 +667,18 @@ New Cammus pedal PIDs have been identified but are not yet wired into the engine
 
 ## Recent Progress
 
+### Wave 17 — E2E Protocol Coverage & PID Expansion (2025-06)
+- **E2E integration tests**: All 16 HID protocol crates now have dedicated E2E test files (224 new tests total)
+  - New test files: asetek_e2e.rs (15), cammus_e2e.rs (17), vrs_e2e.rs (18), simucube_e2e.rs (46), heusinkveld_e2e.rs (36), button_box_e2e.rs (34), accuforce_e2e.rs (20), cube_controls_e2e.rs (18), leo_bodnar_e2e.rs (20)
+- **New vendors added**: FlashFire (VID 0x2F24, PID 0x010D — 900R) and Guillemot (VID 0x06F8, PID 0x0004 — legacy FFRW) from oversteer wheel_ids.py
+- **Logitech**: WingMan Formula Force (0xC291) added from Linux kernel hid-ids.h
+- **Thrustmaster**: T80 Ferrari 488 GTB (0xB66A), TX Racing original PID (0xB664) added from oversteer
+  - TX protocol confirmed: uses T300RS FFB API, max 900° rotation, 140-900° clamping (hid-tmff2 src/tmtx/hid-tmtx.c)
+  - 0xB65D comment corrected: generic pre-init PID for ALL TM wheels (not just T150)
+- **Protocol crate updates**: TX_RACING_ORIG (0xB664) and T80_FERRARI_488 (0xB66A) added to hid-thrustmaster-protocol with cross-reference tests
+- **SOURCES.md**: FlashFire, Guillemot, WingMan FF, T80H, TX sections added; VID collision map updated
+- **Test suite**: 6442 tests passing, clippy clean, 77 fuzz targets, 88 snapshot files
+
 ### Wave 16 — Protocol Verification & Test Hardening (2025-06)
 - **Protocol verification**: 6 vendors (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) re-audited
 - **Test unwraps eliminated**: 0 `unwrap()`/`expect()` calls remaining across all test files (F-055 resolved)
