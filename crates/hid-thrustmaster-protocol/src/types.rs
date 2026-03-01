@@ -371,6 +371,22 @@ mod tests {
         );
     }
 
+    /// T500RS has a more powerful motor than T300RS (~5.0 Nm vs ~4.0 Nm).
+    /// Community dynamometer measurements consistently place T500RS above T300RS.
+    #[test]
+    fn test_model_max_torque_t500rs_above_t300rs() {
+        let t500_torque = Model::T500RS.max_torque_nm();
+        let t300_torque = Model::T300RS.max_torque_nm();
+        assert!(
+            t500_torque > t300_torque,
+            "T500RS ({t500_torque} Nm) must have higher torque than T300RS ({t300_torque} Nm)"
+        );
+        assert!(
+            (t500_torque - 5.0).abs() < 0.01,
+            "T500RS torque must be 5.0 Nm, got {t500_torque}"
+        );
+    }
+
     /// Kill mutant: delete match arm T80|legacy → 270 in max_rotation_deg.
     #[test]
     fn test_model_max_rotation_270_degree_models() {

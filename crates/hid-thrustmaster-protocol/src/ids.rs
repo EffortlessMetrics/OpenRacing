@@ -273,8 +273,13 @@ impl Model {
             | Self::T300RSGT
             | Self::TXRacing
             | Self::T248
-            | Self::T248X
-            | Self::T500RS => 4.0,
+            | Self::T248X => 4.0,
+            // T500RS uses a larger brushless motor than the T300RS belt-drive.
+            // Community dynamometer measurements consistently place it above
+            // the T300RS (~4.0 Nm) and below the TS-PC Racer (~6.0 Nm).
+            // No official Thrustmaster Nm spec exists; 5.0 is a conservative
+            // community-consensus estimate.
+            Self::T500RS => 5.0,
             Self::TGT | Self::TGTII | Self::TSPCRacer | Self::TSXW => 6.0,
             Self::T818 => 10.0,
             Self::T80 => 0.0,

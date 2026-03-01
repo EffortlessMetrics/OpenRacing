@@ -203,6 +203,34 @@ mod tests {
         assert_eq!(proto.model(), Model::Unknown);
     }
 
+    /// T500RS must be recognized as a wheelbase with FFB and use its own
+    /// higher torque value (5.0 Nm, above T300RS at 4.0 Nm).
+    #[test]
+    fn test_new_t500rs() {
+        let proto = ThrustmasterProtocol::new(product_ids::T500_RS);
+        assert_eq!(proto.model(), Model::T500RS);
+        assert!(
+            (proto.max_torque_nm() - 5.0).abs() < 0.01,
+            "T500RS torque must be 5.0 Nm, got {}",
+            proto.max_torque_nm()
+        );
+        assert_eq!(proto.rotation_range(), 1080);
+        assert!(proto.supports_ffb());
+        assert!(proto.is_wheelbase());
+    }
+
+    /// T500RS encoder must use the correct torque scale (5.0 Nm).
+    /// At half torque (2.5 Nm), the encoded magnitude should be 5000.
+    #[test]
+    fn test_t500rs_encoder_scale() {
+        let proto = ThrustmasterProtocol::new(product_ids::T500_RS);
+        let enc = proto.create_encoder();
+        let mut out = [0u8; EFFECT_REPORT_LEN];
+        enc.encode(2.5, &mut out);
+        let mag = i16::from_le_bytes([out[2], out[3]]);
+        assert_eq!(mag, 5000, "2.5 Nm at 5.0 Nm max should encode to 5000");
+    }
+
     /// Kill mutant: replace product_id() → 0 or 1.
     #[test]
     fn test_product_id_preserves_value() {
