@@ -24,6 +24,8 @@ pub mod moza_virtual;
 pub mod openffboard_virtual;
 pub mod performance;
 pub mod simplemotion_virtual;
+pub mod simagic_virtual;
+pub mod thrustmaster_virtual;
 pub mod soak;
 pub mod stress;
 pub mod user_journeys;

@@ -35,6 +35,8 @@ racing-wheel-hid-logitech-protocol = { path = "../hid-logitech-protocol" }
 racing-wheel-hid-openffboard-protocol = { path = "../hid-openffboard-protocol" }
 racing-wheel-hid-ffbeast-protocol = { path = "../hid-ffbeast-protocol" }
 racing-wheel-simplemotion-v2 = { path = "../simplemotion-v2" }
+racing-wheel-hid-thrustmaster-protocol = { path = "../hid-thrustmaster-protocol" }
+racing-wheel-hid-simagic-protocol = { path = "../hid-simagic-protocol" }
 tokio = { workspace = true, features = ["full"] }
 tokio-test = "0.4.5"
 serde = { workspace = true }
