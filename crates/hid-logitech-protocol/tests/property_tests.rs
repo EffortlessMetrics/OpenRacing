@@ -26,8 +26,15 @@ fn test_vendor_id_value() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_all_known_pids_detected() -> Result<(), Box<dyn std::error::Error>> {
     let known = [
+        product_ids::MOMO,
+        product_ids::MOMO_2,
+        product_ids::WINGMAN_FORMULA_FORCE_GP,
+        product_ids::VIBRATION_WHEEL,
+        product_ids::DRIVING_FORCE_EX,
+        product_ids::DRIVING_FORCE_PRO,
+        product_ids::DRIVING_FORCE_GT,
+        product_ids::SPEED_FORCE_WIRELESS,
         product_ids::G25,
-        product_ids::G27_A,
         product_ids::G27,
         product_ids::G29_PS,
         product_ids::G920,
@@ -55,7 +62,7 @@ fn test_all_known_pids_detected() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_pid_constant_values() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(product_ids::G25, 0xC299);
-    assert_eq!(product_ids::G27_A, 0xC294);
+    assert_eq!(product_ids::DRIVING_FORCE_EX, 0xC294);
     assert_eq!(product_ids::G27, 0xC29B);
     assert_eq!(product_ids::G29_PS, 0xC24F);
     assert_eq!(product_ids::G920, 0xC262);
@@ -64,6 +71,10 @@ fn test_pid_constant_values() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(product_ids::G923_XBOX, 0xC26E);
     assert_eq!(product_ids::G_PRO, 0xC268);
     assert_eq!(product_ids::G_PRO_XBOX, 0xC272);
+    assert_eq!(product_ids::MOMO, 0xC295);
+    assert_eq!(product_ids::MOMO_2, 0xCA03);
+    assert_eq!(product_ids::WINGMAN_FORMULA_FORCE_GP, 0xC293);
+    assert_eq!(product_ids::VIBRATION_WHEEL, 0xCA04);
     Ok(())
 }
 

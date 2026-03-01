@@ -382,7 +382,7 @@ impl LinuxHidPort {
         // Known racing wheel vendor/product IDs
         let racing_wheel_ids = [
             (0x046D, 0xC299), // Logitech G25
-            (0x046D, 0xC294), // Logitech G27
+            (0x046D, 0xC294), // Logitech Driving Force / Formula EX
             (0x046D, 0xC29B), // Logitech G27
             (0x046D, 0xC24F), // Logitech G29
             (0x046D, 0xC262), // Logitech G920
@@ -396,6 +396,10 @@ impl LinuxHidPort {
             (0x046D, 0xC298), // Logitech Driving Force Pro
             (0x046D, 0xC29A), // Logitech Driving Force GT
             (0x046D, 0xC29C), // Logitech Speed Force Wireless
+            // Logitech additional legacy (kernel hid-ids.h, oversteer)
+            (0x046D, 0xCA03), // Logitech MOMO Racing 2
+            (0x046D, 0xC293), // Logitech WingMan Formula Force GP
+            (0x046D, 0xCA04), // Logitech Vibration Wheel
             // Fanatec (VID 0x0EB7 — Endor AG)
             // Verified: gotzl/hid-fanatecff, JacKeTUs/linux-steering-wheels,
             //           berarma/oversteer, linux-hardware.org
@@ -532,6 +536,13 @@ impl LinuxHidPort {
             (0x0483, 0x0C73), // Cube Controls GT Pro (provisional)
             (0x0483, 0x0C74), // Cube Controls Formula Pro (provisional)
             (0x0483, 0x0C75), // Cube Controls CSX3 (provisional)
+            // PXN (Lite Star) — budget racing wheels with FFB
+            // Verified: kernel hid-ids.h USB_VENDOR_ID_LITE_STAR + PIDs
+            (0x11FF, 0x3245), // PXN V10
+            (0x11FF, 0x1212), // PXN V12
+            (0x11FF, 0x1112), // PXN V12 Lite
+            (0x11FF, 0x1211), // PXN V12 Lite 2
+            (0x11FF, 0x2141), // PXN GT987
         ];
 
         // Scan /dev/hidraw* devices

@@ -152,20 +152,42 @@ pub mod product_ids {
     pub const DRIVING_FORCE_GT: u16 = 0xC29A;
     /// Speed Force Wireless (Wii racing wheel).
     ///
-    /// Verified: oversteer `LG_SFW = '046d:c29c'`.
+    /// Verified: oversteer `LG_SFW = '046d:c29c'`,
+    /// kernel `USB_DEVICE_ID_LOGITECH_WII_WHEEL = 0xc29c`.
     pub const SPEED_FORCE_WIRELESS: u16 = 0xC29C;
+    /// MOMO Racing Force Feedback Wheel (second generation).
+    ///
+    /// Verified: kernel `USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2 = 0xca03`,
+    /// oversteer `LG_MOMO2 = '046d:ca03'`.
+    pub const MOMO_2: u16 = 0xCA03;
+    /// WingMan Formula Force GP (early FFB wheel, ~2000).
+    ///
+    /// Verified: kernel `USB_DEVICE_ID_LOGITECH_WINGMAN_FFG = 0xc293`,
+    /// oversteer `LG_WFFG = '046d:c293'`.
+    pub const WINGMAN_FORMULA_FORCE_GP: u16 = 0xC293;
+    /// Vibration Wheel (basic rumble-only wheel).
+    ///
+    /// Verified: kernel `USB_DEVICE_ID_LOGITECH_VIBRATION_WHEEL = 0xca04`.
+    pub const VIBRATION_WHEEL: u16 = 0xCA04;
 
     /// G25 racing wheel (900°, 2.5 Nm belt-drive).
     ///
     /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G25_WHEEL = 0xc299`,
     /// new-lg4ff `0xc299`, oversteer `LG_G25 = '046d:c299'`.
     pub const G25: u16 = 0xC299;
-    /// Driving Force / Formula EX wheel; also appears when a G27 is in
-    /// compatibility (emulation) mode.
+    /// Driving Force / Formula EX wheel (270°, gear-driven, ~2.0 Nm).
+    ///
+    /// This is the *original* Logitech Driving Force (c. 2003). It also
+    /// appears when a G25/G27/DFGT/G29 is in DF-EX compatibility
+    /// (emulation) mode — the kernel's multimode switching table uses
+    /// this PID as the base emulation target.
     ///
     /// Verified: kernel `USB_DEVICE_ID_LOGITECH_WHEEL = 0xc294`,
     /// new-lg4ff `0xc294`, oversteer `LG_DF = '046d:c294'`.
-    pub const G27_A: u16 = 0xC294;
+    pub const DRIVING_FORCE_EX: u16 = 0xC294;
+    /// Deprecated alias — use [`DRIVING_FORCE_EX`] instead.
+    #[deprecated(since = "0.1.0", note = "Use DRIVING_FORCE_EX; 0xC294 is DF/EX, not G27")]
+    pub const G27_A: u16 = DRIVING_FORCE_EX;
     /// G27 racing wheel (900°, 2.5 Nm belt-drive).
     ///
     /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G27_WHEEL = 0xc29b`,

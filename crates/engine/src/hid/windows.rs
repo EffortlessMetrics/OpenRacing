@@ -317,6 +317,10 @@ pub mod vendor_ids {
     /// SimExperience (AccuForce Pro) — NXP Semiconductors USB chip VID
     /// Source: community USB captures, RetroBat Wheels.cs commit 0a54752
     pub const SIMEXPERIENCE: u16 = 0x1FC9;
+    /// PXN (Lite Star) — budget racing wheels with FFB.
+    /// Verified: kernel hid-ids.h `USB_VENDOR_ID_LITE_STAR = 0x11ff`,
+    /// linux-steering-wheels PXN entry.
+    pub const PXN: u16 = 0x11FF;
     /// Cube Controls S.r.l. — PROVISIONAL (unconfirmed VID, uses STM shared VID)
     /// ACTION REQUIRED: confirm VID from real hardware capture and update if needed.
     pub const CUBE_CONTROLS: u16 = 0x0483; // same as SIMAGIC; see cube_controls.rs
@@ -331,8 +335,12 @@ impl SupportedDevices {
         &[
             // Logitech wheels
             (vendor_ids::LOGITECH, 0xC299, "Logitech G25"),
-            (vendor_ids::LOGITECH, 0xC294, "Logitech G27"),
-            (vendor_ids::LOGITECH, 0xC29B, "Logitech G27 (alt)"),
+            (
+                vendor_ids::LOGITECH,
+                0xC294,
+                "Logitech Driving Force / Formula EX",
+            ),
+            (vendor_ids::LOGITECH, 0xC29B, "Logitech G27"),
             (vendor_ids::LOGITECH, 0xC24F, "Logitech G29"),
             (vendor_ids::LOGITECH, 0xC262, "Logitech G920"),
             (vendor_ids::LOGITECH, 0xC266, "Logitech G923"),
@@ -345,6 +353,14 @@ impl SupportedDevices {
             (vendor_ids::LOGITECH, 0xC298, "Logitech Driving Force Pro"),
             (vendor_ids::LOGITECH, 0xC29A, "Logitech Driving Force GT"),
             (vendor_ids::LOGITECH, 0xC29C, "Logitech Speed Force Wireless"),
+            // Logitech additional legacy (kernel hid-ids.h, oversteer)
+            (vendor_ids::LOGITECH, 0xCA03, "Logitech MOMO Racing 2"),
+            (
+                vendor_ids::LOGITECH,
+                0xC293,
+                "Logitech WingMan Formula Force GP",
+            ),
+            (vendor_ids::LOGITECH, 0xCA04, "Logitech Vibration Wheel"),
             // Fanatec wheels (VID 0x0EB7 — Endor AG)
             // Verified: gotzl/hid-fanatecff, JacKeTUs/linux-steering-wheels,
             //           berarma/oversteer, linux-hardware.org
@@ -624,6 +640,14 @@ impl SupportedDevices {
                 0x0C75,
                 "Cube Controls CSX3 (provisional)",
             ),
+            // PXN (Lite Star) — budget racing wheels with FFB
+            // Verified: kernel hid-ids.h USB_VENDOR_ID_LITE_STAR + PIDs,
+            //           linux-steering-wheels PXN entries
+            (vendor_ids::PXN, 0x3245, "PXN V10"),
+            (vendor_ids::PXN, 0x1212, "PXN V12"),
+            (vendor_ids::PXN, 0x1112, "PXN V12 Lite"),
+            (vendor_ids::PXN, 0x1211, "PXN V12 Lite 2"),
+            (vendor_ids::PXN, 0x2141, "PXN GT987"),
         ]
     }
 
@@ -644,6 +668,7 @@ impl SupportedDevices {
             vendor_ids::GRANITE_DEVICES,
             vendor_ids::LEO_BODNAR,
             vendor_ids::SIMEXPERIENCE,
+            vendor_ids::PXN,
         ]
     }
 
@@ -683,6 +708,7 @@ impl SupportedDevices {
             vendor_ids::GRANITE_DEVICES => "Granite Devices",
             vendor_ids::LEO_BODNAR => "Leo Bodnar",
             vendor_ids::SIMEXPERIENCE => "SimExperience",
+            vendor_ids::PXN => "PXN",
             _ => "Unknown",
         }
     }
@@ -1225,8 +1251,14 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = 900;
 
             match product_id {
-                0xC294 | 0xC299 | 0xC29B => {
-                    // G25 (0xC299) / G27 (0xC294, 0xC29B) - older wheels, lower torque
+                0xC294 | 0xC295 | 0xC293 | 0xCA03 | 0xCA04 | 0xC29C | 0xC298 | 0xC29A => {
+                    // DF/EX (0xC294), MOMO (0xC295/0xCA03), WingMan FFG (0xC293),
+                    // Vibration (0xCA04), SFW (0xC29C), DFP (0xC298), DFGT (0xC29A)
+                    capabilities.max_torque = TorqueNm::new(2.0).unwrap_or(capabilities.max_torque);
+                    capabilities.min_report_period_us = 4000; // 250Hz
+                }
+                0xC299 | 0xC29B => {
+                    // G25 (0xC299) / G27 (0xC29B) - belt-driven, higher torque
                     capabilities.max_torque = TorqueNm::new(2.5).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 4000; // 250Hz
                 }
@@ -1751,6 +1783,35 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = u16::MAX;
             capabilities.min_report_period_us = 1000;
             capabilities.max_torque = TorqueNm::new(12.0).unwrap_or(capabilities.max_torque);
+        }
+        vendor_ids::PXN => {
+            // PXN budget racing wheels — gear/belt-driven FFB, HID PID compliant
+            capabilities.supports_pid = true;
+            capabilities.encoder_cpr = 900;
+            capabilities.min_report_period_us = 4000; // 250Hz typical
+            match product_id {
+                0x3245 => {
+                    // V10 (belt-driven, ~5 Nm)
+                    capabilities.max_torque =
+                        TorqueNm::new(5.0).unwrap_or(capabilities.max_torque);
+                }
+                0x1212 => {
+                    // V12 (direct-drive, ~6 Nm)
+                    capabilities.max_torque =
+                        TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
+                    capabilities.min_report_period_us = 2000; // 500Hz
+                }
+                0x1112 | 0x1211 => {
+                    // V12 Lite / V12 Lite 2 (budget DD, ~4 Nm)
+                    capabilities.max_torque =
+                        TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
+                    capabilities.min_report_period_us = 2000; // 500Hz
+                }
+                _ => {
+                    capabilities.max_torque =
+                        TorqueNm::new(3.0).unwrap_or(capabilities.max_torque);
+                }
+            }
         }
         _ => {
             // Unknown vendor - use conservative defaults

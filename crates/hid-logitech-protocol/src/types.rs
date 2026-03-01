@@ -9,6 +9,12 @@ use crate::ids::product_ids;
 pub enum LogitechModel {
     /// MOMO Racing wheel (2.2 Nm, 900°, gear-driven).
     MOMO,
+    /// Driving Force / Formula EX (2.0 Nm, 270°, gear-driven).
+    ///
+    /// This PID (0xC294) is also reported by higher wheels (G25/G27/DFGT/G29)
+    /// when running in DF-EX compatibility mode. If a mode-switch succeeds,
+    /// the device re-enumerates with its native PID.
+    DrivingForceEX,
     /// Driving Force Pro (900°, belt-driven).
     DrivingForcePro,
     /// Driving Force GT (900°, belt-driven, shift LEDs).
@@ -35,12 +41,15 @@ impl LogitechModel {
     /// Classify a device by its product ID.
     pub fn from_product_id(product_id: u16) -> Self {
         match product_id {
-            product_ids::MOMO => Self::MOMO,
+            product_ids::MOMO | product_ids::MOMO_2 => Self::MOMO,
+            product_ids::DRIVING_FORCE_EX => Self::DrivingForceEX,
             product_ids::DRIVING_FORCE_PRO => Self::DrivingForcePro,
             product_ids::DRIVING_FORCE_GT => Self::DrivingForceGT,
-            product_ids::SPEED_FORCE_WIRELESS => Self::SpeedForceWireless,
+            product_ids::SPEED_FORCE_WIRELESS
+            | product_ids::WINGMAN_FORMULA_FORCE_GP
+            | product_ids::VIBRATION_WHEEL => Self::SpeedForceWireless,
             product_ids::G25 => Self::G25,
-            product_ids::G27_A | product_ids::G27 => Self::G27,
+            product_ids::G27 => Self::G27,
             product_ids::G29_PS => Self::G29,
             product_ids::G920 => Self::G920,
             product_ids::G923 | product_ids::G923_XBOX | product_ids::G923_PS => Self::G923,
@@ -59,6 +68,7 @@ impl LogitechModel {
     pub fn max_torque_nm(self) -> f32 {
         match self {
             Self::MOMO
+            | Self::DrivingForceEX
             | Self::DrivingForcePro
             | Self::DrivingForceGT
             | Self::SpeedForceWireless => 2.0,
@@ -76,6 +86,7 @@ impl LogitechModel {
     /// Logitech product specifications (not yet in any open-source driver).
     pub fn max_rotation_deg(self) -> u16 {
         match self {
+            Self::DrivingForceEX | Self::SpeedForceWireless => 270,
             Self::GPro => 1080,
             _ => 900,
         }
@@ -97,11 +108,14 @@ pub fn is_wheel_product(product_id: u16) -> bool {
     matches!(
         product_id,
         product_ids::MOMO
+            | product_ids::MOMO_2
+            | product_ids::WINGMAN_FORMULA_FORCE_GP
+            | product_ids::VIBRATION_WHEEL
+            | product_ids::DRIVING_FORCE_EX
             | product_ids::DRIVING_FORCE_PRO
             | product_ids::DRIVING_FORCE_GT
             | product_ids::SPEED_FORCE_WIRELESS
             | product_ids::G25
-            | product_ids::G27_A
             | product_ids::G27
             | product_ids::G29_PS
             | product_ids::G920
@@ -187,11 +201,14 @@ mod tests {
     fn test_all_known_pids_are_wheels() -> Result<(), Box<dyn std::error::Error>> {
         let known_pids = [
             product_ids::MOMO,
+            product_ids::MOMO_2,
+            product_ids::WINGMAN_FORMULA_FORCE_GP,
+            product_ids::VIBRATION_WHEEL,
+            product_ids::DRIVING_FORCE_EX,
             product_ids::DRIVING_FORCE_PRO,
             product_ids::DRIVING_FORCE_GT,
             product_ids::SPEED_FORCE_WIRELESS,
             product_ids::G25,
-            product_ids::G27_A,
             product_ids::G27,
             product_ids::G29_PS,
             product_ids::G920,
