@@ -90,8 +90,14 @@ fn test_snapshot_product_names() {
     let results = [
         ("C5", cammus::product_name(cammus::PRODUCT_C5)),
         ("C12", cammus::product_name(cammus::PRODUCT_C12)),
-        ("CP5_PEDALS", cammus::product_name(cammus::PRODUCT_CP5_PEDALS)),
-        ("LC100_PEDALS", cammus::product_name(cammus::PRODUCT_LC100_PEDALS)),
+        (
+            "CP5_PEDALS",
+            cammus::product_name(cammus::PRODUCT_CP5_PEDALS),
+        ),
+        (
+            "LC100_PEDALS",
+            cammus::product_name(cammus::PRODUCT_LC100_PEDALS),
+        ),
         ("unknown", cammus::product_name(0xFFFF)),
     ];
     assert_debug_snapshot!(format!("{:?}", results));

@@ -90,7 +90,10 @@ mod tests {
         assert_eq!(product_name(PRODUCT_C5), Some("Cammus C5"));
         assert_eq!(product_name(PRODUCT_C12), Some("Cammus C12"));
         assert_eq!(product_name(PRODUCT_CP5_PEDALS), Some("Cammus CP5 Pedals"));
-        assert_eq!(product_name(PRODUCT_LC100_PEDALS), Some("Cammus LC100 Pedals"));
+        assert_eq!(
+            product_name(PRODUCT_LC100_PEDALS),
+            Some("Cammus LC100 Pedals")
+        );
         assert_eq!(product_name(0xFFFF), None);
     }
 }

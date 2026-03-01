@@ -176,7 +176,9 @@ mod tests {
 
     #[test]
     fn test_identify_device_known_pids() {
-        let known_pids = [0xA355u16, 0xA356, 0xA44C, 0xA3BE, 0xA357, 0xA358, 0xA359, 0xA35A];
+        let known_pids = [
+            0xA355u16, 0xA356, 0xA44C, 0xA3BE, 0xA357, 0xA358, 0xA359, 0xA35A,
+        ];
 
         for &pid in &known_pids {
             let identity = identify_device(pid);

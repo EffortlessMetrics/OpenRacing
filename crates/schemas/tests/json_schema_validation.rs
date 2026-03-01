@@ -37,8 +37,7 @@ fn schema_path() -> PathBuf {
 fn test_profile_schema_validation() -> Result<(), Box<dyn std::error::Error>> {
     // Load the JSON schema
     let schema_path = schema_path();
-    let schema_content =
-        std::fs::read_to_string(schema_path)?;
+    let schema_content = std::fs::read_to_string(schema_path)?;
     let schema: Value = serde_json::from_str(&schema_content)?;
 
     let compiled_schema = Validator::new(&schema)?;
@@ -83,8 +82,7 @@ fn test_profile_schema_validation() -> Result<(), Box<dyn std::error::Error>> {
 fn test_profile_schema_required_fields() -> Result<(), Box<dyn std::error::Error>> {
     // Load the JSON schema
     let schema_path = schema_path();
-    let schema_content =
-        std::fs::read_to_string(schema_path)?;
+    let schema_content = std::fs::read_to_string(schema_path)?;
     let schema: Value = serde_json::from_str(&schema_content)?;
 
     let compiled_schema = Validator::new(&schema)?;
@@ -170,8 +168,7 @@ fn test_profile_round_trip_serialization() -> Result<(), Box<dyn std::error::Err
 
     // Validate against schema
     let schema_path = schema_path();
-    let schema_content =
-        std::fs::read_to_string(schema_path)?;
+    let schema_content = std::fs::read_to_string(schema_path)?;
     let schema: Value = serde_json::from_str(&schema_content)?;
 
     let compiled_schema = Validator::new(&schema)?;
@@ -185,7 +182,8 @@ fn test_profile_round_trip_serialization() -> Result<(), Box<dyn std::error::Err
         return Err(format!(
             "Round-trip serialized profile should pass schema validation. Error: {}\nJSON: {}",
             error, json_str
-        ).into());
+        )
+        .into());
     }
     Ok(())
 }
@@ -196,8 +194,7 @@ fn test_filter_config_required_fields() -> Result<(), Box<dyn std::error::Error>
     let filter_config = FilterConfig::default();
 
     // Serialize and verify all fields are present
-    let json_value =
-        serde_json::to_value(&filter_config)?;
+    let json_value = serde_json::to_value(&filter_config)?;
 
     let json_obj = json_value
         .as_object()

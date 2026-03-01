@@ -54,8 +54,14 @@ mod tests {
     fn from_pid_known() {
         assert_eq!(CammusModel::from_pid(PRODUCT_C5), Some(CammusModel::C5));
         assert_eq!(CammusModel::from_pid(PRODUCT_C12), Some(CammusModel::C12));
-        assert_eq!(CammusModel::from_pid(PRODUCT_CP5_PEDALS), Some(CammusModel::Cp5Pedals));
-        assert_eq!(CammusModel::from_pid(PRODUCT_LC100_PEDALS), Some(CammusModel::Lc100Pedals));
+        assert_eq!(
+            CammusModel::from_pid(PRODUCT_CP5_PEDALS),
+            Some(CammusModel::Cp5Pedals)
+        );
+        assert_eq!(
+            CammusModel::from_pid(PRODUCT_LC100_PEDALS),
+            Some(CammusModel::Lc100Pedals)
+        );
     }
 
     #[test]
