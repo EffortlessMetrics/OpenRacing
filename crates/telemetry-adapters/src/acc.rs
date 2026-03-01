@@ -44,6 +44,7 @@ const MSG_TRACK_DATA: u8 = 5;
 const MSG_ENTRY_LIST_CAR: u8 = 6;
 const MSG_BROADCASTING_EVENT: u8 = 7;
 
+/// Verified: Kunos ACC Broadcasting SDK v4 default port.
 const DEFAULT_ACC_PORT: u16 = 9000;
 const MAX_PACKET_SIZE: usize = 4096;
 

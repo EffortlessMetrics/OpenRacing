@@ -22,7 +22,9 @@ use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
+/// Verified: SimHub wiki lists FH4 on port 12350.
 const DEFAULT_FH4_PORT: u16 = 12350;
+/// Verified: SimHub wiki lists FH5 on port 5300 (same as Forza Motorsport).
 const DEFAULT_FH5_PORT: u16 = 5300;
 const MAX_PACKET_SIZE: usize = 512;
 

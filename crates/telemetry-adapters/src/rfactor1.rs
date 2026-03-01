@@ -39,6 +39,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 /// Default UDP port for the rFactor 1 telemetry interface.
+/// Verified: ISI rFactor community UDP plugin standard port.
 const DEFAULT_RF1_PORT: u16 = 6776;
 
 /// Minimum packet size required to read the world-velocity vector (speed).

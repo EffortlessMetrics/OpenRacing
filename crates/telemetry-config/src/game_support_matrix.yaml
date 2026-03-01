@@ -642,7 +642,7 @@ games:
       update_rate_hz: 60
       supports_360hz_option: false
       high_rate_update_rate_hz: null
-      output_target: "0.0.0.0:33739"
+      output_target: "0.0.0.0:33340"
       fields:
         ffb_scalar: null
         rpm: "engine_rpm"

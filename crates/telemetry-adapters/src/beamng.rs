@@ -14,6 +14,7 @@ use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
+/// Verified: BeamNG OutGauge default (community wiki, multiple third-party tools).
 const DEFAULT_BEAMNG_PORT: u16 = 4444;
 /// Standard LFS OutGauge packet size.
 const OUTGAUGE_PACKET_SIZE: usize = 96;

@@ -1,9 +1,15 @@
 //! Gran Turismo Sport UDP telemetry adapter.
 //!
 //! GT Sport uses the identical Salsa20-encrypted "SimulatorInterface" UDP
-//! packet format as GT7, with the default port numbers swapped:
-//! - **Receive** on port 33739 (GT Sport sends telemetry here)
-//! - **Send heartbeats** to port 33740 on the PlayStation
+//! packet format as GT7, but with different default port numbers:
+//! - **Receive** on port 33340 (GT Sport sends telemetry here)
+//! - **Send heartbeats** to port 33339 on the PlayStation
+//!
+//! ## Port verification (2025-07)
+//!
+//! Verified against Nenkai/PDTools `SimulatorInterfaceClient.cs` (commit 5bb714c):
+//! `ReceivePortDefault=33339`, `BindPortDefault=33340` — used for GTSport and GT6.
+//! Also confirmed by SimHub wiki (GT Sport: UDP ports 33339 and 33340).
 //!
 //! Protocol documented by the community:
 //! <https://www.gtplanet.net/forum/threads/gt6-is-compatible-with-the-ps4s-remote-play-feature.317250/>
@@ -22,9 +28,11 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 /// UDP port on which GT Sport broadcasts telemetry to the host PC.
-pub const GTS_RECV_PORT: u16 = 33739;
+/// Verified: Nenkai/PDTools BindPortDefault=33340; SimHub wiki confirms 33340.
+pub const GTS_RECV_PORT: u16 = 33340;
 /// UDP port on the PlayStation to which heartbeat packets must be sent.
-pub const GTS_SEND_PORT: u16 = 33740;
+/// Verified: Nenkai/PDTools ReceivePortDefault=33339; SimHub wiki confirms 33339.
+pub const GTS_SEND_PORT: u16 = 33339;
 
 /// Gran Turismo Sport telemetry adapter.
 ///
@@ -219,8 +227,14 @@ mod tests {
 
     #[test]
     fn test_port_constants() {
-        assert_eq!(GTS_RECV_PORT, 33739, "GT Sport receive port must be 33739");
-        assert_eq!(GTS_SEND_PORT, 33740, "GT Sport send port must be 33740");
+        assert_eq!(
+            GTS_RECV_PORT, 33340,
+            "GT Sport receive port must be 33340 (Nenkai/PDTools BindPortDefault)"
+        );
+        assert_eq!(
+            GTS_SEND_PORT, 33339,
+            "GT Sport send port must be 33339 (Nenkai/PDTools ReceivePortDefault)"
+        );
     }
 
     #[test]

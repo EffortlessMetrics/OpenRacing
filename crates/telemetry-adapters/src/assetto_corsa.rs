@@ -18,6 +18,7 @@ use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
+/// Verified: AC Remote Telemetry handshake port per official SDK (vpicon/acudp).
 const DEFAULT_AC_PORT: u16 = 9996;
 /// RTCarInfo struct size (AC Remote Telemetry UDP update packet).
 const AC_RTCARINFO_SIZE: usize = 328;

@@ -57,8 +57,10 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 /// UDP port on which GT7 broadcasts telemetry.
+/// Verified: Nenkai/PDTools BindPortGT7=33740; Bornhall/gt7telemetry ReceivePort=33740.
 pub const GT7_RECV_PORT: u16 = 33740;
 /// UDP port to which heartbeat packets must be sent to keep the stream alive.
+/// Verified: Nenkai/PDTools ReceivePortGT7=33739; Bornhall/gt7telemetry SendPort=33739.
 pub const GT7_SEND_PORT: u16 = 33739;
 /// Expected size of every GT7 telemetry packet (bytes).
 pub const PACKET_SIZE: usize = 296;

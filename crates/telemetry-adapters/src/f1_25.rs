@@ -55,6 +55,7 @@ use tracing::{debug, info, warn};
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+/// Verified: EA Sports F1 25 UDP spec, standard Codemasters/EA port since F1 2019.
 const DEFAULT_PORT: u16 = 20777;
 const DEFAULT_HEARTBEAT_TIMEOUT_MS: u64 = 2_000;
 const MAX_PACKET_BYTES: usize = 2048;

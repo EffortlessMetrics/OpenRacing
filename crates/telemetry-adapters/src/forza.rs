@@ -33,6 +33,7 @@ use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
+/// Verified: official Forza "Data Out" default port (support.forzamotorsport.net).
 const DEFAULT_FORZA_PORT: u16 = 5300;
 /// Sled packet: 58 × 4-byte fields = 232 bytes.
 const FORZA_SLED_SIZE: usize = 232;

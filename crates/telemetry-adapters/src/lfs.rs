@@ -15,6 +15,7 @@ use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
+/// Verified: LFS OutGauge default (en.lfsmanual.net/wiki/OutGauge example binds 30000).
 const DEFAULT_LFS_PORT: u16 = 30000;
 /// Standard LFS OutGauge packet size.
 const OUTGAUGE_PACKET_SIZE: usize = 96;
