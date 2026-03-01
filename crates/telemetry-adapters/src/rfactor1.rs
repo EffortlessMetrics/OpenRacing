@@ -96,7 +96,7 @@ impl RFactor1Variant {
 
 /// Parse a raw rFactor 1 UDP telemetry packet into [`NormalizedTelemetry`].
 ///
-/// Returns an error if the packet is shorter than [`RF1_MIN_PACKET_SIZE`].
+/// Returns an error if the packet is shorter than `RF1_MIN_PACKET_SIZE`.
 /// Deeper fields (RPM, gear, inputs) are silently defaulted to zero when the
 /// packet does not extend far enough.
 pub fn parse_rfactor1_packet(data: &[u8]) -> Result<NormalizedTelemetry> {

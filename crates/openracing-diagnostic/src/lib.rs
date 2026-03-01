@@ -14,7 +14,7 @@
 //! - [`replay`]: Deterministic replay with validation
 //! - [`support_bundle`]: ZIP-based diagnostic packages
 //! - [`streams`]: Stream implementations for different data rates
-//! - [`format`]: File format definitions and constants
+//! - [`mod@format`]: File format definitions and constants
 //! - [`error`]: Error types for diagnostic operations
 //!
 //! # RT Safety

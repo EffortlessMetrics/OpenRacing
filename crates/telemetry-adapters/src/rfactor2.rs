@@ -14,8 +14,8 @@
 //!   `$rFactor2SMMP_ForceFeedback$`. ✓
 //! - **rF2VehicleTelemetry field order** (up to `mSteeringShaftTorque`): matches
 //!   `rF2State.h` identically (id, deltaTime, elapsedTime, lapNumber, lapStartET,
-//!   vehicleName[64], trackName[64], pos[3], localVel[3], localAccel[3], ori[3×3],
-//!   localRot[3], localRotAccel[3], gear(long), engineRPM, waterTemp, oilTemp,
+//!   vehicleName\[64\], trackName\[64\], pos\[3\], localVel\[3\], localAccel\[3\], ori\[3×3\],
+//!   localRot\[3\], localRotAccel\[3\], gear(long), engineRPM, waterTemp, oilTemp,
 //!   clutchRPM, unfilteredThrottle/Brake/Steering/Clutch, steeringShaftTorque). ✓
 //! - **rF2GamePhase enum**: 0–8 match rF2State.h; value 9 = paused (tag.2015.09.14). ✓
 //! - **rF2Wheel fields**: all f64 fields up to `wear` match rF2State.h order. ✓
@@ -841,7 +841,7 @@ pub struct RF2WheelTelemetry {
 ///
 /// 3. The official `rF2VehicleTelemetry` has no discrete "speed" field.
 ///    Speed must be computed as the magnitude of `local_vel` (see
-///    [`compute_speed_from_local_vel`]).
+///    `compute_speed_from_local_vel`).
 ///
 /// To read live data from rF2 shared memory correctly, a future refactor
 /// should either add all intermediate fields with `#[repr(C, packed(4))]` or

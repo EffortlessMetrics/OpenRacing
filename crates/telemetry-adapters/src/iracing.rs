@@ -12,7 +12,7 @@
 //! - **Data-valid event**: `Local\IRSDKDataValidEvent` for blocking reads. ✓
 //! - **Header layout**: matches pyirsdk offsets (ver@0, status@4, tick_rate@8,
 //!   session_info_update@12, session_info_len@16, session_info_offset@20,
-//!   num_vars@24, var_header_offset@28, num_buf@32, buf_len@36, pad[2]@40,
+//!   num_vars@24, var_header_offset@28, num_buf@32, buf_len@36, pad\[2\]@40,
 //!   var_buf@48). Each `VarBuffer` is 16 bytes; each `VarHeader` is 144 bytes. ✓
 //! - **Variable type IDs**: char=0, bool=1, int=2, bitfield=3, float=4, double=5. ✓
 //! - **Session flags**: checkered=0x1, green=0x4, yellow=0x8, red=0x10, blue=0x20. ✓
