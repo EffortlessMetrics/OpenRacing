@@ -564,13 +564,19 @@ Despite the F-041 cleanup (126 calls removed), 44 `unwrap()`/`expect()` calls re
 
 ---
 
-### F-056 · VRS Pedals V1 PID migration: old 0xA357 → new 0xA3BE (Medium · Open)
+### F-056 · VRS Pedals V1 PID migration: old 0xA357 → new 0xA3BE (Medium · **Resolved**)
 
 **Encountered:** Wave 16 protocol verification (2025-06)
 
 VRS Pedals V1 has undergone a PID change from `0xA357` to `0xA3BE`. The protocol crate and engine dispatch tables need updating. Users on older firmware may still present as `0xA357`, so both PIDs should be recognized during a transition period.
 
-**Remedy:** Update `hid-vrs-protocol` to use `0xA3BE` as the primary PID; keep `0xA357` as a legacy alias in the engine dispatch table. Add a deprecation comment and a timeline for dropping the old PID.
+**Resolved:** Both PIDs are already recognized everywhere:
+- `hid-vrs-protocol/src/ids.rs`: `PEDALS = 0xA3BE` (primary), `PEDALS_V1 = 0xA357` (legacy alias)
+- `engine/src/hid/windows.rs`: Both PIDs in SupportedDevices list
+- `engine/src/hid/linux.rs`: Both PIDs in device table
+- `engine/src/hid/vendor/vrs.rs`: `is_vrs_product()` matches `0xA355..=0xA35A | 0xA3BE`
+- `determine_device_capabilities()`: Matches both PIDs for non-FFB peripheral classification
+- All test suites verify both PIDs. No user-facing functionality gap.
 
 ---
 

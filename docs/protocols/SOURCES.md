@@ -119,6 +119,10 @@ See friction log entry **F-005** for the history of why this document was create
 | `0xC294` | Driving Force / G27 compat mode     | Verified |
 | `0xC299` | G25 (900°, belt-drive)              | Verified |
 | `0xC29B` | G27 (900°, belt-drive)              | Verified |
+| `0xC295` | MOMO Racing                         | Verified |
+| `0xC298` | Driving Force Pro (DFP)             | Verified |
+| `0xC29A` | Driving Force GT (DFGT)             | Verified |
+| `0xC29C` | Speed Force Wireless (Wii)          | Community |
 | `0xC24F` | G29 PlayStation/PC                  | Verified |
 | `0xC260` | G29 Xbox (pre-production variant)   | Verified |
 | `0xC261` | G920 V1 (pre-production)            | Verified |
@@ -139,7 +143,7 @@ See friction log entry **F-005** for the history of why this document was create
 | PID      | Device Name                        | Status    |
 |----------|------------------------------------|-----------|
 | `0xB65D` | FFB Wheel (generic pre-init PID)   | Verified  |
-| `0xB65E` | T150 Pro                           | Unverified|
+| `0xB65E` | T500 RS                            | Verified  |
 | `0xB66D` | T300 RS (PS4 mode)                 | Verified  |
 | `0xB66E` | T300 RS                            | Verified  |
 | `0xB66F` | T300 RS GT                         | Verified  |
@@ -147,22 +151,28 @@ See friction log entry **F-005** for the history of why this document was create
 | `0xB677` | T150                               | Verified  |
 | `0xB67F` | TMX (Xbox)                         | Verified  |
 | `0xB689` | TS-PC Racer                        | Verified  |
-| `0xB68D` | T-LCM (load cell brake)            | Community |
+| `0xB68D` | ~~T-LCM~~ → T.Flight Hotas One     | Removed   |
 | `0xB691` | TS-XW (GIP/Xbox mode)              | Verified  |
 | `0xB692` | TS-XW (USB/HID mode)               | Verified  |
 | `0xB696` | T248                               | Verified  |
-| `0xB697` | T248X (Xbox)                       | Unverified|
-| `0xB69A` | T-LCM Pro                          | Community |
+| `0xB69A` | T248X (Xbox, GIP)                  | Verified  |
 | `0xB69B` | T818 (direct drive)                | Unverified|
-| `0xB678` | T3PA Pedal Set                     | Community |
-| `0xB679` | T3PA Pro Pedal Set                 | Community |
+| `0xB605` | NASCAR Pro Force Feedback 2 (legacy) | Community |
+| `0xB651` | FGT Rumble Force (legacy)            | Community |
+| `0xB653` | RGT FF Clutch (legacy)               | Community |
+| `0xB654` | FGT Force Feedback (legacy)          | Community |
+| `0xB65A` | F430 Force Feedback (legacy)         | Community |
+| `0xB668` | T80 Racing Wheel (rumble only)       | Verified  |
+| `0xB678` | ~~T3PA~~ → T.Flight Rudder Pedals   | Removed   |
+| `0xB679` | ~~T3PA Pro~~ → T-Rudder             | Removed   |
 
 > **Removed PIDs (previously incorrect):**
 > - `0xB68E` was listed as T-GT but is actually "TPR Rudder Bulk" (flight sim pedals) per linux-hardware.org.
-> - `0xB692` was listed as T-GT II but is actually TS-XW per hid-tmff2 (`TSXW_ACTIVE`).
-> - `0xB677` was listed as T500 RS but is actually T150 per linux-hardware.org and devicehunt.com.
+> - `0xB68D` was listed as T-LCM but is actually "T.Flight Hotas One" (flight controller) per linux-hardware.org. Real T-LCM PID is unknown.
+> - `0xB697` was listed as T248X but the actual T248X PID is `0xB69A` per linux-hardware.org.
+> - `0xB678` was listed as T3PA but is actually "T.Flight Rudder Pedals" per devicehunt.com. T3PA connects via RJ12 to wheelbase.
+> - `0xB679` was listed as T3PA Pro but is actually "T-Rudder" per devicehunt.com.
 > - T-GT and T-GT II PIDs are unknown. Per hid-tmff2 README, T-GT II reuses T300 USB PIDs.
-> - T500 RS PID is unknown; not found in any community driver source.
 
 ---
 
