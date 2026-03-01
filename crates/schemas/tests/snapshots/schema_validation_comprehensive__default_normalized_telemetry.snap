@@ -1,0 +1,67 @@
+---
+source: crates/schemas/tests/schema_validation_comprehensive.rs
+expression: value
+---
+{
+  "best_lap_time_s": 0.0,
+  "brake": 0.0,
+  "clutch": 0.0,
+  "current_lap_time_s": 0.0,
+  "delta_ahead_s": 0.0,
+  "delta_behind_s": 0.0,
+  "engine_temp_c": 0.0,
+  "ffb_scalar": 0.0,
+  "ffb_torque_nm": 0.0,
+  "flags": {
+    "abs_active": false,
+    "blue_flag": false,
+    "checkered_flag": false,
+    "drs_active": false,
+    "drs_available": false,
+    "engine_limiter": false,
+    "ers_active": false,
+    "ers_available": false,
+    "formation_lap": false,
+    "green_flag": true,
+    "in_pits": false,
+    "launch_control": false,
+    "pit_limiter": false,
+    "red_flag": false,
+    "safety_car": false,
+    "session_paused": false,
+    "traction_control": false,
+    "yellow_flag": false
+  },
+  "fuel_percent": 0.0,
+  "gear": 0,
+  "lap": 0,
+  "last_lap_time_s": 0.0,
+  "lateral_g": 0.0,
+  "longitudinal_g": 0.0,
+  "max_rpm": 0.0,
+  "num_gears": 0,
+  "position": 0,
+  "rpm": 0.0,
+  "sequence": 0,
+  "slip_angle_fl": 0.0,
+  "slip_angle_fr": 0.0,
+  "slip_angle_rl": 0.0,
+  "slip_angle_rr": 0.0,
+  "slip_ratio": 0.0,
+  "speed_ms": 0.0,
+  "steering_angle": 0.0,
+  "throttle": 0.0,
+  "tire_pressures_psi": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "tire_temps_c": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "vertical_g": 0.0
+}

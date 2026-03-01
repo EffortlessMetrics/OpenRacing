@@ -33,3 +33,4 @@ protoc-bin-vendored = { workspace = true }
 trybuild = "1.0.114"
 proptest = { workspace = true }
 tempfile = "3.24.0"
+insta = { workspace = true, features = ["json"] }

@@ -1,0 +1,11 @@
+---
+source: crates/schemas/tests/schema_validation_comprehensive.rs
+expression: names
+---
+[
+  "Disconnected",
+  "Connected",
+  "Active",
+  "Faulted",
+  "SafeMode"
+]
