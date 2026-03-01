@@ -1,10 +1,11 @@
-//! HID protocol implementation for Simucube direct drive wheelbases
+//! HID protocol implementation for Simucube direct drive wheelbases.
 //!
 //! This crate provides the protocol implementation for Simucube wheelbases:
-//! - Simucube 2 Sport
-//! - Simucube 2 Pro
-//! - Simucube 2 Ultimate
-//! - Simucube ActivePedal
+//! - Simucube 1 (IONI servo drive)
+//! - Simucube 2 Sport (17 Nm)
+//! - Simucube 2 Pro (25 Nm)
+//! - Simucube 2 Ultimate (32 Nm)
+//! - Simucube ActivePedal (via SC-Link Hub)
 //!
 //! ## Protocol Notes
 //!
@@ -13,9 +14,22 @@
 //! torque-streaming format. On Windows this maps to DirectInput; on Linux the
 //! `hid-pidff` kernel driver handles it.
 //!
-//! The input report is a standard HID joystick report with a 16-bit unsigned
-//! X axis (steering), Y axis, 6 additional axes, and up to 128 buttons.
-//! The internal 22-bit encoder resolution is **not** exposed over USB.
+//! ### Input report (documented)
+//!
+//! Per the official Simucube USB interface documentation, the HID input report
+//! is a standard joystick report containing:
+//!
+//! | Field | Type | Description |
+//! |-------|------|-------------|
+//! | X axis (steering) | `u16` (0–65535) | Wheel position |
+//! | Y axis | `u16` | Center-idle; user-mappable to pedal/handbrake |
+//! | 6 additional axes | `u16` each | Pedals, handbrakes, wireless wheel analogs |
+//! | 128 buttons | bitfield | Physical buttons + SimuCube Wireless Wheel |
+//!
+//! The internal 22-bit encoder resolution is **not** exposed over USB — only
+//! a 16-bit unsigned axis is available to applications.
+//!
+//! ### Output report (FFB)
 //!
 //! The output (FFB) side is effect-based: applications upload structured PID
 //! effect descriptors (Constant, Spring, Damper, Sine, etc.) which the device
@@ -24,24 +38,37 @@
 //! Rotation range is configured via Simucube True Drive / Tuner software and
 //! is **not** settable via the USB protocol.
 //!
-//! ### Current implementation status
+//! ### Implementation status
 //!
-//! The `input` and `output` modules currently use a **placeholder** binary
-//! layout that does not match the actual HID PID wire format. The data
-//! structures capture the correct conceptual fields (torque, angle, effects)
-//! but the byte-level encoding is speculative. PIDs, VID, torque specs, and
-//! model classification are verified from Simucube developer documentation.
+//! - **`ids`**: Verified from official Simucube developer docs and community
+//!   sources (linux-steering-wheels, Granite Devices wiki).
+//! - **`input`**: [`SimucubeHidReport`] implements the documented HID joystick
+//!   layout. [`SimucubeInputReport`] retains a speculative extended format for
+//!   internal diagnostics; its wire encoding is **not verified**.
+//! - **`output`**: The builder produces a placeholder wire format. Real FFB
+//!   uses USB HID PID effect descriptors per the PID 1.01 specification.
 //!
-//! Source: <https://github.com/Simucube/simucube-docs.github.io>
+//! ## Sources
+//!
+//! - Official Simucube developer docs:
+//!   <https://github.com/Simucube/simucube-docs.github.io> →
+//!   `docs/Simucube 2/Developers.md`
+//! - Granite Devices wiki (Linux udev rules, firmware):
+//!   <https://granitedevices.com/wiki/Using_Simucube_wheel_base_in_Linux>
+//! - JacKeTUs/linux-steering-wheels compatibility table:
+//!   <https://github.com/JacKeTUs/linux-steering-wheels>
+//! - USB HID PID specification:
+//!   <https://www.usb.org/sites/default/files/documents/pid1_01.pdf>
 //!
 //! ## Features
-//! - Up to 32Nm torque (Ultimate)
+//! - Up to 32 Nm torque (Ultimate)
 //! - Standard USB HID PID force feedback
 //! - Wireless wheel support (SimuCube Wireless Wheel)
-//! - Active pedal support
+//! - Active pedal support (via SC-Link Hub)
 
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
+#![deny(static_mut_refs)]
 
 pub mod ids;
 pub mod input;
@@ -104,10 +131,30 @@ pub const MAX_TORQUE_PRO: f32 = 25.0;
 /// Maximum torque (Nm) for Simucube 2 Ultimate.
 pub const MAX_TORQUE_ULTIMATE: f32 = 32.0;
 
-/// Angle sensor resolution in bits.
+/// Internal angle sensor resolution in bits (not exposed over USB).
+/// Over USB the steering axis is a standard 16-bit unsigned value (0–65535).
 pub const ANGLE_SENSOR_BITS: u32 = 22;
-/// Maximum angle sensor value (`2^22 - 1`).
+/// Maximum internal angle sensor value (`2^22 - 1`).
 pub const ANGLE_SENSOR_MAX: u32 = (1 << ANGLE_SENSOR_BITS) - 1;
+
+/// Number of axes in the standard HID joystick report beyond X and Y.
+///
+/// Source: Official Simucube developer docs — `Simucube/simucube-docs.github.io`
+/// → `docs/Simucube 2/Developers.md`.
+pub const HID_ADDITIONAL_AXES: usize = 6;
+
+/// Total number of buttons exposed by the HID joystick report.
+///
+/// Source: Official Simucube developer docs.
+pub const HID_BUTTON_COUNT: usize = 128;
+
+/// Size of the button bitfield in bytes (`HID_BUTTON_COUNT / 8`).
+pub const HID_BUTTON_BYTES: usize = HID_BUTTON_COUNT / 8;
+
+/// Minimum size of the documented HID joystick input report in bytes.
+///
+/// Layout: 8 axes × 2 bytes + 128 buttons / 8 = 32 bytes.
+pub const HID_JOYSTICK_REPORT_MIN_BYTES: usize = 8 * 2 + HID_BUTTON_BYTES;
 
 #[cfg(test)]
 mod tests {
@@ -118,6 +165,14 @@ mod tests {
         assert_eq!(VENDOR_ID, 0x16D0);
         assert_eq!(ANGLE_SENSOR_BITS, 22);
         assert_eq!(ANGLE_SENSOR_MAX, 0x3FFFFF);
+    }
+
+    #[test]
+    fn test_hid_constants() {
+        assert_eq!(HID_ADDITIONAL_AXES, 6);
+        assert_eq!(HID_BUTTON_COUNT, 128);
+        assert_eq!(HID_BUTTON_BYTES, 16);
+        assert_eq!(HID_JOYSTICK_REPORT_MIN_BYTES, 32);
     }
 
     #[test]

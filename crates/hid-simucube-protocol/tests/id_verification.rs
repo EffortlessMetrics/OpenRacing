@@ -5,8 +5,8 @@
 //! Do not change only one of the two — they must stay in sync.
 
 use hid_simucube_protocol::{
-    SIMUCUBE_1_PID, SIMUCUBE_2_PRO_PID, SIMUCUBE_2_SPORT_PID, SIMUCUBE_2_ULTIMATE_PID,
-    SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID,
+    SIMUCUBE_1_BOOTLOADER_PID, SIMUCUBE_1_PID, SIMUCUBE_2_BOOTLOADER_PID, SIMUCUBE_2_PRO_PID,
+    SIMUCUBE_2_SPORT_PID, SIMUCUBE_2_ULTIMATE_PID, SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID,
 };
 
 /// Simucube VID must be 0x16D0 (MCS Electronics / OpenMoko).
@@ -59,4 +59,20 @@ fn sc1_pid_is_0d5a() {
 #[test]
 fn sc_link_hub_pid_is_0d66() {
     assert_eq!(SIMUCUBE_ACTIVE_PEDAL_PID, 0x0D66);
+}
+
+/// Simucube 2 bootloader/firmware-upgrade PID must be 0x0D5E.
+///
+/// Source: Granite Devices wiki udev rules (Using_Simucube_wheel_base_in_Linux).
+#[test]
+fn sc2_bootloader_pid_is_0d5e() {
+    assert_eq!(SIMUCUBE_2_BOOTLOADER_PID, 0x0D5E);
+}
+
+/// Simucube 1 bootloader/firmware-upgrade PID must be 0x0D5B.
+///
+/// Source: Granite Devices wiki udev rules (Using_Simucube_wheel_base_in_Linux).
+#[test]
+fn sc1_bootloader_pid_is_0d5b() {
+    assert_eq!(SIMUCUBE_1_BOOTLOADER_PID, 0x0D5B);
 }

@@ -1,4 +1,4 @@
-//! Device IDs for Simucube products
+//! Device IDs for Simucube products.
 //!
 //! Simucube 2 wheelbases (by Granite Devices) use VID `0x16D0` (MCS Electronics /
 //! OpenMoko), the same VID used by the Simucube 1 IONI servo drives and
@@ -34,13 +34,23 @@ pub const SIMUCUBE_ACTIVE_PEDAL_PID: u16 = 0x0D66;
 /// independent confirmation.
 pub const SIMUCUBE_WIRELESS_WHEEL_PID: u16 = 0x0D63;
 
-// ── Bootloader / firmware-upgrade PIDs (not used for HID protocol) ─────────
-// These PIDs appear in the Granite Devices wiki udev rules for firmware
-// flashing. They are documented here for reference only — do not match on
-// these in normal device enumeration.
-//
-// Simucube 2 firmware-upgrade mode: 0x0D5E
-// Simucube 1 firmware-upgrade mode: 0x0D5B
+// ── Bootloader / firmware-upgrade PIDs ─────────────────────────────────────
+
+/// Simucube 2 firmware-upgrade (bootloader) mode PID.
+///
+/// Verified from Granite Devices wiki udev rules for firmware flashing.
+/// Source: <https://granitedevices.com/wiki/Using_Simucube_wheel_base_in_Linux>
+///
+/// Do **not** match on this PID for normal device enumeration.
+pub const SIMUCUBE_2_BOOTLOADER_PID: u16 = 0x0D5E;
+
+/// Simucube 1 firmware-upgrade (bootloader) mode PID.
+///
+/// Verified from Granite Devices wiki udev rules for firmware flashing.
+/// Source: <https://granitedevices.com/wiki/Using_Simucube_wheel_base_in_Linux>
+///
+/// Do **not** match on this PID for normal device enumeration.
+pub const SIMUCUBE_1_BOOTLOADER_PID: u16 = 0x0D5B;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SimucubeModel {
