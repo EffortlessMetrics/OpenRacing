@@ -57,3 +57,16 @@ fn evo_pid_is_0501() {
 fn evo_pro_pid_is_0502() {
     assert_eq!(product_ids::EVO_PRO, 0x0502);
 }
+
+// ── Accessories (Verified) ──────────────────────────────────────────────────
+
+/// Simagic TB-RS Handbrake PID must be 0x0A04.
+///
+/// Source: JacKeTUs/simracing-hwdb `90-simagic.hwdb` (`v3670p0A04`).
+#[test]
+fn handbrake_pid_is_0a04() {
+    assert_eq!(
+        product_ids::HANDBRAKE, 0x0A04,
+        "Simagic Handbrake PID changed — update ids.rs and SOURCES.md"
+    );
+}

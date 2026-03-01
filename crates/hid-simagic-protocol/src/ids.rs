@@ -164,9 +164,10 @@ pub mod report_ids {
 ///
 /// # Estimated PIDs
 ///
-/// All other PIDs below (Alpha EVO, Neo, pedals, shifters, handbrake, rims)
+/// All other PIDs below (Alpha EVO, Neo, pedals, shifters, rims)
 /// are **unverified estimates** — they do not appear in any open-source driver
 /// or USB descriptor dump available at the time of writing.
+/// The **Handbrake** PID (`0x0A04`) is verified via JacKeTUs/simracing-hwdb.
 pub mod product_ids {
     // ── EVO generation wheelbases (VID 0x3670) ─────────────────────────────
     // Verified: JacKeTUs/simagic-ff `hid-simagic.h` and linux-steering-wheels.
@@ -213,14 +214,15 @@ pub mod product_ids {
     pub const SHIFTER_H: u16 = 0x2001;
     /// Simagic Sequential shifter (**estimated PID**).
     pub const SHIFTER_SEQ: u16 = 0x2002;
-    /// Simagic Handbrake (**estimated PID — likely wrong**).
+    /// Simagic TB-RS Handbrake (VID `0x3670`, PID `0x0A04`).
     ///
-    /// ⚠ simracing-hwdb `90-simagic.hwdb` lists the **TB-RS Handbrake** as
-    /// VID `0x3670`, PID `0x0A04` (`v3670p0A04`), which contradicts this
-    /// placeholder value. However, since we have only one source, the value
-    /// is left unchanged pending a second independent confirmation.
-    /// TODO: verify PID `0x0A04` from a USB descriptor dump or second source.
-    pub const HANDBRAKE: u16 = 0x3001;
+    /// Verified (web-verified 2025-07):
+    /// - JacKeTUs/simracing-hwdb `90-simagic.hwdb`: `v3670p0A04` with
+    ///   `ID_INPUT_JOYSTICK=1` label "Simagic TB-RS Handbrake".
+    /// - JacKeTUs is the author of both the `simagic-ff` kernel driver and
+    ///   the `simracing-hwdb` udev database — same maintainer, two repos.
+    /// - No contradicting PID found in any other open-source source.
+    pub const HANDBRAKE: u16 = 0x0A04;
     /// Simagic WR1 steering wheel rim (**estimated PID**).
     pub const RIM_WR1: u16 = 0x4001;
     /// Simagic GT1 steering wheel rim (**estimated PID**).

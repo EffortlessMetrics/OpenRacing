@@ -342,7 +342,7 @@ mod tests {
         let known_pids = [
             // EVO wheelbases (verified)
             0x0500u16, 0x0501, 0x0502, // Accessories (estimated PIDs)
-            0x1001, 0x1002, 0x2001, 0x2002, 0x3001,
+            0x1001, 0x1002, 0x2001, 0x2002, 0x0A04,
         ];
 
         for &pid in &known_pids {
@@ -375,7 +375,7 @@ mod tests {
 
     #[test]
     fn test_is_wheelbase_product_non_wheelbases() {
-        let non_wheelbase_pids = [0x1001u16, 0x1002, 0x2001, 0x2002, 0x3001];
+        let non_wheelbase_pids = [0x1001u16, 0x1002, 0x2001, 0x2002, 0x0A04];
 
         for &pid in &non_wheelbase_pids {
             assert!(!is_wheelbase_product(pid));
