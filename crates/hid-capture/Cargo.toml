@@ -11,6 +11,10 @@ description = "CLI tool for capturing raw HID reports from connected racing whee
 name = "hid-capture"
 path = "src/main.rs"
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 hidapi = { workspace = true }
 clap = { workspace = true }

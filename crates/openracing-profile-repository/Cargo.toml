@@ -9,6 +9,10 @@ description = "Profile storage and management for OpenRacing"
 keywords = ["profile", "storage", "repository", "persistence", "openracing"]
 categories = ["config", "filesystem"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 racing-wheel-schemas = { path = "../schemas" }
 openracing-errors = { workspace = true }

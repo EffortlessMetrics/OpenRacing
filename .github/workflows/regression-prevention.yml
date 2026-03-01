@@ -373,7 +373,7 @@ jobs:
       continue-on-error: ${{ github.event_name == 'pull_request' }}
       run: |
         echo "Checking for unused dependencies..."
-        cargo +nightly udeps --all-targets
+        cargo +nightly udeps --workspace --all-targets --exclude workspace-hack
     
     - name: Verify lint attributes in source files
       run: |

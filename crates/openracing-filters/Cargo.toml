@@ -13,6 +13,10 @@ readme = "README.md"
 keywords = ["filter", "real-time", "ffb", "dsp", "biquad"]
 categories = ["embedded", "game-development", "algorithms"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 openracing-curves = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }

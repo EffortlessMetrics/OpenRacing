@@ -9,6 +9,10 @@ description = "Plugin ABI definitions for OpenRacing with versioning and stabili
 keywords = ["abi", "plugin", "wasm", "ffi", "real-time"]
 categories = ["no-std", "embedded", "wasm"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 bitflags = "2.10.0"
 serde = { workspace = true, optional = true }

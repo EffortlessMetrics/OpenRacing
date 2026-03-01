@@ -12,6 +12,10 @@ description = "Forza Motorsport / Forza Horizon UDP telemetry adapter (Sled + Ca
 readme = "README.md"
 keywords = ["telemetry", "forza", "udp", "motorsport", "racing"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
 racing-wheel-telemetry-core = { path = "../telemetry-core" }

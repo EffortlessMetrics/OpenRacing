@@ -12,6 +12,10 @@ description = "Game-specific telemetry adapters extracted into a standalone crat
 readme = "README.md"
 keywords = ["telemetry", "gaming", "adapters", "ffb", "racing"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }

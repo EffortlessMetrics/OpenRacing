@@ -9,6 +9,10 @@ description = "FMEA (Failure Mode & Effects Analysis) fault management for OpenR
 keywords = ["fmea", "fault-management", "safety", "real-time", "racing"]
 categories = ["embedded", "game-development", "no-std"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 serde = { workspace = true, optional = true }
 thiserror = { workspace = true }

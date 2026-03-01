@@ -16,6 +16,10 @@ rust_2018_idioms = "deny"
 unwrap_used = "deny"
 print_stdout = "deny"
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 racing-wheel-engine = { path = "../engine" }
 racing-wheel-plugins = { path = "../plugins" }

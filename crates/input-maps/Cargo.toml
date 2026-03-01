@@ -13,6 +13,10 @@ unused_must_use = "deny"
 [lints.clippy]
 unwrap_used = "deny"
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 serde = { workspace = true }
 racing-wheel-ks = { path = "../ks" }

@@ -12,6 +12,10 @@ description = "Matrix-driven telemetry adapter orchestration for OpenRacing"
 readme = "README.md"
 keywords = ["telemetry", "racing", "simulator", "orchestration", "adapters"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 anyhow = { workspace = true }
 racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }

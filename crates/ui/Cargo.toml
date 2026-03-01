@@ -10,6 +10,10 @@ repository.workspace = true
 name = "openracing"
 path = "src/main.rs"
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 racing-wheel-schemas = { path = "../schemas" }
 racing-wheel-engine = { path = "../engine" }

@@ -12,6 +12,10 @@ description = "Game-specific telemetry config writers for OpenRacing"
 readme = "README.md"
 keywords = ["telemetry", "racing", "simulator", "ffb", "config"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 anyhow = { workspace = true }
 serde = { workspace = true }

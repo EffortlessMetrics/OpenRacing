@@ -9,6 +9,10 @@ description = "IPC server and transport for OpenRacing"
 keywords = ["ipc", "grpc", "tonic", "transport", "racing"]
 categories = ["network-programming", "asynchronous"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 openracing-errors = { workspace = true }
 tokio = { workspace = true }
