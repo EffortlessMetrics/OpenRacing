@@ -144,12 +144,66 @@ pub mod product_ids {
 /// by [`Model::from_product_id`]. See `product_ids` docs for details.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Model {
+    /// T150: entry-level belt-drive wheel (PS3/PS4/PC).
+    ///
+    /// **Protocol family: T150** — uses a proprietary FFB protocol that is
+    /// **different from the T300RS family**. Documented by the community
+    /// `scarburato/t150_driver` Linux kernel module.
+    ///
+    /// Key protocol differences from T300RS:
+    /// - Output via USB interrupt OUT endpoint (not HID Report ID 0x60).
+    /// - Range: `[0x40, 0x11, <u16_le>]` where 0xFFFF = max (1080° on T150).
+    /// - Gain: `[0x43, <u8>]` (single byte, not the T300RS gain command).
+    /// - FFB effects use a 3-packet upload pattern (`ff_first` → `ff_update` → `ff_commit`).
+    /// - Effect play/stop: `[0x41, <id>, <mode>, <times>]`.
+    /// - Effect type codes: 0x4000 (constant), 0x4022 (sine), 0x4023 (saw up),
+    ///   0x4024 (saw down), 0x4040 (spring), 0x4041 (damper).
+    ///
+    /// **Not supported by hid-tmff2.** Uses `scarburato/t150_driver` on Linux.
+    /// Init switch value: 0x0006.
     T150,
+    /// TMX: Xbox One variant of the T150 family.
+    ///
+    /// **Protocol family: T150** — shares the same FFB protocol as the T150
+    /// (same command bytes 0x40/0x41/0x43, same 3-packet effect upload pattern).
+    /// The only known difference is max range: 900° on TMX vs 1080° on T150.
+    ///
+    /// Source: `scarburato/t150_driver` supports both T150 (0xB677) and TMX (0xB67F).
+    /// **Not supported by hid-tmff2.** Init switch value: 0x0006 (same as T150).
     TMX,
+    /// T300RS: mid-range belt-drive wheel (PS3 normal mode, PID 0xB66E).
+    ///
+    /// **Protocol family: T300** — uses Report ID 0x60, 63-byte output payloads.
+    /// Kernel-verified via `Kimplul/hid-tmff2`. Range command: `degrees * 0x3C`.
     T300RS,
+    /// T300RS in PS4 compatibility mode (PID 0xB66D).
+    ///
+    /// **Protocol family: T300** — same as T300RS but with 31-byte payloads in PS4 mode.
     T300RSPS4,
+    /// T300RS GT / PS3 advanced mode (activated with F1 attachment, PID 0xB66F).
+    ///
+    /// **Protocol family: T300** — same protocol as T300RS.
     T300RSGT,
+    /// TX Racing: Xbox variant sharing the T300RS protocol.
+    ///
+    /// **Protocol family: T300** — uses `tx_populate_api()` in hid-tmff2,
+    /// which delegates to T300RS wire format. Max range clamped to 900°.
     TXRacing,
+    /// T500RS: older high-end belt-drive wheel (PID 0xB65E).
+    ///
+    /// **Protocol family: T500** — uses an older, **undocumented** FFB protocol
+    /// that is different from both T300RS and T150 families.
+    ///
+    /// What is known:
+    /// - Init switch value: 0x0002 (unique among TM wheels).
+    /// - hid-tminit model response bytes: 0x0200 at offset +6,+7.
+    /// - **No community FFB driver exists.** hid-tmff2 issue #18 is an open
+    ///   request. `her001/tmdrv` handles init only (no FFB).
+    /// - Not listed in linux-steering-wheels compatibility table.
+    /// - Max rotation: 1080° (official Thrustmaster spec).
+    ///
+    /// The T500RS FFB wire format is unknown. Do not assume T300RS or T150
+    /// commands will work.
     T500RS,
     T248,
     T248X,
@@ -372,11 +426,24 @@ pub enum ProtocolFamily {
     /// Shared by T300RS, T248, TX, TS-XW, TS-PC, T-GT II.
     /// Full FFB support via hid-tmff2.
     T300,
-    /// T150/TMX family: Separate protocol, not supported by hid-tmff2.
-    /// Lower-end belt-drive wheels with simpler FFB command set.
+    /// T150/TMX family: Proprietary FFB protocol using USB interrupt OUT.
+    ///
+    /// **Not the same as T300RS.** Uses different command bytes and packet structure:
+    /// - Range: `[0x40, 0x11, <u16_le>]` (0xFFFF = max range)
+    /// - Gain: `[0x43, <u8>]`
+    /// - Effects: 3-packet upload (ff_first → ff_update → ff_commit)
+    /// - Play/stop: `[0x41, <id>, <mode>, <times>]`
+    ///
+    /// Source: `scarburato/t150_driver` kernel module (supports T150 + TMX).
+    /// **Not supported by hid-tmff2.**
     T150,
-    /// T500RS family: Older protocol, not supported by hid-tmff2 (issue #18).
-    /// Higher-end belt-drive wheel predating the T300RS protocol.
+    /// T500RS family: Older protocol, **not supported by any community FFB driver**.
+    ///
+    /// The T500RS uses init switch value 0x0002 and hid-tminit model bytes 0x0200.
+    /// No FFB wire format documentation exists. hid-tmff2 issue #18 is an open
+    /// request for support. `her001/tmdrv` handles init/mode-switch only.
+    ///
+    /// Do not assume T300RS or T150 commands will work on T500RS hardware.
     T500,
     /// Unknown or no FFB protocol (pedals, unrecognized models, T818, T-GT).
     Unknown,

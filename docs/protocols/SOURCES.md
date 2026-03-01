@@ -408,7 +408,10 @@ The following external references were used during the verification waves docume
 | berarma/oversteer | [github.com/berarma/oversteer](https://github.com/berarma/oversteer) | Linux steering wheel tool; Logitech, Fanatec, Thrustmaster PID cross-reference |
 | devicehunt.com | [devicehunt.com](https://devicehunt.com/) | USB device database; Thrustmaster T500 RS PID correction |
 | the-sz.com USB ID database | [the-sz.com/products/usbid](https://www.the-sz.com/products/usbid/) | USB VID lookups for Leo Bodnar, Asetek, Cammus, PXN, VRS, Fanatec |
-| Kimplul/hid-tmff2 | [github.com/Kimplul/hid-tmff2](https://github.com/Kimplul/hid-tmff2) | Thrustmaster community FFB driver; T-GT II PID reuse confirmation, TS-XW correction |
+| Kimplul/hid-tmff2 | [github.com/Kimplul/hid-tmff2](https://github.com/Kimplul/hid-tmff2) | Thrustmaster community FFB driver; T-GT II PID reuse confirmation, TS-XW correction; confirms T300RS family protocol (Report ID 0x60, 63-byte payloads) shared by T248/TX/TS-XW/TS-PC; T500RS **not** supported (issue #18); T150/TMX **not** supported |
+| scarburato/t150_driver | [github.com/scarburato/t150_driver](https://github.com/scarburato/t150_driver) | T150/TMX FFB protocol documentation; confirms T150 uses a **different** protocol from T300RS (commands 0x40/0x41/0x43, 3-packet effect upload, USB interrupt OUT). Supports T150 (0xB677) and TMX (0xB67F). |
+| scarburato/hid-tminit | [github.com/scarburato/hid-tminit](https://github.com/scarburato/hid-tminit) | Thrustmaster wheel init driver; model query/response table (T150 bytes 0x0603, T300 bytes 0x0602, T500 bytes 0x0200, TMX bytes 0x0704); init switch values per model |
+| her001/tmdrv | [github.com/her001/tmdrv](https://github.com/her001/tmdrv) (archived: [gitlab.com/her0/tmdrv](https://gitlab.com/her0/tmdrv)) | Python init tool for T500RS, TX, TMX, TS-XW; mode-switch only, **no FFB support** |
 | linux-hardware.org | [linux-hardware.org](https://linux-hardware.org/) | Hardware probe database; Thrustmaster PID `0xB677` correction (T500 RS → T150) |
 | JacKeTUs/simagic-ff | [github.com/JacKeTUs/simagic-ff](https://github.com/JacKeTUs/simagic-ff) | Simagic kernel driver; legacy PID `0x0483:0x0522` verification |
 | FFBeast project | [ffbeast.github.io](https://ffbeast.github.io/) | FFBeast VID/PID and torque scale documentation |

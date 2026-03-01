@@ -25,12 +25,16 @@ pub struct ThrustmasterDeviceIdentity {
 
 pub fn identify_device(product_id: u16) -> ThrustmasterDeviceIdentity {
     match product_id {
+        // T150/TMX: separate protocol family from T300RS.
+        // Uses scarburato/t150_driver FFB protocol (0x40/0x41/0x43 commands).
+        // See Model::T150 and ProtocolFamily::T150 for protocol details.
         product_ids::T150 | product_ids::TMX => ThrustmasterDeviceIdentity {
             product_id,
             name: "Thrustmaster T150",
             category: ThrustmasterDeviceCategory::Wheelbase,
             supports_ffb: true,
         },
+        // T300RS family: all share the hid-tmff2 Report ID 0x60 protocol.
         product_ids::T300_RS
         | product_ids::T300_RS_PS4
         | product_ids::T300_RS_GT
@@ -41,6 +45,9 @@ pub fn identify_device(product_id: u16) -> ThrustmasterDeviceIdentity {
             category: ThrustmasterDeviceCategory::Wheelbase,
             supports_ffb: true,
         },
+        // T500RS: older protocol, no community FFB driver exists.
+        // Init switch value 0x0002; FFB wire format is undocumented.
+        // See Model::T500RS and ProtocolFamily::T500 for details.
         product_ids::T500_RS => ThrustmasterDeviceIdentity {
             product_id,
             name: "Thrustmaster T500 RS",
