@@ -116,13 +116,16 @@ See friction log entry **F-005** for the history of why this document was create
 
 | PID      | Device Name                         | Status   |
 |----------|-------------------------------------|----------|
-| `0xC294` | Driving Force / G27 compat mode     | Verified |
-| `0xC299` | G25 (900°, belt-drive)              | Verified |
-| `0xC29B` | G27 (900°, belt-drive)              | Verified |
+| `0xC294` | Driving Force / Formula EX          | Verified |
+| `0xC293` | WingMan Formula Force GP            | Verified |
 | `0xC295` | MOMO Racing                         | Verified |
+| `0xCA03` | MOMO Racing 2                       | Verified |
+| `0xCA04` | Vibration Wheel                     | Verified |
 | `0xC298` | Driving Force Pro (DFP)             | Verified |
+| `0xC299` | G25 (900°, belt-drive)              | Verified |
 | `0xC29A` | Driving Force GT (DFGT)             | Verified |
-| `0xC29C` | Speed Force Wireless (Wii)          | Community |
+| `0xC29B` | G27 (900°, belt-drive)              | Verified |
+| `0xC29C` | Speed Force Wireless (Wii)          | Verified |
 | `0xC24F` | G29 PlayStation/PC                  | Verified |
 | `0xC260` | G29 Xbox (pre-production variant)   | Verified |
 | `0xC261` | G920 V1 (pre-production)            | Verified |
@@ -333,16 +336,16 @@ See friction log entry **F-005** for the history of why this document was create
 ## PXN (Shenzhen Jinyu Technology Co., Ltd.)
 
 **VID:** `0x11FF`  
-**Source:** [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table; USB VID registry ([the-sz.com](https://www.the-sz.com/products/usbid/index.php?v=11FF)) lists VID `0x11FF` as assigned to Shenzhen Jinyu Technology, which produces PXN brand sim-racing hardware.  
-**Status:** VIDs verified; V10/V12 PIDs community-sourced; VD-series PIDs unknown.
+**Source:** [Linux kernel `hid-ids.h`](https://github.com/torvalds/linux/blob/master/drivers/hid/hid-ids.h) (`USB_VENDOR_ID_LITE_STAR`); [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table.  
+**Status:** Verified (kernel hid-ids.h)
 
-| PID      | Device Name            | Status    |
-|----------|------------------------|-----------|
-| `0x3245` | PXN V10 (direct drive) | Community |
-| `0x1212` | PXN V12                | Community |
-| `0x1112` | PXN V12 Lite           | Community |
-| `0x1211` | PXN V12 Lite SE        | Community |
-| `0x2141` | PXN GT987 FF           | Community |
+| PID      | Device Name            | Status   |
+|----------|------------------------|----------|
+| `0x3245` | PXN V10 (direct drive) | Verified |
+| `0x1212` | PXN V12                | Verified |
+| `0x1112` | PXN V12 Lite           | Verified |
+| `0x1211` | PXN V12 Lite SE        | Verified |
+| `0x2141` | PXN GT987 FF           | Verified |
 
 > **Note:** PXN VD4, VD6, and VD10 PIDs are unknown — they are not listed in the JacKeTUs compatibility table or any other public source at the time of writing.  
 > `FFB_REPORT_ID = 0x05` is an estimate; standard PIDFF uses `0x01`. Verify against a USB capture when hardware is available.
