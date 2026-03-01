@@ -31,7 +31,7 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 [dev-dependencies]
 proptest = { workspace = true }
 tempfile = "3.25.0"
-insta = { version = "1", features = ["yaml"] }
+insta = { version = "1", features = ["yaml", "filters"] }
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.9", features = [

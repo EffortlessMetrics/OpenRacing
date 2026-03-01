@@ -1,0 +1,121 @@
+---
+source: crates/telemetry-adapters/tests/snapshots_debug.rs
+expression: "&normalized"
+---
+NormalizedTelemetry {
+    speed_ms: 35.0,
+    steering_angle: 0.0,
+    throttle: 0.0,
+    brake: 0.0,
+    clutch: 0.0,
+    rpm: 5003.831,
+    max_rpm: 0.0,
+    gear: 3,
+    num_gears: 0,
+    lateral_g: 0.0,
+    longitudinal_g: 0.0,
+    vertical_g: 0.0,
+    slip_ratio: 0.0,
+    slip_angle_fl: 0.0,
+    slip_angle_fr: 0.0,
+    slip_angle_rl: 0.0,
+    slip_angle_rr: 0.0,
+    tire_temps_c: [
+        0,
+        0,
+        0,
+        0,
+    ],
+    tire_pressures_psi: [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+    ],
+    ffb_scalar: 0.0,
+    ffb_torque_nm: 0.0,
+    flags: TelemetryFlags {
+        yellow_flag: false,
+        red_flag: false,
+        blue_flag: false,
+        checkered_flag: false,
+        green_flag: true,
+        pit_limiter: false,
+        in_pits: false,
+        drs_available: false,
+        drs_active: false,
+        ers_available: false,
+        ers_active: false,
+        launch_control: false,
+        traction_control: false,
+        abs_active: false,
+        engine_limiter: false,
+        safety_car: false,
+        formation_lap: false,
+        session_paused: false,
+    },
+    car_id: None,
+    track_id: None,
+    session_id: None,
+    position: 0,
+    lap: 0,
+    current_lap_time_s: 0.0,
+    best_lap_time_s: 0.0,
+    last_lap_time_s: 0.0,
+    delta_ahead_s: 0.0,
+    delta_behind_s: 0.0,
+    fuel_percent: 0.0,
+    engine_temp_c: 0.0,
+    extended: {
+        "brakeinput": Float(
+            0.0,
+        ),
+        "clutchinput": Float(
+            0.0,
+        ),
+        "decoder_type": String(
+            "codemasters_custom_udp",
+        ),
+        "enginerate": Float(
+            524.0,
+        ),
+        "gear": Float(
+            3.0,
+        ),
+        "speed": Float(
+            35.0,
+        ),
+        "steeringinput": Float(
+            0.1,
+        ),
+        "suspensionpositionfl": Float(
+            0.01,
+        ),
+        "suspensionpositionfr": Float(
+            0.01,
+        ),
+        "suspensionpositionrl": Float(
+            0.01,
+        ),
+        "suspensionpositionrr": Float(
+            0.01,
+        ),
+        "throttleinput": Float(
+            0.7,
+        ),
+        "wheelpatchspeedfl": Float(
+            35.0,
+        ),
+        "wheelpatchspeedfr": Float(
+            35.0,
+        ),
+        "wheelpatchspeedrl": Float(
+            35.0,
+        ),
+        "wheelpatchspeedrr": Float(
+            35.0,
+        ),
+    },
+    timestamp: [timestamp],
+    sequence: 0,
+}
