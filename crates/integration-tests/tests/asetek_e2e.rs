@@ -287,8 +287,9 @@ fn scenario_input_report_rejects_short_buffer() {
     let result = AsetekInputReport::parse(&short);
 
     // Then: returns InvalidReportSize error
-    assert!(result.is_err());
-    let err = result.unwrap_err();
+    let Err(err) = result else {
+        panic!("expected InvalidReportSize error for short buffer");
+    };
     assert!(
         matches!(err, AsetekError::InvalidReportSize { expected: 16, actual: 10 }),
         "expected InvalidReportSize, got: {err:?}"

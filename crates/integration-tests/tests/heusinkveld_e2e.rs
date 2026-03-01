@@ -447,8 +447,9 @@ fn scenario_error_given_short_buffer_when_parsed_then_invalid_report_size() {
     let result = HeusinkveldInputReport::parse(&short);
 
     // Then: returns InvalidReportSize error with correct sizes
-    assert!(result.is_err());
-    let err = result.unwrap_err();
+    let Err(err) = result else {
+        panic!("expected InvalidReportSize error for short buffer");
+    };
     assert!(
         matches!(err, HeusinkveldError::InvalidReportSize { expected: 8, actual: 4 }),
         "expected InvalidReportSize {{ expected: 8, actual: 4 }}, got: {err:?}"
@@ -464,8 +465,9 @@ fn scenario_error_given_empty_buffer_when_parsed_then_invalid_report_size() {
     let result = HeusinkveldInputReport::parse(&empty);
 
     // Then: returns InvalidReportSize error
-    assert!(result.is_err());
-    let err = result.unwrap_err();
+    let Err(err) = result else {
+        panic!("expected InvalidReportSize error for empty buffer");
+    };
     assert!(
         matches!(err, HeusinkveldError::InvalidReportSize { expected: 8, actual: 0 }),
         "expected InvalidReportSize {{ expected: 8, actual: 0 }}, got: {err:?}"
@@ -481,8 +483,9 @@ fn scenario_error_given_seven_bytes_when_parsed_then_invalid_report_size() {
     let result = HeusinkveldInputReport::parse(&buf);
 
     // Then: rejected
-    assert!(result.is_err());
-    let err = result.unwrap_err();
+    let Err(err) = result else {
+        panic!("expected InvalidReportSize error for 7-byte buffer");
+    };
     assert!(
         matches!(err, HeusinkveldError::InvalidReportSize { expected: 8, actual: 7 }),
         "expected InvalidReportSize {{ expected: 8, actual: 7 }}, got: {err:?}"

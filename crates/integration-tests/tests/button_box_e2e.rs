@@ -175,8 +175,7 @@ fn hat_direction_given_all_valid_codes_when_decoded_then_correct_direction(
 
     for (code, direction) in expected {
         // Given: a report with hat set to a known code
-        let mut report = ButtonBoxInputReport::default();
-        report.hat = code;
+        let report = ButtonBoxInputReport { hat: code, ..Default::default() };
 
         // When: decoded
         let result = report.hat_direction();
@@ -193,8 +192,7 @@ fn hat_direction_given_invalid_code_when_decoded_then_neutral(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Given: hat values outside 0..8
     for code in [8, 15, 0x80, 0xFF] {
-        let mut report = ButtonBoxInputReport::default();
-        report.hat = code;
+        let report = ButtonBoxInputReport { hat: code, ..Default::default() };
 
         // When: decoded
         let result = report.hat_direction();

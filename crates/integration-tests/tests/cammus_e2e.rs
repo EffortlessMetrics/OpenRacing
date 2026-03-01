@@ -295,8 +295,9 @@ fn given_short_input_bytes_when_parsed_then_returns_too_short_error(
     let result = parse(&short_data);
 
     // Then: TooShort error with correct lengths
-    assert!(result.is_err());
-    let err = result.unwrap_err();
+    let Err(err) = result else {
+        panic!("expected TooShort error for short input");
+    };
     assert_eq!(err, ParseError::TooShort { got: 8, need: 12 });
 
     Ok(())

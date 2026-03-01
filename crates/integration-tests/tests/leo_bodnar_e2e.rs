@@ -351,11 +351,8 @@ fn scenario_device_name_given_any_variant_when_queried_then_starts_with_leo_bodn
 fn scenario_report_constants_given_protocol_limits_when_checked_then_within_spec() {
     // Given: USB full-speed HID limits
     // Then: MAX_REPORT_BYTES is within the 64-byte USB full-speed limit
-    assert!(
-        MAX_REPORT_BYTES <= 64,
-        "MAX_REPORT_BYTES must be ≤ 64 for USB full-speed"
-    );
-    assert!(MAX_REPORT_BYTES > 0, "MAX_REPORT_BYTES must be positive");
+    const { assert!(MAX_REPORT_BYTES <= 64) };
+    const { assert!(MAX_REPORT_BYTES > 0) };
 
     // Then: HID PID usage page is the standard 0x000F
     assert_eq!(
@@ -370,10 +367,7 @@ fn scenario_report_constants_given_protocol_limits_when_checked_then_within_spec
     );
 
     // Then: default max torque is positive and reasonable
-    assert!(
-        WHEEL_DEFAULT_MAX_TORQUE_NM > 0.0,
-        "default max torque must be positive"
-    );
+    const { assert!(WHEEL_DEFAULT_MAX_TORQUE_NM > 0.0) };
     assert!(
         (WHEEL_DEFAULT_MAX_TORQUE_NM - 10.0).abs() < f32::EPSILON,
         "default max torque must be 10.0 Nm"

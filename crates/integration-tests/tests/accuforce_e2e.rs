@@ -279,10 +279,7 @@ fn scenario_constants_given_hid_pid_usage_page_when_checked_then_matches_spec() 
 fn scenario_constants_given_max_report_bytes_when_checked_then_within_usb_limit() {
     // Given/When: MAX_REPORT_BYTES constant
     // Then: must not exceed USB full-speed HID limit of 64 bytes
-    assert!(
-        MAX_REPORT_BYTES <= 64,
-        "MAX_REPORT_BYTES ({MAX_REPORT_BYTES}) must be ≤ 64 for USB full-speed"
-    );
+    const { assert!(MAX_REPORT_BYTES <= 64) };
     assert_eq!(MAX_REPORT_BYTES, 64, "MAX_REPORT_BYTES must be exactly 64");
 }
 
@@ -292,14 +289,8 @@ fn scenario_constants_given_max_report_bytes_when_checked_then_within_usb_limit(
 fn scenario_constants_given_b_interval_when_checked_then_positive() {
     // Given/When: RECOMMENDED_B_INTERVAL_MS constant
     // Then: positive and reasonable for 100-200 Hz update rate
-    assert!(
-        RECOMMENDED_B_INTERVAL_MS > 0,
-        "bInterval must be positive"
-    );
-    assert!(
-        RECOMMENDED_B_INTERVAL_MS <= 20,
-        "bInterval ({RECOMMENDED_B_INTERVAL_MS} ms) should be ≤ 20 ms for 50+ Hz updates"
-    );
+    const { assert!(RECOMMENDED_B_INTERVAL_MS > 0) };
+    const { assert!(RECOMMENDED_B_INTERVAL_MS <= 20) };
 }
 
 // ─── Scenario 19: all AccuForceModel variants have consistent properties ────
