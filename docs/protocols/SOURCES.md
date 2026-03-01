@@ -65,15 +65,18 @@ See friction log entry **F-005** for the history of why this document was create
 ## Asetek SimSports
 
 **VID:** `0x2433`  
-**Source:** [USB VID registry (the-sz.com)](https://www.the-sz.com/products/usbid/index.php?v=2433); [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table.  
-**Status:** Verified
+**Source:** [USB VID registry (the-sz.com)](https://www.the-sz.com/products/usbid/index.php?v=2433); [Linux kernel `hid-ids.h`](https://github.com/torvalds/linux/blob/master/drivers/hid/hid-ids.h) (`USB_VENDOR_ID_ASETEK`); [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table; [JacKeTUs/simracing-hwdb](https://github.com/JacKeTUs/simracing-hwdb) `90-asetek.hwdb`.  
+**Protocol:** Standard USB HID PID (PIDFF). All four wheelbases are listed in the Linux kernel `hid-universal-pidff.c` driver table with no vendor-specific quirk flags. [moonrail/asetek_wheelbase_cli](https://github.com/moonrail/asetek_wheelbase_cli) documents vendor-specific configuration HID reports (high-torque mode, profile read/write) but not FFB wire format. Linux support requires enabling "high torque mode" after device power-on.  
+**Status:** Wheelbases verified (kernel); pedal PIDs community-sourced (simracing-hwdb).
 
 | PID      | Device Name                  | Status    |
 |----------|------------------------------|-----------|
 | `0xF300` | Asetek Invicta (27 Nm)       | Verified  |
 | `0xF301` | Asetek Forte (18 Nm)         | Verified  |
-| `0xF303` | Asetek La Prima (12 Nm)      | Community |
-| `0xF306` | Asetek Tony Kanaan Edition (27 Nm) | Community |
+| `0xF303` | Asetek La Prima (12 Nm)      | Verified  |
+| `0xF306` | Asetek Tony Kanaan Edition (27 Nm) | Verified  |
+| `0xF100` | Asetek Invicta Pedals        | Community |
+| `0xF101` | Asetek Forte Pedals          | Community |
 
 ---
 
@@ -186,8 +189,9 @@ See friction log entry **F-005** for the history of why this document was create
 ## Cammus
 
 **VID:** `0x3416`  
-**Source:** [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table; [USB VID registry](https://www.the-sz.com/products/usbid/index.php?v=3416) (assigned to Shenzhen Cammus Electronic Technology Co., Ltd.).  
-**Status:** Wheelbases verified; pedal PIDs community-sourced.
+**Source:** [Linux kernel `hid-ids.h`](https://github.com/torvalds/linux/blob/master/drivers/hid/hid-ids.h) (`USB_VENDOR_ID_CAMMUS`); [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) compatibility table; [USB VID registry](https://www.the-sz.com/products/usbid/index.php?v=3416) (assigned to Shenzhen Cammus Electronic Technology Co., Ltd.); [JacKeTUs/simracing-hwdb](https://github.com/JacKeTUs/simracing-hwdb) `90-cammus.hwdb`.  
+**Protocol:** Standard USB HID PID (PIDFF). Both wheelbases are listed in the Linux kernel `hid-universal-pidff.c` driver table with no vendor-specific quirk flags. Firmware omits `0xa7` (effect delay) HID descriptor; fixed in Linux 6.15 via `hid-universal-pidff`. No open-source FFB wire-format documentation exists.  
+**Status:** Wheelbases verified (kernel); pedal PIDs community-sourced (simracing-hwdb).
 
 | PID      | Device Name           | Status    |
 |----------|-----------------------|-----------|
@@ -283,19 +287,24 @@ See friction log entry **F-005** for the history of why this document was create
 ## VRS DirectForce
 
 **VID:** `0x0483`  
-**Source:** [USB VID registry](https://www.the-sz.com/products/usbid/index.php?v=0483) (STMicroelectronics generic VID, used by many open/community devices); community USB descriptor captures; [VRS DirectForce Pro product page](https://www.vrs-true-force.com/).  
-**Status:** DirectForce Pro verified; V2 and accessories community-sourced.
+**Source:** [USB VID registry](https://www.the-sz.com/products/usbid/index.php?v=0483) (STMicroelectronics generic VID, used by many open/community devices); [Linux kernel `hid-ids.h`](https://github.com/torvalds/linux/blob/master/drivers/hid/hid-ids.h) (`USB_VENDOR_ID_VRS`, `USB_DEVICE_ID_VRS_DFP`, `USB_DEVICE_ID_VRS_R295`); [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels) (Platinum rating for DFP); [JacKeTUs/simracing-hwdb](https://github.com/JacKeTUs/simracing-hwdb) `90-vrs.hwdb` (DFP `v0483pA355`, Pedals `v0483pA3BE`); [VRS DirectForce Pro product page](https://www.vrs-true-force.com/).  
+**Protocol:** Standard USB HID PID (PIDFF). The DFP is listed in the Linux kernel `hid-universal-pidff.c` driver table with `HID_PIDFF_QUIRK_PERMISSIVE_CONTROL`. The R295 is referenced in `hid-quirks.c`. Some DFP units have a "power saving" feature that disables FFB until the wheel is moved.  
+**Status:** DFP and R295 verified (kernel); Pedals community-sourced (simracing-hwdb); V2 and other accessories unverified.
 
 | PID      | Device Name                  | Status    |
 |----------|------------------------------|-----------|
 | `0xA355` | VRS DirectForce Pro          | Verified  |
-| `0xA356` | VRS DirectForce Pro V2       | Community |
-| `0xA357` | VRS Pedals (analog)          | Community |
-| `0xA358` | VRS Pedals (load cell)       | Community |
-| `0xA359` | VRS Handbrake                | Community |
-| `0xA35A` | VRS Shifter                  | Community |
+| `0xA44C` | VRS R295                     | Verified  |
+| `0xA3BE` | VRS DirectForce Pro Pedals   | Community |
+| `0xA356` | VRS DirectForce Pro V2       | Estimated |
+| `0xA357` | VRS Pedals V1 (legacy alias) | Estimated |
+| `0xA358` | VRS Pedals (load cell)       | Estimated |
+| `0xA359` | VRS Handbrake                | Estimated |
+| `0xA35A` | VRS Shifter                  | Estimated |
 
 > **Note:** VID `0x0483` is also used by legacy Simagic devices (PID `0x0522`). Disambiguation requires reading the USB `iProduct` string descriptor.
+>
+> **Pedals PID update (2025-07):** The original estimate `0xA357` for VRS Pedals was based on sequential numbering from the DFP PID. JacKeTUs/simracing-hwdb confirms the actual Pedals PID is `0xA3BE`. The old PID is retained as `PEDALS_V1` for backward compatibility in `ids.rs`. PIDs `0xA356`–`0xA35A` (except `0xA355`) remain unverified and should not be trusted without USB captures.
 
 ---
 
@@ -416,6 +425,8 @@ The following external references were used during the verification waves docume
 | linux-hardware.org | [linux-hardware.org](https://linux-hardware.org/) | Hardware probe database; Thrustmaster PID `0xB677` correction (T500 RS → T150) |
 | JacKeTUs/simagic-ff | [github.com/JacKeTUs/simagic-ff](https://github.com/JacKeTUs/simagic-ff) | Simagic kernel driver; legacy PID `0x0483:0x0522` verification; **FFB protocol**: report IDs `0x01`/`0x03`/`0x04`/`0x05`/`0x0a`/`0x40`, effect block types, `sm_rescale_signed_to_10k()` (±10000 scaling), 64-byte HID Output Reports; **settings**: Feature Reports `0x80`/`0x81` (max\_angle 90–2520, ff\_strength ±100, ring light, filter level, slew rate); periodic effects (square/triangle/sawtooth) defined but "no effect seen on wheelbase"; key commit: 52e73e7; files: `hid-simagic.c`, `hid-simagic.h`, `hid-simagic-settings.h`, `hid-simagic-settings.c` |
 | VansonLeung/poc\_simagic\_control\_input\_api | [github.com/VansonLeung/poc\_simagic\_control\_input\_api](https://github.com/VansonLeung/poc_simagic_control_input_api) | C# DirectInput proof-of-concept for Simagic; confirms axes via Windows DirectInput (steering 0–65535 center 32767, throttle/brake 0–65535); no raw HID protocol details (uses SharpDX abstraction) |
+| JacKeTUs/simracing-hwdb | [github.com/JacKeTUs/simracing-hwdb](https://github.com/JacKeTUs/simracing-hwdb) | Community systemd hwdb rules for sim racing input devices; VRS Pedals PID `0xA3BE`, Cammus pedal PIDs, Asetek pedal PIDs |
+| moonrail/asetek_wheelbase_cli | [github.com/moonrail/asetek_wheelbase_cli](https://github.com/moonrail/asetek_wheelbase_cli) | Python CLI for Asetek La Prima / Forte / Invicta configuration; documents vendor-specific HID reports for config (high-torque mode, profile read) but not FFB wire format |
 | FFBeast project | [ffbeast.github.io](https://ffbeast.github.io/) | FFBeast VID/PID and torque scale documentation |
 | Ultrawipf/OpenFFBoard | [github.com/Ultrawipf/OpenFFBoard](https://github.com/Ultrawipf/OpenFFBoard) | OpenFFBoard firmware source; PID `0xFFB0` confirmation |
 
@@ -439,6 +450,7 @@ The following devices are known to exist but lack confirmed USB VID/PID values. 
 |--------|--------|-------|
 | Turtle Beach VelocityOne Race | VID unknown | Not in linux-steering-wheels or hwdb; audio VID 0x1C59 does not apply |
 | Cube Controls GT Pro V2 / Formula CSX-3 / GT-X2 / F-CORE | PIDs unverified | Input-only steering wheels (button boxes), NOT wheelbases. VID 0x0483 (STMicro shared) plausible; PIDs 0x0C73–0x0C75 are internal estimates not found in devicehunt.com, RetroBat Wheels.cs, SDL GameControllerDB, or any USB database. JacKeTUs/linux-steering-wheels, Reddit, and RaceDepartment checked 2025-07 — no entries. These devices do not produce force feedback. |
+| Asetek Invicta Pedals / Forte Pedals | PIDs 0xF100 / 0xF101 | Found in JacKeTUs/simracing-hwdb (`90-asetek.hwdb`). Not yet in our `hid-asetek-protocol` crate (which is wheelbase-only). Input-only devices; no force feedback. |
 | Cammus C15 / DDMAX (15 Nm) | PID unknown | Announced; not yet in community tables |
 | Simucube 3 | Not yet released | No public USB descriptor at time of writing |
 | Gomez Racer devices | Unknown | No public VID/PID found in any community source |

@@ -1,6 +1,13 @@
 //! Cammus input report parsing (64-byte USB HID report, report ID 0x01).
 //!
-//! # Report layout
+//! ## Wire-format verification status
+//!
+//! ⚠ **Unverified.** The input report layout below is an internal estimate. No
+//! community USB descriptor dump, open-source driver, or Cammus SDK documents this
+//! byte layout. The Linux kernel handles Cammus via standard HID PID descriptors
+//! and does not define a vendor-specific input report structure.
+//!
+//! # Report layout (estimated)
 //! | Offset | Size | Field      | Encoding                          |
 //! |--------|------|------------|-----------------------------------|
 //! | 0–1    | i16  | steering   | LE, ±32767 → ±540°                |

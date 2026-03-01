@@ -9,7 +9,16 @@ use crate::types::VrsPedalAxesRaw;
 
 /// Parsed state from a VRS DirectForce Pro standard input report.
 ///
-/// The standard input report is 64 bytes (HID interrupt), with the following layout:
+/// ## Wire-format verification status
+///
+/// ⚠ **Unverified.** The input report layout below is an internal estimate based on
+/// standard HID joystick conventions. No community USB descriptor dump or open-source
+/// driver documents VRS-specific byte offsets. The Linux kernel `hid-universal-pidff`
+/// driver uses generic HID descriptor parsing for axis mapping rather than
+/// hard-coded offsets.
+///
+/// The standard input report is 64 bytes (HID interrupt), with the following
+/// estimated layout:
 /// - Bytes 0-1: Steering position (16-bit signed, -32768 to +32767, 0 = center)
 /// - Bytes 2-3: Throttle (16-bit unsigned, 0 = released, 0xFFFF = fully pressed)
 /// - Bytes 4-5: Brake (16-bit unsigned, 0 = released, 0xFFFF = fully pressed)

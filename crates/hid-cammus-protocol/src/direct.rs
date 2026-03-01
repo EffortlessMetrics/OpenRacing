@@ -1,6 +1,14 @@
 //! Cammus FFB output report encoding.
 //!
-//! # Output report layout (8 bytes)
+//! ## Wire-format verification status
+//!
+//! ⚠ **Unverified.** The output report layout below is an internal estimate.
+//! No community USB descriptor dump, open-source driver, or Cammus SDK documents
+//! this byte layout. The actual Cammus PIDFF implementation in the Linux kernel
+//! (`hid-universal-pidff`) uses the standard HID PID protocol, which is distinct
+//! from this simplified direct-torque encoding.
+//!
+//! # Output report layout (8 bytes, estimated)
 //! | Offset | Field       | Value                            |
 //! |--------|-------------|----------------------------------|
 //! | 0      | report ID   | 0x01                             |
