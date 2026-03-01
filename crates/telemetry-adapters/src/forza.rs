@@ -610,6 +610,368 @@ mod tests {
         let adapter = ForzaAdapter::new();
         assert_eq!(adapter.expected_update_rate(), Duration::from_millis(16));
     }
+
+    #[test]
+    fn test_adapter_with_port() {
+        let adapter = ForzaAdapter::new().with_port(9999);
+        assert_eq!(adapter.bind_port, 9999);
+        assert_eq!(adapter.game_id(), "forza_motorsport");
+    }
+
+    #[test]
+    fn test_adapter_default() {
+        let adapter = ForzaAdapter::default();
+        assert_eq!(adapter.bind_port, DEFAULT_FORZA_PORT);
+    }
+
+    #[test]
+    fn test_adapter_normalize_delegates_to_parse() -> TestResult {
+        let adapter = ForzaAdapter::new();
+        let data = make_sled_packet(1, 7000.0, (30.0, 0.0, 0.0));
+        let result = adapter.normalize(&data)?;
+        assert!((result.rpm - 7000.0).abs() < 0.01);
+        assert!((result.speed_ms - 30.0).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_adapter_normalize_rejects_empty() {
+        let adapter = ForzaAdapter::new();
+        assert!(adapter.normalize(&[]).is_err());
+    }
+
+    // ── Sled boundary conditions ──────────────────────────────────────────
+
+    #[test]
+    fn test_parse_sled_zero_filled() -> TestResult {
+        let mut data = vec![0u8; FORZA_SLED_SIZE];
+        // is_race_on = 1 but everything else zero
+        data[OFF_IS_RACE_ON..OFF_IS_RACE_ON + 4].copy_from_slice(&1i32.to_le_bytes());
+        let result = parse_forza_sled(&data)?;
+        assert_eq!(result.rpm, 0.0);
+        assert_eq!(result.speed_ms, 0.0);
+        assert_eq!(result.lateral_g, 0.0);
+        assert_eq!(result.longitudinal_g, 0.0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_sled_max_rpm() -> TestResult {
+        let data = make_sled_packet(1, 20000.0, (0.0, 0.0, 0.0));
+        let result = parse_forza_sled(&data)?;
+        assert!((result.rpm - 20000.0).abs() < 0.01);
+        assert_eq!(result.max_rpm, 8000.0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_sled_3d_velocity() -> TestResult {
+        // Diagonal velocity: sqrt(3² + 4² + 0²) = 5.0
+        let data = make_sled_packet(1, 1000.0, (3.0, 4.0, 0.0));
+        let result = parse_forza_sled(&data)?;
+        assert!((result.speed_ms - 5.0).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_sled_g_forces() -> TestResult {
+        let mut data = make_sled_packet(1, 1000.0, (0.0, 0.0, 0.0));
+        let lateral_accel = 2.0 * G; // 2G lateral
+        let longitudinal_accel = 1.5 * G; // 1.5G longitudinal
+        data[OFF_ACCEL_X..OFF_ACCEL_X + 4].copy_from_slice(&lateral_accel.to_le_bytes());
+        data[OFF_ACCEL_Z..OFF_ACCEL_Z + 4].copy_from_slice(&longitudinal_accel.to_le_bytes());
+        let result = parse_forza_sled(&data)?;
+        assert!((result.lateral_g - 2.0).abs() < 0.01);
+        assert!((result.longitudinal_g - 1.5).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_sled_slip_angles() -> TestResult {
+        let mut data = make_sled_packet(1, 1000.0, (0.0, 0.0, 0.0));
+        data[OFF_SLIP_ANGLE_FL..OFF_SLIP_ANGLE_FL + 4].copy_from_slice(&0.05f32.to_le_bytes());
+        data[OFF_SLIP_ANGLE_FR..OFF_SLIP_ANGLE_FR + 4].copy_from_slice(&0.10f32.to_le_bytes());
+        data[OFF_SLIP_ANGLE_RL..OFF_SLIP_ANGLE_RL + 4].copy_from_slice(&0.15f32.to_le_bytes());
+        data[OFF_SLIP_ANGLE_RR..OFF_SLIP_ANGLE_RR + 4].copy_from_slice(&0.20f32.to_le_bytes());
+        let result = parse_forza_sled(&data)?;
+        assert!((result.slip_angle_fl - 0.05).abs() < 0.001);
+        assert!((result.slip_angle_fr - 0.10).abs() < 0.001);
+        assert!((result.slip_angle_rl - 0.15).abs() < 0.001);
+        assert!((result.slip_angle_rr - 0.20).abs() < 0.001);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_sled_wheel_speeds_in_extended() -> TestResult {
+        let mut data = make_sled_packet(1, 1000.0, (0.0, 0.0, 0.0));
+        data[OFF_WHEEL_SPEED_FL..OFF_WHEEL_SPEED_FL + 4].copy_from_slice(&50.0f32.to_le_bytes());
+        data[OFF_WHEEL_SPEED_FR..OFF_WHEEL_SPEED_FR + 4].copy_from_slice(&51.0f32.to_le_bytes());
+        data[OFF_WHEEL_SPEED_RL..OFF_WHEEL_SPEED_RL + 4].copy_from_slice(&52.0f32.to_le_bytes());
+        data[OFF_WHEEL_SPEED_RR..OFF_WHEEL_SPEED_RR + 4].copy_from_slice(&53.0f32.to_le_bytes());
+        let result = parse_forza_sled(&data)?;
+        assert_eq!(
+            result.get_extended("wheel_speed_fl"),
+            Some(&TelemetryValue::Float(50.0))
+        );
+        assert_eq!(
+            result.get_extended("wheel_speed_rr"),
+            Some(&TelemetryValue::Float(53.0))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_sled_suspension_travel_in_extended() -> TestResult {
+        let mut data = make_sled_packet(1, 1000.0, (0.0, 0.0, 0.0));
+        data[OFF_SUSP_TRAVEL_FL..OFF_SUSP_TRAVEL_FL + 4].copy_from_slice(&0.12f32.to_le_bytes());
+        data[OFF_SUSP_TRAVEL_RR..OFF_SUSP_TRAVEL_RR + 4].copy_from_slice(&0.08f32.to_le_bytes());
+        let result = parse_forza_sled(&data)?;
+        assert_eq!(
+            result.get_extended("suspension_travel_fl"),
+            Some(&TelemetryValue::Float(0.12))
+        );
+        assert_eq!(
+            result.get_extended("suspension_travel_rr"),
+            Some(&TelemetryValue::Float(0.08))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_sled_exactly_minimum_size() -> TestResult {
+        let data = make_sled_packet(1, 3000.0, (10.0, 0.0, 0.0));
+        assert_eq!(data.len(), FORZA_SLED_SIZE);
+        let result = parse_forza_sled(&data)?;
+        assert!((result.rpm - 3000.0).abs() < 0.01);
+        Ok(())
+    }
+
+    // ── CarDash boundary conditions ───────────────────────────────────────
+
+    fn make_full_cardash_packet(
+        rpm: f32,
+        vel: (f32, f32, f32),
+        throttle: u8,
+        brake: u8,
+        clutch: u8,
+        gear: u8,
+        steer: i8,
+    ) -> Vec<u8> {
+        let mut data = vec![0u8; FORZA_CARDASH_SIZE];
+        let sled = make_sled_packet(1, rpm, vel);
+        data[..FORZA_SLED_SIZE].copy_from_slice(&sled);
+        data[OFF_DASH_SPEED..OFF_DASH_SPEED + 4]
+            .copy_from_slice(&(vel.0.hypot(vel.1).hypot(vel.2)).to_le_bytes());
+        data[OFF_DASH_ACCEL] = throttle;
+        data[OFF_DASH_BRAKE] = brake;
+        data[OFF_DASH_CLUTCH] = clutch;
+        data[OFF_DASH_GEAR] = gear;
+        data[OFF_DASH_STEER] = steer as u8;
+        data
+    }
+
+    #[test]
+    fn test_cardash_user_inputs() -> TestResult {
+        let data = make_full_cardash_packet(5000.0, (20.0, 0.0, 0.0), 255, 128, 64, 4, 63);
+        let result = parse_forza_cardash(&data)?;
+        assert!((result.throttle - 1.0).abs() < 0.01);
+        assert!((result.brake - 128.0 / 255.0).abs() < 0.01);
+        assert!((result.clutch - 64.0 / 255.0).abs() < 0.01);
+        assert_eq!(result.gear, 3); // gear byte 4 → gear 3
+        assert!((result.steering_angle - 63.0 / 127.0).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_cardash_gear_mapping() -> TestResult {
+        // Gear 0 = Reverse
+        let data = make_full_cardash_packet(1000.0, (0.0, 0.0, 0.0), 0, 0, 0, 0, 0);
+        let result = parse_forza_cardash(&data)?;
+        assert_eq!(result.gear, -1);
+
+        // Gear 1 = Neutral
+        let data = make_full_cardash_packet(1000.0, (0.0, 0.0, 0.0), 0, 0, 0, 1, 0);
+        let result = parse_forza_cardash(&data)?;
+        assert_eq!(result.gear, 0);
+
+        // Gear 2 = 1st
+        let data = make_full_cardash_packet(1000.0, (0.0, 0.0, 0.0), 0, 0, 0, 2, 0);
+        let result = parse_forza_cardash(&data)?;
+        assert_eq!(result.gear, 1);
+
+        // Gear 9 = 8th
+        let data = make_full_cardash_packet(1000.0, (0.0, 0.0, 0.0), 0, 0, 0, 9, 0);
+        let result = parse_forza_cardash(&data)?;
+        assert_eq!(result.gear, 8);
+        Ok(())
+    }
+
+    #[test]
+    fn test_cardash_steer_clamped() -> TestResult {
+        // Max left
+        let data = make_full_cardash_packet(1000.0, (0.0, 0.0, 0.0), 0, 0, 0, 1, -127);
+        let result = parse_forza_cardash(&data)?;
+        assert!((result.steering_angle - (-1.0)).abs() < 0.01);
+
+        // Max right
+        let data = make_full_cardash_packet(1000.0, (0.0, 0.0, 0.0), 0, 0, 0, 1, 127);
+        let result = parse_forza_cardash(&data)?;
+        assert!((result.steering_angle - 1.0).abs() < 0.01);
+
+        // Center
+        let data = make_full_cardash_packet(1000.0, (0.0, 0.0, 0.0), 0, 0, 0, 1, 0);
+        let result = parse_forza_cardash(&data)?;
+        assert!((result.steering_angle).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_cardash_tire_temps_fahrenheit_to_celsius() -> TestResult {
+        let mut data = vec![0u8; FORZA_CARDASH_SIZE];
+        let sled = make_sled_packet(1, 1000.0, (0.0, 0.0, 0.0));
+        data[..FORZA_SLED_SIZE].copy_from_slice(&sled);
+        // 212°F = 100°C
+        data[OFF_DASH_TIRE_TEMP_FL..OFF_DASH_TIRE_TEMP_FL + 4]
+            .copy_from_slice(&212.0f32.to_le_bytes());
+        // 32°F = 0°C
+        data[OFF_DASH_TIRE_TEMP_FR..OFF_DASH_TIRE_TEMP_FR + 4]
+            .copy_from_slice(&32.0f32.to_le_bytes());
+        // 68°F = 20°C
+        data[OFF_DASH_TIRE_TEMP_RL..OFF_DASH_TIRE_TEMP_RL + 4]
+            .copy_from_slice(&68.0f32.to_le_bytes());
+        // 392°F = 200°C
+        data[OFF_DASH_TIRE_TEMP_RR..OFF_DASH_TIRE_TEMP_RR + 4]
+            .copy_from_slice(&392.0f32.to_le_bytes());
+        let result = parse_forza_cardash(&data)?;
+        assert_eq!(result.tire_temps_c[0], 100);
+        assert_eq!(result.tire_temps_c[1], 0);
+        assert_eq!(result.tire_temps_c[2], 20);
+        assert_eq!(result.tire_temps_c[3], 200);
+        Ok(())
+    }
+
+    #[test]
+    fn test_cardash_fuel_and_laps() -> TestResult {
+        let mut data = vec![0u8; FORZA_CARDASH_SIZE];
+        let sled = make_sled_packet(1, 1000.0, (0.0, 0.0, 0.0));
+        data[..FORZA_SLED_SIZE].copy_from_slice(&sled);
+        data[OFF_DASH_FUEL..OFF_DASH_FUEL + 4].copy_from_slice(&0.75f32.to_le_bytes());
+        data[OFF_DASH_BEST_LAP..OFF_DASH_BEST_LAP + 4].copy_from_slice(&82.5f32.to_le_bytes());
+        data[OFF_DASH_LAST_LAP..OFF_DASH_LAST_LAP + 4].copy_from_slice(&83.2f32.to_le_bytes());
+        data[OFF_DASH_CUR_LAP..OFF_DASH_CUR_LAP + 4].copy_from_slice(&41.0f32.to_le_bytes());
+        data[OFF_DASH_LAP_NUMBER..OFF_DASH_LAP_NUMBER + 2].copy_from_slice(&5u16.to_le_bytes());
+        data[OFF_DASH_RACE_POS] = 3;
+        let result = parse_forza_cardash(&data)?;
+        assert!((result.fuel_percent - 0.75).abs() < 0.01);
+        assert!((result.best_lap_time_s - 82.5).abs() < 0.01);
+        assert!((result.last_lap_time_s - 83.2).abs() < 0.01);
+        assert!((result.current_lap_time_s - 41.0).abs() < 0.01);
+        assert_eq!(result.lap, 5);
+        assert_eq!(result.position, 3);
+        Ok(())
+    }
+
+    #[test]
+    fn test_cardash_race_off_returns_defaults() -> TestResult {
+        let mut data = vec![0u8; FORZA_CARDASH_SIZE];
+        // is_race_on = 0
+        let result = parse_forza_cardash(&data)?;
+        assert_eq!(result.rpm, 0.0);
+        assert_eq!(result.speed_ms, 0.0);
+        assert_eq!(result.throttle, 0.0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_cardash_truncated() {
+        let data = vec![0u8; FORZA_CARDASH_SIZE - 1];
+        assert!(parse_forza_cardash(&data).is_err());
+    }
+
+    #[test]
+    fn test_fh4_cardash_truncated() {
+        // Expected minimum is FORZA_CARDASH_SIZE + 12 = 323 bytes
+        let data = vec![0u8; FORZA_CARDASH_SIZE + 12 - 1];
+        assert!(parse_forza_fh4_cardash(&data).is_err());
+    }
+
+    #[test]
+    fn test_cardash_preserves_sled_extended_fields() -> TestResult {
+        let mut data = vec![0u8; FORZA_CARDASH_SIZE];
+        let mut sled = make_sled_packet(1, 1000.0, (0.0, 0.0, 0.0));
+        sled[OFF_WHEEL_SPEED_FL..OFF_WHEEL_SPEED_FL + 4]
+            .copy_from_slice(&42.0f32.to_le_bytes());
+        data[..FORZA_SLED_SIZE].copy_from_slice(&sled);
+        let result = parse_forza_cardash(&data)?;
+        assert_eq!(
+            result.get_extended("wheel_speed_fl"),
+            Some(&TelemetryValue::Float(42.0))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_f32_le_invalid_offset() {
+        let data = vec![0u8; 4];
+        assert!(read_f32_le(&data, 2).is_none());
+    }
+
+    #[test]
+    fn test_read_f32_le_nan_filtered() {
+        let mut data = vec![0u8; 4];
+        data.copy_from_slice(&f32::NAN.to_le_bytes());
+        assert!(read_f32_le(&data, 0).is_none());
+    }
+
+    #[test]
+    fn test_read_f32_le_infinity_filtered() {
+        let mut data = vec![0u8; 4];
+        data.copy_from_slice(&f32::INFINITY.to_le_bytes());
+        assert!(read_f32_le(&data, 0).is_none());
+    }
+
+    #[test]
+    fn test_read_i32_le_valid() {
+        let mut data = vec![0u8; 4];
+        data.copy_from_slice(&42i32.to_le_bytes());
+        assert_eq!(read_i32_le(&data, 0), Some(42));
+    }
+
+    #[test]
+    fn test_read_i32_le_invalid_offset() {
+        let data = vec![0u8; 2];
+        assert!(read_i32_le(&data, 0).is_none());
+    }
+
+    // ── Insta snapshot tests ──────────────────────────────────────────────
+
+    #[test]
+    fn snapshot_sled_typical_driving() -> TestResult {
+        let mut data = make_sled_packet(1, 6500.0, (25.0, 1.0, 10.0));
+        data[OFF_ACCEL_X..OFF_ACCEL_X + 4].copy_from_slice(&(1.5 * G).to_le_bytes());
+        data[OFF_ACCEL_Z..OFF_ACCEL_Z + 4].copy_from_slice(&(0.3 * G).to_le_bytes());
+        data[OFF_SLIP_ANGLE_FL..OFF_SLIP_ANGLE_FL + 4].copy_from_slice(&0.02f32.to_le_bytes());
+        data[OFF_SLIP_ANGLE_FR..OFF_SLIP_ANGLE_FR + 4].copy_from_slice(&0.03f32.to_le_bytes());
+        let result = parse_forza_sled(&data)?;
+        insta::assert_yaml_snapshot!("forza_sled_typical", result);
+        Ok(())
+    }
+
+    #[test]
+    fn snapshot_cardash_full_data() -> TestResult {
+        let data = make_full_cardash_packet(7200.0, (35.0, 0.0, 0.0), 200, 0, 0, 5, 15);
+        let result = parse_forza_cardash(&data)?;
+        insta::assert_yaml_snapshot!("forza_cardash_full", result);
+        Ok(())
+    }
+
+    #[test]
+    fn snapshot_sled_race_off() -> TestResult {
+        let data = make_sled_packet(0, 5000.0, (20.0, 0.0, 0.0));
+        let result = parse_forza_sled(&data)?;
+        insta::assert_yaml_snapshot!("forza_sled_race_off", result);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -655,6 +1017,71 @@ mod proptest_tests {
             data[OFF_IS_RACE_ON..OFF_IS_RACE_ON + 4].copy_from_slice(&1i32.to_le_bytes());
             data[OFF_ACCEL_X..OFF_ACCEL_X + 4].copy_from_slice(&accel.to_le_bytes());
             if let Ok(result) = parse_forza_sled(&data) {
+                prop_assert!(result.speed_ms >= 0.0);
+            }
+        }
+
+        #[test]
+        fn cardash_throttle_in_range(throttle_byte in 0u8..=255u8) {
+            let mut data = vec![0u8; FORZA_CARDASH_SIZE];
+            data[OFF_IS_RACE_ON..OFF_IS_RACE_ON + 4].copy_from_slice(&1i32.to_le_bytes());
+            data[OFF_DASH_ACCEL] = throttle_byte;
+            if let Ok(result) = parse_forza_cardash(&data) {
+                prop_assert!(result.throttle >= 0.0 && result.throttle <= 1.0);
+            }
+        }
+
+        #[test]
+        fn cardash_brake_in_range(brake_byte in 0u8..=255u8) {
+            let mut data = vec![0u8; FORZA_CARDASH_SIZE];
+            data[OFF_IS_RACE_ON..OFF_IS_RACE_ON + 4].copy_from_slice(&1i32.to_le_bytes());
+            data[OFF_DASH_BRAKE] = brake_byte;
+            if let Ok(result) = parse_forza_cardash(&data) {
+                prop_assert!(result.brake >= 0.0 && result.brake <= 1.0);
+            }
+        }
+
+        #[test]
+        fn cardash_steer_in_range(steer_byte in 0u8..=255u8) {
+            let mut data = vec![0u8; FORZA_CARDASH_SIZE];
+            data[OFF_IS_RACE_ON..OFF_IS_RACE_ON + 4].copy_from_slice(&1i32.to_le_bytes());
+            data[OFF_DASH_STEER] = steer_byte;
+            if let Ok(result) = parse_forza_cardash(&data) {
+                prop_assert!(result.steering_angle >= -1.0 && result.steering_angle <= 1.0);
+            }
+        }
+
+        #[test]
+        fn cardash_gear_valid(gear_byte in 0u8..=9u8) {
+            let mut data = vec![0u8; FORZA_CARDASH_SIZE];
+            data[OFF_IS_RACE_ON..OFF_IS_RACE_ON + 4].copy_from_slice(&1i32.to_le_bytes());
+            data[OFF_DASH_GEAR] = gear_byte;
+            if let Ok(result) = parse_forza_cardash(&data) {
+                prop_assert!(result.gear >= -1 && result.gear <= 8);
+            }
+        }
+
+        #[test]
+        fn fh4_cardash_no_panic_on_arbitrary_bytes(
+            data in proptest::collection::vec(any::<u8>(), 0..512)
+        ) {
+            let _ = parse_forza_fh4_cardash(&data);
+        }
+
+        #[test]
+        fn sled_speed_is_magnitude(
+            vx in -100.0f32..=100.0f32,
+            vy in -100.0f32..=100.0f32,
+            vz in -100.0f32..=100.0f32,
+        ) {
+            let mut data = vec![0u8; FORZA_SLED_SIZE];
+            data[OFF_IS_RACE_ON..OFF_IS_RACE_ON + 4].copy_from_slice(&1i32.to_le_bytes());
+            data[OFF_VEL_X..OFF_VEL_X + 4].copy_from_slice(&vx.to_le_bytes());
+            data[OFF_VEL_Y..OFF_VEL_Y + 4].copy_from_slice(&vy.to_le_bytes());
+            data[OFF_VEL_Z..OFF_VEL_Z + 4].copy_from_slice(&vz.to_le_bytes());
+            if let Ok(result) = parse_forza_sled(&data) {
+                let expected = (vx * vx + vy * vy + vz * vz).sqrt();
+                prop_assert!((result.speed_ms - expected).abs() < 0.01);
                 prop_assert!(result.speed_ms >= 0.0);
             }
         }
