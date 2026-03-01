@@ -102,6 +102,13 @@ pub mod commands {
     pub const SET_AUTOCENTER: u8 = 0x14;
     /// Set rev-light LEDs.
     pub const SET_LEDS: u8 = 0x12;
+    /// Switch to target mode (G27+).
+    ///
+    /// Payload: `{0xf8, 0x09, mode_id, 0x01, detach, 0, 0}`.
+    /// This is the second step of native-mode switching, after `NATIVE_MODE`.
+    ///
+    /// Source: `lg4ff_mode_switch_ext09_*` arrays in kernel `hid-lg4ff.c`.
+    pub const MODE_SWITCH: u8 = 0x09;
 }
 
 /// Known Logitech wheel product IDs.

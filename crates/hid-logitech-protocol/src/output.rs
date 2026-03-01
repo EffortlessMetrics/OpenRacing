@@ -201,6 +201,59 @@ pub fn build_gain_report(gain: u8) -> [u8; 2] {
     [report_ids::DEVICE_GAIN, gain]
 }
 
+/// Build the 7-byte DFP-specific set-range report (0xF8, cmd 0x81 with DFP encoding).
+///
+/// The DFP uses a different range encoding than G25+:
+/// - Short range (≤200°): `{0xf8, 0x81, x1, x2_end, 0x00, 0x00, 0x00}`
+/// - Long range (>200°):  `{0xf8, 0x81, x1, x2_start, 0x00, 0x00, 0x00}`
+///                       then `{0xf8, 0x81, x1, x2_end, 0x00, 0x00, 0x00}`
+///
+/// Source: `lg4ff_set_range_dfp()` in kernel `hid-lg4ff.c`.
+///
+/// For simplicity, this function returns a single report sufficient for
+/// ranges ≤200°. For ranges >200°, two reports must be sent in sequence.
+pub fn build_set_range_dfp_report(degrees: u16) -> [u8; VENDOR_REPORT_LEN] {
+    let degrees = degrees.clamp(40, 900) as u32;
+    let start = ((degrees * 2 - 200) * 0x10000 / 1637) | 0x8000_0000;
+    let msb = ((start >> 24) & 0xFF) as u8;
+    let lsb = ((start >> 16) & 0xFF) as u8;
+    [
+        report_ids::VENDOR,
+        commands::SET_RANGE,
+        lsb,
+        msb,
+        0x00,
+        0x00,
+        0x00,
+    ]
+}
+
+/// Build the mode-switch command to transition to native mode (G27+).
+///
+/// `mode_id` selects the target mode (from kernel `lg4ff_mode_switch_ext09_*`):
+///   - `0x00`: DF-EX (Driving Force / Formula EX compatibility)
+///   - `0x01`: DFP (Driving Force Pro compatibility)
+///   - `0x02`: G25
+///   - `0x03`: DFGT (Driving Force GT)
+///   - `0x04`: G27
+///   - `0x05`: G29
+///
+/// `detach`: if `true`, byte 4 = `0x01` (detach from current HID device);
+///           if `false`, byte 4 = `0x00`.
+///
+/// Source: `lg4ff_mode_switch_ext09_*` arrays in kernel `hid-lg4ff.c`.
+pub fn build_mode_switch_report(mode_id: u8, detach: bool) -> [u8; VENDOR_REPORT_LEN] {
+    [
+        report_ids::VENDOR,
+        commands::MODE_SWITCH,
+        mode_id,
+        0x01,
+        if detach { 0x01 } else { 0x00 },
+        0x00,
+        0x00,
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
