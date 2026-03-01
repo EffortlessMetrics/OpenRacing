@@ -330,6 +330,9 @@ pub mod vendor_ids {
     /// Guillemot (VID 0x06F8) — legacy Thrustmaster parent company
     /// Source: oversteer wheel_ids.py, Linux hid-tmff.c
     pub const GUILLEMOT: u16 = 0x06F8;
+    /// Thrustmaster Xbox controller division (VID 0x24C6)
+    /// Source: devicehunt.com, oversteer wheel_ids.py
+    pub const THRUSTMASTER_XBOX: u16 = 0x24C6;
 }
 
 /// Known racing wheel product IDs organized by vendor
@@ -679,6 +682,13 @@ impl SupportedDevices {
                 0x0004,
                 "Guillemot Force Feedback Racing Wheel",
             ),
+            // Thrustmaster Xbox controller division (VID 0x24C6)
+            // Source: oversteer TM_F458 = '24c6:5b00'; devicehunt.com
+            (
+                vendor_ids::THRUSTMASTER_XBOX,
+                0x5B00,
+                "Thrustmaster Ferrari 458 Italia (Xbox 360)",
+            ),
         ]
     }
 
@@ -702,6 +712,7 @@ impl SupportedDevices {
             vendor_ids::PXN,
             vendor_ids::FLASHFIRE,
             vendor_ids::GUILLEMOT,
+            vendor_ids::THRUSTMASTER_XBOX,
         ]
     }
 
@@ -744,6 +755,7 @@ impl SupportedDevices {
             vendor_ids::PXN => "PXN",
             vendor_ids::FLASHFIRE => "FlashFire",
             vendor_ids::GUILLEMOT => "Guillemot / Thrustmaster",
+            vendor_ids::THRUSTMASTER_XBOX => "Thrustmaster",
             _ => "Unknown",
         }
     }
@@ -1873,6 +1885,14 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.encoder_cpr = 270;
             capabilities.min_report_period_us = 8000; // 125Hz legacy
             capabilities.max_torque = TorqueNm::new(1.5).unwrap_or(capabilities.max_torque);
+        }
+        vendor_ids::THRUSTMASTER_XBOX => {
+            // Thrustmaster Ferrari 458 Italia (Xbox 360) — rumble motors only, no FFB
+            capabilities.supports_pid = false;
+            capabilities.supports_raw_torque_1khz = false;
+            capabilities.max_torque = TorqueNm::ZERO;
+            capabilities.encoder_cpr = 240;
+            capabilities.min_report_period_us = 8000; // 125Hz
         }
         _ => {
             // Unknown vendor - use conservative defaults

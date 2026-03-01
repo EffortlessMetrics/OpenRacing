@@ -187,7 +187,9 @@ proptest! {
             // Cube Controls button boxes (provisional PIDs, share VID 0x0483 with Simagic)
             || (vid == vendor_ids::SIMAGIC && matches!(pid, 0x0C73..=0x0C75))
             // Cammus pedals (CP5 and LC100 — input-only, non-FFB)
-            || (vid == vendor_ids::CAMMUS && matches!(pid, 0x1018 | 0x1019));
+            || (vid == vendor_ids::CAMMUS && matches!(pid, 0x1018 | 0x1019))
+            // Thrustmaster Ferrari 458 Italia (Xbox 360) — rumble motors only, not true FFB
+            || (vid == vendor_ids::THRUSTMASTER_XBOX && pid == 0x5B00);
         if is_non_ffb_peripheral {
             prop_assert_eq!(
                 caps.max_torque.value(),

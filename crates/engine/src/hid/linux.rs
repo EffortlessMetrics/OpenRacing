@@ -550,6 +550,8 @@ impl LinuxHidPort {
             (0x2F24, 0x010D), // FlashFire 900R
             // Guillemot (VID 0x06F8) — legacy Thrustmaster parent (oversteer, hid-tmff.c)
             (0x06F8, 0x0004), // Guillemot Force Feedback Racing Wheel
+            // Thrustmaster Xbox controller division (VID 0x24C6)
+            (0x24C6, 0x5B00), // Thrustmaster Ferrari 458 Italia (Xbox 360)
         ];
 
         // Scan /dev/hidraw* devices
