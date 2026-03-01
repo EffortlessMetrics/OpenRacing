@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -14,6 +18,7 @@ jobs:
   deprecated-field-detection:
     name: Deprecated Field Detection
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
     - uses: actions/checkout@v4
@@ -115,6 +120,7 @@ jobs:
   trybuild-compile-fail-tests:
     name: Trybuild Compile-Fail Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     
     steps:
     - uses: actions/checkout@v4
@@ -173,6 +179,7 @@ jobs:
   json-schema-validation:
     name: JSON Schema Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
     - uses: actions/checkout@v4
@@ -299,6 +306,7 @@ jobs:
   lint-enforcement:
     name: Lint Enforcement
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     steps:
     - uses: actions/checkout@v4
@@ -416,6 +424,7 @@ jobs:
   protobuf-breaking-changes:
     name: Protobuf Breaking Changes
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
     - uses: actions/checkout@v4
@@ -463,6 +472,7 @@ jobs:
   comprehensive-validation:
     name: Comprehensive Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [deprecated-field-detection, trybuild-compile-fail-tests, json-schema-validation, lint-enforcement, protobuf-breaking-changes]
     
     steps:

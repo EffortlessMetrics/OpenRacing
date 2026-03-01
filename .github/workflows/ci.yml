@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -15,6 +19,7 @@ jobs:
   changelog-validation:
     name: CHANGELOG Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +38,7 @@ jobs:
   isolation-cli:
     name: CLI Isolation Build
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -98,6 +104,7 @@ jobs:
   isolation-service:
     name: Service Isolation Build
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -130,6 +137,7 @@ jobs:
   isolation-plugins:
     name: Plugins Isolation Build
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -164,6 +172,7 @@ jobs:
   isolation-ui:
     name: UI Isolation Build
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04, windows-latest]
@@ -213,6 +222,7 @@ jobs:
   schemas-validation:
     name: Schemas & Trybuild
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [isolation-cli, isolation-service, isolation-plugins, isolation-ui]
 
     steps:
@@ -276,6 +286,7 @@ jobs:
   workspace-default:
     name: Workspace Default Build
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -316,6 +327,7 @@ jobs:
   feature-combinations:
     name: Feature Combinations
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [workspace-default]
 
     steps:
@@ -355,6 +367,7 @@ jobs:
   dependency-governance:
     name: Dependency Governance
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [feature-combinations]
 
     steps:
@@ -421,6 +434,7 @@ jobs:
   lint-gates:
     name: Comprehensive Lint Gates & Governance
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -532,6 +546,7 @@ jobs:
   performance-gate:
     name: Performance Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [lint-gates]
     # Run performance gates on main/develop branches and PRs targeting main
     # This ensures performance regressions are caught before merge
@@ -620,6 +635,7 @@ jobs:
   security-audit:
     name: Security & License Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [lint-gates]
 
     steps:
@@ -674,6 +690,7 @@ jobs:
   cross-platform-performance:
     name: Cross-Platform Performance
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     needs: [lint-gates]
     strategy:
       matrix:
@@ -733,6 +750,7 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [lint-gates]
 
     steps:
@@ -775,6 +793,7 @@ jobs:
   final-validation:
     name: Final Workspace Validation
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     needs:
       [performance-gate, security-audit, cross-platform-performance, coverage]
     strategy:
