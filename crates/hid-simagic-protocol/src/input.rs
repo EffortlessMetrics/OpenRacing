@@ -2,17 +2,41 @@
 //!
 //! All functions are pure and allocation-free.
 //!
-//! The input report layout below is this crate's own abstraction. The kernel
-//! `simagic-ff` driver receives input through the standard HID subsystem
-//! (axes, buttons parsed from the HID descriptor), not via raw byte offsets.
-//! The byte layout documented here is based on observed HID descriptor fields
-//! and may vary between firmware versions.
+//! # ⚠ Speculative byte layout
+//!
+//! The input report layout below is this crate's own **speculative**
+//! abstraction and has NOT been verified against a real USB HID descriptor
+//! dump from Simagic hardware.
+//!
+//! The JacKeTUs/simagic-ff kernel driver does **not** define raw byte
+//! offsets for input reports — it relies on the standard Linux HID subsystem
+//! to parse axes and buttons from the device's HID Report Descriptor. The
+//! `simagic_input_configured()` callback only adjusts ABS_X flatness:
+//!
+//! ```c
+//! input_set_abs_params(input, ABS_X,
+//!     input->absinfo[ABS_X].minimum, input->absinfo[ABS_X].maximum, 0, 0);
+//! ```
+//!
+//! The VansonLeung/poc_simagic_control_input_api C# project confirms axis
+//! ranges via Windows DirectInput (steering 0–65535 center=32767,
+//! throttle/brake 0–65535) but does not document the raw HID byte layout.
+//!
+//! **Until a real USB HID descriptor dump is obtained, the byte offsets and
+//! field widths below must be treated as estimates.** They may be correct for
+//! some firmware versions and wrong for others.
 
 #![deny(static_mut_refs)]
 
 use crate::types::{QuickReleaseStatus, SimagicGear, SimagicPedalAxesRaw, SimagicShifterState};
 
 /// Parsed state from a Simagic standard input report.
+///
+/// # ⚠ Speculative byte layout (unverified)
+///
+/// The byte offsets below are **estimates** and have NOT been confirmed
+/// against a real USB HID Report Descriptor dump. They may be correct for
+/// some firmware versions and incorrect for others.
 ///
 /// The standard input report is typically 64 bytes, with the following layout:
 /// - Bytes 0-1: Steering position (16-bit unsigned, 0x8000 = center)

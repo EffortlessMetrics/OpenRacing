@@ -81,7 +81,8 @@ See friction log entry **F-005** for the history of why this document was create
 
 **VID (EVO generation):** `0x3670`  
 **VID (Legacy / STM generic):** `0x0483`  
-**Source:** [USB VID registry (the-sz.com)](https://www.the-sz.com/products/usbid/index.php?v=3670) for `0x3670`; [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels); [JacKeTUs/simagic-ff](https://github.com/JacKeTUs/simagic-ff) kernel driver `hid-simagic.h` header for `0x0483:0x0522` and EVO PIDs.  
+**Source:** [USB VID registry (the-sz.com)](https://www.the-sz.com/products/usbid/index.php?v=3670) for `0x3670`; [JacKeTUs/linux-steering-wheels](https://github.com/JacKeTUs/linux-steering-wheels); [JacKeTUs/simagic-ff](https://github.com/JacKeTUs/simagic-ff) kernel driver `hid-simagic.h` header for `0x0483:0x0522` and EVO PIDs; [VansonLeung/poc\_simagic\_control\_input\_api](https://github.com/VansonLeung/poc_simagic_control_input_api) C# DirectInput PoC for input axis ranges.  
+**Protocol:** FFB uses 64-byte HID Output Reports (report IDs `0x01`, `0x03`, `0x04`, `0x05`, `0x0a`, `0x40`); settings use Feature Reports `0x80`/`0x81`. Periodic effects (square/triangle/sawtooth) are defined but produce no effect on hardware. See `hid-simagic-protocol` crate docs for full wire-format details.  
 **Status:** EVO PIDs verified; legacy PID verified; accessory PIDs estimated.
 
 | VID      | PID      | Device Name                          | Status    |
@@ -413,7 +414,8 @@ The following external references were used during the verification waves docume
 | scarburato/hid-tminit | [github.com/scarburato/hid-tminit](https://github.com/scarburato/hid-tminit) | Thrustmaster wheel init driver; model query/response table (T150 bytes 0x0603, T300 bytes 0x0602, T500 bytes 0x0200, TMX bytes 0x0704); init switch values per model |
 | her001/tmdrv | [github.com/her001/tmdrv](https://github.com/her001/tmdrv) (archived: [gitlab.com/her0/tmdrv](https://gitlab.com/her0/tmdrv)) | Python init tool for T500RS, TX, TMX, TS-XW; mode-switch only, **no FFB support** |
 | linux-hardware.org | [linux-hardware.org](https://linux-hardware.org/) | Hardware probe database; Thrustmaster PID `0xB677` correction (T500 RS → T150) |
-| JacKeTUs/simagic-ff | [github.com/JacKeTUs/simagic-ff](https://github.com/JacKeTUs/simagic-ff) | Simagic kernel driver; legacy PID `0x0483:0x0522` verification |
+| JacKeTUs/simagic-ff | [github.com/JacKeTUs/simagic-ff](https://github.com/JacKeTUs/simagic-ff) | Simagic kernel driver; legacy PID `0x0483:0x0522` verification; **FFB protocol**: report IDs `0x01`/`0x03`/`0x04`/`0x05`/`0x0a`/`0x40`, effect block types, `sm_rescale_signed_to_10k()` (±10000 scaling), 64-byte HID Output Reports; **settings**: Feature Reports `0x80`/`0x81` (max\_angle 90–2520, ff\_strength ±100, ring light, filter level, slew rate); periodic effects (square/triangle/sawtooth) defined but "no effect seen on wheelbase"; key commit: 52e73e7; files: `hid-simagic.c`, `hid-simagic.h`, `hid-simagic-settings.h`, `hid-simagic-settings.c` |
+| VansonLeung/poc\_simagic\_control\_input\_api | [github.com/VansonLeung/poc\_simagic\_control\_input\_api](https://github.com/VansonLeung/poc_simagic_control_input_api) | C# DirectInput proof-of-concept for Simagic; confirms axes via Windows DirectInput (steering 0–65535 center 32767, throttle/brake 0–65535); no raw HID protocol details (uses SharpDX abstraction) |
 | FFBeast project | [ffbeast.github.io](https://ffbeast.github.io/) | FFBeast VID/PID and torque scale documentation |
 | Ultrawipf/OpenFFBoard | [github.com/Ultrawipf/OpenFFBoard](https://github.com/Ultrawipf/OpenFFBoard) | OpenFFBoard firmware source; PID `0xFFB0` confirmation |
 

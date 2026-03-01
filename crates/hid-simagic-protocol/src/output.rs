@@ -2,28 +2,98 @@
 //!
 //! All functions are pure and allocation-free.
 //!
-//! # Protocol notes
+//! # ⚠ Speculative wire format — does NOT match hardware directly
 //!
-//! This module encodes reports for this crate's own FFB abstraction layer
-//! using custom report IDs (see [`crate::ids::report_ids`]).
+//! This module encodes reports using this crate's **own custom report IDs**
+//! (see [`crate::ids::report_ids`]: `0x11`–`0x17`, `0x20`, `0x21`, `0x30`).
+//! **These report IDs are NOT the actual Simagic hardware report IDs.**
+//! The transport layer must translate them to the real wire protocol before
+//! sending to hardware.
 //!
-//! The Simagic kernel driver (`simagic-ff` by JacKeTUs) uses the HID PID
-//! (Physical Interface Device) protocol with different report IDs. Key
-//! protocol details from `hid-simagic.c` (commit 52e73e7):
+//! # Real Simagic wire protocol (from JacKeTUs/simagic-ff)
 //!
-//! - **Constant force** (`SM_SET_CONSTANT_REPORT=0x05`): field\[0\]=report ID,
-//!   field\[1\]=effect block ID, field\[2\]=magnitude scaled to ±10000.
-//! - **Condition effects** (`SM_SET_CONDITION_REPORT=0x03`): used for spring
-//!   (block ID 0x06), damper (0x05), friction (0x07), inertia (0x09).
-//!   Fields encode positive/negative coefficients, center, deadband.
-//! - **Periodic effects** (`SM_SET_PERIODIC_REPORT=0x04`): used for sine
-//!   (block ID 0x02). Fields encode magnitude, offset, phase, period.
-//! - **Gain** (`SM_SET_GAIN=0x40`): field\[0\]=report ID, field\[1\]=gain>>8.
-//! - **Effect operation** (`SM_EFFECT_OPERATION_REPORT=0x0a`): play/stop.
-//! - Magnitude scaling: `sm_rescale_signed_to_10k()` maps ±0x7fff → ±10000.
+//! The actual hardware protocol uses 64-byte HID Output Reports where the
+//! first byte (`value[0]`) is the report type ID and subsequent bytes carry
+//! parameters. All values are in the `report->field[0]->value` array.
+//! Source: `hid-simagic.c` (commit 52e73e7).
 //!
-//! Reports are 64-byte HID output reports sent via `hid_hw_request`.
-//! Settings use Feature Reports: 0x80 (set) and 0x81 (get status).
+//! ## Constant force (`SM_SET_CONSTANT_REPORT = 0x05`)
+//! ```text
+//! value[0] = 0x05          // report type
+//! value[1] = block_id      // SM_CONSTANT = 0x01
+//! value[2] = magnitude     // sm_rescale_signed_to_10k(level) → ±10000
+//! ```
+//!
+//! ## Condition effects (`SM_SET_CONDITION_REPORT = 0x03`)
+//! Used for spring (block 0x06), damper (0x05), friction (0x07), inertia (0x09).
+//! ```text
+//! value[0] = 0x03          // report type
+//! value[1] = block_id      // e.g. SM_SPRING=0x06
+//! value[2] = right_coeff   // sm_rescale_coeffs(right_coeff, 0x7fff, -10000, 10000)
+//! value[3] = left_coeff    // sm_rescale_coeffs(left_coeff, 0x7fff, -10000, 10000)
+//! value[4] = center        // center position
+//! value[5] = deadband      // deadband width
+//! ```
+//!
+//! ## Periodic effects (`SM_SET_PERIODIC_REPORT = 0x04`)
+//! Used for sine (block 0x02). Square/triangle/sawtooth are defined but
+//! "no effect seen on wheelbase" per the kernel driver comments.
+//! ```text
+//! value[0] = 0x04          // report type
+//! value[1] = block_id      // SM_SINE = 0x02
+//! value[2] = magnitude     // sm_rescale_signed_to_10k(magnitude) → ±10000
+//! value[3] = offset        // sm_rescale_signed_to_10k(offset) → ±10000
+//! value[4] = phase         // raw phase value
+//! value[5] = period        // raw period value
+//! ```
+//!
+//! ## Set effect (`SM_SET_EFFECT_REPORT = 0x01`)
+//! Creates/updates an effect slot before playback.
+//! ```text
+//! value[0]  = 0x01         // report type
+//! value[1]  = block_id
+//! value[2]  = effect_type  // same as block_id (maps from ff_effect.type)
+//! value[3]  = duration_lo  // duration & 0xFF
+//! value[4]  = duration_hi  // (duration >> 8) & 0xFF
+//! value[9]  = 0xFF         // gain
+//! value[10] = 0xFF         // trigger button
+//! value[11] = 0x04
+//! value[12] = 0x3F
+//! ```
+//!
+//! ## Effect operation (`SM_EFFECT_OPERATION_REPORT = 0x0a`)
+//! ```text
+//! value[0] = 0x0a          // report type
+//! value[1] = block_id
+//! value[2] = operation     // 0x01 = start, 0x03 = stop
+//! value[3] = loop_count    // 0x00–0xFF
+//! ```
+//!
+//! ## Gain (`SM_SET_GAIN = 0x40`)
+//! ```text
+//! value[0] = 0x40          // report type
+//! value[1] = gain >> 8     // device-wide FFB gain
+//! ```
+//!
+//! ## Magnitude scaling
+//!
+//! `sm_rescale_signed_to_10k()` maps signed 16-bit values to ±10000:
+//! - Positive: `value * 10000 / 0x7FFF`
+//! - Negative: `value * -10000 / -0x8000`
+//! - Zero: 0
+//!
+//! Our [`torque_to_magnitude()`] function uses the same ±10000 range, which
+//! is consistent with the real protocol scaling.
+//!
+//! ## Settings (Feature Reports)
+//!
+//! Settings use HID Feature Reports (not Output Reports):
+//! - **Report `0x80`** (set): write wheel settings. Byte `[1]` selects the
+//!   settings page (`0x01` = basic, `0x02` = angle lock, `0x10` = advanced).
+//! - **Report `0x81`** (get): read status — returns a 57+ byte struct with
+//!   max_angle (LE16, 90–2520), ff_strength (LE16, ±100), rotation speed,
+//!   centering/damper/friction/inertia (0–100 mechanical, 0–200 game),
+//!   ring light, filter level (0–20), slew rate (0–100), and more.
 //!
 //! Source: JacKeTUs/simagic-ff `hid-simagic.c`, `hid-simagic-settings.h`
 

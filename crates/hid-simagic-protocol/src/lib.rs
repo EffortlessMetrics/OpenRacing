@@ -15,6 +15,31 @@
 //! Device compatibility is tracked at:
 //! <https://github.com/JacKeTUs/linux-steering-wheels>
 //!
+//! # Speculative wire format — READ THIS FIRST
+//!
+//! **This crate's report IDs and byte layouts are an abstraction layer that
+//! does NOT match the actual Simagic hardware wire protocol.** The real
+//! protocol, as documented in JacKeTUs/simagic-ff `hid-simagic.c` (commit
+//! 52e73e7), uses HID PID (Physical Interface Device) semantics with 64-byte
+//! output reports sent via `hid_hw_request`. The kernel driver report IDs are:
+//!
+//! | Report ID | Define                       | Purpose                          |
+//! |-----------|------------------------------|----------------------------------|
+//! | `0x01`    | `SM_SET_EFFECT_REPORT`       | Create/configure effect          |
+//! | `0x03`    | `SM_SET_CONDITION_REPORT`    | Spring/damper/friction/inertia   |
+//! | `0x04`    | `SM_SET_PERIODIC_REPORT`     | Sine waveforms                   |
+//! | `0x05`    | `SM_SET_CONSTANT_REPORT`     | Constant force magnitude         |
+//! | `0x0a`    | `SM_EFFECT_OPERATION_REPORT` | Play/stop effect                 |
+//! | `0x12`    | `SM_SET_ENVELOPE_REPORT`     | Envelope parameters              |
+//! | `0x40`    | `SM_SET_GAIN`                | Device-wide FFB gain             |
+//! | `0x80`    | (settings set)               | Write wheel settings (Feature)   |
+//! | `0x81`    | (settings get)               | Read wheel status (Feature)      |
+//!
+//! This crate instead uses custom report IDs (`0x11`–`0x17`, `0x20`–`0x40`).
+//! These must be translated to the real wire protocol by the transport layer
+//! before being sent to hardware. See [`output`] for per-report documentation
+//! of both our abstraction and the kernel driver's actual format.
+//!
 //! # VID/PID summary
 //!
 //! - **Legacy** (VID `0x0483`, PID `0x0522`): M10, Alpha Mini, Alpha, Alpha Ultimate

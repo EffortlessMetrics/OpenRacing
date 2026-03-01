@@ -289,6 +289,25 @@ impl QuickReleaseStatus {
 }
 
 /// FFB effect types supported by Simagic wheelbases.
+///
+/// # ⚠ Crate-internal abstraction — not real hardware IDs
+///
+/// The `report_id()` values here (`0x11`–`0x17`) are this crate's own
+/// abstraction layer and do NOT match the actual Simagic hardware. The real
+/// protocol uses **effect block type IDs** in `value[1]` of the corresponding
+/// report, NOT separate report IDs per effect type:
+///
+/// | Our ID | Real block ID | Kernel define  | Real report  |
+/// |--------|---------------|----------------|--------------|
+/// | `0x11` | `0x01`        | `SM_CONSTANT`  | `0x05` (constant) |
+/// | `0x12` | `0x06`        | `SM_SPRING`    | `0x03` (condition) |
+/// | `0x13` | `0x05`        | `SM_DAMPER`    | `0x03` (condition) |
+/// | `0x14` | `0x07`        | `SM_FRICTION`  | `0x03` (condition) |
+/// | `0x15` | `0x02`        | `SM_SINE`      | `0x04` (periodic) |
+/// | `0x16` | `0x0f`        | `SM_SQUARE`    | `0x04` (periodic) — **no effect observed** |
+/// | `0x17` | `0x10`        | `SM_TRIANGLE`  | `0x04` (periodic) — **no effect observed** |
+///
+/// Source: JacKeTUs/simagic-ff `hid-simagic.c` (commit 52e73e7).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SimagicFfbEffectType {
     Constant,

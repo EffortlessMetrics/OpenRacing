@@ -56,28 +56,57 @@ pub const SIMAGIC_LEGACY_PID: u16 = 0x0522;
 
 /// HID Report IDs used in this crate's Simagic HID protocol abstraction.
 ///
-/// **Important**: These report IDs are this crate's own abstraction layer.
-/// The actual Simagic kernel driver (`simagic-ff`) uses the HID PID
-/// (Physical Interface Device) standard with different report IDs:
+/// # ⚠ WARNING: These are NOT the real Simagic hardware report IDs
 ///
-/// | Kernel driver define          | Value | Purpose                              |
-/// |-------------------------------|-------|--------------------------------------|
-/// | `SM_SET_EFFECT_REPORT`        | 0x01  | Create/configure effect              |
-/// | `SM_SET_CONDITION_REPORT`     | 0x03  | Spring/damper/friction/inertia       |
-/// | `SM_SET_PERIODIC_REPORT`      | 0x04  | Sine/square/triangle waveforms       |
-/// | `SM_SET_CONSTANT_REPORT`      | 0x05  | Constant force magnitude             |
-/// | `SM_EFFECT_OPERATION_REPORT`  | 0x0a  | Play/stop effect                     |
-/// | `SM_SET_ENVELOPE_REPORT`      | 0x12  | Envelope parameters                  |
-/// | `SM_SET_RAMP_FORCE_REPORT`    | 0x16  | Ramp force (no effect observed)      |
-/// | `SM_SET_CUSTOM_FORCE_REPORT`  | 0x17  | Custom force (no effect observed)    |
-/// | `SM_SET_GAIN`                 | 0x40  | Device-wide FFB gain                 |
+/// These report IDs are this crate's own **speculative** abstraction layer
+/// and do NOT match what the hardware expects. The transport layer must
+/// translate these to the real wire-format report IDs before sending.
 ///
-/// Source: JacKeTUs/simagic-ff `hid-simagic.c` (commit 52e73e7).
+/// ## Actual hardware report IDs (from kernel driver)
 ///
-/// The kernel driver also defines effect block type IDs:
-/// `SM_CONSTANT=0x01`, `SM_SINE=0x02`, `SM_DAMPER=0x05`, `SM_SPRING=0x06`,
-/// `SM_FRICTION=0x07`, `SM_INERTIA=0x09`. Square/triangle/sawtooth types
-/// (0x0f-0x12) are defined but commented as "no effect seen on wheelbase".
+/// The `simagic-ff` kernel driver uses standard HID PID semantics with
+/// 64-byte output reports. Each report's `field[0]->value` is a 64-element
+/// array where `value[0]` is the report type ID:
+///
+/// | Kernel define                 | value\[0\] | value\[1\]         | Remaining fields               |
+/// |-------------------------------|------------|--------------------|---------------------------------|
+/// | `SM_SET_EFFECT_REPORT`        | `0x01`     | block_id           | type, duration(LE16), gain=0xFF, trigger=0xFF |
+/// | `SM_SET_CONDITION_REPORT`     | `0x03`     | block_id           | right_coeff(±10k), left_coeff(±10k), center, deadband |
+/// | `SM_SET_PERIODIC_REPORT`      | `0x04`     | block_id           | magnitude(±10k), offset(±10k), phase, period |
+/// | `SM_SET_CONSTANT_REPORT`      | `0x05`     | block_id           | magnitude(±10k)                |
+/// | `SM_EFFECT_OPERATION_REPORT`  | `0x0a`     | block_id           | op(1=start,3=stop), loop_count |
+/// | `SM_SET_ENVELOPE_REPORT`      | `0x12`     | (envelope params)  |                                |
+/// | `SM_SET_RAMP_FORCE_REPORT`    | `0x16`     |                    | (no effect observed on hardware) |
+/// | `SM_SET_CUSTOM_FORCE_REPORT`  | `0x17`     |                    | (no effect observed on hardware) |
+/// | `SM_SET_GAIN`                 | `0x40`     | gain >> 8          |                                |
+///
+/// ## Effect block type IDs (used in value\[1\])
+///
+/// | Define           | ID     | Linux FF type | Status               |
+/// |------------------|--------|---------------|----------------------|
+/// | `SM_CONSTANT`    | `0x01` | `FF_CONSTANT` | Working              |
+/// | `SM_SINE`        | `0x02` | `FF_SINE`     | Working              |
+/// | `SM_DAMPER`      | `0x05` | `FF_DAMPER`   | Working              |
+/// | `SM_SPRING`      | `0x06` | `FF_SPRING`   | Working              |
+/// | `SM_FRICTION`    | `0x07` | `FF_FRICTION` | Working              |
+/// | `SM_INERTIA`     | `0x09` | `FF_INERTIA`  | Working              |
+/// | `SM_RAMP_FORCE`  | `0x0e` | `FF_RAMP`     | No effect observed   |
+/// | `SM_SQUARE`      | `0x0f` | `FF_SQUARE`   | No effect observed   |
+/// | `SM_TRIANGLE`    | `0x10` | `FF_TRIANGLE` | No effect observed   |
+/// | `SM_SAWTOOTH_UP` | `0x11` | `FF_SAW_UP`   | No effect observed   |
+/// | `SM_SAWTOOTH_DOWN`| `0x12`| `FF_SAW_DOWN` | No effect observed   |
+///
+/// ## Settings Feature Reports
+///
+/// Settings are read/written via HID Feature Reports:
+/// - **Report `0x80`** (set): write wheel parameters (max_angle 90–2520,
+///   ff_strength ±100, mechanical centering/damper/friction/inertia 0–100,
+///   game centering/inertia/damper/friction 0–200, ring light, filter level
+///   0–20, slew rate 0–100).
+/// - **Report `0x81`** (get): read current wheel status (same fields).
+///
+/// Source: JacKeTUs/simagic-ff `hid-simagic.c`, `hid-simagic-settings.h`
+/// (commit 52e73e7).
 pub mod report_ids {
     /// Standard input report (steering, pedals, buttons).
     pub const STANDARD_INPUT: u8 = 0x01;
