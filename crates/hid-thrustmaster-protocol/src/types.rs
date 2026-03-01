@@ -194,4 +194,70 @@ mod tests {
         assert!((normalized.brake - 0.502).abs() < 0.01);
         assert!(normalized.clutch.is_some());
     }
+
+    #[test]
+    fn test_protocol_family_t300_group() {
+        use crate::ids::ProtocolFamily;
+        // All T300RS-family wheels share the same protocol
+        assert_eq!(Model::T300RS.protocol_family(), ProtocolFamily::T300);
+        assert_eq!(Model::T300RSPS4.protocol_family(), ProtocolFamily::T300);
+        assert_eq!(Model::T300RSGT.protocol_family(), ProtocolFamily::T300);
+        assert_eq!(Model::TXRacing.protocol_family(), ProtocolFamily::T300);
+        assert_eq!(Model::T248.protocol_family(), ProtocolFamily::T300);
+        assert_eq!(Model::TSPCRacer.protocol_family(), ProtocolFamily::T300);
+        assert_eq!(Model::TSXW.protocol_family(), ProtocolFamily::T300);
+        assert_eq!(Model::TGTII.protocol_family(), ProtocolFamily::T300);
+    }
+
+    #[test]
+    fn test_protocol_family_t500_separate() {
+        use crate::ids::ProtocolFamily;
+        // T500RS uses a different, older protocol
+        assert_eq!(Model::T500RS.protocol_family(), ProtocolFamily::T500);
+        assert_ne!(Model::T500RS.protocol_family(), ProtocolFamily::T300);
+    }
+
+    #[test]
+    fn test_protocol_family_t150_separate() {
+        use crate::ids::ProtocolFamily;
+        assert_eq!(Model::T150.protocol_family(), ProtocolFamily::T150);
+        assert_eq!(Model::TMX.protocol_family(), ProtocolFamily::T150);
+    }
+
+    #[test]
+    fn test_protocol_family_unknown_for_pedals() {
+        use crate::ids::ProtocolFamily;
+        assert_eq!(Model::T3PA.protocol_family(), ProtocolFamily::Unknown);
+        assert_eq!(Model::TLCM.protocol_family(), ProtocolFamily::Unknown);
+    }
+
+    #[test]
+    fn test_init_switch_values() {
+        // T300RS family uses switch value 0x0005
+        assert_eq!(Model::T300RS.init_switch_value(), Some(0x0005));
+        assert_eq!(Model::T248.init_switch_value(), Some(0x0005));
+        assert_eq!(Model::TSXW.init_switch_value(), Some(0x0005));
+        // T500RS uses 0x0002
+        assert_eq!(Model::T500RS.init_switch_value(), Some(0x0002));
+        // T150/TMX use 0x0006
+        assert_eq!(Model::T150.init_switch_value(), Some(0x0006));
+        assert_eq!(Model::TMX.init_switch_value(), Some(0x0006));
+        // Unknown models return None
+        assert_eq!(Model::Unknown.init_switch_value(), None);
+    }
+
+    #[test]
+    fn test_init_protocol_constants() {
+        use crate::ids::init_protocol;
+        assert_eq!(init_protocol::MODEL_QUERY_REQUEST, 73);
+        assert_eq!(init_protocol::MODE_SWITCH_REQUEST, 83);
+        assert_eq!(init_protocol::SETUP_INTERRUPTS.len(), 5);
+        assert_eq!(init_protocol::KNOWN_MODELS.len(), 7);
+        // Verify T500RS entry exists
+        assert!(
+            init_protocol::KNOWN_MODELS
+                .iter()
+                .any(|(model, switch, _)| *model == 0x0002 && *switch == 0x0002)
+        );
+    }
 }

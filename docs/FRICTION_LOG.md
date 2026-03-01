@@ -604,13 +604,18 @@ Cube Controls PIDs `0x0C73`, `0x0C74`, `0x0C75` remain provisional with no exter
 
 ---
 
-### F-060 · Cammus new pedal PIDs need wiring into engine/dispatch (Medium · Open)
+### F-060 · Cammus new pedal PIDs need wiring into engine/dispatch (Medium · **Resolved**)
 
 **Encountered:** Wave 16 protocol verification (2025-06)
 
 New Cammus pedal PIDs have been identified but are not yet wired into the engine dispatch table or device capability matrix. The protocol crate may define the PIDs, but the engine cannot recognize or route HID reports for these devices until dispatch entries are added.
 
-**Remedy:** Add Cammus pedal PID entries to the engine dispatch table (`device_dispatch.rs` / platform device tables) and update `DEVICE_CAPABILITIES.md` with pedal specs.
+**Fix applied:** Cammus CP5 (0x1018) and LC100 (0x1019) pedals are now fully wired:
+- SupportedDevices table in `windows.rs:506-507`
+- Linux device list in `linux.rs:494-495`
+- `determine_device_capabilities()` in `windows.rs:1635-1640` (non-FFB, input-only)
+- Property test exclusion list in `windows_property_tests.rs:190`
+- Vendor module `cammus.rs` with `is_cammus_product()` returning true for both PIDs
 
 ---
 

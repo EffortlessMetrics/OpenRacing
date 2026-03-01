@@ -210,6 +210,56 @@ impl Model {
         )
     }
 
+    /// FFB protocol family for this wheel model.
+    ///
+    /// Source: Kimplul/hid-tmff2 probe function and per-wheel `*_populate_api()`
+    /// functions; Linux kernel `hid-thrustmaster.c` for init switch values.
+    ///
+    /// - `T300Family`: T300RS (all modes), T248, TX Racing, TS-XW, TS-PC, T-GT II.
+    ///   Uses Report ID 0x60, 63-byte payloads (31 in PS4 mode).
+    /// - `T150Family`: T150 and TMX. Separate protocol, not in hid-tmff2.
+    /// - `T500Family`: T500RS. Older protocol, not supported by hid-tmff2 (issue #18).
+    /// - `Unknown`: T818, T-GT, pedals, or unrecognized.
+    pub fn protocol_family(self) -> ProtocolFamily {
+        match self {
+            Self::T300RS
+            | Self::T300RSPS4
+            | Self::T300RSGT
+            | Self::TXRacing
+            | Self::T248
+            | Self::T248X
+            | Self::TSPCRacer
+            | Self::TSXW
+            | Self::TGTII => ProtocolFamily::T300,
+            Self::T150 | Self::TMX => ProtocolFamily::T150,
+            Self::T500RS => ProtocolFamily::T500,
+            _ => ProtocolFamily::Unknown,
+        }
+    }
+
+    /// USB mode-switch value sent via USB control request (bRequest 83) during
+    /// initialization on Linux. The wheel starts in generic mode (PID 0xB65D)
+    /// and must be switched to its full-capability mode.
+    ///
+    /// Source: Linux kernel `hid-thrustmaster.c` `tm_wheels_infos[]`.
+    /// Returns `None` for models without known init switch data.
+    pub fn init_switch_value(self) -> Option<u16> {
+        match self {
+            Self::T150 | Self::TMX => Some(0x0006),
+            Self::T300RS
+            | Self::T300RSPS4
+            | Self::T300RSGT
+            | Self::TXRacing
+            | Self::T248
+            | Self::T248X
+            | Self::TSPCRacer
+            | Self::TSXW
+            | Self::TGTII => Some(0x0005),
+            Self::T500RS => Some(0x0002),
+            _ => None,
+        }
+    }
+
     pub fn name(self) -> &'static str {
         match self {
             Self::T150 => "Thrustmaster T150",
@@ -233,4 +283,77 @@ impl Model {
             Self::Unknown => "Thrustmaster Unknown",
         }
     }
+}
+
+/// FFB wire protocol family classification for Thrustmaster wheels.
+///
+/// Different Thrustmaster wheels use different FFB protocols. Wheels within the
+/// same family share identical output report formats, effect encoding, and
+/// gain/range commands. The engine must select the correct FFB codec based on
+/// the protocol family.
+///
+/// Source: Kimplul/hid-tmff2 probe function (`tmff2_probe()`) and per-wheel
+/// `*_populate_api()` functions, plus Linux kernel `hid-thrustmaster.c`
+/// for model identification during initialization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProtocolFamily {
+    /// T300RS family: Report ID 0x60, 63-byte payloads (31 in PS4 mode).
+    /// Shared by T300RS, T248, TX, TS-XW, TS-PC, T-GT II.
+    /// Full FFB support via hid-tmff2.
+    T300,
+    /// T150/TMX family: Separate protocol, not supported by hid-tmff2.
+    /// Lower-end belt-drive wheels with simpler FFB command set.
+    T150,
+    /// T500RS family: Older protocol, not supported by hid-tmff2 (issue #18).
+    /// Higher-end belt-drive wheel predating the T300RS protocol.
+    T500,
+    /// Unknown or no FFB protocol (pedals, unrecognized models, T818, T-GT).
+    Unknown,
+}
+
+/// USB mode-switch initialization constants.
+///
+/// Thrustmaster wheels present as a generic "FFB Wheel" (VID 0x044F, PID 0xB65D)
+/// when first connected. The host must send a USB vendor control request
+/// (bRequest 83, `change_request`) with a model-specific `wValue` to switch
+/// the wheel to its full-capability mode. After switching, the wheel
+/// re-enumerates with its model-specific PID.
+///
+/// Source: Linux kernel `drivers/hid/hid-thrustmaster.c`, `tm_wheels_infos[]`.
+pub mod init_protocol {
+    /// USB bRequest code to query wheel model type.
+    pub const MODEL_QUERY_REQUEST: u8 = 73;
+    /// USB bRequest code to switch wheel mode.
+    pub const MODE_SWITCH_REQUEST: u8 = 83;
+    /// USB bRequestType for model query (vendor, device-to-host).
+    pub const MODEL_QUERY_REQUEST_TYPE: u8 = 0xC1;
+    /// USB bRequestType for mode switch (vendor, host-to-device).
+    pub const MODE_SWITCH_REQUEST_TYPE: u8 = 0x41;
+    /// Expected wLength for model query response.
+    pub const MODEL_RESPONSE_LEN: u16 = 0x0010;
+
+    /// Interrupt setup packets sent before model query to prevent T300RS crash.
+    /// Source: `thrustmaster_interrupts()` in hid-thrustmaster.c.
+    pub const SETUP_INTERRUPTS: &[&[u8]] = &[
+        &[0x42, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+        &[0x0a, 0x04, 0x90, 0x03, 0x00, 0x00, 0x00, 0x00],
+        &[0x0a, 0x04, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00],
+        &[0x0a, 0x04, 0x12, 0x10, 0x00, 0x00, 0x00, 0x00],
+        &[0x0a, 0x04, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00],
+    ];
+
+    /// Wheel model code to switch value mapping.
+    /// Model code is extracted from the response to `MODEL_QUERY_REQUEST`.
+    /// Switch value is sent as `wValue` in `MODE_SWITCH_REQUEST`.
+    ///
+    /// Format: (model_code, switch_value, name)
+    pub const KNOWN_MODELS: &[(u16, u16, &str)] = &[
+        (0x0306, 0x0006, "T150 RS"),
+        (0x0200, 0x0005, "T300 RS (No Attachment)"),
+        (0x0206, 0x0005, "T300 RS"),
+        (0x0209, 0x0005, "T300 RS (Open Wheel)"),
+        (0x020A, 0x0005, "T300 RS (Sparco R383)"),
+        (0x0204, 0x0005, "T300 Ferrari Alcantara"),
+        (0x0002, 0x0002, "T500 RS"),
+    ];
 }

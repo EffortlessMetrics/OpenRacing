@@ -15,7 +15,7 @@ pub mod protocol;
 pub mod types;
 
 pub use ids::THRUSTMASTER_VENDOR_ID;
-pub use ids::{Model, product_ids};
+pub use ids::{Model, ProtocolFamily, init_protocol, product_ids};
 pub use input::{ThrustmasterInputState, parse_input_report};
 pub use output::{
     EFFECT_REPORT_LEN, ThrustmasterConstantForceEncoder, ThrustmasterEffectEncoder,
