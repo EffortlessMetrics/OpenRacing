@@ -28,6 +28,7 @@ quickcheck_macros = { workspace = true }
 proptest = { workspace = true }
 criterion = { workspace = true }
 approx = "0.5.1"
+insta = { workspace = true }
 fastrand = "2.3.0"
 
 [[bench]]

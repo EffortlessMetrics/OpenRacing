@@ -4338,6 +4338,7 @@ dependencies = [
  "approx",
  "criterion",
  "fastrand",
+ "insta",
  "openracing-curves",
  "proptest",
  "quickcheck",
