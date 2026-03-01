@@ -80,6 +80,9 @@ pub mod product_ids {
     /// Verified: hid-tmff2 `TX_ACTIVE = 0xb669`;
     /// oversteer `TM_TX458 = '044f:b669'`; linux-steering-wheels table.
     pub const TX_RACING: u16 = 0xB669;
+    /// TX Racing Wheel (original PID, possibly pre-mode-switch).
+    /// Source: oversteer `TM_TX = '044f:b664'`.
+    pub const TX_RACING_ORIG: u16 = 0xB664;
     /// T248 (hybrid drive, PC mode).
     /// Verified: hid-tmff2 `TMT248_PC_ID = 0xb696`;
     /// oversteer `TM_T248 = '044f:b696'`; linux-steering-wheels table.
@@ -112,6 +115,9 @@ pub mod product_ids {
     /// T80 Racing Wheel (entry-level, no FFB — only rumble).
     /// Verified: oversteer `TM_T80 = '044f:b668'`.
     pub const T80: u16 = 0xB668;
+    /// T80 Ferrari 488 GTB Edition (entry-level, no FFB — only rumble).
+    /// Source: oversteer `TM_T80H = '044f:b66a'`.
+    pub const T80_FERRARI_488: u16 = 0xB66A;
     /// NASCAR Pro Force Feedback 2 (legacy gear-driven wheel).
     /// Verified: linux-steering-wheels (hid-tmff), PID 0xb605.
     pub const NASCAR_PRO_FF2: u16 = 0xB605;
@@ -173,14 +179,14 @@ impl Model {
             product_ids::T300_RS => Self::T300RS,
             product_ids::T300_RS_PS4 => Self::T300RSPS4,
             product_ids::T300_RS_GT => Self::T300RSGT,
-            product_ids::TX_RACING => Self::TXRacing,
+            product_ids::TX_RACING | product_ids::TX_RACING_ORIG => Self::TXRacing,
             product_ids::T500_RS => Self::T500RS,
             product_ids::T248 => Self::T248,
             product_ids::T248X => Self::T248X,
             product_ids::TS_PC_RACER => Self::TSPCRacer,
             product_ids::TS_XW | product_ids::TS_XW_GIP => Self::TSXW,
             product_ids::T818 => Self::T818,
-            product_ids::T80 => Self::T80,
+            product_ids::T80 | product_ids::T80_FERRARI_488 => Self::T80,
             product_ids::NASCAR_PRO_FF2 => Self::NascarProFF2,
             product_ids::FGT_RUMBLE_FORCE => Self::FGTRumbleForce,
             product_ids::RGT_FF_CLUTCH => Self::RGTFF,

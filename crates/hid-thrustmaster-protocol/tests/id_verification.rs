@@ -88,3 +88,18 @@ fn t818_pid_is_b69b() {
 fn ffb_wheel_generic_pid_is_b65d() {
     assert_eq!(product_ids::FFB_WHEEL_GENERIC, 0xB65D);
 }
+
+#[test]
+fn tx_racing_orig_pid_is_b664() {
+    assert_eq!(product_ids::TX_RACING_ORIG, 0xB664);
+}
+
+#[test]
+fn t80_pid_is_b668() {
+    assert_eq!(product_ids::T80, 0xB668);
+}
+
+#[test]
+fn t80_ferrari_488_pid_is_b66a() {
+    assert_eq!(product_ids::T80_FERRARI_488, 0xB66A);
+}

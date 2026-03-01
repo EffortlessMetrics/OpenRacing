@@ -34,7 +34,8 @@ pub fn identify_device(product_id: u16) -> ThrustmasterDeviceIdentity {
         product_ids::T300_RS
         | product_ids::T300_RS_PS4
         | product_ids::T300_RS_GT
-        | product_ids::TX_RACING => ThrustmasterDeviceIdentity {
+        | product_ids::TX_RACING
+        | product_ids::TX_RACING_ORIG => ThrustmasterDeviceIdentity {
             product_id,
             name: "Thrustmaster T300 RS",
             category: ThrustmasterDeviceCategory::Wheelbase,
@@ -70,7 +71,7 @@ pub fn identify_device(product_id: u16) -> ThrustmasterDeviceIdentity {
             category: ThrustmasterDeviceCategory::Wheelbase,
             supports_ffb: true,
         },
-        product_ids::T80 => ThrustmasterDeviceIdentity {
+        product_ids::T80 | product_ids::T80_FERRARI_488 => ThrustmasterDeviceIdentity {
             product_id,
             name: "Thrustmaster T80 Racing Wheel",
             category: ThrustmasterDeviceCategory::Wheelbase,
