@@ -625,6 +625,44 @@ New Cammus pedal PIDs have been identified but are not yet wired into the engine
 
 ---
 
+### F-061 · Simucube protocol crate uses speculative wire format (High · Open)
+
+**Encountered:** Wave 17 kernel protocol verification
+
+The `hid-simucube-protocol` crate's `input.rs` and `output.rs` modules use a custom binary layout (22-bit angle sensor, torque-streaming output, centi-Nm encoding) that **does not match the actual device protocol**. Research confirmed Simucube uses standard **USB HID PID** (Physical Interface Device) protocol:
+- Input: standard HID joystick report with 16-bit unsigned axes + 128 buttons
+- Output: effect-based PID descriptors (Constant, Spring, Damper, etc.) — not torque streaming
+- The 22-bit encoder is internal and NOT exposed over USB (16-bit X axis instead)
+- Rotation range is configured via True Drive software, not USB commands
+
+PIDs, VID, torque specs, and model classification are verified correct.
+
+**Source:** `github.com/Simucube/simucube-docs.github.io`, `granitedevices.com/wiki/`
+
+**Remedy:** Rewrite input/output modules to use HID PID protocol. This is a significant refactor that requires understanding the USB HID PID usage page (0x0F). Consider sharing a common `hid-pid` crate across Simucube and any other HID PID devices. Low priority since Simucube works via DirectInput on Windows regardless.
+
+---
+
+### F-062 · Fanatec sign-fix was inverted — CSR Elite is the exception, not the target (Medium · **Resolved**)
+
+**Encountered:** Wave 17 kernel protocol verification
+
+The `needs_sign_fix()` method on `FanatecModel` originally returned `true` only for CSR Elite, but kernel driver analysis shows the opposite: `fix_values()` in `hid-ftecff.c:send_report_request_to_device()` applies sign correction for **all** wheelbases **except** CSR Elite.
+
+**Fix applied:** Inverted the method to return `true` for all models except CSR Elite and Unknown.
+
+---
+
+### F-063 · Fanatec range command uses different encoding than kernel driver (Low · Open)
+
+**Encountered:** Wave 17 kernel protocol verification
+
+Our `build_rotation_range_report()` uses `[0x01, 0x12, range_lo, range_hi, ...]` (report ID + command byte), but the kernel driver (`ftec_set_range`) sends a 3-step sequence: `[0xF5, ...]` → `[0xF8, 0x09, ...]` → `[0xF8, 0x81, range_lo, range_hi, ...]`. Added `build_kernel_range_sequence()` as the kernel-verified alternative.
+
+**Remedy:** Determine which encoding is correct for Windows. The kernel sequence may be Linux-specific. Both are now available; integration code should use the kernel sequence when talking to raw HID.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |

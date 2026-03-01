@@ -1,0 +1,5 @@
+---
+source: crates/hid-fanatec-protocol/tests/snapshot_tests.rs
+expression: "format!(\"{:?}\", seq)"
+---
+[[245, 0, 0, 0, 0, 0, 0], [248, 9, 1, 6, 1, 0, 0], [248, 129, 216, 9, 0, 0, 0]]

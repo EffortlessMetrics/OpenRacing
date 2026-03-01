@@ -100,3 +100,79 @@ fn test_snapshot_gain_full() {
     let r = lg::build_gain_report(0xFF);
     assert_snapshot!(format!("{:?}", r));
 }
+
+// ── DFP range command snapshots ──────────────────────────────────────────────
+
+#[test]
+fn test_snapshot_dfp_range_270() {
+    let r = lg::build_set_range_dfp_report(270);
+    assert_snapshot!(format!("{:02X?}", r));
+}
+
+#[test]
+fn test_snapshot_dfp_range_900() {
+    let r = lg::build_set_range_dfp_report(900);
+    assert_snapshot!(format!("{:02X?}", r));
+}
+
+#[test]
+fn test_snapshot_dfp_range_40_min_clamp() {
+    let r = lg::build_set_range_dfp_report(40);
+    assert_snapshot!(format!("{:02X?}", r));
+}
+
+#[test]
+fn test_snapshot_dfp_range_1080_clamps_to_900() {
+    let r = lg::build_set_range_dfp_report(1080);
+    assert_snapshot!(format!("{:02X?}", r));
+}
+
+// ── Mode-switch command snapshots ────────────────────────────────────────────
+
+#[test]
+fn test_snapshot_mode_switch_dfex_no_detach() {
+    let r = lg::build_mode_switch_report(0, false);
+    assert_snapshot!(format!("{:02X?}", r));
+}
+
+#[test]
+fn test_snapshot_mode_switch_g27_detach() {
+    let r = lg::build_mode_switch_report(4, true);
+    assert_snapshot!(format!("{:02X?}", r));
+}
+
+#[test]
+fn test_snapshot_mode_switch_g29() {
+    let r = lg::build_mode_switch_report(5, false);
+    assert_snapshot!(format!("{:02X?}", r));
+}
+
+// ── Capability method snapshots ──────────────────────────────────────────────
+
+#[test]
+fn test_snapshot_g25_supports_hardware_friction() {
+    assert_snapshot!(
+        format!("G25.supports_hardware_friction() = {}", lg::LogitechModel::G25.supports_hardware_friction())
+    );
+}
+
+#[test]
+fn test_snapshot_g29_no_hardware_friction() {
+    assert_snapshot!(
+        format!("G29.supports_hardware_friction() = {}", lg::LogitechModel::G29.supports_hardware_friction())
+    );
+}
+
+#[test]
+fn test_snapshot_g920_supports_range_command() {
+    assert_snapshot!(
+        format!("G920.supports_range_command() = {}", lg::LogitechModel::G920.supports_range_command())
+    );
+}
+
+#[test]
+fn test_snapshot_dfex_no_range_command() {
+    assert_snapshot!(
+        format!("DrivingForceEX.supports_range_command() = {}", lg::LogitechModel::DrivingForceEX.supports_range_command())
+    );
+}

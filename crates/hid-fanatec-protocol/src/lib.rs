@@ -59,8 +59,9 @@ pub use input::{
 };
 pub use output::{
     CONSTANT_FORCE_REPORT_LEN, FanatecConstantForceEncoder, LED_REPORT_LEN, MAX_ROTATION_DEGREES,
-    MIN_ROTATION_DEGREES, build_display_report, build_led_report, build_mode_switch_report,
-    build_rotation_range_report, build_rumble_report, build_set_gain_report, build_stop_all_report,
+    MIN_ROTATION_DEGREES, build_display_report, build_kernel_range_sequence, build_led_report,
+    build_mode_switch_report, build_rotation_range_report, build_rumble_report,
+    build_set_gain_report, build_stop_all_report, fix_report_values,
 };
 pub use types::{
     FanatecModel, FanatecPedalModel, FanatecRimId, is_pedal_product, is_wheelbase_product,

@@ -6,10 +6,37 @@
 //! - Simucube 2 Ultimate
 //! - Simucube ActivePedal
 //!
+//! ## Protocol Notes
+//!
+//! **Important:** Simucube wheelbases use the **standard USB HID PID (Physical
+//! Interface Device)** protocol for force feedback — *not* a custom binary
+//! torque-streaming format. On Windows this maps to DirectInput; on Linux the
+//! `hid-pidff` kernel driver handles it.
+//!
+//! The input report is a standard HID joystick report with a 16-bit unsigned
+//! X axis (steering), Y axis, 6 additional axes, and up to 128 buttons.
+//! The internal 22-bit encoder resolution is **not** exposed over USB.
+//!
+//! The output (FFB) side is effect-based: applications upload structured PID
+//! effect descriptors (Constant, Spring, Damper, Sine, etc.) which the device
+//! firmware executes autonomously. There is no direct torque-streaming API.
+//!
+//! Rotation range is configured via Simucube True Drive / Tuner software and
+//! is **not** settable via the USB protocol.
+//!
+//! ### Current implementation status
+//!
+//! The `input` and `output` modules currently use a **placeholder** binary
+//! layout that does not match the actual HID PID wire format. The data
+//! structures capture the correct conceptual fields (torque, angle, effects)
+//! but the byte-level encoding is speculative. PIDs, VID, torque specs, and
+//! model classification are verified from Simucube developer documentation.
+//!
+//! Source: <https://github.com/Simucube/simucube-docs.github.io>
+//!
 //! ## Features
-//! - 22-bit angle sensor resolution
 //! - Up to 32Nm torque (Ultimate)
-//! - 360Hz force feedback
+//! - Standard USB HID PID force feedback
 //! - Wireless wheel support (SimuCube Wireless Wheel)
 //! - Active pedal support
 

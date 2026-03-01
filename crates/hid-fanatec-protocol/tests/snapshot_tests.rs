@@ -114,3 +114,36 @@ fn test_snapshot_rotation_range_clamp_max() {
     let report = build_rotation_range_report(u16::MAX);
     assert_snapshot!(format!("{:?}", report));
 }
+
+/// Kernel range sequence for 900 degrees (common GT car).
+#[test]
+fn test_snapshot_kernel_range_sequence_900() {
+    use racing_wheel_hid_fanatec_protocol::build_kernel_range_sequence;
+    let seq = build_kernel_range_sequence(900);
+    assert_snapshot!(format!("{:?}", seq));
+}
+
+/// Kernel range sequence for 2520 degrees (DD max).
+#[test]
+fn test_snapshot_kernel_range_sequence_2520() {
+    use racing_wheel_hid_fanatec_protocol::build_kernel_range_sequence;
+    let seq = build_kernel_range_sequence(2520);
+    assert_snapshot!(format!("{:?}", seq));
+}
+
+/// Kernel range sequence clamped to minimum (below 90).
+#[test]
+fn test_snapshot_kernel_range_sequence_clamp_min() {
+    use racing_wheel_hid_fanatec_protocol::build_kernel_range_sequence;
+    let seq = build_kernel_range_sequence(40);
+    assert_snapshot!(format!("{:?}", seq));
+}
+
+/// fix_report_values with mixed values above and below 0x80.
+#[test]
+fn test_snapshot_fix_report_values_mixed() {
+    use racing_wheel_hid_fanatec_protocol::fix_report_values;
+    let mut values: [i16; 7] = [0x00, 0x7F, 0x80, 0xFF, 0xA0, 0x01, 0xFE];
+    fix_report_values(&mut values);
+    assert_snapshot!(format!("{:?}", values));
+}

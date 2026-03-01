@@ -110,12 +110,16 @@ impl FanatecModel {
         )
     }
 
-    /// Whether this model needs sign-fix for force values ≥ 0x80.
+    /// Whether this model needs the `fix_values` sign correction on HID reports.
     ///
-    /// Source: `hid-ftecff.c` — CSR Elite requires a quirk where force
-    /// values ≥ 0x80 are interpreted as signed (subtract 256).
+    /// Source: `hid-ftecff.c:send_report_request_to_device()` — all wheelbases
+    /// EXCEPT CSR Elite apply `fix_values()`, which converts byte values ≥ 0x80
+    /// to signed form (`-0x100 + value`). CSR Elite skips this fix because its
+    /// HID report descriptor handles the sign differently.
+    ///
+    /// Returns `true` for devices that need the fix (i.e., NOT CSR Elite).
     pub fn needs_sign_fix(self) -> bool {
-        matches!(self, Self::CsrElite)
+        !matches!(self, Self::CsrElite | Self::Unknown)
     }
 }
 

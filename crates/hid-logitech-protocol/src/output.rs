@@ -214,7 +214,7 @@ pub fn build_gain_report(gain: u8) -> [u8; 2] {
 /// ranges ≤200°. For ranges >200°, two reports must be sent in sequence.
 pub fn build_set_range_dfp_report(degrees: u16) -> [u8; VENDOR_REPORT_LEN] {
     let degrees = degrees.clamp(40, 900) as u32;
-    let start = ((degrees * 2 - 200) * 0x10000 / 1637) | 0x8000_0000;
+    let start = ((degrees * 2).saturating_sub(200) * 0x10000 / 1637) | 0x8000_0000;
     let msb = ((start >> 24) & 0xFF) as u8;
     let lsb = ((start >> 16) & 0xFF) as u8;
     [
