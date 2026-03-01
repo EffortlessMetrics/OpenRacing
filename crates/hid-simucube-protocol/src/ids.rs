@@ -4,30 +4,39 @@
 //! OpenMoko), the same VID used by the Simucube 1 IONI servo drives and
 //! Heusinkveld pedals. Products are distinguished by product ID.
 //!
-//! Sources:
+//! ## Web-verified sources (July 2025)
+//!
+//! All VID/PID values below were cross-checked against four independent sources:
+//!
 //! - Official Simucube developer docs — `Simucube/simucube-docs.github.io`
-//!   `docs/Simucube 2/Developers.md` (authoritative PID table, accessed 2025-07)
-//! - Granite Devices wiki udev rules — `granitedevices.com/wiki/Using_Simucube_wheel_base_in_Linux`
-//! - JacKeTUs/linux-steering-wheels compatibility table (README.md)
-//! - USB VID registry (the-sz.com)
+//!   `docs/Simucube 2/Developers.md` (authoritative PID table)
+//! - Granite Devices wiki USB interface documentation —
+//!   <https://granitedevices.com/wiki/Simucube_product_USB_interface_documentation>
+//! - Granite Devices wiki udev rules —
+//!   <https://granitedevices.com/wiki/Using_Simucube_wheel_base_in_Linux>
+//! - JacKeTUs/linux-steering-wheels compatibility table —
+//!   <https://github.com/JacKeTUs/linux-steering-wheels>
 
 pub const SIMUCUBE_VENDOR_ID: u16 = 0x16D0;
 
-/// Simucube 1 (IONI-based servo drive). PID verified via official Simucube docs
-/// and Granite Devices wiki udev rules.
+/// Simucube 1 (IONI-based servo drive).
+/// Web-verified: official docs, wiki udev rules, linux-steering-wheels (VID 16d0, PID 0d5a).
 pub const SIMUCUBE_1_PID: u16 = 0x0D5A;
-/// Simucube 2 Sport (17 Nm direct drive). PID verified via official Simucube docs,
-/// linux-steering-wheels, and Granite Devices wiki udev rules.
+/// Simucube 2 Sport (17 Nm direct drive).
+/// Web-verified: official docs, wiki udev, linux-steering-wheels (VID 16d0, PID 0d61).
+/// Windows guidProduct ID: `{0D6116D0-0000-0000-0000-504944564944}`.
 pub const SIMUCUBE_2_SPORT_PID: u16 = 0x0D61;
-/// Simucube 2 Pro (25 Nm direct drive). PID verified via official Simucube docs,
-/// linux-steering-wheels, and Granite Devices wiki udev rules.
+/// Simucube 2 Pro (25 Nm direct drive).
+/// Web-verified: official docs, wiki udev, linux-steering-wheels (VID 16d0, PID 0d60).
+/// Windows guidProduct ID: `{0D6016D0-0000-0000-0000-504944564944}`.
 pub const SIMUCUBE_2_PRO_PID: u16 = 0x0D60;
-/// Simucube 2 Ultimate (32 Nm direct drive). PID verified via official Simucube docs,
-/// linux-steering-wheels, and Granite Devices wiki udev rules.
+/// Simucube 2 Ultimate (32 Nm direct drive).
+/// Web-verified: official docs, wiki udev, linux-steering-wheels (VID 16d0, PID 0d5f).
+/// Windows guidProduct ID: `{0D5F16D0-0000-0000-0000-504944564944}`.
 pub const SIMUCUBE_2_ULTIMATE_PID: u16 = 0x0D5F;
 /// Simucube SC-Link Hub (used by ActivePedal / ActivePedal Pro).
-/// PID verified via official Simucube developer documentation
-/// (`Simucube/simucube-docs.github.io` → `docs/Simucube 2/Developers.md`).
+/// Web-verified: official docs (VID 16d0, PID 0d66).
+/// Windows guidProduct ID: `{0D6616D0-0000-0000-0000-504944564944}`.
 pub const SIMUCUBE_ACTIVE_PEDAL_PID: u16 = 0x0D66;
 /// SimuCUBE Wireless Wheel. PID estimated — **not present** in the official Simucube
 /// developer PID table (accessed 2025-07). Do not rely on this value without

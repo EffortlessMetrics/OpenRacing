@@ -48,11 +48,13 @@
 //! - **`output`**: The builder produces a placeholder wire format. Real FFB
 //!   uses USB HID PID effect descriptors per the PID 1.01 specification.
 //!
-//! ## Sources
+//! ## Sources (web-verified July 2025)
 //!
 //! - Official Simucube developer docs:
 //!   <https://github.com/Simucube/simucube-docs.github.io> →
 //!   `docs/Simucube 2/Developers.md`
+//! - Granite Devices wiki USB interface documentation:
+//!   <https://granitedevices.com/wiki/Simucube_product_USB_interface_documentation>
 //! - Granite Devices wiki (Linux udev rules, firmware):
 //!   <https://granitedevices.com/wiki/Using_Simucube_wheel_base_in_Linux>
 //! - JacKeTUs/linux-steering-wheels compatibility table:

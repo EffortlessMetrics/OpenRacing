@@ -19,6 +19,13 @@
 //! Linux, the `hid-pidff` kernel driver (Silver support since Linux 6.15)
 //! handles these for Simucube devices.
 //!
+//! **Linux note:** Early Simucube firmware omitted the `0xa7` (effect delay)
+//! HID descriptor, which is required by the Linux `hid-pidff` driver but
+//! optional on Windows. This was fixed in Simucube firmware 1.0.49. Linux
+//! 6.15 also relaxed this requirement. See
+//! <https://github.com/JacKeTUs/linux-steering-wheels> for compatibility
+//! details.
+//!
 //! Source: `JacKeTUs/linux-steering-wheels` README.md
 
 use super::{MAX_TORQUE_NM, REPORT_SIZE_OUTPUT, SimucubeError, SimucubeResult};

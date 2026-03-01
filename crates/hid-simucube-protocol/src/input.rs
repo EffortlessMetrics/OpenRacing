@@ -15,6 +15,8 @@
 //!
 //! - Official Simucube developer docs — `Simucube/simucube-docs.github.io`
 //!   → `docs/Simucube 2/Developers.md`
+//! - Granite Devices wiki USB interface documentation —
+//!   <https://granitedevices.com/wiki/Simucube_product_USB_interface_documentation>
 //! - USB HID PID 1.01 specification
 
 use super::{
