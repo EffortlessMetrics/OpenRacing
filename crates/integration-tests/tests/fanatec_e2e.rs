@@ -545,13 +545,13 @@ fn scenario_podium_dd2_torque_capacity_is_25nm() -> Result<(), Box<dyn std::erro
     Ok(())
 }
 
-// ─── Scenario 24: rim ID byte 0x04 is McLaren GT3 V2 with funky switch ────────
+// ─── Scenario 24: rim ID byte 0x0B is McLaren GT3 V2 with funky switch ────────
 
 #[test]
 fn scenario_rim_id_mclaren_has_funky_switch() -> Result<(), Box<dyn std::error::Error>> {
     use racing_wheel_hid_fanatec_protocol::{FanatecRimId, rim_ids};
 
-    // Given: rim ID byte from feature report 0x02
+    // Given: rim ID byte from report 0x01 byte 0x1F (per hid-fanatecff)
     let rim = FanatecRimId::from_byte(rim_ids::MCLAREN_GT3_V2);
 
     // Then: classified as McLaren GT3 V2 with all rim extras

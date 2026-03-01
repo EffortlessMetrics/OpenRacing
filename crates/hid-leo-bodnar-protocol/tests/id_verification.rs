@@ -48,6 +48,6 @@ fn ffb_joystick_pid_is_000f() {
 /// NOTE: 0x1301 is a community estimate (see ids.rs doc comment).
 /// This test pins the current value; update if a real PID is discovered.
 #[test]
-fn sli_m_pid_is_beef() {
+fn sli_m_pid_is_community_estimate() {
     assert_eq!(PID_SLI_M, 0x1301);
 }
