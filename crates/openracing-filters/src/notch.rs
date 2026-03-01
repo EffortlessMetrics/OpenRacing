@@ -61,15 +61,15 @@ impl NotchState {
         let omega = 2.0 * PI * frequency / sample_rate;
         let q_clamped = q.clamp(0.1, 10.0);
 
-        // Peaking/notch filter coefficients
+        // Notch (band-reject) biquad coefficients
         let alpha = omega.sin() / (2.0 * q_clamped);
+        let cos_omega = omega.cos();
 
-        // For stability, use a conservative coefficient calculation
-        let b0 = alpha;
-        let b1 = 0.0;
-        let b2 = -alpha;
+        let b0 = 1.0;
+        let b1 = -2.0 * cos_omega;
+        let b2 = 1.0;
         let a0 = 1.0 + alpha;
-        let a1 = -2.0 * omega.cos();
+        let a1 = -2.0 * cos_omega;
         let a2 = 1.0 - alpha;
 
         // Normalize by a0
