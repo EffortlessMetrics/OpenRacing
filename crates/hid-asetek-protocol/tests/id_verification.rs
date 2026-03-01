@@ -11,7 +11,7 @@ use hid_asetek_protocol::{
 
 /// Asetek VID must be 0x2433 (Asetek A/S, official USB VID registry entry).
 ///
-/// Source: USB VID registry (the-sz.com); JacKeTUs/linux-steering-wheels.
+/// ✅ Confirmed by: the-sz.com, devicehunt.com, Linux `hid-ids.h`.
 #[test]
 fn vendor_id_is_2433() {
     assert_eq!(
@@ -22,7 +22,7 @@ fn vendor_id_is_2433() {
 
 /// Asetek Invicta (27 Nm) PID must be 0xF300.
 ///
-/// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
+/// ✅ Confirmed by: Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs.
 #[test]
 fn invicta_pid_is_f300() {
     assert_eq!(ASETEK_INVICTA_PID, 0xF300);
@@ -30,7 +30,7 @@ fn invicta_pid_is_f300() {
 
 /// Asetek Forte (18 Nm) PID must be 0xF301.
 ///
-/// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
+/// ✅ Confirmed by: Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs.
 #[test]
 fn forte_pid_is_f301() {
     assert_eq!(ASETEK_FORTE_PID, 0xF301);
@@ -38,7 +38,8 @@ fn forte_pid_is_f301() {
 
 /// Asetek La Prima (12 Nm) PID must be 0xF303.
 ///
-/// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
+/// ✅ Confirmed by: Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs,
+/// moonrail/asetek_wheelbase_cli.
 #[test]
 fn laprima_pid_is_f303() {
     assert_eq!(ASETEK_LAPRIMA_PID, 0xF303);
@@ -46,7 +47,7 @@ fn laprima_pid_is_f303() {
 
 /// Asetek Tony Kanaan Edition PID must be 0xF306.
 ///
-/// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
+/// ✅ Confirmed by: Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs.
 #[test]
 fn tony_kanaan_pid_is_f306() {
     assert_eq!(ASETEK_TONY_KANAAN_PID, 0xF306);

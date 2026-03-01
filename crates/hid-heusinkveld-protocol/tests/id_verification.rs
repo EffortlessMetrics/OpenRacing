@@ -10,8 +10,8 @@ use hid_heusinkveld_protocol::{
 
 /// Heusinkveld VID must be 0x04D8 (Microchip Technology).
 ///
-/// Source: OpenFlight `compat/devices/heusinkveld/*.yaml` (community);
-/// usb-ids.gowdy.us confirms VID 0x04D8 = Microchip Technology, Inc.
+/// ✅ Confirmed by: the-sz.com, devicehunt.com (Microchip Technology, Inc.).
+/// Note: Heusinkveld does not own this VID — it is Microchip's shared VID.
 #[test]
 fn vendor_id_is_04d8() {
     assert_eq!(
@@ -22,7 +22,8 @@ fn vendor_id_is_04d8() {
 
 /// Heusinkveld Sprint PID must be 0xF6D0.
 ///
-/// 🔶 Community — sourced from OpenFlight `sprint-pedals.yaml`.
+/// 🔶 Community-sourced — OpenFlight `sprint-pedals.yaml`.
+/// Not present in any public USB ID database or Linux kernel driver.
 #[test]
 fn sprint_pid_is_f6d0() {
     assert_eq!(HEUSINKVELD_SPRINT_PID, 0xF6D0);
@@ -30,7 +31,8 @@ fn sprint_pid_is_f6d0() {
 
 /// Heusinkveld Ultimate+ PID must be 0xF6D2.
 ///
-/// 🔶 Community — sourced from OpenFlight `ultimate-pedals-0241.yaml` cross-ref.
+/// 🔶 Community-sourced — OpenFlight `ultimate-pedals-0241.yaml`.
+/// Not present in any public USB ID database or Linux kernel driver.
 #[test]
 fn ultimate_pid_is_f6d2() {
     assert_eq!(HEUSINKVELD_ULTIMATE_PID, 0xF6D2);
@@ -39,6 +41,7 @@ fn ultimate_pid_is_f6d2() {
 /// Heusinkveld Pro PID must be 0xF6D3.
 ///
 /// ⚠ Estimated — sequential after 0xF6D2; Pro is discontinued.
+/// **Zero external evidence.** Needs hardware USB descriptor dump.
 #[test]
 fn pro_pid_is_f6d3() {
     assert_eq!(HEUSINKVELD_PRO_PID, 0xF6D3);

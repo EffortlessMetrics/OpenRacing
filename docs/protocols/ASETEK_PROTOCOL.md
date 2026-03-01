@@ -11,15 +11,15 @@ sequence is needed. The device is FFB-ready immediately after USB connection.
 
 ## Device Identification
 
-| Model | Vendor ID | Product ID | Max Torque | Notes |
-|-------|-----------|------------|------------|-------|
-| Invicta | `0x2433` | `0xF300` | 27 Nm | Premium direct drive |
-| Forte | `0x2433` | `0xF301` | 18 Nm | Mid-range direct drive |
-| La Prima | `0x2433` | `0xF303` | 12 Nm | Entry direct drive |
-| Tony Kanaan Edition | `0x2433` | `0xF306` | 27 Nm | Limited edition (Invicta-based) |
+| Model | Vendor ID | Product ID | Max Torque | Confidence | Notes |
+|-------|-----------|------------|------------|------------|-------|
+| Invicta | `0x2433` | `0xF300` | 27 Nm | ✅ Confirmed | Linux kernel, JacKeTUs, USB registries |
+| Forte | `0x2433` | `0xF301` | 18 Nm | ✅ Confirmed | Linux kernel, JacKeTUs, USB registries |
+| La Prima | `0x2433` | `0xF303` | 12 Nm | ✅ Confirmed | Linux kernel, JacKeTUs, asetek_wheelbase_cli |
+| Tony Kanaan Edition | `0x2433` | `0xF306` | 27 Nm | ✅ Confirmed | Linux kernel, JacKeTUs |
 
-**Vendor ID note:** VID `0x2433` is registered to Asetek A/S (USB VID registry).
-Source: JacKeTUs/linux-steering-wheels compatibility table.
+**Vendor ID note:** VID `0x2433` is registered to Asetek A/S in the USB VID registry.
+Confirmed by the-sz.com, devicehunt.com, and Linux `hid-ids.h`.
 
 ## Initialization
 

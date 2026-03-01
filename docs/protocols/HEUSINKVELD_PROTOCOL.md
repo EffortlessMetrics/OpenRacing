@@ -15,16 +15,19 @@ PIC-based USB firmware. They are distinguished by Product IDs in the `0xF6Dx` ra
 
 ## Device Identification
 
-> 🔶 **Verification note:** The PIDs listed below are sourced from the OpenFlight
-> sister project (`EffortlessMetrics/OpenFlight`) community device manifests.
-> The Pro PID (`0xF6D3`) is estimated from the sequential pattern. See
-> `crates/hid-heusinkveld-protocol/src/ids.rs` for a full source audit.
+> 🔶 **Verification note (web-verified 2025-07):** The PIDs listed below are
+> sourced from the OpenFlight sister project (`EffortlessMetrics/OpenFlight`)
+> community device manifests. They have **zero presence** in any public USB ID
+> database (the-sz.com, devicehunt.com), Linux kernel (`hid-ids.h`), SDL
+> (`usb_ids.h`), or JacKeTUs/linux-steering-wheels. The Pro PID (`0xF6D3`) is
+> estimated from the sequential pattern and has **zero external evidence**.
+> See `crates/hid-heusinkveld-protocol/src/ids.rs` for a full source audit.
 
-| Model | Vendor ID | Product ID | Pedals | Max Load |
-|-------|-----------|------------|--------|----------|
-| Sprint | `0x04D8` | `0xF6D0` | 2 (throttle + brake) | 55 kg brake |
-| Ultimate+ | `0x04D8` | `0xF6D2` | 3 (throttle + brake + clutch) | 140 kg brake |
-| Pro | `0x04D8` | `0xF6D3` | 3 (throttle + brake + clutch) | 200 kg brake |
+| Model | Vendor ID | Product ID | Pedals | Max Load | Confidence |
+|-------|-----------|------------|--------|----------|------------|
+| Sprint | `0x04D8` | `0xF6D0` | 2 (throttle + brake) | 55 kg brake | 🔶 Community |
+| Ultimate+ | `0x04D8` | `0xF6D2` | 3 (throttle + brake + clutch) | 140 kg brake | 🔶 Community |
+| Pro | `0x04D8` | `0xF6D3` | 3 (throttle + brake + clutch) | 200 kg brake | ⚠ Estimated |
 
 ## VID Disambiguation
 
