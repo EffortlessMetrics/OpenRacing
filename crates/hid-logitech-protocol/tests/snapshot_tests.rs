@@ -151,28 +151,32 @@ fn test_snapshot_mode_switch_g29() {
 
 #[test]
 fn test_snapshot_g25_supports_hardware_friction() {
-    assert_snapshot!(
-        format!("G25.supports_hardware_friction() = {}", lg::LogitechModel::G25.supports_hardware_friction())
-    );
+    assert_snapshot!(format!(
+        "G25.supports_hardware_friction() = {}",
+        lg::LogitechModel::G25.supports_hardware_friction()
+    ));
 }
 
 #[test]
 fn test_snapshot_g29_no_hardware_friction() {
-    assert_snapshot!(
-        format!("G29.supports_hardware_friction() = {}", lg::LogitechModel::G29.supports_hardware_friction())
-    );
+    assert_snapshot!(format!(
+        "G29.supports_hardware_friction() = {}",
+        lg::LogitechModel::G29.supports_hardware_friction()
+    ));
 }
 
 #[test]
 fn test_snapshot_g920_supports_range_command() {
-    assert_snapshot!(
-        format!("G920.supports_range_command() = {}", lg::LogitechModel::G920.supports_range_command())
-    );
+    assert_snapshot!(format!(
+        "G920.supports_range_command() = {}",
+        lg::LogitechModel::G920.supports_range_command()
+    ));
 }
 
 #[test]
 fn test_snapshot_dfex_no_range_command() {
-    assert_snapshot!(
-        format!("DrivingForceEX.supports_range_command() = {}", lg::LogitechModel::DrivingForceEX.supports_range_command())
-    );
+    assert_snapshot!(format!(
+        "DrivingForceEX.supports_range_command() = {}",
+        lg::LogitechModel::DrivingForceEX.supports_range_command()
+    ));
 }

@@ -831,17 +831,21 @@ fn test_challenge_response_wrong_token_at_every_step() {
     let challenge = must(service.request_high_torque("dev"));
 
     // Wrong token for UI consent
-    assert!(service
-        .provide_ui_consent(challenge.challenge_token.wrapping_add(1))
-        .is_err());
+    assert!(
+        service
+            .provide_ui_consent(challenge.challenge_token.wrapping_add(1))
+            .is_err()
+    );
 
     // Correct UI consent to proceed
     must(service.provide_ui_consent(challenge.challenge_token));
 
     // Wrong token for combo start
-    assert!(service
-        .report_combo_start(challenge.challenge_token.wrapping_add(1))
-        .is_err());
+    assert!(
+        service
+            .report_combo_start(challenge.challenge_token.wrapping_add(1))
+            .is_err()
+    );
 
     // Correct combo start
     must(service.report_combo_start(challenge.challenge_token));

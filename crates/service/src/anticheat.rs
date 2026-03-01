@@ -698,10 +698,7 @@ mod tests {
     fn test_report_no_dll_injection_marker() -> Result<()> {
         let report = sample_report();
         let md = report.to_markdown();
-        assert!(
-            md.contains("✅ No"),
-            "Report should show no DLL injection"
-        );
+        assert!(md.contains("✅ No"), "Report should show no DLL injection");
         assert!(
             md.contains("✅ None"),
             "Report should show no kernel drivers"
@@ -714,10 +711,7 @@ mod tests {
         let mut report = sample_report();
         report.process_info.dll_injection = true;
         let md = report.to_markdown();
-        assert!(
-            md.contains("❌ Yes"),
-            "Report should flag DLL injection"
-        );
+        assert!(md.contains("❌ Yes"), "Report should flag DLL injection");
         Ok(())
     }
 

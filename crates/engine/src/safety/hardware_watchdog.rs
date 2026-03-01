@@ -1390,11 +1390,8 @@ mod safety_interlock_tests {
     fn test_communication_loss_followed_by_recovery() -> Result<(), WatchdogError> {
         let watchdog = Box::new(SoftwareWatchdog::new(30_000));
         let torque_limit = TorqueLimit::new(25.0, 5.0);
-        let mut system = SafetyInterlockSystem::with_config(
-            watchdog,
-            torque_limit,
-            Duration::from_millis(20),
-        );
+        let mut system =
+            SafetyInterlockSystem::with_config(watchdog, torque_limit, Duration::from_millis(20));
         system.arm()?;
 
         system.report_communication();

@@ -203,10 +203,7 @@ fn test_snapshot_set_range_270() {
 
 #[test]
 fn test_snapshot_is_pedal_product_unknown() {
-    assert_snapshot!(format!(
-        "unknown_pid={}",
-        tm::is_pedal_product(0xFFFF)
-    ));
+    assert_snapshot!(format!("unknown_pid={}", tm::is_pedal_product(0xFFFF)));
 }
 
 // ── Protocol T_LCM pedal identity ────────────────────────────────────────────

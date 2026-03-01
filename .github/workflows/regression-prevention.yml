@@ -86,6 +86,7 @@ jobs:
             | grep -v "crates/openracing-ipc/src/codec" \
             | grep -v "crates/openracing-native-plugin/src/plugin" \
             | grep -v "crates/simplemotion-v2/" \
+            | grep -v "crates/telemetry-forza/" \
             | head -10 || true)
           
           if [ -n "$MATCHES" ]; then

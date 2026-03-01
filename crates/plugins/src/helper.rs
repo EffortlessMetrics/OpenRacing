@@ -129,9 +129,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_nonexistent_file() {
-        let result =
-            PluginHelper::validate_plugin_file(std::path::Path::new("/nonexistent/path/plugin.wasm"))
-                .await;
+        let result = PluginHelper::validate_plugin_file(std::path::Path::new(
+            "/nonexistent/path/plugin.wasm",
+        ))
+        .await;
         assert!(result.is_err());
     }
 

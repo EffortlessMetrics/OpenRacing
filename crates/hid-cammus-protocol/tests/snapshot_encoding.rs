@@ -67,8 +67,12 @@ fn test_snapshot_parse_all_ff() -> Result<(), String> {
     let report = cammus::parse(&data).map_err(|e| e.to_string())?;
     assert_debug_snapshot!(format!(
         "steering={:.4}, throttle={:.4}, brake={:.4}, clutch={:.4}, handbrake={:.4}, buttons=0x{:04X}",
-        report.steering, report.throttle, report.brake,
-        report.clutch, report.handbrake, report.buttons,
+        report.steering,
+        report.throttle,
+        report.brake,
+        report.clutch,
+        report.handbrake,
+        report.buttons,
     ));
     Ok(())
 }

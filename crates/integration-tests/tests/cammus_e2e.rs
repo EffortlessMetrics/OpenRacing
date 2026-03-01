@@ -5,9 +5,9 @@
 //! (I/O-free), so no virtual device is required.
 
 use racing_wheel_hid_cammus_protocol::{
-    CammusModel, FFB_REPORT_ID, FFB_REPORT_LEN, MODE_GAME, ParseError,
-    PRODUCT_C12, PRODUCT_C5, PRODUCT_CP5_PEDALS, PRODUCT_LC100_PEDALS, REPORT_LEN,
-    STEERING_RANGE_DEG, VENDOR_ID, encode_stop, encode_torque, is_cammus, parse, product_name,
+    CammusModel, FFB_REPORT_ID, FFB_REPORT_LEN, MODE_GAME, PRODUCT_C5, PRODUCT_C12,
+    PRODUCT_CP5_PEDALS, PRODUCT_LC100_PEDALS, ParseError, REPORT_LEN, STEERING_RANGE_DEG,
+    VENDOR_ID, encode_stop, encode_torque, is_cammus, parse, product_name,
 };
 
 // ─── Scenario 1: zero torque encoding produces zero magnitude ────────────────
@@ -33,8 +33,8 @@ fn given_zero_torque_when_encoded_then_magnitude_is_zero() -> Result<(), Box<dyn
 // ─── Scenario 2: full positive saturation ────────────────────────────────────
 
 #[test]
-fn given_full_positive_torque_when_encoded_then_saturates_to_i16_max(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_full_positive_torque_when_encoded_then_saturates_to_i16_max()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: maximum positive normalised torque
     let torque: f32 = 1.0;
 
@@ -51,8 +51,8 @@ fn given_full_positive_torque_when_encoded_then_saturates_to_i16_max(
 // ─── Scenario 3: full negative saturation ────────────────────────────────────
 
 #[test]
-fn given_full_negative_torque_when_encoded_then_saturates_to_neg_i16_max(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_full_negative_torque_when_encoded_then_saturates_to_neg_i16_max()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: maximum negative normalised torque
     let torque: f32 = -1.0;
 
@@ -109,8 +109,8 @@ fn given_negative_input_when_encoded_then_raw_is_negative() -> Result<(), Box<dy
 // ─── Scenario 5: report byte layout verification ────────────────────────────
 
 #[test]
-fn given_any_torque_when_encoded_then_report_layout_is_correct(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_any_torque_when_encoded_then_report_layout_is_correct()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: several representative torque values
     for &torque in &[-1.0_f32, -0.5, 0.0, 0.5, 1.0] {
         // When: encoded
@@ -136,8 +136,8 @@ fn given_any_torque_when_encoded_then_report_layout_is_correct(
 // ─── Scenario 6: encode_stop produces identical output to encode_torque(0.0) ─
 
 #[test]
-fn given_stop_command_when_encoded_then_equals_zero_torque(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_stop_command_when_encoded_then_equals_zero_torque()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: both a stop command and a zero-torque command
     let stop_report = encode_stop();
     let zero_report = encode_torque(0.0);
@@ -154,8 +154,8 @@ fn given_stop_command_when_encoded_then_equals_zero_torque(
 // ─── Scenario 7: values outside [-1.0, 1.0] are clamped ─────────────────────
 
 #[test]
-fn given_out_of_range_torque_when_encoded_then_clamped_to_boundary(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_out_of_range_torque_when_encoded_then_clamped_to_boundary()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: values exceeding the normalised range
     let over_positive = encode_torque(2.0);
     let at_positive = encode_torque(1.0);
@@ -182,8 +182,8 @@ fn given_out_of_range_torque_when_encoded_then_clamped_to_boundary(
 // ─── Scenario 8: half-scale encoding ─────────────────────────────────────────
 
 #[test]
-fn given_half_scale_torque_when_encoded_then_approximately_half_magnitude(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_half_scale_torque_when_encoded_then_approximately_half_magnitude()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: half-scale positive torque
     let report = encode_torque(0.5);
     let raw = i16::from_le_bytes([report[1], report[2]]);
@@ -213,8 +213,7 @@ fn given_half_scale_torque_when_encoded_then_approximately_half_magnitude(
 // ─── Scenario 9: input report parsing round-trip ─────────────────────────────
 
 #[test]
-fn given_valid_input_bytes_when_parsed_then_fields_decoded_correctly(
-) -> Result<(), ParseError> {
+fn given_valid_input_bytes_when_parsed_then_fields_decoded_correctly() -> Result<(), ParseError> {
     // Given: a 64-byte input report with known field values
     let mut data = [0u8; REPORT_LEN];
 
@@ -286,8 +285,8 @@ fn given_valid_input_bytes_when_parsed_then_fields_decoded_correctly(
 }
 
 #[test]
-fn given_short_input_bytes_when_parsed_then_returns_too_short_error(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_short_input_bytes_when_parsed_then_returns_too_short_error()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: input shorter than the minimum 12 bytes
     let short_data = [0u8; 8];
 
@@ -306,8 +305,8 @@ fn given_short_input_bytes_when_parsed_then_returns_too_short_error(
 // ─── Scenario 10: product ID constants match expected values ─────────────────
 
 #[test]
-fn given_product_id_constants_then_values_match_specification(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_product_id_constants_then_values_match_specification()
+-> Result<(), Box<dyn std::error::Error>> {
     // Then: vendor ID
     assert_eq!(VENDOR_ID, 0x3416, "Cammus VID must be 0x3416");
 
@@ -336,8 +335,8 @@ fn given_product_id_constants_then_values_match_specification(
 // ─── Scenario 11: model classification from product IDs ──────────────────────
 
 #[test]
-fn given_known_pid_when_classified_then_correct_model_returned(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_known_pid_when_classified_then_correct_model_returned()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given/When/Then: C5
     assert_eq!(CammusModel::from_pid(PRODUCT_C5), Some(CammusModel::C5));
     assert_eq!(CammusModel::C5.name(), "Cammus C5");
@@ -370,8 +369,8 @@ fn given_known_pid_when_classified_then_correct_model_returned(
 // ─── Scenario 12: is_cammus correctly identifies known and unknown devices ───
 
 #[test]
-fn given_vid_pid_pairs_when_checked_then_known_devices_recognised(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_vid_pid_pairs_when_checked_then_known_devices_recognised()
+-> Result<(), Box<dyn std::error::Error>> {
     // Then: all known Cammus devices are recognised
     assert!(is_cammus(VENDOR_ID, PRODUCT_C5));
     assert!(is_cammus(VENDOR_ID, PRODUCT_C12));
@@ -392,8 +391,8 @@ fn given_vid_pid_pairs_when_checked_then_known_devices_recognised(
 // ─── Scenario 13: product_name returns correct human-readable strings ────────
 
 #[test]
-fn given_known_pids_when_named_then_human_readable_strings_returned(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_known_pids_when_named_then_human_readable_strings_returned()
+-> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(product_name(PRODUCT_C5), Some("Cammus C5"));
     assert_eq!(product_name(PRODUCT_C12), Some("Cammus C12"));
     assert_eq!(product_name(PRODUCT_CP5_PEDALS), Some("Cammus CP5 Pedals"));
@@ -409,8 +408,8 @@ fn given_known_pids_when_named_then_human_readable_strings_returned(
 // ─── Scenario 14: encoding monotonicity across the full range ────────────────
 
 #[test]
-fn given_increasing_torque_when_encoded_then_raw_values_are_monotonic(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_increasing_torque_when_encoded_then_raw_values_are_monotonic()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a series of increasing torque values
     let values: Vec<f32> = (-10..=10).map(|i| i as f32 * 0.1).collect();
 
@@ -434,8 +433,7 @@ fn given_increasing_torque_when_encoded_then_raw_values_are_monotonic(
 // ─── Scenario 15: input report with minimum valid length ─────────────────────
 
 #[test]
-fn given_exactly_12_bytes_when_parsed_then_succeeds(
-) -> Result<(), ParseError> {
+fn given_exactly_12_bytes_when_parsed_then_succeeds() -> Result<(), ParseError> {
     // Given: exactly 12 bytes (the minimum required)
     let data = [0u8; 12];
 

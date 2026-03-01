@@ -4,9 +4,8 @@
 //! behaviors without real USB hardware.
 
 use racing_wheel_hid_thrustmaster_protocol::{
-    EFFECT_REPORT_LEN, ThrustmasterConstantForceEncoder,
-    build_actuator_enable, build_device_gain, build_set_range_report,
-    output::report_ids, product_ids,
+    EFFECT_REPORT_LEN, ThrustmasterConstantForceEncoder, build_actuator_enable, build_device_gain,
+    build_set_range_report, output::report_ids, product_ids,
 };
 use racing_wheel_integration_tests::thrustmaster_virtual::ThrustmasterScenario;
 

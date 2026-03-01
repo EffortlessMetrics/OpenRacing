@@ -6,15 +6,15 @@
 
 use hid_button_box_protocol::{
     ButtonBoxCapabilities, ButtonBoxError, ButtonBoxInputReport, ButtonBoxType, HatDirection,
-    RotaryEncoderState, MAX_AXES, MAX_BUTTONS, PRODUCT_ID_BUTTON_BOX, REPORT_SIZE_GAMEPAD,
+    MAX_AXES, MAX_BUTTONS, PRODUCT_ID_BUTTON_BOX, REPORT_SIZE_GAMEPAD, RotaryEncoderState,
     VENDOR_ID_GENERIC,
 };
 
 // ─── Scenario 1: standard gamepad report parsing ─────────────────────────────
 
 #[test]
-fn gamepad_report_given_valid_8_bytes_when_parsed_then_fields_decoded(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn gamepad_report_given_valid_8_bytes_when_parsed_then_fields_decoded()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: an 8-byte gamepad report with known values
     //   buttons u16 LE = 0x0005 (buttons 0 and 2 pressed)
     //   axis_x  i16 LE = 0x7FFF (i16::MAX)
@@ -41,7 +41,10 @@ fn gamepad_report_given_valid_8_bytes_when_parsed_then_fields_decoded(
     assert_eq!(report.axis_x, i16::MAX, "axis_x must be i16::MAX");
     assert_eq!(report.axis_y, -32767, "axis_y must be -32767");
     assert_eq!(report.axis_z, 0, "axis_z must be 0");
-    assert_eq!(report.axis_rz, 0, "axis_rz must be 0 (not in gamepad format)");
+    assert_eq!(
+        report.axis_rz, 0,
+        "axis_rz must be 0 (not in gamepad format)"
+    );
 
     // Then: hat decoded
     assert_eq!(report.hat, 0x02);
@@ -50,8 +53,8 @@ fn gamepad_report_given_valid_8_bytes_when_parsed_then_fields_decoded(
 }
 
 #[test]
-fn gamepad_report_given_all_zeros_when_parsed_then_neutral_state(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn gamepad_report_given_all_zeros_when_parsed_then_neutral_state()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: an all-zero 10-byte report (2 buttons + 3×i16 axes + hat + pad)
     let data = [0u8; 10];
 
@@ -71,8 +74,8 @@ fn gamepad_report_given_all_zeros_when_parsed_then_neutral_state(
 // ─── Scenario 2: individual button get/set and boundary checks ───────────────
 
 #[test]
-fn button_access_given_default_report_when_button_set_then_readable(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn button_access_given_default_report_when_button_set_then_readable()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a default report with no buttons pressed
     let mut report = ButtonBoxInputReport::default();
     assert!(!report.button(0));
@@ -89,8 +92,8 @@ fn button_access_given_default_report_when_button_set_then_readable(
 }
 
 #[test]
-fn button_access_given_set_button_when_cleared_then_no_longer_pressed(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn button_access_given_set_button_when_cleared_then_no_longer_pressed()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: button 7 is pressed
     let mut report = ButtonBoxInputReport::default();
     report.set_button(7, true);
@@ -106,8 +109,8 @@ fn button_access_given_set_button_when_cleared_then_no_longer_pressed(
 }
 
 #[test]
-fn button_access_given_out_of_range_index_when_queried_then_returns_false(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn button_access_given_out_of_range_index_when_queried_then_returns_false()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a report with button 0 pressed
     let mut report = ButtonBoxInputReport::default();
     report.set_button(0, true);
@@ -125,8 +128,8 @@ fn button_access_given_out_of_range_index_when_queried_then_returns_false(
 }
 
 #[test]
-fn button_access_given_out_of_range_index_when_set_then_no_effect(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn button_access_given_out_of_range_index_when_set_then_no_effect()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a default report
     let mut report = ButtonBoxInputReport::default();
 
@@ -140,8 +143,8 @@ fn button_access_given_out_of_range_index_when_set_then_no_effect(
 }
 
 #[test]
-fn button_access_given_multiple_buttons_when_counted_then_popcount_correct(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn button_access_given_multiple_buttons_when_counted_then_popcount_correct()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a report with 3 buttons set
     let mut report = ButtonBoxInputReport::default();
     report.set_button(0, true);
@@ -160,8 +163,8 @@ fn button_access_given_multiple_buttons_when_counted_then_popcount_correct(
 // ─── Scenario 3: hat switch direction encoding ──────────────────────────────
 
 #[test]
-fn hat_direction_given_all_valid_codes_when_decoded_then_correct_direction(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn hat_direction_given_all_valid_codes_when_decoded_then_correct_direction()
+-> Result<(), Box<dyn std::error::Error>> {
     let expected = [
         (0, HatDirection::Up),
         (1, HatDirection::UpRight),
@@ -175,24 +178,33 @@ fn hat_direction_given_all_valid_codes_when_decoded_then_correct_direction(
 
     for (code, direction) in expected {
         // Given: a report with hat set to a known code
-        let report = ButtonBoxInputReport { hat: code, ..Default::default() };
+        let report = ButtonBoxInputReport {
+            hat: code,
+            ..Default::default()
+        };
 
         // When: decoded
         let result = report.hat_direction();
 
         // Then: direction matches expected
-        assert_eq!(result, direction, "hat code {code} must decode to {direction:?}");
+        assert_eq!(
+            result, direction,
+            "hat code {code} must decode to {direction:?}"
+        );
     }
 
     Ok(())
 }
 
 #[test]
-fn hat_direction_given_invalid_code_when_decoded_then_neutral(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn hat_direction_given_invalid_code_when_decoded_then_neutral()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: hat values outside 0..8
     for code in [8, 15, 0x80, 0xFF] {
-        let report = ButtonBoxInputReport { hat: code, ..Default::default() };
+        let report = ButtonBoxInputReport {
+            hat: code,
+            ..Default::default()
+        };
 
         // When: decoded
         let result = report.hat_direction();
@@ -211,8 +223,8 @@ fn hat_direction_given_invalid_code_when_decoded_then_neutral(
 // ─── Scenario 4: axis reading and normalization ──────────────────────────────
 
 #[test]
-fn axis_reading_given_known_values_when_indexed_then_correct_axis_returned(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn axis_reading_given_known_values_when_indexed_then_correct_axis_returned()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a report with distinct axis values
     let report = ButtonBoxInputReport {
         axis_x: 1000,
@@ -232,8 +244,8 @@ fn axis_reading_given_known_values_when_indexed_then_correct_axis_returned(
 }
 
 #[test]
-fn axis_reading_given_out_of_range_index_when_queried_then_returns_zero(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn axis_reading_given_out_of_range_index_when_queried_then_returns_zero()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: any report
     let report = ButtonBoxInputReport {
         axis_x: 1000,
@@ -251,8 +263,8 @@ fn axis_reading_given_out_of_range_index_when_queried_then_returns_zero(
 }
 
 #[test]
-fn axis_normalization_given_max_value_when_normalized_then_approximately_one(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn axis_normalization_given_max_value_when_normalized_then_approximately_one()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: axis_x at i16::MAX
     let report = ButtonBoxInputReport {
         axis_x: i16::MAX,
@@ -272,8 +284,8 @@ fn axis_normalization_given_max_value_when_normalized_then_approximately_one(
 }
 
 #[test]
-fn axis_normalization_given_zero_when_normalized_then_zero(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn axis_normalization_given_zero_when_normalized_then_zero()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: axis at 0
     let report = ButtonBoxInputReport::default();
 
@@ -290,8 +302,8 @@ fn axis_normalization_given_zero_when_normalized_then_zero(
 }
 
 #[test]
-fn axis_normalization_given_negative_max_when_normalized_then_approximately_neg_one(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn axis_normalization_given_negative_max_when_normalized_then_approximately_neg_one()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: axis at i16::MIN (note: -32768 / 32767 ≈ -1.000030)
     let report = ButtonBoxInputReport {
         axis_x: i16::MIN,
@@ -313,8 +325,8 @@ fn axis_normalization_given_negative_max_when_normalized_then_approximately_neg_
 // ─── Scenario 5: extended report parsing ─────────────────────────────────────
 
 #[test]
-fn extended_report_given_valid_13_bytes_when_parsed_then_all_fields_decoded(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn extended_report_given_valid_13_bytes_when_parsed_then_all_fields_decoded()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a 13-byte extended report
     //   buttons u32 LE = 0x80000001 (buttons 0 and 31)
     //   axis_x  i16 LE = 100
@@ -367,8 +379,8 @@ fn extended_report_given_valid_13_bytes_when_parsed_then_all_fields_decoded(
 }
 
 #[test]
-fn extended_report_given_all_buttons_when_parsed_then_full_32_bit_mask(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn extended_report_given_all_buttons_when_parsed_then_full_32_bit_mask()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: all 32 bits set in extended report
     let mut data = [0u8; 13];
     data[0] = 0xFF;
@@ -392,8 +404,8 @@ fn extended_report_given_all_buttons_when_parsed_then_full_32_bit_mask(
 // ─── Scenario 6: rotary encoder state tracking ──────────────────────────────
 
 #[test]
-fn rotary_encoder_given_new_state_when_updated_then_position_and_delta_correct(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn rotary_encoder_given_new_state_when_updated_then_position_and_delta_correct()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a fresh encoder
     let mut encoder = RotaryEncoderState::new();
     assert_eq!(encoder.position, 0);
@@ -424,8 +436,8 @@ fn rotary_encoder_given_new_state_when_updated_then_position_and_delta_correct(
 }
 
 #[test]
-fn rotary_encoder_given_large_jump_when_updated_then_delta_clamped(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn rotary_encoder_given_large_jump_when_updated_then_delta_clamped()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: encoder at position 0
     let mut encoder = RotaryEncoderState::new();
 
@@ -447,8 +459,8 @@ fn rotary_encoder_given_large_jump_when_updated_then_delta_clamped(
 }
 
 #[test]
-fn rotary_encoder_given_zero_movement_when_updated_then_delta_zero(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn rotary_encoder_given_zero_movement_when_updated_then_delta_zero()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: encoder at position 42
     let mut encoder = RotaryEncoderState::new();
     encoder.update(42);
@@ -464,8 +476,8 @@ fn rotary_encoder_given_zero_movement_when_updated_then_delta_zero(
 }
 
 #[test]
-fn rotary_encoder_given_button_state_when_set_then_persists(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn rotary_encoder_given_button_state_when_set_then_persists()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a fresh encoder
     let mut encoder = RotaryEncoderState::new();
     assert!(!encoder.button_pressed);
@@ -483,8 +495,8 @@ fn rotary_encoder_given_button_state_when_set_then_persists(
 // ─── Scenario 7: button box type classification ─────────────────────────────
 
 #[test]
-fn button_box_type_given_variants_when_compared_then_distinct(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn button_box_type_given_variants_when_compared_then_distinct()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: the three button box types
     let simple = ButtonBoxType::Simple;
     let standard = ButtonBoxType::Standard;
@@ -504,8 +516,8 @@ fn button_box_type_given_variants_when_compared_then_distinct(
 // ─── Scenario 8: capability detection ────────────────────────────────────────
 
 #[test]
-fn capabilities_given_basic_config_when_queried_then_limited_features(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn capabilities_given_basic_config_when_queried_then_limited_features()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: basic capabilities
     let caps = ButtonBoxCapabilities::basic();
 
@@ -520,8 +532,8 @@ fn capabilities_given_basic_config_when_queried_then_limited_features(
 }
 
 #[test]
-fn capabilities_given_extended_config_when_queried_then_full_features(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn capabilities_given_extended_config_when_queried_then_full_features()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: extended capabilities
     let caps = ButtonBoxCapabilities::extended();
 
@@ -536,8 +548,8 @@ fn capabilities_given_extended_config_when_queried_then_full_features(
 }
 
 #[test]
-fn capabilities_given_default_when_queried_then_matches_extended(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn capabilities_given_default_when_queried_then_matches_extended()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: default capabilities
     let def = ButtonBoxCapabilities::default();
     let ext = ButtonBoxCapabilities::extended();
@@ -555,8 +567,8 @@ fn capabilities_given_default_when_queried_then_matches_extended(
 // ─── Scenario 9: error handling — short and malformed buffers ────────────────
 
 #[test]
-fn error_handling_given_short_gamepad_buffer_when_parsed_then_invalid_report_size(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn error_handling_given_short_gamepad_buffer_when_parsed_then_invalid_report_size()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: buffers shorter than REPORT_SIZE_GAMEPAD (8)
     for len in [0, 1, 4, 7] {
         let data = vec![0u8; len];
@@ -567,11 +579,16 @@ fn error_handling_given_short_gamepad_buffer_when_parsed_then_invalid_report_siz
         // Then: InvalidReportSize error with correct sizes
         match result {
             Err(ButtonBoxError::InvalidReportSize { expected, actual }) => {
-                assert_eq!(expected, REPORT_SIZE_GAMEPAD, "expected size must be {REPORT_SIZE_GAMEPAD}");
+                assert_eq!(
+                    expected, REPORT_SIZE_GAMEPAD,
+                    "expected size must be {REPORT_SIZE_GAMEPAD}"
+                );
                 assert_eq!(actual, len, "actual size must be {len}");
             }
             other => {
-                return Err(format!("expected InvalidReportSize for len {len}, got {other:?}").into());
+                return Err(
+                    format!("expected InvalidReportSize for len {len}, got {other:?}").into(),
+                );
             }
         }
     }
@@ -580,8 +597,8 @@ fn error_handling_given_short_gamepad_buffer_when_parsed_then_invalid_report_siz
 }
 
 #[test]
-fn error_handling_given_short_extended_buffer_when_parsed_then_invalid_report_size(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn error_handling_given_short_extended_buffer_when_parsed_then_invalid_report_size()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: buffers shorter than 12 (extended minimum)
     for len in [0, 4, 8, 11] {
         let data = vec![0u8; len];
@@ -596,7 +613,9 @@ fn error_handling_given_short_extended_buffer_when_parsed_then_invalid_report_si
                 assert_eq!(actual, len);
             }
             other => {
-                return Err(format!("expected InvalidReportSize for len {len}, got {other:?}").into());
+                return Err(
+                    format!("expected InvalidReportSize for len {len}, got {other:?}").into(),
+                );
             }
         }
     }
@@ -605,8 +624,8 @@ fn error_handling_given_short_extended_buffer_when_parsed_then_invalid_report_si
 }
 
 #[test]
-fn error_handling_given_empty_buffer_when_parsed_then_error_not_panic(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn error_handling_given_empty_buffer_when_parsed_then_error_not_panic()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: empty data
     let data: &[u8] = &[];
 
@@ -624,8 +643,8 @@ fn error_handling_given_empty_buffer_when_parsed_then_error_not_panic(
 // ─── Scenario 10: button count limits ────────────────────────────────────────
 
 #[test]
-fn button_limits_given_max_button_index_when_set_then_accessible(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn button_limits_given_max_button_index_when_set_then_accessible()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: the highest valid button index (31, since MAX_BUTTONS = 32)
     let mut report = ButtonBoxInputReport::default();
     let last_valid = MAX_BUTTONS - 1;
@@ -634,15 +653,18 @@ fn button_limits_given_max_button_index_when_set_then_accessible(
     report.set_button(last_valid, true);
 
     // Then: readable
-    assert!(report.button(last_valid), "button {last_valid} must be settable");
+    assert!(
+        report.button(last_valid),
+        "button {last_valid} must be settable"
+    );
     assert_eq!(report.button_count(), 1);
 
     Ok(())
 }
 
 #[test]
-fn button_limits_given_all_32_buttons_set_when_counted_then_32(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn button_limits_given_all_32_buttons_set_when_counted_then_32()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: every valid button pressed
     let mut report = ButtonBoxInputReport::default();
     for i in 0..MAX_BUTTONS {
@@ -657,8 +679,8 @@ fn button_limits_given_all_32_buttons_set_when_counted_then_32(
 }
 
 #[test]
-fn button_limits_given_no_buttons_when_counted_then_zero(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn button_limits_given_no_buttons_when_counted_then_zero() -> Result<(), Box<dyn std::error::Error>>
+{
     // Given: default report
     let report = ButtonBoxInputReport::default();
 
@@ -672,8 +694,8 @@ fn button_limits_given_no_buttons_when_counted_then_zero(
 // ─── Scenario 11: constants match specification ──────────────────────────────
 
 #[test]
-fn constants_given_protocol_values_then_match_specification(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn constants_given_protocol_values_then_match_specification()
+-> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(REPORT_SIZE_GAMEPAD, 8);
     assert_eq!(MAX_BUTTONS, 32);
     assert_eq!(MAX_AXES, 4);
@@ -686,8 +708,8 @@ fn constants_given_protocol_values_then_match_specification(
 // ─── Scenario 12: default report state ───────────────────────────────────────
 
 #[test]
-fn default_report_given_default_constructor_then_neutral_state(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn default_report_given_default_constructor_then_neutral_state()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given/When: default report
     let report = ButtonBoxInputReport::default();
 
@@ -706,8 +728,8 @@ fn default_report_given_default_constructor_then_neutral_state(
 // ─── Scenario 13: oversized buffers accepted gracefully ──────────────────────
 
 #[test]
-fn parsing_given_oversized_gamepad_buffer_when_parsed_then_succeeds(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn parsing_given_oversized_gamepad_buffer_when_parsed_then_succeeds()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a buffer larger than required, with known data in the valid range
     let mut data = [0u8; 64];
     data[0] = 0x03; // buttons 0 and 1
@@ -723,8 +745,8 @@ fn parsing_given_oversized_gamepad_buffer_when_parsed_then_succeeds(
 }
 
 #[test]
-fn parsing_given_oversized_extended_buffer_when_parsed_then_succeeds(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn parsing_given_oversized_extended_buffer_when_parsed_then_succeeds()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a 64-byte buffer
     let mut data = [0u8; 64];
     data[0] = 0xFF;

@@ -5,18 +5,18 @@
 //! VRS uses encoder structs (no DeviceWriter trait), so all tests exercise
 //! the pure encoding/decoding API directly.
 
+use racing_wheel_hid_vrs_protocol::types::VrsDeviceCategory;
 use racing_wheel_hid_vrs_protocol::{
     CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN, SPRING_REPORT_LEN,
-    VRS_PRODUCT_ID, VRS_VENDOR_ID, VrsConstantForceEncoder, VrsDamperEncoder,
-    VrsFrictionEncoder, VrsSpringEncoder, identify_device, parse_input_report, product_ids,
+    VRS_PRODUCT_ID, VRS_VENDOR_ID, VrsConstantForceEncoder, VrsDamperEncoder, VrsFrictionEncoder,
+    VrsSpringEncoder, identify_device, parse_input_report, product_ids,
 };
-use racing_wheel_hid_vrs_protocol::types::VrsDeviceCategory;
 
 // ─── Scenario 1: zero torque via encode_zero ────────────────────────────────
 
 #[test]
-fn given_dfp_encoder_when_encode_zero_then_magnitude_bytes_are_zero(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_dfp_encoder_when_encode_zero_then_magnitude_bytes_are_zero()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a DFP constant-force encoder at 20 Nm
     let encoder = VrsConstantForceEncoder::new(20.0);
     let mut buf = [0u8; CONSTANT_FORCE_REPORT_LEN];
@@ -34,8 +34,8 @@ fn given_dfp_encoder_when_encode_zero_then_magnitude_bytes_are_zero(
 // ─── Scenario 2: full-scale positive torque saturates at +10000 ─────────────
 
 #[test]
-fn given_dfp_encoder_when_torque_exceeds_max_then_saturates_positive(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_dfp_encoder_when_torque_exceeds_max_then_saturates_positive()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a DFP encoder at 20 Nm
     let encoder = VrsConstantForceEncoder::new(20.0);
     let mut buf = [0u8; CONSTANT_FORCE_REPORT_LEN];
@@ -45,15 +45,18 @@ fn given_dfp_encoder_when_torque_exceeds_max_then_saturates_positive(
 
     // Then: magnitude clamps to +10000
     let mag = i16::from_le_bytes([buf[3], buf[4]]);
-    assert_eq!(mag, 10000, "positive torque beyond max must saturate at +10000");
+    assert_eq!(
+        mag, 10000,
+        "positive torque beyond max must saturate at +10000"
+    );
     Ok(())
 }
 
 // ─── Scenario 3: full-scale negative torque saturates at -10000 ─────────────
 
 #[test]
-fn given_dfp_encoder_when_torque_exceeds_max_negative_then_saturates_negative(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_dfp_encoder_when_torque_exceeds_max_negative_then_saturates_negative()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a DFP encoder at 20 Nm
     let encoder = VrsConstantForceEncoder::new(20.0);
     let mut buf = [0u8; CONSTANT_FORCE_REPORT_LEN];
@@ -63,15 +66,18 @@ fn given_dfp_encoder_when_torque_exceeds_max_negative_then_saturates_negative(
 
     // Then: magnitude clamps to -10000
     let mag = i16::from_le_bytes([buf[3], buf[4]]);
-    assert_eq!(mag, -10000, "negative torque beyond max must saturate at -10000");
+    assert_eq!(
+        mag, -10000,
+        "negative torque beyond max must saturate at -10000"
+    );
     Ok(())
 }
 
 // ─── Scenario 4: sign preservation (positive vs negative) ───────────────────
 
 #[test]
-fn given_dfp_encoder_when_positive_and_negative_torque_then_sign_preserved(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_dfp_encoder_when_positive_and_negative_torque_then_sign_preserved()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a DFP encoder at 20 Nm
     let encoder = VrsConstantForceEncoder::new(20.0);
     let mut buf = [0u8; CONSTANT_FORCE_REPORT_LEN];
@@ -85,8 +91,14 @@ fn given_dfp_encoder_when_positive_and_negative_torque_then_sign_preserved(
     let mag_neg = i16::from_le_bytes([buf[3], buf[4]]);
 
     // Then: positive yields positive magnitude, negative yields negative
-    assert!(mag_pos > 0, "positive torque must produce positive magnitude");
-    assert!(mag_neg < 0, "negative torque must produce negative magnitude");
+    assert!(
+        mag_pos > 0,
+        "positive torque must produce positive magnitude"
+    );
+    assert!(
+        mag_neg < 0,
+        "negative torque must produce negative magnitude"
+    );
     assert_eq!(mag_pos, -mag_neg, "magnitudes must be symmetric");
     Ok(())
 }
@@ -94,8 +106,8 @@ fn given_dfp_encoder_when_positive_and_negative_torque_then_sign_preserved(
 // ─── Scenario 5: report byte layout (PIDFF header) ─────────────────────────
 
 #[test]
-fn given_dfp_encoder_when_encoding_then_pidff_header_correct(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_dfp_encoder_when_encoding_then_pidff_header_correct()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a DFP encoder at 20 Nm
     let encoder = VrsConstantForceEncoder::new(20.0);
     let mut buf = [0u8; CONSTANT_FORCE_REPORT_LEN];
@@ -117,8 +129,8 @@ fn given_dfp_encoder_when_encoding_then_pidff_header_correct(
 // ─── Scenario 6: multiple encoder instances with different max torque ───────
 
 #[test]
-fn given_two_encoders_with_different_max_when_same_torque_then_different_magnitude(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_two_encoders_with_different_max_when_same_torque_then_different_magnitude()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: DFP (20 Nm) and DFP V2 (25 Nm) encoders
     let enc_20 = VrsConstantForceEncoder::new(20.0);
     let enc_25 = VrsConstantForceEncoder::new(25.0);
@@ -144,8 +156,8 @@ fn given_two_encoders_with_different_max_when_same_torque_then_different_magnitu
 // ─── Scenario 7: device identification for known product IDs ────────────────
 
 #[test]
-fn given_known_product_ids_when_identified_then_correct_metadata(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_known_product_ids_when_identified_then_correct_metadata()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given/When: identifying DirectForce Pro
     let dfp = identify_device(product_ids::DIRECTFORCE_PRO);
     assert_eq!(dfp.product_id, 0xA355);
@@ -172,8 +184,8 @@ fn given_known_product_ids_when_identified_then_correct_metadata(
 // ─── Scenario 8: unknown product ID returns Unknown category ────────────────
 
 #[test]
-fn given_unknown_product_id_when_identified_then_unknown_category(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_unknown_product_id_when_identified_then_unknown_category()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: an unrecognised PID
     let unknown = identify_device(0xFFFF);
 
@@ -187,8 +199,8 @@ fn given_unknown_product_id_when_identified_then_unknown_category(
 // ─── Scenario 9: encoder monotonicity (larger torque → larger magnitude) ────
 
 #[test]
-fn given_dfp_encoder_when_increasing_torque_then_magnitude_monotonic(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_dfp_encoder_when_increasing_torque_then_magnitude_monotonic()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a DFP encoder at 20 Nm
     let encoder = VrsConstantForceEncoder::new(20.0);
     let torques: [f32; 5] = [0.0, 5.0, 10.0, 15.0, 20.0];
@@ -213,8 +225,8 @@ fn given_dfp_encoder_when_increasing_torque_then_magnitude_monotonic(
 // ─── Scenario 10: spring encoder basic validation ───────────────────────────
 
 #[test]
-fn given_spring_encoder_when_encoding_then_correct_report_layout(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_spring_encoder_when_encoding_then_correct_report_layout()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a spring encoder
     let encoder = VrsSpringEncoder::new(20.0);
     let mut buf = [0u8; SPRING_REPORT_LEN];
@@ -238,8 +250,8 @@ fn given_spring_encoder_when_encoding_then_correct_report_layout(
 // ─── Scenario 11: damper encoder basic validation ───────────────────────────
 
 #[test]
-fn given_damper_encoder_when_encoding_then_correct_report_layout(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_damper_encoder_when_encoding_then_correct_report_layout()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a damper encoder
     let encoder = VrsDamperEncoder::new(20.0);
     let mut buf = [0u8; DAMPER_REPORT_LEN];
@@ -261,8 +273,8 @@ fn given_damper_encoder_when_encoding_then_correct_report_layout(
 // ─── Scenario 12: friction encoder basic validation ─────────────────────────
 
 #[test]
-fn given_friction_encoder_when_encoding_then_correct_report_layout(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_friction_encoder_when_encoding_then_correct_report_layout()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a friction encoder
     let encoder = VrsFrictionEncoder::new(20.0);
     let mut buf = [0u8; FRICTION_REPORT_LEN];
@@ -284,10 +296,16 @@ fn given_friction_encoder_when_encoding_then_correct_report_layout(
 // ─── Scenario 13: product ID constants match expected hex values ────────────
 
 #[test]
-fn given_product_id_constants_when_checked_then_match_expected_hex(
-) -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(VRS_VENDOR_ID, 0x0483, "VRS vendor ID must be 0x0483 (STMicroelectronics)");
-    assert_eq!(VRS_PRODUCT_ID, 0xA355, "default VRS product ID must be DFP 0xA355");
+fn given_product_id_constants_when_checked_then_match_expected_hex()
+-> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(
+        VRS_VENDOR_ID, 0x0483,
+        "VRS vendor ID must be 0x0483 (STMicroelectronics)"
+    );
+    assert_eq!(
+        VRS_PRODUCT_ID, 0xA355,
+        "default VRS product ID must be DFP 0xA355"
+    );
     assert_eq!(product_ids::DIRECTFORCE_PRO, 0xA355);
     assert_eq!(product_ids::DIRECTFORCE_PRO_V2, 0xA356);
     assert_eq!(product_ids::R295, 0xA44C);
@@ -298,8 +316,8 @@ fn given_product_id_constants_when_checked_then_match_expected_hex(
 // ─── Scenario 14: input report parsing round-trip ───────────────────────────
 
 #[test]
-fn given_center_steering_input_when_parsed_then_steering_near_zero(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_center_steering_input_when_parsed_then_steering_near_zero()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a 64-byte input report with center steering (0x0000)
     let mut data = vec![0u8; 64];
     data[0] = 0x00;
@@ -320,8 +338,8 @@ fn given_center_steering_input_when_parsed_then_steering_near_zero(
 // ─── Scenario 15: input report too short returns None ───────────────────────
 
 #[test]
-fn given_short_input_report_when_parsed_then_returns_none(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_short_input_report_when_parsed_then_returns_none() -> Result<(), Box<dyn std::error::Error>>
+{
     // Given: a report shorter than the minimum 17 bytes
     let data = vec![0u8; 10];
 
@@ -329,15 +347,17 @@ fn given_short_input_report_when_parsed_then_returns_none(
     let result = parse_input_report(&data);
 
     // Then: returns None
-    assert!(result.is_none(), "input shorter than 17 bytes must return None");
+    assert!(
+        result.is_none(),
+        "input shorter than 17 bytes must return None"
+    );
     Ok(())
 }
 
 // ─── Scenario 16: non-wheelbase devices report no FFB support ───────────────
 
 #[test]
-fn given_pedals_product_id_when_identified_then_no_ffb(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_pedals_product_id_when_identified_then_no_ffb() -> Result<(), Box<dyn std::error::Error>> {
     // Given/When: identifying pedals, handbrake, shifter
     let pedals = identify_device(product_ids::PEDALS);
     let handbrake = identify_device(product_ids::HANDBRAKE);
@@ -356,8 +376,8 @@ fn given_pedals_product_id_when_identified_then_no_ffb(
 // ─── Scenario 17: spring/damper/friction encode_zero produce neutral output ─
 
 #[test]
-fn given_condition_encoders_when_encode_zero_then_coefficients_are_zero(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_condition_encoders_when_encode_zero_then_coefficients_are_zero()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: spring, damper, friction encoders
     let spring = VrsSpringEncoder::new(20.0);
     let damper = VrsDamperEncoder::new(20.0);
@@ -372,17 +392,29 @@ fn given_condition_encoders_when_encode_zero_then_coefficients_are_zero(
     let _ = friction.encode_zero(&mut fbuf);
 
     // Then: coefficient bytes are all zero
-    assert_eq!(u16::from_le_bytes([sbuf[2], sbuf[3]]), 0, "spring zero coeff");
-    assert_eq!(u16::from_le_bytes([dbuf[2], dbuf[3]]), 0, "damper zero coeff");
-    assert_eq!(u16::from_le_bytes([fbuf[2], fbuf[3]]), 0, "friction zero coeff");
+    assert_eq!(
+        u16::from_le_bytes([sbuf[2], sbuf[3]]),
+        0,
+        "spring zero coeff"
+    );
+    assert_eq!(
+        u16::from_le_bytes([dbuf[2], dbuf[3]]),
+        0,
+        "damper zero coeff"
+    );
+    assert_eq!(
+        u16::from_le_bytes([fbuf[2], fbuf[3]]),
+        0,
+        "friction zero coeff"
+    );
     Ok(())
 }
 
 // ─── Scenario 18: encode_zero header matches encode header ──────────────────
 
 #[test]
-fn given_constant_force_encoder_when_encode_zero_then_header_matches_encode(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn given_constant_force_encoder_when_encode_zero_then_header_matches_encode()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a DFP encoder
     let encoder = VrsConstantForceEncoder::new(20.0);
     let mut buf_zero = [0u8; CONSTANT_FORCE_REPORT_LEN];
@@ -398,6 +430,9 @@ fn given_constant_force_encoder_when_encode_zero_then_header_matches_encode(
     // Both should produce zero magnitude
     let mag_zero = i16::from_le_bytes([buf_zero[3], buf_zero[4]]);
     let mag_enc = i16::from_le_bytes([buf_enc[3], buf_enc[4]]);
-    assert_eq!(mag_zero, mag_enc, "both zero paths must produce same magnitude");
+    assert_eq!(
+        mag_zero, mag_enc,
+        "both zero paths must produce same magnitude"
+    );
     Ok(())
 }

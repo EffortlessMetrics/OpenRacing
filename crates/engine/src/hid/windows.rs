@@ -365,7 +365,11 @@ impl SupportedDevices {
             (vendor_ids::LOGITECH, 0xC295, "Logitech MOMO Racing"),
             (vendor_ids::LOGITECH, 0xC298, "Logitech Driving Force Pro"),
             (vendor_ids::LOGITECH, 0xC29A, "Logitech Driving Force GT"),
-            (vendor_ids::LOGITECH, 0xC29C, "Logitech Speed Force Wireless"),
+            (
+                vendor_ids::LOGITECH,
+                0xC29C,
+                "Logitech Speed Force Wireless",
+            ),
             // Logitech additional legacy (kernel hid-ids.h, oversteer)
             (vendor_ids::LOGITECH, 0xCA03, "Logitech MOMO Racing 2"),
             (
@@ -453,7 +457,11 @@ impl SupportedDevices {
             // 0xB69B: unverified — from hid-tmff2 issue #58.
             (vendor_ids::THRUSTMASTER, 0xB69B, "Thrustmaster T818"),
             // Thrustmaster legacy wheels (oversteer, linux-steering-wheels, hid-tmff)
-            (vendor_ids::THRUSTMASTER, 0xB605, "Thrustmaster NASCAR Pro FF2"),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB605,
+                "Thrustmaster NASCAR Pro FF2",
+            ),
             (
                 vendor_ids::THRUSTMASTER,
                 0xB651,
@@ -1856,24 +1864,20 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             match product_id {
                 0x3245 => {
                     // V10 (belt-driven, ~5 Nm)
-                    capabilities.max_torque =
-                        TorqueNm::new(5.0).unwrap_or(capabilities.max_torque);
+                    capabilities.max_torque = TorqueNm::new(5.0).unwrap_or(capabilities.max_torque);
                 }
                 0x1212 => {
                     // V12 (direct-drive, ~6 Nm)
-                    capabilities.max_torque =
-                        TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
+                    capabilities.max_torque = TorqueNm::new(6.0).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 2000; // 500Hz
                 }
                 0x1112 | 0x1211 => {
                     // V12 Lite / V12 Lite 2 (budget DD, ~4 Nm)
-                    capabilities.max_torque =
-                        TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
+                    capabilities.max_torque = TorqueNm::new(4.0).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 2000; // 500Hz
                 }
                 _ => {
-                    capabilities.max_torque =
-                        TorqueNm::new(3.0).unwrap_or(capabilities.max_torque);
+                    capabilities.max_torque = TorqueNm::new(3.0).unwrap_or(capabilities.max_torque);
                 }
             }
         }

@@ -208,7 +208,11 @@ mod tests {
     fn test_product_id_preserves_value() {
         let pid = product_ids::T300_RS;
         let proto = ThrustmasterProtocol::new(pid);
-        assert_eq!(proto.product_id(), pid, "product_id must return the original PID");
+        assert_eq!(
+            proto.product_id(),
+            pid,
+            "product_id must return the original PID"
+        );
 
         let pid2 = product_ids::T818;
         let proto2 = ThrustmasterProtocol::new(pid2);
@@ -223,10 +227,7 @@ mod tests {
     #[test]
     fn test_protocol_supports_ffb_false() {
         let proto = ThrustmasterProtocol::new(product_ids::T80);
-        assert!(
-            !proto.supports_ffb(),
-            "T80 protocol must NOT support FFB"
-        );
+        assert!(!proto.supports_ffb(), "T80 protocol must NOT support FFB");
     }
 
     /// Kill mutants: replace init/reset with ().

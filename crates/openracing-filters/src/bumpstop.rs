@@ -281,8 +281,14 @@ mod tests {
         let default = BumpstopState::default();
         assert!(standard.enabled, "standard must be enabled");
         assert!(!default.enabled, "default must be disabled");
-        assert!(standard.start_angle > 0.0, "standard start_angle must be positive");
-        assert!(standard.stiffness > 0.0, "standard stiffness must be positive");
+        assert!(
+            standard.start_angle > 0.0,
+            "standard start_angle must be positive"
+        );
+        assert!(
+            standard.stiffness > 0.0,
+            "standard stiffness must be positive"
+        );
         // Verify specific values
         assert!((standard.start_angle - 400.0).abs() < 0.01);
         assert!((standard.max_angle - 450.0).abs() < 0.01);

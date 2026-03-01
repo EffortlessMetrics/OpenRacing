@@ -81,8 +81,7 @@ fn test_snapshot_parse_standard_report_center() -> Result<(), String> {
     data[2] = 0x80;
     // hat neutral
     data[9] = 0x0F;
-    let state =
-        fan::parse_standard_report(&data).ok_or("parse_standard_report returned None")?;
+    let state = fan::parse_standard_report(&data).ok_or("parse_standard_report returned None")?;
     assert_snapshot!(format!(
         "steering={:.4}, throttle={:.4}, brake={:.4}, clutch={:.4}, buttons=0x{:04X}, hat=0x{:X}",
         state.steering, state.throttle, state.brake, state.clutch, state.buttons, state.hat,
@@ -111,10 +110,7 @@ fn test_snapshot_is_wheelbase_known_pids() {
 
 #[test]
 fn test_snapshot_is_wheelbase_unknown_pid() {
-    assert_snapshot!(format!(
-        "unknown={}",
-        fan::is_wheelbase_product(0xFFFF)
-    ));
+    assert_snapshot!(format!("unknown={}", fan::is_wheelbase_product(0xFFFF)));
 }
 
 #[test]
@@ -132,10 +128,7 @@ fn test_snapshot_is_pedal_known_pids() {
 
 #[test]
 fn test_snapshot_is_pedal_unknown_pid() {
-    assert_snapshot!(format!(
-        "unknown={}",
-        fan::is_pedal_product(0xFFFF)
-    ));
+    assert_snapshot!(format!("unknown={}", fan::is_pedal_product(0xFFFF)));
 }
 
 // ── Gain report boundary ─────────────────────────────────────────────────────

@@ -446,7 +446,10 @@ mod tests {
         data11[0] = 0x01;
         data11[10] = 0x03; // funky direction
         let state11 = parse_standard_report(&data11).ok_or("parse failed")?;
-        assert_eq!(state11.funky_dir, 0x03, "funky_dir should be present at len=11");
+        assert_eq!(
+            state11.funky_dir, 0x03,
+            "funky_dir should be present at len=11"
+        );
         assert_eq!(state11.rotary1, 0, "rotary1 should be 0 at len=11");
 
         // 13 bytes: rotary1 at data[11..12] present (len > 12 → true)
@@ -522,8 +525,14 @@ mod tests {
         data[3] = 0x00;
         data[4] = 0xF0;
         let state = parse_pedal_report(&data).ok_or("parse failed")?;
-        assert_eq!(state.throttle_raw, 0x0000, "zero input must produce zero with AND mask");
-        assert_eq!(state.brake_raw, 0x0000, "upper bits must be masked off by & 0x0FFF");
+        assert_eq!(
+            state.throttle_raw, 0x0000,
+            "zero input must produce zero with AND mask"
+        );
+        assert_eq!(
+            state.brake_raw, 0x0000,
+            "upper bits must be masked off by & 0x0FFF"
+        );
         Ok(())
     }
 
@@ -541,19 +550,31 @@ mod tests {
         data[1] = 0x00;
         data[2] = 0x80;
         let center = parse_standard_report(&data).ok_or("parse failed")?;
-        assert!(center.steering.abs() < 1e-4, "center must be ~0.0, got {}", center.steering);
+        assert!(
+            center.steering.abs() < 1e-4,
+            "center must be ~0.0, got {}",
+            center.steering
+        );
 
         // Full left: 0x0000
         data[1] = 0x00;
         data[2] = 0x00;
         let left = parse_standard_report(&data).ok_or("parse failed")?;
-        assert!((left.steering + 1.0).abs() < 1e-4, "left must be ~-1.0, got {}", left.steering);
+        assert!(
+            (left.steering + 1.0).abs() < 1e-4,
+            "left must be ~-1.0, got {}",
+            left.steering
+        );
 
         // Full right: 0xFFFF
         data[1] = 0xFF;
         data[2] = 0xFF;
         let right = parse_standard_report(&data).ok_or("parse failed")?;
-        assert!(right.steering > 0.99, "right must be ~+1.0, got {}", right.steering);
+        assert!(
+            right.steering > 0.99,
+            "right must be ~+1.0, got {}",
+            right.steering
+        );
 
         // Quarter left: 0x4000
         data[1] = 0x00;

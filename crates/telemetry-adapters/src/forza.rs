@@ -899,8 +899,7 @@ mod tests {
     fn test_cardash_preserves_sled_extended_fields() -> TestResult {
         let mut data = vec![0u8; FORZA_CARDASH_SIZE];
         let mut sled = make_sled_packet(1, 1000.0, (0.0, 0.0, 0.0));
-        sled[OFF_WHEEL_SPEED_FL..OFF_WHEEL_SPEED_FL + 4]
-            .copy_from_slice(&42.0f32.to_le_bytes());
+        sled[OFF_WHEEL_SPEED_FL..OFF_WHEEL_SPEED_FL + 4].copy_from_slice(&42.0f32.to_le_bytes());
         data[..FORZA_SLED_SIZE].copy_from_slice(&sled);
         let result = parse_forza_cardash(&data)?;
         assert_eq!(

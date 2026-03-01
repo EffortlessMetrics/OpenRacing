@@ -96,10 +96,7 @@ fn test_snapshot_is_wheel_product_known_pids() {
 
 #[test]
 fn test_snapshot_is_wheel_product_unknown_pid() {
-    assert_snapshot!(format!(
-        "unknown={}",
-        lg::is_wheel_product(0xFFFF)
-    ));
+    assert_snapshot!(format!("unknown={}", lg::is_wheel_product(0xFFFF)));
 }
 
 // ── Model capability matrix ──────────────────────────────────────────────────

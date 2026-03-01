@@ -39,46 +39,114 @@ use racing_wheel_hid_fanatec_protocol::{
 const KERNEL_WHEELBASES: &[(u16, u16, &str, u16)] = &[
     // hid-ftec.c: { HID_USB_DEVICE(FANATEC_VENDOR_ID, CLUBSPORT_V2_WHEELBASE_DEVICE_ID),
     //               .driver_data = FTEC_FF },
-    (product_ids::CLUBSPORT_V2, 0x0001, "CLUBSPORT_V2_WHEELBASE_DEVICE_ID", 0x001),
+    (
+        product_ids::CLUBSPORT_V2,
+        0x0001,
+        "CLUBSPORT_V2_WHEELBASE_DEVICE_ID",
+        0x001,
+    ),
     // hid-ftec.c: { ..., CLUBSPORT_V25_WHEELBASE_DEVICE_ID), .driver_data = FTEC_FF },
-    (product_ids::CLUBSPORT_V2_5, 0x0004, "CLUBSPORT_V25_WHEELBASE_DEVICE_ID", 0x001),
+    (
+        product_ids::CLUBSPORT_V2_5,
+        0x0004,
+        "CLUBSPORT_V25_WHEELBASE_DEVICE_ID",
+        0x001,
+    ),
     // hid-ftec.c: { ..., CSL_ELITE_PS4_WHEELBASE_DEVICE_ID),
     //               .driver_data = FTEC_FF | FTEC_TUNING_MENU | FTEC_WHEELBASE_LEDS },
-    (product_ids::CSL_ELITE_PS4, 0x0005, "CSL_ELITE_PS4_WHEELBASE_DEVICE_ID", 0x001 | 0x010 | 0x004),
+    (
+        product_ids::CSL_ELITE_PS4,
+        0x0005,
+        "CSL_ELITE_PS4_WHEELBASE_DEVICE_ID",
+        0x001 | 0x010 | 0x004,
+    ),
     // hid-ftec.c: { ..., PODIUM_WHEELBASE_DD1_DEVICE_ID),
     //               .driver_data = FTEC_FF | FTEC_TUNING_MENU | FTEC_HIGHRES },
-    (product_ids::DD1, 0x0006, "PODIUM_WHEELBASE_DD1_DEVICE_ID", 0x001 | 0x010 | 0x008),
+    (
+        product_ids::DD1,
+        0x0006,
+        "PODIUM_WHEELBASE_DD1_DEVICE_ID",
+        0x001 | 0x010 | 0x008,
+    ),
     // hid-ftec.c: { ..., PODIUM_WHEELBASE_DD2_DEVICE_ID),
     //               .driver_data = FTEC_FF | FTEC_TUNING_MENU | FTEC_HIGHRES },
-    (product_ids::DD2, 0x0007, "PODIUM_WHEELBASE_DD2_DEVICE_ID", 0x001 | 0x010 | 0x008),
+    (
+        product_ids::DD2,
+        0x0007,
+        "PODIUM_WHEELBASE_DD2_DEVICE_ID",
+        0x001 | 0x010 | 0x008,
+    ),
     // hid-ftec.c: { ..., CSR_ELITE_WHEELBASE_DEVICE_ID), .driver_data = FTEC_FF },
-    (product_ids::CSR_ELITE, 0x0011, "CSR_ELITE_WHEELBASE_DEVICE_ID", 0x001),
+    (
+        product_ids::CSR_ELITE,
+        0x0011,
+        "CSR_ELITE_WHEELBASE_DEVICE_ID",
+        0x001,
+    ),
     // hid-ftec.c: { ..., CSL_DD_WHEELBASE_DEVICE_ID),
     //               .driver_data = FTEC_FF | FTEC_TUNING_MENU | FTEC_HIGHRES },
-    (product_ids::CSL_DD, 0x0020, "CSL_DD_WHEELBASE_DEVICE_ID", 0x001 | 0x010 | 0x008),
+    (
+        product_ids::CSL_DD,
+        0x0020,
+        "CSL_DD_WHEELBASE_DEVICE_ID",
+        0x001 | 0x010 | 0x008,
+    ),
     // hid-ftec.c: { ..., CSL_ELITE_WHEELBASE_DEVICE_ID),
     //               .driver_data = FTEC_FF | FTEC_TUNING_MENU | FTEC_WHEELBASE_LEDS },
-    (product_ids::CSL_ELITE, 0x0E03, "CSL_ELITE_WHEELBASE_DEVICE_ID", 0x001 | 0x010 | 0x004),
+    (
+        product_ids::CSL_ELITE,
+        0x0E03,
+        "CSL_ELITE_WHEELBASE_DEVICE_ID",
+        0x001 | 0x010 | 0x004,
+    ),
 ];
 
 /// Kernel-driver–verified pedal PIDs (FTEC_PEDALS quirk).
 const KERNEL_PEDALS: &[(u16, u16, &str)] = &[
     // hid-ftec.c: { ..., CLUBSPORT_PEDALS_V3_DEVICE_ID), .driver_data = FTEC_PEDALS },
-    (product_ids::CLUBSPORT_PEDALS_V3, 0x183B, "CLUBSPORT_PEDALS_V3_DEVICE_ID"),
+    (
+        product_ids::CLUBSPORT_PEDALS_V3,
+        0x183B,
+        "CLUBSPORT_PEDALS_V3_DEVICE_ID",
+    ),
     // hid-ftec.c: { ..., CSL_ELITE_PEDALS_DEVICE_ID), .driver_data = FTEC_PEDALS },
-    (product_ids::CSL_ELITE_PEDALS, 0x6204, "CSL_ELITE_PEDALS_DEVICE_ID"),
+    (
+        product_ids::CSL_ELITE_PEDALS,
+        0x6204,
+        "CSL_ELITE_PEDALS_DEVICE_ID",
+    ),
     // hid-ftec.c: { ..., CSL_LC_PEDALS_DEVICE_ID), .driver_data = FTEC_PEDALS },
-    (product_ids::CSL_PEDALS_LC, 0x6205, "CSL_LC_PEDALS_DEVICE_ID"),
+    (
+        product_ids::CSL_PEDALS_LC,
+        0x6205,
+        "CSL_LC_PEDALS_DEVICE_ID",
+    ),
     // hid-ftec.c: { ..., CSL_LC_V2_PEDALS_DEVICE_ID), .driver_data = FTEC_PEDALS },
-    (product_ids::CSL_PEDALS_V2, 0x6206, "CSL_LC_V2_PEDALS_DEVICE_ID"),
+    (
+        product_ids::CSL_PEDALS_V2,
+        0x6206,
+        "CSL_LC_V2_PEDALS_DEVICE_ID",
+    ),
 ];
 
 /// Kernel-driver–verified rim IDs (hid-ftec.h defines).
 const KERNEL_RIMS: &[(u8, u8, &str)] = &[
     (rim_ids::CSL_ELITE_P1, 0x08, "CSL_STEERING_WHEEL_P1_V2"),
-    (rim_ids::FORMULA_V2, 0x0A, "CLUBSPORT_STEERING_WHEEL_FORMULA_V2_ID"),
-    (rim_ids::MCLAREN_GT3_V2, 0x0B, "CSL_ELITE_STEERING_WHEEL_MCLAREN_GT3_V2_ID"),
-    (rim_ids::PORSCHE_911_GT3_R, 0x0C, "PODIUM_STEERING_WHEEL_PORSCHE_911_GT3_R_ID"),
+    (
+        rim_ids::FORMULA_V2,
+        0x0A,
+        "CLUBSPORT_STEERING_WHEEL_FORMULA_V2_ID",
+    ),
+    (
+        rim_ids::MCLAREN_GT3_V2,
+        0x0B,
+        "CSL_ELITE_STEERING_WHEEL_MCLAREN_GT3_V2_ID",
+    ),
+    (
+        rim_ids::PORSCHE_911_GT3_R,
+        0x0C,
+        "PODIUM_STEERING_WHEEL_PORSCHE_911_GT3_R_ID",
+    ),
     // Note: WRC (0x12) shares value with CLUBSPORT_STEERING_WHEEL_F1_IS_ID per hid-ftec.h.
     (rim_ids::WRC, 0x12, "CSL_ELITE_STEERING_WHEEL_WRC_ID"),
 ];
@@ -88,13 +156,20 @@ const KERNEL_RIMS: &[(u8, u8, &str)] = &[
 /// PIDs present in our codebase but NOT in the gotzl/hid-fanatecff driver.
 /// These must be documented as unverified in ids.rs.
 const EXTRA_WHEELBASE_PIDS: &[(u16, &str)] = &[
-    (product_ids::GT_DD_PRO, "GT DD Pro — PlayStation-specific PID, not in kernel driver"),
-    (product_ids::CLUBSPORT_DD, "ClubSport DD+ — newer device, not in kernel driver"),
+    (
+        product_ids::GT_DD_PRO,
+        "GT DD Pro — PlayStation-specific PID, not in kernel driver",
+    ),
+    (
+        product_ids::CLUBSPORT_DD,
+        "ClubSport DD+ — newer device, not in kernel driver",
+    ),
 ];
 
-const EXTRA_PEDAL_PIDS: &[(u16, &str)] = &[
-    (product_ids::CLUBSPORT_PEDALS_V1_V2, "ClubSport Pedals V1/V2 — older device, not in kernel driver"),
-];
+const EXTRA_PEDAL_PIDS: &[(u16, &str)] = &[(
+    product_ids::CLUBSPORT_PEDALS_V1_V2,
+    "ClubSport Pedals V1/V2 — older device, not in kernel driver",
+)];
 
 // ── 1. All kernel-driver PIDs are present and correct ───────────────────────
 
@@ -145,10 +220,7 @@ fn no_duplicate_wheelbase_pids() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
     let mut seen = HashSet::new();
     for pid in &all_wheelbase_pids {
-        assert!(
-            seen.insert(pid),
-            "Duplicate wheelbase PID: {pid:#06x}"
-        );
+        assert!(seen.insert(pid), "Duplicate wheelbase PID: {pid:#06x}");
     }
     Ok(())
 }
@@ -162,10 +234,7 @@ fn no_duplicate_pedal_pids() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
     let mut seen = HashSet::new();
     for pid in &all_pedal_pids {
-        assert!(
-            seen.insert(pid),
-            "Duplicate pedal PID: {pid:#06x}"
-        );
+        assert!(seen.insert(pid), "Duplicate pedal PID: {pid:#06x}");
     }
     Ok(())
 }
@@ -206,10 +275,7 @@ fn no_duplicate_rim_ids() -> Result<(), Box<dyn std::error::Error>> {
     ];
     let mut seen = HashSet::new();
     for &id in all_rim_ids {
-        assert!(
-            seen.insert(id),
-            "Duplicate rim ID: {id:#04x}"
-        );
+        assert!(seen.insert(id), "Duplicate rim ID: {id:#04x}");
     }
     Ok(())
 }
@@ -550,7 +616,10 @@ fn belt_bases_have_4096_cpr() -> Result<(), Box<dyn std::error::Error>> {
 fn csl_elite_ps4_and_pc_map_to_same_model() -> Result<(), Box<dyn std::error::Error>> {
     let pc = FanatecModel::from_product_id(product_ids::CSL_ELITE);
     let ps4 = FanatecModel::from_product_id(product_ids::CSL_ELITE_PS4);
-    assert_eq!(pc, ps4, "CSL Elite PC and PS4 should map to the same FanatecModel");
+    assert_eq!(
+        pc, ps4,
+        "CSL Elite PC and PS4 should map to the same FanatecModel"
+    );
     assert_eq!(pc, FanatecModel::CslElite);
     Ok(())
 }

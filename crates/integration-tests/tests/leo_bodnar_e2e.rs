@@ -5,10 +5,10 @@
 //! without real USB hardware.
 
 use racing_wheel_hid_leo_bodnar_protocol::{
-    LeoBodnarDevice, PID_BBI32, PID_BU0836A, PID_BU0836X, PID_BU0836_16BIT, PID_FFB_JOYSTICK,
-    PID_SLI_M, PID_USB_JOYSTICK, PID_WHEEL_INTERFACE, VENDOR_ID, is_leo_bodnar,
-    is_leo_bodnar_device, is_leo_bodnar_ffb_pid, HID_PID_USAGE_PAGE, MAX_REPORT_BYTES,
-    WHEEL_DEFAULT_MAX_TORQUE_NM, WHEEL_ENCODER_CPR,
+    HID_PID_USAGE_PAGE, LeoBodnarDevice, MAX_REPORT_BYTES, PID_BBI32, PID_BU0836_16BIT,
+    PID_BU0836A, PID_BU0836X, PID_FFB_JOYSTICK, PID_SLI_M, PID_USB_JOYSTICK, PID_WHEEL_INTERFACE,
+    VENDOR_ID, WHEEL_DEFAULT_MAX_TORQUE_NM, WHEEL_ENCODER_CPR, is_leo_bodnar, is_leo_bodnar_device,
+    is_leo_bodnar_ffb_pid,
 };
 
 /// All eight known Leo Bodnar product IDs.
@@ -81,10 +81,7 @@ fn scenario_device_pid_check_given_known_pid_when_checked_then_recognised() {
         let result = is_leo_bodnar_device(pid);
 
         // Then: it returns true
-        assert!(
-            result,
-            "is_leo_bodnar_device(0x{pid:04X}) must return true"
-        );
+        assert!(result, "is_leo_bodnar_device(0x{pid:04X}) must return true");
     }
 }
 
@@ -154,8 +151,8 @@ fn scenario_ffb_detection_given_non_ffb_pid_when_checked_then_returns_false() {
 // ─── Scenario 8: from_product_id resolves all 8 variants ────────────────────
 
 #[test]
-fn scenario_product_id_resolution_given_known_pid_when_resolved_then_returns_correct_variant(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_product_id_resolution_given_known_pid_when_resolved_then_returns_correct_variant()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: all known PID-to-variant mappings
     let expected: &[(u16, LeoBodnarDevice)] = &[
         (PID_USB_JOYSTICK, LeoBodnarDevice::UsbJoystick),
@@ -225,11 +222,7 @@ fn scenario_input_channels_given_joystick_device_when_queried_then_returns_32() 
         let channels = device.max_input_channels();
 
         // Then: it returns 32
-        assert_eq!(
-            channels, 32,
-            "{:?} must report 32 input channels",
-            device
-        );
+        assert_eq!(channels, 32, "{:?} must report 32 input channels", device);
     }
 }
 
@@ -377,8 +370,8 @@ fn scenario_report_constants_given_protocol_limits_when_checked_then_within_spec
 // ─── Scenario 17: FFB support is consistent between device and PID check ────
 
 #[test]
-fn scenario_ffb_consistency_given_any_known_pid_when_both_apis_checked_then_agree(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_ffb_consistency_given_any_known_pid_when_both_apis_checked_then_agree()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: all known PIDs
     for &pid in ALL_PIDS {
         let device = LeoBodnarDevice::from_product_id(pid);

@@ -53,6 +53,8 @@ mod tests {
     #[test]
     fn test_error_display_disconnected() {
         let err = ShifterError::Disconnected;
-        assert!(err.to_string().contains("disconnected") || err.to_string().contains("Disconnected"));
+        assert!(
+            err.to_string().contains("disconnected") || err.to_string().contains("Disconnected")
+        );
     }
 }

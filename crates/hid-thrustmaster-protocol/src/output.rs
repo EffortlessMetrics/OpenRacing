@@ -257,10 +257,7 @@ pub fn build_kernel_close_command() -> [u8; 2] {
 /// Source: `t300rs_set_autocenter()` — two-step: `{0x08,0x04,0x01,0x00}` then `{0x08,0x03,value_lo,value_hi}`
 pub fn build_kernel_autocenter_commands(value: u16) -> [[u8; 4]; 2] {
     let bytes = value.to_le_bytes();
-    [
-        [0x08, 0x04, 0x01, 0x00],
-        [0x08, 0x03, bytes[0], bytes[1]],
-    ]
+    [[0x08, 0x04, 0x01, 0x00], [0x08, 0x03, bytes[0], bytes[1]]]
 }
 
 #[cfg(test)]

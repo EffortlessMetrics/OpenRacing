@@ -340,8 +340,7 @@ fn test_component_failure_progression_to_faulted() {
         watchdog.report_component_failure(SystemComponent::HidCommunication, None);
     }
 
-    let health = watchdog
-        .get_component_health(SystemComponent::HidCommunication);
+    let health = watchdog.get_component_health(SystemComponent::HidCommunication);
     assert!(health.is_some());
     let health = health.expect("checked");
     assert_eq!(health.status, HealthStatus::Faulted);

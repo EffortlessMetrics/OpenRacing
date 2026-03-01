@@ -301,7 +301,10 @@ mod tests {
 
         let t80_ferrari = identify_device(product_ids::T80_FERRARI_488);
         assert_eq!(t80_ferrari.category, ThrustmasterDeviceCategory::Wheelbase);
-        assert!(!t80_ferrari.supports_ffb, "T80 Ferrari must NOT support FFB");
+        assert!(
+            !t80_ferrari.supports_ffb,
+            "T80 Ferrari must NOT support FFB"
+        );
 
         // Legacy FFB wheels must be wheelbases WITH FFB
         let legacy_pids = [
@@ -319,11 +322,7 @@ mod tests {
                 "PID 0x{:04X} must be Wheelbase",
                 pid
             );
-            assert!(
-                identity.supports_ffb,
-                "PID 0x{:04X} must support FFB",
-                pid
-            );
+            assert!(identity.supports_ffb, "PID 0x{:04X} must support FFB", pid);
         }
     }
 
@@ -396,10 +395,7 @@ mod tests {
     /// Kill mutant: supports_ffb → true (T80 and Unknown must NOT support FFB).
     #[test]
     fn test_model_supports_ffb_false_cases() {
-        assert!(
-            !Model::T80.supports_ffb(),
-            "T80 must NOT support FFB"
-        );
+        assert!(!Model::T80.supports_ffb(), "T80 must NOT support FFB");
         assert!(
             !Model::Unknown.supports_ffb(),
             "Unknown must NOT support FFB"

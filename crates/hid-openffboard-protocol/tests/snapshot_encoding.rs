@@ -5,8 +5,8 @@
 
 use insta::assert_snapshot;
 use racing_wheel_hid_openffboard_protocol::{
-    build_set_gain, OpenFFBoardTorqueEncoder, OPENFFBOARD_PRODUCT_ID,
-    OPENFFBOARD_PRODUCT_ID_ALT, OPENFFBOARD_VENDOR_ID,
+    build_set_gain, OpenFFBoardTorqueEncoder, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT,
+    OPENFFBOARD_VENDOR_ID,
 };
 
 // -- Individual ID constants --------------------------------------------------

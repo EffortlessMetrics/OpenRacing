@@ -224,18 +224,15 @@ mod tests {
     #[test]
     fn parse_hbp_preserves_button_byte_on_all_layouts() -> Result<(), Box<dyn std::error::Error>> {
         // report-id-prefixed layout
-        let r1 = parse_hbp_usb_report_best_effort(&[0x01, 0x00, 0x00, 0xFF])
-            .ok_or("layout 1")?;
+        let r1 = parse_hbp_usb_report_best_effort(&[0x01, 0x00, 0x00, 0xFF]).ok_or("layout 1")?;
         assert_eq!(r1.button_byte, Some(0xFF));
 
         // raw 3-byte layout
-        let r2 = parse_hbp_usb_report_best_effort(&[0x00, 0x00, 0xAA])
-            .ok_or("layout 2")?;
+        let r2 = parse_hbp_usb_report_best_effort(&[0x00, 0x00, 0xAA]).ok_or("layout 2")?;
         assert_eq!(r2.button_byte, Some(0xAA));
 
         // raw 2-byte layout has no button
-        let r3 = parse_hbp_usb_report_best_effort(&[0x00, 0x00])
-            .ok_or("layout 3")?;
+        let r3 = parse_hbp_usb_report_best_effort(&[0x00, 0x00]).ok_or("layout 3")?;
         assert_eq!(r3.button_byte, None);
         Ok(())
     }

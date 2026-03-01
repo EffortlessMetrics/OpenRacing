@@ -144,7 +144,7 @@ impl GameSupportMatrix {
 
 #[cfg(test)]
 mod tests {
-    use super::{load_default_matrix, matrix_game_ids, normalize_game_id, GameSupportStatus};
+    use super::{GameSupportStatus, load_default_matrix, matrix_game_ids, normalize_game_id};
 
     #[test]
     fn matrix_metadata_game_ids_is_sorted_and_non_empty() -> Result<(), Box<dyn std::error::Error>>
@@ -263,7 +263,12 @@ mod tests {
     fn matrix_game_ids_returns_sorted() -> Result<(), Box<dyn std::error::Error>> {
         let ids = matrix_game_ids()?;
         for pair in ids.windows(2) {
-            assert!(pair[0] <= pair[1], "{} should come before {}", pair[0], pair[1]);
+            assert!(
+                pair[0] <= pair[1],
+                "{} should come before {}",
+                pair[0],
+                pair[1]
+            );
         }
         Ok(())
     }

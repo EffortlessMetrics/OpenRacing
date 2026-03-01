@@ -146,8 +146,8 @@ proptest! {
 // ── Kernel-verified protocol property tests ──────────────────────────────
 
 use racing_wheel_hid_fanatec_protocol::{
-    FanatecModel, build_kernel_range_sequence, fix_report_values, MIN_ROTATION_DEGREES,
-    MAX_ROTATION_DEGREES,
+    FanatecModel, MAX_ROTATION_DEGREES, MIN_ROTATION_DEGREES, build_kernel_range_sequence,
+    fix_report_values,
 };
 
 /// Strategy that produces every `FanatecModel` variant uniformly.

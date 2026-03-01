@@ -931,10 +931,7 @@ mod tests {
             FaultType::PipelineFault,
         ];
         for ft in all_faults {
-            assert!(
-                matrix.contains(ft),
-                "FMEA matrix missing entry for {ft:?}"
-            );
+            assert!(matrix.contains(ft), "FMEA matrix missing entry for {ft:?}");
             let entry = matrix.get(ft);
             assert!(entry.is_some());
             let entry = entry.expect("just checked");
@@ -1130,10 +1127,7 @@ mod tests {
             let mut fmea = FmeaSystem::new();
             let result = fmea.handle_fault(ft, 5.0);
             assert!(result.is_ok());
-            assert!(
-                fmea.can_recover(),
-                "{ft:?} should be recoverable"
-            );
+            assert!(fmea.can_recover(), "{ft:?} should be recoverable");
             assert!(fmea.recovery_procedure().is_some());
         }
     }
@@ -1151,10 +1145,7 @@ mod tests {
             let mut fmea = FmeaSystem::new();
             let result = fmea.handle_fault(ft, 5.0);
             assert!(result.is_ok());
-            assert!(
-                !fmea.can_recover(),
-                "{ft:?} should NOT be recoverable"
-            );
+            assert!(!fmea.can_recover(), "{ft:?} should NOT be recoverable");
         }
     }
 

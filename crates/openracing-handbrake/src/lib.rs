@@ -45,6 +45,8 @@ mod tests {
     #[test]
     fn test_error_display_disconnected() {
         let err = HandbrakeError::Disconnected;
-        assert!(err.to_string().contains("disconnected") || err.to_string().contains("Disconnected"));
+        assert!(
+            err.to_string().contains("disconnected") || err.to_string().contains("Disconnected")
+        );
     }
 }

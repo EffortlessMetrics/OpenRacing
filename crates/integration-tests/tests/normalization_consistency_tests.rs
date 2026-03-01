@@ -68,10 +68,7 @@ fn all_vendors_zero_torque_encodes_to_zero_force() -> Result<(), Box<dyn std::er
 fn all_vendors_full_torque_encodes_to_full_scale() -> Result<(), Box<dyn std::error::Error>> {
     let (fan, logi, tm) = encode_all_vendors_normalized(1.0);
 
-    assert!(
-        (fan - 1.0).abs() < 0.001,
-        "Fanatec full scale: got {fan}"
-    );
+    assert!((fan - 1.0).abs() < 0.001, "Fanatec full scale: got {fan}");
     assert!(
         (logi - 1.0).abs() < 0.001,
         "Logitech full scale: got {logi}"
@@ -85,8 +82,8 @@ fn all_vendors_full_torque_encodes_to_full_scale() -> Result<(), Box<dyn std::er
 }
 
 #[test]
-fn all_vendors_negative_full_torque_encodes_to_negative_full_scale(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn all_vendors_negative_full_torque_encodes_to_negative_full_scale()
+-> Result<(), Box<dyn std::error::Error>> {
     let (fan, logi, tm) = encode_all_vendors_normalized(-1.0);
 
     assert!(
@@ -431,10 +428,7 @@ fn thrustmaster_device_identification_matrix() -> Result<(), Box<dyn std::error:
             ThrustmasterDeviceCategory::Wheelbase,
             "{label} (0x{pid:04X}) must be Wheelbase category"
         );
-        assert!(
-            ident.supports_ffb,
-            "{label} (0x{pid:04X}) must support FFB"
-        );
+        assert!(ident.supports_ffb, "{label} (0x{pid:04X}) must support FFB");
         assert!(
             !ident.name.is_empty(),
             "{label} (0x{pid:04X}) must have a non-empty name"
@@ -448,10 +442,7 @@ fn thrustmaster_device_identification_matrix() -> Result<(), Box<dyn std::error:
         ThrustmasterDeviceCategory::Wheelbase,
         "T80 must be a Wheelbase"
     );
-    assert!(
-        !t80.supports_ffb,
-        "T80 must NOT support FFB (rumble-only)"
-    );
+    assert!(!t80.supports_ffb, "T80 must NOT support FFB (rumble-only)");
 
     // Unknown PID
     let unknown = identify_device(0xFF00);

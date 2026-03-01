@@ -559,9 +559,7 @@ mod tests {
         data[0..2].copy_from_slice(&500i16.to_le_bytes());
         data[2..4].copy_from_slice(&(-300i16).to_le_bytes());
 
-        let snapshot = map
-            .parse(1, &data)
-            .ok_or("expected encoder parse")?;
+        let snapshot = map.parse(1, &data).ok_or("expected encoder parse")?;
         assert_eq!(snapshot.encoders[0], 500);
         assert_eq!(snapshot.encoders[1], -300);
         Ok(())
@@ -577,9 +575,7 @@ mod tests {
         data[0..2].copy_from_slice(&100i16.to_le_bytes());
         data[2..4].copy_from_slice(&(-50i16).to_le_bytes());
 
-        let snapshot = map
-            .parse(2, &data)
-            .ok_or("expected rotary parse")?;
+        let snapshot = map.parse(2, &data).ok_or("expected rotary parse")?;
         assert_eq!(snapshot.encoders[0], 100);
         assert_eq!(snapshot.encoders[1], -50);
         Ok(())

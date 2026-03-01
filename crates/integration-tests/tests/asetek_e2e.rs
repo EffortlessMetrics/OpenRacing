@@ -4,8 +4,8 @@
 //! output report API without real USB hardware.
 
 use hid_asetek_protocol::{
-    AsetekError, AsetekInputReport, AsetekModel, AsetekOutputReport, ASETEK_FORTE_PID,
-    ASETEK_INVICTA_PID, ASETEK_LAPRIMA_PID, ASETEK_TONY_KANAAN_PID, ASETEK_VENDOR_ID,
+    ASETEK_FORTE_PID, ASETEK_INVICTA_PID, ASETEK_LAPRIMA_PID, ASETEK_TONY_KANAAN_PID,
+    ASETEK_VENDOR_ID, AsetekError, AsetekInputReport, AsetekModel, AsetekOutputReport,
     REPORT_SIZE_OUTPUT, VENDOR_ID, asetek_model_from_info, is_asetek_device,
 };
 
@@ -291,7 +291,13 @@ fn scenario_input_report_rejects_short_buffer() {
         panic!("expected InvalidReportSize error for short buffer");
     };
     assert!(
-        matches!(err, AsetekError::InvalidReportSize { expected: 16, actual: 10 }),
+        matches!(
+            err,
+            AsetekError::InvalidReportSize {
+                expected: 16,
+                actual: 10
+            }
+        ),
         "expected InvalidReportSize, got: {err:?}"
     );
 }

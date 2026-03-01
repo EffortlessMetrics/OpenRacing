@@ -9,7 +9,10 @@ use serde::{Deserialize, Serialize};
 
 /// Capture raw HID reports from connected racing wheel devices.
 #[derive(Parser)]
-#[command(name = "hid-capture", about = "HID device report capture tool for test fixture generation")]
+#[command(
+    name = "hid-capture",
+    about = "HID device report capture tool for test fixture generation"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -61,7 +64,10 @@ fn list_devices(api: &HidApi) -> Result<()> {
         println!("No HID devices found.");
         return Ok(());
     }
-    println!("{:<8} {:<8} {:<12} {:<20} Product", "VID", "PID", "Usage Page", "Manufacturer");
+    println!(
+        "{:<8} {:<8} {:<12} {:<20} Product",
+        "VID", "PID", "Usage Page", "Manufacturer"
+    );
     println!("{}", "-".repeat(80));
     for dev in devices {
         println!(
@@ -88,7 +94,9 @@ fn capture_device(
         .with_context(|| format!("Failed to open device VID=0x{vid:04X} PID=0x{pid:04X}"))?;
 
     // Non-blocking read: returns immediately if no data available
-    device.set_blocking_mode(false).context("Failed to set non-blocking mode")?;
+    device
+        .set_blocking_mode(false)
+        .context("Failed to set non-blocking mode")?;
 
     let start = Instant::now();
     let epoch_start = SystemTime::now()
@@ -144,8 +152,10 @@ fn capture_device(
             product_id: format!("0x{pid:04X}"),
             captures,
         };
-        let json = serde_json::to_string_pretty(&capture_file).context("Failed to serialize captures")?;
-        std::fs::write(path, json).with_context(|| format!("Failed to write output file '{path}'"))?;
+        let json =
+            serde_json::to_string_pretty(&capture_file).context("Failed to serialize captures")?;
+        std::fs::write(path, json)
+            .with_context(|| format!("Failed to write output file '{path}'"))?;
         println!("Captures saved to '{path}'.");
     }
 
@@ -158,9 +168,12 @@ fn main() -> Result<()> {
 
     match &cli.command {
         Commands::List => list_devices(&api),
-        Commands::Capture { vid, pid, duration, output } => {
-            capture_device(&api, *vid, *pid, *duration, output.as_deref())
-        }
+        Commands::Capture {
+            vid,
+            pid,
+            duration,
+            output,
+        } => capture_device(&api, *vid, *pid, *duration, output.as_deref()),
     }
 }
 
@@ -207,8 +220,8 @@ mod tests {
     /// WHEN serialized to JSON and deserialized back
     /// THEN all fields are preserved in the roundtrip
     #[test]
-    fn given_capture_report_when_roundtripped_via_json_then_fields_preserved(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn given_capture_report_when_roundtripped_via_json_then_fields_preserved()
+    -> Result<(), Box<dyn std::error::Error>> {
         let report = CaptureReport {
             timestamp_us: 1_000_000,
             report_id: 0x01,
@@ -226,8 +239,8 @@ mod tests {
     /// WHEN serialized to pretty JSON and deserialized
     /// THEN the full structure including all reports is preserved
     #[test]
-    fn given_capture_file_with_reports_when_roundtripped_then_structure_preserved(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn given_capture_file_with_reports_when_roundtripped_then_structure_preserved()
+    -> Result<(), Box<dyn std::error::Error>> {
         let file = CaptureFile {
             vendor_id: "0x046D".to_string(),
             product_id: "0x0002".to_string(),
@@ -260,8 +273,8 @@ mod tests {
     /// WHEN serialized as a CaptureFile
     /// THEN the file deserializes with zero captures
     #[test]
-    fn given_empty_captures_when_serialized_then_zero_captures_in_output(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn given_empty_captures_when_serialized_then_zero_captures_in_output()
+    -> Result<(), Box<dyn std::error::Error>> {
         let file = CaptureFile {
             vendor_id: "0x0000".to_string(),
             product_id: "0x0000".to_string(),

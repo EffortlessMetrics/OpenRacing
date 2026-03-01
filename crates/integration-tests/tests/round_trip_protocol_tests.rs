@@ -70,7 +70,11 @@ fn fanatec_encode_max_torque_produces_i16_max() -> Result<(), Box<dyn std::error
     encoder.encode(8.0, 0, &mut buf);
 
     let force = extract_force_i16(&buf);
-    assert_eq!(force, i16::MAX, "100% torque must encode to i16::MAX (32767)");
+    assert_eq!(
+        force,
+        i16::MAX,
+        "100% torque must encode to i16::MAX (32767)"
+    );
 
     Ok(())
 }
@@ -100,11 +104,7 @@ fn fanatec_encode_over_range_clamps_to_max() -> Result<(), Box<dyn std::error::E
     encoder.encode(12.0, 0, &mut buf);
 
     let force = extract_force_i16(&buf);
-    assert_eq!(
-        force,
-        i16::MAX,
-        "over-range torque must clamp to i16::MAX"
-    );
+    assert_eq!(force, i16::MAX, "over-range torque must clamp to i16::MAX");
 
     Ok(())
 }
@@ -138,8 +138,8 @@ fn fanatec_encode_round_trip_preserves_torque() -> Result<(), Box<dyn std::error
 // ─── Logitech constant-force encoding round-trips ─────────────────────────────
 
 #[test]
-fn logitech_encode_half_torque_produces_correct_wire_bytes() -> Result<(), Box<dyn std::error::Error>>
-{
+fn logitech_encode_half_torque_produces_correct_wire_bytes()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: G920 encoder at 2.2 Nm max
     let encoder = LogitechConstantForceEncoder::new(2.2);
     let mut buf = [0u8; LOGITECH_REPORT_LEN];
@@ -183,8 +183,8 @@ fn logitech_encode_max_torque_produces_10000() -> Result<(), Box<dyn std::error:
 }
 
 #[test]
-fn logitech_encode_negative_torque_produces_negative_magnitude(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn logitech_encode_negative_torque_produces_negative_magnitude()
+-> Result<(), Box<dyn std::error::Error>> {
     let encoder = LogitechConstantForceEncoder::new(2.2);
     let mut buf = [0u8; LOGITECH_REPORT_LEN];
 
@@ -206,10 +206,7 @@ fn logitech_encode_over_range_clamps_to_10000() -> Result<(), Box<dyn std::error
     encoder.encode(5.0, &mut buf);
 
     let magnitude = extract_force_i16(&buf);
-    assert_eq!(
-        magnitude, 10000,
-        "over-range torque must clamp to 10000"
-    );
+    assert_eq!(magnitude, 10000, "over-range torque must clamp to 10000");
 
     Ok(())
 }
@@ -241,8 +238,8 @@ fn logitech_encode_round_trip_preserves_torque() -> Result<(), Box<dyn std::erro
 // ─── Thrustmaster constant-force encoding round-trips ─────────────────────────
 
 #[test]
-fn thrustmaster_encode_half_torque_produces_correct_wire_bytes(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn thrustmaster_encode_half_torque_produces_correct_wire_bytes()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: T300RS encoder at 3.9 Nm max
     let encoder = ThrustmasterConstantForceEncoder::new(3.9);
     let mut buf = [0u8; THRUSTMASTER_REPORT_LEN];
@@ -253,7 +250,11 @@ fn thrustmaster_encode_half_torque_produces_correct_wire_bytes(
     // Then: magnitude = truncate(0.5 × 10000) = 5000
     let magnitude = extract_force_i16(&buf);
     assert_eq!(magnitude, 5000, "50% torque must produce 5000");
-    assert_eq!(buf[0], tm_ids::CONSTANT_FORCE, "byte 0 must be CONSTANT_FORCE report ID");
+    assert_eq!(
+        buf[0],
+        tm_ids::CONSTANT_FORCE,
+        "byte 0 must be CONSTANT_FORCE report ID"
+    );
 
     // Then: trailing bytes are zero
     assert_eq!(&buf[4..], &[0u8; 4], "trailing bytes must be zero");
@@ -262,8 +263,8 @@ fn thrustmaster_encode_half_torque_produces_correct_wire_bytes(
 }
 
 #[test]
-fn thrustmaster_encode_zero_torque_produces_zero_magnitude(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn thrustmaster_encode_zero_torque_produces_zero_magnitude()
+-> Result<(), Box<dyn std::error::Error>> {
     let encoder = ThrustmasterConstantForceEncoder::new(3.9);
     let mut buf = [0u8; THRUSTMASTER_REPORT_LEN];
 
@@ -289,8 +290,8 @@ fn thrustmaster_encode_max_torque_produces_10000() -> Result<(), Box<dyn std::er
 }
 
 #[test]
-fn thrustmaster_encode_negative_torque_produces_negative_magnitude(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn thrustmaster_encode_negative_torque_produces_negative_magnitude()
+-> Result<(), Box<dyn std::error::Error>> {
     let encoder = ThrustmasterConstantForceEncoder::new(3.9);
     let mut buf = [0u8; THRUSTMASTER_REPORT_LEN];
 

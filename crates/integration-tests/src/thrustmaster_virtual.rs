@@ -5,8 +5,8 @@
 //! order and supports disconnect/reconnect simulation.
 
 use racing_wheel_engine::hid::vendor::thrustmaster::ThrustmasterProtocolHandler;
-use racing_wheel_hid_thrustmaster_protocol::THRUSTMASTER_VENDOR_ID;
 use racing_wheel_hid_moza_protocol::{DeviceWriter, VendorProtocol};
+use racing_wheel_hid_thrustmaster_protocol::THRUSTMASTER_VENDOR_ID;
 use std::collections::VecDeque;
 
 /// Maximum output report history retained by the virtual device.

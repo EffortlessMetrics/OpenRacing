@@ -529,12 +529,20 @@ mod tests {
         assert_eq!(coarse[1], 0x02, "200° coarse must be 0x02");
         assert_eq!(fine[0], 0x81);
         assert_eq!(fine[1], 0x0b);
-        assert_eq!(&fine[2..7], &[0, 0, 0, 0, 0], "200° fine must be zeroed (no-op)");
+        assert_eq!(
+            &fine[2..7],
+            &[0, 0, 0, 0, 0],
+            "200° fine must be zeroed (no-op)"
+        );
 
         // 900° → coarse 0x03 (long), fine is no-op
         let [coarse, fine] = build_set_range_dfp_reports(900);
         assert_eq!(coarse[1], 0x03, "900° coarse must be 0x03");
-        assert_eq!(&fine[2..7], &[0, 0, 0, 0, 0], "900° fine must be zeroed (no-op)");
+        assert_eq!(
+            &fine[2..7],
+            &[0, 0, 0, 0, 0],
+            "900° fine must be zeroed (no-op)"
+        );
 
         // 540° → coarse 0x03 (>200), fine has non-trivial values
         // full_range=900, start_left = (900-540+1)*2047/900 = 361*2047/900 = 820
@@ -542,7 +550,7 @@ mod tests {
         let [coarse, fine] = build_set_range_dfp_reports(540);
         assert_eq!(coarse[1], 0x03);
         let start_left = (900u32 - 540 + 1) * 2047 / 900; // 820 = 0x334
-        let start_right = 0xFFF - start_left;               // 3275 = 0xCCB
+        let start_right = 0xFFF - start_left; // 3275 = 0xCCB
         assert_eq!(fine[2], (start_left >> 4) as u8, "540° fine left>>4");
         assert_eq!(fine[3], (start_right >> 4) as u8, "540° fine right>>4");
         assert_eq!(fine[4], 0xff);
@@ -594,7 +602,9 @@ mod tests {
                 assert!(
                     approx_left < prev_left,
                     "DFP fine start_left must decrease as range {}° increases: prev={}, cur={}",
-                    deg, prev_left, approx_left
+                    deg,
+                    prev_left,
+                    approx_left
                 );
             }
             prev_left = approx_left;

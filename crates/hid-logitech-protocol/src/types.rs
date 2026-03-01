@@ -53,8 +53,9 @@ impl LogitechModel {
             product_ids::DRIVING_FORCE_PRO => Self::DrivingForcePro,
             product_ids::DRIVING_FORCE_GT => Self::DrivingForceGT,
             product_ids::SPEED_FORCE_WIRELESS => Self::SpeedForceWireless,
-            product_ids::WINGMAN_FORMULA_FORCE_GP
-            | product_ids::WINGMAN_FORMULA_FORCE => Self::WingManFormulaForce,
+            product_ids::WINGMAN_FORMULA_FORCE_GP | product_ids::WINGMAN_FORMULA_FORCE => {
+                Self::WingManFormulaForce
+            }
             product_ids::VIBRATION_WHEEL => Self::VibrationWheel,
             product_ids::G25 => Self::G25,
             product_ids::G27 => Self::G27,
@@ -103,8 +104,9 @@ impl LogitechModel {
     pub fn max_rotation_deg(self) -> u16 {
         match self {
             Self::WingManFormulaForce => 180,
-            Self::MOMO | Self::DrivingForceEX | Self::SpeedForceWireless
-            | Self::VibrationWheel => 270,
+            Self::MOMO | Self::DrivingForceEX | Self::SpeedForceWireless | Self::VibrationWheel => {
+                270
+            }
             Self::GPro => 1080,
             _ => 900,
         }
@@ -364,11 +366,7 @@ mod tests {
     #[test]
     fn test_legacy_270_degree_models() -> Result<(), Box<dyn std::error::Error>> {
         let momo = LogitechModel::from_product_id(product_ids::MOMO);
-        assert_eq!(
-            momo.max_rotation_deg(),
-            270,
-            "MOMO must have 270° rotation"
-        );
+        assert_eq!(momo.max_rotation_deg(), 270, "MOMO must have 270° rotation");
 
         let dfex = LogitechModel::from_product_id(product_ids::DRIVING_FORCE_EX);
         assert_eq!(

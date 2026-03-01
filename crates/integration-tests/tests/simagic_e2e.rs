@@ -3,10 +3,10 @@
 //! Each test follows a Given/When/Then pattern to verify observable hardware-ready
 //! behaviors without real USB hardware.
 
+use racing_wheel_engine::hid::vendor::simagic::product_ids as engine_product_ids;
 use racing_wheel_hid_simagic_protocol::{
     CONSTANT_FORCE_REPORT_LEN, SimagicConstantForceEncoder, product_ids,
 };
-use racing_wheel_engine::hid::vendor::simagic::product_ids as engine_product_ids;
 use racing_wheel_integration_tests::simagic_virtual::SimagicScenario;
 
 // ─── Scenario 1: EVO device sends gain + rotation range on init ──────────────

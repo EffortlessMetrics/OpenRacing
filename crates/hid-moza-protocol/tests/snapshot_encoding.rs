@@ -6,10 +6,9 @@
 
 use insta::assert_snapshot;
 use racing_wheel_hid_moza_protocol::{
-    DeviceWriter, FfbMode, MozaDirectTorqueEncoder, MozaModel,
-    MozaProtocol, REPORT_LEN, default_ffb_mode, default_high_torque_enabled,
-    effective_ffb_mode, effective_high_torque_opt_in, identify_device, product_ids,
-    signature_is_trusted,
+    DeviceWriter, FfbMode, MozaDirectTorqueEncoder, MozaModel, MozaProtocol, REPORT_LEN,
+    default_ffb_mode, default_high_torque_enabled, effective_ffb_mode,
+    effective_high_torque_opt_in, identify_device, product_ids, signature_is_trusted,
 };
 
 // ── Mock writer for capturing feature-report bytes ───────────────────────────
@@ -68,8 +67,7 @@ fn test_snapshot_torque_clamp_above_max_r3() {
 
 #[test]
 fn test_snapshot_torque_with_slew_rate() {
-    let enc = MozaDirectTorqueEncoder::new(MozaModel::R12.max_torque_nm())
-        .with_slew_rate(500);
+    let enc = MozaDirectTorqueEncoder::new(MozaModel::R12.max_torque_nm()).with_slew_rate(500);
     let mut out = [0u8; REPORT_LEN];
     enc.encode(6.0, 0, &mut out);
     assert_snapshot!(format!("{out:02X?}"));
@@ -77,8 +75,7 @@ fn test_snapshot_torque_with_slew_rate() {
 
 #[test]
 fn test_snapshot_torque_with_slew_rate_zero() {
-    let enc = MozaDirectTorqueEncoder::new(MozaModel::R12.max_torque_nm())
-        .with_slew_rate(0);
+    let enc = MozaDirectTorqueEncoder::new(MozaModel::R12.max_torque_nm()).with_slew_rate(0);
     let mut out = [0u8; REPORT_LEN];
     enc.encode(0.0, 0, &mut out);
     assert_snapshot!(format!("{out:02X?}"));

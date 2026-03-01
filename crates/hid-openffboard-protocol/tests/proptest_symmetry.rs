@@ -4,9 +4,7 @@
 //! determinism, monotonicity in the negative range, and Default encoder parity.
 
 use proptest::prelude::*;
-use racing_wheel_hid_openffboard_protocol::{
-    OpenFFBoardTorqueEncoder, CONSTANT_FORCE_REPORT_ID,
-};
+use racing_wheel_hid_openffboard_protocol::{OpenFFBoardTorqueEncoder, CONSTANT_FORCE_REPORT_ID};
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(500))]

@@ -80,7 +80,10 @@ fn scenario_display_given_csx3_when_display_name_then_returns_expected_string() 
 #[test]
 fn scenario_display_given_unknown_when_display_name_then_returns_non_empty_fallback() {
     let name = CubeControlsModel::Unknown.display_name();
-    assert!(!name.is_empty(), "Unknown model must still have a display name");
+    assert!(
+        !name.is_empty(),
+        "Unknown model must still have a display name"
+    );
     assert_eq!(name, "Cube Controls (unknown model)");
 }
 

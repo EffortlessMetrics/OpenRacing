@@ -44,15 +44,15 @@ mod device_dispatch_completeness {
             vendor_ids::FANATEC,
             vendor_ids::THRUSTMASTER,
             vendor_ids::MOZA,
-            vendor_ids::SIMAGIC,      // 0x0483 — Simagic / VRS / Cube Controls
-            vendor_ids::SIMAGIC_ALT,  // 0x16D0 — Simucube / Simagic
+            vendor_ids::SIMAGIC,     // 0x0483 — Simagic / VRS / Cube Controls
+            vendor_ids::SIMAGIC_ALT, // 0x16D0 — Simucube / Simagic
             vendor_ids::SIMAGIC_EVO,
-            vendor_ids::HEUSINKVELD,  // 0x04D8 — Heusinkveld pedals (Microchip VID)
+            vendor_ids::HEUSINKVELD, // 0x04D8 — Heusinkveld pedals (Microchip VID)
             vendor_ids::ASETEK,
             vendor_ids::CAMMUS,
             vendor_ids::GRANITE_DEVICES,
-            vendor_ids::OPENFFBOARD,  // 0x1209, but only certain PIDs
-            vendor_ids::FFBEAST,      // 0x045B, but only certain PIDs
+            vendor_ids::OPENFFBOARD, // 0x1209, but only certain PIDs
+            vendor_ids::FFBEAST,     // 0x045B, but only certain PIDs
             vendor_ids::SIMEXPERIENCE,
             vendor_ids::LEO_BODNAR,
         ];
@@ -119,8 +119,8 @@ mod protocol_handler_routing {
     /// Fanatec handler returns sensible FfbConfig (non-zero max torque and encoder CPR).
     #[test]
     fn fanatec_handler_ffb_config() -> Result<(), Box<dyn std::error::Error>> {
-        let handler = get_vendor_protocol(0x0EB7, 0x0020)
-            .ok_or("Fanatec CSL DD should have a handler")?;
+        let handler =
+            get_vendor_protocol(0x0EB7, 0x0020).ok_or("Fanatec CSL DD should have a handler")?;
         let cfg = handler.get_ffb_config();
         assert!(cfg.max_torque_nm > 0.0, "Fanatec max torque must be > 0");
         assert!(cfg.encoder_cpr > 0, "Fanatec encoder CPR must be > 0");
@@ -130,8 +130,8 @@ mod protocol_handler_routing {
     /// Logitech handler returns sensible FfbConfig.
     #[test]
     fn logitech_handler_ffb_config() -> Result<(), Box<dyn std::error::Error>> {
-        let handler = get_vendor_protocol(0x046D, 0xC262)
-            .ok_or("Logitech G920 should have a handler")?;
+        let handler =
+            get_vendor_protocol(0x046D, 0xC262).ok_or("Logitech G920 should have a handler")?;
         let cfg = handler.get_ffb_config();
         assert!(cfg.max_torque_nm > 0.0, "Logitech max torque must be > 0");
         Ok(())
@@ -150,8 +150,8 @@ mod protocol_handler_routing {
     /// Thrustmaster handler returns sensible FfbConfig.
     #[test]
     fn thrustmaster_handler_ffb_config() -> Result<(), Box<dyn std::error::Error>> {
-        let handler = get_vendor_protocol(0x044F, 0xB69B)
-            .ok_or("Thrustmaster T818 should have a handler")?;
+        let handler =
+            get_vendor_protocol(0x044F, 0xB69B).ok_or("Thrustmaster T818 should have a handler")?;
         let cfg = handler.get_ffb_config();
         assert!(cfg.max_torque_nm > 0.0);
         Ok(())
@@ -207,8 +207,8 @@ mod protocol_handler_routing {
             (0x044F, 0xB69B),
         ];
         for &(vid, pid) in test_pids {
-            let handler =
-                get_vendor_protocol(vid, pid).ok_or(format!("No handler for 0x{vid:04X}:0x{pid:04X}"))?;
+            let handler = get_vendor_protocol(vid, pid)
+                .ok_or(format!("No handler for 0x{vid:04X}:0x{pid:04X}"))?;
             // Just verify it doesn't panic; the value depends on the product.
             let _v2 = handler.is_v2_hardware();
         }
@@ -276,22 +276,34 @@ mod input_normalization {
 
         // Test several torque values spanning the range
         let test_cases: &[(f32, bool)] = &[
-            (0.0, false),   // center
-            (3.5, true),    // positive
-            (-3.5, true),   // negative
-            (0.1, true),    // small positive (0.1 * 256 = 25 in Q8.8)
+            (0.0, false), // center
+            (3.5, true),  // positive
+            (-3.5, true), // negative
+            (0.1, true),  // small positive (0.1 * 256 = 25 in Q8.8)
         ];
 
         for &(torque_nm, should_be_nonzero) in test_cases {
             let mut out = [0u8; MAX_TORQUE_REPORT_SIZE];
-            let len =
-                encode_torque_report_for_device(generic_vid, generic_pid, 10.0, torque_nm, 1, &mut out);
-            assert!(len > 0, "Report length must be positive for torque={torque_nm}");
+            let len = encode_torque_report_for_device(
+                generic_vid,
+                generic_pid,
+                10.0,
+                torque_nm,
+                1,
+                &mut out,
+            );
+            assert!(
+                len > 0,
+                "Report length must be positive for torque={torque_nm}"
+            );
             assert_eq!(out[0], TorqueCommand::REPORT_ID);
 
             let encoded = i16::from_le_bytes([out[1], out[2]]);
             if should_be_nonzero {
-                assert_ne!(encoded, 0, "Expected non-zero encoding for torque={torque_nm}");
+                assert_ne!(
+                    encoded, 0,
+                    "Expected non-zero encoding for torque={torque_nm}"
+                );
                 if torque_nm > 0.0 {
                     assert!(encoded > 0, "Positive torque must encode as positive i16");
                 } else {
@@ -346,18 +358,13 @@ mod input_normalization {
 mod safety_interlocks {
     use super::*;
     use racing_wheel_engine::safety::{
-        ButtonCombo, FaultType, InterlockAck, SafetyService, SafetyState, SoftwareWatchdog,
-        SafetyInterlockSystem, SafetyInterlockState,
+        ButtonCombo, FaultType, InterlockAck, SafetyInterlockState, SafetyInterlockSystem,
+        SafetyService, SafetyState, SoftwareWatchdog,
     };
     use std::time::{Duration, Instant};
 
     fn create_test_service() -> SafetyService {
-        SafetyService::with_timeouts(
-            5.0,
-            25.0,
-            Duration::from_secs(3),
-            Duration::from_secs(2),
-        )
+        SafetyService::with_timeouts(5.0, 25.0, Duration::from_secs(3), Duration::from_secs(2))
     }
 
     /// Fresh SafetyService starts in SafeTorque state.

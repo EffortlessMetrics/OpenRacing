@@ -4,9 +4,8 @@
 //! model identification, and protocol constants without real USB hardware.
 
 use racing_wheel_hid_accuforce_protocol::{
-    AccuForceModel, DeviceInfo, HID_PID_USAGE_PAGE, MAX_REPORT_BYTES,
-    PID_ACCUFORCE_PRO, RECOMMENDED_B_INTERVAL_MS, VENDOR_ID, is_accuforce,
-    is_accuforce_pid,
+    AccuForceModel, DeviceInfo, HID_PID_USAGE_PAGE, MAX_REPORT_BYTES, PID_ACCUFORCE_PRO,
+    RECOMMENDED_B_INTERVAL_MS, VENDOR_ID, is_accuforce, is_accuforce_pid,
 };
 
 // ─── Scenario 1: AccuForce Pro recognised by VID/PID pair ─────────────────────
@@ -21,7 +20,10 @@ fn scenario_device_classification_given_accuforce_vid_pid_when_checked_then_reco
     let result = is_accuforce(vid, pid);
 
     // Then: the device is recognised as an AccuForce
-    assert!(result, "VID 0x{vid:04X} + PID 0x{pid:04X} must be recognised");
+    assert!(
+        result,
+        "VID 0x{vid:04X} + PID 0x{pid:04X} must be recognised"
+    );
 }
 
 // ─── Scenario 2: known PID recognised without VID check ──────────────────────
@@ -35,7 +37,10 @@ fn scenario_pid_check_given_accuforce_pro_pid_when_checked_then_recognised() {
     let result = is_accuforce_pid(pid);
 
     // Then: recognised
-    assert!(result, "PID 0x{pid:04X} must be recognised by is_accuforce_pid");
+    assert!(
+        result,
+        "PID 0x{pid:04X} must be recognised by is_accuforce_pid"
+    );
 }
 
 // ─── Scenario 3: wrong vendor ID rejects device ──────────────────────────────
@@ -175,7 +180,10 @@ fn scenario_max_torque_given_unknown_model_when_queried_then_positive() {
     let torque = model.max_torque_nm();
 
     // Then: positive (safe default)
-    assert!(torque > 0.0, "Unknown max torque must be positive, got: {torque}");
+    assert!(
+        torque > 0.0,
+        "Unknown max torque must be positive, got: {torque}"
+    );
 }
 
 // ─── Scenario 11: vendor ID constant matches NXP ────────────────────────────
@@ -202,8 +210,8 @@ fn scenario_constants_given_pro_pid_when_checked_then_matches_known_value() {
 // ─── Scenario 13: DeviceInfo from VID/PID resolves model correctly ──────────
 
 #[test]
-fn scenario_device_info_given_pro_vid_pid_when_constructed_then_fields_correct(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_device_info_given_pro_vid_pid_when_constructed_then_fields_correct()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: AccuForce Pro VID/PID
     let vid = VENDOR_ID;
     let pid = PID_ACCUFORCE_PRO;
@@ -222,8 +230,8 @@ fn scenario_device_info_given_pro_vid_pid_when_constructed_then_fields_correct(
 // ─── Scenario 14: DeviceInfo with unknown PID ───────────────────────────────
 
 #[test]
-fn scenario_device_info_given_unknown_pid_when_constructed_then_model_unknown(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_device_info_given_unknown_pid_when_constructed_then_model_unknown()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: AccuForce VID but unknown PID
     let vid = VENDOR_ID;
     let pid = 0xFFFF;
@@ -319,8 +327,8 @@ fn scenario_all_models_given_every_variant_when_queried_then_have_valid_properti
 // ─── Scenario 20: DeviceInfo equality semantics ─────────────────────────────
 
 #[test]
-fn scenario_device_info_given_same_vid_pid_when_compared_then_equal(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_device_info_given_same_vid_pid_when_compared_then_equal()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: two DeviceInfo instances from same VID/PID
     let a = DeviceInfo::from_vid_pid(VENDOR_ID, PID_ACCUFORCE_PRO);
     let b = DeviceInfo::from_vid_pid(VENDOR_ID, PID_ACCUFORCE_PRO);

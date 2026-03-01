@@ -4,11 +4,10 @@
 //! normalization, model identification, and error handling without real USB hardware.
 
 use hid_heusinkveld_protocol::{
-    HeusinkveldError, HeusinkveldInputReport, HeusinkveldModel, PedalCapabilities, PedalModel,
-    PedalStatus, HEUSINKVELD_PRO_PID, HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID,
-    HEUSINKVELD_VENDOR_ID, MAX_LOAD_CELL_VALUE, PRODUCT_ID_PRO, PRODUCT_ID_SPRINT,
-    PRODUCT_ID_ULTIMATE, REPORT_SIZE_INPUT, VENDOR_ID, heusinkveld_model_from_info,
-    is_heusinkveld_device,
+    HEUSINKVELD_PRO_PID, HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID, HEUSINKVELD_VENDOR_ID,
+    HeusinkveldError, HeusinkveldInputReport, HeusinkveldModel, MAX_LOAD_CELL_VALUE,
+    PRODUCT_ID_PRO, PRODUCT_ID_SPRINT, PRODUCT_ID_ULTIMATE, PedalCapabilities, PedalModel,
+    PedalStatus, REPORT_SIZE_INPUT, VENDOR_ID, heusinkveld_model_from_info, is_heusinkveld_device,
 };
 
 /// Helper: build an 8-byte raw report from pedal axes and status.
@@ -24,8 +23,8 @@ fn build_raw_report(throttle: u16, brake: u16, clutch: u16, status: u8) -> [u8; 
 // ─── Scenario 1: input report parses throttle/brake/clutch values ─────────────
 
 #[test]
-fn scenario_input_report_given_known_axes_when_parsed_then_values_match(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_input_report_given_known_axes_when_parsed_then_values_match()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a raw report with known pedal axis values
     let raw = build_raw_report(0x1000, 0x2000, 0x3000, 0x03);
 
@@ -43,8 +42,8 @@ fn scenario_input_report_given_known_axes_when_parsed_then_values_match(
 // ─── Scenario 2: normalization maps raw to 0.0–1.0 range ─────────────────────
 
 #[test]
-fn scenario_normalization_given_half_range_when_normalized_then_approximately_half(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_normalization_given_half_range_when_normalized_then_approximately_half()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: axes at half of MAX_LOAD_CELL_VALUE (0xFFFF)
     let half = MAX_LOAD_CELL_VALUE / 2;
     let raw = build_raw_report(half, half, half, 0x03);
@@ -61,10 +60,15 @@ fn scenario_normalization_given_half_range_when_normalized_then_approximately_ha
 }
 
 #[test]
-fn scenario_normalization_given_full_range_when_normalized_then_one(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_normalization_given_full_range_when_normalized_then_one()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: axes at maximum
-    let raw = build_raw_report(MAX_LOAD_CELL_VALUE, MAX_LOAD_CELL_VALUE, MAX_LOAD_CELL_VALUE, 0x03);
+    let raw = build_raw_report(
+        MAX_LOAD_CELL_VALUE,
+        MAX_LOAD_CELL_VALUE,
+        MAX_LOAD_CELL_VALUE,
+        0x03,
+    );
 
     // When: parsed and normalized
     let report = HeusinkveldInputReport::parse(&raw)?;
@@ -78,8 +82,8 @@ fn scenario_normalization_given_full_range_when_normalized_then_one(
 }
 
 #[test]
-fn scenario_normalization_given_zero_when_normalized_then_zero(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_normalization_given_zero_when_normalized_then_zero()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: axes at zero
     let raw = build_raw_report(0, 0, 0, 0x03);
 
@@ -139,8 +143,8 @@ fn scenario_model_given_unknown_pid_when_classified_then_unknown() {
 // ─── Scenario 4: status flags — connected, calibrated, fault ──────────────────
 
 #[test]
-fn scenario_status_given_connected_calibrated_when_parsed_then_flags_correct(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_status_given_connected_calibrated_when_parsed_then_flags_correct()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: status byte 0x03 (connected + calibrated, no fault)
     let raw = build_raw_report(0, 0, 0, 0x03);
 
@@ -156,8 +160,8 @@ fn scenario_status_given_connected_calibrated_when_parsed_then_flags_correct(
 }
 
 #[test]
-fn scenario_status_given_connected_only_when_parsed_then_not_calibrated(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_status_given_connected_only_when_parsed_then_not_calibrated()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: status byte 0x01 (connected, not calibrated)
     let raw = build_raw_report(0, 0, 0, 0x01);
     let report = HeusinkveldInputReport::parse(&raw)?;
@@ -171,8 +175,8 @@ fn scenario_status_given_connected_only_when_parsed_then_not_calibrated(
 }
 
 #[test]
-fn scenario_status_given_fault_flag_when_parsed_then_has_fault(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_status_given_fault_flag_when_parsed_then_has_fault()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: status byte 0x04 (fault set, not connected or calibrated)
     let raw = build_raw_report(0, 0, 0, 0x04);
     let report = HeusinkveldInputReport::parse(&raw)?;
@@ -186,8 +190,8 @@ fn scenario_status_given_fault_flag_when_parsed_then_has_fault(
 }
 
 #[test]
-fn scenario_status_given_all_flags_set_when_parsed_then_all_true(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_status_given_all_flags_set_when_parsed_then_all_true()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: status byte 0x07 (all flags set)
     let raw = build_raw_report(0, 0, 0, 0x07);
     let report = HeusinkveldInputReport::parse(&raw)?;
@@ -201,8 +205,8 @@ fn scenario_status_given_all_flags_set_when_parsed_then_all_true(
 }
 
 #[test]
-fn scenario_status_given_zero_when_parsed_then_disconnected(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_status_given_zero_when_parsed_then_disconnected()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: status byte 0x00 (no flags)
     let raw = build_raw_report(0, 0, 0, 0x00);
     let report = HeusinkveldInputReport::parse(&raw)?;
@@ -229,8 +233,8 @@ fn scenario_pedal_status_given_flags_when_converted_then_correct_state() {
 // ─── Scenario 6: load cell value boundaries and edge cases ────────────────────
 
 #[test]
-fn scenario_load_cell_given_max_value_when_parsed_then_saturates_at_one(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_load_cell_given_max_value_when_parsed_then_saturates_at_one()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: load cell at maximum u16 value
     let raw = build_raw_report(0xFFFF, 0xFFFF, 0xFFFF, 0x03);
     let report = HeusinkveldInputReport::parse(&raw)?;
@@ -244,8 +248,8 @@ fn scenario_load_cell_given_max_value_when_parsed_then_saturates_at_one(
 }
 
 #[test]
-fn scenario_load_cell_given_one_when_parsed_then_near_zero(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_load_cell_given_one_when_parsed_then_near_zero()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: load cell at minimum nonzero (1)
     let raw = build_raw_report(1, 1, 1, 0x03);
     let report = HeusinkveldInputReport::parse(&raw)?;
@@ -259,8 +263,8 @@ fn scenario_load_cell_given_one_when_parsed_then_near_zero(
 }
 
 #[test]
-fn scenario_load_cell_given_independent_axes_when_parsed_then_no_crosstalk(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_load_cell_given_independent_axes_when_parsed_then_no_crosstalk()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: only throttle has a value; brake and clutch are zero
     let raw = build_raw_report(0x8000, 0, 0, 0x03);
     let report = HeusinkveldInputReport::parse(&raw)?;
@@ -451,7 +455,13 @@ fn scenario_error_given_short_buffer_when_parsed_then_invalid_report_size() {
         panic!("expected InvalidReportSize error for short buffer");
     };
     assert!(
-        matches!(err, HeusinkveldError::InvalidReportSize { expected: 8, actual: 4 }),
+        matches!(
+            err,
+            HeusinkveldError::InvalidReportSize {
+                expected: 8,
+                actual: 4
+            }
+        ),
         "expected InvalidReportSize {{ expected: 8, actual: 4 }}, got: {err:?}"
     );
 }
@@ -469,7 +479,13 @@ fn scenario_error_given_empty_buffer_when_parsed_then_invalid_report_size() {
         panic!("expected InvalidReportSize error for empty buffer");
     };
     assert!(
-        matches!(err, HeusinkveldError::InvalidReportSize { expected: 8, actual: 0 }),
+        matches!(
+            err,
+            HeusinkveldError::InvalidReportSize {
+                expected: 8,
+                actual: 0
+            }
+        ),
         "expected InvalidReportSize {{ expected: 8, actual: 0 }}, got: {err:?}"
     );
 }
@@ -487,7 +503,13 @@ fn scenario_error_given_seven_bytes_when_parsed_then_invalid_report_size() {
         panic!("expected InvalidReportSize error for 7-byte buffer");
     };
     assert!(
-        matches!(err, HeusinkveldError::InvalidReportSize { expected: 8, actual: 7 }),
+        matches!(
+            err,
+            HeusinkveldError::InvalidReportSize {
+                expected: 8,
+                actual: 7
+            }
+        ),
         "expected InvalidReportSize {{ expected: 8, actual: 7 }}, got: {err:?}"
     );
 }
@@ -495,8 +517,8 @@ fn scenario_error_given_seven_bytes_when_parsed_then_invalid_report_size() {
 // ─── Scenario 11: oversized buffer accepted (extra bytes ignored) ─────────────
 
 #[test]
-fn scenario_parse_given_oversized_buffer_when_parsed_then_succeeds(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_parse_given_oversized_buffer_when_parsed_then_succeeds()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: a buffer larger than 8 bytes with known values in the first 8
     let mut buf = [0u8; 64];
     buf[0..2].copy_from_slice(&0x1234u16.to_le_bytes()); // throttle
@@ -519,8 +541,8 @@ fn scenario_parse_given_oversized_buffer_when_parsed_then_succeeds(
 // ─── Scenario 12: wire format byte layout verification ────────────────────────
 
 #[test]
-fn scenario_wire_format_given_known_values_when_encoded_then_bytes_match(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn scenario_wire_format_given_known_values_when_encoded_then_bytes_match()
+-> Result<(), Box<dyn std::error::Error>> {
     // Given: specific pedal values
     let throttle: u16 = 0x0A0B;
     let brake: u16 = 0x0C0D;

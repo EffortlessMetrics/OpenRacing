@@ -108,10 +108,7 @@ fn test_snapshot_input_report_negative_angle() -> Result<(), String> {
     data[4] = angle_bytes[2];
     data[5] = angle_bytes[3];
     let report = asetek::AsetekInputReport::parse(&data).map_err(|e| e.to_string())?;
-    assert_debug_snapshot!(format!(
-        "angle={:.3}deg",
-        report.wheel_angle_degrees(),
-    ));
+    assert_debug_snapshot!(format!("angle={:.3}deg", report.wheel_angle_degrees(),));
     Ok(())
 }
 

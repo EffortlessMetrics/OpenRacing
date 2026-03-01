@@ -346,11 +346,7 @@ mod tests {
         let plugin_id = Uuid::new_v4();
 
         for i in 0..3 {
-            manager.record_violation(
-                plugin_id,
-                ViolationType::Crash,
-                format!("crash {i}"),
-            )?;
+            manager.record_violation(plugin_id, ViolationType::Crash, format!("crash {i}"))?;
         }
 
         assert!(manager.is_quarantined(plugin_id));

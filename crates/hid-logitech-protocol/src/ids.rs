@@ -198,7 +198,10 @@ pub mod product_ids {
     /// new-lg4ff `0xc294`, oversteer `LG_DF = '046d:c294'`.
     pub const DRIVING_FORCE_EX: u16 = 0xC294;
     /// Deprecated alias — use [`DRIVING_FORCE_EX`] instead.
-    #[deprecated(since = "0.1.0", note = "Use DRIVING_FORCE_EX; 0xC294 is DF/EX, not G27")]
+    #[deprecated(
+        since = "0.1.0",
+        note = "Use DRIVING_FORCE_EX; 0xC294 is DF/EX, not G27"
+    )]
     pub const G27_A: u16 = DRIVING_FORCE_EX;
     /// G27 racing wheel (900°, 2.5 Nm belt-drive).
     ///
