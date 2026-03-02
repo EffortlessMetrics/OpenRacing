@@ -8,7 +8,8 @@
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
-    NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, telemetry_now_ns,
+    NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
+    TelemetryValue, telemetry_now_ns,
 };
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
@@ -33,12 +34,25 @@ const OP_SUBSCRIBE_UPDATE: i32 = 1;
 #[cfg(test)]
 const OFF_SPEED_KMH: usize = 8; // f32 (used in tests only; parse uses speed_Ms)
 const OFF_SPEED_MS: usize = 16; // f32
+const OFF_ABS_IN_ACTION: usize = 21; // bool (u8)
+const OFF_TC_IN_ACTION: usize = 22; // bool (u8)
+const OFF_IN_PIT: usize = 24; // bool (u8)
+const OFF_ENGINE_LIMITER: usize = 25; // bool (u8)
+const OFF_ACCG_VERTICAL: usize = 28; // f32
+const OFF_ACCG_HORIZONTAL: usize = 32; // f32
+const OFF_ACCG_FRONTAL: usize = 36; // f32
+const OFF_LAP_TIME: usize = 40; // i32 (milliseconds)
+const OFF_LAST_LAP: usize = 44; // i32 (milliseconds)
+const OFF_BEST_LAP: usize = 48; // i32 (milliseconds)
+const OFF_LAP_COUNT: usize = 52; // i32
 const OFF_GAS: usize = 56; // f32
 const OFF_BRAKE: usize = 60; // f32
 const OFF_CLUTCH: usize = 64; // f32
 const OFF_RPM: usize = 68; // f32
 const OFF_STEER: usize = 72; // f32
 const OFF_GEAR: usize = 76; // i32 (0=R, 1=N, 2=1st, ...)
+const OFF_SLIP_ANGLE_FL: usize = 100; // f32[4] at 100,104,108,112
+const OFF_SLIP_RATIO_FL: usize = 132; // f32[4] at 132,136,140,144
 
 /// Assetto Corsa (original) telemetry adapter using Remote Telemetry UDP.
 pub struct AssettoCorsaAdapter {
@@ -273,6 +287,10 @@ fn read_i32_le(data: &[u8], offset: usize) -> Option<i32> {
         .map(i32::from_le_bytes)
 }
 
+fn read_u8(data: &[u8], offset: usize) -> u8 {
+    data.get(offset).copied().unwrap_or(0)
+}
+
 fn build_handshake_packet(operation_id: i32) -> [u8; 12] {
     let mut packet = [0u8; 12];
     packet[0..4].copy_from_slice(&1i32.to_le_bytes()); // identifier
@@ -298,6 +316,23 @@ mod tests {
         // speed_Ms (float) at offset 16
         let speed_ms = 120.0f32 / 3.6;
         data[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&speed_ms.to_le_bytes());
+        // flags (bool u8)
+        data[OFF_ABS_IN_ACTION] = 1;
+        data[OFF_TC_IN_ACTION] = 0;
+        data[OFF_IN_PIT] = 1;
+        data[OFF_ENGINE_LIMITER] = 0;
+        // G-forces
+        data[OFF_ACCG_VERTICAL..OFF_ACCG_VERTICAL + 4]
+            .copy_from_slice(&1.02f32.to_le_bytes());
+        data[OFF_ACCG_HORIZONTAL..OFF_ACCG_HORIZONTAL + 4]
+            .copy_from_slice(&(-0.35f32).to_le_bytes());
+        data[OFF_ACCG_FRONTAL..OFF_ACCG_FRONTAL + 4]
+            .copy_from_slice(&0.45f32.to_le_bytes());
+        // lap timing (i32 milliseconds)
+        data[OFF_LAP_TIME..OFF_LAP_TIME + 4].copy_from_slice(&62500i32.to_le_bytes());
+        data[OFF_LAST_LAP..OFF_LAST_LAP + 4].copy_from_slice(&61200i32.to_le_bytes());
+        data[OFF_BEST_LAP..OFF_BEST_LAP + 4].copy_from_slice(&60800i32.to_le_bytes());
+        data[OFF_LAP_COUNT..OFF_LAP_COUNT + 4].copy_from_slice(&3i32.to_le_bytes());
         // gas at offset 56
         data[OFF_GAS..OFF_GAS + 4].copy_from_slice(&0.8f32.to_le_bytes());
         // brake at offset 60
@@ -308,6 +343,24 @@ mod tests {
         data[OFF_STEER..OFF_STEER + 4].copy_from_slice(&0.3f32.to_le_bytes());
         // gear at offset 76 (AC: 3 = 2nd gear; 0=R, 1=N, 2=1st, 3=2nd)
         data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&3i32.to_le_bytes());
+        // slip angles (f32[4])
+        data[OFF_SLIP_ANGLE_FL..OFF_SLIP_ANGLE_FL + 4]
+            .copy_from_slice(&0.5f32.to_le_bytes());
+        data[OFF_SLIP_ANGLE_FL + 4..OFF_SLIP_ANGLE_FL + 8]
+            .copy_from_slice(&0.6f32.to_le_bytes());
+        data[OFF_SLIP_ANGLE_FL + 8..OFF_SLIP_ANGLE_FL + 12]
+            .copy_from_slice(&0.7f32.to_le_bytes());
+        data[OFF_SLIP_ANGLE_FL + 12..OFF_SLIP_ANGLE_FL + 16]
+            .copy_from_slice(&0.8f32.to_le_bytes());
+        // slip ratios (f32[4])
+        data[OFF_SLIP_RATIO_FL..OFF_SLIP_RATIO_FL + 4]
+            .copy_from_slice(&0.02f32.to_le_bytes());
+        data[OFF_SLIP_RATIO_FL + 4..OFF_SLIP_RATIO_FL + 8]
+            .copy_from_slice(&0.03f32.to_le_bytes());
+        data[OFF_SLIP_RATIO_FL + 8..OFF_SLIP_RATIO_FL + 12]
+            .copy_from_slice(&0.04f32.to_le_bytes());
+        data[OFF_SLIP_RATIO_FL + 12..OFF_SLIP_RATIO_FL + 16]
+            .copy_from_slice(&0.05f32.to_le_bytes());
         data
     }
 
@@ -321,6 +374,43 @@ mod tests {
         assert!((result.steering_angle - 0.3).abs() < 0.001);
         assert!((result.throttle - 0.8).abs() < 0.001);
         assert!((result.brake - 0.1).abs() < 0.001);
+        // G-forces
+        assert!((result.vertical_g - 1.02).abs() < 0.001);
+        assert!((result.lateral_g - (-0.35)).abs() < 0.001);
+        assert!((result.longitudinal_g - 0.45).abs() < 0.001);
+        // Flags
+        let flags = &result.flags;
+        assert!(flags.abs_active);
+        assert!(!flags.traction_control);
+        assert!(flags.in_pits);
+        assert!(!flags.engine_limiter);
+        // Lap timing
+        assert!((result.current_lap_time_s - 62.5).abs() < 0.01);
+        assert!((result.last_lap_time_s - 61.2).abs() < 0.01);
+        assert!((result.best_lap_time_s - 60.8).abs() < 0.01);
+        assert_eq!(result.lap, 3);
+        // Slip angles
+        assert!((result.slip_angle_fl - 0.5).abs() < 0.001);
+        assert!((result.slip_angle_fr - 0.6).abs() < 0.001);
+        assert!((result.slip_angle_rl - 0.7).abs() < 0.001);
+        assert!((result.slip_angle_rr - 0.8).abs() < 0.001);
+        // Slip ratios (extended map)
+        assert_eq!(
+            result.extended.get("slip_ratio_fl"),
+            Some(&TelemetryValue::Float(0.02))
+        );
+        assert_eq!(
+            result.extended.get("slip_ratio_fr"),
+            Some(&TelemetryValue::Float(0.03))
+        );
+        assert_eq!(
+            result.extended.get("slip_ratio_rl"),
+            Some(&TelemetryValue::Float(0.04))
+        );
+        assert_eq!(
+            result.extended.get("slip_ratio_rr"),
+            Some(&TelemetryValue::Float(0.05))
+        );
         Ok(())
     }
 
@@ -374,6 +464,153 @@ mod tests {
         let result = parse_ac_packet(&data)?;
         assert_eq!(result.rpm, 0.0);
         assert_eq!(result.speed_ms, 0.0);
+        Ok(())
+    }
+
+    // ─── Gear edge cases ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_gear_reverse_maps_to_minus_one() -> TestResult {
+        let mut data = make_valid_ac_packet();
+        data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&0i32.to_le_bytes());
+        let result = parse_ac_packet(&data)?;
+        assert_eq!(result.gear, -1, "AC gear 0 (reverse) must normalize to -1");
+        Ok(())
+    }
+
+    #[test]
+    fn test_gear_neutral_maps_to_zero() -> TestResult {
+        let mut data = make_valid_ac_packet();
+        data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&1i32.to_le_bytes());
+        let result = parse_ac_packet(&data)?;
+        assert_eq!(result.gear, 0, "AC gear 1 (neutral) must normalize to 0");
+        Ok(())
+    }
+
+    #[test]
+    fn test_gear_high_value_maps_correctly() -> TestResult {
+        let mut data = make_valid_ac_packet();
+        data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&7i32.to_le_bytes());
+        let result = parse_ac_packet(&data)?;
+        assert_eq!(result.gear, 6, "AC gear 7 must normalize to 6");
+        Ok(())
+    }
+
+    #[test]
+    fn test_gear_absurd_value_no_panic() -> TestResult {
+        let mut data = make_valid_ac_packet();
+        data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&255i32.to_le_bytes());
+        let result = parse_ac_packet(&data)?;
+        // 255 - 1 = 254, clamped to i8::MAX = 127
+        assert_eq!(result.gear, 127, "AC gear 255 must clamp to i8::MAX (127)");
+        Ok(())
+    }
+
+    // ─── Clutch assertion ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_clutch_value_parsed() -> TestResult {
+        let mut data = make_valid_ac_packet();
+        data[OFF_CLUTCH..OFF_CLUTCH + 4].copy_from_slice(&0.5f32.to_le_bytes());
+        let result = parse_ac_packet(&data)?;
+        assert!(
+            (result.clutch - 0.5).abs() < 0.001,
+            "clutch must be ~0.5, got {}",
+            result.clutch
+        );
+        Ok(())
+    }
+
+    // ─── Handshake packet byte layout ────────────────────────────────────────
+
+    #[test]
+    fn test_handshake_packet_byte_layout() -> TestResult {
+        let pkt = build_handshake_packet(OP_HANDSHAKE);
+        assert_eq!(pkt.len(), 12);
+        // identifier field = 1 (little-endian)
+        assert_eq!(i32::from_le_bytes([pkt[0], pkt[1], pkt[2], pkt[3]]), 1);
+        // version field = 1 (little-endian)
+        assert_eq!(i32::from_le_bytes([pkt[4], pkt[5], pkt[6], pkt[7]]), 1);
+        // operation_id = OP_HANDSHAKE (0)
+        assert_eq!(i32::from_le_bytes([pkt[8], pkt[9], pkt[10], pkt[11]]), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_subscribe_packet_byte_layout() -> TestResult {
+        let pkt = build_handshake_packet(OP_SUBSCRIBE_UPDATE);
+        // operation_id = OP_SUBSCRIBE_UPDATE (1)
+        assert_eq!(i32::from_le_bytes([pkt[8], pkt[9], pkt[10], pkt[11]]), 1);
+        Ok(())
+    }
+
+    // ─── Oversized packet ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_oversized_packet_parses_correctly() -> TestResult {
+        let mut data = make_valid_ac_packet();
+        // Append extra bytes beyond the 328-byte RTCarInfo struct
+        data.resize(512, 0xAB);
+        let result = parse_ac_packet(&data)?;
+        // Original fields must still parse correctly
+        assert!((result.rpm - 6000.0).abs() < 0.01);
+        assert_eq!(result.gear, 2, "gear must still parse from oversized packet");
+        Ok(())
+    }
+
+    // ─── NaN / Infinity values ───────────────────────────────────────────────
+
+    #[test]
+    fn test_nan_in_float_fields_defaults_to_zero() -> TestResult {
+        let mut data = vec![0u8; AC_RTCARINFO_SIZE];
+        let nan_bytes = f32::NAN.to_le_bytes();
+        data[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&nan_bytes);
+        data[OFF_RPM..OFF_RPM + 4].copy_from_slice(&nan_bytes);
+        data[OFF_GAS..OFF_GAS + 4].copy_from_slice(&nan_bytes);
+        data[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&nan_bytes);
+        data[OFF_CLUTCH..OFF_CLUTCH + 4].copy_from_slice(&nan_bytes);
+        data[OFF_STEER..OFF_STEER + 4].copy_from_slice(&nan_bytes);
+
+        let result = parse_ac_packet(&data)?;
+        assert_eq!(result.speed_ms, 0.0, "NaN speed must default to 0.0");
+        assert_eq!(result.rpm, 0.0, "NaN RPM must default to 0.0");
+        assert_eq!(result.throttle, 0.0, "NaN throttle must default to 0.0");
+        assert_eq!(result.brake, 0.0, "NaN brake must default to 0.0");
+        assert_eq!(result.clutch, 0.0, "NaN clutch must default to 0.0");
+        assert_eq!(result.steering_angle, 0.0, "NaN steer must default to 0.0");
+        Ok(())
+    }
+
+    #[test]
+    fn test_infinity_in_float_fields_defaults_to_zero() -> TestResult {
+        let mut data = vec![0u8; AC_RTCARINFO_SIZE];
+        let inf_bytes = f32::INFINITY.to_le_bytes();
+        let neg_inf_bytes = f32::NEG_INFINITY.to_le_bytes();
+        data[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&inf_bytes);
+        data[OFF_RPM..OFF_RPM + 4].copy_from_slice(&neg_inf_bytes);
+        data[OFF_STEER..OFF_STEER + 4].copy_from_slice(&inf_bytes);
+
+        let result = parse_ac_packet(&data)?;
+        assert_eq!(result.speed_ms, 0.0, "Infinity speed must default to 0.0");
+        assert_eq!(result.rpm, 0.0, "-Infinity RPM must default to 0.0");
+        assert_eq!(result.steering_angle, 0.0, "Infinity steer must default to 0.0");
+        Ok(())
+    }
+
+    // ─── All-zeros packet ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_all_zeros_packet_no_panic() -> TestResult {
+        let data = vec![0u8; AC_RTCARINFO_SIZE];
+        let result = parse_ac_packet(&data)?;
+        assert_eq!(result.speed_ms, 0.0);
+        assert_eq!(result.rpm, 0.0);
+        assert_eq!(result.throttle, 0.0);
+        assert_eq!(result.brake, 0.0);
+        assert_eq!(result.clutch, 0.0);
+        assert_eq!(result.steering_angle, 0.0);
+        // gear: raw i32 0 → reverse (-1)
+        assert_eq!(result.gear, -1, "all-zeros gear (raw 0) must map to reverse (-1)");
         Ok(())
     }
 }
