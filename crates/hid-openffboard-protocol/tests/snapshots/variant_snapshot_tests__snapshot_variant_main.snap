@@ -1,0 +1,6 @@
+---
+source: crates/hid-openffboard-protocol/tests/variant_snapshot_tests.rs
+assertion_line: 17
+expression: "format!(\"name={}, VID={:#06X}, PID={:#06X}\", v.name(), v.vendor_id(),\nv.product_id())"
+---
+name=OpenFFBoard, VID=0x1209, PID=0xFFB0

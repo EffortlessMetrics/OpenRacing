@@ -45,6 +45,47 @@ pub const OPENFFBOARD_PRODUCT_ID: u16 = 0xFFB0;
 /// 0xFFB1 usage surfaces. Check OpenFFBoard community forums/Discord.
 pub const OPENFFBOARD_PRODUCT_ID_ALT: u16 = 0xFFB1;
 
+/// Known OpenFFBoard device variants.
+///
+/// Each variant maps to a specific USB product ID under the shared
+/// pid.codes vendor ID (`0x1209`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum OpenFFBoardVariant {
+    /// Main firmware (PID `0xFFB0`).
+    Main,
+    /// Alternate firmware (PID `0xFFB1`, speculative).
+    Alternate,
+}
+
+impl OpenFFBoardVariant {
+    /// All known variants.
+    pub const ALL: [OpenFFBoardVariant; 2] = [
+        OpenFFBoardVariant::Main,
+        OpenFFBoardVariant::Alternate,
+    ];
+
+    /// Human-readable name for this variant.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Main => "OpenFFBoard",
+            Self::Alternate => "OpenFFBoard (Alternate)",
+        }
+    }
+
+    /// USB product ID for this variant.
+    pub fn product_id(self) -> u16 {
+        match self {
+            Self::Main => OPENFFBOARD_PRODUCT_ID,
+            Self::Alternate => OPENFFBOARD_PRODUCT_ID_ALT,
+        }
+    }
+
+    /// USB vendor ID (shared across all variants).
+    pub fn vendor_id(self) -> u16 {
+        OPENFFBOARD_VENDOR_ID
+    }
+}
+
 /// Returns `true` if `product_id` is a known OpenFFBoard product.
 ///
 /// # Examples
