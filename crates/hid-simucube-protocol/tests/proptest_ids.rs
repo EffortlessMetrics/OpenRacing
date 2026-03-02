@@ -44,6 +44,13 @@ proptest! {
             "SIMUCUBE_VENDOR_ID must not be zero");
     }
 
+    /// SIMUCUBE_VENDOR_ID must be exactly 0x16D0 (Granite Devices / SimuCube).
+    #[test]
+    fn prop_vendor_id_is_0x16d0(_unused: u8) {
+        prop_assert_eq!(SIMUCUBE_VENDOR_ID, 0x16D0,
+            "SIMUCUBE_VENDOR_ID must be 0x16D0");
+    }
+
     /// Every known product PID must be non-zero.
     #[test]
     fn prop_known_pids_nonzero(idx in 0usize..6usize) {

@@ -68,6 +68,16 @@ fn test_snapshot_output_with_damper_effect() -> Result<(), String> {
 }
 
 #[test]
+fn test_snapshot_model_simucube1() {
+    let model = simucube::SimucubeModel::Simucube1;
+    assert_debug_snapshot!(format!(
+        "name={}, max_torque={:.1}",
+        model.display_name(),
+        model.max_torque_nm()
+    ));
+}
+
+#[test]
 fn test_snapshot_model_sport() {
     let model = simucube::SimucubeModel::Sport;
     assert_debug_snapshot!(format!(
@@ -100,6 +110,16 @@ fn test_snapshot_model_ultimate() {
 #[test]
 fn test_snapshot_model_active_pedal() {
     let model = simucube::SimucubeModel::ActivePedal;
+    assert_debug_snapshot!(format!(
+        "name={}, max_torque={:.1}",
+        model.display_name(),
+        model.max_torque_nm()
+    ));
+}
+
+#[test]
+fn test_snapshot_model_wireless_wheel() {
+    let model = simucube::SimucubeModel::WirelessWheel;
     assert_debug_snapshot!(format!(
         "name={}, max_torque={:.1}",
         model.display_name(),

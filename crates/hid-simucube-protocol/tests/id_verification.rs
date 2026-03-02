@@ -7,6 +7,7 @@
 use hid_simucube_protocol::{
     SIMUCUBE_1_BOOTLOADER_PID, SIMUCUBE_1_PID, SIMUCUBE_2_BOOTLOADER_PID, SIMUCUBE_2_PRO_PID,
     SIMUCUBE_2_SPORT_PID, SIMUCUBE_2_ULTIMATE_PID, SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID,
+    SIMUCUBE_WIRELESS_WHEEL_PID,
 };
 
 /// Simucube VID must be 0x16D0 (MCS Electronics / OpenMoko).
@@ -75,4 +76,54 @@ fn sc2_bootloader_pid_is_0d5e() {
 #[test]
 fn sc1_bootloader_pid_is_0d5b() {
     assert_eq!(SIMUCUBE_1_BOOTLOADER_PID, 0x0D5B);
+}
+
+/// SimuCube Wireless Wheel PID must be 0x0D63.
+///
+/// Note: This PID is estimated — it is **not** present in the official Simucube
+/// developer PID table (accessed 2025-07). Do not rely on this value without
+/// independent confirmation.
+#[test]
+fn wireless_wheel_pid_is_0d63() {
+    assert_eq!(SIMUCUBE_WIRELESS_WHEEL_PID, 0x0D63);
+}
+
+/// All normal-operation PIDs must be distinct from each other.
+#[test]
+fn all_pids_are_unique() {
+    let pids = [
+        SIMUCUBE_1_PID,
+        SIMUCUBE_2_SPORT_PID,
+        SIMUCUBE_2_PRO_PID,
+        SIMUCUBE_2_ULTIMATE_PID,
+        SIMUCUBE_ACTIVE_PEDAL_PID,
+        SIMUCUBE_WIRELESS_WHEEL_PID,
+    ];
+    for (i, a) in pids.iter().enumerate() {
+        for (j, b) in pids.iter().enumerate() {
+            if i != j {
+                assert_ne!(a, b, "PID at index {i} ({a:#06X}) collides with index {j}");
+            }
+        }
+    }
+}
+
+/// Bootloader PIDs must be distinct from all normal-operation PIDs.
+#[test]
+fn bootloader_pids_distinct_from_normal() {
+    let normal = [
+        SIMUCUBE_1_PID,
+        SIMUCUBE_2_SPORT_PID,
+        SIMUCUBE_2_PRO_PID,
+        SIMUCUBE_2_ULTIMATE_PID,
+        SIMUCUBE_ACTIVE_PEDAL_PID,
+        SIMUCUBE_WIRELESS_WHEEL_PID,
+    ];
+    let boot = [SIMUCUBE_1_BOOTLOADER_PID, SIMUCUBE_2_BOOTLOADER_PID];
+    for b in &boot {
+        assert!(
+            !normal.contains(b),
+            "bootloader PID {b:#06X} must not overlap with normal PIDs"
+        );
+    }
 }
