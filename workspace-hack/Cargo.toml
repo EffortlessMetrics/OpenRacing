@@ -50,7 +50,7 @@ hyper = { version = "1", features = ["full"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "server-auto", "service"] }
 idna = { version = "1" }
 indexmap = { version = "2", features = ["serde"] }
-insta = { version = "1", features = ["json", "yaml"] }
+insta = { version = "1", features = ["filters", "json", "yaml"] }
 log = { version = "0.4", default-features = false, features = ["std"] }
 memchr = { version = "2" }
 miniz_oxide = { version = "0.8", features = ["simd"] }
