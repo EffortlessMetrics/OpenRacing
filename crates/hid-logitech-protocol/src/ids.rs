@@ -304,9 +304,13 @@ pub mod product_ids {
     ///
     /// The Xbox variant is **incompatible with new-lg4ff** (which uses the
     /// classic lg4ff slot protocol). The new-lg4ff README explicitly notes
-    /// PIDs 0xC26D and 0xC26E as incompatible. (Note: 0xC26D does not appear
-    /// in any kernel or driver PID table; it may be a pre-production PID or
-    /// documentation error.)
+    /// PIDs 0xC26D and 0xC26E as incompatible.
+    ///
+    /// **PID 0xC26D note:** Not in mainline kernel `hid-ids.h`, but
+    /// JacKeTUs/linux-steering-wheels lists `046d:c26d` as "G923 (Xbox
+    /// edition)" with Silver rating and driver `hid-logitech-hidpp`. May be
+    /// an alternate firmware revision or HID++ enumeration variant. We
+    /// support it via [`G923_XBOX_ALT`] for completeness.
     ///
     /// TrueForce hardware is present but, as with the PS variant, no public
     /// protocol documentation exists and no open-source driver implements
@@ -319,6 +323,14 @@ pub mod product_ids {
     /// `HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL)`
     /// with `.driver_data = HIDPP_QUIRK_CLASS_G920 | HIDPP_QUIRK_FORCE_OUTPUT_REPORTS`.
     pub const G923_XBOX: u16 = 0xC26E;
+    /// G923 racing wheel Xbox/PC alternate PID (HID++).
+    ///
+    /// Listed in JacKeTUs/linux-steering-wheels as `046d:c26d` for "G923
+    /// (Xbox edition)" with Silver rating. **Not in mainline kernel
+    /// `hid-ids.h`** — may be a firmware variant, HID++ enumeration alias,
+    /// or early production PID. Supported defensively for plug-and-play
+    /// coverage.
+    pub const G923_XBOX_ALT: u16 = 0xC26D;
     /// G PRO racing wheel (PlayStation/PC, direct drive, 11 Nm, 1080°).
     ///
     /// Not yet in mainline kernel or new-lg4ff.

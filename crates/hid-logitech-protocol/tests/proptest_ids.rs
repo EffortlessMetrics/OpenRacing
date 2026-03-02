@@ -13,7 +13,7 @@ use racing_wheel_hid_logitech_protocol::{
 };
 
 /// All known Logitech wheel product IDs.
-const WHEEL_PIDS: [u16; 18] = [
+const WHEEL_PIDS: [u16; 19] = [
     product_ids::MOMO,
     product_ids::MOMO_2,
     product_ids::WINGMAN_FORMULA_FORCE_GP,
@@ -30,6 +30,7 @@ const WHEEL_PIDS: [u16; 18] = [
     product_ids::G923,
     product_ids::G923_PS,
     product_ids::G923_XBOX,
+    product_ids::G923_XBOX_ALT,
     product_ids::G_PRO,
     product_ids::G_PRO_XBOX,
 ];
@@ -46,7 +47,7 @@ proptest! {
 
     /// Every known wheel PID must be non-zero.
     #[test]
-    fn prop_known_pids_nonzero(idx in 0usize..18usize) {
+    fn prop_known_pids_nonzero(idx in 0usize..19usize) {
         let pid = WHEEL_PIDS[idx];
         prop_assert!(pid != 0,
             "wheel PID at index {idx} must not be zero");
@@ -65,7 +66,7 @@ proptest! {
 
     /// Known wheel models must have strictly positive torque.
     #[test]
-    fn prop_known_model_torque_positive(idx in 0usize..18usize) {
+    fn prop_known_model_torque_positive(idx in 0usize..19usize) {
         let pid = WHEEL_PIDS[idx];
         let model = LogitechModel::from_product_id(pid);
         let torque = model.max_torque_nm();
@@ -93,7 +94,7 @@ proptest! {
 
     /// A recognised PID must not resolve to LogitechModel::Unknown.
     #[test]
-    fn prop_recognised_pid_not_unknown(idx in 0usize..18usize) {
+    fn prop_recognised_pid_not_unknown(idx in 0usize..19usize) {
         let pid = WHEEL_PIDS[idx];
         let model = LogitechModel::from_product_id(pid);
         prop_assert_ne!(model, LogitechModel::Unknown,

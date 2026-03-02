@@ -367,6 +367,7 @@ impl SupportedDevices {
             (vendor_ids::LOGITECH, 0xC262, "Logitech G920"),
             (vendor_ids::LOGITECH, 0xC266, "Logitech G923"),
             (vendor_ids::LOGITECH, 0xC267, "Logitech G923 PS"),
+            (vendor_ids::LOGITECH, 0xC26D, "Logitech G923 Xbox (HID++)"),
             (vendor_ids::LOGITECH, 0xC26E, "Logitech G923 Xbox"),
             (vendor_ids::LOGITECH, 0xC268, "Logitech G PRO"),
             (vendor_ids::LOGITECH, 0xC272, "Logitech G PRO Xbox"),
@@ -1380,8 +1381,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque = TorqueNm::new(2.8).unwrap_or(capabilities.max_torque);
                     capabilities.min_report_period_us = 2000; // 500Hz
                 }
-                0xC266 | 0xC267 | 0xC26E => {
-                    // G923: 0xC266 native, 0xC267 PS compat, 0xC26E Xbox
+                0xC266 | 0xC267 | 0xC26D | 0xC26E => {
+                    // G923: 0xC266 native, 0xC267 PS compat, 0xC26D Xbox HID++, 0xC26E Xbox
                     capabilities.max_torque = TorqueNm::new(3.0).unwrap_or(capabilities.max_torque);
                     capabilities.supports_raw_torque_1khz = true;
                     capabilities.min_report_period_us = 1000; // 1kHz

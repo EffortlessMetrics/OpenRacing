@@ -389,6 +389,7 @@ impl LinuxHidPort {
             (0x046D, 0xC262), // Logitech G920
             (0x046D, 0xC266), // Logitech G923
             (0x046D, 0xC267), // Logitech G923 PS
+            (0x046D, 0xC26D), // Logitech G923 Xbox (HID++)
             (0x046D, 0xC26E), // Logitech G923 Xbox
             (0x046D, 0xC268), // Logitech G PRO
             (0x046D, 0xC272), // Logitech G PRO Xbox

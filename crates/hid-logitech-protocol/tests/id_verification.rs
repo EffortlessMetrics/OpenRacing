@@ -55,6 +55,11 @@ fn g923_xbox_pid_is_c26e() {
 }
 
 #[test]
+fn g923_xbox_alt_pid_is_c26d() {
+    assert_eq!(product_ids::G923_XBOX_ALT, 0xC26D);
+}
+
+#[test]
 fn g_pro_pid_is_c268() {
     assert_eq!(product_ids::G_PRO, 0xC268);
 }

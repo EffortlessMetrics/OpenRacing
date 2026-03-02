@@ -61,7 +61,7 @@ impl LogitechModel {
             product_ids::G27 => Self::G27,
             product_ids::G29_PS => Self::G29,
             product_ids::G920 => Self::G920,
-            product_ids::G923 | product_ids::G923_XBOX | product_ids::G923_PS => Self::G923,
+            product_ids::G923 | product_ids::G923_XBOX | product_ids::G923_XBOX_ALT | product_ids::G923_PS => Self::G923,
             product_ids::G_PRO | product_ids::G_PRO_XBOX => Self::GPro,
             _ => Self::Unknown,
         }
@@ -184,6 +184,7 @@ pub fn is_wheel_product(product_id: u16) -> bool {
             | product_ids::G920
             | product_ids::G923
             | product_ids::G923_XBOX
+            | product_ids::G923_XBOX_ALT
             | product_ids::G923_PS
             | product_ids::G_PRO
             | product_ids::G_PRO_XBOX
@@ -279,6 +280,7 @@ mod tests {
             product_ids::G923,
             product_ids::G923_PS,
             product_ids::G923_XBOX,
+            product_ids::G923_XBOX_ALT,
             product_ids::G_PRO,
             product_ids::G_PRO_XBOX,
         ];
@@ -339,6 +341,11 @@ mod tests {
             product_ids::G923_XBOX,
             0xC26E,
             "G923 Xbox PID (kernel: USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL)"
+        );
+        assert_eq!(
+            product_ids::G923_XBOX_ALT,
+            0xC26D,
+            "G923 Xbox alt PID (linux-steering-wheels: 046d:c26d)"
         );
         assert_eq!(
             product_ids::G_PRO,

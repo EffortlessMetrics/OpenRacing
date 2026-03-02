@@ -42,6 +42,7 @@ fn test_all_known_pids_detected() -> Result<(), Box<dyn std::error::Error>> {
         product_ids::G923,
         product_ids::G923_PS,
         product_ids::G923_XBOX,
+        product_ids::G923_XBOX_ALT,
         product_ids::G_PRO,
         product_ids::G_PRO_XBOX,
     ];
@@ -70,6 +71,7 @@ fn test_pid_constant_values() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(product_ids::G923, 0xC266);
     assert_eq!(product_ids::G923_PS, 0xC267);
     assert_eq!(product_ids::G923_XBOX, 0xC26E);
+    assert_eq!(product_ids::G923_XBOX_ALT, 0xC26D);
     assert_eq!(product_ids::G_PRO, 0xC268);
     assert_eq!(product_ids::G_PRO_XBOX, 0xC272);
     assert_eq!(product_ids::MOMO, 0xC295);
