@@ -54,6 +54,12 @@ fn test_snapshot_model_from_pid_cp5_pedals() {
 }
 
 #[test]
+fn test_snapshot_model_from_pid_lc100_pedals() {
+    let model = cammus::CammusModel::from_pid(cammus::PRODUCT_LC100_PEDALS);
+    assert_debug_snapshot!(format!("{model:?}"));
+}
+
+#[test]
 fn test_snapshot_model_from_pid_unknown() {
     let model = cammus::CammusModel::from_pid(0xFFFF);
     assert_debug_snapshot!(format!("{model:?}"));

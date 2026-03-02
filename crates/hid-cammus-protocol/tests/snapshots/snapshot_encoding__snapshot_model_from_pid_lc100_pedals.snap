@@ -1,0 +1,6 @@
+---
+source: crates/hid-cammus-protocol/tests/snapshot_encoding.rs
+assertion_line: 59
+expression: "format!(\"{model:?}\")"
+---
+"Some(Lc100Pedals)"
