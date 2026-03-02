@@ -104,7 +104,39 @@ fn parse_ac_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         g => (g - 1).clamp(i32::from(i8::MIN), i32::from(i8::MAX)) as i8,
     };
 
-    Ok(NormalizedTelemetry::builder()
+    // G-forces
+    let vertical_g = read_f32_le(data, OFF_ACCG_VERTICAL).unwrap_or(0.0);
+    let lateral_g = read_f32_le(data, OFF_ACCG_HORIZONTAL).unwrap_or(0.0);
+    let longitudinal_g = read_f32_le(data, OFF_ACCG_FRONTAL).unwrap_or(0.0);
+
+    // Flags
+    let flags = TelemetryFlags {
+        abs_active: read_u8(data, OFF_ABS_IN_ACTION) != 0,
+        traction_control: read_u8(data, OFF_TC_IN_ACTION) != 0,
+        in_pits: read_u8(data, OFF_IN_PIT) != 0,
+        engine_limiter: read_u8(data, OFF_ENGINE_LIMITER) != 0,
+        ..TelemetryFlags::default()
+    };
+
+    // Lap timing (i32 milliseconds → f32 seconds)
+    let current_lap_ms = read_i32_le(data, OFF_LAP_TIME).unwrap_or(0);
+    let last_lap_ms = read_i32_le(data, OFF_LAST_LAP).unwrap_or(0);
+    let best_lap_ms = read_i32_le(data, OFF_BEST_LAP).unwrap_or(0);
+    let lap_count = read_i32_le(data, OFF_LAP_COUNT).unwrap_or(0);
+
+    // Slip angles (per-wheel)
+    let slip_angle_fl = read_f32_le(data, OFF_SLIP_ANGLE_FL).unwrap_or(0.0);
+    let slip_angle_fr = read_f32_le(data, OFF_SLIP_ANGLE_FL + 4).unwrap_or(0.0);
+    let slip_angle_rl = read_f32_le(data, OFF_SLIP_ANGLE_FL + 8).unwrap_or(0.0);
+    let slip_angle_rr = read_f32_le(data, OFF_SLIP_ANGLE_FL + 12).unwrap_or(0.0);
+
+    // Slip ratios (per-wheel) — no per-wheel builder methods, use extended map
+    let slip_ratio_fl = read_f32_le(data, OFF_SLIP_RATIO_FL).unwrap_or(0.0);
+    let slip_ratio_fr = read_f32_le(data, OFF_SLIP_RATIO_FL + 4).unwrap_or(0.0);
+    let slip_ratio_rl = read_f32_le(data, OFF_SLIP_RATIO_FL + 8).unwrap_or(0.0);
+    let slip_ratio_rr = read_f32_le(data, OFF_SLIP_RATIO_FL + 12).unwrap_or(0.0);
+
+    let mut builder = NormalizedTelemetry::builder()
         .steering_angle(steer)
         .throttle(gas)
         .brake(brake)
@@ -112,7 +144,33 @@ fn parse_ac_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         .speed_ms(speed_ms)
         .rpm(rpm)
         .gear(gear)
-        .build())
+        .vertical_g(vertical_g)
+        .lateral_g(lateral_g)
+        .longitudinal_g(longitudinal_g)
+        .flags(flags)
+        .slip_angle_fl(slip_angle_fl)
+        .slip_angle_fr(slip_angle_fr)
+        .slip_angle_rl(slip_angle_rl)
+        .slip_angle_rr(slip_angle_rr)
+        .extended("slip_ratio_fl", TelemetryValue::Float(slip_ratio_fl))
+        .extended("slip_ratio_fr", TelemetryValue::Float(slip_ratio_fr))
+        .extended("slip_ratio_rl", TelemetryValue::Float(slip_ratio_rl))
+        .extended("slip_ratio_rr", TelemetryValue::Float(slip_ratio_rr));
+
+    if current_lap_ms > 0 {
+        builder = builder.current_lap_time_s(current_lap_ms as f32 / 1000.0);
+    }
+    if last_lap_ms > 0 {
+        builder = builder.last_lap_time_s(last_lap_ms as f32 / 1000.0);
+    }
+    if best_lap_ms > 0 {
+        builder = builder.best_lap_time_s(best_lap_ms as f32 / 1000.0);
+    }
+    if lap_count > 0 {
+        builder = builder.lap(lap_count.clamp(0, i32::from(u16::MAX)) as u16);
+    }
+
+    Ok(builder.build())
 }
 
 #[async_trait]

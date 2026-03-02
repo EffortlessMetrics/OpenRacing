@@ -1,5 +1,6 @@
 ---
 source: crates/telemetry-adapters/tests/snapshots_games_v3.rs
+assertion_line: 55
 expression: normalized
 ---
 speed_ms: 27.777779
@@ -59,4 +60,17 @@ delta_ahead_s: 0
 delta_behind_s: 0
 fuel_percent: 0
 engine_temp_c: 0
+extended:
+  slip_ratio_fl:
+    type: Float
+    value: 0
+  slip_ratio_fr:
+    type: Float
+    value: 0
+  slip_ratio_rl:
+    type: Float
+    value: 0
+  slip_ratio_rr:
+    type: Float
+    value: 0
 sequence: 0
