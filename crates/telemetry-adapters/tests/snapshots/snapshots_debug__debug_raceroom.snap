@@ -1,5 +1,6 @@
 ---
 source: crates/telemetry-adapters/tests/snapshots_debug.rs
+assertion_line: 387
 expression: "&normalized"
 ---
 NormalizedTelemetry {
@@ -12,8 +13,8 @@ NormalizedTelemetry {
     max_rpm: 8500.0,
     gear: 4,
     num_gears: 0,
-    lateral_g: 0.0,
-    longitudinal_g: 0.0,
+    lateral_g: -0.0,
+    longitudinal_g: -0.0,
     vertical_g: 0.0,
     slip_ratio: 0.0,
     slip_angle_fl: 0.0,
@@ -39,7 +40,7 @@ NormalizedTelemetry {
         red_flag: false,
         blue_flag: false,
         checkered_flag: false,
-        green_flag: true,
+        green_flag: false,
         pit_limiter: false,
         in_pits: false,
         drs_available: false,
@@ -66,11 +67,7 @@ NormalizedTelemetry {
     delta_behind_s: 0.0,
     fuel_percent: 0.0,
     engine_temp_c: 0.0,
-    extended: {
-        "fuel_percent": Float(
-            0.0,
-        ),
-    },
+    extended: {},
     timestamp: [timestamp],
     sequence: 0,
 }

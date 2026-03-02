@@ -11,8 +11,8 @@ rpm: 6800
 max_rpm: 9000
 gear: 5
 num_gears: 0
-lateral_g: 0
-longitudinal_g: 0
+lateral_g: -0
+longitudinal_g: -0
 vertical_g: 0
 slip_ratio: 0
 slip_angle_fl: 0
@@ -36,7 +36,7 @@ flags:
   red_flag: false
   blue_flag: false
   checkered_flag: false
-  green_flag: true
+  green_flag: false
   pit_limiter: false
   in_pits: false
   drs_available: false
@@ -57,10 +57,6 @@ best_lap_time_s: 0
 last_lap_time_s: 0
 delta_ahead_s: 0
 delta_behind_s: 0
-fuel_percent: 0
+fuel_percent: 0.5
 engine_temp_c: 0
-extended:
-  fuel_percent:
-    type: Float
-    value: 0.5
 sequence: 0

@@ -6,7 +6,8 @@
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
-    NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, telemetry_now_ns,
+    NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
+    telemetry_now_ns,
 };
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
@@ -43,6 +44,52 @@ const OFF_THROTTLE: usize = 1500; // throttle, f32, 0.0–1.0
 const OFF_BRAKE: usize = 1508; // brake, f32, 0.0–1.0
 const OFF_CLUTCH: usize = 1516; // clutch, f32, 0.0–1.0
 const OFF_STEER_INPUT: usize = 1524; // steer_input_raw, f32, -1.0–1.0
+
+// G-forces (local_acceleration, r3e_vec3_f32 in vehicle state section).
+// +X = left, +Y = up, +Z = back. Unit: m/s².
+const OFF_LOCAL_ACCEL_X: usize = 1440;
+const OFF_LOCAL_ACCEL_Y: usize = 1444;
+const OFF_LOCAL_ACCEL_Z: usize = 1448;
+
+// Engine / fuel extras
+const OFF_NUM_GEARS: usize = 1412; // num_gears, i32 (-1 = N/A)
+const OFF_ENGINE_TEMP: usize = 1480; // engine_temp, f32, °C
+
+// Scoring & timing
+const OFF_POSITION: usize = 988; // position, i32 (1-based)
+const OFF_COMPLETED_LAPS: usize = 1028; // completed_laps, i32
+const OFF_LAP_TIME_BEST: usize = 1068; // lap_time_best_self, f32, seconds
+const OFF_LAP_TIME_PREVIOUS: usize = 1084; // lap_time_previous_self, f32, seconds
+const OFF_LAP_TIME_CURRENT: usize = 1100; // lap_time_current_self, f32, seconds
+const OFF_DELTA_FRONT: usize = 1124; // time_delta_front, f32, seconds
+const OFF_DELTA_BEHIND: usize = 1128; // time_delta_behind, f32, seconds
+
+// Flags (within r3e_flags sub-struct starting at offset 932)
+const OFF_FLAG_YELLOW: usize = 932; // flags.yellow, i32
+const OFF_FLAG_BLUE: usize = 964; // flags.blue, i32
+const OFF_FLAG_GREEN: usize = 972; // flags.green, i32
+const OFF_FLAG_CHECKERED: usize = 976; // flags.checkered, i32
+
+// Pit / driver-assists
+const OFF_IN_PITLANE: usize = 848; // in_pitlane, i32
+const OFF_PIT_LIMITER: usize = 1572; // pit_limiter, i32
+const OFF_AID_ABS: usize = 1536; // aid_settings.abs, i32 (5 = active)
+const OFF_AID_TC: usize = 1540; // aid_settings.tc, i32 (5 = active)
+
+// Tire temperatures – centre temp per tyre (f32, °C, -1.0 = N/A)
+const OFF_TIRE_TEMP_FL_CENTER: usize = 1748;
+const OFF_TIRE_TEMP_FR_CENTER: usize = 1772;
+const OFF_TIRE_TEMP_RL_CENTER: usize = 1796;
+const OFF_TIRE_TEMP_RR_CENTER: usize = 1820;
+
+// Tire pressures (f32, KPa, -1.0 = N/A)
+const OFF_TIRE_PRESSURE_FL: usize = 1712;
+const OFF_TIRE_PRESSURE_FR: usize = 1716;
+const OFF_TIRE_PRESSURE_RL: usize = 1720;
+const OFF_TIRE_PRESSURE_RR: usize = 1724;
+
+/// Gravity in m/s² for converting local acceleration to G-forces.
+const G_ACCEL: f32 = 9.80665;
 
 /// Expected R3E shared memory major version (v3.x SDK).
 const R3E_VERSION_MAJOR: i32 = 3;
@@ -93,7 +140,54 @@ fn parse_r3e_memory(data: &[u8]) -> Result<NormalizedTelemetry> {
         0.0
     };
 
-    Ok(NormalizedTelemetry::builder()
+    // G-forces: convert m/s² to G and align sign conventions.
+    // R3E: +X=left, +Y=up, +Z=back. Struct: lateral positive=right, longitudinal positive=forward.
+    let lateral_g = -(read_f32_le(data, OFF_LOCAL_ACCEL_X).unwrap_or(0.0) / G_ACCEL);
+    let longitudinal_g = -(read_f32_le(data, OFF_LOCAL_ACCEL_Z).unwrap_or(0.0) / G_ACCEL);
+    let vertical_g = read_f32_le(data, OFF_LOCAL_ACCEL_Y).unwrap_or(0.0) / G_ACCEL;
+
+    let num_gears = read_i32_le(data, OFF_NUM_GEARS).unwrap_or(-1);
+    let engine_temp = read_f32_le(data, OFF_ENGINE_TEMP).unwrap_or(-1.0);
+
+    let position = read_i32_le(data, OFF_POSITION).unwrap_or(-1);
+    let completed_laps = read_i32_le(data, OFF_COMPLETED_LAPS).unwrap_or(-1);
+    let lap_time_current = read_f32_le(data, OFF_LAP_TIME_CURRENT).unwrap_or(-1.0);
+    let lap_time_best = read_f32_le(data, OFF_LAP_TIME_BEST).unwrap_or(-1.0);
+    let lap_time_previous = read_f32_le(data, OFF_LAP_TIME_PREVIOUS).unwrap_or(-1.0);
+    let delta_front = read_f32_le(data, OFF_DELTA_FRONT).unwrap_or(-1.0);
+    let delta_behind = read_f32_le(data, OFF_DELTA_BEHIND).unwrap_or(-1.0);
+
+    // Flags: R3E uses -1 = N/A, 0 = inactive, 1 = active.
+    let flags = TelemetryFlags {
+        yellow_flag: read_i32_le(data, OFF_FLAG_YELLOW).unwrap_or(0) == 1,
+        blue_flag: read_i32_le(data, OFF_FLAG_BLUE).unwrap_or(0) == 1,
+        green_flag: read_i32_le(data, OFF_FLAG_GREEN).unwrap_or(0) == 1,
+        checkered_flag: read_i32_le(data, OFF_FLAG_CHECKERED).unwrap_or(0) == 1,
+        in_pits: read_i32_le(data, OFF_IN_PITLANE).unwrap_or(0) == 1,
+        pit_limiter: read_i32_le(data, OFF_PIT_LIMITER).unwrap_or(0) == 1,
+        abs_active: read_i32_le(data, OFF_AID_ABS).unwrap_or(0) == 5,
+        traction_control: read_i32_le(data, OFF_AID_TC).unwrap_or(0) == 5,
+        ..TelemetryFlags::default()
+    };
+
+    // Tire temperatures: centre reading per tyre, f32 °C → u8.
+    let tire_temps = [
+        f32_temp_to_u8(read_f32_le(data, OFF_TIRE_TEMP_FL_CENTER)),
+        f32_temp_to_u8(read_f32_le(data, OFF_TIRE_TEMP_FR_CENTER)),
+        f32_temp_to_u8(read_f32_le(data, OFF_TIRE_TEMP_RL_CENTER)),
+        f32_temp_to_u8(read_f32_le(data, OFF_TIRE_TEMP_RR_CENTER)),
+    ];
+
+    // Tire pressures: KPa → PSI (1 KPa ≈ 0.14504 PSI).
+    let kpa_to_psi = |v: Option<f32>| v.filter(|&p| p > 0.0).map(|p| p * 0.14503774).unwrap_or(0.0);
+    let tire_pressures = [
+        kpa_to_psi(read_f32_le(data, OFF_TIRE_PRESSURE_FL)),
+        kpa_to_psi(read_f32_le(data, OFF_TIRE_PRESSURE_FR)),
+        kpa_to_psi(read_f32_le(data, OFF_TIRE_PRESSURE_RL)),
+        kpa_to_psi(read_f32_le(data, OFF_TIRE_PRESSURE_RR)),
+    ];
+
+    let mut builder = NormalizedTelemetry::builder()
         .rpm(rpm)
         .max_rpm(max_rpm)
         .speed_ms(speed_mps)
@@ -102,11 +196,47 @@ fn parse_r3e_memory(data: &[u8]) -> Result<NormalizedTelemetry> {
         .brake(brake)
         .clutch(clutch)
         .gear(gear)
-        .build()
-        .with_extended(
-            "fuel_percent".to_string(),
-            crate::TelemetryValue::Float(fuel_percent),
-        ))
+        .lateral_g(lateral_g)
+        .longitudinal_g(longitudinal_g)
+        .vertical_g(vertical_g)
+        .fuel_percent(fuel_percent)
+        .flags(flags);
+
+    if num_gears > 0 {
+        builder = builder.num_gears(num_gears.min(255) as u8);
+    }
+    if engine_temp >= 0.0 {
+        builder = builder.engine_temp_c(engine_temp);
+    }
+    if position > 0 {
+        builder = builder.position(position.min(255) as u8);
+    }
+    if completed_laps >= 0 {
+        builder = builder.lap(completed_laps.min(i32::from(u16::MAX)) as u16);
+    }
+    if lap_time_current > 0.0 {
+        builder = builder.current_lap_time_s(lap_time_current);
+    }
+    if lap_time_best > 0.0 {
+        builder = builder.best_lap_time_s(lap_time_best);
+    }
+    if lap_time_previous > 0.0 {
+        builder = builder.last_lap_time_s(lap_time_previous);
+    }
+    if delta_front >= 0.0 {
+        builder = builder.delta_ahead_s(delta_front);
+    }
+    if delta_behind >= 0.0 {
+        builder = builder.delta_behind_s(delta_behind);
+    }
+    if tire_temps.iter().any(|&t| t > 0) {
+        builder = builder.tire_temps_c(tire_temps);
+    }
+    if tire_pressures.iter().any(|&p| p > 0.0) {
+        builder = builder.tire_pressures_psi(tire_pressures);
+    }
+
+    Ok(builder.build())
 }
 
 /// RaceRoom Racing Experience telemetry adapter.
@@ -285,6 +415,14 @@ fn read_i32_le(data: &[u8], offset: usize) -> Option<i32> {
         .map(i32::from_le_bytes)
 }
 
+/// Convert an optional f32 temperature (°C) to u8, clamped to 0–255. Returns 0 for N/A.
+fn f32_temp_to_u8(value: Option<f32>) -> u8 {
+    match value {
+        Some(v) if v >= 0.0 => (v.min(255.0)) as u8,
+        _ => 0,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -317,7 +455,42 @@ mod tests {
         data[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&brake.to_le_bytes());
         data[OFF_CLUTCH..OFF_CLUTCH + 4].copy_from_slice(&0.0f32.to_le_bytes());
         data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&gear.to_le_bytes());
+        // Populate new fields with representative values.
+        write_i32(&mut data, OFF_NUM_GEARS, 6);
+        write_f32(&mut data, OFF_ENGINE_TEMP, 95.0);
+        // G-forces: 1G lateral left (R3E +X=left), 0.3G braking (R3E +Z=back)
+        write_f32(&mut data, OFF_LOCAL_ACCEL_X, G_ACCEL);
+        write_f32(&mut data, OFF_LOCAL_ACCEL_Y, G_ACCEL);
+        write_f32(&mut data, OFF_LOCAL_ACCEL_Z, 0.3 * G_ACCEL);
+        // Scoring
+        write_i32(&mut data, OFF_POSITION, 3);
+        write_i32(&mut data, OFF_COMPLETED_LAPS, 5);
+        write_f32(&mut data, OFF_LAP_TIME_CURRENT, 62.5);
+        write_f32(&mut data, OFF_LAP_TIME_BEST, 60.1);
+        write_f32(&mut data, OFF_LAP_TIME_PREVIOUS, 61.3);
+        write_f32(&mut data, OFF_DELTA_FRONT, 1.2);
+        write_f32(&mut data, OFF_DELTA_BEHIND, 0.8);
+        // Flags: green active
+        write_i32(&mut data, OFF_FLAG_GREEN, 1);
+        // Tire temps (centre): ~90 °C each
+        write_f32(&mut data, OFF_TIRE_TEMP_FL_CENTER, 90.0);
+        write_f32(&mut data, OFF_TIRE_TEMP_FR_CENTER, 92.0);
+        write_f32(&mut data, OFF_TIRE_TEMP_RL_CENTER, 88.0);
+        write_f32(&mut data, OFF_TIRE_TEMP_RR_CENTER, 91.0);
+        // Tire pressures in KPa (~170 KPa ≈ 24.7 PSI)
+        write_f32(&mut data, OFF_TIRE_PRESSURE_FL, 170.0);
+        write_f32(&mut data, OFF_TIRE_PRESSURE_FR, 172.0);
+        write_f32(&mut data, OFF_TIRE_PRESSURE_RL, 168.0);
+        write_f32(&mut data, OFF_TIRE_PRESSURE_RR, 171.0);
         data
+    }
+
+    fn write_f32(data: &mut [u8], offset: usize, value: f32) {
+        data[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+
+    fn write_i32(data: &mut [u8], offset: usize, value: i32) {
+        data[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
     }
 
     #[test]
@@ -375,15 +548,11 @@ mod tests {
     }
 
     #[test]
-    fn test_fuel_percent_extended() -> TestResult {
+    fn test_fuel_percent() -> TestResult {
         let data = make_r3e_memory(3000.0, 20.0, 0.0, 0.3, 0.0, 1);
         let result = parse_r3e_memory(&data)?;
         // fuel_left=30, fuel_capacity=60 → 0.5
-        if let Some(crate::TelemetryValue::Float(pct)) = result.get_extended("fuel_percent") {
-            assert!((*pct - 0.5).abs() < 0.001);
-        } else {
-            return Err("fuel_percent not found in extended".into());
-        }
+        assert!((result.fuel_percent - 0.5).abs() < 0.001);
         Ok(())
     }
 
@@ -405,6 +574,101 @@ mod tests {
         let data = make_r3e_memory(4000.0, 30.0, -0.2, 0.4, 0.0, 2);
         let result = adapter.normalize(&data)?;
         assert!((result.rpm - 4000.0).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_g_forces() -> TestResult {
+        let data = make_r3e_memory(5000.0, 50.0, 0.0, 0.5, 0.0, 3);
+        let result = parse_r3e_memory(&data)?;
+        // R3E +X = left → lateral_g negated → -1.0 G
+        assert!((result.lateral_g - (-1.0)).abs() < 0.01);
+        // R3E +Y = up → vertical_g same sign → 1.0 G
+        assert!((result.vertical_g - 1.0).abs() < 0.01);
+        // R3E +Z = back → longitudinal_g negated → -0.3 G
+        assert!((result.longitudinal_g - (-0.3)).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_lap_timing() -> TestResult {
+        let data = make_r3e_memory(5000.0, 50.0, 0.0, 0.5, 0.0, 3);
+        let result = parse_r3e_memory(&data)?;
+        assert!((result.current_lap_time_s - 62.5).abs() < 0.01);
+        assert!((result.best_lap_time_s - 60.1).abs() < 0.01);
+        assert!((result.last_lap_time_s - 61.3).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_position_and_laps() -> TestResult {
+        let data = make_r3e_memory(5000.0, 50.0, 0.0, 0.5, 0.0, 3);
+        let result = parse_r3e_memory(&data)?;
+        assert_eq!(result.position, 3);
+        assert_eq!(result.lap, 5);
+        Ok(())
+    }
+
+    #[test]
+    fn test_engine_temp() -> TestResult {
+        let data = make_r3e_memory(5000.0, 50.0, 0.0, 0.5, 0.0, 3);
+        let result = parse_r3e_memory(&data)?;
+        assert!((result.engine_temp_c - 95.0).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_flags() -> TestResult {
+        let mut data = make_r3e_memory(5000.0, 50.0, 0.0, 0.5, 0.0, 3);
+        write_i32(&mut data, OFF_FLAG_YELLOW, 1);
+        write_i32(&mut data, OFF_FLAG_BLUE, 1);
+        write_i32(&mut data, OFF_IN_PITLANE, 1);
+        write_i32(&mut data, OFF_PIT_LIMITER, 1);
+        write_i32(&mut data, OFF_AID_ABS, 5);
+        write_i32(&mut data, OFF_AID_TC, 5);
+        let result = parse_r3e_memory(&data)?;
+        assert!(result.flags.yellow_flag);
+        assert!(result.flags.blue_flag);
+        assert!(result.flags.green_flag);
+        assert!(result.flags.in_pits);
+        assert!(result.flags.pit_limiter);
+        assert!(result.flags.abs_active);
+        assert!(result.flags.traction_control);
+        Ok(())
+    }
+
+    #[test]
+    fn test_tire_temps() -> TestResult {
+        let data = make_r3e_memory(5000.0, 50.0, 0.0, 0.5, 0.0, 3);
+        let result = parse_r3e_memory(&data)?;
+        assert_eq!(result.tire_temps_c, [90, 92, 88, 91]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_tire_pressures() -> TestResult {
+        let data = make_r3e_memory(5000.0, 50.0, 0.0, 0.5, 0.0, 3);
+        let result = parse_r3e_memory(&data)?;
+        // 170 KPa * 0.14503774 ≈ 24.66 PSI
+        assert!((result.tire_pressures_psi[0] - 24.66).abs() < 0.1);
+        assert!(result.tire_pressures_psi[1] > 0.0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_delta_times() -> TestResult {
+        let data = make_r3e_memory(5000.0, 50.0, 0.0, 0.5, 0.0, 3);
+        let result = parse_r3e_memory(&data)?;
+        assert!((result.delta_ahead_s - 1.2).abs() < 0.01);
+        assert!((result.delta_behind_s - 0.8).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_num_gears() -> TestResult {
+        let data = make_r3e_memory(5000.0, 50.0, 0.0, 0.5, 0.0, 3);
+        let result = parse_r3e_memory(&data)?;
+        assert_eq!(result.num_gears, 6);
         Ok(())
     }
 }
