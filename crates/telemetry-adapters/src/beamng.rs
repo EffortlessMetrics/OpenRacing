@@ -1,6 +1,27 @@
 //! BeamNG.drive telemetry adapter using the LFS OutGauge UDP protocol.
 //!
-//! BeamNG.drive exposes telemetry via the standard 96-byte OutGauge packet on UDP port 4444.
+//! BeamNG.drive exposes telemetry via the standard OutGauge packet on a user-configured UDP
+//! port (community convention: 4444). The packet is 92 bytes without the optional `id` field,
+//! or 96 bytes when OutGauge ID is configured in BeamNG settings.
+//!
+//! ## Protocol verification (2025-07)
+//!
+//! Verified against these authoritative sources:
+//! - BeamNG official docs: <https://documentation.beamng.com/modding/protocols/>
+//! - BeamNG outgauge.lua: `lua/vehicle/protocols/outgauge.lua` (bCDDL-licensed game source)
+//! - LFS InSim.txt OutGauge struct: <https://en.lfsmanual.net/wiki/OutGauge>
+//! - Race-Element BeamNG provider (community, port 4444): <https://github.com/RiddleTime/Race-Element>
+//!
+//! BeamNG explicitly states: "It uses the same format used by Live For Speed."
+//! The struct layout matches the LFS OutGauge spec exactly; the `id` field is optional.
+//!
+//! ### BeamNG-specific notes
+//! - `time` field: hardcoded to 0 (N/A)
+//! - `car[4]` field: always "beam"
+//! - `oilPressure`: hardcoded to 0 (N/A)
+//! - `display1`/`display2`: hardcoded to "" (N/A)
+//! - Gear encoding: `electrics.values.gearIndex + 1` → 0=Reverse, 1=Neutral, 2=1st, …
+//! - Port is user-configurable in Options > Other > Protocols; no fixed default in game.
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
@@ -14,25 +35,31 @@ use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
-/// Verified: BeamNG OutGauge default (community wiki, multiple third-party tools).
+/// Verified: BeamNG OutGauge community convention (Race-Element, SimHub, etc.).
+/// The port is user-configurable in BeamNG: Options > Other > Protocols.
 const DEFAULT_BEAMNG_PORT: u16 = 4444;
-/// Standard LFS OutGauge packet size.
-const OUTGAUGE_PACKET_SIZE: usize = 96;
+/// Base LFS OutGauge packet size (without optional `id` field).
+/// Verified against: documentation.beamng.com/modding/protocols/ and LFS InSim.txt.
+/// With `id` (i32) the packet is 96 bytes; without it, 92 bytes.
+const OUTGAUGE_PACKET_SIZE: usize = 92;
 const MAX_PACKET_SIZE: usize = 256;
 
-// OutGauge byte offsets — verified 2025-07 against LFS InSim.txt OutGauge struct
-// (en.lfsmanual.net/wiki/OutGauge) and jlinnosa/arduino-lfs-outgauge-monitor.
+// OutGauge byte offsets — verified 2025-07 against:
+//   - BeamNG official: documentation.beamng.com/modding/protocols/
+//   - BeamNG source: lua/vehicle/protocols/outgauge.lua (getStructDefinition)
+//   - LFS manual: en.lfsmanual.net/wiki/OutGauge
+//   - Race-Element OutGaugePacket C# struct (Pack=1)
 // Layout: time(u32@0), car([4]u8@4), flags(u16@8), gear(u8@10), plid(u8@11),
 //   speed(f32@12), rpm(f32@16), turbo(f32@20), engTemp(f32@24), fuel(f32@28),
 //   oilPressure(f32@32), oilTemp(f32@36), dashLights(u32@40), showLights(u32@44),
 //   throttle(f32@48), brake(f32@52), clutch(f32@56), display1([16]u8@60),
-//   display2([16]u8@76), id(i32@92 optional). Total: 92–96 bytes.
+//   display2([16]u8@76), id(i32@92 optional). Total: 92 or 96 bytes.
 const OFF_SPEED: usize = 12; // f32, m/s
 const OFF_RPM: usize = 16; // f32
-const OFF_GEAR: usize = 10; // u8: 0=R, 1=N, 2=1st, 3=2nd, …
-const OFF_THROTTLE: usize = 48; // f32
-const OFF_BRAKE: usize = 52; // f32
-const OFF_CLUTCH: usize = 56; // f32
+const OFF_GEAR: usize = 10; // u8: 0=R, 1=N, 2=1st, 3=2nd, … (verified: outgauge.lua sets gearIndex+1)
+const OFF_THROTTLE: usize = 48; // f32, 0..1
+const OFF_BRAKE: usize = 52; // f32, 0..1
+const OFF_CLUTCH: usize = 56; // f32, 0..1
 
 #[cfg(windows)]
 const BEAMNG_PROCESS_NAMES: &[&str] = &["beamng.drive.x64.exe", "beamng.drive.exe"];
@@ -300,6 +327,27 @@ mod tests {
         let data = make_outgauge_packet(40.0, 5000.0, 4, 0.8, 0.0, 0.1);
         let result = adapter.normalize(&data)?;
         assert!((result.speed_ms - 40.0).abs() < 0.01);
+        Ok(())
+    }
+
+    /// Verify 92-byte packets (no optional `id` field) are accepted.
+    /// This is the base OutGauge size per the LFS spec and BeamNG docs.
+    #[test]
+    fn test_parse_92_byte_packet_without_id() -> TestResult {
+        let mut data = vec![0u8; 92];
+        data[OFF_GEAR] = 2; // OutGauge 2 = 1st gear
+        let result = parse_outgauge_packet(&data)?;
+        assert_eq!(result.gear, 1); // normalized: 1st gear
+        Ok(())
+    }
+
+    /// Verify 96-byte packets (with optional `id` field) are also accepted.
+    #[test]
+    fn test_parse_96_byte_packet_with_id() -> TestResult {
+        let mut data = vec![0u8; 96];
+        data[OFF_GEAR] = 1; // Neutral
+        let result = parse_outgauge_packet(&data)?;
+        assert_eq!(result.gear, 0);
         Ok(())
     }
 }
