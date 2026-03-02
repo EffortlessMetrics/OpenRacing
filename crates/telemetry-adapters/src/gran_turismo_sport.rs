@@ -159,9 +159,58 @@ impl TelemetryAdapter for GranTurismo7SportsAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::gran_turismo_7::{MAGIC, OFF_MAGIC};
+    use crate::TelemetryValue;
+    use crate::gran_turismo_7::{MAGIC, OFF_MAGIC, PACKET_SIZE_TYPE2, PACKET_SIZE_TYPE3};
+
+    // GT7 field offsets used by GT Sport tests (re-declared locally because
+    // the canonical offsets in gran_turismo_7 are crate-private).
+    const OFF_ENGINE_RPM: usize = 0x3C;
+    const OFF_FUEL_LEVEL: usize = 0x44;
+    const OFF_FUEL_CAPACITY: usize = 0x48;
+    const OFF_SPEED_MS: usize = 0x4C;
+    const OFF_WATER_TEMP: usize = 0x58;
+    const OFF_TIRE_TEMP_FL: usize = 0x60;
+    const OFF_TIRE_TEMP_FR: usize = 0x64;
+    const OFF_TIRE_TEMP_RL: usize = 0x68;
+    const OFF_TIRE_TEMP_RR: usize = 0x6C;
+    const OFF_LAP_COUNT: usize = 0x74;
+    const OFF_BEST_LAP_MS: usize = 0x78;
+    const OFF_LAST_LAP_MS: usize = 0x7C;
+    const OFF_MAX_ALERT_RPM: usize = 0x8A;
+    const OFF_FLAGS: usize = 0x8E;
+    const OFF_GEAR_BYTE: usize = 0x90;
+    const OFF_THROTTLE: usize = 0x91;
+    const OFF_BRAKE: usize = 0x92;
+    const OFF_CAR_CODE: usize = 0x124;
+    const OFF_WHEEL_ROTATION: usize = 0x128;
+    const OFF_SWAY: usize = 0x130;
+    const OFF_HEAVE: usize = 0x134;
+    const OFF_SURGE: usize = 0x138;
+    const OFF_CAR_TYPE_BYTE3: usize = 0x13E;
+    const OFF_ENERGY_RECOVERY: usize = 0x150;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    /// Build a minimal 296-byte decrypted buffer with the GT7 magic set.
+    fn make_decrypted_buf() -> [u8; PACKET_SIZE] {
+        let mut buf = [0u8; PACKET_SIZE];
+        buf[OFF_MAGIC..OFF_MAGIC + 4].copy_from_slice(&MAGIC.to_le_bytes());
+        buf
+    }
+
+    /// Build a 316-byte (PacketType2) decrypted buffer with magic.
+    fn make_type2_buf() -> Vec<u8> {
+        let mut buf = vec![0u8; PACKET_SIZE_TYPE2];
+        buf[OFF_MAGIC..OFF_MAGIC + 4].copy_from_slice(&MAGIC.to_le_bytes());
+        buf
+    }
+
+    /// Build a 344-byte (PacketType3) decrypted buffer with magic.
+    fn make_type3_buf() -> Vec<u8> {
+        let mut buf = vec![0u8; PACKET_SIZE_TYPE3];
+        buf[OFF_MAGIC..OFF_MAGIC + 4].copy_from_slice(&MAGIC.to_le_bytes());
+        buf
+    }
 
     #[test]
     fn test_adapter_game_id() {
@@ -247,6 +296,296 @@ mod tests {
             "minimum decrypted packet with magic set must parse successfully"
         );
         Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // GT Sport field extraction through parse_decrypted (shared with GT7)
+    // These validate the GT Sport adapter path specifically.
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_gts_rpm_extraction() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        let rpm: f32 = 5500.0;
+        buf[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert!(
+            (t.rpm - rpm).abs() < 0.01,
+            "GT Sport RPM should match: got {}",
+            t.rpm
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_gts_speed_extraction() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        let speed: f32 = 44.4; // ~160 km/h
+        buf[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&speed.to_le_bytes());
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert!(
+            (t.speed_ms - speed).abs() < 0.001,
+            "GT Sport speed_ms should match"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_gts_throttle_brake() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_THROTTLE] = 191; // ~75%
+        buf[OFF_BRAKE] = 64; // ~25%
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert!(
+            (t.throttle - 191.0 / 255.0).abs() < 0.001,
+            "GT Sport throttle normalisation"
+        );
+        assert!(
+            (t.brake - 64.0 / 255.0).abs() < 0.001,
+            "GT Sport brake normalisation"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_gts_gear_extraction() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_GEAR_BYTE] = (6 << 4) | 5; // gear 5, suggested 6
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert_eq!(t.gear, 5, "GT Sport gear should be low nibble");
+        Ok(())
+    }
+
+    #[test]
+    fn test_gts_fuel_percentage() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_FUEL_LEVEL..OFF_FUEL_LEVEL + 4].copy_from_slice(&15.0f32.to_le_bytes());
+        buf[OFF_FUEL_CAPACITY..OFF_FUEL_CAPACITY + 4].copy_from_slice(&60.0f32.to_le_bytes());
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert!(
+            (t.fuel_percent - 0.25).abs() < 0.001,
+            "GT Sport fuel percent should be 0.25"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_gts_water_temp() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_WATER_TEMP..OFF_WATER_TEMP + 4].copy_from_slice(&88.0f32.to_le_bytes());
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert!(
+            (t.engine_temp_c - 88.0).abs() < 0.01,
+            "GT Sport engine temp"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_gts_tire_temps() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_TIRE_TEMP_FL..OFF_TIRE_TEMP_FL + 4].copy_from_slice(&75.0f32.to_le_bytes());
+        buf[OFF_TIRE_TEMP_FR..OFF_TIRE_TEMP_FR + 4].copy_from_slice(&78.0f32.to_le_bytes());
+        buf[OFF_TIRE_TEMP_RL..OFF_TIRE_TEMP_RL + 4].copy_from_slice(&72.0f32.to_le_bytes());
+        buf[OFF_TIRE_TEMP_RR..OFF_TIRE_TEMP_RR + 4].copy_from_slice(&74.0f32.to_le_bytes());
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert_eq!(t.tire_temps_c, [75, 78, 72, 74]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_gts_lap_and_times() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_LAP_COUNT..OFF_LAP_COUNT + 2].copy_from_slice(&7u16.to_le_bytes());
+        buf[OFF_BEST_LAP_MS..OFF_BEST_LAP_MS + 4].copy_from_slice(&78_901i32.to_le_bytes());
+        buf[OFF_LAST_LAP_MS..OFF_LAST_LAP_MS + 4].copy_from_slice(&80_123i32.to_le_bytes());
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert_eq!(t.lap, 7);
+        assert!((t.best_lap_time_s - 78.901).abs() < 0.001);
+        assert!((t.last_lap_time_s - 80.123).abs() < 0.001);
+        Ok(())
+    }
+
+    #[test]
+    fn test_gts_max_rpm() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_MAX_ALERT_RPM..OFF_MAX_ALERT_RPM + 2].copy_from_slice(&9000u16.to_le_bytes());
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert!((t.max_rpm - 9000.0).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_gts_flags() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        // TCS + Paused
+        let flags: u16 = (1 << 11) | (1 << 1);
+        buf[OFF_FLAGS..OFF_FLAGS + 2].copy_from_slice(&flags.to_le_bytes());
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert!(t.flags.traction_control, "TCS should be set");
+        assert!(t.flags.session_paused, "Paused should be set");
+        assert!(!t.flags.abs_active, "ASM should not be set");
+        assert!(!t.flags.engine_limiter, "Rev limit should not be set");
+        Ok(())
+    }
+
+    #[test]
+    fn test_gts_car_code() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_CAR_CODE..OFF_CAR_CODE + 4].copy_from_slice(&567i32.to_le_bytes());
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert_eq!(t.car_id.as_deref(), Some("gt7_567"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_gts_zero_car_code_no_id() -> TestResult {
+        let buf = make_decrypted_buf();
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert!(t.car_id.is_none());
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // GT Sport error handling for various sizes
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_gts_truncated_packets() {
+        let adapter = GranTurismo7SportsAdapter::new();
+        for size in [0, 1, 50, 100, 200, 295] {
+            let data = vec![0u8; size];
+            let result = adapter.normalize(&data);
+            assert!(result.is_err(), "packet of size {size} must return error");
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // GT Sport extended packet support (Type2/Type3 through parse_decrypted_ext)
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_gts_type2_extended_fields() -> TestResult {
+        let mut buf = make_type2_buf();
+        let rotation: f32 = 0.75;
+        let sway: f32 = 0.2;
+        let heave: f32 = -0.3;
+        let surge: f32 = 0.5;
+        buf[OFF_WHEEL_ROTATION..OFF_WHEEL_ROTATION + 4].copy_from_slice(&rotation.to_le_bytes());
+        buf[OFF_SWAY..OFF_SWAY + 4].copy_from_slice(&sway.to_le_bytes());
+        buf[OFF_HEAVE..OFF_HEAVE + 4].copy_from_slice(&heave.to_le_bytes());
+        buf[OFF_SURGE..OFF_SURGE + 4].copy_from_slice(&surge.to_le_bytes());
+        let t = crate::gran_turismo_7::parse_decrypted_ext(&buf)?;
+        assert!((t.steering_angle - rotation).abs() < 0.001);
+        assert!((t.lateral_g - sway).abs() < 0.001);
+        assert!((t.vertical_g - heave).abs() < 0.001);
+        assert!((t.longitudinal_g - surge).abs() < 0.001);
+        assert_eq!(
+            t.get_extended("gt7_sway"),
+            Some(&TelemetryValue::Float(sway))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_gts_type3_extended_fields() -> TestResult {
+        let mut buf = make_type3_buf();
+        buf[OFF_CAR_TYPE_BYTE3] = 4;
+        buf[OFF_ENERGY_RECOVERY..OFF_ENERGY_RECOVERY + 4].copy_from_slice(&50.0f32.to_le_bytes());
+        // Also set some Type2 fields to ensure they're parsed
+        buf[OFF_WHEEL_ROTATION..OFF_WHEEL_ROTATION + 4].copy_from_slice(&(-1.0f32).to_le_bytes());
+        let t = crate::gran_turismo_7::parse_decrypted_ext(&buf)?;
+        assert_eq!(
+            t.get_extended("gt7_car_type"),
+            Some(&TelemetryValue::Integer(4))
+        );
+        assert_eq!(
+            t.get_extended("gt7_energy_recovery"),
+            Some(&TelemetryValue::Float(50.0))
+        );
+        assert!((t.steering_angle - (-1.0)).abs() < 0.001);
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Realistic full-field GT Sport packet
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_gts_realistic_full_packet() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&6800.0f32.to_le_bytes());
+        buf[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&41.7f32.to_le_bytes()); // ~150 km/h
+        buf[OFF_THROTTLE] = 230;
+        buf[OFF_BRAKE] = 0;
+        buf[OFF_GEAR_BYTE] = (4 << 4) | 3;
+        buf[OFF_FUEL_LEVEL..OFF_FUEL_LEVEL + 4].copy_from_slice(&40.0f32.to_le_bytes());
+        buf[OFF_FUEL_CAPACITY..OFF_FUEL_CAPACITY + 4].copy_from_slice(&80.0f32.to_le_bytes());
+        buf[OFF_WATER_TEMP..OFF_WATER_TEMP + 4].copy_from_slice(&90.0f32.to_le_bytes());
+        buf[OFF_TIRE_TEMP_FL..OFF_TIRE_TEMP_FL + 4].copy_from_slice(&80.0f32.to_le_bytes());
+        buf[OFF_TIRE_TEMP_FR..OFF_TIRE_TEMP_FR + 4].copy_from_slice(&82.0f32.to_le_bytes());
+        buf[OFF_TIRE_TEMP_RL..OFF_TIRE_TEMP_RL + 4].copy_from_slice(&78.0f32.to_le_bytes());
+        buf[OFF_TIRE_TEMP_RR..OFF_TIRE_TEMP_RR + 4].copy_from_slice(&79.0f32.to_le_bytes());
+        buf[OFF_LAP_COUNT..OFF_LAP_COUNT + 2].copy_from_slice(&5u16.to_le_bytes());
+        buf[OFF_BEST_LAP_MS..OFF_BEST_LAP_MS + 4].copy_from_slice(&85_000i32.to_le_bytes());
+        buf[OFF_LAST_LAP_MS..OFF_LAST_LAP_MS + 4].copy_from_slice(&86_500i32.to_le_bytes());
+        buf[OFF_MAX_ALERT_RPM..OFF_MAX_ALERT_RPM + 2].copy_from_slice(&7500u16.to_le_bytes());
+        buf[OFF_CAR_CODE..OFF_CAR_CODE + 4].copy_from_slice(&999i32.to_le_bytes());
+
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert!((t.rpm - 6800.0).abs() < 0.01);
+        assert!((t.speed_ms - 41.7).abs() < 0.01);
+        assert!((t.throttle - 230.0 / 255.0).abs() < 0.001);
+        assert_eq!(t.brake, 0.0);
+        assert_eq!(t.gear, 3);
+        assert!((t.fuel_percent - 0.5).abs() < 0.001);
+        assert!((t.engine_temp_c - 90.0).abs() < 0.01);
+        assert_eq!(t.tire_temps_c, [80, 82, 78, 79]);
+        assert_eq!(t.lap, 5);
+        assert!((t.best_lap_time_s - 85.0).abs() < 0.001);
+        assert!((t.last_lap_time_s - 86.5).abs() < 0.001);
+        assert!((t.max_rpm - 7500.0).abs() < 0.01);
+        assert_eq!(t.car_id.as_deref(), Some("gt7_999"));
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Non-finite value handling through GT Sport path
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_gts_nan_fields_handled() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&f32::NAN.to_le_bytes());
+        buf[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&f32::INFINITY.to_le_bytes());
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert_eq!(t.rpm, 0.0, "NaN RPM gives 0.0");
+        assert_eq!(
+            t.speed_ms, 0.0,
+            "Infinity speed gives 0.0 (read_f32_le returns 0 then max(0) = 0)"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_gts_negative_speed_clamped() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&(-5.0f32).to_le_bytes());
+        let t = crate::gran_turismo_7::parse_decrypted(&buf)?;
+        assert_eq!(t.speed_ms, 0.0, "negative speed clamped to 0");
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Default trait implementation
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_default_and_new_equivalent() {
+        let a = GranTurismo7SportsAdapter::default();
+        let b = GranTurismo7SportsAdapter::new();
+        assert_eq!(a.recv_port, b.recv_port);
+        assert_eq!(a.update_rate, b.update_rate);
     }
 }
 

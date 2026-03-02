@@ -1493,4 +1493,518 @@ mod tests {
             "Different XOR keys must produce different decrypted output"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Salsa20 round-trip and nonce derivation tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_salsa20_round_trip() -> TestResult {
+        // Salsa20 derives the nonce from buf[0x40..0x44]. After encryption the
+        // nonce bytes change, so a naïve double-XOR does NOT round-trip.
+        // Instead, verify that preserving the IV seed allows round-trip.
+        let mut buf = [0u8; PACKET_SIZE];
+        for (i, b) in buf.iter_mut().enumerate() {
+            *b = (i & 0xFF) as u8;
+        }
+        let original = buf;
+        let iv_bytes: [u8; 4] = [buf[0x40], buf[0x41], buf[0x42], buf[0x43]];
+        salsa20_xor(&mut buf);
+        assert_ne!(buf, original, "encryption should change the buffer");
+        // Restore the IV seed so the second decrypt uses the same nonce.
+        buf[0x40..0x44].copy_from_slice(&iv_bytes);
+        salsa20_xor(&mut buf);
+        // All bytes except the IV offset should match (IV itself was restored).
+        for i in 0..PACKET_SIZE {
+            if (0x40..0x44).contains(&i) {
+                continue; // IV bytes were manually restored
+            }
+            assert_eq!(
+                buf[i], original[i],
+                "mismatch at byte {i}: got {}, expected {}",
+                buf[i], original[i]
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_salsa20_nonce_derived_from_iv_offset() {
+        // Changing bytes at the IV offset (0x40..0x44) should change the keystream.
+        let mut buf_a = [0u8; PACKET_SIZE];
+        buf_a[0x40] = 0x01;
+        let mut buf_b = [0u8; PACKET_SIZE];
+        buf_b[0x40] = 0x02;
+        salsa20_xor(&mut buf_a);
+        salsa20_xor(&mut buf_b);
+        assert_ne!(
+            buf_a, buf_b,
+            "Different IV seeds must produce different keystreams"
+        );
+    }
+
+    #[test]
+    fn test_salsa20_decrypt_consistency_type2() -> TestResult {
+        // Same input encrypted twice must produce the same ciphertext.
+        let mut buf_a = vec![0u8; PACKET_SIZE_TYPE2];
+        for (i, b) in buf_a.iter_mut().enumerate() {
+            *b = ((i * 7) & 0xFF) as u8;
+        }
+        let mut buf_b = buf_a.clone();
+        salsa20_decrypt(&mut buf_a, XOR_KEY_TYPE2);
+        salsa20_decrypt(&mut buf_b, XOR_KEY_TYPE2);
+        assert_eq!(buf_a, buf_b, "Type2 encryption must be deterministic");
+        Ok(())
+    }
+
+    #[test]
+    fn test_salsa20_decrypt_consistency_type3() -> TestResult {
+        // Same input encrypted twice must produce the same ciphertext.
+        let mut buf_a = vec![0u8; PACKET_SIZE_TYPE3];
+        for (i, b) in buf_a.iter_mut().enumerate() {
+            *b = ((i * 13) & 0xFF) as u8;
+        }
+        let mut buf_b = buf_a.clone();
+        salsa20_decrypt(&mut buf_a, XOR_KEY_TYPE3);
+        salsa20_decrypt(&mut buf_b, XOR_KEY_TYPE3);
+        assert_eq!(buf_a, buf_b, "Type3 encryption must be deterministic");
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Additional field extraction tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_water_temp_extraction() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        let expected_temp: f32 = 85.5;
+        buf[OFF_WATER_TEMP..OFF_WATER_TEMP + 4].copy_from_slice(&expected_temp.to_le_bytes());
+        let t = parse_decrypted(&buf)?;
+        assert!(
+            (t.engine_temp_c - expected_temp).abs() < 0.01,
+            "engine_temp_c should reflect water_temp: got {}",
+            t.engine_temp_c
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_max_rpm_from_alert_rpm() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        let alert_rpm: u16 = 8500;
+        buf[OFF_MAX_ALERT_RPM..OFF_MAX_ALERT_RPM + 2].copy_from_slice(&alert_rpm.to_le_bytes());
+        let t = parse_decrypted(&buf)?;
+        assert!(
+            (t.max_rpm - 8500.0).abs() < 0.01,
+            "max_rpm should be alert RPM value: got {}",
+            t.max_rpm
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_last_lap_time_conversion() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        // 1 min 45.678 s = 105678 ms
+        buf[OFF_LAST_LAP_MS..OFF_LAST_LAP_MS + 4].copy_from_slice(&105_678i32.to_le_bytes());
+        let t = parse_decrypted(&buf)?;
+        assert!(
+            (t.last_lap_time_s - 105.678).abs() < 0.001,
+            "last_lap_time_s mismatch: got {}",
+            t.last_lap_time_s
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_last_lap_negative_gives_zero() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_LAST_LAP_MS..OFF_LAST_LAP_MS + 4].copy_from_slice(&(-1i32).to_le_bytes());
+        let t = parse_decrypted(&buf)?;
+        assert_eq!(
+            t.last_lap_time_s, 0.0,
+            "last_lap_time_s should be 0 for negative raw value"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_fuel_zero_capacity_gives_zero_percent() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_FUEL_LEVEL..OFF_FUEL_LEVEL + 4].copy_from_slice(&50.0f32.to_le_bytes());
+        buf[OFF_FUEL_CAPACITY..OFF_FUEL_CAPACITY + 4].copy_from_slice(&0.0f32.to_le_bytes());
+        let t = parse_decrypted(&buf)?;
+        assert_eq!(
+            t.fuel_percent, 0.0,
+            "fuel_percent must be 0 when capacity is 0"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_fuel_exceeding_capacity_clamps_to_one() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_FUEL_LEVEL..OFF_FUEL_LEVEL + 4].copy_from_slice(&200.0f32.to_le_bytes());
+        buf[OFF_FUEL_CAPACITY..OFF_FUEL_CAPACITY + 4].copy_from_slice(&100.0f32.to_le_bytes());
+        let t = parse_decrypted(&buf)?;
+        assert!(
+            (t.fuel_percent - 1.0).abs() < f32::EPSILON,
+            "fuel_percent must clamp to 1.0 when level > capacity"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_negative_speed_clamped_to_zero() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&(-10.0f32).to_le_bytes());
+        let t = parse_decrypted(&buf)?;
+        assert_eq!(t.speed_ms, 0.0, "negative speed must be clamped to 0");
+        Ok(())
+    }
+
+    #[test]
+    fn test_nan_speed_gives_zero() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&f32::NAN.to_le_bytes());
+        let t = parse_decrypted(&buf)?;
+        assert_eq!(
+            t.speed_ms, 0.0,
+            "NaN speed should produce 0 (read_f32_le returns 0 for non-finite)"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_nan_rpm_gives_zero() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&f32::NAN.to_le_bytes());
+        let t = parse_decrypted(&buf)?;
+        assert_eq!(t.rpm, 0.0, "NaN RPM should produce 0.0");
+        Ok(())
+    }
+
+    #[test]
+    fn test_infinity_rpm_gives_zero() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&f32::INFINITY.to_le_bytes());
+        let t = parse_decrypted(&buf)?;
+        assert_eq!(t.rpm, 0.0, "Infinity RPM should produce 0.0");
+        Ok(())
+    }
+
+    #[test]
+    fn test_neg_infinity_tire_temp_clamped() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_TIRE_TEMP_FL..OFF_TIRE_TEMP_FL + 4]
+            .copy_from_slice(&f32::NEG_INFINITY.to_le_bytes());
+        let t = parse_decrypted(&buf)?;
+        // read_f32_le returns 0.0 for non-finite, then clamped to [0,255] as u8 = 0
+        assert_eq!(
+            t.tire_temps_c[0], 0,
+            "non-finite tire temp should clamp to 0"
+        );
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Flag combination tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_rev_limit_flag() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        let flags: u16 = FLAG_REV_LIMIT;
+        buf[OFF_FLAGS..OFF_FLAGS + 2].copy_from_slice(&flags.to_le_bytes());
+        let t = parse_decrypted(&buf)?;
+        assert!(t.flags.engine_limiter, "REV_LIMIT flag should be set");
+        assert!(!t.flags.traction_control, "TCS should not be set");
+        assert!(!t.flags.abs_active, "ASM should not be set");
+        Ok(())
+    }
+
+    #[test]
+    fn test_paused_flag() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        let flags: u16 = FLAG_PAUSED;
+        buf[OFF_FLAGS..OFF_FLAGS + 2].copy_from_slice(&flags.to_le_bytes());
+        let t = parse_decrypted(&buf)?;
+        assert!(t.flags.session_paused, "PAUSED flag should be set");
+        Ok(())
+    }
+
+    #[test]
+    fn test_multiple_flags_combined() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        let flags: u16 = FLAG_TCS_ACTIVE | FLAG_ASM_ACTIVE | FLAG_REV_LIMIT | FLAG_PAUSED;
+        buf[OFF_FLAGS..OFF_FLAGS + 2].copy_from_slice(&flags.to_le_bytes());
+        let t = parse_decrypted(&buf)?;
+        assert!(t.flags.traction_control, "TCS should be set");
+        assert!(t.flags.abs_active, "ASM/ABS should be set");
+        assert!(t.flags.engine_limiter, "REV_LIMIT should be set");
+        assert!(t.flags.session_paused, "PAUSED should be set");
+        Ok(())
+    }
+
+    #[test]
+    fn test_no_flags_set() -> TestResult {
+        let buf = make_decrypted_buf(); // flags are 0 by default
+        let t = parse_decrypted(&buf)?;
+        assert!(!t.flags.traction_control);
+        assert!(!t.flags.abs_active);
+        assert!(!t.flags.engine_limiter);
+        assert!(!t.flags.session_paused);
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Gear edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_gear_max_valid() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_GEAR_BYTE] = 0x08; // 8th gear
+        let t = parse_decrypted(&buf)?;
+        assert_eq!(t.gear, 8, "8th gear should be valid");
+        Ok(())
+    }
+
+    #[test]
+    fn test_gear_invalid_nibble_maps_to_neutral() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        // Low nibble 0x0F (15) is out of range [0..8], should map to 0
+        buf[OFF_GEAR_BYTE] = 0x0F;
+        let t = parse_decrypted(&buf)?;
+        assert_eq!(t.gear, 0, "out-of-range gear nibble should map to neutral");
+        Ok(())
+    }
+
+    #[test]
+    fn test_gear_suggested_in_high_nibble_ignored() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        // High nibble = suggested gear 7, low nibble = current gear 2
+        buf[OFF_GEAR_BYTE] = (7 << 4) | 2;
+        let t = parse_decrypted(&buf)?;
+        assert_eq!(t.gear, 2, "only low nibble should be used for current gear");
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Throttle/brake edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_throttle_zero_and_max() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        buf[OFF_THROTTLE] = 0;
+        buf[OFF_BRAKE] = 0;
+        let t = parse_decrypted(&buf)?;
+        assert_eq!(t.throttle, 0.0, "zero throttle byte = 0.0");
+        assert_eq!(t.brake, 0.0, "zero brake byte = 0.0");
+
+        buf[OFF_THROTTLE] = 255;
+        buf[OFF_BRAKE] = 255;
+        let t2 = parse_decrypted(&buf)?;
+        assert!(
+            (t2.throttle - 1.0).abs() < f32::EPSILON,
+            "255 throttle = 1.0"
+        );
+        assert!((t2.brake - 1.0).abs() < f32::EPSILON, "255 brake = 1.0");
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Error handling: truncated / odd-sized packets
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_empty_packet_returns_err() {
+        let result = decrypt_and_parse(&[]);
+        assert!(result.is_err(), "empty packet must fail");
+    }
+
+    #[test]
+    fn test_packet_one_byte_short_of_type1() {
+        let data = vec![0u8; PACKET_SIZE - 1];
+        let result = decrypt_and_parse(&data);
+        assert!(result.is_err(), "295 bytes must fail");
+    }
+
+    #[test]
+    fn test_odd_size_between_type1_and_type2() -> TestResult {
+        // 300 bytes: larger than Type1 (296), smaller than Type2 (316).
+        // detect_packet_type returns None; fallback to Type1 parsing.
+        let data = vec![0u8; 300];
+        // This will fail on magic check (encrypted data), which is expected.
+        let result = decrypt_and_parse(&data);
+        // Should not panic; either Ok or Err is fine.
+        let _ = result;
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_decrypted_ext_too_short() {
+        let short = vec![0u8; 100];
+        let result = parse_decrypted_ext(&short);
+        assert!(result.is_err(), "buffer shorter than 296 must fail");
+    }
+
+    // -----------------------------------------------------------------------
+    // Realistic multi-field packet test
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_realistic_full_packet() -> TestResult {
+        let mut buf = make_decrypted_buf();
+        // Set realistic racing values
+        buf[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&7200.0f32.to_le_bytes());
+        buf[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&55.5f32.to_le_bytes()); // ~200 km/h
+        buf[OFF_THROTTLE] = 204; // ~80%
+        buf[OFF_BRAKE] = 0;
+        buf[OFF_GEAR_BYTE] = (5 << 4) | 4; // gear 4, suggested 5
+        buf[OFF_FUEL_LEVEL..OFF_FUEL_LEVEL + 4].copy_from_slice(&30.0f32.to_le_bytes());
+        buf[OFF_FUEL_CAPACITY..OFF_FUEL_CAPACITY + 4].copy_from_slice(&60.0f32.to_le_bytes());
+        buf[OFF_WATER_TEMP..OFF_WATER_TEMP + 4].copy_from_slice(&92.0f32.to_le_bytes());
+        buf[OFF_TIRE_TEMP_FL..OFF_TIRE_TEMP_FL + 4].copy_from_slice(&85.0f32.to_le_bytes());
+        buf[OFF_TIRE_TEMP_FR..OFF_TIRE_TEMP_FR + 4].copy_from_slice(&87.0f32.to_le_bytes());
+        buf[OFF_TIRE_TEMP_RL..OFF_TIRE_TEMP_RL + 4].copy_from_slice(&82.0f32.to_le_bytes());
+        buf[OFF_TIRE_TEMP_RR..OFF_TIRE_TEMP_RR + 4].copy_from_slice(&84.0f32.to_le_bytes());
+        buf[OFF_LAP_COUNT..OFF_LAP_COUNT + 2].copy_from_slice(&3u16.to_le_bytes());
+        buf[OFF_BEST_LAP_MS..OFF_BEST_LAP_MS + 4].copy_from_slice(&92_345i32.to_le_bytes());
+        buf[OFF_LAST_LAP_MS..OFF_LAST_LAP_MS + 4].copy_from_slice(&93_100i32.to_le_bytes());
+        buf[OFF_MAX_ALERT_RPM..OFF_MAX_ALERT_RPM + 2].copy_from_slice(&8000u16.to_le_bytes());
+        let flags: u16 = FLAG_TCS_ACTIVE;
+        buf[OFF_FLAGS..OFF_FLAGS + 2].copy_from_slice(&flags.to_le_bytes());
+        buf[OFF_CAR_CODE..OFF_CAR_CODE + 4].copy_from_slice(&1234i32.to_le_bytes());
+
+        let t = parse_decrypted(&buf)?;
+        assert!((t.rpm - 7200.0).abs() < 0.01);
+        assert!((t.speed_ms - 55.5).abs() < 0.01);
+        assert!((t.throttle - 204.0 / 255.0).abs() < 0.001);
+        assert_eq!(t.brake, 0.0);
+        assert_eq!(t.gear, 4);
+        assert!((t.fuel_percent - 0.5).abs() < 0.001);
+        assert!((t.engine_temp_c - 92.0).abs() < 0.01);
+        assert_eq!(t.tire_temps_c, [85, 87, 82, 84]);
+        assert_eq!(t.lap, 3);
+        assert!((t.best_lap_time_s - 92.345).abs() < 0.001);
+        assert!((t.last_lap_time_s - 93.1).abs() < 0.001);
+        assert!((t.max_rpm - 8000.0).abs() < 0.01);
+        assert!(t.flags.traction_control);
+        assert_eq!(t.car_id.as_deref(), Some("gt7_1234"));
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Realistic extended packet tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_realistic_type3_full_packet() -> TestResult {
+        let mut buf = make_type3_buf();
+        // Base fields
+        buf[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&6000.0f32.to_le_bytes());
+        buf[OFF_THROTTLE] = 255;
+        buf[OFF_GEAR_BYTE] = 3;
+        // Type2 extended fields
+        buf[OFF_WHEEL_ROTATION..OFF_WHEEL_ROTATION + 4].copy_from_slice(&(-0.25f32).to_le_bytes());
+        buf[OFF_SWAY..OFF_SWAY + 4].copy_from_slice(&0.15f32.to_le_bytes());
+        buf[OFF_HEAVE..OFF_HEAVE + 4].copy_from_slice(&(-0.05f32).to_le_bytes());
+        buf[OFF_SURGE..OFF_SURGE + 4].copy_from_slice(&0.9f32.to_le_bytes());
+        // Type3 extended fields
+        buf[OFF_CAR_TYPE_BYTE3] = 4; // electric
+        buf[OFF_ENERGY_RECOVERY..OFF_ENERGY_RECOVERY + 4].copy_from_slice(&75.3f32.to_le_bytes());
+
+        let t = parse_decrypted_ext(&buf)?;
+        assert!((t.rpm - 6000.0).abs() < 0.01);
+        assert!((t.throttle - 1.0).abs() < f32::EPSILON);
+        assert_eq!(t.gear, 3);
+        assert!((t.steering_angle - (-0.25)).abs() < 0.001);
+        assert!((t.lateral_g - 0.15).abs() < 0.001);
+        assert!((t.vertical_g - (-0.05)).abs() < 0.001);
+        assert!((t.longitudinal_g - 0.9).abs() < 0.001);
+        assert_eq!(
+            t.get_extended("gt7_car_type"),
+            Some(&TelemetryValue::Integer(4))
+        );
+        assert_eq!(
+            t.get_extended("gt7_energy_recovery"),
+            Some(&TelemetryValue::Float(75.3))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_type2_non_finite_motion_gives_zero() -> TestResult {
+        let mut buf = make_type2_buf();
+        buf[OFF_SWAY..OFF_SWAY + 4].copy_from_slice(&f32::NAN.to_le_bytes());
+        buf[OFF_HEAVE..OFF_HEAVE + 4].copy_from_slice(&f32::INFINITY.to_le_bytes());
+        buf[OFF_SURGE..OFF_SURGE + 4].copy_from_slice(&f32::NEG_INFINITY.to_le_bytes());
+        let t = parse_decrypted_ext(&buf)?;
+        assert_eq!(t.lateral_g, 0.0, "NaN sway should give 0.0");
+        assert_eq!(t.vertical_g, 0.0, "Infinity heave should give 0.0");
+        assert_eq!(t.longitudinal_g, 0.0, "NEG_INFINITY surge should give 0.0");
+        Ok(())
+    }
+
+    #[test]
+    fn test_type3_zero_energy_recovery() -> TestResult {
+        let mut buf = make_type3_buf();
+        buf[OFF_ENERGY_RECOVERY..OFF_ENERGY_RECOVERY + 4].copy_from_slice(&0.0f32.to_le_bytes());
+        let t = parse_decrypted_ext(&buf)?;
+        assert_eq!(
+            t.get_extended("gt7_energy_recovery"),
+            Some(&TelemetryValue::Float(0.0))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_type3_all_car_type_values() -> TestResult {
+        for car_type in [0u8, 1, 2, 3, 4, 255] {
+            let mut buf = make_type3_buf();
+            buf[OFF_CAR_TYPE_BYTE3] = car_type;
+            let t = parse_decrypted_ext(&buf)?;
+            assert_eq!(
+                t.get_extended("gt7_car_type"),
+                Some(&TelemetryValue::Integer(car_type as i32)),
+                "car_type byte {car_type} should map correctly"
+            );
+        }
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Port constants
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_gt7_port_constants() {
+        assert_eq!(GT7_RECV_PORT, 33740, "GT7 recv port must be 33740");
+        assert_eq!(GT7_SEND_PORT, 33739, "GT7 send port must be 33739");
+    }
+
+    #[test]
+    fn test_magic_constant() {
+        assert_eq!(MAGIC, 0x4737_5330, "MAGIC must be 0x47375330 (\"0S7G\" LE)");
+    }
+
+    #[test]
+    fn test_packet_size_constants() {
+        assert_eq!(PACKET_SIZE, 296);
+        assert_eq!(PACKET_SIZE_TYPE2, 316);
+        assert_eq!(PACKET_SIZE_TYPE3, 344);
+        assert_eq!(MAX_PACKET_SIZE, PACKET_SIZE_TYPE3);
+    }
+
+    #[test]
+    fn test_adapter_default_impl() {
+        let a = GranTurismo7Adapter::default();
+        let b = GranTurismo7Adapter::new();
+        assert_eq!(a.recv_port, b.recv_port);
+        assert_eq!(a.update_rate, b.update_rate);
+        assert_eq!(a.packet_type, b.packet_type);
+    }
 }
