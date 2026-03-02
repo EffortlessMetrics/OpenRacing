@@ -351,4 +351,314 @@ mod tests {
         }
         Ok(())
     }
+
+    #[test]
+    fn serde_round_trip_preserves_matrix() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        let yaml = serde_yaml::to_string(&matrix)?;
+        let round_tripped: super::GameSupportMatrix = serde_yaml::from_str(&yaml)?;
+        assert_eq!(matrix.game_ids(), round_tripped.game_ids());
+        for id in matrix.game_ids() {
+            let orig = &matrix.games[&id];
+            let rt = &round_tripped.games[&id];
+            assert_eq!(orig.name, rt.name, "name mismatch for {}", id);
+            assert_eq!(
+                orig.telemetry.method, rt.telemetry.method,
+                "telemetry method mismatch for {}",
+                id
+            );
+            assert_eq!(
+                orig.versions.len(),
+                rt.versions.len(),
+                "version count mismatch for {}",
+                id
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn each_version_has_non_empty_version_string() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        for (id, game) in &matrix.games {
+            for ver in &game.versions {
+                assert!(
+                    !ver.version.is_empty(),
+                    "game {} has a version entry with empty version string",
+                    id
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn each_version_has_non_empty_telemetry_method() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        for (id, game) in &matrix.games {
+            for ver in &game.versions {
+                assert!(
+                    !ver.telemetry_method.is_empty(),
+                    "game {} version {} has empty telemetry_method",
+                    id,
+                    ver.version
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn high_rate_option_implies_high_rate_hz_set() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        for (id, game) in &matrix.games {
+            if game.telemetry.supports_360hz_option {
+                assert!(
+                    game.telemetry.high_rate_update_rate_hz.is_some(),
+                    "game {} has supports_360hz_option but no high_rate_update_rate_hz",
+                    id
+                );
+                let high_hz = game.telemetry.high_rate_update_rate_hz.as_ref();
+                assert!(
+                    high_hz.is_some_and(|&hz| hz > game.telemetry.update_rate_hz),
+                    "game {} high_rate_update_rate_hz should exceed base rate",
+                    id
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn most_non_none_games_have_field_mappings() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        let non_none: Vec<_> = matrix
+            .games
+            .iter()
+            .filter(|(_, g)| g.telemetry.method != "none")
+            .collect();
+        let with_fields = non_none
+            .iter()
+            .filter(|(_, g)| {
+                let f = &g.telemetry.fields;
+                f.ffb_scalar.is_some()
+                    || f.rpm.is_some()
+                    || f.speed_ms.is_some()
+                    || f.slip_ratio.is_some()
+                    || f.gear.is_some()
+                    || f.flags.is_some()
+                    || f.car_id.is_some()
+                    || f.track_id.is_some()
+            })
+            .count();
+        // The vast majority of telemetry-capable games should have field mappings
+        assert!(
+            with_fields >= non_none.len() * 3 / 4,
+            "expected >= 75% of non-none games to have field mappings, got {}/{}",
+            with_fields,
+            non_none.len()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn game_names_are_unique() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        let mut seen = std::collections::HashSet::new();
+        for (id, game) in &matrix.games {
+            assert!(
+                seen.insert(game.name.clone()),
+                "duplicate display name '{}' found on game id '{}'",
+                game.name,
+                id
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn most_non_none_versions_have_supported_fields() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        let mut total_non_none = 0usize;
+        let mut with_fields = 0usize;
+        for (_id, game) in &matrix.games {
+            for ver in &game.versions {
+                if ver.telemetry_method == "none" {
+                    continue;
+                }
+                total_non_none += 1;
+                if !ver.supported_fields.is_empty() {
+                    with_fields += 1;
+                }
+            }
+        }
+        // Most versions with active telemetry should declare supported fields
+        assert!(
+            with_fields >= total_non_none * 3 / 4,
+            "expected >= 75% of non-none versions to have supported_fields, got {}/{}",
+            with_fields,
+            total_non_none
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn custom_yaml_minimal_deserialization() -> Result<(), Box<dyn std::error::Error>> {
+        let yaml = r#"
+games:
+  test_game:
+    name: "Test Game"
+    versions:
+      - version: "1.0"
+        config_paths: []
+        executable_patterns: ["test.exe"]
+        telemetry_method: "udp"
+        supported_fields: ["rpm"]
+    telemetry:
+      method: "udp"
+      update_rate_hz: 60
+      fields:
+        rpm: "RPM"
+    config_writer: "test"
+    auto_detect:
+      process_names: ["test.exe"]
+      install_registry_keys: []
+      install_paths: []
+"#;
+        let matrix: super::GameSupportMatrix = serde_yaml::from_str(yaml)?;
+        assert_eq!(matrix.game_ids(), vec!["test_game".to_string()]);
+        assert!(matrix.has_game_id("test_game"));
+        assert!(!matrix.has_game_id("missing"));
+        let game = &matrix.games["test_game"];
+        assert_eq!(game.name, "Test Game");
+        assert_eq!(game.telemetry.update_rate_hz, 60);
+        assert_eq!(game.status, GameSupportStatus::Stable); // default
+        assert!(!game.telemetry.supports_360hz_option); // default false
+        assert!(game.telemetry.high_rate_update_rate_hz.is_none());
+        assert!(game.telemetry.output_target.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn custom_yaml_experimental_status() -> Result<(), Box<dyn std::error::Error>> {
+        let yaml = r#"
+games:
+  alpha_sim:
+    name: "Alpha Sim"
+    versions:
+      - version: "0.1"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "none"
+        supported_fields: []
+    telemetry:
+      method: "none"
+      update_rate_hz: 0
+      fields: {}
+    status: "experimental"
+    config_writer: "alpha"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+"#;
+        let matrix: super::GameSupportMatrix = serde_yaml::from_str(yaml)?;
+        let game = &matrix.games["alpha_sim"];
+        assert_eq!(game.status, GameSupportStatus::Experimental);
+        assert!(matrix.stable_games().is_empty());
+        assert_eq!(matrix.experimental_games(), vec!["alpha_sim".to_string()]);
+        Ok(())
+    }
+
+    #[test]
+    fn custom_yaml_multi_game_status_filtering() -> Result<(), Box<dyn std::error::Error>> {
+        let yaml = r#"
+games:
+  game_a:
+    name: "Game A"
+    versions:
+      - version: "1.0"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "udp"
+        supported_fields: ["rpm"]
+    telemetry:
+      method: "udp"
+      update_rate_hz: 60
+      fields:
+        rpm: "RPM"
+    status: "stable"
+    config_writer: "a"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+  game_b:
+    name: "Game B"
+    versions:
+      - version: "0.5"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "udp"
+        supported_fields: ["rpm"]
+    telemetry:
+      method: "udp"
+      update_rate_hz: 30
+      fields:
+        rpm: "rpm_val"
+    status: "experimental"
+    config_writer: "b"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+"#;
+        let matrix: super::GameSupportMatrix = serde_yaml::from_str(yaml)?;
+        assert_eq!(matrix.game_ids(), vec!["game_a", "game_b"]);
+        assert_eq!(matrix.stable_games(), vec!["game_a".to_string()]);
+        assert_eq!(matrix.experimental_games(), vec!["game_b".to_string()]);
+        assert_eq!(
+            matrix.game_ids_by_status(GameSupportStatus::Stable),
+            vec!["game_a".to_string()]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn iracing_has_high_rate_telemetry() -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        let iracing = &matrix.games["iracing"];
+        assert!(iracing.telemetry.supports_360hz_option);
+        assert!(
+            iracing
+                .telemetry
+                .high_rate_update_rate_hz
+                .is_some_and(|hz| hz >= 360)
+        );
+        assert_eq!(iracing.telemetry.method, "shared_memory");
+        assert!(iracing.telemetry.fields.ffb_scalar.is_some());
+        assert!(iracing.telemetry.fields.rpm.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn version_executable_patterns_or_config_paths_present()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let matrix = load_default_matrix()?;
+        let mut covered = 0usize;
+        for game in matrix.games.values() {
+            for ver in &game.versions {
+                if !ver.executable_patterns.is_empty() || !ver.config_paths.is_empty() {
+                    covered += 1;
+                }
+            }
+        }
+        // Most versions should have at least one identification path
+        assert!(
+            covered >= 10,
+            "expected >= 10 versions with patterns, got {}",
+            covered
+        );
+        Ok(())
+    }
 }
