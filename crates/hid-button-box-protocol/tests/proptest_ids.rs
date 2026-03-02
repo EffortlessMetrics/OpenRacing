@@ -7,8 +7,8 @@
 //! - ButtonBoxType variants can be constructed
 
 use hid_button_box_protocol::{
-    ButtonBoxType, MAX_AXES, MAX_BUTTONS, PRODUCT_ID_BUTTON_BOX, REPORT_SIZE_GAMEPAD,
-    VENDOR_ID_GENERIC,
+    ButtonBoxCapabilities, ButtonBoxType, MAX_AXES, MAX_BUTTONS, PRODUCT_ID_BUTTON_BOX,
+    REPORT_SIZE_GAMEPAD, VENDOR_ID_GENERIC,
 };
 use proptest::prelude::*;
 
@@ -106,5 +106,91 @@ proptest! {
         let default_type = ButtonBoxType::default();
         prop_assert_eq!(default_type, ButtonBoxType::Standard,
             "Default ButtonBoxType must be Standard");
+    }
+
+    /// PRODUCT_ID_BUTTON_BOX must differ from VENDOR_ID_GENERIC (VID != PID).
+    #[test]
+    fn prop_pid_not_equal_vid(_unused: u8) {
+        prop_assert_ne!(PRODUCT_ID_BUTTON_BOX, VENDOR_ID_GENERIC,
+            "PID must not equal VID");
+    }
+
+    /// The single PID must be in a non-reserved USB range (> 0x00FF).
+    #[test]
+    fn prop_pid_in_valid_range(_unused: u8) {
+        prop_assert!(PRODUCT_ID_BUTTON_BOX > 0x00FF,
+            "PID must be outside the reserved low range");
+    }
+
+    /// ButtonBoxCapabilities::basic() must always return the same values.
+    #[test]
+    fn prop_capabilities_basic_consistent(_unused: u8) {
+        let a = ButtonBoxCapabilities::basic();
+        let b = ButtonBoxCapabilities::basic();
+        prop_assert_eq!(a.button_count, b.button_count);
+        prop_assert_eq!(a.analog_axis_count, b.analog_axis_count);
+        prop_assert_eq!(a.has_pov_hat, b.has_pov_hat);
+        prop_assert_eq!(a.has_rotary_encoders, b.has_rotary_encoders);
+        prop_assert_eq!(a.rotary_encoder_count, b.rotary_encoder_count);
+    }
+
+    /// ButtonBoxCapabilities::extended() must always return the same values.
+    #[test]
+    fn prop_capabilities_extended_consistent(_unused: u8) {
+        let a = ButtonBoxCapabilities::extended();
+        let b = ButtonBoxCapabilities::extended();
+        prop_assert_eq!(a.button_count, b.button_count);
+        prop_assert_eq!(a.analog_axis_count, b.analog_axis_count);
+        prop_assert_eq!(a.has_pov_hat, b.has_pov_hat);
+        prop_assert_eq!(a.has_rotary_encoders, b.has_rotary_encoders);
+        prop_assert_eq!(a.rotary_encoder_count, b.rotary_encoder_count);
+    }
+
+    /// ButtonBoxCapabilities::default() must match extended().
+    #[test]
+    fn prop_capabilities_default_matches_extended(_unused: u8) {
+        let def = ButtonBoxCapabilities::default();
+        let ext = ButtonBoxCapabilities::extended();
+        prop_assert_eq!(def.button_count, ext.button_count);
+        prop_assert_eq!(def.analog_axis_count, ext.analog_axis_count);
+        prop_assert_eq!(def.has_pov_hat, ext.has_pov_hat);
+        prop_assert_eq!(def.has_rotary_encoders, ext.has_rotary_encoders);
+        prop_assert_eq!(def.rotary_encoder_count, ext.rotary_encoder_count);
+    }
+
+    /// basic() capabilities must have fewer buttons than extended().
+    #[test]
+    fn prop_basic_fewer_buttons_than_extended(_unused: u8) {
+        let basic = ButtonBoxCapabilities::basic();
+        let ext = ButtonBoxCapabilities::extended();
+        prop_assert!(basic.button_count < ext.button_count,
+            "basic must have fewer buttons than extended");
+    }
+
+    /// extended() must support rotary encoders; basic() must not.
+    #[test]
+    fn prop_rotary_support_matches_type(_unused: u8) {
+        let basic = ButtonBoxCapabilities::basic();
+        let ext = ButtonBoxCapabilities::extended();
+        prop_assert!(!basic.has_rotary_encoders,
+            "basic must not have rotary encoders");
+        prop_assert!(ext.has_rotary_encoders,
+            "extended must have rotary encoders");
+    }
+
+    /// All capabilities button counts must be within MAX_BUTTONS.
+    #[test]
+    fn prop_capabilities_within_max_buttons(_unused: u8) {
+        prop_assert!(ButtonBoxCapabilities::basic().button_count <= MAX_BUTTONS);
+        prop_assert!(ButtonBoxCapabilities::extended().button_count <= MAX_BUTTONS);
+        prop_assert!(ButtonBoxCapabilities::default().button_count <= MAX_BUTTONS);
+    }
+
+    /// All capabilities axis counts must be within MAX_AXES.
+    #[test]
+    fn prop_capabilities_within_max_axes(_unused: u8) {
+        prop_assert!(ButtonBoxCapabilities::basic().analog_axis_count <= MAX_AXES);
+        prop_assert!(ButtonBoxCapabilities::extended().analog_axis_count <= MAX_AXES);
+        prop_assert!(ButtonBoxCapabilities::default().analog_axis_count <= MAX_AXES);
     }
 }

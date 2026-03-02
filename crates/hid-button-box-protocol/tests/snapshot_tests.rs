@@ -148,3 +148,87 @@ fn test_snapshot_constants() {
         button_box::MAX_AXES,
     ));
 }
+
+#[test]
+fn test_snapshot_capabilities_default() {
+    let caps = button_box::ButtonBoxCapabilities::default();
+    assert_debug_snapshot!(format!(
+        "buttons={}, axes={}, pov={}, rotary={}, rotary_count={}",
+        caps.button_count,
+        caps.analog_axis_count,
+        caps.has_pov_hat,
+        caps.has_rotary_encoders,
+        caps.rotary_encoder_count
+    ));
+}
+
+#[test]
+fn test_snapshot_rotary_encoder_default() {
+    let encoder = button_box::RotaryEncoderState::new();
+    assert_debug_snapshot!(format!(
+        "position={}, delta={}, button_pressed={}",
+        encoder.position, encoder.delta, encoder.button_pressed
+    ));
+}
+
+#[test]
+fn test_snapshot_rotary_encoder_after_update() {
+    let mut encoder = button_box::RotaryEncoderState::new();
+    encoder.update(42);
+    assert_debug_snapshot!(format!(
+        "position={}, delta={}, button_pressed={}",
+        encoder.position, encoder.delta, encoder.button_pressed
+    ));
+}
+
+#[test]
+fn test_snapshot_default_input_report() {
+    let report = button_box::ButtonBoxInputReport::default();
+    assert_debug_snapshot!(format!(
+        "buttons={:#010x}, axis_x={}, axis_y={}, axis_z={}, axis_rz={}, hat={:?}, button_count={}",
+        report.buttons,
+        report.axis_x,
+        report.axis_y,
+        report.axis_z,
+        report.axis_rz,
+        report.hat_direction(),
+        report.button_count()
+    ));
+}
+
+#[test]
+fn test_snapshot_error_invalid_report_size() {
+    let err = button_box::ButtonBoxError::InvalidReportSize {
+        expected: 8,
+        actual: 4,
+    };
+    assert_debug_snapshot!(err.to_string());
+}
+
+#[test]
+fn test_snapshot_error_invalid_button_index() {
+    let err = button_box::ButtonBoxError::InvalidButtonIndex(42);
+    assert_debug_snapshot!(err.to_string());
+}
+
+#[test]
+fn test_snapshot_error_invalid_axis_index() {
+    let err = button_box::ButtonBoxError::InvalidAxisIndex(5);
+    assert_debug_snapshot!(err.to_string());
+}
+
+#[test]
+fn test_snapshot_error_hid_error() {
+    let err = button_box::ButtonBoxError::HidError("device disconnected".into());
+    assert_debug_snapshot!(err.to_string());
+}
+
+#[test]
+fn test_snapshot_vid_pid_pair() {
+    assert_debug_snapshot!(format!(
+        "VID={:#06x}, PID={:#06x}, unique_pair={}",
+        button_box::VENDOR_ID_GENERIC,
+        button_box::PRODUCT_ID_BUTTON_BOX,
+        button_box::VENDOR_ID_GENERIC != button_box::PRODUCT_ID_BUTTON_BOX
+    ));
+}

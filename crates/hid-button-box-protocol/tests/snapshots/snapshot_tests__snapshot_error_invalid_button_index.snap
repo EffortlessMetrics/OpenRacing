@@ -1,0 +1,5 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_tests.rs
+expression: err.to_string()
+---
+"Invalid button index: 42"
