@@ -1,14 +1,24 @@
 # RC Readiness Report
 
 **Branch:** `feat/wave15-rc-hardening`
-**Generated:** 2025-07-15
-**Commit:** HEAD (wave 34)
+**Generated:** 2025-07-17
+**Commit:** HEAD (wave 15 hardening)
+
+## Build & CI Status
+
+| Check | Status |
+|-------|--------|
+| `cargo clippy --all-targets --all-features -- -D warnings` | ✅ Clean |
+| `cargo test --all-features --workspace` | ✅ All passing |
+| `cargo deny check` | ✅ Passing |
+| CI governance workflow | ✅ Fixed |
 
 ## Test Summary
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **8,344+** |
+| **Total tests** | **8,861** |
+| **Test binaries** | **414** |
 | Unit tests | 6,200+ |
 | Snapshot tests | 850+ |
 | Property tests (proptest) | 780+ |
@@ -54,8 +64,8 @@
   adding wheel rotation, sway/heave/surge, energy recovery, and filtered throttle/brake.
 - **Comprehensive proptest coverage**: all 17 protocol crates have property-based testing
   with 780+ proptest cases exercising encoding round-trips, ID mappings, and safety invariants.
-- **Telemetry adapters** cover 40+ games with snapshot regression tests across multiple
-  schema versions (v2–v9).
+- **59 telemetry adapters** (56 active + 3 stubs) with snapshot regression tests across
+  multiple schema versions (v2–v9).
 - **CLI, schemas, plugins, and engine** all have dedicated test suites.
 - **Fuzz testing** covers 85+ targets spanning all protocol parsers and telemetry decoders.
 - **Safety-critical paths** (FMEA, watchdog, hardware watchdog) have dedicated test suites
@@ -75,9 +85,13 @@
 
 | Gap | Severity | Notes |
 |-----|----------|-------|
+| Cube Controls PIDs still provisional | Medium | `0x0C73`–`0x0C75` have zero external evidence; need hardware captures |
+| Ed25519 stub needs real implementation | Medium | `signature.rs:111` is a stub; replace before v1.0.0 |
+| macOS CI not yet in matrix | Medium | macOS runner not added to GitHub Actions (F-053) |
+| Some telemetry adapters need golden-packet tests | Low | Remaining adapters lack golden-packet integration tests |
+| No physical hardware verification yet | Medium | All PIDs verified against docs/kernel sources only, no USB captures |
 | No line-level code coverage (e.g., `llvm-cov`) | Medium | Test count is high but uncovered branches are unknown |
 | UI crate excluded from test run | Low | `racing-wheel-ui` excluded via `--exclude`; needs separate GUI test strategy |
 | Benchmark suite is minimal | Low | Single bench file; RT timing validation relies on CI perf gates |
-| `compat` crate has 0 unit tests | ~~Medium~~ Low | Compat crate now has tests added in waves 31-32 |
 | Doc-tests not counted | Low | `cargo test` doc-tests run but are not enumerated in `--list` output |
 | No mutation testing in CI | Low | `mutants.toml` exists but results are stale (`mutants.out.old/`) |

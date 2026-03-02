@@ -40,7 +40,7 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 |--------|-------|
 | Supported devices | ~90+ VID/PID pairs across 16+ vendors |
 | Supported games | 59 telemetry adapters (56 active + 3 stubs) |
-| Test count | 8,344+ (unit, integration, proptest, snapshot, E2E) |
+| Test count | 8,861+ (unit, integration, proptest, snapshot, E2E) |
 | Fuzz targets | 85+ across all HID protocols and game adapters |
 | Protocol crates | 17 HID vendor protocol microcrates |
 | Snapshot tests | 50+ across 8 test files |
