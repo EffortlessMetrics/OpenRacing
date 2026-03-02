@@ -40,6 +40,13 @@ const OFF_ENGINE_RPM: usize = 8; // f32  rev/min
 const OFF_GEAR: usize = 12; // i32  >0=forward, <0=reverse, 0=neutral
 const OFF_FUEL_RATIO: usize = 16; // f32  0.0–1.0
 const OFF_ENGINE_LOAD: usize = 20; // f32  0.0–1.0
+// Extended fields (companion plugin v1.1+).
+const OFF_THROTTLE: usize = 24; // f32  0.0–1.0
+const OFF_BRAKE: usize = 28; // f32  0.0–1.0
+const OFF_CLUTCH: usize = 32; // f32  0.0–1.0
+const OFF_STEERING: usize = 36; // f32  -1.0–1.0 (normalised input)
+const OFF_ENGINE_TEMP_C: usize = 40; // f32  Celsius (water temp)
+const OFF_MAX_RPM: usize = 44; // f32  rev/min (engine RPM limit)
 
 const SCS_EXPECTED_VERSION: u32 = 1;
 
@@ -119,8 +126,22 @@ pub fn parse_scs_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     let fuel_ratio = read_f32_le(data, OFF_FUEL_RATIO).unwrap_or(0.0);
     let engine_load = read_f32_le(data, OFF_ENGINE_LOAD).unwrap_or(0.0);
 
+    // Extended fields — gracefully default to 0 when the companion plugin is
+    // an older version that doesn't write them.
+    let throttle = read_f32_le(data, OFF_THROTTLE).unwrap_or(0.0);
+    let brake = read_f32_le(data, OFF_BRAKE).unwrap_or(0.0);
+    let clutch = read_f32_le(data, OFF_CLUTCH).unwrap_or(0.0);
+    let steering_raw = read_f32_le(data, OFF_STEERING).unwrap_or(0.0);
+    let engine_temp_c = read_f32_le(data, OFF_ENGINE_TEMP_C).unwrap_or(0.0);
+    let max_rpm = read_f32_le(data, OFF_MAX_RPM).unwrap_or(0.0).max(0.0);
+
     // Map i32 gear to i8: positive = forward, negative = reverse, 0 = neutral.
     let gear: i8 = gear_raw.clamp(-1, 12) as i8;
+
+    // Convert normalised steering input (-1..1) to approximate front-wheel angle
+    // in radians. Typical truck steering lock ≈ ±35° (≈0.61 rad).
+    const MAX_STEER_RAD: f32 = 0.6109; // ~35°
+    let steering_angle = steering_raw.clamp(-1.0, 1.0) * MAX_STEER_RAD;
 
     // Derive a simple FFB scalar from engine load scaled by speed contribution.
     // Trucks don't have conventional racing FFB; weight-shift is the primary cue.
@@ -129,7 +150,13 @@ pub fn parse_scs_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     Ok(NormalizedTelemetry::builder()
         .speed_ms(speed_ms)
         .rpm(rpm)
+        .max_rpm(max_rpm)
         .gear(gear)
+        .throttle(throttle)
+        .brake(brake)
+        .clutch(clutch)
+        .steering_angle(steering_angle)
+        .engine_temp_c(engine_temp_c)
         .ffb_scalar(ffb_scalar)
         .fuel_percent(fuel_ratio)
         .extended(
@@ -303,15 +330,58 @@ mod tests {
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+    struct ScsTestFields {
+        speed: f32,
+        rpm: f32,
+        gear: i32,
+        fuel: f32,
+        load: f32,
+        throttle: f32,
+        brake: f32,
+        clutch: f32,
+        steering: f32,
+        engine_temp: f32,
+        max_rpm: f32,
+    }
+
+    impl ScsTestFields {
+        fn basic(speed: f32, rpm: f32, gear: i32, fuel: f32, load: f32) -> Self {
+            Self {
+                speed,
+                rpm,
+                gear,
+                fuel,
+                load,
+                throttle: 0.0,
+                brake: 0.0,
+                clutch: 0.0,
+                steering: 0.0,
+                engine_temp: 0.0,
+                max_rpm: 0.0,
+            }
+        }
+
+        fn build(&self) -> Vec<u8> {
+            let mut data = vec![0u8; SCS_SHARED_MEMORY_SIZE];
+            data[OFF_VERSION..OFF_VERSION + 4].copy_from_slice(&1u32.to_le_bytes());
+            data[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&self.speed.to_le_bytes());
+            data[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&self.rpm.to_le_bytes());
+            data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&self.gear.to_le_bytes());
+            data[OFF_FUEL_RATIO..OFF_FUEL_RATIO + 4].copy_from_slice(&self.fuel.to_le_bytes());
+            data[OFF_ENGINE_LOAD..OFF_ENGINE_LOAD + 4].copy_from_slice(&self.load.to_le_bytes());
+            data[OFF_THROTTLE..OFF_THROTTLE + 4].copy_from_slice(&self.throttle.to_le_bytes());
+            data[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&self.brake.to_le_bytes());
+            data[OFF_CLUTCH..OFF_CLUTCH + 4].copy_from_slice(&self.clutch.to_le_bytes());
+            data[OFF_STEERING..OFF_STEERING + 4].copy_from_slice(&self.steering.to_le_bytes());
+            data[OFF_ENGINE_TEMP_C..OFF_ENGINE_TEMP_C + 4]
+                .copy_from_slice(&self.engine_temp.to_le_bytes());
+            data[OFF_MAX_RPM..OFF_MAX_RPM + 4].copy_from_slice(&self.max_rpm.to_le_bytes());
+            data
+        }
+    }
+
     fn make_scs_packet(speed: f32, rpm: f32, gear: i32, fuel: f32, load: f32) -> Vec<u8> {
-        let mut data = vec![0u8; SCS_SHARED_MEMORY_SIZE];
-        data[OFF_VERSION..OFF_VERSION + 4].copy_from_slice(&1u32.to_le_bytes());
-        data[OFF_SPEED_MS..OFF_SPEED_MS + 4].copy_from_slice(&speed.to_le_bytes());
-        data[OFF_ENGINE_RPM..OFF_ENGINE_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
-        data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&gear.to_le_bytes());
-        data[OFF_FUEL_RATIO..OFF_FUEL_RATIO + 4].copy_from_slice(&fuel.to_le_bytes());
-        data[OFF_ENGINE_LOAD..OFF_ENGINE_LOAD + 4].copy_from_slice(&load.to_le_bytes());
-        data
+        ScsTestFields::basic(speed, rpm, gear, fuel, load).build()
     }
 
     #[test]
@@ -415,6 +485,93 @@ mod tests {
                 result.gear
             );
         }
+        Ok(())
+    }
+
+    #[test]
+    fn test_throttle_brake_clutch_parsed() -> TestResult {
+        let data = ScsTestFields {
+            throttle: 0.8, brake: 0.3, clutch: 0.1, engine_temp: 90.0, max_rpm: 2500.0,
+            ..ScsTestFields::basic(20.0, 1500.0, 4, 0.7, 0.5)
+        }.build();
+        let result = parse_scs_packet(&data)?;
+        assert!((result.throttle - 0.8).abs() < 0.001, "throttle={}", result.throttle);
+        assert!((result.brake - 0.3).abs() < 0.001, "brake={}", result.brake);
+        assert!((result.clutch - 0.1).abs() < 0.001, "clutch={}", result.clutch);
+        Ok(())
+    }
+
+    #[test]
+    fn test_steering_angle_parsed() -> TestResult {
+        let data = ScsTestFields {
+            steering: 0.5,
+            ..ScsTestFields::basic(20.0, 1500.0, 4, 0.7, 0.5)
+        }.build();
+        let result = parse_scs_packet(&data)?;
+        // 0.5 * 0.6109 ≈ 0.30545
+        assert!((result.steering_angle - 0.30545).abs() < 0.01, "steering_angle={}", result.steering_angle);
+        Ok(())
+    }
+
+    #[test]
+    fn test_steering_angle_negative() -> TestResult {
+        let data = ScsTestFields {
+            steering: -1.0,
+            ..ScsTestFields::basic(20.0, 1500.0, 4, 0.7, 0.5)
+        }.build();
+        let result = parse_scs_packet(&data)?;
+        assert!((result.steering_angle - (-0.6109)).abs() < 0.01, "steering_angle={}", result.steering_angle);
+        Ok(())
+    }
+
+    #[test]
+    fn test_engine_temp_c_parsed() -> TestResult {
+        let data = ScsTestFields {
+            engine_temp: 92.5,
+            ..ScsTestFields::basic(20.0, 1500.0, 4, 0.7, 0.5)
+        }.build();
+        let result = parse_scs_packet(&data)?;
+        assert!((result.engine_temp_c - 92.5).abs() < 0.1, "engine_temp_c={}", result.engine_temp_c);
+        Ok(())
+    }
+
+    #[test]
+    fn test_max_rpm_parsed() -> TestResult {
+        let data = ScsTestFields {
+            max_rpm: 2500.0,
+            ..ScsTestFields::basic(20.0, 1500.0, 4, 0.7, 0.5)
+        }.build();
+        let result = parse_scs_packet(&data)?;
+        assert!((result.max_rpm - 2500.0).abs() < 0.1, "max_rpm={}", result.max_rpm);
+        Ok(())
+    }
+
+    #[test]
+    fn test_extended_fields_default_zero_for_old_layout() -> TestResult {
+        // A buffer that only has the original 24-byte layout fields;
+        // extended offsets (24..48) are all zeroed.
+        let data = make_scs_packet(20.0, 1500.0, 4, 0.7, 0.5);
+        let result = parse_scs_packet(&data)?;
+        assert!((result.throttle).abs() < 0.001);
+        assert!((result.brake).abs() < 0.001);
+        assert!((result.clutch).abs() < 0.001);
+        assert!((result.steering_angle).abs() < 0.001);
+        assert!((result.engine_temp_c).abs() < 0.001);
+        assert!((result.max_rpm).abs() < 0.001);
+        Ok(())
+    }
+
+    #[test]
+    fn test_full_snapshot() -> TestResult {
+        let data = ScsTestFields {
+            throttle: 0.75,
+            steering: -0.1,
+            engine_temp: 88.0,
+            max_rpm: 2200.0,
+            ..ScsTestFields::basic(25.0, 1400.0, 8, 0.65, 0.55)
+        }.build();
+        let result = parse_scs_packet(&data)?;
+        insta::assert_yaml_snapshot!(result);
         Ok(())
     }
 }

@@ -1,10 +1,10 @@
 ---
-source: crates/telemetry-adapters/tests/snapshots_games_v7.rs
-expression: normalized
+source: crates/telemetry-adapters/src/ets2.rs
+expression: result
 ---
 speed_ms: 25
-steering_angle: -0.030545
-throttle: 0.7
+steering_angle: -0.06109
+throttle: 0.75
 brake: 0
 clutch: 0
 rpm: 1400
@@ -58,7 +58,7 @@ last_lap_time_s: 0
 delta_ahead_s: 0
 delta_behind_s: 0
 fuel_percent: 0.65
-engine_temp_c: 87
+engine_temp_c: 88
 extended:
   engine_load:
     type: Float

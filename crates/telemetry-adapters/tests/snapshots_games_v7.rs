@@ -265,6 +265,12 @@ fn make_ets2_data() -> Vec<u8> {
     write_i32(&mut buf, 12, 8); // gear = 8th
     write_f32_le(&mut buf, 16, 0.65); // fuel_ratio
     write_f32_le(&mut buf, 20, 0.55); // engine_load
+    write_f32_le(&mut buf, 24, 0.7); // throttle
+    write_f32_le(&mut buf, 28, 0.0); // brake
+    write_f32_le(&mut buf, 32, 0.0); // clutch
+    write_f32_le(&mut buf, 36, -0.05); // steering (slight left)
+    write_f32_le(&mut buf, 40, 87.0); // engine_temp_c
+    write_f32_le(&mut buf, 44, 2200.0); // max_rpm
     buf
 }
 

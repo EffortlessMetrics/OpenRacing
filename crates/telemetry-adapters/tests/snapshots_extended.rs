@@ -116,6 +116,12 @@ fn make_scs_packet() -> Vec<u8> {
     write_i32(&mut data, 12, 5); // gear = 5
     write_f32_le(&mut data, 16, 0.75); // fuel_ratio
     write_f32_le(&mut data, 20, 0.65); // engine_load
+    write_f32_le(&mut data, 24, 0.6); // throttle
+    write_f32_le(&mut data, 28, 0.0); // brake
+    write_f32_le(&mut data, 32, 0.0); // clutch
+    write_f32_le(&mut data, 36, 0.0); // steering
+    write_f32_le(&mut data, 40, 90.0); // engine_temp_c
+    write_f32_le(&mut data, 44, 2100.0); // max_rpm
     data
 }
 

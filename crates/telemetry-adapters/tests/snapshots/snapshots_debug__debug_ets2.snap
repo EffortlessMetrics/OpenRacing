@@ -4,12 +4,12 @@ expression: "&normalized"
 ---
 NormalizedTelemetry {
     speed_ms: 25.0,
-    steering_angle: 0.0,
-    throttle: 0.0,
+    steering_angle: 0.091635,
+    throttle: 0.65,
     brake: 0.0,
     clutch: 0.0,
     rpm: 1800.0,
-    max_rpm: 0.0,
+    max_rpm: 2300.0,
     gear: 6,
     num_gears: 0,
     lateral_g: 0.0,
@@ -65,7 +65,7 @@ NormalizedTelemetry {
     delta_ahead_s: 0.0,
     delta_behind_s: 0.0,
     fuel_percent: 0.7,
-    engine_temp_c: 0.0,
+    engine_temp_c: 91.0,
     extended: {
         "engine_load": Float(
             0.55,
