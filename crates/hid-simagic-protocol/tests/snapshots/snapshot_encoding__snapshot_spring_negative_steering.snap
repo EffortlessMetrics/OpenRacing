@@ -1,0 +1,5 @@
+---
+source: crates/hid-simagic-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{out:02X?}\")"
+---
+[12, 01, F4, 01, 80, C1, 64, 00, 19, 00]
