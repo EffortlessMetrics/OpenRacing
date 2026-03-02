@@ -871,7 +871,7 @@ mod tests {
     #[test]
     fn telemetry_value_serde_all_variants() -> Result<(), Box<dyn std::error::Error>> {
         let variants = vec![
-            TelemetryValue::Float(3.14),
+            TelemetryValue::Float(3.125),
             TelemetryValue::Integer(-42),
             TelemetryValue::Boolean(false),
             TelemetryValue::String("hello".to_string()),

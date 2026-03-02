@@ -481,7 +481,7 @@ mod tests {
         let matrix = load_default_matrix()?;
         let mut total_non_none = 0usize;
         let mut with_fields = 0usize;
-        for (_id, game) in &matrix.games {
+        for game in matrix.games.values() {
             for ver in &game.versions {
                 if ver.telemetry_method == "none" {
                     continue;
