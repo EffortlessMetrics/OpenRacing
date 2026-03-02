@@ -349,6 +349,9 @@ struct RealtimeCarUpdate {
     track_position: u16,
     laps: u16,
     delta_ms: i32,
+    best_session_lap_ms: i32,
+    last_lap_ms: i32,
+    current_lap_ms: i32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -406,15 +409,22 @@ impl ACCSessionState {
         let speed_ms = f32::from(car.speed_kmh) / 3.6;
         let car_id = format!("car_{}", car.car_index);
 
+        // Convert lap times from milliseconds to seconds; negative values
+        // (used by ACC as "no time") are clamped to zero by the builder.
+        let best_lap_s = car.best_session_lap_ms.max(0) as f32 / 1000.0;
+        let last_lap_s = car.last_lap_ms.max(0) as f32 / 1000.0;
+        let current_lap_s = car.current_lap_ms.max(0) as f32 / 1000.0;
+
         let mut builder = NormalizedTelemetry::builder()
             .speed_ms(speed_ms)
             .gear(car.gear)
             .flags(flags)
             .car_id(car_id)
-            .extended(
-                "position".to_string(),
-                TelemetryValue::Integer(i32::from(car.position)),
-            )
+            .position(car.position.min(255) as u8)
+            .lap(car.laps)
+            .best_lap_time_s(best_lap_s)
+            .last_lap_time_s(last_lap_s)
+            .current_lap_time_s(current_lap_s)
             .extended(
                 "cup_position".to_string(),
                 TelemetryValue::Integer(i32::from(car.cup_position)),
@@ -422,10 +432,6 @@ impl ACCSessionState {
             .extended(
                 "track_position".to_string(),
                 TelemetryValue::Integer(i32::from(car.track_position)),
-            )
-            .extended(
-                "laps".to_string(),
-                TelemetryValue::Integer(i32::from(car.laps)),
             )
             .extended(
                 "delta_ms".to_string(),
@@ -623,9 +629,9 @@ fn parse_realtime_car_update(reader: &mut PacketReader<'_>) -> Result<RealtimeCa
     let laps = reader.read_u16_le()?;
     let delta_ms = reader.read_i32_le()?;
 
-    let _best_session_lap = read_lap_time_ms(reader)?;
-    let _last_lap = read_lap_time_ms(reader)?;
-    let _current_lap = read_lap_time_ms(reader)?;
+    let best_session_lap_ms = read_lap_time_ms(reader)?;
+    let last_lap_ms = read_lap_time_ms(reader)?;
+    let current_lap_ms = read_lap_time_ms(reader)?;
 
     Ok(RealtimeCarUpdate {
         car_index,
@@ -637,6 +643,9 @@ fn parse_realtime_car_update(reader: &mut PacketReader<'_>) -> Result<RealtimeCa
         track_position,
         laps,
         delta_ms,
+        best_session_lap_ms,
+        last_lap_ms,
+        current_lap_ms,
     })
 }
 
@@ -1036,10 +1045,7 @@ mod tests {
         assert_eq!(normalized.gear, 5);
         assert_eq!(normalized.track_id, Some("monza".to_string()));
         assert_eq!(normalized.car_id, Some("car_7".to_string()));
-        assert_eq!(
-            normalized.extended.get("laps"),
-            Some(&TelemetryValue::Integer(12))
-        );
+        assert_eq!(normalized.lap, 12);
         assert_eq!(
             normalized.extended.get("delta_ms"),
             Some(&TelemetryValue::Integer(-120))

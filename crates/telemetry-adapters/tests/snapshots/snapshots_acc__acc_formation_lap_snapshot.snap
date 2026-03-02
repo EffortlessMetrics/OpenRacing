@@ -1,15 +1,15 @@
 ---
-source: crates/telemetry-adapters/tests/snapshot_tests.rs
+source: crates/telemetry-adapters/tests/snapshots_acc.rs
 expression: normalized
 ---
-speed_ms: 50
+speed_ms: 22.222223
 steering_angle: 0
 throttle: 0
 brake: 0
 clutch: 0
 rpm: 0
 max_rpm: 0
-gear: 5
+gear: 2
 num_gears: 0
 lateral_g: 0
 longitudinal_g: 0
@@ -50,12 +50,12 @@ flags:
   safety_car: false
   formation_lap: false
   session_paused: false
-car_id: car_7
-position: 2
-lap: 12
-current_lap_time_s: 45
-best_lap_time_s: 91
-last_lap_time_s: 92
+car_id: car_12
+position: 12
+lap: 0
+current_lap_time_s: 15
+best_lap_time_s: 0
+last_lap_time_s: 0
 delta_ahead_s: 0
 delta_behind_s: 0
 fuel_percent: 0
@@ -63,11 +63,11 @@ engine_temp_c: 0
 extended:
   cup_position:
     type: Integer
-    value: 2
+    value: 12
   delta_ms:
     type: Integer
-    value: -120
+    value: 0
   track_position:
     type: Integer
-    value: 2
+    value: 12
 sequence: 0
