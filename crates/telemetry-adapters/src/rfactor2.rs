@@ -7,23 +7,37 @@
 //! ## Verification against rF2 Shared Memory Map Plugin
 //!
 //! Verified 2025-07 against [`rF2State.h`](https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin)
-//! (plugin v3.7.15.1) and
+//! (plugin v3.7.15.1, commit `48aa12d`) and
 //! [`rFactor2SharedMemoryMap.hpp`](https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin).
 //!
 //! - **Shared memory names**: `$rFactor2SMMP_Telemetry$`, `$rFactor2SMMP_Scoring$`,
 //!   `$rFactor2SMMP_ForceFeedback$`. ✓
-//! - **rF2VehicleTelemetry field order** (up to `mSteeringShaftTorque`): matches
-//!   `rF2State.h` identically (id, deltaTime, elapsedTime, lapNumber, lapStartET,
-//!   vehicleName\[64\], trackName\[64\], pos\[3\], localVel\[3\], localAccel\[3\], ori\[3×3\],
-//!   localRot\[3\], localRotAccel\[3\], gear(long), engineRPM, waterTemp, oilTemp,
-//!   clutchRPM, unfilteredThrottle/Brake/Steering/Clutch, steeringShaftTorque). ✓
+//! - **Mapped buffer layout**: each shared memory region is created with
+//!   `sizeof(rF2MappedBufferVersionBlock) + sizeof(BuffT)` bytes.  The first 8 bytes
+//!   are an external version block (`mVersionUpdateBegin`, `mVersionUpdateEnd`),
+//!   followed by the struct data (see `MappedBuffer.h`).
+//! - **rF2VehicleTelemetry field order** (up to `mUnfilteredClutch`): matches
+//!   `rF2State.h` (mID, mDeltaTime, mElapsedTime, mLapNumber, mLapStartET,
+//!   mVehicleName\[64\], mTrackName\[64\], mPos, mLocalVel, mLocalAccel, mOri\[3\],
+//!   mLocalRot, mLocalRotAccel, mGear, mEngineRPM, mEngineWaterTemp, mEngineOilTemp,
+//!   mClutchRPM, mUnfilteredThrottle/Brake/Steering/Clutch). ✓
+//! - **Gap #1**: after `mUnfilteredClutch`, the official struct has 4 filtered input
+//!   fields (mFilteredThrottle/Brake/Steering/Clutch) before `mSteeringShaftTorque`.
+//!   Our struct omits these (4 × f64 = 32 bytes).
+//! - **Gap #2**: between `mSteeringShaftTorque` and `mFuel`, the official struct has
+//!   8 additional doubles (mFront3rdDeflection, mRear3rdDeflection, mFrontWingHeight,
+//!   mFrontRideHeight, mRearRideHeight, mDrag, mFrontDownforce, mRearDownforce).
+//! - **Gap #3**: between `mEngineMaxRPM` and `mWheels[4]`, the official struct has
+//!   ~30 fields (damage, sector, tire compounds, electric boost, 111-byte expansion).
 //! - **rF2GamePhase enum**: 0–8 match rF2State.h; value 9 = paused (tag.2015.09.14). ✓
-//! - **rF2Wheel fields**: all f64 fields up to `wear` match rF2State.h order. ✓
+//! - **rF2Wheel fields**: all f64 fields up to `mWear` match rF2State.h order.  Note
+//!   that `mTemperature[3]` values are in **Kelvin** (not Celsius). ✓
 //! - **Gear convention**: −1=reverse, 0=neutral, 1+=forward (same as rF2 native). ✓
 //! - **Speed**: no discrete speed field in `rF2VehicleTelemetry`; derived from
 //!   `mLocalVel` magnitude (consistent with ISI documentation). ✓
-//! - **Known limitation**: struct omits ~25 fields between `mSteeringShaftTorque`
-//!   and `mFuel`; not a valid memory overlay for direct reads. See struct doc.
+//! - **rF2ForceFeedback**: single `f64` (`mForceValue`); not versioned. ✓
+//! - **Known limitation**: struct is **not** a valid memory overlay for direct reads
+//!   due to omitted fields and missing `#[repr(C, packed(4))]`. See struct doc.
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
@@ -751,11 +765,23 @@ pub enum GamePhase {
 /// `rF2MappedBufferVersionBlock` and `rF2MappedBufferHeaderWithSize`) from the
 /// [rF2 Shared Memory Map Plugin](https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin).
 ///
-/// Layout (all `long` / `int` = 4 bytes on Windows):
-///   - `version_update_begin` — version counter start
-///   - `version_update_end`   — version counter end (equal to begin when stable)
-///   - `bytes_updated_hint`   — hint for how many bytes were updated
-///   - `num_vehicles`         — number of vehicles in the telemetry array
+/// **Mapped memory layout** (`MappedBuffer.h` prepends an external version
+/// block before the struct):
+///
+/// | Offset | Field                         | SDK type        |
+/// |--------|-------------------------------|-----------------|
+/// | 0      | external `mVersionUpdateBegin`| `unsigned long` |
+/// | 4      | external `mVersionUpdateEnd`  | `unsigned long` |
+/// | 8      | struct `mVersionUpdateBegin`  | `unsigned long` |
+/// | 12     | struct `mVersionUpdateEnd`    | `unsigned long` |
+/// | 16     | `mBytesUpdatedHint`           | `int`           |
+/// | 20     | `mNumVehicles`                | `long`          |
+/// | 24     | `mVehicles[0]` starts         |                 |
+///
+/// This struct reads the **external** version block at offsets 0–7 and
+/// then the inherited struct fields at offsets 8–15 as `bytes_updated_hint`
+/// and `num_vehicles`.  For torn-frame detection only the external version
+/// block (offsets 0 and 4) is needed, which this struct captures correctly.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct RF2TelemetryHeader {
@@ -773,14 +799,14 @@ pub struct RF2TelemetryHeader {
 ///
 /// Fields correspond to `rF2Wheel` in rF2State.h from the
 /// [rF2 Shared Memory Map Plugin](https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin).
+/// All fields up to and including `mWear` are present and in SDK order. ✓
 ///
-/// **Known limitation**: This struct omits the official fields that follow
-/// `mWear` in `rF2Wheel`: `mTerrainName[16]`, `mSurfaceType`, `mFlat`,
-/// `mDetached`, `mStaticUndeflectedRadius`, `mVerticalTireDeflection`,
-/// `mWheelYLocation`, `mToe`, `mTireCarcassTemperature`,
-/// `mTireInnerLayerTemperature[3]`, and `mExpansion[24]`.  Those fields are
-/// not used by the normalization logic, so the struct is **not** a valid
-/// memory overlay for direct shared-memory reads.
+/// **Omitted fields after `mWear`**: `mTerrainName[16]`, `mSurfaceType` (u8),
+/// `mFlat` (bool), `mDetached` (bool), `mStaticUndeflectedRadius` (u8),
+/// `mVerticalTireDeflection` (f64), `mWheelYLocation` (f64), `mToe` (f64),
+/// `mTireCarcassTemperature` (f64), `mTireInnerLayerTemperature[3]` (f64×3),
+/// and `mExpansion[24]`.  This struct is therefore **not** size-compatible
+/// with the SDK `rF2Wheel` (which is 280 bytes with `#pragma pack(4)`).
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct RF2WheelTelemetry {
@@ -816,7 +842,9 @@ pub struct RF2WheelTelemetry {
     pub grip_fract: f64,
     /// Pressure (kPa)
     pub pressure: f64,
-    /// Temperature (Celsius) — inner, center, outer
+    /// Temperature — left, center, right (Kelvin; subtract 273.15 for °C)
+    /// SDK: `mTemperature[3]` — "Kelvin (subtract 273.15 to get Celsius),
+    /// left/center/right (not to be confused with inside/center/outside!)"
     pub temperature: [f64; 3],
     /// Wear (0.0-1.0)
     pub wear: f64,
@@ -833,13 +861,18 @@ pub struct RF2WheelTelemetry {
 ///    would require `#[repr(C, packed(4))]`, which is omitted to keep field
 ///    access ergonomic in test and normalization code.
 ///
-/// 2. Between `steering_shaft_torque` and `fuel`, the official struct contains
-///    ~25 additional fields (filtered inputs, 3rd-spring deflections,
-///    aerodynamics, damage data, sector info, tire compounds, electric-boost
-///    data, and a 111-byte expansion block).  These are omitted because the
-///    normalization logic does not use them.
+/// 2. Between `unfiltered_clutch` and `steering_shaft_torque`, the official struct
+///    contains 4 filtered input fields (`mFilteredThrottle`, `mFilteredBrake`,
+///    `mFilteredSteering`, `mFilteredClutch` — each `double`).  These are omitted.
 ///
-/// 3. The official `rF2VehicleTelemetry` has no discrete "speed" field.
+/// 3. Between `steering_shaft_torque` and `fuel`, the official struct contains
+///    8 additional doubles: 3rd-spring deflections (2) and aerodynamics (6).
+///
+/// 4. Between `engine_max_rpm` and `wheels[4]`, the official struct contains
+///    ~30 fields (damage, sector, tire compounds, ignition, electric-boost data,
+///    and a 111-byte expansion block).  These are omitted.
+///
+/// 5. The official `rF2VehicleTelemetry` has no discrete "speed" field.
 ///    Speed must be computed as the magnitude of `local_vel` (see
 ///    `compute_speed_from_local_vel`).
 ///
@@ -849,57 +882,63 @@ pub struct RF2WheelTelemetry {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct RF2VehicleTelemetry {
-    /// Slot ID
+    /// Slot ID — SDK: `mID` (long)
     pub id: i32,
-    /// Delta time (seconds)
+    /// Delta time (seconds) — SDK: `mDeltaTime` (double)
     pub delta_time: f64,
-    /// Elapsed time (seconds)
+    /// Elapsed time (seconds) — SDK: `mElapsedTime` (double)
     pub elapsed_time: f64,
-    /// Lap number
+    /// Lap number — SDK: `mLapNumber` (long)
     pub lap_number: i32,
-    /// Lap start elapsed time
+    /// Lap start elapsed time — SDK: `mLapStartET` (double)
     pub lap_start_et: f64,
-    /// Vehicle name
+    /// Vehicle name — SDK: `mVehicleName[64]` (char[64])
     pub vehicle_name: [u8; 64],
-    /// Track name
+    /// Track name — SDK: `mTrackName[64]` (char[64])
     pub track_name: [u8; 64],
-    /// World position (x, y, z)
+    /// World position (x, y, z) — SDK: `mPos` (rF2Vec3)
     pub pos: [f64; 3],
-    /// Local velocity (x, y, z) — used to derive speed
+    /// Local velocity (x, y, z) — used to derive speed. SDK: `mLocalVel`
     pub local_vel: [f64; 3],
-    /// Local acceleration (x, y, z)
+    /// Local acceleration (x, y, z) — SDK: `mLocalAccel` (rF2Vec3)
     pub local_accel: [f64; 3],
-    /// Orientation matrix (3×3 row-major, each row is a `rF2Vec3`)
+    /// Orientation matrix (3×3 row-major, each row is a `rF2Vec3`) — SDK: `mOri[3]`
     pub ori: [[f64; 3]; 3],
-    /// Local rotation (x, y, z)
+    /// Local rotation (x, y, z) — SDK: `mLocalRot` (rF2Vec3)
     pub local_rot: [f64; 3],
-    /// Local rotation acceleration (x, y, z)
+    /// Local rotation acceleration (x, y, z) — SDK: `mLocalRotAccel` (rF2Vec3)
     pub local_rot_accel: [f64; 3],
-    /// Gear (-1=reverse, 0=neutral, 1+=forward).  Official type is C `long` (i32).
+    /// Gear (-1=reverse, 0=neutral, 1+=forward) — SDK: `mGear` (long)
     pub gear: i32,
-    /// Engine RPM (official type: `double`)
+    /// Engine RPM — SDK: `mEngineRPM` (double)
     pub engine_rpm: f64,
-    /// Engine water temperature in °C (official type: `double`)
+    /// Engine water temperature in °C — SDK: `mEngineWaterTemp` (double)
     pub engine_water_temp: f64,
-    /// Engine oil temperature in °C (official type: `double`)
+    /// Engine oil temperature in °C — SDK: `mEngineOilTemp` (double)
     pub engine_oil_temp: f64,
-    /// Clutch RPM (official type: `double`)
+    /// Clutch RPM — SDK: `mClutchRPM` (double)
     pub clutch_rpm: f64,
-    /// Unfiltered throttle (0.0–1.0, official type: `double`)
+    /// Unfiltered throttle (0.0–1.0) — SDK: `mUnfilteredThrottle` (double)
     pub unfiltered_throttle: f64,
-    /// Unfiltered brake (0.0–1.0, official type: `double`)
+    /// Unfiltered brake (0.0–1.0) — SDK: `mUnfilteredBrake` (double)
     pub unfiltered_brake: f64,
-    /// Unfiltered steering (-1.0 to 1.0, official type: `double`)
+    /// Unfiltered steering (-1.0 to 1.0) — SDK: `mUnfilteredSteering` (double)
     pub unfiltered_steering: f64,
-    /// Unfiltered clutch (0.0–1.0, official type: `double`)
+    /// Unfiltered clutch (0.0–1.0) — SDK: `mUnfilteredClutch` (double)
     pub unfiltered_clutch: f64,
-    /// Steering shaft torque in Nm (official type: `double`)
+    // GAP: SDK has mFilteredThrottle/Brake/Steering/Clutch (4 × f64) here.
+    /// Steering shaft torque in Nm — SDK: `mSteeringShaftTorque` (double)
     pub steering_shaft_torque: f64,
-    /// Fuel remaining in litres (official type: `double`)
+    // GAP: SDK has mFront3rdDeflection, mRear3rdDeflection, mFrontWingHeight,
+    //   mFrontRideHeight, mRearRideHeight, mDrag, mFrontDownforce, mRearDownforce
+    //   (8 × f64) here.
+    /// Fuel remaining in litres — SDK: `mFuel` (double)
     pub fuel: f64,
-    /// Engine max RPM (official type: `double`)
+    /// Engine max RPM — SDK: `mEngineMaxRPM` (double)
     pub engine_max_rpm: f64,
-    /// Wheel data (FL, FR, RL, RR)
+    // GAP: SDK has ~30 fields here (mScheduledStops through mExpansion[111])
+    //   before mWheels[4].
+    /// Wheel data (FL, FR, RL, RR) — SDK: `mWheels[4]` (rF2Wheel[4])
     pub wheels: [RF2WheelTelemetry; RF2_MAX_WHEELS],
 }
 
@@ -975,6 +1014,10 @@ pub struct RF2ScoringHeader {
 /// Matches `rF2ForceFeedback` from rF2State.h.  The force-feedback mapping is
 /// explicitly **not versioned** due to its high refresh rate — it contains only
 /// a single `f64` value (`mForceValue`).
+///
+/// In mapped memory, `MappedBuffer.h` still prepends an 8-byte
+/// `rF2MappedBufferVersionBlock`, so `mForceValue` sits at offset 8.  The
+/// version counters at offset 0–7 are unused for FFB.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct RF2ForceFeedback {
@@ -1412,6 +1455,62 @@ mod tests {
     #[test]
     fn test_game_id_is_rfactor2() {
         assert_eq!(RFactor2Adapter::new().game_id(), "rfactor2");
+    }
+
+    /// Verify that our `GamePhase` enum matches `rF2GamePhase` from rF2State.h.
+    /// SDK reference: <https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin>
+    #[test]
+    fn test_game_phase_matches_sdk() -> TestResult {
+        // rF2State.h defines: Garage=0, WarmUp=1, GridWalk=2, Formation=3,
+        // Countdown=4, GreenFlag=5, FullCourseYellow=6, SessionStopped=7,
+        // SessionOver=8.  Value 9 is documented in scoring comments (tag.2015.09.14).
+        assert_eq!(GamePhase::Garage as i32, 0);
+        assert_eq!(GamePhase::WarmUp as i32, 1);
+        assert_eq!(GamePhase::GridWalk as i32, 2);
+        assert_eq!(GamePhase::Formation as i32, 3);
+        assert_eq!(GamePhase::Countdown as i32, 4);
+        assert_eq!(GamePhase::GreenFlag as i32, 5);
+        assert_eq!(GamePhase::FullCourseYellow as i32, 6);
+        assert_eq!(GamePhase::SessionStopped as i32, 7);
+        assert_eq!(GamePhase::SessionOver as i32, 8);
+        assert_eq!(GamePhase::PausedOrReplay as i32, 9);
+        Ok(())
+    }
+
+    /// Verify shared memory mapping names match rF2SharedMemoryMapPlugin constants.
+    /// SDK reference: `SharedMemoryPlugin::MM_*_FILE_NAME` in rFactor2SharedMemoryMap.hpp
+    #[test]
+    fn test_shared_memory_names_match_sdk() -> TestResult {
+        assert_eq!(RF2_TELEMETRY_SHARED_MEMORY_NAME, "$rFactor2SMMP_Telemetry$");
+        assert_eq!(RF2_SCORING_SHARED_MEMORY_NAME, "$rFactor2SMMP_Scoring$");
+        assert_eq!(
+            RF2_FORCE_FEEDBACK_SHARED_MEMORY_NAME,
+            "$rFactor2SMMP_ForceFeedback$"
+        );
+        Ok(())
+    }
+
+    /// Verify the RF2WheelTelemetry field order matches rF2Wheel in rF2State.h
+    /// up to `mWear` (all f64 fields).
+    #[test]
+    fn test_wheel_field_order_matches_sdk() -> TestResult {
+        // The SDK field order is:
+        // mSuspensionDeflection, mRideHeight, mSuspForce, mBrakeTemp,
+        // mBrakePressure, mRotation, mLateralPatchVel, mLongitudinalPatchVel,
+        // mLateralGroundVel, mLongitudinalGroundVel, mCamber, mLateralForce,
+        // mLongitudinalForce, mTireLoad, mGripFract, mPressure,
+        // mTemperature[3], mWear.
+        // All are f64; total = 20 × 8 = 160 bytes.
+        let expected_f64_field_count = 20; // 17 scalar + 3 temperature
+        let actual_size = mem::size_of::<RF2WheelTelemetry>();
+        assert_eq!(
+            actual_size,
+            expected_f64_field_count * mem::size_of::<f64>(),
+            "RF2WheelTelemetry size should be {} f64 fields = {} bytes",
+            expected_f64_field_count,
+            expected_f64_field_count * 8
+        );
+        Ok(())
     }
 }
 

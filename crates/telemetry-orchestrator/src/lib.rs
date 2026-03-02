@@ -448,11 +448,14 @@ mod tests {
     #[tokio::test]
     async fn error_message_contains_game_id_for_unknown_adapter() -> Result<()> {
         let mut service = TelemetryService::new();
-        let err = service
-            .start_monitoring("totally_fake_game")
-            .await
-            .unwrap_err();
-        let msg = format!("{err}");
+        let result = service.start_monitoring("totally_fake_game").await;
+        assert!(result.is_err(), "expected error for unknown game");
+        let msg = format!(
+            "{}",
+            result
+                .err()
+                .ok_or_else(|| anyhow::anyhow!("expected Err"))?
+        );
         assert!(
             msg.contains("totally_fake_game"),
             "error should mention the game id, got: {msg}"

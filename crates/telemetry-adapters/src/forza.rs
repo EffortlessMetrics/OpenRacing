@@ -1,12 +1,16 @@
 //! Forza Motorsport / Forza Horizon telemetry adapter using UDP.
 //!
-//! Supports three packet formats defined by Forza's "Data Out" feature:
+//! Supports four packet formats defined by Forza's "Data Out" feature:
 //!
 //! - **Sled** (232 bytes): FM7 and earlier. Contains physics data (velocity,
 //!   wheel speeds, suspension travel, G-forces, tire slip). No user-input
 //!   fields (throttle/brake/steer are absent in this format).
-//! - **CarDash** (311 bytes): FM8, FH5. Sled data plus dashboard
-//!   fields: speed, throttle, brake, clutch, gear, steer, lap times, fuel.
+//! - **CarDash** (311 bytes): FM7 "Car Dash" mode, FH5. Sled data plus
+//!   dashboard fields: speed, throttle, brake, clutch, gear, steer, lap
+//!   times, fuel.
+//! - **FM8 CarDash** (331 bytes): Forza Motorsport 2023. Identical to the
+//!   311-byte CarDash layout with 20 additional bytes appended (extra fields
+//!   added by Turn10 in FM8). The first 311 bytes are parsed identically.
 //! - **FH4 CarDash** (324 bytes): Forza Horizon 4. Same as CarDash but with a
 //!   12-byte HorizonPlaceholder inserted after the Sled section, shifting all
 //!   dashboard field offsets by +12.
@@ -17,8 +21,10 @@
 //! [`NormalizedTelemetry`] using keys `wheel_speed_fl/fr/rl/rr` and
 //! `suspension_travel_fl/fr/rl/rr`.
 //!
-//! # Reference
-//! <https://support.forzamotorsport.net/hc/en-us/articles/21742934790291>
+//! # References
+//! - <https://support.forzamotorsport.net/hc/en-us/articles/21742934790291>
+//! - Community SDK: <https://github.com/austinbaccus/forza-telemetry> (ForzaCore/FMData.cs)
+//! - Packet format: <https://github.com/richstokes/Forza-data-tools> (FM7_packetformat.dat)
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
@@ -36,52 +42,64 @@ use tracing::{debug, info, warn};
 /// Verified: official Forza "Data Out" default port (support.forzamotorsport.net).
 const DEFAULT_FORZA_PORT: u16 = 5300;
 /// Sled packet: 58 × 4-byte fields = 232 bytes.
+/// Verified against richstokes/Forza-data-tools FM7_packetformat.dat.
 const FORZA_SLED_SIZE: usize = 232;
 /// CarDash packet: Sled (232) + 17×f32 + u16 + 9×u8/i8 = 311 bytes.
+/// Verified against austinbaccus/forza-telemetry FMData.cs.
 const FORZA_CARDASH_SIZE: usize = 311;
+/// FM8 CarDash (Forza Motorsport 2023): 311-byte CarDash + 20 extra bytes = 331.
+/// First 311 bytes identical to FM7 CarDash; extra bytes appended by Turn10.
+/// Verified against austinbaccus/forza-telemetry PacketParse.cs (FM8_PACKET_LENGTH).
+const FORZA_FM8_CARDASH_SIZE: usize = 331;
 /// FH4 CarDash: same as CarDash but with a 12-byte HorizonPlaceholder
 /// inserted after NumCylinders (byte 232), shifting all dash offsets by +12.
+/// Verified against richstokes/Forza-data-tools FH4_packetformat.dat.
 const FORZA_FH4_CARDASH_SIZE: usize = 324;
 const MAX_PACKET_SIZE: usize = 512;
 
 // ── Sled format byte offsets ─────────────────────────────────────────────────
-const OFF_IS_RACE_ON: usize = 0; // i32
+// Verified against community SDK: austinbaccus/forza-telemetry FMData.cs,
+// richstokes/Forza-data-tools FM7_packetformat.dat, and FH4_packetformat.dat.
+// All fields little-endian. Sled section is bytes 0..232.
+const OFF_IS_RACE_ON: usize = 0; // s32 (1 = racing, 0 = menus/stopped)
 const OFF_ENGINE_MAX_RPM: usize = 8; // f32
 #[allow(dead_code)]
 const OFF_ENGINE_IDLE_RPM: usize = 12; // f32 (unused but documented)
 const OFF_CURRENT_RPM: usize = 16; // f32
-// World-space acceleration (m/s²)
-const OFF_ACCEL_X: usize = 20; // f32 – lateral (right = positive)
+// World-space acceleration (m/s²); car-local: X = right, Y = up, Z = forward
+const OFF_ACCEL_X: usize = 20; // f32 – lateral
 #[allow(dead_code)]
-const OFF_ACCEL_Y: usize = 24; // f32 – vertical (up = positive)
-const OFF_ACCEL_Z: usize = 28; // f32 – longitudinal (forward = positive)
-// World-space velocity (m/s)
+const OFF_ACCEL_Y: usize = 24; // f32 – vertical
+const OFF_ACCEL_Z: usize = 28; // f32 – longitudinal
+// World-space velocity (m/s); same axes as acceleration
 const OFF_VEL_X: usize = 32; // f32
 const OFF_VEL_Y: usize = 36; // f32
 const OFF_VEL_Z: usize = 40; // f32
-// Wheel rotation speeds (rad/s)
+// Wheel rotation speeds (rad/s)           – offsets 100-112
 const OFF_WHEEL_SPEED_FL: usize = 100; // f32
 const OFF_WHEEL_SPEED_FR: usize = 104; // f32
 const OFF_WHEEL_SPEED_RL: usize = 108; // f32
 const OFF_WHEEL_SPEED_RR: usize = 112; // f32
-// Tire slip angles (rad)
+// Tire slip angles (normalized, 0 = grip)  – offsets 164-176
 const OFF_SLIP_ANGLE_FL: usize = 164; // f32
 const OFF_SLIP_ANGLE_FR: usize = 168; // f32
 const OFF_SLIP_ANGLE_RL: usize = 172; // f32
 const OFF_SLIP_ANGLE_RR: usize = 176; // f32
-// Suspension travel (m)
+// Suspension travel in meters              – offsets 196-208
 const OFF_SUSP_TRAVEL_FL: usize = 196; // f32
 const OFF_SUSP_TRAVEL_FR: usize = 200; // f32
 const OFF_SUSP_TRAVEL_RL: usize = 204; // f32
 const OFF_SUSP_TRAVEL_RR: usize = 208; // f32
 
 // ── CarDash extension offsets (bytes 232+) ───────────────────────────────────
-const OFF_DASH_SPEED: usize = 244; // f32 m/s
+// These are base offsets for FM7/FM8/FH5. For FH4, add horizon_offset (12).
+// Verified against austinbaccus/forza-telemetry FMData.cs (BufferOffset pattern).
+const OFF_DASH_SPEED: usize = 244; // f32 m/s (232 + 3×f32)
 const OFF_DASH_TIRE_TEMP_FL: usize = 256; // f32 Fahrenheit
 const OFF_DASH_TIRE_TEMP_FR: usize = 260; // f32 Fahrenheit
 const OFF_DASH_TIRE_TEMP_RL: usize = 264; // f32 Fahrenheit
 const OFF_DASH_TIRE_TEMP_RR: usize = 268; // f32 Fahrenheit
-const OFF_DASH_FUEL: usize = 276; // f32 (0-1)
+const OFF_DASH_FUEL: usize = 276; // f32 (0.0-1.0)
 const OFF_DASH_BEST_LAP: usize = 284; // f32 seconds
 const OFF_DASH_LAST_LAP: usize = 288; // f32 seconds
 const OFF_DASH_CUR_LAP: usize = 292; // f32 seconds
@@ -90,8 +108,9 @@ const OFF_DASH_RACE_POS: usize = 302; // u8
 const OFF_DASH_ACCEL: usize = 303; // u8 (0-255 → 0.0-1.0)
 const OFF_DASH_BRAKE: usize = 304; // u8 (0-255 → 0.0-1.0)
 const OFF_DASH_CLUTCH: usize = 305; // u8 (0-255 → 0.0-1.0)
+// Offset 306 = Handbrake (u8), not currently parsed.
 const OFF_DASH_GEAR: usize = 307; // u8 (0=R, 1=N, 2=1st, …)
-const OFF_DASH_STEER: usize = 308; // i8 (-127 to 127 → -1.0 to 1.0)
+const OFF_DASH_STEER: usize = 308; // s8 (-127 to 127 → -1.0 to 1.0)
 
 const G: f32 = 9.806_65; // standard gravity (m/s²)
 
@@ -108,6 +127,8 @@ const FORZA_PROCESS_NAMES: &[&str] = &[
 enum ForzaPacketFormat {
     Sled,
     CarDash,
+    /// FM8 (Forza Motorsport 2023): same CarDash layout + 20 extra bytes.
+    Fm8CarDash,
     /// FH4 variant: 12-byte HorizonPlaceholder shifts all dash offsets by +12.
     Fh4CarDash,
     Unknown,
@@ -117,6 +138,7 @@ fn detect_format(len: usize) -> ForzaPacketFormat {
     match len {
         FORZA_SLED_SIZE => ForzaPacketFormat::Sled,
         FORZA_CARDASH_SIZE => ForzaPacketFormat::CarDash,
+        FORZA_FM8_CARDASH_SIZE => ForzaPacketFormat::Fm8CarDash,
         FORZA_FH4_CARDASH_SIZE => ForzaPacketFormat::Fh4CarDash,
         _ => ForzaPacketFormat::Unknown,
     }
@@ -319,13 +341,14 @@ fn parse_forza_cardash_with_offset(
 pub(crate) fn parse_forza_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     match detect_format(data.len()) {
         ForzaPacketFormat::Sled => parse_forza_sled(data),
-        ForzaPacketFormat::CarDash => parse_forza_cardash(data),
+        ForzaPacketFormat::CarDash | ForzaPacketFormat::Fm8CarDash => parse_forza_cardash(data),
         ForzaPacketFormat::Fh4CarDash => parse_forza_fh4_cardash(data),
         ForzaPacketFormat::Unknown => Err(anyhow!(
-            "Unknown Forza packet length: {}. Expected {} (Sled), {} (CarDash), or {} (FH4 CarDash)",
+            "Unknown Forza packet length: {}. Expected {} (Sled), {} (CarDash), {} (FM8), or {} (FH4)",
             data.len(),
             FORZA_SLED_SIZE,
             FORZA_CARDASH_SIZE,
+            FORZA_FM8_CARDASH_SIZE,
             FORZA_FH4_CARDASH_SIZE,
         )),
     }
@@ -334,8 +357,8 @@ pub(crate) fn parse_forza_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
 /// Forza Motorsport / Forza Horizon telemetry adapter.
 ///
 /// Listens for UDP packets on the configured port and decodes the
-/// 232-byte Sled, 311-byte CarDash, and 324-byte FH4 CarDash formats
-/// automatically.
+/// 232-byte Sled, 311-byte CarDash, 331-byte FM8 CarDash, and 324-byte
+/// FH4 CarDash formats automatically.
 pub struct ForzaAdapter {
     bind_port: u16,
     update_rate: Duration,
@@ -541,6 +564,10 @@ mod tests {
             ForzaPacketFormat::CarDash
         );
         assert_eq!(
+            detect_format(FORZA_FM8_CARDASH_SIZE),
+            ForzaPacketFormat::Fm8CarDash
+        );
+        assert_eq!(
             detect_format(FORZA_FH4_CARDASH_SIZE),
             ForzaPacketFormat::Fh4CarDash
         );
@@ -597,6 +624,22 @@ mod tests {
         data[..FORZA_SLED_SIZE].copy_from_slice(&sled);
         let result = parse_forza_packet(&data)?;
         assert!((result.rpm - 3500.0).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_fm8_cardash_via_dispatch() -> TestResult {
+        // FM8 (Forza Motorsport 2023) sends 331-byte packets; the first 311
+        // bytes match the standard CarDash layout.
+        let mut data = vec![0u8; FORZA_FM8_CARDASH_SIZE];
+        let sled = make_sled_packet(1, 7500.0, (30.0, 0.0, 0.0));
+        data[..FORZA_SLED_SIZE].copy_from_slice(&sled);
+        data[OFF_DASH_ACCEL] = 180;
+        data[OFF_DASH_GEAR] = 5; // 5 → gear 4
+        let result = parse_forza_packet(&data)?;
+        assert!((result.rpm - 7500.0).abs() < 0.01);
+        assert!((result.throttle - 180.0 / 255.0).abs() < 0.01);
+        assert_eq!(result.gear, 4);
         Ok(())
     }
 

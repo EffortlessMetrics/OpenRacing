@@ -5,10 +5,13 @@
 //!
 //! ## Verification against IRSDK documentation
 //!
-//! Verified 2025-07 against three authoritative sources:
+//! Verified 2025-07 against four authoritative sources:
 //!   1. [`kutu/pyirsdk`](https://github.com/kutu/pyirsdk) v1.3.5 (`irsdk.py`, `vars.txt`)
-//!   2. Official iRacing SDK C header (`irsdk_defines.h`), via [`cadfan/ira`](https://github.com/cadfan/ira)
-//!   3. Community variable reference from pyirsdk `vars.txt` (300+ telemetry variables)
+//!   2. iRacing SDK C header (`irsdk_defines.h`), via
+//!      [`Apkallu-Industries/Pitwall`](https://github.com/Apkallu-Industries/Pitwall)
+//!   3. [`quimcalpe/iracing-sdk`](https://github.com/quimcalpe/iracing-sdk) (Go)
+//!      — `header.go`, `variables.go`, `defines.go` for independent cross-reference
+//!   4. Community variable reference from pyirsdk `vars.txt` (300+ telemetry variables)
 //!
 //! ### Transport & connection
 //! - **Shared memory name**: `Local\IRSDKMemMapFileName` — confirmed in both
@@ -83,6 +86,28 @@
 //!   translates problematic bytes 0x81/0x8D/0x8F/0x90/0x9D to spaces.
 //!   Our ISO-8859-1 decoding covers the common range and is compatible
 //!   for standard driver/track names. ✓
+//!
+//! ### Force feedback delivery
+//! - iRacing delivers FFB data entirely through shared-memory telemetry
+//!   variables, not through DirectInput. The game writes torque values
+//!   that applications read via the standard variable system. ✓
+//! - Key FFB variables (from `vars.txt`):
+//!   - `SteeringWheelTorque`: shaft torque in N·m (float, 60 Hz)
+//!   - `SteeringWheelTorque_ST`: shaft torque at 360 Hz (float)
+//!   - `SteeringWheelPctTorqueSign`: signed % of max torque (float)
+//!   - `SteeringWheelMaxForceNm`: user's max force slider in N·m (float)
+//!   - `SteeringWheelPeakForceNm`: peak mapping to DInput units (float)
+//!   - `SteeringWheelLimiter`: limiter strength for clipping, % (float)
+//!   - `SteeringFFBEnabled`: whether FFB is enabled (bool)
+//! - Our adapter uses `SteeringWheelPctTorqueSign` (preferred) or
+//!   `SteeringWheelTorque / SteeringWheelMaxForceNm` (fallback) to
+//!   derive the normalized FFB scalar. ✓
+//!
+//! ### `count_as_time` field note
+//! - The C header from some public sources shows `int pad[1]` at offset
+//!   12 in `irsdk_varHeader`. The actual SDK has `bool countAsTime` at
+//!   byte 12 (confirmed in pyirsdk and Go SDK). Our struct correctly
+//!   models this as `count_as_time: u8` + `pad: [u8; 3]`. ✓
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
@@ -158,7 +183,9 @@ unsafe impl Send for SharedMemoryHandle {}
 #[cfg(windows)]
 unsafe impl Sync for SharedMemoryHandle {}
 
-/// IRSDK rotating buffer descriptor.
+/// IRSDK rotating buffer descriptor (16 bytes).
+/// Layout: tick_count@0, buf_offset@4, pad[2]@8.
+/// Verified against pyirsdk `VarBuffer`, Go SDK `varBuffer`, and C header `irsdk_varBuf`.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 struct IRSDKVarBuf {
@@ -167,36 +194,44 @@ struct IRSDKVarBuf {
     pad: [i32; 2],
 }
 
-/// IRSDK memory-map header.
+/// IRSDK memory-map header (112 bytes).
+/// Layout: ver@0, status@4, tick_rate@8, session_info_update@12,
+/// session_info_len@16, session_info_offset@20, num_vars@24,
+/// var_header_offset@28, num_buf@32, buf_len@36, pad[2]@40, var_buf[4]@48.
+/// Verified against pyirsdk `Header`, Go SDK `readHeader`, and C header `irsdk_header`.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 struct IRSDKHeader {
-    ver: i32,
-    status: i32,
-    tick_rate: i32,
-    session_info_update: i32,
-    session_info_len: i32,
-    session_info_offset: i32,
-    num_vars: i32,
-    var_header_offset: i32,
-    num_buf: i32,
-    buf_len: i32,
-    pad: [i32; 2],
-    var_buf: [IRSDKVarBuf; IRSDK_MAX_BUFS],
+    ver: i32,                               // @0 — API version (IRSDK_VER = 2)
+    status: i32,                            // @4 — irsdk_StatusField (1 = connected)
+    tick_rate: i32,                         // @8 — ticks per second (60 or 360)
+    session_info_update: i32,               // @12
+    session_info_len: i32,                  // @16
+    session_info_offset: i32,               // @20
+    num_vars: i32,                          // @24
+    var_header_offset: i32,                 // @28
+    num_buf: i32,                           // @32
+    buf_len: i32,                           // @36
+    pad: [i32; 2],                          // @40 — 16-byte alignment
+    var_buf: [IRSDKVarBuf; IRSDK_MAX_BUFS], // @48
 }
 
-/// IRSDK variable header (name/type/offset metadata).
+/// IRSDK variable header (144 bytes).
+/// Layout: type@0, offset@4, count@8, count_as_time@12 (bool),
+/// pad[3]@13, name@16 (32B), desc@48 (64B), unit@112 (32B).
+/// Verified against pyirsdk `VarHeader`, Go SDK `readVariableHeaders`,
+/// and C header `irsdk_varHeader`.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 struct IRSDKVarHeader {
-    var_type: i32,
-    offset: i32,
-    count: i32,
-    count_as_time: u8,
-    pad: [u8; 3],
-    name: [u8; IRSDK_VAR_NAME_LEN],
-    desc: [u8; 64],
-    unit: [u8; 32],
+    var_type: i32,                  // @0 — irsdk_VarType enum
+    offset: i32,                    // @4 — offset within buffer row
+    count: i32,                     // @8 — array element count
+    count_as_time: u8,              // @12 — bool in SDK; see doc note
+    pad: [u8; 3],                   // @13 — alignment padding
+    name: [u8; IRSDK_VAR_NAME_LEN], // @16 — null-terminated ASCII
+    desc: [u8; 64],                 // @48 — null-terminated description
+    unit: [u8; 32],                 // @112 — null-terminated unit string
 }
 
 impl Default for IRSDKVarHeader {
@@ -1049,6 +1084,8 @@ fn var_binding_from_header(var_header: &IRSDKVarHeader, buf_len: usize) -> Optio
     })
 }
 
+/// Type-to-byte-size mapping. Verified against `irsdk_VarTypeBytes[]` in C header
+/// and `VAR_TYPE_MAP` in pyirsdk.
 #[cfg(windows)]
 fn irsdk_var_type_size(var_type: i32) -> Option<usize> {
     Some(match var_type {
