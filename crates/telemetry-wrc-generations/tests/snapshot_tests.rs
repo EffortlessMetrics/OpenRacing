@@ -9,6 +9,8 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 // ---------------------------------------------------------------------------
 // Codemasters Mode 1 byte offsets (all little-endian f32)
+//
+// Verified against dr2_logger udp_data.py and Codemasters telemetry spreadsheet.
 // ---------------------------------------------------------------------------
 
 const MIN_PACKET_SIZE: usize = 264;

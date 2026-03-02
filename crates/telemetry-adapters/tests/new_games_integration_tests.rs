@@ -256,11 +256,13 @@ fn rennsport_ffb_scalar_clamped() -> TestResult {
 
 // ─── WRC Generations ─────────────────────────────────────────────────────────
 //
-// UDP port 6777, Codemasters Mode 1 / RallyEngine layout (≥252 bytes, all f32 LE):
-//   offset 92  wheel_speed_fl … offset 104  wheel_speed_rr
-//   offset 108 throttle   offset 124 gear (0.0=reverse→-1, 1+)
-//   offset 140 rpm        offset 180 in_pit
-//   offset 240 max_rpm
+// UDP port 6777, Codemasters Mode 1 / RallyEngine layout (264 bytes, 66 × f32 LE).
+// Verified against dr2_logger udp_data.py, Codemasters telemetry spreadsheet,
+// and dirt-rally-time-recorder gearTracker.py.
+//   offset 100..112 wheel_speed_{rl,rr,fl,fr}
+//   offset 116 throttle   offset 132 gear (-1=reverse, 0=neutral, 1+=forward)
+//   offset 148 rpm        offset 188 in_pit
+//   offset 252 max_rpm
 
 const WRC_GEN_MIN: usize = 264;
 
@@ -302,11 +304,21 @@ fn wrc_generations_short_packet_returns_error() -> TestResult {
 }
 
 #[test]
-fn wrc_generations_gear_zero_maps_to_reverse() -> TestResult {
-    // All-zero packet → gear field = 0.0 → reverse = -1
+fn wrc_generations_gear_zero_maps_to_neutral() -> TestResult {
+    // Verified: raw 0.0 = neutral per Codemasters Mode 1 spec (gearTracker.py, udp_data.py).
     let pkt = make_wrc_gen_packet();
     let t = WrcGenerationsAdapter::new().normalize(&pkt)?;
-    assert_eq!(t.gear, -1, "gear 0.0 must map to -1 (reverse)");
+    assert_eq!(t.gear, 0, "gear 0.0 must map to 0 (neutral)");
+    Ok(())
+}
+
+#[test]
+fn wrc_generations_gear_negative_one_maps_to_reverse() -> TestResult {
+    // Verified: DR2.0/WRC sends -1.0 for reverse (gearTracker.py: "Handle reverse gear = -1").
+    let mut pkt = make_wrc_gen_packet();
+    write_f32_le(&mut pkt, 132, -1.0); // gear = reverse
+    let t = WrcGenerationsAdapter::new().normalize(&pkt)?;
+    assert_eq!(t.gear, -1, "gear -1.0 must map to -1 (reverse)");
     Ok(())
 }
 

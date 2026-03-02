@@ -1,10 +1,35 @@
-//! WRC Generations / WRC 23 telemetry adapter for Codemasters/RallyEngine Mode 1 UDP format.
+//! WRC Generations / EA WRC telemetry adapter for Codemasters/RallyEngine Mode 1 UDP format.
 //!
-//! Enable UDP telemetry in-game (Accessibility → UDP Telemetry), port 6777.
+//! Enable UDP telemetry in-game (Accessibility → UDP Telemetry), default port 6777.
+//!
+//! ## Protocol summary
 //!
 //! The packet layout is identical to the Codemasters Mode 1 legacy format used by
-//! DiRT Rally 2.0 — a fixed-layout binary stream of 264+ bytes where every field
-//! is a little-endian `f32` at a known byte offset.
+//! DiRT Rally 2.0 — a fixed-layout binary stream of 264+ bytes (66 × `f32`) where
+//! every field is a little-endian `f32` at a known byte offset.
+//!
+//! ## Verified against community sources
+//!
+//! Byte offsets and field semantics were cross-checked against:
+//! - Codemasters telemetry spreadsheet (DR1/DR4/DR2.0 field map):
+//!   <https://docs.google.com/spreadsheets/d/1Xsv5E9jwgJsiXCZQlM5Ae2hH5mUnjdHlTtEadnSnaeI>
+//! - `ErlerPhilipp/dr2_logger` – `source/dirt_rally/udp_data.py`
+//! - `soong-construction/dirt-rally-time-recorder` – `timerecorder/gearTracker.py`,
+//!   `timerecorder/receiver.py`
+//!
+//! ## DR2.0 vs EA WRC differences
+//!
+//! | Property         | DiRT Rally 2.0       | WRC Generations / EA WRC   |
+//! |------------------|----------------------|----------------------------|
+//! | Default UDP port | 20777                | 6777                       |
+//! | Config location  | hardware_settings_config.xml (`extradata="3"`) | In-game menu |
+//! | Packet size      | 264 bytes (66 × f32) | 264 bytes (66 × f32)       |
+//! | Endianness       | Little-endian        | Little-endian              |
+//!
+//! **Note on RPM encoding:** DR2.0 community tools (dr2_logger, dirt-rally-time-recorder)
+//! document offset 148 (engine rate) and offset 252 (max RPM) as "rpm / 10", meaning
+//! the raw value must be multiplied by 10 for realistic RPM.  WRC Generations / EA WRC
+//! may send direct RPM values (no ×10 scaling).  This adapter passes values as-is.
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
@@ -31,36 +56,38 @@ const ENV_PORT: &str = "OPENRACING_WRC_GENERATIONS_UDP_PORT";
 const ENV_HEARTBEAT_TIMEOUT_MS: &str = "OPENRACING_WRC_GENERATIONS_HEARTBEAT_TIMEOUT_MS";
 
 // Byte offsets for Codemasters Mode 1 / RallyEngine packet fields (all f32, little-endian).
-const OFF_VEL_X: usize = 32;
-const OFF_VEL_Y: usize = 36;
-const OFF_VEL_Z: usize = 40;
-const OFF_WHEEL_SPEED_FL: usize = 108;
-const OFF_WHEEL_SPEED_FR: usize = 112;
-const OFF_WHEEL_SPEED_RL: usize = 100;
-const OFF_WHEEL_SPEED_RR: usize = 104;
-const OFF_THROTTLE: usize = 116;
-const OFF_STEER: usize = 120;
-const OFF_BRAKE: usize = 124;
-const OFF_GEAR: usize = 132;
-const OFF_GFORCE_LAT: usize = 136;
-const OFF_GFORCE_LON: usize = 140;
-const OFF_CURRENT_LAP: usize = 144;
-const OFF_RPM: usize = 148;
-const OFF_CAR_POSITION: usize = 156;
-const OFF_FUEL_IN_TANK: usize = 180;
-const OFF_FUEL_CAPACITY: usize = 184;
-const OFF_IN_PIT: usize = 188;
-const OFF_BRAKES_TEMP_RL: usize = 204;
-const OFF_BRAKES_TEMP_RR: usize = 208;
-const OFF_BRAKES_TEMP_FL: usize = 212;
-const OFF_BRAKES_TEMP_FR: usize = 216;
-const OFF_TYRES_PRESSURE_RL: usize = 220;
-const OFF_TYRES_PRESSURE_RR: usize = 224;
-const OFF_TYRES_PRESSURE_FL: usize = 228;
-const OFF_TYRES_PRESSURE_FR: usize = 232;
-const OFF_LAST_LAP_TIME: usize = 248;
-const OFF_MAX_RPM: usize = 252;
-const OFF_MAX_GEARS: usize = 260;
+// Verified against: dr2_logger udp_data.py, Codemasters telemetry spreadsheet.
+// Field index in parentheses: offset = index × 4.
+const OFF_VEL_X: usize = 32; //  [8] velocity_x (m/s)
+const OFF_VEL_Y: usize = 36; //  [9] velocity_y (m/s)
+const OFF_VEL_Z: usize = 40; // [10] velocity_z (m/s)
+const OFF_WHEEL_SPEED_FL: usize = 108; // [27] wheel patch speed front-left (m/s)
+const OFF_WHEEL_SPEED_FR: usize = 112; // [28] wheel patch speed front-right (m/s)
+const OFF_WHEEL_SPEED_RL: usize = 100; // [25] wheel patch speed rear-left (m/s)
+const OFF_WHEEL_SPEED_RR: usize = 104; // [26] wheel patch speed rear-right (m/s)
+const OFF_THROTTLE: usize = 116; // [29] throttle input 0.0–1.0
+const OFF_STEER: usize = 120; // [30] steering input -1.0..+1.0
+const OFF_BRAKE: usize = 124; // [31] brake input 0.0–1.0
+const OFF_GEAR: usize = 132; // [33] gear: -1=reverse, 0=neutral, 1+=forward
+const OFF_GFORCE_LAT: usize = 136; // [34] lateral g-force
+const OFF_GFORCE_LON: usize = 140; // [35] longitudinal g-force
+const OFF_CURRENT_LAP: usize = 144; // [36] current lap (0-based)
+const OFF_RPM: usize = 148; // [37] engine rate (see RPM note in module docs)
+const OFF_CAR_POSITION: usize = 156; // [39] race position
+const OFF_FUEL_IN_TANK: usize = 180; // [45] fuel in tank
+const OFF_FUEL_CAPACITY: usize = 184; // [46] fuel capacity
+const OFF_IN_PIT: usize = 188; // [47] in pit (0/1)
+const OFF_BRAKES_TEMP_RL: usize = 204; // [51] brake temp rear-left (°C)
+const OFF_BRAKES_TEMP_RR: usize = 208; // [52] brake temp rear-right (°C)
+const OFF_BRAKES_TEMP_FL: usize = 212; // [53] brake temp front-left (°C)
+const OFF_BRAKES_TEMP_FR: usize = 216; // [54] brake temp front-right (°C)
+const OFF_TYRES_PRESSURE_RL: usize = 220; // [55] tyre pressure rear-left (PSI)
+const OFF_TYRES_PRESSURE_RR: usize = 224; // [56] tyre pressure rear-right (PSI)
+const OFF_TYRES_PRESSURE_FL: usize = 228; // [57] tyre pressure front-left (PSI)
+const OFF_TYRES_PRESSURE_FR: usize = 232; // [58] tyre pressure front-right (PSI)
+const OFF_LAST_LAP_TIME: usize = 248; // [62] last lap time (seconds)
+const OFF_MAX_RPM: usize = 252; // [63] max RPM (see RPM note in module docs)
+const OFF_MAX_GEARS: usize = 260; // [65] max gears
 
 /// Lateral G normalisation range for the FFB scalar.
 const FFB_LAT_G_MAX: f32 = 3.0;
@@ -151,12 +178,16 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     let rpm_raw = read_f32(data, OFF_RPM).unwrap_or(0.0).max(0.0);
     let max_rpm = read_f32(data, OFF_MAX_RPM).unwrap_or(0.0).max(0.0);
 
-    // Gear: 0.0 = reverse (→ -1), 1.0–8.0 = gears 1–8.
+    // Gear encoding (verified against dirt-rally-time-recorder gearTracker.py and
+    // dr2_logger udp_data.py): -1.0 = reverse, 0.0 = neutral, 1.0+ = forward gears.
+    // DR1 legacy uses 10.0 for reverse, which we clamp to 8 (not applicable here).
     let gear_raw = read_f32(data, OFF_GEAR).unwrap_or(0.0);
-    let gear: i8 = if gear_raw < 0.5 {
-        -1
+    let gear: i8 = if gear_raw < -0.5 {
+        -1 // reverse (raw -1.0)
+    } else if gear_raw < 0.5 {
+        0 // neutral (raw 0.0)
     } else {
-        (gear_raw.round() as i8).clamp(-1, 8)
+        (gear_raw.round() as i8).clamp(1, 8)
     };
 
     let throttle = read_f32(data, OFF_THROTTLE).unwrap_or(0.0).clamp(0.0, 1.0);
@@ -366,11 +397,12 @@ mod tests {
     }
 
     #[test]
-    fn zero_gear_maps_to_reverse() -> Result<(), Box<dyn std::error::Error>> {
+    fn zero_gear_maps_to_neutral() -> Result<(), Box<dyn std::error::Error>> {
         let adapter = WrcGenerationsAdapter::new();
         let raw = make_packet(MIN_PACKET_SIZE);
+        // Raw 0.0 = neutral per Codemasters Mode 1 spec (verified: gearTracker.py).
         let t = adapter.normalize(&raw)?;
-        assert_eq!(t.gear, -1);
+        assert_eq!(t.gear, 0, "raw 0.0 should map to neutral (0)");
         Ok(())
     }
 
@@ -510,11 +542,22 @@ mod tests {
             write_f32(&mut raw, OFF_GEAR, g as f32);
             let t = adapter.normalize(&raw)?;
             assert!(
-                t.gear >= -1 && t.gear <= 8,
-                "gear {} out of expected range -1..=8",
+                t.gear >= 1 && t.gear <= 8,
+                "gear {} out of expected range 1..=8",
                 t.gear
             );
         }
+        Ok(())
+    }
+
+    #[test]
+    fn negative_one_gear_maps_to_reverse() -> Result<(), Box<dyn std::error::Error>> {
+        // Verified: DR2.0 sends -1.0 for reverse (gearTracker.py, udp_data.py).
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_GEAR, -1.0);
+        let t = adapter.normalize(&raw)?;
+        assert_eq!(t.gear, -1, "raw -1.0 should map to reverse (-1)");
         Ok(())
     }
 }

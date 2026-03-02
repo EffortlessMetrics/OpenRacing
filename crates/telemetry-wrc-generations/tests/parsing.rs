@@ -10,6 +10,11 @@ use racing_wheel_telemetry_wrc_generations::{
 
 // ---------------------------------------------------------------------------
 // Codemasters Mode 1 byte offsets (protocol spec – all little-endian f32).
+//
+// Verified against community documentation:
+//   - dr2_logger udp_data.py (ErlerPhilipp/dr2_logger)
+//   - Codemasters telemetry spreadsheet (DR1/DR4/DR2.0 field map)
+//   - dirt-rally-time-recorder receiver.py and gearTracker.py
 // ---------------------------------------------------------------------------
 const MIN_PACKET_SIZE: usize = 264;
 
@@ -284,10 +289,21 @@ fn negative_wheel_speeds_use_absolute_value() -> Result<(), Box<dyn std::error::
 // ===========================================================================
 
 #[test]
-fn gear_zero_raw_maps_to_reverse() -> Result<(), Box<dyn std::error::Error>> {
+fn gear_zero_raw_maps_to_neutral() -> Result<(), Box<dyn std::error::Error>> {
+    // Verified: raw 0.0 = neutral in Codemasters Mode 1 (dr2_logger, gearTracker.py).
     let buf = make_packet(MIN_PACKET_SIZE); // gear offset = 0.0
     let t = parse(&buf)?;
-    assert_eq!(t.gear, -1, "0.0 should map to reverse (-1)");
+    assert_eq!(t.gear, 0, "0.0 should map to neutral (0)");
+    Ok(())
+}
+
+#[test]
+fn gear_negative_one_raw_maps_to_reverse() -> Result<(), Box<dyn std::error::Error>> {
+    // Verified: DR2.0/WRC sends -1.0 for reverse (gearTracker.py: "Handle reverse gear = -1").
+    let mut buf = make_packet(MIN_PACKET_SIZE);
+    write_f32(&mut buf, OFF_GEAR, -1.0);
+    let t = parse(&buf)?;
+    assert_eq!(t.gear, -1, "-1.0 should map to reverse (-1)");
     Ok(())
 }
 
@@ -694,7 +710,7 @@ fn zero_packet_defaults() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(t.throttle, 0.0);
     assert_eq!(t.brake, 0.0);
     assert_eq!(t.steering_angle, 0.0);
-    assert_eq!(t.gear, -1); // 0.0 raw -> reverse
+    assert_eq!(t.gear, 0); // 0.0 raw -> neutral (verified: Codemasters Mode 1 spec)
     assert_eq!(t.lateral_g, 0.0);
     assert_eq!(t.longitudinal_g, 0.0);
     assert_eq!(t.ffb_scalar, 0.0);
