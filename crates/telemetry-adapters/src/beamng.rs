@@ -25,7 +25,8 @@
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
-    NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, telemetry_now_ns,
+    NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
+    TelemetryValue, telemetry_now_ns,
 };
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
@@ -54,12 +55,24 @@ const MAX_PACKET_SIZE: usize = 256;
 //   oilPressure(f32@32), oilTemp(f32@36), dashLights(u32@40), showLights(u32@44),
 //   throttle(f32@48), brake(f32@52), clutch(f32@56), display1([16]u8@60),
 //   display2([16]u8@76), id(i32@92 optional). Total: 92 or 96 bytes.
+const OFF_GEAR: usize = 10; // u8: 0=R, 1=N, 2=1st, 3=2nd, … (verified: outgauge.lua sets gearIndex+1)
 const OFF_SPEED: usize = 12; // f32, m/s
 const OFF_RPM: usize = 16; // f32
-const OFF_GEAR: usize = 10; // u8: 0=R, 1=N, 2=1st, 3=2nd, … (verified: outgauge.lua sets gearIndex+1)
+const OFF_TURBO: usize = 20; // f32, BAR
+const OFF_ENG_TEMP: usize = 24; // f32, °C
+const OFF_FUEL: usize = 28; // f32, 0..1
+const OFF_OIL_PRESSURE: usize = 32; // f32, BAR
+const OFF_OIL_TEMP: usize = 36; // f32, °C
+const OFF_SHOW_LIGHTS: usize = 44; // u32, active dashboard light bitmask
 const OFF_THROTTLE: usize = 48; // f32, 0..1
 const OFF_BRAKE: usize = 52; // f32, 0..1
 const OFF_CLUTCH: usize = 56; // f32, 0..1
+
+// OutGauge dashboard light flags (from LFS InSim.txt / BeamNG outgauge.lua)
+const DL_SHIFT: u32 = 0x0001;
+const DL_PITSPEED: u32 = 0x0008;
+const DL_TC: u32 = 0x0010;
+const DL_ABS: u32 = 0x0400;
 
 #[cfg(windows)]
 const BEAMNG_PROCESS_NAMES: &[&str] = &["beamng.drive.x64.exe", "beamng.drive.exe"];
@@ -75,6 +88,12 @@ fn parse_outgauge_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     let speed_mps = read_f32_le(data, OFF_SPEED).unwrap_or(0.0);
     let rpm = read_f32_le(data, OFF_RPM).unwrap_or(0.0);
     let gear_raw = data[OFF_GEAR]; // u8: 0=R, 1=N, 2=1st, 3=2nd, …
+    let turbo = read_f32_le(data, OFF_TURBO).unwrap_or(0.0);
+    let eng_temp = read_f32_le(data, OFF_ENG_TEMP).unwrap_or(0.0);
+    let fuel = read_f32_le(data, OFF_FUEL).unwrap_or(0.0);
+    let oil_pressure = read_f32_le(data, OFF_OIL_PRESSURE).unwrap_or(0.0);
+    let oil_temp = read_f32_le(data, OFF_OIL_TEMP).unwrap_or(0.0);
+    let show_lights = read_u32_le(data, OFF_SHOW_LIGHTS).unwrap_or(0);
     let throttle = read_f32_le(data, OFF_THROTTLE).unwrap_or(0.0);
     let brake = read_f32_le(data, OFF_BRAKE).unwrap_or(0.0);
     let clutch = read_f32_le(data, OFF_CLUTCH).unwrap_or(0.0);
@@ -87,14 +106,33 @@ fn parse_outgauge_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         g => (g - 1) as i8, // g is u8 2..=255; g-1 is 1..=254, cast to i8 is safe for realistic gear values
     };
 
-    Ok(NormalizedTelemetry::builder()
+    let flags = TelemetryFlags {
+        pit_limiter: show_lights & DL_PITSPEED != 0,
+        traction_control: show_lights & DL_TC != 0,
+        abs_active: show_lights & DL_ABS != 0,
+        ..TelemetryFlags::default()
+    };
+
+    let mut builder = NormalizedTelemetry::builder()
         .speed_ms(speed_mps)
         .rpm(rpm)
         .gear(gear)
         .throttle(throttle)
         .brake(brake)
         .clutch(clutch)
-        .build())
+        .fuel_percent(fuel)
+        .engine_temp_c(eng_temp)
+        .flags(flags)
+        .extended("turbo_bar", TelemetryValue::Float(turbo))
+        .extended("oil_pressure_bar", TelemetryValue::Float(oil_pressure))
+        .extended("oil_temp_c", TelemetryValue::Float(oil_temp))
+        .extended("shift_light", TelemetryValue::Boolean(show_lights & DL_SHIFT != 0));
+
+    if show_lights != 0 {
+        builder = builder.extended("dash_lights_raw", TelemetryValue::Integer(show_lights as i32));
+    }
+
+    Ok(builder.build())
 }
 
 /// BeamNG.drive telemetry adapter (OutGauge UDP).
@@ -240,6 +278,12 @@ fn read_f32_le(data: &[u8], offset: usize) -> Option<f32> {
         .filter(|v| v.is_finite())
 }
 
+fn read_u32_le(data: &[u8], offset: usize) -> Option<u32> {
+    data.get(offset..offset + 4)
+        .and_then(|b| b.try_into().ok())
+        .map(u32::from_le_bytes)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -254,10 +298,34 @@ mod tests {
         brake: f32,
         clutch: f32,
     ) -> Vec<u8> {
+        make_outgauge_packet_full(speed, rpm, gear, throttle, brake, clutch, 0.0, 0.0, 0.0, 0.0, 0.0, 0)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn make_outgauge_packet_full(
+        speed: f32,
+        rpm: f32,
+        gear: u8,
+        throttle: f32,
+        brake: f32,
+        clutch: f32,
+        fuel: f32,
+        eng_temp: f32,
+        turbo: f32,
+        oil_pressure: f32,
+        oil_temp: f32,
+        show_lights: u32,
+    ) -> Vec<u8> {
         let mut data = vec![0u8; OUTGAUGE_PACKET_SIZE];
         data[OFF_SPEED..OFF_SPEED + 4].copy_from_slice(&speed.to_le_bytes());
         data[OFF_RPM..OFF_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
         data[OFF_GEAR] = gear;
+        data[OFF_TURBO..OFF_TURBO + 4].copy_from_slice(&turbo.to_le_bytes());
+        data[OFF_ENG_TEMP..OFF_ENG_TEMP + 4].copy_from_slice(&eng_temp.to_le_bytes());
+        data[OFF_FUEL..OFF_FUEL + 4].copy_from_slice(&fuel.to_le_bytes());
+        data[OFF_OIL_PRESSURE..OFF_OIL_PRESSURE + 4].copy_from_slice(&oil_pressure.to_le_bytes());
+        data[OFF_OIL_TEMP..OFF_OIL_TEMP + 4].copy_from_slice(&oil_temp.to_le_bytes());
+        data[OFF_SHOW_LIGHTS..OFF_SHOW_LIGHTS + 4].copy_from_slice(&show_lights.to_le_bytes());
         data[OFF_THROTTLE..OFF_THROTTLE + 4].copy_from_slice(&throttle.to_le_bytes());
         data[OFF_BRAKE..OFF_BRAKE + 4].copy_from_slice(&brake.to_le_bytes());
         data[OFF_CLUTCH..OFF_CLUTCH + 4].copy_from_slice(&clutch.to_le_bytes());
@@ -348,6 +416,53 @@ mod tests {
         data[OFF_GEAR] = 1; // Neutral
         let result = parse_outgauge_packet(&data)?;
         assert_eq!(result.gear, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_fuel_and_engine_temp() -> TestResult {
+        let data = make_outgauge_packet_full(30.0, 4500.0, 3, 0.6, 0.0, 0.0, 0.75, 92.5, 0.0, 0.0, 0.0, 0);
+        let result = parse_outgauge_packet(&data)?;
+        assert!((result.fuel_percent - 0.75).abs() < 0.001);
+        assert!((result.engine_temp_c - 92.5).abs() < 0.1);
+        Ok(())
+    }
+
+    #[test]
+    fn test_turbo_and_oil_in_extended() -> TestResult {
+        let data = make_outgauge_packet_full(30.0, 4500.0, 3, 0.6, 0.0, 0.0, 0.5, 90.0, 1.2, 3.5, 105.0, 0);
+        let result = parse_outgauge_packet(&data)?;
+        assert_eq!(result.extended.get("turbo_bar"), Some(&TelemetryValue::Float(1.2)));
+        assert_eq!(result.extended.get("oil_pressure_bar"), Some(&TelemetryValue::Float(3.5)));
+        assert_eq!(result.extended.get("oil_temp_c"), Some(&TelemetryValue::Float(105.0)));
+        Ok(())
+    }
+
+    #[test]
+    fn test_dashboard_flags_pit_limiter() -> TestResult {
+        let data = make_outgauge_packet_full(20.0, 3000.0, 2, 0.5, 0.0, 0.0, 0.5, 85.0, 0.0, 0.0, 0.0, DL_PITSPEED);
+        let result = parse_outgauge_packet(&data)?;
+        assert!(result.flags.pit_limiter);
+        assert!(!result.flags.traction_control);
+        assert!(!result.flags.abs_active);
+        Ok(())
+    }
+
+    #[test]
+    fn test_dashboard_flags_tc_and_abs() -> TestResult {
+        let data = make_outgauge_packet_full(20.0, 3000.0, 2, 0.5, 0.0, 0.0, 0.5, 85.0, 0.0, 0.0, 0.0, DL_TC | DL_ABS);
+        let result = parse_outgauge_packet(&data)?;
+        assert!(result.flags.traction_control);
+        assert!(result.flags.abs_active);
+        assert!(!result.flags.pit_limiter);
+        Ok(())
+    }
+
+    #[test]
+    fn test_shift_light_in_extended() -> TestResult {
+        let data = make_outgauge_packet_full(30.0, 7000.0, 3, 1.0, 0.0, 0.0, 0.5, 90.0, 0.0, 0.0, 0.0, DL_SHIFT);
+        let result = parse_outgauge_packet(&data)?;
+        assert_eq!(result.extended.get("shift_light"), Some(&TelemetryValue::Boolean(true)));
         Ok(())
     }
 }

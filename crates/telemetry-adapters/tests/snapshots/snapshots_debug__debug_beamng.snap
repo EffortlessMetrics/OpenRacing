@@ -1,5 +1,6 @@
 ---
 source: crates/telemetry-adapters/tests/snapshots_debug.rs
+assertion_line: 81
 expression: "&normalized"
 ---
 NormalizedTelemetry {
@@ -66,7 +67,20 @@ NormalizedTelemetry {
     delta_behind_s: 0.0,
     fuel_percent: 0.0,
     engine_temp_c: 0.0,
-    extended: {},
+    extended: {
+        "oil_pressure_bar": Float(
+            0.0,
+        ),
+        "oil_temp_c": Float(
+            0.0,
+        ),
+        "shift_light": Boolean(
+            false,
+        ),
+        "turbo_bar": Float(
+            0.0,
+        ),
+    },
     timestamp: [timestamp],
     sequence: 0,
 }
