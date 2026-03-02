@@ -1,0 +1,29 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_tests.rs
+expression: "results.join(\"\\n\")"
+---
+T150: name=Thrustmaster T150, torque=2.5, rot=1080, ffb=true
+TMX: name=Thrustmaster TMX, torque=2.5, rot=900, ffb=true
+T300RS: name=Thrustmaster T300 RS, torque=4, rot=1080, ffb=true
+T300RSPS4: name=Thrustmaster T300 RS (PS4 mode), torque=4, rot=1080, ffb=true
+T300RSGT: name=Thrustmaster T300 RS GT, torque=4, rot=1080, ffb=true
+TXRacing: name=Thrustmaster TX Racing, torque=4, rot=900, ffb=true
+T500RS: name=Thrustmaster T500 RS, torque=5, rot=1080, ffb=true
+T248: name=Thrustmaster T248, torque=4, rot=900, ffb=true
+T248X: name=Thrustmaster T248X, torque=4, rot=900, ffb=true
+TGT: name=Thrustmaster T-GT, torque=6, rot=1080, ffb=true
+TGTII: name=Thrustmaster T-GT II, torque=6, rot=1080, ffb=true
+TSPCRacer: name=Thrustmaster TS-PC Racer, torque=6, rot=1080, ffb=true
+TSXW: name=Thrustmaster TS-XW, torque=6, rot=1080, ffb=true
+T818: name=Thrustmaster T818, torque=10, rot=1080, ffb=true
+T80: name=Thrustmaster T80 Racing Wheel, torque=0, rot=270, ffb=false
+NascarProFF2: name=Thrustmaster NASCAR Pro FF2, torque=1.5, rot=270, ffb=true
+FGTRumbleForce: name=Thrustmaster FGT Rumble Force, torque=1.5, rot=270, ffb=true
+RGTFF: name=Thrustmaster Rally GT FF Clutch, torque=1.5, rot=270, ffb=true
+FGTForceFeedback: name=Thrustmaster FGT Force Feedback, torque=1.5, rot=270, ffb=true
+F430ForceFeedback: name=Thrustmaster Ferrari 430 FF, torque=1.5, rot=270, ffb=true
+T3PA: name=Thrustmaster T3PA, torque=0, rot=900, ffb=false
+T3PAPro: name=Thrustmaster T3PA Pro, torque=0, rot=900, ffb=false
+TLCM: name=Thrustmaster T-LCM, torque=0, rot=900, ffb=false
+TLCMPro: name=Thrustmaster T-LCM Pro, torque=0, rot=900, ffb=false
+Unknown: name=Thrustmaster Unknown, torque=4, rot=900, ffb=false

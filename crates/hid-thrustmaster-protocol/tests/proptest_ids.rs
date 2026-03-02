@@ -30,6 +30,35 @@ const WHEELBASE_PIDS: [u16; 14] = [
     product_ids::T818,
 ];
 
+/// All known PIDs including legacy wheels, pedals, and the generic FFB wheel PID.
+const ALL_KNOWN_PIDS: [u16; 25] = [
+    product_ids::FFB_WHEEL_GENERIC,
+    product_ids::T150,
+    product_ids::TMX,
+    product_ids::T300_RS,
+    product_ids::T300_RS_PS4,
+    product_ids::T300_RS_GT,
+    product_ids::TX_RACING,
+    product_ids::TX_RACING_ORIG,
+    product_ids::T500_RS,
+    product_ids::T248,
+    product_ids::T248X,
+    product_ids::TS_PC_RACER,
+    product_ids::TS_XW,
+    product_ids::TS_XW_GIP,
+    product_ids::T_GT_II_GT,
+    product_ids::T818,
+    product_ids::T80,
+    product_ids::T80_FERRARI_488,
+    product_ids::NASCAR_PRO_FF2,
+    product_ids::FGT_RUMBLE_FORCE,
+    product_ids::RGT_FF_CLUTCH,
+    product_ids::FGT_FORCE_FEEDBACK,
+    product_ids::F430_FORCE_FEEDBACK,
+    product_ids::TPR_PEDALS,
+    product_ids::T_LCM,
+];
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(500))]
 
@@ -120,5 +149,29 @@ proptest! {
         let category_is_wheel = matches!(identity.category, ThrustmasterDeviceCategory::Wheelbase);
         prop_assert_eq!(is_wheel, category_is_wheel,
             "is_wheel_product and identify_device must agree for pid={:#06x}", pid);
+    }
+
+    /// THRUSTMASTER_VENDOR_ID must be exactly 0x044F.
+    #[test]
+    fn prop_vendor_id_is_044f(_unused: u8) {
+        prop_assert_eq!(THRUSTMASTER_VENDOR_ID, 0x044F,
+            "THRUSTMASTER_VENDOR_ID must be 0x044F");
+    }
+
+    /// Every known PID (including legacy and pedals) must be non-zero.
+    #[test]
+    fn prop_all_known_pids_nonzero(idx in 0usize..25usize) {
+        let pid = ALL_KNOWN_PIDS[idx];
+        prop_assert!(pid != 0,
+            "PID at index {idx} must not be zero");
+    }
+
+    /// Model::max_rotation_deg must be > 0 and <= 1080 for any PID.
+    #[test]
+    fn prop_max_rotation_bounded(pid: u16) {
+        let model = Model::from_product_id(pid);
+        let rot = model.max_rotation_deg();
+        prop_assert!(rot > 0 && rot <= 1080,
+            "{model:?} max_rotation_deg must be in (0, 1080], got {rot}");
     }
 }

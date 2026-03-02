@@ -1,0 +1,8 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_tests.rs
+expression: constants
+---
+VID=0x044F
+FFB_WHEEL_GENERIC=0xB65D
+EFFECT_REPORT_LEN=8
+STANDARD_INPUT_REPORT_ID=0x01
