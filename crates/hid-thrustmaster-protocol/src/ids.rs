@@ -39,14 +39,19 @@ pub const THRUSTMASTER_VENDOR_ID: u16 = 0x044F;
 ///   - T500 RS — uses a different, older protocol (hid-tmff2 issue #18)
 ///   - T150 / TMX — separate protocol, not supported by hid-tmff2
 ///   - T818 — not in hid-tmff2; reports T248 PID per issue #58
-///   - T-GT II — reuses T300 USB PIDs per hid-tmff2 README
+///   - T-GT II — uses T300RS protocol in PC/"other" mode (reuses T300 PIDs);
+///     has its own PID 0xB681 in GT mode where FFB is unverified
+///     (hid-tmff2 README + issue #184 lsusb evidence)
 ///
 /// # Removed PIDs (previously incorrect)
 ///
 /// - **T-GT** — was 0xB68E, but linux-hardware.org identifies that as "TPR Rudder
-///   Bulk" (flight sim rudder pedals). Real T-GT PID is unknown.
+///   Bulk" (flight sim rudder pedals). The T-GT may share PID 0xB681 with the
+///   T-GT II in GT mode (the USB product string reports "T-GT" not "T-GT II"),
+///   but this is unconfirmed on original T-GT hardware.
 /// - **T-GT II** — was 0xB692, but hid-tmff2 confirms that as `TSXW_ACTIVE`
-///   (TS-XW Racer). Per hid-tmff2 README, the T-GT II reuses T300 USB PIDs.
+///   (TS-XW Racer). The T-GT II has PID 0xB681 in GT mode (verified via lsusb
+///   in hid-tmff2 issue #184). In PC/"other" mode it reuses T300RS PIDs.
 /// - **T-LCM** — was 0xB68D, but linux-hardware.org identifies that as
 ///   "T.Flight Hotas One" (flight controller). Real T-LCM PID is unverified.
 /// - **T-LCM Pro** — was 0xB69A, but linux-hardware.org identifies that as
@@ -116,6 +121,21 @@ pub mod product_ids {
     /// Verified: linux-hardware.org (044f:b691 = "TS-XW Racer GIP Wheel").
     /// Web-verified: linux-hardware.org confirms 044f:b691 = "TS-XW Racer GIP Wheel".
     pub const TS_XW_GIP: u16 = 0xB691;
+    /// T-GT II in GT mode (PS4/PS5 "GT" switch position).
+    ///
+    /// Verified: hid-tmff2 issue #184 — user `lsusb` output:
+    ///   `Bus 001 Device 024: ID 044f:b681 ThrustMaster, Inc. Thrustmaster Racing Wheel FFB T-GT`
+    ///
+    /// The USB product string reads "T-GT" (not "T-GT II"), so this PID may also
+    /// apply to the original T-GT, but that is unconfirmed on original hardware.
+    ///
+    /// In PC/"other" mode, the T-GT II reuses T300RS PIDs (0xB66E / 0xB66D /
+    /// 0xB66F depending on the mode switch and attachment). FFB is only verified
+    /// via hid-tmff2 in that configuration (T300RS protocol family).
+    ///
+    /// Web-unverified: not found in the-sz.com, linux-hardware.org, or
+    /// devicehunt.com databases. Single primary-source lsusb confirmation.
+    pub const T_GT_II_GT: u16 = 0xB681;
     /// T818 (direct drive).
     /// Caution: hid-tmff2 issue #58 reports the T818 enumerates with PID 0xB696
     /// (same as T248). This 0xB69B value is unverified and may be incorrect;
@@ -157,11 +177,15 @@ pub mod product_ids {
 
 /// Model identification shorthand.
 ///
-/// Note: `TGT`, `TGTII`, `T3PA`, `T3PAPro`, `TLCM`, and `TLCMPro` are real
+/// Note: `TGT`, `T3PA`, `T3PAPro`, `TLCM`, and `TLCMPro` are real
 /// products but their USB PIDs could not be verified against community driver
 /// sources (the previously-assigned PIDs belonged to other devices). They are
 /// retained in the enum for metadata (torque, rotation) but cannot be returned
 /// by [`Model::from_product_id`]. See `product_ids` docs for details.
+///
+/// `TGTII` is now matchable via PID 0xB681 (GT mode). In PC/"other" mode the
+/// T-GT II reuses T300RS PIDs and will be identified as `T300RS` / `T300RSPS4`
+/// / `T300RSGT` depending on the mode switch position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Model {
     /// T150: entry-level belt-drive wheel (PS3/PS4/PC).
@@ -228,6 +252,18 @@ pub enum Model {
     T248,
     T248X,
     TGT,
+    /// T-GT II: belt-drive wheelbase with T300RS-family internals.
+    ///
+    /// **Dual-PID behaviour:** The T-GT II has a mode switch:
+    /// - **GT mode** (PS4/PS5): PID 0xB681 (`product_ids::T_GT_II_GT`).
+    ///   USB product string: "Thrustmaster Racing Wheel FFB T-GT".
+    ///   Verified: hid-tmff2 issue #184 (lsusb evidence).
+    /// - **PC / "other" mode**: Reuses T300RS PIDs (0xB66E / 0xB66D / 0xB66F
+    ///   depending on sub-mode). Identified as T300RS by `from_product_id`.
+    ///
+    /// **Protocol family: T300** — in PC mode, the T-GT II uses the T300RS FFB
+    /// wire protocol and is supported by hid-tmff2 (README confirms).
+    /// FFB in GT mode (0xB681) is unverified with T300RS commands.
     TGTII,
     TSPCRacer,
     TSXW,
@@ -259,6 +295,7 @@ impl Model {
             product_ids::T248X => Self::T248X,
             product_ids::TS_PC_RACER => Self::TSPCRacer,
             product_ids::TS_XW | product_ids::TS_XW_GIP => Self::TSXW,
+            product_ids::T_GT_II_GT => Self::TGTII,
             product_ids::T818 => Self::T818,
             product_ids::T80 | product_ids::T80_FERRARI_488 => Self::T80,
             product_ids::NASCAR_PRO_FF2 => Self::NascarProFF2,
@@ -364,6 +401,11 @@ impl Model {
     /// - `T150Family`: T150 and TMX. Separate protocol, not in hid-tmff2.
     /// - `T500Family`: T500RS. Older protocol, not supported by hid-tmff2 (issue #18).
     /// - `Unknown`: T818, T-GT, pedals, or unrecognized.
+    ///
+    /// **T-GT II note:** Classified as T300 family because in PC/"other" mode it
+    /// uses T300RS PIDs and the T300RS FFB protocol (confirmed by hid-tmff2).
+    /// When detected via PID 0xB681 (GT mode), T300RS commands are unverified;
+    /// callers should be aware that FFB may require switching the wheel to PC mode.
     pub fn protocol_family(self) -> ProtocolFamily {
         match self {
             Self::T300RS
