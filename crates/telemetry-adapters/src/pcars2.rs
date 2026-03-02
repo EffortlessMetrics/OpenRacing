@@ -21,7 +21,8 @@
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
-    NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryReceiver, telemetry_now_ns,
+    NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
+    TelemetryValue, telemetry_now_ns,
 };
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
@@ -98,7 +99,13 @@ const PCARS2_PROCESS_NAMES: &[&str] = &["pcars2.exe", "pcars3.exe", "projectcars
 // Note: Lap time and position data are in the sTimingsData packet (type 3),
 // not in the telemetry packet.
 // ──────────────────────────────────────────────────────────────────────────────
+const OFF_CAR_FLAGS: usize = 17; // u8:  sCarFlags — verified SDK offset 17
+const OFF_OIL_TEMP: usize = 18; // i16: sOilTempCelsius — verified SDK offset 18
+const OFF_OIL_PRESSURE: usize = 20; // u16: sOilPressureKPa — verified SDK offset 20
 const OFF_WATER_TEMP: usize = 22; // i16: sWaterTempCelsius — verified SDK offset 22
+const OFF_WATER_PRESSURE: usize = 24; // u16: sWaterPressureKpa — verified SDK offset 24
+const OFF_FUEL_PRESSURE: usize = 26; // u16: sFuelPressureKpa — verified SDK offset 26
+const OFF_FUEL_CAPACITY: usize = 28; // u8:  sFuelCapacity — verified SDK offset 28
 const OFF_BRAKE: usize = 29; // u8:  sBrake (filtered) — verified SDK offset 29
 const OFF_THROTTLE: usize = 30; // u8:  sThrottle (filtered) — verified SDK offset 30
 const OFF_CLUTCH: usize = 31; // u8:  sClutch (filtered) — verified SDK offset 31
@@ -108,6 +115,30 @@ const OFF_RPM: usize = 40; // u16: sRpm — verified SDK offset 40
 const OFF_MAX_RPM: usize = 42; // u16: sMaxRpm — verified SDK offset 42
 const OFF_STEERING: usize = 44; // i8:  sSteering (filtered) — verified SDK offset 44
 const OFF_GEAR_NUM_GEARS: usize = 45; // u8:  sGearNumGears — verified SDK offset 45
+const OFF_BOOST: usize = 46; // u8:  sBoostAmount — verified SDK offset 46
+const OFF_CRASH_STATE: usize = 47; // u8:  sCrashState — verified SDK offset 47
+const OFF_ODOMETER: usize = 48; // f32: sOdometerKM — verified SDK offset 48
+
+// Motion vectors (3 × f32 arrays, 12 bytes each, starting after sOdometerKM)
+const OFF_LOCAL_ACCEL_X: usize = 100; // f32: sLocalAcceleration[0] (lateral, m/s²)
+const OFF_LOCAL_ACCEL_Y: usize = 104; // f32: sLocalAcceleration[1] (vertical, m/s²)
+const OFF_LOCAL_ACCEL_Z: usize = 108; // f32: sLocalAcceleration[2] (longitudinal, m/s²)
+
+// Tyre data
+const OFF_TYRE_TEMP: usize = 176; // u8[4]: sTyreTemp (°C, FL/FR/RL/RR)
+const OFF_AIR_PRESSURE: usize = 352; // u16[4]: sAirPressure (kPa)
+
+/// Minimum packet size to read acceleration data (through sLocalAcceleration[2]).
+const PCARS2_ACCEL_MIN_SIZE: usize = 112;
+/// Minimum packet size to read tyre temperatures (through sTyreTemp[3]).
+const PCARS2_TYRE_TEMP_MIN_SIZE: usize = 180;
+/// Minimum packet size to read tyre air pressures (through sAirPressure[3]).
+const PCARS2_AIR_PRESSURE_MIN_SIZE: usize = 360;
+
+/// Standard gravitational acceleration (m/s²) for converting local acceleration to G-forces.
+const G_ACCEL: f32 = 9.80665;
+/// Conversion factor: 1 kPa ≈ 0.145038 PSI.
+const KPA_TO_PSI: f32 = 0.145_038;
 
 /// Parse a pCars2/pCars3 UDP sTelemetryData packet into normalized telemetry.
 ///
@@ -118,6 +149,12 @@ const OFF_GEAR_NUM_GEARS: usize = 45; // u8:  sGearNumGears — verified SDK off
 /// - Gear+NumGears at offset 45 (u8: low nibble=gear 0–14/15=reverse, high nibble=numGears)
 /// - Water temperature at offset 22 (i16, °C)
 /// - Fuel level at offset 32 (f32, 0.0–1.0)
+/// - Car flags at offset 17 (u8, bit flags for speed limiter, ABS, handbrake, etc.)
+/// - Local acceleration at offsets 100–111 (f32[3], m/s² → G-forces)
+/// - Tyre temperatures at offset 176 (u8[4], °C)
+/// - Tyre air pressures at offset 352 (u16[4], kPa → PSI)
+///
+/// Fields beyond offset 45 are extracted only when the packet is large enough.
 pub fn parse_pcars2_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     if data.len() < PCARS2_UDP_MIN_SIZE {
         return Err(anyhow!(
@@ -157,7 +194,15 @@ pub fn parse_pcars2_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
 
     let water_temp = read_i16_le(data, OFF_WATER_TEMP).unwrap_or(0) as f32;
 
-    Ok(NormalizedTelemetry::builder()
+    // sCarFlags: bit 3 = speed limiter (pit limiter), bit 4 = ABS active.
+    let car_flags = read_u8(data, OFF_CAR_FLAGS).unwrap_or(0);
+    let flags = TelemetryFlags {
+        pit_limiter: car_flags & 0x08 != 0,
+        abs_active: car_flags & 0x10 != 0,
+        ..TelemetryFlags::default()
+    };
+
+    let mut builder = NormalizedTelemetry::builder()
         .steering_angle(steering)
         .throttle(throttle)
         .brake(brake)
@@ -169,7 +214,79 @@ pub fn parse_pcars2_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         .num_gears(num_gears)
         .fuel_percent(fuel_level)
         .engine_temp_c(water_temp)
-        .build())
+        .flags(flags);
+
+    // G-forces from local acceleration (m/s² → G).
+    if data.len() >= PCARS2_ACCEL_MIN_SIZE {
+        if let Some(ax) = read_f32_le(data, OFF_LOCAL_ACCEL_X) {
+            builder = builder.lateral_g(ax / G_ACCEL);
+        }
+        if let Some(ay) = read_f32_le(data, OFF_LOCAL_ACCEL_Y) {
+            builder = builder.vertical_g(ay / G_ACCEL);
+        }
+        if let Some(az) = read_f32_le(data, OFF_LOCAL_ACCEL_Z) {
+            builder = builder.longitudinal_g(az / G_ACCEL);
+        }
+    }
+
+    // Tyre temperatures (u8 °C, FL/FR/RL/RR).
+    if data.len() >= PCARS2_TYRE_TEMP_MIN_SIZE {
+        let temps = [
+            read_u8(data, OFF_TYRE_TEMP).unwrap_or(0),
+            read_u8(data, OFF_TYRE_TEMP + 1).unwrap_or(0),
+            read_u8(data, OFF_TYRE_TEMP + 2).unwrap_or(0),
+            read_u8(data, OFF_TYRE_TEMP + 3).unwrap_or(0),
+        ];
+        builder = builder.tire_temps_c(temps);
+    }
+
+    // Tyre air pressures (u16 kPa → PSI, FL/FR/RL/RR).
+    if data.len() >= PCARS2_AIR_PRESSURE_MIN_SIZE {
+        let pressures = [
+            read_u16_le(data, OFF_AIR_PRESSURE).unwrap_or(0) as f32 * KPA_TO_PSI,
+            read_u16_le(data, OFF_AIR_PRESSURE + 2).unwrap_or(0) as f32 * KPA_TO_PSI,
+            read_u16_le(data, OFF_AIR_PRESSURE + 4).unwrap_or(0) as f32 * KPA_TO_PSI,
+            read_u16_le(data, OFF_AIR_PRESSURE + 6).unwrap_or(0) as f32 * KPA_TO_PSI,
+        ];
+        builder = builder.tire_pressures_psi(pressures);
+    }
+
+    // Extended fields: oil temp, pressures, boost, crash state, odometer.
+    let oil_temp = read_i16_le(data, OFF_OIL_TEMP).unwrap_or(0);
+    builder = builder.extended("oil_temp_c", TelemetryValue::Integer(oil_temp as i32));
+
+    let oil_pressure = read_u16_le(data, OFF_OIL_PRESSURE).unwrap_or(0);
+    builder = builder.extended("oil_pressure_kpa", TelemetryValue::Integer(oil_pressure as i32));
+
+    let water_pressure = read_u16_le(data, OFF_WATER_PRESSURE).unwrap_or(0);
+    builder = builder.extended(
+        "water_pressure_kpa",
+        TelemetryValue::Integer(water_pressure as i32),
+    );
+
+    let fuel_pressure = read_u16_le(data, OFF_FUEL_PRESSURE).unwrap_or(0);
+    builder = builder.extended(
+        "fuel_pressure_kpa",
+        TelemetryValue::Integer(fuel_pressure as i32),
+    );
+
+    let fuel_capacity = read_u8(data, OFF_FUEL_CAPACITY).unwrap_or(0);
+    builder = builder.extended(
+        "fuel_capacity",
+        TelemetryValue::Integer(fuel_capacity as i32),
+    );
+
+    let boost = read_u8(data, OFF_BOOST).unwrap_or(0);
+    builder = builder.extended("boost_amount", TelemetryValue::Integer(boost as i32));
+
+    let crash_state = read_u8(data, OFF_CRASH_STATE).unwrap_or(0);
+    builder = builder.extended("crash_state", TelemetryValue::Integer(crash_state as i32));
+
+    if let Some(odometer) = read_f32_le(data, OFF_ODOMETER) {
+        builder = builder.extended("odometer_km", TelemetryValue::Float(odometer));
+    }
+
+    Ok(builder.build())
 }
 
 /// Project CARS 2 / Project CARS 3 telemetry adapter.
@@ -468,6 +585,141 @@ mod tests {
     #[test]
     fn test_parse_empty_packet() {
         assert!(parse_pcars2_packet(&[]).is_err());
+    }
+
+    /// Build a full-size (538-byte) packet with acceleration, tyre, and pressure data.
+    fn make_full_pcars2_packet(
+        steering: f32,
+        throttle: f32,
+        brake: f32,
+        speed: f32,
+        rpm: f32,
+        max_rpm: f32,
+        gear: u32,
+    ) -> Vec<u8> {
+        let mut data = vec![0u8; MAX_PACKET_SIZE.min(538)];
+        data[OFF_STEERING] = (steering.clamp(-1.0, 1.0) * 127.0) as i8 as u8;
+        data[OFF_THROTTLE] = (throttle.clamp(0.0, 1.0) * 255.0) as u8;
+        data[OFF_BRAKE] = (brake.clamp(0.0, 1.0) * 255.0) as u8;
+        data[OFF_SPEED..OFF_SPEED + 4].copy_from_slice(&speed.to_le_bytes());
+        data[OFF_RPM..OFF_RPM + 2].copy_from_slice(&(rpm as u16).to_le_bytes());
+        data[OFF_MAX_RPM..OFF_MAX_RPM + 2].copy_from_slice(&(max_rpm as u16).to_le_bytes());
+        let gear_val: u8 = if gear > 14 { 15 } else { gear as u8 };
+        data[OFF_GEAR_NUM_GEARS] = gear_val;
+        data
+    }
+
+    #[test]
+    fn test_parse_gforces() -> TestResult {
+        let mut data = make_full_pcars2_packet(0.0, 0.5, 0.0, 30.0, 3000.0, 7000.0, 2);
+        // Write lateral accel = 9.80665 m/s² (1G), longitudinal = 4.903325 m/s² (0.5G)
+        let lat_accel: f32 = 9.80665;
+        let vert_accel: f32 = -9.80665;
+        let long_accel: f32 = 4.903_325;
+        data[OFF_LOCAL_ACCEL_X..OFF_LOCAL_ACCEL_X + 4]
+            .copy_from_slice(&lat_accel.to_le_bytes());
+        data[OFF_LOCAL_ACCEL_Y..OFF_LOCAL_ACCEL_Y + 4]
+            .copy_from_slice(&vert_accel.to_le_bytes());
+        data[OFF_LOCAL_ACCEL_Z..OFF_LOCAL_ACCEL_Z + 4]
+            .copy_from_slice(&long_accel.to_le_bytes());
+
+        let result = parse_pcars2_packet(&data)?;
+        assert!((result.lateral_g - 1.0).abs() < 0.001);
+        assert!((result.vertical_g - (-1.0)).abs() < 0.001);
+        assert!((result.longitudinal_g - 0.5).abs() < 0.001);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_tyre_temps() -> TestResult {
+        let mut data = make_full_pcars2_packet(0.0, 0.5, 0.0, 30.0, 3000.0, 7000.0, 2);
+        data[OFF_TYRE_TEMP] = 85;
+        data[OFF_TYRE_TEMP + 1] = 90;
+        data[OFF_TYRE_TEMP + 2] = 80;
+        data[OFF_TYRE_TEMP + 3] = 88;
+
+        let result = parse_pcars2_packet(&data)?;
+        assert_eq!(result.tire_temps_c, [85, 90, 80, 88]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_tyre_pressures() -> TestResult {
+        let mut data = make_full_pcars2_packet(0.0, 0.5, 0.0, 30.0, 3000.0, 7000.0, 2);
+        // 200 kPa ≈ 29.0 PSI
+        let pressure_kpa: u16 = 200;
+        for i in 0..4 {
+            data[OFF_AIR_PRESSURE + i * 2..OFF_AIR_PRESSURE + i * 2 + 2]
+                .copy_from_slice(&pressure_kpa.to_le_bytes());
+        }
+
+        let result = parse_pcars2_packet(&data)?;
+        let expected_psi = 200.0 * KPA_TO_PSI;
+        for &p in &result.tire_pressures_psi {
+            assert!((p - expected_psi).abs() < 0.01);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_car_flags() -> TestResult {
+        let mut data = make_pcars2_packet(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0);
+        // Bit 3 = speed limiter (pit_limiter), bit 4 = ABS
+        data[OFF_CAR_FLAGS] = 0x18; // both pit_limiter and ABS
+        let result = parse_pcars2_packet(&data)?;
+        assert!(result.flags.pit_limiter);
+        assert!(result.flags.abs_active);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_car_flags_none_set() -> TestResult {
+        let mut data = make_pcars2_packet(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0);
+        data[OFF_CAR_FLAGS] = 0x00;
+        let result = parse_pcars2_packet(&data)?;
+        assert!(!result.flags.pit_limiter);
+        assert!(!result.flags.abs_active);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_extended_fields() -> TestResult {
+        let mut data = make_full_pcars2_packet(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0);
+        // Oil temp = 110°C
+        data[OFF_OIL_TEMP..OFF_OIL_TEMP + 2].copy_from_slice(&110i16.to_le_bytes());
+        // Boost = 50
+        data[OFF_BOOST] = 50;
+        // Crash state = 2
+        data[OFF_CRASH_STATE] = 2;
+
+        let result = parse_pcars2_packet(&data)?;
+        assert_eq!(
+            result.get_extended("oil_temp_c"),
+            Some(&TelemetryValue::Integer(110))
+        );
+        assert_eq!(
+            result.get_extended("boost_amount"),
+            Some(&TelemetryValue::Integer(50))
+        );
+        assert_eq!(
+            result.get_extended("crash_state"),
+            Some(&TelemetryValue::Integer(2))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_min_packet_skips_extended_tyre_data() -> TestResult {
+        // Minimum-size packet should parse successfully but have no tyre temps or pressures.
+        let data = make_pcars2_packet(0.0, 0.5, 0.0, 30.0, 3000.0, 7000.0, 2);
+        assert_eq!(data.len(), PCARS2_UDP_MIN_SIZE);
+        let result = parse_pcars2_packet(&data)?;
+        assert_eq!(result.tire_temps_c, [0, 0, 0, 0]);
+        assert_eq!(result.tire_pressures_psi, [0.0, 0.0, 0.0, 0.0]);
+        assert_eq!(result.lateral_g, 0.0);
+        assert_eq!(result.longitudinal_g, 0.0);
+        assert_eq!(result.vertical_g, 0.0);
+        Ok(())
     }
 
     #[cfg(test)]

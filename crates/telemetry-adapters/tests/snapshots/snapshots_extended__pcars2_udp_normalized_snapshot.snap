@@ -1,5 +1,6 @@
 ---
 source: crates/telemetry-adapters/tests/snapshots_extended.rs
+assertion_line: 156
 expression: normalized
 ---
 speed_ms: 50
@@ -59,4 +60,26 @@ delta_ahead_s: 0
 delta_behind_s: 0
 fuel_percent: 0
 engine_temp_c: 0
+extended:
+  boost_amount:
+    type: Integer
+    value: 0
+  crash_state:
+    type: Integer
+    value: 0
+  fuel_capacity:
+    type: Integer
+    value: 0
+  fuel_pressure_kpa:
+    type: Integer
+    value: 0
+  oil_pressure_kpa:
+    type: Integer
+    value: 0
+  oil_temp_c:
+    type: Integer
+    value: 0
+  water_pressure_kpa:
+    type: Integer
+    value: 0
 sequence: 0
