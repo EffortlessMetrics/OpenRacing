@@ -184,9 +184,9 @@ fn test_snapshot_model_from_info() {
             ),
         ),
         (
-            "pro",
+            "pro_legacy",
             heusinkveld::heusinkveld_model_from_info(
-                heusinkveld::HEUSINKVELD_VENDOR_ID,
+                heusinkveld::HEUSINKVELD_LEGACY_VENDOR_ID,
                 heusinkveld::HEUSINKVELD_PRO_PID,
             ),
         ),

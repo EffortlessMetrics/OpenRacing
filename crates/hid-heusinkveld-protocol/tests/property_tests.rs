@@ -8,20 +8,27 @@
 //! - PedalStatus flag decoding
 
 use hid_heusinkveld_protocol::{
-    HEUSINKVELD_PRO_PID, HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID, HEUSINKVELD_VENDOR_ID,
-    HeusinkveldInputReport, HeusinkveldModel, PedalCapabilities, PedalModel, PedalStatus,
-    REPORT_SIZE_INPUT, heusinkveld_model_from_info, is_heusinkveld_device,
+    HEUSINKVELD_HANDBRAKE_V1_PID, HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
+    HEUSINKVELD_HANDBRAKE_V2_PID, HEUSINKVELD_LEGACY_SPRINT_PID, HEUSINKVELD_LEGACY_ULTIMATE_PID,
+    HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID, HEUSINKVELD_SHIFTER_PID,
+    HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID,
+    HEUSINKVELD_VENDOR_ID, HeusinkveldInputReport, HeusinkveldModel, PedalCapabilities, PedalModel,
+    PedalStatus, REPORT_SIZE_INPUT, heusinkveld_model_from_info, is_heusinkveld_device,
 };
 use proptest::prelude::*;
 
 // ── VID / PID invariants ──────────────────────────────────────────────────────
 
-/// VID constant must equal the Heusinkveld USB vendor ID (0x04D8, Microchip Technology).
+/// VID constant must equal the current Heusinkveld USB vendor ID (0x30B7).
 #[test]
 fn test_vendor_id_value() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(
-        HEUSINKVELD_VENDOR_ID, 0x04D8,
-        "Heusinkveld VID must be 0x04D8"
+        HEUSINKVELD_VENDOR_ID, 0x30B7,
+        "Heusinkveld current VID must be 0x30B7"
+    );
+    assert_eq!(
+        HEUSINKVELD_LEGACY_VENDOR_ID, 0x04D8,
+        "Heusinkveld legacy VID must be 0x04D8"
     );
     Ok(())
 }
@@ -30,30 +37,43 @@ fn test_vendor_id_value() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_all_known_pids_detected() -> Result<(), Box<dyn std::error::Error>> {
     let known = [
-        (HEUSINKVELD_SPRINT_PID, HeusinkveldModel::Sprint),
-        (HEUSINKVELD_ULTIMATE_PID, HeusinkveldModel::Ultimate),
-        (HEUSINKVELD_PRO_PID, HeusinkveldModel::Pro),
+        // Current VID (0x30B7)
+        (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_SPRINT_PID, HeusinkveldModel::Sprint),
+        (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_ULTIMATE_PID, HeusinkveldModel::Ultimate),
+        (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V2_PID, HeusinkveldModel::HandbrakeV2),
+        // Legacy VID (0x04D8)
+        (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_LEGACY_SPRINT_PID, HeusinkveldModel::Sprint),
+        (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_LEGACY_ULTIMATE_PID, HeusinkveldModel::Ultimate),
+        (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID, HeusinkveldModel::Pro),
+        // Peripherals (other VIDs)
+        (HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V1_PID, HeusinkveldModel::HandbrakeV1),
+        (HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SHIFTER_PID, HeusinkveldModel::SequentialShifter),
     ];
-    for (pid, expected) in known {
-        let model = heusinkveld_model_from_info(HEUSINKVELD_VENDOR_ID, pid);
+    for (vid, pid, expected) in known {
+        let model = heusinkveld_model_from_info(vid, pid);
         assert_eq!(
             model, expected,
-            "PID 0x{pid:04X} must classify as {expected:?}"
+            "VID 0x{vid:04X} PID 0x{pid:04X} must classify as {expected:?}"
         );
         assert_ne!(
             model,
             HeusinkveldModel::Unknown,
-            "PID 0x{pid:04X} must not classify as Unknown"
+            "VID 0x{vid:04X} PID 0x{pid:04X} must not classify as Unknown"
         );
     }
     Ok(())
 }
 
-/// Exact numeric values verified against OpenFlight device manifests.
+/// Exact numeric values verified against simracing-hwdb and OpenFlight.
 #[test]
 fn test_pid_constant_values() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(HEUSINKVELD_SPRINT_PID, 0xF6D0);
-    assert_eq!(HEUSINKVELD_ULTIMATE_PID, 0xF6D2);
+    // Current firmware (from simracing-hwdb)
+    assert_eq!(HEUSINKVELD_SPRINT_PID, 0x1001);
+    assert_eq!(HEUSINKVELD_ULTIMATE_PID, 0x1003);
+    assert_eq!(HEUSINKVELD_HANDBRAKE_V2_PID, 0x1002);
+    // Legacy firmware (from OpenFlight)
+    assert_eq!(HEUSINKVELD_LEGACY_SPRINT_PID, 0xF6D0);
+    assert_eq!(HEUSINKVELD_LEGACY_ULTIMATE_PID, 0xF6D2);
     assert_eq!(HEUSINKVELD_PRO_PID, 0xF6D3);
     Ok(())
 }
@@ -94,17 +114,22 @@ proptest! {
     fn prop_model_from_info_matches_from_pid_for_correct_vid(pid: u16) {
         let via_info = heusinkveld_model_from_info(HEUSINKVELD_VENDOR_ID, pid);
         let via_pid  = HeusinkveldModel::from_product_id(pid);
-        prop_assert_eq!(
-            via_info, via_pid,
-            "heusinkveld_model_from_info with correct VID must match from_product_id for pid={:#06x}",
-            pid
-        );
+        // For the current VID, from_vid_pid only matches current PIDs (0x1001-0x1003),
+        // while from_product_id matches both current and legacy PIDs.
+        // So we just check that current VID results are a subset of from_product_id results.
+        if via_info != HeusinkveldModel::Unknown {
+            prop_assert_eq!(
+                via_info, via_pid,
+                "heusinkveld_model_from_info with current VID must agree with from_product_id for pid={:#06x}",
+                pid
+            );
+        }
     }
 
-    /// heusinkveld_model_from_info with any VID other than HEUSINKVELD_VENDOR_ID must return Unknown.
+    /// heusinkveld_model_from_info with an unrecognized VID must return Unknown.
     #[test]
     fn prop_wrong_vid_always_unknown(vid: u16, pid: u16) {
-        prop_assume!(vid != HEUSINKVELD_VENDOR_ID);
+        prop_assume!(!is_heusinkveld_device(vid));
         let model = heusinkveld_model_from_info(vid, pid);
         prop_assert_eq!(
             model,
@@ -116,12 +141,16 @@ proptest! {
 
     // ── is_heusinkveld_device ─────────────────────────────────────────────────
 
-    /// is_heusinkveld_device must return true only for HEUSINKVELD_VENDOR_ID.
+    /// is_heusinkveld_device must return true for all known Heusinkveld VIDs.
     #[test]
     fn prop_is_heusinkveld_device_vid_check(vid: u16) {
         let result = is_heusinkveld_device(vid);
-        if vid == HEUSINKVELD_VENDOR_ID {
-            prop_assert!(result, "HEUSINKVELD_VENDOR_ID must be recognized");
+        let is_known = matches!(vid,
+            HEUSINKVELD_VENDOR_ID | HEUSINKVELD_LEGACY_VENDOR_ID
+            | HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID | HEUSINKVELD_SHIFTER_VENDOR_ID
+        );
+        if is_known {
+            prop_assert!(result, "known VID {:#06x} must be recognized", vid);
         } else {
             prop_assert!(!result, "VID {:#06x} must not be recognized as Heusinkveld", vid);
         }

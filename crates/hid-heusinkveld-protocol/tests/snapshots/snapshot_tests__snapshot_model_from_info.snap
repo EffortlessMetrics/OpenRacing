@@ -2,4 +2,4 @@
 source: crates/hid-heusinkveld-protocol/tests/snapshot_tests.rs
 expression: "format!(\"{:?}\", results)"
 ---
-"[(\"sprint\", Sprint), (\"ultimate\", Ultimate), (\"pro\", Pro), (\"wrong_vid\", Unknown)]"
+"[(\"sprint\", Sprint), (\"ultimate\", Ultimate), (\"pro_legacy\", Pro), (\"wrong_vid\", Unknown)]"

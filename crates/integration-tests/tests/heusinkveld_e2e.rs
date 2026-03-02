@@ -281,13 +281,13 @@ fn scenario_load_cell_given_independent_axes_when_parsed_then_no_crosstalk()
 
 #[test]
 fn scenario_product_ids_given_constants_when_checked_then_match_spec() {
-    // Then: vendor ID constants match
-    assert_eq!(VENDOR_ID, 0x04D8);
-    assert_eq!(HEUSINKVELD_VENDOR_ID, 0x04D8);
+    // Then: vendor ID constants match (current firmware)
+    assert_eq!(VENDOR_ID, 0x30B7);
+    assert_eq!(HEUSINKVELD_VENDOR_ID, 0x30B7);
 
-    // Then: product ID constants have expected values
-    assert_eq!(PRODUCT_ID_SPRINT, 0xF6D0);
-    assert_eq!(PRODUCT_ID_ULTIMATE, 0xF6D2);
+    // Then: current product ID constants have expected values
+    assert_eq!(PRODUCT_ID_SPRINT, 0x1001);
+    assert_eq!(PRODUCT_ID_ULTIMATE, 0x1003);
     assert_eq!(PRODUCT_ID_PRO, 0xF6D3);
 
     // Then: named constants match positional constants
@@ -302,8 +302,10 @@ fn scenario_product_ids_given_constants_when_checked_then_match_spec() {
 
 #[test]
 fn scenario_vendor_detection_given_heusinkveld_vid_when_checked_then_recognized() {
-    // Then: is_heusinkveld_device recognizes the correct vendor ID
+    // Then: is_heusinkveld_device recognizes all known vendor IDs
     assert!(is_heusinkveld_device(VENDOR_ID));
+    assert!(is_heusinkveld_device(HEUSINKVELD_VENDOR_ID));
+    assert!(is_heusinkveld_device(hid_heusinkveld_protocol::HEUSINKVELD_LEGACY_VENDOR_ID));
     assert!(!is_heusinkveld_device(0x0000));
     assert!(!is_heusinkveld_device(0xFFFF));
 }
@@ -399,7 +401,7 @@ fn scenario_capabilities_given_model_when_checked_then_consistent_with_heusinkve
 
 #[test]
 fn scenario_model_from_info_given_valid_vid_pid_when_queried_then_correct() {
-    // Then: correct vendor+product combinations return the right model
+    // Then: current vendor+product combinations return the right model
     assert_eq!(
         heusinkveld_model_from_info(HEUSINKVELD_VENDOR_ID, HEUSINKVELD_SPRINT_PID),
         HeusinkveldModel::Sprint
@@ -408,8 +410,12 @@ fn scenario_model_from_info_given_valid_vid_pid_when_queried_then_correct() {
         heusinkveld_model_from_info(HEUSINKVELD_VENDOR_ID, HEUSINKVELD_ULTIMATE_PID),
         HeusinkveldModel::Ultimate
     );
+    // Pro only exists on legacy VID
     assert_eq!(
-        heusinkveld_model_from_info(HEUSINKVELD_VENDOR_ID, HEUSINKVELD_PRO_PID),
+        heusinkveld_model_from_info(
+            hid_heusinkveld_protocol::HEUSINKVELD_LEGACY_VENDOR_ID,
+            HEUSINKVELD_PRO_PID
+        ),
         HeusinkveldModel::Pro
     );
 }

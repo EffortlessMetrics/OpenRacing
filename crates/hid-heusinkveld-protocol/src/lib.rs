@@ -45,10 +45,22 @@ impl From<HidCommonError> for HeusinkveldError {
     }
 }
 
-pub const VENDOR_ID: u16 = 0x04D8;
-pub const PRODUCT_ID_SPRINT: u16 = 0xF6D0;
-pub const PRODUCT_ID_ULTIMATE: u16 = 0xF6D2;
-pub const PRODUCT_ID_PRO: u16 = 0xF6D3;
+/// Primary Heusinkveld Vendor ID (current hardware, VID 0x30B7).
+///
+/// For legacy firmware (VID 0x04D8), use `HEUSINKVELD_LEGACY_VENDOR_ID`.
+pub const VENDOR_ID: u16 = HEUSINKVELD_VENDOR_ID;
+/// Sprint product ID (current firmware, PID 0x1001).
+///
+/// For legacy firmware (PID 0xF6D0), use `HEUSINKVELD_LEGACY_SPRINT_PID`.
+pub const PRODUCT_ID_SPRINT: u16 = HEUSINKVELD_SPRINT_PID;
+/// Ultimate product ID (current firmware, PID 0x1003).
+///
+/// For legacy firmware (PID 0xF6D2), use `HEUSINKVELD_LEGACY_ULTIMATE_PID`.
+pub const PRODUCT_ID_ULTIMATE: u16 = HEUSINKVELD_ULTIMATE_PID;
+/// Pro product ID (legacy firmware only, PID 0xF6D3).
+///
+/// Pro is discontinued; only the legacy VID (0x04D8) is known.
+pub const PRODUCT_ID_PRO: u16 = HEUSINKVELD_PRO_PID;
 
 pub const REPORT_SIZE_INPUT: usize = 8;
 
@@ -60,7 +72,8 @@ mod tests {
 
     #[test]
     fn test_constants() {
-        assert_eq!(VENDOR_ID, 0x04D8);
+        assert_eq!(VENDOR_ID, 0x30B7);
+        assert_eq!(VENDOR_ID, HEUSINKVELD_VENDOR_ID);
         assert_eq!(MAX_LOAD_CELL_VALUE, 0xFFFF);
     }
 }

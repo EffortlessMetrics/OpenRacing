@@ -2,7 +2,7 @@
 //!
 //! VID `0x1DD2` is assigned to Leo Bodnar Electronics Ltd (UK).
 //!
-//! ## Web-verification status (2025-07)
+//! ## Web-verification status (2025-07, updated 2026-03)
 //!
 //! ### VID confirmation
 //! - the-sz.com/products/usbid: VID `0x1DD2` = "LEO BODNAR" ✅
@@ -14,19 +14,14 @@
 //!   dedicated HID driver in the kernel (devices use generic `hid-pidff`).
 //! - **Not in JacKeTUs/linux-steering-wheels** compatibility table.
 //! - JacKeTUs/simracing-hwdb `90-leo-bodnar.hwdb`:
-//!   - Pedals controller: `v1DD2p100C` (PID `0x100C`) — **not in our code**
-//!   - LC Pedals controller: `v1DD2p22D0` (PID `0x22D0`) — **not in our code**
+//!   - Pedals controller: `v1DD2p100C` (PID `0x100C`) — ✅ **now tracked**
+//!   - LC Pedals controller: `v1DD2p22D0` (PID `0x22D0`) — ✅ **now tracked**
 //! - No public USB-IF product ID database lists Leo Bodnar PIDs.
 //!
 //! Confidence: VID = **High** (USB-IF registered). Confirmed PIDs (`0x0001`,
 //! `0x000C`, `0x000E`, `0x000F`) = **Medium** (community captures, no official
-//! registry). Estimated PIDs (`0x000B`, `0x0030`, `0x0031`, `0x1301`) = **Low**.
-//!
-//! ### Community PIDs not yet tracked
-//! - PID `0x100C`: Leo Bodnar pedals controller (simracing-hwdb)
-//! - PID `0x22D0`: Leo Bodnar LC pedals controller (simracing-hwdb)
-//!
-//! TODO: Add PID `0x100C` and `0x22D0` after confirming with a second source.
+//! registry). simracing-hwdb PIDs (`0x100C`, `0x22D0`) = **Medium** (1 community
+//! source). Estimated PIDs (`0x000B`, `0x0030`, `0x0031`, `0x1301`) = **Low**.
 //!
 //! Sources: USB ID databases (devicehunt.com, the-sz.com), USB device captures,
 //! JacKeTUs/simracing-hwdb, community reports, and the existing OpenRacing
@@ -88,6 +83,18 @@ pub const PID_BU0836X: u16 = 0x0030;
 /// reports; not independently confirmed from an official source.
 pub const PID_BU0836_16BIT: u16 = 0x0031;
 
+// ── Community-confirmed product IDs (simracing-hwdb) ────────────────────────
+
+/// Leo Bodnar Pedals Controller.
+///
+/// 🔶 Community-sourced: JacKeTUs/simracing-hwdb `90-leo-bodnar.hwdb` — VID 0x1DD2, PID 0x100C.
+pub const PID_PEDALS: u16 = 0x100C;
+
+/// Leo Bodnar LC (Load Cell) Pedals Controller.
+///
+/// 🔶 Community-sourced: JacKeTUs/simracing-hwdb `90-leo-bodnar.hwdb` — VID 0x1DD2, PID 0x22D0.
+pub const PID_LC_PEDALS: u16 = 0x22D0;
+
 /// Returns `true` if the VID/PID pair identifies a Leo Bodnar device.
 pub fn is_leo_bodnar(vid: u16, pid: u16) -> bool {
     vid == VENDOR_ID
@@ -101,6 +108,8 @@ pub fn is_leo_bodnar(vid: u16, pid: u16) -> bool {
                 | PID_BU0836A
                 | PID_BU0836X
                 | PID_BU0836_16BIT
+                | PID_PEDALS
+                | PID_LC_PEDALS
         )
 }
 
@@ -116,6 +125,8 @@ pub fn is_leo_bodnar_device(pid: u16) -> bool {
             | PID_BU0836A
             | PID_BU0836X
             | PID_BU0836_16BIT
+            | PID_PEDALS
+            | PID_LC_PEDALS
     )
 }
 
@@ -142,6 +153,14 @@ mod tests {
         assert!(is_leo_bodnar(VENDOR_ID, PID_BU0836A));
         assert!(is_leo_bodnar(VENDOR_ID, PID_BU0836X));
         assert!(is_leo_bodnar(VENDOR_ID, PID_BU0836_16BIT));
+    }
+
+    #[test]
+    fn simracing_hwdb_pids_recognised() {
+        assert!(is_leo_bodnar(VENDOR_ID, PID_PEDALS));
+        assert!(is_leo_bodnar(VENDOR_ID, PID_LC_PEDALS));
+        assert!(is_leo_bodnar_device(PID_PEDALS));
+        assert!(is_leo_bodnar_device(PID_LC_PEDALS));
     }
 
     #[test]

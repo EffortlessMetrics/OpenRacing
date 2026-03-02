@@ -96,9 +96,21 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
                 )))
             }
         }
-        // Microchip VID (0x04D8): used by Heusinkveld pedals (PIDs 0xF6D0–0xF6D3).
+        // Microchip VID (0x04D8): used by legacy Heusinkveld pedals (PIDs 0xF6D0–0xF6D3).
         // VID is shared by many Microchip PIC-based devices; disambiguate by PID.
         0x04D8 if heusinkveld::is_heusinkveld_product(product_id) => Some(Box::new(
+            heusinkveld::HeusinkveldProtocolHandler::new(vendor_id, product_id),
+        )),
+        // Heusinkveld current firmware VID (0x30B7).
+        0x30B7 if heusinkveld::is_heusinkveld_product(product_id) => Some(Box::new(
+            heusinkveld::HeusinkveldProtocolHandler::new(vendor_id, product_id),
+        )),
+        // Silicon Labs VID (0x10C4): Heusinkveld Handbrake V1.
+        0x10C4 if heusinkveld::is_heusinkveld_product(product_id) => Some(Box::new(
+            heusinkveld::HeusinkveldProtocolHandler::new(vendor_id, product_id),
+        )),
+        // Heusinkveld Sequential Shifter VID (0xA020).
+        0xA020 if heusinkveld::is_heusinkveld_product(product_id) => Some(Box::new(
             heusinkveld::HeusinkveldProtocolHandler::new(vendor_id, product_id),
         )),
         // OpenMoko/MCS VID (0x16D0): Simucube 2 (0x0D5x),

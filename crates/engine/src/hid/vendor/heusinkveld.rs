@@ -6,8 +6,11 @@ use super::{DeviceWriter, FfbConfig, VendorProtocol};
 use tracing::{debug, info};
 
 pub use hid_heusinkveld_protocol::{
-    HEUSINKVELD_PRO_PID, HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID, HEUSINKVELD_VENDOR_ID,
-    HeusinkveldModel, heusinkveld_model_from_info,
+    HEUSINKVELD_HANDBRAKE_V1_PID, HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
+    HEUSINKVELD_HANDBRAKE_V2_PID, HEUSINKVELD_LEGACY_SPRINT_PID, HEUSINKVELD_LEGACY_ULTIMATE_PID,
+    HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID, HEUSINKVELD_SHIFTER_PID,
+    HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID,
+    HEUSINKVELD_VENDOR_ID, HeusinkveldModel, heusinkveld_model_from_info,
 };
 
 /// Heusinkveld protocol state.
@@ -45,7 +48,20 @@ impl HeusinkveldProtocolHandler {
 
 /// Return true when the product ID is a known Heusinkveld product.
 pub fn is_heusinkveld_product(product_id: u16) -> bool {
-    matches!(product_id, 0xF6D0..=0xF6D3)
+    matches!(
+        product_id,
+        // Current firmware (VID 0x30B7)
+        HEUSINKVELD_SPRINT_PID
+            | HEUSINKVELD_HANDBRAKE_V2_PID
+            | HEUSINKVELD_ULTIMATE_PID
+            // Legacy firmware (VID 0x04D8)
+            | HEUSINKVELD_LEGACY_SPRINT_PID
+            | HEUSINKVELD_LEGACY_ULTIMATE_PID
+            | HEUSINKVELD_PRO_PID
+            // Peripherals (other VIDs)
+            | HEUSINKVELD_HANDBRAKE_V1_PID
+            | HEUSINKVELD_SHIFTER_PID
+    )
 }
 
 impl VendorProtocol for HeusinkveldProtocolHandler {
