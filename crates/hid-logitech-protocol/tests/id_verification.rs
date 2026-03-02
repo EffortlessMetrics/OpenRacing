@@ -63,3 +63,53 @@ fn g923_xbox_alt_pid_is_c26d() {
 fn g_pro_pid_is_c268() {
     assert_eq!(product_ids::G_PRO, 0xC268);
 }
+
+#[test]
+fn g_pro_xbox_pid_is_c272() {
+    assert_eq!(product_ids::G_PRO_XBOX, 0xC272);
+}
+
+#[test]
+fn dfgt_pid_is_c29a() {
+    assert_eq!(product_ids::DRIVING_FORCE_GT, 0xC29A);
+}
+
+#[test]
+fn dfp_pid_is_c298() {
+    assert_eq!(product_ids::DRIVING_FORCE_PRO, 0xC298);
+}
+
+#[test]
+fn sfw_pid_is_c29c() {
+    assert_eq!(product_ids::SPEED_FORCE_WIRELESS, 0xC29C);
+}
+
+#[test]
+fn momo_pid_is_c295() {
+    assert_eq!(product_ids::MOMO, 0xC295);
+}
+
+#[test]
+fn momo_2_pid_is_ca03() {
+    assert_eq!(product_ids::MOMO_2, 0xCA03);
+}
+
+#[test]
+fn wingman_ffg_pid_is_c293() {
+    assert_eq!(product_ids::WINGMAN_FORMULA_FORCE_GP, 0xC293);
+}
+
+#[test]
+fn wingman_ff_pid_is_c291() {
+    assert_eq!(product_ids::WINGMAN_FORMULA_FORCE, 0xC291);
+}
+
+#[test]
+fn vibration_wheel_pid_is_ca04() {
+    assert_eq!(product_ids::VIBRATION_WHEEL, 0xCA04);
+}
+
+#[test]
+fn driving_force_ex_pid_is_c294() {
+    assert_eq!(product_ids::DRIVING_FORCE_EX, 0xC294);
+}

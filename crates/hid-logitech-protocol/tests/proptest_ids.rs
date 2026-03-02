@@ -112,4 +112,21 @@ proptest! {
             "is_wheel_product and from_product_id must agree for pid={:#06x}", pid
         );
     }
+
+    /// Every known model variant must have a non-empty Debug representation.
+    #[test]
+    fn prop_known_model_debug_nonempty(idx in 0usize..19usize) {
+        let pid = WHEEL_PIDS[idx];
+        let model = LogitechModel::from_product_id(pid);
+        let debug_str = format!("{model:?}");
+        prop_assert!(!debug_str.is_empty(),
+            "model for PID {pid:#06x} must have non-empty Debug format");
+    }
+
+    /// LOGITECH_VENDOR_ID must always equal 0x046D.
+    #[test]
+    fn prop_vendor_id_is_046d(_unused: u8) {
+        prop_assert_eq!(LOGITECH_VENDOR_ID, 0x046D,
+            "LOGITECH_VENDOR_ID must be 0x046D");
+    }
 }
