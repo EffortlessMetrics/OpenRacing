@@ -271,6 +271,10 @@ pub fn build_set_range_dfp_report(degrees: u16) -> [u8; VENDOR_REPORT_LEN] {
 ///           if `false`, byte 4 = `0x00`.
 ///
 /// Source: `lg4ff_mode_switch_ext09_*` arrays in kernel `hid-lg4ff.c`.
+///
+/// Cross-verified 2025-07 against new-lg4ff `lg4ff_mode_switch_ext09_g923`:
+/// `{1, {0xf8, 0x09, 0x07, 0x01, 0x01, 0x00, 0x00}}` — confirming
+/// mode_id=0x07 and detach=0x01 for the G923 PS native mode transition.
 pub fn build_mode_switch_report(mode_id: u8, detach: bool) -> [u8; VENDOR_REPORT_LEN] {
     [
         report_ids::VENDOR,
@@ -624,6 +628,32 @@ mod tests {
         assert_eq!(fine[2], (start_left >> 4) as u8);
         assert_eq!(fine[3], (start_right >> 4) as u8);
 
+        Ok(())
+    }
+
+    /// Verify G923 mode-switch command matches `lg4ff_mode_switch_ext09_g923`
+    /// from `berarma/new-lg4ff`: `{1, {0xf8, 0x09, 0x07, 0x01, 0x01, 0x00, 0x00}}`.
+    #[test]
+    fn test_g923_mode_switch_matches_new_lg4ff() -> Result<(), Box<dyn std::error::Error>> {
+        let report = build_mode_switch_report(0x07, true);
+        assert_eq!(
+            report,
+            [0xF8, 0x09, 0x07, 0x01, 0x01, 0x00, 0x00],
+            "G923 mode-switch must match new-lg4ff lg4ff_mode_switch_ext09_g923"
+        );
+        Ok(())
+    }
+
+    /// Verify G29 mode-switch command matches `lg4ff_mode_switch_ext09_g29`
+    /// from kernel `hid-lg4ff.c`: `{1, {0xf8, 0x09, 0x05, 0x01, 0x01, 0x00, 0x00}}`.
+    #[test]
+    fn test_g29_mode_switch_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
+        let report = build_mode_switch_report(0x05, true);
+        assert_eq!(
+            report,
+            [0xF8, 0x09, 0x05, 0x01, 0x01, 0x00, 0x00],
+            "G29 mode-switch must match kernel lg4ff_mode_switch_ext09_g29"
+        );
         Ok(())
     }
 }

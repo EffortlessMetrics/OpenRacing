@@ -127,6 +127,7 @@ pub mod commands {
 /// - Linux kernel `hid-ids.h` and `hid-lg4ff.c` (torvalds/linux master)
 /// - berarma/new-lg4ff `hid-ids.h` (out-of-tree, G923 support)
 /// - berarma/oversteer `wheel_ids.py`
+/// - Linux kernel `hid-logitech-hidpp.c` (G920/G923 Xbox HID++ entries)
 ///
 /// Result: **No discrepancies found.** All PIDs match across all sources.
 /// Note: usb-ids.gowdy.us and the-sz.com list 046d:c260 as "G29 Driving
@@ -262,6 +263,12 @@ pub mod product_ids {
     ///
     /// Verified: new-lg4ff `USB_DEVICE_ID_LOGITECH_G923_WHEEL = 0xc266`,
     /// oversteer `LG_G923P = '046d:c266'`.
+    ///
+    /// Cross-verified in new-lg4ff `lg4ff_devices[]`:
+    /// `{USB_DEVICE_ID_LOGITECH_G923_WHEEL, lg4ff_wheel_effects, 40, 900, 0, lg4ff_set_range_g25}`
+    /// — confirming: min_range=40, max_range=900, capabilities=0 (no hardware
+    /// friction), and range command uses the same `lg4ff_set_range_g25()`
+    /// format as G25/G27/DFGT/G29.
     pub const G923: u16 = 0xC266;
     /// G923 racing wheel — PlayStation compatibility mode (initial enumeration).
     ///
@@ -307,6 +314,10 @@ pub mod product_ids {
     ///
     /// Verified: kernel `USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL = 0xc26e`,
     /// new-lg4ff `0xc26e`, oversteer `LG_G923X = '046d:c26e'`.
+    ///
+    /// Cross-verified in kernel `hid-logitech-hidpp.c`:
+    /// `HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL)`
+    /// with `.driver_data = HIDPP_QUIRK_CLASS_G920 | HIDPP_QUIRK_FORCE_OUTPUT_REPORTS`.
     pub const G923_XBOX: u16 = 0xC26E;
     /// G PRO racing wheel (PlayStation/PC, direct drive, 11 Nm, 1080°).
     ///

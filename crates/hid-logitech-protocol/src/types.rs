@@ -129,9 +129,13 @@ impl LogitechModel {
 
     /// Whether this model has hardware-level friction effect support.
     ///
-    /// Source: `berarma/new-lg4ff` `LG4FF_CAP_FRICTION` flag.
+    /// Source: `berarma/new-lg4ff` `LG4FF_CAP_FRICTION` flag in `lg4ff_devices[]`.
     /// Only DFP, G25, DFGT, and G27 have native hardware friction.
     /// G29, G920, G923, G PRO need software-emulated friction.
+    ///
+    /// Cross-verified 2025-07: new-lg4ff `lg4ff_devices[]` entry for G923
+    /// has `capabilities = 0` (no `LG4FF_CAP_FRICTION`), confirming G923
+    /// is correctly excluded here.
     pub fn supports_hardware_friction(self) -> bool {
         matches!(
             self,
