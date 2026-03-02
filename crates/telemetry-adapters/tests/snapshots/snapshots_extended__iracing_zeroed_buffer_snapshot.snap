@@ -60,31 +60,16 @@ delta_behind_s: 0
 fuel_percent: 0
 engine_temp_c: 0
 extended:
-  brake:
-    type: Float
-    value: 0
   ffb_scalar_source:
     type: String
     value: unknown
   fuel_level:
     type: Float
     value: 0
-  lap_best_time:
-    type: Float
-    value: 0
-  lap_current:
-    type: Integer
-    value: 0
   session_flags_raw:
     type: Integer
     value: 0
   session_time:
-    type: Float
-    value: 0
-  steering_wheel_angle:
-    type: Float
-    value: 0
-  throttle:
     type: Float
     value: 0
 sequence: 0

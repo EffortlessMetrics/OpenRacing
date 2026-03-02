@@ -207,9 +207,10 @@ fn make_iracing_data() -> Vec<u8> {
     write_i32(&mut buf, 80, 8); // lap_current
     write_f32_le(&mut buf, 84, 82.5); // lap_best_time (seconds)
     write_f32_le(&mut buf, 88, 15.0); // fuel_level (litres)
-    write_i32(&mut buf, 92, 0); // on_pit_road = false
-    write_string(&mut buf[96..160], "dallarair18");
-    write_string(&mut buf[160..224], "indianapolis");
+    write_f32_le(&mut buf, 92, 0.0); // fuel_level_pct
+    write_i32(&mut buf, 96, 0); // on_pit_road = false
+    write_string(&mut buf[100..164], "dallarair18");
+    write_string(&mut buf[164..228], "indianapolis");
     buf
 }
 

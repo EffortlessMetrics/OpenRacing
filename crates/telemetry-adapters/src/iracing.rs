@@ -282,6 +282,7 @@ struct IRacingLayout {
     lap_current: Option<VarBinding>,
     lap_best_time: Option<VarBinding>,
     fuel_level: Option<VarBinding>,
+    fuel_level_pct: Option<VarBinding>,
     on_pit_road: Option<VarBinding>,
     car_path: Option<VarBinding>,
     track_name: Option<VarBinding>,
@@ -717,27 +718,19 @@ impl IRacingAdapter {
         }
 
         builder
+            .throttle(data.throttle)
+            .brake(data.brake)
+            .steering_angle(data.steering_wheel_angle)
+            .fuel_percent(data.fuel_level_pct)
+            .lap(u16::try_from(data.lap_current).unwrap_or(0))
+            .best_lap_time_s(data.lap_best_time)
             .extended(
                 "fuel_level".to_string(),
                 TelemetryValue::Float(data.fuel_level),
             )
             .extended(
-                "lap_current".to_string(),
-                TelemetryValue::Integer(data.lap_current),
-            )
-            .extended(
-                "lap_best_time".to_string(),
-                TelemetryValue::Float(data.lap_best_time),
-            )
-            .extended(
                 "session_time".to_string(),
                 TelemetryValue::Float(data.session_time),
-            )
-            .extended("throttle".to_string(), TelemetryValue::Float(data.throttle))
-            .extended("brake".to_string(), TelemetryValue::Float(data.brake))
-            .extended(
-                "steering_wheel_angle".to_string(),
-                TelemetryValue::Float(data.steering_wheel_angle),
             )
             .build()
     }
@@ -761,6 +754,7 @@ fn convert_legacy_to_current(legacy: &IRacingLegacyData) -> IRacingData {
         lap_current: legacy.lap_current,
         lap_best_time: legacy.lap_best_time,
         fuel_level: legacy.fuel_level,
+        fuel_level_pct: 0.0,
         on_pit_road: legacy.on_pit_road,
         car_path: legacy.car_path,
         track_name: legacy.track_name,
@@ -899,6 +893,7 @@ fn read_iracing_data_from_ptr(
         lap_current: read_i32_var(base_ptr, offset, layout.lap_current).unwrap_or(0),
         lap_best_time: read_f32_var(base_ptr, offset, layout.lap_best_time).unwrap_or(0.0),
         fuel_level: read_f32_var(base_ptr, offset, layout.fuel_level).unwrap_or(0.0),
+        fuel_level_pct: read_f32_var(base_ptr, offset, layout.fuel_level_pct).unwrap_or(0.0),
         on_pit_road: if read_bool_var(base_ptr, offset, layout.on_pit_road).unwrap_or(false) {
             1
         } else {
@@ -1143,9 +1138,12 @@ fn assign_var_binding(layout: &mut IRacingLayout, name: &str, binding: VarBindin
         layout.lap_best_time = Some(binding);
     } else if matches_irsdk_name(name, &["FuelLevel"]) {
         layout.fuel_level = Some(binding);
-    } else if matches_irsdk_name(name, &["FuelLevelPct"]) && layout.fuel_level.is_none() {
-        // Fall back to percentage only when absolute litres are unavailable.
-        layout.fuel_level = Some(binding);
+    } else if matches_irsdk_name(name, &["FuelLevelPct"]) {
+        if layout.fuel_level.is_none() {
+            // Fall back to percentage only when absolute litres are unavailable.
+            layout.fuel_level = Some(binding);
+        }
+        layout.fuel_level_pct = Some(binding);
     } else if matches_irsdk_name(name, &["OnPitRoad"]) {
         layout.on_pit_road = Some(binding);
     } else if matches_irsdk_name(name, &["CarPath"]) {
@@ -1394,6 +1392,7 @@ struct IRacingData {
     lap_current: i32,
     lap_best_time: f32,
     fuel_level: f32,
+    fuel_level_pct: f32,
     on_pit_road: i32,
     car_path: [u8; 64],
     track_name: [u8; 64],
@@ -1449,6 +1448,7 @@ impl Default for IRacingData {
             lap_current: 0,
             lap_best_time: 0.0,
             fuel_level: 0.0,
+            fuel_level_pct: 0.0,
             on_pit_road: 0,
             car_path: [0; 64],
             track_name: [0; 64],
@@ -1690,8 +1690,8 @@ mod tests {
             normalized.extended.get("ffb_scalar_source"),
             Some(&TelemetryValue::String("pct_torque_sign".to_string()))
         );
-        assert!(normalized.extended.contains_key("throttle"));
-        assert!(normalized.extended.contains_key("brake"));
+        assert_eq!(normalized.throttle, 0.8);
+        assert_eq!(normalized.brake, 0.2);
         Ok(())
     }
 
