@@ -310,10 +310,10 @@ fn fuel_percent_half_tank() -> TestResult {
     let adapter = RaceRoomAdapter::new();
     let data = make_r3e_memory(3000.0, 20.0, 0.0, 0.3, 0.0, 0.0, 2, 30.0, 60.0);
     let t = adapter.normalize(&data)?;
-    let ext = format!("{:?}", t.get_extended("fuel_percent"));
     assert!(
-        ext.contains("0.5"),
-        "expected fuel_percent ~0.5, got: {ext}"
+        (t.fuel_percent - 0.5).abs() < 0.01,
+        "expected fuel_percent ~0.5, got: {}",
+        t.fuel_percent
     );
     Ok(())
 }
@@ -323,8 +323,11 @@ fn fuel_percent_full_tank() -> TestResult {
     let adapter = RaceRoomAdapter::new();
     let data = make_r3e_memory(3000.0, 20.0, 0.0, 0.3, 0.0, 0.0, 2, 60.0, 60.0);
     let t = adapter.normalize(&data)?;
-    let ext = format!("{:?}", t.get_extended("fuel_percent"));
-    assert!(ext.contains("1.0"), "expected fuel_percent 1.0, got: {ext}");
+    assert!(
+        (t.fuel_percent - 1.0).abs() < 0.01,
+        "expected fuel_percent 1.0, got: {}",
+        t.fuel_percent
+    );
     Ok(())
 }
 
@@ -333,10 +336,10 @@ fn fuel_percent_zero_capacity() -> TestResult {
     let adapter = RaceRoomAdapter::new();
     let data = make_r3e_memory(3000.0, 20.0, 0.0, 0.3, 0.0, 0.0, 2, 10.0, 0.0);
     let t = adapter.normalize(&data)?;
-    let ext = format!("{:?}", t.get_extended("fuel_percent"));
     assert!(
-        ext.contains("0.0"),
-        "expected fuel_percent 0.0 when capacity is zero, got: {ext}"
+        (t.fuel_percent - 0.0).abs() < 0.01,
+        "expected fuel_percent 0.0 when capacity is zero, got: {}",
+        t.fuel_percent
     );
     Ok(())
 }
@@ -346,10 +349,10 @@ fn fuel_percent_overfilled_clamped() -> TestResult {
     let adapter = RaceRoomAdapter::new();
     let data = make_r3e_memory(3000.0, 20.0, 0.0, 0.3, 0.0, 0.0, 2, 100.0, 60.0);
     let t = adapter.normalize(&data)?;
-    let ext = format!("{:?}", t.get_extended("fuel_percent"));
     assert!(
-        ext.contains("1.0"),
-        "overfilled fuel should clamp to 1.0, got: {ext}"
+        (t.fuel_percent - 1.0).abs() < 0.01,
+        "overfilled fuel should clamp to 1.0, got: {}",
+        t.fuel_percent
     );
     Ok(())
 }

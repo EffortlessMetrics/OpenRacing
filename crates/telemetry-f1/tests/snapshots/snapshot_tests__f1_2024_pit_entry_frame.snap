@@ -3,12 +3,12 @@ source: crates/telemetry-f1/tests/snapshot_tests.rs
 expression: norm
 ---
 speed_ms: 22.222223
-steering_angle: 0
-throttle: 0
+steering_angle: 0.02
+throttle: 0.3
 brake: 0
 clutch: 0
 rpm: 6500
-max_rpm: 0
+max_rpm: 13500
 gear: 3
 num_gears: 0
 lateral_g: 0
@@ -20,15 +20,15 @@ slip_angle_fr: 0
 slip_angle_rl: 0
 slip_angle_rr: 0
 tire_temps_c:
-  - 0
-  - 0
-  - 0
-  - 0
+  - 78
+  - 79
+  - 82
+  - 83
 tire_pressures_psi:
-  - 0
-  - 0
-  - 0
-  - 0
+  - 21.5
+  - 21.8
+  - 22.5
+  - 22.8
 ffb_scalar: 0
 ffb_torque_nm: 0
 flags:
@@ -59,14 +59,11 @@ last_lap_time_s: 0
 delta_ahead_s: 0
 delta_behind_s: 0
 fuel_percent: 0
-engine_temp_c: 0
+engine_temp_c: 102
 extended:
   air_temperature_c:
     type: Integer
     value: 24
-  brake:
-    type: Float
-    value: 0
   brake_temp_fl_c:
     type: Integer
     value: 260
@@ -94,9 +91,6 @@ extended:
   engine_power_mguk_w:
     type: Float
     value: 0
-  engine_temperature_c:
-    type: Integer
-    value: 102
   ers_deploy_mode:
     type: Integer
     value: 0
@@ -127,12 +121,6 @@ extended:
   session_type:
     type: Integer
     value: 10
-  steer:
-    type: Float
-    value: 0.02
-  throttle:
-    type: Float
-    value: 0.3
   track_temperature_c:
     type: Integer
     value: 30
@@ -157,28 +145,4 @@ extended:
   tyre_inner_temp_rr_c:
     type: Integer
     value: 93
-  tyre_pressure_fl_psi:
-    type: Float
-    value: 21.5
-  tyre_pressure_fr_psi:
-    type: Float
-    value: 21.8
-  tyre_pressure_rl_psi:
-    type: Float
-    value: 22.5
-  tyre_pressure_rr_psi:
-    type: Float
-    value: 22.8
-  tyre_surface_temp_fl_c:
-    type: Integer
-    value: 78
-  tyre_surface_temp_fr_c:
-    type: Integer
-    value: 79
-  tyre_surface_temp_rl_c:
-    type: Integer
-    value: 82
-  tyre_surface_temp_rr_c:
-    type: Integer
-    value: 83
 sequence: 0

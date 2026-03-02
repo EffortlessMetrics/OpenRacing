@@ -1070,19 +1070,30 @@ fn normalize_extended_fields_present() -> TestResult {
     };
     let norm = normalize(&telem, &status, &session);
 
-    // Throttle/brake/steer
-    assert_eq!(
-        norm.extended.get("throttle"),
-        Some(&TelemetryValue::Float(0.8))
-    );
-    assert_eq!(
-        norm.extended.get("brake"),
-        Some(&TelemetryValue::Float(0.1))
-    );
-    assert_eq!(
-        norm.extended.get("steer"),
-        Some(&TelemetryValue::Float(-0.3))
-    );
+    // Throttle/brake/steer (now typed fields)
+    assert!((norm.throttle - 0.8).abs() < f32::EPSILON);
+    assert!((norm.brake - 0.1).abs() < f32::EPSILON);
+    assert!((norm.steering_angle - (-0.3)).abs() < f32::EPSILON);
+
+    // Engine temp (now typed)
+    assert!((norm.engine_temp_c - 105.0).abs() < f32::EPSILON);
+
+    // Max RPM (now typed, from status.max_rpm which defaults to 0)
+    assert!((norm.max_rpm).abs() < f32::EPSILON);
+
+    // Tire pressures (now typed [FL, FR, RL, RR]; F1 data [RL, RR, FL, FR] reordered)
+    // Input: [23.0, 23.5, 22.0, 22.5] => reordered: [22.0, 22.5, 23.0, 23.5]
+    assert!((norm.tire_pressures_psi[0] - 22.0).abs() < f32::EPSILON); // FL
+    assert!((norm.tire_pressures_psi[1] - 22.5).abs() < f32::EPSILON); // FR
+    assert!((norm.tire_pressures_psi[2] - 23.0).abs() < f32::EPSILON); // RL
+    assert!((norm.tire_pressures_psi[3] - 23.5).abs() < f32::EPSILON); // RR
+
+    // Tire surface temps (now typed [FL, FR, RL, RR]; F1 data [RL, RR, FL, FR] reordered)
+    // Input: [85, 86, 87, 88] => reordered: [87, 88, 85, 86]
+    assert_eq!(norm.tire_temps_c[0], 87); // FL
+    assert_eq!(norm.tire_temps_c[1], 88); // FR
+    assert_eq!(norm.tire_temps_c[2], 85); // RL
+    assert_eq!(norm.tire_temps_c[3], 86); // RR
 
     // Fuel
     assert_eq!(
@@ -1108,15 +1119,8 @@ fn normalize_extended_fields_present() -> TestResult {
         Some(&TelemetryValue::Integer(15))
     );
 
-    // Tyre pressures
-    assert_eq!(
-        norm.extended.get("tyre_pressure_rl_psi"),
-        Some(&TelemetryValue::Float(23.0))
-    );
-    assert_eq!(
-        norm.extended.get("tyre_pressure_fr_psi"),
-        Some(&TelemetryValue::Float(22.5))
-    );
+    // Tyre pressures (now typed; see above)
+    // Individual pressure extended keys removed — validated above via tire_pressures_psi
 
     // Engine power
     assert_eq!(
@@ -1146,11 +1150,8 @@ fn normalize_extended_fields_present() -> TestResult {
         Some(&TelemetryValue::Float(1_000_000.0))
     );
 
-    // Engine temperature
-    assert_eq!(
-        norm.extended.get("engine_temperature_c"),
-        Some(&TelemetryValue::Integer(105))
-    );
+    // Engine temperature (now typed; see above)
+    // engine_temperature_c extended key removed — validated above via engine_temp_c
 
     // Session
     assert_eq!(
@@ -1166,15 +1167,12 @@ fn normalize_extended_fields_present() -> TestResult {
         Some(&TelemetryValue::Integer(26))
     );
 
-    // Brake/tyre temps
+    // Brake/tyre temps (inner temps remain in extended; surface temps now typed above)
     assert_eq!(
         norm.extended.get("brake_temp_rl_c"),
         Some(&TelemetryValue::Integer(400))
     );
-    assert_eq!(
-        norm.extended.get("tyre_surface_temp_fl_c"),
-        Some(&TelemetryValue::Integer(87))
-    );
+    // tyre surface temps validated above via tire_temps_c typed field
     assert_eq!(
         norm.extended.get("tyre_inner_temp_rr_c"),
         Some(&TelemetryValue::Integer(96))
