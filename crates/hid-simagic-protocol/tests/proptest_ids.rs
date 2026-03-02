@@ -10,9 +10,10 @@ use proptest::prelude::*;
 use racing_wheel_hid_simagic_protocol::{
     SIMAGIC_VENDOR_ID, SimagicModel, identify_device, is_wheelbase_product, product_ids,
 };
+use racing_wheel_hid_simagic_protocol::ids::SIMAGIC_LEGACY_VENDOR_ID;
 
 /// All known Simagic product IDs (wheelbases and peripherals).
-const ALL_PIDS: [u16; 15] = [
+const ALL_PIDS: [u16; 16] = [
     product_ids::EVO_SPORT,
     product_ids::EVO,
     product_ids::EVO_PRO,
@@ -28,6 +29,7 @@ const ALL_PIDS: [u16; 15] = [
     product_ids::RIM_WR1,
     product_ids::RIM_GT1,
     product_ids::RIM_GT_NEO,
+    product_ids::RIM_FORMULA,
 ];
 
 /// Wheelbase-only PIDs.
@@ -52,7 +54,7 @@ proptest! {
 
     /// Every known product PID must be non-zero.
     #[test]
-    fn prop_known_pids_nonzero(idx in 0usize..15usize) {
+    fn prop_known_pids_nonzero(idx in 0usize..16usize) {
         let pid = ALL_PIDS[idx];
         prop_assert!(pid != 0,
             "PID at index {idx} must not be zero");
@@ -89,7 +91,7 @@ proptest! {
 
     /// identify_device name must contain "Simagic" for all known PIDs.
     #[test]
-    fn prop_identify_name_contains_brand(idx in 0usize..15usize) {
+    fn prop_identify_name_contains_brand(idx in 0usize..16usize) {
         let pid = ALL_PIDS[idx];
         let identity = identify_device(pid);
         prop_assert!(identity.name.contains("Simagic"),
@@ -119,5 +121,37 @@ proptest! {
             prop_assert!(model_has_torque,
                 "wheelbase pid={pid:#06x} model {model:?} must have positive torque");
         }
+    }
+
+    /// SIMAGIC_VENDOR_ID must always be exactly 0x3670.
+    #[test]
+    fn prop_vendor_id_is_3670(_unused: u8) {
+        prop_assert_eq!(SIMAGIC_VENDOR_ID, 0x3670,
+            "SIMAGIC_VENDOR_ID must be 0x3670");
+    }
+
+    /// SIMAGIC_LEGACY_VENDOR_ID must always be exactly 0x0483.
+    #[test]
+    fn prop_legacy_vendor_id_is_0483(_unused: u8) {
+        prop_assert_eq!(SIMAGIC_LEGACY_VENDOR_ID, 0x0483,
+            "SIMAGIC_LEGACY_VENDOR_ID must be 0x0483");
+    }
+
+    /// No two entries in ALL_PIDS may share the same value.
+    #[test]
+    fn prop_all_pids_unique(i in 0usize..16usize, j in 0usize..16usize) {
+        if i != j {
+            prop_assert_ne!(ALL_PIDS[i], ALL_PIDS[j],
+                "PID index {} ({:#06x}) collides with index {} ({:#06x})",
+                i, ALL_PIDS[i], j, ALL_PIDS[j]);
+        }
+    }
+
+    /// Every known PID must be non-zero (valid USB PID).
+    #[test]
+    fn prop_known_pids_valid_usb(idx in 0usize..16usize) {
+        let pid = ALL_PIDS[idx];
+        prop_assert!(pid > 0,
+            "PID at index {} ({:#06x}) must be a non-zero USB PID", idx, pid);
     }
 }
