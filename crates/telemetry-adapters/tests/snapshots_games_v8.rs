@@ -219,6 +219,10 @@ fn simhub_realistic_snapshot() -> TestResult {
 
 fn make_wrc_generations_data() -> Vec<u8> {
     let mut buf = vec![0u8; 264];
+    // Body velocity (m/s) for slip ratio derivation
+    write_f32_le(&mut buf, 32, 49.0); // velocity_x
+    write_f32_le(&mut buf, 36, 1.0); // velocity_y
+    write_f32_le(&mut buf, 40, 10.0); // velocity_z
     // Wheel speeds (m/s) → speed = average
     write_f32_le(&mut buf, 100, 50.0); // wheel_speed_rl
     write_f32_le(&mut buf, 104, 50.0); // wheel_speed_rr

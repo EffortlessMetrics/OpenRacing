@@ -58,6 +58,7 @@ const ENV_HEARTBEAT_TIMEOUT_MS: &str = "OPENRACING_WRC_GENERATIONS_HEARTBEAT_TIM
 // Byte offsets for Codemasters Mode 1 / RallyEngine packet fields (all f32, little-endian).
 // Verified against: dr2_logger udp_data.py, Codemasters telemetry spreadsheet.
 // Field index in parentheses: offset = index × 4.
+const OFF_LAP_TIME: usize = 4; //  [1] current lap time (seconds)
 const OFF_VEL_X: usize = 32; //  [8] velocity_x (m/s)
 const OFF_VEL_Y: usize = 36; //  [9] velocity_y (m/s)
 const OFF_VEL_Z: usize = 40; // [10] velocity_z (m/s)
@@ -166,13 +167,14 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     let ws_fr = read_f32(data, OFF_WHEEL_SPEED_FR).unwrap_or(0.0).abs();
     let ws_rl = read_f32(data, OFF_WHEEL_SPEED_RL).unwrap_or(0.0).abs();
     let ws_rr = read_f32(data, OFF_WHEEL_SPEED_RR).unwrap_or(0.0).abs();
+    let vx = read_f32(data, OFF_VEL_X).unwrap_or(0.0);
+    let vy = read_f32(data, OFF_VEL_Y).unwrap_or(0.0);
+    let vz = read_f32(data, OFF_VEL_Z).unwrap_or(0.0);
+    let body_speed = (vx * vx + vy * vy + vz * vz).sqrt();
     let speed_ms = if ws_fl + ws_fr + ws_rl + ws_rr > 0.0 {
         (ws_fl + ws_fr + ws_rl + ws_rr) / 4.0
     } else {
-        let vx = read_f32(data, OFF_VEL_X).unwrap_or(0.0);
-        let vy = read_f32(data, OFF_VEL_Y).unwrap_or(0.0);
-        let vz = read_f32(data, OFF_VEL_Z).unwrap_or(0.0);
-        (vx * vx + vy * vy + vz * vz).sqrt()
+        body_speed
     };
 
     let rpm_raw = read_f32(data, OFF_RPM).unwrap_or(0.0).max(0.0);
@@ -240,6 +242,18 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         .unwrap_or(0);
 
     let last_lap_time_s = read_f32(data, OFF_LAST_LAP_TIME).unwrap_or(0.0).max(0.0);
+    let current_lap_time_s = read_f32(data, OFF_LAP_TIME).unwrap_or(0.0).max(0.0);
+
+    // Derive slip ratio from wheel speeds vs body velocity.
+    let avg_wheel_speed = (ws_fl + ws_fr + ws_rl + ws_rr) / 4.0;
+    let slip_ratio = {
+        let denom = avg_wheel_speed.max(body_speed);
+        if denom > 1.0 {
+            ((avg_wheel_speed - body_speed).abs() / denom).clamp(0.0, 1.0)
+        } else {
+            0.0
+        }
+    };
 
     let flags = TelemetryFlags {
         in_pits,
@@ -256,12 +270,14 @@ fn parse_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         .lateral_g(lat_g)
         .longitudinal_g(lon_g)
         .ffb_scalar(ffb_scalar)
+        .slip_ratio(slip_ratio)
         .lap(lap)
         .position(position)
         .fuel_percent(fuel_percent)
         .tire_temps_c(tire_temps_c)
         .tire_pressures_psi(tire_pressures_psi)
         .num_gears(num_gears)
+        .current_lap_time_s(current_lap_time_s)
         .last_lap_time_s(last_lap_time_s)
         .flags(flags)
         .extended("wheel_speed_fl".to_string(), TelemetryValue::Float(ws_fl))

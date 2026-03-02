@@ -15,6 +15,11 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 const MIN_PACKET_SIZE: usize = 264;
 
+const OFF_LAP_TIME: usize = 4;
+const OFF_VEL_X: usize = 32;
+const OFF_VEL_Y: usize = 36;
+const OFF_VEL_Z: usize = 40;
+
 const OFF_WHEEL_SPEED_RL: usize = 100;
 const OFF_WHEEL_SPEED_RR: usize = 104;
 const OFF_WHEEL_SPEED_FL: usize = 108;
@@ -63,6 +68,10 @@ fn adapter() -> WrcGenerationsAdapter {
 /// Build a realistic mid-stage WRC packet.
 fn realistic_mid_stage_packet() -> Vec<u8> {
     let mut buf = vec![0u8; MIN_PACKET_SIZE];
+    write_f32(&mut buf, OFF_LAP_TIME, 82.3);
+    write_f32(&mut buf, OFF_VEL_X, 24.5);
+    write_f32(&mut buf, OFF_VEL_Y, 0.3);
+    write_f32(&mut buf, OFF_VEL_Z, 5.2);
     write_f32(&mut buf, OFF_WHEEL_SPEED_FL, 25.2);
     write_f32(&mut buf, OFF_WHEEL_SPEED_FR, 25.0);
     write_f32(&mut buf, OFF_WHEEL_SPEED_RL, 26.1);
@@ -105,6 +114,10 @@ fn snapshot_wrc_mid_stage() -> TestResult {
 #[test]
 fn snapshot_wrc_heavy_braking() -> TestResult {
     let mut buf = vec![0u8; MIN_PACKET_SIZE];
+    write_f32(&mut buf, OFF_LAP_TIME, 45.8);
+    write_f32(&mut buf, OFF_VEL_X, 11.0);
+    write_f32(&mut buf, OFF_VEL_Y, 0.1);
+    write_f32(&mut buf, OFF_VEL_Z, 2.0);
     write_f32(&mut buf, OFF_WHEEL_SPEED_FL, 12.0);
     write_f32(&mut buf, OFF_WHEEL_SPEED_FR, 11.8);
     write_f32(&mut buf, OFF_WHEEL_SPEED_RL, 13.5);

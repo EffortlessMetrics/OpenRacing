@@ -1,5 +1,6 @@
 ---
 source: crates/telemetry-wrc-generations/tests/snapshot_tests.rs
+assertion_line: 109
 expression: norm
 ---
 speed_ms: 25.525002
@@ -14,7 +15,7 @@ num_gears: 6
 lateral_g: 1.1
 longitudinal_g: 0.4
 vertical_g: 0
-slip_ratio: 0
+slip_ratio: 0.018705092
 slip_angle_fl: 0
 slip_angle_fr: 0
 slip_angle_rl: 0
@@ -52,7 +53,7 @@ flags:
   session_paused: false
 position: 1
 lap: 4
-current_lap_time_s: 0
+current_lap_time_s: 82.3
 best_lap_time_s: 0
 last_lap_time_s: 210.4
 delta_ahead_s: 0

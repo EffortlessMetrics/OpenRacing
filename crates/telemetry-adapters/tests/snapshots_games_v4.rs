@@ -138,6 +138,10 @@ fn wtcr_snapshot() -> TestResult {
 fn make_wrc_generations_packet() -> Vec<u8> {
     // Same Codemasters Mode 1 layout as WTCR
     let mut buf = vec![0u8; 264];
+    write_f32_le(&mut buf, 4, 35.2); // lap_time (current_lap_time_s)
+    write_f32_le(&mut buf, 32, 24.0); // velocity_x
+    write_f32_le(&mut buf, 36, 0.5); // velocity_y
+    write_f32_le(&mut buf, 40, 6.0); // velocity_z
     write_f32_le(&mut buf, 108, 25.0); // wheel_speed_fl
     write_f32_le(&mut buf, 112, 25.0); // wheel_speed_fr
     write_f32_le(&mut buf, 100, 25.0); // wheel_speed_rl
