@@ -540,7 +540,8 @@ impl LinuxHidPort {
             (0x1DD2, 0x0031), // Leo Bodnar BU0836 16-bit Joystick
             // SimExperience AccuForce Pro (NXP USB chip VID 0x1FC9)
             (0x1FC9, 0x804C), // SimExperience AccuForce Pro
-            // Cube Controls (PROVISIONAL — STM shared VID 0x0483)
+            // Cube Controls — PROVISIONAL — estimated values, no USB captures available.
+            // TODO: verify with hardware captures. PIDs 0x0C73–0x0C75 are fabricated placeholders.
             (0x0483, 0x0C73), // Cube Controls GT Pro (provisional)
             (0x0483, 0x0C74), // Cube Controls Formula Pro (provisional)
             (0x0483, 0x0C75), // Cube Controls CSX3 (provisional)

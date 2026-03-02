@@ -21,7 +21,7 @@ proptest! {
             "CUBE_CONTROLS_VENDOR_ID must always be 0x0483 (STMicroelectronics)");
     }
 
-    /// All three confirmed PIDs must always be recognised by is_cube_controls_product.
+    /// All three provisional PIDs must always be recognised by is_cube_controls_product.
     #[test]
     fn prop_all_known_pids_recognised(idx in 0usize..3usize) {
         let pids = [

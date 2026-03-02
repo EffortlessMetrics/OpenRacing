@@ -52,11 +52,20 @@
 
 /// Cube Controls USB Vendor ID.
 ///
-/// **PROVISIONAL** — VID 0x0483 is the STMicroelectronics shared VID used by
-/// many STM32-based devices (including Simagic 0x0522 and VRS 0xa355 in
-/// sim-racing). Cube Controls steering wheels use STM32 MCUs, so this VID is
-/// plausible but has not been confirmed from hardware captures.
+/// VID `0x0483` is the STMicroelectronics shared VID. Many boutique sim-racing
+/// wheel makers (Simagic, VRS, and likely Cube Controls) ship STM32-based
+/// devices that enumerate under this VID. This value is considered correct
+/// based on community reports, though no hardware capture has confirmed it yet.
 pub const CUBE_CONTROLS_VENDOR_ID: u16 = 0x0483;
+
+// ──────────────────────────────────────────────────────────────────────────────
+// PROVISIONAL — estimated values, no USB captures available.
+// TODO: verify with hardware captures (lsusb -v / USBTreeView).
+//
+// These PIDs (0x0C73–0x0C75) were fabricated as placeholders. No community
+// evidence, USB descriptor dump, or vendor documentation confirms them.
+// Do NOT rely on these values for device matching in production.
+// ──────────────────────────────────────────────────────────────────────────────
 
 /// Cube Controls GT Pro product ID (provisional — not confirmed from hardware).
 pub const CUBE_CONTROLS_GT_PRO_PID: u16 = 0x0C73;

@@ -23,27 +23,27 @@ fn vendor_id_is_0483() {
     );
 }
 
-/// GT Pro PID must be 0x0C73 (provisional).
+/// GT Pro PID must be 0x0C73 (provisional — estimated, no USB captures).
 #[test]
-fn gt_pro_pid_is_0c73() {
+fn provisional_gt_pro_pid_is_0c73() {
     assert_eq!(
         CUBE_CONTROLS_GT_PRO_PID, 0x0C73,
         "GT Pro PID changed — update ids.rs and SOURCES.md"
     );
 }
 
-/// Formula Pro PID must be 0x0C74 (provisional).
+/// Formula Pro PID must be 0x0C74 (provisional — estimated, no USB captures).
 #[test]
-fn formula_pro_pid_is_0c74() {
+fn provisional_formula_pro_pid_is_0c74() {
     assert_eq!(
         CUBE_CONTROLS_FORMULA_PRO_PID, 0x0C74,
         "Formula Pro PID changed — update ids.rs and SOURCES.md"
     );
 }
 
-/// CSX3 PID must be 0x0C75 (provisional).
+/// CSX3 PID must be 0x0C75 (provisional — estimated, no USB captures).
 #[test]
-fn csx3_pid_is_0c75() {
+fn provisional_csx3_pid_is_0c75() {
     assert_eq!(
         CUBE_CONTROLS_CSX3_PID, 0x0C75,
         "CSX3 PID changed — update ids.rs and SOURCES.md"
