@@ -64,13 +64,10 @@ class CompatUsageTracker:
                 "remove_in": "1.4.0",
                 "replacement": "fault_flags"
             },
-            "sequence": {
-                "pattern": r"\.sequence\b",
-                "category": "telemetry_fields",
-                "deprecated_in": "1.2.0",
-                "remove_in": "1.4.0",
-                "replacement": "removed (no replacement)"
-            },
+            # NOTE: "sequence" pattern removed — the field name `.sequence` is too
+            # generic (protocol sequence counters, frame sequence numbers, LED
+            # pattern sequences, etc.) causing unmanageable false positives.  The
+            # deprecated TelemetryData.sequence field has no replacement anyway.
             
             # DeviceId constructors
             "create_device_id": {
@@ -137,14 +134,9 @@ class CompatUsageTracker:
             "crates/schemas/tests/compile-fail/",  # tests that deprecated APIs fail
             "crates/schemas/tests/compile_fail/",  # same
             "crates/integration-tests/",  # test crate exercises all device protocol APIs
-            "crates/telemetry-forza/",  # uses TelemetryFrame.sequence (not deprecated TelemetryData.sequence)
-            "crates/openracing-ipc/",  # IPC codec has its own sequence field (packet sequencing)
-            "crates/simplemotion-v2/",  # SimpleMotion protocol has its own sequence counter
-            "crates/hid-simucube-protocol/",  # HID PID protocol sequence numbers
-            "crates/hid-asetek-protocol/",  # HID PID protocol sequence numbers
-            "crates/openracing-native-plugin/",  # plugin frame sequence counter
-            "crates/telemetry-contracts/",  # TelemetryFrame.sequence (non-deprecated)
-            "crates/schemas/tests/",  # schema validation tests reference TelemetryFrame.sequence
+            "crates/hid-simucube-protocol/",  # intra-crate glob re-exports (not deprecated API pattern)
+            "crates/hid-asetek-protocol/",  # intra-crate glob re-exports (not deprecated API pattern)
+            "crates/schemas/tests/",  # compile-fail tests and DeviceId::new test fixtures
         ]
         
         # File extensions to search
