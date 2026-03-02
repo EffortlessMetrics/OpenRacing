@@ -1,0 +1,78 @@
+---
+source: crates/telemetry-adapters/tests/snapshots_motorsport.rs
+expression: normalized
+---
+speed_ms: 38.9
+steering_angle: -0.42
+throttle: 0.45
+brake: 0.3
+clutch: 0
+rpm: 7200
+max_rpm: 8000
+gear: 3
+num_gears: 6
+lateral_g: 2.1
+longitudinal_g: -0.6
+vertical_g: 0
+slip_ratio: 0
+slip_angle_fl: 0
+slip_angle_fr: 0
+slip_angle_rl: 0
+slip_angle_rr: 0
+tire_temps_c:
+  - 185
+  - 192
+  - 160
+  - 168
+tire_pressures_psi:
+  - 28.5
+  - 29
+  - 27.8
+  - 28.2
+ffb_scalar: 0.7
+ffb_torque_nm: 0
+flags:
+  yellow_flag: false
+  red_flag: false
+  blue_flag: false
+  checkered_flag: false
+  green_flag: true
+  pit_limiter: false
+  in_pits: false
+  drs_available: false
+  drs_active: false
+  ers_available: false
+  ers_active: false
+  launch_control: false
+  traction_control: false
+  abs_active: false
+  engine_limiter: false
+  safety_car: false
+  formation_lap: false
+  session_paused: false
+position: 8
+lap: 8
+current_lap_time_s: 0
+best_lap_time_s: 0
+last_lap_time_s: 135.8
+delta_ahead_s: 0
+delta_behind_s: 0
+fuel_percent: 0.44
+engine_temp_c: 0
+extended:
+  rpm_fraction:
+    type: Float
+    value: 0.9
+  wheel_speed_fl:
+    type: Float
+    value: 38.5
+  wheel_speed_fr:
+    type: Float
+    value: 39.3
+  wheel_speed_rl:
+    type: Float
+    value: 38.2
+  wheel_speed_rr:
+    type: Float
+    value: 39.6
+sequence: 0
