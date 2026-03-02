@@ -6,11 +6,20 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 
 ## NOW (actively in flight)
 
-- **PR #22 — Wave 15 RC hardening**: protocol verification, PID cross-validation, hwdb-verified PIDs for Fanatec/Thrustmaster/Asetek/Simagic
-- **CI governance workflow fix**: `track_compat_usage.py --current` flag, cargo-udeps false-positive triage (F-029)
-- **Device PID verification across all 17 vendor protocol crates**: id_verification test suites locked to `docs/protocols/SOURCES.md`
-- **Logitech G923 Xbox alt PID (`0xC26D`)** and Asetek La Prima Pedals PID (`0xF102`) support
-- **Heusinkveld VID correction** and Leo Bodnar pedals PIDs added
+- **PR #22 — Wave 15 RC hardening**: in final review — protocol verification, PID cross-validation, telemetry enrichment all landed
+- **Telemetry adapter enrichment**: ACC, PCars2, iRacing, RaceRoom, F1, BeamNG/LFS, Assetto Corsa — G-forces, flags, timing, typed fields promoted
+- **Property + snapshot test expansion**: proptest suites added for Simucube, Logitech, Thrustmaster, Fanatec, Moza, PXN, AccuForce; insta snapshots for iRacing, BeamNG, ACC adapters
+
+**Recently completed (this branch):**
+- ✅ hwdb-verified PIDs for Fanatec, Thrustmaster, Asetek, Simagic
+- ✅ CI governance workflow fix (`track_compat_usage.py --current` flag)
+- ✅ Device PID verification across all 17 vendor protocol crates (id_verification suites)
+- ✅ Logitech G923 Xbox alt PID (`0xC26D`) and Asetek La Prima Pedals PID (`0xF102`)
+- ✅ Heusinkveld VID correction and Leo Bodnar pedals PIDs
+- ✅ GT7 extended packet types (316/344 bytes) — F-064 resolved
+- ✅ GT Sport port swap fix — F-065 resolved
+- ✅ Fanatec sign-fix inversion corrected — F-062 resolved
+- ✅ deny.toml updated for libbz2-rs-sys license
 
 ## NEXT (queued, ready to start)
 
@@ -39,12 +48,12 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 | Metric | Value |
 |--------|-------|
 | Supported devices | ~90+ VID/PID pairs across 16+ vendors |
-| Supported games | 59 telemetry adapters (56 active + 3 stubs) |
-| Test count | 8,861+ (unit, integration, proptest, snapshot, E2E) |
-| Fuzz targets | 85+ across all HID protocols and game adapters |
+| Supported games | 56 telemetry adapter modules |
+| Test count | 8,055 across 297 test binaries (unit, integration, proptest, snapshot, E2E) |
+| Fuzz targets | 84 across all HID protocols and game adapters |
 | Protocol crates | 17 HID vendor protocol microcrates |
 | Snapshot tests | 50+ across 8 test files |
-| Friction log | 63 items total — 14 open, 48 resolved |
+| Friction log | 63 items total — 13 open, 48 resolved, 2 investigating |
 
 ---
 

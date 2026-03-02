@@ -4,7 +4,7 @@ Running record of pain points, blockers, and technical debt encountered during d
 
 Each entry has: **date**, **severity** (Low/Medium/High), **status** (Open/Resolved/Won't Fix), and a description + proposed remedy.
 
-**Summary (63 items):** 14 Open · 48 Resolved · 1 Investigating · 0 Won't Fix
+**Summary (63 items):** 13 Open · 48 Resolved · 2 Investigating · 0 Won't Fix
 
 ---
 

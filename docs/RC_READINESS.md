@@ -17,14 +17,14 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **8,861** |
-| **Test binaries** | **414** |
+| **Total tests** | **8,055** |
+| **Test binaries** | **297** |
 | Unit tests | 6,200+ |
 | Snapshot tests | 850+ |
 | Property tests (proptest) | 780+ |
 | End-to-end (E2E) tests | 460+ |
 | BDD / acceptance tests | 27 |
-| Fuzz targets | 85+ |
+| Fuzz targets | 84 |
 | Integration test files | 34 |
 
 ## Test Types Present
@@ -34,7 +34,7 @@
 | Proptest files | 100+ | Property-based testing across all 17 protocol & engine crates |
 | Snapshot test files | 47+ | `insta` snapshots for protocol encoding & telemetry |
 | Integration test files | 34 | `crates/integration-tests/tests/*.rs` |
-| Fuzz targets | 85+ | `fuzz/fuzz_targets/` — covers all protocols & telemetry parsers |
+| Fuzz targets | 84 | `fuzz/fuzz_targets/` — covers all protocols & telemetry parsers |
 | Benchmark suites | 1 | `benches/` — RT timing benchmarks |
 
 ## Coverage by Crate Category
@@ -64,10 +64,10 @@
   adding wheel rotation, sway/heave/surge, energy recovery, and filtered throttle/brake.
 - **Comprehensive proptest coverage**: all 17 protocol crates have property-based testing
   with 780+ proptest cases exercising encoding round-trips, ID mappings, and safety invariants.
-- **59 telemetry adapters** (56 active + 3 stubs) with snapshot regression tests across
+- **56 telemetry adapter modules** with snapshot regression tests across
   multiple schema versions (v2–v9).
 - **CLI, schemas, plugins, and engine** all have dedicated test suites.
-- **Fuzz testing** covers 85+ targets spanning all protocol parsers and telemetry decoders.
+- **Fuzz testing** covers 84 targets spanning all protocol parsers and telemetry decoders.
 - **Safety-critical paths** (FMEA, watchdog, hardware watchdog) have dedicated test suites
   including fault-injection and property tests.
 - **RC-specific integration tests** exist (`rc_integration_tests.rs`, 48 tests).
