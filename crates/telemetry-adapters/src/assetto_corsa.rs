@@ -136,6 +136,18 @@ fn parse_ac_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     let slip_ratio_rl = read_f32_le(data, OFF_SLIP_RATIO_FL + 8).unwrap_or(0.0);
     let slip_ratio_rr = read_f32_le(data, OFF_SLIP_RATIO_FL + 12).unwrap_or(0.0);
 
+    // Overall slip ratio: average of per-wheel absolute values (guard at low speed).
+    let slip_ratio = if speed_ms > 1.0 {
+        ((slip_ratio_fl.abs()
+            + slip_ratio_fr.abs()
+            + slip_ratio_rl.abs()
+            + slip_ratio_rr.abs())
+            / 4.0)
+            .min(1.0)
+    } else {
+        0.0
+    };
+
     let mut builder = NormalizedTelemetry::builder()
         .steering_angle(steer)
         .throttle(gas)
@@ -147,6 +159,7 @@ fn parse_ac_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         .vertical_g(vertical_g)
         .lateral_g(lateral_g)
         .longitudinal_g(longitudinal_g)
+        .slip_ratio(slip_ratio)
         .flags(flags)
         .slip_angle_fl(slip_angle_fl)
         .slip_angle_fr(slip_angle_fr)
