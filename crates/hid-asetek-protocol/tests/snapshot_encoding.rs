@@ -149,3 +149,18 @@ fn test_snapshot_wheel_capabilities_unknown() {
         caps.max_torque_nm, caps.max_speed_rpm, caps.supports_quick_release,
     ));
 }
+
+#[test]
+fn test_snapshot_model_from_info_all_variants() {
+    let results = [
+        ("forte", asetek::asetek_model_from_info(asetek::ASETEK_VENDOR_ID, asetek::ASETEK_FORTE_PID)),
+        ("invicta", asetek::asetek_model_from_info(asetek::ASETEK_VENDOR_ID, asetek::ASETEK_INVICTA_PID)),
+        ("laprima", asetek::asetek_model_from_info(asetek::ASETEK_VENDOR_ID, asetek::ASETEK_LAPRIMA_PID)),
+        ("tony_kanaan", asetek::asetek_model_from_info(asetek::ASETEK_VENDOR_ID, asetek::ASETEK_TONY_KANAAN_PID)),
+        ("invicta_pedals", asetek::asetek_model_from_info(asetek::ASETEK_VENDOR_ID, asetek::ASETEK_INVICTA_PEDALS_PID)),
+        ("forte_pedals", asetek::asetek_model_from_info(asetek::ASETEK_VENDOR_ID, asetek::ASETEK_FORTE_PEDALS_PID)),
+        ("laprima_pedals", asetek::asetek_model_from_info(asetek::ASETEK_VENDOR_ID, asetek::ASETEK_LAPRIMA_PEDALS_PID)),
+        ("wrong_vid", asetek::asetek_model_from_info(0x0000, asetek::ASETEK_FORTE_PID)),
+    ];
+    assert_debug_snapshot!(format!("{results:?}"));
+}

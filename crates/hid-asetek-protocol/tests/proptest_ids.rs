@@ -7,8 +7,9 @@
 //! - Round-trip: PID → model → PID preserves model identity
 
 use hid_asetek_protocol::{
-    ASETEK_FORTE_PID, ASETEK_INVICTA_PID, ASETEK_LAPRIMA_PID, ASETEK_TONY_KANAAN_PID,
-    ASETEK_VENDOR_ID, AsetekModel, is_asetek_device,
+    ASETEK_FORTE_PEDALS_PID, ASETEK_FORTE_PID, ASETEK_INVICTA_PEDALS_PID, ASETEK_INVICTA_PID,
+    ASETEK_LAPRIMA_PEDALS_PID, ASETEK_LAPRIMA_PID, ASETEK_TONY_KANAAN_PID, ASETEK_VENDOR_ID,
+    AsetekModel, is_asetek_device,
 };
 use proptest::prelude::*;
 
@@ -18,6 +19,24 @@ const ALL_PIDS: [u16; 4] = [
     ASETEK_INVICTA_PID,
     ASETEK_LAPRIMA_PID,
     ASETEK_TONY_KANAAN_PID,
+];
+
+/// All known Asetek pedal product IDs.
+const ALL_PEDAL_PIDS: [u16; 3] = [
+    ASETEK_INVICTA_PEDALS_PID,
+    ASETEK_FORTE_PEDALS_PID,
+    ASETEK_LAPRIMA_PEDALS_PID,
+];
+
+/// All known Asetek device PIDs (wheelbases + pedals).
+const ALL_DEVICE_PIDS: [u16; 7] = [
+    ASETEK_FORTE_PID,
+    ASETEK_INVICTA_PID,
+    ASETEK_LAPRIMA_PID,
+    ASETEK_TONY_KANAAN_PID,
+    ASETEK_INVICTA_PEDALS_PID,
+    ASETEK_FORTE_PEDALS_PID,
+    ASETEK_LAPRIMA_PEDALS_PID,
 ];
 
 proptest! {
@@ -108,5 +127,25 @@ proptest! {
         let model = AsetekModel::from_product_id(pid);
         let model2 = AsetekModel::from_product_id(pid);
         prop_assert_eq!(model, model2);
+    }
+
+    /// All 7 known PIDs (wheelbases + pedals) must be pairwise unique.
+    #[test]
+    fn prop_all_device_pids_unique(a in 0usize..7usize, b in 0usize..7usize) {
+        if a != b {
+            prop_assert!(ALL_DEVICE_PIDS[a] != ALL_DEVICE_PIDS[b],
+                "PIDs at index {a} and {b} must differ, both are {:#06x}",
+                ALL_DEVICE_PIDS[a]);
+        }
+    }
+
+    /// Pedal models' display_name must contain "Pedals".
+    #[test]
+    fn prop_pedal_display_name_contains_pedals(idx in 0usize..3usize) {
+        let pid = ALL_PEDAL_PIDS[idx];
+        let model = AsetekModel::from_product_id(pid);
+        prop_assert!(model.display_name().contains("Pedals"),
+            "display_name for pedal PID {pid:#06x} must contain 'Pedals', got '{}'",
+            model.display_name());
     }
 }

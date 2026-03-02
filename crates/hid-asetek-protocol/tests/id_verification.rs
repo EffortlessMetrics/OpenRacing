@@ -76,3 +76,44 @@ fn forte_pedals_pid_is_f101() {
 fn laprima_pedals_pid_is_f102() {
     assert_eq!(ASETEK_LAPRIMA_PEDALS_PID, 0xF102);
 }
+
+/// lib.rs re-exported VENDOR_ID must equal ids.rs ASETEK_VENDOR_ID.
+#[test]
+fn lib_vendor_id_matches_ids_module() {
+    assert_eq!(
+        hid_asetek_protocol::VENDOR_ID,
+        ASETEK_VENDOR_ID,
+        "lib.rs VENDOR_ID and ids.rs ASETEK_VENDOR_ID must match"
+    );
+}
+
+/// lib.rs PRODUCT_ID constants must match ids.rs ASETEK_*_PID constants.
+#[test]
+fn lib_product_ids_match_ids_module() {
+    assert_eq!(hid_asetek_protocol::PRODUCT_ID_FORTE, ASETEK_FORTE_PID);
+    assert_eq!(hid_asetek_protocol::PRODUCT_ID_INVICTA, ASETEK_INVICTA_PID);
+    assert_eq!(hid_asetek_protocol::PRODUCT_ID_LAPRIMA, ASETEK_LAPRIMA_PID);
+}
+
+/// All 7 known PIDs (wheelbases + pedals) must be pairwise unique.
+#[test]
+fn all_pids_are_unique() {
+    let pids: [u16; 7] = [
+        ASETEK_INVICTA_PID,
+        ASETEK_FORTE_PID,
+        ASETEK_LAPRIMA_PID,
+        ASETEK_TONY_KANAAN_PID,
+        ASETEK_INVICTA_PEDALS_PID,
+        ASETEK_FORTE_PEDALS_PID,
+        ASETEK_LAPRIMA_PEDALS_PID,
+    ];
+    for i in 0..pids.len() {
+        for j in (i + 1)..pids.len() {
+            assert_ne!(
+                pids[i], pids[j],
+                "PID index {i} ({:#06x}) collides with index {j} ({:#06x})",
+                pids[i], pids[j]
+            );
+        }
+    }
+}

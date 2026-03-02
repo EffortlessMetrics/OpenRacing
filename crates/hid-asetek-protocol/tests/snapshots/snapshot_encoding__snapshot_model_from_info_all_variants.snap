@@ -1,0 +1,6 @@
+---
+source: crates/hid-asetek-protocol/tests/snapshot_encoding.rs
+assertion_line: 165
+expression: "format!(\"{results:?}\")"
+---
+"[(\"forte\", Forte), (\"invicta\", Invicta), (\"laprima\", LaPrima), (\"tony_kanaan\", TonyKanaan), (\"invicta_pedals\", InvictaPedals), (\"forte_pedals\", FortePedals), (\"laprima_pedals\", LaPrimaPedals), (\"wrong_vid\", Unknown)]"

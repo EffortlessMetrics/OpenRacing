@@ -119,4 +119,21 @@ proptest! {
             "encoding +{} and -{} must be symmetric: {} vs {}",
             torque, torque, pos.torque_cNm, neg.torque_cNm);
     }
+
+    /// LED mode and value in the built report match the struct fields
+    /// (byte 4: led_mode, byte 5: led_value).
+    #[test]
+    fn prop_led_bytes_match_fields(mode: u8, value: u8) {
+        let report = asetek::AsetekOutputReport::new(0)
+            .with_torque(0.0)
+            .with_led(mode, value);
+        let result = report.build();
+        prop_assert!(result.is_ok(), "build must succeed");
+        if let Ok(data) = result {
+            prop_assert_eq!(data[4], mode,
+                "LED mode byte mismatch: expected {}, got {}", mode, data[4]);
+            prop_assert_eq!(data[5], value,
+                "LED value byte mismatch: expected {}, got {}", value, data[5]);
+        }
+    }
 }
