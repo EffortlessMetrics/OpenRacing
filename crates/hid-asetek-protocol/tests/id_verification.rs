@@ -5,8 +5,8 @@
 //! Do not change only one of the two — they must stay in sync.
 
 use hid_asetek_protocol::{
-    ASETEK_FORTE_PID, ASETEK_INVICTA_PID, ASETEK_LAPRIMA_PID, ASETEK_TONY_KANAAN_PID,
-    ASETEK_VENDOR_ID,
+    ASETEK_FORTE_PID, ASETEK_FORTE_PEDALS_PID, ASETEK_INVICTA_PID, ASETEK_INVICTA_PEDALS_PID,
+    ASETEK_LAPRIMA_PID, ASETEK_LAPRIMA_PEDALS_PID, ASETEK_TONY_KANAAN_PID, ASETEK_VENDOR_ID,
 };
 
 /// Asetek VID must be 0x2433 (Asetek A/S, official USB VID registry entry).
@@ -51,4 +51,28 @@ fn laprima_pid_is_f303() {
 #[test]
 fn tony_kanaan_pid_is_f306() {
     assert_eq!(ASETEK_TONY_KANAAN_PID, 0xF306);
+}
+
+/// Asetek Invicta Pedals PID must be 0xF100.
+///
+/// ✅ Confirmed by: `JacKeTUs/simracing-hwdb` `90-asetek.hwdb`.
+#[test]
+fn invicta_pedals_pid_is_f100() {
+    assert_eq!(ASETEK_INVICTA_PEDALS_PID, 0xF100);
+}
+
+/// Asetek Forte Pedals PID must be 0xF101.
+///
+/// ✅ Confirmed by: `JacKeTUs/simracing-hwdb` `90-asetek.hwdb`.
+#[test]
+fn forte_pedals_pid_is_f101() {
+    assert_eq!(ASETEK_FORTE_PEDALS_PID, 0xF101);
+}
+
+/// Asetek La Prima Pedals PID must be 0xF102.
+///
+/// ⚠️ Community-sourced: follows `0xF10x` pedal pattern.
+#[test]
+fn laprima_pedals_pid_is_f102() {
+    assert_eq!(ASETEK_LAPRIMA_PEDALS_PID, 0xF102);
 }

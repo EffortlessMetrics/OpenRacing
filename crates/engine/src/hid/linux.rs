@@ -508,6 +508,9 @@ impl LinuxHidPort {
             (0x2433, 0xF301), // Asetek Forte
             (0x2433, 0xF303), // Asetek La Prima
             (0x2433, 0xF306), // Asetek Tony Kanaan Edition
+            (0x2433, 0xF100), // Asetek Invicta Pedals
+            (0x2433, 0xF101), // Asetek Forte Pedals
+            (0x2433, 0xF102), // Asetek La Prima Pedals
             // Cammus (VID 0x3416)
             (0x3416, 0x0301), // Cammus C5
             (0x3416, 0x0302), // Cammus C12

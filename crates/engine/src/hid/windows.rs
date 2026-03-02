@@ -619,6 +619,7 @@ impl SupportedDevices {
             // Asetek pedals — verified via JacKeTUs/simracing-hwdb
             (vendor_ids::ASETEK, 0xF100, "Asetek Invicta Pedals"),
             (vendor_ids::ASETEK, 0xF101, "Asetek Forte Pedals"),
+            (vendor_ids::ASETEK, 0xF102, "Asetek La Prima Pedals"),
             // Cammus (VID 0x3416)
             (vendor_ids::CAMMUS, 0x0301, "Cammus C5"),
             (vendor_ids::CAMMUS, 0x0302, "Cammus C12"),
@@ -1791,7 +1792,7 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
         }
         vendor_ids::ASETEK => {
             // Asetek pedals are input-only, no FFB
-            if matches!(product_id, 0xF100 | 0xF101) {
+            if matches!(product_id, 0xF100..=0xF102) {
                 capabilities.supports_pid = false;
                 capabilities.supports_raw_torque_1khz = false;
                 capabilities.max_torque = TorqueNm::ZERO;

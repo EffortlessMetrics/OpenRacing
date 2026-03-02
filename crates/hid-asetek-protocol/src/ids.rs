@@ -28,6 +28,9 @@
 //! | Forte PID 0xF301 | ✅ Confirmed | Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs |
 //! | La Prima PID 0xF303 | ✅ Confirmed | Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs, asetek_wheelbase_cli |
 //! | Tony Kanaan PID 0xF306 | ✅ Confirmed | Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs |
+//! | Invicta Pedals PID 0xF100 | ✅ Confirmed | `JacKeTUs/simracing-hwdb` `90-asetek.hwdb` |
+//! | Forte Pedals PID 0xF101 | ✅ Confirmed | `JacKeTUs/simracing-hwdb` `90-asetek.hwdb` |
+//! | La Prima Pedals PID 0xF102 | ⚠️ Community | `tolgayilmaz86/MuscleMemoryTrainer`, follows 0xF10x pattern |
 //!
 //! All four PIDs have **zero external-evidence flags** — every PID is confirmed
 //! by at least three independent sources including the Linux kernel.
@@ -78,6 +81,13 @@ pub const ASETEK_INVICTA_PEDALS_PID: u16 = 0xF100;
 /// ✅ Confirmed by: `JacKeTUs/simracing-hwdb` `90-asetek.hwdb`.
 pub const ASETEK_FORTE_PEDALS_PID: u16 = 0xF101;
 
+/// Asetek La Prima Pedals (standalone USB pedals).
+///
+/// ⚠️ Community-sourced: PID follows `0xF10x` pedal pattern
+/// (Invicta=0xF100, Forte=0xF101, La Prima=0xF102).
+/// Confirmed by: `tolgayilmaz86/MuscleMemoryTrainer` device_presets.py.
+pub const ASETEK_LAPRIMA_PEDALS_PID: u16 = 0xF102;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AsetekModel {
     Forte,
@@ -86,6 +96,7 @@ pub enum AsetekModel {
     TonyKanaan,
     InvictaPedals,
     FortePedals,
+    LaPrimaPedals,
     Unknown,
 }
 
@@ -98,6 +109,7 @@ impl AsetekModel {
             ASETEK_TONY_KANAAN_PID => Self::TonyKanaan,
             ASETEK_INVICTA_PEDALS_PID => Self::InvictaPedals,
             ASETEK_FORTE_PEDALS_PID => Self::FortePedals,
+            ASETEK_LAPRIMA_PEDALS_PID => Self::LaPrimaPedals,
             _ => Self::Unknown,
         }
     }
@@ -110,6 +122,7 @@ impl AsetekModel {
             Self::TonyKanaan => "Asetek Tony Kanaan Edition",
             Self::InvictaPedals => "Asetek Invicta Pedals",
             Self::FortePedals => "Asetek Forte Pedals",
+            Self::LaPrimaPedals => "Asetek La Prima Pedals",
             Self::Unknown => "Unknown Asetek Device",
         }
     }
@@ -120,7 +133,7 @@ impl AsetekModel {
             Self::Invicta => 27.0,
             Self::LaPrima => 12.0,
             Self::TonyKanaan => 27.0,
-            Self::InvictaPedals | Self::FortePedals => 0.0,
+            Self::InvictaPedals | Self::FortePedals | Self::LaPrimaPedals => 0.0,
             Self::Unknown => 18.0,
         }
     }

@@ -197,7 +197,7 @@ proptest! {
             // Fanatec ClubSport Shifter and Handbrake (input-only, non-FFB)
             || (vid == vendor_ids::FANATEC && matches!(pid, 0x1A92 | 0x1A93))
             // Asetek pedals (Invicta Pedals, Forte Pedals — input-only, non-FFB)
-            || (vid == vendor_ids::ASETEK && matches!(pid, 0xF100 | 0xF101))
+            || (vid == vendor_ids::ASETEK && matches!(pid, 0xF100..=0xF102))
             // Thrustmaster Ferrari 458 Italia (Xbox 360) — rumble motors only, not true FFB
             || (vid == vendor_ids::THRUSTMASTER_XBOX && pid == 0x5B00);
         if is_non_ffb_peripheral {
