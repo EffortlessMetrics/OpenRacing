@@ -40,6 +40,8 @@ exceptions = [
     { allow = ["OpenSSL"], name = "ring", version = "*" },
     # ppmd-rust uses the bzip2 license (permissive, BSD-like).
     { allow = ["bzip2-1.0.6"], name = "ppmd-rust", version = "*" },
+    # libbz2-rs-sys uses the bzip2 license (permissive, BSD-like).
+    { allow = ["bzip2-1.0.6"], name = "libbz2-rs-sys", version = "*" },
 ]
 
 # =============================================================================
