@@ -1,0 +1,6 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshot_tests.rs
+assertion_line: 205
+expression: "format!(\"name={}, max_load={:.1}, pedals={}\", model.display_name(),\nmodel.max_load_kg(), model.pedal_count())"
+---
+"name=Unknown Heusinkveld Device, max_load=140.0, pedals=3"

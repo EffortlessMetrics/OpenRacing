@@ -1,0 +1,14 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshot_tests.rs
+assertion_line: 236
+expression: summary
+---
+[
+    "Sprint: name=Heusinkveld Sprint, max_load=55.0, pedals=2",
+    "Ultimate: name=Heusinkveld Ultimate+, max_load=140.0, pedals=3",
+    "Pro: name=Heusinkveld Pro, max_load=200.0, pedals=3",
+    "HandbrakeV1: name=Heusinkveld Handbrake, max_load=0.0, pedals=0",
+    "HandbrakeV2: name=Heusinkveld Handbrake V2, max_load=0.0, pedals=0",
+    "SequentialShifter: name=Heusinkveld Sequential Shifter, max_load=0.0, pedals=0",
+    "Unknown: name=Unknown Heusinkveld Device, max_load=140.0, pedals=3",
+]

@@ -81,3 +81,68 @@ fn shifter_pid_is_3142() {
     assert_eq!(HEUSINKVELD_SHIFTER_PID, 0x3142);
     assert_eq!(HEUSINKVELD_SHIFTER_VENDOR_ID, 0xA020);
 }
+
+/// Cross-check: all known Heusinkveld PIDs resolve to the expected model via
+/// `HeusinkveldModel::from_vid_pid`. This is a single table-driven test so
+/// any future PID addition that forgets to update the match arm will fail.
+#[test]
+fn cross_check_all_known_pids() -> Result<(), String> {
+    use hid_heusinkveld_protocol::HeusinkveldModel;
+
+    let table: &[(u16, u16, HeusinkveldModel)] = &[
+        // Current VID 0x30B7
+        (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_SPRINT_PID, HeusinkveldModel::Sprint),
+        (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_ULTIMATE_PID, HeusinkveldModel::Ultimate),
+        (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V2_PID, HeusinkveldModel::HandbrakeV2),
+        // Legacy VID 0x04D8
+        (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_LEGACY_SPRINT_PID, HeusinkveldModel::Sprint),
+        (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_LEGACY_ULTIMATE_PID, HeusinkveldModel::Ultimate),
+        (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID, HeusinkveldModel::Pro),
+        // Peripherals
+        (HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V1_PID, HeusinkveldModel::HandbrakeV1),
+        (HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SHIFTER_PID, HeusinkveldModel::SequentialShifter),
+    ];
+
+    for &(vid, pid, ref expected) in table {
+        let model = HeusinkveldModel::from_vid_pid(vid, pid);
+        if model != *expected {
+            return Err(format!(
+                "VID {vid:#06x} PID {pid:#06x}: expected {expected:?}, got {model:?}"
+            ));
+        }
+        // Also verify is_heusinkveld_device recognises the VID
+        if !hid_heusinkveld_protocol::is_heusinkveld_device(vid) {
+            return Err(format!(
+                "is_heusinkveld_device({vid:#06x}) returned false for known VID"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Cross-check: no two known PIDs (across all VID groups) share the same value,
+/// to prevent accidental copy-paste of PID constants.
+#[test]
+fn all_pids_are_unique() -> Result<(), String> {
+    let pids: &[(u16, &str)] = &[
+        (HEUSINKVELD_SPRINT_PID, "SPRINT"),
+        (HEUSINKVELD_ULTIMATE_PID, "ULTIMATE"),
+        (HEUSINKVELD_HANDBRAKE_V2_PID, "HANDBRAKE_V2"),
+        (HEUSINKVELD_LEGACY_SPRINT_PID, "LEGACY_SPRINT"),
+        (HEUSINKVELD_LEGACY_ULTIMATE_PID, "LEGACY_ULTIMATE"),
+        (HEUSINKVELD_PRO_PID, "PRO"),
+        (HEUSINKVELD_HANDBRAKE_V1_PID, "HANDBRAKE_V1"),
+        (HEUSINKVELD_SHIFTER_PID, "SHIFTER"),
+    ];
+    for i in 0..pids.len() {
+        for j in (i + 1)..pids.len() {
+            if pids[i].0 == pids[j].0 {
+                return Err(format!(
+                    "PID collision: {} and {} both have value {:#06x}",
+                    pids[i].1, pids[j].1, pids[i].0
+                ));
+            }
+        }
+    }
+    Ok(())
+}

@@ -167,6 +167,102 @@ fn test_snapshot_pedal_status_from_flags() {
 }
 
 #[test]
+fn test_snapshot_model_handbrake_v1() {
+    let model = heusinkveld::HeusinkveldModel::HandbrakeV1;
+    assert_debug_snapshot!(format!(
+        "name={}, max_load={:.1}, pedals={}",
+        model.display_name(),
+        model.max_load_kg(),
+        model.pedal_count()
+    ));
+}
+
+#[test]
+fn test_snapshot_model_handbrake_v2() {
+    let model = heusinkveld::HeusinkveldModel::HandbrakeV2;
+    assert_debug_snapshot!(format!(
+        "name={}, max_load={:.1}, pedals={}",
+        model.display_name(),
+        model.max_load_kg(),
+        model.pedal_count()
+    ));
+}
+
+#[test]
+fn test_snapshot_model_sequential_shifter() {
+    let model = heusinkveld::HeusinkveldModel::SequentialShifter;
+    assert_debug_snapshot!(format!(
+        "name={}, max_load={:.1}, pedals={}",
+        model.display_name(),
+        model.max_load_kg(),
+        model.pedal_count()
+    ));
+}
+
+#[test]
+fn test_snapshot_model_unknown() {
+    let model = heusinkveld::HeusinkveldModel::Unknown;
+    assert_debug_snapshot!(format!(
+        "name={}, max_load={:.1}, pedals={}",
+        model.display_name(),
+        model.max_load_kg(),
+        model.pedal_count()
+    ));
+}
+
+#[test]
+fn test_snapshot_all_device_variants() {
+    let variants = [
+        heusinkveld::HeusinkveldModel::Sprint,
+        heusinkveld::HeusinkveldModel::Ultimate,
+        heusinkveld::HeusinkveldModel::Pro,
+        heusinkveld::HeusinkveldModel::HandbrakeV1,
+        heusinkveld::HeusinkveldModel::HandbrakeV2,
+        heusinkveld::HeusinkveldModel::SequentialShifter,
+        heusinkveld::HeusinkveldModel::Unknown,
+    ];
+    let summary: Vec<String> = variants
+        .iter()
+        .map(|m| {
+            format!(
+                "{:?}: name={}, max_load={:.1}, pedals={}",
+                m,
+                m.display_name(),
+                m.max_load_kg(),
+                m.pedal_count()
+            )
+        })
+        .collect();
+    assert_debug_snapshot!(summary);
+}
+
+#[test]
+fn test_snapshot_protocol_constants() {
+    assert_debug_snapshot!(format!(
+        "VENDOR_ID={:#06x}, SPRINT_PID={:#06x}, ULTIMATE_PID={:#06x}, \
+         HANDBRAKE_V2_PID={:#06x}, LEGACY_VID={:#06x}, LEGACY_SPRINT_PID={:#06x}, \
+         LEGACY_ULTIMATE_PID={:#06x}, PRO_PID={:#06x}, \
+         HANDBRAKE_V1_VID={:#06x}, HANDBRAKE_V1_PID={:#06x}, \
+         SHIFTER_VID={:#06x}, SHIFTER_PID={:#06x}, \
+         REPORT_SIZE_INPUT={}, MAX_LOAD_CELL_VALUE={:#06x}",
+        heusinkveld::HEUSINKVELD_VENDOR_ID,
+        heusinkveld::HEUSINKVELD_SPRINT_PID,
+        heusinkveld::HEUSINKVELD_ULTIMATE_PID,
+        heusinkveld::HEUSINKVELD_HANDBRAKE_V2_PID,
+        heusinkveld::HEUSINKVELD_LEGACY_VENDOR_ID,
+        heusinkveld::HEUSINKVELD_LEGACY_SPRINT_PID,
+        heusinkveld::HEUSINKVELD_LEGACY_ULTIMATE_PID,
+        heusinkveld::HEUSINKVELD_PRO_PID,
+        heusinkveld::HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
+        heusinkveld::HEUSINKVELD_HANDBRAKE_V1_PID,
+        heusinkveld::HEUSINKVELD_SHIFTER_VENDOR_ID,
+        heusinkveld::HEUSINKVELD_SHIFTER_PID,
+        heusinkveld::REPORT_SIZE_INPUT,
+        heusinkveld::MAX_LOAD_CELL_VALUE,
+    ));
+}
+
+#[test]
 fn test_snapshot_model_from_info() {
     let results = [
         (

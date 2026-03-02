@@ -27,6 +27,29 @@ const ALL_PIDS: [u16; 8] = [
     HEUSINKVELD_SHIFTER_PID,
 ];
 
+/// All known VID/PID pairs.
+const ALL_VID_PID_PAIRS: [(u16, u16); 8] = [
+    (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_SPRINT_PID),
+    (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_ULTIMATE_PID),
+    (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V2_PID),
+    (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_LEGACY_SPRINT_PID),
+    (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_LEGACY_ULTIMATE_PID),
+    (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID),
+    (HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V1_PID),
+    (HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SHIFTER_PID),
+];
+
+/// All `HeusinkveldModel` enum variants (for exhaustive variant-level tests).
+const ALL_VARIANTS: [HeusinkveldModel; 7] = [
+    HeusinkveldModel::Sprint,
+    HeusinkveldModel::Ultimate,
+    HeusinkveldModel::Pro,
+    HeusinkveldModel::HandbrakeV1,
+    HeusinkveldModel::HandbrakeV2,
+    HeusinkveldModel::SequentialShifter,
+    HeusinkveldModel::Unknown,
+];
+
 /// Pedal-only PIDs (for load/pedal-count tests).
 const PEDAL_PIDS: [(u16, u16); 5] = [
     (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_SPRINT_PID),
@@ -145,5 +168,45 @@ proptest! {
         prop_assert!(model == HeusinkveldModel::Unknown,
             "HeusinkveldModel::from_product_id({:#06x}) must return Unknown for unknown PID",
             pid);
+    }
+
+    // ── from_product_id consistency with is_heusinkveld_device ────────────────
+
+    /// For every known VID/PID pair, from_product_id must return non-Unknown,
+    /// and is_heusinkveld_device must recognise the VID.
+    #[test]
+    fn prop_from_product_id_consistent_with_is_heusinkveld(idx in 0usize..8usize) {
+        let (vid, pid) = ALL_VID_PID_PAIRS[idx];
+        let model = HeusinkveldModel::from_product_id(pid);
+        prop_assert_ne!(model, HeusinkveldModel::Unknown,
+            "from_product_id({:#06x}) must not return Unknown for known PID", pid);
+        prop_assert!(is_heusinkveld_device(vid),
+            "is_heusinkveld_device({:#06x}) must be true for VID paired with known PID {:#06x}",
+            vid, pid);
+    }
+
+    /// For any random VID/PID, if from_vid_pid returns non-Unknown then
+    /// is_heusinkveld_device must also return true for that VID.
+    #[test]
+    fn prop_from_vid_pid_implies_is_heusinkveld(vid: u16, pid: u16) {
+        let model = HeusinkveldModel::from_vid_pid(vid, pid);
+        if model != HeusinkveldModel::Unknown {
+            prop_assert!(is_heusinkveld_device(vid),
+                "from_vid_pid({:#06x}, {:#06x}) = {model:?} but is_heusinkveld_device is false",
+                vid, pid);
+        }
+    }
+
+    // ── All model variants: display_name non-empty ───────────────────────────
+
+    /// display_name must be non-empty for every HeusinkveldModel variant.
+    #[test]
+    fn prop_all_variants_display_name_non_empty(idx in 0usize..7usize) {
+        let variant = ALL_VARIANTS[idx];
+        let name = variant.display_name();
+        prop_assert!(!name.is_empty(),
+            "{variant:?} must have a non-empty display_name");
+        prop_assert!(name.contains("Heusinkveld"),
+            "{variant:?} display_name '{name}' must contain 'Heusinkveld'");
     }
 }
