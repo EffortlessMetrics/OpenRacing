@@ -52,8 +52,8 @@ pub const THRUSTMASTER_VENDOR_ID: u16 = 0x044F;
 /// - **T-GT II** — was 0xB692, but hid-tmff2 confirms that as `TSXW_ACTIVE`
 ///   (TS-XW Racer). The T-GT II has PID 0xB681 in GT mode (verified via lsusb
 ///   in hid-tmff2 issue #184). In PC/"other" mode it reuses T300RS PIDs.
-/// - **T-LCM** — was 0xB68D, but linux-hardware.org identifies that as
-///   "T.Flight Hotas One" (flight controller). Real T-LCM PID is unverified.
+/// - **T-LCM** — PID 0xB371 (verified via JacKeTUs/simracing-hwdb).
+///   Note: 0xB68D is NOT the T-LCM; that's "T.Flight Hotas One" per linux-hardware.org.
 /// - **T-LCM Pro** — was 0xB69A, but linux-hardware.org identifies that as
 ///   "T248X GIP Racing Wheel". Real T-LCM Pro PID is unverified.
 /// - **T3PA** — was 0xB678, but devicehunt.com identifies that as "T.Flight
@@ -173,15 +173,26 @@ pub mod product_ids {
     /// Verified: linux-steering-wheels (hid-tmff), PID 0xb65a.
     /// Web-unverified: not found in the-sz.com, usb-ids.gowdy.us, or linux-hardware.org.
     pub const F430_FORCE_FEEDBACK: u16 = 0xB65A;
+
+    // ── Standalone pedals ─────────────────────────────────────────────────
+
+    /// TPR Pedals — standalone USB racing pedals.
+    /// **Verified:** `JacKeTUs/simracing-hwdb` `90-thrustmaster.hwdb`.
+    pub const TPR_PEDALS: u16 = 0xB68F;
+    /// T-LCM Pedals — load-cell pedal set.
+    /// **Verified:** `JacKeTUs/simracing-hwdb` `90-thrustmaster.hwdb`.
+    /// Previously unverified (0xB68D was a misidentification — that's T.Flight Hotas One).
+    pub const T_LCM: u16 = 0xB371;
 }
 
 /// Model identification shorthand.
 ///
-/// Note: `TGT`, `T3PA`, `T3PAPro`, `TLCM`, and `TLCMPro` are real
+/// Note: `TGT`, `T3PA`, `T3PAPro`, and `TLCMPro` are real
 /// products but their USB PIDs could not be verified against community driver
 /// sources (the previously-assigned PIDs belonged to other devices). They are
 /// retained in the enum for metadata (torque, rotation) but cannot be returned
 /// by [`Model::from_product_id`]. See `product_ids` docs for details.
+/// `TLCM` is now matchable via PID 0xB371 (verified: JacKeTUs/simracing-hwdb).
 ///
 /// `TGTII` is now matchable via PID 0xB681 (GT mode). In PC/"other" mode the
 /// T-GT II reuses T300RS PIDs and will be identified as `T300RS` / `T300RSPS4`
@@ -303,6 +314,8 @@ impl Model {
             product_ids::RGT_FF_CLUTCH => Self::RGTFF,
             product_ids::FGT_FORCE_FEEDBACK => Self::FGTForceFeedback,
             product_ids::F430_FORCE_FEEDBACK => Self::F430ForceFeedback,
+            product_ids::TPR_PEDALS => Self::Unknown, // pedals, no FFB
+            product_ids::T_LCM => Self::TLCM,
             _ => Self::Unknown,
         }
     }

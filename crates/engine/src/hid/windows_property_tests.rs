@@ -169,8 +169,8 @@ proptest! {
         let is_non_ffb_peripheral =
             // Moza peripherals (pedals, hub, handbrake, shifter)
             (vid == vendor_ids::MOZA && matches!(pid, 0x0003 | 0x0020 | 0x0021 | 0x0022))
-            // Thrustmaster TPR Rudder (flight sim), T80/T80H (no FFB)
-            || (vid == vendor_ids::THRUSTMASTER && matches!(pid, 0xB68E | 0xB668 | 0xB66A))
+            // Thrustmaster TPR Rudder (flight sim), T80/T80H (no FFB), TPR Pedals, T-LCM Pedals
+            || (vid == vendor_ids::THRUSTMASTER && matches!(pid, 0xB68E | 0xB668 | 0xB66A | 0xB68F | 0xB371))
             // Heusinkveld pedals — legacy firmware (VID 0x04D8 — Microchip)
             || (vid == vendor_ids::HEUSINKVELD && matches!(pid, 0xF6D0..=0xF6D3))
             // Heusinkveld current firmware (VID 0x30B7)
@@ -188,12 +188,16 @@ proptest! {
             || (vid == vendor_ids::OPENFFBOARD && pid == 0x1BBD)
             // Leo Bodnar input-only peripherals (BBI-32 button box, SLI-Pro, USB joystick, BU0836 boards, pedals)
             || (vid == vendor_ids::LEO_BODNAR && matches!(pid, 0x0001 | 0x000B | 0x000C | 0x0030 | 0x0031 | 0x1301 | 0x100C | 0x22D0))
-            // Simagic EVO peripherals (pedals, shifters, handbrake)
-            || (vid == vendor_ids::SIMAGIC_EVO && matches!(pid, 0x1001..=0x1003 | 0x2001..=0x2002 | 0x3001))
+            // Simagic EVO peripherals (pedals, shifters, handbrake, TB-RS)
+            || (vid == vendor_ids::SIMAGIC_EVO && matches!(pid, 0x0A04 | 0x1001..=0x1003 | 0x2001..=0x2002 | 0x3001))
             // Cube Controls button boxes (provisional PIDs, share VID 0x0483 with Simagic)
             || (vid == vendor_ids::SIMAGIC && matches!(pid, 0x0C73..=0x0C75))
             // Cammus pedals (CP5 and LC100 — input-only, non-FFB)
             || (vid == vendor_ids::CAMMUS && matches!(pid, 0x1018 | 0x1019))
+            // Fanatec ClubSport Shifter and Handbrake (input-only, non-FFB)
+            || (vid == vendor_ids::FANATEC && matches!(pid, 0x1A92 | 0x1A93))
+            // Asetek pedals (Invicta Pedals, Forte Pedals — input-only, non-FFB)
+            || (vid == vendor_ids::ASETEK && matches!(pid, 0xF100 | 0xF101))
             // Thrustmaster Ferrari 458 Italia (Xbox 360) — rumble motors only, not true FFB
             || (vid == vendor_ids::THRUSTMASTER_XBOX && pid == 0x5B00);
         if is_non_ffb_peripheral {

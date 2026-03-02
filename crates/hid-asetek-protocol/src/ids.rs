@@ -68,12 +68,24 @@ pub const ASETEK_LAPRIMA_PID: u16 = 0xF303;
 /// ✅ Confirmed by: Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs.
 pub const ASETEK_TONY_KANAAN_PID: u16 = 0xF306;
 
+/// Asetek Invicta Pedals (standalone USB load-cell pedals).
+///
+/// ✅ Confirmed by: `JacKeTUs/simracing-hwdb` `90-asetek.hwdb`.
+pub const ASETEK_INVICTA_PEDALS_PID: u16 = 0xF100;
+
+/// Asetek Forte Pedals (standalone USB load-cell pedals).
+///
+/// ✅ Confirmed by: `JacKeTUs/simracing-hwdb` `90-asetek.hwdb`.
+pub const ASETEK_FORTE_PEDALS_PID: u16 = 0xF101;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AsetekModel {
     Forte,
     Invicta,
     LaPrima,
     TonyKanaan,
+    InvictaPedals,
+    FortePedals,
     Unknown,
 }
 
@@ -84,6 +96,8 @@ impl AsetekModel {
             ASETEK_INVICTA_PID => Self::Invicta,
             ASETEK_LAPRIMA_PID => Self::LaPrima,
             ASETEK_TONY_KANAAN_PID => Self::TonyKanaan,
+            ASETEK_INVICTA_PEDALS_PID => Self::InvictaPedals,
+            ASETEK_FORTE_PEDALS_PID => Self::FortePedals,
             _ => Self::Unknown,
         }
     }
@@ -94,6 +108,8 @@ impl AsetekModel {
             Self::Invicta => "Asetek Invicta",
             Self::LaPrima => "Asetek La Prima",
             Self::TonyKanaan => "Asetek Tony Kanaan Edition",
+            Self::InvictaPedals => "Asetek Invicta Pedals",
+            Self::FortePedals => "Asetek Forte Pedals",
             Self::Unknown => "Unknown Asetek Device",
         }
     }
@@ -104,6 +120,7 @@ impl AsetekModel {
             Self::Invicta => 27.0,
             Self::LaPrima => 12.0,
             Self::TonyKanaan => 27.0,
+            Self::InvictaPedals | Self::FortePedals => 0.0,
             Self::Unknown => 18.0,
         }
     }

@@ -232,6 +232,16 @@ pub mod product_ids {
     /// - `hid-ftec.c`: device table entry with `FTEC_PEDALS` quirk
     /// - Driver README: "0EB7:6206 FANATEC CSL Pedals LC V2 Loadcell" (experimental)
     pub const CSL_PEDALS_V2: u16 = 0x6206;
+
+    /// ClubSport Shifter — standalone USB shifter.
+    ///
+    /// **Verified:** `JacKeTUs/simracing-hwdb` `90-fanatec.hwdb`.
+    pub const CLUBSPORT_SHIFTER: u16 = 0x1A92;
+
+    /// ClubSport Handbrake — standalone USB handbrake.
+    ///
+    /// **Verified:** `JacKeTUs/simracing-hwdb` `90-fanatec.hwdb`.
+    pub const CLUBSPORT_HANDBRAKE: u16 = 0x1A93;
 }
 
 /// Rim IDs reported in byte 0x1F of the standard input report (report ID 0x01).

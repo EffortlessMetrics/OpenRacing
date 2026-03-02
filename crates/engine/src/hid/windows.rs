@@ -434,6 +434,10 @@ impl SupportedDevices {
                 "Fanatec CSL Pedals with Load Cell Kit",
             ),
             (vendor_ids::FANATEC, 0x6206, "Fanatec CSL Pedals V2"),
+            // Fanatec standalone peripherals (shifter, handbrake)
+            // Verified: JacKeTUs/simracing-hwdb
+            (vendor_ids::FANATEC, 0x1A92, "Fanatec ClubSport Shifter"),
+            (vendor_ids::FANATEC, 0x1A93, "Fanatec ClubSport Handbrake"),
             // Thrustmaster wheels (VID 0x044F)
             // Verified: Kimplul/hid-tmff2, Linux kernel hid-thrustmaster.c,
             //           berarma/oversteer, JacKeTUs/linux-steering-wheels,
@@ -508,7 +512,17 @@ impl SupportedDevices {
             ),
             // NOTE: Thrustmaster pedal PIDs 0xB678/0xB679/0xB68D removed —
             // web research confirmed these are HOTAS peripherals, not pedals.
-            // Actual Thrustmaster pedal PIDs remain unconfirmed.
+            // Thrustmaster standalone pedals — verified via JacKeTUs/simracing-hwdb
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB68F,
+                "Thrustmaster TPR Pedals",
+            ),
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB371,
+                "Thrustmaster T-LCM Pedals",
+            ),
             // Moza Racing wheelbases - V1
             (vendor_ids::MOZA, 0x0005, "Moza R3"),
             (vendor_ids::MOZA, 0x0004, "Moza R5"),
@@ -564,6 +578,8 @@ impl SupportedDevices {
                 0x0700,
                 "Simagic Neo (estimated PID)",
             ),
+            // Simagic EVO peripherals — verified via JacKeTUs/simracing-hwdb
+            (vendor_ids::SIMAGIC_EVO, 0x0A04, "Simagic TB-RS Handbrake"),
             (
                 vendor_ids::SIMAGIC_EVO,
                 0x0701,
@@ -600,6 +616,9 @@ impl SupportedDevices {
             (vendor_ids::ASETEK, 0xF301, "Asetek Forte"),
             (vendor_ids::ASETEK, 0xF303, "Asetek LaPrima"),
             (vendor_ids::ASETEK, 0xF306, "Asetek Tony Kanaan Edition"),
+            // Asetek pedals — verified via JacKeTUs/simracing-hwdb
+            (vendor_ids::ASETEK, 0xF100, "Asetek Invicta Pedals"),
+            (vendor_ids::ASETEK, 0xF101, "Asetek Forte Pedals"),
             // Cammus (VID 0x3416)
             (vendor_ids::CAMMUS, 0x0301, "Cammus C5"),
             (vendor_ids::CAMMUS, 0x0302, "Cammus C12"),
@@ -1391,6 +1410,14 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                 return capabilities;
             }
 
+            // Standalone peripherals (shifter, handbrake) — input-only, no FFB
+            if matches!(product_id, 0x1A92 | 0x1A93) {
+                capabilities.supports_pid = false;
+                capabilities.supports_raw_torque_1khz = false;
+                capabilities.max_torque = TorqueNm::ZERO;
+                return capabilities;
+            }
+
             // Wheelbase devices support raw torque and health streaming.
             capabilities.supports_raw_torque_1khz = true;
             capabilities.supports_health_stream = true;
@@ -1506,8 +1533,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.supports_raw_torque_1khz = true;
                     capabilities.min_report_period_us = 1000;
                 }
-                0xB68E => {
-                    // TPR Rudder (flight sim pedals, not a racing wheel)
+                0xB68E | 0xB68F | 0xB371 => {
+                    // TPR Rudder (0xB68E), TPR Pedals (0xB68F), T-LCM Pedals (0xB371)
                     capabilities.supports_pid = false;
                     capabilities.supports_raw_torque_1khz = false;
                     capabilities.max_torque = TorqueNm::ZERO;
@@ -1750,7 +1777,7 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                         TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
                 } // Neo Mini (estimated PID)
                 // Peripherals (pedals, shifters, handbrake) — input-only, no FFB
-                0x1001..=0x1003 | 0x2001..=0x2002 | 0x3001 => {
+                0x0A04 | 0x1001..=0x1003 | 0x2001..=0x2002 | 0x3001 => {
                     capabilities.supports_pid = false;
                     capabilities.supports_raw_torque_1khz = false;
                     capabilities.supports_health_stream = false;
@@ -1763,6 +1790,13 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             }
         }
         vendor_ids::ASETEK => {
+            // Asetek pedals are input-only, no FFB
+            if matches!(product_id, 0xF100 | 0xF101) {
+                capabilities.supports_pid = false;
+                capabilities.supports_raw_torque_1khz = false;
+                capabilities.max_torque = TorqueNm::ZERO;
+                return capabilities;
+            }
             capabilities.supports_pid = true;
             capabilities.supports_raw_torque_1khz = true;
             capabilities.encoder_cpr = u16::MAX; // 20-bit actual
