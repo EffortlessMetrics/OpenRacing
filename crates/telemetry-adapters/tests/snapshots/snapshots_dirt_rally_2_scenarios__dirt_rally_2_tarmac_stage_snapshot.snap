@@ -1,0 +1,78 @@
+---
+source: crates/telemetry-adapters/tests/snapshots_dirt_rally_2_scenarios.rs
+expression: normalized
+---
+speed_ms: 30.75
+steering_angle: -0.72
+throttle: 0.2
+brake: 0.45
+clutch: 0
+rpm: 6200
+max_rpm: 7500
+gear: 2
+num_gears: 5
+lateral_g: 2.4
+longitudinal_g: -0.8
+vertical_g: 0
+slip_ratio: 0
+slip_angle_fl: 0
+slip_angle_fr: 0
+slip_angle_rl: 0
+slip_angle_rr: 0
+tire_temps_c:
+  - 255
+  - 255
+  - 180
+  - 175
+tire_pressures_psi:
+  - 32
+  - 32.5
+  - 30
+  - 30.5
+ffb_scalar: 0.8
+ffb_torque_nm: 0
+flags:
+  yellow_flag: false
+  red_flag: false
+  blue_flag: false
+  checkered_flag: false
+  green_flag: true
+  pit_limiter: false
+  in_pits: false
+  drs_available: false
+  drs_active: false
+  ers_available: false
+  ers_active: false
+  launch_control: false
+  traction_control: false
+  abs_active: false
+  engine_limiter: false
+  safety_car: false
+  formation_lap: false
+  session_paused: false
+position: 2
+lap: 5
+current_lap_time_s: 0
+best_lap_time_s: 0
+last_lap_time_s: 295.8
+delta_ahead_s: 0
+delta_behind_s: 0
+fuel_percent: 0.45
+engine_temp_c: 0
+extended:
+  rpm_fraction:
+    type: Float
+    value: 0.82666665
+  wheel_speed_fl:
+    type: Float
+    value: 31
+  wheel_speed_fr:
+    type: Float
+    value: 31.5
+  wheel_speed_rl:
+    type: Float
+    value: 30
+  wheel_speed_rr:
+    type: Float
+    value: 30.5
+sequence: 0
