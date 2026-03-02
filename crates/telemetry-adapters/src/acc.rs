@@ -6,10 +6,19 @@
 //! ## Verification against ACC broadcasting protocol v4
 //!
 //! Verified 2025-07 against the Kunos ACC Broadcasting SDK documentation and
-//! reference C# implementation (`ksBroadcastingNetworkProtocol`).
+//! reference C# implementation (`ksBroadcastingNetworkProtocol`), cross-referenced
+//! against community implementations:
+//!   - mdjarv/assettocorsasharedmemory (C# shared memory, `Physics.cs`, `Graphics.cs`,
+//!     `StaticInfo.cs`)
+//!   - dabde/acc_shared_mem_access_python (Python ctypes `SPageFilePhysics`,
+//!     `SPageFileGraphic`, `SPageFileStatic`)
+//!   - gotzl/pyacc (Python ctypes, includes ACC 1.8+ fields such as `waterTemp`,
+//!     `brakePressure`, `kerbVibration`)
+//!
+//! ### Broadcasting protocol (UDP, port 9000) — used by this adapter
 //!
 //! - **Transport**: UDP broadcasting protocol on port 9000 (not shared memory). ✓
-//! - **Protocol version**: 4 (current). ✓
+//! - **Protocol version**: 4 (current as of ACC 1.9+). ✓
 //! - **Message types**: 1=RegistrationResult, 2=RealtimeUpdate,
 //!   3=RealtimeCarUpdate, 4=EntryList, 5=TrackData, 6=EntryListCar,
 //!   7=BroadcastingEvent. ✓
@@ -17,6 +26,27 @@
 //!   connectionPassword(string), updateInterval(i32), commandPassword(string). ✓
 //! - **Gear encoding**: wire 0=R, 1=N, 2=1st; normalised via `−1` offset. ✓
 //! - **Readonly flag**: byte==0 means read-only (matches Kunos C# SDK). ✓
+//! - **String encoding**: u16-LE length prefix followed by UTF-8 bytes. ✓
+//! - **LapInfo sub-struct**: lapTimeMs(i32), carIndex(u16), driverIndex(u16),
+//!   splitCount(u8), splits(i32 × N), isInvalid(u8), isValidForBest(u8),
+//!   isOutlap(u8), isInlap(u8). ✓
+//!
+//! ### ACC shared memory API (reference, not used here)
+//!
+//! ACC also exposes telemetry through Windows memory-mapped files (MMFs).
+//! These are **not** used by this adapter but are documented here for
+//! cross-reference with the broadcasting protocol fields:
+//!
+//! | MMF name                    | Struct            | Key fields (version) |
+//! |-----------------------------|-------------------|----------------------|
+//! | `Local\acpmf_physics`       | `SPageFilePhysics`  | gear, speedKmh, gas, brake, fuel, rpms, steerAngle, brakeTemp[4], clutch (1.10+), brakeBias (1.11+), waterTemp (1.8+) |
+//! | `Local\acpmf_graphics`      | `SPageFileGraphic`  | packetId, status, session, currentTime, position, tyreCompound, flag, penalty (1.8+), rainLights (1.8+), wiperLV (1.8+) |
+//! | `Local\acpmf_static`        | `SPageFileStatic`   | smVersion, carModel, track, maxRpm, maxFuel, sectorCount, hasDRS, hasERS (1.7.1+), isOnline (1.13+), dryTyresName (1.8+) |
+//!
+//! All shared memory structs use `Pack=4`, `CharSet=Unicode` (UTF-16LE
+//! `wchar` strings). Version tags (e.g. "since 1.5", "since 1.8") indicate
+//! when fields were appended; older versions zero-fill beyond their known
+//! size.
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
@@ -503,6 +533,8 @@ fn parse_inbound_message(data: &[u8]) -> Result<ACCInboundMessage> {
     Ok(message)
 }
 
+// Verified: Kunos SDK RegistrationResult — connectionId(i32), success(u8 bool),
+// readonly(u8, 0=readonly), errorMsg(string). Field order matches SDK v4.
 fn parse_registration_result(reader: &mut PacketReader<'_>) -> Result<RegistrationResult> {
     Ok(RegistrationResult {
         connection_id: reader.read_i32_le()?,
@@ -513,6 +545,13 @@ fn parse_registration_result(reader: &mut PacketReader<'_>) -> Result<Registrati
     })
 }
 
+// Verified: Kunos SDK RealtimeUpdate — eventIndex(u16), sessionIndex(u16),
+// sessionType(u8), phase(u8), sessionTime(f32), sessionEndTime(f32),
+// focusedCarIndex(i32), cameraSet(str), camera(str), hudPage(str),
+// isReplayPlaying(u8), [if replay: replaySessionTime(f32),
+// replayRemainingTime(f32)], timeOfDay(f32), ambientTemp(u8),
+// trackTemp(u8), clouds(u8/10), rainLevel(u8/10), wetness(u8/10),
+// bestSessionLap(LapInfo). Field order matches SDK v4.
 fn parse_realtime_update(reader: &mut PacketReader<'_>) -> Result<RealtimeUpdate> {
     let _event_index = reader.read_u16_le()?;
     let _session_index = reader.read_u16_le()?;
@@ -554,6 +593,12 @@ fn parse_realtime_update(reader: &mut PacketReader<'_>) -> Result<RealtimeUpdate
     })
 }
 
+// Verified: Kunos SDK RealtimeCarUpdate — carIndex(u16), driverIndex(u16),
+// driverCount(u8), gear(u8), worldPosX(f32), worldPosY(f32), yaw(f32),
+// carLocation(u8), kmh(u16), position(u16), cupPosition(u16),
+// trackPosition(u16), splinePosition(f32), laps(u16), delta(i32),
+// bestSessionLap(LapInfo), lastLap(LapInfo), currentLap(LapInfo).
+// Field order matches SDK v4.
 fn parse_realtime_car_update(reader: &mut PacketReader<'_>) -> Result<RealtimeCarUpdate> {
     let car_index = reader.read_u16_le()?;
     let _driver_index = reader.read_u16_le()?;
@@ -595,6 +640,7 @@ fn parse_realtime_car_update(reader: &mut PacketReader<'_>) -> Result<RealtimeCa
     })
 }
 
+// Verified: Kunos SDK EntryList — connectionId(i32), carCount(u16), carIds(u16 × N).
 fn parse_entry_list(reader: &mut PacketReader<'_>) -> Result<()> {
     let _connection_id = reader.read_i32_le()?;
     let car_count = usize::from(reader.read_u16_le()?);
@@ -604,6 +650,9 @@ fn parse_entry_list(reader: &mut PacketReader<'_>) -> Result<()> {
     Ok(())
 }
 
+// Verified: Kunos SDK TrackData — connectionId(i32), trackName(str), trackId(i32),
+// trackMeters(i32), cameraSets[cameraSetName(str), cameras[cameraName(str)]],
+// hudPages[hudPage(str)]. Field order matches SDK v4.
 fn parse_track_data(reader: &mut PacketReader<'_>) -> Result<TrackData> {
     let _connection_id = reader.read_i32_le()?;
     let track_name = read_acc_string(reader)?;
@@ -627,6 +676,10 @@ fn parse_track_data(reader: &mut PacketReader<'_>) -> Result<TrackData> {
     Ok(TrackData { track_name })
 }
 
+// Verified: Kunos SDK EntryListCar — carIndex(u16), carModelType(u8),
+// teamName(str), raceNumber(i32), cupCategory(u8), currentDriverIndex(u8),
+// nationality(u16), drivers[firstName(str), lastName(str), shortName(str),
+// category(u8), nationality(u16)]. Field order matches SDK v4.
 fn parse_entry_list_car(reader: &mut PacketReader<'_>) -> Result<()> {
     let _car_index = reader.read_u16_le()?;
     let _car_model_type = reader.read_u8()?;
@@ -648,6 +701,8 @@ fn parse_entry_list_car(reader: &mut PacketReader<'_>) -> Result<()> {
     Ok(())
 }
 
+// Verified: Kunos SDK BroadcastingEvent — type(u8), msg(str),
+// timeMs(i32), carId(i32). Field order matches SDK v4.
 fn parse_broadcasting_event(reader: &mut PacketReader<'_>) -> Result<()> {
     let _kind = reader.read_u8()?;
     let _message = read_acc_string(reader)?;
@@ -656,6 +711,9 @@ fn parse_broadcasting_event(reader: &mut PacketReader<'_>) -> Result<()> {
     Ok(())
 }
 
+// Verified: Kunos SDK LapInfo — lapTimeMs(i32), carIndex(u16),
+// driverIndex(u16), splitCount(u8), splits(i32 × N), isInvalid(u8),
+// isValidForBest(u8), isOutlap(u8), isInlap(u8). Field order matches SDK v4.
 fn read_lap_time_ms(reader: &mut PacketReader<'_>) -> Result<i32> {
     let lap_time_ms = reader.read_i32_le()?;
     let _car_index = reader.read_u16_le()?;
