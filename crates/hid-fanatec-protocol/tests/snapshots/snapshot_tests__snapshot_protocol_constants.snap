@@ -1,0 +1,17 @@
+---
+source: crates/hid-fanatec-protocol/tests/snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+VENDOR_ID=0x0EB7
+report_ids::STANDARD_INPUT=0x01
+report_ids::EXTENDED_INPUT=0x02
+report_ids::MODE_SWITCH=0x01
+report_ids::FFB_OUTPUT=0x01
+report_ids::LED_DISPLAY=0x08
+ffb_commands::CONSTANT_FORCE=0x01
+ffb_commands::SET_ROTATION_RANGE=0x12
+ffb_commands::SET_GAIN=0x10
+ffb_commands::STOP_ALL=0x0F
+led_commands::REV_LIGHTS=0x80
+led_commands::DISPLAY=0x81
+led_commands::RUMBLE=0x82
