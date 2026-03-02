@@ -1,0 +1,5 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshot_tests.rs
+expression: "summary.join(\", \")"
+---
+"V10=0x3245, V12=0x1212, V12_LITE=0x1112, V12_LITE_2=0x1211, GT987=0x2141"

@@ -1,0 +1,7 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshot_tests.rs
+expression: "pxn::product_name(pxn::PRODUCT_V12_LITE)"
+---
+Some(
+    "PXN V12 Lite",
+)
