@@ -6014,6 +6014,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "insta",
  "proptest",
  "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-core",
@@ -6122,6 +6123,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "insta",
  "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-core",
  "tokio",
@@ -6135,6 +6137,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "insta",
  "proptest",
  "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-core",
@@ -6149,6 +6152,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "insta",
  "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-core",
  "tokio",
@@ -6216,6 +6220,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "insta",
  "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-core",
  "tokio",
@@ -6229,6 +6234,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "insta",
  "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-core",
  "tokio",
