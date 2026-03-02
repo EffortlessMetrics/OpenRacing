@@ -26,5 +26,6 @@ tracing = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
+insta = { version = "1.42.2", features = ["yaml"] }
 proptest = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros"] }
