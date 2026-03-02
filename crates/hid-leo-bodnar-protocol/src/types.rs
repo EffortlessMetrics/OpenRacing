@@ -1,8 +1,8 @@
 //! Leo Bodnar device classification and input capabilities.
 
 use crate::ids::{
-    PID_BBI32, PID_BU0836_16BIT, PID_BU0836A, PID_BU0836X, PID_FFB_JOYSTICK, PID_SLI_M,
-    PID_USB_JOYSTICK, PID_WHEEL_INTERFACE,
+    PID_BBI32, PID_BU0836_16BIT, PID_BU0836A, PID_BU0836X, PID_FFB_JOYSTICK, PID_LC_PEDALS,
+    PID_PEDALS, PID_SLI_M, PID_USB_JOYSTICK, PID_WHEEL_INTERFACE,
 };
 
 /// Leo Bodnar product family.
@@ -28,6 +28,12 @@ pub enum LeoBodnarDevice {
     /// SLI-Pro Shift Light Indicator – RPM/gear display device (PID `0x1301`,
     /// **community estimate**; see `ids::PID_SLI_M` doc comment).
     SlimShiftLight,
+    /// Pedals – analog pedal controller (PID `0x100C`).
+    /// 🔶 Community-sourced from simracing-hwdb.
+    Pedals,
+    /// LC Pedals – load cell pedal controller (PID `0x22D0`).
+    /// 🔶 Community-sourced from simracing-hwdb.
+    LcPedals,
 }
 
 impl LeoBodnarDevice {
@@ -44,6 +50,8 @@ impl LeoBodnarDevice {
             PID_BU0836X => Some(Self::Bu0836x),
             PID_BU0836_16BIT => Some(Self::Bu0836_16bit),
             PID_SLI_M => Some(Self::SlimShiftLight),
+            PID_PEDALS => Some(Self::Pedals),
+            PID_LC_PEDALS => Some(Self::LcPedals),
             _ => None,
         }
     }
@@ -62,6 +70,8 @@ impl LeoBodnarDevice {
             Self::Bu0836_16bit => 32,
             // SLI-M is primarily a shift light output device; no button inputs.
             Self::SlimShiftLight => 0,
+            // Pedals are analog input devices, no buttons.
+            Self::Pedals | Self::LcPedals => 0,
         }
     }
 
@@ -81,6 +91,8 @@ impl LeoBodnarDevice {
             Self::Bu0836x => "Leo Bodnar BU0836X",
             Self::Bu0836_16bit => "Leo Bodnar BU0836 16-bit",
             Self::SlimShiftLight => "Leo Bodnar SLI-Pro",
+            Self::Pedals => "Leo Bodnar Pedals",
+            Self::LcPedals => "Leo Bodnar LC Pedals",
         }
     }
 }
