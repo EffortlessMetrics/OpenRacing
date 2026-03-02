@@ -139,4 +139,43 @@ proptest! {
         let identity = identify_device(pid);
         prop_assert_eq!(identity.product_id, pid);
     }
+
+    /// Round-trip: for ANY u16, identify_device(pid).product_id must equal pid.
+    #[test]
+    fn prop_roundtrip_pid_identity_arbitrary(pid: u16) {
+        let identity = identify_device(pid);
+        prop_assert_eq!(identity.product_id, pid);
+    }
+
+    /// identify_device must be deterministic: calling twice yields the same result.
+    #[test]
+    fn prop_identify_device_deterministic(pid: u16) {
+        let a = identify_device(pid);
+        let b = identify_device(pid);
+        prop_assert_eq!(a.product_id, b.product_id);
+        prop_assert_eq!(a.name, b.name);
+        prop_assert_eq!(a.supports_ffb, b.supports_ffb);
+        prop_assert_eq!(a.category, b.category);
+        prop_assert_eq!(a.max_torque_nm, b.max_torque_nm);
+    }
+
+    /// VRS_VENDOR_ID must not collide with any known product ID.
+    #[test]
+    fn prop_vid_not_any_pid(idx in 0usize..8usize) {
+        let pid = ALL_PIDS[idx];
+        prop_assert!(VRS_VENDOR_ID != pid,
+            "VRS_VENDOR_ID ({:#06x}) must not equal PID ({:#06x})",
+            VRS_VENDOR_ID, pid);
+    }
+
+    /// Non-wheelbase devices must not report FFB support.
+    #[test]
+    fn prop_non_wheelbase_no_ffb(idx in 0usize..8usize) {
+        let pid = ALL_PIDS[idx];
+        let identity = identify_device(pid);
+        if !is_wheelbase_product(pid) {
+            prop_assert!(!identity.supports_ffb,
+                "Non-wheelbase PID {pid:#06x} must not support FFB");
+        }
+    }
 }

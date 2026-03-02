@@ -304,6 +304,24 @@ fn test_snapshot_device_pedals() {
 }
 
 #[test]
+fn test_snapshot_device_handbrake() {
+    let identity = vrs::identify_device(0xA359);
+    assert_snapshot!(format!(
+        "name={}, category={:?}, supports_ffb={}",
+        identity.name, identity.category, identity.supports_ffb
+    ));
+}
+
+#[test]
+fn test_snapshot_device_shifter() {
+    let identity = vrs::identify_device(0xA35A);
+    assert_snapshot!(format!(
+        "name={}, category={:?}, supports_ffb={}",
+        identity.name, identity.category, identity.supports_ffb
+    ));
+}
+
+#[test]
 fn test_snapshot_is_wheelbase_product() {
     let results = [
         ("DIRECTFORCE_PRO", vrs::is_wheelbase_product(0xA355)),
