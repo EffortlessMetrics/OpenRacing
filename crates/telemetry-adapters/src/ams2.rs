@@ -3,6 +3,29 @@
 //! Implements telemetry adapter for AMS2 using the Project CARS 2 shared memory format.
 //! AMS2 uses the same shared memory interface as Project CARS 2 (PCARS2).
 //! Requirements: 12.3
+//!
+//! # SDK References
+//! - CREST2-AMS2 shared memory header: <https://github.com/viper4gh/CREST2-AMS2> (`SharedMemory_v9.h`)
+//! - CREST2 shared memory header (pCars2): <https://github.com/viper4gh/CREST2> (`SharedMemory_v6.h`)
+//! - CrewChief pCars2APIStruct: <https://github.com/mrbelowski/CrewChiefV4> (`PCars2/PCars2Struct.cs`)
+//!
+//! # SDK version notes
+//! - pCars2 uses shared memory version 6 (`SharedMemory_v6.h`).
+//! - AMS2 (since v1.3.3.0) uses shared memory version 9 (`SharedMemory_v9.h`), which adds
+//!   `GAME_INGAME_INMENU_TIME_TICKING` to the `GameState` enum and `TYRE_COMPOUND_NAME_LENGTH_MAX`.
+//! - Version 8+ adds `mSequenceNumber` for integrity reads, plus `mWheelLocalPositionY`,
+//!   `mSuspensionTravel`, `mSuspensionVelocity`, `mAirPressure`, `mEngineSpeed`, `mEngineTorque`,
+//!   `mWings`, `mHandBrake`, per-participant sector times, and `mSnowDensity`.
+//! - The shared memory file name is `$pcars2$` (opened via `OpenFileMappingA`/`W`).
+//!
+//! # Struct layout caveat
+//! The `AMS2SharedMemory` struct below is a **simplified** representation of the telemetry fields.
+//! The actual SMS `SharedMemory` struct in the SDK includes large inline arrays
+//! (`sParticipantsData[64]`, per-participant sector times, car/class names, etc.) between the
+//! header fields and the car-state fields. As a result, the byte offsets in this struct do NOT
+//! match the SDK's memory layout for fields after `num_active_participants`. This struct is used
+//! for unit-test data construction; the shared memory reader would need a full binary-compatible
+//! struct to work correctly against live game data.
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
@@ -24,7 +47,9 @@ use winapi::um::{
     winnt::HANDLE,
 };
 
-/// AMS2 shared memory name (same as PCARS2)
+/// AMS2 shared memory name (same as pCars2).
+/// Verified: CREST2 `HttpMessageHandler.cpp` uses `#define MAP_OBJECT_NAME "$pcars2$"`.
+/// The `Local\` prefix is added when calling `OpenFileMappingW`.
 const AMS2_SHARED_MEMORY_NAME: &str = "$pcars2$";
 const AMS2_STABLE_READ_ATTEMPTS: usize = 3;
 
@@ -326,6 +351,10 @@ fn extract_string(bytes: &[u8]) -> String {
 }
 
 /// Game state enumeration
+/// SDK v6 (pCars2): Exited=0, FrontEnd=1, InGamePlaying=2, InGamePaused=3, InGameRestarting=4,
+///   InGameReplay=5, FrontEndReplay=6.
+/// SDK v9 (AMS2): Adds InGameInMenuTimeTicking=4, shifting InGameRestarting to 5,
+///   InGameReplay to 6, FrontEndReplay to 7.
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameState {
@@ -405,13 +434,21 @@ pub enum DrsState {
     Active = 2,
 }
 
-/// AMS2/PCARS2 shared memory data structure
-/// This is a simplified version of the full PCARS2 shared memory format
-/// containing the most commonly used telemetry fields.
+/// AMS2/PCARS2 shared memory data structure (simplified).
+///
+/// SDK reference: `SharedMemory_v6.h` (pCars2) / `SharedMemory_v9.h` (AMS2).
+///
+/// **Important**: This struct is a simplified subset for telemetry normalization and tests.
+/// The actual SMS `SharedMemory` struct contains additional large fields between the header and
+/// the car-state section (participant data arrays, unfiltered inputs, vehicle info, event info,
+/// full timing fields). Field types in the SDK for `mGear` and `mNumGears` are C `int` (i32),
+/// not i8. The `mBrake`/`mThrottle`/`mClutch`/`mSteering` are `float` in shared memory
+/// (range 0.0–1.0 / -1.0–1.0), matching this struct.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct AMS2SharedMemory {
-    // Version and state info
+    // Version and state info — matches SDK: mVersion, mBuildVersionNumber, mGameState,
+    // mSessionState, mRaceState (all `unsigned int`, i.e. u32).
     pub version: u32,
     pub build_version_number: u32,
     pub game_state: u32,
@@ -458,6 +495,9 @@ pub struct AMS2SharedMemory {
     pub speed: f32,
     pub rpm: f32,
     pub max_rpm: f32,
+    // SDK note: mGear is `int` (i32) in the SharedMemory struct, range -1 (reverse), 0 (neutral),
+    // 1+ (forward gears). mNumGears is `int` (i32), range 0+, unset = -1.
+    // Simplified here as i8 for compact representation; cast to i8 before normalization.
     pub gear: i8,
     pub num_gears: i8,
     pub boost_amount: f32,

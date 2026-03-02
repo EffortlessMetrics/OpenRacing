@@ -1,7 +1,23 @@
 //! Project CARS 2 / Project CARS 3 telemetry adapter.
 //!
-//! Primary: Windows shared memory (`Local\$pcars2$`).
-//! Fallback: UDP port 5606 using the SMS sTelemetryData packet (538 bytes, mixed types).
+//! Primary: UDP port 5606 using the SMS sTelemetryData packet (538 bytes, mixed types).
+//! Secondary (Windows): shared memory (`$pcars2$`) using the same `SharedMemory` struct
+//! defined in the SMS SDK (CREST2 `SharedMemory_v6.h`, version 6 for pCars2, version 9 for AMS2).
+//!
+//! # SDK References
+//! - CREST2 shared memory header: <https://github.com/viper4gh/CREST2> (`SharedMemory_v6.h`)
+//! - CREST2-AMS2 shared memory header: <https://github.com/viper4gh/CREST2-AMS2> (`SharedMemory_v9.h`)
+//! - CrewChief UDP struct: <https://github.com/mrbelowski/CrewChiefV4> (`PCars2/PCars2UDPTelemetryDataStruct.cs`)
+//!
+//! # Shared memory vs UDP layout
+//! The SMS shared memory (`SharedMemory` struct) is a large C struct (several KB) containing
+//! participant arrays (`sParticipantsData[64]`), unfiltered inputs, vehicle/event info, timings,
+//! flags, car state (floats for brake/throttle/clutch/steering, int for gear), tyre data, damage
+//! and weather. Field types and offsets differ from the compact UDP telemetry packet
+//! (`sTelemetryData`), which uses packed types (u8, i8, u16 for the same fields). The shared
+//! memory file is named `$pcars2$` and opened with `OpenFileMappingA`/`OpenFileMappingW`.
+//!
+//! The AMS2 adapter (`ams2.rs`) handles the full shared memory struct path.
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
@@ -15,50 +31,93 @@ use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
-#[cfg(windows)]
-use winapi::um::{
-    handleapi::CloseHandle,
-    memoryapi::{FILE_MAP_READ, MapViewOfFile, OpenFileMappingW, UnmapViewOfFile},
-};
-
 /// Verified: SMS sTelemetryData UDP fallback port (CrewChiefV4 PCars2 docs).
 const DEFAULT_PCARS2_PORT: u16 = 5606;
 /// Minimum packet size to read all key UDP fields (through sGearNumGears at offset 45).
 const PCARS2_UDP_MIN_SIZE: usize = 46;
+/// CrewChief: `UDPPacketSizes.telemetryPacketSize = 538`.
 const MAX_PACKET_SIZE: usize = 1500;
 
 #[cfg(windows)]
+#[allow(dead_code)] // Retained for documentation; shared memory reading is disabled (see below).
 const PCARS2_SHARED_MEMORY_NAME: &str = "Local\\$pcars2$";
+/// NOTE: The actual SMS `SharedMemory` struct is much larger than 4096 bytes (it contains
+/// `sParticipantsData[64]` arrays, car/track strings, etc.). We map 4096 bytes here only for
+/// the shared-memory-present probe; the full struct is handled by the AMS2 adapter.
 #[cfg(windows)]
 const PCARS2_SHARED_MEMORY_SIZE: usize = 4096;
 
 const PCARS2_PROCESS_NAMES: &[&str] = &["pcars2.exe", "pcars3.exe", "projectcars2.exe"];
 
+// ──────────────────────────────────────────────────────────────────────────────
 // PCars2/PCars3 UDP sTelemetryData packet offsets (538-byte packet, type 0).
-// Reference: CrewChiefV4/PCars2/PCars2UDPTelemetryDataStruct.cs
+//
+// Verified against:
+//   CrewChiefV4/PCars2/PCars2UDPTelemetryDataStruct.cs (sTelemetryData struct)
+//   CREST2 SharedMemory_v6.h (SharedMemory struct for the shared-memory layout)
+//
+// The UDP telemetry packet uses compact types (u8, i8, u16) for inputs and RPM,
+// while the shared memory struct uses wider types (f32 for inputs, int for gear).
+// This parser handles the UDP format only.
 //
 // Packet header (12 bytes):
 //   0: u32  mPacketNumber
 //   4: u32  mCategoryPacketNumber
 //   8: u8   mPartialPacketIndex
 //   9: u8   mPartialPacketNumber
-//  10: u8   mPacketType
+//  10: u8   mPacketType           (0 = telemetry)
 //  11: u8   mPacketVersion
 //
+// Body (selected fields parsed below):
+//  12: i8   sViewedParticipantIndex
+//  13: u8   sUnfilteredThrottle     [0-255]
+//  14: u8   sUnfilteredBrake        [0-255]
+//  15: i8   sUnfilteredSteering     [-128..127]
+//  16: u8   sUnfilteredClutch       [0-255]
+//  17: u8   sCarFlags
+//  18: i16  sOilTempCelsius
+//  20: u16  sOilPressureKPa
+//  22: i16  sWaterTempCelsius
+//  24: u16  sWaterPressureKpa
+//  26: u16  sFuelPressureKpa
+//  28: u8   sFuelCapacity
+//  29: u8   sBrake                  [0-255] (filtered)
+//  30: u8   sThrottle               [0-255] (filtered)
+//  31: u8   sClutch                 [0-255] (filtered)
+//  32: f32  sFuelLevel              [0.0-1.0]
+//  36: f32  sSpeed                  m/s
+//  40: u16  sRpm
+//  42: u16  sMaxRpm
+//  44: i8   sSteering               [-127..+127] (filtered)
+//  45: u8   sGearNumGears           low nibble=gear (15=reverse), high nibble=numGears
+//  46: u8   sBoostAmount
+//  47: u8   sCrashState
+//  48: f32  sOdometerKM
+//  ...  (tyre data, motion vectors, damage, compounds continue to byte 537)
+//
 // Note: Lap time and position data are in the sTimingsData packet (type 3),
-// not in the telemetry packet. The shared memory layout (pCars2APIStruct)
-// also differs from the UDP format.
-const OFF_WATER_TEMP: usize = 22; // i16: water temperature in °C
-const OFF_BRAKE: usize = 29; // u8:  filtered brake [0-255]
-const OFF_THROTTLE: usize = 30; // u8:  filtered throttle [0-255]
-const OFF_CLUTCH: usize = 31; // u8:  filtered clutch [0-255]
-const OFF_FUEL_LEVEL: usize = 32; // f32: fuel level [0.0-1.0]
-const OFF_SPEED: usize = 36; // f32: speed in m/s
-const OFF_RPM: usize = 40; // u16: engine RPM
-const OFF_MAX_RPM: usize = 42; // u16: max RPM
-const OFF_STEERING: usize = 44; // i8:  filtered steering [-127..+127]
-const OFF_GEAR_NUM_GEARS: usize = 45; // u8:  low nibble=gear, high nibble=num gears
+// not in the telemetry packet.
+// ──────────────────────────────────────────────────────────────────────────────
+const OFF_WATER_TEMP: usize = 22; // i16: sWaterTempCelsius — verified SDK offset 22
+const OFF_BRAKE: usize = 29; // u8:  sBrake (filtered) — verified SDK offset 29
+const OFF_THROTTLE: usize = 30; // u8:  sThrottle (filtered) — verified SDK offset 30
+const OFF_CLUTCH: usize = 31; // u8:  sClutch (filtered) — verified SDK offset 31
+const OFF_FUEL_LEVEL: usize = 32; // f32: sFuelLevel [0.0-1.0] — verified SDK offset 32
+const OFF_SPEED: usize = 36; // f32: sSpeed (m/s) — verified SDK offset 36
+const OFF_RPM: usize = 40; // u16: sRpm — verified SDK offset 40
+const OFF_MAX_RPM: usize = 42; // u16: sMaxRpm — verified SDK offset 42
+const OFF_STEERING: usize = 44; // i8:  sSteering (filtered) — verified SDK offset 44
+const OFF_GEAR_NUM_GEARS: usize = 45; // u8:  sGearNumGears — verified SDK offset 45
 
+/// Parse a pCars2/pCars3 UDP sTelemetryData packet into normalized telemetry.
+///
+/// All byte offsets verified against CrewChiefV4 `PCars2UDPTelemetryDataStruct.cs`:
+/// - Filtered inputs at offsets 29–31 (u8 brake/throttle/clutch → /255)
+/// - Filtered steering at offset 44 (i8 → /127)
+/// - Speed at offset 36 (f32, m/s), RPM at offset 40 (u16), MaxRPM at offset 42 (u16)
+/// - Gear+NumGears at offset 45 (u8: low nibble=gear 0–14/15=reverse, high nibble=numGears)
+/// - Water temperature at offset 22 (i16, °C)
+/// - Fuel level at offset 32 (f32, 0.0–1.0)
 pub fn parse_pcars2_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     if data.len() < PCARS2_UDP_MIN_SIZE {
         return Err(anyhow!(
@@ -87,6 +146,7 @@ pub fn parse_pcars2_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
 
     let gear_byte = read_u8(data, OFF_GEAR_NUM_GEARS).unwrap_or(0);
     let gear_nibble = gear_byte & 0x0F;
+    // Verified: CrewChief does `sGearNumGears & 15` for gear, `sGearNumGears >> 4` for numGears.
     // Low nibble: 0=neutral, 1-14=forward gears, 15=reverse
     let gear: i8 = if gear_nibble == 15 {
         -1
@@ -237,33 +297,20 @@ impl TelemetryAdapter for PCars2Adapter {
 }
 
 /// Open PCARS2 shared memory, read the simplified packet, and close. Returns None on any failure.
+///
+/// BUG(known): The `SharedMemory` struct in the SMS SDK has a completely different binary layout
+/// from the UDP `sTelemetryData` packet. Fields in shared memory are wider types (f32 for
+/// brake/throttle/clutch, int for gear) at different offsets (preceded by participant arrays,
+/// unfiltered inputs, vehicle/event info, and timing data). Parsing shared memory bytes with
+/// `parse_pcars2_packet` (which uses UDP offsets) produces incorrect values.
+///
+/// This function is disabled until a proper shared memory struct is implemented. Callers fall
+/// through to the working UDP path. See the AMS2 adapter for a struct-based shared memory reader.
 #[cfg(windows)]
 fn try_read_pcars2_shared_memory() -> Option<NormalizedTelemetry> {
-    use std::ffi::OsStr;
-    use std::os::windows::ffi::OsStrExt;
-
-    let wide_name: Vec<u16> = OsStr::new(PCARS2_SHARED_MEMORY_NAME)
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-
-    // SAFETY: Win32 shared memory API calls with a valid null-terminated UTF-16 name.
-    unsafe {
-        let handle = OpenFileMappingW(FILE_MAP_READ, 0, wide_name.as_ptr());
-        if handle.is_null() {
-            return None;
-        }
-        let view = MapViewOfFile(handle, FILE_MAP_READ, 0, 0, PCARS2_SHARED_MEMORY_SIZE);
-        if view.is_null() {
-            CloseHandle(handle);
-            return None;
-        }
-        let data = std::slice::from_raw_parts(view as *const u8, PCARS2_SHARED_MEMORY_SIZE);
-        let result = parse_pcars2_packet(data).ok();
-        UnmapViewOfFile(view);
-        CloseHandle(handle);
-        result
-    }
+    // Shared memory reading is disabled — the UDP-offset parser cannot be applied to the
+    // SharedMemory struct layout. Always return None so callers fall through to the UDP path.
+    None
 }
 
 #[cfg(windows)]
