@@ -1025,3 +1025,283 @@ mod pedal_nonlinear_tests {
         Ok(())
     }
 }
+
+// ---------------------------------------------------------------------------
+// Auto-calibration simulation
+// ---------------------------------------------------------------------------
+
+mod auto_calibration_tests {
+    use super::*;
+
+    #[test]
+    fn progressive_sample_collection_narrows_range() -> TestResult {
+        let mut cal = JoystickCalibrator::new(0);
+
+        // First batch: coarse sweep
+        cal.add_sample(1000, 0.0);
+        cal.add_sample(60000, 1.0);
+        let coarse = cal.calibrate()?;
+        assert_eq!(coarse.min, 1000);
+        assert_eq!(coarse.max, 60000);
+
+        // Second batch: fine-tune endpoints
+        cal.add_sample(500, 0.0);
+        cal.add_sample(64000, 1.0);
+        let refined = cal.calibrate()?;
+        assert_eq!(refined.min, 500, "auto-cal should discover lower min");
+        assert_eq!(refined.max, 64000, "auto-cal should discover higher max");
+        Ok(())
+    }
+
+    #[test]
+    fn auto_detect_center_from_dense_samples() -> TestResult {
+        let mut cal = JoystickCalibrator::new(0);
+        // Simulate user sweeping axis: many samples, one near center
+        for raw in (0u16..=65535).step_by(6554) {
+            let normalized = raw as f32 / 65535.0;
+            cal.add_sample(raw, normalized);
+        }
+        cal.add_sample(65535, 1.0);
+        let axis = cal.calibrate()?;
+        assert_eq!(axis.min, 0);
+        assert_eq!(axis.max, 65535);
+        // Should detect center from sample near 0.5
+        assert!(axis.center.is_some(), "should auto-detect center");
+        Ok(())
+    }
+
+    #[test]
+    fn auto_calibration_pedal_sweep() -> TestResult {
+        let mut cal = PedalCalibrator::new();
+        // Simulate slow pedal press
+        for v in (0u16..=65535).step_by(256) {
+            cal.add_throttle(v);
+            cal.add_brake(v);
+            cal.add_clutch(v);
+        }
+        cal.add_throttle(65535);
+        cal.add_brake(65535);
+        cal.add_clutch(65535);
+
+        let axes = cal.calibrate()?;
+        assert_eq!(axes[0].min, 0);
+        assert_eq!(axes[0].max, 65535);
+        assert_eq!(axes[1].min, 0);
+        assert_eq!(axes[1].max, 65535);
+        assert_eq!(axes[2].min, 0);
+        assert_eq!(axes[2].max, 65535);
+        Ok(())
+    }
+
+    #[test]
+    fn auto_calibration_noisy_samples() -> TestResult {
+        let mut cal = JoystickCalibrator::new(0);
+        // Noisy sensor: samples jitter around true range [1000, 60000]
+        let noisy_samples: Vec<(u16, f32)> = vec![
+            (1050, 0.01),
+            (1200, 0.02),
+            (980, 0.0),
+            (30000, 0.49),
+            (32000, 0.52),
+            (59800, 0.99),
+            (60100, 1.0),
+            (60050, 0.99),
+        ];
+        for (raw, norm) in &noisy_samples {
+            cal.add_sample(*raw, *norm);
+        }
+        let axis = cal.calibrate()?;
+        assert!(axis.min <= 1000, "min should capture lowest noise: {}", axis.min);
+        assert!(axis.max >= 60050, "max should capture highest noise: {}", axis.max);
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Calibration error display
+// ---------------------------------------------------------------------------
+
+mod error_display_tests {
+    use openracing_calibration::CalibrationError;
+    use super::*;
+
+    #[test]
+    fn error_invalid_data_message() -> TestResult {
+        let err = CalibrationError::InvalidData;
+        assert_eq!(format!("{err}"), "Invalid calibration data");
+        Ok(())
+    }
+
+    #[test]
+    fn error_not_complete_message() -> TestResult {
+        let err = CalibrationError::NotComplete;
+        assert_eq!(format!("{err}"), "Calibration not complete");
+        Ok(())
+    }
+
+    #[test]
+    fn error_device_error_message() -> TestResult {
+        let err = CalibrationError::DeviceError("USB timeout".to_string());
+        let msg = format!("{err}");
+        assert!(msg.contains("USB timeout"));
+        assert!(msg.contains("Device error"));
+        Ok(())
+    }
+
+    #[test]
+    fn error_device_error_empty_string() -> TestResult {
+        let err = CalibrationError::DeviceError(String::new());
+        let msg = format!("{err}");
+        assert!(msg.contains("Device error"));
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Additional edge cases
+// ---------------------------------------------------------------------------
+
+mod additional_edge_cases {
+    use super::*;
+
+    #[test]
+    fn axis_default_matches_full_range() -> TestResult {
+        let axis = AxisCalibration::default();
+        assert_eq!(axis.min, 0);
+        assert_eq!(axis.max, 0xFFFF);
+        assert!(axis.center.is_none());
+        assert_eq!(axis.deadzone_min, 0);
+        assert_eq!(axis.deadzone_max, 0xFFFF);
+        Ok(())
+    }
+
+    #[test]
+    fn pedal_calibrator_default_same_as_new() -> TestResult {
+        let from_new = PedalCalibrator::new();
+        let from_default = PedalCalibrator::default();
+        // Both should fail identically (no samples)
+        assert!(from_new.calibrate().is_err());
+        assert!(from_default.calibrate().is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn calibration_point_extreme_values() -> TestResult {
+        let p_min = CalibrationPoint::new(0, 0.0);
+        let p_max = CalibrationPoint::new(u16::MAX, 1.0);
+        assert_eq!(p_min.raw, 0);
+        assert_eq!(p_max.raw, u16::MAX);
+        assert!((p_min.normalized - 0.0).abs() < f32::EPSILON);
+        assert!((p_max.normalized - 1.0).abs() < f32::EPSILON);
+        Ok(())
+    }
+
+    #[test]
+    fn calibration_point_negative_normalized() -> TestResult {
+        // Normalized values outside [0,1] are valid at the point level
+        let p = CalibrationPoint::new(100, -0.5);
+        assert!((p.normalized - (-0.5)).abs() < f32::EPSILON);
+        Ok(())
+    }
+
+    #[test]
+    fn calibration_point_above_one_normalized() -> TestResult {
+        let p = CalibrationPoint::new(100, 1.5);
+        assert!((p.normalized - 1.5).abs() < f32::EPSILON);
+        Ok(())
+    }
+
+    #[test]
+    fn device_calibration_zero_axes() -> TestResult {
+        let device = DeviceCalibration::new("No Axes", 0);
+        assert!(device.axes.is_empty());
+        assert_eq!(device.name, "No Axes");
+        Ok(())
+    }
+
+    #[test]
+    fn device_calibration_large_axis_count() -> TestResult {
+        let device = DeviceCalibration::new("Many Axes", 100);
+        assert_eq!(device.axes.len(), 100);
+        Ok(())
+    }
+
+    #[test]
+    fn device_calibration_empty_name() -> TestResult {
+        let device = DeviceCalibration::new("", 1);
+        assert!(device.name.is_empty());
+        assert_eq!(device.axes.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn axis_apply_at_boundaries() -> TestResult {
+        let calib = AxisCalibration::new(100, 200);
+        // Below min: raw < min causes underflow if not handled, but u16 wraps
+        // At exact min and max with matching deadzones
+        let calib_dz = calib.with_deadzone(0, 100);
+        let at_min = calib_dz.apply(100);
+        let at_max = calib_dz.apply(200);
+        assert!((at_min - 0.0).abs() < 0.01, "at min: {at_min}");
+        assert!((at_max - 1.0).abs() < 0.01, "at max: {at_max}");
+        Ok(())
+    }
+
+    #[test]
+    fn joystick_center_detection_threshold() -> TestResult {
+        let mut cal = JoystickCalibrator::new(0);
+        // Sample at 0.41 — just within the 0.1 threshold of 0.5
+        cal.add_sample(0, 0.0);
+        cal.add_sample(26870, 0.41);
+        cal.add_sample(65535, 1.0);
+        let axis = cal.calibrate()?;
+        assert_eq!(axis.center, Some(26870), "0.41 is within 0.1 of 0.5");
+        Ok(())
+    }
+
+    #[test]
+    fn joystick_center_not_detected_outside_threshold() -> TestResult {
+        let mut cal = JoystickCalibrator::new(0);
+        cal.add_sample(0, 0.0);
+        cal.add_sample(25000, 0.39); // outside 0.1 threshold
+        cal.add_sample(65535, 1.0);
+        let axis = cal.calibrate()?;
+        assert_eq!(axis.center, None, "0.39 is outside 0.1 threshold of 0.5");
+        Ok(())
+    }
+
+    #[test]
+    fn multiple_center_candidates_uses_first() -> TestResult {
+        let mut cal = JoystickCalibrator::new(0);
+        cal.add_sample(0, 0.0);
+        cal.add_sample(30000, 0.45);
+        cal.add_sample(32768, 0.50);
+        cal.add_sample(65535, 1.0);
+        let axis = cal.calibrate()?;
+        // First match within threshold should be used
+        assert!(axis.center.is_some());
+        assert_eq!(axis.center, Some(30000), "first sample near 0.5 wins");
+        Ok(())
+    }
+
+    #[test]
+    fn pedal_one_sample_per_axis() -> TestResult {
+        let axes = create_pedal_calibration(&[32768], &[32768], &[32768])?;
+        for axis in &axes {
+            assert_eq!(axis.min, 32768);
+            assert_eq!(axis.max, 32768);
+            assert!((axis.apply(32768) - 0.5).abs() < 0.001);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn device_calibration_version_preserved() -> TestResult {
+        let device = DeviceCalibration::new("V1", 1);
+        assert_eq!(device.version, 1);
+        let json = serde_json::to_string(&device)?;
+        let restored: DeviceCalibration = serde_json::from_str(&json)?;
+        assert_eq!(restored.version, 1);
+        Ok(())
+    }
+}
