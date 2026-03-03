@@ -5,6 +5,9 @@
 
 #![deny(static_mut_refs)]
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// Number of encoder-like slots in a generic KS snapshot.
 pub const KS_ENCODER_COUNT: usize = 8;
 /// Number of packed button bytes in a normalized KS snapshot.
@@ -12,6 +15,7 @@ pub const KS_BUTTON_BYTES: usize = 16;
 
 /// Supported clutch interpretation modes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum KsClutchMode {
     /// No reliable clutch layout discovered.
     #[default]
@@ -26,6 +30,7 @@ pub enum KsClutchMode {
 
 /// Supported rotary modes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum KsRotaryMode {
     /// No reliable rotary layout discovered.
     #[default]
@@ -38,6 +43,7 @@ pub enum KsRotaryMode {
 
 /// Supported joystick modes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum KsJoystickMode {
     /// No reliable joystick mode discovered.
     #[default]
@@ -50,6 +56,7 @@ pub enum KsJoystickMode {
 
 /// Source of a 16-bit integer payload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct KsAxisSource {
     /// Start byte offset in the report payload.
     pub offset: usize,
@@ -82,6 +89,7 @@ impl KsAxisSource {
 
 /// Source of a single bit in a report byte.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct KsBitSource {
     /// Source byte offset in the report payload.
     pub offset: usize,
@@ -123,6 +131,7 @@ impl KsBitSource {
 
 /// Source of a single report byte.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct KsByteSource {
     /// Source byte offset in the report payload.
     pub offset: usize,
@@ -140,6 +149,7 @@ impl KsByteSource {
 
 /// Mode-driven normalization snapshot for a KS control surface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct KsReportSnapshot {
     /// Frame marker from a sequence counter at parse time.
     pub tick: u32,
@@ -218,6 +228,7 @@ impl KsReportSnapshot {
 
 /// Capture-driven map from raw report bytes to KS semantic channels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct KsReportMap {
     /// Expected report ID, when known.
     pub report_id: Option<u8>,
@@ -712,6 +723,276 @@ mod tests {
         ) {
             let map = KsReportMap::empty();
             prop_assert!(map.parse(tick, &data).is_some());
+        }
+    }
+
+    // ── Keystroke mapping parsing (additional) ───────────────────────────
+
+    #[test]
+    fn ks_report_map_parses_fully_populated_report() -> Result<(), Box<dyn std::error::Error>> {
+        let mut map = KsReportMap::empty();
+        map.report_id = Some(0x01);
+        map.buttons_offset = Some(1);
+        map.hat_offset = Some(17);
+        map.clutch_mode_hint = KsClutchMode::IndependentAxis;
+        map.clutch_left_axis = Some(KsAxisSource::new(18, false));
+        map.clutch_right_axis = Some(KsAxisSource::new(20, false));
+        map.clutch_left_button = Some(KsBitSource::new(22, 0x01));
+        map.clutch_right_button = Some(KsBitSource::new(22, 0x02));
+        map.encoders[0] = Some(KsAxisSource::new(23, true));
+        map.encoders[1] = Some(KsAxisSource::new(25, true));
+        map.joystick_hat = Some(KsByteSource::new(27));
+        map.joystick_mode_hint = KsJoystickMode::DPad;
+        map.rotary_mode_hint = KsRotaryMode::Knob;
+
+        let mut report = vec![0u8; 28];
+        report[0] = 0x01;
+        for i in 1..17 {
+            report[i] = i as u8;
+        }
+        report[17] = 0x05;
+        report[18..20].copy_from_slice(&1000u16.to_le_bytes());
+        report[20..22].copy_from_slice(&2000u16.to_le_bytes());
+        report[22] = 0x03;
+        report[23..25].copy_from_slice(&(-100i16).to_le_bytes());
+        report[25..27].copy_from_slice(&200i16.to_le_bytes());
+        report[27] = 0x07;
+
+        let snapshot = map.parse(42, &report).ok_or("parse should succeed")?;
+        assert_eq!(snapshot.tick, 42);
+        assert_eq!(snapshot.buttons[0], 1);
+        assert_eq!(snapshot.buttons[15], 16);
+        // joystick_hat overrides hat_offset
+        assert_eq!(snapshot.hat, 0x07);
+        assert_eq!(snapshot.clutch_mode, KsClutchMode::IndependentAxis);
+        assert_eq!(snapshot.clutch_left, Some(1000));
+        assert_eq!(snapshot.clutch_right, Some(2000));
+        assert_eq!(snapshot.clutch_left_button, Some(true));
+        assert_eq!(snapshot.clutch_right_button, Some(true));
+        assert_eq!(snapshot.encoders[0], -100);
+        assert_eq!(snapshot.encoders[1], 200);
+        assert_eq!(snapshot.rotary_mode, KsRotaryMode::Knob);
+        assert_eq!(snapshot.joystick_mode, KsJoystickMode::DPad);
+        Ok(())
+    }
+
+    #[test]
+    fn ks_report_map_parses_very_short_report_gracefully() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let mut map = KsReportMap::empty();
+        map.buttons_offset = Some(0);
+        map.hat_offset = Some(100);
+        map.encoders[0] = Some(KsAxisSource::new(100, true));
+
+        let report = [0xAA, 0xBB];
+        let snapshot = map.parse(0, &report).ok_or("should parse short report")?;
+        assert_eq!(snapshot.buttons[0], 0xAA);
+        assert_eq!(snapshot.buttons[1], 0xBB);
+        assert_eq!(snapshot.buttons[2..], [0u8; KS_BUTTON_BYTES - 2]);
+        assert_eq!(snapshot.hat, 0);
+        assert_eq!(snapshot.encoders[0], 0);
+        Ok(())
+    }
+
+    #[test]
+    fn ks_report_map_empty_report_returns_none_when_report_id_required() {
+        let mut map = KsReportMap::empty();
+        map.report_id = Some(0x01);
+        let report: [u8; 0] = [];
+        assert!(map.parse(0, &report).is_none());
+    }
+
+    // ── Encoder configuration (additional) ───────────────────────────────
+
+    #[test]
+    fn ks_report_map_all_encoder_slots_populated() -> Result<(), Box<dyn std::error::Error>> {
+        let mut map = KsReportMap::empty();
+        for i in 0..KS_ENCODER_COUNT {
+            map.encoders[i] = Some(KsAxisSource::new(i * 2, true));
+        }
+
+        let mut data = vec![0u8; KS_ENCODER_COUNT * 2];
+        for i in 0..KS_ENCODER_COUNT {
+            let val = (i as i16 + 1) * 100;
+            data[i * 2..i * 2 + 2].copy_from_slice(&val.to_le_bytes());
+        }
+
+        let snapshot = map.parse(0, &data).ok_or("should parse all encoders")?;
+        for i in 0..KS_ENCODER_COUNT {
+            assert_eq!(snapshot.encoders[i], (i as i16 + 1) * 100);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn ks_report_map_encoder_with_unsigned_source() -> Result<(), Box<dyn std::error::Error>> {
+        let mut map = KsReportMap::empty();
+        map.encoders[0] = Some(KsAxisSource::new(0, false));
+
+        let data = 0xFFFFu16.to_le_bytes();
+        let snapshot = map.parse(0, &data).ok_or("should parse unsigned encoder")?;
+        // 0xFFFF as i16 = -1
+        assert_eq!(snapshot.encoders[0], -1);
+        Ok(())
+    }
+
+    // ── Rotary binding compilation (additional) ──────────────────────────
+
+    #[test]
+    fn ks_report_map_rotary_axes_override_encoder_slots() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let mut map = KsReportMap::empty();
+        map.encoders[0] = Some(KsAxisSource::new(0, true));
+        map.encoders[1] = Some(KsAxisSource::new(2, true));
+        map.left_rotary_axis = Some(KsAxisSource::new(4, true));
+        map.right_rotary_axis = Some(KsAxisSource::new(6, true));
+
+        let mut data = [0u8; 8];
+        data[0..2].copy_from_slice(&10i16.to_le_bytes());
+        data[2..4].copy_from_slice(&20i16.to_le_bytes());
+        data[4..6].copy_from_slice(&30i16.to_le_bytes());
+        data[6..8].copy_from_slice(&40i16.to_le_bytes());
+
+        let snapshot = map.parse(0, &data).ok_or("should parse rotary override")?;
+        // Rotary axes overwrite encoder slots 0 and 1
+        assert_eq!(snapshot.encoders[0], 30);
+        assert_eq!(snapshot.encoders[1], 40);
+        Ok(())
+    }
+
+    #[test]
+    fn ks_report_map_single_rotary_leaves_other_slot() -> Result<(), Box<dyn std::error::Error>> {
+        let mut map = KsReportMap::empty();
+        map.left_rotary_axis = Some(KsAxisSource::new(0, true));
+
+        let mut data = [0u8; 4];
+        data[0..2].copy_from_slice(&42i16.to_le_bytes());
+
+        let snapshot = map.parse(0, &data).ok_or("should parse single rotary")?;
+        assert_eq!(snapshot.encoders[0], 42);
+        assert_eq!(snapshot.encoders[1], 0);
+        Ok(())
+    }
+
+    // ── Serde round-trips ────────────────────────────────────────────────
+
+    #[cfg(feature = "serde")]
+    mod serde_tests {
+        use super::*;
+
+        #[test]
+        fn ks_clutch_mode_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+            for mode in [
+                KsClutchMode::Unknown,
+                KsClutchMode::CombinedAxis,
+                KsClutchMode::IndependentAxis,
+                KsClutchMode::Button,
+            ] {
+                let json = serde_json::to_string(&mode)?;
+                let deserialized: KsClutchMode = serde_json::from_str(&json)?;
+                assert_eq!(mode, deserialized);
+            }
+            Ok(())
+        }
+
+        #[test]
+        fn ks_rotary_mode_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+            for mode in [
+                KsRotaryMode::Unknown,
+                KsRotaryMode::Button,
+                KsRotaryMode::Knob,
+            ] {
+                let json = serde_json::to_string(&mode)?;
+                let deserialized: KsRotaryMode = serde_json::from_str(&json)?;
+                assert_eq!(mode, deserialized);
+            }
+            Ok(())
+        }
+
+        #[test]
+        fn ks_joystick_mode_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+            for mode in [
+                KsJoystickMode::Unknown,
+                KsJoystickMode::Button,
+                KsJoystickMode::DPad,
+            ] {
+                let json = serde_json::to_string(&mode)?;
+                let deserialized: KsJoystickMode = serde_json::from_str(&json)?;
+                assert_eq!(mode, deserialized);
+            }
+            Ok(())
+        }
+
+        #[test]
+        fn ks_axis_source_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+            let src = KsAxisSource::new(42, true);
+            let json = serde_json::to_string(&src)?;
+            let deserialized: KsAxisSource = serde_json::from_str(&json)?;
+            assert_eq!(src, deserialized);
+            Ok(())
+        }
+
+        #[test]
+        fn ks_bit_source_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+            let sources = [KsBitSource::new(3, 0x10), KsBitSource::inverted(7, 0x80)];
+            for src in sources {
+                let json = serde_json::to_string(&src)?;
+                let deserialized: KsBitSource = serde_json::from_str(&json)?;
+                assert_eq!(src, deserialized);
+            }
+            Ok(())
+        }
+
+        #[test]
+        fn ks_byte_source_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+            let src = KsByteSource::new(15);
+            let json = serde_json::to_string(&src)?;
+            let deserialized: KsByteSource = serde_json::from_str(&json)?;
+            assert_eq!(src, deserialized);
+            Ok(())
+        }
+
+        #[test]
+        fn ks_report_map_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+            let mut map = KsReportMap::empty();
+            map.report_id = Some(0x01);
+            map.buttons_offset = Some(2);
+            map.hat_offset = Some(18);
+            map.clutch_mode_hint = KsClutchMode::CombinedAxis;
+            map.clutch_combined_axis = Some(KsAxisSource::new(19, false));
+            map.encoders[0] = Some(KsAxisSource::new(21, true));
+            map.left_rotary_axis = Some(KsAxisSource::new(21, true));
+            map.rotary_mode_hint = KsRotaryMode::Knob;
+            map.joystick_mode_hint = KsJoystickMode::DPad;
+            map.joystick_hat = Some(KsByteSource::new(23));
+
+            let json = serde_json::to_string(&map)?;
+            let deserialized: KsReportMap = serde_json::from_str(&json)?;
+            assert_eq!(map, deserialized);
+            Ok(())
+        }
+
+        #[test]
+        fn ks_report_snapshot_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+            let snapshot = KsReportSnapshot {
+                tick: 1234,
+                buttons: [0xAA; KS_BUTTON_BYTES],
+                hat: 0x05,
+                encoders: [10, -20, 30, -40, 50, -60, 70, -80],
+                clutch_combined: Some(5000),
+                clutch_left: Some(3000),
+                clutch_right: Some(4000),
+                clutch_left_button: Some(true),
+                clutch_right_button: Some(false),
+                clutch_mode: KsClutchMode::IndependentAxis,
+                rotary_mode: KsRotaryMode::Button,
+                joystick_mode: KsJoystickMode::DPad,
+            };
+
+            let json = serde_json::to_string(&snapshot)?;
+            let deserialized: KsReportSnapshot = serde_json::from_str(&json)?;
+            assert_eq!(snapshot, deserialized);
+            Ok(())
         }
     }
 }
