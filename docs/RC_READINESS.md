@@ -17,15 +17,16 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **10,399** |
-| **Test binaries** | **406** |
-| Unit tests | 6,600+ |
-| Snapshot tests | 900+ |
-| Property tests (proptest) | 820+ |
+| **Total tests** | **12,754** |
+| **Test files** | **381** |
+| Unit tests | 8,000+ |
+| Snapshot tests | 924 |
+| Property tests (proptest) | 1,200+ |
 | End-to-end (E2E) tests | 500+ |
 | BDD / acceptance tests | 27 |
 | Fuzz targets | 95 |
 | Integration test files | 39 |
+| Crate coverage | 78/82 |
 
 ## Test Types Present
 
