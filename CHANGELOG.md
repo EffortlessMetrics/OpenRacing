@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **21,043+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **21,374+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **22,326+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
+- **23,043+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress) — 0 failures, 44 ignored
 - **22,915+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **96 fuzz targets** covering all HID protocols and game telemetry adapters (AMS2 target added)
 - **100+ fuzz targets** covering all HID protocols, game telemetry adapters, and new wave 24 targets
@@ -29,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **113 fuzz targets** covering all HID protocols, game telemetry adapters, and wave 46 targets (replay, diagnostics, calibration, FFB, crypto, CLI)
 - **977 snapshot files** across 38 snapshot directories
 - **1,141 snapshot files** across 44 snapshot directories
+- **1,400+ snapshot files** across 52+ snapshot directories (expanded to 11+ crates)
 - **1,327 snapshot files** across 52 snapshot directories (expanded to 11 crates)
 - **Fanatec GT DD Pro/ClubSport DD PID findings**: GT DD Pro and ClubSport DD confirmed to share PID `0x0020` with CSL DD in PC mode
 - **OpenFFBoard PID 0xFFB1 confirmed SPECULATIVE**: zero evidence across 5 independent sources (pid.codes, firmware, configurator, GitHub, linux-steering-wheels)
@@ -183,6 +185,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Filter/pipeline deep tests (101 tests): frequency response, proptest coverage, filter chain orchestration
   - Input maps + button box tests (83 tests): binding compilation, button matrix, rotary encoders, LED mappings
   - Telemetry recorder/core tests (73 tests): session recording, playback, core telemetry pipeline validation
+- **Wave 49 — E2E integration, snapshot expansion, soak + stress hardening** (22,915 → 23,043+ tests):
+  - E2E integration tests (53 tests): complete user workflow coverage — device connect → game detect → telemetry → FFB → profile switch → disconnect
+  - Snapshot expansion (40 tests): new snapshots across protocol, telemetry, and pipeline crates (1,400+ total snapshot files)
+  - Soak + stress tests (35 tests): long-running stability verification — sustained 1kHz operation, memory leak detection, fault recovery under load
 - **Wave 48 — profile management, scheduler timing, HID capture + vendor, WASM runtime, firmware update** (22,606 → 22,915+ tests):
   - Profile management tests (57 tests): CRUD operations, validation rules, inheritance chains
   - Scheduler timing tests (69 tests): deadline accuracy, priority scheduling, timing edge cases

@@ -2,7 +2,7 @@
 
 **Branch:** `feat/wave15-rc-hardening`
 **Generated:** 2026-03-04
-**Commit:** HEAD (wave 48 complete)
+**Commit:** HEAD (wave 49 complete)
 
 ## Build & CI Status
 
@@ -20,10 +20,10 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **22,915+** |
+| **Total tests** | **23,043+** |
 | **Test files** | **662** |
 | Unit tests | 15,800+ |
-| Snapshot tests | 1,327 |
+| Snapshot tests | 1,400+ |
 | Property tests (proptest) | 2,500+ |
 | End-to-end (E2E) tests | 1,000+ |
 | Golden-packet tests | 72+ |
@@ -34,7 +34,7 @@
 | Protocol verification tests | 400+ |
 | Concurrency stress tests | 23 |
 | Performance validation | 12 |
-| Fuzz targets | 113 |
+| Fuzz targets | 113+ |
 | Integration test files | 48+ |
 | Crate coverage | 79/82 |
 
@@ -43,9 +43,9 @@
 | Type | Files | Notes |
 |------|------:|-------|
 | Proptest files | 360+ | Property-based testing across all 17 protocol & engine crates |
-| Snapshot test files | 1,327 | `insta` snapshots for protocol encoding & telemetry (52 directories) |
+| Snapshot test files | 1,400+ | `insta` snapshots for protocol encoding & telemetry (52+ directories) |
 | Integration test files | 48+ | `crates/integration-tests/tests/*.rs` |
-| Fuzz targets | 113 | `fuzz/fuzz_targets/` — covers all protocols, telemetry parsers, replay, diagnostics, crypto, CLI |
+| Fuzz targets | 113+ | `fuzz/fuzz_targets/` — covers all protocols, telemetry parsers, replay, diagnostics, crypto, CLI |
 | Compile-fail (trybuild) | 20 | Type-safety and API misuse prevention via `trybuild` |
 | Golden-packet tests | 72+ | End-to-end adapter validation against known-good captures |
 | Safety soak tests | 5+ | 10K+ tick sustained operation under fault injection |
@@ -101,7 +101,7 @@
   multiple schema versions (v2–v9).
 - **61 game telemetry adapters** with full test coverage — game support matrix verified (wave 43).
 - **CLI, schemas, plugins, and engine** all have dedicated test suites.
-- **Fuzz testing** covers 104 targets spanning all protocol parsers and telemetry decoders.
+- **Fuzz testing** covers 113+ targets spanning all protocol parsers and telemetry decoders.
 - **Safety-critical paths** (FMEA, watchdog, hardware watchdog) have dedicated test suites
   including fault-injection and property tests, with watchdog/FMEA deep tests added in wave 25.
 - **RC-specific integration tests** exist (`rc_integration_tests.rs`, 48 tests).
@@ -129,7 +129,7 @@
 - **Service diagnostics deep tests**: 40 tests covering diagnostic types, health scoring, export, error rate tracking, device/telemetry/safety/performance diagnostics (wave 35).
 - **Comprehensive profile system tests**: 64 tests covering creation, inheritance, validation, import/export, migration, merge, templates, versioning, conflict resolution (wave 35).
 - **Tracing, curves, calibration deep tests**: 86 tests — tracing spans/events/async/rate-limiting with snapshots (21), curves interpolation/bezier/fitting/monotonicity (45), calibration workflows/recalibration/migration (24) (wave 35).
-- **Snapshot tests expanded to 11 crates**: 1,327 snapshot files across 52 directories (up from 1,141 across 44).
+- **Snapshot tests expanded to 11+ crates**: 1,400+ snapshot files across 52+ directories (up from 1,327 across 52).
 - **Core infrastructure deep tests**: HID common (72), scheduler (79), atomic (100) — comprehensive coverage of RT core subsystems (wave 36).
 - **Input system deep tests**: input maps (67) + KS representation (83) — binding compilation, report layout stability (wave 36).
 - **SimpleMotion V2 protocol verification**: 79 tests covering command encoding, CRC polynomial, status/fault registers, USB VID/PID (wave 36).
@@ -184,6 +184,9 @@
 - **HID capture + vendor tests**: 77 tests covering capture session management, vendor-specific protocol handling (wave 48).
 - **WASM runtime tests**: 58 tests covering budget enforcement, sandbox isolation, host function interface (wave 48).
 - **Firmware update tests**: 48 tests covering full state machine + rollback scenarios + update validation (wave 48).
+- **E2E integration tests**: 53 tests covering complete user workflows — device connect → game detect → telemetry → FFB → profile switch → disconnect (wave 49).
+- **Snapshot expansion**: 40 new snapshot tests bringing total to 1,400+ snapshot files across protocol, telemetry, and pipeline crates (wave 49).
+- **Soak + stress tests**: 35 long-running stability tests — sustained 1kHz operation, memory leak detection, fault recovery under load (wave 49).
 
 ## PID Verification Status
 
