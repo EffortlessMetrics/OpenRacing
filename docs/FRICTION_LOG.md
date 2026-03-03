@@ -892,8 +892,10 @@ Running `cargo test --workspace --all-features --exclude racing-wheel-ui` shows 
 - **Cube Controls PIDs (F-073):** Elevated to standalone friction entry — zero external evidence across 8 sources; OpenFlight uses different estimates.
 - **VRS DFP V2 PID 0xA356:** Remains unverified; DFP uses `0xA355` (kernel mainline), Pedals use `0xA3BE`.
 - **All 17 vendor protocol crates** now wired into engine dispatch (PXN added).
-- **Test count:** 8,344+ and growing.
-- **Fuzz targets:** ~85+ covering all protocol parsers and telemetry decoders.
+- **Test count:** 10,399 and growing.
+- **Fuzz targets:** 95 covering all protocol parsers and telemetry decoders.
+- **Snapshot files:** 939 across 37 directories.
+- **Integration test files:** 39.
 - **Shell instability (F-025):** Continues — Windows PowerShell sessions in agent environment still unreliable.
 
 ### Waves 31-32 — PXN Protocol & GT7 Extended Packets (2025-07)
@@ -1003,7 +1005,7 @@ Web-sourced verification of 5 game telemetry adapter protocols against authorita
 - **Snapshot Encoding Tests**: Added for FFBeast (12 tests) and Leo Bodnar (8 tests) — all protocol crates now have snapshot coverage.
 - **Protocol Verification**: All VID/PIDs re-verified against web sources (kernel hid-ids.h, linux-steering-wheels, pid.codes, devicehunt). No corrections needed beyond Heusinkveld.
 - **CI Fixes**: cargo-udeps false positives resolved for 8 crates; deprecated field detection false positive fixed (TelemetryFrame seq field ≠ removed TelemetryData seq field).
-- **Test Count**: 9,939 tests passing, 0 failures, 45 ignored across 82 workspace crates (406 test binaries).
+- **Test Count**: 10,399 tests passing, 0 failures, 45 ignored across 82 workspace crates (406 test binaries).
 - **Lesser-documented device web verification (2025-07):**
   - AccuForce: VID 0x1FC9 / PID 0x804C confirmed (Platinum, hid-pidff). pid.codes 0x1209/0x0001 is test-only PID.
   - VRS DFP: PID 0xA355 confirmed (Platinum, hid-universal-pidff). DFP V2 PID 0xA356 still unverified in kernel/community (F-057).

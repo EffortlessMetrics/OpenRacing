@@ -17,24 +17,24 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **9,939** |
+| **Total tests** | **10,399** |
 | **Test binaries** | **406** |
-| Unit tests | 6,200+ |
-| Snapshot tests | 850+ |
-| Property tests (proptest) | 780+ |
-| End-to-end (E2E) tests | 460+ |
+| Unit tests | 6,600+ |
+| Snapshot tests | 900+ |
+| Property tests (proptest) | 820+ |
+| End-to-end (E2E) tests | 500+ |
 | BDD / acceptance tests | 27 |
-| Fuzz targets | 84 |
-| Integration test files | 34 |
+| Fuzz targets | 95 |
+| Integration test files | 39 |
 
 ## Test Types Present
 
 | Type | Files | Notes |
 |------|------:|-------|
 | Proptest files | 100+ | Property-based testing across all 17 protocol & engine crates |
-| Snapshot test files | 936 | `insta` snapshots for protocol encoding & telemetry (37 directories) |
-| Integration test files | 38 | `crates/integration-tests/tests/*.rs` |
-| Fuzz targets | 84 | `fuzz/fuzz_targets/` — covers all protocols & telemetry parsers |
+| Snapshot test files | 939 | `insta` snapshots for protocol encoding & telemetry (37 directories) |
+| Integration test files | 39 | `crates/integration-tests/tests/*.rs` |
+| Fuzz targets | 95 | `fuzz/fuzz_targets/` — covers all protocols & telemetry parsers |
 | Benchmark suites | 1 | `benches/` — RT timing benchmarks |
 
 ## Coverage by Crate Category
@@ -63,11 +63,11 @@
 - **GT7 extended packet support**: 316/344-byte PacketType2 and PacketType3 implemented,
   adding wheel rotation, sway/heave/surge, energy recovery, and filtered throttle/brake.
 - **Comprehensive proptest coverage**: all 17 protocol crates have property-based testing
-  with 780+ proptest cases exercising encoding round-trips, ID mappings, and safety invariants.
+  with 820+ proptest cases exercising encoding round-trips, ID mappings, and safety invariants.
 - **56 telemetry adapter modules** with snapshot regression tests across
   multiple schema versions (v2–v9).
 - **CLI, schemas, plugins, and engine** all have dedicated test suites.
-- **Fuzz testing** covers 84 targets spanning all protocol parsers and telemetry decoders.
+- **Fuzz testing** covers 95 targets spanning all protocol parsers and telemetry decoders.
 - **Safety-critical paths** (FMEA, watchdog, hardware watchdog) have dedicated test suites
   including fault-injection and property tests.
 - **RC-specific integration tests** exist (`rc_integration_tests.rs`, 48 tests).
