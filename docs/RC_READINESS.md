@@ -2,7 +2,7 @@
 
 **Branch:** `feat/wave15-rc-hardening`
 **Generated:** 2025-07-24
-**Commit:** HEAD (wave 33 complete)
+**Commit:** HEAD (wave 35 complete)
 
 ## Build & CI Status
 
@@ -17,11 +17,11 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **16,742+** |
-| **Test files** | **547** |
-| Unit tests | 11,400+ |
-| Snapshot tests | 1,141 |
-| Property tests (proptest) | 1,900+ |
+| **Total tests** | **17,696+** |
+| **Test files** | **556** |
+| Unit tests | 12,200+ |
+| Snapshot tests | 1,327 |
+| Property tests (proptest) | 2,000+ |
 | End-to-end (E2E) tests | 900+ |
 | Golden-packet tests | 72+ |
 | Safety soak tests | 10K+ tick suites |
@@ -29,6 +29,8 @@
 | Doc-tests | 432+ |
 | BDD / acceptance tests | 60+ |
 | Protocol verification tests | 400+ |
+| Concurrency stress tests | 23 |
+| Performance validation | 12 |
 | Fuzz targets | 104 |
 | Integration test files | 48+ |
 | Crate coverage | 79/82 |
@@ -38,7 +40,7 @@
 | Type | Files | Notes |
 |------|------:|-------|
 | Proptest files | 348+ | Property-based testing across all 17 protocol & engine crates |
-| Snapshot test files | 1,141 | `insta` snapshots for protocol encoding & telemetry (44 directories) |
+| Snapshot test files | 1,327 | `insta` snapshots for protocol encoding & telemetry (52 directories) |
 | Integration test files | 48+ | `crates/integration-tests/tests/*.rs` |
 | Fuzz targets | 104 | `fuzz/fuzz_targets/` — covers all protocols & telemetry parsers |
 | Compile-fail (trybuild) | 20 | Type-safety and API misuse prevention via `trybuild` |
@@ -46,22 +48,29 @@
 | Safety soak tests | 5+ | 10K+ tick sustained operation under fault injection |
 | Schema evolution tests | 10+ | Forward/backward compatibility across schema versions |
 | Doc-tests | 432+ | `cargo test --doc` examples in public API docs |
+| Concurrency stress tests | 23 | Multi-threaded scenarios with barrier sync (wave 34) |
+| Performance validation | 12 | RT timing checks — pipeline throughput at 1kHz (wave 34) |
 | Benchmark suites | 1 | `benches/` — RT timing benchmarks |
 
 ## Coverage by Crate Category
 
 | Category | Tests | Key crates |
 |----------|------:|------------|
-| Telemetry | 2,200+ | `telemetry-adapters`, `telemetry-core`, `telemetry-config`, `telemetry-orchestrator`, `telemetry-config-writers`, `telemetry-streams` — all adapters have deep tests |
+| Telemetry | 2,500+ | `telemetry-adapters`, `telemetry-core`, `telemetry-config`, `telemetry-orchestrator`, `telemetry-config-writers`, `telemetry-streams` — all adapters have deep tests + extended verification for 9 adapters (wave 34) |
 | Engine | 1,400+ | `engine` (RT pipeline, filters, HID, safety, device/game tests, FFB, calibration, pipeline deep) |
 | Protocols | 3,400+ | `hid-*-protocol`, `simplemotion-v2`, `hbp`, `moza-wheelbase-report` — all 17 HID protocol crates with deep tests |
 | Plugins | 600+ | `plugins`, `openracing-wasm-runtime`, `openracing-native-plugin`, `openracing-plugin-abi` |
-| Service | 500+ | `service` (daemon, IPC, crypto, firmware updates, lifecycle tests) |
+| Service | 540+ | `service` (daemon, IPC, crypto, firmware updates, lifecycle tests, diagnostics deep — wave 35) |
 | Schemas | 400+ | `schemas` (JSON schema validation, migration, profile inheritance, evolution) |
-| Integration tests | 400+ | `integration-tests` (E2E device pipelines, RC validation, golden packets, full-stack E2E) |
+| Integration tests | 435+ | `integration-tests` (E2E device pipelines, RC validation, golden packets, full-stack E2E, concurrency stress, performance validation) |
 | Safety | 400+ | `openracing-fmea`, `openracing-watchdog`, `openracing-hardware-watchdog`, soak tests (10K+ ticks) |
+| Profile | 236+ | `openracing-profile`, `openracing-profile-repository` — inheritance, validation, comprehensive system tests (wave 35) |
 | Filters | 250+ | `openracing-filters` (snapshot + property tests, SM-V2 deep) |
-| Other / utilities | 4,800+ | Curves, crypto, calibration, errors, scheduler, IPC, tracing, CLI, config, firmware, atomic, doc-tests, streams, support, core, peripherals, BDD, etc. |
+| Capture | 83+ | `hid-capture` — device capture tooling, fingerprinting, classification (wave 34) |
+| Curves | 169+ | `openracing-curves` — LUT fidelity, interpolation, bezier, fitting, property tests (wave 35) |
+| Calibration | 114+ | `openracing-calibration` — workflows, recalibration, validation, migration (wave 35) |
+| Tracing | 120+ | `openracing-tracing` — drop rate, emission verification, spans, formats, snapshots (wave 35) |
+| Other / utilities | 4,800+ | Crypto, errors, scheduler, IPC, CLI, config, firmware, atomic, doc-tests, streams, support, core, peripherals, BDD, compat, etc. |
 
 ## Strengths
 
@@ -106,6 +115,14 @@
 - **Telemetry adapter constants cross-verified**: 76 tests validating adapter constants against official game APIs (wave 32).
 - **FFB pipeline end-to-end tests**: 41 tests covering complete force feedback pipeline (wave 33).
 - **Compat and config deep tests**: 133 migration + validation tests (wave 33).
+- **Concurrency stress tests**: 23 multi-threaded scenarios with 8+ threads, 1000+ iterations, barrier sync — covering device state, telemetry, profiles, safety, IPC, atomics, channels, filter chains, watchdog, memory ordering (wave 34).
+- **Performance validation tests**: 12 RT timing checks — filter processing, pipeline latency, telemetry normalization, safety evaluation, 1kHz sustained throughput, memory allocation tracking (wave 34).
+- **Device capture tooling tests**: 83 tests covering HID descriptor parsing, USB enumeration, VID/PID lookup, device fingerprinting, capture sessions, classification heuristics (wave 34).
+- **Extended telemetry adapter verification**: 110 tests across 9 adapters (PCars2, AMS2, RaceRoom, RBR, rFactor2, LFS, Automobilista, KartKraft, MudRunner/EA WRC) — all verified against authoritative SDK sources (wave 34).
+- **Service diagnostics deep tests**: 40 tests covering diagnostic types, health scoring, export, error rate tracking, device/telemetry/safety/performance diagnostics (wave 35).
+- **Comprehensive profile system tests**: 64 tests covering creation, inheritance, validation, import/export, migration, merge, templates, versioning, conflict resolution (wave 35).
+- **Tracing, curves, calibration deep tests**: 86 tests — tracing spans/events/async/rate-limiting with snapshots (21), curves interpolation/bezier/fitting/monotonicity (45), calibration workflows/recalibration/migration (24) (wave 35).
+- **Snapshot tests expanded to 11 crates**: 1,327 snapshot files across 52 directories (up from 1,141 across 44).
 
 ## PID Verification Status
 
