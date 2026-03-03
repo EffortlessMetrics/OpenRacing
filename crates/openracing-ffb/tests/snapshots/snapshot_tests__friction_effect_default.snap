@@ -1,0 +1,14 @@
+---
+source: crates/openracing-ffb/tests/snapshot_tests.rs
+expression: "FrictionEffect::default()"
+---
+{
+  "params": {
+    "effect_type": "None",
+    "duration_ms": 0,
+    "gain": 0,
+    "direction": 0
+  },
+  "coefficient": 0,
+  "offset": 0
+}

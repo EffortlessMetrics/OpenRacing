@@ -1,0 +1,41 @@
+---
+source: crates/openracing-profile/tests/snapshot_tests.rs
+expression: profile
+---
+{
+  "id": "[uuid]",
+  "name": "Default Profile",
+  "device_id": "sim-wheel-001",
+  "version": 1,
+  "schema_version": 1,
+  "settings": {
+    "ffb": {
+      "overall_gain": 1.0,
+      "torque_limit": 25.0,
+      "spring_strength": 0.0,
+      "damper_strength": 0.0,
+      "friction_strength": 0.0,
+      "effects_enabled": true
+    },
+    "input": {
+      "steering_range": 900,
+      "steering_deadzone": 0,
+      "throttle_curve": "Linear",
+      "brake_curve": "Linear",
+      "clutch_curve": "Linear"
+    },
+    "limits": {
+      "max_speed": null,
+      "max_temp": 80,
+      "emergency_stop": true
+    },
+    "advanced": {
+      "filter_enabled": false,
+      "filter_strength": 0.5,
+      "led_mode": "Default",
+      "telemetry_enabled": true
+    }
+  },
+  "created_at": "[timestamp]",
+  "modified_at": "[timestamp]"
+}

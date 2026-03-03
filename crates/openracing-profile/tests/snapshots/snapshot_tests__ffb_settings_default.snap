@@ -1,0 +1,12 @@
+---
+source: crates/openracing-profile/tests/snapshot_tests.rs
+expression: "FfbSettings::default()"
+---
+{
+  "overall_gain": 1.0,
+  "torque_limit": 25.0,
+  "spring_strength": 0.0,
+  "damper_strength": 0.0,
+  "friction_strength": 0.0,
+  "effects_enabled": true
+}

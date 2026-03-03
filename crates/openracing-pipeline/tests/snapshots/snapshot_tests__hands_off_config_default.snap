@@ -1,0 +1,9 @@
+---
+source: crates/openracing-pipeline/tests/snapshot_tests.rs
+expression: "HandsOffConfig::default()"
+---
+{
+  "enabled": true,
+  "threshold": 0.05,
+  "timeout_seconds": 5.0
+}

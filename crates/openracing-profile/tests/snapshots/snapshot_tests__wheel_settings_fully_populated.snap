@@ -1,0 +1,32 @@
+---
+source: crates/openracing-profile/tests/snapshot_tests.rs
+expression: settings
+---
+{
+  "ffb": {
+    "overall_gain": 0.85,
+    "torque_limit": 15.0,
+    "spring_strength": 0.4,
+    "damper_strength": 0.6,
+    "friction_strength": 0.2,
+    "effects_enabled": true
+  },
+  "input": {
+    "steering_range": 1080,
+    "steering_deadzone": 5,
+    "throttle_curve": "Exponential",
+    "brake_curve": "Logarithmic",
+    "clutch_curve": "Custom"
+  },
+  "limits": {
+    "max_speed": 120.0,
+    "max_temp": 70,
+    "emergency_stop": true
+  },
+  "advanced": {
+    "filter_enabled": true,
+    "filter_strength": 0.75,
+    "led_mode": "Rpm",
+    "telemetry_enabled": true
+  }
+}

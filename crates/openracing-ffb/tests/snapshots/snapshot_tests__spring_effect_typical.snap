@@ -1,0 +1,15 @@
+---
+source: crates/openracing-ffb/tests/snapshot_tests.rs
+expression: effect
+---
+{
+  "params": {
+    "effect_type": "Spring",
+    "duration_ms": 0,
+    "gain": 255,
+    "direction": 0
+  },
+  "coefficient": 800,
+  "offset": 0,
+  "deadband": 0
+}

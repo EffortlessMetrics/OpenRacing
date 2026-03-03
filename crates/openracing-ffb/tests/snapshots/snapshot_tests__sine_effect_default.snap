@@ -1,0 +1,14 @@
+---
+source: crates/openracing-ffb/tests/snapshot_tests.rs
+expression: "SineEffect::default()"
+---
+{
+  "params": {
+    "effect_type": "None",
+    "duration_ms": 0,
+    "gain": 0,
+    "direction": 0
+  },
+  "frequency_hz": 0.0,
+  "phase": 0.0
+}

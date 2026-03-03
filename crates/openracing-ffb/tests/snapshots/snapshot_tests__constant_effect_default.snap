@@ -1,0 +1,13 @@
+---
+source: crates/openracing-ffb/tests/snapshot_tests.rs
+expression: "ConstantEffect::default()"
+---
+{
+  "params": {
+    "effect_type": "None",
+    "duration_ms": 0,
+    "gain": 0,
+    "direction": 0
+  },
+  "magnitude": 0
+}

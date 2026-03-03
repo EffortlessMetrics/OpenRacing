@@ -1,0 +1,35 @@
+---
+source: crates/openracing-pipeline/tests/snapshot_tests.rs
+expression: "FilterConfig::default()"
+---
+{
+  "reconstruction": 0,
+  "friction": 0.0,
+  "damper": 0.0,
+  "inertia": 0.0,
+  "notch_filters": [],
+  "slew_rate": 1.0,
+  "curve_points": [
+    {
+      "input": 0.0,
+      "output": 0.0
+    },
+    {
+      "input": 1.0,
+      "output": 1.0
+    }
+  ],
+  "torque_cap": 1.0,
+  "bumpstop": {
+    "enabled": true,
+    "start_angle": 450.0,
+    "max_angle": 540.0,
+    "stiffness": 0.8,
+    "damping": 0.3
+  },
+  "hands_off": {
+    "enabled": true,
+    "threshold": 0.05,
+    "timeout_seconds": 5.0
+  }
+}

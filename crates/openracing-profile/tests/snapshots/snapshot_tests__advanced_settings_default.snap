@@ -1,0 +1,10 @@
+---
+source: crates/openracing-profile/tests/snapshot_tests.rs
+expression: "AdvancedSettings::default()"
+---
+{
+  "filter_enabled": false,
+  "filter_strength": 0.5,
+  "led_mode": "Default",
+  "telemetry_enabled": true
+}

@@ -1,0 +1,10 @@
+---
+source: crates/openracing-ffb/tests/snapshot_tests.rs
+expression: params
+---
+{
+  "effect_type": "Sine",
+  "duration_ms": 1500,
+  "gain": 200,
+  "direction": 180
+}
