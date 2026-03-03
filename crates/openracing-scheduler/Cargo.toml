@@ -47,3 +47,7 @@ path = "tests/integration.rs"
 [[test]]
 name = "property_tests"
 path = "tests/property_tests.rs"
+
+[[test]]
+name = "proptest_edge_cases"
+path = "tests/proptest_edge_cases.rs"
