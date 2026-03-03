@@ -1,0 +1,43 @@
+---
+source: crates/compat/tests/migration_tests.rs
+expression: report
+---
+{
+  "mappings": [
+    {
+      "compat_value": 72,
+      "conversion": "direct",
+      "native_value": 72,
+      "new_field": "temperature_c",
+      "old_api": "temp_c()"
+    },
+    {
+      "compat_value": 171,
+      "conversion": "direct",
+      "native_value": 171,
+      "new_field": "fault_flags",
+      "old_api": "faults()"
+    },
+    {
+      "compat_value": 45000,
+      "conversion": "multiply_1000",
+      "native_value": 45000,
+      "new_field": "wheel_angle_deg",
+      "old_api": "wheel_angle_mdeg()"
+    },
+    {
+      "compat_value": 3000,
+      "conversion": "multiply_1000",
+      "native_value": 3000,
+      "new_field": "wheel_speed_rad_s",
+      "old_api": "wheel_speed_mrad_s()"
+    },
+    {
+      "compat_value": 0,
+      "conversion": "always_zero",
+      "native_value": 0,
+      "new_field": "(removed)",
+      "old_api": "sequence()"
+    }
+  ]
+}

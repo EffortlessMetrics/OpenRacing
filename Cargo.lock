@@ -876,8 +876,11 @@ dependencies = [
 name = "compat"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "proptest",
  "racing-wheel-engine",
+ "racing-wheel-schemas",
+ "serde_json",
  "workspace-hack",
 ]
 
