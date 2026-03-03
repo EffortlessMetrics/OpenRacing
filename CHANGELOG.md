@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **All 17 vendor protocol crates wired into engine dispatch** — Thrustmaster, Logitech, Fanatec, Simucube (1 & 2), Simagic, Moza, Asetek, VRS, Heusinkveld, AccuForce, OpenFFBoard, FFBeast, Leo Bodnar, Cube Controls, Cammus, and PXN; comprehensive proptest/snapshot coverage; kernel-verified wire-format encoding for T300RS, T150/TMX, DFP range, Fanatec range/sign-fix, and Logitech mode-switch
 - **13,075 tests** across the workspace (unit, integration, proptest, snapshot, E2E) — 0 failures, 52 ignored
 - **14,017+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests) — 0 failures
+- **15,444+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild) — 0 failures
 - **96 fuzz targets** covering all HID protocols and game telemetry adapters (AMS2 target added)
 - **100+ fuzz targets** covering all HID protocols, game telemetry adapters, and new wave 24 targets
 - **977 snapshot files** across 38 snapshot directories
@@ -54,6 +55,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Scheduler deep tests (priority inversion, deadline miss handling, RT timing edge cases)
   - Doc-tests: public API examples verified via `cargo test --doc`
   - 4 new fuzz targets (100+ total)
+- **Wave 25 — telemetry adapter deep, watchdog/FMEA deep, full-stack E2E** (14,017 → ~14,500+ tests):
+  - Telemetry adapter deep tests: AMS2, SimHub, KartKraft, MudRunner, Rennsport
+  - Watchdog and FMEA deep tests (fault injection, timeout scenarios, recovery paths)
+  - Protocol snapshot tests expanded across all protocol crates
+  - Full-stack E2E integration tests (device connect → telemetry → FFB output)
+  - Performance gate validation tests (CI-enforced RT timing budgets)
+- **Wave 26 — remaining adapters, protocol deep, peripherals, FFB/calibration** (~14,500 → ~15,000+ tests):
+  - Remaining telemetry adapter deep tests: F1, Forza, LFS, RaceRoom, WRC
+  - Protocol deep tests: Moza, Fanatec, Thrustmaster (encoding, wire-format, round-trip)
+  - Peripherals deep tests (pedals, shifters, handbrakes, button boxes)
+  - SimpleMotion V2 and filters deep tests
+  - FFB, calibration, and pipeline deep tests (force output, profile application, filter chains)
+- **Wave 27 — game adapters, HID protocol deep, infrastructure deep** (~15,000 → 15,444+ tests):
+  - Game adapter deep tests: iRacing, ACC, BeamNG
+  - Game adapter deep tests: DiRT Rally, ETS2, GT7
+  - 9 HID protocol crate deep tests (comprehensive encoding/decoding coverage)
+  - Tracing, support, core, and streams deep tests (infrastructure coverage)
+  - Trybuild compile-fail tests expanded
 - **Web-verified VID/PIDs** for Thrustmaster, Logitech, Fanatec, Simucube, Moza, AccuForce, VRS, and OpenFFBoard — source citations added from linux-steering-wheels, kernel drivers (`hid-lg4ff`, `hid-fanatecff`, `simagic-ff`), pid.codes, and vendor documentation
 - **Safety interlock comprehensive test suite**: behavior tests for interlock state machine, watchdog timeout scenarios, and FMEA fault-injection coverage
 - **Protocol verification wave 16**: 6 vendors re-audited (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) — PID accuracy and torque specs cross-checked against USB captures and vendor documentation
