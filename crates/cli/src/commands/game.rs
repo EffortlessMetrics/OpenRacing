@@ -389,3 +389,118 @@ fn field_name_label(field: &str) -> Option<String> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- format_telemetry_method ---
+
+    #[test]
+    fn format_telemetry_shared_memory() {
+        assert_eq!(format_telemetry_method("shared_memory"), "Shared memory");
+    }
+
+    #[test]
+    fn format_telemetry_udp_broadcast() {
+        assert_eq!(format_telemetry_method("udp_broadcast"), "UDP broadcast");
+    }
+
+    #[test]
+    fn format_telemetry_probe_discovery() {
+        assert_eq!(
+            format_telemetry_method("probe_discovery"),
+            "Probe discovery"
+        );
+    }
+
+    #[test]
+    fn format_telemetry_udp_schema() {
+        assert_eq!(format_telemetry_method("udp_schema"), "Schema-driven UDP");
+    }
+
+    #[test]
+    fn format_telemetry_udp_custom_codemasters() {
+        assert_eq!(
+            format_telemetry_method("udp_custom_codemasters"),
+            "OpenRacing bridge contract"
+        );
+    }
+
+    #[test]
+    fn format_telemetry_unknown_passthrough() {
+        assert_eq!(
+            format_telemetry_method("something_new"),
+            "something_new"
+        );
+    }
+
+    // --- field_name_label ---
+
+    #[test]
+    fn field_label_known_fields() {
+        assert_eq!(field_name_label("rpm"), Some("RPM".to_string()));
+        assert_eq!(field_name_label("gear"), Some("Gear".to_string()));
+        assert_eq!(field_name_label("speed_ms"), Some("Speed".to_string()));
+        assert_eq!(
+            field_name_label("ffb_scalar"),
+            Some("FFB Scalar".to_string())
+        );
+        assert_eq!(
+            field_name_label("slip_ratio"),
+            Some("Slip ratio".to_string())
+        );
+        assert_eq!(field_name_label("flags"), Some("Flags".to_string()));
+        assert_eq!(field_name_label("car_id"), Some("Car ID".to_string()));
+        assert_eq!(field_name_label("track_id"), Some("Track ID".to_string()));
+    }
+
+    #[test]
+    fn field_label_unknown_returns_none() {
+        assert!(field_name_label("unknown_field").is_none());
+        assert!(field_name_label("").is_none());
+    }
+
+    // --- get_supported_games ---
+
+    #[test]
+    fn supported_games_not_empty() {
+        let games = get_supported_games();
+        assert!(!games.is_empty());
+    }
+
+    #[test]
+    fn supported_games_sorted_by_id() {
+        let games = get_supported_games();
+        for window in games.windows(2) {
+            assert!(
+                window[0].id <= window[1].id,
+                "games should be sorted by id: {} > {}",
+                window[0].id,
+                window[1].id
+            );
+        }
+    }
+
+    #[test]
+    fn supported_games_have_required_fields() {
+        let games = get_supported_games();
+        for game in &games {
+            assert!(!game.id.is_empty(), "game id should not be empty");
+            assert!(!game.name.is_empty(), "game name should not be empty");
+            assert!(
+                !game.config_method.is_empty(),
+                "config_method should not be empty for {}",
+                game.id
+            );
+        }
+    }
+
+    // --- detect_game_path ---
+
+    #[test]
+    fn detect_game_path_unknown_game() {
+        let result = detect_game_path("totally_unknown_game_xyz");
+        assert!(result.is_err());
+    }
+}

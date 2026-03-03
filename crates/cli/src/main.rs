@@ -937,4 +937,303 @@ mod tests {
         let result = Cli::try_parse_from(["wheelctl", "device", "fly"]);
         assert!(result.is_err());
     }
+
+    // --- Additional subcommand parsing ---
+
+    #[test]
+    fn parse_profile_show() -> TestResult {
+        let cli = Cli::try_parse_from(["wheelctl", "profile", "show", "my_profile.json"])?;
+        match &cli.command {
+            Commands::Profile(ProfileCommands::Show { profile }) => {
+                assert_eq!(profile, "my_profile.json");
+            }
+            _ => return Err("expected Profile Show command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_plugin_list_no_filter() -> TestResult {
+        let cli = Cli::try_parse_from(["wheelctl", "plugin", "list"])?;
+        match &cli.command {
+            Commands::Plugin(PluginCommands::List { category }) => {
+                assert!(category.is_none());
+            }
+            _ => return Err("expected Plugin List command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_plugin_list_with_category() -> TestResult {
+        let cli =
+            Cli::try_parse_from(["wheelctl", "plugin", "list", "--category", "ffb"])?;
+        match &cli.command {
+            Commands::Plugin(PluginCommands::List { category }) => {
+                assert_eq!(category.as_deref(), Some("ffb"));
+            }
+            _ => return Err("expected Plugin List command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_plugin_info() -> TestResult {
+        let cli = Cli::try_parse_from(["wheelctl", "plugin", "info", "ffb-smoothing"])?;
+        match &cli.command {
+            Commands::Plugin(PluginCommands::Info { plugin_id, version }) => {
+                assert_eq!(plugin_id, "ffb-smoothing");
+                assert!(version.is_none());
+            }
+            _ => return Err("expected Plugin Info command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_plugin_info_with_version() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl", "plugin", "info", "ffb-smoothing", "--version", "2.0",
+        ])?;
+        match &cli.command {
+            Commands::Plugin(PluginCommands::Info { plugin_id, version }) => {
+                assert_eq!(plugin_id, "ffb-smoothing");
+                assert_eq!(version.as_deref(), Some("2.0"));
+            }
+            _ => return Err("expected Plugin Info command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_diag_replay() -> TestResult {
+        let cli = Cli::try_parse_from(["wheelctl", "diag", "replay", "recording.wbb"])?;
+        match &cli.command {
+            Commands::Diag(DiagCommands::Replay { file, detailed }) => {
+                assert_eq!(file, "recording.wbb");
+                assert!(!detailed);
+            }
+            _ => return Err("expected Diag Replay command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_diag_replay_detailed() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "diag",
+            "replay",
+            "recording.wbb",
+            "--detailed",
+        ])?;
+        match &cli.command {
+            Commands::Diag(DiagCommands::Replay { detailed, .. }) => {
+                assert!(detailed);
+            }
+            _ => return Err("expected Diag Replay command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_diag_support_defaults() -> TestResult {
+        let cli = Cli::try_parse_from(["wheelctl", "diag", "support"])?;
+        match &cli.command {
+            Commands::Diag(DiagCommands::Support { blackbox, output }) => {
+                assert!(!blackbox);
+                assert!(output.is_none());
+            }
+            _ => return Err("expected Diag Support command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_diag_support_with_options() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "diag",
+            "support",
+            "--blackbox",
+            "--output",
+            "bundle.zip",
+        ])?;
+        match &cli.command {
+            Commands::Diag(DiagCommands::Support { blackbox, output }) => {
+                assert!(blackbox);
+                assert_eq!(output.as_deref(), Some("bundle.zip"));
+            }
+            _ => return Err("expected Diag Support command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_game_list_defaults() -> TestResult {
+        let cli = Cli::try_parse_from(["wheelctl", "game", "list"])?;
+        match &cli.command {
+            Commands::Game(GameCommands::List { detailed }) => {
+                assert!(!detailed);
+            }
+            _ => return Err("expected Game List command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_game_list_detailed() -> TestResult {
+        let cli = Cli::try_parse_from(["wheelctl", "game", "list", "--detailed"])?;
+        match &cli.command {
+            Commands::Game(GameCommands::List { detailed }) => {
+                assert!(detailed);
+            }
+            _ => return Err("expected Game List command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_game_status_no_telemetry() -> TestResult {
+        let cli = Cli::try_parse_from(["wheelctl", "game", "status"])?;
+        match &cli.command {
+            Commands::Game(GameCommands::Status { telemetry }) => {
+                assert!(!telemetry);
+            }
+            _ => return Err("expected Game Status command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_game_status_with_telemetry() -> TestResult {
+        let cli = Cli::try_parse_from(["wheelctl", "game", "status", "--telemetry"])?;
+        match &cli.command {
+            Commands::Game(GameCommands::Status { telemetry }) => {
+                assert!(telemetry);
+            }
+            _ => return Err("expected Game Status command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_safety_status_no_device() -> TestResult {
+        let cli = Cli::try_parse_from(["wheelctl", "safety", "status"])?;
+        match &cli.command {
+            Commands::Safety(SafetyCommands::Status { device }) => {
+                assert!(device.is_none());
+            }
+            _ => return Err("expected Safety Status command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_safety_status_with_device() -> TestResult {
+        let cli = Cli::try_parse_from(["wheelctl", "safety", "status", "wheel-001"])?;
+        match &cli.command {
+            Commands::Safety(SafetyCommands::Status { device }) => {
+                assert_eq!(device.as_deref(), Some("wheel-001"));
+            }
+            _ => return Err("expected Safety Status command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_diag_metrics_default() -> TestResult {
+        let cli = Cli::try_parse_from(["wheelctl", "diag", "metrics"])?;
+        match &cli.command {
+            Commands::Diag(DiagCommands::Metrics { device, watch }) => {
+                assert!(device.is_none());
+                assert!(!watch);
+            }
+            _ => return Err("expected Diag Metrics command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_diag_metrics_with_device() -> TestResult {
+        let cli =
+            Cli::try_parse_from(["wheelctl", "diag", "metrics", "wheel-001", "--watch"])?;
+        match &cli.command {
+            Commands::Diag(DiagCommands::Metrics { device, watch }) => {
+                assert_eq!(device.as_deref(), Some("wheel-001"));
+                assert!(watch);
+            }
+            _ => return Err("expected Diag Metrics command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_telemetry_capture_defaults() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "telemetry",
+            "capture",
+            "--game",
+            "acc",
+            "--out",
+            "cap.bin",
+        ])?;
+        match &cli.command {
+            Commands::Telemetry(TelemetryCommands::Capture {
+                game,
+                port,
+                duration,
+                out,
+                max_payload,
+            }) => {
+                assert_eq!(game, "acc");
+                assert_eq!(*port, 9000);
+                assert_eq!(*duration, 10);
+                assert_eq!(out, "cap.bin");
+                assert_eq!(*max_payload, 2048);
+            }
+            _ => return Err("expected Telemetry Capture command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_game_configure_minimal() -> TestResult {
+        let cli = Cli::try_parse_from(["wheelctl", "game", "configure", "acc"])?;
+        match &cli.command {
+            Commands::Game(GameCommands::Configure { game, path, auto }) => {
+                assert_eq!(game, "acc");
+                assert!(path.is_none());
+                assert!(!auto);
+            }
+            _ => return Err("expected Game Configure command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn reject_missing_game_configure_id() {
+        let result = Cli::try_parse_from(["wheelctl", "game", "configure"]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn reject_diag_record_missing_device() {
+        let result = Cli::try_parse_from(["wheelctl", "diag", "record"]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn reject_telemetry_probe_missing_game() {
+        let result = Cli::try_parse_from(["wheelctl", "telemetry", "probe"]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn reject_telemetry_capture_missing_out() {
+        let result =
+            Cli::try_parse_from(["wheelctl", "telemetry", "capture", "--game", "acc"]);
+        assert!(result.is_err());
+    }
 }

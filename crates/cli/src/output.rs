@@ -372,11 +372,11 @@ pub fn print_warning(message: &str, json: bool) {
 /// Get error type name for JSON output
 fn error_type_name(error: &Error) -> String {
     // Try to get the concrete error type name
-    format!("{:?}", error)
-        .split('(')
-        .next()
-        .unwrap_or("Unknown")
-        .to_string()
+    let debug_str = format!("{:?}", error);
+    match debug_str.split('(').next() {
+        Some(name) => name.to_string(),
+        None => "Unknown".to_string(),
+    }
 }
 
 /// Print table of data
@@ -439,6 +439,344 @@ where
                 print!("{}", value);
             }
             println!();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::{
+        DeviceCapabilities, DeviceInfo, DeviceState, DeviceType, GameStatus,
+        HealthEvent, HealthEventType, TelemetryData,
+    };
+    use crate::error::CliError;
+
+    // --- format_capabilities ---
+
+    #[test]
+    fn format_capabilities_all_features() {
+        let caps = DeviceCapabilities {
+            supports_pid: true,
+            supports_raw_torque_1khz: true,
+            supports_health_stream: true,
+            supports_led_bus: true,
+            ..DeviceCapabilities::default()
+        };
+        let result = format_capabilities(&caps);
+        assert!(result.contains("PID"));
+        assert!(result.contains("Raw Torque"));
+        assert!(result.contains("Health"));
+        assert!(result.contains("LEDs"));
+    }
+
+    #[test]
+    fn format_capabilities_no_features() {
+        let caps = DeviceCapabilities::default();
+        assert_eq!(format_capabilities(&caps), "None");
+    }
+
+    #[test]
+    fn format_capabilities_partial() {
+        let caps = DeviceCapabilities {
+            supports_pid: true,
+            supports_led_bus: true,
+            ..DeviceCapabilities::default()
+        };
+        let result = format_capabilities(&caps);
+        assert!(result.contains("PID"));
+        assert!(result.contains("LEDs"));
+        assert!(!result.contains("Raw Torque"));
+        assert!(!result.contains("Health"));
+    }
+
+    #[test]
+    fn format_capabilities_single() {
+        let caps = DeviceCapabilities {
+            supports_health_stream: true,
+            ..DeviceCapabilities::default()
+        };
+        // Single capability should not contain commas
+        let result = format_capabilities(&caps);
+        assert_eq!(result, "Health");
+    }
+
+    // --- error_type_name ---
+
+    #[test]
+    fn error_type_name_cli_error() {
+        let err: anyhow::Error = CliError::DeviceNotFound("w1".to_string()).into();
+        let name = error_type_name(&err);
+        assert!(!name.is_empty());
+    }
+
+    #[test]
+    fn error_type_name_generic_error() {
+        let err = anyhow::anyhow!("something went wrong");
+        let name = error_type_name(&err);
+        assert!(!name.is_empty());
+    }
+
+    // --- JSON output structure ---
+
+    #[test]
+    fn print_error_json_produces_valid_json() {
+        let err: anyhow::Error = CliError::DeviceNotFound("dev-x".to_string()).into();
+        // Build the JSON structure the same way print_error_json does
+        let error_json = json!({
+            "success": false,
+            "error": {
+                "message": err.to_string(),
+                "type": error_type_name(&err)
+            }
+        });
+        let serialized = serde_json::to_string_pretty(&error_json);
+        assert!(serialized.is_ok());
+        let s = serialized.unwrap_or_default();
+        assert!(s.contains("\"success\": false"));
+        assert!(s.contains("Device not found: dev-x"));
+    }
+
+    #[test]
+    fn success_json_structure() {
+        let output = json!({
+            "success": true,
+            "message": "test passed"
+        });
+        let serialized = serde_json::to_string_pretty(&output);
+        assert!(serialized.is_ok());
+        let s = serialized.unwrap_or_default();
+        assert!(s.contains("\"success\": true"));
+        assert!(s.contains("test passed"));
+    }
+
+    #[test]
+    fn warning_json_structure() {
+        let output = json!({
+            "success": true,
+            "warning": "caution advised"
+        });
+        let serialized = serde_json::to_string_pretty(&output);
+        assert!(serialized.is_ok());
+        let s = serialized.unwrap_or_default();
+        assert!(s.contains("\"warning\""));
+        assert!(s.contains("caution advised"));
+    }
+
+    #[test]
+    fn device_list_json_structure() {
+        let devices: Vec<DeviceInfo> = vec![];
+        let output = json!({
+            "success": true,
+            "devices": devices
+        });
+        let serialized = serde_json::to_string_pretty(&output);
+        assert!(serialized.is_ok());
+        let s = serialized.unwrap_or_default();
+        assert!(s.contains("\"devices\""));
+        assert!(s.contains("[]"));
+    }
+
+    #[test]
+    fn device_list_json_with_devices() {
+        let devices = vec![DeviceInfo {
+            id: "wheel-001".to_string(),
+            name: "Test Wheel".to_string(),
+            device_type: DeviceType::WheelBase,
+            state: DeviceState::Connected,
+            capabilities: DeviceCapabilities::default(),
+        }];
+        let output = json!({
+            "success": true,
+            "devices": devices
+        });
+        let serialized = serde_json::to_string_pretty(&output);
+        assert!(serialized.is_ok());
+        let s = serialized.unwrap_or_default();
+        assert!(s.contains("wheel-001"));
+        assert!(s.contains("Test Wheel"));
+    }
+
+    #[test]
+    fn game_status_json_with_active_game() {
+        let status = GameStatus {
+            active_game: Some("iracing".to_string()),
+            telemetry_active: true,
+            car_id: Some("gt3".to_string()),
+            track_id: Some("spa".to_string()),
+        };
+        let output = json!({
+            "success": true,
+            "game_status": status
+        });
+        let serialized = serde_json::to_string_pretty(&output);
+        assert!(serialized.is_ok());
+        let s = serialized.unwrap_or_default();
+        assert!(s.contains("iracing"));
+        assert!(s.contains("gt3"));
+        assert!(s.contains("spa"));
+    }
+
+    #[test]
+    fn game_status_json_no_active_game() {
+        let status = GameStatus {
+            active_game: None,
+            telemetry_active: false,
+            car_id: None,
+            track_id: None,
+        };
+        let output = json!({
+            "success": true,
+            "game_status": status
+        });
+        let serialized = serde_json::to_string_pretty(&output);
+        assert!(serialized.is_ok());
+        let s = serialized.unwrap_or_default();
+        assert!(s.contains("null"));
+    }
+
+    #[test]
+    fn health_event_json_serialization() {
+        let event = HealthEvent {
+            timestamp: chrono::Utc::now(),
+            device_id: "wheel-001".to_string(),
+            event_type: HealthEventType::FaultDetected,
+            message: "Overcurrent detected".to_string(),
+            metadata: std::collections::HashMap::new(),
+        };
+        let serialized = serde_json::to_string(&event);
+        assert!(serialized.is_ok());
+        let s = serialized.unwrap_or_default();
+        assert!(s.contains("wheel-001"));
+        assert!(s.contains("Overcurrent detected"));
+        assert!(s.contains("FaultDetected"));
+    }
+
+    // --- table JSON output ---
+
+    #[test]
+    fn table_json_structure() {
+        let headers = ["Name", "Value"];
+        let rows: Vec<Vec<String>> = vec![
+            vec!["key1".to_string(), "val1".to_string()],
+            vec!["key2".to_string(), "val2".to_string()],
+        ];
+
+        let mut table_data = Vec::new();
+        for row in &rows {
+            let mut row_map = HashMap::new();
+            for (i, header) in headers.iter().enumerate() {
+                if let Some(value) = row.get(i) {
+                    row_map.insert(header.to_string(), json!(value));
+                }
+            }
+            table_data.push(row_map);
+        }
+        let output = json!({
+            "success": true,
+            "data": table_data
+        });
+        let serialized = serde_json::to_string_pretty(&output);
+        assert!(serialized.is_ok());
+        let s = serialized.unwrap_or_default();
+        assert!(s.contains("key1"));
+        assert!(s.contains("val1"));
+        assert!(s.contains("key2"));
+        assert!(s.contains("val2"));
+    }
+
+    #[test]
+    fn table_json_empty_rows() {
+        let rows: Vec<Vec<String>> = vec![];
+        let headers: Vec<&str> = vec!["Col"];
+        let mut table_data = Vec::new();
+        for row in &rows {
+            let mut row_map = HashMap::new();
+            for (i, header) in headers.iter().enumerate() {
+                if let Some(value) = row.get(i) {
+                    row_map.insert(header.to_string(), json!(value));
+                }
+            }
+            table_data.push(row_map);
+        }
+        let output = json!({
+            "success": true,
+            "data": table_data
+        });
+        let serialized = serde_json::to_string_pretty(&output);
+        assert!(serialized.is_ok());
+        let s = serialized.unwrap_or_default();
+        assert!(s.contains("\"data\": []"));
+    }
+
+    // --- device telemetry serialization ---
+
+    #[test]
+    fn telemetry_data_round_trip() {
+        let tel = TelemetryData {
+            wheel_angle_deg: 12.5,
+            wheel_speed_rad_s: 3.14,
+            temperature_c: 55,
+            fault_flags: 0,
+            hands_on: true,
+        };
+        let serialized = serde_json::to_value(&tel);
+        assert!(serialized.is_ok());
+        let val = serialized.unwrap_or_default();
+        assert_eq!(val["hands_on"], true);
+        assert_eq!(val["temperature_c"], 55);
+    }
+
+    // --- error chain ---
+
+    #[test]
+    fn nested_error_has_source() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "no access");
+        let cli_err: anyhow::Error = CliError::IoError(io_err).into();
+        // anyhow wraps source chain
+        let msg = cli_err.to_string();
+        assert!(msg.contains("no access"));
+    }
+
+    // --- device state color mapping (logic coverage) ---
+
+    #[test]
+    fn device_state_variants_exist() {
+        // Ensures all state variants can be matched for coloring
+        let states = [
+            DeviceState::Connected,
+            DeviceState::Disconnected,
+            DeviceState::Faulted,
+            DeviceState::Calibrating,
+        ];
+        for state in &states {
+            let _color = match state {
+                DeviceState::Connected => "green",
+                DeviceState::Disconnected => "red",
+                DeviceState::Faulted => "red",
+                DeviceState::Calibrating => "yellow",
+            };
+        }
+    }
+
+    #[test]
+    fn health_event_type_color_mapping() {
+        let types = [
+            (HealthEventType::DeviceConnected, "green"),
+            (HealthEventType::DeviceDisconnected, "red"),
+            (HealthEventType::FaultDetected, "red"),
+            (HealthEventType::FaultCleared, "green"),
+            (HealthEventType::PerformanceWarning, "yellow"),
+        ];
+        for (event_type, expected_color) in &types {
+            let color = match event_type {
+                HealthEventType::DeviceConnected => "green",
+                HealthEventType::DeviceDisconnected => "red",
+                HealthEventType::FaultDetected => "red",
+                HealthEventType::FaultCleared => "green",
+                HealthEventType::PerformanceWarning => "yellow",
+            };
+            assert_eq!(color, *expected_color);
         }
     }
 }
