@@ -1,0 +1,5 @@
+---
+source: crates/openracing-curves/tests/snapshot_expansion_tests.rs
+expression: "format!(\"{}\", err)"
+---
+Invalid curve configuration: exponent must be positive

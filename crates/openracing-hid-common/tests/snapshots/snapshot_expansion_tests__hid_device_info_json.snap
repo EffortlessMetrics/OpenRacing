@@ -1,0 +1,12 @@
+---
+source: crates/openracing-hid-common/tests/snapshot_expansion_tests.rs
+expression: info
+---
+{
+  "vendor_id": 13422,
+  "product_id": 5,
+  "serial_number": "MZ-2024-001",
+  "manufacturer": "MOZA Racing",
+  "product_name": "MOZA R9 V2",
+  "path": "\\\\.\\HID#VID_346E"
+}

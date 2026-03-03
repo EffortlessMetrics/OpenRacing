@@ -1,0 +1,31 @@
+---
+source: crates/openracing-fmea/tests/snapshot_expansion_tests.rs
+expression: proc
+---
+RecoveryProcedure {
+    fault_type: UsbStall,
+    max_attempts: 3,
+    retry_delay: 100ms,
+    timeout: 10s,
+    automatic: true,
+    steps: [
+        RecoveryStep {
+            name: "reset_usb",
+            description: "Reset USB connection",
+            timeout: 100ms,
+            optional: false,
+        },
+        RecoveryStep {
+            name: "reconnect",
+            description: "Reconnect to device",
+            timeout: 2s,
+            optional: false,
+        },
+        RecoveryStep {
+            name: "verify",
+            description: "Verify communication",
+            timeout: 500ms,
+            optional: false,
+        },
+    ],
+}

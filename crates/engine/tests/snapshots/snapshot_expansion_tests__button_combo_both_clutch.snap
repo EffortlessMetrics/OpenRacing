@@ -1,0 +1,5 @@
+---
+source: crates/engine/tests/snapshot_expansion_tests.rs
+expression: "ButtonCombo::BothClutchPaddles"
+---
+BothClutchPaddles

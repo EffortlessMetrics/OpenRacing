@@ -1,0 +1,30 @@
+---
+source: crates/openracing-fmea/tests/snapshot_expansion_tests.rs
+expression: marker
+---
+FaultMarker {
+    fault_type: ThermalLimit,
+    timestamp: 30s,
+    pre_fault_data_offset: 0,
+    post_fault_data_length: 0,
+    device_state: [
+        (
+            "temperature",
+            "85.5C",
+        ),
+        (
+            "fan_speed",
+            "4200rpm",
+        ),
+    ],
+    telemetry_snapshot: None,
+    plugin_states: [
+        (
+            "telemetry-plugin",
+            "running",
+        ),
+    ],
+    recovery_actions: [
+        "reduce_torque",
+    ],
+}

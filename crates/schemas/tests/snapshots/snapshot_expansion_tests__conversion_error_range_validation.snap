@@ -1,0 +1,5 @@
+---
+source: crates/schemas/tests/snapshot_expansion_tests.rs
+expression: "format!(\"{}\", err)"
+---
+Range validation error: torque value 75 is out of range [0, 50]

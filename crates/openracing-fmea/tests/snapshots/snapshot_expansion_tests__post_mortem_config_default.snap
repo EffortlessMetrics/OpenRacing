@@ -1,0 +1,11 @@
+---
+source: crates/openracing-fmea/tests/snapshot_expansion_tests.rs
+expression: "PostMortemConfig::default()"
+---
+PostMortemConfig {
+    pre_fault_capture_duration: 2.0,
+    post_fault_capture_duration: 1.0,
+    include_telemetry: true,
+    include_device_state: true,
+    include_plugin_state: true,
+}

@@ -34,6 +34,7 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 proptest = { workspace = true }
 tempfile = "3.24.0"
 criterion = { workspace = true }
+insta = { workspace = true }
 
 [features]
 default = ["std"]

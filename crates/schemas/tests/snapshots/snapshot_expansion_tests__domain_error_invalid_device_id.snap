@@ -1,0 +1,5 @@
+---
+source: crates/schemas/tests/snapshot_expansion_tests.rs
+expression: "format!(\"{}\", err)"
+---
+Invalid device ID: has spaces (must be non-empty and alphanumeric with hyphens)

@@ -1,0 +1,9 @@
+---
+source: crates/schemas/tests/snapshot_expansion_tests.rs
+expression: "HandsOffConfig::default()"
+---
+HandsOffConfig {
+    enabled: true,
+    threshold: 0.05,
+    timeout_seconds: 5.0,
+}

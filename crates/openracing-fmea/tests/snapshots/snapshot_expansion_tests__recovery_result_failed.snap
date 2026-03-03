@@ -1,0 +1,12 @@
+---
+source: crates/openracing-fmea/tests/snapshot_expansion_tests.rs
+expression: result
+---
+RecoveryResult {
+    status: Failed,
+    duration: 5s,
+    attempts: 3,
+    error: Some(
+        "device unresponsive",
+    ),
+}

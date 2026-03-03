@@ -38,6 +38,7 @@ tempfile = "3.24.0"
 tokio-test = "0.4.5"
 tracing-test = "0.2.5"
 criterion = { workspace = true }
+insta = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62.2", features = [

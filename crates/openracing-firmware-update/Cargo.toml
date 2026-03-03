@@ -39,6 +39,7 @@ tempfile = "3.24.0"
 proptest = { workspace = true }
 criterion = { workspace = true }
 tracing-test = "0.2.5"
+insta = { workspace = true }
 
 [features]
 default = ["std"]

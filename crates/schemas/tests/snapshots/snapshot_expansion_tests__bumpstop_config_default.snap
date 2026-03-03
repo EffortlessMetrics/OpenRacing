@@ -1,0 +1,11 @@
+---
+source: crates/schemas/tests/snapshot_expansion_tests.rs
+expression: "BumpstopConfig::default()"
+---
+{
+  "enabled": true,
+  "start_angle": 450.0,
+  "max_angle": 540.0,
+  "stiffness": 0.8,
+  "damping": 0.3
+}

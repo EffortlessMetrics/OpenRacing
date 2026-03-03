@@ -1,0 +1,7 @@
+---
+source: crates/engine/tests/snapshot_expansion_tests.rs
+expression: "ButtonCombo::CustomSequence(99)"
+---
+{
+  "CustomSequence": 99
+}

@@ -4217,6 +4217,7 @@ dependencies = [
 name = "openracing-calibration"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "proptest",
  "quickcheck",
  "serde",
@@ -4253,6 +4254,7 @@ dependencies = [
  "ed25519-dalek",
  "goblin",
  "hex",
+ "insta",
  "proptest",
  "rand 0.8.5",
  "serde",
@@ -4287,6 +4289,7 @@ dependencies = [
 name = "openracing-device-types"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "proptest",
  "quickcheck",
  "racing-wheel-schemas",
@@ -4366,6 +4369,7 @@ dependencies = [
  "flate2",
  "futures",
  "hex",
+ "insta",
  "openracing-crypto",
  "openracing-errors",
  "proptest",
@@ -4389,6 +4393,7 @@ dependencies = [
  "approx",
  "criterion",
  "heapless",
+ "insta",
  "proptest",
  "quickcheck",
  "quickcheck_macros",
@@ -4426,6 +4431,7 @@ dependencies = [
  "async-trait",
  "criterion",
  "hidapi",
+ "insta",
  "proptest",
  "quickcheck",
  "racing-wheel-schemas",
@@ -4476,6 +4482,7 @@ dependencies = [
  "chrono",
  "criterion",
  "crossbeam",
+ "insta",
  "libc",
  "libloading 0.9.0",
  "openracing-crypto",
@@ -4667,6 +4674,7 @@ version = "0.1.0"
 dependencies = [
  "criterion",
  "crossbeam",
+ "insta",
  "openracing-fmea",
  "parking_lot",
  "proptest",
@@ -5839,15 +5847,19 @@ dependencies = [
  "libc",
  "mockall",
  "num_cpus",
+ "openracing-atomic",
  "openracing-calibration",
  "openracing-device-types",
  "openracing-errors",
  "openracing-filters",
+ "openracing-fmea",
  "openracing-ipc",
  "openracing-pipeline",
  "openracing-plugin-abi",
  "openracing-profile",
+ "openracing-telemetry-streams",
  "openracing-test-helpers",
+ "openracing-watchdog",
  "parking_lot",
  "proptest",
  "quickcheck",

@@ -1,0 +1,15 @@
+---
+source: crates/engine/tests/snapshot_expansion_tests.rs
+expression: output
+---
+[
+    "USB communication stall",
+    "Encoder returned invalid data",
+    "Thermal protection triggered",
+    "Overcurrent protection triggered",
+    "Plugin exceeded timing budget",
+    "Real-time timing violation",
+    "Safety interlock violation",
+    "Hands-off timeout exceeded",
+    "Filter pipeline processing fault",
+]

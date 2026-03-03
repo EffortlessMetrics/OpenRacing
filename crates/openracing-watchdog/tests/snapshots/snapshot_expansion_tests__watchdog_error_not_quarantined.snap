@@ -1,0 +1,5 @@
+---
+source: crates/openracing-watchdog/tests/snapshot_expansion_tests.rs
+expression: "format!(\"{}\", err)"
+---
+Plugin 'good-plugin' is not quarantined

@@ -1,0 +1,7 @@
+---
+source: crates/schemas/tests/snapshot_expansion_tests.rs
+expression: deg
+---
+Degrees(
+    540.0,
+)

@@ -1,0 +1,18 @@
+---
+source: crates/openracing-fmea/tests/snapshot_expansion_tests.rs
+expression: "FaultThresholds::conservative()"
+---
+FaultThresholds {
+    usb_timeout_ms: 5,
+    usb_max_consecutive_failures: 2,
+    encoder_nan_window_ms: 500,
+    encoder_max_nan_count: 3,
+    thermal_limit_celsius: 70.0,
+    thermal_hysteresis_celsius: 10.0,
+    plugin_timeout_us: 50,
+    plugin_max_overruns: 5,
+    timing_violation_threshold_us: 100,
+    timing_max_violations: 50,
+    overcurrent_limit_a: 8.0,
+    hands_off_timeout_secs: 3.0,
+}

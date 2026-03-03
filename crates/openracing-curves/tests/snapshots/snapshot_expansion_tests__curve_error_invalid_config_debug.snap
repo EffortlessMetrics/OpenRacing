@@ -1,0 +1,7 @@
+---
+source: crates/openracing-curves/tests/snapshot_expansion_tests.rs
+expression: "CurveError::InvalidConfiguration(\"logarithmic base must be > 1\".to_string())"
+---
+InvalidConfiguration(
+    "logarithmic base must be > 1",
+)

@@ -1,0 +1,10 @@
+---
+source: crates/engine/tests/snapshot_expansion_tests.rs
+expression: consent
+---
+{
+  "max_torque_nm": 8.0,
+  "warnings": [],
+  "disclaimers": [],
+  "requires_explicit_consent": false
+}

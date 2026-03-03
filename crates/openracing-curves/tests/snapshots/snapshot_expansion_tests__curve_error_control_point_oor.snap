@@ -1,0 +1,5 @@
+---
+source: crates/openracing-curves/tests/snapshot_expansion_tests.rs
+expression: "format!(\"{}\", err)"
+---
+Control point 2 x coordinate 1.5 is outside valid range [0,1]

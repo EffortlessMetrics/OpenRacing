@@ -19,3 +19,4 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 proptest = { workspace = true }
 quickcheck = { workspace = true }
 serde_json = { workspace = true }
+insta = { workspace = true }

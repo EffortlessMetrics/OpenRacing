@@ -1,0 +1,9 @@
+---
+source: crates/openracing-curves/tests/snapshot_expansion_tests.rs
+expression: "CurveError::ControlPointOutOfRange\n{ point_index: 3, coordinate: \"x\", value: 2.0, }"
+---
+ControlPointOutOfRange {
+    point_index: 3,
+    coordinate: "x",
+    value: 2.0,
+}

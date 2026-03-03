@@ -1,0 +1,5 @@
+---
+source: crates/openracing-firmware-update/tests/snapshot_expansion_tests.rs
+expression: "format!(\"{}\", BundleError::SignatureRequired)"
+---
+firmware signature required but bundle is unsigned
