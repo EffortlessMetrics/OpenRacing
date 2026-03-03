@@ -4,7 +4,7 @@ Running record of pain points, blockers, and technical debt encountered during d
 
 Each entry has: **date**, **severity** (Low/Medium/High), **status** (Open/Resolved/Won't Fix), and a description + proposed remedy.
 
-**Summary (63 items):** 13 Open · 48 Resolved · 2 Investigating · 0 Won't Fix
+**Summary (65 items):** 13 Open · 48 Resolved · 2 Investigating · 2 Noted · 0 Won't Fix
 
 ---
 
@@ -817,6 +817,26 @@ Cube Controls PIDs `0x0C73`, `0x0C74`, `0x0C75` have zero external evidence from
 
 ---
 
+### F-074 · Snapshot acceptance workflow requires manual review for large diffs (Low · Noted)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+When `insta` snapshots change across many crates at once (e.g., schema version bumps or telemetry field promotions), the review-and-accept workflow (`cargo insta review`) requires per-snapshot confirmation. With 936 snapshot files across 37 directories, bulk changes produce very large pending-snapshot diffs that are tedious to accept individually.
+
+**Remedy:** Use `cargo insta accept --all` for trusted bulk changes after verifying a representative sample. Consider adding a CI step that auto-accepts snapshots on feature branches when the diff is schema-version-only.
+
+---
+
+### F-075 · 45 tests ignored in full workspace run (Low · Noted)
+
+**Encountered:** Wave 15 RC hardening (2025-07)
+
+Running `cargo test --workspace --all-features --exclude racing-wheel-ui` shows 45 ignored tests (across integration-tests and platform-specific modules). These are intentionally `#[ignore]`-gated tests requiring hardware or platform-specific resources (e.g., real USB devices, macOS-only APIs), but the count should be tracked to ensure it doesn't grow silently.
+
+**Remedy:** Periodically audit ignored tests. Consider adding a CI job that lists `#[ignore]` tests and fails if the count exceeds a threshold.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
@@ -976,7 +996,7 @@ Web-sourced verification of 5 game telemetry adapter protocols against authorita
 - **Snapshot Encoding Tests**: Added for FFBeast (12 tests) and Leo Bodnar (8 tests) — all protocol crates now have snapshot coverage.
 - **Protocol Verification**: All VID/PIDs re-verified against web sources (kernel hid-ids.h, linux-steering-wheels, pid.codes, devicehunt). No corrections needed beyond Heusinkveld.
 - **CI Fixes**: cargo-udeps false positives resolved for 8 crates; deprecated field detection false positive fixed (TelemetryFrame seq field ≠ removed TelemetryData seq field).
-- **Test Count**: 7,216 tests passing, 0 failures across 82 workspace crates.
+- **Test Count**: 9,939 tests passing, 0 failures, 45 ignored across 82 workspace crates (406 test binaries).
 - **Lesser-documented device web verification (2025-07):**
   - AccuForce: VID 0x1FC9 / PID 0x804C confirmed (Platinum, hid-pidff). pid.codes 0x1209/0x0001 is test-only PID.
   - VRS DFP: PID 0xA355 confirmed (Platinum, hid-universal-pidff). DFP V2 PID 0xA356 still unverified in kernel/community (F-057).
