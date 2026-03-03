@@ -21,9 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **18,645+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **21,043+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **21,374+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
+- **22,326+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **96 fuzz targets** covering all HID protocols and game telemetry adapters (AMS2 target added)
 - **100+ fuzz targets** covering all HID protocols, game telemetry adapters, and new wave 24 targets
 - **104 fuzz targets** covering all HID protocols, game telemetry adapters, and wave 31 targets (telemetry packet, profile, calibration, filter pipeline)
+- **113 fuzz targets** covering all HID protocols, game telemetry adapters, and wave 46 targets (replay, diagnostics, calibration, FFB, crypto, CLI)
 - **977 snapshot files** across 38 snapshot directories
 - **1,141 snapshot files** across 44 snapshot directories
 - **1,327 snapshot files** across 52 snapshot directories (expanded to 11 crates)
@@ -158,6 +160,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Udev rules expansion: +75 rules for new device support in `packaging/linux/99-racing-wheel-suite.rules`
   - Example plugin tests (51 tests): lifecycle, loading, sandboxing, error recovery
   - Documentation alignment fixes across ADRs and developer guides
+- **Wave 44 — RT no-allocation enforcement, safety fault injection, protocol roundtrip, IPC compat** (21,374 → 21,652+ tests):
+  - RT no-allocation enforcement tests (36 tests): dedicated tests verifying zero heap allocations in RT code paths
+  - Safety fault injection tests (74 tests): expanded fault injection framework covering interlock, watchdog, and FMEA scenarios
+  - Protocol roundtrip proptests (104 tests): property-based roundtrip verification across 9 protocol crates
+  - IPC schema compatibility tests (64 tests): backward/forward compatibility validation for IPC schema evolution
+- **Wave 45 — service lifecycle, cross-platform, telemetry adapters, error handling, device discovery** (21,652 → 22,088+ tests):
+  - Service lifecycle tests (87 tests): comprehensive start/stop/restart/recovery/state-machine coverage
+  - Cross-platform tests (60 tests): platform-specific behavior validation across Windows, Linux, macOS
+  - Telemetry adapter validation tests (119 tests): extended adapter verification with edge-case and error-path coverage
+  - Error handling tests (86 tests): exhaustive error propagation and recovery path validation
+  - Device discovery tests (84 tests): enumeration, hot-plug detection, and multi-vendor discovery scenarios
+- **Wave 46 — replay/diagnostics, calibration/FFB, crypto/signing, CLI deep, fuzz targets** (22,088 → 22,326+ tests):
+  - Replay + diagnostics tests (73 tests): session replay, diagnostic export, health scoring, timeline reconstruction
+  - Calibration + FFB tests (91 tests): calibration workflow edge cases, FFB force output precision, profile application
+  - Crypto + signing tests (47 tests): Ed25519 signing verification, key management, signature validation
+  - CLI deep tests (68 tests): extended subcommand coverage, argument parsing, output formatting, error reporting
+  - 9 new fuzz targets (113 total): replay parsing, diagnostic export, calibration input, FFB commands, crypto payloads, CLI argument parsing
 - **Web-verified VID/PIDs** for Thrustmaster, Logitech, Fanatec, Simucube, Moza, AccuForce, VRS, and OpenFFBoard — source citations added from linux-steering-wheels, kernel drivers (`hid-lg4ff`, `hid-fanatecff`, `simagic-ff`), pid.codes, and vendor documentation
 - **Safety interlock comprehensive test suite**: behavior tests for interlock state machine, watchdog timeout scenarios, and FMEA fault-injection coverage
 - **Protocol verification wave 16**: 6 vendors re-audited (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) — PID accuracy and torque specs cross-checked against USB captures and vendor documentation

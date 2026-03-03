@@ -2,7 +2,7 @@
 
 **Branch:** `feat/wave15-rc-hardening`
 **Generated:** 2026-03-04
-**Waves completed:** 15–43
+**Waves completed:** 15–46
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **21,374+** |
+| **Total tests** | **22,326+** |
 | Failed | 0 |
 | Ignored | 44 |
 | Test binaries | 640+ |
@@ -23,8 +23,8 @@
 
 | Category | Count | Notes |
 |----------|------:|-------|
-| Unit tests | 15,000+ | Standard `#[test]` functions across all crates |
-| Property tests (proptest) | 2,300+ | 360+ `proptest!` blocks generating multiple test cases |
+| Unit tests | 15,800+ | Standard `#[test]` functions across all crates |
+| Property tests (proptest) | 2,500+ | 360+ `proptest!` blocks generating multiple test cases |
 | Snapshot tests (insta) | 1,327 files | Across 52 snapshot directories; ~1,100+ running test cases |
 | Doc-tests | 490+ | `/// ```rust` examples in public API documentation |
 | Integration tests | 890+ | `crates/integration-tests/tests/*.rs` (cross-crate validation) |
@@ -43,20 +43,20 @@
 
 | Crate / Category | Tests | Key crates |
 |------------------|------:|------------|
-| Telemetry | 4,530+ | `telemetry-adapters` (2,150+), `telemetry-core` (492+), `telemetry-config` (293+), `telemetry-orchestrator` (127), `telemetry-contracts` (125), `telemetry-config-writers` (48+), `telemetry-streams` (52+) — extended verification for 9 adapters (wave 34), core/integration/rate-limiter deep (wave 37), adapter re-verification (wave 40), config/streams deep (wave 40), 61 adapters verified (wave 43) |
-| HID Protocols | 4,127+ | `hid-thrustmaster-protocol` (480+), `hid-fanatec-protocol` (370+), `hid-simagic-protocol` (292+), `hid-logitech-protocol` (270+), `hid-moza-protocol` (314+), `hid-vrs-protocol` (217+), `hid-cammus-protocol` (188+), `hid-ffbeast-protocol` (136+), `hid-openffboard-protocol` (153+), `simucube-protocol` (310+), `simplemotion-v2` (79+), `hbp` (43+), `moza-wheelbase-report` (59+), and more — ALL 14 crates cross-verified, Simagic deep (wave 38) |
-| Engine | 1,640+ | `racing-wheel-engine` — RT pipeline, filters, HID dispatch, safety, device/game, hot-swap, FFB pipeline E2E, HID common deep (wave 36), safety + device management deep (wave 41) |
+| Telemetry | 4,650+ | `telemetry-adapters` (2,270+), `telemetry-core` (492+), `telemetry-config` (293+), `telemetry-orchestrator` (127), `telemetry-contracts` (125), `telemetry-config-writers` (48+), `telemetry-streams` (52+) — extended verification for 9 adapters (wave 34), core/integration/rate-limiter deep (wave 37), adapter re-verification (wave 40), config/streams deep (wave 40), 61 adapters verified (wave 43), adapter validation (wave 45) |
+| HID Protocols | 4,231+ | `hid-thrustmaster-protocol` (480+), `hid-fanatec-protocol` (370+), `hid-simagic-protocol` (292+), `hid-logitech-protocol` (270+), `hid-moza-protocol` (314+), `hid-vrs-protocol` (217+), `hid-cammus-protocol` (188+), `hid-ffbeast-protocol` (136+), `hid-openffboard-protocol` (153+), `simucube-protocol` (310+), `simplemotion-v2` (79+), `hbp` (43+), `moza-wheelbase-report` (59+), and more — ALL 14 crates cross-verified, Simagic deep (wave 38), roundtrip proptests across 9 crates (wave 44) |
+| Engine | 1,676+ | `racing-wheel-engine` — RT pipeline, filters, HID dispatch, safety, device/game, hot-swap, FFB pipeline E2E, HID common deep (wave 36), safety + device management deep (wave 41), RT no-allocation enforcement (wave 44) |
 | Integration tests | 888+ | `integration-tests` — E2E device pipelines, RC validation, golden packets, full-stack E2E, concurrency stress (23), performance validation (12), plugin + telemetry E2E + device protocol (wave 40) |
-| Service + CLI | 901+ | `racing-wheel-service` (500+), `wheelctl` (440+) — daemon, IPC, lifecycle, CLI E2E, diagnostics deep (wave 35), service lifecycle + IPC deep (wave 41) |
-| Schemas | 657+ | `racing-wheel-schemas` — JSON schema validation, migration, profile inheritance, evolution, domain type proptests (wave 36), schema validation deep (wave 41) |
+| Service + CLI | 1,056+ | `racing-wheel-service` (587+), `wheelctl` (508+) — daemon, IPC, lifecycle, CLI E2E, diagnostics deep (wave 35), service lifecycle + IPC deep (wave 41), service lifecycle (wave 45), CLI deep (wave 46) |
+| Schemas | 721+ | `racing-wheel-schemas` — JSON schema validation, migration, profile inheritance, evolution, domain type proptests (wave 36), schema validation deep (wave 41), IPC schema compat (wave 44) |
 | Plugins | 976+ | `racing-wheel-plugins` (394+), `openracing-wasm-runtime` (232+), `openracing-native-plugin` (217+), `openracing-plugin-abi` (263+) — WASM deep (wave 38), native plugin + ABI deep (wave 39), example plugin tests (51) (wave 43) |
-| Errors | 339 | `openracing-errors` — exhaustive error variant coverage |
+| Errors | 425 | `openracing-errors` — exhaustive error variant coverage, error handling deep (wave 45) |
 | Compat + Config | 312+ | `compat` — deep migration + validation tests (wave 33), migration deep (wave 41) |
 | Profile | 475+ | `openracing-profile` (269+), `openracing-profile-repository` (94+) — inheritance, validation, comprehensive system tests (wave 35), profile + repo deep (wave 40) |
 | Filters | 334+ | `openracing-filters` — snapshot + property tests, SM-V2 deep, filters deep (wave 39) |
-| Safety | 600+ | `openracing-fmea` (321+), `openracing-watchdog` (58+), `openracing-hardware-watchdog` (286+) — fault injection, property tests, 23 safety invariants (wave 30), crypto + FMEA deep (wave 39), watchdog deep (wave 39) |
+| Safety | 674+ | `openracing-fmea` (371+), `openracing-watchdog` (58+), `openracing-hardware-watchdog` (286+) — fault injection, property tests, 23 safety invariants (wave 30), crypto + FMEA deep (wave 39), watchdog deep (wave 39), fault injection expansion (wave 44) |
 | IPC | 261+ | `openracing-ipc` — message serialization, snapshot round-trips, codec proptests (wave 36), IPC protocol deep (wave 41) |
-| FFB + Calibration | 474+ | `openracing-ffb` (276+), `openracing-calibration` (198+) — force output, profile application, workflows, migration, serde proptests (wave 36), FFB + calibration deep (wave 41) |
+| FFB + Calibration | 656+ | `openracing-ffb` (366+), `openracing-calibration` (290+) — force output, profile application, workflows, migration, serde proptests (wave 36), FFB + calibration deep (wave 41), calibration + FFB precision (wave 46) |
 | Curves | 169+ | `openracing-curves` — LUT fidelity, interpolation, bezier, fitting, monotonicity, stability (wave 35) |
 | Firmware | 230+ | `openracing-firmware-update` — state machine, rollback, validation, firmware update deep (wave 41) |
 | Capture | 379+ | `hid-capture` — device capture tooling, fingerprinting, classification (wave 34), diagnostic + SRP + capture deep (wave 38), capture IDs (wave 41) |
@@ -65,8 +65,8 @@
 | Scheduler | 189+ | `openracing-scheduler` — priority inversion, deadline handling, RT setup, PLL, jitter metrics, adaptive scheduling (wave 36) |
 | Diagnostic | 404+ | `openracing-diagnostic` — insta snapshots, diagnostics deep (wave 35), diagnostic + SRP deep (wave 38) |
 | Atomic | 198+ | `openracing-atomic` — concurrent stress, ordering guarantees, counters, snapshots, streaming stats (wave 36) |
-| Crypto | 131+ | `openracing-crypto` — signing property tests, crypto deep (wave 39) |
-| Other utilities | 1,070+ | `openracing-shifter` (178+), `openracing-handbrake` (73+), `openracing-device-types` (75+), `input-maps` (67+), `openracing-ks` (83+), `openracing-capture-ids` (45+), `openracing-test-helpers` (149+), `openracing-support` (25+), `compat`, `changelog`, etc. — peripherals deep (wave 37), test helpers (wave 41) |
+| Crypto | 178+ | `openracing-crypto` — signing property tests, crypto deep (wave 39), crypto + signing verification (wave 46) |
+| Other utilities | 1,240+ | `openracing-shifter` (178+), `openracing-handbrake` (73+), `openracing-device-types` (75+), `input-maps` (67+), `openracing-ks` (83+), `openracing-capture-ids` (45+), `openracing-test-helpers` (149+), `openracing-support` (25+), `compat`, `changelog`, etc. — peripherals deep (wave 37), test helpers (wave 41), device discovery (wave 45), replay + diagnostics (wave 46) |
 
 ---
 
@@ -74,10 +74,11 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total fuzz targets** | **104** |
+| **Total fuzz targets** | **113** |
 | Location | `fuzz/fuzz_targets/*.rs` |
-| Coverage | All 17 HID protocol crates + all game telemetry adapters |
+| Coverage | All 17 HID protocol crates + all game telemetry adapters + replay, diagnostics, calibration, FFB, crypto, CLI |
 | New in wave 31 | telemetry packet, profile, calibration, filter pipeline |
+| New in wave 46 | replay parsing, diagnostic export, calibration input, FFB commands, crypto payloads, CLI argument parsing |
 
 ---
 
@@ -106,7 +107,7 @@
 - **Insta snapshots:** `cargo insta review` workflow for snapshot management
 - **Trybuild:** compile-fail tests in `crates/*/tests/compile_fail/`
 - **BDD features:** `.feature` files in `crates/telemetry-bdd-metrics/`
-- **Fuzz corpus:** seed corpus in `fuzz/corpus/` for all 104 targets
+- **Fuzz corpus:** seed corpus in `fuzz/corpus/` for all 113 targets
 
 ---
 
@@ -197,6 +198,25 @@ ALL 14 HID crates cross-verified against community sources:
 | Example plugin tests | 51 | Plugin lifecycle, loading, sandboxing, error recovery |
 | Docs alignment fixes | — | ADR and developer guide alignment |
 
+## Wave 44-46 Test Additions
+
+| Commit | Tests | Description |
+|--------|------:|-------------|
+| RT no-allocation enforcement | 36 | Dedicated tests verifying zero heap allocations in RT code paths |
+| Safety fault injection | 74 | Expanded interlock, watchdog, and FMEA fault injection scenarios |
+| Protocol roundtrip proptests | 104 | Property-based roundtrip verification across 9 protocol crates |
+| IPC schema compat | 64 | Backward/forward compatibility validation for IPC schema evolution |
+| Service lifecycle | 87 | Comprehensive start/stop/restart/recovery/state-machine coverage |
+| Cross-platform | 60 | Platform-specific behavior validation across Windows, Linux, macOS |
+| Telemetry adapter validation | 119 | Extended adapter verification with edge-case and error-path coverage |
+| Error handling | 86 | Exhaustive error propagation and recovery path validation |
+| Device discovery | 84 | Enumeration, hot-plug detection, multi-vendor discovery scenarios |
+| Replay + diagnostics | 73 | Session replay, diagnostic export, health scoring, timeline reconstruction |
+| Calibration + FFB | 91 | Calibration workflow edge cases, FFB force output precision, profile application |
+| Crypto + signing | 47 | Ed25519 signing verification, key management, signature validation |
+| CLI deep | 68 | Extended subcommand coverage, argument parsing, output formatting, error reporting |
+| Fuzz targets | +9 | Replay parsing, diagnostic export, calibration input, FFB commands, crypto payloads, CLI argument parsing (113 total) |
+
 ---
 
-*Source: `cargo test --workspace --all-features --exclude racing-wheel-ui` · waves 15–43 complete*
+*Source: `cargo test --workspace --all-features --exclude racing-wheel-ui` · waves 15–46 complete*
