@@ -8,8 +8,8 @@ expression: result
   "message": "Device temperature approaching limit",
   "execution_time_ms": 42,
   "metadata": {
-    "threshold_c": "80",
-    "temperature_c": "78"
+    "temperature_c": "78",
+    "threshold_c": "80"
   },
   "suggested_actions": [
     "Improve ventilation",

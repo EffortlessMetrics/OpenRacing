@@ -1,0 +1,5 @@
+---
+source: crates/service/tests/service_snapshot_tests.rs
+expression: config.schema_version
+---
+wheel.config/1

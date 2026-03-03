@@ -2,6 +2,8 @@
 //!
 //! Uses `assert_cmd` to invoke the binary and capture output for snapshots.
 
+#![allow(deprecated)]
+
 // ---------------------------------------------------------------------------
 // CLI help text snapshots
 // ---------------------------------------------------------------------------

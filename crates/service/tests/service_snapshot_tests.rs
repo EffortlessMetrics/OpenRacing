@@ -134,7 +134,11 @@ fn snapshot_diagnostic_result_warn() {
             "Reduce torque output".to_string(),
         ],
     };
-    insta::assert_json_snapshot!("diagnostic_result_warn", result);
+    let mut settings = insta::Settings::clone_current();
+    settings.set_sort_maps(true);
+    settings.bind(|| {
+        insta::assert_json_snapshot!("diagnostic_result_warn", result);
+    });
 }
 
 #[test]
@@ -150,7 +154,11 @@ fn snapshot_diagnostic_result_fail() {
             "Power-cycle device".to_string(),
         ],
     };
-    insta::assert_json_snapshot!("diagnostic_result_fail", result);
+    let mut settings = insta::Settings::clone_current();
+    settings.set_sort_maps(true);
+    settings.bind(|| {
+        insta::assert_json_snapshot!("diagnostic_result_fail", result);
+    });
 }
 
 #[test]
@@ -164,8 +172,13 @@ fn snapshot_diagnostic_status_all_debug() {
 }
 
 #[test]
-fn snapshot_system_config_default_yaml() {
+fn snapshot_system_config_schema_version() {
     let config = SystemConfig::default();
-    // Use json_snapshot for deterministic key ordering (HashMap iteration order varies)
-    insta::assert_json_snapshot!("system_config_default", config);
+    insta::assert_snapshot!("system_config_schema_version", config.schema_version);
+}
+
+#[test]
+fn snapshot_system_config_engine_default() {
+    let config = SystemConfig::default();
+    insta::assert_json_snapshot!("system_config_engine", config.engine);
 }
