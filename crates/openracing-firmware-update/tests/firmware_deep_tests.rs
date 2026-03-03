@@ -1052,3 +1052,519 @@ mod property_tests {
         }
     }
 }
+
+// ===========================================================================
+// Device model compatibility and filtering
+// ===========================================================================
+
+mod device_model_compat {
+    use super::*;
+
+    #[test]
+    fn bundle_preserves_custom_device_model() -> TestResult {
+        let data = vec![0xCD; 16];
+        let mut image = test_firmware_image(&data);
+        image.device_model = "fanatec-csl-dd-v2".to_string();
+        let metadata = BundleMetadata::default();
+        let bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+        assert_eq!(&*bundle.header.device_model, "fanatec-csl-dd-v2");
+        let serialized = bundle.serialize()?;
+        let parsed = FirmwareBundle::parse(&serialized)?;
+        let extracted = parsed.extract_image()?;
+        assert_eq!(&*extracted.device_model, "fanatec-csl-dd-v2");
+        Ok(())
+    }
+
+    #[test]
+    fn different_device_models_produce_different_bundles() -> TestResult {
+        let data = vec![0x01; 8];
+        let mut img_a = test_firmware_image(&data);
+        img_a.device_model = "model-alpha".to_string();
+        let mut img_b = test_firmware_image(&data);
+        img_b.device_model = "model-beta".to_string();
+
+        let bundle_a = FirmwareBundle::new(&img_a, BundleMetadata::default(), CompressionType::None)?;
+        let bundle_b = FirmwareBundle::new(&img_b, BundleMetadata::default(), CompressionType::None)?;
+
+        assert_ne!(&*bundle_a.header.device_model, &*bundle_b.header.device_model);
+        Ok(())
+    }
+
+    #[test]
+    fn device_model_with_special_chars_round_trips() -> TestResult {
+        let data = vec![0xAA; 8];
+        let mut image = test_firmware_image(&data);
+        image.device_model = "vendor/wheel_v3.1-pro".to_string();
+        let metadata = BundleMetadata::default();
+        let bundle = FirmwareBundle::new(&image, metadata, CompressionType::Gzip)?;
+        let serialized = bundle.serialize()?;
+        let parsed = FirmwareBundle::parse(&serialized)?;
+        assert_eq!(&*parsed.header.device_model, "vendor/wheel_v3.1-pro");
+        Ok(())
+    }
+}
+
+// ===========================================================================
+// Firmware changelog and release notes
+// ===========================================================================
+
+mod changelog_tests {
+    use super::*;
+
+    #[test]
+    fn bundle_changelog_preserved_in_metadata() -> TestResult {
+        let data = vec![0x42; 16];
+        let image = test_firmware_image(&data);
+        let metadata = BundleMetadata {
+            changelog: Some("## v2.1.0\n- Fixed jitter\n- Improved FFB".to_string()),
+            ..Default::default()
+        };
+        let bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+        let serialized = bundle.serialize()?;
+        let parsed = FirmwareBundle::parse(&serialized)?;
+        let changelog = parsed.metadata.changelog.as_deref();
+        assert_eq!(changelog, Some("## v2.1.0\n- Fixed jitter\n- Improved FFB"));
+        Ok(())
+    }
+
+    #[test]
+    fn bundle_title_preserved() -> TestResult {
+        let data = vec![0x11; 8];
+        let image = test_firmware_image(&data);
+        let metadata = BundleMetadata {
+            title: Some("Critical Safety Fix".to_string()),
+            ..Default::default()
+        };
+        let bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+        let serialized = bundle.serialize()?;
+        let parsed = FirmwareBundle::parse(&serialized)?;
+        assert_eq!(parsed.metadata.title.as_deref(), Some("Critical Safety Fix"));
+        Ok(())
+    }
+
+    #[test]
+    fn release_notes_flow_to_extracted_image() -> TestResult {
+        let data = vec![0x22; 12];
+        let image = test_firmware_image(&data);
+        let metadata = BundleMetadata {
+            changelog: Some("Firmware release notes here".to_string()),
+            ..Default::default()
+        };
+        let bundle = FirmwareBundle::new(&image, metadata, CompressionType::Gzip)?;
+        let extracted = bundle.extract_image()?;
+        assert_eq!(
+            extracted.release_notes.as_deref(),
+            Some("Firmware release notes here")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn empty_changelog_is_none() -> TestResult {
+        let data = vec![0x33; 8];
+        let image = test_firmware_image(&data);
+        let metadata = BundleMetadata {
+            changelog: None,
+            title: None,
+            ..Default::default()
+        };
+        let bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+        let serialized = bundle.serialize()?;
+        let parsed = FirmwareBundle::parse(&serialized)?;
+        assert!(parsed.metadata.changelog.is_none());
+        assert!(parsed.metadata.title.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn bundle_custom_metadata_fields_preserved() -> TestResult {
+        let data = vec![0x44; 8];
+        let image = test_firmware_image(&data);
+        let mut custom = std::collections::HashMap::new();
+        custom.insert(
+            "build_id".to_string(),
+            serde_json::Value::String("abc-123".to_string()),
+        );
+        custom.insert(
+            "tested".to_string(),
+            serde_json::Value::Bool(true),
+        );
+        let metadata = BundleMetadata {
+            custom,
+            ..Default::default()
+        };
+        let bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+        let serialized = bundle.serialize()?;
+        let parsed = FirmwareBundle::parse(&serialized)?;
+        assert_eq!(parsed.metadata.custom.len(), 2);
+        let build_id = parsed.metadata.custom.get("build_id");
+        assert!(build_id.is_some());
+        Ok(())
+    }
+}
+
+// ===========================================================================
+// Binary format parsing edge cases
+// ===========================================================================
+
+mod binary_format_tests {
+    use super::*;
+
+    #[test]
+    fn magic_bytes_are_correct() {
+        assert_eq!(OWFB_MAGIC, b"OWFB\0\0\0\x01");
+        assert_eq!(OWFB_MAGIC.len(), 8);
+    }
+
+    #[test]
+    fn bundle_format_version_is_one() {
+        assert_eq!(openracing_firmware_update::bundle::BUNDLE_FORMAT_VERSION, 1);
+    }
+
+    #[test]
+    fn large_payload_round_trips() -> TestResult {
+        let data: Vec<u8> = (0..10_000).map(|i| (i % 256) as u8).collect();
+        let bundle = make_bundle(&data, CompressionType::Gzip)?;
+        let serialized = bundle.serialize()?;
+        let parsed = FirmwareBundle::parse(&serialized)?;
+        let extracted = parsed.extract_image()?;
+        assert_eq!(extracted.data.len(), 10_000);
+        assert_eq!(extracted.data, data);
+        Ok(())
+    }
+
+    #[test]
+    fn compressed_smaller_than_uncompressed_for_repetitive_data() -> TestResult {
+        let data = vec![0xAA; 4096];
+        let bundle = make_bundle(&data, CompressionType::Gzip)?;
+        assert!(
+            bundle.header.compressed_size < bundle.header.uncompressed_size,
+            "compressed {} should be < uncompressed {}",
+            bundle.header.compressed_size,
+            bundle.header.uncompressed_size,
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn uncompressed_bundle_sizes_match() -> TestResult {
+        let data = vec![0xBB; 128];
+        let bundle = make_bundle(&data, CompressionType::None)?;
+        assert_eq!(bundle.header.uncompressed_size, 128);
+        assert_eq!(bundle.header.compressed_size, 128);
+        Ok(())
+    }
+
+    #[test]
+    fn bundle_header_hash_matches_payload() -> TestResult {
+        let data = b"payload for hash verification test";
+        let bundle = make_bundle(data, CompressionType::None)?;
+        let expected_hash = {
+            use sha2::{Digest, Sha256};
+            let mut h = Sha256::new();
+            h.update(data);
+            hex::encode(h.finalize())
+        };
+        assert_eq!(&*bundle.header.payload_hash, &*expected_hash);
+        Ok(())
+    }
+
+    #[test]
+    fn bundle_with_single_byte_payload() -> TestResult {
+        let data = vec![0xFF];
+        let bundle = make_bundle(&data, CompressionType::Gzip)?;
+        let serialized = bundle.serialize()?;
+        let parsed = FirmwareBundle::parse(&serialized)?;
+        let extracted = parsed.extract_image()?;
+        assert_eq!(extracted.data, vec![0xFF]);
+        Ok(())
+    }
+}
+
+// ===========================================================================
+// Version comparison: upgrade, downgrade, same version
+// ===========================================================================
+
+mod version_comparison_tests {
+    use super::*;
+
+    #[test]
+    fn upgrade_path_major_version() {
+        let old = semver::Version::new(1, 0, 0);
+        let new = semver::Version::new(2, 0, 0);
+        assert!(new > old);
+    }
+
+    #[test]
+    fn upgrade_path_minor_version() {
+        let old = semver::Version::new(1, 0, 0);
+        let new = semver::Version::new(1, 1, 0);
+        assert!(new > old);
+    }
+
+    #[test]
+    fn upgrade_path_patch_version() {
+        let old = semver::Version::new(1, 0, 0);
+        let new = semver::Version::new(1, 0, 1);
+        assert!(new > old);
+    }
+
+    #[test]
+    fn downgrade_detected() {
+        let current = semver::Version::new(3, 0, 0);
+        let target = semver::Version::new(2, 5, 0);
+        assert!(target < current, "downgrade: target should be less than current");
+    }
+
+    #[test]
+    fn same_version_detected() {
+        let a = semver::Version::new(1, 2, 3);
+        let b = semver::Version::new(1, 2, 3);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn rollback_protection_blocks_downgrade() -> TestResult {
+        let data = vec![0x01; 8];
+        let image = test_firmware_image(&data);
+        let metadata = BundleMetadata {
+            rollback_version: Some(semver::Version::new(2, 0, 0)),
+            ..Default::default()
+        };
+        let bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+        // Device running 1.0.0 should be blocked (below rollback minimum)
+        assert!(!bundle.allows_upgrade_from(&semver::Version::new(1, 0, 0)));
+        // Device running 2.0.0 should be allowed
+        assert!(bundle.allows_upgrade_from(&semver::Version::new(2, 0, 0)));
+        // Device running 3.0.0 should be allowed
+        assert!(bundle.allows_upgrade_from(&semver::Version::new(3, 0, 0)));
+        Ok(())
+    }
+}
+
+// ===========================================================================
+// Interrupted update recovery and rollback
+// ===========================================================================
+
+mod interrupted_update_tests {
+    use super::*;
+    use openracing_firmware_update::rollback::RollbackManager;
+    use std::path::PathBuf;
+    use tokio::fs;
+
+    #[tokio::test]
+    async fn rollback_with_multiple_files() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let backup_dir = dir.path().join("backups");
+        let install_dir = dir.path().join("install");
+        fs::create_dir_all(&backup_dir).await?;
+        fs::create_dir_all(&install_dir).await?;
+
+        // Create multiple files to back up
+        fs::write(install_dir.join("firmware.bin"), b"fw-original").await?;
+        fs::write(install_dir.join("config.dat"), b"cfg-original").await?;
+
+        let manager = RollbackManager::new(backup_dir.clone(), install_dir.clone());
+        let files = vec![
+            PathBuf::from("firmware.bin"),
+            PathBuf::from("config.dat"),
+        ];
+        manager
+            .create_backup(
+                "multi-file-bak",
+                semver::Version::new(1, 0, 0),
+                semver::Version::new(2, 0, 0),
+                &files,
+            )
+            .await?;
+
+        // Simulate partial update (only firmware overwritten)
+        fs::write(install_dir.join("firmware.bin"), b"fw-corrupted").await?;
+
+        // Rollback should restore both files
+        manager.rollback_to("multi-file-bak").await?;
+
+        let fw = fs::read_to_string(install_dir.join("firmware.bin")).await?;
+        let cfg = fs::read_to_string(install_dir.join("config.dat")).await?;
+        assert_eq!(&*fw, "fw-original");
+        assert_eq!(&*cfg, "cfg-original");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn rollback_with_nested_directories() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let backup_dir = dir.path().join("backups");
+        let install_dir = dir.path().join("install");
+        fs::create_dir_all(&backup_dir).await?;
+        fs::create_dir_all(install_dir.join("sub")).await?;
+
+        fs::write(install_dir.join("sub").join("deep.bin"), b"deep-orig").await?;
+
+        let manager = RollbackManager::new(backup_dir.clone(), install_dir.clone());
+        manager
+            .create_backup(
+                "nested-bak",
+                semver::Version::new(1, 0, 0),
+                semver::Version::new(1, 1, 0),
+                &[PathBuf::from("sub").join("deep.bin")],
+            )
+            .await?;
+
+        fs::write(install_dir.join("sub").join("deep.bin"), b"deep-bad").await?;
+        manager.rollback_to("nested-bak").await?;
+
+        let content = fs::read_to_string(install_dir.join("sub").join("deep.bin")).await?;
+        assert_eq!(&*content, "deep-orig");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn cleanup_with_no_old_backups_succeeds() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let backup_dir = dir.path().join("backups");
+        let install_dir = dir.path().join("install");
+        fs::create_dir_all(&backup_dir).await?;
+        fs::create_dir_all(&install_dir).await?;
+
+        let manager = RollbackManager::new(backup_dir, install_dir);
+        // Cleanup when no backups exist should be a no-op (not an error)
+        manager.cleanup_old(30).await?;
+        Ok(())
+    }
+}
+
+// ===========================================================================
+// Progress reporting accuracy
+// ===========================================================================
+
+mod progress_reporting_tests {
+    use super::*;
+
+    #[test]
+    fn progress_percentage_at_boundaries() -> TestResult {
+        let progress_start = UpdateProgress {
+            phase: UpdatePhase::Transferring,
+            progress_percent: 0,
+            bytes_transferred: 0,
+            total_bytes: 10000,
+            transfer_rate_bps: 0,
+            eta_seconds: Some(100),
+            status_message: "Starting transfer".to_string(),
+            warnings: Vec::new(),
+        };
+        assert_eq!(progress_start.progress_percent, 0);
+
+        let progress_end = UpdateProgress {
+            phase: UpdatePhase::Completed,
+            progress_percent: 100,
+            bytes_transferred: 10000,
+            total_bytes: 10000,
+            transfer_rate_bps: 5000,
+            eta_seconds: Some(0),
+            status_message: "Transfer complete".to_string(),
+            warnings: Vec::new(),
+        };
+        assert_eq!(progress_end.progress_percent, 100);
+        assert_eq!(progress_end.bytes_transferred, progress_end.total_bytes);
+        Ok(())
+    }
+
+    #[test]
+    fn progress_with_warnings_serializes() -> TestResult {
+        let progress = UpdateProgress {
+            phase: UpdatePhase::Validating,
+            progress_percent: 75,
+            bytes_transferred: 7500,
+            total_bytes: 10000,
+            transfer_rate_bps: 2500,
+            eta_seconds: Some(1),
+            status_message: "Validating checksum".to_string(),
+            warnings: vec![
+                "Slow transfer rate detected".to_string(),
+                "Battery low".to_string(),
+            ],
+        };
+        let json = serde_json::to_string(&progress)?;
+        let restored: UpdateProgress = serde_json::from_str(&json)?;
+        assert_eq!(restored.warnings.len(), 2);
+        assert_eq!(&*restored.warnings[0], "Slow transfer rate detected");
+        Ok(())
+    }
+
+    #[test]
+    fn all_update_phases_are_distinct() -> TestResult {
+        let phases = vec![
+            UpdatePhase::Initializing,
+            UpdatePhase::Verifying,
+            UpdatePhase::Preparing,
+            UpdatePhase::Transferring,
+            UpdatePhase::Validating,
+            UpdatePhase::Activating,
+            UpdatePhase::HealthCheck,
+            UpdatePhase::Completed,
+            UpdatePhase::RollingBack,
+            UpdatePhase::Failed,
+        ];
+        // Verify all phases serialize to distinct JSON strings
+        let mut json_values = std::collections::HashSet::new();
+        for phase in &phases {
+            let json = serde_json::to_string(phase)?;
+            json_values.insert(json);
+        }
+        assert_eq!(json_values.len(), phases.len(), "all phases should be distinct");
+        Ok(())
+    }
+}
+
+// ===========================================================================
+// Concurrent update rejection
+// ===========================================================================
+
+mod concurrent_update_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn ffb_blocker_rejects_second_device_update() -> TestResult {
+        let blocker = FfbBlocker::new();
+        blocker.begin_update("wheel-A").await?;
+
+        let result = blocker.begin_update("wheel-B").await;
+        assert!(result.is_err(), "second concurrent update should be rejected");
+
+        blocker.end_update().await;
+        // Now a new update should be possible
+        blocker.begin_update("wheel-B").await?;
+        blocker.end_update().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ffb_blocked_during_update_unblocked_after() -> TestResult {
+        let blocker = FfbBlocker::new();
+        assert!(!blocker.is_ffb_blocked());
+
+        blocker.begin_update("dev-1").await?;
+        assert!(blocker.is_ffb_blocked());
+        let err = blocker.try_ffb_operation();
+        assert!(err.is_err());
+
+        blocker.end_update().await;
+        assert!(!blocker.is_ffb_blocked());
+        blocker.try_ffb_operation()?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn rapid_begin_end_cycles_stable() -> TestResult {
+        let blocker = FfbBlocker::new();
+        for i in 0..10 {
+            let device_id = format!("device-{}", i);
+            blocker.begin_update(&device_id).await?;
+            assert!(blocker.is_ffb_blocked());
+            blocker.end_update().await;
+            assert!(!blocker.is_ffb_blocked());
+        }
+        Ok(())
+    }
+}
