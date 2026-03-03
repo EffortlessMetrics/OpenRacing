@@ -1,15 +1,15 @@
 ---
-source: crates/telemetry-adapters/tests/snapshots_acc.rs
+source: crates/telemetry-adapters/src/acc.rs
 expression: normalized
 ---
-speed_ms: 16.666668
+speed_ms: 50
 steering_angle: 0
 throttle: 0
 brake: 0
 clutch: 0
 rpm: 0
 max_rpm: 0
-gear: 1
+gear: 5
 num_gears: 0
 lateral_g: 0
 longitudinal_g: 0
@@ -37,8 +37,8 @@ flags:
   blue_flag: false
   checkered_flag: false
   green_flag: true
-  pit_limiter: true
-  in_pits: true
+  pit_limiter: false
+  in_pits: false
   drs_available: false
   drs_active: false
   ers_available: false
@@ -50,27 +50,52 @@ flags:
   safety_car: false
   formation_lap: false
   session_paused: false
-car_id: car_3
-position: 6
-lap: 14
-current_lap_time_s: 55
-best_lap_time_s: 101.2
-last_lap_time_s: 108.9
+car_id: car_7
+track_id: monza
+position: 2
+lap: 12
+current_lap_time_s: 45
+best_lap_time_s: 91
+last_lap_time_s: 92
 delta_ahead_s: 0
 delta_behind_s: 0
 fuel_percent: 0
 engine_temp_c: 0
 extended:
+  ambient_temp_c:
+    type: Integer
+    value: 24
+  best_session_lap_s:
+    type: Float
+    value: 91
   cup_position:
     type: Integer
-    value: 5
+    value: 2
   delta_ms:
     type: Integer
-    value: 2100
+    value: -120
+  rain_level:
+    type: Float
+    value: 0.1
+  session_phase:
+    type: Integer
+    value: 4
+  session_time_ms:
+    type: Float
+    value: 12345
+  session_type:
+    type: Integer
+    value: 3
   spline_position:
     type: Float
     value: 0.5
   track_position:
     type: Integer
-    value: 8
+    value: 2
+  track_temp_c:
+    type: Integer
+    value: 31
+  wetness:
+    type: Float
+    value: 0.3
 sequence: 0

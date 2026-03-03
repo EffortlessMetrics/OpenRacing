@@ -473,6 +473,29 @@ mod tests {
         Ok(())
     }
 
+    // ── Insta snapshot tests ──────────────────────────────────────────────
+
+    #[test]
+    fn snapshot_lfs_full_telemetry() -> TestResult {
+        let data = make_lfs_packet_full(
+            42.0,   // speed m/s
+            6800.0, // rpm
+            4,      // gear raw (4 → 3rd)
+            0.85,   // throttle
+            0.0,    // brake
+            0.1,    // clutch
+            0.62,   // fuel
+            92.5,   // engine temp
+            1.2,    // turbo
+            3.8,    // oil pressure
+            105.0,  // oil temp
+            DL_TC | DL_ABS | DL_SHIFT,
+        );
+        let result = parse_lfs_packet(&data)?;
+        insta::assert_yaml_snapshot!(result);
+        Ok(())
+    }
+
     #[cfg(test)]
     mod proptest_tests {
         use super::*;

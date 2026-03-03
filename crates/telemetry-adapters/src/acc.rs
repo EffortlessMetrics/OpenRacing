@@ -331,11 +331,14 @@ struct RegistrationResult {
 #[derive(Debug, Clone, PartialEq)]
 struct RealtimeUpdate {
     focused_car_index: Option<u16>,
+    session_type: u8,
+    phase: u8,
     session_time_ms: f32,
     ambient_temp_c: u8,
     track_temp_c: u8,
     rain_level: f32,
     wetness: f32,
+    best_session_lap_ms: i32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -347,6 +350,7 @@ struct RealtimeCarUpdate {
     position: u16,
     cup_position: u16,
     track_position: u16,
+    spline_position: f32,
     laps: u16,
     delta_ms: i32,
     best_session_lap_ms: i32,
@@ -399,11 +403,18 @@ impl ACCSessionState {
     }
 
     fn normalize_car(&self, car: &RealtimeCarUpdate) -> NormalizedTelemetry {
-        let flags = TelemetryFlags {
+        let mut flags = TelemetryFlags {
             in_pits: matches!(car.car_location, 2..=4),
             pit_limiter: car.car_location == 2,
             ..TelemetryFlags::default()
         };
+
+        // ACC phase 3 = FormationLap
+        if let Some(realtime) = &self.latest_realtime
+            && realtime.phase == 3
+        {
+            flags.formation_lap = true;
+        }
 
         let track_id = self.track_name.clone();
         let speed_ms = f32::from(car.speed_kmh) / 3.6;
@@ -426,16 +437,17 @@ impl ACCSessionState {
             .last_lap_time_s(last_lap_s)
             .current_lap_time_s(current_lap_s)
             .extended(
-                "cup_position".to_string(),
+                "cup_position",
                 TelemetryValue::Integer(i32::from(car.cup_position)),
             )
             .extended(
-                "track_position".to_string(),
+                "track_position",
                 TelemetryValue::Integer(i32::from(car.track_position)),
             )
+            .extended("delta_ms", TelemetryValue::Integer(car.delta_ms))
             .extended(
-                "delta_ms".to_string(),
-                TelemetryValue::Integer(car.delta_ms),
+                "spline_position",
+                TelemetryValue::Float(car.spline_position),
             );
 
         if let Some(track_name) = track_id {
@@ -443,27 +455,34 @@ impl ACCSessionState {
         }
 
         if let Some(realtime) = &self.latest_realtime {
+            let best_session_lap_s = realtime.best_session_lap_ms.max(0) as f32 / 1000.0;
             builder = builder
                 .extended(
-                    "session_time_ms".to_string(),
+                    "session_type",
+                    TelemetryValue::Integer(i32::from(realtime.session_type)),
+                )
+                .extended(
+                    "session_phase",
+                    TelemetryValue::Integer(i32::from(realtime.phase)),
+                )
+                .extended(
+                    "session_time_ms",
                     TelemetryValue::Float(realtime.session_time_ms),
                 )
                 .extended(
-                    "ambient_temp_c".to_string(),
+                    "best_session_lap_s",
+                    TelemetryValue::Float(best_session_lap_s),
+                )
+                .extended(
+                    "ambient_temp_c",
                     TelemetryValue::Integer(i32::from(realtime.ambient_temp_c)),
                 )
                 .extended(
-                    "track_temp_c".to_string(),
+                    "track_temp_c",
                     TelemetryValue::Integer(i32::from(realtime.track_temp_c)),
                 )
-                .extended(
-                    "rain_level".to_string(),
-                    TelemetryValue::Float(realtime.rain_level),
-                )
-                .extended(
-                    "wetness".to_string(),
-                    TelemetryValue::Float(realtime.wetness),
-                );
+                .extended("rain_level", TelemetryValue::Float(realtime.rain_level))
+                .extended("wetness", TelemetryValue::Float(realtime.wetness));
         }
 
         builder.build()
@@ -561,8 +580,8 @@ fn parse_registration_result(reader: &mut PacketReader<'_>) -> Result<Registrati
 fn parse_realtime_update(reader: &mut PacketReader<'_>) -> Result<RealtimeUpdate> {
     let _event_index = reader.read_u16_le()?;
     let _session_index = reader.read_u16_le()?;
-    let _session_type = reader.read_u8()?;
-    let _phase = reader.read_u8()?;
+    let session_type = reader.read_u8()?;
+    let phase = reader.read_u8()?;
 
     let session_time_ms = reader.read_f32_le()?;
     let _session_end_time_ms = reader.read_f32_le()?;
@@ -587,15 +606,18 @@ fn parse_realtime_update(reader: &mut PacketReader<'_>) -> Result<RealtimeUpdate
     let rain_level = f32::from(reader.read_u8()?) / 10.0;
     let wetness = f32::from(reader.read_u8()?) / 10.0;
 
-    let _best_session_lap = read_lap_time_ms(reader)?;
+    let best_session_lap_ms = read_lap_time_ms(reader)?;
 
     Ok(RealtimeUpdate {
         focused_car_index,
+        session_type,
+        phase,
         session_time_ms,
         ambient_temp_c,
         track_temp_c,
         rain_level,
         wetness,
+        best_session_lap_ms,
     })
 }
 
@@ -625,7 +647,7 @@ fn parse_realtime_car_update(reader: &mut PacketReader<'_>) -> Result<RealtimeCa
     let position = reader.read_u16_le()?;
     let cup_position = reader.read_u16_le()?;
     let track_position = reader.read_u16_le()?;
-    let _spline_position = reader.read_f32_le()?;
+    let spline_position = reader.read_f32_le()?;
     let laps = reader.read_u16_le()?;
     let delta_ms = reader.read_i32_le()?;
 
@@ -641,6 +663,7 @@ fn parse_realtime_car_update(reader: &mut PacketReader<'_>) -> Result<RealtimeCa
         position,
         cup_position,
         track_position,
+        spline_position,
         laps,
         delta_ms,
         best_session_lap_ms,
@@ -1069,6 +1092,27 @@ mod tests {
         let mut reader = PacketReader::new(&bytes);
         let decoded = read_acc_string(&mut reader)?;
         assert_eq!(decoded, "ferrari_296_gt3");
+        Ok(())
+    }
+
+    // ── Insta snapshot tests ──────────────────────────────────────────────
+
+    #[test]
+    fn snapshot_acc_full_sequence() -> TestResult {
+        let mut state = ACCSessionState::default();
+
+        let track_msg = parse_inbound_message(FIXTURE_TRACK_DATA_MONZA)?;
+        state.update_and_normalize(&track_msg);
+
+        let realtime_msg = parse_inbound_message(FIXTURE_REALTIME_UPDATE_FOCUSED_CAR_7)?;
+        state.update_and_normalize(&realtime_msg);
+
+        let car_msg = parse_inbound_message(FIXTURE_REALTIME_CAR_UPDATE_CAR_7)?;
+        let normalized = state
+            .update_and_normalize(&car_msg)
+            .ok_or("expected normalized telemetry from fixture")?;
+
+        insta::assert_yaml_snapshot!(normalized);
         Ok(())
     }
 

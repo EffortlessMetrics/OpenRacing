@@ -67,6 +67,9 @@ extended:
   delta_ms:
     type: Integer
     value: 0
+  spline_position:
+    type: Float
+    value: 0.5
   track_position:
     type: Integer
     value: 12
