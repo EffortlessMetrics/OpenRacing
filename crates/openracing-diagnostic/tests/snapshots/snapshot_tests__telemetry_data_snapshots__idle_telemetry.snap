@@ -1,0 +1,13 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: telemetry
+---
+TelemetryData {
+    ffb_scalar: 1.0,
+    rpm: 800.0,
+    speed_ms: 0.0,
+    slip_ratio: 0.0,
+    gear: 0,
+    car_id: None,
+    track_id: None,
+}

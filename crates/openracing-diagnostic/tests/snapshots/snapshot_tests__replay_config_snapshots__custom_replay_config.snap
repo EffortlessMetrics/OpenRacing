@@ -1,0 +1,11 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: config
+---
+ReplayConfig {
+    deterministic_seed: 3735928559,
+    fp_tolerance: 0.001,
+    strict_timing: true,
+    max_duration_s: 120,
+    validate_outputs: false,
+}

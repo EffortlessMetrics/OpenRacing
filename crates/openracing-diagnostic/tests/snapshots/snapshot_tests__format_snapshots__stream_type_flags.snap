@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: output
+---
+A=0x01 B=0x02 C=0x04

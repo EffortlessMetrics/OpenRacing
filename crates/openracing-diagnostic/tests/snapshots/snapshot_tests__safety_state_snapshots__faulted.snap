@@ -1,0 +1,7 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: "SafetyStateSimple::Faulted { fault_type: \"watchdog_timeout\".into(), }"
+---
+Faulted {
+    fault_type: "watchdog_timeout",
+}

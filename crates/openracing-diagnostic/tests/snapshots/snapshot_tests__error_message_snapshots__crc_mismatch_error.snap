@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: "DiagnosticError::CrcMismatch\n{ expected: 0xDEADBEEF, actual: 0xCAFEBABE, }.to_string()"
+---
+CRC mismatch: expected 3735928559, got 3405691582

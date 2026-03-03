@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: "DiagnosticError::Format(\"unexpected stream tag 0xFF\".into()).to_string()"
+---
+File format error: unexpected stream tag 0xFF

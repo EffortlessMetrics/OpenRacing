@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: "DiagnosticError::Serialization(\"failed to encode FrameData\".into()).to_string()"
+---
+Serialization error: failed to encode FrameData

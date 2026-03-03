@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: "DiagnosticError::Compression(\"gzip decompression failed\".into()).to_string()"
+---
+Compression error: gzip decompression failed

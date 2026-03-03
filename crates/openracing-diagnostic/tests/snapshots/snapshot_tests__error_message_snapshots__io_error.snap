@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: "DiagnosticError::Io(\"permission denied: /var/recordings\".into()).to_string()"
+---
+I/O error: permission denied: /var/recordings

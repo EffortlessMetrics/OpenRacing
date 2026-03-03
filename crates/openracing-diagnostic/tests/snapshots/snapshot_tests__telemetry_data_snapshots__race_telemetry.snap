@@ -1,0 +1,17 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: telemetry
+---
+TelemetryData {
+    ffb_scalar: 0.85,
+    rpm: 7200.0,
+    speed_ms: 55.0,
+    slip_ratio: 0.05,
+    gear: 4,
+    car_id: Some(
+        "porsche_911_gt3",
+    ),
+    track_id: Some(
+        "nurburgring_gp",
+    ),
+}

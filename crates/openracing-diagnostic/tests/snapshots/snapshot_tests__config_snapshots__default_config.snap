@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: output
+---
+BlackboxConfig { device_id: "my-device", max_duration_s: 300, max_file_size_bytes: 26214400, compression_level: 6, stream_a: true, stream_b: true, stream_c: true, stream_flags: 0x07 }
