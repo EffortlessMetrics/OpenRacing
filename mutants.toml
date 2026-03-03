@@ -27,6 +27,12 @@ include = [
     # RT pipeline compilation and execution
     "openracing-pipeline",
 
+    # --- Calibration & crypto (correctness = safety) ---
+    # Wheel/pedal calibration (wrong calibration = wrong torque output)
+    "openracing-calibration",
+    # Ed25519 code signing for native plugins (signature bypass = code injection)
+    "openracing-crypto",
+
     # --- Safety infrastructure (watchdogs, RT scheduling, lock-free counters) ---
     # Hardware watchdog state machine (arm/disarm/timeout transitions)
     "openracing-hardware-watchdog",
