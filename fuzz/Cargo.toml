@@ -39,6 +39,8 @@ racing-wheel-hid-cube-controls-protocol = { path = "../crates/hid-cube-controls-
 racing-wheel-hid-leo-bodnar-protocol = { path = "../crates/hid-leo-bodnar-protocol" }
 racing-wheel-hid-accuforce-protocol = { path = "../crates/hid-accuforce-protocol" }
 racing-wheel-simplemotion-v2 = { path = "../crates/simplemotion-v2" }
+openracing-firmware-update = { path = "../crates/openracing-firmware-update" }
+openracing-diagnostic = { path = "../crates/openracing-diagnostic" }
 
 # Fuzzing requires nightly and release-like optimizations.
 [[bin]]
@@ -614,6 +616,30 @@ doc = false
 [[bin]]
 name = "fuzz_ams2_udp"
 path = "fuzz_targets/fuzz_ams2_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_firmware_bundle"
+path = "fuzz_targets/fuzz_firmware_bundle.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_hardware_version"
+path = "fuzz_targets/fuzz_hardware_version.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_wbb_header"
+path = "fuzz_targets/fuzz_wbb_header.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_diagnostic_stream_codec"
+path = "fuzz_targets/fuzz_diagnostic_stream_codec.rs"
 test = false
 doc = false
 
