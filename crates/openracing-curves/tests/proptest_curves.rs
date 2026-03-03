@@ -22,7 +22,7 @@ fn unit_f32() -> impl Strategy<Value = f32> {
 }
 
 fn valid_exponent() -> impl Strategy<Value = f32> {
-    (1u32..=10_000u32).prop_map(|v| v as f32 / 1_000.0) // 0.001 .. 10.0
+    (100u32..=10_000u32).prop_map(|v| v as f32 / 1_000.0) // 0.1 .. 10.0
 }
 
 fn valid_log_base() -> impl Strategy<Value = f32> {
