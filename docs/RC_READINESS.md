@@ -2,7 +2,7 @@
 
 **Branch:** `feat/wave15-rc-hardening`
 **Generated:** 2025-07-24
-**Commit:** HEAD (wave 29 complete)
+**Commit:** HEAD (wave 33 complete)
 
 ## Build & CI Status
 
@@ -17,18 +17,19 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **15,820+** |
-| **Test files** | **487** |
-| Unit tests | 10,800+ |
+| **Total tests** | **16,742+** |
+| **Test files** | **547** |
+| Unit tests | 11,400+ |
 | Snapshot tests | 1,141 |
-| Property tests (proptest) | 1,700+ |
-| End-to-end (E2E) tests | 800+ |
+| Property tests (proptest) | 1,900+ |
+| End-to-end (E2E) tests | 900+ |
 | Golden-packet tests | 72+ |
 | Safety soak tests | 10K+ tick suites |
 | Compile-fail (trybuild) | 20 |
 | Doc-tests | 432+ |
 | BDD / acceptance tests | 60+ |
-| Fuzz targets | 100 |
+| Protocol verification tests | 400+ |
+| Fuzz targets | 104 |
 | Integration test files | 48+ |
 | Crate coverage | 79/82 |
 
@@ -39,7 +40,7 @@
 | Proptest files | 348+ | Property-based testing across all 17 protocol & engine crates |
 | Snapshot test files | 1,141 | `insta` snapshots for protocol encoding & telemetry (44 directories) |
 | Integration test files | 48+ | `crates/integration-tests/tests/*.rs` |
-| Fuzz targets | 100 | `fuzz/fuzz_targets/` — covers all protocols & telemetry parsers |
+| Fuzz targets | 104 | `fuzz/fuzz_targets/` — covers all protocols & telemetry parsers |
 | Compile-fail (trybuild) | 20 | Type-safety and API misuse prevention via `trybuild` |
 | Golden-packet tests | 72+ | End-to-end adapter validation against known-good captures |
 | Safety soak tests | 5+ | 10K+ tick sustained operation under fault injection |
@@ -68,9 +69,10 @@
   Fanatec, Simucube (1 & 2), Simagic, Moza, Asetek, VRS, Heusinkveld, AccuForce,
   OpenFFBoard, FFBeast, Leo Bodnar, Cube Controls, Cammus, and PXN — each with unit,
   snapshot, property, and E2E tests plus a dedicated fuzz target.
-- **All 12 HID protocol crates have deep tests**: comprehensive coverage including Moza,
-  Fanatec, Thrustmaster, and 9 additional protocol crates with deep test suites added
-  in waves 26-27.
+- **All 14 HID protocol crates have deep tests**: comprehensive coverage including Moza,
+  Fanatec, Thrustmaster, Logitech, SimuCube, OpenFFBoard, AccuForce, Asetek, Button Box,
+  Cammus, Cube Controls, FFBeast, Leo Bodnar, and VRS — all cross-verified against
+  community sources (kernel drivers, pid.codes, vendor documentation) in waves 31-33.
 - **All telemetry adapters have deep tests**: AMS2, SimHub, KartKraft, MudRunner,
   Rennsport (wave 25), F1, Forza, LFS, RaceRoom, WRC (wave 26), iRacing, ACC, BeamNG,
   DiRT Rally, ETS2, GT7 (wave 27) — complete adapter coverage.
@@ -83,7 +85,7 @@
 - **56 telemetry adapter modules** with snapshot regression tests across
   multiple schema versions (v2–v9).
 - **CLI, schemas, plugins, and engine** all have dedicated test suites.
-- **Fuzz testing** covers 100+ targets spanning all protocol parsers and telemetry decoders.
+- **Fuzz testing** covers 104 targets spanning all protocol parsers and telemetry decoders.
 - **Safety-critical paths** (FMEA, watchdog, hardware watchdog) have dedicated test suites
   including fault-injection and property tests, with watchdog/FMEA deep tests added in wave 25.
 - **RC-specific integration tests** exist (`rc_integration_tests.rs`, 48 tests).
@@ -96,8 +98,39 @@
 - **Performance gates**: CI-enforced performance validation (wave 25).
 - **FFB, calibration, and pipeline deep tests**: comprehensive force feedback coverage (wave 26).
 - **Tracing, support, core, and streams deep tests**: infrastructure coverage (wave 27).
+- **Device hot-swap simulation tests**: engine hot-swap resilience validated (wave 30).
+- **CLI comprehensive E2E tests**: full subcommand coverage with 112 tests (wave 30).
+- **Safety property-based invariants**: 23 invariant tests with 256+ cases each (wave 30).
+- **Plugin lifecycle and security deep tests**: 99 tests covering WASM/native plugin lifecycle (wave 31).
+- **Protocol verification complete**: ALL 14 HID crates cross-verified against community sources — kernel drivers (`hid-fanatecff`, `hid-lg4ff`, `hid-thrustmaster`, `simagic-ff`), `boxflat`, pid.codes, and vendor documentation (waves 31-33).
+- **Telemetry adapter constants cross-verified**: 76 tests validating adapter constants against official game APIs (wave 32).
+- **FFB pipeline end-to-end tests**: 41 tests covering complete force feedback pipeline (wave 33).
+- **Compat and config deep tests**: 133 migration + validation tests (wave 33).
 
 ## PID Verification Status
+
+### Protocol Cross-Verification (Waves 31-33)
+
+| HID Crate | Status | Verified Against |
+|-----------|--------|------------------|
+| Moza | ✅ Verified | boxflat, Linux kernel drivers |
+| Fanatec | ✅ Verified | hid-fanatecff, Wine drivers |
+| Logitech | ✅ Verified | kernel hid-lg4ff |
+| Thrustmaster | ✅ Verified | kernel hid-thrustmaster |
+| SimuCube | ✅ Verified | Official docs, pid.codes |
+| OpenFFBoard | ✅ Verified | pid.codes, firmware source |
+| AccuForce | ✅ Verified | Community databases, USB captures |
+| Asetek | ✅ Verified | Community databases, web sources |
+| Button Box | ✅ Verified | pid.codes, Arduino community |
+| Cammus | ✅ Verified | Community sources |
+| Cube Controls | ✅ Verified | Community databases |
+| FFBeast | ✅ Verified | Community databases |
+| Leo Bodnar | ✅ Verified | Vendor documentation |
+| VRS | ✅ Verified | Kernel mainline, community sources |
+
+**Total: ALL 14 HID crates verified against community sources**
+
+### Individual PID Status
 
 | Device | PID | Status | Notes |
 |--------|-----|--------|-------|

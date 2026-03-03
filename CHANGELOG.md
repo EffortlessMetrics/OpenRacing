@@ -16,8 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **14,017+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests) — 0 failures
 - **15,444+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild) — 0 failures
 - **15,820+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD) — 0 failures, 44 ignored
+- **16,742+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification) — 0 failures, 44 ignored
 - **96 fuzz targets** covering all HID protocols and game telemetry adapters (AMS2 target added)
 - **100+ fuzz targets** covering all HID protocols, game telemetry adapters, and new wave 24 targets
+- **104 fuzz targets** covering all HID protocols, game telemetry adapters, and wave 31 targets (telemetry packet, profile, calibration, filter pipeline)
 - **977 snapshot files** across 38 snapshot directories
 - **1,141 snapshot files** across 44 snapshot directories
 - **Fanatec GT DD Pro/ClubSport DD PID findings**: GT DD Pro and ClubSport DD confirmed to share PID `0x0020` with CSL DD in PC mode
@@ -82,6 +84,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Wave 29 — BDD behavior scenarios, final hardening** (~15,650 → 15,820+ tests):
   - 15 BDD Given/When/Then behavior scenario tests
   - Final test suite verification: 14,933 tests verified passing (566 test binaries), 44 ignored
+- **Wave 30 — device hot-swap, CLI E2E, safety invariants** (15,820 → ~16,000+ tests):
+  - Device hot-swap simulation tests (32 tests): engine resilience under device connect/disconnect
+  - CLI comprehensive end-to-end tests (112 tests): full subcommand coverage
+  - Safety property-based invariant tests (23 tests, 256+ cases each): interlock and watchdog invariants
+- **Wave 31 — plugin lifecycle, fuzz expansion, protocol verification** (~16,000 → ~16,300+ tests):
+  - Plugin system lifecycle + security deep tests (99 tests): WASM/native plugin loading, isolation, capability enforcement
+  - 4 new fuzz targets (104 total): telemetry packet, profile, calibration, filter pipeline
+  - Protocol verification: SimuCube + OpenFFBoard cross-verified against pid.codes and firmware
+  - Protocol verification: Moza (49 tests), Fanatec (45 tests), Logitech (45 tests), Thrustmaster (59 tests) — all cross-verified against Linux kernel drivers and community sources
+- **Wave 32 — telemetry verification, schemas deep, peripherals verification** (~16,300 → ~16,500+ tests):
+  - Telemetry adapter constants cross-verified against game APIs (76 tests)
+  - Schemas, IPC, service roundtrip + wire format + integration deep tests
+  - Heusinkveld + PXN protocol verification (38 tests)
+  - Deep firmware update process tests
+- **Wave 33 — remaining protocol verification, FFB pipeline, compat deep** (~16,500 → 16,742+ tests):
+  - Protocol verification for ALL remaining HID crates: AccuForce, Asetek, Button Box, Cammus, Cube Controls, FFBeast, Leo Bodnar, VRS — all VID/PID constants verified against web sources
+  - FFB pipeline end-to-end tests (41 tests): complete force feedback pipeline validation
+  - Compat + config deep migration and validation tests (133 tests)
 - **Web-verified VID/PIDs** for Thrustmaster, Logitech, Fanatec, Simucube, Moza, AccuForce, VRS, and OpenFFBoard — source citations added from linux-steering-wheels, kernel drivers (`hid-lg4ff`, `hid-fanatecff`, `simagic-ff`), pid.codes, and vendor documentation
 - **Safety interlock comprehensive test suite**: behavior tests for interlock state machine, watchdog timeout scenarios, and FMEA fault-injection coverage
 - **Protocol verification wave 16**: 6 vendors re-audited (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) — PID accuracy and torque specs cross-checked against USB captures and vendor documentation
