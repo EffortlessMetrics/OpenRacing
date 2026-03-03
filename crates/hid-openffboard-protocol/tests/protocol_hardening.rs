@@ -9,12 +9,12 @@
 //! 6. Known command constant validation
 
 use proptest::prelude::*;
+use racing_wheel_hid_openffboard_protocol::output::{ENABLE_FFB_REPORT_ID, MAX_TORQUE_SCALE};
 use racing_wheel_hid_openffboard_protocol::{
     build_enable_ffb, build_set_gain, is_openffboard_product, OpenFFBoardTorqueEncoder,
     OpenFFBoardVariant, CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, GAIN_REPORT_ID,
     OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT, OPENFFBOARD_VENDOR_ID,
 };
-use racing_wheel_hid_openffboard_protocol::output::{ENABLE_FFB_REPORT_ID, MAX_TORQUE_SCALE};
 
 // ---------------------------------------------------------------------------
 // Helper: decode raw torque from a 5-byte constant-force report
@@ -232,10 +232,14 @@ fn parse_torque_sign_preserved_through_encoding() -> Result<(), String> {
         let report = enc.encode(input);
         let raw = decode_torque_raw(&report);
         if input > 0.0 && raw <= 0 {
-            return Err(format!("positive input {input} gave non-positive raw {raw}"));
+            return Err(format!(
+                "positive input {input} gave non-positive raw {raw}"
+            ));
         }
         if input < 0.0 && raw >= 0 {
-            return Err(format!("negative input {input} gave non-negative raw {raw}"));
+            return Err(format!(
+                "negative input {input} gave non-negative raw {raw}"
+            ));
         }
     }
     Ok(())
@@ -250,7 +254,10 @@ fn parse_enable_report_flag_byte() -> Result<(), String> {
         return Err(format!("enable=true: expected flag byte 1, got {}", on[1]));
     }
     if off[1] != 0 {
-        return Err(format!("enable=false: expected flag byte 0, got {}", off[1]));
+        return Err(format!(
+            "enable=false: expected flag byte 0, got {}",
+            off[1]
+        ));
     }
     Ok(())
 }
@@ -623,7 +630,11 @@ fn alt_product_id_is_ffb1() -> Result<(), String> {
 
 #[test]
 fn report_ids_are_all_distinct() -> Result<(), String> {
-    let ids: [u8; 3] = [CONSTANT_FORCE_REPORT_ID, ENABLE_FFB_REPORT_ID, GAIN_REPORT_ID];
+    let ids: [u8; 3] = [
+        CONSTANT_FORCE_REPORT_ID,
+        ENABLE_FFB_REPORT_ID,
+        GAIN_REPORT_ID,
+    ];
     for i in 0..ids.len() {
         for j in (i + 1)..ids.len() {
             if ids[i] == ids[j] {

@@ -229,7 +229,9 @@ fn pedals_zero() -> TestResult {
 #[test]
 fn pedals_full() -> TestResult {
     let adapter = SimHubAdapter::new();
-    let data = make_json(0.0, 0.0, 0.0, "N", 100.0, 100.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 0.0, 0.0, "N", 100.0, 100.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.throttle - 1.0).abs() < 0.001);
     assert!((t.brake - 1.0).abs() < 0.001);
@@ -240,7 +242,9 @@ fn pedals_full() -> TestResult {
 #[test]
 fn pedals_mid_range() -> TestResult {
     let adapter = SimHubAdapter::new();
-    let data = make_json(0.0, 0.0, 0.0, "N", 33.0, 66.0, 50.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 0.0, 0.0, "N", 33.0, 66.0, 50.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.throttle - 0.33).abs() < 0.001);
     assert!((t.brake - 0.66).abs() < 0.001);
@@ -284,7 +288,9 @@ fn steering_centre() -> TestResult {
 #[test]
 fn steering_full_left_450() -> TestResult {
     let adapter = SimHubAdapter::new();
-    let data = make_json(0.0, 0.0, 0.0, "N", 0.0, 0.0, 0.0, -450.0, 0.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 0.0, 0.0, "N", 0.0, 0.0, 0.0, -450.0, 0.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.steering_angle - (-1.0)).abs() < 0.001);
     Ok(())
@@ -313,7 +319,10 @@ fn steering_overrange_positive_clamped() -> TestResult {
     let adapter = SimHubAdapter::new();
     let json = br#"{"SteeringAngle":900.0}"#;
     let t = adapter.normalize(json)?;
-    assert!((t.steering_angle - 1.0).abs() < 0.001, "900° → clamped to 1.0");
+    assert!(
+        (t.steering_angle - 1.0).abs() < 0.001,
+        "900° → clamped to 1.0"
+    );
     Ok(())
 }
 
@@ -322,7 +331,10 @@ fn steering_overrange_negative_clamped() -> TestResult {
     let adapter = SimHubAdapter::new();
     let json = br#"{"SteeringAngle":-900.0}"#;
     let t = adapter.normalize(json)?;
-    assert!((t.steering_angle - (-1.0)).abs() < 0.001, "-900° → clamped to -1.0");
+    assert!(
+        (t.steering_angle - (-1.0)).abs() < 0.001,
+        "-900° → clamped to -1.0"
+    );
     Ok(())
 }
 
@@ -332,7 +344,10 @@ fn steer_normalized_preferred_when_nonzero() -> TestResult {
     let json = br#"{"SteeringAngle":200.0,"Steer":0.85}"#;
     let t = adapter.normalize(json)?;
     // Steer=0.85 should be used instead of SteeringAngle=200/450≈0.444
-    assert!((t.steering_angle - 0.85).abs() < 0.001, "Steer preferred over SteeringAngle");
+    assert!(
+        (t.steering_angle - 0.85).abs() < 0.001,
+        "Steer preferred over SteeringAngle"
+    );
     Ok(())
 }
 
@@ -342,7 +357,10 @@ fn steer_normalized_zero_falls_back_to_degrees() -> TestResult {
     let json = br#"{"SteeringAngle":225.0,"Steer":0.0}"#;
     let t = adapter.normalize(json)?;
     // Steer=0.0 → fall back to SteeringAngle=225/450=0.5
-    assert!((t.steering_angle - 0.5).abs() < 0.001, "fallback to degrees");
+    assert!(
+        (t.steering_angle - 0.5).abs() < 0.001,
+        "fallback to degrees"
+    );
     Ok(())
 }
 
@@ -351,7 +369,10 @@ fn steer_normalized_clamped_when_out_of_range() -> TestResult {
     let adapter = SimHubAdapter::new();
     let json = br#"{"SteeringAngle":0.0,"Steer":5.0}"#;
     let t = adapter.normalize(json)?;
-    assert!((t.steering_angle - 1.0).abs() < 0.001, "Steer>1 clamped to 1.0");
+    assert!(
+        (t.steering_angle - 1.0).abs() < 0.001,
+        "Steer>1 clamped to 1.0"
+    );
     Ok(())
 }
 
@@ -499,7 +520,10 @@ fn number_gear_causes_error_or_default() -> TestResult {
 fn string_speed_causes_error() -> TestResult {
     let adapter = SimHubAdapter::new();
     let json = br#"{"SpeedMs":"fast"}"#;
-    assert!(adapter.normalize(json).is_err(), "non-numeric speed should fail");
+    assert!(
+        adapter.normalize(json).is_err(),
+        "non-numeric speed should fail"
+    );
     Ok(())
 }
 
@@ -530,18 +554,18 @@ fn json_with_unicode_escape() -> TestResult {
 fn full_race_lap_scenario() -> TestResult {
     let adapter = SimHubAdapter::new();
     let data = make_json(
-        55.0,    // 55 m/s
-        7200.0,  // RPM
-        8500.0,  // max RPM
-        "4",     // gear
-        82.0,    // throttle (82%)
-        5.0,     // brake (5%)
-        0.0,     // clutch
-        -30.0,   // steering angle (degrees)
-        72.0,    // fuel (72%)
-        1.1,     // lateral G
-        -0.3,    // longitudinal G
-        0.45,    // FFB
+        55.0,   // 55 m/s
+        7200.0, // RPM
+        8500.0, // max RPM
+        "4",    // gear
+        82.0,   // throttle (82%)
+        5.0,    // brake (5%)
+        0.0,    // clutch
+        -30.0,  // steering angle (degrees)
+        72.0,   // fuel (72%)
+        1.1,    // lateral G
+        -0.3,   // longitudinal G
+        0.45,   // FFB
     );
     let t = adapter.normalize(&data)?;
 
@@ -566,7 +590,8 @@ fn full_race_lap_scenario() -> TestResult {
 #[test]
 fn pit_stop_stationary() -> TestResult {
     let adapter = SimHubAdapter::new();
-    let json = br#"{"SpeedMs":0.0,"Rpms":850.0,"Gear":"N","Throttle":0.0,"Brake":100.0,"IsInPit":true}"#;
+    let json =
+        br#"{"SpeedMs":0.0,"Rpms":850.0,"Gear":"N","Throttle":0.0,"Brake":100.0,"IsInPit":true}"#;
     let t = adapter.normalize(json)?;
     assert_eq!(t.speed_ms, 0.0);
     assert_eq!(t.gear, 0);
@@ -604,7 +629,9 @@ fn adapter_update_rate_60hz() -> TestResult {
 #[test]
 fn triple_normalize_identical() -> TestResult {
     let adapter = SimHubAdapter::new();
-    let data = make_json(30.0, 5000.0, 8000.0, "3", 60.0, 10.0, 5.0, -90.0, 50.0, 0.5, -0.2, 0.4);
+    let data = make_json(
+        30.0, 5000.0, 8000.0, "3", 60.0, 10.0, 5.0, -90.0, 50.0, 0.5, -0.2, 0.4,
+    );
     let t1 = adapter.normalize(&data)?;
     let t2 = adapter.normalize(&data)?;
     let t3 = adapter.normalize(&data)?;
@@ -626,7 +653,10 @@ fn g_forces_passed_through_directly() -> TestResult {
     let json = br#"{"LateralGForce":3.5,"LongitudinalGForce":-2.0}"#;
     let t = adapter.normalize(json)?;
     assert!((t.lateral_g - 3.5).abs() < 0.001, "lateral G passthrough");
-    assert!((t.longitudinal_g - (-2.0)).abs() < 0.001, "longitudinal G passthrough");
+    assert!(
+        (t.longitudinal_g - (-2.0)).abs() < 0.001,
+        "longitudinal G passthrough"
+    );
     Ok(())
 }
 

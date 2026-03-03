@@ -305,7 +305,11 @@ fn flags_individual_abs() -> TestResult {
 fn flags_all_combined() -> TestResult {
     let adapter = LFSAdapter::new();
     let mut buf = make_packet();
-    write_u32(&mut buf, OFF_SHOW_LIGHTS, DL_SHIFT | DL_PITSPEED | DL_TC | DL_ABS);
+    write_u32(
+        &mut buf,
+        OFF_SHOW_LIGHTS,
+        DL_SHIFT | DL_PITSPEED | DL_TC | DL_ABS,
+    );
     let t = adapter.normalize(&buf)?;
     assert!(t.flags.pit_limiter);
     assert!(t.flags.traction_control);

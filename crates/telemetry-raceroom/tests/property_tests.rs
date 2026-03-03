@@ -238,7 +238,10 @@ proptest! {
 fn test_version_0_rejected() {
     let adapter = RaceRoomAdapter::new();
     let data = vec![0u8; R3E_VIEW_SIZE];
-    assert!(adapter.normalize(&data).is_err(), "version 0 must be rejected");
+    assert!(
+        adapter.normalize(&data).is_err(),
+        "version 0 must be rejected"
+    );
 }
 
 #[test]
@@ -246,7 +249,10 @@ fn test_version_1_rejected() {
     let adapter = RaceRoomAdapter::new();
     let mut data = vec![0u8; R3E_VIEW_SIZE];
     write_i32(&mut data, OFF_VERSION_MAJOR, 1);
-    assert!(adapter.normalize(&data).is_err(), "version 1 must be rejected");
+    assert!(
+        adapter.normalize(&data).is_err(),
+        "version 1 must be rejected"
+    );
 }
 
 #[test]
@@ -254,7 +260,10 @@ fn test_version_2_rejected() {
     let adapter = RaceRoomAdapter::new();
     let mut data = vec![0u8; R3E_VIEW_SIZE];
     write_i32(&mut data, OFF_VERSION_MAJOR, 2);
-    assert!(adapter.normalize(&data).is_err(), "version 2 must be rejected");
+    assert!(
+        adapter.normalize(&data).is_err(),
+        "version 2 must be rejected"
+    );
 }
 
 #[test]
@@ -262,7 +271,10 @@ fn test_version_4_rejected() {
     let adapter = RaceRoomAdapter::new();
     let mut data = vec![0u8; R3E_VIEW_SIZE];
     write_i32(&mut data, OFF_VERSION_MAJOR, 4);
-    assert!(adapter.normalize(&data).is_err(), "future version 4 must be rejected");
+    assert!(
+        adapter.normalize(&data).is_err(),
+        "future version 4 must be rejected"
+    );
 }
 
 #[test]
@@ -270,7 +282,10 @@ fn test_negative_version_rejected() {
     let adapter = RaceRoomAdapter::new();
     let mut data = vec![0u8; R3E_VIEW_SIZE];
     write_i32(&mut data, OFF_VERSION_MAJOR, -1);
-    assert!(adapter.normalize(&data).is_err(), "negative version must be rejected");
+    assert!(
+        adapter.normalize(&data).is_err(),
+        "negative version must be rejected"
+    );
 }
 
 #[test]
@@ -329,10 +344,15 @@ fn test_infinity_in_float_fields() -> TestResult {
     write_f32(&mut data, OFF_THROTTLE, f32::INFINITY);
 
     let t = adapter.normalize(&data)?;
-    assert!(t.speed_ms.abs() < 0.001, "infinite speed should default to 0");
+    assert!(
+        t.speed_ms.abs() < 0.001,
+        "infinite speed should default to 0"
+    );
     assert!(t.rpm.abs() < 0.001, "neg-inf rpm should default to 0");
-    assert!(t.throttle.abs() < 0.001 || (t.throttle - 1.0).abs() < 0.001,
-        "infinite throttle should be sanitized");
+    assert!(
+        t.throttle.abs() < 0.001 || (t.throttle - 1.0).abs() < 0.001,
+        "infinite throttle should be sanitized"
+    );
     Ok(())
 }
 

@@ -29,13 +29,12 @@
 //!   Confirms steering axis range 0–65535 (center 32767), pedal range 0–65535.
 
 use racing_wheel_hid_simagic_protocol::{
-    self as simagic,
+    self as simagic, CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN,
+    SPRING_REPORT_LEN, SimagicConstantForceEncoder,
     ids::{
         SIMAGIC_LEGACY_PID, SIMAGIC_LEGACY_VENDOR_ID, SIMAGIC_VENDOR_ID, product_ids, report_ids,
     },
     types::{QuickReleaseStatus, SimagicDeviceCategory, SimagicFfbEffectType, SimagicModel},
-    CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN, SPRING_REPORT_LEN,
-    SimagicConstantForceEncoder,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -147,7 +146,10 @@ fn legacy_vid_shared_with_vrs() {
     // Our legacy devices: VID=0x0483, PID=0x0522
     // Same VID, different PID — confirms STMicro generic VID sharing.
     assert_eq!(SIMAGIC_LEGACY_VENDOR_ID, 0x0483);
-    assert_ne!(SIMAGIC_LEGACY_PID, 0xA355_u16, "must not collide with VRS PID");
+    assert_ne!(
+        SIMAGIC_LEGACY_PID, 0xA355_u16,
+        "must not collide with VRS PID"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -320,7 +322,10 @@ fn torque_encoding_tiny_value() {
     // 0.01 Nm / 10.0 Nm = 0.001 → 10 magnitude (should be non-zero)
     let _ = enc.encode(0.01, &mut out);
     let mag = i16::from_le_bytes([out[3], out[4]]);
-    assert!(mag >= 0, "tiny positive torque must produce non-negative magnitude");
+    assert!(
+        mag >= 0,
+        "tiny positive torque must produce non-negative magnitude"
+    );
 }
 
 /// max_torque_nm of 0 should be clamped to 0.01 (the constructor clamp),
@@ -333,7 +338,10 @@ fn torque_encoder_zero_max_torque() {
     // Should not panic even with 0 max torque
     let _ = enc.encode(5.0, &mut out);
     let mag = i16::from_le_bytes([out[3], out[4]]);
-    assert_eq!(mag, 10000, "should saturate when max_torque is clamped to 0.01");
+    assert_eq!(
+        mag, 10000,
+        "should saturate when max_torque is clamped to 0.01"
+    );
 }
 
 /// Negative max_torque_nm should be clamped to 0.01.
@@ -343,7 +351,10 @@ fn torque_encoder_negative_max_torque() {
     let mut out = [0u8; CONSTANT_FORCE_REPORT_LEN];
     let _ = enc.encode(1.0, &mut out);
     let mag = i16::from_le_bytes([out[3], out[4]]);
-    assert_eq!(mag, 10000, "should saturate when max_torque is clamped to 0.01");
+    assert_eq!(
+        mag, 10000,
+        "should saturate when max_torque is clamped to 0.01"
+    );
 }
 
 /// NaN torque must produce a clamped value (not NaN propagation).
@@ -379,11 +390,7 @@ fn torque_encoding_infinity_saturates() {
 /// At half-torque, both should produce 5000.
 #[test]
 fn torque_encoding_half_per_wheelbase() {
-    let wheelbases: &[(f32, &str)] = &[
-        (9.0, "EVO Sport"),
-        (12.0, "EVO"),
-        (18.0, "EVO Pro"),
-    ];
+    let wheelbases: &[(f32, &str)] = &[(9.0, "EVO Sport"), (12.0, "EVO"), (18.0, "EVO Pro")];
 
     for &(max_nm, name) in wheelbases {
         let enc = SimagicConstantForceEncoder::new(max_nm);
@@ -403,7 +410,11 @@ fn constant_force_report_structure() {
     let len = enc.encode(5.0, &mut out);
 
     assert_eq!(len, CONSTANT_FORCE_REPORT_LEN);
-    assert_eq!(out[0], report_ids::CONSTANT_FORCE, "byte 0 must be report ID");
+    assert_eq!(
+        out[0],
+        report_ids::CONSTANT_FORCE,
+        "byte 0 must be report ID"
+    );
     assert_eq!(out[1], 1, "byte 1 must be effect block index (1-based)");
     assert_eq!(out[2], 0, "byte 2 must be zero (high byte of block index)");
 }
@@ -576,7 +587,11 @@ fn supported_effects_match_kernel_ffbit() {
     let mut ids: Vec<u8> = working_effects.iter().map(|e| e.report_id()).collect();
     ids.sort();
     ids.dedup();
-    assert_eq!(ids.len(), working_effects.len(), "working effect IDs must be unique");
+    assert_eq!(
+        ids.len(),
+        working_effects.len(),
+        "working effect IDs must be unique"
+    );
 }
 
 /// Kernel driver max effects = 16 (`PID_EFFECTS_MAX = 64` but
@@ -607,7 +622,10 @@ fn steering_normalization_matches_directinput_range() -> Result<(), Box<dyn std:
     // Full left: 0x0000 → -1.0
     data[0..2].copy_from_slice(&0x0000_u16.to_le_bytes());
     let state = simagic::parse_input_report(&data).ok_or("parse failed")?;
-    assert!((state.steering + 1.0).abs() < 0.001, "0x0000 should be -1.0");
+    assert!(
+        (state.steering + 1.0).abs() < 0.001,
+        "0x0000 should be -1.0"
+    );
 
     // Center: 0x8000 → 0.0
     data[0..2].copy_from_slice(&0x8000_u16.to_le_bytes());
@@ -617,12 +635,18 @@ fn steering_normalization_matches_directinput_range() -> Result<(), Box<dyn std:
     // Full right: 0xFFFF → ~+1.0
     data[0..2].copy_from_slice(&0xFFFF_u16.to_le_bytes());
     let state = simagic::parse_input_report(&data).ok_or("parse failed")?;
-    assert!((state.steering - 1.0).abs() < 0.001, "0xFFFF should be ~+1.0");
+    assert!(
+        (state.steering - 1.0).abs() < 0.001,
+        "0xFFFF should be ~+1.0"
+    );
 
     // Quarter right: 0xC000 → ~+0.5
     data[0..2].copy_from_slice(&0xC000_u16.to_le_bytes());
     let state = simagic::parse_input_report(&data).ok_or("parse failed")?;
-    assert!((state.steering - 0.5).abs() < 0.01, "0xC000 should be ~+0.5");
+    assert!(
+        (state.steering - 0.5).abs() < 0.01,
+        "0xC000 should be ~+0.5"
+    );
     Ok(())
 }
 

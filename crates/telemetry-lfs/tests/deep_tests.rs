@@ -3,8 +3,8 @@
 //! Covers packet construction, field parsing, gear encoding,
 //! dashboard light flags, extended fields, and edge cases.
 
-use racing_wheel_telemetry_lfs::{LFSAdapter, TelemetryAdapter};
 use racing_wheel_telemetry_core::TelemetryValue;
+use racing_wheel_telemetry_lfs::{LFSAdapter, TelemetryAdapter};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -232,7 +232,11 @@ fn deep_shift_light_in_extended() -> TestResult {
 fn deep_all_flags_combined() -> TestResult {
     let adapter = LFSAdapter::new();
     let mut buf = make_packet();
-    write_u32(&mut buf, OFF_SHOW_LIGHTS, DL_SHIFT | DL_PITSPEED | DL_TC | DL_ABS);
+    write_u32(
+        &mut buf,
+        OFF_SHOW_LIGHTS,
+        DL_SHIFT | DL_PITSPEED | DL_TC | DL_ABS,
+    );
     let t = adapter.normalize(&buf)?;
     assert!(t.flags.pit_limiter);
     assert!(t.flags.traction_control);
@@ -254,9 +258,18 @@ fn deep_turbo_and_oil_extended() -> TestResult {
     write_f32(&mut buf, OFF_OIL_PRESSURE, 4.0);
     write_f32(&mut buf, OFF_OIL_TEMP, 110.0);
     let t = adapter.normalize(&buf)?;
-    assert_eq!(t.extended.get("turbo_bar"), Some(&TelemetryValue::Float(1.5)));
-    assert_eq!(t.extended.get("oil_pressure_bar"), Some(&TelemetryValue::Float(4.0)));
-    assert_eq!(t.extended.get("oil_temp_c"), Some(&TelemetryValue::Float(110.0)));
+    assert_eq!(
+        t.extended.get("turbo_bar"),
+        Some(&TelemetryValue::Float(1.5))
+    );
+    assert_eq!(
+        t.extended.get("oil_pressure_bar"),
+        Some(&TelemetryValue::Float(4.0))
+    );
+    assert_eq!(
+        t.extended.get("oil_temp_c"),
+        Some(&TelemetryValue::Float(110.0))
+    );
     Ok(())
 }
 

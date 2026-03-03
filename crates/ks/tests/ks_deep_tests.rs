@@ -1,8 +1,8 @@
 //! Deep tests for kernel-space representation types, parsing, and layout stability.
 
 use racing_wheel_ks::{
-    KsAxisSource, KsBitSource, KsByteSource, KsClutchMode, KsJoystickMode, KsReportMap,
-    KsReportSnapshot, KsRotaryMode, KS_BUTTON_BYTES, KS_ENCODER_COUNT,
+    KS_BUTTON_BYTES, KS_ENCODER_COUNT, KsAxisSource, KsBitSource, KsByteSource, KsClutchMode,
+    KsJoystickMode, KsReportMap, KsReportSnapshot, KsRotaryMode,
 };
 
 type R = Result<(), Box<dyn std::error::Error>>;

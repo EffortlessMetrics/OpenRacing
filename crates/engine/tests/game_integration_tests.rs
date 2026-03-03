@@ -4,13 +4,12 @@
 //! normalization to FFB calculation, game disconnection handling, and
 //! multi-game switching.
 
-use racing_wheel_engine::{
-    CapabilityNegotiator, GameCompatibility, GameInput, HidDevice, HidPort,
-    ModeSelectionPolicy, NormalizedTelemetry, TelemetryFlags, TelemetryStatistics,
-    VirtualDevice, VirtualHidPort,
-};
 use racing_wheel_engine::ports::{ConfigChange, ConfigurationStatus, ProfileContext};
 use racing_wheel_engine::rt::FFBMode;
+use racing_wheel_engine::{
+    CapabilityNegotiator, GameCompatibility, GameInput, HidDevice, HidPort, ModeSelectionPolicy,
+    NormalizedTelemetry, TelemetryFlags, TelemetryStatistics, VirtualDevice, VirtualHidPort,
+};
 use racing_wheel_schemas::prelude::*;
 use std::time::{Duration, Instant};
 
@@ -96,8 +95,8 @@ fn mode_selection_arcade_game_prefers_telemetry_synth() -> Result<(), Box<dyn st
 }
 
 #[test]
-fn mode_selection_game_no_telemetry_no_robust_falls_to_raw() -> Result<(), Box<dyn std::error::Error>>
-{
+fn mode_selection_game_no_telemetry_no_robust_falls_to_raw()
+-> Result<(), Box<dyn std::error::Error>> {
     let caps = test_caps(true, true, 25.0)?;
     let game = GameCompatibility {
         game_id: "old-racer".to_string(),
@@ -452,9 +451,17 @@ fn negotiation_changes_with_game_switch() -> Result<(), Box<dyn std::error::Erro
 
 #[test]
 fn update_rate_matches_mode() {
-    assert!((ModeSelectionPolicy::get_update_rate_hz(FFBMode::RawTorque) - 1000.0).abs() < f32::EPSILON);
-    assert!((ModeSelectionPolicy::get_update_rate_hz(FFBMode::PidPassthrough) - 60.0).abs() < f32::EPSILON);
-    assert!((ModeSelectionPolicy::get_update_rate_hz(FFBMode::TelemetrySynth) - 60.0).abs() < f32::EPSILON);
+    assert!(
+        (ModeSelectionPolicy::get_update_rate_hz(FFBMode::RawTorque) - 1000.0).abs() < f32::EPSILON
+    );
+    assert!(
+        (ModeSelectionPolicy::get_update_rate_hz(FFBMode::PidPassthrough) - 60.0).abs()
+            < f32::EPSILON
+    );
+    assert!(
+        (ModeSelectionPolicy::get_update_rate_hz(FFBMode::TelemetrySynth) - 60.0).abs()
+            < f32::EPSILON
+    );
 }
 
 #[test]
@@ -578,8 +585,8 @@ fn game_input_timestamp_is_recent() {
 }
 
 #[test]
-fn negotiation_result_is_optimal_only_for_raw_torque_no_warnings(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn negotiation_result_is_optimal_only_for_raw_torque_no_warnings()
+-> Result<(), Box<dyn std::error::Error>> {
     let caps = test_caps(true, true, 25.0)?;
     let result = CapabilityNegotiator::negotiate_capabilities(&caps, None);
     assert!(result.is_optimal());

@@ -4,9 +4,8 @@
 //! all report fields, and edge cases.
 
 use racing_wheel_moza_wheelbase_report::{
-    input_report, parse_axis, parse_wheelbase_input_report, parse_wheelbase_pedal_axes,
-    parse_wheelbase_report, RawWheelbaseReport, WheelbaseInputRaw, WheelbasePedalAxesRaw,
-    MIN_REPORT_LEN,
+    MIN_REPORT_LEN, RawWheelbaseReport, WheelbaseInputRaw, WheelbasePedalAxesRaw, input_report,
+    parse_axis, parse_wheelbase_input_report, parse_wheelbase_pedal_axes, parse_wheelbase_report,
 };
 
 type R = Result<(), Box<dyn std::error::Error>>;
@@ -172,7 +171,15 @@ fn full_report_all_fields_round_trip() -> R {
         *b = (i as u8).wrapping_mul(17); // deterministic pattern
     }
     let report = build_full_report(
-        0x1234, 0x5678, 0x9ABC, 0xDEF0, 0x1357, &buttons, 0x0F, 0xA5, [0x42, 0x99],
+        0x1234,
+        0x5678,
+        0x9ABC,
+        0xDEF0,
+        0x1357,
+        &buttons,
+        0x0F,
+        0xA5,
+        [0x42, 0x99],
     );
     let parsed = parse_wheelbase_input_report(&report).ok_or("full round-trip")?;
     assert_eq!(parsed.steering, 0x1234);
@@ -308,11 +315,7 @@ fn partial_button_bytes_are_zero_filled() -> R {
 
     let parsed = parse_wheelbase_input_report(&report).ok_or("partial buttons")?;
     for i in 0..count {
-        assert_eq!(
-            parsed.buttons[i],
-            (0xA0 + i) as u8,
-            "button[{i}] mismatch"
-        );
+        assert_eq!(parsed.buttons[i], (0xA0 + i) as u8, "button[{i}] mismatch");
     }
     for i in count..input_report::BUTTONS_LEN {
         assert_eq!(parsed.buttons[i], 0, "button[{i}] should be zero-filled");
@@ -572,10 +575,16 @@ fn offset_ordering_is_monotonic() {
 
 #[test]
 fn axis_fields_are_two_bytes_apart() {
-    assert_eq!(input_report::THROTTLE_START - input_report::STEERING_START, 2);
+    assert_eq!(
+        input_report::THROTTLE_START - input_report::STEERING_START,
+        2
+    );
     assert_eq!(input_report::BRAKE_START - input_report::THROTTLE_START, 2);
     assert_eq!(input_report::CLUTCH_START - input_report::BRAKE_START, 2);
-    assert_eq!(input_report::HANDBRAKE_START - input_report::CLUTCH_START, 2);
+    assert_eq!(
+        input_report::HANDBRAKE_START - input_report::CLUTCH_START,
+        2
+    );
 }
 
 #[test]

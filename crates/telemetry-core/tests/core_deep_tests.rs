@@ -448,10 +448,7 @@ fn telemetry_error_display_messages() -> TestResult {
             TelemetryError::SharedMemoryError("access denied".into()),
             "access denied",
         ),
-        (
-            TelemetryError::NetworkError("refused".into()),
-            "refused",
-        ),
+        (TelemetryError::NetworkError("refused".into()), "refused"),
         (TelemetryError::AlreadyConnected, "already"),
         (TelemetryError::NotConnected, "not connected"),
         (TelemetryError::Timeout { timeout_ms: 5000 }, "5000"),
@@ -506,10 +503,7 @@ fn rate_limiter_drop_rate_percent() -> TestResult {
 
     // 1 processed, 2 dropped -> 66.67%
     let rate = limiter.drop_rate_percent();
-    assert!(
-        (rate - 66.666).abs() < 1.0,
-        "expected ~66.67%, got {rate}"
-    );
+    assert!((rate - 66.666).abs() < 1.0, "expected ~66.67%, got {rate}");
     Ok(())
 }
 

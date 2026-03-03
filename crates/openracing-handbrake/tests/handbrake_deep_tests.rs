@@ -258,10 +258,10 @@ mod state_machine {
         let values: Vec<(u16, bool)> = vec![
             (0, false),
             (50, false),
-            (100, false),  // Exactly at threshold → not engaged
-            (101, true),   // Just above → engaged
+            (100, false), // Exactly at threshold → not engaged
+            (101, true),  // Just above → engaged
             (500, true),
-            (50, false),   // Back below → not engaged
+            (50, false), // Back below → not engaged
         ];
         for (raw, expected_engaged) in values {
             let data = [0x00, 0x00, (raw & 0xFF) as u8, (raw >> 8) as u8];
@@ -801,8 +801,7 @@ mod handbrake_type_variants {
             supports_calibration: false,
         };
         let json = serde_json::to_string(&caps).map_err(|e| e.to_string())?;
-        let back: HandbrakeCapabilities =
-            serde_json::from_str(&json).map_err(|e| e.to_string())?;
+        let back: HandbrakeCapabilities = serde_json::from_str(&json).map_err(|e| e.to_string())?;
         assert_eq!(caps, back);
         Ok(())
     }

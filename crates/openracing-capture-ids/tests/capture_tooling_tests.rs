@@ -12,7 +12,9 @@
 //! 9. Export/import of captured device data
 //! 10. Unknown device detection and classification heuristics
 
-use openracing_capture_ids::replay::{CapturedReport, decode_hex, parse_capture_line, parse_vid_str};
+use openracing_capture_ids::replay::{
+    CapturedReport, decode_hex, parse_capture_line, parse_vid_str,
+};
 use openracing_capture_ids::{decode_report, hex_u16, parse_hex_id};
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -29,7 +31,10 @@ mod hid_descriptor_capture_and_parsing {
         let bytes = decode_hex(descriptor_hex)?;
         // Usage Page (Generic Desktop) = 0x05 0x01
         assert_eq!(bytes[0], 0x05, "first item should be Usage Page tag");
-        assert_eq!(bytes[1], 0x01, "Usage Page should be Generic Desktop (0x01)");
+        assert_eq!(
+            bytes[1], 0x01,
+            "Usage Page should be Generic Desktop (0x01)"
+        );
         Ok(())
     }
 
@@ -268,16 +273,13 @@ mod usb_device_enumeration_simulation {
 mod vid_pid_database_lookup {
     use super::*;
 
-    const KNOWN_VIDS: &[(u16, &str)] = &[
-        (0x346E, "MOZA"),
-        (0x046D, "Logitech"),
-    ];
+    const KNOWN_VIDS: &[(u16, &str)] = &[(0x346E, "MOZA"), (0x046D, "Logitech")];
 
     #[test]
     fn lookup_known_vid_moza() -> anyhow::Result<()> {
         let report: [u8; 7] = [0x01, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00];
-        let result = decode_report(0x346E, &report)
-            .ok_or_else(|| anyhow::anyhow!("MOZA lookup failed"))?;
+        let result =
+            decode_report(0x346E, &report).ok_or_else(|| anyhow::anyhow!("MOZA lookup failed"))?;
         assert!(result.starts_with("MOZA:"));
         Ok(())
     }
@@ -370,7 +372,13 @@ mod device_fingerprinting {
     }
 
     impl DeviceFingerprint {
-        fn from_capture(vid_str: &str, pid_str: &str, iface: i32, up: u16, u: u16) -> anyhow::Result<Self> {
+        fn from_capture(
+            vid_str: &str,
+            pid_str: &str,
+            iface: i32,
+            up: u16,
+            u: u16,
+        ) -> anyhow::Result<Self> {
             Ok(Self {
                 vid: parse_vid_str(vid_str)?,
                 pid: parse_vid_str(pid_str)?,
@@ -461,8 +469,7 @@ mod device_fingerprinting {
 
     #[test]
     fn fingerprint_from_capture_line_vid_pid() -> anyhow::Result<()> {
-        let line =
-            r#"{"ts_ns":1000,"vid":"0x346E","pid":"0x0002","report":"01008000000000"}"#;
+        let line = r#"{"ts_ns":1000,"vid":"0x346E","pid":"0x0002","report":"01008000000000"}"#;
         let entry = parse_capture_line(line)?;
         let vid = parse_vid_str(&entry.vid)?;
         let pid = parse_vid_str(&entry.pid)?;
@@ -619,8 +626,7 @@ mod capture_file_format {
 
     #[test]
     fn jsonl_report_hex_field_maps_to_raw_bytes() -> anyhow::Result<()> {
-        let line =
-            r#"{"ts_ns":100,"vid":"0x346E","pid":"0x0002","report":"01ff80deadbeef"}"#;
+        let line = r#"{"ts_ns":100,"vid":"0x346E","pid":"0x0002","report":"01ff80deadbeef"}"#;
         let entry = parse_capture_line(line)?;
         let bytes = decode_hex(&entry.report)?;
         assert_eq!(bytes[0], 0x01); // report ID
@@ -784,27 +790,9 @@ mod multi_device_capture_and_filtering {
         for entry in &entries {
             groups.entry(entry.vid.clone()).or_default().push(entry);
         }
-        assert_eq!(
-            groups
-                .get("0x346E")
-                .map(|v| v.len())
-                .unwrap_or(0),
-            3
-        );
-        assert_eq!(
-            groups
-                .get("0x046D")
-                .map(|v| v.len())
-                .unwrap_or(0),
-            2
-        );
-        assert_eq!(
-            groups
-                .get("0x1234")
-                .map(|v| v.len())
-                .unwrap_or(0),
-            1
-        );
+        assert_eq!(groups.get("0x346E").map(|v| v.len()).unwrap_or(0), 3);
+        assert_eq!(groups.get("0x046D").map(|v| v.len()).unwrap_or(0), 2);
+        assert_eq!(groups.get("0x1234").map(|v| v.len()).unwrap_or(0), 1);
         Ok(())
     }
 
@@ -891,10 +879,7 @@ mod device_change_detection {
     #[test]
     fn detect_new_device_connected() {
         let before = vec![device("0x346E", "0x0002")];
-        let after = vec![
-            device("0x346E", "0x0002"),
-            device("0x046D", "0xC266"),
-        ];
+        let after = vec![device("0x346E", "0x0002"), device("0x046D", "0xC266")];
         let changes = detect_changes(&before, &after);
         assert_eq!(changes.connected.len(), 1);
         assert_eq!(changes.disconnected.len(), 0);
@@ -903,10 +888,7 @@ mod device_change_detection {
 
     #[test]
     fn detect_device_disconnected() {
-        let before = vec![
-            device("0x346E", "0x0002"),
-            device("0x046D", "0xC266"),
-        ];
+        let before = vec![device("0x346E", "0x0002"), device("0x046D", "0xC266")];
         let after = vec![device("0x346E", "0x0002")];
         let changes = detect_changes(&before, &after);
         assert_eq!(changes.connected.len(), 0);
@@ -925,10 +907,7 @@ mod device_change_detection {
 
     #[test]
     fn no_changes_when_same() {
-        let devices = vec![
-            device("0x346E", "0x0002"),
-            device("0x046D", "0xC266"),
-        ];
+        let devices = vec![device("0x346E", "0x0002"), device("0x046D", "0xC266")];
         let changes = detect_changes(&devices, &devices);
         assert!(changes.connected.is_empty());
         assert!(changes.disconnected.is_empty());
@@ -937,10 +916,7 @@ mod device_change_detection {
     #[test]
     fn detect_from_empty_to_populated() {
         let before: Vec<DeviceId> = vec![];
-        let after = vec![
-            device("0x346E", "0x0002"),
-            device("0x046D", "0xC266"),
-        ];
+        let after = vec![device("0x346E", "0x0002"), device("0x046D", "0xC266")];
         let changes = detect_changes(&before, &after);
         assert_eq!(changes.connected.len(), 2);
         assert!(changes.disconnected.is_empty());
@@ -948,10 +924,7 @@ mod device_change_detection {
 
     #[test]
     fn detect_from_populated_to_empty() {
-        let before = vec![
-            device("0x346E", "0x0002"),
-            device("0x046D", "0xC266"),
-        ];
+        let before = vec![device("0x346E", "0x0002"), device("0x046D", "0xC266")];
         let after: Vec<DeviceId> = vec![];
         let changes = detect_changes(&before, &after);
         assert!(changes.connected.is_empty());
@@ -960,10 +933,7 @@ mod device_change_detection {
 
     #[test]
     fn detect_multiple_simultaneous_changes() {
-        let before = vec![
-            device("0x346E", "0x0002"),
-            device("0x1234", "0x5678"),
-        ];
+        let before = vec![device("0x346E", "0x0002"), device("0x1234", "0x5678")];
         let after = vec![
             device("0x346E", "0x0002"),
             device("0x046D", "0xC266"),
@@ -1009,7 +979,10 @@ mod capture_session_management {
         }
 
         fn add_report(&mut self, line: &str) -> anyhow::Result<bool> {
-            if self.max_reports.is_some_and(|max| self.reports.len() >= max) {
+            if self
+                .max_reports
+                .is_some_and(|max| self.reports.len() >= max)
+            {
                 return Ok(false);
             }
 
@@ -1061,7 +1034,8 @@ mod capture_session_management {
     #[test]
     fn session_rejects_non_matching_vid() -> anyhow::Result<()> {
         let mut session = CaptureSession::new(Some(0x346E), None);
-        let line = r#"{"ts_ns":1000,"vid":"0x046D","pid":"0x0001","report":"01008000000000000800"}"#;
+        let line =
+            r#"{"ts_ns":1000,"vid":"0x046D","pid":"0x0001","report":"01008000000000000800"}"#;
         assert!(!session.add_report(line)?);
         assert_eq!(session.report_count(), 0);
         Ok(())
@@ -1129,7 +1103,8 @@ mod capture_session_management {
     #[test]
     fn session_start_timestamp_set_from_first_report() -> anyhow::Result<()> {
         let mut session = CaptureSession::new(None, None);
-        let line = r#"{"ts_ns":5000000000,"vid":"0x346E","pid":"0x0002","report":"01008000000000"}"#;
+        let line =
+            r#"{"ts_ns":5000000000,"vid":"0x346E","pid":"0x0002","report":"01008000000000"}"#;
         session.add_report(line)?;
         assert_eq!(session.start_ts_ns, 5_000_000_000);
         Ok(())
@@ -1311,7 +1286,7 @@ mod export_import_captured_data {
 // ═══════════════════════════════════════════════════════════════════════════
 
 mod unknown_device_detection_and_classification {
-    use super::{decode_report, decode_hex, parse_capture_line, parse_vid_str};
+    use super::{decode_hex, decode_report, parse_capture_line, parse_vid_str};
 
     #[derive(Debug, PartialEq, Eq)]
     enum DeviceClass {
@@ -1358,7 +1333,10 @@ mod unknown_device_detection_and_classification {
     #[test]
     fn classify_moza_device() {
         let report: [u8; 7] = [0x01, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00];
-        assert_eq!(classify_device(0x346E, &report), DeviceClass::KnownWheel("MOZA"));
+        assert_eq!(
+            classify_device(0x346E, &report),
+            DeviceClass::KnownWheel("MOZA")
+        );
     }
 
     #[test]
@@ -1386,8 +1364,14 @@ mod unknown_device_detection_and_classification {
     #[test]
     fn classify_known_vid_with_bad_report_as_unknown() {
         let bad_report: [u8; 2] = [0xFF, 0x00];
-        assert_eq!(classify_device(0x346E, &bad_report), DeviceClass::UnknownHid);
-        assert_eq!(classify_device(0x046D, &bad_report), DeviceClass::UnknownHid);
+        assert_eq!(
+            classify_device(0x346E, &bad_report),
+            DeviceClass::UnknownHid
+        );
+        assert_eq!(
+            classify_device(0x046D, &bad_report),
+            DeviceClass::UnknownHid
+        );
     }
 
     #[test]

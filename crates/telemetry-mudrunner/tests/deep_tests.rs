@@ -72,7 +72,9 @@ fn deep_variant_equality() -> TestResult {
 fn deep_parse_offroad_driving_packet() -> TestResult {
     let adapter = MudRunnerAdapter::new();
     // Typical MudRunner: low speed, moderate RPM, gear 2, heavy throttle
-    let data = make_json(8.5, 2500.0, 4500.0, "2", 80.0, 0.0, 0.0, -30.0, 70.0, 0.3, 0.5, 0.2);
+    let data = make_json(
+        8.5, 2500.0, 4500.0, "2", 80.0, 0.0, 0.0, -30.0, 70.0, 0.3, 0.5, 0.2,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.speed_ms - 8.5).abs() < 0.01, "speed_ms={}", t.speed_ms);
     assert!((t.rpm - 2500.0).abs() < 0.1);
@@ -89,7 +91,9 @@ fn deep_parse_offroad_driving_packet() -> TestResult {
 #[test]
 fn deep_parse_stationary_packet() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(0.0, 800.0, 4500.0, "N", 0.0, 0.0, 0.0, 0.0, 100.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 800.0, 4500.0, "N", 0.0, 0.0, 0.0, 0.0, 100.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert_eq!(t.speed_ms, 0.0);
     assert!((t.rpm - 800.0).abs() < 0.1);
@@ -101,7 +105,9 @@ fn deep_parse_stationary_packet() -> TestResult {
 #[test]
 fn deep_parse_reverse_gear() -> TestResult {
     let adapter = MudRunnerAdapter::with_variant(MudRunnerVariant::SnowRunner);
-    let data = make_json(3.0, 1500.0, 4500.0, "R", 30.0, 0.0, 50.0, 10.0, 60.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        3.0, 1500.0, 4500.0, "R", 30.0, 0.0, 50.0, 10.0, 60.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert_eq!(t.gear, -1, "R → -1");
     assert!((t.clutch - 0.50).abs() < 0.001, "clutch 50%");
@@ -113,7 +119,9 @@ fn deep_parse_reverse_gear() -> TestResult {
 #[test]
 fn deep_pedal_full_range() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(0.0, 0.0, 0.0, "N", 100.0, 100.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 0.0, 0.0, "N", 100.0, 100.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.throttle - 1.0).abs() < 0.001, "full throttle");
     assert!((t.brake - 1.0).abs() < 0.001, "full brake");
@@ -138,7 +146,9 @@ fn deep_pedal_overrange_clamped() -> TestResult {
 fn deep_steering_full_lock() -> TestResult {
     let adapter = MudRunnerAdapter::new();
     // Full left: -450/450 = -1.0
-    let left = make_json(0.0, 0.0, 0.0, "N", 0.0, 0.0, 0.0, -450.0, 0.0, 0.0, 0.0, 0.0);
+    let left = make_json(
+        0.0, 0.0, 0.0, "N", 0.0, 0.0, 0.0, -450.0, 0.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&left)?;
     assert!((t.steering_angle - (-1.0)).abs() < 0.001, "full left");
 
@@ -163,7 +173,9 @@ fn deep_negative_speed_clamped() -> TestResult {
 #[test]
 fn deep_negative_rpm_clamped() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(0.0, -500.0, 0.0, "N", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, -500.0, 0.0, "N", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!(t.rpm >= 0.0, "rpm clamped");
     Ok(())
@@ -208,7 +220,9 @@ fn deep_empty_json_uses_defaults() -> TestResult {
 fn deep_both_variants_same_normalization() -> TestResult {
     let mud = MudRunnerAdapter::new();
     let snow = MudRunnerAdapter::with_variant(MudRunnerVariant::SnowRunner);
-    let data = make_json(15.0, 3000.0, 4500.0, "3", 60.0, 10.0, 0.0, 45.0, 80.0, 0.1, -0.2, 0.3);
+    let data = make_json(
+        15.0, 3000.0, 4500.0, "3", 60.0, 10.0, 0.0, 45.0, 80.0, 0.1, -0.2, 0.3,
+    );
 
     let tm = mud.normalize(&data)?;
     let ts = snow.normalize(&data)?;
@@ -226,7 +240,9 @@ fn deep_both_variants_same_normalization() -> TestResult {
 #[test]
 fn deep_deterministic_output() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(12.0, 2800.0, 4500.0, "2", 70.0, 5.0, 0.0, -20.0, 55.0, 0.2, -0.1, 0.15);
+    let data = make_json(
+        12.0, 2800.0, 4500.0, "2", 70.0, 5.0, 0.0, -20.0, 55.0, 0.2, -0.1, 0.15,
+    );
     let t1 = adapter.normalize(&data)?;
     let t2 = adapter.normalize(&data)?;
     assert_eq!(t1.speed_ms, t2.speed_ms);

@@ -11,15 +11,14 @@
 //! - JacKeTUs/simracing-hwdb: udev database (handbrake PID)
 
 use racing_wheel_hid_simagic_protocol::{
-    self as simagic,
+    self as simagic, CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN,
+    SPRING_REPORT_LEN, SimagicConstantForceEncoder, SimagicDamperEncoder, SimagicFrictionEncoder,
+    SimagicSpringEncoder,
     ids::{product_ids, report_ids},
     types::{
         QuickReleaseStatus, SimagicDeviceCategory, SimagicFfbEffectType, SimagicGear, SimagicModel,
         SimagicPedalAxesRaw,
     },
-    CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN, SPRING_REPORT_LEN,
-    SimagicConstantForceEncoder, SimagicDamperEncoder, SimagicFrictionEncoder,
-    SimagicSpringEncoder,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -444,11 +443,7 @@ fn parse_individual_buttons() -> Result<(), Box<dyn std::error::Error>> {
             d[10..12].copy_from_slice(&mask.to_le_bytes());
         });
         let state = simagic::parse_input_report(&data).ok_or("parse failed")?;
-        assert_eq!(
-            (state.buttons >> bit) & 1,
-            1,
-            "button {bit} should be set"
-        );
+        assert_eq!((state.buttons >> bit) & 1, 1, "button {bit} should be set");
         // All other buttons should be clear
         assert_eq!(
             state.buttons & !(1 << bit),
@@ -582,10 +577,19 @@ fn gear_unknown_values() {
 
 #[test]
 fn quick_release_transitions() {
-    assert_eq!(QuickReleaseStatus::from_raw(0), QuickReleaseStatus::Attached);
-    assert_eq!(QuickReleaseStatus::from_raw(1), QuickReleaseStatus::Detached);
+    assert_eq!(
+        QuickReleaseStatus::from_raw(0),
+        QuickReleaseStatus::Attached
+    );
+    assert_eq!(
+        QuickReleaseStatus::from_raw(1),
+        QuickReleaseStatus::Detached
+    );
     assert_eq!(QuickReleaseStatus::from_raw(2), QuickReleaseStatus::Unknown);
-    assert_eq!(QuickReleaseStatus::from_raw(255), QuickReleaseStatus::Unknown);
+    assert_eq!(
+        QuickReleaseStatus::from_raw(255),
+        QuickReleaseStatus::Unknown
+    );
 }
 
 #[test]
@@ -668,9 +672,9 @@ fn shifter_flags_ignore_upper_bits() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn firmware_version_parsing() -> Result<(), Box<dyn std::error::Error>> {
     let data = make_input(|d| {
-        d[20] = 2;   // major
-        d[21] = 15;  // minor
-        d[22] = 99;  // patch
+        d[20] = 2; // major
+        d[21] = 15; // minor
+        d[22] = 99; // patch
     });
     let state = simagic::parse_input_report(&data).ok_or("parse failed")?;
     assert_eq!(state.firmware_version, Some((2, 15, 99)));
@@ -890,11 +894,7 @@ fn model_from_pid_all_verified_pids() {
     ];
 
     for &(pid, expected) in verified {
-        assert_eq!(
-            SimagicModel::from_pid(pid),
-            expected,
-            "PID {pid:#06x}"
-        );
+        assert_eq!(SimagicModel::from_pid(pid), expected, "PID {pid:#06x}");
     }
 }
 
@@ -955,13 +955,34 @@ fn report_ids_non_zero() {
 
 #[test]
 fn effect_type_report_ids_match_report_id_constants() {
-    assert_eq!(SimagicFfbEffectType::Constant.report_id(), report_ids::CONSTANT_FORCE);
-    assert_eq!(SimagicFfbEffectType::Spring.report_id(), report_ids::SPRING_EFFECT);
-    assert_eq!(SimagicFfbEffectType::Damper.report_id(), report_ids::DAMPER_EFFECT);
-    assert_eq!(SimagicFfbEffectType::Friction.report_id(), report_ids::FRICTION_EFFECT);
-    assert_eq!(SimagicFfbEffectType::Sine.report_id(), report_ids::SINE_EFFECT);
-    assert_eq!(SimagicFfbEffectType::Square.report_id(), report_ids::SQUARE_EFFECT);
-    assert_eq!(SimagicFfbEffectType::Triangle.report_id(), report_ids::TRIANGLE_EFFECT);
+    assert_eq!(
+        SimagicFfbEffectType::Constant.report_id(),
+        report_ids::CONSTANT_FORCE
+    );
+    assert_eq!(
+        SimagicFfbEffectType::Spring.report_id(),
+        report_ids::SPRING_EFFECT
+    );
+    assert_eq!(
+        SimagicFfbEffectType::Damper.report_id(),
+        report_ids::DAMPER_EFFECT
+    );
+    assert_eq!(
+        SimagicFfbEffectType::Friction.report_id(),
+        report_ids::FRICTION_EFFECT
+    );
+    assert_eq!(
+        SimagicFfbEffectType::Sine.report_id(),
+        report_ids::SINE_EFFECT
+    );
+    assert_eq!(
+        SimagicFfbEffectType::Square.report_id(),
+        report_ids::SQUARE_EFFECT
+    );
+    assert_eq!(
+        SimagicFfbEffectType::Triangle.report_id(),
+        report_ids::TRIANGLE_EFFECT
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

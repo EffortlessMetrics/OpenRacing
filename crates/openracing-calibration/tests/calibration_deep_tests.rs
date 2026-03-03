@@ -26,8 +26,7 @@ mod axis_calibration_tests {
     #[test]
     fn partial_range_with_matching_deadzones() -> TestResult {
         // Default deadzones (0, 65535) divide by range, so set matching ones
-        let calib = AxisCalibration::new(1000, 3000)
-            .with_deadzone(0, 2000); // match the range width
+        let calib = AxisCalibration::new(1000, 3000).with_deadzone(0, 2000); // match the range width
         assert!((calib.apply(1000) - 0.0).abs() < 0.001, "min → 0.0");
         assert!((calib.apply(2000) - 0.5).abs() < 0.01, "mid → 0.5");
         assert!((calib.apply(3000) - 1.0).abs() < 0.001, "max → 1.0");
@@ -58,14 +57,20 @@ mod axis_calibration_tests {
     #[test]
     fn deadzone_clamps_low_values() -> TestResult {
         let calib = AxisCalibration::new(0, 65535).with_deadzone(5000, 60535);
-        assert!((calib.apply(2000) - 0.0).abs() < 0.001, "below dz_min → 0.0");
+        assert!(
+            (calib.apply(2000) - 0.0).abs() < 0.001,
+            "below dz_min → 0.0"
+        );
         Ok(())
     }
 
     #[test]
     fn deadzone_clamps_high_values() -> TestResult {
         let calib = AxisCalibration::new(0, 65535).with_deadzone(5000, 60535);
-        assert!((calib.apply(63000) - 1.0).abs() < 0.001, "above dz_max → 1.0");
+        assert!(
+            (calib.apply(63000) - 1.0).abs() < 0.001,
+            "above dz_max → 1.0"
+        );
         Ok(())
     }
 
@@ -73,7 +78,10 @@ mod axis_calibration_tests {
     fn deadzone_remaps_interior() -> TestResult {
         let calib = AxisCalibration::new(0, 65535).with_deadzone(5000, 60535);
         let mid = calib.apply(32768);
-        assert!(mid > 0.0 && mid < 1.0, "interior maps between 0 and 1, got {mid}");
+        assert!(
+            mid > 0.0 && mid < 1.0,
+            "interior maps between 0 and 1, got {mid}"
+        );
         Ok(())
     }
 }
@@ -104,11 +112,7 @@ mod pedal_calibration_tests {
 
     #[test]
     fn pedal_partial_range() -> TestResult {
-        let axes = create_pedal_calibration(
-            &[100, 500, 900],
-            &[200, 800],
-            &[300, 700],
-        )?;
+        let axes = create_pedal_calibration(&[100, 500, 900], &[200, 800], &[300, 700])?;
         assert_eq!(axes[0].min, 100);
         assert_eq!(axes[0].max, 900);
         assert_eq!(axes[1].min, 200);
@@ -186,21 +190,14 @@ mod wheel_calibration_tests {
 
     #[test]
     fn wheel_center_detected() -> TestResult {
-        let axis = calibrate_joystick_axis(&[
-            (0, 0.0),
-            (32768, 0.5),
-            (65535, 1.0),
-        ])?;
+        let axis = calibrate_joystick_axis(&[(0, 0.0), (32768, 0.5), (65535, 1.0)])?;
         assert_eq!(axis.center, Some(32768), "center should be detected at 0.5");
         Ok(())
     }
 
     #[test]
     fn wheel_full_rotation_range() -> TestResult {
-        let axis = calibrate_joystick_axis(&[
-            (0, 0.0),
-            (65535, 1.0),
-        ])?;
+        let axis = calibrate_joystick_axis(&[(0, 0.0), (65535, 1.0)])?;
         assert_eq!(axis.min, 0);
         assert_eq!(axis.max, 65535);
         Ok(())
@@ -208,11 +205,7 @@ mod wheel_calibration_tests {
 
     #[test]
     fn wheel_partial_rotation_range() -> TestResult {
-        let axis = calibrate_joystick_axis(&[
-            (10000, 0.0),
-            (32768, 0.5),
-            (55000, 1.0),
-        ])?;
+        let axis = calibrate_joystick_axis(&[(10000, 0.0), (32768, 0.5), (55000, 1.0)])?;
         assert_eq!(axis.min, 10000);
         assert_eq!(axis.max, 55000);
         Ok(())
@@ -221,10 +214,7 @@ mod wheel_calibration_tests {
     #[test]
     fn wheel_no_center_when_no_midpoint_sample() -> TestResult {
         // No sample near 0.5 → no center detected
-        let axis = calibrate_joystick_axis(&[
-            (0, 0.0),
-            (65535, 1.0),
-        ])?;
+        let axis = calibrate_joystick_axis(&[(0, 0.0), (65535, 1.0)])?;
         assert_eq!(axis.center, None, "no sample near 0.5 → no center");
         Ok(())
     }
@@ -383,10 +373,7 @@ mod edge_case_tests {
     #[test]
     fn zero_range_returns_midpoint() -> TestResult {
         let calib = AxisCalibration::new(5000, 5000);
-        assert!(
-            (calib.apply(5000) - 0.5).abs() < 0.001,
-            "zero range → 0.5"
-        );
+        assert!((calib.apply(5000) - 0.5).abs() < 0.001, "zero range → 0.5");
         Ok(())
     }
 
@@ -717,10 +704,7 @@ mod validation_tests {
             cal.add_sample(65535, 1.0);
             cal.reset();
         }
-        assert!(
-            cal.calibrate().is_err(),
-            "should fail after final reset"
-        );
+        assert!(cal.calibrate().is_err(), "should fail after final reset");
 
         // Final calibration should succeed
         cal.add_sample(100, 0.0);
@@ -1001,11 +985,7 @@ mod pedal_nonlinear_tests {
 
     #[test]
     fn three_pedals_different_ranges() -> TestResult {
-        let axes = create_pedal_calibration(
-            &[0, 50000],
-            &[5000, 60000],
-            &[10000, 55000],
-        )?;
+        let axes = create_pedal_calibration(&[0, 50000], &[5000, 60000], &[10000, 55000])?;
 
         assert_eq!(axes[0].min, 0);
         assert_eq!(axes[0].max, 50000);
@@ -1111,8 +1091,16 @@ mod auto_calibration_tests {
             cal.add_sample(*raw, *norm);
         }
         let axis = cal.calibrate()?;
-        assert!(axis.min <= 1000, "min should capture lowest noise: {}", axis.min);
-        assert!(axis.max >= 60050, "max should capture highest noise: {}", axis.max);
+        assert!(
+            axis.min <= 1000,
+            "min should capture lowest noise: {}",
+            axis.min
+        );
+        assert!(
+            axis.max >= 60050,
+            "max should capture highest noise: {}",
+            axis.max
+        );
         Ok(())
     }
 }
@@ -1122,8 +1110,8 @@ mod auto_calibration_tests {
 // ---------------------------------------------------------------------------
 
 mod error_display_tests {
-    use openracing_calibration::CalibrationError;
     use super::*;
+    use openracing_calibration::CalibrationError;
 
     #[test]
     fn error_invalid_data_message() -> TestResult {

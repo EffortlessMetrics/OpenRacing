@@ -89,10 +89,7 @@ fn snapshot_transport_builder_config_json() -> Result<(), BoxErr> {
 fn snapshot_message_header_device() -> Result<(), BoxErr> {
     let header = MessageHeader::new(message_types::DEVICE, 256, 1);
     let bytes = header.encode();
-    insta::assert_snapshot!(
-        "header_device",
-        format!("{bytes:02x?}")
-    );
+    insta::assert_snapshot!("header_device", format!("{bytes:02x?}"));
     Ok(())
 }
 
@@ -102,10 +99,7 @@ fn snapshot_message_header_health_with_flags() -> Result<(), BoxErr> {
     header.set_flag(message_flags::STREAMING);
     header.set_flag(message_flags::REQUIRES_ACK);
     let bytes = header.encode();
-    insta::assert_snapshot!(
-        "header_health_flagged",
-        format!("{bytes:02x?}")
-    );
+    insta::assert_snapshot!("header_health_flagged", format!("{bytes:02x?}"));
     Ok(())
 }
 
@@ -113,10 +107,7 @@ fn snapshot_message_header_health_with_flags() -> Result<(), BoxErr> {
 fn snapshot_message_header_zeroed() -> Result<(), BoxErr> {
     let header = MessageHeader::new(0, 0, 0);
     let bytes = header.encode();
-    insta::assert_snapshot!(
-        "header_zeroed",
-        format!("{bytes:02x?}")
-    );
+    insta::assert_snapshot!("header_zeroed", format!("{bytes:02x?}"));
     Ok(())
 }
 
@@ -125,10 +116,7 @@ fn snapshot_message_header_max_values() -> Result<(), BoxErr> {
     let mut header = MessageHeader::new(u16::MAX, u32::MAX, u32::MAX);
     header.flags = u16::MAX;
     let bytes = header.encode();
-    insta::assert_snapshot!(
-        "header_max_values",
-        format!("{bytes:02x?}")
-    );
+    insta::assert_snapshot!("header_max_values", format!("{bytes:02x?}"));
     Ok(())
 }
 

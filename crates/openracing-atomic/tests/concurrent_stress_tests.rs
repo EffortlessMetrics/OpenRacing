@@ -97,9 +97,8 @@ fn stress_independent_counters() -> Result<(), Box<dyn std::error::Error>> {
 
     let snap = counters.snapshot();
     // Threads 0,5 → tick; 1,6 → missed; 2,7 → safety; 3 → profile; 4 → hid
-    let threads_per_bucket = |bucket: u64| -> u64 {
-        (0..NUM_THREADS).filter(|t| t % 5 == bucket).count() as u64
-    };
+    let threads_per_bucket =
+        |bucket: u64| -> u64 { (0..NUM_THREADS).filter(|t| t % 5 == bucket).count() as u64 };
 
     assert_eq!(snap.total_ticks, threads_per_bucket(0) * OPS_PER_THREAD);
     assert_eq!(snap.missed_ticks, threads_per_bucket(1) * OPS_PER_THREAD);

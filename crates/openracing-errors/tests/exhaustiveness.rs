@@ -172,9 +172,7 @@ fn all_validation_variants() -> Vec<ValidationError> {
             expected: "i32".into(),
             actual: "str".into(),
         },
-        ValidationError::NumericOverflow {
-            field: "f".into(),
-        },
+        ValidationError::NumericOverflow { field: "f".into() },
         ValidationError::Custom("c".into()),
     ]
 }
@@ -376,18 +374,14 @@ mod category_exhaustiveness {
 
     #[test]
     fn io_has_io_category() -> openracing_errors::Result<()> {
-        let err: OpenRacingError =
-            std::io::Error::other("x").into();
+        let err: OpenRacingError = std::io::Error::other("x").into();
         assert_eq!(err.category(), ErrorCategory::IO);
         Ok(())
     }
 
     #[test]
     fn other_has_other_category() -> openracing_errors::Result<()> {
-        assert_eq!(
-            OpenRacingError::other("x").category(),
-            ErrorCategory::Other
-        );
+        assert_eq!(OpenRacingError::other("x").category(), ErrorCategory::Other);
         Ok(())
     }
 }

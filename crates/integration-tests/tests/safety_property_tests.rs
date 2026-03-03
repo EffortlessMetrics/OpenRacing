@@ -23,6 +23,7 @@ use proptest::prelude::*;
 use openracing_filters::{
     Frame as FilterFrame, SlewRateState, slew_rate_filter, torque_cap_filter,
 };
+use racing_wheel_engine::VirtualDevice;
 use racing_wheel_engine::pipeline::PipelineCompiler;
 use racing_wheel_engine::ports::HidDevice;
 use racing_wheel_engine::rt::Frame;
@@ -30,7 +31,6 @@ use racing_wheel_engine::safety::{
     FaultType, HardwareWatchdog, SafetyInterlockState, SafetyInterlockSystem, SafetyService,
     SafetyState, SoftwareWatchdog, TorqueLimit, WatchdogTimeoutHandler,
 };
-use racing_wheel_engine::VirtualDevice;
 use racing_wheel_schemas::prelude::*;
 
 // ═══════════════════════════════════════════════════════════════════════════════

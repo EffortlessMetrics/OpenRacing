@@ -506,10 +506,18 @@ mod frequency_response_tests {
             let input = if i % 2 == 0 { 1.0 } else { -1.0 };
             let mut frame = Frame::from_torque(input);
             notch_filter(&mut frame, &mut state);
-            assert!(frame.torque_out.is_finite(),
-                "output must be finite at tick {}, got {}", i, frame.torque_out);
-            assert!(frame.torque_out.abs() < 100.0,
-                "output must be bounded at tick {}, got {}", i, frame.torque_out);
+            assert!(
+                frame.torque_out.is_finite(),
+                "output must be finite at tick {}, got {}",
+                i,
+                frame.torque_out
+            );
+            assert!(
+                frame.torque_out.abs() < 100.0,
+                "output must be bounded at tick {}, got {}",
+                i,
+                frame.torque_out
+            );
         }
     }
 
@@ -530,8 +538,11 @@ mod frequency_response_tests {
         }
 
         // After 200 samples, the Nyquist signal should be strongly attenuated
-        assert!(last_output.abs() < 0.5,
-            "lowpass must attenuate Nyquist signal, last output = {}", last_output);
+        assert!(
+            last_output.abs() < 0.5,
+            "lowpass must attenuate Nyquist signal, last output = {}",
+            last_output
+        );
     }
 
     /// Notch filter at its center frequency should attenuate a sinusoidal signal
@@ -569,9 +580,12 @@ mod frequency_response_tests {
         }
 
         // The notch frequency should be attenuated more than the passband
-        assert!(max_output_center < max_output_pass,
+        assert!(
+            max_output_center < max_output_pass,
             "notch center ({}) must be attenuated more than passband ({})",
-            max_output_center, max_output_pass);
+            max_output_center,
+            max_output_pass
+        );
     }
 
     /// Reconstruction filter with heavy smoothing should attenuate high-frequency content.
@@ -591,8 +605,11 @@ mod frequency_response_tests {
         }
 
         // Heavy smoothing (alpha=0.03) should strongly attenuate alternating signal
-        assert!(max_output < 0.1,
-            "heavy reconstruction must attenuate alternating signal, max = {}", max_output);
+        assert!(
+            max_output < 0.1,
+            "heavy reconstruction must attenuate alternating signal, max = {}",
+            max_output
+        );
     }
 }
 
@@ -612,8 +629,11 @@ mod stability_tests {
             let input = ((i as f32) * 0.1).sin();
             let mut frame = Frame::from_torque(input);
             notch_filter(&mut frame, &mut state);
-            assert!(frame.torque_out.is_finite(),
-                "output must be finite at tick {}", i);
+            assert!(
+                frame.torque_out.is_finite(),
+                "output must be finite at tick {}",
+                i
+            );
 
             // Every 100 ticks, abruptly change filter parameters
             if i % 100 == 0 && i > 0 {
@@ -674,13 +694,22 @@ mod stability_tests {
             let mut frame = Frame::from_ffb(0.0, speed);
 
             damper_filter(&mut frame, &damper);
-            assert!(frame.torque_out.is_finite(), "damper output not finite at {i}");
+            assert!(
+                frame.torque_out.is_finite(),
+                "damper output not finite at {i}"
+            );
 
             friction_filter(&mut frame, &friction);
-            assert!(frame.torque_out.is_finite(), "friction output not finite at {i}");
+            assert!(
+                frame.torque_out.is_finite(),
+                "friction output not finite at {i}"
+            );
 
             inertia_filter(&mut frame, &mut inertia);
-            assert!(frame.torque_out.is_finite(), "inertia output not finite at {i}");
+            assert!(
+                frame.torque_out.is_finite(),
+                "inertia output not finite at {i}"
+            );
         }
     }
 }
@@ -763,8 +792,10 @@ mod edge_case_tests {
         state.prev_output = 0.5;
         let mut frame = Frame::from_torque(1.0);
         slew_rate_filter(&mut frame, &mut state);
-        assert!((frame.torque_out - 0.5).abs() < 1e-6,
-            "zero slew rate must hold previous value");
+        assert!(
+            (frame.torque_out - 0.5).abs() < 1e-6,
+            "zero slew rate must hold previous value"
+        );
     }
 
     /// SlewRateState::unlimited passes through any jump.
@@ -773,8 +804,10 @@ mod edge_case_tests {
         let mut state = SlewRateState::unlimited();
         let mut frame = Frame::from_torque(1.0);
         slew_rate_filter(&mut frame, &mut state);
-        assert!((frame.torque_out - 1.0).abs() < 1e-6,
-            "unlimited slew rate must pass through");
+        assert!(
+            (frame.torque_out - 1.0).abs() < 1e-6,
+            "unlimited slew rate must pass through"
+        );
     }
 
     /// ReconstructionState with level 0 (alpha=1.0) acts as bypass.
@@ -783,8 +816,10 @@ mod edge_case_tests {
         let mut state = ReconstructionState::bypass();
         let mut frame = Frame::from_ffb(0.75, 0.0);
         reconstruction_filter(&mut frame, &mut state);
-        assert!((frame.torque_out - 0.75).abs() < 1e-6,
-            "bypass reconstruction must pass through");
+        assert!(
+            (frame.torque_out - 0.75).abs() < 1e-6,
+            "bypass reconstruction must pass through"
+        );
     }
 
     /// Curve filter with extreme out-of-range input clamps to [-1, 1].
@@ -816,8 +851,10 @@ mod edge_case_tests {
         let state = FrictionState::fixed(0.0);
         let mut frame = Frame::from_ffb(0.5, 5.0);
         friction_filter(&mut frame, &state);
-        assert!((frame.torque_out - 0.5).abs() < 1e-6,
-            "zero friction coefficient must not change torque");
+        assert!(
+            (frame.torque_out - 0.5).abs() < 1e-6,
+            "zero friction coefficient must not change torque"
+        );
     }
 
     /// DamperState with zero coefficient produces no damping torque.
@@ -826,8 +863,10 @@ mod edge_case_tests {
         let state = DamperState::fixed(0.0);
         let mut frame = Frame::from_ffb(0.5, 5.0);
         damper_filter(&mut frame, &state);
-        assert!((frame.torque_out - 0.5).abs() < 1e-6,
-            "zero damper coefficient must not change torque");
+        assert!(
+            (frame.torque_out - 0.5).abs() < 1e-6,
+            "zero damper coefficient must not change torque"
+        );
     }
 
     /// InertiaState with zero coefficient produces no inertia torque.
@@ -837,8 +876,10 @@ mod edge_case_tests {
         state.prev_wheel_speed = 0.0;
         let mut frame = Frame::from_ffb(0.5, 10.0);
         inertia_filter(&mut frame, &mut state);
-        assert!((frame.torque_out - 0.5).abs() < 1e-6,
-            "zero inertia coefficient must not change torque");
+        assert!(
+            (frame.torque_out - 0.5).abs() < 1e-6,
+            "zero inertia coefficient must not change torque"
+        );
     }
 
     /// NotchState::bypass passes signal through unchanged.
@@ -847,8 +888,11 @@ mod edge_case_tests {
         let mut state = NotchState::bypass();
         let mut frame = Frame::from_torque(0.42);
         notch_filter(&mut frame, &mut state);
-        assert!((frame.torque_out - 0.42).abs() < 1e-4,
-            "bypass notch must pass through, got {}", frame.torque_out);
+        assert!(
+            (frame.torque_out - 0.42).abs() < 1e-4,
+            "bypass notch must pass through, got {}",
+            frame.torque_out
+        );
     }
 
     /// NotchState::is_stable for a well-designed filter with moderate Q.

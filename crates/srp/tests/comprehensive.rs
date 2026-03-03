@@ -1,8 +1,8 @@
 #![allow(clippy::redundant_closure)]
 
 use racing_wheel_srp::{
-    parse_axis, parse_srp_usb_report_best_effort, SrpPedalAxes, SrpPedalAxesRaw, BRAKE_START,
-    MIN_REPORT_LEN, THROTTLE_START,
+    BRAKE_START, MIN_REPORT_LEN, SrpPedalAxes, SrpPedalAxesRaw, THROTTLE_START, parse_axis,
+    parse_srp_usb_report_best_effort,
 };
 
 type R = Result<(), Box<dyn std::error::Error>>;
@@ -12,8 +12,7 @@ type R = Result<(), Box<dyn std::error::Error>>;
 #[test]
 fn parse_throttle_and_brake() -> R {
     let report = [0x01u8, 0xFF, 0xFF, 0x00, 0x80];
-    let axes =
-        parse_srp_usb_report_best_effort(&report).ok_or("throttle/brake should parse")?;
+    let axes = parse_srp_usb_report_best_effort(&report).ok_or("throttle/brake should parse")?;
     assert_eq!(axes.throttle, 0xFFFF);
     assert_eq!(axes.brake, Some(0x8000));
     Ok(())
@@ -22,8 +21,7 @@ fn parse_throttle_and_brake() -> R {
 #[test]
 fn parse_exact_min_length() -> R {
     let report = [0x00, 0x34, 0x12, 0x78, 0x56];
-    let axes =
-        parse_srp_usb_report_best_effort(&report).ok_or("exact min length should parse")?;
+    let axes = parse_srp_usb_report_best_effort(&report).ok_or("exact min length should parse")?;
     assert_eq!(axes.throttle, 0x1234);
     assert_eq!(axes.brake, Some(0x5678));
     Ok(())

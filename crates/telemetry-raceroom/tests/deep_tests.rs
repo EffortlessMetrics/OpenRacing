@@ -229,7 +229,11 @@ fn deep_g_force_sign_conventions() -> TestResult {
     // vertical: +Y/G = 1.0
     assert!((t.vertical_g - 1.0).abs() < 0.01, "vert_g={}", t.vertical_g);
     // longitudinal: -(+Z/G) = -1.0
-    assert!((t.longitudinal_g - (-1.0)).abs() < 0.01, "lon_g={}", t.longitudinal_g);
+    assert!(
+        (t.longitudinal_g - (-1.0)).abs() < 0.01,
+        "lon_g={}",
+        t.longitudinal_g
+    );
     Ok(())
 }
 

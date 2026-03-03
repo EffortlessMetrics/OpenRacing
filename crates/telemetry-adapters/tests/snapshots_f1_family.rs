@@ -7,7 +7,7 @@
 //!   4. F1 Manager   — stub adapter (strategy game, no driving telemetry)
 
 use racing_wheel_telemetry_adapters::{
-    F1Adapter, F1ManagerAdapter, F1NativeAdapter, F1_25Adapter, TelemetryAdapter,
+    F1_25Adapter, F1Adapter, F1ManagerAdapter, F1NativeAdapter, TelemetryAdapter,
     f1_25::build_car_telemetry_packet, f1_native::build_car_telemetry_packet_native,
 };
 
@@ -67,14 +67,14 @@ fn f1_race_snapshot() -> TestResult {
 fn f1_25_race_snapshot() -> TestResult {
     let adapter = F1_25Adapter::new();
     let packet = build_car_telemetry_packet(
-        0,                                // player_index
-        310,                              // speed_kmh (≈ 86.1 m/s)
-        8,                                // gear (top gear)
-        11_500,                           // engine_rpm
-        1.0,                              // throttle (full)
-        0.0,                              // brake
-        1,                                // drs = active
-        [23.5, 23.5, 24.0, 24.0],        // tyre pressures (PSI, RL/RR/FL/FR)
+        0,                        // player_index
+        310,                      // speed_kmh (≈ 86.1 m/s)
+        8,                        // gear (top gear)
+        11_500,                   // engine_rpm
+        1.0,                      // throttle (full)
+        0.0,                      // brake
+        1,                        // drs = active
+        [23.5, 23.5, 24.0, 24.0], // tyre pressures (PSI, RL/RR/FL/FR)
     );
     let normalized = adapter.normalize(&packet)?;
     insta::assert_yaml_snapshot!(normalized);
@@ -87,16 +87,16 @@ fn f1_25_race_snapshot() -> TestResult {
 fn f1_native_extended_snapshot() -> TestResult {
     let adapter = F1NativeAdapter::new();
     let packet = build_car_telemetry_packet_native(
-        2024,                             // packet_format (F1 24)
-        0,                                // player_index
-        285,                              // speed_kmh (≈ 79.2 m/s)
-        7,                                // gear
-        10_800,                           // engine_rpm
-        0.75,                             // throttle
-        0.15,                             // brake (trail-braking)
-        -0.22,                            // steer (left turn)
-        0,                                // drs = off
-        [25.0, 25.0, 25.5, 25.5],        // tyre pressures (PSI, RL/RR/FL/FR)
+        2024,                     // packet_format (F1 24)
+        0,                        // player_index
+        285,                      // speed_kmh (≈ 79.2 m/s)
+        7,                        // gear
+        10_800,                   // engine_rpm
+        0.75,                     // throttle
+        0.15,                     // brake (trail-braking)
+        -0.22,                    // steer (left turn)
+        0,                        // drs = off
+        [25.0, 25.0, 25.5, 25.5], // tyre pressures (PSI, RL/RR/FL/FR)
     );
     let normalized = adapter.normalize(&packet)?;
     insta::assert_yaml_snapshot!(normalized);

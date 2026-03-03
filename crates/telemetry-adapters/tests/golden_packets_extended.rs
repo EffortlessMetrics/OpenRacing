@@ -7,10 +7,12 @@ mod helpers;
 
 use helpers::write_f32_le;
 use racing_wheel_telemetry_adapters::{
-    acc::ACCAdapter, beamng::BeamNGAdapter, dirt_rally_2::DirtRally2Adapter,
+    TelemetryAdapter,
+    acc::ACCAdapter,
+    beamng::BeamNGAdapter,
+    dirt_rally_2::DirtRally2Adapter,
     ets2::{self, Ets2Adapter, Ets2Variant},
     iracing::IRacingAdapter,
-    TelemetryAdapter,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -102,11 +104,7 @@ fn golden_iracing_full_packet() -> TestResult {
     assert!((t.speed_ms - 55.0).abs() < 0.01, "speed_ms: {}", t.speed_ms);
     assert!((t.rpm - 7200.0).abs() < 0.01, "rpm: {}", t.rpm);
     assert_eq!(t.gear, 4, "gear: {}", t.gear);
-    assert!(
-        (t.throttle - 0.85).abs() < 0.01,
-        "throttle: {}",
-        t.throttle
-    );
+    assert!((t.throttle - 0.85).abs() < 0.01, "throttle: {}", t.throttle);
     assert!((t.brake).abs() < 0.01, "brake: {}", t.brake);
     assert!(
         (t.steering_angle - (-0.25)).abs() < 0.01,
@@ -121,7 +119,11 @@ fn golden_iracing_full_packet() -> TestResult {
     assert_eq!(t.car_id.as_deref(), Some("gt3_mclaren"));
     assert_eq!(t.track_id.as_deref(), Some("spa"));
     // lat_accel * (1/9.80665) ≈ 1.0 G
-    assert!((t.lateral_g - 1.0).abs() < 0.02, "lateral_g: {}", t.lateral_g);
+    assert!(
+        (t.lateral_g - 1.0).abs() < 0.02,
+        "lateral_g: {}",
+        t.lateral_g
+    );
     assert!(
         (t.engine_temp_c - 92.0).abs() < 0.1,
         "engine_temp_c: {}",
@@ -339,11 +341,7 @@ fn golden_beamng_full_packet() -> TestResult {
     let data = make_beamng_golden();
     let t = adapter.normalize(&data)?;
 
-    assert!(
-        (t.speed_ms - 25.0).abs() < 0.01,
-        "speed_ms: {}",
-        t.speed_ms
-    );
+    assert!((t.speed_ms - 25.0).abs() < 0.01, "speed_ms: {}", t.speed_ms);
     assert!((t.rpm - 4500.0).abs() < 0.01, "rpm: {}", t.rpm);
     // OutGauge gear 4 → normalised 3 (4-1=3)
     assert_eq!(t.gear, 3, "gear: {}", t.gear);
@@ -478,17 +476,9 @@ fn golden_dirt_rally2_full_packet() -> TestResult {
     let data = make_dirt_rally2_golden();
     let t = adapter.normalize(&data)?;
 
-    assert!(
-        (t.speed_ms - 35.0).abs() < 0.01,
-        "speed_ms: {}",
-        t.speed_ms
-    );
+    assert!((t.speed_ms - 35.0).abs() < 0.01, "speed_ms: {}", t.speed_ms);
     assert!((t.rpm - 6500.0).abs() < 0.01, "rpm: {}", t.rpm);
-    assert!(
-        (t.max_rpm - 8000.0).abs() < 0.01,
-        "max_rpm: {}",
-        t.max_rpm
-    );
+    assert!((t.max_rpm - 8000.0).abs() < 0.01, "max_rpm: {}", t.max_rpm);
     assert_eq!(t.gear, 4, "gear: {}", t.gear);
     assert!((t.throttle - 0.9).abs() < 0.01, "throttle: {}", t.throttle);
     assert!((t.brake).abs() < 0.01, "brake: {}", t.brake);
@@ -602,11 +592,7 @@ fn golden_ets2_full_packet() -> TestResult {
     let data = make_ets2_golden();
     let t = ets2::parse_scs_packet(&data)?;
 
-    assert!(
-        (t.speed_ms - 22.2).abs() < 0.01,
-        "speed_ms: {}",
-        t.speed_ms
-    );
+    assert!((t.speed_ms - 22.2).abs() < 0.01, "speed_ms: {}", t.speed_ms);
     assert!((t.rpm - 1800.0).abs() < 0.01, "rpm: {}", t.rpm);
     assert_eq!(t.gear, 8, "gear: {}", t.gear);
     assert!(
@@ -614,22 +600,14 @@ fn golden_ets2_full_packet() -> TestResult {
         "fuel_percent: {}",
         t.fuel_percent
     );
-    assert!(
-        (t.throttle - 0.6).abs() < 0.01,
-        "throttle: {}",
-        t.throttle
-    );
+    assert!((t.throttle - 0.6).abs() < 0.01, "throttle: {}", t.throttle);
     assert!((t.brake).abs() < 0.01, "brake: {}", t.brake);
     assert!(
         (t.engine_temp_c - 88.0).abs() < 0.1,
         "engine_temp_c: {}",
         t.engine_temp_c
     );
-    assert!(
-        (t.max_rpm - 2500.0).abs() < 0.01,
-        "max_rpm: {}",
-        t.max_rpm
-    );
+    assert!((t.max_rpm - 2500.0).abs() < 0.01, "max_rpm: {}", t.max_rpm);
     // Steering: 0.15 * 0.6109 ≈ 0.0916
     assert!(
         (t.steering_angle - 0.0916).abs() < 0.01,
@@ -719,11 +697,7 @@ fn golden_ats_normalize_delegates_to_scs() -> TestResult {
     let t = adapter.normalize(&data)?;
 
     // ATS uses same parser as ETS2; verify key fields
-    assert!(
-        (t.speed_ms - 22.2).abs() < 0.01,
-        "speed_ms: {}",
-        t.speed_ms
-    );
+    assert!((t.speed_ms - 22.2).abs() < 0.01, "speed_ms: {}", t.speed_ms);
     assert!((t.rpm - 1800.0).abs() < 0.01, "rpm: {}", t.rpm);
     assert_eq!(t.gear, 8, "gear: {}", t.gear);
     assert!(

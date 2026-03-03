@@ -1,10 +1,10 @@
 //! Deep protocol tests for Leo Bodnar HID protocol crate.
 
 use racing_wheel_hid_leo_bodnar_protocol::{
-    HID_PID_USAGE_PAGE, MAX_REPORT_BYTES, PID_BBI32, PID_BU0836A, PID_BU0836X,
-    PID_BU0836_16BIT, PID_FFB_JOYSTICK, PID_SLI_M, PID_USB_JOYSTICK, PID_WHEEL_INTERFACE,
-    VENDOR_ID, WHEEL_DEFAULT_MAX_TORQUE_NM, WHEEL_ENCODER_CPR, is_leo_bodnar,
-    is_leo_bodnar_device, is_leo_bodnar_ffb_pid, LeoBodnarDevice,
+    HID_PID_USAGE_PAGE, LeoBodnarDevice, MAX_REPORT_BYTES, PID_BBI32, PID_BU0836_16BIT,
+    PID_BU0836A, PID_BU0836X, PID_FFB_JOYSTICK, PID_SLI_M, PID_USB_JOYSTICK, PID_WHEEL_INTERFACE,
+    VENDOR_ID, WHEEL_DEFAULT_MAX_TORQUE_NM, WHEEL_ENCODER_CPR, is_leo_bodnar, is_leo_bodnar_device,
+    is_leo_bodnar_ffb_pid,
 };
 
 // ── Device identification ────────────────────────────────────────────────────
@@ -152,10 +152,10 @@ fn only_wheel_and_ffb_joystick_are_ffb_capable() {
 
 #[test]
 fn ffb_devices_report_supports_ffb() -> Result<(), String> {
-    let dev_wheel = LeoBodnarDevice::from_product_id(PID_WHEEL_INTERFACE)
-        .ok_or("wheel should resolve")?;
-    let dev_ffb = LeoBodnarDevice::from_product_id(PID_FFB_JOYSTICK)
-        .ok_or("ffb joystick should resolve")?;
+    let dev_wheel =
+        LeoBodnarDevice::from_product_id(PID_WHEEL_INTERFACE).ok_or("wheel should resolve")?;
+    let dev_ffb =
+        LeoBodnarDevice::from_product_id(PID_FFB_JOYSTICK).ok_or("ffb joystick should resolve")?;
     assert!(dev_wheel.supports_ffb());
     assert!(dev_ffb.supports_ffb());
     Ok(())

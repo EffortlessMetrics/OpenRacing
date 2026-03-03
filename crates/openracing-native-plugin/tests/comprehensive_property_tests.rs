@@ -7,7 +7,9 @@
 //! - Signature verification config modes
 //! - Edge cases: missing symbols, version mismatch, invalid paths
 
-use openracing_native_plugin::abi_check::{AbiCheckResult, CURRENT_ABI_VERSION, check_abi_compatibility};
+use openracing_native_plugin::abi_check::{
+    AbiCheckResult, CURRENT_ABI_VERSION, check_abi_compatibility,
+};
 use openracing_native_plugin::error::{NativePluginError, NativePluginLoadError};
 use openracing_native_plugin::loader::{NativePluginConfig, NativePluginHost, NativePluginLoader};
 use openracing_native_plugin::plugin::PluginFrame;
@@ -392,7 +394,10 @@ mod spsc_tests {
     fn test_spsc_oversized_rejected() {
         // Try to create with very large capacity
         let result = SpscChannel::with_capacity(1024 * 1024, 8192);
-        assert!(result.is_err(), "Oversized shared memory should be rejected");
+        assert!(
+            result.is_err(),
+            "Oversized shared memory should be rejected"
+        );
     }
 }
 
@@ -428,19 +433,31 @@ mod error_tests {
             actual: 99,
         };
         let plugin_err: NativePluginError = load_err.into();
-        assert!(matches!(plugin_err, NativePluginError::AbiMismatch { expected: 1, actual: 99 }));
+        assert!(matches!(
+            plugin_err,
+            NativePluginError::AbiMismatch {
+                expected: 1,
+                actual: 99
+            }
+        ));
 
         let load_err = NativePluginLoadError::UnsignedPlugin {
             path: "/test".to_string(),
         };
         let plugin_err: NativePluginError = load_err.into();
-        assert!(matches!(plugin_err, NativePluginError::UnsignedPlugin { .. }));
+        assert!(matches!(
+            plugin_err,
+            NativePluginError::UnsignedPlugin { .. }
+        ));
 
         let load_err = NativePluginLoadError::UntrustedSigner {
             fingerprint: "abc".to_string(),
         };
         let plugin_err: NativePluginError = load_err.into();
-        assert!(matches!(plugin_err, NativePluginError::UntrustedSigner { .. }));
+        assert!(matches!(
+            plugin_err,
+            NativePluginError::UntrustedSigner { .. }
+        ));
     }
 }
 

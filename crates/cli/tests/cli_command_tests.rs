@@ -98,9 +98,7 @@ mod help_completeness {
 
     #[test]
     fn profile_apply_help_describes_skip_validation() -> TestResult {
-        let out = wheelctl()?
-            .args(["profile", "apply", "--help"])
-            .output()?;
+        let out = wheelctl()?.args(["profile", "apply", "--help"]).output()?;
         let s = String::from_utf8_lossy(&out.stdout);
         assert!(
             s.contains("--skip-validation"),
@@ -111,9 +109,7 @@ mod help_completeness {
 
     #[test]
     fn profile_create_help_describes_from_game_car() -> TestResult {
-        let out = wheelctl()?
-            .args(["profile", "create", "--help"])
-            .output()?;
+        let out = wheelctl()?.args(["profile", "create", "--help"]).output()?;
         let s = String::from_utf8_lossy(&out.stdout);
         for flag in &["--from", "--game", "--car"] {
             assert!(
@@ -148,9 +144,7 @@ mod help_completeness {
 
     #[test]
     fn profile_export_help_describes_output_signed() -> TestResult {
-        let out = wheelctl()?
-            .args(["profile", "export", "--help"])
-            .output()?;
+        let out = wheelctl()?.args(["profile", "export", "--help"]).output()?;
         let s = String::from_utf8_lossy(&out.stdout);
         assert!(s.contains("--output"), "should list --output: {s}");
         assert!(s.contains("--signed"), "should list --signed: {s}");
@@ -159,9 +153,7 @@ mod help_completeness {
 
     #[test]
     fn profile_import_help_describes_target_verify() -> TestResult {
-        let out = wheelctl()?
-            .args(["profile", "import", "--help"])
-            .output()?;
+        let out = wheelctl()?.args(["profile", "import", "--help"]).output()?;
         let s = String::from_utf8_lossy(&out.stdout);
         assert!(s.contains("--target"), "should list --target: {s}");
         assert!(s.contains("--verify"), "should list --verify: {s}");
@@ -170,9 +162,7 @@ mod help_completeness {
 
     #[test]
     fn plugin_install_help_describes_version_flag() -> TestResult {
-        let out = wheelctl()?
-            .args(["plugin", "install", "--help"])
-            .output()?;
+        let out = wheelctl()?.args(["plugin", "install", "--help"]).output()?;
         let s = String::from_utf8_lossy(&out.stdout);
         assert!(
             s.contains("--version"),
@@ -225,9 +215,7 @@ mod help_completeness {
 
     #[test]
     fn safety_enable_help_describes_force() -> TestResult {
-        let out = wheelctl()?
-            .args(["safety", "enable", "--help"])
-            .output()?;
+        let out = wheelctl()?.args(["safety", "enable", "--help"]).output()?;
         let s = String::from_utf8_lossy(&out.stdout);
         assert!(
             s.contains("--force"),
@@ -238,9 +226,7 @@ mod help_completeness {
 
     #[test]
     fn safety_limit_help_describes_global() -> TestResult {
-        let out = wheelctl()?
-            .args(["safety", "limit", "--help"])
-            .output()?;
+        let out = wheelctl()?.args(["safety", "limit", "--help"]).output()?;
         let s = String::from_utf8_lossy(&out.stdout);
         assert!(
             s.contains("--global"),
@@ -281,9 +267,7 @@ mod help_completeness {
 
     #[test]
     fn game_configure_help_describes_path_auto() -> TestResult {
-        let out = wheelctl()?
-            .args(["game", "configure", "--help"])
-            .output()?;
+        let out = wheelctl()?.args(["game", "configure", "--help"]).output()?;
         let s = String::from_utf8_lossy(&out.stdout);
         assert!(s.contains("--path"), "should list --path: {s}");
         assert!(s.contains("--auto"), "should list --auto: {s}");
@@ -313,9 +297,7 @@ mod arg_parsing {
 
     #[test]
     fn device_calibrate_missing_type() -> TestResult {
-        let out = wheelctl()?
-            .args(["device", "calibrate", "w1"])
-            .output()?;
+        let out = wheelctl()?.args(["device", "calibrate", "w1"]).output()?;
         assert!(!out.status.success());
         let stderr = String::from_utf8_lossy(&out.stderr);
         assert!(
@@ -493,7 +475,9 @@ mod arg_parsing {
 
     #[test]
     fn zero_torque_parses_as_float() -> TestResult {
-        let out = wheelctl()?.args(["safety", "limit", "w1", "0.0"]).output()?;
+        let out = wheelctl()?
+            .args(["safety", "limit", "w1", "0.0"])
+            .output()?;
         // Should fail validation (torque must be >= 0.1)
         assert!(!out.status.success());
         Ok(())
@@ -503,7 +487,14 @@ mod arg_parsing {
     fn telemetry_capture_port_overflow() -> TestResult {
         let out = wheelctl()?
             .args([
-                "telemetry", "capture", "--game", "acc", "--port", "99999", "--out", "t.bin",
+                "telemetry",
+                "capture",
+                "--game",
+                "acc",
+                "--port",
+                "99999",
+                "--out",
+                "t.bin",
             ])
             .output()?;
         assert!(!out.status.success());
@@ -519,9 +510,7 @@ mod arg_parsing {
 
     #[test]
     fn json_flag_before_subcommand() -> TestResult {
-        let out = wheelctl()?
-            .args(["--json", "device", "list"])
-            .output()?;
+        let out = wheelctl()?.args(["--json", "device", "list"]).output()?;
         assert!(out.status.success());
         let j = json(&out.stdout)?;
         assert_eq!(j["success"], true);
@@ -530,9 +519,7 @@ mod arg_parsing {
 
     #[test]
     fn json_flag_between_nested_subcommands() -> TestResult {
-        let out = wheelctl()?
-            .args(["safety", "--json", "status"])
-            .output()?;
+        let out = wheelctl()?.args(["safety", "--json", "status"]).output()?;
         assert!(out.status.success());
         let j = json(&out.stdout)?;
         assert_eq!(j["success"], true);
@@ -541,9 +528,7 @@ mod arg_parsing {
 
     #[test]
     fn json_flag_at_end() -> TestResult {
-        let out = wheelctl()?
-            .args(["safety", "status", "--json"])
-            .output()?;
+        let out = wheelctl()?.args(["safety", "status", "--json"]).output()?;
         assert!(out.status.success());
         let j = json(&out.stdout)?;
         assert_eq!(j["success"], true);
@@ -580,7 +565,11 @@ mod exit_codes {
 
     #[test]
     fn success_exit_code_is_0() -> TestResult {
-        wheelctl()?.args(["device", "list"]).assert().success().code(0);
+        wheelctl()?
+            .args(["device", "list"])
+            .assert()
+            .success()
+            .code(0);
         Ok(())
     }
 
@@ -676,7 +665,10 @@ mod json_format {
         let devices = j["devices"]
             .as_array()
             .ok_or("devices should be an array")?;
-        assert!(!devices.is_empty(), "mock should return at least one device");
+        assert!(
+            !devices.is_empty(),
+            "mock should return at least one device"
+        );
         for device in devices {
             assert!(device.get("id").is_some(), "device should have id");
             assert!(device.get("name").is_some(), "device should have name");
@@ -741,9 +733,7 @@ mod json_format {
 
     #[test]
     fn profile_list_json_has_profiles_key() -> TestResult {
-        let out = wheelctl()?
-            .args(["--json", "profile", "list"])
-            .output()?;
+        let out = wheelctl()?.args(["--json", "profile", "list"]).output()?;
         let j = json(&out.stdout)?;
         assert_eq!(j["success"], true);
         assert!(
@@ -755,9 +745,7 @@ mod json_format {
 
     #[test]
     fn plugin_list_json_has_plugins_key() -> TestResult {
-        let out = wheelctl()?
-            .args(["--json", "plugin", "list"])
-            .output()?;
+        let out = wheelctl()?.args(["--json", "plugin", "list"]).output()?;
         let j = json(&out.stdout)?;
         assert_eq!(j["success"], true);
         let plugins = j["plugins"]
@@ -772,9 +760,7 @@ mod json_format {
 
     #[test]
     fn plugin_list_json_plugins_have_required_fields() -> TestResult {
-        let out = wheelctl()?
-            .args(["--json", "plugin", "list"])
-            .output()?;
+        let out = wheelctl()?.args(["--json", "plugin", "list"]).output()?;
         let j = json(&out.stdout)?;
         let plugins = j["plugins"]
             .as_array()
@@ -803,10 +789,7 @@ mod json_format {
             .as_array()
             .ok_or("plugins should be an array")?;
         for p in plugins {
-            let desc = p["description"]
-                .as_str()
-                .unwrap_or("")
-                .to_lowercase();
+            let desc = p["description"].as_str().unwrap_or("").to_lowercase();
             assert!(
                 desc.contains("led"),
                 "category filter 'led' should only return LED-related plugins"
@@ -838,7 +821,10 @@ mod json_format {
         let results = j["results"]
             .as_array()
             .ok_or("results should be an array")?;
-        assert!(results.is_empty(), "non-matching search should return empty");
+        assert!(
+            results.is_empty(),
+            "non-matching search should return empty"
+        );
         Ok(())
     }
 
@@ -894,9 +880,7 @@ mod json_format {
 
     #[test]
     fn game_list_json_has_supported_games() -> TestResult {
-        let out = wheelctl()?
-            .args(["--json", "game", "list"])
-            .output()?;
+        let out = wheelctl()?.args(["--json", "game", "list"]).output()?;
         let j = json(&out.stdout)?;
         assert_eq!(j["success"], true);
         let games = j["supported_games"]
@@ -908,9 +892,7 @@ mod json_format {
 
     #[test]
     fn game_list_json_games_have_required_fields() -> TestResult {
-        let out = wheelctl()?
-            .args(["--json", "game", "list"])
-            .output()?;
+        let out = wheelctl()?.args(["--json", "game", "list"]).output()?;
         let j = json(&out.stdout)?;
         let games = j["supported_games"]
             .as_array()
@@ -924,9 +906,7 @@ mod json_format {
 
     #[test]
     fn game_status_json_has_expected_fields() -> TestResult {
-        let out = wheelctl()?
-            .args(["--json", "game", "status"])
-            .output()?;
+        let out = wheelctl()?.args(["--json", "game", "status"]).output()?;
         let j = json(&out.stdout)?;
         assert_eq!(j["success"], true);
         let gs = &j["game_status"];
@@ -939,9 +919,7 @@ mod json_format {
 
     #[test]
     fn safety_status_json_has_devices() -> TestResult {
-        let out = wheelctl()?
-            .args(["--json", "safety", "status"])
-            .output()?;
+        let out = wheelctl()?.args(["--json", "safety", "status"]).output()?;
         let j = json(&out.stdout)?;
         assert_eq!(j["success"], true);
         // When no specific device, should list all
@@ -998,9 +976,7 @@ mod json_format {
 
     #[test]
     fn diag_metrics_json_has_diagnostics() -> TestResult {
-        let out = wheelctl()?
-            .args(["--json", "diag", "metrics"])
-            .output()?;
+        let out = wheelctl()?.args(["--json", "diag", "metrics"]).output()?;
         let j = json(&out.stdout)?;
         assert_eq!(j["success"], true);
         assert!(
@@ -1012,9 +988,7 @@ mod json_format {
 
     #[test]
     fn diag_metrics_json_performance_fields() -> TestResult {
-        let out = wheelctl()?
-            .args(["--json", "diag", "metrics"])
-            .output()?;
+        let out = wheelctl()?.args(["--json", "diag", "metrics"]).output()?;
         let j = json(&out.stdout)?;
         let perf = &j["diagnostics"]["performance"];
         assert!(
@@ -1025,18 +999,13 @@ mod json_format {
             perf.get("missed_tick_rate").is_some(),
             "should have missed_tick_rate"
         );
-        assert!(
-            perf.get("total_ticks").is_some(),
-            "should have total_ticks"
-        );
+        assert!(perf.get("total_ticks").is_some(), "should have total_ticks");
         Ok(())
     }
 
     #[test]
     fn diag_test_json_has_test_results() -> TestResult {
-        let out = wheelctl()?
-            .args(["--json", "diag", "test"])
-            .output()?;
+        let out = wheelctl()?.args(["--json", "diag", "test"]).output()?;
         let j = json(&out.stdout)?;
         assert_eq!(j["success"], true);
         assert!(
@@ -1062,9 +1031,7 @@ mod json_format {
 
     #[test]
     fn diag_test_json_all_types_run() -> TestResult {
-        let out = wheelctl()?
-            .args(["--json", "diag", "test"])
-            .output()?;
+        let out = wheelctl()?.args(["--json", "diag", "test"]).output()?;
         let j = json(&out.stdout)?;
         let results = j["test_results"]
             .as_array()
@@ -1157,7 +1124,9 @@ mod error_quality {
         let stderr = String::from_utf8_lossy(&out.stderr);
         // clap may suggest similar commands
         assert!(
-            stderr.contains("device") || stderr.contains("similar") || stderr.contains("Did you mean"),
+            stderr.contains("device")
+                || stderr.contains("similar")
+                || stderr.contains("Did you mean"),
             "should suggest similar command or list valid ones: {stderr}"
         );
         Ok(())
@@ -1270,9 +1239,7 @@ mod human_output {
 
     #[test]
     fn game_list_detailed_shows_features() -> TestResult {
-        let out = wheelctl()?
-            .args(["game", "list", "--detailed"])
-            .output()?;
+        let out = wheelctl()?.args(["game", "list", "--detailed"]).output()?;
         assert!(out.status.success());
         let s = String::from_utf8_lossy(&out.stdout);
         assert!(
@@ -1358,9 +1325,7 @@ mod human_output {
 
     #[test]
     fn plugin_search_match_shows_results() -> TestResult {
-        let out = wheelctl()?
-            .args(["plugin", "search", "FFB"])
-            .output()?;
+        let out = wheelctl()?.args(["plugin", "search", "FFB"]).output()?;
         assert!(out.status.success());
         let s = String::from_utf8_lossy(&out.stdout);
         assert!(
@@ -1638,11 +1603,7 @@ mod config_loading {
         fs::write(&src, valid_profile_json())?;
 
         let out = wheelctl()?
-            .args([
-                "profile",
-                "export",
-                src.to_str().ok_or("invalid path")?,
-            ])
+            .args(["profile", "export", src.to_str().ok_or("invalid path")?])
             .output()?;
         assert!(out.status.success());
         // Should output the profile JSON to stdout
@@ -1919,9 +1880,7 @@ mod prompt_bypass {
 
     #[test]
     fn safety_stop_specific_device() -> TestResult {
-        let out = wheelctl()?
-            .args(["safety", "stop", "wheel-001"])
-            .output()?;
+        let out = wheelctl()?.args(["safety", "stop", "wheel-001"]).output()?;
         assert!(out.status.success());
         Ok(())
     }
@@ -2001,11 +1960,7 @@ mod cross_cutting {
             let out = wheelctl()?.args(*args).output()?;
             if out.status.success() {
                 let j = json(&out.stdout)?;
-                assert!(
-                    j.is_object(),
-                    "JSON for {:?} should be an object",
-                    args
-                );
+                assert!(j.is_object(), "JSON for {:?} should be an object", args);
                 assert!(
                     j.get("success").is_some(),
                     "JSON for {:?} should have success field",
@@ -2018,9 +1973,7 @@ mod cross_cutting {
 
     #[test]
     fn json_outputs_are_pretty_printed() -> TestResult {
-        let out = wheelctl()?
-            .args(["--json", "device", "list"])
-            .output()?;
+        let out = wheelctl()?.args(["--json", "device", "list"]).output()?;
         assert!(out.status.success());
         let s = String::from_utf8_lossy(&out.stdout);
         // Pretty-printed JSON has newlines and indentation
@@ -2058,14 +2011,9 @@ mod cross_cutting {
 
     #[test]
     fn empty_plugin_category_returns_all() -> TestResult {
-        let all_out = wheelctl()?
-            .args(["--json", "plugin", "list"])
-            .output()?;
+        let all_out = wheelctl()?.args(["--json", "plugin", "list"]).output()?;
         let all_j = json(&all_out.stdout)?;
-        let all_count = all_j["plugins"]
-            .as_array()
-            .map(|a| a.len())
-            .unwrap_or(0);
+        let all_count = all_j["plugins"].as_array().map(|a| a.len()).unwrap_or(0);
 
         // With no category filter, should return all plugins
         assert!(
@@ -2081,10 +2029,7 @@ mod cross_cutting {
             let out = wheelctl()?
                 .args(["--json", "diag", "test", test_type])
                 .output()?;
-            assert!(
-                out.status.success(),
-                "diag test {test_type} should succeed"
-            );
+            assert!(out.status.success(), "diag test {test_type} should succeed");
             let j = json(&out.stdout)?;
             let results = j["test_results"]
                 .as_array()

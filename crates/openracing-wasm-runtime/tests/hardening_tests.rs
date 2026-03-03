@@ -488,10 +488,7 @@ fn plugin_loaded_with_capabilities() -> Result<(), WasmError> {
     let mut runtime = WasmRuntime::new()?;
     let id = Uuid::new_v4();
 
-    let caps = vec![
-        "read_telemetry".to_string(),
-        "control_leds".to_string(),
-    ];
+    let caps = vec!["read_telemetry".to_string(), "control_leds".to_string()];
     runtime.load_plugin_from_bytes(id, &wasm, caps)?;
     assert!(runtime.has_plugin(&id));
     Ok(())

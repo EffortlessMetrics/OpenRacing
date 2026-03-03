@@ -188,8 +188,8 @@ fn interlock_system_emergency_stop_response_time() {
 // =========================================================================
 
 #[test]
-fn interlock_system_watchdog_timeout_transitions_to_safe_mode(
-) -> Result<(), racing_wheel_engine::safety::WatchdogError> {
+fn interlock_system_watchdog_timeout_transitions_to_safe_mode()
+-> Result<(), racing_wheel_engine::safety::WatchdogError> {
     let watchdog = Box::new(SoftwareWatchdog::new(10)); // 10ms timeout
     let mut system = SafetyInterlockSystem::new(watchdog, 25.0);
     system.arm()?;
@@ -301,8 +301,7 @@ fn emergency_stop_cannot_be_cleared() {
 }
 
 #[test]
-fn emergency_stop_torque_always_zero(
-) -> Result<(), racing_wheel_engine::safety::WatchdogError> {
+fn emergency_stop_torque_always_zero() -> Result<(), racing_wheel_engine::safety::WatchdogError> {
     let mut system = create_interlock_system(100);
     system.arm()?;
     system.emergency_stop();
@@ -314,8 +313,8 @@ fn emergency_stop_torque_always_zero(
 }
 
 #[test]
-fn emergency_stop_requires_manual_reset(
-) -> Result<(), racing_wheel_engine::safety::WatchdogError> {
+fn emergency_stop_requires_manual_reset() -> Result<(), racing_wheel_engine::safety::WatchdogError>
+{
     let mut system = create_interlock_system(100);
     system.emergency_stop();
 

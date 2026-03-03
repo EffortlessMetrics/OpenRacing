@@ -101,14 +101,20 @@ mod from_conversions {
     #[test]
     fn from_device_error() -> Result<(), OpenRacingError> {
         let err: OpenRacingError = DeviceError::not_found("dev").into();
-        assert!(matches!(err, OpenRacingError::Device(DeviceError::NotFound(_))));
+        assert!(matches!(
+            err,
+            OpenRacingError::Device(DeviceError::NotFound(_))
+        ));
         Ok(())
     }
 
     #[test]
     fn from_profile_error() -> Result<(), OpenRacingError> {
         let err: OpenRacingError = ProfileError::not_found("p1").into();
-        assert!(matches!(err, OpenRacingError::Profile(ProfileError::NotFound(_))));
+        assert!(matches!(
+            err,
+            OpenRacingError::Profile(ProfileError::NotFound(_))
+        ));
         Ok(())
     }
 
@@ -147,7 +153,10 @@ mod from_conversions {
     #[test]
     fn question_mark_propagation_from_io() -> Result<(), OpenRacingError> {
         fn inner() -> Result<(), std::io::Error> {
-            Err(std::io::Error::new(std::io::ErrorKind::BrokenPipe, "broken"))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "broken",
+            ))
         }
         fn outer() -> Result<(), OpenRacingError> {
             inner()?;
@@ -392,7 +401,10 @@ mod source_chain {
             current = e.source();
         }
         // OpenRacingError::RT(RTError) -> RTError -> None => depth >= 2
-        assert!(depth >= 2, "source chain depth should be at least 2, got {depth}");
+        assert!(
+            depth >= 2,
+            "source chain depth should be at least 2, got {depth}"
+        );
         Ok(())
     }
 }
@@ -420,7 +432,11 @@ mod categorization {
         ];
         for v in variants {
             let err: OpenRacingError = v.into();
-            assert_eq!(err.category(), ErrorCategory::RT, "RTError::{v:?} should be RT");
+            assert_eq!(
+                err.category(),
+                ErrorCategory::RT,
+                "RTError::{v:?} should be RT"
+            );
         }
         Ok(())
     }
@@ -639,10 +655,7 @@ mod recoverability {
         ];
         for v in recoverable {
             let err: OpenRacingError = v.into();
-            assert!(
-                err.is_recoverable(),
-                "RTError::{v:?} should be recoverable"
-            );
+            assert!(err.is_recoverable(), "RTError::{v:?} should be recoverable");
         }
         Ok(())
     }

@@ -509,7 +509,10 @@ mod host_function_tests {
         for (i, &a) in names.iter().enumerate() {
             for (j, &b) in names.iter().enumerate() {
                 if i != j {
-                    assert_ne!(a, b, "Host function names at index {i} and {j} must be unique");
+                    assert_ne!(
+                        a, b,
+                        "Host function names at index {i} and {j} must be unique"
+                    );
                 }
             }
         }
@@ -535,9 +538,18 @@ mod host_function_tests {
         assert_eq!(host_function_names::LOG_WARN, host_function::LOG_WARN);
         assert_eq!(host_function_names::LOG_ERROR, host_function::LOG_ERROR);
         assert_eq!(host_function_names::PLUGIN_LOG, host_function::PLUGIN_LOG);
-        assert_eq!(host_function_names::CHECK_CAPABILITY, host_function::CHECK_CAPABILITY);
-        assert_eq!(host_function_names::GET_TELEMETRY, host_function::GET_TELEMETRY);
-        assert_eq!(host_function_names::GET_TIMESTAMP_US, host_function::GET_TIMESTAMP_US);
+        assert_eq!(
+            host_function_names::CHECK_CAPABILITY,
+            host_function::CHECK_CAPABILITY
+        );
+        assert_eq!(
+            host_function_names::GET_TELEMETRY,
+            host_function::GET_TELEMETRY
+        );
+        assert_eq!(
+            host_function_names::GET_TIMESTAMP_US,
+            host_function::GET_TIMESTAMP_US
+        );
     }
 }
 
@@ -606,28 +618,49 @@ mod telemetry_tests {
 
     #[test]
     fn test_temperature_boundaries() {
-        let low = TelemetryFrame { temperature_c: 19.9, ..Default::default() };
+        let low = TelemetryFrame {
+            temperature_c: 19.9,
+            ..Default::default()
+        };
         assert!(!low.is_temperature_normal());
 
-        let at_20 = TelemetryFrame { temperature_c: 20.0, ..Default::default() };
+        let at_20 = TelemetryFrame {
+            temperature_c: 20.0,
+            ..Default::default()
+        };
         assert!(at_20.is_temperature_normal());
 
-        let at_80 = TelemetryFrame { temperature_c: 80.0, ..Default::default() };
+        let at_80 = TelemetryFrame {
+            temperature_c: 80.0,
+            ..Default::default()
+        };
         assert!(at_80.is_temperature_normal());
 
-        let over_80 = TelemetryFrame { temperature_c: 80.1, ..Default::default() };
+        let over_80 = TelemetryFrame {
+            temperature_c: 80.1,
+            ..Default::default()
+        };
         assert!(!over_80.is_temperature_normal());
     }
 
     #[test]
     fn test_angle_boundaries() {
-        let valid = TelemetryFrame { wheel_angle_deg: 1800.0, ..Default::default() };
+        let valid = TelemetryFrame {
+            wheel_angle_deg: 1800.0,
+            ..Default::default()
+        };
         assert!(valid.is_angle_valid());
 
-        let neg_valid = TelemetryFrame { wheel_angle_deg: -1800.0, ..Default::default() };
+        let neg_valid = TelemetryFrame {
+            wheel_angle_deg: -1800.0,
+            ..Default::default()
+        };
         assert!(neg_valid.is_angle_valid());
 
-        let invalid = TelemetryFrame { wheel_angle_deg: 1800.1, ..Default::default() };
+        let invalid = TelemetryFrame {
+            wheel_angle_deg: 1800.1,
+            ..Default::default()
+        };
         assert!(!invalid.is_angle_valid());
     }
 
@@ -639,7 +672,10 @@ mod telemetry_tests {
 
     #[test]
     fn test_faults_detected() {
-        let frame = TelemetryFrame { fault_flags: 0x01, ..Default::default() };
+        let frame = TelemetryFrame {
+            fault_flags: 0x01,
+            ..Default::default()
+        };
         assert!(frame.has_faults());
     }
 

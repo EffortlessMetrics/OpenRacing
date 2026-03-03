@@ -15,14 +15,14 @@
 //! | 5 | USB 2.0 spec §5.7.3 (Full-Speed Interrupt) | Max interrupt transfer payload = 64 bytes |
 
 use racing_wheel_hid_leo_bodnar_protocol::{
-    HID_PID_USAGE_PAGE, LeoBodnarDevice, MAX_REPORT_BYTES, PID_BBI32, PID_BU0836A,
-    PID_BU0836X, PID_BU0836_16BIT, PID_FFB_JOYSTICK, PID_SLI_M, PID_USB_JOYSTICK,
-    PID_WHEEL_INTERFACE, VENDOR_ID, WHEEL_DEFAULT_MAX_TORQUE_NM, WHEEL_ENCODER_CPR,
-    is_leo_bodnar, is_leo_bodnar_device, is_leo_bodnar_ffb_pid,
+    HID_PID_USAGE_PAGE, LeoBodnarDevice, MAX_REPORT_BYTES, PID_BBI32, PID_BU0836_16BIT,
+    PID_BU0836A, PID_BU0836X, PID_FFB_JOYSTICK, PID_SLI_M, PID_USB_JOYSTICK, PID_WHEEL_INTERFACE,
+    VENDOR_ID, WHEEL_DEFAULT_MAX_TORQUE_NM, WHEEL_ENCODER_CPR, is_leo_bodnar, is_leo_bodnar_device,
+    is_leo_bodnar_ffb_pid,
 };
 
 // Pedal PIDs (from ids.rs)
-use racing_wheel_hid_leo_bodnar_protocol::ids::{PID_PEDALS, PID_LC_PEDALS};
+use racing_wheel_hid_leo_bodnar_protocol::ids::{PID_LC_PEDALS, PID_PEDALS};
 
 // ════════════════════════════════════════════════════════════════════════════
 // § 1. VID verification against USB vendor databases
@@ -132,9 +132,16 @@ fn bu0836_16bit_pid() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn all_pids_recognised_with_correct_vid() -> Result<(), Box<dyn std::error::Error>> {
     let all_pids = [
-        PID_USB_JOYSTICK, PID_BBI32, PID_WHEEL_INTERFACE, PID_FFB_JOYSTICK,
-        PID_SLI_M, PID_BU0836A, PID_BU0836X, PID_BU0836_16BIT,
-        PID_PEDALS, PID_LC_PEDALS,
+        PID_USB_JOYSTICK,
+        PID_BBI32,
+        PID_WHEEL_INTERFACE,
+        PID_FFB_JOYSTICK,
+        PID_SLI_M,
+        PID_BU0836A,
+        PID_BU0836X,
+        PID_BU0836_16BIT,
+        PID_PEDALS,
+        PID_LC_PEDALS,
     ];
     for &pid in &all_pids {
         assert!(
@@ -200,9 +207,16 @@ fn ffb_pids_correct() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn device_ffb_support_consistent() -> Result<(), Box<dyn std::error::Error>> {
     let all_pids = [
-        PID_USB_JOYSTICK, PID_BBI32, PID_WHEEL_INTERFACE, PID_FFB_JOYSTICK,
-        PID_SLI_M, PID_BU0836A, PID_BU0836X, PID_BU0836_16BIT,
-        PID_PEDALS, PID_LC_PEDALS,
+        PID_USB_JOYSTICK,
+        PID_BBI32,
+        PID_WHEEL_INTERFACE,
+        PID_FFB_JOYSTICK,
+        PID_SLI_M,
+        PID_BU0836A,
+        PID_BU0836X,
+        PID_BU0836_16BIT,
+        PID_PEDALS,
+        PID_LC_PEDALS,
     ];
     for &pid in &all_pids {
         if let Some(device) = LeoBodnarDevice::from_product_id(pid) {
@@ -261,9 +275,16 @@ fn default_max_torque_is_10nm() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn all_pids_resolve_to_device() -> Result<(), Box<dyn std::error::Error>> {
     let all_pids = [
-        PID_USB_JOYSTICK, PID_BBI32, PID_WHEEL_INTERFACE, PID_FFB_JOYSTICK,
-        PID_SLI_M, PID_BU0836A, PID_BU0836X, PID_BU0836_16BIT,
-        PID_PEDALS, PID_LC_PEDALS,
+        PID_USB_JOYSTICK,
+        PID_BBI32,
+        PID_WHEEL_INTERFACE,
+        PID_FFB_JOYSTICK,
+        PID_SLI_M,
+        PID_BU0836A,
+        PID_BU0836X,
+        PID_BU0836_16BIT,
+        PID_PEDALS,
+        PID_LC_PEDALS,
     ];
     for &pid in &all_pids {
         assert!(
@@ -305,9 +326,16 @@ fn sli_m_has_zero_input_channels() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn device_names_are_descriptive() -> Result<(), Box<dyn std::error::Error>> {
     let all_pids = [
-        PID_USB_JOYSTICK, PID_BBI32, PID_WHEEL_INTERFACE, PID_FFB_JOYSTICK,
-        PID_SLI_M, PID_BU0836A, PID_BU0836X, PID_BU0836_16BIT,
-        PID_PEDALS, PID_LC_PEDALS,
+        PID_USB_JOYSTICK,
+        PID_BBI32,
+        PID_WHEEL_INTERFACE,
+        PID_FFB_JOYSTICK,
+        PID_SLI_M,
+        PID_BU0836A,
+        PID_BU0836X,
+        PID_BU0836_16BIT,
+        PID_PEDALS,
+        PID_LC_PEDALS,
     ];
     for &pid in &all_pids {
         if let Some(device) = LeoBodnarDevice::from_product_id(pid) {

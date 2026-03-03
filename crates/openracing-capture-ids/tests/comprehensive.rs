@@ -56,8 +56,8 @@ fn hex_u16_roundtrip_through_parse() -> anyhow::Result<()> {
 #[test]
 fn decode_moza_report_produces_moza_prefix() -> anyhow::Result<()> {
     let report: [u8; 7] = [0x01, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00];
-    let text = decode_report(0x346E, &report)
-        .ok_or_else(|| anyhow::anyhow!("MOZA decode failed"))?;
+    let text =
+        decode_report(0x346E, &report).ok_or_else(|| anyhow::anyhow!("MOZA decode failed"))?;
     assert!(text.starts_with("MOZA:"), "got: {text}");
     assert!(text.contains("steering="));
     assert!(text.contains("throttle="));
@@ -68,8 +68,8 @@ fn decode_moza_report_produces_moza_prefix() -> anyhow::Result<()> {
 #[test]
 fn decode_logitech_report_produces_logitech_prefix() -> anyhow::Result<()> {
     let report: [u8; 10] = [0x01, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00];
-    let text = decode_report(0x046D, &report)
-        .ok_or_else(|| anyhow::anyhow!("Logitech decode failed"))?;
+    let text =
+        decode_report(0x046D, &report).ok_or_else(|| anyhow::anyhow!("Logitech decode failed"))?;
     assert!(text.starts_with("Logitech:"), "got: {text}");
     assert!(text.contains("steering="));
     assert!(text.contains("buttons="));
@@ -110,8 +110,7 @@ fn decode_empty_report_returns_none() {
 #[test]
 fn decode_moza_full_deflection() -> anyhow::Result<()> {
     let report: [u8; 7] = [0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00];
-    let text = decode_report(0x346E, &report)
-        .ok_or_else(|| anyhow::anyhow!("decode failed"))?;
+    let text = decode_report(0x346E, &report).ok_or_else(|| anyhow::anyhow!("decode failed"))?;
     assert!(text.contains("steering=1.000"));
     assert!(text.contains("throttle=1.000"));
     assert!(text.contains("brake=0.000"));
@@ -209,13 +208,12 @@ fn sequential_captures_timestamps_increase() -> anyhow::Result<()> {
 
 #[test]
 fn full_capture_decode_pipeline_moza() -> anyhow::Result<()> {
-    let line =
-        r#"{"ts_ns":1000000000,"vid":"0x346E","pid":"0x0002","report":"01008000000000"}"#;
+    let line = r#"{"ts_ns":1000000000,"vid":"0x346E","pid":"0x0002","report":"01008000000000"}"#;
     let entry = parse_capture_line(line)?;
     let bytes = decode_hex(&entry.report)?;
     let vid = parse_vid_str(&entry.vid)?;
-    let decoded = decode_report(vid, &bytes)
-        .ok_or_else(|| anyhow::anyhow!("pipeline decode failed"))?;
+    let decoded =
+        decode_report(vid, &bytes).ok_or_else(|| anyhow::anyhow!("pipeline decode failed"))?;
     assert!(decoded.starts_with("MOZA:"));
     Ok(())
 }
@@ -227,8 +225,8 @@ fn full_capture_decode_pipeline_logitech() -> anyhow::Result<()> {
     let entry = parse_capture_line(line)?;
     let bytes = decode_hex(&entry.report)?;
     let vid = parse_vid_str(&entry.vid)?;
-    let decoded = decode_report(vid, &bytes)
-        .ok_or_else(|| anyhow::anyhow!("pipeline decode failed"))?;
+    let decoded =
+        decode_report(vid, &bytes).ok_or_else(|| anyhow::anyhow!("pipeline decode failed"))?;
     assert!(decoded.starts_with("Logitech:"));
     Ok(())
 }

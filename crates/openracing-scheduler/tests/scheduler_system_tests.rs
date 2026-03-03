@@ -3,7 +3,7 @@
 
 use openracing_scheduler::{
     AbsoluteScheduler, AdaptiveSchedulingConfig, AdaptiveSchedulingState, JitterMetrics,
-    RTError, RTResult, RTSetup, PLL, MAX_JITTER_NS, PERIOD_1KHZ_NS,
+    MAX_JITTER_NS, PERIOD_1KHZ_NS, PLL, RTError, RTResult, RTSetup,
 };
 use std::time::Duration;
 
@@ -141,9 +141,17 @@ fn rt_setup_default_matches_new() {
 
 #[test]
 fn rt_setup_has_features_any_enabled() {
-    assert!(RTSetup::minimal().with_high_priority(true).has_rt_features());
+    assert!(
+        RTSetup::minimal()
+            .with_high_priority(true)
+            .has_rt_features()
+    );
     assert!(RTSetup::minimal().with_lock_memory(true).has_rt_features());
-    assert!(RTSetup::minimal().with_disable_power_throttling(true).has_rt_features());
+    assert!(
+        RTSetup::minimal()
+            .with_disable_power_throttling(true)
+            .has_rt_features()
+    );
     assert!(RTSetup::minimal().with_cpu_affinity(1).has_rt_features());
 }
 
@@ -258,7 +266,10 @@ fn pll_average_phase_error() {
 fn pll_update_returns_positive_duration() {
     let mut pll = PLL::new(PERIOD_1KHZ_NS);
     let d = pll.update(PERIOD_1KHZ_NS);
-    assert!(d.as_nanos() > 0, "PLL correction should be a positive duration");
+    assert!(
+        d.as_nanos() > 0,
+        "PLL correction should be a positive duration"
+    );
 }
 
 #[test]
@@ -542,15 +553,13 @@ fn adaptive_config_is_valid_default() {
 
 #[test]
 fn adaptive_config_is_valid_inverted_bounds() {
-    let cfg = AdaptiveSchedulingConfig::new()
-        .with_period_bounds(2_000_000, 500_000); // min > max
+    let cfg = AdaptiveSchedulingConfig::new().with_period_bounds(2_000_000, 500_000); // min > max
     assert!(!cfg.is_valid());
 }
 
 #[test]
 fn adaptive_config_normalize_fixes_inverted() {
-    let mut cfg = AdaptiveSchedulingConfig::new()
-        .with_period_bounds(2_000_000, 500_000);
+    let mut cfg = AdaptiveSchedulingConfig::new().with_period_bounds(2_000_000, 500_000);
     cfg.normalize();
     assert!(cfg.is_valid());
     assert!(cfg.min_period_ns <= cfg.max_period_ns);
@@ -710,8 +719,7 @@ fn scheduler_reset_clears_state() {
 #[test]
 fn scheduler_set_adaptive_scheduling() {
     let mut s = AbsoluteScheduler::new_1khz();
-    let cfg = AdaptiveSchedulingConfig::enabled()
-        .with_period_bounds(500_000, 2_000_000);
+    let cfg = AdaptiveSchedulingConfig::enabled().with_period_bounds(500_000, 2_000_000);
     s.set_adaptive_scheduling(cfg);
     let state = s.adaptive_scheduling();
     assert!(state.enabled);
@@ -763,7 +771,10 @@ fn scheduler_wait_for_tick_returns_incrementing_count() {
 
     // Ticks should be monotonically increasing
     for i in 1..ticks.len() {
-        assert!(ticks[i] > ticks[i - 1], "Ticks should increase monotonically");
+        assert!(
+            ticks[i] > ticks[i - 1],
+            "Ticks should increase monotonically"
+        );
     }
 }
 
@@ -811,8 +822,7 @@ fn pll_feeds_jitter_metrics() {
 #[test]
 fn scheduler_adaptive_period_bounded() {
     let mut s = AbsoluteScheduler::new_1khz();
-    let cfg = AdaptiveSchedulingConfig::enabled()
-        .with_period_bounds(800_000, 1_200_000);
+    let cfg = AdaptiveSchedulingConfig::enabled().with_period_bounds(800_000, 1_200_000);
     s.set_adaptive_scheduling(cfg);
 
     let state = s.adaptive_scheduling();

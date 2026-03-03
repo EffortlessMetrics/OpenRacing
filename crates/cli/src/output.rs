@@ -447,8 +447,8 @@ where
 mod tests {
     use super::*;
     use crate::client::{
-        DeviceCapabilities, DeviceInfo, DeviceState, DeviceType, GameStatus,
-        HealthEvent, HealthEventType, TelemetryData,
+        DeviceCapabilities, DeviceInfo, DeviceState, DeviceType, GameStatus, HealthEvent,
+        HealthEventType, TelemetryData,
     };
     use crate::error::CliError;
 

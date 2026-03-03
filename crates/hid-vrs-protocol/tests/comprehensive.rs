@@ -7,10 +7,10 @@
 
 use racing_wheel_hid_vrs_protocol::{
     CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN, SPRING_REPORT_LEN,
-    VRS_PRODUCT_ID, VRS_VENDOR_ID, VrsConstantForceEncoder, VrsDamperEncoder, VrsFrictionEncoder,
-    VrsSpringEncoder, build_device_gain, build_ffb_enable, build_rotation_range,
-    identify_device, is_wheelbase_product, parse_input_report, product_ids, VrsInputState,
-    VrsFfbEffectType, VrsPedalAxesRaw,
+    VRS_PRODUCT_ID, VRS_VENDOR_ID, VrsConstantForceEncoder, VrsDamperEncoder, VrsFfbEffectType,
+    VrsFrictionEncoder, VrsInputState, VrsPedalAxesRaw, VrsSpringEncoder, build_device_gain,
+    build_ffb_enable, build_rotation_range, identify_device, is_wheelbase_product,
+    parse_input_report, product_ids,
 };
 
 // ---------------------------------------------------------------------------
@@ -19,7 +19,10 @@ use racing_wheel_hid_vrs_protocol::{
 
 #[test]
 fn constants_vendor_id() {
-    assert_eq!(VRS_VENDOR_ID, 0x0483, "VRS VID must match STMicroelectronics generic VID");
+    assert_eq!(
+        VRS_VENDOR_ID, 0x0483,
+        "VRS VID must match STMicroelectronics generic VID"
+    );
 }
 
 #[test]
@@ -61,8 +64,14 @@ fn identify_all_known_wheelbases() {
     ];
     for &pid in &wheelbases {
         let id = identify_device(pid);
-        assert!(id.supports_ffb, "Wheelbase PID 0x{pid:04X} should support FFB");
-        assert!(id.max_torque_nm.is_some(), "Wheelbase PID 0x{pid:04X} should have torque");
+        assert!(
+            id.supports_ffb,
+            "Wheelbase PID 0x{pid:04X} should support FFB"
+        );
+        assert!(
+            id.max_torque_nm.is_some(),
+            "Wheelbase PID 0x{pid:04X} should have torque"
+        );
         assert!(is_wheelbase_product(pid));
     }
 }
@@ -96,7 +105,10 @@ fn identify_non_wheelbase_peripherals() {
     ];
     for &pid in &peripherals {
         let id = identify_device(pid);
-        assert!(!id.supports_ffb, "Peripheral PID 0x{pid:04X} should not support FFB");
+        assert!(
+            !id.supports_ffb,
+            "Peripheral PID 0x{pid:04X} should not support FFB"
+        );
         assert!(!is_wheelbase_product(pid));
     }
 }
@@ -149,7 +161,10 @@ fn build_vrs_report(
 fn parse_input_too_short() {
     for len in 0..17 {
         let data = vec![0u8; len];
-        assert!(parse_input_report(&data).is_none(), "length {len} should fail");
+        assert!(
+            parse_input_report(&data).is_none(),
+            "length {len} should fail"
+        );
     }
 }
 
@@ -540,7 +555,11 @@ fn effect_type_report_ids_unique() {
     let mut sorted = ids.to_vec();
     sorted.sort();
     sorted.dedup();
-    assert_eq!(ids.len(), sorted.len(), "all effect type report IDs must be unique");
+    assert_eq!(
+        ids.len(),
+        sorted.len(),
+        "all effect type report IDs must be unique"
+    );
 }
 
 // ---------------------------------------------------------------------------

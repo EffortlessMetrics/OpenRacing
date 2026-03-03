@@ -446,8 +446,14 @@ fn high_speed_braking_zone() -> TestResult {
     let t = adapter.normalize(&data)?;
     assert!((t.speed_ms - 280.0 / 3.6).abs() < 0.1);
     assert_eq!(t.gear, 6);
-    assert!((t.ffb_scalar - (-0.9)).abs() < 0.001, "strong negative FFB under braking");
-    assert!((t.slip_ratio - 0.4).abs() < 0.001, "moderate slip under braking");
+    assert!(
+        (t.ffb_scalar - (-0.9)).abs() < 0.001,
+        "strong negative FFB under braking"
+    );
+    assert!(
+        (t.slip_ratio - 0.4).abs() < 0.001,
+        "moderate slip under braking"
+    );
     Ok(())
 }
 

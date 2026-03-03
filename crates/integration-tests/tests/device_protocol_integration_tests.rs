@@ -86,7 +86,11 @@ fn make_device_caps(fixture: &DeviceFixture) -> Result<DeviceCapabilities> {
         false,
         TorqueNm::new(fixture.max_torque_nm)?,
         fixture.encoder_cpr,
-        if fixture.supports_raw_1khz { 1000 } else { 4000 },
+        if fixture.supports_raw_1khz {
+            1000
+        } else {
+            4000
+        },
     ))
 }
 
@@ -234,7 +238,10 @@ mod complete_device_flow {
         let t1 = device
             .read_telemetry()
             .ok_or_else(|| anyhow::anyhow!("telemetry missing at creation"))?;
-        assert!(t1.temperature_c <= 150, "temperature must be sane at creation");
+        assert!(
+            t1.temperature_c <= 150,
+            "temperature must be sane at creation"
+        );
 
         // After FFB write
         device.write_ffb_report(5.0, 0)?;
@@ -276,16 +283,10 @@ mod multi_device {
         let id_a: DeviceId = "multi-a-001".parse()?;
         let id_b: DeviceId = "multi-b-001".parse()?;
 
-        port.add_device(VirtualDevice::new(
-            id_a.clone(),
-            "Device Alpha".to_string(),
-        ))
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
-        port.add_device(VirtualDevice::new(
-            id_b.clone(),
-            "Device Beta".to_string(),
-        ))
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+        port.add_device(VirtualDevice::new(id_a.clone(), "Device Alpha".to_string()))
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        port.add_device(VirtualDevice::new(id_b.clone(), "Device Beta".to_string()))
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
 
         let devices = port
             .list_devices()
@@ -468,13 +469,19 @@ mod failover_recovery {
 
         // Reconnect restores functionality
         device.reconnect();
-        assert!(device.is_connected(), "Device must be connected after reconnect");
+        assert!(
+            device.is_connected(),
+            "Device must be connected after reconnect"
+        );
 
         let result = device.write_ffb_report(2.0, 2);
         assert!(result.is_ok(), "Write must succeed after reconnect");
 
         let telem = device.read_telemetry();
-        assert!(telem.is_some(), "Telemetry must be readable after reconnect");
+        assert!(
+            telem.is_some(),
+            "Telemetry must be readable after reconnect"
+        );
 
         Ok(())
     }
@@ -537,10 +544,7 @@ mod failover_recovery {
         let telem_before = device
             .read_telemetry()
             .ok_or_else(|| anyhow::anyhow!("telemetry missing"))?;
-        assert_eq!(
-            telem_before.fault_flags, 0,
-            "No faults expected initially"
-        );
+        assert_eq!(telem_before.fault_flags, 0, "No faults expected initially");
 
         // Inject fault
         device.inject_fault(0x01);
@@ -557,10 +561,7 @@ mod failover_recovery {
         let telem_cleared = device
             .read_telemetry()
             .ok_or_else(|| anyhow::anyhow!("telemetry missing after clear"))?;
-        assert_eq!(
-            telem_cleared.fault_flags, 0,
-            "Faults must be cleared"
-        );
+        assert_eq!(telem_cleared.fault_flags, 0, "Faults must be cleared");
 
         Ok(())
     }
@@ -577,14 +578,8 @@ mod failover_recovery {
         let telem = device
             .read_telemetry()
             .ok_or_else(|| anyhow::anyhow!("telemetry missing"))?;
-        assert!(
-            telem.fault_flags & 0x01 != 0,
-            "Fault 0x01 must be set"
-        );
-        assert!(
-            telem.fault_flags & 0x02 != 0,
-            "Fault 0x02 must also be set"
-        );
+        assert!(telem.fault_flags & 0x01 != 0, "Fault 0x01 must be set");
+        assert!(telem.fault_flags & 0x02 != 0, "Fault 0x02 must also be set");
 
         Ok(())
     }
@@ -611,7 +606,10 @@ mod failover_recovery {
             );
 
             device.disconnect();
-            assert!(!device.is_connected(), "Cycle {cycle}: must be disconnected");
+            assert!(
+                !device.is_connected(),
+                "Cycle {cycle}: must be disconnected"
+            );
 
             device.reconnect();
         }
@@ -674,29 +672,15 @@ mod protocol_negotiation {
     /// Mode selection policy validates RawTorque compatibility.
     #[test]
     fn mode_selection_validates_raw_torque_compatibility() -> Result<()> {
-        let dd_caps = DeviceCapabilities::new(
-            false,
-            true,
-            true,
-            true,
-            TorqueNm::new(25.0)?,
-            10000,
-            1000,
-        );
+        let dd_caps =
+            DeviceCapabilities::new(false, true, true, true, TorqueNm::new(25.0)?, 10000, 1000);
         assert!(
             ModeSelectionPolicy::is_mode_compatible(FFBMode::RawTorque, &dd_caps),
             "RawTorque must be compatible with DD device"
         );
 
-        let pid_caps = DeviceCapabilities::new(
-            true,
-            false,
-            false,
-            false,
-            TorqueNm::new(3.0)?,
-            1024,
-            16666,
-        );
+        let pid_caps =
+            DeviceCapabilities::new(true, false, false, false, TorqueNm::new(3.0)?, 1024, 16666);
         assert!(
             !ModeSelectionPolicy::is_mode_compatible(FFBMode::RawTorque, &pid_caps),
             "RawTorque must not be compatible with PID-only device"
@@ -708,15 +692,8 @@ mod protocol_negotiation {
     /// Game compatibility info influences mode negotiation.
     #[test]
     fn game_compatibility_influences_mode() -> Result<()> {
-        let caps = DeviceCapabilities::new(
-            false,
-            true,
-            true,
-            true,
-            TorqueNm::new(20.0)?,
-            65535,
-            1000,
-        );
+        let caps =
+            DeviceCapabilities::new(false, true, true, true, TorqueNm::new(20.0)?, 65535, 1000);
 
         let game_compat = racing_wheel_engine::GameCompatibility {
             game_id: "test_game".to_string(),
@@ -725,8 +702,7 @@ mod protocol_negotiation {
             preferred_mode: FFBMode::RawTorque,
         };
 
-        let result =
-            CapabilityNegotiator::negotiate_capabilities(&caps, Some(&game_compat));
+        let result = CapabilityNegotiator::negotiate_capabilities(&caps, Some(&game_compat));
         assert_eq!(
             result.mode,
             FFBMode::RawTorque,
@@ -787,10 +763,7 @@ mod protocol_negotiation {
     /// Pipeline processes frames correctly for all negotiated mode types.
     #[test]
     fn pipeline_processes_all_mode_types() -> Result<()> {
-        let modes = [
-            (FFBMode::RawTorque, 0.8f32),
-            (FFBMode::PidPassthrough, 0.3),
-        ];
+        let modes = [(FFBMode::RawTorque, 0.8f32), (FFBMode::PidPassthrough, 0.3)];
 
         for (mode, input) in &modes {
             let mut pipeline = Pipeline::new();

@@ -3,11 +3,11 @@
 //! Exercises recording session creation, data persistence, playback,
 //! fixture generation, and edge cases.
 
+use racing_wheel_schemas::telemetry::{NormalizedTelemetry, TelemetryFlags, TelemetryFrame};
 use racing_wheel_telemetry_recorder::{
     RecordingMetadata, TelemetryPlayer, TelemetryRecorder, TelemetryRecording,
     TestFixtureGenerator, TestScenario,
 };
-use racing_wheel_schemas::telemetry::{NormalizedTelemetry, TelemetryFlags, TelemetryFrame};
 use tempfile::tempdir;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -32,8 +32,7 @@ fn recorder_creates_parent_directories() -> TestResult {
     let path = dir.path().join("nested").join("deep").join("test.json");
     let _recorder = TelemetryRecorder::new(path.clone())?;
     assert!(
-        path.parent()
-            .is_some_and(|p| p.exists()),
+        path.parent().is_some_and(|p| p.exists()),
         "parent directories should be created"
     );
     Ok(())
@@ -53,7 +52,10 @@ fn recording_lifecycle_basic() -> TestResult {
     assert!(recorder.is_recording());
     assert_eq!(recorder.frame_count(), 0);
 
-    let telemetry = NormalizedTelemetry::builder().rpm(5000.0).speed_ms(30.0).build();
+    let telemetry = NormalizedTelemetry::builder()
+        .rpm(5000.0)
+        .speed_ms(30.0)
+        .build();
     let frame = TelemetryFrame::new(telemetry, 1_000_000, 0, 64);
     recorder.record_frame(frame);
     assert_eq!(recorder.frame_count(), 1);
@@ -187,7 +189,8 @@ fn load_nonexistent_file_returns_error() -> TestResult {
 
 #[test]
 fn recording_serialization_roundtrip() -> TestResult {
-    let recording = TestFixtureGenerator::generate_racing_session("serde_test".to_string(), 1.0, 10.0);
+    let recording =
+        TestFixtureGenerator::generate_racing_session("serde_test".to_string(), 1.0, 10.0);
     let json = serde_json::to_string(&recording)?;
     let deserialized: TelemetryRecording = serde_json::from_str(&json)?;
     assert_eq!(deserialized.frames.len(), recording.frames.len());
@@ -289,7 +292,8 @@ fn player_set_playback_speed_clamped() -> TestResult {
 
 #[test]
 fn player_metadata_accessible() -> TestResult {
-    let recording = TestFixtureGenerator::generate_racing_session("metadata_test".to_string(), 2.0, 30.0);
+    let recording =
+        TestFixtureGenerator::generate_racing_session("metadata_test".to_string(), 2.0, 30.0);
     let player = TelemetryPlayer::new(recording);
     let meta = player.metadata();
     assert_eq!(meta.game_id, "metadata_test");
@@ -383,7 +387,8 @@ fn fixture_zero_fps_produces_no_frames() -> TestResult {
 
 #[test]
 fn scenario_constant_speed_frames_have_uniform_speed() -> TestResult {
-    let recording = TestFixtureGenerator::generate_test_scenario(TestScenario::ConstantSpeed, 1.0, 10.0);
+    let recording =
+        TestFixtureGenerator::generate_test_scenario(TestScenario::ConstantSpeed, 1.0, 10.0);
     for frame in &recording.frames {
         assert!(
             (frame.data.speed_ms - 50.0).abs() < 0.01,
@@ -395,10 +400,19 @@ fn scenario_constant_speed_frames_have_uniform_speed() -> TestResult {
 
 #[test]
 fn scenario_acceleration_speed_increases() -> TestResult {
-    let recording = TestFixtureGenerator::generate_test_scenario(TestScenario::Acceleration, 2.0, 30.0);
+    let recording =
+        TestFixtureGenerator::generate_test_scenario(TestScenario::Acceleration, 2.0, 30.0);
     assert!(!recording.frames.is_empty());
-    let first_speed = recording.frames.first().map(|f| f.data.speed_ms).unwrap_or(0.0);
-    let last_speed = recording.frames.last().map(|f| f.data.speed_ms).unwrap_or(0.0);
+    let first_speed = recording
+        .frames
+        .first()
+        .map(|f| f.data.speed_ms)
+        .unwrap_or(0.0);
+    let last_speed = recording
+        .frames
+        .last()
+        .map(|f| f.data.speed_ms)
+        .unwrap_or(0.0);
     assert!(
         last_speed > first_speed,
         "speed should increase during acceleration: first={first_speed}, last={last_speed}"
@@ -408,7 +422,8 @@ fn scenario_acceleration_speed_increases() -> TestResult {
 
 #[test]
 fn scenario_cornering_high_ffb() -> TestResult {
-    let recording = TestFixtureGenerator::generate_test_scenario(TestScenario::Cornering, 1.0, 10.0);
+    let recording =
+        TestFixtureGenerator::generate_test_scenario(TestScenario::Cornering, 1.0, 10.0);
     for frame in &recording.frames {
         assert!(
             (frame.data.ffb_scalar - 0.9).abs() < 0.01,

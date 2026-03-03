@@ -112,10 +112,8 @@ mod device_id_deduplication {
 
     #[test]
     fn same_vid_pid_different_reports_are_distinct() -> anyhow::Result<()> {
-        let line1 =
-            r#"{"ts_ns":1000,"vid":"0x346E","pid":"0x0002","report":"01008000000000"}"#;
-        let line2 =
-            r#"{"ts_ns":1001,"vid":"0x346E","pid":"0x0002","report":"01ffff00000000"}"#;
+        let line1 = r#"{"ts_ns":1000,"vid":"0x346E","pid":"0x0002","report":"01008000000000"}"#;
+        let line2 = r#"{"ts_ns":1001,"vid":"0x346E","pid":"0x0002","report":"01ffff00000000"}"#;
         let e1 = parse_capture_line(line1)?;
         let e2 = parse_capture_line(line2)?;
         assert_eq!(e1.vid, e2.vid);
@@ -315,8 +313,8 @@ mod vendor_decode {
     #[test]
     fn moza_vid_produces_moza_output() -> anyhow::Result<()> {
         let report: [u8; 7] = [0x01, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00];
-        let text = decode_report(0x346E, &report)
-            .ok_or_else(|| anyhow::anyhow!("MOZA decode failed"))?;
+        let text =
+            decode_report(0x346E, &report).ok_or_else(|| anyhow::anyhow!("MOZA decode failed"))?;
         assert!(text.starts_with("MOZA:"), "got: {text}");
         assert!(text.contains("steering="));
         assert!(text.contains("throttle="));
@@ -368,8 +366,8 @@ mod vendor_decode {
     #[test]
     fn moza_full_deflection_values() -> anyhow::Result<()> {
         let report: [u8; 7] = [0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00];
-        let text = decode_report(0x346E, &report)
-            .ok_or_else(|| anyhow::anyhow!("decode failed"))?;
+        let text =
+            decode_report(0x346E, &report).ok_or_else(|| anyhow::anyhow!("decode failed"))?;
         assert!(text.contains("steering=1.000"));
         assert!(text.contains("throttle=1.000"));
         Ok(())
@@ -388,8 +386,8 @@ mod full_pipeline {
         let entry = parse_capture_line(line)?;
         let bytes = decode_hex(&entry.report)?;
         let vid = parse_vid_str(&entry.vid)?;
-        let decoded = decode_report(vid, &bytes)
-            .ok_or_else(|| anyhow::anyhow!("pipeline decode failed"))?;
+        let decoded =
+            decode_report(vid, &bytes).ok_or_else(|| anyhow::anyhow!("pipeline decode failed"))?;
         assert!(decoded.starts_with("MOZA:"));
         Ok(())
     }
@@ -401,8 +399,8 @@ mod full_pipeline {
         let entry = parse_capture_line(line)?;
         let bytes = decode_hex(&entry.report)?;
         let vid = parse_vid_str(&entry.vid)?;
-        let decoded = decode_report(vid, &bytes)
-            .ok_or_else(|| anyhow::anyhow!("pipeline decode failed"))?;
+        let decoded =
+            decode_report(vid, &bytes).ok_or_else(|| anyhow::anyhow!("pipeline decode failed"))?;
         assert!(decoded.starts_with("Logitech:"));
         Ok(())
     }

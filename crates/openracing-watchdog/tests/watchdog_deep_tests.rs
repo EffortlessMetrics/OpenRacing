@@ -13,8 +13,8 @@
 
 use openracing_watchdog::prelude::*;
 use proptest::prelude::*;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
 // ---------------------------------------------------------------------------
@@ -644,7 +644,9 @@ fn safety_fault_type_mapping_by_component() {
     }
 
     let faults = triggered_faults.lock();
-    let has_timing = faults.iter().any(|(ft, _)| *ft == FaultType::TimingViolation);
+    let has_timing = faults
+        .iter()
+        .any(|(ft, _)| *ft == FaultType::TimingViolation);
     let has_usb = faults.iter().any(|(ft, _)| *ft == FaultType::UsbStall);
     assert!(has_timing, "Expected TimingViolation from RtThread");
     assert!(has_usb, "Expected UsbStall from HidCommunication");
@@ -896,11 +898,17 @@ fn watchdog_system_debug_format() {
 
 #[test]
 fn quarantine_reason_display() {
-    assert_eq!(QuarantineReason::ConsecutiveTimeouts.to_string(), "Consecutive timeouts");
+    assert_eq!(
+        QuarantineReason::ConsecutiveTimeouts.to_string(),
+        "Consecutive timeouts"
+    );
     assert_eq!(QuarantineReason::Crash.to_string(), "Crash");
     assert_eq!(QuarantineReason::Manual.to_string(), "Manual");
     assert_eq!(QuarantineReason::Unknown.to_string(), "Unknown");
-    assert_eq!(QuarantineReason::TimingViolation.to_string(), "Timing violation");
+    assert_eq!(
+        QuarantineReason::TimingViolation.to_string(),
+        "Timing violation"
+    );
 }
 
 // ===========================================================================

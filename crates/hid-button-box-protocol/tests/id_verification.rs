@@ -40,19 +40,13 @@ fn vid_pid_are_distinct() {
 /// PID must be non-zero.
 #[test]
 fn product_id_nonzero() {
-    assert_ne!(
-        PRODUCT_ID_BUTTON_BOX, 0,
-        "Button-box PID must not be zero"
-    );
+    assert_ne!(PRODUCT_ID_BUTTON_BOX, 0, "Button-box PID must not be zero");
 }
 
 /// VID must be non-zero.
 #[test]
 fn vendor_id_nonzero() {
-    assert_ne!(
-        VENDOR_ID_GENERIC, 0,
-        "Button-box VID must not be zero"
-    );
+    assert_ne!(VENDOR_ID_GENERIC, 0, "Button-box VID must not be zero");
 }
 
 /// VID 0x1209 is the pid.codes open-source hardware vendor ID.

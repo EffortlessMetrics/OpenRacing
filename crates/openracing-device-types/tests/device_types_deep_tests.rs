@@ -179,7 +179,10 @@ mod button_capabilities {
                 if j == i {
                     assert!(inputs.button(j), "button {j} should be set");
                 } else {
-                    assert!(!inputs.button(j), "button {j} should not be set when only {i} is set");
+                    assert!(
+                        !inputs.button(j),
+                        "button {j} should not be set when only {i} is set"
+                    );
                 }
             }
         }
@@ -265,8 +268,8 @@ mod rotary_access {
 
     #[test]
     fn rotary_negative_and_extreme_values() {
-        let inputs = DeviceInputs::new()
-            .with_rotaries([i16::MIN, -1, 0, 1, i16::MAX, -32000, 32000, 0]);
+        let inputs =
+            DeviceInputs::new().with_rotaries([i16::MIN, -1, 0, 1, i16::MAX, -32000, 32000, 0]);
         assert_eq!(inputs.rotary(0), i16::MIN);
         assert_eq!(inputs.rotary(1), -1);
         assert_eq!(inputs.rotary(2), 0);
@@ -325,7 +328,9 @@ mod display_debug {
 
     #[test]
     fn device_inputs_debug_not_empty() {
-        let inputs = DeviceInputs::new().with_steering(1000).with_pedals(10, 20, 30);
+        let inputs = DeviceInputs::new()
+            .with_steering(1000)
+            .with_pedals(10, 20, 30);
         let debug = format!("{inputs:?}");
         assert!(!debug.is_empty());
         assert!(debug.contains("DeviceInputs"));
@@ -644,7 +649,9 @@ mod device_identification {
 
     #[test]
     fn partial_struct_update_preserves_unset_fields() {
-        let base = DeviceInputs::new().with_steering(50000).with_pedals(100, 200, 300);
+        let base = DeviceInputs::new()
+            .with_steering(50000)
+            .with_pedals(100, 200, 300);
         let updated = DeviceInputs {
             handbrake: Some(999),
             ..base

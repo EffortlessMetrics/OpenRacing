@@ -14,12 +14,11 @@
 //! | heusinkveld.com | Product pages | Sprint 2-pedal, Ultimate+ 3-pedal 140 kg |
 
 use hid_heusinkveld_protocol::{
-    HeusinkveldInputReport, HeusinkveldModel, HEUSINKVELD_HANDBRAKE_V1_PID,
-    HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V2_PID,
-    HEUSINKVELD_LEGACY_SPRINT_PID, HEUSINKVELD_LEGACY_ULTIMATE_PID,
-    HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID, HEUSINKVELD_SHIFTER_PID,
-    HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID,
-    HEUSINKVELD_VENDOR_ID, MAX_LOAD_CELL_VALUE, REPORT_SIZE_INPUT,
+    HEUSINKVELD_HANDBRAKE_V1_PID, HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V2_PID,
+    HEUSINKVELD_LEGACY_SPRINT_PID, HEUSINKVELD_LEGACY_ULTIMATE_PID, HEUSINKVELD_LEGACY_VENDOR_ID,
+    HEUSINKVELD_PRO_PID, HEUSINKVELD_SHIFTER_PID, HEUSINKVELD_SHIFTER_VENDOR_ID,
+    HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID, HEUSINKVELD_VENDOR_ID,
+    HeusinkveldInputReport, HeusinkveldModel, MAX_LOAD_CELL_VALUE, REPORT_SIZE_INPUT,
 };
 
 // ─── VID cross-verification against external sources ────────────────────────
@@ -312,17 +311,42 @@ fn table_driven_vid_pid_cross_check() -> Result<(), String> {
         // simracing-hwdb v30B7p1003
         (0x30B7, 0x1003, HeusinkveldModel::Ultimate, "simracing-hwdb"),
         // simracing-hwdb v30B7p1002
-        (0x30B7, 0x1002, HeusinkveldModel::HandbrakeV2, "simracing-hwdb"),
+        (
+            0x30B7,
+            0x1002,
+            HeusinkveldModel::HandbrakeV2,
+            "simracing-hwdb",
+        ),
         // OpenFlight sprint-pedals.yaml
         (0x04D8, 0xF6D0, HeusinkveldModel::Sprint, "OpenFlight YAML"),
         // OpenFlight ultimate-pedals-0241.yaml
-        (0x04D8, 0xF6D2, HeusinkveldModel::Ultimate, "OpenFlight YAML"),
+        (
+            0x04D8,
+            0xF6D2,
+            HeusinkveldModel::Ultimate,
+            "OpenFlight YAML",
+        ),
         // Sequential estimate
-        (0x04D8, 0xF6D3, HeusinkveldModel::Pro, "estimated (sequential)"),
+        (
+            0x04D8,
+            0xF6D3,
+            HeusinkveldModel::Pro,
+            "estimated (sequential)",
+        ),
         // simracing-hwdb v10C4p8B82
-        (0x10C4, 0x8B82, HeusinkveldModel::HandbrakeV1, "simracing-hwdb"),
+        (
+            0x10C4,
+            0x8B82,
+            HeusinkveldModel::HandbrakeV1,
+            "simracing-hwdb",
+        ),
         // simracing-hwdb vA020p3142
-        (0xA020, 0x3142, HeusinkveldModel::SequentialShifter, "simracing-hwdb"),
+        (
+            0xA020,
+            0x3142,
+            HeusinkveldModel::SequentialShifter,
+            "simracing-hwdb",
+        ),
     ];
 
     for &(vid, pid, ref expected, source) in table {

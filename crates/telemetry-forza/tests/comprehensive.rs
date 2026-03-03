@@ -5,7 +5,9 @@
 //! Exercises packet parsing (Sled, CarDash, FM8, FH4), normalization to
 //! `NormalizedTelemetry`, edge cases, and proptest fuzz coverage.
 
-use racing_wheel_telemetry_forza::{ForzaAdapter, NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryValue};
+use racing_wheel_telemetry_forza::{
+    ForzaAdapter, NormalizedTelemetry, TelemetryAdapter, TelemetryFrame, TelemetryValue,
+};
 use std::time::Duration;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;

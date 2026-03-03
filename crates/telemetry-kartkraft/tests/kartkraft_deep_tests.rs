@@ -25,7 +25,14 @@ fn push_f32(buf: &mut Vec<u8>, v: f32) {
 }
 
 /// Build a dash-only KartKraft FlatBuffer (same layout as existing tests).
-fn make_packet(speed: f32, rpm: f32, steer_deg: f32, throttle: f32, brake: f32, gear: i8) -> Vec<u8> {
+fn make_packet(
+    speed: f32,
+    rpm: f32,
+    steer_deg: f32,
+    throttle: f32,
+    brake: f32,
+    gear: i8,
+) -> Vec<u8> {
     let mut buf: Vec<u8> = Vec::new();
 
     push_u32(&mut buf, 0); // root offset placeholder
@@ -35,9 +42,9 @@ fn make_packet(speed: f32, rpm: f32, steer_deg: f32, throttle: f32, brake: f32, 
     let vt_frame = buf.len();
     push_u16(&mut buf, 10); // vtable_size = 4 + 3*2
     push_u16(&mut buf, 12); // object_size
-    push_u16(&mut buf, 0);  // field 0 (timestamp) absent
-    push_u16(&mut buf, 0);  // field 1 (motion) absent
-    push_u16(&mut buf, 4);  // field 2 (dash) at offset 4
+    push_u16(&mut buf, 0); // field 0 (timestamp) absent
+    push_u16(&mut buf, 0); // field 1 (motion) absent
+    push_u16(&mut buf, 4); // field 2 (dash) at offset 4
 
     let frame_pos = buf.len();
     push_i32(&mut buf, (frame_pos - vt_frame) as i32);
@@ -50,8 +57,8 @@ fn make_packet(speed: f32, rpm: f32, steer_deg: f32, throttle: f32, brake: f32, 
     let vt_dash = buf.len();
     push_u16(&mut buf, 16);
     push_u16(&mut buf, 28);
-    push_u16(&mut buf, 4);  // speed
-    push_u16(&mut buf, 8);  // rpm
+    push_u16(&mut buf, 4); // speed
+    push_u16(&mut buf, 8); // rpm
     push_u16(&mut buf, 12); // steer
     push_u16(&mut buf, 16); // throttle
     push_u16(&mut buf, 20); // brake
@@ -106,10 +113,10 @@ fn make_full_packet(
     let vt_frame = buf.len();
     push_u16(&mut buf, 16); // vtable_size = 4 + 6*2
     push_u16(&mut buf, 24); // object_size = 4(soffset) + 4*5(UOffsets)
-    push_u16(&mut buf, 0);  // field 0 (timestamp) absent
-    push_u16(&mut buf, 4);  // field 1 (motion) at offset 4
-    push_u16(&mut buf, 8);  // field 2 (dash)   at offset 8
-    push_u16(&mut buf, 0);  // field 3 absent
+    push_u16(&mut buf, 0); // field 0 (timestamp) absent
+    push_u16(&mut buf, 4); // field 1 (motion) at offset 4
+    push_u16(&mut buf, 8); // field 2 (dash)   at offset 8
+    push_u16(&mut buf, 0); // field 3 absent
     push_u16(&mut buf, 12); // field 4 (vcfg)   at offset 12
     push_u16(&mut buf, 16); // field 5 (trkfg)  at offset 16
 
@@ -117,10 +124,14 @@ fn make_full_packet(
     let frame_pos = buf.len();
     push_i32(&mut buf, (frame_pos - vt_frame) as i32);
     // UOffset slots (placeholders)
-    let motion_ref = buf.len(); push_u32(&mut buf, 0);
-    let dash_ref   = buf.len(); push_u32(&mut buf, 0);
-    let vcfg_ref   = buf.len(); push_u32(&mut buf, 0);
-    let trkfg_ref  = buf.len(); push_u32(&mut buf, 0);
+    let motion_ref = buf.len();
+    push_u32(&mut buf, 0);
+    let dash_ref = buf.len();
+    push_u32(&mut buf, 0);
+    let vcfg_ref = buf.len();
+    push_u32(&mut buf, 0);
+    let trkfg_ref = buf.len();
+    push_u32(&mut buf, 0);
     push_u32(&mut buf, 0); // padding to match object_size = 24
 
     buf[0..4].copy_from_slice(&(frame_pos as u32).to_le_bytes());
@@ -153,12 +164,12 @@ fn make_full_packet(
     let vt_motion = buf.len();
     push_u16(&mut buf, 18); // vtable_size = 4 + 7*2
     push_u16(&mut buf, 32); // object_size = 4 + 7*4
-    push_u16(&mut buf, 0);  // field 0 absent
-    push_u16(&mut buf, 0);  // field 1 absent
-    push_u16(&mut buf, 0);  // field 2 absent
-    push_u16(&mut buf, 0);  // field 3 absent
-    push_u16(&mut buf, 0);  // field 4 absent
-    push_u16(&mut buf, 0);  // field 5 absent
+    push_u16(&mut buf, 0); // field 0 absent
+    push_u16(&mut buf, 0); // field 1 absent
+    push_u16(&mut buf, 0); // field 2 absent
+    push_u16(&mut buf, 0); // field 3 absent
+    push_u16(&mut buf, 0); // field 4 absent
+    push_u16(&mut buf, 0); // field 5 absent
     push_u16(&mut buf, 28); // field 6 (traction_loss) at offset 28
 
     let motion_pos = buf.len();
@@ -177,18 +188,17 @@ fn make_full_packet(
 
     // ── VehicleConfig subtable (field 1 = rpm_max) ───────────────────────
     let vt_vcfg = buf.len();
-    push_u16(&mut buf, 8);  // vtable_size = 4 + 2*2
+    push_u16(&mut buf, 8); // vtable_size = 4 + 2*2
     push_u16(&mut buf, 12); // object_size = 4 + 2*4
-    push_u16(&mut buf, 0);  // field 0 absent
-    push_u16(&mut buf, 8);  // field 1 (rpm_max) at offset 8
+    push_u16(&mut buf, 0); // field 0 absent
+    push_u16(&mut buf, 8); // field 1 (rpm_max) at offset 8
 
     let vcfg_pos = buf.len();
     push_i32(&mut buf, (vcfg_pos - vt_vcfg) as i32);
-    push_f32(&mut buf, 0.0);     // field 0 placeholder
+    push_f32(&mut buf, 0.0); // field 0 placeholder
     push_f32(&mut buf, max_rpm); // field 1
 
-    buf[vcfg_ref..vcfg_ref + 4]
-        .copy_from_slice(&((vcfg_pos - vcfg_ref) as u32).to_le_bytes());
+    buf[vcfg_ref..vcfg_ref + 4].copy_from_slice(&((vcfg_pos - vcfg_ref) as u32).to_le_bytes());
 
     // ── TrackConfig subtable (field 0 = name string) ─────────────────────
     let vt_trkfg = buf.len();
@@ -201,8 +211,7 @@ fn make_full_packet(
     let name_ref_pos = buf.len();
     push_u32(&mut buf, 0); // name UOffset placeholder
 
-    buf[trkfg_ref..trkfg_ref + 4]
-        .copy_from_slice(&((trkfg_pos - trkfg_ref) as u32).to_le_bytes());
+    buf[trkfg_ref..trkfg_ref + 4].copy_from_slice(&((trkfg_pos - trkfg_ref) as u32).to_le_bytes());
 
     // String data: [u32 length][utf8 bytes][null terminator]
     let str_pos = buf.len();
@@ -230,7 +239,11 @@ fn motion_traction_loss_maps_to_slip_ratio() -> TestResult {
     let data = make_full_packet(20.0, 8000.0, 0.0, 0.7, 0.0, 2, 0.4, 15000.0, "TestTrack");
     let t = adapter.normalize(&data)?;
     // slip_ratio = abs(traction_loss).clamp(0, 1) = 0.4
-    assert!((t.slip_ratio - 0.4).abs() < 0.001, "slip_ratio={}", t.slip_ratio);
+    assert!(
+        (t.slip_ratio - 0.4).abs() < 0.001,
+        "slip_ratio={}",
+        t.slip_ratio
+    );
     Ok(())
 }
 
@@ -464,8 +477,7 @@ fn inf_speed_clamped_nonneg() -> TestResult {
 fn neg_inf_steer_clamped() -> TestResult {
     let adapter = KartKraftAdapter::new();
     let mut data = make_packet(10.0, 5000.0, 0.0, 0.5, 0.0, 1);
-    data[DASH_STEER_OFF..DASH_STEER_OFF + 4]
-        .copy_from_slice(&f32::NEG_INFINITY.to_le_bytes());
+    data[DASH_STEER_OFF..DASH_STEER_OFF + 4].copy_from_slice(&f32::NEG_INFINITY.to_le_bytes());
     let t = adapter.normalize(&data)?;
     assert!(t.steering_angle.is_finite());
     assert_eq!(t.steering_angle, 0.0, "NegInf steer → default 0.0");
@@ -476,7 +488,13 @@ fn neg_inf_steer_clamped() -> TestResult {
 fn all_nan_fields_still_produce_valid_output() -> TestResult {
     let adapter = KartKraftAdapter::new();
     let mut data = make_packet(0.0, 0.0, 0.0, 0.0, 0.0, 0);
-    for off in [DASH_SPEED_OFF, DASH_RPM_OFF, DASH_STEER_OFF, DASH_THROTTLE_OFF, DASH_BRAKE_OFF] {
+    for off in [
+        DASH_SPEED_OFF,
+        DASH_RPM_OFF,
+        DASH_STEER_OFF,
+        DASH_THROTTLE_OFF,
+        DASH_BRAKE_OFF,
+    ] {
         write_nan(&mut data, off);
     }
     let t = adapter.normalize(&data)?;
@@ -604,8 +622,7 @@ fn scenario_braking_into_hairpin() -> TestResult {
         0.85,   // heavy brake
         1,      // downshifted
         0.15,   // moderate slip
-        13000.0,
-        "PFi",
+        13000.0, "PFi",
     );
     let t = adapter.normalize(&data)?;
 

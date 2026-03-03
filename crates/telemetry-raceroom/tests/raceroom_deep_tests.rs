@@ -77,18 +77,46 @@ fn make_r3e() -> Vec<u8> {
 fn layout_all_offsets_within_view_size() -> TestResult {
     // Every offset + 4 bytes must fit within the 4096-byte view.
     let offsets = [
-        OFF_VERSION_MAJOR, OFF_GAME_PAUSED, OFF_GAME_IN_MENUS, OFF_SPEED,
-        OFF_ENGINE_RPS, OFF_MAX_ENGINE_RPS, OFF_GEAR, OFF_NUM_GEARS,
-        OFF_LOCAL_ACCEL_X, OFF_LOCAL_ACCEL_Y, OFF_LOCAL_ACCEL_Z,
-        OFF_FUEL_LEFT, OFF_FUEL_CAPACITY, OFF_ENGINE_TEMP,
-        OFF_THROTTLE, OFF_BRAKE, OFF_CLUTCH, OFF_STEER_INPUT,
-        OFF_POSITION, OFF_COMPLETED_LAPS,
-        OFF_LAP_TIME_BEST, OFF_LAP_TIME_PREVIOUS, OFF_LAP_TIME_CURRENT,
-        OFF_DELTA_FRONT, OFF_DELTA_BEHIND,
-        OFF_FLAG_YELLOW, OFF_FLAG_BLUE, OFF_FLAG_GREEN, OFF_FLAG_CHECKERED,
-        OFF_IN_PITLANE, OFF_PIT_LIMITER, OFF_AID_ABS, OFF_AID_TC,
-        OFF_TIRE_TEMP_FL, OFF_TIRE_TEMP_FR, OFF_TIRE_TEMP_RL, OFF_TIRE_TEMP_RR,
-        OFF_TIRE_PRESSURE_FL, OFF_TIRE_PRESSURE_FR, OFF_TIRE_PRESSURE_RL,
+        OFF_VERSION_MAJOR,
+        OFF_GAME_PAUSED,
+        OFF_GAME_IN_MENUS,
+        OFF_SPEED,
+        OFF_ENGINE_RPS,
+        OFF_MAX_ENGINE_RPS,
+        OFF_GEAR,
+        OFF_NUM_GEARS,
+        OFF_LOCAL_ACCEL_X,
+        OFF_LOCAL_ACCEL_Y,
+        OFF_LOCAL_ACCEL_Z,
+        OFF_FUEL_LEFT,
+        OFF_FUEL_CAPACITY,
+        OFF_ENGINE_TEMP,
+        OFF_THROTTLE,
+        OFF_BRAKE,
+        OFF_CLUTCH,
+        OFF_STEER_INPUT,
+        OFF_POSITION,
+        OFF_COMPLETED_LAPS,
+        OFF_LAP_TIME_BEST,
+        OFF_LAP_TIME_PREVIOUS,
+        OFF_LAP_TIME_CURRENT,
+        OFF_DELTA_FRONT,
+        OFF_DELTA_BEHIND,
+        OFF_FLAG_YELLOW,
+        OFF_FLAG_BLUE,
+        OFF_FLAG_GREEN,
+        OFF_FLAG_CHECKERED,
+        OFF_IN_PITLANE,
+        OFF_PIT_LIMITER,
+        OFF_AID_ABS,
+        OFF_AID_TC,
+        OFF_TIRE_TEMP_FL,
+        OFF_TIRE_TEMP_FR,
+        OFF_TIRE_TEMP_RL,
+        OFF_TIRE_TEMP_RR,
+        OFF_TIRE_PRESSURE_FL,
+        OFF_TIRE_PRESSURE_FR,
+        OFF_TIRE_PRESSURE_RL,
         OFF_TIRE_PRESSURE_RR,
     ];
     for &off in &offsets {
@@ -350,7 +378,10 @@ fn fuel_extended_fields_present() -> TestResult {
     write_f32(&mut buf, OFF_FUEL_LEFT, 42.0);
     write_f32(&mut buf, OFF_FUEL_CAPACITY, 80.0);
     let t = adapter.normalize(&buf)?;
-    assert!(t.extended.contains_key("fuel_left_l"), "fuel_left_l present");
+    assert!(
+        t.extended.contains_key("fuel_left_l"),
+        "fuel_left_l present"
+    );
     assert!(
         t.extended.contains_key("fuel_capacity_l"),
         "fuel_capacity_l present"
@@ -487,10 +518,7 @@ fn tires_pressure_kpa_conversion_accuracy() -> TestResult {
     write_f32(&mut buf, OFF_TIRE_PRESSURE_RR, 100.0);
     let t = adapter.normalize(&buf)?;
     for &psi in &t.tire_pressures_psi {
-        assert!(
-            (psi - 14.504).abs() < 0.1,
-            "100 KPa ≈ 14.5 PSI, got {psi}"
-        );
+        assert!((psi - 14.504).abs() < 0.1, "100 KPa ≈ 14.5 PSI, got {psi}");
     }
     Ok(())
 }

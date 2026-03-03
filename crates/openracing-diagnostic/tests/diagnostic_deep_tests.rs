@@ -329,7 +329,10 @@ mod header_deep {
         let mut h = WbbHeader::new("d", 0, 0, 0);
         h.version = 2;
         let result = h.validate();
-        assert!(matches!(result, Err(DiagnosticError::UnsupportedVersion(2))));
+        assert!(matches!(
+            result,
+            Err(DiagnosticError::UnsupportedVersion(2))
+        ));
         Ok(())
     }
 
@@ -377,8 +380,8 @@ mod header_deep {
     #[test]
     fn header_is_serializable_with_serde() -> DiagnosticResult<()> {
         let h = WbbHeader::new("device-x", 1, 0x07, 6);
-        let json = serde_json::to_string(&h)
-            .map_err(|e| DiagnosticError::Serialization(e.to_string()))?;
+        let json =
+            serde_json::to_string(&h).map_err(|e| DiagnosticError::Serialization(e.to_string()))?;
         let restored: WbbHeader = serde_json::from_str(&json)
             .map_err(|e| DiagnosticError::Deserialization(e.to_string()))?;
         assert_eq!(restored.device_id, "device-x");
@@ -419,10 +422,7 @@ mod footer_deep {
         let mut f = WbbFooter::new(0, 0);
         f.footer_magic = *b"ZZZZ";
         let result = f.validate();
-        assert!(matches!(
-            result,
-            Err(DiagnosticError::InvalidMagic { .. })
-        ));
+        assert!(matches!(result, Err(DiagnosticError::InvalidMagic { .. })));
         Ok(())
     }
 
@@ -441,8 +441,8 @@ mod footer_deep {
         f.index_offset = 1024;
         f.index_count = 30;
         f.file_crc32c = 0xDEADBEEF;
-        let json = serde_json::to_string(&f)
-            .map_err(|e| DiagnosticError::Serialization(e.to_string()))?;
+        let json =
+            serde_json::to_string(&f).map_err(|e| DiagnosticError::Serialization(e.to_string()))?;
         let restored: WbbFooter = serde_json::from_str(&json)
             .map_err(|e| DiagnosticError::Deserialization(e.to_string()))?;
         assert_eq!(restored.duration_ms, 3000);
@@ -517,7 +517,11 @@ mod stream_type_deep {
 
     #[test]
     fn all_flags_are_unique() -> DiagnosticResult<()> {
-        let flags = [StreamType::A.flag(), StreamType::B.flag(), StreamType::C.flag()];
+        let flags = [
+            StreamType::A.flag(),
+            StreamType::B.flag(),
+            StreamType::C.flag(),
+        ];
         for i in 0..flags.len() {
             for j in (i + 1)..flags.len() {
                 assert_ne!(flags[i], flags[j], "stream flags must be unique");
@@ -601,8 +605,8 @@ mod frame_data_deep {
             ts_mono_ns: 999_999_999,
             seq: 1234,
         };
-        let json = serde_json::to_string(&f)
-            .map_err(|e| DiagnosticError::Serialization(e.to_string()))?;
+        let json =
+            serde_json::to_string(&f).map_err(|e| DiagnosticError::Serialization(e.to_string()))?;
         let restored: FrameData = serde_json::from_str(&json)
             .map_err(|e| DiagnosticError::Deserialization(e.to_string()))?;
         assert!((restored.ffb_in - 0.42).abs() < 0.001);
@@ -688,7 +692,9 @@ mod safety_state_deep {
         if let SafetyStateSimple::Faulted { fault_type } = &c {
             assert_eq!(fault_type, "OverTemp");
         } else {
-            return Err(DiagnosticError::Validation("clone should be Faulted".into()));
+            return Err(DiagnosticError::Validation(
+                "clone should be Faulted".into(),
+            ));
         }
         Ok(())
     }
@@ -753,8 +759,8 @@ mod telemetry_deep {
     #[test]
     fn serde_roundtrip_with_none_optionals() -> DiagnosticResult<()> {
         let t = TelemetryData::default();
-        let json = serde_json::to_string(&t)
-            .map_err(|e| DiagnosticError::Serialization(e.to_string()))?;
+        let json =
+            serde_json::to_string(&t).map_err(|e| DiagnosticError::Serialization(e.to_string()))?;
         let restored: TelemetryData = serde_json::from_str(&json)
             .map_err(|e| DiagnosticError::Deserialization(e.to_string()))?;
         assert!(restored.car_id.is_none());
@@ -1062,8 +1068,7 @@ mod recorder_deep {
             .extension()
             .ok_or(DiagnosticError::Validation("no extension".into()))?;
         assert_eq!(ext, "wbb");
-        let meta = std::fs::metadata(&path)
-            .map_err(|e| DiagnosticError::Io(e.to_string()))?;
+        let meta = std::fs::metadata(&path).map_err(|e| DiagnosticError::Io(e.to_string()))?;
         assert!(meta.len() > 0);
         Ok(())
     }
@@ -1083,7 +1088,12 @@ mod recorder_deep {
         let (mut cfg, _td) = temp_config()?;
         cfg.compression_level = 0;
         let mut recorder = BlackboxRecorder::new(cfg)?;
-        recorder.record_frame(FrameData::default(), &[0.5], SafetyStateSimple::SafeTorque, 100)?;
+        recorder.record_frame(
+            FrameData::default(),
+            &[0.5],
+            SafetyStateSimple::SafeTorque,
+            100,
+        )?;
         let path = recorder.finalize()?;
         assert!(path.exists());
         Ok(())
@@ -1095,7 +1105,12 @@ mod recorder_deep {
         let mut recorder = BlackboxRecorder::new(cfg)?;
 
         // Stream A
-        recorder.record_frame(FrameData::default(), &[0.1], SafetyStateSimple::SafeTorque, 50)?;
+        recorder.record_frame(
+            FrameData::default(),
+            &[0.1],
+            SafetyStateSimple::SafeTorque,
+            50,
+        )?;
 
         // Stream B
         recorder.record_telemetry(TelemetryData {
@@ -1195,7 +1210,12 @@ mod stream_a_deep {
     #[test]
     fn get_data_clears_records() -> DiagnosticResult<()> {
         let mut s = StreamA::new();
-        s.record_frame(FrameData::default(), &[1.0, 2.0], SafetyStateSimple::SafeTorque, 50)?;
+        s.record_frame(
+            FrameData::default(),
+            &[1.0, 2.0],
+            SafetyStateSimple::SafeTorque,
+            50,
+        )?;
         assert_eq!(s.record_count(), 1);
         let data = s.get_data()?;
         assert!(!data.is_empty());
@@ -1226,7 +1246,12 @@ mod stream_a_deep {
     fn record_with_many_node_outputs() -> DiagnosticResult<()> {
         let mut s = StreamA::new();
         let outputs: Vec<f32> = (0..100).map(|i| i as f32 * 0.01).collect();
-        s.record_frame(FrameData::default(), &outputs, SafetyStateSimple::SafeTorque, 200)?;
+        s.record_frame(
+            FrameData::default(),
+            &outputs,
+            SafetyStateSimple::SafeTorque,
+            200,
+        )?;
 
         let data = s.get_data()?;
         let mut reader = StreamReader::new(data);
@@ -1241,7 +1266,12 @@ mod stream_a_deep {
     #[test]
     fn roundtrip_preserves_processing_time() -> DiagnosticResult<()> {
         let mut s = StreamA::with_capacity(1);
-        s.record_frame(FrameData::default(), &[], SafetyStateSimple::SafeTorque, 12345)?;
+        s.record_frame(
+            FrameData::default(),
+            &[],
+            SafetyStateSimple::SafeTorque,
+            12345,
+        )?;
         let data = s.get_data()?;
         let mut reader = StreamReader::new(data);
         let record = reader
@@ -1664,8 +1694,7 @@ mod support_bundle_deep {
         let zip_path = td.path().join("bundle.zip");
         bundle.generate(&zip_path)?;
         assert!(zip_path.exists());
-        let meta =
-            std::fs::metadata(&zip_path).map_err(|e| DiagnosticError::Io(e.to_string()))?;
+        let meta = std::fs::metadata(&zip_path).map_err(|e| DiagnosticError::Io(e.to_string()))?;
         assert!(meta.len() > 0);
         Ok(())
     }
@@ -1867,8 +1896,10 @@ mod full_workflow {
 
     #[test]
     fn load_nonexistent_file_returns_error() {
-        let result =
-            BlackboxReplay::load_from_file(std::path::Path::new("/no/such/file.wbb"), ReplayConfig::default());
+        let result = BlackboxReplay::load_from_file(
+            std::path::Path::new("/no/such/file.wbb"),
+            ReplayConfig::default(),
+        );
         assert!(result.is_err());
     }
 }

@@ -17,10 +17,10 @@ use thiserror::Error;
 pub enum StreamError {
     #[error("Buffer overflow")]
     BufferOverflow,
-    
+
     #[error("Stream closed")]
     StreamClosed,
-    
+
     #[error("Processing error: {0}")]
     ProcessingError(String),
 }
@@ -35,7 +35,7 @@ mod tests {
     fn test_error_types() {
         let err = StreamError::BufferOverflow;
         assert_eq!(format!("{}", err), "Buffer overflow");
-        
+
         let err = StreamError::StreamClosed;
         assert_eq!(format!("{}", err), "Stream closed");
     }

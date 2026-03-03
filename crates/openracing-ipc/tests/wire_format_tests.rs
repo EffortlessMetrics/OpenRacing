@@ -21,8 +21,7 @@ use openracing_ipc::codec::{
 };
 use openracing_ipc::error::{IpcError, IpcResult};
 use openracing_ipc::server::{
-    ClientInfo, HealthEvent, HealthEventType, IpcConfig, IpcServer, PeerInfo,
-    is_version_compatible,
+    ClientInfo, HealthEvent, HealthEventType, IpcConfig, IpcServer, PeerInfo, is_version_compatible,
 };
 use openracing_ipc::transport::TransportBuilder;
 use openracing_ipc::{DEFAULT_TCP_PORT, MIN_CLIENT_VERSION, PROTOCOL_VERSION};
@@ -112,7 +111,10 @@ fn wire_format_roundtrip_preserves_all_fields_for_every_type() -> Result<(), Box
         header.set_flag(message_flags::REQUIRES_ACK);
 
         let decoded = MessageHeader::decode(&header.encode())?;
-        assert_eq!(decoded.message_type, msg_type, "type mismatch for {msg_type:#06x}");
+        assert_eq!(
+            decoded.message_type, msg_type,
+            "type mismatch for {msg_type:#06x}"
+        );
         assert_eq!(decoded.payload_len, payload_len);
         assert_eq!(decoded.sequence, seq);
         assert!(decoded.has_flag(message_flags::COMPRESSED));
@@ -126,7 +128,10 @@ fn wire_format_roundtrip_preserves_all_fields_for_every_type() -> Result<(), Box
 fn wire_format_zero_header_is_all_zeroes() -> Result<(), BoxErr> {
     let header = MessageHeader::new(0, 0, 0);
     let bytes = header.encode();
-    assert!(bytes.iter().all(|&b| b == 0), "zero header should be all zero bytes");
+    assert!(
+        bytes.iter().all(|&b| b == 0),
+        "zero header should be all zero bytes"
+    );
     Ok(())
 }
 
@@ -174,7 +179,10 @@ fn binary_size_prost_timestamp_encoded_len_is_bounded() -> Result<(), BoxErr> {
     };
     let len = codec.encoded_len(&ts);
     // A prost Timestamp with max values should be well under 30 bytes
-    assert!(len <= 30, "Timestamp encoded len {len} exceeds expected bound");
+    assert!(
+        len <= 30,
+        "Timestamp encoded len {len} exceeds expected bound"
+    );
     Ok(())
 }
 
@@ -192,7 +200,10 @@ fn binary_size_codec_rejects_above_custom_limit() -> Result<(), BoxErr> {
     // Decoding oversized buffer should fail
     let big_buf = vec![0u8; 128];
     let decode_result: IpcResult<prost_types::Timestamp> = codec.decode(&big_buf);
-    assert!(decode_result.is_err(), "oversized buffer should be rejected");
+    assert!(
+        decode_result.is_err(),
+        "oversized buffer should be rejected"
+    );
     Ok(())
 }
 
@@ -224,7 +235,10 @@ fn message_type_ids_fit_in_u16_range() -> Result<(), BoxErr> {
     for &t in &ALL_MSG_TYPES {
         let header = MessageHeader::new(t, 0, 0);
         let decoded = MessageHeader::decode(&header.encode())?;
-        assert_eq!(decoded.message_type, t, "type {t:#06x} truncated in wire format");
+        assert_eq!(
+            decoded.message_type, t,
+            "type {t:#06x} truncated in wire format"
+        );
     }
     Ok(())
 }
@@ -250,7 +264,10 @@ fn flag_ids_are_nonzero() -> Result<(), BoxErr> {
 #[test]
 fn all_flags_combined_do_not_overflow_u16() -> Result<(), BoxErr> {
     let combined: u32 = ALL_FLAGS.iter().map(|&f| u32::from(f)).sum();
-    assert!(combined <= u32::from(u16::MAX), "combined flags overflow u16");
+    assert!(
+        combined <= u32::from(u16::MAX),
+        "combined flags overflow u16"
+    );
     // Also confirm OR-combination
     let ored: u16 = ALL_FLAGS.iter().fold(0u16, |acc, &f| acc | f);
     let decoded_header = {
@@ -259,7 +276,10 @@ fn all_flags_combined_do_not_overflow_u16() -> Result<(), BoxErr> {
         MessageHeader::decode(&h.encode())?
     };
     for &f in &ALL_FLAGS {
-        assert!(decoded_header.has_flag(f), "flag {f:#06x} missing after OR-combine");
+        assert!(
+            decoded_header.has_flag(f),
+            "flag {f:#06x} missing after OR-combine"
+        );
     }
     Ok(())
 }
@@ -278,7 +298,10 @@ fn request_response_pair_shares_sequence_number() -> Result<(), BoxErr> {
     let req_decoded = MessageHeader::decode(&request.encode())?;
     let resp_decoded = MessageHeader::decode(&response.encode())?;
 
-    assert_eq!(req_decoded.sequence, resp_decoded.sequence, "request/response sequence mismatch");
+    assert_eq!(
+        req_decoded.sequence, resp_decoded.sequence,
+        "request/response sequence mismatch"
+    );
     assert!(!req_decoded.has_flag(message_flags::IS_RESPONSE));
     assert!(resp_decoded.has_flag(message_flags::IS_RESPONSE));
     Ok(())
@@ -402,7 +425,10 @@ fn error_variants_all_have_display_messages() -> Result<(), BoxErr> {
     ];
     for err in &errors {
         let msg = format!("{err}");
-        assert!(!msg.is_empty(), "error display should not be empty: {err:?}");
+        assert!(
+            !msg.is_empty(),
+            "error display should not be empty: {err:?}"
+        );
     }
     Ok(())
 }
@@ -418,7 +444,10 @@ fn error_codec_encoding_failure_contains_size_info() -> Result<(), BoxErr> {
     let result = codec.encode(&ts);
     assert!(result.is_err());
     if let Err(IpcError::EncodingFailed(msg)) = result {
-        assert!(msg.contains("exceeds"), "error should mention exceeds: {msg}");
+        assert!(
+            msg.contains("exceeds"),
+            "error should mention exceeds: {msg}"
+        );
     }
     Ok(())
 }
@@ -430,7 +459,10 @@ fn error_codec_decoding_failure_on_oversized_input() -> Result<(), BoxErr> {
     let result: IpcResult<prost_types::Timestamp> = codec.decode(&too_big);
     assert!(result.is_err());
     if let Err(IpcError::DecodingFailed(msg)) = result {
-        assert!(msg.contains("exceeds"), "error should mention exceeds: {msg}");
+        assert!(
+            msg.contains("exceeds"),
+            "error should mention exceeds: {msg}"
+        );
     }
     Ok(())
 }
@@ -591,9 +623,21 @@ async fn version_negotiation_compatible_client_gets_features() -> Result<(), Box
     assert!(result.compatible);
     assert_eq!(result.server_version, PROTOCOL_VERSION);
     assert!(!result.supported_features.is_empty());
-    assert!(result.enabled_features.contains(&"device_management".to_string()));
-    assert!(result.enabled_features.contains(&"safety_control".to_string()));
-    assert!(result.enabled_features.contains(&"streaming_health".to_string()));
+    assert!(
+        result
+            .enabled_features
+            .contains(&"device_management".to_string())
+    );
+    assert!(
+        result
+            .enabled_features
+            .contains(&"safety_control".to_string())
+    );
+    assert!(
+        result
+            .enabled_features
+            .contains(&"streaming_health".to_string())
+    );
 
     server.stop().await?;
     Ok(())
@@ -622,8 +666,14 @@ async fn version_negotiation_returns_all_server_features() -> Result<(), BoxErr>
     let result = server.negotiate_features(PROTOCOL_VERSION, &[]).await?;
 
     // Server should advertise its full feature set regardless of client request
-    assert!(result.supported_features.len() >= 5, "server should have at least 5 features");
-    assert!(result.enabled_features.is_empty(), "no features requested, none enabled");
+    assert!(
+        result.supported_features.len() >= 5,
+        "server should have at least 5 features"
+    );
+    assert!(
+        result.enabled_features.is_empty(),
+        "no features requested, none enabled"
+    );
 
     server.stop().await?;
     Ok(())
@@ -729,7 +779,11 @@ async fn handshake_rejects_incompatible_client() -> Result<(), BoxErr> {
         .await?;
 
     assert!(!result.compatible);
-    assert_eq!(server.client_count().await, 0, "rejected client must not be registered");
+    assert_eq!(
+        server.client_count().await,
+        0,
+        "rejected client must not be registered"
+    );
 
     server.stop().await?;
     Ok(())
@@ -799,7 +853,11 @@ async fn handshake_stop_clears_all_clients() -> Result<(), BoxErr> {
     assert_eq!(server.client_count().await, 3);
 
     server.stop().await?;
-    assert_eq!(server.client_count().await, 0, "stop must clear all clients");
+    assert_eq!(
+        server.client_count().await,
+        0,
+        "stop must clear all clients"
+    );
     Ok(())
 }
 
@@ -857,7 +915,11 @@ async fn message_ordering_health_events_fifo() -> Result<(), BoxErr> {
 
     for i in 0..count {
         let evt = rx.try_recv()?;
-        assert_eq!(evt.device_id, format!("order-{i}"), "FIFO order violated at {i}");
+        assert_eq!(
+            evt.device_id,
+            format!("order-{i}"),
+            "FIFO order violated at {i}"
+        );
     }
     Ok(())
 }
@@ -929,7 +991,11 @@ fn large_payload_segmentation_via_sequence_numbers() -> Result<(), BoxErr> {
         assert!(decoded.has_flag(message_flags::STREAMING));
         total_payload += u64::from(decoded.payload_len);
     }
-    assert_eq!(total_payload, u64::from(total_size), "segmented payload sum must equal total");
+    assert_eq!(
+        total_payload,
+        u64::from(total_size),
+        "segmented payload sum must equal total"
+    );
     Ok(())
 }
 
@@ -944,7 +1010,10 @@ fn large_payload_encode_to_buffer_reuses_allocation() -> Result<(), BoxErr> {
             nanos: 1,
         };
         codec.encode_to_buffer(&ts, &mut buffer)?;
-        assert!(!buffer.is_empty(), "buffer should have content after encode {i}");
+        assert!(
+            !buffer.is_empty(),
+            "buffer should have content after encode {i}"
+        );
 
         let decoded: prost_types::Timestamp = codec.decode(&buffer)?;
         assert_eq!(decoded.seconds, i * 1000);
@@ -989,11 +1058,8 @@ async fn concurrent_feature_negotiations_all_succeed() -> Result<(), BoxErr> {
     for i in 0..10 {
         let srv = server.clone();
         handles.push(tokio::spawn(async move {
-            srv.negotiate_features(
-                PROTOCOL_VERSION,
-                &[format!("feature_{i}")],
-            )
-            .await
+            srv.negotiate_features(PROTOCOL_VERSION, &[format!("feature_{i}")])
+                .await
         }));
     }
 
@@ -1150,11 +1216,23 @@ fn transport_builder_defaults_match_transport_config_defaults() -> Result<(), Bo
     let builder_config = TransportBuilder::new().build();
     let direct_config = openracing_ipc::transport::TransportConfig::default();
 
-    assert_eq!(builder_config.max_connections, direct_config.max_connections);
-    assert_eq!(builder_config.connection_timeout, direct_config.connection_timeout);
+    assert_eq!(
+        builder_config.max_connections,
+        direct_config.max_connections
+    );
+    assert_eq!(
+        builder_config.connection_timeout,
+        direct_config.connection_timeout
+    );
     assert_eq!(builder_config.enable_acl, direct_config.enable_acl);
-    assert_eq!(builder_config.recv_buffer_size, direct_config.recv_buffer_size);
-    assert_eq!(builder_config.send_buffer_size, direct_config.send_buffer_size);
+    assert_eq!(
+        builder_config.recv_buffer_size,
+        direct_config.recv_buffer_size
+    );
+    assert_eq!(
+        builder_config.send_buffer_size,
+        direct_config.send_buffer_size
+    );
     Ok(())
 }
 

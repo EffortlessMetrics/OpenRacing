@@ -5,9 +5,9 @@
 //! comparison, and conflict resolution.
 
 use openracing_profile::{
-    AdvancedSettings, CurveType, FfbSettings, InputSettings, LedMode, LimitSettings,
-    ProfileError, WheelProfile, WheelSettings, CURRENT_SCHEMA_VERSION, generate_profile_id,
-    merge_profiles, migrate_profile, validate_profile, validate_settings,
+    AdvancedSettings, CURRENT_SCHEMA_VERSION, CurveType, FfbSettings, InputSettings, LedMode,
+    LimitSettings, ProfileError, WheelProfile, WheelSettings, generate_profile_id, merge_profiles,
+    migrate_profile, validate_profile, validate_settings,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -72,7 +72,10 @@ mod profile_creation_system {
         assert!(restored.settings.ffb.effects_enabled);
         assert_eq!(restored.settings.input.steering_range, 1080);
         assert_eq!(restored.settings.input.steering_deadzone, 2);
-        assert_eq!(restored.settings.input.throttle_curve, CurveType::Exponential);
+        assert_eq!(
+            restored.settings.input.throttle_curve,
+            CurveType::Exponential
+        );
         assert_eq!(restored.settings.input.brake_curve, CurveType::Logarithmic);
         assert_eq!(restored.settings.input.clutch_curve, CurveType::Custom);
         assert_eq!(restored.settings.limits.max_speed, Some(350.0));
@@ -90,11 +93,11 @@ mod profile_creation_system {
 
     #[test]
     fn multiple_profiles_have_distinct_ids() -> TestResult {
-        let profiles: Vec<WheelProfile> =
-            (0..50).map(|i| WheelProfile::new(format!("P{i}"), "dev")).collect();
+        let profiles: Vec<WheelProfile> = (0..50)
+            .map(|i| WheelProfile::new(format!("P{i}"), "dev"))
+            .collect();
 
-        let ids: std::collections::HashSet<&str> =
-            profiles.iter().map(|p| p.id.as_str()).collect();
+        let ids: std::collections::HashSet<&str> = profiles.iter().map(|p| p.id.as_str()).collect();
         assert_eq!(ids.len(), 50, "all 50 profiles must have unique IDs");
         Ok(())
     }
@@ -246,7 +249,7 @@ mod validation_system {
     fn all_boundary_settings_pass_validation() -> TestResult {
         let settings = WheelSettings {
             ffb: FfbSettings {
-                overall_gain: 0.0, // min
+                overall_gain: 0.0,   // min
                 torque_limit: 100.0, // max
                 spring_strength: 0.0,
                 damper_strength: 0.0,
@@ -354,15 +357,30 @@ mod import_export_stability {
         // Verify expected snake_case field names
         assert!(json.contains("\"overall_gain\""), "missing overall_gain");
         assert!(json.contains("\"torque_limit\""), "missing torque_limit");
-        assert!(json.contains("\"steering_range\""), "missing steering_range");
+        assert!(
+            json.contains("\"steering_range\""),
+            "missing steering_range"
+        );
         assert!(json.contains("\"device_id\""), "missing device_id");
-        assert!(json.contains("\"schema_version\""), "missing schema_version");
+        assert!(
+            json.contains("\"schema_version\""),
+            "missing schema_version"
+        );
         assert!(json.contains("\"created_at\""), "missing created_at");
         assert!(json.contains("\"modified_at\""), "missing modified_at");
-        assert!(json.contains("\"effects_enabled\""), "missing effects_enabled");
-        assert!(json.contains("\"filter_strength\""), "missing filter_strength");
+        assert!(
+            json.contains("\"effects_enabled\""),
+            "missing effects_enabled"
+        );
+        assert!(
+            json.contains("\"filter_strength\""),
+            "missing filter_strength"
+        );
         assert!(json.contains("\"led_mode\""), "missing led_mode");
-        assert!(json.contains("\"emergency_stop\""), "missing emergency_stop");
+        assert!(
+            json.contains("\"emergency_stop\""),
+            "missing emergency_stop"
+        );
         Ok(())
     }
 
@@ -374,7 +392,10 @@ mod import_export_stability {
         // Top-level fields
         assert!(value.get("id").is_some(), "missing top-level id");
         assert!(value.get("name").is_some(), "missing top-level name");
-        assert!(value.get("settings").is_some(), "missing top-level settings");
+        assert!(
+            value.get("settings").is_some(),
+            "missing top-level settings"
+        );
 
         // Nested settings groups
         let settings = value.get("settings");
@@ -382,8 +403,14 @@ mod import_export_stability {
         let settings = settings.ok_or("no settings")?;
         assert!(settings.get("ffb").is_some(), "missing ffb in settings");
         assert!(settings.get("input").is_some(), "missing input in settings");
-        assert!(settings.get("limits").is_some(), "missing limits in settings");
-        assert!(settings.get("advanced").is_some(), "missing advanced in settings");
+        assert!(
+            settings.get("limits").is_some(),
+            "missing limits in settings"
+        );
+        assert!(
+            settings.get("advanced").is_some(),
+            "missing advanced in settings"
+        );
         Ok(())
     }
 
@@ -394,8 +421,14 @@ mod import_export_stability {
         s.advanced.led_mode = LedMode::Rpm;
 
         let json = serde_json::to_string(&s)?;
-        assert!(json.contains("\"Exponential\""), "CurveType should serialize as string");
-        assert!(json.contains("\"Rpm\""), "LedMode should serialize as string");
+        assert!(
+            json.contains("\"Exponential\""),
+            "CurveType should serialize as string"
+        );
+        assert!(
+            json.contains("\"Rpm\""),
+            "LedMode should serialize as string"
+        );
         Ok(())
     }
 
@@ -409,7 +442,10 @@ mod import_export_stability {
         let value: serde_json::Value = serde_json::from_str(&json)?;
 
         let limits = value.get("limits").ok_or("no limits")?;
-        assert!(limits.get("max_speed").is_some(), "max_speed field should exist");
+        assert!(
+            limits.get("max_speed").is_some(),
+            "max_speed field should exist"
+        );
         assert!(
             limits.get("max_speed").and_then(|v| v.as_null()).is_some(),
             "None should serialize as null"
@@ -535,7 +571,8 @@ mod migration_system {
 
     #[test]
     fn full_migration_workflow_backup_migrate_validate() -> TestResult {
-        let dir = std::env::temp_dir().join(format!("profile_sys_migration_{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("profile_sys_migration_{}", std::process::id()));
         std::fs::create_dir_all(&dir)?;
         let backup_path = dir.join("pre_migration.json");
 
@@ -613,7 +650,10 @@ mod migration_system {
         p.schema_version = 0;
 
         migrate_profile(&mut p)?;
-        assert_eq!(p.version, 7, "user version should not change during migration");
+        assert_eq!(
+            p.version, 7,
+            "user version should not change during migration"
+        );
         Ok(())
     }
 
@@ -706,7 +746,10 @@ mod profile_comparison {
     fn identical_profiles_have_no_diffs() -> TestResult {
         let settings = WheelSettings::default();
         let diffs = diff_settings(&settings, &settings.clone());
-        assert!(diffs.is_empty(), "identical settings should produce no diffs");
+        assert!(
+            diffs.is_empty(),
+            "identical settings should produce no diffs"
+        );
         Ok(())
     }
 
@@ -772,7 +815,12 @@ mod profile_comparison {
 
         let diffs = diff_settings(&a, &b);
         // All 18 tracked fields should differ
-        assert_eq!(diffs.len(), 18, "all fields should be different: {:?}", diffs);
+        assert_eq!(
+            diffs.len(),
+            18,
+            "all fields should be different: {:?}",
+            diffs
+        );
         Ok(())
     }
 
@@ -793,7 +841,10 @@ mod profile_comparison {
 
         let range1 = v1.pointer("/settings/input/steering_range");
         let range2 = v2.pointer("/settings/input/steering_range");
-        assert_ne!(range1, range2, "steering_range values should differ in JSON");
+        assert_ne!(
+            range1, range2,
+            "steering_range values should differ in JSON"
+        );
 
         // Fields not changed should be identical
         let led1 = v1.pointer("/settings/advanced/led_mode");
@@ -818,7 +869,10 @@ mod merge_behavior {
         let merged = merge_profiles(&base, &overlay);
         assert_eq!(merged.id, base.id, "should keep base ID");
         assert_eq!(merged.name, base.name, "should keep base name");
-        assert_eq!(merged.device_id, base.device_id, "should keep base device_id");
+        assert_eq!(
+            merged.device_id, base.device_id,
+            "should keep base device_id"
+        );
         Ok(())
     }
 
@@ -1116,7 +1170,10 @@ mod tags_and_categorization {
             WheelProfile::new("Rain Setup", "dev"),
         ];
 
-        let tags: Vec<Vec<&str>> = profiles.iter().map(|p| categorize_profile(&p.name)).collect();
+        let tags: Vec<Vec<&str>> = profiles
+            .iter()
+            .map(|p| categorize_profile(&p.name))
+            .collect();
 
         assert!(tags[0].contains(&"drift"));
         assert!(tags[1].contains(&"rally"));
@@ -1416,8 +1473,7 @@ mod device_specific_parameters {
         validate_profile(&r21)?;
 
         assert!(
-            (dd_pro.settings.ffb.torque_limit - dd1.settings.ffb.torque_limit).abs()
-                > f32::EPSILON,
+            (dd_pro.settings.ffb.torque_limit - dd1.settings.ffb.torque_limit).abs() > f32::EPSILON,
             "different devices should have different torque limits"
         );
         Ok(())
@@ -1538,7 +1594,10 @@ mod versioning_and_history {
         migrate_profile(&mut p)?;
 
         assert_eq!(p.version, 42, "user version unchanged by migration");
-        assert_eq!(p.schema_version, CURRENT_SCHEMA_VERSION, "schema version updated");
+        assert_eq!(
+            p.schema_version, CURRENT_SCHEMA_VERSION,
+            "schema version updated"
+        );
         Ok(())
     }
 

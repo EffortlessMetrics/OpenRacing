@@ -11,9 +11,9 @@ use std::time::Duration;
 
 use openracing_atomic::AtomicCounters;
 use openracing_device_types::DeviceInputs;
-use openracing_fmea::{FaultType, FmeaSystem};
 use openracing_filters::Frame;
-use openracing_ipc::codec::{message_flags, message_types, MessageHeader};
+use openracing_fmea::{FaultType, FmeaSystem};
+use openracing_ipc::codec::{MessageHeader, message_flags, message_types};
 use openracing_pipeline::Pipeline;
 use openracing_profile::{WheelProfile, WheelSettings};
 use openracing_watchdog::{SystemComponent, WatchdogConfig, WatchdogSystem};
@@ -71,7 +71,9 @@ fn stress_concurrent_device_state_reads_writes() -> Result<(), BoxErr> {
 
 #[test]
 fn stress_concurrent_telemetry_processing() -> Result<(), BoxErr> {
-    let buffer = Arc::new(openracing_telemetry_streams::TelemetryBuffer::<u64>::new(512));
+    let buffer = Arc::new(openracing_telemetry_streams::TelemetryBuffer::<u64>::new(
+        512,
+    ));
     let total_produced = Arc::new(AtomicU64::new(0));
     let total_consumed = Arc::new(AtomicU64::new(0));
     let done = Arc::new(AtomicBool::new(false));
@@ -133,9 +135,16 @@ fn stress_concurrent_telemetry_processing() -> Result<(), BoxErr> {
 
     let produced = total_produced.load(Ordering::SeqCst);
     let consumed = total_consumed.load(Ordering::SeqCst);
-    assert_eq!(produced, (producers * ITERATIONS) as u64, "produced count mismatch");
+    assert_eq!(
+        produced,
+        (producers * ITERATIONS) as u64,
+        "produced count mismatch"
+    );
     // consumed may be <= produced because the buffer drops old items on overflow
-    assert!(consumed <= produced, "consumed {consumed} > produced {produced}");
+    assert!(
+        consumed <= produced,
+        "consumed {consumed} > produced {produced}"
+    );
     Ok(())
 }
 
@@ -164,7 +173,8 @@ fn stress_concurrent_profile_switching() -> Result<(), BoxErr> {
                         let name = format!("profile-{tid}-{i}");
                         let new_profile = WheelProfile::new(&name, "dev-0").with_settings({
                             let mut settings = WheelSettings::default();
-                            settings.ffb.overall_gain = (i as f32 / ITERATIONS as f32).clamp(0.0, 1.0);
+                            settings.ffb.overall_gain =
+                                (i as f32 / ITERATIONS as f32).clamp(0.0, 1.0);
                             settings
                         });
                         let mut p = profile.write().map_err(|e| format!("write: {e}"))?;
@@ -189,7 +199,10 @@ fn stress_concurrent_profile_switching() -> Result<(), BoxErr> {
     for h in handles {
         h.join().map_err(|_| "thread panicked")??;
     }
-    assert!(switch_count.load(Ordering::SeqCst) > 0, "expected at least one switch");
+    assert!(
+        switch_count.load(Ordering::SeqCst) > 0,
+        "expected at least one switch"
+    );
     Ok(())
 }
 
@@ -290,8 +303,8 @@ fn stress_concurrent_ipc_message_encode_decode() -> Result<(), BoxErr> {
                     let payload_len = (seq as u32) * 10;
                     let header = MessageHeader::new(msg_type, payload_len, seq as u32);
                     let encoded = header.encode();
-                    let decoded = MessageHeader::decode(&encoded)
-                        .map_err(|e| format!("decode: {e}"))?;
+                    let decoded =
+                        MessageHeader::decode(&encoded).map_err(|e| format!("decode: {e}"))?;
                     assert_eq!(decoded.message_type, msg_type, "msg type mismatch");
                     assert_eq!(decoded.payload_len, payload_len, "payload len mismatch");
                     assert_eq!(decoded.sequence, seq as u32, "sequence mismatch");
@@ -307,7 +320,11 @@ fn stress_concurrent_ipc_message_encode_decode() -> Result<(), BoxErr> {
     }
 
     let total = success_count.load(Ordering::SeqCst);
-    assert_eq!(total, NUM_THREADS * ITERATIONS, "not all messages processed");
+    assert_eq!(
+        total,
+        NUM_THREADS * ITERATIONS,
+        "not all messages processed"
+    );
     Ok(())
 }
 
@@ -346,12 +363,14 @@ fn stress_atomic_counters_under_contention() -> Result<(), BoxErr> {
 
     let snap = counters.snapshot();
     // Each category is fed by ceil(NUM_THREADS/5) threads, each doing ITERATIONS
-    let threads_per_bucket = |bucket: usize| -> u64 {
-        (0..NUM_THREADS).filter(|t| t % 5 == bucket).count() as u64
-    };
+    let threads_per_bucket =
+        |bucket: usize| -> u64 { (0..NUM_THREADS).filter(|t| t % 5 == bucket).count() as u64 };
     assert_eq!(snap.total_ticks, threads_per_bucket(0) * ITERATIONS as u64);
     assert_eq!(snap.missed_ticks, threads_per_bucket(1) * ITERATIONS as u64);
-    assert_eq!(snap.safety_events, threads_per_bucket(2) * ITERATIONS as u64);
+    assert_eq!(
+        snap.safety_events,
+        threads_per_bucket(2) * ITERATIONS as u64
+    );
     assert_eq!(
         snap.telemetry_packets_received,
         threads_per_bucket(3) * ITERATIONS as u64
@@ -390,7 +409,10 @@ fn stress_atomic_snapshot_and_reset_under_contention() -> Result<(), BoxErr> {
         h.join().map_err(|_| "thread panicked")??;
     }
 
-    assert!(total_snapshots.load(Ordering::SeqCst) > 0, "should have taken snapshots");
+    assert!(
+        total_snapshots.load(Ordering::SeqCst) > 0,
+        "should have taken snapshots"
+    );
     // Final snapshot should be consistent (no tearing)
     let snap = counters.snapshot();
     assert!(
@@ -1076,10 +1098,8 @@ fn stress_combined_telemetry_profile_safety() -> Result<(), BoxErr> {
                             // Telemetry ingestion
                             ctr.inc_tick();
                             ctr.inc_telemetry_received();
-                            let mut frame = Frame::from_ffb(
-                                (i as f32 * 0.01).sin(),
-                                i as f32 * 0.1,
-                            );
+                            let mut frame =
+                                Frame::from_ffb((i as f32 * 0.01).sin(), i as f32 * 0.1);
                             openracing_filters::torque_cap_filter(&mut frame, 1.0);
                             assert!(
                                 frame.torque_out.abs() <= 1.0 + f32::EPSILON,
@@ -1089,24 +1109,18 @@ fn stress_combined_telemetry_profile_safety() -> Result<(), BoxErr> {
                         1 => {
                             // Profile switching
                             if i % 50 == 0 {
-                                let new = WheelProfile::new(
-                                    format!("p-{i}"),
-                                    "dev-0",
-                                );
-                                let mut p =
-                                    prof.write().map_err(|e| format!("write: {e}"))?;
+                                let new = WheelProfile::new(format!("p-{i}"), "dev-0");
+                                let mut p = prof.write().map_err(|e| format!("write: {e}"))?;
                                 *p = new;
                                 ctr.inc_profile_switch();
                             } else {
-                                let p =
-                                    prof.read().map_err(|e| format!("read: {e}"))?;
+                                let p = prof.read().map_err(|e| format!("read: {e}"))?;
                                 let _name = &p.name;
                             }
                         }
                         2 => {
                             // Safety checks
-                            let mut sys =
-                                fmea.lock().map_err(|e| format!("lock: {e}"))?;
+                            let mut sys = fmea.lock().map_err(|e| format!("lock: {e}"))?;
                             let val = if i % 200 == 0 { f32::NAN } else { 1.0 };
                             let _fault = sys.detect_encoder_fault(val);
                         }
@@ -1128,7 +1142,10 @@ fn stress_combined_telemetry_profile_safety() -> Result<(), BoxErr> {
 
     let snap = counters.snapshot();
     assert!(snap.total_ticks > 0, "should have recorded ticks");
-    assert!(snap.telemetry_packets_received > 0, "should have recorded telemetry");
+    assert!(
+        snap.telemetry_packets_received > 0,
+        "should have recorded telemetry"
+    );
     Ok(())
 }
 
@@ -1180,7 +1197,10 @@ fn stress_normalized_telemetry_concurrent_access() -> Result<(), BoxErr> {
     }
 
     assert_eq!(writes.load(Ordering::SeqCst), ITERATIONS);
-    assert!(reads.load(Ordering::SeqCst) > 0, "should have performed reads");
+    assert!(
+        reads.load(Ordering::SeqCst) > 0,
+        "should have performed reads"
+    );
     Ok(())
 }
 
@@ -1205,17 +1225,16 @@ fn stress_device_inputs_copy_semantics() -> Result<(), BoxErr> {
                     let current_tick = tick.fetch_add(1, Ordering::Relaxed);
                     let inputs = DeviceInputs::new()
                         .with_steering((current_tick & 0xFFFF) as u16)
-                        .with_pedals(
-                            (i & 0xFFFF) as u16,
-                            ((i + tid) & 0xFFFF) as u16,
-                            0,
-                        )
+                        .with_pedals((i & 0xFFFF) as u16, ((i + tid) & 0xFFFF) as u16, 0)
                         .with_hat((tid % 9) as u8);
 
                     // Verify snapshot is self-consistent
                     let copy = inputs;
                     assert_eq!(copy.hat, inputs.hat, "Copy semantics broken for hat");
-                    assert_eq!(copy.steering, inputs.steering, "Copy semantics broken for steering");
+                    assert_eq!(
+                        copy.steering, inputs.steering,
+                        "Copy semantics broken for steering"
+                    );
                 }
                 Ok(())
             })

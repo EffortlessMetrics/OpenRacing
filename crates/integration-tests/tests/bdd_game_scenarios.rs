@@ -59,8 +59,8 @@ fn make_forza_sled_packet_with_nan() -> Vec<u8> {
 /// And    the pipeline output is within valid bounds for device output
 /// ```
 #[test]
-fn given_iracing_running_when_telemetry_starts_then_normalized_data_flows_to_ffb_pipeline(
-) -> Result<()> {
+fn given_iracing_running_when_telemetry_starts_then_normalized_data_flows_to_ffb_pipeline()
+-> Result<()> {
     // Given: a racing game is running with telemetry enabled
     // (We use the Forza adapter as a cross-platform proxy for telemetry normalisation;
     //  iRacing's shared-memory adapter is Windows-only and tested in platform-specific suites.)

@@ -1,8 +1,8 @@
 #![allow(clippy::redundant_closure)]
 
 use racing_wheel_hbp::{
-    parse_axis, parse_hbp_usb_report_best_effort, HbpHandbrakeSample, HbpHandbrakeSampleRaw,
-    RAW_AXIS_START, RAW_BUTTON, WITH_REPORT_ID_AXIS_START, WITH_REPORT_ID_BUTTON,
+    HbpHandbrakeSample, HbpHandbrakeSampleRaw, RAW_AXIS_START, RAW_BUTTON,
+    WITH_REPORT_ID_AXIS_START, WITH_REPORT_ID_BUTTON, parse_axis, parse_hbp_usb_report_best_effort,
 };
 
 type R = Result<(), Box<dyn std::error::Error>>;
@@ -15,8 +15,7 @@ fn round_trip_prefixed_layout() -> R {
     let btn: u8 = 0x42;
     let le = axis.to_le_bytes();
     let report = [0x01, le[0], le[1], btn];
-    let parsed =
-        parse_hbp_usb_report_best_effort(&report).ok_or("prefixed layout should parse")?;
+    let parsed = parse_hbp_usb_report_best_effort(&report).ok_or("prefixed layout should parse")?;
     assert_eq!(parsed.handbrake, axis);
     assert_eq!(parsed.button_byte, Some(btn));
 
@@ -37,8 +36,7 @@ fn round_trip_raw_two_byte() -> R {
     let axis: u16 = 0xCAFE;
     let le = axis.to_le_bytes();
     let report = [le[0], le[1]];
-    let parsed =
-        parse_hbp_usb_report_best_effort(&report).ok_or("two-byte layout should parse")?;
+    let parsed = parse_hbp_usb_report_best_effort(&report).ok_or("two-byte layout should parse")?;
     assert_eq!(parsed.handbrake, axis);
     assert_eq!(parsed.button_byte, None);
     assert_eq!(parsed.handbrake.to_le_bytes(), report);
@@ -50,8 +48,7 @@ fn round_trip_raw_two_byte() -> R {
 #[test]
 fn round_trip_raw_three_byte_with_button() -> R {
     let report = [0x00u8, 0xAA, 0x55];
-    let parsed =
-        parse_hbp_usb_report_best_effort(&report).ok_or("three-byte raw should parse")?;
+    let parsed = parse_hbp_usb_report_best_effort(&report).ok_or("three-byte raw should parse")?;
     assert_eq!(parsed.handbrake, u16::from_le_bytes([0x00, 0xAA]));
     assert_eq!(parsed.button_byte, Some(0x55));
     Ok(())
@@ -72,8 +69,8 @@ fn single_byte_returns_none() {
 #[test]
 fn oversized_report_still_parses_prefixed() -> R {
     let report = [0x05u8, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70];
-    let parsed = parse_hbp_usb_report_best_effort(&report)
-        .ok_or("oversized prefixed should still parse")?;
+    let parsed =
+        parse_hbp_usb_report_best_effort(&report).ok_or("oversized prefixed should still parse")?;
     assert_eq!(parsed.handbrake, u16::from_le_bytes([0x10, 0x20]));
     assert_eq!(parsed.button_byte, Some(0x30));
     Ok(())

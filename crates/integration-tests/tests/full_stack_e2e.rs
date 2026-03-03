@@ -29,8 +29,8 @@ use openracing_filters::{
     friction_filter, slew_rate_filter, torque_cap_filter,
 };
 
-use racing_wheel_telemetry_adapters::{TelemetryAdapter, adapter_factories};
 use racing_wheel_service::system_config::SystemConfig;
+use racing_wheel_telemetry_adapters::{TelemetryAdapter, adapter_factories};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Helpers
@@ -128,15 +128,7 @@ fn full_pipeline_virtual_device_to_ffb_output() -> Result<()> {
     // Run 100 ticks through the full pipeline
     for seq in 0u16..100 {
         let ffb_in = ((seq as f32) * 0.05).sin() * 0.6;
-        let torque_nm = run_full_tick(
-            ffb_in,
-            1.0,
-            seq,
-            &mut pipeline,
-            &safety,
-            &mut device,
-            5.0,
-        )?;
+        let torque_nm = run_full_tick(ffb_in, 1.0, seq, &mut pipeline, &safety, &mut device, 5.0)?;
 
         assert!(
             torque_nm.is_finite(),
@@ -170,15 +162,7 @@ fn full_pipeline_with_physics_simulation() -> Result<()> {
 
     for seq in 0u16..50 {
         let ffb_in = 0.4;
-        let _torque = run_full_tick(
-            ffb_in,
-            0.5,
-            seq,
-            &mut pipeline,
-            &safety,
-            &mut device,
-            5.0,
-        )?;
+        let _torque = run_full_tick(ffb_in, 0.5, seq, &mut pipeline, &safety, &mut device, 5.0)?;
 
         // Simulate physics between ticks
         device.simulate_physics(Duration::from_millis(1));
@@ -209,15 +193,7 @@ fn full_pipeline_extreme_inputs_remain_bounded() -> Result<()> {
 
     for (i, &ffb_in) in extreme_values.iter().enumerate() {
         let seq = i as u16;
-        let torque = run_full_tick(
-            ffb_in,
-            10.0,
-            seq,
-            &mut pipeline,
-            &safety,
-            &mut device,
-            5.0,
-        )?;
+        let torque = run_full_tick(ffb_in, 10.0, seq, &mut pipeline, &safety, &mut device, 5.0)?;
         assert!(
             torque.is_finite(),
             "extreme input {ffb_in}: torque must be finite, got {torque}"
@@ -348,9 +324,7 @@ fn hotplug_disconnect_reconnect_during_active_session() -> Result<()> {
     assert!(device.is_connected());
 
     std::thread::sleep(Duration::from_millis(120));
-    safety
-        .clear_fault()
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    safety.clear_fault().map_err(|e| anyhow::anyhow!("{e}"))?;
     assert_eq!(safety.state(), &SafetyState::SafeTorque);
 
     // Phase 4: resume normal operation
@@ -495,10 +469,7 @@ fn profile_switch_smooth_transition() -> Result<()> {
     }
 
     // Both profiles produced valid, finite torque values
-    assert!(
-        last_torque_a.is_finite(),
-        "profile A torque must be finite"
-    );
+    assert!(last_torque_a.is_finite(), "profile A torque must be finite");
     assert!(
         first_torque_b.is_finite(),
         "profile B torque must be finite"
@@ -665,9 +636,7 @@ fn safety_interlock_device_fault_flags_correlation() -> Result<()> {
     assert_eq!(telem_clear.fault_flags, 0, "device faults must be cleared");
 
     std::thread::sleep(Duration::from_millis(120));
-    safety
-        .clear_fault()
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    safety.clear_fault().map_err(|e| anyhow::anyhow!("{e}"))?;
     let resumed = safety.clamp_torque_nm(3.0);
     assert!(
         (resumed - 3.0).abs() < 0.01,
@@ -709,10 +678,7 @@ fn telemetry_recording_capture_and_verify() -> Result<()> {
     assert_eq!(torque_history.len(), 200, "must have 200 recorded samples");
 
     for (i, &t) in torque_history.iter().enumerate() {
-        assert!(
-            t.is_finite(),
-            "sample {i}: torque must be finite, got {t}"
-        );
+        assert!(t.is_finite(), "sample {i}: torque must be finite, got {t}");
         assert!(
             t.abs() <= 5.0,
             "sample {i}: torque must be within safe limit, got {t}"
@@ -803,9 +769,8 @@ fn config_hot_reload_during_active_session() -> Result<()> {
     for seq in 20u16..40 {
         let mut frame = engine_frame(0.5, 1.0, seq);
         pipeline.process(&mut frame)?;
-        let torque = safety_updated.clamp_torque_nm(
-            frame.torque_out * updated.safety.default_safe_torque_nm,
-        );
+        let torque = safety_updated
+            .clamp_torque_nm(frame.torque_out * updated.safety.default_safe_torque_nm);
         assert!(
             torque.abs() <= updated.safety.default_safe_torque_nm,
             "tick {seq}: torque must respect updated limit"
@@ -835,10 +800,7 @@ fn config_hot_reload_default_is_self_consistent() -> Result<()> {
     );
 
     // Engine tick rate must be positive
-    assert!(
-        config.engine.tick_rate_hz > 0,
-        "tick rate must be positive"
-    );
+    assert!(config.engine.tick_rate_hz > 0, "tick rate must be positive");
 
     // Serde round-trip
     let json = serde_json::to_string_pretty(&config)?;
@@ -947,17 +909,12 @@ fn graceful_shutdown_safety_pipeline_sequence() -> Result<()> {
     // Initiate shutdown: fault to zero torque
     safety.report_fault(FaultType::PipelineFault);
     let shutdown_torque = safety.clamp_torque_nm(5.0);
-    assert!(
-        shutdown_torque.abs() < 0.001,
-        "shutdown must zero torque"
-    );
+    assert!(shutdown_torque.abs() < 0.001, "shutdown must zero torque");
     device.write_ffb_report(shutdown_torque, 1)?;
 
     // Wait hold period and clear
     std::thread::sleep(Duration::from_millis(120));
-    safety
-        .clear_fault()
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    safety.clear_fault().map_err(|e| anyhow::anyhow!("{e}"))?;
     assert_eq!(safety.state(), &SafetyState::SafeTorque);
 
     Ok(())

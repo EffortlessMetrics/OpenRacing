@@ -7,9 +7,9 @@ use std::collections::HashSet;
 
 use racing_wheel_telemetry_config::{
     AutoDetectConfig, ConfigDiff, ConfigWriter, DiffOperation, GameSupport, GameSupportMatrix,
-    GameSupportStatus, GameVersion, TelemetryConfig, TelemetryFieldMapping, TelemetrySupport,
-    config_writer_factories, load_default_matrix, matrix_game_id_set, matrix_game_ids,
-    normalize_game_id, TELEMETRY_SUPPORT_MATRIX_YAML,
+    GameSupportStatus, GameVersion, TELEMETRY_SUPPORT_MATRIX_YAML, TelemetryConfig,
+    TelemetryFieldMapping, TelemetrySupport, config_writer_factories, load_default_matrix,
+    matrix_game_id_set, matrix_game_ids, normalize_game_id,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -41,11 +41,7 @@ fn each_game_entry_has_required_fields() -> TestResult {
     let matrix = load_default_matrix()?;
     for (id, game) in &matrix.games {
         assert!(!game.name.is_empty(), "game '{}' has empty name", id);
-        assert!(
-            !game.versions.is_empty(),
-            "game '{}' has no versions",
-            id
-        );
+        assert!(!game.versions.is_empty(), "game '{}' has no versions", id);
         assert!(
             !game.config_writer.is_empty(),
             "game '{}' has empty config_writer",
@@ -186,7 +182,11 @@ fn well_known_games_are_present() -> TestResult {
         "assetto_corsa",
         "rbr",
     ] {
-        assert!(ids.contains(expected), "missing well-known game: {}", expected);
+        assert!(
+            ids.contains(expected),
+            "missing well-known game: {}",
+            expected
+        );
     }
     Ok(())
 }
@@ -256,7 +256,11 @@ fn config_writer_factory_ids_are_unique() {
     let factories = config_writer_factories();
     let mut seen = HashSet::new();
     for (id, _) in factories {
-        assert!(seen.insert(*id), "duplicate config writer factory id: {}", id);
+        assert!(
+            seen.insert(*id),
+            "duplicate config writer factory id: {}",
+            id
+        );
     }
 }
 
@@ -290,7 +294,10 @@ fn telemetry_support_optional_fields_default_correctly() -> TestResult {
         }
     }"#;
     let decoded: TelemetrySupport = serde_json::from_str(json)?;
-    assert!(!decoded.supports_360hz_option, "supports_360hz_option should default to false");
+    assert!(
+        !decoded.supports_360hz_option,
+        "supports_360hz_option should default to false"
+    );
     assert!(
         decoded.high_rate_update_rate_hz.is_none(),
         "high_rate_update_rate_hz should default to None"
@@ -348,7 +355,10 @@ fn game_support_status_json_round_trip() -> TestResult {
 
 #[test]
 fn game_support_status_serializes_to_lowercase() -> TestResult {
-    assert_eq!(serde_json::to_string(&GameSupportStatus::Stable)?, r#""stable""#);
+    assert_eq!(
+        serde_json::to_string(&GameSupportStatus::Stable)?,
+        r#""stable""#
+    );
     assert_eq!(
         serde_json::to_string(&GameSupportStatus::Experimental)?,
         r#""experimental""#
@@ -526,7 +536,10 @@ fn telemetry_support_round_trip() -> TestResult {
     assert_eq!(decoded.method, support.method);
     assert_eq!(decoded.update_rate_hz, support.update_rate_hz);
     assert_eq!(decoded.supports_360hz_option, support.supports_360hz_option);
-    assert_eq!(decoded.high_rate_update_rate_hz, support.high_rate_update_rate_hz);
+    assert_eq!(
+        decoded.high_rate_update_rate_hz,
+        support.high_rate_update_rate_hz
+    );
     assert_eq!(decoded.output_target, support.output_target);
     Ok(())
 }
@@ -549,7 +562,11 @@ fn config_diff_json_round_trip() -> TestResult {
 
 #[test]
 fn diff_operation_all_variants_round_trip() -> TestResult {
-    for op in [DiffOperation::Add, DiffOperation::Modify, DiffOperation::Remove] {
+    for op in [
+        DiffOperation::Add,
+        DiffOperation::Modify,
+        DiffOperation::Remove,
+    ] {
         let json = serde_json::to_string(&op)?;
         let decoded: DiffOperation = serde_json::from_str(&json)?;
         assert_eq!(decoded, op);
@@ -627,7 +644,10 @@ fn empty_yaml_returns_error() {
 fn yaml_missing_games_key_returns_error() {
     let yaml = "not_games:\n  foo: bar";
     let result = serde_yaml::from_str::<GameSupportMatrix>(yaml);
-    assert!(result.is_err(), "missing 'games' key should produce an error");
+    assert!(
+        result.is_err(),
+        "missing 'games' key should produce an error"
+    );
 }
 
 #[test]
@@ -697,7 +717,10 @@ fn json_wrong_type_for_fields_returns_error() {
 #[test]
 fn json_completely_empty_object_returns_error() {
     let result = serde_json::from_str::<TelemetryConfig>("{}");
-    assert!(result.is_err(), "empty JSON object should fail for TelemetryConfig");
+    assert!(
+        result.is_err(),
+        "empty JSON object should fail for TelemetryConfig"
+    );
 }
 
 #[test]
@@ -743,10 +766,7 @@ fn config_diff_missing_key_returns_error() {
 #[test]
 fn iracing_has_shared_memory_and_360hz() -> TestResult {
     let matrix = load_default_matrix()?;
-    let iracing = matrix
-        .games
-        .get("iracing")
-        .ok_or("iracing not in matrix")?;
+    let iracing = matrix.games.get("iracing").ok_or("iracing not in matrix")?;
     assert_eq!(iracing.telemetry.method, "shared_memory");
     assert!(iracing.telemetry.supports_360hz_option);
     assert_eq!(iracing.telemetry.high_rate_update_rate_hz, Some(360));
@@ -758,10 +778,7 @@ fn iracing_has_shared_memory_and_360hz() -> TestResult {
 #[test]
 fn iracing_has_auto_detect_process_names() -> TestResult {
     let matrix = load_default_matrix()?;
-    let iracing = matrix
-        .games
-        .get("iracing")
-        .ok_or("iracing not in matrix")?;
+    let iracing = matrix.games.get("iracing").ok_or("iracing not in matrix")?;
     assert!(
         !iracing.auto_detect.process_names.is_empty(),
         "iRacing should have auto-detect process names"
@@ -819,7 +836,10 @@ fn profile_save_and_load_yaml_file() -> TestResult {
     let loaded: TelemetryConfig = serde_yaml::from_str(&std::fs::read_to_string(&path)?)?;
     assert_eq!(loaded.enabled, config.enabled);
     assert_eq!(loaded.update_rate_hz, config.update_rate_hz);
-    assert_eq!(loaded.enable_high_rate_iracing_360hz, config.enable_high_rate_iracing_360hz);
+    assert_eq!(
+        loaded.enable_high_rate_iracing_360hz,
+        config.enable_high_rate_iracing_360hz
+    );
     assert_eq!(loaded.fields, config.fields);
     Ok(())
 }
@@ -836,7 +856,11 @@ fn profile_save_matrix_to_json_file_and_reload() -> TestResult {
     let loaded: GameSupportMatrix = serde_json::from_str(&std::fs::read_to_string(&path)?)?;
     assert_eq!(loaded.games.len(), matrix.games.len());
     for key in matrix.games.keys() {
-        assert!(loaded.games.contains_key(key), "lost key after file round-trip: {}", key);
+        assert!(
+            loaded.games.contains_key(key),
+            "lost key after file round-trip: {}",
+            key
+        );
     }
     Ok(())
 }
@@ -1123,7 +1147,10 @@ fn json_merge_enable_high_rate_override() -> TestResult {
 fn malformed_json_missing_closing_brace() {
     let json = r#"{"enabled": true, "update_rate_hz": 60"#;
     let result = serde_json::from_str::<TelemetryConfig>(json);
-    assert!(result.is_err(), "malformed JSON (no closing brace) should fail");
+    assert!(
+        result.is_err(),
+        "malformed JSON (no closing brace) should fail"
+    );
 }
 
 #[test]
@@ -1149,7 +1176,10 @@ fn json_null_for_required_string_field_returns_error() {
         "fields": []
     }"#;
     let result = serde_json::from_str::<TelemetryConfig>(json);
-    assert!(result.is_err(), "null for required string field should fail");
+    assert!(
+        result.is_err(),
+        "null for required string field should fail"
+    );
 }
 
 #[test]
@@ -1163,7 +1193,10 @@ fn json_negative_update_rate_parses_but_is_invalid() {
         "fields": []
     }"#;
     let result = serde_json::from_str::<TelemetryConfig>(json);
-    assert!(result.is_err(), "negative update_rate_hz should fail for u32");
+    assert!(
+        result.is_err(),
+        "negative update_rate_hz should fail for u32"
+    );
 }
 
 #[test]
@@ -1188,7 +1221,10 @@ fn json_extra_unknown_fields_are_ignored() -> TestResult {
 fn yaml_with_wrong_type_for_games_returns_error() {
     let yaml = "games: \"not a map\"";
     let result = serde_yaml::from_str::<GameSupportMatrix>(yaml);
-    assert!(result.is_err(), "games as string instead of map should fail");
+    assert!(
+        result.is_err(),
+        "games as string instead of map should fail"
+    );
 }
 
 #[test]
@@ -1234,7 +1270,10 @@ fn migration_old_format_without_high_rate_field_defaults_correctly() -> TestResu
         "fields": ["rpm", "gear"]
     }"#;
     let loaded: TelemetryConfig = serde_json::from_str(old_json)?;
-    assert!(!loaded.enable_high_rate_iracing_360hz, "old config without high-rate field should default to false");
+    assert!(
+        !loaded.enable_high_rate_iracing_360hz,
+        "old config without high-rate field should default to false"
+    );
     assert_eq!(loaded.update_rate_hz, 60);
     assert_eq!(loaded.fields, vec!["rpm", "gear"]);
     Ok(())
@@ -1316,7 +1355,11 @@ auto_detect:
   install_paths: []
 "#;
     let loaded: GameSupport = serde_yaml::from_str(yaml)?;
-    assert_eq!(loaded.status, GameSupportStatus::Stable, "omitted status should default to Stable");
+    assert_eq!(
+        loaded.status,
+        GameSupportStatus::Stable,
+        "omitted status should default to Stable"
+    );
     assert_eq!(loaded.name, "Legacy Game");
     Ok(())
 }
@@ -1386,7 +1429,9 @@ fn make_test_config(enabled: bool, rate: u32, method: &str, target: &str) -> Tel
     }
 }
 
-fn get_writer(game_id: &str) -> Result<Box<dyn ConfigWriter + Send + Sync>, Box<dyn std::error::Error>> {
+fn get_writer(
+    game_id: &str,
+) -> Result<Box<dyn ConfigWriter + Send + Sync>, Box<dyn std::error::Error>> {
     let factories = config_writer_factories();
     let (_, factory) = factories
         .iter()
@@ -1409,10 +1454,16 @@ fn iracing_writer_write_and_validate_enabled() -> TestResult {
     };
 
     let diffs = writer.write_config(dir.path(), &config)?;
-    assert!(!diffs.is_empty(), "iRacing write_config should produce diffs");
+    assert!(
+        !diffs.is_empty(),
+        "iRacing write_config should produce diffs"
+    );
 
     let valid = writer.validate_config(dir.path())?;
-    assert!(valid, "iRacing config should validate after writing enabled config");
+    assert!(
+        valid,
+        "iRacing config should validate after writing enabled config"
+    );
     Ok(())
 }
 
@@ -1427,7 +1478,10 @@ fn iracing_writer_write_disabled() -> TestResult {
 
     // Disabled config should not validate as enabled
     let valid = writer.validate_config(dir.path())?;
-    assert!(!valid, "disabled iRacing config should not validate as enabled");
+    assert!(
+        !valid,
+        "disabled iRacing config should not validate as enabled"
+    );
     Ok(())
 }
 
@@ -1498,7 +1552,10 @@ fn iracing_writer_get_expected_diffs_with_360hz() -> TestResult {
         enable_high_rate_iracing_360hz: true,
     };
     let diffs = writer.get_expected_diffs(&config)?;
-    assert!(diffs.len() >= 2, "360Hz config should have >=2 expected diffs");
+    assert!(
+        diffs.len() >= 2,
+        "360Hz config should have >=2 expected diffs"
+    );
     let has_360hz = diffs.iter().any(|d| d.key.contains("360"));
     assert!(has_360hz, "expected diffs should include 360Hz key");
     Ok(())
@@ -1693,7 +1750,10 @@ fn ams2_game_uses_shared_memory() -> TestResult {
 #[test]
 fn rfactor2_game_uses_shared_memory() -> TestResult {
     let matrix = load_default_matrix()?;
-    let rf2 = matrix.games.get("rfactor2").ok_or("rfactor2 not in matrix")?;
+    let rf2 = matrix
+        .games
+        .get("rfactor2")
+        .ok_or("rfactor2 not in matrix")?;
     assert!(
         rf2.telemetry.method.contains("shared_memory"),
         "rFactor 2 should use shared memory telemetry, got '{}'",

@@ -179,7 +179,11 @@ fn parse_r3e_memory(data: &[u8]) -> Result<NormalizedTelemetry> {
     ];
 
     // Tire pressures: KPa → PSI (1 KPa ≈ 0.14504 PSI).
-    let kpa_to_psi = |v: Option<f32>| v.filter(|&p| p > 0.0).map(|p| p * 0.14503774).unwrap_or(0.0);
+    let kpa_to_psi = |v: Option<f32>| {
+        v.filter(|&p| p > 0.0)
+            .map(|p| p * 0.14503774)
+            .unwrap_or(0.0)
+    };
     let tire_pressures = [
         kpa_to_psi(read_f32_le(data, OFF_TIRE_PRESSURE_FL)),
         kpa_to_psi(read_f32_le(data, OFF_TIRE_PRESSURE_FR)),
@@ -238,10 +242,7 @@ fn parse_r3e_memory(data: &[u8]) -> Result<NormalizedTelemetry> {
 
     // Extended fields: raw fuel values for pit-strategy tools.
     if fuel_left > 0.0 {
-        builder = builder.extended(
-            "fuel_left_l".to_string(),
-            TelemetryValue::Float(fuel_left),
-        );
+        builder = builder.extended("fuel_left_l".to_string(), TelemetryValue::Float(fuel_left));
     }
     if fuel_capacity > 0.0 {
         builder = builder.extended(

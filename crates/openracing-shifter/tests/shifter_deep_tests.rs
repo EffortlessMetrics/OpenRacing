@@ -726,8 +726,7 @@ mod sequential_with_reverse {
             has_paddle_shifters: true,
         };
         let json = serde_json::to_string(&caps).map_err(|e| e.to_string())?;
-        let back: ShifterCapabilities =
-            serde_json::from_str(&json).map_err(|e| e.to_string())?;
+        let back: ShifterCapabilities = serde_json::from_str(&json).map_err(|e| e.to_string())?;
         assert_eq!(caps, back);
         Ok(())
     }

@@ -7,6 +7,9 @@
 use racing_wheel_hid_thrustmaster_protocol::ids::{
     Model, ProtocolFamily, THRUSTMASTER_VENDOR_ID, init_protocol, product_ids,
 };
+use racing_wheel_hid_thrustmaster_protocol::input::{
+    STANDARD_INPUT_REPORT_ID, parse_input_report, parse_pedal_report,
+};
 use racing_wheel_hid_thrustmaster_protocol::output::{
     EFFECT_REPORT_LEN, EFFECT_TYPE_CONSTANT, EFFECT_TYPE_DAMPER, EFFECT_TYPE_FRICTION,
     EFFECT_TYPE_RAMP, EFFECT_TYPE_SPRING, ThrustmasterConstantForceEncoder,
@@ -15,20 +18,16 @@ use racing_wheel_hid_thrustmaster_protocol::output::{
     build_kernel_gain_command, build_kernel_open_command, build_kernel_range_command,
     build_set_range_report, build_spring_effect, report_ids,
 };
-use racing_wheel_hid_thrustmaster_protocol::input::{
-    STANDARD_INPUT_REPORT_ID, parse_input_report,
-    parse_pedal_report,
-};
-use racing_wheel_hid_thrustmaster_protocol::t150::{
-    CMD_GAIN, CMD_RANGE, SUBCMD_RANGE, T150EffectType, encode_gain_t150,
-    encode_play_effect_t150, encode_range_t150, encode_stop_effect_t150,
-};
-use racing_wheel_hid_thrustmaster_protocol::types::{
-    ThrustmasterDeviceCategory, ThrustmasterPedalAxesRaw,
-    identify_device, is_pedal_product, is_wheel_product,
-};
 use racing_wheel_hid_thrustmaster_protocol::protocol::{
     ThrustmasterInitState, ThrustmasterProtocol,
+};
+use racing_wheel_hid_thrustmaster_protocol::t150::{
+    CMD_GAIN, CMD_RANGE, SUBCMD_RANGE, T150EffectType, encode_gain_t150, encode_play_effect_t150,
+    encode_range_t150, encode_stop_effect_t150,
+};
+use racing_wheel_hid_thrustmaster_protocol::types::{
+    ThrustmasterDeviceCategory, ThrustmasterPedalAxesRaw, identify_device, is_pedal_product,
+    is_wheel_product,
 };
 
 // ─── Vendor ID ───────────────────────────────────────────────────────────────
@@ -119,7 +118,10 @@ fn cf_encode_max_torque_floor_to_0_01() -> Result<(), Box<dyn std::error::Error>
     // 5.0 / 0.01 > 1.0 → clamped to 1.0 → 10000
     enc.encode(5.0, &mut out);
     let mag = i16::from_le_bytes([out[2], out[3]]);
-    assert_eq!(mag, 10000, "zero max_torque floors to 0.01, so large input clamps");
+    assert_eq!(
+        mag, 10000,
+        "zero max_torque floors to 0.01, so large input clamps"
+    );
     Ok(())
 }
 
@@ -184,9 +186,11 @@ fn cf_encode_per_model_half_torque() -> Result<(), Box<dyn std::error::Error>> {
         enc.encode(max * 0.5, &mut out);
         let mag = i16::from_le_bytes([out[2], out[3]]);
         assert_eq!(
-            mag, 5000,
+            mag,
+            5000,
             "{:?}: half torque ({}) must encode to 5000, got {mag}",
-            model, max * 0.5
+            model,
+            max * 0.5
         );
     }
     Ok(())
@@ -250,7 +254,10 @@ fn identify_t80_no_ffb() -> Result<(), Box<dyn std::error::Error>> {
     for pid in [product_ids::T80, product_ids::T80_FERRARI_488] {
         let identity = identify_device(pid);
         assert_eq!(identity.category, ThrustmasterDeviceCategory::Wheelbase);
-        assert!(!identity.supports_ffb, "T80 PID 0x{pid:04X} must NOT support FFB");
+        assert!(
+            !identity.supports_ffb,
+            "T80 PID 0x{pid:04X} must NOT support FFB"
+        );
     }
     Ok(())
 }
@@ -328,7 +335,10 @@ fn model_unknown_pid() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn model_tpr_pedals_mapped_to_unknown() -> Result<(), Box<dyn std::error::Error>> {
     // TPR pedals PID maps to Unknown (no FFB)
-    assert_eq!(Model::from_product_id(product_ids::TPR_PEDALS), Model::Unknown);
+    assert_eq!(
+        Model::from_product_id(product_ids::TPR_PEDALS),
+        Model::Unknown
+    );
     Ok(())
 }
 
@@ -367,8 +377,16 @@ fn model_torque_ordering() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn model_rotation_values() -> Result<(), Box<dyn std::error::Error>> {
     // 1080° group
-    for model in [Model::T150, Model::T300RS, Model::T500RS, Model::TSPCRacer,
-                  Model::TSXW, Model::TGT, Model::TGTII, Model::T818] {
+    for model in [
+        Model::T150,
+        Model::T300RS,
+        Model::T500RS,
+        Model::TSPCRacer,
+        Model::TSXW,
+        Model::TGT,
+        Model::TGTII,
+        Model::T818,
+    ] {
         assert_eq!(model.max_rotation_deg(), 1080, "{model:?}");
     }
     // 900° group (default)
@@ -376,8 +394,14 @@ fn model_rotation_values() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(model.max_rotation_deg(), 900, "{model:?}");
     }
     // 270° group
-    for model in [Model::T80, Model::NascarProFF2, Model::FGTRumbleForce,
-                  Model::RGTFF, Model::FGTForceFeedback, Model::F430ForceFeedback] {
+    for model in [
+        Model::T80,
+        Model::NascarProFF2,
+        Model::FGTRumbleForce,
+        Model::RGTFF,
+        Model::FGTForceFeedback,
+        Model::F430ForceFeedback,
+    ] {
         assert_eq!(model.max_rotation_deg(), 270, "{model:?}");
     }
     Ok(())
@@ -388,9 +412,15 @@ fn model_rotation_values() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn protocol_family_t300_group() -> Result<(), Box<dyn std::error::Error>> {
     let t300_models = [
-        Model::T300RS, Model::T300RSPS4, Model::T300RSGT,
-        Model::TXRacing, Model::T248, Model::T248X,
-        Model::TSPCRacer, Model::TSXW, Model::TGTII,
+        Model::T300RS,
+        Model::T300RSPS4,
+        Model::T300RSGT,
+        Model::TXRacing,
+        Model::T248,
+        Model::T248X,
+        Model::TSPCRacer,
+        Model::TSXW,
+        Model::TGTII,
     ];
     for model in t300_models {
         assert_eq!(model.protocol_family(), ProtocolFamily::T300, "{model:?}");
@@ -425,7 +455,13 @@ fn protocol_family_unknown_for_non_ffb() -> Result<(), Box<dyn std::error::Error
 #[test]
 fn init_switch_values_per_family() -> Result<(), Box<dyn std::error::Error>> {
     // T300 family: 0x0005
-    for model in [Model::T300RS, Model::T248, Model::TSPCRacer, Model::TSXW, Model::TGTII] {
+    for model in [
+        Model::T300RS,
+        Model::T248,
+        Model::TSPCRacer,
+        Model::TSXW,
+        Model::TGTII,
+    ] {
         assert_eq!(model.init_switch_value(), Some(0x0005), "{model:?}");
     }
     // T150 family: 0x0006
@@ -446,19 +482,37 @@ fn init_switch_values_per_family() -> Result<(), Box<dyn std::error::Error>> {
 fn model_supports_ffb_comprehensive() -> Result<(), Box<dyn std::error::Error>> {
     // Must support FFB
     let ffb_models = [
-        Model::T150, Model::TMX, Model::T300RS, Model::T300RSPS4,
-        Model::T300RSGT, Model::TXRacing, Model::T500RS, Model::T248,
-        Model::T248X, Model::TGT, Model::TGTII, Model::TSPCRacer,
-        Model::TSXW, Model::T818, Model::NascarProFF2, Model::FGTRumbleForce,
-        Model::RGTFF, Model::FGTForceFeedback, Model::F430ForceFeedback,
+        Model::T150,
+        Model::TMX,
+        Model::T300RS,
+        Model::T300RSPS4,
+        Model::T300RSGT,
+        Model::TXRacing,
+        Model::T500RS,
+        Model::T248,
+        Model::T248X,
+        Model::TGT,
+        Model::TGTII,
+        Model::TSPCRacer,
+        Model::TSXW,
+        Model::T818,
+        Model::NascarProFF2,
+        Model::FGTRumbleForce,
+        Model::RGTFF,
+        Model::FGTForceFeedback,
+        Model::F430ForceFeedback,
     ];
     for model in ffb_models {
         assert!(model.supports_ffb(), "{model:?} must support FFB");
     }
     // Must NOT support FFB
     let no_ffb = [
-        Model::T80, Model::T3PA, Model::T3PAPro,
-        Model::TLCM, Model::TLCMPro, Model::Unknown,
+        Model::T80,
+        Model::T3PA,
+        Model::T3PAPro,
+        Model::TLCM,
+        Model::TLCMPro,
+        Model::Unknown,
     ];
     for model in no_ffb {
         assert!(!model.supports_ffb(), "{model:?} must NOT support FFB");
@@ -471,17 +525,38 @@ fn model_supports_ffb_comprehensive() -> Result<(), Box<dyn std::error::Error>> 
 #[test]
 fn model_name_non_empty() -> Result<(), Box<dyn std::error::Error>> {
     let all_models = [
-        Model::T150, Model::TMX, Model::T300RS, Model::T300RSPS4,
-        Model::T300RSGT, Model::TXRacing, Model::T500RS, Model::T248,
-        Model::T248X, Model::TGT, Model::TGTII, Model::TSPCRacer,
-        Model::TSXW, Model::T818, Model::T80, Model::NascarProFF2,
-        Model::FGTRumbleForce, Model::RGTFF, Model::FGTForceFeedback,
-        Model::F430ForceFeedback, Model::T3PA, Model::T3PAPro,
-        Model::TLCM, Model::TLCMPro, Model::Unknown,
+        Model::T150,
+        Model::TMX,
+        Model::T300RS,
+        Model::T300RSPS4,
+        Model::T300RSGT,
+        Model::TXRacing,
+        Model::T500RS,
+        Model::T248,
+        Model::T248X,
+        Model::TGT,
+        Model::TGTII,
+        Model::TSPCRacer,
+        Model::TSXW,
+        Model::T818,
+        Model::T80,
+        Model::NascarProFF2,
+        Model::FGTRumbleForce,
+        Model::RGTFF,
+        Model::FGTForceFeedback,
+        Model::F430ForceFeedback,
+        Model::T3PA,
+        Model::T3PAPro,
+        Model::TLCM,
+        Model::TLCMPro,
+        Model::Unknown,
     ];
     for model in all_models {
         assert!(!model.name().is_empty(), "{model:?} must have a name");
-        assert!(model.name().starts_with("Thrustmaster"), "{model:?} name must start with 'Thrustmaster'");
+        assert!(
+            model.name().starts_with("Thrustmaster"),
+            "{model:?} name must start with 'Thrustmaster'"
+        );
     }
     Ok(())
 }
@@ -491,14 +566,26 @@ fn model_name_non_empty() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn is_wheel_product_all_wheelbases() -> Result<(), Box<dyn std::error::Error>> {
     let wheelbases = [
-        product_ids::T150, product_ids::TMX,
-        product_ids::T300_RS, product_ids::T300_RS_PS4, product_ids::T300_RS_GT,
-        product_ids::TX_RACING, product_ids::TX_RACING_ORIG,
-        product_ids::T500_RS, product_ids::T248, product_ids::T248X,
-        product_ids::TS_PC_RACER, product_ids::TS_XW, product_ids::TS_XW_GIP,
-        product_ids::T818, product_ids::T80, product_ids::T80_FERRARI_488,
-        product_ids::NASCAR_PRO_FF2, product_ids::FGT_RUMBLE_FORCE,
-        product_ids::RGT_FF_CLUTCH, product_ids::FGT_FORCE_FEEDBACK,
+        product_ids::T150,
+        product_ids::TMX,
+        product_ids::T300_RS,
+        product_ids::T300_RS_PS4,
+        product_ids::T300_RS_GT,
+        product_ids::TX_RACING,
+        product_ids::TX_RACING_ORIG,
+        product_ids::T500_RS,
+        product_ids::T248,
+        product_ids::T248X,
+        product_ids::TS_PC_RACER,
+        product_ids::TS_XW,
+        product_ids::TS_XW_GIP,
+        product_ids::T818,
+        product_ids::T80,
+        product_ids::T80_FERRARI_488,
+        product_ids::NASCAR_PRO_FF2,
+        product_ids::FGT_RUMBLE_FORCE,
+        product_ids::RGT_FF_CLUTCH,
+        product_ids::FGT_FORCE_FEEDBACK,
         product_ids::F430_FORCE_FEEDBACK,
     ];
     for pid in wheelbases {
@@ -581,7 +668,10 @@ fn protocol_new_with_config() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn protocol_new_with_config_negative_torque_floors() -> Result<(), Box<dyn std::error::Error>> {
     let proto = ThrustmasterProtocol::new_with_config(0x1234, -5.0, 900);
-    assert!((proto.max_torque_nm() - 0.01).abs() < 0.001, "negative torque floors to 0.01");
+    assert!(
+        (proto.max_torque_nm() - 0.01).abs() < 0.001,
+        "negative torque floors to 0.01"
+    );
     Ok(())
 }
 
@@ -814,7 +904,10 @@ fn t150_play_and_stop_relationship() -> Result<(), Box<dyn std::error::Error>> {
     for id in [0u8, 1, 5, 255] {
         let stop = encode_stop_effect_t150(id);
         let play_zero = encode_play_effect_t150(id, 0, 0);
-        assert_eq!(stop, play_zero, "stop(id={id}) must equal play(id={id}, 0, 0)");
+        assert_eq!(
+            stop, play_zero,
+            "stop(id={id}) must equal play(id={id}, 0, 0)"
+        );
     }
     Ok(())
 }
@@ -833,7 +926,11 @@ fn t150_effect_type_all_values() -> Result<(), Box<dyn std::error::Error>> {
     ];
     for &(effect, value) in expected {
         assert_eq!(effect.as_u16(), value, "{effect:?}");
-        assert_eq!(T150EffectType::from_u16(value), Some(effect), "value 0x{value:04X}");
+        assert_eq!(
+            T150EffectType::from_u16(value),
+            Some(effect),
+            "value 0x{value:04X}"
+        );
     }
     // Invalid values
     assert_eq!(T150EffectType::from_u16(0x0000), None);
@@ -848,7 +945,8 @@ fn t150_effect_type_all_values() -> Result<(), Box<dyn std::error::Error>> {
 fn input_report_center_steering() -> Result<(), Box<dyn std::error::Error>> {
     let mut data = [0u8; 16];
     data[0] = STANDARD_INPUT_REPORT_ID;
-    data[1] = 0x00; data[2] = 0x80; // center = 0x8000
+    data[1] = 0x00;
+    data[2] = 0x80; // center = 0x8000
     let state = parse_input_report(&data).ok_or("parse failed")?;
     assert!(state.steering.abs() < 0.001);
     Ok(())
@@ -860,12 +958,14 @@ fn input_report_full_left_right() -> Result<(), Box<dyn std::error::Error>> {
     data[0] = STANDARD_INPUT_REPORT_ID;
 
     // Full left: 0x0000
-    data[1] = 0x00; data[2] = 0x00;
+    data[1] = 0x00;
+    data[2] = 0x00;
     let left = parse_input_report(&data).ok_or("parse failed")?;
     assert!((left.steering + 1.0).abs() < 0.001);
 
     // Full right: 0xFFFF
-    data[1] = 0xFF; data[2] = 0xFF;
+    data[1] = 0xFF;
+    data[2] = 0xFF;
     let right = parse_input_report(&data).ok_or("parse failed")?;
     assert!((right.steering - 1.0).abs() < 0.001);
     Ok(())
@@ -877,7 +977,7 @@ fn input_report_pedal_normalization() -> Result<(), Box<dyn std::error::Error>> 
     data[0] = STANDARD_INPUT_REPORT_ID;
     data[3] = 255; // full throttle
     data[4] = 128; // half brake
-    data[5] = 0;   // no clutch
+    data[5] = 0; // no clutch
     let state = parse_input_report(&data).ok_or("parse failed")?;
     assert!((state.throttle - 1.0).abs() < 0.01);
     assert!((state.brake - 0.502).abs() < 0.01);

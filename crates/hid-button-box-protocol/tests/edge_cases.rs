@@ -5,7 +5,7 @@
 
 use hid_button_box_protocol::{
     ButtonBoxCapabilities, ButtonBoxError, ButtonBoxInputReport, ButtonBoxType, HatDirection,
-    RotaryEncoderState, MAX_AXES, MAX_BUTTONS, PRODUCT_ID_BUTTON_BOX, REPORT_SIZE_GAMEPAD,
+    MAX_AXES, MAX_BUTTONS, PRODUCT_ID_BUTTON_BOX, REPORT_SIZE_GAMEPAD, RotaryEncoderState,
     VENDOR_ID_GENERIC,
 };
 use proptest::prelude::*;
@@ -30,8 +30,7 @@ fn constants_golden_values() {
 #[test]
 fn gamepad_all_ones_report() -> Result<(), Box<dyn std::error::Error>> {
     let data = [0xFF_u8; 10];
-    let report =
-        ButtonBoxInputReport::parse_gamepad(&data).map_err(|e| e.to_string())?;
+    let report = ButtonBoxInputReport::parse_gamepad(&data).map_err(|e| e.to_string())?;
     assert_eq!(report.buttons, 0xFFFF);
     assert_eq!(report.axis_x, -1_i16);
     assert_eq!(report.axis_y, -1_i16);
@@ -43,8 +42,7 @@ fn gamepad_all_ones_report() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn gamepad_all_zeros_report() -> Result<(), Box<dyn std::error::Error>> {
     let data = [0x00_u8; 10];
-    let report =
-        ButtonBoxInputReport::parse_gamepad(&data).map_err(|e| e.to_string())?;
+    let report = ButtonBoxInputReport::parse_gamepad(&data).map_err(|e| e.to_string())?;
     assert_eq!(report.buttons, 0);
     assert_eq!(report.axis_x, 0);
     assert_eq!(report.axis_y, 0);
@@ -56,8 +54,7 @@ fn gamepad_all_zeros_report() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn extended_all_ones_report() -> Result<(), Box<dyn std::error::Error>> {
     let data = [0xFF_u8; 13];
-    let report =
-        ButtonBoxInputReport::parse_extended(&data).map_err(|e| e.to_string())?;
+    let report = ButtonBoxInputReport::parse_extended(&data).map_err(|e| e.to_string())?;
     assert_eq!(report.buttons, u32::MAX);
     assert_eq!(report.axis_x, -1_i16);
     assert_eq!(report.axis_rz, -1_i16);
@@ -68,8 +65,7 @@ fn extended_all_ones_report() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn extended_all_zeros_report() -> Result<(), Box<dyn std::error::Error>> {
     let data = [0x00_u8; 13];
-    let report =
-        ButtonBoxInputReport::parse_extended(&data).map_err(|e| e.to_string())?;
+    let report = ButtonBoxInputReport::parse_extended(&data).map_err(|e| e.to_string())?;
     assert_eq!(report.buttons, 0);
     assert_eq!(report.axis_rz, 0);
     assert_eq!(report.hat_direction(), HatDirection::Up);
@@ -85,8 +81,7 @@ fn gamepad_wire_format_buttons_at_byte_boundary() -> Result<(), Box<dyn std::err
     let mut data = [0u8; 10];
     // Button 8 = bit 8 = byte[1] bit 0
     data[1] = 0x01;
-    let report =
-        ButtonBoxInputReport::parse_gamepad(&data).map_err(|e| e.to_string())?;
+    let report = ButtonBoxInputReport::parse_gamepad(&data).map_err(|e| e.to_string())?;
     assert!(report.button(8));
     assert!(!report.button(0));
     assert!(!report.button(7));
@@ -99,8 +94,7 @@ fn extended_wire_format_high_buttons() -> Result<(), Box<dyn std::error::Error>>
     let mut data = [0u8; 13];
     // Button 24 = bit 24 = byte[3] bit 0
     data[3] = 0x01;
-    let report =
-        ButtonBoxInputReport::parse_extended(&data).map_err(|e| e.to_string())?;
+    let report = ButtonBoxInputReport::parse_extended(&data).map_err(|e| e.to_string())?;
     assert!(report.button(24));
     assert!(!report.button(23));
     assert!(!report.button(25));
@@ -115,9 +109,11 @@ fn extended_wire_format_high_buttons() -> Result<(), Box<dyn std::error::Error>>
 #[test]
 fn gamepad_axis_rz_always_zero() -> Result<(), Box<dyn std::error::Error>> {
     let data = [0xFF_u8; 10];
-    let report =
-        ButtonBoxInputReport::parse_gamepad(&data).map_err(|e| e.to_string())?;
-    assert_eq!(report.axis_rz, 0, "gamepad format must not populate axis_rz");
+    let report = ButtonBoxInputReport::parse_gamepad(&data).map_err(|e| e.to_string())?;
+    assert_eq!(
+        report.axis_rz, 0,
+        "gamepad format must not populate axis_rz"
+    );
     Ok(())
 }
 

@@ -24,9 +24,9 @@ use openracing_calibration::types::{AxisCalibration, DeviceCalibration};
 use openracing_filters::{DamperState, Frame as FilterFrame, damper_filter, torque_cap_filter};
 use openracing_profile::types::{FfbSettings, WheelProfile, WheelSettings};
 use openracing_profile::validation;
+use racing_wheel_engine::VirtualDevice;
 use racing_wheel_engine::ports::HidDevice;
 use racing_wheel_engine::safety::{FaultType, SafetyService, SafetyState};
-use racing_wheel_engine::VirtualDevice;
 use racing_wheel_schemas::prelude::*;
 use racing_wheel_telemetry_adapters::{ForzaAdapter, TelemetryAdapter};
 
@@ -446,8 +446,8 @@ fn given_game_running_when_user_switches_profile_then_smooth_transition() -> Res
         },
         ..Default::default()
     };
-    let iracing_profile = WheelProfile::new("iRacing GT3 Profile", "bdd-device-002")
-        .with_settings(iracing_settings);
+    let iracing_profile =
+        WheelProfile::new("iRacing GT3 Profile", "bdd-device-002").with_settings(iracing_settings);
     validation::validate_profile(&iracing_profile)?;
 
     // Then: the merged profile applies the new (iRacing) settings

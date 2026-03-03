@@ -62,10 +62,7 @@ impl TracingProvider for MetricsTrackingProvider {
     }
 
     fn metrics(&self) -> TracingMetrics {
-        self.metrics
-            .lock()
-            .map(|m| m.clone())
-            .unwrap_or_default()
+        self.metrics.lock().map(|m| m.clone()).unwrap_or_default()
     }
 
     fn is_enabled(&self) -> bool {
@@ -201,7 +198,10 @@ fn streaming_metrics_drop_rate_calculation() {
     m.events_dropped = 10;
 
     let rate = m.drop_rate();
-    assert!((rate - 0.1).abs() < 0.0001, "drop rate should be ~0.1, got {rate}");
+    assert!(
+        (rate - 0.1).abs() < 0.0001,
+        "drop rate should be ~0.1, got {rate}"
+    );
 }
 
 #[test]
@@ -387,7 +387,10 @@ fn property_drop_rate_always_bounded() {
         ..Default::default()
     };
     let rate = m.drop_rate();
-    assert!((0.0..=1.0).contains(&rate), "drop_rate out of [0,1]: {rate}");
+    assert!(
+        (0.0..=1.0).contains(&rate),
+        "drop_rate out of [0,1]: {rate}"
+    );
 }
 
 #[test]
@@ -453,42 +456,56 @@ fn rt_event_categories_are_correct() {
     ];
 
     for (event, expected_cat) in &events_and_categories {
-        assert_eq!(event.category(), *expected_cat, "wrong category for {event}");
+        assert_eq!(
+            event.category(),
+            *expected_cat,
+            "wrong category for {event}"
+        );
     }
 }
 
 #[test]
 fn rt_event_is_error_classification() {
-    assert!(RTTraceEvent::DeadlineMiss {
-        tick_count: 0,
-        timestamp_ns: 0,
-        jitter_ns: 0,
-    }
-    .is_error());
-    assert!(RTTraceEvent::PipelineFault {
-        tick_count: 0,
-        timestamp_ns: 0,
-        error_code: 0,
-    }
-    .is_error());
-    assert!(!RTTraceEvent::TickStart {
-        tick_count: 0,
-        timestamp_ns: 0,
-    }
-    .is_error());
-    assert!(!RTTraceEvent::TickEnd {
-        tick_count: 0,
-        timestamp_ns: 0,
-        processing_time_ns: 0,
-    }
-    .is_error());
-    assert!(!RTTraceEvent::HidWrite {
-        tick_count: 0,
-        timestamp_ns: 0,
-        torque_nm: 0.0,
-        seq: 0,
-    }
-    .is_error());
+    assert!(
+        RTTraceEvent::DeadlineMiss {
+            tick_count: 0,
+            timestamp_ns: 0,
+            jitter_ns: 0,
+        }
+        .is_error()
+    );
+    assert!(
+        RTTraceEvent::PipelineFault {
+            tick_count: 0,
+            timestamp_ns: 0,
+            error_code: 0,
+        }
+        .is_error()
+    );
+    assert!(
+        !RTTraceEvent::TickStart {
+            tick_count: 0,
+            timestamp_ns: 0,
+        }
+        .is_error()
+    );
+    assert!(
+        !RTTraceEvent::TickEnd {
+            tick_count: 0,
+            timestamp_ns: 0,
+            processing_time_ns: 0,
+        }
+        .is_error()
+    );
+    assert!(
+        !RTTraceEvent::HidWrite {
+            tick_count: 0,
+            timestamp_ns: 0,
+            torque_nm: 0.0,
+            seq: 0,
+        }
+        .is_error()
+    );
 }
 
 #[test]
@@ -853,10 +870,7 @@ fn structured_field_encoding() {
         "torque_nm field missing: {out}"
     );
     assert!(out.contains("device_id"), "device_id field missing: {out}");
-    assert!(
-        out.contains("enabled=true"),
-        "enabled field missing: {out}"
-    );
+    assert!(out.contains("enabled=true"), "enabled field missing: {out}");
 }
 
 // 4. Span nesting and context propagation ----------------------------------------
@@ -942,10 +956,7 @@ fn output_format_json() {
     assert!(parsed.is_ok(), "output should be valid JSON: {out}");
 
     if let Ok(val) = parsed {
-        assert!(
-            val.get("level").is_some(),
-            "JSON should have level: {val}"
-        );
+        assert!(val.get("level").is_some(), "JSON should have level: {val}");
     }
 }
 
@@ -989,10 +1000,7 @@ fn output_format_full() {
 
     let out = read_captured(&buf);
     assert!(out.contains("INFO"), "level should appear: {out}");
-    assert!(
-        out.contains("full format event"),
-        "message missing: {out}"
-    );
+    assert!(out.contains("full format event"), "message missing: {out}");
     assert!(out.contains("key="), "field should appear: {out}");
 }
 
@@ -1110,10 +1118,7 @@ async fn async_context_propagation() {
         out.contains("async_parent"),
         "parent span missing in async: {out}"
     );
-    assert!(
-        out.contains("async_inner_event"),
-        "event missing: {out}"
-    );
+    assert!(out.contains("async_inner_event"), "event missing: {out}");
 }
 
 #[tokio::test]
@@ -1328,10 +1333,7 @@ fn custom_field_types_display_and_debug() {
         out.contains("display format"),
         "display message missing: {out}"
     );
-    assert!(
-        out.contains("debug format"),
-        "debug message missing: {out}"
-    );
+    assert!(out.contains("debug format"), "debug message missing: {out}");
 }
 
 #[test]

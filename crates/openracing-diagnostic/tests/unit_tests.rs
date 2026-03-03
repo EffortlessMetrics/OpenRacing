@@ -4,10 +4,9 @@
 //! WbbHeader/WbbFooter validation, StreamType, and basic stream operations.
 
 use openracing_diagnostic::{
-    DiagnosticError, DiagnosticResult, FrameData, HealthEventData, SafetyStateSimple,
-    StreamA, StreamC, StreamReader, TelemetryData,
-    WbbHeader, WbbFooter, IndexEntry, StreamType,
-    format::{WBB_MAGIC, WBB_FOOTER_MAGIC, WBB_VERSION, STREAM_A_ID, STREAM_B_ID, STREAM_C_ID},
+    DiagnosticError, DiagnosticResult, FrameData, HealthEventData, IndexEntry, SafetyStateSimple,
+    StreamA, StreamC, StreamReader, StreamType, TelemetryData, WbbFooter, WbbHeader,
+    format::{STREAM_A_ID, STREAM_B_ID, STREAM_C_ID, WBB_FOOTER_MAGIC, WBB_MAGIC, WBB_VERSION},
 };
 
 // ---------------------------------------------------------------------------
@@ -75,16 +74,40 @@ mod diagnostic_error_display {
     #[test]
     fn display_contains_inner_message() -> DiagnosticResult<()> {
         let cases = [
-            (DiagnosticError::Recording("buffer full".into()), "buffer full"),
-            (DiagnosticError::Replay("frame mismatch".into()), "frame mismatch"),
+            (
+                DiagnosticError::Recording("buffer full".into()),
+                "buffer full",
+            ),
+            (
+                DiagnosticError::Replay("frame mismatch".into()),
+                "frame mismatch",
+            ),
             (DiagnosticError::Format("bad header".into()), "bad header"),
             (DiagnosticError::Io("disk full".into()), "disk full"),
-            (DiagnosticError::Serialization("encode fail".into()), "encode fail"),
-            (DiagnosticError::Deserialization("decode fail".into()), "decode fail"),
-            (DiagnosticError::Compression("zlib error".into()), "zlib error"),
-            (DiagnosticError::SizeLimit("exceeded 10MB".into()), "exceeded 10MB"),
-            (DiagnosticError::Configuration("missing key".into()), "missing key"),
-            (DiagnosticError::Validation("out of range".into()), "out of range"),
+            (
+                DiagnosticError::Serialization("encode fail".into()),
+                "encode fail",
+            ),
+            (
+                DiagnosticError::Deserialization("decode fail".into()),
+                "decode fail",
+            ),
+            (
+                DiagnosticError::Compression("zlib error".into()),
+                "zlib error",
+            ),
+            (
+                DiagnosticError::SizeLimit("exceeded 10MB".into()),
+                "exceeded 10MB",
+            ),
+            (
+                DiagnosticError::Configuration("missing key".into()),
+                "missing key",
+            ),
+            (
+                DiagnosticError::Validation("out of range".into()),
+                "out of range",
+            ),
         ];
         for (err, expected_substr) in &cases {
             assert!(
@@ -208,7 +231,10 @@ mod wbb_header_tests {
         header.version = 99;
         let result = header.validate();
         assert!(result.is_err());
-        assert!(matches!(result, Err(DiagnosticError::UnsupportedVersion(99))));
+        assert!(matches!(
+            result,
+            Err(DiagnosticError::UnsupportedVersion(99))
+        ));
         Ok(())
     }
 
@@ -400,12 +426,7 @@ mod stream_a_tests {
             seq: 42,
         };
 
-        stream.record_frame(
-            frame,
-            &[0.1, 0.2],
-            SafetyStateSimple::SafeTorque,
-            150,
-        )?;
+        stream.record_frame(frame, &[0.1, 0.2], SafetyStateSimple::SafeTorque, 150)?;
         assert_eq!(stream.record_count(), 1);
 
         let data = stream.get_data()?;
@@ -455,12 +476,7 @@ mod stream_a_tests {
     #[test]
     fn reset_clears_state() -> DiagnosticResult<()> {
         let mut stream = StreamA::new();
-        stream.record_frame(
-            FrameData::default(),
-            &[],
-            SafetyStateSimple::SafeTorque,
-            0,
-        )?;
+        stream.record_frame(FrameData::default(), &[], SafetyStateSimple::SafeTorque, 0)?;
         assert_eq!(stream.record_count(), 1);
         stream.reset();
         assert_eq!(stream.record_count(), 0);

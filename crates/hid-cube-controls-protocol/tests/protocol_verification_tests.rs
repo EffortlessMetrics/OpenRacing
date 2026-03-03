@@ -53,10 +53,7 @@ fn vid_is_stmicroelectronics_shared() -> Result<(), Box<dyn std::error::Error>> 
 #[test]
 fn pids_are_placeholder_values() -> Result<(), Box<dyn std::error::Error>> {
     // These are sequential placeholder values — verify they match the code
-    assert_eq!(
-        CUBE_CONTROLS_GT_PRO_PID, 0x0C73,
-        "GT Pro provisional PID"
-    );
+    assert_eq!(CUBE_CONTROLS_GT_PRO_PID, 0x0C73, "GT Pro provisional PID");
     assert_eq!(
         CUBE_CONTROLS_FORMULA_PRO_PID, 0x0C74,
         "Formula Pro provisional PID"
@@ -81,10 +78,7 @@ fn unknown_pids_rejected() -> Result<(), Box<dyn std::error::Error>> {
         !is_cube_controls_product(0x0001),
         "arbitrary PID must be rejected"
     );
-    assert!(
-        !is_cube_controls_product(0xFFFF),
-        "0xFFFF must be rejected"
-    );
+    assert!(!is_cube_controls_product(0xFFFF), "0xFFFF must be rejected");
     // VRS DFP PID shares VID 0x0483 but must not match as Cube Controls
     assert!(
         !is_cube_controls_product(0xA355),
@@ -108,10 +102,7 @@ fn all_models_are_provisional() -> Result<(), Box<dyn std::error::Error>> {
         CubeControlsModel::Unknown,
     ];
     for model in &models {
-        assert!(
-            model.is_provisional(),
-            "{model:?} must be provisional"
-        );
+        assert!(model.is_provisional(), "{model:?} must be provisional");
     }
     Ok(())
 }

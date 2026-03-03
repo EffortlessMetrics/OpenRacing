@@ -8,8 +8,8 @@ use std::cmp::Ordering;
 use std::time::Duration;
 
 use openracing_firmware_update::bundle::{
-    BundleMetadata, CompressionType, FirmwareBundle,
-    BUNDLE_FORMAT_VERSION, OWFB_MAGIC, ReleaseChannel,
+    BUNDLE_FORMAT_VERSION, BundleMetadata, CompressionType, FirmwareBundle, OWFB_MAGIC,
+    ReleaseChannel,
 };
 use openracing_firmware_update::hardware_version::{HardwareVersion, HardwareVersionError};
 use openracing_firmware_update::manager::{
@@ -46,10 +46,7 @@ fn test_firmware_image(data: &[u8]) -> FirmwareImage {
     }
 }
 
-fn make_bundle(
-    data: &[u8],
-    compression: CompressionType,
-) -> Result<FirmwareBundle, anyhow::Error> {
+fn make_bundle(data: &[u8], compression: CompressionType) -> Result<FirmwareBundle, anyhow::Error> {
     let image = test_firmware_image(data);
     let metadata = BundleMetadata::default();
     FirmwareBundle::new(&image, metadata, compression)
@@ -988,9 +985,9 @@ mod property_tests {
                 .join(".");
             // parse is infallible for valid numeric components
             HardwareVersion::parse(&s).ok().unwrap_or_else(|| {
-                HardwareVersion::parse("0").ok().unwrap_or_else(|| {
-                    unreachable!()
-                })
+                HardwareVersion::parse("0")
+                    .ok()
+                    .unwrap_or_else(|| unreachable!())
             })
         })
     }

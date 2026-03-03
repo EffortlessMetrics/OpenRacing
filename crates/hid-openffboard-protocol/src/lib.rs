@@ -30,8 +30,8 @@ pub mod ids;
 pub mod output;
 
 pub use ids::{
-    is_openffboard_product, OpenFFBoardVariant, OPENFFBOARD_PRODUCT_ID,
-    OPENFFBOARD_PRODUCT_ID_ALT, OPENFFBOARD_VENDOR_ID,
+    is_openffboard_product, OpenFFBoardVariant, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT,
+    OPENFFBOARD_VENDOR_ID,
 };
 pub use output::{
     build_enable_ffb, build_set_gain, OpenFFBoardTorqueEncoder, CONSTANT_FORCE_REPORT_ID,

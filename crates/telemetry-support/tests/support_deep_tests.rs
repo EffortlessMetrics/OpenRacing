@@ -4,8 +4,8 @@
 //! and extended matrix validation.
 
 use racing_wheel_telemetry_support::{
-    GameSupportMatrix, GameSupportStatus, load_default_matrix, matrix_game_id_set,
-    matrix_game_ids, normalize_game_id,
+    GameSupportMatrix, GameSupportStatus, load_default_matrix, matrix_game_id_set, matrix_game_ids,
+    normalize_game_id,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -183,10 +183,7 @@ fn serde_round_trip_preserves_telemetry_details() -> TestResult {
             orig.telemetry.update_rate_hz, copy.telemetry.update_rate_hz,
             "rate mismatch for {id}"
         );
-        assert_eq!(
-            orig.status, copy.status,
-            "status mismatch for {id}"
-        );
+        assert_eq!(orig.status, copy.status, "status mismatch for {id}");
     }
     Ok(())
 }
@@ -379,7 +376,9 @@ fn auto_detect_coverage_is_reasonable() -> TestResult {
     let with_auto_detect = matrix
         .games
         .values()
-        .filter(|g| !g.auto_detect.process_names.is_empty() || !g.auto_detect.install_paths.is_empty())
+        .filter(|g| {
+            !g.auto_detect.process_names.is_empty() || !g.auto_detect.install_paths.is_empty()
+        })
         .count();
 
     assert!(
@@ -520,7 +519,10 @@ games:
       install_paths: []
 "#;
     let result: Result<GameSupportMatrix, _> = serde_yaml::from_str(yaml);
-    assert!(result.is_err(), "string for update_rate_hz should be an error");
+    assert!(
+        result.is_err(),
+        "string for update_rate_hz should be an error"
+    );
 }
 
 #[test]
@@ -720,8 +722,7 @@ fn matrix_clone_preserves_game_ids() -> TestResult {
     assert_eq!(matrix.game_ids(), cloned.game_ids());
     for id in matrix.game_ids() {
         assert_eq!(
-            matrix.games[&id].name,
-            cloned.games[&id].name,
+            matrix.games[&id].name, cloned.games[&id].name,
             "name mismatch for {id}"
         );
     }
@@ -793,13 +794,11 @@ fn serde_round_trip_preserves_status_and_field_mappings() -> TestResult {
             "rpm field mismatch for {id}"
         );
         assert_eq!(
-            orig.telemetry.supports_360hz_option,
-            copy.telemetry.supports_360hz_option,
+            orig.telemetry.supports_360hz_option, copy.telemetry.supports_360hz_option,
             "360hz mismatch for {id}"
         );
         assert_eq!(
-            orig.telemetry.high_rate_update_rate_hz,
-            copy.telemetry.high_rate_update_rate_hz,
+            orig.telemetry.high_rate_update_rate_hz, copy.telemetry.high_rate_update_rate_hz,
             "high_rate_hz mismatch for {id}"
         );
         assert_eq!(
@@ -822,8 +821,7 @@ fn json_serde_round_trip_preserves_game_ids() -> TestResult {
     assert_eq!(matrix.game_ids(), rt.game_ids());
     for id in matrix.game_ids() {
         assert_eq!(
-            matrix.games[&id].name,
-            rt.games[&id].name,
+            matrix.games[&id].name, rt.games[&id].name,
             "JSON name mismatch for {id}"
         );
     }
@@ -952,6 +950,11 @@ games:
         matrix.games["with_target"].telemetry.output_target,
         Some("127.0.0.1:20777".to_string())
     );
-    assert!(matrix.games["without_target"].telemetry.output_target.is_none());
+    assert!(
+        matrix.games["without_target"]
+            .telemetry
+            .output_target
+            .is_none()
+    );
     Ok(())
 }

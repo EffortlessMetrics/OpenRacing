@@ -26,16 +26,21 @@
 //! 5. **USB HID PID 1.01 specification**:
 //!    <https://www.usb.org/sites/default/files/documents/pid1_01.pdf>
 
-use racing_wheel_hid_openffboard_protocol::{
-    // Re-exported from lib.rs
-    OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT, OPENFFBOARD_VENDOR_ID,
-    CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, GAIN_REPORT_ID,
-    OpenFFBoardTorqueEncoder, build_enable_ffb, build_set_gain,
-    is_openffboard_product, OpenFFBoardVariant,
-};
 use racing_wheel_hid_openffboard_protocol::ids::OPENFFBOARD_PRODUCT_ID as IDS_PID;
-use racing_wheel_hid_openffboard_protocol::output::{
-    ENABLE_FFB_REPORT_ID, MAX_TORQUE_SCALE,
+use racing_wheel_hid_openffboard_protocol::output::{ENABLE_FFB_REPORT_ID, MAX_TORQUE_SCALE};
+use racing_wheel_hid_openffboard_protocol::{
+    build_enable_ffb,
+    build_set_gain,
+    is_openffboard_product,
+    OpenFFBoardTorqueEncoder,
+    OpenFFBoardVariant,
+    CONSTANT_FORCE_REPORT_ID,
+    CONSTANT_FORCE_REPORT_LEN,
+    GAIN_REPORT_ID,
+    // Re-exported from lib.rs
+    OPENFFBOARD_PRODUCT_ID,
+    OPENFFBOARD_PRODUCT_ID_ALT,
+    OPENFFBOARD_VENDOR_ID,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -90,7 +95,10 @@ fn alt_pid_is_speculative_ffb1() {
 /// Source: pid.codes FAQ — 0x1209 is the shared VID for open-source hardware.
 #[test]
 fn vid_is_pid_codes_open_hardware_block() {
-    assert_eq!(OPENFFBOARD_VENDOR_ID, 0x1209, "Must be the pid.codes shared VID");
+    assert_eq!(
+        OPENFFBOARD_VENDOR_ID, 0x1209,
+        "Must be the pid.codes shared VID"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -175,11 +183,11 @@ fn firmware_input_report_id_is_1() {
 #[test]
 fn firmware_hid_report_ids_cross_reference() {
     // From ffb_defs.h — standard PID report IDs
-    let hid_id_effrep: u8 = 0x01;    // Set Effect Report
-    let hid_id_constrep: u8 = 0x05;  // Set Constant Force Report
-    let hid_id_gainrep: u8 = 0x0D;   // Device Gain Report
-    let hid_id_ctrlrep: u8 = 0x0C;   // PID Device Control
-    let hid_id_hidcmd: u8 = 0xA1;    // HID command interface
+    let hid_id_effrep: u8 = 0x01; // Set Effect Report
+    let hid_id_constrep: u8 = 0x05; // Set Constant Force Report
+    let hid_id_gainrep: u8 = 0x0D; // Device Gain Report
+    let hid_id_ctrlrep: u8 = 0x0C; // PID Device Control
+    let hid_id_hidcmd: u8 = 0xA1; // HID command interface
 
     assert_eq!(hid_id_effrep, 0x01);
     assert_eq!(hid_id_constrep, 0x05);
@@ -488,7 +496,11 @@ fn known_good_half_gain_bytes() {
 /// All output report IDs must be distinct to avoid protocol confusion.
 #[test]
 fn all_output_report_ids_are_distinct() {
-    let ids = [CONSTANT_FORCE_REPORT_ID, ENABLE_FFB_REPORT_ID, GAIN_REPORT_ID];
+    let ids = [
+        CONSTANT_FORCE_REPORT_ID,
+        ENABLE_FFB_REPORT_ID,
+        GAIN_REPORT_ID,
+    ];
     for (i, &a) in ids.iter().enumerate() {
         for (j, &b) in ids.iter().enumerate() {
             if i != j {
@@ -513,8 +525,14 @@ fn all_output_report_ids_are_distinct() {
 #[test]
 fn linux_steering_wheels_confirms_vid_pid() {
     // Exact values from the linux-steering-wheels compatibility table
-    assert_eq!(OPENFFBOARD_VENDOR_ID, 0x1209, "VID from linux-steering-wheels table");
-    assert_eq!(OPENFFBOARD_PRODUCT_ID, 0xFFB0, "PID from linux-steering-wheels table");
+    assert_eq!(
+        OPENFFBOARD_VENDOR_ID, 0x1209,
+        "VID from linux-steering-wheels table"
+    );
+    assert_eq!(
+        OPENFFBOARD_PRODUCT_ID, 0xFFB0,
+        "PID from linux-steering-wheels table"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -573,8 +591,15 @@ fn firmware_hid_cmd_types() {
 
     // Verify all values are distinct
     let types = [
-        cmd_write, cmd_request, cmd_info, cmd_write_addr, cmd_request_addr,
-        cmd_ack, cmd_not_found, cmd_notification, cmd_err,
+        cmd_write,
+        cmd_request,
+        cmd_info,
+        cmd_write_addr,
+        cmd_request_addr,
+        cmd_ack,
+        cmd_not_found,
+        cmd_notification,
+        cmd_err,
     ];
     for (i, &a) in types.iter().enumerate() {
         for (j, &b) in types.iter().enumerate() {
@@ -643,8 +668,8 @@ fn firmware_composite_device_structure() {
 /// crate's encoding is an internal convention, not a PID-compliant report.
 #[test]
 fn firmware_set_constant_force_struct() {
-    let report_id: u8 = 0x05;    // HID_ID_CONSTREP
-    let struct_size: usize = 4;  // reportId + effectBlockIndex + magnitude(i16)
+    let report_id: u8 = 0x05; // HID_ID_CONSTREP
+    let struct_size: usize = 4; // reportId + effectBlockIndex + magnitude(i16)
     let max_effects: u8 = 40;
 
     assert_eq!(report_id, 0x05);

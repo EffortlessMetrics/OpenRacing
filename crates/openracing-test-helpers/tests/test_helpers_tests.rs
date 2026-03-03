@@ -347,7 +347,9 @@ mod assertion_macros {
 // ── Must helpers ───────────────────────────────────────────────────────────
 
 mod must_helpers {
-    use openracing_test_helpers::{must, must_or_else, must_parse, must_some, must_some_or, must_with};
+    use openracing_test_helpers::{
+        must, must_or_else, must_parse, must_some, must_some_or, must_with,
+    };
 
     #[test]
     fn must_unwraps_ok() {
@@ -583,20 +585,35 @@ mod mock_telemetry {
             let progress = i as f32 / 100.0;
             let sample = MockTelemetryData::racing_sample(progress);
             // RPM should be in a reasonable range (base 4000 ± 2000)
-            assert!(sample.rpm >= 2000.0 && sample.rpm <= 6000.0,
-                "rpm out of range at progress {progress}: {}", sample.rpm);
+            assert!(
+                sample.rpm >= 2000.0 && sample.rpm <= 6000.0,
+                "rpm out of range at progress {progress}: {}",
+                sample.rpm
+            );
             // Speed should be positive
-            assert!(sample.speed_ms >= 0.0,
-                "speed negative at progress {progress}: {}", sample.speed_ms);
+            assert!(
+                sample.speed_ms >= 0.0,
+                "speed negative at progress {progress}: {}",
+                sample.speed_ms
+            );
             // FFB should be bounded
-            assert!(sample.ffb_scalar >= -1.0 && sample.ffb_scalar <= 1.0,
-                "ffb out of range at progress {progress}: {}", sample.ffb_scalar);
+            assert!(
+                sample.ffb_scalar >= -1.0 && sample.ffb_scalar <= 1.0,
+                "ffb out of range at progress {progress}: {}",
+                sample.ffb_scalar
+            );
             // Slip ratio should be non-negative and clamped to 1.0
-            assert!(sample.slip_ratio >= 0.0 && sample.slip_ratio <= 1.0,
-                "slip_ratio out of range at progress {progress}: {}", sample.slip_ratio);
+            assert!(
+                sample.slip_ratio >= 0.0 && sample.slip_ratio <= 1.0,
+                "slip_ratio out of range at progress {progress}: {}",
+                sample.slip_ratio
+            );
             // Gear should be positive
-            assert!(sample.gear >= 1,
-                "gear should be >= 1 at progress {progress}: {}", sample.gear);
+            assert!(
+                sample.gear >= 1,
+                "gear should be >= 1 at progress {progress}: {}",
+                sample.gear
+            );
         }
     }
 
@@ -803,9 +820,9 @@ mod mock_profile {
 #[cfg(feature = "fixtures")]
 mod fixture_generation {
     use openracing_test_helpers::fixtures::{
-        DeviceCapabilitiesFixture, LoadLevel, PerformanceFixture, ProfileFixture,
-        TelemetryFixture, get_device_fixtures, get_performance_fixtures,
-        get_profile_fixtures, get_telemetry_fixtures,
+        DeviceCapabilitiesFixture, LoadLevel, PerformanceFixture, ProfileFixture, TelemetryFixture,
+        get_device_fixtures, get_performance_fixtures, get_profile_fixtures,
+        get_telemetry_fixtures,
     };
     use std::time::Duration;
 

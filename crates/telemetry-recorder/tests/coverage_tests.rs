@@ -3,11 +3,11 @@
 //! Targets edge cases in recording, playback, fixture generation,
 //! and serialization not covered by unit tests or comprehensive.rs.
 
+use racing_wheel_schemas::telemetry::{NormalizedTelemetry, TelemetryFlags, TelemetryFrame};
 use racing_wheel_telemetry_recorder::{
     RecordingMetadata, TelemetryPlayer, TelemetryRecorder, TelemetryRecording,
     TestFixtureGenerator, TestScenario,
 };
-use racing_wheel_schemas::telemetry::{NormalizedTelemetry, TelemetryFlags, TelemetryFrame};
 use tempfile::tempdir;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -140,16 +140,14 @@ fn fixture_with_very_high_fps() -> TestResult {
 
 #[test]
 fn fixture_with_fractional_duration() -> TestResult {
-    let recording =
-        TestFixtureGenerator::generate_racing_session("frac".to_string(), 0.5, 20.0);
+    let recording = TestFixtureGenerator::generate_racing_session("frac".to_string(), 0.5, 20.0);
     assert_eq!(recording.frames.len(), 10);
     Ok(())
 }
 
 #[test]
 fn fixture_pitstop_speed_is_low_in_pits() -> TestResult {
-    let recording =
-        TestFixtureGenerator::generate_test_scenario(TestScenario::PitStop, 2.0, 30.0);
+    let recording = TestFixtureGenerator::generate_test_scenario(TestScenario::PitStop, 2.0, 30.0);
     let in_pit_frames: Vec<_> = recording
         .frames
         .iter()
@@ -239,7 +237,10 @@ fn recording_with_flags_survives_roundtrip() -> TestResult {
         abs_active: true,
         ..TelemetryFlags::default()
     };
-    let t = NormalizedTelemetry::builder().rpm(4000.0).flags(flags).build();
+    let t = NormalizedTelemetry::builder()
+        .rpm(4000.0)
+        .flags(flags)
+        .build();
     let frame = TelemetryFrame::new(t, 0, 0, 64);
     recorder.record_frame(frame);
     let _recording = recorder.stop_recording(None)?;

@@ -108,7 +108,13 @@ fn product_name_unknown_returns_none() {
 
 #[test]
 fn all_product_ids_unique() {
-    let pids = [PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE, PRODUCT_V12_LITE_2, PRODUCT_GT987];
+    let pids = [
+        PRODUCT_V10,
+        PRODUCT_V12,
+        PRODUCT_V12_LITE,
+        PRODUCT_V12_LITE_2,
+        PRODUCT_GT987,
+    ];
     for i in 0..pids.len() {
         for j in (i + 1)..pids.len() {
             assert_ne!(pids[i], pids[j], "PIDs at index {i} and {j} must differ");
@@ -118,15 +124,30 @@ fn all_product_ids_unique() {
 
 #[test]
 fn all_known_pids_have_names() {
-    let pids = [PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE, PRODUCT_V12_LITE_2, PRODUCT_GT987];
+    let pids = [
+        PRODUCT_V10,
+        PRODUCT_V12,
+        PRODUCT_V12_LITE,
+        PRODUCT_V12_LITE_2,
+        PRODUCT_GT987,
+    ];
     for pid in &pids {
-        assert!(product_name(*pid).is_some(), "PID 0x{pid:04X} should have a name");
+        assert!(
+            product_name(*pid).is_some(),
+            "PID 0x{pid:04X} should have a name"
+        );
     }
 }
 
 #[test]
 fn product_names_non_empty() {
-    let pids = [PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE, PRODUCT_V12_LITE_2, PRODUCT_GT987];
+    let pids = [
+        PRODUCT_V10,
+        PRODUCT_V12,
+        PRODUCT_V12_LITE,
+        PRODUCT_V12_LITE_2,
+        PRODUCT_GT987,
+    ];
     for pid in &pids {
         if let Some(name) = product_name(*pid) {
             assert!(!name.is_empty());

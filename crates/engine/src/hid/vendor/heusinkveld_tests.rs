@@ -55,7 +55,8 @@ fn test_new_ultimate() {
 
 #[test]
 fn test_new_pro() {
-    let handler = HeusinkveldProtocolHandler::new(HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID);
+    let handler =
+        HeusinkveldProtocolHandler::new(HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID);
     assert_eq!(handler.pedal_count(), 3);
 }
 
@@ -109,7 +110,15 @@ fn test_get_vendor_protocol_heusinkveld_pids() {
     assert!(get_vendor_protocol(HEUSINKVELD_VENDOR_ID, HEUSINKVELD_SPRINT_PID).is_some());
     assert!(get_vendor_protocol(HEUSINKVELD_VENDOR_ID, HEUSINKVELD_ULTIMATE_PID).is_some());
     // Legacy VID + legacy PIDs
-    assert!(get_vendor_protocol(HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_LEGACY_SPRINT_PID).is_some());
-    assert!(get_vendor_protocol(HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_LEGACY_ULTIMATE_PID).is_some());
+    assert!(
+        get_vendor_protocol(HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_LEGACY_SPRINT_PID).is_some()
+    );
+    assert!(
+        get_vendor_protocol(
+            HEUSINKVELD_LEGACY_VENDOR_ID,
+            HEUSINKVELD_LEGACY_ULTIMATE_PID
+        )
+        .is_some()
+    );
     assert!(get_vendor_protocol(HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID).is_some());
 }

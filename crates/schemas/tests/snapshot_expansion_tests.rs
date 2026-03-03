@@ -138,10 +138,7 @@ fn snapshot_conversion_error_invalid_device_type() {
 #[test]
 fn snapshot_conversion_error_invalid_device_state() {
     let err = ConversionError::InvalidDeviceState(-1);
-    insta::assert_snapshot!(
-        "conversion_error_invalid_device_state",
-        format!("{}", err)
-    );
+    insta::assert_snapshot!("conversion_error_invalid_device_state", format!("{}", err));
 }
 
 #[test]

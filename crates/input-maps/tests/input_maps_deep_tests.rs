@@ -1,12 +1,12 @@
 //! Deep tests for the input-map schema, compilation, and serialization.
 
 use racing_wheel_input_maps::{
-    compile_ks_map, AxisBinding, AxisDataType, ButtonBinding, ClutchBinding, ClutchModeHint,
-    DeviceInputMap, DeviceInputMapError, DeviceMapModeHints, DeviceTransportHint,
-    InitFrameDirection, InitReportFrame, JsBinding, JsModeHint, ReportConstraint, RotaryBinding,
-    RotaryModeHint,
+    AxisBinding, AxisDataType, ButtonBinding, ClutchBinding, ClutchModeHint, DeviceInputMap,
+    DeviceInputMapError, DeviceMapModeHints, DeviceTransportHint, InitFrameDirection,
+    InitReportFrame, JsBinding, JsModeHint, ReportConstraint, RotaryBinding, RotaryModeHint,
+    compile_ks_map,
 };
-use racing_wheel_ks::{KsClutchMode, KsJoystickMode, KsRotaryMode, KS_ENCODER_COUNT};
+use racing_wheel_ks::{KS_ENCODER_COUNT, KsClutchMode, KsJoystickMode, KsRotaryMode};
 
 type R = Result<(), Box<dyn std::error::Error>>;
 
@@ -1060,10 +1060,7 @@ fn overlapping_button_offsets_are_representable() {
         schema_version: 1,
         vendor_id: 0x346E,
         product_id: 0x0002,
-        buttons: vec![
-            make_button("a", 11, 0x01),
-            make_button("b", 11, 0x02),
-        ],
+        buttons: vec![make_button("a", 11, 0x01), make_button("b", 11, 0x02)],
         ..Default::default()
     };
     assert!(map.validate().is_ok());

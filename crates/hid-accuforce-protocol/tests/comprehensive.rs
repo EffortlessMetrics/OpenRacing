@@ -5,8 +5,8 @@
 
 use proptest::prelude::*;
 use racing_wheel_hid_accuforce_protocol::{
-    is_accuforce, is_accuforce_pid, AccuForceModel, DeviceInfo, HID_PID_USAGE_PAGE,
-    MAX_REPORT_BYTES, PID_ACCUFORCE_PRO, RECOMMENDED_B_INTERVAL_MS, VENDOR_ID,
+    AccuForceModel, DeviceInfo, HID_PID_USAGE_PAGE, MAX_REPORT_BYTES, PID_ACCUFORCE_PRO,
+    RECOMMENDED_B_INTERVAL_MS, VENDOR_ID, is_accuforce, is_accuforce_pid,
 };
 
 // ── Constant validation ──────────────────────────────────────────────────────
@@ -94,9 +94,7 @@ fn is_accuforce_pid_unknown() {
 #[test]
 fn is_accuforce_pid_agrees_with_is_accuforce() {
     // With the correct VID, is_accuforce should agree with is_accuforce_pid
-    let test_pids: &[u16] = &[
-        0x0000, 0x0001, PID_ACCUFORCE_PRO, 0x804B, 0x804D, 0xFFFF,
-    ];
+    let test_pids: &[u16] = &[0x0000, 0x0001, PID_ACCUFORCE_PRO, 0x804B, 0x804D, 0xFFFF];
     for &pid in test_pids {
         assert_eq!(
             is_accuforce(VENDOR_ID, pid),
@@ -110,19 +108,34 @@ fn is_accuforce_pid_agrees_with_is_accuforce() {
 
 #[test]
 fn model_from_known_pid() {
-    assert_eq!(AccuForceModel::from_product_id(PID_ACCUFORCE_PRO), AccuForceModel::Pro);
+    assert_eq!(
+        AccuForceModel::from_product_id(PID_ACCUFORCE_PRO),
+        AccuForceModel::Pro
+    );
 }
 
 #[test]
 fn model_from_unknown_pid() {
-    assert_eq!(AccuForceModel::from_product_id(0x0000), AccuForceModel::Unknown);
-    assert_eq!(AccuForceModel::from_product_id(0xFFFF), AccuForceModel::Unknown);
-    assert_eq!(AccuForceModel::from_product_id(0x804B), AccuForceModel::Unknown);
+    assert_eq!(
+        AccuForceModel::from_product_id(0x0000),
+        AccuForceModel::Unknown
+    );
+    assert_eq!(
+        AccuForceModel::from_product_id(0xFFFF),
+        AccuForceModel::Unknown
+    );
+    assert_eq!(
+        AccuForceModel::from_product_id(0x804B),
+        AccuForceModel::Unknown
+    );
 }
 
 #[test]
 fn model_display_name_pro() {
-    assert_eq!(AccuForceModel::Pro.display_name(), "SimExperience AccuForce Pro");
+    assert_eq!(
+        AccuForceModel::Pro.display_name(),
+        "SimExperience AccuForce Pro"
+    );
 }
 
 #[test]

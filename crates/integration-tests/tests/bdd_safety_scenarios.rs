@@ -15,14 +15,12 @@ use std::time::{Duration, Instant};
 
 use anyhow::Result;
 
-use openracing_filters::{
-    DamperState, Frame as FilterFrame, damper_filter, torque_cap_filter,
-};
+use openracing_filters::{DamperState, Frame as FilterFrame, damper_filter, torque_cap_filter};
+use racing_wheel_engine::VirtualDevice;
 use racing_wheel_engine::policies::SafetyPolicy;
 use racing_wheel_engine::ports::HidDevice;
 use racing_wheel_engine::protocol::fault_flags;
 use racing_wheel_engine::safety::{FaultType, SafetyService, SafetyState};
-use racing_wheel_engine::VirtualDevice;
 use racing_wheel_schemas::prelude::*;
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -80,7 +78,10 @@ fn given_normal_operation_when_watchdog_timeout_then_safe_state() -> Result<()> 
 
     // Feed the watchdog once
     watchdog.feed();
-    assert!(!watchdog.is_expired(), "watchdog must not be expired after feed");
+    assert!(
+        !watchdog.is_expired(),
+        "watchdog must not be expired after feed"
+    );
 
     // When: the watchdog times out (simulate by waiting)
     std::thread::sleep(Duration::from_millis(110));
@@ -183,9 +184,9 @@ fn given_max_torque_when_interlock_trips_then_immediate_zero() -> Result<()> {
 fn given_e_stop_pressed_when_high_speed_cornering_then_zero_torque() -> Result<()> {
     // Given: high-speed cornering with strong lateral forces
     let mut filter_frame = FilterFrame {
-        ffb_in: 0.9,       // Strong lateral force
+        ffb_in: 0.9, // Strong lateral force
         torque_out: 0.9,
-        wheel_speed: 10.0,  // High wheel speed (rad/s)
+        wheel_speed: 10.0, // High wheel speed (rad/s)
         hands_off: false,
         ts_mono_ns: 0,
         seq: 0,
@@ -258,7 +259,10 @@ fn given_software_crash_when_in_rt_loop_then_hardware_watchdog_catches() -> Resu
     // RT loop is healthy: feeding watchdog and sending FFB
     watchdog.feed();
     device.write_ffb_report(3.0, 0)?;
-    assert!(!watchdog.is_expired(), "watchdog must be alive during normal RT loop");
+    assert!(
+        !watchdog.is_expired(),
+        "watchdog must be alive during normal RT loop"
+    );
 
     // When: a software crash occurs — the RT loop stops feeding the watchdog
     // Simulate a timing violation fault
@@ -367,9 +371,7 @@ fn given_concurrent_faults_when_all_fire_then_most_restrictive_wins() -> Result<
             );
         }
         other => {
-            return Err(anyhow::anyhow!(
-                "expected Faulted, got {other:?}"
-            ));
+            return Err(anyhow::anyhow!("expected Faulted, got {other:?}"));
         }
     }
 

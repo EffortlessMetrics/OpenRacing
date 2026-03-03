@@ -39,8 +39,8 @@ fn creation_default_equals_default_trait() -> TestResult {
 
 #[test]
 fn creation_with_full_matrix_loads_all_matrix_games() -> TestResult {
-    let matrix = load_default_matrix()
-        .map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
+    let matrix =
+        load_default_matrix().map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
     let matrix_count = matrix.games.len();
     let service = TelemetryService::from_support_matrix(Some(matrix));
     // Every matrix game with a factory should be registered
@@ -51,8 +51,8 @@ fn creation_with_full_matrix_loads_all_matrix_games() -> TestResult {
 
 #[test]
 fn creation_with_single_game_matrix() -> TestResult {
-    let mut matrix = load_default_matrix()
-        .map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
+    let mut matrix =
+        load_default_matrix().map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
     let first_key = matrix
         .games
         .keys()
@@ -138,8 +138,8 @@ fn adapter_ids_and_supported_games_same_set() -> TestResult {
 
 #[test]
 fn matrix_filtered_service_only_has_matrix_adapters() -> TestResult {
-    let mut matrix = load_default_matrix()
-        .map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
+    let mut matrix =
+        load_default_matrix().map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
     let keep: Vec<String> = matrix.games.keys().take(3).cloned().collect();
     matrix.games.retain(|k, _| keep.contains(k));
 
@@ -436,8 +436,8 @@ fn runtime_coverage_report_available_when_matrix_loaded() -> TestResult {
 
 #[test]
 fn runtime_bdd_metrics_parity_ok_with_subset_matrix() -> TestResult {
-    let mut matrix = load_default_matrix()
-        .map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
+    let mut matrix =
+        load_default_matrix().map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
     let keep: Vec<String> = matrix.games.keys().take(2).cloned().collect();
     matrix.games.retain(|k, _| keep.contains(k));
 
@@ -453,8 +453,8 @@ fn runtime_bdd_metrics_parity_ok_with_subset_matrix() -> TestResult {
 
 #[test]
 fn runtime_bdd_metrics_fail_for_phantom_game() -> TestResult {
-    let mut matrix = load_default_matrix()
-        .map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
+    let mut matrix =
+        load_default_matrix().map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
     let fallback = matrix
         .games
         .values()

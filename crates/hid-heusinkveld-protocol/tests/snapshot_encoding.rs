@@ -16,8 +16,7 @@ fn test_snapshot_parse_half_throttle() -> Result<(), String> {
     data[0] = 0xFF;
     data[1] = 0x7F;
     data[6] = 0x03; // connected + calibrated
-    let report =
-        heusinkveld::HeusinkveldInputReport::parse(&data).map_err(|e| e.to_string())?;
+    let report = heusinkveld::HeusinkveldInputReport::parse(&data).map_err(|e| e.to_string())?;
     assert_snapshot!(format!(
         "throttle=0x{:04X}, norm={:.6}",
         report.throttle,
@@ -33,8 +32,7 @@ fn test_snapshot_parse_half_brake() -> Result<(), String> {
     data[2] = 0x00;
     data[3] = 0x80;
     data[6] = 0x03;
-    let report =
-        heusinkveld::HeusinkveldInputReport::parse(&data).map_err(|e| e.to_string())?;
+    let report = heusinkveld::HeusinkveldInputReport::parse(&data).map_err(|e| e.to_string())?;
     assert_snapshot!(format!(
         "brake=0x{:04X}, norm={:.6}",
         report.brake,
@@ -54,8 +52,7 @@ fn test_snapshot_parse_all_pedals_midpoint() -> Result<(), String> {
     data[4] = 0x00;
     data[5] = 0x40;
     data[6] = 0x03;
-    let report =
-        heusinkveld::HeusinkveldInputReport::parse(&data).map_err(|e| e.to_string())?;
+    let report = heusinkveld::HeusinkveldInputReport::parse(&data).map_err(|e| e.to_string())?;
     assert_snapshot!(format!(
         "throttle={:.6}, brake={:.6}, clutch={:.6}",
         report.throttle_normalized(),
@@ -93,14 +90,38 @@ fn test_snapshot_status_flags_exhaustive() {
 #[test]
 fn test_snapshot_model_from_vid_pid_all_combinations() {
     let combos: Vec<String> = [
-        (heusinkveld::HEUSINKVELD_VENDOR_ID, heusinkveld::HEUSINKVELD_SPRINT_PID),
-        (heusinkveld::HEUSINKVELD_VENDOR_ID, heusinkveld::HEUSINKVELD_ULTIMATE_PID),
-        (heusinkveld::HEUSINKVELD_VENDOR_ID, heusinkveld::HEUSINKVELD_HANDBRAKE_V2_PID),
-        (heusinkveld::HEUSINKVELD_LEGACY_VENDOR_ID, heusinkveld::HEUSINKVELD_LEGACY_SPRINT_PID),
-        (heusinkveld::HEUSINKVELD_LEGACY_VENDOR_ID, heusinkveld::HEUSINKVELD_LEGACY_ULTIMATE_PID),
-        (heusinkveld::HEUSINKVELD_LEGACY_VENDOR_ID, heusinkveld::HEUSINKVELD_PRO_PID),
-        (heusinkveld::HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, heusinkveld::HEUSINKVELD_HANDBRAKE_V1_PID),
-        (heusinkveld::HEUSINKVELD_SHIFTER_VENDOR_ID, heusinkveld::HEUSINKVELD_SHIFTER_PID),
+        (
+            heusinkveld::HEUSINKVELD_VENDOR_ID,
+            heusinkveld::HEUSINKVELD_SPRINT_PID,
+        ),
+        (
+            heusinkveld::HEUSINKVELD_VENDOR_ID,
+            heusinkveld::HEUSINKVELD_ULTIMATE_PID,
+        ),
+        (
+            heusinkveld::HEUSINKVELD_VENDOR_ID,
+            heusinkveld::HEUSINKVELD_HANDBRAKE_V2_PID,
+        ),
+        (
+            heusinkveld::HEUSINKVELD_LEGACY_VENDOR_ID,
+            heusinkveld::HEUSINKVELD_LEGACY_SPRINT_PID,
+        ),
+        (
+            heusinkveld::HEUSINKVELD_LEGACY_VENDOR_ID,
+            heusinkveld::HEUSINKVELD_LEGACY_ULTIMATE_PID,
+        ),
+        (
+            heusinkveld::HEUSINKVELD_LEGACY_VENDOR_ID,
+            heusinkveld::HEUSINKVELD_PRO_PID,
+        ),
+        (
+            heusinkveld::HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
+            heusinkveld::HEUSINKVELD_HANDBRAKE_V1_PID,
+        ),
+        (
+            heusinkveld::HEUSINKVELD_SHIFTER_VENDOR_ID,
+            heusinkveld::HEUSINKVELD_SHIFTER_PID,
+        ),
         (0x0000, 0x0000),
         (heusinkveld::HEUSINKVELD_VENDOR_ID, 0xFFFF),
     ]

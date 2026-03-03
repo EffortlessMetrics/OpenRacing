@@ -38,7 +38,14 @@ mod help_text {
         let output = try_wheelctl()?.arg("--help").output()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
         for subcmd in &[
-            "device", "profile", "plugin", "diag", "game", "telemetry", "safety", "completion",
+            "device",
+            "profile",
+            "plugin",
+            "diag",
+            "game",
+            "telemetry",
+            "safety",
+            "completion",
             "health",
         ] {
             assert!(
@@ -66,10 +73,7 @@ mod help_text {
         let output = try_wheelctl()?.args(["device", "--help"]).output()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
         for sub in &["list", "status", "calibrate", "reset"] {
-            assert!(
-                stdout.contains(sub),
-                "device --help should mention '{sub}'"
-            );
+            assert!(stdout.contains(sub), "device --help should mention '{sub}'");
         }
         Ok(())
     }
@@ -94,10 +98,7 @@ mod help_text {
         let output = try_wheelctl()?.args(["plugin", "--help"]).output()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
         for sub in &["list", "search", "install", "uninstall", "info", "verify"] {
-            assert!(
-                stdout.contains(sub),
-                "plugin --help should mention '{sub}'"
-            );
+            assert!(stdout.contains(sub), "plugin --help should mention '{sub}'");
         }
         Ok(())
     }
@@ -140,10 +141,7 @@ mod help_text {
         let output = try_wheelctl()?.args(["safety", "--help"]).output()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
         for sub in &["enable", "stop", "status", "limit"] {
-            assert!(
-                stdout.contains(sub),
-                "safety --help should mention '{sub}'"
-            );
+            assert!(stdout.contains(sub), "safety --help should mention '{sub}'");
         }
         Ok(())
     }
@@ -178,13 +176,14 @@ mod version_output {
         let output = try_wheelctl()?.arg("--version").output()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
         // Should contain at least "X.Y.Z" pattern
-        let has_version = stdout
-            .split_whitespace()
-            .any(|word| {
-                let parts: Vec<&str> = word.split('.').collect();
-                parts.len() >= 2 && parts.iter().all(|p| p.chars().all(|c| c.is_ascii_digit()))
-            });
-        assert!(has_version, "version output should have semver-like number: {stdout}");
+        let has_version = stdout.split_whitespace().any(|word| {
+            let parts: Vec<&str> = word.split('.').collect();
+            parts.len() >= 2 && parts.iter().all(|p| p.chars().all(|c| c.is_ascii_digit()))
+        });
+        assert!(
+            has_version,
+            "version output should have semver-like number: {stdout}"
+        );
         Ok(())
     }
 }
@@ -341,11 +340,7 @@ mod json_output {
             args.extend_from_slice(cmd_args);
 
             let output = try_wheelctl()?.args(&args).output()?;
-            assert!(
-                output.status.success(),
-                "command {:?} should succeed",
-                args
-            );
+            assert!(output.status.success(), "command {:?} should succeed", args);
 
             let json = parse_json(&output.stdout)?;
             assert!(
@@ -379,7 +374,9 @@ mod json_output {
 
     #[test]
     fn device_list_json_has_devices_array() -> TestResult {
-        let output = try_wheelctl()?.args(["--json", "device", "list"]).output()?;
+        let output = try_wheelctl()?
+            .args(["--json", "device", "list"])
+            .output()?;
         let json = parse_json(&output.stdout)?;
         assert!(
             json.get("devices").and_then(Value::as_array).is_some(),
@@ -394,10 +391,7 @@ mod json_output {
             .args(["--json", "device", "status", "wheel-001"])
             .output()?;
         let json = parse_json(&output.stdout)?;
-        assert!(
-            json.get("status").is_some(),
-            "should have 'status' field"
-        );
+        assert!(json.get("status").is_some(), "should have 'status' field");
         Ok(())
     }
 
@@ -539,7 +533,10 @@ mod verbose_quiet {
             .as_object()
             .map(|o| o.keys().collect::<Vec<_>>())
             .unwrap_or_default();
-        assert_eq!(quiet_keys, verbose_keys, "JSON structure should match regardless of verbosity");
+        assert_eq!(
+            quiet_keys, verbose_keys,
+            "JSON structure should match regardless of verbosity"
+        );
         Ok(())
     }
 }
@@ -600,10 +597,7 @@ mod piping_compatibility {
     fn help_output_goes_to_stdout() -> TestResult {
         let output = try_wheelctl()?.arg("--help").output()?;
         assert!(output.status.success());
-        assert!(
-            !output.stdout.is_empty(),
-            "help should go to stdout"
-        );
+        assert!(!output.stdout.is_empty(), "help should go to stdout");
         Ok(())
     }
 

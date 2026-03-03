@@ -447,7 +447,11 @@ const G_ACCEL: f32 = 9.80665;
 
 /// Convert an f32 temperature (°C) to u8, clamped to 0–255. Returns 0 for negative/NaN.
 fn f32_temp_to_u8(value: f32) -> u8 {
-    if value >= 0.0 { (value.min(255.0)) as u8 } else { 0 }
+    if value >= 0.0 {
+        (value.min(255.0)) as u8
+    } else {
+        0
+    }
 }
 
 /// Convert kPa to PSI (1 kPa ≈ 0.14504 PSI). Returns 0.0 for non-positive values.

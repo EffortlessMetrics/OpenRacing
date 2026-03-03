@@ -4,12 +4,12 @@
 //! Note: Types containing `Instant` fields (SafetyState, EngineStats, etc.)
 //! are not snapshot-testable directly; we test the deterministic types.
 
+use racing_wheel_engine::ports::{NormalizedTelemetry, TelemetryFlags};
+use racing_wheel_engine::safety::{ButtonCombo, ConsentRequirements, FaultType};
 use racing_wheel_engine::{
     DeviceCapabilitiesReport, DeviceInputs, DeviceTelemetryReport, EngineConfig, FFBMode, RTError,
     RTSetup,
 };
-use racing_wheel_engine::ports::{NormalizedTelemetry, TelemetryFlags};
-use racing_wheel_engine::safety::{ButtonCombo, ConsentRequirements, FaultType};
 
 // ---------------------------------------------------------------------------
 // Safety state snapshots
@@ -18,7 +18,10 @@ use racing_wheel_engine::safety::{ButtonCombo, ConsentRequirements, FaultType};
 #[test]
 fn snapshot_safety_state_safe_torque() {
     // SafetyState contains Instant, so snapshot the deterministic enum via Debug
-    insta::assert_debug_snapshot!("safety_safe_torque", racing_wheel_engine::safety::SafetyState::SafeTorque);
+    insta::assert_debug_snapshot!(
+        "safety_safe_torque",
+        racing_wheel_engine::safety::SafetyState::SafeTorque
+    );
 }
 
 #[test]
@@ -82,13 +85,13 @@ fn snapshot_telemetry_report_faulted() {
 #[test]
 fn snapshot_capabilities_report_full() {
     let report = DeviceCapabilitiesReport::new(
-        true,  // supports_pid
-        true,  // supports_raw_torque_1khz
-        true,  // supports_health_stream
-        true,  // supports_led_bus
-        800,   // max_torque_cnm (8 Nm)
-        2048,  // encoder_cpr
-        1000,  // min_report_period_us
+        true, // supports_pid
+        true, // supports_raw_torque_1khz
+        true, // supports_health_stream
+        true, // supports_led_bus
+        800,  // max_torque_cnm (8 Nm)
+        2048, // encoder_cpr
+        1000, // min_report_period_us
     );
     insta::assert_debug_snapshot!("capabilities_report_full", report);
 }
@@ -191,7 +194,10 @@ fn snapshot_rt_error_all_display() {
 
 #[test]
 fn snapshot_rt_error_debug() {
-    insta::assert_debug_snapshot!("rt_error_debug_device_disconnected", RTError::DeviceDisconnected);
+    insta::assert_debug_snapshot!(
+        "rt_error_debug_device_disconnected",
+        RTError::DeviceDisconnected
+    );
 }
 
 #[test]
@@ -205,7 +211,11 @@ fn snapshot_rt_error_debug_safety_interlock() {
 
 #[test]
 fn snapshot_ffb_mode_display_all() {
-    let modes = [FFBMode::PidPassthrough, FFBMode::RawTorque, FFBMode::TelemetrySynth];
+    let modes = [
+        FFBMode::PidPassthrough,
+        FFBMode::RawTorque,
+        FFBMode::TelemetrySynth,
+    ];
     let output: Vec<String> = modes.iter().map(|m| format!("{m}")).collect();
     insta::assert_debug_snapshot!("ffb_mode_display_all", output);
 }

@@ -489,7 +489,10 @@ mod recording_playback {
                 break;
             }
         }
-        assert_eq!(count2, 5, "Second playback after reset must also yield 5 frames");
+        assert_eq!(
+            count2, 5,
+            "Second playback after reset must also yield 5 frames"
+        );
 
         Ok(())
     }
@@ -533,7 +536,11 @@ mod recording_playback {
         recorder.start_recording("empty_test".to_string());
         let recording = recorder.stop_recording(None)?;
 
-        assert_eq!(recording.frames.len(), 0, "Empty recording must have 0 frames");
+        assert_eq!(
+            recording.frames.len(),
+            0,
+            "Empty recording must have 0 frames"
+        );
         assert_eq!(
             recording.metadata.frame_count, 0,
             "Empty recording frame_count must be 0"
@@ -556,10 +563,7 @@ mod rate_limiting {
         let mut limiter = RateLimiter::new(60.0); // 60 Hz
 
         // First update is always allowed
-        assert!(
-            limiter.should_update(),
-            "First update must be allowed"
-        );
+        assert!(limiter.should_update(), "First update must be allowed");
 
         // Immediate second call should be blocked (< 16ms has elapsed)
         assert!(
@@ -635,10 +639,7 @@ mod rate_limiting {
         for _ in 0..10 {
             if limiter.should_update() {
                 let telem = adapter.normalize(&[])?;
-                assert!(
-                    telem.rpm.is_finite(),
-                    "Processed frame RPM must be finite"
-                );
+                assert!(telem.rpm.is_finite(), "Processed frame RPM must be finite");
                 processed += 1;
             }
         }
@@ -798,10 +799,7 @@ mod stream_management {
                 telem.speed_ms >= 0.0,
                 "Frame {i}: speed must be non-negative"
             );
-            assert!(
-                telem.rpm >= 0.0,
-                "Frame {i}: RPM must be non-negative"
-            );
+            assert!(telem.rpm >= 0.0, "Frame {i}: RPM must be non-negative");
             assert!(
                 telem.throttle >= 0.0 && telem.throttle <= 1.0,
                 "Frame {i}: throttle must be in [0,1], got {}",

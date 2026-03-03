@@ -1,12 +1,10 @@
 //! Snapshot tests for service status, health reports, IPC responses,
 //! and diagnostic output.
 
+use racing_wheel_service::system_config::{DevelopmentConfig, SafetyConfig, ServiceConfig};
 use racing_wheel_service::{
-    DiagnosticResult, DiagnosticStatus, DeviceState, FaultSeverity, InterlockState,
-    FeatureFlags, SystemConfig,
-};
-use racing_wheel_service::system_config::{
-    SafetyConfig, ServiceConfig, DevelopmentConfig,
+    DeviceState, DiagnosticResult, DiagnosticStatus, FaultSeverity, FeatureFlags, InterlockState,
+    SystemConfig,
 };
 use std::collections::HashMap;
 

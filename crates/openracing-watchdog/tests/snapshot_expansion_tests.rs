@@ -59,10 +59,7 @@ fn snapshot_watchdog_error_timeout_exceeded() {
 #[test]
 fn snapshot_watchdog_error_callback_registration() {
     let err = WatchdogError::CallbackRegistrationFailed("handler already registered".to_string());
-    insta::assert_snapshot!(
-        "watchdog_error_callback_registration",
-        format!("{}", err)
-    );
+    insta::assert_snapshot!("watchdog_error_callback_registration", format!("{}", err));
 }
 
 #[test]
@@ -75,7 +72,10 @@ fn snapshot_watchdog_error_stats_failed() {
 
 #[test]
 fn snapshot_health_status_display() {
-    insta::assert_snapshot!("health_status_healthy", format!("{}", HealthStatus::Healthy));
+    insta::assert_snapshot!(
+        "health_status_healthy",
+        format!("{}", HealthStatus::Healthy)
+    );
     insta::assert_snapshot!(
         "health_status_degraded",
         format!("{}", HealthStatus::Degraded)

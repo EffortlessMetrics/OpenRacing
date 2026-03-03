@@ -7,7 +7,7 @@
 
 use proptest::prelude::*;
 use racing_wheel_service::{
-    DeviceState, FaultSeverity, IpcConfig, IpcClientConfig, InterlockState, SafetyEvent,
+    DeviceState, FaultSeverity, InterlockState, IpcClientConfig, IpcConfig, SafetyEvent,
     ServiceConfig, TransportType,
 };
 use std::time::Duration;
@@ -231,8 +231,8 @@ mod device_hotplug_tests {
 #[cfg(test)]
 mod safety_interlock_tests {
     use super::*;
-    use std::time::Instant;
     use racing_wheel_engine::safety::FaultType;
+    use std::time::Instant;
 
     #[test]
     fn test_interlock_state_safe_torque_is_default() -> Result<(), Box<dyn std::error::Error>> {
@@ -269,9 +269,7 @@ mod safety_interlock_tests {
 
     #[test]
     fn test_safety_event_variants() -> Result<(), Box<dyn std::error::Error>> {
-        let device_id = "test-device"
-            .parse()
-            .map_err(|_| "parse error")?;
+        let device_id = "test-device".parse().map_err(|_| "parse error")?;
 
         let events: Vec<SafetyEvent> = vec![
             SafetyEvent::HighTorqueRequested {

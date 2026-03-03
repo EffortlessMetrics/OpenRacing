@@ -9,18 +9,18 @@ use std::path::Path;
 use tempfile::TempDir;
 use uuid::Uuid;
 
+use openracing_crypto::TrustLevel;
 use openracing_crypto::ed25519::{Ed25519Signer, KeyPair};
 use openracing_crypto::trust_store::TrustStore;
 use openracing_crypto::verification::ContentType;
-use openracing_crypto::TrustLevel;
 
 use racing_wheel_plugins::capability::CapabilityChecker;
 use racing_wheel_plugins::manifest::{
     Capability, EntryPoints, ManifestValidator, PluginConstraints, PluginManifest, PluginOperation,
 };
 use racing_wheel_plugins::native::{
-    AbiCheckResult, CURRENT_ABI_VERSION,
-    SignatureVerificationConfig, SignatureVerifier, check_abi_compatibility,
+    AbiCheckResult, CURRENT_ABI_VERSION, SignatureVerificationConfig, SignatureVerifier,
+    check_abi_compatibility,
 };
 use racing_wheel_plugins::quarantine::{QuarantineManager, QuarantinePolicy, ViolationType};
 use racing_wheel_plugins::registry::{VersionCompatibility, check_compatibility};
@@ -244,7 +244,10 @@ fn signing_unsigned_native_plugin_rejected() -> Result<(), Box<dyn std::error::E
     let verifier = SignatureVerifier::new(&trust_store, config);
 
     let result = verifier.verify(&plugin_path);
-    assert!(result.is_err(), "unsigned plugin must be rejected in strict mode");
+    assert!(
+        result.is_err(),
+        "unsigned plugin must be rejected in strict mode"
+    );
 
     let err_msg = result.err().map(|e| e.to_string()).unwrap_or_default();
     assert!(
@@ -338,7 +341,11 @@ fn wasm_sandbox_no_host_filesystem_access() -> Result<(), Box<dyn std::error::Er
             .check_file_access(Path::new("/sandbox/file.txt"))
             .is_ok()
     );
-    assert!(restricted.check_file_access(Path::new("/etc/hosts")).is_err());
+    assert!(
+        restricted
+            .check_file_access(Path::new("/etc/hosts"))
+            .is_err()
+    );
 
     Ok(())
 }
@@ -360,11 +367,7 @@ fn wasm_sandbox_no_network_calls() -> Result<(), Box<dyn std::error::Error>> {
     let restricted = CapabilityChecker::new(vec![Capability::Network {
         hosts: vec!["api.openracing.io".to_string()],
     }]);
-    assert!(
-        restricted
-            .check_network_access("api.openracing.io")
-            .is_ok()
-    );
+    assert!(restricted.check_network_access("api.openracing.io").is_ok());
     assert!(restricted.check_network_access("evil.com").is_err());
     assert!(restricted.check_network_access("localhost").is_err());
 
@@ -609,7 +612,10 @@ fn signing_permissive_allows_unsigned() -> Result<(), Box<dyn std::error::Error>
 
     let result = verifier.verify(&plugin_path)?;
     assert!(!result.is_signed);
-    assert!(result.verified, "permissive mode must allow unsigned plugins");
+    assert!(
+        result.verified,
+        "permissive mode must allow unsigned plugins"
+    );
 
     Ok(())
 }

@@ -335,7 +335,10 @@ async fn pipeline_multiple_recompile_deterministic() -> Result<(), Box<dyn std::
 async fn independent_pipelines_dont_interfere() -> Result<(), Box<dyn std::error::Error>> {
     let compiler = PipelineCompiler::new();
 
-    let mut pipeline_a = compiler.compile_pipeline(default_filter_config()).await?.pipeline;
+    let mut pipeline_a = compiler
+        .compile_pipeline(default_filter_config())
+        .await?
+        .pipeline;
     let mut pipeline_b = compiler
         .compile_pipeline(default_filter_config())
         .await?
@@ -368,7 +371,10 @@ async fn independent_pipelines_dont_interfere() -> Result<(), Box<dyn std::error
 #[tokio::test]
 async fn pipeline_sequence_independence() -> Result<(), Box<dyn std::error::Error>> {
     let compiler = PipelineCompiler::new();
-    let mut pipeline = compiler.compile_pipeline(default_filter_config()).await?.pipeline;
+    let mut pipeline = compiler
+        .compile_pipeline(default_filter_config())
+        .await?
+        .pipeline;
 
     // Process frames with different sequence numbers; outputs should all be bounded
     let sequences: Vec<u16> = vec![0, 100, 65535, 1, 32768];

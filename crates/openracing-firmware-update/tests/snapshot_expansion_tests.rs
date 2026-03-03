@@ -59,9 +59,8 @@ fn snapshot_firmware_error_update_in_progress() {
 
 #[test]
 fn snapshot_firmware_error_compatibility() {
-    let err = FirmwareUpdateError::CompatibilityError(
-        "firmware requires hardware v2.0+".to_string(),
-    );
+    let err =
+        FirmwareUpdateError::CompatibilityError("firmware requires hardware v2.0+".to_string());
     insta::assert_snapshot!("firmware_error_compatibility", format!("{}", err));
 }
 
@@ -120,8 +119,7 @@ fn snapshot_hw_version_error_empty() {
 
 #[test]
 fn snapshot_hw_version_error_invalid_component() {
-    let err =
-        HardwareVersionError::InvalidComponent("abc".to_string(), "not a number".to_string());
+    let err = HardwareVersionError::InvalidComponent("abc".to_string(), "not a number".to_string());
     insta::assert_snapshot!("hw_version_error_invalid_component", format!("{}", err));
 }
 

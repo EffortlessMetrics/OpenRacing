@@ -11,8 +11,7 @@ use racing_wheel_telemetry_adapters::codemasters_shared;
 use racing_wheel_telemetry_adapters::ets2;
 use racing_wheel_telemetry_adapters::gran_turismo_7;
 use racing_wheel_telemetry_adapters::{
-    DirtRally2Adapter, Ets2Adapter, GranTurismo7Adapter, TelemetryAdapter,
-    TelemetryValue,
+    DirtRally2Adapter, Ets2Adapter, GranTurismo7Adapter, TelemetryAdapter, TelemetryValue,
 };
 use std::time::Duration;
 
@@ -902,10 +901,7 @@ mod gt7_deep {
         buf[OFF_BRAKE] = 128;
         let t = gran_turismo_7::parse_decrypted_ext(&buf)?;
         assert!((t.throttle - 1.0).abs() < 0.001, "255 → 1.0");
-        assert!(
-            (t.brake - 128.0 / 255.0).abs() < 0.001,
-            "128 → ~0.502"
-        );
+        assert!((t.brake - 128.0 / 255.0).abs() < 0.001, "128 → ~0.502");
         Ok(())
     }
 

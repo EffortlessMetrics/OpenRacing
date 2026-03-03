@@ -4,9 +4,9 @@
 //! default values, and profile merging/inheritance.
 
 use openracing_profile::{
-    AdvancedSettings, CurveType, FfbSettings, InputSettings, LedMode, LimitSettings,
-    ProfileError, WheelProfile, WheelSettings, CURRENT_SCHEMA_VERSION,
-    generate_profile_id, merge_profiles, migrate_profile, validate_profile, validate_settings,
+    AdvancedSettings, CURRENT_SCHEMA_VERSION, CurveType, FfbSettings, InputSettings, LedMode,
+    LimitSettings, ProfileError, WheelProfile, WheelSettings, generate_profile_id, merge_profiles,
+    migrate_profile, validate_profile, validate_settings,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -199,7 +199,10 @@ mod serde_tests {
             "modified_at": 1000
         }"#;
         let restored: WheelProfile = serde_json::from_str(json)?;
-        assert_eq!(restored.schema_version, 0, "missing field should default to 0");
+        assert_eq!(
+            restored.schema_version, 0,
+            "missing field should default to 0"
+        );
         Ok(())
     }
 }
@@ -356,7 +359,10 @@ mod migration_tests {
         let mut p = WheelProfile::new("M", "d");
         p.schema_version = CURRENT_SCHEMA_VERSION + 1;
         let result = migrate_profile(&mut p);
-        assert!(matches!(result, Err(ProfileError::UnsupportedVersion(_, _))));
+        assert!(matches!(
+            result,
+            Err(ProfileError::UnsupportedVersion(_, _))
+        ));
     }
 
     #[test]
@@ -426,7 +432,10 @@ mod merge_tests {
         let overlay = base.clone();
         let merged = merge_profiles(&base, &overlay);
 
-        assert!((merged.settings.ffb.overall_gain - base.settings.ffb.overall_gain).abs() < f32::EPSILON);
+        assert!(
+            (merged.settings.ffb.overall_gain - base.settings.ffb.overall_gain).abs()
+                < f32::EPSILON
+        );
         assert_eq!(
             merged.settings.input.steering_range,
             base.settings.input.steering_range

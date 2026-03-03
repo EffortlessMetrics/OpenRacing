@@ -117,10 +117,7 @@ fn hid_pid_usage_page_matches_spec() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 #[allow(clippy::assertions_on_constants)]
 fn recommended_interval_is_reasonable() -> Result<(), Box<dyn std::error::Error>> {
-    assert!(
-        RECOMMENDED_B_INTERVAL_MS > 0,
-        "bInterval must be positive"
-    );
+    assert!(RECOMMENDED_B_INTERVAL_MS > 0, "bInterval must be positive");
     assert!(
         RECOMMENDED_B_INTERVAL_MS <= 16,
         "bInterval should not exceed 16 ms for a responsive device"
@@ -191,11 +188,7 @@ fn device_info_round_trip() -> Result<(), Box<dyn std::error::Error>> {
     let info = DeviceInfo::from_vid_pid(VENDOR_ID, PID_ACCUFORCE_PRO);
     assert_eq!(info.vendor_id, VENDOR_ID, "VID must be preserved");
     assert_eq!(info.product_id, PID_ACCUFORCE_PRO, "PID must be preserved");
-    assert_eq!(
-        info.model,
-        AccuForceModel::Pro,
-        "model must resolve to Pro"
-    );
+    assert_eq!(info.model, AccuForceModel::Pro, "model must resolve to Pro");
     Ok(())
 }
 

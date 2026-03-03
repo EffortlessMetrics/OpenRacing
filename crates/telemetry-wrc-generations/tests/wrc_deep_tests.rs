@@ -7,7 +7,9 @@
 //! 0-based indexing, tire temperature negative-value clamping, and
 //! full rally-stage scenarios.
 
-use racing_wheel_telemetry_wrc_generations::{TelemetryAdapter, TelemetryValue, WrcGenerationsAdapter};
+use racing_wheel_telemetry_wrc_generations::{
+    TelemetryAdapter, TelemetryValue, WrcGenerationsAdapter,
+};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -71,14 +73,23 @@ fn slip_ratio_zero_when_speeds_equal() -> TestResult {
     let adapter = WrcGenerationsAdapter::new();
     let mut buf = make_packet();
     // Wheel speeds and body velocity both 20 m/s
-    for off in [OFF_WHEEL_SPEED_FL, OFF_WHEEL_SPEED_FR, OFF_WHEEL_SPEED_RL, OFF_WHEEL_SPEED_RR] {
+    for off in [
+        OFF_WHEEL_SPEED_FL,
+        OFF_WHEEL_SPEED_FR,
+        OFF_WHEEL_SPEED_RL,
+        OFF_WHEEL_SPEED_RR,
+    ] {
         write_f32(&mut buf, off, 20.0);
     }
     write_f32(&mut buf, OFF_VEL_X, 20.0);
     write_f32(&mut buf, OFF_VEL_Y, 0.0);
     write_f32(&mut buf, OFF_VEL_Z, 0.0);
     let t = adapter.normalize(&buf)?;
-    assert!(t.slip_ratio < 0.01, "equal speeds → ~0 slip, got {}", t.slip_ratio);
+    assert!(
+        t.slip_ratio < 0.01,
+        "equal speeds → ~0 slip, got {}",
+        t.slip_ratio
+    );
     Ok(())
 }
 
@@ -87,14 +98,23 @@ fn slip_ratio_nonzero_wheelspin() -> TestResult {
     let adapter = WrcGenerationsAdapter::new();
     let mut buf = make_packet();
     // Wheels spinning faster than body → wheelspin
-    for off in [OFF_WHEEL_SPEED_FL, OFF_WHEEL_SPEED_FR, OFF_WHEEL_SPEED_RL, OFF_WHEEL_SPEED_RR] {
+    for off in [
+        OFF_WHEEL_SPEED_FL,
+        OFF_WHEEL_SPEED_FR,
+        OFF_WHEEL_SPEED_RL,
+        OFF_WHEEL_SPEED_RR,
+    ] {
         write_f32(&mut buf, off, 30.0);
     }
     write_f32(&mut buf, OFF_VEL_X, 20.0);
     let t = adapter.normalize(&buf)?;
     // avg_wheel = 30, body = 20, denom = max(30,20) = 30
     // slip = |30-20| / 30 = 10/30 = 0.333…
-    assert!((t.slip_ratio - (10.0 / 30.0)).abs() < 0.01, "wheelspin slip={}", t.slip_ratio);
+    assert!(
+        (t.slip_ratio - (10.0 / 30.0)).abs() < 0.01,
+        "wheelspin slip={}",
+        t.slip_ratio
+    );
     Ok(())
 }
 
@@ -103,14 +123,23 @@ fn slip_ratio_nonzero_lockup() -> TestResult {
     let adapter = WrcGenerationsAdapter::new();
     let mut buf = make_packet();
     // Wheels slower than body → lockup
-    for off in [OFF_WHEEL_SPEED_FL, OFF_WHEEL_SPEED_FR, OFF_WHEEL_SPEED_RL, OFF_WHEEL_SPEED_RR] {
+    for off in [
+        OFF_WHEEL_SPEED_FL,
+        OFF_WHEEL_SPEED_FR,
+        OFF_WHEEL_SPEED_RL,
+        OFF_WHEEL_SPEED_RR,
+    ] {
         write_f32(&mut buf, off, 10.0);
     }
     write_f32(&mut buf, OFF_VEL_X, 25.0);
     let t = adapter.normalize(&buf)?;
     // avg_wheel = 10, body = 25, denom = max(10,25) = 25
     // slip = |10-25| / 25 = 15/25 = 0.6
-    assert!((t.slip_ratio - 0.6).abs() < 0.01, "lockup slip={}", t.slip_ratio);
+    assert!(
+        (t.slip_ratio - 0.6).abs() < 0.01,
+        "lockup slip={}",
+        t.slip_ratio
+    );
     Ok(())
 }
 
@@ -118,7 +147,12 @@ fn slip_ratio_nonzero_lockup() -> TestResult {
 fn slip_ratio_clamped_to_one() -> TestResult {
     let adapter = WrcGenerationsAdapter::new();
     let mut buf = make_packet();
-    for off in [OFF_WHEEL_SPEED_FL, OFF_WHEEL_SPEED_FR, OFF_WHEEL_SPEED_RL, OFF_WHEEL_SPEED_RR] {
+    for off in [
+        OFF_WHEEL_SPEED_FL,
+        OFF_WHEEL_SPEED_FR,
+        OFF_WHEEL_SPEED_RL,
+        OFF_WHEEL_SPEED_RR,
+    ] {
         write_f32(&mut buf, off, 100.0);
     }
     // body velocity = 0 (body_speed = 0), avg_wheel = 100, denom = 100
@@ -133,7 +167,12 @@ fn slip_ratio_low_speed_threshold() -> TestResult {
     let adapter = WrcGenerationsAdapter::new();
     let mut buf = make_packet();
     // Both <1 → denom ≤ 1 → slip_ratio = 0
-    for off in [OFF_WHEEL_SPEED_FL, OFF_WHEEL_SPEED_FR, OFF_WHEEL_SPEED_RL, OFF_WHEEL_SPEED_RR] {
+    for off in [
+        OFF_WHEEL_SPEED_FL,
+        OFF_WHEEL_SPEED_FR,
+        OFF_WHEEL_SPEED_RL,
+        OFF_WHEEL_SPEED_RR,
+    ] {
         write_f32(&mut buf, off, 0.5);
     }
     write_f32(&mut buf, OFF_VEL_X, 0.3);
@@ -592,7 +631,10 @@ fn rpm_fraction_absent_when_max_rpm_zero() -> TestResult {
     write_f32(&mut buf, OFF_RPM, 5000.0);
     // max_rpm = 0 → no rpm_fraction extended field
     let t = adapter.normalize(&buf)?;
-    assert!(!t.extended.contains_key("rpm_fraction"), "no rpm_fraction when max_rpm=0");
+    assert!(
+        !t.extended.contains_key("rpm_fraction"),
+        "no rpm_fraction when max_rpm=0"
+    );
     Ok(())
 }
 
@@ -675,7 +717,10 @@ fn adapter_clone_preserves_identity() -> TestResult {
     let adapter = WrcGenerationsAdapter::new().with_port(9999);
     let cloned = adapter.clone();
     assert_eq!(adapter.game_id(), cloned.game_id());
-    assert_eq!(adapter.expected_update_rate(), cloned.expected_update_rate());
+    assert_eq!(
+        adapter.expected_update_rate(),
+        cloned.expected_update_rate()
+    );
     Ok(())
 }
 
@@ -733,7 +778,12 @@ fn scenario_monte_carlo_stage() -> TestResult {
     write_f32(&mut buf, OFF_FUEL_IN_TANK, 30.0);
     write_f32(&mut buf, OFF_FUEL_CAPACITY, 60.0);
     write_f32(&mut buf, OFF_MAX_GEARS, 6.0);
-    for off in [OFF_WHEEL_SPEED_FL, OFF_WHEEL_SPEED_FR, OFF_WHEEL_SPEED_RL, OFF_WHEEL_SPEED_RR] {
+    for off in [
+        OFF_WHEEL_SPEED_FL,
+        OFF_WHEEL_SPEED_FR,
+        OFF_WHEEL_SPEED_RL,
+        OFF_WHEEL_SPEED_RR,
+    ] {
         write_f32(&mut buf, off, 28.0);
     }
     write_f32(&mut buf, OFF_VEL_X, 28.0);

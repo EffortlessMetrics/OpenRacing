@@ -104,7 +104,10 @@ fn single_filter_processing_under_10us() -> Result<()> {
         damper_filter(&mut ff, &damper);
         let elapsed = start.elapsed();
         histogram.record(elapsed.as_nanos() as u64).ok();
-        assert!(ff.torque_out.is_finite(), "tick {seq}: output must be finite");
+        assert!(
+            ff.torque_out.is_finite(),
+            "tick {seq}: output must be finite"
+        );
     }
 
     let p99_us = histogram.value_at_quantile(0.99) as f64 / 1_000.0;
@@ -154,7 +157,10 @@ fn full_filter_chain_latency() -> Result<()> {
         torque_cap_filter(&mut ff, 1.0);
         let elapsed = start.elapsed();
         histogram.record(elapsed.as_nanos() as u64).ok();
-        assert!(ff.torque_out.is_finite(), "tick {seq}: output must be finite");
+        assert!(
+            ff.torque_out.is_finite(),
+            "tick {seq}: output must be finite"
+        );
     }
 
     let p50_us = histogram.value_at_quantile(0.50) as f64 / 1_000.0;
@@ -385,7 +391,8 @@ fn ipc_message_encoding_decoding_latency() -> Result<()> {
         histogram.record(elapsed.as_nanos() as u64).ok();
 
         assert_eq!(
-            decoded.message_type, message_types::TELEMETRY,
+            decoded.message_type,
+            message_types::TELEMETRY,
             "roundtrip must preserve message type"
         );
         assert_eq!(decoded.sequence, seq, "roundtrip must preserve sequence");

@@ -153,11 +153,7 @@ fn speed_mph_conversion_from_sled() -> TestResult {
     let mut buf = make_sled_on();
     write_f32(&mut buf, OFF_VEL_X, 10.0); // 10 m/s ≈ 22.37 mph
     let t = adapter.normalize(&buf)?;
-    assert!(
-        (t.speed_mph() - 22.37).abs() < 0.1,
-        "mph={}",
-        t.speed_mph()
-    );
+    assert!((t.speed_mph() - 22.37).abs() < 0.1, "mph={}", t.speed_mph());
     Ok(())
 }
 
@@ -479,7 +475,11 @@ fn cardash_gear_high_gear_values() -> TestResult {
         let mut buf = make_cardash_on();
         buf[OFF_DASH_GEAR] = raw;
         let t = adapter.normalize(&buf)?;
-        assert_eq!(t.gear, expected, "raw={raw}→gear={expected}, got={}", t.gear);
+        assert_eq!(
+            t.gear, expected,
+            "raw={raw}→gear={expected}, got={}",
+            t.gear
+        );
     }
     Ok(())
 }
@@ -548,11 +548,7 @@ fn fh4_fuel_at_shifted_offset() -> TestResult {
 fn fh4_tire_temps_at_shifted_offset() -> TestResult {
     let adapter = ForzaAdapter::new();
     let mut buf = make_fh4_on();
-    write_f32(
-        &mut buf,
-        OFF_DASH_TIRE_TEMP_FL + FH4_HORIZON_OFFSET,
-        212.0,
-    );
+    write_f32(&mut buf, OFF_DASH_TIRE_TEMP_FL + FH4_HORIZON_OFFSET, 212.0);
     let t = adapter.normalize(&buf)?;
     assert_eq!(t.tire_temps_c[0], 100, "FH4 FL temp should be 100°C");
     Ok(())
@@ -565,8 +561,7 @@ fn fh4_lap_data_at_shifted_offset() -> TestResult {
     write_f32(&mut buf, OFF_DASH_BEST_LAP + FH4_HORIZON_OFFSET, 70.0);
     write_f32(&mut buf, OFF_DASH_LAST_LAP + FH4_HORIZON_OFFSET, 71.5);
     write_f32(&mut buf, OFF_DASH_CUR_LAP + FH4_HORIZON_OFFSET, 25.0);
-    buf[OFF_DASH_LAP_NUMBER + FH4_HORIZON_OFFSET
-        ..OFF_DASH_LAP_NUMBER + FH4_HORIZON_OFFSET + 2]
+    buf[OFF_DASH_LAP_NUMBER + FH4_HORIZON_OFFSET..OFF_DASH_LAP_NUMBER + FH4_HORIZON_OFFSET + 2]
         .copy_from_slice(&3u16.to_le_bytes());
     buf[OFF_DASH_RACE_POS + FH4_HORIZON_OFFSET] = 5;
     let t = adapter.normalize(&buf)?;
@@ -779,14 +774,20 @@ fn cardash_nan_tire_temp_does_not_panic() -> TestResult {
 
 #[test]
 fn validated_clamps_negative_speed() -> TestResult {
-    let t = NormalizedTelemetry::builder().speed_ms(-5.0).build().validated();
+    let t = NormalizedTelemetry::builder()
+        .speed_ms(-5.0)
+        .build()
+        .validated();
     assert_eq!(t.speed_ms, 0.0, "negative speed should clamp to 0");
     Ok(())
 }
 
 #[test]
 fn validated_clamps_negative_rpm() -> TestResult {
-    let t = NormalizedTelemetry::builder().rpm(-100.0).build().validated();
+    let t = NormalizedTelemetry::builder()
+        .rpm(-100.0)
+        .build()
+        .validated();
     assert_eq!(t.rpm, 0.0, "negative rpm should clamp to 0");
     Ok(())
 }
@@ -988,10 +989,7 @@ fn builder_with_extended_field() -> TestResult {
         t.get_extended("custom_field"),
         Some(&TelemetryValue::Float(42.0))
     );
-    assert_eq!(
-        t.get_extended("flag"),
-        Some(&TelemetryValue::Boolean(true))
-    );
+    assert_eq!(t.get_extended("flag"), Some(&TelemetryValue::Boolean(true)));
     Ok(())
 }
 
@@ -1154,7 +1152,12 @@ fn all_formats_share_sled_section_rpm() -> TestResult {
     let max_rpm = 9000.0;
 
     // Same sled section preamble for all formats
-    let formats: Vec<Vec<u8>> = vec![make_sled_on(), make_cardash_on(), make_fm8_on(), make_fh4_on()];
+    let formats: Vec<Vec<u8>> = vec![
+        make_sled_on(),
+        make_cardash_on(),
+        make_fm8_on(),
+        make_fh4_on(),
+    ];
 
     for mut buf in formats {
         write_f32(&mut buf, OFF_CURRENT_RPM, rpm);
@@ -1186,11 +1189,7 @@ fn all_formats_share_sled_section_velocity() -> TestResult {
     write_f32(&mut buf, OFF_VEL_Y, 8.0);
     let t = adapter.normalize(&buf)?;
     // sqrt(6² + 8²) = 10.0
-    assert!(
-        (t.speed_ms - 10.0).abs() < 0.1,
-        "sled speed={}",
-        t.speed_ms
-    );
+    assert!((t.speed_ms - 10.0).abs() < 0.1, "sled speed={}", t.speed_ms);
 
     // CarDash formats use the dashboard speed field (offset 244) instead
     let dash_speed_off: usize = 244;
@@ -1217,7 +1216,12 @@ fn all_formats_share_sled_section_velocity() -> TestResult {
 #[test]
 fn all_formats_share_sled_section_g_forces() -> TestResult {
     let adapter = ForzaAdapter::new();
-    let formats: Vec<Vec<u8>> = vec![make_sled_on(), make_cardash_on(), make_fm8_on(), make_fh4_on()];
+    let formats: Vec<Vec<u8>> = vec![
+        make_sled_on(),
+        make_cardash_on(),
+        make_fm8_on(),
+        make_fh4_on(),
+    ];
 
     for mut buf in formats {
         write_f32(&mut buf, OFF_ACCEL_X, 1.5 * G);
@@ -1313,8 +1317,18 @@ fn race_off_zeroes_all_formats() -> TestResult {
     ];
     for buf in formats {
         let t = adapter.normalize(&buf)?;
-        assert_eq!(t.rpm, 0.0, "size={}: rpm should be 0 when race_off", buf.len());
-        assert_eq!(t.speed_ms, 0.0, "size={}: speed should be 0 when race_off", buf.len());
+        assert_eq!(
+            t.rpm,
+            0.0,
+            "size={}: rpm should be 0 when race_off",
+            buf.len()
+        );
+        assert_eq!(
+            t.speed_ms,
+            0.0,
+            "size={}: speed should be 0 when race_off",
+            buf.len()
+        );
     }
     Ok(())
 }
@@ -1353,11 +1367,7 @@ fn sled_negative_g_force_values() -> TestResult {
     write_f32(&mut buf, OFF_ACCEL_Z, -3.0 * G);
     write_f32(&mut buf, OFF_ACCEL_Y, -G);
     let t = adapter.normalize(&buf)?;
-    assert!(
-        (t.lateral_g - (-5.0)).abs() < 0.05,
-        "lat_g={}",
-        t.lateral_g
-    );
+    assert!((t.lateral_g - (-5.0)).abs() < 0.05, "lat_g={}", t.lateral_g);
     assert!(
         (t.longitudinal_g - (-3.0)).abs() < 0.05,
         "lon_g={}",

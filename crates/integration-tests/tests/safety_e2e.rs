@@ -162,9 +162,7 @@ fn safety_sequential_faults_keep_faulted_state() -> Result<()> {
             );
         }
         other => {
-            return Err(anyhow::anyhow!(
-                "expected Faulted, got {other:?}"
-            ));
+            return Err(anyhow::anyhow!("expected Faulted, got {other:?}"));
         }
     }
 
@@ -454,9 +452,7 @@ fn recovery_clear_fault_restores_safe_torque() -> Result<()> {
 
     // Wait for minimum hold period
     std::thread::sleep(Duration::from_millis(120));
-    safety
-        .clear_fault()
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    safety.clear_fault().map_err(|e| anyhow::anyhow!("{e}"))?;
 
     assert_eq!(safety.state(), &SafetyState::SafeTorque);
 
@@ -477,10 +473,7 @@ fn recovery_clear_fault_too_early_fails() -> Result<()> {
 
     safety.report_fault(FaultType::EncoderNaN);
     let result = safety.clear_fault();
-    assert!(
-        result.is_err(),
-        "clearing fault immediately must fail"
-    );
+    assert!(result.is_err(), "clearing fault immediately must fail");
     assert!(
         matches!(safety.state(), SafetyState::Faulted { .. }),
         "state must remain Faulted after early clear attempt"
@@ -515,16 +508,11 @@ fn recovery_full_scenario_fault_clear_resume() -> Result<()> {
     safety.report_fault(FaultType::Overcurrent);
     let faulted_torque = safety.clamp_torque_nm(frame.torque_out * 5.0);
     device.write_ffb_report(faulted_torque, 1)?;
-    assert!(
-        faulted_torque.abs() < 0.001,
-        "faulted torque must be zero"
-    );
+    assert!(faulted_torque.abs() < 0.001, "faulted torque must be zero");
 
     // Wait and clear
     std::thread::sleep(Duration::from_millis(120));
-    safety
-        .clear_fault()
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    safety.clear_fault().map_err(|e| anyhow::anyhow!("{e}"))?;
 
     // Resume
     let mut frame2 = Frame {
@@ -568,9 +556,7 @@ fn recovery_multiple_faults_clear_independently() -> Result<()> {
         assert!(matches!(safety.state(), SafetyState::Faulted { .. }));
 
         std::thread::sleep(Duration::from_millis(120));
-        safety
-            .clear_fault()
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        safety.clear_fault().map_err(|e| anyhow::anyhow!("{e}"))?;
         assert_eq!(
             safety.state(),
             &SafetyState::SafeTorque,
@@ -613,9 +599,7 @@ fn recovery_cross_crate_filter_pipeline_after_fault() -> Result<()> {
     // Fault and recover
     safety.report_fault(FaultType::PipelineFault);
     std::thread::sleep(Duration::from_millis(120));
-    safety
-        .clear_fault()
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    safety.clear_fault().map_err(|e| anyhow::anyhow!("{e}"))?;
 
     // Filter pipeline (openracing-filters)
     let mut filter_frame = FilterFrame {

@@ -362,10 +362,11 @@ mod firmware_image_validation {
     }
 
     #[test]
-    fn test_firmware_image_with_mismatched_hash_detectable() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn test_firmware_image_with_mismatched_hash_detectable()
+    -> Result<(), Box<dyn std::error::Error>> {
         let data = vec![1u8; 128];
-        let wrong_hash = "0000000000000000000000000000000000000000000000000000000000000000".to_string();
+        let wrong_hash =
+            "0000000000000000000000000000000000000000000000000000000000000000".to_string();
 
         let actual_hash = {
             use sha2::{Digest, Sha256};
@@ -387,7 +388,10 @@ mod firmware_image_validation {
             signature: None,
         };
 
-        assert_ne!(image.hash, actual_hash, "Mismatched hash should be detectable");
+        assert_ne!(
+            image.hash, actual_hash,
+            "Mismatched hash should be detectable"
+        );
         Ok(())
     }
 
@@ -445,7 +449,11 @@ mod update_state_machine {
             UpdateState::Rebooting,
         ];
         for state in &in_progress_states {
-            assert!(state.is_in_progress(), "State {:?} should be in progress", state);
+            assert!(
+                state.is_in_progress(),
+                "State {:?} should be in progress",
+                state
+            );
             assert!(
                 state.should_block_ffb(),
                 "State {:?} should block FFB",
@@ -517,7 +525,11 @@ mod update_state_machine {
         for state in &states {
             let json = serde_json::to_string(state)?;
             let back: UpdateState = serde_json::from_str(&json)?;
-            assert_eq!(&back, state, "Serialization roundtrip failed for {:?}", state);
+            assert_eq!(
+                &back, state,
+                "Serialization roundtrip failed for {:?}",
+                state
+            );
         }
         Ok(())
     }
@@ -594,10 +606,7 @@ mod edge_cases {
     fn test_hardware_version_empty_is_error() -> Result<(), Box<dyn std::error::Error>> {
         let result = HardwareVersion::parse("");
         assert!(result.is_err());
-        assert!(matches!(
-            result,
-            Err(HardwareVersionError::Empty)
-        ));
+        assert!(matches!(result, Err(HardwareVersionError::Empty)));
         Ok(())
     }
 
@@ -605,10 +614,7 @@ mod edge_cases {
     fn test_hardware_version_whitespace_is_error() -> Result<(), Box<dyn std::error::Error>> {
         let result = HardwareVersion::parse("   ");
         assert!(result.is_err());
-        assert!(matches!(
-            result,
-            Err(HardwareVersionError::Empty)
-        ));
+        assert!(matches!(result, Err(HardwareVersionError::Empty)));
         Ok(())
     }
 
@@ -623,7 +629,10 @@ mod edge_cases {
     fn test_version_downgrade_detection() -> Result<(), Box<dyn std::error::Error>> {
         let current = semver::Version::new(2, 0, 0);
         let proposed = semver::Version::new(1, 0, 0);
-        assert!(proposed < current, "Downgrade should be detectable via version comparison");
+        assert!(
+            proposed < current,
+            "Downgrade should be detectable via version comparison"
+        );
         Ok(())
     }
 
@@ -652,7 +661,10 @@ mod edge_cases {
         let data2 = vec![5, 6, 7, 8];
         let hash1 = compute_data_hash(&data1);
         let hash2 = compute_data_hash(&data2);
-        assert_ne!(hash1, hash2, "Different data should produce different hashes");
+        assert_ne!(
+            hash1, hash2,
+            "Different data should produce different hashes"
+        );
         Ok(())
     }
 

@@ -181,7 +181,10 @@ mod all_types_validate {
     fn profile_validator_accepts_minimal_profile() -> TestResult {
         let validator = ProfileValidator::new()?;
         let result = validator.validate_json(&minimal_valid_profile_json());
-        assert!(result.is_ok(), "Minimal profile should validate: {result:?}");
+        assert!(
+            result.is_ok(),
+            "Minimal profile should validate: {result:?}"
+        );
         Ok(())
     }
 
@@ -718,7 +721,10 @@ mod json_schema_compliance {
         })
         .to_string();
         let result = validator.validate_json(&json);
-        assert!(result.is_ok(), "Null optional fields should validate: {result:?}");
+        assert!(
+            result.is_ok(),
+            "Null optional fields should validate: {result:?}"
+        );
         Ok(())
     }
 
@@ -747,7 +753,10 @@ mod json_schema_compliance {
         let validator = ProfileValidator::new()?;
         let profile = validator.validate_json(&full_profile_json())?;
         let result = validator.validate_profile(&profile);
-        assert!(result.is_ok(), "Struct re-validation should pass: {result:?}");
+        assert!(
+            result.is_ok(),
+            "Struct re-validation should pass: {result:?}"
+        );
         Ok(())
     }
 }
@@ -809,8 +818,14 @@ mod proto_roundtrips {
                     }],
                     slew_rate: 0.8,
                     curve_points: vec![
-                        proto::CurvePoint { input: 0.0, output: 0.0 },
-                        proto::CurvePoint { input: 1.0, output: 1.0 },
+                        proto::CurvePoint {
+                            input: 0.0,
+                            output: 0.0,
+                        },
+                        proto::CurvePoint {
+                            input: 1.0,
+                            output: 1.0,
+                        },
                     ],
                 }),
             }),
@@ -854,9 +869,7 @@ mod proto_roundtrips {
             device_id: "wheel-1".to_string(),
             r#type: proto::HealthEventType::FaultDetected as i32,
             message: "Over temperature".to_string(),
-            metadata: std::collections::BTreeMap::from([
-                ("temp".to_string(), "85".to_string()),
-            ]),
+            metadata: std::collections::BTreeMap::from([("temp".to_string(), "85".to_string())]),
         };
         let bytes = orig.encode_to_vec();
         let decoded = proto::HealthEvent::decode(bytes.as_slice())?;
@@ -1165,9 +1178,7 @@ mod optional_vs_required {
 
     #[test]
     fn telemetry_frame_preserves_fields() {
-        let t = NormalizedTelemetry::builder()
-            .speed_ms(20.0)
-            .build();
+        let t = NormalizedTelemetry::builder().speed_ms(20.0).build();
         let frame = TelemetryFrame::new(t, 1000, 42, 256);
         assert_eq!(frame.sequence, 42);
         assert_eq!(frame.raw_size, 256);

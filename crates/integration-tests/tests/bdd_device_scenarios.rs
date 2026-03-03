@@ -47,8 +47,8 @@ use racing_wheel_schemas::prelude::*;
 /// And    the torque range is within the R9's physical limits
 /// ```
 #[test]
-fn given_moza_r9_connected_when_user_starts_iracing_then_ffb_active_with_correct_torque_range(
-) -> Result<()> {
+fn given_moza_r9_connected_when_user_starts_iracing_then_ffb_active_with_correct_torque_range()
+-> Result<()> {
     // Given: a Moza R9 is connected and the protocol handshake completes
     let mut scenario = MozaScenario::wheelbase(moza_product_ids::R9_V2);
     scenario
@@ -69,8 +69,7 @@ fn given_moza_r9_connected_when_user_starts_iracing_then_ffb_active_with_correct
     };
 
     // R9 capabilities: ~9 Nm, raw torque capable
-    let r9_caps =
-        DeviceCapabilities::new(true, true, true, true, TorqueNm::new(9.0)?, 65535, 1000);
+    let r9_caps = DeviceCapabilities::new(true, true, true, true, TorqueNm::new(9.0)?, 65535, 1000);
 
     let mode = ModeSelectionPolicy::select_mode(&r9_caps, Some(&iracing));
 
@@ -124,8 +123,8 @@ fn given_moza_r9_connected_when_user_starts_iracing_then_ffb_active_with_correct
 /// And    the device remains operational throughout the switch
 /// ```
 #[test]
-fn given_fanatec_csl_dd_connected_when_user_switches_profiles_then_ffb_parameters_update(
-) -> Result<()> {
+fn given_fanatec_csl_dd_connected_when_user_switches_profiles_then_ffb_parameters_update()
+-> Result<()> {
     // Given: a Fanatec CSL DD is connected and initialised
     let mut scenario = FanatecScenario::wheelbase(fanatec_product_ids::CSL_DD);
     scenario
@@ -194,8 +193,8 @@ fn given_fanatec_csl_dd_connected_when_user_switches_profiles_then_ffb_parameter
 /// And    the device negotiates PID pass-through mode (G29 is PID-only)
 /// ```
 #[test]
-fn given_logitech_g29_connected_when_user_presses_all_buttons_then_inputs_correctly_mapped(
-) -> Result<()> {
+fn given_logitech_g29_connected_when_user_presses_all_buttons_then_inputs_correctly_mapped()
+-> Result<()> {
     // Given: a Logitech G29 is connected and initialised
     let mut scenario = LogitechScenario::wheel(logitech_product_ids::G29_PS);
     scenario
@@ -253,8 +252,8 @@ fn given_logitech_g29_connected_when_user_presses_all_buttons_then_inputs_correc
 /// And    the device receives zero torque after the fault
 /// ```
 #[test]
-fn given_thrustmaster_t300_connected_when_safety_fault_then_torque_drops_to_zero_within_50ms(
-) -> Result<()> {
+fn given_thrustmaster_t300_connected_when_safety_fault_then_torque_drops_to_zero_within_50ms()
+-> Result<()> {
     // Given: a Thrustmaster T300 is connected and initialised
     let mut scenario = ThrustmasterScenario::wheelbase(thrustmaster_product_ids::T300_RS);
     scenario
@@ -431,8 +430,8 @@ impl FirmwareUpdateSession {
 /// And    after the update completes, FFB can be re-enabled
 /// ```
 #[test]
-fn given_simucube_2_connected_when_firmware_update_starts_then_ffb_disabled_during_update(
-) -> Result<()> {
+fn given_simucube_2_connected_when_firmware_update_starts_then_ffb_disabled_during_update()
+-> Result<()> {
     // Given: a SimuCube 2 Pro is connected with active FFB
     let id: DeviceId = "bdd-sc2pro-fw".parse()?;
     let device = VirtualDevice::new(id, "SimuCube 2 Pro".to_string());
@@ -478,10 +477,7 @@ fn given_simucube_2_connected_when_firmware_update_starts_then_ffb_disabled_duri
     // And: after the update completes, FFB can be re-enabled
     let mut update = update;
     update.complete();
-    assert!(
-        !update.is_in_progress(),
-        "firmware update must be complete"
-    );
+    assert!(!update.is_in_progress(), "firmware update must be complete");
     assert!(
         !update.is_ffb_disabled(),
         "FFB must be re-enabled after firmware update completes"
@@ -619,9 +615,7 @@ fn given_any_device_connected_when_usb_disconnects_during_ffb_then_safe_state_en
             );
         }
         other => {
-            return Err(anyhow::anyhow!(
-                "expected Faulted(UsbStall), got {other:?}"
-            ));
+            return Err(anyhow::anyhow!("expected Faulted(UsbStall), got {other:?}"));
         }
     }
 

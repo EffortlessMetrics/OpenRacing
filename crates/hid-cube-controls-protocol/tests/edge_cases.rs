@@ -5,8 +5,8 @@
 //! torque safety, provisional flags, and cross-function consistency.
 
 use hid_cube_controls_protocol::{
-    CubeControlsModel, CUBE_CONTROLS_CSX3_PID, CUBE_CONTROLS_FORMULA_PRO_PID,
-    CUBE_CONTROLS_GT_PRO_PID, CUBE_CONTROLS_VENDOR_ID, is_cube_controls_product,
+    CUBE_CONTROLS_CSX3_PID, CUBE_CONTROLS_FORMULA_PRO_PID, CUBE_CONTROLS_GT_PRO_PID,
+    CUBE_CONTROLS_VENDOR_ID, CubeControlsModel, is_cube_controls_product,
 };
 use proptest::prelude::*;
 
@@ -153,7 +153,10 @@ fn display_names_all_non_empty() {
         CubeControlsModel::Unknown,
     ];
     for model in &all_models {
-        assert!(!model.display_name().is_empty(), "{model:?} name must be non-empty");
+        assert!(
+            !model.display_name().is_empty(),
+            "{model:?} name must be non-empty"
+        );
     }
 }
 
@@ -186,7 +189,10 @@ fn torque_is_not_negative() {
         CubeControlsModel::Unknown,
     ];
     for model in &all_models {
-        assert!(model.max_torque_nm() >= 0.0, "{model:?} torque must not be negative");
+        assert!(
+            model.max_torque_nm() >= 0.0,
+            "{model:?} torque must not be negative"
+        );
     }
 }
 

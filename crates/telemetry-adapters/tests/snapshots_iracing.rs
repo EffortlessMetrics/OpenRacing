@@ -124,7 +124,10 @@ fn iracing_oval_high_speed_snapshot() -> TestResult {
     write_f32_le(&mut buf, OFF_VERT_ACCEL, 9.81);
     write_f32_le(&mut buf, OFF_WATER_TEMP, 88.0);
     write_string(&mut buf[OFF_CAR_PATH..OFF_CAR_PATH + 64], "dallaradw12");
-    write_string(&mut buf[OFF_TRACK_NAME..OFF_TRACK_NAME + 64], "indianapolisoval");
+    write_string(
+        &mut buf[OFF_TRACK_NAME..OFF_TRACK_NAME + 64],
+        "indianapolisoval",
+    );
 
     let adapter = IRacingAdapter::new();
     let normalized = adapter.normalize(&buf)?;

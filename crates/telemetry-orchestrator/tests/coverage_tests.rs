@@ -14,8 +14,8 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 #[test]
 fn single_game_matrix_registers_at_most_one_adapter() -> TestResult {
-    let mut matrix = load_default_matrix()
-        .map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
+    let mut matrix =
+        load_default_matrix().map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
     let first_key = matrix
         .games
         .keys()

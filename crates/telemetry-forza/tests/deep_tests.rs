@@ -154,9 +154,21 @@ fn deep_sled_g_forces() -> TestResult {
     write_f32(&mut buf, OFF_ACCEL_Y, 1.0 * g); // vertical
     write_f32(&mut buf, OFF_ACCEL_Z, -0.5 * g); // longitudinal
     let t = adapter.normalize(&buf)?;
-    assert!((t.lateral_g - 2.0).abs() < 0.01, "lateral_g={}", t.lateral_g);
-    assert!((t.vertical_g - 1.0).abs() < 0.01, "vertical_g={}", t.vertical_g);
-    assert!((t.longitudinal_g - (-0.5)).abs() < 0.01, "lon_g={}", t.longitudinal_g);
+    assert!(
+        (t.lateral_g - 2.0).abs() < 0.01,
+        "lateral_g={}",
+        t.lateral_g
+    );
+    assert!(
+        (t.vertical_g - 1.0).abs() < 0.01,
+        "vertical_g={}",
+        t.vertical_g
+    );
+    assert!(
+        (t.longitudinal_g - (-0.5)).abs() < 0.01,
+        "lon_g={}",
+        t.longitudinal_g
+    );
     Ok(())
 }
 
@@ -186,7 +198,11 @@ fn deep_cardash_throttle_brake_from_u8() -> TestResult {
     let t = adapter.normalize(&buf)?;
     assert!((t.throttle - 1.0).abs() < 0.01, "throttle={}", t.throttle);
     assert!((t.brake - 128.0 / 255.0).abs() < 0.01, "brake={}", t.brake);
-    assert!((t.clutch - 64.0 / 255.0).abs() < 0.01, "clutch={}", t.clutch);
+    assert!(
+        (t.clutch - 64.0 / 255.0).abs() < 0.01,
+        "clutch={}",
+        t.clutch
+    );
     Ok(())
 }
 
@@ -198,7 +214,11 @@ fn deep_cardash_gear_encoding() -> TestResult {
         let mut buf = make_cardash();
         buf[OFF_DASH_GEAR] = raw;
         let t = adapter.normalize(&buf)?;
-        assert_eq!(t.gear, expected, "raw={raw} expected={expected} got={}", t.gear);
+        assert_eq!(
+            t.gear, expected,
+            "raw={raw} expected={expected} got={}",
+            t.gear
+        );
     }
     Ok(())
 }
@@ -209,12 +229,20 @@ fn deep_cardash_steer_i8_to_float() -> TestResult {
     let mut buf = make_cardash();
     buf[OFF_DASH_STEER] = 127u8; // i8 = 127 → +1.0
     let t = adapter.normalize(&buf)?;
-    assert!((t.steering_angle - 1.0).abs() < 0.01, "steer={}", t.steering_angle);
+    assert!(
+        (t.steering_angle - 1.0).abs() < 0.01,
+        "steer={}",
+        t.steering_angle
+    );
 
     let mut buf2 = make_cardash();
     buf2[OFF_DASH_STEER] = (-127i8) as u8; // i8 = -127 → -1.0
     let t2 = adapter.normalize(&buf2)?;
-    assert!((t2.steering_angle - (-1.0)).abs() < 0.01, "steer={}", t2.steering_angle);
+    assert!(
+        (t2.steering_angle - (-1.0)).abs() < 0.01,
+        "steer={}",
+        t2.steering_angle
+    );
     Ok(())
 }
 
@@ -259,7 +287,11 @@ fn deep_cardash_fuel_percent() -> TestResult {
     let mut buf = make_cardash();
     write_f32(&mut buf, OFF_DASH_FUEL, 0.73);
     let t = adapter.normalize(&buf)?;
-    assert!((t.fuel_percent - 0.73).abs() < 0.01, "fuel={}", t.fuel_percent);
+    assert!(
+        (t.fuel_percent - 0.73).abs() < 0.01,
+        "fuel={}",
+        t.fuel_percent
+    );
     Ok(())
 }
 

@@ -16,11 +16,11 @@
 //! | 7 | tolgayilmaz86/MuscleMemoryTrainer | La Prima Pedals `0xF102` in device_presets.py |
 
 use hid_asetek_protocol::{
-    AsetekModel, AsetekOutputReport, ASETEK_FORTE_PEDALS_PID, ASETEK_FORTE_PID,
-    ASETEK_INVICTA_PEDALS_PID, ASETEK_INVICTA_PID, ASETEK_LAPRIMA_PEDALS_PID,
-    ASETEK_LAPRIMA_PID, ASETEK_TONY_KANAAN_PID, ASETEK_VENDOR_ID, MAX_TORQUE_NM,
-    PRODUCT_ID_FORTE, PRODUCT_ID_INVICTA, PRODUCT_ID_LAPRIMA, REPORT_SIZE_INPUT,
-    REPORT_SIZE_OUTPUT, VENDOR_ID, asetek_model_from_info, is_asetek_device,
+    ASETEK_FORTE_PEDALS_PID, ASETEK_FORTE_PID, ASETEK_INVICTA_PEDALS_PID, ASETEK_INVICTA_PID,
+    ASETEK_LAPRIMA_PEDALS_PID, ASETEK_LAPRIMA_PID, ASETEK_TONY_KANAAN_PID, ASETEK_VENDOR_ID,
+    AsetekModel, AsetekOutputReport, MAX_TORQUE_NM, PRODUCT_ID_FORTE, PRODUCT_ID_INVICTA,
+    PRODUCT_ID_LAPRIMA, REPORT_SIZE_INPUT, REPORT_SIZE_OUTPUT, VENDOR_ID, asetek_model_from_info,
+    is_asetek_device,
 };
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -37,7 +37,10 @@ fn vid_matches_kernel_and_vendor_databases() -> Result<(), Box<dyn std::error::E
         "Asetek VID must be 0x2433 (confirmed in Linux kernel hid-ids.h)"
     );
     // lib.rs also re-exports VENDOR_ID — must match
-    assert_eq!(VENDOR_ID, ASETEK_VENDOR_ID, "VENDOR_ID must equal ASETEK_VENDOR_ID");
+    assert_eq!(
+        VENDOR_ID, ASETEK_VENDOR_ID,
+        "VENDOR_ID must equal ASETEK_VENDOR_ID"
+    );
     Ok(())
 }
 
@@ -61,7 +64,10 @@ fn is_asetek_device_accepts_confirmed_vid() -> Result<(), Box<dyn std::error::Er
 #[test]
 fn invicta_pid_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(ASETEK_INVICTA_PID, 0xF300, "Invicta PID must be 0xF300");
-    assert_eq!(PRODUCT_ID_INVICTA, ASETEK_INVICTA_PID, "PRODUCT_ID_INVICTA must match");
+    assert_eq!(
+        PRODUCT_ID_INVICTA, ASETEK_INVICTA_PID,
+        "PRODUCT_ID_INVICTA must match"
+    );
     Ok(())
 }
 
@@ -72,7 +78,10 @@ fn invicta_pid_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn forte_pid_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(ASETEK_FORTE_PID, 0xF301, "Forte PID must be 0xF301");
-    assert_eq!(PRODUCT_ID_FORTE, ASETEK_FORTE_PID, "PRODUCT_ID_FORTE must match");
+    assert_eq!(
+        PRODUCT_ID_FORTE, ASETEK_FORTE_PID,
+        "PRODUCT_ID_FORTE must match"
+    );
     Ok(())
 }
 
@@ -84,7 +93,10 @@ fn forte_pid_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn laprima_pid_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(ASETEK_LAPRIMA_PID, 0xF303, "La Prima PID must be 0xF303");
-    assert_eq!(PRODUCT_ID_LAPRIMA, ASETEK_LAPRIMA_PID, "PRODUCT_ID_LAPRIMA must match");
+    assert_eq!(
+        PRODUCT_ID_LAPRIMA, ASETEK_LAPRIMA_PID,
+        "PRODUCT_ID_LAPRIMA must match"
+    );
     Ok(())
 }
 
@@ -138,11 +150,13 @@ fn laprima_pedals_pid_follows_pattern() -> Result<(), Box<dyn std::error::Error>
     );
     // Verify the pattern: each pedal PID increments by 1
     assert_eq!(
-        ASETEK_FORTE_PEDALS_PID - ASETEK_INVICTA_PEDALS_PID, 1,
+        ASETEK_FORTE_PEDALS_PID - ASETEK_INVICTA_PEDALS_PID,
+        1,
         "Forte - Invicta pedal PID delta must be 1"
     );
     assert_eq!(
-        ASETEK_LAPRIMA_PEDALS_PID - ASETEK_FORTE_PEDALS_PID, 1,
+        ASETEK_LAPRIMA_PEDALS_PID - ASETEK_FORTE_PEDALS_PID,
+        1,
         "La Prima - Forte pedal PID delta must be 1"
     );
     Ok(())
@@ -231,11 +245,7 @@ fn max_torque_constant() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn model_from_info_wrong_vid() -> Result<(), Box<dyn std::error::Error>> {
     let model = asetek_model_from_info(0x0000, ASETEK_FORTE_PID);
-    assert_eq!(
-        model,
-        AsetekModel::Unknown,
-        "wrong VID must return Unknown"
-    );
+    assert_eq!(model, AsetekModel::Unknown, "wrong VID must return Unknown");
     Ok(())
 }
 
@@ -297,10 +307,7 @@ fn report_sizes() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn torque_encoding_cnm() -> Result<(), Box<dyn std::error::Error>> {
     let report = AsetekOutputReport::new(1).with_torque(10.5);
-    assert_eq!(
-        report.torque_cNm, 1050,
-        "10.5 Nm must encode as 1050 cNm"
-    );
+    assert_eq!(report.torque_cNm, 1050, "10.5 Nm must encode as 1050 cNm");
     Ok(())
 }
 

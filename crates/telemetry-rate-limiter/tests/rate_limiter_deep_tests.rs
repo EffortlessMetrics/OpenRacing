@@ -4,9 +4,7 @@
 
 use std::time::{Duration, Instant};
 
-use racing_wheel_telemetry_rate_limiter::{
-    AdaptiveRateLimiter, RateLimiter, RateLimiterStats,
-};
+use racing_wheel_telemetry_rate_limiter::{AdaptiveRateLimiter, RateLimiter, RateLimiterStats};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -136,10 +134,7 @@ fn three_cycle_burst_rest_invariant() -> TestResult {
     }
     assert_eq!(limiter.processed_count(), 3);
     assert_eq!(limiter.dropped_count(), 3);
-    assert_eq!(
-        limiter.processed_count() + limiter.dropped_count(),
-        6
-    );
+    assert_eq!(limiter.processed_count() + limiter.dropped_count(), 6);
     Ok(())
 }
 

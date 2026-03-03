@@ -14,12 +14,12 @@ use racing_wheel_schemas::telemetry::{
     NormalizedTelemetry, NormalizedTelemetryBuilder, TelemetryFlags, TelemetrySnapshot,
     TelemetryValue,
 };
+use racing_wheel_service::system_config::SystemConfig;
 use racing_wheel_telemetry_adapters::{TelemetryAdapter, adapter_factories};
 use racing_wheel_telemetry_config::{
     ConfigDiff, DiffOperation, GameSupportMatrix, TelemetryConfig, config_writer_factories,
     load_default_matrix, matrix_game_id_set,
 };
-use racing_wheel_service::system_config::SystemConfig;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. End-to-end telemetry pipeline tests
@@ -164,7 +164,10 @@ fn e2e_dirt_rally_2_raw_bytes_normalize_validate_output() -> Result<(), Box<dyn 
         telem.longitudinal_g,
     ];
     for (i, f) in fields.iter().enumerate() {
-        assert!(f.is_finite(), "numeric field index {i} must be finite, got {f}");
+        assert!(
+            f.is_finite(),
+            "numeric field index {i} must be finite, got {f}"
+        );
     }
 
     Ok(())
@@ -192,7 +195,10 @@ fn e2e_normalized_output_serializes_to_json_and_back() -> Result<(), Box<dyn std
         (decoded.rpm - telem.rpm).abs() < 0.01,
         "rpm should survive JSON round-trip"
     );
-    assert_eq!(decoded.gear, telem.gear, "gear should survive JSON round-trip");
+    assert_eq!(
+        decoded.gear, telem.gear,
+        "gear should survive JSON round-trip"
+    );
 
     Ok(())
 }
@@ -202,8 +208,8 @@ fn e2e_normalized_output_serializes_to_json_and_back() -> Result<(), Box<dyn std
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn all_adapters_normalize_without_panic_on_large_zero_buffer() -> Result<(), Box<dyn std::error::Error>>
-{
+fn all_adapters_normalize_without_panic_on_large_zero_buffer()
+-> Result<(), Box<dyn std::error::Error>> {
     let factories = adapter_factories();
     assert!(
         !factories.is_empty(),
@@ -285,8 +291,8 @@ fn all_adapters_have_positive_expected_update_rate() -> Result<(), Box<dyn std::
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn schemas_normalized_telemetry_default_matches_builder_default(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn schemas_normalized_telemetry_default_matches_builder_default()
+-> Result<(), Box<dyn std::error::Error>> {
     let from_default = NormalizedTelemetry::default();
     let from_builder = NormalizedTelemetryBuilder::new().build();
 
@@ -316,8 +322,8 @@ fn schemas_normalized_telemetry_default_matches_builder_default(
 }
 
 #[test]
-fn adapter_output_type_matches_schemas_normalized_telemetry(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn adapter_output_type_matches_schemas_normalized_telemetry()
+-> Result<(), Box<dyn std::error::Error>> {
     // Build a Forza packet and normalize
     let adapter = get_adapter("forza_motorsport")?;
     let mut packet = vec![0u8; 232];
@@ -377,7 +383,10 @@ fn telemetry_flags_default_has_green_flag_set() -> Result<(), Box<dyn std::error
     );
     assert!(!flags.yellow_flag, "default should not have yellow_flag");
     assert!(!flags.red_flag, "default should not have red_flag");
-    assert!(!flags.checkered_flag, "default should not have checkered_flag");
+    assert!(
+        !flags.checkered_flag,
+        "default should not have checkered_flag"
+    );
 
     Ok(())
 }
@@ -454,8 +463,8 @@ fn builder_produces_valid_telemetry_with_extended_data() -> Result<(), Box<dyn s
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn telemetry_config_json_round_trip_preserves_all_fields(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn telemetry_config_json_round_trip_preserves_all_fields() -> Result<(), Box<dyn std::error::Error>>
+{
     let config = TelemetryConfig {
         enabled: true,
         update_rate_hz: 360,
@@ -489,7 +498,11 @@ fn telemetry_config_json_round_trip_preserves_all_fields(
 
 #[test]
 fn config_diff_round_trip_all_operations() -> Result<(), Box<dyn std::error::Error>> {
-    let operations = [DiffOperation::Add, DiffOperation::Modify, DiffOperation::Remove];
+    let operations = [
+        DiffOperation::Add,
+        DiffOperation::Modify,
+        DiffOperation::Remove,
+    ];
 
     for op in &operations {
         let diff = ConfigDiff {
@@ -552,7 +565,10 @@ fn system_config_default_round_trips_via_json() -> Result<(), Box<dyn std::error
     let config = SystemConfig::default();
 
     let json = serde_json::to_string_pretty(&config)?;
-    assert!(!json.is_empty(), "serialized SystemConfig must not be empty");
+    assert!(
+        !json.is_empty(),
+        "serialized SystemConfig must not be empty"
+    );
 
     let decoded: SystemConfig = serde_json::from_str(&json)?;
 
@@ -577,8 +593,7 @@ fn system_config_default_round_trips_via_json() -> Result<(), Box<dyn std::error
 }
 
 #[test]
-fn config_writer_factory_ids_align_with_support_matrix() -> Result<(), Box<dyn std::error::Error>>
-{
+fn config_writer_factory_ids_align_with_support_matrix() -> Result<(), Box<dyn std::error::Error>> {
     let matrix = load_default_matrix()?;
     let factory_ids: std::collections::HashSet<&str> = config_writer_factories()
         .iter()
@@ -597,12 +612,15 @@ fn config_writer_factory_ids_align_with_support_matrix() -> Result<(), Box<dyn s
 }
 
 #[test]
-fn normalized_telemetry_serde_round_trip_with_extended_data(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn normalized_telemetry_serde_round_trip_with_extended_data()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut extended = BTreeMap::new();
     extended.insert("tire_temp_fl".to_string(), TelemetryValue::Float(85.0));
     extended.insert("drs_active".to_string(), TelemetryValue::Boolean(true));
-    extended.insert("car_class".to_string(), TelemetryValue::String("GT3".to_string()));
+    extended.insert(
+        "car_class".to_string(),
+        TelemetryValue::String("GT3".to_string()),
+    );
     extended.insert("position".to_string(), TelemetryValue::Integer(3));
 
     let telem = NormalizedTelemetryBuilder::new()
@@ -617,7 +635,11 @@ fn normalized_telemetry_serde_round_trip_with_extended_data(
     let json = serde_json::to_string(&telem)?;
     let decoded: NormalizedTelemetry = serde_json::from_str(&json)?;
 
-    assert_eq!(decoded.extended.len(), 4, "extended map must preserve all 4 entries");
+    assert_eq!(
+        decoded.extended.len(),
+        4,
+        "extended map must preserve all 4 entries"
+    );
     match decoded.extended.get("tire_temp_fl") {
         Some(TelemetryValue::Float(v)) => {
             assert!((*v - 85.0).abs() < f32::EPSILON);
@@ -651,10 +673,7 @@ fn adapter_error_propagates_as_boxed_std_error() -> Result<(), Box<dyn std::erro
 
     let err = result.err().ok_or("expected error")?;
     let err_msg = format!("{err}");
-    assert!(
-        !err_msg.is_empty(),
-        "error message must not be empty"
-    );
+    assert!(!err_msg.is_empty(), "error message must not be empty");
 
     // Verify the error can be converted to Box<dyn std::error::Error>
     let boxed: Box<dyn std::error::Error> = err.into();
@@ -786,10 +805,7 @@ fn config_deserialization_error_propagates_on_bad_input() -> Result<(), Box<dyn 
 
     if let Err(e) = result {
         let msg = format!("{e}");
-        assert!(
-            !msg.is_empty(),
-            "deserialization error must have a message"
-        );
+        assert!(!msg.is_empty(), "deserialization error must have a message");
     }
 
     Ok(())

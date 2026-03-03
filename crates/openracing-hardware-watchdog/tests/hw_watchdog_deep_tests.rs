@@ -824,10 +824,7 @@ fn hw_status_from_raw_valid() {
     assert_eq!(WatchdogStatus::from_raw(0), Some(WatchdogStatus::Disarmed));
     assert_eq!(WatchdogStatus::from_raw(1), Some(WatchdogStatus::Armed));
     assert_eq!(WatchdogStatus::from_raw(2), Some(WatchdogStatus::TimedOut));
-    assert_eq!(
-        WatchdogStatus::from_raw(3),
-        Some(WatchdogStatus::SafeState)
-    );
+    assert_eq!(WatchdogStatus::from_raw(3), Some(WatchdogStatus::SafeState));
 }
 
 #[test]

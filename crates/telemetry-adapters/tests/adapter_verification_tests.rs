@@ -323,9 +323,9 @@ mod beamng_verification {
         //   oilPressure(f32@32), oilTemp(f32@36), dashLights(u32@40), showLights(u32@44),
         //   throttle(f32@48), brake(f32@52), clutch(f32@56), display1([16]u8@60),
         //   display2([16]u8@76), id(i32@92 optional).
-        assert_eq!(0_usize, 0);   // time
-        assert_eq!(4_usize, 4);   // car
-        assert_eq!(8_usize, 8);   // flags
+        assert_eq!(0_usize, 0); // time
+        assert_eq!(4_usize, 4); // car
+        assert_eq!(8_usize, 8); // flags
         assert_eq!(10_usize, 10); // gear
         assert_eq!(11_usize, 11); // plid
         assert_eq!(12_usize, 12); // speed (f32)
@@ -534,9 +534,9 @@ mod forza_verification {
         // EngineIdleRpm(f32@12), CurrentEngineRpm(f32@16),
         // AccelerationX(f32@20), AccelerationY(f32@24), AccelerationZ(f32@28),
         // VelocityX(f32@32), VelocityY(f32@36), VelocityZ(f32@40)
-        assert_eq!(0_usize, 0);   // IsRaceOn
-        assert_eq!(4_usize, 4);   // TimestampMS
-        assert_eq!(8_usize, 8);   // EngineMaxRpm
+        assert_eq!(0_usize, 0); // IsRaceOn
+        assert_eq!(4_usize, 4); // TimestampMS
+        assert_eq!(8_usize, 8); // EngineMaxRpm
         assert_eq!(12_usize, 12); // EngineIdleRpm
         assert_eq!(16_usize, 16); // CurrentEngineRpm
         assert_eq!(20_usize, 20); // AccelerationX (lateral)
@@ -870,12 +870,12 @@ mod gt7_verification {
         // LastLap@0x7C, CurrentLap@0x80, Position@0x84, NumCars@0x86,
         // MaxAlertRPM@0x8A, Flags@0x8E, Gear@0x90, Throttle@0x91, Brake@0x92,
         // CarCode@0x124
-        assert_eq!(0x3C_usize, 60);  // EngineRPM (f32)
-        assert_eq!(0x44_usize, 68);  // GasLevel / FuelLevel (f32)
-        assert_eq!(0x48_usize, 72);  // GasCapacity / FuelCapacity (f32)
-        assert_eq!(0x4C_usize, 76);  // MetersPerSecond / Speed (f32)
-        assert_eq!(0x58_usize, 88);  // WaterTemp (f32)
-        assert_eq!(0x60_usize, 96);  // TireFL temp (f32)
+        assert_eq!(0x3C_usize, 60); // EngineRPM (f32)
+        assert_eq!(0x44_usize, 68); // GasLevel / FuelLevel (f32)
+        assert_eq!(0x48_usize, 72); // GasCapacity / FuelCapacity (f32)
+        assert_eq!(0x4C_usize, 76); // MetersPerSecond / Speed (f32)
+        assert_eq!(0x58_usize, 88); // WaterTemp (f32)
+        assert_eq!(0x60_usize, 96); // TireFL temp (f32)
         assert_eq!(0x64_usize, 100); // TireFR temp (f32)
         assert_eq!(0x68_usize, 104); // TireRL temp (f32)
         assert_eq!(0x6C_usize, 108); // TireRR temp (f32)
@@ -897,10 +897,10 @@ mod gt7_verification {
     /// Source: Nenkai/PDTools SimulatorFlags.
     #[test]
     fn gt7_flags_bitmask() {
-        let flag_paused: u16 = 1 << 1;       // 0x02
-        let flag_rev_limit: u16 = 1 << 5;    // 0x20
-        let flag_asm_active: u16 = 1 << 10;  // 0x400
-        let flag_tcs_active: u16 = 1 << 11;  // 0x800
+        let flag_paused: u16 = 1 << 1; // 0x02
+        let flag_rev_limit: u16 = 1 << 5; // 0x20
+        let flag_asm_active: u16 = 1 << 10; // 0x400
+        let flag_tcs_active: u16 = 1 << 11; // 0x800
         assert_eq!(flag_paused, 0x02);
         assert_eq!(flag_rev_limit, 0x20);
         assert_eq!(flag_asm_active, 0x0400);
@@ -1018,11 +1018,11 @@ mod cross_adapter_verification {
     #[test]
     fn default_ports_are_distinct_except_forza_family() {
         let ports = [
-            ("iracing", "shared_memory"),     // No UDP port
+            ("iracing", "shared_memory"), // No UDP port
             ("acc", "9000"),
             ("beamng", "4444"),
             ("forza_motorsport", "5300"),
-            ("forza_horizon_5", "5300"),       // intentionally same as FM
+            ("forza_horizon_5", "5300"), // intentionally same as FM
             ("forza_horizon_4", "12350"),
             ("f1", "20777"),
             ("gt7_recv", "33740"),

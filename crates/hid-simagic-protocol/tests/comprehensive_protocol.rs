@@ -6,18 +6,16 @@
 //! and known constant validation.
 
 use racing_wheel_hid_simagic_protocol::{
-    self as simagic,
+    self as simagic, CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN,
+    SPRING_REPORT_LEN, SimagicConstantForceEncoder, SimagicDamperEncoder, SimagicFrictionEncoder,
+    SimagicSpringEncoder,
     ids::{
-        SIMAGIC_LEGACY_PID, SIMAGIC_LEGACY_VENDOR_ID, SIMAGIC_VENDOR_ID, product_ids,
-        report_ids,
+        SIMAGIC_LEGACY_PID, SIMAGIC_LEGACY_VENDOR_ID, SIMAGIC_VENDOR_ID, product_ids, report_ids,
     },
     types::{
         QuickReleaseStatus, SimagicDeviceCategory, SimagicFfbEffectType, SimagicGear, SimagicModel,
         SimagicPedalAxesRaw,
     },
-    CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN, SPRING_REPORT_LEN,
-    SimagicConstantForceEncoder, SimagicDamperEncoder, SimagicFrictionEncoder,
-    SimagicSpringEncoder,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -71,14 +69,24 @@ fn input_alpha_full_left_heavy_brake() -> Result<(), Box<dyn std::error::Error>>
         0xC000, // ~75% brake
         0x0000, // clutch released
         0x0000, // handbrake released
-        0x0000, 0x08, 0, 0, 0, 0, 0,
+        0x0000,
+        0x08,
+        0,
+        0,
+        0,
+        0,
+        0,
         Some((2, 1, 0)),
     );
     let state = simagic::parse_input_report(&data).ok_or("parse failed")?;
 
     assert!((state.steering + 1.0).abs() < 0.001, "should be full left");
     assert!(state.throttle < 0.001, "throttle released");
-    assert!(state.brake > 0.74 && state.brake < 0.76, "~75% brake: {}", state.brake);
+    assert!(
+        state.brake > 0.74 && state.brake < 0.76,
+        "~75% brake: {}",
+        state.brake
+    );
     assert_eq!(state.firmware_version, Some((2, 1, 0)));
     Ok(())
 }
@@ -89,8 +97,13 @@ fn input_m10_center_half_throttle_third_gear() -> Result<(), Box<dyn std::error:
     let data = build_input_report(
         0x8000, // center
         0x8000, // ~50% throttle
-        0x0000, 0x0000, 0x0000,
-        0x0000, 0x08, 0, 0,
+        0x0000,
+        0x0000,
+        0x0000,
+        0x0000,
+        0x08,
+        0,
+        0,
         3,    // third gear
         0x01, // clutch in range
         0,
@@ -99,7 +112,11 @@ fn input_m10_center_half_throttle_third_gear() -> Result<(), Box<dyn std::error:
     let state = simagic::parse_input_report(&data).ok_or("parse failed")?;
 
     assert!(state.steering.abs() < 0.001, "center steering");
-    assert!((state.throttle - 0.5).abs() < 0.01, "~50% throttle: {}", state.throttle);
+    assert!(
+        (state.throttle - 0.5).abs() < 0.01,
+        "~50% throttle: {}",
+        state.throttle
+    );
     assert_eq!(state.shifter.gear, SimagicGear::Third);
     assert!(state.shifter.clutch_in_range);
     assert!(!state.shifter.sequential_up_pressed);
@@ -113,14 +130,11 @@ fn input_fx_full_right_seq_shift_up() -> Result<(), Box<dyn std::error::Error>> 
     let data = build_input_report(
         0xFFFF, // full right
         0xFFFF, // full throttle
-        0x0000, 0x0000, 0x0000,
-        0x0003, // buttons 0+1 pressed (paddle flags)
+        0x0000, 0x0000, 0x0000, 0x0003, // buttons 0+1 pressed (paddle flags)
         0x02,   // hat right-up
-        0xFF, 0x80,
-        0,    // neutral
+        0xFF, 0x80, 0,    // neutral
         0x02, // sequential up
-        0,
-        None,
+        0, None,
     );
     let state = simagic::parse_input_report(&data).ok_or("parse failed")?;
 
@@ -142,8 +156,14 @@ fn input_fx_full_right_seq_shift_up() -> Result<(), Box<dyn std::error::Error>> 
 fn input_all_pedals_max_eighth_gear_all_flags() -> Result<(), Box<dyn std::error::Error>> {
     let data = build_input_report(
         0x8000,
-        0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
-        0xFFFF, 0x0F, 0xFF, 0xFF,
+        0xFFFF,
+        0xFFFF,
+        0xFFFF,
+        0xFFFF,
+        0xFFFF,
+        0x0F,
+        0xFF,
+        0xFF,
         8,    // eighth gear
         0x07, // all flags
         1,    // detached
@@ -291,10 +311,17 @@ fn identify_all_wheelbases() -> Result<(), Box<dyn std::error::Error>> {
     for (pid, name_fragment, expected_torque) in wheelbases {
         let id = simagic::identify_device(pid);
         assert_eq!(id.product_id, pid);
-        assert!(id.name.contains(name_fragment), "expected '{}' in '{}'", name_fragment, id.name);
+        assert!(
+            id.name.contains(name_fragment),
+            "expected '{}' in '{}'",
+            name_fragment,
+            id.name
+        );
         assert_eq!(id.category, SimagicDeviceCategory::Wheelbase);
         assert!(id.supports_ffb);
-        let torque = id.max_torque_nm.ok_or(format!("no torque for {name_fragment}"))?;
+        let torque = id
+            .max_torque_nm
+            .ok_or(format!("no torque for {name_fragment}"))?;
         assert!(
             (torque - expected_torque).abs() < 0.01,
             "{name_fragment}: expected {expected_torque}, got {torque}"
@@ -322,7 +349,10 @@ fn identify_all_peripherals() {
         let id = simagic::identify_device(pid);
         assert_eq!(id.category, expected_cat, "PID {pid:#06x}");
         assert!(!id.supports_ffb, "PID {pid:#06x} should not support FFB");
-        assert!(id.max_torque_nm.is_none(), "PID {pid:#06x} should have no torque");
+        assert!(
+            id.max_torque_nm.is_none(),
+            "PID {pid:#06x} should have no torque"
+        );
     }
 }
 
@@ -506,10 +536,22 @@ fn spring_disable_via_encode_zero() {
     let mut out = [0xFFu8; SPRING_REPORT_LEN];
     enc.encode_zero(&mut out);
     assert_eq!(out[0], report_ids::SPRING_EFFECT);
-    assert_eq!(u16::from_le_bytes([out[2], out[3]]), 0, "strength must be 0");
-    assert_eq!(i16::from_le_bytes([out[4], out[5]]), 0, "steering must be 0");
+    assert_eq!(
+        u16::from_le_bytes([out[2], out[3]]),
+        0,
+        "strength must be 0"
+    );
+    assert_eq!(
+        i16::from_le_bytes([out[4], out[5]]),
+        0,
+        "steering must be 0"
+    );
     assert_eq!(i16::from_le_bytes([out[6], out[7]]), 0, "center must be 0");
-    assert_eq!(u16::from_le_bytes([out[8], out[9]]), 0, "deadzone must be 0");
+    assert_eq!(
+        u16::from_le_bytes([out[8], out[9]]),
+        0,
+        "deadzone must be 0"
+    );
 }
 
 /// Damper encode_zero disables damper effect.
@@ -633,10 +675,19 @@ fn gear_raw_boundary_values() {
 /// Quick release status boundary values.
 #[test]
 fn quick_release_boundary_values() {
-    assert_eq!(QuickReleaseStatus::from_raw(0), QuickReleaseStatus::Attached);
-    assert_eq!(QuickReleaseStatus::from_raw(1), QuickReleaseStatus::Detached);
+    assert_eq!(
+        QuickReleaseStatus::from_raw(0),
+        QuickReleaseStatus::Attached
+    );
+    assert_eq!(
+        QuickReleaseStatus::from_raw(1),
+        QuickReleaseStatus::Detached
+    );
     assert_eq!(QuickReleaseStatus::from_raw(2), QuickReleaseStatus::Unknown);
-    assert_eq!(QuickReleaseStatus::from_raw(0xFF), QuickReleaseStatus::Unknown);
+    assert_eq!(
+        QuickReleaseStatus::from_raw(0xFF),
+        QuickReleaseStatus::Unknown
+    );
 }
 
 /// Pedal normalization: u16::MAX raw → 1.0, 0 raw → 0.0.
@@ -873,19 +924,44 @@ fn const_ffb_effect_report_ids() {
 /// FFB effect type report IDs align with the report_ids module constants.
 #[test]
 fn const_effect_type_matches_report_ids_module() {
-    assert_eq!(SimagicFfbEffectType::Constant.report_id(), report_ids::CONSTANT_FORCE);
-    assert_eq!(SimagicFfbEffectType::Spring.report_id(), report_ids::SPRING_EFFECT);
-    assert_eq!(SimagicFfbEffectType::Damper.report_id(), report_ids::DAMPER_EFFECT);
-    assert_eq!(SimagicFfbEffectType::Friction.report_id(), report_ids::FRICTION_EFFECT);
-    assert_eq!(SimagicFfbEffectType::Sine.report_id(), report_ids::SINE_EFFECT);
-    assert_eq!(SimagicFfbEffectType::Square.report_id(), report_ids::SQUARE_EFFECT);
-    assert_eq!(SimagicFfbEffectType::Triangle.report_id(), report_ids::TRIANGLE_EFFECT);
+    assert_eq!(
+        SimagicFfbEffectType::Constant.report_id(),
+        report_ids::CONSTANT_FORCE
+    );
+    assert_eq!(
+        SimagicFfbEffectType::Spring.report_id(),
+        report_ids::SPRING_EFFECT
+    );
+    assert_eq!(
+        SimagicFfbEffectType::Damper.report_id(),
+        report_ids::DAMPER_EFFECT
+    );
+    assert_eq!(
+        SimagicFfbEffectType::Friction.report_id(),
+        report_ids::FRICTION_EFFECT
+    );
+    assert_eq!(
+        SimagicFfbEffectType::Sine.report_id(),
+        report_ids::SINE_EFFECT
+    );
+    assert_eq!(
+        SimagicFfbEffectType::Square.report_id(),
+        report_ids::SQUARE_EFFECT
+    );
+    assert_eq!(
+        SimagicFfbEffectType::Triangle.report_id(),
+        report_ids::TRIANGLE_EFFECT
+    );
 }
 
 /// All known EVO-generation product IDs are distinct.
 #[test]
 fn const_evo_pids_distinct() {
-    let pids = [product_ids::EVO_SPORT, product_ids::EVO, product_ids::EVO_PRO];
+    let pids = [
+        product_ids::EVO_SPORT,
+        product_ids::EVO,
+        product_ids::EVO_PRO,
+    ];
     for i in 0..pids.len() {
         for j in (i + 1)..pids.len() {
             assert_ne!(pids[i], pids[j], "EVO PIDs at index {i} and {j} collide");

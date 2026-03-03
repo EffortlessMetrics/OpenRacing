@@ -9,12 +9,12 @@ use racing_wheel_hid_moza_protocol::report::report_ids;
 use racing_wheel_hid_moza_protocol::rt_types::{TorqueEncoder, TorqueQ8_8};
 use racing_wheel_hid_moza_protocol::signature::{DeviceSignature, SignatureVerdict};
 use racing_wheel_hid_moza_protocol::types::{
-    MozaDeviceCategory, MozaEsCompatibility, MozaEsJoystickMode, MozaHatDirection, MozaInputState,
-    MozaModel, MozaPedalAxesRaw, MozaTopologyHint, ES_BUTTON_COUNT, ES_LED_COUNT,
+    ES_BUTTON_COUNT, ES_LED_COUNT, MozaDeviceCategory, MozaEsCompatibility, MozaEsJoystickMode,
+    MozaHatDirection, MozaInputState, MozaModel, MozaPedalAxesRaw, MozaTopologyHint,
 };
 use racing_wheel_hid_moza_protocol::{
-    MozaDirectTorqueEncoder, MozaInitState, MozaProtocol, MozaRetryPolicy, es_compatibility,
-    identify_device, is_wheelbase_product, verify_signature, FfbMode,
+    FfbMode, MozaDirectTorqueEncoder, MozaInitState, MozaProtocol, MozaRetryPolicy,
+    es_compatibility, identify_device, is_wheelbase_product, verify_signature,
 };
 
 // ─── Torque encoding: boundary values ────────────────────────────────────────
@@ -47,12 +47,18 @@ fn torque_encode_sign_preserved_small_values() -> Result<(), Box<dyn std::error:
     // Small positive
     enc.encode(0.01, 0, &mut out);
     let raw_pos = i16::from_le_bytes([out[1], out[2]]);
-    assert!(raw_pos >= 0, "small positive torque must encode as non-negative raw={raw_pos}");
+    assert!(
+        raw_pos >= 0,
+        "small positive torque must encode as non-negative raw={raw_pos}"
+    );
 
     // Small negative
     enc.encode(-0.01, 0, &mut out);
     let raw_neg = i16::from_le_bytes([out[1], out[2]]);
-    assert!(raw_neg <= 0, "small negative torque must encode as non-positive raw={raw_neg}");
+    assert!(
+        raw_neg <= 0,
+        "small negative torque must encode as non-positive raw={raw_neg}"
+    );
     Ok(())
 }
 
@@ -83,7 +89,11 @@ fn torque_encode_zero_max_torque_is_safe() -> Result<(), Box<dyn std::error::Err
     enc.encode(5.0, 0, &mut out);
     let raw = i16::from_le_bytes([out[1], out[2]]);
     assert_eq!(raw, 0, "zero max_torque must always produce raw=0");
-    assert_eq!(out[3] & 0x01, 0x00, "motor must be disabled for zero output");
+    assert_eq!(
+        out[3] & 0x01,
+        0x00,
+        "motor must be disabled for zero output"
+    );
     Ok(())
 }
 
@@ -105,7 +115,11 @@ fn torque_encode_slew_rate_zero_value() -> Result<(), Box<dyn std::error::Error>
     let mut out = [0u8; REPORT_LEN];
     enc.encode(6.0, 0, &mut out);
     assert_eq!(out[3] & 0x02, 0x02, "slew-rate flag must be set");
-    assert_eq!(u16::from_le_bytes([out[4], out[5]]), 0, "slew-rate value must be 0");
+    assert_eq!(
+        u16::from_le_bytes([out[4], out[5]]),
+        0,
+        "slew-rate value must be 0"
+    );
     Ok(())
 }
 
@@ -245,10 +259,26 @@ fn identify_all_v2_wheelbases() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn identify_all_peripherals() -> Result<(), Box<dyn std::error::Error>> {
     let peripherals = [
-        (product_ids::SR_P_PEDALS, MozaDeviceCategory::Pedals, "SR-P Pedals"),
-        (product_ids::HGP_SHIFTER, MozaDeviceCategory::Shifter, "HGP Shifter"),
-        (product_ids::SGP_SHIFTER, MozaDeviceCategory::Shifter, "SGP Shifter"),
-        (product_ids::HBP_HANDBRAKE, MozaDeviceCategory::Handbrake, "HBP Handbrake"),
+        (
+            product_ids::SR_P_PEDALS,
+            MozaDeviceCategory::Pedals,
+            "SR-P Pedals",
+        ),
+        (
+            product_ids::HGP_SHIFTER,
+            MozaDeviceCategory::Shifter,
+            "HGP Shifter",
+        ),
+        (
+            product_ids::SGP_SHIFTER,
+            MozaDeviceCategory::Shifter,
+            "SGP Shifter",
+        ),
+        (
+            product_ids::HBP_HANDBRAKE,
+            MozaDeviceCategory::Handbrake,
+            "HBP Handbrake",
+        ),
     ];
     for (pid, expected_cat, label) in peripherals {
         let identity = identify_device(pid);
@@ -278,11 +308,16 @@ fn identify_unknown_pid_returns_unknown() -> Result<(), Box<dyn std::error::Erro
 #[test]
 fn is_wheelbase_product_covers_all_known_pids() -> Result<(), Box<dyn std::error::Error>> {
     let wheelbase_pids = [
-        product_ids::R3_V1, product_ids::R3_V2,
-        product_ids::R5_V1, product_ids::R5_V2,
-        product_ids::R9_V1, product_ids::R9_V2,
-        product_ids::R12_V1, product_ids::R12_V2,
-        product_ids::R16_R21_V1, product_ids::R16_R21_V2,
+        product_ids::R3_V1,
+        product_ids::R3_V2,
+        product_ids::R5_V1,
+        product_ids::R5_V2,
+        product_ids::R9_V1,
+        product_ids::R9_V2,
+        product_ids::R12_V1,
+        product_ids::R12_V2,
+        product_ids::R16_R21_V1,
+        product_ids::R16_R21_V2,
     ];
     for pid in wheelbase_pids {
         assert!(is_wheelbase_product(pid), "0x{pid:04X} must be a wheelbase");
@@ -308,7 +343,8 @@ fn v2_pids_are_v1_or_0x0010() -> Result<(), Box<dyn std::error::Error>> {
     ];
     for (v1, v2) in pairs {
         assert_eq!(
-            v1 | 0x0010, v2,
+            v1 | 0x0010,
+            v2,
             "V2 PID 0x{v2:04X} must equal V1 PID 0x{v1:04X} | 0x0010"
         );
     }
@@ -329,7 +365,10 @@ fn model_from_pid_all_wheelbases() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(MozaModel::from_pid(product_ids::R12_V2), MozaModel::R12);
     assert_eq!(MozaModel::from_pid(product_ids::R16_R21_V1), MozaModel::R16);
     assert_eq!(MozaModel::from_pid(product_ids::R16_R21_V2), MozaModel::R16);
-    assert_eq!(MozaModel::from_pid(product_ids::SR_P_PEDALS), MozaModel::SrpPedals);
+    assert_eq!(
+        MozaModel::from_pid(product_ids::SR_P_PEDALS),
+        MozaModel::SrpPedals
+    );
     assert_eq!(MozaModel::from_pid(0xDEAD), MozaModel::Unknown);
     Ok(())
 }
@@ -362,11 +401,16 @@ fn model_max_torque_known_values() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn signature_all_wheelbase_pids() -> Result<(), Box<dyn std::error::Error>> {
     let all_wheelbase_pids = [
-        product_ids::R3_V1, product_ids::R3_V2,
-        product_ids::R5_V1, product_ids::R5_V2,
-        product_ids::R9_V1, product_ids::R9_V2,
-        product_ids::R12_V1, product_ids::R12_V2,
-        product_ids::R16_R21_V1, product_ids::R16_R21_V2,
+        product_ids::R3_V1,
+        product_ids::R3_V2,
+        product_ids::R5_V1,
+        product_ids::R5_V2,
+        product_ids::R9_V1,
+        product_ids::R9_V2,
+        product_ids::R12_V1,
+        product_ids::R12_V2,
+        product_ids::R16_R21_V1,
+        product_ids::R16_R21_V2,
     ];
     for pid in all_wheelbase_pids {
         let sig = DeviceSignature::from_vid_pid(MOZA_VENDOR_ID, pid);
@@ -450,9 +494,12 @@ fn es_compatibility_r5_r9v2_supported() -> Result<(), Box<dyn std::error::Error>
 #[test]
 fn es_compatibility_unknown_wheelbases() -> Result<(), Box<dyn std::error::Error>> {
     let unknown_bases = [
-        product_ids::R3_V1, product_ids::R3_V2,
-        product_ids::R12_V1, product_ids::R12_V2,
-        product_ids::R16_R21_V1, product_ids::R16_R21_V2,
+        product_ids::R3_V1,
+        product_ids::R3_V2,
+        product_ids::R12_V1,
+        product_ids::R12_V2,
+        product_ids::R16_R21_V1,
+        product_ids::R16_R21_V2,
     ];
     for pid in unknown_bases {
         assert_eq!(
@@ -466,8 +513,14 @@ fn es_compatibility_unknown_wheelbases() -> Result<(), Box<dyn std::error::Error
 
 #[test]
 fn es_compatibility_non_wheelbase() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(es_compatibility(product_ids::SR_P_PEDALS), MozaEsCompatibility::NotWheelbase);
-    assert_eq!(es_compatibility(product_ids::HGP_SHIFTER), MozaEsCompatibility::NotWheelbase);
+    assert_eq!(
+        es_compatibility(product_ids::SR_P_PEDALS),
+        MozaEsCompatibility::NotWheelbase
+    );
+    assert_eq!(
+        es_compatibility(product_ids::HGP_SHIFTER),
+        MozaEsCompatibility::NotWheelbase
+    );
     assert_eq!(es_compatibility(0xFFFF), MozaEsCompatibility::NotWheelbase);
     Ok(())
 }
@@ -476,8 +529,14 @@ fn es_compatibility_non_wheelbase() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn es_joystick_mode_from_config_value() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(MozaEsJoystickMode::from_config_value(0), Some(MozaEsJoystickMode::Buttons));
-    assert_eq!(MozaEsJoystickMode::from_config_value(1), Some(MozaEsJoystickMode::DPad));
+    assert_eq!(
+        MozaEsJoystickMode::from_config_value(0),
+        Some(MozaEsJoystickMode::Buttons)
+    );
+    assert_eq!(
+        MozaEsJoystickMode::from_config_value(1),
+        Some(MozaEsJoystickMode::DPad)
+    );
     assert_eq!(MozaEsJoystickMode::from_config_value(2), None);
     assert_eq!(MozaEsJoystickMode::from_config_value(255), None);
     Ok(())
@@ -571,7 +630,10 @@ fn pedal_axes_normalize_full_range() -> Result<(), Box<dyn std::error::Error>> {
         handbrake: None,
     };
     let norm = raw.normalize();
-    assert!((norm.throttle - 1.0).abs() < 0.001, "max throttle must normalize to 1.0");
+    assert!(
+        (norm.throttle - 1.0).abs() < 0.001,
+        "max throttle must normalize to 1.0"
+    );
     assert!(norm.brake.abs() < 0.001, "zero brake must normalize to 0.0");
     assert!((norm.clutch.ok_or("clutch missing")? - 0.5).abs() < 0.01);
     assert!(norm.handbrake.is_none());
@@ -650,7 +712,10 @@ fn protocol_es_compatibility_delegates() -> Result<(), Box<dyn std::error::Error
     );
 
     let proto_r5v2 = MozaProtocol::new(product_ids::R5_V2);
-    assert_eq!(proto_r5v2.es_compatibility(), MozaEsCompatibility::Supported);
+    assert_eq!(
+        proto_r5v2.es_compatibility(),
+        MozaEsCompatibility::Supported
+    );
     Ok(())
 }
 

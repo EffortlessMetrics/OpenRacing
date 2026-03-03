@@ -4,8 +4,8 @@
 //! damper, reconstruction, filter parameter validation, filter reset, and
 //! property-based bounded-output tests.
 
-use openracing_filters::prelude::*;
 use openracing_filters::Frame;
+use openracing_filters::prelude::*;
 use std::f32::consts::PI;
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -14,7 +14,13 @@ use std::f32::consts::PI;
 
 /// Run a biquad (NotchState) filter on a sine wave and return
 /// the peak output amplitude (after discarding the first `warmup` samples).
-fn measure_biquad_amplitude(state: &mut NotchState, freq_hz: f32, sample_rate: f32, warmup: usize, samples: usize) -> f32 {
+fn measure_biquad_amplitude(
+    state: &mut NotchState,
+    freq_hz: f32,
+    sample_rate: f32,
+    warmup: usize,
+    samples: usize,
+) -> f32 {
     let mut peak = 0.0f32;
     for i in 0..(warmup + samples) {
         let t = i as f32 / sample_rate;
@@ -30,7 +36,13 @@ fn measure_biquad_amplitude(state: &mut NotchState, freq_hz: f32, sample_rate: f
 
 /// Run the reconstruction (EMA) filter on a sine wave and return
 /// the peak output amplitude after warmup.
-fn measure_ema_amplitude(state: &mut ReconstructionState, freq_hz: f32, sample_rate: f32, warmup: usize, samples: usize) -> f32 {
+fn measure_ema_amplitude(
+    state: &mut ReconstructionState,
+    freq_hz: f32,
+    sample_rate: f32,
+    warmup: usize,
+    samples: usize,
+) -> f32 {
     let mut peak = 0.0f32;
     for i in 0..(warmup + samples) {
         let t = i as f32 / sample_rate;
@@ -95,10 +107,7 @@ fn lowpass_passband_near_unity() {
     let mut state = NotchState::lowpass(cutoff, 0.707, sample_rate);
     let amp = measure_biquad_amplitude(&mut state, 20.0, sample_rate, 500, 2000);
 
-    assert!(
-        amp > 0.8,
-        "passband signal should be near unity, got {amp}"
-    );
+    assert!(amp > 0.8, "passband signal should be near unity, got {amp}");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -112,7 +121,8 @@ fn notch_attenuates_center_frequency() {
 
     // Measure amplitude at center frequency
     let mut state_center = NotchState::new(center_freq, 2.0, -6.0, sample_rate);
-    let amp_center = measure_biquad_amplitude(&mut state_center, center_freq, sample_rate, 500, 2000);
+    let amp_center =
+        measure_biquad_amplitude(&mut state_center, center_freq, sample_rate, 500, 2000);
 
     // Measure amplitude away from center (10 Hz)
     let mut state_off = NotchState::new(center_freq, 2.0, -6.0, sample_rate);
@@ -1170,12 +1180,23 @@ mod edge_case_tests {
     fn curve_edge_cases() -> Result<(), Box<dyn std::error::Error>> {
         // Curve filters use LUT lookup; NaN/infinity inputs may produce NaN.
         // We only verify finite inputs produce finite outputs.
-        let finite_inputs = [0.0f32, -0.0, f32::MIN_POSITIVE, 1.0, -1.0, f32::MAX, f32::MIN];
+        let finite_inputs = [
+            0.0f32,
+            -0.0,
+            f32::MIN_POSITIVE,
+            1.0,
+            -1.0,
+            f32::MAX,
+            f32::MIN,
+        ];
         for &input in &finite_inputs {
             let curve = CurveState::linear();
             let mut frame = Frame::from_torque(input);
             curve_filter(&mut frame, &curve);
-            assert!(frame.torque_out.is_finite(), "curve should return finite for finite input {input}");
+            assert!(
+                frame.torque_out.is_finite(),
+                "curve should return finite for finite input {input}"
+            );
         }
         Ok(())
     }
@@ -1184,7 +1205,15 @@ mod edge_case_tests {
     fn response_curve_edge_cases() -> Result<(), Box<dyn std::error::Error>> {
         // Response curve uses LUT lookup; NaN/infinity inputs may produce NaN.
         // We only verify finite inputs produce finite outputs.
-        let finite_inputs = [0.0f32, -0.0, f32::MIN_POSITIVE, 1.0, -1.0, f32::MAX, f32::MIN];
+        let finite_inputs = [
+            0.0f32,
+            -0.0,
+            f32::MIN_POSITIVE,
+            1.0,
+            -1.0,
+            f32::MAX,
+            f32::MIN,
+        ];
         for &input in &finite_inputs {
             let curve = ResponseCurveState::linear();
             let mut frame = Frame::from_torque(input);
@@ -1312,16 +1341,20 @@ mod sample_rate_tests {
         let center = 100.0;
 
         let mut state_1k = NotchState::new(center, 2.0, -6.0, 1000.0);
-        let amp_at_center_1k =
-            measure_biquad_amplitude(&mut state_1k, center, 1000.0, 500, 2000);
+        let amp_at_center_1k = measure_biquad_amplitude(&mut state_1k, center, 1000.0, 500, 2000);
 
         let mut state_2k = NotchState::new(center, 2.0, -6.0, 2000.0);
-        let amp_at_center_2k =
-            measure_biquad_amplitude(&mut state_2k, center, 2000.0, 1000, 4000);
+        let amp_at_center_2k = measure_biquad_amplitude(&mut state_2k, center, 2000.0, 1000, 4000);
 
         // Both should attenuate the center frequency
-        assert!(amp_at_center_1k < 0.5, "1kHz rate should notch: {amp_at_center_1k}");
-        assert!(amp_at_center_2k < 0.5, "2kHz rate should notch: {amp_at_center_2k}");
+        assert!(
+            amp_at_center_1k < 0.5,
+            "1kHz rate should notch: {amp_at_center_1k}"
+        );
+        assert!(
+            amp_at_center_2k < 0.5,
+            "2kHz rate should notch: {amp_at_center_2k}"
+        );
         Ok(())
     }
 

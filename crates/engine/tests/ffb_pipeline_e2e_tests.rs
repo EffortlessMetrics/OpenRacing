@@ -897,7 +897,10 @@ fn subnormal_input_handled_gracefully() -> Result<(), TestError> {
     let subnormal = f32::MIN_POSITIVE / 2.0;
     let mut frame = make_frame(subnormal, 0.0, 0);
     let result = pipeline.process(&mut frame);
-    assert!(result.is_ok(), "Subnormal input should be handled gracefully");
+    assert!(
+        result.is_ok(),
+        "Subnormal input should be handled gracefully"
+    );
     assert!(frame.torque_out.is_finite());
     Ok(())
 }
@@ -964,7 +967,10 @@ fn hot_reconfigure_adds_filters() -> Result<(), TestError> {
         for seq in 10..30_u16 {
             let mut frame = make_frame(0.3, 2.0, seq);
             let result = pipeline.process(&mut frame);
-            assert!(result.is_ok(), "Processing should continue after hot-reconfig at seq {seq}");
+            assert!(
+                result.is_ok(),
+                "Processing should continue after hot-reconfig at seq {seq}"
+            );
             assert!(frame.torque_out.is_finite() && frame.torque_out.abs() <= 1.0);
         }
 
@@ -1120,7 +1126,10 @@ fn bumpstop_active_with_full_pipeline() -> Result<(), TestError> {
     for seq in 0..50_u16 {
         let mut frame = make_frame_direct(0.3, 0.3, 1.0, seq);
         let result = pipeline.process(&mut frame);
-        assert!(result.is_ok(), "Bumpstop should not break pipeline at seq {seq}");
+        assert!(
+            result.is_ok(),
+            "Bumpstop should not break pipeline at seq {seq}"
+        );
         assert!(frame.torque_out.is_finite() && frame.torque_out.abs() <= 1.0);
     }
     Ok(())

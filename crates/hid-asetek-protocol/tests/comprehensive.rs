@@ -4,9 +4,9 @@
 //! encoding precision and safety, edge cases, property tests, and constant validation.
 
 use hid_asetek_protocol::{
-    self as asetek, AsetekInputReport, AsetekModel, AsetekOutputReport, ASETEK_FORTE_PEDALS_PID,
-    ASETEK_FORTE_PID, ASETEK_INVICTA_PEDALS_PID, ASETEK_INVICTA_PID, ASETEK_LAPRIMA_PEDALS_PID,
-    ASETEK_LAPRIMA_PID, ASETEK_TONY_KANAAN_PID, ASETEK_VENDOR_ID, MAX_TORQUE_NM,
+    self as asetek, ASETEK_FORTE_PEDALS_PID, ASETEK_FORTE_PID, ASETEK_INVICTA_PEDALS_PID,
+    ASETEK_INVICTA_PID, ASETEK_LAPRIMA_PEDALS_PID, ASETEK_LAPRIMA_PID, ASETEK_TONY_KANAAN_PID,
+    ASETEK_VENDOR_ID, AsetekInputReport, AsetekModel, AsetekOutputReport, MAX_TORQUE_NM,
     REPORT_SIZE_INPUT, REPORT_SIZE_OUTPUT,
 };
 use proptest::prelude::*;
@@ -86,7 +86,10 @@ fn wheelbase_and_pedal_pids_do_not_overlap() {
     ];
     for w in &wheelbases {
         for p in &pedals {
-            assert_ne!(w, p, "wheelbase PID {w:#06X} collides with pedal PID {p:#06X}");
+            assert_ne!(
+                w, p,
+                "wheelbase PID {w:#06X} collides with pedal PID {p:#06X}"
+            );
         }
     }
 }
@@ -108,10 +111,22 @@ fn is_asetek_device_wrong_vid() {
 
 #[test]
 fn model_from_product_id_all_wheelbases() {
-    assert_eq!(AsetekModel::from_product_id(ASETEK_FORTE_PID), AsetekModel::Forte);
-    assert_eq!(AsetekModel::from_product_id(ASETEK_INVICTA_PID), AsetekModel::Invicta);
-    assert_eq!(AsetekModel::from_product_id(ASETEK_LAPRIMA_PID), AsetekModel::LaPrima);
-    assert_eq!(AsetekModel::from_product_id(ASETEK_TONY_KANAAN_PID), AsetekModel::TonyKanaan);
+    assert_eq!(
+        AsetekModel::from_product_id(ASETEK_FORTE_PID),
+        AsetekModel::Forte
+    );
+    assert_eq!(
+        AsetekModel::from_product_id(ASETEK_INVICTA_PID),
+        AsetekModel::Invicta
+    );
+    assert_eq!(
+        AsetekModel::from_product_id(ASETEK_LAPRIMA_PID),
+        AsetekModel::LaPrima
+    );
+    assert_eq!(
+        AsetekModel::from_product_id(ASETEK_TONY_KANAAN_PID),
+        AsetekModel::TonyKanaan
+    );
 }
 
 #[test]
@@ -153,10 +168,22 @@ fn display_name_all_models() {
     assert_eq!(AsetekModel::Forte.display_name(), "Asetek Forte");
     assert_eq!(AsetekModel::Invicta.display_name(), "Asetek Invicta");
     assert_eq!(AsetekModel::LaPrima.display_name(), "Asetek La Prima");
-    assert_eq!(AsetekModel::TonyKanaan.display_name(), "Asetek Tony Kanaan Edition");
-    assert_eq!(AsetekModel::InvictaPedals.display_name(), "Asetek Invicta Pedals");
-    assert_eq!(AsetekModel::FortePedals.display_name(), "Asetek Forte Pedals");
-    assert_eq!(AsetekModel::LaPrimaPedals.display_name(), "Asetek La Prima Pedals");
+    assert_eq!(
+        AsetekModel::TonyKanaan.display_name(),
+        "Asetek Tony Kanaan Edition"
+    );
+    assert_eq!(
+        AsetekModel::InvictaPedals.display_name(),
+        "Asetek Invicta Pedals"
+    );
+    assert_eq!(
+        AsetekModel::FortePedals.display_name(),
+        "Asetek Forte Pedals"
+    );
+    assert_eq!(
+        AsetekModel::LaPrimaPedals.display_name(),
+        "Asetek La Prima Pedals"
+    );
     assert_eq!(AsetekModel::Unknown.display_name(), "Unknown Asetek Device");
 }
 
@@ -420,9 +447,7 @@ fn output_report_with_led() {
 
 #[test]
 fn output_report_chaining() {
-    let report = AsetekOutputReport::new(7)
-        .with_torque(5.0)
-        .with_led(1, 128);
+    let report = AsetekOutputReport::new(7).with_torque(5.0).with_led(1, 128);
     assert_eq!(report.sequence, 7);
     assert_eq!(report.torque_cNm, 500);
     assert_eq!(report.led_mode, 1);
@@ -443,7 +468,9 @@ fn output_report_build_size() -> Result<(), String> {
 
 #[test]
 fn output_report_build_wire_format() -> Result<(), String> {
-    let report = AsetekOutputReport::new(0x0102).with_torque(15.0).with_led(3, 200);
+    let report = AsetekOutputReport::new(0x0102)
+        .with_torque(15.0)
+        .with_led(3, 200);
     let data = report.build().map_err(|e| e.to_string())?;
 
     // sequence u16 LE
@@ -465,7 +492,9 @@ fn output_report_build_wire_format() -> Result<(), String> {
 
 #[test]
 fn output_report_build_default_zero_padded() -> Result<(), String> {
-    let data = AsetekOutputReport::default().build().map_err(|e| e.to_string())?;
+    let data = AsetekOutputReport::default()
+        .build()
+        .map_err(|e| e.to_string())?;
     for (i, &b) in data.iter().enumerate() {
         assert_eq!(b, 0, "byte {i} should be 0 in default report");
     }

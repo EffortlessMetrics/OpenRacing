@@ -3,9 +3,7 @@
 //! Covers packet parsing, normalization edge cases, flag handling,
 //! tire data, fuel calculations, and game-specific AMS2 features.
 
-use racing_wheel_telemetry_adapters::ams2::{
-    AMS2SharedMemory, DrsState, HighestFlag, PitMode,
-};
+use racing_wheel_telemetry_adapters::ams2::{AMS2SharedMemory, DrsState, HighestFlag, PitMode};
 use racing_wheel_telemetry_ams2::{AMS2Adapter, TelemetryAdapter};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -156,7 +154,10 @@ fn deep_fuel_percent_overfull_clamped() -> TestResult {
     data.fuel_level = 120.0;
     data.fuel_capacity = 100.0;
     let t = adapter.normalize(&to_bytes(&data))?;
-    assert!((t.fuel_percent - 1.0).abs() < 0.001, "overfull clamped to 1.0");
+    assert!(
+        (t.fuel_percent - 1.0).abs() < 0.001,
+        "overfull clamped to 1.0"
+    );
     Ok(())
 }
 
@@ -356,7 +357,10 @@ fn deep_tc_abs_flags() -> TestResult {
     data.tc_setting = 5;
     data.abs_setting = 3;
     let t = adapter.normalize(&to_bytes(&data))?;
-    assert!(t.flags.traction_control, "TC should be active when setting>0");
+    assert!(
+        t.flags.traction_control,
+        "TC should be active when setting>0"
+    );
     assert!(t.flags.abs_active, "ABS should be active when setting>0");
 
     let data_off = default_mem();

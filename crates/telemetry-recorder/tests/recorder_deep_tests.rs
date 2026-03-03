@@ -4,11 +4,11 @@
 //! metadata correctness, concurrent sessions, replay fidelity,
 //! and file integrity verification.
 
+use racing_wheel_schemas::telemetry::{NormalizedTelemetry, TelemetryFlags, TelemetryFrame};
 use racing_wheel_telemetry_recorder::{
     RecordingMetadata, TelemetryPlayer, TelemetryRecorder, TelemetryRecording,
     TestFixtureGenerator, TestScenario,
 };
-use racing_wheel_schemas::telemetry::{NormalizedTelemetry, TelemetryFlags, TelemetryFrame};
 use tempfile::tempdir;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -163,7 +163,10 @@ fn save_load_preserves_flags() -> TestResult {
         abs_active: true,
         ..TelemetryFlags::default()
     };
-    let t = NormalizedTelemetry::builder().rpm(5000.0).flags(flags).build();
+    let t = NormalizedTelemetry::builder()
+        .rpm(5000.0)
+        .flags(flags)
+        .build();
     let frame = TelemetryFrame::new(t, 0, 0, 64);
     recorder.record_frame(frame);
     let _recording = recorder.stop_recording(None)?;
@@ -305,8 +308,7 @@ fn fixture_zero_duration_no_frames() -> TestResult {
 
 #[test]
 fn fixture_zero_fps_no_frames() -> TestResult {
-    let recording =
-        TestFixtureGenerator::generate_racing_session("zero_fps".to_string(), 5.0, 0.0);
+    let recording = TestFixtureGenerator::generate_racing_session("zero_fps".to_string(), 5.0, 0.0);
     assert_eq!(recording.frames.len(), 0);
     Ok(())
 }
@@ -467,8 +469,12 @@ fn concurrent_recorders_independent_files() -> TestResult {
     recorder2.start_recording("game_b".to_string());
 
     for i in 0..10 {
-        let t1 = NormalizedTelemetry::builder().rpm(3000.0 + i as f32 * 100.0).build();
-        let t2 = NormalizedTelemetry::builder().rpm(5000.0 + i as f32 * 50.0).build();
+        let t1 = NormalizedTelemetry::builder()
+            .rpm(3000.0 + i as f32 * 100.0)
+            .build();
+        let t2 = NormalizedTelemetry::builder()
+            .rpm(5000.0 + i as f32 * 50.0)
+            .build();
         recorder1.record_frame(TelemetryFrame::new(t1, i * 16_000_000, i, 64));
         recorder2.record_frame(TelemetryFrame::new(t2, i * 16_000_000, i, 64));
     }
@@ -510,8 +516,7 @@ fn concurrent_recorders_in_threads() -> TestResult {
                         let t = NormalizedTelemetry::builder()
                             .rpm(1000.0 * (idx as f32 + 1.0) + j as f32 * 10.0)
                             .build();
-                        let frame =
-                            TelemetryFrame::new(t, j as u64 * 16_000_000, j as u64, 64);
+                        let frame = TelemetryFrame::new(t, j as u64 * 16_000_000, j as u64, 64);
                         recorder.record_frame(frame);
                     }
                     let rec = recorder.stop_recording(None)?;
@@ -577,7 +582,10 @@ fn replay_first_frame_available_immediately() -> TestResult {
     let mut player = TelemetryPlayer::new(recording);
     player.start_playback();
     let frame = player.get_next_frame();
-    assert!(frame.is_some(), "first frame should be available immediately");
+    assert!(
+        frame.is_some(),
+        "first frame should be available immediately"
+    );
     Ok(())
 }
 
@@ -683,7 +691,9 @@ fn file_content_is_valid_json() -> TestResult {
 
     recorder.start_recording("json_test".to_string());
     for i in 0..5 {
-        let t = NormalizedTelemetry::builder().rpm(4000.0 + i as f32 * 100.0).build();
+        let t = NormalizedTelemetry::builder()
+            .rpm(4000.0 + i as f32 * 100.0)
+            .build();
         let frame = TelemetryFrame::new(t, i * 1_000_000, i, 64);
         recorder.record_frame(frame);
     }
@@ -862,10 +872,17 @@ fn scenario_cornering_high_ffb_and_slip() -> TestResult {
 
 #[test]
 fn scenario_pitstop_has_pit_phase() -> TestResult {
-    let recording =
-        TestFixtureGenerator::generate_test_scenario(TestScenario::PitStop, 2.0, 30.0);
-    let in_pit = recording.frames.iter().filter(|f| f.data.flags.in_pits).count();
-    let out_pit = recording.frames.iter().filter(|f| !f.data.flags.in_pits).count();
+    let recording = TestFixtureGenerator::generate_test_scenario(TestScenario::PitStop, 2.0, 30.0);
+    let in_pit = recording
+        .frames
+        .iter()
+        .filter(|f| f.data.flags.in_pits)
+        .count();
+    let out_pit = recording
+        .frames
+        .iter()
+        .filter(|f| !f.data.flags.in_pits)
+        .count();
     assert!(in_pit > 0, "should have some frames in pits");
     assert!(out_pit > 0, "should have some frames outside pits");
     Ok(())
@@ -873,8 +890,7 @@ fn scenario_pitstop_has_pit_phase() -> TestResult {
 
 #[test]
 fn scenario_pitstop_limiter_matches_pit_flag() -> TestResult {
-    let recording =
-        TestFixtureGenerator::generate_test_scenario(TestScenario::PitStop, 2.0, 30.0);
+    let recording = TestFixtureGenerator::generate_test_scenario(TestScenario::PitStop, 2.0, 30.0);
     for frame in &recording.frames {
         assert_eq!(frame.data.flags.pit_limiter, frame.data.flags.in_pits);
     }
@@ -893,8 +909,7 @@ fn fixture_timestamps_monotonically_increasing() -> TestResult {
 
 #[test]
 fn fixture_sequences_strictly_increasing() -> TestResult {
-    let recording =
-        TestFixtureGenerator::generate_racing_session("seq_fix".to_string(), 2.0, 60.0);
+    let recording = TestFixtureGenerator::generate_racing_session("seq_fix".to_string(), 2.0, 60.0);
     for pair in recording.frames.windows(2) {
         assert!(pair[1].sequence > pair[0].sequence);
     }

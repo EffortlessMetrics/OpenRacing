@@ -4,10 +4,9 @@
 use std::collections::HashSet;
 
 use racing_wheel_telemetry_config::{
-    AutoDetectConfig, ConfigDiff, DiffOperation, GameSupportMatrix, GameSupportStatus,
-    GameVersion, TelemetryConfig, TelemetryFieldMapping, TelemetrySupport,
-    config_writer_factories, load_default_matrix, matrix_game_id_set, matrix_game_ids,
-    normalize_game_id,
+    AutoDetectConfig, ConfigDiff, DiffOperation, GameSupportMatrix, GameSupportStatus, GameVersion,
+    TelemetryConfig, TelemetryFieldMapping, TelemetrySupport, config_writer_factories,
+    load_default_matrix, matrix_game_id_set, matrix_game_ids, normalize_game_id,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -216,7 +215,11 @@ enable_high_rate_iracing_360hz: false
             update_rate_hz: 240,
             output_method: "udp".to_string(),
             output_target: "10.0.0.1:8080".to_string(),
-            fields: vec!["rpm".to_string(), "gear".to_string(), "speed_ms".to_string()],
+            fields: vec![
+                "rpm".to_string(),
+                "gear".to_string(),
+                "speed_ms".to_string(),
+            ],
             enable_high_rate_iracing_360hz: true,
         };
         let cloned = cfg.clone();
@@ -394,8 +397,7 @@ mod per_game_overrides {
         for (id, game) in &matrix.games {
             let json = serde_json::to_string(game)?;
             assert!(!json.is_empty(), "game {} produced empty JSON", id);
-            let _decoded: racing_wheel_telemetry_config::GameSupport =
-                serde_json::from_str(&json)?;
+            let _decoded: racing_wheel_telemetry_config::GameSupport = serde_json::from_str(&json)?;
         }
         Ok(())
     }
@@ -1028,7 +1030,11 @@ mod config_validation_defaults {
         for game in [
             "iracing", "acc", "f1_25", "eawrc", "ams2", "rfactor2", "dirt5",
         ] {
-            assert!(ids.contains(&game.to_string()), "missing core game: {}", game);
+            assert!(
+                ids.contains(&game.to_string()),
+                "missing core game: {}",
+                game
+            );
         }
         Ok(())
     }
@@ -1103,8 +1109,7 @@ mod config_validation_defaults {
         modified.enable_high_rate_iracing_360hz = true;
         std::fs::write(&path, serde_json::to_string_pretty(&modified)?)?;
 
-        let reloaded: TelemetryConfig =
-            serde_json::from_str(&std::fs::read_to_string(&path)?)?;
+        let reloaded: TelemetryConfig = serde_json::from_str(&std::fs::read_to_string(&path)?)?;
         assert_eq!(reloaded.update_rate_hz, 360);
         assert!(reloaded.enable_high_rate_iracing_360hz);
         Ok(())
@@ -1125,16 +1130,14 @@ mod config_validation_defaults {
         };
         std::fs::write(&path, serde_yaml::to_string(&cfg)?)?;
 
-        let loaded: TelemetryConfig =
-            serde_yaml::from_str(&std::fs::read_to_string(&path)?)?;
+        let loaded: TelemetryConfig = serde_yaml::from_str(&std::fs::read_to_string(&path)?)?;
         assert_eq!(loaded.update_rate_hz, 120);
 
         let mut modified = loaded.clone();
         modified.update_rate_hz = 240;
         std::fs::write(&path, serde_yaml::to_string(&modified)?)?;
 
-        let reloaded: TelemetryConfig =
-            serde_yaml::from_str(&std::fs::read_to_string(&path)?)?;
+        let reloaded: TelemetryConfig = serde_yaml::from_str(&std::fs::read_to_string(&path)?)?;
         assert_eq!(reloaded.update_rate_hz, 240);
         Ok(())
     }

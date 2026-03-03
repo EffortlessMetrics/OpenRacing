@@ -146,14 +146,19 @@ fn test_missing_optional_fields_accepted() -> TestResult {
     // Minimal JSON with only required fields (varies by adapter impl)
     let json = br#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0}"#;
     let result = adapter.normalize(json);
-    assert!(result.is_ok(), "packet without IsRunning/IsInPit should parse");
+    assert!(
+        result.is_ok(),
+        "packet without IsRunning/IsInPit should parse"
+    );
     Ok(())
 }
 
 #[test]
 fn test_extreme_speed_value() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let json = make_json(99999.0, 0.0, 0.0, "N", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    let json = make_json(
+        99999.0, 0.0, 0.0, "N", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(json.as_bytes())?;
     assert!(t.speed_ms.is_finite(), "extreme speed must still be finite");
     Ok(())
@@ -162,7 +167,9 @@ fn test_extreme_speed_value() -> TestResult {
 #[test]
 fn test_extreme_rpm_value() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let json = make_json(0.0, 999999.0, 999999.0, "N", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    let json = make_json(
+        0.0, 999999.0, 999999.0, "N", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(json.as_bytes())?;
     assert!(t.rpm.is_finite(), "extreme RPM must still be finite");
     Ok(())
@@ -171,7 +178,9 @@ fn test_extreme_rpm_value() -> TestResult {
 #[test]
 fn test_negative_values_in_json() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let json = make_json(-10.0, -100.0, 8000.0, "N", -50.0, -50.0, -50.0, -900.0, -10.0, -20.0, -20.0, -5.0);
+    let json = make_json(
+        -10.0, -100.0, 8000.0, "N", -50.0, -50.0, -50.0, -900.0, -10.0, -20.0, -20.0, -5.0,
+    );
     // Should not panic regardless of whether it succeeds or fails
     let _ = adapter.normalize(json.as_bytes());
     Ok(())
@@ -180,7 +189,9 @@ fn test_negative_values_in_json() -> TestResult {
 #[test]
 fn test_zero_max_rpms() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let json = make_json(10.0, 3000.0, 0.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0);
+    let json = make_json(
+        10.0, 3000.0, 0.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(json.as_bytes())?;
     assert!(t.rpm.is_finite());
     Ok(())
@@ -190,7 +201,9 @@ fn test_zero_max_rpms() -> TestResult {
 fn test_all_gears_parse() -> TestResult {
     let adapter = MudRunnerAdapter::new();
     for gear in &["R", "N", "1", "2", "3", "4", "5", "6"] {
-        let json = make_json(10.0, 3000.0, 8000.0, gear, 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0);
+        let json = make_json(
+            10.0, 3000.0, 8000.0, gear, 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0,
+        );
         let t = adapter.normalize(json.as_bytes())?;
         match *gear {
             "R" => assert_eq!(t.gear, -1, "gear R → -1"),
@@ -205,7 +218,9 @@ fn test_all_gears_parse() -> TestResult {
 fn test_both_variants_same_output() -> TestResult {
     let mud = MudRunnerAdapter::new();
     let snow = MudRunnerAdapter::with_variant(MudRunnerVariant::SnowRunner);
-    let json = make_json(20.0, 3000.0, 6000.0, "3", 70.0, 10.0, 0.0, 45.0, 60.0, 0.5, 0.3, 0.2);
+    let json = make_json(
+        20.0, 3000.0, 6000.0, "3", 70.0, 10.0, 0.0, 45.0, 60.0, 0.5, 0.3, 0.2,
+    );
     let bytes = json.as_bytes();
 
     let t1 = mud.normalize(bytes)?;
@@ -225,7 +240,10 @@ fn test_empty_json_object_defaults() -> TestResult {
     // Empty JSON object may be accepted with default values
     let result = adapter.normalize(b"{}");
     if let Ok(t) = result {
-        assert!(t.speed_ms.abs() < 0.001, "empty JSON should default speed to 0");
+        assert!(
+            t.speed_ms.abs() < 0.001,
+            "empty JSON should default speed to 0"
+        );
         assert!(t.rpm.abs() < 0.001, "empty JSON should default rpm to 0");
         assert_eq!(t.gear, 0, "empty JSON should default gear to 0");
     }

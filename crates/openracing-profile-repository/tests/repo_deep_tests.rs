@@ -4,8 +4,8 @@
 //! persistence round-trips, migration of stored profiles, storage limits,
 //! and cleanup.
 
-use openracing_profile_repository::prelude::*;
 use openracing_profile_repository::ProfileSigner;
+use openracing_profile_repository::prelude::*;
 use proptest::prelude::*;
 use tempfile::TempDir;
 
@@ -42,10 +42,7 @@ fn create_test_profile(id: &str) -> Result<Profile, Box<dyn std::error::Error>> 
     ))
 }
 
-fn create_game_profile(
-    id: &str,
-    game: &str,
-) -> Result<Profile, Box<dyn std::error::Error>> {
+fn create_game_profile(id: &str, game: &str) -> Result<Profile, Box<dyn std::error::Error>> {
     let profile_id = valid_profile_id(id)?;
     Ok(Profile::new(
         profile_id,
@@ -263,10 +260,7 @@ mod listing_filters {
         repo.save_profile(&game, None).await?;
 
         let profiles = repo.list_profiles().await?;
-        let globals: Vec<_> = profiles
-            .iter()
-            .filter(|p| p.scope.game.is_none())
-            .collect();
+        let globals: Vec<_> = profiles.iter().filter(|p| p.scope.game.is_none()).collect();
         assert_eq!(globals.len(), 1);
         assert_eq!(globals[0].id, global.id);
         Ok(())
@@ -396,7 +390,10 @@ mod concurrent_access {
 
         // Original must still exist
         let loaded = repo.load_profile(&profile.id).await?;
-        assert!(loaded.is_some(), "original profile should survive concurrent ops");
+        assert!(
+            loaded.is_some(),
+            "original profile should survive concurrent ops"
+        );
         Ok(())
     }
 
@@ -473,7 +470,10 @@ mod persistence {
         repo.reload().await?;
 
         let loaded = repo.load_profile(&profile.id).await?;
-        assert!(loaded.is_some(), "profile should survive cache clear + reload");
+        assert!(
+            loaded.is_some(),
+            "profile should survive cache clear + reload"
+        );
         Ok(())
     }
 
@@ -542,7 +542,10 @@ mod migration {
         async_fs::write(&file_path, legacy_json).await?;
 
         let loaded = repo.load_profile(&profile_id).await?;
-        assert!(loaded.is_some(), "legacy profile should be loadable after migration");
+        assert!(
+            loaded.is_some(),
+            "legacy profile should be loadable after migration"
+        );
         Ok(())
     }
 
@@ -662,12 +665,7 @@ mod storage_limits {
         // Confirm the directory is clean
         let json_files: Vec<_> = std::fs::read_dir(tmp.path())?
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    == Some("json")
-            })
+            .filter(|e| e.path().extension().and_then(|ext| ext.to_str()) == Some("json"))
             .collect();
         assert!(json_files.is_empty(), "no JSON files should remain");
         Ok(())
@@ -700,14 +698,12 @@ mod storage_limits {
         // Count JSON files on disk
         let json_count = std::fs::read_dir(tmp.path())?
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    == Some("json")
-            })
+            .filter(|e| e.path().extension().and_then(|ext| ext.to_str()) == Some("json"))
             .count();
-        assert_eq!(json_count, 1, "only one file should exist for repeated saves");
+        assert_eq!(
+            json_count, 1,
+            "only one file should exist for repeated saves"
+        );
         Ok(())
     }
 
@@ -727,7 +723,10 @@ mod storage_limits {
         assert!(backup_path.exists(), "backup file should be created");
 
         let backup_content = tokio::fs::read_to_string(&backup_path).await?;
-        assert!(backup_content.contains("backup"), "backup should have original content");
+        assert!(
+            backup_content.contains("backup"),
+            "backup should have original content"
+        );
         Ok(())
     }
 }
@@ -1109,7 +1108,7 @@ mod config {
 
 mod versioning {
     use super::*;
-    use racing_wheel_schemas::prelude::{Gain, Degrees, TorqueNm};
+    use racing_wheel_schemas::prelude::{Degrees, Gain, TorqueNm};
 
     fn gain(v: f32) -> Result<Gain, Box<dyn std::error::Error>> {
         Ok(Gain::new(v)?)
@@ -1224,10 +1223,7 @@ mod search_and_filter {
         let profiles = repo.list_profiles().await?;
         assert_eq!(profiles.len(), 4);
 
-        let game_profiles: Vec<_> = profiles
-            .iter()
-            .filter(|p| p.scope.game.is_some())
-            .collect();
+        let game_profiles: Vec<_> = profiles.iter().filter(|p| p.scope.game.is_some()).collect();
         assert_eq!(game_profiles.len(), 3);
         Ok(())
     }
@@ -1357,7 +1353,11 @@ mod concurrent_advanced {
         }
 
         let profiles = repo.list_profiles().await?;
-        assert_eq!(profiles.len(), 5, "all profiles should survive concurrent reloads");
+        assert_eq!(
+            profiles.len(),
+            5,
+            "all profiles should survive concurrent reloads"
+        );
         Ok(())
     }
 }
@@ -1368,7 +1368,7 @@ mod concurrent_advanced {
 
 mod deterministic_merge {
     use super::*;
-    use racing_wheel_schemas::prelude::{Gain, Degrees, TorqueNm};
+    use racing_wheel_schemas::prelude::{Degrees, Gain, TorqueNm};
 
     fn gain(v: f32) -> Result<Gain, Box<dyn std::error::Error>> {
         Ok(Gain::new(v)?)
@@ -1459,7 +1459,9 @@ mod error_coverage {
             Box::new(ProfileRepositoryError::InvalidProfileId("x".into())),
             Box::new(ProfileRepositoryError::ConfigError("x".into())),
             Box::new(ProfileRepositoryError::CacheError("x".into())),
-            Box::new(ProfileRepositoryError::HierarchyResolutionFailed("x".into())),
+            Box::new(ProfileRepositoryError::HierarchyResolutionFailed(
+                "x".into(),
+            )),
         ];
         for err in &errors {
             assert!(!err.to_string().is_empty());

@@ -17,12 +17,7 @@ use std::time::{Duration, Instant};
 
 /// Create a SafetyService with short timeouts for fast tests.
 fn svc() -> SafetyService {
-    SafetyService::with_timeouts(
-        5.0,
-        25.0,
-        Duration::from_secs(3),
-        Duration::from_secs(2),
-    )
+    SafetyService::with_timeouts(5.0, 25.0, Duration::from_secs(3), Duration::from_secs(2))
 }
 
 /// Drive a SafetyService through the full high-torque activation flow.
@@ -59,7 +54,10 @@ fn test_provide_ui_consent_from_awaiting_ack_rejected() -> Result<(), String> {
     s.provide_ui_consent(c.challenge_token)?;
     // Now in AwaitingPhysicalAck – second consent should fail
     let res = s.provide_ui_consent(c.challenge_token);
-    assert!(res.is_err(), "provide_ui_consent must fail in AwaitingPhysicalAck");
+    assert!(
+        res.is_err(),
+        "provide_ui_consent must fail in AwaitingPhysicalAck"
+    );
     Ok(())
 }
 
@@ -68,7 +66,10 @@ fn test_provide_ui_consent_from_high_torque_active_rejected() -> Result<(), Stri
     let mut s = svc();
     activate(&mut s, "d")?;
     let res = s.provide_ui_consent(1);
-    assert!(res.is_err(), "provide_ui_consent must fail in HighTorqueActive");
+    assert!(
+        res.is_err(),
+        "provide_ui_consent must fail in HighTorqueActive"
+    );
     Ok(())
 }
 
@@ -95,7 +96,10 @@ fn test_report_combo_start_from_high_torque_challenge_rejected() -> Result<(), S
     s.request_high_torque("d")?;
     // Still in HighTorqueChallenge (no UI consent yet)
     let res = s.report_combo_start(1);
-    assert!(res.is_err(), "report_combo_start must fail in HighTorqueChallenge");
+    assert!(
+        res.is_err(),
+        "report_combo_start must fail in HighTorqueChallenge"
+    );
     Ok(())
 }
 
@@ -104,7 +108,10 @@ fn test_report_combo_start_from_high_torque_active_rejected() -> Result<(), Stri
     let mut s = svc();
     activate(&mut s, "d")?;
     let res = s.report_combo_start(1);
-    assert!(res.is_err(), "report_combo_start must fail in HighTorqueActive");
+    assert!(
+        res.is_err(),
+        "report_combo_start must fail in HighTorqueActive"
+    );
     Ok(())
 }
 
@@ -143,7 +150,10 @@ fn test_confirm_high_torque_from_challenge_rejected() -> Result<(), String> {
         timestamp: Instant::now(),
     };
     let res = s.confirm_high_torque("d", ack);
-    assert!(res.is_err(), "confirm_high_torque must fail in HighTorqueChallenge");
+    assert!(
+        res.is_err(),
+        "confirm_high_torque must fail in HighTorqueChallenge"
+    );
     Ok(())
 }
 
@@ -158,7 +168,10 @@ fn test_confirm_high_torque_from_active_rejected() -> Result<(), String> {
         timestamp: Instant::now(),
     };
     let res = s.confirm_high_torque("d", ack);
-    assert!(res.is_err(), "confirm_high_torque must fail in HighTorqueActive");
+    assert!(
+        res.is_err(),
+        "confirm_high_torque must fail in HighTorqueActive"
+    );
     Ok(())
 }
 
@@ -272,7 +285,13 @@ fn test_check_hands_off_timeout_above_threshold_triggers_fault() -> Result<(), S
     activate(&mut s, "d")?;
     s.check_hands_off_timeout(Duration::from_secs(4));
     assert!(
-        matches!(s.state(), SafetyState::Faulted { fault: FaultType::HandsOffTimeout, .. }),
+        matches!(
+            s.state(),
+            SafetyState::Faulted {
+                fault: FaultType::HandsOffTimeout,
+                ..
+            }
+        ),
         "Should transition to Faulted(HandsOffTimeout)"
     );
     Ok(())
@@ -330,7 +349,10 @@ fn test_watchdog_disarm_when_unarmed_returns_not_armed() -> Result<(), String> {
 fn test_watchdog_check_timeout_when_unarmed_returns_false() -> Result<(), String> {
     let wd = SoftwareWatchdog::new(10);
     std::thread::sleep(Duration::from_millis(15));
-    assert!(!wd.check_timeout(), "Unarmed watchdog must not report timeout");
+    assert!(
+        !wd.check_timeout(),
+        "Unarmed watchdog must not report timeout"
+    );
     Ok(())
 }
 
@@ -499,7 +521,10 @@ fn test_interlock_system_reset_from_emergency_stop() -> Result<(), WatchdogError
     let mut sys = SafetyInterlockSystem::new(watchdog, 25.0);
     sys.arm()?;
     sys.emergency_stop();
-    assert!(matches!(sys.state(), SafetyInterlockState::EmergencyStop { .. }));
+    assert!(matches!(
+        sys.state(),
+        SafetyInterlockState::EmergencyStop { .. }
+    ));
 
     sys.reset()?;
     assert_eq!(*sys.state(), SafetyInterlockState::Normal);
@@ -615,7 +640,10 @@ fn test_challenge_expiry_check_returns_true_when_expired() -> Result<(), String>
     });
 
     let expired = s.check_challenge_expiry();
-    assert!(expired, "check_challenge_expiry must detect expired challenge");
+    assert!(
+        expired,
+        "check_challenge_expiry must detect expired challenge"
+    );
     assert_eq!(s.state(), &SafetyState::SafeTorque);
     assert!(s.get_active_challenge().is_none());
     Ok(())
@@ -632,7 +660,11 @@ fn test_challenge_time_remaining_zero_when_expired() -> Result<(), String> {
     let remaining = s.get_challenge_time_remaining();
     assert!(remaining.is_some());
     if let Some(dur) = remaining {
-        assert_eq!(dur, Duration::ZERO, "Expired challenge should report ZERO remaining");
+        assert_eq!(
+            dur,
+            Duration::ZERO,
+            "Expired challenge should report ZERO remaining"
+        );
     }
     Ok(())
 }

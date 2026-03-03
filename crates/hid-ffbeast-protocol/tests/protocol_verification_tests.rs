@@ -16,9 +16,9 @@
 //! | 6 | shubham0x13/ffbeast-wheel-webhid-api | VID `0x045B`, wheel PID `0x59D7`, torque range ±10000 |
 
 use racing_wheel_hid_ffbeast_protocol::{
+    build_enable_ffb, build_set_gain, is_ffbeast_product, FFBeastTorqueEncoder,
     CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, FFBEAST_PRODUCT_ID_JOYSTICK,
-    FFBEAST_PRODUCT_ID_RUDDER, FFBEAST_PRODUCT_ID_WHEEL, FFBEAST_VENDOR_ID, FFBeastTorqueEncoder,
-    GAIN_REPORT_ID, build_enable_ffb, build_set_gain, is_ffbeast_product,
+    FFBEAST_PRODUCT_ID_RUDDER, FFBEAST_PRODUCT_ID_WHEEL, FFBEAST_VENDOR_ID, GAIN_REPORT_ID,
 };
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -102,7 +102,10 @@ fn unknown_pids_rejected() -> Result<(), Box<dyn std::error::Error>> {
 /// Report ID for constant force is 0x01 (standard HID PID constant force).
 #[test]
 fn constant_force_report_id() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(CONSTANT_FORCE_REPORT_ID, 0x01, "constant force report ID must be 0x01");
+    assert_eq!(
+        CONSTANT_FORCE_REPORT_ID, 0x01,
+        "constant force report ID must be 0x01"
+    );
     Ok(())
 }
 
@@ -184,10 +187,16 @@ fn torque_clamping() -> Result<(), Box<dyn std::error::Error>> {
 fn torque_sign_preservation() -> Result<(), Box<dyn std::error::Error>> {
     let enc = FFBeastTorqueEncoder;
     let pos = enc.encode(0.3);
-    assert!(i16::from_le_bytes([pos[1], pos[2]]) > 0, "positive torque must yield positive raw");
+    assert!(
+        i16::from_le_bytes([pos[1], pos[2]]) > 0,
+        "positive torque must yield positive raw"
+    );
 
     let neg = enc.encode(-0.3);
-    assert!(i16::from_le_bytes([neg[1], neg[2]]) < 0, "negative torque must yield negative raw");
+    assert!(
+        i16::from_le_bytes([neg[1], neg[2]]) < 0,
+        "negative torque must yield negative raw"
+    );
     Ok(())
 }
 

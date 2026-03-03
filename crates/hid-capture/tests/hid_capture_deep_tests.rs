@@ -338,9 +338,7 @@ mod session_lifecycle {
         };
         let first_ts = file.captures.first().map(|r| r.timestamp_us);
         let last_ts = file.captures.last().map(|r| r.timestamp_us);
-        let duration = first_ts
-            .zip(last_ts)
-            .map(|(first, last)| last - first);
+        let duration = first_ts.zip(last_ts).map(|(first, last)| last - first);
         assert_eq!(duration, Some(5_000_000));
     }
 
@@ -370,9 +368,7 @@ mod session_lifecycle {
         };
         let first_ts = file.captures.first().map(|r| r.timestamp_us);
         let last_ts = file.captures.last().map(|r| r.timestamp_us);
-        let duration = first_ts
-            .zip(last_ts)
-            .map(|(first, last)| last - first);
+        let duration = first_ts.zip(last_ts).map(|(first, last)| last - first);
         assert_eq!(duration, Some(0));
     }
 
@@ -868,7 +864,10 @@ mod data_integrity {
         let json = serde_json::to_string(&file)?;
         let restored: CaptureFile = serde_json::from_str(&json)?;
         assert_eq!(restored.captures.len(), 2);
-        assert_eq!(restored.captures[0].timestamp_us, restored.captures[1].timestamp_us);
+        assert_eq!(
+            restored.captures[0].timestamp_us,
+            restored.captures[1].timestamp_us
+        );
         assert_eq!(restored.captures[0].data, "first");
         assert_eq!(restored.captures[1].data, "second");
         Ok(())

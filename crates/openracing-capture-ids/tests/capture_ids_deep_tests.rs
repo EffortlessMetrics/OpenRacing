@@ -94,7 +94,10 @@ mod id_serde {
         assert!(json.contains("\"ts_ns\""), "missing ts_ns field in {json}");
         assert!(json.contains("\"vid\""), "missing vid field in {json}");
         assert!(json.contains("\"pid\""), "missing pid field in {json}");
-        assert!(json.contains("\"report\""), "missing report field in {json}");
+        assert!(
+            json.contains("\"report\""),
+            "missing report field in {json}"
+        );
         Ok(())
     }
 
@@ -218,7 +221,11 @@ mod id_parsing {
     fn parse_hex_id_error_message_contains_input() {
         let result = parse_hex_id("not_valid_at_all");
         assert!(result.is_err());
-        let err_msg = result.as_ref().err().map(|e| format!("{e:#}")).unwrap_or_default();
+        let err_msg = result
+            .as_ref()
+            .err()
+            .map(|e| format!("{e:#}"))
+            .unwrap_or_default();
         assert!(
             err_msg.contains("not_valid_at_all"),
             "error should mention input, got: {err_msg}"
@@ -353,13 +360,14 @@ mod id_comparison {
     #[test]
     fn parse_hex_id_symmetry_with_hex_u16() -> anyhow::Result<()> {
         // For every value, format → parse should yield the original
-        let test_values: Vec<u16> = vec![
-            0, 1, 2, 0xF, 0xFF, 0xFFF, 0x346E, 0x046D, 0x8000, 0xFFFF,
-        ];
+        let test_values: Vec<u16> = vec![0, 1, 2, 0xF, 0xFF, 0xFFF, 0x346E, 0x046D, 0x8000, 0xFFFF];
         for val in test_values {
             let formatted = hex_u16(val);
             let parsed = parse_hex_id(&formatted)?;
-            assert_eq!(parsed, val, "symmetry failed for {val} (formatted: {formatted})");
+            assert_eq!(
+                parsed, val,
+                "symmetry failed for {val} (formatted: {formatted})"
+            );
         }
         Ok(())
     }
@@ -405,8 +413,7 @@ mod decode_dispatch {
     #[test]
     fn all_known_vids_decode_with_valid_reports() -> anyhow::Result<()> {
         let moza_report: [u8; 7] = [0x01, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00];
-        let logi_report: [u8; 10] =
-            [0x01, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00];
+        let logi_report: [u8; 10] = [0x01, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00];
 
         let moza = decode_report(0x346E, &moza_report)
             .ok_or_else(|| anyhow::anyhow!("MOZA should decode"))?;
@@ -425,7 +432,9 @@ mod decode_dispatch {
     #[test]
     fn decode_report_returns_none_for_many_unknown_vids() {
         let report: [u8; 10] = [0x01; 10];
-        let unknown_vids: [u16; 8] = [0x0000, 0x0001, 0x1234, 0x5678, 0x9ABC, 0xBEEF, 0xDEAD, 0xFFFF];
+        let unknown_vids: [u16; 8] = [
+            0x0000, 0x0001, 0x1234, 0x5678, 0x9ABC, 0xBEEF, 0xDEAD, 0xFFFF,
+        ];
         for vid in unknown_vids {
             assert!(
                 decode_report(vid, &report).is_none(),

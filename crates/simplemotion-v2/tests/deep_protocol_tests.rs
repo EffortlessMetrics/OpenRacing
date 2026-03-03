@@ -6,7 +6,7 @@ use racing_wheel_simplemotion_v2::commands::{
 };
 use racing_wheel_simplemotion_v2::error::SmError;
 use racing_wheel_simplemotion_v2::{
-    SmDeviceCategory, SmFeedbackState, SmMotorFeedback, TorqueCommandEncoder, TORQUE_COMMAND_LEN,
+    SmDeviceCategory, SmFeedbackState, SmMotorFeedback, TORQUE_COMMAND_LEN, TorqueCommandEncoder,
     build_device_enable, build_get_parameter, build_set_parameter, build_set_torque_command,
     build_set_torque_command_with_velocity, build_set_zero_position, identify_device,
     is_wheelbase_product, parse_feedback_report,
@@ -404,7 +404,11 @@ fn get_parameter_address_preserved() -> Result<(), Box<dyn std::error::Error>> {
     for addr in [0x0000, 0x0001, 0x1001, 0x2000, 0x7FFF, 0xFFFF] {
         let report = build_get_parameter(addr, 0);
         let decoded = decode_command(&report)?;
-        assert_eq!(decoded.param_addr, Some(addr), "address {addr:#06x} not preserved");
+        assert_eq!(
+            decoded.param_addr,
+            Some(addr),
+            "address {addr:#06x} not preserved"
+        );
     }
     Ok(())
 }
@@ -688,10 +692,13 @@ fn snapshot_torque_with_velocity() {
 fn snapshot_feedback_centered() -> Result<(), Box<dyn std::error::Error>> {
     let data = make_feedback(0, 0, 0, 0);
     let fb = parse_feedback_report(&data)?;
-    insta::assert_yaml_snapshot!("feedback_centered", format!(
-        "seq={} status={:?} pos={} vel={} torque={}",
-        fb.seq, fb.status, fb.motor.position, fb.motor.velocity, fb.motor.torque
-    ));
+    insta::assert_yaml_snapshot!(
+        "feedback_centered",
+        format!(
+            "seq={} status={:?} pos={} vel={} torque={}",
+            fb.seq, fb.status, fb.motor.position, fb.motor.velocity, fb.motor.torque
+        )
+    );
     Ok(())
 }
 
@@ -699,15 +706,18 @@ fn snapshot_feedback_centered() -> Result<(), Box<dyn std::error::Error>> {
 fn snapshot_feedback_full_rotation() -> Result<(), Box<dyn std::error::Error>> {
     let data = make_feedback(14400, 1000, 256, 0);
     let fb = parse_feedback_report(&data)?;
-    insta::assert_yaml_snapshot!("feedback_full_rot", format!(
-        "pos={} deg={:.2} vel={} rpm={:.2} torque={} nm={:.4}",
-        fb.motor.position,
-        fb.position_degrees(14400),
-        fb.motor.velocity,
-        fb.velocity_rpm(14400),
-        fb.motor.torque,
-        fb.torque_nm(0.1)
-    ));
+    insta::assert_yaml_snapshot!(
+        "feedback_full_rot",
+        format!(
+            "pos={} deg={:.2} vel={} rpm={:.2} torque={} nm={:.4}",
+            fb.motor.position,
+            fb.position_degrees(14400),
+            fb.motor.velocity,
+            fb.velocity_rpm(14400),
+            fb.motor.torque,
+            fb.torque_nm(0.1)
+        )
+    );
     Ok(())
 }
 

@@ -5,9 +5,9 @@
 //! device-specific bindings, and proptest-based randomized validation.
 
 use openracing_profile::{
-    AdvancedSettings, CurveType, FfbSettings, InputSettings, LedMode, LimitSettings,
-    ProfileError, WheelProfile, WheelSettings, CURRENT_SCHEMA_VERSION, backup_profile,
-    generate_profile_id, merge_profiles, migrate_profile, validate_profile, validate_settings,
+    AdvancedSettings, CURRENT_SCHEMA_VERSION, CurveType, FfbSettings, InputSettings, LedMode,
+    LimitSettings, ProfileError, WheelProfile, WheelSettings, backup_profile, generate_profile_id,
+    merge_profiles, migrate_profile, validate_profile, validate_settings,
 };
 use proptest::prelude::*;
 
@@ -57,7 +57,10 @@ mod creation_all_fields {
         validate_profile(&profile)?;
         assert_eq!(profile.settings.input.steering_range, 1080);
         assert_eq!(profile.settings.input.steering_deadzone, 5);
-        assert_eq!(profile.settings.input.throttle_curve, CurveType::Exponential);
+        assert_eq!(
+            profile.settings.input.throttle_curve,
+            CurveType::Exponential
+        );
         assert_eq!(profile.settings.input.brake_curve, CurveType::Logarithmic);
         assert_eq!(profile.settings.input.clutch_curve, CurveType::Custom);
         Ok(())
@@ -214,7 +217,10 @@ mod validation_rules {
         p.name = "  ".to_string();
         // Current validation only checks for empty, so whitespace-only passes
         let result = validate_profile(&p);
-        assert!(result.is_ok(), "whitespace name accepted by current validation");
+        assert!(
+            result.is_ok(),
+            "whitespace name accepted by current validation"
+        );
     }
 
     // FFB gain boundaries
@@ -512,12 +518,30 @@ mod import_export_round_trip {
         assert_eq!(original.device_id, restored.device_id);
         assert_eq!(original.version, restored.version);
         assert_eq!(original.schema_version, restored.schema_version);
-        assert!((original.settings.ffb.overall_gain - restored.settings.ffb.overall_gain).abs() < f32::EPSILON);
-        assert!((original.settings.ffb.torque_limit - restored.settings.ffb.torque_limit).abs() < f32::EPSILON);
-        assert_eq!(original.settings.input.steering_range, restored.settings.input.steering_range);
-        assert_eq!(original.settings.input.throttle_curve, restored.settings.input.throttle_curve);
-        assert_eq!(original.settings.limits.max_speed, restored.settings.limits.max_speed);
-        assert_eq!(original.settings.advanced.led_mode, restored.settings.advanced.led_mode);
+        assert!(
+            (original.settings.ffb.overall_gain - restored.settings.ffb.overall_gain).abs()
+                < f32::EPSILON
+        );
+        assert!(
+            (original.settings.ffb.torque_limit - restored.settings.ffb.torque_limit).abs()
+                < f32::EPSILON
+        );
+        assert_eq!(
+            original.settings.input.steering_range,
+            restored.settings.input.steering_range
+        );
+        assert_eq!(
+            original.settings.input.throttle_curve,
+            restored.settings.input.throttle_curve
+        );
+        assert_eq!(
+            original.settings.limits.max_speed,
+            restored.settings.limits.max_speed
+        );
+        assert_eq!(
+            original.settings.advanced.led_mode,
+            restored.settings.advanced.led_mode
+        );
         Ok(())
     }
 
@@ -650,9 +674,7 @@ mod device_bindings {
 
         assert_ne!(p1.id, p2.id, "different profiles should have different IDs");
         assert_ne!(p1.device_id, p2.device_id);
-        assert!(
-            (p1.settings.ffb.overall_gain - p2.settings.ffb.overall_gain).abs() < f32::EPSILON
-        );
+        assert!((p1.settings.ffb.overall_gain - p2.settings.ffb.overall_gain).abs() < f32::EPSILON);
         validate_profile(&p1)?;
         validate_profile(&p2)?;
         Ok(())
@@ -719,7 +741,11 @@ mod migration_deep {
     fn profile_id_is_always_unique() -> TestResult {
         let ids: Vec<String> = (0..100).map(|_| generate_profile_id()).collect();
         let unique: std::collections::HashSet<&String> = ids.iter().collect();
-        assert_eq!(ids.len(), unique.len(), "all generated IDs should be unique");
+        assert_eq!(
+            ids.len(),
+            unique.len(),
+            "all generated IDs should be unique"
+        );
         Ok(())
     }
 }
@@ -799,8 +825,8 @@ mod default_profiles_per_device {
 
     #[test]
     fn dd_pro_profile_validates() -> TestResult {
-        let p = WheelProfile::new("DD Pro Default", "fanatec-dd-pro")
-            .with_settings(dd_pro_defaults());
+        let p =
+            WheelProfile::new("DD Pro Default", "fanatec-dd-pro").with_settings(dd_pro_defaults());
         validate_profile(&p)?;
         assert_eq!(p.settings.input.steering_range, 1080);
         assert!((p.settings.ffb.torque_limit - 8.0).abs() < f32::EPSILON);
@@ -1031,7 +1057,10 @@ mod comparison_and_diff {
     fn profile_ids_always_unique() -> TestResult {
         let p1 = WheelProfile::new("A", "dev");
         let p2 = WheelProfile::new("A", "dev");
-        assert_ne!(p1.id, p2.id, "IDs should be unique even with same name/device");
+        assert_ne!(
+            p1.id, p2.id,
+            "IDs should be unique even with same name/device"
+        );
         Ok(())
     }
 
@@ -1139,11 +1168,10 @@ mod ffb_per_game_device {
 
     #[test]
     fn game_profile_serializes_ffb() -> TestResult {
-        let p = WheelProfile::new("iRacing GT3", "dd-pro")
-            .with_settings(WheelSettings {
-                ffb: iracing_gt3_ffb(),
-                ..WheelSettings::default()
-            });
+        let p = WheelProfile::new("iRacing GT3", "dd-pro").with_settings(WheelSettings {
+            ffb: iracing_gt3_ffb(),
+            ..WheelSettings::default()
+        });
         let json = serde_json::to_string(&p)?;
         let restored: WheelProfile = serde_json::from_str(&json)?;
         assert!((restored.settings.ffb.overall_gain - 0.7).abs() < f32::EPSILON);
@@ -1376,7 +1404,10 @@ mod migration_additional {
         let mut p = WheelProfile::new("FutureV", "dev");
         p.schema_version = CURRENT_SCHEMA_VERSION + 100;
         let result = migrate_profile(&mut p);
-        assert!(matches!(result, Err(ProfileError::UnsupportedVersion(_, _))));
+        assert!(matches!(
+            result,
+            Err(ProfileError::UnsupportedVersion(_, _))
+        ));
     }
 
     #[test]
@@ -1462,9 +1493,17 @@ mod additional_inheritance {
     fn merge_with_self_is_identity() -> TestResult {
         let p = WheelProfile::new("Self", "dev");
         let merged = merge_profiles(&p, &p);
-        assert!((merged.settings.ffb.overall_gain - p.settings.ffb.overall_gain).abs() < f32::EPSILON);
-        assert_eq!(merged.settings.input.steering_range, p.settings.input.steering_range);
-        assert_eq!(merged.settings.advanced.led_mode, p.settings.advanced.led_mode);
+        assert!(
+            (merged.settings.ffb.overall_gain - p.settings.ffb.overall_gain).abs() < f32::EPSILON
+        );
+        assert_eq!(
+            merged.settings.input.steering_range,
+            p.settings.input.steering_range
+        );
+        assert_eq!(
+            merged.settings.advanced.led_mode,
+            p.settings.advanced.led_mode
+        );
         Ok(())
     }
 }
@@ -1495,19 +1534,11 @@ mod proptest_validation {
     }
 
     fn arb_steering_range() -> impl Strategy<Value = u16> {
-        prop_oneof![
-            (90u16..=3600u16),
-            (0u16..90u16),
-            (3601u16..=u16::MAX),
-        ]
+        prop_oneof![(90u16..=3600u16), (0u16..90u16), (3601u16..=u16::MAX),]
     }
 
     fn arb_filter_strength() -> impl Strategy<Value = f32> {
-        prop_oneof![
-            (0.0f32..=1.0f32),
-            (-5.0f32..0.0f32),
-            (1.001f32..5.0f32),
-        ]
+        prop_oneof![(0.0f32..=1.0f32), (-5.0f32..0.0f32), (1.001f32..5.0f32),]
     }
 
     proptest! {

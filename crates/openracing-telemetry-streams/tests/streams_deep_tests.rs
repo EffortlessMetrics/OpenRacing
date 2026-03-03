@@ -679,10 +679,7 @@ fn telemetry_buffer_concurrent_writers_and_readers() -> TestResult {
     }
 
     // Buffer should have all items (200 < capacity 500)
-    assert_eq!(
-        buf.len(),
-        (num_writers * items_per_writer) as usize
-    );
+    assert_eq!(buf.len(), (num_writers * items_per_writer) as usize);
     Ok(())
 }
 

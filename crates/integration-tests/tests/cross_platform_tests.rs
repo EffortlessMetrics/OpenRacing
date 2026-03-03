@@ -17,11 +17,11 @@ use std::time::Duration;
 
 use racing_wheel_engine::hid::HidDeviceInfo;
 use racing_wheel_engine::{
-    AbsoluteScheduler, AdaptiveSchedulingConfig, JitterMetrics, RTSetup, PLL,
+    AbsoluteScheduler, AdaptiveSchedulingConfig, JitterMetrics, PLL, RTSetup,
 };
 use racing_wheel_schemas::prelude::*;
-use racing_wheel_service::{IpcConfig, TransportType};
 use racing_wheel_service::game_auto_configure::ConfiguredGamesStore;
+use racing_wheel_service::{IpcConfig, TransportType};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. Platform abstraction layer – IPC transport defaults
@@ -182,8 +182,7 @@ fn configured_games_store_round_trip() -> Result<(), Box<dyn std::error::Error>>
 
 #[test]
 fn configured_games_state_file_name_is_json() -> Result<(), Box<dyn std::error::Error>> {
-    let state_file = PathBuf::from(".openracing")
-        .join("configured_games.json");
+    let state_file = PathBuf::from(".openracing").join("configured_games.json");
     let ext = state_file
         .extension()
         .and_then(|e| e.to_str())
@@ -213,8 +212,7 @@ fn config_persistence_to_temp_dir() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn windows_config_paths_use_appdata() -> Result<(), Box<dyn std::error::Error>> {
     // On Windows the conventional config root is under USERPROFILE.
-    let profile = std::env::var("USERPROFILE")
-        .map_err(|e| format!("USERPROFILE not set: {e}"))?;
+    let profile = std::env::var("USERPROFILE").map_err(|e| format!("USERPROFILE not set: {e}"))?;
     let appdata_local = PathBuf::from(&profile).join("AppData").join("Local");
     assert!(
         appdata_local.exists(),
@@ -228,8 +226,7 @@ fn windows_config_paths_use_appdata() -> Result<(), Box<dyn std::error::Error>> 
 #[test]
 fn unix_config_paths_use_xdg_conventions() -> Result<(), Box<dyn std::error::Error>> {
     // On Unix the conventional cache root is under HOME.
-    let home = std::env::var("HOME")
-        .map_err(|e| format!("HOME not set: {e}"))?;
+    let home = std::env::var("HOME").map_err(|e| format!("HOME not set: {e}"))?;
     let cache_dir = PathBuf::from(&home).join(".cache");
     // .cache may not exist on all systems but the parent (HOME) must.
     assert!(
@@ -325,7 +322,10 @@ fn rt_setup_fields_are_independently_configurable() -> Result<(), Box<dyn std::e
 #[test]
 fn adaptive_scheduling_config_defaults_are_sane() -> Result<(), Box<dyn std::error::Error>> {
     let config = AdaptiveSchedulingConfig::default();
-    assert!(!config.enabled, "adaptive scheduling should be off by default");
+    assert!(
+        !config.enabled,
+        "adaptive scheduling should be off by default"
+    );
     assert!(
         config.min_period_ns < config.max_period_ns,
         "min period must be less than max"
@@ -441,9 +441,8 @@ fn make_hid_device(path: &str) -> Result<HidDeviceInfo, Box<dyn std::error::Erro
         true,  // supports_raw_torque_1khz
         false, // supports_health_stream
         false, // supports_led_bus
-        max_torque,
-        4096,  // encoder_cpr
-        1000,  // min_report_period_us
+        max_torque, 4096, // encoder_cpr
+        1000, // min_report_period_us
     );
     Ok(HidDeviceInfo {
         device_id,
@@ -529,7 +528,7 @@ fn hid_device_info_interface_and_usage() -> Result<(), Box<dyn std::error::Error
     let hid = make_hid_device("/dev/hidraw0")?;
     assert_eq!(hid.interface_number, Some(0));
     assert_eq!(hid.usage_page, Some(0x01)); // Generic Desktop
-    assert_eq!(hid.usage, Some(0x04));      // Joystick
+    assert_eq!(hid.usage, Some(0x04)); // Joystick
     Ok(())
 }
 
@@ -596,13 +595,15 @@ fn ipc_config_with_custom_transport() -> Result<(), Box<dyn std::error::Error>> 
 
     #[cfg(unix)]
     {
-        config.transport =
-            TransportType::UnixDomainSocket("/tmp/custom_wheel.sock".to_string());
+        config.transport = TransportType::UnixDomainSocket("/tmp/custom_wheel.sock".to_string());
     }
 
     // Verify the custom transport was set.
     let debug = format!("{:?}", config.transport);
-    assert!(debug.contains("custom_wheel"), "custom transport not set: {debug}");
+    assert!(
+        debug.contains("custom_wheel"),
+        "custom transport not set: {debug}"
+    );
     Ok(())
 }
 
@@ -632,8 +633,7 @@ fn service_name_is_wheeld() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(unix)]
 #[test]
 fn systemd_service_file_path_is_correct() -> Result<(), Box<dyn std::error::Error>> {
-    let home = std::env::var("HOME")
-        .map_err(|e| format!("HOME not set: {e}"))?;
+    let home = std::env::var("HOME").map_err(|e| format!("HOME not set: {e}"))?;
     let service_file = PathBuf::from(&home)
         .join(".config")
         .join("systemd")

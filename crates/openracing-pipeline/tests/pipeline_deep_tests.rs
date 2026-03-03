@@ -7,8 +7,8 @@ use racing_wheel_schemas::prelude::{CurvePoint, FrequencyHz, Gain, NotchFilter};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-fn create_test_config(
-) -> Result<racing_wheel_schemas::entities::FilterConfig, Box<dyn std::error::Error>> {
+fn create_test_config()
+-> Result<racing_wheel_schemas::entities::FilterConfig, Box<dyn std::error::Error>> {
     Ok(racing_wheel_schemas::entities::FilterConfig::new_complete(
         4,
         Gain::new(0.1)?,
@@ -27,8 +27,8 @@ fn create_test_config(
     )?)
 }
 
-fn create_minimal_config(
-) -> Result<racing_wheel_schemas::entities::FilterConfig, Box<dyn std::error::Error>> {
+fn create_minimal_config()
+-> Result<racing_wheel_schemas::entities::FilterConfig, Box<dyn std::error::Error>> {
     let mut config = racing_wheel_schemas::entities::FilterConfig::default();
     config.bumpstop.enabled = false;
     config.hands_off.enabled = false;
@@ -110,11 +110,21 @@ mod construction_tests {
             Gain::new(1.0)?,
             vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
             Gain::new(1.0)?,
-            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
-            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::BumpstopConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            racing_wheel_schemas::entities::HandsOffConfig {
+                enabled: false,
+                ..Default::default()
+            },
         )?;
         let compiled = compiler.compile_pipeline(config).await?;
-        assert_eq!(compiled.pipeline.node_count(), 1, "only friction enabled → 1 node");
+        assert_eq!(
+            compiled.pipeline.node_count(),
+            1,
+            "only friction enabled → 1 node"
+        );
         Ok(())
     }
 }
@@ -169,11 +179,21 @@ mod ordering_tests {
             Gain::new(1.0)?,
             vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
             Gain::new(1.0)?,
-            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
-            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::BumpstopConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            racing_wheel_schemas::entities::HandsOffConfig {
+                enabled: false,
+                ..Default::default()
+            },
         )?;
         let compiled = compiler.compile_pipeline(config).await?;
-        assert_eq!(compiled.pipeline.node_count(), 2, "friction + damper → 2 nodes");
+        assert_eq!(
+            compiled.pipeline.node_count(),
+            2,
+            "friction + damper → 2 nodes"
+        );
         Ok(())
     }
 }
@@ -228,7 +248,10 @@ mod hot_swap_tests {
         frame.torque_out = 0.5;
         pipeline.process(&mut frame)?;
 
-        assert!((frame.torque_out - out_before).abs() < 0.001, "empty pipelines behave same");
+        assert!(
+            (frame.torque_out - out_before).abs() < 0.001,
+            "empty pipelines behave same"
+        );
         Ok(())
     }
 
@@ -294,8 +317,14 @@ mod error_handling_tests {
             Gain::new(1.0)?,
             vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
             Gain::new(1.0)?,
-            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
-            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::BumpstopConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            racing_wheel_schemas::entities::HandsOffConfig {
+                enabled: false,
+                ..Default::default()
+            },
         )?;
         let result = compiler.compile_pipeline(config).await;
         assert!(result.is_err(), "notch freq > 500 Hz should fail");
@@ -391,7 +420,10 @@ mod state_tests {
         let compiler = PipelineCompiler::new();
         let config = create_test_config()?;
         let pipeline = compiler.compile_pipeline(config).await?.pipeline;
-        assert!(pipeline.is_state_aligned(), "all state offsets should be f64-aligned");
+        assert!(
+            pipeline.is_state_aligned(),
+            "all state offsets should be f64-aligned"
+        );
         Ok(())
     }
 
@@ -427,7 +459,11 @@ mod state_tests {
     fn reset_state_zeros_all() -> TestResult {
         let mut pipeline = Pipeline::with_hash(0x1234);
         pipeline.reset_state();
-        assert_eq!(pipeline.state_size(), 0, "empty pipeline has no state to reset");
+        assert_eq!(
+            pipeline.state_size(),
+            0,
+            "empty pipeline has no state to reset"
+        );
         Ok(())
     }
 }
@@ -754,7 +790,9 @@ mod error_propagation_tests {
         assert!(result.is_err());
         let err_msg = result.err().map(|e| e.to_string()).unwrap_or_default();
         assert!(
-            err_msg.contains("0-8") || err_msg.contains("Reconstruction") || err_msg.contains("reconstruction"),
+            err_msg.contains("0-8")
+                || err_msg.contains("Reconstruction")
+                || err_msg.contains("reconstruction"),
             "error should mention valid range: {err_msg}"
         );
         Ok(())
@@ -779,8 +817,14 @@ mod error_propagation_tests {
                 CurvePoint::new(1.0, 1.0)?,
             ],
             Gain::new(1.0)?,
-            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
-            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::BumpstopConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            racing_wheel_schemas::entities::HandsOffConfig {
+                enabled: false,
+                ..Default::default()
+            },
         );
 
         // Either construction fails (good) or validation fails (also good)
@@ -803,7 +847,11 @@ mod metrics_tests {
     fn empty_snapshot_efficiency() -> TestResult {
         let pipeline = Pipeline::new();
         let snap = pipeline.state_snapshot();
-        assert_eq!(snap.state_efficiency(), 1.0, "empty pipeline should have 100% efficiency");
+        assert_eq!(
+            snap.state_efficiency(),
+            1.0,
+            "empty pipeline should have 100% efficiency"
+        );
         Ok(())
     }
 
@@ -892,8 +940,14 @@ mod stage_enable_disable_tests {
             Gain::new(1.0)?,
             vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
             Gain::new(1.0)?,
-            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
-            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::BumpstopConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            racing_wheel_schemas::entities::HandsOffConfig {
+                enabled: false,
+                ..Default::default()
+            },
         )?;
         let pipeline = compiler.compile_pipeline(config).await?.pipeline;
         assert_eq!(pipeline.node_count(), 1, "only friction → 1 node");
@@ -912,8 +966,14 @@ mod stage_enable_disable_tests {
             Gain::new(1.0)?,
             vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
             Gain::new(1.0)?,
-            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
-            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::BumpstopConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            racing_wheel_schemas::entities::HandsOffConfig {
+                enabled: false,
+                ..Default::default()
+            },
         )?;
         let pipeline = compiler.compile_pipeline(config).await?.pipeline;
         assert_eq!(pipeline.node_count(), 1, "only damper → 1 node");
@@ -932,8 +992,14 @@ mod stage_enable_disable_tests {
             Gain::new(1.0)?,
             vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
             Gain::new(1.0)?,
-            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
-            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::BumpstopConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            racing_wheel_schemas::entities::HandsOffConfig {
+                enabled: false,
+                ..Default::default()
+            },
         )?;
         let pipeline = compiler.compile_pipeline(config).await?.pipeline;
         assert_eq!(pipeline.node_count(), 1, "only notch → 1 node");
@@ -955,8 +1021,14 @@ mod stage_enable_disable_tests {
             Gain::new(1.0)?,
             vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
             Gain::new(1.0)?,
-            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
-            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::BumpstopConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            racing_wheel_schemas::entities::HandsOffConfig {
+                enabled: false,
+                ..Default::default()
+            },
         )?;
         let pipeline = compiler.compile_pipeline(config).await?.pipeline;
         assert_eq!(pipeline.node_count(), 2, "two notch filters → 2 nodes");
@@ -975,8 +1047,14 @@ mod stage_enable_disable_tests {
             Gain::new(1.0)?,
             vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
             Gain::new(1.0)?,
-            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
-            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::BumpstopConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            racing_wheel_schemas::entities::HandsOffConfig {
+                enabled: false,
+                ..Default::default()
+            },
         )?;
         let pipeline = compiler.compile_pipeline(config).await?.pipeline;
         assert_eq!(pipeline.node_count(), 1, "only reconstruction → 1 node");
@@ -995,8 +1073,14 @@ mod stage_enable_disable_tests {
             Gain::new(1.0)?,
             vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
             Gain::new(1.0)?,
-            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
-            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::BumpstopConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            racing_wheel_schemas::entities::HandsOffConfig {
+                enabled: false,
+                ..Default::default()
+            },
         )?;
         let pipeline = compiler.compile_pipeline(config).await?.pipeline;
         assert_eq!(pipeline.node_count(), 1, "only inertia → 1 node");
@@ -1015,11 +1099,21 @@ mod stage_enable_disable_tests {
             Gain::new(1.0)?, // slew_rate >= 1.0 means disabled
             vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
             Gain::new(1.0)?,
-            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
-            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::BumpstopConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            racing_wheel_schemas::entities::HandsOffConfig {
+                enabled: false,
+                ..Default::default()
+            },
         )?;
         let pipeline = compiler.compile_pipeline(config).await?.pipeline;
-        assert_eq!(pipeline.node_count(), 0, "slew_rate=1.0 + everything else off → 0 nodes");
+        assert_eq!(
+            pipeline.node_count(),
+            0,
+            "slew_rate=1.0 + everything else off → 0 nodes"
+        );
         Ok(())
     }
 
@@ -1035,8 +1129,14 @@ mod stage_enable_disable_tests {
             Gain::new(1.0)?,
             vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
             Gain::new(0.8)?, // torque cap < 1.0 adds a node
-            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
-            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::BumpstopConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            racing_wheel_schemas::entities::HandsOffConfig {
+                enabled: false,
+                ..Default::default()
+            },
         )?;
         let pipeline = compiler.compile_pipeline(config).await?.pipeline;
         assert_eq!(pipeline.node_count(), 1, "torque_cap=0.8 → 1 node");

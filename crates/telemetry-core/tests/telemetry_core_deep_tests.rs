@@ -254,10 +254,7 @@ fn normalized_builder_multiple_extended_values() -> TestResult {
         t.get_extended("turbo_psi"),
         Some(&TelemetryValue::Float(14.7))
     );
-    assert_eq!(
-        t.get_extended("sector"),
-        Some(&TelemetryValue::Integer(2))
-    );
+    assert_eq!(t.get_extended("sector"), Some(&TelemetryValue::Integer(2)));
     assert_eq!(
         t.get_extended("headlights"),
         Some(&TelemetryValue::Boolean(true))
@@ -538,10 +535,7 @@ fn connection_event_serde_roundtrip() -> TestResult {
     assert_eq!(decoded.game_id, "iracing");
     assert_eq!(decoded.previous_state, ConnectionState::Disconnected);
     assert_eq!(decoded.new_state, ConnectionState::Connected);
-    assert_eq!(
-        decoded.reason.as_deref(),
-        Some("Shared memory opened")
-    );
+    assert_eq!(decoded.reason.as_deref(), Some("Shared memory opened"));
     assert!(decoded.timestamp_ns > 0);
     Ok(())
 }
@@ -1034,16 +1028,8 @@ fn runtime_bdd_matrix_metrics_combined() -> TestResult {
         BddMatrixMetrics, MatrixParityPolicy, RuntimeBddMatrixMetrics,
     };
 
-    let adapter = BddMatrixMetrics::from_sets(
-        ["a", "b"],
-        ["a", "b"],
-        MatrixParityPolicy::STRICT,
-    );
-    let writer = BddMatrixMetrics::from_sets(
-        ["a", "b"],
-        ["a"],
-        MatrixParityPolicy::STRICT,
-    );
+    let adapter = BddMatrixMetrics::from_sets(["a", "b"], ["a", "b"], MatrixParityPolicy::STRICT);
+    let writer = BddMatrixMetrics::from_sets(["a", "b"], ["a"], MatrixParityPolicy::STRICT);
     let rt = RuntimeBddMatrixMetrics::new(2, adapter, writer);
     assert!(!rt.parity_ok); // writer is missing "b"
     assert!(rt.adapter.parity_ok);

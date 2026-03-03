@@ -5,9 +5,9 @@
 //! behave correctly at edge cases (empty chain, single filter, max chain length).
 
 use proptest::prelude::*;
+use racing_wheel_engine::Pipeline;
 use racing_wheel_engine::filters::*;
 use racing_wheel_engine::rt::Frame;
-use racing_wheel_engine::Pipeline;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Helpers

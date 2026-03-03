@@ -4,12 +4,12 @@
 //! and safety, edge cases, property tests, and constant validation.
 
 use proptest::prelude::*;
+use racing_wheel_hid_ffbeast_protocol::output::{ENABLE_FFB_REPORT_ID, MAX_TORQUE_SCALE};
 use racing_wheel_hid_ffbeast_protocol::{
     build_enable_ffb, build_set_gain, is_ffbeast_product, FFBeastTorqueEncoder,
     CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, FFBEAST_PRODUCT_ID_JOYSTICK,
     FFBEAST_PRODUCT_ID_RUDDER, FFBEAST_PRODUCT_ID_WHEEL, FFBEAST_VENDOR_ID, GAIN_REPORT_ID,
 };
-use racing_wheel_hid_ffbeast_protocol::output::{ENABLE_FFB_REPORT_ID, MAX_TORQUE_SCALE};
 
 // ── Constant validation ──────────────────────────────────────────────────────
 

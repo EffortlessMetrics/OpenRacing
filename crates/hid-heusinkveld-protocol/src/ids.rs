@@ -133,9 +133,7 @@ impl HeusinkveldModel {
             (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_LEGACY_ULTIMATE_PID) => Self::Ultimate,
             (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID) => Self::Pro,
             // Peripherals (other VIDs)
-            (HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V1_PID) => {
-                Self::HandbrakeV1
-            }
+            (HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V1_PID) => Self::HandbrakeV1,
             (HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SHIFTER_PID) => Self::SequentialShifter,
             _ => Self::Unknown,
         }
@@ -265,10 +263,7 @@ mod tests {
             HeusinkveldModel::HandbrakeV1
         );
         assert_eq!(
-            HeusinkveldModel::from_vid_pid(
-                HEUSINKVELD_SHIFTER_VENDOR_ID,
-                HEUSINKVELD_SHIFTER_PID
-            ),
+            HeusinkveldModel::from_vid_pid(HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SHIFTER_PID),
             HeusinkveldModel::SequentialShifter
         );
     }

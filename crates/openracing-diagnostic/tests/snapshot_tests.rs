@@ -14,7 +14,9 @@ mod error_message_snapshots {
 
     #[test]
     fn recording_error() {
-        assert_snapshot!(DiagnosticError::Recording("buffer overflow in stream A".into()).to_string());
+        assert_snapshot!(
+            DiagnosticError::Recording("buffer overflow in stream A".into()).to_string()
+        );
     }
 
     #[test]
@@ -24,9 +26,7 @@ mod error_message_snapshots {
 
     #[test]
     fn format_error() {
-        assert_snapshot!(
-            DiagnosticError::Format("unexpected stream tag 0xFF".into()).to_string()
-        );
+        assert_snapshot!(DiagnosticError::Format("unexpected stream tag 0xFF".into()).to_string());
     }
 
     #[test]
@@ -327,8 +327,8 @@ mod format_snapshots {
 }
 
 mod config_snapshots {
-    use openracing_diagnostic::BlackboxConfig;
     use insta::assert_snapshot;
+    use openracing_diagnostic::BlackboxConfig;
 
     #[test]
     fn default_config() {
@@ -366,8 +366,8 @@ mod config_snapshots {
 }
 
 mod replay_config_snapshots {
-    use openracing_diagnostic::ReplayConfig;
     use insta::assert_debug_snapshot;
+    use openracing_diagnostic::ReplayConfig;
 
     #[test]
     fn default_replay_config() {

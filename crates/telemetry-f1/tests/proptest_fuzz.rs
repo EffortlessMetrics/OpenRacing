@@ -5,15 +5,14 @@
 
 use proptest::prelude::*;
 use racing_wheel_telemetry_adapters::f1_25::{
-    parse_car_telemetry, parse_header, CarTelemetryData, SessionData,
+    CarTelemetryData, SessionData, parse_car_telemetry, parse_header,
 };
 use racing_wheel_telemetry_adapters::f1_native::{
-    build_car_status_packet_f23, build_car_status_packet_f24,
-    build_car_telemetry_packet_native, build_f1_native_header_bytes,
-    parse_car_status_2023, parse_car_status_2024, normalize,
-    F1NativeAdapter, F1NativeCarStatusData, F1NativeState,
+    F1NativeAdapter, F1NativeCarStatusData, F1NativeState, build_car_status_packet_f23,
+    build_car_status_packet_f24, build_car_telemetry_packet_native, build_f1_native_header_bytes,
+    normalize, parse_car_status_2023, parse_car_status_2024,
 };
-use racing_wheel_telemetry_f1::{TelemetryAdapter};
+use racing_wheel_telemetry_f1::TelemetryAdapter;
 
 const F1_PACKET_MAX: usize = 2048;
 

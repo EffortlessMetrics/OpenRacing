@@ -68,7 +68,11 @@ fn multiple_hazard_flags_all_detected() -> TestResult {
         checkered_flag: true,
         ..TelemetryFlags::default()
     };
-    assert!(NormalizedTelemetry::new().with_flags(flags).has_active_flags());
+    assert!(
+        NormalizedTelemetry::new()
+            .with_flags(flags)
+            .has_active_flags()
+    );
     Ok(())
 }
 

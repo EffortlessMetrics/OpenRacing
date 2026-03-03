@@ -4,9 +4,8 @@
 //! safety limits, and clipping behaviour.
 
 use openracing_ffb::{
-    ConstantEffect, DamperEffect, EffectParams, EffectType, FfbDirection, FfbGain,
-    FrictionEffect, SineEffect, SpringEffect,
-    constants::*,
+    ConstantEffect, DamperEffect, EffectParams, EffectType, FfbDirection, FfbGain, FrictionEffect,
+    SineEffect, SpringEffect, constants::*,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -446,7 +445,10 @@ mod sine_tests {
         // At 50ms they should differ
         let out1 = s1.calculate(50);
         let out2 = s2.calculate(50);
-        assert_ne!(out1, out2, "different frequencies should produce different output");
+        assert_ne!(
+            out1, out2,
+            "different frequencies should produce different output"
+        );
         Ok(())
     }
 }
@@ -489,8 +491,7 @@ mod composition_tests {
         let damper_force = damper.calculate(100);
         let total = spring_force as f32 + damper_force as f32;
 
-        let scaled = (total * gain.combined())
-            .clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+        let scaled = (total * gain.combined()).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
 
         // Scaled should be approximately half of unscaled
         let unscaled = total.clamp(i16::MIN as f32, i16::MAX as f32) as i16;
@@ -528,7 +529,10 @@ mod safety_tests {
     fn torque_consistency() -> TestResult {
         // MAX_TORQUE_NM * 100 should equal MAX_TORQUE_CNM
         let cnm_from_nm = (MAX_TORQUE_NM * 100.0) as i32;
-        assert_eq!(cnm_from_nm, MAX_TORQUE_CNM, "torque constants must be consistent");
+        assert_eq!(
+            cnm_from_nm, MAX_TORQUE_CNM,
+            "torque constants must be consistent"
+        );
         Ok(())
     }
 

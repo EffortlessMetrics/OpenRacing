@@ -6,8 +6,8 @@
 //! for encoding round-trips, and known constant validation.
 
 use racing_wheel_hid_cammus_protocol::{
-    CammusModel, FFB_REPORT_ID, FFB_REPORT_LEN, MODE_CONFIG, MODE_GAME, ParseError, PRODUCT_C12,
-    PRODUCT_C5, PRODUCT_CP5_PEDALS, PRODUCT_LC100_PEDALS, REPORT_ID, REPORT_LEN,
+    CammusModel, FFB_REPORT_ID, FFB_REPORT_LEN, MODE_CONFIG, MODE_GAME, PRODUCT_C5, PRODUCT_C12,
+    PRODUCT_CP5_PEDALS, PRODUCT_LC100_PEDALS, ParseError, REPORT_ID, REPORT_LEN,
     STEERING_RANGE_DEG, VENDOR_ID, encode_stop, encode_torque, is_cammus, parse, product_name,
 };
 
@@ -17,7 +17,10 @@ use racing_wheel_hid_cammus_protocol::{
 
 #[test]
 fn constants_vendor_id() {
-    assert_eq!(VENDOR_ID, 0x3416, "Cammus VID must match Linux kernel hid-ids.h");
+    assert_eq!(
+        VENDOR_ID, 0x3416,
+        "Cammus VID must match Linux kernel hid-ids.h"
+    );
 }
 
 #[test]
@@ -57,9 +60,17 @@ fn constants_steering_range() {
 
 #[test]
 fn is_cammus_accepts_all_known_pids() {
-    let known = [PRODUCT_C5, PRODUCT_C12, PRODUCT_CP5_PEDALS, PRODUCT_LC100_PEDALS];
+    let known = [
+        PRODUCT_C5,
+        PRODUCT_C12,
+        PRODUCT_CP5_PEDALS,
+        PRODUCT_LC100_PEDALS,
+    ];
     for pid in known {
-        assert!(is_cammus(VENDOR_ID, pid), "PID 0x{pid:04X} should be recognised");
+        assert!(
+            is_cammus(VENDOR_ID, pid),
+            "PID 0x{pid:04X} should be recognised"
+        );
     }
 }
 
@@ -82,7 +93,10 @@ fn product_name_returns_correct_strings() {
     assert_eq!(product_name(PRODUCT_C5), Some("Cammus C5"));
     assert_eq!(product_name(PRODUCT_C12), Some("Cammus C12"));
     assert_eq!(product_name(PRODUCT_CP5_PEDALS), Some("Cammus CP5 Pedals"));
-    assert_eq!(product_name(PRODUCT_LC100_PEDALS), Some("Cammus LC100 Pedals"));
+    assert_eq!(
+        product_name(PRODUCT_LC100_PEDALS),
+        Some("Cammus LC100 Pedals")
+    );
 }
 
 #[test]
@@ -429,10 +443,7 @@ fn encode_torque_symmetric() {
             let r = encode_torque(-t);
             [r[1], r[2]]
         });
-        assert_eq!(
-            pos_raw, -neg_raw,
-            "torque encoding not symmetric for ±{t}"
-        );
+        assert_eq!(pos_raw, -neg_raw, "torque encoding not symmetric for ±{t}");
     }
 }
 
@@ -473,8 +484,14 @@ fn parse_alternating_bytes() -> Result<(), ParseError> {
 fn parse_error_display() {
     let err = ParseError::TooShort { got: 5, need: 12 };
     let msg = format!("{err}");
-    assert!(msg.contains("5"), "error message should contain the 'got' value");
-    assert!(msg.contains("12"), "error message should contain the 'need' value");
+    assert!(
+        msg.contains("5"),
+        "error message should contain the 'got' value"
+    );
+    assert!(
+        msg.contains("12"),
+        "error message should contain the 'need' value"
+    );
 }
 
 // ---------------------------------------------------------------------------

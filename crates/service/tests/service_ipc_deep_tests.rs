@@ -268,8 +268,8 @@ async fn concurrent_service_access_safety() -> Result<(), BoxErr> {
             let did: DeviceId = format!("conc-dev-{i}")
                 .parse()
                 .map_err(|e| -> BoxErr { format!("bad id: {e}").into() })?;
-            let t = TorqueNm::new(10.0)
-                .map_err(|e| -> BoxErr { format!("bad torque: {e}").into() })?;
+            let t =
+                TorqueNm::new(10.0).map_err(|e| -> BoxErr { format!("bad torque: {e}").into() })?;
             s.safety_service().register_device(did.clone(), t).await?;
             let state = s.safety_service().get_safety_state(&did).await?;
             assert_eq!(state.interlock_state, InterlockState::SafeTorque);
@@ -313,8 +313,7 @@ async fn concurrent_profile_and_safety_operations() -> Result<(), BoxErr> {
             let did: DeviceId = format!("conc-safety-{i}")
                 .parse()
                 .map_err(|e| -> BoxErr { format!("{e}").into() })?;
-            let t = TorqueNm::new(8.0)
-                .map_err(|e| -> BoxErr { format!("{e}").into() })?;
+            let t = TorqueNm::new(8.0).map_err(|e| -> BoxErr { format!("{e}").into() })?;
             s2.safety_service().register_device(did, t).await?;
         }
         Ok::<(), BoxErr>(())
@@ -423,7 +422,10 @@ async fn message_routing_safety_event_propagation() -> Result<(), BoxErr> {
         .await?;
 
     let state = svc.safety_service().get_safety_state(&did).await?;
-    assert!(matches!(state.interlock_state, InterlockState::Faulted { .. }));
+    assert!(matches!(
+        state.interlock_state,
+        InterlockState::Faulted { .. }
+    ));
     assert_eq!(state.current_torque_limit, TorqueNm::ZERO);
     Ok(())
 }
@@ -442,9 +444,7 @@ async fn message_routing_profile_activation_visible() -> Result<(), BoxErr> {
     svc.profile_service().create_profile(profile).await?;
 
     let did = parse_device_id("route-dev-profile")?;
-    svc.profile_service()
-        .set_active_profile(&did, &pid)
-        .await?;
+    svc.profile_service().set_active_profile(&did, &pid).await?;
 
     let active = svc.profile_service().get_active_profile(&did).await?;
     assert_eq!(active, Some(pid));
@@ -669,8 +669,7 @@ async fn timeout_concurrent_operations_bounded() -> Result<(), BoxErr> {
                 let did: DeviceId = format!("timeout-conc-{i}")
                     .parse()
                     .map_err(|e| -> BoxErr { format!("{e}").into() })?;
-                let t = TorqueNm::new(5.0)
-                    .map_err(|e| -> BoxErr { format!("{e}").into() })?;
+                let t = TorqueNm::new(5.0).map_err(|e| -> BoxErr { format!("{e}").into() })?;
                 s.safety_service().register_device(did.clone(), t).await?;
                 let _ = s.safety_service().get_safety_state(&did).await?;
                 s.safety_service().unregister_device(&did).await?;
@@ -757,8 +756,7 @@ async fn timeout_daemon_abort_is_timely() -> Result<(), BoxErr> {
     tokio::time::sleep(Duration::from_millis(50)).await;
     handle.abort();
 
-    let result =
-        tokio::time::timeout(Duration::from_secs(5), handle).await;
+    let result = tokio::time::timeout(Duration::from_secs(5), handle).await;
     assert!(result.is_ok(), "abort should complete within 5 seconds");
     Ok(())
 }

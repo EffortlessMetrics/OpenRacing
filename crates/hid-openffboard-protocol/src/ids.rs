@@ -59,10 +59,8 @@ pub enum OpenFFBoardVariant {
 
 impl OpenFFBoardVariant {
     /// All known variants.
-    pub const ALL: [OpenFFBoardVariant; 2] = [
-        OpenFFBoardVariant::Main,
-        OpenFFBoardVariant::Alternate,
-    ];
+    pub const ALL: [OpenFFBoardVariant; 2] =
+        [OpenFFBoardVariant::Main, OpenFFBoardVariant::Alternate];
 
     /// Human-readable name for this variant.
     pub fn name(self) -> &'static str {

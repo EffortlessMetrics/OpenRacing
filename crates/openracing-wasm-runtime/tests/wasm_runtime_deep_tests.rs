@@ -284,10 +284,7 @@ fn memory_limit_restricts_allocation() -> Result<(), Box<dyn std::error::Error>>
 
 #[test]
 fn capability_checker_grants_listed_caps() -> Result<(), Box<dyn std::error::Error>> {
-    let checker = CapabilityChecker::new(vec![
-        "read_telemetry".into(),
-        "control_leds".into(),
-    ]);
+    let checker = CapabilityChecker::new(vec!["read_telemetry".into(), "control_leds".into()]);
     assert!(checker.check_telemetry_read().is_ok());
     assert!(checker.check_led_control().is_ok());
     assert!(checker.check_telemetry_modify().is_err());
@@ -318,11 +315,7 @@ fn capability_has_capability_query() -> Result<(), Box<dyn std::error::Error>> {
 fn plugin_loaded_with_capabilities() -> Result<(), Box<dyn std::error::Error>> {
     let mut rt = WasmRuntime::new()?;
     let id = Uuid::new_v4();
-    rt.load_plugin_from_bytes(
-        id,
-        &wat_host_check_cap()?,
-        vec!["read_telemetry".into()],
-    )?;
+    rt.load_plugin_from_bytes(id, &wat_host_check_cap()?, vec!["read_telemetry".into()])?;
     // The process function calls check_capability internally — should not trap.
     let result = rt.process(&id, 3.25, 0.001)?;
     assert!((result - 3.25).abs() < f32::EPSILON);
@@ -652,11 +645,7 @@ fn host_logging_function_callable() -> Result<(), Box<dyn std::error::Error>> {
 fn host_check_capability_function_callable() -> Result<(), Box<dyn std::error::Error>> {
     let mut rt = WasmRuntime::new()?;
     let id = Uuid::new_v4();
-    rt.load_plugin_from_bytes(
-        id,
-        &wat_host_check_cap()?,
-        vec!["read_telemetry".into()],
-    )?;
+    rt.load_plugin_from_bytes(id, &wat_host_check_cap()?, vec!["read_telemetry".into()])?;
     let result = rt.process(&id, 9.0, 0.001)?;
     assert!((result - 9.0).abs() < f32::EPSILON);
     Ok(())

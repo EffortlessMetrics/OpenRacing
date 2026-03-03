@@ -105,15 +105,8 @@ mod roundtrip {
 
     #[test]
     fn device_capabilities_roundtrip() -> TestResult {
-        let caps = DeviceCapabilities::new(
-            true,
-            true,
-            true,
-            false,
-            TorqueNm::new(20.0)?,
-            4096,
-            1000,
-        );
+        let caps =
+            DeviceCapabilities::new(true, true, true, false, TorqueNm::new(20.0)?, 4096, 1000);
         let rt = json_roundtrip(&caps)?;
         assert_eq!(rt.supports_pid, caps.supports_pid);
         assert_eq!(rt.supports_raw_torque_1khz, caps.supports_raw_torque_1khz);
@@ -851,11 +844,17 @@ mod minimal_payloads {
 
 // Helper trait to check flags default
 trait FlagDefaultCheck {
-    fn green_flag_is_default_true(&self, flags: &racing_wheel_schemas::telemetry::TelemetryFlags) -> bool;
+    fn green_flag_is_default_true(
+        &self,
+        flags: &racing_wheel_schemas::telemetry::TelemetryFlags,
+    ) -> bool;
 }
 
 impl FlagDefaultCheck for racing_wheel_schemas::telemetry::NormalizedTelemetry {
-    fn green_flag_is_default_true(&self, flags: &racing_wheel_schemas::telemetry::TelemetryFlags) -> bool {
+    fn green_flag_is_default_true(
+        &self,
+        flags: &racing_wheel_schemas::telemetry::TelemetryFlags,
+    ) -> bool {
         flags.green_flag
     }
 }
@@ -997,7 +996,10 @@ mod enum_variants {
         ];
         for (variant, expected) in &cases {
             let json = serde_json::to_string(variant)?;
-            assert_eq!(&json, expected, "DeviceState::{variant:?} serialization mismatch");
+            assert_eq!(
+                &json, expected,
+                "DeviceState::{variant:?} serialization mismatch"
+            );
         }
         Ok(())
     }
@@ -1015,7 +1017,10 @@ mod enum_variants {
         ];
         for (variant, expected) in &cases {
             let json = serde_json::to_string(variant)?;
-            assert_eq!(&json, expected, "DeviceType::{variant:?} serialization mismatch");
+            assert_eq!(
+                &json, expected,
+                "DeviceType::{variant:?} serialization mismatch"
+            );
         }
         Ok(())
     }
@@ -1030,7 +1035,10 @@ mod enum_variants {
         ];
         for (variant, expected) in &cases {
             let json = serde_json::to_string(variant)?;
-            assert_eq!(&json, expected, "CalibrationType::{variant:?} serialization mismatch");
+            assert_eq!(
+                &json, expected,
+                "CalibrationType::{variant:?} serialization mismatch"
+            );
         }
         Ok(())
     }
@@ -1222,15 +1230,7 @@ mod nested_composition {
             "moza-r9".parse()?,
             "Moza R9".to_string(),
             DeviceType::WheelBase,
-            DeviceCapabilities::new(
-                true,
-                true,
-                true,
-                true,
-                TorqueNm::new(25.0)?,
-                8192,
-                1000,
-            ),
+            DeviceCapabilities::new(true, true, true, true, TorqueNm::new(25.0)?, 8192, 1000),
         );
         let json = serde_json::to_string_pretty(&device)?;
         let rt: Device = serde_json::from_str(&json)?;
@@ -1248,11 +1248,7 @@ mod nested_composition {
         let profile_id: ProfileId = "iracing.gt3.spa".parse()?;
         let mut profile = Profile::new(
             profile_id,
-            ProfileScope::for_track(
-                "iRacing".to_string(),
-                "GT3".to_string(),
-                "Spa".to_string(),
-            ),
+            ProfileScope::for_track("iRacing".to_string(), "GT3".to_string(), "Spa".to_string()),
             BaseSettings::default(),
             "iRacing GT3 at Spa".to_string(),
         );
@@ -1309,7 +1305,10 @@ mod nested_composition {
             .extended("wind_speed", TelemetryValue::Float(12.5))
             .extended("rain_intensity", TelemetryValue::Integer(3))
             .extended("night_mode", TelemetryValue::Boolean(true))
-            .extended("track_surface", TelemetryValue::String("asphalt".to_string()))
+            .extended(
+                "track_surface",
+                TelemetryValue::String("asphalt".to_string()),
+            )
             .build();
         let rt = json_roundtrip(&t)?;
         assert_eq!(rt.extended.len(), 4);
@@ -1580,7 +1579,11 @@ mod large_payloads {
         for i in 0..50 {
             colors.insert(
                 format!("color_{i}"),
-                [(i as u8) % 255, ((i * 3) as u8) % 255, ((i * 7) as u8) % 255],
+                [
+                    (i as u8) % 255,
+                    ((i * 3) as u8) % 255,
+                    ((i * 7) as u8) % 255,
+                ],
             );
         }
         let led = LedConfig::new(
@@ -1674,8 +1677,7 @@ mod cross_version {
             "gear": 3,
             "flags": {}
         }"#;
-        let t: racing_wheel_schemas::telemetry::NormalizedTelemetry =
-            serde_json::from_str(json)?;
+        let t: racing_wheel_schemas::telemetry::NormalizedTelemetry = serde_json::from_str(json)?;
         // Fields with serde(default) should use defaults
         assert!((t.clutch - 0.0).abs() < f32::EPSILON);
         assert!((t.max_rpm - 0.0).abs() < f32::EPSILON);
@@ -1696,8 +1698,7 @@ mod cross_version {
             "rpm": 3000.0,
             "gear": 2
         }"#;
-        let snap: racing_wheel_schemas::telemetry::TelemetrySnapshot =
-            serde_json::from_str(json)?;
+        let snap: racing_wheel_schemas::telemetry::TelemetrySnapshot = serde_json::from_str(json)?;
         assert_eq!(snap.timestamp_ns, 100);
         // serde(default) fields
         assert!((snap.clutch - 0.0).abs() < f32::EPSILON);

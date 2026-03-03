@@ -41,7 +41,10 @@ fn input_g29_full_left_lock_full_pedals() -> Result<(), Box<dyn std::error::Erro
     let data = build_input(0x0000, 0xFF, 0xFF, 0x00, 0x0000, 0x08, 0x00);
     let state = lg::parse_input_report(&data).ok_or("G29 report should parse")?;
     assert!((state.steering + 1.0).abs() < 0.001, "full left = -1.0");
-    assert!((state.throttle - 1.0).abs() < 0.001, "throttle fully pressed");
+    assert!(
+        (state.throttle - 1.0).abs() < 0.001,
+        "throttle fully pressed"
+    );
     assert!((state.brake - 1.0).abs() < 0.001, "brake fully pressed");
     assert!(state.clutch.abs() < 0.001, "clutch released");
     assert_eq!(state.hat, 0x08, "hat neutral");
@@ -54,7 +57,10 @@ fn input_g920_center_half_pedals_upshift() -> Result<(), Box<dyn std::error::Err
     let data = build_input(0x8000, 0x80, 0x40, 0x00, 0x0000, 0x08, 0x01);
     let state = lg::parse_input_report(&data).ok_or("G920 report should parse")?;
     assert!(state.steering.abs() < 0.001, "center = 0.0");
-    assert!((state.throttle - 128.0 / 255.0).abs() < 0.01, "~50% throttle");
+    assert!(
+        (state.throttle - 128.0 / 255.0).abs() < 0.01,
+        "~50% throttle"
+    );
     assert!((state.brake - 64.0 / 255.0).abs() < 0.01, "~25% brake");
     assert_eq!(state.paddles, 0x01, "right/upshift paddle only");
     Ok(())
@@ -107,10 +113,7 @@ fn input_g923_trueforce_model_variants() -> Result<(), Box<dyn std::error::Error
             lg::LogitechModel::G923,
             "{name} (0x{pid:04X}) must classify as G923"
         );
-        assert!(
-            model.supports_trueforce(),
-            "{name} must support TrueForce"
-        );
+        assert!(model.supports_trueforce(), "{name} must support TrueForce");
     }
     Ok(())
 }
@@ -254,7 +257,10 @@ fn output_constant_force_negative_max_torque() -> Result<(), Box<dyn std::error:
     let mut out = [0u8; lg::CONSTANT_FORCE_REPORT_LEN];
     enc.encode(0.01, &mut out);
     let mag = i16::from_le_bytes([out[2], out[3]]);
-    assert_eq!(mag, 10000, "negative max_torque → clamp to 0.01, 0.01/0.01 = 1.0 → 10000");
+    assert_eq!(
+        mag, 10000,
+        "negative max_torque → clamp to 0.01, 0.01/0.01 = 1.0 → 10000"
+    );
     Ok(())
 }
 
@@ -264,7 +270,11 @@ fn output_constant_force_report_structure() -> Result<(), Box<dyn std::error::Er
     let enc = lg::LogitechConstantForceEncoder::new(2.2);
     let mut out = [0u8; lg::CONSTANT_FORCE_REPORT_LEN];
     let len = enc.encode(0.0, &mut out);
-    assert_eq!(len, lg::CONSTANT_FORCE_REPORT_LEN, "encode returns report length");
+    assert_eq!(
+        len,
+        lg::CONSTANT_FORCE_REPORT_LEN,
+        "encode returns report length"
+    );
     assert_eq!(out[0], report_ids::CONSTANT_FORCE, "report ID = 0x12");
     assert_eq!(out[1], 1, "effect block index = 1 (1-based)");
     Ok(())
@@ -332,13 +342,34 @@ fn device_id_all_pid_to_model_mapping() -> Result<(), Box<dyn std::error::Error>
     let expected: &[(u16, lg::LogitechModel)] = &[
         (product_ids::MOMO, lg::LogitechModel::MOMO),
         (product_ids::MOMO_2, lg::LogitechModel::MOMO),
-        (product_ids::WINGMAN_FORMULA_FORCE_GP, lg::LogitechModel::WingManFormulaForce),
-        (product_ids::WINGMAN_FORMULA_FORCE, lg::LogitechModel::WingManFormulaForce),
-        (product_ids::VIBRATION_WHEEL, lg::LogitechModel::VibrationWheel),
-        (product_ids::DRIVING_FORCE_EX, lg::LogitechModel::DrivingForceEX),
-        (product_ids::DRIVING_FORCE_PRO, lg::LogitechModel::DrivingForcePro),
-        (product_ids::DRIVING_FORCE_GT, lg::LogitechModel::DrivingForceGT),
-        (product_ids::SPEED_FORCE_WIRELESS, lg::LogitechModel::SpeedForceWireless),
+        (
+            product_ids::WINGMAN_FORMULA_FORCE_GP,
+            lg::LogitechModel::WingManFormulaForce,
+        ),
+        (
+            product_ids::WINGMAN_FORMULA_FORCE,
+            lg::LogitechModel::WingManFormulaForce,
+        ),
+        (
+            product_ids::VIBRATION_WHEEL,
+            lg::LogitechModel::VibrationWheel,
+        ),
+        (
+            product_ids::DRIVING_FORCE_EX,
+            lg::LogitechModel::DrivingForceEX,
+        ),
+        (
+            product_ids::DRIVING_FORCE_PRO,
+            lg::LogitechModel::DrivingForcePro,
+        ),
+        (
+            product_ids::DRIVING_FORCE_GT,
+            lg::LogitechModel::DrivingForceGT,
+        ),
+        (
+            product_ids::SPEED_FORCE_WIRELESS,
+            lg::LogitechModel::SpeedForceWireless,
+        ),
         (product_ids::G25, lg::LogitechModel::G25),
         (product_ids::G27, lg::LogitechModel::G27),
         (product_ids::G29_PS, lg::LogitechModel::G29),
@@ -539,8 +570,11 @@ fn mode_switch_two_step_sequence_g923_ps() -> Result<(), Box<dyn std::error::Err
     let step2 = lg::build_mode_switch_report(0x07, true);
 
     assert_eq!(step1[1], 0x0A, "step 1 cmd = NATIVE_MODE");
-    assert_eq!(step2, [0xF8, 0x09, 0x07, 0x01, 0x01, 0x00, 0x00],
-        "G923 PS mode switch must match new-lg4ff lg4ff_mode_switch_ext09_g923");
+    assert_eq!(
+        step2,
+        [0xF8, 0x09, 0x07, 0x01, 0x01, 0x00, 0x00],
+        "G923 PS mode switch must match new-lg4ff lg4ff_mode_switch_ext09_g923"
+    );
 
     Ok(())
 }
@@ -599,7 +633,11 @@ fn ffb_encoding_magnitude_range() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(i16::from_le_bytes([out[2], out[3]]), 10000, "+max = +10000");
 
     enc.encode(-2.2, &mut out);
-    assert_eq!(i16::from_le_bytes([out[2], out[3]]), -10000, "-max = -10000");
+    assert_eq!(
+        i16::from_le_bytes([out[2], out[3]]),
+        -10000,
+        "-max = -10000"
+    );
 
     enc.encode(0.0, &mut out);
     assert_eq!(i16::from_le_bytes([out[2], out[3]]), 0, "zero = 0");
@@ -651,8 +689,14 @@ fn ffb_set_range_various_values() -> Result<(), Box<dyn std::error::Error>> {
     ];
     for &(degrees, expected_lsb, expected_msb) in test_values {
         let r = lg::build_set_range_report(degrees);
-        assert_eq!(r[2], expected_lsb, "{degrees}° LSB should be 0x{expected_lsb:02X}");
-        assert_eq!(r[3], expected_msb, "{degrees}° MSB should be 0x{expected_msb:02X}");
+        assert_eq!(
+            r[2], expected_lsb,
+            "{degrees}° LSB should be 0x{expected_lsb:02X}"
+        );
+        assert_eq!(
+            r[3], expected_msb,
+            "{degrees}° MSB should be 0x{expected_msb:02X}"
+        );
     }
     Ok(())
 }
@@ -679,7 +723,10 @@ fn edge_single_byte_correct_id() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn edge_report_id_zero() -> Result<(), Box<dyn std::error::Error>> {
     let data = [0x00u8; 12];
-    assert!(lg::parse_input_report(&data).is_none(), "report ID 0x00 → None");
+    assert!(
+        lg::parse_input_report(&data).is_none(),
+        "report ID 0x00 → None"
+    );
     Ok(())
 }
 
@@ -687,7 +734,10 @@ fn edge_report_id_zero() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn edge_all_ff_report() -> Result<(), Box<dyn std::error::Error>> {
     let data = [0xFFu8; 12];
-    assert!(lg::parse_input_report(&data).is_none(), "report ID 0xFF → None");
+    assert!(
+        lg::parse_input_report(&data).is_none(),
+        "report ID 0xFF → None"
+    );
     Ok(())
 }
 
@@ -743,7 +793,10 @@ fn edge_unknown_pid_defaults() -> Result<(), Box<dyn std::error::Error>> {
     let model = lg::LogitechModel::from_product_id(0x0000);
     assert_eq!(model, lg::LogitechModel::Unknown);
     assert!(!lg::is_wheel_product(0x0000));
-    assert!((model.max_torque_nm() - 2.0).abs() < 0.01, "Unknown defaults to 2.0 Nm");
+    assert!(
+        (model.max_torque_nm() - 2.0).abs() < 0.01,
+        "Unknown defaults to 2.0 Nm"
+    );
     assert_eq!(model.max_rotation_deg(), 900, "Unknown defaults to 900°");
     assert!(!model.supports_trueforce());
     assert!(!model.supports_hardware_friction());
@@ -756,8 +809,14 @@ fn edge_unknown_pid_defaults() -> Result<(), Box<dyn std::error::Error>> {
 fn edge_legacy_dfex_compatibility_mode() -> Result<(), Box<dyn std::error::Error>> {
     let model = lg::LogitechModel::from_product_id(product_ids::DRIVING_FORCE_EX);
     assert_eq!(model, lg::LogitechModel::DrivingForceEX);
-    assert!(!model.supports_range_command(), "DF-EX has no range command");
-    assert!(!model.supports_hardware_friction(), "DF-EX has no hardware friction");
+    assert!(
+        !model.supports_range_command(),
+        "DF-EX has no range command"
+    );
+    assert!(
+        !model.supports_hardware_friction(),
+        "DF-EX has no hardware friction"
+    );
     assert_eq!(model.max_rotation_deg(), 270, "DF-EX limited to 270°");
     Ok(())
 }
@@ -1093,7 +1152,11 @@ fn constants_ffb_magnitude_range() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(i16::from_le_bytes([out[2], out[3]]), 10_000, "+max = 10000");
 
     enc.encode(-1.0, &mut out);
-    assert_eq!(i16::from_le_bytes([out[2], out[3]]), -10_000, "-max = -10000");
+    assert_eq!(
+        i16::from_le_bytes([out[2], out[3]]),
+        -10_000,
+        "-max = -10000"
+    );
 
     Ok(())
 }
@@ -1148,10 +1211,7 @@ fn constants_all_pids_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
         product_ids::G_PRO_XBOX,
     ];
     for pid in all_pids {
-        assert!(
-            lg::is_wheel_product(pid),
-            "PID 0x{pid:04X} must be a wheel"
-        );
+        assert!(lg::is_wheel_product(pid), "PID 0x{pid:04X} must be a wheel");
         assert_ne!(
             lg::LogitechModel::from_product_id(pid),
             lg::LogitechModel::Unknown,

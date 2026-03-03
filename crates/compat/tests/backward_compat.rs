@@ -63,10 +63,7 @@ fn deprecation_registry_complete() {
     assert_eq!(t.faults(), t.0.fault_flags);
 
     // wheel_angle_mdeg → wheel_angle_deg (×1000 unit conversion)
-    assert_eq!(
-        t.wheel_angle_mdeg(),
-        (t.0.wheel_angle_deg * 1000.0) as i32
-    );
+    assert_eq!(t.wheel_angle_mdeg(), (t.0.wheel_angle_deg * 1000.0) as i32);
 
     // wheel_speed_mrad_s → wheel_speed_rad_s (×1000 unit conversion)
     assert_eq!(
@@ -170,10 +167,7 @@ fn wheel_angle_mdeg_isolated_from_other_fields() {
 
     assert_eq!(base.wheel_angle_mdeg(), varied_speed.wheel_angle_mdeg());
     assert_eq!(base.wheel_angle_mdeg(), varied_temp.wheel_angle_mdeg());
-    assert_eq!(
-        base.wheel_angle_mdeg(),
-        varied_faults.wheel_angle_mdeg()
-    );
+    assert_eq!(base.wheel_angle_mdeg(), varied_faults.wheel_angle_mdeg());
 }
 
 #[test]
@@ -183,14 +177,8 @@ fn wheel_speed_mrad_s_isolated_from_other_fields() {
     let varied_temp = sample(0.0, 7.5, 255, 0);
     let varied_faults = sample(0.0, 7.5, 0, 0xFF);
 
-    assert_eq!(
-        base.wheel_speed_mrad_s(),
-        varied_angle.wheel_speed_mrad_s()
-    );
-    assert_eq!(
-        base.wheel_speed_mrad_s(),
-        varied_temp.wheel_speed_mrad_s()
-    );
+    assert_eq!(base.wheel_speed_mrad_s(), varied_angle.wheel_speed_mrad_s());
+    assert_eq!(base.wheel_speed_mrad_s(), varied_temp.wheel_speed_mrad_s());
     assert_eq!(
         base.wheel_speed_mrad_s(),
         varied_faults.wheel_speed_mrad_s()
@@ -372,10 +360,7 @@ fn old_and_new_code_coexist() {
 
     assert_eq!(t.temp_c(), t.0.temperature_c);
     assert_eq!(t.faults(), t.0.fault_flags);
-    assert_eq!(
-        t.wheel_angle_mdeg(),
-        (t.0.wheel_angle_deg * 1000.0) as i32
-    );
+    assert_eq!(t.wheel_angle_mdeg(), (t.0.wheel_angle_deg * 1000.0) as i32);
     assert_eq!(
         t.wheel_speed_mrad_s(),
         (t.0.wheel_speed_rad_s * 1000.0) as i32

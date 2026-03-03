@@ -47,7 +47,9 @@ fn make_raw_json(json: &str) -> Vec<u8> {
 #[test]
 fn gear_string_reverse() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(5.0, 2000.0, 4500.0, "R", 30.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        5.0, 2000.0, 4500.0, "R", 30.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert_eq!(t.gear, -1);
     Ok(())
@@ -56,7 +58,9 @@ fn gear_string_reverse() -> TestResult {
 #[test]
 fn gear_string_neutral() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(0.0, 800.0, 4500.0, "N", 0.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 800.0, 4500.0, "N", 0.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert_eq!(t.gear, 0);
     Ok(())
@@ -65,7 +69,9 @@ fn gear_string_neutral() -> TestResult {
 #[test]
 fn gear_string_empty() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(0.0, 800.0, 4500.0, "", 0.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 800.0, 4500.0, "", 0.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert_eq!(t.gear, 0);
     Ok(())
@@ -76,7 +82,9 @@ fn gear_string_1_through_9() -> TestResult {
     let adapter = MudRunnerAdapter::new();
     for g in 1..=9 {
         let gear_str = g.to_string();
-        let data = make_json(10.0, 3000.0, 4500.0, &gear_str, 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0);
+        let data = make_json(
+            10.0, 3000.0, 4500.0, &gear_str, 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0,
+        );
         let t = adapter.normalize(&data)?;
         assert_eq!(t.gear, g, "gear string \"{gear_str}\"");
     }
@@ -86,7 +94,9 @@ fn gear_string_1_through_9() -> TestResult {
 #[test]
 fn gear_string_unrecognised_defaults_to_zero() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(10.0, 3000.0, 4500.0, "X", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        10.0, 3000.0, 4500.0, "X", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert_eq!(t.gear, 0, "unrecognised gear → 0");
     Ok(())
@@ -96,7 +106,9 @@ fn gear_string_unrecognised_defaults_to_zero() -> TestResult {
 fn gear_string_lowercase_r_defaults_to_zero() -> TestResult {
     let adapter = MudRunnerAdapter::new();
     // "r" (lowercase) is not "R", should parse to 0
-    let data = make_json(5.0, 2000.0, 4500.0, "r", 30.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        5.0, 2000.0, 4500.0, "r", 30.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert_eq!(t.gear, 0, "lowercase 'r' not treated as reverse");
     Ok(())
@@ -137,7 +149,9 @@ fn steer_beyond_450_clamped_to_one() -> TestResult {
 #[test]
 fn steer_below_neg_450_clamped_to_neg_one() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(0.0, 0.0, 0.0, "N", 0.0, 0.0, 0.0, -600.0, 0.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 0.0, 0.0, "N", 0.0, 0.0, 0.0, -600.0, 0.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.steering_angle - (-1.0)).abs() < 0.001, "clamped to -1.0");
     Ok(())
@@ -163,7 +177,10 @@ fn steer_pre_normalised_zero_falls_back_to_degrees() -> TestResult {
         r#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":90.0,"Steer":0.0,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}"#,
     );
     let t = adapter.normalize(&json)?;
-    assert!((t.steering_angle - 0.2).abs() < 0.001, "fallback to degrees");
+    assert!(
+        (t.steering_angle - 0.2).abs() < 0.001,
+        "fallback to degrees"
+    );
     Ok(())
 }
 
@@ -174,7 +191,10 @@ fn steer_pre_normalised_clamped_above_one() -> TestResult {
         r#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"Steer":2.5,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}"#,
     );
     let t = adapter.normalize(&json)?;
-    assert!((t.steering_angle - 1.0).abs() < 0.001, "Steer clamped to 1.0");
+    assert!(
+        (t.steering_angle - 1.0).abs() < 0.001,
+        "Steer clamped to 1.0"
+    );
     Ok(())
 }
 
@@ -185,7 +205,9 @@ fn steer_pre_normalised_clamped_above_one() -> TestResult {
 #[test]
 fn lateral_g_passthrough() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(10.0, 2000.0, 4500.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 1.5, 0.0, 0.0);
+    let data = make_json(
+        10.0, 2000.0, 4500.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 1.5, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.lateral_g - 1.5).abs() < 0.001);
     Ok(())
@@ -194,7 +216,9 @@ fn lateral_g_passthrough() -> TestResult {
 #[test]
 fn longitudinal_g_passthrough() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(10.0, 2000.0, 4500.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, -0.8, 0.0);
+    let data = make_json(
+        10.0, 2000.0, 4500.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, -0.8, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.longitudinal_g - (-0.8)).abs() < 0.001);
     Ok(())
@@ -229,7 +253,9 @@ fn longitudinal_g_alias_lonacc() -> TestResult {
 #[test]
 fn ffb_scalar_passthrough() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(10.0, 2000.0, 4500.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.42);
+    let data = make_json(
+        10.0, 2000.0, 4500.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.42,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.ffb_scalar - 0.42).abs() < 0.001);
     Ok(())
@@ -238,7 +264,9 @@ fn ffb_scalar_passthrough() -> TestResult {
 #[test]
 fn ffb_scalar_negative() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(10.0, 2000.0, 4500.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, -0.7);
+    let data = make_json(
+        10.0, 2000.0, 4500.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, -0.7,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.ffb_scalar - (-0.7)).abs() < 0.001);
     Ok(())
@@ -247,7 +275,9 @@ fn ffb_scalar_negative() -> TestResult {
 #[test]
 fn ffb_scalar_clamped_above_one() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(10.0, 2000.0, 4500.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 5.0);
+    let data = make_json(
+        10.0, 2000.0, 4500.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 5.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.ffb_scalar - 1.0).abs() < 0.001, "FFB clamped to 1.0");
     Ok(())
@@ -256,7 +286,9 @@ fn ffb_scalar_clamped_above_one() -> TestResult {
 #[test]
 fn ffb_scalar_clamped_below_neg_one() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(10.0, 2000.0, 4500.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, -3.0);
+    let data = make_json(
+        10.0, 2000.0, 4500.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, -3.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.ffb_scalar - (-1.0)).abs() < 0.001, "FFB clamped to -1.0");
     Ok(())
@@ -269,7 +301,9 @@ fn ffb_scalar_clamped_below_neg_one() -> TestResult {
 #[test]
 fn max_rpm_passthrough() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(10.0, 2000.0, 5500.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        10.0, 2000.0, 5500.0, "2", 50.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.max_rpm - 5500.0).abs() < 0.1);
     Ok(())
@@ -278,7 +312,9 @@ fn max_rpm_passthrough() -> TestResult {
 #[test]
 fn max_rpm_negative_clamped() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(0.0, 0.0, -1000.0, "N", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 0.0, -1000.0, "N", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!(t.max_rpm >= 0.0, "max_rpm non-negative");
     Ok(())
@@ -291,7 +327,9 @@ fn max_rpm_negative_clamped() -> TestResult {
 #[test]
 fn clutch_half() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(0.0, 800.0, 4500.0, "N", 0.0, 0.0, 50.0, 0.0, 50.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 800.0, 4500.0, "N", 0.0, 0.0, 50.0, 0.0, 50.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.clutch - 0.5).abs() < 0.001);
     Ok(())
@@ -300,7 +338,9 @@ fn clutch_half() -> TestResult {
 #[test]
 fn clutch_full() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(0.0, 800.0, 4500.0, "N", 0.0, 0.0, 100.0, 0.0, 50.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 800.0, 4500.0, "N", 0.0, 0.0, 100.0, 0.0, 50.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.clutch - 1.0).abs() < 0.001);
     Ok(())
@@ -309,7 +349,9 @@ fn clutch_full() -> TestResult {
 #[test]
 fn clutch_overrange_clamped() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(0.0, 800.0, 4500.0, "N", 0.0, 0.0, 250.0, 0.0, 50.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 800.0, 4500.0, "N", 0.0, 0.0, 250.0, 0.0, 50.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.clutch - 1.0).abs() < 0.001, "clutch clamped to 1.0");
     Ok(())
@@ -392,7 +434,9 @@ fn extra_unknown_fields_ignored() -> TestResult {
 fn json_with_integer_speed() -> TestResult {
     let adapter = MudRunnerAdapter::new();
     // JSON number without decimal point should still deserialize to f32
-    let json = make_raw_json(r#"{"SpeedMs":10,"Rpms":2000,"MaxRpms":4500,"Gear":"2","Throttle":50,"Brake":0,"Clutch":0,"SteeringAngle":0,"FuelPercent":50,"LateralGForce":0,"LongitudinalGForce":0,"FFBValue":0,"IsRunning":true,"IsInPit":false}"#);
+    let json = make_raw_json(
+        r#"{"SpeedMs":10,"Rpms":2000,"MaxRpms":4500,"Gear":"2","Throttle":50,"Brake":0,"Clutch":0,"SteeringAngle":0,"FuelPercent":50,"LateralGForce":0,"LongitudinalGForce":0,"FFBValue":0,"IsRunning":true,"IsInPit":false}"#,
+    );
     let t = adapter.normalize(&json)?;
     assert!((t.speed_ms - 10.0).abs() < 0.01);
     assert!((t.rpm - 2000.0).abs() < 0.1);
@@ -435,7 +479,9 @@ fn json_whitespace_preserved() -> TestResult {
 fn snowrunner_heavy_snow_driving() -> TestResult {
     let adapter = MudRunnerAdapter::with_variant(MudRunnerVariant::SnowRunner);
     assert_eq!(adapter.game_id(), "snowrunner");
-    let data = make_json(6.0, 2200.0, 4500.0, "1", 90.0, 0.0, 0.0, -100.0, 40.0, 0.4, 0.3, 0.6);
+    let data = make_json(
+        6.0, 2200.0, 4500.0, "1", 90.0, 0.0, 0.0, -100.0, 40.0, 0.4, 0.3, 0.6,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.speed_ms - 6.0).abs() < 0.01);
     assert!((t.throttle - 0.9).abs() < 0.001);
@@ -493,7 +539,9 @@ fn truncated_json_rejected() -> TestResult {
 #[test]
 fn scenario_stuck_and_reversing() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(2.0, 1200.0, 4500.0, "R", 40.0, 0.0, 30.0, 200.0, 60.0, 0.1, -0.3, 0.15);
+    let data = make_json(
+        2.0, 1200.0, 4500.0, "R", 40.0, 0.0, 30.0, 200.0, 60.0, 0.1, -0.3, 0.15,
+    );
     let t = adapter.normalize(&data)?;
 
     assert_eq!(t.gear, -1, "reverse");
@@ -509,7 +557,9 @@ fn scenario_stuck_and_reversing() -> TestResult {
 #[test]
 fn scenario_high_speed_highway() -> TestResult {
     let adapter = MudRunnerAdapter::with_variant(MudRunnerVariant::SnowRunner);
-    let data = make_json(25.0, 4000.0, 4500.0, "5", 70.0, 0.0, 0.0, -5.0, 50.0, 0.05, 0.1, 0.05);
+    let data = make_json(
+        25.0, 4000.0, 4500.0, "5", 70.0, 0.0, 0.0, -5.0, 50.0, 0.05, 0.1, 0.05,
+    );
     let t = adapter.normalize(&data)?;
 
     assert!((t.speed_ms - 25.0).abs() < 0.01);
@@ -527,7 +577,9 @@ fn scenario_high_speed_highway() -> TestResult {
 #[test]
 fn deterministic_across_repeated_calls() -> TestResult {
     let adapter = MudRunnerAdapter::new();
-    let data = make_json(12.0, 2800.0, 4500.0, "3", 65.0, 10.0, 0.0, -30.0, 55.0, 0.3, -0.2, 0.15);
+    let data = make_json(
+        12.0, 2800.0, 4500.0, "3", 65.0, 10.0, 0.0, -30.0, 55.0, 0.3, -0.2, 0.15,
+    );
     let t1 = adapter.normalize(&data)?;
     let t2 = adapter.normalize(&data)?;
     assert_eq!(t1.speed_ms, t2.speed_ms);

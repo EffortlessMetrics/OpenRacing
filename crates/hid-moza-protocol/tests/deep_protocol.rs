@@ -10,8 +10,8 @@
 
 use proptest::prelude::*;
 use racing_wheel_hid_moza_protocol::{
-    DeviceWriter, FfbMode, MozaDirectTorqueEncoder, MozaInitState, MozaModel, MozaProtocol,
-    MozaRetryPolicy, REPORT_LEN, TorqueEncoder, TorqueQ8_8, VendorProtocol, DEFAULT_MAX_RETRIES,
+    DEFAULT_MAX_RETRIES, DeviceWriter, FfbMode, MozaDirectTorqueEncoder, MozaInitState, MozaModel,
+    MozaProtocol, MozaRetryPolicy, REPORT_LEN, TorqueEncoder, TorqueQ8_8, VendorProtocol,
     input_report, parse_wheelbase_input_report, parse_wheelbase_report, product_ids, report_ids,
     rim_ids,
 };
@@ -103,7 +103,14 @@ fn round_trip_r9_negative_quarter_scale() -> Result<(), Box<dyn std::error::Erro
 
 #[test]
 fn round_trip_full_scale_boundaries() -> Result<(), Box<dyn std::error::Error>> {
-    for model in [MozaModel::R3, MozaModel::R5, MozaModel::R9, MozaModel::R12, MozaModel::R16, MozaModel::R21] {
+    for model in [
+        MozaModel::R3,
+        MozaModel::R5,
+        MozaModel::R9,
+        MozaModel::R12,
+        MozaModel::R16,
+        MozaModel::R21,
+    ] {
         let max = model.max_torque_nm();
         let enc = MozaDirectTorqueEncoder::new(max);
         let mut out = [0u8; REPORT_LEN];
@@ -119,19 +126,32 @@ fn round_trip_full_scale_boundaries() -> Result<(), Box<dyn std::error::Error>> 
         assert_eq!(raw_neg, i16::MIN, "{model:?} -full must saturate");
 
         // Both decode back within 0.01 Nm
-        let dec_pos = decode_torque_nm(&{
-            let mut o = [0u8; REPORT_LEN];
-            enc.encode(max, 0, &mut o);
-            o
-        }, max);
-        assert!((dec_pos - max).abs() < 0.01, "{model:?} +full decode: {dec_pos}");
+        let dec_pos = decode_torque_nm(
+            &{
+                let mut o = [0u8; REPORT_LEN];
+                enc.encode(max, 0, &mut o);
+                o
+            },
+            max,
+        );
+        assert!(
+            (dec_pos - max).abs() < 0.01,
+            "{model:?} +full decode: {dec_pos}"
+        );
     }
     Ok(())
 }
 
 #[test]
 fn round_trip_zero_torque_all_models() -> Result<(), Box<dyn std::error::Error>> {
-    for model in [MozaModel::R3, MozaModel::R5, MozaModel::R9, MozaModel::R12, MozaModel::R16, MozaModel::R21] {
+    for model in [
+        MozaModel::R3,
+        MozaModel::R5,
+        MozaModel::R9,
+        MozaModel::R12,
+        MozaModel::R16,
+        MozaModel::R21,
+    ] {
         let enc = MozaDirectTorqueEncoder::new(model.max_torque_nm());
         let mut out = [0u8; REPORT_LEN];
         enc.encode(0.0, 0, &mut out);
@@ -153,20 +173,33 @@ fn round_trip_q8_8_path() -> Result<(), Box<dyn std::error::Error>> {
     TorqueEncoder::encode(&enc, q8, 0, 0, &mut out);
 
     let raw = i16::from_le_bytes([out[1], out[2]]);
-    assert!(raw > 0, "Q8.8=704 (2.75Nm) must yield positive raw, got {raw}");
+    assert!(
+        raw > 0,
+        "Q8.8=704 (2.75Nm) must yield positive raw, got {raw}"
+    );
     assert_eq!(out[0], report_ids::DIRECT_TORQUE);
 
     // Negative Q8.8
     let q8_neg: TorqueQ8_8 = -1152; // -4.5 Nm
     TorqueEncoder::encode(&enc, q8_neg, 0, 0, &mut out);
     let raw_neg = i16::from_le_bytes([out[1], out[2]]);
-    assert!(raw_neg < 0, "Q8.8=-1152 (-4.5Nm) must yield negative raw, got {raw_neg}");
+    assert!(
+        raw_neg < 0,
+        "Q8.8=-1152 (-4.5Nm) must yield negative raw, got {raw_neg}"
+    );
     Ok(())
 }
 
 #[test]
 fn q8_8_clamp_values_are_symmetric() -> Result<(), Box<dyn std::error::Error>> {
-    for model in [MozaModel::R3, MozaModel::R5, MozaModel::R9, MozaModel::R12, MozaModel::R16, MozaModel::R21] {
+    for model in [
+        MozaModel::R3,
+        MozaModel::R5,
+        MozaModel::R9,
+        MozaModel::R12,
+        MozaModel::R16,
+        MozaModel::R21,
+    ] {
         let enc = MozaDirectTorqueEncoder::new(model.max_torque_nm());
         let cmax = TorqueEncoder::clamp_max(&enc);
         let cmin = TorqueEncoder::clamp_min(&enc);
@@ -210,8 +243,7 @@ fn handshake_success_transitions_to_ready() -> Result<(), Box<dyn std::error::Er
 
 #[test]
 fn handshake_standard_mode_sends_two_reports() -> Result<(), Box<dyn std::error::Error>> {
-    let protocol =
-        MozaProtocol::new_with_config(product_ids::R9_V2, FfbMode::Standard, false);
+    let protocol = MozaProtocol::new_with_config(product_ids::R9_V2, FfbMode::Standard, false);
     let mut writer = RecordingWriter::new();
 
     protocol.initialize_device(&mut writer)?;
@@ -225,9 +257,9 @@ fn handshake_standard_mode_sends_two_reports() -> Result<(), Box<dyn std::error:
 }
 
 #[test]
-fn handshake_direct_mode_with_high_torque_sends_three_reports() -> Result<(), Box<dyn std::error::Error>> {
-    let protocol =
-        MozaProtocol::new_with_config(product_ids::R12_V1, FfbMode::Direct, true);
+fn handshake_direct_mode_with_high_torque_sends_three_reports()
+-> Result<(), Box<dyn std::error::Error>> {
+    let protocol = MozaProtocol::new_with_config(product_ids::R12_V1, FfbMode::Direct, true);
     let mut writer = RecordingWriter::new();
 
     protocol.initialize_device(&mut writer)?;
@@ -264,8 +296,15 @@ fn handshake_exhausts_retries_to_permanent_failure() -> Result<(), Box<dyn std::
         protocol.initialize_device(&mut writer)?;
 
         if attempt < DEFAULT_MAX_RETRIES {
-            assert_eq!(protocol.init_state(), MozaInitState::Failed, "attempt {attempt}");
-            assert!(protocol.can_retry(), "attempt {attempt}: should be retryable");
+            assert_eq!(
+                protocol.init_state(),
+                MozaInitState::Failed,
+                "attempt {attempt}"
+            );
+            assert!(
+                protocol.can_retry(),
+                "attempt {attempt}: should be retryable"
+            );
         } else {
             assert_eq!(
                 protocol.init_state(),
@@ -338,7 +377,11 @@ fn handshake_ready_blocks_reinitialization() -> Result<(), Box<dyn std::error::E
 
 #[test]
 fn handshake_non_wheelbase_skips_init() -> Result<(), Box<dyn std::error::Error>> {
-    for pid in [product_ids::SR_P_PEDALS, product_ids::HBP_HANDBRAKE, product_ids::HGP_SHIFTER] {
+    for pid in [
+        product_ids::SR_P_PEDALS,
+        product_ids::HBP_HANDBRAKE,
+        product_ids::HGP_SHIFTER,
+    ] {
         let protocol = MozaProtocol::new(pid);
         let mut writer = RecordingWriter::new();
         protocol.initialize_device(&mut writer)?;
@@ -479,7 +522,12 @@ fn rotation_range_report_bytes() -> Result<(), Box<dyn std::error::Error>> {
     let range_bytes = 900u16.to_le_bytes();
     assert_eq!(
         writer.feature_reports[0],
-        [report_ids::ROTATION_RANGE, 0x01, range_bytes[0], range_bytes[1]]
+        [
+            report_ids::ROTATION_RANGE,
+            0x01,
+            range_bytes[0],
+            range_bytes[1]
+        ]
     );
     Ok(())
 }
@@ -541,8 +589,8 @@ fn parse_wheelbase_full_input_with_all_axes() -> Result<(), Box<dyn std::error::
     report[input_report::ROTARY_START] = 0x19;
     report[input_report::ROTARY_START + 1] = 0x64;
 
-    let parsed = parse_wheelbase_input_report(&report)
-        .ok_or("expected full wheelbase input parse")?;
+    let parsed =
+        parse_wheelbase_input_report(&report).ok_or("expected full wheelbase input parse")?;
 
     assert_eq!(parsed.steering, 0xBEEF);
     assert_eq!(parsed.pedals.throttle, 0xCAFE);
@@ -687,7 +735,11 @@ fn slew_rate_flag_and_payload_independent_of_torque() -> Result<(), Box<dyn std:
     for torque in [0.0_f32, 4.5, -4.5, 9.0, -9.0] {
         let mut out = [0u8; REPORT_LEN];
         enc.encode(torque, 0, &mut out);
-        assert_eq!(out[3] & 0x02, 0x02, "slew flag must be set for torque={torque}");
+        assert_eq!(
+            out[3] & 0x02,
+            0x02,
+            "slew flag must be set for torque={torque}"
+        );
         assert_eq!(
             u16::from_le_bytes([out[4], out[5]]),
             750,
@@ -752,10 +804,7 @@ fn v1_pids_detected_as_v1() -> Result<(), Box<dyn std::error::Error>> {
         product_ids::R16_R21_V1,
     ] {
         let protocol = MozaProtocol::new(pid);
-        assert!(
-            !protocol.is_v2_hardware(),
-            "PID 0x{pid:04X} must be V1"
-        );
+        assert!(!protocol.is_v2_hardware(), "PID 0x{pid:04X} must be V1");
     }
     Ok(())
 }
@@ -770,10 +819,7 @@ fn v2_pids_detected_as_v2() -> Result<(), Box<dyn std::error::Error>> {
         product_ids::R16_R21_V2,
     ] {
         let protocol = MozaProtocol::new(pid);
-        assert!(
-            protocol.is_v2_hardware(),
-            "PID 0x{pid:04X} must be V2"
-        );
+        assert!(protocol.is_v2_hardware(), "PID 0x{pid:04X} must be V2");
     }
     Ok(())
 }
@@ -837,7 +883,10 @@ fn ffb_config_common_fields() -> Result<(), Box<dyn std::error::Error>> {
     for pid in [product_ids::R5_V1, product_ids::R9_V2, product_ids::R12_V1] {
         let protocol = MozaProtocol::new(pid);
         let config = protocol.get_ffb_config();
-        assert!(config.fix_conditional_direction, "Moza requires fix_conditional_direction");
+        assert!(
+            config.fix_conditional_direction,
+            "Moza requires fix_conditional_direction"
+        );
         assert!(config.uses_vendor_usage_page, "Moza uses vendor usage page");
         assert_eq!(config.required_b_interval, Some(1), "1ms interval for 1kHz");
     }
@@ -864,7 +913,11 @@ fn output_report_id_for_wheelbases() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn output_report_id_none_for_peripherals() -> Result<(), Box<dyn std::error::Error>> {
-    for pid in [product_ids::SR_P_PEDALS, product_ids::HBP_HANDBRAKE, product_ids::HGP_SHIFTER] {
+    for pid in [
+        product_ids::SR_P_PEDALS,
+        product_ids::HBP_HANDBRAKE,
+        product_ids::HGP_SHIFTER,
+    ] {
         let protocol = MozaProtocol::new(pid);
         assert_eq!(protocol.output_report_id(), None, "PID 0x{pid:04X}");
         assert_eq!(protocol.output_report_len(), None, "PID 0x{pid:04X}");

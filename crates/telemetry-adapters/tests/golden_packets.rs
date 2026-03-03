@@ -70,9 +70,17 @@ fn golden_codemasters_mode1() -> TestResult {
         "steering_angle: {}",
         t.steering_angle
     );
-    assert!((t.lateral_g - 1.5).abs() < 0.01, "lateral_g: {}", t.lateral_g);
+    assert!(
+        (t.lateral_g - 1.5).abs() < 0.01,
+        "lateral_g: {}",
+        t.lateral_g
+    );
     // FFB = lat_g / 3.0 = 0.5
-    assert!((t.ffb_scalar - 0.5).abs() < 0.01, "ffb_scalar: {}", t.ffb_scalar);
+    assert!(
+        (t.ffb_scalar - 0.5).abs() < 0.01,
+        "ffb_scalar: {}",
+        t.ffb_scalar
+    );
     // Fuel percent = 25/50 = 0.5
     assert!(
         (t.fuel_percent - 0.5).abs() < 0.01,
@@ -123,8 +131,16 @@ fn golden_nascar_packet() -> TestResult {
     assert!((t.throttle - 0.9).abs() < 0.01, "throttle: {}", t.throttle);
     assert!((t.brake).abs() < 0.01, "brake: {}", t.brake);
     // lat_g = 9.81 / 9.81 = 1.0; FFB = 1.0 / 2.0 = 0.5
-    assert!((t.lateral_g - 1.0).abs() < 0.01, "lateral_g: {}", t.lateral_g);
-    assert!((t.ffb_scalar - 0.5).abs() < 0.01, "ffb_scalar: {}", t.ffb_scalar);
+    assert!(
+        (t.lateral_g - 1.0).abs() < 0.01,
+        "lateral_g: {}",
+        t.lateral_g
+    );
+    assert!(
+        (t.ffb_scalar - 0.5).abs() < 0.01,
+        "ffb_scalar: {}",
+        t.ffb_scalar
+    );
     Ok(())
 }
 
@@ -154,7 +170,11 @@ fn golden_le_mans_ultimate_packet() -> TestResult {
     assert!((t.throttle - 1.0).abs() < 0.01, "throttle: {}", t.throttle);
     assert!((t.brake).abs() < 0.01, "brake: {}", t.brake);
     // FFB = throttle - brake = 1.0
-    assert!((t.ffb_scalar - 1.0).abs() < 0.01, "ffb_scalar: {}", t.ffb_scalar);
+    assert!(
+        (t.ffb_scalar - 1.0).abs() < 0.01,
+        "ffb_scalar: {}",
+        t.ffb_scalar
+    );
     Ok(())
 }
 
@@ -198,7 +218,11 @@ fn golden_wreckfest_packet() -> TestResult {
     assert!((t.speed_ms - 25.0).abs() < 0.01, "speed_ms: {}", t.speed_ms);
     assert!((t.rpm - 6000.0).abs() < 0.01, "rpm: {}", t.rpm);
     assert_eq!(t.gear, 3);
-    assert!((t.lateral_g - 0.8).abs() < 0.01, "lateral_g: {}", t.lateral_g);
+    assert!(
+        (t.lateral_g - 0.8).abs() < 0.01,
+        "lateral_g: {}",
+        t.lateral_g
+    );
     // FFB = hypot(0.8, 0.3) / 3.0 ≈ 0.284
     let expected_ffb = (0.8f32.hypot(0.3)) / 3.0;
     assert!(
@@ -329,8 +353,16 @@ fn golden_rennsport_packet() -> TestResult {
     assert!((t.speed_ms - 50.0).abs() < 0.1, "speed_ms: {}", t.speed_ms);
     assert!((t.rpm - 7000.0).abs() < 0.01, "rpm: {}", t.rpm);
     assert_eq!(t.gear, 5);
-    assert!((t.ffb_scalar - 0.65).abs() < 0.01, "ffb_scalar: {}", t.ffb_scalar);
-    assert!((t.slip_ratio - 0.12).abs() < 0.01, "slip_ratio: {}", t.slip_ratio);
+    assert!(
+        (t.ffb_scalar - 0.65).abs() < 0.01,
+        "ffb_scalar: {}",
+        t.ffb_scalar
+    );
+    assert!(
+        (t.slip_ratio - 0.12).abs() < 0.01,
+        "slip_ratio: {}",
+        t.slip_ratio
+    );
     Ok(())
 }
 
@@ -469,7 +501,11 @@ fn golden_simhub_full_packet() -> TestResult {
         "fuel_percent: {}",
         t.fuel_percent
     );
-    assert!((t.ffb_scalar - 0.7).abs() < 0.01, "ffb_scalar: {}", t.ffb_scalar);
+    assert!(
+        (t.ffb_scalar - 0.7).abs() < 0.01,
+        "ffb_scalar: {}",
+        t.ffb_scalar
+    );
     Ok(())
 }
 

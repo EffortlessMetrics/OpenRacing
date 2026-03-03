@@ -1,10 +1,10 @@
 #![allow(clippy::redundant_closure)]
 
 use racing_wheel_input_maps::{
-    compile_ks_map, AxisBinding, AxisDataType, ButtonBinding, ClutchBinding, ClutchModeHint,
-    DeviceInputMap, DeviceInputMapError, DeviceMapModeHints, DeviceTransportHint,
-    InitFrameDirection, InitReportFrame, JsBinding, JsModeHint, ReportConstraint, RotaryBinding,
-    RotaryModeHint,
+    AxisBinding, AxisDataType, ButtonBinding, ClutchBinding, ClutchModeHint, DeviceInputMap,
+    DeviceInputMapError, DeviceMapModeHints, DeviceTransportHint, InitFrameDirection,
+    InitReportFrame, JsBinding, JsModeHint, ReportConstraint, RotaryBinding, RotaryModeHint,
+    compile_ks_map,
 };
 use racing_wheel_ks::{KsClutchMode, KsJoystickMode, KsRotaryMode};
 

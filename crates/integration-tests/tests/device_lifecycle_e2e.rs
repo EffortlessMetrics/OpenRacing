@@ -27,10 +27,7 @@ use racing_wheel_schemas::prelude::*;
 
 /// Create a VirtualHidPort pre-loaded with one virtual device and return
 /// both the port and the device ID.
-fn make_port_with_device(
-    id_str: &str,
-    name: &str,
-) -> Result<(VirtualHidPort, DeviceId)> {
+fn make_port_with_device(id_str: &str, name: &str) -> Result<(VirtualHidPort, DeviceId)> {
     let id: DeviceId = id_str.parse()?;
     let device = VirtualDevice::new(id.clone(), name.to_string());
     let mut port = VirtualHidPort::new();
@@ -83,7 +80,10 @@ async fn lifecycle_discover_connect_configure_run_disconnect() -> Result<()> {
         seq: 1,
     };
     pipeline.process(&mut frame)?;
-    assert!(frame.torque_out.is_finite(), "pipeline output must be finite");
+    assert!(
+        frame.torque_out.is_finite(),
+        "pipeline output must be finite"
+    );
 
     dev.write_ffb_report(frame.torque_out, frame.seq)?;
     let telem = dev
@@ -96,7 +96,10 @@ async fn lifecycle_discover_connect_configure_run_disconnect() -> Result<()> {
     let id2: DeviceId = "lifecycle-full-001".parse()?;
     let mut standalone = VirtualDevice::new(id2, "Lifecycle Wheel".to_string());
     standalone.disconnect();
-    assert!(!standalone.is_connected(), "device must report disconnected");
+    assert!(
+        !standalone.is_connected(),
+        "device must report disconnected"
+    );
 
     // FFB write after disconnect must fail
     let err = standalone.write_ffb_report(1.0, 2);
@@ -109,15 +112,8 @@ async fn lifecycle_discover_connect_configure_run_disconnect() -> Result<()> {
 /// CapabilityNegotiator (engine crate) and DeviceCapabilities (schemas crate).
 #[test]
 fn lifecycle_capability_report_round_trip() -> Result<()> {
-    let original = DeviceCapabilities::new(
-        false,
-        true,
-        true,
-        true,
-        TorqueNm::new(25.0)?,
-        10000,
-        1000,
-    );
+    let original =
+        DeviceCapabilities::new(false, true, true, true, TorqueNm::new(25.0)?, 10000, 1000);
 
     let report = CapabilityNegotiator::create_capabilities_report(&original);
     let parsed = CapabilityNegotiator::parse_capabilities_report(&report)
@@ -128,7 +124,10 @@ fn lifecycle_capability_report_round_trip() -> Result<()> {
         original.supports_raw_torque_1khz
     );
     assert_eq!(parsed.supports_pid, original.supports_pid);
-    assert_eq!(parsed.supports_health_stream, original.supports_health_stream);
+    assert_eq!(
+        parsed.supports_health_stream,
+        original.supports_health_stream
+    );
     assert_eq!(parsed.supports_led_bus, original.supports_led_bus);
     assert_eq!(parsed.encoder_cpr, original.encoder_cpr);
     assert_eq!(parsed.min_report_period_us, original.min_report_period_us);
@@ -226,8 +225,7 @@ async fn hotplug_device_appears_mid_session() -> Result<()> {
 /// interfere with the first device's operation.
 #[tokio::test]
 async fn hotplug_second_device_does_not_disrupt_first() -> Result<()> {
-    let (mut port, id_a) =
-        make_port_with_device("hotplug-first-001", "First Wheel")?;
+    let (mut port, id_a) = make_port_with_device("hotplug-first-001", "First Wheel")?;
 
     // Open and use the first device
     let mut dev_a = port
@@ -312,9 +310,7 @@ fn hotunplug_triggers_safety_fault() -> Result<()> {
             assert_eq!(*fault, FaultType::UsbStall, "fault type must be UsbStall");
         }
         other => {
-            return Err(anyhow::anyhow!(
-                "expected Faulted state, got {other:?}"
-            ));
+            return Err(anyhow::anyhow!("expected Faulted state, got {other:?}"));
         }
     }
 
@@ -434,9 +430,7 @@ fn recovery_safety_clears_after_hold_period() -> Result<()> {
     std::thread::sleep(Duration::from_millis(120));
 
     // Now clearing must succeed
-    safety
-        .clear_fault()
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    safety.clear_fault().map_err(|e| anyhow::anyhow!("{e}"))?;
     assert_eq!(
         safety.state(),
         &SafetyState::SafeTorque,
@@ -517,9 +511,7 @@ fn recovery_pipeline_and_safety_across_reconnect() -> Result<()> {
 
     // Wait for hold period then clear fault
     std::thread::sleep(Duration::from_millis(120));
-    safety
-        .clear_fault()
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    safety.clear_fault().map_err(|e| anyhow::anyhow!("{e}"))?;
 
     // Reconnect device
     device.reconnect();

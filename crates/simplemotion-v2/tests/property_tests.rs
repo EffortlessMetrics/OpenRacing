@@ -11,7 +11,7 @@ use racing_wheel_simplemotion_v2::commands::{
 };
 use racing_wheel_simplemotion_v2::error::SmError;
 use racing_wheel_simplemotion_v2::{
-    SmFeedbackState, SmMotorFeedback, TorqueCommandEncoder, TORQUE_COMMAND_LEN,
+    SmFeedbackState, SmMotorFeedback, TORQUE_COMMAND_LEN, TorqueCommandEncoder,
     build_get_parameter, build_set_parameter, build_set_torque_command, identify_device,
     is_wheelbase_product, parse_feedback_report,
 };
@@ -409,8 +409,11 @@ fn status_from_u8_all_defined() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(SmStatus::from_u8(2), SmStatus::Busy);
     assert_eq!(SmStatus::from_u8(3), SmStatus::NotReady);
     for v in 4..=255 {
-        assert_eq!(SmStatus::from_u8(v), SmStatus::Unknown,
-            "value {v} must map to Unknown");
+        assert_eq!(
+            SmStatus::from_u8(v),
+            SmStatus::Unknown,
+            "value {v} must map to Unknown"
+        );
     }
     Ok(())
 }
@@ -425,7 +428,10 @@ fn status_default_is_unknown() {
 
 #[test]
 fn error_invalid_length_display() {
-    let err = SmError::InvalidLength { expected: 15, actual: 10 };
+    let err = SmError::InvalidLength {
+        expected: 15,
+        actual: 10,
+    };
     assert!(err.to_string().contains("15"));
     assert!(err.to_string().contains("10"));
 }
@@ -433,8 +439,11 @@ fn error_invalid_length_display() {
 #[test]
 fn error_invalid_command_type_display() {
     let err = SmError::InvalidCommandType(0x99);
-    assert!(err.to_string().contains("153") || err.to_string().contains("0x99")
-        || err.to_string().contains("Invalid command type"));
+    assert!(
+        err.to_string().contains("153")
+            || err.to_string().contains("0x99")
+            || err.to_string().contains("Invalid command type")
+    );
 }
 
 #[test]
@@ -457,7 +466,10 @@ fn error_communication_error_display() {
 
 #[test]
 fn error_crc_mismatch_display() {
-    let err = SmError::CrcMismatch { expected: 0xAA, actual: 0xBB };
+    let err = SmError::CrcMismatch {
+        expected: 0xAA,
+        actual: 0xBB,
+    };
     assert!(err.to_string().contains("CRC mismatch"));
 }
 
@@ -502,20 +514,38 @@ fn encode_with_exactly_15_byte_buffer() -> Result<(), Box<dyn std::error::Error>
 #[test]
 fn decode_zero_length_buffer_returns_error() {
     let result = decode_command(&[]);
-    assert!(matches!(result, Err(SmError::InvalidLength { expected: 15, actual: 0 })));
+    assert!(matches!(
+        result,
+        Err(SmError::InvalidLength {
+            expected: 15,
+            actual: 0
+        })
+    ));
 }
 
 #[test]
 fn encode_zero_length_buffer_returns_error() {
     let cmd = SmCommand::new(0, SmCommandType::GetStatus);
     let result = encode_command(&cmd, &mut []);
-    assert!(matches!(result, Err(SmError::InvalidLength { expected: 15, actual: 0 })));
+    assert!(matches!(
+        result,
+        Err(SmError::InvalidLength {
+            expected: 15,
+            actual: 0
+        })
+    ));
 }
 
 #[test]
 fn decode_single_byte_buffer_returns_error() {
     let result = decode_command(&[0x01]);
-    assert!(matches!(result, Err(SmError::InvalidLength { expected: 15, actual: 1 })));
+    assert!(matches!(
+        result,
+        Err(SmError::InvalidLength {
+            expected: 15,
+            actual: 1
+        })
+    ));
 }
 
 #[test]
@@ -523,7 +553,13 @@ fn encode_14_byte_buffer_returns_error() {
     let cmd = SmCommand::new(0, SmCommandType::GetStatus);
     let mut buf = [0u8; 14];
     let result = encode_command(&cmd, &mut buf);
-    assert!(matches!(result, Err(SmError::InvalidLength { expected: 15, actual: 14 })));
+    assert!(matches!(
+        result,
+        Err(SmError::InvalidLength {
+            expected: 15,
+            actual: 14
+        })
+    ));
 }
 
 /// Maximum payload: all fields at extreme values round-trip correctly.

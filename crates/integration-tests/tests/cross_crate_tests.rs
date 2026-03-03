@@ -42,7 +42,7 @@ use openracing_ipc::codec::{MessageHeader, message_flags, message_types};
 
 // ── Plugin ABI ───────────────────────────────────────────────────────────────
 use openracing_plugin_abi::{
-    PLUG_ABI_MAGIC, PLUG_ABI_VERSION, WASM_ABI_VERSION, PluginCapabilities, PluginHeader,
+    PLUG_ABI_MAGIC, PLUG_ABI_VERSION, PluginCapabilities, PluginHeader, WASM_ABI_VERSION,
     WasmExportValidation, WasmPluginInfo,
 };
 
@@ -69,13 +69,13 @@ fn schema_device_id_usable_across_engine_and_service() -> Result<(), Box<dyn std
 
     // Device capabilities from schemas carry through
     let caps = DeviceCapabilities::new(
-        true,                   // supports_pid
-        true,                   // supports_raw_torque_1khz
-        true,                   // supports_health_stream
-        false,                  // supports_led_bus
-        TorqueNm::new(8.0)?,   // max_torque
-        4096,                   // encoder_cpr
-        1000,                   // min_report_period_us (= 1000 Hz)
+        true,                // supports_pid
+        true,                // supports_raw_torque_1khz
+        true,                // supports_health_stream
+        false,               // supports_led_bus
+        TorqueNm::new(8.0)?, // max_torque
+        4096,                // encoder_cpr
+        1000,                // min_report_period_us (= 1000 Hz)
     );
     assert!(
         !device_id.as_str().is_empty(),
@@ -197,7 +197,10 @@ fn device_error_converts_to_openracing_error() -> Result<(), Box<dyn std::error:
     let open_err: OpenRacingError = dev_err.into();
 
     assert!(
-        matches!(open_err, OpenRacingError::Device(DeviceError::Disconnected(_))),
+        matches!(
+            open_err,
+            OpenRacingError::Device(DeviceError::Disconnected(_))
+        ),
         "DeviceError must convert to OpenRacingError::Device"
     );
 
@@ -255,7 +258,10 @@ fn profile_roundtrip_save_load_apply() -> Result<(), Box<dyn std::error::Error>>
 
     // Serialize (save)
     let json = serde_json::to_string_pretty(&profile)?;
-    assert!(!json.is_empty(), "Profile serialization must produce output");
+    assert!(
+        !json.is_empty(),
+        "Profile serialization must produce output"
+    );
 
     // Deserialize (load)
     let loaded: WheelProfile = serde_json::from_str(&json)?;
@@ -374,8 +380,8 @@ fn all_adapters_produce_consistent_normalized_output() -> Result<(), Box<dyn std
 }
 
 #[test]
-fn normalized_telemetry_fields_are_bounded_across_adapters() -> Result<(), Box<dyn std::error::Error>>
-{
+fn normalized_telemetry_fields_are_bounded_across_adapters()
+-> Result<(), Box<dyn std::error::Error>> {
     // Build telemetry for each scenario via the schemas builder
     let scenarios = [
         ("idle", 0.0f32, 0.0f32, 0i8),
@@ -587,8 +593,8 @@ fn ipc_safety_message_represents_engine_state() -> Result<(), Box<dyn std::error
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn plugin_header_roundtrip_matches_between_loader_and_plugin() -> Result<(), Box<dyn std::error::Error>>
-{
+fn plugin_header_roundtrip_matches_between_loader_and_plugin()
+-> Result<(), Box<dyn std::error::Error>> {
     // Simulate plugin side: create header with capabilities
     let plugin_caps = PluginCapabilities::TELEMETRY | PluginCapabilities::HAPTICS;
     let plugin_header = PluginHeader::new(plugin_caps);
@@ -599,7 +605,10 @@ fn plugin_header_roundtrip_matches_between_loader_and_plugin() -> Result<(), Box
 
     // Simulate loader side: read and validate header
     let loader_header = PluginHeader::from_bytes(&bytes);
-    assert!(loader_header.is_valid(), "Loader must validate plugin header as valid");
+    assert!(
+        loader_header.is_valid(),
+        "Loader must validate plugin header as valid"
+    );
     assert_eq!(
         loader_header.magic, PLUG_ABI_MAGIC,
         "Magic must match PLUG_ABI_MAGIC"
@@ -731,10 +740,7 @@ fn device_inputs_flow_from_hid_to_engine() -> Result<(), Box<dyn std::error::Err
     };
 
     // Verify it's usable by engine (no type mismatch)
-    assert!(
-        telem_data.hands_on,
-        "hands_on must be true"
-    );
+    assert!(telem_data.hands_on, "hands_on must be true");
     assert_eq!(telem_data.fault_flags, 0, "No faults initially");
 
     Ok(())
@@ -744,13 +750,13 @@ fn device_inputs_flow_from_hid_to_engine() -> Result<(), Box<dyn std::error::Err
 fn device_capabilities_schema_used_by_engine() -> Result<(), Box<dyn std::error::Error>> {
     // Device capabilities from schemas
     let caps = DeviceCapabilities::new(
-        true,                    // supports_pid
-        true,                    // supports_raw_torque_1khz
-        true,                    // supports_health_stream
-        false,                   // supports_led_bus
-        TorqueNm::new(12.0)?,   // max_torque
-        4096,                    // encoder_cpr
-        1000,                    // min_report_period_us (= 1000 Hz)
+        true,                 // supports_pid
+        true,                 // supports_raw_torque_1khz
+        true,                 // supports_health_stream
+        false,                // supports_led_bus
+        TorqueNm::new(12.0)?, // max_torque
+        4096,                 // encoder_cpr
+        1000,                 // min_report_period_us (= 1000 Hz)
     );
 
     // These capabilities influence engine behavior
@@ -771,8 +777,8 @@ fn device_capabilities_schema_used_by_engine() -> Result<(), Box<dyn std::error:
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn calibration_flows_from_schemas_through_engine_to_filters() -> Result<(), Box<dyn std::error::Error>>
-{
+fn calibration_flows_from_schemas_through_engine_to_filters()
+-> Result<(), Box<dyn std::error::Error>> {
     // Schema-level calibration data
     let cal_data = CalibrationData::new(CalibrationType::Full);
     assert_eq!(
@@ -880,10 +886,7 @@ fn safety_state_transitions_are_observable() -> Result<(), Box<dyn std::error::E
             );
         }
         other => {
-            return Err(format!(
-                "Expected Faulted state, got {:?}",
-                other
-            ).into());
+            return Err(format!("Expected Faulted state, got {:?}", other).into());
         }
     }
 

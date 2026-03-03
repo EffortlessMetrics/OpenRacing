@@ -166,7 +166,10 @@ fn test_missing_optional_fields() -> TestResult {
     // JSON without IsRunning/IsInPit
     let json = br#"{"SpeedMs":10.0,"Rpms":3000.0,"MaxRpms":8000.0,"Gear":"3","Throttle":50.0,"Brake":10.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":50.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0}"#;
     let result = adapter.normalize(json);
-    assert!(result.is_ok(), "packet without optional fields should parse");
+    assert!(
+        result.is_ok(),
+        "packet without optional fields should parse"
+    );
     Ok(())
 }
 
@@ -176,7 +179,11 @@ fn test_rpm_alias_field() -> TestResult {
     // "Rpm" instead of "Rpms"
     let json = br#"{"SpeedMs":0.0,"Rpm":5000.0,"MaxRpms":8000.0,"Gear":"N","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0}"#;
     let t = adapter.normalize(json)?;
-    assert!((t.rpm - 5000.0).abs() < 0.1, "Rpm alias should work, got {}", t.rpm);
+    assert!(
+        (t.rpm - 5000.0).abs() < 0.1,
+        "Rpm alias should work, got {}",
+        t.rpm
+    );
     Ok(())
 }
 
@@ -186,7 +193,10 @@ fn test_empty_json_object_defaults() -> TestResult {
     // Empty JSON object is accepted with default values
     let result = adapter.normalize(b"{}");
     if let Ok(t) = result {
-        assert!(t.speed_ms.abs() < 0.001, "empty JSON should default speed to 0");
+        assert!(
+            t.speed_ms.abs() < 0.001,
+            "empty JSON should default speed to 0"
+        );
         assert_eq!(t.gear, 0, "empty JSON should default gear to 0");
     }
     Ok(())
@@ -202,7 +212,10 @@ fn test_json_array_handled() {
 #[test]
 fn test_json_null_rejected() {
     let adapter = SimHubAdapter::new();
-    assert!(adapter.normalize(b"null").is_err(), "JSON null must be rejected");
+    assert!(
+        adapter.normalize(b"null").is_err(),
+        "JSON null must be rejected"
+    );
 }
 
 #[test]
@@ -244,7 +257,9 @@ fn test_extreme_steering_values() -> TestResult {
 #[test]
 fn test_over_100_percent_throttle() -> TestResult {
     let adapter = SimHubAdapter::new();
-    let json = make_json(0.0, 0.0, 0.0, "N", 200.0, 200.0, 200.0, 0.0, 200.0, 0.0, 0.0, 0.0);
+    let json = make_json(
+        0.0, 0.0, 0.0, "N", 200.0, 200.0, 200.0, 0.0, 200.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(json.as_bytes())?;
     assert!(
         t.throttle <= 1.0,
@@ -267,7 +282,9 @@ fn test_over_100_percent_throttle() -> TestResult {
 #[test]
 fn test_normalize_is_deterministic() -> TestResult {
     let adapter = SimHubAdapter::new();
-    let json = make_json(22.5, 4500.0, 8000.0, "3", 75.0, 10.0, 0.0, -90.0, 82.3, 1.2, -0.5, 0.35);
+    let json = make_json(
+        22.5, 4500.0, 8000.0, "3", 75.0, 10.0, 0.0, -90.0, 82.3, 1.2, -0.5, 0.35,
+    );
     let bytes = json.as_bytes();
     let a = adapter.normalize(bytes)?;
     let b = adapter.normalize(bytes)?;

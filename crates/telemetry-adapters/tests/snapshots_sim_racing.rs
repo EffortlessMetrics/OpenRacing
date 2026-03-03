@@ -4,8 +4,8 @@
 //! Gran Turismo Sport, Trackmania, and AC Rally.
 
 use racing_wheel_telemetry_adapters::{
-    ACRallyAdapter, Automobilista1Adapter, PCars2Adapter,
-    PCars3Adapter, RaceRoomAdapter, TelemetryAdapter, TrackmaniaAdapter,
+    ACRallyAdapter, Automobilista1Adapter, PCars2Adapter, PCars3Adapter, RaceRoomAdapter,
+    TelemetryAdapter, TrackmaniaAdapter,
 };
 
 mod helpers;
@@ -67,14 +67,14 @@ const PCARS2_OFF_AIR_PRESSURE: usize = 352;
 fn make_pcars2_race_packet() -> Vec<u8> {
     let mut buf = vec![0u8; PCARS2_PACKET_SIZE];
     // Inputs
-    buf[PCARS2_OFF_THROTTLE] = 191;  // ~75%
-    buf[PCARS2_OFF_BRAKE] = 38;      // ~15% trail-brake
+    buf[PCARS2_OFF_THROTTLE] = 191; // ~75%
+    buf[PCARS2_OFF_BRAKE] = 38; // ~15% trail-brake
     buf[PCARS2_OFF_CLUTCH] = 0;
     buf[PCARS2_OFF_STEERING] = 20_i8 as u8; // slight right
     // 5th gear, 6 total: low nibble=5, high nibble=6
     buf[PCARS2_OFF_GEAR_NUM_GEARS] = (6 << 4) | 5;
     // Speed & RPM
-    write_f32_le(&mut buf, PCARS2_OFF_SPEED, 52.8);        // ~190 km/h
+    write_f32_le(&mut buf, PCARS2_OFF_SPEED, 52.8); // ~190 km/h
     write_u16_le(&mut buf, PCARS2_OFF_RPM, 7200);
     write_u16_le(&mut buf, PCARS2_OFF_MAX_RPM, 8500);
     // Fuel
@@ -126,13 +126,13 @@ fn pcars2_race_snapshot() -> TestResult {
 
 fn make_pcars3_race_packet() -> Vec<u8> {
     let mut buf = vec![0u8; PCARS2_PACKET_SIZE];
-    buf[PCARS2_OFF_THROTTLE] = 255;  // full throttle
+    buf[PCARS2_OFF_THROTTLE] = 255; // full throttle
     buf[PCARS2_OFF_BRAKE] = 0;
     buf[PCARS2_OFF_CLUTCH] = 0;
     buf[PCARS2_OFF_STEERING] = (-10_i8) as u8; // slight left
     // 3rd gear, 7 total
     buf[PCARS2_OFF_GEAR_NUM_GEARS] = (7 << 4) | 3;
-    write_f32_le(&mut buf, PCARS2_OFF_SPEED, 33.3);        // ~120 km/h
+    write_f32_le(&mut buf, PCARS2_OFF_SPEED, 33.3); // ~120 km/h
     write_u16_le(&mut buf, PCARS2_OFF_RPM, 6800);
     write_u16_le(&mut buf, PCARS2_OFF_MAX_RPM, 9000);
     buf[PCARS2_OFF_FUEL_CAPACITY] = 90;
@@ -191,7 +191,7 @@ const AMS1_OFF_SPEED: usize = 528;
 #[test]
 fn automobilista_race_snapshot() -> TestResult {
     let mut buf = vec![0u8; AMS1_MIN_SIZE];
-    write_f32_le(&mut buf, AMS1_OFF_SPEED, 44.4);           // ~160 km/h
+    write_f32_le(&mut buf, AMS1_OFF_SPEED, 44.4); // ~160 km/h
     write_f64_le(&mut buf, AMS1_OFF_ENGINE_RPM, 7500.0);
     write_f64_le(&mut buf, AMS1_OFF_ENGINE_MAX_RPM, 9500.0);
     write_i32_le(&mut buf, AMS1_OFF_GEAR, 4);
@@ -284,9 +284,9 @@ fn raceroom_race_snapshot() -> TestResult {
     write_f32_le(&mut buf, R3E_OFF_FUEL_CAPACITY, 60.0);
     write_f32_le(&mut buf, R3E_OFF_ENGINE_TEMP, 97.0);
     // G-forces (R3E: +X=left, +Y=up, +Z=back)
-    write_f32_le(&mut buf, R3E_OFF_LOCAL_ACCEL_X, 8.5);   // ~0.87G left
-    write_f32_le(&mut buf, R3E_OFF_LOCAL_ACCEL_Y, 9.81);   // ~1G vertical
-    write_f32_le(&mut buf, R3E_OFF_LOCAL_ACCEL_Z, 6.0);    // ~0.61G braking
+    write_f32_le(&mut buf, R3E_OFF_LOCAL_ACCEL_X, 8.5); // ~0.87G left
+    write_f32_le(&mut buf, R3E_OFF_LOCAL_ACCEL_Y, 9.81); // ~1G vertical
+    write_f32_le(&mut buf, R3E_OFF_LOCAL_ACCEL_Z, 6.0); // ~0.61G braking
     // Scoring
     write_i32_le(&mut buf, R3E_OFF_POSITION, 3);
     write_i32_le(&mut buf, R3E_OFF_COMPLETED_LAPS, 6);
@@ -363,7 +363,7 @@ fn gran_turismo_7_race_snapshot() -> TestResult {
     // Speed: ~170 km/h ≈ 47.2 m/s
     buf[GT7_OFF_SPEED_MS..GT7_OFF_SPEED_MS + 4].copy_from_slice(&47.2f32.to_le_bytes());
     // Inputs
-    buf[GT7_OFF_THROTTLE] = 204;  // ~80%
+    buf[GT7_OFF_THROTTLE] = 204; // ~80%
     buf[GT7_OFF_BRAKE] = 0;
     // 4th gear, suggested 5th
     buf[GT7_OFF_GEAR_BYTE] = (5 << 4) | 4;
@@ -405,7 +405,7 @@ fn gran_turismo_sport_race_snapshot() -> TestResult {
     write_u16_le(&mut buf, GT7_OFF_MAX_ALERT_RPM, 7200);
     buf[GT7_OFF_SPEED_MS..GT7_OFF_SPEED_MS + 4].copy_from_slice(&36.1f32.to_le_bytes()); // ~130 km/h
     buf[GT7_OFF_THROTTLE] = 0;
-    buf[GT7_OFF_BRAKE] = 217;   // ~85%
+    buf[GT7_OFF_BRAKE] = 217; // ~85%
     buf[GT7_OFF_GEAR_BYTE] = (3 << 4) | 3; // 3rd gear
     buf[GT7_OFF_FUEL_LEVEL..GT7_OFF_FUEL_LEVEL + 4].copy_from_slice(&18.0f32.to_le_bytes());
     buf[GT7_OFF_FUEL_CAPACITY..GT7_OFF_FUEL_CAPACITY + 4].copy_from_slice(&50.0f32.to_le_bytes());
@@ -456,9 +456,9 @@ fn ac_rally_probe_snapshot() -> TestResult {
     let raw: &[u8] = &[
         0x01, 0x04, 0x00, 0x00, // registration result header
         0x2A, 0x00, 0x00, 0x00, // connection_id = 42
-        0x01, 0x00,             // success=true, readonly=false
+        0x01, 0x00, // success=true, readonly=false
         0x02, 0x00, 0x6F, 0x6B, // acc-string "ok" (length 2 + "ok")
-        0xFF, 0xFE,             // trailing bytes
+        0xFF, 0xFE, // trailing bytes
     ];
     let adapter = ACRallyAdapter::new();
     let normalized = adapter.normalize(raw)?;

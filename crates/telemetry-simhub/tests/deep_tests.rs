@@ -33,7 +33,9 @@ fn make_json(
 #[test]
 fn deep_parse_race_pace_packet() -> TestResult {
     let adapter = SimHubAdapter::new();
-    let data = make_json(55.0, 7200.0, 8500.0, "4", 80.0, 0.0, 0.0, -45.0, 65.0, 0.8, -0.3, 0.5);
+    let data = make_json(
+        55.0, 7200.0, 8500.0, "4", 80.0, 0.0, 0.0, -45.0, 65.0, 0.8, -0.3, 0.5,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.speed_ms - 55.0).abs() < 0.01);
     assert!((t.rpm - 7200.0).abs() < 0.1);
@@ -70,7 +72,9 @@ fn deep_parse_zero_packet() -> TestResult {
 #[test]
 fn deep_gear_reverse() -> TestResult {
     let adapter = SimHubAdapter::new();
-    let data = make_json(0.0, 1000.0, 8000.0, "R", 0.0, 0.0, 100.0, 0.0, 50.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 1000.0, 8000.0, "R", 0.0, 0.0, 100.0, 0.0, 50.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert_eq!(t.gear, -1, "R → -1");
     // clutch=100 → 1.0
@@ -118,7 +122,9 @@ fn deep_gear_invalid_string_defaults_zero() -> TestResult {
 #[test]
 fn deep_pedal_normalization() -> TestResult {
     let adapter = SimHubAdapter::new();
-    let data = make_json(0.0, 0.0, 0.0, "N", 50.0, 25.0, 75.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 0.0, 0.0, "N", 50.0, 25.0, 75.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.throttle - 0.5).abs() < 0.001);
     assert!((t.brake - 0.25).abs() < 0.001);
@@ -143,7 +149,9 @@ fn deep_pedal_overclamped() -> TestResult {
 #[test]
 fn deep_steering_full_lock_left() -> TestResult {
     let adapter = SimHubAdapter::new();
-    let data = make_json(0.0, 0.0, 0.0, "N", 0.0, 0.0, 0.0, -450.0, 0.0, 0.0, 0.0, 0.0);
+    let data = make_json(
+        0.0, 0.0, 0.0, "N", 0.0, 0.0, 0.0, -450.0, 0.0, 0.0, 0.0, 0.0,
+    );
     let t = adapter.normalize(&data)?;
     assert!((t.steering_angle - (-1.0)).abs() < 0.001, "full left lock");
     Ok(())
@@ -299,7 +307,9 @@ fn deep_negative_speed_clamped() -> TestResult {
 #[test]
 fn deep_deterministic_output() -> TestResult {
     let adapter = SimHubAdapter::new();
-    let data = make_json(30.0, 5000.0, 8000.0, "3", 60.0, 10.0, 5.0, -90.0, 50.0, 0.5, -0.2, 0.4);
+    let data = make_json(
+        30.0, 5000.0, 8000.0, "3", 60.0, 10.0, 5.0, -90.0, 50.0, 0.5, -0.2, 0.4,
+    );
     let t1 = adapter.normalize(&data)?;
     let t2 = adapter.normalize(&data)?;
     assert_eq!(t1.speed_ms, t2.speed_ms);

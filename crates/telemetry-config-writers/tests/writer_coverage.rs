@@ -21,7 +21,9 @@ fn default_config() -> TelemetryConfig {
     }
 }
 
-fn writer_for(game_id: &str) -> Result<Box<dyn ConfigWriter + Send + Sync>, Box<dyn std::error::Error>> {
+fn writer_for(
+    game_id: &str,
+) -> Result<Box<dyn ConfigWriter + Send + Sync>, Box<dyn std::error::Error>> {
     config_writer_factories()
         .iter()
         .find(|(id, _)| *id == game_id)
@@ -34,7 +36,10 @@ fn write_validate_round_trip(game_id: &str) -> TestResult {
     let temp_dir = tempfile::tempdir()?;
     let config = default_config();
     let diffs = writer.write_config(temp_dir.path(), &config)?;
-    assert!(!diffs.is_empty(), "{game_id}: write_config produced no diffs");
+    assert!(
+        !diffs.is_empty(),
+        "{game_id}: write_config produced no diffs"
+    );
     assert!(
         writer.validate_config(temp_dir.path())?,
         "{game_id}: validate_config returned false after write"
@@ -371,7 +376,11 @@ fn expected_diffs_count_matches_write_for_all_writers() -> TestResult {
 
 #[test]
 fn diff_operation_serde_round_trip_all_variants() -> TestResult {
-    for op in [DiffOperation::Add, DiffOperation::Modify, DiffOperation::Remove] {
+    for op in [
+        DiffOperation::Add,
+        DiffOperation::Modify,
+        DiffOperation::Remove,
+    ] {
         let json = serde_json::to_string(&op)?;
         let decoded: DiffOperation = serde_json::from_str(&json)?;
         assert_eq!(decoded, op);

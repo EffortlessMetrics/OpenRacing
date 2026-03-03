@@ -54,7 +54,10 @@ fn device_info_matches_exact_ids() {
 fn device_info_display_name_with_product() {
     let info = HidDeviceInfo::new(1, 2, "p".into()).with_product_name("Wheel");
     let name = info.display_name();
-    assert!(name.contains("Wheel"), "display_name should contain product: {name}");
+    assert!(
+        name.contains("Wheel"),
+        "display_name should contain product: {name}"
+    );
 }
 
 #[test]
@@ -469,11 +472,11 @@ fn round_trip_bytes() -> Result<(), HidCommonError> {
 #[test]
 fn round_trip_mixed_report() -> Result<(), HidCommonError> {
     let mut b = ReportBuilder::with_capacity(32);
-    b.write_u8(0x01)          // report id
-        .write_u16_le(1000)   // axis value
-        .write_i16_le(-500)   // signed axis
-        .write_u32_le(12345)  // timestamp
-        .write_f32_le(0.75);  // normalized value
+    b.write_u8(0x01) // report id
+        .write_u16_le(1000) // axis value
+        .write_i16_le(-500) // signed axis
+        .write_u32_le(12345) // timestamp
+        .write_f32_le(0.75); // normalized value
 
     let mut p = ReportParser::new(b.into_inner());
     assert_eq!(p.read_u8()?, 0x01);

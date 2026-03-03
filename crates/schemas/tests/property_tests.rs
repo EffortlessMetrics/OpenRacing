@@ -6,7 +6,7 @@
 
 use proptest::prelude::*;
 use racing_wheel_schemas::migration::{
-    MigrationConfig, MigrationManager, SchemaVersion, CURRENT_SCHEMA_VERSION,
+    CURRENT_SCHEMA_VERSION, MigrationConfig, MigrationManager, SchemaVersion,
 };
 use racing_wheel_schemas::telemetry::{
     NormalizedTelemetry, NormalizedTelemetryBuilder, TelemetryFlags, TelemetryValue,
@@ -76,28 +76,30 @@ fn telemetry_flags_strategy() -> impl Strategy<Value = TelemetryFlags> {
 fn normalized_telemetry_strategy() -> impl Strategy<Value = NormalizedTelemetry> {
     // Split into two groups to stay within proptest's 12-tuple limit
     let motion = (
-        positive_f32(),      // speed_ms
-        finite_f32(),        // steering_angle
-        unit_f32(),          // throttle
-        unit_f32(),          // brake
-        unit_f32(),          // clutch
-        positive_f32(),      // rpm
-        positive_f32(),      // max_rpm
-        -1_i8..=8_i8,        // gear
-        0_u8..=10_u8,        // num_gears
+        positive_f32(), // speed_ms
+        finite_f32(),   // steering_angle
+        unit_f32(),     // throttle
+        unit_f32(),     // brake
+        unit_f32(),     // clutch
+        positive_f32(), // rpm
+        positive_f32(), // max_rpm
+        -1_i8..=8_i8,   // gear
+        0_u8..=10_u8,   // num_gears
     );
     let extras = (
-        finite_f32(),        // lateral_g
-        finite_f32(),        // longitudinal_g
-        unit_f32(),          // slip_ratio
-        unit_f32(),          // ffb_scalar seed [0,1]
-        finite_f32(),        // ffb_torque_nm
-        any::<u64>(),        // sequence
+        finite_f32(), // lateral_g
+        finite_f32(), // longitudinal_g
+        unit_f32(),   // slip_ratio
+        unit_f32(),   // ffb_scalar seed [0,1]
+        finite_f32(), // ffb_torque_nm
+        any::<u64>(), // sequence
         telemetry_flags_strategy(),
     );
     (motion, extras).prop_map(
-        |((speed, steer, throttle, brake, clutch, rpm, max_rpm, gear, num_gears),
-          (lat_g, lon_g, slip, ffb_s, ffb_t, seq, flags))| {
+        |(
+            (speed, steer, throttle, brake, clutch, rpm, max_rpm, gear, num_gears),
+            (lat_g, lon_g, slip, ffb_s, ffb_t, seq, flags),
+        )| {
             NormalizedTelemetry::builder()
                 .speed_ms(speed)
                 .steering_angle(steer)
@@ -111,7 +113,7 @@ fn normalized_telemetry_strategy() -> impl Strategy<Value = NormalizedTelemetry>
                 .lateral_g(lat_g)
                 .longitudinal_g(lon_g)
                 .slip_ratio(slip)
-                .ffb_scalar(ffb_s * 2.0 - 1.0)  // map [0,1] to [-1,1]
+                .ffb_scalar(ffb_s * 2.0 - 1.0) // map [0,1] to [-1,1]
                 .ffb_torque_nm(ffb_t)
                 .sequence(seq)
                 .flags(flags)

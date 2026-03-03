@@ -48,7 +48,10 @@ fn fmea_all_hazards_have_mitigations() -> Result<(), Box<dyn std::error::Error>>
             !entry.recovery_procedure.is_empty(),
             "Empty recovery procedure for {ft:?}"
         );
-        assert!(entry.enabled, "Entry for {ft:?} should be enabled by default");
+        assert!(
+            entry.enabled,
+            "Entry for {ft:?} should be enabled by default"
+        );
     }
 
     Ok(())
@@ -150,7 +153,8 @@ fn fmea_report_covers_all_subsystems() -> Result<(), Box<dyn std::error::Error>>
         // Verify the action is appropriate for the severity
         if ft.requires_immediate_response() {
             assert!(
-                action.affects_torque() || matches!(action, FaultAction::SoftStop | FaultAction::SafeMode),
+                action.affects_torque()
+                    || matches!(action, FaultAction::SoftStop | FaultAction::SafeMode),
                 "Immediate-response fault {ft:?} should affect torque, got {action:?}"
             );
         }
@@ -346,7 +350,10 @@ fn fmea_rpn_severity_times_response_bounded() -> Result<(), Box<dyn std::error::
         let rpn_like = ft.severity() as u64 * ft.default_max_response_time_ms();
         // All RPN-like scores should be bounded and nonzero
         assert!(rpn_like > 0, "RPN for {ft:?} must be positive");
-        assert!(rpn_like <= 1000, "RPN for {ft:?} unexpectedly large: {rpn_like}");
+        assert!(
+            rpn_like <= 1000,
+            "RPN for {ft:?} unexpectedly large: {rpn_like}"
+        );
     }
     Ok(())
 }
@@ -380,10 +387,7 @@ fn fmea_rpn_critical_faults_have_lowest_rpn() -> Result<(), Box<dyn std::error::
 fn fmea_all_fault_types_have_display() -> Result<(), Box<dyn std::error::Error>> {
     for ft in &all_fault_types() {
         let display = format!("{ft}");
-        assert!(
-            !display.is_empty(),
-            "Display for {ft:?} must be non-empty"
-        );
+        assert!(!display.is_empty(), "Display for {ft:?} must be non-empty");
         assert!(
             display.len() > 5,
             "Display for {ft:?} should be descriptive: '{display}'"
@@ -428,7 +432,10 @@ fn fmea_recoverable_vs_nonrecoverable_partitioned() -> Result<(), Box<dyn std::e
         .collect();
 
     assert!(!recoverable.is_empty(), "Must have recoverable faults");
-    assert!(!nonrecoverable.is_empty(), "Must have non-recoverable faults");
+    assert!(
+        !nonrecoverable.is_empty(),
+        "Must have non-recoverable faults"
+    );
 
     // Recoverable + non-recoverable must cover all fault types
     assert_eq!(
@@ -481,55 +488,82 @@ fn fmea_fault_action_torque_properties() {
 
 #[test]
 fn fmea_threshold_zero_usb_timeout_invalid() {
-    let t = FaultThresholds { usb_timeout_ms: 0, ..FaultThresholds::default() };
+    let t = FaultThresholds {
+        usb_timeout_ms: 0,
+        ..FaultThresholds::default()
+    };
     assert!(t.validate().is_err());
 }
 
 #[test]
 fn fmea_threshold_zero_usb_failures_invalid() {
-    let t = FaultThresholds { usb_max_consecutive_failures: 0, ..FaultThresholds::default() };
+    let t = FaultThresholds {
+        usb_max_consecutive_failures: 0,
+        ..FaultThresholds::default()
+    };
     assert!(t.validate().is_err());
 }
 
 #[test]
 fn fmea_threshold_zero_nan_count_invalid() {
-    let t = FaultThresholds { encoder_max_nan_count: 0, ..FaultThresholds::default() };
+    let t = FaultThresholds {
+        encoder_max_nan_count: 0,
+        ..FaultThresholds::default()
+    };
     assert!(t.validate().is_err());
 }
 
 #[test]
 fn fmea_threshold_thermal_below_range_invalid() {
-    let t = FaultThresholds { thermal_limit_celsius: 30.0, ..FaultThresholds::default() };
+    let t = FaultThresholds {
+        thermal_limit_celsius: 30.0,
+        ..FaultThresholds::default()
+    };
     assert!(t.validate().is_err());
 }
 
 #[test]
 fn fmea_threshold_thermal_above_range_invalid() {
-    let t = FaultThresholds { thermal_limit_celsius: 130.0, ..FaultThresholds::default() };
+    let t = FaultThresholds {
+        thermal_limit_celsius: 130.0,
+        ..FaultThresholds::default()
+    };
     assert!(t.validate().is_err());
 }
 
 #[test]
 fn fmea_threshold_negative_hysteresis_invalid() {
-    let t = FaultThresholds { thermal_hysteresis_celsius: -1.0, ..FaultThresholds::default() };
+    let t = FaultThresholds {
+        thermal_hysteresis_celsius: -1.0,
+        ..FaultThresholds::default()
+    };
     assert!(t.validate().is_err());
 }
 
 #[test]
 fn fmea_threshold_zero_plugin_timeout_invalid() {
-    let t = FaultThresholds { plugin_timeout_us: 0, ..FaultThresholds::default() };
+    let t = FaultThresholds {
+        plugin_timeout_us: 0,
+        ..FaultThresholds::default()
+    };
     assert!(t.validate().is_err());
 }
 
 #[test]
 fn fmea_threshold_zero_overcurrent_invalid() {
-    let t = FaultThresholds { overcurrent_limit_a: 0.0, ..FaultThresholds::default() };
+    let t = FaultThresholds {
+        overcurrent_limit_a: 0.0,
+        ..FaultThresholds::default()
+    };
     assert!(t.validate().is_err());
 }
 
 #[test]
 fn fmea_threshold_zero_handsoff_invalid() {
-    let t = FaultThresholds { hands_off_timeout_secs: 0.0, ..FaultThresholds::default() };
+    let t = FaultThresholds {
+        hands_off_timeout_secs: 0.0,
+        ..FaultThresholds::default()
+    };
     assert!(t.validate().is_err());
 }
 
@@ -651,10 +685,7 @@ fn fmea_audio_alert_for_all_fault_types() -> Result<(), Box<dyn std::error::Erro
         // Space alerts enough apart so they trigger
         let time = (i as u64 + 1) * 1000;
         let triggered = system.trigger_for_fault(*ft, time);
-        assert!(
-            triggered,
-            "Alert for {ft:?} should trigger at time {time}"
-        );
+        assert!(triggered, "Alert for {ft:?} should trigger at time {time}");
 
         let alert = system.current_alert();
         assert!(alert.is_some(), "Active alert expected for {ft:?}");
@@ -715,7 +746,10 @@ fn fmea_error_recoverable_classification() {
 
 #[test]
 fn fmea_error_immediate_attention_classification() {
-    assert!(FmeaError::fault_handling_failed(FaultType::Overcurrent, "err").requires_immediate_attention());
+    assert!(
+        FmeaError::fault_handling_failed(FaultType::Overcurrent, "err")
+            .requires_immediate_attention()
+    );
     assert!(FmeaError::soft_stop_failed("fail").requires_immediate_attention());
     assert!(FmeaError::configuration_error("bad").requires_immediate_attention());
 

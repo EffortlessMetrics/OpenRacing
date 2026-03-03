@@ -5,12 +5,10 @@
 //! state machine transitions, edge cases, and combined scenarios.
 
 use racing_wheel_telemetry_adapters::f1_native::{
-    F1NativeAdapter, F1NativeCarStatusData, F1NativeState,
-    CAR_STATUS_2023_ENTRY_SIZE, CAR_STATUS_2024_ENTRY_SIZE,
-    MIN_CAR_STATUS_2023_PACKET_SIZE, MIN_CAR_STATUS_2024_PACKET_SIZE,
-    PACKET_FORMAT_2023, PACKET_FORMAT_2024,
-    build_car_status_packet_f23, build_car_status_packet_f24,
-    build_car_telemetry_packet_native, build_f1_native_header_bytes,
+    CAR_STATUS_2023_ENTRY_SIZE, CAR_STATUS_2024_ENTRY_SIZE, F1NativeAdapter, F1NativeCarStatusData,
+    F1NativeState, MIN_CAR_STATUS_2023_PACKET_SIZE, MIN_CAR_STATUS_2024_PACKET_SIZE,
+    PACKET_FORMAT_2023, PACKET_FORMAT_2024, build_car_status_packet_f23,
+    build_car_status_packet_f24, build_car_telemetry_packet_native, build_f1_native_header_bytes,
     parse_car_status_2023, parse_car_status_2024,
 };
 use racing_wheel_telemetry_f1::{NormalizedTelemetry, TelemetryAdapter, TelemetryFrame};
@@ -47,7 +45,16 @@ fn min_packet_sizes_match_22_cars() -> TestResult {
 #[test]
 fn player_index_0_is_default() -> TestResult {
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 200, 5, 8000, 0.8, 0.1, 0.0, 0, [25.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        200,
+        5,
+        8000,
+        0.8,
+        0.1,
+        0.0,
+        0,
+        [25.0; 4],
     );
     let status = build_car_status_packet_f23(0, 30.0, 2_000_000.0, 1, 0, 16, 12000);
     let mut state = F1NativeState::default();
@@ -60,7 +67,16 @@ fn player_index_0_is_default() -> TestResult {
 #[test]
 fn player_index_19_works() -> TestResult {
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 19, 150, 4, 7000, 0.5, 0.0, 0.0, 0, [23.0; 4],
+        PACKET_FORMAT_2023,
+        19,
+        150,
+        4,
+        7000,
+        0.5,
+        0.0,
+        0.0,
+        0,
+        [23.0; 4],
     );
     let status = build_car_status_packet_f23(19, 25.0, 1_500_000.0, 0, 0, 16, 11000);
     let mut state = F1NativeState::default();
@@ -73,7 +89,16 @@ fn player_index_19_works() -> TestResult {
 #[test]
 fn player_index_21_is_last_valid() -> TestResult {
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 21, 100, 3, 5000, 0.3, 0.0, 0.0, 0, [22.0; 4],
+        PACKET_FORMAT_2023,
+        21,
+        100,
+        3,
+        5000,
+        0.3,
+        0.0,
+        0.0,
+        0,
+        [22.0; 4],
     );
     let status = build_car_status_packet_f23(21, 20.0, 1_000_000.0, 0, 0, 16, 10000);
     let mut state = F1NativeState::default();
@@ -181,7 +206,16 @@ fn process_packet_no_output_with_only_status() -> TestResult {
 #[test]
 fn process_packet_no_output_with_only_telemetry() -> TestResult {
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 200, 5, 8000, 0.7, 0.0, 0.0, 0, [25.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        200,
+        5,
+        8000,
+        0.7,
+        0.0,
+        0.0,
+        0,
+        [25.0; 4],
     );
     let mut state = F1NativeState::default();
     let r = F1NativeAdapter::process_packet(&mut state, &telem)?;
@@ -214,10 +248,28 @@ fn process_packet_unknown_packet_id_returns_none() -> TestResult {
 #[test]
 fn process_packet_second_telemetry_updates_state() -> TestResult {
     let telem1 = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 100, 3, 5000, 0.5, 0.0, 0.0, 0, [22.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        100,
+        3,
+        5000,
+        0.5,
+        0.0,
+        0.0,
+        0,
+        [22.0; 4],
     );
     let telem2 = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 200, 5, 8000, 0.9, 0.0, 0.0, 1, [24.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        200,
+        5,
+        8000,
+        0.9,
+        0.0,
+        0.0,
+        1,
+        [24.0; 4],
     );
     let status = build_car_status_packet_f23(0, 30.0, 2_000_000.0, 1, 0, 16, 12000);
 
@@ -228,7 +280,10 @@ fn process_packet_second_telemetry_updates_state() -> TestResult {
     let t = r.ok_or("expected output after second telemetry + status")?;
 
     // Should use the second telemetry data (200 km/h, gear 5)
-    assert!((t.speed_ms - 200.0 / 3.6).abs() < 0.1, "should use latest telemetry");
+    assert!(
+        (t.speed_ms - 200.0 / 3.6).abs() < 0.1,
+        "should use latest telemetry"
+    );
     assert_eq!(t.gear, 5);
     assert!(t.flags.drs_active, "DRS should be active (drs=1)");
     Ok(())
@@ -240,7 +295,16 @@ fn process_packet_second_telemetry_updates_state() -> TestResult {
 fn speed_conversion_zero() -> TestResult {
     let adapter = F1NativeAdapter::new();
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 0, 0, 850, 0.0, 0.0, 0.0, 0, [20.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        0,
+        0,
+        850,
+        0.0,
+        0.0,
+        0.0,
+        0,
+        [20.0; 4],
     );
     let t = adapter.normalize(&raw)?;
     assert_eq!(t.speed_ms, 0.0);
@@ -251,7 +315,16 @@ fn speed_conversion_zero() -> TestResult {
 fn speed_conversion_350_kmh() -> TestResult {
     let adapter = F1NativeAdapter::new();
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 350, 8, 12000, 1.0, 0.0, 0.0, 1, [25.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        350,
+        8,
+        12000,
+        1.0,
+        0.0,
+        0.0,
+        1,
+        [25.0; 4],
     );
     let t = adapter.normalize(&raw)?;
     let expected = 350.0_f32 / 3.6;
@@ -269,7 +342,15 @@ fn speed_conversion_350_kmh() -> TestResult {
 fn tire_pressure_reorder_f1_to_normalized() -> TestResult {
     // F1 wire order: [RL, RR, FL, FR]
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2024, 0, 150, 4, 9000, 0.6, 0.0, 0.0, 0,
+        PACKET_FORMAT_2024,
+        0,
+        150,
+        4,
+        9000,
+        0.6,
+        0.0,
+        0.0,
+        0,
         [20.0, 21.0, 22.0, 23.0], // wire: RL=20, RR=21, FL=22, FR=23
     );
     let adapter = F1NativeAdapter::new();
@@ -288,7 +369,16 @@ fn tire_pressure_reorder_f1_to_normalized() -> TestResult {
 fn ers_fraction_calculation() -> TestResult {
     // ERS max store = 4_000_000 J (from f1_25 constant)
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 200, 5, 8000, 0.5, 0.0, 0.0, 0, [25.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        200,
+        5,
+        8000,
+        0.5,
+        0.0,
+        0.0,
+        0,
+        [25.0; 4],
     );
     let status = build_car_status_packet_f23(0, 30.0, 2_000_000.0, 0, 0, 16, 11000);
     let mut state = F1NativeState::default();
@@ -297,14 +387,26 @@ fn ers_fraction_calculation() -> TestResult {
     let t = result.ok_or("expected output")?;
 
     let ers_frac = t.extended.get("ers_store_fraction");
-    assert!(ers_frac.is_some(), "ers_store_fraction should be in extended");
+    assert!(
+        ers_frac.is_some(),
+        "ers_store_fraction should be in extended"
+    );
     Ok(())
 }
 
 #[test]
 fn ers_zero_energy_yields_zero_fraction() -> TestResult {
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 200, 5, 8000, 0.5, 0.0, 0.0, 0, [25.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        200,
+        5,
+        8000,
+        0.5,
+        0.0,
+        0.0,
+        0,
+        [25.0; 4],
     );
     let status = build_car_status_packet_f23(0, 30.0, 0.0, 0, 0, 16, 11000);
     let mut state = F1NativeState::default();
@@ -321,7 +423,16 @@ fn ers_zero_energy_yields_zero_fraction() -> TestResult {
 #[test]
 fn flags_drs_active_and_available() -> TestResult {
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 300, 8, 11000, 1.0, 0.0, 0.0, 1, [25.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        300,
+        8,
+        11000,
+        1.0,
+        0.0,
+        0.0,
+        1,
+        [25.0; 4],
     );
     let status = build_car_status_packet_f23(0, 30.0, 2_000_000.0, 1, 0, 16, 12000);
     let mut state = F1NativeState::default();
@@ -336,7 +447,16 @@ fn flags_drs_active_and_available() -> TestResult {
 #[test]
 fn flags_pit_limiter_implies_in_pits() -> TestResult {
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 60, 2, 3000, 0.3, 0.0, 0.0, 0, [22.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        60,
+        2,
+        3000,
+        0.3,
+        0.0,
+        0.0,
+        0,
+        [22.0; 4],
     );
     let status = build_car_status_packet_f23(0, 30.0, 2_000_000.0, 0, 1, 16, 12000);
     let mut state = F1NativeState::default();
@@ -355,7 +475,10 @@ fn normalize_rejects_session_packet() -> TestResult {
     let adapter = F1NativeAdapter::new();
     let raw = build_f1_native_header_bytes(PACKET_FORMAT_2023, 1, 0);
     let result = adapter.normalize(&raw);
-    assert!(result.is_err(), "session packet cannot produce telemetry alone");
+    assert!(
+        result.is_err(),
+        "session packet cannot produce telemetry alone"
+    );
     Ok(())
 }
 
@@ -364,7 +487,10 @@ fn normalize_rejects_car_status_packet() -> TestResult {
     let adapter = F1NativeAdapter::new();
     let raw = build_car_status_packet_f23(0, 30.0, 2_000_000.0, 0, 0, 16, 12000);
     let result = adapter.normalize(&raw);
-    assert!(result.is_err(), "car status without telemetry is incomplete");
+    assert!(
+        result.is_err(),
+        "car status without telemetry is incomplete"
+    );
     Ok(())
 }
 
@@ -372,7 +498,16 @@ fn normalize_rejects_car_status_packet() -> TestResult {
 fn normalize_accepts_car_telemetry_packet() -> TestResult {
     let adapter = F1NativeAdapter::new();
     let raw = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 200, 5, 8000, 0.7, 0.1, 0.0, 0, [25.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        200,
+        5,
+        8000,
+        0.7,
+        0.1,
+        0.0,
+        0,
+        [25.0; 4],
     );
     let t = adapter.normalize(&raw)?;
     assert!((t.speed_ms - 200.0 / 3.6).abs() < 0.1);
@@ -385,10 +520,28 @@ fn normalize_accepts_car_telemetry_packet() -> TestResult {
 fn f23_and_f24_telemetry_produce_same_output() -> TestResult {
     let adapter = F1NativeAdapter::new();
     let raw_23 = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 250, 6, 10000, 0.9, 0.2, -0.1, 1, [24.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        250,
+        6,
+        10000,
+        0.9,
+        0.2,
+        -0.1,
+        1,
+        [24.0; 4],
     );
     let raw_24 = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2024, 0, 250, 6, 10000, 0.9, 0.2, -0.1, 1, [24.0; 4],
+        PACKET_FORMAT_2024,
+        0,
+        250,
+        6,
+        10000,
+        0.9,
+        0.2,
+        -0.1,
+        1,
+        [24.0; 4],
     );
     let t23 = adapter.normalize(&raw_23)?;
     let t24 = adapter.normalize(&raw_24)?;
@@ -406,7 +559,16 @@ fn f23_and_f24_telemetry_produce_same_output() -> TestResult {
 #[test]
 fn f23_telemetry_with_f24_status() -> TestResult {
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 180, 4, 9000, 0.7, 0.0, 0.0, 0, [23.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        180,
+        4,
+        9000,
+        0.7,
+        0.0,
+        0.0,
+        0,
+        [23.0; 4],
     );
     let status = build_car_status_packet_f24(0, 35.0, 2_500_000.0, 1, 0, 16, 12000);
 
@@ -422,7 +584,16 @@ fn f23_telemetry_with_f24_status() -> TestResult {
 #[test]
 fn extended_data_keys_present() -> TestResult {
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 200, 5, 8000, 0.8, 0.1, 0.0, 1, [25.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        200,
+        5,
+        8000,
+        0.8,
+        0.1,
+        0.0,
+        1,
+        [25.0; 4],
     );
     let status = build_car_status_packet_f23(0, 35.0, 2_000_000.0, 1, 0, 16, 12000);
 
@@ -447,10 +618,7 @@ fn extended_data_keys_present() -> TestResult {
         "session_type",
     ];
     for key in &expected_keys {
-        assert!(
-            t.extended.contains_key(*key),
-            "missing extended key: {key}"
-        );
+        assert!(t.extended.contains_key(*key), "missing extended key: {key}");
     }
     Ok(())
 }
@@ -515,14 +683,14 @@ fn qualifying_hot_lap_scenario() -> TestResult {
     // Simulate a typical qualifying lap with DRS, full ERS, soft tyres
     let telem = build_car_telemetry_packet_native(
         PACKET_FORMAT_2024,
-        0,     // player index
-        330,   // speed_kmh (high speed on straight)
-        8,     // gear 8
-        12500, // high RPM
-        1.0,   // full throttle
-        0.0,   // no brake
-        0.0,   // straight
-        1,     // DRS active
+        0,                        // player index
+        330,                      // speed_kmh (high speed on straight)
+        8,                        // gear 8
+        12500,                    // high RPM
+        1.0,                      // full throttle
+        0.0,                      // no brake
+        0.0,                      // straight
+        1,                        // DRS active
         [23.5, 24.0, 22.0, 22.5], // tire pressures
     );
     let status = build_car_status_packet_f24(
@@ -561,7 +729,16 @@ fn qualifying_hot_lap_scenario() -> TestResult {
 #[test]
 fn process_packet_deterministic() -> TestResult {
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 200, 5, 8000, 0.7, 0.2, 0.1, 0, [25.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        200,
+        5,
+        8000,
+        0.7,
+        0.2,
+        0.1,
+        0,
+        [25.0; 4],
     );
     let status = build_car_status_packet_f23(0, 30.0, 2_000_000.0, 1, 0, 16, 12000);
 

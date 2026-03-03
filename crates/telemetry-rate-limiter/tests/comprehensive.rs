@@ -8,9 +8,7 @@
 use std::time::{Duration, Instant};
 
 use proptest::prelude::*;
-use racing_wheel_telemetry_rate_limiter::{
-    AdaptiveRateLimiter, RateLimiter, RateLimiterStats,
-};
+use racing_wheel_telemetry_rate_limiter::{AdaptiveRateLimiter, RateLimiter, RateLimiterStats};
 
 // ---------------------------------------------------------------------------
 // 1. Rate limiting accuracy
@@ -318,7 +316,10 @@ fn backpressure_reconfigure_enforced() {
             accepted_after += 1;
         }
     }
-    assert_eq!(accepted_after, 0, "should not accept after switching to 1Hz");
+    assert_eq!(
+        accepted_after, 0,
+        "should not accept after switching to 1Hz"
+    );
 }
 
 #[test]

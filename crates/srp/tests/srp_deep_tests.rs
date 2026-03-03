@@ -5,8 +5,8 @@
 //! consistency guarantees.
 
 use racing_wheel_srp::{
-    parse_axis, parse_srp_usb_report_best_effort, SrpPedalAxes, SrpPedalAxesRaw, BRAKE_START,
-    MIN_REPORT_LEN, THROTTLE_START,
+    BRAKE_START, MIN_REPORT_LEN, SrpPedalAxes, SrpPedalAxesRaw, THROTTLE_START, parse_axis,
+    parse_srp_usb_report_best_effort,
 };
 
 type R = Result<(), Box<dyn std::error::Error>>;
@@ -20,7 +20,10 @@ mod architecture {
 
     #[test]
     fn throttle_starts_after_report_id() -> R {
-        assert_eq!(THROTTLE_START, 1, "throttle must start at byte 1 (after report ID)");
+        assert_eq!(
+            THROTTLE_START, 1,
+            "throttle must start at byte 1 (after report ID)"
+        );
         Ok(())
     }
 
@@ -111,7 +114,10 @@ mod dependency_checks {
         // SrpPedalAxesRaw contains only u16 and Option<u16> – no heap
         assert!(result.is_some());
         let raw = result.ok_or("should parse")?;
-        assert_eq!(std::mem::size_of_val(&raw), std::mem::size_of::<SrpPedalAxesRaw>());
+        assert_eq!(
+            std::mem::size_of_val(&raw),
+            std::mem::size_of::<SrpPedalAxesRaw>()
+        );
         Ok(())
     }
 }

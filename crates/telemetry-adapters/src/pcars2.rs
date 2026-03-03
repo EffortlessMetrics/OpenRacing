@@ -304,7 +304,10 @@ pub fn parse_pcars2_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     builder = builder.extended("oil_temp_c", TelemetryValue::Integer(oil_temp as i32));
 
     let oil_pressure = read_u16_le(data, OFF_OIL_PRESSURE).unwrap_or(0);
-    builder = builder.extended("oil_pressure_kpa", TelemetryValue::Integer(oil_pressure as i32));
+    builder = builder.extended(
+        "oil_pressure_kpa",
+        TelemetryValue::Integer(oil_pressure as i32),
+    );
 
     let water_pressure = read_u16_le(data, OFF_WATER_PRESSURE).unwrap_or(0);
     builder = builder.extended(
@@ -780,12 +783,9 @@ mod tests {
         let lat_accel: f32 = 9.80665;
         let vert_accel: f32 = -9.80665;
         let long_accel: f32 = 4.903_325;
-        data[OFF_LOCAL_ACCEL_X..OFF_LOCAL_ACCEL_X + 4]
-            .copy_from_slice(&lat_accel.to_le_bytes());
-        data[OFF_LOCAL_ACCEL_Y..OFF_LOCAL_ACCEL_Y + 4]
-            .copy_from_slice(&vert_accel.to_le_bytes());
-        data[OFF_LOCAL_ACCEL_Z..OFF_LOCAL_ACCEL_Z + 4]
-            .copy_from_slice(&long_accel.to_le_bytes());
+        data[OFF_LOCAL_ACCEL_X..OFF_LOCAL_ACCEL_X + 4].copy_from_slice(&lat_accel.to_le_bytes());
+        data[OFF_LOCAL_ACCEL_Y..OFF_LOCAL_ACCEL_Y + 4].copy_from_slice(&vert_accel.to_le_bytes());
+        data[OFF_LOCAL_ACCEL_Z..OFF_LOCAL_ACCEL_Z + 4].copy_from_slice(&long_accel.to_le_bytes());
 
         let result = parse_pcars2_packet(&data)?;
         assert!((result.lateral_g - 1.0).abs() < 0.001);
@@ -958,7 +958,8 @@ mod tests {
 
     #[test]
     fn test_merge_timing_fields() -> TestResult {
-        let mut telemetry = parse_pcars2_packet(&make_pcars2_packet(0.0, 0.5, 0.0, 30.0, 3000.0, 7000.0, 2))?;
+        let mut telemetry =
+            parse_pcars2_packet(&make_pcars2_packet(0.0, 0.5, 0.0, 30.0, 3000.0, 7000.0, 2))?;
         let timing = parse_pcars2_timings_packet(&make_timings_packet(2, 4, 65.0, 66.0, 20.0), 0)?;
         merge_timing_fields(&mut telemetry, &timing);
         assert_eq!(telemetry.position, 2);

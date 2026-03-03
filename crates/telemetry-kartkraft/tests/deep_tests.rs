@@ -12,7 +12,14 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 ///
 /// Matches the FlatBuffers layout: root_offset + "KKFB" identifier, then
 /// Frame vtable/table referencing a Dashboard vtable/table.
-fn make_packet(speed: f32, rpm: f32, steer_deg: f32, throttle: f32, brake: f32, gear: i8) -> Vec<u8> {
+fn make_packet(
+    speed: f32,
+    rpm: f32,
+    steer_deg: f32,
+    throttle: f32,
+    brake: f32,
+    gear: i8,
+) -> Vec<u8> {
     let mut buf: Vec<u8> = Vec::new();
 
     let push_u16 = |buf: &mut Vec<u8>, v: u16| buf.extend_from_slice(&v.to_le_bytes());
@@ -28,9 +35,9 @@ fn make_packet(speed: f32, rpm: f32, steer_deg: f32, throttle: f32, brake: f32, 
     let vt_frame = buf.len();
     push_u16(&mut buf, 10); // vtable_size = 4 + 3*2
     push_u16(&mut buf, 12); // object_size
-    push_u16(&mut buf, 0);  // field 0 (timestamp) absent
-    push_u16(&mut buf, 0);  // field 1 (motion) absent
-    push_u16(&mut buf, 4);  // field 2 (dash) at offset 4
+    push_u16(&mut buf, 0); // field 0 (timestamp) absent
+    push_u16(&mut buf, 0); // field 1 (motion) absent
+    push_u16(&mut buf, 4); // field 2 (dash) at offset 4
 
     // Frame table
     let frame_pos = buf.len();
@@ -45,8 +52,8 @@ fn make_packet(speed: f32, rpm: f32, steer_deg: f32, throttle: f32, brake: f32, 
     let vt_dash = buf.len();
     push_u16(&mut buf, 16); // vtable_size = 4 + 6*2
     push_u16(&mut buf, 28); // object_size = 4 + 6*4
-    push_u16(&mut buf, 4);  // field 0 (speed)
-    push_u16(&mut buf, 8);  // field 1 (rpm)
+    push_u16(&mut buf, 4); // field 0 (speed)
+    push_u16(&mut buf, 8); // field 1 (rpm)
     push_u16(&mut buf, 12); // field 2 (steer)
     push_u16(&mut buf, 16); // field 3 (throttle)
     push_u16(&mut buf, 20); // field 4 (brake)

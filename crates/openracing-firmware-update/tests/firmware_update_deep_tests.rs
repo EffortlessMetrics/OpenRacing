@@ -22,8 +22,8 @@ use openracing_firmware_update::error::FirmwareUpdateError;
 use openracing_firmware_update::hardware_version::{HardwareVersion, HardwareVersionError};
 use openracing_firmware_update::health::HealthCheckSummary;
 use openracing_firmware_update::manager::{
-    FfbBlocker, FirmwareImage, FirmwareUpdateManager, StagedRolloutConfig,
-    UpdatePhase, UpdateProgress, UpdateResult, UpdateState,
+    FfbBlocker, FirmwareImage, FirmwareUpdateManager, StagedRolloutConfig, UpdatePhase,
+    UpdateProgress, UpdateResult, UpdateState,
 };
 use openracing_firmware_update::partition::{Partition, PartitionHealth, PartitionInfo};
 use openracing_firmware_update::rollback::{BackupMetadata, RollbackManager};
@@ -50,10 +50,7 @@ fn test_image(data: &[u8]) -> FirmwareImage {
     }
 }
 
-fn make_bundle(
-    data: &[u8],
-    compression: CompressionType,
-) -> Result<FirmwareBundle, anyhow::Error> {
+fn make_bundle(data: &[u8], compression: CompressionType) -> Result<FirmwareBundle, anyhow::Error> {
     let image = test_image(data);
     let metadata = BundleMetadata::default();
     FirmwareBundle::new(&image, metadata, compression)
@@ -820,7 +817,12 @@ mod error_recovery {
         let bad_json = "not valid json";
         let serde_err = serde_json::from_str::<serde_json::Value>(bad_json);
         assert!(serde_err.is_err());
-        let firmware_err: FirmwareUpdateError = serde_err.err().map(Into::into).ok_or("").ok().unwrap_or(FirmwareUpdateError::SerializationError("fallback".into()));
+        let firmware_err: FirmwareUpdateError = serde_err
+            .err()
+            .map(Into::into)
+            .ok_or("")
+            .ok()
+            .unwrap_or(FirmwareUpdateError::SerializationError("fallback".into()));
         let msg = format!("{firmware_err}");
         assert!(msg.contains("erialization") || msg.contains("parse"));
     }
@@ -1116,8 +1118,7 @@ mod update_journal {
             release_notes: None,
             signature: None,
         };
-        let bundle =
-            FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::None)?;
+        let bundle = FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::None)?;
 
         // In range
         assert!(bundle.is_compatible_with_hardware("2.0"));

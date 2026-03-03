@@ -348,7 +348,10 @@ fn extended_map_insert_and_retrieve_integer() -> TestResult {
         .extended("lap_sector", TelemetryValue::Integer(2))
         .build();
 
-    assert_eq!(t.get_extended("lap_sector"), Some(&TelemetryValue::Integer(2)));
+    assert_eq!(
+        t.get_extended("lap_sector"),
+        Some(&TelemetryValue::Integer(2))
+    );
     Ok(())
 }
 
@@ -397,7 +400,10 @@ fn extended_map_multiple_values() -> TestResult {
         .build();
 
     assert_eq!(t.extended.len(), 3);
-    assert_eq!(t.get_extended("oil_temp"), Some(&TelemetryValue::Float(110.0)));
+    assert_eq!(
+        t.get_extended("oil_temp"),
+        Some(&TelemetryValue::Float(110.0))
+    );
     assert_eq!(
         t.get_extended("rain_intensity"),
         Some(&TelemetryValue::Integer(3))
@@ -411,8 +417,7 @@ fn extended_map_multiple_values() -> TestResult {
 
 #[test]
 fn with_extended_on_instance_adds_value() -> TestResult {
-    let t = NormalizedTelemetry::default()
-        .with_extended("turbo_psi", TelemetryValue::Float(14.7));
+    let t = NormalizedTelemetry::default().with_extended("turbo_psi", TelemetryValue::Float(14.7));
 
     assert_eq!(
         t.get_extended("turbo_psi"),

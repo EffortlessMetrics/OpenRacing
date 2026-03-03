@@ -62,11 +62,7 @@ fn swapping_matrix_and_registry_swaps_missing_and_extra() -> TestResult {
 
 #[test]
 fn disjoint_sets_all_missing_all_extra() -> TestResult {
-    let m = BddMatrixMetrics::from_sets(
-        ["a", "b"],
-        ["c", "d"],
-        MatrixParityPolicy::STRICT,
-    );
+    let m = BddMatrixMetrics::from_sets(["a", "b"], ["c", "d"], MatrixParityPolicy::STRICT);
     assert_eq!(m.missing_count, 2);
     assert_eq!(m.extra_count, 2);
     assert_eq!(m.matrix_coverage_ratio, 0.0);
@@ -118,11 +114,7 @@ fn from_parts_with_all_extra() -> TestResult {
 
 #[test]
 fn coverage_ratio_one_of_three() -> TestResult {
-    let m = BddMatrixMetrics::from_sets(
-        ["a", "b", "c"],
-        ["a"],
-        MatrixParityPolicy::LENIENT,
-    );
+    let m = BddMatrixMetrics::from_sets(["a", "b", "c"], ["a"], MatrixParityPolicy::LENIENT);
     assert!((m.matrix_coverage_ratio - 1.0 / 3.0).abs() < 1e-10);
     Ok(())
 }
@@ -162,16 +154,10 @@ fn runtime_metrics_with_zero_game_count() -> TestResult {
 
 #[test]
 fn runtime_metrics_both_registries_fail() -> TestResult {
-    let adapter = BddMatrixMetrics::from_sets(
-        ["acc", "iracing"],
-        ["dirt5"],
-        MatrixParityPolicy::STRICT,
-    );
-    let writer = BddMatrixMetrics::from_sets(
-        ["acc", "iracing"],
-        ["eawrc"],
-        MatrixParityPolicy::STRICT,
-    );
+    let adapter =
+        BddMatrixMetrics::from_sets(["acc", "iracing"], ["dirt5"], MatrixParityPolicy::STRICT);
+    let writer =
+        BddMatrixMetrics::from_sets(["acc", "iracing"], ["eawrc"], MatrixParityPolicy::STRICT);
     let runtime = RuntimeBddMatrixMetrics::new(2, adapter, writer);
     assert!(!runtime.parity_ok);
     assert!(!runtime.adapter.parity_ok);
@@ -181,11 +167,7 @@ fn runtime_metrics_both_registries_fail() -> TestResult {
 
 #[test]
 fn runtime_metrics_partial_eq() -> TestResult {
-    let adapter = BddMatrixMetrics::from_sets(
-        ["acc"],
-        ["acc"],
-        MatrixParityPolicy::STRICT,
-    );
+    let adapter = BddMatrixMetrics::from_sets(["acc"], ["acc"], MatrixParityPolicy::STRICT);
     let writer = adapter.clone();
     let a = RuntimeBddMatrixMetrics::new(1, adapter.clone(), writer.clone());
     let b = RuntimeBddMatrixMetrics::new(1, adapter, writer);
@@ -228,12 +210,11 @@ fn custom_policy_missing_only_allowed() -> TestResult {
         allow_missing_registry: true,
         allow_extra_registry: false,
     };
-    let m = BddMatrixMetrics::from_sets(
-        ["a", "b", "c"],
-        ["a"],
-        policy,
+    let m = BddMatrixMetrics::from_sets(["a", "b", "c"], ["a"], policy);
+    assert!(
+        m.parity_ok,
+        "missing-allowed policy should accept missing IDs"
     );
-    assert!(m.parity_ok, "missing-allowed policy should accept missing IDs");
     Ok(())
 }
 
@@ -243,12 +224,11 @@ fn custom_policy_missing_only_rejects_extra() -> TestResult {
         allow_missing_registry: true,
         allow_extra_registry: false,
     };
-    let m = BddMatrixMetrics::from_sets(
-        ["a"],
-        ["a", "b"],
-        policy,
+    let m = BddMatrixMetrics::from_sets(["a"], ["a", "b"], policy);
+    assert!(
+        !m.parity_ok,
+        "missing-allowed policy should reject extra IDs"
     );
-    assert!(!m.parity_ok, "missing-allowed policy should reject extra IDs");
     Ok(())
 }
 

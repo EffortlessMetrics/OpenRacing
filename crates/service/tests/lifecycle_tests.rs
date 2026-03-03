@@ -3,10 +3,8 @@
 
 use std::time::Duration;
 
-use racing_wheel_service::{
-    IpcConfig, ServiceConfig, ServiceDaemon, SystemConfig, WheelService,
-};
 use racing_wheel_service::profile_repository::ProfileRepositoryConfig;
+use racing_wheel_service::{IpcConfig, ServiceConfig, ServiceDaemon, SystemConfig, WheelService};
 use tempfile::TempDir;
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -81,7 +79,10 @@ async fn lifecycle_device_then_safety_registration() -> Result<(), BoxErr> {
 
     // Verify registration by querying safety state
     let state = svc.safety_service().get_safety_state(&device_id).await?;
-    assert_eq!(state.interlock_state, racing_wheel_service::InterlockState::SafeTorque);
+    assert_eq!(
+        state.interlock_state,
+        racing_wheel_service::InterlockState::SafeTorque
+    );
 
     // Unregister and verify it's gone
     svc.safety_service().unregister_device(&device_id).await?;
@@ -114,10 +115,9 @@ async fn lifecycle_repeated_create_destroy() -> Result<(), BoxErr> {
     // Ensure service can be created and dropped cleanly multiple times
     for i in 0..3 {
         let (svc, _tmp) = temp_service().await?;
-        let device_id: racing_wheel_schemas::prelude::DeviceId =
-            format!("repeat-dev-{i}")
-                .parse()
-                .map_err(|e| -> BoxErr { format!("bad id: {e}").into() })?;
+        let device_id: racing_wheel_schemas::prelude::DeviceId = format!("repeat-dev-{i}")
+            .parse()
+            .map_err(|e| -> BoxErr { format!("bad id: {e}").into() })?;
         let torque = racing_wheel_schemas::prelude::TorqueNm::new(8.0)
             .map_err(|e| -> BoxErr { format!("bad torque: {e}").into() })?;
         svc.safety_service()
@@ -299,6 +299,9 @@ async fn health_service_resilient_after_error() -> Result<(), BoxErr> {
         .await?;
 
     let state = svc.safety_service().get_safety_state(&missing).await?;
-    assert_eq!(state.interlock_state, racing_wheel_service::InterlockState::SafeTorque);
+    assert_eq!(
+        state.interlock_state,
+        racing_wheel_service::InterlockState::SafeTorque
+    );
     Ok(())
 }

@@ -460,7 +460,10 @@ mod tests {
         for rate in [1, 1000, 50, u32::MAX, 1, 60] {
             limiter.set_max_rate_hz(rate);
             let effective = limiter.max_rate_hz();
-            assert!(effective >= 1, "rate must be >= 1 after set_max_rate_hz({rate})");
+            assert!(
+                effective >= 1,
+                "rate must be >= 1 after set_max_rate_hz({rate})"
+            );
         }
     }
 

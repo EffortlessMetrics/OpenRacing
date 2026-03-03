@@ -15,9 +15,9 @@
 //! | 5 | the-sz.com USB vendor database | VID `0x3416` = "Shenzhen Cammus Electronic Technology Com. Ltd." |
 
 use racing_wheel_hid_cammus_protocol::{
-    CammusModel, FFB_REPORT_ID, FFB_REPORT_LEN, MODE_CONFIG, MODE_GAME, PRODUCT_C12, PRODUCT_C5,
-    PRODUCT_CP5_PEDALS, PRODUCT_LC100_PEDALS, REPORT_ID, REPORT_LEN, STEERING_RANGE_DEG,
-    VENDOR_ID, encode_stop, encode_torque, is_cammus, parse, product_name,
+    CammusModel, FFB_REPORT_ID, FFB_REPORT_LEN, MODE_CONFIG, MODE_GAME, PRODUCT_C5, PRODUCT_C12,
+    PRODUCT_CP5_PEDALS, PRODUCT_LC100_PEDALS, REPORT_ID, REPORT_LEN, STEERING_RANGE_DEG, VENDOR_ID,
+    encode_stop, encode_torque, is_cammus, parse, product_name,
 };
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -60,10 +60,7 @@ fn c12_pid_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
 /// Source [4]: `v3416p1018` labeled "Cammus CP5 Pedals"
 #[test]
 fn cp5_pedals_pid_matches_hwdb() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(
-        PRODUCT_CP5_PEDALS, 0x1018,
-        "CP5 Pedals PID must be 0x1018"
-    );
+    assert_eq!(PRODUCT_CP5_PEDALS, 0x1018, "CP5 Pedals PID must be 0x1018");
     Ok(())
 }
 
@@ -81,7 +78,12 @@ fn lc100_pedals_pid_matches_hwdb() -> Result<(), Box<dyn std::error::Error>> {
 /// `is_cammus()` must accept all four confirmed VID/PID pairs.
 #[test]
 fn is_cammus_accepts_all_confirmed_pairs() -> Result<(), Box<dyn std::error::Error>> {
-    let pids = [PRODUCT_C5, PRODUCT_C12, PRODUCT_CP5_PEDALS, PRODUCT_LC100_PEDALS];
+    let pids = [
+        PRODUCT_C5,
+        PRODUCT_C12,
+        PRODUCT_CP5_PEDALS,
+        PRODUCT_LC100_PEDALS,
+    ];
     for &pid in &pids {
         assert!(
             is_cammus(VENDOR_ID, pid),
@@ -98,10 +100,7 @@ fn wrong_vid_rejected() -> Result<(), Box<dyn std::error::Error>> {
         !is_cammus(0x0000, PRODUCT_C5),
         "VID 0x0000 must be rejected"
     );
-    assert!(
-        !is_cammus(0x0483, PRODUCT_C5),
-        "STM VID must be rejected"
-    );
+    assert!(!is_cammus(0x0483, PRODUCT_C5), "STM VID must be rejected");
     Ok(())
 }
 
@@ -206,10 +205,7 @@ fn parse_zero_report_is_center() -> Result<(), Box<dyn std::error::Error>> {
         report.throttle.abs() < 0.01,
         "zero input must yield ~0 throttle"
     );
-    assert!(
-        report.brake.abs() < 0.01,
-        "zero input must yield ~0 brake"
-    );
+    assert!(report.brake.abs() < 0.01, "zero input must yield ~0 brake");
     assert_eq!(report.buttons, 0, "zero input must yield 0 buttons");
     Ok(())
 }
@@ -279,7 +275,11 @@ fn encode_zero_torque_byte_layout() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(report[1], 0x00, "torque low byte must be 0");
     assert_eq!(report[2], 0x00, "torque high byte must be 0");
     assert_eq!(report[3], MODE_GAME, "byte 3 must be game mode");
-    assert_eq!(&report[4..], &[0x00, 0x00, 0x00, 0x00], "reserved bytes must be 0");
+    assert_eq!(
+        &report[4..],
+        &[0x00, 0x00, 0x00, 0x00],
+        "reserved bytes must be 0"
+    );
     Ok(())
 }
 

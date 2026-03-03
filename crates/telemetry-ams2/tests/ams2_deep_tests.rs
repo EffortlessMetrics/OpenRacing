@@ -394,7 +394,10 @@ fn track_name_with_utf8_safe_bytes() -> TestResult {
     write_str(&mut data.track_location, "Nurburgring");
     let t = adapter.normalize(&to_bytes(&data))?;
     let track = t.track_id.as_deref().unwrap_or("");
-    assert!(track.contains("rburgring"), "track should contain partial match");
+    assert!(
+        track.contains("rburgring"),
+        "track should contain partial match"
+    );
     Ok(())
 }
 
@@ -447,7 +450,10 @@ fn zero_water_temp_not_written() -> TestResult {
     let adapter = AMS2Adapter::new();
     let data = default_mem(); // water_temp_celsius = 0.0
     let t = adapter.normalize(&to_bytes(&data))?;
-    assert_eq!(t.engine_temp_c, 0.0, "zero water temp → engine_temp_c stays 0");
+    assert_eq!(
+        t.engine_temp_c, 0.0,
+        "zero water temp → engine_temp_c stays 0"
+    );
     Ok(())
 }
 

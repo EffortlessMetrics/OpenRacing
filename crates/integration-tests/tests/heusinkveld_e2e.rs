@@ -305,7 +305,9 @@ fn scenario_vendor_detection_given_heusinkveld_vid_when_checked_then_recognized(
     // Then: is_heusinkveld_device recognizes all known vendor IDs
     assert!(is_heusinkveld_device(VENDOR_ID));
     assert!(is_heusinkveld_device(HEUSINKVELD_VENDOR_ID));
-    assert!(is_heusinkveld_device(hid_heusinkveld_protocol::HEUSINKVELD_LEGACY_VENDOR_ID));
+    assert!(is_heusinkveld_device(
+        hid_heusinkveld_protocol::HEUSINKVELD_LEGACY_VENDOR_ID
+    ));
     assert!(!is_heusinkveld_device(0x0000));
     assert!(!is_heusinkveld_device(0xFFFF));
 }

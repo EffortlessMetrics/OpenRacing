@@ -22,19 +22,38 @@
 //!    <https://www.usb.org/sites/default/files/documents/pid1_01.pdf>
 
 use hid_simucube_protocol::{
-    SimucubeHidReport, SimucubeOutputReport,
-    // IDs from ids.rs
-    SIMUCUBE_1_BOOTLOADER_PID, SIMUCUBE_1_PID, SIMUCUBE_2_BOOTLOADER_PID, SIMUCUBE_2_PRO_PID,
-    SIMUCUBE_2_SPORT_PID, SIMUCUBE_2_ULTIMATE_PID, SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID,
-    SIMUCUBE_WIRELESS_WHEEL_PID, SimucubeModel,
-    // Constants from lib.rs
-    VENDOR_ID, PRODUCT_ID_SPORT, PRODUCT_ID_PRO, PRODUCT_ID_ULTIMATE,
-    REPORT_SIZE_INPUT, REPORT_SIZE_OUTPUT,
-    MAX_TORQUE_SPORT, MAX_TORQUE_PRO, MAX_TORQUE_ULTIMATE,
-    ANGLE_SENSOR_BITS, ANGLE_SENSOR_MAX,
-    HID_ADDITIONAL_AXES, HID_BUTTON_COUNT, HID_BUTTON_BYTES, HID_JOYSTICK_REPORT_MIN_BYTES,
+    ANGLE_SENSOR_BITS,
+    ANGLE_SENSOR_MAX,
     // Output
-    EffectType, SimucubeError,
+    EffectType,
+    HID_ADDITIONAL_AXES,
+    HID_BUTTON_BYTES,
+    HID_BUTTON_COUNT,
+    HID_JOYSTICK_REPORT_MIN_BYTES,
+    MAX_TORQUE_PRO,
+    MAX_TORQUE_SPORT,
+    MAX_TORQUE_ULTIMATE,
+    PRODUCT_ID_PRO,
+    PRODUCT_ID_SPORT,
+    PRODUCT_ID_ULTIMATE,
+    REPORT_SIZE_INPUT,
+    REPORT_SIZE_OUTPUT,
+    // IDs from ids.rs
+    SIMUCUBE_1_BOOTLOADER_PID,
+    SIMUCUBE_1_PID,
+    SIMUCUBE_2_BOOTLOADER_PID,
+    SIMUCUBE_2_PRO_PID,
+    SIMUCUBE_2_SPORT_PID,
+    SIMUCUBE_2_ULTIMATE_PID,
+    SIMUCUBE_ACTIVE_PEDAL_PID,
+    SIMUCUBE_VENDOR_ID,
+    SIMUCUBE_WIRELESS_WHEEL_PID,
+    SimucubeError,
+    SimucubeHidReport,
+    SimucubeModel,
+    SimucubeOutputReport,
+    // Constants from lib.rs
+    VENDOR_ID,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -79,7 +98,10 @@ fn sc1_pid_matches_official_docs() {
 #[test]
 fn sc2_sport_pid_matches_official_docs() {
     assert_eq!(SIMUCUBE_2_SPORT_PID, 0x0D61);
-    assert_eq!(PRODUCT_ID_SPORT, 0x0D61, "lib.rs PRODUCT_ID_SPORT must match ids.rs");
+    assert_eq!(
+        PRODUCT_ID_SPORT, 0x0D61,
+        "lib.rs PRODUCT_ID_SPORT must match ids.rs"
+    );
 }
 
 /// Simucube 2 Pro PID = 0x0D60.
@@ -90,7 +112,10 @@ fn sc2_sport_pid_matches_official_docs() {
 #[test]
 fn sc2_pro_pid_matches_official_docs() {
     assert_eq!(SIMUCUBE_2_PRO_PID, 0x0D60);
-    assert_eq!(PRODUCT_ID_PRO, 0x0D60, "lib.rs PRODUCT_ID_PRO must match ids.rs");
+    assert_eq!(
+        PRODUCT_ID_PRO, 0x0D60,
+        "lib.rs PRODUCT_ID_PRO must match ids.rs"
+    );
 }
 
 /// Simucube 2 Ultimate PID = 0x0D5F.
@@ -101,7 +126,10 @@ fn sc2_pro_pid_matches_official_docs() {
 #[test]
 fn sc2_ultimate_pid_matches_official_docs() {
     assert_eq!(SIMUCUBE_2_ULTIMATE_PID, 0x0D5F);
-    assert_eq!(PRODUCT_ID_ULTIMATE, 0x0D5F, "lib.rs PRODUCT_ID_ULTIMATE must match ids.rs");
+    assert_eq!(
+        PRODUCT_ID_ULTIMATE, 0x0D5F,
+        "lib.rs PRODUCT_ID_ULTIMATE must match ids.rs"
+    );
 }
 
 /// Simucube SC-Link Hub (ActivePedal) PID = 0x0D66.
@@ -165,7 +193,10 @@ fn windows_guid_product_id_format() {
     let sc1_guid_prefix = format!("{:04X}{:04X}", SIMUCUBE_1_PID, SIMUCUBE_VENDOR_ID);
     assert_eq!(sc1_guid_prefix, "0D5A16D0");
 
-    let pedal_guid_prefix = format!("{:04X}{:04X}", SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID);
+    let pedal_guid_prefix = format!(
+        "{:04X}{:04X}",
+        SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID
+    );
     assert_eq!(pedal_guid_prefix, "0D6616D0");
 }
 
@@ -178,12 +209,24 @@ fn windows_guid_product_id_format() {
 /// Source: Official Simucube developer docs product table.
 #[test]
 fn pid_to_model_mapping_matches_official_table() {
-    assert_eq!(SimucubeModel::from_product_id(0x0D5A), SimucubeModel::Simucube1);
+    assert_eq!(
+        SimucubeModel::from_product_id(0x0D5A),
+        SimucubeModel::Simucube1
+    );
     assert_eq!(SimucubeModel::from_product_id(0x0D61), SimucubeModel::Sport);
     assert_eq!(SimucubeModel::from_product_id(0x0D60), SimucubeModel::Pro);
-    assert_eq!(SimucubeModel::from_product_id(0x0D5F), SimucubeModel::Ultimate);
-    assert_eq!(SimucubeModel::from_product_id(0x0D66), SimucubeModel::ActivePedal);
-    assert_eq!(SimucubeModel::from_product_id(0x0D63), SimucubeModel::WirelessWheel);
+    assert_eq!(
+        SimucubeModel::from_product_id(0x0D5F),
+        SimucubeModel::Ultimate
+    );
+    assert_eq!(
+        SimucubeModel::from_product_id(0x0D66),
+        SimucubeModel::ActivePedal
+    );
+    assert_eq!(
+        SimucubeModel::from_product_id(0x0D63),
+        SimucubeModel::WirelessWheel
+    );
 }
 
 /// Bootloader PIDs must **not** map to any real device model — they should
@@ -248,7 +291,10 @@ fn non_wheelbase_models_have_zero_torque() {
 #[test]
 fn hid_report_constants_match_documentation() {
     // Official docs: X + Y + 6 additional = 8 axes total
-    assert_eq!(HID_ADDITIONAL_AXES, 6, "6 additional axes per official docs");
+    assert_eq!(
+        HID_ADDITIONAL_AXES, 6,
+        "6 additional axes per official docs"
+    );
     assert_eq!(HID_BUTTON_COUNT, 128, "128 buttons per official docs");
     assert_eq!(HID_BUTTON_BYTES, 16, "128 buttons = 16 bytes");
     // 8 axes × 2 bytes + 16 button bytes = 32 bytes
@@ -271,7 +317,10 @@ fn steering_axis_is_u16_range() {
         ..SimucubeHidReport::default()
     };
     let norm = report.steering_normalized();
-    assert!((norm - 1.0).abs() < 0.001, "u16::MAX should normalise to ~1.0");
+    assert!(
+        (norm - 1.0).abs() < 0.001,
+        "u16::MAX should normalise to ~1.0"
+    );
 }
 
 /// The default HID report should have steering and Y at center (0x8000).
@@ -369,7 +418,7 @@ fn output_report_is_64_bytes() {
 #[test]
 fn output_report_placeholder_byte_layout() -> Result<(), SimucubeError> {
     let report = SimucubeOutputReport::new(0x0102)
-        .with_torque(10.0)   // 10.0 Nm → 1000 cNm
+        .with_torque(10.0) // 10.0 Nm → 1000 cNm
         .with_rgb(0xAA, 0xBB, 0xCC)
         .with_effect(EffectType::Constant, 500);
 
@@ -395,7 +444,11 @@ fn output_report_placeholder_byte_layout() -> Result<(), SimucubeError> {
     assert_eq!(data[8], EffectType::Constant as u8, "effect type");
 
     // Effect parameter (u16 LE)
-    assert_eq!(u16::from_le_bytes([data[9], data[10]]), 500, "effect parameter");
+    assert_eq!(
+        u16::from_le_bytes([data[9], data[10]]),
+        500,
+        "effect parameter"
+    );
 
     // Remaining bytes are zero padding
     for (i, &byte) in data[11..].iter().enumerate() {
@@ -551,7 +604,10 @@ fn known_good_full_left_steering() -> Result<(), SimucubeError> {
     let report = SimucubeHidReport::parse(&data)?;
     assert_eq!(report.steering, 0x0000);
     let signed = report.steering_signed();
-    assert!((signed - (-1.0)).abs() < 0.001, "full left ≈ -1.0, got {signed}");
+    assert!(
+        (signed - (-1.0)).abs() < 0.001,
+        "full left ≈ -1.0, got {signed}"
+    );
     Ok(())
 }
 
@@ -568,7 +624,10 @@ fn known_good_full_right_steering() -> Result<(), SimucubeError> {
     let report = SimucubeHidReport::parse(&data)?;
     assert_eq!(report.steering, 0xFFFF);
     let signed = report.steering_signed();
-    assert!((signed - 1.0).abs() < 0.001, "full right ≈ 1.0, got {signed}");
+    assert!(
+        (signed - 1.0).abs() < 0.001,
+        "full right ≈ 1.0, got {signed}"
+    );
     Ok(())
 }
 
@@ -587,7 +646,11 @@ fn known_good_all_buttons_pressed() -> Result<(), SimucubeError> {
     }
 
     let report = SimucubeHidReport::parse(&data)?;
-    assert_eq!(report.pressed_count(), 128, "all 128 buttons should be pressed");
+    assert_eq!(
+        report.pressed_count(),
+        128,
+        "all 128 buttons should be pressed"
+    );
     for i in 0..128 {
         assert!(report.button_pressed(i), "button {i} should be pressed");
     }

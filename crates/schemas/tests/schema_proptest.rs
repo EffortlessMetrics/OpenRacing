@@ -3,13 +3,12 @@
 //! config type serde roundtrips, numeric conversions, and error invariants.
 
 use proptest::prelude::*;
+use racing_wheel_schemas::config::{
+    BumpstopConfig, CurvePoint as CfgCurvePoint, FilterConfig, HandsOffConfig, NotchFilter,
+};
 use racing_wheel_schemas::domain::{
     CurvePoint, Degrees, DeviceId, DomainError, FrequencyHz, Gain, ProfileId, TorqueNm,
     validate_curve_monotonic,
-};
-use racing_wheel_schemas::config::{
-    BumpstopConfig, CurvePoint as CfgCurvePoint, FilterConfig, HandsOffConfig,
-    NotchFilter,
 };
 use racing_wheel_schemas::telemetry::{TelemetryFlags, TelemetryValue};
 

@@ -17,9 +17,8 @@
 use std::collections::HashSet;
 
 use racing_wheel_telemetry_config::{
-    AutoDetectConfig, ConfigDiff, DiffOperation, GameSupportMatrix,
-    GameSupportStatus, TelemetryConfig,
-    config_writer_factories, load_default_matrix,
+    AutoDetectConfig, ConfigDiff, DiffOperation, GameSupportMatrix, GameSupportStatus,
+    TelemetryConfig, config_writer_factories, load_default_matrix,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -329,10 +328,7 @@ mod default_config_validation {
         let mut missing = Vec::new();
         for (game_id, game) in &matrix.games {
             if !factory_ids.contains(game.config_writer.as_str()) {
-                missing.push(format!(
-                    "{game_id} -> {}",
-                    game.config_writer
-                ));
+                missing.push(format!("{game_id} -> {}", game.config_writer));
             }
         }
         assert!(
@@ -442,7 +438,11 @@ mod serde_roundtrip {
 
     #[test]
     fn config_diff_all_operations_roundtrip() -> TestResult {
-        for op in [DiffOperation::Add, DiffOperation::Modify, DiffOperation::Remove] {
+        for op in [
+            DiffOperation::Add,
+            DiffOperation::Modify,
+            DiffOperation::Remove,
+        ] {
             let diff = ConfigDiff {
                 file_path: "test.ini".to_string(),
                 section: Some("Section".to_string()),
@@ -619,7 +619,11 @@ mod env_var_overrides {
         for (input, expected) in [("true", true), ("false", false), ("1", false), ("0", false)] {
             let parsed: Result<bool, _> = input.parse();
             if let Ok(val) = parsed {
-                assert_eq!(val, expected, "parsing '{}' should give {}", input, expected);
+                assert_eq!(
+                    val, expected,
+                    "parsing '{}' should give {}",
+                    input, expected
+                );
             }
         }
         Ok(())
@@ -653,7 +657,10 @@ mod env_var_overrides {
     #[test]
     fn env_override_fields_from_comma_separated() -> TestResult {
         let env_fields = "rpm,speed_ms,gear,ffb_scalar";
-        let fields: Vec<String> = env_fields.split(',').map(|s| s.trim().to_string()).collect();
+        let fields: Vec<String> = env_fields
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .collect();
         let mut cfg = TelemetryConfig {
             enabled: true,
             update_rate_hz: 60,
@@ -833,7 +840,10 @@ mod hot_reload_detection {
         modified.update_rate_hz = 120;
         let snapshot_2 = serde_json::to_string(&modified)?;
 
-        assert_ne!(snapshot_1, snapshot_2, "snapshots should differ after mutation");
+        assert_ne!(
+            snapshot_1, snapshot_2,
+            "snapshots should differ after mutation"
+        );
         Ok(())
     }
 
@@ -931,9 +941,8 @@ mod error_aggregation {
             ));
         }
         if cfg.enable_high_rate_iracing_360hz && cfg.update_rate_hz < 360 {
-            errors.push(
-                "enable_high_rate_iracing_360hz is set but update_rate_hz < 360".to_string(),
-            );
+            errors
+                .push("enable_high_rate_iracing_360hz is set but update_rate_hz < 360".to_string());
         }
 
         errors
@@ -1303,10 +1312,7 @@ mod per_device_overrides {
         enable_high_rate: Option<bool>,
     }
 
-    fn apply_device_override(
-        base: &TelemetryConfig,
-        device: &DeviceOverride,
-    ) -> TelemetryConfig {
+    fn apply_device_override(base: &TelemetryConfig, device: &DeviceOverride) -> TelemetryConfig {
         let mut merged = base.clone();
         if let Some(rate) = device.update_rate_hz {
             merged.update_rate_hz = rate;
@@ -1384,7 +1390,10 @@ mod per_device_overrides {
         let result = apply_device_override(&base, &device);
         assert_eq!(result.update_rate_hz, base.update_rate_hz);
         assert_eq!(result.output_target, base.output_target);
-        assert_eq!(result.enable_high_rate_iracing_360hz, base.enable_high_rate_iracing_360hz);
+        assert_eq!(
+            result.enable_high_rate_iracing_360hz,
+            base.enable_high_rate_iracing_360hz
+        );
         Ok(())
     }
 

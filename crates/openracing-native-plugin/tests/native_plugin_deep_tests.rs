@@ -6,13 +6,13 @@
 
 use std::path::PathBuf;
 
-use openracing_native_plugin::abi_check::{AbiCheckResult, CURRENT_ABI_VERSION, check_abi_compatibility};
+use openracing_native_plugin::abi_check::{
+    AbiCheckResult, CURRENT_ABI_VERSION, check_abi_compatibility,
+};
 use openracing_native_plugin::error::{NativePluginError, NativePluginLoadError};
 use openracing_native_plugin::loader::{NativePluginConfig, NativePluginHost, NativePluginLoader};
 use openracing_native_plugin::plugin::{PluginFrame, SharedMemoryHeader};
-use openracing_native_plugin::signature::{
-    SignatureVerificationConfig, SignatureVerifier,
-};
+use openracing_native_plugin::signature::{SignatureVerificationConfig, SignatureVerifier};
 use openracing_native_plugin::spsc::SpscChannel;
 
 use openracing_crypto::TrustLevel;
@@ -537,7 +537,13 @@ fn load_error_abi_mismatch_converts() {
         actual: 99,
     };
     let err: NativePluginError = load_err.into();
-    assert!(matches!(err, NativePluginError::AbiMismatch { expected: 1, actual: 99 }));
+    assert!(matches!(
+        err,
+        NativePluginError::AbiMismatch {
+            expected: 1,
+            actual: 99
+        }
+    ));
 }
 
 #[test]
@@ -546,7 +552,10 @@ fn load_error_invalid_signature_converts() {
         reason: "bad sig".to_string(),
     };
     let err: NativePluginError = load_err.into();
-    assert!(matches!(err, NativePluginError::SignatureVerificationFailed(_)));
+    assert!(matches!(
+        err,
+        NativePluginError::SignatureVerificationFailed(_)
+    ));
 }
 
 #[test]
@@ -650,7 +659,12 @@ async fn host_load_nonexistent_plugin_fails() {
     let host = NativePluginHost::new_permissive_for_development();
     let id = uuid::Uuid::new_v4();
     let result = host
-        .load_plugin(id, "bad".to_string(), &PathBuf::from("no_such_file.dll"), 1000)
+        .load_plugin(
+            id,
+            "bad".to_string(),
+            &PathBuf::from("no_such_file.dll"),
+            1000,
+        )
         .await;
     assert!(result.is_err());
     assert_eq!(host.plugin_count().await, 0);
@@ -1026,8 +1040,11 @@ fn trust_store_add_and_retrieve_key() {
     assert!(kp.is_ok());
     if let Ok(kp) = kp {
         let fingerprint = kp.public_key.fingerprint();
-        let result =
-            store.add_key(kp.public_key.clone(), TrustLevel::Trusted, Some("test".to_string()));
+        let result = store.add_key(
+            kp.public_key.clone(),
+            TrustLevel::Trusted,
+            Some("test".to_string()),
+        );
         assert!(result.is_ok());
 
         let level = store.get_trust_level(&fingerprint);
@@ -1087,8 +1104,7 @@ fn spsc_lifecycle_write_process_read() -> Result<(), NativePluginError> {
     for i in 0u32..5 {
         let mut buf = vec![0u8; std::mem::size_of::<PluginFrame>()];
         reader.read(&mut buf)?;
-        let frame: PluginFrame =
-            unsafe { std::ptr::read(buf.as_ptr() as *const PluginFrame) };
+        let frame: PluginFrame = unsafe { std::ptr::read(buf.as_ptr() as *const PluginFrame) };
         assert_eq!(frame.sequence, i);
         assert!((frame.ffb_in - i as f32).abs() < f32::EPSILON);
     }

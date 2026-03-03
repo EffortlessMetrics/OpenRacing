@@ -1672,17 +1672,17 @@ fn car_status_2023_field_offsets_verified_by_hand() -> TestResult {
     raw[27] = 0;
 
     let base = 29; // car 0 starts at HEADER_SIZE
-    raw[base] = 2;      // tractionControl
-    raw[base + 1] = 1;  // antiLockBrakes
-    raw[base + 4] = 1;  // pitLimiterStatus
+    raw[base] = 2; // tractionControl
+    raw[base + 1] = 1; // antiLockBrakes
+    raw[base + 4] = 1; // pitLimiterStatus
     raw[base + 5..base + 9].copy_from_slice(&42.5f32.to_le_bytes()); // fuelInTank
     raw[base + 13..base + 17].copy_from_slice(&11.2f32.to_le_bytes()); // fuelRemainingLaps
     raw[base + 17..base + 19].copy_from_slice(&13500u16.to_le_bytes()); // maxRPM
     raw[base + 22] = 1; // drsAllowed
     raw[base + 25] = 14; // actualTyreCompound (Hard)
-    raw[base + 27] = 5;  // tyreAgeLaps
+    raw[base + 27] = 5; // tyreAgeLaps
     raw[base + 29..base + 33].copy_from_slice(&1_500_000.0f32.to_le_bytes()); // ersStoreEnergy
-    raw[base + 33] = 2;  // ersDeployMode
+    raw[base + 33] = 2; // ersDeployMode
     raw[base + 34..base + 38].copy_from_slice(&300_000.0f32.to_le_bytes()); // ersHarvestedMGUK
     raw[base + 38..base + 42].copy_from_slice(&200_000.0f32.to_le_bytes()); // ersHarvestedMGUH
     raw[base + 42..base + 46].copy_from_slice(&800_000.0f32.to_le_bytes()); // ersDeployed
@@ -1716,9 +1716,9 @@ fn car_status_2024_field_offsets_verified_by_hand() -> TestResult {
     raw[27] = 0;
 
     let base = 29;
-    raw[base] = 1;      // tractionControl
-    raw[base + 1] = 0;  // antiLockBrakes
-    raw[base + 4] = 0;  // pitLimiterStatus
+    raw[base] = 1; // tractionControl
+    raw[base + 1] = 0; // antiLockBrakes
+    raw[base + 4] = 0; // pitLimiterStatus
     raw[base + 5..base + 9].copy_from_slice(&38.0f32.to_le_bytes()); // fuelInTank
     raw[base + 13..base + 17].copy_from_slice(&15.5f32.to_le_bytes()); // fuelRemainingLaps
     raw[base + 17..base + 19].copy_from_slice(&14000u16.to_le_bytes()); // maxRPM
@@ -1729,7 +1729,7 @@ fn car_status_2024_field_offsets_verified_by_hand() -> TestResult {
     raw[base + 29..base + 33].copy_from_slice(&560_000.0f32.to_le_bytes()); // enginePowerICE
     raw[base + 33..base + 37].copy_from_slice(&120_000.0f32.to_le_bytes()); // enginePowerMGUK
     raw[base + 37..base + 41].copy_from_slice(&3_200_000.0f32.to_le_bytes()); // ersStoreEnergy
-    raw[base + 41] = 3;  // ersDeployMode
+    raw[base + 41] = 3; // ersDeployMode
     raw[base + 42..base + 46].copy_from_slice(&700_000.0f32.to_le_bytes()); // ersHarvestedMGUK
     raw[base + 46..base + 50].copy_from_slice(&450_000.0f32.to_le_bytes()); // ersHarvestedMGUH
     raw[base + 50..base + 54].copy_from_slice(&1_100_000.0f32.to_le_bytes()); // ersDeployed
@@ -1761,13 +1761,13 @@ fn session_data_field_offsets_verified_by_hand() -> TestResult {
     raw[27] = 0;
 
     // Session data starts at offset 29
-    raw[29] = 0;           // weather
-    raw[30] = 42u8;        // trackTemperature (i8=42)
-    raw[31] = 30u8;        // airTemperature (i8=30)
-    raw[32] = 57;          // totalLaps
+    raw[29] = 0; // weather
+    raw[30] = 42u8; // trackTemperature (i8=42)
+    raw[31] = 30u8; // airTemperature (i8=30)
+    raw[32] = 57; // totalLaps
     raw[33..35].copy_from_slice(&5891u16.to_le_bytes()); // trackLength
-    raw[35] = 10;          // sessionType (race)
-    raw[36] = 11;          // trackId (Monza)
+    raw[35] = 10; // sessionType (race)
+    raw[36] = 11; // trackId (Monza)
 
     let session = parse_session_data(&raw)?;
     assert_eq!(session.track_temperature, 42);
@@ -1941,7 +1941,16 @@ fn process_packet_f23_header_oversized_data_uses_f23_parser() -> TestResult {
     let mut state = F1NativeState::default();
     // Need telemetry first
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2023, 0, 180, 5, 12000, 0.7, 0.0, 0.0, 0, [23.0; 4],
+        PACKET_FORMAT_2023,
+        0,
+        180,
+        5,
+        12000,
+        0.7,
+        0.0,
+        0.0,
+        0,
+        [23.0; 4],
     );
     F1NativeAdapter::process_packet(&mut state, &telem)?;
     let result = F1NativeAdapter::process_packet(&mut state, &raw)?;
@@ -2331,12 +2340,20 @@ fn process_packet_session_then_status_no_emit() -> TestResult {
 fn process_packet_emission_has_decoder_type() -> TestResult {
     let mut state = F1NativeState::default();
     let telem = build_car_telemetry_packet_native(
-        PACKET_FORMAT_2024, 0, 200, 6, 11000, 0.8, 0.0, 0.0, 0, [23.0; 4],
+        PACKET_FORMAT_2024,
+        0,
+        200,
+        6,
+        11000,
+        0.8,
+        0.0,
+        0.0,
+        0,
+        [23.0; 4],
     );
     let status = build_car_status_packet_f24(0, 25.0, 2_000_000.0, 1, 0, 13, 13500);
     F1NativeAdapter::process_packet(&mut state, &telem)?;
-    let norm = F1NativeAdapter::process_packet(&mut state, &status)?
-        .ok_or("expected emission")?;
+    let norm = F1NativeAdapter::process_packet(&mut state, &status)?.ok_or("expected emission")?;
     assert_eq!(
         norm.extended.get("decoder_type"),
         Some(&TelemetryValue::String("f1_native_udp".to_string()))

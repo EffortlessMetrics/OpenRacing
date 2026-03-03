@@ -491,13 +491,26 @@ mod tests {
     #[test]
     fn test_throttle_brake_clutch_parsed() -> TestResult {
         let data = ScsTestFields {
-            throttle: 0.8, brake: 0.3, clutch: 0.1, engine_temp: 90.0, max_rpm: 2500.0,
+            throttle: 0.8,
+            brake: 0.3,
+            clutch: 0.1,
+            engine_temp: 90.0,
+            max_rpm: 2500.0,
             ..ScsTestFields::basic(20.0, 1500.0, 4, 0.7, 0.5)
-        }.build();
+        }
+        .build();
         let result = parse_scs_packet(&data)?;
-        assert!((result.throttle - 0.8).abs() < 0.001, "throttle={}", result.throttle);
+        assert!(
+            (result.throttle - 0.8).abs() < 0.001,
+            "throttle={}",
+            result.throttle
+        );
         assert!((result.brake - 0.3).abs() < 0.001, "brake={}", result.brake);
-        assert!((result.clutch - 0.1).abs() < 0.001, "clutch={}", result.clutch);
+        assert!(
+            (result.clutch - 0.1).abs() < 0.001,
+            "clutch={}",
+            result.clutch
+        );
         Ok(())
     }
 
@@ -506,10 +519,15 @@ mod tests {
         let data = ScsTestFields {
             steering: 0.5,
             ..ScsTestFields::basic(20.0, 1500.0, 4, 0.7, 0.5)
-        }.build();
+        }
+        .build();
         let result = parse_scs_packet(&data)?;
         // 0.5 * 0.6109 ≈ 0.30545
-        assert!((result.steering_angle - 0.30545).abs() < 0.01, "steering_angle={}", result.steering_angle);
+        assert!(
+            (result.steering_angle - 0.30545).abs() < 0.01,
+            "steering_angle={}",
+            result.steering_angle
+        );
         Ok(())
     }
 
@@ -518,9 +536,14 @@ mod tests {
         let data = ScsTestFields {
             steering: -1.0,
             ..ScsTestFields::basic(20.0, 1500.0, 4, 0.7, 0.5)
-        }.build();
+        }
+        .build();
         let result = parse_scs_packet(&data)?;
-        assert!((result.steering_angle - (-0.6109)).abs() < 0.01, "steering_angle={}", result.steering_angle);
+        assert!(
+            (result.steering_angle - (-0.6109)).abs() < 0.01,
+            "steering_angle={}",
+            result.steering_angle
+        );
         Ok(())
     }
 
@@ -529,9 +552,14 @@ mod tests {
         let data = ScsTestFields {
             engine_temp: 92.5,
             ..ScsTestFields::basic(20.0, 1500.0, 4, 0.7, 0.5)
-        }.build();
+        }
+        .build();
         let result = parse_scs_packet(&data)?;
-        assert!((result.engine_temp_c - 92.5).abs() < 0.1, "engine_temp_c={}", result.engine_temp_c);
+        assert!(
+            (result.engine_temp_c - 92.5).abs() < 0.1,
+            "engine_temp_c={}",
+            result.engine_temp_c
+        );
         Ok(())
     }
 
@@ -540,9 +568,14 @@ mod tests {
         let data = ScsTestFields {
             max_rpm: 2500.0,
             ..ScsTestFields::basic(20.0, 1500.0, 4, 0.7, 0.5)
-        }.build();
+        }
+        .build();
         let result = parse_scs_packet(&data)?;
-        assert!((result.max_rpm - 2500.0).abs() < 0.1, "max_rpm={}", result.max_rpm);
+        assert!(
+            (result.max_rpm - 2500.0).abs() < 0.1,
+            "max_rpm={}",
+            result.max_rpm
+        );
         Ok(())
     }
 
@@ -569,7 +602,8 @@ mod tests {
             engine_temp: 88.0,
             max_rpm: 2200.0,
             ..ScsTestFields::basic(25.0, 1400.0, 8, 0.65, 0.55)
-        }.build();
+        }
+        .build();
         let result = parse_scs_packet(&data)?;
         insta::assert_yaml_snapshot!(result);
         Ok(())

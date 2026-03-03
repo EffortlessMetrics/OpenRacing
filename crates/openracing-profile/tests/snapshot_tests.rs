@@ -1,8 +1,8 @@
 //! Snapshot tests for profile serialization formats
 
 use openracing_profile::{
-    AdvancedSettings, CurveType, FfbSettings, InputSettings, LedMode, LimitSettings,
-    WheelProfile, WheelSettings,
+    AdvancedSettings, CurveType, FfbSettings, InputSettings, LedMode, LimitSettings, WheelProfile,
+    WheelSettings,
 };
 
 // --- Default settings snapshots ---

@@ -199,80 +199,304 @@ fn protocol_pids_unique_within_vendor() -> TestResult {
     // Collect (VID, PID, label) for all known products
     let all_products: &[(u16, u16, &str)] = &[
         // Logitech (VID 0x046D)
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::MOMO, "MOMO"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::DRIVING_FORCE_PRO, "DFP"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::DRIVING_FORCE_GT, "DFGT"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::SPEED_FORCE_WIRELESS, "SFW"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::MOMO_2, "MOMO 2"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::WINGMAN_FORMULA_FORCE_GP, "WFFGP"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::WINGMAN_FORMULA_FORCE, "WFF"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::VIBRATION_WHEEL, "Vibration"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::G25, "G25"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::DRIVING_FORCE_EX, "DF-EX"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::G27, "G27"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::G29_PS, "G29 PS"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::G920, "G920"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::G923, "G923"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::G923_PS, "G923 PS"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::G923_XBOX, "G923 Xbox"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::G923_XBOX_ALT, "G923 Xbox Alt"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::G_PRO, "G PRO"),
-        (0x046D, racing_wheel_hid_logitech_protocol::product_ids::G_PRO_XBOX, "G PRO Xbox"),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::MOMO,
+            "MOMO",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::DRIVING_FORCE_PRO,
+            "DFP",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::DRIVING_FORCE_GT,
+            "DFGT",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::SPEED_FORCE_WIRELESS,
+            "SFW",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::MOMO_2,
+            "MOMO 2",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::WINGMAN_FORMULA_FORCE_GP,
+            "WFFGP",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::WINGMAN_FORMULA_FORCE,
+            "WFF",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::VIBRATION_WHEEL,
+            "Vibration",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::G25,
+            "G25",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::DRIVING_FORCE_EX,
+            "DF-EX",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::G27,
+            "G27",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::G29_PS,
+            "G29 PS",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::G920,
+            "G920",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::G923,
+            "G923",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::G923_PS,
+            "G923 PS",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::G923_XBOX,
+            "G923 Xbox",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::G923_XBOX_ALT,
+            "G923 Xbox Alt",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::G_PRO,
+            "G PRO",
+        ),
+        (
+            0x046D,
+            racing_wheel_hid_logitech_protocol::product_ids::G_PRO_XBOX,
+            "G PRO Xbox",
+        ),
         // Fanatec (VID 0x0EB7)
-        (0x0EB7, racing_wheel_hid_fanatec_protocol::product_ids::CLUBSPORT_V2, "CS V2"),
-        (0x0EB7, racing_wheel_hid_fanatec_protocol::product_ids::CLUBSPORT_V2_5, "CS V2.5"),
-        (0x0EB7, racing_wheel_hid_fanatec_protocol::product_ids::CSL_ELITE_PS4, "CSL Elite PS4"),
-        (0x0EB7, racing_wheel_hid_fanatec_protocol::product_ids::DD1, "DD1"),
-        (0x0EB7, racing_wheel_hid_fanatec_protocol::product_ids::DD2, "DD2"),
-        (0x0EB7, racing_wheel_hid_fanatec_protocol::product_ids::CSR_ELITE, "CSR Elite"),
-        (0x0EB7, racing_wheel_hid_fanatec_protocol::product_ids::CSL_DD, "CSL DD"),
-        (0x0EB7, racing_wheel_hid_fanatec_protocol::product_ids::GT_DD_PRO, "GT DD Pro"),
-        (0x0EB7, racing_wheel_hid_fanatec_protocol::product_ids::CSL_ELITE, "CSL Elite"),
-        (0x0EB7, racing_wheel_hid_fanatec_protocol::product_ids::CLUBSPORT_DD, "CS DD"),
+        (
+            0x0EB7,
+            racing_wheel_hid_fanatec_protocol::product_ids::CLUBSPORT_V2,
+            "CS V2",
+        ),
+        (
+            0x0EB7,
+            racing_wheel_hid_fanatec_protocol::product_ids::CLUBSPORT_V2_5,
+            "CS V2.5",
+        ),
+        (
+            0x0EB7,
+            racing_wheel_hid_fanatec_protocol::product_ids::CSL_ELITE_PS4,
+            "CSL Elite PS4",
+        ),
+        (
+            0x0EB7,
+            racing_wheel_hid_fanatec_protocol::product_ids::DD1,
+            "DD1",
+        ),
+        (
+            0x0EB7,
+            racing_wheel_hid_fanatec_protocol::product_ids::DD2,
+            "DD2",
+        ),
+        (
+            0x0EB7,
+            racing_wheel_hid_fanatec_protocol::product_ids::CSR_ELITE,
+            "CSR Elite",
+        ),
+        (
+            0x0EB7,
+            racing_wheel_hid_fanatec_protocol::product_ids::CSL_DD,
+            "CSL DD",
+        ),
+        (
+            0x0EB7,
+            racing_wheel_hid_fanatec_protocol::product_ids::GT_DD_PRO,
+            "GT DD Pro",
+        ),
+        (
+            0x0EB7,
+            racing_wheel_hid_fanatec_protocol::product_ids::CSL_ELITE,
+            "CSL Elite",
+        ),
+        (
+            0x0EB7,
+            racing_wheel_hid_fanatec_protocol::product_ids::CLUBSPORT_DD,
+            "CS DD",
+        ),
         // Thrustmaster (VID 0x044F)
-        (0x044F, racing_wheel_hid_thrustmaster_protocol::product_ids::T150, "T150"),
-        (0x044F, racing_wheel_hid_thrustmaster_protocol::product_ids::T300_RS, "T300 RS"),
-        (0x044F, racing_wheel_hid_thrustmaster_protocol::product_ids::T300_RS_PS4, "T300 RS PS4"),
-        (0x044F, racing_wheel_hid_thrustmaster_protocol::product_ids::T300_RS_GT, "T300 RS GT"),
-        (0x044F, racing_wheel_hid_thrustmaster_protocol::product_ids::TX_RACING, "TX Racing"),
-        (0x044F, racing_wheel_hid_thrustmaster_protocol::product_ids::T500_RS, "T500 RS"),
-        (0x044F, racing_wheel_hid_thrustmaster_protocol::product_ids::T248, "T248"),
-        (0x044F, racing_wheel_hid_thrustmaster_protocol::product_ids::T818, "T818"),
-        (0x044F, racing_wheel_hid_thrustmaster_protocol::product_ids::TS_PC_RACER, "TS-PC Racer"),
-        (0x044F, racing_wheel_hid_thrustmaster_protocol::product_ids::TS_XW, "TS-XW"),
-        (0x044F, racing_wheel_hid_thrustmaster_protocol::product_ids::TMX, "TMX"),
-        (0x044F, racing_wheel_hid_thrustmaster_protocol::product_ids::T248X, "T248X"),
+        (
+            0x044F,
+            racing_wheel_hid_thrustmaster_protocol::product_ids::T150,
+            "T150",
+        ),
+        (
+            0x044F,
+            racing_wheel_hid_thrustmaster_protocol::product_ids::T300_RS,
+            "T300 RS",
+        ),
+        (
+            0x044F,
+            racing_wheel_hid_thrustmaster_protocol::product_ids::T300_RS_PS4,
+            "T300 RS PS4",
+        ),
+        (
+            0x044F,
+            racing_wheel_hid_thrustmaster_protocol::product_ids::T300_RS_GT,
+            "T300 RS GT",
+        ),
+        (
+            0x044F,
+            racing_wheel_hid_thrustmaster_protocol::product_ids::TX_RACING,
+            "TX Racing",
+        ),
+        (
+            0x044F,
+            racing_wheel_hid_thrustmaster_protocol::product_ids::T500_RS,
+            "T500 RS",
+        ),
+        (
+            0x044F,
+            racing_wheel_hid_thrustmaster_protocol::product_ids::T248,
+            "T248",
+        ),
+        (
+            0x044F,
+            racing_wheel_hid_thrustmaster_protocol::product_ids::T818,
+            "T818",
+        ),
+        (
+            0x044F,
+            racing_wheel_hid_thrustmaster_protocol::product_ids::TS_PC_RACER,
+            "TS-PC Racer",
+        ),
+        (
+            0x044F,
+            racing_wheel_hid_thrustmaster_protocol::product_ids::TS_XW,
+            "TS-XW",
+        ),
+        (
+            0x044F,
+            racing_wheel_hid_thrustmaster_protocol::product_ids::TMX,
+            "TMX",
+        ),
+        (
+            0x044F,
+            racing_wheel_hid_thrustmaster_protocol::product_ids::T248X,
+            "T248X",
+        ),
         // PXN (VID 0x11FF)
         (0x11FF, racing_wheel_hid_pxn_protocol::PRODUCT_V10, "V10"),
         (0x11FF, racing_wheel_hid_pxn_protocol::PRODUCT_V12, "V12"),
-        (0x11FF, racing_wheel_hid_pxn_protocol::PRODUCT_V12_LITE, "V12 Lite"),
-        (0x11FF, racing_wheel_hid_pxn_protocol::PRODUCT_V12_LITE_2, "V12 Lite 2"),
-        (0x11FF, racing_wheel_hid_pxn_protocol::PRODUCT_GT987, "GT987"),
+        (
+            0x11FF,
+            racing_wheel_hid_pxn_protocol::PRODUCT_V12_LITE,
+            "V12 Lite",
+        ),
+        (
+            0x11FF,
+            racing_wheel_hid_pxn_protocol::PRODUCT_V12_LITE_2,
+            "V12 Lite 2",
+        ),
+        (
+            0x11FF,
+            racing_wheel_hid_pxn_protocol::PRODUCT_GT987,
+            "GT987",
+        ),
         // Cammus (VID 0x3416)
         (0x3416, racing_wheel_hid_cammus_protocol::PRODUCT_C5, "C5"),
         (0x3416, racing_wheel_hid_cammus_protocol::PRODUCT_C12, "C12"),
-        (0x3416, racing_wheel_hid_cammus_protocol::PRODUCT_CP5_PEDALS, "CP5 Pedals"),
-        (0x3416, racing_wheel_hid_cammus_protocol::PRODUCT_LC100_PEDALS, "LC100 Pedals"),
+        (
+            0x3416,
+            racing_wheel_hid_cammus_protocol::PRODUCT_CP5_PEDALS,
+            "CP5 Pedals",
+        ),
+        (
+            0x3416,
+            racing_wheel_hid_cammus_protocol::PRODUCT_LC100_PEDALS,
+            "LC100 Pedals",
+        ),
         // Simucube (VID 0x16D0)
         (0x16D0, hid_simucube_protocol::SIMUCUBE_1_PID, "Simucube 1"),
         (0x16D0, hid_simucube_protocol::SIMUCUBE_2_SPORT_PID, "Sport"),
         (0x16D0, hid_simucube_protocol::SIMUCUBE_2_PRO_PID, "Pro"),
-        (0x16D0, hid_simucube_protocol::SIMUCUBE_2_ULTIMATE_PID, "Ultimate"),
-        (0x16D0, hid_simucube_protocol::SIMUCUBE_ACTIVE_PEDAL_PID, "ActivePedal"),
-        (0x16D0, hid_simucube_protocol::SIMUCUBE_WIRELESS_WHEEL_PID, "Wireless Wheel"),
+        (
+            0x16D0,
+            hid_simucube_protocol::SIMUCUBE_2_ULTIMATE_PID,
+            "Ultimate",
+        ),
+        (
+            0x16D0,
+            hid_simucube_protocol::SIMUCUBE_ACTIVE_PEDAL_PID,
+            "ActivePedal",
+        ),
+        (
+            0x16D0,
+            hid_simucube_protocol::SIMUCUBE_WIRELESS_WHEEL_PID,
+            "Wireless Wheel",
+        ),
         // Simagic EVO (VID 0x3670)
-        (0x3670, racing_wheel_hid_simagic_protocol::product_ids::EVO_SPORT, "EVO Sport"),
-        (0x3670, racing_wheel_hid_simagic_protocol::product_ids::EVO, "EVO"),
-        (0x3670, racing_wheel_hid_simagic_protocol::product_ids::EVO_PRO, "EVO Pro"),
+        (
+            0x3670,
+            racing_wheel_hid_simagic_protocol::product_ids::EVO_SPORT,
+            "EVO Sport",
+        ),
+        (
+            0x3670,
+            racing_wheel_hid_simagic_protocol::product_ids::EVO,
+            "EVO",
+        ),
+        (
+            0x3670,
+            racing_wheel_hid_simagic_protocol::product_ids::EVO_PRO,
+            "EVO Pro",
+        ),
         // FFBeast (VID 0x045B)
-        (0x045B, racing_wheel_hid_ffbeast_protocol::FFBEAST_PRODUCT_ID_JOYSTICK, "Joystick"),
-        (0x045B, racing_wheel_hid_ffbeast_protocol::FFBEAST_PRODUCT_ID_RUDDER, "Rudder"),
-        (0x045B, racing_wheel_hid_ffbeast_protocol::FFBEAST_PRODUCT_ID_WHEEL, "Wheel"),
+        (
+            0x045B,
+            racing_wheel_hid_ffbeast_protocol::FFBEAST_PRODUCT_ID_JOYSTICK,
+            "Joystick",
+        ),
+        (
+            0x045B,
+            racing_wheel_hid_ffbeast_protocol::FFBEAST_PRODUCT_ID_RUDDER,
+            "Rudder",
+        ),
+        (
+            0x045B,
+            racing_wheel_hid_ffbeast_protocol::FFBEAST_PRODUCT_ID_WHEEL,
+            "Wheel",
+        ),
         // Asetek (VID 0x2433)
         (0x2433, hid_asetek_protocol::ASETEK_INVICTA_PID, "Invicta"),
         (0x2433, hid_asetek_protocol::ASETEK_FORTE_PID, "Forte"),
         (0x2433, hid_asetek_protocol::ASETEK_LAPRIMA_PID, "La Prima"),
-        (0x2433, hid_asetek_protocol::ASETEK_TONY_KANAAN_PID, "Tony Kanaan"),
+        (
+            0x2433,
+            hid_asetek_protocol::ASETEK_TONY_KANAAN_PID,
+            "Tony Kanaan",
+        ),
     ];
 
     // Group by VID and check for PID collisions
@@ -366,40 +590,101 @@ fn telemetry_adapter_game_ids_are_non_empty() -> TestResult {
 /// common placeholder text (TODO, FIXME, placeholder, TBD, unknown device).
 #[test]
 fn protocol_device_names_are_valid() -> TestResult {
-    let placeholder_patterns: &[&str] = &[
-        "todo", "fixme", "placeholder", "tbd", "xxx", "n/a",
-    ];
+    let placeholder_patterns: &[&str] = &["todo", "fixme", "placeholder", "tbd", "xxx", "n/a"];
 
     // Collect (name, source) pairs from all protocol crates that expose
     // display_name / product_name / name functions.
     let names: Vec<(&str, &str)> = vec![
         // Thrustmaster Model::name()
-        (racing_wheel_hid_thrustmaster_protocol::Model::T150.name(), "Thrustmaster T150"),
-        (racing_wheel_hid_thrustmaster_protocol::Model::T300RS.name(), "Thrustmaster T300RS"),
-        (racing_wheel_hid_thrustmaster_protocol::Model::T818.name(), "Thrustmaster T818"),
-        (racing_wheel_hid_thrustmaster_protocol::Model::TSPCRacer.name(), "Thrustmaster TSPCRacer"),
-        (racing_wheel_hid_thrustmaster_protocol::Model::T80.name(), "Thrustmaster T80"),
+        (
+            racing_wheel_hid_thrustmaster_protocol::Model::T150.name(),
+            "Thrustmaster T150",
+        ),
+        (
+            racing_wheel_hid_thrustmaster_protocol::Model::T300RS.name(),
+            "Thrustmaster T300RS",
+        ),
+        (
+            racing_wheel_hid_thrustmaster_protocol::Model::T818.name(),
+            "Thrustmaster T818",
+        ),
+        (
+            racing_wheel_hid_thrustmaster_protocol::Model::TSPCRacer.name(),
+            "Thrustmaster TSPCRacer",
+        ),
+        (
+            racing_wheel_hid_thrustmaster_protocol::Model::T80.name(),
+            "Thrustmaster T80",
+        ),
         // Simucube SimucubeModel::display_name()
-        (hid_simucube_protocol::SimucubeModel::Simucube1.display_name(), "Simucube 1"),
-        (hid_simucube_protocol::SimucubeModel::Sport.display_name(), "Simucube Sport"),
-        (hid_simucube_protocol::SimucubeModel::Pro.display_name(), "Simucube Pro"),
-        (hid_simucube_protocol::SimucubeModel::Ultimate.display_name(), "Simucube Ultimate"),
+        (
+            hid_simucube_protocol::SimucubeModel::Simucube1.display_name(),
+            "Simucube 1",
+        ),
+        (
+            hid_simucube_protocol::SimucubeModel::Sport.display_name(),
+            "Simucube Sport",
+        ),
+        (
+            hid_simucube_protocol::SimucubeModel::Pro.display_name(),
+            "Simucube Pro",
+        ),
+        (
+            hid_simucube_protocol::SimucubeModel::Ultimate.display_name(),
+            "Simucube Ultimate",
+        ),
         // Asetek AsetekModel::display_name()
-        (hid_asetek_protocol::AsetekModel::Forte.display_name(), "Asetek Forte"),
-        (hid_asetek_protocol::AsetekModel::Invicta.display_name(), "Asetek Invicta"),
-        (hid_asetek_protocol::AsetekModel::LaPrima.display_name(), "Asetek LaPrima"),
-        (hid_asetek_protocol::AsetekModel::TonyKanaan.display_name(), "Asetek TonyKanaan"),
+        (
+            hid_asetek_protocol::AsetekModel::Forte.display_name(),
+            "Asetek Forte",
+        ),
+        (
+            hid_asetek_protocol::AsetekModel::Invicta.display_name(),
+            "Asetek Invicta",
+        ),
+        (
+            hid_asetek_protocol::AsetekModel::LaPrima.display_name(),
+            "Asetek LaPrima",
+        ),
+        (
+            hid_asetek_protocol::AsetekModel::TonyKanaan.display_name(),
+            "Asetek TonyKanaan",
+        ),
         // Heusinkveld HeusinkveldModel::display_name()
-        (hid_heusinkveld_protocol::HeusinkveldModel::Sprint.display_name(), "Heusinkveld Sprint"),
-        (hid_heusinkveld_protocol::HeusinkveldModel::Ultimate.display_name(), "Heusinkveld Ultimate"),
-        (hid_heusinkveld_protocol::HeusinkveldModel::Pro.display_name(), "Heusinkveld Pro"),
+        (
+            hid_heusinkveld_protocol::HeusinkveldModel::Sprint.display_name(),
+            "Heusinkveld Sprint",
+        ),
+        (
+            hid_heusinkveld_protocol::HeusinkveldModel::Ultimate.display_name(),
+            "Heusinkveld Ultimate",
+        ),
+        (
+            hid_heusinkveld_protocol::HeusinkveldModel::Pro.display_name(),
+            "Heusinkveld Pro",
+        ),
         // Cube Controls CubeControlsModel::display_name()
-        (hid_cube_controls_protocol::CubeControlsModel::GtPro.display_name(), "CC GT Pro"),
-        (hid_cube_controls_protocol::CubeControlsModel::FormulaPro.display_name(), "CC Formula Pro"),
-        (hid_cube_controls_protocol::CubeControlsModel::Csx3.display_name(), "CC CSX3"),
+        (
+            hid_cube_controls_protocol::CubeControlsModel::GtPro.display_name(),
+            "CC GT Pro",
+        ),
+        (
+            hid_cube_controls_protocol::CubeControlsModel::FormulaPro.display_name(),
+            "CC Formula Pro",
+        ),
+        (
+            hid_cube_controls_protocol::CubeControlsModel::Csx3.display_name(),
+            "CC CSX3",
+        ),
         // OpenFFBoard OpenFFBoardVariant::name()
-        (racing_wheel_hid_openffboard_protocol::OpenFFBoardVariant::Main.name(), "OpenFFBoard Main"),
-        (racing_wheel_hid_openffboard_protocol::OpenFFBoardVariant::Alternate.name(), "OpenFFBoard Alt"),
+        (
+            racing_wheel_hid_openffboard_protocol::OpenFFBoardVariant::Main.name(),
+            "OpenFFBoard Main",
+        ),
+        (
+            racing_wheel_hid_openffboard_protocol::OpenFFBoardVariant::Alternate.name(),
+            "OpenFFBoard Alt",
+        ),
         // PXN product_name()
         (
             racing_wheel_hid_pxn_protocol::product_name(racing_wheel_hid_pxn_protocol::PRODUCT_V10)
@@ -413,13 +698,17 @@ fn protocol_device_names_are_valid() -> TestResult {
         ),
         // Cammus product_name()
         (
-            racing_wheel_hid_cammus_protocol::product_name(racing_wheel_hid_cammus_protocol::PRODUCT_C5)
-                .unwrap_or(""),
+            racing_wheel_hid_cammus_protocol::product_name(
+                racing_wheel_hid_cammus_protocol::PRODUCT_C5,
+            )
+            .unwrap_or(""),
             "Cammus C5",
         ),
         (
-            racing_wheel_hid_cammus_protocol::product_name(racing_wheel_hid_cammus_protocol::PRODUCT_C12)
-                .unwrap_or(""),
+            racing_wheel_hid_cammus_protocol::product_name(
+                racing_wheel_hid_cammus_protocol::PRODUCT_C12,
+            )
+            .unwrap_or(""),
             "Cammus C12",
         ),
     ];
@@ -453,10 +742,22 @@ fn protocol_device_names_are_valid() -> TestResult {
 #[test]
 fn protocol_vendor_ids_are_non_zero() -> TestResult {
     let vids: &[(u16, &str)] = &[
-        (racing_wheel_hid_logitech_protocol::LOGITECH_VENDOR_ID, "Logitech"),
-        (racing_wheel_hid_fanatec_protocol::FANATEC_VENDOR_ID, "Fanatec"),
-        (racing_wheel_hid_thrustmaster_protocol::THRUSTMASTER_VENDOR_ID, "Thrustmaster"),
-        (racing_wheel_hid_simagic_protocol::SIMAGIC_VENDOR_ID, "Simagic"),
+        (
+            racing_wheel_hid_logitech_protocol::LOGITECH_VENDOR_ID,
+            "Logitech",
+        ),
+        (
+            racing_wheel_hid_fanatec_protocol::FANATEC_VENDOR_ID,
+            "Fanatec",
+        ),
+        (
+            racing_wheel_hid_thrustmaster_protocol::THRUSTMASTER_VENDOR_ID,
+            "Thrustmaster",
+        ),
+        (
+            racing_wheel_hid_simagic_protocol::SIMAGIC_VENDOR_ID,
+            "Simagic",
+        ),
         (racing_wheel_hid_moza_protocol::MOZA_VENDOR_ID, "Moza"),
         (racing_wheel_hid_pxn_protocol::VENDOR_ID, "PXN"),
         (racing_wheel_hid_cammus_protocol::VENDOR_ID, "Cammus"),
@@ -464,11 +765,26 @@ fn protocol_vendor_ids_are_non_zero() -> TestResult {
         (racing_wheel_hid_vrs_protocol::VRS_VENDOR_ID, "VRS"),
         (hid_asetek_protocol::VENDOR_ID, "Asetek"),
         (racing_wheel_hid_accuforce_protocol::VENDOR_ID, "AccuForce"),
-        (racing_wheel_hid_leo_bodnar_protocol::VENDOR_ID, "Leo Bodnar"),
-        (racing_wheel_hid_ffbeast_protocol::FFBEAST_VENDOR_ID, "FFBeast"),
-        (racing_wheel_hid_openffboard_protocol::OPENFFBOARD_VENDOR_ID, "OpenFFBoard"),
-        (hid_cube_controls_protocol::CUBE_CONTROLS_VENDOR_ID, "Cube Controls"),
-        (hid_heusinkveld_protocol::HEUSINKVELD_VENDOR_ID, "Heusinkveld"),
+        (
+            racing_wheel_hid_leo_bodnar_protocol::VENDOR_ID,
+            "Leo Bodnar",
+        ),
+        (
+            racing_wheel_hid_ffbeast_protocol::FFBEAST_VENDOR_ID,
+            "FFBeast",
+        ),
+        (
+            racing_wheel_hid_openffboard_protocol::OPENFFBOARD_VENDOR_ID,
+            "OpenFFBoard",
+        ),
+        (
+            hid_cube_controls_protocol::CUBE_CONTROLS_VENDOR_ID,
+            "Cube Controls",
+        ),
+        (
+            hid_heusinkveld_protocol::HEUSINKVELD_VENDOR_ID,
+            "Heusinkveld",
+        ),
     ];
 
     let mut bad: Vec<&str> = Vec::new();
@@ -494,22 +810,38 @@ fn shared_stm_vid_pids_do_not_collide() -> TestResult {
     // VRS PIDs on shared STM VID
     let vrs_pids: &[(u16, &str)] = &[
         (racing_wheel_hid_vrs_protocol::VRS_PRODUCT_ID, "VRS DFP"),
-        (racing_wheel_hid_vrs_protocol::product_ids::DIRECTFORCE_PRO_V2, "VRS DFP V2"),
+        (
+            racing_wheel_hid_vrs_protocol::product_ids::DIRECTFORCE_PRO_V2,
+            "VRS DFP V2",
+        ),
         (racing_wheel_hid_vrs_protocol::product_ids::R295, "VRS R295"),
-        (racing_wheel_hid_vrs_protocol::product_ids::PEDALS, "VRS Pedals"),
+        (
+            racing_wheel_hid_vrs_protocol::product_ids::PEDALS,
+            "VRS Pedals",
+        ),
     ];
 
     // Cube Controls PIDs on shared STM VID
     let cc_pids: &[(u16, &str)] = &[
-        (hid_cube_controls_protocol::CUBE_CONTROLS_GT_PRO_PID, "CC GT Pro"),
-        (hid_cube_controls_protocol::CUBE_CONTROLS_FORMULA_PRO_PID, "CC Formula Pro"),
-        (hid_cube_controls_protocol::CUBE_CONTROLS_CSX3_PID, "CC CSX3"),
+        (
+            hid_cube_controls_protocol::CUBE_CONTROLS_GT_PRO_PID,
+            "CC GT Pro",
+        ),
+        (
+            hid_cube_controls_protocol::CUBE_CONTROLS_FORMULA_PRO_PID,
+            "CC Formula Pro",
+        ),
+        (
+            hid_cube_controls_protocol::CUBE_CONTROLS_CSX3_PID,
+            "CC CSX3",
+        ),
     ];
 
     // Simagic legacy PID on shared STM VID
-    let simagic_pids: &[(u16, &str)] = &[
-        (racing_wheel_hid_simagic_protocol::ids::SIMAGIC_LEGACY_PID, "Simagic Legacy"),
-    ];
+    let simagic_pids: &[(u16, &str)] = &[(
+        racing_wheel_hid_simagic_protocol::ids::SIMAGIC_LEGACY_PID,
+        "Simagic Legacy",
+    )];
 
     let mut all_pids: HashMap<u16, Vec<&str>> = HashMap::new();
     for group in [vrs_pids, cc_pids, simagic_pids] {
@@ -521,10 +853,7 @@ fn shared_stm_vid_pids_do_not_collide() -> TestResult {
     let mut collisions: Vec<String> = Vec::new();
     for (pid, owners) in &all_pids {
         if owners.len() > 1 {
-            collisions.push(format!(
-                "PID 0x{pid:04X} claimed by: {}",
-                owners.join(", ")
-            ));
+            collisions.push(format!("PID 0x{pid:04X} claimed by: {}", owners.join(", ")));
         }
     }
 

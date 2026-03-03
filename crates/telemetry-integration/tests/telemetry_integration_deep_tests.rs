@@ -2,9 +2,9 @@
 //! simulation, adapter selection via policies, BDD metrics, and error handling.
 
 use racing_wheel_telemetry_integration::{
+    CoverageMismatch, CoveragePolicy, RegistryCoverage, RuntimeCoverageReport,
     compare_matrix_and_registry, compare_matrix_and_registry_with_policy,
-    compare_runtime_registries_with_policies, CoverageMismatch, CoveragePolicy,
-    RegistryCoverage, RuntimeCoverageReport,
+    compare_runtime_registries_with_policies,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -30,7 +30,10 @@ fn coverage_disjoint_sets() -> TestResult {
     assert!(!c.is_exact());
     assert!(!c.has_complete_matrix_coverage());
     assert!(!c.has_no_extra_coverage());
-    assert_eq!(c.missing_in_registry, vec!["a".to_string(), "b".to_string()]);
+    assert_eq!(
+        c.missing_in_registry,
+        vec!["a".to_string(), "b".to_string()]
+    );
     assert_eq!(c.extra_in_registry, vec!["c".to_string(), "d".to_string()]);
     assert_eq!(c.matrix_coverage_ratio(), 0.0);
     assert_eq!(c.registry_coverage_ratio(), 0.0);
@@ -61,10 +64,7 @@ fn coverage_superset_matrix() -> TestResult {
 
 #[test]
 fn coverage_mixed_case_normalization() -> TestResult {
-    let c = compare_matrix_and_registry(
-        ["IRacing", "ACC", "DiRt5"],
-        ["iracing", "acc", "dirt5"],
-    );
+    let c = compare_matrix_and_registry(["IRacing", "ACC", "DiRt5"], ["iracing", "acc", "dirt5"]);
     assert!(c.is_exact());
     Ok(())
 }
@@ -103,7 +103,10 @@ fn coverage_large_set_deterministic() -> TestResult {
     let registry = matrix.clone();
     matrix.reverse(); // Different order, same content
 
-    let c = compare_matrix_and_registry(matrix.iter().map(|s| s.as_str()), registry.iter().map(|s| s.as_str()));
+    let c = compare_matrix_and_registry(
+        matrix.iter().map(|s| s.as_str()),
+        registry.iter().map(|s| s.as_str()),
+    );
     assert!(c.is_exact());
     assert_eq!(c.matrix_game_ids.len(), 100);
     // Verify sorted
@@ -160,8 +163,7 @@ fn metrics_exact_match() -> TestResult {
 
 #[test]
 fn metrics_empty_sets() -> TestResult {
-    let c: RegistryCoverage =
-        compare_matrix_and_registry(Vec::<&str>::new(), Vec::<&str>::new());
+    let c: RegistryCoverage = compare_matrix_and_registry(Vec::<&str>::new(), Vec::<&str>::new());
     let m = c.metrics();
     assert_eq!(m.matrix_game_count, 0);
     assert_eq!(m.registry_game_count, 0);
@@ -274,11 +276,8 @@ fn policy_debug_format() {
 
 #[test]
 fn policy_comparison_strict_exact_match_ok() -> TestResult {
-    let result = compare_matrix_and_registry_with_policy(
-        ["a", "b"],
-        ["a", "b"],
-        CoveragePolicy::STRICT,
-    );
+    let result =
+        compare_matrix_and_registry_with_policy(["a", "b"], ["a", "b"], CoveragePolicy::STRICT);
     assert!(result.is_ok());
     let coverage = result?;
     assert!(coverage.is_exact());
@@ -287,25 +286,21 @@ fn policy_comparison_strict_exact_match_ok() -> TestResult {
 
 #[test]
 fn policy_comparison_strict_missing_returns_mismatch() -> TestResult {
-    let result = compare_matrix_and_registry_with_policy(
-        ["a", "b", "c"],
-        ["a"],
-        CoveragePolicy::STRICT,
-    );
+    let result =
+        compare_matrix_and_registry_with_policy(["a", "b", "c"], ["a"], CoveragePolicy::STRICT);
     assert!(result.is_err());
     let mismatch = result.err().ok_or("expected error")?;
-    assert_eq!(mismatch.missing_in_registry, vec!["b".to_string(), "c".to_string()]);
+    assert_eq!(
+        mismatch.missing_in_registry,
+        vec!["b".to_string(), "c".to_string()]
+    );
     assert!(mismatch.extra_in_registry.is_empty());
     Ok(())
 }
 
 #[test]
 fn policy_comparison_strict_extra_returns_mismatch() -> TestResult {
-    let result = compare_matrix_and_registry_with_policy(
-        ["a"],
-        ["a", "b"],
-        CoveragePolicy::STRICT,
-    );
+    let result = compare_matrix_and_registry_with_policy(["a"], ["a", "b"], CoveragePolicy::STRICT);
     let mismatch = result.err().ok_or("expected error")?;
     assert!(mismatch.missing_in_registry.is_empty());
     assert_eq!(mismatch.extra_in_registry, vec!["b".to_string()]);
@@ -470,13 +465,13 @@ fn runtime_report_adapter_ok_writer_missing() -> TestResult {
 fn runtime_report_mixed_policies() -> TestResult {
     let r = make_report(
         &["a", "b", "c"],
-        &["a", "b"],       // missing "c"
-        &["a", "b", "c", "d"],  // extra "d"
-        CoveragePolicy::LENIENT, // adapter: allow missing
+        &["a", "b"],                     // missing "c"
+        &["a", "b", "c", "d"],           // extra "d"
+        CoveragePolicy::LENIENT,         // adapter: allow missing
         CoveragePolicy::MATRIX_COMPLETE, // writer: allow extra
     );
     assert!(r.adapter_policy_ok()); // lenient allows missing
-    assert!(r.writer_policy_ok());  // matrix_complete allows extra
+    assert!(r.writer_policy_ok()); // matrix_complete allows extra
     assert!(r.is_parity_ok());
     Ok(())
 }
@@ -543,8 +538,8 @@ fn runtime_metrics_all_fields_populated() -> TestResult {
     assert_eq!(m.adapter.matrix_game_count, 3);
     assert_eq!(m.adapter.registry_game_count, 3);
     assert_eq!(m.adapter.missing_count, 1); // c
-    assert_eq!(m.adapter.extra_count, 1);   // d
-    assert_eq!(m.writer.missing_count, 1);  // b
+    assert_eq!(m.adapter.extra_count, 1); // d
+    assert_eq!(m.writer.missing_count, 1); // b
     assert_eq!(m.writer.extra_count, 0);
     assert!(!m.parity_ok);
     Ok(())
@@ -696,16 +691,32 @@ fn registry_bdd_metrics_lenient_with_both_mismatch() -> TestResult {
 #[test]
 fn game_detection_typical_racing_setup() -> TestResult {
     let supported_matrix = [
-        "acc", "iracing", "dirt5", "f1_2023",
-        "forza_horizon_5", "forza_motorsport", "ams2",
-        "raceroom", "rfactor2", "automobilista",
+        "acc",
+        "iracing",
+        "dirt5",
+        "f1_2023",
+        "forza_horizon_5",
+        "forza_motorsport",
+        "ams2",
+        "raceroom",
+        "rfactor2",
+        "automobilista",
     ];
     let detected_adapters = [
-        "acc", "iracing", "f1_2023", "forza_horizon_5",
-        "forza_motorsport", "ams2", "raceroom", "rfactor2",
+        "acc",
+        "iracing",
+        "f1_2023",
+        "forza_horizon_5",
+        "forza_motorsport",
+        "ams2",
+        "raceroom",
+        "rfactor2",
     ];
     let detected_writers = [
-        "acc", "iracing", "f1_2023", "forza_horizon_5",
+        "acc",
+        "iracing",
+        "f1_2023",
+        "forza_horizon_5",
         "forza_motorsport",
     ];
 
@@ -736,11 +747,7 @@ fn game_detection_progressive_adapter_rollout() -> TestResult {
     let matrix = ["acc", "iracing", "dirt5"];
 
     // Phase 1: only one adapter
-    let r1 = compare_matrix_and_registry_with_policy(
-        matrix,
-        ["acc"],
-        CoveragePolicy::LENIENT,
-    );
+    let r1 = compare_matrix_and_registry_with_policy(matrix, ["acc"], CoveragePolicy::LENIENT);
     assert!(r1.is_ok());
     let c1 = r1?;
     assert_eq!(c1.missing_in_registry.len(), 2);
@@ -781,20 +788,14 @@ fn normalization_preserves_non_ascii_lowercase() -> TestResult {
 
 #[test]
 fn normalization_numbers_and_underscores() -> TestResult {
-    let c = compare_matrix_and_registry(
-        ["game_123", "GAME_456"],
-        ["game_123", "game_456"],
-    );
+    let c = compare_matrix_and_registry(["game_123", "GAME_456"], ["game_123", "game_456"]);
     assert!(c.is_exact());
     Ok(())
 }
 
 #[test]
 fn normalization_hyphenated_ids() -> TestResult {
-    let c = compare_matrix_and_registry(
-        ["FORZA-HORIZON-5"],
-        ["forza-horizon-5"],
-    );
+    let c = compare_matrix_and_registry(["FORZA-HORIZON-5"], ["forza-horizon-5"]);
     assert!(c.is_exact());
     Ok(())
 }
@@ -813,10 +814,7 @@ fn runtime_report_clone() -> TestResult {
         CoveragePolicy::LENIENT,
     );
     let cloned = r.clone();
-    assert_eq!(
-        cloned.matrix_game_ids,
-        r.matrix_game_ids
-    );
+    assert_eq!(cloned.matrix_game_ids, r.matrix_game_ids);
     assert_eq!(
         cloned.adapter_coverage.missing_in_registry,
         r.adapter_coverage.missing_in_registry

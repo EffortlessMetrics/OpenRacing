@@ -14,18 +14,55 @@ mod helpers;
 use helpers::write_f32_le;
 use proptest::prelude::*;
 use racing_wheel_telemetry_adapters::{
-    self as adapters, NormalizedTelemetry, TelemetryAdapter,
-    // UDP-based adapters with public parse functions
-    dakar, ets2, flatout, le_mans_ultimate, nascar, pcars2, rennsport, rfactor1, simhub,
-    trackmania, wreckfest, wtcr,
+    self as adapters,
     // Adapters accessed via normalize()
-    BeamNGAdapter, Dirt3Adapter, Dirt4Adapter, Dirt5Adapter, DirtRally2Adapter,
-    DirtShowdownAdapter, Ets2Adapter, ForzaHorizon4Adapter, ForzaHorizon5Adapter,
-    GranTurismo7SportsAdapter, Grid2019Adapter, GridAutosportAdapter, GridLegendsAdapter,
-    IRacingAdapter, KartKraftAdapter, LFSAdapter, LeMansUltimateAdapter, MudRunnerAdapter,
-    NascarAdapter, Nascar21Adapter, PCars2Adapter, PCars3Adapter, RBRAdapter,
-    RaceDriverGridAdapter, RaceRoomAdapter, RennsportAdapter, RFactor1Adapter, RFactor2Adapter,
-    WrcGenerationsAdapter, WrcKylotonnAdapter, WreckfestAdapter, WtcrAdapter,
+    BeamNGAdapter,
+    Dirt3Adapter,
+    Dirt4Adapter,
+    Dirt5Adapter,
+    DirtRally2Adapter,
+    DirtShowdownAdapter,
+    Ets2Adapter,
+    ForzaHorizon4Adapter,
+    ForzaHorizon5Adapter,
+    GranTurismo7SportsAdapter,
+    Grid2019Adapter,
+    GridAutosportAdapter,
+    GridLegendsAdapter,
+    IRacingAdapter,
+    KartKraftAdapter,
+    LFSAdapter,
+    LeMansUltimateAdapter,
+    MudRunnerAdapter,
+    Nascar21Adapter,
+    NascarAdapter,
+    NormalizedTelemetry,
+    PCars2Adapter,
+    PCars3Adapter,
+    RBRAdapter,
+    RFactor1Adapter,
+    RFactor2Adapter,
+    RaceDriverGridAdapter,
+    RaceRoomAdapter,
+    RennsportAdapter,
+    TelemetryAdapter,
+    WrcGenerationsAdapter,
+    WrcKylotonnAdapter,
+    WreckfestAdapter,
+    WtcrAdapter,
+    // UDP-based adapters with public parse functions
+    dakar,
+    ets2,
+    flatout,
+    le_mans_ultimate,
+    nascar,
+    pcars2,
+    rennsport,
+    rfactor1,
+    simhub,
+    trackmania,
+    wreckfest,
+    wtcr,
 };
 
 // ── Invariant helpers ────────────────────────────────────────────────────────
@@ -37,11 +74,7 @@ fn assert_telemetry_invariants(t: &NormalizedTelemetry) {
         "speed_ms invalid: {}",
         t.speed_ms
     );
-    assert!(
-        t.rpm >= 0.0 && t.rpm.is_finite(),
-        "rpm invalid: {}",
-        t.rpm
-    );
+    assert!(t.rpm >= 0.0 && t.rpm.is_finite(), "rpm invalid: {}", t.rpm);
     assert!(
         t.throttle >= 0.0 && t.throttle <= 1.0,
         "throttle out of 0.0..=1.0: {}",
@@ -116,17 +149,47 @@ adapter_normalize_fuzz!(fuzz_nascar, NascarAdapter::new(), 512, 92);
 adapter_normalize_fuzz!(fuzz_wreckfest, WreckfestAdapter::new(), 512, 28);
 adapter_normalize_fuzz!(fuzz_rennsport, RennsportAdapter::new(), 512, 24);
 adapter_normalize_fuzz!(fuzz_rbr, RBRAdapter::new(), 256, 128);
-adapter_normalize_fuzz!(fuzz_rfactor1, RFactor1Adapter::with_variant(rfactor1::RFactor1Variant::RFactor1), 2048, 48);
+adapter_normalize_fuzz!(
+    fuzz_rfactor1,
+    RFactor1Adapter::with_variant(rfactor1::RFactor1Variant::RFactor1),
+    2048,
+    48
+);
 adapter_normalize_fuzz!(fuzz_rfactor2, RFactor2Adapter::new(), 4096, 2048);
-adapter_normalize_fuzz!(fuzz_wrc_kylotonn, WrcKylotonnAdapter::new(adapters::wrc_kylotonn::WrcKylotonnVariant::Wrc9), 256, 96);
+adapter_normalize_fuzz!(
+    fuzz_wrc_kylotonn,
+    WrcKylotonnAdapter::new(adapters::wrc_kylotonn::WrcKylotonnVariant::Wrc9),
+    256,
+    96
+);
 adapter_normalize_fuzz!(fuzz_le_mans, LeMansUltimateAdapter::new(), 512, 20);
-adapter_normalize_fuzz!(fuzz_dakar, adapters::dakar::DakarDesertRallyAdapter::new(), 512, 40);
-adapter_normalize_fuzz!(fuzz_flatout, adapters::flatout::FlatOutAdapter::new(), 512, 36);
+adapter_normalize_fuzz!(
+    fuzz_dakar,
+    adapters::dakar::DakarDesertRallyAdapter::new(),
+    512,
+    40
+);
+adapter_normalize_fuzz!(
+    fuzz_flatout,
+    adapters::flatout::FlatOutAdapter::new(),
+    512,
+    36
+);
 adapter_normalize_fuzz!(fuzz_pcars2, PCars2Adapter::new(), 1500, 46);
 adapter_normalize_fuzz!(fuzz_pcars3, PCars3Adapter::new(), 512, 46);
 adapter_normalize_fuzz!(fuzz_wtcr, WtcrAdapter::new(), 512, 264);
-adapter_normalize_fuzz!(fuzz_simhub, adapters::simhub::SimHubAdapter::new(), 1024, 64);
-adapter_normalize_fuzz!(fuzz_trackmania, adapters::trackmania::TrackmaniaAdapter::new(), 1024, 64);
+adapter_normalize_fuzz!(
+    fuzz_simhub,
+    adapters::simhub::SimHubAdapter::new(),
+    1024,
+    64
+);
+adapter_normalize_fuzz!(
+    fuzz_trackmania,
+    adapters::trackmania::TrackmaniaAdapter::new(),
+    1024,
+    64
+);
 adapter_normalize_fuzz!(fuzz_dirt3, Dirt3Adapter::new(), 512, 264);
 adapter_normalize_fuzz!(fuzz_dirt4, Dirt4Adapter::new(), 512, 264);
 adapter_normalize_fuzz!(fuzz_dirt5, Dirt5Adapter::new(), 2048, 264);
@@ -134,18 +197,48 @@ adapter_normalize_fuzz!(fuzz_dirt_showdown, DirtShowdownAdapter::new(), 512, 264
 adapter_normalize_fuzz!(fuzz_grid_2019, Grid2019Adapter::new(), 512, 264);
 adapter_normalize_fuzz!(fuzz_grid_autosport, GridAutosportAdapter::new(), 512, 264);
 adapter_normalize_fuzz!(fuzz_grid_legends, GridLegendsAdapter::new(), 512, 264);
-adapter_normalize_fuzz!(fuzz_race_driver_grid, RaceDriverGridAdapter::new(), 512, 264);
-adapter_normalize_fuzz!(fuzz_ets2, Ets2Adapter::with_variant(ets2::Ets2Variant::Ets2), 512, 48);
+adapter_normalize_fuzz!(
+    fuzz_race_driver_grid,
+    RaceDriverGridAdapter::new(),
+    512,
+    264
+);
+adapter_normalize_fuzz!(
+    fuzz_ets2,
+    Ets2Adapter::with_variant(ets2::Ets2Variant::Ets2),
+    512,
+    48
+);
 adapter_normalize_fuzz!(fuzz_iracing, IRacingAdapter::new(), 4096, 2048);
 adapter_normalize_fuzz!(fuzz_kartkraft, KartKraftAdapter::new(), 1024, 64);
 adapter_normalize_fuzz!(fuzz_raceroom, RaceRoomAdapter::new(), 8192, 4096);
-adapter_normalize_fuzz!(fuzz_wrc_generations, WrcGenerationsAdapter::new(), 2048, 264);
+adapter_normalize_fuzz!(
+    fuzz_wrc_generations,
+    WrcGenerationsAdapter::new(),
+    2048,
+    264
+);
 adapter_normalize_fuzz!(fuzz_nascar_21, Nascar21Adapter::new(), 512, 128);
-adapter_normalize_fuzz!(fuzz_mudrunner, MudRunnerAdapter::with_variant(adapters::mudrunner::MudRunnerVariant::MudRunner), 2048, 128);
+adapter_normalize_fuzz!(
+    fuzz_mudrunner,
+    MudRunnerAdapter::with_variant(adapters::mudrunner::MudRunnerVariant::MudRunner),
+    2048,
+    128
+);
 adapter_normalize_fuzz!(fuzz_forza_horizon_4, ForzaHorizon4Adapter::new(), 512, 324);
 adapter_normalize_fuzz!(fuzz_forza_horizon_5, ForzaHorizon5Adapter::new(), 512, 324);
-adapter_normalize_fuzz!(fuzz_gran_turismo_sport, GranTurismo7SportsAdapter::new(), 512, 296);
-adapter_normalize_fuzz!(fuzz_v_rally_4, adapters::v_rally_4::VRally4Adapter::new(), 256, 96);
+adapter_normalize_fuzz!(
+    fuzz_gran_turismo_sport,
+    GranTurismo7SportsAdapter::new(),
+    512,
+    296
+);
+adapter_normalize_fuzz!(
+    fuzz_v_rally_4,
+    adapters::v_rally_4::VRally4Adapter::new(),
+    256,
+    96
+);
 
 // ── Public parse functions: invariant tests with valid-size random data ──────
 
@@ -374,12 +467,7 @@ fn all_adapters_survive_extreme_f32_values() -> Result<(), Box<dyn std::error::E
 #[test]
 fn all_adapters_survive_empty_input() -> Result<(), Box<dyn std::error::Error>> {
     // Adapters that return Ok(default) on any input because they lack UDP telemetry.
-    let stub_ids: &[&str] = &[
-        "f1_manager",
-        "ac_evo",
-        "acc2",
-        "seb_loeb_rally",
-    ];
+    let stub_ids: &[&str] = &["f1_manager", "ac_evo", "acc2", "seb_loeb_rally"];
     for (game_id, factory) in adapters::adapter_factories() {
         let adapter = factory();
         let result = adapter.normalize(&[]);

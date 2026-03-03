@@ -112,21 +112,12 @@ fn processing_latency_within_budget() -> Result<()> {
 
     for seq in 0..tick_count {
         let ffb_in = ((seq as f32) * 0.01).sin() * 0.5;
-        let (elapsed, torque) = process_one_tick(
-            ffb_in,
-            seq,
-            &mut pipeline,
-            &safety,
-            &mut device,
-        )?;
+        let (elapsed, torque) = process_one_tick(ffb_in, seq, &mut pipeline, &safety, &mut device)?;
 
         let nanos = elapsed.as_nanos() as u64;
         histogram.record(nanos).ok();
 
-        assert!(
-            torque.is_finite(),
-            "tick {seq}: torque must be finite"
-        );
+        assert!(torque.is_finite(), "tick {seq}: torque must be finite");
     }
 
     let p50_us = histogram.value_at_quantile(0.50) as f64 / 1_000.0;
@@ -154,13 +145,7 @@ fn processing_latency_median_under_50us() -> Result<()> {
 
     for seq in 0u16..500 {
         let ffb_in = ((seq as f32) * 0.02).sin() * 0.4;
-        let (elapsed, _) = process_one_tick(
-            ffb_in,
-            seq,
-            &mut pipeline,
-            &safety,
-            &mut device,
-        )?;
+        let (elapsed, _) = process_one_tick(ffb_in, seq, &mut pipeline, &safety, &mut device)?;
         histogram.record(elapsed.as_nanos() as u64).ok();
     }
 
@@ -263,13 +248,7 @@ fn throughput_sustained_1khz_pipeline() -> Result<()> {
 
     for seq in 0..tick_count {
         let ffb_in = ((seq as f32) * 0.005).sin() * 0.5;
-        let (_, torque) = process_one_tick(
-            ffb_in,
-            seq,
-            &mut pipeline,
-            &safety,
-            &mut device,
-        )?;
+        let (_, torque) = process_one_tick(ffb_in, seq, &mut pipeline, &safety, &mut device)?;
 
         assert!(torque.is_finite());
         successful_ticks += 1;
@@ -279,7 +258,8 @@ fn throughput_sustained_1khz_pipeline() -> Result<()> {
     let ticks_per_second = successful_ticks as f64 / total_elapsed.as_secs_f64();
 
     assert_eq!(
-        successful_ticks, u64::from(tick_count),
+        successful_ticks,
+        u64::from(tick_count),
         "all ticks must complete successfully"
     );
 
@@ -308,10 +288,7 @@ fn throughput_sustained_under_fault() -> Result<()> {
         let mut frame = engine_frame(0.5, 1.0, seq);
         pipeline.process(&mut frame)?;
         let torque = safety.clamp_torque_nm(frame.torque_out * 5.0);
-        assert!(
-            torque.abs() < 0.001,
-            "faulted torque must be zero"
-        );
+        assert!(torque.abs() < 0.001, "faulted torque must be zero");
         device.write_ffb_report(torque, seq)?;
     }
 
@@ -345,13 +322,7 @@ fn jitter_measurement_1000_ticks() -> Result<()> {
     for seq in 0..tick_count {
         let tick_start = Instant::now();
         let ffb_in = ((seq as f32) * 0.01).sin() * 0.5;
-        let (_, _) = process_one_tick(
-            ffb_in,
-            seq,
-            &mut pipeline,
-            &safety,
-            &mut device,
-        )?;
+        let (_, _) = process_one_tick(ffb_in, seq, &mut pipeline, &safety, &mut device)?;
         let tick_end = Instant::now();
 
         // Jitter = difference from tick-to-tick period
@@ -387,23 +358,13 @@ fn jitter_processing_time_variance() -> Result<()> {
 
     for seq in 0u16..1000 {
         let ffb_in = ((seq as f32) * 0.01).sin() * 0.5;
-        let (elapsed, _) = process_one_tick(
-            ffb_in,
-            seq,
-            &mut pipeline,
-            &safety,
-            &mut device,
-        )?;
+        let (elapsed, _) = process_one_tick(ffb_in, seq, &mut pipeline, &safety, &mut device)?;
         durations.push(elapsed.as_nanos() as f64);
     }
 
     let count = durations.len() as f64;
     let mean = durations.iter().sum::<f64>() / count;
-    let variance = durations
-        .iter()
-        .map(|d| (d - mean).powi(2))
-        .sum::<f64>()
-        / count;
+    let variance = durations.iter().map(|d| (d - mean).powi(2)).sum::<f64>() / count;
     let stddev = variance.sqrt();
     let cv = if mean > 0.0 { stddev / mean } else { 0.0 };
 
@@ -428,35 +389,17 @@ fn pipeline_warmup_first_tick_slower() -> Result<()> {
     let (mut device, mut pipeline, safety) = make_stack("warmup-001")?;
 
     // First tick (cold)
-    let (cold_duration, _) = process_one_tick(
-        0.5,
-        0,
-        &mut pipeline,
-        &safety,
-        &mut device,
-    )?;
+    let (cold_duration, _) = process_one_tick(0.5, 0, &mut pipeline, &safety, &mut device)?;
 
     // Warmup: 100 ticks
     for seq in 1u16..101 {
-        let (_, _) = process_one_tick(
-            0.5,
-            seq,
-            &mut pipeline,
-            &safety,
-            &mut device,
-        )?;
+        let (_, _) = process_one_tick(0.5, seq, &mut pipeline, &safety, &mut device)?;
     }
 
     // Measure post-warmup median
     let mut post_warmup_durations: Vec<Duration> = Vec::with_capacity(100);
     for seq in 101u16..201 {
-        let (elapsed, _) = process_one_tick(
-            0.5,
-            seq,
-            &mut pipeline,
-            &safety,
-            &mut device,
-        )?;
+        let (elapsed, _) = process_one_tick(0.5, seq, &mut pipeline, &safety, &mut device)?;
         post_warmup_durations.push(elapsed);
     }
 
@@ -490,13 +433,7 @@ fn pipeline_warmup_deterministic_output() -> Result<()> {
     let safety = SafetyService::new(5.0, 20.0);
 
     // Pipeline A: cold start → process
-    let (_, torque_a) = process_one_tick(
-        0.6,
-        0,
-        &mut pipeline_a,
-        &safety,
-        &mut device_a,
-    )?;
+    let (_, torque_a) = process_one_tick(0.6, 0, &mut pipeline_a, &safety, &mut device_a)?;
 
     // Pipeline B: warmup 100 ticks first, then same input
     for seq in 0u16..100 {
@@ -505,13 +442,7 @@ fn pipeline_warmup_deterministic_output() -> Result<()> {
         device_b.write_ffb_report(safety.clamp_torque_nm(frame.torque_out * 5.0), seq)?;
     }
 
-    let (_, torque_b) = process_one_tick(
-        0.6,
-        100,
-        &mut pipeline_b,
-        &safety,
-        &mut device_b,
-    )?;
+    let (_, torque_b) = process_one_tick(0.6, 100, &mut pipeline_b, &safety, &mut device_b)?;
 
     // Both pipelines produce the same output for the same FFB input
     // (Pipeline::new() starts in the same state, and process is deterministic)

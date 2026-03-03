@@ -6,9 +6,7 @@
 
 use std::time::{Duration, Instant};
 
-use racing_wheel_telemetry_rate_limiter::{
-    AdaptiveRateLimiter, RateLimiter, RateLimiterStats,
-};
+use racing_wheel_telemetry_rate_limiter::{AdaptiveRateLimiter, RateLimiter, RateLimiterStats};
 
 // ---------------------------------------------------------------------------
 // 1. Rate limiting at various frequencies
@@ -490,7 +488,10 @@ fn repeated_reconfigurations_stable() {
 fn boundary_power_of_two_rates() {
     for rate in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] {
         let mut limiter = RateLimiter::new(rate);
-        assert!(limiter.should_process(), "first call accepted for rate {rate}");
+        assert!(
+            limiter.should_process(),
+            "first call accepted for rate {rate}"
+        );
         assert!(
             !limiter.should_process(),
             "immediate second rejected for rate {rate}"

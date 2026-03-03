@@ -1,9 +1,8 @@
 #![allow(clippy::redundant_closure)]
 
 use racing_wheel_moza_wheelbase_report::{
-    input_report, parse_axis, parse_wheelbase_input_report, parse_wheelbase_pedal_axes,
-    parse_wheelbase_report, RawWheelbaseReport, WheelbaseInputRaw, WheelbasePedalAxesRaw,
-    MIN_REPORT_LEN,
+    MIN_REPORT_LEN, RawWheelbaseReport, WheelbaseInputRaw, WheelbasePedalAxesRaw, input_report,
+    parse_axis, parse_wheelbase_input_report, parse_wheelbase_pedal_axes, parse_wheelbase_report,
 };
 
 type R = Result<(), Box<dyn std::error::Error>>;
@@ -104,8 +103,7 @@ fn full_input_round_trip() -> R {
     report[input_report::ROTARY_START] = 0x55;
     report[input_report::ROTARY_START + 1] = 0xAA;
 
-    let parsed =
-        parse_wheelbase_input_report(&report).ok_or("full input should parse")?;
+    let parsed = parse_wheelbase_input_report(&report).ok_or("full input should parse")?;
     assert_eq!(parsed.steering, steering);
     assert_eq!(parsed.pedals.throttle, throttle);
     assert_eq!(parsed.pedals.brake, brake);
@@ -117,10 +115,7 @@ fn full_input_round_trip() -> R {
 
 #[test]
 fn input_zero_fills_missing_controls() -> R {
-    let report = [
-        input_report::REPORT_ID,
-        0x11, 0x22, 0x33, 0x44, 0x55, 0x66,
-    ];
+    let report = [input_report::REPORT_ID, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66];
     let parsed = parse_wheelbase_input_report(&report).ok_or("minimal input should parse")?;
     assert_eq!(parsed.steering, 0x2211);
     assert_eq!(parsed.pedals.throttle, 0x4433);
@@ -146,8 +141,7 @@ fn partial_buttons_preserved() -> R {
     report[input_report::BUTTONS_START + 1] = 0xB2;
     report[input_report::BUTTONS_START + 2] = 0xC3;
 
-    let parsed =
-        parse_wheelbase_input_report(&report).ok_or("partial buttons should parse")?;
+    let parsed = parse_wheelbase_input_report(&report).ok_or("partial buttons should parse")?;
     assert_eq!(parsed.buttons[0], 0xA1);
     assert_eq!(parsed.buttons[1], 0xB2);
     assert_eq!(parsed.buttons[2], 0xC3);
@@ -167,8 +161,7 @@ fn partial_rotary() -> R {
         .copy_from_slice(&0x3000u16.to_le_bytes());
     report[input_report::ROTARY_START] = 0x77;
 
-    let parsed =
-        parse_wheelbase_input_report(&report).ok_or("partial rotary should parse")?;
+    let parsed = parse_wheelbase_input_report(&report).ok_or("partial rotary should parse")?;
     assert_eq!(parsed.rotary, [0x77, 0x00]);
     Ok(())
 }

@@ -8,7 +8,9 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use racing_wheel_service::diagnostic_service::{DiagnosticResult, DiagnosticService, DiagnosticStatus};
+use racing_wheel_service::diagnostic_service::{
+    DiagnosticResult, DiagnosticService, DiagnosticStatus,
+};
 
 type BoxErr = Box<dyn std::error::Error + Send + Sync>;
 
@@ -167,9 +169,7 @@ async fn run_specific_test_by_name() -> Result<(), BoxErr> {
     let tests = service.list_tests();
 
     // Pick the first test by name
-    let (first_name, _) = tests
-        .first()
-        .ok_or("no diagnostic tests registered")?;
+    let (first_name, _) = tests.first().ok_or("no diagnostic tests registered")?;
 
     let result = service.run_test(first_name).await?;
     assert_eq!(&result.name, first_name);
@@ -437,8 +437,7 @@ async fn hid_device_diagnostic_runs() -> Result<(), BoxErr> {
 
     // Should succeed (Pass or Warn, since we may not have hardware)
     assert!(
-        !matches!(result.status, DiagnosticStatus::Fail)
-            || result.message.contains("HID API"),
+        !matches!(result.status, DiagnosticStatus::Fail) || result.message.contains("HID API"),
         "hid_devices should pass/warn or report API issue, got: {}",
         result.message
     );
@@ -522,7 +521,10 @@ async fn safety_system_reports_policy_metadata() -> Result<(), BoxErr> {
     let result = service.run_test("safety_system").await?;
 
     assert_eq!(
-        result.metadata.get("safety_policy_created").map(String::as_str),
+        result
+            .metadata
+            .get("safety_policy_created")
+            .map(String::as_str),
         Some("true"),
         "safety_system should report policy creation"
     );
@@ -757,7 +759,11 @@ async fn live_health_score_is_non_negative() -> Result<(), BoxErr> {
     let service = DiagnosticService::new().await?;
     let results = service.run_full_diagnostics().await?;
     let score = health_score(&results);
-    assert!(score <= 100, "health score should be at most 100, got {}", score);
+    assert!(
+        score <= 100,
+        "health score should be at most 100, got {}",
+        score
+    );
     Ok(())
 }
 
@@ -870,9 +876,7 @@ fn diagnostic_result_with_empty_metadata_serializes() -> Result<(), BoxErr> {
 fn diagnostic_result_with_many_actions_serializes() -> Result<(), BoxErr> {
     let mut result = make_result("many_actions", DiagnosticStatus::Fail, "lots to do");
     for i in 0..20 {
-        result
-            .suggested_actions
-            .push(format!("Action item {}", i));
+        result.suggested_actions.push(format!("Action item {}", i));
     }
     let json = serde_json::to_string(&result)?;
     let parsed: DiagnosticResult = serde_json::from_str(&json)?;

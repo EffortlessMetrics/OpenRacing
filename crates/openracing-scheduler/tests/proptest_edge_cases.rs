@@ -6,7 +6,7 @@
 #![allow(clippy::redundant_closure)]
 
 use openracing_scheduler::{
-    AdaptiveSchedulingConfig, AdaptiveSchedulingState, JitterMetrics, PLL, RTSetup, PERIOD_1KHZ_NS,
+    AdaptiveSchedulingConfig, AdaptiveSchedulingState, JitterMetrics, PERIOD_1KHZ_NS, PLL, RTSetup,
 };
 use proptest::prelude::*;
 use std::time::Duration;

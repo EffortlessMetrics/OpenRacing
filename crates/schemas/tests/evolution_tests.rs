@@ -10,7 +10,7 @@
 //! - Snapshot tests lock serialization format
 
 use racing_wheel_schemas::migration::{
-    MigrationConfig, MigrationManager, SchemaVersion, CURRENT_SCHEMA_VERSION, SCHEMA_VERSION_V2,
+    CURRENT_SCHEMA_VERSION, MigrationConfig, MigrationManager, SCHEMA_VERSION_V2, SchemaVersion,
 };
 use racing_wheel_schemas::telemetry::{
     NormalizedTelemetry, NormalizedTelemetryBuilder, TelemetryFlags, TelemetryValue,
@@ -376,7 +376,10 @@ fn round_trip_preserves_json_value_equality() -> TestResult {
     let json1 = serde_json::to_value(&original)?;
     let deserialized: NormalizedTelemetry = serde_json::from_value(json1.clone())?;
     let json2 = serde_json::to_value(&deserialized)?;
-    assert_eq!(json1, json2, "double round-trip must produce identical JSON");
+    assert_eq!(
+        json1, json2,
+        "double round-trip must produce identical JSON"
+    );
     Ok(())
 }
 
@@ -442,10 +445,7 @@ fn extended_map_with_builder_helper() -> TestResult {
         .build();
 
     assert_eq!(t.extended.len(), 2);
-    assert_eq!(
-        t.get_extended("boost"),
-        Some(&TelemetryValue::Float(1.2))
-    );
+    assert_eq!(t.get_extended("boost"), Some(&TelemetryValue::Float(1.2)));
     assert_eq!(
         t.get_extended("laps_left"),
         Some(&TelemetryValue::Integer(5))

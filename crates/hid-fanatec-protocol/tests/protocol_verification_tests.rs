@@ -20,12 +20,11 @@
 //! | 8 | `JacKeTUs/simracing-hwdb`            | Shifter 0x1A92, Handbrake 0x1A93 |
 
 use racing_wheel_hid_fanatec_protocol::{
-    FANATEC_VENDOR_ID, FanatecConstantForceEncoder, FanatecModel, FanatecPedalModel,
-    FanatecRimId, LED_REPORT_LEN, MAX_ROTATION_DEGREES, MIN_ROTATION_DEGREES,
+    CONSTANT_FORCE_REPORT_LEN, FANATEC_VENDOR_ID, FanatecConstantForceEncoder, FanatecModel,
+    FanatecPedalModel, FanatecRimId, LED_REPORT_LEN, MAX_ROTATION_DEGREES, MIN_ROTATION_DEGREES,
     build_display_report, build_kernel_range_sequence, build_led_report,
-    build_rotation_range_report, build_rumble_report, build_set_gain_report,
-    build_stop_all_report, is_pedal_product, is_wheelbase_product, led_commands, product_ids,
-    rim_ids, CONSTANT_FORCE_REPORT_LEN,
+    build_rotation_range_report, build_rumble_report, build_set_gain_report, build_stop_all_report,
+    is_pedal_product, is_wheelbase_product, led_commands, product_ids, rim_ids,
 };
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -222,7 +221,11 @@ fn torque_encoding_full_positive() -> Result<(), Box<dyn std::error::Error>> {
     let mut buf = [0u8; CONSTANT_FORCE_REPORT_LEN];
     enc.encode(20.0, 0, &mut buf);
     let raw = i16::from_le_bytes([buf[2], buf[3]]);
-    assert_eq!(raw, i16::MAX, "full positive torque must be i16::MAX (0x7FFF)");
+    assert_eq!(
+        raw,
+        i16::MAX,
+        "full positive torque must be i16::MAX (0x7FFF)"
+    );
     // LE encoding check: 0x7FFF → [0xFF, 0x7F]
     assert_eq!(buf[2], 0xFF);
     assert_eq!(buf[3], 0x7F);
@@ -257,7 +260,11 @@ fn torque_encoding_clamps_to_max() -> Result<(), Box<dyn std::error::Error>> {
     // 100 Nm is way over 8 Nm
     enc.encode(100.0, 0, &mut buf);
     let raw_pos = i16::from_le_bytes([buf[2], buf[3]]);
-    assert_eq!(raw_pos, i16::MAX, "over-max positive must clamp to i16::MAX");
+    assert_eq!(
+        raw_pos,
+        i16::MAX,
+        "over-max positive must clamp to i16::MAX"
+    );
 
     enc.encode(-100.0, 0, &mut buf);
     let raw_neg = i16::from_le_bytes([buf[2], buf[3]]);
@@ -551,7 +558,11 @@ fn led_report_format() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(LED_REPORT_LEN, 8, "LED report must be 8 bytes");
     let report = build_led_report(0b1010_1010_0101_0101, 200);
     assert_eq!(report[0], 0x08, "report ID = LED_DISPLAY");
-    assert_eq!(report[1], led_commands::REV_LIGHTS, "command = REV_LIGHTS (0x80)");
+    assert_eq!(
+        report[1],
+        led_commands::REV_LIGHTS,
+        "command = REV_LIGHTS (0x80)"
+    );
     assert_eq!(report[1], 0x80);
     // bitmask 0xAA55 → lo=0x55, hi=0xAA
     assert_eq!(report[2], 0x55, "bitmask low byte");
@@ -668,14 +679,14 @@ fn model_from_product_id_all_verified() -> Result<(), Box<dyn std::error::Error>
     let cases: &[(u16, FanatecModel)] = &[
         (0x0001, FanatecModel::ClubSportV2),
         (0x0004, FanatecModel::ClubSportV25),
-        (0x0005, FanatecModel::CslElite),     // CSL Elite PS4
-        (0x0E03, FanatecModel::CslElite),     // CSL Elite PC
+        (0x0005, FanatecModel::CslElite), // CSL Elite PS4
+        (0x0E03, FanatecModel::CslElite), // CSL Elite PC
         (0x0006, FanatecModel::Dd1),
         (0x0007, FanatecModel::Dd2),
         (0x0011, FanatecModel::CsrElite),
         (0x0020, FanatecModel::CslDd),
-        (0x0024, FanatecModel::GtDdPro),      // unverified PID
-        (0x01E9, FanatecModel::ClubSportDd),   // unverified PID
+        (0x0024, FanatecModel::GtDdPro),     // unverified PID
+        (0x01E9, FanatecModel::ClubSportDd), // unverified PID
     ];
     for &(pid, ref expected) in cases {
         let actual = FanatecModel::from_product_id(pid);
@@ -737,10 +748,7 @@ fn pedal_model_from_product_id() -> Result<(), Box<dyn std::error::Error>> {
 fn pedal_wheelbase_mutual_exclusion() -> Result<(), Box<dyn std::error::Error>> {
     let pedal_pids = [0x1839, 0x183B, 0x6204, 0x6205, 0x6206];
     for pid in pedal_pids {
-        assert!(
-            is_pedal_product(pid),
-            "0x{pid:04X} must be pedal"
-        );
+        assert!(is_pedal_product(pid), "0x{pid:04X} must be pedal");
         assert!(
             !is_wheelbase_product(pid),
             "0x{pid:04X} must NOT be wheelbase"

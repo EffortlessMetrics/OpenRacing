@@ -10,8 +10,8 @@
 
 use racing_wheel_engine::safety::{
     ButtonCombo, FaultType, HardwareWatchdog, InterlockAck, SafetyInterlockState,
-    SafetyInterlockSystem, SafetyService, SafetyState, SafetyTrigger,
-    SoftwareWatchdog, TorqueLimit, WatchdogError, WatchdogTimeoutHandler,
+    SafetyInterlockSystem, SafetyService, SafetyState, SafetyTrigger, SoftwareWatchdog,
+    TorqueLimit, WatchdogError, WatchdogTimeoutHandler,
 };
 use std::time::{Duration, Instant};
 
@@ -764,7 +764,10 @@ fn interlock_system_fault_log_populated_on_faults() {
     sys.report_fault(FaultType::EncoderNaN);
     assert!(!sys.fault_log().is_empty());
     let entry = &sys.fault_log()[0];
-    assert_eq!(entry.trigger, SafetyTrigger::FaultDetected(FaultType::EncoderNaN));
+    assert_eq!(
+        entry.trigger,
+        SafetyTrigger::FaultDetected(FaultType::EncoderNaN)
+    );
 }
 
 #[test]

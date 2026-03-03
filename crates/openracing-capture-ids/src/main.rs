@@ -1,7 +1,7 @@
 #![deny(static_mut_refs)]
 
-use openracing_capture_ids::{decode_report, hex_u16, parse_hex_id};
 use openracing_capture_ids::replay;
+use openracing_capture_ids::{decode_report, hex_u16, parse_hex_id};
 
 use anyhow::{Context, Result, anyhow};
 use clap::Parser;
@@ -374,7 +374,9 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openracing_capture_ids::replay::{CapturedReport, decode_hex, parse_capture_line, parse_vid_str};
+    use openracing_capture_ids::replay::{
+        CapturedReport, decode_hex, parse_capture_line, parse_vid_str,
+    };
 
     // ═══ Scenario 1: Device Identification Flow ═════════════════════════════
 

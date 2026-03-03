@@ -114,11 +114,7 @@ fn from_sets_extra_registry_entries() -> TestResult {
 
 #[test]
 fn from_sets_extra_fails_strict() -> TestResult {
-    let m = BddMatrixMetrics::from_sets(
-        ["acc"],
-        ["acc", "iracing"],
-        MatrixParityPolicy::STRICT,
-    );
+    let m = BddMatrixMetrics::from_sets(["acc"], ["acc", "iracing"], MatrixParityPolicy::STRICT);
     assert!(!m.parity_ok);
     assert_eq!(m.extra_count, 1);
     Ok(())
@@ -141,11 +137,7 @@ fn empty_sets_strict_parity_ok() -> TestResult {
 
 #[test]
 fn empty_matrix_with_registry_strict_fails() -> TestResult {
-    let m = BddMatrixMetrics::from_sets(
-        Vec::<&str>::new(),
-        ["acc"],
-        MatrixParityPolicy::STRICT,
-    );
+    let m = BddMatrixMetrics::from_sets(Vec::<&str>::new(), ["acc"], MatrixParityPolicy::STRICT);
     assert!(!m.parity_ok);
     assert_eq!(m.extra_count, 1);
     Ok(())
@@ -165,11 +157,7 @@ fn matrix_with_empty_registry_strict_fails() -> TestResult {
 
 #[test]
 fn empty_matrix_lenient_ok() -> TestResult {
-    let m = BddMatrixMetrics::from_sets(
-        Vec::<&str>::new(),
-        ["acc"],
-        MatrixParityPolicy::LENIENT,
-    );
+    let m = BddMatrixMetrics::from_sets(Vec::<&str>::new(), ["acc"], MatrixParityPolicy::LENIENT);
     assert!(m.parity_ok);
     Ok(())
 }
@@ -346,11 +334,8 @@ fn runtime_parity_fails_when_writer_fails() -> TestResult {
         ["acc", "iracing"],
         MatrixParityPolicy::STRICT,
     );
-    let writer = BddMatrixMetrics::from_sets(
-        ["acc", "iracing"],
-        ["acc"],
-        MatrixParityPolicy::STRICT,
-    );
+    let writer =
+        BddMatrixMetrics::from_sets(["acc", "iracing"], ["acc"], MatrixParityPolicy::STRICT);
     let runtime = RuntimeBddMatrixMetrics::new(2, adapter, writer);
     assert!(!runtime.parity_ok);
     assert!(runtime.adapter.parity_ok);
@@ -362,11 +347,7 @@ fn runtime_parity_fails_when_writer_fails() -> TestResult {
 
 #[test]
 fn bdd_metrics_clone_and_debug() -> TestResult {
-    let m = BddMatrixMetrics::from_sets(
-        ["acc"],
-        ["acc"],
-        MatrixParityPolicy::STRICT,
-    );
+    let m = BddMatrixMetrics::from_sets(["acc"], ["acc"], MatrixParityPolicy::STRICT);
     let cloned = m.clone();
     assert_eq!(m, cloned);
     let debug = format!("{m:?}");
@@ -376,11 +357,7 @@ fn bdd_metrics_clone_and_debug() -> TestResult {
 
 #[test]
 fn runtime_metrics_clone_and_debug() -> TestResult {
-    let adapter = BddMatrixMetrics::from_sets(
-        ["acc"],
-        ["acc"],
-        MatrixParityPolicy::STRICT,
-    );
+    let adapter = BddMatrixMetrics::from_sets(["acc"], ["acc"], MatrixParityPolicy::STRICT);
     let writer = adapter.clone();
     let runtime = RuntimeBddMatrixMetrics::new(1, adapter, writer);
     let cloned = runtime.clone();

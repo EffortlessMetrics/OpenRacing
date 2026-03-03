@@ -24,18 +24,14 @@ use openracing_filters::{
 };
 
 // ── Telemetry adapters ───────────────────────────────────────────────────────
-use racing_wheel_telemetry_adapters::{TelemetryAdapter, adapter_factories};
 use racing_wheel_telemetry_adapters::gran_turismo_7::{
     MAGIC as GT7_MAGIC, PACKET_SIZE as GT7_PACKET_SIZE, parse_decrypted,
 };
+use racing_wheel_telemetry_adapters::{TelemetryAdapter, adapter_factories};
 
 // ── Protocol crates ──────────────────────────────────────────────────────────
-use racing_wheel_hid_fanatec_protocol::{
-    CONSTANT_FORCE_REPORT_LEN, FanatecConstantForceEncoder,
-};
-use racing_wheel_hid_moza_protocol::protocol::{
-    FfbMode, effective_ffb_mode, signature_is_trusted,
-};
+use racing_wheel_hid_fanatec_protocol::{CONSTANT_FORCE_REPORT_LEN, FanatecConstantForceEncoder};
+use racing_wheel_hid_moza_protocol::protocol::{FfbMode, effective_ffb_mode, signature_is_trusted};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. Zero-torque on any safety fault (was a real bug)
@@ -144,13 +140,13 @@ fn regression_pipeline_output_zeroed_after_fault() -> Result<(), Box<dyn std::er
 #[test]
 fn regression_filter_chain_bounded_for_extreme_inputs() -> Result<(), Box<dyn std::error::Error>> {
     let extreme_inputs: &[(f32, f32)] = &[
-        (0.0, 0.0),         // zero inputs
-        (1.0, 0.0),         // max torque, no speed
-        (-1.0, 0.0),        // max negative torque, no speed
-        (1.0, 300.0),       // max torque, extreme speed
-        (-1.0, 300.0),      // max negative torque, extreme speed
-        (0.001, 0.001),     // tiny values
-        (0.999, 299.999),   // near-boundary values
+        (0.0, 0.0),                             // zero inputs
+        (1.0, 0.0),                             // max torque, no speed
+        (-1.0, 0.0),                            // max negative torque, no speed
+        (1.0, 300.0),                           // max torque, extreme speed
+        (-1.0, 300.0),                          // max negative torque, extreme speed
+        (0.001, 0.001),                         // tiny values
+        (0.999, 299.999),                       // near-boundary values
         (f32::MIN_POSITIVE, f32::MIN_POSITIVE), // smallest positive
     ];
 
@@ -270,8 +266,8 @@ fn regression_moza_unknown_crc_is_untrusted() -> Result<(), Box<dyn std::error::
 /// Regression: Direct FFB mode must be downgraded to Standard when
 /// the device signature is not trusted.
 #[test]
-fn regression_moza_untrusted_downgrades_direct_to_standard() -> Result<(), Box<dyn std::error::Error>>
-{
+fn regression_moza_untrusted_downgrades_direct_to_standard()
+-> Result<(), Box<dyn std::error::Error>> {
     // Untrusted signature: Direct → Standard
     let mode = effective_ffb_mode(FfbMode::Direct, None);
     assert_eq!(
@@ -298,11 +294,7 @@ fn regression_moza_untrusted_downgrades_direct_to_standard() -> Result<(), Box<d
 
     // Off mode passes through regardless
     let mode4 = effective_ffb_mode(FfbMode::Off, None);
-    assert_eq!(
-        mode4,
-        FfbMode::Off,
-        "Off mode must pass through unchanged"
-    );
+    assert_eq!(mode4, FfbMode::Off, "Off mode must pass through unchanged");
 
     Ok(())
 }
@@ -506,11 +498,7 @@ fn regression_beamng_short_packet_rejected() -> Result<(), Box<dyn std::error::E
     for size in &short_sizes {
         let packet = vec![0u8; *size];
         let result = adapter.normalize(&packet);
-        assert!(
-            result.is_err(),
-            "BeamNG must reject {}-byte packet",
-            size
-        );
+        assert!(result.is_err(), "BeamNG must reject {}-byte packet", size);
     }
 
     Ok(())
@@ -547,27 +535,45 @@ fn regression_gt7_individual_flag_mapping() -> Result<(), Box<dyn std::error::Er
     let telem = parse_decrypted(&buf)?;
     assert!(telem.flags.traction_control, "TCS flag must be set");
     assert!(!telem.flags.abs_active, "ABS must not be set for TCS-only");
-    assert!(!telem.flags.engine_limiter, "Rev limiter must not be set for TCS-only");
-    assert!(!telem.flags.session_paused, "Paused must not be set for TCS-only");
+    assert!(
+        !telem.flags.engine_limiter,
+        "Rev limiter must not be set for TCS-only"
+    );
+    assert!(
+        !telem.flags.session_paused,
+        "Paused must not be set for TCS-only"
+    );
 
     // ASM/ABS only
     let buf = build_gt7_packet_with_flags(GT7_FLAG_ASM_ACTIVE);
     let telem = parse_decrypted(&buf)?;
     assert!(telem.flags.abs_active, "ABS flag must be set");
-    assert!(!telem.flags.traction_control, "TCS must not be set for ABS-only");
+    assert!(
+        !telem.flags.traction_control,
+        "TCS must not be set for ABS-only"
+    );
 
     // Rev limiter only
     let buf = build_gt7_packet_with_flags(GT7_FLAG_REV_LIMIT);
     let telem = parse_decrypted(&buf)?;
     assert!(telem.flags.engine_limiter, "Rev limiter flag must be set");
-    assert!(!telem.flags.traction_control, "TCS must not be set for rev-limit-only");
-    assert!(!telem.flags.abs_active, "ABS must not be set for rev-limit-only");
+    assert!(
+        !telem.flags.traction_control,
+        "TCS must not be set for rev-limit-only"
+    );
+    assert!(
+        !telem.flags.abs_active,
+        "ABS must not be set for rev-limit-only"
+    );
 
     // Paused only
     let buf = build_gt7_packet_with_flags(GT7_FLAG_PAUSED);
     let telem = parse_decrypted(&buf)?;
     assert!(telem.flags.session_paused, "Paused flag must be set");
-    assert!(!telem.flags.traction_control, "TCS must not be set for paused-only");
+    assert!(
+        !telem.flags.traction_control,
+        "TCS must not be set for paused-only"
+    );
 
     Ok(())
 }
@@ -575,14 +581,24 @@ fn regression_gt7_individual_flag_mapping() -> Result<(), Box<dyn std::error::Er
 /// Regression: all GT7 flags set simultaneously must all be observable.
 #[test]
 fn regression_gt7_all_flags_simultaneously() -> Result<(), Box<dyn std::error::Error>> {
-    let all_flags = GT7_FLAG_TCS_ACTIVE | GT7_FLAG_ASM_ACTIVE | GT7_FLAG_REV_LIMIT | GT7_FLAG_PAUSED;
+    let all_flags =
+        GT7_FLAG_TCS_ACTIVE | GT7_FLAG_ASM_ACTIVE | GT7_FLAG_REV_LIMIT | GT7_FLAG_PAUSED;
     let buf = build_gt7_packet_with_flags(all_flags);
     let telem = parse_decrypted(&buf)?;
 
-    assert!(telem.flags.traction_control, "TCS must be set with all flags");
+    assert!(
+        telem.flags.traction_control,
+        "TCS must be set with all flags"
+    );
     assert!(telem.flags.abs_active, "ABS must be set with all flags");
-    assert!(telem.flags.engine_limiter, "Rev limiter must be set with all flags");
-    assert!(telem.flags.session_paused, "Paused must be set with all flags");
+    assert!(
+        telem.flags.engine_limiter,
+        "Rev limiter must be set with all flags"
+    );
+    assert!(
+        telem.flags.session_paused,
+        "Paused must be set with all flags"
+    );
 
     Ok(())
 }
@@ -593,10 +609,22 @@ fn regression_gt7_no_flags() -> Result<(), Box<dyn std::error::Error>> {
     let buf = build_gt7_packet_with_flags(0);
     let telem = parse_decrypted(&buf)?;
 
-    assert!(!telem.flags.traction_control, "TCS must not be set with zero flags");
-    assert!(!telem.flags.abs_active, "ABS must not be set with zero flags");
-    assert!(!telem.flags.engine_limiter, "Rev limiter must not be set with zero flags");
-    assert!(!telem.flags.session_paused, "Paused must not be set with zero flags");
+    assert!(
+        !telem.flags.traction_control,
+        "TCS must not be set with zero flags"
+    );
+    assert!(
+        !telem.flags.abs_active,
+        "ABS must not be set with zero flags"
+    );
+    assert!(
+        !telem.flags.engine_limiter,
+        "Rev limiter must not be set with zero flags"
+    );
+    assert!(
+        !telem.flags.session_paused,
+        "Paused must not be set with zero flags"
+    );
 
     Ok(())
 }

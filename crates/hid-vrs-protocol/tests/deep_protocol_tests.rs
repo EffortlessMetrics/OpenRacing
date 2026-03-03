@@ -1,12 +1,10 @@
 //! Deep protocol tests for VRS DirectForce Pro HID protocol crate.
 
 use racing_wheel_hid_vrs_protocol::{
-    VRS_PRODUCT_ID, VRS_VENDOR_ID, product_ids,
-    VrsConstantForceEncoder, VrsDamperEncoder, VrsFrictionEncoder, VrsSpringEncoder,
-    VrsFfbEffectType, VrsPedalAxesRaw,
-    identify_device, is_wheelbase_product, parse_input_report,
-    build_device_gain, build_ffb_enable, build_rotation_range,
     CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN, SPRING_REPORT_LEN,
+    VRS_PRODUCT_ID, VRS_VENDOR_ID, VrsConstantForceEncoder, VrsDamperEncoder, VrsFfbEffectType,
+    VrsFrictionEncoder, VrsPedalAxesRaw, VrsSpringEncoder, build_device_gain, build_ffb_enable,
+    build_rotation_range, identify_device, is_wheelbase_product, parse_input_report, product_ids,
 };
 
 // ── Device identification ────────────────────────────────────────────────────
@@ -66,7 +64,10 @@ fn identify_device_wheelbases_have_ffb() {
     for pid in wb_pids {
         let id = identify_device(pid);
         assert!(id.supports_ffb, "PID 0x{pid:04X} must support FFB");
-        assert!(id.max_torque_nm.is_some(), "PID 0x{pid:04X} must have torque");
+        assert!(
+            id.max_torque_nm.is_some(),
+            "PID 0x{pid:04X} must have torque"
+        );
         assert!(is_wheelbase_product(pid));
     }
 }

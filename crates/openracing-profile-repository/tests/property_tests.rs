@@ -1,8 +1,8 @@
 //! Property-based and edge-case tests for the profile repository.
 #![allow(clippy::redundant_closure)]
 
-use openracing_profile_repository::prelude::*;
 use openracing_profile_repository::ProfileSigner;
+use openracing_profile_repository::prelude::*;
 use proptest::prelude::*;
 use tempfile::TempDir;
 

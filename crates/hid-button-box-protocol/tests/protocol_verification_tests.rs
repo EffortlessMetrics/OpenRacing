@@ -173,7 +173,10 @@ fn button_index_bounds() -> Result<(), Box<dyn std::error::Error>> {
 
     // Out-of-range must be no-op
     report.set_button(32, true);
-    assert!(!report.button(32), "button 32 must return false (out of range)");
+    assert!(
+        !report.button(32),
+        "button 32 must return false (out of range)"
+    );
     assert_eq!(report.button_count(), 32, "count must still be 32");
     Ok(())
 }

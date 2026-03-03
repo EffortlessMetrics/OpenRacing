@@ -788,7 +788,7 @@ fn streaming_stats_clone_copy() {
 
 #[cfg(feature = "queues")]
 mod queue_tests {
-    use openracing_atomic::queues::{RTSampleQueues, DEFAULT_QUEUE_CAPACITY};
+    use openracing_atomic::queues::{DEFAULT_QUEUE_CAPACITY, RTSampleQueues};
     use std::sync::Arc;
     use std::thread;
 
@@ -971,7 +971,10 @@ mod queue_tests {
         };
 
         producer.join().map_err(|_| "producer panicked").ok();
-        let consumed = consumer.join().map_err(|_| "consumer panicked").unwrap_or(0);
+        let consumed = consumer
+            .join()
+            .map_err(|_| "consumer panicked")
+            .unwrap_or(0);
         // All items should have been consumed (single producer, single consumer)
         assert!(consumed <= n);
     }

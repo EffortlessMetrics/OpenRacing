@@ -331,10 +331,12 @@ fn device_not_found_json_error() -> TestResult {
     assert!(!output.status.success());
     let json: Value = serde_json::from_slice(&output.stdout)?;
     assert_eq!(json["success"], false);
-    assert!(json["error"]["message"]
-        .as_str()
-        .unwrap_or("")
-        .contains("not found"));
+    assert!(
+        json["error"]["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("not found")
+    );
     Ok(())
 }
 
@@ -357,10 +359,7 @@ fn service_unavailable_json_error() -> TestResult {
 #[test]
 fn completion_all_shells() -> TestResult {
     for shell in &["bash", "zsh", "fish", "powershell"] {
-        wheelctl()
-            .args(["completion", shell])
-            .assert()
-            .success();
+        wheelctl().args(["completion", shell]).assert().success();
     }
     Ok(())
 }

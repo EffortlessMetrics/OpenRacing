@@ -191,7 +191,10 @@ fn edge_immediate_quarantine_on_max_timeouts() {
 
     // One overrun should immediately cause quarantine with max_timeouts=1.
     let fault = system.record_plugin_execution("fast-fail", 200);
-    assert!(fault.is_some(), "Should detect fault on first overrun with max_timeouts=1");
+    assert!(
+        fault.is_some(),
+        "Should detect fault on first overrun with max_timeouts=1"
+    );
 }
 
 #[test]
@@ -249,9 +252,19 @@ fn edge_quarantine_manager_release_not_quarantined() {
 fn edge_quarantine_manager_double_quarantine() {
     let mut manager = QuarantineManager::new();
     let mut stats = PluginStats::new();
-    manager.quarantine("p1", Some(Duration::from_secs(60)), QuarantineReason::Crash, &mut stats);
+    manager.quarantine(
+        "p1",
+        Some(Duration::from_secs(60)),
+        QuarantineReason::Crash,
+        &mut stats,
+    );
     // Second quarantine of same plugin should update existing entry.
-    manager.quarantine("p1", Some(Duration::from_secs(120)), QuarantineReason::Manual, &mut stats);
+    manager.quarantine(
+        "p1",
+        Some(Duration::from_secs(120)),
+        QuarantineReason::Manual,
+        &mut stats,
+    );
     assert!(manager.is_quarantined("p1"));
 }
 

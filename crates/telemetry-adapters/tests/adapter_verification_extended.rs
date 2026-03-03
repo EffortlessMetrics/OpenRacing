@@ -444,7 +444,10 @@ mod raceroom_verification {
         // Normalized: lateral positive=right (negate X), longitudinal positive=forward (negate Z)
         let r3e_lat_g_left: f32 = 9.81; // 1G leftward
         let normalized_lat_g = -r3e_lat_g_left / 9.80665;
-        assert!(normalized_lat_g < 0.0, "leftward accel → negative lateral_g");
+        assert!(
+            normalized_lat_g < 0.0,
+            "leftward accel → negative lateral_g"
+        );
     }
 
     /// R3E flags encoding: -1=N/A, 0=inactive, 1=active.
@@ -535,12 +538,12 @@ mod rbr_verification {
     /// Source: RBR LiveData UDP plugin packet documentation.
     #[test]
     fn rbr_field_offsets() {
-        assert_eq!(12_usize, 12);  // speed_ms (f32)
-        assert_eq!(52_usize, 52);  // throttle (f32)
-        assert_eq!(56_usize, 56);  // brake (f32)
-        assert_eq!(60_usize, 60);  // clutch (f32)
-        assert_eq!(64_usize, 64);  // gear (f32: 0=reverse, 1..6=forward)
-        assert_eq!(68_usize, 68);  // steering (f32)
+        assert_eq!(12_usize, 12); // speed_ms (f32)
+        assert_eq!(52_usize, 52); // throttle (f32)
+        assert_eq!(56_usize, 56); // brake (f32)
+        assert_eq!(60_usize, 60); // clutch (f32)
+        assert_eq!(64_usize, 64); // gear (f32: 0=reverse, 1..6=forward)
+        assert_eq!(68_usize, 68); // steering (f32)
         assert_eq!(112_usize, 112); // handbrake (f32)
         assert_eq!(116_usize, 116); // rpm (f32)
     }
@@ -895,9 +898,9 @@ mod lfs_verification {
     /// Source: LFS InSim.txt OutSim struct; en.lfsmanual.net/wiki/OutSim.
     #[test]
     fn outsim_field_offsets() {
-        assert_eq!(0_usize, 0);   // time (u32)
-        assert_eq!(4_usize, 4);   // angular velocity X (f32)
-        assert_eq!(8_usize, 8);   // angular velocity Y (f32)
+        assert_eq!(0_usize, 0); // time (u32)
+        assert_eq!(4_usize, 4); // angular velocity X (f32)
+        assert_eq!(8_usize, 8); // angular velocity Y (f32)
         assert_eq!(12_usize, 12); // angular velocity Z (f32)
         assert_eq!(16_usize, 16); // heading (f32)
         assert_eq!(20_usize, 20); // pitch (f32)
@@ -1469,10 +1472,7 @@ mod extended_port_verification {
             Box::new(EAWRCAdapter::new()),
         ];
         for adapter in &adapters {
-            assert!(
-                !adapter.game_id().is_empty(),
-                "game_id should be non-empty"
-            );
+            assert!(!adapter.game_id().is_empty(), "game_id should be non-empty");
         }
     }
 

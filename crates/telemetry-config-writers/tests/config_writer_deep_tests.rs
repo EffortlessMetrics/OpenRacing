@@ -22,7 +22,9 @@ fn default_config() -> TelemetryConfig {
     }
 }
 
-fn writer_for(game_id: &str) -> Result<Box<dyn ConfigWriter + Send + Sync>, Box<dyn std::error::Error>> {
+fn writer_for(
+    game_id: &str,
+) -> Result<Box<dyn ConfigWriter + Send + Sync>, Box<dyn std::error::Error>> {
     config_writer_factories()
         .iter()
         .find(|(id, _)| *id == game_id)
@@ -76,7 +78,10 @@ mod config_file_generation {
 
         // ACC typically writes to a broadcasting.json
         let files: Vec<_> = walkdir(temp.path())?;
-        assert!(!files.is_empty(), "acc writer should create at least one file");
+        assert!(
+            !files.is_empty(),
+            "acc writer should create at least one file"
+        );
         Ok(())
     }
 
@@ -97,7 +102,9 @@ mod config_file_generation {
         Ok(())
     }
 
-    fn walkdir(root: &std::path::Path) -> Result<Vec<std::path::PathBuf>, Box<dyn std::error::Error>> {
+    fn walkdir(
+        root: &std::path::Path,
+    ) -> Result<Vec<std::path::PathBuf>, Box<dyn std::error::Error>> {
         let mut result = Vec::new();
         walk_recursive(root, &mut result)?;
         Ok(result)
@@ -141,7 +148,10 @@ mod output_validation {
         let diffs = writer.write_config(temp.path(), &config)?;
 
         let telemetry_diff = diffs.iter().find(|d| d.key == "telemetryDiskFile");
-        assert!(telemetry_diff.is_some(), "should have telemetryDiskFile diff");
+        assert!(
+            telemetry_diff.is_some(),
+            "should have telemetryDiskFile diff"
+        );
         let diff = telemetry_diff.ok_or("missing diff")?;
         assert_eq!(diff.new_value, "0", "disabled should write value 0");
         Ok(())
@@ -355,10 +365,7 @@ mod config_edge_cases {
             let writer = factory();
             let temp = tempfile::tempdir()?;
             let result = writer.write_config(temp.path(), &config);
-            assert!(
-                result.is_ok(),
-                "{id}: max update_rate_hz should not panic"
-            );
+            assert!(result.is_ok(), "{id}: max update_rate_hz should not panic");
         }
         Ok(())
     }
@@ -445,10 +452,7 @@ mod factory_consistency {
     #[test]
     fn factory_count_at_least_60() -> TestResult {
         let count = config_writer_factories().len();
-        assert!(
-            count >= 60,
-            "expected at least 60 factories, got {count}"
-        );
+        assert!(count >= 60, "expected at least 60 factories, got {count}");
         Ok(())
     }
 
@@ -456,7 +460,8 @@ mod factory_consistency {
     fn all_factory_ids_are_lowercase_ascii() -> TestResult {
         for (id, _) in config_writer_factories() {
             assert!(
-                id.chars().all(|c| c.is_ascii_lowercase() || c == '_' || c.is_ascii_digit()),
+                id.chars()
+                    .all(|c| c.is_ascii_lowercase() || c == '_' || c.is_ascii_digit()),
                 "factory id '{id}' should be lowercase ascii + underscores + digits"
             );
         }
@@ -507,7 +512,8 @@ mod factory_consistency {
             let expected_diffs = writer.get_expected_diffs(&config)?;
 
             let write_keys: HashSet<&str> = write_diffs.iter().map(|d| d.key.as_str()).collect();
-            let expected_keys: HashSet<&str> = expected_diffs.iter().map(|d| d.key.as_str()).collect();
+            let expected_keys: HashSet<&str> =
+                expected_diffs.iter().map(|d| d.key.as_str()).collect();
             assert_eq!(
                 write_keys, expected_keys,
                 "{id}: write and expected diff keys should match"
@@ -557,7 +563,10 @@ mod validate_after_write {
             writer.write_config(temp.path(), &config)?;
             writer.write_config(temp.path(), &config)?;
             let valid = writer.validate_config(temp.path())?;
-            assert!(valid, "{id}: validate should remain true after double write");
+            assert!(
+                valid,
+                "{id}: validate should remain true after double write"
+            );
         }
         Ok(())
     }
@@ -779,7 +788,11 @@ mod diff_types {
 
     #[test]
     fn config_diff_serde_all_operations() -> TestResult {
-        for op in [DiffOperation::Add, DiffOperation::Modify, DiffOperation::Remove] {
+        for op in [
+            DiffOperation::Add,
+            DiffOperation::Modify,
+            DiffOperation::Remove,
+        ] {
             let diff = ConfigDiff {
                 file_path: "test.ini".to_string(),
                 section: Some("S".to_string()),
@@ -806,9 +819,18 @@ mod protocol_families {
     #[test]
     fn codemasters_bridge_writers_produce_bridge_diffs() -> TestResult {
         let codemasters = [
-            "f1", "f1_25", "dirt5", "dirt_rally_2", "dirt4", "dirt3",
-            "grid_autosport", "grid_2019", "grid_legends", "race_driver_grid",
-            "wrc_generations", "dirt_showdown",
+            "f1",
+            "f1_25",
+            "dirt5",
+            "dirt_rally_2",
+            "dirt4",
+            "dirt3",
+            "grid_autosport",
+            "grid_2019",
+            "grid_legends",
+            "race_driver_grid",
+            "wrc_generations",
+            "dirt_showdown",
         ];
         let config = default_config();
         for game_id in codemasters {
@@ -839,7 +861,14 @@ mod protocol_families {
 
     #[test]
     fn rfactor_family_writers() -> TestResult {
-        let rfactor_games = ["rfactor1", "rfactor2", "gtr2", "race_07", "gsc", "le_mans_ultimate"];
+        let rfactor_games = [
+            "rfactor1",
+            "rfactor2",
+            "gtr2",
+            "race_07",
+            "gsc",
+            "le_mans_ultimate",
+        ];
         let config = default_config();
         for game_id in rfactor_games {
             let writer = writer_for(game_id)?;
@@ -912,7 +941,10 @@ mod idempotency {
             // Both directories should produce the same validate result
             let v1 = writer.validate_config(temp1.path())?;
             let v2 = writer.validate_config(temp2.path())?;
-            assert_eq!(v1, v2, "{game_id}: idempotent writes should validate the same");
+            assert_eq!(
+                v1, v2,
+                "{game_id}: idempotent writes should validate the same"
+            );
         }
         Ok(())
     }

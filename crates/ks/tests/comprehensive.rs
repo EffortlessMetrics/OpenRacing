@@ -1,8 +1,8 @@
 #![allow(clippy::redundant_closure)]
 
 use racing_wheel_ks::{
-    KsAxisSource, KsBitSource, KsByteSource, KsClutchMode, KsJoystickMode, KsReportMap,
-    KsReportSnapshot, KsRotaryMode, KS_BUTTON_BYTES, KS_ENCODER_COUNT,
+    KS_BUTTON_BYTES, KS_ENCODER_COUNT, KsAxisSource, KsBitSource, KsByteSource, KsClutchMode,
+    KsJoystickMode, KsReportMap, KsReportSnapshot, KsRotaryMode,
 };
 
 type R = Result<(), Box<dyn std::error::Error>>;
@@ -24,7 +24,9 @@ fn empty_map_has_no_bindings() {
 fn empty_map_accepts_any_report() -> R {
     let map = KsReportMap::empty();
     let report = [0xFF, 0x00, 0x00];
-    let snapshot = map.parse(1, &report).ok_or("empty map should accept any report")?;
+    let snapshot = map
+        .parse(1, &report)
+        .ok_or("empty map should accept any report")?;
     assert_eq!(snapshot.tick, 1);
     Ok(())
 }
@@ -309,7 +311,10 @@ fn bit_source_oob() {
 #[test]
 fn byte_source_parse() -> R {
     let src = KsByteSource::new(2);
-    assert_eq!(src.parse(&[0x00, 0x11, 0xAB, 0x00]).ok_or("byte parse")?, 0xAB);
+    assert_eq!(
+        src.parse(&[0x00, 0x11, 0xAB, 0x00]).ok_or("byte parse")?,
+        0xAB
+    );
     Ok(())
 }
 

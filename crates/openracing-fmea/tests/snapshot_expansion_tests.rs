@@ -3,7 +3,8 @@
 use core::time::Duration;
 use openracing_fmea::{
     FaultAction, FaultDetectionState, FaultMarker, FaultThresholds, FaultType, FmeaEntry,
-    FmeaError, PostMortemConfig, RecoveryContext, RecoveryProcedure, RecoveryResult, RecoveryStatus,
+    FmeaError, PostMortemConfig, RecoveryContext, RecoveryProcedure, RecoveryResult,
+    RecoveryStatus,
 };
 
 // --- FaultType Display (all 9 variants) ---
@@ -87,7 +88,8 @@ fn snapshot_fmea_error_unknown_fault_type() {
 
 #[test]
 fn snapshot_fmea_error_fault_handling_failed() {
-    let err = FmeaError::fault_handling_failed(FaultType::ThermalLimit, "temperature sensor offline");
+    let err =
+        FmeaError::fault_handling_failed(FaultType::ThermalLimit, "temperature sensor offline");
     insta::assert_snapshot!("fmea_error_fault_handling_failed", format!("{}", err));
 }
 
@@ -129,7 +131,10 @@ fn snapshot_fmea_error_fault_already_active() {
 
 #[test]
 fn snapshot_fmea_error_no_active_fault() {
-    insta::assert_snapshot!("fmea_error_no_active_fault", format!("{}", FmeaError::NoActiveFault));
+    insta::assert_snapshot!(
+        "fmea_error_no_active_fault",
+        format!("{}", FmeaError::NoActiveFault)
+    );
 }
 
 #[test]

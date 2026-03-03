@@ -285,17 +285,8 @@ mod monotonicity_tests {
     #[test]
     fn non_monotonic_lut_detected() -> TestResult {
         // Triangle wave: rises to 1.0, then falls back to 0.0
-        let lut = CurveLut::from_fn(|x| {
-            if x < 0.5 {
-                x * 2.0
-            } else {
-                (1.0 - x) * 2.0
-            }
-        });
-        assert!(
-            !lut.is_monotonic(),
-            "triangle wave should not be monotonic"
-        );
+        let lut = CurveLut::from_fn(|x| if x < 0.5 { x * 2.0 } else { (1.0 - x) * 2.0 });
+        assert!(!lut.is_monotonic(), "triangle wave should not be monotonic");
         Ok(())
     }
 
@@ -352,8 +343,7 @@ mod boundary_tests {
             CurveType::Bezier(BezierCurve::ease_in_out()),
         ];
         let test_inputs = [
-            -1.0, -0.1, 0.0, 0.001, 0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99, 0.999, 1.0, 1.1,
-            2.0,
+            -1.0, -0.1, 0.0, 0.001, 0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99, 0.999, 1.0, 1.1, 2.0,
         ];
         for curve in &curves {
             for &x in &test_inputs {
@@ -480,10 +470,7 @@ mod composition_tests {
         for i in 0..=100 {
             let x = i as f32 / 100.0;
             let chained = sq_lut.lookup(sqrt_lut.lookup(x));
-            assert!(
-                (chained - x).abs() < 0.05,
-                "square(sqrt({x})): {chained}"
-            );
+            assert!((chained - x).abs() < 0.05, "square(sqrt({x})): {chained}");
         }
         Ok(())
     }
@@ -574,7 +561,10 @@ mod numerical_stability_tests {
             let x = i as f32 / 10.0;
             let out = curve.evaluate(x);
             assert!(out.is_finite(), "exp(0.001) at {x}: {out}");
-            assert!((0.0..=1.0).contains(&out), "exp(0.001) at {x} out of range: {out}");
+            assert!(
+                (0.0..=1.0).contains(&out),
+                "exp(0.001) at {x} out of range: {out}"
+            );
         }
         Ok(())
     }
@@ -586,7 +576,10 @@ mod numerical_stability_tests {
             let x = i as f32 / 10.0;
             let out = curve.evaluate(x);
             assert!(out.is_finite(), "exp(10) at {x}: {out}");
-            assert!((0.0..=1.0).contains(&out), "exp(10) at {x} out of range: {out}");
+            assert!(
+                (0.0..=1.0).contains(&out),
+                "exp(10) at {x} out of range: {out}"
+            );
         }
         Ok(())
     }

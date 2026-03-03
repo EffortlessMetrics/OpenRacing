@@ -82,8 +82,8 @@ fn torque_limit_clamp_tracks_violations() {
 }
 
 #[test]
-fn interlock_system_clamps_in_normal_mode(
-) -> Result<(), racing_wheel_engine::safety::WatchdogError> {
+fn interlock_system_clamps_in_normal_mode() -> Result<(), racing_wheel_engine::safety::WatchdogError>
+{
     let mut system = create_interlock_system(25.0);
     system.arm()?;
 
@@ -190,8 +190,8 @@ async fn pipeline_zero_input_bounded_output() -> Result<(), Box<dyn std::error::
 }
 
 #[test]
-fn interlock_emergency_stop_zeroes_idle(
-) -> Result<(), racing_wheel_engine::safety::WatchdogError> {
+fn interlock_emergency_stop_zeroes_idle() -> Result<(), racing_wheel_engine::safety::WatchdogError>
+{
     let mut system = create_interlock_system(25.0);
     system.arm()?;
     system.emergency_stop();

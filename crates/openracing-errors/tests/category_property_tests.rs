@@ -39,22 +39,20 @@ fn arb_device_error() -> impl Strategy<Value = DeviceError> {
         "[a-z0-9_-]{1,20}".prop_map(|s| DeviceError::not_found(s)),
         "[a-z0-9_-]{1,20}".prop_map(|s| DeviceError::disconnected(s)),
         "[a-z0-9_-]{1,20}".prop_map(|s| DeviceError::ConnectionFailed(s)),
-        ("[a-z0-9_-]{1,20}", "[a-z ]{1,30}")
-            .prop_map(|(d, m)| DeviceError::CommunicationError {
-                device: d,
-                message: m
-            }),
+        ("[a-z0-9_-]{1,20}", "[a-z ]{1,30}").prop_map(|(d, m)| DeviceError::CommunicationError {
+            device: d,
+            message: m
+        }),
         "[a-z ]{1,30}".prop_map(|s| DeviceError::HidError(s)),
-        ("[a-z0-9_-]{1,20}", 1usize..=1024, 1usize..=1024)
-            .prop_map(|(d, e, a)| DeviceError::InvalidResponse {
+        ("[a-z0-9_-]{1,20}", 1usize..=1024, 1usize..=1024).prop_map(|(d, e, a)| {
+            DeviceError::InvalidResponse {
                 device: d,
                 expected: e,
-                actual: a
-            }),
-        ("[a-z0-9_-]{1,20}", 1u64..=60000)
-            .prop_map(|(d, t)| DeviceError::timeout(d, t)),
-        (any::<u16>(), any::<u16>())
-            .prop_map(|(v, p)| DeviceError::unsupported(v, p)),
+                actual: a,
+            }
+        }),
+        ("[a-z0-9_-]{1,20}", 1u64..=60000).prop_map(|(d, t)| DeviceError::timeout(d, t)),
+        (any::<u16>(), any::<u16>()).prop_map(|(v, p)| DeviceError::unsupported(v, p)),
         "[a-z0-9_-]{1,20}".prop_map(|s| DeviceError::Busy(s)),
         "[a-z0-9_-]{1,20}".prop_map(|s| DeviceError::PermissionDenied(s)),
     ]
@@ -64,8 +62,7 @@ fn arb_device_error() -> impl Strategy<Value = DeviceError> {
 fn arb_validation_error() -> impl Strategy<Value = ValidationError> {
     prop_oneof![
         "[a-z_]{1,20}".prop_map(|f| ValidationError::required(f)),
-        ("[a-z_]{1,20}", "[a-z ]{1,30}")
-            .prop_map(|(f, r)| ValidationError::invalid_format(f, r)),
+        ("[a-z_]{1,20}", "[a-z ]{1,30}").prop_map(|(f, r)| ValidationError::invalid_format(f, r)),
         ("[a-z_]{1,20}", 1usize..=1000, 1usize..=1000)
             .prop_map(|(f, a, m)| ValidationError::too_long(f, a, m)),
         ("[a-z_]{1,20}", 0usize..=100, 1usize..=100)

@@ -10,18 +10,12 @@ use racing_wheel_engine::safety::{ButtonCombo, ConsentRequirements};
 
 #[test]
 fn snapshot_button_combo_both_clutch() {
-    insta::assert_debug_snapshot!(
-        "button_combo_both_clutch",
-        ButtonCombo::BothClutchPaddles
-    );
+    insta::assert_debug_snapshot!("button_combo_both_clutch", ButtonCombo::BothClutchPaddles);
 }
 
 #[test]
 fn snapshot_button_combo_custom_sequence() {
-    insta::assert_debug_snapshot!(
-        "button_combo_custom_42",
-        ButtonCombo::CustomSequence(42)
-    );
+    insta::assert_debug_snapshot!("button_combo_custom_42", ButtonCombo::CustomSequence(42));
 }
 
 #[test]
@@ -34,10 +28,7 @@ fn snapshot_button_combo_both_clutch_json() {
 
 #[test]
 fn snapshot_button_combo_custom_json() {
-    insta::assert_json_snapshot!(
-        "button_combo_custom_json",
-        ButtonCombo::CustomSequence(99)
-    );
+    insta::assert_json_snapshot!("button_combo_custom_json", ButtonCombo::CustomSequence(99));
 }
 
 // --- ConsentRequirements ---

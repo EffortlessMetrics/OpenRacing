@@ -487,7 +487,10 @@ fn disconnection_config_serde_round_trip() -> TestResult {
     let decoded: DisconnectionConfig = serde_json::from_str(&json)?;
     assert_eq!(decoded.timeout_ms, config.timeout_ms);
     assert_eq!(decoded.auto_reconnect, config.auto_reconnect);
-    assert_eq!(decoded.max_reconnect_attempts, config.max_reconnect_attempts);
+    assert_eq!(
+        decoded.max_reconnect_attempts,
+        config.max_reconnect_attempts
+    );
     assert_eq!(decoded.reconnect_delay_ms, config.reconnect_delay_ms);
     Ok(())
 }

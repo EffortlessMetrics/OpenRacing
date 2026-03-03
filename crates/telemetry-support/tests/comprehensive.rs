@@ -4,8 +4,8 @@
 //! status filtering, and serde round-trips.
 
 use racing_wheel_telemetry_support::{
-    GameSupportMatrix, GameSupportStatus, load_default_matrix, matrix_game_id_set,
-    matrix_game_ids, normalize_game_id,
+    GameSupportMatrix, GameSupportStatus, load_default_matrix, matrix_game_id_set, matrix_game_ids,
+    normalize_game_id,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -24,7 +24,12 @@ fn matrix_game_ids_non_empty_and_sorted() -> TestResult {
     let ids = matrix_game_ids()?;
     assert!(!ids.is_empty());
     for pair in ids.windows(2) {
-        assert!(pair[0] <= pair[1], "{} should come before {}", pair[0], pair[1]);
+        assert!(
+            pair[0] <= pair[1],
+            "{} should come before {}",
+            pair[0],
+            pair[1]
+        );
     }
     Ok(())
 }

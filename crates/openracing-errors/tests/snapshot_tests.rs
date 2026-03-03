@@ -341,9 +341,7 @@ mod validation_error_snapshots {
 
     #[test]
     fn test_invalid_format() {
-        assert_snapshot!(
-            ValidationError::invalid_format("email", "missing @ symbol").to_string()
-        );
+        assert_snapshot!(ValidationError::invalid_format("email", "missing @ symbol").to_string());
     }
 
     #[test]
@@ -403,7 +401,9 @@ mod validation_error_snapshots {
 
     #[test]
     fn test_custom() {
-        assert_snapshot!(ValidationError::custom("profile name cannot start with a dot").to_string());
+        assert_snapshot!(
+            ValidationError::custom("profile name cannot start with a dot").to_string()
+        );
     }
 }
 
@@ -557,8 +557,7 @@ mod source_chain_snapshots {
 
     #[test]
     fn test_profile_error_source_chain() {
-        let err: OpenRacingError =
-            ProfileError::circular_inheritance("a -> b -> a").into();
+        let err: OpenRacingError = ProfileError::circular_inheritance("a -> b -> a").into();
         assert_snapshot!(format_source_chain(&err));
     }
 
@@ -601,8 +600,7 @@ mod category_classification_snapshots {
             ),
             (
                 "Io",
-                OpenRacingError::Io(std::io::Error::other("test"))
-                .category(),
+                OpenRacingError::Io(std::io::Error::other("test")).category(),
             ),
             ("Config", OpenRacingError::config("x").category()),
             ("Other", OpenRacingError::other("x").category()),

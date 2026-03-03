@@ -120,7 +120,11 @@ fn telemetry_config_serde_round_trip() -> TestResult {
         update_rate_hz: 120,
         output_method: "udp".to_string(),
         output_target: "127.0.0.1:20778".to_string(),
-        fields: vec!["ffb_scalar".to_string(), "rpm".to_string(), "gear".to_string()],
+        fields: vec![
+            "ffb_scalar".to_string(),
+            "rpm".to_string(),
+            "gear".to_string(),
+        ],
         enable_high_rate_iracing_360hz: true,
     };
     let json = serde_json::to_string(&config)?;

@@ -194,13 +194,8 @@ mod plugin_discovery_loading {
     /// Plugin metadata validation rejects empty names and authors.
     #[test]
     fn metadata_rejects_empty_name_and_author() -> Result<(), Box<dyn std::error::Error>> {
-        let empty_name = PluginMetadata::new(
-            "",
-            semver::Version::new(1, 0, 0),
-            "Author",
-            "desc",
-            "MIT",
-        );
+        let empty_name =
+            PluginMetadata::new("", semver::Version::new(1, 0, 0), "Author", "desc", "MIT");
         assert!(
             empty_name.validate().is_err(),
             "Empty plugin name must fail"
@@ -213,10 +208,7 @@ mod plugin_discovery_loading {
             "desc",
             "MIT",
         );
-        assert!(
-            empty_author.validate().is_err(),
-            "Empty author must fail"
-        );
+        assert!(empty_author.validate().is_err(), "Empty author must fail");
 
         Ok(())
     }
@@ -267,7 +259,11 @@ mod wasm_native_lifecycle {
             &fast_manifest.license,
         ))?;
 
-        assert_eq!(catalog.list_all().len(), 2, "Both plugins must be in catalog");
+        assert_eq!(
+            catalog.list_all().len(),
+            2,
+            "Both plugins must be in catalog"
+        );
         Ok(())
     }
 
@@ -530,10 +526,7 @@ mod crash_recovery {
 
         manager.manual_quarantine(id_a, 60)?;
 
-        assert!(
-            manager.is_quarantined(id_a),
-            "Plugin A must be quarantined"
-        );
+        assert!(manager.is_quarantined(id_a), "Plugin A must be quarantined");
         assert!(
             !manager.is_quarantined(id_b),
             "Plugin B must not be quarantined"
@@ -553,12 +546,8 @@ mod capability_negotiation {
     /// CapabilityChecker from the plugins crate enforces boundaries that align
     /// with manifest-declared capabilities.
     #[test]
-    fn checker_enforces_manifest_declared_capabilities()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let manifest = make_safe_manifest(
-            "read-only-plugin",
-            vec![Capability::ReadTelemetry],
-        );
+    fn checker_enforces_manifest_declared_capabilities() -> Result<(), Box<dyn std::error::Error>> {
+        let manifest = make_safe_manifest("read-only-plugin", vec![Capability::ReadTelemetry]);
 
         let checker = CapabilityChecker::new(manifest.capabilities.clone());
 
@@ -633,10 +622,8 @@ mod capability_negotiation {
         );
 
         // Paired with capability check
-        let checker = CapabilityChecker::new(vec![
-            Capability::ReadTelemetry,
-            Capability::ModifyTelemetry,
-        ]);
+        let checker =
+            CapabilityChecker::new(vec![Capability::ReadTelemetry, Capability::ModifyTelemetry]);
         assert!(
             checker.check_telemetry_read().is_ok(),
             "Compatible version + correct capability must succeed"
@@ -736,7 +723,10 @@ mod state_persistence {
         let state = manager
             .get_quarantine_state(plugin_id)
             .ok_or("missing quarantine state")?;
-        assert_eq!(state.total_crashes, 2, "crash count must be 2 before serialization");
+        assert_eq!(
+            state.total_crashes, 2,
+            "crash count must be 2 before serialization"
+        );
 
         Ok(())
     }
@@ -826,18 +816,15 @@ mod state_persistence {
         let restored: PluginManifest = serde_json::from_str(&json)?;
 
         assert_eq!(
-            manifest.constraints.max_execution_time_us,
-            restored.constraints.max_execution_time_us,
+            manifest.constraints.max_execution_time_us, restored.constraints.max_execution_time_us,
             "execution time must persist"
         );
         assert_eq!(
-            manifest.constraints.max_memory_bytes,
-            restored.constraints.max_memory_bytes,
+            manifest.constraints.max_memory_bytes, restored.constraints.max_memory_bytes,
             "memory budget must persist"
         );
         assert_eq!(
-            manifest.constraints.update_rate_hz,
-            restored.constraints.update_rate_hz,
+            manifest.constraints.update_rate_hz, restored.constraints.update_rate_hz,
             "update rate must persist"
         );
 

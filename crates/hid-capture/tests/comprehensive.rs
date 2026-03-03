@@ -236,8 +236,7 @@ fn filter_captures_by_report_id() {
             data: "e".into(),
         },
     ];
-    let filtered: Vec<&CaptureReport> =
-        captures.iter().filter(|r| r.report_id == 0x01).collect();
+    let filtered: Vec<&CaptureReport> = captures.iter().filter(|r| r.report_id == 0x01).collect();
     assert_eq!(filtered.len(), 3);
     assert_eq!(filtered[0].data, "a");
     assert_eq!(filtered[1].data, "c");

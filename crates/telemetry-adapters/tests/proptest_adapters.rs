@@ -22,7 +22,11 @@ use racing_wheel_telemetry_adapters::{
 /// Gear is stored as `i8` and some adapters (e.g. Forza) pass through the raw
 /// byte without clamping, so we only assert finite numeric ranges here.
 fn assert_telemetry_invariants(t: &NormalizedTelemetry) {
-    assert!(t.speed_ms >= 0.0, "speed_ms must be non-negative: {}", t.speed_ms);
+    assert!(
+        t.speed_ms >= 0.0,
+        "speed_ms must be non-negative: {}",
+        t.speed_ms
+    );
     assert!(t.rpm >= 0.0, "rpm must be non-negative: {}", t.rpm);
     assert!(
         t.throttle >= 0.0 && t.throttle <= 1.0,

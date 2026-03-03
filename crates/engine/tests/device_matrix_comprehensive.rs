@@ -7,7 +7,7 @@
 //! FFBeast, Cammus, AccuForce, Leo Bodnar, PXN, and Button Box.
 
 use racing_wheel_engine::hid::vendor::{
-    get_vendor_protocol, get_vendor_protocol_with_hid_pid_fallback, VendorProtocol,
+    VendorProtocol, get_vendor_protocol, get_vendor_protocol_with_hid_pid_fallback,
 };
 
 // ── Vendor-specific protocol crate re-exports ────────────────────────────────
@@ -17,7 +17,7 @@ use hid_simucube_protocol::SimucubeModel;
 use racing_wheel_engine::hid::vendor::accuforce::AccuForceProtocolHandler;
 use racing_wheel_engine::hid::vendor::asetek::AsetekProtocolHandler;
 use racing_wheel_engine::hid::vendor::cammus::{
-    CammusModel, CammusProtocolHandler, CAMMUS_C12_PID, CAMMUS_C5_PID, CAMMUS_VENDOR_ID,
+    CAMMUS_C5_PID, CAMMUS_C12_PID, CAMMUS_VENDOR_ID, CammusModel, CammusProtocolHandler,
 };
 use racing_wheel_engine::hid::vendor::fanatec::{FanatecModel, product_ids as fanatec_pids};
 use racing_wheel_engine::hid::vendor::logitech::{
@@ -90,71 +90,186 @@ fn full_device_matrix() -> Vec<DeviceMatrixEntry> {
             .with_tolerance(0.1),
         DeviceMatrixEntry::new(0x046D, logitech_pids::G920, "Logitech", "G920", 2.2, false)
             .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x046D, logitech_pids::G923_XBOX, "Logitech", "G923 Xbox", 2.2, false)
-            .with_tolerance(0.5),
-        DeviceMatrixEntry::new(0x046D, logitech_pids::G923_PS, "Logitech", "G923 PS", 2.2, false)
-            .with_tolerance(0.5),
-        DeviceMatrixEntry::new(0x046D, logitech_pids::G_PRO, "Logitech", "G PRO", 11.0, false)
-            .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x046D, logitech_pids::G_PRO_XBOX, "Logitech", "G PRO Xbox", 11.0, false)
-            .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x046D, logitech_pids::DRIVING_FORCE_GT, "Logitech", "DFGT", 2.5, false),
+        DeviceMatrixEntry::new(
+            0x046D,
+            logitech_pids::G923_XBOX,
+            "Logitech",
+            "G923 Xbox",
+            2.2,
+            false,
+        )
+        .with_tolerance(0.5),
+        DeviceMatrixEntry::new(
+            0x046D,
+            logitech_pids::G923_PS,
+            "Logitech",
+            "G923 PS",
+            2.2,
+            false,
+        )
+        .with_tolerance(0.5),
+        DeviceMatrixEntry::new(
+            0x046D,
+            logitech_pids::G_PRO,
+            "Logitech",
+            "G PRO",
+            11.0,
+            false,
+        )
+        .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x046D,
+            logitech_pids::G_PRO_XBOX,
+            "Logitech",
+            "G PRO Xbox",
+            11.0,
+            false,
+        )
+        .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x046D,
+            logitech_pids::DRIVING_FORCE_GT,
+            "Logitech",
+            "DFGT",
+            2.5,
+            false,
+        ),
         // ── Fanatec (wheelbases) ─────────────────────────────────────────
         DeviceMatrixEntry::new(0x0EB7, fanatec_pids::DD1, "Fanatec", "DD1", 20.0, true)
             .with_tolerance(0.1),
         DeviceMatrixEntry::new(0x0EB7, fanatec_pids::DD2, "Fanatec", "DD2", 25.0, true)
             .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x0EB7, fanatec_pids::CSL_DD, "Fanatec", "CSL DD", 8.0, false)
-            .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x0EB7, fanatec_pids::GT_DD_PRO, "Fanatec", "GT DD Pro", 8.0, false)
-            .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x0EB7, fanatec_pids::CLUBSPORT_DD, "Fanatec", "ClubSport DD+", 12.0, true)
-            .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x0EB7, fanatec_pids::CLUBSPORT_V2, "Fanatec", "ClubSport V2", 8.0, false)
-            .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x0EB7, fanatec_pids::CLUBSPORT_V2_5, "Fanatec", "ClubSport V2.5", 8.0, false)
-            .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x0EB7, fanatec_pids::CSL_ELITE, "Fanatec", "CSL Elite", 6.0, false)
-            .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x0EB7, fanatec_pids::CSR_ELITE, "Fanatec", "CSR Elite", 5.0, false)
-            .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x0EB7,
+            fanatec_pids::CSL_DD,
+            "Fanatec",
+            "CSL DD",
+            8.0,
+            false,
+        )
+        .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x0EB7,
+            fanatec_pids::GT_DD_PRO,
+            "Fanatec",
+            "GT DD Pro",
+            8.0,
+            false,
+        )
+        .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x0EB7,
+            fanatec_pids::CLUBSPORT_DD,
+            "Fanatec",
+            "ClubSport DD+",
+            12.0,
+            true,
+        )
+        .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x0EB7,
+            fanatec_pids::CLUBSPORT_V2,
+            "Fanatec",
+            "ClubSport V2",
+            8.0,
+            false,
+        )
+        .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x0EB7,
+            fanatec_pids::CLUBSPORT_V2_5,
+            "Fanatec",
+            "ClubSport V2.5",
+            8.0,
+            false,
+        )
+        .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x0EB7,
+            fanatec_pids::CSL_ELITE,
+            "Fanatec",
+            "CSL Elite",
+            6.0,
+            false,
+        )
+        .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x0EB7,
+            fanatec_pids::CSR_ELITE,
+            "Fanatec",
+            "CSR Elite",
+            5.0,
+            false,
+        )
+        .with_tolerance(0.1),
         // ── Thrustmaster ─────────────────────────────────────────────────
         DeviceMatrixEntry::new(0x044F, tm_pids::T818, "Thrustmaster", "T818", 10.0, false)
             .with_tolerance(1.0),
-        DeviceMatrixEntry::new(0x044F, tm_pids::T300_RS, "Thrustmaster", "T300 RS", 3.9, false)
-            .with_tolerance(1.0),
-        DeviceMatrixEntry::new(0x044F, tm_pids::TS_PC_RACER, "Thrustmaster", "TS-PC", 4.5, false)
-            .with_tolerance(1.5),
-        DeviceMatrixEntry::new(0x044F, tm_pids::T500_RS, "Thrustmaster", "T500 RS", 5.0, false)
-            .with_tolerance(1.5),
+        DeviceMatrixEntry::new(
+            0x044F,
+            tm_pids::T300_RS,
+            "Thrustmaster",
+            "T300 RS",
+            3.9,
+            false,
+        )
+        .with_tolerance(1.0),
+        DeviceMatrixEntry::new(
+            0x044F,
+            tm_pids::TS_PC_RACER,
+            "Thrustmaster",
+            "TS-PC",
+            4.5,
+            false,
+        )
+        .with_tolerance(1.5),
+        DeviceMatrixEntry::new(
+            0x044F,
+            tm_pids::T500_RS,
+            "Thrustmaster",
+            "T500 RS",
+            5.0,
+            false,
+        )
+        .with_tolerance(1.5),
         DeviceMatrixEntry::new(0x044F, tm_pids::T248, "Thrustmaster", "T248", 3.0, false)
             .with_tolerance(1.5),
         // ── Moza ─────────────────────────────────────────────────────────
         DeviceMatrixEntry::new(0x346E, 0x0000, "Moza", "R16/R21 V1", 16.0, false)
             .with_tolerance(5.0),
-        DeviceMatrixEntry::new(0x346E, 0x0002, "Moza", "R9 V1", 9.0, false)
-            .with_tolerance(3.0),
-        DeviceMatrixEntry::new(0x346E, 0x0004, "Moza", "R5 V1", 5.5, false)
-            .with_tolerance(2.0),
+        DeviceMatrixEntry::new(0x346E, 0x0002, "Moza", "R9 V1", 9.0, false).with_tolerance(3.0),
+        DeviceMatrixEntry::new(0x346E, 0x0004, "Moza", "R5 V1", 5.5, false).with_tolerance(2.0),
         DeviceMatrixEntry::new(0x346E, 0x0010, "Moza", "R16/R21 V2", 16.0, true)
             .with_tolerance(5.0),
-        DeviceMatrixEntry::new(0x346E, 0x0012, "Moza", "R9 V2", 9.0, true)
-            .with_tolerance(3.0),
+        DeviceMatrixEntry::new(0x346E, 0x0012, "Moza", "R9 V2", 9.0, true).with_tolerance(3.0),
         // ── Simagic EVO (VID 0x3670) ─────────────────────────────────────
         DeviceMatrixEntry::new(0x3670, 0x0500, "Simagic", "EVO Sport", 9.0, true)
             .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x3670, 0x0501, "Simagic", "EVO", 12.0, true)
-            .with_tolerance(0.1),
+        DeviceMatrixEntry::new(0x3670, 0x0501, "Simagic", "EVO", 12.0, true).with_tolerance(0.1),
         DeviceMatrixEntry::new(0x3670, 0x0502, "Simagic", "EVO Pro", 18.0, true)
             .with_tolerance(0.1),
         // ── Simagic Legacy (VID 0x0483/STM) ──────────────────────────────
         DeviceMatrixEntry::new(0x0483, 0x0522, "Simagic", "Alpha (legacy)", 15.0, false)
             .with_tolerance(0.1),
         // ── VRS (VID 0x0483/STM) ─────────────────────────────────────────
-        DeviceMatrixEntry::new(0x0483, vrs_pids::DIRECTFORCE_PRO, "VRS", "DirectForce Pro", 20.0, false)
-            .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x0483, vrs_pids::DIRECTFORCE_PRO_V2, "VRS", "DirectForce Pro V2", 25.0, true)
-            .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x0483,
+            vrs_pids::DIRECTFORCE_PRO,
+            "VRS",
+            "DirectForce Pro",
+            20.0,
+            false,
+        )
+        .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x0483,
+            vrs_pids::DIRECTFORCE_PRO_V2,
+            "VRS",
+            "DirectForce Pro V2",
+            25.0,
+            true,
+        )
+        .with_tolerance(0.1),
         // ── Cube Controls (VID 0x0483/STM) ───────────────────────────────
         DeviceMatrixEntry::new(0x0483, 0x0C73, "Cube Controls", "GT Pro", 0.0, false)
             .with_tolerance(5.0),
@@ -163,64 +278,218 @@ fn full_device_matrix() -> Vec<DeviceMatrixEntry> {
         DeviceMatrixEntry::new(0x0483, 0x0C75, "Cube Controls", "CSX3", 0.0, false)
             .with_tolerance(5.0),
         // ── Simucube (VID 0x16D0) ────────────────────────────────────────
-        DeviceMatrixEntry::new(0x16D0, hid_simucube_protocol::SIMUCUBE_2_SPORT_PID, "Simucube", "SC2 Sport", 17.0, false)
-            .with_tolerance(1.0),
-        DeviceMatrixEntry::new(0x16D0, hid_simucube_protocol::SIMUCUBE_2_PRO_PID, "Simucube", "SC2 Pro", 25.0, true)
-            .with_tolerance(1.0),
-        DeviceMatrixEntry::new(0x16D0, hid_simucube_protocol::SIMUCUBE_2_ULTIMATE_PID, "Simucube", "SC2 Ultimate", 32.0, true)
-            .with_tolerance(2.0),
+        DeviceMatrixEntry::new(
+            0x16D0,
+            hid_simucube_protocol::SIMUCUBE_2_SPORT_PID,
+            "Simucube",
+            "SC2 Sport",
+            17.0,
+            false,
+        )
+        .with_tolerance(1.0),
+        DeviceMatrixEntry::new(
+            0x16D0,
+            hid_simucube_protocol::SIMUCUBE_2_PRO_PID,
+            "Simucube",
+            "SC2 Pro",
+            25.0,
+            true,
+        )
+        .with_tolerance(1.0),
+        DeviceMatrixEntry::new(
+            0x16D0,
+            hid_simucube_protocol::SIMUCUBE_2_ULTIMATE_PID,
+            "Simucube",
+            "SC2 Ultimate",
+            32.0,
+            true,
+        )
+        .with_tolerance(2.0),
         // ── Asetek (VID 0x2433) ──────────────────────────────────────────
-        DeviceMatrixEntry::new(0x2433, hid_asetek_protocol::ASETEK_INVICTA_PID, "Asetek", "Invicta", 27.0, false)
-            .with_tolerance(1.0),
-        DeviceMatrixEntry::new(0x2433, hid_asetek_protocol::ASETEK_FORTE_PID, "Asetek", "Forte", 18.0, true)
-            .with_tolerance(1.0),
-        DeviceMatrixEntry::new(0x2433, hid_asetek_protocol::ASETEK_LAPRIMA_PID, "Asetek", "La Prima", 12.0, false)
-            .with_tolerance(1.0),
+        DeviceMatrixEntry::new(
+            0x2433,
+            hid_asetek_protocol::ASETEK_INVICTA_PID,
+            "Asetek",
+            "Invicta",
+            27.0,
+            false,
+        )
+        .with_tolerance(1.0),
+        DeviceMatrixEntry::new(
+            0x2433,
+            hid_asetek_protocol::ASETEK_FORTE_PID,
+            "Asetek",
+            "Forte",
+            18.0,
+            true,
+        )
+        .with_tolerance(1.0),
+        DeviceMatrixEntry::new(
+            0x2433,
+            hid_asetek_protocol::ASETEK_LAPRIMA_PID,
+            "Asetek",
+            "La Prima",
+            12.0,
+            false,
+        )
+        .with_tolerance(1.0),
         // ── Heusinkveld (VID 0x04D8 / Microchip) ─────────────────────────
-        DeviceMatrixEntry::new(0x04D8, hid_heusinkveld_protocol::HEUSINKVELD_SPRINT_PID, "Heusinkveld", "Sprint", 0.0, false)
-            .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x04D8, hid_heusinkveld_protocol::HEUSINKVELD_ULTIMATE_PID, "Heusinkveld", "Ultimate+", 0.0, false)
-            .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x04D8, hid_heusinkveld_protocol::HEUSINKVELD_PRO_PID, "Heusinkveld", "Pro", 0.0, false)
-            .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x04D8,
+            hid_heusinkveld_protocol::HEUSINKVELD_SPRINT_PID,
+            "Heusinkveld",
+            "Sprint",
+            0.0,
+            false,
+        )
+        .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x04D8,
+            hid_heusinkveld_protocol::HEUSINKVELD_ULTIMATE_PID,
+            "Heusinkveld",
+            "Ultimate+",
+            0.0,
+            false,
+        )
+        .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x04D8,
+            hid_heusinkveld_protocol::HEUSINKVELD_PRO_PID,
+            "Heusinkveld",
+            "Pro",
+            0.0,
+            false,
+        )
+        .with_tolerance(0.1),
         // ── Granite Devices / SimpleMotion V2 (VID 0x1D50) ───────────────
-        DeviceMatrixEntry::new(0x1D50, racing_wheel_simplemotion_v2::IONI_PRODUCT_ID, "Granite", "IONI", 0.0, false)
-            .with_tolerance(5.0),
-        DeviceMatrixEntry::new(0x1D50, racing_wheel_simplemotion_v2::IONI_PRODUCT_ID_PREMIUM, "Granite", "IONI Premium", 0.0, true)
-            .with_tolerance(5.0),
-        DeviceMatrixEntry::new(0x1D50, racing_wheel_simplemotion_v2::ARGON_PRODUCT_ID, "Granite", "ARGON", 0.0, true)
-            .with_tolerance(5.0),
+        DeviceMatrixEntry::new(
+            0x1D50,
+            racing_wheel_simplemotion_v2::IONI_PRODUCT_ID,
+            "Granite",
+            "IONI",
+            0.0,
+            false,
+        )
+        .with_tolerance(5.0),
+        DeviceMatrixEntry::new(
+            0x1D50,
+            racing_wheel_simplemotion_v2::IONI_PRODUCT_ID_PREMIUM,
+            "Granite",
+            "IONI Premium",
+            0.0,
+            true,
+        )
+        .with_tolerance(5.0),
+        DeviceMatrixEntry::new(
+            0x1D50,
+            racing_wheel_simplemotion_v2::ARGON_PRODUCT_ID,
+            "Granite",
+            "ARGON",
+            0.0,
+            true,
+        )
+        .with_tolerance(5.0),
         // ── OpenFFBoard (VID 0x1209) ─────────────────────────────────────
-        DeviceMatrixEntry::new(0x1209, racing_wheel_hid_openffboard_protocol::OPENFFBOARD_PRODUCT_ID, "OpenFFBoard", "Main", 0.0, false)
-            .with_tolerance(5.0),
+        DeviceMatrixEntry::new(
+            0x1209,
+            racing_wheel_hid_openffboard_protocol::OPENFFBOARD_PRODUCT_ID,
+            "OpenFFBoard",
+            "Main",
+            0.0,
+            false,
+        )
+        .with_tolerance(5.0),
         // ── FFBeast (VID 0x045B) ─────────────────────────────────────────
-        DeviceMatrixEntry::new(0x045B, racing_wheel_hid_ffbeast_protocol::FFBEAST_PRODUCT_ID_WHEEL, "FFBeast", "Wheel", 0.0, false)
-            .with_tolerance(5.0),
+        DeviceMatrixEntry::new(
+            0x045B,
+            racing_wheel_hid_ffbeast_protocol::FFBEAST_PRODUCT_ID_WHEEL,
+            "FFBeast",
+            "Wheel",
+            0.0,
+            false,
+        )
+        .with_tolerance(5.0),
         // ── Cammus (VID 0x3416) ──────────────────────────────────────────
         DeviceMatrixEntry::new(0x3416, CAMMUS_C5_PID, "Cammus", "C5", 5.0, false)
             .with_tolerance(0.1),
         DeviceMatrixEntry::new(0x3416, CAMMUS_C12_PID, "Cammus", "C12", 12.0, true)
             .with_tolerance(0.1),
         // ── AccuForce (VID 0x1FC9) ───────────────────────────────────────
-        DeviceMatrixEntry::new(0x1FC9, racing_wheel_hid_accuforce_protocol::PID_ACCUFORCE_PRO, "AccuForce", "Pro", 7.0, false)
-            .with_tolerance(1.0),
+        DeviceMatrixEntry::new(
+            0x1FC9,
+            racing_wheel_hid_accuforce_protocol::PID_ACCUFORCE_PRO,
+            "AccuForce",
+            "Pro",
+            7.0,
+            false,
+        )
+        .with_tolerance(1.0),
         // ── Leo Bodnar (VID 0x1DD2) ──────────────────────────────────────
-        DeviceMatrixEntry::new(0x1DD2, racing_wheel_hid_leo_bodnar_protocol::PID_WHEEL_INTERFACE, "Leo Bodnar", "Wheel Interface", 0.0, false)
-            .with_tolerance(3.0),
-        DeviceMatrixEntry::new(0x1DD2, racing_wheel_hid_leo_bodnar_protocol::PID_BBI32, "Leo Bodnar", "BBI-32", 0.0, false)
-            .with_tolerance(3.0),
+        DeviceMatrixEntry::new(
+            0x1DD2,
+            racing_wheel_hid_leo_bodnar_protocol::PID_WHEEL_INTERFACE,
+            "Leo Bodnar",
+            "Wheel Interface",
+            0.0,
+            false,
+        )
+        .with_tolerance(3.0),
+        DeviceMatrixEntry::new(
+            0x1DD2,
+            racing_wheel_hid_leo_bodnar_protocol::PID_BBI32,
+            "Leo Bodnar",
+            "BBI-32",
+            0.0,
+            false,
+        )
+        .with_tolerance(3.0),
         // ── Button Box (VID 0x1209) ──────────────────────────────────────
-        DeviceMatrixEntry::new(0x1209, hid_button_box_protocol::PRODUCT_ID_BUTTON_BOX, "Button Box", "Generic", 0.0, false)
-            .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x1209,
+            hid_button_box_protocol::PRODUCT_ID_BUTTON_BOX,
+            "Button Box",
+            "Generic",
+            0.0,
+            false,
+        )
+        .with_tolerance(0.1),
         // ── PXN (VID 0x11FF) ─────────────────────────────────────────────
-        DeviceMatrixEntry::new(0x11FF, racing_wheel_hid_pxn_protocol::PRODUCT_V10, "PXN", "V10", 10.0, false)
-            .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x11FF, racing_wheel_hid_pxn_protocol::PRODUCT_V12, "PXN", "V12", 12.0, true)
-            .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x11FF, racing_wheel_hid_pxn_protocol::PRODUCT_V12_LITE, "PXN", "V12 Lite", 6.0, false)
-            .with_tolerance(0.1),
-        DeviceMatrixEntry::new(0x11FF, racing_wheel_hid_pxn_protocol::PRODUCT_GT987, "PXN", "GT987", 5.0, false)
-            .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x11FF,
+            racing_wheel_hid_pxn_protocol::PRODUCT_V10,
+            "PXN",
+            "V10",
+            10.0,
+            false,
+        )
+        .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x11FF,
+            racing_wheel_hid_pxn_protocol::PRODUCT_V12,
+            "PXN",
+            "V12",
+            12.0,
+            true,
+        )
+        .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x11FF,
+            racing_wheel_hid_pxn_protocol::PRODUCT_V12_LITE,
+            "PXN",
+            "V12 Lite",
+            6.0,
+            false,
+        )
+        .with_tolerance(0.1),
+        DeviceMatrixEntry::new(
+            0x11FF,
+            racing_wheel_hid_pxn_protocol::PRODUCT_GT987,
+            "PXN",
+            "GT987",
+            5.0,
+            false,
+        )
+        .with_tolerance(0.1),
     ]
 }
 
@@ -392,10 +661,7 @@ fn unknown_vid_returns_none() -> Result<(), Box<dyn std::error::Error>> {
 
     for &vid in unknown_vids {
         let result = get_vendor_protocol(vid, 0xBEEF);
-        assert!(
-            result.is_none(),
-            "unknown VID 0x{vid:04X} must return None"
-        );
+        assert!(result.is_none(), "unknown VID 0x{vid:04X} must return None");
     }
     Ok(())
 }
@@ -486,7 +752,11 @@ fn hid_pid_fallback_does_not_override_known_vendor() -> Result<(), Box<dyn std::
         (0x044F, tm_pids::T818, "Thrustmaster T818"),
         (0x346E, 0x0012, "Moza R9 V2"),
         (0x3670, 0x0501, "Simagic EVO"),
-        (0x2433, hid_asetek_protocol::ASETEK_INVICTA_PID, "Asetek Invicta"),
+        (
+            0x2433,
+            hid_asetek_protocol::ASETEK_INVICTA_PID,
+            "Asetek Invicta",
+        ),
     ];
 
     for &(vid, pid, label) in test_cases {
@@ -568,7 +838,11 @@ fn wheelbase_output_report_metadata_consistency() -> Result<(), Box<dyn std::err
         (0x046D, logitech_pids::G920, "Logitech G920"),
         (0x0EB7, fanatec_pids::CSL_DD, "Fanatec CSL DD"),
         (0x0EB7, fanatec_pids::DD1, "Fanatec DD1"),
-        (0x16D0, hid_simucube_protocol::SIMUCUBE_2_SPORT_PID, "Simucube 2 Sport"),
+        (
+            0x16D0,
+            hid_simucube_protocol::SIMUCUBE_2_SPORT_PID,
+            "Simucube 2 Sport",
+        ),
     ];
 
     for &(vid, pid, label) in wheelbases_with_report_ids {
@@ -592,9 +866,11 @@ fn wheelbase_output_report_metadata_consistency() -> Result<(), Box<dyn std::err
 /// Pedal/peripheral devices should NOT have output report metadata.
 #[test]
 fn pedal_devices_have_no_output_report_metadata() -> Result<(), Box<dyn std::error::Error>> {
-    let pedals_no_report: &[(u16, u16, &str)] = &[
-        (0x04D8, hid_heusinkveld_protocol::HEUSINKVELD_SPRINT_PID, "Heusinkveld Sprint"),
-    ];
+    let pedals_no_report: &[(u16, u16, &str)] = &[(
+        0x04D8,
+        hid_heusinkveld_protocol::HEUSINKVELD_SPRINT_PID,
+        "Heusinkveld Sprint",
+    )];
 
     for &(vid, pid, label) in pedals_no_report {
         let handler = get_vendor_protocol(vid, pid);
@@ -779,9 +1055,18 @@ fn simagic_model_classification_all_generations() -> Result<(), Box<dyn std::err
 #[test]
 fn simucube_model_classification() -> Result<(), Box<dyn std::error::Error>> {
     let cases: &[(u16, SimucubeModel)] = &[
-        (hid_simucube_protocol::SIMUCUBE_2_SPORT_PID, SimucubeModel::Sport),
-        (hid_simucube_protocol::SIMUCUBE_2_PRO_PID, SimucubeModel::Pro),
-        (hid_simucube_protocol::SIMUCUBE_2_ULTIMATE_PID, SimucubeModel::Ultimate),
+        (
+            hid_simucube_protocol::SIMUCUBE_2_SPORT_PID,
+            SimucubeModel::Sport,
+        ),
+        (
+            hid_simucube_protocol::SIMUCUBE_2_PRO_PID,
+            SimucubeModel::Pro,
+        ),
+        (
+            hid_simucube_protocol::SIMUCUBE_2_ULTIMATE_PID,
+            SimucubeModel::Ultimate,
+        ),
     ];
 
     for &(pid, expected) in cases {
@@ -799,9 +1084,15 @@ fn simucube_model_classification() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn asetek_model_classification() -> Result<(), Box<dyn std::error::Error>> {
     let cases: &[(u16, AsetekModel)] = &[
-        (hid_asetek_protocol::ASETEK_INVICTA_PID, AsetekModel::Invicta),
+        (
+            hid_asetek_protocol::ASETEK_INVICTA_PID,
+            AsetekModel::Invicta,
+        ),
         (hid_asetek_protocol::ASETEK_FORTE_PID, AsetekModel::Forte),
-        (hid_asetek_protocol::ASETEK_LAPRIMA_PID, AsetekModel::LaPrima),
+        (
+            hid_asetek_protocol::ASETEK_LAPRIMA_PID,
+            AsetekModel::LaPrima,
+        ),
     ];
 
     for &(pid, expected) in cases {
@@ -844,8 +1135,14 @@ fn pxn_model_classification() -> Result<(), Box<dyn std::error::Error>> {
     let cases: &[(u16, PxnModel)] = &[
         (racing_wheel_hid_pxn_protocol::PRODUCT_V10, PxnModel::V10),
         (racing_wheel_hid_pxn_protocol::PRODUCT_V12, PxnModel::V12),
-        (racing_wheel_hid_pxn_protocol::PRODUCT_V12_LITE, PxnModel::V12Lite),
-        (racing_wheel_hid_pxn_protocol::PRODUCT_GT987, PxnModel::Gt987),
+        (
+            racing_wheel_hid_pxn_protocol::PRODUCT_V12_LITE,
+            PxnModel::V12Lite,
+        ),
+        (
+            racing_wheel_hid_pxn_protocol::PRODUCT_GT987,
+            PxnModel::Gt987,
+        ),
     ];
 
     for &(pid, expected) in cases {
@@ -866,7 +1163,10 @@ fn pxn_model_classification() -> Result<(), Box<dyn std::error::Error>> {
 /// AccuForce model classification.
 #[test]
 fn accuforce_model_classification() -> Result<(), Box<dyn std::error::Error>> {
-    let handler = AccuForceProtocolHandler::new(0x1FC9, racing_wheel_hid_accuforce_protocol::PID_ACCUFORCE_PRO);
+    let handler = AccuForceProtocolHandler::new(
+        0x1FC9,
+        racing_wheel_hid_accuforce_protocol::PID_ACCUFORCE_PRO,
+    );
     assert_eq!(handler.model(), AccuForceModel::Pro);
 
     let handler = AccuForceProtocolHandler::new(0x1FC9, 0xBEEF);
@@ -953,8 +1253,7 @@ fn no_duplicate_vid_pid_across_matrix() -> Result<(), Box<dyn std::error::Error>
 #[test]
 fn matrix_covers_minimum_vendor_count() -> Result<(), Box<dyn std::error::Error>> {
     let matrix = full_device_matrix();
-    let vendors: std::collections::HashSet<&str> =
-        matrix.iter().map(|e| e.vendor_label).collect();
+    let vendors: std::collections::HashSet<&str> = matrix.iter().map(|e| e.vendor_label).collect();
 
     // We support at least 15 vendor families
     assert!(
@@ -969,10 +1268,7 @@ fn matrix_covers_minimum_vendor_count() -> Result<(), Box<dyn std::error::Error>
 #[test]
 fn matrix_covers_minimum_device_count() -> Result<(), Box<dyn std::error::Error>> {
     let count = full_device_matrix().len();
-    assert!(
-        count >= 50,
-        "expected >= 50 devices in matrix, got {count}"
-    );
+    assert!(count >= 50, "expected >= 50 devices in matrix, got {count}");
     Ok(())
 }
 

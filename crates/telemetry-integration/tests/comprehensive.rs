@@ -5,9 +5,9 @@
 //! and policy enforcement.
 
 use racing_wheel_telemetry_integration::{
+    CoverageMismatch, CoveragePolicy, RegistryCoverage, RuntimeCoverageReport,
     compare_matrix_and_registry, compare_matrix_and_registry_with_policy,
-    compare_runtime_registries_with_policies, CoverageMismatch, CoveragePolicy,
-    RegistryCoverage, RuntimeCoverageReport,
+    compare_runtime_registries_with_policies,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -21,10 +21,8 @@ mod adapter_discovery {
 
     #[test]
     fn exact_match_matrix_and_registry() -> TestResult {
-        let coverage = compare_matrix_and_registry(
-            ["iracing", "acc", "dirt5"],
-            ["acc", "dirt5", "iracing"],
-        );
+        let coverage =
+            compare_matrix_and_registry(["iracing", "acc", "dirt5"], ["acc", "dirt5", "iracing"]);
         assert!(coverage.is_exact());
         assert!(coverage.has_complete_matrix_coverage());
         assert!(coverage.has_no_extra_coverage());
@@ -35,10 +33,7 @@ mod adapter_discovery {
 
     #[test]
     fn registry_missing_some_matrix_ids() -> TestResult {
-        let coverage = compare_matrix_and_registry(
-            ["iracing", "acc", "dirt5"],
-            ["iracing", "acc"],
-        );
+        let coverage = compare_matrix_and_registry(["iracing", "acc", "dirt5"], ["iracing", "acc"]);
         assert!(!coverage.is_exact());
         assert!(!coverage.has_complete_matrix_coverage());
         assert!(coverage.has_no_extra_coverage());
@@ -49,10 +44,7 @@ mod adapter_discovery {
 
     #[test]
     fn registry_has_extra_ids() -> TestResult {
-        let coverage = compare_matrix_and_registry(
-            ["iracing", "acc"],
-            ["iracing", "acc", "ams2"],
-        );
+        let coverage = compare_matrix_and_registry(["iracing", "acc"], ["iracing", "acc", "ams2"]);
         assert!(!coverage.is_exact());
         assert!(coverage.has_complete_matrix_coverage());
         assert!(!coverage.has_no_extra_coverage());
@@ -63,10 +55,8 @@ mod adapter_discovery {
 
     #[test]
     fn both_missing_and_extra() -> TestResult {
-        let coverage = compare_matrix_and_registry(
-            ["iracing", "acc", "dirt5"],
-            ["iracing", "ams2", "eawrc"],
-        );
+        let coverage =
+            compare_matrix_and_registry(["iracing", "acc", "dirt5"], ["iracing", "ams2", "eawrc"]);
         assert_eq!(
             coverage.missing_in_registry,
             vec!["acc".to_string(), "dirt5".to_string()]
@@ -90,8 +80,7 @@ mod adapter_discovery {
 
     #[test]
     fn empty_matrix_with_registry_entries() -> TestResult {
-        let coverage =
-            compare_matrix_and_registry(Vec::<&str>::new(), ["iracing", "acc"]);
+        let coverage = compare_matrix_and_registry(Vec::<&str>::new(), ["iracing", "acc"]);
         assert!(!coverage.is_exact());
         assert!(coverage.has_complete_matrix_coverage()); // nothing to miss
         assert!(!coverage.has_no_extra_coverage());
@@ -101,8 +90,7 @@ mod adapter_discovery {
 
     #[test]
     fn empty_registry_with_matrix_entries() -> TestResult {
-        let coverage =
-            compare_matrix_and_registry(["iracing", "acc"], Vec::<&str>::new());
+        let coverage = compare_matrix_and_registry(["iracing", "acc"], Vec::<&str>::new());
         assert!(!coverage.is_exact());
         assert!(!coverage.has_complete_matrix_coverage());
         assert!(coverage.has_no_extra_coverage());
@@ -112,20 +100,15 @@ mod adapter_discovery {
 
     #[test]
     fn case_normalization() -> TestResult {
-        let coverage = compare_matrix_and_registry(
-            ["IRACING", "ACC"],
-            ["iracing", "acc"],
-        );
+        let coverage = compare_matrix_and_registry(["IRACING", "ACC"], ["iracing", "acc"]);
         assert!(coverage.is_exact());
         Ok(())
     }
 
     #[test]
     fn deduplication() -> TestResult {
-        let coverage = compare_matrix_and_registry(
-            ["iracing", "iracing", "acc"],
-            ["acc", "acc", "iracing"],
-        );
+        let coverage =
+            compare_matrix_and_registry(["iracing", "iracing", "acc"], ["acc", "acc", "iracing"]);
         assert_eq!(coverage.matrix_game_ids.len(), 2);
         assert_eq!(coverage.registry_game_ids.len(), 2);
         assert!(coverage.is_exact());
@@ -134,10 +117,7 @@ mod adapter_discovery {
 
     #[test]
     fn empty_strings_filtered_out() -> TestResult {
-        let coverage = compare_matrix_and_registry(
-            ["iracing", "", "acc"],
-            ["acc", "", "iracing"],
-        );
+        let coverage = compare_matrix_and_registry(["iracing", "", "acc"], ["acc", "", "iracing"]);
         assert_eq!(coverage.matrix_game_ids.len(), 2);
         assert!(coverage.is_exact());
         Ok(())
@@ -145,13 +125,15 @@ mod adapter_discovery {
 
     #[test]
     fn ids_are_sorted_in_output() -> TestResult {
-        let coverage = compare_matrix_and_registry(
-            ["dirt5", "acc", "iracing"],
-            ["iracing", "dirt5", "acc"],
-        );
+        let coverage =
+            compare_matrix_and_registry(["dirt5", "acc", "iracing"], ["iracing", "dirt5", "acc"]);
         assert_eq!(
             coverage.matrix_game_ids,
-            vec!["acc".to_string(), "dirt5".to_string(), "iracing".to_string()]
+            vec![
+                "acc".to_string(),
+                "dirt5".to_string(),
+                "iracing".to_string()
+            ]
         );
         Ok(())
     }
@@ -166,24 +148,18 @@ mod coverage_metrics {
 
     #[test]
     fn metrics_counts_are_correct() -> TestResult {
-        let coverage = compare_matrix_and_registry(
-            ["a", "b", "c", "d"],
-            ["a", "b", "e"],
-        );
+        let coverage = compare_matrix_and_registry(["a", "b", "c", "d"], ["a", "b", "e"]);
         let metrics = coverage.metrics();
         assert_eq!(metrics.matrix_game_count, 4);
         assert_eq!(metrics.registry_game_count, 3);
         assert_eq!(metrics.missing_count, 2); // c, d
-        assert_eq!(metrics.extra_count, 1);   // e
+        assert_eq!(metrics.extra_count, 1); // e
         Ok(())
     }
 
     #[test]
     fn matrix_coverage_ratio_calculation() -> TestResult {
-        let coverage = compare_matrix_and_registry(
-            ["a", "b", "c", "d"],
-            ["a", "b"],
-        );
+        let coverage = compare_matrix_and_registry(["a", "b", "c", "d"], ["a", "b"]);
         // 2 out of 4 matrix entries covered
         assert!((coverage.matrix_coverage_ratio() - 0.5).abs() < f64::EPSILON);
         Ok(())
@@ -191,10 +167,7 @@ mod coverage_metrics {
 
     #[test]
     fn registry_coverage_ratio_calculation() -> TestResult {
-        let coverage = compare_matrix_and_registry(
-            ["a", "b"],
-            ["a", "b", "c", "d"],
-        );
+        let coverage = compare_matrix_and_registry(["a", "b"], ["a", "b", "c", "d"]);
         // 2 out of 4 registry entries are in matrix
         assert!((coverage.registry_coverage_ratio() - 0.5).abs() < f64::EPSILON);
         Ok(())
@@ -202,24 +175,21 @@ mod coverage_metrics {
 
     #[test]
     fn empty_matrix_coverage_ratio_is_zero() -> TestResult {
-        let coverage =
-            compare_matrix_and_registry(Vec::<&str>::new(), ["iracing"]);
+        let coverage = compare_matrix_and_registry(Vec::<&str>::new(), ["iracing"]);
         assert_eq!(coverage.matrix_coverage_ratio(), 0.0);
         Ok(())
     }
 
     #[test]
     fn empty_registry_coverage_ratio_is_zero() -> TestResult {
-        let coverage =
-            compare_matrix_and_registry(["iracing"], Vec::<&str>::new());
+        let coverage = compare_matrix_and_registry(["iracing"], Vec::<&str>::new());
         assert_eq!(coverage.registry_coverage_ratio(), 0.0);
         Ok(())
     }
 
     #[test]
     fn full_coverage_ratios_are_one() -> TestResult {
-        let coverage =
-            compare_matrix_and_registry(["a", "b", "c"], ["a", "b", "c"]);
+        let coverage = compare_matrix_and_registry(["a", "b", "c"], ["a", "b", "c"]);
         assert_eq!(coverage.matrix_coverage_ratio(), 1.0);
         assert_eq!(coverage.registry_coverage_ratio(), 1.0);
         Ok(())
@@ -235,25 +205,16 @@ mod policy_enforcement {
 
     #[test]
     fn strict_policy_requires_exact_match() -> TestResult {
-        let ok = compare_matrix_and_registry_with_policy(
-            ["a", "b"],
-            ["a", "b"],
-            CoveragePolicy::STRICT,
-        );
+        let ok =
+            compare_matrix_and_registry_with_policy(["a", "b"], ["a", "b"], CoveragePolicy::STRICT);
         assert!(ok.is_ok());
 
-        let fail = compare_matrix_and_registry_with_policy(
-            ["a", "b"],
-            ["a"],
-            CoveragePolicy::STRICT,
-        );
+        let fail =
+            compare_matrix_and_registry_with_policy(["a", "b"], ["a"], CoveragePolicy::STRICT);
         assert!(fail.is_err());
 
-        let fail2 = compare_matrix_and_registry_with_policy(
-            ["a"],
-            ["a", "b"],
-            CoveragePolicy::STRICT,
-        );
+        let fail2 =
+            compare_matrix_and_registry_with_policy(["a"], ["a", "b"], CoveragePolicy::STRICT);
         assert!(fail2.is_err());
         Ok(())
     }
@@ -294,28 +255,17 @@ mod policy_enforcement {
             allow_extra_registry: false,
         };
 
-        let ok = compare_matrix_and_registry_with_policy(
-            ["a", "b", "c"],
-            ["a"],
-            policy,
-        );
+        let ok = compare_matrix_and_registry_with_policy(["a", "b", "c"], ["a"], policy);
         assert!(ok.is_ok());
 
-        let fail = compare_matrix_and_registry_with_policy(
-            ["a"],
-            ["a", "b"],
-            policy,
-        );
+        let fail = compare_matrix_and_registry_with_policy(["a"], ["a", "b"], policy);
         assert!(fail.is_err());
         Ok(())
     }
 
     #[test]
     fn policy_is_satisfied_method() -> TestResult {
-        let coverage = compare_matrix_and_registry(
-            ["a", "b", "c"],
-            ["a", "b"],
-        );
+        let coverage = compare_matrix_and_registry(["a", "b", "c"], ["a", "b"]);
         assert!(!CoveragePolicy::STRICT.is_satisfied(&coverage));
         assert!(!CoveragePolicy::MATRIX_COMPLETE.is_satisfied(&coverage));
         assert!(CoveragePolicy::LENIENT.is_satisfied(&coverage));
@@ -355,11 +305,7 @@ mod policy_enforcement {
 mod runtime_report {
     use super::*;
 
-    fn make_report(
-        matrix: &[&str],
-        adapters: &[&str],
-        writers: &[&str],
-    ) -> RuntimeCoverageReport {
+    fn make_report(matrix: &[&str], adapters: &[&str], writers: &[&str]) -> RuntimeCoverageReport {
         compare_runtime_registries_with_policies(
             matrix.iter().copied(),
             adapters.iter().copied(),
@@ -539,10 +485,7 @@ mod bdd_metrics {
 
     #[test]
     fn coverage_bdd_metrics_reflect_policy() -> TestResult {
-        let coverage = compare_matrix_and_registry(
-            ["a", "b", "c"],
-            ["a", "b"],
-        );
+        let coverage = compare_matrix_and_registry(["a", "b", "c"], ["a", "b"]);
 
         let strict = coverage.bdd_metrics(CoveragePolicy::STRICT);
         assert!(!strict.parity_ok);
@@ -556,10 +499,7 @@ mod bdd_metrics {
 
     #[test]
     fn exact_coverage_bdd_metrics_all_ok() -> TestResult {
-        let coverage = compare_matrix_and_registry(
-            ["a", "b"],
-            ["a", "b"],
-        );
+        let coverage = compare_matrix_and_registry(["a", "b"], ["a", "b"]);
         let bdd = coverage.bdd_metrics(CoveragePolicy::STRICT);
         assert!(bdd.parity_ok);
         assert_eq!(bdd.missing_count, 0);

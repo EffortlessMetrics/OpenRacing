@@ -234,14 +234,8 @@ fn version_mismatch_infinity_fields_handled() -> Result<(), Box<dyn std::error::
     data[OFF_SPEED..OFF_SPEED + 4].copy_from_slice(&f32::INFINITY.to_le_bytes());
     data[OFF_RPM..OFF_RPM + 4].copy_from_slice(&f32::NEG_INFINITY.to_le_bytes());
     let t = parse(&data)?;
-    assert!(
-        t.speed_ms.is_finite(),
-        "INFINITY speed should be sanitized"
-    );
-    assert!(
-        t.rpm.is_finite(),
-        "NEG_INFINITY rpm should be sanitized"
-    );
+    assert!(t.speed_ms.is_finite(), "INFINITY speed should be sanitized");
+    assert!(t.rpm.is_finite(), "NEG_INFINITY rpm should be sanitized");
     Ok(())
 }
 
@@ -257,7 +251,15 @@ fn version_mismatch_extreme_gear_value() -> Result<(), Box<dyn std::error::Error
 
 #[test]
 fn edge_all_fields_at_extremes() -> Result<(), Box<dyn std::error::Error>> {
-    let data = make_outgauge_packet(f32::MAX, f32::MAX, 255, f32::MAX, f32::MAX, f32::MAX, f32::MAX);
+    let data = make_outgauge_packet(
+        f32::MAX,
+        f32::MAX,
+        255,
+        f32::MAX,
+        f32::MAX,
+        f32::MAX,
+        f32::MAX,
+    );
     let result = parse(&data);
     // Must not panic; may succeed or fail
     if let Ok(t) = result {

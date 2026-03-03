@@ -101,10 +101,7 @@ mod interpolation_tests {
         // Use a calibration where min=0 so raw values are always >= min
         let calib = AxisCalibration::new(0, 60000);
         let out = calib.apply(0);
-        assert!(
-            (out - 0.0).abs() < 0.02,
-            "at min should be ~0.0, got {out}"
-        );
+        assert!((out - 0.0).abs() < 0.02, "at min should be ~0.0, got {out}");
         Ok(())
     }
 
@@ -113,10 +110,7 @@ mod interpolation_tests {
         // Use full-range calibration (0, 65535) where deadzone defaults match
         let calib = AxisCalibration::new(0, 65535);
         let out = calib.apply(65535);
-        assert!(
-            (out - 1.0).abs() < 0.02,
-            "at max should be ~1.0, got {out}"
-        );
+        assert!((out - 1.0).abs() < 0.02, "at max should be ~1.0, got {out}");
         Ok(())
     }
 

@@ -15,9 +15,9 @@
 use compat::TelemetryCompat;
 use racing_wheel_engine::TelemetryData;
 use racing_wheel_schemas::migration::{
-    compat::BackwardCompatibleParser, BackupInfo, MigrationConfig, MigrationError,
-    MigrationManager, MigrationResult, ProfileMigrationService, SchemaVersion,
-    CURRENT_SCHEMA_VERSION, SCHEMA_VERSION_V2,
+    BackupInfo, CURRENT_SCHEMA_VERSION, MigrationConfig, MigrationError, MigrationManager,
+    MigrationResult, ProfileMigrationService, SCHEMA_VERSION_V2, SchemaVersion,
+    compat::BackwardCompatibleParser,
 };
 use std::time::Instant;
 
@@ -218,7 +218,10 @@ fn auto_migration_legacy_to_current() -> TestResult {
     let parser = BackwardCompatibleParser::new();
     let legacy = create_legacy_profile(0.65, 720, 10.0);
 
-    assert!(!parser.is_compatible(&legacy)?, "legacy should not be directly compatible");
+    assert!(
+        !parser.is_compatible(&legacy)?,
+        "legacy should not be directly compatible"
+    );
 
     let profile = parser.parse_or_migrate(&legacy)?;
     assert_eq!(profile.schema_version.major, 1);
@@ -270,18 +273,30 @@ fn config_evolution_v0_flat_to_v1_nested() -> TestResult {
     let value: serde_json::Value = serde_json::from_str(&migrated)?;
 
     // Structural assertion: flat → nested
-    assert!(value.get("ffb_gain").is_none(), "flat field must be removed");
+    assert!(
+        value.get("ffb_gain").is_none(),
+        "flat field must be removed"
+    );
     assert!(value.get("degrees_of_rotation").is_none());
     assert!(value.get("torque_cap").is_none());
 
     let base = value.get("base").ok_or("missing base")?;
     assert!(
-        (base.get("ffbGain").and_then(|v| v.as_f64()).ok_or("missing ffbGain")? - 0.9).abs()
+        (base
+            .get("ffbGain")
+            .and_then(|v| v.as_f64())
+            .ok_or("missing ffbGain")?
+            - 0.9)
+            .abs()
             < f64::EPSILON
     );
     assert_eq!(base.get("dorDeg").and_then(|v| v.as_u64()), Some(540));
     assert!(
-        (base.get("torqueCapNm").and_then(|v| v.as_f64()).ok_or("missing torqueCapNm")? - 8.5)
+        (base
+            .get("torqueCapNm")
+            .and_then(|v| v.as_f64())
+            .ok_or("missing torqueCapNm")?
+            - 8.5)
             .abs()
             < f64::EPSILON
     );
@@ -337,7 +352,10 @@ fn config_evolution_default_filter_values() -> TestResult {
         .and_then(|b| b.get("filters"))
         .ok_or("missing filters")?;
 
-    assert_eq!(filters.get("reconstruction").and_then(|v| v.as_u64()), Some(0));
+    assert_eq!(
+        filters.get("reconstruction").and_then(|v| v.as_u64()),
+        Some(0)
+    );
     assert_eq!(filters.get("friction").and_then(|v| v.as_f64()), Some(0.0));
     assert_eq!(filters.get("damper").and_then(|v| v.as_f64()), Some(0.0));
     assert_eq!(filters.get("inertia").and_then(|v| v.as_f64()), Some(0.0));
@@ -373,7 +391,10 @@ fn profile_backward_compat_parser_rejects_legacy_direct() -> TestResult {
     let parser = BackwardCompatibleParser::new();
     let legacy = create_legacy_profile(0.7, 900, 15.0);
     let result = parser.parse(&legacy);
-    assert!(result.is_err(), "v1 parser should reject legacy format without migration");
+    assert!(
+        result.is_err(),
+        "v1 parser should reject legacy format without migration"
+    );
     Ok(())
 }
 
@@ -485,7 +506,11 @@ fn device_config_legacy_missing_fields_get_defaults() -> TestResult {
     assert_eq!(base.get("dorDeg").and_then(|v| v.as_u64()), Some(900));
     // torque should default to 15.0
     assert!(
-        (base.get("torqueCapNm").and_then(|v| v.as_f64()).ok_or("missing torqueCapNm")? - 15.0)
+        (base
+            .get("torqueCapNm")
+            .and_then(|v| v.as_f64())
+            .ok_or("missing torqueCapNm")?
+            - 15.0)
             .abs()
             < f64::EPSILON
     );
@@ -504,7 +529,12 @@ fn device_config_legacy_partial_fields() -> TestResult {
     let base = value.get("base").ok_or("missing base")?;
     assert_eq!(base.get("dorDeg").and_then(|v| v.as_u64()), Some(1080));
     assert!(
-        (base.get("ffbGain").and_then(|v| v.as_f64()).ok_or("missing ffbGain")? - 0.7).abs()
+        (base
+            .get("ffbGain")
+            .and_then(|v| v.as_f64())
+            .ok_or("missing ffbGain")?
+            - 0.7)
+            .abs()
             < f64::EPSILON
     );
     Ok(())
@@ -626,7 +656,10 @@ fn error_validation_failed_display() -> TestResult {
 fn error_backup_failed_display() -> TestResult {
     let err = MigrationError::BackupFailed("disk full".to_string());
     let msg = format!("{err}");
-    assert!(msg.contains("disk full"), "BackupFailed should contain detail: {msg}");
+    assert!(
+        msg.contains("disk full"),
+        "BackupFailed should contain detail: {msg}"
+    );
     Ok(())
 }
 
@@ -831,9 +864,15 @@ fn breaking_change_v1_base_field_names() -> TestResult {
     let value: serde_json::Value = serde_json::from_str(&v1)?;
     let base = value.get("base").ok_or("missing base")?;
 
-    assert!(base.get("ffbGain").is_some(), "must use ffbGain (camelCase)");
+    assert!(
+        base.get("ffbGain").is_some(),
+        "must use ffbGain (camelCase)"
+    );
     assert!(base.get("dorDeg").is_some(), "must use dorDeg (camelCase)");
-    assert!(base.get("torqueCapNm").is_some(), "must use torqueCapNm (camelCase)");
+    assert!(
+        base.get("torqueCapNm").is_some(),
+        "must use torqueCapNm (camelCase)"
+    );
     assert!(base.get("filters").is_some(), "must have filters");
     Ok(())
 }
@@ -864,7 +903,10 @@ fn breaking_change_version_ordering_consistent() -> TestResult {
 fn feature_migration_config_backups_disabled() -> TestResult {
     let config = MigrationConfig::without_backups();
     assert!(!config.create_backups);
-    assert!(config.validate_after_migration, "without_backups still validates");
+    assert!(
+        config.validate_after_migration,
+        "without_backups still validates"
+    );
     let mgr = MigrationManager::new(config)?;
 
     // Migration still works without backups
@@ -886,7 +928,10 @@ fn feature_migration_config_validation_disabled() -> TestResult {
 
     let legacy = create_legacy_profile(0.5, 720, 10.0);
     let result = mgr.migrate_profile(&legacy);
-    assert!(result.is_ok(), "migration without validation should succeed");
+    assert!(
+        result.is_ok(),
+        "migration without validation should succeed"
+    );
     Ok(())
 }
 
@@ -978,9 +1023,7 @@ fn rollback_migrated_json_is_valid_and_parseable() -> TestResult {
     let profile = parser.parse(&outcome.migrated_json)?;
 
     assert_eq!(profile.schema_version.major, 1);
-    assert!(
-        (profile.ffb_gain().ok_or("missing ffbGain")? - 0.65).abs() < f64::EPSILON
-    );
+    assert!((profile.ffb_gain().ok_or("missing ffbGain")? - 0.65).abs() < f64::EPSILON);
     Ok(())
 }
 

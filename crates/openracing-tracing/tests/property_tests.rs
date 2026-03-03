@@ -473,7 +473,7 @@ proptest! {
 
 #[cfg(test)]
 mod span_lifecycle {
-    use openracing_tracing::{TracingManager, RTTraceEvent, TracingError};
+    use openracing_tracing::{RTTraceEvent, TracingError, TracingManager};
 
     #[test]
     fn test_tracing_manager_can_be_created() -> Result<(), TracingError> {

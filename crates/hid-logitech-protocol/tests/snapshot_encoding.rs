@@ -142,7 +142,10 @@ fn test_snapshot_autocenter_mid_strength() {
 #[test]
 fn test_snapshot_all_device_variants() {
     let all_models = [
-        ("WingManFormulaForce", lg::LogitechModel::WingManFormulaForce),
+        (
+            "WingManFormulaForce",
+            lg::LogitechModel::WingManFormulaForce,
+        ),
         ("MOMO", lg::LogitechModel::MOMO),
         ("DrivingForceEX", lg::LogitechModel::DrivingForceEX),
         ("DrivingForcePro", lg::LogitechModel::DrivingForcePro),
@@ -225,7 +228,10 @@ fn test_snapshot_all_pid_to_model() {
         ("DRIVING_FORCE_EX", lg::product_ids::DRIVING_FORCE_EX),
         ("DRIVING_FORCE_PRO", lg::product_ids::DRIVING_FORCE_PRO),
         ("DRIVING_FORCE_GT", lg::product_ids::DRIVING_FORCE_GT),
-        ("SPEED_FORCE_WIRELESS", lg::product_ids::SPEED_FORCE_WIRELESS),
+        (
+            "SPEED_FORCE_WIRELESS",
+            lg::product_ids::SPEED_FORCE_WIRELESS,
+        ),
         ("G25", lg::product_ids::G25),
         ("G27", lg::product_ids::G27),
         ("G29_PS", lg::product_ids::G29_PS),

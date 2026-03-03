@@ -186,18 +186,9 @@ fn ipc_config_builder_roundtrip() -> Result<(), BoxErr> {
 fn error_display_contains_context() -> Result<(), BoxErr> {
     let cases: Vec<(IpcError, &str)> = vec![
         (IpcError::TransportInit("bind failed".into()), "bind failed"),
-        (
-            IpcError::ConnectionFailed("refused".into()),
-            "refused",
-        ),
-        (
-            IpcError::EncodingFailed("too large".into()),
-            "too large",
-        ),
-        (
-            IpcError::DecodingFailed("corrupt".into()),
-            "corrupt",
-        ),
+        (IpcError::ConnectionFailed("refused".into()), "refused"),
+        (IpcError::EncodingFailed("too large".into()), "too large"),
+        (IpcError::DecodingFailed("corrupt".into()), "corrupt"),
         (
             IpcError::VersionIncompatibility {
                 client: "0.5.0".into(),
@@ -210,20 +201,11 @@ fn error_display_contains_context() -> Result<(), BoxErr> {
             "unsupported",
         ),
         (IpcError::ServerNotRunning, "not running"),
-        (
-            IpcError::ConnectionLimitExceeded { max: 42 },
-            "42",
-        ),
+        (IpcError::ConnectionLimitExceeded { max: 42 }, "42"),
         (IpcError::Timeout { timeout_ms: 3000 }, "3000"),
         (IpcError::Grpc("status 14".into()), "status 14"),
-        (
-            IpcError::InvalidConfig("bad value".into()),
-            "bad value",
-        ),
-        (
-            IpcError::PlatformNotSupported("plan9".into()),
-            "plan9",
-        ),
+        (IpcError::InvalidConfig("bad value".into()), "bad value"),
+        (IpcError::PlatformNotSupported("plan9".into()), "plan9"),
         (IpcError::ShutdownRequested, "shutdown"),
     ];
 
@@ -375,9 +357,21 @@ async fn server_feature_negotiation_intersection() -> Result<(), BoxErr> {
         .await?;
 
     assert!(result.compatible);
-    assert!(result.enabled_features.contains(&"device_management".to_string()));
-    assert!(result.enabled_features.contains(&"health_monitoring".to_string()));
-    assert!(!result.enabled_features.contains(&"nonexistent_feature".to_string()));
+    assert!(
+        result
+            .enabled_features
+            .contains(&"device_management".to_string())
+    );
+    assert!(
+        result
+            .enabled_features
+            .contains(&"health_monitoring".to_string())
+    );
+    assert!(
+        !result
+            .enabled_features
+            .contains(&"nonexistent_feature".to_string())
+    );
 
     server.stop().await?;
     Ok(())

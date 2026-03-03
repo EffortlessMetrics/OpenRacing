@@ -5,8 +5,8 @@
 //! ABI compatibility checks.
 
 use openracing_plugin_abi::constants::{
-    HOST_MODULE, PLUG_ABI_MAGIC, PLUG_ABI_VERSION, WASM_ABI_VERSION, capability_str,
-    host_function, log_level, return_code, wasm_export, wasm_optional_export,
+    HOST_MODULE, PLUG_ABI_MAGIC, PLUG_ABI_VERSION, WASM_ABI_VERSION, capability_str, host_function,
+    log_level, return_code, wasm_export, wasm_optional_export,
 };
 use openracing_plugin_abi::host_functions::{names, signatures, validation};
 use openracing_plugin_abi::telemetry_frame::TelemetryFrame;
@@ -181,13 +181,15 @@ fn capability_individual_bit_positions() {
 
 #[test]
 fn capability_flags_no_overlap_with_reserved() {
-    let defined = PluginCapabilities::TELEMETRY | PluginCapabilities::LEDS | PluginCapabilities::HAPTICS;
+    let defined =
+        PluginCapabilities::TELEMETRY | PluginCapabilities::LEDS | PluginCapabilities::HAPTICS;
     assert_eq!(defined.bits() & PluginCapabilities::RESERVED.bits(), 0);
 }
 
 #[test]
 fn capability_reserved_covers_remaining_bits() {
-    let defined = PluginCapabilities::TELEMETRY | PluginCapabilities::LEDS | PluginCapabilities::HAPTICS;
+    let defined =
+        PluginCapabilities::TELEMETRY | PluginCapabilities::LEDS | PluginCapabilities::HAPTICS;
     assert_eq!(
         defined.bits() | PluginCapabilities::RESERVED.bits(),
         0xFFFF_FFFF
@@ -202,7 +204,8 @@ fn capability_empty_has_no_bits_set() {
 
 #[test]
 fn capability_all_defined_flags_combine_correctly() {
-    let all = PluginCapabilities::TELEMETRY | PluginCapabilities::LEDS | PluginCapabilities::HAPTICS;
+    let all =
+        PluginCapabilities::TELEMETRY | PluginCapabilities::LEDS | PluginCapabilities::HAPTICS;
     assert_eq!(all.bits(), 0b0000_0111);
     assert!(all.contains(PluginCapabilities::TELEMETRY));
     assert!(all.contains(PluginCapabilities::LEDS));
@@ -335,8 +338,9 @@ fn plugin_header_bytes_are_little_endian() {
 
 #[test]
 fn plugin_header_zero_reserved_field() {
-    let header =
-        PluginHeader::new(PluginCapabilities::TELEMETRY | PluginCapabilities::LEDS | PluginCapabilities::HAPTICS);
+    let header = PluginHeader::new(
+        PluginCapabilities::TELEMETRY | PluginCapabilities::LEDS | PluginCapabilities::HAPTICS,
+    );
     assert_eq!(header.reserved, 0);
 }
 
@@ -561,8 +565,7 @@ fn telemetry_frame_new_sets_timestamp() {
 
 #[test]
 fn telemetry_frame_with_values_roundtrip() {
-    let frame =
-        TelemetryFrame::with_values(1_000_000, 90.0, std::f32::consts::PI, 45.0, 0x0001);
+    let frame = TelemetryFrame::with_values(1_000_000, 90.0, std::f32::consts::PI, 45.0, 0x0001);
     let bytes = frame.to_bytes();
     let restored = TelemetryFrame::from_bytes(&bytes);
 

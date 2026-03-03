@@ -36,13 +36,15 @@ use racing_wheel_hid_moza_protocol::direct::REPORT_LEN;
 use racing_wheel_hid_moza_protocol::ids::{MOZA_VENDOR_ID, product_ids, rim_ids};
 use racing_wheel_hid_moza_protocol::report::{input_report, report_ids};
 use racing_wheel_hid_moza_protocol::rt_types::TorqueEncoder;
-use racing_wheel_hid_moza_protocol::signature::{DeviceSignature, SignatureVerdict, verify_signature};
+use racing_wheel_hid_moza_protocol::signature::{
+    DeviceSignature, SignatureVerdict, verify_signature,
+};
 use racing_wheel_hid_moza_protocol::types::{
     MozaDeviceCategory, MozaModel, MozaTopologyHint, identify_device, is_wheelbase_product,
 };
 use racing_wheel_hid_moza_protocol::{
-    FfbMode, MozaDirectTorqueEncoder, MozaProtocol, VendorProtocol,
-    parse_wheelbase_input_report, parse_wheelbase_pedal_axes,
+    FfbMode, MozaDirectTorqueEncoder, MozaProtocol, VendorProtocol, parse_wheelbase_input_report,
+    parse_wheelbase_pedal_axes,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -307,7 +309,10 @@ fn serial_device_ids_match_boxflat() {
     // Verify known device IDs are in range and non-zero
     for &(id, name) in device_ids {
         assert!(id > 0, "device ID for {name} must be non-zero");
-        assert!(id < 64, "device ID for {name} should be in reasonable range");
+        assert!(
+            id < 64,
+            "device ID for {name} should be in reasonable range"
+        );
     }
 }
 
@@ -457,11 +462,7 @@ fn torque_full_positive_encodes_to_i16_max() {
         let mut out = [0u8; REPORT_LEN];
         enc.encode(max, 0, &mut out);
         let raw = i16::from_le_bytes([out[1], out[2]]);
-        assert_eq!(
-            raw,
-            i16::MAX,
-            "max={max}Nm: full positive must be i16::MAX"
-        );
+        assert_eq!(raw, i16::MAX, "max={max}Nm: full positive must be i16::MAX");
     }
 }
 
@@ -475,11 +476,7 @@ fn torque_full_negative_encodes_to_i16_min() {
         let mut out = [0u8; REPORT_LEN];
         enc.encode(-max, 0, &mut out);
         let raw = i16::from_le_bytes([out[1], out[2]]);
-        assert_eq!(
-            raw,
-            i16::MIN,
-            "max={max}Nm: full negative must be i16::MIN"
-        );
+        assert_eq!(raw, i16::MIN, "max={max}Nm: full negative must be i16::MIN");
     }
 }
 
@@ -515,7 +512,10 @@ fn torque_tiny_positive_stays_non_negative() {
     let mut out = [0u8; REPORT_LEN];
     enc.encode(0.001, 0, &mut out);
     let raw = i16::from_le_bytes([out[1], out[2]]);
-    assert!(raw >= 0, "tiny positive torque must yield non-negative raw={raw}");
+    assert!(
+        raw >= 0,
+        "tiny positive torque must yield non-negative raw={raw}"
+    );
 }
 
 /// Epsilon-small negative torque must encode to a non-positive raw value.
@@ -527,7 +527,10 @@ fn torque_tiny_negative_stays_non_positive() {
     let mut out = [0u8; REPORT_LEN];
     enc.encode(-0.001, 0, &mut out);
     let raw = i16::from_le_bytes([out[1], out[2]]);
-    assert!(raw <= 0, "tiny negative torque must yield non-positive raw={raw}");
+    assert!(
+        raw <= 0,
+        "tiny negative torque must yield non-positive raw={raw}"
+    );
 }
 
 /// Zero max torque safely produces zero raw output (no division by zero).
@@ -607,8 +610,7 @@ fn all_input_axes_are_little_endian_u16() -> Result<(), Box<dyn std::error::Erro
     report[input_report::BRAKE_START] = 0xAD;
     report[input_report::BRAKE_START + 1] = 0xDE;
 
-    let parsed = parse_wheelbase_input_report(&report)
-        .ok_or("expected LE parse")?;
+    let parsed = parse_wheelbase_input_report(&report).ok_or("expected LE parse")?;
 
     assert_eq!(parsed.steering, 0xBEEF, "steering must be LE");
     assert_eq!(parsed.pedals.throttle, 0xCAFE, "throttle must be LE");
@@ -674,8 +676,7 @@ fn pedal_axis_endianness_non_symmetric() -> Result<(), Box<dyn std::error::Error
         report[start + 1] = 0xAB;
     }
 
-    let parsed = parse_wheelbase_pedal_axes(&report)
-        .ok_or("expected LE pedal parse")?;
+    let parsed = parse_wheelbase_pedal_axes(&report).ok_or("expected LE pedal parse")?;
 
     assert_eq!(parsed.throttle, 0xABCD, "throttle LE");
     assert_eq!(parsed.brake, 0xABCD, "brake LE");
@@ -713,10 +714,7 @@ fn all_wheelbases_support_ffb() {
             MozaDeviceCategory::Wheelbase,
             "PID 0x{pid:04X} must be Wheelbase"
         );
-        assert!(
-            identity.supports_ffb,
-            "PID 0x{pid:04X} must support FFB"
-        );
+        assert!(identity.supports_ffb, "PID 0x{pid:04X} must support FFB");
         assert_eq!(
             identity.topology_hint,
             MozaTopologyHint::WheelbaseAggregated,
@@ -775,7 +773,10 @@ fn model_from_pid_is_correct_for_all_wheelbases() {
     // R16/R21 share PID, defaults to R16
     assert_eq!(MozaModel::from_pid(product_ids::R16_R21_V1), MozaModel::R16);
     assert_eq!(MozaModel::from_pid(product_ids::R16_R21_V2), MozaModel::R16);
-    assert_eq!(MozaModel::from_pid(product_ids::SR_P_PEDALS), MozaModel::SrpPedals);
+    assert_eq!(
+        MozaModel::from_pid(product_ids::SR_P_PEDALS),
+        MozaModel::SrpPedals
+    );
     assert_eq!(MozaModel::from_pid(0xFFFF), MozaModel::Unknown);
 }
 
@@ -838,10 +839,7 @@ fn v2_hardware_detection_uses_bit_4() {
         product_ids::R16_R21_V2,
     ] {
         let proto = MozaProtocol::new(pid);
-        assert!(
-            proto.is_v2_hardware(),
-            "V2 PID 0x{pid:04X} should be V2"
-        );
+        assert!(proto.is_v2_hardware(), "V2 PID 0x{pid:04X} should be V2");
     }
 }
 
@@ -852,13 +850,34 @@ fn v2_hardware_detection_uses_bit_4() {
 #[test]
 fn max_torque_nm_matches_product_specs() {
     // Moza Racing product line torque specifications
-    assert!((MozaModel::R3.max_torque_nm() - 3.9).abs() < 0.01, "R3 = 3.9 Nm");
-    assert!((MozaModel::R5.max_torque_nm() - 5.5).abs() < 0.01, "R5 = 5.5 Nm");
-    assert!((MozaModel::R9.max_torque_nm() - 9.0).abs() < 0.01, "R9 = 9.0 Nm");
-    assert!((MozaModel::R12.max_torque_nm() - 12.0).abs() < 0.01, "R12 = 12.0 Nm");
-    assert!((MozaModel::R16.max_torque_nm() - 16.0).abs() < 0.01, "R16 = 16.0 Nm");
-    assert!((MozaModel::R21.max_torque_nm() - 21.0).abs() < 0.01, "R21 = 21.0 Nm");
-    assert!((MozaModel::SrpPedals.max_torque_nm()).abs() < 0.01, "SRP = 0.0 Nm");
+    assert!(
+        (MozaModel::R3.max_torque_nm() - 3.9).abs() < 0.01,
+        "R3 = 3.9 Nm"
+    );
+    assert!(
+        (MozaModel::R5.max_torque_nm() - 5.5).abs() < 0.01,
+        "R5 = 5.5 Nm"
+    );
+    assert!(
+        (MozaModel::R9.max_torque_nm() - 9.0).abs() < 0.01,
+        "R9 = 9.0 Nm"
+    );
+    assert!(
+        (MozaModel::R12.max_torque_nm() - 12.0).abs() < 0.01,
+        "R12 = 12.0 Nm"
+    );
+    assert!(
+        (MozaModel::R16.max_torque_nm() - 16.0).abs() < 0.01,
+        "R16 = 16.0 Nm"
+    );
+    assert!(
+        (MozaModel::R21.max_torque_nm() - 21.0).abs() < 0.01,
+        "R21 = 21.0 Nm"
+    );
+    assert!(
+        (MozaModel::SrpPedals.max_torque_nm()).abs() < 0.01,
+        "SRP = 0.0 Nm"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -961,7 +980,10 @@ fn rim_ids_are_unique_and_in_range() {
     // Check uniqueness
     for (i, &(a, name_a)) in rims.iter().enumerate() {
         for &(b, name_b) in &rims[i + 1..] {
-            assert_ne!(a, b, "rim IDs {name_a}=0x{a:02X} and {name_b}=0x{b:02X} collide");
+            assert_ne!(
+                a, b,
+                "rim IDs {name_a}=0x{a:02X} and {name_b}=0x{b:02X} collide"
+            );
         }
     }
 }

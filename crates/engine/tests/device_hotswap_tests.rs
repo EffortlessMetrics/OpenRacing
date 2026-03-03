@@ -96,8 +96,8 @@ async fn connect_then_disconnect_cycle_during_idle() -> Result<(), Box<dyn std::
 // ===================================================================
 
 #[tokio::test]
-async fn disconnect_during_active_ffb_returns_device_disconnected(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn disconnect_during_active_ffb_returns_device_disconnected()
+-> Result<(), Box<dyn std::error::Error>> {
     let id = make_id("active-ffb")?;
     let mut device = VirtualDevice::new(id, "Active FFB".to_string());
 
@@ -355,8 +355,8 @@ async fn refresh_after_add_remove_is_consistent() -> Result<(), Box<dyn std::err
 // ===================================================================
 
 #[tokio::test]
-async fn primary_disconnect_secondary_remains_operational(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn primary_disconnect_secondary_remains_operational() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut port = VirtualHidPort::new();
 
     let primary_id = make_id("primary-wheel")?;
@@ -427,8 +427,8 @@ async fn disconnect_one_of_many_does_not_affect_others() -> Result<(), Box<dyn s
 // ===================================================================
 
 #[tokio::test]
-async fn first_added_device_appears_first_in_enumeration(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn first_added_device_appears_first_in_enumeration() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut port = VirtualHidPort::new();
 
     let names = ["first-wheel", "second-wheel", "third-wheel"];
@@ -446,8 +446,8 @@ async fn first_added_device_appears_first_in_enumeration(
 }
 
 #[tokio::test]
-async fn fallback_device_available_after_primary_removal(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn fallback_device_available_after_primary_removal() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut port = VirtualHidPort::new();
 
     let primary_id = make_id("priority-primary")?;
@@ -532,8 +532,8 @@ fn serial_number_preserved_across_reconnect() -> Result<(), Box<dyn std::error::
 }
 
 #[tokio::test]
-async fn vid_pid_stable_through_port_open_after_reconnect(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn vid_pid_stable_through_port_open_after_reconnect() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut port = VirtualHidPort::new();
 
     let id = make_id("vid-pid-port")?;
@@ -595,7 +595,10 @@ fn capabilities_persist_across_reconnect() -> Result<(), Box<dyn std::error::Err
         caps_after.supports_raw_torque_1khz,
         caps_before.supports_raw_torque_1khz
     );
-    assert_eq!(caps_after.max_torque.value(), caps_before.max_torque.value());
+    assert_eq!(
+        caps_after.max_torque.value(),
+        caps_before.max_torque.value()
+    );
     assert_eq!(caps_after.encoder_cpr, caps_before.encoder_cpr);
     assert_eq!(
         caps_after.min_report_period_us,
@@ -735,8 +738,8 @@ async fn stress_rapid_connect_disconnect_single_device() -> Result<(), Box<dyn s
 }
 
 #[tokio::test]
-async fn stress_interleaved_operations_on_multiple_devices(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn stress_interleaved_operations_on_multiple_devices()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut port = VirtualHidPort::new();
     let count = 10;
     let mut ids = Vec::with_capacity(count);

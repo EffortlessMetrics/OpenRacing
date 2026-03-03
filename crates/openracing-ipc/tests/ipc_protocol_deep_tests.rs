@@ -458,7 +458,11 @@ mod version_negotiation {
             .await?;
 
         assert!(result.compatible);
-        assert!(result.enabled_features.contains(&"device_management".to_string()));
+        assert!(
+            result
+                .enabled_features
+                .contains(&"device_management".to_string())
+        );
         assert_eq!(result.server_version, PROTOCOL_VERSION);
         assert_eq!(result.min_client_version, MIN_CLIENT_VERSION);
 
@@ -498,7 +502,11 @@ mod version_negotiation {
             .await?;
 
         assert!(result.compatible);
-        assert!(result.enabled_features.contains(&"device_management".to_string()));
+        assert!(
+            result
+                .enabled_features
+                .contains(&"device_management".to_string())
+        );
         assert!(!result.enabled_features.contains(&"time_travel".to_string()));
         assert!(!result.enabled_features.contains(&"warp_drive".to_string()));
 
@@ -877,8 +885,8 @@ mod message_framing {
     #[test]
     fn flags_byte_layout_in_header() -> Result<(), BoxErr> {
         let mut header = MessageHeader::new(message_types::DEVICE, 0, 0);
-        header.set_flag(message_flags::COMPRESSED);  // 0x0001
-        header.set_flag(message_flags::IS_ERROR);     // 0x0008
+        header.set_flag(message_flags::COMPRESSED); // 0x0001
+        header.set_flag(message_flags::IS_ERROR); // 0x0008
 
         let bytes = header.encode();
         let flags_le = u16::from_le_bytes([bytes[10], bytes[11]]);

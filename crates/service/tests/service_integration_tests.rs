@@ -8,15 +8,14 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use racing_wheel_service::{
-    DeviceState, DiagnosticService,
-    DiagnosticStatus, FaultSeverity, FeatureFlags, GameService, IpcConfig, IpcServer,
-    InterlockState, ServiceConfig, ServiceDaemon, SystemConfig, WheelService,
-    profile_repository::ProfileRepositoryConfig,
-};
 use racing_wheel_schemas::prelude::{
     BaseSettings, Degrees, DeviceCapabilities, DeviceId, FilterConfig, Gain, Profile, ProfileId,
     ProfileScope, TorqueNm,
+};
+use racing_wheel_service::{
+    DeviceState, DiagnosticService, DiagnosticStatus, FaultSeverity, FeatureFlags, GameService,
+    InterlockState, IpcConfig, IpcServer, ServiceConfig, ServiceDaemon, SystemConfig, WheelService,
+    profile_repository::ProfileRepositoryConfig,
 };
 use tempfile::TempDir;
 
@@ -76,7 +75,10 @@ fn make_game_profile(id: &str, game: &str, gain: f32) -> Result<Profile, BoxErr>
 
 fn test_device_capabilities() -> Result<DeviceCapabilities, BoxErr> {
     Ok(DeviceCapabilities::new(
-        false, true, true, true,
+        false,
+        true,
+        true,
+        true,
         TorqueNm::new(25.0)?,
         10000,
         1000,
@@ -100,7 +102,10 @@ async fn startup_creates_all_sub_services() -> Result<(), BoxErr> {
 async fn startup_seeds_virtual_device() -> Result<(), BoxErr> {
     let (svc, _tmp) = temp_service().await?;
     let devices = svc.device_service().enumerate_devices().await?;
-    assert!(!devices.is_empty(), "should seed at least one virtual device");
+    assert!(
+        !devices.is_empty(),
+        "should seed at least one virtual device"
+    );
     Ok(())
 }
 
@@ -122,7 +127,8 @@ async fn shutdown_daemon_via_abort() -> Result<(), BoxErr> {
 async fn repeated_create_destroy_is_clean() -> Result<(), BoxErr> {
     for i in 0..3 {
         let (svc, _tmp) = temp_service().await?;
-        let device_id: DeviceId = format!("repeat-dev-{i}").parse()
+        let device_id: DeviceId = format!("repeat-dev-{i}")
+            .parse()
             .map_err(|e| -> BoxErr { format!("bad id: {e}").into() })?;
         let torque = TorqueNm::new(8.0)?;
         svc.safety_service()
@@ -144,7 +150,10 @@ async fn device_enumerate_discovers_virtual() -> Result<(), BoxErr> {
 
     let first_id = &devices[0].id;
     let managed = svc.device_service().get_device(first_id).await?;
-    assert!(managed.is_some(), "device should be tracked after enumeration");
+    assert!(
+        managed.is_some(),
+        "device should be tracked after enumeration"
+    );
 
     let dev = managed.ok_or("expected device")?;
     assert_eq!(dev.state, DeviceState::Connected);
@@ -535,9 +544,7 @@ async fn fault_clear_returns_to_safe_torque() -> Result<(), BoxErr> {
         .await?;
 
     // Clear the fault
-    svc.safety_service()
-        .clear_fault(&device_id, fault)
-        .await?;
+    svc.safety_service().clear_fault(&device_id, fault).await?;
 
     let state = svc.safety_service().get_safety_state(&device_id).await?;
     assert_eq!(state.interlock_state, InterlockState::SafeTorque);
@@ -562,7 +569,10 @@ async fn emergency_stop_zeroes_torque() -> Result<(), BoxErr> {
         .await?;
 
     let state = svc.safety_service().get_safety_state(&device_id).await?;
-    assert!(matches!(state.interlock_state, InterlockState::Faulted { .. }));
+    assert!(matches!(
+        state.interlock_state,
+        InterlockState::Faulted { .. }
+    ));
     assert_eq!(state.current_torque_limit.value(), 0.0);
     assert_eq!(state.fault_count, 1);
     Ok(())
@@ -584,15 +594,16 @@ async fn concurrent_device_registration() -> Result<(), BoxErr> {
             let device_id: DeviceId = format!("concurrent-dev-{i}")
                 .parse()
                 .map_err(|e| -> BoxErr { format!("bad id: {e}").into() })?;
-            let torque = TorqueNm::new(10.0)
-                .map_err(|e| -> BoxErr { format!("bad torque: {e}").into() })?;
+            let torque =
+                TorqueNm::new(10.0).map_err(|e| -> BoxErr { format!("bad torque: {e}").into() })?;
             ss.register_device(device_id, torque).await?;
             Ok::<(), BoxErr>(())
         }));
     }
 
     for h in handles {
-        h.await.map_err(|e| -> BoxErr { format!("join: {e}").into() })??;
+        h.await
+            .map_err(|e| -> BoxErr { format!("join: {e}").into() })??;
     }
 
     let stats = safety.get_statistics().await;
@@ -616,7 +627,8 @@ async fn concurrent_profile_operations() -> Result<(), BoxErr> {
     }
 
     for h in handles {
-        h.await.map_err(|e| -> BoxErr { format!("join: {e}").into() })??;
+        h.await
+            .map_err(|e| -> BoxErr { format!("join: {e}").into() })??;
     }
 
     let profiles = ps.list_profiles().await?;
@@ -686,10 +698,7 @@ async fn config_save_reload_from_file() -> Result<(), BoxErr> {
     let loaded = SystemConfig::load_from_path(&path).await?;
     loaded.validate()?;
     assert_eq!(loaded.schema_version, config.schema_version);
-    assert_eq!(
-        loaded.engine.tick_rate_hz,
-        config.engine.tick_rate_hz
-    );
+    assert_eq!(loaded.engine.tick_rate_hz, config.engine.tick_rate_hz);
     Ok(())
 }
 

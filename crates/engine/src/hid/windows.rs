@@ -515,11 +515,7 @@ impl SupportedDevices {
             // NOTE: Thrustmaster pedal PIDs 0xB678/0xB679/0xB68D removed —
             // web research confirmed these are HOTAS peripherals, not pedals.
             // Thrustmaster standalone pedals — verified via JacKeTUs/simracing-hwdb
-            (
-                vendor_ids::THRUSTMASTER,
-                0xB68F,
-                "Thrustmaster TPR Pedals",
-            ),
+            (vendor_ids::THRUSTMASTER, 0xB68F, "Thrustmaster TPR Pedals"),
             (
                 vendor_ids::THRUSTMASTER,
                 0xB371,
@@ -556,16 +552,44 @@ impl SupportedDevices {
             (vendor_ids::SIMAGIC, 0xA3BE, "VRS Pedals (corrected)"),
             (vendor_ids::SIMAGIC, 0xA44C, "VRS R295"),
             // Heusinkveld pedals — current firmware (VID 0x30B7)
-            (vendor_ids::HEUSINKVELD_CURRENT, 0x1001, "Heusinkveld Sprint"),
-            (vendor_ids::HEUSINKVELD_CURRENT, 0x1002, "Heusinkveld Handbrake V2"),
-            (vendor_ids::HEUSINKVELD_CURRENT, 0x1003, "Heusinkveld Ultimate+"),
+            (
+                vendor_ids::HEUSINKVELD_CURRENT,
+                0x1001,
+                "Heusinkveld Sprint",
+            ),
+            (
+                vendor_ids::HEUSINKVELD_CURRENT,
+                0x1002,
+                "Heusinkveld Handbrake V2",
+            ),
+            (
+                vendor_ids::HEUSINKVELD_CURRENT,
+                0x1003,
+                "Heusinkveld Ultimate+",
+            ),
             // Heusinkveld pedals — legacy firmware (VID 0x04D8 — Microchip)
-            (vendor_ids::HEUSINKVELD, 0xF6D0, "Heusinkveld Sprint (legacy)"),
-            (vendor_ids::HEUSINKVELD, 0xF6D2, "Heusinkveld Ultimate+ (legacy)"),
+            (
+                vendor_ids::HEUSINKVELD,
+                0xF6D0,
+                "Heusinkveld Sprint (legacy)",
+            ),
+            (
+                vendor_ids::HEUSINKVELD,
+                0xF6D2,
+                "Heusinkveld Ultimate+ (legacy)",
+            ),
             (vendor_ids::HEUSINKVELD, 0xF6D3, "Heusinkveld Pro"),
             // Heusinkveld peripherals (different VIDs)
-            (vendor_ids::HEUSINKVELD_HANDBRAKE_V1, 0x8B82, "Heusinkveld Handbrake"),
-            (vendor_ids::HEUSINKVELD_SHIFTER, 0x3142, "Heusinkveld Sequential Shifter"),
+            (
+                vendor_ids::HEUSINKVELD_HANDBRAKE_V1,
+                0x8B82,
+                "Heusinkveld Handbrake",
+            ),
+            (
+                vendor_ids::HEUSINKVELD_SHIFTER,
+                0x3142,
+                "Heusinkveld Sequential Shifter",
+            ),
             // Simagic EVO generation (VID 0x3670 — verified via linux-steering-wheels)
             (vendor_ids::SIMAGIC_EVO, 0x0500, "Simagic EVO Sport"),
             (vendor_ids::SIMAGIC_EVO, 0x0501, "Simagic EVO"),
@@ -694,11 +718,7 @@ impl SupportedDevices {
                 0x100C,
                 "Leo Bodnar Pedals Controller",
             ),
-            (
-                vendor_ids::LEO_BODNAR,
-                0x22D0,
-                "Leo Bodnar LC Pedals",
-            ),
+            (vendor_ids::LEO_BODNAR, 0x22D0, "Leo Bodnar LC Pedals"),
             // SimExperience AccuForce Pro (NXP USB chip VID 0x1FC9)
             // Source: community USB captures, RetroBat Wheels.cs
             (

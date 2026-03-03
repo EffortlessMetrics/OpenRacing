@@ -54,19 +54,14 @@ fn stress_concurrent_mixed_operations() -> Result<(), Box<dyn std::error::Error>
         .collect();
 
     for handle in handles {
-        handle
-            .join()
-            .map_err(|_| "thread panicked")?;
+        handle.join().map_err(|_| "thread panicked")?;
     }
 
     let snap = counters.snapshot();
     assert_eq!(snap.total_ticks, num_threads * ops_per_thread);
     assert_eq!(snap.missed_ticks, num_threads * (ops_per_thread / 100));
     assert_eq!(snap.safety_events, num_threads * (ops_per_thread / 500));
-    assert_eq!(
-        snap.torque_saturation_samples,
-        num_threads * ops_per_thread
-    );
+    assert_eq!(snap.torque_saturation_samples, num_threads * ops_per_thread);
     assert_eq!(snap.hid_write_errors, num_threads * (ops_per_thread / 1000));
     Ok(())
 }
@@ -225,7 +220,10 @@ fn stress_torque_saturation_concurrent() -> Result<(), Box<dyn std::error::Error
     }
 
     let snap = counters.snapshot();
-    assert_eq!(snap.torque_saturation_samples, num_threads * samples_per_thread);
+    assert_eq!(
+        snap.torque_saturation_samples,
+        num_threads * samples_per_thread
+    );
     // Saturation count should be at least the contribution from even threads
     let even_threads = num_threads / 2;
     assert!(snap.torque_saturation_count >= even_threads * samples_per_thread);

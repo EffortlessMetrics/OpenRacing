@@ -88,10 +88,7 @@ mod serde_roundtrip {
         let deserialized: TransportConfig = serde_json::from_str(&json)?;
 
         assert_eq!(deserialized.max_connections, original.max_connections);
-        assert_eq!(
-            deserialized.connection_timeout,
-            original.connection_timeout
-        );
+        assert_eq!(deserialized.connection_timeout, original.connection_timeout);
         assert_eq!(deserialized.enable_acl, original.enable_acl);
         Ok(())
     }
@@ -400,7 +397,9 @@ mod codec_validation {
         // Random bytes that aren't valid protobuf for Timestamp
         // prost is lenient, so use a very specific invalid encoding
         // Actually prost may accept almost anything; test with corrupt varint
-        let bytes = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x02];
+        let bytes = [
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x02,
+        ];
 
         let result: Result<prost_types::Timestamp, _> = codec.decode(&bytes);
         assert!(result.is_err());
@@ -491,11 +490,13 @@ mod error_handling {
         // Recoverable errors
         assert!(IpcError::ConnectionFailed("x".into()).is_recoverable());
         assert!(IpcError::Timeout { timeout_ms: 100 }.is_recoverable());
-        assert!(IpcError::VersionIncompatibility {
-            client: "0.1.0".into(),
-            server: "1.0.0".into(),
-        }
-        .is_recoverable());
+        assert!(
+            IpcError::VersionIncompatibility {
+                client: "0.1.0".into(),
+                server: "1.0.0".into(),
+            }
+            .is_recoverable()
+        );
         assert!(IpcError::FeatureNegotiation("x".into()).is_recoverable());
 
         // Non-recoverable errors
@@ -522,11 +523,13 @@ mod error_handling {
         assert!(!IpcError::Timeout { timeout_ms: 100 }.is_fatal());
         assert!(!IpcError::EncodingFailed("x".into()).is_fatal());
         assert!(!IpcError::DecodingFailed("x".into()).is_fatal());
-        assert!(!IpcError::VersionIncompatibility {
-            client: "0.1.0".into(),
-            server: "1.0.0".into(),
-        }
-        .is_fatal());
+        assert!(
+            !IpcError::VersionIncompatibility {
+                client: "0.1.0".into(),
+                server: "1.0.0".into(),
+            }
+            .is_fatal()
+        );
         assert!(!IpcError::FeatureNegotiation("x".into()).is_fatal());
         assert!(!IpcError::ConnectionLimitExceeded { max: 1 }.is_fatal());
         assert!(!IpcError::Grpc("x".into()).is_fatal());
@@ -662,7 +665,10 @@ mod connection_state {
         assert_eq!(event.device_id, "wheel-001");
         assert_eq!(event.event_type, HealthEventType::Fault);
         assert_eq!(event.metadata.len(), 2);
-        assert_eq!(event.metadata.get("fault_code").map(|s| s.as_str()), Some("E001"));
+        assert_eq!(
+            event.metadata.get("fault_code").map(|s| s.as_str()),
+            Some("E001")
+        );
     }
 
     #[test]
@@ -686,7 +692,10 @@ mod connection_state {
             id: "client-abc".to_string(),
             connected_at: Instant::now(),
             version: "1.2.3".to_string(),
-            features: vec!["device_management".to_string(), "safety_control".to_string()],
+            features: vec![
+                "device_management".to_string(),
+                "safety_control".to_string(),
+            ],
             peer_info: PeerInfo::default(),
         };
 
@@ -804,7 +813,9 @@ mod connection_state {
 
     #[tokio::test]
     async fn server_config_accessor() {
-        let config = IpcConfig::default().max_connections(75).health_buffer_size(500);
+        let config = IpcConfig::default()
+            .max_connections(75)
+            .health_buffer_size(500);
         let server = IpcServer::new(config);
 
         assert_eq!(server.config().transport.max_connections, 75);

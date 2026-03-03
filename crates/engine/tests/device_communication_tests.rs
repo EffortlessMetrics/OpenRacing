@@ -3,23 +3,22 @@
 //! Covers HID report construction per vendor, report parsing from raw bytes,
 //! device capability negotiation, malformed-report error handling, and edge cases.
 
+use racing_wheel_engine::hid::quirks::DeviceQuirks;
+use racing_wheel_engine::hid::vendor;
+use racing_wheel_engine::hid::{
+    self, DeviceCapabilitiesReport, DeviceTelemetryReport, MAX_TORQUE_REPORT_SIZE, TorqueCommand,
+};
+use racing_wheel_engine::protocol::{
+    self, DeviceCapabilitiesReport as ProtocolCapabilitiesReport,
+    DeviceTelemetryReport as ProtocolTelemetryReport, SafetyInterlockAck, SafetyInterlockChallenge,
+    TorqueCommand as ProtocolTorqueCommand,
+};
+use racing_wheel_engine::rt::FFBMode;
 use racing_wheel_engine::{
     CapabilityNegotiator, GameCompatibility, HidDevice, HidPort, ModeSelectionPolicy,
     VirtualDevice, VirtualHidPort,
 };
-use racing_wheel_engine::hid::{
-    self, DeviceCapabilitiesReport, DeviceTelemetryReport, TorqueCommand, MAX_TORQUE_REPORT_SIZE,
-};
-use racing_wheel_engine::hid::quirks::DeviceQuirks;
-use racing_wheel_engine::hid::vendor;
-use racing_wheel_engine::protocol::{
-    self, DeviceCapabilitiesReport as ProtocolCapabilitiesReport,
-    DeviceTelemetryReport as ProtocolTelemetryReport, SafetyInterlockAck,
-    SafetyInterlockChallenge, TorqueCommand as ProtocolTorqueCommand,
-};
-use racing_wheel_engine::rt::FFBMode;
 use racing_wheel_schemas::prelude::*;
-
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -98,8 +97,8 @@ fn torque_report_moza_uses_direct_layout() -> Result<(), Box<dyn std::error::Err
 }
 
 #[test]
-fn torque_report_fanatec_negative_torque_encodes_correctly() -> Result<(), Box<dyn std::error::Error>>
-{
+fn torque_report_fanatec_negative_torque_encodes_correctly()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut out = [0u8; MAX_TORQUE_REPORT_SIZE];
     let len = hid::encode_torque_report_for_device(0x0EB7, 0x0024, 8.0, -8.0, 1, &mut out);
 
@@ -110,7 +109,8 @@ fn torque_report_fanatec_negative_torque_encodes_correctly() -> Result<(), Box<d
 }
 
 #[test]
-fn torque_report_moza_negative_torque_encodes_correctly() -> Result<(), Box<dyn std::error::Error>> {
+fn torque_report_moza_negative_torque_encodes_correctly() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut out = [0u8; MAX_TORQUE_REPORT_SIZE];
     let len = hid::encode_torque_report_for_device(0x346E, 0x0004, 5.5, -5.5, 0, &mut out);
 
@@ -419,8 +419,8 @@ fn protocol_capabilities_too_short_rejected() {
 
 #[test]
 fn protocol_capabilities_wrong_report_id_rejected() {
-    let mut bytes = ProtocolCapabilitiesReport::new(true, true, true, true, 2500, 10000, 1000)
-        .to_bytes();
+    let mut bytes =
+        ProtocolCapabilitiesReport::new(true, true, true, true, 2500, 10000, 1000).to_bytes();
     bytes[0] = 0x99;
     let result = ProtocolCapabilitiesReport::from_bytes(&bytes);
     assert!(result.is_err());
@@ -557,10 +557,7 @@ fn protocol_torque_command_sequence_wraps() -> Result<(), Box<dyn std::error::Er
 fn protocol_report_size_constraints() {
     assert_eq!(std::mem::size_of::<protocol::TorqueCommand>(), 7);
     assert_eq!(std::mem::size_of::<protocol::DeviceTelemetryReport>(), 13);
-    assert_eq!(
-        std::mem::size_of::<protocol::DeviceCapabilitiesReport>(),
-        9
-    );
+    assert_eq!(std::mem::size_of::<protocol::DeviceCapabilitiesReport>(), 9);
     assert_eq!(std::mem::size_of::<SafetyInterlockChallenge>(), 12);
     assert_eq!(std::mem::size_of::<SafetyInterlockAck>(), 17);
 }
@@ -614,7 +611,10 @@ fn virtual_device_disconnected_returns_error() -> Result<(), Box<dyn std::error:
 
     assert!(!device.is_connected());
     let result = device.write_ffb_report(1.0, 0);
-    assert_eq!(result, Err(racing_wheel_engine::RTError::DeviceDisconnected));
+    assert_eq!(
+        result,
+        Err(racing_wheel_engine::RTError::DeviceDisconnected)
+    );
     assert!(device.read_telemetry().is_none());
     Ok(())
 }
@@ -722,15 +722,13 @@ fn vendor_protocol_dispatch_unknown_returns_none() {
 
 #[test]
 fn vendor_protocol_with_hid_pid_fallback_uses_generic() {
-    let handler =
-        vendor::get_vendor_protocol_with_hid_pid_fallback(0x9999, 0x0001, true);
+    let handler = vendor::get_vendor_protocol_with_hid_pid_fallback(0x9999, 0x0001, true);
     assert!(handler.is_some());
 }
 
 #[test]
 fn vendor_protocol_with_hid_pid_fallback_no_pid_returns_none() {
-    let handler =
-        vendor::get_vendor_protocol_with_hid_pid_fallback(0x9999, 0x0001, false);
+    let handler = vendor::get_vendor_protocol_with_hid_pid_fallback(0x9999, 0x0001, false);
     assert!(handler.is_none());
 }
 

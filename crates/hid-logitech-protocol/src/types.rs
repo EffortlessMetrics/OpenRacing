@@ -61,7 +61,10 @@ impl LogitechModel {
             product_ids::G27 => Self::G27,
             product_ids::G29_PS => Self::G29,
             product_ids::G920 => Self::G920,
-            product_ids::G923 | product_ids::G923_XBOX | product_ids::G923_XBOX_ALT | product_ids::G923_PS => Self::G923,
+            product_ids::G923
+            | product_ids::G923_XBOX
+            | product_ids::G923_XBOX_ALT
+            | product_ids::G923_PS => Self::G923,
             product_ids::G_PRO | product_ids::G_PRO_XBOX => Self::GPro,
             _ => Self::Unknown,
         }

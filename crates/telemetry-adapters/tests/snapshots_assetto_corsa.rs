@@ -46,10 +46,10 @@ fn write_i32(buf: &mut [u8], offset: usize, value: i32) {
 #[test]
 fn ac_normal_race_pace_snapshot() -> TestResult {
     let mut buf = vec![0u8; AC_RTCARINFO_SIZE];
-    write_f32(&mut buf, OFF_SPEED_MS, 55.56);  // ~200 km/h
+    write_f32(&mut buf, OFF_SPEED_MS, 55.56); // ~200 km/h
     write_f32(&mut buf, OFF_RPM, 7200.0);
-    write_i32(&mut buf, OFF_GEAR, 5);           // AC 5 → normalized 4th
-    write_f32(&mut buf, OFF_STEER, 0.08);       // slight right
+    write_i32(&mut buf, OFF_GEAR, 5); // AC 5 → normalized 4th
+    write_f32(&mut buf, OFF_STEER, 0.08); // slight right
     write_f32(&mut buf, OFF_GAS, 0.92);
     write_f32(&mut buf, OFF_BRAKE, 0.0);
     write_f32(&mut buf, OFF_CLUTCH, 0.0);
@@ -58,9 +58,9 @@ fn ac_normal_race_pace_snapshot() -> TestResult {
     write_f32(&mut buf, OFF_ACCG_HORIZONTAL, 0.45);
     write_f32(&mut buf, OFF_ACCG_FRONTAL, 0.12);
     // Lap timing
-    write_i32(&mut buf, OFF_LAP_TIME, 38_200);  // 0:38.200
-    write_i32(&mut buf, OFF_LAST_LAP, 92_400);  // 1:32.400
-    write_i32(&mut buf, OFF_BEST_LAP, 91_800);  // 1:31.800
+    write_i32(&mut buf, OFF_LAP_TIME, 38_200); // 0:38.200
+    write_i32(&mut buf, OFF_LAST_LAP, 92_400); // 1:32.400
+    write_i32(&mut buf, OFF_BEST_LAP, 91_800); // 1:31.800
     write_i32(&mut buf, OFF_LAP_COUNT, 5);
     // Flags
     buf[OFF_ABS_IN_ACTION] = 1;
@@ -87,21 +87,21 @@ fn ac_normal_race_pace_snapshot() -> TestResult {
 #[test]
 fn ac_braking_zone_snapshot() -> TestResult {
     let mut buf = vec![0u8; AC_RTCARINFO_SIZE];
-    write_f32(&mut buf, OFF_SPEED_MS, 41.67);  // ~150 km/h (decelerating)
+    write_f32(&mut buf, OFF_SPEED_MS, 41.67); // ~150 km/h (decelerating)
     write_f32(&mut buf, OFF_RPM, 6800.0);
-    write_i32(&mut buf, OFF_GEAR, 4);           // AC 4 → normalized 3rd
-    write_f32(&mut buf, OFF_STEER, -0.15);      // turning left into corner
+    write_i32(&mut buf, OFF_GEAR, 4); // AC 4 → normalized 3rd
+    write_f32(&mut buf, OFF_STEER, -0.15); // turning left into corner
     write_f32(&mut buf, OFF_GAS, 0.0);
-    write_f32(&mut buf, OFF_BRAKE, 0.95);       // hard braking
+    write_f32(&mut buf, OFF_BRAKE, 0.95); // hard braking
     write_f32(&mut buf, OFF_CLUTCH, 0.0);
     // G-forces: heavy deceleration
     write_f32(&mut buf, OFF_ACCG_VERTICAL, 1.01);
     write_f32(&mut buf, OFF_ACCG_HORIZONTAL, -0.8);
     write_f32(&mut buf, OFF_ACCG_FRONTAL, -1.4);
     // Lap timing
-    write_i32(&mut buf, OFF_LAP_TIME, 55_900);  // 0:55.900
-    write_i32(&mut buf, OFF_LAST_LAP, 93_100);  // 1:33.100
-    write_i32(&mut buf, OFF_BEST_LAP, 91_800);  // 1:31.800
+    write_i32(&mut buf, OFF_LAP_TIME, 55_900); // 0:55.900
+    write_i32(&mut buf, OFF_LAST_LAP, 93_100); // 1:33.100
+    write_i32(&mut buf, OFF_BEST_LAP, 91_800); // 1:31.800
     write_i32(&mut buf, OFF_LAP_COUNT, 6);
     // Flags: ABS + TC
     buf[OFF_ABS_IN_ACTION] = 1;
@@ -129,10 +129,10 @@ fn ac_braking_zone_snapshot() -> TestResult {
 #[test]
 fn ac_pit_stop_snapshot() -> TestResult {
     let mut buf = vec![0u8; AC_RTCARINFO_SIZE];
-    write_f32(&mut buf, OFF_SPEED_MS, 16.67);  // ~60 km/h pit limiter
+    write_f32(&mut buf, OFF_SPEED_MS, 16.67); // ~60 km/h pit limiter
     write_f32(&mut buf, OFF_RPM, 3200.0);
-    write_i32(&mut buf, OFF_GEAR, 2);           // AC 2 → normalized 1st
-    write_f32(&mut buf, OFF_STEER, 0.0);        // straight
+    write_i32(&mut buf, OFF_GEAR, 2); // AC 2 → normalized 1st
+    write_f32(&mut buf, OFF_STEER, 0.0); // straight
     write_f32(&mut buf, OFF_GAS, 0.3);
     write_f32(&mut buf, OFF_BRAKE, 0.0);
     write_f32(&mut buf, OFF_CLUTCH, 0.0);
@@ -141,9 +141,9 @@ fn ac_pit_stop_snapshot() -> TestResult {
     write_f32(&mut buf, OFF_ACCG_HORIZONTAL, 0.0);
     write_f32(&mut buf, OFF_ACCG_FRONTAL, 0.0);
     // Lap timing: pit-in lap was slow
-    write_i32(&mut buf, OFF_LAP_TIME, 72_000);   // 1:12.000 (pit-out)
-    write_i32(&mut buf, OFF_LAST_LAP, 118_500);  // 1:58.500 (pit-in lap)
-    write_i32(&mut buf, OFF_BEST_LAP, 91_800);   // 1:31.800
+    write_i32(&mut buf, OFF_LAP_TIME, 72_000); // 1:12.000 (pit-out)
+    write_i32(&mut buf, OFF_LAST_LAP, 118_500); // 1:58.500 (pit-in lap)
+    write_i32(&mut buf, OFF_BEST_LAP, 91_800); // 1:31.800
     write_i32(&mut buf, OFF_LAP_COUNT, 12);
     // Flags: in pit, engine limiter
     buf[OFF_IN_PIT] = 1;

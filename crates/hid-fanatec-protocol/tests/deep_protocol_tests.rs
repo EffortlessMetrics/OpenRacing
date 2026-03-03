@@ -7,15 +7,14 @@
 use racing_wheel_hid_fanatec_protocol::ids::{
     FANATEC_VENDOR_ID, ffb_commands, led_commands, product_ids, report_ids, rim_ids,
 };
-use racing_wheel_hid_fanatec_protocol::output::{
-    CONSTANT_FORCE_REPORT_LEN, FanatecConstantForceEncoder,
-    MAX_ROTATION_DEGREES, MIN_ROTATION_DEGREES, build_display_report,
-    build_kernel_range_sequence, build_led_report, build_mode_switch_report,
-    build_rotation_range_report, build_rumble_report, build_set_gain_report,
-    build_stop_all_report, fix_report_values,
-};
 use racing_wheel_hid_fanatec_protocol::input::{
     parse_extended_report, parse_pedal_report, parse_standard_report,
+};
+use racing_wheel_hid_fanatec_protocol::output::{
+    CONSTANT_FORCE_REPORT_LEN, FanatecConstantForceEncoder, MAX_ROTATION_DEGREES,
+    MIN_ROTATION_DEGREES, build_display_report, build_kernel_range_sequence, build_led_report,
+    build_mode_switch_report, build_rotation_range_report, build_rumble_report,
+    build_set_gain_report, build_stop_all_report, fix_report_values,
 };
 use racing_wheel_hid_fanatec_protocol::types::{
     FanatecModel, FanatecPedalModel, FanatecRimId, is_pedal_product, is_wheelbase_product,
@@ -38,11 +37,17 @@ fn cf_encode_sign_preservation_small_values() -> Result<(), Box<dyn std::error::
 
     enc.encode(0.01, 0, &mut out);
     let raw_pos = i16::from_le_bytes([out[2], out[3]]);
-    assert!(raw_pos >= 0, "small positive torque must encode non-negative: {raw_pos}");
+    assert!(
+        raw_pos >= 0,
+        "small positive torque must encode non-negative: {raw_pos}"
+    );
 
     enc.encode(-0.01, 0, &mut out);
     let raw_neg = i16::from_le_bytes([out[2], out[3]]);
-    assert!(raw_neg <= 0, "small negative torque must encode non-positive: {raw_neg}");
+    assert!(
+        raw_neg <= 0,
+        "small negative torque must encode non-positive: {raw_neg}"
+    );
     Ok(())
 }
 
@@ -304,7 +309,10 @@ fn pedal_pids_not_wheelbases() -> Result<(), Box<dyn std::error::Error>> {
     ];
     for pid in pedal_pids {
         assert!(is_pedal_product(pid), "PID 0x{pid:04X} must be pedal");
-        assert!(!is_wheelbase_product(pid), "PID 0x{pid:04X} must not be wheelbase");
+        assert!(
+            !is_wheelbase_product(pid),
+            "PID 0x{pid:04X} must not be wheelbase"
+        );
     }
     Ok(())
 }
@@ -442,7 +450,10 @@ fn extended_report_fault_flags_individual_bits() -> Result<(), Box<dyn std::erro
         data[0] = report_ids::EXTENDED_INPUT;
         data[10] = flag;
         let state = parse_extended_report(&data).ok_or("parse failed")?;
-        assert_eq!(state.fault_flags, flag, "fault bit {label} must be preserved");
+        assert_eq!(
+            state.fault_flags, flag,
+            "fault bit {label} must be preserved"
+        );
     }
     Ok(())
 }
@@ -495,14 +506,18 @@ fn extended_report_temperature_fields() -> Result<(), Box<dyn std::error::Error>
 fn standard_input_inverted_pedal_range() -> Result<(), Box<dyn std::error::Error>> {
     let mut data = [0u8; 64];
     data[0] = report_ids::STANDARD_INPUT;
-    data[1] = 0x00; data[2] = 0x80; // center steering
+    data[1] = 0x00;
+    data[2] = 0x80; // center steering
 
     // All pedals fully pressed (inverted: 0x00 = 1.0)
     data[3] = 0x00;
     data[4] = 0x00;
     data[5] = 0x00;
     let state = parse_standard_report(&data).ok_or("parse failed")?;
-    assert!((state.throttle - 1.0).abs() < 0.01, "fully pressed throttle");
+    assert!(
+        (state.throttle - 1.0).abs() < 0.01,
+        "fully pressed throttle"
+    );
     assert!((state.brake - 1.0).abs() < 0.01, "fully pressed brake");
     assert!((state.clutch - 1.0).abs() < 0.01, "fully pressed clutch");
 
@@ -574,9 +589,12 @@ fn pedal_report_12bit_upper_bits_masked() -> Result<(), Box<dyn std::error::Erro
 fn pedal_report_full_press_is_0x0fff() -> Result<(), Box<dyn std::error::Error>> {
     let mut data = [0u8; 7];
     data[0] = 0x01;
-    data[1] = 0xFF; data[2] = 0x0F; // 0x0FFF
-    data[3] = 0xFF; data[4] = 0x0F; // 0x0FFF
-    data[5] = 0xFF; data[6] = 0x0F; // 0x0FFF
+    data[1] = 0xFF;
+    data[2] = 0x0F; // 0x0FFF
+    data[3] = 0xFF;
+    data[4] = 0x0F; // 0x0FFF
+    data[5] = 0xFF;
+    data[6] = 0x0F; // 0x0FFF
     let state = parse_pedal_report(&data).ok_or("parse failed")?;
     assert_eq!(state.throttle_raw, 0x0FFF);
     assert_eq!(state.brake_raw, 0x0FFF);

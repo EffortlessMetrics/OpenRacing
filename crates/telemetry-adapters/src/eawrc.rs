@@ -228,30 +228,15 @@ impl EAWRCAdapter {
         );
         let position = value_f32(
             &packet.values,
-            &[
-                "position",
-                "race_position",
-                "vehicle_position",
-                "standing",
-            ],
+            &["position", "race_position", "vehicle_position", "standing"],
         );
         let fuel_percent = value_f32(
             &packet.values,
-            &[
-                "fuel_percent",
-                "fuel_level",
-                "fuel",
-                "vehicle_fuel_level",
-            ],
+            &["fuel_percent", "fuel_level", "fuel", "vehicle_fuel_level"],
         );
         let num_gears = value_f32(
             &packet.values,
-            &[
-                "num_gears",
-                "max_gears",
-                "gear_count",
-                "vehicle_num_gears",
-            ],
+            &["num_gears", "max_gears", "gear_count", "vehicle_num_gears"],
         );
         let current_lap_time = value_f32(
             &packet.values,
@@ -264,11 +249,7 @@ impl EAWRCAdapter {
         );
         let best_lap_time = value_f32(
             &packet.values,
-            &[
-                "best_lap_time",
-                "lap_time_best",
-                "personal_best_lap_time",
-            ],
+            &["best_lap_time", "lap_time_best", "personal_best_lap_time"],
         );
         let last_lap_time = value_f32(
             &packet.values,

@@ -6,9 +6,8 @@
 
 use proptest::prelude::*;
 use racing_wheel_telemetry_config::{
-    AutoDetectConfig, ConfigDiff, DiffOperation, GameSupportStatus,
-    TelemetryFieldMapping, TelemetryConfig,
-    load_default_matrix, matrix_game_ids, normalize_game_id,
+    AutoDetectConfig, ConfigDiff, DiffOperation, GameSupportStatus, TelemetryConfig,
+    TelemetryFieldMapping, load_default_matrix, matrix_game_ids, normalize_game_id,
 };
 
 // ---------------------------------------------------------------------------
@@ -320,7 +319,10 @@ fn edge_normalize_game_id_empty() {
 
 #[test]
 fn edge_normalize_game_id_unknown_passthrough() {
-    assert_eq!(normalize_game_id("totally_unknown_game"), "totally_unknown_game");
+    assert_eq!(
+        normalize_game_id("totally_unknown_game"),
+        "totally_unknown_game"
+    );
 }
 
 #[test]

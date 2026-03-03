@@ -10,7 +10,7 @@
 use compat::TelemetryCompat;
 use racing_wheel_engine::TelemetryData;
 use racing_wheel_schemas::migration::{
-    MigrationConfig, MigrationManager, SchemaVersion, CURRENT_SCHEMA_VERSION,
+    CURRENT_SCHEMA_VERSION, MigrationConfig, MigrationManager, SchemaVersion,
 };
 use std::time::Instant;
 
@@ -138,8 +138,18 @@ fn legacy_migration_adds_default_filters() -> TestResult {
         filters.get("reconstruction").and_then(|v| v.as_u64()),
         Some(0)
     );
-    assert!(filters.get("notchFilters").and_then(|v| v.as_array()).is_some());
-    assert!(filters.get("curvePoints").and_then(|v| v.as_array()).is_some());
+    assert!(
+        filters
+            .get("notchFilters")
+            .and_then(|v| v.as_array())
+            .is_some()
+    );
+    assert!(
+        filters
+            .get("curvePoints")
+            .and_then(|v| v.as_array())
+            .is_some()
+    );
     Ok(())
 }
 
@@ -249,10 +259,7 @@ fn compat_and_native_produce_identical_temperature() -> TestResult {
         let t = sample(0.0, 0.0, temp, 0);
         let via_compat = t.temp_c();
         let via_native = t.0.temperature_c;
-        assert_eq!(
-            via_compat, via_native,
-            "temp mismatch for value {temp}"
-        );
+        assert_eq!(via_compat, via_native, "temp mismatch for value {temp}");
     }
     Ok(())
 }
@@ -274,17 +281,14 @@ fn compat_and_native_produce_identical_faults() -> TestResult {
 #[test]
 fn compat_and_native_produce_identical_angles() -> TestResult {
     let angles = [
-        -900.0, -720.0, -360.0, -180.0, -90.0, -45.0, -1.0, -0.5, 0.0, 0.5, 1.0, 45.0, 90.0,
-        180.0, 360.0, 720.0, 900.0,
+        -900.0, -720.0, -360.0, -180.0, -90.0, -45.0, -1.0, -0.5, 0.0, 0.5, 1.0, 45.0, 90.0, 180.0,
+        360.0, 720.0, 900.0,
     ];
     for &deg in &angles {
         let t = sample(deg, 0.0, 0, 0);
         let via_compat = t.wheel_angle_mdeg();
         let via_native = (t.0.wheel_angle_deg * 1000.0) as i32;
-        assert_eq!(
-            via_compat, via_native,
-            "angle mismatch for {deg} deg"
-        );
+        assert_eq!(via_compat, via_native, "angle mismatch for {deg} deg");
     }
     Ok(())
 }
@@ -296,10 +300,7 @@ fn compat_and_native_produce_identical_speeds() -> TestResult {
         let t = sample(0.0, rad_s, 0, 0);
         let via_compat = t.wheel_speed_mrad_s();
         let via_native = (t.0.wheel_speed_rad_s * 1000.0) as i32;
-        assert_eq!(
-            via_compat, via_native,
-            "speed mismatch for {rad_s} rad/s"
-        );
+        assert_eq!(via_compat, via_native, "speed mismatch for {rad_s} rad/s");
     }
     Ok(())
 }
@@ -310,10 +311,7 @@ fn compat_full_snapshot_matches_native_access() -> TestResult {
 
     assert_eq!(t.temp_c(), t.0.temperature_c);
     assert_eq!(t.faults(), t.0.fault_flags);
-    assert_eq!(
-        t.wheel_angle_mdeg(),
-        (t.0.wheel_angle_deg * 1000.0) as i32
-    );
+    assert_eq!(t.wheel_angle_mdeg(), (t.0.wheel_angle_deg * 1000.0) as i32);
     assert_eq!(
         t.wheel_speed_mrad_s(),
         (t.0.wheel_speed_rad_s * 1000.0) as i32
@@ -340,8 +338,18 @@ fn compat_deprecation_report() -> TestResult {
 
     // Verify all 5 mappings
     let report = vec![
-        ("temp_c", "temperature_c", t.temp_c() as i64, t.0.temperature_c as i64),
-        ("faults", "fault_flags", t.faults() as i64, t.0.fault_flags as i64),
+        (
+            "temp_c",
+            "temperature_c",
+            t.temp_c() as i64,
+            t.0.temperature_c as i64,
+        ),
+        (
+            "faults",
+            "fault_flags",
+            t.faults() as i64,
+            t.0.fault_flags as i64,
+        ),
         (
             "wheel_angle_mdeg",
             "wheel_angle_deg * 1000",

@@ -30,7 +30,10 @@ fn parse_json(bytes: &[u8]) -> Result<Value, Box<dyn std::error::Error>> {
 }
 
 /// Create a valid test profile JSON file in a temp directory.
-fn write_test_profile(dir: &TempDir, name: &str) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+fn write_test_profile(
+    dir: &TempDir,
+    name: &str,
+) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
     let profile = serde_json::json!({
         "schema": "wheel.profile/1",
         "scope": {
@@ -197,8 +200,13 @@ mod profile_management {
 
         wheelctl()?
             .args([
-                "profile", "create", path_str(&path)?,
-                "--game", "iracing", "--car", "gt3",
+                "profile",
+                "create",
+                path_str(&path)?,
+                "--game",
+                "iracing",
+                "--car",
+                "gt3",
             ])
             .assert()
             .success();
@@ -227,8 +235,13 @@ mod profile_management {
 
         wheelctl()?
             .args([
-                "profile", "edit", path_str(&path)?,
-                "--field", "base.ffbGain", "--value", "0.85",
+                "profile",
+                "edit",
+                path_str(&path)?,
+                "--field",
+                "base.ffbGain",
+                "--value",
+                "0.85",
             ])
             .assert()
             .success();
@@ -268,8 +281,11 @@ mod profile_management {
 
         wheelctl()?
             .args([
-                "profile", "export", path_str(&path)?,
-                "--output", path_str(&export)?,
+                "profile",
+                "export",
+                path_str(&path)?,
+                "--output",
+                path_str(&export)?,
             ])
             .assert()
             .success();
@@ -288,8 +304,11 @@ mod profile_management {
         // Export first
         wheelctl()?
             .args([
-                "profile", "export", path_str(&src)?,
-                "--output", path_str(&export)?,
+                "profile",
+                "export",
+                path_str(&src)?,
+                "--output",
+                path_str(&export)?,
             ])
             .assert()
             .success();
@@ -297,8 +316,11 @@ mod profile_management {
         // Then import
         wheelctl()?
             .args([
-                "profile", "import", path_str(&export)?,
-                "--target", path_str(&import_target)?,
+                "profile",
+                "import",
+                path_str(&export)?,
+                "--target",
+                path_str(&import_target)?,
             ])
             .assert()
             .success();
@@ -314,16 +336,22 @@ mod profile_management {
 
         wheelctl()?
             .args([
-                "profile", "export", path_str(&src)?,
-                "--output", path_str(&export)?,
+                "profile",
+                "export",
+                path_str(&src)?,
+                "--output",
+                path_str(&export)?,
             ])
             .assert()
             .success();
 
         wheelctl()?
             .args([
-                "profile", "import", path_str(&export)?,
-                "--target", path_str(&import_target)?,
+                "profile",
+                "import",
+                path_str(&export)?,
+                "--target",
+                path_str(&import_target)?,
             ])
             .assert()
             .success();
@@ -353,8 +381,13 @@ mod profile_management {
         // Edit
         wheelctl()?
             .args([
-                "profile", "edit", path_str(&path)?,
-                "--field", "base.ffbGain", "--value", "0.6",
+                "profile",
+                "edit",
+                path_str(&path)?,
+                "--field",
+                "base.ffbGain",
+                "--value",
+                "0.6",
             ])
             .assert()
             .success();
@@ -403,11 +436,15 @@ mod device_listing {
 
     #[test]
     fn device_list_detailed_shows_capabilities() -> TestResult {
-        let output = wheelctl()?.args(["device", "list", "--detailed"]).output()?;
+        let output = wheelctl()?
+            .args(["device", "list", "--detailed"])
+            .output()?;
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(
-            stdout.contains("Capabilities") || stdout.contains("Max Torque") || stdout.contains("Type"),
+            stdout.contains("Capabilities")
+                || stdout.contains("Max Torque")
+                || stdout.contains("Type"),
             "detailed list should show capabilities: {stdout}"
         );
         Ok(())
@@ -562,9 +599,13 @@ mod diagnostics_and_status {
 
         wheelctl()?
             .args([
-                "diag", "record", "wheel-001",
-                "--duration", "1",
-                "--output", path_str(&out)?,
+                "diag",
+                "record",
+                "wheel-001",
+                "--duration",
+                "1",
+                "--output",
+                path_str(&out)?,
             ])
             .assert()
             .success();
@@ -698,10 +739,7 @@ mod missing_arguments {
 
     #[test]
     fn profile_validate_missing_path() -> TestResult {
-        wheelctl()?
-            .args(["profile", "validate"])
-            .assert()
-            .failure();
+        wheelctl()?.args(["profile", "validate"]).assert().failure();
         Ok(())
     }
 
@@ -898,7 +936,9 @@ mod invalid_arguments {
             .args(["diag", "test", "--device", "w1", "quantum"])
             .assert()
             .failure()
-            .stderr(predicate::str::contains("invalid value").or(predicate::str::contains("quantum")));
+            .stderr(
+                predicate::str::contains("invalid value").or(predicate::str::contains("quantum")),
+            );
         Ok(())
     }
 
@@ -1030,9 +1070,7 @@ mod json_output {
 
     #[test]
     fn json_flag_works_after_subcommand() -> TestResult {
-        let output = wheelctl()?
-            .args(["device", "list", "--json"])
-            .output()?;
+        let output = wheelctl()?.args(["device", "list", "--json"]).output()?;
         assert!(output.status.success());
         let _json = parse_json(&output.stdout)?;
         Ok(())
@@ -1081,9 +1119,7 @@ mod json_output {
 
     #[test]
     fn json_output_is_single_document() -> TestResult {
-        let output = wheelctl()?
-            .args(["--json", "device", "list"])
-            .output()?;
+        let output = wheelctl()?.args(["--json", "device", "list"]).output()?;
         let stdout = String::from_utf8(output.stdout)?;
         let trimmed = stdout.trim();
         let _: Value = serde_json::from_str(trimmed)?;
@@ -1092,11 +1128,12 @@ mod json_output {
 
     #[test]
     fn json_output_ends_with_newline() -> TestResult {
-        let output = wheelctl()?
-            .args(["--json", "device", "list"])
-            .output()?;
+        let output = wheelctl()?.args(["--json", "device", "list"]).output()?;
         let stdout = String::from_utf8(output.stdout)?;
-        assert!(stdout.ends_with('\n'), "JSON output should end with newline");
+        assert!(
+            stdout.ends_with('\n'),
+            "JSON output should end with newline"
+        );
         Ok(())
     }
 
@@ -1119,7 +1156,9 @@ mod json_output {
     #[test]
     fn verbose_flag_does_not_corrupt_json() -> TestResult {
         let normal = wheelctl()?.args(["--json", "device", "list"]).output()?;
-        let verbose = wheelctl()?.args(["-vvv", "--json", "device", "list"]).output()?;
+        let verbose = wheelctl()?
+            .args(["-vvv", "--json", "device", "list"])
+            .output()?;
 
         let normal_json = parse_json(&normal.stdout)?;
         let verbose_json = parse_json(&verbose.stdout)?;
@@ -1133,10 +1172,12 @@ mod json_output {
             .as_object()
             .map(|o| o.keys().collect())
             .unwrap_or_default();
-        assert_eq!(normal_keys, verbose_keys, "JSON structure should match regardless of verbosity");
+        assert_eq!(
+            normal_keys, verbose_keys,
+            "JSON structure should match regardless of verbosity"
+        );
         Ok(())
     }
-
 }
 
 // ===========================================================================
@@ -1150,9 +1191,15 @@ mod shell_completion {
     fn bash_completion_generates_output() -> TestResult {
         let output = wheelctl()?.args(["completion", "bash"]).output()?;
         assert!(output.status.success());
-        assert!(!output.stdout.is_empty(), "bash completion should be non-empty");
+        assert!(
+            !output.stdout.is_empty(),
+            "bash completion should be non-empty"
+        );
         let text = String::from_utf8_lossy(&output.stdout);
-        assert!(text.contains("wheelctl"), "bash completion should reference binary name");
+        assert!(
+            text.contains("wheelctl"),
+            "bash completion should reference binary name"
+        );
         Ok(())
     }
 
@@ -1160,7 +1207,10 @@ mod shell_completion {
     fn zsh_completion_generates_output() -> TestResult {
         let output = wheelctl()?.args(["completion", "zsh"]).output()?;
         assert!(output.status.success());
-        assert!(!output.stdout.is_empty(), "zsh completion should be non-empty");
+        assert!(
+            !output.stdout.is_empty(),
+            "zsh completion should be non-empty"
+        );
         Ok(())
     }
 
@@ -1168,9 +1218,15 @@ mod shell_completion {
     fn fish_completion_generates_output() -> TestResult {
         let output = wheelctl()?.args(["completion", "fish"]).output()?;
         assert!(output.status.success());
-        assert!(!output.stdout.is_empty(), "fish completion should be non-empty");
+        assert!(
+            !output.stdout.is_empty(),
+            "fish completion should be non-empty"
+        );
         let text = String::from_utf8_lossy(&output.stdout);
-        assert!(text.contains("wheelctl"), "fish completion should reference binary name");
+        assert!(
+            text.contains("wheelctl"),
+            "fish completion should reference binary name"
+        );
         Ok(())
     }
 
@@ -1178,7 +1234,10 @@ mod shell_completion {
     fn powershell_completion_generates_output() -> TestResult {
         let output = wheelctl()?.args(["completion", "powershell"]).output()?;
         assert!(output.status.success());
-        assert!(!output.stdout.is_empty(), "powershell completion should be non-empty");
+        assert!(
+            !output.stdout.is_empty(),
+            "powershell completion should be non-empty"
+        );
         Ok(())
     }
 
@@ -1215,8 +1274,15 @@ mod subcommand_discovery {
         let output = wheelctl()?.arg("--help").output()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
         for subcmd in &[
-            "device", "profile", "plugin", "diag", "game",
-            "telemetry", "safety", "completion", "health",
+            "device",
+            "profile",
+            "plugin",
+            "diag",
+            "game",
+            "telemetry",
+            "safety",
+            "completion",
+            "health",
         ] {
             assert!(
                 stdout.contains(subcmd),
@@ -1240,7 +1306,9 @@ mod subcommand_discovery {
     fn profile_help_lists_all_operations() -> TestResult {
         let output = wheelctl()?.args(["profile", "--help"]).output()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
-        for sub in &["list", "show", "apply", "create", "edit", "validate", "export", "import"] {
+        for sub in &[
+            "list", "show", "apply", "create", "edit", "validate", "export", "import",
+        ] {
             assert!(stdout.contains(sub), "profile help should mention '{sub}'");
         }
         Ok(())
@@ -1281,7 +1349,10 @@ mod subcommand_discovery {
         let output = wheelctl()?.args(["telemetry", "--help"]).output()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
         for sub in &["probe", "capture"] {
-            assert!(stdout.contains(sub), "telemetry help should mention '{sub}'");
+            assert!(
+                stdout.contains(sub),
+                "telemetry help should mention '{sub}'"
+            );
         }
         Ok(())
     }
@@ -1308,10 +1379,7 @@ mod subcommand_discovery {
             vec!["safety", "--help"],
         ];
         for args in subcommands {
-            wheelctl()?
-                .args(args.as_slice())
-                .assert()
-                .success();
+            wheelctl()?.args(args.as_slice()).assert().success();
         }
         Ok(())
     }
@@ -1355,11 +1423,7 @@ mod subcommand_discovery {
         ];
         for args in nested_helps {
             let output = wheelctl()?.args(args.as_slice()).output()?;
-            assert!(
-                output.status.success(),
-                "{:?} --help should succeed",
-                args
-            );
+            assert!(output.status.success(), "{:?} --help should succeed", args);
             assert!(
                 !output.stdout.is_empty(),
                 "{:?} --help should produce stdout",

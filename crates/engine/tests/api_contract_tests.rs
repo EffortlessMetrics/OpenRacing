@@ -289,7 +289,10 @@ fn safety_service_size_is_bounded() -> Result<(), String> {
 fn frame_default_is_zero_safe() -> Result<(), String> {
     let frame = racing_wheel_engine::Frame::default();
     if frame.ffb_in != 0.0 {
-        return Err(format!("Frame::default().ffb_in = {}, expected 0.0", frame.ffb_in));
+        return Err(format!(
+            "Frame::default().ffb_in = {}, expected 0.0",
+            frame.ffb_in
+        ));
     }
     if frame.torque_out != 0.0 {
         return Err(format!(

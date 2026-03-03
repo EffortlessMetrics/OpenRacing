@@ -11,9 +11,8 @@ use racing_wheel_schemas::prelude::{
     BaseSettings, DeviceId, Profile, ProfileId, ProfileScope, TorqueNm,
 };
 use racing_wheel_service::{
-    FaultSeverity, FeatureFlags, IpcConfig, IpcServer, InterlockState,
-    ServiceConfig, ServiceDaemon, SystemConfig, WheelService,
-    profile_repository::ProfileRepositoryConfig,
+    FaultSeverity, FeatureFlags, InterlockState, IpcConfig, IpcServer, ServiceConfig,
+    ServiceDaemon, SystemConfig, WheelService, profile_repository::ProfileRepositoryConfig,
 };
 use tempfile::TempDir;
 use tokio::sync::broadcast;

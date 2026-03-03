@@ -5,15 +5,15 @@
 //! tests for round-trips, and constant validation.
 
 use hid_simucube_protocol::{
-    DeviceStatus, EffectType, SimucubeError, SimucubeHidReport, SimucubeInputReport,
-    SimucubeModel, SimucubeOutputReport, WheelCapabilities, WheelModel,
-    ANGLE_SENSOR_BITS, ANGLE_SENSOR_MAX, HID_ADDITIONAL_AXES, HID_BUTTON_BYTES,
-    HID_BUTTON_COUNT, HID_JOYSTICK_REPORT_MIN_BYTES, MAX_TORQUE_NM, MAX_TORQUE_PRO,
-    MAX_TORQUE_SPORT, MAX_TORQUE_ULTIMATE, PRODUCT_ID_PRO, PRODUCT_ID_SPORT,
+    ANGLE_SENSOR_BITS, ANGLE_SENSOR_MAX, DeviceStatus, EffectType, HID_ADDITIONAL_AXES,
+    HID_BUTTON_BYTES, HID_BUTTON_COUNT, HID_JOYSTICK_REPORT_MIN_BYTES, MAX_TORQUE_NM,
+    MAX_TORQUE_PRO, MAX_TORQUE_SPORT, MAX_TORQUE_ULTIMATE, PRODUCT_ID_PRO, PRODUCT_ID_SPORT,
     PRODUCT_ID_ULTIMATE, REPORT_SIZE_INPUT, REPORT_SIZE_OUTPUT, SIMUCUBE_1_BOOTLOADER_PID,
     SIMUCUBE_1_PID, SIMUCUBE_2_BOOTLOADER_PID, SIMUCUBE_2_PRO_PID, SIMUCUBE_2_SPORT_PID,
     SIMUCUBE_2_ULTIMATE_PID, SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID,
-    SIMUCUBE_WIRELESS_WHEEL_PID, VENDOR_ID, is_simucube_device, simucube_model_from_info,
+    SIMUCUBE_WIRELESS_WHEEL_PID, SimucubeError, SimucubeHidReport, SimucubeInputReport,
+    SimucubeModel, SimucubeOutputReport, VENDOR_ID, WheelCapabilities, WheelModel,
+    is_simucube_device, simucube_model_from_info,
 };
 use proptest::prelude::*;
 
@@ -48,13 +48,13 @@ fn build_extended_bytes(
 ) -> Vec<u8> {
     let mut buf = Vec::with_capacity(16);
     buf.extend_from_slice(&sequence.to_le_bytes()); // 2
-    buf.extend_from_slice(&angle.to_le_bytes());    // 4
-    buf.extend_from_slice(&speed.to_le_bytes());    // 2
-    buf.extend_from_slice(&torque.to_le_bytes());   // 2
-    buf.push(temp);                                  // 1
-    buf.push(fault);                                 // 1
+    buf.extend_from_slice(&angle.to_le_bytes()); // 4
+    buf.extend_from_slice(&speed.to_le_bytes()); // 2
+    buf.extend_from_slice(&torque.to_le_bytes()); // 2
+    buf.push(temp); // 1
+    buf.push(fault); // 1
     buf.push(0x00); // reserved                      // 1
-    buf.push(status);                                // 1
+    buf.push(status); // 1
     // Pad to 16 bytes if needed
     while buf.len() < 16 {
         buf.push(0x00);
@@ -185,7 +185,10 @@ mod input_report_parsing {
         let report = SimucubeHidReport::parse(&data)?;
         assert_eq!(report.pressed_count(), 0);
         for i in 0..128 {
-            assert!(!report.button_pressed(i), "button {i} should not be pressed");
+            assert!(
+                !report.button_pressed(i),
+                "button {i} should not be pressed"
+            );
         }
         Ok(())
     }
@@ -332,7 +335,11 @@ mod input_report_parsing {
                 fault_flags: 1 << bit,
                 ..Default::default()
             };
-            assert!(report.has_fault(), "fault_flags={:#04x} should indicate fault", 1u8 << bit);
+            assert!(
+                report.has_fault(),
+                "fault_flags={:#04x} should indicate fault",
+                1u8 << bit
+            );
         }
     }
 
@@ -506,8 +513,7 @@ mod output_report_construction {
 
     #[test]
     fn output_report_build_effect_encoding() -> Result<(), SimucubeError> {
-        let report = SimucubeOutputReport::new(0)
-            .with_effect(EffectType::Damper, 0xABCD);
+        let report = SimucubeOutputReport::new(0).with_effect(EffectType::Damper, 0xABCD);
         let data = report.build()?;
         assert_eq!(data[8], EffectType::Damper as u8);
         let param = u16::from_le_bytes([data[9], data[10]]);
@@ -542,7 +548,10 @@ mod output_report_construction {
             (EffectType::Friction, 10),
         ];
         for (effect, expected_val) in effects {
-            assert_eq!(effect as u8, expected_val, "effect {effect:?} value mismatch");
+            assert_eq!(
+                effect as u8, expected_val,
+                "effect {effect:?} value mismatch"
+            );
         }
     }
 
@@ -802,7 +811,9 @@ mod torque_encoding_precision {
 
     #[test]
     fn torque_round_trip_precision() {
-        let test_values = [0.0f32, 0.01, 0.5, 1.0, 5.0, 10.0, 17.0, 25.0, -1.0, -10.0, -25.0];
+        let test_values = [
+            0.0f32, 0.01, 0.5, 1.0, 5.0, 10.0, 17.0, 25.0, -1.0, -10.0, -25.0,
+        ];
         for torque in test_values {
             let report = SimucubeOutputReport::new(0).with_torque(torque);
             let decoded = report.torque_cNm as f32 / 100.0;
@@ -1126,8 +1137,7 @@ mod edge_cases {
 
     #[test]
     fn output_report_max_effect_parameter() -> Result<(), SimucubeError> {
-        let report = SimucubeOutputReport::new(0)
-            .with_effect(EffectType::Spring, u16::MAX);
+        let report = SimucubeOutputReport::new(0).with_effect(EffectType::Spring, u16::MAX);
         let data = report.build()?;
         let param = u16::from_le_bytes([data[9], data[10]]);
         assert_eq!(param, u16::MAX);
@@ -1136,8 +1146,7 @@ mod edge_cases {
 
     #[test]
     fn output_report_zero_effect_parameter() -> Result<(), SimucubeError> {
-        let report = SimucubeOutputReport::new(0)
-            .with_effect(EffectType::Constant, 0);
+        let report = SimucubeOutputReport::new(0).with_effect(EffectType::Constant, 0);
         let data = report.build()?;
         let param = u16::from_le_bytes([data[9], data[10]]);
         assert_eq!(param, 0);
@@ -1537,7 +1546,12 @@ mod constant_validation {
 
     #[test]
     fn torque_constants_positive_finite() {
-        for &t in &[MAX_TORQUE_NM, MAX_TORQUE_SPORT, MAX_TORQUE_PRO, MAX_TORQUE_ULTIMATE] {
+        for &t in &[
+            MAX_TORQUE_NM,
+            MAX_TORQUE_SPORT,
+            MAX_TORQUE_PRO,
+            MAX_TORQUE_ULTIMATE,
+        ] {
             assert!(t > 0.0, "torque constant {t} must be positive");
             assert!(t.is_finite(), "torque constant {t} must be finite");
         }
@@ -1584,11 +1598,7 @@ mod constant_validation {
     #[test]
     fn all_torque_values_fit_i16() {
         // Ensure no model's max torque * 100 overflows i16
-        let models = [
-            MAX_TORQUE_SPORT,
-            MAX_TORQUE_PRO,
-            MAX_TORQUE_ULTIMATE,
-        ];
+        let models = [MAX_TORQUE_SPORT, MAX_TORQUE_PRO, MAX_TORQUE_ULTIMATE];
         for &t in &models {
             let cnm = (t * 100.0) as i32;
             assert!(

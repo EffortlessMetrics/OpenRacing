@@ -22,9 +22,9 @@ use racing_wheel_simplemotion_v2::commands::{
 };
 use racing_wheel_simplemotion_v2::error::SmError;
 use racing_wheel_simplemotion_v2::{
-    SmDeviceCategory, SmFeedbackState, SmMotorFeedback, TorqueCommandEncoder,
-    FEEDBACK_REPORT_LEN, SETPARAM_REPORT_LEN, STATUS_REPORT_LEN, TORQUE_COMMAND_LEN,
-    build_device_enable, build_get_parameter, build_set_parameter, build_set_torque_command,
+    FEEDBACK_REPORT_LEN, SETPARAM_REPORT_LEN, STATUS_REPORT_LEN, SmDeviceCategory, SmFeedbackState,
+    SmMotorFeedback, TORQUE_COMMAND_LEN, TorqueCommandEncoder, build_device_enable,
+    build_get_parameter, build_set_parameter, build_set_torque_command,
     build_set_torque_command_with_velocity, build_set_zero_position, identify_device,
     parse_feedback_report, sm_device_identity,
 };
@@ -302,11 +302,14 @@ fn crc8_polynomial_0x07_known_vectors() {
 
     // Single byte 0x01
     let crc_one = compute_crc8(&[0x01]);
-    assert_eq!(crc_one, 0x07, "CRC-8 of [0x01] with poly 0x07 should be 0x07");
+    assert_eq!(
+        crc_one, 0x07,
+        "CRC-8 of [0x01] with poly 0x07 should be 0x07"
+    );
 
     // Two bytes: 0x01, 0x00 — shift once then XOR
     let crc_two = compute_crc8(&[0x01, 0x00]);
-    // After processing 0x01 → 0x07; after processing 0x00 with that state → 0x07 << 1 ^ ... 
+    // After processing 0x01 → 0x07; after processing 0x00 with that state → 0x07 << 1 ^ ...
     // Verify it's nonzero and deterministic
     assert_ne!(crc_two, 0);
 }
@@ -432,7 +435,15 @@ fn negative_parameter_twos_complement() -> Result<(), Box<dyn std::error::Error>
 /// i32 boundary values roundtrip correctly.
 #[test]
 fn parameter_boundary_values_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
-    let boundaries: &[i32] = &[0, 1, -1, i32::MAX, i32::MIN, i16::MAX as i32, i16::MIN as i32];
+    let boundaries: &[i32] = &[
+        0,
+        1,
+        -1,
+        i32::MAX,
+        i32::MIN,
+        i16::MAX as i32,
+        i16::MIN as i32,
+    ];
 
     for &val in boundaries {
         let report = build_set_parameter(0x2000, val, 0);
@@ -1400,7 +1411,7 @@ fn feedback_report_all_fields() -> Result<(), Box<dyn std::error::Error>> {
     let data = make_feedback_report(
         0x42, // seq
         0,    // status OK
-        14400, 1000, 256, // position, velocity, torque
+        14400, 1000, 256,  // position, velocity, torque
         480,  // bus voltage (48.0V)
         5000, // motor current
         65,   // temperature (65°C)

@@ -65,16 +65,16 @@ fn build_car_update(s: &AccCarScenario) -> Vec<u8> {
 fn acc_normal_race_pace_snapshot() -> TestResult {
     let raw = build_car_update(&AccCarScenario {
         car_index: 7,
-        gear_raw: 6,        // → 5th gear
-        car_location: 1,    // on track
+        gear_raw: 6,     // → 5th gear
+        car_location: 1, // on track
         speed_kmh: 220,
         position: 3,
         cup_position: 3,
         track_position: 4,
         laps: 8,
-        delta_ms: -350,     // 0.35s ahead
-        best_lap_ms: 98_500,   // 1:38.500
-        last_lap_ms: 99_200,   // 1:39.200
+        delta_ms: -350,         // 0.35s ahead
+        best_lap_ms: 98_500,    // 1:38.500
+        last_lap_ms: 99_200,    // 1:39.200
         current_lap_ms: 42_300, // 0:42.300
     });
     let adapter = ACCAdapter::new();
@@ -90,16 +90,16 @@ fn acc_normal_race_pace_snapshot() -> TestResult {
 fn acc_formation_lap_snapshot() -> TestResult {
     let raw = build_car_update(&AccCarScenario {
         car_index: 12,
-        gear_raw: 3,        // → 2nd gear
-        car_location: 1,    // on track
+        gear_raw: 3,     // → 2nd gear
+        car_location: 1, // on track
         speed_kmh: 80,
-        position: 12,       // grid slot
+        position: 12, // grid slot
         cup_position: 12,
         track_position: 12,
-        laps: 0,            // formation
-        delta_ms: 0,        // no reference
-        best_lap_ms: -1,    // none
-        last_lap_ms: -1,    // none
+        laps: 0,                // formation
+        delta_ms: 0,            // no reference
+        best_lap_ms: -1,        // none
+        last_lap_ms: -1,        // none
         current_lap_ms: 15_000, // 0:15.000 rolling
     });
     let adapter = ACCAdapter::new();
@@ -115,16 +115,16 @@ fn acc_formation_lap_snapshot() -> TestResult {
 fn acc_pit_stop_snapshot() -> TestResult {
     let raw = build_car_update(&AccCarScenario {
         car_index: 3,
-        gear_raw: 2,          // → 1st gear
-        car_location: 2,      // pit lane (triggers pit_limiter + in_pits)
+        gear_raw: 2,     // → 1st gear
+        car_location: 2, // pit lane (triggers pit_limiter + in_pits)
         speed_kmh: 60,
         position: 6,
         cup_position: 5,
         track_position: 8,
         laps: 14,
-        delta_ms: 2_100,      // 2.1s behind
-        best_lap_ms: 101_200,  // 1:41.200
-        last_lap_ms: 108_900,  // 1:48.900 — pit-in lap
+        delta_ms: 2_100,        // 2.1s behind
+        best_lap_ms: 101_200,   // 1:41.200
+        last_lap_ms: 108_900,   // 1:48.900 — pit-in lap
         current_lap_ms: 55_000, // 0:55.000 — pit-out
     });
     let adapter = ACCAdapter::new();

@@ -7,8 +7,8 @@
 //! parsing), so tests focus on identification and constant correctness.
 
 use racing_wheel_hid_pxn_protocol::{
-    PRODUCT_GT987, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE, PRODUCT_V12_LITE_2, VENDOR_ID,
-    is_pxn, product_name,
+    is_pxn, product_name, PRODUCT_GT987, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE,
+    PRODUCT_V12_LITE_2, VENDOR_ID,
 };
 
 // ---------------------------------------------------------------------------
@@ -17,7 +17,10 @@ use racing_wheel_hid_pxn_protocol::{
 
 #[test]
 fn constants_vendor_id() {
-    assert_eq!(VENDOR_ID, 0x11FF, "PXN/Lite Star VID must match Linux kernel hid-ids.h");
+    assert_eq!(
+        VENDOR_ID, 0x11FF,
+        "PXN/Lite Star VID must match Linux kernel hid-ids.h"
+    );
 }
 
 #[test]
@@ -78,7 +81,10 @@ fn is_pxn_accepts_all_known_pids() {
         PRODUCT_GT987,
     ];
     for pid in known {
-        assert!(is_pxn(VENDOR_ID, pid), "PID 0x{pid:04X} should be recognised");
+        assert!(
+            is_pxn(VENDOR_ID, pid),
+            "PID 0x{pid:04X} should be recognised"
+        );
     }
 }
 
@@ -168,7 +174,13 @@ fn product_name_consistency_with_is_pxn() {
 
 #[test]
 fn adjacent_pids_not_recognised() {
-    let known = [PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE, PRODUCT_V12_LITE_2, PRODUCT_GT987];
+    let known = [
+        PRODUCT_V10,
+        PRODUCT_V12,
+        PRODUCT_V12_LITE,
+        PRODUCT_V12_LITE_2,
+        PRODUCT_GT987,
+    ];
     for pid in known {
         if pid > 0 {
             let below = pid - 1;

@@ -8,12 +8,12 @@
 //! - PedalStatus flag decoding
 
 use hid_heusinkveld_protocol::{
-    HEUSINKVELD_HANDBRAKE_V1_PID, HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
-    HEUSINKVELD_HANDBRAKE_V2_PID, HEUSINKVELD_LEGACY_SPRINT_PID, HEUSINKVELD_LEGACY_ULTIMATE_PID,
-    HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID, HEUSINKVELD_SHIFTER_PID,
-    HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID,
-    HEUSINKVELD_VENDOR_ID, HeusinkveldInputReport, HeusinkveldModel, PedalCapabilities, PedalModel,
-    PedalStatus, REPORT_SIZE_INPUT, heusinkveld_model_from_info, is_heusinkveld_device,
+    HEUSINKVELD_HANDBRAKE_V1_PID, HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V2_PID,
+    HEUSINKVELD_LEGACY_SPRINT_PID, HEUSINKVELD_LEGACY_ULTIMATE_PID, HEUSINKVELD_LEGACY_VENDOR_ID,
+    HEUSINKVELD_PRO_PID, HEUSINKVELD_SHIFTER_PID, HEUSINKVELD_SHIFTER_VENDOR_ID,
+    HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID, HEUSINKVELD_VENDOR_ID,
+    HeusinkveldInputReport, HeusinkveldModel, PedalCapabilities, PedalModel, PedalStatus,
+    REPORT_SIZE_INPUT, heusinkveld_model_from_info, is_heusinkveld_device,
 };
 use proptest::prelude::*;
 
@@ -38,16 +38,48 @@ fn test_vendor_id_value() -> Result<(), Box<dyn std::error::Error>> {
 fn test_all_known_pids_detected() -> Result<(), Box<dyn std::error::Error>> {
     let known = [
         // Current VID (0x30B7)
-        (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_SPRINT_PID, HeusinkveldModel::Sprint),
-        (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_ULTIMATE_PID, HeusinkveldModel::Ultimate),
-        (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V2_PID, HeusinkveldModel::HandbrakeV2),
+        (
+            HEUSINKVELD_VENDOR_ID,
+            HEUSINKVELD_SPRINT_PID,
+            HeusinkveldModel::Sprint,
+        ),
+        (
+            HEUSINKVELD_VENDOR_ID,
+            HEUSINKVELD_ULTIMATE_PID,
+            HeusinkveldModel::Ultimate,
+        ),
+        (
+            HEUSINKVELD_VENDOR_ID,
+            HEUSINKVELD_HANDBRAKE_V2_PID,
+            HeusinkveldModel::HandbrakeV2,
+        ),
         // Legacy VID (0x04D8)
-        (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_LEGACY_SPRINT_PID, HeusinkveldModel::Sprint),
-        (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_LEGACY_ULTIMATE_PID, HeusinkveldModel::Ultimate),
-        (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID, HeusinkveldModel::Pro),
+        (
+            HEUSINKVELD_LEGACY_VENDOR_ID,
+            HEUSINKVELD_LEGACY_SPRINT_PID,
+            HeusinkveldModel::Sprint,
+        ),
+        (
+            HEUSINKVELD_LEGACY_VENDOR_ID,
+            HEUSINKVELD_LEGACY_ULTIMATE_PID,
+            HeusinkveldModel::Ultimate,
+        ),
+        (
+            HEUSINKVELD_LEGACY_VENDOR_ID,
+            HEUSINKVELD_PRO_PID,
+            HeusinkveldModel::Pro,
+        ),
         // Peripherals (other VIDs)
-        (HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V1_PID, HeusinkveldModel::HandbrakeV1),
-        (HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SHIFTER_PID, HeusinkveldModel::SequentialShifter),
+        (
+            HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
+            HEUSINKVELD_HANDBRAKE_V1_PID,
+            HeusinkveldModel::HandbrakeV1,
+        ),
+        (
+            HEUSINKVELD_SHIFTER_VENDOR_ID,
+            HEUSINKVELD_SHIFTER_PID,
+            HeusinkveldModel::SequentialShifter,
+        ),
     ];
     for (vid, pid, expected) in known {
         let model = heusinkveld_model_from_info(vid, pid);

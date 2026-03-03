@@ -4,14 +4,13 @@
 //! status flag decoding, and cross-module consistency.
 
 use hid_heusinkveld_protocol::{
-    HeusinkveldError, HeusinkveldInputReport, HeusinkveldModel, PedalCapabilities, PedalModel,
-    PedalStatus, HEUSINKVELD_HANDBRAKE_V1_PID, HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
-    HEUSINKVELD_HANDBRAKE_V2_PID, HEUSINKVELD_LEGACY_SPRINT_PID, HEUSINKVELD_LEGACY_ULTIMATE_PID,
-    HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID, HEUSINKVELD_SHIFTER_PID,
-    HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID,
-    HEUSINKVELD_VENDOR_ID, MAX_LOAD_CELL_VALUE, PRODUCT_ID_PRO, PRODUCT_ID_SPRINT,
-    PRODUCT_ID_ULTIMATE, REPORT_SIZE_INPUT, VENDOR_ID, heusinkveld_model_from_info,
-    is_heusinkveld_device,
+    HEUSINKVELD_HANDBRAKE_V1_PID, HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V2_PID,
+    HEUSINKVELD_LEGACY_SPRINT_PID, HEUSINKVELD_LEGACY_ULTIMATE_PID, HEUSINKVELD_LEGACY_VENDOR_ID,
+    HEUSINKVELD_PRO_PID, HEUSINKVELD_SHIFTER_PID, HEUSINKVELD_SHIFTER_VENDOR_ID,
+    HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID, HEUSINKVELD_VENDOR_ID, HeusinkveldError,
+    HeusinkveldInputReport, HeusinkveldModel, MAX_LOAD_CELL_VALUE, PRODUCT_ID_PRO,
+    PRODUCT_ID_SPRINT, PRODUCT_ID_ULTIMATE, PedalCapabilities, PedalModel, PedalStatus,
+    REPORT_SIZE_INPUT, VENDOR_ID, heusinkveld_model_from_info, is_heusinkveld_device,
 };
 use proptest::prelude::*;
 
@@ -296,7 +295,10 @@ fn model_from_vid_pid_legacy_devices() {
 #[test]
 fn model_from_vid_pid_peripherals() {
     assert_eq!(
-        HeusinkveldModel::from_vid_pid(HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V1_PID),
+        HeusinkveldModel::from_vid_pid(
+            HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
+            HEUSINKVELD_HANDBRAKE_V1_PID
+        ),
         HeusinkveldModel::HandbrakeV1
     );
     assert_eq!(
@@ -358,7 +360,11 @@ fn non_pedal_models_have_zero_pedal_count() {
         HeusinkveldModel::HandbrakeV2,
         HeusinkveldModel::SequentialShifter,
     ] {
-        assert_eq!(model.pedal_count(), 0, "{model:?} must have zero pedal_count");
+        assert_eq!(
+            model.pedal_count(),
+            0,
+            "{model:?} must have zero pedal_count"
+        );
     }
 }
 

@@ -17,9 +17,9 @@
 
 use racing_wheel_hid_vrs_protocol::{
     CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN, SPRING_REPORT_LEN,
-    VRS_PRODUCT_ID, VRS_VENDOR_ID, VrsConstantForceEncoder, VrsDamperEncoder,
-    VrsFrictionEncoder, VrsSpringEncoder, build_device_gain, build_ffb_enable,
-    build_rotation_range, identify_device, is_wheelbase_product, product_ids,
+    VRS_PRODUCT_ID, VRS_VENDOR_ID, VrsConstantForceEncoder, VrsDamperEncoder, VrsFrictionEncoder,
+    VrsSpringEncoder, build_device_gain, build_ffb_enable, build_rotation_range, identify_device,
+    is_wheelbase_product, product_ids,
 };
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -47,7 +47,8 @@ fn vid_is_stmicroelectronics() -> Result<(), Box<dyn std::error::Error>> {
 fn dfp_pid_matches_kernel_and_community() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(VRS_PRODUCT_ID, 0xA355, "DFP PID must be 0xA355");
     assert_eq!(
-        product_ids::DIRECTFORCE_PRO, 0xA355,
+        product_ids::DIRECTFORCE_PRO,
+        0xA355,
         "product_ids::DIRECTFORCE_PRO must be 0xA355"
     );
     Ok(())
@@ -57,10 +58,7 @@ fn dfp_pid_matches_kernel_and_community() -> Result<(), Box<dyn std::error::Erro
 /// Source [1]: `#define USB_DEVICE_ID_VRS_R295 0xa44c`
 #[test]
 fn r295_pid_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(
-        product_ids::R295, 0xA44C,
-        "R295 PID must be 0xA44C"
-    );
+    assert_eq!(product_ids::R295, 0xA44C, "R295 PID must be 0xA44C");
     Ok(())
 }
 
@@ -68,10 +66,7 @@ fn r295_pid_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
 /// Source [4]: `v0483pA3BE` labeled "VRS DirectForce Pro Pedals"
 #[test]
 fn pedals_pid_matches_hwdb() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(
-        product_ids::PEDALS, 0xA3BE,
-        "Pedals PID must be 0xA3BE"
-    );
+    assert_eq!(product_ids::PEDALS, 0xA3BE, "Pedals PID must be 0xA3BE");
     Ok(())
 }
 
@@ -79,7 +74,8 @@ fn pedals_pid_matches_hwdb() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn dfp_v2_pid_is_sequential_estimate() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(
-        product_ids::DIRECTFORCE_PRO_V2, 0xA356,
+        product_ids::DIRECTFORCE_PRO_V2,
+        0xA356,
         "DFP V2 PID must be 0xA356 (unverified sequential estimate)"
     );
     Ok(())
@@ -104,11 +100,7 @@ fn dfp_device_identity() -> Result<(), Box<dyn std::error::Error>> {
     let id = identify_device(product_ids::DIRECTFORCE_PRO);
     assert_eq!(id.product_id, 0xA355);
     assert!(id.supports_ffb, "DFP must support FFB");
-    assert_eq!(
-        id.max_torque_nm,
-        Some(20.0),
-        "DFP torque must be 20 Nm"
-    );
+    assert_eq!(id.max_torque_nm, Some(20.0), "DFP torque must be 20 Nm");
     Ok(())
 }
 
@@ -151,7 +143,10 @@ fn non_wheelbase_pids_classified_correctly() -> Result<(), Box<dyn std::error::E
 /// Report sizes match the PIDFF specification expectations.
 #[test]
 fn report_sizes() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(CONSTANT_FORCE_REPORT_LEN, 8, "constant force report = 8 bytes");
+    assert_eq!(
+        CONSTANT_FORCE_REPORT_LEN, 8,
+        "constant force report = 8 bytes"
+    );
     assert_eq!(SPRING_REPORT_LEN, 10, "spring report = 10 bytes");
     assert_eq!(DAMPER_REPORT_LEN, 8, "damper report = 8 bytes");
     assert_eq!(FRICTION_REPORT_LEN, 10, "friction report = 10 bytes");

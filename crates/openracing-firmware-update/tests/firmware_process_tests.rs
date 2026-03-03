@@ -30,11 +30,7 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn make_firmware_image(
-    data: &[u8],
-    version: &str,
-    device_model: &str,
-) -> Result<FirmwareImage> {
+fn make_firmware_image(data: &[u8], version: &str, device_model: &str) -> Result<FirmwareImage> {
     let hash = openracing_crypto::utils::compute_sha256_hex(data);
     let size_bytes = data.len() as u64;
     Ok(FirmwareImage {
@@ -141,7 +137,9 @@ impl FirmwareDevice for ProcessMockDevice {
         if let Some(limit) = *self.fail_write_after.lock().await
             && offset >= limit
         {
-            return Err(anyhow::anyhow!("Simulated write failure at offset {offset}"));
+            return Err(anyhow::anyhow!(
+                "Simulated write failure at offset {offset}"
+            ));
         }
         tokio::time::sleep(Duration::from_millis(1)).await;
         let mut fw = self.fw_data.lock().await;
@@ -216,8 +214,7 @@ mod bundle_parsing {
     fn parse_large_payload_roundtrip() -> TestResult {
         let data = vec![0xAB; 64 * 1024]; // 64 KiB
         let image = make_firmware_image(&data, "3.0.0", "big-wheel")?;
-        let bundle =
-            FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::Gzip)?;
+        let bundle = FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::Gzip)?;
         let serialized = bundle.serialize()?;
         let parsed = FirmwareBundle::parse(&serialized)?;
         let extracted = parsed.extract_image()?;
@@ -250,8 +247,7 @@ mod bundle_parsing {
     fn parse_empty_payload_succeeds() -> TestResult {
         let data: Vec<u8> = vec![];
         let image = make_firmware_image(&data, "0.0.1", "empty-fw")?;
-        let bundle =
-            FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::None)?;
+        let bundle = FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::None)?;
         let bytes = bundle.serialize()?;
         let parsed = FirmwareBundle::parse(&bytes)?;
         let extracted = parsed.extract_image()?;
@@ -273,8 +269,7 @@ mod bundle_parsing {
     fn truncated_payload_rejected() -> TestResult {
         let data = vec![0x42; 128];
         let image = make_firmware_image(&data, "1.0.0", "trunc-wheel")?;
-        let bundle =
-            FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::None)?;
+        let bundle = FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::None)?;
         let mut bytes = bundle.serialize()?;
         // Chop off part of the payload
         bytes.truncate(bytes.len() - 64);
@@ -368,10 +363,7 @@ mod state_machine_lifecycle {
         ];
         // All intermediate states should report in-progress
         for state in &states[1..states.len() - 1] {
-            assert!(
-                state.is_in_progress(),
-                "{state:?} should be in-progress"
-            );
+            assert!(state.is_in_progress(), "{state:?} should be in-progress");
         }
         // Terminal states should not be in-progress
         assert!(!states[0].is_in_progress());
@@ -627,8 +619,7 @@ mod checksum_verification {
     fn bundle_payload_hash_verified_on_parse() -> TestResult {
         let data = vec![0x42; 32];
         let image = make_firmware_image(&data, "1.0.0", "hash-bundle")?;
-        let bundle =
-            FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::None)?;
+        let bundle = FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::None)?;
         let mut bytes = bundle.serialize()?;
 
         // Corrupt a payload byte (near end, in the payload region)
@@ -722,9 +713,7 @@ mod multi_device_coordination {
         let fw_data = b"fw-data".to_vec();
         let img = make_firmware_image(&fw_data, "2.0.0", "wheel")?;
         let dev = ProcessMockDevice::new("unique-dev-42", "wheel", "1.0");
-        let result = manager
-            .update_device_firmware(Box::new(dev), &img)
-            .await?;
+        let result = manager.update_device_firmware(Box::new(dev), &img).await?;
         assert_eq!(result.device_id, "unique-dev-42");
         Ok(())
     }
@@ -737,11 +726,7 @@ mod multi_device_coordination {
 mod compatibility_matrix {
     use super::*;
 
-    fn bundle_for_hw(
-        min: Option<&str>,
-        max: Option<&str>,
-        model: &str,
-    ) -> Result<FirmwareBundle> {
+    fn bundle_for_hw(min: Option<&str>, max: Option<&str>, model: &str) -> Result<FirmwareBundle> {
         let data = vec![0x01; 8];
         let hash = openracing_crypto::utils::compute_sha256_hex(&data);
         let image = FirmwareImage {
@@ -801,9 +786,7 @@ mod compatibility_matrix {
         img.min_hardware_version = Some("3.0".to_string()); // device is 1.0
 
         let dev = ProcessMockDevice::new("compat-dev", "wheel", "1.0");
-        let result = manager
-            .update_device_firmware(Box::new(dev), &img)
-            .await?;
+        let result = manager.update_device_firmware(Box::new(dev), &img).await?;
         assert!(!result.success, "Should reject incompatible hardware");
         Ok(())
     }
@@ -851,10 +834,17 @@ mod progress_reporting {
             events.push(progress);
         }
 
-        assert!(!events.is_empty(), "Should receive at least one progress event");
+        assert!(
+            !events.is_empty(),
+            "Should receive at least one progress event"
+        );
 
         // Should see Initializing at the start
-        assert!(events.iter().any(|e| matches!(e.phase, UpdatePhase::Initializing)));
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e.phase, UpdatePhase::Initializing))
+        );
         Ok(())
     }
 
@@ -960,9 +950,7 @@ mod concurrent_update_prevention {
         assert!(result.success);
 
         let dev2 = ProcessMockDevice::new("same-dev", "wheel", "1.0");
-        let result2 = manager
-            .update_device_firmware(Box::new(dev2), &img)
-            .await?;
+        let result2 = manager.update_device_firmware(Box::new(dev2), &img).await?;
         assert!(result2.success);
         Ok(())
     }
@@ -1097,7 +1085,11 @@ mod power_failure_recovery {
         let active = parts.iter().find(|p| p.active);
         assert!(active.is_some(), "Should have an active partition");
         let active = active.ok_or("no active partition")?;
-        assert_eq!(active.partition, Partition::A, "Original partition should remain active");
+        assert_eq!(
+            active.partition,
+            Partition::A,
+            "Original partition should remain active"
+        );
         Ok(())
     }
 }
@@ -1211,8 +1203,7 @@ mod signature_verification {
         )?;
         image.signature = Some(sig);
 
-        let bundle =
-            FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::Gzip)?;
+        let bundle = FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::Gzip)?;
         let bytes = bundle.serialize()?;
         let parsed = FirmwareBundle::parse(&bytes)?;
 
@@ -1224,9 +1215,11 @@ mod signature_verification {
         // Verify signature against extracted data
         let extracted = parsed.extract_image()?;
         let sig_obj = Ed25519Verifier::parse_signature(&parsed_sig.signature)?;
-        let valid =
-            Ed25519Verifier::verify(&extracted.data, &sig_obj, &keypair.public_key)?;
-        assert!(valid, "Signature in bundle should verify against extracted data");
+        let valid = Ed25519Verifier::verify(&extracted.data, &sig_obj, &keypair.public_key)?;
+        assert!(
+            valid,
+            "Signature in bundle should verify against extracted data"
+        );
         Ok(())
     }
 

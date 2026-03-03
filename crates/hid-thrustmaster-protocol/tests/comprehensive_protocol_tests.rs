@@ -23,8 +23,8 @@ use racing_wheel_hid_thrustmaster_protocol::{
 fn build_input_report(steering: u16, throttle: u8, brake: u8, clutch: u8) -> Vec<u8> {
     let [s_lo, s_hi] = steering.to_le_bytes();
     vec![
-        0x01, s_lo, s_hi, throttle, brake, clutch, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00,
+        0x01, s_lo, s_hi, throttle, brake, clutch, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00,
     ]
 }
 
@@ -217,7 +217,10 @@ mod input_parsing_per_model {
         // because no match arm explicitly categorizes it as Pedals.
         // The protocol handler will still parse input reports for it.
         let proto = ThrustmasterProtocol::new(product_ids::T_LCM);
-        assert!(!proto.is_pedals(), "T-LCM is not currently classified as Pedals");
+        assert!(
+            !proto.is_pedals(),
+            "T-LCM is not currently classified as Pedals"
+        );
         assert_eq!(proto.model(), Model::TLCM);
         assert!(!proto.supports_ffb(), "T-LCM does not support FFB");
     }
@@ -323,10 +326,7 @@ mod output_report_construction {
         // Fourth: set range (1080 for T300RS)
         assert_eq!(seq[3][0], 0x80, "fourth report: set range report ID");
         let range_degrees = u16::from_le_bytes([seq[3][2], seq[3][3]]);
-        assert_eq!(
-            range_degrees, 1080,
-            "T300RS init should set range to 1080°"
-        );
+        assert_eq!(range_degrees, 1080, "T300RS init should set range to 1080°");
     }
 
     #[test]
@@ -494,15 +494,15 @@ mod device_identification {
                 tm::ThrustmasterDeviceCategory::Wheelbase,
                 "PID 0x{pid:04X} should be Wheelbase"
             );
-            assert!(
-                ident.supports_ffb,
-                "PID 0x{pid:04X} should support FFB"
-            );
+            assert!(ident.supports_ffb, "PID 0x{pid:04X} should support FFB");
         }
 
         // T80: wheelbase without FFB
         let ident_t80 = tm::identify_device(product_ids::T80);
-        assert_eq!(ident_t80.category, tm::ThrustmasterDeviceCategory::Wheelbase);
+        assert_eq!(
+            ident_t80.category,
+            tm::ThrustmasterDeviceCategory::Wheelbase
+        );
         assert!(!ident_t80.supports_ffb);
     }
 
@@ -593,14 +593,13 @@ mod axis_precision {
     fn steering_near_center_precision() -> Result<(), String> {
         // Values near center (0x8000) should produce small normalized values
         let offsets: &[(u16, f32)] = &[
-            (0x8000, 0.0),          // exact center
-            (0x8001, 1.0 / 32768.0), // one LSB right of center
+            (0x8000, 0.0),            // exact center
+            (0x8001, 1.0 / 32768.0),  // one LSB right of center
             (0x7FFF, -1.0 / 32768.0), // one LSB left of center
         ];
         for &(raw, expected) in offsets {
             let report = build_input_report(raw, 0, 0, 0);
-            let state =
-                tm::parse_input_report(&report).ok_or("parse failed")?;
+            let state = tm::parse_input_report(&report).ok_or("parse failed")?;
             assert!(
                 (state.steering - expected).abs() < 1e-4,
                 "steering at 0x{raw:04X}: expected {expected}, got {}",
@@ -621,8 +620,7 @@ mod axis_precision {
         ];
         for &(raw, expected) in cases {
             let report = build_input_report(raw, 0, 0, 0);
-            let state =
-                tm::parse_input_report(&report).ok_or("parse failed")?;
+            let state = tm::parse_input_report(&report).ok_or("parse failed")?;
             assert!(
                 (state.steering - expected).abs() < 0.001,
                 "steering at 0x{raw:04X}: expected {expected}, got {}",
@@ -645,8 +643,7 @@ mod axis_precision {
         ];
         for &(raw_val, expected) in cases {
             let report = build_input_report(0x8000, raw_val, raw_val, raw_val);
-            let state =
-                tm::parse_input_report(&report).ok_or("parse failed")?;
+            let state = tm::parse_input_report(&report).ok_or("parse failed")?;
             assert!(
                 (state.throttle - expected).abs() < 0.001,
                 "throttle at {raw_val}: expected {expected}, got {}",
@@ -700,13 +697,9 @@ mod axis_precision {
         for hat in hat_values {
             let mut report = build_input_report(0x8000, 0, 0, 0);
             report[8] = hat;
-            let state = tm::parse_input_report(&report)
-                .ok_or(format!("parse failed for hat={hat}"))?;
-            assert_eq!(
-                state.hat,
-                hat & 0x0F,
-                "hat value {hat} should be preserved"
-            );
+            let state =
+                tm::parse_input_report(&report).ok_or(format!("parse failed for hat={hat}"))?;
+            assert_eq!(state.hat, hat & 0x0F, "hat value {hat} should be preserved");
         }
         Ok(())
     }
@@ -1327,7 +1320,11 @@ mod t150_edge_cases {
         for ty in all_types {
             let wire = ty.as_u16();
             let decoded = tm::T150EffectType::from_u16(wire);
-            assert_eq!(decoded, Some(ty), "{ty:?} must round-trip through as_u16/from_u16");
+            assert_eq!(
+                decoded,
+                Some(ty),
+                "{ty:?} must round-trip through as_u16/from_u16"
+            );
         }
     }
 

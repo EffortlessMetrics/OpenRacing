@@ -22,10 +22,10 @@ use std::path::Path;
 use tempfile::TempDir;
 use uuid::Uuid;
 
+use openracing_crypto::TrustLevel;
 use openracing_crypto::ed25519::{Ed25519Signer, KeyPair};
 use openracing_crypto::trust_store::TrustStore;
 use openracing_crypto::verification::ContentType;
-use openracing_crypto::TrustLevel;
 
 use racing_wheel_plugins::capability::{CapabilityChecker, WasmCapabilityEnforcer};
 use racing_wheel_plugins::host::PluginHost;
@@ -346,10 +346,8 @@ fn capability_inter_plugin_comm_requires_explicit_grant() -> Result<(), PluginEr
 
 #[test]
 fn capability_enforcer_delegates_correctly() -> Result<(), PluginError> {
-    let enforcer = WasmCapabilityEnforcer::new(vec![
-        Capability::ReadTelemetry,
-        Capability::ControlLeds,
-    ]);
+    let enforcer =
+        WasmCapabilityEnforcer::new(vec![Capability::ReadTelemetry, Capability::ControlLeds]);
     let checker = enforcer.checker();
 
     checker.check_telemetry_read()?;
@@ -593,7 +591,10 @@ fn native_sig_strict_rejects_unsigned() -> Result<(), Box<dyn std::error::Error>
     let verifier = SignatureVerifier::new(&trust_store, config);
 
     let result = verifier.verify(&plugin_path);
-    assert!(result.is_err(), "unsigned plugin must be rejected in strict mode");
+    assert!(
+        result.is_err(),
+        "unsigned plugin must be rejected in strict mode"
+    );
     Ok(())
 }
 
@@ -716,7 +717,10 @@ async fn native_isolation_strict_rejects_unsigned_file() -> Result<(), Box<dyn s
         )
         .await;
 
-    assert!(result.is_err(), "strict config must reject unsigned native plugin");
+    assert!(
+        result.is_err(),
+        "strict config must reject unsigned native plugin"
+    );
     Ok(())
 }
 
@@ -981,7 +985,10 @@ async fn manifest_load_malformed_yaml_errors() -> Result<(), Box<dyn std::error:
 #[test]
 fn version_same_major_higher_minor_compatible() {
     assert_eq!(
-        check_compatibility(&semver::Version::new(1, 0, 0), &semver::Version::new(1, 3, 0)),
+        check_compatibility(
+            &semver::Version::new(1, 0, 0),
+            &semver::Version::new(1, 3, 0)
+        ),
         VersionCompatibility::Compatible
     );
 }
@@ -989,7 +996,10 @@ fn version_same_major_higher_minor_compatible() {
 #[test]
 fn version_same_major_same_minor_higher_patch_compatible() {
     assert_eq!(
-        check_compatibility(&semver::Version::new(1, 2, 0), &semver::Version::new(1, 2, 5)),
+        check_compatibility(
+            &semver::Version::new(1, 2, 0),
+            &semver::Version::new(1, 2, 5)
+        ),
         VersionCompatibility::Compatible
     );
 }
@@ -997,7 +1007,10 @@ fn version_same_major_same_minor_higher_patch_compatible() {
 #[test]
 fn version_different_major_incompatible() {
     assert_eq!(
-        check_compatibility(&semver::Version::new(1, 0, 0), &semver::Version::new(2, 0, 0)),
+        check_compatibility(
+            &semver::Version::new(1, 0, 0),
+            &semver::Version::new(2, 0, 0)
+        ),
         VersionCompatibility::Incompatible
     );
 }
@@ -1005,7 +1018,10 @@ fn version_different_major_incompatible() {
 #[test]
 fn version_lower_available_incompatible() {
     assert_eq!(
-        check_compatibility(&semver::Version::new(1, 5, 0), &semver::Version::new(1, 2, 0)),
+        check_compatibility(
+            &semver::Version::new(1, 5, 0),
+            &semver::Version::new(1, 2, 0)
+        ),
         VersionCompatibility::Incompatible
     );
 }
@@ -1015,19 +1031,31 @@ fn version_prerelease_exact_match_required() -> Result<(), Box<dyn std::error::E
     let alpha = semver::Version::parse("1.0.0-alpha")?;
     let beta = semver::Version::parse("1.0.0-beta")?;
 
-    assert_eq!(check_compatibility(&alpha, &alpha), VersionCompatibility::Compatible);
-    assert_eq!(check_compatibility(&alpha, &beta), VersionCompatibility::Incompatible);
+    assert_eq!(
+        check_compatibility(&alpha, &alpha),
+        VersionCompatibility::Compatible
+    );
+    assert_eq!(
+        check_compatibility(&alpha, &beta),
+        VersionCompatibility::Incompatible
+    );
     Ok(())
 }
 
 #[test]
 fn version_zero_major_requires_exact_minor() {
     assert_eq!(
-        check_compatibility(&semver::Version::new(0, 1, 0), &semver::Version::new(0, 1, 5)),
+        check_compatibility(
+            &semver::Version::new(0, 1, 0),
+            &semver::Version::new(0, 1, 5)
+        ),
         VersionCompatibility::Compatible
     );
     assert_eq!(
-        check_compatibility(&semver::Version::new(0, 1, 0), &semver::Version::new(0, 2, 0)),
+        check_compatibility(
+            &semver::Version::new(0, 1, 0),
+            &semver::Version::new(0, 2, 0)
+        ),
         VersionCompatibility::Incompatible
     );
 }
@@ -1330,10 +1358,7 @@ fn comm_inter_plugin_capability_required() -> Result<(), PluginError> {
     let without = CapabilityChecker::new(vec![Capability::ReadTelemetry]);
     assert!(without.check_inter_plugin_comm().is_err());
 
-    let with = CapabilityChecker::new(vec![
-        Capability::ReadTelemetry,
-        Capability::InterPluginComm,
-    ]);
+    let with = CapabilityChecker::new(vec![Capability::ReadTelemetry, Capability::InterPluginComm]);
     with.check_inter_plugin_comm()?;
     Ok(())
 }
@@ -1364,14 +1389,15 @@ fn comm_plugin_context_carries_capabilities() {
         class: PluginClass::Safe,
         update_rate_hz: 60,
         budget_us: 5000,
-        capabilities: vec![
-            "ReadTelemetry".to_string(),
-            "InterPluginComm".to_string(),
-        ],
+        capabilities: vec!["ReadTelemetry".to_string(), "InterPluginComm".to_string()],
     };
 
     assert_eq!(context.capabilities.len(), 2);
-    assert!(context.capabilities.contains(&"InterPluginComm".to_string()));
+    assert!(
+        context
+            .capabilities
+            .contains(&"InterPluginComm".to_string())
+    );
 }
 
 // ===================================================================
@@ -1398,7 +1424,10 @@ fn error_missing_process_export() -> Result<(), Box<dyn std::error::Error>> {
     let result = runtime.load_plugin_from_bytes(id, &wasm, vec![]);
     assert!(result.is_err());
     let msg = format!("{}", result.err().unwrap_or_else(|| unreachable!()));
-    assert!(msg.contains("process"), "error should mention 'process': {msg}");
+    assert!(
+        msg.contains("process"),
+        "error should mention 'process': {msg}"
+    );
     Ok(())
 }
 
@@ -1411,7 +1440,10 @@ fn error_missing_memory_export() -> Result<(), Box<dyn std::error::Error>> {
     let result = runtime.load_plugin_from_bytes(id, &wasm, vec![]);
     assert!(result.is_err());
     let msg = format!("{}", result.err().unwrap_or_else(|| unreachable!()));
-    assert!(msg.contains("memory"), "error should mention 'memory': {msg}");
+    assert!(
+        msg.contains("memory"),
+        "error should mention 'memory': {msg}"
+    );
     Ok(())
 }
 
@@ -1448,7 +1480,10 @@ fn error_capability_violation_messages_descriptive() {
 
     let err = checker.check_dsp_processing();
     let msg = format!("{}", err.err().unwrap_or_else(|| unreachable!()));
-    assert!(msg.contains("ProcessDsp"), "msg should mention ProcessDsp: {msg}");
+    assert!(
+        msg.contains("ProcessDsp"),
+        "msg should mention ProcessDsp: {msg}"
+    );
 
     let err = checker.check_network_access("evil.com");
     let msg = format!("{}", err.err().unwrap_or_else(|| unreachable!()));
@@ -1507,7 +1542,11 @@ fn sandbox_no_filesystem_without_capability() {
     assert!(checker.check_file_access(Path::new("/tmp")).is_err());
     assert!(checker.check_file_access(Path::new("/etc/hosts")).is_err());
     assert!(checker.check_file_access(Path::new("C:\\Windows")).is_err());
-    assert!(checker.check_file_access(Path::new("/proc/self/status")).is_err());
+    assert!(
+        checker
+            .check_file_access(Path::new("/proc/self/status"))
+            .is_err()
+    );
 }
 
 #[test]
@@ -1544,7 +1583,11 @@ fn sandbox_network_host_containment() -> Result<(), PluginError> {
 
     checker.check_network_access("trusted.api.com")?;
     assert!(checker.check_network_access("untrusted.api.com").is_err());
-    assert!(checker.check_network_access("trusted.api.com.evil.com").is_err());
+    assert!(
+        checker
+            .check_network_access("trusted.api.com.evil.com")
+            .is_err()
+    );
     Ok(())
 }
 
@@ -1625,12 +1668,16 @@ fn sandbox_quarantine_escalation() -> Result<(), PluginError> {
     let id = Uuid::new_v4();
 
     manager.record_violation(id, ViolationType::Crash, "crash 1".to_string())?;
-    let state = manager.get_quarantine_state(id).unwrap_or_else(|| unreachable!());
+    let state = manager
+        .get_quarantine_state(id)
+        .unwrap_or_else(|| unreachable!());
     assert_eq!(state.escalation_level, 1);
 
     manager.release_from_quarantine(id)?;
     manager.record_violation(id, ViolationType::Crash, "crash 2".to_string())?;
-    let state = manager.get_quarantine_state(id).unwrap_or_else(|| unreachable!());
+    let state = manager
+        .get_quarantine_state(id)
+        .unwrap_or_else(|| unreachable!());
     assert_eq!(state.escalation_level, 2);
     Ok(())
 }

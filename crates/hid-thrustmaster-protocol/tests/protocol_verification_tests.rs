@@ -19,15 +19,16 @@
 //!
 //! - **scarburato/t150_driver**: T150/TMX protocol (cmd bytes 0x40/0x41/0x43).
 
+use racing_wheel_hid_thrustmaster_protocol::THRUSTMASTER_VENDOR_ID;
 use racing_wheel_hid_thrustmaster_protocol::ids::{
     Model, ProtocolFamily, init_protocol, product_ids,
 };
 use racing_wheel_hid_thrustmaster_protocol::output::{
     self, EFFECT_REPORT_LEN, EFFECT_TYPE_CONSTANT, EFFECT_TYPE_DAMPER, EFFECT_TYPE_FRICTION,
-    EFFECT_TYPE_RAMP, EFFECT_TYPE_SPRING, ThrustmasterConstantForceEncoder,
-    build_damper_effect, build_friction_effect, build_kernel_autocenter_commands,
-    build_kernel_close_command, build_kernel_gain_command, build_kernel_open_command,
-    build_kernel_range_command, build_set_range_report, build_spring_effect,
+    EFFECT_TYPE_RAMP, EFFECT_TYPE_SPRING, ThrustmasterConstantForceEncoder, build_damper_effect,
+    build_friction_effect, build_kernel_autocenter_commands, build_kernel_close_command,
+    build_kernel_gain_command, build_kernel_open_command, build_kernel_range_command,
+    build_set_range_report, build_spring_effect,
 };
 use racing_wheel_hid_thrustmaster_protocol::t150::{
     CMD_EFFECT, CMD_GAIN, CMD_RANGE, SUBCMD_RANGE, T150EffectType, encode_gain_t150,
@@ -36,7 +37,6 @@ use racing_wheel_hid_thrustmaster_protocol::t150::{
 use racing_wheel_hid_thrustmaster_protocol::types::{
     ThrustmasterDeviceCategory, identify_device, is_wheel_product,
 };
-use racing_wheel_hid_thrustmaster_protocol::THRUSTMASTER_VENDOR_ID;
 
 // =============================================================================
 // §1  VID/PID verification against Linux kernel source
@@ -246,9 +246,9 @@ fn known_models_match_kernel_tm_wheels_infos() {
     );
 
     for &(model_code, switch_value, _name) in expected {
-        let found = init_protocol::KNOWN_MODELS.iter().any(|&(m, s, _)| {
-            m == model_code && s == switch_value
-        });
+        let found = init_protocol::KNOWN_MODELS
+            .iter()
+            .any(|&(m, s, _)| m == model_code && s == switch_value);
         assert!(
             found,
             "model_code 0x{model_code:04X} switch_value 0x{switch_value:04X} ({_name}) \
@@ -467,10 +467,7 @@ fn tmff2_probe_pids_are_wheelbases() {
             ThrustmasterDeviceCategory::Wheelbase,
             "PID 0x{pid:04X} must be Wheelbase"
         );
-        assert!(
-            identity.supports_ffb,
-            "PID 0x{pid:04X} must support FFB"
-        );
+        assert!(identity.supports_ffb, "PID 0x{pid:04X} must support FFB");
     }
 }
 
@@ -664,8 +661,7 @@ fn t150_effect_type_roundtrip() -> Result<(), &'static str> {
         T150EffectType::Damper,
     ];
     for ty in types {
-        let decoded = T150EffectType::from_u16(ty.as_u16())
-            .ok_or("round-trip failed")?;
+        let decoded = T150EffectType::from_u16(ty.as_u16()).ok_or("round-trip failed")?;
         assert_eq!(decoded, ty);
     }
     Ok(())

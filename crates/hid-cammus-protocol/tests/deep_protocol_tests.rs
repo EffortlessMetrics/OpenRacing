@@ -1,10 +1,9 @@
 //! Deep protocol tests for Cammus HID protocol crate.
 
 use racing_wheel_hid_cammus_protocol::{
-    CammusModel, FFB_REPORT_ID, FFB_REPORT_LEN, MODE_CONFIG, MODE_GAME,
-    PRODUCT_C12, PRODUCT_C5, PRODUCT_CP5_PEDALS, PRODUCT_LC100_PEDALS, REPORT_ID, REPORT_LEN,
-    STEERING_RANGE_DEG, VENDOR_ID, encode_stop, encode_torque, is_cammus,
-    parse, ParseError, product_name,
+    CammusModel, FFB_REPORT_ID, FFB_REPORT_LEN, MODE_CONFIG, MODE_GAME, PRODUCT_C5, PRODUCT_C12,
+    PRODUCT_CP5_PEDALS, PRODUCT_LC100_PEDALS, ParseError, REPORT_ID, REPORT_LEN,
+    STEERING_RANGE_DEG, VENDOR_ID, encode_stop, encode_torque, is_cammus, parse, product_name,
 };
 
 // ── Device identification ────────────────────────────────────────────────────
@@ -16,7 +15,12 @@ fn vendor_id_matches_kernel_constant() {
 
 #[test]
 fn all_product_ids_are_nonzero_and_unique() {
-    let pids = [PRODUCT_C5, PRODUCT_C12, PRODUCT_CP5_PEDALS, PRODUCT_LC100_PEDALS];
+    let pids = [
+        PRODUCT_C5,
+        PRODUCT_C12,
+        PRODUCT_CP5_PEDALS,
+        PRODUCT_LC100_PEDALS,
+    ];
     for pid in pids {
         assert_ne!(pid, 0, "PID must not be zero");
     }
@@ -79,8 +83,8 @@ fn model_from_pid_maps_correctly() -> Result<(), String> {
         (PRODUCT_LC100_PEDALS, CammusModel::Lc100Pedals),
     ];
     for &(pid, expected) in cases {
-        let model = CammusModel::from_pid(pid)
-            .ok_or_else(|| format!("PID 0x{pid:04X} should resolve"))?;
+        let model =
+            CammusModel::from_pid(pid).ok_or_else(|| format!("PID 0x{pid:04X} should resolve"))?;
         assert_eq!(model, expected);
     }
     Ok(())

@@ -340,28 +340,28 @@ fn make_gt7_type2_data() -> Vec<u8> {
     let mut buf = vec![0u8; gran_turismo_7::PACKET_SIZE_TYPE2];
     write_u32(&mut buf, gran_turismo_7::OFF_MAGIC, gran_turismo_7::MAGIC);
     write_f32_le(&mut buf, 0x3C, 7400.0); // engine_rpm
-    write_f32_le(&mut buf, 0x44, 28.0);   // fuel_level
-    write_f32_le(&mut buf, 0x48, 65.0);   // fuel_capacity
-    write_f32_le(&mut buf, 0x4C, 52.0);   // speed_ms ≈ 187 km/h
-    write_f32_le(&mut buf, 0x58, 93.0);   // water_temp_c
-    write_f32_le(&mut buf, 0x60, 91.0);   // tire_temp_fl
-    write_f32_le(&mut buf, 0x64, 93.0);   // tire_temp_fr
-    write_f32_le(&mut buf, 0x68, 87.0);   // tire_temp_rl
-    write_f32_le(&mut buf, 0x6C, 88.0);   // tire_temp_rr
-    write_u16(&mut buf, 0x74, 5);         // lap_count
-    write_i32(&mut buf, 0x78, 91_200);    // best_lap_ms
-    write_i32(&mut buf, 0x7C, 92_800);    // last_lap_ms
-    write_u16(&mut buf, 0x8A, 8800);      // max_alert_rpm
-    write_u16(&mut buf, 0x8E, 0);         // flags (none)
-    buf[0x90] = 5u8;                      // gear_byte (5th gear)
-    buf[0x91] = (0.72f32 * 255.0) as u8;  // throttle
-    buf[0x92] = 0u8;                      // brake
-    write_i32(&mut buf, 0x124, 2750);     // car_code
+    write_f32_le(&mut buf, 0x44, 28.0); // fuel_level
+    write_f32_le(&mut buf, 0x48, 65.0); // fuel_capacity
+    write_f32_le(&mut buf, 0x4C, 52.0); // speed_ms ≈ 187 km/h
+    write_f32_le(&mut buf, 0x58, 93.0); // water_temp_c
+    write_f32_le(&mut buf, 0x60, 91.0); // tire_temp_fl
+    write_f32_le(&mut buf, 0x64, 93.0); // tire_temp_fr
+    write_f32_le(&mut buf, 0x68, 87.0); // tire_temp_rl
+    write_f32_le(&mut buf, 0x6C, 88.0); // tire_temp_rr
+    write_u16(&mut buf, 0x74, 5); // lap_count
+    write_i32(&mut buf, 0x78, 91_200); // best_lap_ms
+    write_i32(&mut buf, 0x7C, 92_800); // last_lap_ms
+    write_u16(&mut buf, 0x8A, 8800); // max_alert_rpm
+    write_u16(&mut buf, 0x8E, 0); // flags (none)
+    buf[0x90] = 5u8; // gear_byte (5th gear)
+    buf[0x91] = (0.72f32 * 255.0) as u8; // throttle
+    buf[0x92] = 0u8; // brake
+    write_i32(&mut buf, 0x124, 2750); // car_code
     // Type2 extended fields
     write_f32_le(&mut buf, 0x128, -0.35); // wheel_rotation (rad, slight left)
-    write_f32_le(&mut buf, 0x130, 0.22);  // sway (lateral)
+    write_f32_le(&mut buf, 0x130, 0.22); // sway (lateral)
     write_f32_le(&mut buf, 0x134, -0.08); // heave (vertical)
-    write_f32_le(&mut buf, 0x138, 0.65);  // surge (longitudinal)
+    write_f32_le(&mut buf, 0x138, 0.65); // surge (longitudinal)
     buf
 }
 
@@ -380,31 +380,31 @@ fn make_gt7_type3_data() -> Vec<u8> {
     let mut buf = vec![0u8; gran_turismo_7::PACKET_SIZE_TYPE3];
     write_u32(&mut buf, gran_turismo_7::OFF_MAGIC, gran_turismo_7::MAGIC);
     write_f32_le(&mut buf, 0x3C, 5800.0); // engine_rpm
-    write_f32_le(&mut buf, 0x44, 18.0);   // fuel_level
-    write_f32_le(&mut buf, 0x48, 55.0);   // fuel_capacity
-    write_f32_le(&mut buf, 0x4C, 38.0);   // speed_ms ≈ 137 km/h
-    write_f32_le(&mut buf, 0x58, 88.0);   // water_temp_c
-    write_f32_le(&mut buf, 0x60, 78.0);   // tire_temp_fl
-    write_f32_le(&mut buf, 0x64, 80.0);   // tire_temp_fr
-    write_f32_le(&mut buf, 0x68, 76.0);   // tire_temp_rl
-    write_f32_le(&mut buf, 0x6C, 77.0);   // tire_temp_rr
-    write_u16(&mut buf, 0x74, 8);         // lap_count
-    write_i32(&mut buf, 0x78, 102_500);   // best_lap_ms
-    write_i32(&mut buf, 0x7C, 104_100);   // last_lap_ms
-    write_u16(&mut buf, 0x8A, 7500);      // max_alert_rpm
-    write_u16(&mut buf, 0x8E, 0);         // flags
-    buf[0x90] = 3u8;                      // gear_byte (3rd gear)
-    buf[0x91] = (0.45f32 * 255.0) as u8;  // throttle
-    buf[0x92] = 0u8;                      // brake
-    write_i32(&mut buf, 0x124, 5100);     // car_code
+    write_f32_le(&mut buf, 0x44, 18.0); // fuel_level
+    write_f32_le(&mut buf, 0x48, 55.0); // fuel_capacity
+    write_f32_le(&mut buf, 0x4C, 38.0); // speed_ms ≈ 137 km/h
+    write_f32_le(&mut buf, 0x58, 88.0); // water_temp_c
+    write_f32_le(&mut buf, 0x60, 78.0); // tire_temp_fl
+    write_f32_le(&mut buf, 0x64, 80.0); // tire_temp_fr
+    write_f32_le(&mut buf, 0x68, 76.0); // tire_temp_rl
+    write_f32_le(&mut buf, 0x6C, 77.0); // tire_temp_rr
+    write_u16(&mut buf, 0x74, 8); // lap_count
+    write_i32(&mut buf, 0x78, 102_500); // best_lap_ms
+    write_i32(&mut buf, 0x7C, 104_100); // last_lap_ms
+    write_u16(&mut buf, 0x8A, 7500); // max_alert_rpm
+    write_u16(&mut buf, 0x8E, 0); // flags
+    buf[0x90] = 3u8; // gear_byte (3rd gear)
+    buf[0x91] = (0.45f32 * 255.0) as u8; // throttle
+    buf[0x92] = 0u8; // brake
+    write_i32(&mut buf, 0x124, 5100); // car_code
     // Type2 extended fields
-    write_f32_le(&mut buf, 0x128, 0.12);  // wheel_rotation (rad)
+    write_f32_le(&mut buf, 0x128, 0.12); // wheel_rotation (rad)
     write_f32_le(&mut buf, 0x130, -0.10); // sway
-    write_f32_le(&mut buf, 0x134, 0.02);  // heave
-    write_f32_le(&mut buf, 0x138, 0.40);  // surge
+    write_f32_le(&mut buf, 0x134, 0.02); // heave
+    write_f32_le(&mut buf, 0x138, 0.40); // surge
     // Type3 extended fields
-    buf[0x13E] = 4u8;                     // car_type_byte3 (4 = electric)
-    write_f32_le(&mut buf, 0x150, 62.5);  // energy_recovery
+    buf[0x13E] = 4u8; // car_type_byte3 (4 = electric)
+    write_f32_le(&mut buf, 0x150, 62.5); // energy_recovery
     buf
 }
 
@@ -423,24 +423,24 @@ fn make_gt7_braking_data() -> [u8; gran_turismo_7::PACKET_SIZE] {
     let mut buf = [0u8; gran_turismo_7::PACKET_SIZE];
     write_u32(&mut buf, gran_turismo_7::OFF_MAGIC, gran_turismo_7::MAGIC);
     write_f32_le(&mut buf, 0x3C, 4200.0); // engine_rpm (decelerating)
-    write_f32_le(&mut buf, 0x44, 22.0);   // fuel_level
-    write_f32_le(&mut buf, 0x48, 60.0);   // fuel_capacity
-    write_f32_le(&mut buf, 0x4C, 25.0);   // speed_ms ≈ 90 km/h (slowing down)
-    write_f32_le(&mut buf, 0x58, 97.0);   // water_temp_c (hot from hard driving)
-    write_f32_le(&mut buf, 0x60, 105.0);  // tire_temp_fl (hot from braking)
-    write_f32_le(&mut buf, 0x64, 107.0);  // tire_temp_fr
-    write_f32_le(&mut buf, 0x68, 95.0);   // tire_temp_rl
-    write_f32_le(&mut buf, 0x6C, 96.0);   // tire_temp_rr
-    write_u16(&mut buf, 0x74, 10);        // lap_count
-    write_i32(&mut buf, 0x78, 82_000);    // best_lap_ms
-    write_i32(&mut buf, 0x7C, 83_500);    // last_lap_ms
-    write_u16(&mut buf, 0x8A, 9000);      // max_alert_rpm
+    write_f32_le(&mut buf, 0x44, 22.0); // fuel_level
+    write_f32_le(&mut buf, 0x48, 60.0); // fuel_capacity
+    write_f32_le(&mut buf, 0x4C, 25.0); // speed_ms ≈ 90 km/h (slowing down)
+    write_f32_le(&mut buf, 0x58, 97.0); // water_temp_c (hot from hard driving)
+    write_f32_le(&mut buf, 0x60, 105.0); // tire_temp_fl (hot from braking)
+    write_f32_le(&mut buf, 0x64, 107.0); // tire_temp_fr
+    write_f32_le(&mut buf, 0x68, 95.0); // tire_temp_rl
+    write_f32_le(&mut buf, 0x6C, 96.0); // tire_temp_rr
+    write_u16(&mut buf, 0x74, 10); // lap_count
+    write_i32(&mut buf, 0x78, 82_000); // best_lap_ms
+    write_i32(&mut buf, 0x7C, 83_500); // last_lap_ms
+    write_u16(&mut buf, 0x8A, 9000); // max_alert_rpm
     // FLAGS: TCS(1<<11) | ASM(1<<10) | REV_LIMIT(1<<5)
     write_u16(&mut buf, 0x8E, (1u16 << 11) | (1u16 << 10) | (1u16 << 5));
-    buf[0x90] = 2u8;                      // gear_byte (2nd gear, downshifted)
-    buf[0x91] = 0u8;                      // throttle (off)
-    buf[0x92] = (0.95f32 * 255.0) as u8;  // brake (heavy braking)
-    write_i32(&mut buf, 0x124, 1887);     // car_code
+    buf[0x90] = 2u8; // gear_byte (2nd gear, downshifted)
+    buf[0x91] = 0u8; // throttle (off)
+    buf[0x92] = (0.95f32 * 255.0) as u8; // brake (heavy braking)
+    write_i32(&mut buf, 0x124, 1887); // car_code
     buf
 }
 

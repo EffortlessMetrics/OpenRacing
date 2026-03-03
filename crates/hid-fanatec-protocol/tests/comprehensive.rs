@@ -305,11 +305,7 @@ fn led_report_single_led() -> Result<(), Box<dyn std::error::Error>> {
         let mask = 1u16 << bit;
         let report = fan::build_led_report(mask, 128);
         let recovered = u16::from_le_bytes([report[2], report[3]]);
-        assert_eq!(
-            recovered, mask,
-            "LED bit {} must round-trip in report",
-            bit
-        );
+        assert_eq!(recovered, mask, "LED bit {} must round-trip in report", bit);
     }
     Ok(())
 }
@@ -627,8 +623,14 @@ fn multi_device_wheel_pedals_shifter() -> Result<(), Box<dyn std::error::Error>>
     let pedal_state = parse_pedal_report(&pedal_data).ok_or("pedal parse failed")?;
 
     // Verify wheel state
-    assert!(wheel_state.steering > 0.0, "steering should be right of center");
-    assert!(wheel_state.brake > 0.4, "wheel brake should be partially pressed");
+    assert!(
+        wheel_state.steering > 0.0,
+        "steering should be right of center"
+    );
+    assert!(
+        wheel_state.brake > 0.4,
+        "wheel brake should be partially pressed"
+    );
     assert_eq!(wheel_state.buttons & 0x04, 0x04, "button 2 must be set");
     assert_eq!(wheel_state.hat, 0x0F, "hat must be neutral");
 
@@ -1055,7 +1057,10 @@ proptest! {
 
 #[test]
 fn constant_vendor_id() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(FANATEC_VENDOR_ID, 0x0EB7, "Fanatec VID must be 0x0EB7 (Endor AG)");
+    assert_eq!(
+        FANATEC_VENDOR_ID, 0x0EB7,
+        "Fanatec VID must be 0x0EB7 (Endor AG)"
+    );
     Ok(())
 }
 
@@ -1115,7 +1120,10 @@ fn constant_all_product_ids_nonzero() -> Result<(), Box<dyn std::error::Error>> 
         (product_ids::GT_DD_PRO, "GT_DD_PRO"),
         (product_ids::CSL_ELITE, "CSL_ELITE"),
         (product_ids::CLUBSPORT_DD, "CLUBSPORT_DD"),
-        (product_ids::CLUBSPORT_PEDALS_V1_V2, "CLUBSPORT_PEDALS_V1_V2"),
+        (
+            product_ids::CLUBSPORT_PEDALS_V1_V2,
+            "CLUBSPORT_PEDALS_V1_V2",
+        ),
         (product_ids::CLUBSPORT_PEDALS_V3, "CLUBSPORT_PEDALS_V3"),
         (product_ids::CSL_ELITE_PEDALS, "CSL_ELITE_PEDALS"),
         (product_ids::CSL_PEDALS_LC, "CSL_PEDALS_LC"),

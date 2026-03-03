@@ -4,8 +4,8 @@
 //! normalization, sequence/boundary values, and error handling.
 
 use racing_wheel_hbp::{
-    parse_axis, parse_hbp_usb_report_best_effort, HbpHandbrakeSample, HbpHandbrakeSampleRaw,
-    RAW_AXIS_START, RAW_BUTTON, WITH_REPORT_ID_AXIS_START, WITH_REPORT_ID_BUTTON,
+    HbpHandbrakeSample, HbpHandbrakeSampleRaw, RAW_AXIS_START, RAW_BUTTON,
+    WITH_REPORT_ID_AXIS_START, WITH_REPORT_ID_BUTTON, parse_axis, parse_hbp_usb_report_best_effort,
 };
 
 type R = Result<(), Box<dyn std::error::Error>>;
@@ -34,8 +34,8 @@ fn prefixed_layout_every_report_id_value() -> R {
 #[test]
 fn zero_report_id_falls_through_to_raw_on_four_bytes() -> R {
     let report = [0x00, 0xFE, 0xCA, 0x99];
-    let parsed = parse_hbp_usb_report_best_effort(&report)
-        .ok_or("zero id four-byte should use raw path")?;
+    let parsed =
+        parse_hbp_usb_report_best_effort(&report).ok_or("zero id four-byte should use raw path")?;
     // Raw layout: axis at [0..2], button at [2]
     assert_eq!(parsed.handbrake, u16::from_le_bytes([0x00, 0xFE]));
     assert_eq!(parsed.button_byte, Some(0xCA));
@@ -47,8 +47,7 @@ fn three_byte_nonzero_first_uses_raw_layout() -> R {
     // 3-byte report: report.len() > WITH_REPORT_ID_BUTTON is false (3 > 3 is false),
     // so the prefixed branch is skipped; raw 3-byte path is used.
     let report = [0xAA, 0xBB, 0xCC];
-    let parsed = parse_hbp_usb_report_best_effort(&report)
-        .ok_or("3-byte should parse as raw")?;
+    let parsed = parse_hbp_usb_report_best_effort(&report).ok_or("3-byte should parse as raw")?;
     assert_eq!(parsed.handbrake, u16::from_le_bytes([0xAA, 0xBB]));
     assert_eq!(parsed.button_byte, Some(0xCC));
     Ok(())
@@ -58,8 +57,8 @@ fn three_byte_nonzero_first_uses_raw_layout() -> R {
 fn encoding_decoding_le_byte_order_verification() -> R {
     // Verify little-endian: low byte first, high byte second.
     let report = [0x01, 0x78, 0x56, 0x00]; // prefixed layout
-    let parsed = parse_hbp_usb_report_best_effort(&report)
-        .ok_or("LE byte order test should parse")?;
+    let parsed =
+        parse_hbp_usb_report_best_effort(&report).ok_or("LE byte order test should parse")?;
     // 0x78 is low byte, 0x56 is high byte → 0x5678
     assert_eq!(parsed.handbrake, 0x5678);
 
@@ -131,8 +130,7 @@ fn sequential_axis_values_decode_correctly() -> R {
 #[test]
 fn axis_value_one_encodes_correctly() -> R {
     let report = [0x01, 0x00]; // LE → 0x0001
-    let parsed =
-        parse_hbp_usb_report_best_effort(&report).ok_or("axis=1 should parse")?;
+    let parsed = parse_hbp_usb_report_best_effort(&report).ok_or("axis=1 should parse")?;
     assert_eq!(parsed.handbrake, 1);
     Ok(())
 }
@@ -140,8 +138,7 @@ fn axis_value_one_encodes_correctly() -> R {
 #[test]
 fn axis_value_byte_boundary_256() -> R {
     let report = [0x00, 0x01]; // LE → 0x0100 = 256
-    let parsed =
-        parse_hbp_usb_report_best_effort(&report).ok_or("axis=256 should parse")?;
+    let parsed = parse_hbp_usb_report_best_effort(&report).ok_or("axis=256 should parse")?;
     assert_eq!(parsed.handbrake, 256);
     Ok(())
 }
@@ -392,8 +389,7 @@ fn raw_sample_debug_format() {
 #[test]
 fn five_byte_report_prefixed_ignores_trailing() -> R {
     let report = [0x03, 0xDE, 0xAD, 0xBE, 0xEF];
-    let parsed = parse_hbp_usb_report_best_effort(&report)
-        .ok_or("5-byte prefixed should parse")?;
+    let parsed = parse_hbp_usb_report_best_effort(&report).ok_or("5-byte prefixed should parse")?;
     assert_eq!(parsed.handbrake, 0xADDE);
     assert_eq!(parsed.button_byte, Some(0xBE));
     Ok(())
@@ -402,8 +398,7 @@ fn five_byte_report_prefixed_ignores_trailing() -> R {
 #[test]
 fn eight_byte_report_uses_prefixed() -> R {
     let report = [0x01, 0x00, 0x80, 0xFF, 0x00, 0x00, 0x00, 0x00];
-    let parsed = parse_hbp_usb_report_best_effort(&report)
-        .ok_or("8-byte prefixed should parse")?;
+    let parsed = parse_hbp_usb_report_best_effort(&report).ok_or("8-byte prefixed should parse")?;
     assert_eq!(parsed.handbrake, 0x8000);
     assert_eq!(parsed.button_byte, Some(0xFF));
     Ok(())
@@ -415,8 +410,7 @@ fn large_report_with_zero_id_uses_raw() -> R {
     report[0] = 0x00;
     report[1] = 0xAA;
     report[2] = 0xBB;
-    let parsed = parse_hbp_usb_report_best_effort(&report)
-        .ok_or("large zero-id should use raw")?;
+    let parsed = parse_hbp_usb_report_best_effort(&report).ok_or("large zero-id should use raw")?;
     // Raw: axis at [0..2] = [0x00, 0xAA], button at [2] = 0xBB
     assert_eq!(parsed.handbrake, u16::from_le_bytes([0x00, 0xAA]));
     assert_eq!(parsed.button_byte, Some(0xBB));

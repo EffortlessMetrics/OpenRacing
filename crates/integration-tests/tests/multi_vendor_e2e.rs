@@ -279,8 +279,14 @@ fn switch_vendor_renegotiates_ffb_mode() -> Result<()> {
     );
 
     // Verify compatibility cross-checks
-    assert!(ModeSelectionPolicy::is_mode_compatible(FFBMode::RawTorque, &dd_caps));
-    assert!(!ModeSelectionPolicy::is_mode_compatible(FFBMode::RawTorque, &pid_caps));
+    assert!(ModeSelectionPolicy::is_mode_compatible(
+        FFBMode::RawTorque,
+        &dd_caps
+    ));
+    assert!(!ModeSelectionPolicy::is_mode_compatible(
+        FFBMode::RawTorque,
+        &pid_caps
+    ));
     assert!(ModeSelectionPolicy::is_mode_compatible(
         FFBMode::PidPassthrough,
         &pid_caps
@@ -407,8 +413,7 @@ fn capability_detection_round_trips_for_all_vendors() -> Result<()> {
             v.name
         );
 
-        let torque_delta =
-            (parsed.max_torque.value() - caps.max_torque.value()).abs();
+        let torque_delta = (parsed.max_torque.value() - caps.max_torque.value()).abs();
         assert!(
             torque_delta < 0.02,
             "{}: torque round-trip delta {torque_delta} exceeds 0.02 Nm",
@@ -480,8 +485,7 @@ fn capability_detection_respects_game_compatibility() -> Result<()> {
         supports_telemetry: true,
         preferred_mode: FFBMode::TelemetrySynth,
     };
-    let result2 =
-        CapabilityNegotiator::negotiate_capabilities(&dd_caps, Some(&telem_only_game));
+    let result2 = CapabilityNegotiator::negotiate_capabilities(&dd_caps, Some(&telem_only_game));
     assert_eq!(
         result2.mode,
         FFBMode::TelemetrySynth,
@@ -529,7 +533,7 @@ fn protocol_negotiation_warns_on_rate_mismatch() -> Result<()> {
     // Create a device with a very slow report period (10ms → max ~100Hz)
     let slow_caps = DeviceCapabilities::new(
         false,
-        true,  // claims raw torque but min period is too slow
+        true, // claims raw torque but min period is too slow
         false,
         false,
         TorqueNm::new(5.0)?,
@@ -567,8 +571,7 @@ async fn protocol_all_vendor_ids_unique_in_port() -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    let ids: std::collections::HashSet<&DeviceId> =
-        devices.iter().map(|d| &d.id).collect();
+    let ids: std::collections::HashSet<&DeviceId> = devices.iter().map(|d| &d.id).collect();
     assert_eq!(
         ids.len(),
         VENDORS.len(),

@@ -51,10 +51,7 @@ mod tests {
             assert_eq!(parsed.schema_version, original.schema_version);
             assert_eq!(parsed.engine.tick_rate_hz, original.engine.tick_rate_hz);
             assert_eq!(parsed.safety.max_torque_nm, original.safety.max_torque_nm);
-            assert_eq!(
-                parsed.ipc.max_connections,
-                original.ipc.max_connections
-            );
+            assert_eq!(parsed.ipc.max_connections, original.ipc.max_connections);
             Ok(())
         }
 
@@ -189,8 +186,7 @@ mod tests {
         #[test]
         fn system_config_to_daemon_service_config() {
             let sys = SystemConfig::default();
-            let daemon_cfg =
-                crate::system_config::ServiceConfig::from_system_config(&sys);
+            let daemon_cfg = crate::system_config::ServiceConfig::from_system_config(&sys);
             assert_eq!(daemon_cfg.service_name, sys.service.service_name);
             assert_eq!(
                 daemon_cfg.health_check_interval,
@@ -332,10 +328,7 @@ mod tests {
                 "acc".to_string(),
                 vec!["AC2-Win64-Shipping.exe".to_string()],
             );
-            svc.add_game_patterns(
-                "eawrc".to_string(),
-                vec!["WRC.exe".to_string()],
-            );
+            svc.add_game_patterns("eawrc".to_string(), vec!["WRC.exe".to_string()]);
 
             // Verify patterns were added (running games starts empty)
             assert!(svc.get_running_games().is_empty());
@@ -368,10 +361,7 @@ mod tests {
                 vec!["iRacingSim64DX11.exe".to_string()],
             );
             // Overwrite with new patterns
-            svc.add_game_patterns(
-                "iracing".to_string(),
-                vec!["iRacingSim64.exe".to_string()],
-            );
+            svc.add_game_patterns("iracing".to_string(), vec!["iRacingSim64.exe".to_string()]);
             // Should not panic; only latest patterns kept
             assert!(svc.get_running_games().is_empty());
         }
@@ -531,7 +521,9 @@ mod tests {
             let dev = make_managed_device(DeviceState::Faulted {
                 reason: "overtemp".to_string(),
             });
-            assert!(matches!(dev.state, DeviceState::Faulted { ref reason } if reason == "overtemp"));
+            assert!(
+                matches!(dev.state, DeviceState::Faulted { ref reason } if reason == "overtemp")
+            );
         }
 
         #[test]
@@ -596,9 +588,7 @@ mod tests {
         use super::*;
         use crate::profile_repository::ProfileRepositoryConfig;
         use crate::profile_service::ProfileService;
-        use racing_wheel_schemas::prelude::{
-            BaseSettings, Profile, ProfileId, ProfileScope,
-        };
+        use racing_wheel_schemas::prelude::{BaseSettings, Profile, ProfileId, ProfileScope};
 
         async fn make_service() -> Result<(ProfileService, TempDir), Box<dyn std::error::Error>> {
             let temp = TempDir::new()?;
@@ -736,9 +726,7 @@ mod tests {
 
     mod safety_tests {
         use super::*;
-        use crate::safety_service::{
-            ApplicationSafetyService, FaultSeverity, InterlockState,
-        };
+        use crate::safety_service::{ApplicationSafetyService, FaultSeverity, InterlockState};
         use racing_wheel_engine::{SafetyPolicy, safety::FaultType};
         use racing_wheel_schemas::prelude::TorqueNm;
 
@@ -800,9 +788,7 @@ mod tests {
             svc.register_device(did.clone(), torque(10.0)).await?;
             svc.emergency_stop(&did, "test fault".to_string()).await?;
 
-            let result = svc
-                .request_high_torque(&did, "test-user".to_string())
-                .await;
+            let result = svc.request_high_torque(&did, "test-user".to_string()).await;
             assert!(result.is_err());
             Ok(())
         }
@@ -816,7 +802,10 @@ mod tests {
             svc.emergency_stop(&did, "test e-stop".to_string()).await?;
 
             let state = svc.get_safety_state(&did).await?;
-            assert!(matches!(state.interlock_state, InterlockState::Faulted { .. }));
+            assert!(matches!(
+                state.interlock_state,
+                InterlockState::Faulted { .. }
+            ));
             assert_eq!(state.current_torque_limit, TorqueNm::ZERO);
             assert_eq!(state.fault_count, 1);
             Ok(())
@@ -874,7 +863,10 @@ mod tests {
             .await?;
 
             let state = svc.get_safety_state(&did).await?;
-            assert!(matches!(state.interlock_state, InterlockState::Faulted { .. }));
+            assert!(matches!(
+                state.interlock_state,
+                InterlockState::Faulted { .. }
+            ));
             assert_eq!(state.current_torque_limit, TorqueNm::ZERO);
             Ok(())
         }
@@ -924,9 +916,7 @@ mod tests {
             let did = device_id("nonfault-dev");
             svc.register_device(did.clone(), torque(10.0)).await?;
 
-            let result = svc
-                .clear_fault(&did, FaultType::ThermalLimit)
-                .await;
+            let result = svc.clear_fault(&did, FaultType::ThermalLimit).await;
             assert!(result.is_err());
             Ok(())
         }
@@ -988,7 +978,11 @@ mod tests {
             }];
 
             let result = svc.validate_config_generation("iracing", &diffs).await?;
-            assert!(result.success, "iracing golden file should pass: {:?}", result.details);
+            assert!(
+                result.success,
+                "iracing golden file should pass: {:?}",
+                result.details
+            );
             Ok(())
         }
 
@@ -1045,9 +1039,7 @@ mod tests {
             let temp = TempDir::new()?;
 
             // Validate against empty directory — files should be missing
-            let result = svc
-                .validate_config_files("iracing", temp.path())
-                .await?;
+            let result = svc.validate_config_files("iracing", temp.path()).await?;
             assert!(!result.success);
             assert!(!result.details.missing_items.is_empty());
             Ok(())

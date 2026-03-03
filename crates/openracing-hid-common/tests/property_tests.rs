@@ -214,7 +214,10 @@ fn error_all_variants_display_non_empty() {
         HidCommonError::IoError(std::io::Error::other("io")),
     ];
     for err in &variants {
-        assert!(!err.to_string().is_empty(), "Display must be non-empty for {err:?}");
+        assert!(
+            !err.to_string().is_empty(),
+            "Display must be non-empty for {err:?}"
+        );
     }
 }
 

@@ -4,11 +4,11 @@
 //! encoding, model capabilities, and calibration.
 
 use hid_asetek_protocol::{
-    asetek_model_from_info, is_asetek_device, AsetekError, AsetekInputReport, AsetekModel,
-    AsetekOutputReport, WheelCapabilities, WheelModel, ASETEK_FORTE_PEDALS_PID, ASETEK_FORTE_PID,
-    ASETEK_INVICTA_PEDALS_PID, ASETEK_INVICTA_PID, ASETEK_LAPRIMA_PEDALS_PID, ASETEK_LAPRIMA_PID,
-    ASETEK_TONY_KANAAN_PID, ASETEK_VENDOR_ID, MAX_TORQUE_NM, REPORT_SIZE_INPUT,
-    REPORT_SIZE_OUTPUT, VENDOR_ID,
+    ASETEK_FORTE_PEDALS_PID, ASETEK_FORTE_PID, ASETEK_INVICTA_PEDALS_PID, ASETEK_INVICTA_PID,
+    ASETEK_LAPRIMA_PEDALS_PID, ASETEK_LAPRIMA_PID, ASETEK_TONY_KANAAN_PID, ASETEK_VENDOR_ID,
+    AsetekError, AsetekInputReport, AsetekModel, AsetekOutputReport, MAX_TORQUE_NM,
+    REPORT_SIZE_INPUT, REPORT_SIZE_OUTPUT, VENDOR_ID, WheelCapabilities, WheelModel,
+    asetek_model_from_info, is_asetek_device,
 };
 
 // ─── Device identification ───────────────────────────────────────────────────
@@ -28,17 +28,38 @@ fn is_asetek_device_recognises_vendor() {
 
 #[test]
 fn all_wheelbase_pids_map_to_correct_models() {
-    assert_eq!(AsetekModel::from_product_id(ASETEK_FORTE_PID), AsetekModel::Forte);
-    assert_eq!(AsetekModel::from_product_id(ASETEK_INVICTA_PID), AsetekModel::Invicta);
-    assert_eq!(AsetekModel::from_product_id(ASETEK_LAPRIMA_PID), AsetekModel::LaPrima);
-    assert_eq!(AsetekModel::from_product_id(ASETEK_TONY_KANAAN_PID), AsetekModel::TonyKanaan);
+    assert_eq!(
+        AsetekModel::from_product_id(ASETEK_FORTE_PID),
+        AsetekModel::Forte
+    );
+    assert_eq!(
+        AsetekModel::from_product_id(ASETEK_INVICTA_PID),
+        AsetekModel::Invicta
+    );
+    assert_eq!(
+        AsetekModel::from_product_id(ASETEK_LAPRIMA_PID),
+        AsetekModel::LaPrima
+    );
+    assert_eq!(
+        AsetekModel::from_product_id(ASETEK_TONY_KANAAN_PID),
+        AsetekModel::TonyKanaan
+    );
 }
 
 #[test]
 fn all_pedal_pids_map_to_correct_models() {
-    assert_eq!(AsetekModel::from_product_id(ASETEK_INVICTA_PEDALS_PID), AsetekModel::InvictaPedals);
-    assert_eq!(AsetekModel::from_product_id(ASETEK_FORTE_PEDALS_PID), AsetekModel::FortePedals);
-    assert_eq!(AsetekModel::from_product_id(ASETEK_LAPRIMA_PEDALS_PID), AsetekModel::LaPrimaPedals);
+    assert_eq!(
+        AsetekModel::from_product_id(ASETEK_INVICTA_PEDALS_PID),
+        AsetekModel::InvictaPedals
+    );
+    assert_eq!(
+        AsetekModel::from_product_id(ASETEK_FORTE_PEDALS_PID),
+        AsetekModel::FortePedals
+    );
+    assert_eq!(
+        AsetekModel::from_product_id(ASETEK_LAPRIMA_PEDALS_PID),
+        AsetekModel::LaPrimaPedals
+    );
 }
 
 #[test]
@@ -79,9 +100,14 @@ fn pedal_models_have_zero_torque() {
 #[test]
 fn display_names_non_empty() {
     let models = [
-        AsetekModel::Forte, AsetekModel::Invicta, AsetekModel::LaPrima,
-        AsetekModel::TonyKanaan, AsetekModel::InvictaPedals,
-        AsetekModel::FortePedals, AsetekModel::LaPrimaPedals, AsetekModel::Unknown,
+        AsetekModel::Forte,
+        AsetekModel::Invicta,
+        AsetekModel::LaPrima,
+        AsetekModel::TonyKanaan,
+        AsetekModel::InvictaPedals,
+        AsetekModel::FortePedals,
+        AsetekModel::LaPrimaPedals,
+        AsetekModel::Unknown,
     ];
     for m in &models {
         assert!(!m.display_name().is_empty());
@@ -105,7 +131,13 @@ fn parse_input_report_minimum_valid() -> Result<(), AsetekError> {
 fn parse_input_report_rejects_short_buffer() {
     let data = [0u8; 15];
     let result = AsetekInputReport::parse(&data);
-    assert!(matches!(result, Err(AsetekError::InvalidReportSize { expected: 16, actual: 15 })));
+    assert!(matches!(
+        result,
+        Err(AsetekError::InvalidReportSize {
+            expected: 16,
+            actual: 15
+        })
+    ));
 }
 
 #[test]
@@ -132,19 +164,31 @@ fn parse_input_report_known_values() -> Result<(), AsetekError> {
 
 #[test]
 fn input_report_status_bits() {
-    let report_00 = AsetekInputReport { status: 0x00, ..Default::default() };
+    let report_00 = AsetekInputReport {
+        status: 0x00,
+        ..Default::default()
+    };
     assert!(!report_00.is_connected());
     assert!(!report_00.is_enabled());
 
-    let report_01 = AsetekInputReport { status: 0x01, ..Default::default() };
+    let report_01 = AsetekInputReport {
+        status: 0x01,
+        ..Default::default()
+    };
     assert!(report_01.is_connected());
     assert!(!report_01.is_enabled());
 
-    let report_02 = AsetekInputReport { status: 0x02, ..Default::default() };
+    let report_02 = AsetekInputReport {
+        status: 0x02,
+        ..Default::default()
+    };
     assert!(!report_02.is_connected());
     assert!(report_02.is_enabled());
 
-    let report_03 = AsetekInputReport { status: 0x03, ..Default::default() };
+    let report_03 = AsetekInputReport {
+        status: 0x03,
+        ..Default::default()
+    };
     assert!(report_03.is_connected());
     assert!(report_03.is_enabled());
 }

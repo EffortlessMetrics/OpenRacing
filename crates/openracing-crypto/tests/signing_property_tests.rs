@@ -150,9 +150,9 @@ proptest! {
 #[test]
 fn key_generation_determinism_with_fixed_seed() -> TestResult {
     let seed: [u8; 32] = [
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
-        0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c,
-        0x1d, 0x1e, 0x1f, 0x20,
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e,
+        0x1f, 0x20,
     ];
 
     let kp1 = KeyPair::from_bytes(&seed, "seed-key-1".to_string())?;
@@ -223,10 +223,7 @@ fn multiple_signatures_same_key() -> TestResult {
         for (j, payload) in payloads.iter().enumerate() {
             if i != j {
                 let valid = Ed25519Verifier::verify(payload, sig, &keypair.public_key)?;
-                assert!(
-                    !valid,
-                    "signature[{i}] must not verify for payload[{j}]"
-                );
+                assert!(!valid, "signature[{i}] must not verify for payload[{j}]");
             }
         }
     }
@@ -257,9 +254,9 @@ fn multiple_signatures_same_key_deterministic() -> TestResult {
 fn signature_format_stability_snapshot() -> TestResult {
     // Use a fixed seed so the key pair is always the same
     let seed: [u8; 32] = [
-        0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-        0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14,
-        0x15, 0x16, 0x17, 0x18,
+        0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
+        0x17, 0x18,
     ];
     let keypair = KeyPair::from_bytes(&seed, "snapshot-key".to_string())?;
 
@@ -275,11 +272,18 @@ fn signature_format_stability_snapshot() -> TestResult {
 
     // Re-signing with same key and data must produce identical output
     let sig2 = Ed25519Signer::sign(data, &keypair.signing_key)?;
-    assert_eq!(sig.to_base64(), sig2.to_base64(), "signature must be stable across calls");
+    assert_eq!(
+        sig.to_base64(),
+        sig2.to_base64(),
+        "signature must be stable across calls"
+    );
 
     // Signature must roundtrip through base64
     let parsed = Signature::from_base64(&b64)?;
-    assert!(sig.ct_eq(&parsed), "base64 roundtrip must preserve signature");
+    assert!(
+        sig.ct_eq(&parsed),
+        "base64 roundtrip must preserve signature"
+    );
 
     // Public key fingerprint must be stable
     let fp1 = keypair.fingerprint();

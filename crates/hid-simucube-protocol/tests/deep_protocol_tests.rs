@@ -5,15 +5,15 @@
 //! effect types.
 
 use hid_simucube_protocol::{
-    is_simucube_device, simucube_model_from_info, DeviceStatus, EffectType, SimucubeError,
-    SimucubeHidReport, SimucubeInputReport, SimucubeModel, SimucubeOutputReport, WheelCapabilities,
-    WheelModel, ANGLE_SENSOR_BITS, ANGLE_SENSOR_MAX, HID_ADDITIONAL_AXES, HID_BUTTON_BYTES,
-    HID_BUTTON_COUNT, HID_JOYSTICK_REPORT_MIN_BYTES, MAX_TORQUE_NM, MAX_TORQUE_PRO,
-    MAX_TORQUE_SPORT, MAX_TORQUE_ULTIMATE, PRODUCT_ID_PRO, PRODUCT_ID_SPORT, PRODUCT_ID_ULTIMATE,
-    REPORT_SIZE_INPUT, REPORT_SIZE_OUTPUT, SIMUCUBE_1_BOOTLOADER_PID, SIMUCUBE_1_PID,
-    SIMUCUBE_2_BOOTLOADER_PID, SIMUCUBE_2_PRO_PID, SIMUCUBE_2_SPORT_PID,
+    ANGLE_SENSOR_BITS, ANGLE_SENSOR_MAX, DeviceStatus, EffectType, HID_ADDITIONAL_AXES,
+    HID_BUTTON_BYTES, HID_BUTTON_COUNT, HID_JOYSTICK_REPORT_MIN_BYTES, MAX_TORQUE_NM,
+    MAX_TORQUE_PRO, MAX_TORQUE_SPORT, MAX_TORQUE_ULTIMATE, PRODUCT_ID_PRO, PRODUCT_ID_SPORT,
+    PRODUCT_ID_ULTIMATE, REPORT_SIZE_INPUT, REPORT_SIZE_OUTPUT, SIMUCUBE_1_BOOTLOADER_PID,
+    SIMUCUBE_1_PID, SIMUCUBE_2_BOOTLOADER_PID, SIMUCUBE_2_PRO_PID, SIMUCUBE_2_SPORT_PID,
     SIMUCUBE_2_ULTIMATE_PID, SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID,
-    SIMUCUBE_WIRELESS_WHEEL_PID, VENDOR_ID,
+    SIMUCUBE_WIRELESS_WHEEL_PID, SimucubeError, SimucubeHidReport, SimucubeInputReport,
+    SimucubeModel, SimucubeOutputReport, VENDOR_ID, WheelCapabilities, WheelModel,
+    is_simucube_device, simucube_model_from_info,
 };
 
 // ─── Device identification ───────────────────────────────────────────────────
@@ -55,18 +55,42 @@ fn sc2_ultimate_pid() {
 
 #[test]
 fn model_from_product_id_all_variants() {
-    assert_eq!(SimucubeModel::from_product_id(SIMUCUBE_1_PID), SimucubeModel::Simucube1);
-    assert_eq!(SimucubeModel::from_product_id(SIMUCUBE_2_SPORT_PID), SimucubeModel::Sport);
-    assert_eq!(SimucubeModel::from_product_id(SIMUCUBE_2_PRO_PID), SimucubeModel::Pro);
-    assert_eq!(SimucubeModel::from_product_id(SIMUCUBE_2_ULTIMATE_PID), SimucubeModel::Ultimate);
-    assert_eq!(SimucubeModel::from_product_id(SIMUCUBE_ACTIVE_PEDAL_PID), SimucubeModel::ActivePedal);
-    assert_eq!(SimucubeModel::from_product_id(SIMUCUBE_WIRELESS_WHEEL_PID), SimucubeModel::WirelessWheel);
-    assert_eq!(SimucubeModel::from_product_id(0xFFFF), SimucubeModel::Unknown);
+    assert_eq!(
+        SimucubeModel::from_product_id(SIMUCUBE_1_PID),
+        SimucubeModel::Simucube1
+    );
+    assert_eq!(
+        SimucubeModel::from_product_id(SIMUCUBE_2_SPORT_PID),
+        SimucubeModel::Sport
+    );
+    assert_eq!(
+        SimucubeModel::from_product_id(SIMUCUBE_2_PRO_PID),
+        SimucubeModel::Pro
+    );
+    assert_eq!(
+        SimucubeModel::from_product_id(SIMUCUBE_2_ULTIMATE_PID),
+        SimucubeModel::Ultimate
+    );
+    assert_eq!(
+        SimucubeModel::from_product_id(SIMUCUBE_ACTIVE_PEDAL_PID),
+        SimucubeModel::ActivePedal
+    );
+    assert_eq!(
+        SimucubeModel::from_product_id(SIMUCUBE_WIRELESS_WHEEL_PID),
+        SimucubeModel::WirelessWheel
+    );
+    assert_eq!(
+        SimucubeModel::from_product_id(0xFFFF),
+        SimucubeModel::Unknown
+    );
 }
 
 #[test]
 fn model_from_info_rejects_wrong_vendor() {
-    assert_eq!(simucube_model_from_info(0x1234, SIMUCUBE_2_PRO_PID), SimucubeModel::Unknown);
+    assert_eq!(
+        simucube_model_from_info(0x1234, SIMUCUBE_2_PRO_PID),
+        SimucubeModel::Unknown
+    );
 }
 
 #[test]
@@ -136,7 +160,13 @@ fn hid_report_parse_center() -> Result<(), SimucubeError> {
 fn hid_report_rejects_short_data() {
     let data = [0u8; 31];
     let result = SimucubeHidReport::parse(&data);
-    assert!(matches!(result, Err(SimucubeError::InvalidReportSize { expected: 32, actual: 31 })));
+    assert!(matches!(
+        result,
+        Err(SimucubeError::InvalidReportSize {
+            expected: 32,
+            actual: 31
+        })
+    ));
 }
 
 #[test]

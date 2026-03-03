@@ -11,7 +11,7 @@
 use compat::TelemetryCompat;
 use racing_wheel_engine::TelemetryData;
 use racing_wheel_schemas::migration::{
-    MigrationConfig, MigrationManager, SchemaVersion, CURRENT_SCHEMA_VERSION, SCHEMA_VERSION_V2,
+    CURRENT_SCHEMA_VERSION, MigrationConfig, MigrationManager, SCHEMA_VERSION_V2, SchemaVersion,
 };
 use std::time::Instant;
 
@@ -379,16 +379,14 @@ mod format_conversion {
                     let v: serde_json::Value = serde_json::from_str(&migrated)?;
 
                     let out_gain = v["base"]["ffbGain"].as_f64().ok_or("missing ffbGain")?;
-                    assert!(
-                        (out_gain - g).abs() < f64::EPSILON,
-                        "gain mismatch: {g}"
-                    );
+                    assert!((out_gain - g).abs() < f64::EPSILON, "gain mismatch: {g}");
 
                     let out_dor = v["base"]["dorDeg"].as_u64().ok_or("missing dorDeg")?;
                     assert_eq!(out_dor, d, "dor mismatch");
 
-                    let out_torque =
-                        v["base"]["torqueCapNm"].as_f64().ok_or("missing torqueCapNm")?;
+                    let out_torque = v["base"]["torqueCapNm"]
+                        .as_f64()
+                        .ok_or("missing torqueCapNm")?;
                     assert!(
                         (out_torque - t).abs() < f64::EPSILON,
                         "torque mismatch: {t}"
@@ -452,8 +450,16 @@ mod deprecated_api {
     fn deprecation_mapping_completeness() {
         let t = sample(45.0, 3.0, 72, 0xAB);
         let mappings: Vec<(&str, i64, i64)> = vec![
-            ("temp_c→temperature_c", t.temp_c() as i64, t.0.temperature_c as i64),
-            ("faults→fault_flags", t.faults() as i64, t.0.fault_flags as i64),
+            (
+                "temp_c→temperature_c",
+                t.temp_c() as i64,
+                t.0.temperature_c as i64,
+            ),
+            (
+                "faults→fault_flags",
+                t.faults() as i64,
+                t.0.fault_flags as i64,
+            ),
             (
                 "wheel_angle_mdeg→deg*1000",
                 t.wheel_angle_mdeg() as i64,

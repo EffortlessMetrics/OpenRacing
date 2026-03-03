@@ -3,14 +3,14 @@
 //! Covers creation, timing accuracy, deadline detection, metrics,
 //! graceful shutdown, multi-scheduler independence, and property tests.
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use openracing_scheduler::{
-    AbsoluteScheduler, AdaptiveSchedulingConfig, JitterMetrics, PLL, RTError, RTSetup,
-    PERIOD_1KHZ_NS,
+    AbsoluteScheduler, AdaptiveSchedulingConfig, JitterMetrics, PERIOD_1KHZ_NS, PLL, RTError,
+    RTSetup,
 };
 
 // ===========================================================================
@@ -429,7 +429,10 @@ fn property_normalized_config_is_valid() -> Result<(), Box<dyn std::error::Error
 
     for mut cfg in test_cases {
         cfg.normalize();
-        assert!(cfg.is_valid(), "config should be valid after normalize: {cfg:?}");
+        assert!(
+            cfg.is_valid(),
+            "config should be valid after normalize: {cfg:?}"
+        );
     }
     Ok(())
 }

@@ -21,16 +21,13 @@ fn snapshot_hid_device_info_full() {
 fn snapshot_hid_device_info_display_name_with_product() {
     let info = HidDeviceInfo::new(0x346E, 0x0005, "/dev/hidraw0".to_string())
         .with_product_name("SimuCube 2 Pro");
-    insta::assert_snapshot!(
-        "hid_device_info_display_name_product",
-        info.display_name()
-    );
+    insta::assert_snapshot!("hid_device_info_display_name_product", info.display_name());
 }
 
 #[test]
 fn snapshot_hid_device_info_display_name_manufacturer_only() {
-    let info = HidDeviceInfo::new(0x0EB7, 0x183B, "/dev/hidraw1".to_string())
-        .with_manufacturer("Fanatec");
+    let info =
+        HidDeviceInfo::new(0x0EB7, 0x183B, "/dev/hidraw1".to_string()).with_manufacturer("Fanatec");
     insta::assert_snapshot!(
         "hid_device_info_display_name_manufacturer",
         info.display_name()
@@ -40,10 +37,7 @@ fn snapshot_hid_device_info_display_name_manufacturer_only() {
 #[test]
 fn snapshot_hid_device_info_display_name_fallback() {
     let info = HidDeviceInfo::new(0x1234, 0x5678, "/dev/hidraw2".to_string());
-    insta::assert_snapshot!(
-        "hid_device_info_display_name_fallback",
-        info.display_name()
-    );
+    insta::assert_snapshot!("hid_device_info_display_name_fallback", info.display_name());
 }
 
 #[test]

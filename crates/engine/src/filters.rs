@@ -816,10 +816,7 @@ mod tests {
             ));
         }
         if frame.torque_out <= 0.0 {
-            return Err(format!(
-                "output should be positive: {}",
-                frame.torque_out
-            ));
+            return Err(format!("output should be positive: {}", frame.torque_out));
         }
         Ok(())
     }
@@ -1186,7 +1183,11 @@ mod tests {
         assert!(state.x1.abs() > 0.0 || state.y1.abs() > 0.0);
 
         FilterState::reset(&mut state);
-        if state.x1.abs() > 0.0 || state.x2.abs() > 0.0 || state.y1.abs() > 0.0 || state.y2.abs() > 0.0 {
+        if state.x1.abs() > 0.0
+            || state.x2.abs() > 0.0
+            || state.y1.abs() > 0.0
+            || state.y2.abs() > 0.0
+        {
             return Err(format!(
                 "notch reset should clear delay line: x1={}, x2={}, y1={}, y2={}",
                 state.x1, state.x2, state.y1, state.y2

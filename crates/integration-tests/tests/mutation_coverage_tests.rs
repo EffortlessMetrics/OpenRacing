@@ -229,11 +229,7 @@ fn telemetry_loss_percent_uses_total_denominator() {
     }
     let pct = counters.telemetry_loss_percent();
     // 20 lost / (80 + 20) total = 20%
-    assert!(
-        (pct - 20.0).abs() < 0.1,
-        "Expected 20% loss, got {}",
-        pct,
-    );
+    assert!((pct - 20.0).abs() < 0.1, "Expected 20% loss, got {}", pct,);
 }
 
 /// Saturation percent: numerator is saturated count, denominator is total samples.
@@ -362,7 +358,10 @@ fn fault_type_severity_exact_values() {
 /// RTError::severity must map each variant to the correct ErrorSeverity.
 #[test]
 fn rt_error_severity_mapping() {
-    assert_eq!(RTError::DeviceDisconnected.severity(), ErrorSeverity::Critical);
+    assert_eq!(
+        RTError::DeviceDisconnected.severity(),
+        ErrorSeverity::Critical
+    );
     assert_eq!(RTError::TorqueLimit.severity(), ErrorSeverity::Critical);
     assert_eq!(RTError::PipelineFault.severity(), ErrorSeverity::Error);
     assert_eq!(RTError::TimingViolation.severity(), ErrorSeverity::Warning);
@@ -371,7 +370,10 @@ fn rt_error_severity_mapping() {
     assert_eq!(RTError::SafetyInterlock.severity(), ErrorSeverity::Critical);
     assert_eq!(RTError::BufferOverflow.severity(), ErrorSeverity::Warning);
     assert_eq!(RTError::DeadlineMissed.severity(), ErrorSeverity::Critical);
-    assert_eq!(RTError::ResourceUnavailable.severity(), ErrorSeverity::Error);
+    assert_eq!(
+        RTError::ResourceUnavailable.severity(),
+        ErrorSeverity::Error
+    );
 }
 
 /// FaultType::is_recoverable must return the correct value for every variant.
@@ -410,7 +412,10 @@ fn fault_type_response_times_exact() {
         FaultType::SafetyInterlockViolation.default_max_response_time_ms(),
         10
     );
-    assert_eq!(FaultType::HandsOffTimeout.default_max_response_time_ms(), 50);
+    assert_eq!(
+        FaultType::HandsOffTimeout.default_max_response_time_ms(),
+        50
+    );
     assert_eq!(FaultType::PluginOverrun.default_max_response_time_ms(), 1);
     assert_eq!(FaultType::TimingViolation.default_max_response_time_ms(), 1);
     assert_eq!(FaultType::PipelineFault.default_max_response_time_ms(), 10);
@@ -546,7 +551,11 @@ fn calibration_above_max_clamps_to_one() {
 fn calibration_zero_range_no_panic() {
     let cal = AxisCalibration::new(500, 500);
     let value = cal.apply(500);
-    assert!(value.is_finite(), "Zero range must produce finite, got {}", value);
+    assert!(
+        value.is_finite(),
+        "Zero range must produce finite, got {}",
+        value
+    );
 }
 
 /// LUT lookup with negative input must clamp to 0.0, not go out of bounds.
@@ -639,11 +648,7 @@ fn snapshot_percentages_match_live() {
 fn fault_action_affects_torque_variants() {
     let torque_affecting = [FaultAction::SoftStop, FaultAction::SafeMode];
     for action in &torque_affecting {
-        assert!(
-            action.affects_torque(),
-            "{:?} should affect torque",
-            action,
-        );
+        assert!(action.affects_torque(), "{:?} should affect torque", action,);
     }
 
     let non_torque = [
@@ -770,7 +775,11 @@ fn critical_faults_require_immediate_response() {
 fn rt_error_from_code_round_trip() {
     for code in 1..=10u8 {
         let err = RTError::from_code(code);
-        assert!(err.is_some(), "Code {} must map to an RTError variant", code);
+        assert!(
+            err.is_some(),
+            "Code {} must map to an RTError variant",
+            code
+        );
         if let Some(e) = err {
             assert_eq!(e.code(), code, "Round-trip failed for code {}", code);
         }
@@ -781,8 +790,14 @@ fn rt_error_from_code_round_trip() {
 #[test]
 fn rt_error_from_code_invalid_returns_none() {
     assert!(RTError::from_code(0).is_none(), "Code 0 should be invalid");
-    assert!(RTError::from_code(11).is_none(), "Code 11 should be invalid");
-    assert!(RTError::from_code(255).is_none(), "Code 255 should be invalid");
+    assert!(
+        RTError::from_code(11).is_none(),
+        "Code 11 should be invalid"
+    );
+    assert!(
+        RTError::from_code(255).is_none(),
+        "Code 255 should be invalid"
+    );
 }
 
 /// record_torque_saturation(false) must increment samples but NOT count.

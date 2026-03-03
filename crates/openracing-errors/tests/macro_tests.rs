@@ -314,10 +314,7 @@ mod require_macro {
     #[test]
     fn require_creates_required_error() -> Result<(), OpenRacingError> {
         let err = require!("profile_name");
-        assert_eq!(
-            err.to_string(),
-            "Required field 'profile_name' is missing"
-        );
+        assert_eq!(err.to_string(), "Required field 'profile_name' is missing");
         Ok(())
     }
 

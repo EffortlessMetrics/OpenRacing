@@ -308,11 +308,8 @@ mod tests {
 
     #[test]
     fn empty_matrix_with_registry_entries_lenient_ok() {
-        let metrics = BddMatrixMetrics::from_sets(
-            Vec::<&str>::new(),
-            ["acc"],
-            MatrixParityPolicy::LENIENT,
-        );
+        let metrics =
+            BddMatrixMetrics::from_sets(Vec::<&str>::new(), ["acc"], MatrixParityPolicy::LENIENT);
         assert!(metrics.parity_ok);
     }
 
@@ -476,11 +473,7 @@ mod tests {
 
     #[test]
     fn runtime_bdd_metrics_clone_and_debug() {
-        let adapter = BddMatrixMetrics::from_sets(
-            ["acc"],
-            ["acc"],
-            MatrixParityPolicy::STRICT,
-        );
+        let adapter = BddMatrixMetrics::from_sets(["acc"], ["acc"], MatrixParityPolicy::STRICT);
         let writer = adapter.clone();
         let runtime = RuntimeBddMatrixMetrics::new(1, adapter, writer);
         let cloned = runtime.clone();

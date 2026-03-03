@@ -6,10 +6,9 @@
 use std::collections::HashSet;
 
 use racing_wheel_telemetry_config::{
-    ConfigDiff, DiffOperation,
-    GameSupport, GameSupportMatrix, GameSupportStatus, TelemetryConfig,
-    config_writer_factories, load_default_matrix,
-    matrix_game_id_set, matrix_game_ids, normalize_game_id,
+    ConfigDiff, DiffOperation, GameSupport, GameSupportMatrix, GameSupportStatus, TelemetryConfig,
+    config_writer_factories, load_default_matrix, matrix_game_id_set, matrix_game_ids,
+    normalize_game_id,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -234,7 +233,10 @@ mod config_validation {
             if (game.telemetry.method == "udp" || game.telemetry.method == "udp_broadcast")
                 && game.telemetry.output_target.is_some()
             {
-                let target = game.telemetry.output_target.as_ref()
+                let target = game
+                    .telemetry
+                    .output_target
+                    .as_ref()
                     .ok_or("expected output_target")?;
                 assert!(
                     target.contains(':'),
@@ -394,10 +396,7 @@ mod config_defaults {
     #[test]
     fn iracing_defaults_are_shared_memory_with_360hz() -> TestResult {
         let matrix = load_default_matrix()?;
-        let iracing = matrix
-            .games
-            .get("iracing")
-            .ok_or("iracing not found")?;
+        let iracing = matrix.games.get("iracing").ok_or("iracing not found")?;
         assert_eq!(iracing.telemetry.method, "shared_memory");
         assert!(iracing.telemetry.supports_360hz_option);
         assert_eq!(iracing.telemetry.high_rate_update_rate_hz, Some(360));
@@ -590,9 +589,7 @@ mod snapshot_tests {
             "game ids must be sorted"
         );
         // Regression: minimum known set
-        let expected_subset = [
-            "acc", "ams2", "eawrc", "f1_25", "iracing", "rfactor2",
-        ];
+        let expected_subset = ["acc", "ams2", "eawrc", "f1_25", "iracing", "rfactor2"];
         for id in &expected_subset {
             assert!(
                 ids.contains(&id.to_string()),

@@ -2,7 +2,7 @@
 
 use openracing_ffb::{
     ConstantEffect, DamperEffect, EffectParams, EffectType, FfbDirection, FfbGain, FrictionEffect,
-    SineEffect, SpringEffect, MAX_TORQUE_CNM,
+    MAX_TORQUE_CNM, SineEffect, SpringEffect,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -90,15 +90,24 @@ mod damper_tests {
         let damper = DamperEffect::new(500);
         let f_slow = damper.calculate(100);
         let f_fast = damper.calculate(200);
-        assert!(f_fast.abs() >= f_slow.abs(), "higher velocity → more resistance");
+        assert!(
+            f_fast.abs() >= f_slow.abs(),
+            "higher velocity → more resistance"
+        );
         Ok(())
     }
 
     #[test]
     fn damper_sign_follows_velocity() -> TestResult {
         let damper = DamperEffect::new(500);
-        assert!(damper.calculate(100) > 0, "positive velocity → positive output");
-        assert!(damper.calculate(-100) < 0, "negative velocity → negative output");
+        assert!(
+            damper.calculate(100) > 0,
+            "positive velocity → positive output"
+        );
+        assert!(
+            damper.calculate(-100) < 0,
+            "negative velocity → negative output"
+        );
         Ok(())
     }
 
@@ -131,14 +140,20 @@ mod friction_tests {
     #[test]
     fn friction_opposes_positive_velocity() -> TestResult {
         let friction = FrictionEffect::new(100);
-        assert!(friction.calculate(100) < 0, "positive velocity → negative force");
+        assert!(
+            friction.calculate(100) < 0,
+            "positive velocity → negative force"
+        );
         Ok(())
     }
 
     #[test]
     fn friction_opposes_negative_velocity() -> TestResult {
         let friction = FrictionEffect::new(100);
-        assert!(friction.calculate(-100) > 0, "negative velocity → positive force");
+        assert!(
+            friction.calculate(-100) > 0,
+            "negative velocity → positive force"
+        );
         Ok(())
     }
 
@@ -419,9 +434,8 @@ mod torque_clamping_tests {
     fn combined_effects_clamped_to_max_torque_cnm() -> TestResult {
         let spring = SpringEffect::new(i16::MAX);
         let damper = DamperEffect::new(i16::MAX);
-        let combined =
-            (spring.calculate(i16::MAX) as i32 + damper.calculate(i16::MAX) as i32)
-                .clamp(-MAX_TORQUE_CNM, MAX_TORQUE_CNM) as i16;
+        let combined = (spring.calculate(i16::MAX) as i32 + damper.calculate(i16::MAX) as i32)
+            .clamp(-MAX_TORQUE_CNM, MAX_TORQUE_CNM) as i16;
         assert!(
             (combined as i32).abs() <= MAX_TORQUE_CNM,
             "combined effects clamped to MAX_TORQUE_CNM"
@@ -527,10 +541,8 @@ mod direction_tests {
         let ccw = FfbDirection::new(180.0);
         let effect = ConstantEffect::new(1000);
 
-        let cw_force =
-            (effect.magnitude as f32 * cw.to_radians().cos()).round() as i16;
-        let ccw_force =
-            (effect.magnitude as f32 * ccw.to_radians().cos()).round() as i16;
+        let cw_force = (effect.magnitude as f32 * cw.to_radians().cos()).round() as i16;
+        let ccw_force = (effect.magnitude as f32 * ccw.to_radians().cos()).round() as i16;
 
         assert!(cw_force > 0, "CW → positive");
         assert!(ccw_force < 0, "CCW → negative");
@@ -955,7 +967,10 @@ mod timing_tests {
         // sin(2π·1·0.5) = sin(π) ≈ 0
         let sine = SineEffect::new(1.0, 1000);
         let sample = sine.calculate(500);
-        assert!(sample.abs() <= 1, "half period should be near zero, got {sample}");
+        assert!(
+            sample.abs() <= 1,
+            "half period should be near zero, got {sample}"
+        );
         Ok(())
     }
 
@@ -964,7 +979,10 @@ mod timing_tests {
         let sine = SineEffect::new(1.0, 2000);
         let peak = sine.calculate(250);
         // sin(π/2) = 1.0 → should be near i16::MAX with full gain
-        assert!(peak > 30000, "quarter period should be near max, got {peak}");
+        assert!(
+            peak > 30000,
+            "quarter period should be near max, got {peak}"
+        );
         Ok(())
     }
 
@@ -973,7 +991,10 @@ mod timing_tests {
         let sine = SineEffect::new(1.0, 2000);
         let trough = sine.calculate(750);
         // sin(3π/2) = -1.0 → should be near i16::MIN with full gain
-        assert!(trough < -30000, "3/4 period should be near min, got {trough}");
+        assert!(
+            trough < -30000,
+            "3/4 period should be near min, got {trough}"
+        );
         Ok(())
     }
 
@@ -983,7 +1004,10 @@ mod timing_tests {
         sine.phase = std::f32::consts::FRAC_PI_2; // 90° phase offset
         // At t=0: sin(π/2) = 1.0 → near max
         let sample = sine.calculate(0);
-        assert!(sample > 30000, "phase offset should shift peak to t=0, got {sample}");
+        assert!(
+            sample > 30000,
+            "phase offset should shift peak to t=0, got {sample}"
+        );
         Ok(())
     }
 
@@ -1027,7 +1051,10 @@ mod timing_tests {
     #[test]
     fn constant_effect_duration_stored() -> TestResult {
         let effect = ConstantEffect::new(1000);
-        assert_eq!(effect.params.duration_ms, 0, "constant defaults to infinite");
+        assert_eq!(
+            effect.params.duration_ms, 0,
+            "constant defaults to infinite"
+        );
         Ok(())
     }
 
@@ -1124,10 +1151,17 @@ mod serialization_tests {
     #[test]
     fn effect_type_json_round_trip() -> TestResult {
         let types = [
-            EffectType::None, EffectType::Constant, EffectType::Ramp,
-            EffectType::Square, EffectType::Sine, EffectType::Triangle,
-            EffectType::SawtoothUp, EffectType::SawtoothDown,
-            EffectType::Spring, EffectType::Damper, EffectType::Friction,
+            EffectType::None,
+            EffectType::Constant,
+            EffectType::Ramp,
+            EffectType::Square,
+            EffectType::Sine,
+            EffectType::Triangle,
+            EffectType::SawtoothUp,
+            EffectType::SawtoothDown,
+            EffectType::Spring,
+            EffectType::Damper,
+            EffectType::Friction,
             EffectType::Custom,
         ];
         for t in types {
@@ -1207,7 +1241,10 @@ mod additional_edge_cases {
         spring.deadband = 100;
         // Position exactly at deadband boundary
         assert_eq!(spring.calculate(99), 0, "just inside deadband");
-        assert!(spring.calculate(100) != 0, "at boundary (diff == deadband: not suppressed)");
+        assert!(
+            spring.calculate(100) != 0,
+            "at boundary (diff == deadband: not suppressed)"
+        );
         Ok(())
     }
 

@@ -34,7 +34,10 @@ fn key_generation_produces_valid_32_byte_keys() -> Result<(), Box<dyn std::error
 fn key_generation_produces_unique_pairs() -> Result<(), Box<dyn std::error::Error>> {
     let kp1 = gen_keypair()?;
     let kp2 = gen_keypair()?;
-    assert!(!kp1.public_key.ct_eq(&kp2.public_key), "Two generated keys must differ");
+    assert!(
+        !kp1.public_key.ct_eq(&kp2.public_key),
+        "Two generated keys must differ"
+    );
     assert_ne!(kp1.signing_key_bytes(), kp2.signing_key_bytes());
     Ok(())
 }
@@ -53,7 +56,10 @@ fn key_fingerprint_deterministic_for_same_key() -> Result<(), Box<dyn std::error
     let kp = gen_keypair()?;
     assert_eq!(kp.fingerprint(), kp.fingerprint());
     assert_eq!(kp.fingerprint(), kp.public_key.fingerprint());
-    assert_eq!(kp.fingerprint(), Ed25519Verifier::get_key_fingerprint(&kp.public_key));
+    assert_eq!(
+        kp.fingerprint(),
+        Ed25519Verifier::get_key_fingerprint(&kp.public_key)
+    );
     Ok(())
 }
 
@@ -62,7 +68,10 @@ fn different_keys_produce_different_fingerprints() -> Result<(), Box<dyn std::er
     let mut fps = HashSet::new();
     for _ in 0..5 {
         let kp = gen_keypair()?;
-        assert!(fps.insert(kp.fingerprint()), "Fingerprint collision detected");
+        assert!(
+            fps.insert(kp.fingerprint()),
+            "Fingerprint collision detected"
+        );
     }
     Ok(())
 }
@@ -199,8 +208,8 @@ fn public_key_from_bytes() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn public_key_with_comment() -> Result<(), Box<dyn std::error::Error>> {
     let kp = gen_keypair()?;
-    let pk = PublicKey::from_bytes(kp.public_key.key_bytes, "id".to_string())
-        .with_comment("my comment");
+    let pk =
+        PublicKey::from_bytes(kp.public_key.key_bytes, "id".to_string()).with_comment("my comment");
     assert_eq!(pk.comment, Some("my comment".to_string()));
     Ok(())
 }
@@ -575,7 +584,10 @@ fn different_messages_produce_different_signatures() -> Result<(), Box<dyn std::
     let kp = gen_keypair()?;
     let sig_a = Ed25519Signer::sign(b"message A", &kp.signing_key)?;
     let sig_b = Ed25519Signer::sign(b"message B", &kp.signing_key)?;
-    assert!(!sig_a.ct_eq(&sig_b), "Different messages must produce different signatures");
+    assert!(
+        !sig_a.ct_eq(&sig_b),
+        "Different messages must produce different signatures"
+    );
     Ok(())
 }
 
@@ -750,13 +762,7 @@ fn all_content_types_signable() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     for ct in content_types {
-        let meta = Ed25519Signer::sign_with_metadata(
-            data,
-            &kp,
-            "TypeTest",
-            ct,
-            None,
-        )?;
+        let meta = Ed25519Signer::sign_with_metadata(data, &kp, "TypeTest", ct, None)?;
         let sig = Signature::from_base64(&meta.signature)?;
         assert!(Ed25519Verifier::verify(data, &sig, &kp.public_key)?);
     }

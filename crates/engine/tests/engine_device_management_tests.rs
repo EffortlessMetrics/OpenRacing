@@ -8,11 +8,11 @@
 //! - Capability querying (torque limits, feature flags, mode selection)
 //! - USB descriptor handling (health status, telemetry, fault injection)
 
-use racing_wheel_engine::{
-    CapabilityNegotiator, GameCompatibility, HidDevice, HidPort,
-    ModeSelectionPolicy, RTError, VirtualDevice, VirtualHidPort,
-};
 use racing_wheel_engine::rt::FFBMode;
+use racing_wheel_engine::{
+    CapabilityNegotiator, GameCompatibility, HidDevice, HidPort, ModeSelectionPolicy, RTError,
+    VirtualDevice, VirtualHidPort,
+};
 use racing_wheel_schemas::prelude::*;
 use std::time::Duration;
 

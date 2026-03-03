@@ -308,8 +308,8 @@ mod connection_lifecycle {
     }
 
     #[tokio::test]
-    async fn test_feature_negotiation_incompatible_version(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_feature_negotiation_incompatible_version()
+    -> Result<(), Box<dyn std::error::Error>> {
         let server = IpcServer::new(IpcConfig::default());
         server.start().await?;
 
@@ -328,8 +328,7 @@ mod connection_lifecycle {
     }
 
     #[tokio::test]
-    async fn test_feature_negotiation_unknown_features(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_feature_negotiation_unknown_features() -> Result<(), Box<dyn std::error::Error>> {
         let server = IpcServer::new(IpcConfig::default());
         server.start().await?;
 
@@ -402,7 +401,11 @@ mod error_classification {
         ];
         for err in fatal_errors {
             assert!(err.is_fatal(), "Expected fatal: {}", err);
-            assert!(!err.is_recoverable(), "Fatal errors should not be recoverable: {}", err);
+            assert!(
+                !err.is_recoverable(),
+                "Fatal errors should not be recoverable: {}",
+                err
+            );
         }
         Ok(())
     }
@@ -420,7 +423,11 @@ mod error_classification {
         ];
         for err in recoverable_errors {
             assert!(err.is_recoverable(), "Expected recoverable: {}", err);
-            assert!(!err.is_fatal(), "Recoverable errors should not be fatal: {}", err);
+            assert!(
+                !err.is_fatal(),
+                "Recoverable errors should not be fatal: {}",
+                err
+            );
         }
         Ok(())
     }
@@ -454,7 +461,11 @@ mod edge_cases {
         for len in 0..MessageHeader::SIZE {
             let buf = vec![0u8; len];
             let result = MessageHeader::decode(&buf);
-            assert!(result.is_err(), "Decode should fail for {}-byte buffer", len);
+            assert!(
+                result.is_err(),
+                "Decode should fail for {}-byte buffer",
+                len
+            );
         }
         Ok(())
     }
@@ -482,7 +493,11 @@ mod edge_cases {
         ];
         for i in 0..types.len() {
             for j in (i + 1)..types.len() {
-                assert_ne!(types[i], types[j], "Message types at index {} and {} collide", i, j);
+                assert_ne!(
+                    types[i], types[j],
+                    "Message types at index {} and {} collide",
+                    i, j
+                );
             }
         }
         Ok(())
@@ -498,7 +513,11 @@ mod edge_cases {
             message_flags::STREAMING,
         ];
         for &flag in &flags {
-            assert!(flag.is_power_of_two(), "Flag 0x{:04x} is not a power of two", flag);
+            assert!(
+                flag.is_power_of_two(),
+                "Flag 0x{:04x} is not a power of two",
+                flag
+            );
         }
         Ok(())
     }

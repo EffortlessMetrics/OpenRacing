@@ -227,12 +227,7 @@ mod device_error_display {
             ),
         ];
         for (err, expected) in &cases {
-            assert_eq!(
-                err.severity(),
-                *expected,
-                "Severity mismatch for {:?}",
-                err
-            );
+            assert_eq!(err.severity(), *expected, "Severity mismatch for {:?}", err);
         }
         Ok(())
     }
@@ -421,9 +416,7 @@ mod validation_error_display {
                 expected: "u32".into(),
                 actual: "string".into(),
             },
-            ValidationError::NumericOverflow {
-                field: "f".into(),
-            },
+            ValidationError::NumericOverflow { field: "f".into() },
             ValidationError::Custom("custom msg".into()),
         ];
 
@@ -518,9 +511,7 @@ mod validation_error_display {
                 expected: "e".into(),
                 actual: "a".into(),
             },
-            ValidationError::NumericOverflow {
-                field: "f".into(),
-            },
+            ValidationError::NumericOverflow { field: "f".into() },
         ];
         for v in &variants {
             assert_eq!(
@@ -633,9 +624,7 @@ mod from_impls {
     #[test]
     fn question_mark_io_propagation() {
         fn might_fail_io() -> std::result::Result<(), std::io::Error> {
-            Err(std::io::Error::other(
-                "disk error",
-            ))
+            Err(std::io::Error::other("disk error"))
         }
         fn caller() -> Result<()> {
             might_fail_io()?;
@@ -667,20 +656,14 @@ mod error_source_chain {
     #[test]
     fn device_error_has_no_source() -> Result<()> {
         let err = DeviceError::not_found("test");
-        assert!(
-            err.source().is_none(),
-            "DeviceError should have no source"
-        );
+        assert!(err.source().is_none(), "DeviceError should have no source");
         Ok(())
     }
 
     #[test]
     fn profile_error_has_no_source() -> Result<()> {
         let err = ProfileError::not_found("test");
-        assert!(
-            err.source().is_none(),
-            "ProfileError should have no source"
-        );
+        assert!(err.source().is_none(), "ProfileError should have no source");
         Ok(())
     }
 
@@ -729,20 +712,14 @@ mod error_source_chain {
     #[test]
     fn openracing_error_config_has_no_source() -> Result<()> {
         let ore = OpenRacingError::config("bad config");
-        assert!(
-            ore.source().is_none(),
-            "Config error should have no source"
-        );
+        assert!(ore.source().is_none(), "Config error should have no source");
         Ok(())
     }
 
     #[test]
     fn openracing_error_other_has_no_source() -> Result<()> {
         let ore = OpenRacingError::other("something");
-        assert!(
-            ore.source().is_none(),
-            "Other error should have no source"
-        );
+        assert!(ore.source().is_none(), "Other error should have no source");
         Ok(())
     }
 
@@ -864,8 +841,7 @@ mod recoverability {
         let other = OpenRacingError::other("y");
         assert!(other.is_recoverable());
         // Io errors have Error severity → recoverable
-        let io: OpenRacingError =
-            std::io::Error::other("disk").into();
+        let io: OpenRacingError = std::io::Error::other("disk").into();
         assert!(io.is_recoverable());
         Ok(())
     }
@@ -981,10 +957,7 @@ mod rt_error_codes {
             RTError::DeadlineMissed,
         ];
         for rt in &recoverable {
-            assert!(
-                rt.is_recoverable(),
-                "RTError::{rt:?} should be recoverable"
-            );
+            assert!(rt.is_recoverable(), "RTError::{rt:?} should be recoverable");
         }
         for rt in &not_recoverable {
             assert!(
@@ -1075,8 +1048,7 @@ mod result_ext_tests {
 
     #[test]
     fn context_wraps_with_full_context() -> Result<()> {
-        let result: std::result::Result<(), DeviceError> =
-            Err(DeviceError::not_found("wheel"));
+        let result: std::result::Result<(), DeviceError> = Err(DeviceError::not_found("wheel"));
         let ctx = ErrorContext::new("device_scan")
             .with("port", "USB-1")
             .at("scanner.rs", 55);
@@ -1156,10 +1128,7 @@ mod macro_tests {
     #[test]
     fn require_macro_returns_validation_error() -> Result<()> {
         let err = require!("profile_name");
-        assert_eq!(
-            err.to_string(),
-            "Required field 'profile_name' is missing"
-        );
+        assert_eq!(err.to_string(), "Required field 'profile_name' is missing");
         Ok(())
     }
 

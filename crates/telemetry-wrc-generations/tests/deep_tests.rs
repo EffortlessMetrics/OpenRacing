@@ -4,7 +4,9 @@
 //! speed calculation (wheel speeds vs body velocity), slip ratio,
 //! FFB scalar, tire data, and game-specific fields.
 
-use racing_wheel_telemetry_wrc_generations::{TelemetryAdapter, TelemetryValue, WrcGenerationsAdapter};
+use racing_wheel_telemetry_wrc_generations::{
+    TelemetryAdapter, TelemetryValue, WrcGenerationsAdapter,
+};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -203,7 +205,10 @@ fn deep_steering_clamped() -> TestResult {
     let mut buf = make_packet();
     write_f32(&mut buf, OFF_STEER, 1.5);
     let t = adapter.normalize(&buf)?;
-    assert!((t.steering_angle - 1.0).abs() < 0.001, "steering clamped to 1.0");
+    assert!(
+        (t.steering_angle - 1.0).abs() < 0.001,
+        "steering clamped to 1.0"
+    );
     Ok(())
 }
 

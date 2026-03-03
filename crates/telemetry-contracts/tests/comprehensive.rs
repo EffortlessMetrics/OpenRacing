@@ -181,9 +181,7 @@ fn speed_accepts_zero() -> TestResult {
 #[test]
 fn slip_ratio_clamps_to_zero_one() -> TestResult {
     assert_eq!(
-        NormalizedTelemetry::new()
-            .with_slip_ratio(-0.5)
-            .slip_ratio,
+        NormalizedTelemetry::new().with_slip_ratio(-0.5).slip_ratio,
         Some(0.0)
     );
     assert_eq!(
@@ -282,7 +280,11 @@ fn has_active_flags_ignores_assist_flags() -> TestResult {
         abs_active: true,
         ..TelemetryFlags::default()
     };
-    assert!(!NormalizedTelemetry::new().with_flags(flags).has_active_flags());
+    assert!(
+        !NormalizedTelemetry::new()
+            .with_flags(flags)
+            .has_active_flags()
+    );
     Ok(())
 }
 
@@ -294,7 +296,11 @@ fn has_ffb_data_and_has_rpm_data() -> TestResult {
     assert!(!t.has_ffb_data());
     assert!(!t.has_rpm_data());
 
-    assert!(NormalizedTelemetry::new().with_ffb_scalar(0.0).has_ffb_data());
+    assert!(
+        NormalizedTelemetry::new()
+            .with_ffb_scalar(0.0)
+            .has_ffb_data()
+    );
     assert!(NormalizedTelemetry::new().with_rpm(1000.0).has_rpm_data());
     Ok(())
 }
@@ -382,7 +388,10 @@ fn telemetry_value_equality_and_inequality() -> TestResult {
         TelemetryValue::String("a".into())
     );
     assert_ne!(TelemetryValue::Float(1.0), TelemetryValue::Integer(1));
-    assert_ne!(TelemetryValue::Boolean(true), TelemetryValue::Boolean(false));
+    assert_ne!(
+        TelemetryValue::Boolean(true),
+        TelemetryValue::Boolean(false)
+    );
     Ok(())
 }
 

@@ -22,7 +22,9 @@
 //!   G PRO).
 
 use racing_wheel_hid_logitech_protocol as lg;
-use racing_wheel_hid_logitech_protocol::ids::{commands, product_ids, report_ids, LOGITECH_VENDOR_ID};
+use racing_wheel_hid_logitech_protocol::ids::{
+    LOGITECH_VENDOR_ID, commands, product_ids, report_ids,
+};
 use racing_wheel_hid_logitech_protocol::types::{LogitechModel, is_wheel_product};
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -49,61 +51,103 @@ fn vid_logitech_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn pids_match_kernel_hid_ids_h() -> Result<(), Box<dyn std::error::Error>> {
     // kernel: #define USB_DEVICE_ID_LOGITECH_WINGMAN_FFG  0xc293
-    assert_eq!(product_ids::WINGMAN_FORMULA_FORCE_GP, 0xC293,
-        "WINGMAN_FFG (kernel: USB_DEVICE_ID_LOGITECH_WINGMAN_FFG)");
+    assert_eq!(
+        product_ids::WINGMAN_FORMULA_FORCE_GP,
+        0xC293,
+        "WINGMAN_FFG (kernel: USB_DEVICE_ID_LOGITECH_WINGMAN_FFG)"
+    );
 
     // kernel: (no explicit define for 0xc291 in hid-ids.h, but oversteer has LG_WFF)
     // Verified via oversteer: LG_WFF = '046d:c291'
-    assert_eq!(product_ids::WINGMAN_FORMULA_FORCE, 0xC291,
-        "WFF (oversteer: LG_WFF = '046d:c291')");
+    assert_eq!(
+        product_ids::WINGMAN_FORMULA_FORCE,
+        0xC291,
+        "WFF (oversteer: LG_WFF = '046d:c291')"
+    );
 
     // kernel: #define USB_DEVICE_ID_LOGITECH_WHEEL  0xc294
-    assert_eq!(product_ids::DRIVING_FORCE_EX, 0xC294,
-        "DF/EX (kernel: USB_DEVICE_ID_LOGITECH_WHEEL)");
+    assert_eq!(
+        product_ids::DRIVING_FORCE_EX,
+        0xC294,
+        "DF/EX (kernel: USB_DEVICE_ID_LOGITECH_WHEEL)"
+    );
 
     // kernel: #define USB_DEVICE_ID_LOGITECH_MOMO_WHEEL  0xc295
-    assert_eq!(product_ids::MOMO, 0xC295,
-        "MOMO (kernel: USB_DEVICE_ID_LOGITECH_MOMO_WHEEL)");
+    assert_eq!(
+        product_ids::MOMO,
+        0xC295,
+        "MOMO (kernel: USB_DEVICE_ID_LOGITECH_MOMO_WHEEL)"
+    );
 
     // kernel: #define USB_DEVICE_ID_LOGITECH_DFP_WHEEL  0xc298
-    assert_eq!(product_ids::DRIVING_FORCE_PRO, 0xC298,
-        "DFP (kernel: USB_DEVICE_ID_LOGITECH_DFP_WHEEL)");
+    assert_eq!(
+        product_ids::DRIVING_FORCE_PRO,
+        0xC298,
+        "DFP (kernel: USB_DEVICE_ID_LOGITECH_DFP_WHEEL)"
+    );
 
     // kernel: #define USB_DEVICE_ID_LOGITECH_G25_WHEEL  0xc299
-    assert_eq!(product_ids::G25, 0xC299,
-        "G25 (kernel: USB_DEVICE_ID_LOGITECH_G25_WHEEL)");
+    assert_eq!(
+        product_ids::G25,
+        0xC299,
+        "G25 (kernel: USB_DEVICE_ID_LOGITECH_G25_WHEEL)"
+    );
 
     // kernel: #define USB_DEVICE_ID_LOGITECH_DFGT_WHEEL  0xc29a
-    assert_eq!(product_ids::DRIVING_FORCE_GT, 0xC29A,
-        "DFGT (kernel: USB_DEVICE_ID_LOGITECH_DFGT_WHEEL)");
+    assert_eq!(
+        product_ids::DRIVING_FORCE_GT,
+        0xC29A,
+        "DFGT (kernel: USB_DEVICE_ID_LOGITECH_DFGT_WHEEL)"
+    );
 
     // kernel: #define USB_DEVICE_ID_LOGITECH_G27_WHEEL  0xc29b
-    assert_eq!(product_ids::G27, 0xC29B,
-        "G27 (kernel: USB_DEVICE_ID_LOGITECH_G27_WHEEL)");
+    assert_eq!(
+        product_ids::G27,
+        0xC29B,
+        "G27 (kernel: USB_DEVICE_ID_LOGITECH_G27_WHEEL)"
+    );
 
     // kernel: #define USB_DEVICE_ID_LOGITECH_WII_WHEEL  0xc29c
-    assert_eq!(product_ids::SPEED_FORCE_WIRELESS, 0xC29C,
-        "SFW/WiiWheel (kernel: USB_DEVICE_ID_LOGITECH_WII_WHEEL)");
+    assert_eq!(
+        product_ids::SPEED_FORCE_WIRELESS,
+        0xC29C,
+        "SFW/WiiWheel (kernel: USB_DEVICE_ID_LOGITECH_WII_WHEEL)"
+    );
 
     // kernel: #define USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2  0xca03
-    assert_eq!(product_ids::MOMO_2, 0xCA03,
-        "MOMO2 (kernel: USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2)");
+    assert_eq!(
+        product_ids::MOMO_2,
+        0xCA03,
+        "MOMO2 (kernel: USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2)"
+    );
 
     // kernel: #define USB_DEVICE_ID_LOGITECH_VIBRATION_WHEEL  0xca04
-    assert_eq!(product_ids::VIBRATION_WHEEL, 0xCA04,
-        "Vibration Wheel (kernel: USB_DEVICE_ID_LOGITECH_VIBRATION_WHEEL)");
+    assert_eq!(
+        product_ids::VIBRATION_WHEEL,
+        0xCA04,
+        "Vibration Wheel (kernel: USB_DEVICE_ID_LOGITECH_VIBRATION_WHEEL)"
+    );
 
     // kernel: #define USB_DEVICE_ID_LOGITECH_G29_WHEEL  0xc24f
-    assert_eq!(product_ids::G29_PS, 0xC24F,
-        "G29 (kernel: USB_DEVICE_ID_LOGITECH_G29_WHEEL)");
+    assert_eq!(
+        product_ids::G29_PS,
+        0xC24F,
+        "G29 (kernel: USB_DEVICE_ID_LOGITECH_G29_WHEEL)"
+    );
 
     // kernel: #define USB_DEVICE_ID_LOGITECH_G920_WHEEL  0xc262
-    assert_eq!(product_ids::G920, 0xC262,
-        "G920 (kernel: USB_DEVICE_ID_LOGITECH_G920_WHEEL)");
+    assert_eq!(
+        product_ids::G920,
+        0xC262,
+        "G920 (kernel: USB_DEVICE_ID_LOGITECH_G920_WHEEL)"
+    );
 
     // kernel: #define USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL  0xc26e
-    assert_eq!(product_ids::G923_XBOX, 0xC26E,
-        "G923 Xbox (kernel: USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL)");
+    assert_eq!(
+        product_ids::G923_XBOX,
+        0xC26E,
+        "G923 Xbox (kernel: USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL)"
+    );
 
     Ok(())
 }
@@ -114,12 +158,18 @@ fn pids_match_kernel_hid_ids_h() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn pids_match_new_lg4ff() -> Result<(), Box<dyn std::error::Error>> {
     // new-lg4ff: #define USB_DEVICE_ID_LOGITECH_G923_WHEEL  0xc266
-    assert_eq!(product_ids::G923, 0xC266,
-        "G923 native (new-lg4ff: USB_DEVICE_ID_LOGITECH_G923_WHEEL)");
+    assert_eq!(
+        product_ids::G923,
+        0xC266,
+        "G923 native (new-lg4ff: USB_DEVICE_ID_LOGITECH_G923_WHEEL)"
+    );
 
     // new-lg4ff: #define USB_DEVICE_ID_LOGITECH_G923_PS_WHEEL  0xc267
-    assert_eq!(product_ids::G923_PS, 0xC267,
-        "G923 PS compat (new-lg4ff: USB_DEVICE_ID_LOGITECH_G923_PS_WHEEL)");
+    assert_eq!(
+        product_ids::G923_PS,
+        0xC267,
+        "G923 PS compat (new-lg4ff: USB_DEVICE_ID_LOGITECH_G923_PS_WHEEL)"
+    );
 
     Ok(())
 }
@@ -130,40 +180,67 @@ fn pids_match_new_lg4ff() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn pids_match_oversteer() -> Result<(), Box<dyn std::error::Error>> {
     // oversteer: LG_GPRO_PS = '046d:c268'
-    assert_eq!(product_ids::G_PRO, 0xC268,
-        "G PRO PS (oversteer: LG_GPRO_PS = '046d:c268')");
+    assert_eq!(
+        product_ids::G_PRO,
+        0xC268,
+        "G PRO PS (oversteer: LG_GPRO_PS = '046d:c268')"
+    );
 
     // oversteer: LG_GPRO_XBOX = '046d:c272'
-    assert_eq!(product_ids::G_PRO_XBOX, 0xC272,
-        "G PRO Xbox (oversteer: LG_GPRO_XBOX = '046d:c272')");
+    assert_eq!(
+        product_ids::G_PRO_XBOX,
+        0xC272,
+        "G PRO Xbox (oversteer: LG_GPRO_XBOX = '046d:c272')"
+    );
 
     // oversteer: LG_G923P = '046d:c266'  (native mode PID)
-    assert_eq!(product_ids::G923, 0xC266,
-        "G923P native (oversteer: LG_G923P = '046d:c266')");
+    assert_eq!(
+        product_ids::G923,
+        0xC266,
+        "G923P native (oversteer: LG_G923P = '046d:c266')"
+    );
 
     // oversteer: LG_G923X = '046d:c26e'
-    assert_eq!(product_ids::G923_XBOX, 0xC26E,
-        "G923X (oversteer: LG_G923X = '046d:c26e')");
+    assert_eq!(
+        product_ids::G923_XBOX,
+        0xC26E,
+        "G923X (oversteer: LG_G923X = '046d:c26e')"
+    );
 
     // oversteer: LG_WFF = '046d:c291'
-    assert_eq!(product_ids::WINGMAN_FORMULA_FORCE, 0xC291,
-        "WFF (oversteer: LG_WFF = '046d:c291')");
+    assert_eq!(
+        product_ids::WINGMAN_FORMULA_FORCE,
+        0xC291,
+        "WFF (oversteer: LG_WFF = '046d:c291')"
+    );
 
     // oversteer: LG_WFFG = '046d:c293'
-    assert_eq!(product_ids::WINGMAN_FORMULA_FORCE_GP, 0xC293,
-        "WFFG (oversteer: LG_WFFG = '046d:c293')");
+    assert_eq!(
+        product_ids::WINGMAN_FORMULA_FORCE_GP,
+        0xC293,
+        "WFFG (oversteer: LG_WFFG = '046d:c293')"
+    );
 
     // oversteer: LG_SFW = '046d:c29c'
-    assert_eq!(product_ids::SPEED_FORCE_WIRELESS, 0xC29C,
-        "SFW (oversteer: LG_SFW = '046d:c29c')");
+    assert_eq!(
+        product_ids::SPEED_FORCE_WIRELESS,
+        0xC29C,
+        "SFW (oversteer: LG_SFW = '046d:c29c')"
+    );
 
     // oversteer: LG_MOMO = '046d:c295'
-    assert_eq!(product_ids::MOMO, 0xC295,
-        "MOMO (oversteer: LG_MOMO = '046d:c295')");
+    assert_eq!(
+        product_ids::MOMO,
+        0xC295,
+        "MOMO (oversteer: LG_MOMO = '046d:c295')"
+    );
 
     // oversteer: LG_MOMO2 = '046d:ca03'
-    assert_eq!(product_ids::MOMO_2, 0xCA03,
-        "MOMO2 (oversteer: LG_MOMO2 = '046d:ca03')");
+    assert_eq!(
+        product_ids::MOMO_2,
+        0xCA03,
+        "MOMO2 (oversteer: LG_MOMO2 = '046d:ca03')"
+    );
 
     Ok(())
 }
@@ -180,8 +257,11 @@ fn pids_match_oversteer() -> Result<(), Box<dyn std::error::Error>> {
 /// the HID PID (Physical Interface Device) layer encoding.
 #[test]
 fn constant_force_report_id_is_0x12() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(report_ids::CONSTANT_FORCE, 0x12,
-        "Constant Force report ID must be 0x12");
+    assert_eq!(
+        report_ids::CONSTANT_FORCE,
+        0x12,
+        "Constant Force report ID must be 0x12"
+    );
     Ok(())
 }
 
@@ -228,11 +308,17 @@ fn constant_force_saturation() -> Result<(), Box<dyn std::error::Error>> {
 
     enc.encode(999.0, &mut out);
     let mag_pos = i16::from_le_bytes([out[2], out[3]]);
-    assert_eq!(mag_pos, 10000, "positive over-range must saturate at +10000");
+    assert_eq!(
+        mag_pos, 10000,
+        "positive over-range must saturate at +10000"
+    );
 
     enc.encode(-999.0, &mut out);
     let mag_neg = i16::from_le_bytes([out[2], out[3]]);
-    assert_eq!(mag_neg, -10000, "negative over-range must saturate at -10000");
+    assert_eq!(
+        mag_neg, -10000,
+        "negative over-range must saturate at -10000"
+    );
     Ok(())
 }
 
@@ -254,8 +340,11 @@ fn constant_force_saturation() -> Result<(), Box<dyn std::error::Error>> {
 fn set_range_900_matches_kernel_lg4ff_set_range_g25() -> Result<(), Box<dyn std::error::Error>> {
     let r = lg::build_set_range_report(900);
     // 900 = 0x0384
-    assert_eq!(r, [0xF8, 0x81, 0x84, 0x03, 0x00, 0x00, 0x00],
-        "900° range must match kernel lg4ff_set_range_g25 encoding");
+    assert_eq!(
+        r,
+        [0xF8, 0x81, 0x84, 0x03, 0x00, 0x00, 0x00],
+        "900° range must match kernel lg4ff_set_range_g25 encoding"
+    );
     Ok(())
 }
 
@@ -264,8 +353,11 @@ fn set_range_900_matches_kernel_lg4ff_set_range_g25() -> Result<(), Box<dyn std:
 fn set_range_270() -> Result<(), Box<dyn std::error::Error>> {
     let r = lg::build_set_range_report(270);
     // 270 = 0x010E
-    assert_eq!(r, [0xF8, 0x81, 0x0E, 0x01, 0x00, 0x00, 0x00],
-        "270° range encoding");
+    assert_eq!(
+        r,
+        [0xF8, 0x81, 0x0E, 0x01, 0x00, 0x00, 0x00],
+        "270° range encoding"
+    );
     Ok(())
 }
 
@@ -274,8 +366,11 @@ fn set_range_270() -> Result<(), Box<dyn std::error::Error>> {
 fn set_range_1080() -> Result<(), Box<dyn std::error::Error>> {
     let r = lg::build_set_range_report(1080);
     // 1080 = 0x0438
-    assert_eq!(r, [0xF8, 0x81, 0x38, 0x04, 0x00, 0x00, 0x00],
-        "1080° range encoding");
+    assert_eq!(
+        r,
+        [0xF8, 0x81, 0x38, 0x04, 0x00, 0x00, 0x00],
+        "1080° range encoding"
+    );
     Ok(())
 }
 
@@ -284,8 +379,11 @@ fn set_range_1080() -> Result<(), Box<dyn std::error::Error>> {
 /// Source: `lg4ff_set_range_g25()` — `value[1] = 0x81`.
 #[test]
 fn set_range_command_byte_is_0x81() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(commands::SET_RANGE, 0x81,
-        "SET_RANGE command byte (kernel lg4ff_set_range_g25: value[1] = 0x81)");
+    assert_eq!(
+        commands::SET_RANGE,
+        0x81,
+        "SET_RANGE command byte (kernel lg4ff_set_range_g25: value[1] = 0x81)"
+    );
     Ok(())
 }
 
@@ -301,10 +399,16 @@ fn set_range_command_byte_is_0x81() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn dfp_range_200_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
     let [coarse, fine] = lg::build_set_range_dfp_reports(200);
-    assert_eq!(coarse, [0xF8, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00],
-        "200° DFP coarse: cmd=0x02 (kernel lg4ff_set_range_dfp)");
-    assert_eq!(fine, [0x81, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00],
-        "200° DFP fine: no-op (kernel: range == 200 → no fine limit)");
+    assert_eq!(
+        coarse,
+        [0xF8, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00],
+        "200° DFP coarse: cmd=0x02 (kernel lg4ff_set_range_dfp)"
+    );
+    assert_eq!(
+        fine,
+        [0x81, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00],
+        "200° DFP fine: no-op (kernel: range == 200 → no fine limit)"
+    );
     Ok(())
 }
 
@@ -316,10 +420,16 @@ fn dfp_range_200_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn dfp_range_900_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
     let [coarse, fine] = lg::build_set_range_dfp_reports(900);
-    assert_eq!(coarse, [0xF8, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00],
-        "900° DFP coarse: cmd=0x03 (kernel lg4ff_set_range_dfp)");
-    assert_eq!(fine, [0x81, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00],
-        "900° DFP fine: no-op (kernel: range == 900 → no fine limit)");
+    assert_eq!(
+        coarse,
+        [0xF8, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00],
+        "900° DFP coarse: cmd=0x03 (kernel lg4ff_set_range_dfp)"
+    );
+    assert_eq!(
+        fine,
+        [0x81, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00],
+        "900° DFP fine: no-op (kernel: range == 900 → no fine limit)"
+    );
     Ok(())
 }
 
@@ -352,8 +462,11 @@ fn dfp_range_540_matches_kernel_arithmetic() -> Result<(), Box<dyn std::error::E
     assert_eq!(fine[2], (start_left >> 4) as u8, "start_left >> 4");
     assert_eq!(fine[3], (start_right >> 4) as u8, "start_right >> 4");
     assert_eq!(fine[4], 0xFF);
-    assert_eq!(fine[5], (((start_right & 0xE) << 4) | (start_left & 0xE)) as u8,
-        "nibble byte");
+    assert_eq!(
+        fine[5],
+        (((start_right & 0xE) << 4) | (start_left & 0xE)) as u8,
+        "nibble byte"
+    );
     assert_eq!(fine[6], 0xFF);
     Ok(())
 }
@@ -406,18 +519,23 @@ fn dfp_range_clamping() -> Result<(), Box<dyn std::error::Error>> {
 fn led_report_format() -> Result<(), Box<dyn std::error::Error>> {
     // All LEDs on: 5-bit mask = 0x1F
     let r = lg::build_set_leds_report(0b0001_1111);
-    assert_eq!(r, [0xF8, 0x12, 0x1F, 0x00, 0x00, 0x00, 0x00],
-        "All 5 LEDs on");
+    assert_eq!(
+        r,
+        [0xF8, 0x12, 0x1F, 0x00, 0x00, 0x00, 0x00],
+        "All 5 LEDs on"
+    );
 
     // No LEDs
     let r = lg::build_set_leds_report(0x00);
-    assert_eq!(r, [0xF8, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00],
-        "All LEDs off");
+    assert_eq!(
+        r,
+        [0xF8, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00],
+        "All LEDs off"
+    );
 
     // Single LED (LED 3 only = bit 2)
     let r = lg::build_set_leds_report(0b0000_0100);
-    assert_eq!(r, [0xF8, 0x12, 0x04, 0x00, 0x00, 0x00, 0x00],
-        "Only LED 3");
+    assert_eq!(r, [0xF8, 0x12, 0x04, 0x00, 0x00, 0x00, 0x00], "Only LED 3");
 
     Ok(())
 }
@@ -467,8 +585,11 @@ fn led_progressive_patterns() -> Result<(), Box<dyn std::error::Error>> {
 /// command byte 0x14.
 #[test]
 fn autocenter_command_byte_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(commands::SET_AUTOCENTER, 0x14,
-        "SET_AUTOCENTER must be 0x14 (kernel lg4ff_set_autocenter_default)");
+    assert_eq!(
+        commands::SET_AUTOCENTER,
+        0x14,
+        "SET_AUTOCENTER must be 0x14 (kernel lg4ff_set_autocenter_default)"
+    );
     Ok(())
 }
 
@@ -488,8 +609,11 @@ fn autocenter_full_strength() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn autocenter_zero() -> Result<(), Box<dyn std::error::Error>> {
     let r = lg::build_set_autocenter_report(0x00, 0x00);
-    assert_eq!(r, [0xF8, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00],
-        "zero autocenter");
+    assert_eq!(
+        r,
+        [0xF8, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00],
+        "zero autocenter"
+    );
     Ok(())
 }
 
@@ -511,8 +635,10 @@ fn autocenter_deactivation_protocol() -> Result<(), Box<dyn std::error::Error>> 
     // These must be different bytes.
     let deactivate_cmd: u8 = 0xF5;
     let activate_cmd = commands::SET_AUTOCENTER;
-    assert_ne!(deactivate_cmd, activate_cmd,
-        "deactivate (0xF5) and activate (0x14) must differ");
+    assert_ne!(
+        deactivate_cmd, activate_cmd,
+        "deactivate (0xF5) and activate (0x14) must differ"
+    );
     Ok(())
 }
 
@@ -534,10 +660,16 @@ fn autocenter_spring_config_prefix() -> Result<(), Box<dyn std::error::Error>> {
     // our SET_AUTOCENTER command
     let spring_config_byte0: u8 = 0xFE;
     let spring_config_byte1: u8 = 0x0D;
-    assert_ne!(spring_config_byte0, report_ids::VENDOR,
-        "spring config byte 0 (0xFE) differs from vendor report (0xF8)");
-    assert_ne!(spring_config_byte1, commands::SET_AUTOCENTER,
-        "spring config byte 1 (0x0D) differs from autocenter cmd (0x14)");
+    assert_ne!(
+        spring_config_byte0,
+        report_ids::VENDOR,
+        "spring config byte 0 (0xFE) differs from vendor report (0xF8)"
+    );
+    assert_ne!(
+        spring_config_byte1,
+        commands::SET_AUTOCENTER,
+        "spring config byte 1 (0x0D) differs from autocenter cmd (0x14)"
+    );
     Ok(())
 }
 
@@ -552,8 +684,11 @@ fn autocenter_spring_config_prefix() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn native_mode_report_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
     let r = lg::build_native_mode_report();
-    assert_eq!(r, [0xF8, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00],
-        "must match kernel lg4ff_mode_switch revert-on-reset prefix");
+    assert_eq!(
+        r,
+        [0xF8, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00],
+        "must match kernel lg4ff_mode_switch revert-on-reset prefix"
+    );
     Ok(())
 }
 
@@ -562,8 +697,11 @@ fn native_mode_report_matches_kernel() -> Result<(), Box<dyn std::error::Error>>
 /// Source: kernel `hid-lg4ff.c` mode switch arrays — byte 1 = 0x0a.
 #[test]
 fn native_mode_command_byte() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(commands::NATIVE_MODE, 0x0A,
-        "NATIVE_MODE must be 0x0A (kernel mode switch revert byte)");
+    assert_eq!(
+        commands::NATIVE_MODE,
+        0x0A,
+        "NATIVE_MODE must be 0x0A (kernel mode switch revert byte)"
+    );
     Ok(())
 }
 
@@ -577,33 +715,51 @@ fn native_mode_command_byte() -> Result<(), Box<dyn std::error::Error>> {
 fn mode_switch_ext09_matches_kernel() -> Result<(), Box<dyn std::error::Error>> {
     // Source: lg4ff_mode_switch_ext09_dfex — mode_id=0x00, detach=0x00
     let dfex = lg::build_mode_switch_report(0x00, false);
-    assert_eq!(dfex, [0xF8, 0x09, 0x00, 0x01, 0x00, 0x00, 0x00],
-        "DF-EX mode switch (kernel lg4ff_mode_switch_ext09_dfex)");
+    assert_eq!(
+        dfex,
+        [0xF8, 0x09, 0x00, 0x01, 0x00, 0x00, 0x00],
+        "DF-EX mode switch (kernel lg4ff_mode_switch_ext09_dfex)"
+    );
 
     // Source: lg4ff_mode_switch_ext09_dfp — mode_id=0x01, detach=0x00
     let dfp = lg::build_mode_switch_report(0x01, false);
-    assert_eq!(dfp, [0xF8, 0x09, 0x01, 0x01, 0x00, 0x00, 0x00],
-        "DFP mode switch (kernel lg4ff_mode_switch_ext09_dfp)");
+    assert_eq!(
+        dfp,
+        [0xF8, 0x09, 0x01, 0x01, 0x00, 0x00, 0x00],
+        "DFP mode switch (kernel lg4ff_mode_switch_ext09_dfp)"
+    );
 
     // Source: lg4ff_mode_switch_ext09_g25 — mode_id=0x02, detach=0x00
     let g25 = lg::build_mode_switch_report(0x02, false);
-    assert_eq!(g25, [0xF8, 0x09, 0x02, 0x01, 0x00, 0x00, 0x00],
-        "G25 mode switch (kernel lg4ff_mode_switch_ext09_g25)");
+    assert_eq!(
+        g25,
+        [0xF8, 0x09, 0x02, 0x01, 0x00, 0x00, 0x00],
+        "G25 mode switch (kernel lg4ff_mode_switch_ext09_g25)"
+    );
 
     // Source: lg4ff_mode_switch_ext09_dfgt — mode_id=0x03, detach=0x00
     let dfgt = lg::build_mode_switch_report(0x03, false);
-    assert_eq!(dfgt, [0xF8, 0x09, 0x03, 0x01, 0x00, 0x00, 0x00],
-        "DFGT mode switch (kernel lg4ff_mode_switch_ext09_dfgt)");
+    assert_eq!(
+        dfgt,
+        [0xF8, 0x09, 0x03, 0x01, 0x00, 0x00, 0x00],
+        "DFGT mode switch (kernel lg4ff_mode_switch_ext09_dfgt)"
+    );
 
     // Source: lg4ff_mode_switch_ext09_g27 — mode_id=0x04, detach=0x00
     let g27 = lg::build_mode_switch_report(0x04, false);
-    assert_eq!(g27, [0xF8, 0x09, 0x04, 0x01, 0x00, 0x00, 0x00],
-        "G27 mode switch (kernel lg4ff_mode_switch_ext09_g27)");
+    assert_eq!(
+        g27,
+        [0xF8, 0x09, 0x04, 0x01, 0x00, 0x00, 0x00],
+        "G27 mode switch (kernel lg4ff_mode_switch_ext09_g27)"
+    );
 
     // Source: lg4ff_mode_switch_ext09_g29 — mode_id=0x05, detach=0x01
     let g29 = lg::build_mode_switch_report(0x05, true);
-    assert_eq!(g29, [0xF8, 0x09, 0x05, 0x01, 0x01, 0x00, 0x00],
-        "G29 mode switch (kernel lg4ff_mode_switch_ext09_g29)");
+    assert_eq!(
+        g29,
+        [0xF8, 0x09, 0x05, 0x01, 0x01, 0x00, 0x00],
+        "G29 mode switch (kernel lg4ff_mode_switch_ext09_g29)"
+    );
 
     Ok(())
 }
@@ -629,8 +785,11 @@ fn mode_switch_ext09_matches_kernel() -> Result<(), Box<dyn std::error::Error>> 
 #[test]
 fn g923_mode_switch_matches_new_lg4ff() -> Result<(), Box<dyn std::error::Error>> {
     let g923 = lg::build_mode_switch_report(0x07, true);
-    assert_eq!(g923, [0xF8, 0x09, 0x07, 0x01, 0x01, 0x00, 0x00],
-        "G923 mode switch (new-lg4ff lg4ff_mode_switch_ext09_g923)");
+    assert_eq!(
+        g923,
+        [0xF8, 0x09, 0x07, 0x01, 0x01, 0x00, 0x00],
+        "G923 mode switch (new-lg4ff lg4ff_mode_switch_ext09_g923)"
+    );
     Ok(())
 }
 
@@ -639,8 +798,11 @@ fn g923_mode_switch_matches_new_lg4ff() -> Result<(), Box<dyn std::error::Error>
 /// Source: kernel `hid-lg4ff.c` — all ext09 mode switches use byte 1 = 0x09.
 #[test]
 fn mode_switch_command_byte() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(commands::MODE_SWITCH, 0x09,
-        "MODE_SWITCH must be 0x09 (kernel ext09 series)");
+    assert_eq!(
+        commands::MODE_SWITCH,
+        0x09,
+        "MODE_SWITCH must be 0x09 (kernel ext09 series)"
+    );
     Ok(())
 }
 
@@ -665,28 +827,48 @@ fn mode_switch_command_byte() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn hardware_friction_matches_new_lg4ff_cap_friction() -> Result<(), Box<dyn std::error::Error>> {
     // Models WITH LG4FF_CAP_FRICTION in new-lg4ff
-    assert!(LogitechModel::DrivingForcePro.supports_hardware_friction(),
-        "DFP has LG4FF_CAP_FRICTION in new-lg4ff");
-    assert!(LogitechModel::G25.supports_hardware_friction(),
-        "G25 has LG4FF_CAP_FRICTION in new-lg4ff");
-    assert!(LogitechModel::DrivingForceGT.supports_hardware_friction(),
-        "DFGT has LG4FF_CAP_FRICTION in new-lg4ff");
-    assert!(LogitechModel::G27.supports_hardware_friction(),
-        "G27 has LG4FF_CAP_FRICTION in new-lg4ff");
+    assert!(
+        LogitechModel::DrivingForcePro.supports_hardware_friction(),
+        "DFP has LG4FF_CAP_FRICTION in new-lg4ff"
+    );
+    assert!(
+        LogitechModel::G25.supports_hardware_friction(),
+        "G25 has LG4FF_CAP_FRICTION in new-lg4ff"
+    );
+    assert!(
+        LogitechModel::DrivingForceGT.supports_hardware_friction(),
+        "DFGT has LG4FF_CAP_FRICTION in new-lg4ff"
+    );
+    assert!(
+        LogitechModel::G27.supports_hardware_friction(),
+        "G27 has LG4FF_CAP_FRICTION in new-lg4ff"
+    );
 
     // Models WITHOUT LG4FF_CAP_FRICTION (capabilities = 0)
-    assert!(!LogitechModel::G29.supports_hardware_friction(),
-        "G29 has capabilities=0 in new-lg4ff");
-    assert!(!LogitechModel::G923.supports_hardware_friction(),
-        "G923 has capabilities=0 in new-lg4ff");
-    assert!(!LogitechModel::G920.supports_hardware_friction(),
-        "G920 uses HID++, not lg4ff — no hardware friction");
-    assert!(!LogitechModel::MOMO.supports_hardware_friction(),
-        "MOMO has capabilities=0 in new-lg4ff");
-    assert!(!LogitechModel::WingManFormulaForce.supports_hardware_friction(),
-        "WingMan has capabilities=0 in new-lg4ff");
-    assert!(!LogitechModel::DrivingForceEX.supports_hardware_friction(),
-        "DF-EX has capabilities=0 in new-lg4ff");
+    assert!(
+        !LogitechModel::G29.supports_hardware_friction(),
+        "G29 has capabilities=0 in new-lg4ff"
+    );
+    assert!(
+        !LogitechModel::G923.supports_hardware_friction(),
+        "G923 has capabilities=0 in new-lg4ff"
+    );
+    assert!(
+        !LogitechModel::G920.supports_hardware_friction(),
+        "G920 uses HID++, not lg4ff — no hardware friction"
+    );
+    assert!(
+        !LogitechModel::MOMO.supports_hardware_friction(),
+        "MOMO has capabilities=0 in new-lg4ff"
+    );
+    assert!(
+        !LogitechModel::WingManFormulaForce.supports_hardware_friction(),
+        "WingMan has capabilities=0 in new-lg4ff"
+    );
+    assert!(
+        !LogitechModel::DrivingForceEX.supports_hardware_friction(),
+        "DF-EX has capabilities=0 in new-lg4ff"
+    );
 
     Ok(())
 }
@@ -713,36 +895,72 @@ fn hardware_friction_matches_new_lg4ff_cap_friction() -> Result<(), Box<dyn std:
 #[test]
 fn max_rotation_matches_kernel_lg4ff_devices() -> Result<(), Box<dyn std::error::Error>> {
     // 180° wheels (kernel max_range=180)
-    assert_eq!(LogitechModel::WingManFormulaForce.max_rotation_deg(), 180,
-        "WingMan FFG: kernel max_range=180");
+    assert_eq!(
+        LogitechModel::WingManFormulaForce.max_rotation_deg(),
+        180,
+        "WingMan FFG: kernel max_range=180"
+    );
 
     // 270° wheels (kernel max_range=270)
-    assert_eq!(LogitechModel::MOMO.max_rotation_deg(), 270,
-        "MOMO: kernel max_range=270");
-    assert_eq!(LogitechModel::DrivingForceEX.max_rotation_deg(), 270,
-        "DF/EX: kernel max_range=270");
-    assert_eq!(LogitechModel::SpeedForceWireless.max_rotation_deg(), 270,
-        "SFW/WiiWheel: kernel max_range=270");
+    assert_eq!(
+        LogitechModel::MOMO.max_rotation_deg(),
+        270,
+        "MOMO: kernel max_range=270"
+    );
+    assert_eq!(
+        LogitechModel::DrivingForceEX.max_rotation_deg(),
+        270,
+        "DF/EX: kernel max_range=270"
+    );
+    assert_eq!(
+        LogitechModel::SpeedForceWireless.max_rotation_deg(),
+        270,
+        "SFW/WiiWheel: kernel max_range=270"
+    );
 
     // 900° wheels (kernel max_range=900)
-    assert_eq!(LogitechModel::DrivingForcePro.max_rotation_deg(), 900,
-        "DFP: kernel max_range=900");
-    assert_eq!(LogitechModel::G25.max_rotation_deg(), 900,
-        "G25: kernel max_range=900");
-    assert_eq!(LogitechModel::DrivingForceGT.max_rotation_deg(), 900,
-        "DFGT: kernel max_range=900");
-    assert_eq!(LogitechModel::G27.max_rotation_deg(), 900,
-        "G27: kernel max_range=900");
-    assert_eq!(LogitechModel::G29.max_rotation_deg(), 900,
-        "G29: kernel max_range=900");
-    assert_eq!(LogitechModel::G920.max_rotation_deg(), 900,
-        "G920: max_range=900");
-    assert_eq!(LogitechModel::G923.max_rotation_deg(), 900,
-        "G923: new-lg4ff max_range=900");
+    assert_eq!(
+        LogitechModel::DrivingForcePro.max_rotation_deg(),
+        900,
+        "DFP: kernel max_range=900"
+    );
+    assert_eq!(
+        LogitechModel::G25.max_rotation_deg(),
+        900,
+        "G25: kernel max_range=900"
+    );
+    assert_eq!(
+        LogitechModel::DrivingForceGT.max_rotation_deg(),
+        900,
+        "DFGT: kernel max_range=900"
+    );
+    assert_eq!(
+        LogitechModel::G27.max_rotation_deg(),
+        900,
+        "G27: kernel max_range=900"
+    );
+    assert_eq!(
+        LogitechModel::G29.max_rotation_deg(),
+        900,
+        "G29: kernel max_range=900"
+    );
+    assert_eq!(
+        LogitechModel::G920.max_rotation_deg(),
+        900,
+        "G920: max_range=900"
+    );
+    assert_eq!(
+        LogitechModel::G923.max_rotation_deg(),
+        900,
+        "G923: new-lg4ff max_range=900"
+    );
 
     // 1080° (G PRO — Logitech product spec, not in kernel)
-    assert_eq!(LogitechModel::GPro.max_rotation_deg(), 1080,
-        "G PRO: max_range=1080 (Logitech product spec)");
+    assert_eq!(
+        LogitechModel::GPro.max_rotation_deg(),
+        1080,
+        "G PRO: max_range=1080 (Logitech product spec)"
+    );
 
     Ok(())
 }
@@ -755,30 +973,52 @@ fn max_rotation_matches_kernel_lg4ff_devices() -> Result<(), Box<dyn std::error:
 #[test]
 fn range_command_support_matches_kernel_set_range() -> Result<(), Box<dyn std::error::Error>> {
     // Devices WITH set_range function pointer
-    assert!(LogitechModel::DrivingForcePro.supports_range_command(),
-        "DFP has lg4ff_set_range_dfp in kernel");
-    assert!(LogitechModel::G25.supports_range_command(),
-        "G25 has lg4ff_set_range_g25 in kernel");
-    assert!(LogitechModel::DrivingForceGT.supports_range_command(),
-        "DFGT has lg4ff_set_range_g25 in kernel");
-    assert!(LogitechModel::G27.supports_range_command(),
-        "G27 has lg4ff_set_range_g25 in kernel");
-    assert!(LogitechModel::G29.supports_range_command(),
-        "G29 has lg4ff_set_range_g25 in kernel");
-    assert!(LogitechModel::G923.supports_range_command(),
-        "G923 has lg4ff_set_range_g25 in new-lg4ff");
+    assert!(
+        LogitechModel::DrivingForcePro.supports_range_command(),
+        "DFP has lg4ff_set_range_dfp in kernel"
+    );
+    assert!(
+        LogitechModel::G25.supports_range_command(),
+        "G25 has lg4ff_set_range_g25 in kernel"
+    );
+    assert!(
+        LogitechModel::DrivingForceGT.supports_range_command(),
+        "DFGT has lg4ff_set_range_g25 in kernel"
+    );
+    assert!(
+        LogitechModel::G27.supports_range_command(),
+        "G27 has lg4ff_set_range_g25 in kernel"
+    );
+    assert!(
+        LogitechModel::G29.supports_range_command(),
+        "G29 has lg4ff_set_range_g25 in kernel"
+    );
+    assert!(
+        LogitechModel::G923.supports_range_command(),
+        "G923 has lg4ff_set_range_g25 in new-lg4ff"
+    );
 
     // Devices WITHOUT set_range (NULL in kernel)
-    assert!(!LogitechModel::WingManFormulaForce.supports_range_command(),
-        "WingMan FFG has NULL set_range in kernel");
-    assert!(!LogitechModel::MOMO.supports_range_command(),
-        "MOMO has NULL set_range in kernel");
-    assert!(!LogitechModel::DrivingForceEX.supports_range_command(),
-        "DF/EX has NULL set_range in kernel");
-    assert!(!LogitechModel::SpeedForceWireless.supports_range_command(),
-        "SFW has NULL set_range in kernel");
-    assert!(!LogitechModel::VibrationWheel.supports_range_command(),
-        "Vibration Wheel has NULL set_range in kernel");
+    assert!(
+        !LogitechModel::WingManFormulaForce.supports_range_command(),
+        "WingMan FFG has NULL set_range in kernel"
+    );
+    assert!(
+        !LogitechModel::MOMO.supports_range_command(),
+        "MOMO has NULL set_range in kernel"
+    );
+    assert!(
+        !LogitechModel::DrivingForceEX.supports_range_command(),
+        "DF/EX has NULL set_range in kernel"
+    );
+    assert!(
+        !LogitechModel::SpeedForceWireless.supports_range_command(),
+        "SFW has NULL set_range in kernel"
+    );
+    assert!(
+        !LogitechModel::VibrationWheel.supports_range_command(),
+        "Vibration Wheel has NULL set_range in kernel"
+    );
 
     Ok(())
 }
@@ -794,8 +1034,11 @@ fn range_command_support_matches_kernel_set_range() -> Result<(), Box<dyn std::e
 #[test]
 fn report_ids_match_protocol() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(report_ids::STANDARD_INPUT, 0x01, "standard input report ID");
-    assert_eq!(report_ids::VENDOR, 0xF8,
-        "vendor report prefix (kernel hid-lg4ff.c: 0xf8)");
+    assert_eq!(
+        report_ids::VENDOR,
+        0xF8,
+        "vendor report prefix (kernel hid-lg4ff.c: 0xf8)"
+    );
     assert_eq!(report_ids::CONSTANT_FORCE, 0x12, "constant force report ID");
     assert_eq!(report_ids::DEVICE_GAIN, 0x16, "device gain report ID");
     Ok(())
@@ -804,10 +1047,16 @@ fn report_ids_match_protocol() -> Result<(), Box<dyn std::error::Error>> {
 /// Verify report sizes.
 #[test]
 fn report_sizes() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(lg::CONSTANT_FORCE_REPORT_LEN, 4,
-        "constant force report = 4 bytes");
-    assert_eq!(lg::VENDOR_REPORT_LEN, 7,
-        "vendor report = 7 bytes (kernel hid-lg4ff.c uses 7-byte payloads)");
+    assert_eq!(
+        lg::CONSTANT_FORCE_REPORT_LEN,
+        4,
+        "constant force report = 4 bytes"
+    );
+    assert_eq!(
+        lg::VENDOR_REPORT_LEN,
+        7,
+        "vendor report = 7 bytes (kernel hid-lg4ff.c uses 7-byte payloads)"
+    );
     Ok(())
 }
 
@@ -853,11 +1102,19 @@ fn slot_effect_type_bytes_match_new_lg4ff() -> Result<(), Box<dyn std::error::Er
     let friction_effect_byte: u8 = 0x0E;
 
     // All must be distinct
-    let bytes = [constant_effect_byte, spring_effect_byte, damper_effect_byte, friction_effect_byte];
+    let bytes = [
+        constant_effect_byte,
+        spring_effect_byte,
+        damper_effect_byte,
+        friction_effect_byte,
+    ];
     for i in 0..bytes.len() {
         for j in (i + 1)..bytes.len() {
-            assert_ne!(bytes[i], bytes[j],
-                "effect type bytes must be distinct: 0x{:02X} vs 0x{:02X}", bytes[i], bytes[j]);
+            assert_ne!(
+                bytes[i], bytes[j],
+                "effect type bytes must be distinct: 0x{:02X} vs 0x{:02X}",
+                bytes[i], bytes[j]
+            );
         }
     }
 
@@ -883,9 +1140,9 @@ fn slot_encoding_matches_new_lg4ff() -> Result<(), Box<dyn std::error::Error>> {
     // Verify slot 0 (constant) command byte patterns
     // slot_id=0: (0x10 << 0) = 0x10
     let slot_id: u8 = 0;
-    let slot0_start: u8 = (0x10u8 << slot_id) + 0x01;  // 0x11
-    let slot0_stop: u8 = (0x10u8 << slot_id) + 0x03;   // 0x13
-    let slot0_update: u8 = (0x10u8 << slot_id) + 0x0C;  // 0x1C
+    let slot0_start: u8 = (0x10u8 << slot_id) + 0x01; // 0x11
+    let slot0_stop: u8 = (0x10u8 << slot_id) + 0x03; // 0x13
+    let slot0_update: u8 = (0x10u8 << slot_id) + 0x0C; // 0x1C
 
     assert_eq!(slot0_start, 0x11, "slot 0 start = 0x11");
     assert_eq!(slot0_stop, 0x13, "slot 0 stop = 0x13");
@@ -945,12 +1202,18 @@ fn g923_ps_identification_matches_new_lg4ff() -> Result<(), Box<dyn std::error::
 
     // After successful identification, the wheel is known to be a G923
     // and can be switched from PS mode (0xC267) to native (0xC266)
-    assert_eq!(native_pid, 0xC266,
-        "G923 native PID from lg4ff_g923_ident_info.real_product_id");
-    assert_eq!(ident_mask, 0xFF00,
-        "G923 ident mask (new-lg4ff lg4ff_g923_ident_info.mask)");
-    assert_eq!(ident_result, 0x3800,
-        "G923 ident result (new-lg4ff lg4ff_g923_ident_info.result)");
+    assert_eq!(
+        native_pid, 0xC266,
+        "G923 native PID from lg4ff_g923_ident_info.real_product_id"
+    );
+    assert_eq!(
+        ident_mask, 0xFF00,
+        "G923 ident mask (new-lg4ff lg4ff_g923_ident_info.mask)"
+    );
+    assert_eq!(
+        ident_result, 0x3800,
+        "G923 ident result (new-lg4ff lg4ff_g923_ident_info.result)"
+    );
     Ok(())
 }
 
@@ -979,16 +1242,22 @@ fn g920_g923_xbox_use_hidpp_protocol() -> Result<(), Box<dyn std::error::Error>>
     let g920 = LogitechModel::from_product_id(product_ids::G920);
     let g923_xbox = LogitechModel::from_product_id(product_ids::G923_XBOX);
 
-    assert_eq!(g920, LogitechModel::G920,
-        "G920 (0xC262) classification");
-    assert_eq!(g923_xbox, LogitechModel::G923,
-        "G923 Xbox (0xC26E) classification");
+    assert_eq!(g920, LogitechModel::G920, "G920 (0xC262) classification");
+    assert_eq!(
+        g923_xbox,
+        LogitechModel::G923,
+        "G923 Xbox (0xC26E) classification"
+    );
 
     // Neither should claim hardware friction (HID++ doesn't expose it)
-    assert!(!g920.supports_hardware_friction(),
-        "G920 (HID++) has no hardware friction");
-    assert!(!g923_xbox.supports_hardware_friction(),
-        "G923 Xbox (HID++) has no hardware friction");
+    assert!(
+        !g920.supports_hardware_friction(),
+        "G920 (HID++) has no hardware friction"
+    );
+    assert!(
+        !g923_xbox.supports_hardware_friction(),
+        "G923 Xbox (HID++) has no hardware friction"
+    );
 
     // HID++ report IDs are documented in the kernel hid-logitech-hidpp.c
     let hidpp_short_report_id: u8 = 0x10;
@@ -996,12 +1265,21 @@ fn g920_g923_xbox_use_hidpp_protocol() -> Result<(), Box<dyn std::error::Error>>
     let hidpp_very_long_report_id: u8 = 0x12;
 
     // These must NOT collide with our vendor report ID
-    assert_ne!(hidpp_short_report_id, report_ids::VENDOR,
-        "HID++ short report must not collide with vendor report");
-    assert_ne!(hidpp_long_report_id, report_ids::VENDOR,
-        "HID++ long report must not collide with vendor report");
-    assert_ne!(hidpp_very_long_report_id, report_ids::VENDOR,
-        "HID++ very long report must not collide with vendor report");
+    assert_ne!(
+        hidpp_short_report_id,
+        report_ids::VENDOR,
+        "HID++ short report must not collide with vendor report"
+    );
+    assert_ne!(
+        hidpp_long_report_id,
+        report_ids::VENDOR,
+        "HID++ long report must not collide with vendor report"
+    );
+    assert_ne!(
+        hidpp_very_long_report_id,
+        report_ids::VENDOR,
+        "HID++ very long report must not collide with vendor report"
+    );
 
     Ok(())
 }
@@ -1066,14 +1344,22 @@ fn multimode_identification_masks_match_kernel() -> Result<(), Box<dyn std::erro
 /// (Xbox edition)" with Silver rating. Not in mainline kernel hid-ids.h.
 #[test]
 fn g923_xbox_alt_pid() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(product_ids::G923_XBOX_ALT, 0xC26D,
-        "G923 Xbox alt PID (linux-steering-wheels: 046d:c26d)");
+    assert_eq!(
+        product_ids::G923_XBOX_ALT,
+        0xC26D,
+        "G923 Xbox alt PID (linux-steering-wheels: 046d:c26d)"
+    );
 
     let model = LogitechModel::from_product_id(product_ids::G923_XBOX_ALT);
-    assert_eq!(model, LogitechModel::G923,
-        "G923 Xbox alt must classify as G923");
-    assert!(is_wheel_product(product_ids::G923_XBOX_ALT),
-        "G923 Xbox alt must be recognized as a wheel");
+    assert_eq!(
+        model,
+        LogitechModel::G923,
+        "G923 Xbox alt must classify as G923"
+    );
+    assert!(
+        is_wheel_product(product_ids::G923_XBOX_ALT),
+        "G923 Xbox alt must be recognized as a wheel"
+    );
 
     Ok(())
 }
@@ -1087,15 +1373,43 @@ fn g923_xbox_alt_pid() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn all_pids_classify_and_are_wheels() -> Result<(), Box<dyn std::error::Error>> {
     let all_pids: &[(u16, &str, LogitechModel)] = &[
-        (product_ids::WINGMAN_FORMULA_FORCE, "WFF", LogitechModel::WingManFormulaForce),
-        (product_ids::WINGMAN_FORMULA_FORCE_GP, "WFFG", LogitechModel::WingManFormulaForce),
+        (
+            product_ids::WINGMAN_FORMULA_FORCE,
+            "WFF",
+            LogitechModel::WingManFormulaForce,
+        ),
+        (
+            product_ids::WINGMAN_FORMULA_FORCE_GP,
+            "WFFG",
+            LogitechModel::WingManFormulaForce,
+        ),
         (product_ids::MOMO, "MOMO", LogitechModel::MOMO),
         (product_ids::MOMO_2, "MOMO2", LogitechModel::MOMO),
-        (product_ids::DRIVING_FORCE_EX, "DF/EX", LogitechModel::DrivingForceEX),
-        (product_ids::DRIVING_FORCE_PRO, "DFP", LogitechModel::DrivingForcePro),
-        (product_ids::DRIVING_FORCE_GT, "DFGT", LogitechModel::DrivingForceGT),
-        (product_ids::SPEED_FORCE_WIRELESS, "SFW", LogitechModel::SpeedForceWireless),
-        (product_ids::VIBRATION_WHEEL, "VibWheel", LogitechModel::VibrationWheel),
+        (
+            product_ids::DRIVING_FORCE_EX,
+            "DF/EX",
+            LogitechModel::DrivingForceEX,
+        ),
+        (
+            product_ids::DRIVING_FORCE_PRO,
+            "DFP",
+            LogitechModel::DrivingForcePro,
+        ),
+        (
+            product_ids::DRIVING_FORCE_GT,
+            "DFGT",
+            LogitechModel::DrivingForceGT,
+        ),
+        (
+            product_ids::SPEED_FORCE_WIRELESS,
+            "SFW",
+            LogitechModel::SpeedForceWireless,
+        ),
+        (
+            product_ids::VIBRATION_WHEEL,
+            "VibWheel",
+            LogitechModel::VibrationWheel,
+        ),
         (product_ids::G25, "G25", LogitechModel::G25),
         (product_ids::G27, "G27", LogitechModel::G27),
         (product_ids::G29_PS, "G29", LogitechModel::G29),
@@ -1103,24 +1417,43 @@ fn all_pids_classify_and_are_wheels() -> Result<(), Box<dyn std::error::Error>> 
         (product_ids::G923, "G923", LogitechModel::G923),
         (product_ids::G923_PS, "G923_PS", LogitechModel::G923),
         (product_ids::G923_XBOX, "G923_Xbox", LogitechModel::G923),
-        (product_ids::G923_XBOX_ALT, "G923_Xbox_Alt", LogitechModel::G923),
+        (
+            product_ids::G923_XBOX_ALT,
+            "G923_Xbox_Alt",
+            LogitechModel::G923,
+        ),
         (product_ids::G_PRO, "G_PRO", LogitechModel::GPro),
         (product_ids::G_PRO_XBOX, "G_PRO_Xbox", LogitechModel::GPro),
     ];
 
     for &(pid, name, expected_model) in all_pids {
-        assert!(is_wheel_product(pid),
-            "PID 0x{:04X} ({}) must be recognized as a wheel", pid, name);
+        assert!(
+            is_wheel_product(pid),
+            "PID 0x{:04X} ({}) must be recognized as a wheel",
+            pid,
+            name
+        );
         let model = LogitechModel::from_product_id(pid);
-        assert_eq!(model, expected_model,
-            "PID 0x{:04X} ({}) must classify as {:?}", pid, name, expected_model);
-        assert_ne!(model, LogitechModel::Unknown,
-            "PID 0x{:04X} ({}) must not be Unknown", pid, name);
+        assert_eq!(
+            model, expected_model,
+            "PID 0x{:04X} ({}) must classify as {:?}",
+            pid, name, expected_model
+        );
+        assert_ne!(
+            model,
+            LogitechModel::Unknown,
+            "PID 0x{:04X} ({}) must not be Unknown",
+            pid,
+            name
+        );
     }
 
     // Unknown PID
     assert!(!is_wheel_product(0xFFFF));
-    assert_eq!(LogitechModel::from_product_id(0xFFFF), LogitechModel::Unknown);
+    assert_eq!(
+        LogitechModel::from_product_id(0xFFFF),
+        LogitechModel::Unknown
+    );
 
     Ok(())
 }

@@ -93,10 +93,7 @@ fn display_names_are_correct() {
         CubeControlsModel::FormulaPro.display_name(),
         "Cube Controls Formula Pro"
     );
-    assert_eq!(
-        CubeControlsModel::Csx3.display_name(),
-        "Cube Controls CSX3"
-    );
+    assert_eq!(CubeControlsModel::Csx3.display_name(), "Cube Controls CSX3");
 }
 
 #[test]
