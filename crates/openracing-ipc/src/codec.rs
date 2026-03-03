@@ -41,6 +41,18 @@ impl MessageCodec {
     }
 
     /// Get the maximum message size
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ipc::MessageCodec;
+    ///
+    /// let codec = MessageCodec::new();
+    /// assert!(codec.max_message_size() > 0);
+    ///
+    /// let custom = MessageCodec::with_max_size(8192);
+    /// assert_eq!(custom.max_message_size(), 8192);
+    /// ```
     pub fn max_message_size(&self) -> usize {
         self.max_message_size
     }

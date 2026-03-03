@@ -50,6 +50,15 @@ impl SlewRateState {
 
     /// Create a slew rate limiter with a per-tick limit directly.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::SlewRateState;
+    ///
+    /// let state = SlewRateState::per_tick(0.01);
+    /// assert!((state.max_change_per_tick - 0.01).abs() < f32::EPSILON);
+    /// ```
+    ///
     /// # Arguments
     ///
     /// * `max_change` - Maximum change per sample tick
@@ -61,6 +70,16 @@ impl SlewRateState {
     }
 
     /// Create a slow slew rate limiter (conservative).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::SlewRateState;
+    ///
+    /// let state = SlewRateState::slow();
+    /// assert!(state.max_change_per_tick > 0.0);
+    /// assert!(state.max_change_per_tick < SlewRateState::fast().max_change_per_tick);
+    /// ```
     pub fn slow() -> Self {
         Self::new(0.2)
     }
@@ -71,11 +90,29 @@ impl SlewRateState {
     }
 
     /// Create a fast slew rate limiter (aggressive).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::SlewRateState;
+    ///
+    /// let state = SlewRateState::fast();
+    /// assert!(state.max_change_per_tick > SlewRateState::slow().max_change_per_tick);
+    /// ```
     pub fn fast() -> Self {
         Self::new(1.0)
     }
 
     /// Create an unlimited slew rate (bypass).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::SlewRateState;
+    ///
+    /// let state = SlewRateState::unlimited();
+    /// assert_eq!(state.max_change_per_tick, f32::MAX);
+    /// ```
     pub fn unlimited() -> Self {
         Self {
             max_change_per_tick: f32::MAX,

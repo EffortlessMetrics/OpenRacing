@@ -37,6 +37,18 @@ impl JoystickCalibrator {
     }
 
     /// Records a raw sample paired with its expected normalized value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_calibration::JoystickCalibrator;
+    ///
+    /// let mut cal = JoystickCalibrator::new(0);
+    /// cal.add_sample(0, 0.0);
+    /// cal.add_sample(32768, 0.5);
+    /// cal.add_sample(65535, 1.0);
+    /// // Samples are stored for calibration
+    /// ```
     pub fn add_sample(&mut self, raw: u16, expected_normalized: f32) {
         self.points
             .push(CalibrationPoint::new(raw, expected_normalized));
@@ -72,6 +84,17 @@ impl JoystickCalibrator {
     }
 
     /// Discards all collected samples.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_calibration::JoystickCalibrator;
+    ///
+    /// let mut cal = JoystickCalibrator::new(0);
+    /// cal.add_sample(100, 0.0);
+    /// cal.reset();
+    /// assert!(cal.calibrate().is_err());
+    /// ```
     pub fn reset(&mut self) {
         self.points.clear();
     }

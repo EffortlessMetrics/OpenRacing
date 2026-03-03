@@ -49,16 +49,43 @@ impl InertiaState {
     }
 
     /// Create an inertia filter with light effect.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::InertiaState;
+    ///
+    /// let state = InertiaState::light();
+    /// assert!(state.coefficient < InertiaState::medium().coefficient);
+    /// ```
     pub fn light() -> Self {
         Self::new(0.05)
     }
 
     /// Create an inertia filter with medium effect.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::InertiaState;
+    ///
+    /// let state = InertiaState::medium();
+    /// assert!((state.coefficient - 0.1).abs() < f32::EPSILON);
+    /// ```
     pub fn medium() -> Self {
         Self::new(0.1)
     }
 
     /// Create an inertia filter with heavy effect.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::InertiaState;
+    ///
+    /// let state = InertiaState::heavy();
+    /// assert!(state.coefficient > InertiaState::medium().coefficient);
+    /// ```
     pub fn heavy() -> Self {
         Self::new(0.2)
     }

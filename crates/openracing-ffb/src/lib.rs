@@ -86,6 +86,21 @@ impl FfbGain {
     /// Creates a new gain with the given overall level, clamped to `[0.0, 1.0]`.
     ///
     /// Torque and effect sub-gains default to `1.0` (full strength).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::FfbGain;
+    ///
+    /// let gain = FfbGain::new(0.8);
+    /// assert!((gain.overall - 0.8).abs() < f32::EPSILON);
+    /// assert!((gain.torque - 1.0).abs() < f32::EPSILON);
+    /// assert!((gain.effects - 1.0).abs() < f32::EPSILON);
+    ///
+    /// // Values are clamped to [0.0, 1.0]
+    /// let clamped = FfbGain::new(1.5);
+    /// assert!((clamped.overall - 1.0).abs() < f32::EPSILON);
+    /// ```
     pub fn new(overall: f32) -> Self {
         Self {
             overall: overall.clamp(0.0, 1.0),
@@ -95,18 +110,48 @@ impl FfbGain {
     }
 
     /// Sets the torque sub-gain, clamped to `[0.0, 1.0]`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::FfbGain;
+    ///
+    /// let gain = FfbGain::new(1.0).with_torque(0.5);
+    /// assert!((gain.torque - 0.5).abs() < f32::EPSILON);
+    /// assert!((gain.combined() - 0.5).abs() < f32::EPSILON);
+    /// ```
     pub fn with_torque(mut self, torque: f32) -> Self {
         self.torque = torque.clamp(0.0, 1.0);
         self
     }
 
     /// Sets the effects sub-gain, clamped to `[0.0, 1.0]`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::FfbGain;
+    ///
+    /// let gain = FfbGain::new(1.0).with_effects(0.3);
+    /// assert!((gain.effects - 0.3).abs() < f32::EPSILON);
+    /// assert!((gain.combined() - 0.3).abs() < f32::EPSILON);
+    /// ```
     pub fn with_effects(mut self, effects: f32) -> Self {
         self.effects = effects.clamp(0.0, 1.0);
         self
     }
 
     /// Returns the product of all three gain factors (`overall × torque × effects`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::FfbGain;
+    ///
+    /// let gain = FfbGain::new(0.8).with_torque(0.5).with_effects(0.5);
+    /// let combined = gain.combined();
+    /// assert!((combined - 0.2).abs() < 0.001);
+    /// ```
     pub fn combined(&self) -> f32 {
         self.overall * self.torque * self.effects
     }
@@ -151,6 +196,18 @@ impl FfbDirection {
     }
 
     /// Converts the direction to radians.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::FfbDirection;
+    ///
+    /// let dir = FfbDirection::new(180.0);
+    /// assert!((dir.to_radians() - std::f32::consts::PI).abs() < 0.001);
+    ///
+    /// let dir = FfbDirection::new(90.0);
+    /// assert!((dir.to_radians() - std::f32::consts::FRAC_PI_2).abs() < 0.001);
+    /// ```
     pub fn to_radians(&self) -> f32 {
         self.degrees.to_radians()
     }

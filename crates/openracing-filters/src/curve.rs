@@ -59,6 +59,17 @@ impl CurveState {
     }
 
     /// Create a linear (identity) curve.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::CurveState;
+    ///
+    /// let curve = CurveState::linear();
+    /// // Linear curve maps 0.5 → ~0.5
+    /// let output = curve.lookup(0.5);
+    /// assert!((output - 0.5).abs() < 0.01);
+    /// ```
     pub fn linear() -> Self {
         let mut lut = [0.0f32; Self::LUT_SIZE];
 
@@ -74,6 +85,18 @@ impl CurveState {
     }
 
     /// Create a quadratic curve (softer near center).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::CurveState;
+    ///
+    /// let curve = CurveState::quadratic();
+    /// // At center, quadratic produces less output than linear
+    /// assert!(curve.lookup(0.5) < 0.5);
+    /// // At extremes, both reach 1.0
+    /// assert!((curve.lookup(1.0) - 1.0).abs() < 0.01);
+    /// ```
     pub fn quadratic() -> Self {
         let points = [(0.0f32, 0.0f32), (0.5f32, 0.25f32), (1.0f32, 1.0f32)];
         Self::new(&points)
@@ -134,6 +157,16 @@ impl CurveState {
     }
 
     /// Lookup a value in the curve with linear interpolation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::CurveState;
+    ///
+    /// let curve = CurveState::linear();
+    /// assert!((curve.lookup(0.0)).abs() < f32::EPSILON);
+    /// assert!((curve.lookup(1.0) - 1.0).abs() < 0.01);
+    /// ```
     ///
     /// # RT Safety
     ///

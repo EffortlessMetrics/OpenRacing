@@ -70,6 +70,15 @@ impl BumpstopState {
     }
 
     /// Create a disabled bumpstop (no effect).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::BumpstopState;
+    ///
+    /// let state = BumpstopState::disabled();
+    /// assert!(!state.enabled);
+    /// ```
     pub fn disabled() -> Self {
         Self {
             enabled: false,
@@ -82,16 +91,47 @@ impl BumpstopState {
     }
 
     /// Create a standard bumpstop (900 degree range, soft stops).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::BumpstopState;
+    ///
+    /// let state = BumpstopState::standard();
+    /// assert!(state.enabled);
+    /// assert!(state.max_angle > 0.0);
+    /// ```
     pub fn standard() -> Self {
         Self::new(true, 400.0, 450.0, 0.5, 0.2)
     }
 
     /// Create a wide bumpstop (1080 degree range).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::BumpstopState;
+    ///
+    /// let state = BumpstopState::wide();
+    /// assert!(state.enabled);
+    /// assert!(state.max_angle > BumpstopState::standard().max_angle);
+    /// ```
     pub fn wide() -> Self {
         Self::new(true, 500.0, 540.0, 0.6, 0.25)
     }
 
     /// Reset the current angle to center.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::BumpstopState;
+    ///
+    /// let mut state = BumpstopState::standard();
+    /// state.current_angle = 100.0;
+    /// state.reset();
+    /// assert!((state.current_angle).abs() < f32::EPSILON);
+    /// ```
     pub fn reset(&mut self) {
         self.current_angle = 0.0;
     }

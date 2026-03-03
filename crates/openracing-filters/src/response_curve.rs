@@ -56,6 +56,16 @@ impl ResponseCurveState {
     }
 
     /// Create a linear (identity) response curve state.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::ResponseCurveState;
+    ///
+    /// let curve = ResponseCurveState::linear();
+    /// // Linear maps 0.5 → ~0.5
+    /// assert!((curve.lookup(0.5) - 0.5).abs() < 0.01);
+    /// ```
     pub fn linear() -> Self {
         let mut lut = [0.0f32; 256];
 
@@ -67,6 +77,16 @@ impl ResponseCurveState {
     }
 
     /// Create a soft response curve (reduced sensitivity near center).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::ResponseCurveState;
+    ///
+    /// let curve = ResponseCurveState::soft();
+    /// // Soft curve: less output near center than linear
+    /// assert!(curve.lookup(0.5) < 0.5);
+    /// ```
     pub fn soft() -> Self {
         let mut lut = [0.0f32; 256];
 
@@ -80,6 +100,16 @@ impl ResponseCurveState {
     }
 
     /// Create a hard response curve (increased sensitivity near limits).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::ResponseCurveState;
+    ///
+    /// let curve = ResponseCurveState::hard();
+    /// // Hard curve: more output near center than linear
+    /// assert!(curve.lookup(0.5) > 0.5);
+    /// ```
     pub fn hard() -> Self {
         let mut lut = [0.0f32; 256];
 
@@ -93,6 +123,16 @@ impl ResponseCurveState {
     }
 
     /// Fast lookup with linear interpolation (RT-safe).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::ResponseCurveState;
+    ///
+    /// let curve = ResponseCurveState::linear();
+    /// assert!((curve.lookup(0.0)).abs() < f32::EPSILON);
+    /// assert!((curve.lookup(1.0) - 1.0).abs() < 0.01);
+    /// ```
     ///
     /// This method is designed for the RT path:
     /// - No heap allocations

@@ -41,6 +41,17 @@ impl PedalCalibrator {
     }
 
     /// Records a raw throttle reading.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_calibration::PedalCalibrator;
+    ///
+    /// let mut cal = PedalCalibrator::new();
+    /// cal.add_throttle(100);
+    /// cal.add_throttle(900);
+    /// // Samples are collected for later calibration
+    /// ```
     pub fn add_throttle(&mut self, raw: u16) {
         self.throttle_samples.push(raw);
     }
@@ -87,6 +98,20 @@ impl PedalCalibrator {
     }
 
     /// Discards all collected samples so calibration can be restarted.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_calibration::PedalCalibrator;
+    ///
+    /// let mut cal = PedalCalibrator::new();
+    /// cal.add_throttle(100);
+    /// cal.add_brake(200);
+    /// cal.add_clutch(300);
+    /// cal.reset();
+    /// // After reset, calibrate will fail (no samples)
+    /// assert!(cal.calibrate().is_err());
+    /// ```
     pub fn reset(&mut self) {
         self.throttle_samples.clear();
         self.brake_samples.clear();

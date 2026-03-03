@@ -64,21 +64,57 @@ impl ReconstructionState {
     }
 
     /// Create a reconstruction filter with no smoothing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::ReconstructionState;
+    ///
+    /// let state = ReconstructionState::bypass();
+    /// assert_eq!(state.level, 0);
+    /// ```
     pub fn bypass() -> Self {
         Self::new(0)
     }
 
     /// Create a reconstruction filter with light smoothing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::ReconstructionState;
+    ///
+    /// let state = ReconstructionState::light();
+    /// assert_eq!(state.level, 2);
+    /// ```
     pub fn light() -> Self {
         Self::new(2)
     }
 
     /// Create a reconstruction filter with medium smoothing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::ReconstructionState;
+    ///
+    /// let state = ReconstructionState::medium();
+    /// assert_eq!(state.level, 4);
+    /// ```
     pub fn medium() -> Self {
         Self::new(4)
     }
 
     /// Create a reconstruction filter with heavy smoothing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::ReconstructionState;
+    ///
+    /// let state = ReconstructionState::heavy();
+    /// assert_eq!(state.level, 6);
+    /// ```
     pub fn heavy() -> Self {
         Self::new(6)
     }

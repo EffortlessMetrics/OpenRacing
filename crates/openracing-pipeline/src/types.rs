@@ -163,6 +163,19 @@ impl Pipeline {
     ///
     /// The curve is pre-computed as a LUT at profile load time (not in RT path).
     /// This ensures zero allocations during RT processing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_pipeline::Pipeline;
+    /// use openracing_curves::CurveLut;
+    ///
+    /// let mut pipeline = Pipeline::new();
+    /// assert!(pipeline.response_curve().is_none());
+    ///
+    /// pipeline.set_response_curve(CurveLut::linear());
+    /// assert!(pipeline.response_curve().is_some());
+    /// ```
     pub fn set_response_curve(&mut self, curve: CurveLut) {
         self.response_curve = Some(Box::new(curve));
     }
@@ -212,6 +225,16 @@ impl Pipeline {
     }
 
     /// Get the number of filter nodes
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_pipeline::Pipeline;
+    ///
+    /// let pipeline = Pipeline::new();
+    /// assert_eq!(pipeline.node_count(), 0);
+    /// assert!(pipeline.is_empty());
+    /// ```
     #[must_use]
     pub fn node_count(&self) -> usize {
         self.nodes.len()

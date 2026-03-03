@@ -50,11 +50,31 @@ impl FrictionState {
     }
 
     /// Create a friction filter with fixed coefficient (no speed adaptation).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::FrictionState;
+    ///
+    /// let state = FrictionState::fixed(0.2);
+    /// assert!((state.coefficient - 0.2).abs() < f32::EPSILON);
+    /// assert!(!state.speed_adaptation);
+    /// ```
     pub fn fixed(coefficient: f32) -> Self {
         Self::new(coefficient, false)
     }
 
     /// Create a friction filter with speed-adaptive coefficient.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::FrictionState;
+    ///
+    /// let state = FrictionState::adaptive(0.15);
+    /// assert!((state.coefficient - 0.15).abs() < f32::EPSILON);
+    /// assert!(state.speed_adaptation);
+    /// ```
     pub fn adaptive(coefficient: f32) -> Self {
         Self::new(coefficient, true)
     }
