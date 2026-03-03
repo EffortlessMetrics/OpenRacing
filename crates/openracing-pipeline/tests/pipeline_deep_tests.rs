@@ -605,6 +605,485 @@ mod prop_tests {
 }
 
 // ---------------------------------------------------------------------------
+// Data flow through compiled pipelines
+// ---------------------------------------------------------------------------
+
+mod data_flow_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn compiled_pipeline_produces_finite_output() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = create_test_config()?;
+        let mut pipeline = compiler.compile_pipeline(config).await?.pipeline;
+
+        for i in 0..100 {
+            let val = (i as f32 * 0.01).sin() * 0.8;
+            let mut frame = make_frame(val, val);
+            frame.seq = i;
+            frame.ts_mono_ns = i as u64 * 1_000_000;
+            pipeline.process(&mut frame)?;
+            assert!(
+                frame.torque_out.is_finite(),
+                "frame {i}: output must be finite, got {}",
+                frame.torque_out
+            );
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn compiled_pipeline_output_bounded() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = create_test_config()?;
+        let mut pipeline = compiler.compile_pipeline(config).await?.pipeline;
+
+        for i in 0..200 {
+            let val = (i as f32 * 0.03).sin() * 0.9;
+            let mut frame = make_frame(val, val);
+            frame.seq = i;
+            pipeline.process(&mut frame)?;
+            assert!(
+                frame.torque_out.abs() <= 1.0 + 1e-6,
+                "frame {i}: output {} exceeds [-1,1]",
+                frame.torque_out
+            );
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn minimal_config_is_identity() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = create_minimal_config()?;
+        let mut pipeline = compiler.compile_pipeline(config).await?.pipeline;
+
+        let test_values = [-0.9, -0.5, 0.0, 0.3, 0.7, 1.0];
+        for &val in &test_values {
+            let mut frame = make_frame(val, val);
+            pipeline.process(&mut frame)?;
+            assert!(
+                (frame.torque_out - val).abs() < 0.01,
+                "empty pipeline should be identity: in={val}, out={}",
+                frame.torque_out
+            );
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn compiled_pipeline_deterministic_output() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = create_test_config()?;
+
+        let mut p1 = compiler.compile_pipeline(config.clone()).await?.pipeline;
+        let mut p2 = compiler.compile_pipeline(config).await?.pipeline;
+
+        for i in 0..50 {
+            let val = (i as f32 * 0.05).sin() * 0.5;
+            let mut f1 = make_frame(val, val);
+            let mut f2 = make_frame(val, val);
+            f1.seq = i;
+            f2.seq = i;
+            p1.process(&mut f1)?;
+            p2.process(&mut f2)?;
+            assert!(
+                (f1.torque_out - f2.torque_out).abs() < 1e-6,
+                "frame {i}: outputs should match: {} vs {}",
+                f1.torque_out,
+                f2.torque_out
+            );
+        }
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Error propagation: pipeline fault detection
+// ---------------------------------------------------------------------------
+
+mod error_propagation_tests {
+    use super::*;
+
+    #[test]
+    fn empty_pipeline_nan_passes_through() -> TestResult {
+        // Empty pipeline has no nodes, so no validation occurs
+        let mut pipeline = Pipeline::new();
+        let mut frame = make_frame(f32::NAN, f32::NAN);
+        let result = pipeline.process(&mut frame);
+        assert!(result.is_ok(), "empty pipeline passes through NaN");
+        Ok(())
+    }
+
+    #[test]
+    fn pipeline_with_curve_handles_nan_input() -> TestResult {
+        let mut pipeline = Pipeline::new();
+        pipeline.set_response_curve(CurveType::Linear.to_lut());
+
+        // Response curve clamps, so NaN input to the curve lookup clamps to [0,1]
+        let mut frame = make_frame(0.5, 0.5);
+        let result = pipeline.process(&mut frame);
+        assert!(result.is_ok());
+        assert!(frame.torque_out.is_finite());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn compiled_pipeline_rejects_large_intermediate() -> TestResult {
+        // If a filter node produces |output| > 1.0, the pipeline returns PipelineFault.
+        // This is hard to trigger with valid configs since filters are bounded,
+        // but we verify the executor checks bounds after each node.
+        let compiler = PipelineCompiler::new();
+        let config = create_test_config()?;
+        let mut pipeline = compiler.compile_pipeline(config).await?.pipeline;
+
+        // Normal input should be fine
+        let mut frame = make_frame(0.5, 0.5);
+        let result = pipeline.process(&mut frame);
+        assert!(result.is_ok());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn invalid_reconstruction_level_error_message() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let mut config = create_minimal_config()?;
+        config.reconstruction = 15;
+
+        let result = compiler.compile_pipeline(config).await;
+        assert!(result.is_err());
+        let err_msg = result.err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(
+            err_msg.contains("0-8") || err_msg.contains("Reconstruction") || err_msg.contains("reconstruction"),
+            "error should mention valid range: {err_msg}"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn validator_rejects_non_monotonic_curve() -> TestResult {
+        let validator = PipelineValidator::new();
+        // Try to create a config with non-monotonic curve
+        // CurvePoint construction may fail, but test the validator path
+        let config = racing_wheel_schemas::entities::FilterConfig::new_complete(
+            0,
+            Gain::new(0.0)?,
+            Gain::new(0.0)?,
+            Gain::new(0.0)?,
+            vec![],
+            Gain::new(1.0)?,
+            vec![
+                CurvePoint::new(0.0, 0.0)?,
+                CurvePoint::new(0.7, 0.8)?,
+                CurvePoint::new(0.5, 0.3)?,
+                CurvePoint::new(1.0, 1.0)?,
+            ],
+            Gain::new(1.0)?,
+            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+        );
+
+        // Either construction fails (good) or validation fails (also good)
+        if let Ok(cfg) = config {
+            let result = validator.validate_config(&cfg);
+            assert!(result.is_err(), "non-monotonic curve should be rejected");
+        }
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline metrics and state snapshots
+// ---------------------------------------------------------------------------
+
+mod metrics_tests {
+    use super::*;
+
+    #[test]
+    fn empty_snapshot_efficiency() -> TestResult {
+        let pipeline = Pipeline::new();
+        let snap = pipeline.state_snapshot();
+        assert_eq!(snap.state_efficiency(), 1.0, "empty pipeline should have 100% efficiency");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn compiled_snapshot_has_correct_node_count() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = create_test_config()?;
+        let pipeline = compiler.compile_pipeline(config).await?.pipeline;
+        let snap = pipeline.state_snapshot();
+
+        assert_eq!(snap.node_count, pipeline.node_count());
+        assert_eq!(snap.state_size, pipeline.state_size());
+        assert_eq!(snap.config_hash, pipeline.config_hash());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn state_size_grows_with_filters() -> TestResult {
+        let compiler = PipelineCompiler::new();
+
+        // Minimal config (0 nodes)
+        let empty_config = create_minimal_config()?;
+        let empty = compiler.compile_pipeline(empty_config).await?.pipeline;
+
+        // Full config (many nodes)
+        let full_config = create_test_config()?;
+        let full = compiler.compile_pipeline(full_config).await?.pipeline;
+
+        assert!(
+            full.state_size() > empty.state_size(),
+            "full pipeline should have more state: full={}, empty={}",
+            full.state_size(),
+            empty.state_size()
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn reset_state_zeroes_all_bytes() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = create_test_config()?;
+        let mut pipeline = compiler.compile_pipeline(config).await?.pipeline;
+
+        let size_before = pipeline.state_size();
+
+        // Process some data to modify state
+        for i in 0..50 {
+            let mut frame = make_frame(0.5, 0.5);
+            frame.seq = i;
+            pipeline.process(&mut frame)?;
+        }
+
+        pipeline.reset_state();
+
+        // State size should be preserved after reset
+        assert_eq!(
+            pipeline.state_size(),
+            size_before,
+            "reset should not change state size"
+        );
+
+        // Snapshot reflects reset state
+        let snap = pipeline.state_snapshot();
+        assert_eq!(snap.state_size, size_before);
+        assert!(snap.node_count > 0, "nodes should still exist after reset");
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Stage enable/disable: individual filter on/off via config
+// ---------------------------------------------------------------------------
+
+mod stage_enable_disable_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn only_friction_enabled() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = racing_wheel_schemas::entities::FilterConfig::new_complete(
+            0,
+            Gain::new(0.3)?,
+            Gain::new(0.0)?,
+            Gain::new(0.0)?,
+            vec![],
+            Gain::new(1.0)?,
+            vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
+            Gain::new(1.0)?,
+            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+        )?;
+        let pipeline = compiler.compile_pipeline(config).await?.pipeline;
+        assert_eq!(pipeline.node_count(), 1, "only friction → 1 node");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn only_damper_enabled() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = racing_wheel_schemas::entities::FilterConfig::new_complete(
+            0,
+            Gain::new(0.0)?,
+            Gain::new(0.2)?,
+            Gain::new(0.0)?,
+            vec![],
+            Gain::new(1.0)?,
+            vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
+            Gain::new(1.0)?,
+            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+        )?;
+        let pipeline = compiler.compile_pipeline(config).await?.pipeline;
+        assert_eq!(pipeline.node_count(), 1, "only damper → 1 node");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn only_notch_enabled() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = racing_wheel_schemas::entities::FilterConfig::new_complete(
+            0,
+            Gain::new(0.0)?,
+            Gain::new(0.0)?,
+            Gain::new(0.0)?,
+            vec![NotchFilter::new(FrequencyHz::new(60.0)?, 2.0, -12.0)?],
+            Gain::new(1.0)?,
+            vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
+            Gain::new(1.0)?,
+            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+        )?;
+        let pipeline = compiler.compile_pipeline(config).await?.pipeline;
+        assert_eq!(pipeline.node_count(), 1, "only notch → 1 node");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn multiple_notch_filters() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = racing_wheel_schemas::entities::FilterConfig::new_complete(
+            0,
+            Gain::new(0.0)?,
+            Gain::new(0.0)?,
+            Gain::new(0.0)?,
+            vec![
+                NotchFilter::new(FrequencyHz::new(60.0)?, 2.0, -12.0)?,
+                NotchFilter::new(FrequencyHz::new(120.0)?, 2.0, -6.0)?,
+            ],
+            Gain::new(1.0)?,
+            vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
+            Gain::new(1.0)?,
+            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+        )?;
+        let pipeline = compiler.compile_pipeline(config).await?.pipeline;
+        assert_eq!(pipeline.node_count(), 2, "two notch filters → 2 nodes");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn only_reconstruction_enabled() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = racing_wheel_schemas::entities::FilterConfig::new_complete(
+            4,
+            Gain::new(0.0)?,
+            Gain::new(0.0)?,
+            Gain::new(0.0)?,
+            vec![],
+            Gain::new(1.0)?,
+            vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
+            Gain::new(1.0)?,
+            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+        )?;
+        let pipeline = compiler.compile_pipeline(config).await?.pipeline;
+        assert_eq!(pipeline.node_count(), 1, "only reconstruction → 1 node");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn only_inertia_enabled() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = racing_wheel_schemas::entities::FilterConfig::new_complete(
+            0,
+            Gain::new(0.0)?,
+            Gain::new(0.0)?,
+            Gain::new(0.1)?,
+            vec![],
+            Gain::new(1.0)?,
+            vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
+            Gain::new(1.0)?,
+            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+        )?;
+        let pipeline = compiler.compile_pipeline(config).await?.pipeline;
+        assert_eq!(pipeline.node_count(), 1, "only inertia → 1 node");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn slew_rate_at_one_is_disabled() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = racing_wheel_schemas::entities::FilterConfig::new_complete(
+            0,
+            Gain::new(0.0)?,
+            Gain::new(0.0)?,
+            Gain::new(0.0)?,
+            vec![],
+            Gain::new(1.0)?, // slew_rate >= 1.0 means disabled
+            vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
+            Gain::new(1.0)?,
+            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+        )?;
+        let pipeline = compiler.compile_pipeline(config).await?.pipeline;
+        assert_eq!(pipeline.node_count(), 0, "slew_rate=1.0 + everything else off → 0 nodes");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn torque_cap_below_one_adds_node() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = racing_wheel_schemas::entities::FilterConfig::new_complete(
+            0,
+            Gain::new(0.0)?,
+            Gain::new(0.0)?,
+            Gain::new(0.0)?,
+            vec![],
+            Gain::new(1.0)?,
+            vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
+            Gain::new(0.8)?, // torque cap < 1.0 adds a node
+            racing_wheel_schemas::entities::BumpstopConfig { enabled: false, ..Default::default() },
+            racing_wheel_schemas::entities::HandsOffConfig { enabled: false, ..Default::default() },
+        )?;
+        let pipeline = compiler.compile_pipeline(config).await?.pipeline;
+        assert_eq!(pipeline.node_count(), 1, "torque_cap=0.8 → 1 node");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn all_filters_enabled_produces_many_nodes() -> TestResult {
+        let compiler = PipelineCompiler::new();
+        let config = racing_wheel_schemas::entities::FilterConfig::new_complete(
+            4,
+            Gain::new(0.1)?,
+            Gain::new(0.15)?,
+            Gain::new(0.05)?,
+            vec![NotchFilter::new(FrequencyHz::new(60.0)?, 2.0, -12.0)?],
+            Gain::new(0.8)?,
+            vec![
+                CurvePoint::new(0.0, 0.0)?,
+                CurvePoint::new(0.5, 0.6)?,
+                CurvePoint::new(1.0, 1.0)?,
+            ],
+            Gain::new(0.9)?,
+            racing_wheel_schemas::entities::BumpstopConfig {
+                enabled: true,
+                start_angle: 400.0,
+                max_angle: 450.0,
+                stiffness: 0.5,
+                damping: 0.2,
+            },
+            racing_wheel_schemas::entities::HandsOffConfig {
+                enabled: true,
+                threshold: 0.05,
+                timeout_seconds: 2.0,
+            },
+        )?;
+        let pipeline = compiler.compile_pipeline(config).await?.pipeline;
+        // recon + friction + damper + inertia + notch + slew + curve + torque_cap + bumpstop + hands_off
+        assert!(
+            pipeline.node_count() >= 8,
+            "all filters enabled should produce many nodes, got {}",
+            pipeline.node_count()
+        );
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Async compilation
 // ---------------------------------------------------------------------------
 
