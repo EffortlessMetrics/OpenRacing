@@ -403,7 +403,7 @@ async fn message_routing_device_specific_events() -> Result<(), BoxErr> {
     }
 
     assert_eq!(events.len(), 2);
-    let dev_ids: Vec<&str> = events.iter().map(|e| e.device_id.as_str()).collect();
+    let dev_ids: Vec<&str> = events.iter().map(|e| &*e.device_id).collect();
     assert!(dev_ids.contains(&"route-1"));
     assert!(dev_ids.contains(&"route-2"));
     Ok(())

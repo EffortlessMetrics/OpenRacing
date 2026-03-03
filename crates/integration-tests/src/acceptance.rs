@@ -57,7 +57,7 @@ pub async fn run_ci_acceptance_tests() -> Result<HashMap<String, TestResult>> {
 
     let tests = get_acceptance_test_suite()
         .into_iter()
-        .filter(|test| CI_ACCEPTANCE_TEST_IDS.contains(&test.id.as_str()))
+        .filter(|test| CI_ACCEPTANCE_TEST_IDS.contains(&&*test.id))
         .collect();
 
     run_acceptance_tests(tests).await

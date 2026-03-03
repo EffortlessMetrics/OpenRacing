@@ -754,7 +754,7 @@ fn game_support_status_debug_and_clone() {
 #[test]
 fn normalize_game_id_very_long_input() {
     let long_id = "a".repeat(1000);
-    assert_eq!(normalize_game_id(&long_id), long_id.as_str());
+    assert_eq!(normalize_game_id(&long_id), &*long_id);
 }
 
 #[test]

@@ -147,7 +147,7 @@ proptest! {
         let t = adapter.normalize(json.as_bytes())
             .map_err(|e| TestCaseError::Fail(format!("{e}").into()))?;
 
-        let expected: i8 = match gear.as_str() {
+        let expected: i8 = match &*gear {
             "R" => -1,
             "N" => 0,
             g => g.parse::<i8>().map_err(|e| TestCaseError::Fail(format!("{e}").into()))?,

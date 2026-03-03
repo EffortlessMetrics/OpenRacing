@@ -301,7 +301,7 @@ mod diff_transitions {
             let has_modify = diffs2.iter().any(|d| d.operation == DiffOperation::Modify);
             if !has_modify {
                 assert!(
-                    known_add_only.contains(&&*id),
+                    known_add_only.contains(id),
                     "{id}: second write should contain at least one Modify"
                 );
             }

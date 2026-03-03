@@ -141,7 +141,7 @@ fn config_writer_factory_ids_match_matrix_config_writers() -> TestResult {
         .collect();
     for (game_id, game) in &matrix.games {
         assert!(
-            factory_ids.contains(game.config_writer.as_str()),
+            factory_ids.contains(&*game.config_writer),
             "game '{}' references config_writer '{}' with no matching factory",
             game_id,
             game.config_writer

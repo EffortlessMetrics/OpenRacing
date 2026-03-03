@@ -327,7 +327,7 @@ mod default_config_validation {
             .collect();
         let mut missing = Vec::new();
         for (game_id, game) in &matrix.games {
-            if !factory_ids.contains(game.config_writer.as_str()) {
+            if !factory_ids.contains(&*game.config_writer) {
                 missing.push(format!("{game_id} -> {}", game.config_writer));
             }
         }
@@ -1264,7 +1264,7 @@ mod per_game_overrides {
             .collect();
         for (game_id, game) in &matrix.games {
             assert!(
-                factory_ids.contains(game.config_writer.as_str()),
+                factory_ids.contains(&*game.config_writer),
                 "game {} writer '{}' not in factory list",
                 game_id,
                 game.config_writer

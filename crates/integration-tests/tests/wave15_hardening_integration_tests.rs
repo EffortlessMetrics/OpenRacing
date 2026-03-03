@@ -602,7 +602,7 @@ fn config_writer_factory_ids_align_with_support_matrix() -> Result<(), Box<dyn s
 
     for (game_id, game) in &matrix.games {
         assert!(
-            factory_ids.contains(game.config_writer.as_str()),
+            factory_ids.contains(&*game.config_writer),
             "game '{game_id}' references config_writer '{}' with no factory",
             game.config_writer
         );

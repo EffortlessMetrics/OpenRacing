@@ -165,7 +165,7 @@ fn registry_no_duplicate_factory_functions() -> TestResult {
         let adapter = factory();
         game_ids.push(adapter.game_id().to_string());
     }
-    let unique: HashSet<&str> = game_ids.iter().map(|s| s.as_str()).collect();
+    let unique: HashSet<&str> = game_ids.iter().map(|s| &**s).collect();
     assert_eq!(
         game_ids.len(),
         unique.len(),

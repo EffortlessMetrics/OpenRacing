@@ -453,7 +453,7 @@ mod config_defaults {
             .collect();
         for (game_id, game) in &matrix.games {
             assert!(
-                factory_ids.contains(game.config_writer.as_str()),
+                factory_ids.contains(&*game.config_writer),
                 "game {} references config_writer '{}' not in factory list",
                 game_id,
                 game.config_writer

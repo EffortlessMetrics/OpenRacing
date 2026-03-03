@@ -804,7 +804,7 @@ async fn handshake_client_gets_unique_id() -> Result<(), BoxErr> {
     let clients = server.connected_clients().await;
     assert_eq!(clients.len(), 5);
 
-    let ids: HashSet<&str> = clients.iter().map(|c| c.id.as_str()).collect();
+    let ids: HashSet<&str> = clients.iter().map(|c| &*c.id).collect();
     assert_eq!(ids.len(), 5, "all client IDs must be unique");
 
     server.stop().await?;

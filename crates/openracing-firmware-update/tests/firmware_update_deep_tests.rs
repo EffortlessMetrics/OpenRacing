@@ -1754,7 +1754,7 @@ mod power_failure_recovery {
             assert!(blocker.is_ffb_blocked());
             assert_eq!(
                 blocker.get_updating_device().await.as_deref(),
-                Some(dev.as_str())
+                Some(&*dev)
             );
 
             blocker

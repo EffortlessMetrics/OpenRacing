@@ -146,7 +146,7 @@ mod duplicate_profiles {
     fn many_profiles_all_unique_ids() -> TestResult {
         let profiles: Vec<WheelProfile> =
             (0..100).map(|_| WheelProfile::new("Same", "dev")).collect();
-        let ids: std::collections::HashSet<&str> = profiles.iter().map(|p| p.id.as_str()).collect();
+        let ids: std::collections::HashSet<&str> = profiles.iter().map(|p| &*p.id).collect();
         assert_eq!(ids.len(), 100, "all 100 profiles must have unique ids");
         Ok(())
     }

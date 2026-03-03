@@ -1071,7 +1071,7 @@ fn profile_store_update_returns_previous() -> TestResult {
 
     let current = store.get(&id);
     assert!(current.is_some());
-    assert_eq!(current.map(|p| p.metadata.name.as_str()), Some("Updated"));
+    assert_eq!(current.map(|p| &*p.metadata.name), Some("Updated"));
     Ok(())
 }
 

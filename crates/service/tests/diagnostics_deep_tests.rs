@@ -287,7 +287,7 @@ fn results_can_be_sorted_by_severity() -> Result<(), BoxErr> {
 async fn diagnostic_tests_cover_expected_categories() -> Result<(), BoxErr> {
     let service = DiagnosticService::new().await?;
     let tests = service.list_tests();
-    let names: Vec<&str> = tests.iter().map(|(n, _)| n.as_str()).collect();
+    let names: Vec<&str> = tests.iter().map(|(n, _)| &**n).collect();
 
     // The service should have tests for these core categories
     let expected_categories = [

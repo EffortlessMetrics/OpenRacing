@@ -97,7 +97,7 @@ mod profile_creation_system {
             .map(|i| WheelProfile::new(format!("P{i}"), "dev"))
             .collect();
 
-        let ids: std::collections::HashSet<&str> = profiles.iter().map(|p| p.id.as_str()).collect();
+        let ids: std::collections::HashSet<&str> = profiles.iter().map(|p| &*p.id).collect();
         assert_eq!(ids.len(), 50, "all 50 profiles must have unique IDs");
         Ok(())
     }

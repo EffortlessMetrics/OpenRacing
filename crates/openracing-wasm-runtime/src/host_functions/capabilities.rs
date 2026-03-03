@@ -58,7 +58,7 @@ fn check_capability_impl(
         }
     };
 
-    let result = match capability_str.as_str() {
+    let result = match &*capability_str {
         capability_str::READ_TELEMETRY => caller.data().capability_checker.check_telemetry_read(),
         capability_str::MODIFY_TELEMETRY => {
             caller.data().capability_checker.check_telemetry_modify()

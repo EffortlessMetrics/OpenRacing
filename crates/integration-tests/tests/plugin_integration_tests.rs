@@ -163,7 +163,7 @@ mod plugin_discovery_loading {
             names.len()
         );
 
-        let found_names: HashSet<&str> = all.iter().map(|m| m.name.as_str()).collect();
+        let found_names: HashSet<&str> = all.iter().map(|m| &*m.name).collect();
         for name in names {
             assert!(
                 found_names.contains(name),

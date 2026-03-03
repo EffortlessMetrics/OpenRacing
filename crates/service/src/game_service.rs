@@ -108,7 +108,7 @@ impl GameService {
         for (game_id, game_support) in &support_matrix.games {
             let config_writer_id = game_support.config_writer.to_ascii_lowercase();
             let factory = writer_factory_lookup
-                .get(config_writer_id.as_str())
+                .get(&*config_writer_id)
                 .ok_or_else(|| {
                     anyhow::anyhow!(
                         "Missing config writer '{}' for game '{}'",

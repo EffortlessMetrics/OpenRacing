@@ -666,7 +666,7 @@ mod connection_state {
         assert_eq!(event.event_type, HealthEventType::Fault);
         assert_eq!(event.metadata.len(), 2);
         assert_eq!(
-            event.metadata.get("fault_code").map(|s| s.as_str()),
+            event.metadata.get("fault_code").map(|s| &**s),
             Some("E001")
         );
     }

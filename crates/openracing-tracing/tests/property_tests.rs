@@ -161,10 +161,10 @@ proptest! {
         let id = event.device_id();
         match &event {
             AppTraceEvent::DeviceConnected { device_id, .. } => {
-                prop_assert_eq!(id, Some(device_id.as_str()));
+                prop_assert_eq!(id, Some(&**device_id));
             }
             AppTraceEvent::DeviceDisconnected { device_id, .. } => {
-                prop_assert_eq!(id, Some(device_id.as_str()));
+                prop_assert_eq!(id, Some(&**device_id));
             }
             _ => {}
         }

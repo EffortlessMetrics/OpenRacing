@@ -717,7 +717,7 @@ fn registry_add_and_retrieve_plugin() -> Result<(), PluginError> {
 
     let retrieved = catalog.get_plugin(&id, None);
     assert!(retrieved.is_some());
-    assert_eq!(retrieved.map(|m| m.name.as_str()), Some("FFB Filter"));
+    assert_eq!(retrieved.map(|m| &*m.name), Some("FFB Filter"));
     Ok(())
 }
 

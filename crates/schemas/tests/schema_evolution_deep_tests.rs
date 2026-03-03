@@ -511,7 +511,7 @@ fn proto_op_result_round_trip() -> TestResult {
     let bytes = msg.encode_to_vec();
     let decoded = proto::OpResult::decode(bytes.as_slice())?;
     assert!(decoded.success);
-    assert_eq!(decoded.metadata.get("key").map(|s| s.as_str()), Some("val"));
+    assert_eq!(decoded.metadata.get("key").map(|s| &**s), Some("val"));
     Ok(())
 }
 
