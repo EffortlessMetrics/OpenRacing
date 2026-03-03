@@ -7,7 +7,7 @@
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
-    telemetry_now_ns,
+    TelemetryValue, telemetry_now_ns,
 };
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
@@ -234,6 +234,20 @@ fn parse_r3e_memory(data: &[u8]) -> Result<NormalizedTelemetry> {
     }
     if tire_pressures.iter().any(|&p| p > 0.0) {
         builder = builder.tire_pressures_psi(tire_pressures);
+    }
+
+    // Extended fields: raw fuel values for pit-strategy tools.
+    if fuel_left > 0.0 {
+        builder = builder.extended(
+            "fuel_left_l".to_string(),
+            TelemetryValue::Float(fuel_left),
+        );
+    }
+    if fuel_capacity > 0.0 {
+        builder = builder.extended(
+            "fuel_capacity_l".to_string(),
+            TelemetryValue::Float(fuel_capacity),
+        );
     }
 
     Ok(builder.build())

@@ -59,4 +59,11 @@ delta_ahead_s: 1.5
 delta_behind_s: 0.7
 fuel_percent: 0.41666666
 engine_temp_c: 97
+extended:
+  fuel_capacity_l:
+    type: Float
+    value: 60
+  fuel_left_l:
+    type: Float
+    value: 25
 sequence: 0
