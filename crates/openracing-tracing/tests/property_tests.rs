@@ -383,11 +383,11 @@ proptest! {
     #[test]
     fn prop_metrics_drop_rate_bounded(
         emitted in 1u64..=100_000u64,
-        dropped in 0u64..=1000u64,
+        drop_pct in 0u32..=100u32,
     ) {
         let mut m = TracingMetrics::new();
         m.rt_events_emitted = emitted;
-        m.events_dropped = dropped;
+        m.events_dropped = (emitted * drop_pct as u64) / 100;
         let rate = m.drop_rate();
         prop_assert!(rate >= 0.0);
         prop_assert!(rate <= 1.0);
