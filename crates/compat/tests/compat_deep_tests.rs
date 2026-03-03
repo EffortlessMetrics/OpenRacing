@@ -896,6 +896,175 @@ fn breaking_change_version_ordering_consistent() -> TestResult {
 }
 
 // ===========================================================================
+// 8b. Migration idempotency — migrate twice yields same result
+// ===========================================================================
+
+/// Migrating a legacy profile twice must produce the same result.
+#[test]
+fn idempotency_migrate_legacy_twice_yields_same_result() -> TestResult {
+    let mgr = make_manager()?;
+    let legacy = create_legacy_profile(0.85, 540, 10.0);
+
+    let first = mgr.migrate_profile(&legacy)?;
+    let second = mgr.migrate_profile(&first)?;
+
+    let v1: serde_json::Value = serde_json::from_str(&first)?;
+    let v2: serde_json::Value = serde_json::from_str(&second)?;
+    assert_eq!(v1, v2, "second migration must be identical to first");
+    Ok(())
+}
+
+/// Migrating an already-current profile is a no-op.
+#[test]
+fn idempotency_current_profile_unchanged_after_migration() -> TestResult {
+    let mgr = make_manager()?;
+    let v1 = create_v1_profile(0.7, 900, 15.0);
+
+    let original: serde_json::Value = serde_json::from_str(&v1)?;
+    let migrated = mgr.migrate_profile(&v1)?;
+    let after: serde_json::Value = serde_json::from_str(&migrated)?;
+    assert_eq!(original, after);
+    Ok(())
+}
+
+/// Triple migration of a legacy profile converges to the same result.
+#[test]
+fn idempotency_triple_migration_converges() -> TestResult {
+    let mgr = make_manager()?;
+    let legacy = create_legacy_profile(0.42, 1080, 20.0);
+
+    let m1 = mgr.migrate_profile(&legacy)?;
+    let m2 = mgr.migrate_profile(&m1)?;
+    let m3 = mgr.migrate_profile(&m2)?;
+
+    let v2: serde_json::Value = serde_json::from_str(&m2)?;
+    let v3: serde_json::Value = serde_json::from_str(&m3)?;
+    assert_eq!(v2, v3, "migrations must converge after first pass");
+    Ok(())
+}
+
+/// ProfileMigrationService idempotency — migrate_with_backup twice is stable.
+#[test]
+fn idempotency_service_migrate_twice() -> TestResult {
+    let svc = ProfileMigrationService::new(MigrationConfig::without_backups())?;
+    let legacy = create_legacy_profile(0.6, 720, 12.0);
+
+    let first = svc.migrate_with_backup(&legacy, None)?;
+    let second = svc.migrate_with_backup(&first.migrated_json, None)?;
+
+    assert!(!second.was_migrated(), "second migration should be a no-op");
+    assert_eq!(second.migration_count(), 0);
+
+    let v1: serde_json::Value = serde_json::from_str(&first.migrated_json)?;
+    let v2: serde_json::Value = serde_json::from_str(&second.migrated_json)?;
+    assert_eq!(v1, v2);
+    Ok(())
+}
+
+/// BackwardCompatibleParser parse_or_migrate is idempotent.
+#[test]
+fn idempotency_parser_parse_or_migrate_twice() -> TestResult {
+    let parser = BackwardCompatibleParser::new();
+    let legacy = create_legacy_profile(0.9, 540, 8.5);
+
+    let first = parser.parse_or_migrate(&legacy)?;
+    let first_json = first.to_json()?;
+    let second = parser.parse_or_migrate(&first_json)?;
+
+    assert_eq!(first.ffb_gain(), second.ffb_gain());
+    assert_eq!(first.dor_deg(), second.dor_deg());
+    assert_eq!(first.torque_cap_nm(), second.torque_cap_nm());
+    assert_eq!(first.schema_version.major, second.schema_version.major);
+    Ok(())
+}
+
+/// Partial legacy profiles (some fields present, others default) are idempotent.
+#[test]
+fn idempotency_partial_legacy_profile() -> TestResult {
+    let mgr = make_manager()?;
+    let partial = r#"{"ffb_gain": 0.5}"#;
+
+    let first = mgr.migrate_profile(partial)?;
+    let second = mgr.migrate_profile(&first)?;
+
+    let v1: serde_json::Value = serde_json::from_str(&first)?;
+    let v2: serde_json::Value = serde_json::from_str(&second)?;
+    assert_eq!(v1, v2, "partial migration must be idempotent");
+    Ok(())
+}
+
+// ===========================================================================
+// 8c. Partial migration — some fields migrate, others default
+// ===========================================================================
+
+/// Legacy profile with only ffb_gain gets defaults for dor and torque.
+#[test]
+fn partial_migration_only_ffb_gain() -> TestResult {
+    let mgr = make_manager()?;
+    let partial = r#"{"ffb_gain": 0.3}"#;
+    let migrated = mgr.migrate_profile(partial)?;
+    let v: serde_json::Value = serde_json::from_str(&migrated)?;
+
+    let base = v.get("base").ok_or("missing base")?;
+    let gain = base.get("ffbGain").and_then(|x| x.as_f64()).ok_or("missing ffbGain")?;
+    assert!((gain - 0.3).abs() < f64::EPSILON);
+    assert!(base.get("dorDeg").is_some());
+    assert!(base.get("torqueCapNm").is_some());
+    assert!(base.get("filters").is_some());
+    Ok(())
+}
+
+/// Legacy profile with torque_cap and ffb_gain gets defaults for dor.
+#[test]
+fn partial_migration_torque_cap_and_ffb_gain() -> TestResult {
+    let mgr = make_manager()?;
+    let partial = r#"{"torque_cap": 25.0, "ffb_gain": 0.8}"#;
+    let migrated = mgr.migrate_profile(partial)?;
+    let v: serde_json::Value = serde_json::from_str(&migrated)?;
+
+    let base = v.get("base").ok_or("missing base")?;
+    let torque = base
+        .get("torqueCapNm")
+        .and_then(|x| x.as_f64())
+        .ok_or("missing torqueCapNm")?;
+    assert!((torque - 25.0).abs() < f64::EPSILON);
+    assert!(base.get("ffbGain").is_some());
+    assert!(base.get("dorDeg").is_some());
+    Ok(())
+}
+
+/// Extra unknown fields in legacy profile may be preserved or dropped by migration.
+/// The important contract is that the result is valid v1 with correct schema.
+#[test]
+fn partial_migration_extra_fields_result_is_valid_v1() -> TestResult {
+    let mgr = make_manager()?;
+    let with_extras = r#"{
+        "ffb_gain": 0.7,
+        "degrees_of_rotation": 900,
+        "torque_cap": 15.0,
+        "unknown_field": "extra",
+        "debug_mode": true
+    }"#;
+    let migrated = mgr.migrate_profile(with_extras)?;
+    let v: serde_json::Value = serde_json::from_str(&migrated)?;
+
+    assert_eq!(
+        v.get("schema").and_then(|s| s.as_str()),
+        Some(CURRENT_SCHEMA_VERSION)
+    );
+    assert!(v.get("base").is_some(), "migrated profile must have base");
+    assert!(v.get("scope").is_some(), "migrated profile must have scope");
+
+    let gain = v
+        .get("base")
+        .and_then(|b| b.get("ffbGain"))
+        .and_then(|x| x.as_f64())
+        .ok_or("missing ffbGain")?;
+    assert!((gain - 0.7).abs() < f64::EPSILON);
+    Ok(())
+}
+
+// ===========================================================================
 // 9. Feature flag combinations
 // ===========================================================================
 
