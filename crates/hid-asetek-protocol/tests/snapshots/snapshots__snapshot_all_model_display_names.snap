@@ -1,0 +1,14 @@
+---
+source: crates/hid-asetek-protocol/tests/snapshots.rs
+expression: summary
+---
+[
+    "Forte: name='Asetek Forte', torque=18.0Nm",
+    "Invicta: name='Asetek Invicta', torque=27.0Nm",
+    "LaPrima: name='Asetek La Prima', torque=12.0Nm",
+    "TonyKanaan: name='Asetek Tony Kanaan Edition', torque=27.0Nm",
+    "InvictaPedals: name='Asetek Invicta Pedals', torque=0.0Nm",
+    "FortePedals: name='Asetek Forte Pedals', torque=0.0Nm",
+    "LaPrimaPedals: name='Asetek La Prima Pedals', torque=0.0Nm",
+    "Unknown: name='Unknown Asetek Device', torque=18.0Nm",
+]

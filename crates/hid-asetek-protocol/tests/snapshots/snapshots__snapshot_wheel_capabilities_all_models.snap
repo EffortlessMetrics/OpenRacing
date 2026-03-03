@@ -1,0 +1,10 @@
+---
+source: crates/hid-asetek-protocol/tests/snapshots.rs
+expression: summary
+---
+[
+    "Forte: torque=18.0Nm, speed=3000rpm, qr=true",
+    "Invicta: torque=27.0Nm, speed=2500rpm, qr=true",
+    "LaPrima: torque=12.0Nm, speed=2000rpm, qr=true",
+    "Unknown: torque=18.0Nm, speed=2500rpm, qr=true",
+]

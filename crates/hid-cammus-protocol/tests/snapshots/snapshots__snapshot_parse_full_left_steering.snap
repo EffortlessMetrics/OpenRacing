@@ -1,0 +1,5 @@
+---
+source: crates/hid-cammus-protocol/tests/snapshots.rs
+expression: "format!(\"steering={:.4}, throttle={:.4}, brake={:.4}\", report.steering,\nreport.throttle, report.brake)"
+---
+"steering=-1.0000, throttle=0.0000, brake=0.0000"

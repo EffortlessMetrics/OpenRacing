@@ -1,0 +1,38 @@
+---
+source: crates/hid-asetek-protocol/tests/snapshots.rs
+expression: data
+---
+[
+    42,
+    0,
+    26,
+    4,
+    2,
+    255,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+]

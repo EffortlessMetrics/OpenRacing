@@ -1,0 +1,11 @@
+---
+source: crates/hid-cammus-protocol/tests/snapshots.rs
+expression: summary
+---
+[
+    "PID=0x0301: C5 (Cammus C5)",
+    "PID=0x0302: C12 (Cammus C12)",
+    "PID=0x1018: Cp5Pedals (Cammus CP5 Pedals)",
+    "PID=0x1019: Lc100Pedals (Cammus LC100 Pedals)",
+    "PID=0xFFFF: None",
+]

@@ -5854,6 +5854,7 @@ dependencies = [
  "openracing-calibration",
  "openracing-curves",
  "openracing-device-types",
+ "openracing-diagnostic",
  "openracing-errors",
  "openracing-filters",
  "openracing-fmea",
@@ -6202,6 +6203,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "insta",
  "proptest",
  "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-core",

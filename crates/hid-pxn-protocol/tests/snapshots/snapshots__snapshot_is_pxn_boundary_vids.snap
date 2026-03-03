@@ -1,0 +1,5 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshots.rs
+expression: "format!(\"{results:?}\")"
+---
+"[(\"vid_minus_one\", false), (\"vid_exact\", true), (\"vid_plus_one\", false), (\"vid_zero\", false), (\"vid_max\", false)]"

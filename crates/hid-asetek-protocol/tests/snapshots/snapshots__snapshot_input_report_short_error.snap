@@ -1,0 +1,5 @@
+---
+source: crates/hid-asetek-protocol/tests/snapshots.rs
+expression: "format!(\"{e}\")"
+---
+"Invalid report size: expected 16, got 10"

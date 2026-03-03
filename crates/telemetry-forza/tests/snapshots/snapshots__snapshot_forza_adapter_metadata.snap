@@ -1,0 +1,5 @@
+---
+source: crates/telemetry-forza/tests/snapshots.rs
+expression: "format!(\"game_id={}, update_rate={:?}\", adapter.game_id(),\nadapter.expected_update_rate())"
+---
+"game_id=forza_motorsport, update_rate=16ms"

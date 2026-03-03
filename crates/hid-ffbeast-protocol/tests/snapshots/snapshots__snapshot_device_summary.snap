@@ -1,0 +1,9 @@
+---
+source: crates/hid-ffbeast-protocol/tests/snapshots.rs
+expression: summary
+---
+[
+    "Joystick: PID=0x58F9, is_ffbeast=true",
+    "Rudder: PID=0x5968, is_ffbeast=true",
+    "Wheel: PID=0x59D7, is_ffbeast=true",
+]

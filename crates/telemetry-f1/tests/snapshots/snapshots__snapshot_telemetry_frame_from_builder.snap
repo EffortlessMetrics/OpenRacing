@@ -1,0 +1,5 @@
+---
+source: crates/telemetry-f1/tests/snapshots.rs
+expression: "format!(\"rpm={:.1}, speed={:.1}, gear={}, ts_ns={}, seq={}, raw={}\",\nframe.data.rpm, frame.data.speed_ms, frame.data.gear, frame.timestamp_ns,\nframe.sequence, frame.raw_size)"
+---
+"rpm=3200.0, speed=22.0, gear=2, ts_ns=1000000, seq=1, raw=1347"

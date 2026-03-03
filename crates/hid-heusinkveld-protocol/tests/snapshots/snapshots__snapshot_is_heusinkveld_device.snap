@@ -1,0 +1,5 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshots.rs
+expression: "format!(\"{results:?}\")"
+---
+"[(\"current_vid\", true), (\"legacy_vid\", true), (\"handbrake_v1_vid\", true), (\"shifter_vid\", true), (\"wrong_vid_zero\", false), (\"wrong_vid_ffff\", false)]"

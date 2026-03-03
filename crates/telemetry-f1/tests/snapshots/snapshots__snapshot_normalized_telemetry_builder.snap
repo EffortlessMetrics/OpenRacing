@@ -1,0 +1,5 @@
+---
+source: crates/telemetry-f1/tests/snapshots.rs
+expression: "format!(\"rpm={:.1}, speed_ms={:.1}, gear={}, throttle={:.2}, brake={:.2}, steering_angle={:.2}\",\nt.rpm, t.speed_ms, t.gear, t.throttle, t.brake, t.steering_angle)"
+---
+"rpm=12500.0, speed_ms=83.3, gear=7, throttle=1.00, brake=0.00, steering_angle=0.00"

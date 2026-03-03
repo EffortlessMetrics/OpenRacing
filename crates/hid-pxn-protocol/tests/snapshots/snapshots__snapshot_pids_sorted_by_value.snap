@@ -1,0 +1,11 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshots.rs
+expression: summary
+---
+[
+    "V12_LITE=0x1112",
+    "V12_LITE_2=0x1211",
+    "V12=0x1212",
+    "GT987=0x2141",
+    "V10=0x3245",
+]

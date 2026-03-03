@@ -1,0 +1,14 @@
+---
+source: crates/hid-cammus-protocol/tests/snapshots.rs
+expression: "cammus::encode_torque(-0.5)"
+---
+[
+    1,
+    1,
+    192,
+    1,
+    0,
+    0,
+    0,
+    0,
+]

@@ -1,0 +1,5 @@
+---
+source: crates/hid-cube-controls-protocol/tests/snapshots.rs
+expression: "format!(\"from_pid={a:?}, literal={b:?}, equal={}\", a == b)"
+---
+"from_pid=GtPro, literal=GtPro, equal=true"
