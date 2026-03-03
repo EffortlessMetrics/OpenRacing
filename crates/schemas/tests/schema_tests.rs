@@ -1953,3 +1953,1184 @@ fn entity_base_settings_serde_roundtrip() -> TestResult {
     assert_eq!(restored, bs);
     Ok(())
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// TelemetrySnapshot serde roundtrip
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn telemetry_snapshot_serde_roundtrip() -> TestResult {
+    let snapshot = TelemetrySnapshot {
+        timestamp_ns: 123_456_789,
+        speed_ms: 55.0,
+        steering_angle: -0.3,
+        throttle: 0.9,
+        brake: 0.05,
+        clutch: 0.0,
+        rpm: 7200.0,
+        max_rpm: 8500.0,
+        gear: 5,
+        num_gears: 6,
+        lateral_g: 1.5,
+        longitudinal_g: -0.8,
+        vertical_g: 0.02,
+        slip_ratio: 0.03,
+        slip_angle_fl: 0.01,
+        slip_angle_fr: 0.02,
+        slip_angle_rl: 0.03,
+        slip_angle_rr: 0.04,
+        ffb_scalar: 0.65,
+        ffb_torque_nm: 8.5,
+        flags: TelemetryFlags {
+            yellow_flag: true,
+            pit_limiter: true,
+            ..Default::default()
+        },
+        position: 2,
+        lap: 12,
+        current_lap_time_s: 78.4,
+        fuel_percent: 0.42,
+        sequence: 5000,
+    };
+
+    let json = serde_json::to_string(&snapshot)?;
+    let restored: TelemetrySnapshot = serde_json::from_str(&json)?;
+
+    assert_eq!(restored.timestamp_ns, 123_456_789);
+    assert!((restored.speed_ms - 55.0).abs() < f32::EPSILON);
+    assert!((restored.steering_angle - (-0.3)).abs() < f32::EPSILON);
+    assert!((restored.throttle - 0.9).abs() < f32::EPSILON);
+    assert_eq!(restored.gear, 5);
+    assert_eq!(restored.num_gears, 6);
+    assert!((restored.lateral_g - 1.5).abs() < f32::EPSILON);
+    assert!((restored.ffb_scalar - 0.65).abs() < f32::EPSILON);
+    assert!((restored.ffb_torque_nm - 8.5).abs() < f32::EPSILON);
+    assert!(restored.flags.yellow_flag);
+    assert!(restored.flags.pit_limiter);
+    assert!(!restored.flags.red_flag);
+    assert_eq!(restored.position, 2);
+    assert_eq!(restored.lap, 12);
+    assert!((restored.fuel_percent - 0.42).abs() < f32::EPSILON);
+    assert_eq!(restored.sequence, 5000);
+    Ok(())
+}
+
+#[test]
+fn telemetry_snapshot_from_and_to_telemetry_roundtrip() -> TestResult {
+    use std::time::Instant;
+
+    let epoch = Instant::now();
+    let telemetry = NormalizedTelemetry::builder()
+        .speed_ms(30.0)
+        .rpm(5000.0)
+        .gear(3)
+        .throttle(0.6)
+        .brake(0.0)
+        .ffb_scalar(0.4)
+        .position(5)
+        .lap(3)
+        .sequence(42)
+        .build();
+
+    let snapshot = TelemetrySnapshot::from_telemetry(&telemetry, epoch);
+    let restored = snapshot.to_telemetry(epoch);
+
+    assert!((restored.speed_ms - 30.0).abs() < f32::EPSILON);
+    assert!((restored.rpm - 5000.0).abs() < f32::EPSILON);
+    assert_eq!(restored.gear, 3);
+    assert!((restored.throttle - 0.6).abs() < f32::EPSILON);
+    assert!((restored.ffb_scalar - 0.4).abs() < f32::EPSILON);
+    assert_eq!(restored.position, 5);
+    assert_eq!(restored.sequence, 42);
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// TelemetryFrame serde roundtrip
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn telemetry_frame_serde_roundtrip() -> TestResult {
+    let data = NormalizedTelemetry::builder()
+        .speed_ms(22.0)
+        .rpm(4500.0)
+        .gear(2)
+        .build();
+
+    let frame = TelemetryFrame::new(data, 999_000_000, 77, 256);
+
+    let json = serde_json::to_string(&frame)?;
+    let restored: TelemetryFrame = serde_json::from_str(&json)?;
+
+    assert!((restored.data.speed_ms - 22.0).abs() < f32::EPSILON);
+    assert!((restored.data.rpm - 4500.0).abs() < f32::EPSILON);
+    assert_eq!(restored.data.gear, 2);
+    assert_eq!(restored.timestamp_ns, 999_000_000);
+    assert_eq!(restored.sequence, 77);
+    assert_eq!(restored.raw_size, 256);
+    Ok(())
+}
+
+#[test]
+fn telemetry_frame_from_telemetry_helper() -> TestResult {
+    let data = NormalizedTelemetry::builder().speed_ms(10.0).build();
+    let frame = TelemetryFrame::from_telemetry(data, 1, 128);
+
+    assert!((frame.data.speed_ms - 10.0).abs() < f32::EPSILON);
+    assert_eq!(frame.sequence, 1);
+    assert_eq!(frame.raw_size, 128);
+    assert!(frame.timestamp_ns > 0);
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// TelemetryValue serde roundtrip – all variants
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn telemetry_value_float_serde_roundtrip() -> TestResult {
+    let val = TelemetryValue::Float(42.5);
+    let json = serde_json::to_string(&val)?;
+    let restored: TelemetryValue = serde_json::from_str(&json)?;
+    assert_eq!(restored, TelemetryValue::Float(42.5));
+    Ok(())
+}
+
+#[test]
+fn telemetry_value_integer_serde_roundtrip() -> TestResult {
+    let val = TelemetryValue::Integer(-7);
+    let json = serde_json::to_string(&val)?;
+    let restored: TelemetryValue = serde_json::from_str(&json)?;
+    assert_eq!(restored, TelemetryValue::Integer(-7));
+    Ok(())
+}
+
+#[test]
+fn telemetry_value_boolean_serde_roundtrip() -> TestResult {
+    let val = TelemetryValue::Boolean(true);
+    let json = serde_json::to_string(&val)?;
+    let restored: TelemetryValue = serde_json::from_str(&json)?;
+    assert_eq!(restored, TelemetryValue::Boolean(true));
+    Ok(())
+}
+
+#[test]
+fn telemetry_value_string_serde_roundtrip() -> TestResult {
+    let val = TelemetryValue::String("custom_data".to_string());
+    let json = serde_json::to_string(&val)?;
+    let restored: TelemetryValue = serde_json::from_str(&json)?;
+    assert_eq!(restored, TelemetryValue::String("custom_data".to_string()));
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// TelemetryFlags serde and defaults
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn telemetry_flags_default_green_flag_is_true() -> TestResult {
+    let flags = TelemetryFlags::default();
+    assert!(flags.green_flag, "green_flag should default to true");
+    assert!(!flags.yellow_flag);
+    assert!(!flags.red_flag);
+    assert!(!flags.blue_flag);
+    assert!(!flags.checkered_flag);
+    assert!(!flags.pit_limiter);
+    assert!(!flags.in_pits);
+    assert!(!flags.drs_available);
+    assert!(!flags.drs_active);
+    assert!(!flags.ers_available);
+    assert!(!flags.ers_active);
+    assert!(!flags.launch_control);
+    assert!(!flags.traction_control);
+    assert!(!flags.abs_active);
+    assert!(!flags.engine_limiter);
+    assert!(!flags.safety_car);
+    assert!(!flags.formation_lap);
+    assert!(!flags.session_paused);
+    Ok(())
+}
+
+#[test]
+fn telemetry_flags_all_set_serde_roundtrip() -> TestResult {
+    let flags = TelemetryFlags {
+        yellow_flag: true,
+        red_flag: true,
+        blue_flag: true,
+        checkered_flag: true,
+        green_flag: false,
+        pit_limiter: true,
+        in_pits: true,
+        drs_available: true,
+        drs_active: true,
+        ers_available: true,
+        ers_active: true,
+        launch_control: true,
+        traction_control: true,
+        abs_active: true,
+        engine_limiter: true,
+        safety_car: true,
+        formation_lap: true,
+        session_paused: true,
+    };
+
+    let json = serde_json::to_string(&flags)?;
+    let restored: TelemetryFlags = serde_json::from_str(&json)?;
+    assert_eq!(restored, flags);
+    Ok(())
+}
+
+#[test]
+fn telemetry_flags_deserialize_from_partial_json() -> TestResult {
+    // Only provide a subset; serde defaults should fill the rest
+    let json = r#"{"yellow_flag": true}"#;
+    let flags: TelemetryFlags = serde_json::from_str(json)?;
+    assert!(flags.yellow_flag);
+    assert!(flags.green_flag, "green_flag should default to true");
+    assert!(!flags.red_flag);
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// TelemetryData (device telemetry) serde roundtrip
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn telemetry_data_full_serde_roundtrip() -> TestResult {
+    let data = TelemetryData {
+        wheel_angle_deg: -450.0,
+        wheel_speed_rad_s: 3.14,
+        temperature_c: 65,
+        fault_flags: 0b11001100,
+        hands_on: true,
+        timestamp: 123_456,
+    };
+
+    let json = serde_json::to_string(&data)?;
+    let restored: TelemetryData = serde_json::from_str(&json)?;
+    assert_eq!(restored, data);
+    Ok(())
+}
+
+#[test]
+fn telemetry_data_default_is_zeroed() -> TestResult {
+    let data = TelemetryData::default();
+    assert!((data.wheel_angle_deg).abs() < f32::EPSILON);
+    assert!((data.wheel_speed_rad_s).abs() < f32::EPSILON);
+    assert_eq!(data.temperature_c, 0);
+    assert_eq!(data.fault_flags, 0);
+    assert!(!data.hands_on);
+    assert_eq!(data.timestamp, 0);
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// NormalizedTelemetry – extended data roundtrip
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn normalized_telemetry_extended_data_serde_roundtrip() -> TestResult {
+    let telemetry = NormalizedTelemetry::builder()
+        .speed_ms(10.0)
+        .extended("boost_psi", TelemetryValue::Float(14.7))
+        .extended("lap_valid", TelemetryValue::Boolean(true))
+        .extended("sector", TelemetryValue::Integer(2))
+        .extended("driver", TelemetryValue::String("P1".to_string()))
+        .build();
+
+    let json = serde_json::to_string(&telemetry)?;
+    let restored: NormalizedTelemetry = serde_json::from_str(&json)?;
+
+    assert_eq!(
+        restored.extended.get("boost_psi"),
+        Some(&TelemetryValue::Float(14.7))
+    );
+    assert_eq!(
+        restored.extended.get("lap_valid"),
+        Some(&TelemetryValue::Boolean(true))
+    );
+    assert_eq!(
+        restored.extended.get("sector"),
+        Some(&TelemetryValue::Integer(2))
+    );
+    assert_eq!(
+        restored.extended.get("driver"),
+        Some(&TelemetryValue::String("P1".to_string()))
+    );
+    Ok(())
+}
+
+#[test]
+fn normalized_telemetry_validated_handles_nan() -> TestResult {
+    let telemetry = NormalizedTelemetry {
+        speed_ms: f32::NAN,
+        throttle: f32::NAN,
+        brake: f32::NAN,
+        clutch: f32::NAN,
+        rpm: f32::NAN,
+        max_rpm: f32::NAN,
+        lateral_g: f32::NAN,
+        longitudinal_g: f32::NAN,
+        vertical_g: f32::NAN,
+        slip_ratio: f32::NAN,
+        ffb_scalar: f32::NAN,
+        ffb_torque_nm: f32::NAN,
+        fuel_percent: f32::NAN,
+        engine_temp_c: f32::NAN,
+        ..Default::default()
+    };
+
+    let v = telemetry.validated();
+    assert_eq!(v.speed_ms, 0.0);
+    assert_eq!(v.throttle, 0.0);
+    assert_eq!(v.brake, 0.0);
+    assert_eq!(v.clutch, 0.0);
+    assert_eq!(v.rpm, 0.0);
+    assert_eq!(v.max_rpm, 0.0);
+    assert_eq!(v.lateral_g, 0.0);
+    assert_eq!(v.longitudinal_g, 0.0);
+    assert_eq!(v.vertical_g, 0.0);
+    assert_eq!(v.slip_ratio, 0.0);
+    assert_eq!(v.ffb_scalar, 0.0);
+    assert_eq!(v.ffb_torque_nm, 0.0);
+    assert_eq!(v.fuel_percent, 0.0);
+    assert_eq!(v.engine_temp_c, 0.0);
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// NormalizedTelemetry helper methods
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn normalized_telemetry_rpm_fraction_zero_max() -> TestResult {
+    let t = NormalizedTelemetry::builder().rpm(5000.0).max_rpm(0.0).build();
+    assert!((t.rpm_fraction()).abs() < f32::EPSILON);
+    Ok(())
+}
+
+#[test]
+fn normalized_telemetry_has_rpm_display_data() -> TestResult {
+    let no_rpm = NormalizedTelemetry::default();
+    assert!(!no_rpm.has_rpm_display_data());
+
+    let partial = NormalizedTelemetry::builder().rpm(1000.0).build();
+    assert!(!partial.has_rpm_display_data());
+
+    let full = NormalizedTelemetry::builder().rpm(6000.0).max_rpm(8000.0).build();
+    assert!(full.has_rpm_display_data());
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Device entity serde roundtrip
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn device_serde_roundtrip() -> TestResult {
+    let caps = DeviceCapabilities::new(
+        true,
+        true,
+        true,
+        false,
+        TorqueNm::new(20.0)?,
+        10000,
+        1000,
+    );
+    let id: DeviceId = "moza-r9".parse()?;
+    let mut device = Device::new(id, "Moza R9".to_string(), DeviceType::WheelBase, caps);
+    device.firmware_version = Some("1.2.3".to_string());
+    device.serial_number = Some("SN-12345".to_string());
+
+    let json = serde_json::to_string(&device)?;
+    let restored: Device = serde_json::from_str(&json)?;
+
+    assert_eq!(restored.id.as_str(), "moza-r9");
+    assert_eq!(restored.name, "Moza R9");
+    assert_eq!(restored.device_type, DeviceType::WheelBase);
+    assert_eq!(restored.state, DeviceState::Connected);
+    assert_eq!(restored.firmware_version, Some("1.2.3".to_string()));
+    assert_eq!(restored.serial_number, Some("SN-12345".to_string()));
+    assert_eq!(restored.capabilities.supports_pid, true);
+    assert!((restored.capabilities.max_torque.value() - 20.0).abs() < f32::EPSILON);
+    Ok(())
+}
+
+#[test]
+fn device_capabilities_ffb_support() -> TestResult {
+    let no_ffb = DeviceCapabilities::new(
+        false,
+        false,
+        true,
+        false,
+        TorqueNm::new(0.0)?,
+        10000,
+        1000,
+    );
+    assert!(!no_ffb.supports_ffb());
+
+    let pid_only = DeviceCapabilities::new(
+        true,
+        false,
+        false,
+        false,
+        TorqueNm::new(10.0)?,
+        10000,
+        1000,
+    );
+    assert!(pid_only.supports_ffb());
+
+    let raw_only = DeviceCapabilities::new(
+        false,
+        true,
+        false,
+        false,
+        TorqueNm::new(10.0)?,
+        10000,
+        1000,
+    );
+    assert!(raw_only.supports_ffb());
+    Ok(())
+}
+
+#[test]
+fn device_capabilities_max_update_rate() -> TestResult {
+    let caps = DeviceCapabilities::new(
+        true,
+        true,
+        false,
+        false,
+        TorqueNm::new(15.0)?,
+        10000,
+        1000, // 1000us = 1kHz
+    );
+    assert!((caps.max_update_rate_hz() - 1000.0).abs() < 0.1);
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// DeviceState and DeviceType serde roundtrip – all variants
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn device_state_all_variants_serde_roundtrip() -> TestResult {
+    let states = [
+        DeviceState::Disconnected,
+        DeviceState::Connected,
+        DeviceState::Active,
+        DeviceState::Faulted,
+        DeviceState::SafeMode,
+    ];
+    for state in &states {
+        let json = serde_json::to_string(state)?;
+        let restored: DeviceState = serde_json::from_str(&json)?;
+        assert_eq!(&restored, state);
+    }
+    Ok(())
+}
+
+#[test]
+fn device_type_all_variants_serde_roundtrip() -> TestResult {
+    let types = [
+        DeviceType::Other,
+        DeviceType::WheelBase,
+        DeviceType::SteeringWheel,
+        DeviceType::Pedals,
+        DeviceType::Shifter,
+        DeviceType::Handbrake,
+        DeviceType::ButtonBox,
+    ];
+    for dt in &types {
+        let json = serde_json::to_string(dt)?;
+        let restored: DeviceType = serde_json::from_str(&json)?;
+        assert_eq!(&restored, dt);
+    }
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// CalibrationData and CalibrationType serde roundtrip
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn calibration_type_all_variants_serde_roundtrip() -> TestResult {
+    let types = [
+        CalibrationType::Center,
+        CalibrationType::Range,
+        CalibrationType::Pedals,
+        CalibrationType::Full,
+    ];
+    for ct in &types {
+        let json = serde_json::to_string(ct)?;
+        let restored: CalibrationType = serde_json::from_str(&json)?;
+        assert_eq!(&restored, ct);
+    }
+    Ok(())
+}
+
+#[test]
+fn calibration_data_full_roundtrip() -> TestResult {
+    let mut cal = CalibrationData::new(CalibrationType::Full);
+    cal.center_position = Some(0.5);
+    cal.min_position = Some(-540.0);
+    cal.max_position = Some(540.0);
+    cal.pedal_ranges = Some(PedalCalibrationData {
+        throttle: Some((0.0, 1.0)),
+        brake: Some((0.05, 0.95)),
+        clutch: Some((0.1, 0.9)),
+    });
+
+    let json = serde_json::to_string(&cal)?;
+    let restored: CalibrationData = serde_json::from_str(&json)?;
+
+    assert!(restored.is_fully_calibrated());
+    assert!(restored.has_pedal_calibration());
+    assert_eq!(restored.calibration_type, CalibrationType::Full);
+    assert!((restored.center_position.ok_or("missing")? - 0.5).abs() < f32::EPSILON);
+    assert!((restored.min_position.ok_or("missing")? - (-540.0)).abs() < f32::EPSILON);
+    assert!((restored.max_position.ok_or("missing")? - 540.0).abs() < f32::EPSILON);
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// ProfileMetadata serde roundtrip
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn profile_metadata_serde_roundtrip() -> TestResult {
+    use racing_wheel_schemas::entities::ProfileMetadata;
+
+    let metadata = ProfileMetadata {
+        name: "Test Profile".to_string(),
+        description: Some("A description".to_string()),
+        author: Some("Tester".to_string()),
+        version: "2.0.0".to_string(),
+        created_at: "2024-01-01T00:00:00Z".to_string(),
+        modified_at: "2024-06-15T12:00:00Z".to_string(),
+        tags: vec!["drift".to_string(), "gt3".to_string()],
+    };
+
+    let json = serde_json::to_string(&metadata)?;
+    let restored: ProfileMetadata = serde_json::from_str(&json)?;
+    assert_eq!(restored, metadata);
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Profile full serde roundtrip (all fields populated)
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn profile_full_serde_roundtrip() -> TestResult {
+    let parent_id: ProfileId = "parent-global".parse()?;
+    let child_id: ProfileId = "child-iracing".parse()?;
+
+    let child = Profile::new_with_parent(
+        child_id,
+        parent_id,
+        ProfileScope::for_game("iRacing".to_string()),
+        BaseSettings::default(),
+        "iRacing Child".to_string(),
+    );
+
+    let json = serde_json::to_string(&child)?;
+    let restored: Profile = serde_json::from_str(&json)?;
+
+    assert_eq!(restored.id.as_str(), "child-iracing");
+    assert_eq!(
+        restored.parent.as_ref().map(|p| p.as_str()),
+        Some("parent-global")
+    );
+    assert_eq!(restored.scope.game, Some("iRacing".to_string()));
+    assert!(restored.scope.car.is_none());
+    assert!(restored.scope.track.is_none());
+    assert!(restored.led_config.is_some());
+    assert!(restored.haptics_config.is_some());
+    assert_eq!(restored.metadata.name, "iRacing Child");
+    Ok(())
+}
+
+#[test]
+fn profile_without_parent_omits_parent_in_json() -> TestResult {
+    let id: ProfileId = "global".parse()?;
+    let profile = Profile::new(
+        id,
+        ProfileScope::global(),
+        BaseSettings::default(),
+        "Global".to_string(),
+    );
+
+    let json = serde_json::to_string(&profile)?;
+    let value: serde_json::Value = serde_json::from_str(&json)?;
+    assert!(value.get("parent").is_none(), "parent should be skipped when None");
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Entity LedConfig and HapticsConfig serde roundtrips
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn entity_led_config_serde_roundtrip() -> TestResult {
+    let led = EntityLedConfig::default();
+    let json = serde_json::to_string(&led)?;
+    let restored: EntityLedConfig = serde_json::from_str(&json)?;
+    assert_eq!(restored, led);
+    Ok(())
+}
+
+#[test]
+fn entity_haptics_config_serde_roundtrip() -> TestResult {
+    let hc = EntityHapticsConfig::default();
+    let json = serde_json::to_string(&hc)?;
+    let restored: EntityHapticsConfig = serde_json::from_str(&json)?;
+    assert_eq!(restored, hc);
+    Ok(())
+}
+
+#[test]
+fn entity_notch_filter_serde_roundtrip() -> TestResult {
+    let freq = FrequencyHz::new(50.0)?;
+    let nf = NotchFilter::new(freq, 2.0, -6.0)?;
+    let json = serde_json::to_string(&nf)?;
+    let restored: NotchFilter = serde_json::from_str(&json)?;
+    assert_eq!(restored, nf);
+    Ok(())
+}
+
+#[test]
+fn entity_bumpstop_config_serde_roundtrip() -> TestResult {
+    let bs = BumpstopConfig::default();
+    let json = serde_json::to_string(&bs)?;
+    let restored: BumpstopConfig = serde_json::from_str(&json)?;
+    assert_eq!(restored, bs);
+    Ok(())
+}
+
+#[test]
+fn entity_hands_off_config_serde_roundtrip() -> TestResult {
+    let ho = HandsOffConfig::default();
+    let json = serde_json::to_string(&ho)?;
+    let restored: HandsOffConfig = serde_json::from_str(&json)?;
+    assert_eq!(restored, ho);
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Config schema types serde roundtrip
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn config_profile_schema_full_serde_roundtrip() -> TestResult {
+    use racing_wheel_schemas::config::ProfileSchema;
+
+    let mut colors = HashMap::new();
+    colors.insert("green".to_string(), [0, 255, 0]);
+
+    let schema = ProfileSchema {
+        schema: "wheel.profile/1".to_string(),
+        scope: racing_wheel_schemas::config::ProfileScope {
+            game: Some("iRacing".to_string()),
+            car: Some("Ferrari 488".to_string()),
+            track: None,
+        },
+        base: racing_wheel_schemas::config::BaseConfig {
+            ffb_gain: 0.85,
+            dor_deg: 900,
+            torque_cap_nm: 15.0,
+            filters: ConfigFilterConfig::default(),
+        },
+        leds: Some(LedConfig {
+            rpm_bands: vec![0.75, 0.85, 0.95],
+            pattern: "progressive".to_string(),
+            brightness: 0.8,
+            colors: Some(colors.clone()),
+        }),
+        haptics: Some(HapticsConfig {
+            enabled: true,
+            intensity: 0.6,
+            frequency_hz: 80.0,
+            effects: None,
+        }),
+        signature: Some("sig123".to_string()),
+    };
+
+    let json = serde_json::to_string(&schema)?;
+    let restored: ProfileSchema = serde_json::from_str(&json)?;
+
+    assert_eq!(restored.schema, "wheel.profile/1");
+    assert_eq!(restored.scope.game, Some("iRacing".to_string()));
+    assert_eq!(restored.scope.car, Some("Ferrari 488".to_string()));
+    assert!(restored.scope.track.is_none());
+    assert!((restored.base.ffb_gain - 0.85).abs() < f32::EPSILON);
+    assert_eq!(restored.base.dor_deg, 900);
+    assert!(restored.leds.is_some());
+    assert!(restored.haptics.is_some());
+    assert_eq!(restored.signature, Some("sig123".to_string()));
+    Ok(())
+}
+
+#[test]
+fn config_profile_schema_minimal_serde_roundtrip() -> TestResult {
+    use racing_wheel_schemas::config::ProfileSchema;
+
+    let schema = ProfileSchema {
+        schema: "wheel.profile/1".to_string(),
+        scope: racing_wheel_schemas::config::ProfileScope {
+            game: None,
+            car: None,
+            track: None,
+        },
+        base: racing_wheel_schemas::config::BaseConfig {
+            ffb_gain: 0.7,
+            dor_deg: 900,
+            torque_cap_nm: 10.0,
+            filters: ConfigFilterConfig::default(),
+        },
+        leds: None,
+        haptics: None,
+        signature: None,
+    };
+
+    let json = serde_json::to_string(&schema)?;
+    let restored: ProfileSchema = serde_json::from_str(&json)?;
+
+    assert_eq!(restored.schema, "wheel.profile/1");
+    assert!(restored.leds.is_none());
+    assert!(restored.haptics.is_none());
+    assert!(restored.signature.is_none());
+    Ok(())
+}
+
+#[test]
+fn config_filter_config_full_serde_roundtrip() -> TestResult {
+    let fc = ConfigFilterConfig {
+        reconstruction: 4,
+        friction: 0.15,
+        damper: 0.25,
+        inertia: 0.1,
+        bumpstop: ConfigBumpstopConfig {
+            enabled: false,
+            strength: 0.7,
+        },
+        hands_off: ConfigHandsOffConfig {
+            enabled: true,
+            sensitivity: 0.5,
+        },
+        torque_cap: Some(0.8),
+        notch_filters: vec![ConfigNotchFilter {
+            hz: 50.0,
+            q: 2.0,
+            gain_db: -6.0,
+        }],
+        slew_rate: 0.9,
+        curve_points: vec![
+            ConfigCurvePoint {
+                input: 0.0,
+                output: 0.0,
+            },
+            ConfigCurvePoint {
+                input: 0.5,
+                output: 0.6,
+            },
+            ConfigCurvePoint {
+                input: 1.0,
+                output: 1.0,
+            },
+        ],
+    };
+
+    let json = serde_json::to_string(&fc)?;
+    let restored: ConfigFilterConfig = serde_json::from_str(&json)?;
+
+    assert_eq!(restored.reconstruction, 4);
+    assert!((restored.friction - 0.15).abs() < f32::EPSILON);
+    assert!((restored.damper - 0.25).abs() < f32::EPSILON);
+    assert!(!restored.bumpstop.enabled);
+    assert!((restored.bumpstop.strength - 0.7).abs() < f32::EPSILON);
+    assert_eq!(restored.notch_filters.len(), 1);
+    assert_eq!(restored.curve_points.len(), 3);
+    assert_eq!(restored.torque_cap, Some(0.8));
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Migration types serde roundtrip
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn schema_version_serde_roundtrip() -> TestResult {
+    let sv = SchemaVersion::parse("wheel.profile/1")?;
+    let json = serde_json::to_string(&sv)?;
+    let restored: SchemaVersion = serde_json::from_str(&json)?;
+    assert_eq!(restored.version, "wheel.profile/1");
+    assert_eq!(restored.major, 1);
+    assert_eq!(restored.minor, 0);
+    Ok(())
+}
+
+#[test]
+fn schema_version_with_minor_serde_roundtrip() -> TestResult {
+    let sv = SchemaVersion::parse("wheel.profile/2.3")?;
+    let json = serde_json::to_string(&sv)?;
+    let restored: SchemaVersion = serde_json::from_str(&json)?;
+    assert_eq!(restored.major, 2);
+    assert_eq!(restored.minor, 3);
+    Ok(())
+}
+
+#[test]
+fn backup_info_serde_roundtrip() -> TestResult {
+    use racing_wheel_schemas::migration::BackupInfo;
+    use std::path::PathBuf;
+
+    let info = BackupInfo::new(
+        PathBuf::from("/profiles/test.json"),
+        PathBuf::from("/backups/test_20240101.json.bak"),
+        "wheel.profile/1".to_string(),
+        "abc123def456".to_string(),
+    );
+
+    let json = serde_json::to_string(&info)?;
+    let restored: BackupInfo = serde_json::from_str(&json)?;
+
+    assert_eq!(restored.original_path, PathBuf::from("/profiles/test.json"));
+    assert_eq!(restored.original_version, "wheel.profile/1");
+    assert_eq!(restored.content_hash, "abc123def456");
+    Ok(())
+}
+
+#[test]
+fn current_schema_version_constant_matches() -> TestResult {
+    let sv = SchemaVersion::parse(CURRENT_SCHEMA_VERSION)?;
+    assert!(sv.is_current());
+    assert_eq!(sv.major, 1);
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// MigrationManager operations
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn migration_manager_needs_migration_for_legacy() -> TestResult {
+    let config = MigrationConfig::without_backups();
+    let dir = tempfile::tempdir()?;
+    let config = MigrationConfig::new(dir.path());
+    let mgr = MigrationManager::new(config)?;
+
+    let legacy_json = r#"{"ffb_gain": 0.8, "degrees_of_rotation": 900}"#;
+    assert!(mgr.needs_migration(legacy_json)?);
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// IPC ConversionError display
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn conversion_error_display_variants() -> TestResult {
+    use racing_wheel_schemas::ipc_conversion::ConversionError;
+
+    let err = ConversionError::InvalidDeviceType(99);
+    assert!(format!("{}", err).contains("99"));
+
+    let err = ConversionError::InvalidDeviceState(10);
+    assert!(format!("{}", err).contains("10"));
+
+    let err = ConversionError::MissingField("test_field".to_string());
+    assert!(format!("{}", err).contains("test_field"));
+
+    let err = ConversionError::UnitConversion("bad unit".to_string());
+    assert!(format!("{}", err).contains("bad unit"));
+
+    let err = ConversionError::RangeValidation {
+        field: "torque".to_string(),
+        value: 99.0,
+        min: 0.0,
+        max: 50.0,
+    };
+    let msg = format!("{}", err);
+    assert!(msg.contains("torque"));
+    assert!(msg.contains("99"));
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// ProfileScope matching edge cases
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn profile_scope_specificity_levels() -> TestResult {
+    let global = ProfileScope::global();
+    let game = ProfileScope::for_game("iRacing".to_string());
+    let car = ProfileScope::for_car("iRacing".to_string(), "GT3".to_string());
+    let track = ProfileScope::for_track(
+        "iRacing".to_string(),
+        "GT3".to_string(),
+        "Spa".to_string(),
+    );
+
+    assert_eq!(global.specificity_level(), 0);
+    assert_eq!(game.specificity_level(), 1);
+    assert_eq!(car.specificity_level(), 2);
+    assert_eq!(track.specificity_level(), 3);
+
+    assert!(game.is_more_specific_than(&global));
+    assert!(car.is_more_specific_than(&game));
+    assert!(track.is_more_specific_than(&car));
+    assert!(!global.is_more_specific_than(&game));
+    Ok(())
+}
+
+#[test]
+fn profile_scope_matches_correctly() -> TestResult {
+    let game_scope = ProfileScope::for_game("iRacing".to_string());
+
+    assert!(game_scope.matches(Some("iRacing"), None, None));
+    assert!(game_scope.matches(Some("iRacing"), Some("GT3"), None));
+    assert!(!game_scope.matches(Some("ACC"), None, None));
+    assert!(!game_scope.matches(None, None, None));
+
+    let car_scope =
+        ProfileScope::for_car("iRacing".to_string(), "GT3".to_string());
+    assert!(car_scope.matches(Some("iRacing"), Some("GT3"), None));
+    assert!(!car_scope.matches(Some("iRacing"), Some("LMP2"), None));
+    assert!(!car_scope.matches(Some("ACC"), Some("GT3"), None));
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Profile hash determinism
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn profile_hash_is_deterministic() -> TestResult {
+    let id: ProfileId = "test-profile".parse()?;
+    let p1 = Profile::new(
+        id.clone(),
+        ProfileScope::global(),
+        BaseSettings::default(),
+        "Test".to_string(),
+    );
+    // Create same profile independently
+    let p2 = Profile::new(
+        id,
+        ProfileScope::global(),
+        BaseSettings::default(),
+        "Test".to_string(),
+    );
+
+    assert_eq!(p1.calculate_hash(), p2.calculate_hash());
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Profile inheritance resolve and validate
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn profile_resolve_single_profile() -> TestResult {
+    let mut store = InMemoryProfileStore::new();
+    let id: ProfileId = "standalone".parse()?;
+    let profile = Profile::new(
+        id.clone(),
+        ProfileScope::global(),
+        BaseSettings::default(),
+        "Standalone".to_string(),
+    );
+    store.add(profile.clone());
+
+    let resolved = profile.resolve(&store)?;
+    assert_eq!(resolved.inheritance_chain.len(), 1);
+    assert_eq!(resolved.inheritance_chain[0].as_str(), "standalone");
+    Ok(())
+}
+
+#[test]
+fn profile_resolve_parent_child() -> TestResult {
+    let mut store = InMemoryProfileStore::new();
+
+    let parent_id: ProfileId = "parent".parse()?;
+    let parent = Profile::new(
+        parent_id.clone(),
+        ProfileScope::global(),
+        BaseSettings::default(),
+        "Parent".to_string(),
+    );
+    store.add(parent);
+
+    let child_id: ProfileId = "child".parse()?;
+    let child = Profile::new_with_parent(
+        child_id.clone(),
+        parent_id,
+        ProfileScope::for_game("iRacing".to_string()),
+        BaseSettings::default(),
+        "Child".to_string(),
+    );
+    store.add(child.clone());
+
+    let resolved = child.resolve(&store)?;
+    assert_eq!(resolved.inheritance_chain.len(), 2);
+    assert_eq!(resolved.inheritance_chain[0].as_str(), "child");
+    assert_eq!(resolved.inheritance_chain[1].as_str(), "parent");
+    Ok(())
+}
+
+#[test]
+fn profile_validate_inheritance_detects_missing_parent() -> TestResult {
+    let store = InMemoryProfileStore::new();
+
+    let child_id: ProfileId = "orphan".parse()?;
+    let missing_parent: ProfileId = "nonexistent".parse()?;
+    let child = Profile::new_with_parent(
+        child_id,
+        missing_parent,
+        ProfileScope::global(),
+        BaseSettings::default(),
+        "Orphan".to_string(),
+    );
+
+    let result = child.validate_inheritance(&store);
+    assert!(result.is_err());
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Entity FilterConfig new_complete
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn entity_filter_config_new_complete() -> TestResult {
+    let freq = FrequencyHz::new(60.0)?;
+    let nf = NotchFilter::new(freq, 1.5, -3.0)?;
+    let cp1 = CurvePoint::new(0.0, 0.0)?;
+    let cp2 = CurvePoint::new(1.0, 1.0)?;
+
+    let fc = FilterConfig::new_complete(
+        2,
+        Gain::new(0.1)?,
+        Gain::new(0.2)?,
+        Gain::new(0.05)?,
+        vec![nf],
+        Gain::new(0.9)?,
+        vec![cp1, cp2],
+        Gain::new(0.8)?,
+        BumpstopConfig::default(),
+        HandsOffConfig::default(),
+    )?;
+
+    assert_eq!(fc.reconstruction, 2);
+    assert!((fc.friction.value() - 0.1).abs() < f32::EPSILON);
+    assert!((fc.torque_cap.value() - 0.8).abs() < f32::EPSILON);
+    assert_eq!(fc.notch_filters.len(), 1);
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Config default roundtrips
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn config_bumpstop_default_values_match() -> TestResult {
+    let bs = ConfigBumpstopConfig::default();
+    assert!(bs.enabled);
+    assert!((bs.strength - 0.5).abs() < f32::EPSILON);
+
+    let json = serde_json::to_string(&bs)?;
+    let restored: ConfigBumpstopConfig = serde_json::from_str(&json)?;
+    assert_eq!(restored.enabled, bs.enabled);
+    assert!((restored.strength - bs.strength).abs() < f32::EPSILON);
+    Ok(())
+}
+
+#[test]
+fn config_hands_off_default_values_match() -> TestResult {
+    let ho = ConfigHandsOffConfig::default();
+    assert!(ho.enabled);
+    assert!((ho.sensitivity - 0.3).abs() < f32::EPSILON);
+
+    let json = serde_json::to_string(&ho)?;
+    let restored: ConfigHandsOffConfig = serde_json::from_str(&json)?;
+    assert_eq!(restored.enabled, ho.enabled);
+    assert!((restored.sensitivity - ho.sensitivity).abs() < f32::EPSILON);
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// ProfileValidator validate_profile struct directly
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn profile_validator_validates_struct_directly() -> TestResult {
+    let validator = ProfileValidator::new()?;
+    let profile = racing_wheel_schemas::config::ProfileSchema {
+        schema: "wheel.profile/1".to_string(),
+        scope: racing_wheel_schemas::config::ProfileScope {
+            game: None,
+            car: None,
+            track: None,
+        },
+        base: racing_wheel_schemas::config::BaseConfig {
+            ffb_gain: 0.7,
+            dor_deg: 900,
+            torque_cap_nm: 15.0,
+            filters: ConfigFilterConfig::default(),
+        },
+        leds: None,
+        haptics: None,
+        signature: None,
+    };
+
+    assert!(validator.validate_profile(&profile).is_ok());
+    Ok(())
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// DomainError conversions
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn domain_error_to_validation_error_device_id() {
+    use openracing_errors::ValidationError;
+
+    let err = DomainError::InvalidDeviceId("bad id".to_string());
+    let ve: ValidationError = err.into();
+    assert!(format!("{}", ve).contains("device_id"));
+}
+
+#[test]
+fn domain_error_to_validation_error_profile_id() {
+    use openracing_errors::ValidationError;
+
+    let err = DomainError::InvalidProfileId("bad id".to_string());
+    let ve: ValidationError = err.into();
+    assert!(format!("{}", ve).contains("profile_id"));
+}
+
+#[test]
+fn domain_error_to_validation_error_frequency() {
+    use openracing_errors::ValidationError;
+
+    let err = DomainError::InvalidFrequency(-1.0);
+    let ve: ValidationError = err.into();
+    assert!(format!("{}", ve).contains("frequency"));
+}
+
+#[test]
+fn domain_error_to_validation_error_curve_points() {
+    use openracing_errors::ValidationError;
+
+    let err = DomainError::InvalidCurvePoints("non-monotonic".to_string());
+    let ve: ValidationError = err.into();
+    assert!(format!("{}", ve).contains("curve_points"));
+}
+
+#[test]
+fn domain_error_to_profile_error_validation_failed() {
+    use openracing_errors::ProfileError;
+
+    let err = DomainError::InvalidGain(1.5);
+    let pe: ProfileError = err.into();
+    assert!(format!("{}", pe).contains("1.5"));
+}
