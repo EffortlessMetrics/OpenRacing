@@ -1,6 +1,7 @@
 //! Telemetry processing utilities
 
 use std::collections::VecDeque;
+use std::time::{Duration, Instant};
 
 pub struct MovingAverage {
     window: VecDeque<f32>,
@@ -18,10 +19,10 @@ impl MovingAverage {
     }
 
     pub fn push(&mut self, value: f32) {
-        if self.window.len() == self.window_size {
-            if let Some(old) = self.window.pop_front() {
-                self.sum -= old;
-            }
+        if self.window.len() == self.window_size
+            && let Some(old) = self.window.pop_front()
+        {
+            self.sum -= old;
         }
 
         self.window.push_back(value);
@@ -59,10 +60,10 @@ impl RateLimiter {
     pub fn should_update(&mut self) -> bool {
         let now = Instant::now();
 
-        if let Some(last) = self.last_update {
-            if now.duration_since(last) < self.min_interval {
-                return false;
-            }
+        if let Some(last) = self.last_update
+            && now.duration_since(last) < self.min_interval
+        {
+            return false;
         }
 
         self.last_update = Some(now);
@@ -110,8 +111,6 @@ impl RateCounter {
         self.start = Instant::now();
     }
 }
-
-use std::time::Instant;
 
 #[cfg(test)]
 mod tests {

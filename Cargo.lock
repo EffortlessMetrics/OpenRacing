@@ -4327,6 +4327,7 @@ dependencies = [
  "proptest",
  "quickcheck",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
  "workspace-hack",
 ]
@@ -4527,6 +4528,7 @@ dependencies = [
  "proptest",
  "quickcheck",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
  "uuid",
  "workspace-hack",
@@ -4581,6 +4583,17 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "workspace-hack",
+]
+
+[[package]]
+name = "openracing-telemetry-streams"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "serde",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-test",
 ]
 
 [[package]]
@@ -5988,6 +6001,7 @@ dependencies = [
 name = "racing-wheel-srp"
 version = "0.1.0"
 dependencies = [
+ "proptest",
  "workspace-hack",
 ]
 
@@ -6074,6 +6088,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "proptest",
  "racing-wheel-schemas",
  "racing-wheel-telemetry-config",
  "racing-wheel-telemetry-recorder",
@@ -6105,6 +6120,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "proptest",
  "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-core",
  "tokio",

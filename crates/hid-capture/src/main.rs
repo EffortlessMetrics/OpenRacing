@@ -1,11 +1,12 @@
 #![deny(static_mut_refs)]
 
+use racing_wheel_hid_capture::{CaptureFile, CaptureReport, parse_hex_u16};
+
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use hidapi::HidApi;
-use serde::{Deserialize, Serialize};
 
 /// Capture raw HID reports from connected racing wheel devices.
 #[derive(Parser)]
@@ -37,25 +38,6 @@ enum Commands {
         #[arg(long)]
         output: Option<String>,
     },
-}
-
-fn parse_hex_u16(s: &str) -> Result<u16, String> {
-    let s = s.trim_start_matches("0x").trim_start_matches("0X");
-    u16::from_str_radix(s, 16).map_err(|e| format!("invalid hex value '{s}': {e}"))
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct CaptureReport {
-    timestamp_us: u64,
-    report_id: u8,
-    data: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct CaptureFile {
-    vendor_id: String,
-    product_id: String,
-    captures: Vec<CaptureReport>,
 }
 
 fn list_devices(api: &HidApi) -> Result<()> {

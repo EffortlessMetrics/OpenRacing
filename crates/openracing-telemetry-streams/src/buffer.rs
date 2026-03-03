@@ -2,7 +2,6 @@
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 
 pub struct TelemetryBuffer<T> {
     buffer: Arc<Mutex<VecDeque<T>>>,
@@ -91,7 +90,7 @@ pub struct RingBuffer<T> {
 impl<T> RingBuffer<T> {
     pub fn new(capacity: usize) -> Self {
         Self {
-            data: vec![None; capacity],
+            data: (0..capacity).map(|_| None).collect(),
             write_index: 0,
             read_index: 0,
             count: 0,
