@@ -38,7 +38,8 @@ proptest! {
         let report = SimucubeOutputReport::new(0).with_torque(torque);
         let decoded_nm = report.torque_cNm as f32 / 100.0;
         let error = (torque - decoded_nm).abs();
-        prop_assert!(error < 0.01,
+        // cNm encoding has 0.01 Nm resolution; allow up to 0.011 for FP rounding
+        prop_assert!(error <= 0.011,
             "torque {torque} round-trips as {decoded_nm} (error {error})");
     }
 
