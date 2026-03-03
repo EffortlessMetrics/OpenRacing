@@ -6066,6 +6066,7 @@ dependencies = [
  "winapi",
  "winreg 0.52.0",
  "workspace-hack",
+ "zip 7.2.0",
 ]
 
 [[package]]
