@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **21,043+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **21,374+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **22,326+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
+- **23,699+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress) — 0 failures, 44 ignored
 - **23,043+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress) — 0 failures, 44 ignored
 - **22,915+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **96 fuzz targets** covering all HID protocols and game telemetry adapters (AMS2 target added)
@@ -185,6 +186,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Filter/pipeline deep tests (101 tests): frequency response, proptest coverage, filter chain orchestration
   - Input maps + button box tests (83 tests): binding compilation, button matrix, rotary encoders, LED mappings
   - Telemetry recorder/core tests (73 tests): session recording, playback, core telemetry pipeline validation
+- **Wave 51 — Moza+Fanatec+Logitech advanced, Thrustmaster+Simucube+Simagic, telemetry adapters, IPC transport** (23,245 → 23,699+ tests):
+  - Moza + Fanatec + Logitech advanced deep tests (139 tests): advanced proptest + deep wire-format + round-trip verification across 3 major protocol crates
+  - Thrustmaster + Simucube + Simagic advanced deep tests (134 tests): advanced proptest + deep protocol verification for remaining major vendors
+  - Telemetry adapter deep tests (95 tests): expanded coverage across all 61 game adapters with edge-case and regression verification
+  - IPC transport deep tests (86 tests): transport layer + wire format + compatibility verification for IPC subsystem
+- **Wave 50 — pedal protocols, support bundle, VRS+OpenFFBoard, ADR audit** (23,043 → 23,245+ tests):
+  - Pedal protocol deep tests (87 tests): Heusinkveld, Fanatec, Simagic, Cammus, VRS, Simucube ActivePedal — load cell, axis mapping, calibration
+  - Support bundle deep tests (63 tests): diagnostic bundle generation, export, privacy filtering, compression, metadata
+  - VRS + OpenFFBoard advanced deep tests (76 tests): PIDFF round-trip, vendor report encoding, configuration validation
+  - ADR audit complete: all 8 ADRs reviewed and cross-referenced against implementation
 - **Wave 49 — E2E integration, snapshot expansion, soak + stress hardening** (22,915 → 23,043+ tests):
   - E2E integration tests (53 tests): complete user workflow coverage — device connect → game detect → telemetry → FFB → profile switch → disconnect
   - Snapshot expansion (40 tests): new snapshots across protocol, telemetry, and pipeline crates (1,400+ total snapshot files)

@@ -2,7 +2,7 @@
 
 **Branch:** `feat/wave15-rc-hardening`
 **Generated:** 2026-03-04
-**Waves completed:** 15–48
+**Waves completed:** 15–51
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **22,915+** |
+| **Total tests** | **23,699+** |
 | Failed | 0 |
 | Ignored | 44 |
 | Test binaries | 640+ |
@@ -23,7 +23,7 @@
 
 | Category | Count | Notes |
 |----------|------:|-------|
-| Unit tests | 15,800+ | Standard `#[test]` functions across all crates |
+| Unit tests | 16,200+ | Standard `#[test]` functions across all crates |
 | Property tests (proptest) | 2,500+ | 360+ `proptest!` blocks generating multiple test cases |
 | Snapshot tests (insta) | 1,327 files | Across 52 snapshot directories; ~1,100+ running test cases |
 | Doc-tests | 490+ | `/// ```rust` examples in public API documentation |
@@ -43,8 +43,8 @@
 
 | Crate / Category | Tests | Key crates |
 |------------------|------:|------------|
-| Telemetry | 4,650+ | `telemetry-adapters` (2,270+), `telemetry-core` (492+), `telemetry-config` (293+), `telemetry-orchestrator` (127), `telemetry-contracts` (125), `telemetry-config-writers` (48+), `telemetry-streams` (52+) — extended verification for 9 adapters (wave 34), core/integration/rate-limiter deep (wave 37), adapter re-verification (wave 40), config/streams deep (wave 40), 61 adapters verified (wave 43), adapter validation (wave 45) |
-| HID Protocols | 4,231+ | `hid-thrustmaster-protocol` (480+), `hid-fanatec-protocol` (370+), `hid-simagic-protocol` (292+), `hid-logitech-protocol` (270+), `hid-moza-protocol` (314+), `hid-vrs-protocol` (217+), `hid-cammus-protocol` (188+), `hid-ffbeast-protocol` (136+), `hid-openffboard-protocol` (153+), `simucube-protocol` (310+), `simplemotion-v2` (79+), `hbp` (43+), `moza-wheelbase-report` (59+), and more — ALL 14 crates cross-verified, Simagic deep (wave 38), roundtrip proptests across 9 crates (wave 44) |
+| Telemetry | 4,745+ | `telemetry-adapters` (2,365+), `telemetry-core` (492+), `telemetry-config` (293+), `telemetry-orchestrator` (127), `telemetry-contracts` (125), `telemetry-config-writers` (48+), `telemetry-streams` (52+) — extended verification for 9 adapters (wave 34), core/integration/rate-limiter deep (wave 37), adapter re-verification (wave 40), config/streams deep (wave 40), 61 adapters verified (wave 43), adapter validation (wave 45), all 61 adapters deep (wave 51) |
+| HID Protocols | 4,524+ | `hid-thrustmaster-protocol` (525+), `hid-fanatec-protocol` (415+), `hid-simagic-protocol` (340+), `hid-logitech-protocol` (315+), `hid-moza-protocol` (360+), `hid-vrs-protocol` (255+), `hid-cammus-protocol` (188+), `hid-ffbeast-protocol` (136+), `hid-openffboard-protocol` (195+), `simucube-protocol` (355+), `simplemotion-v2` (79+), `hbp` (43+), `moza-wheelbase-report` (59+), and more — ALL 15 crates with advanced proptest + deep tests, VRS+OpenFFBoard advanced (wave 50), Moza+Fanatec+Logitech advanced (wave 51), Thrustmaster+Simucube+Simagic advanced (wave 51) |
 | Engine | 1,676+ | `racing-wheel-engine` — RT pipeline, filters, HID dispatch, safety, device/game, hot-swap, FFB pipeline E2E, HID common deep (wave 36), safety + device management deep (wave 41), RT no-allocation enforcement (wave 44) |
 | Integration tests | 888+ | `integration-tests` — E2E device pipelines, RC validation, golden packets, full-stack E2E, concurrency stress (23), performance validation (12), plugin + telemetry E2E + device protocol (wave 40) |
 | Service + CLI | 1,056+ | `racing-wheel-service` (587+), `wheelctl` (508+) — daemon, IPC, lifecycle, CLI E2E, diagnostics deep (wave 35), service lifecycle + IPC deep (wave 41), service lifecycle (wave 45), CLI deep (wave 46) |
@@ -55,7 +55,7 @@
 | Profile | 532+ | `openracing-profile` (326+), `openracing-profile-repository` (94+) — inheritance, validation, comprehensive system tests (wave 35), profile + repo deep (wave 40), CRUD + validation + inheritance (wave 48) |
 | Filters | 435+ | `openracing-filters` — snapshot + property tests, SM-V2 deep, filters deep (wave 39), frequency response + proptest coverage (wave 47) |
 | Safety | 674+ | `openracing-fmea` (371+), `openracing-watchdog` (58+), `openracing-hardware-watchdog` (286+) — fault injection, property tests, 23 safety invariants (wave 30), crypto + FMEA deep (wave 39), watchdog deep (wave 39), fault injection expansion (wave 44) |
-| IPC | 261+ | `openracing-ipc` — message serialization, snapshot round-trips, codec proptests (wave 36), IPC protocol deep (wave 41) |
+| IPC | 347+ | `openracing-ipc` — message serialization, snapshot round-trips, codec proptests (wave 36), IPC protocol deep (wave 41), transport + wire format + compat deep (wave 51) |
 | FFB + Calibration | 656+ | `openracing-ffb` (366+), `openracing-calibration` (290+) — force output, profile application, workflows, migration, serde proptests (wave 36), FFB + calibration deep (wave 41), calibration + FFB precision (wave 46) |
 | Curves | 169+ | `openracing-curves` — LUT fidelity, interpolation, bezier, fitting, monotonicity, stability (wave 35) |
 | Firmware | 278+ | `openracing-firmware-update` — state machine, rollback, validation, firmware update deep (wave 41), full state machine + rollback tests (wave 48) |
@@ -231,6 +231,32 @@ ALL 14 HID crates cross-verified against community sources:
 | WASM runtime | 58 | Budget enforcement, sandbox isolation, host function interface |
 | Firmware update | 48 | Full state machine coverage, rollback scenarios, update validation |
 
+## Wave 49 Test Additions
+
+| Commit | Tests | Description |
+|--------|------:|-------------|
+| E2E integration | 53 | Complete user workflow coverage — device connect → game detect → telemetry → FFB → profile switch → disconnect |
+| Snapshot expansion | 40 | New snapshots across protocol, telemetry, and pipeline crates (1,400+ total) |
+| Soak + stress | 35 | Long-running stability — sustained 1kHz operation, memory leak detection, fault recovery under load |
+
+## Wave 50 Test Additions
+
+| Commit | Tests | Description |
+|--------|------:|-------------|
+| Pedal protocol deep | 87 | Heusinkveld, Fanatec, Simagic, Cammus, VRS, Simucube ActivePedal — load cell, axis mapping, calibration |
+| Support bundle deep | 63 | Diagnostic bundle generation, export, privacy filtering, compression, metadata |
+| VRS + OpenFFBoard advanced | 76 | PIDFF round-trip, vendor report encoding, configuration validation |
+| ADR audit | — | All 8 ADRs reviewed and cross-referenced against implementation |
+
+## Wave 51 Test Additions
+
+| Commit | Tests | Description |
+|--------|------:|-------------|
+| Moza + Fanatec + Logitech advanced | 139 | Advanced proptest + deep wire-format + round-trip verification across 3 major protocol crates |
+| Thrustmaster + Simucube + Simagic advanced | 134 | Advanced proptest + deep protocol verification for remaining major vendors |
+| Telemetry adapter deep | 95 | Expanded coverage across all 61 game adapters with edge-case and regression verification |
+| IPC transport deep | 86 | Transport layer + wire format + compatibility verification for IPC subsystem |
+
 ---
 
-*Source: `cargo test --workspace --all-features --exclude racing-wheel-ui` · waves 15–48 complete*
+*Source: `cargo test --workspace --all-features --exclude racing-wheel-ui` · waves 15–51 complete*
