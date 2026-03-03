@@ -1,0 +1,5 @@
+---
+source: crates/openracing-tracing/tests/tracing_snapshot_tests.rs
+expression: out.trim()
+---
+INFO all field types u64_field=42 f64_field=2.72 bool_field=true str_field="hello" i32_field=-10

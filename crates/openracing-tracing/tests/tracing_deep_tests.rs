@@ -701,3 +701,664 @@ fn metrics_merge_combines_all_fields() {
     assert_eq!(m1.total_rt_processing_ns, 1200);
     assert_eq!(m1.reinitializations, 1);
 }
+
+// ---------------------------------------------------------------------------
+// Tracing subsystem infrastructure tests
+// ---------------------------------------------------------------------------
+// Tests below exercise the `tracing` framework integration: spans, events,
+// subscribers, filtering, formatting, and performance.
+
+use std::io;
+use tracing::Instrument;
+use tracing_subscriber::fmt::MakeWriter;
+
+/// Writer that captures tracing output to a shared buffer.
+#[derive(Clone)]
+struct CaptureWriter(Arc<Mutex<Vec<u8>>>);
+
+impl CaptureWriter {
+    fn new() -> (Self, Arc<Mutex<Vec<u8>>>) {
+        let buf = Arc::new(Mutex::new(Vec::new()));
+        (Self(buf.clone()), buf)
+    }
+}
+
+impl io::Write for CaptureWriter {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        if let Ok(mut inner) = self.0.lock() {
+            inner.extend_from_slice(data);
+        }
+        Ok(data.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a> MakeWriter<'a> for CaptureWriter {
+    type Writer = CaptureWriter;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        self.clone()
+    }
+}
+
+fn read_captured(buf: &Arc<Mutex<Vec<u8>>>) -> String {
+    buf.lock()
+        .map(|g| String::from_utf8_lossy(&g).into_owned())
+        .unwrap_or_default()
+}
+
+// 1. Span creation and lifecycle ------------------------------------------------
+
+#[test]
+fn span_creation_and_lifecycle() {
+    let (writer, buf) = CaptureWriter::new();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(writer)
+        .with_ansi(false)
+        .without_time()
+        .finish();
+
+    tracing::subscriber::with_default(subscriber, || {
+        let span = tracing::info_span!("lifecycle_span", tick = 1u64);
+        {
+            let _guard = span.enter();
+            tracing::info!("entered");
+        }
+        tracing::info!("after_exit");
+    });
+
+    let out = read_captured(&buf);
+    assert!(out.contains("lifecycle_span"), "span name missing: {out}");
+    assert!(out.contains("entered"), "entered event missing: {out}");
+    assert!(
+        out.contains("after_exit"),
+        "after_exit event missing: {out}"
+    );
+}
+
+// 2. Event emission at all log levels -------------------------------------------
+
+#[test]
+fn event_emission_all_log_levels() {
+    let (writer, buf) = CaptureWriter::new();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(writer)
+        .with_ansi(false)
+        .without_time()
+        .with_max_level(tracing::Level::TRACE)
+        .finish();
+
+    tracing::subscriber::with_default(subscriber, || {
+        tracing::trace!("t_level");
+        tracing::debug!("d_level");
+        tracing::info!("i_level");
+        tracing::warn!("w_level");
+        tracing::error!("e_level");
+    });
+
+    let out = read_captured(&buf);
+    assert!(
+        out.contains("TRACE") && out.contains("t_level"),
+        "TRACE missing: {out}"
+    );
+    assert!(
+        out.contains("DEBUG") && out.contains("d_level"),
+        "DEBUG missing: {out}"
+    );
+    assert!(
+        out.contains("INFO") && out.contains("i_level"),
+        "INFO missing: {out}"
+    );
+    assert!(
+        out.contains("WARN") && out.contains("w_level"),
+        "WARN missing: {out}"
+    );
+    assert!(
+        out.contains("ERROR") && out.contains("e_level"),
+        "ERROR missing: {out}"
+    );
+}
+
+// 3. Structured field encoding --------------------------------------------------
+
+#[test]
+fn structured_field_encoding() {
+    let (writer, buf) = CaptureWriter::new();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(writer)
+        .with_ansi(false)
+        .without_time()
+        .finish();
+
+    tracing::subscriber::with_default(subscriber, || {
+        tracing::info!(
+            tick_count = 42u64,
+            torque_nm = 3.15f64,
+            device_id = "wheel-001",
+            enabled = true,
+            "structured event"
+        );
+    });
+
+    let out = read_captured(&buf);
+    assert!(
+        out.contains("tick_count=42"),
+        "tick_count field missing: {out}"
+    );
+    assert!(
+        out.contains("torque_nm=3.15"),
+        "torque_nm field missing: {out}"
+    );
+    assert!(out.contains("device_id"), "device_id field missing: {out}");
+    assert!(
+        out.contains("enabled=true"),
+        "enabled field missing: {out}"
+    );
+}
+
+// 4. Span nesting and context propagation ----------------------------------------
+
+#[test]
+fn span_nesting_and_context_propagation() {
+    let (writer, buf) = CaptureWriter::new();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(writer)
+        .with_ansi(false)
+        .without_time()
+        .finish();
+
+    tracing::subscriber::with_default(subscriber, || {
+        let outer = tracing::info_span!("outer", layer = "parent");
+        let _outer_guard = outer.enter();
+        let inner = tracing::info_span!("inner", layer = "child");
+        let _inner_guard = inner.enter();
+        tracing::info!("nested event");
+    });
+
+    let out = read_captured(&buf);
+    assert!(out.contains("outer"), "outer span missing: {out}");
+    assert!(out.contains("inner"), "inner span missing: {out}");
+    assert!(out.contains("nested event"), "event missing: {out}");
+}
+
+// 5. Subscriber filtering -------------------------------------------------------
+
+#[test]
+fn subscriber_filtering_by_level() {
+    let (writer, buf) = CaptureWriter::new();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(writer)
+        .with_ansi(false)
+        .without_time()
+        .with_max_level(tracing::Level::WARN)
+        .finish();
+
+    tracing::subscriber::with_default(subscriber, || {
+        tracing::info!("should_be_filtered");
+        tracing::debug!("also_filtered");
+        tracing::warn!("should_appear");
+        tracing::error!("also_appears");
+    });
+
+    let out = read_captured(&buf);
+    assert!(
+        !out.contains("should_be_filtered"),
+        "INFO should be filtered: {out}"
+    );
+    assert!(
+        !out.contains("also_filtered"),
+        "DEBUG should be filtered: {out}"
+    );
+    assert!(
+        out.contains("should_appear"),
+        "WARN should pass filter: {out}"
+    );
+    assert!(
+        out.contains("also_appears"),
+        "ERROR should pass filter: {out}"
+    );
+}
+
+// 6. Output format stability: JSON, compact, full --------------------------------
+
+#[test]
+fn output_format_json() {
+    let (writer, buf) = CaptureWriter::new();
+    let subscriber = tracing_subscriber::fmt()
+        .json()
+        .with_writer(writer)
+        .without_time()
+        .finish();
+
+    tracing::subscriber::with_default(subscriber, || {
+        tracing::info!(tick = 1u64, torque = 5.0f64, "json event");
+    });
+
+    let out = read_captured(&buf);
+    let parsed: Result<serde_json::Value, _> = serde_json::from_str(out.trim());
+    assert!(parsed.is_ok(), "output should be valid JSON: {out}");
+
+    if let Ok(val) = parsed {
+        assert!(
+            val.get("level").is_some(),
+            "JSON should have level: {val}"
+        );
+    }
+}
+
+#[test]
+fn output_format_compact() {
+    let (writer, buf) = CaptureWriter::new();
+    let subscriber = tracing_subscriber::fmt()
+        .compact()
+        .with_writer(writer)
+        .with_ansi(false)
+        .without_time()
+        .finish();
+
+    tracing::subscriber::with_default(subscriber, || {
+        let span = tracing::info_span!("compact_span", id = 1u64);
+        let _guard = span.enter();
+        tracing::info!("compact event");
+    });
+
+    let out = read_captured(&buf);
+    assert!(out.contains("compact event"), "event missing: {out}");
+    let line_count = out.lines().count();
+    assert!(
+        line_count <= 2,
+        "compact should be concise, got {line_count} lines: {out}"
+    );
+}
+
+#[test]
+fn output_format_full() {
+    let (writer, buf) = CaptureWriter::new();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(writer)
+        .with_ansi(false)
+        .without_time()
+        .finish();
+
+    tracing::subscriber::with_default(subscriber, || {
+        tracing::info!(key = "value", "full format event");
+    });
+
+    let out = read_captured(&buf);
+    assert!(out.contains("INFO"), "level should appear: {out}");
+    assert!(
+        out.contains("full format event"),
+        "message missing: {out}"
+    );
+    assert!(out.contains("key="), "field should appear: {out}");
+}
+
+// 7. Performance impact measurement -----------------------------------------------
+
+#[test]
+fn performance_tracing_event_emission_overhead() {
+    let (writer, _buf) = CaptureWriter::new();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(writer)
+        .with_ansi(false)
+        .without_time()
+        .finish();
+
+    let start = std::time::Instant::now();
+    tracing::subscriber::with_default(subscriber, || {
+        for i in 0..1_000u64 {
+            tracing::info!(tick = i, "perf test");
+        }
+    });
+    let elapsed = start.elapsed();
+    assert!(
+        elapsed < std::time::Duration::from_secs(5),
+        "1000 events took too long: {elapsed:?}"
+    );
+}
+
+#[test]
+fn performance_rt_event_emission_throughput() -> Result<(), TracingError> {
+    let provider = MetricsTrackingProvider::new();
+    let mut mgr = TracingManager::with_provider(Box::new(provider));
+    mgr.initialize()?;
+
+    let start = std::time::Instant::now();
+    for i in 0..10_000u64 {
+        mgr.emit_rt_event(RTTraceEvent::TickStart {
+            tick_count: i,
+            timestamp_ns: i * 1_000_000,
+        });
+    }
+    let elapsed = start.elapsed();
+    assert!(
+        elapsed < std::time::Duration::from_secs(1),
+        "10000 RT events took too long: {elapsed:?}"
+    );
+    Ok(())
+}
+
+// 8. Thread-local context --------------------------------------------------------
+
+#[test]
+fn thread_local_span_enter_exit() {
+    let (writer, buf) = CaptureWriter::new();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(writer)
+        .with_ansi(false)
+        .without_time()
+        .finish();
+
+    tracing::subscriber::with_default(subscriber, || {
+        tracing::info!("before_enter");
+        let span = tracing::info_span!("local_span");
+        {
+            let _guard = span.enter();
+            tracing::info!("inside_span");
+        }
+        tracing::info!("after_exit");
+    });
+
+    let out = read_captured(&buf);
+    for line in out.lines() {
+        if line.contains("before_enter") {
+            assert!(
+                !line.contains("local_span"),
+                "span should not appear before enter: {line}"
+            );
+        }
+        if line.contains("inside_span") {
+            assert!(
+                line.contains("local_span"),
+                "span should appear inside: {line}"
+            );
+        }
+        if line.contains("after_exit") {
+            assert!(
+                !line.contains("local_span"),
+                "span should not appear after exit: {line}"
+            );
+        }
+    }
+}
+
+// 9. Async context propagation ---------------------------------------------------
+
+#[tokio::test]
+async fn async_context_propagation() {
+    let (writer, buf) = CaptureWriter::new();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(writer)
+        .with_ansi(false)
+        .without_time()
+        .finish();
+
+    let _guard = tracing::subscriber::set_default(subscriber);
+
+    let span = tracing::info_span!("async_parent");
+    async {
+        tracing::info!("async_inner_event");
+    }
+    .instrument(span)
+    .await;
+
+    let out = read_captured(&buf);
+    assert!(
+        out.contains("async_parent"),
+        "parent span missing in async: {out}"
+    );
+    assert!(
+        out.contains("async_inner_event"),
+        "event missing: {out}"
+    );
+}
+
+#[tokio::test]
+async fn async_nested_spans_propagation() {
+    let (writer, buf) = CaptureWriter::new();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(writer)
+        .with_ansi(false)
+        .without_time()
+        .finish();
+
+    let _guard = tracing::subscriber::set_default(subscriber);
+    let parent = tracing::info_span!("async_outer");
+    async {
+        let child = tracing::info_span!("async_inner");
+        async {
+            tracing::info!("deeply_nested");
+        }
+        .instrument(child)
+        .await;
+    }
+    .instrument(parent)
+    .await;
+
+    let out = read_captured(&buf);
+    assert!(out.contains("async_outer"), "outer span missing: {out}");
+    assert!(out.contains("async_inner"), "inner span missing: {out}");
+    assert!(out.contains("deeply_nested"), "event missing: {out}");
+}
+
+// 10. Rate limiting for noisy events -----------------------------------------------
+
+struct RateLimitingProvider {
+    metrics: Arc<Mutex<TracingMetrics>>,
+    max_events: u64,
+    count: Arc<Mutex<u64>>,
+}
+
+impl RateLimitingProvider {
+    fn new(max_events: u64) -> Self {
+        Self {
+            metrics: Arc::new(Mutex::new(TracingMetrics::new())),
+            max_events,
+            count: Arc::new(Mutex::new(0)),
+        }
+    }
+
+    fn metrics_handle(&self) -> Arc<Mutex<TracingMetrics>> {
+        Arc::clone(&self.metrics)
+    }
+}
+
+impl TracingProvider for RateLimitingProvider {
+    fn initialize(&mut self) -> Result<(), TracingError> {
+        Ok(())
+    }
+
+    fn emit_rt_event(&self, _event: RTTraceEvent) {
+        let Ok(mut count) = self.count.lock() else {
+            return;
+        };
+        if *count >= self.max_events {
+            drop(count);
+            if let Ok(mut m) = self.metrics.lock() {
+                m.record_dropped_event();
+            }
+            return;
+        }
+        *count += 1;
+        drop(count);
+        if let Ok(mut m) = self.metrics.lock() {
+            m.record_rt_event();
+        }
+    }
+
+    fn emit_app_event(&self, _event: AppTraceEvent) {
+        if let Ok(mut m) = self.metrics.lock() {
+            m.record_app_event();
+        }
+    }
+
+    fn metrics(&self) -> TracingMetrics {
+        self.metrics.lock().map(|m| m.clone()).unwrap_or_default()
+    }
+
+    fn shutdown(&mut self) {}
+}
+
+#[test]
+fn rate_limiting_drops_excess_events() -> Result<(), TracingError> {
+    let provider = RateLimitingProvider::new(5);
+    let handle = provider.metrics_handle();
+    let mut mgr = TracingManager::with_provider(Box::new(provider));
+    mgr.initialize()?;
+
+    for i in 0..10u64 {
+        mgr.emit_rt_event(RTTraceEvent::TickStart {
+            tick_count: i,
+            timestamp_ns: i * 1_000_000,
+        });
+    }
+
+    let m = handle.lock().map_err(TracingError::init_failed)?;
+    assert_eq!(
+        m.rt_events_emitted, 5,
+        "only 5 events should pass rate limit"
+    );
+    assert_eq!(m.events_dropped, 5, "5 events should be dropped");
+    Ok(())
+}
+
+// 11. Sampling configuration -------------------------------------------------------
+
+struct SamplingProvider {
+    metrics: Arc<Mutex<TracingMetrics>>,
+    sample_rate: u64,
+    counter: Arc<Mutex<u64>>,
+}
+
+impl SamplingProvider {
+    fn new(sample_rate: u64) -> Self {
+        Self {
+            metrics: Arc::new(Mutex::new(TracingMetrics::new())),
+            sample_rate,
+            counter: Arc::new(Mutex::new(0)),
+        }
+    }
+
+    fn metrics_handle(&self) -> Arc<Mutex<TracingMetrics>> {
+        Arc::clone(&self.metrics)
+    }
+}
+
+impl TracingProvider for SamplingProvider {
+    fn initialize(&mut self) -> Result<(), TracingError> {
+        Ok(())
+    }
+
+    fn emit_rt_event(&self, _event: RTTraceEvent) {
+        let Ok(mut count) = self.counter.lock() else {
+            return;
+        };
+        *count += 1;
+        if *count % self.sample_rate == 0 {
+            drop(count);
+            if let Ok(mut m) = self.metrics.lock() {
+                m.record_rt_event();
+            }
+        }
+    }
+
+    fn emit_app_event(&self, _event: AppTraceEvent) {}
+
+    fn metrics(&self) -> TracingMetrics {
+        self.metrics.lock().map(|m| m.clone()).unwrap_or_default()
+    }
+
+    fn shutdown(&mut self) {}
+}
+
+#[test]
+fn sampling_reduces_event_volume() -> Result<(), TracingError> {
+    let provider = SamplingProvider::new(10);
+    let handle = provider.metrics_handle();
+    let mut mgr = TracingManager::with_provider(Box::new(provider));
+    mgr.initialize()?;
+
+    for i in 0..100u64 {
+        mgr.emit_rt_event(RTTraceEvent::TickStart {
+            tick_count: i,
+            timestamp_ns: i * 1_000_000,
+        });
+    }
+
+    let m = handle.lock().map_err(TracingError::init_failed)?;
+    assert_eq!(
+        m.rt_events_emitted, 10,
+        "sampling 1-in-10 of 100 should yield 10"
+    );
+    Ok(())
+}
+
+// 12. Custom field types and serialization -----------------------------------------
+
+#[test]
+fn custom_field_types_display_and_debug() {
+    let (writer, buf) = CaptureWriter::new();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(writer)
+        .with_ansi(false)
+        .without_time()
+        .finish();
+
+    let event = RTTraceEvent::HidWrite {
+        tick_count: 42,
+        timestamp_ns: 1_000_000,
+        torque_nm: 3.5,
+        seq: 7,
+    };
+
+    tracing::subscriber::with_default(subscriber, || {
+        tracing::info!(event_display = %event, "display format");
+        tracing::info!(event_debug = ?event, "debug format");
+    });
+
+    let out = read_captured(&buf);
+    assert!(
+        out.contains("HidWrite"),
+        "Display format should contain variant name: {out}"
+    );
+    assert!(
+        out.contains("display format"),
+        "display message missing: {out}"
+    );
+    assert!(
+        out.contains("debug format"),
+        "debug message missing: {out}"
+    );
+}
+
+#[test]
+fn custom_field_serialization_to_json() {
+    let (writer, buf) = CaptureWriter::new();
+    let subscriber = tracing_subscriber::fmt()
+        .json()
+        .with_writer(writer)
+        .without_time()
+        .finish();
+
+    tracing::subscriber::with_default(subscriber, || {
+        let event = RTTraceEvent::DeadlineMiss {
+            tick_count: 99,
+            timestamp_ns: 5_000_000,
+            jitter_ns: 250_000,
+        };
+        tracing::error!(
+            event_type = event.event_type(),
+            tick = event.tick_count(),
+            ts = event.timestamp_ns(),
+            is_error = event.is_error(),
+            "rt event in json"
+        );
+    });
+
+    let out = read_captured(&buf);
+    let parsed: Result<serde_json::Value, _> = serde_json::from_str(out.trim());
+    assert!(parsed.is_ok(), "should be valid JSON: {out}");
+}

@@ -526,3 +526,502 @@ mod prop_tests {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Calibration workflow: sequential min → max → deadzone → center
+// ---------------------------------------------------------------------------
+
+mod calibration_workflow_tests {
+    use super::*;
+
+    #[test]
+    fn full_axis_workflow_joystick() -> TestResult {
+        let mut cal = JoystickCalibrator::new(0);
+        // Step 1: sweep to min
+        cal.add_sample(100, 0.0);
+        // Step 2: sweep to max
+        cal.add_sample(900, 1.0);
+        // Step 3: find center
+        cal.add_sample(500, 0.5);
+
+        let axis = cal.calibrate()?;
+        assert_eq!(axis.min, 100);
+        assert_eq!(axis.max, 900);
+        assert_eq!(axis.center, Some(500));
+
+        // Step 4: apply deadzone
+        let range = axis.max - axis.min;
+        let axis_with_dz = axis.with_deadzone(0, range);
+
+        let mid = axis_with_dz.apply(500);
+        assert!(mid > 0.0 && mid < 1.0, "mid-range works: {mid}");
+        Ok(())
+    }
+
+    #[test]
+    fn full_pedal_workflow() -> TestResult {
+        let mut cal = PedalCalibrator::new();
+        // Simulate sweeping each pedal through its range
+        for v in (0u16..=65535).step_by(1000) {
+            cal.add_throttle(v);
+        }
+        cal.add_throttle(65535);
+        for v in (0u16..=65535).step_by(2000) {
+            cal.add_brake(v);
+        }
+        cal.add_brake(65535);
+        for v in (0u16..=65535).step_by(5000) {
+            cal.add_clutch(v);
+        }
+        cal.add_clutch(65535);
+
+        let axes = cal.calibrate()?;
+        assert_eq!(axes.len(), 3);
+        assert_eq!(axes[0].min, 0);
+        assert_eq!(axes[0].max, 65535);
+        Ok(())
+    }
+
+    #[test]
+    fn incremental_sample_collection() -> TestResult {
+        let mut cal = JoystickCalibrator::new(0);
+
+        // First batch: only endpoints
+        cal.add_sample(0, 0.0);
+        cal.add_sample(65535, 1.0);
+        let result1 = cal.calibrate()?;
+        assert_eq!(result1.center, None);
+
+        // Second batch: add center
+        cal.add_sample(32768, 0.5);
+        let result2 = cal.calibrate()?;
+        assert_eq!(result2.center, Some(32768));
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Calibration reset and recalibrate
+// ---------------------------------------------------------------------------
+
+mod recalibration_tests {
+    use super::*;
+
+    #[test]
+    fn joystick_recalibrate_with_new_range() -> TestResult {
+        let mut cal = JoystickCalibrator::new(0);
+
+        // First calibration
+        cal.add_sample(0, 0.0);
+        cal.add_sample(65535, 1.0);
+        let first = cal.calibrate()?;
+        assert_eq!(first.min, 0);
+        assert_eq!(first.max, 65535);
+
+        // Reset and recalibrate with narrower range
+        cal.reset();
+        cal.add_sample(10000, 0.0);
+        cal.add_sample(50000, 1.0);
+        let second = cal.calibrate()?;
+        assert_eq!(second.min, 10000);
+        assert_eq!(second.max, 50000);
+
+        // First calibration values are unchanged
+        assert_eq!(first.min, 0);
+        assert_eq!(first.max, 65535);
+        Ok(())
+    }
+
+    #[test]
+    fn pedal_recalibrate_after_reset() -> TestResult {
+        let mut cal = PedalCalibrator::new();
+
+        cal.add_throttle(0);
+        cal.add_throttle(1000);
+        cal.add_brake(0);
+        cal.add_brake(1000);
+        cal.add_clutch(0);
+        cal.add_clutch(1000);
+        let first = cal.calibrate()?;
+        assert_eq!(first[0].max, 1000);
+
+        cal.reset();
+        cal.add_throttle(500);
+        cal.add_throttle(2000);
+        cal.add_brake(500);
+        cal.add_brake(2000);
+        cal.add_clutch(500);
+        cal.add_clutch(2000);
+        let second = cal.calibrate()?;
+        assert_eq!(second[0].min, 500);
+        assert_eq!(second[0].max, 2000);
+        Ok(())
+    }
+
+    #[test]
+    fn device_calibration_axis_overwrite() -> TestResult {
+        let mut device = DeviceCalibration::new("Test", 2);
+
+        if let Some(axis) = device.axis(0) {
+            *axis = AxisCalibration::new(0, 1000);
+        }
+        assert_eq!(device.axes[0].max, 1000);
+
+        // Overwrite with new calibration
+        if let Some(axis) = device.axis(0) {
+            *axis = AxisCalibration::new(500, 2000).with_center(1250);
+        }
+        assert_eq!(device.axes[0].min, 500);
+        assert_eq!(device.axes[0].max, 2000);
+        assert_eq!(device.axes[0].center, Some(1250));
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Calibration validation: reject invalid data
+// ---------------------------------------------------------------------------
+
+mod validation_tests {
+    use super::*;
+
+    #[test]
+    fn pedal_throttle_and_brake_only_fails() -> TestResult {
+        let mut cal = PedalCalibrator::new();
+        cal.add_throttle(0);
+        cal.add_throttle(65535);
+        cal.add_brake(0);
+        cal.add_brake(65535);
+        // No clutch samples
+        assert!(cal.calibrate().is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn joystick_single_sample_succeeds() -> TestResult {
+        let mut cal = JoystickCalibrator::new(0);
+        cal.add_sample(32768, 0.5);
+        let axis = cal.calibrate()?;
+        assert_eq!(axis.min, 32768);
+        assert_eq!(axis.max, 32768);
+        // Zero range → 0.5
+        assert!((axis.apply(32768) - 0.5).abs() < 0.001);
+        Ok(())
+    }
+
+    #[test]
+    fn multiple_resets_still_works() -> TestResult {
+        let mut cal = JoystickCalibrator::new(0);
+        for _ in 0..5 {
+            cal.add_sample(0, 0.0);
+            cal.add_sample(65535, 1.0);
+            cal.reset();
+        }
+        assert!(
+            cal.calibrate().is_err(),
+            "should fail after final reset"
+        );
+
+        // Final calibration should succeed
+        cal.add_sample(100, 0.0);
+        cal.add_sample(200, 1.0);
+        let axis = cal.calibrate()?;
+        assert_eq!(axis.min, 100);
+        assert_eq!(axis.max, 200);
+        Ok(())
+    }
+
+    #[test]
+    fn duplicate_samples_handled() -> TestResult {
+        let mut cal = JoystickCalibrator::new(0);
+        for _ in 0..10 {
+            cal.add_sample(500, 0.0);
+            cal.add_sample(500, 1.0);
+        }
+        let axis = cal.calibrate()?;
+        assert_eq!(axis.min, 500);
+        assert_eq!(axis.max, 500);
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Calibration migration from different formats
+// ---------------------------------------------------------------------------
+
+mod migration_tests {
+    use super::*;
+
+    #[test]
+    fn deserialize_minimal_device_json() -> TestResult {
+        let json = r#"{"name":"Wheel","axes":[],"version":1}"#;
+        let device: DeviceCalibration = serde_json::from_str(json)?;
+        assert_eq!(device.name, "Wheel");
+        assert!(device.axes.is_empty());
+        assert_eq!(device.version, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn deserialize_v1_axis_calibration() -> TestResult {
+        let json = r#"{
+            "min": 0,
+            "center": null,
+            "max": 65535,
+            "deadzone_min": 0,
+            "deadzone_max": 65535
+        }"#;
+        let axis: AxisCalibration = serde_json::from_str(json)?;
+        assert_eq!(axis.min, 0);
+        assert_eq!(axis.max, 65535);
+        assert_eq!(axis.center, None);
+        Ok(())
+    }
+
+    #[test]
+    fn deserialize_v1_axis_with_center() -> TestResult {
+        let json = r#"{
+            "min": 100,
+            "center": 32768,
+            "max": 60000,
+            "deadzone_min": 500,
+            "deadzone_max": 59500
+        }"#;
+        let axis: AxisCalibration = serde_json::from_str(json)?;
+        assert_eq!(axis.min, 100);
+        assert_eq!(axis.center, Some(32768));
+        assert_eq!(axis.max, 60000);
+        assert_eq!(axis.deadzone_min, 500);
+        assert_eq!(axis.deadzone_max, 59500);
+        Ok(())
+    }
+
+    #[test]
+    fn deserialize_full_device_with_multiple_axes() -> TestResult {
+        let json = r#"{
+            "name": "Fanatec CSL DD",
+            "axes": [
+                {"min": 0, "center": 32768, "max": 65535, "deadzone_min": 1000, "deadzone_max": 64535},
+                {"min": 0, "center": null, "max": 65535, "deadzone_min": 0, "deadzone_max": 65535},
+                {"min": 100, "center": null, "max": 900, "deadzone_min": 100, "deadzone_max": 900}
+            ],
+            "version": 1
+        }"#;
+        let device: DeviceCalibration = serde_json::from_str(json)?;
+        assert_eq!(device.name, "Fanatec CSL DD");
+        assert_eq!(device.axes.len(), 3);
+        assert_eq!(device.axes[0].center, Some(32768));
+        assert_eq!(device.axes[1].center, None);
+        assert_eq!(device.axes[2].min, 100);
+        assert_eq!(device.version, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn deserialize_default_axis_round_trip() -> TestResult {
+        let axis = AxisCalibration::default();
+        let json = serde_json::to_string(&axis)?;
+        let restored: AxisCalibration = serde_json::from_str(&json)?;
+        assert_eq!(restored.min, 0);
+        assert_eq!(restored.max, 0xFFFF);
+        assert_eq!(restored.center, None);
+        assert_eq!(restored.deadzone_min, 0);
+        assert_eq!(restored.deadzone_max, 0xFFFF);
+        Ok(())
+    }
+
+    #[test]
+    fn invalid_json_rejected() -> TestResult {
+        let bad_json = r#"{"name": 42}"#;
+        let result: Result<DeviceCalibration, _> = serde_json::from_str(bad_json);
+        assert!(result.is_err());
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Multi-axis calibration (deep)
+// ---------------------------------------------------------------------------
+
+mod multi_axis_deep_tests {
+    use super::*;
+
+    #[test]
+    fn six_axis_device_with_mixed_configs() -> TestResult {
+        let mut device = DeviceCalibration::new("6-axis controller", 6);
+
+        let configs: [(u16, u16, Option<u16>); 6] = [
+            (0, 65535, Some(32768)),
+            (0, 65535, None),
+            (0, 65535, None),
+            (100, 900, None),
+            (200, 800, None),
+            (0, 1023, Some(512)),
+        ];
+
+        for (i, (min, max, center)) in configs.iter().enumerate() {
+            if let Some(axis) = device.axis(i) {
+                let mut new_axis = AxisCalibration::new(*min, *max);
+                if let Some(c) = center {
+                    new_axis = new_axis.with_center(*c);
+                }
+                *axis = new_axis;
+            }
+        }
+
+        for (i, (min, max, center)) in configs.iter().enumerate() {
+            assert_eq!(device.axes[i].min, *min, "axis {i} min");
+            assert_eq!(device.axes[i].max, *max, "axis {i} max");
+            assert_eq!(device.axes[i].center, *center, "axis {i} center");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn multi_axis_apply_independent() -> TestResult {
+        let mut device = DeviceCalibration::new("Multi", 3);
+        if let Some(a) = device.axis(0) {
+            *a = AxisCalibration::new(0, 1000);
+        }
+        if let Some(a) = device.axis(1) {
+            *a = AxisCalibration::new(1000, 2000);
+        }
+        if let Some(a) = device.axis(2) {
+            *a = AxisCalibration::new(500, 1500);
+        }
+
+        // Each axis maps independently with matching deadzones
+        let a0 = device.axes[0].clone().with_deadzone(0, 1000);
+        let a1 = device.axes[1].clone().with_deadzone(0, 1000);
+        let a2 = device.axes[2].clone().with_deadzone(0, 1000);
+
+        let v0 = a0.apply(500);
+        let v1 = a1.apply(1500);
+        let v2 = a2.apply(1000);
+
+        assert!((v0 - 0.5).abs() < 0.01, "axis 0 at mid: {v0}");
+        assert!((v1 - 0.5).abs() < 0.01, "axis 1 at mid: {v1}");
+        assert!((v2 - 0.5).abs() < 0.01, "axis 2 at mid: {v2}");
+        Ok(())
+    }
+
+    #[test]
+    fn multi_axis_json_round_trip_with_deadzones() -> TestResult {
+        let mut device = DeviceCalibration::new("Full Rig", 4);
+        if let Some(a) = device.axis(0) {
+            *a = AxisCalibration::new(0, 65535)
+                .with_center(32768)
+                .with_deadzone(500, 65035);
+        }
+        if let Some(a) = device.axis(1) {
+            *a = AxisCalibration::new(0, 65535);
+        }
+        if let Some(a) = device.axis(2) {
+            *a = AxisCalibration::new(0, 65535);
+        }
+        if let Some(a) = device.axis(3) {
+            *a = AxisCalibration::new(0, 65535);
+        }
+
+        let json = serde_json::to_string_pretty(&device)?;
+        let restored: DeviceCalibration = serde_json::from_str(&json)?;
+
+        assert_eq!(restored.axes.len(), 4);
+        assert_eq!(restored.axes[0].center, Some(32768));
+        assert_eq!(restored.axes[0].deadzone_min, 500);
+        assert_eq!(restored.axes[0].deadzone_max, 65035);
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pedal non-linear response curves
+// ---------------------------------------------------------------------------
+
+mod pedal_nonlinear_tests {
+    use super::*;
+
+    #[test]
+    fn pedal_with_narrow_deadzone_at_top() -> TestResult {
+        let axes = create_pedal_calibration(&[0, 65535], &[0, 65535], &[0, 65535])?;
+        let throttle = axes[0].clone().with_deadzone(0, 60000);
+
+        // Values above deadzone_max → 1.0
+        let high = throttle.apply(64000);
+        assert!((high - 1.0).abs() < 0.01, "above deadzone_max: {high}");
+
+        // Values in range should still work
+        let mid = throttle.apply(30000);
+        assert!(mid > 0.0 && mid < 1.0, "mid-range: {mid}");
+        Ok(())
+    }
+
+    #[test]
+    fn pedal_with_deadzone_at_bottom() -> TestResult {
+        let axes = create_pedal_calibration(&[0, 65535], &[0, 65535], &[0, 65535])?;
+        let brake = axes[1].clone().with_deadzone(5000, 65535);
+
+        let low = brake.apply(2000);
+        assert!((low - 0.0).abs() < 0.01, "below deadzone_min: {low}");
+
+        let mid = brake.apply(35000);
+        assert!(mid > 0.0 && mid < 1.0, "mid-range: {mid}");
+        Ok(())
+    }
+
+    #[test]
+    fn pedal_narrow_physical_range() -> TestResult {
+        let axes = create_pedal_calibration(&[30000, 40000], &[30000, 40000], &[30000, 40000])?;
+        // Set deadzones to match the range for proper mapping
+        let range = axes[0].max - axes[0].min;
+        let throttle = axes[0].clone().with_deadzone(0, range);
+
+        assert!((throttle.apply(30000) - 0.0).abs() < 0.01);
+        assert!((throttle.apply(35000) - 0.5).abs() < 0.01);
+        assert!((throttle.apply(40000) - 1.0).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn pedal_apply_monotonic_with_deadzone() -> TestResult {
+        let axes = create_pedal_calibration(&[0, 65535], &[0, 65535], &[0, 65535])?;
+        let throttle = axes[0].clone().with_deadzone(3000, 62535);
+
+        let mut prev = -1.0f32;
+        for raw in (0u16..=65535).step_by(100) {
+            let val = throttle.apply(raw);
+            assert!(
+                val >= prev,
+                "non-monotonic at raw={raw}: prev={prev}, val={val}"
+            );
+            prev = val;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn three_pedals_different_ranges() -> TestResult {
+        let axes = create_pedal_calibration(
+            &[0, 50000],
+            &[5000, 60000],
+            &[10000, 55000],
+        )?;
+
+        assert_eq!(axes[0].min, 0);
+        assert_eq!(axes[0].max, 50000);
+        assert_eq!(axes[1].min, 5000);
+        assert_eq!(axes[1].max, 60000);
+        assert_eq!(axes[2].min, 10000);
+        assert_eq!(axes[2].max, 55000);
+
+        // Each maps its range to [0,1] with matching deadzones
+        let t = axes[0].clone().with_deadzone(0, 50000);
+        let b = axes[1].clone().with_deadzone(0, 55000);
+        let c = axes[2].clone().with_deadzone(0, 45000);
+
+        assert!((t.apply(25000) - 0.5).abs() < 0.01);
+        assert!((b.apply(32500) - 0.5).abs() < 0.01);
+        assert!((c.apply(32500) - 0.5).abs() < 0.01);
+        Ok(())
+    }
+}

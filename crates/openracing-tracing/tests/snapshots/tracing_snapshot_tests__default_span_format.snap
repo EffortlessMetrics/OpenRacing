@@ -1,0 +1,5 @@
+---
+source: crates/openracing-tracing/tests/tracing_snapshot_tests.rs
+expression: out.trim()
+---
+INFO rt_pipeline{tick=42 stage="filter"}: processing tick

@@ -1,0 +1,5 @@
+---
+source: crates/openracing-tracing/tests/tracing_snapshot_tests.rs
+expression: out.trim()
+---
+WARN deadline miss detected tick_count=42 jitter_ns=250000
