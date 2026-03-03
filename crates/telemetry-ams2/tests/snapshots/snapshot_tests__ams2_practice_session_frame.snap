@@ -8,9 +8,9 @@ throttle: 0
 brake: 0
 clutch: 0
 rpm: 850
-max_rpm: 0
+max_rpm: 8000
 gear: 0
-num_gears: 0
+num_gears: 6
 lateral_g: 0
 longitudinal_g: 0
 vertical_g: 0
@@ -20,10 +20,10 @@ slip_angle_fr: 0
 slip_angle_rl: 0
 slip_angle_rr: 0
 tire_temps_c:
-  - 0
-  - 0
-  - 0
-  - 0
+  - 28
+  - 28
+  - 27
+  - 27
 tire_pressures_psi:
   - 0
   - 0
@@ -59,19 +59,13 @@ best_lap_time_s: 0
 last_lap_time_s: 0
 delta_ahead_s: 0
 delta_behind_s: 0
-fuel_percent: 0
+fuel_percent: 1
 engine_temp_c: 0
 extended:
-  brake:
-    type: Float
-    value: 0
-  fuel_level:
+  fuel_capacity_l:
     type: Float
     value: 110
-  lap_count:
-    type: Integer
-    value: 0
-  throttle:
+  fuel_level_l:
     type: Float
-    value: 0
+    value: 110
 sequence: 0
