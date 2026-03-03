@@ -301,7 +301,7 @@ mod diff_transitions {
             let has_modify = diffs2.iter().any(|d| d.operation == DiffOperation::Modify);
             if !has_modify {
                 assert!(
-                    known_add_only.contains(&id.as_str()),
+                    known_add_only.contains(&&*id),
                     "{id}: second write should contain at least one Modify"
                 );
             }
@@ -327,7 +327,7 @@ mod diff_transitions {
         let second = diffs2.first().ok_or("expected diff on overwrite")?;
         assert_eq!(
             second.old_value.as_deref(),
-            Some(first_new.as_str()),
+            Some(&*first_new),
             "old_value should match previous new_value"
         );
         Ok(())
@@ -536,9 +536,9 @@ mod factory_consistency {
             let write_diffs = writer.write_config(temp.path(), &config)?;
             let expected_diffs = writer.get_expected_diffs(&config)?;
 
-            let write_keys: HashSet<&str> = write_diffs.iter().map(|d| d.key.as_str()).collect();
+            let write_keys: HashSet<&str> = write_diffs.iter().map(|d| &*d.key).collect();
             let expected_keys: HashSet<&str> =
-                expected_diffs.iter().map(|d| d.key.as_str()).collect();
+                expected_diffs.iter().map(|d| &*d.key).collect();
             assert_eq!(
                 write_keys, expected_keys,
                 "{id}: write and expected diff keys should match"

@@ -243,9 +243,9 @@ mod parameter_mapping {
             let actual = writer.write_config(temp.path(), &config)?;
 
             let expected_keys: std::collections::HashSet<_> =
-                expected.iter().map(|d| d.key.as_str()).collect();
+                expected.iter().map(|d| &*d.key).collect();
             let actual_keys: std::collections::HashSet<_> =
-                actual.iter().map(|d| d.key.as_str()).collect();
+                actual.iter().map(|d| &*d.key).collect();
 
             assert_eq!(
                 expected_keys, actual_keys,
