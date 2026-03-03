@@ -106,14 +106,16 @@ fn snapshot_device_inputs_default() {
 
 #[test]
 fn snapshot_device_inputs_populated() {
-    let mut inputs = DeviceInputs::default();
-    inputs.tick = 42;
-    inputs.steering = Some(32768);
-    inputs.throttle = Some(65535);
-    inputs.brake = Some(0);
-    inputs.clutch_left = Some(16000);
-    inputs.clutch_right = Some(16000);
-    inputs.hat = 3;
+    let mut inputs = DeviceInputs {
+        tick: 42,
+        steering: Some(32768),
+        throttle: Some(65535),
+        brake: Some(0),
+        clutch_left: Some(16000),
+        clutch_right: Some(16000),
+        hat: 3,
+        ..Default::default()
+    };
     inputs.buttons[0] = 0xFF;
     inputs.rotaries[0] = 127;
     insta::assert_debug_snapshot!("device_inputs_populated", inputs);
