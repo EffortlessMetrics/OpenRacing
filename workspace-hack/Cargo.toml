@@ -50,7 +50,7 @@ hyper = { version = "1", features = ["full"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "server-auto", "service"] }
 idna = { version = "1" }
 indexmap = { version = "2", features = ["serde"] }
-insta = { version = "1", features = ["filters", "json", "yaml"] }
+insta = { version = "1", features = ["filters", "json", "redactions", "yaml"] }
 log = { version = "0.4", default-features = false, features = ["std"] }
 memchr = { version = "2" }
 miniz_oxide = { version = "0.8", features = ["simd"] }
@@ -90,7 +90,7 @@ tokio-stream = { version = "0.1", features = ["net", "sync"] }
 tower = { version = "0.5", default-features = false, features = ["balance", "buffer", "limit", "load-shed", "log"] }
 tracing = { version = "0.1", features = ["log"] }
 tracing-core = { version = "0.1" }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 url = { version = "2", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 wasmparser = { version = "0.243", default-features = false, features = ["component-model", "features", "serde", "simd", "std", "validate"] }
