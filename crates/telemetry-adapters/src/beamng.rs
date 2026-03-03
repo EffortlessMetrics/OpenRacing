@@ -110,6 +110,7 @@ fn parse_outgauge_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         pit_limiter: show_lights & DL_PITSPEED != 0,
         traction_control: show_lights & DL_TC != 0,
         abs_active: show_lights & DL_ABS != 0,
+        engine_limiter: show_lights & DL_SHIFT != 0,
         ..TelemetryFlags::default()
     };
 
@@ -136,6 +137,10 @@ fn parse_outgauge_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
 }
 
 /// BeamNG.drive telemetry adapter (OutGauge UDP).
+///
+/// **Protocol limitation:** The OutGauge protocol does not expose G-force / acceleration
+/// data, so `lateral_g` and `longitudinal_g` are always zero. G-forces would require
+/// the separate OutSim interface, which BeamNG does not currently support.
 pub struct BeamNGAdapter {
     bind_port: u16,
     update_rate: Duration,

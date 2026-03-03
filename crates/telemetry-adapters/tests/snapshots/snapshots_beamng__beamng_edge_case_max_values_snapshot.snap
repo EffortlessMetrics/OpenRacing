@@ -46,7 +46,7 @@ flags:
   launch_control: false
   traction_control: true
   abs_active: true
-  engine_limiter: false
+  engine_limiter: true
   safety_car: false
   formation_lap: false
   session_paused: false
