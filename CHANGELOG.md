@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **16,742+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification) — 0 failures, 44 ignored
 - **17,696+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **18,645+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
+- **21,043+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **96 fuzz targets** covering all HID protocols and game telemetry adapters (AMS2 target added)
 - **100+ fuzz targets** covering all HID protocols, game telemetry adapters, and new wave 24 targets
 - **104 fuzz targets** covering all HID protocols, game telemetry adapters, and wave 31 targets (telemetry packet, profile, calibration, filter pipeline)
@@ -127,6 +128,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - HBP protocol (43) + Moza wheelbase report (59) deep tests: layout inference, LE byte order, axis decoding, normalization, report ID validation, endianness, all fields, proptests
   - Peripherals deep test expansion: handbrake position encoding/calibration/axis mapping/deadzones, shifter gear encoding/multi-gate patterns/sequential/clutch parsing, device-types identification/capability flags/telemetry/hat directions
   - 13 BDD device + game behavior scenarios: 8 device scenarios (Moza, Fanatec, Logitech, Thrustmaster, SimuCube, OpenFFBoard), 5 game scenarios (iRacing, ACC telemetry, game switching, NaN filtering, standby)
+- **Wave 38 — Simagic verification, WASM, diagnostics, Forza deep** (18,645 → ~19,171+ tests):
+  - Simagic protocol verification (38 tests) + comprehensive deep tests (68 tests): protocol encoding, device identification, wire-format validation
+  - WASM runtime deep tests (54 tests): plugin loading, execution, sandboxing, error recovery, resource limits
+  - Diagnostic + SRP + capture deep tests (251 tests): diagnostic infrastructure, SRP protocol handling, capture tooling expansion
+  - Forza adapter deep tests (90 tests) + support utility deep tests (25 tests)
+- **Wave 39 — plugin safety, filters, watchdog deep** (~19,171 → ~19,746+ tests):
+  - Native plugin (90) + plugin ABI (81) deep tests: loading, isolation, ABI compatibility, lifecycle management
+  - Crypto (52) + FMEA (50) deep tests: cryptographic verification, FMEA fault injection and recovery paths
+  - Filters (101) + pipeline (62) deep tests: filter processing chains, pipeline orchestration, edge cases
+  - Watchdog deep tests: software (58) + hardware (81) — timeout scenarios, recovery validation, keepalive
+- **Wave 40 — integration E2E, telemetry re-verification, profile deep** (~19,746 → ~20,551+ tests):
+  - Integration E2E expansion: plugin (23) + telemetry E2E (22) + device protocol E2E (22) cross-crate tests
+  - Telemetry adapter full re-verification: AMS2 (33), F1 (40), Rennsport (36), SimHub (60), RaceRoom (41), LFS (37), KartKraft (29), MudRunner (43), WRC (55) — 374 tests across 10 adapters
+  - Profile (97) + profile repository (94) + config writers (48) deep tests: inheritance chains, repo operations, writer formats
+  - Telemetry config (73) + streams (52) deep tests: configuration management, stream lifecycle
+- **Wave 41 — engine, schemas, FFB, infrastructure deep** (~20,551 → 21,043+ tests):
+  - FFB (107) + calibration (84) deep tests: force output precision, calibration workflows, profile application
+  - Service lifecycle (37) + IPC (37) deep tests: start/stop lifecycle, state machine, shutdown, IPC channels, auth/ACL
+  - Engine safety (76) + device management (53) deep tests: safety subsystem, device state management
+  - Schemas (97) + IPC protocol (76) deep tests: schema validation, IPC protocol encoding/decoding
+  - Compat (40) + firmware update (71) deep tests: migration compatibility, firmware update process
+  - Capture IDs (45) + test helpers (149) deep tests: capture ID lookup, shared test helper utilities
 - **Web-verified VID/PIDs** for Thrustmaster, Logitech, Fanatec, Simucube, Moza, AccuForce, VRS, and OpenFFBoard — source citations added from linux-steering-wheels, kernel drivers (`hid-lg4ff`, `hid-fanatecff`, `simagic-ff`), pid.codes, and vendor documentation
 - **Safety interlock comprehensive test suite**: behavior tests for interlock state machine, watchdog timeout scenarios, and FMEA fault-injection coverage
 - **Protocol verification wave 16**: 6 vendors re-audited (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) — PID accuracy and torque specs cross-checked against USB captures and vendor documentation

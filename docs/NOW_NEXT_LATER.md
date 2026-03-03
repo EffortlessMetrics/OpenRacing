@@ -6,12 +6,16 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 
 ## NOW (actively in flight)
 
-- **PR #22 — Wave 15 RC hardening**: waves 22-37 complete — golden packets, safety soak, plugin security, schema evolution, compile-fail tests, doc-tests, telemetry deep, protocol deep, trybuild, BDD scenarios, protocol verification, hot-swap, FFB pipeline E2E, concurrency stress, performance validation, capture tooling, profile/diagnostics deep, core infrastructure deep, input/peripherals deep all landed
-- **Test suite at 18,645+**: unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, safety-soak, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation
+- **PR #22 — Wave 15 RC hardening**: waves 22-41 complete — golden packets, safety soak, plugin security, schema evolution, compile-fail tests, doc-tests, telemetry deep, protocol deep, trybuild, BDD scenarios, protocol verification, hot-swap, FFB pipeline E2E, concurrency stress, performance validation, capture tooling, profile/diagnostics deep, core infrastructure deep, input/peripherals deep, WASM/native plugin deep, safety/engine deep, full telemetry adapter re-verification all landed
+- **Test suite at 21,043+**: unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, safety-soak, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation
 - **104 fuzz targets**: all HID protocols, game telemetry adapters, and new wave 31 targets (telemetry packet, profile, calibration, filter pipeline)
 - **Protocol verification complete**: ALL 14 HID crates cross-verified against community sources (kernel drivers, pid.codes, vendor docs)
 
 **Recently completed (this branch):**
+- ✅ Wave 41: FFB (107) + calibration (84) deep tests, service lifecycle (37) + IPC (37) deep tests, engine safety (76) + device management (53) deep, schemas (97) + IPC protocol (76) deep, compat (40) + firmware update (71) deep, capture IDs (45) + test helpers (149)
+- ✅ Wave 40: Integration E2E (plugin 23 + telemetry 22 + device protocol 22), telemetry adapter re-verification (AMS2, F1, Rennsport, SimHub, RaceRoom, LFS, KartKraft, MudRunner, WRC — 374 tests), profile (97) + repo (94) + config writers (48), telemetry config (73) + streams (52)
+- ✅ Wave 39: Native plugin (90) + plugin ABI (81) deep tests, crypto (52) + FMEA (50), filters (101) + pipeline (62), watchdog software (58) + hardware (81)
+- ✅ Wave 38: Simagic protocol verification (38) + deep tests (68), WASM runtime deep (54), diagnostic + SRP + capture deep (251), Forza deep (90) + support deep (25)
 - ✅ Wave 37: Telemetry core (58), integration (59), rate-limiter (35) deep tests, HBP (43) + Moza wheelbase report (59) protocol deep, peripherals deep (handbrake, shifter, device-types), 13 BDD device + game behavior scenarios
 - ✅ Wave 36: Property-based tests for FFB (17), pipeline (11), schemas (29), IPC (15), HID common (72) + scheduler (79) + atomic (100) deep tests, input maps (67) + KS representation (83), SimpleMotion V2 protocol verification (79), doc-tests across 5 crates
 - ✅ Wave 35: Service diagnostics deep tests (40), comprehensive profile system tests (64), tracing+curves+calibration deep tests + snapshots (86)
@@ -43,6 +47,7 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 - ✅ Waves 30-33 protocol verification + deep testing: 15,820 → 16,742+ tests passing across all crates
 - ✅ Waves 34-35 concurrency, performance, capture, diagnostics, profile deep: 16,742 → 17,696+ tests passing across all crates
 - ✅ Waves 36-37 core infrastructure, input, protocols, telemetry, peripherals, BDD deep: 17,696 → 18,645+ tests passing across all crates
+- ✅ Waves 38-41 plugin/safety/engine/telemetry/infrastructure comprehensive deep: 18,645 → 21,043+ tests passing across all crates
 
 ## NEXT (queued, ready to start)
 
@@ -73,7 +78,7 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 |--------|-------|
 | Supported devices | ~90+ VID/PID pairs across 16+ vendors |
 | Supported games | 56 telemetry adapter modules |
-| Test count | 18,645+ across 595+ test binaries (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) |
+| Test count | 21,043+ across 640+ test binaries (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) |
 | Fuzz targets | 104 across all HID protocols and game adapters |
 | Protocol crates | 17 HID vendor protocol microcrates |
 | Snapshot tests | 1,327 snapshot files across 52 snapshot directories |
