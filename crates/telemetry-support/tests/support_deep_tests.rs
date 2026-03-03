@@ -418,3 +418,540 @@ fn game_names_are_unique_across_matrix() -> TestResult {
     }
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// Deserialization error handling
+// ---------------------------------------------------------------------------
+
+#[test]
+fn invalid_yaml_returns_error() {
+    let bad_yaml = "{{{{ not valid yaml at all ::::";
+    let result: Result<GameSupportMatrix, _> = serde_yaml::from_str(bad_yaml);
+    assert!(result.is_err());
+}
+
+#[test]
+fn missing_required_name_field_returns_error() {
+    let yaml = r#"
+games:
+  broken_game:
+    versions:
+      - version: "1.0"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "udp"
+        supported_fields: []
+    telemetry:
+      method: "udp"
+      update_rate_hz: 60
+      fields: {}
+    config_writer: "test"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+"#;
+    let result: Result<GameSupportMatrix, _> = serde_yaml::from_str(yaml);
+    assert!(result.is_err(), "missing 'name' should be an error");
+}
+
+#[test]
+fn missing_required_versions_field_returns_error() {
+    let yaml = r#"
+games:
+  broken_game:
+    name: "Broken"
+    telemetry:
+      method: "udp"
+      update_rate_hz: 60
+      fields: {}
+    config_writer: "test"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+"#;
+    let result: Result<GameSupportMatrix, _> = serde_yaml::from_str(yaml);
+    assert!(result.is_err(), "missing 'versions' should be an error");
+}
+
+#[test]
+fn missing_required_telemetry_field_returns_error() {
+    let yaml = r#"
+games:
+  broken_game:
+    name: "Broken"
+    versions:
+      - version: "1.0"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "udp"
+        supported_fields: []
+    config_writer: "test"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+"#;
+    let result: Result<GameSupportMatrix, _> = serde_yaml::from_str(yaml);
+    assert!(result.is_err(), "missing 'telemetry' should be an error");
+}
+
+#[test]
+fn wrong_type_for_update_rate_returns_error() {
+    let yaml = r#"
+games:
+  broken_game:
+    name: "Broken"
+    versions:
+      - version: "1.0"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "udp"
+        supported_fields: []
+    telemetry:
+      method: "udp"
+      update_rate_hz: "not_a_number"
+      fields: {}
+    config_writer: "test"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+"#;
+    let result: Result<GameSupportMatrix, _> = serde_yaml::from_str(yaml);
+    assert!(result.is_err(), "string for update_rate_hz should be an error");
+}
+
+#[test]
+fn empty_yaml_string_returns_error() {
+    let result: Result<GameSupportMatrix, _> = serde_yaml::from_str("");
+    assert!(result.is_err());
+}
+
+#[test]
+fn null_yaml_returns_error() {
+    let result: Result<GameSupportMatrix, _> = serde_yaml::from_str("null");
+    assert!(result.is_err());
+}
+
+// ---------------------------------------------------------------------------
+// Empty and edge case matrices
+// ---------------------------------------------------------------------------
+
+#[test]
+fn empty_games_map_deserializes() -> TestResult {
+    let yaml = "games: {}";
+    let matrix: GameSupportMatrix = serde_yaml::from_str(yaml)?;
+    assert!(matrix.games.is_empty());
+    assert!(matrix.game_ids().is_empty());
+    assert!(matrix.stable_games().is_empty());
+    assert!(matrix.experimental_games().is_empty());
+    assert!(!matrix.has_game_id("anything"));
+    Ok(())
+}
+
+#[test]
+fn game_with_multiple_versions() -> TestResult {
+    let yaml = r#"
+games:
+  multi_ver:
+    name: "Multi Version Game"
+    versions:
+      - version: "1.0"
+        config_paths: ["/v1/config"]
+        executable_patterns: ["game_v1.exe"]
+        telemetry_method: "udp"
+        supported_fields: ["rpm"]
+      - version: "2.0"
+        config_paths: ["/v2/config"]
+        executable_patterns: ["game_v2.exe"]
+        telemetry_method: "shared_memory"
+        supported_fields: ["rpm", "speed"]
+      - version: "3.0-beta"
+        config_paths: []
+        executable_patterns: ["game_v3.exe"]
+        telemetry_method: "udp"
+        supported_fields: ["rpm", "speed", "gear"]
+    telemetry:
+      method: "udp"
+      update_rate_hz: 60
+      fields:
+        rpm: "RPM"
+    config_writer: "multi"
+    auto_detect:
+      process_names: ["game.exe"]
+      install_registry_keys: []
+      install_paths: []
+"#;
+    let matrix: GameSupportMatrix = serde_yaml::from_str(yaml)?;
+    let game = &matrix.games["multi_ver"];
+    assert_eq!(game.versions.len(), 3);
+    assert_eq!(game.versions[0].version, "1.0");
+    assert_eq!(game.versions[1].version, "2.0");
+    assert_eq!(game.versions[2].version, "3.0-beta");
+    assert_eq!(game.versions[1].telemetry_method, "shared_memory");
+    assert_eq!(game.versions[2].supported_fields.len(), 3);
+    Ok(())
+}
+
+#[test]
+fn game_with_rich_auto_detect() -> TestResult {
+    let yaml = r#"
+games:
+  rich_detect:
+    name: "Rich Detect"
+    versions:
+      - version: "1.0"
+        config_paths: ["/path/a", "/path/b", "/path/c"]
+        executable_patterns: ["game*.exe", "launcher.exe"]
+        telemetry_method: "udp"
+        supported_fields: ["rpm"]
+    telemetry:
+      method: "udp"
+      update_rate_hz: 60
+      fields: {}
+    config_writer: "rich"
+    auto_detect:
+      process_names: ["game.exe", "game_launcher.exe", "game64.exe"]
+      install_registry_keys: ["HKLM\\Software\\Game", "HKCU\\Software\\Game"]
+      install_paths: ["C:\\Games\\Rich", "D:\\Steam\\Rich"]
+"#;
+    let matrix: GameSupportMatrix = serde_yaml::from_str(yaml)?;
+    let game = &matrix.games["rich_detect"];
+    assert_eq!(game.auto_detect.process_names.len(), 3);
+    assert_eq!(game.auto_detect.install_registry_keys.len(), 2);
+    assert_eq!(game.auto_detect.install_paths.len(), 2);
+    assert_eq!(game.versions[0].config_paths.len(), 3);
+    assert_eq!(game.versions[0].executable_patterns.len(), 2);
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// TelemetryFieldMapping edge cases
+// ---------------------------------------------------------------------------
+
+#[test]
+fn field_mapping_all_none() -> TestResult {
+    let yaml = r#"
+games:
+  no_fields:
+    name: "No Fields"
+    versions:
+      - version: "1.0"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "none"
+        supported_fields: []
+    telemetry:
+      method: "none"
+      update_rate_hz: 0
+      fields: {}
+    config_writer: "none"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+"#;
+    let matrix: GameSupportMatrix = serde_yaml::from_str(yaml)?;
+    let fields = &matrix.games["no_fields"].telemetry.fields;
+    assert!(fields.ffb_scalar.is_none());
+    assert!(fields.rpm.is_none());
+    assert!(fields.speed_ms.is_none());
+    assert!(fields.slip_ratio.is_none());
+    assert!(fields.gear.is_none());
+    assert!(fields.flags.is_none());
+    assert!(fields.car_id.is_none());
+    assert!(fields.track_id.is_none());
+    Ok(())
+}
+
+#[test]
+fn field_mapping_all_some() -> TestResult {
+    let yaml = r#"
+games:
+  all_fields:
+    name: "All Fields"
+    versions:
+      - version: "1.0"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "udp"
+        supported_fields: []
+    telemetry:
+      method: "udp"
+      update_rate_hz: 60
+      fields:
+        ffb_scalar: "FFB"
+        rpm: "RPM"
+        speed_ms: "Speed"
+        slip_ratio: "Slip"
+        gear: "Gear"
+        flags: "Flags"
+        car_id: "Car"
+        track_id: "Track"
+    config_writer: "all"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+"#;
+    let matrix: GameSupportMatrix = serde_yaml::from_str(yaml)?;
+    let fields = &matrix.games["all_fields"].telemetry.fields;
+    assert_eq!(fields.ffb_scalar, Some("FFB".to_string()));
+    assert_eq!(fields.rpm, Some("RPM".to_string()));
+    assert_eq!(fields.speed_ms, Some("Speed".to_string()));
+    assert_eq!(fields.slip_ratio, Some("Slip".to_string()));
+    assert_eq!(fields.gear, Some("Gear".to_string()));
+    assert_eq!(fields.flags, Some("Flags".to_string()));
+    assert_eq!(fields.car_id, Some("Car".to_string()));
+    assert_eq!(fields.track_id, Some("Track".to_string()));
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Clone and Debug trait validation
+// ---------------------------------------------------------------------------
+
+#[test]
+fn matrix_clone_preserves_game_ids() -> TestResult {
+    let matrix = load_default_matrix()?;
+    let cloned = matrix.clone();
+    assert_eq!(matrix.game_ids(), cloned.game_ids());
+    for id in matrix.game_ids() {
+        assert_eq!(
+            matrix.games[&id].name,
+            cloned.games[&id].name,
+            "name mismatch for {id}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn matrix_debug_is_non_empty() -> TestResult {
+    let matrix = load_default_matrix()?;
+    let debug = format!("{matrix:?}");
+    assert!(!debug.is_empty());
+    assert!(debug.contains("GameSupportMatrix"));
+    Ok(())
+}
+
+#[test]
+fn game_support_status_debug_and_clone() {
+    let status = GameSupportStatus::Experimental;
+    let cloned = status;
+    let debug = format!("{status:?}");
+    assert_eq!(cloned, GameSupportStatus::Experimental);
+    assert!(debug.contains("Experimental"));
+}
+
+// ---------------------------------------------------------------------------
+// normalize_game_id edge cases
+// ---------------------------------------------------------------------------
+
+#[test]
+fn normalize_game_id_very_long_input() {
+    let long_id = "a".repeat(1000);
+    assert_eq!(normalize_game_id(&long_id), long_id.as_str());
+}
+
+#[test]
+fn normalize_game_id_with_special_chars() {
+    assert_eq!(normalize_game_id("game-with-dashes"), "game-with-dashes");
+    assert_eq!(normalize_game_id("game.with.dots"), "game.with.dots");
+    assert_eq!(normalize_game_id("game 123"), "game 123");
+}
+
+#[test]
+fn normalize_game_id_mixed_case_non_aliased() {
+    // Only ea_wrc and f1_2025 have case-insensitive matching
+    assert_eq!(normalize_game_id("IRACING"), "IRACING");
+    assert_eq!(normalize_game_id("ACC"), "ACC");
+}
+
+// ---------------------------------------------------------------------------
+// Serde round-trip preserves status and field mappings
+// ---------------------------------------------------------------------------
+
+#[test]
+fn serde_round_trip_preserves_status_and_field_mappings() -> TestResult {
+    let matrix = load_default_matrix()?;
+    let yaml = serde_yaml::to_string(&matrix)?;
+    let rt: GameSupportMatrix = serde_yaml::from_str(&yaml)?;
+
+    for id in matrix.game_ids() {
+        let orig = &matrix.games[&id];
+        let copy = &rt.games[&id];
+        assert_eq!(orig.status, copy.status, "status mismatch for {id}");
+        assert_eq!(
+            orig.telemetry.fields.ffb_scalar, copy.telemetry.fields.ffb_scalar,
+            "ffb_scalar mismatch for {id}"
+        );
+        assert_eq!(
+            orig.telemetry.fields.rpm, copy.telemetry.fields.rpm,
+            "rpm field mismatch for {id}"
+        );
+        assert_eq!(
+            orig.telemetry.supports_360hz_option,
+            copy.telemetry.supports_360hz_option,
+            "360hz mismatch for {id}"
+        );
+        assert_eq!(
+            orig.telemetry.high_rate_update_rate_hz,
+            copy.telemetry.high_rate_update_rate_hz,
+            "high_rate_hz mismatch for {id}"
+        );
+        assert_eq!(
+            orig.telemetry.output_target, copy.telemetry.output_target,
+            "output_target mismatch for {id}"
+        );
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// JSON serde round-trip (structs derive Serialize + Deserialize)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn json_serde_round_trip_preserves_game_ids() -> TestResult {
+    let matrix = load_default_matrix()?;
+    let json = serde_json::to_string(&matrix)?;
+    let rt: GameSupportMatrix = serde_json::from_str(&json)?;
+    assert_eq!(matrix.game_ids(), rt.game_ids());
+    for id in matrix.game_ids() {
+        assert_eq!(
+            matrix.games[&id].name,
+            rt.games[&id].name,
+            "JSON name mismatch for {id}"
+        );
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Matrix invariant: auto_detect lists have no empty strings
+// ---------------------------------------------------------------------------
+
+#[test]
+fn auto_detect_entries_are_non_empty_strings() -> TestResult {
+    let matrix = load_default_matrix()?;
+    for (id, game) in &matrix.games {
+        for name in &game.auto_detect.process_names {
+            assert!(!name.is_empty(), "game {id} has empty process_name");
+        }
+        for key in &game.auto_detect.install_registry_keys {
+            assert!(!key.is_empty(), "game {id} has empty registry key");
+        }
+        for path in &game.auto_detect.install_paths {
+            assert!(!path.is_empty(), "game {id} has empty install path");
+        }
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Matrix invariant: version supported_fields have no empty strings
+// ---------------------------------------------------------------------------
+
+#[test]
+fn version_supported_fields_are_non_empty_strings() -> TestResult {
+    let matrix = load_default_matrix()?;
+    for (id, game) in &matrix.games {
+        for ver in &game.versions {
+            for field in &ver.supported_fields {
+                assert!(
+                    !field.is_empty(),
+                    "game {id} version {} has empty supported_field",
+                    ver.version
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Invalid status value in YAML
+// ---------------------------------------------------------------------------
+
+#[test]
+fn invalid_status_value_returns_error() {
+    let yaml = r#"
+games:
+  bad_status:
+    name: "Bad Status"
+    versions:
+      - version: "1.0"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "udp"
+        supported_fields: []
+    telemetry:
+      method: "udp"
+      update_rate_hz: 60
+      fields: {}
+    status: "deprecated"
+    config_writer: "bad"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+"#;
+    let result: Result<GameSupportMatrix, _> = serde_yaml::from_str(yaml);
+    assert!(result.is_err(), "unrecognized status should be an error");
+}
+
+// ---------------------------------------------------------------------------
+// Telemetry output_target: verify nullable field
+// ---------------------------------------------------------------------------
+
+#[test]
+fn output_target_null_and_present() -> TestResult {
+    let yaml = r#"
+games:
+  with_target:
+    name: "With Target"
+    versions:
+      - version: "1.0"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "udp"
+        supported_fields: []
+    telemetry:
+      method: "udp"
+      update_rate_hz: 60
+      output_target: "127.0.0.1:20777"
+      fields: {}
+    config_writer: "wt"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+  without_target:
+    name: "Without Target"
+    versions:
+      - version: "1.0"
+        config_paths: []
+        executable_patterns: []
+        telemetry_method: "shared_memory"
+        supported_fields: []
+    telemetry:
+      method: "shared_memory"
+      update_rate_hz: 60
+      fields: {}
+    config_writer: "wot"
+    auto_detect:
+      process_names: []
+      install_registry_keys: []
+      install_paths: []
+"#;
+    let matrix: GameSupportMatrix = serde_yaml::from_str(yaml)?;
+    assert_eq!(
+        matrix.games["with_target"].telemetry.output_target,
+        Some("127.0.0.1:20777".to_string())
+    );
+    assert!(matrix.games["without_target"].telemetry.output_target.is_none());
+    Ok(())
+}
