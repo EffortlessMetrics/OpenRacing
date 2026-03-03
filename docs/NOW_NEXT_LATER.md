@@ -6,11 +6,14 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 
 ## NOW (actively in flight)
 
-- **PR #22 — Wave 15 RC hardening**: in final review — protocol verification, PID cross-validation, telemetry enrichment all landed
-- **Telemetry adapter enrichment**: ACC, PCars2, iRacing, RaceRoom, F1, BeamNG/LFS, Assetto Corsa — G-forces, flags, timing, typed fields promoted
-- **Property + snapshot test expansion**: proptest suites added for Simucube, Logitech, Thrustmaster, Fanatec, Moza, PXN, AccuForce; insta snapshots for iRacing, BeamNG, ACC adapters
+- **PR #22 — Wave 15 RC hardening**: waves 22-24 complete — golden packets, safety soak, plugin security, schema evolution, compile-fail tests, doc-tests all landed
+- **Test suite at 14,017+**: unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, safety-soak, doc-tests
+- **100+ fuzz targets**: all HID protocols, game telemetry adapters, and new wave 24 targets
 
 **Recently completed (this branch):**
+- ✅ Wave 22: Engine device/game tests, IPC snapshots, service lifecycle, error exhaustiveness
+- ✅ Wave 23: Golden packets (6 adapters), safety soak (10K ticks), plugin security, schema evolution, CLI/profile deep
+- ✅ Wave 24: Trybuild compile-fail tests, config/firmware deep, atomic stress, scheduler deep, doc-tests, 4 new fuzz targets
 - ✅ hwdb-verified PIDs for Fanatec, Thrustmaster, Asetek, Simagic
 - ✅ CI governance workflow fix (`track_compat_usage.py --current` flag)
 - ✅ Device PID verification across all 17 vendor protocol crates (id_verification suites)
@@ -20,17 +23,17 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 - ✅ GT Sport port swap fix — F-065 resolved
 - ✅ Fanatec sign-fix inversion corrected — F-062 resolved
 - ✅ deny.toml updated for libbz2-rs-sys license
-- ✅ Wave 19-20 deep test expansion: 13,075 tests passing across all crates
+- ✅ Waves 19-20 deep test expansion: 13,075 → 14,017+ tests passing across all crates
 
 ## NEXT (queued, ready to start)
 
 - **Merge PR #22** after CI green → cut v1.0.0-rc.2 tag
-- **Telemetry adapter test coverage expansion**: remaining adapters need golden-packet integration tests
 - **macOS IOKit HID support** (Phase 4): IOKit HID implementation + `thread_policy_set` RT scheduling
 - **macOS CI runner** in GitHub Actions matrix (F-053)
 - **Plugin system security hardening**: replace Ed25519 stub (`signature.rs:111`), implement PE/ELF embedded signature checking (`crypto/mod.rs:204`)
 - **Packaging/installer automation**: Linux deb/rpm/flatpak, macOS DMG with notarization (Windows MSI done)
 - **Unverified PID resolution**: Cube Controls `0x0C73–0x0C75`, VRS DFP V2 `0xA356`, OpenFFBoard `0xFFB1` — need hardware captures
+- **Line-level code coverage**: integrate `llvm-cov` or `cargo-tarpaulin` into CI to identify uncovered branches
 
 ## LATER (roadmap, not yet scoped)
 
@@ -50,12 +53,12 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 |--------|-------|
 | Supported devices | ~90+ VID/PID pairs across 16+ vendors |
 | Supported games | 56 telemetry adapter modules |
-| Test count | 13,075 across 526 test binaries (unit, integration, proptest, snapshot, E2E) |
-| Fuzz targets | 96 across all HID protocols and game adapters |
+| Test count | 14,017+ across 526+ test binaries (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests) |
+| Fuzz targets | 100+ across all HID protocols and game adapters |
 | Protocol crates | 17 HID vendor protocol microcrates |
-| Snapshot tests | 977 snapshot files across 38 snapshot directories |
-| Crate coverage | 78/82 crates have dedicated test files (exceptions: changelog, test-helpers, telemetry-integration, ui) |
-| Friction log | 65 items total — 12 open, 49 resolved, 1 investigating, 2 noted, 1 won't fix |
+| Snapshot tests | 1,000+ snapshot files across 38+ snapshot directories |
+| Crate coverage | 80/82 crates have dedicated test files (exceptions: changelog, ui) |
+| Friction log | 68 items total — 15 open, 49 resolved, 1 investigating, 2 noted, 1 won't fix |
 
 ---
 

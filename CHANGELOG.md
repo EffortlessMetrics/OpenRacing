@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GT7 extended packet support** (316/344 bytes): PacketType2 and PacketType3 implemented in `gran_turismo_7.rs` — adds wheel rotation, sway/heave/surge, energy recovery, and filtered throttle/brake fields (resolves F-064)
 - **All 17 vendor protocol crates wired into engine dispatch** — Thrustmaster, Logitech, Fanatec, Simucube (1 & 2), Simagic, Moza, Asetek, VRS, Heusinkveld, AccuForce, OpenFFBoard, FFBeast, Leo Bodnar, Cube Controls, Cammus, and PXN; comprehensive proptest/snapshot coverage; kernel-verified wire-format encoding for T300RS, T150/TMX, DFP range, Fanatec range/sign-fix, and Logitech mode-switch
 - **13,075 tests** across the workspace (unit, integration, proptest, snapshot, E2E) — 0 failures, 52 ignored
+- **14,017+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests) — 0 failures
 - **96 fuzz targets** covering all HID protocols and game telemetry adapters (AMS2 target added)
+- **100+ fuzz targets** covering all HID protocols, game telemetry adapters, and new wave 24 targets
 - **977 snapshot files** across 38 snapshot directories
 - **Fanatec GT DD Pro/ClubSport DD PID findings**: GT DD Pro and ClubSport DD confirmed to share PID `0x0020` with CSL DD in PC mode
 - **OpenFFBoard PID 0xFFB1 confirmed SPECULATIVE**: zero evidence across 5 independent sources (pid.codes, firmware, configurator, GitHub, linux-steering-wheels)
@@ -34,6 +36,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Mutation-killing tests for Fanatec, Logitech, Thrustmaster, and filters
   - Kernel-verified property tests for Fanatec, Logitech, Thrustmaster
   - `proptest_ids.rs` VID/PID constant validation for FFBeast and OpenFFBoard
+- **Wave 22 — engine/service deep testing** (13,075 → ~13,400 tests):
+  - Engine device and game integration tests (device dispatch, game telemetry pipelines)
+  - IPC snapshot tests (serialization round-trip verification)
+  - Service lifecycle tests (startup, shutdown, restart, error recovery)
+  - Error exhaustiveness tests (all error variants exercised)
+- **Wave 23 — golden packets, safety soak, plugin security, schema evolution** (~13,400 → ~13,750 tests):
+  - Golden-packet integration tests for 6 telemetry adapters (end-to-end validation against known-good captures)
+  - Safety soak tests: 10K-tick sustained operation under fault injection for interlock and watchdog subsystems
+  - Plugin security hardening tests (WASM sandbox escape, native plugin isolation, capability enforcement)
+  - Schema evolution tests (forward/backward compatibility across schema versions)
+  - CLI and profile deep tests (subcommand coverage, profile inheritance, validation edge cases)
+- **Wave 24 — compile-fail, config/firmware, atomic, scheduler, doc-tests** (~13,750 → 14,017+ tests):
+  - Trybuild compile-fail tests enforcing type-safety invariants at API boundaries
+  - Config and firmware-update deep tests (validation, migration, rollback scenarios)
+  - Atomic stress tests (concurrent access patterns, ordering guarantees)
+  - Scheduler deep tests (priority inversion, deadline miss handling, RT timing edge cases)
+  - Doc-tests: public API examples verified via `cargo test --doc`
+  - 4 new fuzz targets (100+ total)
 - **Web-verified VID/PIDs** for Thrustmaster, Logitech, Fanatec, Simucube, Moza, AccuForce, VRS, and OpenFFBoard — source citations added from linux-steering-wheels, kernel drivers (`hid-lg4ff`, `hid-fanatecff`, `simagic-ff`), pid.codes, and vendor documentation
 - **Safety interlock comprehensive test suite**: behavior tests for interlock state machine, watchdog timeout scenarios, and FMEA fault-injection coverage
 - **Protocol verification wave 16**: 6 vendors re-audited (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) — PID accuracy and torque specs cross-checked against USB captures and vendor documentation

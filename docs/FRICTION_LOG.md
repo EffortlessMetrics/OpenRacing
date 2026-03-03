@@ -4,7 +4,7 @@ Running record of pain points, blockers, and technical debt encountered during d
 
 Each entry has: **date**, **severity** (Low/Medium/High), **status** (Open/Resolved/Won't Fix), and a description + proposed remedy.
 
-**Summary (65 items):** 12 Open · 49 Resolved · 1 Investigating · 2 Noted · 1 Won't Fix
+**Summary (68 items):** 15 Open · 49 Resolved · 1 Investigating · 2 Noted · 1 Won't Fix
 
 ---
 
@@ -841,6 +841,36 @@ Running `cargo test --workspace --all-features --exclude racing-wheel-ui` shows 
 
 ---
 
+### F-076 · Package name discovery — crate names don't match directory names (Low · Open)
+
+**Encountered:** Wave 22-24 (2025-07)
+
+Rust crate names (in `Cargo.toml` `[package] name`) frequently differ from their directory names (e.g., directory `crates/engine` → crate `racing-wheel-engine`, directory `crates/plugins` → crate `racing-wheel-plugins`). This forces developers and agents to run `cargo metadata` or inspect each `Cargo.toml` to discover the correct `--package` flag for `cargo test`, `cargo clippy`, etc. The mismatch is especially confusing when `--exclude` flags reference the crate name, not the path.
+
+**Remedy:** Add a lookup table in `docs/DEVELOPMENT.md` mapping directory names to crate names. Long term: consider aligning directory and crate names where semver allows.
+
+---
+
+### F-077 · Transient proptest timeout failures (Low · Open)
+
+**Encountered:** Wave 23-24 (2025-07)
+
+Proptest suites occasionally time out on CI runners under heavy parallel load (especially Windows). The default `PROPTEST_MAX_SHRINK_ITERS` and per-test timeout interact poorly when many proptest files run concurrently. Failures are non-deterministic and disappear on retry.
+
+**Remedy:** Set explicit `ProptestConfig { timeout: ... }` in flaky suites. Consider adding `PROPTEST_CASES` environment variable override in CI to reduce case count on slow runners. Document retry expectations in `docs/DEVELOPMENT.md`.
+
+---
+
+### F-078 · trybuild stderr matching fragility across Rust versions (Low · Open)
+
+**Encountered:** Wave 24 (2025-07)
+
+`trybuild` compile-fail tests compare exact stderr output against `.stderr` snapshot files. When the Rust compiler version changes (e.g., nightly → stable, or minor version bumps), error message wording, spans, and suggestion text change, causing spurious test failures. This requires regenerating `.stderr` files after every toolchain update.
+
+**Remedy:** Pin `rust-toolchain.toml` to a specific stable version (already done). Consider using `trybuild`'s `#[trybuild::ignore]` or `compile_fail` doc-test attributes for tests where exact stderr matching is unnecessary. Document the `.stderr` regeneration workflow (`TRYBUILD=overwrite cargo test`) in `docs/DEVELOPMENT.md`.
+
+---
+
 ## Resolved (archive)
 
 | ID | Title | Resolved In |
@@ -891,6 +921,13 @@ Running `cargo test --workspace --all-features --exclude racing-wheel-ui` shows 
 ---
 
 ## Recent Progress
+
+### Waves 22-24 — Golden Packets, Safety Soak, Compile-Fail, Doc-Tests (2025-07)
+- **942 new tests** added (13,075 → 14,017+ passing), plus 4 new fuzz targets (100+ total).
+- **Wave 22 — engine/service deep testing**: Engine device/game integration tests, IPC snapshot round-trip verification, service lifecycle tests (startup/shutdown/restart/error recovery), error exhaustiveness (all error variants exercised).
+- **Wave 23 — golden packets & safety soak**: Golden-packet integration tests for 6 telemetry adapters (end-to-end validation against known-good captures). Safety soak: 10K-tick sustained operation under fault injection for interlock and watchdog subsystems. Plugin security hardening tests (WASM sandbox escape, native plugin isolation, capability enforcement). Schema evolution tests (forward/backward compatibility). CLI/profile deep tests.
+- **Wave 24 — compile-fail, config/firmware, atomic, scheduler, doc-tests**: Trybuild compile-fail tests enforcing type-safety invariants at API boundaries. Config and firmware-update deep tests (validation, migration, rollback). Atomic stress tests (concurrent access, ordering guarantees). Scheduler deep tests (priority inversion, deadline miss, RT timing edges). Doc-tests for public API examples. 4 new fuzz targets.
+- **New friction points**: F-076 (crate name vs directory name mismatch), F-077 (transient proptest timeouts), F-078 (trybuild stderr fragility across Rust versions).
 
 ### Waves 19-20 — Deep Test Coverage Expansion (2025-07)
 - **2,676 new tests** added (12,754 → 13,075 passing; 52 ignored), plus 1 new fuzz target (96 total) and 38 new snapshot files (977 total).
