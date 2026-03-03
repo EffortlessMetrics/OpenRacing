@@ -144,7 +144,8 @@ fn metrics_tick_count_increments() -> Result<(), Box<dyn std::error::Error>> {
         match scheduler.wait_for_tick() {
             Ok(tick) => {
                 ok_count += 1;
-                assert_eq!(tick, ok_count);
+                // Tick number is overall count (may exceed ok_count due to timing violations)
+                assert!(tick >= ok_count, "tick {tick} should be >= ok_count {ok_count}");
             }
             Err(RTError::TimingViolation) => {
                 // Tick still counts internally
