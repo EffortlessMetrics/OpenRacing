@@ -69,21 +69,56 @@ impl TelemetryAdapter for PCars3Adapter {
             info!("PCARS3 adapter listening on UDP port {bind_port}");
             let mut buf = [0u8; MAX_PACKET_SIZE];
             let mut frame_idx = 0u64;
+            let mut last_timing = NormalizedTelemetry::default();
+            let mut viewed_participant: u8 = 0;
 
             loop {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
-                    Ok(Ok(len)) => match crate::pcars2::parse_pcars2_packet(&buf[..len]) {
-                        Ok(normalized) => {
-                            let frame =
-                                TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
-                            if tx.send(frame).await.is_err() {
-                                debug!("Receiver dropped, stopping PCARS3 UDP monitoring");
-                                break;
+                    Ok(Ok(len)) => {
+                        let pkt = &buf[..len];
+                        match crate::pcars2::pcars2_packet_type(pkt) {
+                            Some(crate::pcars2::PACKET_TYPE_TIMINGS) => {
+                                match crate::pcars2::parse_pcars2_timings_packet(
+                                    pkt,
+                                    viewed_participant,
+                                ) {
+                                    Ok(timing) => last_timing = timing,
+                                    Err(e) => {
+                                        debug!("Failed to parse PCARS3 timing packet: {e}")
+                                    }
+                                }
                             }
-                            frame_idx = frame_idx.saturating_add(1);
+                            _ => {
+                                if let Some(&vp) = pkt.get(12)
+                                    && (vp as i8) >= 0
+                                {
+                                    viewed_participant = vp;
+                                }
+                                match crate::pcars2::parse_pcars2_packet(pkt) {
+                                    Ok(mut normalized) => {
+                                        crate::pcars2::merge_timing_fields(
+                                            &mut normalized,
+                                            &last_timing,
+                                        );
+                                        let frame = TelemetryFrame::new(
+                                            normalized,
+                                            telemetry_now_ns(),
+                                            frame_idx,
+                                            len,
+                                        );
+                                        if tx.send(frame).await.is_err() {
+                                            debug!(
+                                                "Receiver dropped, stopping PCARS3 UDP monitoring"
+                                            );
+                                            break;
+                                        }
+                                        frame_idx = frame_idx.saturating_add(1);
+                                    }
+                                    Err(e) => debug!("Failed to parse PCARS3 UDP packet: {e}"),
+                                }
+                            }
                         }
-                        Err(e) => debug!("Failed to parse PCARS3 UDP packet: {e}"),
-                    },
+                    }
                     Ok(Err(e)) => warn!("PCARS3 UDP receive error: {e}"),
                     Err(_) => debug!("No PCARS3 telemetry data received (timeout)"),
                 }
@@ -99,7 +134,12 @@ impl TelemetryAdapter for PCars3Adapter {
     }
 
     fn normalize(&self, raw: &[u8]) -> Result<NormalizedTelemetry> {
-        crate::pcars2::parse_pcars2_packet(raw)
+        match crate::pcars2::pcars2_packet_type(raw) {
+            Some(crate::pcars2::PACKET_TYPE_TIMINGS) => {
+                crate::pcars2::parse_pcars2_timings_packet(raw, 0)
+            }
+            _ => crate::pcars2::parse_pcars2_packet(raw),
+        }
     }
 
     fn expected_update_rate(&self) -> Duration {
@@ -244,6 +284,29 @@ mod tests {
     fn test_pcars3_with_port() {
         let adapter = PCars3Adapter::new().with_port(9999);
         assert_eq!(adapter.bind_port, 9999);
+    }
+
+    #[test]
+    fn test_pcars3_normalize_timing_packet() -> TestResult {
+        let adapter = PCars3Adapter::new();
+        // Build a sTimingsData packet (type 3)
+        let min_size = 29 + 28; // TIMINGS_OFF_PARTICIPANTS + PARTICIPANT_ENTRY_SIZE
+        let mut data = vec![0u8; min_size];
+        data[10] = 3; // packet type = timings
+        data[12] = 1; // 1 participant
+        let base = 29; // participant 0 start
+        data[base + 8] = 2; // race position
+        data[base + 10] = 3; // current lap
+        data[base + 16..base + 20].copy_from_slice(&70.5f32.to_le_bytes()); // best lap
+        data[base + 20..base + 24].copy_from_slice(&71.0f32.to_le_bytes()); // last lap
+        data[base + 24..base + 28].copy_from_slice(&15.0f32.to_le_bytes()); // current time
+        let result = adapter.normalize(&data)?;
+        assert_eq!(result.position, 2);
+        assert_eq!(result.lap, 3);
+        assert!((result.best_lap_time_s - 70.5).abs() < 0.01);
+        assert!((result.last_lap_time_s - 71.0).abs() < 0.01);
+        assert!((result.current_lap_time_s - 15.0).abs() < 0.01);
+        Ok(())
     }
 
     #[cfg(test)]

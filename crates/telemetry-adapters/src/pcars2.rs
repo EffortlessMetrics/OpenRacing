@@ -135,6 +135,54 @@ const PCARS2_TYRE_TEMP_MIN_SIZE: usize = 180;
 /// Minimum packet size to read tyre air pressures (through sAirPressure[3]).
 const PCARS2_AIR_PRESSURE_MIN_SIZE: usize = 360;
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Packet header fields shared by all SMS UDP packet types.
+// ──────────────────────────────────────────────────────────────────────────────
+const OFF_PACKET_TYPE: usize = 10; // u8: mPacketType (0=telemetry, 3=timings)
+/// Packet type for sTimingsData (position, lap, lap times).
+pub const PACKET_TYPE_TIMINGS: u8 = 3;
+
+/// Viewed participant index (telemetry packet only, offset 12, i8).
+const OFF_VIEWED_PARTICIPANT: usize = 12;
+
+// ──────────────────────────────────────────────────────────────────────────────
+// sTimingsData packet (type 3) offsets.
+//
+// Verified against CrewChiefV4 PCars2/PCars2SharedMemoryStruct.cs and
+// PCars2/PCars2UDPTelemetryDataStruct.cs (sTimingsData, sParticipantInfo).
+//
+// Body (after 12-byte header):
+//  12: i8   sNumParticipants
+//  13: u32  sParticipantsChangedTimestamp
+//  17: f32  sEventTimeRemaining
+//  21: f32  sSplitTimeAhead
+//  25: f32  sSplitTimeBehind
+//  29: sParticipantInfo[32]
+//
+// sParticipantInfo (28 bytes per entry):
+//   0: i16[3] sWorldPosition (6 bytes)
+//   6: u16    sCurrentLapDistance
+//   8: u8     sRacePosition (lower 7 bits = 1-based position, top bit = active)
+//   9: u8     sLapsCompleted
+//  10: u8     sCurrentLap (1-based current lap)
+//  11: u8     sSector
+//  12: f32    sLastSectorTime
+//  16: f32    sBestLapTime   (-1.0 = no valid time)
+//  20: f32    sLastLapTime   (-1.0 = no valid time)
+//  24: f32    sCurrentTime   (current lap elapsed time, seconds)
+// ──────────────────────────────────────────────────────────────────────────────
+const TIMINGS_OFF_NUM_PARTICIPANTS: usize = 12;
+const TIMINGS_OFF_PARTICIPANTS: usize = 29;
+const PARTICIPANT_ENTRY_SIZE: usize = 28;
+const PART_OFF_RACE_POSITION: usize = 8;
+const PART_OFF_CURRENT_LAP: usize = 10;
+const PART_OFF_BEST_LAP_TIME: usize = 16;
+const PART_OFF_LAST_LAP_TIME: usize = 20;
+const PART_OFF_CURRENT_TIME: usize = 24;
+
+/// Minimum size for a timing packet with at least one participant entry.
+const PCARS2_TIMINGS_MIN_SIZE: usize = TIMINGS_OFF_PARTICIPANTS + PARTICIPANT_ENTRY_SIZE;
+
 /// Standard gravitational acceleration (m/s²) for converting local acceleration to G-forces.
 const G_ACCEL: f32 = 9.80665;
 /// Conversion factor: 1 kPa ≈ 0.145038 PSI.
@@ -289,6 +337,90 @@ pub fn parse_pcars2_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
     Ok(builder.build())
 }
 
+/// Returns the SMS packet type from the header, or `None` if the packet is too short.
+pub fn pcars2_packet_type(data: &[u8]) -> Option<u8> {
+    read_u8(data, OFF_PACKET_TYPE)
+}
+
+/// Parse timing data from a pCars2/pCars3 sTimingsData packet (type 3).
+///
+/// Extracts position, lap, and lap time fields for the specified `participant_idx`.
+/// Returns a [`NormalizedTelemetry`] containing only timing-related fields; callers
+/// should merge these into a full telemetry frame via [`merge_timing_fields`].
+///
+/// The SMS protocol uses `-1.0` for invalid / no-data lap times; such values are
+/// left at the `NormalizedTelemetry` default of `0.0`.
+pub fn parse_pcars2_timings_packet(
+    data: &[u8],
+    participant_idx: u8,
+) -> Result<NormalizedTelemetry> {
+    if data.len() < PCARS2_TIMINGS_MIN_SIZE {
+        return Err(anyhow!(
+            "PCARS2 timings packet too short: expected at least {PCARS2_TIMINGS_MIN_SIZE}, got {}",
+            data.len()
+        ));
+    }
+
+    let num_participants = read_i8(data, TIMINGS_OFF_NUM_PARTICIPANTS).unwrap_or(0);
+    let idx = if (participant_idx as i8) >= num_participants || num_participants <= 0 {
+        0usize
+    } else {
+        participant_idx as usize
+    };
+
+    let base = TIMINGS_OFF_PARTICIPANTS + idx * PARTICIPANT_ENTRY_SIZE;
+    if data.len() < base + PARTICIPANT_ENTRY_SIZE {
+        return Err(anyhow!(
+            "PCARS2 timings packet too short for participant {idx}"
+        ));
+    }
+
+    let race_position_raw = read_u8(data, base + PART_OFF_RACE_POSITION).unwrap_or(0);
+    let position = race_position_raw & 0x7F; // lower 7 bits
+
+    let current_lap = read_u8(data, base + PART_OFF_CURRENT_LAP).unwrap_or(0);
+
+    let best_lap_time = read_f32_le(data, base + PART_OFF_BEST_LAP_TIME).unwrap_or(-1.0);
+    let last_lap_time = read_f32_le(data, base + PART_OFF_LAST_LAP_TIME).unwrap_or(-1.0);
+    let current_time = read_f32_le(data, base + PART_OFF_CURRENT_TIME).unwrap_or(-1.0);
+
+    let mut builder = NormalizedTelemetry::builder()
+        .position(position)
+        .lap(current_lap as u16);
+
+    if current_time >= 0.0 {
+        builder = builder.current_lap_time_s(current_time);
+    }
+    if best_lap_time >= 0.0 {
+        builder = builder.best_lap_time_s(best_lap_time);
+    }
+    if last_lap_time >= 0.0 {
+        builder = builder.last_lap_time_s(last_lap_time);
+    }
+
+    Ok(builder.build())
+}
+
+/// Merge timing fields from a previously parsed sTimingsData packet into a
+/// telemetry frame. Non-default values in `timing` overwrite `telemetry`.
+pub fn merge_timing_fields(telemetry: &mut NormalizedTelemetry, timing: &NormalizedTelemetry) {
+    if timing.position > 0 {
+        telemetry.position = timing.position;
+    }
+    if timing.lap > 0 {
+        telemetry.lap = timing.lap;
+    }
+    if timing.current_lap_time_s > 0.0 {
+        telemetry.current_lap_time_s = timing.current_lap_time_s;
+    }
+    if timing.best_lap_time_s > 0.0 {
+        telemetry.best_lap_time_s = timing.best_lap_time_s;
+    }
+    if timing.last_lap_time_s > 0.0 {
+        telemetry.last_lap_time_s = timing.last_lap_time_s;
+    }
+}
+
 /// Project CARS 2 / Project CARS 3 telemetry adapter.
 pub struct PCars2Adapter {
     bind_port: u16,
@@ -371,21 +503,50 @@ impl TelemetryAdapter for PCars2Adapter {
             info!("PCARS2 adapter listening on UDP port {bind_port}");
             let mut buf = [0u8; MAX_PACKET_SIZE];
             let mut frame_idx = 0u64;
+            let mut last_timing = NormalizedTelemetry::default();
+            let mut viewed_participant: u8 = 0;
 
             loop {
                 match tokio::time::timeout(update_rate * 10, socket.recv(&mut buf)).await {
-                    Ok(Ok(len)) => match parse_pcars2_packet(&buf[..len]) {
-                        Ok(normalized) => {
-                            let frame =
-                                TelemetryFrame::new(normalized, telemetry_now_ns(), frame_idx, len);
-                            if tx.send(frame).await.is_err() {
-                                debug!("Receiver dropped, stopping PCARS2 UDP monitoring");
-                                break;
+                    Ok(Ok(len)) => {
+                        let pkt = &buf[..len];
+                        match pcars2_packet_type(pkt) {
+                            Some(PACKET_TYPE_TIMINGS) => {
+                                match parse_pcars2_timings_packet(pkt, viewed_participant) {
+                                    Ok(timing) => last_timing = timing,
+                                    Err(e) => {
+                                        debug!("Failed to parse PCARS2 timing packet: {e}")
+                                    }
+                                }
                             }
-                            frame_idx = frame_idx.saturating_add(1);
+                            _ => {
+                                if let Some(vp) = read_i8(pkt, OFF_VIEWED_PARTICIPANT)
+                                    && vp >= 0
+                                {
+                                    viewed_participant = vp as u8;
+                                }
+                                match parse_pcars2_packet(pkt) {
+                                    Ok(mut normalized) => {
+                                        merge_timing_fields(&mut normalized, &last_timing);
+                                        let frame = TelemetryFrame::new(
+                                            normalized,
+                                            telemetry_now_ns(),
+                                            frame_idx,
+                                            len,
+                                        );
+                                        if tx.send(frame).await.is_err() {
+                                            debug!(
+                                                "Receiver dropped, stopping PCARS2 UDP monitoring"
+                                            );
+                                            break;
+                                        }
+                                        frame_idx = frame_idx.saturating_add(1);
+                                    }
+                                    Err(e) => debug!("Failed to parse PCARS2 UDP packet: {e}"),
+                                }
+                            }
                         }
-                        Err(e) => debug!("Failed to parse PCARS2 UDP packet: {e}"),
-                    },
+                    }
                     Ok(Err(e)) => warn!("PCARS2 UDP receive error: {e}"),
                     Err(_) => debug!("No PCARS2 telemetry data received (timeout)"),
                 }
@@ -401,7 +562,10 @@ impl TelemetryAdapter for PCars2Adapter {
     }
 
     fn normalize(&self, raw: &[u8]) -> Result<NormalizedTelemetry> {
-        parse_pcars2_packet(raw)
+        match pcars2_packet_type(raw) {
+            Some(PACKET_TYPE_TIMINGS) => parse_pcars2_timings_packet(raw, 0),
+            _ => parse_pcars2_packet(raw),
+        }
     }
 
     fn expected_update_rate(&self) -> Duration {
@@ -719,6 +883,114 @@ mod tests {
         assert_eq!(result.lateral_g, 0.0);
         assert_eq!(result.longitudinal_g, 0.0);
         assert_eq!(result.vertical_g, 0.0);
+        Ok(())
+    }
+
+    // ── Timing packet tests ─────────────────────────────────────────────────
+
+    /// Build a minimal sTimingsData packet (type 3) with one participant entry.
+    fn make_timings_packet(
+        position: u8,
+        current_lap: u8,
+        best_lap_time: f32,
+        last_lap_time: f32,
+        current_time: f32,
+    ) -> Vec<u8> {
+        let mut data = vec![0u8; PCARS2_TIMINGS_MIN_SIZE];
+        // Header: packet type = 3 (timings)
+        data[OFF_PACKET_TYPE] = PACKET_TYPE_TIMINGS;
+        // Body: 1 participant
+        data[TIMINGS_OFF_NUM_PARTICIPANTS] = 1u8;
+        // Participant 0
+        let base = TIMINGS_OFF_PARTICIPANTS;
+        data[base + PART_OFF_RACE_POSITION] = position;
+        data[base + PART_OFF_CURRENT_LAP] = current_lap;
+        data[base + PART_OFF_BEST_LAP_TIME..base + PART_OFF_BEST_LAP_TIME + 4]
+            .copy_from_slice(&best_lap_time.to_le_bytes());
+        data[base + PART_OFF_LAST_LAP_TIME..base + PART_OFF_LAST_LAP_TIME + 4]
+            .copy_from_slice(&last_lap_time.to_le_bytes());
+        data[base + PART_OFF_CURRENT_TIME..base + PART_OFF_CURRENT_TIME + 4]
+            .copy_from_slice(&current_time.to_le_bytes());
+        data
+    }
+
+    #[test]
+    fn test_parse_timings_valid() -> TestResult {
+        let data = make_timings_packet(3, 5, 62.5, 63.1, 30.0);
+        let result = parse_pcars2_timings_packet(&data, 0)?;
+        assert_eq!(result.position, 3);
+        assert_eq!(result.lap, 5);
+        assert!((result.best_lap_time_s - 62.5).abs() < 0.01);
+        assert!((result.last_lap_time_s - 63.1).abs() < 0.01);
+        assert!((result.current_lap_time_s - 30.0).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_timings_invalid_times() -> TestResult {
+        let data = make_timings_packet(1, 1, -1.0, -1.0, -1.0);
+        let result = parse_pcars2_timings_packet(&data, 0)?;
+        assert_eq!(result.position, 1);
+        assert_eq!(result.lap, 1);
+        // -1.0 means no data; builder leaves at default 0.0
+        assert_eq!(result.best_lap_time_s, 0.0);
+        assert_eq!(result.last_lap_time_s, 0.0);
+        assert_eq!(result.current_lap_time_s, 0.0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_timings_too_short() {
+        let data = vec![0u8; 30];
+        assert!(parse_pcars2_timings_packet(&data, 0).is_err());
+    }
+
+    #[test]
+    fn test_parse_timings_position_top_bit_masked() -> TestResult {
+        // Top bit set (0x80 | 5 = 0x85) → position should be 5
+        let mut data = make_timings_packet(5, 2, 60.0, 61.0, 10.0);
+        let base = TIMINGS_OFF_PARTICIPANTS;
+        data[base + PART_OFF_RACE_POSITION] = 0x85;
+        let result = parse_pcars2_timings_packet(&data, 0)?;
+        assert_eq!(result.position, 5);
+        Ok(())
+    }
+
+    #[test]
+    fn test_merge_timing_fields() -> TestResult {
+        let mut telemetry = parse_pcars2_packet(&make_pcars2_packet(0.0, 0.5, 0.0, 30.0, 3000.0, 7000.0, 2))?;
+        let timing = parse_pcars2_timings_packet(&make_timings_packet(2, 4, 65.0, 66.0, 20.0), 0)?;
+        merge_timing_fields(&mut telemetry, &timing);
+        assert_eq!(telemetry.position, 2);
+        assert_eq!(telemetry.lap, 4);
+        assert!((telemetry.current_lap_time_s - 20.0).abs() < 0.01);
+        assert!((telemetry.best_lap_time_s - 65.0).abs() < 0.01);
+        assert!((telemetry.last_lap_time_s - 66.0).abs() < 0.01);
+        // Original telemetry fields preserved
+        assert!((telemetry.speed_ms - 30.0).abs() < 0.01);
+        assert!((telemetry.rpm - 3000.0).abs() < 1.0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_packet_type_detection() {
+        let mut telem_pkt = make_pcars2_packet(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0);
+        telem_pkt[OFF_PACKET_TYPE] = 0; // telemetry
+        assert_eq!(pcars2_packet_type(&telem_pkt), Some(0));
+
+        let timing_pkt = make_timings_packet(1, 1, 60.0, 61.0, 10.0);
+        assert_eq!(pcars2_packet_type(&timing_pkt), Some(PACKET_TYPE_TIMINGS));
+
+        assert_eq!(pcars2_packet_type(&[]), None);
+    }
+
+    #[test]
+    fn test_normalize_dispatches_timing_packet() -> TestResult {
+        let adapter = PCars2Adapter::new();
+        let data = make_timings_packet(3, 5, 62.5, 63.1, 30.0);
+        let result = adapter.normalize(&data)?;
+        assert_eq!(result.position, 3);
+        assert_eq!(result.lap, 5);
         Ok(())
     }
 
