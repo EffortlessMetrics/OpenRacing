@@ -1,0 +1,9 @@
+---
+source: crates/cli/tests/cli_output_snapshots.rs
+expression: stderr
+---
+error: unrecognized subcommand 'nonexistent'
+
+Usage: wheelctl.exe [OPTIONS] <COMMAND>
+
+For more information, try '--help'.

@@ -1,0 +1,14 @@
+---
+source: crates/engine/tests/engine_snapshot_tests.rs
+expression: flags
+---
+{
+  "yellow_flag": true,
+  "red_flag": false,
+  "blue_flag": false,
+  "checkered_flag": false,
+  "pit_limiter": true,
+  "drs_enabled": false,
+  "ers_available": false,
+  "in_pit": true
+}

@@ -1,0 +1,14 @@
+---
+source: crates/engine/tests/engine_snapshot_tests.rs
+expression: report
+---
+DeviceTelemetryReport {
+    report_id: 33,
+    wheel_angle_mdeg: 45500,
+    wheel_speed_mrad_s: 2500,
+    temp_c: 65,
+    faults: 0,
+    hands_on: 1,
+    last_torque_seq: 100,
+    crc8: 222,
+}

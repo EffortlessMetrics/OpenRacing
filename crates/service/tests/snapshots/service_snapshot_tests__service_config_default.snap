@@ -1,0 +1,14 @@
+---
+source: crates/service/tests/service_snapshot_tests.rs
+expression: config
+---
+{
+  "service_name": "wheeld",
+  "service_display_name": "Racing Wheel Service",
+  "service_description": "Racing wheel hardware management and force feedback service",
+  "health_check_interval": 30,
+  "max_restart_attempts": 3,
+  "restart_delay": 5,
+  "auto_restart": true,
+  "shutdown_timeout": 30
+}

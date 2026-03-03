@@ -1,0 +1,18 @@
+---
+source: crates/service/tests/service_snapshot_tests.rs
+expression: result
+---
+{
+  "name": "Temperature Check",
+  "status": "Warn",
+  "message": "Device temperature approaching limit",
+  "execution_time_ms": 42,
+  "metadata": {
+    "threshold_c": "80",
+    "temperature_c": "78"
+  },
+  "suggested_actions": [
+    "Improve ventilation",
+    "Reduce torque output"
+  ]
+}

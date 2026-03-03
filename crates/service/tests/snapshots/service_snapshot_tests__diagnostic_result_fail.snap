@@ -1,0 +1,17 @@
+---
+source: crates/service/tests/service_snapshot_tests.rs
+expression: result
+---
+{
+  "name": "Encoder Health",
+  "status": "Fail",
+  "message": "Encoder NaN values detected",
+  "execution_time_ms": 5,
+  "metadata": {
+    "fault_code": "0x02"
+  },
+  "suggested_actions": [
+    "Check encoder cable",
+    "Power-cycle device"
+  ]
+}

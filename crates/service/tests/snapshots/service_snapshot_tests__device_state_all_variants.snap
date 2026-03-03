@@ -1,0 +1,12 @@
+---
+source: crates/service/tests/service_snapshot_tests.rs
+expression: states
+---
+[
+    Disconnected,
+    Connected,
+    Ready,
+    Faulted {
+        reason: "USB communication failure",
+    },
+]

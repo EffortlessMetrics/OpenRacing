@@ -1,0 +1,11 @@
+---
+source: crates/cli/tests/cli_output_snapshots.rs
+expression: error_output
+---
+{
+  "error": {
+    "message": "Device not found: wheel-999",
+    "type": "DeviceNotFound"
+  },
+  "success": false
+}

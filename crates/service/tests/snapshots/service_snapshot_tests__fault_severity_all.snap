@@ -1,0 +1,9 @@
+---
+source: crates/service/tests/service_snapshot_tests.rs
+expression: severities
+---
+[
+    Warning,
+    Critical,
+    Fatal,
+]

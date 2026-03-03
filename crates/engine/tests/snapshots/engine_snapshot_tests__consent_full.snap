@@ -1,0 +1,15 @@
+---
+source: crates/engine/tests/engine_snapshot_tests.rs
+expression: consent
+---
+{
+  "max_torque_nm": 25.0,
+  "warnings": [
+    "High torque mode can cause injury",
+    "Ensure wheel is firmly mounted"
+  ],
+  "disclaimers": [
+    "Use at your own risk"
+  ],
+  "requires_explicit_consent": true
+}

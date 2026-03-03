@@ -1,0 +1,45 @@
+---
+source: crates/engine/tests/engine_snapshot_tests.rs
+expression: "DeviceInputs::default()"
+---
+DeviceInputs {
+    tick: 0,
+    buttons: [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    hat: 0,
+    steering: None,
+    throttle: None,
+    brake: None,
+    clutch_left: None,
+    clutch_right: None,
+    clutch_combined: None,
+    clutch_left_button: None,
+    clutch_right_button: None,
+    handbrake: None,
+    rotaries: [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+}

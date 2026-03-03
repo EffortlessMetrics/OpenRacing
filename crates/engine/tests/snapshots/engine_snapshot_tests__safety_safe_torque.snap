@@ -1,0 +1,5 @@
+---
+source: crates/engine/tests/engine_snapshot_tests.rs
+expression: "racing_wheel_engine::safety::SafetyState::SafeTorque"
+---
+SafeTorque

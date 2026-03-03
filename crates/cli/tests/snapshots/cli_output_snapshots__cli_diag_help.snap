@@ -1,0 +1,20 @@
+---
+source: crates/cli/tests/cli_output_snapshots.rs
+expression: stdout
+---
+Diagnostic and monitoring commands
+
+Usage: wheelctl.exe diag [OPTIONS] <COMMAND>
+
+Commands:
+  test     Run system diagnostics
+  record   Record blackbox data
+  replay   Replay blackbox recording
+  support  Generate support bundle
+  metrics  Show performance metrics
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+      --json        Output in JSON format for machine parsing
+  -v, --verbose...  Verbose logging
+  -h, --help        Print help

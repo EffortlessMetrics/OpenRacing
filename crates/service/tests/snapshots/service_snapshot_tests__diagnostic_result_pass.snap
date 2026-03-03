@@ -1,0 +1,12 @@
+---
+source: crates/service/tests/service_snapshot_tests.rs
+expression: result
+---
+{
+  "name": "USB Connection",
+  "status": "Pass",
+  "message": "Device communicating at 1kHz",
+  "execution_time_ms": 125,
+  "metadata": {},
+  "suggested_actions": []
+}

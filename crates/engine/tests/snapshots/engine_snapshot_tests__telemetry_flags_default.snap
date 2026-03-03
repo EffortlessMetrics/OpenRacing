@@ -1,0 +1,14 @@
+---
+source: crates/engine/tests/engine_snapshot_tests.rs
+expression: "TelemetryFlags::default()"
+---
+TelemetryFlags {
+    yellow_flag: false,
+    red_flag: false,
+    blue_flag: false,
+    checkered_flag: false,
+    pit_limiter: false,
+    drs_enabled: false,
+    ers_available: false,
+    in_pit: false,
+}

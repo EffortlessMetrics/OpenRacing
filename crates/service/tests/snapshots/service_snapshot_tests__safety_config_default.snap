@@ -1,0 +1,13 @@
+---
+source: crates/service/tests/service_snapshot_tests.rs
+expression: config
+---
+{
+  "default_safe_torque_nm": 5.0,
+  "max_torque_nm": 25.0,
+  "fault_response_timeout_ms": 50,
+  "hands_off_timeout_s": 5,
+  "temp_warning_c": 70,
+  "temp_fault_c": 80,
+  "require_physical_interlock": true
+}

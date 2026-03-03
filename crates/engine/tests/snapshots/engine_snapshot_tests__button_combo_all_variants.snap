@@ -1,0 +1,13 @@
+---
+source: crates/engine/tests/engine_snapshot_tests.rs
+expression: combos
+---
+[
+    BothClutchPaddles,
+    CustomSequence(
+        7,
+    ),
+    CustomSequence(
+        0,
+    ),
+]
