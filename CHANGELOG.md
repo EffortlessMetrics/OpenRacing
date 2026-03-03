@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **21,043+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **21,374+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **22,326+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
+- **24,366+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress, mutation-testing) — 0 failures, 44 ignored
 - **23,699+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress) — 0 failures, 44 ignored
 - **23,043+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress) — 0 failures, 44 ignored
 - **22,915+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
@@ -186,6 +187,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Filter/pipeline deep tests (101 tests): frequency response, proptest coverage, filter chain orchestration
   - Input maps + button box tests (83 tests): binding compilation, button matrix, rotary encoders, LED mappings
   - Telemetry recorder/core tests (73 tests): session recording, playback, core telemetry pipeline validation
+- **Wave 53 — mutation testing, device hotplug, config writer deep, plugin ABI, IPC wire compat, error quality, CLI UX, replay validation, cross-platform, support bundle, rate limiter fix** (23,841 → 24,366+ tests):
+  - Mutation testing expansion (86 tests): expanded cargo-mutants coverage beyond Moza/ks/input-maps/filters to safety, engine, and protocol crates — all surviving mutants killed
+  - Device hotplug deep tests (56 tests): rapid connect/disconnect cycles, multi-device hotplug, enumeration race conditions, recovery after device loss
+  - Config writer deep tests (30 tests): edge cases in config serialization, migration round-trips, writer format validation
+  - Plugin ABI stability tests (58 tests): ABI versioning, backward compatibility, struct layout verification, FFI boundary validation
+  - IPC wire compatibility tests (78 tests): wire format evolution, backward/forward compat across protocol versions, message framing edge cases
+  - Error quality tests (64 tests): error message clarity, error chain propagation, user-facing error formatting, diagnostic hints
+  - CLI UX tests (55 tests): help text verification, argument validation, output formatting, interactive prompt handling
+  - Replay validation tests (30 tests): replay file format verification, timeline integrity, session reconstruction accuracy
+  - Cross-platform tests (34 tests): platform-specific path handling, OS detection, conditional compilation verification
+  - Support bundle tests (36 tests): bundle completeness, privacy redaction, compression integrity, metadata accuracy
+  - Rate limiter fix: corrected token bucket algorithm edge case in telemetry rate limiting
+- **Wave 52 — safety compliance, torque safety, config/profile/migration edge cases, formatting cleanup** (23,699 → 23,841+ tests):
+  - Safety compliance tests (45 tests): interlock compliance verification, safety state machine coverage, fault response timing validation
+  - Torque safety tests (20 tests): torque limit enforcement, safety envelope boundary conditions, emergency stop verification
+  - Config/profile/migration edge case tests (77 tests): corrupt config recovery, profile version migration chains, schema upgrade/downgrade round-trips
+  - Formatting cleanup: `cargo fmt --all` pass, minor code style alignment across test files
+  - Temporary file removal: cleaned up stale test artifacts and intermediate build outputs
 - **Wave 51 — Moza+Fanatec+Logitech advanced, Thrustmaster+Simucube+Simagic, telemetry adapters, IPC transport** (23,245 → 23,699+ tests):
   - Moza + Fanatec + Logitech advanced deep tests (139 tests): advanced proptest + deep wire-format + round-trip verification across 3 major protocol crates
   - Thrustmaster + Simucube + Simagic advanced deep tests (134 tests): advanced proptest + deep protocol verification for remaining major vendors

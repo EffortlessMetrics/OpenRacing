@@ -2,7 +2,7 @@
 
 **Branch:** `feat/wave15-rc-hardening`
 **Generated:** 2026-03-04
-**Commit:** HEAD (wave 51 complete)
+**Commit:** HEAD (wave 53 complete)
 
 ## Build & CI Status
 
@@ -20,12 +20,12 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **23,699+** |
+| **Total tests** | **24,366+** |
 | **Test files** | **662** |
-| Unit tests | 16,200+ |
+| Unit tests | 16,800+ |
 | Snapshot tests | 1,400+ |
-| Property tests (proptest) | 2,500+ |
-| End-to-end (E2E) tests | 1,000+ |
+| Property tests (proptest) | 2,600+ |
+| End-to-end (E2E) tests | 1,100+ |
 | Golden-packet tests | 72+ |
 | Safety soak tests | 10K+ tick suites |
 | Compile-fail (trybuild) | 20 |
@@ -34,6 +34,7 @@
 | Protocol verification tests | 400+ |
 | Concurrency stress tests | 23 |
 | Performance validation | 12 |
+| Mutation testing | 86+ |
 | Fuzz targets | 113+ |
 | Integration test files | 48+ |
 | Crate coverage | 79/82 |
@@ -53,6 +54,7 @@
 | Doc-tests | 490+ | `cargo test --doc` examples in public API docs |
 | Concurrency stress tests | 23 | Multi-threaded scenarios with barrier sync (wave 34) |
 | Performance validation | 12 | RT timing checks — pipeline throughput at 1kHz (wave 34) |
+| Mutation testing | 86+ | cargo-mutants coverage across safety, engine, protocol crates (wave 53) |
 | Benchmark suites | 1 | `benches/` — RT timing benchmarks |
 
 ## Coverage by Crate Category
@@ -60,14 +62,14 @@
 | Category | Tests | Key crates |
 |----------|------:|------------|
 | Telemetry | 3,600+ | `telemetry-adapters`, `telemetry-core`, `telemetry-config`, `telemetry-orchestrator`, `telemetry-contracts`, `telemetry-config-writers`, `telemetry-streams` — extended verification for 9 adapters (wave 34), core/integration/rate-limiter deep (wave 37), full adapter re-verification + config/streams deep (waves 40-41), adapter validation (wave 45), all 61 adapters deep (wave 51) |
-| Engine | 1,670+ | `engine` (RT pipeline, filters, HID, safety, device/game tests, FFB, calibration, pipeline deep, HID common deep — wave 36, safety + device management deep — wave 41, RT no-allocation enforcement — wave 44) |
+| Engine | 1,740+ | `engine` (RT pipeline, filters, HID, safety, device/game tests, FFB, calibration, pipeline deep, HID common deep — wave 36, safety + device management deep — wave 41, RT no-allocation enforcement — wave 44, torque safety — wave 52) |
 | Protocols | 4,100+ | `hid-*-protocol`, `simplemotion-v2`, `hbp`, `moza-wheelbase-report` — all 15 HID protocol crates with advanced proptest + deep tests, VRS+OpenFFBoard advanced (wave 50), Moza+Fanatec+Logitech advanced (wave 51), Thrustmaster+Simucube+Simagic advanced (wave 51) |
-| Plugins | 976+ | `plugins`, `openracing-wasm-runtime`, `openracing-native-plugin`, `openracing-plugin-abi` — WASM deep (wave 38), native plugin + ABI deep (wave 39), WASM runtime budget + sandbox + host function tests (wave 48) |
-| Service | 740+ | `service` (daemon, IPC, crypto, firmware updates, lifecycle tests, diagnostics deep — wave 35, lifecycle + IPC deep — wave 41, service lifecycle — wave 45) |
+| Plugins | 1,092+ | `plugins`, `openracing-wasm-runtime`, `openracing-native-plugin`, `openracing-plugin-abi` — WASM deep (wave 38), native plugin + ABI deep (wave 39), WASM runtime budget + sandbox + host function tests (wave 48), ABI stability + versioning (wave 53) |
+| Service | 818+ | `service` (daemon, IPC, crypto, firmware updates, lifecycle tests, diagnostics deep — wave 35, lifecycle + IPC deep — wave 41, service lifecycle — wave 45, IPC wire compat — wave 53) |
 | Schemas | 720+ | `schemas` (JSON schema validation, migration, profile inheritance, evolution, domain type proptests — wave 36, validation deep — wave 41, IPC schema compat — wave 44) |
 | Integration tests | 500+ | `integration-tests` (E2E device pipelines, RC validation, golden packets, full-stack E2E, concurrency stress, performance validation, plugin + telemetry E2E + device protocol — wave 40) |
-| Safety | 680+ | `openracing-fmea`, `openracing-watchdog`, `openracing-hardware-watchdog`, soak tests (10K+ ticks), crypto + FMEA deep (wave 39), watchdog deep (wave 39), fault injection expansion (wave 44) |
-| Profile | 532+ | `openracing-profile`, `openracing-profile-repository` — inheritance, validation, comprehensive system tests (wave 35), profile + repo deep (wave 40), CRUD + validation + inheritance tests (wave 48) |
+| Safety | 745+ | `openracing-fmea`, `openracing-watchdog`, `openracing-hardware-watchdog`, soak tests (10K+ ticks), crypto + FMEA deep (wave 39), watchdog deep (wave 39), fault injection expansion (wave 44), safety compliance + torque safety (wave 52) |
+| Profile | 639+ | `openracing-profile`, `openracing-profile-repository` — inheritance, validation, comprehensive system tests (wave 35), profile + repo deep (wave 40), CRUD + validation + inheritance tests (wave 48), config/profile/migration edge cases (wave 52) |
 | Filters | 436+ | `openracing-filters` — snapshot + property tests, SM-V2 deep, filters deep (wave 39), frequency response + proptest coverage (wave 47) |
 | Capture | 330+ | `hid-capture` — device capture tooling, fingerprinting, classification (wave 34), diagnostic + SRP + capture deep (wave 38), capture IDs (wave 41) |
 | Curves | 169+ | `openracing-curves` — LUT fidelity, interpolation, bezier, fitting, property tests (wave 35) |
@@ -196,6 +198,18 @@
 - **Thrustmaster + Simucube + Simagic advanced deep tests**: 134 tests with advanced proptest + deep protocol verification (wave 51).
 - **Telemetry adapter deep tests expanded**: 95 tests with expanded coverage across all 61 game adapters (wave 51).
 - **IPC transport deep tests**: 86 tests covering transport layer + wire format + compatibility verification (wave 51).
+- **Safety compliance tests**: 45 tests verifying interlock compliance, safety state machine coverage, fault response timing (wave 52).
+- **Torque safety tests**: 20 tests for torque limit enforcement, safety envelope boundaries, emergency stop verification (wave 52).
+- **Config/profile/migration edge cases**: 77 tests covering corrupt config recovery, profile version migration chains, schema upgrade/downgrade round-trips (wave 52).
+- **Mutation testing expansion**: 86 tests from expanded cargo-mutants coverage across safety, engine, and protocol crates — all surviving mutants killed (wave 53).
+- **Device hotplug deep tests**: 56 tests for rapid connect/disconnect cycles, multi-device hotplug, enumeration race conditions (wave 53).
+- **Plugin ABI stability tests**: 58 tests for ABI versioning, backward compatibility, struct layout verification, FFI boundary validation (wave 53).
+- **IPC wire compatibility tests**: 78 tests for wire format evolution, backward/forward compat across protocol versions (wave 53).
+- **Error quality tests**: 64 tests for error message clarity, chain propagation, user-facing formatting, diagnostic hints (wave 53).
+- **CLI UX tests**: 55 tests for help text verification, argument validation, output formatting (wave 53).
+- **Replay validation tests**: 30 tests for replay file format, timeline integrity, session reconstruction (wave 53).
+- **Cross-platform expanded**: 34 additional tests for platform-specific path handling, OS detection (wave 53).
+- **Support bundle expanded**: 36 additional tests for bundle completeness, privacy redaction, compression integrity (wave 53).
 
 ## Overall RC Readiness Assessment
 
@@ -205,12 +219,15 @@
 |------|-----------|----------|
 | Protocol crates | ✅ RC-ready | All 15 vendors have advanced proptest + deep tests; all cross-verified against community sources |
 | Game adapters | ✅ RC-ready | All 61 adapters have registry + deep tests with edge-case and regression coverage |
-| IPC subsystem | ✅ RC-ready | Transport + wire format + compat tests (86 tests); schema backward/forward compatibility verified |
-| Safety subsystem | ✅ RC-ready | FMEA, watchdog, hardware watchdog, interlock — fault injection, property tests, soak tests |
+| IPC subsystem | ✅ RC-ready | Transport + wire format + compat tests (164 tests); schema backward/forward compatibility verified; wire compat expanded (wave 53) |
+| Safety subsystem | ✅ RC-ready | FMEA, watchdog, hardware watchdog, interlock — fault injection, property tests, soak tests, safety compliance + torque safety (wave 52) |
 | RT pipeline | ✅ RC-ready | No-allocation enforcement, 1kHz sustained throughput, jitter P99 ≤ 0.25ms gates |
-| Plugin system | ✅ RC-ready | WASM + native plugin lifecycle, ABI, sandbox isolation, budget enforcement |
+| Plugin system | ✅ RC-ready | WASM + native plugin lifecycle, ABI stability tests (58), sandbox isolation, budget enforcement |
 | E2E coverage | ✅ RC-ready | Complete user workflows, soak + stress hardening, snapshot expansion |
 | ADR compliance | ✅ RC-ready | All 8 ADRs audited and cross-referenced against implementation |
+| Mutation testing | ✅ RC-ready | 86 mutation tests across safety, engine, protocol crates — all surviving mutants killed (wave 53) |
+| Device hotplug | ✅ RC-ready | 56 tests for rapid connect/disconnect, multi-device, enumeration races (wave 53) |
+| Error quality | ✅ RC-ready | 64 tests for error message clarity, chain propagation, user-facing formatting (wave 53) |
 
 ## PID Verification Status
 
@@ -257,5 +274,5 @@
 | UI crate excluded from test run | Low | `racing-wheel-ui` excluded via `--exclude`; needs separate GUI test strategy |
 | Benchmark suite is minimal | Low | Single bench file; RT timing validation relies on CI perf gates |
 | Doc-tests not counted | Low | Doc-tests now run and are counted; ~490+ doc-test examples in public API |
-| No mutation testing in CI | Low | `mutants.toml` exists but results are stale (`mutants.out.old/`) |
+| No mutation testing in CI | Low | `mutants.toml` configured; 86 mutation tests added (wave 53); CI integration pending |
 | Ignored tests at 44 | Low | 44 `#[ignore]`-gated tests requiring hardware or platform resources |
