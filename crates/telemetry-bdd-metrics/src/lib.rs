@@ -263,4 +263,260 @@ mod tests {
         assert!(runtime.adapter.parity_ok);
         assert!(!runtime.writer.parity_ok);
     }
+
+    // -----------------------------------------------------------------------
+    // Empty set handling
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn empty_matrix_and_registry_is_parity_ok_strict() {
+        let metrics = BddMatrixMetrics::from_sets(
+            Vec::<&str>::new(),
+            Vec::<&str>::new(),
+            MatrixParityPolicy::STRICT,
+        );
+        assert_eq!(metrics.matrix_game_count, 0);
+        assert_eq!(metrics.registry_game_count, 0);
+        assert_eq!(metrics.missing_count, 0);
+        assert_eq!(metrics.extra_count, 0);
+        assert!(metrics.parity_ok);
+    }
+
+    #[test]
+    fn empty_matrix_with_registry_entries_strict_fails() {
+        let metrics = BddMatrixMetrics::from_sets(
+            Vec::<&str>::new(),
+            ["acc", "iracing"],
+            MatrixParityPolicy::STRICT,
+        );
+        assert_eq!(metrics.matrix_game_count, 0);
+        assert_eq!(metrics.registry_game_count, 2);
+        assert_eq!(metrics.extra_count, 2);
+        assert!(!metrics.parity_ok);
+    }
+
+    #[test]
+    fn matrix_with_empty_registry_strict_fails() {
+        let metrics = BddMatrixMetrics::from_sets(
+            ["acc", "iracing"],
+            Vec::<&str>::new(),
+            MatrixParityPolicy::STRICT,
+        );
+        assert_eq!(metrics.missing_count, 2);
+        assert!(!metrics.parity_ok);
+    }
+
+    #[test]
+    fn empty_matrix_with_registry_entries_lenient_ok() {
+        let metrics = BddMatrixMetrics::from_sets(
+            Vec::<&str>::new(),
+            ["acc"],
+            MatrixParityPolicy::LENIENT,
+        );
+        assert!(metrics.parity_ok);
+    }
+
+    // -----------------------------------------------------------------------
+    // Coverage ratio edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn coverage_ratio_zero_when_all_missing() {
+        let metrics = BddMatrixMetrics::from_sets(
+            ["a", "b", "c"],
+            Vec::<&str>::new(),
+            MatrixParityPolicy::LENIENT,
+        );
+        assert_eq!(metrics.matrix_coverage_ratio, 0.0);
+    }
+
+    #[test]
+    fn coverage_ratio_one_when_perfect_match() {
+        let metrics = BddMatrixMetrics::from_sets(
+            ["acc", "iracing"],
+            ["acc", "iracing"],
+            MatrixParityPolicy::STRICT,
+        );
+        assert_eq!(metrics.matrix_coverage_ratio, 1.0);
+        assert_eq!(metrics.registry_coverage_ratio, 1.0);
+        assert!(metrics.parity_ok);
+    }
+
+    #[test]
+    fn coverage_ratios_empty_sets_are_zero() {
+        let metrics = BddMatrixMetrics::from_sets(
+            Vec::<&str>::new(),
+            Vec::<&str>::new(),
+            MatrixParityPolicy::LENIENT,
+        );
+        assert_eq!(metrics.matrix_coverage_ratio, 0.0);
+        assert_eq!(metrics.registry_coverage_ratio, 0.0);
+    }
+
+    // -----------------------------------------------------------------------
+    // Case normalisation
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn ids_are_case_normalised() {
+        let metrics = BddMatrixMetrics::from_sets(
+            ["ACC", "iRacing"],
+            ["acc", "iracing"],
+            MatrixParityPolicy::STRICT,
+        );
+        assert_eq!(metrics.missing_count, 0);
+        assert_eq!(metrics.extra_count, 0);
+        assert!(metrics.parity_ok);
+    }
+
+    #[test]
+    fn empty_ids_are_filtered_out() {
+        let metrics = BddMatrixMetrics::from_sets(
+            ["acc", "", "iracing"],
+            ["acc", "iracing", ""],
+            MatrixParityPolicy::STRICT,
+        );
+        assert_eq!(metrics.matrix_game_count, 2);
+        assert_eq!(metrics.registry_game_count, 2);
+        assert!(metrics.parity_ok);
+    }
+
+    // -----------------------------------------------------------------------
+    // Duplicate handling
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn duplicate_ids_are_deduplicated() {
+        let metrics = BddMatrixMetrics::from_sets(
+            ["acc", "acc", "iracing"],
+            ["acc", "iracing", "iracing"],
+            MatrixParityPolicy::STRICT,
+        );
+        assert_eq!(metrics.matrix_game_count, 2);
+        assert_eq!(metrics.registry_game_count, 2);
+        assert!(metrics.parity_ok);
+    }
+
+    // -----------------------------------------------------------------------
+    // Policy satisfaction
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn policy_is_satisfied_all_combinations() {
+        assert!(MatrixParityPolicy::STRICT.is_satisfied(0, 0));
+        assert!(!MatrixParityPolicy::STRICT.is_satisfied(1, 0));
+        assert!(!MatrixParityPolicy::STRICT.is_satisfied(0, 1));
+        assert!(!MatrixParityPolicy::STRICT.is_satisfied(1, 1));
+
+        assert!(MatrixParityPolicy::MATRIX_COMPLETE.is_satisfied(0, 0));
+        assert!(!MatrixParityPolicy::MATRIX_COMPLETE.is_satisfied(1, 0));
+        assert!(MatrixParityPolicy::MATRIX_COMPLETE.is_satisfied(0, 5));
+
+        assert!(MatrixParityPolicy::LENIENT.is_satisfied(0, 0));
+        assert!(MatrixParityPolicy::LENIENT.is_satisfied(5, 0));
+        assert!(MatrixParityPolicy::LENIENT.is_satisfied(0, 5));
+        assert!(MatrixParityPolicy::LENIENT.is_satisfied(5, 5));
+    }
+
+    // -----------------------------------------------------------------------
+    // Missing and extra game ID lists
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn missing_and_extra_ids_are_sorted() {
+        let metrics = BddMatrixMetrics::from_sets(
+            ["z_game", "a_game", "m_game"],
+            ["x_game", "a_game"],
+            MatrixParityPolicy::LENIENT,
+        );
+        // Missing: m_game, z_game (in matrix but not registry)
+        assert_eq!(
+            metrics.missing_game_ids,
+            vec!["m_game".to_string(), "z_game".to_string()]
+        );
+        // Extra: x_game (in registry but not matrix)
+        assert_eq!(metrics.extra_game_ids, vec!["x_game".to_string()]);
+    }
+
+    // -----------------------------------------------------------------------
+    // RuntimeBddMatrixMetrics
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn runtime_parity_ok_when_both_registries_ok() {
+        let adapter = BddMatrixMetrics::from_sets(
+            ["acc", "iracing"],
+            ["acc", "iracing"],
+            MatrixParityPolicy::STRICT,
+        );
+        let writer = BddMatrixMetrics::from_sets(
+            ["acc", "iracing"],
+            ["acc", "iracing"],
+            MatrixParityPolicy::STRICT,
+        );
+        let runtime = RuntimeBddMatrixMetrics::new(2, adapter, writer);
+        assert!(runtime.parity_ok);
+    }
+
+    #[test]
+    fn runtime_parity_fails_when_adapter_fails() {
+        let adapter = BddMatrixMetrics::from_sets(
+            ["acc", "iracing", "dirt5"],
+            ["acc"],
+            MatrixParityPolicy::STRICT,
+        );
+        let writer = BddMatrixMetrics::from_sets(
+            ["acc", "iracing", "dirt5"],
+            ["acc", "iracing", "dirt5"],
+            MatrixParityPolicy::STRICT,
+        );
+        let runtime = RuntimeBddMatrixMetrics::new(3, adapter, writer);
+        assert!(!runtime.parity_ok);
+    }
+
+    #[test]
+    fn runtime_bdd_metrics_clone_and_debug() {
+        let adapter = BddMatrixMetrics::from_sets(
+            ["acc"],
+            ["acc"],
+            MatrixParityPolicy::STRICT,
+        );
+        let writer = adapter.clone();
+        let runtime = RuntimeBddMatrixMetrics::new(1, adapter, writer);
+        let cloned = runtime.clone();
+        assert_eq!(cloned.parity_ok, runtime.parity_ok);
+        let debug = format!("{runtime:?}");
+        assert!(!debug.is_empty());
+    }
+
+    // -----------------------------------------------------------------------
+    // from_parts
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn from_parts_normalises_ids() {
+        let metrics = BddMatrixMetrics::from_parts(
+            vec!["ACC".to_string(), "iRacing".to_string()],
+            vec!["acc".to_string(), "iracing".to_string()],
+            vec![],
+            vec![],
+            MatrixParityPolicy::STRICT,
+        );
+        assert_eq!(metrics.matrix_game_count, 2);
+        assert_eq!(metrics.registry_game_count, 2);
+        assert!(metrics.parity_ok);
+    }
+
+    #[test]
+    fn from_parts_filters_empty_ids() {
+        let metrics = BddMatrixMetrics::from_parts(
+            vec!["acc".to_string(), "".to_string()],
+            vec!["acc".to_string()],
+            vec![],
+            vec![],
+            MatrixParityPolicy::STRICT,
+        );
+        assert_eq!(metrics.matrix_game_count, 1);
+        assert!(metrics.parity_ok);
+    }
 }
