@@ -31,6 +31,8 @@ pub mod game_support_matrix;
 pub mod game_telemetry_bridge;
 #[cfg(test)]
 pub mod integration_tests;
+#[cfg(test)]
+pub mod wave15_hardening_tests;
 pub mod ipc_service;
 pub mod ipc_simple;
 pub mod observability;
