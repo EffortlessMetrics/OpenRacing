@@ -1,6 +1,5 @@
 ---
 source: crates/telemetry-adapters/src/forza_horizon.rs
-assertion_line: 353
 expression: normalized
 ---
 speed_ms: 20
@@ -71,6 +70,18 @@ extended:
     type: Float
     value: 0
   suspension_travel_rr:
+    type: Float
+    value: 0
+  tire_slip_ratio_fl:
+    type: Float
+    value: 0
+  tire_slip_ratio_fr:
+    type: Float
+    value: 0
+  tire_slip_ratio_rl:
+    type: Float
+    value: 0
+  tire_slip_ratio_rr:
     type: Float
     value: 0
   wheel_speed_fl:

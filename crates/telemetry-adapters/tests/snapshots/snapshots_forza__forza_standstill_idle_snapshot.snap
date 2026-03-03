@@ -72,6 +72,18 @@ extended:
   suspension_travel_rr:
     type: Float
     value: 0
+  tire_slip_ratio_fl:
+    type: Float
+    value: 0
+  tire_slip_ratio_fr:
+    type: Float
+    value: 0
+  tire_slip_ratio_rl:
+    type: Float
+    value: 0
+  tire_slip_ratio_rr:
+    type: Float
+    value: 0
   wheel_speed_fl:
     type: Float
     value: 0

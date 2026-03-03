@@ -79,6 +79,18 @@ NormalizedTelemetry {
         "suspension_travel_rr": Float(
             0.0,
         ),
+        "tire_slip_ratio_fl": Float(
+            0.0,
+        ),
+        "tire_slip_ratio_fr": Float(
+            0.0,
+        ),
+        "tire_slip_ratio_rl": Float(
+            0.0,
+        ),
+        "tire_slip_ratio_rr": Float(
+            0.0,
+        ),
         "wheel_speed_fl": Float(
             0.0,
         ),

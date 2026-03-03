@@ -68,7 +68,6 @@ const OFF_ENGINE_IDLE_RPM: usize = 12; // f32 (unused but documented)
 const OFF_CURRENT_RPM: usize = 16; // f32
 // World-space acceleration (m/s²); car-local: X = right, Y = up, Z = forward
 const OFF_ACCEL_X: usize = 20; // f32 – lateral
-#[allow(dead_code)]
 const OFF_ACCEL_Y: usize = 24; // f32 – vertical
 const OFF_ACCEL_Z: usize = 28; // f32 – longitudinal
 // World-space velocity (m/s); same axes as acceleration
@@ -80,6 +79,11 @@ const OFF_WHEEL_SPEED_FL: usize = 100; // f32
 const OFF_WHEEL_SPEED_FR: usize = 104; // f32
 const OFF_WHEEL_SPEED_RL: usize = 108; // f32
 const OFF_WHEEL_SPEED_RR: usize = 112; // f32
+// Tire slip ratios (longitudinal, 0 = grip)  – offsets 84-96
+const OFF_TIRE_SLIP_RATIO_FL: usize = 84; // f32
+const OFF_TIRE_SLIP_RATIO_FR: usize = 88; // f32
+const OFF_TIRE_SLIP_RATIO_RL: usize = 92; // f32
+const OFF_TIRE_SLIP_RATIO_RR: usize = 96; // f32
 // Tire slip angles (normalized, 0 = grip)  – offsets 164-176
 const OFF_SLIP_ANGLE_FL: usize = 164; // f32
 const OFF_SLIP_ANGLE_FR: usize = 168; // f32
@@ -95,11 +99,14 @@ const OFF_SUSP_TRAVEL_RR: usize = 208; // f32
 // These are base offsets for FM7/FM8/FH5. For FH4, add horizon_offset (12).
 // Verified against austinbaccus/forza-telemetry FMData.cs (BufferOffset pattern).
 const OFF_DASH_SPEED: usize = 244; // f32 m/s (232 + 3×f32)
+const OFF_DASH_POWER: usize = 248; // f32 watts
+const OFF_DASH_TORQUE: usize = 252; // f32 Newton-meters
 const OFF_DASH_TIRE_TEMP_FL: usize = 256; // f32 Fahrenheit
 const OFF_DASH_TIRE_TEMP_FR: usize = 260; // f32 Fahrenheit
 const OFF_DASH_TIRE_TEMP_RL: usize = 264; // f32 Fahrenheit
 const OFF_DASH_TIRE_TEMP_RR: usize = 268; // f32 Fahrenheit
 const OFF_DASH_FUEL: usize = 276; // f32 (0.0-1.0)
+const OFF_DASH_BOOST: usize = 272; // f32 PSI
 const OFF_DASH_BEST_LAP: usize = 284; // f32 seconds
 const OFF_DASH_LAST_LAP: usize = 288; // f32 seconds
 const OFF_DASH_CUR_LAP: usize = 292; // f32 seconds
@@ -163,7 +170,15 @@ fn parse_sled_common(data: &[u8]) -> NormalizedTelemetry {
 
     // World-space acceleration → G-forces
     let accel_x = read_f32_le(data, OFF_ACCEL_X).unwrap_or(0.0);
+    let accel_y = read_f32_le(data, OFF_ACCEL_Y).unwrap_or(0.0);
     let accel_z = read_f32_le(data, OFF_ACCEL_Z).unwrap_or(0.0);
+
+    // Tire slip ratios (longitudinal)
+    let slip_ratio_fl = read_f32_le(data, OFF_TIRE_SLIP_RATIO_FL).unwrap_or(0.0).abs();
+    let slip_ratio_fr = read_f32_le(data, OFF_TIRE_SLIP_RATIO_FR).unwrap_or(0.0).abs();
+    let slip_ratio_rl = read_f32_le(data, OFF_TIRE_SLIP_RATIO_RL).unwrap_or(0.0).abs();
+    let slip_ratio_rr = read_f32_le(data, OFF_TIRE_SLIP_RATIO_RR).unwrap_or(0.0).abs();
+    let avg_slip_ratio = (slip_ratio_fl + slip_ratio_fr + slip_ratio_rl + slip_ratio_rr) / 4.0;
 
     // Tire slip angles
     let slip_fl = read_f32_le(data, OFF_SLIP_ANGLE_FL).unwrap_or(0.0);
@@ -188,6 +203,8 @@ fn parse_sled_common(data: &[u8]) -> NormalizedTelemetry {
         .speed_ms(speed_mps)
         .lateral_g(accel_x / G)
         .longitudinal_g(accel_z / G)
+        .vertical_g(accel_y / G)
+        .slip_ratio(avg_slip_ratio)
         .slip_angle_fl(slip_fl)
         .slip_angle_fr(slip_fr)
         .slip_angle_rl(slip_rl)
@@ -200,6 +217,10 @@ fn parse_sled_common(data: &[u8]) -> NormalizedTelemetry {
         .extended("suspension_travel_fr", TelemetryValue::Float(st_fr))
         .extended("suspension_travel_rl", TelemetryValue::Float(st_rl))
         .extended("suspension_travel_rr", TelemetryValue::Float(st_rr))
+        .extended("tire_slip_ratio_fl", TelemetryValue::Float(slip_ratio_fl))
+        .extended("tire_slip_ratio_fr", TelemetryValue::Float(slip_ratio_fr))
+        .extended("tire_slip_ratio_rl", TelemetryValue::Float(slip_ratio_rl))
+        .extended("tire_slip_ratio_rr", TelemetryValue::Float(slip_ratio_rr))
         .build()
 }
 
@@ -295,6 +316,9 @@ fn parse_forza_cardash_with_offset(
     ];
 
     let fuel = read_f32_le(data, OFF_DASH_FUEL + ho).unwrap_or(0.0);
+    let boost = read_f32_le(data, OFF_DASH_BOOST + ho).unwrap_or(0.0);
+    let power_w = read_f32_le(data, OFF_DASH_POWER + ho).unwrap_or(0.0);
+    let torque_nm = read_f32_le(data, OFF_DASH_TORQUE + ho).unwrap_or(0.0);
     let best_lap = read_f32_le(data, OFF_DASH_BEST_LAP + ho).unwrap_or(0.0);
     let last_lap = read_f32_le(data, OFF_DASH_LAST_LAP + ho).unwrap_or(0.0);
     let cur_lap = read_f32_le(data, OFF_DASH_CUR_LAP + ho).unwrap_or(0.0);
@@ -317,6 +341,8 @@ fn parse_forza_cardash_with_offset(
         .gear(gear)
         .lateral_g(sled.lateral_g)
         .longitudinal_g(sled.longitudinal_g)
+        .vertical_g(sled.vertical_g)
+        .slip_ratio(sled.slip_ratio)
         .slip_angle_fl(sled.slip_angle_fl)
         .slip_angle_fr(sled.slip_angle_fr)
         .slip_angle_rl(sled.slip_angle_rl)
@@ -328,6 +354,9 @@ fn parse_forza_cardash_with_offset(
         .current_lap_time_s(cur_lap)
         .lap(lap_number)
         .position(race_pos)
+        .extended("power_w", TelemetryValue::Float(power_w))
+        .extended("torque_nm", TelemetryValue::Float(torque_nm))
+        .extended("boost_psi", TelemetryValue::Float(boost))
         .build();
 
     // Propagate extended wheel/suspension fields from the Sled parse.
@@ -731,6 +760,41 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_sled_vertical_g() -> TestResult {
+        let mut data = make_sled_packet(1, 1000.0, (0.0, 0.0, 0.0));
+        let vertical_accel = 0.5 * G;
+        data[OFF_ACCEL_Y..OFF_ACCEL_Y + 4].copy_from_slice(&vertical_accel.to_le_bytes());
+        let result = parse_forza_sled(&data)?;
+        assert!((result.vertical_g - 0.5).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_sled_tire_slip_ratios() -> TestResult {
+        let mut data = make_sled_packet(1, 1000.0, (0.0, 0.0, 0.0));
+        data[OFF_TIRE_SLIP_RATIO_FL..OFF_TIRE_SLIP_RATIO_FL + 4]
+            .copy_from_slice(&0.1f32.to_le_bytes());
+        data[OFF_TIRE_SLIP_RATIO_FR..OFF_TIRE_SLIP_RATIO_FR + 4]
+            .copy_from_slice(&0.2f32.to_le_bytes());
+        data[OFF_TIRE_SLIP_RATIO_RL..OFF_TIRE_SLIP_RATIO_RL + 4]
+            .copy_from_slice(&0.3f32.to_le_bytes());
+        data[OFF_TIRE_SLIP_RATIO_RR..OFF_TIRE_SLIP_RATIO_RR + 4]
+            .copy_from_slice(&0.4f32.to_le_bytes());
+        let result = parse_forza_sled(&data)?;
+        let expected_avg = (0.1 + 0.2 + 0.3 + 0.4) / 4.0;
+        assert!((result.slip_ratio - expected_avg).abs() < 0.01);
+        assert_eq!(
+            result.get_extended("tire_slip_ratio_fl"),
+            Some(&TelemetryValue::Float(0.1))
+        );
+        assert_eq!(
+            result.get_extended("tire_slip_ratio_rr"),
+            Some(&TelemetryValue::Float(0.4))
+        );
+        Ok(())
+    }
+
+    #[test]
     fn test_parse_sled_slip_angles() -> TestResult {
         let mut data = make_sled_packet(1, 1000.0, (0.0, 0.0, 0.0));
         data[OFF_SLIP_ANGLE_FL..OFF_SLIP_ANGLE_FL + 4].copy_from_slice(&0.05f32.to_le_bytes());
@@ -950,6 +1014,60 @@ mod tests {
             result.get_extended("wheel_speed_fl"),
             Some(&TelemetryValue::Float(42.0))
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_cardash_power_torque_boost() -> TestResult {
+        let mut data = vec![0u8; FORZA_CARDASH_SIZE];
+        let sled = make_sled_packet(1, 5000.0, (20.0, 0.0, 0.0));
+        data[..FORZA_SLED_SIZE].copy_from_slice(&sled);
+        data[OFF_DASH_POWER..OFF_DASH_POWER + 4].copy_from_slice(&150000.0f32.to_le_bytes());
+        data[OFF_DASH_TORQUE..OFF_DASH_TORQUE + 4].copy_from_slice(&350.0f32.to_le_bytes());
+        data[OFF_DASH_BOOST..OFF_DASH_BOOST + 4].copy_from_slice(&14.7f32.to_le_bytes());
+        let result = parse_forza_cardash(&data)?;
+        assert_eq!(
+            result.get_extended("power_w"),
+            Some(&TelemetryValue::Float(150000.0))
+        );
+        assert_eq!(
+            result.get_extended("torque_nm"),
+            Some(&TelemetryValue::Float(350.0))
+        );
+        assert_eq!(
+            result.get_extended("boost_psi"),
+            Some(&TelemetryValue::Float(14.7))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_cardash_vertical_g_from_sled() -> TestResult {
+        let mut data = vec![0u8; FORZA_CARDASH_SIZE];
+        let mut sled = make_sled_packet(1, 1000.0, (0.0, 0.0, 0.0));
+        let vert_accel = 1.2 * G;
+        sled[OFF_ACCEL_Y..OFF_ACCEL_Y + 4].copy_from_slice(&vert_accel.to_le_bytes());
+        data[..FORZA_SLED_SIZE].copy_from_slice(&sled);
+        let result = parse_forza_cardash(&data)?;
+        assert!((result.vertical_g - 1.2).abs() < 0.01);
+        Ok(())
+    }
+
+    #[test]
+    fn test_cardash_slip_ratio_from_sled() -> TestResult {
+        let mut data = vec![0u8; FORZA_CARDASH_SIZE];
+        let mut sled = make_sled_packet(1, 1000.0, (0.0, 0.0, 0.0));
+        sled[OFF_TIRE_SLIP_RATIO_FL..OFF_TIRE_SLIP_RATIO_FL + 4]
+            .copy_from_slice(&0.2f32.to_le_bytes());
+        sled[OFF_TIRE_SLIP_RATIO_FR..OFF_TIRE_SLIP_RATIO_FR + 4]
+            .copy_from_slice(&0.2f32.to_le_bytes());
+        sled[OFF_TIRE_SLIP_RATIO_RL..OFF_TIRE_SLIP_RATIO_RL + 4]
+            .copy_from_slice(&0.2f32.to_le_bytes());
+        sled[OFF_TIRE_SLIP_RATIO_RR..OFF_TIRE_SLIP_RATIO_RR + 4]
+            .copy_from_slice(&0.2f32.to_le_bytes());
+        data[..FORZA_SLED_SIZE].copy_from_slice(&sled);
+        let result = parse_forza_cardash(&data)?;
+        assert!((result.slip_ratio - 0.2).abs() < 0.01);
         Ok(())
     }
 
