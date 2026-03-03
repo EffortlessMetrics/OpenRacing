@@ -611,6 +611,12 @@ path = "fuzz_targets/fuzz_seb_loeb_rally.rs"
 test = false
 doc = false
 
+[[bin]]
+name = "fuzz_ams2_udp"
+path = "fuzz_targets/fuzz_ams2_udp.rs"
+test = false
+doc = false
+
 [profile.release]
 opt-level = 3
 debug = true
