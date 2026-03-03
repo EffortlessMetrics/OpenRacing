@@ -1,0 +1,1 @@
+{"schema":"wheel.profile/1","scope":{},"base":{"ffbGain":1.0,"dorDeg":900,"torqueCapNm":10.0,"filters":{"reconstruction":0,"friction":0.0,"damper":0.0,"inertia":0.0,"bumpstop":{},"handsOff":{},"notchFilters":[],"slewRate":1.0,"curvePoints":[{"input":0.0,"output":0.0},{"input":1.0,"output":1.0}]}}}

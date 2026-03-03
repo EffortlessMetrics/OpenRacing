@@ -41,6 +41,11 @@ racing-wheel-hid-accuforce-protocol = { path = "../crates/hid-accuforce-protocol
 racing-wheel-simplemotion-v2 = { path = "../crates/simplemotion-v2" }
 openracing-firmware-update = { path = "../crates/openracing-firmware-update" }
 openracing-diagnostic = { path = "../crates/openracing-diagnostic" }
+openracing-calibration = { path = "../crates/openracing-calibration" }
+openracing-pipeline = { path = "../crates/openracing-pipeline" }
+openracing-profile = { path = "../crates/openracing-profile" }
+racing-wheel-schemas = { path = "../crates/schemas" }
+serde_json = "1"
 
 # Fuzzing requires nightly and release-like optimizations.
 [[bin]]
@@ -640,6 +645,30 @@ doc = false
 [[bin]]
 name = "fuzz_diagnostic_stream_codec"
 path = "fuzz_targets/fuzz_diagnostic_stream_codec.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_telemetry_packet"
+path = "fuzz_targets/fuzz_telemetry_packet.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_profile_load"
+path = "fuzz_targets/fuzz_profile_load.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_calibration_curve"
+path = "fuzz_targets/fuzz_calibration_curve.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_filter_pipeline"
+path = "fuzz_targets/fuzz_filter_pipeline.rs"
 test = false
 doc = false
 

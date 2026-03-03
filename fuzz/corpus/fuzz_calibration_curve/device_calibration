@@ -1,0 +1,1 @@
+{"name":"test-device","axes":[{"min":0,"max":65535,"center":32767,"deadzone_min":0,"deadzone_max":0}],"version":1}
