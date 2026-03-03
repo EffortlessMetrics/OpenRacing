@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "DeviceError::InitializationFailed\n{\n    device: \"moza-r9\".into(), reason: \"firmware handshake timeout\".into(),\n}.to_string()"
+---
+Failed to initialize device moza-r9: firmware handshake timeout

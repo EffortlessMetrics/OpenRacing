@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "DeviceError::PermissionDenied(\"/dev/hidraw0\".into()).to_string()"
+---
+Permission denied for device: /dev/hidraw0

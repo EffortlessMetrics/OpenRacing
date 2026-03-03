@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "DeviceError::FirmwareError\n{\n    device: \"fanatec-csl-elite\".into(), message:\n    \"CRC mismatch in firmware blob\".into(),\n}.to_string()"
+---
+Firmware error on device fanatec-csl-elite: CRC mismatch in firmware blob

@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ValidationError::InvalidCharacters\n{\n    field: \"profile_id\".into(), reason: \"contains whitespace\".into(),\n}.to_string()"
+---
+Field 'profile_id' contains invalid characters: contains whitespace

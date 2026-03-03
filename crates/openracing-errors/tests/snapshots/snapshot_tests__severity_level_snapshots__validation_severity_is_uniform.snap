@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "format!(\"all_validation_severity_error: {all_same}\")"
+---
+all_validation_severity_error: true

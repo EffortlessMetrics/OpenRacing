@@ -1,0 +1,6 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: format_source_chain(&err)
+---
+I/O error: access denied
+  caused by: access denied

@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "DeviceError::InvalidResponse\n{ device: \"moza-r9\".into(), expected: 64, actual: 32, }.to_string()"
+---
+Invalid response from device moza-r9: expected 64 bytes, got 32

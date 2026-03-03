@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ValidationError::DependencyNotMet\n{ field: \"damping\".into(), dependency: \"spring_rate\".into(), }.to_string()"
+---
+Dependency not met: field 'damping' requires 'spring_rate' to be set

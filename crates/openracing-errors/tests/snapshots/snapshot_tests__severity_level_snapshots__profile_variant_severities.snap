@@ -1,0 +1,19 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+NotFound: ERROR
+AlreadyExists: ERROR
+InvalidFormat: ERROR
+ValidationFailed: ERROR
+SaveFailed: ERROR
+LoadFailed: ERROR
+CircularInheritance: ERROR
+InheritanceDepthExceeded: ERROR
+ParentNotFound: ERROR
+InvalidId: ERROR
+Conflict: WARN
+VersionMismatch: WARN
+MissingField: ERROR
+Locked: WARN
+InvalidDeviceMapping: ERROR

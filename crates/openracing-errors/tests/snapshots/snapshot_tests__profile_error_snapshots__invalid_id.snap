@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ProfileError::InvalidId(\"has spaces!!\".into()).to_string()"
+---
+Invalid profile ID: has spaces!!

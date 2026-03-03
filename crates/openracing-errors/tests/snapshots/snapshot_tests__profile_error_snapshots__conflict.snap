@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ProfileError::Conflict(\"concurrent edit detected\".into()).to_string()"
+---
+Profile conflict: concurrent edit detected
