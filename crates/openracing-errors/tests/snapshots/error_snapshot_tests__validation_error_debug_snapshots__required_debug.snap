@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: "format!(\"{:?}\", ValidationError::required(\"device_id\"))"
+---
+Required("device_id")

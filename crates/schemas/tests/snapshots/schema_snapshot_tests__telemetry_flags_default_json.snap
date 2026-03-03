@@ -1,0 +1,24 @@
+---
+source: crates/schemas/tests/schema_snapshot_tests.rs
+expression: json
+---
+{
+  "yellow_flag": false,
+  "red_flag": false,
+  "blue_flag": false,
+  "checkered_flag": false,
+  "green_flag": true,
+  "pit_limiter": false,
+  "in_pits": false,
+  "drs_available": false,
+  "drs_active": false,
+  "ers_available": false,
+  "ers_active": false,
+  "launch_control": false,
+  "traction_control": false,
+  "abs_active": false,
+  "engine_limiter": false,
+  "safety_car": false,
+  "formation_lap": false,
+  "session_paused": false
+}

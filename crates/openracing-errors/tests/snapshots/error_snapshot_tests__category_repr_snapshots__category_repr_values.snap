@@ -1,0 +1,13 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+RT: repr=0
+Device: repr=1
+Profile: repr=2
+Config: repr=3
+IO: repr=4
+Validation: repr=5
+Plugin: repr=6
+Telemetry: repr=7
+Other: repr=255

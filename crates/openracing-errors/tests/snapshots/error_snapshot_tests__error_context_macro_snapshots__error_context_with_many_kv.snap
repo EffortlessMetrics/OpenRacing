@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: ctx.to_string()
+---
+operation: diagnose_device, device_id: fanatec-dd1, firmware: v1.42, fault_code: 0x0F, temperature_c: 72 at device_manager.rs:285

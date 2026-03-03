@@ -6217,7 +6217,13 @@ dependencies = [
 name = "racing-wheel-telemetry-integration"
 version = "0.1.0"
 dependencies = [
+ "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-bdd-metrics",
+ "racing-wheel-telemetry-rate-limiter",
+ "racing-wheel-telemetry-recorder",
+ "racing-wheel-telemetry-support",
+ "tempfile",
+ "tokio",
  "workspace-hack",
 ]
 

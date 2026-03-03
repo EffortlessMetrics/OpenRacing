@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: ctx.to_string()
+---
+operation: apply_profile, profile: gt3, device: moza-r9

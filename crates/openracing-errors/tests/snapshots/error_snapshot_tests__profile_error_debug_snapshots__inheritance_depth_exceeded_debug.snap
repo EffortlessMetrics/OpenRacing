@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: "format!(\"{:?}\", ProfileError::InheritanceDepthExceeded\n{ depth: 10, max_depth: 5, })"
+---
+InheritanceDepthExceeded { depth: 10, max_depth: 5 }

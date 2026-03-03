@@ -1,0 +1,12 @@
+---
+source: crates/schemas/tests/schema_snapshot_tests.rs
+expression: json
+---
+{
+  "wheel_angle_deg": 90.0,
+  "wheel_speed_rad_s": 2.5,
+  "temperature_c": 45,
+  "fault_flags": 0,
+  "hands_on": true,
+  "timestamp": 123456789
+}

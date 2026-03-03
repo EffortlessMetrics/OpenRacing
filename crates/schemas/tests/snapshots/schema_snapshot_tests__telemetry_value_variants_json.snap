@@ -1,0 +1,8 @@
+---
+source: crates/schemas/tests/schema_snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+float: {"type":"Float","value":42.5}
+integer: {"type":"Integer","value":42}
+boolean: {"type":"Boolean","value":true}
+string: {"type":"String","value":"track-temp"}

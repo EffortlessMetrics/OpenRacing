@@ -1,0 +1,12 @@
+---
+source: crates/openracing-ipc/tests/ipc_snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+DEVICE: 0x0001
+PROFILE: 0x0002
+SAFETY: 0x0003
+HEALTH: 0x0004
+FEATURE_NEGOTIATION: 0x0005
+GAME: 0x0006
+TELEMETRY: 0x0007
+DIAGNOSTIC: 0x0008

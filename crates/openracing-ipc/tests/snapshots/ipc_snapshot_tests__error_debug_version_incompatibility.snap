@@ -1,0 +1,5 @@
+---
+source: crates/openracing-ipc/tests/ipc_snapshot_tests.rs
+expression: "format!(\"{err:?}\")"
+---
+VersionIncompatibility { client: "0.8.0", server: "1.0.0" }

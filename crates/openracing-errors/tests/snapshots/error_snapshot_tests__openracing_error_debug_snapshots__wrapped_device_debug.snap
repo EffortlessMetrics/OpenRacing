@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: "format!(\"{err:?}\")"
+---
+Device(UnsupportedDevice { vendor_id: 57005, product_id: 48879 })

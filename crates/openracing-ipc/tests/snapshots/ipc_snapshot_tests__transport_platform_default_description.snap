@@ -1,0 +1,5 @@
+---
+source: crates/openracing-ipc/tests/ipc_snapshot_tests.rs
+expression: transport.description()
+---
+Named pipe \\.\pipe\openracing

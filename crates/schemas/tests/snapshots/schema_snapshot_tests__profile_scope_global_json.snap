@@ -1,0 +1,9 @@
+---
+source: crates/schemas/tests/schema_snapshot_tests.rs
+expression: json
+---
+{
+  "game": null,
+  "car": null,
+  "track": null
+}

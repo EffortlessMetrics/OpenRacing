@@ -1,0 +1,13 @@
+---
+source: crates/openracing-ipc/tests/ipc_snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+Connected: repr=0
+Disconnected: repr=1
+Fault: repr=2
+FaultCleared: repr=3
+TemperatureWarning: repr=4
+TemperatureCritical: repr=5
+ProfileChanged: repr=6
+HighTorqueEnabled: repr=7
+EmergencyStop: repr=8

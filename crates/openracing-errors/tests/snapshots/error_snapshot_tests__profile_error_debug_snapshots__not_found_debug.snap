@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: "format!(\"{:?}\", ProfileError::not_found(\"gt3-sprint\"))"
+---
+NotFound("gt3-sprint")
