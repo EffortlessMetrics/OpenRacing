@@ -1,8 +1,8 @@
 # RC Readiness Report
 
 **Branch:** `feat/wave15-rc-hardening`
-**Generated:** 2025-07-17
-**Commit:** HEAD (wave 15 hardening)
+**Generated:** 2025-07-22
+**Commit:** HEAD (wave 20 test expansion)
 
 ## Build & CI Status
 
@@ -17,15 +17,15 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **12,754** |
-| **Test files** | **381** |
-| Unit tests | 8,000+ |
-| Snapshot tests | 924 |
-| Property tests (proptest) | 1,200+ |
-| End-to-end (E2E) tests | 500+ |
+| **Total tests** | **13,075** |
+| **Test files** | **800** |
+| Unit tests | 9,000+ |
+| Snapshot tests | 977 |
+| Property tests (proptest) | 1,500+ |
+| End-to-end (E2E) tests | 600+ |
 | BDD / acceptance tests | 27 |
-| Fuzz targets | 95 |
-| Integration test files | 39 |
+| Fuzz targets | 96 |
+| Integration test files | 42 |
 | Crate coverage | 78/82 |
 
 ## Test Types Present
@@ -33,25 +33,25 @@
 | Type | Files | Notes |
 |------|------:|-------|
 | Proptest files | 100+ | Property-based testing across all 17 protocol & engine crates |
-| Snapshot test files | 939 | `insta` snapshots for protocol encoding & telemetry (37 directories) |
-| Integration test files | 39 | `crates/integration-tests/tests/*.rs` |
-| Fuzz targets | 95 | `fuzz/fuzz_targets/` — covers all protocols & telemetry parsers |
+| Snapshot test files | 977 | `insta` snapshots for protocol encoding & telemetry (38 directories) |
+| Integration test files | 42 | `crates/integration-tests/tests/*.rs` |
+| Fuzz targets | 96 | `fuzz/fuzz_targets/` — covers all protocols & telemetry parsers |
 | Benchmark suites | 1 | `benches/` — RT timing benchmarks |
 
 ## Coverage by Crate Category
 
 | Category | Tests | Key crates |
 |----------|------:|------------|
-| Telemetry | 1,050 | `telemetry-adapters`, `telemetry-core`, `telemetry-config`, `telemetry-orchestrator` |
-| Engine | 795 | `engine` (RT pipeline, filters, HID, safety) |
-| Protocols | 593 | `hid-*-protocol`, `simplemotion-v2`, `hbp`, `moza-wheelbase-report` |
-| Plugins | 403 | `plugins`, `openracing-wasm-runtime`, `openracing-native-plugin`, `openracing-plugin-abi` |
-| Service | 299 | `service` (daemon, IPC, crypto, firmware updates) |
-| Schemas | 249 | `schemas` (JSON schema validation, migration, profile inheritance) |
-| Integration tests | 241 | `integration-tests` (E2E device pipelines, RC validation) |
-| Safety | 193 | `openracing-fmea`, `openracing-watchdog`, `openracing-hardware-watchdog` |
-| Filters | 158 | `openracing-filters` (snapshot + property tests) |
-| Other / utilities | 3,611 | Curves, crypto, calibration, errors, scheduler, IPC, tracing, etc. |
+| Telemetry | 1,200+ | `telemetry-adapters`, `telemetry-core`, `telemetry-config`, `telemetry-orchestrator` |
+| Engine | 900+ | `engine` (RT pipeline, filters, HID, safety) |
+| Protocols | 750+ | `hid-*-protocol`, `simplemotion-v2`, `hbp`, `moza-wheelbase-report` |
+| Plugins | 500+ | `plugins`, `openracing-wasm-runtime`, `openracing-native-plugin`, `openracing-plugin-abi` |
+| Service | 380+ | `service` (daemon, IPC, crypto, firmware updates) |
+| Schemas | 340+ | `schemas` (JSON schema validation, migration, profile inheritance) |
+| Integration tests | 290+ | `integration-tests` (E2E device pipelines, RC validation) |
+| Safety | 250+ | `openracing-fmea`, `openracing-watchdog`, `openracing-hardware-watchdog` |
+| Filters | 200+ | `openracing-filters` (snapshot + property tests) |
+| Other / utilities | 4,200+ | Curves, crypto, calibration, errors, scheduler, IPC, tracing, CLI, etc. |
 
 ## Strengths
 
@@ -68,7 +68,7 @@
 - **56 telemetry adapter modules** with snapshot regression tests across
   multiple schema versions (v2–v9).
 - **CLI, schemas, plugins, and engine** all have dedicated test suites.
-- **Fuzz testing** covers 95 targets spanning all protocol parsers and telemetry decoders.
+- **Fuzz testing** covers 96 targets spanning all protocol parsers and telemetry decoders.
 - **Safety-critical paths** (FMEA, watchdog, hardware watchdog) have dedicated test suites
   including fault-injection and property tests.
 - **RC-specific integration tests** exist (`rc_integration_tests.rs`, 48 tests).
@@ -96,3 +96,4 @@
 | Benchmark suite is minimal | Low | Single bench file; RT timing validation relies on CI perf gates |
 | Doc-tests not counted | Low | `cargo test` doc-tests run but are not enumerated in `--list` output |
 | No mutation testing in CI | Low | `mutants.toml` exists but results are stale (`mutants.out.old/`) |
+| Ignored tests at 52 | Low | 52 `#[ignore]`-gated tests requiring hardware or platform resources |

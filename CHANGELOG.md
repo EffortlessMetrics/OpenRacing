@@ -12,14 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PXN protocol crate** (`hid-pxn-protocol`): V10/V12/GT987 support with VID/PIDs web-verified against Linux kernel `hid-ids.h` (VID `0x11FF`, 5 devices), full proptest/snapshot coverage
 - **GT7 extended packet support** (316/344 bytes): PacketType2 and PacketType3 implemented in `gran_turismo_7.rs` — adds wheel rotation, sway/heave/surge, energy recovery, and filtered throttle/brake fields (resolves F-064)
 - **All 17 vendor protocol crates wired into engine dispatch** — Thrustmaster, Logitech, Fanatec, Simucube (1 & 2), Simagic, Moza, Asetek, VRS, Heusinkveld, AccuForce, OpenFFBoard, FFBeast, Leo Bodnar, Cube Controls, Cammus, and PXN; comprehensive proptest/snapshot coverage; kernel-verified wire-format encoding for T300RS, T150/TMX, DFP range, Fanatec range/sign-fix, and Logitech mode-switch
-- **8,344+ tests** across the workspace (unit, integration, proptest, snapshot, E2E) — total test count growing
-- **~85+ fuzz targets** covering all HID protocols and game telemetry adapters
+- **13,075 tests** across the workspace (unit, integration, proptest, snapshot, E2E) — 0 failures, 52 ignored
+- **96 fuzz targets** covering all HID protocols and game telemetry adapters (AMS2 target added)
+- **977 snapshot files** across 38 snapshot directories
 - **Fanatec GT DD Pro/ClubSport DD PID findings**: GT DD Pro and ClubSport DD confirmed to share PID `0x0020` with CSL DD in PC mode
 - **OpenFFBoard PID 0xFFB1 confirmed SPECULATIVE**: zero evidence across 5 independent sources (pid.codes, firmware, configurator, GitHub, linux-steering-wheels)
 - **Cube Controls PIDs remain unverified**: PIDs `0x0C73`–`0x0C75` have zero external evidence; OpenFlight uses different estimates
 - **VRS DFP V2 PID 0xA356 unverified**: DFP uses `0xA355` (kernel mainline), Pedals use `0xA3BE`; no source confirms V2 PID
 - **59 game telemetry adapters verified against official documentation** — port numbers, protocol formats, and field mappings cross-checked; web-verified protocol comments added to GT7 (Salsa20), F1 25 (format 2025), F1 2024, and lesser-documented adapters
-- **7,400+ tests** (unit, integration, proptest, snapshot, e2e) across the workspace:
+- **Test suite highlights** (cumulative across waves 15-20):
   - 174 E2E scenarios for Simucube, Heusinkveld, ButtonBox, AccuForce, Cube Controls, Leo Bodnar
   - 68 integration tests for subsystems and round-trips, plus 66 cross-crate integration tests
   - 86 unit tests for plugins and service crates
@@ -36,6 +37,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Web-verified VID/PIDs** for Thrustmaster, Logitech, Fanatec, Simucube, Moza, AccuForce, VRS, and OpenFFBoard — source citations added from linux-steering-wheels, kernel drivers (`hid-lg4ff`, `hid-fanatecff`, `simagic-ff`), pid.codes, and vendor documentation
 - **Safety interlock comprehensive test suite**: behavior tests for interlock state machine, watchdog timeout scenarios, and FMEA fault-injection coverage
 - **Protocol verification wave 16**: 6 vendors re-audited (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) — PID accuracy and torque specs cross-checked against USB captures and vendor documentation
+- **Wave 17 — E2E protocol coverage**: 224 new E2E integration tests across all 16 HID protocol crates (asetek_e2e, cammus_e2e, vrs_e2e, simucube_e2e, heusinkveld_e2e, button_box_e2e, accuforce_e2e, cube_controls_e2e, leo_bodnar_e2e); FlashFire (VID 0x2F24) and Guillemot (VID 0x06F8) legacy vendors added; Logitech WingMan Formula Force (0xC291), Thrustmaster T80 Ferrari 488 GTB (0xB66A) and TX Racing original (0xB664) added from oversteer/kernel sources
+- **Wave 17 — kernel protocol verification**: Simucube HID PID protocol research (F-061 partial), Fanatec sign-fix inversion corrected (F-062), kernel-verified range command alternative added (F-063)
+- **Wave 18 — telemetry protocol verification**: GT7, rFactor 2, iRacing, ACC, and Codemasters/EA F1 protocols re-verified against authoritative sources (Nenkai/PDTools, rF2State.h, kutu/pyirsdk, Kunos ACC SDK, official F1 docs) — no discrepancies found
+- **Waves 19-20 — deep test expansion** (12,754 → 13,075 tests):
+  - Deep protocol tests: Fanatec (70), Logitech (69), Thrustmaster (83), Simagic, Moza (61), OpenFFBoard (53) comprehensive suites
+  - Property tests expanded across safety (scheduler, watchdog, FMEA), plugins (crypto, WASM, native), telemetry (7 adapters), and infrastructure (IPC, service, compat, tracing, curves, rate-limiter, firmware-update, config)
+  - Foundation tests: schemas (86), CLI (~75), service (74), config validation (51), device matrix (36), filter pipeline, E2E telemetry pipeline
+  - Integration tests: device lifecycle, multi-vendor dispatch, safety E2E, atomic stress, profile-repo
+  - Diagnostic crate insta snapshot tests; AMS2 fuzz target; seed corpus for all 96 fuzz targets
 - **New VRS PIDs**: Pedals V1 PID migrated `0xA357` → `0xA3BE`; DFP V2 PID `0xA356` added (unverified)
 - **New Cammus pedal PIDs**: identified from community sources, pending engine dispatch wiring
 - **Legacy device PIDs wired into engine dispatch**: FlashFire, Guillemot, WingMan FF, T80H, TX original, MOMO2, PXN, Ferrari 458 Italia — sourced from oversteer and linux-steering-wheels
@@ -58,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Logitech C294 Driving Force/EX naming corrected**; MOMO rotation corrected to 270° per kernel `hid-lg4ff.c`
 - **CI compat tracker**: `integration-tests` and `telemetry-forza` excluded from compatibility tracker false positives
 - **Roadmap, ADR index, and development guide** updated for RC milestone
-- **Friction log updated** with wave 15+ RC hardening and wave 17+ progress
+- **Friction log updated** with wave 15+ RC hardening, waves 17-20 progress, and F-025/F-029 closures
 
 ### Fixed
 

@@ -20,6 +20,7 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 - ✅ GT Sport port swap fix — F-065 resolved
 - ✅ Fanatec sign-fix inversion corrected — F-062 resolved
 - ✅ deny.toml updated for libbz2-rs-sys license
+- ✅ Wave 19-20 deep test expansion: 13,075 tests passing across all crates
 
 ## NEXT (queued, ready to start)
 
@@ -49,12 +50,12 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 |--------|-------|
 | Supported devices | ~90+ VID/PID pairs across 16+ vendors |
 | Supported games | 56 telemetry adapter modules |
-| Test count | 12,754 across 381 test files (unit, integration, proptest, snapshot, E2E) |
-| Fuzz targets | 95 across all HID protocols and game adapters |
+| Test count | 13,075 across 526 test binaries (unit, integration, proptest, snapshot, E2E) |
+| Fuzz targets | 96 across all HID protocols and game adapters |
 | Protocol crates | 17 HID vendor protocol microcrates |
-| Snapshot tests | 924 snapshot files across snapshot directories |
+| Snapshot tests | 977 snapshot files across 38 snapshot directories |
 | Crate coverage | 78/82 crates have dedicated test files (exceptions: changelog, test-helpers, telemetry-integration, ui) |
-| Friction log | 65 items total — 13 open, 48 resolved, 2 investigating, 2 noted |
+| Friction log | 65 items total — 12 open, 49 resolved, 1 investigating, 2 noted, 1 won't fix |
 
 ---
 
