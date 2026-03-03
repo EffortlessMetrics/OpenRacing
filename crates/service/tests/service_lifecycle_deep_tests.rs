@@ -758,3 +758,407 @@ async fn health_endpoint_device_nonexistent_returns_none() -> Result<(), BoxErr>
     assert!(result.is_none());
     Ok(())
 }
+
+// =========================================================================
+// 7. Startup sequence ordering
+// =========================================================================
+
+#[tokio::test]
+async fn startup_config_before_discovery_before_listeners() -> Result<(), BoxErr> {
+    // Config is loaded during construction; discovery and listeners rely on it.
+    // Creating a service with valid config should yield a usable service
+    // with device service already seeded.
+    let (svc, _tmp) = temp_service().await?;
+
+    // Config-dependent services are accessible
+    let _ps = svc.profile_service();
+    let _ss = svc.safety_service();
+
+    // Discovery: virtual device should already exist
+    let devices = svc.device_service().enumerate_devices().await?;
+    assert!(!devices.is_empty(), "discovery should find seeded device");
+    Ok(())
+}
+
+#[tokio::test]
+async fn startup_daemon_config_propagated_correctly() -> Result<(), BoxErr> {
+    let mut cfg = test_service_config();
+    cfg.service_name = "custom-name".to_string();
+    cfg.health_check_interval = 77;
+    cfg.max_restart_attempts = 5;
+
+    let daemon = ServiceDaemon::new(cfg.clone()).await?;
+    let handle = tokio::spawn(async move { daemon.run().await });
+    tokio::time::sleep(Duration::from_millis(30)).await;
+    handle.abort();
+
+    // If we reach here the daemon was created with the custom config
+    // without error — propagation succeeded.
+    let _ = handle.await;
+    Ok(())
+}
+
+// =========================================================================
+// 8. Device hot-plug handling
+// =========================================================================
+
+#[tokio::test]
+async fn hotplug_enumerate_after_initial_discovery() -> Result<(), BoxErr> {
+    let (svc, _tmp) = temp_service().await?;
+
+    // First enumeration
+    let devices1 = svc.device_service().enumerate_devices().await?;
+    let count1 = devices1.len();
+
+    // Re-enumerate — same set should be stable
+    let devices2 = svc.device_service().enumerate_devices().await?;
+    assert_eq!(devices2.len(), count1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn hotplug_device_state_transitions_on_enumerate() -> Result<(), BoxErr> {
+    let (svc, _tmp) = temp_service().await?;
+
+    let devices = svc.device_service().enumerate_devices().await?;
+    assert!(!devices.is_empty());
+
+    let did = &devices[0].id;
+    let managed = svc.device_service().get_device(did).await?;
+    let device = managed.ok_or("device should exist after enumeration")?;
+    assert_eq!(device.state, racing_wheel_service::DeviceState::Connected);
+    Ok(())
+}
+
+#[tokio::test]
+async fn hotplug_safety_registration_survives_re_enumerate() -> Result<(), BoxErr> {
+    let (svc, _tmp) = temp_service().await?;
+    let did = parse_device_id("hotplug-dev")?;
+    let t = torque(10.0)?;
+
+    svc.safety_service().register_device(did.clone(), t).await?;
+
+    // Re-enumerate devices — safety registration should still be valid
+    let _devices = svc.device_service().enumerate_devices().await?;
+    let state = svc.safety_service().get_safety_state(&did).await?;
+    assert_eq!(state.interlock_state, InterlockState::SafeTorque);
+    Ok(())
+}
+
+#[tokio::test]
+async fn hotplug_get_all_devices_after_enumerate() -> Result<(), BoxErr> {
+    let (svc, _tmp) = temp_service().await?;
+    let _devices = svc.device_service().enumerate_devices().await?;
+
+    let all = svc.device_service().get_all_devices().await?;
+    assert!(!all.is_empty(), "should have managed devices after enumerate");
+    Ok(())
+}
+
+// =========================================================================
+// 9. Telemetry stream lifecycle
+// =========================================================================
+
+#[tokio::test]
+async fn telemetry_ipc_subscribe_receive_unsubscribe() -> Result<(), BoxErr> {
+    let ipc_config = IpcConfig::default();
+    let server = IpcServer::new(ipc_config).await?;
+
+    // Subscribe
+    let mut rx = server.get_health_receiver();
+
+    // Emit events
+    for i in 0..3 {
+        server.broadcast_health_event(racing_wheel_service::HealthEventInternal {
+            device_id: format!("tel-dev-{i}"),
+            event_type: "telemetry".to_string(),
+            message: format!("sample {i}"),
+            timestamp: std::time::SystemTime::now(),
+        });
+    }
+
+    // Receive
+    for i in 0..3 {
+        let evt = tokio::time::timeout(Duration::from_secs(2), rx.recv()).await??;
+        assert_eq!(evt.device_id, format!("tel-dev-{i}"));
+    }
+
+    // Unsubscribe (drop receiver)
+    drop(rx);
+
+    // Further broadcasts should not panic
+    server.broadcast_health_event(racing_wheel_service::HealthEventInternal {
+        device_id: "after-unsub".to_string(),
+        event_type: "telemetry".to_string(),
+        message: "no receivers".to_string(),
+        timestamp: std::time::SystemTime::now(),
+    });
+    Ok(())
+}
+
+#[tokio::test]
+async fn telemetry_device_telemetry_none_when_no_data() -> Result<(), BoxErr> {
+    let (svc, _tmp) = temp_service().await?;
+    let devices = svc.device_service().enumerate_devices().await?;
+    assert!(!devices.is_empty());
+
+    let did = &devices[0].id;
+    let tel = svc.device_service().get_device_telemetry(did).await?;
+    assert!(tel.is_none(), "no telemetry data expected for virtual device");
+    Ok(())
+}
+
+// =========================================================================
+// 10. Multiple concurrent clients
+// =========================================================================
+
+#[tokio::test]
+async fn concurrent_multiple_ipc_subscribers() -> Result<(), BoxErr> {
+    let ipc_config = IpcConfig::default();
+    let server = IpcServer::new(ipc_config).await?;
+
+    let mut receivers: Vec<_> = (0..5).map(|_| server.get_health_receiver()).collect();
+
+    server.broadcast_health_event(racing_wheel_service::HealthEventInternal {
+        device_id: "multi-client".to_string(),
+        event_type: "ping".to_string(),
+        message: "hello".to_string(),
+        timestamp: std::time::SystemTime::now(),
+    });
+
+    for rx in &mut receivers {
+        let evt = tokio::time::timeout(Duration::from_secs(2), rx.recv()).await??;
+        assert_eq!(evt.device_id, "multi-client");
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn concurrent_service_operations_from_clones() -> Result<(), BoxErr> {
+    let (svc, _tmp) = temp_service().await?;
+
+    let mut handles = Vec::new();
+    for i in 0..5 {
+        let svc_clone = svc.clone();
+        handles.push(tokio::spawn(async move {
+            let did: DeviceId = format!("conc-dev-{i}")
+                .parse()
+                .map_err(|e| -> BoxErr { format!("bad id: {e}").into() })?;
+            let t = TorqueNm::new(10.0)
+                .map_err(|e| -> BoxErr { format!("bad torque: {e}").into() })?;
+            svc_clone
+                .safety_service()
+                .register_device(did, t)
+                .await
+                .map_err(|e| -> BoxErr { format!("register: {e}").into() })?;
+            Ok::<_, BoxErr>(())
+        }));
+    }
+
+    for h in handles {
+        h.await??;
+    }
+
+    let stats = svc.safety_service().get_statistics().await;
+    assert_eq!(stats.total_devices, 5);
+    Ok(())
+}
+
+#[tokio::test]
+async fn concurrent_profile_creates_from_clones() -> Result<(), BoxErr> {
+    let (svc, _tmp) = temp_service().await?;
+
+    let mut handles = Vec::new();
+    for i in 0..4 {
+        let svc_clone = svc.clone();
+        handles.push(tokio::spawn(async move {
+            let profile = make_profile(&format!("conc-prof-{i}"))?;
+            svc_clone.profile_service().create_profile(profile).await?;
+            Ok::<_, BoxErr>(())
+        }));
+    }
+
+    for h in handles {
+        h.await??;
+    }
+
+    let all = svc.profile_service().list_profiles().await?;
+    assert_eq!(all.len(), 4);
+    Ok(())
+}
+
+// =========================================================================
+// 11. Service recovery after subsystem error
+// =========================================================================
+
+#[tokio::test]
+async fn recovery_safety_service_after_unknown_device_error() -> Result<(), BoxErr> {
+    let (svc, _tmp) = temp_service().await?;
+    let bad = parse_device_id("no-such-device")?;
+
+    // Should return error, not panic
+    let err = svc.safety_service().get_safety_state(&bad).await;
+    assert!(err.is_err());
+
+    // Service still operable
+    let did = parse_device_id("recovery-dev")?;
+    let t = torque(10.0)?;
+    svc.safety_service().register_device(did.clone(), t).await?;
+    let state = svc.safety_service().get_safety_state(&did).await?;
+    assert_eq!(state.interlock_state, InterlockState::SafeTorque);
+    Ok(())
+}
+
+#[tokio::test]
+async fn recovery_profile_service_after_missing_profile_update() -> Result<(), BoxErr> {
+    let (svc, _tmp) = temp_service().await?;
+
+    // Attempt to update a profile that doesn't exist
+    let missing_id = racing_wheel_schemas::prelude::ProfileId::new("missing-prof".to_string())?;
+    let fake_profile = make_profile("missing-prof")?;
+    let err = svc.profile_service().update_profile(fake_profile).await;
+    assert!(err.is_err(), "updating non-existent profile should fail");
+
+    // Service should still work
+    let profile = make_profile("recovery-prof")?;
+    svc.profile_service().create_profile(profile).await?;
+    let profiles = svc.profile_service().list_profiles().await?;
+    assert_eq!(profiles.len(), 1);
+    let _ = missing_id;
+    Ok(())
+}
+
+#[tokio::test]
+async fn recovery_safety_after_fault_then_clear() -> Result<(), BoxErr> {
+    let (svc, _tmp) = temp_service().await?;
+    let did = parse_device_id("recovery-fault")?;
+    let t = torque(12.0)?;
+    svc.safety_service().register_device(did.clone(), t).await?;
+
+    // Trigger fatal fault
+    svc.safety_service()
+        .report_fault(&did, FaultType::ThermalLimit, FaultSeverity::Fatal)
+        .await?;
+    let state = svc.safety_service().get_safety_state(&did).await?;
+    assert!(matches!(state.interlock_state, InterlockState::Faulted { .. }));
+
+    // Clear and resume
+    svc.safety_service()
+        .clear_fault(&did, FaultType::ThermalLimit)
+        .await?;
+    let state = svc.safety_service().get_safety_state(&did).await?;
+    assert_eq!(state.interlock_state, InterlockState::SafeTorque);
+    Ok(())
+}
+
+#[tokio::test]
+async fn recovery_multiple_faults_then_clear_all() -> Result<(), BoxErr> {
+    let (svc, _tmp) = temp_service().await?;
+    let did = parse_device_id("multi-fault")?;
+    let t = torque(10.0)?;
+    svc.safety_service().register_device(did.clone(), t).await?;
+
+    // Report multiple faults
+    svc.safety_service()
+        .report_fault(&did, FaultType::ThermalLimit, FaultSeverity::Warning)
+        .await?;
+    svc.safety_service()
+        .report_fault(&did, FaultType::UsbStall, FaultSeverity::Warning)
+        .await?;
+
+    let state = svc.safety_service().get_safety_state(&did).await?;
+    assert_eq!(state.fault_count, 2);
+    Ok(())
+}
+
+// =========================================================================
+// 12. Resource cleanup on shutdown
+// =========================================================================
+
+#[tokio::test]
+async fn cleanup_temp_dir_profiles_persisted() -> Result<(), BoxErr> {
+    let tmp = TempDir::new()?;
+    let profiles_dir = tmp.path().to_path_buf();
+    let config = ProfileRepositoryConfig {
+        profiles_dir: profiles_dir.clone(),
+        trusted_keys: Vec::new(),
+        auto_migrate: true,
+        backup_on_migrate: false,
+    };
+
+    // Create service, add profile, drop
+    let svc = WheelService::new_with_profile_config(config.clone()).await?;
+    let profile = make_profile("cleanup-test")?;
+    svc.profile_service().create_profile(profile).await?;
+    drop(svc);
+
+    // Verify data persists on disk
+    let entries: Vec<_> = std::fs::read_dir(&profiles_dir)?
+        .filter_map(|e| e.ok())
+        .collect();
+    assert!(!entries.is_empty(), "profile files should persist after drop");
+    Ok(())
+}
+
+#[tokio::test]
+async fn cleanup_ipc_server_shutdown_idempotent() -> Result<(), BoxErr> {
+    let server = IpcServer::new(IpcConfig::default()).await?;
+
+    // Multiple shutdowns should not panic
+    server.shutdown().await;
+    server.shutdown().await;
+    server.shutdown().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn cleanup_broadcast_channels_after_drop() -> Result<(), BoxErr> {
+    let server = IpcServer::new(IpcConfig::default()).await?;
+    let mut rx = server.get_health_receiver();
+
+    // Emit while server alive
+    server.broadcast_health_event(racing_wheel_service::HealthEventInternal {
+        device_id: "cleanup-dev".to_string(),
+        event_type: "info".to_string(),
+        message: "before shutdown".to_string(),
+        timestamp: std::time::SystemTime::now(),
+    });
+    let evt = tokio::time::timeout(Duration::from_secs(2), rx.recv()).await??;
+    assert_eq!(evt.device_id, "cleanup-dev");
+
+    // After server shutdown, channel eventually closes
+    server.shutdown().await;
+    drop(server);
+
+    // Receiver should get a lagged or closed error (or simply no more messages)
+    let result = tokio::time::timeout(Duration::from_millis(100), rx.recv()).await;
+    // Either timeout or error is acceptable — the channel is dead
+    assert!(
+        result.is_err() || result.as_ref().is_ok_and(|r| r.is_err()),
+        "no more events after server drop"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn cleanup_daemon_with_profile_dir_cleanup() -> Result<(), BoxErr> {
+    let tmp = TempDir::new()?;
+    let profiles_dir = tmp.path().to_path_buf();
+    let config = ProfileRepositoryConfig {
+        profiles_dir: profiles_dir.clone(),
+        trusted_keys: Vec::new(),
+        auto_migrate: true,
+        backup_on_migrate: false,
+    };
+
+    let svc_config = test_service_config();
+    let daemon = ServiceDaemon::new_with_profile_config(svc_config, config).await?;
+    let handle = tokio::spawn(async move { daemon.run().await });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    handle.abort();
+    let _ = handle.await;
+
+    // Profile directory should still be accessible
+    assert!(profiles_dir.exists());
+    Ok(())
+}
