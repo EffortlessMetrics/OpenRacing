@@ -90,6 +90,7 @@ openracing-watchdog = { workspace = true }
 openracing-fmea = { workspace = true }
 openracing-atomic = { workspace = true }
 openracing-telemetry-streams= { path = "../openracing-telemetry-streams" }
+openracing-diagnostic = { workspace = true }
 semver = { workspace = true }
 
 # Mock and test doubles
