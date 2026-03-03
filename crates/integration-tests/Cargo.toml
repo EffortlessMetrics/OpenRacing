@@ -79,6 +79,10 @@ openracing-profile = { path = "../openracing-profile" }
 openracing-filters = { workspace = true }
 openracing-pipeline = { workspace = true }
 openracing-calibration = { workspace = true }
+openracing-ipc = { workspace = true }
+openracing-errors = { workspace = true }
+openracing-plugin-abi = { workspace = true }
+openracing-device-types = { workspace = true }
 semver = { workspace = true }
 
 # Mock and test doubles
