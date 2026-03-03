@@ -14,3 +14,4 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 racing-wheel-engine = { path = "../engine" }
+proptest = { workspace = true }

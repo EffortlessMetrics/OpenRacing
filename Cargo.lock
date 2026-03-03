@@ -876,6 +876,7 @@ dependencies = [
 name = "compat"
 version = "0.1.0"
 dependencies = [
+ "proptest",
  "racing-wheel-engine",
  "workspace-hack",
 ]
@@ -6052,6 +6053,7 @@ name = "racing-wheel-telemetry-config"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "proptest",
  "racing-wheel-telemetry-config-writers",
  "serde",
  "serde_json",
@@ -6143,6 +6145,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "insta",
+ "proptest",
  "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-core",
  "tokio",
@@ -6172,6 +6175,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "insta",
+ "proptest",
  "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-core",
  "tokio",
@@ -6240,6 +6244,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "insta",
+ "proptest",
  "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-core",
  "tokio",
@@ -6254,6 +6259,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "insta",
+ "proptest",
  "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-core",
  "tokio",
