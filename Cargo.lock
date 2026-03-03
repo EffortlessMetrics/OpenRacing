@@ -5885,6 +5885,7 @@ dependencies = [
  "racing-wheel-telemetry-adapters",
  "racing-wheel-telemetry-config",
  "racing-wheel-telemetry-config-writers",
+ "racing-wheel-telemetry-recorder",
  "racing-wheel-telemetry-support",
  "rand 0.9.2",
  "semver",
