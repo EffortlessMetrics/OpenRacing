@@ -83,6 +83,10 @@ openracing-ipc = { workspace = true }
 openracing-errors = { workspace = true }
 openracing-plugin-abi = { workspace = true }
 openracing-device-types = { workspace = true }
+openracing-watchdog = { workspace = true }
+openracing-fmea = { workspace = true }
+openracing-atomic = { workspace = true }
+openracing-telemetry-streams= { path = "../openracing-telemetry-streams" }
 semver = { workspace = true }
 
 # Mock and test doubles
